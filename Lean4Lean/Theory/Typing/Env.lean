@@ -29,7 +29,7 @@ inductive VDecl.WF : VEnv → VDecl → VEnv → Prop where
     VDecl.WF env .quot env'
   | induct :
     decl.WF env →
-    env.addInduct decl = some env' →
+    VEnv.AddInduct env decl env' →
     VDecl.WF env (.induct decl) env'
 
 inductive VEnv.WF' : List VDecl → VEnv → Prop where
