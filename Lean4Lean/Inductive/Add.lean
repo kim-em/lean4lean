@@ -276,15 +276,16 @@ def isLargeEliminator (stats : InductiveStats) (indTypes : Array InductiveType) 
     loop ctor.type 0 #[] (← readThe Context).fuel.inductiveFuel
   | _ => return false
 
-partial -- TODO: remove
 def getElimLevel (stats : InductiveStats) (indTypes : Array InductiveType) :
     M Level := do
   unless ← isLargeEliminator stats indTypes do return .zero
   let {lparams, ..} ← read
-  let rec loop u i := Id.run do
-    unless lparams.contains u do return .param u
-    loop ((`u).appendIndexAfter i) (i + 1)
-  return loop `u 1
+  let rec loop u i
+    | 0 => throw <| .other "failed to select a fresh recursor universe parameter"
+    | fuel + 1 => do
+      unless lparams.contains u do return .param u
+      loop ((`u).appendIndexAfter i) (i + 1) fuel
+  loop `u 1 (lparams.length + 1)
 
 def isKTarget (stats : InductiveStats) (indTypes : Array InductiveType) : M Bool := do
   let #[indType] := indTypes | return false
@@ -571,15 +572,16 @@ instance : MonadNameGenerator M where
   getNGen := return (← get).ngen
   setNGen ngen := modify fun s => { s with ngen }
 
--- TODO: remove partial
-partial def mkUniqueName (n : Name) : M Name := fun env s =>
-  let rec loop i :=
+def mkUniqueName (n : Name) : M Name := fun env s =>
+  let rec loop i
+    | 0 => throw <| .other "failed to select a fresh nested-inductive name"
+    | fuel + 1 =>
     let r := n.appendIndexAfter i
     if env.contains r then
-      loop (i + 1)
+      loop (i + 1) fuel
     else
       pure (r, { s with nextIdx := i + 1 })
-  loop s.nextIdx
+  loop s.nextIdx (env.constants.toList.length + 1)
 
 def illFormed : Exception :=
   .other "invalid nested inductive datatype, ill-formed declaration"
