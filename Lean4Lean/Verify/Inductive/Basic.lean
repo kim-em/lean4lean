@@ -791,6 +791,34 @@ def cachedParamVars : Nat → Nat → List VExpr
       (cachedParamVars done depth).map (fun e => e.liftN 1 0) ++
         [.bvar depth] := rfl
 
+@[simp] theorem cachedParamVars_length :
+    (cachedParamVars done depth).length = done := by
+  induction done with
+  | zero => rfl
+  | succ done ih => simp [cachedParamVars_succ, ih]
+
+theorem cachedParamVars_getElem? :
+    (cachedParamVars done depth)[i]? =
+      if i < done then some (.bvar (depth + (done - 1 - i))) else none := by
+  induction done generalizing depth i with
+  | zero => simp
+  | succ done ih =>
+    simp only [cachedParamVars_succ]
+    by_cases hprior : i < done
+    · rw [List.getElem?_append_left (by simp [hprior])]
+      rw [List.getElem?_map, ih]
+      simp only [hprior, if_true, Option.map_some]
+      simp [VExpr.liftN]
+      congr 2
+      omega
+    · by_cases hcurrent : i < done + 1
+      · have hieq : i = done := by omega
+        subst i
+        simp
+      · have hout : done + 1 ≤ i := by omega
+        rw [List.getElem?_eq_none_iff.2 (by simp; omega)]
+        simp [hcurrent]
+
 @[simp] theorem cachedParamVars_depth_succ :
     cachedParamVars done (depth + 1) =
       (cachedParamVars done depth).map (fun e => e.liftN 1 0) := by
@@ -799,6 +827,21 @@ def cachedParamVars : Nat → Nat → List VExpr
   | succ done ih =>
     simp [cachedParamVars_succ, ih, List.map_map, VExpr.liftN,
       Function.comp_def]
+
+theorem cachedParamVars_eq_paramVars (decl : VInductDecl) :
+    cachedParamVars decl.nparams depth = decl.paramVars depth := by
+  apply List.ext_getElem?
+  intro i
+  rw [cachedParamVars_getElem?]
+  by_cases hi : i < decl.nparams
+  · rw [VInductDecl.paramVars, List.getElem?_map]
+    rw [List.getElem?_reverse (by simp [hi])]
+    have hj : decl.nparams - 1 - i < decl.nparams := by omega
+    simp [hi, hj]
+  · rw [List.getElem?_eq_none_iff.2 (by
+      simp [VInductDecl.paramVars]
+      omega)]
+    simp [hi]
 
 /-- Local invariant for the first header's common-parameter branch. -/
 structure ParameterCachePrefix (env : VEnv) (Us : List Name) (Δ : VLCtx)
@@ -891,6 +934,14 @@ theorem ParameterCachePrefix.withIndex
       exact .cons
         (h.weakFV Hc.checking.tr.wf.ordered W Hc'.mlctx_wf.tr.wf) ih
   exact mapRight H.params
+
+theorem ParameterCachePrefix.complete
+    {decl : VInductDecl}
+    (H : ParameterCachePrefix env Us Δ stats decl.nparams depth) :
+    List.Forall₂ (TrExprS env Us Δ) stats.params.toList
+      (decl.paramVars depth) := by
+  rw [← cachedParamVars_eq_paramVars decl]
+  exact H.params
 
 /-- Fuel exhaustion cannot produce a successful result. -/
 theorem zero.WF :
