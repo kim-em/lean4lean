@@ -1306,6 +1306,37 @@ noncomputable def HeaderSynthesisCertificate.normalize
     header := H.header.trans_r Hc.checking.tr.wf (by trivial)
       (by simpa using hwrapped) }
 
+theorem HeaderSynthesisCertificate.typeShapeWithParams
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {decl : VInductDecl} {target : VInductiveType}
+    {params : List VExpr}
+    (H : HeaderSynthesisCertificate Hc target.toSkeleton current
+      decl.nparams target.numIndices)
+    (huvars : c.lparams.length = decl.uvars)
+    (hparams : decl.ParamsDefEq Hc.venv params H.params)
+    (hlevel : ∀ resultLevel,
+      VLevel.ofLevel c.lparams level = some resultLevel →
+      resultLevel = target.resultLevel)
+    (hsort : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      (.sort level) current) :
+    decl.TypeShape Hc.venv params target := by
+  have hparamsTake :
+      (VExpr.wrapForalls (H.params ++ H.indices) current).takeForalls
+        decl.nparams =
+      some (H.params, VExpr.wrapForalls H.indices current) := by
+    simpa only [H.parameterCount] using
+      VExpr.takeForalls_wrapForalls_append H.params H.indices current
+  have hindicesTake :
+      (VExpr.wrapForalls H.indices current).takeForalls target.numIndices =
+      some (H.indices, current) := by
+    simpa only [H.indexCount] using
+      VExpr.takeForalls_wrapForalls H.indices current
+  apply TrExpr.typeShapeOfDefEqCtx Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+    huvars H.context
+    (by simpa [huvars, VInductiveType.toSkeleton] using H.header)
+    hparamsTake hindicesTake
+    hparams hlevel hsort
+
 theorem HeaderSynthesisCertificate.typeShape
     {c : AddInductive.Context} {Hc : ContextWF c}
     {decl : VInductDecl} {target : VInductiveType}
@@ -1318,24 +1349,10 @@ theorem HeaderSynthesisCertificate.typeShape
     (hsort : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
       (.sort level) current) :
     decl.TypeShape Hc.venv H.params target := by
-  have hparamsTake :
-      (VExpr.wrapForalls (H.params ++ H.indices) current).takeForalls
-        decl.nparams =
-      some (H.params, VExpr.wrapForalls H.indices current) := by
-    simpa only [H.parameterCount] using
-      VExpr.takeForalls_wrapForalls_append H.params H.indices current
-  have hindicesTake :
-      (VExpr.wrapForalls H.indices current).takeForalls target.numIndices =
-      some (H.indices, current) := by
-    simpa only [H.indexCount] using
-      VExpr.takeForalls_wrapForalls H.indices current
   have hctxType : OnCtx (H.indices.reverse ++ H.params.reverse)
       (Hc.venv.IsType decl.uvars) := by
     simpa [huvars] using H.context.isType
-  apply TrExpr.typeShapeOfDefEqCtx Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
-    huvars H.context
-    (by simpa [huvars, VInductiveType.toSkeleton] using H.header)
-    hparamsTake hindicesTake
+  exact H.typeShapeWithParams huvars
     (VInductDecl.paramsDefEq_reflOfAppend hctxType) hlevel hsort
 
 /-- Materialize the two semantic header fields from the successful executable
@@ -1391,6 +1408,37 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
     apply H.synthesizedTypeShape (decl := decl)
     · exact huvars'
     · exact hofLevel
+    · exact hsort
+
+/-- Later mutual headers use the first header's parameter telescope.  Their
+own synthesized domains are connected to it by the successful executable
+`isDefEq` checks, represented here independently of the not-yet-materialized
+declaration. -/
+theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {source : VInductiveTypeSkeleton} {commonParams : List VExpr}
+    (H : HeaderSynthesisCertificate Hc source current nparams nindices)
+    (huvars : c.lparams.length = uvars)
+    (hparams : VEnv.IsDefEqCtx Hc.venv uvars []
+      commonParams.reverse H.params.reverse)
+    (hofLevel : VLevel.ofLevel c.lparams level = some resultLevel)
+    (hsort : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      (.sort level) current) :
+    SynthesizedHeader Hc.venv uvars nparams commonParams source
+      nindices resultLevel where
+  typeShape decl hdeclUvars hdeclParams := by
+    have huvars' : c.lparams.length = decl.uvars :=
+      huvars.trans hdeclUvars.symm
+    have hparams' : decl.ParamsDefEq Hc.venv commonParams H.params := by
+      simpa [VInductDecl.ParamsDefEq, hdeclUvars] using hparams
+    subst nparams
+    apply H.typeShapeWithParams
+      (target := source.toVInductiveType nindices resultLevel)
+      huvars' hparams'
+    · intro resultLevel' hofLevel'
+      rw [hofLevel] at hofLevel'
+      cases hofLevel'
+      rfl
     · exact hsort
 
 structure SynthesizedHeaderMetadata (env : VEnv) (uvars nparams : Nat)
