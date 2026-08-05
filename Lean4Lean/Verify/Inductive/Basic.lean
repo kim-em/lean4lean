@@ -1799,6 +1799,38 @@ theorem ParameterContextSuffix.splitAt
   · simp [List.length_take, Nat.min_eq_left (Nat.le_of_lt hj), j]
   · exact H.parameterAt hi hj
 
+/-- Expose the exact `FVLift` that removes the ambient declarations and the
+cached parameters newer than executable parameter `i`, leaving that
+parameter as the head of the retained suffix. -/
+theorem ParameterContextSuffix.fvLiftAt
+    (H : ParameterContextSuffix Hc stats depth)
+    (hi : i < stats.params.size) :
+    ∃ added older fv deps d,
+      Hc.mlctx.vlctx =
+        added ++ (some (fv, deps), d) :: older ∧
+      stats.params[i] = .fvar fv ∧
+      VLCtx.FVLift ((some (fv, deps), d) :: older) Hc.mlctx.vlctx
+        0 (VLCtx.toCtx added).length 0 := by
+  rcases H.splitAt hi with
+    ⟨newer, entry, older, hdecls, _hnewer, hcached⟩
+  rcases hcached with ⟨fv, deps, d, hparam, rfl⟩
+  let added := H.ambientDecls ++ newer
+  have hcontext : Hc.mlctx.vlctx =
+      added ++ (some (fv, deps), d) :: older := by
+    rw [H.context, hdecls]
+    simp only [added, List.append_assoc]
+  have hfullNoBV :
+      (added ++ (some (fv, deps), d) :: older).NoBV := by
+    rw [← hcontext]
+    exact Hc.mlctx.noBV
+  have hadded : added.NoBV :=
+    VLCtx.NoBV.leftOfAppend added ((some (fv, deps), d) :: older)
+      hfullNoBV
+  have hlift := VLCtx.FVLift.to_append
+    ((some (fv, deps), d) :: older) hadded
+  rw [← hcontext] at hlift
+  exact ⟨added, older, fv, deps, d, hcontext, hparam, hlift⟩
+
 /-- Adding a common parameter weakens every cached parameter translation and
 appends the newly generated free variable, whose abstract image is `bvar 0`.
 This is the exact state update performed by `loopType` on the first header. -/
