@@ -1000,6 +1000,101 @@ end checkConstructors.loopCtor
 
 namespace checkPositivityStep
 
+theorem hasIndOcc_eq_findAny :
+    AddInductive.hasIndOcc indConsts type =
+      type.findAny (fun
+        | .const name _ => indConsts.any fun I => I.constName! == name
+        | _ => false) := by
+  unfold AddInductive.hasIndOcc
+  exact Expr.find?_isSome_eq_findAny _ _
+
+def IndConstNames (indConsts : Array Expr) (names : List Name) : Prop :=
+  ∀ name, (indConsts.any fun I => I.constName! == name) = names.contains name
+
+def LiteralDisjoint (indConsts : Array Expr) : Prop :=
+  ∀ literal : Literal,
+    AddInductive.hasIndOcc indConsts literal.toConstructor = false
+
+@[simp] theorem VExpr.containsAnyConst_liftN
+    {e : VExpr} {n k : Nat} {names : List Name} :
+    (e.liftN n k).containsAnyConst names = e.containsAnyConst names := by
+  induction e generalizing k <;>
+    simp [VExpr.liftN, VExpr.containsAnyConst, *]
+
+def VLCtx.NoIndConsts (names : List Name) (Δ : VLCtx) : Prop :=
+  ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
+    mapped.containsAnyConst names = false
+
+theorem VLCtx.NoIndConsts.cons {Δ : VLCtx} {names : List Name}
+    {ofv : Option (FVarId × List FVarId)} {d : VLocalDecl}
+    (H : VLCtx.NoIndConsts names Δ)
+    (hvalue : d.value.containsAnyConst names = false) :
+    VLCtx.NoIndConsts names ((ofv, d) :: Δ) := by
+  intro v mapped type hfind
+  simp only [VLCtx.find?] at hfind
+  split at hfind
+  · cases hfind
+    exact hvalue
+  · simp at hfind
+    rcases hfind with ⟨old, _type, hfind, hmap, _⟩
+    rw [← hmap]
+    simpa using H hfind
+
+/-- Absence of a newly declared constant is preserved by syntax translation.
+Literal expansion and projection translation are explicit side conditions:
+literals introduce old primitive constants, while `TrProj` is still an
+independent typing boundary in the existing model. -/
+theorem TrExprS.noIndOcc
+    (halign : IndConstNames indConsts names)
+    (hlit : LiteralDisjoint indConsts)
+    (hctx : VLCtx.NoIndConsts names Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst names = false →
+      e''.containsAnyConst names = false)
+    (H : TrExprS env Us Δ e e')
+    (hno : AddInductive.hasIndOcc indConsts e = false) :
+    e'.containsAnyConst names = false := by
+  rw [hasIndOcc_eq_findAny] at hno
+  induction H with
+  | bvar hfind | fvar hfind => exact hctx hfind
+  | sort _ => rfl
+  | const _ _ _ =>
+    simp only [Expr.findAny] at hno
+    change names.contains _ = false
+    rw [← halign]
+    exact hno
+  | app _ _ _ _ ihFn ihArg =>
+    simp only [Expr.findAny, Bool.false_or] at hno
+    rcases Bool.or_eq_false_iff.mp hno with ⟨hfn, harg⟩
+    exact Bool.or_eq_false_iff.mpr ⟨ihFn hctx hfn, ihArg hctx harg⟩
+  | lam _ _ _ ihTy ihBody =>
+    simp only [Expr.findAny, Bool.false_or] at hno
+    rcases Bool.or_eq_false_iff.mp hno with ⟨hty, hbody⟩
+    apply Bool.or_eq_false_iff.mpr
+    refine ⟨ihTy hctx hty, ihBody ?_ hbody⟩
+    exact VLCtx.NoIndConsts.cons hctx (by rfl)
+  | forallE _ _ _ _ ihTy ihBody =>
+    simp only [Expr.findAny, Bool.false_or] at hno
+    rcases Bool.or_eq_false_iff.mp hno with ⟨hty, hbody⟩
+    apply Bool.or_eq_false_iff.mpr
+    refine ⟨ihTy hctx hty, ihBody ?_ hbody⟩
+    exact VLCtx.NoIndConsts.cons hctx (by rfl)
+  | letE _ _ _ _ ihTy ihValue ihBody =>
+    simp only [Expr.findAny, Bool.false_or] at hno
+    rcases Bool.or_eq_false_iff.mp hno with ⟨htyValue, hbody⟩
+    rcases Bool.or_eq_false_iff.mp htyValue with ⟨hty, hvalue⟩
+    have hvalue' := ihValue hctx hvalue
+    exact ihBody (hctx.cons (d := .vlet _ _) (ofv := none) hvalue') hbody
+  | lit _ _ ih =>
+    apply ih hctx
+    rw [← hasIndOcc_eq_findAny]
+    exact hlit _
+  | mdata _ ih =>
+    simpa only [Expr.findAny, Bool.false_or] using ih hctx hno
+  | proj _ Hproj ih =>
+    simp only [Expr.findAny, Bool.false_or] at hno
+    exact hproj Hproj (ih hctx hno)
+
 theorem noOccurrence.WF
     {type : Expr} {Q : Unit → Prop}
     (hocc : AddInductive.hasIndOcc stats.indConsts type = false)
