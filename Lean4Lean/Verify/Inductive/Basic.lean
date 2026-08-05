@@ -2477,6 +2477,173 @@ theorem mkRecInfos.loopCtorArgs.selectedSublist {α : Type}
   unfold AddInductive.mkRecInfos.loopCtorArgs
   exact mkRecInfos.loopCtorArgs.loop.selectedSublist stats k .slnil Hk
 
+/-- Proof-side metadata retained for every field selected by `isRecArg`.
+The executable code stores only the field free variable; this record retains
+the independent recursive-domain certificate needed by `IotaRule`. -/
+structure RecursorRecursiveDomain (env : VEnv) (decl : VInductDecl) where
+  fieldIndex : Nat
+  ctx : List VExpr
+  depth : Nat
+  domain : VExpr
+  recursive : decl.RecursiveArg env ctx depth domain
+
+/-- Exact correspondence between the two arrays built by `loopCtorArgs` and
+the proof-side recursive-domain certificates. Constructors preserve the
+left-to-right field order and record the field ordinal at selection time. -/
+inductive RecursorFieldSelections (env : VEnv) (decl : VInductDecl) :
+    Array Expr → Array Expr → List (RecursorRecursiveDomain env decl) → Prop
+  | nil : RecursorFieldSelections env decl #[] #[] []
+  | nonrecursive : RecursorFieldSelections env decl bu u fields →
+      RecursorFieldSelections env decl (bu.push arg) u fields
+  | recursive : RecursorFieldSelections env decl bu u fields →
+      cert.fieldIndex = bu.size →
+      RecursorFieldSelections env decl (bu.push arg) (u.push arg)
+        (fields ++ [cert])
+
+theorem RecursorFieldSelections.selectedSublist
+    (H : RecursorFieldSelections env decl bu u fields) :
+    u.toList.Sublist bu.toList := by
+  induction H with
+  | nil => exact .slnil
+  | nonrecursive _ ih =>
+    simpa using ih.trans (List.sublist_append_left _ [_])
+  | @recursive bu u fields arg cert _ _ ih =>
+    simpa using ih.append_right [arg]
+
+theorem RecursorFieldSelections.fields_length
+    (H : RecursorFieldSelections env decl bu u fields) :
+    fields.length = u.size := by
+  induction H with
+  | nil => rfl
+  | nonrecursive _ ih => exact ih
+  | recursive _ _ ih => simp [ih]
+
+theorem RecursorFieldSelections.positions_lt
+    (H : RecursorFieldSelections env decl bu u fields) :
+    ∀ cert ∈ fields, cert.fieldIndex < bu.size := by
+  induction H with
+  | nil => simp
+  | @nonrecursive bu u fields arg _ ih =>
+    intro cert hmem
+    have := ih cert hmem
+    simp only [Array.size_push]
+    omega
+  | @recursive bu u fields arg cert _ hindex ih =>
+    intro old hmem
+    simp only [List.mem_append, List.mem_singleton] at hmem
+    rcases hmem with hmem | rfl
+    · have := ih old hmem
+      simp only [Array.size_push]
+      omega
+    · simp only [Array.size_push, hindex]
+      omega
+
+theorem RecursorFieldSelections.positions_ordered
+    (H : RecursorFieldSelections env decl bu u fields) :
+    (fields.map (·.fieldIndex)).Pairwise (· < ·) := by
+  induction H with
+  | nil => simp
+  | nonrecursive _ ih => exact ih
+  | @recursive bu u fields arg cert H hindex ih =>
+    simp only [List.map_append, List.map_singleton]
+    rw [List.pairwise_append]
+    refine ⟨ih, by simp, ?_⟩
+    intro old hold _ hnew
+    simp only [List.mem_singleton] at hnew
+    subst hnew
+    rw [hindex]
+    rcases List.mem_map.mp hold with ⟨oldCert, hmem, rfl⟩
+    exact H.positions_lt oldCert hmem
+
+namespace mkRecInfos.loopCtorArgs.loop
+
+/-- Typed refinement of the genuine-field suffix of `loopCtorArgs`. Common
+parameters have already been exhausted, so every remaining forall binder is a
+constructor field. Each successful recursive classification extends an exact
+ordered list of independent `RecursiveArg` certificates. -/
+theorem recursiveDomains {α : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Array Expr → AddInductive.M α)
+    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
+    {t : Expr} {i : Nat} {bu u : Array Expr} {fuel : Nat}
+    {c : AddInductive.Context} {Q : α → Prop}
+    (Hc : ContextWF c)
+    {fields : List (RecursorRecursiveDomain Hc.venv decl)}
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl depth)
+    (hparams : stats.params.size ≤ i)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx t type')
+    (hfields : RecursorFieldSelections Hc.venv decl bu u fields)
+    (Hk : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      {t' : Expr} {type'' : VExpr}
+      {bu' u' : Array Expr}
+      {fields' : List (RecursorRecursiveDomain Hc'.venv decl)},
+      TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx t' type'' →
+      RecursorFieldSelections Hc'.venv decl bu' u' fields' →
+      (k t' bu' u' c').WF Q) :
+    (AddInductive.mkRecInfos.loopCtorArgs.loop stats k t i bu u fuel c).WF Q := by
+  induction fuel generalizing c t i bu u depth type' fields with
+  | zero =>
+    intro _ h
+    simp [AddInductive.mkRecInfos.loopCtorArgs.loop] at h
+  | succ fuel ih =>
+    cases t with
+    | forallE name dom body bi =>
+      rw [AddInductive.mkRecInfos.loopCtorArgs.loop]
+      have hparam : stats.params[i]? = none := by
+        apply Array.getElem?_eq_none
+        omega
+      rw [hparam]
+      have htypeTr := htype.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+      rcases TrExpr.forallE_source htypeTr with
+        ⟨sourceDom', sourceBody', hdom, hbody, hdomType, _, _⟩
+      rcases hconsume c Hc hdom hdomType with ⟨consumedDom', Hdom⟩
+      rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+      refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+        Hc Hdom.consumed Hdom.isType ?_
+      let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+        Hdom.consumed Hdom.isType
+      have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
+        Hc Hdom.consumed Hdom.isType
+      have hctx' : checkPositivityStep.VLCtx.NoIndConsts
+          (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
+        apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
+        rfl
+      have hdomWeak : TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx dom
+          (sourceDom'.liftN 1 0) := by
+        apply Hdom.source.weakFV Hc.checking.tr.wf.ordered
+          (.skip_fvar _ _ .refl)
+        exact Hc'.mlctx_wf.tr.wf
+      have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+        Hdom.consumed Hdom.isType hbody''
+      have Hclass := isRecArg.refines Hc' Hstats' hconsume hlit hctx' hproj
+        (hdomWeak.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
+      refine Hclass.bind fun selected hselected => ?_
+      cases selected with
+      | none =>
+        exact ih Hc' Hstats' (by omega) hctx' hopened
+          (.nonrecursive hfields)
+      | some target =>
+        let cert : RecursorRecursiveDomain Hc'.venv decl := {
+          fieldIndex := bu.size
+          ctx := Hc'.mlctx.vlctx.toCtx
+          depth := depth + 1
+          domain := sourceDom'.liftN 1 0
+          recursive := hselected target rfl }
+        exact ih Hc' Hstats' (by omega) hctx' hopened
+          (.recursive hfields (cert := cert) rfl)
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata | proj =>
+      exact Hk Hc htype hfields
+
+end mkRecInfos.loopCtorArgs.loop
+
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
 theorem checkConstructors.loopCtor.tailRefinesFull
