@@ -1475,6 +1475,56 @@ theorem isValidIndApp?_some
   exact ⟨by simpa using (isValidIndAppFrom?_some h).2.1,
     (isValidIndAppFrom?_some h).2.2⟩
 
+/-- Once the preceding validation has identified a family member,
+`getIIndices` returns that same member. This isolates the partial `get!` in
+the production helper. -/
+theorem getIIndices.fst_eq_of_valid
+    (h : AddInductive.isValidIndApp? stats type = some i) :
+    (AddInductive.getIIndices stats type).1 = i := by
+  simp only [AddInductive.getIIndices, h, Option.get!_eq_getD,
+    Option.getD_some]
+
+/-- The suffix returned by `getIIndices` has the declared index arity of the
+selected mutual-family member. -/
+theorem getIIndices.index_arity
+    (h : AddInductive.isValidIndApp? stats type = some i) :
+    (AddInductive.getIIndices stats type).2.size = stats.nindices[i]! := by
+  rw [AddInductive.getIIndices]
+  change (type.getAppArgs.toSubarray stats.params.size).toArray.size = _
+  rw [Subarray.size_toArray, Subarray.size_eq]
+  simp only [Array.stop_toSubarray, Array.start_toSubarray]
+  have hvalid := (isValidIndApp?_some h).2
+  have harity := isValidIndAppIdx.arity hvalid
+  omega
+
+theorem getIIndices.family_lt
+    {decl : VInductDecl}
+    (H : checkPositivityStep.ValidAppStatsWF env Us Δ stats decl depth)
+    (h : AddInductive.isValidIndApp? stats type = some i) :
+    (AddInductive.getIIndices stats type).1 < decl.types.length := by
+  rw [getIIndices.fst_eq_of_valid h]
+  have hi := (isValidIndApp?_some h).1
+  rw [H.consts.exact] at hi
+  simpa using hi
+
+/-- Together with the stats/declaration correspondence, the executable suffix
+has the abstractly declared index arity. -/
+theorem getIIndices.declared_index_arity
+    {decl : VInductDecl}
+    (H : checkPositivityStep.ValidAppStatsWF env Us Δ stats decl depth)
+    (h : AddInductive.isValidIndApp? stats type = some i) :
+    (AddInductive.getIIndices stats type).2.size =
+      (decl.types[i]'(by simpa [getIIndices.fst_eq_of_valid h] using
+        getIIndices.family_lt H h)).numIndices := by
+  rw [getIIndices.index_arity h]
+  have hi : i < decl.types.length := by
+    simpa [getIIndices.fst_eq_of_valid h] using getIIndices.family_lt H h
+  have hlen : stats.nindices.size = decl.types.length := by
+    have := congrArg List.length H.indices
+    simpa using this
+  have hget := congrArg (fun xs => xs[i]?) H.indices
+  simpa [Array.getElem!_eq_getD, hi, hlen] using hget
+
 /-- A validated concrete parameter argument translates to the corresponding
 abstract de Bruijn parameter.  The fvar-shape invariant is what upgrades
 structural `Expr` equality to exact syntax translation here. -/
