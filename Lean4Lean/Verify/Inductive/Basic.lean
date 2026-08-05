@@ -1072,6 +1072,45 @@ def LiteralDisjoint (indConsts : Array Expr) : Prop :=
   induction e generalizing k <;>
     simp [VExpr.liftN, VExpr.containsAnyConst, *]
 
+theorem forall₂_append {R : α → β → Prop}
+    (H₁ : List.Forall₂ R as₁ bs₁) (H₂ : List.Forall₂ R as₂ bs₂) :
+    List.Forall₂ R (as₁ ++ as₂) (bs₁ ++ bs₂) := by
+  induction H₁ with
+  | nil => exact H₂
+  | cons h _ ih => exact .cons h ih
+
+/-- Translation preserves a constant-headed application spine and the
+left-to-right correspondence of all its arguments.  This is the syntax bridge
+needed by both executable recursive-target checks. -/
+theorem TrExprS.constAppSpine
+    (H : TrExprS env Us Δ e e')
+    (hhead : e.getAppFn = .const name levels) :
+    ∃ levels' args',
+      e'.getAppFnArgs = (.const name levels', args') ∧
+      levels.mapM (VLevel.ofLevel Us) = some levels' ∧
+      List.Forall₂ (TrExprS env Us Δ) e.getAppArgsList args' := by
+  induction e generalizing e' with
+  | const _ _ =>
+    cases H with
+    | const _ hlevels _ =>
+      cases hhead
+      exact ⟨_, [], rfl, hlevels, .nil⟩
+  | app fn arg ihFn _ =>
+    cases H
+    rename_i f' _ _ arg' _ _ hfn harg
+    rcases ihFn hfn hhead with ⟨levels', args', hspine, hlevels, hargs⟩
+    have hargs' := forall₂_append hargs (.cons harg .nil)
+    refine ⟨levels', args' ++ [arg'], ?_, hlevels, ?_⟩
+    · simp [hspine]
+    · simpa only [Expr.getAppArgsList_app] using hargs'
+  | bvar _ | fvar _ | sort _ | lit _ => cases hhead
+  | mvar _ => cases H
+  | lam _ _ _ _ _ _ => cases hhead
+  | forallE _ _ _ _ _ _ => cases hhead
+  | letE _ _ _ _ _ _ _ _ => cases hhead
+  | mdata _ _ _ => cases hhead
+  | proj _ _ _ _ => cases hhead
+
 def VLCtx.NoIndConsts (names : List Name) (Δ : VLCtx) : Prop :=
   ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
     mapped.containsAnyConst names = false

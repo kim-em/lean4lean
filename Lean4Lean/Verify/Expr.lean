@@ -633,6 +633,11 @@ theorem getAppArgsRevList_reverse : (getAppArgsRevList e).reverse = getAppArgsLi
 theorem getAppArgsList_reverse : (getAppArgsList e).reverse = getAppArgsRevList e := by
   rw [← getAppArgsRevList_reverse]; simp
 
+@[simp] theorem getAppArgsList_app :
+    getAppArgsList (.app fn arg) = getAppArgsList fn ++ [arg] := by
+  rw [← getAppArgsRevList_reverse]
+  simp [getAppArgsRevList, getAppArgsRevList_reverse]
+
 open private getAppNumArgsAux getAppArgsAux mkAppRangeAux from Lean.Expr
 
 theorem getAppNumArgs_eq : getAppNumArgs e = (getAppArgsRevList e).length := by
