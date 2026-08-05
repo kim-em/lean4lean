@@ -1030,6 +1030,54 @@ theorem invalidApplication.WF
     change (Except.error _).WF Q
     exact Except.WF.throw
 
+theorem negativeDomain.WF
+    (hocc : AddInductive.hasIndOcc stats.indConsts
+      (.forallE name dom body bi) = true)
+    (hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = true) :
+    (AddInductive.checkPositivityStep stats (.forallE name dom body bi)
+      ctor idx recur c).WF Q := by
+  rw [AddInductive.checkPositivityStep]
+  rw [if_neg (by simp [hocc]), if_pos hdomOcc]
+  change (Except.error _).WF Q
+  exact Except.WF.throw
+
+/-- Positive higher-order branch after WHNF.  Source-domain annotation
+transport is shared with header and constructor telescopes. -/
+theorem forallE.sourceWF
+    (Hc : ContextWF c)
+    (hocc : AddInductive.hasIndOcc stats.indConsts
+      (.forallE name dom body bi) = true)
+    (hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = false)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ body'',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).venv c.lparams
+        (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).mlctx.vlctx
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
+      (recur (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
+        { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkPositivityStep stats (.forallE name dom body bi)
+      ctor idx recur c).WF Q := by
+  rw [AddInductive.checkPositivityStep]
+  rw [if_neg (by simp [hocc]), if_neg (by simp [hdomOcc])]
+  rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+  refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+    (k := fun arg => recur (body.instantiate1 arg))
+    Hc Hdom.consumed Hdom.isType ?_
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+    Hdom.consumed Hdom.isType
+  have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+    Hdom.consumed Hdom.isType hbody''
+  exact Hrec body'' hbodyEq hopened
+
 end checkPositivityStep
 
 /-- Production-side installation of a list of kernel constants. This small
