@@ -2791,6 +2791,29 @@ theorem initialHeaderSynthesisState
     ⟨checkInductiveTypes.loopType.HeaderSynthesisCertificate.empty
       hctxEq hcurrent hheader⟩⟩
 
+/-- A later source header is closed before cached parameters are substituted.
+The outer `whnf` scope witness therefore initializes the narrow
+later-parameter invariant at executable parameter zero. -/
+noncomputable def initialLaterParameterScope
+    (Hc : ContextWF c)
+    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth)
+    (hi : 0 < stats.params.size)
+    (Htarget : TrInductiveTypeSkeleton Hc.venv envTypes
+      c.lparams source target)
+    (hnormalized : FVarsBelow Hc.mlctx.vlctx source.type normalized) :
+    checkInductiveTypes.loopType.LaterParameterScope
+      Hsuffix 0 normalized := by
+  have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
+    Htarget.header.type.fvarsIn.mono fun fv hfv => by
+      simpa [VLCtx.fvars] using hfv
+  have hfalseUpSet : IsFVarUpSet (fun _ => False) Hc.mlctx.vlctx := by
+    have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
+      Hc.mlctx.vlctx (by simpa using Hc.mlctx_wf.tr.wf)
+    simpa [VLCtx.fvars] using hsuffix
+  exact checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars hi
+    (hnormalized _ hfalseUpSet hsourceNoFVars)
+
 private def updatedStats (stats : AddInductive.InductiveStats)
     (lctx : LocalContext) (resultLevel : Level) (setResult : Bool)
     (nindices : Nat) (indName : Name) : AddInductive.InductiveStats :=
@@ -3491,7 +3514,9 @@ theorem stepPrefix.WF
     (Hloop : ∀ checkedType type' checkedType',
       TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
         indTypes[dIdx].type checkedType type' checkedType' →
-      ∀ normalized, TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
+      ∀ normalized,
+      FVarsBelow Hc.mlctx.vlctx indTypes[dIdx].type normalized →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
       (AddInductive.checkInductiveTypes.loopType nparams stats normalized 0 0
         c.fuel.inductiveFuel (fun type stats nindices => show AddInductive.M _ from do
           let type ← TypeChecker.ensureSort type
@@ -3534,8 +3559,10 @@ theorem stepPrefix.WF
             (dIdx + 1) stats k)) : AddInductive.M _) c).WF Q
   exact (checkClosedType.WF Hc).bind fun checkedType hchecked => by
     rcases hchecked with ⟨type', checkedType', hchecked⟩
-    exact (whnfInContext.WF Hc hchecked.2.1).bind fun normalized hnormalized =>
-      Hloop checkedType type' checkedType' hchecked normalized hnormalized
+    exact (whnfInContext.scopeWF Hc hchecked.2.1).bind
+      fun normalized hnormalized =>
+      Hloop checkedType type' checkedType' hchecked normalized
+        hnormalized.1 hnormalized.2
 
 /-- Metadata-free declaration-facing header step.  This is the entry point
 used before `checkInductiveTypes` has recovered enough information to build a
@@ -3558,6 +3585,7 @@ theorem stepPrefix.refinesSkeleton
         TrInductiveTypeSkeleton Hc.venv envTypes c.lparams
           indTypes[dIdx] target →
       ∀ normalized,
+        FVarsBelow Hc.mlctx.vlctx indTypes[dIdx].type normalized →
         TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
         (AddInductive.checkInductiveTypes.loopType nparams stats normalized 0 0
           c.fuel.inductiveFuel (fun type stats nindices =>
@@ -3587,10 +3615,10 @@ theorem stepPrefix.refinesSkeleton
     ⟨envTypes, htypes, htargetTr⟩
   apply stepPrefix.WF (nparams := nparams) (stats := stats) (k := k)
     (Q := Q) Hc hidx
-  intro checkedType type' checkedType' hchecked normalized hnormalized
+  intro checkedType type' checkedType' hchecked normalized hscope hnormalized
   exact Hloop checkedType type' checkedType' hchecked envTypes htypes
     skeleton.types[dIdx] (by simp [htarget]) (by simpa using htargetTr)
-    normalized hnormalized
+    normalized hscope hnormalized
 
 /-- Complete first iteration of the executable mutual-header loop, from the
 closed source check through initialization of the ordered synthesized
@@ -3631,7 +3659,7 @@ theorem firstStep.initializesPrefix
     simpa using hidx
   apply stepPrefix.refinesSkeleton (k := k) (Q := Q) Hc Hdecl hidx
   intro checkedType type' checkedType' hchecked envTypes htypes
-    target htarget Htarget normalized hnormalized
+    target htarget Htarget normalized _hscope hnormalized
   have htargetEq : target = skeleton.types[0] := by
     symm
     simpa [List.getElem?_eq_getElem hskeletonIdx] using htarget
@@ -3706,6 +3734,7 @@ theorem stepPrefix.refinesTrInduct
         TrInductiveType Hc.venv envTypes c.lparams
           indTypes[dIdx] target →
       ∀ normalized,
+        FVarsBelow Hc.mlctx.vlctx indTypes[dIdx].type normalized →
         TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
         (AddInductive.checkInductiveTypes.loopType nparams stats normalized 0 0
           c.fuel.inductiveFuel (fun type stats nindices =>
@@ -3735,10 +3764,10 @@ theorem stepPrefix.refinesTrInduct
     ⟨envTypes, htypes, htargetTr⟩
   apply stepPrefix.WF (nparams := nparams) (stats := stats) (k := k)
     (Q := Q) Hc hidx
-  intro checkedType type' checkedType' hchecked normalized hnormalized
+  intro checkedType type' checkedType' hchecked normalized hscope hnormalized
   exact Hloop checkedType type' checkedType' hchecked envTypes htypes
     decl.types[dIdx] (by simp [htarget]) (by simpa using htargetTr)
-    normalized hnormalized
+    normalized hscope hnormalized
 
 end checkInductiveTypes.loopInd
 
