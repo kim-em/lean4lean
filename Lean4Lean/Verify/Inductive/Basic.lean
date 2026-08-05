@@ -1737,6 +1737,130 @@ theorem result.refines
         Hstats hi htr hvalid (Or.inr rfl) hlit hctx hproj)
       hdefeq)
 
+/-- Semantic wrapper for a safe constructor field.  The low-level traversal
+supplies source typing and annotation transport; this theorem packages those
+facts as the declarative `CtorTailWF.field` rule. -/
+theorem safeField.refines
+    {decl : VInductDecl} {target : VInductiveType}
+    {ctorCtx : List VExpr} {depth : Nat}
+    (Hc : ContextWF c) (hparamAt : stats.params[i]? = none)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (huvars : c.lparams.length = decl.uvars)
+    (hctxEq : Hc.mlctx.vlctx.toCtx = ctorCtx)
+    (Hpos : (AddInductive.checkPositivity stats dom ctor i c).WF
+      (fun _ => decl.Positive Hc.venv ctorCtx depth sourceDom'))
+    (Hbound : ∀ fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+    (Hrec : ∀ fieldType' fieldLevel fieldLevel',
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+        fieldType' (.sort fieldLevel') →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.Positive Hc.venv ctorCtx depth sourceDom' →
+      ∀ body'',
+        Hc.venv.IsDefEqU c.lparams.length
+          (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+        TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
+        (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF
+          (fun _ => decl.CtorTailWF Hc.venv target
+            (sourceDom' :: ctorCtx) (depth + 1) sourceBody')) :
+    (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
+      (.forallE name dom body bi) i (fuel + 1) c).WF
+      (fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
+        (.forallE sourceDom' sourceBody')) := by
+  refine safeField.sourceWF
+    (Q := fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
+      (.forallE sourceDom' sourceBody'))
+    (Pos := decl.Positive Hc.venv ctorCtx depth sourceDom')
+    (targetIdx := targetIdx) (fuel := fuel) (name := name) (bi := bi)
+    Hc hparamAt Hdom hbody Hpos ?_
+  intro fieldType' fieldLevel fieldLevel' hfield hlevel htyped hbound
+    hpositive body'' hbodyEq hopened
+  have hdomainEq := Hdom.source.uniq Hc.checking.tr.wf
+    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hfield
+  have hsourceTyped := htyped.defeqU_l Hc.checking.tr.wf
+    Hc.mlctx_wf.tr.wf.toCtx hdomainEq.symm
+  exact (Hrec fieldType' fieldLevel fieldLevel' hfield hlevel htyped
+    hbound hpositive body'' hbodyEq hopened).mono fun _ htail =>
+      .field (by simpa [huvars, hctxEq] using hsourceTyped)
+        (Hbound fieldLevel fieldLevel' hlevel hbound)
+        (Or.inr hpositive) htail
+
+theorem unsafeField.refines
+    {decl : VInductDecl} {target : VInductiveType}
+    {ctorCtx : List VExpr} {depth : Nat}
+    (Hc : ContextWF c) (hparamAt : stats.params[i]? = none)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (huvars : c.lparams.length = decl.uvars)
+    (hctxEq : Hc.mlctx.vlctx.toCtx = ctorCtx)
+    (hunsafe : decl.isUnsafe = true)
+    (Hbound : ∀ fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+    (Hrec : ∀ fieldType' fieldLevel fieldLevel',
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+        fieldType' (.sort fieldLevel') →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      ∀ body'',
+        Hc.venv.IsDefEqU c.lparams.length
+          (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+        TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
+        (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF
+          (fun _ => decl.CtorTailWF Hc.venv target
+            (sourceDom' :: ctorCtx) (depth + 1) sourceBody')) :
+    (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
+      (.forallE name dom body bi) i (fuel + 1) c).WF
+      (fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
+        (.forallE sourceDom' sourceBody')) := by
+  refine unsafeField.sourceWF
+    (Q := fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
+      (.forallE sourceDom' sourceBody'))
+    (targetIdx := targetIdx) (fuel := fuel) (name := name) (bi := bi)
+    Hc hparamAt Hdom hbody ?_
+  intro fieldType' fieldLevel fieldLevel' hfield hlevel htyped hbound
+    body'' hbodyEq hopened
+  have hdomainEq := Hdom.source.uniq Hc.checking.tr.wf
+    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hfield
+  have hsourceTyped := htyped.defeqU_l Hc.checking.tr.wf
+    Hc.mlctx_wf.tr.wf.toCtx hdomainEq.symm
+  exact (Hrec fieldType' fieldLevel fieldLevel' hfield hlevel htyped
+    hbound body'' hbodyEq hopened).mono fun _ htail =>
+      .field (by simpa [huvars, hctxEq] using hsourceTyped)
+        (Hbound fieldLevel fieldLevel' hlevel hbound)
+        (Or.inl hunsafe) htail
+
 end checkConstructors.loopCtor
 
 namespace checkPositivity.loop
