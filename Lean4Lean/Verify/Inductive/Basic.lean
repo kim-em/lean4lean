@@ -1632,6 +1632,56 @@ theorem firstResult.refinesCanonical
     hparamsTake hindicesTake
     (VInductDecl.paramsDefEq_reflOfAppend hctxType) hlevel Hrec
 
+/-- First-header result with the retained ambient-prefix invariant initialized
+from the checked index telescope. -/
+theorem firstResult.refinesRuntimeState
+    {decl : VInductDecl} {target : VInductiveType}
+    {ownParams indices : List VExpr}
+    {normalized afterParams result exprType : VExpr}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
+    (huvars : c.lparams.length = decl.uvars)
+    (hctxEq : Hc.mlctx.vlctx.toCtx =
+      indices.reverse ++ ownParams.reverse)
+    (hheader : Hc.venv.IsDefEq decl.uvars []
+      target.type normalized exprType)
+    (hparamsTake : normalized.takeForalls decl.nparams =
+      some (ownParams, afterParams))
+    (hindicesTake : afterParams.takeForalls target.numIndices =
+      some (indices, result))
+    (hlevel : ∀ resultSort resultLevel,
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      resultLevel = target.resultLevel)
+    (Hrec : ∀ resultSort,
+      VLevel.ofLevel c.lparams resultSort = some target.resultLevel →
+      decl.TypeShape Hc.venv ownParams target →
+      checkInductiveTypes.loopType.AmbientParamContext
+        Hc ownParams indices.length →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
+        (updatedStats stats c.lctx resultSort true nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  apply firstResult.refinesCanonical k Q Hc hempty htype huvars hctxEq
+    hheader hparamsTake hindicesTake hlevel
+  intro resultSort hofLevel hshape
+  exact Hrec resultSort hofLevel hshape
+    (checkInductiveTypes.loopType.AmbientParamContext.ofFirst hctxEq)
+
 /-- Post-telescope continuation for later mutual headers.  A mismatched result
 universe throws; a successful path records the checked equivalence before
 updating the per-type arrays. -/
