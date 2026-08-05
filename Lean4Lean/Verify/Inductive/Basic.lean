@@ -2607,6 +2607,7 @@ theorem recursiveDomains {α : Type}
     {c : AddInductive.Context} {Q : α → Prop}
     (Hc : ContextWF c)
     {fields : List (RecursorRecursiveDomain Hc.venv decl)}
+    {args : List VExpr}
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       Hc.mlctx.vlctx stats decl depth)
     (hparams : stats.params.size ≤ i)
@@ -2619,15 +2620,19 @@ theorem recursiveDomains {α : Type}
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx t type')
     (hfields : RecursorFieldSelections Hc.venv decl bu u fields)
+    (hargs : List.Forall₂
+      (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx) u.toList args)
     (Hk : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
       {t' : Expr} {type'' : VExpr}
       {bu' u' : Array Expr}
-      {fields' : List (RecursorRecursiveDomain Hc'.venv decl)},
+      {fields' : List (RecursorRecursiveDomain Hc'.venv decl)} {args' : List VExpr},
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx t' type'' →
       RecursorFieldSelections Hc'.venv decl bu' u' fields' →
+      List.Forall₂ (TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx)
+        u'.toList args' →
       (k t' bu' u' c').WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs.loop stats k t i bu u fuel c).WF Q := by
-  induction fuel generalizing c t i bu u depth type' fields with
+  induction fuel generalizing c t i bu u depth type' fields args with
   | zero =>
     intro _ h
     simp [AddInductive.mkRecInfos.loopCtorArgs.loop] at h
@@ -2654,11 +2659,27 @@ theorem recursiveDomains {α : Type}
           (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
         apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
         rfl
+      let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
+        .skip_fvar _ _ .refl
       have hdomWeak : TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx dom
           (sourceDom'.liftN 1 0) := by
         apply Hdom.source.weakFV Hc.checking.tr.wf.ordered
-          (.skip_fvar _ _ .refl)
+          W
         exact Hc'.mlctx_wf.tr.wf
+      have hargsWeak : List.Forall₂
+          (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx) u.toList
+          (args.map fun arg => arg.liftN 1 0) := by
+        apply checkPositivityStep.forall₂_map_right hargs
+        intro source arg harg
+        exact harg.weakFV Hc.checking.tr.wf.ordered W Hc'.mlctx_wf.tr.wf
+      have harg : TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx
+          (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
+        exact TrExprS.fvar (A := consumedDom'.lift) (by
+          change VLCtx.find? ((some (⟨c.ngen.curr⟩,
+            dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom') ::
+              Hc.mlctx.vlctx) (Sum.inr ⟨c.ngen.curr⟩) = _
+          simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+            VLocalDecl.value, VLocalDecl.type])
       have hopened := Hc.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbody''
       have Hclass := isRecArg.refines Hc' Hstats' hconsume hlit hctx' hproj
@@ -2667,7 +2688,7 @@ theorem recursiveDomains {α : Type}
       cases selected with
       | none =>
         exact ih Hc' Hstats' (by omega) hctx' hopened
-          (.nonrecursive hfields)
+          (.nonrecursive hfields) hargsWeak
       | some target =>
         let cert : RecursorRecursiveDomain Hc'.venv decl := {
           fieldIndex := bu.size
@@ -2675,10 +2696,16 @@ theorem recursiveDomains {α : Type}
           depth := depth + 1
           domain := sourceDom'.liftN 1 0
           recursive := hselected target rfl }
+        have hargs' : List.Forall₂
+            (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+            (u.push (.fvar ⟨c.ngen.curr⟩)).toList
+            ((args.map fun arg => arg.liftN 1 0) ++ [.bvar 0]) := by
+          simpa using checkPositivityStep.forall₂_append
+            hargsWeak (.cons harg .nil)
         exact ih Hc' Hstats' (by omega) hctx' hopened
-          (.recursive hfields (cert := cert) rfl)
+          (.recursive hfields (cert := cert) rfl) hargs'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata | proj =>
-      exact Hk Hc htype hfields
+      exact Hk Hc htype hfields hargs
 
 end mkRecInfos.loopCtorArgs.loop
 
@@ -2703,9 +2730,11 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomains {α : Type}
     (htail : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx tail tail')
     (Hk : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
       {t' : Expr} {type'' : VExpr} {bu' u' : Array Expr}
-      {fields' : List (RecursorRecursiveDomain Hc'.venv decl)},
+      {fields' : List (RecursorRecursiveDomain Hc'.venv decl)} {args' : List VExpr},
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx t' type'' →
       RecursorFieldSelections Hc'.venv decl bu' u' fields' →
+      List.Forall₂ (TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx)
+        u'.toList args' →
       (k t' bu' u' c').WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
   let inputContext := c
@@ -2722,7 +2751,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomains {α : Type}
         stats.params.size #[] #[] fuel inputContext).WF Q := by
     intro fuel
     exact mkRecInfos.loopCtorArgs.loop.recursiveDomains stats k Hc Hstats
-      (Nat.le_refl _) hconsume hlit hctx hproj htail .nil Hk
+      (Nat.le_refl _) hconsume hlit hctx hproj htail .nil .nil Hk
   exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
     inputContext.fuel.inductiveFuel
 
