@@ -288,6 +288,22 @@ file. -/
         e.appArg!.consumeTypeAnnotations
       else e
 
+/-- Structural boolean reference for the opaque runtime `Expr.find?`. -/
+def findAny (p : Expr → Bool) : Expr → Bool
+  | e@(.app fn arg) => p e || findAny p fn || findAny p arg
+  | e@(.lam _ ty body _) => p e || findAny p ty || findAny p body
+  | e@(.forallE _ ty body _) => p e || findAny p ty || findAny p body
+  | e@(.letE _ ty value body _) =>
+    p e || findAny p ty || findAny p value || findAny p body
+  | e@(.mdata _ inner) => p e || findAny p inner
+  | e@(.proj _ _ inner) => p e || findAny p inner
+  | e => p e
+
+/-- `Expr.find?` is opaque and implemented by `lean_find_expr`; only its
+existence result is needed by inductive occurrence checking. -/
+@[simp] axiom find?_isSome_eq_findAny (p : Expr → Bool) (e : Expr) :
+    (e.find? p).isSome = e.findAny p
+
 @[simp] def instantiateList : Expr → List Expr → (k :_:= 0) → Expr
   | e, [], _ => e
   | e, a :: as, k => instantiateList (instantiate1' e a k) as k
