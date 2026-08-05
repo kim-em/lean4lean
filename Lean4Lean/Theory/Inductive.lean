@@ -230,11 +230,111 @@ theorem VInductBlock.WF.exists_install (H : VInductBlock.WF env block) :
   exact ⟨envRecursors.addDefEqs block.rules, by
     simp [VInductBlock.install, htypes, hctors, hrecs]⟩
 
-/-- Pure, abstract compilation from a source declaration to the constants and
-equations it contributes. Constructors are added as the ordinary and nested
-specifications are introduced below; this relation is intentionally separate
-from the executable `AddInductive` implementation. -/
+def VExpr.mkApps (fn : VExpr) (args : List VExpr) : VExpr :=
+  args.foldl .app fn
+
+def VExpr.wrapLams (domains : List VExpr) (body : VExpr) : VExpr :=
+  domains.foldr .lam body
+
+def VExpr.wrapForalls (domains : List VExpr) (body : VExpr) : VExpr :=
+  domains.foldr .forallE body
+
+/-- `e` is an application of one of the constructor fields represented by its
+de Bruijn index at the outside of the rule telescope. `depth` accounts for
+binders introduced inside a higher-order recursive call. -/
+def VExpr.IsFieldApp (fieldVars : List Nat) (depth : Nat) (e : VExpr) : Prop :=
+  ∃ field ∈ fieldVars, ∃ args,
+    e.getAppFnArgs = (.bvar (field + depth), args)
+
+/-- Syntactic guard for an iota-rule right-hand side. A recursor constant may
+only occur through `recCall`, and its major premise must be an application of
+a designated constructor field. Ordinary applications cannot smuggle in a
+recursor because the `const` constructor excludes their names. -/
+inductive VExpr.GuardedIota (recursors : List Name) (fieldVars : List Nat) :
+    Nat → VExpr → Prop
+  | bvar : GuardedIota recursors fieldVars depth (.bvar n)
+  | sort : GuardedIota recursors fieldVars depth (.sort u)
+  | const : name ∉ recursors →
+      GuardedIota recursors fieldVars depth (.const name levels)
+  | app :
+      GuardedIota recursors fieldVars depth fn →
+      GuardedIota recursors fieldVars depth arg →
+      GuardedIota recursors fieldVars depth (.app fn arg)
+  | lam :
+      GuardedIota recursors fieldVars depth dom →
+      GuardedIota recursors fieldVars (depth + 1) body →
+      GuardedIota recursors fieldVars depth (.lam dom body)
+  | forallE :
+      GuardedIota recursors fieldVars depth dom →
+      GuardedIota recursors fieldVars (depth + 1) body →
+      GuardedIota recursors fieldVars depth (.forallE dom body)
+  | recCall :
+      recursor ∈ recursors →
+      (∀ arg ∈ init ++ [major],
+        GuardedIota recursors fieldVars depth arg) →
+      major.IsFieldApp fieldVars depth →
+      GuardedIota recursors fieldVars depth
+        (VExpr.mkApps (.const recursor levels) (init ++ [major]))
+
+def VInductDecl.ownedConstructors
+    (decl : VInductDecl) : List (VInductiveType × VConstVal) :=
+  decl.types.flatMap fun type => type.ctors.map (type, ·)
+
+def VInductDecl.recursorName (_decl : VInductDecl) (type : VInductiveType) : Name :=
+  .mkStr type.name "rec"
+
+/-- One declarative iota equation. The left-hand side is a recursor whose final
+argument is the matching constructor application. The right-hand side may call
+any sibling recursor in a mutual block, but only on explicitly identified
+constructor fields. Typing of the complete equation is supplied separately by
+`VInductBlock.WF`. -/
+structure VInductDecl.IotaRule (decl : VInductDecl) (block : VInductBlock)
+    (owner : VInductiveType) (ctor : VConstVal) (rule : VDefEq) where
+  recursor : VConstVal
+  recursor_mem : recursor ∈ block.recursors
+  recursor_name : recursor.name = decl.recursorName owner
+  rule_uvars : rule.uvars = recursor.uvars
+  domains : List VExpr
+  lhsBody : VExpr
+  rhsBody : VExpr
+  typeBody : VExpr
+  lhs_wrapped : rule.lhs = VExpr.wrapLams domains lhsBody
+  rhs_wrapped : rule.rhs = VExpr.wrapLams domains rhsBody
+  type_wrapped : rule.type = VExpr.wrapForalls domains typeBody
+  recursorLevels : List VLevel
+  leadingArgs : List VExpr
+  ctorLevels : List VLevel
+  ctorArgs : List VExpr
+  lhs_pattern :
+    lhsBody = VExpr.mkApps (.const recursor.name recursorLevels)
+      (leadingArgs ++ [VExpr.mkApps (.const ctor.name ctorLevels) ctorArgs])
+  fieldVars : List Nat
+  fields_in_scope : ∀ field ∈ fieldVars, field < domains.length
+  rhs_guarded : rhsBody.GuardedIota (block.recursors.map (·.name)) fieldVars 0
+
+/-- Independent ordinary/mutual compilation interface. It is deliberately
+stronger than mere well-typedness: source constants are preserved exactly,
+recursor names and arities are constrained, and constructor/rule coverage is
+total and ordered. -/
+structure VInductDecl.OrdinaryCompilation
+    (decl : VInductDecl) (block : VInductBlock) : Prop where
+  types : block.types = decl.typeConstants
+  ctors : block.ctors = decl.constructorConstants
+  recursors : List.Forall₂ (fun type recursor =>
+    recursor.name = decl.recursorName type ∧
+    (recursor.uvars = decl.uvars ∨ recursor.uvars = decl.uvars + 1))
+    decl.types block.recursors
+  rules : List.Forall₂ (fun owned rule =>
+    Nonempty (decl.IotaRule block owned.1 owned.2 rule))
+    decl.ownedConstructors block.rules
+  names : List.Nodup ((block.types ++ block.ctors ++ block.recursors).map (·.name))
+
+/-- Pure abstract compilation, kept separate from the executable
+`AddInductive` implementation. Nested compilation will enter through a second
+constructor after proving that lowering yields an ordinary compilation. -/
 inductive VInductDecl.CompilesTo (env : VEnv) : VInductDecl → VInductBlock → Prop
+  | ordinary : VInductDecl.OrdinaryCompilation decl block →
+      VInductDecl.CompilesTo env decl block
 
 /-- Relational abstract environment extension for inductive declarations.
 Unlike the old placeholder function, this exposes the compiled block witness
@@ -242,7 +342,7 @@ needed by the implementation-refinement proof. -/
 inductive VEnv.AddInduct (env : VEnv) (decl : VInductDecl) : VEnv → Prop where
   | intro :
     decl.WF env →
-    decl.CompilesTo env block →
+    VInductDecl.CompilesTo env decl block →
     VInductBlock.WF env block →
     VInductBlock.install env block = some env' →
     VEnv.AddInduct env decl env'

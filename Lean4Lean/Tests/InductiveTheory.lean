@@ -100,4 +100,58 @@ theorem negativeOccurrence_not_positive :
     simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, VExpr.getAppFnArgs.go,
       enumDecl, enumType] at h
 
+def enumRecursor : VConstVal where
+  name := `Enum0.rec
+  uvars := 0
+  type := .sort (.succ .zero)
+
+def enumRule : VDefEq where
+  uvars := 0
+  lhs := .lam (.sort .zero)
+    (.app (.const `Enum0.rec []) (.const `Enum0.mk []))
+  rhs := .lam (.sort .zero) (.bvar 0)
+  type := .forallE (.sort .zero) (.sort .zero)
+
+def enumBlock : VInductBlock where
+  types := enumDecl.typeConstants
+  ctors := enumDecl.constructorConstants
+  recursors := [enumRecursor]
+  rules := [enumRule]
+
+def enumIota : enumDecl.IotaRule enumBlock enumType enumCtor enumRule where
+  recursor := enumRecursor
+  recursor_mem := by simp [enumBlock]
+  recursor_name := by simp [enumRecursor, VInductDecl.recursorName, enumType]
+  rule_uvars := rfl
+  domains := [.sort .zero]
+  lhsBody := .app (.const `Enum0.rec []) (.const `Enum0.mk [])
+  rhsBody := .bvar 0
+  typeBody := .sort .zero
+  lhs_wrapped := rfl
+  rhs_wrapped := rfl
+  type_wrapped := rfl
+  recursorLevels := []
+  leadingArgs := []
+  ctorLevels := []
+  ctorArgs := []
+  lhs_pattern := rfl
+  fieldVars := []
+  fields_in_scope := by simp
+  rhs_guarded := .bvar
+
+theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation enumBlock where
+  types := rfl
+  ctors := rfl
+  recursors := by
+    exact .cons (by simp [enumRecursor, enumDecl, enumType,
+      VInductDecl.recursorName]) .nil
+  rules := by
+    exact .cons ⟨enumIota⟩ .nil
+  names := by
+    simp [enumBlock, enumDecl, enumType, enumCtor, enumRecursor,
+      VInductDecl.typeConstants, VInductDecl.constructorConstants]
+
+theorem enumCompiles : VInductDecl.CompilesTo .empty enumDecl enumBlock :=
+  .ordinary enumOrdinaryCompilation
+
 end Lean4Lean.Tests.InductiveTheory
