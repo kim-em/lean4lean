@@ -287,6 +287,28 @@ theorem TrInductDecl.ownedConstructors
           (Lean4Lean.VerifyInductive.TrInductiveType.ownedConstructors h) ih
   simpa [VInductDecl.ownedConstructors] using aux htypes
 
+theorem TrInductDecl.ownedConstructors_length
+    (H : TrInductDecl env lparams nparams types isUnsafe decl) :
+    (Lean4Lean.VerifyInductive.ownedConstructors types).length =
+      decl.ownedConstructors.length := by
+  rcases Lean4Lean.VerifyInductive.TrInductDecl.ownedConstructors H with
+    ⟨_, _, hctors⟩
+  exact Lean4Lean.VerifyInductive.List.Forall₂.length_eq' hctors
+
+theorem TrInductDecl.ownedConstructorAt
+    (H : TrInductDecl env lparams nparams types isUnsafe decl)
+    (i : Nat)
+    (hsource : i < (Lean4Lean.VerifyInductive.ownedConstructors types).length)
+    (htarget : i < decl.ownedConstructors.length) :
+    ∃ envTypes, env.addConsts decl.typeConstants = some envTypes ∧
+      TrOwnedConstructor env envTypes lparams
+        (Lean4Lean.VerifyInductive.ownedConstructors types)[i]
+        decl.ownedConstructors[i] := by
+  rcases Lean4Lean.VerifyInductive.TrInductDecl.ownedConstructors H with
+    ⟨envTypes, htypes, hctors⟩
+  exact ⟨envTypes, htypes,
+    Lean4Lean.VerifyInductive.List.Forall₂.getElem hctors i hsource htarget⟩
+
 /-- Indexed output certificate for one recursor per mutual-family member. -/
 structure RecursorCertificate (decl : VInductDecl)
     (recursors : List VConstVal) : Prop where
