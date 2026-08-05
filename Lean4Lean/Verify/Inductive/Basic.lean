@@ -10,6 +10,41 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+theorem checkNoMVarNoFVar.closed
+    (H : Kernel.Environment.checkNoMVarNoFVar env name e = .ok ()) :
+    e.FVarsIn fun _ => False := by
+  have hm : e.hasMVar = false := by
+    cases hm : e.hasMVar
+    · rfl
+    · have he : Kernel.Environment.checkNoMVar env name e =
+          .error (.declHasMVars env name e) := by
+        unfold Kernel.Environment.checkNoMVar
+        rw [hm]
+        change Except.error _ = Except.error _
+        rfl
+      rw [Kernel.Environment.checkNoMVarNoFVar, he] at H
+      contradiction
+  have hf : e.hasFVar = false := by
+    have hmok : Kernel.Environment.checkNoMVar env name e = .ok () := by
+      unfold Kernel.Environment.checkNoMVar
+      rw [hm]
+      rfl
+    cases hf : e.hasFVar
+    · rfl
+    · have he : Kernel.Environment.checkNoFVar env name e =
+          .error (.declHasFVars env name e) := by
+        unfold Kernel.Environment.checkNoFVar
+        rw [hf]
+        change Except.error _ = Except.error _
+        rfl
+      rw [Kernel.Environment.checkNoMVarNoFVar, hmok, he] at H
+      contradiction
+  apply Lean4Lean.fvarsIn_iff.mpr
+  refine ⟨?_, Lean4Lean.fvarsIn_iff_hasMVar.mpr hm⟩
+  · intro fv hmem
+    rw [Lean4Lean.fvarsList_eq_nil.2 hf] at hmem
+    contradiction
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/
@@ -115,6 +150,28 @@ theorem checkType_closed.WF
   exact TypeChecker.M.WF.runCheckingValid
     (wf := hvalid) (lparams := lparams) (fuel := fuel)
     (TypeChecker.checkType.WF hfvars)
+
+/-- Reference formulation of the executable header-checking prefix. Keeping
+the closure check in the statement is important: it is what turns the
+type-checker's context-relative result into a source declaration judgment. -/
+def checkHeader (env : Environment) (safety : DefinitionSafety)
+    (lparams : List Name) (fuel : FuelConfig) (name : Name) (type : Expr) :
+    Except Exception Expr := do
+  env.checkNoMVarNoFVar name type
+  TypeChecker.M.run env safety {} lparams fuel (TypeChecker.checkType type)
+
+theorem checkHeader.WF
+    (hvalid : CheckingEnv.Valid safety env venv) :
+    (checkHeader env safety lparams fuel name type).WF (fun checkedType =>
+      ∃ type' checkedType',
+        TrTyping venv lparams [] type checkedType type' checkedType') := by
+  unfold checkHeader
+  have hno : (env.checkNoMVarNoFVar name type).WF
+      (fun _ => type.FVarsIn fun _ => False) := by
+    intro _ h
+    exact checkNoMVarNoFVar.closed (env := env) (name := name) h
+  exact hno.bind fun _ hclosed =>
+    checkType_closed.WF (lparams := lparams) (fuel := fuel) hvalid hclosed
 
 end VerifyInductive
 end Lean4Lean
