@@ -585,6 +585,37 @@ theorem TrExpr.typeShape
     hheader, hparamsTake, hindicesTake, hparams,
     by simpa [huvars, hctxEq] using hresult⟩
 
+/-- Context-conversion form of `typeShape`.  This is the form needed by the
+executable telescope because annotation consumption changes binder domains
+definitionally, while preserving the same de Bruijn context shape. -/
+theorem TrExpr.typeShapeOfDefEqCtx
+    {decl : VInductDecl} {target : VInductiveType}
+    {params ownParams indices : List VExpr}
+    {normalized afterParams result exprType : VExpr}
+    (henv : VEnv.WF env) (hctx : VLCtx.WF env Us.length Δ)
+    (huvars : Us.length = decl.uvars)
+    (hctxEq : VEnv.IsDefEqCtx env Us.length []
+      (indices.reverse ++ ownParams.reverse) Δ.toCtx)
+    (hheader : env.IsDefEq decl.uvars [] target.type normalized exprType)
+    (hparamsTake : normalized.takeForalls decl.nparams =
+      some (ownParams, afterParams))
+    (hindicesTake : afterParams.takeForalls target.numIndices =
+      some (indices, result))
+    (hparams : decl.ParamsDefEq env params ownParams)
+    (hlevel : ∀ resultLevel,
+      VLevel.ofLevel Us level = some resultLevel →
+      resultLevel = target.resultLevel)
+    (H : TrExpr env Us Δ (.sort level) result) :
+    decl.TypeShape env params target := by
+  rcases TrExpr.sort_result henv hctx.toCtx H with
+    ⟨resultLevel, hresultLevel, hresult⟩
+  have hlevelEq := hlevel resultLevel hresultLevel
+  subst resultLevel
+  have hresult' := hresult.defeqDFC henv.ordered (hctxEq.symm henv.ordered)
+  exact ⟨normalized, ownParams, afterParams, indices, result, exprType,
+    hheader, hparamsTake, hindicesTake, hparams,
+    by simpa [huvars] using hresult'⟩
+
 /-- Opening a source binder with the fresh free variable chosen by the
 production checker leaves its abstract body unchanged: the extended `VLCtx`
 maps that free variable back to the new outermost de Bruijn variable. -/
@@ -1560,8 +1591,8 @@ theorem firstResult.refines
     (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
     (huvars : c.lparams.length = decl.uvars)
-    (hctxEq : Hc.mlctx.vlctx.toCtx =
-      indices.reverse ++ ownParams.reverse)
+    (hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (indices.reverse ++ ownParams.reverse) Hc.mlctx.vlctx.toCtx)
     (hheader : Hc.venv.IsDefEq decl.uvars []
       target.type normalized exprType)
     (hparamsTake : normalized.takeForalls decl.nparams =
@@ -1598,7 +1629,7 @@ theorem firstResult.refines
   have hresultLevel := hlevel resultSort resultLevel hofLevel
   subst resultLevel
   apply Hrec resultSort hofLevel
-  exact TrExpr.typeShape Hc.checking.tr.wf Hc.mlctx_wf.tr.wf huvars
+  exact TrExpr.typeShapeOfDefEqCtx Hc.checking.tr.wf Hc.mlctx_wf.tr.wf huvars
     hctxEq hheader hparamsTake hindicesTake hparams
     (hlevel resultSort) hsorted
 
@@ -1614,8 +1645,8 @@ theorem firstResult.refinesCanonical
     (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
     (huvars : c.lparams.length = decl.uvars)
-    (hctxEq : Hc.mlctx.vlctx.toCtx =
-      indices.reverse ++ ownParams.reverse)
+    (hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (indices.reverse ++ ownParams.reverse) Hc.mlctx.vlctx.toCtx)
     (hheader : Hc.venv.IsDefEq decl.uvars []
       target.type normalized exprType)
     (hparamsTake : normalized.takeForalls decl.nparams =
@@ -1647,7 +1678,7 @@ theorem firstResult.refinesCanonical
         (dIdx + 1) stats k) type stats nindices c).WF Q := by
   have hctxType : OnCtx (indices.reverse ++ ownParams.reverse)
       (Hc.venv.IsType decl.uvars) := by
-    simpa [huvars, hctxEq] using Hc.mlctx_wf.tr.wf.toCtx
+    simpa [huvars] using hctxEq.isType
   exact firstResult.refines k Q Hc hempty htype huvars hctxEq hheader
     hparamsTake hindicesTake
     (VInductDecl.paramsDefEq_reflOfAppend hctxType) hlevel Hrec
@@ -1663,8 +1694,8 @@ theorem firstResult.refinesRuntimeState
     (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
     (huvars : c.lparams.length = decl.uvars)
-    (hctxEq : Hc.mlctx.vlctx.toCtx =
-      indices.reverse ++ ownParams.reverse)
+    (hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (indices.reverse ++ ownParams.reverse) Hc.mlctx.vlctx.toCtx)
     (hheader : Hc.venv.IsDefEq decl.uvars []
       target.type normalized exprType)
     (hparamsTake : normalized.takeForalls decl.nparams =
@@ -1700,7 +1731,7 @@ theorem firstResult.refinesRuntimeState
     hheader hparamsTake hindicesTake hlevel
   intro resultSort hofLevel hshape
   exact Hrec resultSort hofLevel hshape
-    (checkInductiveTypes.loopType.AmbientParamContext.ofFirst hctxEq)
+    (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq hctxEq)
 
 /-- Post-telescope continuation for later mutual headers.  A mismatched result
 universe throws; a successful path records the checked equivalence before
@@ -1775,8 +1806,8 @@ theorem laterResult.refines
     (Hc : ContextWF c) (hnonempty : stats.indConsts.isEmpty = false)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
     (huvars : c.lparams.length = decl.uvars)
-    (hctxEq : Hc.mlctx.vlctx.toCtx =
-      indices.reverse ++ ownParams.reverse)
+    (hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (indices.reverse ++ ownParams.reverse) Hc.mlctx.vlctx.toCtx)
     (hheader : Hc.venv.IsDefEq decl.uvars []
       target.type normalized exprType)
     (hparamsTake : normalized.takeForalls decl.nparams =
@@ -1814,7 +1845,7 @@ theorem laterResult.refines
   have hresultLevel := hlevel resultSort resultLevel hofLevel
   subst resultLevel
   apply Hrec resultSort hequiv hofLevel
-  exact TrExpr.typeShape Hc.checking.tr.wf Hc.mlctx_wf.tr.wf huvars
+  exact TrExpr.typeShapeOfDefEqCtx Hc.checking.tr.wf Hc.mlctx_wf.tr.wf huvars
     hctxEq hheader hparamsTake hindicesTake hparams
     (hlevel resultSort) hsorted
 
@@ -2654,8 +2685,8 @@ theorem HeaderRuntimeCertificate.firstResultWF
     (hindices : stats.nindices = #[])
     (hempty : stats.indConsts.isEmpty = true)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
-    (hctxEq : Hc.mlctx.vlctx.toCtx =
-      indices.reverse ++ params.reverse)
+    (hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (indices.reverse ++ params.reverse) Hc.mlctx.vlctx.toCtx)
     (hheader : Hc.venv.IsDefEq decl.uvars []
       target.type normalized exprType)
     (hparamsTake : normalized.takeForalls decl.nparams =
@@ -2700,8 +2731,7 @@ theorem HeaderRuntimeCertificate.firstResultWF
   exact Hrec resultSort hofLevel
     (HeaderRuntimeCertificate.first Hcache hlevels huvars hconsts hindices
       hindex htarget hname hnindices hofLevel
-      (checkInductiveTypes.loopType.AmbientParamContext.ofFirst hctxEq).context
-      _hshape)
+      hctxEq _hshape)
 
 theorem HeaderRuntimeCertificate.laterResultWF
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -2714,8 +2744,8 @@ theorem HeaderRuntimeCertificate.laterResultWF
     (hnonempty : stats.indConsts.isEmpty = false)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
     (huvars : c.lparams.length = decl.uvars)
-    (hctxEq : Hc.mlctx.vlctx.toCtx =
-      indices.reverse ++ ownParams.reverse)
+    (hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (indices.reverse ++ ownParams.reverse) Hc.mlctx.vlctx.toCtx)
     (hheader : Hc.venv.IsDefEq decl.uvars []
       target.type normalized exprType)
     (hparamsTake : normalized.takeForalls decl.nparams =
