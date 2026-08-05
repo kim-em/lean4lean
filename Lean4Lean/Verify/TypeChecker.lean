@@ -56,6 +56,20 @@ def VContext.mkCheckingValid {env : Environment} {venv : VEnv}
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
   .mkChecking wf.tr wf.hasPrimitives wf.safePrimitives lparams fuel
 
+def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
+    (wf : CheckingEnv.Valid safety env venv)
+    (mlctx : MLCtx) (mlctx_wf : mlctx.WF venv lparams)
+    (fuel : FuelConfig := {}) : VContext where
+  env; safety; lparams; fuel
+  venv
+  hasPrimitives := wf.hasPrimitives
+  safePrimitives := wf.safePrimitives
+  trenv := wf.tr
+  mlctx
+  mlctx_wf
+  lctx := mlctx.lctx
+  lctx_eq := rfl
+
 def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])
     (fuel : FuelConfig := {}) : VContext where
@@ -101,6 +115,22 @@ theorem VState.WF.emptyCheckingValid {env : Environment} {venv : VEnv}
     VState.WF (.mkCheckingValid wf lparams fuel) {} :=
   .emptyChecking
 
+theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
+    {wf : CheckingEnv.Valid safety env venv}
+    {mlctx : MLCtx} {mlctx_wf : mlctx.WF venv lparams}
+    {fuel : FuelConfig}
+    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
+      ({} : TypeChecker.State).ngen.Reserves fv) :
+    VState.WF (.mkCheckingValidMLC wf mlctx mlctx_wf fuel) {} where
+  trctx := mlctx_wf.tr
+  ngen_wf := hfresh
+  ectx := ⟨mlctx.vlctx, .refl, mlctx_wf.tr.wf, .refl, .empty, hfresh⟩
+  inferTypeI_wf := .empty
+  inferTypeC_wf := .empty
+  whnfCore_wf := .empty
+  whnf_wf := .empty
+  unfold_wf _ := by simp
+
 theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     {x : M α} {Q} (H : x.WF (.mk' wf safety lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
@@ -130,6 +160,21 @@ theorem M.WF.runCheckingValid {env : Environment} {venv : VEnv}
     (H : x.WF (.mkCheckingValid wf lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q :=
   H.runChecking
+
+theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
+    {wf : CheckingEnv.Valid safety env venv}
+    {mlctx : MLCtx} {mlctx_wf : mlctx.WF venv lparams}
+    {x : M α} {Q}
+    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
+      ({} : TypeChecker.State).ngen.Reserves fv)
+    (H : x.WF (.mkCheckingValidMLC wf mlctx mlctx_wf fuel) {} fun a _ => Q a) :
+    (M.run env safety mlctx.lctx lparams fuel x).WF Q := by
+  intro a eq
+  simp [M.run, Functor.map, Except.map] at eq
+  split at eq <;> cases eq
+  rename_i eq
+  let ⟨_, _, _, _, hQ⟩ := H (.emptyCheckingValidMLC hfresh) _ _ eq
+  exact hQ
 
 nonrec theorem whnf.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
     M.WF c s (whnf e) fun e₁ _ => c.TrExpr e₁ e' :=

@@ -10,6 +10,58 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+/-- Verification state for the outer inductive-construction monad. The local
+context is represented by the same `MLCtx` used by the typechecker proof, while
+the production reader retains the independently generated `_ind_fresh` names. -/
+structure ContextWF (c : AddInductive.Context) where
+  venv : VEnv
+  checking : CheckingEnv.Valid c.safety c.env venv
+  mlctx : TypeChecker.MLCtx
+  mlctx_wf : mlctx.WF venv c.lparams
+  lctx_eq : mlctx.lctx = c.lctx
+  kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
+    ({} : TypeChecker.State).ngen.Reserves fv
+
+def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
+  TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
+
+@[simp] theorem ContextWF.typeChecker_lctx (H : ContextWF c) :
+    H.typeChecker.lctx = c.lctx := by
+  simp [ContextWF.typeChecker, TypeChecker.VContext.mkCheckingValidMLC, H.lctx_eq]
+
+/-- Reuse a verified typechecker computation inside `AddInductive.M`. -/
+theorem liftTypeChecker.WF {x : TypeChecker.M α} (Hc : ContextWF c)
+    (Hx : TypeChecker.M.WF Hc.typeChecker {} x fun a _ => Q a) :
+    ((monadLift x : AddInductive.M α) c).WF Q := by
+  change (TypeChecker.M.run c.env c.safety c.lctx c.lparams c.fuel x).WF Q
+  rw [← Hc.lctx_eq]
+  exact TypeChecker.M.WF.runCheckingValidMLC Hc.kernelFresh Hx
+
+theorem checkTypeInContext.WF (Hc : ContextWF c)
+    (hfvars : e.FVarsIn (· ∈ Hc.mlctx.vlctx.fvars)) :
+    ((monadLift (TypeChecker.checkType e) : AddInductive.M Expr) c).WF fun ty =>
+      ∃ e' ty', TrTyping Hc.venv c.lparams Hc.mlctx.vlctx e ty e' ty' :=
+  liftTypeChecker.WF Hc (TypeChecker.checkType.WF hfvars)
+
+theorem whnfInContext.WF (Hc : ContextWF c)
+    (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
+    ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' :=
+  liftTypeChecker.WF Hc (TypeChecker.whnf.WF he)
+
+theorem ensureSortInContext.WF (Hc : ContextWF c)
+    (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
+    ((monadLift (TypeChecker.ensureSort e e₀) : AddInductive.M Expr) c).WF fun e₁ =>
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' ∧ ∃ u, e₁ = .sort u :=
+  liftTypeChecker.WF Hc (TypeChecker.ensureSort.WF he)
+
+theorem isDefEqInContext.WF (Hc : ContextWF c)
+    (he₁ : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e₁ e₁')
+    (he₂ : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e₂ e₂') :
+    ((monadLift (TypeChecker.isDefEq e₁ e₂) : AddInductive.M Bool) c).WF fun b =>
+      b → Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx e₁' e₂' :=
+  liftTypeChecker.WF Hc (TypeChecker.isDefEq.WF he₁ he₂)
+
 theorem checkNoMVarNoFVar.closed
     (H : Kernel.Environment.checkNoMVarNoFVar env name e = .ok ()) :
     e.FVarsIn fun _ => False := by
