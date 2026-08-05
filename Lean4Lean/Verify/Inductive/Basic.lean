@@ -1002,6 +1002,74 @@ theorem HeaderTelescopeCertificate.takeIndices
   subst nindices
   exact VExpr.takeForalls_wrapForalls indices current
 
+/-- Type-valued state carried by the executable telescope loop.  It owns the
+source parameter and index lists, and synchronizes their lengths with the two
+counters maintained by `loopType`. -/
+structure HeaderTelescopeLoopCertificate (Hc : ContextWF c)
+    (root current : VExpr) (i nindices : Nat) : Type where
+  params : List VExpr
+  indices : List VExpr
+  telescope : HeaderTelescopeCertificate Hc root current params indices
+  parameterCount : params.length = i
+  indexCount : indices.length = nindices
+
+def HeaderTelescopeLoopCertificate.empty
+    {c : AddInductive.Context} {Hc : ContextWF c} {root : VExpr}
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      [] Hc.mlctx.vlctx.toCtx) :
+    HeaderTelescopeLoopCertificate Hc root root 0 0 where
+  params := []
+  indices := []
+  telescope := .empty hctx
+  parameterCount := rfl
+  indexCount := rfl
+
+def HeaderTelescopeLoopCertificate.withParameter
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderTelescopeLoopCertificate Hc root
+      (.forallE sourceDom body) i nindices)
+    (hindices : H.indices = [])
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    HeaderTelescopeLoopCertificate
+      (Hc.withLocalDecl (name := name) (bi := bi)
+        hdom.consumed hdom.isType)
+      root body (i + 1) nindices where
+  params := H.params ++ [sourceDom]
+  indices := []
+  telescope := by
+    have Htel := H.telescope
+    rw [hindices] at Htel
+    exact Htel.withParameter hdom
+  parameterCount := by simp [H.parameterCount]
+  indexCount := by simpa [hindices] using H.indexCount
+
+def HeaderTelescopeLoopCertificate.withIndex
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderTelescopeLoopCertificate Hc root
+      (.forallE sourceDom body) i nindices)
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    HeaderTelescopeLoopCertificate
+      (Hc.withLocalDecl (name := name) (bi := bi)
+        hdom.consumed hdom.isType)
+      root body i (nindices + 1) where
+  params := H.params
+  indices := H.indices ++ [sourceDom]
+  telescope := H.telescope.withIndex hdom
+  parameterCount := H.parameterCount
+  indexCount := by simp [H.indexCount]
+
+theorem HeaderTelescopeLoopCertificate.takeParameters
+    (H : HeaderTelescopeLoopCertificate Hc root current i nindices) :
+    root.takeForalls i =
+      some (H.params, VExpr.wrapForalls H.indices current) :=
+  H.telescope.takeParameters H.parameterCount
+
+theorem HeaderTelescopeLoopCertificate.takeIndices
+    (H : HeaderTelescopeLoopCertificate Hc root current i nindices) :
+    (VExpr.wrapForalls H.indices current).takeForalls nindices =
+      some (H.indices, current) :=
+  H.telescope.takeIndices H.indexCount
+
 def AmbientParamContext.ofFirst
     {c : AddInductive.Context} {Hc : ContextWF c}
     {indices params : List VExpr}
@@ -1273,6 +1341,49 @@ theorem index.cacheWF
   exact Hrec body'' hbodyEq normalized hnormalized
     (Hcache.withIndex Hc Hdom.consumed Hdom.isType)
 
+/-- Index-step wrapper carrying the translated parameter cache and the exact
+source telescope/counter state in lockstep. -/
+theorem index.cacheTelescopeWF
+    (Hc : ContextWF c) (hi : ¬ i < nparams)
+    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
+      stats done depth)
+    (Htelescope : HeaderTelescopeLoopCertificate Hc root
+      (.forallE sourceDom' sourceBody') i nindices)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ body'',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      ∀ normalized,
+        TrExpr (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
+        ParameterCachePrefix
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx stats done (depth + 1) →
+        HeaderTelescopeLoopCertificate
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType)
+          root sourceBody' i (nindices + 1) →
+        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
+          i (nindices + 1) fuel k
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  apply index.cacheWF (stats := stats) (nparams := nparams) (i := i)
+    (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
+    Hc hi Hcache Hdom hbody
+  intro body'' hbodyEq normalized hnormalized Hcache'
+  exact Hrec body'' hbodyEq normalized hnormalized Hcache'
+    (Htelescope.withIndex Hdom)
+
 /-- Later-header index step carrying both the translated parameter cache and
 the ambient-prefix shape used at the constructor boundary. -/
 theorem index.runtimeStateWF
@@ -1422,6 +1533,54 @@ theorem firstParameter.cacheWF
   intro body'' hbodyEq normalized hnormalized
   exact Hrec body'' hbodyEq normalized hnormalized
     (Hcache.push Hc Hdom.consumed Hdom.isType)
+
+/-- First-parameter wrapper carrying the cache and source telescope counters
+through the same successful executable branch. -/
+theorem firstParameter.cacheTelescopeWF
+    (Hc : ContextWF c) (hi : i < nparams)
+    (hempty : stats.indConsts.isEmpty = true)
+    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
+      stats done 0)
+    (Htelescope : HeaderTelescopeLoopCertificate Hc root
+      (.forallE sourceDom' sourceBody') i nindices)
+    (hindices : Htelescope.indices = [])
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ body'',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      ∀ normalized,
+        TrExpr (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
+        ParameterCachePrefix
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx
+          { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
+          (done + 1) 0 →
+        HeaderTelescopeLoopCertificate
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType)
+          root sourceBody' (i + 1) nindices →
+        (AddInductive.checkInductiveTypes.loopType nparams
+          { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
+          normalized (i + 1) nindices fuel k
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  apply firstParameter.cacheWF (stats := stats) (nparams := nparams)
+    (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
+    Hc hi hempty Hcache Hdom hbody
+  intro body'' hbodyEq normalized hnormalized Hcache'
+  exact Hrec body'' hbodyEq normalized hnormalized Hcache'
+    (Htelescope.withParameter hindices Hdom)
 
 /-- Verification step for a common parameter of a later mutual header.  The
 executable checker reuses the cached free variable and requires the new domain
@@ -1829,6 +1988,53 @@ theorem firstResult.refinesRuntimeState
   intro resultSort hofLevel hshape
   exact Hrec resultSort hofLevel hshape
     (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq hctxEq)
+
+/-- First-header result specialized to the state accumulated by the actual
+`loopType` parameter/index branches.  The source telescope supplies the
+parameter split, index split, and context-conversion premises. -/
+theorem firstResult.refinesTelescope
+    {decl : VInductDecl} {target : VInductiveType}
+    {normalized result exprType : VExpr}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
+    (Htelescope : checkInductiveTypes.loopType.HeaderTelescopeLoopCertificate
+      Hc normalized result decl.nparams nindices)
+    (hnindices : nindices = target.numIndices)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
+    (huvars : c.lparams.length = decl.uvars)
+    (hheader : Hc.venv.IsDefEq decl.uvars []
+      target.type normalized exprType)
+    (hlevel : ∀ resultSort resultLevel,
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      resultLevel = target.resultLevel)
+    (Hrec : ∀ resultSort,
+      VLevel.ofLevel c.lparams resultSort = some target.resultLevel →
+      decl.TypeShape Hc.venv Htelescope.params target →
+      checkInductiveTypes.loopType.AmbientParamContext
+        Hc Htelescope.params Htelescope.indices.length →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
+        (updatedStats stats c.lctx resultSort true nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  subst nindices
+  apply firstResult.refinesRuntimeState k Q Hc hempty htype huvars
+    Htelescope.telescope.context hheader Htelescope.takeParameters
+    Htelescope.takeIndices hlevel
+  exact Hrec
 
 /-- Post-telescope continuation for later mutual headers.  A mismatched result
 universe throws; a successful path records the checked equivalence before
