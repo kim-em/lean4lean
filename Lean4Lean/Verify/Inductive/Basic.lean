@@ -114,6 +114,21 @@ theorem checkNoMVarNoFVar.closed
     rw [Lean4Lean.fvarsList_eq_nil.2 hf] at hmem
     contradiction
 
+theorem checkClosedType.WF (Hc : ContextWF c) :
+    (AddInductive.checkClosedType name type c).WF fun checkedType =>
+      ∃ type' checkedType',
+        TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+          type checkedType type' checkedType' := by
+  change (c.env.checkNoMVarNoFVar name type >>= fun _ =>
+    TypeChecker.M.run c.env c.safety c.lctx c.lparams c.fuel
+      (TypeChecker.checkType type)).WF _
+  have hno : (c.env.checkNoMVarNoFVar name type).WF
+      (fun _ => type.FVarsIn fun _ => False) := by
+    intro _ h
+    exact checkNoMVarNoFVar.closed (env := c.env) (name := name) h
+  exact hno.bind fun _ hclosed =>
+    checkTypeInContext.WF Hc (hclosed.mono fun _ h => False.elim h)
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/

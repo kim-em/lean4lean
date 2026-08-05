@@ -57,6 +57,11 @@ instance : MonadLCtx M where
 def getType (fvar : Expr) : M Expr :=
   return ((← getLCtx).get! fvar.fvarId!).type
 
+def checkClosedType (name : Name) (type : Expr) : M Expr := do
+  let env := (← read).env
+  env.checkNoMVarNoFVar name type
+  checkType type
+
 def checkInductiveTypes
     (nparams : Nat) (indTypes : Array InductiveType)
     (k : InductiveStats → M α) : M α := do
@@ -65,8 +70,7 @@ def checkInductiveTypes
       let indType := indTypes[dIdx]
       let env := (← read).env
       let type := indType.type
-      env.checkNoMVarNoFVar indType.name type
-      _ ← checkType type
+      _ ← checkClosedType indType.name type
       let rec loop stats type i nindices fuel k : M α := match fuel with
       | 0 => throw .deepRecursion
       | fuel+1 => do
@@ -210,8 +214,7 @@ def checkConstructors (indTypes : Array InductiveType)
         throw <| .other s!"duplicate constructor name '{n}'"
       foundCtors := foundCtors.insert n
       let t := ctor.type
-      env.checkNoMVarNoFVar n t
-      _ ← checkType t
+      _ ← checkClosedType n t
       let rec loop t i
       | 0 => throw .deepRecursion
       | fuel+1 => do
