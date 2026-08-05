@@ -704,8 +704,8 @@ theorem firstResult.WF
     intro c' h
     cases h
     rfl
-  refine hread.bind fun _ h => ?_
-  subst h
+  refine hread.bind fun c' h => ?_
+  subst c'
   simpa [updatedStats, Expr.sortLevel!] using Hrec resultSort hsorted
 
 /-- The first mutual header records its result universe and simultaneously
@@ -2555,7 +2555,45 @@ theorem RecursorFieldSelections.positions_ordered
     rcases List.mem_map.mp hold with ⟨oldCert, hmem, rfl⟩
     exact H.positions_lt oldCert hmem
 
+/-- Exact concrete common-parameter prefix consumed by recursor generation.
+The relation is intentionally separate from field classification: agreement
+of these substitutions with the abstract parameter telescope is established
+during constructor checking. -/
+inductive RecursorParamPrefix (stats : AddInductive.InductiveStats) :
+    Nat → Expr → Expr → Prop
+  | done : i = stats.params.size → RecursorParamPrefix stats i tail tail
+  | step : stats.params[i]? = some param →
+      RecursorParamPrefix stats (i + 1) (body.instantiate1 param) tail →
+      RecursorParamPrefix stats i (.forallE name dom body bi) tail
+
 namespace mkRecInfos.loopCtorArgs.loop
+
+/-- `loopCtorArgs.loop` follows a certified common-parameter prefix without
+changing either accumulator, then delegates to the supplied tail proof. Fuel
+exhaustion is harmless because it cannot return successfully. -/
+theorem followsParamPrefix {α : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Array Expr → AddInductive.M α)
+    {t tail : Expr} {i : Nat} {bu u : Array Expr}
+    {c : AddInductive.Context} {Q : α → Prop}
+    (hprefix : RecursorParamPrefix stats i t tail)
+    (Htail : ∀ fuel,
+      (AddInductive.mkRecInfos.loopCtorArgs.loop stats k tail
+        stats.params.size bu u fuel c).WF Q) :
+    ∀ fuel, (AddInductive.mkRecInfos.loopCtorArgs.loop stats k t i bu u fuel c).WF Q := by
+  intro fuel
+  induction fuel generalizing t i with
+  | zero =>
+    intro _ h
+    simp [AddInductive.mkRecInfos.loopCtorArgs.loop] at h
+  | succ fuel ih =>
+    cases hprefix with
+    | done hi =>
+      subst i
+      exact Htail (fuel + 1)
+    | @step i param body tail name dom bi hparam hprefix =>
+      rw [AddInductive.mkRecInfos.loopCtorArgs.loop, hparam]
+      exact ih hprefix
 
 /-- Typed refinement of the genuine-field suffix of `loopCtorArgs`. Common
 parameters have already been exhausted, so every remaining forall binder is a
@@ -2643,6 +2681,50 @@ theorem recursiveDomains {α : Type}
       exact Hk Hc htype hfields
 
 end mkRecInfos.loopCtorArgs.loop
+
+/-- Full constructor-argument refinement, composing exact common-parameter
+substitution with typed recursive-field classification. -/
+theorem mkRecInfos.loopCtorArgs.recursiveDomains {α : Type}
+    (stats : AddInductive.InductiveStats) (t tail : Expr)
+    (k : Expr → Array Expr → Array Expr → AddInductive.M α)
+    (c : AddInductive.Context) {Q : α → Prop}
+    {decl : VInductDecl} {tail' : VExpr}
+    (Hc : ContextWF c)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl 0)
+    (hprefix : RecursorParamPrefix stats 0 t tail)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (htail : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx tail tail')
+    (Hk : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      {t' : Expr} {type'' : VExpr} {bu' u' : Array Expr}
+      {fields' : List (RecursorRecursiveDomain Hc'.venv decl)},
+      TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx t' type'' →
+      RecursorFieldSelections Hc'.venv decl bu' u' fields' →
+      (k t' bu' u' c').WF Q) :
+    (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
+  let inputContext := c
+  unfold AddInductive.mkRecInfos.loopCtorArgs
+  have hread : ((read : AddInductive.M AddInductive.Context) inputContext).WF
+      (fun c' => c' = inputContext) := by
+    intro c' h
+    cases h
+    rfl
+  refine hread.bind fun _ h => ?_
+  subst h
+  have Htail : ∀ fuel,
+      (AddInductive.mkRecInfos.loopCtorArgs.loop stats k tail
+        stats.params.size #[] #[] fuel inputContext).WF Q := by
+    intro fuel
+    exact mkRecInfos.loopCtorArgs.loop.recursiveDomains stats k Hc Hstats
+      (Nat.le_refl _) hconsume hlit hctx hproj htail .nil Hk
+  exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
+    inputContext.fuel.inductiveFuel
 
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
