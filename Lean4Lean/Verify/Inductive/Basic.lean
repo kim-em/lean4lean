@@ -1026,6 +1026,38 @@ structure IndConstArray (levels : List Level) (indConsts : Array Expr)
   exact : indConsts = (names.map fun name => .const name levels).toArray
   names : IndConstNames indConsts names
 
+/-- The portion of the mutable header statistics needed to interpret a
+recursive application in the independent declaration.  In particular, the
+common parameters are related by expression translation rather than merely by
+array position. -/
+structure ValidAppStatsWF (env : VEnv) (Us : List Name) (Δ : VLCtx)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (depth : Nat) : Prop where
+  levels : stats.levels.length = decl.uvars
+  consts : IndConstArray stats.levels stats.indConsts
+    (decl.types.map (·.name))
+  indices : stats.nindices.toList = decl.types.map (·.numIndices)
+  params : List.Forall₂ (TrExprS env Us Δ) stats.params.toList
+    (decl.paramVars depth)
+
+theorem forall₂_length_eq
+    (H : List.Forall₂ R as bs) : as.length = bs.length := by
+  induction H with
+  | nil => rfl
+  | cons _ _ ih => simp [ih]
+
+theorem ValidAppStatsWF.params_size
+    (H : ValidAppStatsWF env Us Δ stats decl depth) :
+    stats.params.size = decl.nparams := by
+  have := forall₂_length_eq H.params
+  simpa [VInductDecl.paramVars] using this
+
+theorem ValidAppStatsWF.types_size
+    (H : ValidAppStatsWF env Us Δ stats decl depth) :
+    stats.indConsts.size = decl.types.length := by
+  rw [H.consts.exact]
+  simp
+
 theorem IndConstArray.empty (levels : List Level) :
     IndConstArray levels #[] [] where
   exact := rfl
