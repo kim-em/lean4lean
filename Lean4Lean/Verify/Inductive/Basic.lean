@@ -1080,6 +1080,41 @@ theorem forallE.sourceWF
 
 end checkPositivityStep
 
+namespace checkPositivity.loop
+
+theorem zero.WF :
+    (AddInductive.checkPositivity.loop stats ctor idx type 0 c).WF Q := by
+  intro _ h
+  simp [AddInductive.checkPositivity.loop] at h
+
+theorem succ.WF
+    (Hc : ContextWF c)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type')
+    (Hstep : ∀ normalized,
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
+      (AddInductive.checkPositivityStep stats normalized ctor idx
+        (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
+        c).WF Q) :
+    (AddInductive.checkPositivity.loop stats ctor idx type (fuel + 1) c).WF Q := by
+  rw [AddInductive.checkPositivity.loop]
+  exact (whnfInContext.WF Hc htype).bind fun normalized hnormalized =>
+    Hstep normalized hnormalized
+
+end checkPositivity.loop
+
+theorem checkPositivity.WF
+    (Hloop : (AddInductive.checkPositivity.loop stats ctor idx type
+      c.fuel.inductiveFuel c).WF Q) :
+    (AddInductive.checkPositivity stats type ctor idx c).WF Q := by
+  unfold AddInductive.checkPositivity
+  have hread : ((read : AddInductive.M AddInductive.Context) c).WF (fun c' => c' = c) := by
+    intro c' h
+    cases h
+    rfl
+  refine hread.bind fun _ h => ?_
+  subst h
+  exact Hloop
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/
