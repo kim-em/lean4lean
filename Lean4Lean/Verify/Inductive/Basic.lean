@@ -1245,6 +1245,53 @@ theorem forallE.sourceWF
     Hdom.consumed Hdom.isType hbody''
   exact Hrec body'' hbodyEq hopened
 
+/-- The successful higher-order branch refines the declarative `forallE`
+positivity rule.  The recursive checker runs in the consumed-annotation local
+context, while its certificate is deliberately stated for the original
+source-domain/body translation used by the independent specification. -/
+theorem forallE.refines
+    {decl : VInductDecl} {depth : Nat}
+    (Hc : ContextWF c)
+    (hconsts : IndConstArray stats.levels stats.indConsts
+      (decl.types.map (·.name)))
+    (hlit : LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hocc : AddInductive.hasIndOcc stats.indConsts
+      (.forallE name dom body bi) = true)
+    (hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = false)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ body'',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).venv c.lparams
+        (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).mlctx.vlctx
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
+      (recur (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
+        { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi }).WF
+        (fun _ => decl.SyntacticallyPositive (depth + 1) sourceBody')) :
+    (AddInductive.checkPositivityStep stats (.forallE name dom body bi)
+      ctor idx recur c).WF
+      (fun _ => decl.SyntacticallyPositive depth
+        (.forallE sourceDom' sourceBody')) := by
+  have hdomNo := checkPositivityStep.TrExprS.noIndOcc hconsts.names hlit
+    hctx hproj Hdom.source hdomOcc
+  refine forallE.sourceWF (Q := fun _ => decl.SyntacticallyPositive depth
+      (.forallE sourceDom' sourceBody')) (recur := recur) (ctor := ctor)
+      (idx := idx) Hc hocc hdomOcc Hdom hbody ?_
+  intro body'' hbodyEq hopened
+  exact (Hrec body'' hbodyEq hopened).mono fun _ hpositive =>
+    .forallE hdomNo hpositive
+
 end checkPositivityStep
 
 namespace checkPositivity.loop
