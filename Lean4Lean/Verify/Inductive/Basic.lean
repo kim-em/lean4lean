@@ -98,6 +98,39 @@ theorem withLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF c)
     (Lean4Lean.withLocalDecl name bi ty k c).WF Q := by
   exact Hk (Hc.withLocalDecl htr hty)
 
+/-- Invert the syntax-directed part of a translated forall while retaining the
+definitional equality introduced by normalization.  Header and constructor
+loops use this after `whnf`: the production expression is syntactically a
+forall, but its abstract translation need only be definitionally equal to one. -/
+theorem TrExpr.forallE_source
+    (H : TrExpr env Us Δ (.forallE name dom body bi) type') :
+    ∃ dom' body',
+      TrExprS env Us Δ dom dom' ∧
+      TrExprS env Us ((none, .vlam dom') :: Δ) body body' ∧
+      env.IsType Us.length Δ.toCtx dom' ∧
+      env.IsType Us.length (dom' :: Δ.toCtx) body' ∧
+      env.IsDefEqU Us.length Δ.toCtx (.forallE dom' body') type' := by
+  rcases H with ⟨_, Hsyntax, Hdefeq⟩
+  cases Hsyntax with
+  | forallE HdomType HbodyType Hdom Hbody =>
+    exact ⟨_, _, Hdom, Hbody, HdomType, HbodyType, Hdefeq⟩
+
+/-- Opening a source binder with the fresh free variable chosen by the
+production checker leaves its abstract body unchanged: the extended `VLCtx`
+maps that free variable back to the new outermost de Bruijn variable. -/
+theorem ContextWF.instantiateFresh (Hc : ContextWF c)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam ty') :: Hc.mlctx.vlctx) body body') :
+    let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+    TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx
+      (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body' := by
+  dsimp only
+  rw [Expr.instantiate1_eq]
+  exact hbody.inst_fvar Hc.checking.tr.wf.ordered
+    (Hc.withLocalDecl htr hty).mlctx_wf.tr.wf
+
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
 
