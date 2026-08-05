@@ -277,6 +277,17 @@ def instantiate1' (e : Expr) (subst : Expr) (d := 0) : Expr :=
 /-- This could be an `@[implemented_by]` -/
 @[simp] axiom instantiate1_eq (e : Expr) (subst) : e.instantiate1 subst = e.instantiate1' subst
 
+/-- `consumeTypeAnnotations` is an opaque runtime function in Lean, so expose
+its defining equation just like the other executable `Expr` primitives in this
+file. -/
+@[simp] axiom consumeTypeAnnotations_eq (e : Expr) :
+    e.consumeTypeAnnotations =
+      if e.isOptParam || e.isAutoParam then
+        e.appFn!.appArg!.consumeTypeAnnotations
+      else if e.isOutParam || e.isSemiOutParam then
+        e.appArg!.consumeTypeAnnotations
+      else e
+
 @[simp] def instantiateList : Expr → List Expr → (k :_:= 0) → Expr
   | e, [], _ => e
   | e, a :: as, k => instantiateList (instantiate1' e a k) as k

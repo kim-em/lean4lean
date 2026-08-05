@@ -142,6 +142,12 @@ structure ContextWF.ConsumedDomain (Hc : ContextWF c)
   source_defeq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
     source' consumed'
 
+theorem Expr.consumeTypeAnnotations_eq_self {dom : Expr}
+    (hopt : dom.isOptParam = false) (hauto : dom.isAutoParam = false)
+    (hout : dom.isOutParam = false) (hsemi : dom.isSemiOutParam = false) :
+    dom.consumeTypeAnnotations = dom := by
+  simp [hopt, hauto, hout, hsemi]
+
 /-- Domains without a leading type annotation need no semantic transport. -/
 def ContextWF.ConsumedDomain.unchanged (Hc : ContextWF c)
     (heq : dom.consumeTypeAnnotations = dom)
@@ -153,6 +159,14 @@ def ContextWF.ConsumedDomain.unchanged (Hc : ContextWF c)
   consumed := heq.symm ▸ htr
   isType := hty
   source_defeq := htr.wf Hc.checking.tr.wf.ordered Hc.mlctx_wf.tr.wf
+
+def ContextWF.ConsumedDomain.unannotated (Hc : ContextWF c)
+    (hopt : dom.isOptParam = false) (hauto : dom.isAutoParam = false)
+    (hout : dom.isOutParam = false) (hsemi : dom.isSemiOutParam = false)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom') :
+    Hc.ConsumedDomain dom dom' :=
+  .unchanged Hc (Expr.consumeTypeAnnotations_eq_self hopt hauto hout hsemi) htr hty
 
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
