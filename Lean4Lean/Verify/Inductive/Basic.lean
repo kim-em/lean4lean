@@ -129,6 +129,23 @@ theorem ContextWF.instantiateFresh (Hc : ContextWF c)
   exact hbody.inst_fvar Hc.checking.tr.wf.ordered
     (Hc.withLocalDecl htr hty).mlctx_wf.tr.wf
 
+/-- Instantiate a source binder with an existing translated argument whose
+cached type is only definitionally equal to the binder domain. -/
+theorem ContextWF.instantiateDefEq (Hc : ContextWF c)
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (harg : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx arg arg')
+    (hargType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+      arg' argType')
+    (heq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+      dom' argType') :
+    TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      (body.instantiate1 arg) (body'.inst arg') := by
+  have hargType' := hargType.defeqU_r Hc.checking.tr.wf
+    Hc.mlctx_wf.tr.wf.toCtx heq.symm
+  rw [Expr.instantiate1_eq]
+  exact hbody.inst Hc.checking.tr.wf.ordered hargType' harg
+
 /-- Semantic certificate for the production checker's removal of binder type
 annotations.  The consumed syntax may translate to a different abstract term,
 but it must remain a type definitionally equal to the source domain. -/
@@ -485,6 +502,51 @@ theorem laterParameter.WF
     exact Except.WF.throw
   · exact (whnfInContext.WF Hc hopened).bind fun normalized hnormalized =>
       Hrec (hequal rfl) normalized hnormalized
+
+/-- Source-facing later-parameter step.  The successful executable equality
+check supplies exactly the conversion needed to instantiate the translated
+source body with the cached parameter. -/
+theorem laterParameter.sourceWF
+    (Hc : ContextWF c) (hi : i < nparams)
+    (hnonempty : stats.indConsts.isEmpty = false)
+    (hget : (AddInductive.getType stats.params[i]! c).WF (fun ty => ty = paramTy))
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (hparamTy : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy')
+    (hparam : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      stats.params[i]! param')
+    (hparamType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+      param' paramTy')
+    (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+        dom' paramTy' →
+      ∀ normalized,
+        TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized
+          (body'.inst param') →
+        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
+          (i + 1) nindices fuel k c).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  rw [AddInductive.checkInductiveTypes.loopType]
+  rw [if_pos hi, if_neg (by simp [hnonempty])]
+  change (AddInductive.getType stats.params[i]! c >>= fun paramTy =>
+    ((do
+      unless ← TypeChecker.isDefEq dom paramTy do
+        throw <| .other "parameters of all inductive datatypes must match"
+      let type := body.instantiate1 stats.params[i]!
+      AddInductive.checkInductiveTypes.loopType nparams stats
+        (← TypeChecker.whnf type) (i + 1) nindices fuel k) :
+      AddInductive.M _) c).WF Q
+  refine hget.bind fun paramTy' hparamTyEq => ?_
+  subst paramTy'
+  refine (isDefEqInContext.WF Hc hdom hparamTy).bind fun equal hequal => ?_
+  cases equal
+  · change (Except.error _).WF Q
+    exact Except.WF.throw
+  · have heq := hequal rfl
+    have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
+    exact (whnfInContext.WF Hc hopened).bind fun normalized hnormalized =>
+      Hrec heq normalized hnormalized
 
 end checkInductiveTypes.loopType
 
