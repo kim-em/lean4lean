@@ -211,6 +211,35 @@ def checkPositivity (stats : InductiveStats) (t : Expr) (ctor : Name) (idx : Nat
       throw <| .other s!"arg #{idx + 1} of '{ctor}' \
         has a non valid occurrence of the datatypes being declared"
 
+namespace checkConstructors
+
+def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
+    (targetIdx : Nat) (t : Expr) (i fuel : Nat) : M Unit :=
+  match fuel with
+  | 0 => throw .deepRecursion
+  | fuel+1 => do
+    if let .forallE name dom body bi := t then
+      if let some param := stats.params[i]? then
+        unless ← isDefEq dom (← getType param) do
+          throw <| .other
+            s!"arg #{i + 1} of '{ctor}' does not match inductive datatype parameters"
+        loopCtor stats isUnsafe ctor targetIdx
+          (body.instantiate1 param) (i + 1) fuel
+      else
+        let s ← ensureType dom
+        unless stats.resultLevel.isAlwaysZero || stats.resultLevel.geq s.sortLevel! do
+          throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
+            is too big for the corresponding inductive datatype"
+        if !isUnsafe then
+          checkPositivity stats dom ctor i
+        withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+          loopCtor stats isUnsafe ctor targetIdx
+            (body.instantiate1 arg) (i + 1) fuel
+    else if !isValidIndAppIdx stats t targetIdx then
+      throw <| .other s!"invalid return type for '{ctor}'"
+
+end checkConstructors
+
 def checkConstructors (indTypes : Array InductiveType)
     (stats : InductiveStats) (isUnsafe : Bool) : M Unit := do
   let env ← getEnv
@@ -224,27 +253,8 @@ def checkConstructors (indTypes : Array InductiveType)
       foundCtors := foundCtors.insert n
       let t := ctor.type
       _ ← checkClosedType n t
-      let rec loop t i
-      | 0 => throw .deepRecursion
-      | fuel+1 => do
-        if let .forallE name dom body bi := t then
-          if let some param := stats.params[i]? then
-            unless ← isDefEq dom (← getType param) do
-              throw <| .other
-                s!"arg #{i + 1} of '{n}' does not match inductive datatype parameters"
-            loop (body.instantiate1 param) (i + 1) fuel
-          else
-            let s ← ensureType dom
-            unless stats.resultLevel.isAlwaysZero || stats.resultLevel.geq s.sortLevel! do
-              throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{n}' \
-                is too big for the corresponding inductive datatype"
-            if !isUnsafe then
-              checkPositivity stats dom n i
-            withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
-              loop (body.instantiate1 arg) (i + 1) fuel
-        else if !isValidIndAppIdx stats t idx then
-          throw <| .other s!"invalid return type for '{n}'"
-      loop t 0 (← readThe Context).fuel.inductiveFuel
+      checkConstructors.loopCtor stats isUnsafe n idx t 0
+        (← readThe Context).fuel.inductiveFuel
 
 def declareConstructors (stats : InductiveStats)
     (indTypes : Array InductiveType) (isUnsafe : Bool) : M Environment :=
