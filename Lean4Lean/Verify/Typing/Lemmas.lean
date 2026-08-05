@@ -351,6 +351,18 @@ theorem FVLift.from_nil : ∀ {Δ : VLCtx}, Δ.NoBV → FVLift [] Δ 0 Δ.toCtx.
   | (some _, .vlam _) :: _, H => .skip_fvar _ _ (.from_nil H)
   | (some _, .vlet _ _) :: _, H => .skip_fvar _ _ (.from_nil H)
 
+/-- Adding a free-variable-only prefix is an `FVLift` of the retained suffix.
+Unlike `from_nil`, this form keeps an arbitrary suffix available for a later
+cached-variable abstraction. -/
+theorem FVLift.to_append (suffix : VLCtx) : ∀ {added : VLCtx},
+    added.NoBV →
+    FVLift suffix (added ++ suffix) 0 added.toCtx.length 0
+  | [], _ => .refl
+  | (some _, .vlam _) :: added, H =>
+      .skip_fvar _ _ (to_append suffix (added := added) H)
+  | (some _, .vlet _ _) :: added, H =>
+      .skip_fvar _ _ (to_append suffix (added := added) H)
+
 variable! (henv : VEnv.WF env) in
 theorem FVLift.wf (W : FVLift Δ Δ' dk n k) (hΔ' : Δ'.WF env U) : Δ.WF env U :=
   W.toFVLift'.wf henv hΔ'

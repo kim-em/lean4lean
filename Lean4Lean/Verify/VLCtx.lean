@@ -50,7 +50,23 @@ def bvars : VLCtx → Nat
   | (none, _) :: Δ => bvars Δ + 1
   | (some _, _) :: Δ => bvars Δ
 
+@[simp] theorem bvars_append (left right : VLCtx) :
+    (left ++ right).bvars = left.bvars + right.bvars := by
+  induction left with
+  | nil => simp [bvars]
+  | cons entry left ih =>
+    rcases entry with ⟨ofv, d⟩
+    cases ofv <;>
+      simp [bvars, ih, Nat.add_comm, Nat.add_left_comm]
+
 abbrev NoBV (Δ : VLCtx) : Prop := Δ.bvars = 0
+
+theorem NoBV.leftOfAppend (left right : VLCtx)
+    (H : (left ++ right).NoBV) : left.NoBV := by
+  change (left ++ right).bvars = 0 at H
+  change left.bvars = 0
+  rw [bvars_append] at H
+  exact Nat.eq_zero_of_add_eq_zero_right H
 
 def next : Option (FVarId × List FVarId) → Nat ⊕ FVarId → Option (Nat ⊕ FVarId)
   | none, .inl 0 => none
