@@ -864,6 +864,39 @@ structure ParameterCachePrefix (env : VEnv) (Us : List Name) (Δ : VLCtx)
     (cachedParamVars done depth)
   paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
 
+/-- Shape of the CPS-retained runtime context after the first header has fixed
+the block-wide parameter telescope.  Header indices form an ambient prefix;
+the common parameters remain an exact suffix. -/
+structure AmbientParamContext (Hc : ContextWF c) (params : List VExpr)
+    (depth : Nat) where
+  ambient : List VExpr
+  context : Hc.mlctx.vlctx.toCtx = ambient ++ params.reverse
+  length : ambient.length = depth
+
+def AmbientParamContext.ofFirst
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {indices params : List VExpr}
+    (hctx : Hc.mlctx.vlctx.toCtx = indices.reverse ++ params.reverse) :
+    AmbientParamContext Hc params indices.length where
+  ambient := indices.reverse
+  context := hctx
+  length := by simp
+
+def AmbientParamContext.withIndex
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : AmbientParamContext Hc params depth)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    AmbientParamContext
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty)
+      params (depth + 1) where
+  ambient := ty' :: H.ambient
+  context := by
+    change ty' :: Hc.mlctx.vlctx.toCtx =
+      (ty' :: H.ambient) ++ params.reverse
+    simp [H.context]
+  length := by simp [H.length]
+
 theorem ParameterCachePrefix.empty
     (hparams : stats.params = #[]) :
     ParameterCachePrefix env Us Δ stats 0 depth := by
@@ -1092,6 +1125,47 @@ theorem index.cacheWF
   exact Hrec body'' hbodyEq normalized hnormalized
     (Hcache.withIndex Hc Hdom.consumed Hdom.isType)
 
+/-- Later-header index step carrying both the translated parameter cache and
+the ambient-prefix shape used at the constructor boundary. -/
+theorem index.runtimeStateWF
+    (Hc : ContextWF c) (hi : ¬ i < nparams)
+    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
+      stats done depth)
+    (Hambient : AmbientParamContext Hc params depth)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ body'',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      ∀ normalized,
+        TrExpr (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
+        ParameterCachePrefix
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx stats done (depth + 1) →
+        AmbientParamContext
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType) params (depth + 1) →
+        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
+          i (nindices + 1) fuel k
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  apply index.cacheWF (stats := stats) (nparams := nparams) (i := i)
+    (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
+    Hc hi Hcache Hdom hbody
+  intro body'' hbodyEq normalized hnormalized Hcache'
+  exact Hrec body'' hbodyEq normalized hnormalized Hcache'
+    (Hambient.withIndex Hdom.consumed Hdom.isType)
+
 /-- Verification step for a common parameter of the first mutual header.  In
 addition to the opened-body relation, the continuation sees the exact fresh
 free variable appended to the executable parameter cache. -/
@@ -1282,6 +1356,38 @@ theorem laterParameter.sourceWF
     have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
     exact (whnfInContext.WF Hc hopened).bind fun normalized hnormalized =>
       Hrec heq normalized hnormalized
+
+/-- Reusing a cached parameter does not alter the retained ambient-prefix
+shape. -/
+theorem laterParameter.runtimeStateWF
+    (Hc : ContextWF c) (hi : i < nparams)
+    (hnonempty : stats.indConsts.isEmpty = false)
+    (Hambient : AmbientParamContext Hc params depth)
+    (hget : (AddInductive.getType stats.params[i]! c).WF
+      (fun ty => ty = paramTy))
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (hparamTy : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy')
+    (hparam : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      stats.params[i]! param')
+    (hparamType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+      param' paramTy')
+    (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+        dom' paramTy' →
+      ∀ normalized,
+        TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized
+          (body'.inst param') →
+        AmbientParamContext Hc params depth →
+        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
+          (i + 1) nindices fuel k c).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  apply laterParameter.sourceWF (stats := stats) (nparams := nparams)
+    (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
+    Hc hi hnonempty hget hdom hbody hparamTy hparam hparamType
+  intro heq normalized hnormalized
+  exact Hrec heq normalized hnormalized Hambient
 
 end checkInductiveTypes.loopType
 
