@@ -2416,6 +2416,30 @@ def HeaderTraversalCertificate.complete
   headers := checkInductiveTypes.loopInd.HeaderLoopCertificate.complete H.headers
   applicationStats := H.applicationStats.complete
 
+/-- Joint output of header checking and the subsequent flattened constructor
+traversal.  This is the formation-side payload eventually returned to
+`Environment.addInductive`; application statistics remain available for
+recursor and iota generation. -/
+structure CheckedFormationResult (env : VEnv) (Us : List Name) (Δ : VLCtx)
+    (decl : VInductDecl) (stats : AddInductive.InductiveStats)
+    (depth : Nat) where
+  formation : FormationCertificate env decl
+  applicationStats : ValidAppStatsWF env Us Δ stats decl depth
+
+def HeaderTraversalResult.withConstructors
+    (H : HeaderTraversalResult env Us Δ decl stats depth)
+    (envTypes : VEnv)
+    (htypes : env.addConsts decl.typeConstants = some envTypes)
+    (Hctors : ConstructorPrefixCertificate env decl envTypes
+      H.headers.params decl.ownedConstructors.length) :
+    CheckedFormationResult env Us Δ decl stats depth where
+  formation := {
+    headers := H.headers
+    envTypes := envTypes
+    typesInstalled := htypes
+    constructors := Hctors.complete }
+  applicationStats := H.applicationStats
+
 def LiteralDisjoint (indConsts : Array Expr) : Prop :=
   ∀ literal : Literal,
     AddInductive.hasIndOcc indConsts literal.toConstructor = false
