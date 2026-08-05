@@ -3140,6 +3140,72 @@ theorem StagedBlock.abstract_recursors
     H.venvCtors.addConsts (recursors.map Prod.snd) = some outVEnv :=
   H.recursorsAdded.abstract
 
+/-- The complete semantic certificate for the block assembled by the three
+executable installation stages. `AddConstants` records the per-step checking
+environment; the three `*WF` fields deliberately record the stronger
+stage-wide facts required by the independent `VInductBlock.WF` specification.
+This distinction matters for mutual declarations: typing a later header only
+after installing an earlier sibling would not establish formation of the
+mutual block. -/
+structure BlockCertificate (safety : DefinitionSafety)
+    (env : Environment) (venv : VEnv)
+    (types ctors recursors : List (ConstantInfo × VConstVal))
+    (rules : List VDefEq) (outEnv : Environment) (outVEnv : VEnv) where
+  staged : StagedBlock safety env venv types ctors recursors outEnv outVEnv
+  typesWF : ∀ ci ∈ types.map Prod.snd, ci.toVConstant.WF venv
+  ctorsWF : ∀ ci ∈ ctors.map Prod.snd,
+    ci.toVConstant.WF staged.venvTypes
+  recursorsWF : ∀ ci ∈ recursors.map Prod.snd,
+    ci.toVConstant.WF staged.venvCtors
+  rulesWF : ∀ df ∈ rules, df.WF outVEnv
+
+def BlockCertificate.block
+    (_H : BlockCertificate safety env venv types ctors recursors
+      rules outEnv outVEnv) : VInductBlock where
+  types := types.map Prod.snd
+  ctors := ctors.map Prod.snd
+  recursors := recursors.map Prod.snd
+  rules := rules
+
+/-- A completed executable staging certificate directly discharges the
+independent semantic well-formedness judgment. -/
+theorem BlockCertificate.wf
+    (H : BlockCertificate safety env venv types ctors recursors
+      rules outEnv outVEnv) :
+    H.block.WF venv := by
+  exact ⟨H.staged.venvTypes, H.staged.venvCtors, outVEnv,
+    H.staged.abstract_types, H.staged.abstract_ctors,
+    H.staged.abstract_recursors, H.typesWF, H.ctorsWF, H.recursorsWF,
+    H.rulesWF⟩
+
+/-- The abstract installation result is fixed by the executable staging
+certificate; reduction rules are installed only after every recursor. -/
+theorem BlockCertificate.install
+    (H : BlockCertificate safety env venv types ctors recursors
+      rules outEnv outVEnv) :
+    H.block.install venv = some (outVEnv.addDefEqs rules) := by
+  simp [BlockCertificate.block, VInductBlock.install,
+    H.staged.abstract_types, H.staged.abstract_ctors,
+    H.staged.abstract_recursors]
+
+/-- Final assembly point for the implementation-refinement boundary. Once
+the executable traversals have supplied source formation, compilation shape,
+staged typing, and production-map conservation, no further semantic facts are
+hidden in `AddInduct`. -/
+theorem BlockCertificate.addInduct
+    (H : BlockCertificate checkSafety prodEnv venv types ctors recursors
+      rules outEnv outVEnv)
+    (hdecl : decl.WF venv)
+    (hcompile : decl.CompilesTo venv H.block)
+    (haligned : ∀ safety, Aligned safety C venv →
+      Aligned safety C' (outVEnv.addDefEqs rules))
+    (hdelta : ∀ {name ci}, C'.find? name = some ci →
+      ci.deltaValue?.isSome → C.find? name = some ci)
+    (heq : ∀ info, C'.find? ``Eq = some (.inductInfo info) →
+      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+    AddInduct C venv decl C' (outVEnv.addDefEqs rules) :=
+  .intro H.block hdecl hcompile H.wf H.install haligned hdelta heq
+
 /-- The first executable check on every source inductive header is an ordinary
 type-checker run. At an empty local context its successful result already
 provides both the source translation and the abstract typing derivation; later
