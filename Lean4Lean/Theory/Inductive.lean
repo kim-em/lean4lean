@@ -273,6 +273,27 @@ def VExpr.wrapLams (domains : List VExpr) (body : VExpr) : VExpr :=
 def VExpr.wrapForalls (domains : List VExpr) (body : VExpr) : VExpr :=
   domains.foldr .forallE body
 
+@[simp] theorem VExpr.takeForalls_wrapForalls_append
+    (pre suff : List VExpr) (body : VExpr) :
+    (VExpr.wrapForalls (pre ++ suff) body).takeForalls pre.length =
+      some (pre, VExpr.wrapForalls suff body) := by
+  induction pre with
+  | nil => rfl
+  | cons dom pre ih =>
+    change (do
+      let (domains, result) ←
+        (VExpr.wrapForalls (pre ++ suff) body).takeForalls pre.length
+      return (dom :: domains, result)) = _
+    rw [ih]
+    rfl
+
+@[simp] theorem VExpr.takeForalls_wrapForalls
+    (domains : List VExpr) (body : VExpr) :
+    (VExpr.wrapForalls domains body).takeForalls domains.length =
+      some (domains, body) := by
+  simpa [wrapForalls] using
+    VExpr.takeForalls_wrapForalls_append domains [] body
+
 /-- `e` is an application of one of the constructor fields represented by its
 de Bruijn index at the outside of the rule telescope. `depth` accounts for
 binders introduced inside a higher-order recursive call. -/
@@ -365,6 +386,57 @@ structure VInductDecl.RecursorShape (decl : VInductDecl)
     some (indices, afterIndices)
   major_take : afterIndices.takeForalls 1 = some (major, result)
   result_eq : result = decl.recursorResult ownerIdx minors.length owner
+
+/-- Canonical constructor for `RecursorShape` from the single wrapped
+telescope produced by recursor generation. -/
+def VInductDecl.RecursorShape.ofWrapped
+    {decl : VInductDecl} {owner : VInductiveType} {recursor : VConstVal}
+    {ownerIdx : Nat} {params motives minors indices major : List VExpr}
+    {result : VExpr}
+    (owner_lt : ownerIdx < decl.types.length)
+    (owner_eq : decl.types[ownerIdx] = owner)
+    (name : recursor.name = decl.recursorName owner)
+    (uvars : recursor.uvars = decl.uvars ∨
+      recursor.uvars = decl.uvars + 1)
+    (hparams : params.length = decl.nparams)
+    (hmotives : motives.length = decl.types.length)
+    (hminors : minors.length = decl.ownedConstructors.length)
+    (hindices : indices.length = owner.numIndices)
+    (hmajor : major.length = 1)
+    (htype : recursor.type = VExpr.wrapForalls
+      (params ++ motives ++ minors ++ indices ++ major) result)
+    (hresult : result = decl.recursorResult ownerIdx minors.length owner) :
+    decl.RecursorShape owner recursor := by
+  refine {
+    ownerIdx, owner_lt, owner_eq, name, uvars, params, motives, minors, indices,
+    major
+    afterParams := VExpr.wrapForalls (motives ++ minors ++ indices ++ major) result
+    afterMotives := VExpr.wrapForalls (minors ++ indices ++ major) result
+    afterMinors := VExpr.wrapForalls (indices ++ major) result
+    afterIndices := VExpr.wrapForalls major result
+    result
+    params_take := ?_
+    motives_take := ?_
+    minors_take := ?_
+    indices_take := ?_
+    major_take := ?_
+    result_eq := hresult }
+  · rw [← hparams]
+    rw [htype]
+    simpa only [List.append_assoc] using
+      VExpr.takeForalls_wrapForalls_append params
+        (motives ++ minors ++ indices ++ major) result
+  · rw [← hmotives]
+    simpa only [List.append_assoc] using
+      VExpr.takeForalls_wrapForalls_append motives
+        (minors ++ indices ++ major) result
+  · rw [← hminors]
+    simpa only [List.append_assoc] using
+      VExpr.takeForalls_wrapForalls_append minors (indices ++ major) result
+  · rw [← hindices]
+    exact VExpr.takeForalls_wrapForalls_append indices major result
+  · rw [← hmajor]
+    exact VExpr.takeForalls_wrapForalls major result
 
 /-- One declarative iota equation. The left-hand side is a recursor whose final
 argument is the matching constructor application. The right-hand side may call
