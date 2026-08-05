@@ -11,6 +11,98 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+/-- Completed output of the mutual-header traversal. -/
+structure HeaderCertificate (env : VEnv) (decl : VInductDecl) where
+  params : List VExpr
+  resultLevel : VLevel
+  commonLevels : ∀ type ∈ decl.types, type.resultLevel ≈ resultLevel
+  typeShapes : ∀ type ∈ decl.types, decl.TypeShape env params type
+
+/-- Prefix invariant threaded through `checkInductiveTypes.loopInd`. -/
+structure HeaderPrefixCertificate (env : VEnv) (decl : VInductDecl)
+    (params : List VExpr) (resultLevel : VLevel) (done : Nat) : Prop where
+  commonLevels : ∀ i, i < done → (hi : i < decl.types.length) →
+    decl.types[i].resultLevel ≈ resultLevel
+  typeShapes : ∀ i, i < done → (hi : i < decl.types.length) →
+    decl.TypeShape env params decl.types[i]
+
+theorem HeaderPrefixCertificate.empty (env : VEnv) (decl : VInductDecl)
+    (params : List VExpr) (resultLevel : VLevel) :
+    HeaderPrefixCertificate env decl params resultLevel 0 where
+  commonLevels _ h := by omega
+  typeShapes _ h := by omega
+
+theorem HeaderPrefixCertificate.push
+    (H : HeaderPrefixCertificate env decl params resultLevel done)
+    (hindex : done < decl.types.length)
+    (hlevel : decl.types[done].resultLevel ≈ resultLevel)
+    (hshape : decl.TypeShape env params decl.types[done]) :
+    HeaderPrefixCertificate env decl params resultLevel (done + 1) where
+  commonLevels i hidone hi := by
+    by_cases h : i = done
+    · subst i; exact hlevel
+    · exact H.commonLevels i (by omega) hi
+  typeShapes i hidone hi := by
+    by_cases h : i = done
+    · subst i; exact hshape
+    · exact H.typeShapes i (by omega) hi
+
+/-- Initialize the accumulator with the first checked mutual header. -/
+theorem HeaderPrefixCertificate.first
+    (hindex : 0 < decl.types.length)
+    (hshape : decl.TypeShape env params decl.types[0]) :
+    HeaderPrefixCertificate env decl params decl.types[0].resultLevel 1 := by
+  exact (HeaderPrefixCertificate.empty env decl params
+    decl.types[0].resultLevel).push hindex (by rfl) hshape
+
+/-- Convert the executable common-universe guard into the abstract level
+equivalence stored by the header-prefix invariant. -/
+theorem HeaderPrefixCertificate.pushOfIsEquiv
+    (H : HeaderPrefixCertificate env decl params resultLevel done)
+    (hindex : done < decl.types.length)
+    (hguard : currentLevel.isEquiv commonLevel = true)
+    (hcurrent : VLevel.ofLevel lparams currentLevel =
+      some decl.types[done].resultLevel)
+    (hcommon : VLevel.ofLevel lparams commonLevel = some resultLevel)
+    (hshape : decl.TypeShape env params decl.types[done]) :
+    HeaderPrefixCertificate env decl params resultLevel (done + 1) :=
+  H.push hindex (Level.isEquiv_wf hguard hcurrent hcommon) hshape
+
+def HeaderPrefixCertificate.complete
+    (H : HeaderPrefixCertificate env decl params resultLevel decl.types.length) :
+    HeaderCertificate env decl where
+  params := params
+  resultLevel := resultLevel
+  commonLevels type htype := by
+    rcases List.mem_iff_getElem.1 htype with ⟨i, hi, rfl⟩
+    exact H.commonLevels i hi hi
+  typeShapes type htype := by
+    rcases List.mem_iff_getElem.1 htype with ⟨i, hi, rfl⟩
+    exact H.typeShapes i hi hi
+
+/-- Fielded aggregation target for the executable header and constructor
+traversals. The public specification remains `VInductDecl.FormationWF`; this
+certificate gives the refinement proof stable, named obligations instead of
+repeatedly unpacking a large existential. -/
+structure FormationCertificate (env : VEnv) (decl : VInductDecl) where
+  headers : HeaderCertificate env decl
+  envTypes : VEnv
+  typesInstalled : env.addConsts decl.typeConstants = some envTypes
+  ctorShapes : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
+    decl.CtorShape envTypes headers.params type ctor
+
+theorem FormationCertificate.formationWF
+    (H : FormationCertificate env decl) : decl.FormationWF env := by
+  exact ⟨H.headers.params, H.headers.resultLevel, H.envTypes, H.typesInstalled,
+    fun type htype => ⟨H.headers.commonLevels type htype,
+      H.headers.typeShapes type htype⟩,
+    H.ctorShapes⟩
+
+theorem FormationCertificate.declWF
+    (H : FormationCertificate env decl) (hsource : decl.SourceWF env) :
+    decl.WF env :=
+  ⟨hsource, H.formationWF⟩
+
 /-- Verification state for the outer inductive-construction monad. The local
 context is represented by the same `MLCtx` used by the typechecker proof, while
 the production reader retains the independently generated `_ind_fresh` names. -/
