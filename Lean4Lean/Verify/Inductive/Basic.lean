@@ -627,6 +627,43 @@ theorem TrExpr.typeShapeOfDefEqCtx
     hheader, hparamsTake, hindicesTake, hparams,
     by simpa [huvars] using hresult'⟩
 
+/-- Context- and result-conversion form of `typeShape`.  Repeated executable
+`whnf` calls need only remain definitionally equal to the unconsumed source
+telescope; they need not choose that telescope's exact syntax. -/
+theorem TrExpr.typeShapeOfDefEqCtxResult
+    {decl : VInductDecl} {target : VInductiveType}
+    {params ownParams indices : List VExpr}
+    {normalized afterParams result translatedResult exprType : VExpr}
+    (henv : VEnv.WF env) (hctx : VLCtx.WF env Us.length Δ)
+    (huvars : Us.length = decl.uvars)
+    (hctxEq : VEnv.IsDefEqCtx env Us.length []
+      (indices.reverse ++ ownParams.reverse) Δ.toCtx)
+    (hheader : env.IsDefEq decl.uvars [] target.type normalized exprType)
+    (hparamsTake : normalized.takeForalls decl.nparams =
+      some (ownParams, afterParams))
+    (hindicesTake : afterParams.takeForalls target.numIndices =
+      some (indices, result))
+    (hparams : decl.ParamsDefEq env params ownParams)
+    (hresultEq : env.IsDefEqU Us.length Δ.toCtx result translatedResult)
+    (hlevel : ∀ resultLevel,
+      VLevel.ofLevel Us level = some resultLevel →
+      resultLevel = target.resultLevel)
+    (H : TrExpr env Us Δ (.sort level) translatedResult) :
+    decl.TypeShape env params target := by
+  rcases TrExpr.sort_result henv hctx.toCtx H with
+    ⟨resultLevel, hresultLevel, htranslated⟩
+  have hlevelEq := hlevel resultLevel hresultLevel
+  subst resultLevel
+  have hsourceType := htranslated.hasType.1.defeqU_l henv hctx.toCtx
+    hresultEq.symm
+  have hsourceEqU := hresultEq.trans henv hctx.toCtx ⟨_, htranslated⟩
+  have hsourceEq := hsourceEqU.of_l henv hctx.toCtx hsourceType
+  have hsourceEq' := hsourceEq.defeqDFC henv.ordered
+    (hctxEq.symm henv.ordered)
+  exact ⟨normalized, ownParams, afterParams, indices, result, exprType,
+    hheader, hparamsTake, hindicesTake, hparams,
+    by simpa [huvars] using hsourceEq'⟩
+
 /-- Opening a source binder with the fresh free variable chosen by the
 production checker leaves its abstract body unchanged: the extended `VLCtx`
 maps that free variable back to the new outermost de Bruijn variable. -/
@@ -720,6 +757,23 @@ theorem ContextWF.ConsumedDomain.body
       (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) nofun (.vlam hdom)
   rcases hbody.defeqDFC Hc.checking.tr.wf hctx with ⟨body'', hbody''⟩
   exact ⟨body'', hbody'', hbody.uniq Hc.checking.tr.wf hctx hbody''⟩
+
+/-- Move the source/body conversion produced by `body` into the
+annotation-consumed context installed by the executable checker. -/
+theorem ContextWF.ConsumedDomain.bodyDefEqConsumed
+    {c : AddInductive.Context} (Hc : ContextWF c)
+    {dom : Expr} {source' consumed' sourceBody body'' : VExpr}
+    (H : Hc.ConsumedDomain dom source' consumed')
+    (hbodyEq : Hc.venv.IsDefEqU c.lparams.length
+      (source' :: Hc.mlctx.vlctx.toCtx) sourceBody body'') :
+    Hc.venv.IsDefEqU c.lparams.length
+      (consumed' :: Hc.mlctx.vlctx.toCtx) sourceBody body'' := by
+  rcases H.source_defeq with ⟨_, hsource⟩
+  have hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (source' :: Hc.mlctx.vlctx.toCtx)
+      (consumed' :: Hc.mlctx.vlctx.toCtx) :=
+    .succ (.refl Hc.mlctx_wf.tr.wf.toCtx) hsource
+  exact hbodyEq.defeqDFC Hc.checking.tr.wf.ordered hctx
 
 /-- Semantic compatibility required of Lean's opaque annotation erasure.
 It is kept as one named boundary condition until the translations of
@@ -1353,8 +1407,10 @@ theorem index.cacheTelescopeWF
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ body'',
-      Hc.venv.IsDefEqU c.lparams.length
-        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).venv.IsDefEqU c.lparams.length
+        (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).mlctx.vlctx.toCtx sourceBody' body'' →
       ∀ normalized,
         TrExpr (Hc.withLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).venv c.lparams
@@ -1381,7 +1437,15 @@ theorem index.cacheTelescopeWF
     (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
     Hc hi Hcache Hdom hbody
   intro body'' hbodyEq normalized hnormalized Hcache'
-  exact Hrec body'' hbodyEq normalized hnormalized Hcache'
+  have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
+  have hbodyEq'' :
+      (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).venv.IsDefEqU c.lparams.length
+        (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).mlctx.vlctx.toCtx sourceBody' body'' := by
+    simpa only [ContextWF.withLocalDecl_venv,
+      ContextWF.withLocalDecl_toCtx] using hbodyEq'
+  exact Hrec body'' hbodyEq'' normalized hnormalized Hcache'
     (Htelescope.withIndex Hdom)
 
 /-- Later-header index step carrying both the translated parameter cache and
@@ -1548,8 +1612,10 @@ theorem firstParameter.cacheTelescopeWF
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ body'',
-      Hc.venv.IsDefEqU c.lparams.length
-        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).venv.IsDefEqU c.lparams.length
+        (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).mlctx.vlctx.toCtx sourceBody' body'' →
       ∀ normalized,
         TrExpr (Hc.withLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).venv c.lparams
@@ -1579,7 +1645,15 @@ theorem firstParameter.cacheTelescopeWF
     (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
     Hc hi hempty Hcache Hdom hbody
   intro body'' hbodyEq normalized hnormalized Hcache'
-  exact Hrec body'' hbodyEq normalized hnormalized Hcache'
+  have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
+  have hbodyEq'' :
+      (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).venv.IsDefEqU c.lparams.length
+        (Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType).mlctx.vlctx.toCtx sourceBody' body'' := by
+    simpa only [ContextWF.withLocalDecl_venv,
+      ContextWF.withLocalDecl_toCtx] using hbodyEq'
+  exact Hrec body'' hbodyEq'' normalized hnormalized Hcache'
     (Htelescope.withParameter hindices Hdom)
 
 /-- Verification step for a common parameter of a later mutual header.  The
@@ -1994,14 +2068,16 @@ theorem firstResult.refinesRuntimeState
 parameter split, index split, and context-conversion premises. -/
 theorem firstResult.refinesTelescope
     {decl : VInductDecl} {target : VInductiveType}
-    {normalized result exprType : VExpr}
+    {normalized result translatedResult exprType : VExpr}
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
     (Q : α → Prop)
     (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
     (Htelescope : checkInductiveTypes.loopType.HeaderTelescopeLoopCertificate
       Hc normalized result decl.nparams nindices)
     (hnindices : nindices = target.numIndices)
-    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type translatedResult)
+    (hresultEq : Hc.venv.IsDefEqU c.lparams.length
+      Hc.mlctx.vlctx.toCtx result translatedResult)
     (huvars : c.lparams.length = decl.uvars)
     (hheader : Hc.venv.IsDefEq decl.uvars []
       target.type normalized exprType)
@@ -2031,10 +2107,24 @@ theorem firstResult.refinesTelescope
       AddInductive.checkInductiveTypes.loopInd nparams indTypes
         (dIdx + 1) stats k) type stats nindices c).WF Q := by
   subst nindices
-  apply firstResult.refinesRuntimeState k Q Hc hempty htype huvars
+  apply firstResult.WF k Q Hc hempty htype
+  intro resultSort hsorted
+  rcases TrExpr.sort_source hsorted with ⟨resultLevel, hofLevel, _⟩
+  have hresultLevel := hlevel resultSort resultLevel hofLevel
+  subst resultLevel
+  have hctxType : OnCtx
+      (Htelescope.indices.reverse ++ Htelescope.params.reverse)
+      (Hc.venv.IsType decl.uvars) := by
+    simpa [huvars] using Htelescope.telescope.context.isType
+  have hshape := TrExpr.typeShapeOfDefEqCtxResult
+    Hc.checking.tr.wf Hc.mlctx_wf.tr.wf huvars
     Htelescope.telescope.context hheader Htelescope.takeParameters
-    Htelescope.takeIndices hlevel
-  exact Hrec
+    Htelescope.takeIndices
+    (VInductDecl.paramsDefEq_reflOfAppend hctxType) hresultEq
+    (hlevel resultSort) hsorted
+  exact Hrec resultSort hofLevel hshape
+    (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq
+      Htelescope.telescope.context)
 
 /-- Post-telescope continuation for later mutual headers.  A mismatched result
 universe throws; a successful path records the checked equivalence before
