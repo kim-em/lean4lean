@@ -2461,6 +2461,35 @@ def ValidAppStatsPrefix.beforeFirst
   params := Hcache.complete
   paramFVars := Hcache.paramFVars
 
+theorem ValidAppStatsPrefix.withLocalDecl
+    (Hc : ContextWF c)
+    (H : ValidAppStatsPrefix Hc.venv c.lparams Hc.mlctx.vlctx
+      stats decl depth done)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    ValidAppStatsPrefix
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).venv
+      c.lparams
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
+      stats decl (depth + 1) done := by
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+  let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
+    .skip_fvar _ _ .refl
+  have hparams : List.Forall₂
+      (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+      stats.params.toList (decl.paramVars (depth + 1)) := by
+    rw [← VInductDecl.paramVars_liftN]
+    exact forall₂_map_right H.params fun h =>
+      h.weakFV Hc.checking.tr.wf.ordered W Hc'.mlctx_wf.tr.wf
+  exact {
+    covered := H.covered
+    levels := H.levels
+    uvars := H.uvars
+    consts := H.consts
+    indices := H.indices
+    params := hparams
+    paramFVars := H.paramFVars }
+
 theorem ValidAppStatsPrefix.push
     (H : ValidAppStatsPrefix env Us Δ stats decl depth done)
     (hindex : done < decl.types.length)
@@ -2518,6 +2547,82 @@ structure HeaderTraversalResult (env : VEnv) (Us : List Name)
     (stats : AddInductive.InductiveStats) (depth : Nat) where
   headers : HeaderCertificate env decl
   applicationStats : ValidAppStatsWF env Us Δ stats decl depth
+
+/-- Executable header-loop state in the actual retained reader context. -/
+structure HeaderRuntimeCertificate (Hc : ContextWF c)
+    (decl : VInductDecl) (params : List VExpr)
+    (stats : AddInductive.InductiveStats) (depth done : Nat) where
+  headers : HeaderLoopCertificate Hc.venv c.lparams decl params stats done
+  applicationStats : ValidAppStatsPrefix Hc.venv c.lparams
+    Hc.mlctx.vlctx stats decl depth done
+  ambient : checkInductiveTypes.loopType.AmbientParamContext Hc params depth
+
+def HeaderRuntimeCertificate.withIndex
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderRuntimeCertificate Hc decl params stats depth done)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    HeaderRuntimeCertificate
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty)
+      decl params stats (depth + 1) done where
+  headers := H.headers
+  applicationStats := H.applicationStats.withLocalDecl Hc htr hty
+  ambient := H.ambient.withIndex htr hty
+
+def HeaderRuntimeCertificate.first
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {indices params : List VExpr}
+    (Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
+      Hc.venv c.lparams Hc.mlctx.vlctx stats decl.nparams indices.length)
+    (hlevels : stats.levels.length = decl.uvars)
+    (huvars : c.lparams.length = decl.uvars)
+    (hconsts : stats.indConsts = #[])
+    (hindices : stats.nindices = #[])
+    (hindex : 0 < decl.types.length)
+    (htarget : decl.types[0] = target)
+    (hname : indName = decl.types[0].name)
+    (hnindices : nindices = decl.types[0].numIndices)
+    (hofLevel : VLevel.ofLevel c.lparams resultSort = some target.resultLevel)
+    (hctx : Hc.mlctx.vlctx.toCtx = indices.reverse ++ params.reverse)
+    (hshape : decl.TypeShape Hc.venv params target) :
+    HeaderRuntimeCertificate Hc decl params
+      (checkInductiveTypes.loopInd.updatedStats stats c.lctx resultSort
+        true nindices indName)
+      indices.length 1 where
+  headers := checkInductiveTypes.loopInd.HeaderLoopCertificate.first
+    hindex htarget hofLevel hshape
+  applicationStats :=
+    (ValidAppStatsPrefix.beforeFirst Hcache hlevels huvars hconsts hindices).push
+      hindex hname hnindices
+  ambient := checkInductiveTypes.loopType.AmbientParamContext.ofFirst hctx
+
+def HeaderRuntimeCertificate.later
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderRuntimeCertificate Hc decl params stats depth done)
+    (hindex : done < decl.types.length)
+    (htarget : decl.types[done] = target)
+    (hname : indName = decl.types[done].name)
+    (hnindices : nindices = decl.types[done].numIndices)
+    (hguard : resultSort.isEquiv stats.resultLevel = true)
+    (hofLevel : VLevel.ofLevel c.lparams resultSort = some target.resultLevel)
+    (hshape : decl.TypeShape Hc.venv params target) :
+    HeaderRuntimeCertificate Hc decl params
+      (checkInductiveTypes.loopInd.updatedStats stats stats.lctx resultSort
+        false nindices indName)
+      depth (done + 1) where
+  headers := checkInductiveTypes.loopInd.HeaderLoopCertificate.later
+    H.headers hindex htarget hguard hofLevel hshape
+  applicationStats := H.applicationStats.push hindex hname hnindices
+  ambient := H.ambient
+
+def HeaderRuntimeCertificate.complete
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderRuntimeCertificate Hc decl params stats depth
+      decl.types.length) :
+    HeaderTraversalResult Hc.venv c.lparams Hc.mlctx.vlctx
+      decl stats depth where
+  headers := checkInductiveTypes.loopInd.HeaderLoopCertificate.complete H.headers
+  applicationStats := H.applicationStats.complete
 
 /-- Pair the first successfully checked header with the corresponding first
 statistics update.  The application-statistics premise is deliberately about
