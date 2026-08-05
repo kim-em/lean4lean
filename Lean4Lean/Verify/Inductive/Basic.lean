@@ -562,6 +562,128 @@ end checkInductiveTypes.loopType
 
 namespace checkInductiveTypes.loopInd
 
+private def updatedStats (stats : AddInductive.InductiveStats)
+    (lctx : LocalContext) (resultLevel : Level) (setResult : Bool)
+    (nindices : Nat) (indName : Name) : AddInductive.InductiveStats :=
+  let stats := if setResult then
+    { stats with
+      lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+  else stats
+  { stats with
+    nindices := stats.nindices.push nindices
+    indConsts := stats.indConsts.push (.const indName stats.levels) }
+
+/-- Post-telescope continuation for the first mutual header. -/
+theorem firstResult.WF
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type')
+    (Hrec : ∀ resultSort,
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx (.sort resultSort) type' →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
+        (updatedStats stats c.lctx resultSort true nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  change ((monadLift (TypeChecker.ensureSort type) : AddInductive.M Expr) c >>=
+    fun type => ((do
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) : AddInductive.M α) c).WF Q
+  refine (ensureSortInContext.WF Hc htype).bind fun sorted hsorted => ?_
+  rcases hsorted with ⟨hsorted, resultSort, rfl⟩
+  rw [if_pos hempty]
+  have hread : ((read : AddInductive.M AddInductive.Context) c).WF (fun c' => c' = c) := by
+    intro c' h
+    cases h
+    rfl
+  refine hread.bind fun _ h => ?_
+  subst h
+  simpa [updatedStats, Expr.sortLevel!] using Hrec resultSort hsorted
+
+/-- Post-telescope continuation for later mutual headers.  A mismatched result
+universe throws; a successful path records the checked equivalence before
+updating the per-type arrays. -/
+theorem laterResult.WF
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hnonempty : stats.indConsts.isEmpty = false)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type')
+    (Hrec : ∀ resultSort,
+      resultSort.isEquiv stats.resultLevel = true →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx (.sort resultSort) type' →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
+        (updatedStats stats stats.lctx resultSort false nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  change ((monadLift (TypeChecker.ensureSort type) : AddInductive.M Expr) c >>=
+    fun type => ((do
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) : AddInductive.M α) c).WF Q
+  refine (ensureSortInContext.WF Hc htype).bind fun sorted hsorted => ?_
+  rcases hsorted with ⟨hsorted, resultSort, rfl⟩
+  rw [if_neg (by simp [hnonempty])]
+  by_cases hequiv : (Expr.sort resultSort).sortLevel!.isEquiv stats.resultLevel = true
+  · have hequiv' : resultSort.isEquiv stats.resultLevel = true := by
+      simpa [Expr.sortLevel!] using hequiv
+    simpa [updatedStats, Expr.sortLevel!, hequiv, hequiv'] using
+      Hrec resultSort hequiv' hsorted
+  · have hfalse : (Expr.sort resultSort).sortLevel!.isEquiv stats.resultLevel = false := by
+      cases h : (Expr.sort resultSort).sortLevel!.isEquiv stats.resultLevel <;>
+        simp_all
+    have hnot : (!(Expr.sort resultSort).sortLevel!.isEquiv stats.resultLevel) = true := by
+      simp [hfalse]
+    rw [if_pos hnot]
+    change (Except.error _).WF Q
+    exact Except.WF.throw
+
 /-- Base case of the mutual-header loop.  The executable assertions become
 explicit invariants at the proof boundary instead of being silently erased. -/
 theorem result.WF
