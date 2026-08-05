@@ -2402,6 +2402,81 @@ theorem isRecArg.refines
   subst h
   exact isRecArg.loop.refines Hc Hstats hconsume hlit hctx hproj htype
 
+namespace mkRecInfos.loopCtorArgs.loop
+
+/-- Independently of typing, the recursive-argument array accumulated by
+recursor generation is an ordered sublist of the complete field array. This
+is the executable source of `IotaRule.fieldPositions_ordered`. -/
+theorem selectedSublist {α : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Array Expr → AddInductive.M α)
+    {t : Expr} {i : Nat} {bu u : Array Expr} {fuel : Nat}
+    {c : AddInductive.Context} {Q : α → Prop}
+    (hselected : u.toList.Sublist bu.toList)
+    (Hk : ∀ t bu u c, u.toList.Sublist bu.toList → (k t bu u c).WF Q) :
+    (AddInductive.mkRecInfos.loopCtorArgs.loop stats k t i bu u fuel c).WF Q := by
+  induction fuel generalizing c t i bu u with
+  | zero =>
+    intro _ h
+    simp [AddInductive.mkRecInfos.loopCtorArgs.loop] at h
+  | succ fuel ih =>
+    cases t with
+    | forallE name dom body bi =>
+      rw [AddInductive.mkRecInfos.loopCtorArgs.loop]
+      cases hparam : stats.params[i]? with
+      | some param =>
+        change (AddInductive.mkRecInfos.loopCtorArgs.loop stats k
+          (body.instantiate1 param) (i + 1) bu u fuel c).WF Q
+        exact ih hselected
+      | none =>
+        change (Lean4Lean.withLocalDecl name bi dom.consumeTypeAnnotations
+          (fun arg => do
+            let bu := bu.push arg
+            let u := if (← AddInductive.isRecArg stats dom).isSome then
+              u.push arg else u
+            AddInductive.mkRecInfos.loopCtorArgs.loop stats k
+              (body.instantiate1 arg) (i + 1) bu u fuel) c).WF Q
+        unfold Lean4Lean.withLocalDecl MonadLocalNameGenerator.withFreshId
+          AddInductive.instMonadLocalNameGeneratorM
+          AddInductive.instMonadWithReaderOfLocalContextM
+        let c' : AddInductive.Context := { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi }
+        change (AddInductive.isRecArg stats dom c' >>= fun selected =>
+          AddInductive.mkRecInfos.loopCtorArgs.loop stats
+            k (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
+            (bu.push (.fvar ⟨c.ngen.curr⟩))
+            (if selected.isSome then u.push (.fvar ⟨c.ngen.curr⟩) else u)
+            fuel c') |>.WF Q
+        have hclass : (AddInductive.isRecArg stats dom c').WF (fun _ => True) := by
+          intro _ _
+          trivial
+        refine hclass.bind fun selected _ => ?_
+        cases selected with
+        | none =>
+          apply ih
+          simpa using hselected.trans
+            (List.sublist_append_left bu.toList [.fvar ⟨c.ngen.curr⟩])
+        | some target =>
+          apply ih
+          simpa using hselected.append_right [.fvar ⟨c.ngen.curr⟩]
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata | proj =>
+      change (k _ bu u c).WF Q
+      exact Hk _ _ _ _ hselected
+
+end mkRecInfos.loopCtorArgs.loop
+
+/-- Public structural invariant for constructor argument classification. -/
+theorem mkRecInfos.loopCtorArgs.selectedSublist {α : Type}
+    (stats : AddInductive.InductiveStats) (t : Expr)
+    (k : Expr → Array Expr → Array Expr → AddInductive.M α)
+    (c : AddInductive.Context) {Q : α → Prop}
+    (Hk : ∀ t bu u c, u.toList.Sublist bu.toList → (k t bu u c).WF Q) :
+    (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
+  unfold AddInductive.mkRecInfos.loopCtorArgs
+  exact mkRecInfos.loopCtorArgs.loop.selectedSublist stats k .slnil Hk
+
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
 theorem checkConstructors.loopCtor.tailRefinesFull
