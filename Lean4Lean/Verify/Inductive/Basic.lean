@@ -2121,6 +2121,7 @@ theorem firstHeaderSynthesisWF
       {stats' : AddInductive.InductiveStats} {type' : Expr}
       {current' : VExpr} {i' nindices' : Nat}
       (Hc' : ContextWF c'),
+      stats'.indConsts.isEmpty = true →
       (¬ ∃ name dom body bi, type' = .forallE name dom body bi) →
       i' = nparams →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
@@ -2168,7 +2169,7 @@ theorem firstHeaderSynthesisWF
           · exact hnext
     · by_cases hi : i = nparams
       · exact result.WF hforall hi
-          (Hresult Hc hforall hi Hcache Hsynthesis htype)
+          (Hresult Hc hempty hforall hi Hcache Hsynthesis htype)
       · exact parameterMismatch.WF hforall hi
 
 end checkInductiveTypes.loopType
@@ -2668,6 +2669,50 @@ theorem firstResult.refinesSynthesis
   subst resultLevel
   exact Hrec resultSort hofLevel
     (Hsynthesis.typeShape huvars (hlevel resultSort) hsorted)
+    (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq
+      Hsynthesis.context)
+
+/-- Metadata-synthesizing first-header continuation.  The executable index
+counter and translated result sort are exported as data, together with a
+declaration-independent shape proof; no pre-existing `VInductiveType`
+metadata is assumed. -/
+theorem firstResult.synthesizesHeader
+    {source : VInductiveTypeSkeleton} {current : VExpr}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
+    (Hsynthesis : checkInductiveTypes.loopType.HeaderSynthesisCertificate
+      Hc source current nparams nindices)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current)
+    (huvars : c.lparams.length = uvars)
+    (Hrec : ∀ resultSort resultLevel,
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      checkInductiveTypes.loopType.SynthesizedHeader Hc.venv uvars nparams
+        Hsynthesis.params source nindices resultLevel →
+      checkInductiveTypes.loopType.AmbientParamContext
+        Hc Hsynthesis.params Hsynthesis.indices.length →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
+        (updatedStats stats c.lctx resultSort true nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  apply firstResult.WF k Q Hc hempty htype
+  intro resultSort hsorted
+  rcases TrExpr.sort_source hsorted with ⟨resultLevel, hofLevel, _⟩
+  exact Hrec resultSort resultLevel hofLevel
+    (Hsynthesis.synthesizedHeader huvars hofLevel hsorted)
     (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq
       Hsynthesis.context)
 
