@@ -909,6 +909,19 @@ theorem whnfInContext.WF (Hc : ContextWF c)
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' :=
   liftTypeChecker.WF Hc (TypeChecker.whnf.WF he)
 
+/-- `whnf` preserves every admissible free-variable scope of its input, in
+addition to preserving the abstract expression up to definitional equality.
+The ordinary wrapper above projects this fact away; later mutual headers need
+it to show normalization cannot introduce ambient or future cached
+parameters. -/
+theorem whnfInContext.scopeWF (Hc : ContextWF c)
+    (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
+    ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
+      FVarsBelow Hc.mlctx.vlctx e e₁ ∧
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' :=
+  liftTypeChecker.WF Hc
+    ((TypeChecker.Inner.whnf.WF he).run)
+
 theorem ensureSortInContext.WF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
     ((monadLift (TypeChecker.ensureSort e e₀) : AddInductive.M Expr) c).WF fun e₁ =>

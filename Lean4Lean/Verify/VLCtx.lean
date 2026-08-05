@@ -103,6 +103,10 @@ def fvars (Δ : VLCtx) : List FVarId := Δ.filterMap (·.1.map (·.1))
 @[simp] theorem fvars_cons_some {Δ : VLCtx} :
     fvars ((some fv, d) :: Δ) = fv.1 :: fvars Δ := rfl
 
+@[simp] theorem fvars_append (left right : VLCtx) :
+    fvars (left ++ right) = fvars left ++ fvars right := by
+  simp [fvars, List.filterMap_append]
+
 def toCtx : VLCtx → List VExpr
   | [] => []
   | (_, .vlam ty) :: Δ => ty :: VLCtx.toCtx Δ

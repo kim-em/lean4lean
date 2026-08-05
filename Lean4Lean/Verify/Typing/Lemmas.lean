@@ -1943,6 +1943,22 @@ theorem IsFVarUpSet.trivial : ∀ {Δ}, IsFVarUpSet (fun _ => True) Δ
 theorem IsFVarUpSet.fvars (H : VLCtx.FVWF Δ) : IsFVarUpSet (· ∈ Δ.fvars) Δ :=
   (IsFVarUpSet.congr H fun _ => iff_true_intro).2 trivial
 
+/-- Membership in the free variables of a well-formed context suffix is an
+up-set throughout any larger context obtained by prepending declarations.
+Freshness of every prepended free variable makes its dependency obligation
+vacuous. -/
+theorem IsFVarUpSet.suffixFVars (suffix : VLCtx) : ∀ (added : VLCtx),
+    VLCtx.WF env U (added ++ suffix) →
+    IsFVarUpSet (· ∈ suffix.fvars) (added ++ suffix)
+  | [], h => IsFVarUpSet.fvars h.fvwf
+  | (none, d) :: added, h => suffixFVars suffix added h.1
+  | (some (fv, deps), d) :: added, h => by
+      refine ⟨suffixFVars suffix added h.1, fun hfv => ?_⟩
+      have hmem : fv ∈ VLCtx.fvars (added ++ suffix) := by
+        rw [VLCtx.fvars_append]
+        simp [hfv]
+      exact False.elim ((h.2.1 fv deps rfl).1 hmem)
+
 def AllAbove (Δ : VLCtx) (P : FVarId → Prop) (fv : FVarId) : Prop := fv ∈ Δ.fvars → P fv
 
 theorem AllAbove.wf (H : Δ.FVWF) : IsFVarUpSet (AllAbove Δ P) Δ ↔ IsFVarUpSet P Δ :=
