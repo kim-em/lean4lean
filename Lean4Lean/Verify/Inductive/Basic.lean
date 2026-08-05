@@ -22,6 +22,23 @@ structure ContextWF (c : AddInductive.Context) where
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
 
+def initialContext (env : Environment) (lparams : List Name)
+    (safety : DefinitionSafety) (allowPrimitive : Bool) (fuel : FuelConfig) :
+    AddInductive.Context where
+  env; lparams; safety; allowPrimitive; fuel
+
+def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (safety : DefinitionSafety) (lparams : List Name)
+    (allowPrimitive : Bool) (fuel : FuelConfig) :
+    ContextWF (initialContext env lparams safety allowPrimitive fuel) where
+  venv := ves.venv safety
+  checking := (wf.tr (safety := safety)).toCheckingValid
+    (wf.hasPrimitives (safety := safety)) wf.safePrimitives
+  mlctx := .nil
+  mlctx_wf := trivial
+  lctx_eq := rfl
+  kernelFresh := nofun
+
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
 
