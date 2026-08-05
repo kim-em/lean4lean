@@ -560,6 +560,30 @@ theorem laterParameter.sourceWF
 
 end checkInductiveTypes.loopType
 
+namespace checkInductiveTypes.loopInd
+
+/-- Base case of the mutual-header loop.  The executable assertions become
+explicit invariants at the proof boundary instead of being silently erased. -/
+theorem result.WF
+    (hidx : ¬ dIdx < indTypes.size)
+    (hlevels : stats.levels.length = c.lparams.length)
+    (hindices : stats.nindices.size = indTypes.size)
+    (hconsts : stats.indConsts.size = indTypes.size)
+    (hparams : stats.params.size = nparams)
+    (Hk : (k stats c).WF Q) :
+    (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx stats k c).WF Q := by
+  rw [AddInductive.checkInductiveTypes.loopInd]
+  rw [dif_neg hidx]
+  have hread : ((read : AddInductive.M AddInductive.Context) c).WF (fun c' => c' = c) := by
+    intro c' h
+    cases h
+    rfl
+  refine hread.bind fun _ h => ?_
+  subst h
+  simpa [hlevels, hindices, hconsts, hparams] using Hk
+
+end checkInductiveTypes.loopInd
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/
