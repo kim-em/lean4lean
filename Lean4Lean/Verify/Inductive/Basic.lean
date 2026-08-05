@@ -2615,6 +2615,126 @@ def HeaderRuntimeCertificate.later
   applicationStats := H.applicationStats.push hindex hname hnindices
   ambient := H.ambient
 
+theorem HeaderRuntimeCertificate.firstResultWF
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {decl : VInductDecl} {target : VInductiveType}
+    {params indices : List VExpr}
+    {normalized afterParams result exprType : VExpr}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
+      Hc.venv c.lparams Hc.mlctx.vlctx stats decl.nparams indices.length)
+    (hlevels : stats.levels.length = decl.uvars)
+    (huvars : c.lparams.length = decl.uvars)
+    (hconsts : stats.indConsts = #[])
+    (hindices : stats.nindices = #[])
+    (hempty : stats.indConsts.isEmpty = true)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
+    (hctxEq : Hc.mlctx.vlctx.toCtx =
+      indices.reverse ++ params.reverse)
+    (hheader : Hc.venv.IsDefEq decl.uvars []
+      target.type normalized exprType)
+    (hparamsTake : normalized.takeForalls decl.nparams =
+      some (params, afterParams))
+    (hindicesTake : afterParams.takeForalls target.numIndices =
+      some (indices, result))
+    (hlevel : ∀ resultSort resultLevel,
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      resultLevel = target.resultLevel)
+    (hindex : 0 < decl.types.length)
+    (htarget : decl.types[0] = target)
+    (hname : indName = decl.types[0].name)
+    (hnindices : nindices = decl.types[0].numIndices)
+    (Hrec : ∀ resultSort,
+      VLevel.ofLevel c.lparams resultSort = some target.resultLevel →
+      HeaderRuntimeCertificate Hc decl params
+        (checkInductiveTypes.loopInd.updatedStats stats c.lctx resultSort
+          true nindices indName)
+        indices.length 1 →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes 1
+        (checkInductiveTypes.loopInd.updatedStats stats c.lctx resultSort
+          true nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes 1 stats k)
+      type stats nindices c).WF Q := by
+  apply checkInductiveTypes.loopInd.firstResult.refinesRuntimeState
+    (dIdx := 0) k Q Hc hempty htype huvars hctxEq hheader hparamsTake
+      hindicesTake hlevel
+  intro resultSort hofLevel _hshape _hambient
+  exact Hrec resultSort hofLevel
+    (HeaderRuntimeCertificate.first Hcache hlevels huvars hconsts hindices
+      hindex htarget hname hnindices hofLevel hctxEq _hshape)
+
+theorem HeaderRuntimeCertificate.laterResultWF
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {decl : VInductDecl} {target : VInductiveType}
+    {params ownParams indices : List VExpr}
+    {normalized afterParams result exprType : VExpr}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (H : HeaderRuntimeCertificate Hc decl params stats depth dIdx)
+    (hnonempty : stats.indConsts.isEmpty = false)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
+    (huvars : c.lparams.length = decl.uvars)
+    (hctxEq : Hc.mlctx.vlctx.toCtx =
+      indices.reverse ++ ownParams.reverse)
+    (hheader : Hc.venv.IsDefEq decl.uvars []
+      target.type normalized exprType)
+    (hparamsTake : normalized.takeForalls decl.nparams =
+      some (ownParams, afterParams))
+    (hindicesTake : afterParams.takeForalls target.numIndices =
+      some (indices, result))
+    (hparams : decl.ParamsDefEq Hc.venv params ownParams)
+    (hlevel : ∀ resultSort resultLevel,
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      resultLevel = target.resultLevel)
+    (hindex : dIdx < decl.types.length)
+    (htarget : decl.types[dIdx] = target)
+    (hname : indName = decl.types[dIdx].name)
+    (hnindices : nindices = decl.types[dIdx].numIndices)
+    (Hrec : ∀ resultSort,
+      resultSort.isEquiv stats.resultLevel = true →
+      VLevel.ofLevel c.lparams resultSort = some target.resultLevel →
+      HeaderRuntimeCertificate Hc decl params
+        (checkInductiveTypes.loopInd.updatedStats stats stats.lctx resultSort
+          false nindices indName)
+        depth (dIdx + 1) →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
+        (checkInductiveTypes.loopInd.updatedStats stats stats.lctx resultSort
+          false nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  apply checkInductiveTypes.loopInd.laterResult.refines k Q Hc hnonempty
+    htype huvars hctxEq hheader hparamsTake hindicesTake hparams hlevel
+  intro resultSort hguard hofLevel hshape
+  exact Hrec resultSort hguard hofLevel
+    (H.later hindex htarget hname hnindices hguard hofLevel hshape)
+
 def HeaderRuntimeCertificate.complete
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : HeaderRuntimeCertificate Hc decl params stats depth
