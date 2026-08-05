@@ -129,6 +129,31 @@ theorem ContextWF.instantiateFresh (Hc : ContextWF c)
   exact hbody.inst_fvar Hc.checking.tr.wf.ordered
     (Hc.withLocalDecl htr hty).mlctx_wf.tr.wf
 
+/-- Semantic certificate for the production checker's removal of binder type
+annotations.  The consumed syntax may translate to a different abstract term,
+but it must remain a type definitionally equal to the source domain. -/
+structure ContextWF.ConsumedDomain (Hc : ContextWF c)
+    (dom : Expr) (source' : VExpr) where
+  consumed' : VExpr
+  source : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source'
+  consumed : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+    dom.consumeTypeAnnotations consumed'
+  isType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx consumed'
+  source_defeq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+    source' consumed'
+
+/-- Domains without a leading type annotation need no semantic transport. -/
+def ContextWF.ConsumedDomain.unchanged (Hc : ContextWF c)
+    (heq : dom.consumeTypeAnnotations = dom)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom') :
+    Hc.ConsumedDomain dom dom' where
+  consumed' := dom'
+  source := htr
+  consumed := heq.symm ▸ htr
+  isType := hty
+  source_defeq := htr.wf Hc.checking.tr.wf.ordered Hc.mlctx_wf.tr.wf
+
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
 
