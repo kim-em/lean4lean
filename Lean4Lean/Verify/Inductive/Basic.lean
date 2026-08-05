@@ -1818,14 +1818,17 @@ parameter as the head of the retained suffix. -/
 theorem ParameterContextSuffix.fvLiftAt
     (H : ParameterContextSuffix Hc stats depth)
     (hi : i < stats.params.size) :
-    ∃ added older fv deps d,
+    ∃ added newer older fv deps d,
+      H.parameterDecls = newer ++ (some (fv, deps), d) :: older ∧
+      newer.length = stats.params.size - 1 - i ∧
+      added = H.ambientDecls ++ newer ∧
       Hc.mlctx.vlctx =
         added ++ (some (fv, deps), d) :: older ∧
       stats.params[i] = .fvar fv ∧
       VLCtx.FVLift ((some (fv, deps), d) :: older) Hc.mlctx.vlctx
         0 (VLCtx.toCtx added).length 0 := by
   rcases H.splitAt hi with
-    ⟨newer, entry, older, hdecls, _hnewer, hcached⟩
+    ⟨newer, entry, older, hdecls, hnewer, hcached⟩
   rcases hcached with ⟨fv, deps, d, hparam, rfl⟩
   let added := H.ambientDecls ++ newer
   have hcontext : Hc.mlctx.vlctx =
@@ -1842,7 +1845,8 @@ theorem ParameterContextSuffix.fvLiftAt
   have hlift := VLCtx.FVLift.to_append
     ((some (fv, deps), d) :: older) hadded
   rw [← hcontext] at hlift
-  exact ⟨added, older, fv, deps, d, hcontext, hparam, hlift⟩
+  exact ⟨added, newer, older, fv, deps, d, hdecls, hnewer, rfl,
+    hcontext, hparam, hlift⟩
 
 /-- Narrow concrete scope immediately before consuming cached parameter `i`.
 Only parameters already consumed by this later header may occur; ambient
@@ -1851,16 +1855,47 @@ structure LaterParameterScope
     (Hsuffix : ParameterContextSuffix Hc stats depth)
     (i : Nat) (e : Expr) : Type where
   added : VLCtx
+  newer : VLCtx
   older : VLCtx
   fv : FVarId
   deps : List FVarId
   decl : VLocalDecl
+  parameterDecls : Hsuffix.parameterDecls =
+    newer ++ (some (fv, deps), decl) :: older
+  newerLength : newer.length = stats.params.size - 1 - i
+  addedEq : added = Hsuffix.ambientDecls ++ newer
   context : Hc.mlctx.vlctx =
     added ++ (some (fv, deps), decl) :: older
   parameter : stats.params[i]! = .fvar fv
   lift : VLCtx.FVLift ((some (fv, deps), decl) :: older)
     Hc.mlctx.vlctx 0 (VLCtx.toCtx added).length 0
   fvars : FVarsIn (· ∈ older.fvars) e
+
+theorem LaterParameterScope.openedFVars
+    (H : LaterParameterScope Hsuffix i body) :
+    FVarsIn
+      (· ∈ VLCtx.fvars ((some (H.fv, H.deps), H.decl) :: H.older))
+      (body.instantiate1' (.fvar H.fv)) := by
+  apply (H.fvars.mono fun fv hfv => by
+    rw [VLCtx.fvars_cons_some]
+    exact List.mem_cons_of_mem H.fv hfv).instantiate1
+  simp only [FVarsIn]
+  rw [VLCtx.fvars_cons_some]
+  exact List.mem_cons_self
+
+theorem LaterParameterScope.openedUpSet
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {body : Expr}
+    (H : LaterParameterScope Hsuffix i body) :
+    IsFVarUpSet
+      (· ∈ VLCtx.fvars ((some (H.fv, H.deps), H.decl) :: H.older))
+      Hc.mlctx.vlctx := by
+  rw [H.context]
+  exact IsFVarUpSet.suffixFVars
+    ((some (H.fv, H.deps), H.decl) :: H.older) H.added
+    (by simpa [H.context] using Hc.mlctx_wf.tr.wf)
 
 /-- A closed source header starts the later-parameter traversal with an empty
 free-variable scope. -/
@@ -1873,18 +1908,88 @@ noncomputable def LaterParameterScope.ofNoFVars
     LaterParameterScope Hsuffix i e :=
   Classical.choice <| by
     rcases Hsuffix.fvLiftAt hi with
-      ⟨added, older, fv, deps, d, hcontext, hparam, hlift⟩
+      ⟨added, newer, older, fv, deps, d, hdecls, hnewer, hadd,
+        hcontext, hparam, hlift⟩
     exact ⟨{
       added := added
+      newer := newer
       older := older
       fv := fv
       deps := deps
       decl := d
+      parameterDecls := hdecls
+      newerLength := hnewer
+      addedEq := hadd
       context := hcontext
       parameter := by
         simpa [Array.getElem!_eq_getD, hi] using hparam
       lift := hlift
       fvars := hfvars.mono fun _ h => False.elim h }⟩
+
+/-- Advance the narrow scope after substituting cached parameter `i` and
+normalizing the resulting body.  The next parameter's older suffix is
+exactly the current cached declaration followed by the current older suffix.
+-/
+noncomputable def LaterParameterScope.next
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {body normalized : Expr}
+    (H : LaterParameterScope Hsuffix i body)
+    (hi : i + 1 < stats.params.size)
+    (hbelow : FVarsBelow Hc.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) normalized) :
+    LaterParameterScope Hsuffix (i + 1) normalized :=
+  Classical.choice <| by
+    rcases Hsuffix.fvLiftAt hi with
+      ⟨added, newer, older, fv, deps, d, hdecls, hnewer, hadd,
+        hcontext, hparam, hlift⟩
+    let currentEntry : Option (FVarId × List FVarId) × VLocalDecl :=
+      (some (H.fv, H.deps), H.decl)
+    let nextEntry : Option (FVarId × List FVarId) × VLocalDecl :=
+      (some (fv, deps), d)
+    have hdecomp :
+        H.newer ++ currentEntry :: H.older =
+          (newer ++ [nextEntry]) ++ older := by
+      calc
+        H.newer ++ currentEntry :: H.older =
+            Hsuffix.parameterDecls := H.parameterDecls.symm
+        _ = newer ++ nextEntry :: older := hdecls
+        _ = (newer ++ [nextEntry]) ++ older := by
+          simp [List.append_assoc]
+    have hprefixLength :
+        H.newer.length = (newer ++ [nextEntry]).length := by
+      simp only [List.length_append, List.length_singleton]
+      rw [H.newerLength, hnewer]
+      omega
+    have htail : currentEntry :: H.older = older :=
+      List.append_inj_right hdecomp hprefixLength
+    have hopened : FVarsIn
+        (· ∈ VLCtx.fvars (currentEntry :: H.older))
+        (body.instantiate1 stats.params[i]!) := by
+      rw [Expr.instantiate1_eq, H.parameter]
+      exact H.openedFVars
+    have hnormalized : FVarsIn
+        (· ∈ VLCtx.fvars (currentEntry :: H.older)) normalized :=
+      hbelow _ H.openedUpSet hopened
+    have hnextFVars : FVarsIn (· ∈ VLCtx.fvars older) normalized := by
+      rw [← htail]
+      exact hnormalized
+    exact ⟨{
+      added := added
+      newer := newer
+      older := older
+      fv := fv
+      deps := deps
+      decl := d
+      parameterDecls := hdecls
+      newerLength := hnewer
+      addedEq := hadd
+      context := hcontext
+      parameter := by
+        simpa [Array.getElem!_eq_getD, hi] using hparam
+      lift := hlift
+      fvars := hnextFVars }⟩
 
 /-- The core later-parameter abstraction step.  Translation of the
 executable cached substitution is first restricted to the current-and-older
@@ -1910,21 +2015,12 @@ theorem LaterParameterScope.uninstantiate
     H.fvars.mono fun fv hfv heq => by
       subst fv
       exact hfresh hfv
-  have hopenedFVars : FVarsIn
-      (· ∈ VLCtx.fvars ((some (H.fv, H.deps), H.decl) :: H.older))
-      (body.instantiate1' (.fvar H.fv)) := by
-    apply (H.fvars.mono fun fv hfv => by
-      rw [VLCtx.fvars_cons_some]
-      exact List.mem_cons_of_mem H.fv hfv).instantiate1
-    simp only [FVarsIn]
-    rw [VLCtx.fvars_cons_some]
-    exact List.mem_cons_self
   have hopenedClosed : Closed (body.instantiate1' (.fvar H.fv)) 0 := by
     have := hopened'.closed
     simpa [Hc.mlctx.noBV] using this
   exact hopened'.uninstantiateAfterWeakFV Hc.checking.tr.wf H.lift
     (.refl Hc.checking.tr.wf.ordered Hc.mlctx_wf.tr.wf)
-    hopenedClosed hopenedFVars hsourceFresh
+    hopenedClosed H.openedFVars hsourceFresh
 
 /-- Adding a common parameter weakens every cached parameter translation and
 appends the newly generated free variable, whose abstract image is `bvar 0`.
