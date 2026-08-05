@@ -2317,6 +2317,62 @@ theorem stepPrefix.WF
     exact (whnfInContext.WF Hc hchecked.2.1).bind fun normalized hnormalized =>
       Hloop checkedType type' checkedType' hchecked normalized hnormalized
 
+/-- Indexed declaration-facing form of `stepPrefix.WF`.  Besides the checked
+source translation, the continuation receives the exact corresponding
+abstract mutual header and the environment obtained by installing all header
+constants. -/
+theorem stepPrefix.refinesTrInduct
+    {decl : VInductDecl}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDecl Hc.venv c.lparams nparams
+      indTypes.toList isUnsafe decl)
+    (hidx : dIdx < indTypes.size)
+    (Hloop : ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        indTypes[dIdx].type checkedType type' checkedType' →
+      ∀ envTypes,
+        Hc.venv.addConsts decl.typeConstants = some envTypes →
+        ∀ target,
+        decl.types[dIdx]? = some target →
+        TrInductiveType Hc.venv envTypes c.lparams
+          indTypes[dIdx] target →
+      ∀ normalized,
+        TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
+        (AddInductive.checkInductiveTypes.loopType nparams stats normalized 0 0
+          c.fuel.inductiveFuel (fun type stats nindices =>
+            show AddInductive.M _ from do
+            let type ← TypeChecker.ensureSort type
+            let mut stats := stats
+            let resultLevel := type.sortLevel!
+            if stats.indConsts.isEmpty then
+              let lctx := (← read).lctx
+              stats := { stats with
+                lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+            else if !resultLevel.isEquiv stats.resultLevel then
+              throw <| .other
+                "mutually inductive types must live in the same universe"
+            stats := { stats with
+              nindices := stats.nindices.push nindices
+              indConsts := stats.indConsts.push
+                (.const indTypes[dIdx].name stats.levels) }
+            AddInductive.checkInductiveTypes.loopInd nparams indTypes
+              (dIdx + 1) stats k) c).WF Q) :
+    (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx stats k c).WF Q := by
+  have htarget : dIdx < decl.types.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl]
+    simpa using hidx
+  rcases Lean4Lean.VerifyInductive.TrInductDecl.typeAt Hdecl dIdx
+      (by simpa using hidx) htarget with
+    ⟨envTypes, htypes, htargetTr⟩
+  apply stepPrefix.WF (nparams := nparams) (stats := stats) (k := k)
+    (Q := Q) Hc hidx
+  intro checkedType type' checkedType' hchecked normalized hnormalized
+  exact Hloop checkedType type' checkedType' hchecked envTypes htypes
+    decl.types[dIdx] (by simp [htarget]) (by simpa using htargetTr)
+    normalized hnormalized
+
 end checkInductiveTypes.loopInd
 
 namespace checkConstructors.loopCtors
