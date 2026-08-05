@@ -814,6 +814,45 @@ theorem invalidResult.WF
     change (Except.error _).WF Q
     exact Except.WF.throw
 
+/-- Common-parameter branch of a constructor telescope.  The cached parameter
+type comparison is converted directly into abstract body instantiation. -/
+theorem parameter.sourceWF
+    (Hc : ContextWF c) (hparamAt : stats.params[i]? = some param)
+    (hget : (AddInductive.getType param c).WF (fun ty => ty = paramTy))
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (hparamTy : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy')
+    (hparam : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx param param')
+    (hparamType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+      param' paramTy')
+    (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+        dom' paramTy' →
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+        (body.instantiate1 param) (body'.inst param') →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+        (body.instantiate1 param) (i + 1) fuel c).WF Q) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
+  rw [AddInductive.checkConstructors.loopCtor]
+  rw [hparamAt]
+  change (AddInductive.getType param c >>= fun paramTy =>
+    ((do
+      unless ← TypeChecker.isDefEq dom paramTy do
+        throw <| .other
+          s!"arg #{i + 1} of '{ctor}' does not match inductive datatype parameters"
+      AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+        (body.instantiate1 param) (i + 1) fuel) : AddInductive.M _) c).WF Q
+  refine hget.bind fun paramTy' hparamTyEq => ?_
+  subst paramTy'
+  refine (isDefEqInContext.WF Hc hdom hparamTy).bind fun equal hequal => ?_
+  cases equal
+  · change (Except.error _).WF Q
+    exact Except.WF.throw
+  · have heq := hequal rfl
+    have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
+    exact Hrec heq hopened
+
 end checkConstructors.loopCtor
 
 /-- Production-side installation of a list of kernel constants. This small
