@@ -1099,7 +1099,7 @@ structure HeaderTelescopeLoopCertificate (Hc : ContextWF c)
 synthesized from every binder exposed by the executable per-binder `whnf`.
 This is the state used by the complete loop refinement. -/
 structure HeaderSynthesisCertificate (Hc : ContextWF c)
-    (target : VInductiveType) (current : VExpr)
+    (target : VInductiveTypeSkeleton) (current : VExpr)
     (i nindices : Nat) : Type where
   params : List VExpr
   indices : List VExpr
@@ -1115,7 +1115,7 @@ structure HeaderSynthesisCertificate (Hc : ContextWF c)
 
 def HeaderSynthesisCertificate.empty
     {c : AddInductive.Context} {Hc : ContextWF c}
-    {target : VInductiveType} {current exprType : VExpr}
+    {target : VInductiveTypeSkeleton} {current exprType : VExpr}
     (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
       [] Hc.mlctx.vlctx.toCtx)
     (hcurrent : Hc.venv.IsType c.lparams.length [] current)
@@ -1239,7 +1239,7 @@ noncomputable def HeaderSynthesisCertificate.normalize
 theorem HeaderSynthesisCertificate.typeShape
     {c : AddInductive.Context} {Hc : ContextWF c}
     {decl : VInductDecl} {target : VInductiveType}
-    (H : HeaderSynthesisCertificate Hc target current
+    (H : HeaderSynthesisCertificate Hc target.toSkeleton current
       decl.nparams target.numIndices)
     (huvars : c.lparams.length = decl.uvars)
     (hlevel : ∀ resultLevel,
@@ -1264,9 +1264,64 @@ theorem HeaderSynthesisCertificate.typeShape
     simpa [huvars] using H.context.isType
   apply TrExpr.typeShapeOfDefEqCtx Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
     huvars H.context
-    (by simpa [huvars] using H.header)
+    (by simpa [huvars, VInductiveType.toSkeleton] using H.header)
     hparamsTake hindicesTake
     (VInductDecl.paramsDefEq_reflOfAppend hctxType) hlevel hsort
+
+/-- Materialize the two semantic header fields from the successful executable
+tail.  Unlike `typeShape`, this theorem does not require either field to have
+been chosen before the traversal: the index counter and translated sort are
+used to construct the target itself. -/
+theorem HeaderSynthesisCertificate.synthesizedTypeShape
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {decl : VInductDecl} {target : VInductiveTypeSkeleton}
+    (H : HeaderSynthesisCertificate Hc target current
+      decl.nparams nindices)
+    (huvars : c.lparams.length = decl.uvars)
+    (hofLevel : VLevel.ofLevel c.lparams level = some resultLevel)
+    (hsort : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      (.sort level) current) :
+    decl.TypeShape Hc.venv H.params
+      (target.toVInductiveType nindices resultLevel) := by
+  apply H.typeShape (target := target.toVInductiveType nindices resultLevel)
+    huvars
+  · intro resultLevel' hofLevel'
+    rw [hofLevel] at hofLevel'
+    cases hofLevel'
+    rfl
+  · exact hsort
+
+/-- Persistent result of checking one metadata-free source header.  The final
+mutual declaration need not exist yet; only its two block-wide counters are
+relevant to `TypeShape`.  This lets the outer traversal accumulate checked
+headers and materialize the declaration after every family member has
+supplied its metadata. -/
+structure SynthesizedHeader (env : VEnv) (uvars nparams : Nat)
+    (params : List VExpr) (source : VInductiveTypeSkeleton)
+    (numIndices : Nat) (resultLevel : VLevel) : Prop where
+  typeShape : ∀ decl : VInductDecl,
+    decl.uvars = uvars → decl.nparams = nparams →
+    decl.TypeShape env params
+      (source.toVInductiveType numIndices resultLevel)
+
+theorem HeaderSynthesisCertificate.synthesizedHeader
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {source : VInductiveTypeSkeleton}
+    (H : HeaderSynthesisCertificate Hc source current nparams nindices)
+    (huvars : c.lparams.length = uvars)
+    (hofLevel : VLevel.ofLevel c.lparams level = some resultLevel)
+    (hsort : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      (.sort level) current) :
+    SynthesizedHeader Hc.venv uvars nparams H.params source
+      nindices resultLevel where
+  typeShape decl hdeclUvars hdeclParams := by
+    have huvars' : c.lparams.length = decl.uvars :=
+      huvars.trans hdeclUvars.symm
+    subst nparams
+    apply H.synthesizedTypeShape (decl := decl)
+    · exact huvars'
+    · exact hofLevel
+    · exact hsort
 
 def HeaderTelescopeLoopCertificate.empty
     {c : AddInductive.Context} {Hc : ContextWF c} {root : VExpr}
@@ -2058,7 +2113,7 @@ theorem laterParameter.runtimeStateWF
 fuel recursion and carries both the parameter cache and the synthesized
 abstract telescope to the terminal continuation. -/
 theorem firstHeaderSynthesisWF
-    {target : VInductiveType}
+    {target : VInductiveTypeSkeleton}
     {α : Type} (k : Expr → AddInductive.InductiveStats → Nat →
       AddInductive.M α) (Q : α → Prop)
     (hconsume : ConsumeTypeAnnotationsCompat)
@@ -2126,7 +2181,8 @@ header shows that this normal form is definitionally equal to the header in
 `TrInductDecl`; the checked source type supplies the common typing witness. -/
 theorem initialHeaderNormalization
     (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
-    (Htarget : TrInductiveType Hc.venv envTypes c.lparams source target)
+    (Htarget : TrInductiveTypeSkeleton Hc.venv envTypes
+      c.lparams source target)
     (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
       source.type checkedType sourceType checkedType')
     (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
@@ -2159,7 +2215,8 @@ theorem initialHeaderNormalization
 This is the state consumed by the first parameter/index branch. -/
 theorem initialHeaderState
     (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
-    (Htarget : TrInductiveType Hc.venv envTypes c.lparams source target)
+    (Htarget : TrInductiveTypeSkeleton Hc.venv envTypes
+      c.lparams source target)
     (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
       source.type checkedType sourceType checkedType')
     (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
@@ -2184,7 +2241,8 @@ theorem initialHeaderState
 /-- Definitional synthesis state used by the complete first-header recursion. -/
 theorem initialHeaderSynthesisState
     (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
-    (Htarget : TrInductiveType Hc.venv envTypes c.lparams source target)
+    (Htarget : TrInductiveTypeSkeleton Hc.venv envTypes
+      c.lparams source target)
     (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
       source.type checkedType sourceType checkedType')
     (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
@@ -2573,7 +2631,7 @@ theorem firstResult.refinesSynthesis
     (Q : α → Prop)
     (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
     (Hsynthesis : checkInductiveTypes.loopType.HeaderSynthesisCertificate
-      Hc target current decl.nparams nindices)
+      Hc target.toSkeleton current decl.nparams nindices)
     (hnindices : nindices = target.numIndices)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current)
     (huvars : c.lparams.length = decl.uvars)

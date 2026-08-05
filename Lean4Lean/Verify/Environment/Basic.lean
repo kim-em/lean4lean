@@ -39,12 +39,131 @@ structure TrSourceConst (env : VEnv) (lparams : List Name)
   type : TrExprS env lparams [] type ci'.type
   wf : ci'.toVConstant.WF env
 
+/-- Translation of an inductive family before header checking has recovered
+the semantic arity and result universe.  Those two fields are deliberately
+absent: they are outputs of `checkInductiveTypes`, not assumptions supplied by
+the source-translation relation. -/
+structure VInductiveTypeSkeleton extends VConstVal where
+  ctors : List VConstVal
+
+/-- Metadata-free translation of a complete source inductive declaration. -/
+structure VInductDeclSkeleton where
+  uvars : Nat
+  nparams : Nat
+  types : List VInductiveTypeSkeleton
+  isUnsafe : Bool
+
+def VInductiveTypeSkeleton.toVInductiveType
+    (type : VInductiveTypeSkeleton) (numIndices : Nat)
+    (resultLevel : VLevel) : VInductiveType where
+  toVConstVal := type.toVConstVal
+  numIndices := numIndices
+  resultLevel := resultLevel
+  ctors := type.ctors
+
+def VInductiveType.toSkeleton
+    (type : VInductiveType) : VInductiveTypeSkeleton where
+  toVConstVal := type.toVConstVal
+  ctors := type.ctors
+
+def VInductDecl.toSkeleton (decl : VInductDecl) : VInductDeclSkeleton where
+  uvars := decl.uvars
+  nparams := decl.nparams
+  types := decl.types.map VInductiveType.toSkeleton
+  isUnsafe := decl.isUnsafe
+
+/-- Assemble the abstract declaration from source translations and the
+metadata recovered by the executable header traversal.  Requiring an exact
+metadata length prevents `List.zipWith` from silently dropping a family
+member. -/
+def VInductDeclSkeleton.materialize (decl : VInductDeclSkeleton)
+    (metadata : List (Nat × VLevel)) : Option VInductDecl :=
+  if metadata.length = decl.types.length then
+    some {
+      uvars := decl.uvars
+      nparams := decl.nparams
+      types := List.zipWith (fun type data =>
+        type.toVInductiveType data.1 data.2) decl.types metadata
+      isUnsafe := decl.isUnsafe }
+  else none
+
+@[simp] theorem VInductiveTypeSkeleton.toVInductiveType_toSkeleton
+    (type : VInductiveTypeSkeleton) (numIndices : Nat)
+    (resultLevel : VLevel) :
+    (type.toVInductiveType numIndices resultLevel).toSkeleton = type := by
+  cases type
+  rfl
+
+@[simp] theorem VInductiveType.toSkeleton_toVInductiveType
+    (type : VInductiveType) :
+    type.toSkeleton.toVInductiveType type.numIndices type.resultLevel = type := by
+  cases type
+  rfl
+
+@[simp] theorem VInductDeclSkeleton.materialize_erased
+    (decl : VInductDecl) :
+    decl.toSkeleton.materialize
+      (decl.types.map fun type => (type.numIndices, type.resultLevel)) =
+      some decl := by
+  simp [VInductDecl.toSkeleton, VInductDeclSkeleton.materialize]
+
+structure TrInductiveTypeSkeleton (env envTypes : VEnv)
+    (lparams : List Name) (type : InductiveType)
+    (type' : VInductiveTypeSkeleton) : Prop where
+  header : TrSourceConst env lparams type.name type.type type'.toVConstVal
+  ctors : List.Forall₂
+    (fun ctor ctor' => TrSourceConst envTypes lparams ctor.name ctor.type ctor')
+    type.ctors type'.ctors
+
+def VInductDeclSkeleton.typeConstants
+    (decl : VInductDeclSkeleton) : List VConstVal :=
+  decl.types.map VInductiveTypeSkeleton.toVConstVal
+
+def VInductDeclSkeleton.constructorConstants
+    (decl : VInductDeclSkeleton) : List VConstVal :=
+  decl.types.flatMap VInductiveTypeSkeleton.ctors
+
+def VInductDeclSkeleton.sourceNames
+    (decl : VInductDeclSkeleton) : List Name :=
+  decl.typeConstants.map VConstVal.name ++
+    decl.constructorConstants.map VConstVal.name
+
+/-- Source well-formedness is metadata-parametric: every exact materialization
+has the same translated constants, hence the same source typing obligations.
+This formulation keeps recovered header metadata out of the source relation. -/
+def VInductDeclSkeleton.SourceWF
+    (env : VEnv) (decl : VInductDeclSkeleton) : Prop :=
+  ∀ metadata materialized,
+    decl.materialize metadata = some materialized →
+    materialized.SourceWF env
+
+/-- Translation of the original declaration without presupposing the two
+semantic header fields recovered by the executable checker. -/
+def TrInductDeclSkeleton (env : VEnv) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe : Bool)
+    (decl : VInductDeclSkeleton) : Prop :=
+  decl.SourceWF env ∧
+  decl.uvars = lparams.length ∧
+  decl.nparams = nparams ∧
+  decl.isUnsafe = isUnsafe ∧
+  ∃ envTypes envCtors,
+    env.addConsts decl.typeConstants = some envTypes ∧
+    envTypes.addConsts decl.constructorConstants = some envCtors ∧
+    List.Forall₂ (TrInductiveTypeSkeleton env envTypes lparams)
+      types decl.types
+
 structure TrInductiveType (env envTypes : VEnv) (lparams : List Name)
     (type : InductiveType) (type' : VInductiveType) : Prop where
   header : TrSourceConst env lparams type.name type.type type'.toVConstVal
   ctors : List.Forall₂
     (fun ctor ctor' => TrSourceConst envTypes lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
+
+theorem TrInductiveType.toSkeleton
+    (H : TrInductiveType env envTypes lparams type type') :
+    TrInductiveTypeSkeleton env envTypes lparams type type'.toSkeleton where
+  header := H.header
+  ctors := H.ctors
 
 /-- Translation of the original, pre-lowering inductive declaration. The
 constructor relation deliberately uses `envTypes`, obtained by installing all
