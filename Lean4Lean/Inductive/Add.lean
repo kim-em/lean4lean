@@ -62,62 +62,71 @@ def checkClosedType (name : Name) (type : Expr) : M Expr := do
   env.checkNoMVarNoFVar name type
   checkType type
 
+namespace checkInductiveTypes
+
+def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
+    (i nindices fuel : Nat) (k : Expr → InductiveStats → Nat → M α) : M α :=
+  match fuel with
+  | 0 => throw .deepRecursion
+  | fuel+1 => do
+    if let .forallE name dom body bi := type then
+      if i < nparams then
+        if stats.indConsts.isEmpty then
+          withLocalDecl name bi dom.consumeTypeAnnotations fun param => do
+            let stats := { stats with params := stats.params.push param }
+            let type := body.instantiate1 param
+            loopType nparams stats (← whnf type) (i + 1) nindices fuel k
+        else
+          let param := stats.params[i]!
+          unless ← isDefEq dom (← getType param) do
+            throw <| .other "parameters of all inductive datatypes must match"
+          let type := body.instantiate1 param
+          loopType nparams stats (← whnf type) (i + 1) nindices fuel k
+      else
+        withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+          let type := body.instantiate1 arg
+          loopType nparams stats (← whnf type) i (nindices + 1) fuel k
+    else
+      if i != nparams then
+        throw <| .other "number of parameters mismatch in inductive datatype declaration"
+      k type stats nindices
+
+def loopInd (nparams : Nat) (indTypes : Array InductiveType)
+    (dIdx : Nat) (stats : InductiveStats) (k : InductiveStats → M α) : M α := do
+  if _h : dIdx < indTypes.size then
+    let indType := indTypes[dIdx]
+    let type := indType.type
+    _ ← checkClosedType indType.name type
+    let fuel := (← readThe Context).fuel.inductiveFuel
+    loopType nparams stats (← whnf type) 0 0 fuel fun type stats nindices => show M α from do
+    let type ← ensureSort type
+    let mut stats := stats
+    let resultLevel := type.sortLevel!
+    if stats.indConsts.isEmpty then
+      let lctx := (← read).lctx
+      stats := { stats with lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+    else if !resultLevel.isEquiv stats.resultLevel then
+      throw <| .other "mutually inductive types must live in the same universe"
+    stats := { stats with
+      nindices := stats.nindices.push nindices
+      indConsts := stats.indConsts.push (.const indType.name stats.levels) }
+    loopInd nparams indTypes (dIdx + 1) stats k
+  else
+    k <|
+      assert! stats.levels.length == (← read).lparams.length
+      assert! stats.nindices.size == indTypes.size
+      assert! stats.indConsts.size == indTypes.size
+      assert! stats.params.size == nparams
+      stats
+termination_by indTypes.size - dIdx
+
+end checkInductiveTypes
+
 def checkInductiveTypes
     (nparams : Nat) (indTypes : Array InductiveType)
     (k : InductiveStats → M α) : M α := do
-  let rec loopInd dIdx stats : M α := do
-    if _h : dIdx < indTypes.size then
-      let indType := indTypes[dIdx]
-      let env := (← read).env
-      let type := indType.type
-      _ ← checkClosedType indType.name type
-      let rec loop stats type i nindices fuel k : M α := match fuel with
-      | 0 => throw .deepRecursion
-      | fuel+1 => do
-        if let .forallE name dom body bi := type then
-          if i < nparams then
-            if stats.indConsts.isEmpty then
-              withLocalDecl name bi dom.consumeTypeAnnotations fun param => do
-                let stats := { stats with params := stats.params.push param }
-                let type := body.instantiate1 param
-                loop stats (← whnf type) (i + 1) nindices fuel k
-            else
-              let param := stats.params[i]!
-              unless ← isDefEq dom (← getType param) do
-                throw <| .other "parameters of all inductive datatypes must match"
-              let type := body.instantiate1 param
-              loop stats (← whnf type) (i + 1) nindices fuel k
-          else
-            withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
-              let type := body.instantiate1 arg
-              loop stats (← whnf type) i (nindices + 1) fuel k
-        else
-          if i != nparams then
-            throw <| .other "number of parameters mismatch in inductive datatype declaration"
-          k type stats nindices
-      let fuel := (← readThe Context).fuel.inductiveFuel
-      loop stats (← whnf type) 0 0 fuel fun type stats nindices => show M α from do
-      let type ← ensureSort type
-      let mut stats := stats
-      let resultLevel := type.sortLevel!
-      if stats.indConsts.isEmpty then
-        let lctx := (← read).lctx
-        stats := { stats with lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
-      else if !resultLevel.isEquiv stats.resultLevel then
-        throw <| .other "mutually inductive types must live in the same universe"
-      stats := { stats with
-        nindices := stats.nindices.push nindices
-        indConsts := stats.indConsts.push (.const indType.name stats.levels) }
-      loopInd (dIdx + 1) stats
-    else
-      k <|
-        assert! stats.levels.length == (← read).lparams.length
-        assert! stats.nindices.size == indTypes.size
-        assert! stats.indConsts.size == indTypes.size
-        assert! stats.params.size == nparams
-        stats
-  termination_by indTypes.size - dIdx
-  loopInd 0 { (default : InductiveStats) with levels := (← read).lparams.map .param }
+  checkInductiveTypes.loopInd nparams indTypes 0
+    { (default : InductiveStats) with levels := (← read).lparams.map .param } k
 
 def hasIndOcc (indConsts : Array Expr) (t : Expr) : Bool :=
   (t.find? fun
