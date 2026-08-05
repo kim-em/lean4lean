@@ -2016,6 +2016,77 @@ theorem ValidAppStatsPrefix.complete
   · simpa using H.consts
   · simpa using H.indices
 
+/-- The two independent invariants carried across the mutual-header loop.
+`headers` follows the context used to check the current family header, while
+`applicationStats` remains interpreted in the parameter context captured by
+the first header.  Keeping the contexts separate reflects the executable
+implementation: later family headers reuse the cached parameter free
+variables without retaining their temporary index contexts. -/
+structure HeaderTraversalCertificate (env : VEnv) (Us : List Name)
+    (Δ : VLCtx) (decl : VInductDecl) (params : List VExpr)
+    (stats : AddInductive.InductiveStats) (depth done : Nat) where
+  headers : HeaderLoopCertificate env Us decl params stats done
+  applicationStats : ValidAppStatsPrefix env Us Δ stats decl depth done
+
+structure HeaderTraversalResult (env : VEnv) (Us : List Name)
+    (Δ : VLCtx) (decl : VInductDecl)
+    (stats : AddInductive.InductiveStats) (depth : Nat) where
+  headers : HeaderCertificate env decl
+  applicationStats : ValidAppStatsWF env Us Δ stats decl depth
+
+/-- Pair the first successfully checked header with the corresponding first
+statistics update.  The application-statistics premise is deliberately about
+the post-telescope parameter context, which is exactly the context saved in
+`stats.lctx` by the executable first-header branch. -/
+def HeaderTraversalCertificate.first
+    {c : AddInductive.Context}
+    (Hstats : ValidAppStatsPrefix env c.lparams Δ stats decl depth 0)
+    (hindex : 0 < decl.types.length)
+    (htarget : decl.types[0] = target)
+    (hname : indName = decl.types[0].name)
+    (hnindices : nindices = decl.types[0].numIndices)
+    (hofLevel : VLevel.ofLevel c.lparams resultSort =
+      some target.resultLevel)
+    (hshape : decl.TypeShape env params target) :
+    HeaderTraversalCertificate env c.lparams Δ decl params
+      (checkInductiveTypes.loopInd.updatedStats stats c.lctx resultSort
+        true nindices indName)
+      depth 1 where
+  headers := checkInductiveTypes.loopInd.HeaderLoopCertificate.first
+    hindex htarget hofLevel hshape
+  applicationStats := Hstats.push hindex hname hnindices
+
+/-- Extend both mutual-header invariants after a later header passes the
+common-universe guard. -/
+def HeaderTraversalCertificate.later
+    {c : AddInductive.Context}
+    (H : HeaderTraversalCertificate env c.lparams Δ decl params stats
+      depth done)
+    (hindex : done < decl.types.length)
+    (htarget : decl.types[done] = target)
+    (hname : indName = decl.types[done].name)
+    (hnindices : nindices = decl.types[done].numIndices)
+    (hguard : resultSort.isEquiv stats.resultLevel = true)
+    (hofLevel : VLevel.ofLevel c.lparams resultSort =
+      some target.resultLevel)
+    (hshape : decl.TypeShape env params target) :
+    HeaderTraversalCertificate env c.lparams Δ decl params
+      (checkInductiveTypes.loopInd.updatedStats stats stats.lctx resultSort
+        false nindices indName)
+      depth (done + 1) where
+  headers := checkInductiveTypes.loopInd.HeaderLoopCertificate.later
+    H.headers hindex htarget hguard hofLevel hshape
+  applicationStats := H.applicationStats.push hindex hname hnindices
+
+/-- At loop completion, expose exactly the two public certificates needed by
+the constructor and formation stages. -/
+def HeaderTraversalCertificate.complete
+    (H : HeaderTraversalCertificate env Us Δ decl params stats depth
+      decl.types.length) :
+    HeaderTraversalResult env Us Δ decl stats depth where
+  headers := checkInductiveTypes.loopInd.HeaderLoopCertificate.complete H.headers
+  applicationStats := H.applicationStats.complete
+
 def LiteralDisjoint (indConsts : Array Expr) : Prop :=
   ∀ literal : Literal,
     AddInductive.hasIndOcc indConsts literal.toConstructor = false
