@@ -124,6 +124,46 @@ theorem TrExpr.sort_source
   cases Hsyntax with
   | sort Hlevel => exact ⟨_, Hlevel, Hdefeq⟩
 
+/-- A translated production sort pins the type of the abstract conversion to
+the successor sort, not merely to an existentially hidden type. -/
+theorem TrExpr.sort_result
+    (henv : VEnv.WF env) (hctx : OnCtx Δ.toCtx (env.IsType Us.length))
+    (H : TrExpr env Us Δ (.sort level) type') :
+    ∃ level', VLevel.ofLevel Us level = some level' ∧
+      env.IsDefEq Us.length Δ.toCtx type' (.sort level')
+        (.sort (.succ level')) := by
+  rcases TrExpr.sort_source H with ⟨level', hlevel, typeEq⟩
+  exact ⟨level', hlevel, typeEq.symm.of_r henv hctx
+    (.sort (.of_ofLevel hlevel))⟩
+
+/-- Aggregates the final `ensureSort` translation with the independently
+recorded parameter/index telescope into the public `TypeShape` judgment. -/
+theorem TrExpr.typeShape
+    {decl : VInductDecl} {target : VInductiveType}
+    {params ownParams indices : List VExpr}
+    {normalized afterParams result exprType : VExpr}
+    (henv : VEnv.WF env) (hctx : VLCtx.WF env Us.length Δ)
+    (huvars : Us.length = decl.uvars)
+    (hctxEq : Δ.toCtx = indices.reverse ++ ownParams.reverse)
+    (hheader : env.IsDefEq decl.uvars [] target.type normalized exprType)
+    (hparamsTake : normalized.takeForalls decl.nparams =
+      some (ownParams, afterParams))
+    (hindicesTake : afterParams.takeForalls target.numIndices =
+      some (indices, result))
+    (hparams : decl.ParamsDefEq env params ownParams)
+    (hlevel : ∀ resultLevel,
+      VLevel.ofLevel Us level = some resultLevel →
+      resultLevel = target.resultLevel)
+    (H : TrExpr env Us Δ (.sort level) result) :
+    decl.TypeShape env params target := by
+  rcases TrExpr.sort_result henv hctx.toCtx H with
+    ⟨resultLevel, hresultLevel, hresult⟩
+  have hlevelEq := hlevel resultLevel hresultLevel
+  subst resultLevel
+  exact ⟨normalized, ownParams, afterParams, indices, result, exprType,
+    hheader, hparamsTake, hindicesTake, hparams,
+    by simpa [huvars, hctxEq] using hresult⟩
+
 /-- Opening a source binder with the fresh free variable chosen by the
 production checker leaves its abstract body unchanged: the extended `VLCtx`
 maps that free variable back to the new outermost de Bruijn variable. -/
@@ -667,6 +707,56 @@ theorem firstResult.WF
   refine hread.bind fun _ h => ?_
   subst h
   simpa [updatedStats, Expr.sortLevel!] using Hrec resultSort hsorted
+
+/-- The first mutual header records its result universe and simultaneously
+assembles the independent `TypeShape` certificate before continuing with the
+remaining headers. -/
+theorem firstResult.refines
+    {decl : VInductDecl} {target : VInductiveType}
+    {params ownParams indices : List VExpr}
+    {normalized afterParams result exprType : VExpr}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
+    (huvars : c.lparams.length = decl.uvars)
+    (hctxEq : Hc.mlctx.vlctx.toCtx =
+      indices.reverse ++ ownParams.reverse)
+    (hheader : Hc.venv.IsDefEq decl.uvars []
+      target.type normalized exprType)
+    (hparamsTake : normalized.takeForalls decl.nparams =
+      some (ownParams, afterParams))
+    (hindicesTake : afterParams.takeForalls target.numIndices =
+      some (indices, result))
+    (hparams : decl.ParamsDefEq Hc.venv params ownParams)
+    (hlevel : ∀ resultSort resultLevel,
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      resultLevel = target.resultLevel)
+    (Hrec : ∀ resultSort,
+      decl.TypeShape Hc.venv params target →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
+        (updatedStats stats c.lctx resultSort true nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  apply firstResult.WF k Q Hc hempty htype
+  intro resultSort hsorted
+  apply Hrec resultSort
+  exact TrExpr.typeShape Hc.checking.tr.wf Hc.mlctx_wf.tr.wf huvars
+    hctxEq hheader hparamsTake hindicesTake hparams
+    (hlevel resultSort) hsorted
 
 /-- Post-telescope continuation for later mutual headers.  A mismatched result
 universe throws; a successful path records the checked equivalence before
@@ -2196,6 +2286,49 @@ theorem checkConstructors.loopCtor.tailRefinesFull
   · intro c' depth' posIdx type' type'' Hc' Hstats' hctx' htype'
     exact checkPositivity.refines Hc' Hstats' hconsume hlit hctx' hproj htype'
   · exact htr
+
+/-- Aggregation boundary for constructors: once the common-parameter prefix
+has supplied its independent `takeForalls` and parameter-conversion facts, the
+verified executable tail establishes the public `CtorShape` judgment. -/
+theorem checkConstructors.loopCtor.ctorShapeRefines
+    {decl : VInductDecl} {target : VInductiveType}
+    {ctorVal : VConstVal} {params ownParams : List VExpr}
+    {normalized tail exprType type' : VExpr}
+    (Hc : ContextWF c)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl 0)
+    (hi : targetIdx < decl.types.length)
+    (htarget : decl.types[targetIdx] = target)
+    (hparamAt : stats.params[i]? = none)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+    (hctor : Hc.venv.IsDefEq decl.uvars [] ctorVal.type normalized exprType)
+    (htake : normalized.takeForalls decl.nparams = some (ownParams, tail))
+    (hparams : decl.ParamsDefEq Hc.venv params ownParams)
+    (hctxEq : Hc.mlctx.vlctx.toCtx = ownParams.reverse)
+    (htailEq : type' = tail)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type') :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      type i fuel c).WF
+      (fun _ => decl.CtorShape Hc.venv params target ctorVal) := by
+  have Htail := checkConstructors.loopCtor.tailRefinesFull
+    (ctor := ctor) (fuel := fuel) Hc Hstats hi
+    htarget hparamAt hconsume hlit hctx hproj hunsafe hbound htr
+  exact Htail.mono fun _ htail => by
+    subst type'
+    exact ⟨normalized, ownParams, tail, exprType, hctor, htake, hparams,
+      hctxEq ▸ htail⟩
 
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
