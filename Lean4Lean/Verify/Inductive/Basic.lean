@@ -861,6 +861,141 @@ theorem parameter.sourceWF
     have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
     exact Hrec heq hopened
 
+/-- Safe constructor-field branch.  Successful field typing, the executable
+universe bound, positivity, annotation transport, and fresh body opening are
+all delivered to the recursive continuation. -/
+theorem safeField.sourceWF
+    {Pos : Prop}
+    (Hc : ContextWF c) (hparamAt : stats.params[i]? = none)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hpos : (AddInductive.checkPositivity stats dom ctor i c).WF (fun _ => Pos))
+    (Hrec : ∀ fieldType' fieldLevel fieldLevel',
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+        fieldType' (.sort fieldLevel') →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      Pos →
+      ∀ body'',
+        Hc.venv.IsDefEqU c.lparams.length
+          (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+        TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
+        (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
+      (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
+  rw [AddInductive.checkConstructors.loopCtor]
+  rw [hparamAt]
+  refine (ensureTypeInContext.WF Hc Hdom.source).bind fun fieldSort hfield => ?_
+  rcases hfield with ⟨fieldType', hfieldType, fieldLevel, fieldLevel', rfl,
+    hfieldLevel, hfieldHasType⟩
+  change ((do
+    unless stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel! do
+      throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
+        is too big for the corresponding inductive datatype"
+    if !false then
+      AddInductive.checkPositivity stats dom ctor i
+    withLocalDecl name bi dom.consumeTypeAnnotations fun arg =>
+      AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
+        (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
+  by_cases hbound :
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true
+  · rw [if_pos hbound]
+    refine Hpos.bind fun _ hpos => ?_
+    rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+    refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+      (k := fun arg =>
+        AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
+          (body.instantiate1 arg) (i + 1) fuel)
+      Hc Hdom.consumed Hdom.isType ?_
+    let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+      Hdom.consumed Hdom.isType
+    have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+      Hdom.consumed Hdom.isType hbody''
+    exact Hrec fieldType' fieldLevel fieldLevel' hfieldType hfieldLevel
+      hfieldHasType hbound hpos body'' hbodyEq hopened
+  · rw [if_neg hbound]
+    change (Except.error _).WF Q
+    exact Except.WF.throw
+
+/-- Unsafe constructor-field branch: the same source typing, universe, and
+annotation obligations apply, while positivity is intentionally skipped. -/
+theorem unsafeField.sourceWF
+    (Hc : ContextWF c) (hparamAt : stats.params[i]? = none)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ fieldType' fieldLevel fieldLevel',
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+        fieldType' (.sort fieldLevel') →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      ∀ body'',
+        Hc.venv.IsDefEqU c.lparams.length
+          (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+        TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
+        (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
+      (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
+  rw [AddInductive.checkConstructors.loopCtor]
+  rw [hparamAt]
+  refine (ensureTypeInContext.WF Hc Hdom.source).bind fun fieldSort hfield => ?_
+  rcases hfield with ⟨fieldType', hfieldType, fieldLevel, fieldLevel', rfl,
+    hfieldLevel, hfieldHasType⟩
+  change ((do
+    unless stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel! do
+      throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
+        is too big for the corresponding inductive datatype"
+    if !true then
+      AddInductive.checkPositivity stats dom ctor i
+    withLocalDecl name bi dom.consumeTypeAnnotations fun arg =>
+      AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
+        (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
+  by_cases hbound :
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true
+  · rw [if_pos hbound]
+    rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+    refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+      (k := fun arg =>
+        AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
+          (body.instantiate1 arg) (i + 1) fuel)
+      Hc Hdom.consumed Hdom.isType ?_
+    let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+      Hdom.consumed Hdom.isType
+    have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+      Hdom.consumed Hdom.isType hbody''
+    exact Hrec fieldType' fieldLevel fieldLevel' hfieldType hfieldLevel
+      hfieldHasType hbound body'' hbodyEq hopened
+  · rw [if_neg hbound]
+    change (Except.error _).WF Q
+    exact Except.WF.throw
+
 end checkConstructors.loopCtor
 
 /-- Production-side installation of a list of kernel constants. This small
