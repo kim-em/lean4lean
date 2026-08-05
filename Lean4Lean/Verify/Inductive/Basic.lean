@@ -26,6 +26,15 @@ structure HeaderPrefixCertificate (env : VEnv) (decl : VInductDecl)
   typeShapes : ∀ i, i < done → (hi : i < decl.types.length) →
     decl.TypeShape env params decl.types[i]
 
+/-- The prefix evidence together with the translation of the concrete common
+result level retained in `InductiveStats`. -/
+structure HeaderLoopCertificate (env : VEnv) (lparams : List Name)
+    (decl : VInductDecl) (params : List VExpr)
+    (stats : AddInductive.InductiveStats) (done : Nat) where
+  resultLevel : VLevel
+  commonLevel : VLevel.ofLevel lparams stats.resultLevel = some resultLevel
+  headerPrefix : HeaderPrefixCertificate env decl params resultLevel done
+
 theorem HeaderPrefixCertificate.empty (env : VEnv) (decl : VInductDecl)
     (params : List VExpr) (resultLevel : VLevel) :
     HeaderPrefixCertificate env decl params resultLevel 0 where
@@ -914,6 +923,49 @@ private def updatedStats (stats : AddInductive.InductiveStats)
       stats.params := by
   cases setResult <;> rfl
 
+/-- Initialize the loop certificate when the first header fixes the common
+result universe. -/
+def HeaderLoopCertificate.first
+    {c : AddInductive.Context} {decl : VInductDecl} {params : List VExpr}
+    (hindex : 0 < decl.types.length)
+    (htarget : decl.types[0] = target)
+    (hofLevel : VLevel.ofLevel c.lparams resultSort =
+      some target.resultLevel)
+    (hshape : decl.TypeShape env params target) :
+    HeaderLoopCertificate env c.lparams decl params
+      (updatedStats stats c.lctx resultSort true nindices indName) 1 := by
+  subst target
+  exact {
+    resultLevel := decl.types[0].resultLevel
+    commonLevel := by simpa [updatedStats] using hofLevel
+    headerPrefix := HeaderPrefixCertificate.first hindex hshape }
+
+/-- Extend the loop certificate for a later mutual header using precisely the
+successful production `isEquiv` guard and sort-translation witness. -/
+def HeaderLoopCertificate.later
+    {c : AddInductive.Context} {decl : VInductDecl} {params : List VExpr}
+    (H : HeaderLoopCertificate env c.lparams decl params stats dIdx)
+    (hindex : dIdx < decl.types.length)
+    (htarget : decl.types[dIdx] = target)
+    (hguard : resultSort.isEquiv stats.resultLevel = true)
+    (hofLevel : VLevel.ofLevel c.lparams resultSort =
+      some target.resultLevel)
+    (hshape : decl.TypeShape env params target) :
+    HeaderLoopCertificate env c.lparams decl params
+      (updatedStats stats stats.lctx resultSort false nindices indName)
+      (dIdx + 1) := by
+  subst target
+  exact {
+    resultLevel := H.resultLevel
+    commonLevel := by simpa [updatedStats] using H.commonLevel
+    headerPrefix := H.headerPrefix.pushOfIsEquiv hindex hguard hofLevel
+      H.commonLevel hshape }
+
+def HeaderLoopCertificate.complete
+    (H : HeaderLoopCertificate env lparams decl params stats
+      decl.types.length) : HeaderCertificate env decl :=
+  H.headerPrefix.complete
+
 /-- Post-telescope continuation for the first mutual header. -/
 theorem firstResult.WF
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
@@ -990,6 +1042,7 @@ theorem firstResult.refines
       VLevel.ofLevel c.lparams resultSort = some resultLevel →
       resultLevel = target.resultLevel)
     (Hrec : ∀ resultSort,
+      VLevel.ofLevel c.lparams resultSort = some target.resultLevel →
       decl.TypeShape Hc.venv params target →
       (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
         (updatedStats stats c.lctx resultSort true nindices indName) k c).WF Q) :
@@ -1010,7 +1063,10 @@ theorem firstResult.refines
         (dIdx + 1) stats k) type stats nindices c).WF Q := by
   apply firstResult.WF k Q Hc hempty htype
   intro resultSort hsorted
-  apply Hrec resultSort
+  rcases TrExpr.sort_source hsorted with ⟨resultLevel, hofLevel, _⟩
+  have hresultLevel := hlevel resultSort resultLevel hofLevel
+  subst resultLevel
+  apply Hrec resultSort hofLevel
   exact TrExpr.typeShape Hc.checking.tr.wf Hc.mlctx_wf.tr.wf huvars
     hctxEq hheader hparamsTake hindicesTake hparams
     (hlevel resultSort) hsorted
@@ -1102,6 +1158,7 @@ theorem laterResult.refines
       resultLevel = target.resultLevel)
     (Hrec : ∀ resultSort,
       resultSort.isEquiv stats.resultLevel = true →
+      VLevel.ofLevel c.lparams resultSort = some target.resultLevel →
       decl.TypeShape Hc.venv params target →
       (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
         (updatedStats stats stats.lctx resultSort false nindices indName) k c).WF Q) :
@@ -1122,7 +1179,10 @@ theorem laterResult.refines
         (dIdx + 1) stats k) type stats nindices c).WF Q := by
   apply laterResult.WF k Q Hc hnonempty htype
   intro resultSort hequiv hsorted
-  apply Hrec resultSort hequiv
+  rcases TrExpr.sort_source hsorted with ⟨resultLevel, hofLevel, _⟩
+  have hresultLevel := hlevel resultSort resultLevel hofLevel
+  subst resultLevel
+  apply Hrec resultSort hequiv hofLevel
   exact TrExpr.typeShape Hc.checking.tr.wf Hc.mlctx_wf.tr.wf huvars
     hctxEq hheader hparamsTake hindicesTake hparams
     (hlevel resultSort) hsorted
