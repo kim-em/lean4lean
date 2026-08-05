@@ -156,6 +156,19 @@ theorem FormationCertificate.declWF
     decl.WF env :=
   ⟨hsource, H.formationWF⟩
 
+def FormationCertificate.ofPrefixes
+    (Hheaders : HeaderLoopCertificate env lparams decl params stats
+      decl.types.length)
+    (envTypes : VEnv)
+    (htypes : env.addConsts decl.typeConstants = some envTypes)
+    (Hctors : ConstructorPrefixCertificate env decl envTypes params
+      decl.ownedConstructors.length) :
+    FormationCertificate env decl where
+  headers := Hheaders.headerPrefix.complete
+  envTypes := envTypes
+  typesInstalled := htypes
+  constructors := Hctors.complete
+
 /-- Build ordered relational coverage from equal lengths and pointwise array-
 style evidence. This is the common bridge used by recursor and rule loops. -/
 theorem List.forall₂_of_getElem
