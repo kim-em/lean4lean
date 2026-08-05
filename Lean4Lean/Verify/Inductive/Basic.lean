@@ -1111,6 +1111,22 @@ theorem TrExprS.constAppSpine
   | mdata _ _ _ => cases hhead
   | proj _ _ _ _ => cases hhead
 
+theorem isValidIndAppIdx.head
+    (hvalid : AddInductive.isValidIndAppIdx stats type i = true) :
+    (type.getAppFn == stats.indConsts[i]!) = true := by
+  simp only [AddInductive.isValidIndAppIdx, Expr.withApp_eq] at hvalid
+  split at hvalid
+  · simp_all
+  · simp_all
+
+theorem isValidIndAppIdx.arity
+    (hvalid : AddInductive.isValidIndAppIdx stats type i = true) :
+    type.getAppArgs.size = stats.params.size + stats.nindices[i]! := by
+  simp only [AddInductive.isValidIndAppIdx, Expr.withApp_eq] at hvalid
+  split at hvalid
+  · simp_all
+  · simp_all
+
 def VLCtx.NoIndConsts (names : List Name) (Δ : VLCtx) : Prop :=
   ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
     mapped.containsAnyConst names = false
