@@ -171,10 +171,11 @@ def isValidIndAppIdx (stats : InductiveStats) (t : Expr) (i : Nat) : Bool :=
   t.withApp fun I args => Id.run do
   unless I == stats.indConsts[i]! && args.size == stats.params.size + stats.nindices[i]! do
     return false
-  for i in [:stats.params.size] do
-    if stats.params[i]! != args[i]! then return false
-  for i in [stats.params.size:args.size] do
-    if hasIndOcc stats.indConsts args[i]! then return false
+  unless stats.params == args.extract 0 stats.params.size do
+    return false
+  unless (args.extract stats.params.size args.size).all fun arg =>
+      !hasIndOcc stats.indConsts arg do
+    return false
   true
 
 def isValidIndApp? (stats : InductiveStats) (t : Expr) : Option Nat := do

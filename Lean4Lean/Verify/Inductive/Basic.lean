@@ -1127,6 +1127,50 @@ theorem isValidIndAppIdx.arity
   · simp_all
   · simp_all
 
+theorem isValidIndAppIdx.param
+    (hvalid : AddInductive.isValidIndAppIdx stats type i = true)
+    (hj : j < stats.params.size) :
+    (stats.params[j] == type.getAppArgs[j]'(by
+      have := isValidIndAppIdx.arity hvalid
+      omega)) = true := by
+  have hp :
+      (stats.params == type.getAppArgs.extract 0 stats.params.size) = true := by
+    cases hparams :
+        (stats.params == type.getAppArgs.extract 0 stats.params.size) <;>
+      simp_all [AddInductive.isValidIndAppIdx, Expr.withApp_eq]
+  rw [Array.beq_eq_decide] at hp
+  split at hp
+  · rename_i hsize
+    simp only [decide_eq_true_eq] at hp
+    have helem := hp j hj
+    simpa only [Array.getElem_extract, Nat.zero_add] using helem
+  · simp_all
+
+theorem isValidIndAppIdx.indexNoOccurrence
+    (hvalid : AddInductive.isValidIndAppIdx stats type i = true)
+    (hlower : stats.params.size ≤ j) (hupper : j < type.getAppArgs.size) :
+    AddInductive.hasIndOcc stats.indConsts type.getAppArgs[j] = false := by
+  have hall :
+      (type.getAppArgs.extract stats.params.size type.getAppArgs.size).all
+        (fun arg => !AddInductive.hasIndOcc stats.indConsts arg) = true := by
+    have harity := isValidIndAppIdx.arity hvalid
+    rw [harity]
+    cases hclean :
+        (type.getAppArgs.extract stats.params.size
+          (stats.params.size + stats.nindices[i]!)).all
+          (fun arg => !AddInductive.hasIndOcc stats.indConsts arg) <;>
+      simp_all [AddInductive.isValidIndAppIdx, Expr.withApp_eq]
+  have hk : j - stats.params.size <
+      (type.getAppArgs.extract stats.params.size type.getAppArgs.size).size := by
+    simp only [Array.size_extract]
+    omega
+  have hclean := Array.all_eq_true.mp hall (j - stats.params.size) hk
+  simp only [Array.getElem_extract] at hclean
+  have hj : stats.params.size + (j - stats.params.size) = j := by omega
+  simp only [hj] at hclean
+  cases hocc : AddInductive.hasIndOcc stats.indConsts type.getAppArgs[j] <;>
+    simp_all
+
 def VLCtx.NoIndConsts (names : List Name) (Δ : VLCtx) : Prop :=
   ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
     mapped.containsAnyConst names = false
