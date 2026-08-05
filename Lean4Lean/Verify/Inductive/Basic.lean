@@ -3095,6 +3095,73 @@ theorem laterResult.refines
     hctxEq hheader hparamsTake hindicesTake hparams
     (hlevel resultSort) hsorted
 
+/-- Metadata-synthesizing continuation for a later mutual header.  The
+executable result-universe guard extends the ordered metadata prefix, while
+the successful parameter comparisons let the independently synthesized
+header use the common parameter telescope fixed by the first family member.
+
+This theorem deliberately starts at the post-telescope boundary.  The
+per-binder later-header recursion has a different runtime shape from the
+first header (cached parameters are substituted rather than introduced), so
+it is verified separately instead of being hidden behind the first-header
+invariant. -/
+theorem laterResult.extendsPrefix
+    {skeleton : VInductDeclSkeleton} {source : VInductiveTypeSkeleton}
+    {current : VExpr} {commonParams : List VExpr}
+    {metadata : List (Nat × VLevel)} {commonLevel : VLevel}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hnonempty : stats.indConsts.isEmpty = false)
+    (hindex : dIdx < skeleton.types.length)
+    (hsource : skeleton.types[dIdx] = source)
+    (Hprefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
+      Hc.venv skeleton commonParams commonLevel metadata dIdx)
+    (Hsynthesis : checkInductiveTypes.loopType.HeaderSynthesisCertificate
+      Hc source current skeleton.nparams nindices)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current)
+    (huvars : c.lparams.length = skeleton.uvars)
+    (hparams : VEnv.IsDefEqCtx Hc.venv skeleton.uvars []
+      commonParams.reverse Hsynthesis.params.reverse)
+    (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
+      some commonLevel)
+    (Hrec : ∀ resultSort resultLevel,
+      resultSort.isEquiv stats.resultLevel = true →
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc.venv
+        skeleton commonParams commonLevel
+        (metadata ++ [(nindices, resultLevel)]) (dIdx + 1) →
+      (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+        (dIdx + 1)
+        (updatedStats stats stats.lctx resultSort false nindices indName)
+        k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other
+          "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  subst source
+  apply laterResult.WF k Q Hc hnonempty htype
+  intro resultSort hguard hsorted
+  rcases TrExpr.sort_source hsorted with
+    ⟨resultLevel, hofLevel, _hresult⟩
+  have hheader := Hsynthesis.synthesizedHeaderWithParams huvars hparams
+    hofLevel hsorted
+  have hlevel : resultLevel ≈ commonLevel :=
+    Level.isEquiv_wf hguard hofLevel hcommon
+  exact Hrec resultSort resultLevel hguard hofLevel
+    (Hprefix.push hindex hheader hlevel)
+
 /-- Base case of the mutual-header loop.  The executable assertions become
 explicit invariants at the proof boundary instead of being silently erased. -/
 theorem result.WF
