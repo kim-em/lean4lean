@@ -143,6 +143,23 @@ end
 
 end VInductDecl
 
+/-- A constructor field for which recursor generation must introduce an
+induction hypothesis. Unlike positivity, this judgment follows higher-order
+binders only to classify the field's eventual result; positivity of the whole
+domain is checked separately by `Positive`. -/
+inductive VInductDecl.RecursiveArg (env : VEnv) (decl : VInductDecl) :
+    List VExpr → Nat → VExpr → Prop
+  | direct :
+    env.IsDefEq decl.uvars ctx e exposed type →
+    decl.ValidIndAppAt none depth exposed →
+    decl.RecursiveArg env ctx depth e
+  | forallE :
+    env.IsDefEq decl.uvars ctx e (.forallE dom body) type →
+    env.IsDefEq decl.uvars ctx dom checkedDom (.sort domLevel) →
+    env.IsDefEq decl.uvars (dom :: ctx) body checkedBody bodyType →
+    decl.RecursiveArg env (checkedDom :: ctx) (depth + 1) checkedBody →
+    decl.RecursiveArg env ctx depth e
+
 /-- Constructor fields followed by the constructor's target application. -/
 inductive VInductDecl.CtorTailWF (env : VEnv) (decl : VInductDecl)
     (target : VInductiveType) : List VExpr → Nat → VExpr → Prop

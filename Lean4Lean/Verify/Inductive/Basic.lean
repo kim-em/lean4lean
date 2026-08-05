@@ -2252,6 +2252,106 @@ theorem checkPositivity.refines
   apply checkPositivity.WF
   exact checkPositivity.loop.refines Hc Hstats hconsume hlit hctx hproj htype
 
+namespace isRecArg.loop
+
+/-- The recursive-argument classifier used by recursor generation refines the
+independent `RecursiveArg` judgment whenever it returns a family index. -/
+theorem refines
+    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
+    (Hc : ContextWF c)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl depth)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
+    (AddInductive.isRecArg.loop stats type fuel c).WF
+      (fun result => ∀ target, result = some target →
+        decl.RecursiveArg Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
+  induction fuel generalizing c type type' depth with
+  | zero =>
+    intro _ h
+    simp [AddInductive.isRecArg.loop] at h
+  | succ fuel ih =>
+    rcases htype with ⟨sourceSyntax, hsource, hsourceEq⟩
+    rw [AddInductive.isRecArg.loop]
+    refine (whnfInContext.WF Hc hsource).bind fun normalized hnormalized => ?_
+    rcases hnormalized with ⟨exposed, hexposed, hexposedEq⟩
+    have hsourceExposed :=
+      (hexposedEq.trans Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
+        hsourceEq).symm
+    rcases hsourceExposed with ⟨exprType, hsourceExposed⟩
+    by_cases hforall : ∃ name dom body bi,
+        normalized = .forallE name dom body bi
+    · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+      cases hexposed with
+      | forallE hdomType _ hdom hbody =>
+        rcases hconsume c Hc hdom hdomType with ⟨consumedDom', Hdom⟩
+        rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+        refine withLocalDecl.WF (name := name) (bi := bi)
+          (Q := fun result => ∀ target, result = some target →
+            decl.RecursiveArg Hc.venv Hc.mlctx.vlctx.toCtx depth type')
+          Hc Hdom.consumed Hdom.isType ?_
+        let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType
+        have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType hbody''
+        have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
+          Hc Hdom.consumed Hdom.isType
+        have hctx' : checkPositivityStep.VLCtx.NoIndConsts
+            (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
+          apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
+          rfl
+        have Hrec := ih Hc' Hstats' hctx'
+          (hopened.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
+        exact Hrec.mono fun result hrec target htarget => by
+          rcases Hdom.source_defeq with ⟨domLevel, hdomEq⟩
+          rcases hbodyEq with ⟨bodyType, hbodyEq⟩
+          exact .forallE
+            (by simpa [Hstats.uvars] using hsourceExposed)
+            (by simpa [Hstats.uvars] using hdomEq)
+            (by simpa [Hstats.uvars] using hbodyEq)
+            (hrec target htarget)
+    · cases normalized <;> try { simp at hforall }
+      all_goals
+        change (Except.ok (AddInductive.isValidIndApp? stats _)).WF _
+        exact Except.WF.pure fun target htarget =>
+          .direct (by simpa [Hstats.uvars] using hsourceExposed)
+            (checkPositivityStep.isValidIndApp?.validIndAppAt Hstats hexposed
+              htarget hlit hctx hproj)
+
+end isRecArg.loop
+
+theorem isRecArg.refines
+    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
+    (Hc : ContextWF c)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl depth)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
+    (AddInductive.isRecArg stats type c).WF
+      (fun result => ∀ target, result = some target →
+        decl.RecursiveArg Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
+  unfold AddInductive.isRecArg
+  have hread : ((read : AddInductive.M AddInductive.Context) c).WF
+      (fun c' => c' = c) := by
+    intro c' h
+    cases h
+    rfl
+  refine hread.bind fun _ h => ?_
+  subst h
+  exact isRecArg.loop.refines Hc Hstats hconsume hlit hctx hproj htype
+
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
 theorem checkConstructors.loopCtor.tailRefinesFull
