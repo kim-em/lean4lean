@@ -1734,6 +1734,71 @@ def ParameterContextSuffix.withIndex
   simp only [List.cons_append]
   rw [H.context]
 
+theorem ParameterContextSuffix.parameterDecls_length
+    (H : ParameterContextSuffix Hc stats depth) :
+    H.parameterDecls.length = stats.params.size := by
+  have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    H.cached
+  simpa using hlength.symm
+
+/-- Locate executable parameter `i` in the reverse-ordered local-context
+suffix. -/
+theorem ParameterContextSuffix.parameterAt
+    (H : ParameterContextSuffix Hc stats depth)
+    (hi : i < stats.params.size)
+    (hj : stats.params.size - 1 - i < H.parameterDecls.length) :
+    CachedParameterDecl stats.params[i]
+      H.parameterDecls[stats.params.size - 1 - i] := by
+  let j := stats.params.size - 1 - i
+  have hj' : j < stats.params.size := by
+    dsimp [j]
+    omega
+  have hleft : j < stats.params.toList.reverse.length := by
+    simpa using hj'
+  have hright : j < H.parameterDecls.length := by
+    exact hj
+  have hcached := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    H.cached j hleft hright
+  simp only [List.getElem_reverse, Array.getElem_toList] at hcached
+  change CachedParameterDecl stats.params[stats.params.size - 1 - j]
+    H.parameterDecls[j] at hcached
+  dsimp [j] at hcached ⊢
+  have hindex : stats.params.size - 1 -
+      (stats.params.size - 1 - i) = i := by omega
+  have helem :
+      stats.params[stats.params.size - 1 -
+        (stats.params.size - 1 - i)] = stats.params[i] :=
+    getElem_congr rfl hindex (by omega)
+  rw [← helem]
+  exact hcached
+
+/-- Split the cached-parameter suffix at executable array index `i`.  Entries
+in `newer` are precisely the cached declarations introduced after parameter
+`i`; `older` contains those introduced before it. -/
+theorem ParameterContextSuffix.splitAt
+    (H : ParameterContextSuffix Hc stats depth)
+    (hi : i < stats.params.size) :
+    ∃ newer entry older,
+      H.parameterDecls = newer ++ entry :: older ∧
+      newer.length = stats.params.size - 1 - i ∧
+      CachedParameterDecl stats.params[i] entry := by
+  let j := stats.params.size - 1 - i
+  have hj : j < H.parameterDecls.length := by
+    rw [H.parameterDecls_length]
+    dsimp [j]
+    omega
+  refine ⟨H.parameterDecls.take j, H.parameterDecls[j],
+    H.parameterDecls.drop (j + 1), ?_, ?_, ?_⟩
+  · calc
+      H.parameterDecls =
+          H.parameterDecls.take j ++ H.parameterDecls.drop j :=
+        (List.take_append_drop j H.parameterDecls).symm
+      _ = H.parameterDecls.take j ++
+          H.parameterDecls[j] :: H.parameterDecls.drop (j + 1) := by
+        rw [List.drop_eq_getElem_cons hj]
+  · simp [List.length_take, Nat.min_eq_left (Nat.le_of_lt hj), j]
+  · exact H.parameterAt hi hj
+
 /-- Adding a common parameter weakens every cached parameter translation and
 appends the newly generated free variable, whose abstract image is `bvar 0`.
 This is the exact state update performed by `loopType` on the first header. -/
