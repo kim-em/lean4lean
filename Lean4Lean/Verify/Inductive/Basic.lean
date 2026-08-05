@@ -218,6 +218,16 @@ theorem ContextWF.ConsumedDomain.body
   rcases hbody.defeqDFC Hc.checking.tr.wf hctx with ⟨body'', hbody''⟩
   exact ⟨body'', hbody'', hbody.uniq Hc.checking.tr.wf hctx hbody''⟩
 
+/-- Semantic compatibility required of Lean's opaque annotation erasure.
+It is kept as one named boundary condition until the translations of
+`OptParam`, `AutoParam`, and output-parameter wrappers are verified directly. -/
+def ConsumeTypeAnnotationsCompat : Prop :=
+  ∀ (c : AddInductive.Context) (Hc : ContextWF c)
+    {dom : Expr} {source' : VExpr},
+    TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source' →
+    Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx source' →
+    ∃ consumed', Hc.ConsumedDomain dom source' consumed'
+
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
 
@@ -1034,6 +1044,7 @@ structure ValidAppStatsWF (env : VEnv) (Us : List Name) (Δ : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (depth : Nat) : Prop where
   levels : stats.levels.length = decl.uvars
+  uvars : Us.length = decl.uvars
   consts : IndConstArray stats.levels stats.indConsts
     (decl.types.map (·.name))
   indices : stats.nindices.toList = decl.types.map (·.numIndices)
@@ -1167,6 +1178,7 @@ theorem ValidAppStatsWF.withLocalDecl
       h.weakFV Hc'.checking.tr.wf W Hc'.mlctx_wf.tr.wf
   refine {
     levels := H.levels
+    uvars := H.uvars
     consts := H.consts
     indices := H.indices
     params := ?_
@@ -1724,6 +1736,7 @@ theorem forallE.refines
       (.forallE name dom body bi) = true)
     (hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = false)
     (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (huvars : c.lparams.length = decl.uvars)
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ body'',
@@ -1740,7 +1753,7 @@ theorem forallE.refines
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotations bi }).WF
         (fun _ => decl.Positive Hc.venv
-          (sourceDom' :: Hc.mlctx.vlctx.toCtx) (depth + 1) sourceBody')) :
+          (consumedDom' :: Hc.mlctx.vlctx.toCtx) (depth + 1) body'')) :
     (AddInductive.checkPositivityStep stats (.forallE name dom body bi)
       ctor idx recur c).WF
       (fun _ => decl.SyntacticallyPositive Hc.venv Hc.mlctx.vlctx.toCtx depth
@@ -1752,8 +1765,12 @@ theorem forallE.refines
       (recur := recur) (ctor := ctor)
       (idx := idx) Hc hocc hdomOcc Hdom hbody ?_
   intro body'' hbodyEq hopened
-  exact (Hrec body'' hbodyEq hopened).mono fun _ hpositive =>
-    .forallE hdomNo hpositive
+  exact (Hrec body'' hbodyEq hopened).mono fun _ hpositive => by
+    rcases Hdom.source_defeq with ⟨domLevel, hdomEq⟩
+    rcases hbodyEq with ⟨bodyType, hbodyEq⟩
+    exact .forallE hdomNo
+      (by simpa [huvars] using hdomEq)
+      (by simpa [huvars] using hbodyEq) hpositive
 
 end checkPositivityStep
 
@@ -1934,6 +1951,87 @@ theorem succ.WF
   exact (whnfInContext.WF Hc htype).bind fun normalized hnormalized =>
     Hstep normalized hnormalized
 
+/-- The complete recursive positivity traversal refines the independent
+declarative judgment.  In particular, every recursive call under a higher-
+order binder performs and records its own WHNF/definitional-equality step. -/
+theorem refines
+    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
+    (Hc : ContextWF c)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl depth)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
+    (AddInductive.checkPositivity.loop stats ctor idx type fuel c).WF
+      (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
+  induction fuel generalizing c type type' depth with
+  | zero => exact zero.WF
+  | succ fuel ih =>
+    rcases htype with ⟨sourceSyntax, hsource, hsourceEq⟩
+    refine succ.WF Hc hsource ?_
+    intro normalized hnormalized
+    rcases hnormalized with ⟨exposed, hexposed, hexposedEq⟩
+    have hsourceExposed :=
+      (hexposedEq.trans Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
+        hsourceEq).symm
+    rcases hsourceExposed with ⟨exprType, hsourceExposed⟩
+    have finish
+        (Hstep : (AddInductive.checkPositivityStep stats normalized ctor idx
+          (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
+          c).WF (fun _ =>
+            decl.SyntacticallyPositive Hc.venv Hc.mlctx.vlctx.toCtx
+              depth exposed)) :
+        (AddInductive.checkPositivityStep stats normalized ctor idx
+          (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
+          c).WF (fun _ =>
+            decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') :=
+      Hstep.mono fun _ hpositive =>
+        .unfold (by simpa [Hstats.uvars] using hsourceExposed) hpositive
+    by_cases hocc : AddInductive.hasIndOcc stats.indConsts normalized = false
+    · exact finish <| checkPositivityStep.noOccurrence.refines
+        Hstats.consts hlit hctx hproj hexposed hocc
+    have hocc' : AddInductive.hasIndOcc stats.indConsts normalized = true := by
+      cases h : AddInductive.hasIndOcc stats.indConsts normalized
+      · exact False.elim (hocc h)
+      · rfl
+    by_cases hforall : ∃ name dom body bi,
+        normalized = .forallE name dom body bi
+    · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+      by_cases hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = true
+      · exact checkPositivityStep.negativeDomain.WF hocc' hdomOcc
+      have hdomOcc' : AddInductive.hasIndOcc stats.indConsts dom = false := by
+        cases h : AddInductive.hasIndOcc stats.indConsts dom
+        · rfl
+        · exact False.elim (hdomOcc h)
+      cases hexposed with
+      | forallE hdomType _ hdom hbody =>
+        rcases hconsume c Hc hdom hdomType with ⟨consumedDom', Hdom⟩
+        exact finish <| checkPositivityStep.forallE.refines Hc Hstats.consts
+          hlit hctx hproj hocc' hdomOcc' Hdom Hstats.uvars hbody
+          fun body'' hbodyEq hopened => by
+            let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+              Hdom.consumed Hdom.isType
+            have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
+              Hc Hdom.consumed Hdom.isType
+            have hctx' : checkPositivityStep.VLCtx.NoIndConsts
+                (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
+              apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
+              rfl
+            exact ih Hc' Hstats' hctx'
+              (hopened.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
+    ·
+      cases hvalid : AddInductive.isValidIndApp? stats normalized with
+      | none =>
+        exact checkPositivityStep.invalidApplication.WF hocc' hforall hvalid
+      | some target =>
+        exact finish <| checkPositivityStep.validApplication.sourceRefines
+          Hstats hexposed hlit hctx hproj hocc' hforall hvalid
+
 end checkPositivity.loop
 
 theorem checkPositivity.WF
@@ -1948,6 +2046,25 @@ theorem checkPositivity.WF
   refine hread.bind fun _ h => ?_
   subst h
   exact Hloop
+
+/-- Public positivity refinement, including the production fuel lookup. -/
+theorem checkPositivity.refines
+    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
+    (Hc : ContextWF c)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl depth)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
+    (AddInductive.checkPositivity stats type ctor idx c).WF
+      (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
+  apply checkPositivity.WF
+  exact checkPositivity.loop.refines Hc Hstats hconsume hlit hctx hproj htype
 
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable

@@ -131,7 +131,9 @@ inductive SyntacticallyPositive (env : VEnv)
     SyntacticallyPositive env decl ctx depth e
   | forallE :
     dom.containsAnyConst (decl.types.map (·.name)) = false →
-    Positive env decl (dom :: ctx) (depth + 1) body →
+    env.IsDefEq decl.uvars ctx dom checkedDom (.sort domLevel) →
+    env.IsDefEq decl.uvars (dom :: ctx) body checkedBody bodyType →
+    Positive env decl (checkedDom :: ctx) (depth + 1) checkedBody →
     SyntacticallyPositive env decl ctx depth (.forallE dom body)
   | recursive :
     decl.ValidIndAppAt none depth e →

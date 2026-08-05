@@ -95,7 +95,7 @@ theorem negativeOccurrence_not_positive :
   intro h
   cases h with
   | nonrecursive h => simp [VExpr.containsAnyConst, enumDecl, enumType] at h
-  | forallE h _ => simp [VExpr.containsAnyConst, enumDecl, enumType] at h
+  | forallE h _ _ _ => simp [VExpr.containsAnyConst, enumDecl, enumType] at h
   | recursive h =>
     simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, VExpr.getAppFnArgs.go,
       enumDecl, enumType] at h
