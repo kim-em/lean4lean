@@ -2181,6 +2181,37 @@ theorem initialHeaderState
   exact ⟨normalized', exprType, hnormalized', hheader,
     ⟨checkInductiveTypes.loopType.HeaderTelescopeLoopCertificate.empty hctxEq⟩⟩
 
+/-- Definitional synthesis state used by the complete first-header recursion. -/
+theorem initialHeaderSynthesisState
+    (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
+    (Htarget : TrInductiveType Hc.venv envTypes c.lparams source target)
+    (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+      source.type checkedType sourceType checkedType')
+    (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      normalized sourceType) :
+    ∃ normalized',
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx normalized normalized' ∧
+      Nonempty (checkInductiveTypes.loopType.HeaderSynthesisCertificate
+        Hc target normalized' 0 0) := by
+  rcases initialHeaderNormalization Hc hctx Htarget hchecked hnormalized with
+    ⟨normalized', exprType, hnormalized', hheader⟩
+  have hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      [] Hc.mlctx.vlctx.toCtx := by
+    simpa [hctx, VLCtx.toCtx] using
+      (VEnv.IsDefEqCtx.refl (env := Hc.venv) (U := c.lparams.length)
+        (by trivial : OnCtx ([] : List VExpr)
+          (Hc.venv.IsType c.lparams.length)))
+  have htargetType : Hc.venv.IsType c.lparams.length [] target.type := by
+    have hwf := Htarget.header.wf
+    change Hc.venv.IsType target.uvars [] target.type at hwf
+    rw [Htarget.header.uvars] at hwf
+    exact hwf
+  have hcurrent : Hc.venv.IsType c.lparams.length [] normalized' :=
+    htargetType.defeqU_l Hc.checking.tr.wf (by trivial) hheader.toU
+  exact ⟨normalized', hnormalized',
+    ⟨checkInductiveTypes.loopType.HeaderSynthesisCertificate.empty
+      hctxEq hcurrent hheader⟩⟩
+
 private def updatedStats (stats : AddInductive.InductiveStats)
     (lctx : LocalContext) (resultLevel : Level) (setResult : Bool)
     (nindices : Nat) (indName : Name) : AddInductive.InductiveStats :=
