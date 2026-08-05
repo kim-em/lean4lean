@@ -664,6 +664,33 @@ theorem TrExpr.typeShapeOfDefEqCtxResult
     hheader, hparamsTake, hindicesTake, hparams,
     by simpa [huvars] using hsourceEq'⟩
 
+/-- Close a sort-level definitional equality over a dependent forall
+telescope.  This is the abstraction step needed when the executable checker
+performs a fresh `whnf` after opening each binder. -/
+theorem VExpr.wrapForalls_defeq
+    {env : VEnv} {U : Nat} {domains Γ : List VExpr}
+    {body body' : VExpr} {bodyLevel : VLevel}
+    (hctx : OnCtx (domains.reverse ++ Γ) (env.IsType U))
+    (hbody : env.IsDefEq U (domains.reverse ++ Γ)
+      body body' (.sort bodyLevel)) :
+    ∃ resultLevel, env.IsDefEq U Γ
+      (VExpr.wrapForalls domains body)
+      (VExpr.wrapForalls domains body') (.sort resultLevel) := by
+  induction domains generalizing Γ with
+  | nil =>
+    exact ⟨bodyLevel, by simpa [VExpr.wrapForalls] using hbody⟩
+  | cons dom domains ih =>
+    have hctx' : OnCtx (domains.reverse ++ (dom :: Γ))
+        (env.IsType U) := by
+      simpa [List.reverse_cons, List.append_assoc] using hctx
+    have hdomCtx : OnCtx (dom :: Γ) (env.IsType U) :=
+      OnCtx.append_right hctx'
+    rcases hdomCtx.2 with ⟨domLevel, hdom⟩
+    rcases ih hctx' (by
+      simpa [List.reverse_cons, List.append_assoc] using hbody) with
+      ⟨resultLevel, hrest⟩
+    exact ⟨.imax domLevel resultLevel, .forallEDF hdom hrest⟩
+
 /-- Opening a source binder with the fresh free variable chosen by the
 production checker leaves its abstract body unchanged: the extended `VLCtx`
 maps that free variable back to the new outermost de Bruijn variable. -/
