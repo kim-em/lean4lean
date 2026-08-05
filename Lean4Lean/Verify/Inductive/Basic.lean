@@ -2533,6 +2533,55 @@ theorem firstResult.refinesTelescope
     (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq
       Htelescope.telescope.context)
 
+/-- Post-telescope first-header refinement using the definitional synthesis
+state produced by `firstHeaderSynthesisWF`. -/
+theorem firstResult.refinesSynthesis
+    {decl : VInductDecl} {target : VInductiveType}
+    {current : VExpr}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
+    (Hsynthesis : checkInductiveTypes.loopType.HeaderSynthesisCertificate
+      Hc target current decl.nparams nindices)
+    (hnindices : nindices = target.numIndices)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current)
+    (huvars : c.lparams.length = decl.uvars)
+    (hlevel : ∀ resultSort resultLevel,
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      resultLevel = target.resultLevel)
+    (Hrec : ∀ resultSort,
+      VLevel.ofLevel c.lparams resultSort = some target.resultLevel →
+      decl.TypeShape Hc.venv Hsynthesis.params target →
+      checkInductiveTypes.loopType.AmbientParamContext
+        Hc Hsynthesis.params Hsynthesis.indices.length →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
+        (updatedStats stats c.lctx resultSort true nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  subst nindices
+  apply firstResult.WF k Q Hc hempty htype
+  intro resultSort hsorted
+  rcases TrExpr.sort_source hsorted with ⟨resultLevel, hofLevel, _⟩
+  have hresultLevel := hlevel resultSort resultLevel hofLevel
+  subst resultLevel
+  exact Hrec resultSort hofLevel
+    (Hsynthesis.typeShape huvars (hlevel resultSort) hsorted)
+    (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq
+      Hsynthesis.context)
+
 /-- Post-telescope continuation for later mutual headers.  A mismatched result
 universe throws; a successful path records the checked equivalence before
 updating the per-type arrays. -/
