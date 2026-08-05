@@ -80,6 +80,51 @@ def HeaderPrefixCertificate.complete
     rcases List.mem_iff_getElem.1 htype with ⟨i, hi, rfl⟩
     exact H.typeShapes i hi hi
 
+/-- Completed output of the flattened constructor traversal. -/
+structure ConstructorCertificate (env : VEnv) (decl : VInductDecl)
+    (envTypes : VEnv) (params : List VExpr) : Prop where
+  shapes : ∀ owned ∈ decl.ownedConstructors,
+    decl.CtorShape envTypes params owned.1 owned.2
+
+/-- Prefix invariant for constructor checking in the exact flattened order
+used by recursor-minor and iota-rule generation. -/
+structure ConstructorPrefixCertificate (env : VEnv) (decl : VInductDecl)
+    (envTypes : VEnv) (params : List VExpr) (done : Nat) : Prop where
+  shapes : ∀ i, i < done → (hi : i < decl.ownedConstructors.length) →
+    decl.CtorShape envTypes params decl.ownedConstructors[i].1
+      decl.ownedConstructors[i].2
+
+theorem ConstructorPrefixCertificate.empty (env : VEnv)
+    (decl : VInductDecl) (envTypes : VEnv) (params : List VExpr) :
+    ConstructorPrefixCertificate env decl envTypes params 0 where
+  shapes _ h := by omega
+
+theorem ConstructorPrefixCertificate.push
+    (H : ConstructorPrefixCertificate env decl envTypes params done)
+    (hindex : done < decl.ownedConstructors.length)
+    (hshape : decl.CtorShape envTypes params
+      decl.ownedConstructors[done].1 decl.ownedConstructors[done].2) :
+    ConstructorPrefixCertificate env decl envTypes params (done + 1) where
+  shapes i hidone hi := by
+    by_cases h : i = done
+    · subst i; exact hshape
+    · exact H.shapes i (by omega) hi
+
+theorem ConstructorPrefixCertificate.complete
+    (H : ConstructorPrefixCertificate env decl envTypes params
+      decl.ownedConstructors.length) :
+    ConstructorCertificate env decl envTypes params where
+  shapes owned howned := by
+    rcases List.mem_iff_getElem.1 howned with ⟨i, hi, rfl⟩
+    exact H.shapes i hi hi
+
+theorem ConstructorCertificate.ctorShape
+    (H : ConstructorCertificate env decl envTypes params)
+    (htype : type ∈ decl.types) (hctor : ctor ∈ type.ctors) :
+    decl.CtorShape envTypes params type ctor := by
+  apply H.shapes (type, ctor)
+  simp [VInductDecl.ownedConstructors, htype, hctor]
+
 /-- Fielded aggregation target for the executable header and constructor
 traversals. The public specification remains `VInductDecl.FormationWF`; this
 certificate gives the refinement proof stable, named obligations instead of
@@ -88,15 +133,14 @@ structure FormationCertificate (env : VEnv) (decl : VInductDecl) where
   headers : HeaderCertificate env decl
   envTypes : VEnv
   typesInstalled : env.addConsts decl.typeConstants = some envTypes
-  ctorShapes : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
-    decl.CtorShape envTypes headers.params type ctor
+  constructors : ConstructorCertificate env decl envTypes headers.params
 
 theorem FormationCertificate.formationWF
     (H : FormationCertificate env decl) : decl.FormationWF env := by
   exact ⟨H.headers.params, H.headers.resultLevel, H.envTypes, H.typesInstalled,
     fun type htype => ⟨H.headers.commonLevels type htype,
       H.headers.typeShapes type htype⟩,
-    H.ctorShapes⟩
+    fun type htype ctor hctor => H.constructors.ctorShape htype hctor⟩
 
 theorem FormationCertificate.declWF
     (H : FormationCertificate env decl) (hsource : decl.SourceWF env) :
