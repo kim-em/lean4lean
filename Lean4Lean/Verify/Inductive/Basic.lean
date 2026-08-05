@@ -582,6 +582,61 @@ theorem result.WF
   subst h
   simpa [hlevels, hindices, hconsts, hparams] using Hk
 
+/-- Verified prefix of one mutual-header iteration: closed source checking and
+WHNF are connected to the abstract translation before control enters the
+already verified telescope loop.  The continuation owns the result-sort,
+statistics update, and recursive mutual iteration invariants. -/
+theorem stepPrefix.WF
+    (Hc : ContextWF c) (hidx : dIdx < indTypes.size)
+    (Hloop : ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        indTypes[dIdx].type checkedType type' checkedType' →
+      ∀ normalized, TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
+      (AddInductive.checkInductiveTypes.loopType nparams stats normalized 0 0
+        c.fuel.inductiveFuel (fun type stats nindices => show AddInductive.M _ from do
+          let type ← TypeChecker.ensureSort type
+          let mut stats := stats
+          let resultLevel := type.sortLevel!
+          if stats.indConsts.isEmpty then
+            let lctx := (← read).lctx
+            stats := { stats with
+              lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+          else if !resultLevel.isEquiv stats.resultLevel then
+            throw <| .other "mutually inductive types must live in the same universe"
+          stats := { stats with
+            nindices := stats.nindices.push nindices
+            indConsts := stats.indConsts.push
+              (.const indTypes[dIdx].name stats.levels) }
+          AddInductive.checkInductiveTypes.loopInd nparams indTypes
+            (dIdx + 1) stats k) c).WF Q) :
+    (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx stats k c).WF Q := by
+  rw [AddInductive.checkInductiveTypes.loopInd]
+  rw [dif_pos hidx]
+  change (AddInductive.checkClosedType indTypes[dIdx].name indTypes[dIdx].type c >>=
+    fun _ => ((do
+      let normalized ← TypeChecker.whnf indTypes[dIdx].type
+      AddInductive.checkInductiveTypes.loopType nparams stats normalized 0 0
+        c.fuel.inductiveFuel (fun type stats nindices => show AddInductive.M _ from do
+          let type ← TypeChecker.ensureSort type
+          let mut stats := stats
+          let resultLevel := type.sortLevel!
+          if stats.indConsts.isEmpty then
+            let lctx := (← read).lctx
+            stats := { stats with
+              lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+          else if !resultLevel.isEquiv stats.resultLevel then
+            throw <| .other "mutually inductive types must live in the same universe"
+          stats := { stats with
+            nindices := stats.nindices.push nindices
+            indConsts := stats.indConsts.push
+              (.const indTypes[dIdx].name stats.levels) }
+          AddInductive.checkInductiveTypes.loopInd nparams indTypes
+            (dIdx + 1) stats k)) : AddInductive.M _) c).WF Q
+  exact (checkClosedType.WF Hc).bind fun checkedType hchecked => by
+    rcases hchecked with ⟨type', checkedType', hchecked⟩
+    exact (whnfInContext.WF Hc hchecked.2.1).bind fun normalized hnormalized =>
+      Hloop checkedType type' checkedType' hchecked normalized hnormalized
+
 end checkInductiveTypes.loopInd
 
 /-- Production-side installation of a list of kernel constants. This small
