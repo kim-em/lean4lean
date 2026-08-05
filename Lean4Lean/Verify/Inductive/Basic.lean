@@ -2681,6 +2681,66 @@ theorem laterParameter.sourceWF
     exact (whnfInContext.WF Hc hopened).bind fun normalized hnormalized =>
       Hrec heq normalized hnormalized
 
+/-- Complete cached-parameter step with the narrow concrete scope and the
+reconstructed source binder exposed to the continuation. -/
+theorem laterParameter.scopeWF
+    (Hc : ContextWF c) (hi : i < nparams)
+    (hnonempty : stats.indConsts.isEmpty = false)
+    (Hsuffix : ParameterContextSuffix Hc stats depth)
+    (Hscope : LaterParameterScope Hsuffix i
+      (.forallE name dom body bi))
+    (hget : (AddInductive.getType stats.params[i]! c).WF
+      (fun ty => ty = paramTy))
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (hparamTy : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy')
+    (hparam : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      stats.params[i]! param')
+    (hparamType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+      param' paramTy')
+    (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+        dom' paramTy' →
+      (∃ sourceBody', TrExprS Hc.venv c.lparams
+        ((none, Hscope.decl) :: Hscope.older) body sourceBody') →
+      ∀ normalized,
+        FVarsBelow Hc.mlctx.vlctx
+          (body.instantiate1 stats.params[i]!) normalized →
+        TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized
+          (body'.inst param') →
+        (i + 1 < stats.params.size →
+          LaterParameterScope Hsuffix (i + 1) normalized) →
+        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
+          (i + 1) nindices fuel k c).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  rw [AddInductive.checkInductiveTypes.loopType]
+  rw [if_pos hi, if_neg (by simp [hnonempty])]
+  change (AddInductive.getType stats.params[i]! c >>= fun paramTy =>
+    ((do
+      unless ← TypeChecker.isDefEq dom paramTy do
+        throw <| .other "parameters of all inductive datatypes must match"
+      let type := body.instantiate1 stats.params[i]!
+      AddInductive.checkInductiveTypes.loopType nparams stats
+        (← TypeChecker.whnf type) (i + 1) nindices fuel k) :
+      AddInductive.M _) c).WF Q
+  refine hget.bind fun paramTy' hparamTyEq => ?_
+  subst paramTy'
+  refine (isDefEqInContext.WF Hc hdom hparamTy).bind
+    fun equal hequal => ?_
+  cases equal
+  · change (Except.error _).WF Q
+    exact Except.WF.throw
+  · have heq := hequal rfl
+    have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
+    let Hbody : LaterParameterScope Hsuffix i body := {
+      Hscope with fvars := Hscope.fvars.2 }
+    have habstract := Hbody.uninstantiate hopened
+    exact (whnfInContext.scopeWF Hc hopened).bind
+      fun normalized hnormalized =>
+      Hrec heq habstract normalized hnormalized.1 hnormalized.2
+        (fun hnext => Hbody.next hnext hnormalized.1)
+
 /-- Reusing a cached parameter does not alter the retained ambient-prefix
 shape. -/
 theorem laterParameter.runtimeStateWF
