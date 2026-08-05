@@ -107,6 +107,88 @@ def VInductDeclSkeleton.materialize (decl : VInductDeclSkeleton)
       some decl := by
   simp [VInductDecl.toSkeleton, VInductDeclSkeleton.materialize]
 
+theorem VInductDeclSkeleton.materialize_length
+    {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
+    {materialized : VInductDecl}
+    (H : decl.materialize metadata = some materialized) :
+    metadata.length = decl.types.length := by
+  simp only [VInductDeclSkeleton.materialize] at H
+  split at H
+  · assumption
+  · contradiction
+
+theorem VInductDeclSkeleton.materialize_fields
+    {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
+    {materialized : VInductDecl}
+    (H : decl.materialize metadata = some materialized) :
+    materialized.uvars = decl.uvars ∧
+    materialized.nparams = decl.nparams ∧
+    materialized.isUnsafe = decl.isUnsafe ∧
+    materialized.types.length = decl.types.length := by
+  simp only [VInductDeclSkeleton.materialize] at H
+  split at H
+  · next hlength =>
+    simp only [Option.some.injEq] at H
+    subst materialized
+    simp [hlength]
+  · contradiction
+
+theorem VInductDeclSkeleton.materialize_toSkeleton
+    {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
+    {materialized : VInductDecl}
+    (H : decl.materialize metadata = some materialized) :
+    materialized.toSkeleton = decl := by
+  have zipErase : ∀ (types : List VInductiveTypeSkeleton)
+      (metadata : List (Nat × VLevel)),
+      metadata.length = types.length →
+      List.zipWith (fun type data =>
+        (type.toVInductiveType data.1 data.2).toSkeleton)
+        types metadata = types := by
+    intro types metadata hlength
+    induction types generalizing metadata with
+    | nil => simpa using hlength
+    | cons type types ih =>
+      cases metadata with
+      | nil => simp at hlength
+      | cons data metadata =>
+        have hlength' : metadata.length = types.length := by
+          simp only [List.length_cons] at hlength
+          omega
+        simp only [List.zipWith_cons_cons,
+          VInductiveTypeSkeleton.toVInductiveType_toSkeleton]
+        congr 1
+        simpa only [VInductiveTypeSkeleton.toVInductiveType_toSkeleton]
+          using ih metadata hlength'
+  simp only [VInductDeclSkeleton.materialize] at H
+  split at H
+  · next hlength =>
+    simp only [Option.some.injEq] at H
+    subst materialized
+    cases decl
+    simp only [VInductDecl.toSkeleton, List.map_zipWith]
+    rw [zipErase _ _ (by simpa using hlength)]
+  · simp at H
+
+theorem VInductDeclSkeleton.materialize_typeAt
+    {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
+    {materialized : VInductDecl}
+    (H : decl.materialize metadata = some materialized)
+    (hi : i < decl.types.length) :
+    ∃ data,
+      metadata[i]? = some data ∧
+      materialized.types[i]? = some
+        (decl.types[i].toVInductiveType data.1 data.2) := by
+  have hlength := VInductDeclSkeleton.materialize_length H
+  have himetadata : i < metadata.length := by omega
+  refine ⟨metadata[i], by simp [himetadata], ?_⟩
+  simp only [VInductDeclSkeleton.materialize] at H
+  split at H
+  · simp only [Option.some.injEq] at H
+    subst materialized
+    rw [List.getElem?_zipWith]
+    simp [hi, himetadata]
+  · contradiction
+
 structure TrInductiveTypeSkeleton (env envTypes : VEnv)
     (lparams : List Name) (type : InductiveType)
     (type' : VInductiveTypeSkeleton) : Prop where
@@ -127,6 +209,31 @@ def VInductDeclSkeleton.sourceNames
     (decl : VInductDeclSkeleton) : List Name :=
   decl.typeConstants.map VConstVal.name ++
     decl.constructorConstants.map VConstVal.name
+
+@[simp] theorem VInductDecl.toSkeleton_typeConstants
+    (decl : VInductDecl) :
+    decl.toSkeleton.typeConstants = decl.typeConstants := by
+  simp [VInductDecl.toSkeleton, VInductDeclSkeleton.typeConstants,
+    VInductDecl.typeConstants, VInductiveType.toSkeleton]
+
+@[simp] theorem VInductDecl.toSkeleton_constructorConstants
+    (decl : VInductDecl) :
+    decl.toSkeleton.constructorConstants = decl.constructorConstants := by
+  cases decl with
+  | mk uvars nparams types isUnsafe =>
+    induction types with
+    | nil => rfl
+    | cons type types ih =>
+      have ih' :
+          List.flatMap VInductiveTypeSkeleton.ctors
+              (List.map VInductiveType.toSkeleton types) =
+            List.flatMap VInductiveType.ctors types := by
+        simpa [VInductDecl.toSkeleton,
+          VInductDeclSkeleton.constructorConstants,
+          VInductDecl.constructorConstants] using ih
+      simp [VInductDecl.toSkeleton,
+        VInductDeclSkeleton.constructorConstants,
+        VInductDecl.constructorConstants, VInductiveType.toSkeleton, ih']
 
 /-- Source well-formedness is metadata-parametric: every exact materialization
 has the same translated constants, hence the same source typing obligations.

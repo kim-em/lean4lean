@@ -233,6 +233,76 @@ theorem VInductDecl.paramsDefEq_reflOfAppend
     decl.ParamsDefEq env params params := by
   exact VEnv.IsDefEqCtx.refl (OnCtx.append_right H)
 
+theorem TrInductDeclSkeleton.types_length
+    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl) :
+    types.length = decl.types.length := by
+  rcases H with ⟨_, _, _, _, _, _, _, _, htypes⟩
+  exact Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes
+
+theorem TrInductDeclSkeleton.typeAt
+    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl)
+    (i : Nat) (hsource : i < types.length)
+    (htarget : i < decl.types.length) :
+    ∃ envTypes, env.addConsts decl.typeConstants = some envTypes ∧
+      TrInductiveTypeSkeleton env envTypes lparams
+        types[i] decl.types[i] := by
+  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypesAdded,
+    hctorsAdded, htypes⟩
+  exact ⟨envTypes, htypesAdded,
+    Lean4Lean.VerifyInductive.List.Forall₂.getElem htypes i
+      hsource htarget⟩
+
+theorem TrInductiveTypeSkeleton.materialized
+    (H : TrInductiveTypeSkeleton env envTypes lparams type target) :
+    TrInductiveType env envTypes lparams type
+      (target.toVInductiveType numIndices resultLevel) where
+  header := H.header
+  ctors := H.ctors
+
+/-- Once the executable header metadata has been collected, the metadata-free
+source translation becomes the ordinary declaration translation expected by
+the later constructor, compilation, and environment-extension layers. -/
+theorem TrInductDeclSkeleton.materialized
+    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe skeleton)
+    (Hmaterialize : skeleton.materialize metadata = some decl) :
+    TrInductDecl env lparams nparams types isUnsafe decl := by
+  rcases H with ⟨hsource, huvars, hnparams, hunsafe,
+    envTypes, envCtors, htypesAdded, hctorsAdded, htypes⟩
+  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
+  have herase := VInductDeclSkeleton.materialize_toSkeleton Hmaterialize
+  have htypeConstants : decl.typeConstants = skeleton.typeConstants := by
+    rw [← VInductDecl.toSkeleton_typeConstants decl, herase]
+  have hconstructorConstants :
+      decl.constructorConstants = skeleton.constructorConstants := by
+    rw [← VInductDecl.toSkeleton_constructorConstants decl, herase]
+  refine ⟨hsource metadata decl Hmaterialize,
+    hfields.1.trans huvars,
+    hfields.2.1.trans hnparams,
+    hfields.2.2.1.trans hunsafe,
+    envTypes, envCtors, ?_, ?_, ?_⟩
+  · simpa [htypeConstants] using htypesAdded
+  · simpa [hconstructorConstants] using hctorsAdded
+  · have hlength : types.length = decl.types.length := by
+      calc
+        types.length = skeleton.types.length :=
+          Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes
+        _ = decl.types.length := hfields.2.2.2.symm
+    apply List.forall₂_of_getElem hlength
+    intro i hsourceIdx htargetIdx
+    have hskeletonIdx : i < skeleton.types.length := by
+      rw [← Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes]
+      exact hsourceIdx
+    have htranslated := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+      htypes i hsourceIdx hskeletonIdx
+    rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize
+        hskeletonIdx with ⟨data, hdata, htarget⟩
+    have htarget' : decl.types[i] =
+        skeleton.types[i].toVInductiveType data.1 data.2 := by
+      simpa [List.getElem?_eq_getElem htargetIdx] using htarget
+    rw [htarget']
+    exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.materialized
+      htranslated
+
 theorem TrInductDecl.types_length
     (H : TrInductDecl env lparams nparams types isUnsafe decl) :
     types.length = decl.types.length := by
