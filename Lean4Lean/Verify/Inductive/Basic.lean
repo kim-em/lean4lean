@@ -1057,6 +1057,31 @@ structure ParameterCachePrefix (env : VEnv) (Us : List Name) (Δ : VLCtx)
     (cachedParamVars done depth)
   paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
 
+/-- A concrete cached parameter and the free-variable declaration that owns
+it in the retained verifier context. -/
+def CachedParameterDecl (param : Expr)
+    (entry : Option (FVarId × List FVarId) × VLocalDecl) : Prop :=
+  ∃ fv deps d, param = .fvar fv ∧ entry = (some (fv, deps), d)
+
+/-- Structural companion to `ParameterCachePrefix`.  Cached parameter local
+declarations form an exact suffix of the retained context; every index added
+after the parameter phase belongs to `ambientDecls`.  The reverse is
+intentional:
+the executable array stores parameters from oldest to newest, while local
+declarations are pushed at the head.
+
+This suffix decomposition is what lets later mutual headers discard ambient
+indices and not-yet-used cached parameters before applying
+`TrExprS.uninstantiateAfterWeakFV`. -/
+structure ParameterContextSuffix (Hc : ContextWF c)
+    (stats : AddInductive.InductiveStats) (depth : Nat) : Type where
+  ambientDecls : VLCtx
+  parameterDecls : VLCtx
+  context : Hc.mlctx.vlctx = ambientDecls ++ parameterDecls
+  prefixLength : ambientDecls.length = depth
+  cached : List.Forall₂ CachedParameterDecl
+    stats.params.toList.reverse parameterDecls
+
 /-- Shape of the CPS-retained runtime context after the first header has fixed
 the block-wide parameter telescope.  Header indices form an ambient prefix;
 the common parameters remain an exact suffix. -/
@@ -1645,6 +1670,70 @@ theorem ParameterCachePrefix.empty
   · simpa [hparams]
   · simp [hparams]
 
+def ParameterContextSuffix.empty
+    (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
+    (hparams : stats.params = #[]) :
+    ParameterContextSuffix Hc stats 0 where
+  ambientDecls := []
+  parameterDecls := []
+  context := by simpa using hctx
+  prefixLength := rfl
+  cached := by simp [hparams]
+
+/-- The first-header parameter branch extends the cached suffix itself.  The
+empty-prefix premise records that parameters are all introduced before any
+index binder. -/
+def ParameterContextSuffix.push
+    (Hc : ContextWF c)
+    (H : ParameterContextSuffix Hc stats 0)
+    (hprefix : H.ambientDecls = [])
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    ParameterContextSuffix
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty)
+      { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
+      0 := by
+  let entry : Option (FVarId × List FVarId) × VLocalDecl :=
+    (some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty')
+  refine {
+    ambientDecls := []
+    parameterDecls := entry :: H.parameterDecls
+    context := ?_
+    prefixLength := rfl
+    cached := ?_ }
+  · have hcontext := H.context
+    rw [hprefix] at hcontext
+    change entry :: Hc.mlctx.vlctx = [] ++ entry :: H.parameterDecls
+    simp only [List.nil_append]
+    simpa using congrArg (entry :: ·) hcontext
+  · simp only [Array.toList_push, List.reverse_append,
+      List.reverse_singleton, List.singleton_append]
+    exact .cons ⟨⟨c.ngen.curr⟩, ty.fvarsList, .vlam ty', rfl, rfl⟩
+      H.cached
+
+/-- Index binders extend only the ambient prefix and preserve the exact
+cached-parameter suffix. -/
+def ParameterContextSuffix.withIndex
+    (Hc : ContextWF c)
+    (H : ParameterContextSuffix Hc stats depth)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    ParameterContextSuffix
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty)
+      stats (depth + 1) := by
+  let entry : Option (FVarId × List FVarId) × VLocalDecl :=
+    (some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty')
+  refine {
+    ambientDecls := entry :: H.ambientDecls
+    parameterDecls := H.parameterDecls
+    context := ?_
+    prefixLength := by simp [H.prefixLength]
+    cached := H.cached }
+  change entry :: Hc.mlctx.vlctx =
+    (entry :: H.ambientDecls) ++ H.parameterDecls
+  simp only [List.cons_append]
+  rw [H.context]
+
 /-- Adding a common parameter weakens every cached parameter translation and
 appends the newly generated free variable, whose abstract image is `bvar 0`.
 This is the exact state update performed by `loopType` on the first header. -/
@@ -1926,6 +2015,7 @@ theorem index.cacheSynthesisWF
     (Hc : ContextWF c) (hi : ¬ i < nparams)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats done depth)
+    (Hsuffix : ParameterContextSuffix Hc stats depth)
     (Hsynthesis : HeaderSynthesisCertificate Hc target
       (.forallE sourceDom' sourceBody') i nindices)
     (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
@@ -1937,6 +2027,7 @@ theorem index.cacheSynthesisWF
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats done (depth + 1) →
+      ParameterContextSuffix Hc' stats (depth + 1) →
       HeaderSynthesisCertificate Hc' target next i (nindices + 1) →
       (AddInductive.checkInductiveTypes.loopType nparams stats normalized
         i (nindices + 1) fuel k c').WF Q) :
@@ -1957,6 +2048,7 @@ theorem index.cacheSynthesisWF
   have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
   exact Hrec Hc' rfl normalized next hnext Hcache'
+    (Hsuffix.withIndex Hc Hdom.consumed Hdom.isType)
     ((Hsynthesis.withIndex Hdom).normalize hsourceNext)
 
 /-- Later-header index step carrying both the translated parameter cache and
@@ -2173,6 +2265,8 @@ theorem firstParameter.cacheSynthesisWF
     (hempty : stats.indConsts.isEmpty = true)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats done 0)
+    (Hsuffix : ParameterContextSuffix Hc stats 0)
+    (hprefix : Hsuffix.ambientDecls = [])
     (Hsynthesis : HeaderSynthesisCertificate Hc target
       (.forallE sourceDom' sourceBody') i nindices)
     (hindices : Hsynthesis.indices = [])
@@ -2186,6 +2280,9 @@ theorem firstParameter.cacheSynthesisWF
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
         (done + 1) 0 →
+      ParameterContextSuffix Hc'
+        { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
+        0 →
       (Hsynthesis' : HeaderSynthesisCertificate
         Hc' target next (i + 1) nindices) →
       Hsynthesis'.indices = [] →
@@ -2210,7 +2307,9 @@ theorem firstParameter.cacheSynthesisWF
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
   let Hsynthesis' :=
     (Hsynthesis.withParameter hindices Hdom).normalize hsourceNext
-  exact Hrec Hc' rfl normalized next hnext Hcache' Hsynthesis' (by rfl)
+  exact Hrec Hc' rfl normalized next hnext Hcache'
+    (Hsuffix.push Hc hprefix Hdom.consumed Hdom.isType)
+    Hsynthesis' (by rfl)
 
 /-- Verification step for a common parameter of a later mutual header.  The
 executable checker reuses the cached free variable and requires the new domain
@@ -2344,6 +2443,7 @@ theorem firstHeaderSynthesisWF
       i' = nparams →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats' i' nindices' →
+      ParameterContextSuffix Hc' stats' nindices' →
       HeaderSynthesisCertificate Hc' target current' i' nindices' →
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx type' current' →
       (k type' stats' nindices' c').WF Q)
@@ -2352,6 +2452,7 @@ theorem firstHeaderSynthesisWF
     (hempty : stats.indConsts.isEmpty = true)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats i nindices)
+    (Hsuffix : ParameterContextSuffix Hc stats nindices)
     (Hsynthesis : HeaderSynthesisCertificate Hc target current i nindices)
     (hphase : i < nparams → Hsynthesis.indices = [] ∧ nindices = 0)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current) :
@@ -2369,27 +2470,34 @@ theorem firstHeaderSynthesisWF
         by_cases hi : i < nparams
         · rcases hphase hi with ⟨hindices, hnindices⟩
           subst nindices
+          have hambient : Hsuffix.ambientDecls = [] := by
+            apply List.eq_nil_of_length_eq_zero
+            simpa using Hsuffix.prefixLength
           apply firstParameter.cacheSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
-            Hc hi hempty (by simpa using Hcache) Hsynthesis hindices
-            Hdom hbody
-          intro c' Hc' hlparams' normalized next hnext Hcache' Hsynthesis' hindices'
+            Hc hi hempty (by simpa using Hcache) Hsuffix hambient
+            Hsynthesis hindices Hdom hbody
+          intro c' Hc' hlparams' normalized next hnext Hcache' Hsuffix'
+            Hsynthesis' hindices'
           apply ih Hc' (hlparams'.trans hlparams) (by simpa using hempty)
-            Hcache' Hsynthesis'
+            Hcache' Hsuffix' Hsynthesis'
           · intro _
             exact ⟨hindices', rfl⟩
           · exact hnext
         · apply index.cacheSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
-            Hc hi Hcache Hsynthesis Hdom hbody
-          intro c' Hc' hlparams' normalized next hnext Hcache' Hsynthesis'
-          apply ih Hc' (hlparams'.trans hlparams) hempty Hcache' Hsynthesis'
+            Hc hi Hcache Hsuffix Hsynthesis Hdom hbody
+          intro c' Hc' hlparams' normalized next hnext Hcache' Hsuffix'
+            Hsynthesis'
+          apply ih Hc' (hlparams'.trans hlparams) hempty Hcache'
+            Hsuffix' Hsynthesis'
           · intro hlt
             exact False.elim (hi hlt)
           · exact hnext
     · by_cases hi : i = nparams
       · exact result.WF hforall hi
-          (Hresult Hc hlparams hempty hforall hi Hcache Hsynthesis htype)
+          (Hresult Hc hlparams hempty hforall hi Hcache Hsuffix Hsynthesis
+            htype)
       · exact parameterMismatch.WF hforall hi
 
 end checkInductiveTypes.loopType
@@ -3315,6 +3423,8 @@ theorem firstStep.initializesPrefix
       checkInductiveTypes.loopType.ParameterCachePrefix
         Hc'.venv c'.lparams Hc'.mlctx.vlctx stats'
         skeleton.nparams nindices →
+      checkInductiveTypes.loopType.ParameterContextSuffix
+        Hc' stats' nindices →
       checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc'.venv
         skeleton params resultLevel [(nindices, resultLevel)] 1 →
       checkInductiveTypes.loopType.AmbientParamContext
@@ -3339,6 +3449,9 @@ theorem firstStep.initializesPrefix
   have Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
       Hc.venv c.lparams Hc.mlctx.vlctx stats 0 0 :=
     checkInductiveTypes.loopType.ParameterCachePrefix.empty hparams
+  have Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats 0 :=
+    checkInductiveTypes.loopType.ParameterContextSuffix.empty Hc hctx hparams
   apply checkInductiveTypes.loopType.firstHeaderSynthesisWF
     (Us := c.lparams) (target := skeleton.types[0])
     (nparams := skeleton.nparams) (stats := stats)
@@ -3364,16 +3477,16 @@ theorem firstStep.initializesPrefix
     (Q := Q) (hconsume := hconsume)
     (Hresult := by
       intro c' stats' type'' current'' i' nindices' Hc' hlparams'
-        hempty' hforall iEq Hcache' Hsynthesis' htype'
+        hempty' hforall iEq Hcache' Hsuffix' Hsynthesis' htype'
       cases iEq
       apply firstResult.initializesPrefix k Q Hc' hempty' hskeletonIdx
         Hsynthesis' htype'
       · rw [hlparams', ← Hdecl.2.1]
       · intro resultSort resultLevel hofLevel Hprefix Hambient
-        apply Hrec Hc' hlparams' Hcache' Hprefix
+        apply Hrec Hc' hlparams' Hcache' Hsuffix' Hprefix
         simpa [Hsynthesis'.indexCount] using Hambient)
     (Hc := Hc) (hlparams := rfl) (hempty := hempty)
-    (Hcache := Hcache) (Hsynthesis := Hsynthesis)
+    (Hcache := Hcache) (Hsuffix := Hsuffix) (Hsynthesis := Hsynthesis)
     (hphase := by
       intro _
       exact ⟨List.eq_nil_of_length_eq_zero Hsynthesis.indexCount, rfl⟩)
