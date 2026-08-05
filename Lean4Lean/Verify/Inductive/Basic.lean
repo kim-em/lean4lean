@@ -221,6 +221,43 @@ theorem checkClosedType.WF (Hc : ContextWF c) :
   exact hno.bind fun _ hclosed =>
     checkTypeInContext.WF Hc (hclosed.mono fun _ h => False.elim h)
 
+namespace checkInductiveTypes.loopType
+
+/-- Fuel exhaustion cannot produce a successful result. -/
+theorem zero.WF :
+    (AddInductive.checkInductiveTypes.loopType nparams stats type i nindices
+      0 k c).WF Q := by
+  intro _ h
+  simp [AddInductive.checkInductiveTypes.loopType] at h
+
+/-- Base case of the header telescope traversal.  This theorem deliberately
+states only the executable control-flow fact; the caller's continuation owns
+the declarative result-sort and accumulated-telescope obligations. -/
+theorem result.WF
+    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
+    (hi : i = nparams)
+    (Hk : (k type stats nindices c).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats type i nindices
+      (fuel + 1) k c).WF Q := by
+  subst i
+  cases type <;>
+    simp_all [AddInductive.checkInductiveTypes.loopType]
+
+/-- A non-forall tail with the wrong number of common parameters is rejected,
+so this branch is semantically vacuous. -/
+theorem parameterMismatch.WF
+    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
+    (hi : i ≠ nparams) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats type i nindices
+      (fuel + 1) k c).WF Q := by
+  cases type <;>
+    simp_all [AddInductive.checkInductiveTypes.loopType]
+  all_goals
+    change (Except.error _).WF Q
+    exact Except.WF.throw
+
+end checkInductiveTypes.loopType
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/
