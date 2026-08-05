@@ -250,6 +250,14 @@ theorem ensureSortInContext.WF (Hc : ContextWF c)
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' ∧ ∃ u, e₁ = .sort u :=
   liftTypeChecker.WF Hc (TypeChecker.ensureSort.WF he)
 
+theorem ensureTypeInContext.WF (Hc : ContextWF c)
+    (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
+    ((monadLift (TypeChecker.ensureType e) : AddInductive.M Expr) c).WF fun sort =>
+      ∃ e'', TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e'' ∧
+        ∃ u u', sort = .sort u ∧ VLevel.ofLevel c.lparams u = some u' ∧
+          Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx e'' (.sort u') :=
+  liftTypeChecker.WF Hc (TypeChecker.ensureType.WF he)
+
 theorem isDefEqInContext.WF (Hc : ContextWF c)
     (he₁ : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e₁ e₁')
     (he₂ : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e₂ e₂') :
