@@ -28,6 +28,42 @@ def TrDefVal (ci : ConstantInfo) (ci' : VDefVal) : Prop :=
   TrConstVal safety env ci ci'.toVConstVal ∧
   TrExprS env ci.levelParams [] ci.value! ci'.value
 
+/-- Translation of a source constant before the kernel has assigned it a
+`ConstantInfo` variant. This is used for inductive headers and constructors,
+whose types are translated at different environment stages. -/
+structure TrSourceConst (env : VEnv) (lparams : List Name)
+    (name : Name) (type : Expr) (ci' : VConstVal) : Prop where
+  uvars : ci'.uvars = lparams.length
+  name : ci'.name = name
+  type : TrExprS env lparams [] type ci'.type
+  wf : ci'.toVConstant.WF env
+
+structure TrInductiveType (env envTypes : VEnv) (lparams : List Name)
+    (type : InductiveType) (type' : VInductiveType) : Prop where
+  header : TrSourceConst env lparams type.name type.type type'.toVConstVal
+  ctors : List.Forall₂
+    (fun ctor ctor' => TrSourceConst envTypes lparams ctor.name ctor.type ctor')
+    type.ctors type'.ctors
+
+/-- Translation of the original, pre-lowering inductive declaration. The
+constructor relation deliberately uses `envTypes`, obtained by installing all
+translated mutual headers, so an ill-typed nested parameter cannot disappear
+behind auxiliary declarations. -/
+def TrInductDecl (env : VEnv) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe : Bool) (decl : VInductDecl) : Prop :=
+  decl.SourceWF env ∧
+  decl.uvars = lparams.length ∧
+  decl.nparams = nparams ∧
+  decl.isUnsafe = isUnsafe ∧
+  ∃ envTypes envCtors,
+    env.addConsts decl.typeConstants = some envTypes ∧
+    envTypes.addConsts decl.constructorConstants = some envCtors ∧
+    List.Forall₂ (TrInductiveType env envTypes lparams) types decl.types
+
+theorem TrInductDecl.sourceWF
+    (H : TrInductDecl env lparams nparams types isUnsafe decl) : decl.SourceWF env :=
+  H.1
+
 def AddQuot1 (name : Name) (kind : QuotKind) (ci' : VConstant) (P : ConstMap → VEnv → Prop)
     (m : ConstMap) (env : VEnv) : Prop :=
   ∃ levelParams type env',

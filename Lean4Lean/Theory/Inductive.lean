@@ -55,6 +55,9 @@ where
     | .app fn arg, args => go fn (arg :: args)
     | fn, args => (fn, args)
 
+@[simp] theorem VExpr.getAppFnArgs_const :
+    getAppFnArgs (.const name levels) = (.const name levels, []) := rfl
+
 def VExpr.containsAnyConst (names : List Name) : VExpr → Bool
   | .bvar _ | .sort _ => false
   | .const name _ => names.contains name
@@ -164,7 +167,7 @@ def VInductDecl.FormationWF (env : VEnv) (decl : VInductDecl) : Prop :=
   ∃ params resultLevel envTypes,
     env.addConsts decl.typeConstants = some envTypes ∧
     (∀ type ∈ decl.types,
-      type.resultLevel = resultLevel ∧ decl.TypeShape env params type) ∧
+      type.resultLevel ≈ resultLevel ∧ decl.TypeShape env params type) ∧
     ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
       decl.CtorShape envTypes params type ctor
 
