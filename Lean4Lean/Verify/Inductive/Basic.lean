@@ -781,6 +781,41 @@ theorem stepPrefix.WF
 
 end checkInductiveTypes.loopInd
 
+namespace checkConstructors.loopCtor
+
+theorem zero.WF :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      type i 0 c).WF Q := by
+  intro _ h
+  simp [AddInductive.checkConstructors.loopCtor] at h
+
+/-- A constructor telescope ending in the checked target application returns
+success; the separate application-refinement theorem will connect
+`isValidIndAppIdx` to `VInductDecl.ValidIndAppAt`. -/
+theorem result.WF
+    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
+    (hvalid : AddInductive.isValidIndAppIdx stats type targetIdx = true)
+    (hQ : Q ()) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      type i (fuel + 1) c).WF Q := by
+  cases type <;>
+    simp_all [AddInductive.checkConstructors.loopCtor]
+  all_goals exact Except.WF.pure hQ
+
+/-- An invalid non-forall constructor target is rejected. -/
+theorem invalidResult.WF
+    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
+    (hvalid : AddInductive.isValidIndAppIdx stats type targetIdx = false) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      type i (fuel + 1) c).WF Q := by
+  cases type <;>
+    simp_all [AddInductive.checkConstructors.loopCtor]
+  all_goals
+    change (Except.error _).WF Q
+    exact Except.WF.throw
+
+end checkConstructors.loopCtor
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/
