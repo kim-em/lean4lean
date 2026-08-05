@@ -1862,6 +1862,30 @@ structure LaterParameterScope
     Hc.mlctx.vlctx 0 (VLCtx.toCtx added).length 0
   fvars : FVarsIn (· ∈ older.fvars) e
 
+/-- A closed source header starts the later-parameter traversal with an empty
+free-variable scope. -/
+noncomputable def LaterParameterScope.ofNoFVars
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    (hi : i < stats.params.size)
+    (hfvars : FVarsIn (fun _ => False) e) :
+    LaterParameterScope Hsuffix i e :=
+  Classical.choice <| by
+    rcases Hsuffix.fvLiftAt hi with
+      ⟨added, older, fv, deps, d, hcontext, hparam, hlift⟩
+    exact ⟨{
+      added := added
+      older := older
+      fv := fv
+      deps := deps
+      decl := d
+      context := hcontext
+      parameter := by
+        simpa [Array.getElem!_eq_getD, hi] using hparam
+      lift := hlift
+      fvars := hfvars.mono fun _ h => False.elim h }⟩
+
 /-- The core later-parameter abstraction step.  Translation of the
 executable cached substitution is first restricted to the current-and-older
 parameter suffix, then the cached free variable is turned back into the
