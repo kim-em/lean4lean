@@ -88,15 +88,13 @@ def ContextWF.withLocalDecl (H : ContextWF c)
 theorem withLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF c)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
-    (Hk : ContextWF { c with
+    (Hk : (k (.fvar ⟨c.ngen.curr⟩)
+      { c with
         ngen := c.ngen.next
-        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } →
-      (k (.fvar ⟨c.ngen.curr⟩)
-        { c with
-          ngen := c.ngen.next
-          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
     (Lean4Lean.withLocalDecl name bi ty k c).WF Q := by
-  exact Hk (Hc.withLocalDecl htr hty)
+  have _Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+  exact Hk
 
 /-- Invert the syntax-directed part of a translated forall while retaining the
 definitional equality introduced by normalization.  Header and constructor
@@ -255,6 +253,44 @@ theorem parameterMismatch.WF
   all_goals
     change (Except.error _).WF Q
     exact Except.WF.throw
+
+/-- Verification step for an index binder.  `hdom`/`hdomType` are stated for
+the annotation-consumed domain actually installed in the production local
+context; deriving them from the source domain is the separate
+`consumeTypeAnnotations` compatibility obligation. -/
+theorem index.WF
+    (Hc : ContextWF c) (hi : ¬ i < nparams)
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      dom.consumeTypeAnnotations dom')
+    (hdomType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (Hrec : ∀ normalized,
+      TrExpr (Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType).venv
+        c.lparams
+        (Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType).mlctx.vlctx
+        normalized body' →
+      (AddInductive.checkInductiveTypes.loopType nparams
+        stats normalized i (nindices + 1) fuel k
+        { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  rw [AddInductive.checkInductiveTypes.loopType]
+  rw [if_neg hi]
+  refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+    (k := fun arg => do
+      let type := body.instantiate1 arg
+      AddInductive.checkInductiveTypes.loopType nparams stats
+        (← TypeChecker.whnf type) i (nindices + 1) fuel k)
+    Hc hdom hdomType ?_
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType
+  have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+    hdom hdomType hbody
+  exact (whnfInContext.WF Hc' hopened).bind fun normalized hnormalized =>
+    Hrec normalized hnormalized
 
 end checkInductiveTypes.loopType
 
