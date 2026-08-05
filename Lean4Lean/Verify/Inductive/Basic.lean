@@ -1373,6 +1373,19 @@ theorem validApplication.WF
     simp_all [AddInductive.checkPositivityStep]
   all_goals exact Except.WF.pure hQ
 
+/-- Once the application-spine refinement supplies `ValidIndAppAt`, the final
+executable success branch is exactly the declarative recursive positivity
+constructor. -/
+theorem validApplication.refines
+    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
+    (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
+    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
+    (hvalid : AddInductive.isValidIndApp? stats type = some target)
+    (hrefines : decl.ValidIndAppAt none depth type') :
+    (AddInductive.checkPositivityStep stats type ctor idx recur c).WF
+      (fun _ => decl.SyntacticallyPositive depth type') := by
+  exact validApplication.WF hocc hforall hvalid (.recursive hrefines)
+
 theorem invalidApplication.WF
     (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
     (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
