@@ -219,6 +219,20 @@ theorem List.Forall₂.append'
   | nil => exact H₂
   | cons h _ ih => exact .cons h ih
 
+theorem OnCtx.append_right
+    (H : OnCtx (xs ++ ys) P) : OnCtx ys P := by
+  induction xs with
+  | nil => exact H
+  | cons x xs ih =>
+    exact ih H.1
+
+theorem VInductDecl.paramsDefEq_reflOfAppend
+    {decl : VInductDecl} {env : VEnv} {indices params : List VExpr}
+    (H : OnCtx (indices.reverse ++ params.reverse)
+      (env.IsType decl.uvars)) :
+    decl.ParamsDefEq env params params := by
+  exact VEnv.IsDefEqCtx.refl (OnCtx.append_right H)
+
 theorem TrInductDecl.types_length
     (H : TrInductDecl env lparams nparams types isUnsafe decl) :
     types.length = decl.types.length := by
