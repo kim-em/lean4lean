@@ -147,7 +147,7 @@ def enumBlock : VInductBlock where
   recursors := [enumRecursor]
   rules := [enumRule]
 
-def enumIota : enumDecl.IotaRule enumBlock enumType enumCtor enumRule where
+def enumIota : enumDecl.IotaRule .empty enumBlock enumType enumCtor enumRule where
   recursor := enumRecursor
   recursor_mem := by simp [enumBlock]
   recursor_name := by simp [enumRecursor, VInductDecl.recursorName, enumType]
@@ -171,7 +171,9 @@ def enumIota : enumDecl.IotaRule enumBlock enumType enumCtor enumRule where
   constructor_arity := by simp [enumDecl]
   parameter_args := rfl
   domains_arity := rfl
+  recursiveFields := []
   recursiveArgs := []
+  recursiveArgs_eq := rfl
   recursive_args := .slnil
   fieldVars := []
   fieldVars_eq := rfl
@@ -184,7 +186,7 @@ def enumIota : enumDecl.IotaRule enumBlock enumType enumCtor enumRule where
   recursive_results := rfl
   rhs_guarded := .bvar
 
-theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation enumBlock where
+theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation .empty enumBlock where
   types := rfl
   ctors := rfl
   recursors := by

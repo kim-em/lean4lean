@@ -366,6 +366,15 @@ def VInductDecl.ownedConstructors
 def VInductDecl.recursorName (_decl : VInductDecl) (type : VInductiveType) : Name :=
   .mkStr type.name "rec"
 
+/-- A constructor argument selected for an induction hypothesis, together
+with the independent recursive-result certificate produced for its domain. -/
+structure VInductDecl.RecursiveField (env : VEnv) (decl : VInductDecl) where
+  arg : VExpr
+  ctx : List VExpr
+  depth : Nat
+  domain : VExpr
+  recursive : decl.RecursiveArg env ctx depth domain
+
 /-- Final result of the recursor telescope for one mutual-family member. At
 this point all motives and minors, this type's indices, and the major premise
 are in scope. -/
@@ -466,7 +475,8 @@ argument is the matching constructor application. The right-hand side may call
 any sibling recursor in a mutual block, but only on explicitly identified
 constructor fields. Typing of the complete equation is supplied separately by
 `VInductBlock.WF`. -/
-structure VInductDecl.IotaRule (decl : VInductDecl) (block : VInductBlock)
+structure VInductDecl.IotaRule (env : VEnv)
+    (decl : VInductDecl) (block : VInductBlock)
     (owner : VInductiveType) (ctor : VConstVal) (rule : VDefEq) where
   recursor : VConstVal
   recursor_mem : recursor ∈ block.recursors
@@ -495,7 +505,9 @@ structure VInductDecl.IotaRule (decl : VInductDecl) (block : VInductBlock)
     leadingArgs.take decl.nparams
   domains_arity : domains.length = decl.nparams + decl.types.length +
     decl.ownedConstructors.length + (ctorArgs.length - decl.nparams)
+  recursiveFields : List (decl.RecursiveField env)
   recursiveArgs : List VExpr
+  recursiveArgs_eq : recursiveArgs = recursiveFields.map (·.arg)
   recursive_args : List.Sublist recursiveArgs (ctorArgs.drop decl.nparams)
   fieldVars : List Nat
   fieldVars_eq : fieldVars =
@@ -516,14 +528,14 @@ stronger than mere well-typedness: source constants are preserved exactly,
 recursor names and arities are constrained, and constructor/rule coverage is
 total and ordered. -/
 structure VInductDecl.OrdinaryCompilation
-    (decl : VInductDecl) (block : VInductBlock) : Prop where
+    (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop where
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
   recursors : List.Forall₂ (fun type recursor =>
     Nonempty (decl.RecursorShape type recursor))
     decl.types block.recursors
   rules : List.Forall₂ (fun owned rule =>
-    Nonempty (decl.IotaRule block owned.1 owned.2 rule))
+    Nonempty (decl.IotaRule env block owned.1 owned.2 rule))
     decl.ownedConstructors block.rules
   names : List.Nodup ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 
@@ -531,7 +543,7 @@ structure VInductDecl.OrdinaryCompilation
 `AddInductive` implementation. Nested compilation will enter through a second
 constructor after proving that lowering yields an ordinary compilation. -/
 inductive VInductDecl.CompilesTo (env : VEnv) : VInductDecl → VInductBlock → Prop
-  | ordinary : VInductDecl.OrdinaryCompilation decl block →
+  | ordinary : VInductDecl.OrdinaryCompilation env decl block →
       VInductDecl.CompilesTo env decl block
 
 /-- Relational abstract environment extension for inductive declarations.
