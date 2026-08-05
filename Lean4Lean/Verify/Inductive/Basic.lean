@@ -332,6 +332,43 @@ theorem firstParameter.WF
   exact (whnfInContext.WF Hc' hopened).bind fun normalized hnormalized =>
     Hrec normalized hnormalized
 
+/-- Verification step for a common parameter of a later mutual header.  The
+executable checker reuses the cached free variable and requires the new domain
+to be definitionally equal to its local type. -/
+theorem laterParameter.WF
+    (Hc : ContextWF c) (hi : i < nparams)
+    (hnonempty : stats.indConsts.isEmpty = false)
+    (hget : (AddInductive.getType stats.params[i]! c).WF (fun ty => ty = paramTy))
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
+    (hparamTy : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy')
+    (hopened : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) body')
+    (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+        dom' paramTy' →
+      ∀ normalized, TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized body' →
+      (AddInductive.checkInductiveTypes.loopType nparams stats normalized
+        (i + 1) nindices fuel k c).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  rw [AddInductive.checkInductiveTypes.loopType]
+  rw [if_pos hi, if_neg (by simp [hnonempty])]
+  change (AddInductive.getType stats.params[i]! c >>= fun paramTy =>
+    ((do
+      unless ← TypeChecker.isDefEq dom paramTy do
+        throw <| .other "parameters of all inductive datatypes must match"
+      let type := body.instantiate1 stats.params[i]!
+      AddInductive.checkInductiveTypes.loopType nparams stats
+        (← TypeChecker.whnf type) (i + 1) nindices fuel k) :
+      AddInductive.M _) c).WF Q
+  refine hget.bind fun paramTy' hparamTyEq => ?_
+  subst paramTy'
+  refine (isDefEqInContext.WF Hc hdom hparamTy).bind fun equal hequal => ?_
+  cases equal
+  · change (Except.error _).WF Q
+    exact Except.WF.throw
+  · exact (whnfInContext.WF Hc hopened).bind fun normalized hnormalized =>
+      Hrec (hequal rfl) normalized hnormalized
+
 end checkInductiveTypes.loopType
 
 /-- Production-side installation of a list of kernel constants. This small
