@@ -181,6 +181,54 @@ theorem List.forall₂_of_getElem
       change R as[i] bs[i] at h
       exact h
 
+theorem List.Forall₂.getElem
+    {R : α → β → Prop} {as : List α} {bs : List β}
+    (H : List.Forall₂ R as bs) (i : Nat)
+    (ha : i < as.length) (hb : i < bs.length) :
+    R as[i] bs[i] := by
+  induction H generalizing i with
+  | nil => simp at ha
+  | cons h _ ih =>
+    cases i with
+    | zero => exact h
+    | succ i => exact ih i (by simpa using ha) (by simpa using hb)
+
+theorem List.Forall₂.length_eq'
+    (H : List.Forall₂ R as bs) : as.length = bs.length := by
+  induction H with
+  | nil => rfl
+  | cons _ _ ih => simp [ih]
+
+theorem TrInductDecl.types_length
+    (H : TrInductDecl env lparams nparams types isUnsafe decl) :
+    types.length = decl.types.length := by
+  rcases H with ⟨_, _, _, _, _, _, _, _, htypes⟩
+  exact Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes
+
+theorem TrInductDecl.typeAt
+    (H : TrInductDecl env lparams nparams types isUnsafe decl)
+    (i : Nat) (hsource : i < types.length)
+    (htarget : i < decl.types.length) :
+    ∃ envTypes, env.addConsts decl.typeConstants = some envTypes ∧
+      TrInductiveType env envTypes lparams types[i] decl.types[i] := by
+  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypesAdded,
+    hctorsAdded, htypes⟩
+  exact ⟨envTypes, htypesAdded,
+    Lean4Lean.VerifyInductive.List.Forall₂.getElem htypes i hsource htarget⟩
+
+theorem TrInductiveType.ctors_length
+    (H : TrInductiveType env envTypes lparams type target) :
+    type.ctors.length = target.ctors.length :=
+  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.ctors
+
+theorem TrInductiveType.ctorAt
+    (H : TrInductiveType env envTypes lparams type target)
+    (i : Nat) (hsource : i < type.ctors.length)
+    (htarget : i < target.ctors.length) :
+    TrSourceConst envTypes lparams type.ctors[i].name type.ctors[i].type
+      target.ctors[i] :=
+  Lean4Lean.VerifyInductive.List.Forall₂.getElem H.ctors i hsource htarget
+
 /-- Indexed output certificate for one recursor per mutual-family member. -/
 structure RecursorCertificate (decl : VInductDecl)
     (recursors : List VConstVal) : Prop where
