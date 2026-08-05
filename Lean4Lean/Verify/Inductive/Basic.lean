@@ -998,6 +998,40 @@ theorem unsafeField.sourceWF
 
 end checkConstructors.loopCtor
 
+namespace checkPositivityStep
+
+theorem noOccurrence.WF
+    {type : Expr} {Q : Unit → Prop}
+    (hocc : AddInductive.hasIndOcc stats.indConsts type = false)
+    (hQ : Q ()) :
+    (AddInductive.checkPositivityStep stats type ctor idx recur c).WF Q := by
+  simp [AddInductive.checkPositivityStep, hocc]
+  change (Except.ok ()).WF Q
+  exact Except.WF.pure hQ
+
+theorem validApplication.WF
+    (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
+    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
+    (hvalid : AddInductive.isValidIndApp? stats type = some target)
+    (hQ : Q ()) :
+    (AddInductive.checkPositivityStep stats type ctor idx recur c).WF Q := by
+  cases type <;>
+    simp_all [AddInductive.checkPositivityStep]
+  all_goals exact Except.WF.pure hQ
+
+theorem invalidApplication.WF
+    (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
+    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
+    (hvalid : AddInductive.isValidIndApp? stats type = none) :
+    (AddInductive.checkPositivityStep stats type ctor idx recur c).WF Q := by
+  cases type <;>
+    simp_all [AddInductive.checkPositivityStep]
+  all_goals
+    change (Except.error _).WF Q
+    exact Except.WF.throw
+
+end checkPositivityStep
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/
