@@ -180,6 +180,40 @@ structure RecursorCertificate (decl : VInductDecl)
       (hrec : i < recursors.length),
     Nonempty (decl.RecursorShape decl.types[i] recursors[i])
 
+/-- Append-oriented invariant matching the recursor-generation loop. -/
+structure RecursorBuildCertificate (decl : VInductDecl)
+    (recursors : List VConstVal) : Prop where
+  covered : recursors.length ≤ decl.types.length
+  shapes : ∀ i (hrec : i < recursors.length)
+      (htype : i < decl.types.length),
+    Nonempty (decl.RecursorShape decl.types[i] recursors[i])
+
+theorem RecursorBuildCertificate.empty (decl : VInductDecl) :
+    RecursorBuildCertificate decl [] where
+  covered := Nat.zero_le _
+  shapes _ h := by simp at h
+
+theorem RecursorBuildCertificate.push
+    (H : RecursorBuildCertificate decl recursors)
+    (hnext : recursors.length < decl.types.length)
+    (hshape : Nonempty
+      (decl.RecursorShape decl.types[recursors.length] recursor)) :
+    RecursorBuildCertificate decl (recursors ++ [recursor]) where
+  covered := by simp; omega
+  shapes i hrec htype := by
+    by_cases hi : i < recursors.length
+    · simpa [List.getElem_append, hi] using H.shapes i hi htype
+    · have hieq : i = recursors.length := by simp at hrec; omega
+      subst i
+      simpa using hshape
+
+theorem RecursorBuildCertificate.complete
+    (H : RecursorBuildCertificate decl recursors)
+    (hcomplete : recursors.length = decl.types.length) :
+    RecursorCertificate decl recursors where
+  length := hcomplete
+  shapes i htype hrec := H.shapes i hrec htype
+
 theorem RecursorCertificate.forall₂
     (H : RecursorCertificate decl recursors) :
     List.Forall₂ (fun type recursor =>
