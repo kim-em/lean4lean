@@ -147,6 +147,93 @@ theorem FormationCertificate.declWF
     decl.WF env :=
   ⟨hsource, H.formationWF⟩
 
+/-- Build ordered relational coverage from equal lengths and pointwise array-
+style evidence. This is the common bridge used by recursor and rule loops. -/
+theorem List.forall₂_of_getElem
+    {α β : Type} {R : α → β → Prop} {as : List α} {bs : List β}
+    (hlen : as.length = bs.length)
+    (H : ∀ i (ha : i < as.length) (hb : i < bs.length),
+      R as[i] bs[i]) :
+    List.Forall₂ R as bs := by
+  induction as generalizing bs with
+  | nil =>
+    have : bs = [] := List.eq_nil_of_length_eq_zero (by simpa using hlen.symm)
+    subst bs
+    exact .nil
+  | cons a as ih =>
+    cases bs with
+    | nil => simp at hlen
+    | cons b bs =>
+      have htail : as.length = bs.length := by simpa using hlen
+      apply List.Forall₂.cons (H 0 (by simp) (by simp))
+      apply ih htail
+      intro i ha hb
+      have h := H (i + 1) (by simpa) (by simpa)
+      change R as[i] bs[i] at h
+      exact h
+
+/-- Indexed output certificate for one recursor per mutual-family member. -/
+structure RecursorCertificate (decl : VInductDecl)
+    (recursors : List VConstVal) : Prop where
+  length : recursors.length = decl.types.length
+  shapes : ∀ i (htype : i < decl.types.length)
+      (hrec : i < recursors.length),
+    Nonempty (decl.RecursorShape decl.types[i] recursors[i])
+
+theorem RecursorCertificate.forall₂
+    (H : RecursorCertificate decl recursors) :
+    List.Forall₂ (fun type recursor =>
+      Nonempty (decl.RecursorShape type recursor))
+      decl.types recursors := by
+  apply List.forall₂_of_getElem H.length.symm
+  intro i htype hrec
+  exact H.shapes i htype hrec
+
+/-- Indexed output certificate for exactly one iota rule per owned
+constructor, in the same flattened order used for minors. -/
+structure IotaCertificate (env : VEnv) (decl : VInductDecl)
+    (block : VInductBlock) : Prop where
+  length : block.rules.length = decl.ownedConstructors.length
+  rules : ∀ i (hctor : i < decl.ownedConstructors.length)
+      (hrule : i < block.rules.length),
+    Nonempty (decl.IotaRule env block decl.ownedConstructors[i].1
+      decl.ownedConstructors[i].2 block.rules[i])
+
+theorem IotaCertificate.forall₂
+    (H : IotaCertificate env decl block) :
+    List.Forall₂ (fun owned rule =>
+      Nonempty (decl.IotaRule env block owned.1 owned.2 rule))
+      decl.ownedConstructors block.rules := by
+  apply List.forall₂_of_getElem H.length.symm
+  intro i hctor hrule
+  exact H.rules i hctor hrule
+
+/-- Generator-facing form of ordinary compilation. Its indexed fields match
+the loops in `mkRecInfos` and `mkRecRules`; `ordinary` below converts them to
+the independent list-relational specification. -/
+structure OrdinaryCompilationCertificate (env : VEnv)
+    (decl : VInductDecl) (block : VInductBlock) : Prop where
+  types : block.types = decl.typeConstants
+  ctors : block.ctors = decl.constructorConstants
+  recursors : RecursorCertificate decl block.recursors
+  rules : IotaCertificate env decl block
+  names : List.Nodup
+    ((block.types ++ block.ctors ++ block.recursors).map (·.name))
+
+theorem OrdinaryCompilationCertificate.ordinary
+    (H : OrdinaryCompilationCertificate env decl block) :
+    decl.OrdinaryCompilation env block where
+  types := H.types
+  ctors := H.ctors
+  recursors := H.recursors.forall₂
+  rules := H.rules.forall₂
+  names := H.names
+
+theorem OrdinaryCompilationCertificate.compilesTo
+    (H : OrdinaryCompilationCertificate env decl block) :
+    decl.CompilesTo env block :=
+  .ordinary H.ordinary
+
 /-- Verification state for the outer inductive-construction monad. The local
 context is represented by the same `MLCtx` used by the typechecker proof, while
 the production reader retains the independently generated `_ind_fresh` names. -/
