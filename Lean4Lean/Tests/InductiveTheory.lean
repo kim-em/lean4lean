@@ -172,6 +172,10 @@ def enumIota : enumDecl.IotaRule .empty enumBlock enumType enumCtor enumRule whe
   parameter_args := rfl
   domains_arity := rfl
   recursiveFields := []
+  fieldPositions := []
+  fieldPositions_eq := rfl
+  fieldPositions_ordered := by simp
+  fields_at_positions := by simp
   recursiveArgs := []
   recursiveArgs_eq := rfl
   recursive_args := .slnil

@@ -369,6 +369,9 @@ def VInductDecl.recursorName (_decl : VInductDecl) (type : VInductiveType) : Nam
 /-- A constructor argument selected for an induction hypothesis, together
 with the independent recursive-result certificate produced for its domain. -/
 structure VInductDecl.RecursiveField (env : VEnv) (decl : VInductDecl) where
+  /-- Zero-based position among the constructor fields, after the common
+  parameter prefix. -/
+  fieldIndex : Nat
   arg : VExpr
   ctx : List VExpr
   depth : Nat
@@ -506,6 +509,12 @@ structure VInductDecl.IotaRule (env : VEnv)
   domains_arity : domains.length = decl.nparams + decl.types.length +
     decl.ownedConstructors.length + (ctorArgs.length - decl.nparams)
   recursiveFields : List (decl.RecursiveField env)
+  fieldPositions : List Nat
+  fieldPositions_eq : fieldPositions = recursiveFields.map (·.fieldIndex)
+  fieldPositions_ordered : fieldPositions.Pairwise (· < ·)
+  fields_at_positions : ∀ field ∈ recursiveFields,
+    ∃ h : field.fieldIndex < (ctorArgs.drop decl.nparams).length,
+      field.arg = (ctorArgs.drop decl.nparams)[field.fieldIndex]'h
   recursiveArgs : List VExpr
   recursiveArgs_eq : recursiveArgs = recursiveFields.map (·.arg)
   recursive_args : List.Sublist recursiveArgs (ctorArgs.drop decl.nparams)
