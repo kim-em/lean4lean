@@ -322,6 +322,50 @@ def VInductDecl.ownedConstructors
 def VInductDecl.recursorName (_decl : VInductDecl) (type : VInductiveType) : Name :=
   .mkStr type.name "rec"
 
+/-- Final result of the recursor telescope for one mutual-family member. At
+this point all motives and minors, this type's indices, and the major premise
+are in scope. -/
+def VInductDecl.recursorResult (decl : VInductDecl)
+    (ownerIdx numMinors : Nat) (owner : VInductiveType) : VExpr :=
+  let motiveOffset :=
+    1 + owner.numIndices + numMinors + (decl.types.length - 1 - ownerIdx)
+  let indexVars := (List.range owner.numIndices).reverse.map fun i =>
+    VExpr.bvar (i + 1)
+  VExpr.mkApps (.bvar motiveOffset) (indexVars ++ [.bvar 0])
+
+/-- Independent shape of a generated recursor. Besides its conventional name
+and universe count, the leading telescope contains exactly the common
+parameters, one motive per mutual type, one minor per constructor, the owner's
+indices, and one major premise; its result applies the matching motive to the
+indices and major premise. -/
+structure VInductDecl.RecursorShape (decl : VInductDecl)
+    (owner : VInductiveType) (recursor : VConstVal) where
+  ownerIdx : Nat
+  owner_lt : ownerIdx < decl.types.length
+  owner_eq : decl.types[ownerIdx] = owner
+  name : recursor.name = decl.recursorName owner
+  uvars : recursor.uvars = decl.uvars ∨ recursor.uvars = decl.uvars + 1
+  params : List VExpr
+  motives : List VExpr
+  minors : List VExpr
+  indices : List VExpr
+  major : List VExpr
+  afterParams : VExpr
+  afterMotives : VExpr
+  afterMinors : VExpr
+  afterIndices : VExpr
+  result : VExpr
+  params_take : recursor.type.takeForalls decl.nparams =
+    some (params, afterParams)
+  motives_take : afterParams.takeForalls decl.types.length =
+    some (motives, afterMotives)
+  minors_take : afterMotives.takeForalls decl.ownedConstructors.length =
+    some (minors, afterMinors)
+  indices_take : afterMinors.takeForalls owner.numIndices =
+    some (indices, afterIndices)
+  major_take : afterIndices.takeForalls 1 = some (major, result)
+  result_eq : result = decl.recursorResult ownerIdx minors.length owner
+
 /-- One declarative iota equation. The left-hand side is a recursor whose final
 argument is the matching constructor application. The right-hand side may call
 any sibling recursor in a mutual block, but only on explicitly identified
@@ -362,8 +406,7 @@ structure VInductDecl.OrdinaryCompilation
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
   recursors : List.Forall₂ (fun type recursor =>
-    recursor.name = decl.recursorName type ∧
-    (recursor.uvars = decl.uvars ∨ recursor.uvars = decl.uvars + 1))
+    Nonempty (decl.RecursorShape type recursor))
     decl.types block.recursors
   rules : List.Forall₂ (fun owned rule =>
     Nonempty (decl.IotaRule block owned.1 owned.2 rule))

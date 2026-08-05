@@ -103,7 +103,34 @@ theorem negativeOccurrence_not_positive :
 def enumRecursor : VConstVal where
   name := `Enum0.rec
   uvars := 0
-  type := .sort (.succ .zero)
+  type := .forallE (.sort (.succ .zero))
+    (.forallE (.sort .zero)
+      (.forallE (.const `Enum0 []) (.app (.bvar 2) (.bvar 0))))
+
+def enumRecursorShape : enumDecl.RecursorShape enumType enumRecursor where
+  ownerIdx := 0
+  owner_lt := by simp [enumDecl]
+  owner_eq := rfl
+  name := by simp [enumRecursor, VInductDecl.recursorName, enumType]
+  uvars := Or.inl rfl
+  params := []
+  motives := [.sort (.succ .zero)]
+  minors := [.sort .zero]
+  indices := []
+  major := [.const `Enum0 []]
+  afterParams := enumRecursor.type
+  afterMotives := .forallE (.sort .zero)
+    (.forallE (.const `Enum0 []) (.app (.bvar 2) (.bvar 0)))
+  afterMinors := .forallE (.const `Enum0 []) (.app (.bvar 2) (.bvar 0))
+  afterIndices := .forallE (.const `Enum0 []) (.app (.bvar 2) (.bvar 0))
+  result := .app (.bvar 2) (.bvar 0)
+  params_take := rfl
+  motives_take := rfl
+  minors_take := rfl
+  indices_take := rfl
+  major_take := rfl
+  result_eq := by
+    simp [VInductDecl.recursorResult, enumDecl, enumType, VExpr.mkApps]
 
 def enumRule : VDefEq where
   uvars := 0
@@ -144,8 +171,7 @@ theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation enumBlock where
   types := rfl
   ctors := rfl
   recursors := by
-    exact .cons (by simp [enumRecursor, enumDecl, enumType,
-      VInductDecl.recursorName]) .nil
+    exact .cons ⟨enumRecursorShape⟩ .nil
   rules := by
     exact .cons ⟨enumIota⟩ .nil
   names := by
