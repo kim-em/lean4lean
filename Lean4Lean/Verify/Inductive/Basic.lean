@@ -1774,6 +1774,41 @@ end checkInductiveTypes.loopType
 
 namespace checkInductiveTypes.loopInd
 
+/-- At the first mutual header, the executable `whnf` result determines a
+syntax-directed abstract normal form.  Independent translation of the source
+header shows that this normal form is definitionally equal to the header in
+`TrInductDecl`; the checked source type supplies the common typing witness. -/
+theorem initialHeaderNormalization
+    (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
+    (Htarget : TrInductiveType Hc.venv envTypes c.lparams source target)
+    (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+      source.type checkedType sourceType checkedType')
+    (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      normalized sourceType) :
+    ∃ normalized' exprType,
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx normalized normalized' ∧
+      Hc.venv.IsDefEq c.lparams.length []
+        target.type normalized' exprType := by
+  rcases hnormalized with ⟨normalized', hnormalized', hnormalizedEq⟩
+  have hsource : TrExprS Hc.venv c.lparams [] source.type sourceType := by
+    simpa [hctx] using hchecked.2.1
+  have htargetEq : Hc.venv.IsDefEqU c.lparams.length []
+      target.type sourceType :=
+    Htarget.header.type.uniq Hc.checking.tr.wf
+      (.refl Hc.checking.tr.wf (by trivial)) hsource
+  have hsourceType : Hc.venv.HasType c.lparams.length []
+      sourceType checkedType' := by
+    simpa [hctx, VLCtx.toCtx] using hchecked.2.2.2
+  have htargetType := hsourceType.defeqU_l Hc.checking.tr.wf
+    (by trivial) htargetEq.symm
+  have hnormalizedEq' : Hc.venv.IsDefEqU c.lparams.length []
+      normalized' sourceType := by
+    simpa [hctx, VLCtx.toCtx] using hnormalizedEq
+  have htargetNormalized := htargetEq.trans Hc.checking.tr.wf
+    (by trivial) hnormalizedEq'.symm
+  exact ⟨normalized', checkedType', hnormalized',
+    htargetNormalized.of_l Hc.checking.tr.wf (by trivial) htargetType⟩
+
 private def updatedStats (stats : AddInductive.InductiveStats)
     (lctx : LocalContext) (resultLevel : Level) (setResult : Bool)
     (nindices : Nat) (indName : Name) : AddInductive.InductiveStats :=
