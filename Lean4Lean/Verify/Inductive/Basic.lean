@@ -133,14 +133,13 @@ theorem ContextWF.instantiateFresh (Hc : ContextWF c)
 annotations.  The consumed syntax may translate to a different abstract term,
 but it must remain a type definitionally equal to the source domain. -/
 structure ContextWF.ConsumedDomain (Hc : ContextWF c)
-    (dom : Expr) (source' : VExpr) where
-  consumed' : VExpr
+    (dom : Expr) (source' consumed' : VExpr) : Prop where
   source : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source'
   consumed : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
     dom.consumeTypeAnnotations consumed'
   isType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx consumed'
-  source_defeq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
-    source' consumed'
+  source_defeq : ∃ u, Hc.venv.IsDefEq c.lparams.length Hc.mlctx.vlctx.toCtx
+    source' consumed' (.sort u)
 
 theorem Expr.consumeTypeAnnotations_eq_self {dom : Expr}
     (hopt : dom.isOptParam = false) (hauto : dom.isAutoParam = false)
@@ -149,24 +148,44 @@ theorem Expr.consumeTypeAnnotations_eq_self {dom : Expr}
   simp [hopt, hauto, hout, hsemi]
 
 /-- Domains without a leading type annotation need no semantic transport. -/
-def ContextWF.ConsumedDomain.unchanged (Hc : ContextWF c)
+theorem ContextWF.ConsumedDomain.unchanged (Hc : ContextWF c)
     (heq : dom.consumeTypeAnnotations = dom)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom') :
-    Hc.ConsumedDomain dom dom' where
-  consumed' := dom'
-  source := htr
-  consumed := heq.symm ▸ htr
-  isType := hty
-  source_defeq := htr.wf Hc.checking.tr.wf.ordered Hc.mlctx_wf.tr.wf
+    Hc.ConsumedDomain dom dom' dom' := by
+  rcases hty with ⟨u, hty⟩
+  exact {
+    source := htr
+    consumed := heq.symm ▸ htr
+    isType := ⟨u, hty⟩
+    source_defeq := ⟨u, hty⟩ }
 
-def ContextWF.ConsumedDomain.unannotated (Hc : ContextWF c)
+theorem ContextWF.ConsumedDomain.unannotated (Hc : ContextWF c)
     (hopt : dom.isOptParam = false) (hauto : dom.isAutoParam = false)
     (hout : dom.isOutParam = false) (hsemi : dom.isSemiOutParam = false)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom') :
-    Hc.ConsumedDomain dom dom' :=
+    Hc.ConsumedDomain dom dom' dom' :=
   .unchanged Hc (Expr.consumeTypeAnnotations_eq_self hopt hauto hout hsemi) htr hty
+
+/-- Transport the source body translation to the annotation-consumed binder
+type.  This is the bridge needed before opening the binder with the production
+free variable. -/
+theorem ContextWF.ConsumedDomain.body
+    {c : AddInductive.Context} (Hc : ContextWF c)
+    {dom body : Expr} {source' consumed' body' : VExpr}
+    (H : Hc.ConsumedDomain dom source' consumed')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam source') :: Hc.mlctx.vlctx) body body') :
+    ∃ body'', TrExprS Hc.venv c.lparams
+      ((none, .vlam consumed') :: Hc.mlctx.vlctx) body body'' := by
+  rcases H.source_defeq with ⟨_, hdom⟩
+  have hctx : VLCtx.IsDefEq Hc.venv c.lparams.length
+      ((none, .vlam source') :: Hc.mlctx.vlctx)
+      ((none, .vlam consumed') :: Hc.mlctx.vlctx) :=
+    VLCtx.IsDefEq.cons
+      (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) nofun (.vlam hdom)
+  exact hbody.defeqDFC Hc.checking.tr.wf hctx
 
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
