@@ -870,13 +870,27 @@ the common parameters remain an exact suffix. -/
 structure AmbientParamContext (Hc : ContextWF c) (params : List VExpr)
     (depth : Nat) where
   ambient : List VExpr
-  context : Hc.mlctx.vlctx.toCtx = ambient ++ params.reverse
+  context : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+    (ambient ++ params.reverse) Hc.mlctx.vlctx.toCtx
   length : ambient.length = depth
 
 def AmbientParamContext.ofFirst
     {c : AddInductive.Context} {Hc : ContextWF c}
     {indices params : List VExpr}
     (hctx : Hc.mlctx.vlctx.toCtx = indices.reverse ++ params.reverse) :
+    AmbientParamContext Hc params indices.length where
+  ambient := indices.reverse
+  context := by
+    have hwf : OnCtx (indices.reverse ++ params.reverse)
+        (Hc.venv.IsType c.lparams.length) := hctx ▸ Hc.mlctx_wf.tr.wf.toCtx
+    simpa [hctx] using VEnv.IsDefEqCtx.refl hwf
+  length := by simp
+
+def AmbientParamContext.ofFirstDefEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {indices params : List VExpr}
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (indices.reverse ++ params.reverse) Hc.mlctx.vlctx.toCtx) :
     AmbientParamContext Hc params indices.length where
   ambient := indices.reverse
   context := hctx
@@ -886,15 +900,21 @@ def AmbientParamContext.withIndex
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : AmbientParamContext Hc params depth)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
+    (hsource : ∃ u, Hc.venv.IsDefEq c.lparams.length
+      Hc.mlctx.vlctx.toCtx sourceTy ty' (.sort u)) :
     AmbientParamContext
       (Hc.withLocalDecl (name := name) (bi := bi) htr hty)
       params (depth + 1) where
-  ambient := ty' :: H.ambient
+  ambient := sourceTy :: H.ambient
   context := by
-    change ty' :: Hc.mlctx.vlctx.toCtx =
-      (ty' :: H.ambient) ++ params.reverse
-    simp [H.context]
+    rcases hsource with ⟨u, hsource⟩
+    change VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (sourceTy :: (H.ambient ++ params.reverse))
+      (ty' :: Hc.mlctx.vlctx.toCtx)
+    exact .succ H.context
+      (hsource.defeqDFC Hc.checking.tr.wf.ordered
+        (H.context.symm Hc.checking.tr.wf.ordered))
   length := by simp [H.length]
 
 theorem ParameterCachePrefix.empty
@@ -1164,7 +1184,7 @@ theorem index.runtimeStateWF
     Hc hi Hcache Hdom hbody
   intro body'' hbodyEq normalized hnormalized Hcache'
   exact Hrec body'' hbodyEq normalized hnormalized Hcache'
-    (Hambient.withIndex Hdom.consumed Hdom.isType)
+    (Hambient.withIndex Hdom.consumed Hdom.isType Hdom.source_defeq)
 
 /-- Verification step for a common parameter of the first mutual header.  In
 addition to the opened-body relation, the continuation sees the exact fresh
@@ -2561,13 +2581,15 @@ def HeaderRuntimeCertificate.withIndex
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : HeaderRuntimeCertificate Hc decl params stats depth done)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
+    (hsource : ∃ u, Hc.venv.IsDefEq c.lparams.length
+      Hc.mlctx.vlctx.toCtx sourceTy ty' (.sort u)) :
     HeaderRuntimeCertificate
       (Hc.withLocalDecl (name := name) (bi := bi) htr hty)
       decl params stats (depth + 1) done where
   headers := H.headers
   applicationStats := H.applicationStats.withLocalDecl Hc htr hty
-  ambient := H.ambient.withIndex htr hty
+  ambient := H.ambient.withIndex htr hty hsource
 
 def HeaderRuntimeCertificate.first
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -2583,7 +2605,8 @@ def HeaderRuntimeCertificate.first
     (hname : indName = decl.types[0].name)
     (hnindices : nindices = decl.types[0].numIndices)
     (hofLevel : VLevel.ofLevel c.lparams resultSort = some target.resultLevel)
-    (hctx : Hc.mlctx.vlctx.toCtx = indices.reverse ++ params.reverse)
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (indices.reverse ++ params.reverse) Hc.mlctx.vlctx.toCtx)
     (hshape : decl.TypeShape Hc.venv params target) :
     HeaderRuntimeCertificate Hc decl params
       (checkInductiveTypes.loopInd.updatedStats stats c.lctx resultSort
@@ -2594,7 +2617,8 @@ def HeaderRuntimeCertificate.first
   applicationStats :=
     (ValidAppStatsPrefix.beforeFirst Hcache hlevels huvars hconsts hindices).push
       hindex hname hnindices
-  ambient := checkInductiveTypes.loopType.AmbientParamContext.ofFirst hctx
+  ambient :=
+    checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq hctx
 
 def HeaderRuntimeCertificate.later
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -2675,7 +2699,9 @@ theorem HeaderRuntimeCertificate.firstResultWF
   intro resultSort hofLevel _hshape _hambient
   exact Hrec resultSort hofLevel
     (HeaderRuntimeCertificate.first Hcache hlevels huvars hconsts hindices
-      hindex htarget hname hnindices hofLevel hctxEq _hshape)
+      hindex htarget hname hnindices hofLevel
+      (checkInductiveTypes.loopType.AmbientParamContext.ofFirst hctxEq).context
+      _hshape)
 
 theorem HeaderRuntimeCertificate.laterResultWF
     {c : AddInductive.Context} {Hc : ContextWF c}
