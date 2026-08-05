@@ -85,6 +85,19 @@ def ContextWF.withLocalDecl (H : ContextWF c)
     · exact H.kernel_reserves_current
     · exact H.kernelFresh _ hmem
 
+theorem withLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF c)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
+    (Hk : ContextWF { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } →
+      (k (.fvar ⟨c.ngen.curr⟩)
+        { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
+    (Lean4Lean.withLocalDecl name bi ty k c).WF Q := by
+  exact Hk (Hc.withLocalDecl htr hty)
+
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
 
