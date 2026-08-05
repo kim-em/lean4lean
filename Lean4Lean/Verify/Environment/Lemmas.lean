@@ -22,10 +22,6 @@ theorem TrDefVal.mono {env env' : VEnv} (henv : env ≤ env')
     (H : TrDefVal safety env ci ci') : TrDefVal safety env' ci ci' :=
   ⟨H.1.mono henv, H.2.mono henv⟩
 
-theorem TrThmVal.mono {env env' : VEnv} (henv : env ≤ env')
-    (H : TrThmVal safety env ci ci') : TrThmVal safety env' ci ci' :=
-  ⟨H.1.mono henv, H.2.mono henv⟩
-
 theorem Aligned.map_wf (H : Aligned safety C venv) : C.WF := by
   induction H with
   | empty => exact .empty
@@ -69,7 +65,7 @@ theorem TrEnv'.aligned (H : TrEnv' safety C Q venv) : Aligned safety C venv := b
   | ignore h1 h2 _ ih => exact ih.ignoreConst h1 h2 rfl
   | «axiom» h1 h2 _ h _ ih => exact ih.const h2 h1 h rfl
   | thm h1 h2 _ _ h _ ih => exact ih.const h2 h1.1.1 h rfl
-  | «opaque» h1 h2 _ h _ ih => exact ih.const h2 h1.1 h rfl
+  | «opaque» h1 h2 _ h _ ih => exact ih.const h2 h1.1.1 h rfl
   | defn h1 h2 _ h _ ih => exact (ih.const h2 h1.1.1 h rfl).defeq
   | quot _ h _ ih => exact ih.addQuot h
   | induct _ h _ ih => exact ih.addInduct h
