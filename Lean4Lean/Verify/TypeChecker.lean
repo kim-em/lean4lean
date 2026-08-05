@@ -37,6 +37,20 @@ theorem Methods.withFuel.WF : ∀ {n}, (withFuel n).WF
 theorem RecM.WF.run {x : RecM α} (H : x.WF c s Q) : (RecM.run x).WF c s Q :=
   H _ Methods.withFuel.WF
 
+def VContext.mkChecking {env : Environment} {venv : VEnv}
+    (trenv : CheckingEnv safety env venv) (hasPrimitives : venv.HasPrimitives)
+    (safePrimitives : ∀ {n ci}, env.find? n = some ci → Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext where
+  env; safety; lparams; fuel
+  venv
+  hasPrimitives
+  safePrimitives
+  trenv
+  mlctx := .nil
+  mlctx_wf := trivial
+  lctx_eq := rfl
+
 def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])
     (fuel : FuelConfig := {}) : VContext where
@@ -44,7 +58,7 @@ def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   venv := ves.venv safety
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
-  trenv := wf.tr
+  trenv := wf.tr.toChecking
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
@@ -61,6 +75,21 @@ theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WF env}
   whnf_wf := .empty
   unfold_wf _ := by simp
 
+theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
+    {trenv : CheckingEnv safety env venv} {hasPrimitives : venv.HasPrimitives}
+    {safePrimitives : ∀ {n ci}, env.find? n = some ci →
+      Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []}
+    {lparams : List Name} {fuel : FuelConfig} :
+    VState.WF (.mkChecking trenv hasPrimitives safePrimitives lparams fuel) {} where
+  trctx := .nil
+  ngen_wf := nofun
+  ectx := ⟨[], .refl, trivial, .refl, .empty, nofun⟩
+  inferTypeI_wf := .empty
+  inferTypeC_wf := .empty
+  whnfCore_wf := .empty
+  whnf_wf := .empty
+  unfold_wf _ := by simp
+
 theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     {x : M α} {Q} (H : x.WF (.mk' wf safety lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
@@ -68,6 +97,20 @@ theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   simp [M.run, Functor.map, Except.map] at eq
   split at eq <;> cases eq; rename_i eq
   let ⟨_, _, _, _, H⟩ := H .empty _ _ eq
+  exact H
+
+theorem M.WF.runChecking {env : Environment} {venv : VEnv}
+    {trenv : CheckingEnv safety env venv} {hasPrimitives : venv.HasPrimitives}
+    {safePrimitives : ∀ {n ci}, env.find? n = some ci → Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = []}
+    {x : M α} {Q}
+    (H : x.WF (.mkChecking trenv hasPrimitives safePrimitives lparams fuel) {} fun a _ => Q a) :
+    (M.run env safety {} lparams fuel x).WF Q := by
+  intro a eq
+  simp [M.run, Functor.map, Except.map] at eq
+  split at eq <;> cases eq
+  rename_i eq
+  let ⟨_, _, _, _, H⟩ := H .emptyChecking _ _ eq
   exact H
 
 nonrec theorem whnf.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :

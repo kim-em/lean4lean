@@ -176,3 +176,71 @@ nonrec theorem TrEnv.of_value (H : TrEnv safety env venv) (h : env.find? name = 
     (hs : safety ≤ ci.safety) (hv : ci.deltaValue? = some v) :
     TrExpr venv ci.levelParams [] v (.const ci.name (VLevel.params ci.levelParams.length)) :=
   H.of_value (by rwa [← H.map_wf.find?'_eq_find?]) hs hv
+
+/-- The fragment of `TrEnv` needed by the executable type checker. Unlike
+`TrEnv`, this invariant does not assert that the current production environment
+was assembled from complete declarations, so it can also describe the staged
+header/constructor environments used while checking an inductive block. -/
+structure CheckingEnv (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop where
+  aligned : Aligned safety env.constants venv
+  wf : venv.WF
+  of_value : env.find? name = some ci → safety ≤ ci.safety → ci.deltaValue? = some v →
+    TrExpr venv ci.levelParams [] v
+      (.const ci.name (VLevel.params ci.levelParams.length))
+
+theorem TrEnv.toChecking (H : TrEnv safety env venv) : CheckingEnv safety env venv where
+  aligned := H.aligned
+  wf := H.wf
+  of_value := H.of_value
+
+theorem CheckingEnv.map_wf (H : CheckingEnv safety env venv) : env.constants.WF :=
+  H.aligned.map_wf
+
+theorem CheckingEnv.find?_iff (H : CheckingEnv safety env venv) :
+    (∃ ci, env.find? name = some ci ∧ safety ≤ ci.safety) ↔
+      ∃ ci, venv.constants name = some ci := by
+  conv => enter [1,1,_,1,1]; apply H.map_wf.find?'_eq_find?
+  exact H.aligned.find?_iff
+
+theorem CheckingEnv.find? (H : CheckingEnv safety env venv)
+    (h : env.find? name = some ci) (hs : safety ≤ ci.safety) :
+    ∃ ci', venv.constants name = some ci' ∧ TrConstant safety venv ci ci' :=
+  H.aligned.find? (H.map_wf.find?'_eq_find? _ ▸ h) hs
+
+theorem CheckingEnv.find?_uniq (H : CheckingEnv safety env venv)
+    (h : env.find? name = some ci) (hs : venv.constants name = some ci') :
+    ci.name = name ∧ TrConstant safety venv ci ci' :=
+  H.aligned.find?_uniq (H.map_wf.find?'_eq_find? _ ▸ h) hs
+
+open private Lean.Kernel.Environment.add from Lean.Environment
+
+/-- Extend a checking environment by a typed, non-delta constant. This is the
+operation used for temporary inductive headers, constructors, and recursors. -/
+theorem CheckingEnv.add (H : CheckingEnv safety env venv)
+    (hn : env.find? ci.name = none)
+    (htr : TrConstant safety venv ci ci')
+    (hci : ci'.WF venv)
+    (hadd : venv.addConst ci.name ci' = some venv')
+    (hdelta : ci.deltaValue? = none) :
+    CheckingEnv safety (env.add ci) venv' := by
+  have hn' : env.constants.find? ci.name = none := by
+    rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?] at hn
+    exact hn
+  refine {
+    aligned := H.aligned.const hn' htr hadd rfl
+    wf := ?_
+    of_value := ?_ }
+  · obtain ⟨ds, hds⟩ := H.wf
+    let vi : VConstVal := { ci' with name := ci.name }
+    exact ⟨_, hds.decl (.axiom (ci := vi) hci hadd)⟩
+  · intro name ci₀ value hfind hs hvalue
+    change (env.constants.insert ci.name ci).find?' name = some ci₀ at hfind
+    rw [(H.map_wf.insert _ _ hn').find?'_eq_find?, H.map_wf.find?_insert] at hfind
+    split at hfind
+    · cases hfind
+      rw [hdelta] at hvalue
+      contradiction
+    · have hold : env.find? name = some ci₀ := by
+        rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?]
+        exact hfind
+      exact (H.of_value hold hs hvalue).mono (VEnv.addConst_le hadd)
