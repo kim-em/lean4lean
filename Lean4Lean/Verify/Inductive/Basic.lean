@@ -178,14 +178,17 @@ theorem ContextWF.ConsumedDomain.body
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam source') :: Hc.mlctx.vlctx) body body') :
     ∃ body'', TrExprS Hc.venv c.lparams
-      ((none, .vlam consumed') :: Hc.mlctx.vlctx) body body'' := by
+        ((none, .vlam consumed') :: Hc.mlctx.vlctx) body body'' ∧
+      Hc.venv.IsDefEqU c.lparams.length
+        (source' :: Hc.mlctx.vlctx.toCtx) body' body'' := by
   rcases H.source_defeq with ⟨_, hdom⟩
   have hctx : VLCtx.IsDefEq Hc.venv c.lparams.length
       ((none, .vlam source') :: Hc.mlctx.vlctx)
       ((none, .vlam consumed') :: Hc.mlctx.vlctx) :=
     VLCtx.IsDefEq.cons
       (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) nofun (.vlam hdom)
-  exact hbody.defeqDFC Hc.checking.tr.wf hctx
+  rcases hbody.defeqDFC Hc.checking.tr.wf hctx with ⟨body'', hbody''⟩
+  exact ⟨body'', hbody'', hbody.uniq Hc.checking.tr.wf hctx hbody''⟩
 
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
@@ -350,6 +353,33 @@ theorem index.WF
   exact (whnfInContext.WF Hc' hopened).bind fun normalized hnormalized =>
     Hrec normalized hnormalized
 
+/-- Source-facing index step: consume the domain certificate and transport the
+source body automatically before invoking `index.WF`. -/
+theorem index.sourceWF
+    (Hc : ContextWF c) (hi : ¬ i < nparams)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ body'',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      ∀ normalized,
+        TrExpr (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
+        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
+          i (nindices + 1) fuel k
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+  exact index.WF Hc hi Hdom.consumed Hdom.isType hbody''
+    (fun normalized hnormalized => Hrec body'' hbodyEq normalized hnormalized)
+
 /-- Verification step for a common parameter of the first mutual header.  In
 addition to the opened-body relation, the continuation sees the exact fresh
 free variable appended to the executable parameter cache. -/
@@ -389,6 +419,35 @@ theorem firstParameter.WF
     hdom hdomType hbody
   exact (whnfInContext.WF Hc' hopened).bind fun normalized hnormalized =>
     Hrec normalized hnormalized
+
+/-- Source-facing first-parameter step, including annotation-domain and body
+transport. -/
+theorem firstParameter.sourceWF
+    (Hc : ContextWF c) (hi : i < nparams)
+    (hempty : stats.indConsts.isEmpty = true)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ body'',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      ∀ normalized,
+        TrExpr (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
+        (AddInductive.checkInductiveTypes.loopType nparams
+          { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
+          normalized (i + 1) nindices fuel k
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+  exact firstParameter.WF Hc hi hempty Hdom.consumed Hdom.isType hbody''
+    (fun normalized hnormalized => Hrec body'' hbodyEq normalized hnormalized)
 
 /-- Verification step for a common parameter of a later mutual header.  The
 executable checker reuses the cached free variable and requires the new domain
