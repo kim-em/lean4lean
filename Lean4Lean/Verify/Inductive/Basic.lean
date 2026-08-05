@@ -507,6 +507,17 @@ def ContextWF.withLocalDecl (H : ContextWF c)
     · exact H.kernel_reserves_current
     · exact H.kernelFresh _ hmem
 
+theorem ContextWF.withLocalDecl_venv (H : ContextWF c)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withLocalDecl (name := name) (bi := bi) htr hty).venv = H.venv := rfl
+
+theorem ContextWF.withLocalDecl_toCtx (H : ContextWF c)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx.toCtx =
+      ty' :: H.mlctx.vlctx.toCtx := rfl
+
 theorem withLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF c)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
@@ -904,6 +915,92 @@ structure AmbientParamContext (Hc : ContextWF c) (params : List VExpr)
   context : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
     (ambient ++ params.reverse) Hc.mlctx.vlctx.toCtx
   length : ambient.length = depth
+
+/-- Source-side account of the header telescope consumed by `loopType`.
+`root` is the original normalized header and `current` is its unconsumed
+suffix.  The context relation records that annotation erasure may change a
+binder domain without changing the abstract telescope up to definitional
+equality. -/
+structure HeaderTelescopeCertificate (Hc : ContextWF c)
+    (root current : VExpr) (params indices : List VExpr) where
+  rebuild : root = VExpr.wrapForalls (params ++ indices) current
+  context : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+    (indices.reverse ++ params.reverse) Hc.mlctx.vlctx.toCtx
+
+theorem HeaderTelescopeCertificate.empty
+    {c : AddInductive.Context} {Hc : ContextWF c} {root : VExpr}
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      [] Hc.mlctx.vlctx.toCtx) :
+    HeaderTelescopeCertificate Hc root root [] [] where
+  rebuild := by simp [VExpr.wrapForalls]
+  context := by simpa using hctx
+
+/-- Consume a common-parameter binder.  This operation is restricted to the
+parameter phase, before any index binder has been seen. -/
+theorem HeaderTelescopeCertificate.withParameter
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderTelescopeCertificate Hc root (.forallE sourceDom body)
+      params [])
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    HeaderTelescopeCertificate
+      (Hc.withLocalDecl (name := name) (bi := bi)
+        hdom.consumed hdom.isType)
+      root body (params ++ [sourceDom]) [] where
+  rebuild := by
+    simpa [VExpr.wrapForalls, VExpr.wrapForalls_append] using H.rebuild
+  context := by
+    have hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (sourceDom :: params.reverse)
+      (consumedDom :: Hc.mlctx.vlctx.toCtx) := by
+      rcases hdom.source_defeq with ⟨_, hsource⟩
+      exact .succ H.context
+        (hsource.defeqDFC Hc.checking.tr.wf.ordered
+          (H.context.symm Hc.checking.tr.wf.ordered))
+    simpa only [List.reverse_nil, List.nil_append, List.reverse_append,
+      List.reverse_singleton, List.singleton_append,
+      ContextWF.withLocalDecl_venv,
+      ContextWF.withLocalDecl_toCtx] using hctx
+
+/-- Consume an index binder after the common parameters. -/
+theorem HeaderTelescopeCertificate.withIndex
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderTelescopeCertificate Hc root (.forallE sourceDom body)
+      params indices)
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    HeaderTelescopeCertificate
+      (Hc.withLocalDecl (name := name) (bi := bi)
+        hdom.consumed hdom.isType)
+      root body params (indices ++ [sourceDom]) where
+  rebuild := by
+    simpa [VExpr.wrapForalls, VExpr.wrapForalls_append] using H.rebuild
+  context := by
+    have hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (sourceDom :: (indices.reverse ++ params.reverse))
+      (consumedDom :: Hc.mlctx.vlctx.toCtx) := by
+      rcases hdom.source_defeq with ⟨_, hsource⟩
+      exact .succ H.context
+        (hsource.defeqDFC Hc.checking.tr.wf.ordered
+          (H.context.symm Hc.checking.tr.wf.ordered))
+    simpa only [List.reverse_append, List.reverse_singleton,
+      List.singleton_append, List.cons_append, List.nil_append,
+      ContextWF.withLocalDecl_venv,
+      ContextWF.withLocalDecl_toCtx] using hctx
+
+theorem HeaderTelescopeCertificate.takeParameters
+    (H : HeaderTelescopeCertificate Hc root current params indices)
+    (hlen : params.length = nparams) :
+    root.takeForalls nparams =
+      some (params, VExpr.wrapForalls indices current) := by
+  subst nparams
+  rw [H.rebuild, VExpr.takeForalls_wrapForalls_append]
+
+theorem HeaderTelescopeCertificate.takeIndices
+    (_H : HeaderTelescopeCertificate Hc root current params indices)
+    (hlen : indices.length = nindices) :
+    (VExpr.wrapForalls indices current).takeForalls nindices =
+      some (indices, current) := by
+  subst nindices
+  exact VExpr.takeForalls_wrapForalls indices current
 
 def AmbientParamContext.ofFirst
     {c : AddInductive.Context} {Hc : ContextWF c}
