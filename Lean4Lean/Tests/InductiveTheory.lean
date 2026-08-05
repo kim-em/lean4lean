@@ -171,9 +171,17 @@ def enumIota : enumDecl.IotaRule enumBlock enumType enumCtor enumRule where
   constructor_arity := by simp [enumDecl]
   parameter_args := rfl
   domains_arity := rfl
+  recursiveArgs := []
+  recursive_args := .slnil
   fieldVars := []
   fieldVars_eq := rfl
   fields_in_scope := by simp
+  minorVar := 0
+  minor_in_scope := by simp
+  rhsArgs := []
+  rhs_spine := rfl
+  field_args := rfl
+  recursive_results := rfl
   rhs_guarded := .bvar
 
 theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation enumBlock where

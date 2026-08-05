@@ -478,10 +478,20 @@ structure VInductDecl.IotaRule (decl : VInductDecl) (block : VInductBlock)
     leadingArgs.take decl.nparams
   domains_arity : domains.length = decl.nparams + decl.types.length +
     decl.ownedConstructors.length + (ctorArgs.length - decl.nparams)
+  recursiveArgs : List VExpr
+  recursive_args : List.Sublist recursiveArgs (ctorArgs.drop decl.nparams)
   fieldVars : List Nat
   fieldVars_eq : fieldVars =
-    (ctorArgs.drop decl.nparams).filterMap VExpr.bvarHead?
+    recursiveArgs.filterMap VExpr.bvarHead?
   fields_in_scope : ∀ field ∈ fieldVars, field < domains.length
+  minorVar : Nat
+  minor_in_scope : minorVar < domains.length
+  rhsArgs : List VExpr
+  rhs_spine : rhsBody.getAppFnArgs = (.bvar minorVar, rhsArgs)
+  field_args : rhsArgs.take (ctorArgs.length - decl.nparams) =
+    ctorArgs.drop decl.nparams
+  recursive_results :
+    (rhsArgs.drop (ctorArgs.length - decl.nparams)).length = recursiveArgs.length
   rhs_guarded : rhsBody.GuardedIota (block.recursors.map (·.name)) fieldVars 0
 
 /-- Independent ordinary/mutual compilation interface. It is deliberately
