@@ -1809,6 +1809,32 @@ theorem initialHeaderNormalization
   exact ⟨normalized', checkedType', hnormalized',
     htargetNormalized.of_l Hc.checking.tr.wf (by trivial) htargetType⟩
 
+/-- Package initial normalization with the empty executable telescope state.
+This is the state consumed by the first parameter/index branch. -/
+theorem initialHeaderState
+    (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
+    (Htarget : TrInductiveType Hc.venv envTypes c.lparams source target)
+    (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+      source.type checkedType sourceType checkedType')
+    (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      normalized sourceType) :
+    ∃ normalized' exprType,
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx normalized normalized' ∧
+      Hc.venv.IsDefEq c.lparams.length []
+        target.type normalized' exprType ∧
+      Nonempty (checkInductiveTypes.loopType.HeaderTelescopeLoopCertificate
+        Hc normalized' normalized' 0 0) := by
+  rcases initialHeaderNormalization Hc hctx Htarget hchecked hnormalized with
+    ⟨normalized', exprType, hnormalized', hheader⟩
+  have hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      [] Hc.mlctx.vlctx.toCtx := by
+    simpa [hctx, VLCtx.toCtx] using
+      (VEnv.IsDefEqCtx.refl (env := Hc.venv) (U := c.lparams.length)
+        (by trivial : OnCtx ([] : List VExpr)
+          (Hc.venv.IsType c.lparams.length)))
+  exact ⟨normalized', exprType, hnormalized', hheader,
+    ⟨checkInductiveTypes.loopType.HeaderTelescopeLoopCertificate.empty hctxEq⟩⟩
+
 private def updatedStats (stats : AddInductive.InductiveStats)
     (lctx : LocalContext) (resultLevel : Level) (setResult : Bool)
     (nindices : Nat) (indName : Name) : AddInductive.InductiveStats :=
