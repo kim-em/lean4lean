@@ -539,11 +539,43 @@ structure VInductDecl.OrdinaryCompilation
     decl.ownedConstructors block.rules
   names : List.Nodup ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 
+/-- Compilation interface for a source declaration containing nested
+occurrences. Restoration keeps the source type and constructor constants
+exactly, retains the ordinary primary recursors/rules, and may add a sequence
+of guarded auxiliary recursors under deterministic `main.recN` names. -/
+structure VInductDecl.NestedCompilation
+    (env : VEnv) (decl : VInductDecl) (block : VInductBlock) where
+  main : VInductiveType
+  rest : List VInductiveType
+  types_source : decl.types = main :: rest
+  types : block.types = decl.typeConstants
+  ctors : block.ctors = decl.constructorConstants
+  primaryRecursors : List VConstVal
+  auxiliaryRecursors : List VConstVal
+  recursors_eq : block.recursors = primaryRecursors ++ auxiliaryRecursors
+  primary_recursors : List.Forall₂ (fun type recursor =>
+    Nonempty (decl.RecursorShape type recursor)) decl.types primaryRecursors
+  auxiliary_names : auxiliaryRecursors.map (·.name) =
+    (List.range auxiliaryRecursors.length).map fun i =>
+      (decl.recursorName main).appendIndexAfter (i + 1)
+  primaryRules : List VDefEq
+  auxiliaryRules : List VDefEq
+  rules_eq : block.rules = primaryRules ++ auxiliaryRules
+  primary_rules : List.Forall₂ (fun owned rule =>
+    Nonempty (decl.IotaRule env block owned.1 owned.2 rule))
+    decl.ownedConstructors primaryRules
+  auxiliary_guarded : ∀ rule ∈ auxiliaryRules,
+    ∃ fieldVars, rule.rhs.GuardedIota
+      (block.recursors.map (·.name)) fieldVars 0
+  names : List.Nodup ((block.types ++ block.ctors ++ block.recursors).map (·.name))
+
 /-- Pure abstract compilation, kept separate from the executable
 `AddInductive` implementation. Nested compilation will enter through a second
 constructor after proving that lowering yields an ordinary compilation. -/
 inductive VInductDecl.CompilesTo (env : VEnv) : VInductDecl → VInductBlock → Prop
   | ordinary : VInductDecl.OrdinaryCompilation env decl block →
+      VInductDecl.CompilesTo env decl block
+  | nested : VInductDecl.NestedCompilation env decl block →
       VInductDecl.CompilesTo env decl block
 
 /-- Relational abstract environment extension for inductive declarations.
