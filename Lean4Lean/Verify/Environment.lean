@@ -97,10 +97,7 @@ theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : Op
       (by rwa [← old.map_wf.find?'_eq_find?]) hci hadd old
 
 theorem checkEqType.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
-    (checkEqType env).WF fun _ => False := by
-  -- `AddInduct` currently has no constructors, so the unsafe translation cannot contain
-  -- the inductive `Eq` declaration required by quotient initialization. This case becomes
-  -- constructive when the inductive-declaration verification boundary is implemented.
+    (checkEqType env).WF fun _ => (ves.venv .unsafe).QuotReady := by
   intro _ h
   unfold checkEqType at h
   simp only [Environment.get] at h
@@ -111,31 +108,21 @@ theorem checkEqType.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
     have hfind' : env.constants.find? ``Eq = some (.inductInfo info) := by
       rw [← (wf.tr (safety := .unsafe)).map_wf.find?'_eq_find?]
       exact hfind
-    exact False.elim <| (wf.tr (safety := .unsafe)).no_inductInfo hfind'
+    exact (wf.tr (safety := .unsafe)).eq_quotReady hfind'
   | _ => simp_all [( · >>= · ), Except.bind, pure, Pure.pure, Except.pure]
-
-/-- This is currently vacuous in the non-initialized case: `TrEnv` cannot contain the
-inductive `Eq` declaration until `AddInduct` is implemented. -/
-theorem addQuot.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
-    (Environment.addQuot env).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  unfold Environment.addQuot
-  split
-  · exact .pure ⟨ves, wf, fun _ => VEnv.LE.rfl⟩
-  · exact (checkEqType.WF wf).bind fun _ h => False.elim h
 
 /-- Declaration forms currently represented by `TrEnv`. Recursive unsafe definitions and
 mutual definitions require a recursive-body relation, while inductives require a
-constructive `AddInduct` model. -/
+proof that the executable declaration builder constructs `AddInduct`. Quotient
+initialization additionally needs canonical `Eq` in every safety-indexed model; the
+production precheck currently establishes this only for the unsafe model. -/
 def _root_.Lean.Declaration.IsModelled : Declaration → Prop
-  | .axiomDecl _ | .thmDecl _ | .opaqueDecl _ | .quotDecl => True
+  | .axiomDecl _ | .thmDecl _ | .opaqueDecl _ => True
   | .defnDecl v => v.safety ≠ .unsafe
-  | .mutualDefnDecl _ | .inductDecl .. => False
+  | .mutualDefnDecl _ | .quotDecl | .inductDecl .. => False
 
 /-- Successful checked addition of a modelled declaration preserves well-formedness and
-extends every safety-indexed abstract environment. Quotient initialization is vacuous
-until inductive environments are represented, so this theorem currently applies only to
-synthetic environments without inductive declarations. -/
+extends every safety-indexed abstract environment. -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (decl : Declaration)
     (hdecl : decl.IsModelled) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
@@ -146,5 +133,5 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (decl : D
   | thmDecl v => exact addTheorem.WF wf v
   | opaqueDecl v => exact addOpaque.WF wf v
   | mutualDefnDecl _ => simp [Declaration.IsModelled] at hdecl
-  | quotDecl => exact addQuot.WF wf
+  | quotDecl => simp [Declaration.IsModelled] at hdecl
   | inductDecl _ _ _ _ => simp [Declaration.IsModelled] at hdecl

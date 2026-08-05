@@ -18,60 +18,40 @@ theorem TrEnv.exists_addConst (H : TrEnv safety env venv) (hn : env.find? name =
     rw [hn] at hci
     contradiction
 
-theorem TrEnv'.no_inductInfo (H : TrEnv' .unsafe C Q venv) :
-    C.find? name ≠ some (.inductInfo info) := by
+/-- Any production `Eq` inductive visible in a translated environment is the
+canonical abstract equality constant. This replaces the former, vacuous claim
+that translated environments contained no inductives at all. -/
+theorem TrEnv'.eq_quotReady (H : TrEnv' .unsafe C Q venv)
+    (heq : C.find? ``Eq = some (.inductInfo info)) : venv.QuotReady := by
   induction H with
-  | empty => simp [SMap.find?]
+  | empty => simp [SMap.find?] at heq
   | ignore hn hhidden H ih =>
-    rename_i C' Q' env' ci
-    exact False.elim <| hhidden (by cases ci.safety <;> rfl)
+    exact False.elim <| hhidden DefinitionSafety.unsafe_le
   | «axiom» htr hn hwf hadd H ih =>
-    rw [H.map_wf.find?_insert]
-    split
-    · simp
-    · exact ih
+    rw [H.map_wf.find?_insert] at heq
+    split at heq
+    · simp at heq
+    · exact (VEnv.addConst_le hadd).constants (ih heq)
   | defn htr hn hwf hadd H ih =>
-    rw [H.map_wf.find?_insert]
-    split
-    · simp
-    · exact ih
+    rw [H.map_wf.find?_insert] at heq
+    split at heq
+    · simp at heq
+    · exact (VEnv.addConst_le hadd).constants (ih heq)
   | thm htr hn hwf hprop hadd H ih =>
-    rw [H.map_wf.find?_insert]
-    split
-    · simp
-    · exact ih
+    rw [H.map_wf.find?_insert] at heq
+    split at heq
+    · simp at heq
+    · exact (VEnv.addConst_le hadd).constants (ih heq)
   | «opaque» htr hn hwf hadd H ih =>
-    rw [H.map_wf.find?_insert]
-    split
-    · simp
-    · exact ih
+    rw [H.map_wf.find?_insert] at heq
+    split at heq
+    · simp at heq
+    · exact (VEnv.addConst_le hadd).constants (ih heq)
   | quot hready hadd H ih =>
-    dsimp [AddQuot, AddQuot1] at hadd
-    obtain ⟨lp₁, ty₁, env₁, _, hn₁, _,
-      lp₂, ty₂, env₂, _, hn₂, _,
-      lp₃, ty₃, env₃, _, hn₃, _,
-      lp₄, ty₄, env₄, _, hn₄, _, rfl, _⟩ := hadd
-    have wf₀ := H.map_wf
-    have wf₁ := wf₀.insert ``Quot
-      (.quotInfo { name := ``Quot, kind := .type, levelParams := lp₁, type := ty₁ }) hn₁
-    have wf₂ := wf₁.insert ``Quot.mk
-      (.quotInfo { name := ``Quot.mk, kind := .ctor, levelParams := lp₂, type := ty₂ }) hn₂
-    have wf₃ := wf₂.insert ``Quot.lift
-      (.quotInfo { name := ``Quot.lift, kind := .lift, levelParams := lp₃, type := ty₃ }) hn₃
-    rw [wf₃.find?_insert]
-    split
-    · simp
-    rw [wf₂.find?_insert]
-    split
-    · simp
-    rw [wf₁.find?_insert]
-    split
-    · simp
-    rw [wf₀.find?_insert]
-    split
-    · simp
-    exact ih
-  | induct _ hadd _ _ => exact nomatch hadd
+    exact hadd.le.constants hready
+  | induct _ hadd _ _ =>
+    cases hadd with
+    | intro _ _ _ _ _ _ _ heqReady => exact heqReady _ heq
 
 theorem VEnv.addConst_mono {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ ≤ env₂)
     (h₁ : env₁.addConst name ci = some env₁') (h₂ : env₂.addConst name ci = some env₂') :

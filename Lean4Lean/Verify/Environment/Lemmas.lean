@@ -26,15 +26,6 @@ theorem TrThmVal.mono {env env' : VEnv} (henv : env ≤ env')
     (H : TrThmVal safety env ci ci') : TrThmVal safety env' ci ci' :=
   ⟨H.1.mono henv, H.2.mono henv⟩
 
-variable (safety : DefinitionSafety) in
-inductive Aligned : ConstMap → VEnv → Prop where
-  | empty : Aligned {} .empty
-  | ignoreConst : Aligned C venv → C.find? n = none → ¬safety ≤ ci.safety →
-    ci.name = n → Aligned (C.insert n ci) venv
-  | const : Aligned C venv → C.find? n = none → TrConstant safety venv ci ci' →
-    venv.addConst n ci' = some venv' → ci.name = n → Aligned (C.insert n ci) venv'
-  | defeq : Aligned C venv → Aligned C (venv.addDefEq df)
-
 theorem Aligned.map_wf (H : Aligned safety C venv) : C.WF := by
   induction H with
   | empty => exact .empty
@@ -68,8 +59,9 @@ nonrec theorem Aligned.addQuot (H : AddQuot C₁ C₂ venv₁ venv₂)
   rintro _ _ h ⟨rfl, rfl⟩; exact h.defeq
 
 theorem Aligned.addInduct (H : AddInduct C₁ venv₁ decl C₂ venv₂) :
-    Aligned safety C₁ env₁ → Aligned safety C₂ env₂ :=
-  nomatch H
+    Aligned safety C₁ venv₁ → Aligned safety C₂ venv₂ := by
+  cases H with
+  | intro _ _ _ _ _ haligned _ _ => exact haligned safety
 
 theorem TrEnv'.aligned (H : TrEnv' safety C Q venv) : Aligned safety C venv := by
   induction H with
@@ -197,7 +189,11 @@ theorem TrEnv'.of_value (H : TrEnv' safety C Q venv) (h : C.find? name = some ci
     obtain h | ⟨rfl, rfl⟩ := this wf.map_wf (ih _ _ wf' h5)
     · exact h
     · contradiction
-  | induct _ h1 H ih => cases h1
+  | induct _ h1 H ih =>
+    cases h1 with
+    | intro block _ _ _ hinstall _ hdelta _ =>
+      exact (ih (hdelta h (by simp [hv]))).mono
+        (VInductBlock.install_le hinstall)
 
 nonrec theorem TrEnv.of_value (H : TrEnv safety env venv) (h : env.find? name = some ci)
     (hs : safety ≤ ci.safety) (hv : ci.deltaValue? = some v) :

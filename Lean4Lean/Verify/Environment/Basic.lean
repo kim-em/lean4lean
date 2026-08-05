@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.LocalContext
 import Lean4Lean.Theory.Typing.EnvLemmas
+import Lean4Lean.Declaration
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -103,17 +104,57 @@ nonrec theorem AddQuot.to_addQuot (H : AddQuot m₁ m₂ env₁ env₂) : env₁
 nonrec theorem AddQuot.le (H : AddQuot m₁ m₂ env₁ env₂) : env₁ ≤ env₂ :=
   open AddQuot1 in (le <| le <| le <| le fun _ _ h => h.2 ▸ VEnv.addDefEq_le) _ _ H
 
-/-- This definition is the remaining implementation boundary: its constructors
-will relate `addInductive`'s constant-map delta to a `VInductBlock` and the
-abstract `VEnv.AddInduct` relation. Until then the `TrEnv'.induct` case cannot
-fire. -/
+theorem VInductBlock.install_le
+    (H : VInductBlock.install env block = some env') : env ≤ env' := by
+  unfold VInductBlock.install at H
+  cases htypes : env.addConsts block.types with
+  | none => simp [htypes] at H
+  | some envTypes =>
+    cases hctors : envTypes.addConsts block.ctors with
+    | none => simp [htypes, hctors] at H
+    | some envCtors =>
+      cases hrecursors : envCtors.addConsts block.recursors with
+      | none => simp [htypes, hctors, hrecursors] at H
+      | some envRecursors =>
+        simp [htypes, hctors, hrecursors] at H
+        subst env'
+        exact (VEnv.addConsts_le htypes).trans <|
+          (VEnv.addConsts_le hctors).trans <|
+            (VEnv.addConsts_le hrecursors).trans VEnv.addDefEqs_le
+
+variable (safety : DefinitionSafety) in
+inductive Aligned : ConstMap → VEnv → Prop where
+  | empty : Aligned {} .empty
+  | ignoreConst : Aligned C venv → C.find? n = none → ¬safety ≤ ci.safety →
+    ci.name = n → Aligned (C.insert n ci) venv
+  | const : Aligned C venv → C.find? n = none → TrConstant safety venv ci ci' →
+    venv.addConst n ci' = some venv' → ci.name = n → Aligned (C.insert n ci) venv'
+  | defeq : Aligned C venv → Aligned C (venv.addDefEq df)
+
+/-- Constructive implementation boundary for an inductive extension. Besides
+the independent compilation and installation witnesses, it records the exact
+production-map alignment proof that the executable `addInductive` verifier
+must eventually construct. The `Eq` clause is the canonicality fact consumed
+by quotient initialization. -/
 inductive AddInduct (m₁ : ConstMap) (env₁ : VEnv) (decl : VInductDecl)
-    (m₂ : ConstMap) (env₂ : VEnv) : Prop
-  -- TODO
+    (m₂ : ConstMap) (env₂ : VEnv) : Prop where
+  | intro (_block : VInductBlock) :
+    decl.WF env₁ →
+    VInductDecl.CompilesTo env₁ decl _block →
+    VInductBlock.WF env₁ _block →
+    VInductBlock.install env₁ _block = some env₂ →
+    (∀ safety, Aligned safety m₁ env₁ → Aligned safety m₂ env₂) →
+    (∀ {name ci}, m₂.find? name = some ci → ci.deltaValue?.isSome →
+      m₁.find? name = some ci) →
+    (∀ info, m₂.find? ``Eq = some (.inductInfo info) →
+      env₂.constants ``Eq = some eqConst) →
+    AddInduct m₁ env₁ decl m₂ env₂
 
 theorem AddInduct.toVEnv
     (H : AddInduct m₁ env₁ decl m₂ env₂) : VEnv.AddInduct env₁ decl env₂ :=
-  nomatch H
+  match H with
+  | .intro _ hdecl hcompile hblock hinstall _ _ _ =>
+    .intro hdecl hcompile hblock hinstall
 
 variable (safety : DefinitionSafety) in
 inductive TrEnv' : ConstMap → Bool → VEnv → Prop where
