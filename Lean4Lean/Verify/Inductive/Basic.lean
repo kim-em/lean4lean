@@ -2221,6 +2221,26 @@ structure ValidAppStatsPrefix (env : VEnv) (Us : List Name) (Δ : VLCtx)
     (decl.paramVars depth)
   paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
 
+/-- Convert the completed first-header telescope invariant into the initial
+mutual-family statistics prefix, just before the first family constant and
+index count are appended. -/
+def ValidAppStatsPrefix.beforeFirst
+    (Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
+      env Us Δ stats decl.nparams depth)
+    (hlevels : stats.levels.length = decl.uvars)
+    (huvars : Us.length = decl.uvars)
+    (hconsts : stats.indConsts = #[])
+    (hindices : stats.nindices = #[]) :
+    ValidAppStatsPrefix env Us Δ stats decl depth 0 where
+  covered := Nat.zero_le _
+  levels := hlevels
+  uvars := huvars
+  consts := by
+    simpa [hconsts] using IndConstArray.empty stats.levels
+  indices := by simp [hindices]
+  params := Hcache.complete
+  paramFVars := Hcache.paramFVars
+
 theorem ValidAppStatsPrefix.push
     (H : ValidAppStatsPrefix env Us Δ stats decl depth done)
     (hindex : done < decl.types.length)
