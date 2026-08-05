@@ -1451,6 +1451,66 @@ theorem stepPrefix.WF
     subst c'
     exact (Hloop _ type' checkedType' hchecked).bind fun _ hnext => hnext
 
+/-- Shape-producing constructor step. This is the interface used by the
+flattened constructor-prefix accumulator; all telescope details remain local
+to `Hshape`. -/
+theorem stepShape.WF
+    {decl : VInductDecl} {target : VInductiveType} {ctor' : VConstVal}
+    {envTypes : VEnv} {params : List VExpr}
+    (Hc : ContextWF c) (hidx : ctorIdx < ctors.length)
+    (hfresh : foundCtors.contains ctors[ctorIdx].name = false)
+    (Hshape : ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        ctors[ctorIdx].type checkedType type' checkedType' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe
+        ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
+        c.fuel.inductiveFuel c).WF fun _ =>
+          decl.CtorShape envTypes params target ctor')
+    (Hnext : decl.CtorShape envTypes params target ctor' →
+      (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+        ctors (ctorIdx + 1)
+        (foundCtors.insert ctors[ctorIdx].name) c).WF Q) :
+    (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+      ctors ctorIdx foundCtors c).WF Q := by
+  apply stepPrefix.WF (stats := stats) (isUnsafe := isUnsafe)
+    (targetIdx := targetIdx) (Q := Q) Hc hidx hfresh
+  intro checkedType type' checkedType' hchecked
+  exact (Hshape checkedType type' checkedType' hchecked).mono fun _ hshape =>
+    Hnext hshape
+
+theorem stepCertificate.WF
+    {decl : VInductDecl} {target : VInductiveType} {ctor' : VConstVal}
+    {envTypes : VEnv} {params : List VExpr} {done : Nat}
+    (Hc : ContextWF c)
+    (Hprefix : ConstructorPrefixCertificate Hc.venv decl envTypes params done)
+    (hdone : done < decl.ownedConstructors.length)
+    (howned : decl.ownedConstructors[done] = (target, ctor'))
+    (hidx : ctorIdx < ctors.length)
+    (hfresh : foundCtors.contains ctors[ctorIdx].name = false)
+    (Hshape : ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        ctors[ctorIdx].type checkedType type' checkedType' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe
+        ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
+        c.fuel.inductiveFuel c).WF fun _ =>
+          decl.CtorShape envTypes params target ctor')
+    (Hnext : ConstructorPrefixCertificate Hc.venv decl envTypes params
+        (done + 1) →
+      (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+        ctors (ctorIdx + 1)
+        (foundCtors.insert ctors[ctorIdx].name) c).WF Q) :
+    (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+      ctors ctorIdx foundCtors c).WF Q := by
+  apply stepShape.WF (decl := decl) (target := target) (ctor' := ctor')
+    (stats := stats) (isUnsafe := isUnsafe) (targetIdx := targetIdx)
+    (Q := Q) Hc hidx hfresh Hshape
+  intro hshape
+  have hshape' : decl.CtorShape envTypes params
+      decl.ownedConstructors[done].1 decl.ownedConstructors[done].2 := by
+    rw [howned]
+    exact hshape
+  exact Hnext (Hprefix.push hdone hshape')
+
 end checkConstructors.loopCtors
 
 namespace checkConstructors.loopTypes
