@@ -246,6 +246,11 @@ def VExpr.IsFieldApp (fieldVars : List Nat) (depth : Nat) (e : VExpr) : Prop :=
   ∃ field ∈ fieldVars, ∃ args,
     e.getAppFnArgs = (.bvar (field + depth), args)
 
+def VExpr.bvarHead? (e : VExpr) : Option Nat :=
+  match e.getAppFnArgs.1 with
+  | .bvar i => some i
+  | _ => none
+
 /-- Syntactic guard for an iota-rule right-hand side. A recursor constant may
 only occur through `recCall`, and its major premise must be an application of
 a designated constructor field. Ordinary applications cannot smuggle in a
@@ -309,6 +314,8 @@ structure VInductDecl.IotaRule (decl : VInductDecl) (block : VInductBlock)
     lhsBody = VExpr.mkApps (.const recursor.name recursorLevels)
       (leadingArgs ++ [VExpr.mkApps (.const ctor.name ctorLevels) ctorArgs])
   fieldVars : List Nat
+  fieldVars_eq : fieldVars =
+    (ctorArgs.drop decl.nparams).filterMap VExpr.bvarHead?
   fields_in_scope : ∀ field ∈ fieldVars, field < domains.length
   rhs_guarded : rhsBody.GuardedIota (block.recursors.map (·.name)) fieldVars 0
 

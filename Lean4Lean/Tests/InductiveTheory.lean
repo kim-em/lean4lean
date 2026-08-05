@@ -136,6 +136,7 @@ def enumIota : enumDecl.IotaRule enumBlock enumType enumCtor enumRule where
   ctorArgs := []
   lhs_pattern := rfl
   fieldVars := []
+  fieldVars_eq := rfl
   fields_in_scope := by simp
   rhs_guarded := .bvar
 
