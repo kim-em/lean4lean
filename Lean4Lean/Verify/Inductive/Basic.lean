@@ -1914,7 +1914,9 @@ theorem firstParameter.cacheSynthesisWF
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
         (done + 1) 0 →
-      HeaderSynthesisCertificate Hc' target next (i + 1) nindices →
+      (Hsynthesis' : HeaderSynthesisCertificate
+        Hc' target next (i + 1) nindices) →
+      Hsynthesis'.indices = [] →
       (AddInductive.checkInductiveTypes.loopType nparams
         { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
         normalized (i + 1) nindices fuel k c').WF Q) :
@@ -1934,8 +1936,9 @@ theorem firstParameter.cacheSynthesisWF
   rcases hnormalized with ⟨next, hnext, hnextEq⟩
   have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
-  exact Hrec Hc' normalized next hnext Hcache'
-    ((Hsynthesis.withParameter hindices Hdom).normalize hsourceNext)
+  let Hsynthesis' :=
+    (Hsynthesis.withParameter hindices Hdom).normalize hsourceNext
+  exact Hrec Hc' normalized next hnext Hcache' Hsynthesis' (by rfl)
 
 /-- Verification step for a common parameter of a later mutual header.  The
 executable checker reuses the cached free variable and requires the new domain
@@ -2050,6 +2053,68 @@ theorem laterParameter.runtimeStateWF
     Hc hi hnonempty hget hdom hbody hparamTy hparam hparamType
   intro heq normalized hnormalized
   exact Hrec heq normalized hnormalized Hambient
+
+/-- Recursive verifier for the first mutual header.  It follows the concrete
+fuel recursion and carries both the parameter cache and the synthesized
+abstract telescope to the terminal continuation. -/
+theorem firstHeaderSynthesisWF
+    {target : VInductiveType}
+    {α : Type} (k : Expr → AddInductive.InductiveStats → Nat →
+      AddInductive.M α) (Q : α → Prop)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hresult : ∀ {c' : AddInductive.Context}
+      {stats' : AddInductive.InductiveStats} {type' : Expr}
+      {current' : VExpr} {i' nindices' : Nat}
+      (Hc' : ContextWF c'),
+      (¬ ∃ name dom body bi, type' = .forallE name dom body bi) →
+      i' = nparams →
+      ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
+        stats' i' nindices' →
+      HeaderSynthesisCertificate Hc' target current' i' nindices' →
+      TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx type' current' →
+      (k type' stats' nindices' c').WF Q)
+    (Hc : ContextWF c)
+    (hempty : stats.indConsts.isEmpty = true)
+    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
+      stats i nindices)
+    (Hsynthesis : HeaderSynthesisCertificate Hc target current i nindices)
+    (hphase : i < nparams → Hsynthesis.indices = [] ∧ nindices = 0)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats type i nindices
+      fuel k c).WF Q := by
+  induction fuel generalizing c stats type current i nindices with
+  | zero => exact zero.WF
+  | succ fuel ih =>
+    by_cases hforall : ∃ name dom body bi,
+        type = .forallE name dom body bi
+    · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+      cases htype with
+      | forallE hdomType hbodyType hdom hbody =>
+        rcases hconsume c Hc hdom hdomType with ⟨consumedDom, Hdom⟩
+        by_cases hi : i < nparams
+        · rcases hphase hi with ⟨hindices, hnindices⟩
+          subst nindices
+          apply firstParameter.cacheSynthesisWF
+            (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
+            Hc hi hempty (by simpa using Hcache) Hsynthesis hindices
+            Hdom hbody
+          intro c' Hc' normalized next hnext Hcache' Hsynthesis' hindices'
+          apply ih Hc' (by simpa using hempty) Hcache' Hsynthesis'
+          · intro _
+            exact ⟨hindices', rfl⟩
+          · exact hnext
+        · apply index.cacheSynthesisWF
+            (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
+            Hc hi Hcache Hsynthesis Hdom hbody
+          intro c' Hc' normalized next hnext Hcache' Hsynthesis'
+          apply ih Hc' hempty Hcache' Hsynthesis'
+          · intro hlt
+            exact False.elim (hi hlt)
+          · exact hnext
+    · by_cases hi : i = nparams
+      · exact result.WF hforall hi
+          (Hresult Hc hforall hi Hcache Hsynthesis htype)
+      · exact parameterMismatch.WF hforall hi
 
 end checkInductiveTypes.loopType
 
