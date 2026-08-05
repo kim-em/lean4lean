@@ -100,5 +100,21 @@ theorem StagedBlock.abstract_recursors
     H.venvCtors.addConsts (recursors.map Prod.snd) = some outVEnv :=
   H.recursorsAdded.abstract
 
+/-- The first executable check on every source inductive header is an ordinary
+type-checker run. At an empty local context its successful result already
+provides both the source translation and the abstract typing derivation; later
+stages must transport the same statement through the common-parameter local
+context. -/
+theorem checkType_closed.WF
+    (hvalid : CheckingEnv.Valid safety env venv)
+    (hclosed : e.FVarsIn fun _ => False) :
+    (TypeChecker.M.run env safety {} lparams fuel (TypeChecker.checkType e)).WF
+      fun ty => ∃ e' ty', TrTyping venv lparams [] e ty e' ty' := by
+  have hfvars : e.FVarsIn fun fv => fv ∈ VLCtx.fvars ([] : VLCtx) :=
+    hclosed.mono fun _ h => False.elim h
+  exact TypeChecker.M.WF.runCheckingValid
+    (wf := hvalid) (lparams := lparams) (fuel := fuel)
+    (TypeChecker.checkType.WF hfvars)
+
 end VerifyInductive
 end Lean4Lean
