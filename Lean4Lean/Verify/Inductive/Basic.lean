@@ -199,6 +199,13 @@ theorem List.Forall₂.length_eq'
   | nil => rfl
   | cons _ _ ih => simp [ih]
 
+theorem List.Forall₂.append'
+    (H₁ : List.Forall₂ R as bs) (H₂ : List.Forall₂ R as' bs') :
+    List.Forall₂ R (as ++ as') (bs ++ bs') := by
+  induction H₁ with
+  | nil => exact H₂
+  | cons h _ ih => exact .cons h ih
+
 theorem TrInductDecl.types_length
     (H : TrInductDecl env lparams nparams types isUnsafe decl) :
     types.length = decl.types.length := by
@@ -228,6 +235,57 @@ theorem TrInductiveType.ctorAt
     TrSourceConst envTypes lparams type.ctors[i].name type.ctors[i].type
       target.ctors[i] :=
   Lean4Lean.VerifyInductive.List.Forall₂.getElem H.ctors i hsource htarget
+
+def ownedConstructors
+    (types : List InductiveType) : List (InductiveType × Constructor) :=
+  types.flatMap fun type => type.ctors.map (type, ·)
+
+def TrOwnedConstructor (env envTypes : VEnv) (lparams : List Name) :
+    (InductiveType × Constructor) →
+      (VInductiveType × VConstVal) → Prop
+  | (type, ctor), (target, ctor') =>
+    TrInductiveType env envTypes lparams type target ∧
+      TrSourceConst envTypes lparams ctor.name ctor.type ctor'
+
+theorem TrInductiveType.ownedConstructors
+    (H : TrInductiveType env envTypes lparams type target) :
+    List.Forall₂ (TrOwnedConstructor env envTypes lparams)
+      (type.ctors.map (type, ·)) (target.ctors.map (target, ·)) := by
+  have aux : ∀ {ctors ctors'},
+      List.Forall₂ (fun ctor ctor' =>
+        TrSourceConst envTypes lparams ctor.name ctor.type ctor')
+        ctors ctors' →
+      List.Forall₂ (TrOwnedConstructor env envTypes lparams)
+        (ctors.map (type, ·)) (ctors'.map (target, ·)) := by
+    intro ctors ctors' hctors
+    induction hctors with
+    | nil => exact .nil
+    | cons h _ ih => exact .cons ⟨H, h⟩ ih
+  exact aux H.ctors
+
+theorem TrInductDecl.ownedConstructors
+    (H : TrInductDecl env lparams nparams types isUnsafe decl) :
+    ∃ envTypes,
+      env.addConsts decl.typeConstants = some envTypes ∧
+      List.Forall₂ (TrOwnedConstructor env envTypes lparams)
+        (Lean4Lean.VerifyInductive.ownedConstructors types)
+        decl.ownedConstructors := by
+  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypesAdded,
+    hctorsAdded, htypes⟩
+  refine ⟨envTypes, htypesAdded, ?_⟩
+  have aux : ∀ {types targets},
+      List.Forall₂ (TrInductiveType env envTypes lparams) types targets →
+      List.Forall₂ (TrOwnedConstructor env envTypes lparams)
+        (Lean4Lean.VerifyInductive.ownedConstructors types)
+        (targets.flatMap fun target => target.ctors.map (target, ·)) := by
+    intro types targets htypes
+    induction htypes with
+    | nil => exact .nil
+    | cons h _ ih =>
+      simpa [Lean4Lean.VerifyInductive.ownedConstructors] using
+        Lean4Lean.VerifyInductive.List.Forall₂.append'
+          (Lean4Lean.VerifyInductive.TrInductiveType.ownedConstructors h) ih
+  simpa [VInductDecl.ownedConstructors] using aux htypes
 
 /-- Indexed output certificate for one recursor per mutual-family member. -/
 structure RecursorCertificate (decl : VInductDecl)
