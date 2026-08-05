@@ -154,7 +154,9 @@ inductive VInductDecl.CtorTailWF (env : VEnv) (decl : VInductDecl)
     env.HasType decl.uvars ctx dom (.sort fieldLevel) →
     (target.resultLevel = .zero ∨ fieldLevel ≤ target.resultLevel) →
     (decl.isUnsafe = true ∨ decl.Positive env ctx depth dom) →
-    decl.CtorTailWF env target (dom :: ctx) (depth + 1) body →
+    env.IsDefEq decl.uvars ctx dom checkedDom (.sort checkedLevel) →
+    env.IsDefEq decl.uvars (dom :: ctx) body checkedBody bodyType →
+    decl.CtorTailWF env target (checkedDom :: ctx) (depth + 1) checkedBody →
     decl.CtorTailWF env target ctx depth (.forallE dom body)
 
 /-- Shape of one inductive type after normalization: common parameters,

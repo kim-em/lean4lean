@@ -1847,7 +1847,7 @@ theorem safeField.refines
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotations bi }).WF
           (fun _ => decl.CtorTailWF Hc.venv target
-            (sourceDom' :: ctorCtx) (depth + 1) sourceBody')) :
+            (consumedDom' :: ctorCtx) (depth + 1) body'')) :
     (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
       (.forallE name dom body bi) i (fuel + 1) c).WF
       (fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
@@ -1866,9 +1866,14 @@ theorem safeField.refines
     Hc.mlctx_wf.tr.wf.toCtx hdomainEq.symm
   exact (Hrec fieldType' fieldLevel fieldLevel' hfield hlevel htyped
     hbound hpositive body'' hbodyEq hopened).mono fun _ htail =>
-      .field (by simpa [huvars, hctxEq] using hsourceTyped)
+    by
+      rcases Hdom.source_defeq with ⟨checkedLevel, hdomEq⟩
+      rcases hbodyEq with ⟨bodyType, hbodyEq⟩
+      exact .field (by simpa [huvars, hctxEq] using hsourceTyped)
         (Hbound fieldLevel fieldLevel' hlevel hbound)
-        (Or.inr hpositive) htail
+        (Or.inr hpositive)
+        (by simpa [huvars, hctxEq] using hdomEq)
+        (by simpa [huvars, hctxEq] using hbodyEq) htail
 
 theorem unsafeField.refines
     {decl : VInductDecl} {target : VInductiveType}
@@ -1907,7 +1912,7 @@ theorem unsafeField.refines
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotations bi }).WF
           (fun _ => decl.CtorTailWF Hc.venv target
-            (sourceDom' :: ctorCtx) (depth + 1) sourceBody')) :
+            (consumedDom' :: ctorCtx) (depth + 1) body'')) :
     (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
       (.forallE name dom body bi) i (fuel + 1) c).WF
       (fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
@@ -1925,9 +1930,100 @@ theorem unsafeField.refines
     Hc.mlctx_wf.tr.wf.toCtx hdomainEq.symm
   exact (Hrec fieldType' fieldLevel fieldLevel' hfield hlevel htyped
     hbound body'' hbodyEq hopened).mono fun _ htail =>
-      .field (by simpa [huvars, hctxEq] using hsourceTyped)
+    by
+      rcases Hdom.source_defeq with ⟨checkedLevel, hdomEq⟩
+      rcases hbodyEq with ⟨bodyType, hbodyEq⟩
+      exact .field (by simpa [huvars, hctxEq] using hsourceTyped)
         (Hbound fieldLevel fieldLevel' hlevel hbound)
-        (Or.inl hunsafe) htail
+        (Or.inl hunsafe)
+        (by simpa [huvars, hctxEq] using hdomEq)
+        (by simpa [huvars, hctxEq] using hbodyEq) htail
+
+/-- Starting after the common constructor parameters, the complete executable
+constructor-tail traversal builds `CtorTailWF`.  The remaining level-order
+premise is isolated explicitly until `Level.geq` is connected to `VLevel.LE`. -/
+theorem tailRefines
+    {decl : VInductDecl} {target : VInductiveType}
+    {depth : Nat} {type' : VExpr}
+    (Hc : ContextWF c)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl depth)
+    (hi : targetIdx < decl.types.length)
+    (htarget : decl.types[targetIdx] = target)
+    (hparamAt : stats.params[i]? = none)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+    (hpositivity : ∀ {c : AddInductive.Context} {depth posIdx : Nat}
+      {type : Expr} {type' : VExpr} (Hc : ContextWF c),
+      checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+        Hc.mlctx.vlctx stats decl depth →
+      checkPositivityStep.VLCtx.NoIndConsts
+        (decl.types.map (·.name)) Hc.mlctx.vlctx →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type' →
+      (AddInductive.checkPositivity stats type ctor posIdx c).WF
+        (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type'))
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type') :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      type i fuel c).WF
+      (fun _ => decl.CtorTailWF Hc.venv target Hc.mlctx.vlctx.toCtx
+        depth type') := by
+  induction fuel generalizing c type type' depth i with
+  | zero => exact zero.WF
+  | succ fuel ih =>
+    by_cases hforall : ∃ name dom body bi,
+        type = .forallE name dom body bi
+    · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+      cases htr with
+      | forallE hdomType _ hdom hbody =>
+        rcases hconsume c Hc hdom hdomType with ⟨consumedDom', Hdom⟩
+        have hparamNext : stats.params[i + 1]? = none := by
+          rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
+          omega
+        cases isUnsafe with
+        | false =>
+          have Hpos := hpositivity (posIdx := i) Hc Hstats hctx
+            (hdom.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+          exact safeField.refines Hc hparamAt Hdom hbody Hstats.uvars rfl
+            Hpos hbound fun _ _ _ _ _ _ _ _ body'' _ hopened => by
+              let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+                Hdom.consumed Hdom.isType
+              have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
+                Hc Hdom.consumed Hdom.isType
+              have hctx' : checkPositivityStep.VLCtx.NoIndConsts
+                  (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
+                apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
+                rfl
+              exact ih Hc' Hstats' hparamNext hctx' hbound hopened
+        | true =>
+          exact unsafeField.refines Hc hparamAt Hdom hbody Hstats.uvars rfl
+            (hunsafe rfl) hbound fun _ _ _ _ _ _ _ body'' _ hopened => by
+              let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+                Hdom.consumed Hdom.isType
+              have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
+                Hc Hdom.consumed Hdom.isType
+              have hctx' : checkPositivityStep.VLCtx.NoIndConsts
+                  (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
+                apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
+                rfl
+              exact ih Hc' Hstats' hparamNext hctx' hbound hopened
+    · cases hvalid : AddInductive.isValidIndAppIdx stats type targetIdx
+      · exact invalidResult.WF hforall hvalid
+      · rcases htr.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf with
+          ⟨exprType, htype⟩
+        subst target
+        exact result.refines Hstats hi htr hforall hvalid hlit hctx hproj
+          (by simpa [Hstats.uvars] using htype)
 
 end checkConstructors.loopCtor
 
@@ -2065,6 +2161,41 @@ theorem checkPositivity.refines
       (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
   apply checkPositivity.WF
   exact checkPositivity.loop.refines Hc Hstats hconsume hlit hctx hproj htype
+
+/-- Constructor-tail refinement with the verified positivity traversal plugged
+into every safe field. -/
+theorem checkConstructors.loopCtor.tailRefinesFull
+    {decl : VInductDecl} {target : VInductiveType}
+    {depth : Nat} {type' : VExpr}
+    (Hc : ContextWF c)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl depth)
+    (hi : targetIdx < decl.types.length)
+    (htarget : decl.types[targetIdx] = target)
+    (hparamAt : stats.params[i]? = none)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Hc.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type') :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      type i fuel c).WF
+      (fun _ => decl.CtorTailWF Hc.venv target Hc.mlctx.vlctx.toCtx
+        depth type') := by
+  apply checkConstructors.loopCtor.tailRefines Hc Hstats hi htarget
+    hparamAt hconsume hlit hctx hproj hunsafe hbound
+  · intro c' depth' posIdx type' type'' Hc' Hstats' hctx' htype'
+    exact checkPositivity.refines Hc' Hstats' hconsume hlit hctx' hproj htype'
+  · exact htr
 
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
