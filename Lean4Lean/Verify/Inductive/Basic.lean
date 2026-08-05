@@ -1525,6 +1525,47 @@ theorem getIIndices.declared_index_arity
   have hget := congrArg (fun xs => xs[i]?) H.indices
   simpa [Array.getElem!_eq_getD, hi, hlen] using hget
 
+namespace mkRecRules.loopU
+
+/-- The iota RHS generator produces exactly one recursive-result term for
+each field selected by `loopCtorArgs`. The contents of each term are verified
+separately; this theorem fixes the cardinality and continuation boundary. -/
+theorem resultCount
+    (hi : i ≤ u.size) (hv : v.size = i)
+    (Hk : ∀ v c, v.size = u.size → (k v c).WF Q) :
+    (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
+      u i v k c).WF Q := by
+  rw [AddInductive.mkRecRules.loopU.eq_1]
+  by_cases hnext : i < u.size
+  · rw [dif_pos hnext]
+    have hval :
+        ((AddInductive.mkRecInfos.loopUArgs u[i] (fun uiTy xs =>
+          let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+          let val := Expr.const (Lean.mkRecName indTypes[itIdx]!.name) lvls
+          let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params)
+            motives) minors) itIndices
+          return (← getLCtx).mkLambda xs <| val.app (mkAppN u[i] xs)) c).WF
+          (fun _ => True)) := by
+      intro _ _
+      trivial
+    refine hval.bind fun val _ => ?_
+    exact resultCount (indTypes := indTypes) (stats := stats)
+      (motives := motives) (minors := minors) (lvls := lvls)
+      (u := u) (i := i + 1) (v := v.push val) (k := k) (c := c)
+      (by omega) (by simp [hv]) Hk
+  · rw [dif_neg hnext]
+    apply Hk
+    omega
+termination_by u.size - i
+
+end mkRecRules.loopU
+
+theorem mkRecRules.loopU.resultCountFromEmpty
+    (Hk : ∀ v c, v.size = u.size → (k v c).WF Q) :
+    (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
+      u 0 #[] k c).WF Q :=
+  mkRecRules.loopU.resultCount (Nat.zero_le _) rfl Hk
+
 /-- A validated concrete parameter argument translates to the corresponding
 abstract de Bruijn parameter.  The fvar-shape invariant is what upgrades
 structural `Expr` equality to exact syntax translation here. -/
