@@ -1582,10 +1582,11 @@ theorem validApplication.refines
 
 theorem validApplication.sourceRefines
     {decl : VInductDecl} {depth : Nat} {type' : VExpr}
-    (Hstats : ValidAppStatsWF env Us Δ stats decl depth)
+    (Hstats : checkPositivityStep.ValidAppStatsWF env Us Δ stats decl depth)
     (htr : TrExprS env Us Δ type type')
-    (hlit : LiteralDisjoint stats.indConsts)
-    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Δ)
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
@@ -1704,6 +1705,39 @@ theorem forallE.refines
     .forallE hdomNo hpositive
 
 end checkPositivityStep
+
+namespace checkConstructors.loopCtor
+
+/-- The terminal constructor target check now discharges the declarative
+`CtorTailWF.result` rule, rather than returning an unconstrained success. -/
+theorem result.refines
+    {decl : VInductDecl} {depth : Nat} {result type' exprType : VExpr}
+    {ctorCtx : List VExpr}
+    (Hstats : checkPositivityStep.ValidAppStatsWF env Us Δ stats decl depth)
+    (hi : targetIdx < decl.types.length)
+    (htr : TrExprS env Us Δ type type')
+    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
+    (hvalid : AddInductive.isValidIndAppIdx stats type targetIdx = true)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : checkPositivityStep.VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hdefeq : env.IsDefEq decl.uvars ctorCtx result type' exprType) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      type i (fuel + 1) c).WF
+      (fun _ => decl.CtorTailWF env decl.types[targetIdx]
+        ctorCtx depth result) := by
+  exact checkConstructors.loopCtor.result.WF
+    (Q := fun _ => decl.CtorTailWF env decl.types[targetIdx]
+      ctorCtx depth result)
+    hforall hvalid (.result
+      (checkPositivityStep.isValidIndAppIdx.validIndAppAt
+        Hstats hi htr hvalid (Or.inr rfl) hlit hctx hproj)
+      hdefeq)
+
+end checkConstructors.loopCtor
 
 namespace checkPositivity.loop
 
