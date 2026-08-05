@@ -58,6 +58,26 @@ where
 @[simp] theorem VExpr.getAppFnArgs_const :
     getAppFnArgs (.const name levels) = (.const name levels, []) := rfl
 
+private theorem VExpr.getAppFnArgs.go_append
+    (e : VExpr) (pre suffix : List VExpr) :
+    getAppFnArgs.go e (pre ++ suffix) =
+      let (fn, args) := getAppFnArgs.go e pre
+      (fn, args ++ suffix) := by
+  induction e generalizing pre with
+  | app fn arg ihFn _ =>
+    simpa only [getAppFnArgs.go, List.cons_append] using
+      ihFn (arg :: pre)
+  | _ => simp [getAppFnArgs.go]
+
+@[simp] theorem VExpr.getAppFnArgs_app :
+    getAppFnArgs (.app fn arg) =
+      let (head, args) := fn.getAppFnArgs
+      (head, args ++ [arg]) := by
+  change getAppFnArgs.go fn [arg] =
+    let (head, args) := getAppFnArgs.go fn []
+    (head, args ++ [arg])
+  simpa using getAppFnArgs.go_append fn [] [arg]
+
 def VExpr.containsAnyConst (names : List Name) : VExpr → Bool
   | .bvar _ | .sort _ => false
   | .const name _ => names.contains name
