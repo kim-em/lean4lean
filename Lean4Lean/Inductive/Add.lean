@@ -194,22 +194,26 @@ where
     withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
     loop (body.instantiate1 arg) fuel
 
+def checkPositivityStep (stats : InductiveStats) (t : Expr)
+    (ctor : Name) (idx : Nat) (recur : Expr → M Unit) : M Unit := do
+  if !hasIndOcc stats.indConsts t then return
+  if let .forallE name dom body bi := t then
+    if hasIndOcc stats.indConsts dom then
+      throw <| .other s!"arg #{idx + 1} of '{ctor}' \
+        has a non positive occurrence of the datatypes being declared"
+    withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+      recur (body.instantiate1 arg)
+  else if let none := isValidIndApp? stats t then
+    throw <| .other s!"arg #{idx + 1} of '{ctor}' \
+      has a non valid occurrence of the datatypes being declared"
+
 def checkPositivity (stats : InductiveStats) (t : Expr) (ctor : Name) (idx : Nat) :
     M Unit := do loop t (← readThe Context).fuel.inductiveFuel where
   loop t
   | 0 => throw .deepRecursion
   | fuel+1 => do
     let t ← whnf t
-    if !hasIndOcc stats.indConsts t then return
-    if let .forallE name dom body bi := t then
-      if hasIndOcc stats.indConsts dom then
-        throw <| .other s!"arg #{idx + 1} of '{ctor}' \
-          has a non positive occurrence of the datatypes being declared"
-      withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
-      loop (body.instantiate1 arg) fuel
-    else if let none := isValidIndApp? stats t then
-      throw <| .other s!"arg #{idx + 1} of '{ctor}' \
-        has a non valid occurrence of the datatypes being declared"
+    checkPositivityStep stats t ctor idx fun body => loop body fuel
 
 namespace checkConstructors
 
