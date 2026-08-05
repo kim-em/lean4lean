@@ -249,21 +249,41 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
 
 end checkConstructors
 
+namespace checkConstructors
+
+def loopCtors (stats : InductiveStats) (isUnsafe : Bool)
+    (targetIdx : Nat) (ctors : List Constructor) (ctorIdx : Nat)
+    (foundCtors : NameSet) : M Unit := do
+  if h : ctorIdx < ctors.length then
+    let ctor := ctors[ctorIdx]
+    let n := ctor.name
+    if foundCtors.contains n then
+      throw <| .other s!"duplicate constructor name '{n}'"
+    let foundCtors := foundCtors.insert n
+    let t := ctor.type
+    _ ← checkClosedType n t
+    checkConstructors.loopCtor stats isUnsafe n targetIdx t 0
+      (← readThe Context).fuel.inductiveFuel
+    loopCtors stats isUnsafe targetIdx ctors (ctorIdx + 1) foundCtors
+  else
+    pure ()
+termination_by ctors.length - ctorIdx
+
+def loopTypes (indTypes : Array InductiveType)
+    (stats : InductiveStats) (isUnsafe : Bool) (targetIdx : Nat) : M Unit := do
+  if h : targetIdx < indTypes.size then
+    loopCtors stats isUnsafe targetIdx indTypes[targetIdx].ctors 0 {}
+    loopTypes indTypes stats isUnsafe (targetIdx + 1)
+  else
+    pure ()
+termination_by indTypes.size - targetIdx
+
+end checkConstructors
+
 def checkConstructors (indTypes : Array InductiveType)
     (stats : InductiveStats) (isUnsafe : Bool) : M Unit := do
-  let env ← getEnv
-  for h : idx in [:indTypes.size] do
-    let indType := indTypes[idx]
-    let mut foundCtors : NameSet := {}
-    for ctor in indType.ctors do
-      let n := ctor.name
-      if foundCtors.contains n then
-        throw <| .other s!"duplicate constructor name '{n}'"
-      foundCtors := foundCtors.insert n
-      let t := ctor.type
-      _ ← checkClosedType n t
-      checkConstructors.loopCtor stats isUnsafe n idx t 0
-        (← readThe Context).fuel.inductiveFuel
+  let _ ← getEnv
+  checkConstructors.loopTypes indTypes stats isUnsafe 0
 
 def declareConstructors (stats : InductiveStats)
     (indTypes : Array InductiveType) (isUnsafe : Bool) : M Environment :=

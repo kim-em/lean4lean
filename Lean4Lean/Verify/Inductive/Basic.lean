@@ -1405,6 +1405,77 @@ theorem stepPrefix.WF
 
 end checkInductiveTypes.loopInd
 
+namespace checkConstructors.loopCtors
+
+theorem result.WF
+    (hidx : ¬ ctorIdx < ctors.length) (hQ : Q ()) :
+    (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+      ctors ctorIdx foundCtors c).WF Q := by
+  rw [AddInductive.checkConstructors.loopCtors, dif_neg hidx]
+  exact Except.WF.pure hQ
+
+/-- One constructor-loop iteration up to the already verified telescope
+checker. The continuation receives the closed source translation before
+choosing the public `CtorShape` refinement. -/
+theorem stepPrefix.WF
+    (Hc : ContextWF c) (hidx : ctorIdx < ctors.length)
+    (hfresh : foundCtors.contains ctors[ctorIdx].name = false)
+    (Hloop : ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        ctors[ctorIdx].type checkedType type' checkedType' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe
+        ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
+        c.fuel.inductiveFuel c).WF fun _ =>
+      (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+        ctors (ctorIdx + 1)
+        (foundCtors.insert ctors[ctorIdx].name) c).WF Q) :
+    (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+      ctors ctorIdx foundCtors c).WF Q := by
+  rw [AddInductive.checkConstructors.loopCtors, dif_pos hidx]
+  rw [if_neg (by simpa using hfresh)]
+  exact (checkClosedType.WF Hc).bind fun _ hchecked => by
+    rcases hchecked with ⟨type', checkedType', hchecked⟩
+    change ((read : AddInductive.M AddInductive.Context) c >>= fun c' =>
+      ((AddInductive.checkConstructors.loopCtor stats isUnsafe
+          ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
+          c'.fuel.inductiveFuel >>= fun _ =>
+        AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+        ctors (ctorIdx + 1)
+          (foundCtors.insert ctors[ctorIdx].name)) : AddInductive.M Unit) c).WF Q
+    have hread : ((read : AddInductive.M AddInductive.Context) c).WF
+        (fun c' => c' = c) := by
+      intro c' h
+      cases h
+      rfl
+    refine hread.bind fun c' hc' => ?_
+    subst c'
+    exact (Hloop _ type' checkedType' hchecked).bind fun _ hnext => hnext
+
+end checkConstructors.loopCtors
+
+namespace checkConstructors.loopTypes
+
+theorem result.WF
+    (hidx : ¬ targetIdx < indTypes.size) (hQ : Q ()) :
+    (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
+      targetIdx c).WF Q := by
+  rw [AddInductive.checkConstructors.loopTypes, dif_neg hidx]
+  exact Except.WF.pure hQ
+
+theorem step.WF
+    (hidx : targetIdx < indTypes.size)
+    (Hctors :
+      (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+        indTypes[targetIdx].ctors 0 {} c).WF fun _ =>
+      (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
+        (targetIdx + 1) c).WF Q) :
+    (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
+      targetIdx c).WF Q := by
+  rw [AddInductive.checkConstructors.loopTypes, dif_pos hidx]
+  exact Hctors.bind fun _ hnext => hnext
+
+end checkConstructors.loopTypes
+
 namespace checkConstructors.loopCtor
 
 theorem zero.WF :
