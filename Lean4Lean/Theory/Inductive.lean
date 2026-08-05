@@ -178,6 +178,33 @@ source typing with checks of generated artifacts. -/
 def VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop :=
   decl.SourceWF env ∧ decl.FormationWF env
 
+theorem VInductDecl.SourceWF.originalTypes
+    {env : VEnv} {decl : VInductDecl}
+    (H : decl.SourceWF env) :
+    ∀ type ∈ decl.types, type.toVConstant.WF env := by
+  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypes, hctors, hwf, _⟩
+  exact hwf
+
+/-- In particular, source constructor types are checked before nested lowering.
+This is the abstract obligation whose absence exposed the erased-parameter
+kernel bug: a proof about generated auxiliary constructors cannot discharge it. -/
+theorem VInductDecl.SourceWF.originalConstructors
+    {env : VEnv} {decl : VInductDecl}
+    (H : decl.SourceWF env) :
+    ∃ envTypes,
+      env.addConsts decl.typeConstants = some envTypes ∧
+      ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes := by
+  rcases H with ⟨_, _, _, _, envTypes, envCtors, htypes, hctors, _, hwf⟩
+  exact ⟨envTypes, htypes, hwf⟩
+
+theorem VInductDecl.WF.originalConstructors
+    {env : VEnv} {decl : VInductDecl}
+    (H : decl.WF env) :
+    ∃ envTypes,
+      env.addConsts decl.typeConstants = some envTypes ∧
+      ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes :=
+  H.1.originalConstructors
+
 /-- Install a compiled block in dependency order. -/
 def VInductBlock.install (env : VEnv) (block : VInductBlock) : Option VEnv := do
   let env ← env.addConsts block.types
