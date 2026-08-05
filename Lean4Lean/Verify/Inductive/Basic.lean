@@ -1884,6 +1884,7 @@ theorem index.cacheSynthesisWF
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (_hlparams : c'.lparams = c.lparams)
       (normalized : Expr) (next : VExpr),
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
@@ -1907,7 +1908,7 @@ theorem index.cacheSynthesisWF
   rcases hnormalized with ⟨next, hnext, hnextEq⟩
   have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
-  exact Hrec Hc' normalized next hnext Hcache'
+  exact Hrec Hc' rfl normalized next hnext Hcache'
     ((Hsynthesis.withIndex Hdom).normalize hsourceNext)
 
 /-- Later-header index step carrying both the translated parameter cache and
@@ -2131,6 +2132,7 @@ theorem firstParameter.cacheSynthesisWF
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (_hlparams : c'.lparams = c.lparams)
       (normalized : Expr) (next : VExpr),
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
@@ -2160,7 +2162,7 @@ theorem firstParameter.cacheSynthesisWF
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
   let Hsynthesis' :=
     (Hsynthesis.withParameter hindices Hdom).normalize hsourceNext
-  exact Hrec Hc' normalized next hnext Hcache' Hsynthesis' (by rfl)
+  exact Hrec Hc' rfl normalized next hnext Hcache' Hsynthesis' (by rfl)
 
 /-- Verification step for a common parameter of a later mutual header.  The
 executable checker reuses the cached free variable and requires the new domain
@@ -2288,6 +2290,7 @@ theorem firstHeaderSynthesisWF
       {stats' : AddInductive.InductiveStats} {type' : Expr}
       {current' : VExpr} {i' nindices' : Nat}
       (Hc' : ContextWF c'),
+      c'.lparams = Us →
       stats'.indConsts.isEmpty = true →
       (¬ ∃ name dom body bi, type' = .forallE name dom body bi) →
       i' = nparams →
@@ -2297,6 +2300,7 @@ theorem firstHeaderSynthesisWF
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx type' current' →
       (k type' stats' nindices' c').WF Q)
     (Hc : ContextWF c)
+    (hlparams : c.lparams = Us)
     (hempty : stats.indConsts.isEmpty = true)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats i nindices)
@@ -2321,22 +2325,23 @@ theorem firstHeaderSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi hempty (by simpa using Hcache) Hsynthesis hindices
             Hdom hbody
-          intro c' Hc' normalized next hnext Hcache' Hsynthesis' hindices'
-          apply ih Hc' (by simpa using hempty) Hcache' Hsynthesis'
+          intro c' Hc' hlparams' normalized next hnext Hcache' Hsynthesis' hindices'
+          apply ih Hc' (hlparams'.trans hlparams) (by simpa using hempty)
+            Hcache' Hsynthesis'
           · intro _
             exact ⟨hindices', rfl⟩
           · exact hnext
         · apply index.cacheSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi Hcache Hsynthesis Hdom hbody
-          intro c' Hc' normalized next hnext Hcache' Hsynthesis'
-          apply ih Hc' hempty Hcache' Hsynthesis'
+          intro c' Hc' hlparams' normalized next hnext Hcache' Hsynthesis'
+          apply ih Hc' (hlparams'.trans hlparams) hempty Hcache' Hsynthesis'
           · intro hlt
             exact False.elim (hi hlt)
           · exact hnext
     · by_cases hi : i = nparams
       · exact result.WF hforall hi
-          (Hresult Hc hempty hforall hi Hcache Hsynthesis htype)
+          (Hresult Hc hlparams hempty hforall hi Hcache Hsynthesis htype)
       · exact parameterMismatch.WF hforall hi
 
 end checkInductiveTypes.loopType
@@ -2883,6 +2888,49 @@ theorem firstResult.synthesizesHeader
     (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq
       Hsynthesis.context)
 
+/-- Initialize the ordered mutual metadata prefix from the first successful
+header result. -/
+theorem firstResult.initializesPrefix
+    {skeleton : VInductDeclSkeleton} {current : VExpr}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hempty : stats.indConsts.isEmpty = true)
+    (hindex : 0 < skeleton.types.length)
+    (Hsynthesis : checkInductiveTypes.loopType.HeaderSynthesisCertificate
+      Hc skeleton.types[0] current skeleton.nparams nindices)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current)
+    (huvars : c.lparams.length = skeleton.uvars)
+    (Hrec : ∀ resultSort resultLevel,
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc.venv
+        skeleton Hsynthesis.params resultLevel [(nindices, resultLevel)] 1 →
+      checkInductiveTypes.loopType.AmbientParamContext
+        Hc Hsynthesis.params Hsynthesis.indices.length →
+      (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+        (dIdx + 1)
+        (updatedStats stats c.lctx resultSort true nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  apply firstResult.synthesizesHeader k Q Hc hempty Hsynthesis htype
+    huvars
+  intro resultSort resultLevel hofLevel Hheader Hambient
+  exact Hrec resultSort resultLevel hofLevel
+    (checkInductiveTypes.loopType.SynthesizedHeaderPrefix.first
+      hindex Hheader) Hambient
+
 /-- Post-telescope continuation for later mutual headers.  A mismatched result
 universe throws; a successful path records the checked equivalence before
 updating the per-type arrays. -/
@@ -3073,6 +3121,148 @@ theorem stepPrefix.WF
     rcases hchecked with ⟨type', checkedType', hchecked⟩
     exact (whnfInContext.WF Hc hchecked.2.1).bind fun normalized hnormalized =>
       Hloop checkedType type' checkedType' hchecked normalized hnormalized
+
+/-- Metadata-free declaration-facing header step.  This is the entry point
+used before `checkInductiveTypes` has recovered enough information to build a
+`VInductDecl`. -/
+theorem stepPrefix.refinesSkeleton
+    {skeleton : VInductDeclSkeleton}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams nparams
+      indTypes.toList isUnsafe skeleton)
+    (hidx : dIdx < indTypes.size)
+    (Hloop : ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        indTypes[dIdx].type checkedType type' checkedType' →
+      ∀ envTypes,
+        Hc.venv.addConsts skeleton.typeConstants = some envTypes →
+        ∀ target,
+        skeleton.types[dIdx]? = some target →
+        TrInductiveTypeSkeleton Hc.venv envTypes c.lparams
+          indTypes[dIdx] target →
+      ∀ normalized,
+        TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
+        (AddInductive.checkInductiveTypes.loopType nparams stats normalized 0 0
+          c.fuel.inductiveFuel (fun type stats nindices =>
+            show AddInductive.M _ from do
+            let type ← TypeChecker.ensureSort type
+            let mut stats := stats
+            let resultLevel := type.sortLevel!
+            if stats.indConsts.isEmpty then
+              let lctx := (← read).lctx
+              stats := { stats with
+                lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+            else if !resultLevel.isEquiv stats.resultLevel then
+              throw <| .other
+                "mutually inductive types must live in the same universe"
+            stats := { stats with
+              nindices := stats.nindices.push nindices
+              indConsts := stats.indConsts.push
+                (.const indTypes[dIdx].name stats.levels) }
+            AddInductive.checkInductiveTypes.loopInd nparams indTypes
+              (dIdx + 1) stats k) c).WF Q) :
+    (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx stats k c).WF Q := by
+  have htarget : dIdx < skeleton.types.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+    simpa using hidx
+  rcases Lean4Lean.VerifyInductive.TrInductDeclSkeleton.typeAt Hdecl dIdx
+      (by simpa using hidx) htarget with
+    ⟨envTypes, htypes, htargetTr⟩
+  apply stepPrefix.WF (nparams := nparams) (stats := stats) (k := k)
+    (Q := Q) Hc hidx
+  intro checkedType type' checkedType' hchecked normalized hnormalized
+  exact Hloop checkedType type' checkedType' hchecked envTypes htypes
+    skeleton.types[dIdx] (by simp [htarget]) (by simpa using htargetTr)
+    normalized hnormalized
+
+/-- Complete first iteration of the executable mutual-header loop, from the
+closed source check through initialization of the ordered synthesized
+metadata prefix. -/
+theorem firstStep.initializesPrefix
+    {skeleton : VInductDeclSkeleton}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton)
+    (hctx : Hc.mlctx.vlctx = [])
+    (hidx : 0 < indTypes.size)
+    (hempty : stats.indConsts.isEmpty = true)
+    (hparams : stats.params = #[])
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hrec : ∀ {c' : AddInductive.Context}
+      {stats' : AddInductive.InductiveStats} {nindices : Nat}
+      {resultSort : Level} {resultLevel : VLevel} {params : List VExpr},
+      (Hc' : ContextWF c') →
+      c'.lparams = c.lparams →
+      checkInductiveTypes.loopType.ParameterCachePrefix
+        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats'
+        skeleton.nparams nindices →
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc'.venv
+        skeleton params resultLevel [(nindices, resultLevel)] 1 →
+      checkInductiveTypes.loopType.AmbientParamContext
+        Hc' params nindices →
+      (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes 1
+        (updatedStats stats' c'.lctx resultSort true nindices
+          indTypes[0].name) k c').WF Q) :
+    (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes 0
+      stats k c).WF Q := by
+  have hskeletonIdx : 0 < skeleton.types.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+    simpa using hidx
+  apply stepPrefix.refinesSkeleton (k := k) (Q := Q) Hc Hdecl hidx
+  intro checkedType type' checkedType' hchecked envTypes htypes
+    target htarget Htarget normalized hnormalized
+  have htargetEq : target = skeleton.types[0] := by
+    symm
+    simpa [List.getElem?_eq_getElem hskeletonIdx] using htarget
+  subst target
+  rcases initialHeaderSynthesisState Hc hctx Htarget hchecked hnormalized with
+    ⟨normalized', hnormalized', ⟨Hsynthesis⟩⟩
+  have Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
+      Hc.venv c.lparams Hc.mlctx.vlctx stats 0 0 :=
+    checkInductiveTypes.loopType.ParameterCachePrefix.empty hparams
+  apply checkInductiveTypes.loopType.firstHeaderSynthesisWF
+    (Us := c.lparams) (target := skeleton.types[0])
+    (nparams := skeleton.nparams) (stats := stats)
+    (type := normalized) (current := normalized') (i := 0)
+    (nindices := 0) (c := c)
+    (k := fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other
+          "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push
+          (.const indTypes[0].name stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes 1
+        stats k)
+    (Q := Q) (hconsume := hconsume)
+    (Hresult := by
+      intro c' stats' type'' current'' i' nindices' Hc' hlparams'
+        hempty' hforall iEq Hcache' Hsynthesis' htype'
+      cases iEq
+      apply firstResult.initializesPrefix k Q Hc' hempty' hskeletonIdx
+        Hsynthesis' htype'
+      · rw [hlparams', ← Hdecl.2.1]
+      · intro resultSort resultLevel hofLevel Hprefix Hambient
+        apply Hrec Hc' hlparams' Hcache' Hprefix
+        simpa [Hsynthesis'.indexCount] using Hambient)
+    (Hc := Hc) (hlparams := rfl) (hempty := hempty)
+    (Hcache := Hcache) (Hsynthesis := Hsynthesis)
+    (hphase := by
+      intro _
+      exact ⟨List.eq_nil_of_length_eq_zero Hsynthesis.indexCount, rfl⟩)
+    (htype := hnormalized')
 
 /-- Indexed declaration-facing form of `stepPrefix.WF`.  Besides the checked
 source translation, the continuation receives the exact corresponding
