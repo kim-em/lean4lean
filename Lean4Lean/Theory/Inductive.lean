@@ -273,6 +273,12 @@ def VExpr.wrapLams (domains : List VExpr) (body : VExpr) : VExpr :=
 def VExpr.wrapForalls (domains : List VExpr) (body : VExpr) : VExpr :=
   domains.foldr .forallE body
 
+@[simp] theorem VExpr.wrapForalls_append
+    (left right : List VExpr) (body : VExpr) :
+    VExpr.wrapForalls (left ++ right) body =
+      VExpr.wrapForalls left (VExpr.wrapForalls right body) := by
+  simp [wrapForalls, List.foldr_append]
+
 @[simp] theorem VExpr.takeForalls_wrapForalls_append
     (pre suff : List VExpr) (body : VExpr) :
     (VExpr.wrapForalls (pre ++ suff) body).takeForalls pre.length =

@@ -2356,6 +2356,66 @@ theorem AddInductive.getRecLevelParams_length_of_not_param
       lparams.length := by
   cases elimLevel <;> simp_all [AddInductive.getRecLevelParams, Level.isParam]
 
+/-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
+innermost order. Local lets are discharged by `mkForall'` and contribute no
+domain. -/
+def MLCtxForallDomains (c : TypeChecker.MLCtx) :
+    (n : Nat) → n ≤ c.length → List VExpr
+  | 0, _ => []
+  | n + 1, h =>
+    match c with
+    | .vlam _ _ _ type' _ c =>
+      MLCtxForallDomains c n (Nat.le_of_succ_le_succ h) ++ [type']
+    | .vlet _ _ _ _ _ _ c =>
+      MLCtxForallDomains c n (Nat.le_of_succ_le_succ h)
+
+theorem TypeChecker.MLCtx.mkForall'_eq_wrapForalls
+    (c : TypeChecker.MLCtx) (n : Nat) (hn : n ≤ c.length) (body : VExpr) :
+    c.mkForall' n hn body = VExpr.wrapForalls (MLCtxForallDomains c n hn) body := by
+  induction n generalizing c body with
+  | zero => simp [TypeChecker.MLCtx.mkForall', MLCtxForallDomains,
+      VExpr.wrapForalls]
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam fv name type type' bi c =>
+      simp only [TypeChecker.MLCtx.mkForall', MLCtxForallDomains]
+      rw [ih, VExpr.wrapForalls_append]
+      rfl
+    | vlet fv name type value type' value' c =>
+      simp only [TypeChecker.MLCtx.mkForall', MLCtxForallDomains]
+      exact ih c (Nat.le_of_succ_le_succ hn) body
+
+/-- Exact certificate for a suffix of local declarations introduced by
+`withLocalDecl`; its domains are recorded in the same outermost-to-innermost
+order used by generated recursor telescopes. -/
+inductive MLCtxLamPrefix : TypeChecker.MLCtx → Nat → List VExpr → Prop
+  | nil (c : TypeChecker.MLCtx) : MLCtxLamPrefix c 0 []
+  | cons : MLCtxLamPrefix c n domains →
+      MLCtxLamPrefix (.vlam fv name type type' bi c) (n + 1)
+        (domains ++ [type'])
+
+theorem MLCtxLamPrefix.le
+    (H : MLCtxLamPrefix c n domains) : n ≤ c.length := by
+  induction H with
+  | nil => simp
+  | cons _ ih => simpa using Nat.succ_le_succ ih
+
+theorem MLCtxLamPrefix.forallDomains
+    (H : MLCtxLamPrefix c n domains) :
+    MLCtxForallDomains c n H.le = domains := by
+  induction H with
+  | nil => simp [MLCtxForallDomains]
+  | cons H ih =>
+    simp only [MLCtxForallDomains]
+    change MLCtxForallDomains _ _ H.le ++ [_] = _
+    rw [ih]
+
+theorem MLCtxLamPrefix.mkForall'
+    (H : MLCtxLamPrefix c n domains) (body : VExpr) :
+    c.mkForall' n H.le body = VExpr.wrapForalls domains body := by
+  rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls, H.forallDomains]
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/
