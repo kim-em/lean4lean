@@ -1393,6 +1393,103 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
     · exact hofLevel
     · exact hsort
 
+structure SynthesizedHeaderMetadata (env : VEnv) (uvars nparams : Nat)
+    (params : List VExpr) (commonLevel : VLevel)
+    (source : VInductiveTypeSkeleton) (data : Nat × VLevel) : Prop where
+  header : SynthesizedHeader env uvars nparams params source data.1 data.2
+  commonLevel : data.2 ≈ commonLevel
+
+/-- Prefix of the metadata list built by the outer mutual-header traversal.
+`Forall₂` fixes both ordering and cardinality, so later materialization cannot
+associate a checked arity or universe with the wrong family member. -/
+structure SynthesizedHeaderPrefix (env : VEnv)
+    (skeleton : VInductDeclSkeleton) (params : List VExpr)
+    (commonLevel : VLevel) (metadata : List (Nat × VLevel))
+    (done : Nat) : Prop where
+  covered : done ≤ skeleton.types.length
+  checked : List.Forall₂
+    (SynthesizedHeaderMetadata env skeleton.uvars skeleton.nparams
+      params commonLevel)
+    (skeleton.types.take done) metadata
+
+theorem SynthesizedHeaderPrefix.first
+    (hindex : 0 < skeleton.types.length)
+    (Hheader : SynthesizedHeader env skeleton.uvars skeleton.nparams
+      params skeleton.types[0] nindices resultLevel) :
+    SynthesizedHeaderPrefix env skeleton params resultLevel
+      [(nindices, resultLevel)] 1 where
+  covered := by omega
+  checked := by
+    rw [List.take_succ_eq_append_getElem hindex]
+    simp only [List.take_zero, List.nil_append]
+    exact .cons ⟨Hheader, by rfl⟩ .nil
+
+theorem SynthesizedHeaderPrefix.push
+    (H : SynthesizedHeaderPrefix env skeleton params commonLevel
+      metadata done)
+    (hindex : done < skeleton.types.length)
+    (Hheader : SynthesizedHeader env skeleton.uvars skeleton.nparams
+      params skeleton.types[done] nindices resultLevel)
+    (hlevel : resultLevel ≈ commonLevel) :
+    SynthesizedHeaderPrefix env skeleton params commonLevel
+      (metadata ++ [(nindices, resultLevel)]) (done + 1) where
+  covered := by omega
+  checked := by
+    rw [List.take_succ_eq_append_getElem hindex]
+    exact Lean4Lean.VerifyInductive.List.Forall₂.append' H.checked
+      (.cons ⟨Hheader, hlevel⟩ .nil)
+
+/-- Once every header has been visited, exact materialization turns the
+metadata-prefix invariant into the public formation header certificate. -/
+def SynthesizedHeaderPrefix.complete
+    (H : SynthesizedHeaderPrefix env skeleton params commonLevel metadata
+      skeleton.types.length)
+    (Hmaterialize : skeleton.materialize metadata = some decl) :
+    HeaderCertificate env decl := by
+  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
+  have hcheckedLength :
+      (skeleton.types.take skeleton.types.length).length = metadata.length :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.checked
+  have hmetadata : metadata.length = skeleton.types.length := by
+    simpa using hcheckedLength.symm
+  have checkedAt : ∀ i (hi : i < skeleton.types.length),
+      SynthesizedHeaderMetadata env skeleton.uvars skeleton.nparams
+        params commonLevel skeleton.types[i] metadata[i] := by
+    intro i hi
+    simpa using Lean4Lean.VerifyInductive.List.Forall₂.getElem H.checked i
+      (by simpa using hi) (by simpa [hmetadata] using hi)
+  have materializedAt : ∀ i (hi : i < skeleton.types.length),
+      decl.types[i]'(by omega) =
+        skeleton.types[i].toVInductiveType metadata[i].1 metadata[i].2 := by
+    intro i hi
+    rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize hi with
+      ⟨data, hdata, htarget⟩
+    have hmetadataGet : metadata[i]? = some metadata[i] := by
+      simp [hmetadata, hi]
+    have hdataEq : data = metadata[i] := by
+      rw [hmetadataGet] at hdata
+      cases hdata
+      rfl
+    subst data
+    rw [List.getElem?_eq_getElem (by omega)] at htarget
+    exact Option.some.inj htarget
+  refine {
+    params := params
+    resultLevel := commonLevel
+    commonLevels := ?_
+    typeShapes := ?_ }
+  · intro type htype
+    rcases List.mem_iff_getElem.1 htype with ⟨i, hi, rfl⟩
+    have hskeleton : i < skeleton.types.length := by omega
+    rw [materializedAt i hskeleton]
+    exact (checkedAt i hskeleton).commonLevel
+  · intro type htype
+    rcases List.mem_iff_getElem.1 htype with ⟨i, hi, rfl⟩
+    have hskeleton : i < skeleton.types.length := by omega
+    rw [materializedAt i hskeleton]
+    exact (checkedAt i hskeleton).header.typeShape decl
+      hfields.1 hfields.2.1
+
 def HeaderTelescopeLoopCertificate.empty
     {c : AddInductive.Context} {Hc : ContextWF c} {root : VExpr}
     (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
