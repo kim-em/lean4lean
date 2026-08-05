@@ -1197,6 +1197,16 @@ theorem isValidIndAppIdx.head
   · simp_all
   · simp_all
 
+theorem isValidIndAppIdx.constHead
+    (hvalid : AddInductive.isValidIndAppIdx stats type i = true)
+    (hconst : stats.indConsts[i]? = some (.const name levels)) :
+    type.getAppFn = .const name levels := by
+  have hhead := isValidIndAppIdx.head hvalid
+  have hget : stats.indConsts[i]! = .const name levels := by
+    simp [Array.getElem!_eq_getD, hconst]
+  rw [hget] at hhead
+  exact Expr.eqv_const.mp hhead
+
 theorem isValidIndAppIdx.arity
     (hvalid : AddInductive.isValidIndAppIdx stats type i = true) :
     type.getAppArgs.size = stats.params.size + stats.nindices[i]! := by
