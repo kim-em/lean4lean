@@ -1049,6 +1049,11 @@ private def updatedStats (stats : AddInductive.InductiveStats)
       stats.nindices.size + 1 := by
   cases setResult <;> simp [updatedStats]
 
+@[simp] theorem updatedStats_nindices :
+    (updatedStats stats lctx resultLevel setResult nindices indName).nindices =
+      stats.nindices.push nindices := by
+  cases setResult <;> rfl
+
 @[simp] theorem updatedStats_indConsts_size :
     (updatedStats stats lctx resultLevel setResult nindices indName).indConsts.size =
       stats.indConsts.size + 1 := by
@@ -1954,6 +1959,62 @@ theorem IndConstArray.updatedStats
         setResult nindices indName).indConsts
       (names ++ [indName]) := by
   simpa using H.push indName
+
+/-- Incremental form of `ValidAppStatsWF`, synchronized with the mutual-header
+loop before all family members have been visited. -/
+structure ValidAppStatsPrefix (env : VEnv) (Us : List Name) (Δ : VLCtx)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (depth done : Nat) : Prop where
+  covered : done ≤ decl.types.length
+  levels : stats.levels.length = decl.uvars
+  uvars : Us.length = decl.uvars
+  consts : IndConstArray stats.levels stats.indConsts
+    ((decl.types.take done).map (·.name))
+  indices : stats.nindices.toList =
+    (decl.types.take done).map (·.numIndices)
+  params : List.Forall₂ (TrExprS env Us Δ) stats.params.toList
+    (decl.paramVars depth)
+  paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
+
+theorem ValidAppStatsPrefix.push
+    (H : ValidAppStatsPrefix env Us Δ stats decl depth done)
+    (hindex : done < decl.types.length)
+    (hname : indName = decl.types[done].name)
+    (hnindices : nindices = decl.types[done].numIndices) :
+    ValidAppStatsPrefix env Us Δ
+      (checkInductiveTypes.loopInd.updatedStats stats lctx resultLevel
+        setResult nindices indName)
+      decl depth (done + 1) := by
+  have htake : decl.types.take (done + 1) =
+      decl.types.take done ++ [decl.types[done]] :=
+    List.take_succ_eq_append_getElem hindex
+  refine {
+    covered := by omega
+    levels := by simpa using H.levels
+    uvars := H.uvars
+    consts := ?_
+    indices := ?_
+    params := by simpa using H.params
+    paramFVars := by simpa using H.paramFVars }
+  · rw [htake, List.map_append]
+    simpa [hname] using H.consts.updatedStats (lctx := lctx)
+      (resultLevel := resultLevel) (setResult := setResult)
+      (nindices := nindices) (indName := indName)
+  · rw [htake, List.map_append]
+    simp [H.indices, hnindices]
+
+theorem ValidAppStatsPrefix.complete
+    (H : ValidAppStatsPrefix env Us Δ stats decl depth decl.types.length) :
+    ValidAppStatsWF env Us Δ stats decl depth := by
+  refine {
+    levels := H.levels
+    uvars := H.uvars
+    consts := ?_
+    indices := ?_
+    params := H.params
+    paramFVars := H.paramFVars }
+  · simpa using H.consts
+  · simpa using H.indices
 
 def LiteralDisjoint (indConsts : Array Expr) : Prop :=
   ∀ literal : Literal,
