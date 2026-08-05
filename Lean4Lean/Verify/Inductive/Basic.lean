@@ -113,6 +113,16 @@ theorem TrExpr.forallE_source
   | forallE HdomType HbodyType Hdom Hbody =>
     exact ⟨_, _, Hdom, Hbody, HdomType, HbodyType, Hdefeq⟩
 
+/-- Invert a production sort after normalization, retaining both its universe
+translation and its definitional equality to the abstract source tail. -/
+theorem TrExpr.sort_source
+    (H : TrExpr env Us Δ (.sort level) type') :
+    ∃ level', VLevel.ofLevel Us level = some level' ∧
+      env.IsDefEqU Us.length Δ.toCtx (.sort level') type' := by
+  rcases H with ⟨_, Hsyntax, Hdefeq⟩
+  cases Hsyntax with
+  | sort Hlevel => exact ⟨_, Hlevel, Hdefeq⟩
+
 /-- Opening a source binder with the fresh free variable chosen by the
 production checker leaves its abstract body unchanged: the extended `VLCtx`
 maps that free variable back to the new outermost de Bruijn variable. -/
