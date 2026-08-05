@@ -2555,6 +2555,96 @@ theorem RecursorFieldSelections.positions_ordered
     rcases List.mem_map.mp hold with ⟨oldCert, hmem, rfl⟩
     exact H.positions_lt oldCert hmem
 
+def RecursorRecursiveDomain.toRecursiveField
+    (cert : RecursorRecursiveDomain env decl) (arg : VExpr) :
+    decl.RecursiveField env where
+  fieldIndex := cert.fieldIndex
+  arg := arg
+  ctx := cert.ctx
+  depth := cert.depth
+  domain := cert.domain
+  recursive := cert.recursive
+
+/-- Zips the proof-side domain certificates with their final translated field
+arguments to obtain the public `RecursiveField` witnesses used by iota rules. -/
+inductive RecursorFieldsMaterialize (env : VEnv) (decl : VInductDecl) :
+    List (RecursorRecursiveDomain env decl) → List VExpr →
+      List (decl.RecursiveField env) → Prop
+  | nil : RecursorFieldsMaterialize env decl [] [] []
+  | cons : RecursorFieldsMaterialize env decl certs args fields →
+      RecursorFieldsMaterialize env decl (cert :: certs) (arg :: args)
+        (cert.toRecursiveField arg :: fields)
+
+theorem RecursorFieldsMaterialize.exists_of_length
+    (h : certs.length = args.length) :
+    ∃ fields, RecursorFieldsMaterialize env decl certs args fields := by
+  induction certs generalizing args with
+  | nil =>
+    cases args <;> simp_all
+    exact ⟨[], .nil⟩
+  | cons cert certs ih =>
+    cases args with
+    | nil => simp at h
+    | cons arg args =>
+      have h' : certs.length = args.length := by
+        simpa using Nat.succ.inj h
+      rcases ih h' with ⟨fields, hfields⟩
+      exact ⟨_, .cons hfields⟩
+
+theorem RecursorFieldsMaterialize.args
+    {env : VEnv} {decl : VInductDecl}
+    {certs : List (RecursorRecursiveDomain env decl)}
+    {translated : List VExpr} {fields : List (decl.RecursiveField env)}
+    (H : RecursorFieldsMaterialize env decl certs translated fields) :
+    fields.map (·.arg) = translated := by
+  induction H with
+  | nil => rfl
+  | cons _ ih => simp [RecursorRecursiveDomain.toRecursiveField, ih]
+
+theorem RecursorFieldsMaterialize.positions
+    {env : VEnv} {decl : VInductDecl}
+    {certs : List (RecursorRecursiveDomain env decl)} {translated : List VExpr}
+    {fields : List (decl.RecursiveField env)}
+    (H : RecursorFieldsMaterialize env decl certs translated fields) :
+    fields.map (·.fieldIndex) = certs.map (·.fieldIndex) := by
+  induction H with
+  | nil => rfl
+  | cons _ ih => simp [RecursorRecursiveDomain.toRecursiveField, ih]
+
+theorem RecursorFieldSelections.exists_materialization
+    (H : RecursorFieldSelections env decl bu u certs)
+    (hargs : List.Forall₂ R u.toList args) :
+    ∃ fields, RecursorFieldsMaterialize env decl certs args fields := by
+  apply RecursorFieldsMaterialize.exists_of_length
+  rw [H.fields_length]
+  have hlen := checkPositivityStep.forall₂_length_eq hargs
+  simpa using hlen
+
+theorem RecursorFieldsMaterialize.positions_ordered
+    {env : VEnv} {decl : VInductDecl} {bu u : Array Expr}
+    {certs : List (RecursorRecursiveDomain env decl)} {translated : List VExpr}
+    {fields : List (decl.RecursiveField env)}
+    (Hsel : RecursorFieldSelections env decl bu u certs)
+    (Hmat : RecursorFieldsMaterialize env decl certs translated fields) :
+    (fields.map (·.fieldIndex)).Pairwise (· < ·) := by
+  rw [Hmat.positions]
+  exact Hsel.positions_ordered
+
+theorem RecursorFieldsMaterialize.positions_lt
+    {env : VEnv} {decl : VInductDecl} {bu u : Array Expr}
+    {certs : List (RecursorRecursiveDomain env decl)} {translated : List VExpr}
+    {fields : List (decl.RecursiveField env)}
+    (Hsel : RecursorFieldSelections env decl bu u certs)
+    (Hmat : RecursorFieldsMaterialize env decl certs translated fields) :
+    ∀ field ∈ fields, field.fieldIndex < bu.size := by
+  intro field hmem
+  have hpos : field.fieldIndex ∈ fields.map (·.fieldIndex) := by
+    exact List.mem_map.mpr ⟨field, hmem, rfl⟩
+  rw [Hmat.positions] at hpos
+  rcases List.mem_map.mp hpos with ⟨cert, hcert, heq⟩
+  rw [← heq]
+  exact Hsel.positions_lt cert hcert
+
 /-- Exact concrete common-parameter prefix consumed by recursor generation.
 The relation is intentionally separate from field classification: agreement
 of these substitutions with the abstract parameter telescope is established
