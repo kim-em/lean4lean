@@ -391,6 +391,15 @@ structure VInductDecl.IotaRule (decl : VInductDecl) (block : VInductBlock)
   lhs_pattern :
     lhsBody = VExpr.mkApps (.const recursor.name recursorLevels)
       (leadingArgs ++ [VExpr.mkApps (.const ctor.name ctorLevels) ctorArgs])
+  recursor_levels : recursorLevels.length = recursor.uvars
+  ctor_levels : ctorLevels.length = decl.uvars
+  leading_arity : leadingArgs.length = decl.nparams + decl.types.length +
+    decl.ownedConstructors.length + owner.numIndices
+  constructor_arity : decl.nparams ≤ ctorArgs.length
+  parameter_args : ctorArgs.take decl.nparams =
+    leadingArgs.take decl.nparams
+  domains_arity : domains.length = decl.nparams + decl.types.length +
+    decl.ownedConstructors.length + (ctorArgs.length - decl.nparams)
   fieldVars : List Nat
   fieldVars_eq : fieldVars =
     (ctorArgs.drop decl.nparams).filterMap VExpr.bvarHead?

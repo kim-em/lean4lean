@@ -134,10 +134,12 @@ def enumRecursorShape : enumDecl.RecursorShape enumType enumRecursor where
 
 def enumRule : VDefEq where
   uvars := 0
-  lhs := .lam (.sort .zero)
-    (.app (.const `Enum0.rec []) (.const `Enum0.mk []))
-  rhs := .lam (.sort .zero) (.bvar 0)
-  type := .forallE (.sort .zero) (.sort .zero)
+  lhs := .lam (.sort (.succ .zero)) (.lam (.sort .zero)
+    (VExpr.mkApps (.const `Enum0.rec [])
+      [.bvar 1, .bvar 0, .const `Enum0.mk []]))
+  rhs := .lam (.sort (.succ .zero)) (.lam (.sort .zero) (.bvar 0))
+  type := .forallE (.sort (.succ .zero))
+    (.forallE (.sort .zero) (.sort .zero))
 
 def enumBlock : VInductBlock where
   types := enumDecl.typeConstants
@@ -150,18 +152,25 @@ def enumIota : enumDecl.IotaRule enumBlock enumType enumCtor enumRule where
   recursor_mem := by simp [enumBlock]
   recursor_name := by simp [enumRecursor, VInductDecl.recursorName, enumType]
   rule_uvars := rfl
-  domains := [.sort .zero]
-  lhsBody := .app (.const `Enum0.rec []) (.const `Enum0.mk [])
+  domains := [.sort (.succ .zero), .sort .zero]
+  lhsBody := VExpr.mkApps (.const `Enum0.rec [])
+    [.bvar 1, .bvar 0, .const `Enum0.mk []]
   rhsBody := .bvar 0
   typeBody := .sort .zero
   lhs_wrapped := rfl
   rhs_wrapped := rfl
   type_wrapped := rfl
   recursorLevels := []
-  leadingArgs := []
+  leadingArgs := [.bvar 1, .bvar 0]
   ctorLevels := []
   ctorArgs := []
   lhs_pattern := rfl
+  recursor_levels := rfl
+  ctor_levels := rfl
+  leading_arity := rfl
+  constructor_arity := by simp [enumDecl]
+  parameter_args := rfl
+  domains_arity := rfl
   fieldVars := []
   fieldVars_eq := rfl
   fields_in_scope := by simp

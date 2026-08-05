@@ -2330,6 +2330,32 @@ theorem checkConstructors.loopCtor.ctorShapeRefines
     exact ⟨normalized, ownParams, tail, exprType, hctor, htake, hparams,
       hctxEq ▸ htail⟩
 
+@[simp] theorem VInductDecl.recursorName_eq_mkRecName
+    (decl : VInductDecl) (type : VInductiveType) :
+    decl.recursorName type = Lean.mkRecName type.name := rfl
+
+/-- The production choice of an extra eliminator universe has exactly the two
+universe arities admitted by `RecursorShape`. -/
+theorem AddInductive.getRecLevelParams_length :
+    (AddInductive.getRecLevelParams elimLevel lparams).length = lparams.length ∨
+    (AddInductive.getRecLevelParams elimLevel lparams).length =
+      lparams.length + 1 := by
+  cases elimLevel with
+  | param u => simp [AddInductive.getRecLevelParams]
+  | _ => simp [AddInductive.getRecLevelParams]
+
+theorem AddInductive.getRecLevelParams_length_of_param
+    (h : elimLevel.isParam = true) :
+    (AddInductive.getRecLevelParams elimLevel lparams).length =
+      lparams.length + 1 := by
+  cases elimLevel <;> simp_all [AddInductive.getRecLevelParams, Level.isParam]
+
+theorem AddInductive.getRecLevelParams_length_of_not_param
+    (h : elimLevel.isParam = false) :
+    (AddInductive.getRecLevelParams elimLevel lparams).length =
+      lparams.length := by
+  cases elimLevel <;> simp_all [AddInductive.getRecLevelParams, Level.isParam]
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/
