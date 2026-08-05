@@ -818,6 +818,58 @@ theorem laterResult.WF
     change (Except.error _).WF Q
     exact Except.WF.throw
 
+/-- Every later mutual header produces the same independent `TypeShape`
+certificate as the first header. The executable `isEquiv` guard is retained
+as an explicit continuation premise; it is subsequently used to establish
+the common-result-universe component of `FormationWF`. -/
+theorem laterResult.refines
+    {decl : VInductDecl} {target : VInductiveType}
+    {params ownParams indices : List VExpr}
+    {normalized afterParams result exprType : VExpr}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hnonempty : stats.indConsts.isEmpty = false)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
+    (huvars : c.lparams.length = decl.uvars)
+    (hctxEq : Hc.mlctx.vlctx.toCtx =
+      indices.reverse ++ ownParams.reverse)
+    (hheader : Hc.venv.IsDefEq decl.uvars []
+      target.type normalized exprType)
+    (hparamsTake : normalized.takeForalls decl.nparams =
+      some (ownParams, afterParams))
+    (hindicesTake : afterParams.takeForalls target.numIndices =
+      some (indices, result))
+    (hparams : decl.ParamsDefEq Hc.venv params ownParams)
+    (hlevel : ∀ resultSort resultLevel,
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      resultLevel = target.resultLevel)
+    (Hrec : ∀ resultSort,
+      resultSort.isEquiv stats.resultLevel = true →
+      decl.TypeShape Hc.venv params target →
+      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
+        (updatedStats stats stats.lctx resultSort false nindices indName) k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  apply laterResult.WF k Q Hc hnonempty htype
+  intro resultSort hequiv hsorted
+  apply Hrec resultSort hequiv
+  exact TrExpr.typeShape Hc.checking.tr.wf Hc.mlctx_wf.tr.wf huvars
+    hctxEq hheader hparamsTake hindicesTake hparams
+    (hlevel resultSort) hsorted
+
 /-- Base case of the mutual-header loop.  The executable assertions become
 explicit invariants at the proof boundary instead of being silently erased. -/
 theorem result.WF
