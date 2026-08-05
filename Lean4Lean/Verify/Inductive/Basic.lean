@@ -1094,6 +1094,180 @@ structure HeaderTelescopeLoopCertificate (Hc : ContextWF c)
   parameterCount : params.length = i
   indexCount : indices.length = nindices
 
+/-- Definitional, rather than syntactic, header-telescope accumulator.  Its
+`header` field relates the independent source header to the telescope
+synthesized from every binder exposed by the executable per-binder `whnf`.
+This is the state used by the complete loop refinement. -/
+structure HeaderSynthesisCertificate (Hc : ContextWF c)
+    (target : VInductiveType) (current : VExpr)
+    (i nindices : Nat) : Type where
+  params : List VExpr
+  indices : List VExpr
+  parameterCount : params.length = i
+  indexCount : indices.length = nindices
+  context : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+    (indices.reverse ++ params.reverse) Hc.mlctx.vlctx.toCtx
+  currentType : Hc.venv.IsType c.lparams.length
+    (indices.reverse ++ params.reverse) current
+  exprType : VExpr
+  header : Hc.venv.IsDefEq c.lparams.length [] target.type
+    (VExpr.wrapForalls (params ++ indices) current) exprType
+
+def HeaderSynthesisCertificate.empty
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {target : VInductiveType} {current exprType : VExpr}
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      [] Hc.mlctx.vlctx.toCtx)
+    (hcurrent : Hc.venv.IsType c.lparams.length [] current)
+    (hheader : Hc.venv.IsDefEq c.lparams.length []
+      target.type current exprType) :
+    HeaderSynthesisCertificate Hc target current 0 0 where
+  params := []
+  indices := []
+  parameterCount := rfl
+  indexCount := rfl
+  context := by simpa using hctx
+  currentType := hcurrent
+  exprType := exprType
+  header := by simpa [VExpr.wrapForalls] using hheader
+
+def HeaderSynthesisCertificate.withParameter
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderSynthesisCertificate Hc target
+      (.forallE sourceDom body) i nindices)
+    (hindices : H.indices = [])
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    HeaderSynthesisCertificate
+      (Hc.withLocalDecl (name := name) (bi := bi)
+        hdom.consumed hdom.isType)
+      target body (i + 1) nindices where
+  params := H.params ++ [sourceDom]
+  indices := []
+  parameterCount := by simp [H.parameterCount]
+  indexCount := by simpa [hindices] using H.indexCount
+  context := by
+    have hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+        (sourceDom :: H.params.reverse)
+        (consumedDom :: Hc.mlctx.vlctx.toCtx) := by
+      rcases hdom.source_defeq with ⟨_, hsource⟩
+      have hOld : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+          H.params.reverse Hc.mlctx.vlctx.toCtx := by
+        simpa [hindices] using H.context
+      exact .succ hOld
+        (hsource.defeqDFC Hc.checking.tr.wf.ordered
+          (hOld.symm Hc.checking.tr.wf.ordered))
+    simpa only [List.reverse_nil, List.nil_append, List.reverse_append,
+      List.reverse_singleton, List.singleton_append,
+      ContextWF.withLocalDecl_venv,
+      ContextWF.withLocalDecl_toCtx] using hctx
+  currentType := by
+    have htype := H.currentType.forallE_inv Hc.checking.tr.wf.ordered |>.2
+    simpa [hindices, ContextWF.withLocalDecl_venv] using htype
+  exprType := H.exprType
+  header := by
+    simpa [hindices, VExpr.wrapForalls, VExpr.wrapForalls_append,
+      ContextWF.withLocalDecl_venv]
+      using H.header
+
+def HeaderSynthesisCertificate.withIndex
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderSynthesisCertificate Hc target
+      (.forallE sourceDom body) i nindices)
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    HeaderSynthesisCertificate
+      (Hc.withLocalDecl (name := name) (bi := bi)
+        hdom.consumed hdom.isType)
+      target body i (nindices + 1) where
+  params := H.params
+  indices := H.indices ++ [sourceDom]
+  parameterCount := H.parameterCount
+  indexCount := by simp [H.indexCount]
+  context := by
+    have hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+        (sourceDom :: (H.indices.reverse ++ H.params.reverse))
+        (consumedDom :: Hc.mlctx.vlctx.toCtx) := by
+      rcases hdom.source_defeq with ⟨_, hsource⟩
+      exact .succ H.context
+        (hsource.defeqDFC Hc.checking.tr.wf.ordered
+          (H.context.symm Hc.checking.tr.wf.ordered))
+    simpa only [List.reverse_append, List.reverse_singleton,
+      List.singleton_append, List.cons_append, List.nil_append,
+      ContextWF.withLocalDecl_venv,
+      ContextWF.withLocalDecl_toCtx] using hctx
+  currentType := by
+    have htype := H.currentType.forallE_inv Hc.checking.tr.wf.ordered |>.2
+    simpa [List.reverse_append, ContextWF.withLocalDecl_venv] using htype
+  exprType := H.exprType
+  header := by
+    simpa [VExpr.wrapForalls, VExpr.wrapForalls_append,
+      ContextWF.withLocalDecl_venv] using H.header
+
+/-- Replace the residual telescope by a definitionally equal normal form and
+close that equality over every already discovered binder. -/
+noncomputable def HeaderSynthesisCertificate.normalize
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : HeaderSynthesisCertificate Hc target current i nindices)
+    (heq : Hc.venv.IsDefEqU c.lparams.length
+      Hc.mlctx.vlctx.toCtx current next) :
+    HeaderSynthesisCertificate Hc target next i nindices := by
+  have heq' := heq.defeqDFC Hc.checking.tr.wf.ordered
+    (H.context.symm Hc.checking.tr.wf.ordered)
+  let currentLevel := Classical.choose H.currentType
+  have hcurrent := Classical.choose_spec H.currentType
+  have heqTyped := heq'.of_l Hc.checking.tr.wf H.context.isType hcurrent
+  have heqTyped' : Hc.venv.IsDefEq c.lparams.length
+      ((H.params ++ H.indices).reverse ++ []) current next
+      (.sort currentLevel) := by
+    simpa [List.reverse_append] using heqTyped
+  have hwrappedExists := VExpr.wrapForalls_defeq
+      (domains := H.params ++ H.indices) (Γ := [])
+      (by simpa [List.reverse_append] using H.context.isType)
+      heqTyped'
+  have hwrapped := Classical.choose_spec hwrappedExists
+  exact {
+    params := H.params
+    indices := H.indices
+    parameterCount := H.parameterCount
+    indexCount := H.indexCount
+    context := H.context
+    currentType := H.currentType.defeqU_l Hc.checking.tr.wf
+      H.context.isType heq'
+    exprType := .sort (Classical.choose hwrappedExists)
+    header := H.header.trans_r Hc.checking.tr.wf (by trivial)
+      (by simpa using hwrapped) }
+
+theorem HeaderSynthesisCertificate.typeShape
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {decl : VInductDecl} {target : VInductiveType}
+    (H : HeaderSynthesisCertificate Hc target current
+      decl.nparams target.numIndices)
+    (huvars : c.lparams.length = decl.uvars)
+    (hlevel : ∀ resultLevel,
+      VLevel.ofLevel c.lparams level = some resultLevel →
+      resultLevel = target.resultLevel)
+    (hsort : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      (.sort level) current) :
+    decl.TypeShape Hc.venv H.params target := by
+  have hparamsTake :
+      (VExpr.wrapForalls (H.params ++ H.indices) current).takeForalls
+        decl.nparams =
+      some (H.params, VExpr.wrapForalls H.indices current) := by
+    simpa only [H.parameterCount] using
+      VExpr.takeForalls_wrapForalls_append H.params H.indices current
+  have hindicesTake :
+      (VExpr.wrapForalls H.indices current).takeForalls target.numIndices =
+      some (H.indices, current) := by
+    simpa only [H.indexCount] using
+      VExpr.takeForalls_wrapForalls H.indices current
+  have hctxType : OnCtx (H.indices.reverse ++ H.params.reverse)
+      (Hc.venv.IsType decl.uvars) := by
+    simpa [huvars] using H.context.isType
+  apply TrExpr.typeShapeOfDefEqCtx Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+    huvars H.context
+    (by simpa [huvars] using H.header)
+    hparamsTake hindicesTake
+    (VInductDecl.paramsDefEq_reflOfAppend hctxType) hlevel hsort
+
 def HeaderTelescopeLoopCertificate.empty
     {c : AddInductive.Context} {Hc : ContextWF c} {root : VExpr}
     (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
