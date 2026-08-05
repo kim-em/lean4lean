@@ -19,6 +19,8 @@ structure ContextWF (c : AddInductive.Context) where
   mlctx : TypeChecker.MLCtx
   mlctx_wf : mlctx.WF venv c.lparams
   lctx_eq : mlctx.lctx = c.lctx
+  ngen_prefix : c.ngen.namePrefix = `_ind_fresh
+  indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
 
@@ -37,7 +39,51 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
+  ngen_prefix := rfl
+  indFresh := nofun
   kernelFresh := nofun
+
+theorem ContextWF.current_not_mem (H : ContextWF c) :
+    ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
+  c.ngen.not_reserves_self (H.indFresh _ hmem)
+
+theorem ContextWF.kernel_reserves_current (H : ContextWF c) :
+    ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ := by
+  apply NameGenerator.Reserves.num_of_prefix_ne
+  simp [H.ngen_prefix]
+
+def ContextWF.withLocalDecl (H : ContextWF c)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    ContextWF { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
+  venv := H.venv
+  checking := H.checking
+  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
+  mlctx_wf := ⟨H.mlctx_wf,
+    H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩
+  lctx_eq := by
+    change H.mlctx.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi =
+      c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+    rw [H.lctx_eq]
+  ngen_prefix := by
+    change c.ngen.namePrefix = `_ind_fresh
+    exact H.ngen_prefix
+  indFresh := by
+    intro fv hmem
+    simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
+      List.mem_cons] at hmem
+    rcases hmem with rfl | hmem
+    · exact c.ngen.next_reserves_self
+    · exact (H.indFresh _ hmem).mono NameGenerator.LE.next
+  kernelFresh := by
+    intro fv hmem
+    simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
+      List.mem_cons] at hmem
+    rcases hmem with rfl | hmem
+    · exact H.kernel_reserves_current
+    · exact H.kernelFresh _ hmem
 
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
