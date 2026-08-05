@@ -178,11 +178,15 @@ def isValidIndAppIdx (stats : InductiveStats) (t : Expr) (i : Nat) : Bool :=
     return false
   true
 
-def isValidIndApp? (stats : InductiveStats) (t : Expr) : Option Nat := do
-  for i in [:stats.indConsts.size] do
-    if isValidIndAppIdx stats t i then
-      return i
-  none
+def isValidIndAppFrom? (stats : InductiveStats) (t : Expr) (start : Nat) :
+    Nat → Option Nat
+  | 0 => none
+  | fuel + 1 =>
+    if isValidIndAppIdx stats t start then some start
+    else isValidIndAppFrom? stats t (start + 1) fuel
+
+def isValidIndApp? (stats : InductiveStats) (t : Expr) : Option Nat :=
+  isValidIndAppFrom? stats t 0 stats.indConsts.size
 
 def isRecArg (stats : InductiveStats) (t : Expr) : M (Option Nat) := do
   loop t (← readThe Context).fuel.inductiveFuel

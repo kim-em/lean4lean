@@ -1039,12 +1039,30 @@ structure ValidAppStatsWF (env : VEnv) (Us : List Name) (Δ : VLCtx)
   indices : stats.nindices.toList = decl.types.map (·.numIndices)
   params : List.Forall₂ (TrExprS env Us Δ) stats.params.toList
     (decl.paramVars depth)
+  paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
 
 theorem forall₂_length_eq
     (H : List.Forall₂ R as bs) : as.length = bs.length := by
   induction H with
   | nil => rfl
   | cons _ _ ih => simp [ih]
+
+theorem List.mapM_some_length
+    {xs : List α} {ys : List β} {f : α → Option β}
+    (H : xs.mapM f = some ys) :
+    xs.length = ys.length := by
+  induction xs generalizing ys with
+  | nil =>
+    simp at H
+    subst ys
+    rfl
+  | cons x xs ih =>
+    cases hx : f x <;> simp [hx] at H
+    rename_i y
+    cases hxs : xs.mapM f <;> simp [hxs] at H
+    rename_i ys'
+    subst ys
+    simp [ih hxs]
 
 theorem forall₂_get?_eq_some
     {R : α → β → Prop} {as : List α} {bs : List β}
@@ -1103,6 +1121,12 @@ theorem ValidAppStatsWF.paramAt
   rcases htarget with ⟨param', htarget⟩
   exact ⟨param', htarget,
     forall₂_get?_eq_some H.params hsource htarget⟩
+
+theorem ValidAppStatsWF.paramFVarAt
+    (H : ValidAppStatsWF env Us Δ stats decl depth)
+    (hi : i < stats.params.size) :
+    ∃ fv, stats.params[i] = .fvar fv := by
+  exact H.paramFVars _ (by simp)
 
 theorem IndConstArray.empty (levels : List Level) :
     IndConstArray levels #[] [] where
@@ -1189,6 +1213,21 @@ theorem TrExprS.constAppSpine
   | mdata _ _ _ => cases hhead
   | proj _ _ _ _ => cases hhead
 
+theorem TrExprS.eqv_fvar_target
+    (H₁ : TrExprS env Us Δ (.fvar fv) e₁')
+    (H₂ : TrExprS env Us Δ e₂ e₂')
+    (heq : ((.fvar fv : Expr) == e₂) = true) : e₁' = e₂' := by
+  cases e₂ <;> simp [(· == ·), Expr.eqv'] at heq
+  have hfv : fv = _ := beq_iff_eq.mp heq
+  subst_vars
+  cases H₁ with
+  | fvar h₁ =>
+    cases H₂ with
+    | fvar h₂ =>
+      rw [h₁] at h₂
+      cases h₂
+      rfl
+
 theorem isValidIndAppIdx.head
     (hvalid : AddInductive.isValidIndAppIdx stats type i = true) :
     (type.getAppFn == stats.indConsts[i]!) = true := by
@@ -1258,6 +1297,63 @@ theorem isValidIndAppIdx.indexNoOccurrence
   simp only [hj] at hclean
   cases hocc : AddInductive.hasIndOcc stats.indConsts type.getAppArgs[j] <;>
     simp_all
+
+theorem isValidIndAppFrom?_some
+    (h : AddInductive.isValidIndAppFrom? stats type start fuel = some i) :
+    start ≤ i ∧ i < start + fuel ∧
+      AddInductive.isValidIndAppIdx stats type i = true := by
+  induction fuel generalizing start with
+  | zero => simp [AddInductive.isValidIndAppFrom?] at h
+  | succ fuel ih =>
+    rw [AddInductive.isValidIndAppFrom?] at h
+    by_cases hvalid : AddInductive.isValidIndAppIdx stats type start = true
+    · rw [if_pos hvalid] at h
+      cases h
+      exact ⟨Nat.le_refl _, by omega, hvalid⟩
+    · have hfalse : AddInductive.isValidIndAppIdx stats type start = false := by
+        cases hv : AddInductive.isValidIndAppIdx stats type start
+        · rfl
+        · exact False.elim (hvalid hv)
+      simp [hfalse] at h
+      rcases ih h with ⟨hlower, hupper, hvalid⟩
+      exact ⟨by omega, by omega, hvalid⟩
+
+theorem isValidIndApp?_some
+    (h : AddInductive.isValidIndApp? stats type = some i) :
+    i < stats.indConsts.size ∧
+      AddInductive.isValidIndAppIdx stats type i = true := by
+  exact ⟨by simpa using (isValidIndAppFrom?_some h).2.1,
+    (isValidIndAppFrom?_some h).2.2⟩
+
+/-- A validated concrete parameter argument translates to the corresponding
+abstract de Bruijn parameter.  The fvar-shape invariant is what upgrades
+structural `Expr` equality to exact syntax translation here. -/
+theorem ValidAppStatsWF.translatedParam
+    (H : ValidAppStatsWF env Us Δ stats decl depth)
+    (hvalid : AddInductive.isValidIndAppIdx stats type typeIdx = true)
+    (hargs : List.Forall₂ (TrExprS env Us Δ)
+      type.getAppArgsList args')
+    (hj : j < stats.params.size) :
+    args'[j]? = (decl.paramVars depth)[j]? := by
+  have harity := isValidIndAppIdx.arity hvalid
+  have hjArgs : j < type.getAppArgs.size := by omega
+  have hsource : type.getAppArgsList[j]? = some type.getAppArgs[j] := by
+    rw [← Expr.getAppArgs_toList]
+    simp [hjArgs]
+  have hlen := forall₂_length_eq hargs
+  have hjArgs' : j < args'.length := by
+    rw [← hlen, ← Expr.getAppArgs_toList]
+    simp [hjArgs]
+  have htarget : args'[j]? = some args'[j] :=
+    List.getElem?_eq_getElem hjArgs'
+  have harg := forall₂_get?_eq_some hargs hsource htarget
+  rcases H.paramAt hj with ⟨param', hparamTarget, hparam⟩
+  rcases H.paramFVarAt hj with ⟨fv, hfv⟩
+  have heq := isValidIndAppIdx.param hvalid hj
+  rw [hfv] at hparam heq
+  have habstract := checkPositivityStep.TrExprS.eqv_fvar_target
+    hparam harg heq
+  rw [htarget, hparamTarget, ← habstract]
 
 def VLCtx.NoIndConsts (names : List Name) (Δ : VLCtx) : Prop :=
   ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
@@ -1333,6 +1429,104 @@ theorem TrExprS.noIndOcc
     simp only [Expr.findAny, Bool.false_or] at hno
     exact hproj Hproj (ih hctx hno)
 
+theorem ValidAppStatsWF.translatedIndexNoOccurrence
+    (H : ValidAppStatsWF env Us Δ stats decl depth)
+    (hvalid : AddInductive.isValidIndAppIdx stats type typeIdx = true)
+    (hargs : List.Forall₂ (TrExprS env Us Δ)
+      type.getAppArgsList args')
+    (hlit : LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hlower : stats.params.size ≤ j) (hupper : j < args'.length) :
+    args'[j].containsAnyConst (decl.types.map (·.name)) = false := by
+  have hlen := forall₂_length_eq hargs
+  have hjArgs : j < type.getAppArgs.size := by
+    have hsize : type.getAppArgs.size = type.getAppArgsList.length := by
+      rw [← Expr.getAppArgs_toList]
+      simp
+    rw [hsize, hlen]
+    exact hupper
+  have hsource : type.getAppArgsList[j]? = some type.getAppArgs[j] := by
+    rw [← Expr.getAppArgs_toList]
+    simp [hjArgs]
+  have htarget : args'[j]? = some args'[j] :=
+    List.getElem?_eq_getElem hupper
+  have harg := forall₂_get?_eq_some hargs hsource htarget
+  have hno := isValidIndAppIdx.indexNoOccurrence hvalid hlower hjArgs
+  exact TrExprS.noIndOcc H.consts.names hlit hctx hproj harg hno
+
+theorem isValidIndAppIdx.validIndAppAt
+    (H : ValidAppStatsWF env Us Δ stats decl depth)
+    (hi : typeIdx < decl.types.length)
+    (htr : TrExprS env Us Δ type type')
+    (hvalid : AddInductive.isValidIndAppIdx stats type typeIdx = true)
+    (htarget : target = none ∨ target = some decl.types[typeIdx].name)
+    (hlit : LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+    decl.ValidIndAppAt target depth type' := by
+  have hconst := H.indConstAt hi
+  have hhead := isValidIndAppIdx.constHead hvalid hconst
+  rcases checkPositivityStep.TrExprS.constAppSpine htr hhead with
+    ⟨levels', args', hspine, hlevels, hargs⟩
+  have hlevelLen : levels'.length = decl.uvars := by
+    have hlen := List.mapM_some_length hlevels
+    have hstats := H.levels
+    omega
+  have hargsLen : args'.length =
+      decl.nparams + decl.types[typeIdx].numIndices := by
+    have htranslated := forall₂_length_eq hargs
+    have hsource : type.getAppArgsList.length = type.getAppArgs.size := by
+      rw [← Expr.getAppArgs_toList]
+      simp
+    have harity := isValidIndAppIdx.arity hvalid
+    have hnindices : stats.nindices[typeIdx]! =
+        decl.types[typeIdx].numIndices := by
+      simp [Array.getElem!_eq_getD, H.nindicesAt hi]
+    have hparamsSize := H.params_size
+    omega
+  have hparams : args'.take decl.nparams = decl.paramVars depth := by
+    apply List.ext_getElem?
+    intro j
+    rw [List.getElem?_take]
+    by_cases hj : j < decl.nparams
+    · rw [if_pos hj]
+      apply H.translatedParam hvalid hargs
+      rw [H.params_size]
+      exact hj
+    · rw [if_neg hj]
+      simp [VInductDecl.paramVars, hj]
+  rw [VInductDecl.ValidIndAppAt, hspine]
+  refine ⟨decl.types[typeIdx], List.getElem_mem hi, htarget,
+    levels', rfl, hlevelLen, hargsLen, hparams, ?_⟩
+  intro arg harg
+  rcases List.mem_drop_iff_getElem.mp harg with ⟨j, hj, hargEq⟩
+  subst arg
+  exact H.translatedIndexNoOccurrence (j := decl.nparams + j)
+    hvalid hargs hlit hctx hproj
+    (by rw [H.params_size]; omega) (by simpa [Nat.add_comm] using hj)
+
+theorem isValidIndApp?.validIndAppAt
+    (H : ValidAppStatsWF env Us Δ stats decl depth)
+    (htr : TrExprS env Us Δ type type')
+    (hvalid : AddInductive.isValidIndApp? stats type = some typeIdx)
+    (hlit : LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+    decl.ValidIndAppAt none depth type' := by
+  rcases isValidIndApp?_some hvalid with ⟨hi, hvalidIdx⟩
+  have hi' : typeIdx < decl.types.length := by
+    rw [← H.types_size]
+    exact hi
+  exact isValidIndAppIdx.validIndAppAt H hi' htr hvalidIdx
+    (Or.inl rfl) hlit hctx hproj
+
 theorem noOccurrence.WF
     {type : Expr} {Q : Unit → Prop}
     (hocc : AddInductive.hasIndOcc stats.indConsts type = false)
@@ -1385,6 +1579,23 @@ theorem validApplication.refines
     (AddInductive.checkPositivityStep stats type ctor idx recur c).WF
       (fun _ => decl.SyntacticallyPositive depth type') := by
   exact validApplication.WF hocc hforall hvalid (.recursive hrefines)
+
+theorem validApplication.sourceRefines
+    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
+    (Hstats : ValidAppStatsWF env Us Δ stats decl depth)
+    (htr : TrExprS env Us Δ type type')
+    (hlit : LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
+    (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
+    (hvalid : AddInductive.isValidIndApp? stats type = some target) :
+    (AddInductive.checkPositivityStep stats type ctor idx recur c).WF
+      (fun _ => decl.SyntacticallyPositive depth type') := by
+  apply validApplication.refines hocc hforall hvalid
+  exact isValidIndApp?.validIndAppAt Hstats htr hvalid hlit hctx hproj
 
 theorem invalidApplication.WF
     (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
