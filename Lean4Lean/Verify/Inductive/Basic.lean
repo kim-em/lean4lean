@@ -573,6 +573,26 @@ private def updatedStats (stats : AddInductive.InductiveStats)
     nindices := stats.nindices.push nindices
     indConsts := stats.indConsts.push (.const indName stats.levels) }
 
+@[simp] theorem updatedStats_levels :
+    (updatedStats stats lctx resultLevel setResult nindices indName).levels =
+      stats.levels := by
+  cases setResult <;> rfl
+
+@[simp] theorem updatedStats_nindices_size :
+    (updatedStats stats lctx resultLevel setResult nindices indName).nindices.size =
+      stats.nindices.size + 1 := by
+  cases setResult <;> simp [updatedStats]
+
+@[simp] theorem updatedStats_indConsts_size :
+    (updatedStats stats lctx resultLevel setResult nindices indName).indConsts.size =
+      stats.indConsts.size + 1 := by
+  cases setResult <;> simp [updatedStats]
+
+@[simp] theorem updatedStats_params :
+    (updatedStats stats lctx resultLevel setResult nindices indName).params =
+      stats.params := by
+  cases setResult <;> rfl
+
 /-- Post-telescope continuation for the first mutual header. -/
 theorem firstResult.WF
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
