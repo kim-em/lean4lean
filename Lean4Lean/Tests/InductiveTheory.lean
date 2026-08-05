@@ -84,13 +84,13 @@ theorem enumDecl_wf : enumDecl.WF .empty := by
         · exact .constDF hlookup nofun nofun rfl .nil
 
 theorem recursiveOccurrence_positive :
-    enumDecl.SyntacticallyPositive 0 (.const `Enum0 []) := by
+    enumDecl.SyntacticallyPositive {} [] 0 (.const `Enum0 []) := by
   apply VInductDecl.SyntacticallyPositive.recursive
   simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, VExpr.getAppFnArgs.go,
     enumDecl, enumType, VInductDecl.paramVars]
 
 theorem negativeOccurrence_not_positive :
-    ¬enumDecl.SyntacticallyPositive 0
+    ¬enumDecl.SyntacticallyPositive {} [] 0
       (.forallE (.const `Enum0 []) (.const `Enum0 [])) := by
   intro h
   cases h with

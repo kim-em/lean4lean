@@ -108,28 +108,38 @@ def VInductDecl.ValidIndAppAt (decl : VInductDecl) (target : Option Name)
       ∀ arg ∈ args.drop decl.nparams,
         arg.containsAnyConst (decl.types.map (·.name)) = false
 
-/-- Syntactic strict positivity after exposing a field type to weak-head form.
-The `nonrec` case permits arbitrary types with no occurrence of the new mutual
-family; the `forallE` case accounts for higher-order recursive arguments. -/
-inductive VInductDecl.SyntacticallyPositive (decl : VInductDecl) : Nat → VExpr → Prop
+/- Positivity is recursively modulo definitional equality: the executable
+checker exposes every higher-order body to WHNF, not only the outermost field
+type.  `SyntacticallyPositive` classifies one exposed head, while `Positive`
+records the definitional-equality step and recurs under `forallE`. -/
+namespace VInductDecl
+
+mutual
+
+/-- Positivity modulo one WHNF/definitional-equality step. -/
+inductive Positive (env : VEnv) (decl : VInductDecl) :
+    List VExpr → Nat → VExpr → Prop
+  | unfold :
+    env.IsDefEq decl.uvars ctx e exposed type →
+    SyntacticallyPositive env decl ctx depth exposed →
+    Positive env decl ctx depth e
+/-- The exposed-head cases of strict positivity. -/
+inductive SyntacticallyPositive (env : VEnv)
+    (decl : VInductDecl) : List VExpr → Nat → VExpr → Prop
   | nonrecursive :
     e.containsAnyConst (decl.types.map (·.name)) = false →
-    decl.SyntacticallyPositive depth e
+    SyntacticallyPositive env decl ctx depth e
   | forallE :
     dom.containsAnyConst (decl.types.map (·.name)) = false →
-    decl.SyntacticallyPositive (depth + 1) body →
-    decl.SyntacticallyPositive depth (.forallE dom body)
+    Positive env decl (dom :: ctx) (depth + 1) body →
+    SyntacticallyPositive env decl ctx depth (.forallE dom body)
   | recursive :
     decl.ValidIndAppAt none depth e →
-    decl.SyntacticallyPositive depth e
+    SyntacticallyPositive env decl ctx depth e
 
-/-- Declarative positivity modulo definitional equality, rather than a mirror
-of the executable WHNF traversal. -/
-def VInductDecl.Positive (env : VEnv) (decl : VInductDecl)
-    (ctx : List VExpr) (depth : Nat) (e : VExpr) : Prop :=
-  ∃ e' type,
-    env.IsDefEq decl.uvars ctx e e' type ∧
-    decl.SyntacticallyPositive depth e'
+end
+
+end VInductDecl
 
 /-- Constructor fields followed by the constructor's target application. -/
 inductive VInductDecl.CtorTailWF (env : VEnv) (decl : VInductDecl)

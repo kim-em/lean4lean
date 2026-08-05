@@ -1128,6 +1128,54 @@ theorem ValidAppStatsWF.paramFVarAt
     ∃ fv, stats.params[i] = .fvar fv := by
   exact H.paramFVars _ (by simp)
 
+theorem forall₂_map_right
+    (H : List.Forall₂ R as bs)
+    (hf : ∀ {a b}, R a b → S a (f b)) :
+    List.Forall₂ S as (bs.map f) := by
+  induction H with
+  | nil => exact .nil
+  | cons h _ ih => exact .cons (hf h) ih
+
+@[simp] theorem VInductDecl.paramVars_liftN
+    {decl : VInductDecl} {depth : Nat} :
+    (decl.paramVars depth).map (fun e => VExpr.liftN 1 e 0) =
+      decl.paramVars (depth + 1) := by
+  simp [VInductDecl.paramVars, VExpr.liftN]
+  omega
+
+theorem ValidAppStatsWF.withLocalDecl
+    (Hc : ContextWF c)
+    (H : ValidAppStatsWF Hc.venv c.lparams Hc.mlctx.vlctx
+      stats decl depth)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    ValidAppStatsWF
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).venv
+      c.lparams
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
+      stats decl (depth + 1) := by
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+  have W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 := by
+    change VLCtx.FVLift Hc.mlctx.vlctx
+      ((some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty') ::
+        Hc.mlctx.vlctx) 0 1 0
+    exact .skip_fvar _ _ .refl
+  have hparams := forall₂_map_right
+    (f := fun e => VExpr.liftN 1 e 0)
+    (S := TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+    H.params fun h =>
+      h.weakFV Hc'.checking.tr.wf W Hc'.mlctx_wf.tr.wf
+  refine {
+    levels := H.levels
+    consts := H.consts
+    indices := H.indices
+    params := ?_
+    paramFVars := H.paramFVars }
+  change List.Forall₂ (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+    stats.params.toList (decl.paramVars (depth + 1))
+  rw [← VInductDecl.paramVars_liftN]
+  exact hparams
+
 theorem IndConstArray.empty (levels : List Level) :
     IndConstArray levels #[] [] where
   exact := rfl
@@ -1541,7 +1589,7 @@ declarative nonrecursive case.  All non-syntactic correspondence assumptions
 are named at the boundary: the accumulated mutual constants, local-variable
 translation, literal expansion, and projection translation. -/
 theorem noOccurrence.refines
-    {decl : VInductDecl} {type' : VExpr} {depth : Nat}
+    {decl : VInductDecl} {type' : VExpr} {depth : Nat} {ctx : List VExpr}
     (hconsts : IndConstArray stats.levels stats.indConsts
       (decl.types.map (·.name)))
     (hlit : LiteralDisjoint stats.indConsts)
@@ -1552,8 +1600,9 @@ theorem noOccurrence.refines
     (htr : TrExprS env Us Δ type type')
     (hocc : AddInductive.hasIndOcc stats.indConsts type = false) :
     (AddInductive.checkPositivityStep stats type ctor idx recur c).WF
-      (fun _ => decl.SyntacticallyPositive depth type') := by
-  exact noOccurrence.WF (Q := fun _ => decl.SyntacticallyPositive depth type')
+      (fun _ => decl.SyntacticallyPositive env ctx depth type') := by
+  exact noOccurrence.WF
+    (Q := fun _ => decl.SyntacticallyPositive env ctx depth type')
     hocc (.nonrecursive <|
       checkPositivityStep.TrExprS.noIndOcc hconsts.names hlit hctx hproj htr hocc)
 
@@ -1571,17 +1620,17 @@ theorem validApplication.WF
 executable success branch is exactly the declarative recursive positivity
 constructor. -/
 theorem validApplication.refines
-    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
+    {decl : VInductDecl} {depth : Nat} {type' : VExpr} {ctx : List VExpr}
     (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
     (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
     (hvalid : AddInductive.isValidIndApp? stats type = some target)
     (hrefines : decl.ValidIndAppAt none depth type') :
     (AddInductive.checkPositivityStep stats type ctor idx recur c).WF
-      (fun _ => decl.SyntacticallyPositive depth type') := by
+      (fun _ => decl.SyntacticallyPositive env ctx depth type') := by
   exact validApplication.WF hocc hforall hvalid (.recursive hrefines)
 
 theorem validApplication.sourceRefines
-    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
+    {decl : VInductDecl} {depth : Nat} {type' : VExpr} {ctx : List VExpr}
     (Hstats : checkPositivityStep.ValidAppStatsWF env Us Δ stats decl depth)
     (htr : TrExprS env Us Δ type type')
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
@@ -1594,7 +1643,7 @@ theorem validApplication.sourceRefines
     (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
     (hvalid : AddInductive.isValidIndApp? stats type = some target) :
     (AddInductive.checkPositivityStep stats type ctor idx recur c).WF
-      (fun _ => decl.SyntacticallyPositive depth type') := by
+      (fun _ => decl.SyntacticallyPositive env ctx depth type') := by
   apply validApplication.refines hocc hforall hvalid
   exact isValidIndApp?.validIndAppAt Hstats htr hvalid hlit hctx hproj
 
@@ -1687,18 +1736,20 @@ theorem forallE.refines
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
       (recur (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         { c with
-          ngen := c.ngen.next
-          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotations bi }).WF
-        (fun _ => decl.SyntacticallyPositive (depth + 1) sourceBody')) :
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF
+        (fun _ => decl.Positive Hc.venv
+          (sourceDom' :: Hc.mlctx.vlctx.toCtx) (depth + 1) sourceBody')) :
     (AddInductive.checkPositivityStep stats (.forallE name dom body bi)
       ctor idx recur c).WF
-      (fun _ => decl.SyntacticallyPositive depth
+      (fun _ => decl.SyntacticallyPositive Hc.venv Hc.mlctx.vlctx.toCtx depth
         (.forallE sourceDom' sourceBody')) := by
   have hdomNo := checkPositivityStep.TrExprS.noIndOcc hconsts.names hlit
     hctx hproj Hdom.source hdomOcc
-  refine forallE.sourceWF (Q := fun _ => decl.SyntacticallyPositive depth
-      (.forallE sourceDom' sourceBody')) (recur := recur) (ctor := ctor)
+  refine forallE.sourceWF (Q := fun _ => decl.SyntacticallyPositive Hc.venv
+      Hc.mlctx.vlctx.toCtx depth (.forallE sourceDom' sourceBody'))
+      (recur := recur) (ctor := ctor)
       (idx := idx) Hc hocc hdomOcc Hdom hbody ?_
   intro body'' hbodyEq hopened
   exact (Hrec body'' hbodyEq hopened).mono fun _ hpositive =>
