@@ -1,3 +1,4 @@
+import Init.Data.Array.Lemmas
 import Lean4Lean.Inductive.Add
 import Lean4Lean.Verify.TypeChecker
 
@@ -596,6 +597,11 @@ private def updatedStats (stats : AddInductive.InductiveStats)
       stats.indConsts.size + 1 := by
   cases setResult <;> simp [updatedStats]
 
+@[simp] theorem updatedStats_indConsts :
+    (updatedStats stats lctx resultLevel setResult nindices indName).indConsts =
+      stats.indConsts.push (.const indName stats.levels) := by
+  cases setResult <;> rfl
+
 @[simp] theorem updatedStats_params :
     (updatedStats stats lctx resultLevel setResult nindices indName).params =
       stats.params := by
@@ -1010,6 +1016,51 @@ theorem hasIndOcc_eq_findAny :
 
 def IndConstNames (indConsts : Array Expr) (names : List Name) : Prop :=
   ∀ name, (indConsts.any fun I => I.constName! == name) = names.contains name
+
+/-- The concrete array accumulated by header checking has exactly the abstract
+mutual-family names, in declaration order.  Keeping this stronger structural
+fact separate makes the weaker search correspondence above reusable by both
+positivity and recursive-target validation. -/
+structure IndConstArray (levels : List Level) (indConsts : Array Expr)
+    (names : List Name) : Prop where
+  exact : indConsts = (names.map fun name => .const name levels).toArray
+  names : IndConstNames indConsts names
+
+theorem IndConstArray.empty (levels : List Level) :
+    IndConstArray levels #[] [] where
+  exact := rfl
+  names := by simp [IndConstNames, Array.any]
+
+theorem IndConstArray.push
+    {levels : List Level} {indConsts : Array Expr} {names : List Name}
+    (H : IndConstArray levels indConsts names) (newName : Name) :
+    IndConstArray levels (indConsts.push (.const newName levels))
+      (names ++ [newName]) where
+  exact := by rw [H.exact]; simp
+  names := by
+    intro name
+    rw [Array.any_push, H.names name]
+    change (names.contains name || (newName == name)) =
+      (names ++ [newName]).contains name
+    rw [List.contains_append]
+    congr 1
+    apply Bool.eq_iff_iff.mpr
+    simp only [beq_iff_eq, List.contains_cons,
+      List.contains_nil, Bool.or_false]
+    exact eq_comm
+
+theorem IndConstArray.updatedStats
+    {stats : AddInductive.InductiveStats} {names : List Name}
+    {lctx : LocalContext} {resultLevel : Level} {setResult : Bool}
+    {nindices : Nat} {indName : Name}
+    (H : IndConstArray stats.levels stats.indConsts names) :
+    IndConstArray
+      (checkInductiveTypes.loopInd.updatedStats stats lctx resultLevel
+        setResult nindices indName).levels
+      (checkInductiveTypes.loopInd.updatedStats stats lctx resultLevel
+        setResult nindices indName).indConsts
+      (names ++ [indName]) := by
+  simpa using H.push indName
 
 def LiteralDisjoint (indConsts : Array Expr) : Prop :=
   ∀ literal : Literal,
