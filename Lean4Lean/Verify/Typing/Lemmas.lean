@@ -2151,6 +2151,29 @@ theorem TrExpr.uninstantiate
     (sc : FVarsIn (· ≠ v) e) :
     TrExpr env Us ((none, d) :: Δ) e e' := H.uninstantiateN .zero sc
 
+/-- Recover a source binder whose executable body was instantiated with a
+cached free variable after entering a larger retained reader context.
+
+`W` removes only free-variable declarations that the concrete opened body
+does not use; once the cached variable is again the head declaration,
+`uninstantiate` turns it back into the corresponding abstract binder.  This
+is the generic translation step needed by later mutual-inductive headers,
+where the production checker substitutes cached parameters instead of
+introducing fresh local declarations. -/
+theorem TrExprS.uninstantiateAfterWeakFV
+    (henv : VEnv.WF env)
+    (W : VLCtx.FVLift ((some (v, deps), d) :: Δ) Δ₂ 0 n 0)
+    (hΔ : VLCtx.IsDefEq env Us.length Δ₁ Δ₂)
+    (H : TrExprS env Us Δ₁ (e.instantiate1' (.fvar v)) e')
+    (hc : Closed (e.instantiate1' (.fvar v)) 0)
+    (hv : FVarsIn
+      (· ∈ VLCtx.fvars ((some (v, deps), d) :: Δ))
+      (e.instantiate1' (.fvar v)))
+    (sc : FVarsIn (· ≠ v) e) :
+    ∃ e'', TrExprS env Us ((none, d) :: Δ) e e'' := by
+  rcases H.weakFV_inv henv W hΔ hc hv with ⟨e'', H'⟩
+  exact ⟨e'', H'.uninstantiate sc⟩
+
 theorem TrExprS.inst_fvar {Δ : VLCtx} (henv : Ordered env)
     (hΔ : VLCtx.WF env Us.length ((some (a, deps), d) :: Δ))
     (H : TrExprS env Us ((none, d) :: Δ) e e') :
