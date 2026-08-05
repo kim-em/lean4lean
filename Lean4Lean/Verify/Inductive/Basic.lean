@@ -1649,6 +1649,45 @@ theorem index.cacheTelescopeWF
   exact Hrec body'' hbodyEq'' normalized hnormalized Hcache'
     (Htelescope.withIndex Hdom)
 
+/-- Complete index branch for the synthesized header telescope.  The source
+body conversion and the following executable `whnf` are composed before the
+recursive state is exposed. -/
+theorem index.cacheSynthesisWF
+    (Hc : ContextWF c) (hi : ¬ i < nparams)
+    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
+      stats done depth)
+    (Hsynthesis : HeaderSynthesisCertificate Hc target
+      (.forallE sourceDom' sourceBody') i nindices)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (normalized : Expr) (next : VExpr),
+      TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
+      ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
+        stats done (depth + 1) →
+      HeaderSynthesisCertificate Hc' target next i (nindices + 1) →
+      (AddInductive.checkInductiveTypes.loopType nparams stats normalized
+        i (nindices + 1) fuel k c').WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  apply index.cacheWF (stats := stats) (nparams := nparams) (i := i)
+    (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
+    Hc hi Hcache Hdom hbody
+  intro body'' hbodyEq normalized hnormalized Hcache'
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+    Hdom.consumed Hdom.isType
+  have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
+  have hbodyEq'' : Hc'.venv.IsDefEqU c.lparams.length
+      Hc'.mlctx.vlctx.toCtx sourceBody' body'' := by
+    simpa only [Hc', ContextWF.withLocalDecl_venv,
+      ContextWF.withLocalDecl_toCtx] using hbodyEq'
+  rcases hnormalized with ⟨next, hnext, hnextEq⟩
+  have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
+    Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
+  exact Hrec Hc' normalized next hnext Hcache'
+    ((Hsynthesis.withIndex Hdom).normalize hsourceNext)
+
 /-- Later-header index step carrying both the translated parameter cache and
 the ambient-prefix shape used at the constructor boundary. -/
 theorem index.runtimeStateWF
@@ -1856,6 +1895,47 @@ theorem firstParameter.cacheTelescopeWF
       ContextWF.withLocalDecl_toCtx] using hbodyEq'
   exact Hrec body'' hbodyEq'' normalized hnormalized Hcache'
     (Htelescope.withParameter hindices Hdom)
+
+/-- Complete first-parameter branch for the synthesized header telescope. -/
+theorem firstParameter.cacheSynthesisWF
+    (Hc : ContextWF c) (hi : i < nparams)
+    (hempty : stats.indConsts.isEmpty = true)
+    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
+      stats done 0)
+    (Hsynthesis : HeaderSynthesisCertificate Hc target
+      (.forallE sourceDom' sourceBody') i nindices)
+    (hindices : Hsynthesis.indices = [])
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (normalized : Expr) (next : VExpr),
+      TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
+      ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
+        { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
+        (done + 1) 0 →
+      HeaderSynthesisCertificate Hc' target next (i + 1) nindices →
+      (AddInductive.checkInductiveTypes.loopType nparams
+        { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
+        normalized (i + 1) nindices fuel k c').WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  apply firstParameter.cacheWF (stats := stats) (nparams := nparams)
+    (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
+    Hc hi hempty Hcache Hdom hbody
+  intro body'' hbodyEq normalized hnormalized Hcache'
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+    Hdom.consumed Hdom.isType
+  have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
+  have hbodyEq'' : Hc'.venv.IsDefEqU c.lparams.length
+      Hc'.mlctx.vlctx.toCtx sourceBody' body'' := by
+    simpa only [Hc', ContextWF.withLocalDecl_venv,
+      ContextWF.withLocalDecl_toCtx] using hbodyEq'
+  rcases hnormalized with ⟨next, hnext, hnextEq⟩
+  have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
+    Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
+  exact Hrec Hc' normalized next hnext Hcache'
+    ((Hsynthesis.withParameter hindices Hdom).normalize hsourceNext)
 
 /-- Verification step for a common parameter of a later mutual header.  The
 executable checker reuses the cached free variable and requires the new domain
