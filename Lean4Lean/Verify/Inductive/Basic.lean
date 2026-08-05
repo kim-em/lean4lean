@@ -1844,6 +1844,64 @@ theorem ParameterContextSuffix.fvLiftAt
   rw [← hcontext] at hlift
   exact ⟨added, older, fv, deps, d, hcontext, hparam, hlift⟩
 
+/-- Narrow concrete scope immediately before consuming cached parameter `i`.
+Only parameters already consumed by this later header may occur; ambient
+indices and the current-or-future cached parameters are excluded. -/
+structure LaterParameterScope
+    (Hsuffix : ParameterContextSuffix Hc stats depth)
+    (i : Nat) (e : Expr) : Type where
+  added : VLCtx
+  older : VLCtx
+  fv : FVarId
+  deps : List FVarId
+  decl : VLocalDecl
+  context : Hc.mlctx.vlctx =
+    added ++ (some (fv, deps), decl) :: older
+  parameter : stats.params[i]! = .fvar fv
+  lift : VLCtx.FVLift ((some (fv, deps), decl) :: older)
+    Hc.mlctx.vlctx 0 (VLCtx.toCtx added).length 0
+  fvars : FVarsIn (· ∈ older.fvars) e
+
+/-- The core later-parameter abstraction step.  Translation of the
+executable cached substitution is first restricted to the current-and-older
+parameter suffix, then the cached free variable is turned back into the
+source binder. -/
+theorem LaterParameterScope.uninstantiate
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {body : Expr} {body' : VExpr}
+    (H : LaterParameterScope Hsuffix i body)
+    (hopened : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) body') :
+    ∃ body'', TrExprS Hc.venv c.lparams
+      ((none, H.decl) :: H.older) body body'' := by
+  have hopened' : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      (body.instantiate1' (.fvar H.fv)) body' := by
+    simpa [Expr.instantiate1_eq, H.parameter] using hopened
+  have hsuffixWF := H.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+  have hfresh : H.fv ∉ H.older.fvars :=
+    (hsuffixWF.2.1 H.fv H.deps rfl).1
+  have hsourceFresh : FVarsIn (· ≠ H.fv) body :=
+    H.fvars.mono fun fv hfv heq => by
+      subst fv
+      exact hfresh hfv
+  have hopenedFVars : FVarsIn
+      (· ∈ VLCtx.fvars ((some (H.fv, H.deps), H.decl) :: H.older))
+      (body.instantiate1' (.fvar H.fv)) := by
+    apply (H.fvars.mono fun fv hfv => by
+      rw [VLCtx.fvars_cons_some]
+      exact List.mem_cons_of_mem H.fv hfv).instantiate1
+    simp only [FVarsIn]
+    rw [VLCtx.fvars_cons_some]
+    exact List.mem_cons_self
+  have hopenedClosed : Closed (body.instantiate1' (.fvar H.fv)) 0 := by
+    have := hopened'.closed
+    simpa [Hc.mlctx.noBV] using this
+  exact hopened'.uninstantiateAfterWeakFV Hc.checking.tr.wf H.lift
+    (.refl Hc.checking.tr.wf.ordered Hc.mlctx_wf.tr.wf)
+    hopenedClosed hopenedFVars hsourceFresh
+
 /-- Adding a common parameter weakens every cached parameter translation and
 appends the newly generated free variable, whose abstract image is `bvar 0`.
 This is the exact state update performed by `loopType` on the first header. -/
