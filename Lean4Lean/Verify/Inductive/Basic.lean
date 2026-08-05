@@ -292,6 +292,46 @@ theorem index.WF
   exact (whnfInContext.WF Hc' hopened).bind fun normalized hnormalized =>
     Hrec normalized hnormalized
 
+/-- Verification step for a common parameter of the first mutual header.  In
+addition to the opened-body relation, the continuation sees the exact fresh
+free variable appended to the executable parameter cache. -/
+theorem firstParameter.WF
+    (Hc : ContextWF c) (hi : i < nparams)
+    (hempty : stats.indConsts.isEmpty = true)
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      dom.consumeTypeAnnotations dom')
+    (hdomType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (Hrec : ∀ normalized,
+      TrExpr (Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType).venv
+        c.lparams
+        (Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType).mlctx.vlctx
+        normalized body' →
+      (AddInductive.checkInductiveTypes.loopType nparams
+        { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
+        normalized (i + 1) nindices fuel k
+        { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  rw [AddInductive.checkInductiveTypes.loopType]
+  rw [if_pos hi, if_pos hempty]
+  refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+    (k := fun param => do
+      let stats := { stats with params := stats.params.push param }
+      let type := body.instantiate1 param
+      AddInductive.checkInductiveTypes.loopType nparams stats
+        (← TypeChecker.whnf type) (i + 1) nindices fuel k)
+    Hc hdom hdomType ?_
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType
+  have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+    hdom hdomType hbody
+  exact (whnfInContext.WF Hc' hopened).bind fun normalized hnormalized =>
+    Hrec normalized hnormalized
+
 end checkInductiveTypes.loopType
 
 /-- Production-side installation of a list of kernel constants. This small
