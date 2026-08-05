@@ -1155,6 +1155,27 @@ theorem noOccurrence.WF
   change (Except.ok ()).WF Q
   exact Except.WF.pure hQ
 
+/-- The successful fast path of executable positivity establishes the
+declarative nonrecursive case.  All non-syntactic correspondence assumptions
+are named at the boundary: the accumulated mutual constants, local-variable
+translation, literal expansion, and projection translation. -/
+theorem noOccurrence.refines
+    {decl : VInductDecl} {type' : VExpr} {depth : Nat}
+    (hconsts : IndConstArray stats.levels stats.indConsts
+      (decl.types.map (·.name)))
+    (hlit : LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (htr : TrExprS env Us Δ type type')
+    (hocc : AddInductive.hasIndOcc stats.indConsts type = false) :
+    (AddInductive.checkPositivityStep stats type ctor idx recur c).WF
+      (fun _ => decl.SyntacticallyPositive depth type') := by
+  exact noOccurrence.WF (Q := fun _ => decl.SyntacticallyPositive depth type')
+    hocc (.nonrecursive <|
+      checkPositivityStep.TrExprS.noIndOcc hconsts.names hlit hctx hproj htr hocc)
+
 theorem validApplication.WF
     (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
     (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
