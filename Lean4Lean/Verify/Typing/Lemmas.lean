@@ -1744,6 +1744,86 @@ theorem VEnv.HasPrimitives.nat_of_charOfNat (wf : Ordered env) (henv : env.HasPr
   let ⟨_, H, _⟩ := H.const_inv wf trivial
   exact ⟨_, H⟩
 
+theorem VEnv.HasPrimitives.addConst_of_not_primitive {env env' : VEnv}
+    (h : env.HasPrimitives) (hadd : env.addConst n ci = some env')
+    (hn : ¬ Kernel.Environment.primitives.contains n) : env'.HasPrimitives := by
+  have fresh (p : Name) (hp : Kernel.Environment.primitives.contains p) : n ≠ p := by
+    rintro rfl
+    exact hn hp
+  have same (p : Name) (hp : Kernel.Environment.primitives.contains p) :=
+    VEnv.addConst_constants_of_ne hadd (fresh p hp)
+  have oldContains {p : Name} (hp : Kernel.Environment.primitives.contains p)
+      (H : env'.contains p) : env.contains p := by
+    let ⟨ci, hci⟩ := H
+    exact ⟨ci, by rwa [same p hp] at hci⟩
+  have newContains {p : Name} (H : env.contains p) : env'.contains p :=
+    let ⟨_, hci⟩ := H; ⟨_, (VEnv.addConst_le hadd).constants hci⟩
+  have reflectsNatNatNat {p : Name} (hp : Kernel.Environment.primitives.contains p)
+      {f : Nat → Nat → Nat} (H : env.ReflectsNatNatNat p f) :
+      env'.ReflectsNatNatNat p f := fun hp' a b =>
+    (H (oldContains hp hp') a b).mono (VEnv.addConst_le hadd)
+  have reflectsNatNatBool {p : Name} (hp : Kernel.Environment.primitives.contains p)
+      {f : Nat → Nat → Bool} (H : env.ReflectsNatNatBool p f) :
+      env'.ReflectsNatNatBool p f := fun hp' a b =>
+    (H (oldContains hp hp') a b).mono (VEnv.addConst_le hadd)
+  refine {
+    bool := fun H =>
+      let ⟨hfalse, htrue⟩ := h.bool (oldContains (by simp [Kernel.Environment.primitives,
+        NameSet.contains, NameSet.ofList]) H)
+      ⟨newContains hfalse, newContains htrue⟩
+    boolFalse := fun H => h.boolFalse (by
+      rwa [same ``Bool.false (by simp [Kernel.Environment.primitives,
+        NameSet.contains, NameSet.ofList])] at H)
+    boolTrue := fun H => h.boolTrue (by
+      rwa [same ``Bool.true (by simp [Kernel.Environment.primitives,
+        NameSet.contains, NameSet.ofList])] at H)
+    nat := fun H =>
+      let ⟨hzero, hsucc⟩ := h.nat (oldContains (by simp [Kernel.Environment.primitives,
+        NameSet.contains, NameSet.ofList]) H)
+      ⟨newContains hzero, newContains hsucc⟩
+    natZero := fun H => h.natZero (by
+      rwa [same ``Nat.zero (by simp [Kernel.Environment.primitives,
+        NameSet.contains, NameSet.ofList])] at H)
+    natSucc := fun H => h.natSucc (by
+      rwa [same ``Nat.succ (by simp [Kernel.Environment.primitives,
+        NameSet.contains, NameSet.ofList])] at H)
+    natAdd := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natAdd
+    natSub := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natSub
+    natMul := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natMul
+    natPow := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natPow
+    natGcd := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natGcd
+    natMod := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natMod
+    natDiv := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natDiv
+    natBEq := reflectsNatNatBool (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natBEq
+    natBLE := reflectsNatNatBool (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natBLE
+    natLAnd := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natLAnd
+    natLOr := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natLOr
+    natXor := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natXor
+    natShiftLeft := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natShiftLeft
+    natShiftRight := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
+      NameSet.contains, NameSet.ofList]) h.natShiftRight
+    charOfNat := fun H => h.charOfNat (by
+      rwa [same ``Char.ofNat (by simp [Kernel.Environment.primitives,
+        NameSet.contains, NameSet.ofList])] at H)
+    stringOfList := fun H =>
+      let ⟨heq, hnil, hcons⟩ := h.stringOfList (by
+        rwa [same ``String.ofList (by simp [Kernel.Environment.primitives,
+          NameSet.contains, NameSet.ofList])] at H)
+      ⟨heq, hnil.mono (VEnv.addConst_le hadd), hcons.mono (VEnv.addConst_le hadd)⟩ }
+
 theorem TrExprS.listChar (wf : env.Ordered) (henv : env.HasPrimitives)
     (H : env.contains ``String.ofList) :
     TrExprS env Us Δ (.app (.const ``List [.zero]) (.const ``Char [])) .listChar ∧

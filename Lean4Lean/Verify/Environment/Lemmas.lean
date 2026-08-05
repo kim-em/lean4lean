@@ -244,3 +244,59 @@ theorem CheckingEnv.add (H : CheckingEnv safety env venv)
         rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?]
         exact hfind
       exact (H.of_value hold hs hvalue).mono (VEnv.addConst_le hadd)
+
+/-- Adding a nonprimitive constant cannot change the metadata of any primitive
+looked up by the executable type checker. -/
+theorem CheckingEnv.safePrimitives_add (H : CheckingEnv safety env venv)
+    (hn : env.find? ci.name = none)
+    (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
+    (hsafe : ∀ {n ci}, env.find? n = some ci →
+      Kernel.Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = []) :
+    ∀ {n ci₀}, (env.add ci).find? n = some ci₀ →
+      Kernel.Environment.primitives.contains n →
+      ci₀.safety = .safe ∧ ci₀.levelParams = [] := by
+  have hn' : env.constants.find? ci.name = none := by
+    rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?] at hn
+    exact hn
+  intro n ci₀ hfind hprim
+  change (env.constants.insert ci.name ci).find?' n = some ci₀ at hfind
+  rw [(H.map_wf.insert _ _ hn').find?'_eq_find?, H.map_wf.find?_insert] at hfind
+  split at hfind
+  · rename_i heq
+    have hname : ci.name = n := by simpa using heq
+    subst n
+    exact False.elim (hnprim hprim)
+  · apply hsafe (n := n) (ci := ci₀) _ hprim
+    rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?]
+    exact hfind
+
+/-- All global invariants needed to run the verified executable type checker
+against an environment assembled in stages. -/
+structure CheckingEnv.Valid (safety : DefinitionSafety)
+    (env : Environment) (venv : VEnv) : Prop where
+  tr : CheckingEnv safety env venv
+  hasPrimitives : venv.HasPrimitives
+  safePrimitives : ∀ {n ci}, env.find? n = some ci →
+    Kernel.Environment.primitives.contains n →
+    ci.safety = .safe ∧ ci.levelParams = []
+
+theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
+    (hprims : venv.HasPrimitives)
+    (hsafe : ∀ {n ci}, env.find? n = some ci →
+      Kernel.Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = []) :
+    CheckingEnv.Valid safety env venv :=
+  ⟨H.toChecking, hprims, hsafe⟩
+
+theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
+    (hn : env.find? ci.name = none)
+    (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
+    (htr : TrConstant safety venv ci ci')
+    (hci : ci'.WF venv)
+    (hadd : venv.addConst ci.name ci' = some venv')
+    (hdelta : ci.deltaValue? = none) :
+    CheckingEnv.Valid safety (env.add ci) venv' where
+  tr := H.tr.add hn htr hci hadd hdelta
+  hasPrimitives := H.hasPrimitives.addConst_of_not_primitive hadd hnprim
+  safePrimitives := H.tr.safePrimitives_add hn hnprim H.safePrimitives

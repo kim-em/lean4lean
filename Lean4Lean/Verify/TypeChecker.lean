@@ -51,6 +51,11 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
   mlctx_wf := trivial
   lctx_eq := rfl
 
+def VContext.mkCheckingValid {env : Environment} {venv : VEnv}
+    (wf : CheckingEnv.Valid safety env venv)
+    (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
+  .mkChecking wf.tr wf.hasPrimitives wf.safePrimitives lparams fuel
+
 def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])
     (fuel : FuelConfig := {}) : VContext where
@@ -90,6 +95,12 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
   whnf_wf := .empty
   unfold_wf _ := by simp
 
+theorem VState.WF.emptyCheckingValid {env : Environment} {venv : VEnv}
+    {wf : CheckingEnv.Valid safety env venv}
+    {lparams : List Name} {fuel : FuelConfig} :
+    VState.WF (.mkCheckingValid wf lparams fuel) {} :=
+  .emptyChecking
+
 theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     {x : M α} {Q} (H : x.WF (.mk' wf safety lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
@@ -112,6 +123,13 @@ theorem M.WF.runChecking {env : Environment} {venv : VEnv}
   rename_i eq
   let ⟨_, _, _, _, H⟩ := H .emptyChecking _ _ eq
   exact H
+
+theorem M.WF.runCheckingValid {env : Environment} {venv : VEnv}
+    {wf : CheckingEnv.Valid safety env venv}
+    {x : M α} {Q}
+    (H : x.WF (.mkCheckingValid wf lparams fuel) {} fun a _ => Q a) :
+    (M.run env safety {} lparams fuel x).WF Q :=
+  H.runChecking
 
 nonrec theorem whnf.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
     M.WF c s (whnf e) fun e₁ _ => c.TrExpr e₁ e' :=

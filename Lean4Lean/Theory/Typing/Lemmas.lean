@@ -191,6 +191,13 @@ theorem addConst_self {env env' : VEnv} (h : env.addConst n ci = some env') :
     env'.constants n = some ci := by
   unfold addConst at h; split at h <;> cases h; simp
 
+theorem addConst_constants_of_ne {env env' : VEnv}
+    (h : env.addConst n ci = some env') (hne : n ≠ p) :
+    env'.constants p = env.constants p := by
+  unfold addConst at h
+  split at h <;> cases h
+  simp [hne]
+
 theorem addDefEq_le {env : VEnv} : env ≤ env.addDefEq df := ⟨id, .inr⟩
 
 theorem addDefEq_self {env : VEnv} : (env.addDefEq df).defeqs df := .inl rfl
