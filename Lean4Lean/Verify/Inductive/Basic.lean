@@ -775,6 +775,123 @@ theorem checkClosedType.WF (Hc : ContextWF c) :
 
 namespace checkInductiveTypes.loopType
 
+/-- Abstract images of the concrete parameter cache after `done` parameter
+binders and `depth` subsequent index binders.  Its recursive presentation
+matches the executable `Array.push` order exactly. -/
+def cachedParamVars : Nat → Nat → List VExpr
+  | 0, _ => []
+  | done + 1, depth =>
+    (cachedParamVars done depth).map (fun e => e.liftN 1 0) ++
+      [.bvar depth]
+
+@[simp] theorem cachedParamVars_zero : cachedParamVars 0 depth = [] := rfl
+
+@[simp] theorem cachedParamVars_succ :
+    cachedParamVars (done + 1) depth =
+      (cachedParamVars done depth).map (fun e => e.liftN 1 0) ++
+        [.bvar depth] := rfl
+
+@[simp] theorem cachedParamVars_depth_succ :
+    cachedParamVars done (depth + 1) =
+      (cachedParamVars done depth).map (fun e => e.liftN 1 0) := by
+  induction done with
+  | zero => rfl
+  | succ done ih =>
+    simp [cachedParamVars_succ, ih, List.map_map, VExpr.liftN,
+      Function.comp_def]
+
+/-- Local invariant for the first header's common-parameter branch. -/
+structure ParameterCachePrefix (env : VEnv) (Us : List Name) (Δ : VLCtx)
+    (stats : AddInductive.InductiveStats) (done depth : Nat) : Prop where
+  params : List.Forall₂ (TrExprS env Us Δ) stats.params.toList
+    (cachedParamVars done depth)
+  paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
+
+theorem ParameterCachePrefix.empty
+    (hparams : stats.params = #[]) :
+    ParameterCachePrefix env Us Δ stats 0 depth := by
+  refine ⟨?_, ?_⟩
+  · simpa [hparams]
+  · simp [hparams]
+
+/-- Adding a common parameter weakens every cached parameter translation and
+appends the newly generated free variable, whose abstract image is `bvar 0`.
+This is the exact state update performed by `loopType` on the first header. -/
+theorem ParameterCachePrefix.push
+    (Hc : ContextWF c)
+    (H : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx stats done 0)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    ParameterCachePrefix
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).venv
+      c.lparams
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
+      { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
+      (done + 1) 0 := by
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+  let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
+    .skip_fvar _ _ .refl
+  have hold : List.Forall₂
+      (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+      stats.params.toList
+      ((cachedParamVars done 0).map fun e => e.liftN 1 0) := by
+    have mapRight : ∀ {as bs},
+        List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx) as bs →
+        List.Forall₂ (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx) as
+          (bs.map fun e => e.liftN 1 0) := by
+      intro as bs hp
+      induction hp with
+      | nil => exact .nil
+      | cons h _ ih =>
+        exact .cons
+          (h.weakFV Hc.checking.tr.wf.ordered W Hc'.mlctx_wf.tr.wf) ih
+    exact mapRight H.params
+  have hfresh : TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx
+      (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
+    exact TrExprS.fvar (A := ty'.lift) (by
+      change VLCtx.find? ((some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty') ::
+        Hc.mlctx.vlctx) (Sum.inr ⟨c.ngen.curr⟩) = _
+      simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+        VLocalDecl.value, VLocalDecl.type])
+  refine ⟨?_, ?_⟩
+  · simpa using Lean4Lean.VerifyInductive.List.Forall₂.append'
+      hold (.cons hfresh .nil)
+  · intro param hparam
+    simp only [Array.mem_push] at hparam
+    rcases hparam with hparam | rfl
+    · exact H.paramFVars param hparam
+    · exact ⟨⟨c.ngen.curr⟩, rfl⟩
+
+/-- Index binders do not change the concrete parameter cache; they uniformly
+shift its abstract de Bruijn interpretation. -/
+theorem ParameterCachePrefix.withIndex
+    (Hc : ContextWF c)
+    (H : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx stats
+      done depth)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    ParameterCachePrefix
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).venv
+      c.lparams
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
+      stats done (depth + 1) := by
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+  let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
+    .skip_fvar _ _ .refl
+  refine ⟨?_, H.paramFVars⟩
+  rw [cachedParamVars_depth_succ]
+  have mapRight : ∀ {as bs},
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx) as bs →
+      List.Forall₂ (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx) as
+        (bs.map fun e => e.liftN 1 0) := by
+    intro as bs hp
+    induction hp with
+    | nil => exact .nil
+    | cons h _ ih =>
+      exact .cons
+        (h.weakFV Hc.checking.tr.wf.ordered W Hc'.mlctx_wf.tr.wf) ih
+  exact mapRight H.params
+
 /-- Fuel exhaustion cannot produce a successful result. -/
 theorem zero.WF :
     (AddInductive.checkInductiveTypes.loopType nparams stats type i nindices
