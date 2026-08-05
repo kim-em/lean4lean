@@ -1046,6 +1046,22 @@ theorem forall₂_length_eq
   | nil => rfl
   | cons _ _ ih => simp [ih]
 
+theorem forall₂_get?_eq_some
+    {R : α → β → Prop} {as : List α} {bs : List β}
+    {i : Nat} {a : α} {b : β}
+    (H : List.Forall₂ R as bs)
+    (ha : as[i]? = some a) (hb : bs[i]? = some b) : R a b := by
+  induction H generalizing i with
+  | nil => simp at ha
+  | cons h _ ih =>
+    cases i with
+    | zero =>
+      simp at ha hb
+      subst a
+      subst b
+      exact h
+    | succ i => exact ih (by simpa using ha) (by simpa using hb)
+
 theorem ValidAppStatsWF.params_size
     (H : ValidAppStatsWF env Us Δ stats decl depth) :
     stats.params.size = decl.nparams := by
@@ -1057,6 +1073,36 @@ theorem ValidAppStatsWF.types_size
     stats.indConsts.size = decl.types.length := by
   rw [H.consts.exact]
   simp
+
+theorem ValidAppStatsWF.indConstAt
+    (H : ValidAppStatsWF env Us Δ stats decl depth)
+    (hi : i < decl.types.length) :
+    stats.indConsts[i]? = some (.const decl.types[i].name stats.levels) := by
+  rw [H.consts.exact]
+  simp [hi]
+
+theorem ValidAppStatsWF.nindicesAt
+    (H : ValidAppStatsWF env Us Δ stats decl depth)
+    (hi : i < decl.types.length) :
+    stats.nindices[i]? = some decl.types[i].numIndices := by
+  rw [← Array.getElem?_toList, H.indices]
+  simp [hi]
+
+theorem ValidAppStatsWF.paramAt
+    (H : ValidAppStatsWF env Us Δ stats decl depth)
+    (hi : i < stats.params.size) :
+    ∃ param', (decl.paramVars depth)[i]? = some param' ∧
+      TrExprS env Us Δ stats.params[i] param' := by
+  have hsource : stats.params.toList[i]? = some stats.params[i] := by
+    simp [hi]
+  have htarget : ∃ param', (decl.paramVars depth)[i]? = some param' := by
+    have hi' : i < (decl.paramVars depth).length := by
+      have hlen := forall₂_length_eq H.params
+      simpa using hlen ▸ hi
+    exact ⟨(decl.paramVars depth)[i], List.getElem?_eq_getElem hi'⟩
+  rcases htarget with ⟨param', htarget⟩
+  exact ⟨param', htarget,
+    forall₂_get?_eq_some H.params hsource htarget⟩
 
 theorem IndConstArray.empty (levels : List Level) :
     IndConstArray levels #[] [] where
