@@ -13159,6 +13159,19 @@ theorem BoundFVarArray.fvars_eq
     simpa using congrArg Array.toList harr
   exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
 
+/-- Ordered selection of one bound-fvar array from another implies the
+corresponding inclusion of retained free-variable identifiers. -/
+theorem BoundFVarArray.fvars_subset_of_sublist
+    (H₁ : BoundFVarArray c xs) (H₂ : BoundFVarArray c ys)
+    (hxy : xs.toList.Sublist ys.toList) : H₁.fvars ⊆ H₂.fvars := by
+  intro fv hfv
+  have hx : Expr.fvar fv ∈ xs.toList := by
+    rw [H₁.expressions]
+    simpa using hfv
+  have hy : Expr.fvar fv ∈ ys.toList := hxy.subset hx
+  rw [H₂.expressions] at hy
+  simpa using hy
+
 def recursorFVarId : Expr → FVarId
   | .fvar fv => fv
   | _ => default
@@ -15299,6 +15312,7 @@ structure BoundGeneratedRecursorRule
       minors_bound.fvars).Nodup
   all_args_bound : BoundFVarArray root allArgs
   recursive_args_bound : BoundFVarArray root recursiveArgs
+  recursive_args_sublist : recursiveArgs.toList.Sublist allArgs.toList
   all_args_nodup : all_args_bound.fvars.Nodup
   recursive_args_nodup : recursive_args_bound.fvars.Nodup
   all_args_outer_fresh : ∀ fv ∈ all_args_bound.fvars,
@@ -15544,6 +15558,151 @@ theorem BoundGeneratedRecursorRule.translatedRhsResidual
   rw [hrhs, hminorApp]
   simp [VExpr.mkApps, List.foldl_append]
 
+/-- The rule certificate itself supplies the selected-field membership needed
+to guard every recursively generated result after closing the rule telescope. -/
+theorem BoundGeneratedRecursorRule.abstractedIotaResults_ofFresh
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    {recursiveArgs recursiveResults : List VExpr}
+    (Hargs : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList
+      recursiveArgs)
+    (Hresults : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (H.recursiveResults.map fun result =>
+        result.abstractList H.binders).toList recursiveResults)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors
+      (abstractForallContext domains Δ))
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (hrecursor : ∀ exposedType,
+      Lean.mkRecName
+        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
+          recursors)
+    (hdomains : domains.length = H.binders.length) :
+    IotaRecursiveResultsCertificate recursors
+      (recursiveArgs.filterMap VExpr.bvarHead?)
+      recursiveArgs recursiveResults := by
+  apply H.recursive_calls.abstractedIotaResults_ofFresh
+    H.recursive_args_bound Hargs Hresults hfresh hctx hproj hrecursor
+      H.binders_nodup hdomains
+  intro fv hfv
+  have hfield : fv ∈ H.all_args_bound.fvars :=
+    H.recursive_args_bound.fvars_subset_of_sublist H.all_args_bound
+      H.recursive_args_sublist hfv
+  unfold BoundGeneratedRecursorRule.binders
+  exact List.mem_append_right _ hfield
+
+/-- Every de Bruijn head obtained from a translated selected constructor
+field is in the closed rule telescope. -/
+theorem BoundGeneratedRecursorRule.abstractedRecursiveHeadsInScope
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    {recursiveArgs : List VExpr}
+    (Hargs : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList
+      recursiveArgs)
+    (hdomains : domains.length = H.binders.length) :
+    ∀ field ∈ recursiveArgs.filterMap VExpr.bvarHead?,
+      field < domains.length := by
+  intro field hfield
+  rcases List.mem_filterMap.mp hfield with ⟨arg, harg, hhead⟩
+  rcases List.mem_iff_getElem.mp harg with ⟨i, hiArgs, hargEq⟩
+  have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hargs
+  have hiSource : i <
+      (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList.length :=
+    by omega
+  have hiArray : i < H.recursiveArgs.size := by simpa using hiSource
+  have Harg := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hargs i hiSource hiArgs
+  rcases H.recursive_args_bound.getElem_eq_fvar i hiArray with
+    ⟨hiFvars, hsource⟩
+  let fv := H.recursive_args_bound.fvars[i]
+  have hsource' : H.recursiveArgs[i] = .fvar fv := hsource
+  have hselectedAll : fv ∈ H.all_args_bound.fvars :=
+    H.recursive_args_bound.fvars_subset_of_sublist H.all_args_bound
+      H.recursive_args_sublist (List.getElem_mem hiFvars)
+  have hselected : fv ∈ H.binders := by
+    unfold BoundGeneratedRecursorRule.binders
+    exact List.mem_append_right _ hselectedAll
+  rcases List.mem_iff_getElem.mp hselected with ⟨j, hj, hget⟩
+  let fieldVar := H.binders.length - 1 - j
+  have habstract := Expr.abstractList_fvar_getElem
+    H.binders_nodup j hj (k := 0)
+  unfold BoundGeneratedRecursorRule.binders at hget
+  rw [hget] at habstract
+  have habstract' : (Expr.fvar fv).abstractList H.binders =
+      .bvar fieldVar := by
+    simpa [BoundGeneratedRecursorRule.binders, fieldVar] using habstract
+  have hsourceAbstract :
+      (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList[i] =
+        .bvar fieldVar := by
+    calc
+      _ = H.recursiveArgs[i].abstractList H.binders := by simp
+      _ = (Expr.fvar fv).abstractList H.binders := by rw [hsource']
+      _ = .bvar fieldVar := habstract'
+  rw [hsourceAbstract] at Harg
+  have hfieldVarBound : fieldVar < domains.length := by
+    rw [hdomains]
+    omega
+  have htranslated := TrExprS.bvar_eq_of_abstractForallContext
+    Harg hfieldVarBound
+  rw [hargEq] at htranslated
+  have hfieldEq : field = fieldVar := by
+    rw [htranslated] at hhead
+    unfold VExpr.bvarHead? at hhead
+    exact (Option.some.inj hhead).symm
+  rw [hfieldEq]
+  exact hfieldVarBound
+
+/-- Assemble the abstract iota RHS certificate directly from the translated
+production RHS and the independently translated selected-field spine. -/
+theorem BoundGeneratedRecursorRule.iotaRhsCertificate_ofFresh
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    {recursiveArgs : List VExpr}
+    (hdomains : domains.length = H.binders.length)
+    (Htr : TrExprS env Us (abstractForallContext domains Δ)
+      (H.sourceRhsBody.abstractList H.binders) rhsBody)
+    (Hargs : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList
+      recursiveArgs)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors
+      (abstractForallContext domains Δ))
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (hrecursor : ∀ exposedType,
+      Lean.mkRecName
+        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
+          recursors) :
+    ∃ fieldArgs,
+      Nonempty (IotaRhsCertificate recursors domains fieldArgs recursiveArgs
+        rhsBody) := by
+  rcases H.translatedRhsResidual hdomains Htr with
+    ⟨minorVar, fieldArgs, recursiveResults, hminor, Hfields,
+      Hresults, hrhs⟩
+  refine ⟨fieldArgs, ⟨{
+    minorVar := minorVar
+    minor_in_scope := hminor
+    recursiveResults := recursiveResults
+    rhs_eq := hrhs
+    fieldVars := recursiveArgs.filterMap VExpr.bvarHead?
+    fieldVars_eq := rfl
+    fields_in_scope := H.abstractedRecursiveHeadsInScope Hargs hdomains
+    fields_recursor_free :=
+      checkPositivityStep.List.Forall₂.targets_noFreshConsts
+        Hfields hfresh hctx hproj
+    recursive_results := H.abstractedIotaResults_ofFresh
+      Hargs Hresults hfresh hctx hproj hrecursor hdomains
+  }⟩⟩
+
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
@@ -15664,10 +15823,12 @@ theorem resultBindings {alpha : Type}
     (Hc : BindingContextWF c)
     (Hbu : FreshBoundFVarArray root c bu)
     (Hu : FreshBoundFVarArray root c u)
+    (Hselected : u.toList.Sublist bu.toList)
     (Hroot : BindingContextLE root c)
     (Hk : ∀ t bu u c, BindingContextWF c →
       FreshBoundFVarArray root c bu → FreshBoundFVarArray root c u →
-      BindingContextLE root c → (k t bu u c).WF Q) :
+      u.toList.Sublist bu.toList → BindingContextLE root c →
+      (k t bu u c).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs.loop stats k t i bu u fuel c).WF Q := by
   induction fuel generalizing c t i bu u with
   | zero =>
@@ -15681,7 +15842,7 @@ theorem resultBindings {alpha : Type}
       | some param =>
         change (AddInductive.mkRecInfos.loopCtorArgs.loop stats k
           (body.instantiate1 param) (i + 1) bu u fuel c).WF Q
-        exact ih Hc Hbu Hu Hroot
+        exact ih Hc Hbu Hu Hselected Hroot
       | none =>
         change (Lean4Lean.withLocalDecl name bi dom.consumeTypeAnnotations
           (fun arg => do
@@ -15713,19 +15874,30 @@ theorem resultBindings {alpha : Type}
           dom.consumeTypeAnnotations bi
         cases selected with
         | none =>
+          have hselected' : u.toList.Sublist
+              (bu.push (.fvar ⟨c.ngen.curr⟩)).toList := by
+            simpa using Hselected.trans
+              (List.sublist_append_left bu.toList
+                [.fvar ⟨c.ngen.curr⟩])
           exact ih Hc'
             (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
             (Hu.weaken name dom.consumeTypeAnnotations bi)
+            hselected'
             (Hroot.trans hstep)
         | some target =>
+          have hselected' : (u.push (.fvar ⟨c.ngen.curr⟩)).toList.Sublist
+              (bu.push (.fvar ⟨c.ngen.curr⟩)).toList := by
+            simpa using
+              Hselected.append_right [.fvar ⟨c.ngen.curr⟩]
           exact ih Hc'
             (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
             (Hu.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
+            hselected'
             (Hroot.trans hstep)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj =>
       change (k _ bu u c).WF Q
-      exact Hk _ _ _ _ Hc Hbu Hu Hroot
+      exact Hk _ _ _ _ Hc Hbu Hu Hselected Hroot
 
 end mkRecInfos.loopCtorArgs.loop
 
@@ -15736,12 +15908,13 @@ theorem mkRecInfos.loopCtorArgs.resultBindings {alpha : Type}
     (Hc : BindingContextWF c)
     (Hk : ∀ t bu u c', BindingContextWF c' →
       FreshBoundFVarArray c c' bu → FreshBoundFVarArray c c' u →
-      BindingContextLE c c' → (k t bu u c').WF Q) :
+      u.toList.Sublist bu.toList → BindingContextLE c c' →
+      (k t bu u c').WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
   unfold AddInductive.mkRecInfos.loopCtorArgs
   exact mkRecInfos.loopCtorArgs.loop.resultBindings stats k Hc
     (FreshBoundFVarArray.empty c) (FreshBoundFVarArray.empty c)
-    (BindingContextLE.refl c) Hk
+    .slnil (BindingContextLE.refl c) Hk
 
 namespace mkRecRules.loopCtors
 
@@ -15809,7 +15982,7 @@ theorem boundGeneratedRules
                     mkAppN (mkAppN minors[start]! bu) v }
                 return (rule, start + 1))
           (c := c) (Hc := Hc)
-        intro _ bu u c' Hc' Hbu Hu hroot
+        intro _ bu u c' Hc' Hbu Hu hselected hroot
         let buildRule : Array Expr →
             AddInductive.M (RecursorRule × Nat) := fun v => do
           let lctx ← getLCtx
@@ -15855,6 +16028,7 @@ theorem boundGeneratedRules
           outer_binders_nodup := HouterNodup'
           all_args_bound := Hbu.toBoundFVarArray
           recursive_args_bound := Hu.toBoundFVarArray
+          recursive_args_sublist := hselected
           all_args_nodup := Hbu.nodup
           recursive_args_nodup := Hu.nodup
           all_args_outer_fresh := by
@@ -16043,7 +16217,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
               AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
                 ctors k)
         c Hc ?_
-      intro t bu u cArgs HcArgs Hbu Hu hArgs
+      intro t bu u cArgs HcArgs Hbu Hu _hselected hArgs
       rcases hindices : AddInductive.getIIndices stats t with
         ⟨itIdx, itIndices⟩
       simp only
