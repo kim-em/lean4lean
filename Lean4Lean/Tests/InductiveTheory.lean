@@ -75,7 +75,8 @@ theorem enumDecl_wf : enumDecl.WF .empty := by
       subst type
       simp [enumType] at hctorMem
       subst ctor
-      refine ⟨.const `Enum0 [], [], .const `Enum0 [], .sort (.succ .zero), ?_, rfl, .zero, ?_⟩
+      refine ⟨.const `Enum0 [], [], .const `Enum0 [], .sort (.succ .zero), [],
+        ?_, rfl, .zero, .zero, ?_⟩
       · exact .constDF hlookup nofun nofun rfl .nil
       · apply VInductDecl.CtorTailWF.result
           (result' := .const `Enum0 []) (type := .sort (.succ .zero))
