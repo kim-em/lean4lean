@@ -14714,6 +14714,9 @@ structure BoundGeneratedRecursorRule
   allArgs : Array Expr
   recursiveArgs : Array Expr
   recursiveResults : Array Expr
+  params_bound : BoundFVarArray root stats.params
+  motives_bound : BoundFVarArray root motives
+  minors_bound : BoundFVarArray root minors
   all_args_bound : BoundFVarArray root allArgs
   recursive_args_bound : BoundFVarArray root recursiveArgs
   recursive_calls : BoundGeneratedRecursiveCalls indTypes stats motives
@@ -14961,7 +14964,10 @@ theorem boundGeneratedRules
     (motives minors : Array Expr) (lvls : List Level)
     (ctors : List Constructor) (acc : Array RecursorRule)
     (start : Nat) (c : AddInductive.Context)
-    (Hc : BindingContextWF c) :
+    (Hc : BindingContextWF c)
+    (Hparams : BoundFVarArray c stats.params)
+    (Hmotives : BoundFVarArray c motives)
+    (Hminors : BoundFVarArray c minors) :
     (AddInductive.mkRecRules.loopCtors indTypes stats motives minors lvls
       ctors acc start c).WF fun out =>
         ∃ generated,
@@ -15042,6 +15048,9 @@ theorem boundGeneratedRules
           allArgs := bu
           recursiveArgs := u
           recursiveResults := v
+          params_bound := Hparams.mono hroot
+          motives_bound := Hmotives.mono hroot
+          minors_bound := Hminors.mono hroot
           all_args_bound := Hbu
           recursive_args_bound := Hu
           recursive_calls := Hcalls
@@ -15051,7 +15060,7 @@ theorem boundGeneratedRules
       exact hone.bind fun out Hout => by
         rcases Hout with ⟨Hrule, hnext⟩
         have htail := ih (acc := acc.push out.1)
-          (start := out.2) (c := c) Hc
+          (start := out.2) (c := c) Hc Hparams Hmotives Hminors
         exact htail.mono fun result Hresult => by
           rcases Hresult with ⟨generated, hout, Hgenerated, hend⟩
           refine ⟨out.1 :: generated, ?_, .cons Hrule ?_, ?_⟩
@@ -15067,7 +15076,10 @@ theorem mkRecRules.boundGeneratedRules
     (indTypes : Array InductiveType) (elimLevel : Level)
     (stats : AddInductive.InductiveStats) (dIdx : Nat)
     (motives minors : Array Expr) (start : Nat)
-    (c : AddInductive.Context) (Hc : BindingContextWF c) :
+    (c : AddInductive.Context) (Hc : BindingContextWF c)
+    (Hparams : BoundFVarArray c stats.params)
+    (Hmotives : BoundFVarArray c motives)
+    (Hminors : BoundFVarArray c minors) :
     (AddInductive.mkRecRules indTypes elimLevel stats dIdx motives minors
       start c).WF fun out =>
         BoundGeneratedRecursorRules indTypes stats motives minors
@@ -15077,7 +15089,7 @@ theorem mkRecRules.boundGeneratedRules
   unfold AddInductive.mkRecRules
   have H := mkRecRules.loopCtors.boundGeneratedRules indTypes stats
     motives minors (AddInductive.getRecLevels elimLevel stats.levels)
-    indTypes[dIdx]!.ctors #[] start c Hc
+    indTypes[dIdx]!.ctors #[] start c Hc Hparams Hmotives Hminors
   exact H.mono fun out Hout => by
     rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
     simpa using ⟨hout ▸ Hgenerated, hend⟩
