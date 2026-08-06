@@ -812,6 +812,30 @@ theorem Expr.consumeTypeAnnotations_eq_self {dom : Expr}
     dom.consumeTypeAnnotations = dom := by
   simp [hopt, hauto, hout, hsemi]
 
+/-- Removing binder annotations only selects subexpressions of the original
+domain, so it cannot introduce a new free-variable dependency. -/
+theorem Expr.consumeTypeAnnotations_fvarsIn
+    (H : FVarsIn P e) : FVarsIn P e.consumeTypeAnnotations := by
+  rw (occs := .pos [1]) [Expr.consumeTypeAnnotations_eq]
+  split
+  · rename_i hannotation
+    cases e <;> simp_all [Expr.isOptParam, Expr.isAutoParam,
+      Expr.isAppOfArity, Expr.appFn!, Expr.appArg!, FVarsIn,
+      -Expr.consumeTypeAnnotations_eq]
+    case app fn arg =>
+      cases fn <;> simp_all [Expr.isAppOfArity, Expr.appFn!,
+        Expr.appArg!, FVarsIn, -Expr.consumeTypeAnnotations_eq]
+      case app fn' arg' =>
+        exact Expr.consumeTypeAnnotations_fvarsIn H.1.2
+  · split
+    · cases e <;> simp_all [Expr.isOutParam, Expr.isSemiOutParam,
+        Expr.isAppOfArity, Expr.appArg!, FVarsIn,
+        -Expr.consumeTypeAnnotations_eq]
+      case app fn arg =>
+        exact Expr.consumeTypeAnnotations_fvarsIn H.2
+    · exact H
+termination_by e
+
 /-- Domains without a leading type annotation need no semantic transport. -/
 theorem ContextWF.ConsumedDomain.unchanged (Hc : ContextWF c)
     (heq : dom.consumeTypeAnnotations = dom)
@@ -2321,6 +2345,29 @@ theorem LaterParameterScope.openedUpSet
     ((some (H.fv, H.deps), .vlam H.paramType) :: H.older) H.added
     (by simpa [H.context] using Hc.mlctx_wf.tr.wf)
 
+/-- Substitution of the current cached parameter, followed by an executable
+normalization step, cannot introduce dependencies outside the newly consumed
+parameter scope. -/
+theorem LaterParameterScope.consumedFVars
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {body normalized : Expr}
+    (H : LaterParameterScope Hsuffix i body)
+    (hbelow : FVarsBelow Hc.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) normalized) :
+    FVarsIn
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      normalized := by
+  have hopened : FVarsIn
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      (body.instantiate1 stats.params[i]!) := by
+    rw [Expr.instantiate1_eq, H.parameter]
+    exact H.openedFVars
+  exact hbelow _ H.openedUpSet hopened
+
 /-- Forget the ambient prefix, the not-yet-consumed cached parameters, and
 the current cached parameter.  A source domain at this point may depend only
 on the already consumed parameters in `older`. -/
@@ -3624,25 +3671,30 @@ theorem laterParameterSynthesisWF
     {target : VInductiveTypeSkeleton}
     (k : Expr → AddInductive.InductiveStats → Nat →
       AddInductive.M alpha) (Q : alpha → Prop)
+    (hnonempty : stats.indConsts.isEmpty = false)
+    (Hsuffix : ParameterContextSuffix Hc stats depth)
     (Hresult : ∀ {type' narrowCurrent fullCurrent scope' i' fuel'},
       i' = nparams →
       NarrowHeaderSynthesisCertificate Hc.venv c.lparams target
         scope' narrowCurrent i' 0 →
+      scope' = Hsuffix.parameterDecls →
       TrExprS Hc.venv c.lparams scope' type' narrowCurrent →
+      FVarsIn (· ∈ scope'.fvars) type' →
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type' fullCurrent →
       (AddInductive.checkInductiveTypes.loopType nparams stats type' i'
         0 fuel' k c).WF Q)
-    (hnonempty : stats.indConsts.isEmpty = false)
-    (Hsuffix : ParameterContextSuffix Hc stats depth)
     (hparams : stats.params.size = nparams)
     (hbound : i ≤ nparams)
     (Hscope : ∀ _h : i < stats.params.size,
       LaterParameterScope Hsuffix i type)
     (hscopeEq : ∀ h : i < stats.params.size,
       scope = (Hscope h).older)
+    (hcompleteScope : i = nparams →
+      scope = Hsuffix.parameterDecls)
     (Hsynthesis : NarrowHeaderSynthesisCertificate Hc.venv c.lparams
       target scope narrowCurrent i 0)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowCurrent)
+    (htypeFVars : FVarsIn (· ∈ scope.fvars) type)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
       type fullCurrent) :
     (AddInductive.checkInductiveTypes.loopType nparams stats type i
@@ -3666,7 +3718,7 @@ theorem laterParameterSynthesisWF
           (nindices := 0) (fuel := fuel) (k := k) (Q := Q)
           Hc hi hnonempty Hsuffix Hcurrent hdom hbody
         intro paramTy' param' _hparam _hparamType _heq hdomain
-          _habstract normalized _hbelow hnormalized htransition hnext
+          _habstract normalized hbelow hnormalized htransition hnext
         have hindices : Hsynthesis.indices = [] :=
           List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
         have hcurrentWF := Hcurrent.lift.wf Hc.checking.tr.wf
@@ -3674,6 +3726,8 @@ theorem laterParameterSynthesisWF
         rcases Hsynthesis.consumeParameter Hc.checking.tr.wf hindices
             htypeNarrow hcurrentWF hdomain htransition with
           ⟨normalized', hnormalized', ⟨Hsynthesis'⟩⟩
+        let Hbody : LaterParameterScope Hsuffix i body := {
+          Hcurrent with fvars := Hcurrent.fvars.2 }
         exact ih (i := i + 1)
           (scope := (some (Hcurrent.fv, Hcurrent.deps),
             .vlam Hcurrent.paramType) :: Hcurrent.older)
@@ -3683,10 +3737,17 @@ theorem laterParameterSynthesisWF
           (Hscope := fun hlt => hnext hlt)
           (hscopeEq := fun hlt =>
             Hcurrent.nextOlder (hnext hlt) hlt)
-          Hsynthesis' hnormalized' hnormalized
+          (hcompleteScope := fun heq => by
+            have hdone : i + 1 = stats.params.size := by
+              rw [hparams]
+              exact heq
+            exact Hcurrent.completedScope hdone)
+          Hsynthesis' hnormalized'
+          (Hbody.consumedFVars hbelow) hnormalized
       · exact parameterMismatch.WF hforall (Nat.ne_of_lt hi)
     · have hieq : i = nparams := by omega
-      exact Hresult hieq Hsynthesis htypeNarrow htypeFull
+      exact Hresult hieq Hsynthesis (hcompleteScope hieq)
+        htypeNarrow htypeFVars htypeFull
 
 end checkInductiveTypes.loopType
 
