@@ -11036,6 +11036,55 @@ theorem Expr.ForallTelescope.abstractList
     simp only [Expr.abstractList]
     exact ih (H.abstract1 fv k) k
 
+theorem Expr.abstractList_fvar_of_not_mem
+    (hmem : fv ∉ fvs) :
+    (Expr.fvar fv).abstractList fvs k = .fvar fv := by
+  induction fvs generalizing k with
+  | nil => simp
+  | cons head tail ih =>
+    simp only [List.mem_cons, not_or] at hmem
+    have hne : head ≠ fv := Ne.symm hmem.1
+    simp [Expr.abstractList, Expr.abstract1, hne, ih hmem.2]
+
+theorem Expr.abstractList_bvar_ge (fvs : List FVarId) (k n : Nat) :
+    (Expr.bvar (k + n)).abstractList fvs k =
+      .bvar (k + n + fvs.length) := by
+  induction fvs generalizing n with
+  | nil => simp
+  | cons head tail ih =>
+    simp only [Expr.abstractList]
+    rw [show (Expr.bvar (k + n)).abstract1 head k = .bvar (k + n + 1) by
+      simp [Expr.abstract1]]
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (n + 1)
+
+theorem Expr.abstractList_fvar_getElem
+    (hnd : fvs.Nodup) (i : Nat) (hi : i < fvs.length) :
+    (Expr.fvar fvs[i]).abstractList fvs k =
+      .bvar (k + (fvs.length - 1 - i)) := by
+  induction fvs generalizing i k with
+  | nil => simp at hi
+  | cons head tail ih =>
+    simp only [List.nodup_cons] at hnd
+    cases i with
+    | zero =>
+      simp only [List.getElem_cons_zero, Expr.abstractList]
+      rw [show (Expr.fvar head).abstract1 head k = .bvar k by
+        simp [Expr.abstract1]]
+      simpa using Expr.abstractList_bvar_ge tail k 0
+    | succ i =>
+      have hiTail : i < tail.length := by simpa using hi
+      have hne : tail[i] ≠ head := by
+        intro heq
+        apply hnd.1
+        simpa [heq] using List.getElem_mem hiTail
+      simp only [List.getElem_cons_succ, Expr.abstractList]
+      rw [show (Expr.fvar tail[i]).abstract1 head k = .fvar tail[i] by
+        simp [Expr.abstract1, Ne.symm hne]]
+      rw [ih hnd.2 i hiTail (k := k)]
+      congr 1
+      simp only [List.length_cons]
+      omega
+
 /-- Translation erases names and binder annotations but preserves the exact
 number of leading forall binders. -/
 theorem TrExprS.forallTelescope_shape
