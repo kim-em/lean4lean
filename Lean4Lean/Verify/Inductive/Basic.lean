@@ -10262,6 +10262,22 @@ inductive RecursorFieldSelections (env : VEnv) (decl : VInductDecl) :
       RecursorFieldSelections env decl (bu.push arg) (u.push arg)
         (fields ++ [cert])
 
+theorem RecursorFieldSelections.map
+    (H : RecursorFieldSelections env decl bu u fields)
+    (f : Expr → Expr) :
+    RecursorFieldSelections env decl (bu.map f) (u.map f) fields := by
+  induction H with
+  | nil =>
+    rw [Array.map_empty]
+    exact .nil
+  | @nonrecursive bu u fields arg _ ih =>
+    rw [Array.map_push]
+    exact RecursorFieldSelections.nonrecursive (arg := f arg) ih
+  | @recursive bu u fields arg cert _ hindex ih =>
+    rw [Array.map_push, Array.map_push]
+    apply RecursorFieldSelections.recursive (arg := f arg) (cert := cert) ih
+    simpa using hindex
+
 theorem RecursorFieldSelections.selectedSublist
     (H : RecursorFieldSelections env decl bu u fields) :
     u.toList.Sublist bu.toList := by
@@ -10364,9 +10380,9 @@ theorem RecursorFieldSelections.arguments_at_positions
 potential ambiguity is translating the same selected source field along the
 `bu` and `u` arrays; `IsUnique` resolves exactly that equality. -/
 theorem RecursorFieldSelections.translatedSublist
-    (H : RecursorFieldSelections env decl bu u fields)
-    (Hbu : List.Forall₂ (TrExprS env Us Δ) bu.toList allArgs)
-    (Hu : List.Forall₂ (TrExprS env Us Δ) u.toList recursiveArgs)
+    (H : RecursorFieldSelections semanticEnv decl bu u fields)
+    (Hbu : List.Forall₂ (TrExprS trEnv Us Δ) bu.toList allArgs)
+    (Hu : List.Forall₂ (TrExprS trEnv Us Δ) u.toList recursiveArgs)
     (Hunique : ∀ arg ∈ u.toList, TrExprS.IsUnique arg) :
     recursiveArgs.Sublist allArgs := by
   induction H generalizing allArgs recursiveArgs with
@@ -10496,14 +10512,14 @@ constructor argument at their certified ordinal. This discharges the
 `IotaRule.fields_at_positions` obligation from the executable selection
 trace; uniqueness is needed only for the selected source field expression. -/
 theorem RecursorFieldsMaterialize.fields_at_positions
-    {env : VEnv} {decl : VInductDecl} {bu u : Array Expr}
-    {certs : List (RecursorRecursiveDomain env decl)}
+    {semanticEnv trEnv : VEnv} {decl : VInductDecl} {bu u : Array Expr}
+    {certs : List (RecursorRecursiveDomain semanticEnv decl)}
     {recursiveArgs allArgs : List VExpr}
-    {fields : List (decl.RecursiveField env)}
-    (Hsel : RecursorFieldSelections env decl bu u certs)
-    (Hmat : RecursorFieldsMaterialize env decl certs recursiveArgs fields)
-    (Hbu : List.Forall₂ (TrExprS env Us Δ) bu.toList allArgs)
-    (Hu : List.Forall₂ (TrExprS env Us Δ) u.toList recursiveArgs)
+    {fields : List (decl.RecursiveField semanticEnv)}
+    (Hsel : RecursorFieldSelections semanticEnv decl bu u certs)
+    (Hmat : RecursorFieldsMaterialize semanticEnv decl certs recursiveArgs fields)
+    (Hbu : List.Forall₂ (TrExprS trEnv Us Δ) bu.toList allArgs)
+    (Hu : List.Forall₂ (TrExprS trEnv Us Δ) u.toList recursiveArgs)
     (Hunique : ∀ arg ∈ u.toList, TrExprS.IsUnique arg) :
     ∀ field ∈ fields,
       ∃ h : field.fieldIndex < allArgs.length,
@@ -10542,7 +10558,7 @@ theorem RecursorFieldsMaterialize.fields_at_positions
     Hbu certs[j].fieldIndex (by simpa using hpos) hposAll
   have hsourceList : u.toList[j] = bu.toList[certs[j].fieldIndex] := by
     simpa using hsource
-  have Hfield' : TrExprS env Us Δ u.toList[j]
+  have Hfield' : TrExprS trEnv Us Δ u.toList[j]
       allArgs[certs[j].fieldIndex] := by
     rw [hsourceList]
     exact Hfield
@@ -10551,14 +10567,14 @@ theorem RecursorFieldsMaterialize.fields_at_positions
   simpa [hposEq] using heq
 
 theorem RecursorFieldsMaterialize.recursive_args_sublist
-    {env : VEnv} {decl : VInductDecl} {bu u : Array Expr}
-    {certs : List (RecursorRecursiveDomain env decl)}
+    {semanticEnv trEnv : VEnv} {decl : VInductDecl} {bu u : Array Expr}
+    {certs : List (RecursorRecursiveDomain semanticEnv decl)}
     {recursiveArgs allArgs : List VExpr}
-    {fields : List (decl.RecursiveField env)}
-    (Hsel : RecursorFieldSelections env decl bu u certs)
-    (Hmat : RecursorFieldsMaterialize env decl certs recursiveArgs fields)
-    (Hbu : List.Forall₂ (TrExprS env Us Δ) bu.toList allArgs)
-    (Hu : List.Forall₂ (TrExprS env Us Δ) u.toList recursiveArgs)
+    {fields : List (decl.RecursiveField semanticEnv)}
+    (Hsel : RecursorFieldSelections semanticEnv decl bu u certs)
+    (Hmat : RecursorFieldsMaterialize semanticEnv decl certs recursiveArgs fields)
+    (Hbu : List.Forall₂ (TrExprS trEnv Us Δ) bu.toList allArgs)
+    (Hu : List.Forall₂ (TrExprS trEnv Us Δ) u.toList recursiveArgs)
     (Hunique : ∀ arg ∈ u.toList, TrExprS.IsUnique arg) :
     (fields.map (fun field => field.arg)).Sublist allArgs := by
   rw [Hmat.args]
@@ -10579,16 +10595,16 @@ structure IotaFieldCertificate (env : VEnv) (decl : VInductDecl)
   recursive_args : recursiveArgs.Sublist ctorArgs
 
 def RecursorFieldsMaterialize.iotaFieldCertificate
-    {env : VEnv} {decl : VInductDecl} {bu u : Array Expr}
-    {certs : List (RecursorRecursiveDomain env decl)}
+    {semanticEnv trEnv : VEnv} {decl : VInductDecl} {bu u : Array Expr}
+    {certs : List (RecursorRecursiveDomain semanticEnv decl)}
     {recursiveArgs ctorArgs : List VExpr}
-    {fields : List (decl.RecursiveField env)}
-    (Hsel : RecursorFieldSelections env decl bu u certs)
-    (Hmat : RecursorFieldsMaterialize env decl certs recursiveArgs fields)
-    (Hbu : List.Forall₂ (TrExprS env Us Δ) bu.toList ctorArgs)
-    (Hu : List.Forall₂ (TrExprS env Us Δ) u.toList recursiveArgs)
+    {fields : List (decl.RecursiveField semanticEnv)}
+    (Hsel : RecursorFieldSelections semanticEnv decl bu u certs)
+    (Hmat : RecursorFieldsMaterialize semanticEnv decl certs recursiveArgs fields)
+    (Hbu : List.Forall₂ (TrExprS trEnv Us Δ) bu.toList ctorArgs)
+    (Hu : List.Forall₂ (TrExprS trEnv Us Δ) u.toList recursiveArgs)
     (Hunique : ∀ arg ∈ u.toList, TrExprS.IsUnique arg) :
-    IotaFieldCertificate env decl ctorArgs fields recursiveArgs where
+    IotaFieldCertificate semanticEnv decl ctorArgs fields recursiveArgs where
   fieldPositions := fields.map (fun field => field.fieldIndex)
   fieldPositions_eq := rfl
   fieldPositions_ordered := Hmat.positions_ordered Hsel
@@ -15723,6 +15739,215 @@ theorem BoundGeneratedRecursorRule.translatedLhsResidual
   · simpa [leadingSource] using Hleading
   · simpa [ctorArgsSource] using HctorArgs'
 
+/-- Proof-side construction record for the `VDefEq` corresponding to one
+production `RecursorRule`. The executable record stores only its constructor,
+field count, and RHS; this certificate makes the reconstructed LHS, common
+telescope, and equation type an explicit refinement boundary. -/
+structure BoundGeneratedRecursorRule.EquationTranslation
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (trEnv : VEnv) (Us : List Name) (Δ : VLCtx) (rule : VDefEq) where
+  domains : List VExpr
+  lhsBody : VExpr
+  rhsBody : VExpr
+  typeBody : VExpr
+  domains_length : domains.length = H.binders.length
+  lhs_wrapped : rule.lhs = VExpr.wrapLams domains lhsBody
+  rhs_wrapped : rule.rhs = VExpr.wrapLams domains rhsBody
+  type_wrapped : rule.type = VExpr.wrapForalls domains typeBody
+  lhs_residual : TrExprS trEnv Us (abstractForallContext domains Δ)
+    (H.sourceLhsBody.abstractList H.binders) lhsBody
+  rhs_residual : TrExprS trEnv Us (abstractForallContext domains Δ)
+    (H.sourceRhsBody.abstractList H.binders) rhsBody
+
+/-- Common recursor parameters become closed de Bruijn variables under the
+generated rule telescope, so their syntax translation is unique. -/
+theorem BoundGeneratedRecursorRule.abstractedParamsUnique
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    ∀ e ∈ (stats.params.map fun arg =>
+      arg.abstractList H.binders).toList,
+      TrExprS.IsUnique e := by
+  intro e he
+  rcases List.mem_iff_getElem.mp he with ⟨i, hi, heq⟩
+  have hiArray : i < stats.params.size := by simpa using hi
+  rcases H.params_bound.getElem_eq_fvar i hiArray with
+    ⟨hiFvars, hsource⟩
+  let fv := H.params_bound.fvars[i]
+  have hsource' : stats.params[i] = .fvar fv := hsource
+  have hselected : fv ∈ H.binders := by
+    unfold BoundGeneratedRecursorRule.binders
+    exact List.mem_append_left _ <| List.mem_append_left _ <|
+      List.mem_append_left _ (List.getElem_mem hiFvars)
+  rcases List.mem_iff_getElem.mp hselected with ⟨j, hj, hget⟩
+  let paramVar := H.binders.length - 1 - j
+  have habstract := Expr.abstractList_fvar_getElem
+    H.binders_nodup j hj (k := 0)
+  unfold BoundGeneratedRecursorRule.binders at hget
+  rw [hget] at habstract
+  have habstract' : (Expr.fvar fv).abstractList H.binders =
+      .bvar paramVar := by
+    simpa [BoundGeneratedRecursorRule.binders, paramVar,
+      List.append_assoc] using habstract
+  have hentry :
+      (stats.params.map fun arg => arg.abstractList H.binders).toList[i] =
+        .bvar paramVar := by
+    calc
+      _ = stats.params[i].abstractList H.binders := by simp
+      _ = (Expr.fvar fv).abstractList H.binders := by rw [hsource']
+      _ = .bvar paramVar := habstract'
+  rw [← heq, hentry]
+  trivial
+
+/-- Equation shape together with the exact translated constructor-field
+suffix needed by the recursive-field and RHS certificates. -/
+structure BoundGeneratedRecursorRule.IotaEquationTranslationCertificate
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (trEnv : VEnv) (Us : List Name) (Δ : VLCtx)
+    (decl : VInductDecl) (block : VInductBlock)
+    (owner : VInductiveType) (ctor : VConstVal) (rule : VDefEq) where
+  shape : IotaEquationCertificate decl block owner ctor rule
+  domains_length : shape.domains.length = H.binders.length
+  rhs_residual : TrExprS trEnv Us
+    (abstractForallContext shape.domains Δ)
+    (H.sourceRhsBody.abstractList H.binders) shape.rhsBody
+  field_args : List.Forall₂
+    (TrExprS trEnv Us (abstractForallContext shape.domains Δ))
+    (H.allArgs.map fun arg => arg.abstractList H.binders).toList
+    (shape.ctorArgs.drop decl.nparams)
+
+/-- The retained source rule and its explicit `VDefEq` translation determine
+the complete non-recursive iota-equation shape. Arity premises are deliberately
+stated at the concrete array boundary so `RecursorCardinalityCertificate` can
+discharge them without coupling this local theorem to the outer loop. -/
+theorem BoundGeneratedRecursorRule.iotaEquationCertificate
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Htr : H.EquationTranslation trEnv Us Δ rule)
+    (htarget : AddInductive.getIIndices stats H.target =
+      (ownerIdx, indices))
+    (hparams : stats.params.size = decl.nparams)
+    (hmotives : motives.size = decl.types.length)
+    (hminors : minors.size = decl.ownedConstructors.length)
+    (hindices : indices.size = owner.numIndices)
+    (hownerName : indTypes[ownerIdx]!.name = owner.name)
+    (recursor : VConstVal)
+    (hrecursorMem : recursor ∈ block.recursors)
+    (hrecursorName : recursor.name = decl.recursorName owner)
+    (hrecursorUvars : lvls.length = recursor.uvars)
+    (ctor : VConstVal)
+    (hctorName : sourceCtor.name = ctor.name)
+    (hctorUvars : stats.levels.length = decl.uvars)
+    (hruleUvars : rule.uvars = recursor.uvars) :
+    Nonempty (H.IotaEquationTranslationCertificate trEnv Us Δ decl block
+      owner ctor rule) := by
+  rcases H.translatedLhsResidual htarget Htr.lhs_residual with
+    ⟨recursorLevels, leadingArgs, ctorLevels, ctorArgs, hlhs,
+      hrecursorLevels, hctorLevels, Hleading, HctorArgs⟩
+  let paramSource :=
+    (stats.params.map fun arg => arg.abstractList H.binders).toList
+  let leadingTailSource :=
+    (motives.map fun arg => arg.abstractList H.binders).toList ++
+    (minors.map fun arg => arg.abstractList H.binders).toList ++
+    (indices.map fun arg => arg.abstractList H.binders).toList
+  let ctorTailSource :=
+    (H.allArgs.map fun arg => arg.abstractList H.binders).toList
+  have Hleading' : List.Forall₂
+      (TrExprS trEnv Us (abstractForallContext Htr.domains Δ))
+      (paramSource ++ leadingTailSource) leadingArgs := by
+    simpa only [paramSource, leadingTailSource, List.append_assoc]
+      using Hleading
+  have HctorArgs' : List.Forall₂
+      (TrExprS trEnv Us (abstractForallContext Htr.domains Δ))
+      (paramSource ++ ctorTailSource) ctorArgs := by
+    simpa only [paramSource, ctorTailSource] using HctorArgs
+  rcases checkPositivityStep.List.Forall₂.split_left Hleading' with
+    ⟨leadingParams, leadingTail, hleadingArgs, HleadingParams, _⟩
+  rcases checkPositivityStep.List.Forall₂.split_left HctorArgs' with
+    ⟨ctorParams, ctorTail, hctorArgs, HctorParams, HctorTail⟩
+  have hparamTargets : leadingParams = ctorParams :=
+    Lean4Lean.VerifyInductive.List.Forall₂.targets_eq_of_unique
+      HleadingParams HctorParams (by
+        simpa only [paramSource] using H.abstractedParamsUnique)
+  have hparamSourceLength : paramSource.length = decl.nparams := by
+    simp [paramSource, hparams]
+  have hleadingParamsLength : leadingParams.length = decl.nparams := by
+    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      HleadingParams
+    omega
+  have hctorParamsLength : ctorParams.length = decl.nparams := by
+    rw [← hparamTargets]
+    exact hleadingParamsLength
+  have hleadingLength : leadingArgs.length = decl.nparams +
+      decl.types.length + decl.ownedConstructors.length + owner.numIndices := by
+    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hleading
+    simpa [hparams, hmotives, hminors, hindices, Nat.add_assoc]
+      using hlen.symm
+  have hctorLength : ctorArgs.length = decl.nparams + H.allArgs.size := by
+    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HctorArgs
+    simpa [hparams] using hlen.symm
+  have hbindersLength : H.binders.length = stats.params.size + motives.size +
+      minors.size + H.allArgs.size := by
+    have hp : stats.params.size = H.params_bound.fvars.length := by
+      simpa using congrArg Array.size H.params_bound.expressions
+    have hm : motives.size = H.motives_bound.fvars.length := by
+      simpa using congrArg Array.size H.motives_bound.expressions
+    have hmi : minors.size = H.minors_bound.fvars.length := by
+      simpa using congrArg Array.size H.minors_bound.expressions
+    have ha : H.allArgs.size = H.all_args_bound.fvars.length := by
+      simpa using congrArg Array.size H.all_args_bound.expressions
+    unfold BoundGeneratedRecursorRule.binders
+    simp only [List.length_append]
+    omega
+  let Hshape : IotaEquationCertificate decl block owner ctor rule := {
+    recursor := recursor
+    recursor_mem := hrecursorMem
+    recursor_name := hrecursorName
+    rule_uvars := hruleUvars
+    domains := Htr.domains
+    lhsBody := Htr.lhsBody
+    rhsBody := Htr.rhsBody
+    typeBody := Htr.typeBody
+    lhs_wrapped := Htr.lhs_wrapped
+    rhs_wrapped := Htr.rhs_wrapped
+    type_wrapped := Htr.type_wrapped
+    recursorLevels := recursorLevels
+    leadingArgs := leadingArgs
+    ctorLevels := ctorLevels
+    ctorArgs := ctorArgs
+    lhs_pattern := by
+      rw [hrecursorName, VInductDecl.recursorName_eq_mkRecName]
+      simpa [hownerName, hctorName] using hlhs
+    recursor_levels := by
+      rw [← hrecursorUvars]
+      exact (checkPositivityStep.List.mapM_some_length
+        hrecursorLevels).symm
+    ctor_levels := by
+      rw [← hctorUvars]
+      exact (checkPositivityStep.List.mapM_some_length hctorLevels).symm
+    leading_arity := hleadingLength
+    constructor_arity := by omega
+    parameter_args := by
+      rw [hleadingArgs, hctorArgs, ← hparamTargets]
+      rw [← hleadingParamsLength]
+      simp
+    domains_arity := by
+      rw [Htr.domains_length, hbindersLength, hparams, hmotives, hminors,
+        hctorLength]
+      omega }
+  refine ⟨{
+    shape := Hshape
+    domains_length := Htr.domains_length
+    rhs_residual := Htr.rhs_residual
+    field_args := ?_ }⟩
+  change List.Forall₂
+    (TrExprS trEnv Us (abstractForallContext Htr.domains Δ))
+    (H.allArgs.map fun arg => arg.abstractList H.binders).toList
+    (ctorArgs.drop decl.nparams)
+  rw [hctorArgs]
+  simpa [ctorTailSource, hctorParamsLength] using HctorTail
+
 /-- Simultaneous abstraction turns the selected minor free variable into one
 in-scope de Bruijn variable and preserves the field/result application
 spines pointwise. -/
@@ -15975,6 +16200,20 @@ theorem BoundGeneratedRecursorRule.abstractedAllArgsUnique
   rw [← heq, hentry]
   trivial
 
+/-- Selected recursive fields inherit translation uniqueness from the full
+constructor-field array after simultaneous closing. -/
+theorem BoundGeneratedRecursorRule.abstractedRecursiveArgsUnique
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    ∀ e ∈ (H.recursiveArgs.map fun arg =>
+      arg.abstractList H.binders).toList,
+      TrExprS.IsUnique e := by
+  intro e he
+  apply H.abstractedAllArgsUnique e
+  have hsub := H.recursive_args_sublist.map
+    (fun arg => arg.abstractList H.binders)
+  exact List.Sublist.mem he (by simpa using hsub)
+
 /-- Assemble the abstract iota RHS certificate directly from the translated
 production RHS and the independently translated selected-field spine. -/
 theorem BoundGeneratedRecursorRule.iotaRhsCertificate_ofFresh
@@ -16102,6 +16341,42 @@ theorem BoundGeneratedRecursorRule.iotaRule_ofCertificates
     hfresh hctx hproj hrecursor
   rcases Hrhs with ⟨Hrhs⟩
   exact ⟨VInductDecl.IotaRule.ofCertificates Hshape Hfield Hrhs⟩
+
+/-- Complete pointwise bridge from an explicitly reconstructed equation and
+the executable recursive-field selection trace to the independent iota-rule
+judgment. This removes `IotaEquationCertificate` and `IotaFieldCertificate`
+as arbitrary external premises at the generated-rule boundary. -/
+theorem BoundGeneratedRecursorRule.iotaRule_ofTranslationCertificate
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Hequation : H.IotaEquationTranslationCertificate trEnv Us Δ decl block
+      owner ctor rule)
+    (Hselection : RecursorFieldSelections semanticEnv decl H.allArgs
+      H.recursiveArgs selections)
+    {recursiveArgs : List VExpr}
+    (Hargs : List.Forall₂
+      (TrExprS trEnv Us
+        (abstractForallContext Hequation.shape.domains Δ))
+      (H.recursiveArgs.map fun arg =>
+        arg.abstractList H.binders).toList recursiveArgs)
+    (hfresh : ∀ name ∈ block.recursors.map (·.name),
+      trEnv.constants name = none)
+    (hctx : VLCtx.NoIndConsts (block.recursors.map (·.name))
+      (abstractForallContext Hequation.shape.domains Δ))
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (block.recursors.map (·.name)) = false →
+      e''.containsAnyConst (block.recursors.map (·.name)) = false)
+    (hrecursor : H.recursive_calls.RecursorsPresent
+      (block.recursors.map (·.name))) :
+    Nonempty (decl.IotaRule semanticEnv block owner ctor rule) := by
+  let Hselection' := Hselection.map
+    (fun arg => arg.abstractList H.binders)
+  rcases Hselection'.exists_materialization Hargs with ⟨fields, Hfields⟩
+  let Hfield := Hfields.iotaFieldCertificate Hselection'
+    Hequation.field_args Hargs H.abstractedRecursiveArgsUnique
+  exact H.iotaRule_ofCertificates Hequation.shape Hfield
+    Hequation.domains_length Hequation.rhs_residual
+    Hequation.field_args Hargs hfresh hctx hproj hrecursor
 
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
