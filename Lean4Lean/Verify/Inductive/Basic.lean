@@ -262,6 +262,61 @@ theorem IotaRecursiveResultsCertificate.minorRhs
     exact VExpr.GuardedIota.ofContainsAnyConstFalse (hfields arg harg)
   · exact H.results_guarded
 
+/-- Complete right-hand-side fragment of an iota rule. The executable minor
+application is represented once; its spine, field/result split, cardinality,
+and guardedness are derived below. -/
+structure IotaRhsCertificate
+    (recursors : List Name) (domains fieldArgs recursiveArgs : List VExpr)
+    (rhsBody : VExpr) where
+  minorVar : Nat
+  minor_in_scope : minorVar < domains.length
+  recursiveResults : List VExpr
+  rhs_eq : rhsBody = VExpr.mkApps (.bvar minorVar)
+    (fieldArgs ++ recursiveResults)
+  fieldVars : List Nat
+  fieldVars_eq : fieldVars =
+    recursiveArgs.filterMap VExpr.bvarHead?
+  fields_in_scope : ∀ field ∈ fieldVars, field < domains.length
+  fields_recursor_free : ∀ arg ∈ fieldArgs,
+    arg.containsAnyConst recursors = false
+  recursive_results : IotaRecursiveResultsCertificate
+    recursors fieldVars recursiveArgs recursiveResults
+
+theorem IotaRhsCertificate.rhs_spine
+    (H : IotaRhsCertificate recursors domains fieldArgs recursiveArgs
+      rhsBody) :
+    rhsBody.getAppFnArgs =
+      (.bvar H.minorVar, fieldArgs ++ H.recursiveResults) := by
+  rcases H with ⟨minorVar, hminor, results, hrhs, fieldVars,
+    hfieldVars, hfieldsScope, hfieldsFree, hresults⟩
+  change rhsBody.getAppFnArgs =
+    (.bvar minorVar, fieldArgs ++ results)
+  rw [hrhs]
+  exact VExpr.getAppFnArgs_mkApps_bvar _ _
+
+theorem IotaRhsCertificate.field_args
+    (H : IotaRhsCertificate recursors domains fieldArgs recursiveArgs
+      rhsBody) :
+    (fieldArgs ++ H.recursiveResults).take fieldArgs.length = fieldArgs := by
+  simp
+
+theorem IotaRhsCertificate.results_length
+    (H : IotaRhsCertificate recursors domains fieldArgs recursiveArgs
+      rhsBody) :
+    ((fieldArgs ++ H.recursiveResults).drop fieldArgs.length).length =
+      recursiveArgs.length := by
+  simpa using H.recursive_results.length
+
+theorem IotaRhsCertificate.guarded
+    (H : IotaRhsCertificate recursors domains fieldArgs recursiveArgs
+      rhsBody) :
+    rhsBody.GuardedIota recursors H.fieldVars 0 := by
+  rcases H with ⟨minorVar, hminor, results, hrhs, fieldVars,
+    hfieldVars, hfieldsScope, hfieldsFree, hresults⟩
+  change rhsBody.GuardedIota recursors fieldVars 0
+  rw [hrhs]
+  exact hresults.minorRhs hfieldsFree
+
 /-- Completed output of the mutual-header traversal. -/
 structure HeaderCertificate (env : VEnv) (decl : VInductDecl) where
   params : List VExpr
@@ -14398,6 +14453,34 @@ theorem mkRecRules.boundGeneratedRules
   exact H.mono fun out Hout => by
     rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
     simpa using ⟨hout ▸ Hgenerated, hend⟩
+
+/-- Binder-aware analogue of `appendGeneratedRules`. Traversal, ordering, and
+flattened constructor indexing are discharged here; the remaining pointwise
+premise receives all local-binding evidence needed to construct `IotaRule`. -/
+theorem IotaBuildCertificate.appendBoundGeneratedRules
+    (Hbuild : IotaBuildCertificate env decl block prior)
+    (Hgenerated : BoundGeneratedRecursorRules
+      indTypes stats motives minors lvls ctors start sourceRules)
+    (hlength : abstractRules.length = sourceRules.length)
+    (hroom : abstractRules.length + prior.length ≤
+      decl.ownedConstructors.length)
+    (hsemantic : ∀ i (hctor : i < ctors.length)
+      (hsource : i < sourceRules.length)
+      (habstract : i < abstractRules.length),
+      BoundGeneratedRecursorRule indTypes stats motives minors lvls
+        ctors[i] (start + i) sourceRules[i] →
+      Nonempty (decl.IotaRule env block
+        decl.ownedConstructors[prior.length + i].1
+        decl.ownedConstructors[prior.length + i].2 abstractRules[i])) :
+    IotaBuildCertificate env decl block (prior ++ abstractRules) := by
+  apply Hbuild.append hroom
+  intro i habstract
+  have hsource : i < sourceRules.length := by omega
+  have hctor : i < ctors.length := by
+    rw [← Hgenerated.length]
+    exact hsource
+  rcases Hgenerated.entry i hctor hsource with ⟨Hrule⟩
+  exact hsemantic i hctor hsource habstract Hrule
 
 namespace mkRecInfos.loopU
 
