@@ -1422,6 +1422,51 @@ noncomputable def NarrowHeaderSynthesisCertificate.withParameter
       simpa [hindices, VExpr.wrapForalls, VExpr.wrapForalls_append]
         using hwrapped }
 
+/-- Move a definitionally equal residual forall into the narrow index
+telescope. -/
+noncomputable def NarrowHeaderSynthesisCertificate.withIndex
+    (henv : env.WF)
+    (H : NarrowHeaderSynthesisCertificate env Us target scope
+      (.forallE sourceDom sourceBody) i nindices)
+    (hscopeWF : VLCtx.WF env Us.length
+      ((some (fv, deps), .vlam indexType) :: scope))
+    (hstep : env.IsDefEqU Us.length scope.toCtx
+      (.forallE sourceDom sourceBody) (.forallE indexType next)) :
+    NarrowHeaderSynthesisCertificate env Us target
+      ((some (fv, deps), .vlam indexType) :: scope)
+      next i (nindices + 1) := by
+  have hforallType : env.IsType Us.length scope.toCtx
+      (.forallE indexType next) :=
+    H.currentType.defeqU_l henv H.scopeWF.toCtx hstep
+  have hnextType := hforallType.forallE_inv henv.ordered |>.2
+  have hstepTyped := hstep.of_l henv H.scopeWF.toCtx
+    (Classical.choose_spec H.currentType)
+  have hdomainsCtx : OnCtx (H.params ++ H.indices).reverse
+      (env.IsType Us.length) := by
+    simpa [List.reverse_append, ← H.scopeCtx] using H.scopeWF.toCtx
+  have hstepTyped' : env.IsDefEq Us.length
+      ((H.params ++ H.indices).reverse ++ [])
+      (.forallE sourceDom sourceBody) (.forallE indexType next)
+      (.sort (Classical.choose H.currentType)) := by
+    simpa [List.reverse_append, H.scopeCtx] using hstepTyped
+  have hwrappedExists := VExpr.wrapForalls_defeq
+    (domains := H.params ++ H.indices) (Γ := [])
+      (by simpa using hdomainsCtx) hstepTyped'
+  have hwrapped := Classical.choose_spec hwrappedExists
+  exact {
+    params := H.params
+    indices := H.indices ++ [indexType]
+    parameterCount := H.parameterCount
+    indexCount := by simp [H.indexCount]
+    scopeCtx := by
+      simp [VLCtx.toCtx, H.scopeCtx, List.reverse_append]
+    scopeWF := hscopeWF
+    currentType := hnextType
+    exprType := .sort (Classical.choose hwrappedExists)
+    header := H.header.trans_r henv (by trivial) <| by
+      simpa [VExpr.wrapForalls, VExpr.wrapForalls_append,
+        List.append_assoc] using hwrapped }
+
 /-- Build the semantic parameter transition from the narrowed syntax
 translation and the executable comparison/normalization witnesses. -/
 theorem NarrowHeaderSynthesisCertificate.consumeParameter
@@ -1479,6 +1524,64 @@ theorem NarrowHeaderSynthesisCertificate.consumeParameter
       ⟨_, .forallEDF hdomTyped hbodyTyped⟩
     exact ⟨normalized', hnormalized,
       ⟨H.withParameter henv hindices hscopeWF hstep⟩⟩
+
+/-- Build the semantic index transition from the narrowed syntax
+translation and the executable comparison/normalization witnesses. -/
+theorem NarrowHeaderSynthesisCertificate.consumeIndex
+    (henv : env.WF)
+    (H : NarrowHeaderSynthesisCertificate env Us target scope current i
+      nindices)
+    (htype : TrExprS env Us scope (.forallE name dom body bi) current)
+    (hscopeWF : VLCtx.WF env Us.length
+      ((some (fv, deps), .vlam indexType) :: scope))
+    (hdomain : ∃ sourceDom',
+      TrExprS env Us scope dom sourceDom' ∧
+      env.IsDefEqU Us.length scope.toCtx sourceDom' indexType)
+    (htransition : ∃ sourceBody' normalized',
+      TrExprS env Us ((none, .vlam indexType) :: scope)
+        body sourceBody' ∧
+      TrExprS env Us ((some (fv, deps), .vlam indexType) :: scope)
+        normalized normalized' ∧
+      env.IsDefEqU Us.length (indexType :: scope.toCtx)
+        sourceBody' normalized') :
+    ∃ normalized',
+      TrExprS env Us ((some (fv, deps), .vlam indexType) :: scope)
+        normalized normalized' ∧
+      Nonempty (NarrowHeaderSynthesisCertificate env Us target
+        ((some (fv, deps), .vlam indexType) :: scope)
+        normalized' i (nindices + 1)) := by
+  cases htype with
+  | forallE hdomType hbodyType hdom hbody =>
+    rcases hdomain with ⟨sourceDom', hsourceDom, hsourceDomEq⟩
+    rcases htransition with
+      ⟨sourceBody', normalized', hsourceBody, hnormalized,
+        hsourceBodyEq⟩
+    have hscopeEq : VLCtx.IsDefEq env Us.length scope scope :=
+      .refl henv H.scopeWF
+    have hdomEq : env.IsDefEqU Us.length scope.toCtx
+        _ indexType :=
+      (hdom.uniq henv hscopeEq hsourceDom).trans henv H.scopeWF.toCtx
+        hsourceDomEq
+    have hdomTyped := hdomEq.of_l henv H.scopeWF.toCtx
+      (Classical.choose_spec hdomType)
+    have hbodyCtx : VLCtx.IsDefEq env Us.length
+        ((none, .vlam _) :: scope)
+        ((none, .vlam indexType) :: scope) :=
+      .cons hscopeEq nofun (.vlam hdomTyped)
+    have hsourceBodyEq' := hsourceBodyEq.defeqDFC henv.ordered
+      (hbodyCtx.symm henv.ordered).defeqCtx
+    have hbodyOldCtx := hbodyCtx.wf.toCtx
+    have hbodyEq : env.IsDefEqU Us.length (_ :: scope.toCtx)
+        _ normalized' :=
+      (hbody.uniq henv hbodyCtx hsourceBody).trans henv hbodyOldCtx
+        hsourceBodyEq'
+    have hbodyTyped := hbodyEq.of_l henv hbodyOldCtx
+      (Classical.choose_spec hbodyType)
+    have hstep : env.IsDefEqU Us.length scope.toCtx
+        (.forallE _ _) (.forallE indexType normalized') :=
+      ⟨_, .forallEDF hdomTyped hbodyTyped⟩
+    exact ⟨normalized', hnormalized,
+      ⟨H.withIndex henv hscopeWF hstep⟩⟩
 
 theorem NarrowHeaderSynthesisCertificate.typeShape
     {decl : VInductDecl} {target : VInductiveType}
