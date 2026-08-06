@@ -8165,6 +8165,194 @@ theorem mkRecRules.loopU.resultCountFromEmpty
       u 0 #[] k c).WF Q :=
   mkRecRules.loopU.resultCount (Nat.zero_le _) rfl Hk
 
+namespace mkRecInfos.loopUArgs
+
+/-- `loopUArgs` can only return through its continuation. This structural
+interface lets rule generation retain the exposed recursive-field indices
+without depending on typechecker correctness a second time. -/
+private theorem loop_continueWith
+    {α : Type} {Q : α → Prop}
+    (k : Expr → Array Expr → AddInductive.M α)
+    (Hk : ∀ uiTy xs c, (k uiTy xs c).WF Q) :
+    ∀ fuel uiTy xs c,
+      (AddInductive.mkRecInfos.loopUArgs.loop k uiTy xs fuel c).WF Q
+  | 0, _, _, _ => Except.WF.throw
+  | fuel + 1, uiTy, xs, c => by
+    cases uiTy with
+    | forallE name dom body bi =>
+      rw [AddInductive.mkRecInfos.loopUArgs.loop]
+      let c' : AddInductive.Context := { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotations bi }
+      unfold Lean4Lean.withLocalDecl MonadLocalNameGenerator.withFreshId
+        AddInductive.instMonadLocalNameGeneratorM
+        AddInductive.instMonadWithReaderOfLocalContextM
+      change ((monadLift (TypeChecker.whnf
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+          AddInductive.M Expr) c' >>= fun normalized =>
+        AddInductive.mkRecInfos.loopUArgs.loop k normalized
+          (xs.push (.fvar ⟨c.ngen.curr⟩)) fuel c').WF Q
+      have hwhnf :
+          ((monadLift (TypeChecker.whnf
+            (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+              AddInductive.M Expr) c').WF (fun _ => True) := by
+        intro _ _
+        trivial
+      exact hwhnf.bind fun normalized _ =>
+        loop_continueWith k Hk fuel normalized
+          (xs.push (.fvar ⟨c.ngen.curr⟩)) c'
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+        | proj =>
+      change (k _ xs c).WF Q
+      exact Hk _ _ _
+
+theorem continueWith
+    {α : Type} {Q : α → Prop}
+    (ui : Expr) (k : Expr → Array Expr → AddInductive.M α)
+    (c : AddInductive.Context)
+    (Hk : ∀ uiTy xs c, (k uiTy xs c).WF Q) :
+    (AddInductive.mkRecInfos.loopUArgs ui k c).WF Q := by
+  unfold AddInductive.mkRecInfos.loopUArgs
+  have hinfer :
+      ((monadLift (TypeChecker.inferType ui) : AddInductive.M Expr) c).WF
+        (fun _ => True) := by
+    intro _ _
+    trivial
+  refine hinfer.bind fun inferred _ => ?_
+  have hwhnf :
+      ((monadLift (TypeChecker.whnf inferred) : AddInductive.M Expr) c).WF
+        (fun _ => True) := by
+    intro _ _
+    trivial
+  refine hwhnf.bind fun normalized _ => ?_
+  change (AddInductive.mkRecInfos.loopUArgs.loop k normalized #[]
+    c.fuel.inductiveFuel c).WF Q
+  exact loop_continueWith k Hk _ _ _ _
+
+end mkRecInfos.loopUArgs
+
+/-- Exact concrete syntax of one recursive call generated for an argument
+selected by `loopCtorArgs`. -/
+def GeneratedRecursiveCall
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (field value : Expr) : Prop :=
+  ∃ (exposedType : Expr) (localArgs : Array Expr) (lctx : LocalContext),
+    let (typeIdx, indices) := AddInductive.getIIndices stats exposedType
+    let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
+    let recursor := mkAppN
+      (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+      indices
+    value = (lctx.mkLambda localArgs <|
+      recursor.app (mkAppN field localArgs))
+
+/-- Prefix invariant for `mkRecRules.loopU`: generated values correspond
+pointwise to the selected recursive fields. -/
+structure GeneratedRecursiveCalls
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (u v : Array Expr) (done : Nat) : Prop where
+  covered : done ≤ u.size
+  size : v.size = done
+  entries : ∀ i, i < done → (hi : i < u.size) →
+    GeneratedRecursiveCall indTypes stats motives minors lvls u[i]
+      v[i]!
+
+def GeneratedRecursiveCalls.empty
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level) (u : Array Expr) :
+    GeneratedRecursiveCalls indTypes stats motives minors lvls u #[] 0 where
+  covered := Nat.zero_le _
+  size := rfl
+  entries _ h := by omega
+
+def GeneratedRecursiveCalls.push
+    (H : GeneratedRecursiveCalls indTypes stats motives minors lvls u v done)
+    (hdone : done < u.size)
+    (Hentry : GeneratedRecursiveCall indTypes stats motives minors lvls
+      u[done] value) :
+    GeneratedRecursiveCalls indTypes stats motives minors lvls u
+      (v.push value) (done + 1) where
+  covered := by omega
+  size := by simp [H.size]
+  entries i hi hiu := by
+    by_cases h : i = done
+    · subst i
+      have hpush : done < (v.push value).size := by simp [H.size]
+      have hbang : (v.push value)[done]! = value := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hpush]
+        simpa [H.size] using (@Array.getElem_push_eq Expr v value)
+      rw [hbang]
+      exact Hentry
+    · have hold : i < done := by omega
+      have hv : i < v.size := by simpa [H.size] using hold
+      have hpush : i < (v.push value).size := by
+        simpa using Nat.lt_succ_of_lt hv
+      have hbang : (v.push value)[i]! = v[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hpush, dif_pos hv]
+        exact Array.getElem_push_lt hv
+      rw [hbang]
+      exact H.entries i hold hiu
+
+namespace mkRecRules.loopU
+
+theorem generatedCalls
+    {α : Type} {Q : α → Prop}
+    {k : Array Expr → AddInductive.M α}
+    (Hprefix : GeneratedRecursiveCalls indTypes stats motives minors lvls
+      u v i)
+    (Hk : ∀ v c,
+      GeneratedRecursiveCalls indTypes stats motives minors lvls
+        u v u.size →
+      (k v c).WF Q) :
+    (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
+      u i v k c).WF Q := by
+  rw [AddInductive.mkRecRules.loopU.eq_1]
+  by_cases hnext : i < u.size
+  · rw [dif_pos hnext]
+    let buildCall : Expr → Array Expr → AddInductive.M Expr :=
+      fun uiTy xs => do
+        let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+        let val := Expr.const (Lean.mkRecName indTypes[itIdx]!.name) lvls
+        let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params)
+          motives) minors) itIndices
+        return (← getLCtx).mkLambda xs <| val.app (mkAppN u[i] xs)
+    have hval :
+        (AddInductive.mkRecInfos.loopUArgs u[i] buildCall c).WF
+          (fun value => GeneratedRecursiveCall indTypes stats motives minors
+            lvls u[i] value) := by
+      apply mkRecInfos.loopUArgs.continueWith
+      intro uiTy xs c'
+      exact Except.WF.pure ⟨uiTy, xs, c'.lctx, rfl⟩
+    · exact hval.bind fun value Hvalue =>
+        generatedCalls
+          (Hprefix.push hnext Hvalue) Hk
+  · rw [dif_neg hnext]
+    apply Hk
+    have hcovered := Hprefix.covered
+    have hdone : i = u.size := by omega
+    simpa [hdone] using Hprefix
+termination_by u.size - i
+
+end mkRecRules.loopU
+
+theorem mkRecRules.loopU.generatedCallsFromEmpty
+    {α : Type} {Q : α → Prop}
+    {k : Array Expr → AddInductive.M α}
+    (Hk : ∀ v c,
+      GeneratedRecursiveCalls indTypes stats motives minors lvls
+        u v u.size →
+      (k v c).WF Q) :
+    (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
+      u 0 #[] k c).WF Q :=
+  mkRecRules.loopU.generatedCalls
+    (GeneratedRecursiveCalls.empty indTypes stats motives minors lvls u) Hk
+
 /-- A validated concrete parameter argument translates to the corresponding
 abstract de Bruijn parameter.  The fvar-shape invariant is what upgrades
 structural `Expr` equality to exact syntax translation here. -/
