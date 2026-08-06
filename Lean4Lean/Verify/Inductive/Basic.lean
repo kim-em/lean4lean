@@ -9497,8 +9497,12 @@ theorem resultCount
     (hdone : dIdx ≤ indTypes.size)
     (hsize : recInfos.size = dIdx)
     (hempty : ∀ r ∈ recInfos.toList, r.minors.isEmpty)
+    (harities : ∀ i, i < recInfos.size →
+      recInfos[i]!.indices.size = stats.nindices[i]!)
     (Hk : ∀ recInfos c, recInfos.size = indTypes.size →
       (∀ r ∈ recInfos.toList, r.minors.isEmpty) →
+      (∀ i, i < recInfos.size →
+        recInfos[i]!.indices.size = stats.nindices[i]!) →
       (k recInfos c).WF Q) :
     (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel dIdx
       recInfos k c).WF Q := by
@@ -9521,42 +9525,67 @@ theorem resultCount
     refine hwhnf.bind fun type _ => ?_
     apply mkRecInfos.loopArgs1.continueWith stats
     intro indices cIndices
-    apply withLocalDecl.continueRaw
-    let cMajor : AddInductive.Context := { cIndices with
-      ngen := cIndices.ngen.next
-      lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
-        (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices).consumeTypeAnnotations
-        .default }
-    have hget : ((getLCtx : AddInductive.M LocalContext) cMajor).WF
-        (fun lctx => lctx = cMajor.lctx) := by
-      intro lctx h
-      cases h
-      rfl
-    refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
-      hget fun lctx hlctx => ?_
-    subst lctx
-    apply withLocalDecl.continueRaw
-    apply mkRecInfos.loopInd1.resultCount
-      (stats := stats) (indTypes := indTypes) (elimLevel := elimLevel)
-      (dIdx := dIdx + 1) (recInfos := recInfos.push {
-        motive := .fvar ⟨cMajor.ngen.curr⟩, minors := #[], indices := indices,
-        major := .fvar ⟨cIndices.ngen.curr⟩ }) (k := k)
-      (Q := Q)
-    · omega
-    · simpa [hsize]
-    · intro r hr
-      simp only [Array.toList_push, List.mem_append, List.mem_cons,
-        List.mem_singleton] at hr
-      rcases hr with hr | hr
-      · exact hempty r hr
-      · rcases hr with rfl | hr
-        · rfl
-        · contradiction
-    · exact Hk
+    by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
+    · rw [if_pos harity]
+      apply withLocalDecl.continueRaw
+      let cMajor : AddInductive.Context := { cIndices with
+        ngen := cIndices.ngen.next
+        lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
+          (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices).consumeTypeAnnotations
+          .default }
+      have hget : ((getLCtx : AddInductive.M LocalContext) cMajor).WF
+          (fun lctx => lctx = cMajor.lctx) := by
+        intro lctx h
+        cases h
+        rfl
+      refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+        hget fun lctx hlctx => ?_
+      subst lctx
+      apply withLocalDecl.continueRaw
+      apply mkRecInfos.loopInd1.resultCount
+        (stats := stats) (indTypes := indTypes) (elimLevel := elimLevel)
+        (dIdx := dIdx + 1) (recInfos := recInfos.push {
+          motive := .fvar ⟨cMajor.ngen.curr⟩, minors := #[], indices := indices,
+          major := .fvar ⟨cIndices.ngen.curr⟩ }) (k := k)
+        (Q := Q)
+      · omega
+      · simpa [hsize]
+      · intro r hr
+        simp only [Array.toList_push, List.mem_append, List.mem_cons,
+          List.mem_singleton] at hr
+        rcases hr with hr | hr
+        · exact hempty r hr
+        · rcases hr with rfl | hr
+          · rfl
+          · contradiction
+      · intro i hiPush
+        have harityEq : indices.size = stats.nindices[dIdx]! := by
+          simpa using harity
+        by_cases hilast : i = recInfos.size
+        · subst i
+          simpa [← hsize, harityEq]
+        · have hiOld : i < recInfos.size := by
+            have hiPush' : i < recInfos.size + 1 := by simpa using hiPush
+            omega
+          have hbang :
+              (recInfos.push {
+                motive := .fvar ⟨cMajor.ngen.curr⟩, minors := #[],
+                indices := indices,
+                major := .fvar ⟨cIndices.ngen.curr⟩ })[i]! = recInfos[i]! := by
+            simp only [Array.getElem!_eq_getD]
+            unfold Array.getD
+            rw [dif_pos hiPush, dif_pos hiOld]
+            exact Array.getElem_push_lt hiOld
+          rw [hbang]
+          exact harities i hiOld
+      · exact Hk
+    · rw [if_neg harity]
+      exact Except.WF.throw
   · rw [dif_neg hidx]
     apply Hk
     · omega
     · exact hempty
+    · exact harities
 termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd1
@@ -9837,6 +9866,8 @@ theorem mkRecInfos.resultStructure {α : Type} {Q : α → Prop}
         (c : AddInductive.Context),
       initial.size = indTypes.size →
       (∀ r ∈ initial.toList, r.minors.isEmpty) →
+      (∀ i, i < initial.size →
+        initial[i]!.indices.size = stats.nindices[i]!) →
       out.size = indTypes.size →
       (∀ i, i < out.size →
         out[i]!.minors.size = indTypes[i]!.ctors.length) →
@@ -9851,7 +9882,8 @@ theorem mkRecInfos.resultStructure {α : Type} {Q : α → Prop}
   · omega
   · simp
   · simp
-  · intro recInfos cRec hsize hempty
+  · simp
+  · intro recInfos cRec hsize hempty harities
     apply mkRecInfos.loopInd2.resultCounts (Q := Q) stats indTypes 0
       recInfos recInfos k cRec
     · omega
@@ -9866,7 +9898,8 @@ theorem mkRecInfos.resultStructure {α : Type} {Q : α → Prop}
       rw [Array.isEmpty_iff_size_eq_zero] at he
       simpa [Array.getElem!_eq_getD, Array.getD, hi] using he
     · intro out cOut houtSize houtCounts _ houtFrames
-      exact Hk recInfos out cOut hsize hempty houtSize houtCounts houtFrames
+      exact Hk recInfos out cOut hsize hempty harities houtSize houtCounts
+        houtFrames
 
 /-- Cardinality-only projection of `resultStructure`. -/
 theorem mkRecInfos.resultCounts {α : Type} {Q : α → Prop}
@@ -9880,7 +9913,7 @@ theorem mkRecInfos.resultCounts {α : Type} {Q : α → Prop}
       (k out c).WF Q) :
     (AddInductive.mkRecInfos stats indTypes elimLevel k c).WF Q := by
   apply mkRecInfos.resultStructure (Q := Q) stats indTypes elimLevel k c
-  intro _ out cOut _ _ houtSize houtCounts _
+  intro _ out cOut _ _ _ houtSize houtCounts _
   exact Hk out cOut houtSize houtCounts
 
 /-- Per-family minor counts imply the corresponding flattened block count

@@ -386,7 +386,9 @@ variable (stats : InductiveStats) (indTypes : Array InductiveType) (elimLevel : 
 def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α) : M α := do
   if _h : dIdx < indTypes.size then
     let ctx ← readThe Context
-    loopArgs1 stats (← whnf indTypes[dIdx].type) 0 #[] ctx.fuel.inductiveFuel fun indices =>
+    loopArgs1 stats (← whnf indTypes[dIdx].type) 0 #[] ctx.fuel.inductiveFuel fun indices => do
+    unless indices.size == stats.nindices[dIdx]! do
+      throw <| .other "recursor index arity does not match checked inductive header"
     let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
     withLocalDecl `t .default tTy.consumeTypeAnnotations fun major => do
     let lctx ← getLCtx
