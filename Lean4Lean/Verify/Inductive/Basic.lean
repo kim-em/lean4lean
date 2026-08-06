@@ -961,6 +961,17 @@ theorem TrInductDeclCore.toTrInductDecl
     H.uvars, H.nparams, H.isUnsafe,
     envTypes, envCtors, H.typesAdded, H.ctorsAdded, H.types⟩
 
+theorem TrInductDeclCore.nonempty
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (hsource : types ≠ []) :
+    decl.types ≠ [] := by
+  intro htarget
+  have hlength :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.types
+  rw [htarget] at hlength
+  exact hsource (List.eq_nil_of_length_eq_zero hlength)
+
 theorem TrInductDecl.typeAt
     (H : TrInductDecl env lparams nparams types isUnsafe decl)
     (i : Nat) (hsource : i < types.length)
@@ -1290,6 +1301,35 @@ structure OrdinaryCompilationCertificate (env : VEnv)
   names : List.Nodup
     ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 
+/-- The executable block-name check contains the original type and
+constructor names as an exact prefix. Consequently its global freshness
+certificate supplies precisely the name-uniqueness field of `SourceWF`. -/
+theorem sourceNames_nodup_ofBlock
+    {block : VInductBlock} {decl : VInductDecl}
+    (htypes : block.types = decl.typeConstants)
+    (hctors : block.ctors = decl.constructorConstants)
+    (hnames : List.Nodup
+      ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
+    decl.sourceNames.Nodup := by
+  rw [htypes, hctors] at hnames
+  simp only [List.map_append] at hnames
+  exact (List.nodup_append.mp hnames).1
+
+theorem OrdinaryCompilationCertificate.sourceNames_nodup
+    (H : OrdinaryCompilationCertificate env decl block) :
+    decl.sourceNames.Nodup :=
+  sourceNames_nodup_ofBlock H.types H.ctors H.names
+
+theorem TrInductDeclCore.toTrInductDeclOfOrdinaryCompilation
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (hsource : types ≠ [])
+    (Hcompile : OrdinaryCompilationCertificate env decl block) :
+    TrInductDecl env lparams nparams types isUnsafe decl :=
+  Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDecl H
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty H hsource)
+    Hcompile.sourceNames_nodup
+
 theorem OrdinaryCompilationCertificate.ordinary
     (H : OrdinaryCompilationCertificate env decl block) :
     decl.OrdinaryCompilation env block where
@@ -1331,6 +1371,21 @@ structure NestedCompilationCertificate (env : VEnv)
       (block.recursors.map (·.name)) fieldVars 0
   names : List.Nodup
     ((block.types ++ block.ctors ++ block.recursors).map (·.name))
+
+theorem NestedCompilationCertificate.sourceNames_nodup
+    (H : NestedCompilationCertificate env decl block) :
+    decl.sourceNames.Nodup :=
+  sourceNames_nodup_ofBlock H.types H.ctors H.names
+
+theorem TrInductDeclCore.toTrInductDeclOfNestedCompilation
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (hsource : types ≠ [])
+    (Hcompile : NestedCompilationCertificate env decl block) :
+    TrInductDecl env lparams nparams types isUnsafe decl :=
+  Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDecl H
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty H hsource)
+    Hcompile.sourceNames_nodup
 
 def NestedCompilationCertificate.nested
     (H : NestedCompilationCertificate env decl block) :
