@@ -14627,6 +14627,115 @@ theorem restoreNested_body
       (body.replace (result.restoreNestedNode env As auxRec)) :=
   ExprReplacement.ofReplace _ body
 
+/-- Mixed forall/lambda telescope accepted by nested restoration. The
+production function preserves the outer kind chosen by the original root,
+while both binder forms are accepted during opening. -/
+inductive RestoreTelescope : Expr → Nat → Prop
+  | done : RestoreTelescope e 0
+  | forallE : RestoreTelescope body n →
+      RestoreTelescope (.forallE name dom body bi) (n + 1)
+  | lam : RestoreTelescope body n →
+      RestoreTelescope (.lam name dom body bi) (n + 1)
+
+theorem RestoreTelescope.instantiate1'
+    (H : RestoreTelescope e n) (arg : Expr) (depth : Nat) :
+    RestoreTelescope (e.instantiate1' arg depth) n := by
+  induction H generalizing depth with
+  | done => exact .done
+  | forallE H ih =>
+    simp only [Expr.instantiate1']
+    exact .forallE (ih (depth + 1))
+  | lam H ih =>
+    simp only [Expr.instantiate1']
+    exact .lam (ih (depth + 1))
+
+theorem RestoreTelescope.instantiate1
+    (H : RestoreTelescope e n) (arg : Expr) :
+    RestoreTelescope (e.instantiate1 arg) n := by
+  rw [Expr.instantiate1_eq]
+  exact H.instantiate1' arg 0
+
+/-- Exact context/free-variable opening relation for `openRestoreParams`. -/
+inductive RestoreParamOpening : LocalContext → Array Expr → Expr → Nat →
+    LocalContext → Array Expr → Expr → Prop
+  | done : RestoreParamOpening lctx As e 0 lctx As e
+  | forallE {id : FVarId} :
+      RestoreParamOpening
+        (lctx.mkLocalDecl id name dom bi) (As.push (.fvar id))
+        (body.instantiate1 (.fvar id)) n outLctx outAs tail →
+      RestoreParamOpening lctx As (.forallE name dom body bi) (n + 1)
+        outLctx outAs tail
+  | lam {id : FVarId} :
+      RestoreParamOpening
+        (lctx.mkLocalDecl id name dom bi) (As.push (.fvar id))
+        (body.instantiate1 (.fvar id)) n outLctx outAs tail →
+      RestoreParamOpening lctx As (.lam name dom body bi) (n + 1)
+        outLctx outAs tail
+
+theorem openRestoreParams_refines
+    (H : RestoreTelescope e n) (lctx : LocalContext) (As : Array Expr)
+    (ngen : NameGenerator) :
+    ∀ (out : LocalContext × Array Expr × Expr) outNgen,
+      Lean4Lean.ElimNestedInductive.Result.openRestoreParams n lctx As e ngen =
+        (out, outNgen) →
+      RestoreParamOpening lctx As e n out.1 out.2.1 out.2.2 := by
+  induction n generalizing e lctx As ngen with
+  | zero =>
+    intro out outNgen hout
+    simp [Lean4Lean.ElimNestedInductive.Result.openRestoreParams] at hout
+    cases hout
+    exact .done
+  | succ n ih =>
+    cases H with
+    | @forallE body _ name dom bi Hbody =>
+      intro out outNgen hout
+      simp only [Lean4Lean.ElimNestedInductive.Result.openRestoreParams,
+        mkFreshId, getNGen, setNGen, StateT.get, StateT.set,
+        StateT.modifyGet, bind, StateT.bind, pure, StateT.pure] at hout
+      exact .forallE (ih (Hbody.instantiate1 (.fvar ⟨ngen.curr⟩))
+        _ _ _ out outNgen hout)
+    | @lam body _ name dom bi Hbody =>
+      intro out outNgen hout
+      simp only [Lean4Lean.ElimNestedInductive.Result.openRestoreParams,
+        mkFreshId, getNGen, setNGen, StateT.get, StateT.set,
+        StateT.modifyGet, bind, StateT.bind, pure, StateT.pure] at hout
+      exact .lam (ih (Hbody.instantiate1 (.fvar ⟨ngen.curr⟩))
+        _ _ _ out outNgen hout)
+
+/-- End-to-end abstract relation for nested restoration: open exactly the
+recorded parameter telescope, restore every body node, then rebuild the same
+outer forall/lambda kind selected by the source root. -/
+def NestedRestoration
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (auxRec : NameMap Name)
+    (input output : Expr) : Prop :=
+  ∃ lctx As body restoredBody,
+    RestoreParamOpening {} #[] input result.nparams lctx As body ∧
+    ExprReplacement (result.restoreNestedNode env As auxRec)
+      body restoredBody ∧
+    output = if input.isForall then lctx.mkForall As restoredBody
+      else lctx.mkLambda As restoredBody
+
+theorem restoreNested_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (auxRec : NameMap Name) (input : Expr)
+    (Htelescope : RestoreTelescope input result.nparams) :
+    NestedRestoration result env auxRec input
+      (result.restoreNested env input auxRec) := by
+  unfold Lean4Lean.ElimNestedInductive.Result.restoreNested
+  generalize hopen :
+    Lean4Lean.ElimNestedInductive.Result.openRestoreParams result.nparams
+      {} #[] input ({ namePrefix := `_nested_fresh } : NameGenerator) = opened
+  rcases opened with ⟨⟨lctx, As, body⟩, outNGen⟩
+  have Hopening := openRestoreParams_refines Htelescope {} #[]
+    ({ namePrefix := `_nested_fresh } : NameGenerator)
+    (lctx, As, body) outNGen hopen
+  simp [hopen]
+  exact ⟨lctx, As, body,
+    body.replace (result.restoreNestedNode env As auxRec),
+    Hopening, restoreNested_body result env As auxRec body,
+    by simp only [Expr.replace_eq]⟩
+
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/

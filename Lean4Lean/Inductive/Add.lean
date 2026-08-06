@@ -609,24 +609,26 @@ def restoreNestedNode (r : Result) (env' : Environment) (As : Array Expr)
   let c' := .const (c.replacePrefix auxI_name I_c) I_ls
   return mkAppRange (mkAppN c' I_args) r.nparams args.size args
 
+def openRestoreParams : Nat → LocalContext → Array Expr → Expr →
+    StateM NameGenerator (LocalContext × Array Expr × Expr)
+  | 0, lctx, As, e => pure (lctx, As, e)
+  | n + 1, lctx, As, e => do
+    let (name, dom, body, bi) := match e with
+      | .forallE name dom body bi | .lam name dom body bi =>
+        (name, dom, body, bi)
+      | _ => unreachable!
+    let id := ⟨← mkFreshId⟩
+    let lctx := lctx.mkLocalDecl id name dom bi
+    let arg := .fvar id
+    openRestoreParams n lctx (As.push arg) (body.instantiate1 arg)
+
 def restoreNested (r : Result) (env' : Environment) (e : Expr)
     (auxRec : NameMap Name := {}) : Expr :=
-  Id.run <| StateT.run' (s := { namePrefix := `_nested_fresh : NameGenerator }) do
   let pi := e.isForall
-  let mut e := e
-  let mut As := #[]
-  let mut lctx : LocalContext := {}
-  for _ in [:r.nparams] do
-    match e with
-    | .forallE name dom body bi | .lam name dom body bi =>
-      let id := ⟨← mkFreshId⟩
-      lctx := lctx.mkLocalDecl id name dom bi
-      let arg := .fvar id
-      e := body.instantiate1 arg
-      As := As.push arg
-    | _ => unreachable!
-  e := e.replace (r.restoreNestedNode env' As auxRec)
-  return if pi then lctx.mkForall As e else lctx.mkLambda As e
+  let ((lctx, As, e), _) := openRestoreParams r.nparams {} #[] e
+    { namePrefix := `_nested_fresh }
+  let e := e.replace (r.restoreNestedNode env' As auxRec)
+  if pi then lctx.mkForall As e else lctx.mkLambda As e
 
 end Result
 
