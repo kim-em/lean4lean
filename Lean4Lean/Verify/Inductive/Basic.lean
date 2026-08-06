@@ -792,8 +792,7 @@ theorem TrInductDeclSkeletonHeaders.typeAt
       envTypes)
     (i : Nat) (hsource : i < types.length)
     (htarget : i < decl.types.length) :
-    TrSourceConst env lparams types[i].name types[i].type
-      decl.types[i].toVConstVal :=
+    TrInductiveTypeSkeletonHeaders env lparams types[i] decl.types[i] :=
   Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i hsource htarget
 
 theorem TrInductDeclSkeletonHeaders.typeNameAt
@@ -803,7 +802,7 @@ theorem TrInductDeclSkeletonHeaders.typeNameAt
     (htarget : i < decl.types.length) :
     types[i].name = decl.types[i].name :=
   (Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.typeAt
-    H i hsource htarget).name.symm
+    H i hsource htarget).header.name.symm
 
 theorem TrInductDeclSkeleton.types_length
     (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl) :
@@ -961,15 +960,11 @@ theorem TrInductDeclSkeletonHeaders.materialized
       hsourceIdx hskeletonIdx
   rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize
       hskeletonIdx with ⟨data, hdata, htarget⟩
-  have htarget' : decl.types[i].toVConstVal =
-      skeleton.types[i].toVConstVal := by
-    have htargetType : decl.types[i] =
-        skeleton.types[i].toVInductiveType data.1 data.2 := by
-      simpa [List.getElem?_eq_getElem htargetIdx] using htarget
-    rw [htargetType]
-    rfl
+  have htarget' : decl.types[i] =
+      skeleton.types[i].toVInductiveType data.1 data.2 := by
+    simpa [List.getElem?_eq_getElem htargetIdx] using htarget
   rw [htarget']
-  exact htranslated
+  exact ⟨htranslated.header, htranslated.ctors⟩
 
 theorem TrInductDecl.types_length
     (H : TrInductDecl env lparams nparams types isUnsafe decl) :
@@ -1059,10 +1054,7 @@ theorem TrInductDeclCore.ofPhases
     TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors := by
   have combine : ∀ {sources targets},
-      List.Forall₂
-        (fun source target => TrSourceConst env lparams source.name
-          source.type target.toVConstVal)
-        sources targets →
+      List.Forall₂ (TrInductiveTypeHeaders env lparams) sources targets →
       List.Forall₂
         (fun source target => List.Forall₂
           (fun ctor ctor' =>
@@ -1079,7 +1071,7 @@ theorem TrInductDeclCore.ofPhases
     | cons hheader _ ih =>
       cases hctors with
       | cons hctor hctors =>
-        exact .cons ⟨hheader, hctor⟩ (ih hctors)
+        exact .cons ⟨hheader.header, hctor⟩ (ih hctors)
   exact {
     uvars := Hheaders.uvars
     nparams := Hheaders.nparams
@@ -6962,7 +6954,8 @@ theorem stepPrefix.refinesSkeleton
     (Q := Q) Hc hidx
   intro checkedType type' checkedType' hchecked normalized hscope hnormalized
   exact Hloop checkedType type' checkedType' hchecked envTypes Hdecl.typesAdded
-    skeleton.types[dIdx] (by simp [htarget]) (by simpa using htargetTr)
+    skeleton.types[dIdx] (by simp [htarget])
+      (by simpa using htargetTr.header)
     normalized hscope hnormalized
 
 /-- Complete first iteration of the executable mutual-header loop, from the

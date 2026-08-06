@@ -39,6 +39,21 @@ structure TrSourceConst (env : VEnv) (lparams : List Name)
   type : TrExprS env lparams [] type ci'.type
   wf : ci'.toVConstant.WF env
 
+/-- Syntactic source-constant translation before its type has been checked in
+the appropriate staged environment. -/
+structure TrSourceConstRaw (env : VEnv) (lparams : List Name)
+    (name : Name) (type : Expr) (ci' : VConstVal) : Prop where
+  uvars : ci'.uvars = lparams.length
+  name : ci'.name = name
+  type : TrExprS env lparams [] type ci'.type
+
+theorem TrSourceConst.raw
+    {env : VEnv} {lparams : List Name} {constName : Name}
+    {type : Expr} {ci' : VConstVal}
+    (H : TrSourceConst env lparams constName type ci') :
+    TrSourceConstRaw env lparams constName type ci' :=
+  ⟨H.uvars, H.name, H.type⟩
+
 /-- Translation of an inductive family before header checking has recovered
 the semantic arity and result universe.  Those two fields are deliberately
 absent: they are outputs of `checkInductiveTypes`, not assumptions supplied by
@@ -197,6 +212,18 @@ structure TrInductiveTypeSkeleton (env envTypes : VEnv)
     (fun ctor ctor' => TrSourceConst envTypes lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
 
+/-- Header checking retains raw constructor correspondence, but deliberately
+does not claim constructor well-formedness before the mutual headers have
+been installed. -/
+structure TrInductiveTypeSkeletonHeaders (env : VEnv)
+    (lparams : List Name) (type : InductiveType)
+    (type' : VInductiveTypeSkeleton) : Prop where
+  header : TrSourceConst env lparams type.name type.type type'.toVConstVal
+  ctors : List.Forall₂
+    (fun ctor ctor' =>
+      TrSourceConstRaw env lparams ctor.name ctor.type ctor')
+    type.ctors type'.ctors
+
 def VInductDeclSkeleton.typeConstants
     (decl : VInductDeclSkeleton) : List VConstVal :=
   decl.types.map VInductiveTypeSkeleton.toVConstVal
@@ -283,9 +310,7 @@ structure TrInductDeclSkeletonHeaders (env : VEnv) (lparams : List Name)
   isUnsafe : decl.isUnsafe = isUnsafe
   typesAdded : env.addConsts decl.typeConstants = some envTypes
   types : List.Forall₂
-    (fun source target => TrSourceConst env lparams source.name source.type
-      target.toVConstVal)
-    types decl.types
+    (TrInductiveTypeSkeletonHeaders env lparams) types decl.types
 
 theorem TrInductDeclSkeleton.core
     (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl) :
@@ -302,6 +327,14 @@ structure TrInductiveType (env envTypes : VEnv) (lparams : List Name)
   header : TrSourceConst env lparams type.name type.type type'.toVConstVal
   ctors : List.Forall₂
     (fun ctor ctor' => TrSourceConst envTypes lparams ctor.name ctor.type ctor')
+    type.ctors type'.ctors
+
+structure TrInductiveTypeHeaders (env : VEnv) (lparams : List Name)
+    (type : InductiveType) (type' : VInductiveType) : Prop where
+  header : TrSourceConst env lparams type.name type.type type'.toVConstVal
+  ctors : List.Forall₂
+    (fun ctor ctor' =>
+      TrSourceConstRaw env lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
 
 theorem TrInductiveType.toSkeleton
@@ -350,9 +383,7 @@ structure TrInductDeclHeaders (env : VEnv) (lparams : List Name)
   nparams : decl.nparams = nparams
   isUnsafe : decl.isUnsafe = isUnsafe
   typesAdded : env.addConsts decl.typeConstants = some envTypes
-  types : List.Forall₂
-    (fun source target => TrSourceConst env lparams source.name source.type
-      target.toVConstVal)
+  types : List.Forall₂ (TrInductiveTypeHeaders env lparams)
     types decl.types
 
 /-- Constructor-phase translation produced after all mutual headers are
