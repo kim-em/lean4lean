@@ -10197,6 +10197,40 @@ theorem RecursorFieldsMaterialize.recursive_args_sublist
   rw [Hmat.args]
   exact Hsel.translatedSublist Hbu Hu Hunique
 
+/-- The complete recursive-field fragment of `VInductDecl.IotaRule`, isolated
+from the surrounding lhs/rhs telescope bookkeeping. -/
+structure IotaFieldCertificate (env : VEnv) (decl : VInductDecl)
+    (ctorArgs : List VExpr) (fields : List (decl.RecursiveField env))
+    (recursiveArgs : List VExpr) where
+  fieldPositions : List Nat
+  fieldPositions_eq : fieldPositions = fields.map (fun field => field.fieldIndex)
+  fieldPositions_ordered : fieldPositions.Pairwise (· < ·)
+  fields_at_positions : ∀ field ∈ fields,
+    ∃ h : field.fieldIndex < ctorArgs.length,
+      field.arg = ctorArgs[field.fieldIndex]'h
+  recursiveArgs_eq : recursiveArgs = fields.map (fun field => field.arg)
+  recursive_args : recursiveArgs.Sublist ctorArgs
+
+def RecursorFieldsMaterialize.iotaFieldCertificate
+    {env : VEnv} {decl : VInductDecl} {bu u : Array Expr}
+    {certs : List (RecursorRecursiveDomain env decl)}
+    {recursiveArgs ctorArgs : List VExpr}
+    {fields : List (decl.RecursiveField env)}
+    (Hsel : RecursorFieldSelections env decl bu u certs)
+    (Hmat : RecursorFieldsMaterialize env decl certs recursiveArgs fields)
+    (Hbu : List.Forall₂ (TrExprS env Us Δ) bu.toList ctorArgs)
+    (Hu : List.Forall₂ (TrExprS env Us Δ) u.toList recursiveArgs)
+    (Hunique : ∀ arg ∈ u.toList, TrExprS.IsUnique arg) :
+    IotaFieldCertificate env decl ctorArgs fields recursiveArgs where
+  fieldPositions := fields.map (fun field => field.fieldIndex)
+  fieldPositions_eq := rfl
+  fieldPositions_ordered := Hmat.positions_ordered Hsel
+  fields_at_positions := Hmat.fields_at_positions Hsel Hbu Hu Hunique
+  recursiveArgs_eq := Hmat.args.symm
+  recursive_args := by
+    rw [← Hmat.args]
+    exact Hmat.recursive_args_sublist Hsel Hbu Hu Hunique
+
 /-- Exact concrete common-parameter prefix consumed by recursor generation.
 The relation is intentionally separate from field classification: agreement
 of these substitutions with the abstract parameter telescope is established
