@@ -13644,6 +13644,240 @@ termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd1
 
+namespace mkRecInfos.loopUArgs.loop
+
+/-- Every higher-order argument opened while exposing a recursive field is a
+fresh ordinary local declaration, retained in the exact array later passed to
+`LocalContext.mkLambda`. -/
+theorem resultBindings {alpha : Type}
+    (k : Expr → Array Expr → AddInductive.M alpha)
+    {uiTy : Expr} {xs : Array Expr} {fuel : Nat}
+    {c : AddInductive.Context} {Q : alpha → Prop}
+    (Hc : BindingContextWF c)
+    (Hxs : FreshBoundFVarArray root c xs)
+    (Hroot : BindingContextLE root c)
+    (Hk : ∀ uiTy xs c, BindingContextWF c →
+      FreshBoundFVarArray root c xs → BindingContextLE root c →
+      (k uiTy xs c).WF Q) :
+    (AddInductive.mkRecInfos.loopUArgs.loop k uiTy xs fuel c).WF Q := by
+  induction fuel generalizing c uiTy xs with
+  | zero =>
+    intro _ h
+    simp [AddInductive.mkRecInfos.loopUArgs.loop] at h
+  | succ fuel ih =>
+    cases uiTy with
+    | forallE name dom body bi =>
+      rw [AddInductive.mkRecInfos.loopUArgs.loop]
+      let c' : AddInductive.Context := { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotations bi }
+      unfold Lean4Lean.withLocalDecl MonadLocalNameGenerator.withFreshId
+        AddInductive.instMonadLocalNameGeneratorM
+        AddInductive.instMonadWithReaderOfLocalContextM
+      change ((monadLift (TypeChecker.whnf
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+          AddInductive.M Expr) c' >>= fun normalized =>
+        AddInductive.mkRecInfos.loopUArgs.loop k normalized
+          (xs.push (.fvar ⟨c.ngen.curr⟩)) fuel c').WF Q
+      have hwhnf :
+          ((monadLift (TypeChecker.whnf
+            (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+              AddInductive.M Expr) c').WF (fun _ => True) := by
+        intro _ _
+        trivial
+      exact hwhnf.bind fun normalized _ =>
+        ih (Hc.withLocalDecl name dom.consumeTypeAnnotations bi)
+          (Hxs.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
+          (Hroot.trans <| BindingContextLE.withLocalDecl c name
+            dom.consumeTypeAnnotations bi)
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+        | proj =>
+      change (k _ xs c).WF Q
+      exact Hk _ _ _ Hc Hxs Hroot
+
+end mkRecInfos.loopUArgs.loop
+
+/-- Public binder-aware interface for `loopUArgs`, starting from its empty
+local-argument accumulator. -/
+theorem mkRecInfos.loopUArgs.resultBindings {alpha : Type}
+    (ui : Expr) (k : Expr → Array Expr → AddInductive.M alpha)
+    (c : AddInductive.Context) {Q : alpha → Prop}
+    (Hc : BindingContextWF c)
+    (Hk : ∀ uiTy xs c', BindingContextWF c' →
+      FreshBoundFVarArray c c' xs → BindingContextLE c c' →
+      (k uiTy xs c').WF Q) :
+    (AddInductive.mkRecInfos.loopUArgs ui k c).WF Q := by
+  unfold AddInductive.mkRecInfos.loopUArgs
+  have hinfer :
+      ((monadLift (TypeChecker.inferType ui) : AddInductive.M Expr) c).WF
+        (fun _ => True) := by
+    intro _ _
+    trivial
+  refine hinfer.bind fun inferred _ => ?_
+  have hwhnf :
+      ((monadLift (TypeChecker.whnf inferred) : AddInductive.M Expr) c).WF
+        (fun _ => True) := by
+    intro _ _
+    trivial
+  refine hwhnf.bind fun normalized _ => ?_
+  change (AddInductive.mkRecInfos.loopUArgs.loop k normalized #[]
+    c.fuel.inductiveFuel c).WF Q
+  exact mkRecInfos.loopUArgs.loop.resultBindings k Hc
+    (FreshBoundFVarArray.empty c) (BindingContextLE.refl c) Hk
+
+/-- Exact recursive-call syntax together with the inner binding context used
+to close its higher-order arguments. -/
+structure BoundGeneratedRecursiveCall
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (root : AddInductive.Context) (field value : Expr) where
+  exposedType : Expr
+  localArgs : Array Expr
+  current : AddInductive.Context
+  current_wf : BindingContextWF current
+  current_extends : BindingContextLE root current
+  arguments_bound : FreshBoundFVarArray root current localArgs
+  value_eq :
+    let (typeIdx, indices) := AddInductive.getIIndices stats exposedType
+    let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
+    let recursor := mkAppN
+      (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+      indices
+    value = (current.lctx.mkLambda localArgs <|
+      recursor.app (mkAppN field localArgs))
+
+theorem BoundGeneratedRecursiveCall.generated
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    checkPositivityStep.GeneratedRecursiveCall
+      indTypes stats motives minors lvls field value := by
+  exact ⟨H.exposedType, H.localArgs, H.current.lctx, H.value_eq⟩
+
+/-- Prefix invariant for rule generation retaining both exact syntax and the
+binding evidence needed to translate every higher-order recursive result. -/
+structure BoundGeneratedRecursiveCalls
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (root : AddInductive.Context)
+    (u v : Array Expr) (done : Nat) : Prop where
+  covered : done ≤ u.size
+  size : v.size = done
+  entries : ∀ i, i < done → (hi : i < u.size) →
+    Nonempty (BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root u[i] v[i]!)
+
+def BoundGeneratedRecursiveCalls.empty
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (root : AddInductive.Context) (u : Array Expr) :
+    BoundGeneratedRecursiveCalls indTypes stats motives minors lvls root
+      u #[] 0 where
+  covered := Nat.zero_le _
+  size := rfl
+  entries _ h := by omega
+
+def BoundGeneratedRecursiveCalls.push
+    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v done)
+    (hdone : done < u.size)
+    (Hentry : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root u[done] value) :
+    BoundGeneratedRecursiveCalls indTypes stats motives minors lvls root
+      u (v.push value) (done + 1) where
+  covered := by omega
+  size := by simp [H.size]
+  entries i hi hiu := by
+    by_cases h : i = done
+    · subst i
+      have hpush : done < (v.push value).size := by simp [H.size]
+      have hbang : (v.push value)[done]! = value := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hpush]
+        simpa [H.size] using (@Array.getElem_push_eq Expr v value)
+      rw [hbang]
+      exact ⟨Hentry⟩
+    · have hold : i < done := by omega
+      have hv : i < v.size := by simpa [H.size] using hold
+      have hpush : i < (v.push value).size := by
+        simpa using Nat.lt_succ_of_lt hv
+      have hbang : (v.push value)[i]! = v[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hpush, dif_pos hv]
+        exact Array.getElem_push_lt hv
+      rw [hbang]
+      exact H.entries i hold hiu
+
+namespace mkRecRules.loopU
+
+/-- Binder-aware refinement of the production recursive-result loop. -/
+theorem boundGeneratedCalls
+    {α : Type} {Q : α → Prop}
+    {k : Array Expr → AddInductive.M α}
+    (Hc : BindingContextWF c)
+    (Hprefix : BoundGeneratedRecursiveCalls indTypes stats motives minors
+      lvls c u v i)
+    (Hk : ∀ v c',
+      BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+        c u v u.size →
+      (k v c').WF Q) :
+    (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
+      u i v k c).WF Q := by
+  rw [AddInductive.mkRecRules.loopU.eq_1]
+  by_cases hnext : i < u.size
+  · rw [dif_pos hnext]
+    let buildCall : Expr → Array Expr → AddInductive.M Expr :=
+      fun uiTy xs => do
+        let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+        let val := Expr.const (Lean.mkRecName indTypes[itIdx]!.name) lvls
+        let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params)
+          motives) minors) itIndices
+        return (← getLCtx).mkLambda xs <| val.app (mkAppN u[i] xs)
+    have hval :
+        (AddInductive.mkRecInfos.loopUArgs u[i] buildCall c).WF
+          (fun value => Nonempty (BoundGeneratedRecursiveCall indTypes stats
+            motives minors lvls c u[i] value)) := by
+      refine mkRecInfos.loopUArgs.resultBindings
+        (Q := fun value => Nonempty (BoundGeneratedRecursiveCall indTypes
+          stats motives minors lvls c u[i] value)) u[i] buildCall c Hc ?_
+      intro uiTy xs c' Hc' Hxs Hle
+      exact Except.WF.pure ⟨{
+        exposedType := uiTy
+        localArgs := xs
+        current := c'
+        current_wf := Hc'
+        current_extends := Hle
+        arguments_bound := Hxs
+        value_eq := rfl }⟩
+    exact hval.bind fun value Hvalue => by
+      rcases Hvalue with ⟨Hvalue⟩
+      exact boundGeneratedCalls Hc
+        (Hprefix.push hnext Hvalue) Hk
+  · rw [dif_neg hnext]
+    apply Hk
+    have hcovered := Hprefix.covered
+    have hdone : i = u.size := by omega
+    simpa [hdone] using Hprefix
+termination_by u.size - i
+
+end mkRecRules.loopU
+
+theorem mkRecRules.loopU.boundGeneratedCallsFromEmpty
+    {α : Type} {Q : α → Prop}
+    {k : Array Expr → AddInductive.M α}
+    (Hc : BindingContextWF c)
+    (Hk : ∀ v c',
+      BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+        c u v u.size →
+      (k v c').WF Q) :
+    (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
+      u 0 #[] k c).WF Q :=
+  mkRecRules.loopU.boundGeneratedCalls Hc
+    (BoundGeneratedRecursiveCalls.empty
+      indTypes stats motives minors lvls c u) Hk
+
 namespace mkRecInfos.loopCtorArgs.loop
 
 /-- Operational binder refinement for constructor-field classification. -/
