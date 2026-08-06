@@ -972,6 +972,20 @@ theorem TrInductDeclCore.nonempty
   rw [htarget] at hlength
   exact hsource (List.eq_nil_of_length_eq_zero hlength)
 
+theorem TrInductDeclCore.types_length
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors) :
+    types.length = decl.types.length :=
+  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.types
+
+theorem TrInductDeclCore.typeAt
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (i : Nat) (hsource : i < types.length)
+    (htarget : i < decl.types.length) :
+    TrInductiveType env envTypes lparams types[i] decl.types[i] :=
+  Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i hsource htarget
+
 theorem TrInductDecl.typeAt
     (H : TrInductDecl env lparams nparams types isUnsafe decl)
     (i : Nat) (hsource : i < types.length)
@@ -1106,6 +1120,34 @@ theorem TrInductDecl.ownedConstructors
         Lean4Lean.VerifyInductive.List.Forall₂.append'
           (Lean4Lean.VerifyInductive.TrInductiveType.ownedConstructors h) ih
   simpa [VInductDecl.ownedConstructors] using aux htypes
+
+theorem TrInductDeclCore.ownedConstructors
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors) :
+    List.Forall₂ (TrOwnedConstructor env envTypes lparams)
+      (Lean4Lean.VerifyInductive.ownedConstructors types)
+      decl.ownedConstructors := by
+  have aux : ∀ {types targets},
+      List.Forall₂ (TrInductiveType env envTypes lparams) types targets →
+      List.Forall₂ (TrOwnedConstructor env envTypes lparams)
+        (Lean4Lean.VerifyInductive.ownedConstructors types)
+        (targets.flatMap fun target => target.ctors.map (target, ·)) := by
+    intro types targets htypes
+    induction htypes with
+    | nil => exact .nil
+    | cons h _ ih =>
+      simpa [Lean4Lean.VerifyInductive.ownedConstructors] using
+        Lean4Lean.VerifyInductive.List.Forall₂.append'
+          (Lean4Lean.VerifyInductive.TrInductiveType.ownedConstructors h) ih
+  simpa [VInductDecl.ownedConstructors] using aux H.types
+
+theorem TrInductDeclCore.ownedConstructors_length
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors) :
+    (Lean4Lean.VerifyInductive.ownedConstructors types).length =
+      decl.ownedConstructors.length :=
+  Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors H)
 
 theorem TrInductDecl.ownedConstructors_length
     (H : TrInductDecl env lparams nparams types isUnsafe decl) :
@@ -11680,24 +11722,28 @@ theorem ownedConstructors_length_eq_flattened_size
 theorem mkRecInfos.motives_size_of_translation
     {indTypes : Array InductiveType}
     {recInfos : Array AddInductive.RecInfo}
-    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe
+      decl envTypes envCtors)
     (hsize : recInfos.size = indTypes.size) :
     (recInfos.map (·.motive)).size = decl.types.length := by
   simp only [Array.size_map]
   rw [hsize]
-  simpa using Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl
+  simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl
 
 theorem mkRecInfos.flatMinors_size_of_translation
     {indTypes : Array InductiveType}
     {recInfos : Array AddInductive.RecInfo}
-    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe
+      decl envTypes envCtors)
     (hsize : recInfos.size = indTypes.size)
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length) :
     (recInfos.flatMap (·.minors)).size = decl.ownedConstructors.length := by
   rw [mkRecInfos.flatMinors_size hsize hcounts,
     ← ownedConstructors_length_eq_flattened_size]
-  exact Lean4Lean.VerifyInductive.TrInductDecl.ownedConstructors_length Hdecl
+  exact Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length Hdecl
 
 /-- Structural portion of the independent recursor shape, assembled before
 the generated telescope itself is translated. -/
@@ -11717,7 +11763,9 @@ structure RecursorCardinalityCertificate
 theorem RecursorCardinalityCertificate.ofResult
     {indTypes : Array InductiveType}
     {recInfos : Array AddInductive.RecInfo}
-    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe
+      decl envTypes envCtors)
     (Hmaterialized :
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         headerEnv lparams Δ stats decl depth)
@@ -11728,7 +11776,7 @@ theorem RecursorCardinalityCertificate.ofResult
       recInfos[i]!.indices.size = stats.nindices[i]!) :
     RecursorCardinalityCertificate stats recInfos decl where
   records := hsize.trans (by
-    simpa using Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl)
+    simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl)
   params := by
     have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
       Hmaterialized.narrowParams
@@ -11740,7 +11788,7 @@ theorem RecursorCardinalityCertificate.ofResult
       checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader Hmaterialized
     intro i hi
     have hiDecl : i < decl.types.length := by
-      rw [← Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl]
+      rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl]
       simpa [hsize] using hi
     have hn := Hstats.nindicesAt hiDecl
     have hstats : stats.nindices[i]! = decl.types[i].numIndices := by
@@ -11754,7 +11802,9 @@ theorem AddInductive.mkRecInfos.cardinalityWF
     {α : Type} {Q : α → Prop}
     (k : Array AddInductive.RecInfo → AddInductive.M α)
     (c : AddInductive.Context)
-    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe
+      decl envTypes envCtors)
     (Hmaterialized :
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         headerEnv lparams Δ stats decl depth)
@@ -17409,7 +17459,9 @@ theorem mkRecInfos.resultBindings {alpha : Type} {Q : alpha → Prop}
 supplies both the retained executable binders and the independent cardinality
 certificate derived from the translated source declaration. -/
 theorem mkRecInfos.resultCertificate {alpha : Type} {Q : alpha → Prop}
-    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe
+      decl envTypes envCtors)
     (Hmaterialized :
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         headerEnv lparams Δ stats decl depth)
