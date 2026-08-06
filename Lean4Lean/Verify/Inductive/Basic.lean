@@ -14149,6 +14149,26 @@ theorem BlockCertificate.install
     H.staged.abstract_types, H.staged.abstract_ctors,
     H.staged.abstract_recursors]
 
+/-- Semantic endpoint of the executable block certificates. Once source
+typing/formation and the independent compilation relation are supplied, the
+staged executable installation constructs the abstract inductive extension. -/
+theorem BlockCertificate.addInductAbstract
+    (H : BlockCertificate safety env venv types ctors recursors
+      rules outEnv outVEnv)
+    (Hdecl : decl.WF venv)
+    (Hcompile : decl.CompilesTo venv H.block) :
+    VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) :=
+  .intro Hdecl Hcompile H.wf H.install
+
+theorem BlockCertificate.addInductOfFormation
+    (H : BlockCertificate safety env venv types ctors recursors
+      rules outEnv outVEnv)
+    (Hformation : FormationCertificate venv decl)
+    (Hsource : decl.SourceWF venv)
+    (Hcompile : decl.CompilesTo venv H.block) :
+    VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) :=
+  H.addInductAbstract (Hformation.declWF Hsource) Hcompile
+
 /-- Final assembly point for the implementation-refinement boundary. Once
 the executable traversals have supplied source formation, compilation shape,
 staged typing, and production-map conservation, no further semantic facts are
