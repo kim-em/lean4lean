@@ -6929,6 +6929,36 @@ theorem ValidAppStatsWF.withLocalDecl
   rw [← VInductDecl.paramVars_liftN]
   exact hparams
 
+/-- Extend application statistics in an independently tracked semantic scope.
+Unlike `withLocalDecl`, this theorem does not require the executable context
+to be that scope; the already verified target-context extension is sufficient
+for weakening the cached parameter translations. -/
+theorem ValidAppStatsWF.withFVar
+    (H : ValidAppStatsWF env Us scope stats decl depth)
+    (henv : env.WF)
+    (hscope' : VLCtx.WF env Us.length
+      ((some (fv, deps), .vlam fieldType) :: scope)) :
+    ValidAppStatsWF env Us
+      ((some (fv, deps), .vlam fieldType) :: scope)
+      stats decl (depth + 1) := by
+  let W : VLCtx.FVLift scope
+      ((some (fv, deps), .vlam fieldType) :: scope) 0 1 0 :=
+    .skip_fvar _ _ .refl
+  have hparams := forall₂_map_right
+    (f := fun e => VExpr.liftN 1 e 0)
+    (S := TrExprS env Us
+      ((some (fv, deps), .vlam fieldType) :: scope))
+    H.params fun h => h.weakFV henv.ordered W hscope'
+  refine {
+    levels := H.levels
+    uvars := H.uvars
+    consts := H.consts
+    indices := H.indices
+    params := ?_
+    paramFVars := H.paramFVars }
+  rw [← VInductDecl.paramVars_liftN]
+  exact hparams
+
 theorem IndConstArray.empty (levels : List Level) :
     IndConstArray levels #[] [] where
   exact := rfl
@@ -8318,6 +8348,23 @@ theorem succ.WF
   rw [AddInductive.checkPositivity.loop]
   exact (whnfInContext.WF Hc htype).bind fun normalized hnormalized =>
     Hstep normalized hnormalized
+
+/-- Positivity's WHNF step with the concrete free-variable preservation fact
+retained for refinements whose semantic scope is narrower than the executable
+local context. -/
+theorem succ.scopeWF
+    (Hc : ContextWF c)
+    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type')
+    (Hstep : ∀ normalized,
+      FVarsBelow Hc.mlctx.vlctx type normalized →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
+      (AddInductive.checkPositivityStep stats normalized ctor idx
+        (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
+        c).WF Q) :
+    (AddInductive.checkPositivity.loop stats ctor idx type (fuel + 1) c).WF Q := by
+  rw [AddInductive.checkPositivity.loop]
+  exact (whnfInContext.scopeWF Hc htype).bind
+    fun normalized hnormalized => Hstep normalized hnormalized.1 hnormalized.2
 
 /-- The complete recursive positivity traversal refines the independent
 declarative judgment.  In particular, every recursive call under a higher-
