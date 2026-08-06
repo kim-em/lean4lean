@@ -57,6 +57,38 @@ theorem VExpr.IsFieldApp.mkApps
     (VExpr.mkApps (.bvar (field + depth)) args).IsFieldApp fieldVars depth := by
   exact ⟨field, hfield, args, VExpr.getAppFnArgs_mkApps_bvar _ _⟩
 
+theorem VExpr.liftN_mkApps
+    (fn : VExpr) (args : List VExpr) (n k : Nat) :
+    (VExpr.mkApps fn args).liftN n k =
+      VExpr.mkApps (fn.liftN n k) (args.map fun arg => arg.liftN n k) := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih =>
+    simpa [VExpr.mkApps, VExpr.liftN] using ih (.app fn arg)
+
+theorem VExpr.IsFieldApp.lift
+    {e : VExpr}
+    (H : e.IsFieldApp fieldVars depth) (n : Nat) :
+    (e.liftN n 0).IsFieldApp fieldVars (depth + n) := by
+  rcases H with ⟨field, hfield, args, hspine⟩
+  have hrebuild := VExpr.mkApps_getAppFnArgs e
+  rw [hspine] at hrebuild
+  rw [← hrebuild, VExpr.liftN_mkApps]
+  have hhead : (VExpr.bvar (field + depth)).liftN n 0 =
+      .bvar (field + (depth + n)) := by
+    simp [VExpr.liftN, liftVar]
+    omega
+  rw [hhead]
+  exact VExpr.IsFieldApp.mkApps hfield _
+
+theorem VExpr.IsFieldApp.appendApps
+    {e : VExpr}
+    (H : e.IsFieldApp fieldVars depth) (more : List VExpr) :
+    (VExpr.mkApps e more).IsFieldApp fieldVars depth := by
+  rcases H with ⟨field, hfield, args, hspine⟩
+  refine ⟨field, hfield, args ++ more, ?_⟩
+  simpa [hspine] using VExpr.getAppFnArgs_mkApps e more
+
 theorem VExpr.bvarHead?_eq_some
     {e : VExpr} {field : Nat}
     (h : e.bvarHead? = some field) :
@@ -12386,6 +12418,25 @@ theorem TrExprS.forallTelescope_shape
 def abstractForallContext (domains : List VExpr) (Δ : VLCtx) : VLCtx :=
   (domains.reverse.map fun type => (none, .vlam type)) ++ Δ
 
+/-- Prepending the abstract lambda domains is the canonical bound-variable
+lift of the retained outer context. -/
+theorem abstractForallContext.bvLift
+    (domains : List VExpr) (Δ : VLCtx) :
+    VLCtx.BVLift Δ (abstractForallContext domains Δ)
+      domains.length 0 domains.length 0 := by
+  have hprefix : ∀ (pref : List VExpr),
+      VLCtx.BVLift Δ
+        ((pref.map fun type => (none, .vlam type)) ++ Δ)
+        pref.length 0 pref.length 0 := by
+    intro pref
+    induction pref with
+    | nil => exact .refl
+    | cons type pref ih =>
+      simpa [VLocalDecl.depth, Nat.add_comm, Nat.add_left_comm,
+        Nat.add_assoc] using
+        VLCtx.BVLift.skip (.vlam type) ih
+  simpa [abstractForallContext] using hprefix domains.reverse
+
 /-- Strengthened telescope inversion retaining the exact abstract context in
 which the concrete residual is translated. -/
 theorem TrExprS.forallTelescope_shape_with_context
@@ -14059,6 +14110,12 @@ def BoundGeneratedRecursiveCall.abstractedMajor
     (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
       Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray
 
+def BoundGeneratedRecursiveCall.localIndices
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : List Nat :=
+  List.ofFn fun i : Fin H.arguments_bound.fvars.length =>
+    H.arguments_bound.fvars.length - 1 - i
+
 theorem BoundGeneratedRecursiveCall.abstractedBody_eq_named
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
       root field value) :
@@ -14086,6 +14143,79 @@ theorem BoundGeneratedRecursiveCall.abstractedRecursor_head
   simp only [BoundGeneratedRecursiveCall.abstractedRecursor]
   repeat' rw [getAppFn_mkAppN]
   rfl
+
+/-- Exact translation of the generated major premise for a selected field
+free variable. Outer translations are shifted under the generated lambdas;
+the newly opened arguments translate to their canonical de Bruijn variables. -/
+theorem BoundGeneratedRecursiveCall.translatedMajor_eq
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root (.fvar fv) value)
+    (henv : env.Ordered)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (Hfield : TrExprS env Us Δ (.fvar fv) recursiveArg)
+    (hdomains : domains.length = H.localArgs.size)
+    (Hmajor : TrExprS env Us (abstractForallContext domains Δ)
+      H.abstractedMajor major) :
+    major = VExpr.mkApps (recursiveArg.liftN domains.length 0)
+      (H.localIndices.map VExpr.bvar) := by
+  have hfresh : fv ∉ H.arguments_bound.fvars := by
+    intro hmem
+    exact H.arguments_bound.fresh fv hmem hfieldRoot
+  have hfieldAbstract :
+      (Expr.fvar fv).abstractList H.arguments_bound.fvars = .fvar fv :=
+    Expr.abstractList_fvar_of_not_mem hfresh
+  have hlocalSize :
+      H.localArgs.size = H.arguments_bound.fvars.length := by
+    have := congrArg Array.size H.arguments_bound.expressions
+    simpa using this
+  have hindexBound : ∀ i ∈ H.localIndices, i < domains.length := by
+    intro i hi
+    simp only [BoundGeneratedRecursiveCall.localIndices,
+      List.mem_ofFn] at hi
+    rcases hi with ⟨j, rfl⟩
+    omega
+  have HfieldWeak : TrExprS env Us (abstractForallContext domains Δ)
+      (.fvar fv) (recursiveArg.liftN domains.length 0) := by
+    have Hweak := Hfield.weakBV henv
+      (abstractForallContext.bvLift domains Δ)
+    simpa [Expr.liftLooseBVars'] using Hweak
+  have Hmajor' := Hmajor
+  have hsourceArgs :
+      (List.ofFn fun i : Fin H.arguments_bound.fvars.length =>
+        Expr.bvar (H.arguments_bound.fvars.length - 1 - i)) =
+      H.localIndices.map Expr.bvar := by
+    simp [BoundGeneratedRecursiveCall.localIndices,
+      List.map_ofFn, Function.comp_def]
+  unfold BoundGeneratedRecursiveCall.abstractedMajor at Hmajor'
+  rw [hfieldAbstract] at Hmajor'
+  unfold mkAppN at Hmajor'
+  rw [← Array.foldl_toList] at Hmajor'
+  rw [List.toList_toArray] at Hmajor'
+  rw [hsourceArgs, List.foldl_map] at Hmajor'
+  change TrExprS env Us (abstractForallContext domains Δ)
+    (H.localIndices.foldl (fun fn i => .app fn (.bvar i)) (.fvar fv))
+      major at Hmajor'
+  have heq := TrExprS.foldl_bvars_eq domains Δ H.localIndices
+    hindexBound (.fvar fv) (recursiveArg.liftN domains.length 0)
+    (fun out Hout => TrExprS.unique (e := (.fvar fv))
+      (by trivial) Hout HfieldWeak) Hmajor'
+  simpa [VExpr.mkApps, List.foldl_map] using heq
+
+theorem BoundGeneratedRecursiveCall.translatedMajor_isField
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root (.fvar fv) value)
+    (henv : env.Ordered)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (Hfield : TrExprS env Us Δ (.fvar fv) recursiveArg)
+    (hfield : recursiveArg.IsFieldApp fieldVars 0)
+    (hdomains : domains.length = H.localArgs.size)
+    (Hmajor : TrExprS env Us (abstractForallContext domains Δ)
+      H.abstractedMajor major) :
+    major.IsFieldApp fieldVars domains.length := by
+  rw [H.translatedMajor_eq henv hfieldRoot Hfield hdomains Hmajor]
+  simpa using VExpr.IsFieldApp.appendApps
+    (VExpr.IsFieldApp.lift hfield domains.length)
+      (H.localIndices.map VExpr.bvar)
 
 /-- Syntax-directed translation of a generated higher-order recursive call.
 The semantic guard is intentionally not assumed here: initial arguments and
