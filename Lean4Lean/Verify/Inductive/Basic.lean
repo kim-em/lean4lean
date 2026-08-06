@@ -11218,6 +11218,54 @@ structure RecInfoBindings (c : AddInductive.Context)
   minors : ∀ i (hi : i < recInfos.size),
     BoundFVarArray c recInfos[i]!.minors
 
+/-- The replayed index telescope of every accumulated recursor frame has the
+arity recorded by the checked inductive header. -/
+def RecInfoArities (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo) : Prop :=
+  ∀ i, i < recInfos.size →
+    recInfos[i]!.indices.size = stats.nindices[i]!
+
+theorem RecInfoArities.empty (stats : AddInductive.InductiveStats) :
+    RecInfoArities stats #[] := by
+  intro i hi
+  simp at hi
+
+theorem RecInfoArities.push
+    (H : RecInfoArities stats recInfos)
+    (hnew : indices.size = stats.nindices[recInfos.size]!) :
+    RecInfoArities stats (recInfos.push {
+      motive, minors := #[], indices, major }) := by
+  intro i hi
+  by_cases hilast : i = recInfos.size
+  · subst i
+    simpa using hnew
+  · have hiOld : i < recInfos.size := by
+      have : i < recInfos.size + 1 := by simpa using hi
+      omega
+    have hget : (recInfos.push {
+        motive, minors := #[], indices, major })[i]! = recInfos[i]! := by
+      simp only [Array.getElem!_eq_getD]
+      unfold Array.getD
+      rw [dif_pos hi, dif_pos hiOld]
+      exact Array.getElem_push_lt hiOld
+    rw [hget]
+    exact H i hiOld
+
+theorem RecInfoArities.modifyMinors
+    (H : RecInfoArities stats recInfos) (dIdx : Nat)
+    (f : Array Expr → Array Expr) :
+    RecInfoArities stats (recInfos.modify dIdx fun info =>
+      { info with minors := f info.minors }) := by
+  intro i hi
+  have hiOld : i < recInfos.size := by simpa using hi
+  by_cases hdi : dIdx = i
+  · subst i
+    rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hiOld]
+    exact H dIdx hiOld
+  · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _
+      hiOld hdi]
+    exact H i hiOld
+
 def RecInfoBindings.empty (c : AddInductive.Context) :
     RecInfoBindings c #[] where
   motives := by simpa using BoundFVarArray.empty c
@@ -11458,9 +11506,12 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (Hc : BindingContextWF c)
     (Hbindings : RecInfoBindings c recInfos)
     (Hroot : BindingContextLE root c)
+    (hprogress : recInfos.size = dIdx)
+    (Harities : RecInfoArities stats recInfos)
     (Hk : ∀ out c,
       out.size = recInfos.size + (indTypes.size - dIdx) →
       BindingContextWF c → RecInfoBindings c out →
+      RecInfoArities stats out →
       BindingContextLE root c → (k out c).WF Q) :
     (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel dIdx
       recInfos k c).WF Q := by
@@ -11519,7 +11570,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
             motive := .fvar ⟨cMajor.ngen.curr⟩
             minors := #[]
             indices
-            major }) k cMotive ?_ ?_ ?_ ?_
+            major }) k cMotive ?_ ?_ ?_ ?_ ?_ ?_
         · exact (HcIndices.withLocalDecl `t majorTy .default).withLocalDecl
             motiveName motiveTy.consumeTypeAnnotations .default
         · exact Hbindings.pushFrame hIndices Hindices `t majorTy .default
@@ -11528,12 +11579,18 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
             (BindingContextLE.withLocalDecl cIndices `t majorTy .default).trans <|
               BindingContextLE.withLocalDecl cMajor motiveName
                 motiveTy.consumeTypeAnnotations .default
-        · intro out cOut houtSize HcOut HbindingsOut HrootOut
+        · simp [hprogress]
+        · apply Harities.push
+          have hnew : indices.size = stats.nindices[dIdx]! := by
+            simpa using harity
+          simpa [hprogress] using hnew
+        · intro out cOut houtSize HcOut HbindingsOut HaritiesOut HrootOut
           apply Hk out cOut
           · simp only [Array.size_push] at houtSize
             omega
           · exact HcOut
           · exact HbindingsOut
+          · exact HaritiesOut
           · exact HrootOut
       · rw [if_neg harity]
         exact Except.WF.throw
@@ -11545,6 +11602,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     · omega
     · exact Hc
     · exact Hbindings
+    · exact Harities
     · exact Hroot
 termination_by indTypes.size - dIdx
 
@@ -11703,15 +11761,17 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (Hbindings : RecInfoBindings c recInfos)
     (Hroot : BindingContextLE root c)
     (hidx : dIdx < recInfos.size)
+    (Harities : RecInfoArities stats recInfos)
     (Hk : ∀ out c, out.size = recInfos.size → BindingContextWF c →
-      RecInfoBindings c out → BindingContextLE root c →
+      RecInfoBindings c out → RecInfoArities stats out →
+      BindingContextLE root c →
       (k out c).WF Q) :
     (AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
       ctors k c).WF Q := by
   induction ctors generalizing recInfos c with
   | nil =>
       simpa [AddInductive.mkRecInfos.loopCtors] using
-        Hk recInfos c rfl Hc Hbindings Hroot
+        Hk recInfos c rfl Hc Hbindings Harities Hroot
   | cons ctor ctors ih =>
       rw [AddInductive.mkRecInfos.loopCtors]
       refine mkRecInfos.loopCtorArgs.resultBindings (Q := Q) stats ctor.type
@@ -11779,11 +11839,14 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           BindingContextLE.withLocalDecl cIH minorName
             minorTy.consumeTypeAnnotations .default
       · simpa [next] using hidx
-      · intro out cOut houtSize HcOut HbindingsOut HrootOut
+      · exact Harities.modifyMinors dIdx (fun minors =>
+          minors.push (.fvar ⟨cIH.ngen.curr⟩))
+      · intro out cOut houtSize HcOut HbindingsOut HaritiesOut HrootOut
         apply Hk out cOut
         · simpa [next] using houtSize
         · exact HcOut
         · exact HbindingsOut
+        · exact HaritiesOut
         · exact HrootOut
 
 end mkRecInfos.loopCtors
@@ -11802,8 +11865,10 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (Hbindings : RecInfoBindings c recInfos)
     (Hroot : BindingContextLE root c)
     (hsize : recInfos.size = indTypes.size)
+    (Harities : RecInfoArities stats recInfos)
     (Hk : ∀ out c, out.size = indTypes.size → BindingContextWF c →
-      RecInfoBindings c out → BindingContextLE root c →
+      RecInfoBindings c out → RecInfoArities stats out →
+      BindingContextLE root c →
       (k out c).WF Q) :
     (AddInductive.mkRecInfos.loopInd2 stats indTypes dIdx recInfos k c).WF Q := by
   rw [AddInductive.mkRecInfos.loopInd2]
@@ -11815,13 +11880,15 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
         (dIdx + 1) out k)
       c Hc Hbindings Hroot
       (by simpa [hsize] using hidx)
-    intro out cOut houtSize HcOut HbindingsOut HrootOut
+      Harities
+    intro out cOut houtSize HcOut HbindingsOut HaritiesOut HrootOut
     apply resultBindings (root := root) (Q := Q) stats indTypes (dIdx + 1)
       out k cOut HcOut HbindingsOut HrootOut
     · exact houtSize.trans hsize
+    · exact HaritiesOut
     · exact Hk
   · rw [dif_neg hidx]
-    exact Hk recInfos c hsize Hc Hbindings Hroot
+    exact Hk recInfos c hsize Hc Hbindings Harities Hroot
 termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd2
@@ -11837,6 +11904,7 @@ theorem mkRecInfos.resultBindings {alpha : Type} {Q : alpha → Prop}
     (Hc : BindingContextWF c)
     (Hk : ∀ out cOut, out.size = indTypes.size →
       BindingContextWF cOut → RecInfoBindings cOut out →
+      RecInfoArities stats out →
       BindingContextLE c cOut → (k out cOut).WF Q) :
     (AddInductive.mkRecInfos stats indTypes elimLevel k c).WF Q := by
   unfold AddInductive.mkRecInfos
@@ -11844,13 +11912,16 @@ theorem mkRecInfos.resultBindings {alpha : Type} {Q : alpha → Prop}
     stats indTypes elimLevel 0 #[]
     (fun recInfos => AddInductive.mkRecInfos.loopInd2 stats indTypes 0
       recInfos k)
-    c Hc (RecInfoBindings.empty c) (BindingContextLE.refl c)
-  intro recInfos cFrames hsize HcFrames HbindingsFrames HrootFrames
+    c Hc (RecInfoBindings.empty c) (BindingContextLE.refl c) rfl
+      (RecInfoArities.empty stats)
+  intro recInfos cFrames hsize HcFrames HbindingsFrames HaritiesFrames
+    HrootFrames
   apply mkRecInfos.loopInd2.resultBindings (root := c) (Q := Q)
     stats indTypes 0 recInfos k cFrames HcFrames HbindingsFrames HrootFrames
   · simpa using hsize
-  · intro out cOut houtSize HcOut HbindingsOut HrootOut
-    exact Hk out cOut houtSize HcOut HbindingsOut HrootOut
+  · exact HaritiesFrames
+  · intro out cOut houtSize HcOut HbindingsOut HaritiesOut HrootOut
+    exact Hk out cOut houtSize HcOut HbindingsOut HaritiesOut HrootOut
 
 theorem LocalForallSelection.size
     (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
