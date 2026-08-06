@@ -8353,6 +8353,39 @@ theorem mkRecRules.loopU.generatedCallsFromEmpty
   mkRecRules.loopU.generatedCalls
     (GeneratedRecursiveCalls.empty indTypes stats motives minors lvls u) Hk
 
+/-- Exact source-level record emitted for one constructor by `mkRecRules`.
+This certificate deliberately precedes translation to `VDefEq`: it fixes the
+constructor, field count, minor ordinal, recursive-call array, and complete
+right-hand side built by the executable traversal. -/
+def GeneratedRecursorRule
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (ctor : Constructor) (minorIdx : Nat) (rule : RecursorRule) : Prop :=
+  ∃ (bu u v : Array Expr) (lctx : LocalContext),
+    u.toList.Sublist bu.toList ∧
+    GeneratedRecursiveCalls indTypes stats motives minors lvls
+      u v u.size ∧
+    rule.ctor = ctor.name ∧
+    rule.nfields = bu.size ∧
+    rule.rhs =
+      (lctx.mkLambda stats.params <| lctx.mkLambda motives <|
+       lctx.mkLambda minors <| lctx.mkLambda bu <|
+       mkAppN (mkAppN minors[minorIdx]! bu) v)
+
+/-- Ordered source-level coverage of the constructor suffix processed by the
+named `mkRecRules.loopCtors` recursion. -/
+inductive GeneratedRecursorRules
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level) :
+    List Constructor → Nat → List RecursorRule → Prop
+  | nil : GeneratedRecursorRules indTypes stats motives minors lvls [] start []
+  | cons :
+      GeneratedRecursorRule indTypes stats motives minors lvls ctor start rule →
+      GeneratedRecursorRules indTypes stats motives minors lvls
+        ctors (start + 1) rules →
+      GeneratedRecursorRules indTypes stats motives minors lvls
+        (ctor :: ctors) start (rule :: rules)
+
 /-- A validated concrete parameter argument translates to the corresponding
 abstract de Bruijn parameter.  The fvar-shape invariant is what upgrades
 structural `Expr` equality to exact syntax translation here. -/
@@ -9466,6 +9499,89 @@ theorem mkRecInfos.loopCtorArgs.selectedSublist {α : Type}
     (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
   unfold AddInductive.mkRecInfos.loopCtorArgs
   exact mkRecInfos.loopCtorArgs.loop.selectedSublist stats k .slnil Hk
+
+namespace mkRecRules.loopCtors
+
+/-- The complete named constructor recursion emits one exact source rule per
+input constructor, preserves order, and advances the flattened minor ordinal
+once per rule. -/
+theorem generatedRules
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (ctors : List Constructor) (acc : Array RecursorRule)
+    (start : Nat) (c : AddInductive.Context) :
+    (AddInductive.mkRecRules.loopCtors indTypes stats motives minors lvls
+      ctors acc start c).WF fun out =>
+        ∃ generated,
+          out.1 = acc.toList ++ generated ∧
+          checkPositivityStep.GeneratedRecursorRules indTypes stats motives minors lvls
+            ctors start generated ∧
+          out.2 = start + ctors.length := by
+  induction ctors generalizing acc start c with
+  | nil =>
+      simp [AddInductive.mkRecRules.loopCtors]
+      intro out hout
+      cases hout
+      refine ⟨[], ?_, .nil, by simp⟩
+      simp
+  | cons ctor ctors ih =>
+      rw [AddInductive.mkRecRules.loopCtors]
+      have hone :
+          ((fun minorIdx => AddInductive.mkRecInfos.loopCtorArgs stats
+            ctor.type fun _ bu u =>
+              AddInductive.mkRecRules.loopU indTypes stats motives minors
+                lvls u 0 #[] fun v => do
+                  let lctx ← getLCtx
+                  let rule := {
+                    ctor := ctor.name
+                    nfields := bu.size
+                    rhs := lctx.mkLambda stats.params <|
+                      lctx.mkLambda motives <| lctx.mkLambda minors <|
+                      lctx.mkLambda bu <|
+                      mkAppN (mkAppN minors[minorIdx]! bu) v }
+                  return (rule, minorIdx + 1)) start c).WF fun out =>
+            checkPositivityStep.GeneratedRecursorRule indTypes stats motives minors lvls
+              ctor start out.1 ∧ out.2 = start + 1 := by
+        apply mkRecInfos.loopCtorArgs.selectedSublist stats
+        intro _ bu u c' hselected
+        apply checkPositivityStep.mkRecRules.loopU.generatedCallsFromEmpty
+        intro v c'' Hcalls
+        exact Except.WF.pure ⟨⟨bu, u, v, c''.lctx, hselected,
+          Hcalls, rfl, rfl, rfl⟩, rfl⟩
+      exact hone.bind fun out Hout => by
+        rcases Hout with ⟨Hrule, hnext⟩
+        have htail := ih (acc := acc.push out.1)
+          (start := out.2) (c := c)
+        exact htail.mono fun result Hresult => by
+          rcases Hresult with ⟨generated, hout, Hgenerated, hend⟩
+          refine ⟨out.1 :: generated, ?_, .cons Hrule ?_, ?_⟩
+          · simpa [hout]
+          · simpa [hnext] using Hgenerated
+          · simp at hend ⊢
+            omega
+
+end mkRecRules.loopCtors
+
+/-- Public rule-generator boundary: starting with an empty accumulator returns
+exactly the ordered rules certified for the selected mutual-family member. -/
+theorem mkRecRules.generatedRules
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (stats : AddInductive.InductiveStats) (dIdx : Nat)
+    (motives minors : Array Expr) (start : Nat)
+    (c : AddInductive.Context) :
+    (AddInductive.mkRecRules indTypes elimLevel stats dIdx motives minors
+      start c).WF fun out =>
+        checkPositivityStep.GeneratedRecursorRules indTypes stats motives minors
+          (AddInductive.getRecLevels elimLevel stats.levels)
+          indTypes[dIdx]!.ctors start out.1 ∧
+        out.2 = start + indTypes[dIdx]!.ctors.length := by
+  unfold AddInductive.mkRecRules
+  have H := mkRecRules.loopCtors.generatedRules indTypes stats motives minors
+    (AddInductive.getRecLevels elimLevel stats.levels)
+    indTypes[dIdx]!.ctors #[] start c
+  exact H.mono fun out Hout => by
+    rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
+    simpa using ⟨hout ▸ Hgenerated, hend⟩
 
 /-- Proof-side metadata retained for every field selected by `isRecArg`.
 The executable code stores only the field free variable; this record retains

@@ -505,14 +505,17 @@ termination_by u.size - i
 
 end mkRecRules
 
-def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : InductiveStats)
-    (dIdx : Nat) (motives : Array Expr) (minors : Array Expr) :
-    StateT Nat M (List RecursorRule) := do
-  let d := indTypes[dIdx]!
-  let lvls := getRecLevels elimLevel stats.levels
-  let mut rules := #[]
-  for ctor in d.ctors do
-    let rule ← fun minorIdx => mkRecInfos.loopCtorArgs stats ctor.type fun _ bu u =>
+namespace mkRecRules
+
+def loopCtors (indTypes : Array InductiveType) (stats : InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (ctors : List Constructor) (rules : Array RecursorRule) :
+    StateT Nat M (List RecursorRule)
+  | minorIdx => match ctors with
+  | [] => pure (rules.toList, minorIdx)
+  | ctor :: ctors => do
+    let (rule, nextMinorIdx) ←
+      (fun minorIdx => mkRecInfos.loopCtorArgs stats ctor.type fun _ bu u =>
       mkRecRules.loopU indTypes stats motives minors lvls u 0 #[] fun v => do
       let lctx ← getLCtx
       let rule := {
@@ -522,9 +525,17 @@ def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : Ind
           lctx.mkLambda minors <| lctx.mkLambda bu <|
           mkAppN (mkAppN minors[minorIdx]! bu) v
       }
-      return (rule, minorIdx + 1)
-    rules := rules.push rule
-  return rules.toList
+      return (rule, minorIdx + 1)) minorIdx
+    loopCtors indTypes stats motives minors lvls ctors (rules.push rule)
+      nextMinorIdx
+
+end mkRecRules
+
+def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : InductiveStats)
+    (dIdx : Nat) (motives : Array Expr) (minors : Array Expr) :
+    StateT Nat M (List RecursorRule) :=
+  mkRecRules.loopCtors indTypes stats motives minors
+    (getRecLevels elimLevel stats.levels) indTypes[dIdx]!.ctors #[]
 
 def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) : M Environment := do
   let isUnsafe := (← read).safety != .safe
