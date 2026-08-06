@@ -13017,6 +13017,16 @@ def BoundFVarArray.get
     subst fv'
     exact members fv (List.getElem_mem (by simpa using hi))
 
+/-- Every indexed entry of a bound-fvar array is literally a free variable
+present in the retained executable local context. -/
+theorem BoundFVarArray.get_eq_fvar
+    (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
+    ∃ fv, xs[i] = .fvar fv ∧ fv ∈ c.lctx.fvars := by
+  rcases H with ⟨fvars, rfl, members⟩
+  have hifvars : i < fvars.length := by simpa using hi
+  refine ⟨fvars[i], ?_, members fvars[i] (List.getElem_mem hifvars)⟩
+  simp
+
 theorem BoundFVarArray.get_fvars_sublist
     (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
     (H.get i hi).fvars <+ H.fvars := by
@@ -14652,6 +14662,47 @@ theorem BoundGeneratedRecursiveCalls.iotaResults
   · have hiVSize : i < v.size := by simpa using hiV
     simpa [Array.getElem!_eq_getD, Array.getD, hiVSize] using Hresult
 
+/-- Lift the freshness-derived pointwise result certificate across the exact
+recursive-call array. The only remaining rule-local facts are recursor-name
+membership and the de Bruijn head selected for each translated field. -/
+theorem BoundGeneratedRecursiveCalls.iotaResults_ofFresh
+    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v u.size)
+    (Hbound : BoundFVarArray root u)
+    (Hargs : List.Forall₂ (TrExprS env Us Δ)
+      u.toList recursiveArgs)
+    (Hresults : List.Forall₂ (TrExprS env Us Δ)
+      v.toList recursiveResults)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (henv : env.Ordered)
+    (hrecursor : ∀ exposedType,
+      Lean.mkRecName
+        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
+          recursors)
+    (hheads : ∀ i (hi : i < recursiveArgs.length),
+      ∃ field, recursiveArgs[i].bvarHead? = some field) :
+    IotaRecursiveResultsCertificate recursors
+      (recursiveArgs.filterMap VExpr.bvarHead?)
+      recursiveArgs recursiveResults := by
+  apply H.iotaResults Hargs Hresults
+  intro i hi hiarg hiresult Hentry Harg Hresult
+  rcases Hbound.get_eq_fvar i hi with ⟨fv, hsource, hfieldRoot⟩
+  rw [hsource] at Hentry Harg
+  have hrecursorMem : Hentry.recursorName ∈ recursors := by
+    simpa [BoundGeneratedRecursiveCall.recursorName] using
+      hrecursor Hentry.exposedType
+  rcases hheads i hiarg with ⟨field, hhead⟩
+  have hfield : recursiveArgs[i].IsFieldApp
+      (recursiveArgs.filterMap VExpr.bvarHead?) 0 :=
+    VExpr.IsFieldApp.ofRecursiveArg
+      (List.getElem_mem hiarg) hhead
+  exact Hentry.iotaResultCertificate_ofFresh Hresult hfresh hctx hproj
+    hrecursorMem henv hfieldRoot Harg hfield
+
 /-- One generated iota rule retaining the constructor-field context and the
 binder-aware certificate for every recursive result. -/
 structure BoundGeneratedRecursorRule
@@ -14673,6 +14724,35 @@ structure BoundGeneratedRecursorRule
     (root.lctx.mkLambda stats.params <| root.lctx.mkLambda motives <|
      root.lctx.mkLambda minors <| root.lctx.mkLambda allArgs <|
      mkAppN (mkAppN minors[minorIdx]! allArgs) recursiveResults)
+
+/-- Rule-local interface to the guarded recursive-result proof. Array
+alignment and the fact that selected source fields are genuine retained free
+variables are discharged by the binder-aware rule certificate. -/
+theorem BoundGeneratedRecursorRule.iotaResults_ofFresh
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    {recursiveArgs recursiveResults : List VExpr}
+    (Hargs : List.Forall₂ (TrExprS env Us Δ)
+      H.recursiveArgs.toList recursiveArgs)
+    (Hresults : List.Forall₂ (TrExprS env Us Δ)
+      H.recursiveResults.toList recursiveResults)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (henv : env.Ordered)
+    (hrecursor : ∀ exposedType,
+      Lean.mkRecName
+        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
+          recursors)
+    (hheads : ∀ i (hi : i < recursiveArgs.length),
+      ∃ field, recursiveArgs[i].bvarHead? = some field) :
+    IotaRecursiveResultsCertificate recursors
+      (recursiveArgs.filterMap VExpr.bvarHead?)
+      recursiveArgs recursiveResults :=
+  H.recursive_calls.iotaResults_ofFresh H.recursive_args_bound
+    Hargs Hresults hfresh hctx hproj henv hrecursor hheads
 
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
