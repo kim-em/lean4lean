@@ -11232,6 +11232,71 @@ def RecInfoBindings.mono
   majors := H.majors.mono hle
   indices i hi := (H.indices i hi).mono hle
 
+def RecInfoBindings.pushFrame
+    {indices : Array Expr}
+    (H : RecInfoBindings c recInfos)
+    (hle : BindingContextLE c cIndices)
+    (Hindices : BoundFVarArray cIndices indices)
+    (majorName : Name) (majorTy : Expr) (majorBi : BinderInfo)
+    (motiveName : Name) (motiveTy : Expr) (motiveBi : BinderInfo) :
+    let cMajor : AddInductive.Context := { cIndices with
+      ngen := cIndices.ngen.next
+      lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩
+        majorName majorTy majorBi }
+    let cMotive : AddInductive.Context := { cMajor with
+      ngen := cMajor.ngen.next
+      lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩
+        motiveName motiveTy motiveBi }
+    RecInfoBindings cMotive (recInfos.push {
+      motive := .fvar ⟨cMajor.ngen.curr⟩
+      minors := #[]
+      indices
+      major := .fvar ⟨cIndices.ngen.curr⟩ }) := by
+  dsimp only
+  let cMajor : AddInductive.Context := { cIndices with
+    ngen := cIndices.ngen.next
+    lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩
+      majorName majorTy majorBi }
+  let cMotive : AddInductive.Context := { cMajor with
+    ngen := cMajor.ngen.next
+    lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩
+      motiveName motiveTy motiveBi }
+  let hMajor := BindingContextLE.withLocalDecl cIndices
+    majorName majorTy majorBi
+  let hMotive := BindingContextLE.withLocalDecl cMajor
+    motiveName motiveTy motiveBi
+  let hall : BindingContextLE c cMotive := hle.trans (hMajor.trans hMotive)
+  refine {
+    motives := ?_
+    minors := ?_
+    majors := ?_
+    indices := ?_
+  }
+  · simpa [cMajor, cMotive] using
+      ((H.motives.mono (hle.trans hMajor)).pushCurrent
+        motiveName motiveTy motiveBi)
+  · simpa using H.minors.mono hall
+  · simpa [cMajor, cMotive] using
+      (((H.majors.mono hle).pushCurrent majorName majorTy majorBi).weaken
+        motiveName motiveTy motiveBi)
+  · intro i hi
+    by_cases hilast : i = recInfos.size
+    · subst i
+      simpa [cMajor, cMotive] using Hindices.mono (hMajor.trans hMotive)
+    · have hiSize : i < recInfos.size + 1 := by simpa using hi
+      have hiOld : i < recInfos.size := by omega
+      have hget : (recInfos.push {
+          motive := .fvar ⟨cMajor.ngen.curr⟩
+          minors := #[]
+          indices
+          major := .fvar ⟨cIndices.ngen.curr⟩ })[i]! = recInfos[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hi, dif_pos hiOld]
+        exact Array.getElem_push_lt hiOld
+      rw [hget]
+      exact (H.indices i hiOld).mono hall
+
 namespace mkRecInfos.loopArgs1
 
 /-- Operational strengthening of `continueWith`: every non-parameter binder
