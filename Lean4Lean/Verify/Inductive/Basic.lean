@@ -11215,6 +11215,21 @@ theorem TrExprS.forallTelescope_shape_with_context
       · simpa [abstractForallContext, List.map_append, List.append_assoc]
           using hresult
 
+/-- A nonempty translated concrete forall telescope is an abstract type.
+The translation constructor already carries exactly the two typing premises
+needed for abstract forall formation. -/
+theorem TrExprS.isType_of_forallTelescope
+    (Htel : Expr.ForallTelescope e arity result)
+    (hpositive : 0 < arity)
+    (Htr : TrExprS env Us Δ e e') :
+    env.IsType Us.length Δ.toCtx e' := by
+  cases Htel with
+  | nil => omega
+  | cons _ =>
+    cases Htr with
+    | forallE hdomType hbodyType _ _ =>
+      exact VEnv.IsType.forallE hdomType hbodyType
+
 private theorem List.exists_append_five_of_length_eq
     (xs : List α) (a b c d e : Nat)
     (h : xs.length = a + b + c + d + e) :
@@ -13330,6 +13345,210 @@ theorem RecursorLocalSelections.recursorShape_of_recInfo
   exact H.recursorShape howner hnoalias Hcard hdeclOwner recursor
     hrecName hrecUvars hpre
 
+/-- The same installed `.recInfo` translation independently proves semantic
+well-formedness of the generated recursor constant. -/
+theorem RecursorLocalSelections.recursorWF_of_recInfo
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size)
+    (info : RecursorVal) (recursor : VConstVal)
+    (Hinfo : TrConstVal safety env (.recInfo info) recursor)
+    (htype : info.type =
+      (c.lctx.mkForall stats.params <|
+       c.lctx.mkForall (recInfos.map (·.motive)) <|
+       c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+       c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+       c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+         (.app (mkAppN recInfos[ownerIdx]!.motive
+           recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)).inferImplicit
+        1000 false) :
+    recursor.toVConstant.WF env := by
+  have htranslated : TrExprS env info.levelParams [] info.type
+      recursor.type := by
+    simpa [ConstantInfo.levelParams, ConstantInfo.type,
+      ConstantInfo.toConstantVal] using Hinfo.1.2.2
+  rw [htype] at htranslated
+  have hpre := TrExprS.of_inferImplicit htranslated
+  have Htel := H.forallTelescope
+    (.app (mkAppN recInfos[ownerIdx]!.motive
+      recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+  have hpositive : 0 < stats.params.size +
+      (recInfos.map (·.motive)).size +
+      (recInfos.flatMap (·.minors)).size +
+      recInfos[ownerIdx]!.indices.size + 1 := by omega
+  have hwf := TrExprS.isType_of_forallTelescope Htel hpositive hpre
+  have huvars : info.levelParams.length = recursor.uvars := by
+    simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
+      Hinfo.1.2.1
+  rw [huvars] at hwf
+  exact hwf
+
+/-- Pointwise record emitted by one iteration of the production recursor
+loop. It retains only the metadata needed to connect that iteration to the
+independent shape and semantic-typing judgments. -/
+structure GeneratedRecursorEntry
+    (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
+    (elimLevel : Level) (c : AddInductive.Context)
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType)
+    (recInfos : Array AddInductive.RecInfo)
+    (ownerIdx : Nat) (entry : ConstantInfo × VConstVal) where
+  info : RecursorVal
+  source_eq : entry.1 = .recInfo info
+  translated : TrConstVal safety env (.recInfo info) entry.2
+  levels : info.levelParams =
+    AddInductive.getRecLevelParams elimLevel lparams
+  name : info.name = Lean.mkRecName indTypes[ownerIdx]!.name
+  type : info.type =
+    (c.lctx.mkForall stats.params <|
+     c.lctx.mkForall (recInfos.map (·.motive)) <|
+     c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+     c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+     c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+       (.app (mkAppN recInfos[ownerIdx]!.motive
+         recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)).inferImplicit
+      1000 false
+
+/-- Reviewable output invariant for the complete production recursor loop. -/
+structure GeneratedRecursors
+    (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
+    (elimLevel : Level) (c : AddInductive.Context)
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType)
+    (recInfos : Array AddInductive.RecInfo)
+    (entries : List (ConstantInfo × VConstVal)) where
+  length : entries.length = recInfos.size
+  entry : ∀ i (hi : i < entries.length),
+    GeneratedRecursorEntry safety env lparams elimLevel c stats indTypes
+      recInfos i entries[i]
+
+/-- Append-oriented form matching the `for dIdx in [:indTypes.size]` loop. -/
+structure GeneratedRecursorsPrefix
+    (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
+    (elimLevel : Level) (c : AddInductive.Context)
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType)
+    (recInfos : Array AddInductive.RecInfo)
+    (entries : List (ConstantInfo × VConstVal)) where
+  covered : entries.length ≤ recInfos.size
+  entry : ∀ i (hi : i < entries.length),
+    GeneratedRecursorEntry safety env lparams elimLevel c stats indTypes
+      recInfos i entries[i]
+
+def GeneratedRecursorsPrefix.empty
+    (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
+    (elimLevel : Level) (c : AddInductive.Context)
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType)
+    (recInfos : Array AddInductive.RecInfo) :
+    GeneratedRecursorsPrefix safety env lparams elimLevel c stats indTypes
+      recInfos [] where
+  covered := Nat.zero_le _
+  entry _ hi := by simp at hi
+
+def GeneratedRecursorsPrefix.push
+    (H : GeneratedRecursorsPrefix safety env lparams elimLevel c stats
+      indTypes recInfos entries)
+    (hnext : entries.length < recInfos.size)
+    (E : GeneratedRecursorEntry safety env lparams elimLevel c stats
+      indTypes recInfos entries.length newEntry) :
+    GeneratedRecursorsPrefix safety env lparams elimLevel c stats indTypes
+      recInfos (entries ++ [newEntry]) where
+  covered := by simp; omega
+  entry i hi := by
+    by_cases hold : i < entries.length
+    · simpa [List.getElem_append, hold] using H.entry i hold
+    · have hieq : i = entries.length := by simp at hi; omega
+      subst i
+      simpa using E
+
+def GeneratedRecursorsPrefix.complete
+    (H : GeneratedRecursorsPrefix safety env lparams elimLevel c stats
+      indTypes recInfos entries)
+    (hcomplete : entries.length = recInfos.size) :
+    GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries where
+  length := hcomplete
+  entry := H.entry
+
+theorem GeneratedRecursors.recursorCertificate
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries)
+    (Hc : BindingContextWF c)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (hnoalias : Hbindings.NoAlias Hparams)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl) :
+    RecursorCertificate decl (entries.map Prod.snd) := by
+  have hindTypes : indTypes.size = decl.types.length := by
+    simpa using Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl
+  refine {
+    length := by simp [H.length, Hcard.records]
+    shapes := ?_ }
+  intro i htype hrec
+  have hentry : i < entries.length := by simpa using hrec
+  have howner : i < recInfos.size := by simpa [H.length] using hentry
+  have hsource : i < indTypes.size := by omega
+  let Hlocal := Hbindings.toRecursorLocalSelections Hc Hparams i howner
+  have hlocalNoAlias : Hlocal.NoAlias :=
+    Hbindings.selectionNoAlias Hc Hparams hnoalias i howner
+  let E := H.entry i hentry
+  have hshape := Hlocal.recursorShape_of_recInfo howner hlocalNoAlias Hcard
+    Hdecl hsource elimLevel E.info entries[i].2 E.translated E.levels
+    (by simpa [Array.getElem!_eq_getD, Array.getD, hsource] using E.name)
+    E.type
+  simpa [E, Hlocal] using hshape
+
+theorem GeneratedRecursors.recursorsWF
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries)
+    (Hc : BindingContextWF c)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params) :
+    ∀ recursor ∈ entries.map Prod.snd, recursor.toVConstant.WF env := by
+  intro recursor hrec
+  rcases List.mem_iff_getElem.mp hrec with ⟨i, hi, heq⟩
+  have hentry : i < entries.length := by simpa using hi
+  have heqTarget : entries[i].2 = recursor := by simpa using heq
+  subst recursor
+  have howner : i < recInfos.size := by simpa [H.length] using hentry
+  let Hlocal := Hbindings.toRecursorLocalSelections Hc Hparams i howner
+  let E := H.entry i hentry
+  have hwf := Hlocal.recursorWF_of_recInfo howner E.info entries[i].2
+    E.translated E.type
+  simpa using hwf
+
+/-- Once the rule traversal and global name check are supplied, the generated
+recursor-loop certificate fills the recursor component of the independent
+ordinary-compilation interface. -/
+theorem GeneratedRecursors.ordinaryCompilationCertificate
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries)
+    (Hc : BindingContextWF c)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (hnoalias : Hbindings.NoAlias Hparams)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl)
+    (block : VInductBlock)
+    (htypes : block.types = decl.typeConstants)
+    (hctors : block.ctors = decl.constructorConstants)
+    (hrecursors : block.recursors = entries.map Prod.snd)
+    (hrules : IotaCertificate sourceEnv decl block)
+    (hnames : List.Nodup
+      ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
+    OrdinaryCompilationCertificate sourceEnv decl block := by
+  refine {
+    types := htypes
+    ctors := hctors
+    recursors := ?_
+    rules := hrules
+    names := hnames }
+  rw [hrecursors]
+  exact H.recursorCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl
+
 /-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
 innermost order. Local lets are discharged by `mkForall'` and contribute no
 domain. -/
@@ -13718,6 +13937,29 @@ structure BlockCertificate (safety : DefinitionSafety)
   recursorsWF : ∀ ci ∈ recursors.map Prod.snd,
     ci.toVConstant.WF staged.venvCtors
   rulesWF : ∀ df ∈ rules, df.WF outVEnv
+
+/-- Generated recursor traversal discharges the recursor-typing field of the
+semantic block certificate in the exact pre-recursor environment recorded by
+the staging invariant. -/
+def GeneratedRecursors.toBlockCertificate
+    (staged : StagedBlock safety env venv types ctors recursors
+      outEnv outVEnv)
+    (H : GeneratedRecursors safety staged.venvCtors lparams elimLevel c stats
+      indTypes recInfos recursors)
+    (Hc : BindingContextWF c)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (htypes : ∀ ci ∈ types.map Prod.snd, ci.toVConstant.WF venv)
+    (hctors : ∀ ci ∈ ctors.map Prod.snd,
+      ci.toVConstant.WF staged.venvTypes)
+    (hrules : ∀ df ∈ rules, df.WF outVEnv) :
+    BlockCertificate safety env venv types ctors recursors rules
+      outEnv outVEnv where
+  staged := staged
+  typesWF := htypes
+  ctorsWF := hctors
+  recursorsWF := H.recursorsWF Hc Hbindings Hparams
+  rulesWF := hrules
 
 def BlockCertificate.block
     (_H : BlockCertificate safety env venv types ctors recursors
