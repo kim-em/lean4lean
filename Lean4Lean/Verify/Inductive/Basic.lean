@@ -984,6 +984,44 @@ theorem TrInductDeclCore.sourceNames_nodup
   simpa [VInductDecl.sourceNames, List.map_append] using
     VEnv.addConsts_names_nodup hadd
 
+/-- The two executable checking phases jointly recover the pointwise core
+translation, without assuming aggregate source well-formedness. -/
+theorem TrInductDeclCore.ofPhases
+    (Hheaders : TrInductDeclHeaders env lparams nparams types isUnsafe decl
+      envTypes)
+    (Hctors : TrInductDeclConstructors envTypes lparams types decl envCtors) :
+    TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors := by
+  have combine : ∀ {sources targets},
+      List.Forall₂
+        (fun source target => TrSourceConst env lparams source.name
+          source.type target.toVConstVal)
+        sources targets →
+      List.Forall₂
+        (fun source target => List.Forall₂
+          (fun ctor ctor' =>
+            TrSourceConst envTypes lparams ctor.name ctor.type ctor')
+          source.ctors target.ctors)
+        sources targets →
+      List.Forall₂ (TrInductiveType env envTypes lparams)
+        sources targets := by
+    intro sources targets hheaders hctors
+    induction hheaders with
+    | nil =>
+      cases hctors
+      exact .nil
+    | cons hheader _ ih =>
+      cases hctors with
+      | cons hctor hctors =>
+        exact .cons ⟨hheader, hctor⟩ (ih hctors)
+  exact {
+    uvars := Hheaders.uvars
+    nparams := Hheaders.nparams
+    isUnsafe := Hheaders.isUnsafe
+    typesAdded := Hheaders.typesAdded
+    ctorsAdded := Hctors.ctorsAdded
+    types := combine Hheaders.types Hctors.types }
+
 /-- Pointwise original-source translations already contain all typing and
 universe facts required by `SourceWF`. Thus the aggregate source judgment
 adds only nonemptiness and global name uniqueness. Nonemptiness comes from

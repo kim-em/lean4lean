@@ -326,6 +326,35 @@ structure TrInductDeclCore (env : VEnv) (lparams : List Name) (nparams : Nat)
   types : List.Forall₂ (TrInductiveType env envTypes lparams)
     types decl.types
 
+/-- Header-phase translation in the exact form available after
+`checkInductiveTypes` and mutual header installation. Constructor translation
+is intentionally absent until `checkConstructors` has run in `envTypes`. -/
+structure TrInductDeclHeaders (env : VEnv) (lparams : List Name)
+    (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
+    (decl : VInductDecl) (envTypes : VEnv) : Prop where
+  uvars : decl.uvars = lparams.length
+  nparams : decl.nparams = nparams
+  isUnsafe : decl.isUnsafe = isUnsafe
+  typesAdded : env.addConsts decl.typeConstants = some envTypes
+  types : List.Forall₂
+    (fun source target => TrSourceConst env lparams source.name source.type
+      target.toVConstVal)
+    types decl.types
+
+/-- Constructor-phase translation produced after all mutual headers are
+installed. It records both pointwise source typing and the exact abstract
+constructor environment. -/
+structure TrInductDeclConstructors (envTypes : VEnv) (lparams : List Name)
+    (types : List InductiveType) (decl : VInductDecl)
+    (envCtors : VEnv) : Prop where
+  ctorsAdded : envTypes.addConsts decl.constructorConstants = some envCtors
+  types : List.Forall₂
+    (fun source target => List.Forall₂
+      (fun ctor ctor' =>
+        TrSourceConst envTypes lparams ctor.name ctor.type ctor')
+      source.ctors target.ctors)
+    types decl.types
+
 theorem TrInductDecl.core
     (H : TrInductDecl env lparams nparams types isUnsafe decl) :
     ∃ envTypes envCtors,
