@@ -695,6 +695,32 @@ theorem List.Forall₂.targets_eq_of_unique
         exact Hunique e (by simp [he]))
       rw [hheadEq, htailEq]
 
+theorem Expr.getAppFn_mkAppN (fn : Expr) (args : Array Expr) :
+    (mkAppN fn args).getAppFn = fn.getAppFn := by
+  unfold mkAppN
+  rw [← Array.foldl_toList]
+  generalize args.toList = list
+  induction list generalizing fn with
+  | nil => rfl
+  | cons arg args ih =>
+    simp only [List.foldl_cons]
+    simpa [Expr.getAppFn] using ih (.app fn arg)
+
+theorem Expr.getAppArgsList_mkAppN (fn : Expr) (args : Array Expr) :
+    (mkAppN fn args).getAppArgsList = fn.getAppArgsList ++ args.toList := by
+  unfold mkAppN
+  rw [← Array.foldl_toList]
+  generalize args.toList = list
+  induction list generalizing fn with
+  | nil => simp
+  | cons arg args ih =>
+    simp only [List.foldl_cons]
+    rw [ih]
+    simp [Expr.getAppArgsList_app, List.append_assoc]
+
+theorem Expr.getAppArgsList_const (name : Name) (levels : List Level) :
+    (Expr.const name levels).getAppArgsList = [] := rfl
+
 theorem OnCtx.append_right
     (H : OnCtx (xs ++ ys) P) : OnCtx ys P := by
   induction xs with
@@ -15381,6 +15407,7 @@ structure BoundGeneratedRecursorRule
     (ctor : Constructor) (minorIdx : Nat) (rule : RecursorRule) where
   root : AddInductive.Context
   root_wf : BindingContextWF root
+  target : Expr
   allArgs : Array Expr
   recursiveArgs : Array Expr
   recursiveResults : Array Expr
@@ -15461,6 +15488,32 @@ def BoundGeneratedRecursorRule.sourceRhsBody
       ctor minorIdx rule) : Expr :=
   mkAppN (mkAppN minors[minorIdx]! H.allArgs) H.recursiveResults
 
+/-- Constructor application appearing as the major premise of the generated
+iota left-hand side. -/
+def BoundGeneratedRecursorRule.sourceConstructorMajor
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) : Expr :=
+  mkAppN (mkAppN (.const ctor.name stats.levels) stats.params) H.allArgs
+
+/-- Canonical source left-hand-side body determined by the residual target
+returned from `loopCtorArgs`. -/
+def BoundGeneratedRecursorRule.sourceLhsBody
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) : Expr :=
+  let (ownerIdx, indices) := AddInductive.getIIndices stats H.target
+  let recursor := .const (Lean.mkRecName indTypes[ownerIdx]!.name) lvls
+  (mkAppN
+    (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+      indices).app H.sourceConstructorMajor
+
+/-- Proof-side source equation LHS closed over exactly the binders used by
+the production RHS. `RecursorRule` stores only the RHS; the kernel reconstructs
+this matching pattern from its recursor metadata. -/
+def BoundGeneratedRecursorRule.sourceLhs
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) : Expr :=
+  LocalContext.mkBindingList true H.root.lctx H.binders H.sourceLhsBody
+
 def BoundGeneratedRecursorRule.all_binders_bound
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       ctor minorIdx rule) : BoundFVarArray H.root
@@ -15520,6 +15573,155 @@ theorem BoundGeneratedRecursorRule.rhsLambdaTelescope
   exact LocalContext.mkBindingList_lambdaTelescope
     (H.all_binders_bound.toLocalForallSelection
       H.root_wf).declarations
+
+theorem BoundGeneratedRecursorRule.lhsLambdaTelescope
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    Expr.LambdaTelescope H.sourceLhs H.binders.length
+      (H.sourceLhsBody.abstractList H.binders) := by
+  unfold BoundGeneratedRecursorRule.sourceLhs
+  exact LocalContext.mkBindingList_lambdaTelescope
+    (H.all_binders_bound.toLocalForallSelection
+      H.root_wf).declarations
+
+theorem BoundGeneratedRecursorRule.translatedLhsShape
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (Htr : TrExprS env Us Δ H.sourceLhs lhs) :
+    ∃ domains lhsBody,
+      domains.length = H.binders.length ∧
+      lhs = VExpr.wrapLams domains lhsBody ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        (H.sourceLhsBody.abstractList H.binders) lhsBody :=
+  TrExprS.lambdaTelescope_shape_with_context H.lhsLambdaTelescope Htr
+
+/-- Simultaneous closing preserves the canonical recursor/constructor LHS
+spines and abstracts every source argument pointwise. -/
+theorem BoundGeneratedRecursorRule.abstractedSourceLhs
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    let (ownerIdx, indices) := AddInductive.getIIndices stats H.target
+    H.sourceLhsBody.abstractList H.binders =
+      (mkAppN
+        (mkAppN
+          (mkAppN
+            (mkAppN
+              (.const (Lean.mkRecName indTypes[ownerIdx]!.name) lvls)
+              (stats.params.map fun arg => arg.abstractList H.binders))
+            (motives.map fun arg => arg.abstractList H.binders))
+          (minors.map fun arg => arg.abstractList H.binders))
+        (indices.map fun arg => arg.abstractList H.binders)).app
+      (mkAppN
+        (mkAppN (.const ctor.name stats.levels)
+          (stats.params.map fun arg => arg.abstractList H.binders))
+        (H.allArgs.map fun arg => arg.abstractList H.binders)) := by
+  rcases htarget : AddInductive.getIIndices stats H.target with
+    ⟨ownerIdx, indices⟩
+  simp only [BoundGeneratedRecursorRule.sourceLhsBody, htarget,
+    BoundGeneratedRecursorRule.sourceConstructorMajor,
+    Expr.abstractList_app, Expr.abstractList_mkAppN,
+    Expr.abstractList_const]
+
+/-- Inverting the translated canonical LHS exposes the exact recursor and
+constructor constant spines used by `IotaEquationCertificate`. -/
+theorem BoundGeneratedRecursorRule.translatedLhsResidual
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (htarget : AddInductive.getIIndices stats H.target =
+      (ownerIdx, indices))
+    (Htr : TrExprS env Us (abstractForallContext domains Δ)
+      (H.sourceLhsBody.abstractList H.binders) lhsBody) :
+    ∃ recursorLevels leadingArgs ctorLevels ctorArgs,
+      lhsBody = VExpr.mkApps
+        (.const (Lean.mkRecName indTypes[ownerIdx]!.name) recursorLevels)
+        (leadingArgs ++
+          [VExpr.mkApps (.const ctor.name ctorLevels) ctorArgs]) ∧
+      lvls.mapM (VLevel.ofLevel Us) = some recursorLevels ∧
+      stats.levels.mapM (VLevel.ofLevel Us) = some ctorLevels ∧
+      List.Forall₂
+        (TrExprS env Us (abstractForallContext domains Δ))
+        ((stats.params.map fun arg => arg.abstractList H.binders).toList ++
+          (motives.map fun arg => arg.abstractList H.binders).toList ++
+          (minors.map fun arg => arg.abstractList H.binders).toList ++
+          (indices.map fun arg => arg.abstractList H.binders).toList)
+        leadingArgs ∧
+      List.Forall₂
+        (TrExprS env Us (abstractForallContext domains Δ))
+        ((stats.params.map fun arg => arg.abstractList H.binders).toList ++
+          (H.allArgs.map fun arg => arg.abstractList H.binders).toList)
+        ctorArgs := by
+  have hsource := H.abstractedSourceLhs
+  rw [htarget] at hsource
+  rw [hsource] at Htr
+  let leadingSource :=
+    (stats.params.map fun arg => arg.abstractList H.binders).toList ++
+    (motives.map fun arg => arg.abstractList H.binders).toList ++
+    (minors.map fun arg => arg.abstractList H.binders).toList ++
+    (indices.map fun arg => arg.abstractList H.binders).toList
+  let ctorArgsSource :=
+    (stats.params.map fun arg => arg.abstractList H.binders).toList ++
+    (H.allArgs.map fun arg => arg.abstractList H.binders).toList
+  let ctorSource :=
+    mkAppN
+      (mkAppN (.const ctor.name stats.levels)
+        (stats.params.map fun arg => arg.abstractList H.binders))
+      (H.allArgs.map fun arg => arg.abstractList H.binders)
+  have hrecursorHead :
+      ((mkAppN
+        (mkAppN
+          (mkAppN
+            (mkAppN
+              (.const (Lean.mkRecName indTypes[ownerIdx]!.name) lvls)
+              (stats.params.map fun arg => arg.abstractList H.binders))
+            (motives.map fun arg => arg.abstractList H.binders))
+          (minors.map fun arg => arg.abstractList H.binders))
+        (indices.map fun arg => arg.abstractList H.binders)).app
+          ctorSource).getAppFn =
+        .const (Lean.mkRecName indTypes[ownerIdx]!.name) lvls := by
+    simp only [Expr.getAppFn, Expr.getAppFn_mkAppN]
+  rcases checkPositivityStep.TrExprS.constAppSpine Htr hrecursorHead with
+    ⟨recursorLevels, translatedArgs, hrecursorSpine, hrecursorLevels,
+      HtranslatedArgs⟩
+  have HtranslatedArgs' : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (leadingSource ++ [ctorSource]) translatedArgs := by
+    simpa only [leadingSource, ctorSource, Expr.getAppArgsList_app,
+      Expr.getAppArgsList_mkAppN, Expr.getAppArgsList_const,
+      List.nil_append, List.append_assoc]
+      using HtranslatedArgs
+  rcases checkPositivityStep.List.Forall₂.split_left HtranslatedArgs' with
+    ⟨leadingArgs, translatedMajorTail, rfl, Hleading, HmajorTail⟩
+  have hmajor : ∃ translatedMajor,
+      translatedMajorTail = [translatedMajor] ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        ctorSource translatedMajor := by
+    cases HmajorTail with
+    | cons Hctor Hnil =>
+      cases Hnil
+      exact ⟨_, rfl, Hctor⟩
+  rcases hmajor with ⟨translatedMajor, rfl, Hctor⟩
+  have hctorHead : ctorSource.getAppFn =
+      .const ctor.name stats.levels := by
+    simp only [ctorSource, Expr.getAppFn_mkAppN, Expr.getAppFn]
+  rcases checkPositivityStep.TrExprS.constAppSpine Hctor hctorHead with
+    ⟨ctorLevels, ctorArgs, hctorSpine, hctorLevels, HctorArgs⟩
+  have HctorArgs' : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      ctorArgsSource ctorArgs := by
+    simpa only [ctorArgsSource, ctorSource,
+      Expr.getAppArgsList_mkAppN, Expr.getAppArgsList_const,
+      List.nil_append,
+      List.append_assoc] using HctorArgs
+  have hmajorRebuild := VExpr.mkApps_getAppFnArgs translatedMajor
+  rw [hctorSpine] at hmajorRebuild
+  have hlhsRebuild := VExpr.mkApps_getAppFnArgs lhsBody
+  rw [hrecursorSpine] at hlhsRebuild
+  refine ⟨recursorLevels, leadingArgs, ctorLevels, ctorArgs, ?_,
+    hrecursorLevels, hctorLevels, ?_, ?_⟩
+  · rw [← hmajorRebuild] at hlhsRebuild
+    exact hlhsRebuild.symm
+  · simpa [leadingSource] using Hleading
+  · simpa [ctorArgsSource] using HctorArgs'
 
 /-- Simultaneous abstraction turns the selected minor free variable into one
 in-scope de Bruijn variable and preserves the field/result application
@@ -16180,7 +16382,7 @@ theorem boundGeneratedRules
                     mkAppN (mkAppN minors[start]! bu) v }
                 return (rule, start + 1))
           (c := c) (Hc := Hc)
-        intro _ bu u c' Hc' Hbu Hu hselected hroot
+        intro target bu u c' Hc' Hbu Hu hselected hroot
         let buildRule : Array Expr →
             AddInductive.M (RecursorRule × Nat) := fun v => do
           let lctx ← getLCtx
@@ -16216,6 +16418,7 @@ theorem boundGeneratedRules
         exact ⟨{
           root := c'
           root_wf := Hc'
+          target := target
           allArgs := bu
           recursiveArgs := u
           recursiveResults := v
