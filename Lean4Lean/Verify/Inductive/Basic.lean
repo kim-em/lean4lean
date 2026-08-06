@@ -2220,6 +2220,21 @@ def SynthesizedHeaderPrefix.complete
     exact (checkedAt i hskeleton).header.typeShape decl
       hfields.1 hfields.2.1
 
+/-- Exact coverage makes skeleton materialization total and packages the
+resulting formation-header certificate. -/
+theorem SynthesizedHeaderPrefix.materializes
+    (H : SynthesizedHeaderPrefix env skeleton params commonLevel metadata
+      skeleton.types.length) :
+    ∃ decl, skeleton.materialize metadata = some decl ∧
+      Nonempty (HeaderCertificate env decl) := by
+  have hmetadata : metadata.length = skeleton.types.length := by
+    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      H.checked
+    simpa using hlength.symm
+  cases hmaterialize : skeleton.materialize metadata with
+  | none => simp [VInductDeclSkeleton.materialize, hmetadata] at hmaterialize
+  | some decl => exact ⟨decl, rfl, ⟨H.complete hmaterialize⟩⟩
+
 def HeaderTelescopeLoopCertificate.empty
     {c : AddInductive.Context} {Hc : ContextWF c} {root : VExpr}
     (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
@@ -3348,6 +3363,7 @@ theorem index.cacheSynthesisWF
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (_hvenv : Hc'.venv = Hc.venv)
       (_hlparams : c'.lparams = c.lparams)
       (normalized : Expr) (next : VExpr),
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
@@ -3373,7 +3389,7 @@ theorem index.cacheSynthesisWF
   rcases hnormalized with ⟨next, hnext, hnextEq⟩
   have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
-  exact Hrec Hc' rfl normalized next hnext Hcache'
+  exact Hrec Hc' rfl rfl normalized next hnext Hcache'
     (Hsuffix.withIndex Hc Hdom.consumed Hdom.isType)
     ((Hsynthesis.withIndex Hdom).normalize hsourceNext)
 
@@ -3600,6 +3616,7 @@ theorem firstParameter.cacheSynthesisWF
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (_hvenv : Hc'.venv = Hc.venv)
       (_hlparams : c'.lparams = c.lparams)
       (normalized : Expr) (next : VExpr),
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
@@ -3633,7 +3650,7 @@ theorem firstParameter.cacheSynthesisWF
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
   let Hsynthesis' :=
     (Hsynthesis.withParameter hindices Hdom).normalize hsourceNext
-  exact Hrec Hc' rfl normalized next hnext Hcache'
+  exact Hrec Hc' rfl rfl normalized next hnext Hcache'
     (Hsuffix.push Hc hprefix Hdom.consumed Hdom.isType)
     Hsynthesis' (by rfl)
 
@@ -3889,6 +3906,9 @@ fuel recursion and carries both the parameter cache and the synthesized
 abstract telescope to the terminal continuation. -/
 theorem firstHeaderSynthesisWF
     {target : VInductiveTypeSkeleton}
+    {baseLevels : List Level} {baseNindices : Array Nat}
+    {baseConsts : Array Expr}
+    {R : VEnv → Prop}
     {α : Type} (k : Expr → AddInductive.InductiveStats → Nat →
       AddInductive.M α) (Q : α → Prop)
     (hconsume : ConsumeTypeAnnotationsCompat)
@@ -3898,6 +3918,10 @@ theorem firstHeaderSynthesisWF
       (Hc' : ContextWF c'),
       c'.lparams = Us →
       stats'.indConsts.isEmpty = true →
+      stats'.levels = baseLevels →
+      stats'.nindices = baseNindices →
+      stats'.indConsts = baseConsts →
+      R Hc'.venv →
       (¬ ∃ name dom body bi, type' = .forallE name dom body bi) →
       i' = nparams →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
@@ -3909,6 +3933,10 @@ theorem firstHeaderSynthesisWF
     (Hc : ContextWF c)
     (hlparams : c.lparams = Us)
     (hempty : stats.indConsts.isEmpty = true)
+    (hlevelsStable : stats.levels = baseLevels)
+    (hnindicesStable : stats.nindices = baseNindices)
+    (hconstsStable : stats.indConsts = baseConsts)
+    (HR : R Hc.venv)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats i nindices)
     (Hsuffix : ParameterContextSuffix Hc stats nindices)
@@ -3936,9 +3964,13 @@ theorem firstHeaderSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi hempty (by simpa using Hcache) Hsuffix hambient
             Hsynthesis hindices Hdom hbody
-          intro c' Hc' hlparams' normalized next hnext Hcache' Hsuffix'
+          intro c' Hc' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
             Hsynthesis' hindices'
           apply ih Hc' (hlparams'.trans hlparams) (by simpa using hempty)
+            (by simpa using hlevelsStable)
+            (by simpa using hnindicesStable)
+            (by simpa using hconstsStable)
+            (by rw [hvenv']; exact HR)
             Hcache' Hsuffix' Hsynthesis'
           · intro _
             exact ⟨hindices', rfl⟩
@@ -3946,17 +3978,19 @@ theorem firstHeaderSynthesisWF
         · apply index.cacheSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi Hcache Hsuffix Hsynthesis Hdom hbody
-          intro c' Hc' hlparams' normalized next hnext Hcache' Hsuffix'
+          intro c' Hc' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
             Hsynthesis'
-          apply ih Hc' (hlparams'.trans hlparams) hempty Hcache'
-            Hsuffix' Hsynthesis'
+          apply ih Hc' (hlparams'.trans hlparams) hempty hlevelsStable
+            hnindicesStable hconstsStable
+            (by rw [hvenv']; exact HR)
+            Hcache' Hsuffix' Hsynthesis'
           · intro hlt
             exact False.elim (hi hlt)
           · exact hnext
     · by_cases hi : i = nparams
       · exact result.WF hforall hi
-          (Hresult Hc hlparams hempty hforall hi Hcache Hsuffix Hsynthesis
-            htype)
+          (Hresult Hc hlparams hempty hlevelsStable hnindicesStable
+            hconstsStable HR hforall hi Hcache Hsuffix Hsynthesis htype)
       · exact parameterMismatch.WF hforall hi
 
 /-- Follow the executable later-header loop through all cached common
@@ -5404,6 +5438,12 @@ theorem firstStep.initializesPrefix
       {resultSort : Level} {resultLevel : VLevel} {params : List VExpr},
       (Hc' : ContextWF c') →
       c'.lparams = c.lparams →
+      stats'.levels = stats.levels →
+      stats'.nindices = stats.nindices →
+      stats'.indConsts = stats.indConsts →
+      TrInductDeclSkeleton Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe skeleton →
+      VLevel.ofLevel c'.lparams resultSort = some resultLevel →
       checkInductiveTypes.loopType.ParameterCachePrefix
         Hc'.venv c'.lparams Hc'.mlctx.vlctx stats'
         skeleton.nparams nindices →
@@ -5461,15 +5501,23 @@ theorem firstStep.initializesPrefix
     (Q := Q) (hconsume := hconsume)
     (Hresult := by
       intro c' stats' type'' current'' i' nindices' Hc' hlparams'
-        hempty' hforall iEq Hcache' Hsuffix' Hsynthesis' htype'
+        hempty' hlevels' hnindices' hconsts' Hdecl' hforall iEq Hcache'
+        Hsuffix' Hsynthesis' htype'
       cases iEq
       apply firstResult.initializesPrefix k Q Hc' hempty' hskeletonIdx
         Hsynthesis' htype'
       · rw [hlparams', ← Hdecl.2.1]
       · intro resultSort resultLevel hofLevel Hprefix Hambient
-        apply Hrec Hc' hlparams' Hcache' Hsuffix' Hprefix
+        apply Hrec Hc' hlparams' hlevels' hnindices' hconsts'
+          (by simpa [hlparams'] using Hdecl') hofLevel Hcache' Hsuffix'
+          Hprefix
         simpa [Hsynthesis'.indexCount] using Hambient)
     (Hc := Hc) (hlparams := rfl) (hempty := hempty)
+    (hlevelsStable := rfl) (hnindicesStable := rfl)
+    (hconstsStable := rfl)
+    (R := fun env => TrInductDeclSkeleton env c.lparams
+      skeleton.nparams indTypes.toList isUnsafe skeleton)
+    (HR := Hdecl)
     (Hcache := Hcache) (Hsuffix := Hsuffix) (Hsynthesis := Hsynthesis)
     (hphase := by
       intro _
@@ -5507,6 +5555,8 @@ theorem laterStep.extendsPrefix
       {resultSort : Level} {resultLevel : VLevel},
       (Hc' : ContextWF c') →
       c'.lparams = c.lparams →
+      TrInductDeclSkeleton Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe skeleton →
       checkInductiveTypes.loopType.ParameterCachePrefix
         Hc'.venv c'.lparams Hc'.mlctx.vlctx
         (updatedStats stats stats.lctx resultSort false nindices
@@ -5596,7 +5646,9 @@ theorem laterStep.extendsPrefix
         (paramU := c.lparams.length)
         (R := fun env =>
           checkInductiveTypes.loopType.SynthesizedHeaderPrefix env
-            skeleton commonParams commonLevel metadata dIdx)
+              skeleton commonParams commonLevel metadata dIdx ∧
+            TrInductDeclSkeleton env c.lparams skeleton.nparams
+              indTypes.toList isUnsafe skeleton)
         (k := fun type stats nindices => show AddInductive.M α from do
           let type ← TypeChecker.ensureSort type
           let mut stats := stats
@@ -5619,7 +5671,8 @@ theorem laterStep.extendsPrefix
           intro c' Hc' hlparams' type''' narrow''' full''' scope'''
             nindices''' fuel''' hforall''' Hsynthesis''' Hruntime'''
             htypeNarrow''' _htypeFVars''' htypeFull''' Hcache'''
-            Hsuffix''' Hambient''' Hprefix''' hparams'''
+            Hsuffix''' Hambient''' HR''' hparams'''
+          rcases HR''' with ⟨Hprefix''', Hdecl'''⟩
           apply checkInductiveTypes.loopType.result.WF
             (fuel := fuel''') (Q := Q) hforall''' rfl
           apply laterResult.extendsPrefixNarrow
@@ -5633,12 +5686,14 @@ theorem laterStep.extendsPrefix
           · simpa [hlparams'] using hcommon
           · intro resultSort resultLevel hguard hofLevel Hprefix'
             apply Hrec Hc' hlparams'
+            · simpa [hlparams'] using Hdecl'''
             · exact Hcache'''.reindex (by simp [updatedStats])
             · exact Hsuffix'''.reindex (by simp [updatedStats])
             · exact Hprefix'
             · exact Hambient''')
         hconsume Hc (by simpa using Hcache) (by simpa using Hsuffix)
-        (by simpa using Hambient) Hprefix Hsynthesis'' hparamsBoundary
+        (by simpa using Hambient) ⟨Hprefix, Hdecl⟩ Hsynthesis''
+        hparamsBoundary
         Hruntime
         htypeNarrow'' htypeFVars'' htypeFull'')
     hparams (by omega) Hscope
@@ -5650,6 +5705,184 @@ theorem laterStep.extendsPrefix
       rw [Hsuffix.parameterDecls_length, hsize])
     Hsynthesis hnormalizedNarrow (by simpa [VLCtx.fvars] using
       hnormalizedNoFVars) hnormalized
+
+/-- Fold the verified noninitial step over the remainder of the mutual block.
+At exact coverage the executable length assertions are discharged and the
+metadata-free declaration is materialized together with its header
+certificate. -/
+theorem laterSteps.materialize
+    {skeleton : VInductDeclSkeleton} {commonParams : List VExpr}
+    {commonLevel : VLevel} {metadata : List (Nat × VLevel)}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton)
+    (hdone : dIdx ≤ indTypes.size)
+    (hpositive : 0 < dIdx)
+    (hlevels : stats.levels.length = c.lparams.length)
+    (hindices : stats.nindices.size = dIdx)
+    (hconsts : stats.indConsts.size = dIdx)
+    (hparams : stats.params.size = skeleton.nparams)
+    (Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
+      Hc.venv c.lparams Hc.mlctx.vlctx stats skeleton.nparams depth)
+    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth)
+    (Hprefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
+      Hc.venv skeleton commonParams commonLevel metadata dIdx)
+    (Hambient : checkInductiveTypes.loopType.AmbientParamContext
+      Hc commonParams depth)
+    (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
+      some commonLevel)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hfinish : ∀ {c' : AddInductive.Context}
+      {stats' : AddInductive.InductiveStats} {decl : VInductDecl},
+      (Hc' : ContextWF c') →
+      TrInductDecl Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe decl →
+      HeaderCertificate Hc'.venv decl →
+      (k stats' c').WF Q) :
+    (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+      dIdx stats k c).WF Q := by
+  by_cases hidx : dIdx < indTypes.size
+  · have hnonempty : stats.indConsts.isEmpty = false := by
+      cases hempty : stats.indConsts.isEmpty
+      · rfl
+      · have hzero : stats.indConsts.size = 0 := by
+          simpa [Array.isEmpty] using hempty
+        omega
+    apply laterStep.extendsPrefix k Q Hc Hdecl hidx hpositive hnonempty
+      hparams Hcache Hsuffix Hprefix Hambient hcommon hconsume
+    intro c' nindices resultSort resultLevel Hc' hlparams' Hdecl'
+      Hcache' Hsuffix' Hprefix' Hambient'
+    apply laterSteps.materialize k Q Hc' Hdecl'
+      (dIdx := dIdx + 1) (depth := depth + nindices)
+      (stats := updatedStats stats stats.lctx resultSort false nindices
+        indTypes[dIdx].name)
+      (metadata := metadata ++ [(nindices, resultLevel)])
+      (commonParams := commonParams) (commonLevel := commonLevel)
+    · omega
+    · omega
+    · simpa [updatedStats, hlparams'] using hlevels
+    · simp [updatedStats, hindices]
+    · simp [updatedStats, hconsts]
+    · simpa [updatedStats] using hparams
+    · exact Hcache'
+    · exact Hsuffix'
+    · exact Hprefix'
+    · exact Hambient'
+    · simpa [updatedStats, hlparams'] using hcommon
+    · exact hconsume
+    · intro c'' stats'' decl Hc'' Hdecl'' Hheaders
+      exact Hfinish Hc'' Hdecl'' Hheaders
+  · have heq : dIdx = indTypes.size := by omega
+    have htypes : skeleton.types.length = indTypes.size := by
+      rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+      simp
+    have Hprefix' : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
+        Hc.venv skeleton commonParams commonLevel metadata
+          skeleton.types.length := by
+      simpa [heq, htypes] using Hprefix
+    rcases Hprefix'.materializes with
+      ⟨decl, hmaterialize, ⟨Hheaders⟩⟩
+    have Hdecl' :=
+      Lean4Lean.VerifyInductive.TrInductDeclSkeleton.materialized
+        Hdecl hmaterialize
+    apply checkInductiveTypes.loopInd.result.WF
+      (k := k) (Q := Q) hidx hlevels
+    · simpa [heq] using hindices
+    · simpa [heq] using hconsts
+    · exact hparams
+    · exact Hfinish Hc Hdecl' Hheaders
+termination_by indTypes.size - dIdx
+
+/-- Complete the whole nonempty mutual-header phase, including the special
+first header that establishes the common parameters and result universe. -/
+theorem firstStep.materialize
+    {skeleton : VInductDeclSkeleton}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton)
+    (hctx : Hc.mlctx.vlctx = [])
+    (hidx : 0 < indTypes.size)
+    (hempty : stats.indConsts.isEmpty = true)
+    (hlevels : stats.levels.length = c.lparams.length)
+    (hnindices : stats.nindices = #[])
+    (hconsts : stats.indConsts = #[])
+    (hparams : stats.params = #[])
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hfinish : ∀ {c' : AddInductive.Context}
+      {stats' : AddInductive.InductiveStats} {decl : VInductDecl},
+      (Hc' : ContextWF c') →
+      TrInductDecl Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe decl →
+      HeaderCertificate Hc'.venv decl →
+      (k stats' c').WF Q) :
+    (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes 0
+      stats k c).WF Q := by
+  apply firstStep.initializesPrefix k Q Hc Hdecl hctx hidx hempty hparams
+    hconsume
+  intro c' stats' nindices resultSort resultLevel params Hc' hlparams'
+    hlevels' hnindices' hconsts' Hdecl' hofLevel Hcache' Hsuffix'
+    Hprefix' Hambient'
+  let statsNext := updatedStats stats' c'.lctx resultSort true nindices
+    indTypes[0].name
+  have hparamSize : stats'.params.size = skeleton.nparams := by
+    have hlength :=
+      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hcache'.params
+    simpa using hlength
+  apply laterSteps.materialize k Q Hc' Hdecl'
+    (dIdx := 1) (depth := nindices) (stats := statsNext)
+    (metadata := [(nindices, resultLevel)])
+    (commonParams := params) (commonLevel := resultLevel)
+  · omega
+  · omega
+  · simpa [statsNext, updatedStats, hlevels', hlparams'] using hlevels
+  · simp [statsNext, updatedStats, hnindices', hnindices]
+  · simp [statsNext, updatedStats, hconsts', hconsts]
+  · simpa [statsNext, updatedStats] using hparamSize
+  · exact Hcache'.reindex (by simp [statsNext, updatedStats])
+  · exact Hsuffix'.reindex (by simp [statsNext, updatedStats])
+  · exact Hprefix'
+  · exact Hambient'
+  · simpa [statsNext, updatedStats] using hofLevel
+  · exact hconsume
+  · exact Hfinish
+
+/-- Public verifier for the executable mutual-header checker.  Successful
+checking returns a materialized abstract declaration, its source translation,
+and the independent header specification certificate to the continuation. -/
+theorem checkInductiveTypes.materialize
+    {skeleton : VInductDeclSkeleton}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton)
+    (hctx : Hc.mlctx.vlctx = [])
+    (hnonempty : 0 < indTypes.size)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hfinish : ∀ {c' : AddInductive.Context}
+      {stats' : AddInductive.InductiveStats} {decl : VInductDecl},
+      (Hc' : ContextWF c') →
+      TrInductDecl Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe decl →
+      HeaderCertificate Hc'.venv decl →
+      (k stats' c').WF Q) :
+    (AddInductive.checkInductiveTypes skeleton.nparams indTypes k c).WF Q := by
+  change (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+    0 { (default : AddInductive.InductiveStats) with
+      levels := c.lparams.map .param } k c).WF Q
+  apply firstStep.materialize k Q Hc Hdecl hctx hnonempty
+  · rfl
+  · simp
+  · rfl
+  · rfl
+  · rfl
+  · exact hconsume
+  · exact Hfinish
 
 /-- Indexed declaration-facing form of `stepPrefix.WF`.  Besides the checked
 source translation, the continuation receives the exact corresponding
