@@ -3216,6 +3216,75 @@ noncomputable def initialLaterParameterScope
   exact checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars hi
     (hnormalized _ hfalseUpSet hsourceNoFVars)
 
+/-- Although a later header is normalized in the retained first-header local
+context, both the source header and its initial normal form are closed.  The
+normalization equality therefore descends to the empty abstract context,
+where it can seed an independent later-header telescope certificate. -/
+theorem initialLaterHeaderDefEq
+    (Hc : ContextWF c)
+    (Htarget : TrInductiveTypeSkeleton Hc.venv envTypes
+      c.lparams source target)
+    (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+      source.type checkedType sourceType checkedType')
+    (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      normalized sourceType)
+    (hfvars : FVarsIn (fun _ => False) normalized) :
+    ∃ normalized',
+      TrExprS Hc.venv c.lparams [] normalized normalized' ∧
+      Hc.venv.IsDefEqU c.lparams.length [] target.type normalized' := by
+  rcases hnormalized with ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
+  let W : VLCtx.FVLift [] Hc.mlctx.vlctx 0
+      Hc.mlctx.vlctx.toCtx.length 0 :=
+    VLCtx.FVLift.from_nil Hc.mlctx.noBV
+  have hnormalizedClosed : Closed normalized 0 := by
+    have := hnormalizedFull.closed
+    simpa [Hc.mlctx.noBV] using this
+  have hnormalizedNoFVars :
+      FVarsIn (fun fv => fv ∈ VLCtx.fvars []) normalized := by
+    simpa [VLCtx.fvars] using hfvars
+  rcases hnormalizedFull.weakFV_inv Hc.checking.tr.wf W
+      (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+      hnormalizedClosed hnormalizedNoFVars with
+    ⟨normalized', hnormalized'⟩
+  have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
+    Htarget.header.type.fvarsIn.mono fun fv hfv => by
+      simpa [VLCtx.fvars] using hfv
+  have hsourceClosed : Closed source.type 0 := by
+    have := hchecked.2.1.closed
+    simpa [Hc.mlctx.noBV] using this
+  have hsourceNoFVars' :
+      FVarsIn (fun fv => fv ∈ VLCtx.fvars []) source.type := by
+    simpa [VLCtx.fvars] using hsourceNoFVars
+  rcases hchecked.2.1.weakFV_inv Hc.checking.tr.wf W
+      (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+      hsourceClosed hsourceNoFVars' with
+    ⟨sourceType', hsourceType'⟩
+  have hnormalizedWeak := hnormalized'.weakFV Hc.checking.tr.wf.ordered
+    W Hc.mlctx_wf.tr.wf
+  have hsourceWeak := hsourceType'.weakFV Hc.checking.tr.wf.ordered
+    W Hc.mlctx_wf.tr.wf
+  have hnormalizedUniq := hnormalizedFull.uniq Hc.checking.tr.wf
+    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hnormalizedWeak
+  have hsourceUniq := hchecked.2.1.uniq Hc.checking.tr.wf
+    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hsourceWeak
+  have hfull : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+      (normalized'.liftN Hc.mlctx.vlctx.toCtx.length 0)
+      (sourceType'.liftN Hc.mlctx.vlctx.toCtx.length 0) :=
+    hnormalizedUniq.symm.trans Hc.checking.tr.wf
+      Hc.mlctx_wf.tr.wf.toCtx
+      (hnormalizeEq.trans Hc.checking.tr.wf
+        Hc.mlctx_wf.tr.wf.toCtx hsourceUniq)
+  have hempty : Hc.venv.IsDefEqU c.lparams.length []
+      normalized' sourceType' :=
+    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
+      Hc.mlctx_wf.tr.wf.toCtx W.toCtx).1 hfull
+  have htarget : Hc.venv.IsDefEqU c.lparams.length []
+      target.type sourceType' :=
+    Htarget.header.type.uniq Hc.checking.tr.wf
+      (.refl Hc.checking.tr.wf (by trivial)) hsourceType'
+  exact ⟨normalized', hnormalized',
+    htarget.trans Hc.checking.tr.wf (by trivial) hempty.symm⟩
+
 private def updatedStats (stats : AddInductive.InductiveStats)
     (lctx : LocalContext) (resultLevel : Level) (setResult : Bool)
     (nindices : Nat) (indName : Name) : AddInductive.InductiveStats :=
