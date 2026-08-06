@@ -14367,6 +14367,39 @@ theorem checkNoNestedAux_refines (name : Name) (e : Expr) :
   · exact Except.WF.pure (by simp [hfind])
   · exact Except.WF.throw
 
+/-- Independent lookup contract used when restoring a generated auxiliary
+constructor to its source constructor family. -/
+structure AuxiliaryConstructorLookup
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (ctor : Name) (nested : Expr) (auxFamily : Name) : Prop where
+  exists_info : ∃ info : ConstructorVal,
+    env.find? ctor = some (.ctorInfo info) ∧
+    auxFamily = info.induct ∧
+    result.aux2nested.find? info.induct = some nested
+
+theorem getNestedIfAuxCtor_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (ctor : Name) :
+    ∀ nested auxFamily,
+      result.getNestedIfAuxCtor env ctor = some (nested, auxFamily) →
+      AuxiliaryConstructorLookup result env ctor nested auxFamily := by
+  intro nested auxFamily hout
+  unfold Lean4Lean.ElimNestedInductive.Result.getNestedIfAuxCtor at hout
+  cases hfound : env.find? ctor with
+  | none => simp [hfound] at hout
+  | some info =>
+    cases info with
+    | ctorInfo ctorInfo =>
+      simp only [hfound] at hout
+      cases hnested : result.aux2nested.find? ctorInfo.induct with
+      | none => simp [hnested] at hout
+      | some restored =>
+        have hp : (restored, ctorInfo.induct) = (nested, auxFamily) := by
+          simpa [hnested] using hout
+        cases hp
+        exact ⟨⟨ctorInfo, hfound, rfl, hnested⟩⟩
+    | _ => simp_all
+
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/
