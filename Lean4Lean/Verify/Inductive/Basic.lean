@@ -677,6 +677,24 @@ theorem List.Forall₂.unsnoc
     simpa using this
   · exact List.Forall₂.reverse.mp (by simpa using Htail)
 
+/-- Two pointwise translations of a syntactically unique source spine have
+the same target spine. -/
+theorem List.Forall₂.targets_eq_of_unique
+    (H₁ : List.Forall₂ (TrExprS env Us Δ) source target₁)
+    (H₂ : List.Forall₂ (TrExprS env Us Δ) source target₂)
+    (Hunique : ∀ e ∈ source, TrExprS.IsUnique e) : target₁ = target₂ := by
+  induction H₁ generalizing target₂ with
+  | nil => cases H₂; rfl
+  | @cons sourceHead targetHead sourceTail targetTail Hhead Htail ih =>
+    cases H₂ with
+    | cons Hhead' Htail' =>
+      have hheadEq := TrExprS.unique
+        (Hunique sourceHead (by simp)) Hhead Hhead'
+      have htailEq := ih Htail' (by
+        intro e he
+        exact Hunique e (by simp [he]))
+      rw [hheadEq, htailEq]
+
 theorem OnCtx.append_right
     (H : OnCtx (xs ++ ys) P) : OnCtx ys P := by
   induction xs with
@@ -15659,6 +15677,42 @@ theorem BoundGeneratedRecursorRule.abstractedRecursiveHeadsInScope
   rw [hfieldEq]
   exact hfieldVarBound
 
+/-- Closing the generated rule turns every constructor-field source into a
+de Bruijn variable, hence into syntax with a unique translation. -/
+theorem BoundGeneratedRecursorRule.abstractedAllArgsUnique
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    ∀ e ∈ (H.allArgs.map fun arg => arg.abstractList H.binders).toList,
+      TrExprS.IsUnique e := by
+  intro e he
+  rcases List.mem_iff_getElem.mp he with ⟨i, hi, heq⟩
+  have hiArray : i < H.allArgs.size := by simpa using hi
+  rcases H.all_args_bound.getElem_eq_fvar i hiArray with
+    ⟨hiFvars, hsource⟩
+  let fv := H.all_args_bound.fvars[i]
+  have hsource' : H.allArgs[i] = .fvar fv := hsource
+  have hselected : fv ∈ H.binders := by
+    unfold BoundGeneratedRecursorRule.binders
+    exact List.mem_append_right _ (List.getElem_mem hiFvars)
+  rcases List.mem_iff_getElem.mp hselected with ⟨j, hj, hget⟩
+  let fieldVar := H.binders.length - 1 - j
+  have habstract := Expr.abstractList_fvar_getElem
+    H.binders_nodup j hj (k := 0)
+  unfold BoundGeneratedRecursorRule.binders at hget
+  rw [hget] at habstract
+  have habstract' : (Expr.fvar fv).abstractList H.binders =
+      .bvar fieldVar := by
+    simpa [BoundGeneratedRecursorRule.binders, fieldVar] using habstract
+  have hentry :
+      (H.allArgs.map fun arg => arg.abstractList H.binders).toList[i] =
+        .bvar fieldVar := by
+    calc
+      _ = H.allArgs[i].abstractList H.binders := by simp
+      _ = (Expr.fvar fv).abstractList H.binders := by rw [hsource']
+      _ = .bvar fieldVar := habstract'
+  rw [← heq, hentry]
+  trivial
+
 /-- Assemble the abstract iota RHS certificate directly from the translated
 production RHS and the independently translated selected-field spine. -/
 theorem BoundGeneratedRecursorRule.iotaRhsCertificate_ofFresh
@@ -15702,6 +15756,98 @@ theorem BoundGeneratedRecursorRule.iotaRhsCertificate_ofFresh
     recursive_results := H.abstractedIotaResults_ofFresh
       Hargs Hresults hfresh hctx hproj hrecursor hdomains
   }⟩⟩
+
+/-- Exact-spine form of `iotaRhsCertificate_ofFresh`. Syntactic uniqueness of
+the closed constructor fields identifies the RHS inversion output with the
+field spine shared by the equation and recursive-field certificates. -/
+theorem BoundGeneratedRecursorRule.iotaRhsCertificateFor_ofFresh
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    {fieldArgs recursiveArgs : List VExpr}
+    (hdomains : domains.length = H.binders.length)
+    (Htr : TrExprS env Us (abstractForallContext domains Δ)
+      (H.sourceRhsBody.abstractList H.binders) rhsBody)
+    (Hfields : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (H.allArgs.map fun arg => arg.abstractList H.binders).toList
+      fieldArgs)
+    (Hargs : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList
+      recursiveArgs)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors
+      (abstractForallContext domains Δ))
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (hrecursor : ∀ exposedType,
+      Lean.mkRecName
+        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
+          recursors) :
+    Nonempty (IotaRhsCertificate recursors domains fieldArgs recursiveArgs
+      rhsBody) := by
+  rcases H.translatedRhsResidual hdomains Htr with
+    ⟨minorVar, generatedFields, recursiveResults, hminor,
+      HgeneratedFields, Hresults, hrhs⟩
+  have hfieldsEq : generatedFields = fieldArgs :=
+    Lean4Lean.VerifyInductive.List.Forall₂.targets_eq_of_unique
+      HgeneratedFields Hfields H.abstractedAllArgsUnique
+  subst generatedFields
+  exact ⟨{
+    minorVar := minorVar
+    minor_in_scope := hminor
+    recursiveResults := recursiveResults
+    rhs_eq := hrhs
+    fieldVars := recursiveArgs.filterMap VExpr.bvarHead?
+    fieldVars_eq := rfl
+    fields_in_scope := H.abstractedRecursiveHeadsInScope Hargs hdomains
+    fields_recursor_free :=
+      checkPositivityStep.List.Forall₂.targets_noFreshConsts
+        Hfields hfresh hctx hproj
+    recursive_results := H.abstractedIotaResults_ofFresh
+      Hargs Hresults hfresh hctx hproj hrecursor hdomains
+  }⟩
+
+/-- Final pointwise semantic bridge for a generated rule. The equation and
+recursive-field certificates remain independent inputs; all executable RHS
+shape and guardedness obligations are discharged here. -/
+theorem BoundGeneratedRecursorRule.iotaRule_ofCertificates
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Hshape : IotaEquationCertificate decl block owner ctor rule)
+    {fields : List (decl.RecursiveField env)}
+    {recursiveArgs : List VExpr}
+    (Hfield : IotaFieldCertificate env decl
+      (Hshape.ctorArgs.drop decl.nparams) fields recursiveArgs)
+    (hdomains : Hshape.domains.length = H.binders.length)
+    (Htr : TrExprS trEnv Us
+      (abstractForallContext Hshape.domains Δ)
+      (H.sourceRhsBody.abstractList H.binders) Hshape.rhsBody)
+    (Hfields : List.Forall₂
+      (TrExprS trEnv Us (abstractForallContext Hshape.domains Δ))
+      (H.allArgs.map fun arg => arg.abstractList H.binders).toList
+      (Hshape.ctorArgs.drop decl.nparams))
+    (Hargs : List.Forall₂
+      (TrExprS trEnv Us (abstractForallContext Hshape.domains Δ))
+      (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList
+      recursiveArgs)
+    (hfresh : ∀ name ∈ block.recursors.map (·.name),
+      trEnv.constants name = none)
+    (hctx : VLCtx.NoIndConsts (block.recursors.map (·.name))
+      (abstractForallContext Hshape.domains Δ))
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (block.recursors.map (·.name)) = false →
+      e''.containsAnyConst (block.recursors.map (·.name)) = false)
+    (hrecursor : ∀ exposedType,
+      Lean.mkRecName
+        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
+          block.recursors.map (·.name)) :
+    Nonempty (decl.IotaRule env block owner ctor rule) := by
+  have Hrhs := H.iotaRhsCertificateFor_ofFresh hdomains Htr Hfields Hargs
+    hfresh hctx hproj hrecursor
+  rcases Hrhs with ⟨Hrhs⟩
+  exact ⟨VInductDecl.IotaRule.ofCertificates Hshape Hfield Hrhs⟩
 
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
