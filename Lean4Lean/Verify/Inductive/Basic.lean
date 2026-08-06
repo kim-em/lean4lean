@@ -12363,6 +12363,14 @@ theorem Expr.abstractList_fvar_of_not_mem
     have hne : head ≠ fv := Ne.symm hmem.1
     simp [Expr.abstractList, Expr.abstract1, hne, ih hmem.2]
 
+@[simp] theorem Expr.abstractList_const
+    (name : Name) (levels : List Level) (fvs : List FVarId) (k : Nat) :
+    (Expr.const name levels).abstractList fvs k = .const name levels := by
+  induction fvs with
+  | nil => rfl
+  | cons fv fvs ih =>
+    simp [Expr.abstractList, Expr.abstract1, ih]
+
 theorem Expr.abstractList_bvar_ge (fvs : List FVarId) (k n : Nat) :
     (Expr.bvar (k + n)).abstractList fvs k =
       .bvar (k + n + fvs.length) := by
@@ -12500,6 +12508,13 @@ theorem TrExprS.forallTelescope_shape
 
 def abstractForallContext (domains : List VExpr) (Δ : VLCtx) : VLCtx :=
   (domains.reverse.map fun type => (none, .vlam type)) ++ Δ
+
+@[simp] theorem abstractForallContext_append
+    (outer inner : List VExpr) (Δ : VLCtx) :
+    abstractForallContext inner (abstractForallContext outer Δ) =
+      abstractForallContext (outer ++ inner) Δ := by
+  simp [abstractForallContext, List.reverse_append, List.map_append,
+    List.append_assoc]
 
 /-- Abstracting a lambda telescope only prepends bound variables, so it
 preserves absence of a selected set of constants in context values. -/
@@ -14416,11 +14431,84 @@ def BoundGeneratedRecursiveCall.abstractedMajor
     (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
       Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray
 
+def BoundGeneratedRecursiveCall.outerAbstractedRecursor
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) (binders : List FVarId) : Expr :=
+  H.abstractedRecursor.abstractList binders H.localArgs.size
+
+def BoundGeneratedRecursiveCall.outerAbstractedMajor
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) (binders : List FVarId) : Expr :=
+  H.abstractedMajor.abstractList binders H.localArgs.size
+
 def BoundGeneratedRecursiveCall.localIndices
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
       root field value) : List Nat :=
   List.ofFn fun i : Fin H.arguments_bound.fvars.length =>
     H.arguments_bound.fvars.length - 1 - i
+
+/-- Rule-level abstraction turns the selected field free variable into its
+outer de Bruijn index beneath the generated call's local lambda binders. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root (.fvar fv) value)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup)
+    (hfield : fv ∈ binders) :
+    ∃ fieldVar,
+      fieldVar < binders.length ∧
+      (Expr.fvar fv).abstractList binders = .bvar fieldVar ∧
+      H.outerAbstractedMajor binders =
+        mkAppN (.bvar (H.localArgs.size + fieldVar))
+          (H.localIndices.map Expr.bvar).toArray := by
+  rcases List.mem_iff_getElem.mp hfield with ⟨i, hi, hget⟩
+  let fieldVar := binders.length - 1 - i
+  have hfresh : fv ∉ H.arguments_bound.fvars := by
+    intro hmem
+    exact H.arguments_bound.fresh fv hmem hfieldRoot
+  have hfieldLocal :
+      (Expr.fvar fv).abstractList H.arguments_bound.fvars = .fvar fv :=
+    Expr.abstractList_fvar_of_not_mem hfresh
+  have hlocalSize : H.localArgs.size = H.arguments_bound.fvars.length := by
+    have := congrArg Array.size H.arguments_bound.expressions
+    simpa using this
+  have hfieldOuter := Expr.abstractList_fvar_getElem
+    hbinders i hi (k := H.localArgs.size)
+  rw [hget] at hfieldOuter
+  have hfieldOuter' :
+      (Expr.fvar fv).abstractList binders H.localArgs.size =
+        .bvar (H.localArgs.size + fieldVar) := by
+    simpa [fieldVar] using hfieldOuter
+  have hfieldBase := Expr.abstractList_fvar_getElem
+    hbinders i hi (k := 0)
+  rw [hget] at hfieldBase
+  have hfieldBase' : (Expr.fvar fv).abstractList binders =
+      .bvar fieldVar := by
+    simpa [fieldVar] using hfieldBase
+  have hsourceArgs :
+      (List.ofFn fun i : Fin H.arguments_bound.fvars.length =>
+        Expr.bvar (H.arguments_bound.fvars.length - 1 - i)) =
+      H.localIndices.map Expr.bvar := by
+    simp [BoundGeneratedRecursiveCall.localIndices,
+      List.map_ofFn, Function.comp_def]
+  refine ⟨fieldVar, by omega, hfieldBase', ?_⟩
+  unfold BoundGeneratedRecursiveCall.outerAbstractedMajor
+    BoundGeneratedRecursiveCall.abstractedMajor
+  rw [Expr.abstractList_mkAppN, hfieldLocal, hfieldOuter']
+  apply congrArg (mkAppN (.bvar (H.localArgs.size + fieldVar)))
+  rw [hsourceArgs]
+  apply Array.ext
+  · simp
+  · intro j hjLeft hjRight
+    simp only [Array.getElem_map, List.getElem_toArray,
+      List.getElem_map]
+    apply Expr.abstractList_bvar_lt
+    have hj : j < H.localIndices.length := by simpa using hjRight
+    have hj' : j < H.arguments_bound.fvars.length := by
+      simpa [BoundGeneratedRecursiveCall.localIndices] using hj
+    simp only [BoundGeneratedRecursiveCall.localIndices,
+      List.getElem_ofFn]
+    omega
 
 theorem BoundGeneratedRecursiveCall.abstractedBody_eq_named
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
@@ -14430,6 +14518,16 @@ theorem BoundGeneratedRecursiveCall.abstractedBody_eq_named
   simpa [BoundGeneratedRecursiveCall.abstractedRecursor,
     BoundGeneratedRecursiveCall.abstractedMajor,
     BoundGeneratedRecursiveCall.recursorName] using H.abstractedBody_eq
+
+theorem BoundGeneratedRecursiveCall.outerAbstractedBody_eq_named
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    (H.body.abstractList H.arguments_bound.fvars).abstractList
+        binders H.localArgs.size =
+      (H.outerAbstractedRecursor binders).app
+        (H.outerAbstractedMajor binders) := by
+  rw [H.abstractedBody_eq_named]
+  exact Expr.abstractList_app
 
 theorem BoundGeneratedRecursiveCall.abstractedRecursor_head
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
@@ -14449,6 +14547,28 @@ theorem BoundGeneratedRecursiveCall.abstractedRecursor_head
   simp only [BoundGeneratedRecursiveCall.abstractedRecursor]
   repeat' rw [getAppFn_mkAppN]
   rfl
+
+theorem BoundGeneratedRecursiveCall.outerAbstractedRecursor_head
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    (H.outerAbstractedRecursor binders).getAppFn =
+      .const H.recursorName lvls := by
+  have getAppFn_mkAppN : ∀ (fn : Expr) (args : Array Expr),
+      (mkAppN fn args).getAppFn = fn.getAppFn := by
+    intro fn args
+    unfold mkAppN
+    rw [← Array.foldl_toList]
+    generalize args.toList = list
+    induction list generalizing fn with
+    | nil => rfl
+    | cons arg args ih =>
+      simp only [List.foldl_cons]
+      simpa [Expr.getAppFn] using ih (.app fn arg)
+  simp only [BoundGeneratedRecursiveCall.outerAbstractedRecursor,
+    BoundGeneratedRecursiveCall.abstractedRecursor,
+    Expr.abstractList_mkAppN]
+  repeat' rw [getAppFn_mkAppN]
+  simp [Expr.getAppFn]
 
 /-- Exact translation of the generated major premise for a selected field
 free variable. Outer translations are shifted under the generated lambdas;
@@ -14522,6 +14642,70 @@ theorem BoundGeneratedRecursiveCall.translatedMajor_isField
   simpa using VExpr.IsFieldApp.appendApps
     (VExpr.IsFieldApp.lift hfield domains.length)
       (H.localIndices.map VExpr.bvar)
+
+/-- The major premise in a closed rule is a designated outer field shifted
+beneath exactly the generated call's local lambda domains. -/
+theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedMajor_isField
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root (.fvar fv) value)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup)
+    (hfield : fv ∈ binders)
+    (hruleDomains : ruleDomains.length = binders.length)
+    (hlocalDomains : localDomains.length = H.localArgs.size)
+    (hfieldVars : ∀ fieldVar,
+      (Expr.fvar fv).abstractList binders = .bvar fieldVar →
+      fieldVar ∈ fieldVars)
+    (Hmajor : TrExprS env Us
+      (abstractForallContext localDomains
+        (abstractForallContext ruleDomains Δ))
+      (H.outerAbstractedMajor binders) major) :
+    major.IsFieldApp fieldVars localDomains.length := by
+  rcases H.outerAbstractedMajor_eq_bvar hfieldRoot hbinders hfield with
+    ⟨fieldVar, hfieldVar, hfieldSource, hsource⟩
+  rw [hsource] at Hmajor
+  have Hmajor' : TrExprS env Us
+      (abstractForallContext (ruleDomains ++ localDomains) Δ)
+      (mkAppN (.bvar (H.localArgs.size + fieldVar))
+        (H.localIndices.map Expr.bvar).toArray) major := by
+    simpa using Hmajor
+  unfold mkAppN at Hmajor'
+  rw [← Array.foldl_toList, List.toList_toArray,
+    List.foldl_map] at Hmajor'
+  have htotal : H.localArgs.size + fieldVar <
+      (ruleDomains ++ localDomains).length := by
+    simp only [List.length_append]
+    omega
+  have hindices : ∀ index ∈ H.localIndices,
+      index < (ruleDomains ++ localDomains).length := by
+    intro index hindex
+    simp only [BoundGeneratedRecursiveCall.localIndices,
+      List.mem_ofFn] at hindex
+    rcases hindex with ⟨j, rfl⟩
+    simp only [List.length_append]
+    have hlocalSize : H.localArgs.size =
+        H.arguments_bound.fvars.length := by
+      have := congrArg Array.size H.arguments_bound.expressions
+      simpa using this
+    omega
+  have hmajorEq := TrExprS.foldl_bvars_eq
+    (ruleDomains ++ localDomains) Δ H.localIndices hindices
+    (.bvar (H.localArgs.size + fieldVar))
+    (.bvar (H.localArgs.size + fieldVar))
+    (fun out Hout => TrExprS.bvar_eq_of_abstractForallContext
+      Hout htotal) Hmajor'
+  have hmajorEq' : major =
+      VExpr.mkApps (.bvar (H.localArgs.size + fieldVar))
+        (H.localIndices.map VExpr.bvar) := by
+    simpa [VExpr.mkApps, List.foldl_map] using hmajorEq
+  have hbase : (VExpr.bvar fieldVar).IsFieldApp fieldVars 0 := by
+    refine ⟨fieldVar, hfieldVars fieldVar hfieldSource, [], ?_⟩
+    rfl
+  have hlift := VExpr.IsFieldApp.lift hbase localDomains.length
+  have happ := VExpr.IsFieldApp.appendApps hlift
+    (H.localIndices.map VExpr.bvar)
+  rw [hmajorEq']
+  simpa [hlocalDomains, Nat.add_comm, VExpr.liftN, liftVar] using happ
 
 /-- Syntax-directed translation of a generated higher-order recursive call.
 The semantic guard is intentionally not assumed here: initial arguments and
@@ -14601,6 +14785,140 @@ theorem BoundGeneratedRecursiveCall.translatedCallShape_noFresh
     congr 1
     rw [← hrebuild]
     simp [VExpr.mkApps, List.foldl_append]
+
+/-- Generated-call spine inversion for the form that occurs inside a closed
+rule RHS, after simultaneous abstraction over the rule binders. -/
+theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedCallShape
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ (value.abstractList binders) result) :
+    ∃ domains levels init major,
+      domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains
+        (VExpr.mkApps (.const H.recursorName levels) (init ++ [major])) ∧
+      lvls.mapM (VLevel.ofLevel Us) = some levels ∧
+      List.Forall₂
+        (TrExprS env Us (abstractForallContext domains Δ))
+        (H.outerAbstractedRecursor binders).getAppArgsList init ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        (H.outerAbstractedMajor binders) major := by
+  rcases H.translatedOuterAbstractedLambdaShape Htr with
+    ⟨domains, residual, hdomains, hresult, hresidual⟩
+  rw [H.outerAbstractedBody_eq_named] at hresidual
+  cases hresidual with
+  | app _ _ hfn hmajor =>
+    rename_i recursorResult domain codomain majorResult
+      recursorType majorType
+    rcases checkPositivityStep.TrExprS.constAppSpine
+        hfn H.outerAbstractedRecursor_head with
+      ⟨levels, init, hspine, hlevels, hinit⟩
+    have hrebuild := VExpr.mkApps_getAppFnArgs recursorResult
+    rw [hspine] at hrebuild
+    refine ⟨domains, levels, init, _, hdomains, ?_, hlevels, hinit,
+      hmajor⟩
+    rw [hresult]
+    congr 1
+    rw [← hrebuild]
+    simp [VExpr.mkApps, List.foldl_append]
+
+theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedCallShape_noFresh
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ (value.abstractList binders) result)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false) :
+    ∃ domains levels init major,
+      domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains
+        (VExpr.mkApps (.const H.recursorName levels) (init ++ [major])) ∧
+      lvls.mapM (VLevel.ofLevel Us) = some levels ∧
+      List.Forall₂
+        (TrExprS env Us (abstractForallContext domains Δ))
+        (H.outerAbstractedRecursor binders).getAppArgsList init ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        (H.outerAbstractedMajor binders) major ∧
+      ∀ dom ∈ domains, dom.containsAnyConst recursors = false := by
+  rcases H.translatedOuterAbstractedLambdaShape_noFresh
+      Htr hfresh hctx hproj with
+    ⟨domains, residual, hdomains, hresult, hresidual, hfree⟩
+  rw [H.outerAbstractedBody_eq_named] at hresidual
+  cases hresidual with
+  | app _ _ hfn hmajor =>
+    rename_i recursorResult domain codomain majorResult
+      recursorType majorType
+    rcases checkPositivityStep.TrExprS.constAppSpine
+        hfn H.outerAbstractedRecursor_head with
+      ⟨levels, init, hspine, hlevels, hinit⟩
+    have hrebuild := VExpr.mkApps_getAppFnArgs recursorResult
+    rw [hspine] at hrebuild
+    refine ⟨domains, levels, init, _, hdomains, ?_, hlevels, hinit,
+      hmajor, hfree⟩
+    rw [hresult]
+    congr 1
+    rw [← hrebuild]
+    simp [VExpr.mkApps, List.foldl_append]
+
+/-- Guarded recursive-result certificate for the simultaneously abstracted
+generated value that occurs in a closed rule RHS. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedIotaResultCertificate_ofFresh
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root (.fvar fv) value)
+    (Htr : TrExprS env Us (abstractForallContext ruleDomains Δ)
+      (value.abstractList binders) result)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors
+      (abstractForallContext ruleDomains Δ))
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (hrecursor : H.recursorName ∈ recursors)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup)
+    (hfield : fv ∈ binders)
+    (hruleDomains : ruleDomains.length = binders.length)
+    (hfieldVars : ∀ fieldVar,
+      (Expr.fvar fv).abstractList binders = .bvar fieldVar →
+      fieldVar ∈ fieldVars) :
+    Nonempty (IotaRecursiveResultCertificate recursors fieldVars
+      recursiveArg result) := by
+  rcases H.translatedOuterAbstractedCallShape_noFresh
+      Htr hfresh hctx hproj with
+    ⟨domains, levels, init, major, hdomains, hresult, hlevels,
+      hinit, hmajor, hdomainsFree⟩
+  have hctx' : VLCtx.NoIndConsts recursors
+      (abstractForallContext domains
+        (abstractForallContext ruleDomains Δ)) :=
+    VLCtx.NoIndConsts.abstractForallContext
+      (domains := domains) hctx
+  have hinitFree : ∀ arg ∈ init,
+      arg.containsAnyConst recursors = false :=
+    checkPositivityStep.List.Forall₂.targets_noFreshConsts
+      hinit hfresh hctx' hproj
+  have hmajorFree : major.containsAnyConst recursors = false :=
+    checkPositivityStep.TrExprS.noFreshConsts
+      hfresh hctx' hproj hmajor
+  exact ⟨{
+    domains := domains
+    recursor := H.recursorName
+    levels := levels
+    init := init
+    major := major
+    result_eq := hresult
+    domains_recursor_free := hdomainsFree
+    recursor_mem := hrecursor
+    arguments_guarded := by
+      intro arg harg
+      rcases List.mem_append.mp harg with harg | harg
+      · exact VExpr.GuardedIota.ofContainsAnyConstFalse
+          (hinitFree arg harg)
+      · simp only [List.mem_singleton] at harg
+        subst arg
+        exact VExpr.GuardedIota.ofContainsAnyConstFalse hmajorFree
+    major_is_field := H.translatedOuterAbstractedMajor_isField
+      hfieldRoot hbinders hfield hruleDomains hdomains hfieldVars hmajor }⟩
 
 /-- A generated recursive result is semantically guarded whenever the new
 recursor names are fresh in the translation environment and the selected
@@ -14805,6 +15123,120 @@ theorem BoundGeneratedRecursiveCalls.iotaResults
   · simpa using Harg
   · have hiVSize : i < v.size := by simpa using hiV
     simpa [Array.getElem!_eq_getD, Array.getD, hiVSize] using Hresult
+
+/-- Array-alignment lift for generated calls after simultaneous abstraction
+over the surrounding rule binders. -/
+theorem BoundGeneratedRecursiveCalls.abstractedIotaResults
+    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v u.size)
+    (Hargs : List.Forall₂ (TrExprS env Us Δ)
+      (u.map fun arg => arg.abstractList binders).toList recursiveArgs)
+    (Hresults : List.Forall₂ (TrExprS env Us Δ)
+      (v.map fun result => result.abstractList binders).toList
+      recursiveResults)
+    (Hpoint : ∀ i (hi : i < u.size)
+      (harg : i < recursiveArgs.length)
+      (hresult : i < recursiveResults.length),
+      BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+        root u[i] v[i]! →
+      TrExprS env Us Δ (u[i].abstractList binders) recursiveArgs[i] →
+      TrExprS env Us Δ (v[i]!.abstractList binders)
+        recursiveResults[i] →
+      Nonempty (IotaRecursiveResultCertificate recursors fieldVars
+        recursiveArgs[i] recursiveResults[i])) :
+    IotaRecursiveResultsCertificate recursors fieldVars
+      recursiveArgs recursiveResults := by
+  have hargsLen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hargs
+  have hresultsLen :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hresults
+  have hargsSize : u.size = recursiveArgs.length := by
+    simpa using hargsLen
+  have hresultsSize : v.size = recursiveResults.length := by
+    simpa using hresultsLen
+  have hvSize : v.size = u.size := H.size
+  refine ⟨List.forall₂_of_getElem (by omega) ?_⟩
+  intro i hiArg hiResult
+  have hiU : i < u.size := by omega
+  have hiV : i < v.size := by omega
+  rcases H.entries i hiU hiU with ⟨Hentry⟩
+  have Harg := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hargs i (by simpa using hiU) hiArg
+  have Hresult := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hresults i (by simpa using hiV) hiResult
+  apply Hpoint i hiU hiArg hiResult Hentry
+  · simpa using Harg
+  · have hiVSize : i < v.size := hiV
+    simpa [Array.getElem!_eq_getD, Array.getD, hiVSize] using Hresult
+
+theorem BoundGeneratedRecursiveCalls.abstractedIotaResults_ofFresh
+    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v u.size)
+    (Hbound : BoundFVarArray root u)
+    (Hargs : List.Forall₂
+      (TrExprS env Us (abstractForallContext ruleDomains Δ))
+      (u.map fun arg => arg.abstractList binders).toList recursiveArgs)
+    (Hresults : List.Forall₂
+      (TrExprS env Us (abstractForallContext ruleDomains Δ))
+      (v.map fun result => result.abstractList binders).toList
+      recursiveResults)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors
+      (abstractForallContext ruleDomains Δ))
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (hrecursor : ∀ exposedType,
+      Lean.mkRecName
+        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
+          recursors)
+    (hbinders : binders.Nodup)
+    (hruleDomains : ruleDomains.length = binders.length)
+    (hselected : ∀ fv ∈ Hbound.fvars, fv ∈ binders) :
+    IotaRecursiveResultsCertificate recursors
+      (recursiveArgs.filterMap VExpr.bvarHead?)
+      recursiveArgs recursiveResults := by
+  refine H.abstractedIotaResults Hargs Hresults ?_
+  intro i hi hiarg hiresult Hentry Harg Hresult
+  rcases Hbound.getElem_eq_fvar i hi with
+    ⟨hiFvars, hsource⟩
+  let fv := Hbound.fvars[i]
+  have hargTr := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hargs i (by simpa using hi) hiarg
+  have hfieldRoot : fv ∈ root.lctx.fvars :=
+    Hbound.members fv (List.getElem_mem hiFvars)
+  have hfield : fv ∈ binders :=
+    hselected fv (List.getElem_mem hiFvars)
+  have hsource' : u[i] = .fvar fv := hsource
+  have HArgFv : TrExprS env Us (abstractForallContext ruleDomains Δ)
+      ((Expr.fvar fv).abstractList binders) recursiveArgs[i] := by
+    simpa [hsource'] using hargTr
+  rw [hsource'] at Hentry
+  have hrecursorMem : Hentry.recursorName ∈ recursors := by
+    simpa [BoundGeneratedRecursiveCall.recursorName] using
+      hrecursor Hentry.exposedType
+  apply Hentry.outerAbstractedIotaResultCertificate_ofFresh
+    Hresult hfresh hctx hproj hrecursorMem hfieldRoot hbinders hfield
+      hruleDomains
+  intro fieldVar hfieldSource
+  have HArg' := HArgFv
+  rw [hfieldSource] at HArg'
+  have hfieldBound : fieldVar < ruleDomains.length := by
+    rcases List.mem_iff_getElem.mp hfield with ⟨j, hj, hget⟩
+    have hcanonical := Expr.abstractList_fvar_getElem
+      hbinders j hj (k := 0)
+    rw [hget, hfieldSource] at hcanonical
+    have : fieldVar = binders.length - 1 - j := by
+      cases hcanonical
+      simp
+    rw [hruleDomains]
+    omega
+  have hargEq : recursiveArgs[i] = .bvar fieldVar :=
+    TrExprS.bvar_eq_of_abstractForallContext HArg' hfieldBound
+  have hhead : recursiveArgs[i].bvarHead? = some fieldVar := by
+    rw [hargEq]
+    rfl
+  exact List.mem_filterMap.mpr
+    ⟨recursiveArgs[i], List.getElem_mem hiarg, hhead⟩
 
 /-- Lift the freshness-derived pointwise result certificate across the exact
 recursive-call array. The only remaining rule-local facts are recursor-name
