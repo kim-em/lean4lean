@@ -14123,6 +14123,45 @@ theorem BoundGeneratedRecursiveCall.translatedCallShape
     rw [← hrebuild]
     simp [VExpr.mkApps, List.foldl_append]
 
+/-- Turn the syntax-directed call translation into the semantic guarded-call
+certificate. The remaining callback is precisely the guard proof; executable
+syntax, lambda closure, recursor name, and translated spine are fixed here. -/
+theorem BoundGeneratedRecursiveCall.iotaResultCertificate
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ value result)
+    (hrecursor : H.recursorName ∈ recursors)
+    (Hguard : ∀ (domains : List VExpr) (levels : List VLevel)
+      (init : List VExpr) (major : VExpr),
+      domains.length = H.localArgs.size →
+      List.Forall₂
+        (TrExprS env Us (abstractForallContext domains Δ))
+        H.abstractedRecursor.getAppArgsList init →
+      TrExprS env Us (abstractForallContext domains Δ)
+        H.abstractedMajor major →
+      (∀ dom ∈ domains, dom.containsAnyConst recursors = false) ∧
+      (∀ arg ∈ init ++ [major],
+        arg.GuardedIota recursors fieldVars domains.length) ∧
+      major.IsFieldApp fieldVars domains.length) :
+    Nonempty (IotaRecursiveResultCertificate recursors fieldVars
+      recursiveArg result) := by
+  rcases H.translatedCallShape Htr with
+    ⟨domains, levels, init, major, hdomains, hresult, hlevels,
+      hinit, hmajor⟩
+  rcases Hguard domains levels init major hdomains hinit hmajor with
+    ⟨hdomainsFree, harguments, hmajorField⟩
+  exact ⟨{
+    domains := domains
+    recursor := H.recursorName
+    levels := levels
+    init := init
+    major := major
+    result_eq := hresult
+    domains_recursor_free := hdomainsFree
+    recursor_mem := hrecursor
+    arguments_guarded := harguments
+    major_is_field := hmajorField }⟩
+
 /-- Prefix invariant for rule generation retaining both exact syntax and the
 binding evidence needed to translate every higher-order recursive result. -/
 structure BoundGeneratedRecursiveCalls
