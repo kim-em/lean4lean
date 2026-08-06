@@ -1235,6 +1235,9 @@ structure ParameterContextSuffix (Hc : ContextWF c)
   prefixLength : ambientDecls.length = depth
   cached : List.Forall₂ CachedParameterDecl
     stats.params.toList.reverse parameterDecls
+  narrowParams : List.Forall₂
+    (TrExprS Hc.venv c.lparams parameterDecls)
+    stats.params.toList (cachedParamVars stats.params.size 0)
 
 /-- Reindex a parameter cache across statistics updates that leave the
 cached parameter array unchanged. -/
@@ -1256,6 +1259,7 @@ def ParameterContextSuffix.reindex
   context := H.context
   prefixLength := H.prefixLength
   cached := by rw [hparams]; exact H.cached
+  narrowParams := by rw [hparams]; exact H.narrowParams
 
 /-- A semantic header scope embedded in the larger executable local context.
 `expanded` is the literal weakening of the narrow scope; it is kept separate
@@ -2431,6 +2435,7 @@ def ParameterContextSuffix.empty
   context := by simpa using hctx
   prefixLength := rfl
   cached := by simp [hparams]
+  narrowParams := by simp [hparams, cachedParamVars]
 
 /-- The first-header parameter branch extends the cached suffix itself.  The
 empty-prefix premise records that parameters are all introduced before any
@@ -2452,7 +2457,8 @@ def ParameterContextSuffix.push
     parameterDecls := entry :: H.parameterDecls
     context := ?_
     prefixLength := rfl
-    cached := ?_ }
+    cached := ?_
+    narrowParams := ?_ }
   · have hcontext := H.context
     rw [hprefix] at hcontext
     change entry :: Hc.mlctx.vlctx = [] ++ entry :: H.parameterDecls
@@ -2462,6 +2468,53 @@ def ParameterContextSuffix.push
       List.reverse_singleton, List.singleton_append]
     exact .cons ⟨⟨c.ngen.curr⟩, ty.fvarsList, ty', rfl, rfl⟩
       H.cached
+  · let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+    let W : VLCtx.FVLift H.parameterDecls
+        (entry :: H.parameterDecls) 0 1 0 :=
+      .skip_fvar _ _ .refl
+    have hscope : Hc.mlctx.vlctx = H.parameterDecls := by
+      simpa [hprefix] using H.context
+    have hnarrowWF : VLCtx.WF Hc'.venv c.lparams.length
+        (entry :: H.parameterDecls) := by
+      change VLCtx.WF Hc.venv c.lparams.length
+        (entry :: H.parameterDecls)
+      refine ⟨?_, ?_, ?_⟩
+      · simpa [hscope] using Hc.mlctx_wf.tr.wf
+      · intro fv deps heq
+        simp only [entry, Option.some.injEq, Prod.mk.injEq] at heq
+        rcases heq with ⟨rfl, rfl⟩
+        exact ⟨by simpa [hscope] using Hc.current_not_mem,
+          by simpa [hscope] using htr.fvarsList⟩
+      · change Hc.venv.IsType c.lparams.length
+          H.parameterDecls.toCtx ty'
+        simpa [hscope] using hty
+    have hold : List.Forall₂
+        (TrExprS Hc'.venv c.lparams (entry :: H.parameterDecls))
+        stats.params.toList
+        ((cachedParamVars stats.params.size 0).map
+          fun e => e.liftN 1 0) := by
+      have weakAll : ∀ {as bs},
+          List.Forall₂
+              (TrExprS Hc.venv c.lparams H.parameterDecls) as bs →
+            List.Forall₂
+              (TrExprS Hc'.venv c.lparams (entry :: H.parameterDecls))
+              as (bs.map fun e => e.liftN 1 0) := by
+        intro as bs hp
+        induction hp with
+        | nil => exact .nil
+        | cons h _ ih =>
+          exact .cons
+            (h.weakFV Hc.checking.tr.wf.ordered W hnarrowWF) ih
+      exact weakAll H.narrowParams
+    have hnew : TrExprS Hc'.venv c.lparams
+        (entry :: H.parameterDecls)
+        (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
+      apply TrExprS.fvar (A := ty'.lift)
+      simp [entry, VLCtx.find?, VLCtx.next, VLocalDecl.value,
+        VLocalDecl.type]
+    simpa [Array.toList_push, cachedParamVars_succ] using
+      Lean4Lean.VerifyInductive.List.Forall₂.append' hold
+        (.cons hnew .nil)
 
 /-- Index binders extend only the ambient prefix and preserve the exact
 cached-parameter suffix. -/
@@ -2480,7 +2533,8 @@ def ParameterContextSuffix.withIndex
     parameterDecls := H.parameterDecls
     context := ?_
     prefixLength := by simp [H.prefixLength]
-    cached := H.cached }
+    cached := H.cached
+    narrowParams := H.narrowParams }
   change entry :: Hc.mlctx.vlctx =
     (entry :: H.ambientDecls) ++ H.parameterDecls
   simp only [List.cons_append]
@@ -5802,6 +5856,13 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
   params : List.Forall₂ (TrExprS env Us Δ) stats.params.toList
     (decl.paramVars depth)
   paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
+  parameterScope : VLCtx
+  runtimeScope : checkInductiveTypes.loopType.NarrowRuntimeScope
+    env Us parameterScope Δ
+  paramsContext : VEnv.IsDefEqCtx env Us.length []
+    headers.params.reverse parameterScope.toCtx
+  narrowParams : List.Forall₂ (TrExprS env Us parameterScope)
+    stats.params.toList (decl.paramVars 0)
 
 /-- Fold the verified noninitial step over the remainder of the mutual block.
 At exact coverage the executable length assertions are discharged and the
@@ -5899,7 +5960,8 @@ theorem laterSteps.materialize
           skeleton.types.length := by
       simpa [heq, htypes] using Hprefix
     rcases Hprefix'.materializes with
-      ⟨decl, hmaterialize, ⟨Hheaders⟩⟩
+      ⟨decl, hmaterialize, _⟩
+    let Hheaders := Hprefix'.complete hmaterialize
     have hfields := VInductDeclSkeleton.materialize_fields hmaterialize
     have herase := VInductDeclSkeleton.materialize_toSkeleton hmaterialize
     have Hdecl' :=
@@ -5918,7 +5980,13 @@ theorem laterSteps.materialize
         consts := ?_
         indices := ?_
         params := ?_
-        paramFVars := Hcache.paramFVars }
+        paramFVars := Hcache.paramFVars
+        parameterScope := Hsuffix.parameterDecls
+        runtimeScope :=
+          checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+            Hc Hsuffix
+        paramsContext := ?_
+        narrowParams := ?_ }
       · exact hlevels.trans (Hdecl.2.1.symm.trans hfields.1.symm)
       · exact Hdecl.2.1.symm.trans hfields.1.symm
       · have hconstMap :
@@ -5973,6 +6041,12 @@ theorem laterSteps.materialize
           rw [hfields.2.1]
           exact Hcache
         exact Hcache'.complete
+      · apply Hsuffix.paramsDefEq Hambient
+        exact Hprefix.parameterCount.trans hparams.symm
+      · rw [← checkInductiveTypes.loopType.cachedParamVars_eq_paramVars decl]
+        have hsize : stats.params.size = decl.nparams := by
+          exact hparams.trans hfields.2.1.symm
+        simpa [hsize] using Hsuffix.narrowParams
 termination_by indTypes.size - dIdx
 
 /-- Complete the whole nonempty mutual-header phase, including the special
@@ -6832,6 +6906,18 @@ def ValidAppStatsWF.ofMaterializedHeader
     simpa [List.map_map, Function.comp_def] using H.consts)
   indices := H.indices
   params := H.params
+  paramFVars := H.paramFVars
+
+def ValidAppStatsWF.ofMaterializedHeaderNarrow
+    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+      env Us Δ stats decl depth) :
+    ValidAppStatsWF env Us H.parameterScope stats decl 0 where
+  levels := H.levels
+  uvars := H.uvars
+  consts := IndConstArray.ofExact (by
+    simpa [List.map_map, Function.comp_def] using H.consts)
+  indices := H.indices
+  params := H.narrowParams
   paramFVars := H.paramFVars
 
 theorem IndConstArray.updatedStats
