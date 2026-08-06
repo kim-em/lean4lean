@@ -11194,6 +11194,44 @@ def BoundFVarArray.toLocalForallSelection
   expressions := H.expressions
   declarations fv hfv := Hc.findCDecl fv (H.members fv hfv)
 
+def BoundFVarArray.append
+    (H₁ : BoundFVarArray c xs) (H₂ : BoundFVarArray c ys) :
+    BoundFVarArray c (xs ++ ys) where
+  fvars := H₁.fvars ++ H₂.fvars
+  expressions := by
+    simp [H₁.expressions, H₂.expressions]
+  members := by
+    intro fv hfv
+    simp only [List.mem_append] at hfv
+    rcases hfv with hfv | hfv
+    · exact H₁.members fv hfv
+    · exact H₂.members fv hfv
+
+/-- All local free-variable arrays retained by the executable recursor-info
+records, aligned with the production array operations. -/
+structure RecInfoBindings (c : AddInductive.Context)
+    (recInfos : Array AddInductive.RecInfo) where
+  motives : BoundFVarArray c (recInfos.map (·.motive))
+  minors : BoundFVarArray c (recInfos.flatMap (·.minors))
+  majors : BoundFVarArray c (recInfos.map (·.major))
+  indices : ∀ i (hi : i < recInfos.size),
+    BoundFVarArray c recInfos[i]!.indices
+
+def RecInfoBindings.empty (c : AddInductive.Context) :
+    RecInfoBindings c #[] where
+  motives := by simpa using BoundFVarArray.empty c
+  minors := BoundFVarArray.empty c
+  majors := by simpa using BoundFVarArray.empty c
+  indices i hi := by simp at hi
+
+def RecInfoBindings.mono
+    (H : RecInfoBindings c recInfos) (hle : BindingContextLE c c') :
+    RecInfoBindings c' recInfos where
+  motives := H.motives.mono hle
+  minors := H.minors.mono hle
+  majors := H.majors.mono hle
+  indices i hi := (H.indices i hi).mono hle
+
 namespace mkRecInfos.loopArgs1
 
 /-- Operational strengthening of `continueWith`: every non-parameter binder
