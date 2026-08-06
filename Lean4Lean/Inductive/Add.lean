@@ -589,6 +589,26 @@ def restoreCtorName (r : Result) (env' : Environment) (c : Name) : Name := Id.ru
   let .const I _ := e.getAppFn | unreachable!
   c.replacePrefix name I
 
+def restoreNestedNode (r : Result) (env' : Environment) (As : Array Expr)
+    (auxRec : NameMap Name) (t : Expr) : Option Expr := do
+  if let .const c ls := t then
+    if let some recName := auxRec.find? c then
+      return .const recName ls
+  let .const c _ := t.getAppFn | none
+  if let some nested := r.aux2nested.find? c then
+    let args := t.getAppArgs
+    assert! args.size ≥ r.nparams
+    return mkAppRange ((nested.abstract r.params).instantiateRev As)
+      r.nparams args.size args
+  let (nested, auxI_name) ← r.getNestedIfAuxCtor env' c
+  let args := t.getAppArgs
+  assert! args.size ≥ r.nparams
+  let nested' := (nested.abstract r.params).instantiateRev As
+  nested'.withApp fun I I_args => do
+  let .const I_c I_ls := I | unreachable!
+  let c' := .const (c.replacePrefix auxI_name I_c) I_ls
+  return mkAppRange (mkAppN c' I_args) r.nparams args.size args
+
 def restoreNested (r : Result) (env' : Environment) (e : Expr)
     (auxRec : NameMap Name := {}) : Expr :=
   Id.run <| StateT.run' (s := { namePrefix := `_nested_fresh : NameGenerator }) do
@@ -605,23 +625,7 @@ def restoreNested (r : Result) (env' : Environment) (e : Expr)
       e := body.instantiate1 arg
       As := As.push arg
     | _ => unreachable!
-  e := e.replace fun t => do
-    if let .const c ls := t then
-      if let some recName := auxRec.find? c then
-        return .const recName ls
-    let .const c _ := t.getAppFn | none
-    if let some nested := r.aux2nested.find? c then
-      let args := t.getAppArgs
-      assert! args.size ≥ r.nparams
-      return mkAppRange ((nested.abstract r.params).instantiateRev As) r.nparams args.size args
-    let (nested, auxI_name) ← r.getNestedIfAuxCtor env' c
-    let args := t.getAppArgs
-    assert! args.size ≥ r.nparams
-    let nested' := (nested.abstract r.params).instantiateRev As
-    nested'.withApp fun I I_args => do
-    let .const I_c I_ls := I | unreachable!
-    let c' := .const (c.replacePrefix auxI_name I_c) I_ls
-    return mkAppRange (mkAppN c' I_args) r.nparams args.size args
+  e := e.replace (r.restoreNestedNode env' As auxRec)
   return if pi then lctx.mkForall As e else lctx.mkLambda As e
 
 end Result

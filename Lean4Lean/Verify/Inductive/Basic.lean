@@ -14413,6 +14413,63 @@ theorem restoreCtorName_eq
   simp [hlookup, hhead]
   rfl
 
+theorem restoreNestedNode_recursor
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
+    (name restored : Name) (levels : List Level)
+    (hrec : auxRec.find? name = some restored) :
+    result.restoreNestedNode env As auxRec (.const name levels) =
+      some (.const restored levels) := by
+  simp [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode, hrec]
+
+theorem restoreNestedNode_family
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
+    (t nested : Expr) (family : Name) (levels : List Level)
+    (happ : t.isApp = true)
+    (hhead : t.getAppFn = .const family levels)
+    (hfamily : result.aux2nested.find? family = some nested)
+    (harity : result.nparams ≤ t.getAppArgs.size) :
+    result.restoreNestedNode env As auxRec t = some
+      (mkAppRange ((nested.abstract result.params).instantiateRev As)
+        result.nparams t.getAppArgs.size t.getAppArgs) := by
+  cases t with
+  | app fn arg =>
+    simp only [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode]
+    simp [hhead, hfamily, harity]
+  | bvar | fvar | mvar | sort | const | lam | forallE | letE | lit | mdata
+      | proj => cases happ
+
+theorem restoreNestedNode_constructor
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
+    (t nested : Expr) (ctorName auxFamily sourceFamily : Name)
+    (headLevels sourceLevels : List Level)
+    (happ : t.isApp = true)
+    (hhead : t.getAppFn = .const ctorName headLevels)
+    (hnotFamily : result.aux2nested.find? ctorName = none)
+    (hlookup : result.getNestedIfAuxCtor env ctorName =
+      some (nested, auxFamily))
+    (harity : result.nparams ≤ t.getAppArgs.size)
+    (hrestoredHead :
+      ((nested.abstract result.params).instantiateRev As).getAppFn =
+        .const sourceFamily sourceLevels) :
+    result.restoreNestedNode env As auxRec t = some
+      (mkAppRange
+        (mkAppN (.const (ctorName.replacePrefix auxFamily sourceFamily)
+          sourceLevels)
+          ((nested.abstract result.params).instantiateRev As).getAppArgs)
+        result.nparams t.getAppArgs.size t.getAppArgs) := by
+  cases t with
+  | app fn arg =>
+    simp only [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode]
+    simp [hhead, hnotFamily, hlookup, harity, Expr.withApp_eq]
+    simp only [Expr.instantiateRev_eq, Expr.instantiate_eq,
+      Array.toList_reverse] at hrestoredHead
+    rw [hrestoredHead]
+  | bvar | fvar | mvar | sort | const | lam | forallE | letE | lit | mdata
+      | proj => cases happ
+
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/
