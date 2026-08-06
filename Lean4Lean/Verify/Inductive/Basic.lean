@@ -10436,6 +10436,92 @@ def RecursorFieldsMaterialize.iotaFieldCertificate
     rw [← Hmat.args]
     exact Hmat.recursive_args_sublist Hsel Hbu Hu Hunique
 
+/-- Non-recursive equation shape shared by generated iota rules. Recursive
+field selection and RHS guardedness are supplied by separate certificates. -/
+structure IotaEquationCertificate
+    (decl : VInductDecl) (block : VInductBlock)
+    (owner : VInductiveType) (ctor : VConstVal) (rule : VDefEq) where
+  recursor : VConstVal
+  recursor_mem : recursor ∈ block.recursors
+  recursor_name : recursor.name = decl.recursorName owner
+  rule_uvars : rule.uvars = recursor.uvars
+  domains : List VExpr
+  lhsBody : VExpr
+  rhsBody : VExpr
+  typeBody : VExpr
+  lhs_wrapped : rule.lhs = VExpr.wrapLams domains lhsBody
+  rhs_wrapped : rule.rhs = VExpr.wrapLams domains rhsBody
+  type_wrapped : rule.type = VExpr.wrapForalls domains typeBody
+  recursorLevels : List VLevel
+  leadingArgs : List VExpr
+  ctorLevels : List VLevel
+  ctorArgs : List VExpr
+  lhs_pattern :
+    lhsBody = VExpr.mkApps (.const recursor.name recursorLevels)
+      (leadingArgs ++ [VExpr.mkApps (.const ctor.name ctorLevels) ctorArgs])
+  recursor_levels : recursorLevels.length = recursor.uvars
+  ctor_levels : ctorLevels.length = decl.uvars
+  leading_arity : leadingArgs.length = decl.nparams + decl.types.length +
+    decl.ownedConstructors.length + owner.numIndices
+  constructor_arity : decl.nparams ≤ ctorArgs.length
+  parameter_args : ctorArgs.take decl.nparams =
+    leadingArgs.take decl.nparams
+  domains_arity : domains.length = decl.nparams + decl.types.length +
+    decl.ownedConstructors.length + (ctorArgs.length - decl.nparams)
+
+/-- Assemble the independent iota judgment from its three reviewable pieces:
+equation shape, recursive-field selection, and guarded RHS construction. -/
+def VInductDecl.IotaRule.ofCertificates
+    (Hshape : IotaEquationCertificate decl block owner ctor rule)
+    (Hfields : IotaFieldCertificate env decl
+      (Hshape.ctorArgs.drop decl.nparams) fields recursiveArgs)
+    (Hrhs : IotaRhsCertificate (block.recursors.map (·.name))
+      Hshape.domains (Hshape.ctorArgs.drop decl.nparams)
+      recursiveArgs Hshape.rhsBody) :
+    decl.IotaRule env block owner ctor rule where
+  recursor := Hshape.recursor
+  recursor_mem := Hshape.recursor_mem
+  recursor_name := Hshape.recursor_name
+  rule_uvars := Hshape.rule_uvars
+  domains := Hshape.domains
+  lhsBody := Hshape.lhsBody
+  rhsBody := Hshape.rhsBody
+  typeBody := Hshape.typeBody
+  lhs_wrapped := Hshape.lhs_wrapped
+  rhs_wrapped := Hshape.rhs_wrapped
+  type_wrapped := Hshape.type_wrapped
+  recursorLevels := Hshape.recursorLevels
+  leadingArgs := Hshape.leadingArgs
+  ctorLevels := Hshape.ctorLevels
+  ctorArgs := Hshape.ctorArgs
+  lhs_pattern := Hshape.lhs_pattern
+  recursor_levels := Hshape.recursor_levels
+  ctor_levels := Hshape.ctor_levels
+  leading_arity := Hshape.leading_arity
+  constructor_arity := Hshape.constructor_arity
+  parameter_args := Hshape.parameter_args
+  domains_arity := Hshape.domains_arity
+  recursiveFields := fields
+  fieldPositions := Hfields.fieldPositions
+  fieldPositions_eq := Hfields.fieldPositions_eq
+  fieldPositions_ordered := Hfields.fieldPositions_ordered
+  fields_at_positions := Hfields.fields_at_positions
+  recursiveArgs := recursiveArgs
+  recursiveArgs_eq := Hfields.recursiveArgs_eq
+  recursive_args := Hfields.recursive_args
+  fieldVars := Hrhs.fieldVars
+  fieldVars_eq := Hrhs.fieldVars_eq
+  fields_in_scope := Hrhs.fields_in_scope
+  minorVar := Hrhs.minorVar
+  minor_in_scope := Hrhs.minor_in_scope
+  rhsArgs := Hshape.ctorArgs.drop decl.nparams ++ Hrhs.recursiveResults
+  rhs_spine := Hrhs.rhs_spine
+  field_args := by
+    simpa using Hrhs.field_args
+  recursive_results := by
+    simpa using Hrhs.results_length
+  rhs_guarded := Hrhs.guarded
+
 /-- Exact concrete common-parameter prefix consumed by recursor generation.
 The relation is intentionally separate from field classification: agreement
 of these substitutions with the abstract parameter telescope is established
