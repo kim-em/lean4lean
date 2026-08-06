@@ -9550,6 +9550,112 @@ termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd1
 
+namespace mkRecInfos.loopU
+
+/-- The induction-hypothesis loop returns only through its continuation.
+Its generated local declarations affect the eventual minor type, but not the
+`RecInfo` array whose cardinality is tracked by `loopCtors`. -/
+theorem continueWith {α : Type}
+    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array Expr → AddInductive.M α) {Q : α → Prop}
+    (Hk : ∀ v c, (k v c).WF Q)
+    (i : Nat) (v : Array Expr) (c : AddInductive.Context) :
+    (AddInductive.mkRecInfos.loopU stats u recInfos i v k c).WF Q := by
+      rw [AddInductive.mkRecInfos.loopU]
+      by_cases hnext : i < u.size
+      · rw [dif_pos hnext]
+        have hviTy :
+            ((AddInductive.mkRecInfos.loopUArgs u[i] fun uiTy xs => do
+              let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+              let motiveApp := .app
+                (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN u[i] xs)
+              return (← getLCtx).mkForall xs motiveApp) c).WF
+              (fun _ => True) := by
+          intro _ _
+          trivial
+        refine hviTy.bind fun viTy _ => ?_
+        have hget : ((getLCtx : AddInductive.M LocalContext) c).WF
+            (fun lctx => lctx = c.lctx) := by
+          intro lctx h
+          cases h
+          rfl
+        refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+          hget fun lctx hlctx => ?_
+        subst lctx
+        apply withLocalDecl.continueRaw
+        exact continueWith stats u recInfos k Hk (i + 1)
+          (v.push (.fvar ⟨c.ngen.curr⟩)) _
+      · rw [dif_neg hnext]
+        exact Hk v c
+termination_by u.size - i
+
+end mkRecInfos.loopU
+
+namespace mkRecInfos.loopCtors
+
+/-- Processing a constructor list preserves the number of family records and
+appends exactly one minor premise per constructor to the selected owner. -/
+theorem resultCount {α : Type} {Q : α → Prop}
+    (stats : AddInductive.InductiveStats) (indTypeName : Name)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (ctors : List Constructor)
+    (k : Array AddInductive.RecInfo → AddInductive.M α)
+    (c : AddInductive.Context)
+    (hidx : dIdx < recInfos.size)
+    (Hk : ∀ out c,
+      out.size = recInfos.size →
+      out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + ctors.length →
+      (k out c).WF Q) :
+    (AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos ctors k c).WF Q := by
+  induction ctors generalizing recInfos c with
+  | nil =>
+      simp only [AddInductive.mkRecInfos.loopCtors]
+      apply Hk
+      · rfl
+      · simp
+  | cons ctor ctors ih =>
+      rw [AddInductive.mkRecInfos.loopCtors]
+      apply mkRecInfos.loopCtorArgs.selectedSublist stats
+      intro t bu u cArgs _
+      apply mkRecInfos.loopU.continueWith stats u recInfos
+      intro v cIH
+      have hget : ((getLCtx : AddInductive.M LocalContext) cIH).WF
+          (fun lctx => lctx = cIH.lctx) := by
+        intro lctx h
+        cases h
+        rfl
+      refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+        hget fun lctx hlctx => ?_
+      subst lctx
+      apply withLocalDecl.continueRaw
+      let next := recInfos.modify dIdx fun s =>
+        { s with minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩) }
+      apply ih next _
+      · simpa [next]
+      · intro out cOut houtSize houtCount
+        apply Hk out cOut
+        · simpa [next] using houtSize
+        · rw [houtCount]
+          dsimp [next]
+          have hnextIdx : dIdx < (recInfos.modify dIdx fun s =>
+              { s with minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩) }).size := by
+            simpa using hidx
+          have hbangModified :
+              (recInfos.modify dIdx fun s =>
+                { s with minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩) })[dIdx]! =
+              { recInfos[dIdx]! with
+                minors := recInfos[dIdx]!.minors.push (.fvar ⟨cIH.ngen.curr⟩) } := by
+            simp only [Array.getElem!_eq_getD]
+            unfold Array.getD
+            rw [dif_pos hnextIdx, dif_pos hidx]
+            exact Array.getElem_modify_self _ hnextIdx
+          rw [hbangModified]
+          simp
+          omega
+
+end mkRecInfos.loopCtors
+
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
 theorem checkConstructors.loopCtor.tailRefinesFull
