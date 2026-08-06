@@ -14672,6 +14672,30 @@ inductive RestoreParamOpening : LocalContext → Array Expr → Expr → Nat →
       RestoreParamOpening lctx As (.lam name dom body bi) (n + 1)
         outLctx outAs tail
 
+theorem RestoreParamOpening.params_size
+    (H : RestoreParamOpening lctx As e n outLctx outAs tail) :
+    outAs.size = As.size + n := by
+  induction H with
+  | done => simp
+  | forallE _ ih | lam _ ih =>
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih
+
+theorem RestoreParamOpening.params_extension
+    (H : RestoreParamOpening lctx As e n outLctx outAs tail) :
+    ∃ suffix, outAs.toList = As.toList ++ suffix ∧ suffix.length = n := by
+  induction H with
+  | done => exact ⟨[], by simp⟩
+  | forallE H ih | lam H ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    rcases ih with ⟨suffix, heq, hlength⟩
+    refine ⟨(.fvar id) :: suffix, ?_, by simp [hlength]⟩
+    simpa [heq, List.append_assoc]
+
+theorem RestoreParamOpening.initial_size
+    (H : RestoreParamOpening {} #[] e n outLctx outAs tail) :
+    outAs.size = n := by
+  simpa using H.params_size
+
 theorem openRestoreParams_refines
     (H : RestoreTelescope e n) (lctx : LocalContext) (As : Array Expr)
     (ngen : NameGenerator) :
