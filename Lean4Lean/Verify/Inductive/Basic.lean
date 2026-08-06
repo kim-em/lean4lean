@@ -12405,6 +12405,14 @@ theorem Expr.abstractList_mkAppN :
     rw [ih]
     simp
 
+@[simp] theorem Expr.foldl_mkApp_eq (args : List Expr) (fn : Expr) :
+    args.foldl Lean.mkApp fn = args.foldl Expr.app fn := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih =>
+    simp only [List.foldl_cons, Lean.mkApp]
+    exact ih (.app fn arg)
+
 theorem Expr.abstractList_fvar_getElem
     (hnd : fvs.Nodup) (i : Nat) (hi : i < fvs.length) :
     (Expr.fvar fvs[i]).abstractList fvs k =
@@ -13084,6 +13092,18 @@ theorem BoundFVarArray.get_eq_fvar
   have hifvars : i < fvars.length := by simpa using hi
   refine ⟨fvars[i], ?_, members fvars[i] (List.getElem_mem hifvars)⟩
   simp
+
+theorem BoundFVarArray.getElem_eq_fvar
+    (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
+    ∃ hiFvars : i < H.fvars.length,
+      xs[i] = .fvar H.fvars[i] := by
+  rcases H with ⟨fvars, rfl, members⟩
+  refine ⟨by simpa using hi, by simp⟩
+
+theorem BoundFVarArray.length_fvars
+    (H : BoundFVarArray c xs) : H.fvars.length = xs.size := by
+  have := congrArg Array.size H.expressions
+  simpa using this.symm
 
 theorem BoundFVarArray.get_fvars_sublist
     (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
@@ -14908,6 +14928,43 @@ theorem BoundGeneratedRecursorRule.rhsLambdaTelescope
     (H.all_binders_bound.toLocalForallSelection
       H.root_wf).declarations
 
+/-- Simultaneous abstraction turns the selected minor free variable into one
+in-scope de Bruijn variable and preserves the field/result application
+spines pointwise. -/
+theorem BoundGeneratedRecursorRule.abstractedSourceRhs
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    ∃ minorVar,
+      minorVar < H.binders.length ∧
+      H.sourceRhsBody.abstractList H.binders =
+        mkAppN
+          (mkAppN (.bvar minorVar)
+            (H.allArgs.map fun arg => arg.abstractList H.binders))
+          (H.recursiveResults.map fun result =>
+            result.abstractList H.binders) := by
+  rcases H.minors_bound.getElem_eq_fvar minorIdx H.minor_valid with
+    ⟨hiFvars, hminor⟩
+  let fv := H.minors_bound.fvars[minorIdx]
+  have hmem : fv ∈ H.binders := by
+    unfold BoundGeneratedRecursorRule.binders fv
+    simp [List.getElem_mem hiFvars]
+  rcases List.mem_iff_getElem.mp hmem with ⟨i, hi, hget⟩
+  let minorVar := H.binders.length - 1 - i
+  refine ⟨minorVar, by omega, ?_⟩
+  have habstract := Expr.abstractList_fvar_getElem
+    H.binders_nodup i hi (k := 0)
+  unfold BoundGeneratedRecursorRule.binders at hget
+  rw [hget] at habstract
+  have habstract' : (Expr.fvar fv).abstractList H.binders =
+      .bvar minorVar := by
+    simpa [BoundGeneratedRecursorRule.binders, minorVar] using habstract
+  have hminorBang : minors[minorIdx]! = .fvar fv := by
+    rw [Array.getElem!_eq_getD, Array.getD, dif_pos H.minor_valid]
+    exact hminor
+  unfold BoundGeneratedRecursorRule.sourceRhsBody
+  rw [Expr.abstractList_mkAppN, Expr.abstractList_mkAppN,
+    hminorBang, habstract']
+
 /-- Translation of the exact production rule RHS exposes the abstract rule
 telescope and leaves only the simultaneously abstracted minor application as
 the residual translation obligation. -/
@@ -14939,6 +14996,55 @@ theorem BoundGeneratedRecursorRule.translatedRhsShape_noFresh
       ∀ dom ∈ domains, dom.containsAnyConst recursors = false :=
   TrExprS.lambdaTelescope_shape_with_context_noFresh
     hfresh hctx hproj H.rhsLambdaTelescope Htr
+
+/-- Inverting the translated residual yields the exact abstract minor spine,
+split between translated constructor fields and translated recursive
+results. -/
+theorem BoundGeneratedRecursorRule.translatedRhsResidual
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (hdomains : domains.length = H.binders.length)
+    (Htr : TrExprS env Us (abstractForallContext domains Δ)
+      (H.sourceRhsBody.abstractList H.binders) rhsBody) :
+    ∃ minorVar fieldArgs recursiveResults,
+      minorVar < domains.length ∧
+      List.Forall₂ (TrExprS env Us (abstractForallContext domains Δ))
+        (H.allArgs.map fun arg => arg.abstractList H.binders).toList
+        fieldArgs ∧
+      List.Forall₂ (TrExprS env Us (abstractForallContext domains Δ))
+        (H.recursiveResults.map fun result =>
+          result.abstractList H.binders).toList recursiveResults ∧
+      rhsBody = VExpr.mkApps (.bvar minorVar)
+        (fieldArgs ++ recursiveResults) := by
+  rcases H.abstractedSourceRhs with ⟨minorVar, hminor, habstract⟩
+  rw [habstract] at Htr
+  have Houter : TrExprS env Us (abstractForallContext domains Δ)
+      (Expr.mkAppList
+        (mkAppN (.bvar minorVar)
+          (H.allArgs.map fun arg => arg.abstractList H.binders))
+        (H.recursiveResults.map fun result =>
+          result.abstractList H.binders).toList) rhsBody := by
+    simpa only [mkAppN, Expr.mkAppList_eq_foldl,
+      ← Array.foldl_toList, Array.toList_map,
+      Expr.foldl_mkApp_eq] using Htr
+  rcases checkPositivityStep.TrExprS.mkAppList_inv Houter with
+    ⟨minorApp, recursiveResults, HminorApp, Hresults, hrhs⟩
+  have Hinner : TrExprS env Us (abstractForallContext domains Δ)
+      (Expr.mkAppList (.bvar minorVar)
+        (H.allArgs.map fun arg => arg.abstractList H.binders).toList)
+      minorApp := by
+    simpa only [mkAppN, Expr.mkAppList_eq_foldl,
+      ← Array.foldl_toList, Array.toList_map,
+      Expr.foldl_mkApp_eq] using HminorApp
+  rcases checkPositivityStep.TrExprS.mkAppList_inv Hinner with
+    ⟨minor, fieldArgs, Hminor, Hfields, hminorApp⟩
+  have hminorEq := TrExprS.bvar_eq_of_abstractForallContext Hminor
+    (by omega)
+  subst minor
+  refine ⟨minorVar, fieldArgs, recursiveResults, by omega,
+    Hfields, Hresults, ?_⟩
+  rw [hrhs, hminorApp]
+  simp [VExpr.mkApps, List.foldl_append]
 
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
