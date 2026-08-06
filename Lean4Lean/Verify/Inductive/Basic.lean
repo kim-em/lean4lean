@@ -10839,6 +10839,26 @@ theorem AddInductive.getRecLevelParams_length_of_not_param
       lparams.length := by
   cases elimLevel <;> simp_all [AddInductive.getRecLevelParams, Level.isParam]
 
+/-- `Expr.inferImplicit` changes only concrete binder annotations, which are
+erased by the abstract expression translation.  In particular the abstract
+recursor type proved before this production post-processing step remains the
+translation of the type installed in the environment. -/
+theorem TrExprS.inferImplicit
+    (H : TrExprS env Us Δ e e') (numParams : Nat) (considerRange : Bool) :
+    TrExprS env Us Δ (e.inferImplicit numParams considerRange) e' := by
+  induction numParams generalizing e e' Δ with
+  | zero => simpa [Expr.inferImplicit] using H
+  | succ numParams ih =>
+    cases e with
+    | forallE name dom body bi =>
+      cases H with
+      | forallE hdomType hbodyType hdom hbody =>
+        simp only [Expr.inferImplicit]
+        exact .forallE hdomType hbodyType hdom
+          (ih hbody)
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+      | proj => simpa [Expr.inferImplicit] using H
+
 /-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
 innermost order. Local lets are discharged by `mkForall'` and contribute no
 domain. -/
