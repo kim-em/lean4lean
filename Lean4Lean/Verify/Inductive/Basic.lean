@@ -6970,6 +6970,13 @@ structure HeaderTraversalResult (env : VEnv) (Us : List Name)
   headers : HeaderCertificate env decl
   applicationStats : ValidAppStatsWF env Us Δ stats decl depth
 
+def HeaderTraversalResult.ofMaterialized
+    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+      env Us Δ stats decl depth) :
+    HeaderTraversalResult env Us Δ decl stats depth where
+  headers := H.headers
+  applicationStats := ValidAppStatsWF.ofMaterializedHeader H
+
 /-- Executable header-loop state in the actual retained reader context. -/
 structure HeaderRuntimeCertificate (Hc : ContextWF c)
     (decl : VInductDecl) (params : List VExpr)
@@ -7240,6 +7247,20 @@ def HeaderTraversalResult.withConstructors
     (htypes : env.addConsts decl.typeConstants = some envTypes)
     (Hctors : ConstructorPrefixCertificate env decl envTypes
       H.headers.params decl.ownedConstructors.length) :
+    CheckedFormationResult env Us Δ decl stats depth where
+  formation := {
+    headers := H.headers
+    envTypes := envTypes
+    typesInstalled := htypes
+    constructors := Hctors.complete }
+  applicationStats := H.applicationStats
+
+def HeaderTraversalResult.withConstructorTypes
+    (H : HeaderTraversalResult env Us Δ decl stats depth)
+    (envTypes : VEnv)
+    (htypes : env.addConsts decl.typeConstants = some envTypes)
+    (Hctors : ConstructorTypesPrefix envTypes decl H.headers.params
+      decl.types.length) :
     CheckedFormationResult env Us Δ decl stats depth where
   formation := {
     headers := H.headers
