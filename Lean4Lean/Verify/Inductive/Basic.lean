@@ -10480,6 +10480,51 @@ theorem AddInductive.checkConstructors.WF
     { c with env := outEnv } = .ok outEnv from rfl]
   exact Hloops
 
+/-- The exact executable prefix used by `AddInductive.run`, through mutual
+header installation and constructor checking, refines `FormationWF`. -/
+theorem AddInductive.formationPrefix.WF
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDecl Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe decl)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprim : ∀ info ∈
+      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+        isUnsafe c.lparams).toList,
+      ¬ Kernel.Environment.primitives.contains info.name)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel = .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
+      isUnsafe >>= fun outEnv =>
+        AddInductive.withEnv outEnv
+          (AddInductive.checkConstructors indTypes stats isUnsafe)) c).WF
+      fun _ => Nonempty (FormationCertificate Hc.venv decl) := by
+  have Htypes := AddInductive.declareInductiveTypes.WF Hc Hdecl Hmaterialized
+    hvisible hnprim
+  exact Htypes.bind fun outEnv hresult => by
+    rcases hresult with ⟨Hstaged, _⟩
+    have Hconstructors := AddInductive.checkConstructors.WF Hstaged Hfresh
+      hconsume hlit hproj hunsafe hbound
+    exact Hconstructors.mono fun _ Hctors => ⟨Hstaged.formation Hctors⟩
+
 /-- Three-stage installation certificate matching the executable order:
 mutual headers, constructors, then recursors. Reduction equations are not
 included here because their validity depends on the independent iota schema. -/
