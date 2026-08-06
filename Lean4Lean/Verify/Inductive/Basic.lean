@@ -11676,6 +11676,100 @@ termination_by u.size - i
 
 end mkRecInfos.loopU
 
+namespace mkRecInfos.loopCtors
+
+/-- Processing constructors retains every field and induction-hypothesis
+binder and appends the resulting minor binder to the certificate of its
+owning inductive. -/
+theorem resultBindings {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats) (indTypeName : Name)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (ctors : List Constructor)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    (c : AddInductive.Context)
+    (Hc : BindingContextWF c)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hroot : BindingContextLE root c)
+    (hidx : dIdx < recInfos.size)
+    (Hk : ∀ recInfos c, BindingContextWF c →
+      RecInfoBindings c recInfos → BindingContextLE root c →
+      (k recInfos c).WF Q) :
+    (AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
+      ctors k c).WF Q := by
+  induction ctors generalizing recInfos c with
+  | nil =>
+      simpa [AddInductive.mkRecInfos.loopCtors] using
+        Hk recInfos c Hc Hbindings Hroot
+  | cons ctor ctors ih =>
+      rw [AddInductive.mkRecInfos.loopCtors]
+      refine mkRecInfos.loopCtorArgs.resultBindings (Q := Q) stats ctor.type
+        (fun t bu u =>
+          let (itIdx, itIndices) := AddInductive.getIIndices stats t
+          let introApp := mkAppN
+            (mkAppN (.const ctor.name stats.levels) stats.params) bu
+          let motiveApp := Expr.app
+            (mkAppN recInfos[itIdx]!.motive itIndices) introApp
+          AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] fun v => do
+            let lctx ← getLCtx
+            let minorTy := lctx.mkForall bu <| lctx.mkForall v motiveApp
+            let minorName := ctor.name.replacePrefix indTypeName .anonymous
+            withLocalDecl minorName .default minorTy.consumeTypeAnnotations fun minor =>
+              let recInfos := recInfos.modify dIdx fun s =>
+                { s with minors := s.minors.push minor }
+              AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
+                ctors k)
+        c Hc ?_
+      intro t bu u cArgs HcArgs Hbu Hu hArgs
+      rcases hindices : AddInductive.getIIndices stats t with
+        ⟨itIdx, itIndices⟩
+      simp only
+      let introApp := mkAppN
+        (mkAppN (.const ctor.name stats.levels) stats.params) bu
+      let motiveApp := Expr.app
+        (mkAppN recInfos[itIdx]!.motive itIndices) introApp
+      apply mkRecInfos.loopU.resultBindings (root := cArgs) (Q := Q)
+        stats u recInfos
+        (fun v => do
+          let lctx ← getLCtx
+          let minorTy := lctx.mkForall bu <| lctx.mkForall v motiveApp
+          let minorName := ctor.name.replacePrefix indTypeName .anonymous
+          withLocalDecl minorName .default minorTy.consumeTypeAnnotations fun minor =>
+            let recInfos := recInfos.modify dIdx fun s =>
+              { s with minors := s.minors.push minor }
+            AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
+              ctors k)
+        0 #[] cArgs HcArgs (BoundFVarArray.empty cArgs)
+          (BindingContextLE.refl cArgs)
+      intro v cIH HcIH Hv hIH
+      have hget : ((getLCtx : AddInductive.M LocalContext) cIH).WF
+          (fun lctx => lctx = cIH.lctx) := by
+        intro lctx h
+        cases h
+        rfl
+      refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+        hget fun lctx hlctx => ?_
+      subst lctx
+      let minorTy := cIH.lctx.mkForall bu <| cIH.lctx.mkForall v motiveApp
+      let minorName := ctor.name.replacePrefix indTypeName .anonymous
+      apply withLocalDecl.continueRaw
+      let next := recInfos.modify dIdx fun s =>
+        { s with minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩) }
+      let cMinor : AddInductive.Context := { cIH with
+        ngen := cIH.ngen.next
+        lctx := cIH.lctx.mkLocalDecl ⟨cIH.ngen.curr⟩ minorName
+          minorTy.consumeTypeAnnotations .default }
+      apply ih next cMinor
+      · exact HcIH.withLocalDecl minorName
+          minorTy.consumeTypeAnnotations .default
+      · exact Hbindings.addMinor dIdx hidx (hArgs.trans hIH)
+          minorName minorTy.consumeTypeAnnotations .default
+      · exact (Hroot.trans hArgs).trans <| hIH.trans <|
+          BindingContextLE.withLocalDecl cIH minorName
+            minorTy.consumeTypeAnnotations .default
+      · simpa [next] using hidx
+
+end mkRecInfos.loopCtors
+
 theorem LocalForallSelection.size
     (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
   rcases H with ⟨fvars, rfl, declarations⟩
