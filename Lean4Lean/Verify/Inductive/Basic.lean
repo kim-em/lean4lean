@@ -8235,6 +8235,56 @@ theorem forall₂_append {R : α → β → Prop}
   | nil => exact H₂
   | cons h _ ih => exact .cons h ih
 
+/-- Split the right-hand list at the boundary forced by an appended
+left-hand list in a `Forall₂` derivation. -/
+theorem List.Forall₂.split_left
+    (H : List.Forall₂ R (as ++ bs) cs) :
+    ∃ cs₁ cs₂, cs = cs₁ ++ cs₂ ∧
+      List.Forall₂ R as cs₁ ∧ List.Forall₂ R bs cs₂ := by
+  induction as generalizing cs with
+  | nil => exact ⟨[], cs, by simp, .nil, H⟩
+  | cons a as ih =>
+      cases H with
+      | cons hab htail =>
+        rcases ih htail with ⟨cs₁, cs₂, rfl, hleft, hright⟩
+        exact ⟨_ :: cs₁, cs₂, by simp, .cons hab hleft, hright⟩
+
+/-- Exact inversion of a translated concrete application list.  Unlike the
+typechecker-oriented `AppStack`, this retains the final abstract spine, which
+is needed to split the field arguments and recursive results of an iota RHS. -/
+theorem TrExprS.mkAppList_inv
+    (H : TrExprS env Us Δ (Expr.mkAppList fn args) out) :
+    ∃ fn' args',
+      TrExprS env Us Δ fn fn' ∧
+      List.Forall₂ (TrExprS env Us Δ) args args' ∧
+      out = VExpr.mkApps fn' args' := by
+  induction args generalizing fn out with
+  | nil =>
+      exact ⟨out, [], H, .nil, rfl⟩
+  | cons arg args ih =>
+      simp only [Expr.mkAppList] at H
+      rcases ih H with ⟨app', args', happ, hargs, hout⟩
+      cases happ with
+      | app _ _ hfn harg =>
+        refine ⟨_, _ :: args', hfn, .cons harg hargs, ?_⟩
+        simpa [VExpr.mkApps] using hout
+
+/-- Application-spine inversion with an exact split between two concrete
+argument groups. -/
+theorem TrExprS.mkAppList_append_inv
+    (H : TrExprS env Us Δ (Expr.mkAppList fn (left ++ right)) out) :
+    ∃ fn' left' right',
+      TrExprS env Us Δ fn fn' ∧
+      List.Forall₂ (TrExprS env Us Δ) left left' ∧
+      List.Forall₂ (TrExprS env Us Δ) right right' ∧
+      out = VExpr.mkApps fn' (left' ++ right') := by
+  rcases TrExprS.mkAppList_inv H with
+    ⟨fn', args', hfn, hargs, hout⟩
+  rcases Lean4Lean.VerifyInductive.checkPositivityStep.List.Forall₂.split_left
+    hargs with
+    ⟨left', right', rfl, hleft, hright⟩
+  exact ⟨fn', left', right', hfn, hleft, hright, hout⟩
+
 /-- Translation preserves a constant-headed application spine and the
 left-to-right correspondence of all its arguments.  This is the syntax bridge
 needed by both executable recursive-target checks. -/
