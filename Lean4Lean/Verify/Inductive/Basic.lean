@@ -841,6 +841,56 @@ theorem TrInductDecl.types_length
   rcases H with ⟨_, _, _, _, _, _, _, _, htypes⟩
   exact Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes
 
+/-- Pointwise original-source translations already contain all typing and
+universe facts required by `SourceWF`. Thus the aggregate source judgment
+adds only nonemptiness and global name uniqueness, both enforced by the
+outer declaration traversal. -/
+theorem TrInductDeclCore.sourceWF
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (hnonempty : decl.types ≠ [])
+    (hnames : decl.sourceNames.Nodup) :
+    decl.SourceWF env := by
+  have hproperties : ∀ target ∈ decl.types,
+      target.uvars = decl.uvars ∧
+      target.toVConstant.WF env ∧
+      ∀ ctor ∈ target.ctors,
+        ctor.uvars = decl.uvars ∧
+        ctor.toVConstant.WF envTypes := by
+    intro target htarget
+    rcases Lean4Lean.List.Forall₂.forall_exists_r H.types target htarget with
+      ⟨source, _, Htarget⟩
+    refine ⟨Htarget.header.uvars.trans H.uvars.symm,
+      Htarget.header.wf, ?_⟩
+    intro ctor hctor
+    rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget.ctors ctor hctor with
+      ⟨sourceCtor, _, Hctor⟩
+    exact ⟨Hctor.uvars.trans H.uvars.symm, Hctor.wf⟩
+  refine ⟨hnonempty, hnames, ?_, ?_, envTypes, envCtors,
+    H.typesAdded, H.ctorsAdded, ?_, ?_⟩
+  · intro target htarget
+    exact (hproperties target htarget).1
+  · intro ctor hctor
+    simp only [VInductDecl.constructorConstants] at hctor
+    rcases List.mem_flatMap.mp hctor with ⟨target, htarget, hctor⟩
+    exact (hproperties target htarget).2.2 ctor hctor |>.1
+  · intro target htarget
+    exact (hproperties target htarget).2.1
+  · intro ctor hctor
+    simp only [VInductDecl.constructorConstants] at hctor
+    rcases List.mem_flatMap.mp hctor with ⟨target, htarget, hctor⟩
+    exact (hproperties target htarget).2.2 ctor hctor |>.2
+
+theorem TrInductDeclCore.toTrInductDecl
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (hnonempty : decl.types ≠ [])
+    (hnames : decl.sourceNames.Nodup) :
+    TrInductDecl env lparams nparams types isUnsafe decl := by
+  exact ⟨TrInductDeclCore.sourceWF H hnonempty hnames,
+    H.uvars, H.nparams, H.isUnsafe,
+    envTypes, envCtors, H.typesAdded, H.ctorsAdded, H.types⟩
+
 theorem TrInductDecl.typeAt
     (H : TrInductDecl env lparams nparams types isUnsafe decl)
     (i : Nat) (hsource : i < types.length)

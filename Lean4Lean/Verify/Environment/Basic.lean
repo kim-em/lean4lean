@@ -287,6 +287,31 @@ def TrInductDecl (env : VEnv) (lparams : List Name) (nparams : Nat)
     envTypes.addConsts decl.constructorConstants = some envCtors ∧
     List.Forall₂ (TrInductiveType env envTypes lparams) types decl.types
 
+/-- Source translation without assuming the aggregate `SourceWF` judgment.
+The pointwise `TrSourceConst` witnesses still retain the independently checked
+typing of every original header and constructor; only block nonemptiness and
+global name uniqueness are intentionally absent. -/
+structure TrInductDeclCore (env : VEnv) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe : Bool)
+    (decl : VInductDecl) (envTypes envCtors : VEnv) : Prop where
+  uvars : decl.uvars = lparams.length
+  nparams : decl.nparams = nparams
+  isUnsafe : decl.isUnsafe = isUnsafe
+  typesAdded : env.addConsts decl.typeConstants = some envTypes
+  ctorsAdded : envTypes.addConsts decl.constructorConstants = some envCtors
+  types : List.Forall₂ (TrInductiveType env envTypes lparams)
+    types decl.types
+
+theorem TrInductDecl.core
+    (H : TrInductDecl env lparams nparams types isUnsafe decl) :
+    ∃ envTypes envCtors,
+      TrInductDeclCore env lparams nparams types isUnsafe decl
+        envTypes envCtors := by
+  rcases H with ⟨_, huvars, hnparams, hunsafe, envTypes, envCtors,
+    htypes, hctors, Htypes⟩
+  exact ⟨envTypes, envCtors, huvars, hnparams, hunsafe, htypes, hctors,
+    Htypes⟩
+
 theorem TrInductDecl.sourceWF
     (H : TrInductDecl env lparams nparams types isUnsafe decl) : decl.SourceWF env :=
   H.1
