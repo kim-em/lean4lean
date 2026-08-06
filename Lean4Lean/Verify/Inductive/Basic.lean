@@ -14347,6 +14347,35 @@ theorem checkNoNestedAux_refines (name : Name) (e : Expr) :
   · exact Except.WF.pure (by simp [hfind])
   · exact Except.WF.throw
 
+/-- Syntactic facts that must hold before an expression can be treated as a
+nested occurrence. The environment lookup and parameter scan are certified
+separately, at the point where their reader/state effects are exposed. -/
+structure NestedAppShape (e : Expr) : Prop where
+  isApp : e.isApp = true
+  constHead : ∃ fn levels, e.getAppFn = .const fn levels
+
+theorem isNestedInductiveApp_shape
+    (e : Expr) (env : Environment)
+    (state : Lean4Lean.ElimNestedInductive.State) :
+    (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
+      fun out => out.1.isSome → NestedAppShape e := by
+  intro out hout hsome
+  unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
+  by_cases happ : e.isApp = false
+  · simp only [happ, Bool.not_false, if_true] at hout
+    change Except.ok (none, state) = .ok out at hout
+    cases hout
+    simp at hsome
+  · have happTrue : e.isApp = true := by
+      cases h : e.isApp <;> simp_all
+    cases hhead : e.getAppFn with
+    | const fn levels =>
+      exact ⟨happTrue, ⟨fn, levels, hhead⟩⟩
+    | _ =>
+      simp [happTrue, hhead, ReaderT.pure, StateT.pure] at hout
+      cases hout
+      simp at hsome
+
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
 type-checker's context-relative result into a source declaration judgment. -/
