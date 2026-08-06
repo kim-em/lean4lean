@@ -14583,6 +14583,47 @@ theorem isNestedInductiveApp_preservesState
       cases hout
       rfl
 
+/-- Reader/state bind specialized to nested lowering. -/
+theorem nestedBind.WF
+    {α β : Type} {P : α × Lean4Lean.ElimNestedInductive.State → Prop}
+    {Q : β × Lean4Lean.ElimNestedInductive.State → Prop}
+    {x : Lean4Lean.ElimNestedInductive.M α}
+    {f : α → Lean4Lean.ElimNestedInductive.M β}
+    (Hx : (x env state).WF P)
+    (Hf : ∀ a nextState, P (a, nextState) →
+      (f a env nextState).WF Q) :
+    ((x >>= f) env state).WF Q := by
+  exact Hx.bind fun result hresult => Hf result.1 result.2 hresult
+
+/-- Any successful replacement is rooted in an occurrence satisfying the
+independent recognition contract. This prefix theorem intentionally leaves
+cache reuse and fresh auxiliary generation to separate certificates. -/
+theorem replaceIfNested_recognized
+    (lctx : LocalContext) (params As : Array Expr) (e : Expr)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State) :
+    (Lean4Lean.ElimNestedInductive.replaceIfNested
+      lctx params As e env state).WF fun out =>
+        out.1.isSome → ∃ info, NestedAppCandidate env state e info := by
+  rw [Lean4Lean.ElimNestedInductive.replaceIfNested]
+  refine nestedBind.WF
+    (x := Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e)
+    (P := fun recognized =>
+      recognized.2 = state ∧ ∀ info, recognized.1 = some info →
+        NestedAppCandidate env state e info) ?_ ?_
+  · intro recognized hrecognized
+    exact ⟨isNestedInductiveApp_preservesState e env state
+        recognized hrecognized,
+      isNestedInductiveApp_candidate e env state recognized hrecognized⟩
+  · intro recognized nextState hrecognized
+    rcases hrecognized with ⟨hstate, hcandidate⟩
+    cases hstate
+    cases recognized with
+    | none =>
+      exact Except.WF.pure (by simp)
+    | some info =>
+      intro out _ hout
+      exact ⟨info, hcandidate info rfl⟩
+
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
 type-checker's context-relative result into a source declaration judgment. -/
