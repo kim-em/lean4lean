@@ -11457,6 +11457,95 @@ termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd1
 
+namespace mkRecInfos.loopCtorArgs.loop
+
+/-- Operational binder refinement for constructor-field classification. -/
+theorem resultBindings {alpha : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Array Expr → AddInductive.M alpha)
+    {t : Expr} {i : Nat} {bu u : Array Expr} {fuel : Nat}
+    {c : AddInductive.Context} {Q : alpha → Prop}
+    (Hc : BindingContextWF c)
+    (Hbu : BoundFVarArray c bu) (Hu : BoundFVarArray c u)
+    (Hroot : BindingContextLE root c)
+    (Hk : ∀ t bu u c, BindingContextWF c →
+      BoundFVarArray c bu → BoundFVarArray c u →
+      BindingContextLE root c → (k t bu u c).WF Q) :
+    (AddInductive.mkRecInfos.loopCtorArgs.loop stats k t i bu u fuel c).WF Q := by
+  induction fuel generalizing c t i bu u with
+  | zero =>
+    intro _ h
+    simp [AddInductive.mkRecInfos.loopCtorArgs.loop] at h
+  | succ fuel ih =>
+    cases t with
+    | forallE name dom body bi =>
+      rw [AddInductive.mkRecInfos.loopCtorArgs.loop]
+      cases hparam : stats.params[i]? with
+      | some param =>
+        change (AddInductive.mkRecInfos.loopCtorArgs.loop stats k
+          (body.instantiate1 param) (i + 1) bu u fuel c).WF Q
+        exact ih Hc Hbu Hu Hroot
+      | none =>
+        change (Lean4Lean.withLocalDecl name bi dom.consumeTypeAnnotations
+          (fun arg => do
+            let bu := bu.push arg
+            let u := if (← AddInductive.isRecArg stats dom).isSome then
+              u.push arg else u
+            AddInductive.mkRecInfos.loopCtorArgs.loop stats k
+              (body.instantiate1 arg) (i + 1) bu u fuel) c).WF Q
+        unfold Lean4Lean.withLocalDecl MonadLocalNameGenerator.withFreshId
+          AddInductive.instMonadLocalNameGeneratorM
+          AddInductive.instMonadWithReaderOfLocalContextM
+        let c' : AddInductive.Context := { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi }
+        change (AddInductive.isRecArg stats dom c' >>= fun selected =>
+          AddInductive.mkRecInfos.loopCtorArgs.loop stats
+            k (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
+            (bu.push (.fvar ⟨c.ngen.curr⟩))
+            (if selected.isSome then u.push (.fvar ⟨c.ngen.curr⟩) else u)
+            fuel c') |>.WF Q
+        have hclass : (AddInductive.isRecArg stats dom c').WF
+            (fun _ => True) := by
+          intro _ _
+          trivial
+        refine hclass.bind fun selected _ => ?_
+        let Hc' := Hc.withLocalDecl name dom.consumeTypeAnnotations bi
+        let hstep := BindingContextLE.withLocalDecl c name
+          dom.consumeTypeAnnotations bi
+        cases selected with
+        | none =>
+          exact ih Hc'
+            (Hbu.pushCurrent name dom.consumeTypeAnnotations bi)
+            (Hu.weaken name dom.consumeTypeAnnotations bi)
+            (Hroot.trans hstep)
+        | some target =>
+          exact ih Hc'
+            (Hbu.pushCurrent name dom.consumeTypeAnnotations bi)
+            (Hu.pushCurrent name dom.consumeTypeAnnotations bi)
+            (Hroot.trans hstep)
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+      | proj =>
+      change (k _ bu u c).WF Q
+      exact Hk _ _ _ _ Hc Hbu Hu Hroot
+
+end mkRecInfos.loopCtorArgs.loop
+
+theorem mkRecInfos.loopCtorArgs.resultBindings {alpha : Type}
+    (stats : AddInductive.InductiveStats) (t : Expr)
+    (k : Expr → Array Expr → Array Expr → AddInductive.M alpha)
+    (c : AddInductive.Context) {Q : alpha → Prop}
+    (Hc : BindingContextWF c)
+    (Hk : ∀ t bu u c', BindingContextWF c' →
+      BoundFVarArray c' bu → BoundFVarArray c' u →
+      BindingContextLE c c' → (k t bu u c').WF Q) :
+    (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
+  unfold AddInductive.mkRecInfos.loopCtorArgs
+  exact mkRecInfos.loopCtorArgs.loop.resultBindings stats k Hc
+    (BoundFVarArray.empty c) (BoundFVarArray.empty c)
+    (BindingContextLE.refl c) Hk
+
 theorem LocalForallSelection.size
     (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
   rcases H with ⟨fvars, rfl, declarations⟩
