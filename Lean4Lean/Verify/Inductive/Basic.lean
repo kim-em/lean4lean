@@ -2954,6 +2954,54 @@ theorem firstHeaderSynthesisWF
             htype)
       · exact parameterMismatch.WF hforall hi
 
+/-- Follow the executable later-header loop through all cached common
+parameters.  The retained suffix supplies each cached lookup and advances
+after the executable normalization step.  Once `i = nparams`, ownership of
+the unchanged loop state passes to the index/result verifier. -/
+theorem laterParametersWF
+    {alpha : Type} (Hc : ContextWF c)
+    (k : Expr → AddInductive.InductiveStats → Nat →
+      AddInductive.M alpha) (Q : alpha → Prop)
+    (Hresult : ∀ {type' current' i' fuel'},
+      i' = nparams →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type' current' →
+      (AddInductive.checkInductiveTypes.loopType nparams stats type' i'
+        nindices fuel' k c).WF Q)
+    (hnonempty : stats.indConsts.isEmpty = false)
+    (Hsuffix : ParameterContextSuffix Hc stats depth)
+    (hparams : stats.params.size = nparams)
+    (hbound : i ≤ nparams)
+    (Hscope : i < stats.params.size →
+      LaterParameterScope Hsuffix i type)
+    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type current) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats type i
+      nindices fuel k c).WF Q := by
+  induction fuel generalizing type current i with
+  | zero => exact zero.WF
+  | succ fuel ih =>
+    by_cases hi : i < nparams
+    · by_cases hforall : ∃ name dom body bi,
+          type = .forallE name dom body bi
+      · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+        rcases TrExpr.forallE_source htype with
+          ⟨dom', body', hdom, hbody, _hdomType, _hbodyType, _hcurrent⟩
+        have histats : i < stats.params.size := by
+          simpa [hparams] using hi
+        apply laterParameter.checkedScopeWF
+          (stats := stats) (nparams := nparams) (i := i)
+          (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
+          Hc hi hnonempty Hsuffix (Hscope histats) hdom hbody
+        intro paramTy' param' _hparam _hparamType _heq _habstract
+          normalized _hbelow hnormalized hnext
+        apply ih (i := i + 1) (current := body'.inst param')
+        · omega
+        · intro hlt
+          exact hnext hlt
+        · exact hnormalized
+      · exact parameterMismatch.WF hforall (Nat.ne_of_lt hi)
+    · have hieq : i = nparams := by omega
+      exact Hresult hieq htype
+
 end checkInductiveTypes.loopType
 
 namespace checkInductiveTypes.loopInd
