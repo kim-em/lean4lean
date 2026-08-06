@@ -9934,6 +9934,7 @@ theorem refines
     (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
     (AddInductive.isRecArg.loop stats type fuel c).WF
       (fun result => ∀ target, result = some target →
+        target < decl.types.length ∧
         decl.RecursiveArg Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
   induction fuel generalizing c type type' depth with
   | zero =>
@@ -9957,6 +9958,7 @@ theorem refines
         rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
         refine withLocalDecl.WF (name := name) (bi := bi)
           (Q := fun result => ∀ target, result = some target →
+            target < decl.types.length ∧
             decl.RecursiveArg Hc.venv Hc.mlctx.vlctx.toCtx depth type')
           Hc Hdom.consumed Hdom.isType ?_
         let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
@@ -9972,20 +9974,26 @@ theorem refines
         have Hrec := ih Hc' Hstats' hctx'
           (hopened.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
         exact Hrec.mono fun result hrec target htarget => by
+          rcases hrec target htarget with ⟨htarget, hrecursive⟩
           rcases Hdom.source_defeq with ⟨domLevel, hdomEq⟩
           rcases hbodyEq with ⟨bodyType, hbodyEq⟩
-          exact .forallE
+          exact ⟨htarget, .forallE
             (by simpa [Hstats.uvars] using hsourceExposed)
             (by simpa [Hstats.uvars] using hdomEq)
             (by simpa [Hstats.uvars] using hbodyEq)
-            (hrec target htarget)
+            hrecursive⟩
     · cases normalized <;> try { simp at hforall }
       all_goals
         change (Except.ok (AddInductive.isValidIndApp? stats _)).WF _
-        exact Except.WF.pure fun target htarget =>
-          .direct (by simpa [Hstats.uvars] using hsourceExposed)
+        exact Except.WF.pure fun target hvalid => by
+          rcases checkPositivityStep.isValidIndApp?_some hvalid with
+            ⟨htargetLt, _⟩
+          refine ⟨?_, .direct
+            (by simpa [Hstats.uvars] using hsourceExposed)
             (checkPositivityStep.isValidIndApp?.validIndAppAt Hstats hexposed
-              htarget hlit hctx hproj)
+              hvalid hlit hctx hproj)⟩
+          rw [← Hstats.types_size]
+          exact htargetLt
 
 end isRecArg.loop
 
@@ -10004,6 +10012,7 @@ theorem isRecArg.refines
     (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
     (AddInductive.isRecArg stats type c).WF
       (fun result => ∀ target, result = some target →
+        target < decl.types.length ∧
         decl.RecursiveArg Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
   unfold AddInductive.isRecArg
   have hread : ((read : AddInductive.M AddInductive.Context) c).WF
@@ -10207,6 +10216,8 @@ The executable code stores only the field free variable; this record retains
 the independent recursive-domain certificate needed by `IotaRule`. -/
 structure RecursorRecursiveDomain (env : VEnv) (decl : VInductDecl) where
   fieldIndex : Nat
+  ownerIdx : Nat
+  owner_lt : ownerIdx < decl.types.length
   ctx : List VExpr
   depth : Nat
   domain : VExpr
@@ -10782,12 +10793,15 @@ theorem recursiveDomains {α : Type}
         exact ih Hc' Hstats' (by omega) hctx' hopened
           (.nonrecursive hfields) hargsWeak
       | some target =>
+        rcases hselected target rfl with ⟨howner, hrecursive⟩
         let cert : RecursorRecursiveDomain Hc'.venv decl := {
           fieldIndex := bu.size
+          ownerIdx := target
+          owner_lt := howner
           ctx := Hc'.mlctx.vlctx.toCtx
           depth := depth + 1
           domain := sourceDom'.liftN 1 0
-          recursive := hselected target rfl }
+          recursive := hrecursive }
         have hargs' : List.Forall₂
             (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
             (u.push (.fvar ⟨c.ngen.curr⟩)).toList
@@ -17141,6 +17155,64 @@ def GeneratedRecursorsPrefix.complete
       recInfos entries where
   length := hcomplete
   entry := H.entry
+
+/-- A validated mutual-family owner index names an actually generated
+recursor. This is the global half of the pointwise `RecursorsPresent`
+obligation retained by generated recursive calls. -/
+theorem GeneratedRecursors.recursorName_mem
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries)
+    (hrecords : recInfos.size = indTypes.size)
+    (ownerIdx : Nat) (howner : ownerIdx < indTypes.size) :
+    Lean.mkRecName indTypes[ownerIdx]!.name ∈
+      (entries.map Prod.snd).map (·.name) := by
+  have hentry : ownerIdx < entries.length := by
+    rw [H.length, hrecords]
+    exact howner
+  let E := H.entry ownerIdx hentry
+  have htranslatedName : E.info.name = entries[ownerIdx].2.name := by
+    exact E.translated.2
+  have hname : entries[ownerIdx].2.name =
+      Lean.mkRecName indTypes[ownerIdx]!.name := by
+    rw [← htranslatedName, E.name]
+  rw [← hname]
+  exact List.mem_map.mpr ⟨entries[ownerIdx].2,
+    List.mem_map.mpr ⟨entries[ownerIdx], List.getElem_mem hentry, rfl⟩,
+    rfl⟩
+
+theorem GeneratedRecursors.recursorName_mem_block
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries)
+    (block : VInductBlock)
+    (hrecords : recInfos.size = indTypes.size)
+    (hrecursors : block.recursors = entries.map Prod.snd)
+    (ownerIdx : Nat) (howner : ownerIdx < indTypes.size) :
+    Lean.mkRecName indTypes[ownerIdx]!.name ∈
+      block.recursors.map (·.name) := by
+  rw [hrecursors]
+  exact H.recursorName_mem hrecords ownerIdx howner
+
+/-- The retained owner of a typed recursive field selects a generated
+recursor in the installed block. -/
+theorem GeneratedRecursors.recursiveDomainRecursor_mem_block
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries)
+    (block : VInductBlock)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl)
+    (hrecursors : block.recursors = entries.map Prod.snd)
+    (cert : RecursorRecursiveDomain domainEnv decl) :
+    Lean.mkRecName indTypes[cert.ownerIdx]!.name ∈
+      block.recursors.map (·.name) := by
+  have htypes : indTypes.size = decl.types.length := by
+    simpa using Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl
+  have hrecords : recInfos.size = indTypes.size := by
+    rw [Hcard.records, htypes]
+  have howner : cert.ownerIdx < indTypes.size := by
+    rw [htypes]
+    exact cert.owner_lt
+  exact H.recursorName_mem_block block hrecords hrecursors cert.ownerIdx howner
 
 theorem GeneratedRecursors.recursorCertificate
     (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
