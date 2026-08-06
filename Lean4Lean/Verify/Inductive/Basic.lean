@@ -11143,6 +11143,21 @@ theorem Expr.abstractList_fvarArray_of_disjoint
     exact Expr.abstractList_fvar_of_not_mem <|
       hdisjoint xs[i] (List.getElem_mem hi)
 
+theorem Expr.abstractList_indexBVars
+    (binders : List FVarId) (n k : Nat) (hk : n < k) :
+    ((List.ofFn fun i : Fin n =>
+        Expr.bvar (1 + (n - 1 - i))).toArray.map
+      fun e => e.abstractList binders k) =
+    (List.ofFn fun i : Fin n =>
+      Expr.bvar (1 + (n - 1 - i))).toArray := by
+  apply Array.ext
+  · simp
+  · intro i hiLeft hiRight
+    have hi : i < n := by simpa using hiRight
+    simp only [Array.getElem_map, List.getElem_toArray, List.getElem_ofFn]
+    apply Expr.abstractList_bvar_lt
+    omega
+
 /-- Translation erases names and binder annotations but preserves the exact
 number of leading forall binders. -/
 theorem TrExprS.forallTelescope_shape
@@ -12819,6 +12834,157 @@ def RecursorLocalSelections.residual
     ((recInfos.map (·.motive)).size +
       (recInfos.flatMap (·.minors)).size +
       recInfos[ownerIdx]!.indices.size + 1)
+
+def concreteRecursorResult
+    (numMotives numMinors numIndices ownerIdx : Nat) : Expr :=
+  let motiveOffset :=
+    1 + numIndices + numMinors + (numMotives - 1 - ownerIdx)
+  let indexVars := (List.ofFn fun i : Fin numIndices =>
+    Expr.bvar (1 + (numIndices - 1 - i))).toArray
+  .app (mkAppN (.bvar motiveOffset) indexVars) (.bvar 0)
+
+/-- Distinct retained binders make the executable five-stage abstraction
+compute to the canonical de Bruijn result used by the abstract recursor
+specification. -/
+theorem RecursorLocalSelections.residual_eq_concreteRecursorResult
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size) (hnoalias : H.NoAlias) :
+    H.residual
+      (.app (mkAppN recInfos[ownerIdx]!.motive
+        recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major) =
+      concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx := by
+  let motiveFVars := H.motives.fvars
+  let minorFVars := H.minors.fvars
+  let indexFVars := H.indices.fvars
+  let majorFVars := H.major.fvars
+  have hmotivesLen : motiveFVars.length = recInfos.size := by
+    have h := H.motives.size
+    simpa [motiveFVars] using h.symm
+  have hownerMotive : ownerIdx < motiveFVars.length := by
+    simpa [hmotivesLen] using howner
+  have hindicesLen : indexFVars.length =
+      recInfos[ownerIdx]!.indices.size := by
+    simpa [indexFVars] using H.indices.size.symm
+  have hmajorLen : majorFVars.length = 1 := by
+    simpa [majorFVars] using H.major.size.symm
+  have hmotive : recInfos[ownerIdx]!.motive =
+      .fvar motiveFVars[ownerIdx] := by
+    have hget := congrArg (fun xs => xs[ownerIdx]!) H.motives.expressions
+    simpa [motiveFVars, Array.getElem!_eq_getD, Array.getD, howner,
+      hownerMotive] using hget
+  have hindices : recInfos[ownerIdx]!.indices =
+      (indexFVars.map Expr.fvar).toArray := H.indices.expressions
+  have hmajor : recInfos[ownerIdx]!.major = .fvar majorFVars[0] := by
+    have hget := congrArg (fun xs => xs[0]!) H.major.expressions
+    simpa [majorFVars, hmajorLen] using hget
+  let body : Expr := .app (mkAppN (.fvar motiveFVars[ownerIdx])
+    (indexFVars.map Expr.fvar).toArray) (.fvar majorFVars[0])
+  have hbody :
+      (.app (mkAppN recInfos[ownerIdx]!.motive
+        recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major) = body := by
+    simp [body, hmotive, hindices, hmajor]
+  rw [hbody]
+  let parts := hnoalias.parts
+  have hmotiveMajor : motiveFVars[ownerIdx] ∉ majorFVars := by
+    intro hmem
+    exact parts.motives_later motiveFVars[ownerIdx]
+      (List.getElem_mem hownerMotive) motiveFVars[ownerIdx]
+      (by simpa [minorFVars, indexFVars, majorFVars, hmem]) rfl
+  have hmotiveIndices : motiveFVars[ownerIdx] ∉ indexFVars := by
+    intro hmem
+    exact parts.motives_later motiveFVars[ownerIdx]
+      (List.getElem_mem hownerMotive) motiveFVars[ownerIdx]
+      (by simpa [minorFVars, indexFVars, majorFVars, hmem]) rfl
+  have hmotiveMinors : motiveFVars[ownerIdx] ∉ minorFVars := by
+    intro hmem
+    exact parts.motives_later motiveFVars[ownerIdx]
+      (List.getElem_mem hownerMotive) motiveFVars[ownerIdx]
+      (by simpa [minorFVars, indexFVars, majorFVars, hmem]) rfl
+  have hindicesMajor : ∀ fv ∈ indexFVars, fv ∉ majorFVars := by
+    intro fv hfv hmem
+    exact parts.indices_major fv hfv fv hmem rfl
+  let afterMajor := body.abstractList majorFVars
+  have hmajorBound : 0 < majorFVars.length := by omega
+  have hmajorOffset : majorFVars.length - 1 = 0 := by omega
+  have hAfterMajor : afterMajor =
+      .app (mkAppN (.fvar motiveFVars[ownerIdx])
+        (indexFVars.map Expr.fvar).toArray) (.bvar 0) := by
+    unfold afterMajor body
+    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
+      Expr.abstractList_fvar_of_not_mem hmotiveMajor,
+      Expr.abstractList_fvarArray_of_disjoint indexFVars majorFVars 0
+        hindicesMajor,
+      Expr.abstractList_fvar_getElem parts.major 0 hmajorBound]
+    simp [majorFVars, hmajorOffset]
+  let indexBVars := (List.ofFn fun i : Fin indexFVars.length =>
+    Expr.bvar (1 + (indexFVars.length - 1 - i))).toArray
+  let afterIndices := afterMajor.abstractList indexFVars 1
+  have hAfterIndices : afterIndices =
+      .app (mkAppN (.fvar motiveFVars[ownerIdx]) indexBVars) (.bvar 0) := by
+    unfold afterIndices
+    rw [hAfterMajor]
+    unfold indexBVars
+    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
+      Expr.abstractList_fvar_of_not_mem hmotiveIndices,
+      Expr.abstractList_fvarArray indexFVars 1 parts.indices]
+    rw [Expr.abstractList_bvar_lt indexFVars (by omega : 0 < 1)]
+  let afterMinors := afterIndices.abstractList minorFVars
+    (indexFVars.length + 1)
+  have hAfterMinors : afterMinors =
+      .app (mkAppN (.fvar motiveFVars[ownerIdx]) indexBVars) (.bvar 0) := by
+    unfold afterMinors
+    rw [hAfterIndices]
+    unfold indexBVars
+    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
+      Expr.abstractList_fvar_of_not_mem hmotiveMinors,
+      Expr.abstractList_indexBVars minorFVars indexFVars.length
+        (indexFVars.length + 1) (by omega),
+      Expr.abstractList_bvar_lt minorFVars (by omega : 0 < indexFVars.length + 1)]
+  let motiveBase := minorFVars.length + indexFVars.length + 1
+  let afterMotives := afterMinors.abstractList motiveFVars motiveBase
+  have hAfterMotives : afterMotives =
+      .app (mkAppN
+        (.bvar (motiveBase + (motiveFVars.length - 1 - ownerIdx)))
+        indexBVars) (.bvar 0) := by
+    unfold afterMotives
+    rw [hAfterMinors]
+    unfold indexBVars
+    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
+      Expr.abstractList_fvar_getElem parts.motives ownerIdx hownerMotive,
+      Expr.abstractList_indexBVars motiveFVars indexFVars.length motiveBase
+        (by simp [motiveBase]; omega)]
+    rw [Expr.abstractList_bvar_lt motiveFVars (by simp [motiveBase])]
+  let allBase := motiveFVars.length + motiveBase
+  have hAfterParams : afterMotives.abstractList H.params.fvars allBase =
+      .app (mkAppN
+        (.bvar (motiveBase + (motiveFVars.length - 1 - ownerIdx)))
+        indexBVars) (.bvar 0) := by
+    rw [hAfterMotives]
+    unfold indexBVars
+    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
+      Expr.abstractList_bvar_lt H.params.fvars (by
+        simp [allBase, motiveBase]
+        omega),
+      Expr.abstractList_indexBVars H.params.fvars indexFVars.length allBase
+        (by simp [allBase, motiveBase]; omega),
+      Expr.abstractList_bvar_lt H.params.fvars (by
+        simp [allBase, motiveBase]
+        omega)]
+  dsimp only [RecursorLocalSelections.residual]
+  change ((afterIndices.abstractList minorFVars
+      (recInfos[ownerIdx]!.indices.size + 1)).abstractList motiveFVars
+        ((recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1)).abstractList H.params.fvars
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1) = _
+  rw [← hindicesLen, H.minors.size, H.motives.size]
+  simpa [afterMotives, afterMinors, afterIndices, afterMajor,
+    concreteRecursorResult, indexBVars, motiveBase, allBase,
+    motiveFVars, minorFVars, indexFVars,
+    Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hAfterParams
 
 /-- Exact concrete telescope produced by the five nested `mkForall` calls in
 `AddInductive.run`. -/
