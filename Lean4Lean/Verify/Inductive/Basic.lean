@@ -9398,6 +9398,158 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomains {α : Type}
   exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
     inputContext.fuel.inductiveFuel
 
+namespace mkRecInfos.loopArgs1
+
+/-- `loopArgs1` cannot manufacture a successful result: after any sequence
+of WHNF steps and local index binders it returns only through its supplied
+continuation. This structural fact is the outer-loop interface used to count
+one motive record per mutual family. -/
+theorem continueWith {α : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Array Expr → AddInductive.M α)
+    {Q : α → Prop}
+    (Hk : ∀ indices c, (k indices c).WF Q) :
+    ∀ type i indices fuel c,
+      (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
+  | _, _, _, 0, _ => by
+      intro _ h
+      simp [AddInductive.mkRecInfos.loopArgs1] at h
+  | type, i, indices, fuel + 1, c => by
+      cases type with
+      | forallE name dom body bi =>
+        rw [AddInductive.mkRecInfos.loopArgs1]
+        by_cases hparam : i < stats.params.size
+        · rw [if_pos hparam]
+          have hwhnf :
+              ((monadLift (TypeChecker.whnf
+                (body.instantiate1 stats.params[i]!)) :
+                AddInductive.M Expr) c).WF (fun _ => True) := by
+            intro _ _
+            trivial
+          exact hwhnf.bind fun next _ =>
+            continueWith stats k Hk next (i + 1) indices fuel c
+        · rw [if_neg hparam]
+          unfold Lean4Lean.withLocalDecl
+            MonadLocalNameGenerator.withFreshId
+            AddInductive.instMonadLocalNameGeneratorM
+            AddInductive.instMonadWithReaderOfLocalContextM
+          let c' : AddInductive.Context := { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }
+          change ((monadLift (TypeChecker.whnf
+            (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+              AddInductive.M Expr) c' >>= fun next =>
+              AddInductive.mkRecInfos.loopArgs1 stats next i
+                (indices.push (.fvar ⟨c.ngen.curr⟩)) fuel k c').WF Q
+          have hwhnf :
+              ((monadLift (TypeChecker.whnf
+                (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+                AddInductive.M Expr) c').WF (fun _ => True) := by
+            intro _ _
+            trivial
+          exact hwhnf.bind fun next _ =>
+            continueWith stats k Hk next i
+              (indices.push (.fvar ⟨c.ngen.curr⟩)) fuel c'
+      | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+        | proj =>
+          simpa [AddInductive.mkRecInfos.loopArgs1] using Hk indices c
+
+end mkRecInfos.loopArgs1
+
+/-- Structural opening of a production local declaration when the proof only
+needs to follow the continuation and does not yet claim typing for the new
+domain. -/
+theorem withLocalDecl.continueRaw
+    {α : Type} {Q : α → Prop} {k : Expr → AddInductive.M α}
+    {c : AddInductive.Context} {name : Name} {bi : BinderInfo} {ty : Expr}
+    (H : (k (.fvar ⟨c.ngen.curr⟩) { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
+    (Lean4Lean.withLocalDecl name bi ty k c).WF Q := by
+  unfold Lean4Lean.withLocalDecl MonadLocalNameGenerator.withFreshId
+    AddInductive.instMonadLocalNameGeneratorM
+    AddInductive.instMonadWithReaderOfLocalContextM
+  exact H
+
+/-- `Except.WF.bind` lifted across the reader layer used by the executable
+inductive checker. Keeping the reader bind visible avoids repeatedly
+unfolding `ReaderT` in structural traversal proofs. -/
+theorem readerBind.WF
+    {α β : Type} {Q : α → Prop} {R : β → Prop}
+    {x : AddInductive.M α} {f : α → AddInductive.M β}
+    {c : AddInductive.Context}
+    (Hx : (x c).WF Q) (Hf : ∀ a, Q a → (f a c).WF R) :
+    ((x >>= f) c).WF R := by
+  exact Hx.bind Hf
+
+namespace mkRecInfos.loopInd1
+
+/-- The first recursor pass appends exactly one `RecInfo` (motive, indices,
+major premise) for each mutual family. -/
+theorem resultCount
+    {α : Type} {Q : α → Prop}
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (k : Array AddInductive.RecInfo → AddInductive.M α)
+    (c : AddInductive.Context)
+    (hdone : dIdx ≤ indTypes.size)
+    (hsize : recInfos.size = dIdx)
+    (Hk : ∀ recInfos c, recInfos.size = indTypes.size →
+      (k recInfos c).WF Q) :
+    (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel dIdx
+      recInfos k c).WF Q := by
+  rw [AddInductive.mkRecInfos.loopInd1]
+  by_cases hidx : dIdx < indTypes.size
+  · rw [dif_pos hidx]
+    have hread : ((readThe AddInductive.Context :
+        AddInductive.M AddInductive.Context) c).WF
+        (fun c' => c' = c) := by
+      intro c' h
+      cases h
+      rfl
+    refine readerBind.WF (x := readThe AddInductive.Context) hread fun ctx hctx => ?_
+    subst ctx
+    have hwhnf :
+        ((monadLift (TypeChecker.whnf indTypes[dIdx].type) :
+          AddInductive.M Expr) c).WF (fun _ => True) := by
+      intro _ _
+      trivial
+    refine hwhnf.bind fun type _ => ?_
+    apply mkRecInfos.loopArgs1.continueWith stats
+    intro indices cIndices
+    apply withLocalDecl.continueRaw
+    let cMajor : AddInductive.Context := { cIndices with
+      ngen := cIndices.ngen.next
+      lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
+        (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices).consumeTypeAnnotations
+        .default }
+    have hget : ((getLCtx : AddInductive.M LocalContext) cMajor).WF
+        (fun lctx => lctx = cMajor.lctx) := by
+      intro lctx h
+      cases h
+      rfl
+    refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+      hget fun lctx hlctx => ?_
+    subst lctx
+    apply withLocalDecl.continueRaw
+    apply mkRecInfos.loopInd1.resultCount
+      (stats := stats) (indTypes := indTypes) (elimLevel := elimLevel)
+      (dIdx := dIdx + 1) (recInfos := recInfos.push {
+        motive := .fvar ⟨cMajor.ngen.curr⟩, minors := #[], indices := indices,
+        major := .fvar ⟨cIndices.ngen.curr⟩ }) (k := k)
+      (Q := Q)
+    · omega
+    · simpa [hsize]
+    · exact Hk
+  · rw [dif_neg hidx]
+    apply Hk
+    omega
+termination_by indTypes.size - dIdx
+
+end mkRecInfos.loopInd1
+
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
 theorem checkConstructors.loopCtor.tailRefinesFull
