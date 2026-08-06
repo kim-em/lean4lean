@@ -11314,6 +11314,70 @@ def RecInfoBindings.pushFrame
       rw [hget]
       exact (H.minors i hiOld).mono hall
 
+def RecInfoBindings.addMinor
+    (H : RecInfoBindings c recInfos) (dIdx : Nat)
+    (hidx : dIdx < recInfos.size)
+    (hle : BindingContextLE c cMinorTy)
+    (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo) :
+    let cMinor : AddInductive.Context := { cMinorTy with
+      ngen := cMinorTy.ngen.next
+      lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
+        minorName minorTy minorBi }
+    RecInfoBindings cMinor (recInfos.modify dIdx fun info =>
+      { info with minors := info.minors.push (.fvar ⟨cMinorTy.ngen.curr⟩) }) := by
+  dsimp only
+  let cMinor : AddInductive.Context := { cMinorTy with
+    ngen := cMinorTy.ngen.next
+    lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
+      minorName minorTy minorBi }
+  let hstep := BindingContextLE.withLocalDecl cMinorTy
+    minorName minorTy minorBi
+  let hall := hle.trans hstep
+  refine {
+    motives := ?_
+    majors := ?_
+    indices := ?_
+    minors := ?_
+  }
+  · have heq : (recInfos.modify dIdx fun info =>
+        { info with
+          minors := info.minors.push (.fvar ⟨cMinorTy.ngen.curr⟩) }).map (·.motive) =
+        recInfos.map (·.motive) := by
+      apply Array.ext
+      · simp
+      · intro i hiLeft hiRight
+        by_cases hdi : dIdx = i <;> simp [Array.getElem_modify, hdi]
+    rw [heq]
+    exact H.motives.mono hall
+  · have heq : (recInfos.modify dIdx fun info =>
+        { info with
+          minors := info.minors.push (.fvar ⟨cMinorTy.ngen.curr⟩) }).map (·.major) =
+        recInfos.map (·.major) := by
+      apply Array.ext
+      · simp
+      · intro i hiLeft hiRight
+        by_cases hdi : dIdx = i <;> simp [Array.getElem_modify, hdi]
+    rw [heq]
+    exact H.majors.mono hall
+  · intro i hi
+    have hiOld : i < recInfos.size := by simpa using hi
+    by_cases heq : dIdx = i
+    · subst i
+      rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+      exact (H.indices dIdx hidx).mono hall
+    · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hiOld heq]
+      exact (H.indices i hiOld).mono hall
+  · intro i hi
+    have hiOld : i < recInfos.size := by simpa using hi
+    by_cases heq : dIdx = i
+    · subst i
+      rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+      simpa [cMinor] using
+        ((H.minors dIdx hidx).mono hle).pushCurrent
+          minorName minorTy minorBi
+    · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hiOld heq]
+      exact (H.minors i hiOld).mono hall
+
 namespace mkRecInfos.loopArgs1
 
 /-- Operational strengthening of `continueWith`: every non-parameter binder
