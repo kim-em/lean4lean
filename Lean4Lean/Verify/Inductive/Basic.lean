@@ -9271,6 +9271,274 @@ theorem checkConstructors.loopCtor.tailRefinesFull
     exact checkPositivity.refines Hc' Hstats' hconsume hlit hctx' hproj htype'
   · exact htr
 
+/-- Regard a constructor constant as the root of a telescope synthesis.  The
+existing narrow header certificate only uses the constant fields of its
+`target`; the empty constructor list therefore lets the same, already proved
+wrapping invariant serve constructor parameter prefixes without duplicating
+it. -/
+def constructorTelescopeTarget (ctorVal : VConstVal) :
+    VInductiveTypeSkeleton where
+  toVConstVal := ctorVal
+  ctors := []
+
+/-- Initialize constructor telescope synthesis from the independently
+translated source constant. -/
+noncomputable def ConstructorSynthesisState.initial
+    (Hctor : TrSourceConst env Us ctor type ctorVal) :
+    checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      env Us (constructorTelescopeTarget ctorVal) [] ctorVal.type 0 0 := by
+  have htype : env.IsType Us.length [] ctorVal.type := by
+    have hwf := Hctor.wf
+    change env.IsType ctorVal.uvars [] ctorVal.type at hwf
+    rwa [Hctor.uvars] at hwf
+  let level := Classical.choose htype
+  have htyped := Classical.choose_spec htype
+  exact checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
+    htype htype htyped
+
+/-- A successful cached-parameter comparison advances the semantic
+constructor telescope directly.  The executable loop performs no
+normalization in this branch: after converting the binder context from the
+source domain to the cached parameter type, opening the source body with the
+cached free variable supplies the next residual verbatim. -/
+theorem checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.consumeConstructorParameter
+    (henv : env.WF)
+    (H : NarrowHeaderSynthesisCertificate env Us target scope current i 0)
+    (htype : TrExprS env Us scope (.forallE name dom body bi) current)
+    (hscopeWF : VLCtx.WF env Us.length
+      ((some (fv, deps), .vlam paramType) :: scope))
+    (hdomain : ∃ sourceDom,
+      TrExprS env Us scope dom sourceDom ∧
+      env.IsDefEqU Us.length scope.toCtx sourceDom paramType) :
+    ∃ next,
+      TrExprS env Us ((some (fv, deps), .vlam paramType) :: scope)
+        (body.instantiate1' (.fvar fv)) next ∧
+      Nonempty (NarrowHeaderSynthesisCertificate env Us target
+        ((some (fv, deps), .vlam paramType) :: scope) next (i + 1) 0) := by
+  cases htype with
+  | forallE hdomType _hbodyType hdom hbody =>
+    rcases hdomain with ⟨sourceDom, hsourceDom, hsourceDomEq⟩
+    have hscopeEq : VLCtx.IsDefEq env Us.length scope scope :=
+      .refl henv H.scopeWF
+    have hdomEq : env.IsDefEqU Us.length scope.toCtx _ paramType :=
+      (hdom.uniq henv hscopeEq hsourceDom).trans henv H.scopeWF.toCtx
+        hsourceDomEq
+    have hdomTyped := hdomEq.of_l henv H.scopeWF.toCtx
+      (Classical.choose_spec hdomType)
+    have hbodyCtx : VLCtx.IsDefEq env Us.length
+        ((none, .vlam _) :: scope)
+        ((none, .vlam paramType) :: scope) :=
+      .cons hscopeEq nofun (.vlam hdomTyped)
+    rcases hbody.defeqDFC henv hbodyCtx with ⟨next, hnext⟩
+    have hopened : TrExprS env Us
+        ((some (fv, deps), .vlam paramType) :: scope)
+        (body.instantiate1' (.fvar fv)) next :=
+      hnext.inst_fvar henv.ordered hscopeWF
+    have hbodyWF : VLCtx.WF env Us.length
+        ((none, .vlam paramType) :: scope) :=
+      ⟨H.scopeWF, nofun, ⟨_, hdomTyped.hasType.2⟩⟩
+    have hnextRefl : env.IsDefEqU Us.length
+        (paramType :: scope.toCtx) next next :=
+      hnext.wf henv.ordered hbodyWF
+    have hindices : H.indices = [] :=
+      List.eq_nil_of_length_eq_zero H.indexCount
+    have htype' : TrExprS env Us scope
+        (.forallE name dom body bi) (.forallE _ _) :=
+      .forallE hdomType _hbodyType hdom hbody
+    rcases H.consumeParameter (name := name) (bi := bi)
+        henv hindices htype' hscopeWF
+        ⟨sourceDom, hsourceDom, hsourceDomEq⟩
+        ⟨next, next, hnext, hopened, hnextRefl⟩ with
+      ⟨next', hopened', Hnext⟩
+    exact ⟨next', hopened', Hnext⟩
+
+/-- Traverse the executable constructor's common-parameter prefix while
+building its independent semantic telescope.  The two callbacks isolate the
+control-flow boundaries: exact parameter coverage hands the synthesized tail
+to the field verifier, while an early non-forall is discharged separately by
+the invalid-result argument. -/
+theorem checkConstructors.loopCtor.parameterSynthesisWF
+    {decl : VInductDecl} {ctorVal : VConstVal}
+    (Hc : ContextWF c)
+    {Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth}
+    (Q : Unit → Prop)
+    (Hresult : ∀ {source' : Expr}
+        {current' fullCurrent' : VExpr} {fuel' : Nat},
+      (Hsynthesis' :
+        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
+          Hsuffix.parameterDecls current' decl.nparams 0) →
+      TrExprS Hc.venv c.lparams Hsuffix.parameterDecls source' current' →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx source' fullCurrent' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+        source' decl.nparams (fuel' + 1) c).WF Q)
+    (Hearly : ∀ {source' : Expr} {scope' : VLCtx}
+        {current' fullCurrent' : VExpr} {i' fuel' : Nat},
+      i' < decl.nparams →
+      (¬ ∃ name dom body bi, source' = .forallE name dom body bi) →
+      checkInductiveTypes.loopType.LaterParameterScope
+        Hsuffix i' source' →
+      (Hsynthesis' :
+        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
+          scope' current' i' 0) →
+      TrExprS Hc.venv c.lparams scope' source' current' →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx source' fullCurrent' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+        source' i' (fuel' + 1) c).WF Q)
+    (hparams : stats.params.size = decl.nparams)
+    (hbound : i ≤ decl.nparams)
+    (Hscope : ∀ h : i < stats.params.size,
+      checkInductiveTypes.loopType.LaterParameterScope Hsuffix i source)
+    (hscopeEq : ∀ h : i < stats.params.size,
+      scope = (Hscope h).older)
+    (hcompleteScope : i = decl.nparams →
+      scope = Hsuffix.parameterDecls)
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
+        scope current i 0)
+    (htypeNarrow : TrExprS Hc.venv c.lparams scope source current)
+    (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      source fullCurrent) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      source i fuel c).WF Q := by
+  induction fuel generalizing source scope current fullCurrent i with
+  | zero => exact checkConstructors.loopCtor.zero.WF
+  | succ fuel ih =>
+    by_cases hi : i < decl.nparams
+    · have histats : i < stats.params.size := by
+        simpa [hparams] using hi
+      by_cases hforall : ∃ name dom body bi,
+          source = .forallE name dom body bi
+      · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+        let Hcurrent := Hscope histats
+        have hscope : scope = Hcurrent.older := hscopeEq histats
+        subst scope
+        cases htypeNarrow with
+        | @forallE narrowDom narrowBody _ _ _ _ _
+            hdomNarrowType hbodyNarrowType hdomNarrow hbodyNarrow =>
+          rcases TrExpr.forallE_source htypeFull with
+            ⟨fullDom, fullBody, hdomFull, hbodyFull,
+              _hdomFullType, _hbodyFullType, _hfullCurrent⟩
+          rcases Hcurrent.typing with
+            ⟨paramTy, paramTy', param', hget, hparamTy,
+              hparamTyEq, hparam, hparamType⟩
+          have hparamAt : stats.params[i]? = some stats.params[i]! := by
+            simp [Array.getElem!_eq_getD, histats]
+          refine checkConstructors.loopCtor.parameter.sourceWF
+            (Q := Q) Hc hparamAt hget hdomFull hbodyFull
+              hparamTy hparam hparamType ?_
+          intro heq hopenedFull
+          rcases Hcurrent.domainDefEq hdomFull hparamTyEq heq with
+            ⟨sourceDom, hsourceDom, hsourceDomEq⟩
+          have hconsumedWF : VLCtx.WF Hc.venv c.lparams.length
+              ((some (Hcurrent.fv, Hcurrent.deps),
+                .vlam Hcurrent.paramType) :: Hcurrent.older) :=
+            Hcurrent.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+          have htypeNarrow' : TrExprS Hc.venv c.lparams Hcurrent.older
+              (.forallE name dom body bi) (.forallE narrowDom narrowBody) :=
+            .forallE hdomNarrowType hbodyNarrowType
+              hdomNarrow hbodyNarrow
+          rcases Hsynthesis.consumeConstructorParameter
+              (name := name) (bi := bi)
+              Hc.checking.tr.wf
+              htypeNarrow'
+              hconsumedWF
+              ⟨sourceDom, hsourceDom, hsourceDomEq⟩ with
+            ⟨next, hopenedNarrow, ⟨Hsynthesis'⟩⟩
+          have hopenedNarrow' : TrExprS Hc.venv c.lparams
+              ((some (Hcurrent.fv, Hcurrent.deps),
+                .vlam Hcurrent.paramType) :: Hcurrent.older)
+              (body.instantiate1 stats.params[i]!) next := by
+            simpa [Expr.instantiate1_eq, Hcurrent.parameter] using
+              hopenedNarrow
+          let Hbody :
+              checkInductiveTypes.loopType.LaterParameterScope
+                Hsuffix i body :=
+            { Hcurrent with fvars := Hcurrent.fvars.2 }
+          exact ih (i := i + 1)
+            (scope := (some (Hcurrent.fv, Hcurrent.deps),
+              .vlam Hcurrent.paramType) :: Hcurrent.older)
+            (current := next) (fullCurrent := fullBody.inst param')
+            (hbound := by omega)
+            (Hscope := fun hlt => Hbody.next hlt (fun _ _ h => h))
+            (hscopeEq := fun hlt =>
+              Hbody.nextOlder (Hbody.next hlt (fun _ _ h => h)) hlt)
+            (hcompleteScope := fun heq => by
+              have hdone : i + 1 = stats.params.size := by
+                rw [hparams]
+                exact heq
+              exact Hbody.completedScope hdone)
+            Hsynthesis' hopenedNarrow'
+            (hopenedFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+      · exact Hearly hi hforall (Hscope histats)
+          Hsynthesis htypeNarrow htypeFull
+    · have hieq : i = decl.nparams := by omega
+      subst i
+      have hscope := hcompleteScope rfl
+      subst scope
+      exact Hresult Hsynthesis htypeNarrow htypeFull
+
+theorem _root_.Lean4Lean.FVarsIn.getAppArgsList
+    (H : FVarsIn P e) (ha : a ∈ e.getAppArgsList) : FVarsIn P a := by
+  have H' : FVarsIn P
+      (e.getAppFn.mkAppRevList e.getAppArgsRevList) := by
+    rw [Expr.mkAppRevList_getAppArgsRevList]
+    exact H
+  have ha' : a ∈ e.getAppArgsRevList := by
+    simpa [← Expr.getAppArgsList_reverse] using ha
+  exact (FVarsIn.appRevList.mp H').2 a ha'
+
+theorem _root_.Lean4Lean.Expr.eqv_fvar_eq
+    (H : (((.fvar fv : Expr) == e)) = true) : e = .fvar fv := by
+  cases e <;> simp [(· == ·), Expr.eqv'] at H
+  rename_i fv'
+  have : fv = fv' := beq_iff_eq.mp H
+  cases this
+  rfl
+
+/-- A constructor cannot reach its result before consuming every cached
+parameter.  A valid result application would contain the current cached free
+variable as argument `i`, whereas `LaterParameterScope` proves that the tail
+can mention only the strictly older cached parameters. -/
+theorem checkConstructors.loopCtor.earlyParameterResult.WF
+    (Hc : ContextWF c)
+    {Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth}
+    (Hscope : checkInductiveTypes.loopType.LaterParameterScope
+      Hsuffix i source)
+    (hi : i < stats.params.size)
+    (hforall : ¬ ∃ name dom body bi,
+      source = .forallE name dom body bi) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      source i (fuel + 1) c).WF Q := by
+  cases hvalid : AddInductive.isValidIndAppIdx stats source targetIdx
+  · exact checkConstructors.loopCtor.invalidResult.WF hforall hvalid
+  · have harity := checkPositivityStep.isValidIndAppIdx.arity hvalid
+    have hiArgs : i < source.getAppArgs.size := by omega
+    have hparam : stats.params[i] = .fvar Hscope.fv := by
+      have hparam' := Hscope.parameter
+      simpa [hi] using hparam'
+    have hargEq := checkPositivityStep.isValidIndAppIdx.param hvalid hi
+    rw [hparam] at hargEq
+    have harg : source.getAppArgs[i] = .fvar Hscope.fv :=
+      Expr.eqv_fvar_eq hargEq
+    have hsourceArg : source.getAppArgsList[i]? =
+        some source.getAppArgs[i] := by
+      rw [← Expr.getAppArgs_toList]
+      simp [hiArgs]
+    have hmem : source.getAppArgs[i] ∈ source.getAppArgsList :=
+      List.mem_of_getElem? hsourceArg
+    have hargScope := Hscope.fvars.getAppArgsList hmem
+    rw [harg] at hargScope
+    have hsuffixWF := Hscope.lift.wf Hc.checking.tr.wf
+      Hc.mlctx_wf.tr.wf
+    have hfresh : Hscope.fv ∉ Hscope.older.fvars :=
+      (hsuffixWF.2.1 Hscope.fv Hscope.deps rfl).1
+    exact False.elim (hfresh hargScope)
+
 /-- Constructor-tail refinement in the independent parameter/field scope.
 The executable traversal remains in the retained mutual-header context, but
 the resulting `CtorTailWF` never mentions those ambient declarations. -/
@@ -9525,6 +9793,158 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesNarrow
     subst narrowType
     exact ⟨normalized, ownParams, tail, exprType, scope.toCtx,
       hctor, htake, hparams, htailCtx, htail⟩
+
+/-- Close a completely consumed constructor-parameter synthesis directly
+against the verified field tail.  In particular, the normalized constructor
+type and its `takeForalls` decomposition are outputs of the synthesis
+certificate rather than assumptions reconstructed by the caller. -/
+theorem checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
+    {decl : VInductDecl} {target : VInductiveType}
+    {ctorVal : VConstVal} {params : List VExpr}
+    {source : Expr} {current fullType : VExpr} {scope : VLCtx}
+    (Hc : ContextWF c)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+      Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      scope stats decl 0)
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
+        scope current decl.nparams 0)
+    (hi : targetIdx < decl.types.length)
+    (htarget : decl.types[targetIdx] = target)
+    (hparamAt : stats.params[decl.nparams]? = none)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+    (hparams : decl.ParamsDefEq Hc.venv params Hsynthesis.params)
+    (htrNarrow : TrExprS Hc.venv c.lparams scope source current)
+    (htrFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx source fullType) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      source decl.nparams fuel c).WF
+      (fun _ => decl.CtorShape Hc.venv params target ctorVal) := by
+  have hindices : Hsynthesis.indices = [] :=
+    List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
+  have htake :
+      (VExpr.wrapForalls Hsynthesis.params current).takeForalls decl.nparams =
+        some (Hsynthesis.params, current) := by
+    simpa [Hsynthesis.parameterCount] using
+      VExpr.takeForalls_wrapForalls Hsynthesis.params current
+  have htailCtx : VEnv.IsDefEqCtx Hc.venv decl.uvars []
+      Hsynthesis.params.reverse scope.toCtx := by
+    have hrefl : VEnv.IsDefEqCtx Hc.venv decl.uvars []
+        scope.toCtx scope.toCtx :=
+      .refl (by simpa [Hstats.uvars] using Hsynthesis.scopeWF.toCtx)
+    simpa [Hsynthesis.scopeCtx, hindices] using hrefl
+  apply checkConstructors.loopCtor.ctorShapeRefinesNarrow
+    (ctor := ctor) (fuel := fuel) Hc Hruntime Hstats hi htarget
+    hparamAt hconsume hlit hproj hunsafe hbound
+    (normalized := VExpr.wrapForalls Hsynthesis.params current)
+    (tail := current) (exprType := Hsynthesis.exprType)
+    (ownParams := Hsynthesis.params)
+  · simpa [constructorTelescopeTarget, hindices, Hstats.uvars] using
+      Hsynthesis.header
+  · exact htake
+  · exact hparams
+  · exact htailCtx
+  · rfl
+  · exact htrNarrow
+  · exact htrFull
+
+/-- End-to-end constructor telescope refinement in a single verifier
+environment.  The source constructor is independently translated in the
+empty scope; the executable closed-type result supplies its retained-runtime
+translation.  Cached common parameters are consumed by
+`parameterSynthesisWF`, and all remaining binders are checked by the narrow
+positivity refinement. -/
+theorem checkConstructors.loopCtor.refinesCtorShape
+    {decl : VInductDecl} {target : VInductiveType}
+    {ctorVal : VConstVal} {params : List VExpr}
+    (Hc : ContextWF c)
+    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hsuffix.parameterDecls stats decl 0)
+    (hparamsCtx : VEnv.IsDefEqCtx Hc.venv decl.uvars []
+      params.reverse Hsuffix.parameterDecls.toCtx)
+    (Hctor : TrSourceConst Hc.venv c.lparams ctor source ctorVal)
+    (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+      source checkedType fullType checkedType')
+    (hi : targetIdx < decl.types.length)
+    (htarget : decl.types[targetIdx] = target)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      source 0 fuel c).WF
+      (fun _ => decl.CtorShape Hc.venv params target ctorVal) := by
+  have hnoFVars : FVarsIn (fun _ => False) source := by
+    simpa [VLCtx.fvars] using Hctor.type.fvarsIn
+  let Hinitial := ConstructorSynthesisState.initial Hctor
+  apply checkConstructors.loopCtor.parameterSynthesisWF
+    (decl := decl) (ctorVal := ctorVal) Hc
+    (Q := fun _ => decl.CtorShape Hc.venv params target ctorVal)
+    (Hresult := by
+      intro source' current' fullCurrent' fuel'
+        Hsynthesis' htrNarrow htrFull
+      have hindices : Hsynthesis'.indices = [] :=
+        List.eq_nil_of_length_eq_zero Hsynthesis'.indexCount
+      have hscopeCtx : Hsuffix.parameterDecls.toCtx =
+          Hsynthesis'.indices.reverse ++ Hsynthesis'.params.reverse :=
+        @checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.scopeCtx
+          Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
+          Hsuffix.parameterDecls current' decl.nparams 0 Hsynthesis'
+      have hparams : decl.ParamsDefEq Hc.venv
+          params Hsynthesis'.params := by
+        change VEnv.IsDefEqCtx Hc.venv decl.uvars []
+          params.reverse Hsynthesis'.params.reverse
+        simpa [hscopeCtx, hindices] using hparamsCtx
+      have hparamAt : stats.params[decl.nparams]? = none := by
+        rw [Array.getElem?_eq_none_iff]
+        exact Nat.le_of_eq Hstats.params_size
+      exact checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
+        (ctor := ctor) (fuel := fuel' + 1) Hc
+        (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+          Hc Hsuffix)
+        Hstats Hsynthesis' hi htarget hparamAt hconsume hlit hproj
+        hunsafe hbound hparams htrNarrow htrFull)
+    (Hearly := by
+      intro source' scope' current' fullCurrent' i' fuel' hi'
+        hforall Hscope' _Hsynthesis' _htrNarrow _htrFull
+      exact checkConstructors.loopCtor.earlyParameterResult.WF
+        (fuel := fuel') Hc Hscope'
+        (by simpa [Hstats.params_size] using hi') hforall)
+    Hstats.params_size (by omega)
+    (fun h =>
+      checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars h hnoFVars)
+    (fun h =>
+      (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
+        h hnoFVars).older_eq_nil h |>.symm)
+    (by
+      intro hzero
+      have hlength := Hsuffix.parameterDecls_length
+      have hempty : Hsuffix.parameterDecls = [] :=
+        List.eq_nil_of_length_eq_zero (by
+          rw [hlength, Hstats.params_size, hzero])
+      exact hempty.symm)
+    Hinitial Hctor.type
+    (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
 
 @[simp] theorem VInductDecl.recursorName_eq_mkRecName
     (decl : VInductDecl) (type : VInductiveType) :
