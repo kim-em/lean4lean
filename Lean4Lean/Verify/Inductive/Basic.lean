@@ -11380,6 +11380,45 @@ structure RecursorLocalSelections (c : AddInductive.Context)
   indices : LocalForallSelection c.lctx recInfos[ownerIdx]!.indices
   major : LocalForallSelection c.lctx #[recInfos[ownerIdx]!.major]
 
+def RecursorLocalSelections.allFvars
+    (H : RecursorLocalSelections c stats recInfos ownerIdx) : List FVarId :=
+  H.params.fvars ++
+    (H.motives.fvars ++
+      (H.minors.fvars ++ (H.indices.fvars ++ H.major.fvars)))
+
+def RecursorLocalSelections.NoAlias
+    (H : RecursorLocalSelections c stats recInfos ownerIdx) : Prop :=
+  H.allFvars.Nodup
+
+structure RecursorLocalSelections.NoAliasParts
+    (H : RecursorLocalSelections c stats recInfos ownerIdx) : Prop where
+  params : H.params.fvars.Nodup
+  motives : H.motives.fvars.Nodup
+  minors : H.minors.fvars.Nodup
+  indices : H.indices.fvars.Nodup
+  major : H.major.fvars.Nodup
+  params_later : ∀ fv ∈ H.params.fvars,
+    ∀ fv' ∈ H.motives.fvars ++
+      (H.minors.fvars ++ (H.indices.fvars ++ H.major.fvars)), fv ≠ fv'
+  motives_later : ∀ fv ∈ H.motives.fvars,
+    ∀ fv' ∈ H.minors.fvars ++
+      (H.indices.fvars ++ H.major.fvars), fv ≠ fv'
+  minors_later : ∀ fv ∈ H.minors.fvars,
+    ∀ fv' ∈ H.indices.fvars ++ H.major.fvars, fv ≠ fv'
+  indices_major : ∀ fv ∈ H.indices.fvars,
+    ∀ fv' ∈ H.major.fvars, fv ≠ fv'
+
+theorem RecursorLocalSelections.NoAlias.parts
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (h : H.NoAlias) : H.NoAliasParts := by
+  unfold RecursorLocalSelections.NoAlias
+    RecursorLocalSelections.allFvars at h
+  rcases List.nodup_append.mp h with ⟨hp, hrest, hpLater⟩
+  rcases List.nodup_append.mp hrest with ⟨hm, hrest, hmLater⟩
+  rcases List.nodup_append.mp hrest with ⟨hmi, hrest, hmiLater⟩
+  rcases List.nodup_append.mp hrest with ⟨hi, hma, hiMajor⟩
+  exact ⟨hp, hm, hmi, hi, hma, hpLater, hmLater, hmiLater, hiMajor⟩
+
 def RecInfoBindings.toRecursorLocalSelections
     (H : RecInfoBindings c recInfos) (Hc : BindingContextWF c)
     (Hparams : BoundFVarArray c stats.params)
