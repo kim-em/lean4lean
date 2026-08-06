@@ -273,6 +273,20 @@ structure TrInductDeclSkeletonCore (env : VEnv) (lparams : List Name)
   types : List.Forall₂ (TrInductiveTypeSkeleton env envTypes lparams)
     types decl.types
 
+/-- Metadata-free header translation used while `checkInductiveTypes` is
+still recovering index counts and result universes. -/
+structure TrInductDeclSkeletonHeaders (env : VEnv) (lparams : List Name)
+    (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
+    (decl : VInductDeclSkeleton) (envTypes : VEnv) : Prop where
+  uvars : decl.uvars = lparams.length
+  nparams : decl.nparams = nparams
+  isUnsafe : decl.isUnsafe = isUnsafe
+  typesAdded : env.addConsts decl.typeConstants = some envTypes
+  types : List.Forall₂
+    (fun source target => TrSourceConst env lparams source.name source.type
+      target.toVConstVal)
+    types decl.types
+
 theorem TrInductDeclSkeleton.core
     (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl) :
     ∃ envTypes envCtors,
