@@ -9705,6 +9705,14 @@ end mkRecInfos.loopCtors
 
 namespace mkRecInfos.loopInd2
 
+def SameFrame (a b : AddInductive.RecInfo) : Prop :=
+  { a with minors := #[] } = { b with minors := #[] }
+
+theorem SameFrame.refl (a : AddInductive.RecInfo) : SameFrame a a := rfl
+
+theorem SameFrame.trans (hab : SameFrame a b) (hbc : SameFrame b c) :
+    SameFrame a c := Eq.trans hab hbc
+
 /-- The second mutual pass finishes every family with exactly one minor per
 owned constructor. The prefix/suffix formulation makes the mutation boundary
 explicit and is directly initialized by `loopInd1`, whose minor arrays are
@@ -9713,10 +9721,13 @@ theorem resultCounts {α : Type} {Q : α → Prop}
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (dIdx : Nat)
     (recInfos : Array AddInductive.RecInfo)
+    (origin : Array AddInductive.RecInfo)
     (k : Array AddInductive.RecInfo → AddInductive.M α)
     (c : AddInductive.Context)
     (hdone : dIdx ≤ indTypes.size)
     (hsize : recInfos.size = indTypes.size)
+    (horiginSize : origin.size = recInfos.size)
+    (hframes : ∀ i, i < recInfos.size → SameFrame recInfos[i]! origin[i]!)
     (hprefix : ∀ i, i < dIdx → i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (hsuffix : ∀ i, dIdx ≤ i → i < recInfos.size →
@@ -9724,6 +9735,8 @@ theorem resultCounts {α : Type} {Q : α → Prop}
     (Hk : ∀ out c, out.size = indTypes.size →
       (∀ i, i < out.size →
         out[i]!.minors.size = indTypes[i]!.ctors.length) →
+      out.size = origin.size →
+      (∀ i, i < out.size → SameFrame out[i]! origin[i]!) →
       (k out c).WF Q) :
     (AddInductive.mkRecInfos.loopInd2 stats indTypes dIdx recInfos k c).WF Q := by
   rw [AddInductive.mkRecInfos.loopInd2]
@@ -9733,11 +9746,20 @@ theorem resultCounts {α : Type} {Q : α → Prop}
       recInfos indTypes[dIdx].ctors
       (fun out => AddInductive.mkRecInfos.loopInd2 stats indTypes (dIdx + 1) out k)
       c (by simpa [hsize] using hidx)
-    intro out cOut houtSize houtCount _houtFrame houtOther
+    intro out cOut houtSize houtCount houtFrame houtOther
     apply mkRecInfos.loopInd2.resultCounts (Q := Q) stats indTypes (dIdx + 1)
-      out k cOut
+      out origin k cOut
     · omega
     · simpa [hsize] using houtSize
+    · omega
+    · intro i hiout
+      apply SameFrame.trans (b := recInfos[i]!)
+      · by_cases heq : i = dIdx
+        · subst i
+          exact houtFrame
+        · rw [houtOther i (by simpa [hsize, houtSize] using hiout) (Ne.symm heq)]
+          exact SameFrame.refl _
+      · exact hframes i (by simpa [houtSize] using hiout)
     · intro i hi hiout
       by_cases heq : i = dIdx
       · subst i
@@ -9751,8 +9773,54 @@ theorem resultCounts {α : Type} {Q : α → Prop}
     · exact Hk
   · rw [dif_neg hidx]
     apply Hk recInfos c hsize
-    intro i hi
-    exact hprefix i (by omega) hi
+    · intro i hi
+      exact hprefix i (by omega) hi
+    · omega
+    · exact hframes
+termination_by indTypes.size - dIdx
+
+/-- `loopInd2` changes only the `minors` field of each `RecInfo`; motives,
+indices, and major premises remain those constructed by `loopInd1`. -/
+theorem resultFrames {α : Type} {Q : α → Prop}
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (dIdx : Nat)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array AddInductive.RecInfo → AddInductive.M α)
+    (c : AddInductive.Context)
+    (hdone : dIdx ≤ indTypes.size)
+    (hsize : recInfos.size = indTypes.size)
+    (Hk : ∀ out c, out.size = recInfos.size →
+      (∀ i, i < recInfos.size → SameFrame out[i]! recInfos[i]!) →
+      (k out c).WF Q) :
+    (AddInductive.mkRecInfos.loopInd2 stats indTypes dIdx recInfos k c).WF Q := by
+  rw [AddInductive.mkRecInfos.loopInd2]
+  by_cases hidx : dIdx < indTypes.size
+  · rw [dif_pos hidx]
+    apply mkRecInfos.loopCtors.resultCount (Q := Q) stats indTypes[dIdx].name dIdx
+      recInfos indTypes[dIdx].ctors
+      (fun out => AddInductive.mkRecInfos.loopInd2 stats indTypes (dIdx + 1) out k)
+      c (by simpa [hsize] using hidx)
+    intro out cOut houtSize _ houtFrame houtOther
+    apply mkRecInfos.loopInd2.resultFrames (Q := Q) stats indTypes (dIdx + 1)
+      out k cOut
+    · omega
+    · simpa [hsize] using houtSize
+    · intro final cFinal hfinalSize hfinalFrames
+      apply Hk final cFinal
+      · simpa [houtSize] using hfinalSize
+      · intro i hi
+        apply SameFrame.trans (hfinalFrames i (by simpa [houtSize] using hi))
+        by_cases heq : i = dIdx
+        · subst i
+          exact houtFrame
+        · have hsibling := houtOther i hi (Ne.symm heq)
+          rw [hsibling]
+          exact SameFrame.refl _
+  · rw [dif_neg hidx]
+    apply Hk recInfos c
+    · rfl
+    · intro i hi
+      exact SameFrame.refl _
 termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd2
@@ -9760,14 +9828,20 @@ end mkRecInfos.loopInd2
 /-- End-to-end structural cardinality theorem for production `mkRecInfos`:
 one record per mutual family, initialized by the first pass and populated with
 one minor per source constructor by the second pass. -/
-theorem mkRecInfos.resultCounts {α : Type} {Q : α → Prop}
+theorem mkRecInfos.resultStructure {α : Type} {Q : α → Prop}
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType) (elimLevel : Level)
     (k : Array AddInductive.RecInfo → AddInductive.M α)
     (c : AddInductive.Context)
-    (Hk : ∀ out c, out.size = indTypes.size →
+    (Hk : ∀ (initial out : Array AddInductive.RecInfo)
+        (c : AddInductive.Context),
+      initial.size = indTypes.size →
+      (∀ r ∈ initial.toList, r.minors.isEmpty) →
+      out.size = indTypes.size →
       (∀ i, i < out.size →
         out[i]!.minors.size = indTypes[i]!.ctors.length) →
+      (∀ i, i < out.size →
+        mkRecInfos.loopInd2.SameFrame out[i]! initial[i]!) →
       (k out c).WF Q) :
     (AddInductive.mkRecInfos stats indTypes elimLevel k c).WF Q := by
   unfold AddInductive.mkRecInfos
@@ -9779,16 +9853,35 @@ theorem mkRecInfos.resultCounts {α : Type} {Q : α → Prop}
   · simp
   · intro recInfos cRec hsize hempty
     apply mkRecInfos.loopInd2.resultCounts (Q := Q) stats indTypes 0
-      recInfos k cRec
+      recInfos recInfos k cRec
     · omega
     · exact hsize
+    · rfl
+    · intro i hi
+      exact mkRecInfos.loopInd2.SameFrame.refl _
     · intro i hi
       omega
     · intro i _ hi
       have he := hempty (recInfos[i]'hi) (Array.getElem_mem_toList hi)
       rw [Array.isEmpty_iff_size_eq_zero] at he
       simpa [Array.getElem!_eq_getD, Array.getD, hi] using he
-    · exact Hk
+    · intro out cOut houtSize houtCounts _ houtFrames
+      exact Hk recInfos out cOut hsize hempty houtSize houtCounts houtFrames
+
+/-- Cardinality-only projection of `resultStructure`. -/
+theorem mkRecInfos.resultCounts {α : Type} {Q : α → Prop}
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (k : Array AddInductive.RecInfo → AddInductive.M α)
+    (c : AddInductive.Context)
+    (Hk : ∀ out c, out.size = indTypes.size →
+      (∀ i, i < out.size →
+        out[i]!.minors.size = indTypes[i]!.ctors.length) →
+      (k out c).WF Q) :
+    (AddInductive.mkRecInfos stats indTypes elimLevel k c).WF Q := by
+  apply mkRecInfos.resultStructure (Q := Q) stats indTypes elimLevel k c
+  intro _ out cOut _ _ houtSize houtCounts _
+  exact Hk out cOut houtSize houtCounts
 
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
