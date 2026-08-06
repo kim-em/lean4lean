@@ -11167,6 +11167,70 @@ def BoundFVarArray.toLocalForallSelection
   expressions := H.expressions
   declarations fv hfv := Hc.findCDecl fv (H.members fv hfv)
 
+namespace mkRecInfos.loopArgs1
+
+/-- Operational strengthening of `continueWith`: every non-parameter binder
+opened while replaying an inductive header is retained in the local context
+and appended to the certified index array. -/
+theorem continueWithBindings {alpha : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Array Expr → AddInductive.M alpha)
+    {Q : alpha → Prop}
+    (Hk : ∀ indices c, BindingContextWF c → BoundFVarArray c indices →
+      (k indices c).WF Q) :
+    ∀ type i indices fuel c,
+      BindingContextWF c → BoundFVarArray c indices →
+      (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
+  | _, _, _, 0, _, _, _ => by
+      intro _ h
+      simp [AddInductive.mkRecInfos.loopArgs1] at h
+  | type, i, indices, fuel + 1, c, Hc, Hindices => by
+      cases type with
+      | forallE name dom body bi =>
+        rw [AddInductive.mkRecInfos.loopArgs1]
+        by_cases hparam : i < stats.params.size
+        · rw [if_pos hparam]
+          have hwhnf :
+              ((monadLift (TypeChecker.whnf
+                (body.instantiate1 stats.params[i]!)) :
+                AddInductive.M Expr) c).WF (fun _ => True) := by
+            intro _ _
+            trivial
+          exact hwhnf.bind fun next _ =>
+            continueWithBindings stats k Hk next (i + 1) indices fuel c
+              Hc Hindices
+        · rw [if_neg hparam]
+          unfold Lean4Lean.withLocalDecl
+            MonadLocalNameGenerator.withFreshId
+            AddInductive.instMonadLocalNameGeneratorM
+            AddInductive.instMonadWithReaderOfLocalContextM
+          let c' : AddInductive.Context := { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }
+          change ((monadLift (TypeChecker.whnf
+            (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+              AddInductive.M Expr) c' >>= fun next =>
+              AddInductive.mkRecInfos.loopArgs1 stats next i
+                (indices.push (.fvar ⟨c.ngen.curr⟩)) fuel k c').WF Q
+          have hwhnf :
+              ((monadLift (TypeChecker.whnf
+                (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+                AddInductive.M Expr) c').WF (fun _ => True) := by
+            intro _ _
+            trivial
+          exact hwhnf.bind fun next _ =>
+            continueWithBindings stats k Hk next i
+              (indices.push (.fvar ⟨c.ngen.curr⟩)) fuel c'
+              (Hc.withLocalDecl name dom.consumeTypeAnnotations bi)
+              (Hindices.pushCurrent name dom.consumeTypeAnnotations bi)
+      | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+        | proj =>
+          simpa [AddInductive.mkRecInfos.loopArgs1] using
+            Hk indices c Hc Hindices
+
+end mkRecInfos.loopArgs1
+
 theorem LocalForallSelection.size
     (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
   rcases H with ⟨fvars, rfl, declarations⟩
