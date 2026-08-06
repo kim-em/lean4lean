@@ -8386,6 +8386,35 @@ inductive GeneratedRecursorRules
       GeneratedRecursorRules indTypes stats motives minors lvls
         (ctor :: ctors) start (rule :: rules)
 
+theorem GeneratedRecursorRules.length
+    (H : GeneratedRecursorRules indTypes stats motives minors lvls
+      ctors start rules) :
+    rules.length = ctors.length := by
+  induction H with
+  | nil => rfl
+  | cons _ _ ih => simp [ih]
+
+/-- Indexed form used by the flattened iota certificate: rule `i` belongs to
+constructor `i` and its minor is the global starting ordinal plus `i`. -/
+theorem GeneratedRecursorRules.entry
+    (H : GeneratedRecursorRules indTypes stats motives minors lvls
+      ctors start rules) :
+    ∀ i (hctor : i < ctors.length) (hrule : i < rules.length),
+      GeneratedRecursorRule indTypes stats motives minors lvls
+        ctors[i] (start + i) rules[i] := by
+  induction H with
+  | nil =>
+      intro i hctor
+      simp at hctor
+  | @cons ctor start rule ctors rules Hrule Htail ih =>
+      intro i hctor hrule
+      cases i with
+      | zero => simpa using Hrule
+      | succ i =>
+        have h := ih i (by simpa using hctor) (by simpa using hrule)
+        simpa only [List.getElem_cons_succ, Nat.add_assoc,
+          Nat.add_comm 1 i] using h
+
 /-- A validated concrete parameter argument translates to the corresponding
 abstract de Bruijn parameter.  The fvar-shape invariant is what upgrades
 structural `Expr` equality to exact syntax translation here. -/
