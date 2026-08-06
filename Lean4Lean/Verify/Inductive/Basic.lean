@@ -9935,6 +9935,38 @@ theorem mkRecInfos.flatMinors_size_of_translation
     ← ownedConstructors_length_eq_flattened_size]
   exact Lean4Lean.VerifyInductive.TrInductDecl.ownedConstructors_length Hdecl
 
+/-- Structural portion of the independent recursor shape, assembled before
+the generated telescope itself is translated. -/
+structure RecursorCardinalityCertificate
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (decl : VInductDecl) : Prop where
+  records : recInfos.size = decl.types.length
+  params : stats.params.size = decl.nparams
+  motives : (recInfos.map (·.motive)).size = decl.types.length
+  minors : (recInfos.flatMap (·.minors)).size =
+    decl.ownedConstructors.length
+
+theorem RecursorCardinalityCertificate.ofResult
+    {indTypes : Array InductiveType}
+    {recInfos : Array AddInductive.RecInfo}
+    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        headerEnv lparams Δ stats decl depth)
+    (hsize : recInfos.size = indTypes.size)
+    (hcounts : ∀ i, i < recInfos.size →
+      recInfos[i]!.minors.size = indTypes[i]!.ctors.length) :
+    RecursorCardinalityCertificate stats recInfos decl where
+  records := hsize.trans (by
+    simpa using Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl)
+  params := by
+    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      Hmaterialized.narrowParams
+    simpa [VInductDecl.paramVars] using hlen
+  motives := mkRecInfos.motives_size_of_translation Hdecl hsize
+  minors := mkRecInfos.flatMinors_size_of_translation Hdecl hsize hcounts
+
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
 theorem checkConstructors.loopCtor.tailRefinesFull
