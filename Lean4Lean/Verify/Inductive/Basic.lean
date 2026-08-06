@@ -1957,6 +1957,8 @@ theorem LaterParameterScope.typing
       (AddInductive.getType stats.params[i]! c).WF
         (fun ty => ty = paramTy) ∧
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy' ∧
+      paramTy' = H.paramType.lift.liftN
+        (VLCtx.toCtx H.added).length 0 ∧
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
         stats.params[i]! param' ∧
       Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
@@ -1993,7 +1995,7 @@ theorem LaterParameterScope.typing
   rw [← hid] at hfind'
   rw [hfind] at hfind'
   cases hfind'
-  refine ⟨localDecl.type, paramTy', param', ?_, htype, ?_, ?_⟩
+  refine ⟨localDecl.type, paramTy', param', ?_, htype, rfl, ?_, ?_⟩
   · intro ty hrun
     rw [H.parameter] at hrun
     change Except.ok ((c.lctx.get! H.fv).type) = Except.ok ty at hrun
@@ -2002,6 +2004,46 @@ theorem LaterParameterScope.typing
   · rw [H.parameter]
     exact .fvar hfind
   · exact Hc.mlctx_wf.tr.wf.find?_wf Hc.checking.tr.wf hfind
+
+/-- The successful executable comparison of a later parameter domain with
+its cached local type descends to the narrowed, abstract context. -/
+theorem LaterParameterScope.domainDefEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {name : Name} {dom body : Expr} {bi : BinderInfo}
+    {dom' paramTy' : VExpr}
+    (H : LaterParameterScope Hsuffix i (.forallE name dom body bi))
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
+    (hparamTyEq : paramTy' = H.paramType.lift.liftN
+      (VLCtx.toCtx H.added).length 0)
+    (heq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+      dom' paramTy') :
+    ∃ sourceDom',
+      TrExprS Hc.venv c.lparams H.older dom sourceDom' ∧
+      Hc.venv.IsDefEqU c.lparams.length H.older.toCtx
+        sourceDom' H.paramType := by
+  rcases H.domainTranslation hdom with ⟨sourceDom', hsourceDom⟩
+  have hweak := hsourceDom.weakFV Hc.checking.tr.wf.ordered
+    H.olderLift Hc.mlctx_wf.tr.wf
+  have htranslated : Hc.venv.IsDefEqU c.lparams.length
+      Hc.mlctx.vlctx.toCtx dom'
+      (sourceDom'.liftN (VLCtx.toCtx H.added).length.succ 0) :=
+    hdom.uniq Hc.checking.tr.wf
+      (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hweak
+  rw [hparamTyEq] at heq
+  have hfull := htranslated.symm.trans Hc.checking.tr.wf
+    Hc.mlctx_wf.tr.wf.toCtx heq
+  have hfull' : Hc.venv.IsDefEqU c.lparams.length
+      Hc.mlctx.vlctx.toCtx
+      (sourceDom'.liftN (VLCtx.toCtx H.added).length.succ 0)
+      (H.paramType.liftN (VLCtx.toCtx H.added).length.succ 0) := by
+    simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
+      using hfull
+  exact ⟨sourceDom', hsourceDom,
+    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
+      Hc.mlctx_wf.tr.wf.toCtx
+      H.olderLift.toCtx).1 hfull'⟩
 
 /-- A closed source header starts the later-parameter traversal with an empty
 free-variable scope. -/
@@ -2868,6 +2910,10 @@ theorem laterParameter.checkedScopeWF
         param' paramTy' →
       Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
         dom' paramTy' →
+      (∃ sourceDom',
+        TrExprS Hc.venv c.lparams Hscope.older dom sourceDom' ∧
+        Hc.venv.IsDefEqU c.lparams.length Hscope.older.toCtx
+          sourceDom' Hscope.paramType) →
       (∃ sourceBody', TrExprS Hc.venv c.lparams
         ((none, .vlam Hscope.paramType) :: Hscope.older)
           body sourceBody') →
@@ -2883,11 +2929,15 @@ theorem laterParameter.checkedScopeWF
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rcases Hscope.typing with
-    ⟨paramTy, paramTy', param', hget, hparamTy, hparam, hparamType⟩
+    ⟨paramTy, paramTy', param', hget, hparamTy, hparamTyEq,
+      hparam, hparamType⟩
   apply laterParameter.scopeWF (stats := stats) (nparams := nparams)
     (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
     Hc hi hnonempty Hsuffix Hscope hget hdom hbody hparamTy hparam hparamType
-  exact Hrec hparam hparamType
+  intro heq habstract normalized hbelow hnormalized hnext
+  exact Hrec hparam hparamType heq
+    (Hscope.domainDefEq hdom hparamTyEq heq) habstract
+    normalized hbelow hnormalized hnext
 
 /-- Reusing a cached parameter does not alter the retained ambient-prefix
 shape. -/
@@ -3033,8 +3083,8 @@ theorem laterParametersWF
           (stats := stats) (nparams := nparams) (i := i)
           (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
           Hc hi hnonempty Hsuffix (Hscope histats) hdom hbody
-        intro paramTy' param' _hparam _hparamType _heq _habstract
-          normalized _hbelow hnormalized hnext
+        intro paramTy' param' _hparam _hparamType _heq _hdomain
+          _habstract normalized _hbelow hnormalized hnext
         apply ih (i := i + 1) (current := body'.inst param')
         · omega
         · intro hlt
