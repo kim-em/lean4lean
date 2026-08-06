@@ -14190,6 +14190,51 @@ theorem BoundGeneratedRecursiveCalls.generated
     rcases H.entries i hi hiu with ⟨Hentry⟩
     exact Hentry.generated
 
+/-- Convert the binder-aware executable call array into the aligned semantic
+recursive-result certificate. Only the genuinely pointwise call proof remains
+as a premise; all array/list indexing and translation alignment are handled
+here. -/
+theorem BoundGeneratedRecursiveCalls.iotaResults
+    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v u.size)
+    (Hargs : List.Forall₂ (TrExprS env Us Δ)
+      u.toList recursiveArgs)
+    (Hresults : List.Forall₂ (TrExprS env Us Δ)
+      v.toList recursiveResults)
+    (Hpoint : ∀ i (hi : i < u.size)
+      (harg : i < recursiveArgs.length)
+      (hresult : i < recursiveResults.length),
+      BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+        root u[i] v[i]! →
+      TrExprS env Us Δ u[i] recursiveArgs[i] →
+      TrExprS env Us Δ v[i]! recursiveResults[i] →
+      Nonempty (IotaRecursiveResultCertificate recursors fieldVars
+        recursiveArgs[i] recursiveResults[i])) :
+    IotaRecursiveResultsCertificate recursors fieldVars
+      recursiveArgs recursiveResults := by
+  have hargsLen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hargs
+  have hresultsLen :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hresults
+  have hargsSize : u.size = recursiveArgs.length := by
+    simpa using hargsLen
+  have hresultsSize : v.size = recursiveResults.length := by
+    simpa using hresultsLen
+  have hvSize : v.size = u.size := H.size
+  refine ⟨List.forall₂_of_getElem (by omega) ?_⟩
+  intro i hiArg hiResult
+  have hiU : i < u.size := by
+    simpa using (show i < u.toList.length by omega)
+  have hiV : i < v.toList.length := by omega
+  rcases H.entries i hiU hiU with ⟨Hentry⟩
+  have Harg := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hargs i (by simpa using hiU) hiArg
+  have Hresult := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hresults i hiV hiResult
+  apply Hpoint i hiU hiArg hiResult Hentry
+  · simpa using Harg
+  · have hiVSize : i < v.size := by simpa using hiV
+    simpa [Array.getElem!_eq_getD, Array.getD, hiVSize] using Hresult
+
 /-- One generated iota rule retaining the constructor-field context and the
 binder-aware certificate for every recursive result. -/
 structure BoundGeneratedRecursorRule
