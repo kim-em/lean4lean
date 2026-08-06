@@ -112,6 +112,14 @@ def toCtx : VLCtx → List VExpr
   | (_, .vlam ty) :: Δ => ty :: VLCtx.toCtx Δ
   | (_, .vlet _ _) :: Δ => VLCtx.toCtx Δ
 
+@[simp] theorem toCtx_append (left right : VLCtx) :
+    toCtx (left ++ right) = toCtx left ++ toCtx right := by
+  induction left with
+  | nil => rfl
+  | cons entry left ih =>
+    rcases entry with ⟨ofv, decl⟩
+    cases decl <;> simp [toCtx, ih]
+
 def instL (Δ : VLCtx) (ls : List VLevel) : VLCtx :=
   match Δ with
   | [] => []

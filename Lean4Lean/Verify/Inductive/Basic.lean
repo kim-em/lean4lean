@@ -1903,6 +1903,48 @@ theorem LaterParameterScope.openedUpSet
     ((some (H.fv, H.deps), .vlam H.paramType) :: H.older) H.added
     (by simpa [H.context] using Hc.mlctx_wf.tr.wf)
 
+/-- Forget the ambient prefix, the not-yet-consumed cached parameters, and
+the current cached parameter.  A source domain at this point may depend only
+on the already consumed parameters in `older`. -/
+theorem LaterParameterScope.olderLift
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {body : Expr}
+    (H : LaterParameterScope Hsuffix i body) :
+    VLCtx.FVLift H.older Hc.mlctx.vlctx 0
+      (VLCtx.toCtx H.added).length.succ 0 := by
+  let current : Option (FVarId × List FVarId) × VLocalDecl :=
+    (some (H.fv, H.deps), .vlam H.paramType)
+  have hcontext : Hc.mlctx.vlctx =
+      (H.added ++ [current]) ++ H.older := by
+    simpa only [current, List.append_assoc, List.singleton_append]
+      using H.context
+  have hfullNoBV : ((H.added ++ [current]) ++ H.older).NoBV := by
+    rw [← hcontext]
+    exact Hc.mlctx.noBV
+  have hprefixNoBV : (H.added ++ [current]).NoBV :=
+    VLCtx.NoBV.leftOfAppend (H.added ++ [current]) H.older hfullNoBV
+  have hlift := VLCtx.FVLift.to_append H.older hprefixNoBV
+  rw [← hcontext] at hlift
+  simpa [current, VLCtx.toCtx] using hlift
+
+/-- Restrict a translated later-header domain to precisely the cached
+parameters already consumed by this header. -/
+theorem LaterParameterScope.domainTranslation
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {name : Name} {dom body : Expr} {bi : BinderInfo} {dom' : VExpr}
+    (H : LaterParameterScope Hsuffix i (.forallE name dom body bi))
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom') :
+    ∃ sourceDom', TrExprS Hc.venv c.lparams H.older dom sourceDom' := by
+  have hclosed : Closed dom 0 := by
+    have := hdom.closed
+    simpa [Hc.mlctx.noBV] using this
+  exact hdom.weakFV_inv Hc.checking.tr.wf H.olderLift
+    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hclosed H.fvars.1
+
 /-- Recover every premise needed by the executable cached-parameter branch
 from the retained local-context translation. -/
 theorem LaterParameterScope.typing
