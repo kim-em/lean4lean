@@ -14772,6 +14772,7 @@ structure BoundGeneratedRecursorRule
   allArgs : Array Expr
   recursiveArgs : Array Expr
   recursiveResults : Array Expr
+  minor_valid : minorIdx < minors.size
   params_bound : BoundFVarArray root stats.params
   motives_bound : BoundFVarArray root motives
   minors_bound : BoundFVarArray root minors
@@ -14906,6 +14907,38 @@ theorem BoundGeneratedRecursorRule.rhsLambdaTelescope
   exact LocalContext.mkBindingList_lambdaTelescope
     (H.all_binders_bound.toLocalForallSelection
       H.root_wf).declarations
+
+/-- Translation of the exact production rule RHS exposes the abstract rule
+telescope and leaves only the simultaneously abstracted minor application as
+the residual translation obligation. -/
+theorem BoundGeneratedRecursorRule.translatedRhsShape
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (Htr : TrExprS env Us Δ rule.rhs rhs) :
+    ∃ domains rhsBody,
+      domains.length = H.binders.length ∧
+      rhs = VExpr.wrapLams domains rhsBody ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        (H.sourceRhsBody.abstractList H.binders) rhsBody :=
+  TrExprS.lambdaTelescope_shape_with_context H.rhsLambdaTelescope Htr
+
+theorem BoundGeneratedRecursorRule.translatedRhsShape_noFresh
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (Htr : TrExprS env Us Δ rule.rhs rhs)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false) :
+    ∃ domains rhsBody,
+      domains.length = H.binders.length ∧
+      rhs = VExpr.wrapLams domains rhsBody ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        (H.sourceRhsBody.abstractList H.binders) rhsBody ∧
+      ∀ dom ∈ domains, dom.containsAnyConst recursors = false :=
+  TrExprS.lambdaTelescope_shape_with_context_noFresh
+    hfresh hctx hproj H.rhsLambdaTelescope Htr
 
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
@@ -15120,7 +15153,8 @@ theorem boundGeneratedRules
     (Hmotives : BoundFVarArray c motives)
     (Hminors : BoundFVarArray c minors)
     (HouterNodup : ((Hparams.fvars ++ Hmotives.fvars) ++
-      Hminors.fvars).Nodup) :
+      Hminors.fvars).Nodup)
+    (hminorsRoom : start + ctors.length ≤ minors.size) :
     (AddInductive.mkRecRules.loopCtors indTypes stats motives minors lvls
       ctors acc start c).WF fun out =>
         ∃ generated,
@@ -15210,6 +15244,7 @@ theorem boundGeneratedRules
           allArgs := bu
           recursiveArgs := u
           recursiveResults := v
+          minor_valid := by simp at hminorsRoom; omega
           params_bound := Hparams'
           motives_bound := Hmotives'
           minors_bound := Hminors'
@@ -15234,7 +15269,7 @@ theorem boundGeneratedRules
         rcases Hout with ⟨Hrule, hnext⟩
         have htail := ih (acc := acc.push out.1)
           (start := out.2) (c := c) Hc Hparams Hmotives Hminors
-            HouterNodup
+            HouterNodup (by simp at hminorsRoom; omega)
         exact htail.mono fun result Hresult => by
           rcases Hresult with ⟨generated, hout, Hgenerated, hend⟩
           refine ⟨out.1 :: generated, ?_, .cons Hrule ?_, ?_⟩
@@ -15255,7 +15290,8 @@ theorem mkRecRules.boundGeneratedRules
     (Hmotives : BoundFVarArray c motives)
     (Hminors : BoundFVarArray c minors)
     (HouterNodup : ((Hparams.fvars ++ Hmotives.fvars) ++
-      Hminors.fvars).Nodup) :
+      Hminors.fvars).Nodup)
+    (hminorsRoom : start + indTypes[dIdx]!.ctors.length ≤ minors.size) :
     (AddInductive.mkRecRules indTypes elimLevel stats dIdx motives minors
       start c).WF fun out =>
         BoundGeneratedRecursorRules indTypes stats motives minors
@@ -15266,7 +15302,7 @@ theorem mkRecRules.boundGeneratedRules
   have H := mkRecRules.loopCtors.boundGeneratedRules indTypes stats
     motives minors (AddInductive.getRecLevels elimLevel stats.levels)
     indTypes[dIdx]!.ctors #[] start c Hc Hparams Hmotives Hminors
-      HouterNodup
+      HouterNodup hminorsRoom
   exact H.mono fun out Hout => by
     rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
     simpa using ⟨hout ▸ Hgenerated, hend⟩
