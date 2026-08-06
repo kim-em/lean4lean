@@ -12112,6 +12112,54 @@ theorem LocalForallSelection.forallTelescope
   rcases H with ⟨fvars, rfl, declarations⟩
   simpa using LocalContext.mkForall_fvars_forallTelescope declarations
 
+/-- Prepending one retained binder group to an existing telescope preserves
+the inner telescope and abstracts its residual below exactly the inner arity. -/
+theorem LocalForallSelection.prependTelescope
+    (Hsel : LocalForallSelection lctx xs)
+    (Hinner : Expr.ForallTelescope inner innerArity result) :
+    Expr.ForallTelescope (lctx.mkForall xs inner)
+      (xs.size + innerArity)
+      (result.abstractList Hsel.fvars innerArity) := by
+  exact (Hsel.forallTelescope inner).trans <| by
+    simpa using Hinner.abstractList Hsel.fvars
+
+def RecursorLocalSelections.residual
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (body : Expr) : Expr :=
+  let afterMajor := body.abstractList H.major.fvars
+  let afterIndices := afterMajor.abstractList H.indices.fvars 1
+  let afterMinors := afterIndices.abstractList H.minors.fvars
+    (recInfos[ownerIdx]!.indices.size + 1)
+  let afterMotives := afterMinors.abstractList H.motives.fvars
+    ((recInfos.flatMap (·.minors)).size +
+      recInfos[ownerIdx]!.indices.size + 1)
+  afterMotives.abstractList H.params.fvars
+    ((recInfos.map (·.motive)).size +
+      (recInfos.flatMap (·.minors)).size +
+      recInfos[ownerIdx]!.indices.size + 1)
+
+/-- Exact concrete telescope produced by the five nested `mkForall` calls in
+`AddInductive.run`. -/
+theorem RecursorLocalSelections.forallTelescope
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (body : Expr) :
+    Expr.ForallTelescope
+      (c.lctx.mkForall stats.params <|
+       c.lctx.mkForall (recInfos.map (·.motive)) <|
+       c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+       c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+       c.lctx.mkForall #[recInfos[ownerIdx]!.major] body)
+      (stats.params.size + (recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size + 1)
+      (H.residual body) := by
+  have hMajor := H.major.prependTelescope (.nil body)
+  have hIndices := H.indices.prependTelescope hMajor
+  have hMinors := H.minors.prependTelescope hIndices
+  have hMotives := H.motives.prependTelescope hMinors
+  have hParams := H.params.prependTelescope hMotives
+  simpa [RecursorLocalSelections.residual, Nat.add_assoc] using hParams
+
 /-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
 innermost order. Local lets are discharged by `mkForall'` and contribute no
 domain. -/
