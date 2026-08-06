@@ -1415,6 +1415,24 @@ theorem NarrowRuntimeScope.restrictTrExpr
       hexpanded
   exact ⟨resultNarrow, hresultNarrow, hnarrowEq⟩
 
+/-- Transfer a runtime typing result for a translated concrete expression
+back to its independently translated target in the narrow scope. -/
+theorem NarrowRuntimeScope.hasTypeOfFull
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (henv : env.WF)
+    (hnarrow : TrExprS env Us scope e narrow')
+    (hfull : TrExprS env Us runtime e full')
+    (htype : env.HasType Us.length runtime.toCtx full' (.sort u)) :
+    env.HasType Us.length scope.toCtx narrow' (.sort u) := by
+  have htarget := H.fullTargetEq henv hnarrow
+    (hfull.trExpr henv (H.context.symm henv.ordered).wf)
+  have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
+  have hliftTyped := htype.defeqU_l henv hruntimeWF htarget.symm
+  have hexpanded := hliftTyped.defeqDFC henv.ordered
+    (H.context.defeqCtx.symm henv.ordered)
+  exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+    hexpanded
+
 /-- Move a successful runtime result-sort check back to the independent
 narrow header scope.  Both translations are tied to the same concrete
 residual, so uniqueness in the runtime context followed by inverse weakening
@@ -8651,6 +8669,29 @@ theorem checkPositivity.refines
       (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
   apply checkPositivity.WF
   exact checkPositivity.loop.refines Hc Hstats hconsume hlit hctx hproj htype
+
+/-- Public narrow-scope positivity refinement, including the production fuel
+lookup used by constructor checking. -/
+theorem checkPositivity.refinesNarrow
+    {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
+    {narrowType fullType : VExpr}
+    (Hc : ContextWF c)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+      Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      scope stats decl depth)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
+    (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
+    (AddInductive.checkPositivity stats type ctor idx c).WF
+      (fun _ => decl.Positive Hc.venv scope.toCtx depth narrowType) := by
+  apply checkPositivity.WF
+  exact checkPositivity.loop.refinesNarrow Hc Hruntime Hstats hconsume
+    hlit hproj htypeNarrow htypeFull
 
 namespace isRecArg.loop
 
