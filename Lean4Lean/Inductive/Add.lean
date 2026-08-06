@@ -152,20 +152,35 @@ def isReflexive (indTypes : Array InductiveType) (indConsts : Array Expr) : Bool
     | _ => false
   indTypes.any fun indType => indType.ctors.any fun ctor => loop ctor.type
 
-def declareInductiveTypes (stats : InductiveStats) (numParams : Nat)
-    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool) : M Environment :=
-  fun c =>
+/-- Production `ConstantInfo` payloads for the mutually declared type
+constants. Kept as a named function so verification can relate the metadata-
+enriched kernel entries to the independently translated source headers. -/
+def inductiveTypeInfos (stats : InductiveStats) (numParams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
+    (lparams : List Name) : Array InductiveVal :=
   let all := indTypes.map (·.name) |>.toList
-  let infos := indTypes.zipWith (bs := stats.nindices) fun indType numIndices =>
+  indTypes.zipWith (bs := stats.nindices) fun indType numIndices =>
     { indType with
       numParams, numIndices, all, numNested, isUnsafe
-      levelParams := c.lparams
+      levelParams := lparams
       ctors := indType.ctors.map (·.name)
       isRec := isRec indTypes stats.indConsts
       isReflexive := isReflexive indTypes stats.indConsts }
-  infos.foldlM (init := c.env) fun env info => do
-    env.checkName info.name c.allowPrimitive
-    return env.add (.inductInfo info)
+
+def declareInductiveTypeInfos (allowPrimitive : Bool) :
+    List InductiveVal → Environment → Except Exception Environment
+  | [], env => pure env
+  | info :: infos, env => do
+    env.checkName info.name allowPrimitive
+    declareInductiveTypeInfos allowPrimitive infos
+      (env.add (.inductInfo info))
+
+def declareInductiveTypes (stats : InductiveStats) (numParams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool) : M Environment :=
+  fun c =>
+  let infos := inductiveTypeInfos stats numParams indTypes numNested
+    isUnsafe c.lparams
+  declareInductiveTypeInfos c.allowPrimitive infos.toList c.env
 
 def isValidIndAppIdx (stats : InductiveStats) (t : Expr) (i : Nat) : Bool :=
   t.withApp fun I args => Id.run do
