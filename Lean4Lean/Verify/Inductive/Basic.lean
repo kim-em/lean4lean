@@ -226,6 +226,27 @@ theorem OnCtx.append_right
   | cons x xs ih =>
     exact ih H.1
 
+/-- Remove equally long outer prefixes from a context conversion.  Since
+`IsDefEqCtx` is built from the shared innermost suffix outwards, the proof is
+just inversion through the two prefixes. -/
+theorem VEnv.IsDefEqCtx.dropPrefixes
+    (H : VEnv.IsDefEqCtx env U [] (xs ++ Γ₁) (ys ++ Γ₂))
+    (hlen : xs.length = ys.length) :
+    VEnv.IsDefEqCtx env U [] Γ₁ Γ₂ := by
+  induction xs generalizing ys with
+  | nil =>
+    have : ys = [] := List.eq_nil_of_length_eq_zero hlen.symm
+    simpa [this] using H
+  | cons _ xs ih =>
+    cases ys with
+    | nil => simp at hlen
+    | cons _ ys =>
+      simp only [List.cons_append] at H
+      cases H with
+      | succ H _ =>
+        apply ih H
+        simpa using Nat.succ.inj hlen
+
 theorem VInductDecl.paramsDefEq_reflOfAppend
     {decl : VInductDecl} {env : VEnv} {indices params : List VExpr}
     (H : OnCtx (indices.reverse ++ params.reverse)
@@ -952,6 +973,21 @@ theorem ensureSortInContext.WF (Hc : ContextWF c)
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' ∧ ∃ u, e₁ = .sort u :=
   liftTypeChecker.WF Hc (TypeChecker.ensureSort.WF he)
 
+theorem ensureSortInContext.scopeWF (Hc : ContextWF c)
+    (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
+    ((monadLift (TypeChecker.ensureSort e e₀) : AddInductive.M Expr) c).WF
+      fun e₁ => Hc.typeChecker.FVarsBelow e e₁ ∧
+        Hc.typeChecker.TrExpr e₁ e' ∧
+        ∃ u, e₁ = .sort u := by
+  change Hc.typeChecker.TrExprS e e' at he
+  apply liftTypeChecker.WF (Q := fun e₁ =>
+    Hc.typeChecker.FVarsBelow e e₁ ∧
+      Hc.typeChecker.TrExpr e₁ e' ∧
+      ∃ u, e₁ = .sort u) Hc
+  simpa only [TypeChecker.ensureSort] using
+    (TypeChecker.Inner.ensureSortCore.WF he).run.mono
+      (fun _ _ _ h => And.intro h.2.2 (And.intro h.2.1 h.1))
+
 theorem ensureTypeInContext.WF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
     ((monadLift (TypeChecker.ensureType e) : AddInductive.M Expr) c).WF fun sort =>
@@ -1120,6 +1156,27 @@ structure ParameterContextSuffix (Hc : ContextWF c)
   cached : List.Forall₂ CachedParameterDecl
     stats.params.toList.reverse parameterDecls
 
+/-- Reindex a parameter cache across statistics updates that leave the
+cached parameter array unchanged. -/
+def ParameterCachePrefix.reindex
+    (H : ParameterCachePrefix env Us Δ stats done depth)
+    (hparams : stats'.params = stats.params) :
+    ParameterCachePrefix env Us Δ stats' done depth where
+  params := by rw [hparams]; exact H.params
+  paramFVars := by rw [hparams]; exact H.paramFVars
+
+/-- Reindex the exact cached suffix across a statistics update that changes
+only per-header output fields. -/
+def ParameterContextSuffix.reindex
+    (H : ParameterContextSuffix Hc stats depth)
+    (hparams : stats'.params = stats.params) :
+    ParameterContextSuffix Hc stats' depth where
+  ambientDecls := H.ambientDecls
+  parameterDecls := H.parameterDecls
+  context := H.context
+  prefixLength := H.prefixLength
+  cached := by rw [hparams]; exact H.cached
+
 /-- A semantic header scope embedded in the larger executable local context.
 `expanded` is the literal weakening of the narrow scope; it is kept separate
 from `runtime` because annotation consumption can replace an installed binder
@@ -1168,6 +1225,54 @@ theorem NarrowRuntimeScope.restrictEq
     simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
   exact ⟨narrow', hnarrow,
     htr.uniq henv (H.context.symm henv.ordered) hweak⟩
+
+/-- The abstract target computed in the executable context is the weakening
+of the independently translated narrow target. -/
+theorem NarrowRuntimeScope.fullTargetEq
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (henv : env.WF)
+    (hnarrow : TrExprS env Us scope e narrow')
+    (hfull : TrExpr env Us runtime e full') :
+    env.IsDefEqU Us.length runtime.toCtx
+      (narrow'.lift' H.shift) full' := by
+  rcases hfull with ⟨source', hsource, hsourceEq⟩
+  have hweak : TrExprS env Us H.expanded e
+      (narrow'.lift' H.shift) := by
+    simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
+  have hsourceEq' := hweak.uniq henv H.context hsource
+  exact (hsourceEq'.defeqDFC henv.ordered H.context.defeqCtx).trans
+    henv (H.context.symm henv.ordered).wf.toCtx hsourceEq
+
+/-- Move a successful runtime result-sort check back to the independent
+narrow header scope.  Both translations are tied to the same concrete
+residual, so uniqueness in the runtime context followed by inverse weakening
+provides the narrow result equality. -/
+theorem NarrowRuntimeScope.resultSort
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (henv : env.WF)
+    (hnarrow : TrExprS env Us scope e narrow')
+    (hfull : TrExpr env Us runtime e full')
+    (hsort : TrExpr env Us runtime (.sort level) full') :
+    TrExpr env Us scope (.sort level) narrow' := by
+  rcases hsort with ⟨sortFull, hsortFull, hsortTarget⟩
+  have hclosed : Closed (.sort level) 0 := trivial
+  have hfvars : FVarsIn (· ∈ scope.fvars) (.sort level) := by
+    simpa [FVarsIn] using hsortFull.fvarsIn
+  rcases H.restrictEq henv hsortFull hclosed hfvars with
+    ⟨sortNarrow, hsortNarrow, hsortLift⟩
+  have htarget := H.fullTargetEq henv hnarrow hfull
+  have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
+  have hlift : env.IsDefEqU Us.length runtime.toCtx
+      (sortNarrow.lift' H.shift) (narrow'.lift' H.shift) :=
+    hsortLift.symm.trans henv hruntimeWF <|
+      hsortTarget.trans henv hruntimeWF htarget.symm
+  have hexpanded := hlift.defeqDFC henv.ordered
+    (H.context.defeqCtx.symm henv.ordered)
+  have hnarrowEq : env.IsDefEqU Us.length scope.toCtx
+      sortNarrow narrow' :=
+    (VEnv.IsDefEqU.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+      hexpanded
+  exact ⟨sortNarrow, hsortNarrow, hnarrowEq⟩
 
 /-- Extend the embedding by a generated index free variable.  The new
 runtime domain need only be definitionally equal to the weakened semantic
@@ -1266,6 +1371,40 @@ structure AmbientParamContext (Hc : ContextWF c) (params : List VExpr)
   context : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
     (ambient ++ params.reverse) Hc.mlctx.vlctx.toCtx
   length : ambient.length = depth
+
+/-- The exact cached-parameter suffix represents the common abstract
+parameter telescope fixed by the first header.  The ambient prefixes may
+differ definitionally, but have the same recorded depth and can be inverted
+away from the context conversion. -/
+theorem ParameterContextSuffix.paramsDefEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (Hsuffix : ParameterContextSuffix Hc stats depth)
+    (Hambient : AmbientParamContext Hc params depth)
+    (hparams : params.length = stats.params.size) :
+    VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx := by
+  have hcontext : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (Hambient.ambient ++ params.reverse)
+      (Hsuffix.ambientDecls.toCtx ++ Hsuffix.parameterDecls.toCtx) := by
+    simpa [Hsuffix.context] using Hambient.context
+  have hparameterCtx : Hsuffix.parameterDecls.toCtx.length =
+      stats.params.size := by
+    have hcachedLength : ∀ {ps : List Expr} {decls : VLCtx},
+        List.Forall₂ CachedParameterDecl ps decls →
+        decls.toCtx.length = ps.length := by
+      intro ps decls hcached
+      induction hcached with
+      | nil => rfl
+      | cons h _ ih =>
+        rcases h with ⟨fv, deps, type, rfl, rfl⟩
+        simp [VLCtx.toCtx, ih]
+    simpa using hcachedLength Hsuffix.cached
+  have hprefix : Hambient.ambient.length =
+      Hsuffix.ambientDecls.toCtx.length := by
+    have hlength := hcontext.length_eq
+    simp only [List.length_append, List.length_reverse] at hlength
+    omega
+  exact VEnv.IsDefEqCtx.dropPrefixes hcontext hprefix
 
 /-- Source-side account of the header telescope consumed by `loopType`.
 `root` is the original normalized header and `current` is its unconsumed
@@ -1708,9 +1847,9 @@ theorem NarrowHeaderSynthesisCertificate.consumeIndex
     ∃ normalized',
       TrExprS env Us ((some (fv, deps), .vlam indexType) :: scope)
         normalized normalized' ∧
-      Nonempty (NarrowHeaderSynthesisCertificate env Us target
+      ∃ H' : NarrowHeaderSynthesisCertificate env Us target
         ((some (fv, deps), .vlam indexType) :: scope)
-        normalized' i (nindices + 1)) := by
+        normalized' i (nindices + 1), H'.params = H.params := by
   cases htype with
   | forallE hdomType hbodyType hdom hbody =>
     rcases hdomain with ⟨sourceDom', hsourceDom, hsourceDomEq⟩
@@ -1742,7 +1881,7 @@ theorem NarrowHeaderSynthesisCertificate.consumeIndex
         (.forallE _ _) (.forallE indexType normalized') :=
       ⟨_, .forallEDF hdomTyped hbodyTyped⟩
     exact ⟨normalized', hnormalized,
-      ⟨H.withIndex henv hscopeWF hstep⟩⟩
+      H.withIndex henv hscopeWF hstep, rfl⟩
 
 theorem NarrowHeaderSynthesisCertificate.typeShape
     {decl : VInductDecl} {target : VInductiveType}
@@ -1778,6 +1917,40 @@ theorem NarrowHeaderSynthesisCertificate.typeShape
     (by simpa [huvars, VInductiveType.toSkeleton] using H.header)
     hparamsTake hindicesTake
     (VInductDecl.paramsDefEq_reflOfAppend hctxType) hlevel hsort
+
+theorem NarrowHeaderSynthesisCertificate.typeShapeWithParams
+    {decl : VInductDecl} {target : VInductiveType}
+    {commonParams : List VExpr}
+    (H : NarrowHeaderSynthesisCertificate env Us target.toSkeleton
+      scope current decl.nparams target.numIndices)
+    (henv : env.WF)
+    (huvars : Us.length = decl.uvars)
+    (hparams : decl.ParamsDefEq env commonParams H.params)
+    (hlevel : ∀ resultLevel,
+      VLevel.ofLevel Us level = some resultLevel →
+      resultLevel = target.resultLevel)
+    (hsort : TrExpr env Us scope (.sort level) current) :
+    decl.TypeShape env commonParams target := by
+  have hparamsTake :
+      (VExpr.wrapForalls (H.params ++ H.indices) current).takeForalls
+        decl.nparams =
+      some (H.params, VExpr.wrapForalls H.indices current) := by
+    simpa only [H.parameterCount] using
+      VExpr.takeForalls_wrapForalls_append H.params H.indices current
+  have hindicesTake :
+      (VExpr.wrapForalls H.indices current).takeForalls target.numIndices =
+      some (H.indices, current) := by
+    simpa only [H.indexCount] using
+      VExpr.takeForalls_wrapForalls H.indices current
+  apply TrExpr.typeShape (decl := decl) (target := target)
+    (params := commonParams) (ownParams := H.params)
+    (indices := H.indices)
+    (normalized := VExpr.wrapForalls (H.params ++ H.indices) current)
+    (afterParams := VExpr.wrapForalls H.indices current)
+    (result := current) (exprType := H.exprType)
+    henv H.scopeWF huvars H.scopeCtx
+    (by simpa [huvars, VInductiveType.toSkeleton] using H.header)
+    hparamsTake hindicesTake hparams hlevel hsort
 
 theorem HeaderSynthesisCertificate.typeShapeWithParams
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1859,10 +2032,40 @@ supplied its metadata. -/
 structure SynthesizedHeader (env : VEnv) (uvars nparams : Nat)
     (params : List VExpr) (source : VInductiveTypeSkeleton)
     (numIndices : Nat) (resultLevel : VLevel) : Prop where
+  parameterCount : params.length = nparams
   typeShape : ∀ decl : VInductDecl,
     decl.uvars = uvars → decl.nparams = nparams →
     decl.TypeShape env params
       (source.toVInductiveType numIndices resultLevel)
+
+theorem NarrowHeaderSynthesisCertificate.synthesizedHeaderWithParams
+    {source : VInductiveTypeSkeleton} {commonParams : List VExpr}
+    (H : NarrowHeaderSynthesisCertificate env Us source scope current
+      nparams nindices)
+    (henv : env.WF)
+    (huvars : Us.length = uvars)
+    (hparams : VEnv.IsDefEqCtx env uvars []
+      commonParams.reverse H.params.reverse)
+    (hofLevel : VLevel.ofLevel Us level = some resultLevel)
+    (hsort : TrExpr env Us scope (.sort level) current) :
+    SynthesizedHeader env uvars nparams commonParams source
+      nindices resultLevel where
+  parameterCount := by
+    simpa [H.parameterCount] using hparams.length_eq
+  typeShape decl hdeclUvars hdeclParams := by
+    have huvars' : Us.length = decl.uvars :=
+      huvars.trans hdeclUvars.symm
+    have hparams' : decl.ParamsDefEq env commonParams H.params := by
+      simpa [VInductDecl.ParamsDefEq, hdeclUvars] using hparams
+    subst nparams
+    apply H.typeShapeWithParams
+      (target := source.toVInductiveType nindices resultLevel)
+      henv huvars' hparams'
+    · intro resultLevel' hofLevel'
+      rw [hofLevel] at hofLevel'
+      cases hofLevel'
+      rfl
+    · exact hsort
 
 theorem HeaderSynthesisCertificate.synthesizedHeader
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1874,6 +2077,7 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
       (.sort level) current) :
     SynthesizedHeader Hc.venv uvars nparams H.params source
       nindices resultLevel where
+  parameterCount := H.parameterCount
   typeShape decl hdeclUvars hdeclParams := by
     have huvars' : c.lparams.length = decl.uvars :=
       huvars.trans hdeclUvars.symm
@@ -1899,6 +2103,8 @@ theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
       (.sort level) current) :
     SynthesizedHeader Hc.venv uvars nparams commonParams source
       nindices resultLevel where
+  parameterCount := by
+    simpa [H.parameterCount] using hparams.length_eq
   typeShape decl hdeclUvars hdeclParams := by
     have huvars' : c.lparams.length = decl.uvars :=
       huvars.trans hdeclUvars.symm
@@ -1927,6 +2133,7 @@ structure SynthesizedHeaderPrefix (env : VEnv)
     (skeleton : VInductDeclSkeleton) (params : List VExpr)
     (commonLevel : VLevel) (metadata : List (Nat × VLevel))
     (done : Nat) : Prop where
+  parameterCount : params.length = skeleton.nparams
   covered : done ≤ skeleton.types.length
   checked : List.Forall₂
     (SynthesizedHeaderMetadata env skeleton.uvars skeleton.nparams
@@ -1939,6 +2146,7 @@ theorem SynthesizedHeaderPrefix.first
       params skeleton.types[0] nindices resultLevel) :
     SynthesizedHeaderPrefix env skeleton params resultLevel
       [(nindices, resultLevel)] 1 where
+  parameterCount := Hheader.parameterCount
   covered := by omega
   checked := by
     rw [List.take_succ_eq_append_getElem hindex]
@@ -1954,6 +2162,7 @@ theorem SynthesizedHeaderPrefix.push
     (hlevel : resultLevel ≈ commonLevel) :
     SynthesizedHeaderPrefix env skeleton params commonLevel
       (metadata ++ [(nindices, resultLevel)]) (done + 1) where
+  parameterCount := H.parameterCount
   covered := by omega
   checked := by
     rw [List.take_succ_eq_append_getElem hindex]
@@ -3889,28 +4098,42 @@ semantic telescope independent of ambient declarations retained by the
 executable checker. -/
 theorem laterIndexSynthesisWF
     {alpha : Type} {target : VInductiveTypeSkeleton}
+    {commonParams : List VExpr}
+    {paramU : Nat}
+    {R : VEnv → Prop}
     (k : Expr → AddInductive.InductiveStats → Nat →
       AddInductive.M alpha) (Q : alpha → Prop)
     (Hresult : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
       (_hlparams : c'.lparams = c.lparams)
       {type' narrowCurrent fullCurrent scope' nindices' fuel'},
       (¬ ∃ name dom body bi, type' = .forallE name dom body bi) →
-      NarrowHeaderSynthesisCertificate Hc'.venv c'.lparams target
-        scope' narrowCurrent nparams nindices' →
+      (Hsynthesis' : NarrowHeaderSynthesisCertificate Hc'.venv c'.lparams
+        target scope' narrowCurrent nparams nindices') →
       NarrowRuntimeScope Hc'.venv c'.lparams scope' Hc'.mlctx.vlctx →
       TrExprS Hc'.venv c'.lparams scope' type' narrowCurrent →
       FVarsIn (· ∈ scope'.fvars) type' →
       TrExpr Hc'.venv c'.lparams Hc'.mlctx.vlctx type' fullCurrent →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats nparams (depth + nindices') →
+      ParameterContextSuffix Hc' stats (depth + nindices') →
+      AmbientParamContext Hc' commonParams (depth + nindices') →
+      R Hc'.venv →
+      VEnv.IsDefEqCtx Hc'.venv paramU []
+        commonParams.reverse Hsynthesis'.params.reverse →
       (AddInductive.checkInductiveTypes.loopType nparams stats type'
-        nparams nindices' fuel' k c').WF Q)
+        nparams nindices' (fuel' + 1) k c').WF Q)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (Hc : ContextWF c)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats nparams (depth + nindices))
+    (Hsuffix : ParameterContextSuffix Hc stats (depth + nindices))
+    (Hambient : AmbientParamContext Hc commonParams
+      (depth + nindices))
+    (HR : R Hc.venv)
     (Hsynthesis : NarrowHeaderSynthesisCertificate Hc.venv c.lparams
       target scope narrowCurrent nparams nindices)
+    (Hparams : VEnv.IsDefEqCtx Hc.venv paramU []
+      commonParams.reverse Hsynthesis.params.reverse)
     (Hruntime : NarrowRuntimeScope Hc.venv c.lparams
       scope Hc.mlctx.vlctx)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowCurrent)
@@ -4039,14 +4262,26 @@ theorem laterIndexSynthesisWF
             Hc'.checking.tr.wf
             (.forallE hdomType _hbodyType hdomNarrow hbodyNarrow)
             hscopeWF hdomainNarrow htransition with
-          ⟨nextNarrow, hnextNarrow, ⟨Hsynthesis'⟩⟩
-        exact ih Hresult Hc'
+          ⟨nextNarrow, hnextNarrow, Hsynthesis', hparamsPreserved⟩
+        exact ih (fun Hc'' hlparams'' =>
+            Hresult Hc'' (by simpa using hlparams'')) Hc'
           (by simpa [Nat.add_assoc] using
             Hcache.withIndex Hc Hdom.consumed Hdom.isType)
-          Hsynthesis' Hruntime' hnextNarrow hnormalizedFVars
+          (by simpa [Nat.add_assoc] using
+            Hsuffix.withIndex Hc Hdom.consumed Hdom.isType)
+          (by simpa [Nat.add_assoc] using
+            (Hambient.withIndex Hdom.consumed Hdom.isType
+              Hdom.source_defeq))
+          (by change R Hc.venv; exact HR)
+          Hsynthesis' (by
+            rw [hparamsPreserved]
+            change VEnv.IsDefEqCtx Hc.venv paramU []
+              commonParams.reverse Hsynthesis.params.reverse
+            exact Hparams) Hruntime' hnextNarrow
+          hnormalizedFVars
           ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
     · exact Hresult Hc rfl hforall Hsynthesis Hruntime htypeNarrow
-        htypeFVars htypeFull Hcache
+        htypeFVars htypeFull Hcache Hsuffix Hambient HR Hparams
 
 end checkInductiveTypes.loopType
 
@@ -4941,6 +5176,79 @@ theorem laterResult.extendsPrefix
   exact Hrec resultSort resultLevel hguard hofLevel
     (Hprefix.push hindex hheader hlevel)
 
+/-- Later-header result continuation for the independent narrow telescope.
+The executable sort check runs in the retained runtime context; `resultSort`
+restricts its translation before the synthesized header is added to the
+ordered metadata prefix. -/
+theorem laterResult.extendsPrefixNarrow
+    {skeleton : VInductDeclSkeleton} {source : VInductiveTypeSkeleton}
+    {narrowCurrent fullCurrent : VExpr} {scope : VLCtx}
+    {commonParams : List VExpr}
+    {metadata : List (Nat × VLevel)} {commonLevel : VLevel}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c) (hnonempty : stats.indConsts.isEmpty = false)
+    (hindex : dIdx < skeleton.types.length)
+    (hsource : skeleton.types[dIdx] = source)
+    (Hprefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
+      Hc.venv skeleton commonParams commonLevel metadata dIdx)
+    (Hsynthesis : checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      Hc.venv c.lparams source scope narrowCurrent
+      skeleton.nparams nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+      Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowCurrent)
+    (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      type fullCurrent)
+    (huvars : c.lparams.length = skeleton.uvars)
+    (hparams : VEnv.IsDefEqCtx Hc.venv skeleton.uvars []
+      commonParams.reverse Hsynthesis.params.reverse)
+    (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
+      some commonLevel)
+    (Hrec : ∀ resultSort resultLevel,
+      resultSort.isEquiv stats.resultLevel = true →
+      VLevel.ofLevel c.lparams resultSort = some resultLevel →
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc.venv
+        skeleton commonParams commonLevel
+        (metadata ++ [(nindices, resultLevel)]) (dIdx + 1) →
+      (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+        (dIdx + 1)
+        (updatedStats stats stats.lctx resultSort false nindices indName)
+        k c).WF Q) :
+    ((fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other
+          "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push (.const indName stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+        (dIdx + 1) stats k) type stats nindices c).WF Q := by
+  subst source
+  rcases htypeFull with ⟨sourceFull, hsourceFull, _hsourceEq⟩
+  apply laterResult.WF k Q Hc hnonempty hsourceFull
+  intro resultSort hguard hsorted
+  have hsourceFull' : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      type sourceFull :=
+    hsourceFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+  have hsortedNarrow := Hruntime.resultSort Hc.checking.tr.wf
+    htypeNarrow hsourceFull' hsorted
+  rcases TrExpr.sort_source hsortedNarrow with
+    ⟨resultLevel, hofLevel, _hresult⟩
+  have hheader := Hsynthesis.synthesizedHeaderWithParams
+    Hc.checking.tr.wf huvars hparams hofLevel hsortedNarrow
+  have hlevel : resultLevel ≈ commonLevel :=
+    Level.isEquiv_wf hguard hofLevel hcommon
+  exact Hrec resultSort resultLevel hguard hofLevel
+    (Hprefix.push hindex hheader hlevel)
+
 /-- Base case of the mutual-header loop.  The executable assertions become
 explicit invariants at the proof boundary instead of being silently erased. -/
 theorem result.WF
@@ -5167,6 +5475,181 @@ theorem firstStep.initializesPrefix
       intro _
       exact ⟨List.eq_nil_of_length_eq_zero Hsynthesis.indexCount, rfl⟩)
     (htype := hnormalized')
+
+/-- Complete a noninitial mutual-header iteration.  Cached parameters are
+consumed in an independent narrow telescope, later indices extend both the
+runtime and outer-loop context certificates, and the result sort appends one
+ordered metadata entry. -/
+theorem laterStep.extendsPrefix
+    {skeleton : VInductDeclSkeleton} {commonParams : List VExpr}
+    {commonLevel : VLevel} {metadata : List (Nat × VLevel)}
+    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
+    (Q : α → Prop)
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton)
+    (hidx : dIdx < indTypes.size)
+    (_hnoninitial : 0 < dIdx)
+    (hnonempty : stats.indConsts.isEmpty = false)
+    (hparams : stats.params.size = skeleton.nparams)
+    (Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
+      Hc.venv c.lparams Hc.mlctx.vlctx stats skeleton.nparams depth)
+    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth)
+    (Hprefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
+      Hc.venv skeleton commonParams commonLevel metadata dIdx)
+    (Hambient : checkInductiveTypes.loopType.AmbientParamContext
+      Hc commonParams depth)
+    (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
+      some commonLevel)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hrec : ∀ {c' : AddInductive.Context} {nindices : Nat}
+      {resultSort : Level} {resultLevel : VLevel},
+      (Hc' : ContextWF c') →
+      c'.lparams = c.lparams →
+      checkInductiveTypes.loopType.ParameterCachePrefix
+        Hc'.venv c'.lparams Hc'.mlctx.vlctx
+        (updatedStats stats stats.lctx resultSort false nindices
+          indTypes[dIdx].name)
+        skeleton.nparams (depth + nindices) →
+      checkInductiveTypes.loopType.ParameterContextSuffix Hc'
+        (updatedStats stats stats.lctx resultSort false nindices
+          indTypes[dIdx].name)
+        (depth + nindices) →
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc'.venv
+        skeleton commonParams commonLevel
+        (metadata ++ [(nindices, resultLevel)]) (dIdx + 1) →
+      checkInductiveTypes.loopType.AmbientParamContext Hc'
+        commonParams (depth + nindices) →
+      (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+        (dIdx + 1)
+        (updatedStats stats stats.lctx resultSort false nindices
+          indTypes[dIdx].name) k c').WF Q) :
+    (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+      dIdx stats k c).WF Q := by
+  have hskeletonIdx : dIdx < skeleton.types.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+    simpa using hidx
+  apply stepPrefix.refinesSkeleton (k := k) (Q := Q) Hc Hdecl hidx
+  intro checkedType type' checkedType' hchecked envTypes htypes
+    target htarget Htarget normalized hbelow hnormalized
+  have htargetEq : target = skeleton.types[dIdx] := by
+    symm
+    simpa [List.getElem?_eq_getElem hskeletonIdx] using htarget
+  subst target
+  have hnormalizedNoFVars : FVarsIn (fun _ => False) normalized := by
+    have hsourceNoFVars : FVarsIn (fun _ => False)
+        indTypes[dIdx].type :=
+      Htarget.header.type.fvarsIn.mono fun fv hfv => by
+        simpa [VLCtx.fvars] using hfv
+    have hfalseUpSet : IsFVarUpSet (fun _ => False)
+        Hc.mlctx.vlctx := by
+      have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
+        Hc.mlctx.vlctx (by simpa using Hc.mlctx_wf.tr.wf)
+      simpa [VLCtx.fvars] using hsuffix
+    exact hbelow _ hfalseUpSet hsourceNoFVars
+  rcases initialLaterHeaderSynthesisState Hc Htarget hchecked
+      hnormalized hnormalizedNoFVars with
+    ⟨narrowCurrent, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
+  let Hscope : ∀ h : 0 < stats.params.size,
+      checkInductiveTypes.loopType.LaterParameterScope Hsuffix 0
+        normalized := fun h =>
+    initialLaterParameterScope Hc Hsuffix h Htarget hbelow
+  apply checkInductiveTypes.loopType.laterParameterSynthesisWF Hc
+    (target := skeleton.types[dIdx])
+    (k := fun type stats nindices => show AddInductive.M α from do
+      let type ← TypeChecker.ensureSort type
+      let mut stats := stats
+      let resultLevel := type.sortLevel!
+      if stats.indConsts.isEmpty then
+        let lctx := (← read).lctx
+        stats := { stats with
+          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+      else if !resultLevel.isEquiv stats.resultLevel then
+        throw <| .other
+          "mutually inductive types must live in the same universe"
+      stats := { stats with
+        nindices := stats.nindices.push nindices
+        indConsts := stats.indConsts.push
+          (.const indTypes[dIdx].name stats.levels) }
+      AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+        (dIdx + 1) stats k)
+    (Q := Q) hnonempty Hsuffix
+    (Hresult := by
+      intro type'' narrow'' full'' scope'' i'' fuel'' hi'' Hsynthesis''
+        hscope'' htypeNarrow'' htypeFVars'' htypeFull''
+      cases hi''
+      subst scope''
+      let Hruntime :=
+        checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+          Hc Hsuffix
+      have hindices'' : Hsynthesis''.indices = [] :=
+        List.eq_nil_of_length_eq_zero Hsynthesis''.indexCount
+      have hparamScope : Hsuffix.parameterDecls.toCtx =
+          Hsynthesis''.params.reverse := by
+        simpa [hindices''] using Hsynthesis''.scopeCtx
+      have hparamsBoundary := Hsuffix.paramsDefEq Hambient <|
+        Hprefix.parameterCount.trans hparams.symm
+      rw [hparamScope] at hparamsBoundary
+      apply checkInductiveTypes.loopType.laterIndexSynthesisWF
+        (depth := depth) (commonParams := commonParams)
+        (paramU := c.lparams.length)
+        (R := fun env =>
+          checkInductiveTypes.loopType.SynthesizedHeaderPrefix env
+            skeleton commonParams commonLevel metadata dIdx)
+        (k := fun type stats nindices => show AddInductive.M α from do
+          let type ← TypeChecker.ensureSort type
+          let mut stats := stats
+          let resultLevel := type.sortLevel!
+          if stats.indConsts.isEmpty then
+            let lctx := (← read).lctx
+            stats := { stats with
+              lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
+          else if !resultLevel.isEquiv stats.resultLevel then
+            throw <| .other
+              "mutually inductive types must live in the same universe"
+          stats := { stats with
+            nindices := stats.nindices.push nindices
+            indConsts := stats.indConsts.push
+              (.const indTypes[dIdx].name stats.levels) }
+          AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
+            (dIdx + 1) stats k)
+        (Q := Q)
+        (Hresult := by
+          intro c' Hc' hlparams' type''' narrow''' full''' scope'''
+            nindices''' fuel''' hforall''' Hsynthesis''' Hruntime'''
+            htypeNarrow''' _htypeFVars''' htypeFull''' Hcache'''
+            Hsuffix''' Hambient''' Hprefix''' hparams'''
+          apply checkInductiveTypes.loopType.result.WF
+            (fuel := fuel''') (Q := Q) hforall''' rfl
+          apply laterResult.extendsPrefixNarrow
+            (indTypes := indTypes) (indName := indTypes[dIdx].name)
+            (commonParams := commonParams) (metadata := metadata)
+            (commonLevel := commonLevel) k Q Hc' hnonempty
+            hskeletonIdx rfl Hprefix''' Hsynthesis'''
+            Hruntime''' htypeNarrow''' htypeFull'''
+          · rw [hlparams', ← Hdecl.2.1]
+          · simpa [hlparams', ← Hdecl.2.1] using hparams'''
+          · simpa [hlparams'] using hcommon
+          · intro resultSort resultLevel hguard hofLevel Hprefix'
+            apply Hrec Hc' hlparams'
+            · exact Hcache'''.reindex (by simp [updatedStats])
+            · exact Hsuffix'''.reindex (by simp [updatedStats])
+            · exact Hprefix'
+            · exact Hambient''')
+        hconsume Hc (by simpa using Hcache) (by simpa using Hsuffix)
+        (by simpa using Hambient) Hprefix Hsynthesis'' hparamsBoundary
+        Hruntime
+        htypeNarrow'' htypeFVars'' htypeFull'')
+    hparams (by omega) Hscope
+    (fun h => (Hscope h).older_eq_nil h |>.symm)
+    (by
+      intro hzero
+      have hsize : stats.params.size = 0 := hparams.trans hzero.symm
+      apply (List.eq_nil_of_length_eq_zero ?_).symm
+      rw [Hsuffix.parameterDecls_length, hsize])
+    Hsynthesis hnormalizedNarrow (by simpa [VLCtx.fvars] using
+      hnormalizedNoFVars) hnormalized
 
 /-- Indexed declaration-facing form of `stepPrefix.WF`.  Besides the checked
 source translation, the continuation receives the exact corresponding
