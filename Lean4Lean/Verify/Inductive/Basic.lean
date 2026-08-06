@@ -15252,6 +15252,21 @@ def BoundGeneratedRecursiveCalls.RecursorsPresent
         lvls root u[i] v[i]!),
     Hentry.recursorName ∈ recursors
 
+/-- Pointwise owner alignment between typed recursive-field classification
+and the later recursive-call generator. Establishing this relation is the
+remaining local determinism obligation between the two production passes. -/
+structure BoundGeneratedRecursiveCalls.OwnerAlignment
+    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v u.size)
+    (decl : VInductDecl)
+    (certs : List (RecursorRecursiveDomain domainEnv decl)) : Prop where
+  length : certs.length = u.size
+  recursorName : ∀ i (hi : i < u.size)
+      (Hentry : BoundGeneratedRecursiveCall indTypes stats motives minors
+        lvls root u[i] v[i]!),
+    Hentry.recursorName =
+      Lean.mkRecName indTypes[(certs[i]'(by omega)).ownerIdx]!.name
+
 theorem BoundGeneratedRecursiveCalls.abstractedIotaResults_ofFresh
     (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
       root u v u.size)
@@ -17213,6 +17228,28 @@ theorem GeneratedRecursors.recursiveDomainRecursor_mem_block
     rw [htypes]
     exact cert.owner_lt
   exact H.recursorName_mem_block block hrecords hrecursors cert.ownerIdx howner
+
+/-- Owner alignment discharges the exact generated-call recursor coverage
+used by guarded iota RHS construction. -/
+theorem GeneratedRecursors.recursorsPresent_ofOwnerAlignment
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries)
+    (block : VInductBlock)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl)
+    (hrecursors : block.recursors = entries.map Prod.snd)
+    (Hcalls : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v u.size)
+    (Howners : Hcalls.OwnerAlignment decl certs) :
+    Hcalls.RecursorsPresent (block.recursors.map (·.name)) := by
+  intro i hi Hentry
+  have hiCert : i < certs.length := by rw [Howners.length]; exact hi
+  let cert := certs[i]
+  have hmem := H.recursiveDomainRecursor_mem_block block Hcard Hdecl
+    hrecursors cert
+  rw [Howners.recursorName i hi Hentry]
+  simpa [cert] using hmem
 
 theorem GeneratedRecursors.recursorCertificate
     (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
