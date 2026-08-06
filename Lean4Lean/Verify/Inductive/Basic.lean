@@ -273,6 +273,15 @@ theorem TrInductDeclSkeleton.typeAt
     Lean4Lean.VerifyInductive.List.Forall₂.getElem htypes i
       hsource htarget⟩
 
+theorem TrInductDeclSkeleton.typeNameAt
+    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl)
+    (i : Nat) (hsource : i < types.length)
+    (htarget : i < decl.types.length) :
+    types[i].name = decl.types[i].name := by
+  rcases Lean4Lean.VerifyInductive.TrInductDeclSkeleton.typeAt
+    H i hsource htarget with ⟨_, _, Htype⟩
+  exact Htype.header.name.symm
+
 theorem TrInductiveTypeSkeleton.materialized
     (H : TrInductiveTypeSkeleton env envTypes lparams type target) :
     TrInductiveType env envTypes lparams type
@@ -5706,6 +5715,23 @@ theorem laterStep.extendsPrefix
     Hsynthesis hnormalizedNarrow (by simpa [VLCtx.fvars] using
       hnormalizedNoFVars) hnormalized
 
+/-- Concrete statistics recovered together with a materialized mutual header.
+This is the early traversal-facing form of `ValidAppStatsWF`; it is kept here
+because the latter also packages the derived name-search invariant used by
+positivity, which is defined after the executable constructor interfaces. -/
+structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
+    (Δ : VLCtx) (stats : AddInductive.InductiveStats)
+    (decl : VInductDecl) (depth : Nat) where
+  headers : HeaderCertificate env decl
+  levels : stats.levels.length = decl.uvars
+  uvars : Us.length = decl.uvars
+  consts : stats.indConsts =
+    (decl.types.map fun type => .const type.name stats.levels).toArray
+  indices : stats.nindices.toList = decl.types.map (·.numIndices)
+  params : List.Forall₂ (TrExprS env Us Δ) stats.params.toList
+    (decl.paramVars depth)
+  paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
+
 /-- Fold the verified noninitial step over the remainder of the mutual block.
 At exact coverage the executable length assertions are discharged and the
 metadata-free declaration is materialized together with its header
@@ -5723,6 +5749,10 @@ theorem laterSteps.materialize
     (hlevels : stats.levels.length = c.lparams.length)
     (hindices : stats.nindices.size = dIdx)
     (hconsts : stats.indConsts.size = dIdx)
+    (hindicesExact : stats.nindices.toList = metadata.map Prod.fst)
+    (hconstsExact : stats.indConsts =
+      ((skeleton.types.take dIdx).map fun type =>
+        .const type.name stats.levels).toArray)
     (hparams : stats.params.size = skeleton.nparams)
     (Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
       Hc.venv c.lparams Hc.mlctx.vlctx stats skeleton.nparams depth)
@@ -5736,11 +5766,13 @@ theorem laterSteps.materialize
       some commonLevel)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (Hfinish : ∀ {c' : AddInductive.Context}
-      {stats' : AddInductive.InductiveStats} {decl : VInductDecl},
+      {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
+      {depth' : Nat},
       (Hc' : ContextWF c') →
       TrInductDecl Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe decl →
-      HeaderCertificate Hc'.venv decl →
+      MaterializedHeaderResult Hc'.venv c'.lparams Hc'.mlctx.vlctx
+        stats' decl depth' →
       (k stats' c').WF Q) :
     (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
       dIdx stats k c).WF Q := by
@@ -5751,6 +5783,13 @@ theorem laterSteps.materialize
       · have hzero : stats.indConsts.size = 0 := by
           simpa [Array.isEmpty] using hempty
         omega
+    have htargetIdx : dIdx < skeleton.types.length := by
+      rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+      simpa using hidx
+    have hname := Lean4Lean.VerifyInductive.TrInductDeclSkeleton.typeNameAt
+      Hdecl dIdx (by simpa using hidx) htargetIdx
+    have hname' : indTypes[dIdx].name = skeleton.types[dIdx].name := by
+      simpa using hname
     apply laterStep.extendsPrefix k Q Hc Hdecl hidx hpositive hnonempty
       hparams Hcache Hsuffix Hprefix Hambient hcommon hconsume
     intro c' nindices resultSort resultLevel Hc' hlparams' Hdecl'
@@ -5766,6 +5805,11 @@ theorem laterSteps.materialize
     · simpa [updatedStats, hlparams'] using hlevels
     · simp [updatedStats, hindices]
     · simp [updatedStats, hconsts]
+    · simp [updatedStats, hindicesExact]
+    · rw [List.take_succ_eq_append_getElem]
+      · simp [updatedStats, hconstsExact, hname']
+      · rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+        simpa using hidx
     · simpa [updatedStats] using hparams
     · exact Hcache'
     · exact Hsuffix'
@@ -5773,8 +5817,8 @@ theorem laterSteps.materialize
     · exact Hambient'
     · simpa [updatedStats, hlparams'] using hcommon
     · exact hconsume
-    · intro c'' stats'' decl Hc'' Hdecl'' Hheaders
-      exact Hfinish Hc'' Hdecl'' Hheaders
+    · intro c'' stats'' decl depth'' Hc'' Hdecl'' Hresult
+      exact Hfinish Hc'' Hdecl'' Hresult
   · have heq : dIdx = indTypes.size := by omega
     have htypes : skeleton.types.length = indTypes.size := by
       rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
@@ -5785,6 +5829,8 @@ theorem laterSteps.materialize
       simpa [heq, htypes] using Hprefix
     rcases Hprefix'.materializes with
       ⟨decl, hmaterialize, ⟨Hheaders⟩⟩
+    have hfields := VInductDeclSkeleton.materialize_fields hmaterialize
+    have herase := VInductDeclSkeleton.materialize_toSkeleton hmaterialize
     have Hdecl' :=
       Lean4Lean.VerifyInductive.TrInductDeclSkeleton.materialized
         Hdecl hmaterialize
@@ -5793,7 +5839,69 @@ theorem laterSteps.materialize
     · simpa [heq] using hindices
     · simpa [heq] using hconsts
     · exact hparams
-    · exact Hfinish Hc Hdecl' Hheaders
+    · apply Hfinish (depth' := depth) Hc Hdecl'
+      refine {
+        headers := Hheaders
+        levels := ?_
+        uvars := ?_
+        consts := ?_
+        indices := ?_
+        params := ?_
+        paramFVars := Hcache.paramFVars }
+      · exact hlevels.trans (Hdecl.2.1.symm.trans hfields.1.symm)
+      · exact Hdecl.2.1.symm.trans hfields.1.symm
+      · have hconstMap :
+            (decl.types.map fun type => Expr.const type.name stats.levels) =
+              (skeleton.types.map fun type =>
+                Expr.const type.name stats.levels) := by
+          have := congrArg (fun d : VInductDeclSkeleton =>
+            d.types.map fun type => Expr.const type.name stats.levels) herase
+          simpa [VInductDecl.toSkeleton, VInductiveType.toSkeleton,
+            Function.comp_def] using this
+        calc
+          stats.indConsts =
+              (skeleton.types.map fun type =>
+                .const type.name stats.levels).toArray := by
+            have hd : dIdx = skeleton.types.length := heq.trans htypes.symm
+            simpa [hd] using hconstsExact
+          _ = (decl.types.map fun type =>
+                .const type.name stats.levels).toArray := by
+            rw [hconstMap]
+      · have hmetadata : metadata.map Prod.fst =
+            decl.types.map (·.numIndices) := by
+          have zipIndices : ∀ (types : List VInductiveTypeSkeleton)
+              (data : List (Nat × VLevel)), data.length = types.length →
+              (List.zipWith (fun type datum =>
+                type.toVInductiveType datum.1 datum.2) types data).map
+                  (·.numIndices) = data.map Prod.fst := by
+            intro types data hlength
+            induction types generalizing data with
+            | nil => simpa using hlength
+            | cons type types ih =>
+              cases data with
+              | nil => simp at hlength
+              | cons datum data =>
+                simp only [List.length_cons] at hlength
+                change datum.1 ::
+                    (List.zipWith (fun type datum =>
+                      type.toVInductiveType datum.1 datum.2)
+                      types data).map (·.numIndices) =
+                    datum.1 :: data.map Prod.fst
+                exact congrArg (List.cons datum.1) (ih data (by omega))
+          have hmetadataLength :=
+            VInductDeclSkeleton.materialize_length hmaterialize
+          simp only [VInductDeclSkeleton.materialize] at hmaterialize
+          split at hmaterialize
+          · simp only [Option.some.injEq] at hmaterialize
+            subst decl
+            exact (zipIndices skeleton.types metadata hmetadataLength).symm
+          · contradiction
+        exact hindicesExact.trans hmetadata
+      · have Hcache' : checkInductiveTypes.loopType.ParameterCachePrefix
+            Hc.venv c.lparams Hc.mlctx.vlctx stats decl.nparams depth := by
+          rw [hfields.2.1]
+          exact Hcache
+        exact Hcache'.complete
 termination_by indTypes.size - dIdx
 
 /-- Complete the whole nonempty mutual-header phase, including the special
@@ -5814,11 +5922,13 @@ theorem firstStep.materialize
     (hparams : stats.params = #[])
     (hconsume : ConsumeTypeAnnotationsCompat)
     (Hfinish : ∀ {c' : AddInductive.Context}
-      {stats' : AddInductive.InductiveStats} {decl : VInductDecl},
+      {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
+      {depth' : Nat},
       (Hc' : ContextWF c') →
       TrInductDecl Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe decl →
-      HeaderCertificate Hc'.venv decl →
+      MaterializedHeaderResult Hc'.venv c'.lparams Hc'.mlctx.vlctx
+        stats' decl depth' →
       (k stats' c').WF Q) :
     (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes 0
       stats k c).WF Q := by
@@ -5833,6 +5943,13 @@ theorem firstStep.materialize
     have hlength :=
       Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hcache'.params
     simpa using hlength
+  have hskeletonIdx : 0 < skeleton.types.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl']
+    simpa using hidx
+  have hname := Lean4Lean.VerifyInductive.TrInductDeclSkeleton.typeNameAt
+    Hdecl' 0 (by simpa using hidx) hskeletonIdx
+  have hname' : indTypes[0].name = skeleton.types[0].name := by
+    simpa using hname
   apply laterSteps.materialize k Q Hc' Hdecl'
     (dIdx := 1) (depth := nindices) (stats := statsNext)
     (metadata := [(nindices, resultLevel)])
@@ -5842,6 +5959,9 @@ theorem firstStep.materialize
   · simpa [statsNext, updatedStats, hlevels', hlparams'] using hlevels
   · simp [statsNext, updatedStats, hnindices', hnindices]
   · simp [statsNext, updatedStats, hconsts', hconsts]
+  · simp [statsNext, updatedStats, hnindices', hnindices]
+  · rw [List.take_succ_eq_append_getElem hskeletonIdx]
+    simp [statsNext, updatedStats, hconsts', hconsts, hname']
   · simpa [statsNext, updatedStats] using hparamSize
   · exact Hcache'.reindex (by simp [statsNext, updatedStats])
   · exact Hsuffix'.reindex (by simp [statsNext, updatedStats])
@@ -5865,11 +5985,13 @@ theorem checkInductiveTypes.materialize
     (hnonempty : 0 < indTypes.size)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (Hfinish : ∀ {c' : AddInductive.Context}
-      {stats' : AddInductive.InductiveStats} {decl : VInductDecl},
+      {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
+      {depth : Nat},
       (Hc' : ContextWF c') →
       TrInductDecl Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe decl →
-      HeaderCertificate Hc'.venv decl →
+      MaterializedHeaderResult Hc'.venv c'.lparams Hc'.mlctx.vlctx
+        stats' decl depth →
       (k stats' c').WF Q) :
     (AddInductive.checkInductiveTypes skeleton.nparams indTypes k c).WF Q := by
   change (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
@@ -6479,6 +6601,37 @@ theorem IndConstArray.push
     simp only [beq_iff_eq, List.contains_cons,
       List.contains_nil, Bool.or_false]
     exact eq_comm
+
+theorem IndConstArray.ofExact
+    {levels : List Level} {indConsts : Array Expr} {names : List Name}
+    (h : indConsts = (names.map fun name => .const name levels).toArray) :
+    IndConstArray levels indConsts names where
+  exact := h
+  names := by
+    intro name
+    apply Bool.eq_iff_iff.mpr
+    simp [h]
+    constructor
+    · rintro ⟨source, hsource, hname⟩
+      have : source = name := by
+        simpa [Expr.constName!] using hname
+      simpa [this] using hsource
+    · intro hname
+      exact ⟨name, hname, by simp [Expr.constName!]⟩
+
+/-- Promote the exact traversal-facing statistics into the positivity-facing
+application invariant. -/
+def ValidAppStatsWF.ofMaterializedHeader
+    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+      env Us Δ stats decl depth) :
+    ValidAppStatsWF env Us Δ stats decl depth where
+  levels := H.levels
+  uvars := H.uvars
+  consts := IndConstArray.ofExact (by
+    simpa [List.map_map, Function.comp_def] using H.consts)
+  indices := H.indices
+  params := H.params
+  paramFVars := H.paramFVars
 
 theorem IndConstArray.updatedStats
     {stats : AddInductive.InductiveStats} {names : List Name}
