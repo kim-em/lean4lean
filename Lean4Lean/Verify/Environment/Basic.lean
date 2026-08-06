@@ -259,6 +259,30 @@ def TrInductDeclSkeleton (env : VEnv) (lparams : List Name) (nparams : Nat)
     List.Forall₂ (TrInductiveTypeSkeleton env envTypes lparams)
       types decl.types
 
+/-- Metadata-free source translation before aggregate block checks have been
+recovered. As in `TrInductDeclCore`, all pointwise source typing is retained;
+only nonemptiness and global source-name uniqueness are omitted. -/
+structure TrInductDeclSkeletonCore (env : VEnv) (lparams : List Name)
+    (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
+    (decl : VInductDeclSkeleton) (envTypes envCtors : VEnv) : Prop where
+  uvars : decl.uvars = lparams.length
+  nparams : decl.nparams = nparams
+  isUnsafe : decl.isUnsafe = isUnsafe
+  typesAdded : env.addConsts decl.typeConstants = some envTypes
+  ctorsAdded : envTypes.addConsts decl.constructorConstants = some envCtors
+  types : List.Forall₂ (TrInductiveTypeSkeleton env envTypes lparams)
+    types decl.types
+
+theorem TrInductDeclSkeleton.core
+    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl) :
+    ∃ envTypes envCtors,
+      TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
+        envTypes envCtors := by
+  rcases H with ⟨_, huvars, hnparams, hunsafe, envTypes, envCtors,
+    htypes, hctors, Htypes⟩
+  exact ⟨envTypes, envCtors, huvars, hnparams, hunsafe, htypes, hctors,
+    Htypes⟩
+
 structure TrInductiveType (env envTypes : VEnv) (lparams : List Name)
     (type : InductiveType) (type' : VInductiveType) : Prop where
   header : TrSourceConst env lparams type.name type.type type'.toVConstVal

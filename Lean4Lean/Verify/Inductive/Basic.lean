@@ -756,6 +756,31 @@ theorem VInductDecl.paramsDefEq_reflOfAppend
     decl.ParamsDefEq env params params := by
   exact VEnv.IsDefEqCtx.refl (OnCtx.append_right H)
 
+theorem TrInductDeclSkeletonCore.types_length
+    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
+      envTypes envCtors) :
+    types.length = decl.types.length :=
+  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.types
+
+theorem TrInductDeclSkeletonCore.typeAt
+    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (i : Nat) (hsource : i < types.length)
+    (htarget : i < decl.types.length) :
+    TrInductiveTypeSkeleton env envTypes lparams
+      types[i] decl.types[i] :=
+  Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i
+    hsource htarget
+
+theorem TrInductDeclSkeletonCore.typeNameAt
+    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (i : Nat) (hsource : i < types.length)
+    (htarget : i < decl.types.length) :
+    types[i].name = decl.types[i].name :=
+  (Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.typeAt
+    H i hsource htarget).header.name.symm
+
 theorem TrInductDeclSkeleton.types_length
     (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl) :
     types.length = decl.types.length := by
@@ -834,6 +859,51 @@ theorem TrInductDeclSkeleton.materialized
     rw [htarget']
     exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.materialized
       htranslated
+
+/-- Recovering arity metadata changes neither translated source constants nor
+their staging environments, so skeleton-core translation materializes to the
+complete declaration-core relation without importing `SourceWF`. -/
+theorem TrInductDeclSkeletonCore.materialized
+    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe skeleton
+      envTypes envCtors)
+    (Hmaterialize : skeleton.materialize metadata = some decl) :
+    TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors := by
+  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
+  have herase := VInductDeclSkeleton.materialize_toSkeleton Hmaterialize
+  have htypeConstants : decl.typeConstants = skeleton.typeConstants := by
+    rw [← VInductDecl.toSkeleton_typeConstants decl, herase]
+  have hconstructorConstants :
+      decl.constructorConstants = skeleton.constructorConstants := by
+    rw [← VInductDecl.toSkeleton_constructorConstants decl, herase]
+  refine {
+    uvars := hfields.1.trans H.uvars
+    nparams := hfields.2.1.trans H.nparams
+    isUnsafe := hfields.2.2.1.trans H.isUnsafe
+    typesAdded := by simpa [htypeConstants] using H.typesAdded
+    ctorsAdded := by simpa [hconstructorConstants] using H.ctorsAdded
+    types := ?_ }
+  have hlength : types.length = decl.types.length := by
+    calc
+      types.length = skeleton.types.length :=
+        Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length H
+      _ = decl.types.length := hfields.2.2.2.symm
+  apply List.forall₂_of_getElem hlength
+  intro i hsourceIdx htargetIdx
+  have hskeletonIdx : i < skeleton.types.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length H]
+    exact hsourceIdx
+  have htranslated :=
+    Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.typeAt
+      H i hsourceIdx hskeletonIdx
+  rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize
+      hskeletonIdx with ⟨data, hdata, htarget⟩
+  have htarget' : decl.types[i] =
+      skeleton.types[i].toVInductiveType data.1 data.2 := by
+    simpa [List.getElem?_eq_getElem htargetIdx] using htarget
+  rw [htarget']
+  exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.materialized
+    htranslated
 
 theorem TrInductDecl.types_length
     (H : TrInductDecl env lparams nparams types isUnsafe decl) :
