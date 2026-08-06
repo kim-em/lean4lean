@@ -11057,6 +11057,37 @@ theorem Expr.abstractList_bvar_ge (fvs : List FVarId) (k n : Nat) :
       simp [Expr.abstract1]]
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (n + 1)
 
+theorem Expr.abstractList_bvar_lt (fvs : List FVarId)
+    (h : n < k) :
+    (Expr.bvar n).abstractList fvs k = .bvar n := by
+  induction fvs with
+  | nil => simp
+  | cons fv fvs ih =>
+    simp [Expr.abstractList, Expr.abstract1, h, ih]
+
+@[simp] theorem Expr.abstractList_app :
+    (Expr.app fn arg).abstractList fvs k =
+      .app (fn.abstractList fvs k) (arg.abstractList fvs k) := by
+  induction fvs generalizing fn arg with
+  | nil => simp
+  | cons fv fvs ih =>
+    simp [Expr.abstractList, Expr.abstract1, ih]
+
+theorem Expr.abstractList_mkAppN :
+    (mkAppN fn args).abstractList fvs k =
+      mkAppN (fn.abstractList fvs k)
+        (args.map fun arg => arg.abstractList fvs k) := by
+  unfold mkAppN
+  rw [← Array.foldl_toList, ← Array.foldl_toList]
+  simp only [Array.toList_map]
+  generalize args.toList = list
+  induction list generalizing fn with
+  | nil => simp
+  | cons arg args ih =>
+    simp only [List.foldl_cons, List.map_cons]
+    rw [ih]
+    simp
+
 theorem Expr.abstractList_fvar_getElem
     (hnd : fvs.Nodup) (i : Nat) (hi : i < fvs.length) :
     (Expr.fvar fvs[i]).abstractList fvs k =
@@ -11084,6 +11115,31 @@ theorem Expr.abstractList_fvar_getElem
       congr 1
       simp only [List.length_cons]
       omega
+
+theorem Expr.abstractList_fvarArray
+    (fvs : List FVarId) (k : Nat) (hnd : fvs.Nodup) :
+    ((fvs.map Expr.fvar).toArray.map fun e => e.abstractList fvs k) =
+      (List.ofFn fun i : Fin fvs.length =>
+        Expr.bvar (k + (fvs.length - 1 - i))).toArray := by
+  apply Array.ext
+  · simp
+  · intro i hiLeft hiRight
+    simp only [Array.getElem_map, List.getElem_toArray,
+      List.getElem_map, List.getElem_ofFn]
+    exact Expr.abstractList_fvar_getElem hnd i (by simpa using hiLeft)
+
+theorem Expr.abstractList_fvarArray_of_disjoint
+    (xs binders : List FVarId) (k : Nat)
+    (hdisjoint : ∀ fv, fv ∈ xs → fv ∉ binders) :
+    ((xs.map Expr.fvar).toArray.map fun e => e.abstractList binders k) =
+      (xs.map Expr.fvar).toArray := by
+  apply Array.ext
+  · simp
+  · intro i hiLeft hiRight
+    have hi : i < xs.length := by simpa using hiRight
+    simp only [Array.getElem_map, List.getElem_toArray, List.getElem_map]
+    exact Expr.abstractList_fvar_of_not_mem <|
+      hdisjoint xs[i] (List.getElem_mem hi)
 
 /-- Translation erases names and binder annotations but preserves the exact
 number of leading forall binders. -/
