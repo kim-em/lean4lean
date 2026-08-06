@@ -684,11 +684,29 @@ theorem OrdinaryCompilationCertificate.compilesTo
 /-- Verification state for the outer inductive-construction monad. The local
 context is represented by the same `MLCtx` used by the typechecker proof, while
 the production reader retains the independently generated `_ind_fresh` names. -/
+def MLCtxOnlyLams (m : TypeChecker.MLCtx) : Prop :=
+  ∀ d ∈ m.decls, ∃ index fv name type bi kind,
+    d = .cdecl index fv name type bi kind
+
+theorem MLCtxOnlyLams.nil : MLCtxOnlyLams .nil := by
+  intro d hd
+  simp [TypeChecker.MLCtx.decls] at hd
+
+theorem MLCtxOnlyLams.vlam
+    (H : MLCtxOnlyLams m) :
+    MLCtxOnlyLams (.vlam fv name type type' bi m) := by
+  intro d hd
+  simp only [TypeChecker.MLCtx.decls, List.mem_cons] at hd
+  rcases hd with rfl | hd
+  · exact ⟨_, _, _, _, _, _, rfl⟩
+  · exact H d hd
+
 structure ContextWF (c : AddInductive.Context) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
   mlctx : TypeChecker.MLCtx
   mlctx_wf : mlctx.WF venv c.lparams
+  onlyLams : MLCtxOnlyLams mlctx
   lctx_eq : mlctx.lctx = c.lctx
   ngen_prefix : c.ngen.namePrefix = `_ind_fresh
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
@@ -709,6 +727,7 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (wf.hasPrimitives (safety := safety)) wf.safePrimitives
   mlctx := .nil
   mlctx_wf := trivial
+  onlyLams := MLCtxOnlyLams.nil
   lctx_eq := rfl
   ngen_prefix := rfl
   indFresh := nofun
@@ -724,6 +743,7 @@ def ContextWF.withEnv (H : ContextWF c)
   checking := hchecking
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf.mono hle
+  onlyLams := H.onlyLams
   lctx_eq := H.lctx_eq
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
@@ -749,6 +769,7 @@ def ContextWF.withLocalDecl (H : ContextWF c)
   mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
   mlctx_wf := ⟨H.mlctx_wf,
     H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩
+  onlyLams := H.onlyLams.vlam
   lctx_eq := by
     change H.mlctx.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi =
       c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
@@ -781,6 +802,29 @@ theorem ContextWF.withLocalDecl_toCtx (H : ContextWF c)
     (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
     (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx.toCtx =
       ty' :: H.mlctx.vlctx.toCtx := rfl
+
+theorem ContextWF.findCDecl (H : ContextWF c)
+    (hmem : fv ∈ H.mlctx.vlctx.fvars) :
+    ∃ index name type bi kind,
+      c.lctx.find? fv = some (.cdecl index fv name type bi kind) := by
+  rcases (H.mlctx_wf.tr.find?_eq_some (fv := fv)).2 hmem with
+    ⟨decl, hfind⟩
+  have hfindDecls : H.mlctx.decls.find? (fv == ·.fvarId) = some decl := by
+    rw [← H.mlctx_wf.find?_eq]
+    exact hfind
+  have hdeclMem : decl ∈ H.mlctx.decls :=
+    List.mem_of_find?_eq_some hfindDecls
+  rcases H.onlyLams decl hdeclMem with
+    ⟨index, fv', name, type, bi, kind, hdecl⟩
+  subst decl
+  have hfv : fv' = fv := by
+    have hpred := List.find?_some hfindDecls
+    have hfv' : fv = fv' := by simpa [LocalDecl.fvarId] using hpred
+    exact hfv'.symm
+  subst fv'
+  refine ⟨index, name, type, bi, kind, ?_⟩
+  rw [← H.lctx_eq]
+  exact hfind
 
 theorem withLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF c)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
