@@ -14736,6 +14736,100 @@ theorem restoreNested_refines
     Hopening, restoreNested_body result env As auxRec body,
     by simp only [Expr.replace_eq]⟩
 
+/-- Exact rule-level restoration contract used by `processRec`. -/
+structure RuleRestoration
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (auxRec : NameMap Name)
+    (oldRecName newRecName : Name)
+    (oldRule newRule : RecursorRule) : Prop where
+  ctor : newRule.ctor = if newRecName == oldRecName then oldRule.ctor
+    else result.restoreCtorName env oldRule.ctor
+  nfields : newRule.nfields = oldRule.nfields
+  rhs : NestedRestoration result env auxRec oldRule.rhs newRule.rhs
+
+theorem restoreRule_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (auxRec : NameMap Name)
+    (oldRecName newRecName : Name) (rule : RecursorRule)
+    (Htelescope : RestoreTelescope rule.rhs result.nparams) :
+    RuleRestoration result env auxRec oldRecName newRecName rule
+      (result.restoreRule env auxRec oldRecName newRecName rule) where
+  ctor := rfl
+  nfields := rfl
+  rhs := restoreNested_refines result env auxRec rule.rhs Htelescope
+
+inductive RulesRestoration
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (auxRec : NameMap Name)
+    (oldRecName newRecName : Name) :
+    List RecursorRule → List RecursorRule → Prop
+  | nil : RulesRestoration result env auxRec oldRecName newRecName [] []
+  | cons : RuleRestoration result env auxRec oldRecName newRecName old new →
+      RulesRestoration result env auxRec oldRecName newRecName olds news →
+      RulesRestoration result env auxRec oldRecName newRecName
+        (old :: olds) (new :: news)
+
+theorem restoreRules_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (auxRec : NameMap Name)
+    (oldRecName newRecName : Name) :
+    ∀ rules,
+      (∀ rule ∈ rules, RestoreTelescope rule.rhs result.nparams) →
+      RulesRestoration result env auxRec oldRecName newRecName rules
+        (rules.map (result.restoreRule env auxRec oldRecName newRecName)) := by
+  intro rules Htelescope
+  induction rules with
+  | nil => exact .nil
+  | cons rule rules ih =>
+    exact .cons
+      (restoreRule_refines result env auxRec oldRecName newRecName rule
+        (Htelescope rule (by simp)))
+      (ih fun tail htail => Htelescope tail (by simp [htail]))
+
+/-- Recursor-level restoration records every overwritten metadata field and
+the pointwise rule restoration relation. -/
+structure RecursorRestoration
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (oldRecName newRecName : Name)
+    (oldInfo newInfo : RecursorVal) : Prop where
+  name : newInfo.name = newRecName
+  levelParams : newInfo.levelParams = oldInfo.levelParams
+  type : NestedRestoration result env auxRec oldInfo.type newInfo.type
+  all : newInfo.all = allIndNames
+  numParams : newInfo.numParams = oldInfo.numParams
+  numIndices : newInfo.numIndices = oldInfo.numIndices
+  numMotives : newInfo.numMotives = oldInfo.numMotives
+  numMinors : newInfo.numMinors = oldInfo.numMinors
+  rules : RulesRestoration result env auxRec oldRecName newRecName
+    oldInfo.rules newInfo.rules
+  k : newInfo.k = oldInfo.k
+  isUnsafe : newInfo.isUnsafe = oldInfo.isUnsafe
+
+theorem restoreRecursor_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (oldRecName newRecName : Name)
+    (info : RecursorVal)
+    (Htype : RestoreTelescope info.type result.nparams)
+    (Hrules : ∀ rule ∈ info.rules,
+      RestoreTelescope rule.rhs result.nparams) :
+    RecursorRestoration result env auxRec allIndNames oldRecName newRecName
+      info (result.restoreRecursor env auxRec allIndNames
+        oldRecName newRecName info) where
+  name := rfl
+  levelParams := rfl
+  type := restoreNested_refines result env auxRec info.type Htype
+  all := rfl
+  numParams := rfl
+  numIndices := rfl
+  numMotives := rfl
+  numMinors := rfl
+  rules := restoreRules_refines result env auxRec oldRecName newRecName
+    info.rules Hrules
+  k := rfl
+  isUnsafe := rfl
+
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/

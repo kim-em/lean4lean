@@ -630,6 +630,23 @@ def restoreNested (r : Result) (env' : Environment) (e : Expr)
   let e := e.replace (r.restoreNestedNode env' As auxRec)
   if pi then lctx.mkForall As e else lctx.mkLambda As e
 
+def restoreRule (r : Result) (env' : Environment) (auxRec : NameMap Name)
+    (oldRecName newRecName : Name) (rule : RecursorRule) : RecursorRule :=
+  { rule with
+    ctor := if newRecName == oldRecName then rule.ctor
+      else r.restoreCtorName env' rule.ctor
+    rhs := r.restoreNested env' rule.rhs auxRec }
+
+def restoreRecursor (r : Result) (env' : Environment)
+    (auxRec : NameMap Name) (allIndNames : List Name)
+    (oldRecName newRecName : Name) (recInfo : RecursorVal) : RecursorVal :=
+  { recInfo with
+    name := newRecName
+    type := r.restoreNested env' recInfo.type auxRec
+    all := allIndNames
+    rules := recInfo.rules.map
+      (r.restoreRule env' auxRec oldRecName newRecName) }
+
 end Result
 
 structure State where
@@ -833,15 +850,10 @@ def Environment.addInductive (env : Environment) (lparams : List Name) (nparams 
   let processRec recName := do
     let newRecName := recNameMap'.getD recName recName
     let some (.recInfo recInfo) := env'.find? recName | unreachable!
-    let newRecType := res.restoreNested env' recInfo.type recNameMap'
-    let newRules ← recInfo.rules.mapM fun rule => do
-      let newRhs := res.restoreNested env' rule.rhs recNameMap'
-      let newCtorName := if newRecName == recName then rule.ctor else
-        res.restoreCtorName env' rule.ctor
-      return { rule with ctor := newCtorName, rhs := newRhs }
     (← MonadState.get).checkName newRecName allowPrimitive
-    modify (·.add <| .recInfo { recInfo with
-      name := newRecName, type := newRecType, all := allIndNames, rules := newRules })
+    modify (·.add <| .recInfo <|
+      res.restoreRecursor env' recNameMap' allIndNames
+        recName newRecName recInfo)
   for indType in types do
     let some (.inductInfo ind) := env'.find? indType.name | unreachable!
     (← get).checkName ind.name allowPrimitive
