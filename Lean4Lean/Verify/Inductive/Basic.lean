@@ -12854,6 +12854,54 @@ theorem LocalContext.mkLambda_fvars_lambdaTelescope
   rw [LocalContext.mkLambda, LocalContext.mkBinding_eq]
   exact LocalContext.mkBindingList_lambdaTelescope hdecl
 
+/-- With distinct selected declarations, closing a concatenated free-variable
+list is exactly the same as closing the suffix and then the prefix. -/
+theorem LocalContext.mkBindingList_append
+    (hdecl : ∀ fv ∈ xs ++ ys, ∃ decl, lctx.find? fv = some decl)
+    (hnodup : (xs ++ ys).Nodup) :
+    LocalContext.mkBindingList isLambda lctx (xs ++ ys) body =
+      LocalContext.mkBindingList isLambda lctx xs
+        (LocalContext.mkBindingList isLambda lctx ys body) := by
+  rcases List.nodup_append.mp hnodup with ⟨hxs, hys, _⟩
+  have hdeclXs : ∀ fv ∈ xs, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    exact hdecl fv (List.mem_append_left ys hfv)
+  have hdeclYs : ∀ fv ∈ ys, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    exact hdecl fv (List.mem_append_right xs hfv)
+  rw [LocalContext.mkBindingList_eq_fold hdecl hnodup,
+    LocalContext.mkBindingList_eq_fold hdeclXs hxs,
+    LocalContext.mkBindingList_eq_fold hdeclYs hys,
+    List.foldr_append]
+
+theorem LocalContext.mkBindingList_append_four
+    (hdecl : ∀ fv ∈ ((as ++ bs) ++ cs) ++ ds,
+      ∃ decl, lctx.find? fv = some decl)
+    (hnodup : (((as ++ bs) ++ cs) ++ ds).Nodup) :
+    LocalContext.mkBindingList isLambda lctx
+        (((as ++ bs) ++ cs) ++ ds) body =
+      LocalContext.mkBindingList isLambda lctx as
+        (LocalContext.mkBindingList isLambda lctx bs
+          (LocalContext.mkBindingList isLambda lctx cs
+            (LocalContext.mkBindingList isLambda lctx ds body))) := by
+  have habcd := List.nodup_append.mp hnodup
+  have habc := List.nodup_append.mp habcd.1
+  have hab := List.nodup_append.mp habc.1
+  have hasDecl : ∀ fv ∈ as, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv; exact hdecl fv (by simp [hfv])
+  have hbsDecl : ∀ fv ∈ bs, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv; exact hdecl fv (by simp [hfv])
+  have hcsDecl : ∀ fv ∈ cs, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv; exact hdecl fv (by simp [hfv])
+  have hdsDecl : ∀ fv ∈ ds, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv; exact hdecl fv (by simp [hfv])
+  rw [LocalContext.mkBindingList_eq_fold hdecl hnodup,
+    LocalContext.mkBindingList_eq_fold hasDecl hab.1,
+    LocalContext.mkBindingList_eq_fold hbsDecl hab.2.1,
+    LocalContext.mkBindingList_eq_fold hcsDecl habc.2.1,
+    LocalContext.mkBindingList_eq_fold hdsDecl habcd.2.1]
+  simp only [List.foldr_append]
+
 /-- A selected executable array consists solely of ordinary free-variable
 declarations in the retained local context. -/
 structure LocalForallSelection (lctx : LocalContext) (xs : Array Expr) where
@@ -14787,6 +14835,77 @@ theorem BoundGeneratedRecursorRule.binders_nodup
   intro outer houter field hfield heq
   subst outer
   exact H.all_args_outer_fresh field hfield houter
+
+def BoundGeneratedRecursorRule.binders
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) : List FVarId :=
+  ((H.params_bound.fvars ++ H.motives_bound.fvars) ++
+    H.minors_bound.fvars) ++ H.all_args_bound.fvars
+
+def BoundGeneratedRecursorRule.sourceRhsBody
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) : Expr :=
+  mkAppN (mkAppN minors[minorIdx]! H.allArgs) H.recursiveResults
+
+def BoundGeneratedRecursorRule.all_binders_bound
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) : BoundFVarArray H.root
+      (stats.params ++ motives ++ minors ++ H.allArgs) :=
+  ((H.params_bound.append H.motives_bound).append H.minors_bound).append
+    H.all_args_bound
+
+/-- The four nested production `mkLambda` calls are one exact, globally
+no-alias lambda telescope over the retained binder sequence. -/
+theorem BoundGeneratedRecursorRule.rhs_eq_bindingList
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    rule.rhs = LocalContext.mkBindingList true H.root.lctx
+      H.binders H.sourceRhsBody := by
+  rw [H.rhs_eq]
+  symm
+  unfold BoundGeneratedRecursorRule.binders
+    BoundGeneratedRecursorRule.sourceRhsBody
+  have hdecl : ∀ fv ∈
+      ((H.params_bound.fvars ++ H.motives_bound.fvars) ++
+        H.minors_bound.fvars) ++ H.all_args_bound.fvars,
+      ∃ decl, H.root.lctx.find? fv = some decl := by
+    intro fv hfv
+    have hmem : fv ∈ H.root.lctx.fvars := by
+      rcases List.mem_append.mp hfv with houter | hall
+      · rcases List.mem_append.mp houter with hpm | hminor
+        · rcases List.mem_append.mp hpm with hparam | hmotive
+          · exact H.params_bound.members fv hparam
+          · exact H.motives_bound.members fv hmotive
+        · exact H.minors_bound.members fv hminor
+      · exact H.all_args_bound.members fv hall
+    rcases H.root_wf.findCDecl fv hmem with
+      ⟨index, name, type, bi, kind, hfind⟩
+    exact ⟨.cdecl index fv name type bi kind, hfind⟩
+  rw [LocalContext.mkBindingList_append_four hdecl H.binders_nodup]
+  simp only [LocalContext.mkLambda, ← LocalContext.mkBinding_eq]
+  have hp : ({ toList := H.params_bound.fvars.map Expr.fvar } :
+      Array Expr) = stats.params := by
+    simpa using H.params_bound.expressions.symm
+  have hm : ({ toList := H.motives_bound.fvars.map Expr.fvar } :
+      Array Expr) = motives := by
+    simpa using H.motives_bound.expressions.symm
+  have hmi : ({ toList := H.minors_bound.fvars.map Expr.fvar } :
+      Array Expr) = minors := by
+    simpa using H.minors_bound.expressions.symm
+  have ha : ({ toList := H.all_args_bound.fvars.map Expr.fvar } :
+      Array Expr) = H.allArgs := by
+    simpa using H.all_args_bound.expressions.symm
+  rw [hp, hm, hmi, ha]
+
+theorem BoundGeneratedRecursorRule.rhsLambdaTelescope
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    Expr.LambdaTelescope rule.rhs H.binders.length
+      (H.sourceRhsBody.abstractList H.binders) := by
+  rw [H.rhs_eq_bindingList]
+  exact LocalContext.mkBindingList_lambdaTelescope
+    (H.all_binders_bound.toLocalForallSelection
+      H.root_wf).declarations
 
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
