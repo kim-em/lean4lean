@@ -14,6 +14,53 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+theorem VExpr.getAppFnArgs_mkApps
+    (fn : VExpr) (args : List VExpr) :
+    (VExpr.mkApps fn args).getAppFnArgs =
+      let (head, prior) := fn.getAppFnArgs
+      (head, prior ++ args) := by
+  induction args generalizing fn with
+  | nil => simp [VExpr.mkApps]
+  | cons arg args ih =>
+      rw [show VExpr.mkApps fn (arg :: args) =
+        VExpr.mkApps (.app fn arg) args from rfl, ih]
+      simp [List.append_assoc]
+
+@[simp] theorem VExpr.getAppFnArgs_mkApps_bvar
+    (index : Nat) (args : List VExpr) :
+    (VExpr.mkApps (.bvar index) args).getAppFnArgs = (.bvar index, args) := by
+  simpa [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go] using
+    VExpr.getAppFnArgs_mkApps (.bvar index) args
+
+theorem VExpr.IsFieldApp.mkApps
+    (hfield : field ∈ fieldVars) (args : List VExpr) :
+    (VExpr.mkApps (.bvar (field + depth)) args).IsFieldApp fieldVars depth := by
+  exact ⟨field, hfield, args, VExpr.getAppFnArgs_mkApps_bvar _ _⟩
+
+theorem VExpr.bvarHead?_eq_some
+    {e : VExpr} {field : Nat}
+    (h : e.bvarHead? = some field) :
+    ∃ args, e.getAppFnArgs = (.bvar field, args) := by
+  unfold VExpr.bvarHead? at h
+  cases hspine : e.getAppFnArgs with
+  | mk head args =>
+    rw [hspine] at h
+    cases head <;> simp at h
+    rename_i index
+    cases h
+    exact ⟨args, rfl⟩
+
+/-- Every recursive argument whose application head is a de Bruijn variable
+is, by construction, designated by `IotaRule.fieldVars`. -/
+theorem VExpr.IsFieldApp.ofRecursiveArg
+    {arg : VExpr} {recursiveArgs : List VExpr} {field : Nat}
+    (harg : arg ∈ recursiveArgs)
+    (hhead : arg.bvarHead? = some field) :
+    arg.IsFieldApp (recursiveArgs.filterMap VExpr.bvarHead?) 0 := by
+  rcases VExpr.bvarHead?_eq_some hhead with ⟨args, hspine⟩
+  refine ⟨field, ?_, args, by simpa using hspine⟩
+  exact List.mem_filterMap.mpr ⟨arg, harg, hhead⟩
+
 /-- Expressions containing none of the installed recursor names satisfy the
 iota guard structurally. This is the ordinary-expression half of the guard;
 actual recursive calls are introduced only through `GuardedIota.recCall`. -/
@@ -77,6 +124,43 @@ theorem VExpr.GuardedIota.mkApps
       · exact .app hfn (hargs arg (by simp))
       · intro inner hinner
         exact hargs inner (by simp [hinner])
+
+/-- The executable iota RHS applies a minor variable first to every
+constructor field and then to the generated recursive results. Once those
+two argument groups are guarded, the complete spine is guarded. -/
+theorem VExpr.GuardedIota.minorRhs
+    {recursors : List Name} {fieldVars : List Nat} {depth minorVar : Nat}
+    {fieldArgs recursiveResults : List VExpr}
+    (hfields : ∀ arg ∈ fieldArgs,
+      arg.GuardedIota recursors fieldVars depth)
+    (hresults : ∀ result ∈ recursiveResults,
+      result.GuardedIota recursors fieldVars depth) :
+    (VExpr.mkApps (.bvar minorVar) (fieldArgs ++ recursiveResults)).GuardedIota
+      recursors fieldVars depth := by
+  apply VExpr.GuardedIota.mkApps .bvar
+  intro arg harg
+  rcases List.mem_append.mp harg with hfield | hresult
+  · exact hfields arg hfield
+  · exact hresults arg hresult
+
+/-- Canonical guarded shape of a generated higher-order recursive result:
+zero or more recursor-free lambda domains close a recursor application whose
+major premise is an application of a designated constructor field. -/
+theorem VExpr.GuardedIota.recCallWrapped
+    {recursors : List Name} {fieldVars : List Nat} {depth : Nat}
+    {domains : List VExpr} {recursor : Name} {levels : List VLevel}
+    {init : List VExpr} {major : VExpr}
+    (hdomains : ∀ dom ∈ domains,
+      dom.containsAnyConst recursors = false)
+    (hrecursor : recursor ∈ recursors)
+    (hargs : ∀ arg ∈ init ++ [major],
+      arg.GuardedIota recursors fieldVars (depth + domains.length))
+    (hmajor : major.IsFieldApp fieldVars (depth + domains.length)) :
+    (VExpr.wrapLams domains <|
+      VExpr.mkApps (.const recursor levels) (init ++ [major])).GuardedIota
+      recursors fieldVars depth := by
+  apply VExpr.GuardedIota.wrapLams hdomains
+  exact .recCall hrecursor hargs hmajor
 
 /-- Completed output of the mutual-header traversal. -/
 structure HeaderCertificate (env : VEnv) (decl : VInductDecl) where
