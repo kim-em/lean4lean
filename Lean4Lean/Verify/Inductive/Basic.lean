@@ -9594,6 +9594,19 @@ end mkRecInfos.loopU
 
 namespace mkRecInfos.loopCtors
 
+theorem getElemBang_modify_ne {α : Type} [Inhabited α]
+    (xs : Array α) (dIdx i : Nat) (f : α → α)
+    (hi : i < xs.size) (hne : dIdx ≠ i) :
+    (xs.modify dIdx f)[i]! = xs[i]! := by
+  have hi' : i < (xs.modify dIdx f).size := by simpa using hi
+  have heq : (xs.modify dIdx f)[i]'hi' = xs[i]'hi := by
+    rw [Array.getElem_modify]
+    simp [hne]
+  simp only [Array.getElem!_eq_getD]
+  unfold Array.getD
+  rw [dif_pos hi', dif_pos hi]
+  exact heq
+
 /-- Processing a constructor list preserves the number of family records and
 appends exactly one minor premise per constructor to the selected owner. -/
 theorem resultCount {α : Type} {Q : α → Prop}
@@ -9606,6 +9619,7 @@ theorem resultCount {α : Type} {Q : α → Prop}
     (Hk : ∀ out c,
       out.size = recInfos.size →
       out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + ctors.length →
+      (∀ i, i < recInfos.size → dIdx ≠ i → out[i]! = recInfos[i]!) →
       (k out c).WF Q) :
     (AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos ctors k c).WF Q := by
   induction ctors generalizing recInfos c with
@@ -9614,6 +9628,8 @@ theorem resultCount {α : Type} {Q : α → Prop}
       apply Hk
       · rfl
       · simp
+      · intros
+        rfl
   | cons ctor ctors ih =>
       rw [AddInductive.mkRecInfos.loopCtors]
       apply mkRecInfos.loopCtorArgs.selectedSublist stats
@@ -9634,6 +9650,7 @@ theorem resultCount {α : Type} {Q : α → Prop}
       apply ih next _
       · simpa [next]
       · intro out cOut houtSize houtCount
+          houtOther
         apply Hk out cOut
         · simpa [next] using houtSize
         · rw [houtCount]
@@ -9653,6 +9670,9 @@ theorem resultCount {α : Type} {Q : α → Prop}
           rw [hbangModified]
           simp
           omega
+        · intro i hi hine
+          rw [houtOther i (by simpa [next] using hi) hine]
+          exact getElemBang_modify_ne recInfos dIdx i _ hi hine
 
 end mkRecInfos.loopCtors
 
