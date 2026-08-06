@@ -1193,6 +1193,29 @@ def NarrowRuntimeScope.ofParameterSuffix
   rw [Hsuffix.context]
   exact W.toFVLift'
 
+/-- Relate a domain translated in the semantic scope to the annotation-
+consumed domain installed by the executable checker. -/
+theorem NarrowRuntimeScope.consumedDomain
+    (Hc : ContextWF c)
+    (H : NarrowRuntimeScope Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (Hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
+    (hnarrow : TrExprS Hc.venv c.lparams scope dom indexType) :
+    ∃ u, Hc.venv.IsDefEq c.lparams.length H.expanded.toCtx
+      (indexType.lift' H.shift) consumedDom (.sort u) := by
+  have hweak : TrExprS Hc.venv c.lparams H.expanded dom
+      (indexType.lift' H.shift) := by
+    simpa using hnarrow.weakFV' Hc.checking.tr.wf.ordered H.lift
+      H.context.wf
+  have hsource := hweak.uniq Hc.checking.tr.wf H.context Hdom.source
+  rcases Hdom.source_defeq with ⟨u, hsourceConsumed⟩
+  have hsourceConsumed' := hsourceConsumed.defeqDFC
+    Hc.checking.tr.wf.ordered
+    (H.context.defeqCtx.symm Hc.checking.tr.wf.ordered)
+  have hdomainU := hsource.trans Hc.checking.tr.wf H.context.wf.toCtx
+    ⟨_, hsourceConsumed'⟩
+  exact ⟨u, hdomainU.of_r Hc.checking.tr.wf H.context.wf.toCtx
+    hsourceConsumed'.hasType.2⟩
+
 /-- Shape of the CPS-retained runtime context after the first header has fixed
 the block-wide parameter telescope.  Header indices form an ambient prefix;
 the common parameters remain an exact suffix. -/
@@ -2873,6 +2896,46 @@ theorem index.WF
   exact (whnfInContext.WF Hc' hopened).bind fun normalized hnormalized =>
     Hrec normalized hnormalized
 
+/-- Index verification with the WHNF free-variable bound retained for
+narrow-scope consumers. -/
+theorem index.scopeWF
+    (Hc : ContextWF c) (hi : ¬ i < nparams)
+    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      dom.consumeTypeAnnotations dom')
+    (hdomType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (Hrec : ∀ normalized,
+      FVarsBelow
+        (Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType).mlctx.vlctx
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
+      TrExpr (Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType).venv
+        c.lparams
+        (Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType).mlctx.vlctx
+        normalized body' →
+      (AddInductive.checkInductiveTypes.loopType nparams
+        stats normalized i (nindices + 1) fuel k
+        { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  rw [AddInductive.checkInductiveTypes.loopType]
+  rw [if_neg hi]
+  refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+    (k := fun arg => do
+      let type := body.instantiate1 arg
+      AddInductive.checkInductiveTypes.loopType nparams stats
+        (← TypeChecker.whnf type) i (nindices + 1) fuel k)
+    Hc hdom hdomType ?_
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) hdom hdomType
+  have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+    hdom hdomType hbody
+  exact (whnfInContext.scopeWF Hc' hopened).bind
+    fun normalized hnormalized =>
+      Hrec normalized hnormalized.1 hnormalized.2
+
 /-- Source-facing index step: consume the domain certificate and transport the
 source body automatically before invoking `index.WF`. -/
 theorem index.sourceWF
@@ -2899,6 +2962,37 @@ theorem index.sourceWF
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
   exact index.WF Hc hi Hdom.consumed Hdom.isType hbody''
     (fun normalized hnormalized => Hrec body'' hbodyEq normalized hnormalized)
+
+/-- Source-facing index step retaining the WHNF free-variable bound. -/
+theorem index.sourceScopeWF
+    (Hc : ContextWF c) (hi : ¬ i < nparams)
+    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
+    (hbody : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hrec : ∀ body'',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      ∀ normalized,
+        FVarsBelow
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
+        TrExpr (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).venv c.lparams
+          (Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
+        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
+          i (nindices + 1) fuel k
+          { c with
+            ngen := c.ngen.next
+            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotations bi }).WF Q) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats
+      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+  exact index.scopeWF Hc hi Hdom.consumed Hdom.isType hbody''
+    (fun normalized hbelow hnormalized =>
+      Hrec body'' hbodyEq normalized hbelow hnormalized)
 
 /-- Index-step wrapper that transports the first-header parameter cache under
 the newly introduced index binder. -/
