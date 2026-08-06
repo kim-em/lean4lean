@@ -14376,6 +14376,46 @@ theorem isNestedInductiveApp_shape
       cases hout
       simp at hsome
 
+/-- Independent specification of the occurrence test used while scanning
+parameters of a previously declared inductive application. -/
+def MentionsNestedNewType
+    (newTypes : Array InductiveType) (e : Expr) : Prop :=
+  (e.find? fun
+    | .const name _ => newTypes.any fun type => name == type.name
+    | _ => false).isSome
+
+/-- Abstract contract for the parameter scan in
+`isNestedInductiveApp?`: the application has enough arguments, at least one
+parameter mentions a family currently being lowered, and every scanned
+parameter is closed with respect to bound variables. -/
+structure NestedParameterScan
+    (newTypes : Array InductiveType) (args : Array Expr) (n : Nat) : Prop where
+  arity : n ≤ args.size
+  nested : ∃ i, i < n ∧ MentionsNestedNewType newTypes args[i]!
+  closed : ∀ i, i < n → args[i]!.hasLooseBVars = false
+
+theorem NestedParameterScan.noLoose
+    (H : NestedParameterScan newTypes args n) (hi : i < n) :
+    args[i]!.hasLooseBVars = false :=
+  H.closed i hi
+
+theorem NestedParameterScan.hasOccurrence
+    (H : NestedParameterScan newTypes args n) :
+    ∃ i, i < args.size ∧ MentionsNestedNewType newTypes args[i]! := by
+  rcases H.nested with ⟨i, hi, hmentions⟩
+  exact ⟨i, Nat.lt_of_lt_of_le hi H.arity, hmentions⟩
+
+/-- Full abstract acceptance contract for nested-application recognition.
+This is deliberately stated without reference to the executable loop, so its
+eventual refinement theorem cannot silently inherit an implementation bug. -/
+structure NestedAppCandidate (env : Environment)
+    (state : Lean4Lean.ElimNestedInductive.State)
+    (e : Expr) (info : InductiveVal) : Prop where
+  shape : NestedAppShape e
+  headFound : ∃ fn levels, e.getAppFn = .const fn levels ∧
+    env.find? fn = some (.inductInfo info)
+  parameters : NestedParameterScan state.newTypes e.getAppArgs info.numParams
+
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
 type-checker's context-relative result into a source declaration judgment. -/
