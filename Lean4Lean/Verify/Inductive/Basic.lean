@@ -458,6 +458,18 @@ theorem List.Forall₂.append'
   | nil => exact H₂
   | cons h _ ih => exact .cons h ih
 
+theorem List.Forall₂.unsnoc
+    (H : List.Forall₂ R (as ++ [a]) bs) :
+    ∃ bs' b, bs = bs' ++ [b] ∧ List.Forall₂ R as bs' ∧ R a b := by
+  have Hrev : List.Forall₂ R (a :: as.reverse) bs.reverse := by
+    simpa using List.Forall₂.reverse.mpr H
+  rcases List.forall₂_cons_left_iff.mp Hrev with
+    ⟨b, tail, hab, Htail, hreverse⟩
+  refine ⟨tail.reverse, b, ?_, ?_, hab⟩
+  · have := congrArg List.reverse hreverse
+    simpa using this
+  · exact List.Forall₂.reverse.mp (by simpa using Htail)
+
 theorem OnCtx.append_right
     (H : OnCtx (xs ++ ys) P) : OnCtx ys P := by
   induction xs with
@@ -9981,6 +9993,47 @@ theorem RecursorFieldSelections.arguments_at_positions
         simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm
       · exact .nil
 
+/-- Translation preserves the selector's ordered-sublist invariant. The only
+potential ambiguity is translating the same selected source field along the
+`bu` and `u` arrays; `IsUnique` resolves exactly that equality. -/
+theorem RecursorFieldSelections.translatedSublist
+    (H : RecursorFieldSelections env decl bu u fields)
+    (Hbu : List.Forall₂ (TrExprS env Us Δ) bu.toList allArgs)
+    (Hu : List.Forall₂ (TrExprS env Us Δ) u.toList recursiveArgs)
+    (Hunique : ∀ arg ∈ u.toList, TrExprS.IsUnique arg) :
+    recursiveArgs.Sublist allArgs := by
+  induction H generalizing allArgs recursiveArgs with
+  | nil =>
+      cases Hbu
+      cases Hu
+      exact .slnil
+  | @nonrecursive bu u fields arg H ih =>
+      rw [Array.toList_push] at Hbu
+      rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Hbu with
+        ⟨allPrefix, translatedArg, rfl,
+        HbuPrefix, _⟩
+      have Hsub := ih HbuPrefix Hu Hunique
+      exact Hsub.trans (List.sublist_append_left allPrefix [translatedArg])
+  | @recursive bu u fields arg cert H hindex ih =>
+      rw [Array.toList_push] at Hbu Hu
+      rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Hbu with
+        ⟨allPrefix, translatedArg, rfl,
+        HbuPrefix, HargAll⟩
+      rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Hu with
+        ⟨recursivePrefix, recursiveArg, rfl,
+        HuPrefix, HargRec⟩
+      have HuniquePrefix : ∀ old ∈ u.toList,
+          TrExprS.IsUnique old := by
+        intro old hold
+        exact Hunique old (by simp [hold])
+      have Hsub := ih HbuPrefix HuPrefix HuniquePrefix
+      have hargUnique : TrExprS.IsUnique arg :=
+        Hunique arg (by simp)
+      have heq : recursiveArg = translatedArg :=
+        TrExprS.unique hargUnique HargRec HargAll
+      subst recursiveArg
+      exact Hsub.append_right [translatedArg]
+
 def RecursorRecursiveDomain.toRecursiveField
     (cert : RecursorRecursiveDomain env decl) (arg : VExpr) :
     decl.RecursiveField env where
@@ -10129,6 +10182,20 @@ theorem RecursorFieldsMaterialize.fields_at_positions
   have heq := TrExprS.unique (Hunique u.toList[j]
     (List.getElem_mem hjU)) Hrec Hfield'
   simpa [hposEq] using heq
+
+theorem RecursorFieldsMaterialize.recursive_args_sublist
+    {env : VEnv} {decl : VInductDecl} {bu u : Array Expr}
+    {certs : List (RecursorRecursiveDomain env decl)}
+    {recursiveArgs allArgs : List VExpr}
+    {fields : List (decl.RecursiveField env)}
+    (Hsel : RecursorFieldSelections env decl bu u certs)
+    (Hmat : RecursorFieldsMaterialize env decl certs recursiveArgs fields)
+    (Hbu : List.Forall₂ (TrExprS env Us Δ) bu.toList allArgs)
+    (Hu : List.Forall₂ (TrExprS env Us Δ) u.toList recursiveArgs)
+    (Hunique : ∀ arg ∈ u.toList, TrExprS.IsUnique arg) :
+    (fields.map (fun field => field.arg)).Sublist allArgs := by
+  rw [Hmat.args]
+  exact Hsel.translatedSublist Hbu Hu Hunique
 
 /-- Exact concrete common-parameter prefix consumed by recursor generation.
 The relation is intentionally separate from field classification: agreement
