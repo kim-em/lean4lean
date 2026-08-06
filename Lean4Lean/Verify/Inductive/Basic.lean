@@ -12394,6 +12394,100 @@ theorem LocalContext.mkForall_fvars_forallTelescope
   rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
   exact LocalContext.mkBindingList_forallTelescope hdecl
 
+/-- A concrete expression consists of exactly `arity` leading lambda binders
+and the indicated residual body. -/
+inductive Expr.LambdaTelescope : Expr → Nat → Expr → Prop
+  | nil (body : Expr) : LambdaTelescope body 0 body
+  | cons : LambdaTelescope body arity result →
+      LambdaTelescope (.lam name dom body bi) (arity + 1) result
+
+theorem Expr.LambdaTelescope.trans
+    (Houter : Expr.LambdaTelescope outer outerArity middle)
+    (Hinner : Expr.LambdaTelescope middle innerArity result) :
+    Expr.LambdaTelescope outer (outerArity + innerArity) result := by
+  induction Houter with
+  | nil => simpa using Hinner
+  | @cons body outerArity middle name dom bi Houter ih =>
+    have h := Expr.LambdaTelescope.cons (name := name) (dom := dom)
+      (bi := bi) (ih Hinner)
+    rw [← Nat.add_right_comm outerArity innerArity 1]
+    exact h
+
+/-- Translation of a lambda telescope retains its arity and exposes the
+residual translation beneath precisely the corresponding abstract binders. -/
+theorem TrExprS.lambdaTelescope_shape_with_context
+    (Htel : Expr.LambdaTelescope e arity residual)
+    (Htr : TrExprS env Us Δ e e') :
+    ∃ domains residual', domains.length = arity ∧
+      e' = VExpr.wrapLams domains residual' ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        residual residual' := by
+  induction Htel generalizing Δ e' with
+  | nil =>
+    exact ⟨[], e', rfl, rfl,
+      by simpa [abstractForallContext] using Htr⟩
+  | @cons body arity residual name dom bi Htel ih =>
+    cases Htr with
+    | @lam dom' body' =>
+      rename_i _ _ _ hbody
+      rcases ih hbody with
+        ⟨domains, residual', hlength, heq, hresidual⟩
+      refine ⟨dom' :: domains, residual', by simp [hlength], ?_, ?_⟩
+      · simp [VExpr.wrapLams, heq]
+      · simpa [abstractForallContext, List.map_append, List.append_assoc]
+          using hresidual
+
+/-- Binding ordinary local declarations with `mkLambda` creates one concrete
+lambda per selected declaration and leaves simultaneous abstraction of those
+free variables as the residual body. -/
+theorem LocalContext.mkBindingList_lambdaTelescope
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind)) :
+    Expr.LambdaTelescope
+      (LocalContext.mkBindingList true lctx fvs body)
+      fvs.length (body.abstractList fvs) := by
+  have go : ∀ (xs : List FVarId) (current : Expr),
+      (∀ fv ∈ xs, ∃ index name type bi kind,
+        lctx.find? fv = some (.cdecl index fv name type bi kind)) →
+      Expr.LambdaTelescope
+        (LocalContext.mkBindingList.go true lctx xs current)
+        xs.length current := by
+    intro xs
+    induction xs with
+    | nil =>
+      intro current _
+      exact .nil _
+    | cons fv xs ih =>
+      intro current hxs
+      rw [LocalContext.mkBindingList.go]
+      have htail := ih
+        (LocalContext.mkBindingList1 true lctx xs.reverse fv current)
+        (fun x hx => hxs x (by simp [hx]))
+      rcases hxs fv (by simp) with
+        ⟨index, name, type, bi, kind, hfind⟩
+      have hhead : Expr.LambdaTelescope
+          (LocalContext.mkBindingList1 true lctx xs.reverse fv current)
+          1 current := by
+        simp only [LocalContext.mkBindingList1, hfind]
+        exact Expr.LambdaTelescope.cons (.nil _)
+      simpa using htail.trans hhead
+  simpa only [LocalContext.mkBindingList, LocalContext.mkBindingList.core,
+    List.length_reverse] using
+    go fvs.reverse (body.abstractList fvs) (fun fv hfv =>
+      hdecl fv (by simpa using hfv))
+
+/-- The production `LocalContext.mkLambda` interface specialized to an
+explicit array of ordinary local free variables. -/
+theorem LocalContext.mkLambda_fvars_lambdaTelescope
+    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind)) :
+    Expr.LambdaTelescope
+      (lctx.mkLambda (fvs.map Expr.fvar).toArray body)
+      fvs.length (body.abstractList fvs) := by
+  rw [LocalContext.mkLambda, LocalContext.mkBinding_eq]
+  exact LocalContext.mkBindingList_lambdaTelescope hdecl
+
 /-- A selected executable array consists solely of ordinary free-variable
 declarations in the retained local context. -/
 structure LocalForallSelection (lctx : LocalContext) (xs : Array Expr) where
