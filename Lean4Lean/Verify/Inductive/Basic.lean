@@ -26,6 +26,26 @@ theorem VExpr.getAppFnArgs_mkApps
         VExpr.mkApps (.app fn arg) args from rfl, ih]
       simp [List.append_assoc]
 
+/-- Rebuilding an expression from its application head and left-to-right
+argument list is exact. -/
+theorem VExpr.mkApps_getAppFnArgs (e : VExpr) :
+    let (fn, args) := e.getAppFnArgs
+    VExpr.mkApps fn args = e := by
+  have go : ∀ (e : VExpr) (suffix : List VExpr),
+      let (fn, args) := VExpr.getAppFnArgs.go e suffix
+      VExpr.mkApps fn args = VExpr.mkApps e suffix := by
+    intro e
+    induction e with
+    | app fn arg ihFn _ =>
+      intro suffix
+      change (let (head, args) :=
+        VExpr.getAppFnArgs.go fn (arg :: suffix)
+        VExpr.mkApps head args = VExpr.mkApps (.app fn arg) suffix)
+      simpa [VExpr.mkApps] using ihFn (arg :: suffix)
+    | bvar | sort | const => intro suffix; rfl
+    | lam | forallE => intro suffix; rfl
+  simpa [VExpr.getAppFnArgs, VExpr.mkApps] using go e []
+
 @[simp] theorem VExpr.getAppFnArgs_mkApps_bvar
     (index : Nat) (args : List VExpr) :
     (VExpr.mkApps (.bvar index) args).getAppFnArgs = (.bvar index, args) := by
@@ -168,11 +188,12 @@ syntax: the generator-facing proof only has to show that translating one
 `GeneratedRecursiveCall` produces this shape. -/
 structure IotaRecursiveResultCertificate
     (recursors : List Name) (fieldVars : List Nat)
-    (major result : VExpr) where
+    (_recursiveArg result : VExpr) where
   domains : List VExpr
   recursor : Name
   levels : List VLevel
   init : List VExpr
+  major : VExpr
   result_eq : result = (VExpr.wrapLams domains <|
     VExpr.mkApps (.const recursor levels) (init ++ [major]))
   domains_recursor_free : ∀ dom ∈ domains,
@@ -183,7 +204,8 @@ structure IotaRecursiveResultCertificate
   major_is_field : major.IsFieldApp fieldVars domains.length
 
 theorem IotaRecursiveResultCertificate.guarded
-    (H : IotaRecursiveResultCertificate recursors fieldVars major result) :
+    (H : IotaRecursiveResultCertificate recursors fieldVars
+      recursiveArg result) :
     result.GuardedIota recursors fieldVars 0 := by
   rw [H.result_eq]
   exact VExpr.GuardedIota.recCallWrapped H.domains_recursor_free
@@ -13867,6 +13889,99 @@ theorem BoundGeneratedRecursiveCall.abstractedBody_eq
       simpa [Expr.abstract1] using ih
   rw [hconst]
 
+def BoundGeneratedRecursiveCall.recursorName
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : Name :=
+  Lean.mkRecName indTypes[(AddInductive.getIIndices stats H.exposedType).1]!.name
+
+def BoundGeneratedRecursiveCall.abstractedRecursor
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : Expr :=
+  let indices := (AddInductive.getIIndices stats H.exposedType).2
+  mkAppN
+    (mkAppN
+      (mkAppN
+        (mkAppN (.const H.recursorName lvls)
+          (stats.params.map fun e =>
+            e.abstractList H.arguments_bound.fvars))
+        (motives.map fun e =>
+          e.abstractList H.arguments_bound.fvars))
+      (minors.map fun e =>
+        e.abstractList H.arguments_bound.fvars))
+    (indices.map fun e =>
+      e.abstractList H.arguments_bound.fvars)
+
+def BoundGeneratedRecursiveCall.abstractedMajor
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : Expr :=
+  mkAppN (field.abstractList H.arguments_bound.fvars)
+    (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+      Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray
+
+theorem BoundGeneratedRecursiveCall.abstractedBody_eq_named
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    H.body.abstractList H.arguments_bound.fvars =
+      H.abstractedRecursor.app H.abstractedMajor := by
+  simpa [BoundGeneratedRecursiveCall.abstractedRecursor,
+    BoundGeneratedRecursiveCall.abstractedMajor,
+    BoundGeneratedRecursiveCall.recursorName] using H.abstractedBody_eq
+
+theorem BoundGeneratedRecursiveCall.abstractedRecursor_head
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    H.abstractedRecursor.getAppFn = .const H.recursorName lvls := by
+  have getAppFn_mkAppN : ∀ (fn : Expr) (args : Array Expr),
+      (mkAppN fn args).getAppFn = fn.getAppFn := by
+    intro fn args
+    unfold mkAppN
+    rw [← Array.foldl_toList]
+    generalize args.toList = list
+    induction list generalizing fn with
+    | nil => rfl
+    | cons arg args ih =>
+      simp only [List.foldl_cons]
+      simpa [Expr.getAppFn] using ih (.app fn arg)
+  simp only [BoundGeneratedRecursiveCall.abstractedRecursor]
+  repeat' rw [getAppFn_mkAppN]
+  rfl
+
+/-- Syntax-directed translation of a generated higher-order recursive call.
+The semantic guard is intentionally not assumed here: initial arguments and
+the major premise remain exposed with their exact translation derivations. -/
+theorem BoundGeneratedRecursiveCall.translatedCallShape
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ value result) :
+    ∃ domains levels init major,
+      domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains
+        (VExpr.mkApps (.const H.recursorName levels) (init ++ [major])) ∧
+      lvls.mapM (VLevel.ofLevel Us) = some levels ∧
+      List.Forall₂
+        (TrExprS env Us (abstractForallContext domains Δ))
+        H.abstractedRecursor.getAppArgsList init ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        H.abstractedMajor major := by
+  rcases H.translatedLambdaShape Htr with
+    ⟨domains, residual, hdomains, hresult, hresidual⟩
+  rw [H.abstractedBody_eq_named] at hresidual
+  cases hresidual with
+  | app _ _ hfn hmajor =>
+    rename_i recursorResult domain codomain majorResult
+      recursorType majorType
+    rcases checkPositivityStep.TrExprS.constAppSpine
+        hfn H.abstractedRecursor_head with
+      ⟨levels, init, hspine, hlevels, hinit⟩
+    have hrebuild := VExpr.mkApps_getAppFnArgs recursorResult
+    rw [hspine] at hrebuild
+    refine ⟨domains, levels, init, _, hdomains, ?_, hlevels, hinit,
+      hmajor⟩
+    rw [hresult]
+    congr 1
+    rw [← hrebuild]
+    simp [VExpr.mkApps, List.foldl_append]
+
 /-- Prefix invariant for rule generation retaining both exact syntax and the
 binding evidence needed to translate every higher-order recursive result. -/
 structure BoundGeneratedRecursiveCalls
@@ -13923,6 +14038,80 @@ def BoundGeneratedRecursiveCalls.push
       rw [hbang]
       exact H.entries i hold hiu
 
+theorem BoundGeneratedRecursiveCalls.generated
+    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v done) :
+    checkPositivityStep.GeneratedRecursiveCalls indTypes stats motives minors
+      lvls u v done where
+  covered := H.covered
+  size := H.size
+  entries i hi hiu := by
+    rcases H.entries i hi hiu with ⟨Hentry⟩
+    exact Hentry.generated
+
+/-- One generated iota rule retaining the constructor-field context and the
+binder-aware certificate for every recursive result. -/
+structure BoundGeneratedRecursorRule
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (ctor : Constructor) (minorIdx : Nat) (rule : RecursorRule) where
+  root : AddInductive.Context
+  root_wf : BindingContextWF root
+  allArgs : Array Expr
+  recursiveArgs : Array Expr
+  recursiveResults : Array Expr
+  all_args_bound : BoundFVarArray root allArgs
+  recursive_args_bound : BoundFVarArray root recursiveArgs
+  recursive_calls : BoundGeneratedRecursiveCalls indTypes stats motives
+    minors lvls root recursiveArgs recursiveResults recursiveArgs.size
+  ctor_eq : rule.ctor = ctor.name
+  fields_eq : rule.nfields = allArgs.size
+  rhs_eq : rule.rhs =
+    (root.lctx.mkLambda stats.params <| root.lctx.mkLambda motives <|
+     root.lctx.mkLambda minors <| root.lctx.mkLambda allArgs <|
+     mkAppN (mkAppN minors[minorIdx]! allArgs) recursiveResults)
+
+/-- Ordered binder-aware coverage of a constructor suffix. -/
+inductive BoundGeneratedRecursorRules
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level) :
+    List Constructor → Nat → List RecursorRule → Prop
+  | nil : BoundGeneratedRecursorRules indTypes stats motives minors lvls
+      [] start []
+  | cons :
+      Nonempty (BoundGeneratedRecursorRule indTypes stats motives minors
+        lvls ctor start rule) →
+      BoundGeneratedRecursorRules indTypes stats motives minors lvls
+        ctors (start + 1) rules →
+      BoundGeneratedRecursorRules indTypes stats motives minors lvls
+        (ctor :: ctors) start (rule :: rules)
+
+theorem BoundGeneratedRecursorRules.length
+    (H : BoundGeneratedRecursorRules indTypes stats motives minors lvls
+      ctors start rules) : rules.length = ctors.length := by
+  induction H with
+  | nil => rfl
+  | cons _ _ ih => simp [ih]
+
+theorem BoundGeneratedRecursorRules.entry
+    (H : BoundGeneratedRecursorRules indTypes stats motives minors lvls
+      ctors start rules) :
+    ∀ i (hctor : i < ctors.length) (hrule : i < rules.length),
+      Nonempty (BoundGeneratedRecursorRule indTypes stats motives minors
+        lvls ctors[i] (start + i) rules[i]) := by
+  induction H with
+  | nil =>
+      intro i hctor
+      simp at hctor
+  | @cons ctor start rule ctors rules Hrule Htail ih =>
+      intro i hctor hrule
+      cases i with
+      | zero => simpa using Hrule
+      | succ i =>
+        have h := ih i (by simpa using hctor) (by simpa using hrule)
+        simpa only [List.getElem_cons_succ, Nat.add_assoc,
+          Nat.add_comm 1 i] using h
+
 namespace mkRecRules.loopU
 
 /-- Binder-aware refinement of the production recursive-result loop. -/
@@ -13932,10 +14121,10 @@ theorem boundGeneratedCalls
     (Hc : BindingContextWF c)
     (Hprefix : BoundGeneratedRecursiveCalls indTypes stats motives minors
       lvls c u v i)
-    (Hk : ∀ v c',
+    (Hk : ∀ v,
       BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
         c u v u.size →
-      (k v c').WF Q) :
+      (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
       u i v k c).WF Q := by
   rw [AddInductive.mkRecRules.loopU.eq_1]
@@ -13981,10 +14170,10 @@ theorem mkRecRules.loopU.boundGeneratedCallsFromEmpty
     {α : Type} {Q : α → Prop}
     {k : Array Expr → AddInductive.M α}
     (Hc : BindingContextWF c)
-    (Hk : ∀ v c',
+    (Hk : ∀ v,
       BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
         c u v u.size →
-      (k v c').WF Q) :
+      (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
       u 0 #[] k c).WF Q :=
   mkRecRules.loopU.boundGeneratedCalls Hc
@@ -14079,6 +14268,136 @@ theorem mkRecInfos.loopCtorArgs.resultBindings {alpha : Type}
   exact mkRecInfos.loopCtorArgs.loop.resultBindings stats k Hc
     (BoundFVarArray.empty c) (BoundFVarArray.empty c)
     (BindingContextLE.refl c) Hk
+
+namespace mkRecRules.loopCtors
+
+/-- The complete rule traversal retains the constructor-field binding context
+and the bound recursive-call evidence for every emitted rule. -/
+theorem boundGeneratedRules
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (ctors : List Constructor) (acc : Array RecursorRule)
+    (start : Nat) (c : AddInductive.Context)
+    (Hc : BindingContextWF c) :
+    (AddInductive.mkRecRules.loopCtors indTypes stats motives minors lvls
+      ctors acc start c).WF fun out =>
+        ∃ generated,
+          out.1 = acc.toList ++ generated ∧
+          BoundGeneratedRecursorRules indTypes stats motives minors lvls
+            ctors start generated ∧
+          out.2 = start + ctors.length := by
+  induction ctors generalizing acc start c with
+  | nil =>
+      simp [AddInductive.mkRecRules.loopCtors]
+      intro out hout
+      cases hout
+      refine ⟨[], ?_, .nil, by simp⟩
+      simp
+  | cons ctor ctors ih =>
+      rw [AddInductive.mkRecRules.loopCtors]
+      have hone :
+          ((fun minorIdx => AddInductive.mkRecInfos.loopCtorArgs stats
+            ctor.type fun _ bu u =>
+              AddInductive.mkRecRules.loopU indTypes stats motives minors
+                lvls u 0 #[] fun v => do
+                  let lctx ← getLCtx
+                  let rule := {
+                    ctor := ctor.name
+                    nfields := bu.size
+                    rhs := lctx.mkLambda stats.params <|
+                      lctx.mkLambda motives <| lctx.mkLambda minors <|
+                      lctx.mkLambda bu <|
+                      mkAppN (mkAppN minors[minorIdx]! bu) v }
+                  return (rule, minorIdx + 1)) start c).WF fun out =>
+            Nonempty (BoundGeneratedRecursorRule indTypes stats motives
+              minors lvls ctor start out.1) ∧ out.2 = start + 1 := by
+        dsimp only
+        apply mkRecInfos.loopCtorArgs.resultBindings stats ctor.type
+          (Q := fun out =>
+            Nonempty (BoundGeneratedRecursorRule indTypes stats motives
+              minors lvls ctor start out.1) ∧ out.2 = start + 1)
+          (k := fun _ bu u =>
+            AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
+              u 0 #[] fun v => do
+                let lctx ← getLCtx
+                let rule : RecursorRule := {
+                  ctor := ctor.name
+                  nfields := bu.size
+                  rhs := lctx.mkLambda stats.params <|
+                    lctx.mkLambda motives <| lctx.mkLambda minors <|
+                    lctx.mkLambda bu <|
+                    mkAppN (mkAppN minors[start]! bu) v }
+                return (rule, start + 1))
+          (c := c) (Hc := Hc)
+        intro _ bu u c' Hc' Hbu Hu hroot
+        let buildRule : Array Expr →
+            AddInductive.M (RecursorRule × Nat) := fun v => do
+          let lctx ← getLCtx
+          let rule := {
+            ctor := ctor.name
+            nfields := bu.size
+            rhs := lctx.mkLambda stats.params <|
+              lctx.mkLambda motives <| lctx.mkLambda minors <|
+              lctx.mkLambda bu <|
+              mkAppN (mkAppN minors[start]! bu) v }
+          return (rule, start + 1)
+        change (AddInductive.mkRecRules.loopU indTypes stats motives minors
+          lvls u 0 #[] buildRule c').WF _
+        apply mkRecRules.loopU.boundGeneratedCallsFromEmpty
+          (Q := fun out =>
+            Nonempty (BoundGeneratedRecursorRule indTypes stats motives
+              minors lvls ctor start out.1) ∧ out.2 = start + 1)
+          (indTypes := indTypes) (stats := stats) (motives := motives)
+          (minors := minors) (lvls := lvls) (u := u) (k := buildRule)
+          (c := c') Hc'
+        intro v Hcalls
+        simp only [buildRule, getLCtx, readThe, read, ReaderT.read]
+        refine Except.WF.pure ⟨?_, rfl⟩
+        exact ⟨{
+          root := c'
+          root_wf := Hc'
+          allArgs := bu
+          recursiveArgs := u
+          recursiveResults := v
+          all_args_bound := Hbu
+          recursive_args_bound := Hu
+          recursive_calls := Hcalls
+          ctor_eq := rfl
+          fields_eq := rfl
+          rhs_eq := rfl }⟩
+      exact hone.bind fun out Hout => by
+        rcases Hout with ⟨Hrule, hnext⟩
+        have htail := ih (acc := acc.push out.1)
+          (start := out.2) (c := c) Hc
+        exact htail.mono fun result Hresult => by
+          rcases Hresult with ⟨generated, hout, Hgenerated, hend⟩
+          refine ⟨out.1 :: generated, ?_, .cons Hrule ?_, ?_⟩
+          · simpa [hout]
+          · simpa [hnext] using Hgenerated
+          · simp at hend ⊢
+            omega
+
+end mkRecRules.loopCtors
+
+/-- Public binder-aware rule-generator boundary. -/
+theorem mkRecRules.boundGeneratedRules
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (stats : AddInductive.InductiveStats) (dIdx : Nat)
+    (motives minors : Array Expr) (start : Nat)
+    (c : AddInductive.Context) (Hc : BindingContextWF c) :
+    (AddInductive.mkRecRules indTypes elimLevel stats dIdx motives minors
+      start c).WF fun out =>
+        BoundGeneratedRecursorRules indTypes stats motives minors
+          (AddInductive.getRecLevels elimLevel stats.levels)
+          indTypes[dIdx]!.ctors start out.1 ∧
+        out.2 = start + indTypes[dIdx]!.ctors.length := by
+  unfold AddInductive.mkRecRules
+  have H := mkRecRules.loopCtors.boundGeneratedRules indTypes stats
+    motives minors (AddInductive.getRecLevels elimLevel stats.levels)
+    indTypes[dIdx]!.ctors #[] start c Hc
+  exact H.mono fun out Hout => by
+    rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
+    simpa using ⟨hout ▸ Hgenerated, hend⟩
 
 namespace mkRecInfos.loopU
 
