@@ -14470,6 +14470,163 @@ theorem restoreNestedNode_constructor
   | bvar | fvar | mvar | sort | const | lam | forallE | letE | lit | mdata
       | proj => cases happ
 
+/-- Exact, cache-independent specification of `Expr.replace`. A successful
+node callback stops traversal at that node; otherwise the relation records
+the recursively restored children and the same update combinators used by
+Lean's implementation. -/
+inductive ExprReplacement (replaceNode : Expr → Option Expr) : Expr → Expr → Prop
+  | hit (h : replaceNode input = some output) :
+      ExprReplacement replaceNode input output
+  | bvar (h : replaceNode (.bvar i) = none) :
+      ExprReplacement replaceNode (.bvar i) (.bvar i)
+  | fvar {fvarId : FVarId} (h : replaceNode (.fvar fvarId) = none) :
+      ExprReplacement replaceNode (.fvar fvarId) (.fvar fvarId)
+  | mvar {mvarId : MVarId} (h : replaceNode (.mvar mvarId) = none) :
+      ExprReplacement replaceNode (.mvar mvarId) (.mvar mvarId)
+  | sort (h : replaceNode (.sort level) = none) :
+      ExprReplacement replaceNode (.sort level) (.sort level)
+  | const (h : replaceNode (.const name levels) = none) :
+      ExprReplacement replaceNode (.const name levels) (.const name levels)
+  | lit (h : replaceNode (.lit literal) = none) :
+      ExprReplacement replaceNode (.lit literal) (.lit literal)
+  | app (h : replaceNode (.app fn arg) = none)
+      (hfn : ExprReplacement replaceNode fn fn')
+      (harg : ExprReplacement replaceNode arg arg') :
+      ExprReplacement replaceNode (.app fn arg)
+        (Expr.updateApp! (.app fn arg) fn' arg')
+  | lam (h : replaceNode (.lam name dom body bi) = none)
+      (hdom : ExprReplacement replaceNode dom dom')
+      (hbody : ExprReplacement replaceNode body body') :
+      ExprReplacement replaceNode (.lam name dom body bi)
+        (Expr.updateLambdaE! (.lam name dom body bi) dom' body')
+  | forallE (h : replaceNode (.forallE name dom body bi) = none)
+      (hdom : ExprReplacement replaceNode dom dom')
+      (hbody : ExprReplacement replaceNode body body') :
+      ExprReplacement replaceNode (.forallE name dom body bi)
+        (Expr.updateForallE! (.forallE name dom body bi) dom' body')
+  | letE (h : replaceNode (.letE name type value body nondep) = none)
+      (htype : ExprReplacement replaceNode type type')
+      (hvalue : ExprReplacement replaceNode value value')
+      (hbody : ExprReplacement replaceNode body body') :
+      ExprReplacement replaceNode (.letE name type value body nondep)
+        (Expr.updateLetE! (.letE name type value body nondep)
+          type' value' body')
+  | mdata (h : replaceNode (.mdata data body) = none)
+      (hbody : ExprReplacement replaceNode body body') :
+      ExprReplacement replaceNode (.mdata data body)
+        (Expr.updateMData! (.mdata data body) body')
+  | proj (h : replaceNode (.proj typeName index body) = none)
+      (hbody : ExprReplacement replaceNode body body') :
+      ExprReplacement replaceNode (.proj typeName index body)
+        (Expr.updateProj! (.proj typeName index body) body')
+
+theorem ExprReplacement.ofReplace
+    (replaceNode : Expr → Option Expr) :
+    ∀ input, ExprReplacement replaceNode input (input.replace replaceNode) := by
+  intro input
+  induction input with
+  | bvar i =>
+    cases h : replaceNode (.bvar i) with
+    | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.bvar h)
+    | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | fvar i =>
+    cases h : replaceNode (.fvar i) with
+    | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.fvar h)
+    | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | mvar i =>
+    cases h : replaceNode (.mvar i) with
+    | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.mvar h)
+    | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | sort level =>
+    cases h : replaceNode (.sort level) with
+    | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.sort h)
+    | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | const name levels =>
+    cases h : replaceNode (.const name levels) with
+    | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.const h)
+    | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | lit literal =>
+    cases h : replaceNode (.lit literal) with
+    | none => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.lit h)
+    | some output => simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | app fn arg hfn harg =>
+    cases h : replaceNode (.app fn arg) with
+    | none =>
+      rw [Expr.replace_eq] at hfn harg
+      simp only [Expr.replace_eq, Expr.replaceNoCache, h]
+      exact .app h hfn harg
+    | some output =>
+      simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+
+  | lam name dom body bi hdom hbody =>
+    cases h : replaceNode (.lam name dom body bi) with
+    | none =>
+      rw [Expr.replace_eq] at hdom hbody
+      simp only [Expr.replace_eq, Expr.replaceNoCache, h]
+      exact .lam h hdom hbody
+    | some output =>
+      simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | forallE name dom body bi hdom hbody =>
+    cases h : replaceNode (.forallE name dom body bi) with
+    | none =>
+      rw [Expr.replace_eq] at hdom hbody
+      simp only [Expr.replace_eq, Expr.replaceNoCache, h]
+      exact .forallE h hdom hbody
+    | some output =>
+      simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | letE name type value body nondep htype hvalue hbody =>
+    cases h : replaceNode (.letE name type value body nondep) with
+    | none =>
+      rw [Expr.replace_eq] at htype hvalue hbody
+      simp only [Expr.replace_eq, Expr.replaceNoCache, h]
+      exact .letE h htype hvalue hbody
+    | some output =>
+      simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | mdata data body hbody =>
+    cases h : replaceNode (.mdata data body) with
+    | none =>
+      rw [Expr.replace_eq] at hbody
+      simp only [Expr.replace_eq, Expr.replaceNoCache, h]
+      exact .mdata h hbody
+    | some output =>
+      simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+  | proj typeName index body hbody =>
+    cases h : replaceNode (.proj typeName index body) with
+    | none =>
+      rw [Expr.replace_eq] at hbody
+      simp only [Expr.replace_eq, Expr.replaceNoCache, h]
+      exact .proj h hbody
+    | some output =>
+      simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
+        (ExprReplacement.hit h)
+
+/-- The body traversal used by `restoreNested` is now related exactly to its
+three independently specified node-restoration cases. -/
+theorem restoreNested_body
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
+    (body : Expr) :
+    ExprReplacement (result.restoreNestedNode env As auxRec) body
+      (body.replace (result.restoreNestedNode env As auxRec)) :=
+  ExprReplacement.ofReplace _ body
+
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/
