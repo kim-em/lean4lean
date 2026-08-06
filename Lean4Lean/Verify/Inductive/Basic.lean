@@ -9747,6 +9747,35 @@ theorem mkRecRules.generatedRules
     rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
     simpa using ⟨hout ▸ Hgenerated, hend⟩
 
+/-- Bridge from one verified executable family batch to the flattened
+abstract iota accumulator. All traversal and indexing facts are discharged
+here; the sole pointwise premise is the semantic translation of each exact
+generated source rule into the independent `IotaRule` judgment. -/
+theorem IotaBuildCertificate.appendGeneratedRules
+    (Hbuild : IotaBuildCertificate env decl block prior)
+    (Hgenerated : checkPositivityStep.GeneratedRecursorRules
+      indTypes stats motives minors lvls ctors start sourceRules)
+    (hlength : abstractRules.length = sourceRules.length)
+    (hroom : abstractRules.length + prior.length ≤
+      decl.ownedConstructors.length)
+    (hsemantic : ∀ i (hctor : i < ctors.length)
+      (hsource : i < sourceRules.length)
+      (habstract : i < abstractRules.length),
+      checkPositivityStep.GeneratedRecursorRule indTypes stats motives minors
+        lvls ctors[i] (start + i) sourceRules[i] →
+      Nonempty (decl.IotaRule env block
+        decl.ownedConstructors[prior.length + i].1
+        decl.ownedConstructors[prior.length + i].2 abstractRules[i])) :
+    IotaBuildCertificate env decl block (prior ++ abstractRules) := by
+  apply Hbuild.append hroom
+  intro i habstract
+  have hsource : i < sourceRules.length := by omega
+  have hctor : i < ctors.length := by
+    rw [← Hgenerated.length]
+    exact hsource
+  exact hsemantic i hctor hsource habstract
+    (Hgenerated.entry i hctor hsource)
+
 /-- Proof-side metadata retained for every field selected by `isRecArg`.
 The executable code stores only the field free variable; this record retains
 the independent recursive-domain certificate needed by `IotaRule`. -/
