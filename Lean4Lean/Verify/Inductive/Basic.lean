@@ -14,6 +14,70 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+/-- Expressions containing none of the installed recursor names satisfy the
+iota guard structurally. This is the ordinary-expression half of the guard;
+actual recursive calls are introduced only through `GuardedIota.recCall`. -/
+theorem VExpr.GuardedIota.ofContainsAnyConstFalse
+    {e : VExpr} {recursors : List Name} {fieldVars : List Nat}
+    {depth : Nat}
+    (h : e.containsAnyConst recursors = false) :
+    e.GuardedIota recursors fieldVars depth := by
+  induction e generalizing depth with
+  | bvar => exact .bvar
+  | sort => exact .sort
+  | const name levels =>
+      apply VExpr.GuardedIota.const
+      intro hmem
+      simp [VExpr.containsAnyConst] at h
+      exact h hmem
+  | app fn arg ihFn ihArg =>
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
+      exact .app (ihFn h.1) (ihArg h.2)
+  | lam dom body ihDom ihBody =>
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
+      exact .lam (ihDom h.1) (ihBody h.2)
+  | forallE dom body ihDom ihBody =>
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
+      exact .forallE (ihDom h.1) (ihBody h.2)
+
+/-- Closing a guarded body over recursor-free domains preserves the guard,
+with the body checked beneath exactly the number of introduced binders. -/
+theorem VExpr.GuardedIota.wrapLams
+    {recursors : List Name} {fieldVars : List Nat}
+    {domains : List VExpr} {body : VExpr} {depth : Nat}
+    (hdomains : ∀ dom ∈ domains,
+      dom.containsAnyConst recursors = false)
+    (hbody : body.GuardedIota recursors fieldVars
+      (depth + domains.length)) :
+    (VExpr.wrapLams domains body).GuardedIota recursors fieldVars depth := by
+  induction domains generalizing depth with
+  | nil => simpa [VExpr.wrapLams] using hbody
+  | cons dom domains ih =>
+      simp only [VExpr.wrapLams, List.foldr_cons]
+      apply VExpr.GuardedIota.lam
+      · exact VExpr.GuardedIota.ofContainsAnyConstFalse
+          (hdomains dom (by simp))
+      · apply ih
+        · intro inner hinner
+          exact hdomains inner (by simp [hinner])
+        · simpa [Nat.add_assoc, Nat.add_comm 1 domains.length] using hbody
+
+theorem VExpr.GuardedIota.mkApps
+    {recursors : List Name} {fieldVars : List Nat} {depth : Nat}
+    {fn : VExpr} {args : List VExpr}
+    (hfn : fn.GuardedIota recursors fieldVars depth)
+    (hargs : ∀ arg ∈ args,
+      arg.GuardedIota recursors fieldVars depth) :
+    (VExpr.mkApps fn args).GuardedIota recursors fieldVars depth := by
+  induction args generalizing fn with
+  | nil => simpa [VExpr.mkApps] using hfn
+  | cons arg args ih =>
+      rw [VExpr.mkApps]
+      apply ih
+      · exact .app hfn (hargs arg (by simp))
+      · intro inner hinner
+        exact hargs inner (by simp [hinner])
+
 /-- Completed output of the mutual-header traversal. -/
 structure HeaderCertificate (env : VEnv) (decl : VInductDecl) where
   params : List VExpr
