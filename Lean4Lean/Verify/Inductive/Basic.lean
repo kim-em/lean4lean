@@ -13754,6 +13754,62 @@ theorem BoundGeneratedRecursiveCall.generated
       indTypes stats motives minors lvls field value := by
   exact ⟨H.exposedType, H.localArgs, H.current.lctx, H.value_eq⟩
 
+def BoundGeneratedRecursiveCall.body
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : Expr :=
+  let (typeIdx, indices) := AddInductive.getIIndices stats H.exposedType
+  let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
+  let recursor := mkAppN
+    (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+    indices
+  recursor.app (mkAppN field H.localArgs)
+
+theorem BoundGeneratedRecursiveCall.value_eq_body
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    value = H.current.lctx.mkLambda H.localArgs H.body := by
+  simpa [BoundGeneratedRecursiveCall.body] using H.value_eq
+
+/-- The exact lambda telescope closed by one generated recursive call. -/
+theorem BoundGeneratedRecursiveCall.lambdaTelescope
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    Expr.LambdaTelescope value H.localArgs.size
+      (H.body.abstractList H.arguments_bound.fvars) := by
+  rcases H with ⟨exposedType, localArgs, current, Hwf, Hle, Hargs, Hvalue⟩
+  let callBody : Expr :=
+    let (typeIdx, indices) := AddInductive.getIIndices stats exposedType
+    let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
+    let recursor := mkAppN
+      (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+      indices
+    recursor.app (mkAppN field localArgs)
+  have Hvalue' : value = current.lctx.mkLambda localArgs callBody := by
+    simpa [callBody] using Hvalue
+  change Expr.LambdaTelescope value localArgs.size
+    (callBody.abstractList Hargs.fvars)
+  rw [Hvalue']
+  let Hselection :=
+    Hargs.toBoundFVarArray.toLocalForallSelection Hwf
+  have Hfvars : Hselection.fvars = Hargs.fvars := rfl
+  rcases Hselection with ⟨fvars, rfl, Hdecl⟩
+  rw [← Hfvars]
+  simpa using
+    (LocalContext.mkLambda_fvars_lambdaTelescope
+      (body := callBody) Hdecl)
+
+/-- Translating a bound generated call exposes the exact abstract lambda
+domains and the translation of its simultaneously abstracted call body. -/
+theorem BoundGeneratedRecursiveCall.translatedLambdaShape
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ value result) :
+    ∃ domains residual, domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains residual ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        (H.body.abstractList H.arguments_bound.fvars) residual := by
+  exact TrExprS.lambdaTelescope_shape_with_context H.lambdaTelescope Htr
+
 /-- Prefix invariant for rule generation retaining both exact syntax and the
 binding evidence needed to translate every higher-order recursive result. -/
 structure BoundGeneratedRecursiveCalls
