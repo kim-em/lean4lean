@@ -16227,8 +16227,9 @@ theorem BoundGeneratedRecursorRule.iotaEquationCertificate_ofCardinality
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     (Htr : H.EquationTranslation trEnv Us Δ rule)
-    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
-      indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (Hstats : checkPositivityStep.ValidAppStatsWF statsEnv statsParams statsCtx
       stats decl depth)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
@@ -16250,13 +16251,12 @@ theorem BoundGeneratedRecursorRule.iotaEquationCertificate_ofCardinality
       owner ctor rule) := by
   have hdeclOwner : ownerIdx < decl.types.length := hownerLt
   have hsourceOwner : ownerIdx < indTypes.size := by
-    have hlen := Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl
+    have hlen := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl
     have hsize : indTypes.size = decl.types.length := by simpa using hlen
     rw [hsize]
     exact hdeclOwner
-  rcases Lean4Lean.VerifyInductive.TrInductDecl.typeAt Hdecl ownerIdx
-      (by simpa using hsourceOwner) hdeclOwner with
-    ⟨_, _, Howner⟩
+  have Howner := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hdecl
+    ownerIdx (by simpa using hsourceOwner) hdeclOwner
   have hownerName : indTypes[ownerIdx]!.name = owner.name := by
     have htranslated : decl.types[ownerIdx].name =
         indTypes[ownerIdx].name := by
@@ -17835,12 +17835,13 @@ discharge the remaining premises of `recursorShape`. This is the boundary
 used by the outer installation loop after `inferImplicit`. -/
 theorem RecursorLocalSelections.recursorShape_of_recInfo
     {indTypes : Array InductiveType}
+    {envTypes envCtors : VEnv}
     (H : RecursorLocalSelections c stats recInfos ownerIdx)
     (howner : ownerIdx < recInfos.size)
     (hnoalias : H.NoAlias)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv lparams nparams
-      indTypes.toList isUnsafe decl)
+    (Hdecl : TrInductDeclCore sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (hsourceOwner : ownerIdx < indTypes.size)
     (elimLevel : Level) (info : RecursorVal) (recursor : VConstVal)
     (Hinfo : TrConstVal safety env (.recInfo info) recursor)
@@ -17862,9 +17863,8 @@ theorem RecursorLocalSelections.recursorShape_of_recInfo
       recursor) := by
   have hdeclOwner : ownerIdx < decl.types.length := by
     simpa [Hcard.records] using howner
-  rcases Lean4Lean.VerifyInductive.TrInductDecl.typeAt Hdecl ownerIdx
-      (by simpa using hsourceOwner) hdeclOwner with
-    ⟨_, _, Howner⟩
+  have Howner := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hdecl
+    ownerIdx (by simpa using hsourceOwner) hdeclOwner
   have hinfoName : info.name = recursor.name := by
     simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using Hinfo.2
   have hownerName : (decl.types[ownerIdx]'(hdeclOwner)).name =
@@ -17879,7 +17879,7 @@ theorem RecursorLocalSelections.recursorShape_of_recInfo
     have htranslated : info.levelParams.length = recursor.uvars := by
       simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
         Hinfo.1.2.1
-    have hdeclUvars : decl.uvars = lparams.length := Hdecl.2.1
+    have hdeclUvars : decl.uvars = lparams.length := Hdecl.uvars
     rw [hlevels] at htranslated
     rcases AddInductive.getRecLevelParams_length
         (elimLevel := elimLevel) (lparams := lparams) with hsame | hextra
@@ -18064,14 +18064,15 @@ theorem GeneratedRecursors.recursiveDomainRecursor_mem_block
       recInfos entries)
     (block : VInductBlock)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
-      indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (hrecursors : block.recursors = entries.map Prod.snd)
     (cert : RecursorRecursiveDomain domainEnv decl) :
     Lean.mkRecName indTypes[cert.ownerIdx]!.name ∈
       block.recursors.map (·.name) := by
   have htypes : indTypes.size = decl.types.length := by
-    simpa using Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl
+    simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl
   have hrecords : recInfos.size = indTypes.size := by
     rw [Hcard.records, htypes]
   have howner : cert.ownerIdx < indTypes.size := by
@@ -18086,8 +18087,9 @@ theorem GeneratedRecursors.recursorsPresent_ofOwnerAlignment
       recInfos entries)
     (block : VInductBlock)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
-      indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (hrecursors : block.recursors = entries.map Prod.snd)
     (Hcalls : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
       root u v u.size)
@@ -18111,8 +18113,9 @@ theorem GeneratedRecursors.iotaRule_ofTranslationCertificate
     (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
-      indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (block : VInductBlock)
     (hrecursors : block.recursors = entries.map Prod.snd)
     (Hequation : Hrule.IotaEquationTranslationCertificate trEnv Us Δ decl
@@ -18145,8 +18148,9 @@ theorem GeneratedRecursors.iotaRule_ofTranslation
     (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
-      indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (block : VInductBlock)
     (hrecursors : block.recursors = entries.map Prod.snd)
     (Htr : Hrule.IotaRuleTranslation trEnv Us Δ semanticEnv decl block owner
@@ -18169,8 +18173,9 @@ theorem GeneratedRecursors.appendIotaBatch
     (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
       stats indTypes recInfos entries)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
-      indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (block : VInductBlock)
     (hrecursors : block.recursors = entries.map Prod.snd)
     (Hbuild : IotaBuildCertificate semanticEnv decl block prior)
@@ -18207,11 +18212,12 @@ theorem GeneratedRecursors.recursorCertificate
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv lparams nparams
-      indTypes.toList isUnsafe decl) :
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors) :
     RecursorCertificate decl (entries.map Prod.snd) := by
   have hindTypes : indTypes.size = decl.types.length := by
-    simpa using Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl
+    simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl
   refine {
     length := by simp [H.length, Hcard.records]
     shapes := ?_ }
@@ -18259,8 +18265,9 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv lparams nparams
-      indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (block : VInductBlock)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
@@ -18290,8 +18297,9 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate_ofRuleBuild
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv lparams nparams
-      indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (block : VInductBlock)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
@@ -18314,8 +18322,9 @@ def GeneratedRecursors.nestedCompilationCertificate
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
-    (Hdecl : TrInductDecl sourceEnv lparams nparams
-      indTypes.toList isUnsafe decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (block : VInductBlock) (main : VInductiveType)
     (rest : List VInductiveType)
     (htypesSource : decl.types = main :: rest)
