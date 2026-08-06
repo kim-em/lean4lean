@@ -18821,6 +18821,44 @@ theorem BlockCertificate.addInductOfFormation
     VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) :=
   H.addInductAbstract (Hformation.declWF Hsource) Hcompile
 
+/-- Ordinary compilation closes the two aggregate source obligations omitted
+from the executable core translation, so formation and staging can be
+assembled directly into the abstract environment extension. -/
+theorem BlockCertificate.addInductOfOrdinaryCompilation
+    (H : BlockCertificate safety env venv blockTypes blockCtors
+      blockRecursors rules outEnv outVEnv)
+    (Hformation : FormationCertificate venv decl)
+    (Hsource : TrInductDeclCore venv lparams nparams sourceTypes isUnsafe decl
+      sourceEnvTypes sourceEnvCtors)
+    (hnonempty : sourceTypes ≠ [])
+    (Hcompile : OrdinaryCompilationCertificate venv decl H.block) :
+    VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) := by
+  have Htranslated :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfOrdinaryCompilation
+      Hsource hnonempty Hcompile
+  exact H.addInductOfFormation Hformation
+    (Lean4Lean.TrInductDecl.sourceWF Htranslated)
+    Hcompile.compilesTo
+
+/-- Nested restoration has the same source boundary: its final block-name
+certificate supplies freshness for the original declaration, while the
+core translation retains the pre-lowering constructor typing facts. -/
+theorem BlockCertificate.addInductOfNestedCompilation
+    (H : BlockCertificate safety env venv blockTypes blockCtors
+      blockRecursors rules outEnv outVEnv)
+    (Hformation : FormationCertificate venv decl)
+    (Hsource : TrInductDeclCore venv lparams nparams sourceTypes isUnsafe decl
+      sourceEnvTypes sourceEnvCtors)
+    (hnonempty : sourceTypes ≠ [])
+    (Hcompile : NestedCompilationCertificate venv decl H.block) :
+    VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) := by
+  have Htranslated :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNestedCompilation
+      Hsource hnonempty Hcompile
+  exact H.addInductOfFormation Hformation
+    (Lean4Lean.TrInductDecl.sourceWF Htranslated)
+    Hcompile.compilesTo
+
 /-- Final assembly point for the implementation-refinement boundary. Once
 the executable traversals have supplied source formation, compilation shape,
 staged typing, and production-map conservation, no further semantic facts are
