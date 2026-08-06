@@ -9913,6 +9913,28 @@ theorem ownedConstructors_length_eq_flattened_size
   rw [← Array.sum_toList, Array.toList_map]
   simp
 
+theorem mkRecInfos.motives_size_of_translation
+    {indTypes : Array InductiveType}
+    {recInfos : Array AddInductive.RecInfo}
+    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    (hsize : recInfos.size = indTypes.size) :
+    (recInfos.map (·.motive)).size = decl.types.length := by
+  simp only [Array.size_map]
+  rw [hsize]
+  simpa using Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl
+
+theorem mkRecInfos.flatMinors_size_of_translation
+    {indTypes : Array InductiveType}
+    {recInfos : Array AddInductive.RecInfo}
+    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    (hsize : recInfos.size = indTypes.size)
+    (hcounts : ∀ i, i < recInfos.size →
+      recInfos[i]!.minors.size = indTypes[i]!.ctors.length) :
+    (recInfos.flatMap (·.minors)).size = decl.ownedConstructors.length := by
+  rw [mkRecInfos.flatMinors_size hsize hcounts,
+    ← ownedConstructors_length_eq_flattened_size]
+  exact Lean4Lean.VerifyInductive.TrInductDecl.ownedConstructors_length Hdecl
+
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
 theorem checkConstructors.loopCtor.tailRefinesFull
