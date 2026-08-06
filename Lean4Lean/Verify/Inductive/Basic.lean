@@ -1261,6 +1261,61 @@ def ParameterContextSuffix.reindex
   cached := by rw [hparams]; exact H.cached
   narrowParams := by rw [hparams]; exact H.narrowParams
 
+@[simp] theorem _root_.Lean4Lean.VExpr.containsAnyConst_liftN
+    {e : VExpr} {n k : Nat} {names : List Name} :
+    (e.liftN n k).containsAnyConst names = e.containsAnyConst names := by
+  induction e generalizing k <;>
+    simp [VExpr.liftN, VExpr.containsAnyConst, *]
+
+def _root_.Lean4Lean.checkPositivityStep.VLCtx.NoIndConsts
+    (names : List Name) (Δ : VLCtx) : Prop :=
+  ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
+    mapped.containsAnyConst names = false
+
+theorem _root_.Lean4Lean.checkPositivityStep.VLCtx.NoIndConsts.cons
+    {Δ : VLCtx} {names : List Name}
+    {ofv : Option (FVarId × List FVarId)} {d : VLocalDecl}
+    (H : checkPositivityStep.VLCtx.NoIndConsts names Δ)
+    (hvalue : d.value.containsAnyConst names = false) :
+    checkPositivityStep.VLCtx.NoIndConsts names ((ofv, d) :: Δ) := by
+  intro v mapped type hfind
+  simp only [VLCtx.find?] at hfind
+  split at hfind
+  · cases hfind
+    exact hvalue
+  · simp at hfind
+    rcases hfind with ⟨old, _type, hfind, hmap, _⟩
+    rw [← hmap]
+    simpa only [VExpr.containsAnyConst_liftN] using H hfind
+
+abbrev _root_.Lean4Lean.VLCtx.NoIndConsts :=
+  checkPositivityStep.VLCtx.NoIndConsts
+
+theorem _root_.Lean4Lean.VLCtx.NoIndConsts.cons
+    {Δ : VLCtx} {names : List Name}
+    {ofv : Option (FVarId × List FVarId)} {d : VLocalDecl}
+    (H : VLCtx.NoIndConsts names Δ)
+    (hvalue : d.value.containsAnyConst names = false) :
+    VLCtx.NoIndConsts names ((ofv, d) :: Δ) :=
+  checkPositivityStep.VLCtx.NoIndConsts.cons H hvalue
+
+theorem ParameterContextSuffix.noIndConsts
+    (H : ParameterContextSuffix Hc stats depth) (names : List Name) :
+    checkPositivityStep.VLCtx.NoIndConsts names H.parameterDecls := by
+  have go : ∀ {params : List Expr} {entries : VLCtx},
+      List.Forall₂ CachedParameterDecl params entries →
+      checkPositivityStep.VLCtx.NoIndConsts names entries := by
+    intro params entries hcached
+    induction hcached with
+    | nil =>
+      intro v mapped type hfind
+      simp [VLCtx.find?] at hfind
+    | @cons param entry params entries hentry _ ih =>
+      rcases hentry with ⟨fv, deps, type, rfl, rfl⟩
+      exact checkPositivityStep.VLCtx.NoIndConsts.cons ih rfl
+  intro v mapped type hfind
+  exact go H.cached hfind
+
 /-- A semantic header scope embedded in the larger executable local context.
 `expanded` is the literal weakening of the narrow scope; it is kept separate
 from `runtime` because annotation consumption can replace an installed binder
@@ -1272,6 +1327,9 @@ structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
   lift : VLCtx.FVLift' scope expanded 0 shift 0
   context : VLCtx.IsDefEq env Us.length expanded runtime
   upset : IsFVarUpSet (· ∈ scope.fvars) runtime
+  noBV : scope.NoBV
+  noIndConsts : ∀ names,
+    checkPositivityStep.VLCtx.NoIndConsts names scope
 
 theorem NarrowRuntimeScope.scopeWF
     (H : NarrowRuntimeScope env Us scope runtime)
@@ -1392,6 +1450,12 @@ def NarrowRuntimeScope.withIndex
       · exact Or.inr
     · intro _ dep hdep
       exact List.mem_cons_of_mem _ (hdeps hdep)
+  noBV := by
+    change scope.bvars = 0
+    exact H.noBV
+  noIndConsts := fun names =>
+    checkPositivityStep.VLCtx.NoIndConsts.cons
+      (H.noIndConsts names) rfl
 
 /-- At the parameter/index boundary, discard the ambient prefix retained
 from previously checked mutual headers and keep the exact cached-parameter
@@ -1412,7 +1476,9 @@ def NarrowRuntimeScope.ofParameterSuffix
     shift := .skipN .refl Hsuffix.ambientDecls.toCtx.length
     lift := ?_
     context := .refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
-    upset := ?_ }
+    upset := ?_
+    noBV := ?_
+    noIndConsts := Hsuffix.noIndConsts }
   · rw [Hsuffix.context]
     exact W.toFVLift'
   · have hwf : VLCtx.WF Hc.venv c.lparams.length
@@ -1422,6 +1488,15 @@ def NarrowRuntimeScope.ofParameterSuffix
     simpa [Hsuffix.context] using
       (IsFVarUpSet.suffixFVars Hsuffix.parameterDecls
         Hsuffix.ambientDecls hwf)
+  · have hfull : (Hsuffix.ambientDecls ++
+        Hsuffix.parameterDecls).NoBV := by
+      rw [← Hsuffix.context]
+      exact Hc.mlctx.noBV
+    change Hsuffix.parameterDecls.bvars = 0
+    change (Hsuffix.ambientDecls ++
+      Hsuffix.parameterDecls).bvars = 0 at hfull
+    rw [VLCtx.bvars_append] at hfull
+    omega
 
 /-- Relate a domain translated in the semantic scope to the annotation-
 consumed domain installed by the executable checker. -/
@@ -7359,12 +7434,6 @@ def LiteralDisjoint (indConsts : Array Expr) : Prop :=
   ∀ literal : Literal,
     AddInductive.hasIndOcc indConsts literal.toConstructor = false
 
-@[simp] theorem VExpr.containsAnyConst_liftN
-    {e : VExpr} {n k : Nat} {names : List Name} :
-    (e.liftN n k).containsAnyConst names = e.containsAnyConst names := by
-  induction e generalizing k <;>
-    simp [VExpr.liftN, VExpr.containsAnyConst, *]
-
 theorem forall₂_append {R : α → β → Prop}
     (H₁ : List.Forall₂ R as₁ bs₁) (H₂ : List.Forall₂ R as₂ bs₂) :
     List.Forall₂ R (as₁ ++ as₂) (bs₁ ++ bs₂) := by
@@ -7636,25 +7705,6 @@ theorem ValidAppStatsWF.translatedParam
   have habstract := checkPositivityStep.TrExprS.eqv_fvar_target
     hparam harg heq
   rw [htarget, hparamTarget, ← habstract]
-
-def VLCtx.NoIndConsts (names : List Name) (Δ : VLCtx) : Prop :=
-  ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
-    mapped.containsAnyConst names = false
-
-theorem VLCtx.NoIndConsts.cons {Δ : VLCtx} {names : List Name}
-    {ofv : Option (FVarId × List FVarId)} {d : VLocalDecl}
-    (H : VLCtx.NoIndConsts names Δ)
-    (hvalue : d.value.containsAnyConst names = false) :
-    VLCtx.NoIndConsts names ((ofv, d) :: Δ) := by
-  intro v mapped type hfind
-  simp only [VLCtx.find?] at hfind
-  split at hfind
-  · cases hfind
-    exact hvalue
-  · simp at hfind
-    rcases hfind with ⟨old, _type, hfind, hmap, _⟩
-    rw [← hmap]
-    simpa using H hfind
 
 /-- Absence of a newly declared constant is preserved by syntax translation.
 Literal expansion and projection translation are explicit side conditions:
