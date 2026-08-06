@@ -11175,6 +11175,114 @@ theorem TrExprS.forallTelescope_shape
       exact ⟨ty' :: domains, result', by simp [hlength], by
         simp [VExpr.wrapForalls, heq]⟩
 
+def abstractForallContext (domains : List VExpr) (Δ : VLCtx) : VLCtx :=
+  (domains.reverse.map fun type => (none, .vlam type)) ++ Δ
+
+/-- Strengthened telescope inversion retaining the exact abstract context in
+which the concrete residual is translated. -/
+theorem TrExprS.forallTelescope_shape_with_context
+    (Htel : Expr.ForallTelescope e arity result)
+    (Htr : TrExprS env Us Δ e e') :
+    ∃ domains result', domains.length = arity ∧
+      e' = VExpr.wrapForalls domains result' ∧
+      TrExprS env Us (abstractForallContext domains Δ) result result' := by
+  induction Htel generalizing Δ e' with
+  | nil =>
+    exact ⟨[], e', rfl, rfl, by simpa [abstractForallContext] using Htr⟩
+  | @cons body arity result name dom bi Htel ih =>
+    cases Htr with
+    | @forallE ty' body' =>
+      rename_i _ _ _ hbody
+      rcases ih hbody with ⟨domains, result', hlength, heq, hresult⟩
+      refine ⟨ty' :: domains, result', by simp [hlength], ?_, ?_⟩
+      · simp [VExpr.wrapForalls, heq]
+      · simpa [abstractForallContext, List.map_append, List.append_assoc]
+          using hresult
+
+private theorem List.exists_append_five_of_length_eq
+    (xs : List α) (a b c d e : Nat)
+    (h : xs.length = a + b + c + d + e) :
+    ∃ as bs cs ds es,
+      xs = as ++ bs ++ cs ++ ds ++ es ∧
+      as.length = a ∧ bs.length = b ∧ cs.length = c ∧
+      ds.length = d ∧ es.length = e := by
+  let as := xs.take a
+  let restA := xs.drop a
+  let bs := restA.take b
+  let restB := restA.drop b
+  let cs := restB.take c
+  let restC := restB.drop c
+  let ds := restC.take d
+  let es := restC.drop d
+  refine ⟨as, bs, cs, ds, es, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · simp only [as, bs, cs, ds, es, restA, restB, restC]
+    symm
+    simp only [List.append_assoc]
+    rw [List.take_append_drop d, List.take_append_drop c,
+      List.take_append_drop b, List.take_append_drop a]
+  all_goals simp [as, bs, cs, ds, es, restA, restB, restC, h] <;> omega
+
+private theorem vlamPrefix_find_bvar
+    (pref : List VExpr) (Δ : VLCtx) (i : Nat) (hi : i < pref.length) :
+    ∃ type, VLCtx.find? ((pref.map fun type =>
+      ((none, VLocalDecl.vlam type) :
+        Option (FVarId × List FVarId) × VLocalDecl)) ++ Δ)
+      (Sum.inl i) = some (VExpr.bvar i, type) := by
+  induction pref generalizing i with
+  | nil => simp at hi
+  | cons type pref ih =>
+    cases i with
+    | zero =>
+      refine ⟨type.lift, ?_⟩
+      simp [VLCtx.find?, VLCtx.next, VLocalDecl.value, VLocalDecl.type]
+    | succ i =>
+      have hi' : i < pref.length := by simpa using hi
+      rcases ih i hi' with ⟨found, hfind⟩
+      refine ⟨found.lift, ?_⟩
+      simp only [List.map_cons, List.cons_append, VLCtx.find?, VLCtx.next]
+      rw [hfind]
+      simp [VLocalDecl.depth, VExpr.lift, VExpr.liftN, liftVar, Nat.add_comm]
+
+theorem abstractForallContext.find?_bvar
+    (domains : List VExpr) (Δ : VLCtx) (i : Nat)
+    (hi : i < domains.length) :
+    ∃ type, VLCtx.find? (abstractForallContext domains Δ) (.inl i) =
+      some (.bvar i, type) := by
+  apply vlamPrefix_find_bvar domains.reverse Δ i
+  simpa using hi
+
+theorem TrExprS.bvar_eq_of_abstractForallContext
+    (H : TrExprS env Us (abstractForallContext domains Δ) (.bvar i) out)
+    (hi : i < domains.length) : out = .bvar i := by
+  cases H with
+  | bvar hfind =>
+    rcases abstractForallContext.find?_bvar domains Δ i hi with
+      ⟨type, hcanonical⟩
+    rw [hcanonical] at hfind
+    exact (congrArg Prod.fst (Option.some.inj hfind)).symm
+
+private theorem TrExprS.foldl_bvars_eq
+    (domains : List VExpr) (Δ : VLCtx)
+    (args : List Nat) (hargs : ∀ i ∈ args, i < domains.length)
+    (base : Expr) (vbase : VExpr)
+    (hbase : ∀ out, TrExprS env Us (abstractForallContext domains Δ)
+      base out → out = vbase)
+    (H : TrExprS env Us (abstractForallContext domains Δ)
+      (args.foldl (fun fn i => .app fn (.bvar i)) base) out) :
+    out = args.foldl (fun fn i => .app fn (.bvar i)) vbase := by
+  induction args generalizing base vbase with
+  | nil => exact hbase out H
+  | cons i args ih =>
+    apply ih (fun j hj => hargs j (by simp [hj]))
+      (.app base (.bvar i)) (.app vbase (.bvar i))
+    · intro result Hresult
+      cases Hresult with
+      | app _ _ hfn harg =>
+        rw [hbase _ hfn,
+          TrExprS.bvar_eq_of_abstractForallContext harg
+            (hargs i (by simp))]
+    · exact H
+
 /-- Binding a list of ordinary local declarations creates one concrete forall
 per selected declaration and leaves precisely the simultaneous abstraction of
 the selected free variables as its residual body. -/
@@ -12843,6 +12951,78 @@ def concreteRecursorResult
     Expr.bvar (1 + (numIndices - 1 - i))).toArray
   .app (mkAppN (.bvar motiveOffset) indexVars) (.bvar 0)
 
+private theorem indexBVarOffsets_eq (n : Nat) :
+    List.ofFn (fun i : Fin n => 1 + (n - 1 - i)) =
+      (List.range n).reverse.map (fun i => i + 1) := by
+  apply List.ext_getElem
+  · simp
+  · intro i hleft hright
+    have hi : i < n := by simpa using hleft
+    simp only [List.getElem_ofFn]
+    rw [List.getElem_map, List.getElem_reverse]
+    simp only [List.length_range]
+    rw [List.getElem_range]
+    omega
+
+/-- Translation of the normalized executable result is forced to be the
+same de Bruijn application used by the abstract recursor specification. -/
+theorem TrExprS.concreteRecursorResult_eq
+    (howner : ownerIdx < numMotives)
+    (htotal : numParams + numMotives + numMinors + numIndices + 1 ≤
+      domains.length)
+    (H : TrExprS env Us (abstractForallContext domains Δ)
+      (concreteRecursorResult numMotives numMinors numIndices ownerIdx)
+      result) :
+    result = VExpr.mkApps
+      (.bvar (1 + numIndices + numMinors +
+        (numMotives - 1 - ownerIdx)))
+      (((List.range numIndices).reverse.map fun i => .bvar (i + 1)) ++
+        [.bvar 0]) := by
+  unfold concreteRecursorResult at H
+  cases H with
+  | app _ _ hfn hmajor =>
+    have hmajorEq := TrExprS.bvar_eq_of_abstractForallContext hmajor
+      (by omega)
+    let indices := List.ofFn fun i : Fin numIndices =>
+      1 + (numIndices - 1 - i)
+    have hindexBound : ∀ i ∈ indices, i < domains.length := by
+      intro i hi
+      simp only [indices, List.mem_ofFn] at hi
+      rcases hi with ⟨j, rfl⟩
+      omega
+    have hmotiveBound :
+        1 + numIndices + numMinors + (numMotives - 1 - ownerIdx) <
+          domains.length := by omega
+    have hfn' := hfn
+    unfold mkAppN at hfn'
+    rw [← Array.foldl_toList] at hfn'
+    change TrExprS env Us (abstractForallContext domains Δ)
+      (List.foldl mkApp
+        (.bvar (1 + numIndices + numMinors +
+          (numMotives - 1 - ownerIdx)))
+        (List.ofFn ((fun i => Expr.bvar i) ∘
+          fun i : Fin numIndices => 1 + (numIndices - 1 - i)))) _ at hfn'
+    rw [← List.map_ofFn, List.foldl_map] at hfn'
+    change TrExprS env Us (abstractForallContext domains Δ)
+      (indices.foldl (fun fn i => .app fn (.bvar i))
+        (.bvar (1 + numIndices + numMinors +
+          (numMotives - 1 - ownerIdx)))) _ at hfn'
+    have hfnEq := TrExprS.foldl_bvars_eq domains Δ indices hindexBound
+      (.bvar (1 + numIndices + numMinors +
+        (numMotives - 1 - ownerIdx)))
+      (.bvar (1 + numIndices + numMinors +
+        (numMotives - 1 - ownerIdx)))
+      (fun out Hout => TrExprS.bvar_eq_of_abstractForallContext Hout
+        hmotiveBound)
+      hfn'
+    rw [hmajorEq, hfnEq]
+    unfold VExpr.mkApps
+    have hindices : indices =
+        (List.range numIndices).reverse.map (fun i => i + 1) := by
+      exact indexBVarOffsets_eq numIndices
+    rw [hindices, ← List.foldl_map]
+    simp [Function.comp_def]
+
 /-- Distinct retained binders make the executable five-stage abstraction
 compute to the canonical de Bruijn result used by the abstract recursor
 specification. -/
@@ -13007,6 +13187,66 @@ theorem RecursorLocalSelections.forallTelescope
   have hMotives := H.motives.prependTelescope hMinors
   have hParams := H.params.prependTelescope hMotives
   simpa [RecursorLocalSelections.residual, Nat.add_assoc] using hParams
+
+/-- The retained executable binder selections, their global no-alias
+invariant, and the independent cardinality certificate determine the exact
+abstract shape of one generated recursor. -/
+theorem RecursorLocalSelections.recursorShape
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size)
+    (hnoalias : H.NoAlias)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (hdeclOwner : ownerIdx < decl.types.length)
+    (recursor : VConstVal)
+    (hname : recursor.name =
+      decl.recursorName (decl.types[ownerIdx]'(hdeclOwner)))
+    (huvars : recursor.uvars = decl.uvars ∨
+      recursor.uvars = decl.uvars + 1)
+    (Htr : TrExprS env Us Δ
+      (c.lctx.mkForall stats.params <|
+       c.lctx.mkForall (recInfos.map (·.motive)) <|
+       c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+       c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+       c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+         (.app (mkAppN recInfos[ownerIdx]!.motive
+           recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major))
+      recursor.type) :
+    Nonempty (decl.RecursorShape
+      (decl.types[ownerIdx]'(hdeclOwner)) recursor) := by
+  have Htel := H.forallTelescope
+    (.app (mkAppN recInfos[ownerIdx]!.motive
+      recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+  have hresidual := H.residual_eq_concreteRecursorResult howner hnoalias
+  rw [hresidual] at Htel
+  rcases TrExprS.forallTelescope_shape_with_context Htel Htr with
+    ⟨domains, result, hdomainsLength, htype, Hresult⟩
+  have htotal : stats.params.size + (recInfos.map (·.motive)).size +
+      (recInfos.flatMap (·.minors)).size +
+      recInfos[ownerIdx]!.indices.size + 1 ≤ domains.length := by
+    omega
+  have hownerMotive : ownerIdx < (recInfos.map (·.motive)).size := by
+    simpa using howner
+  have hresultConcrete := TrExprS.concreteRecursorResult_eq
+    (numParams := stats.params.size) hownerMotive htotal Hresult
+  have hdomainsSpec : domains.length =
+      decl.nparams + decl.types.length + decl.ownedConstructors.length +
+        (decl.types[ownerIdx]'(hdeclOwner)).numIndices + 1 := by
+    rw [hdomainsLength, Hcard.params, Hcard.motives, Hcard.minors,
+      Hcard.indices ownerIdx howner]
+  rcases List.exists_append_five_of_length_eq domains decl.nparams
+      decl.types.length decl.ownedConstructors.length
+      (decl.types[ownerIdx]'(hdeclOwner)).numIndices 1 hdomainsSpec with
+    ⟨params, motives, minors, indices, major, hdomains,
+      hparams, hmotives, hminors, hindices, hmajor⟩
+  have hresult : result =
+      decl.recursorResult ownerIdx minors.length
+        (decl.types[ownerIdx]'(hdeclOwner)) := by
+    simpa [VInductDecl.recursorResult, Hcard.records, Hcard.motives,
+      Hcard.minors, Hcard.indices ownerIdx howner, hminors] using
+        hresultConcrete
+  refine ⟨VInductDecl.RecursorShape.ofWrapped hdeclOwner rfl hname huvars
+    hparams hmotives hminors hindices hmajor ?_ hresult⟩
+  simpa [hdomains] using htype
 
 /-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
 innermost order. Local lets are discharged by `mkForall'` and contribute no
