@@ -14951,6 +14951,34 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedIotaResultCertificate_ofFresh
     major_is_field := H.translatedOuterAbstractedMajor_isField
       hfieldRoot hbinders hfield hruleDomains hdomains hfieldVars hmajor }⟩
 
+/-- Equality-oriented wrapper that keeps call-dependent evidence, notably
+recursor membership, synchronized while identifying the selected field. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedIotaResultCertificate_ofFresh_eq
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (hfieldEq : field = .fvar fv)
+    (Htr : TrExprS env Us (abstractForallContext ruleDomains Δ)
+      (value.abstractList binders) result)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors
+      (abstractForallContext ruleDomains Δ))
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (hrecursor : H.recursorName ∈ recursors)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup)
+    (hfield : fv ∈ binders)
+    (hruleDomains : ruleDomains.length = binders.length)
+    (hfieldVars : ∀ fieldVar,
+      (Expr.fvar fv).abstractList binders = .bvar fieldVar →
+      fieldVar ∈ fieldVars) :
+    Nonempty (IotaRecursiveResultCertificate recursors fieldVars
+      recursiveArg result) := by
+  subst field
+  exact H.outerAbstractedIotaResultCertificate_ofFresh Htr hfresh hctx
+    hproj hrecursor hfieldRoot hbinders hfield hruleDomains hfieldVars
+
 /-- A generated recursive result is semantically guarded whenever the new
 recursor names are fresh in the translation environment and the selected
 constructor field is already identified in the outer abstract context. -/
@@ -15199,6 +15227,17 @@ theorem BoundGeneratedRecursiveCalls.abstractedIotaResults
   · have hiVSize : i < v.size := hiV
     simpa [Array.getElem!_eq_getD, Array.getD, hiVSize] using Hresult
 
+/-- Exact recursor-name coverage required by a generated call array. This
+avoids quantifying over arbitrary exposed expressions whose computed owner
+index has not been validated. -/
+def BoundGeneratedRecursiveCalls.RecursorsPresent
+    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v u.size) (recursors : List Name) : Prop :=
+  ∀ i (hi : i < u.size)
+      (Hentry : BoundGeneratedRecursiveCall indTypes stats motives minors
+        lvls root u[i] v[i]!),
+    Hentry.recursorName ∈ recursors
+
 theorem BoundGeneratedRecursiveCalls.abstractedIotaResults_ofFresh
     (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
       root u v u.size)
@@ -15216,10 +15255,7 @@ theorem BoundGeneratedRecursiveCalls.abstractedIotaResults_ofFresh
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
       e'.containsAnyConst recursors = false →
       e''.containsAnyConst recursors = false)
-    (hrecursor : ∀ exposedType,
-      Lean.mkRecName
-        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
-          recursors)
+    (hrecursor : H.RecursorsPresent recursors)
     (hbinders : binders.Nodup)
     (hruleDomains : ruleDomains.length = binders.length)
     (hselected : ∀ fv ∈ Hbound.fvars, fv ∈ binders) :
@@ -15241,12 +15277,10 @@ theorem BoundGeneratedRecursiveCalls.abstractedIotaResults_ofFresh
   have HArgFv : TrExprS env Us (abstractForallContext ruleDomains Δ)
       ((Expr.fvar fv).abstractList binders) recursiveArgs[i] := by
     simpa [hsource'] using hargTr
-  rw [hsource'] at Hentry
-  have hrecursorMem : Hentry.recursorName ∈ recursors := by
-    simpa [BoundGeneratedRecursiveCall.recursorName] using
-      hrecursor Hentry.exposedType
-  apply Hentry.outerAbstractedIotaResultCertificate_ofFresh
-    Hresult hfresh hctx hproj hrecursorMem hfieldRoot hbinders hfield
+  have hrecursorMemBefore : Hentry.recursorName ∈ recursors :=
+    hrecursor i hi Hentry
+  apply Hentry.outerAbstractedIotaResultCertificate_ofFresh_eq hsource'
+    Hresult hfresh hctx hproj hrecursorMemBefore hfieldRoot hbinders hfield
       hruleDomains
   intro fieldVar hfieldSource
   have HArg' := HArgFv
@@ -15596,10 +15630,7 @@ theorem BoundGeneratedRecursorRule.abstractedIotaResults_ofFresh
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
       e'.containsAnyConst recursors = false →
       e''.containsAnyConst recursors = false)
-    (hrecursor : ∀ exposedType,
-      Lean.mkRecName
-        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
-          recursors)
+    (hrecursor : H.recursive_calls.RecursorsPresent recursors)
     (hdomains : domains.length = H.binders.length) :
     IotaRecursiveResultsCertificate recursors
       (recursiveArgs.filterMap VExpr.bvarHead?)
@@ -15732,10 +15763,7 @@ theorem BoundGeneratedRecursorRule.iotaRhsCertificate_ofFresh
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
       e'.containsAnyConst recursors = false →
       e''.containsAnyConst recursors = false)
-    (hrecursor : ∀ exposedType,
-      Lean.mkRecName
-        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
-          recursors) :
+    (hrecursor : H.recursive_calls.RecursorsPresent recursors) :
     ∃ fieldArgs,
       Nonempty (IotaRhsCertificate recursors domains fieldArgs recursiveArgs
         rhsBody) := by
@@ -15781,10 +15809,7 @@ theorem BoundGeneratedRecursorRule.iotaRhsCertificateFor_ofFresh
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
       e'.containsAnyConst recursors = false →
       e''.containsAnyConst recursors = false)
-    (hrecursor : ∀ exposedType,
-      Lean.mkRecName
-        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
-          recursors) :
+    (hrecursor : H.recursive_calls.RecursorsPresent recursors) :
     Nonempty (IotaRhsCertificate recursors domains fieldArgs recursiveArgs
       rhsBody) := by
   rcases H.translatedRhsResidual hdomains Htr with
@@ -15839,10 +15864,8 @@ theorem BoundGeneratedRecursorRule.iotaRule_ofCertificates
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
       e'.containsAnyConst (block.recursors.map (·.name)) = false →
       e''.containsAnyConst (block.recursors.map (·.name)) = false)
-    (hrecursor : ∀ exposedType,
-      Lean.mkRecName
-        indTypes[(AddInductive.getIIndices stats exposedType).1]!.name ∈
-          block.recursors.map (·.name)) :
+    (hrecursor : H.recursive_calls.RecursorsPresent
+      (block.recursors.map (·.name))) :
     Nonempty (decl.IotaRule env block owner ctor rule) := by
   have Hrhs := H.iotaRhsCertificateFor_ofFresh hdomains Htr Hfields Hargs
     hfresh hctx hproj hrecursor
