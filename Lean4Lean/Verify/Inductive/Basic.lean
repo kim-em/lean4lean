@@ -6616,11 +6616,12 @@ used before `checkInductiveTypes` has recovered enough information to build a
 `VInductDecl`. -/
 theorem stepPrefix.refinesSkeleton
     {skeleton : VInductDeclSkeleton}
+    {envTypes envCtors : VEnv}
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
     (Q : α → Prop)
     (Hc : ContextWF c)
-    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams nparams
-      indTypes.toList isUnsafe skeleton)
+    (Hdecl : TrInductDeclSkeletonCore Hc.venv c.lparams nparams
+      indTypes.toList isUnsafe skeleton envTypes envCtors)
     (hidx : dIdx < indTypes.size)
     (Hloop : ∀ checkedType type' checkedType',
       TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
@@ -6655,15 +6656,15 @@ theorem stepPrefix.refinesSkeleton
               (dIdx + 1) stats k) c).WF Q) :
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx stats k c).WF Q := by
   have htarget : dIdx < skeleton.types.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length Hdecl]
     simpa using hidx
-  rcases Lean4Lean.VerifyInductive.TrInductDeclSkeleton.typeAt Hdecl dIdx
-      (by simpa using hidx) htarget with
-    ⟨envTypes, htypes, htargetTr⟩
+  have htargetTr :=
+    Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.typeAt Hdecl dIdx
+      (by simpa using hidx) htarget
   apply stepPrefix.WF (nparams := nparams) (stats := stats) (k := k)
     (Q := Q) Hc hidx
   intro checkedType type' checkedType' hchecked normalized hscope hnormalized
-  exact Hloop checkedType type' checkedType' hchecked envTypes htypes
+  exact Hloop checkedType type' checkedType' hchecked envTypes Hdecl.typesAdded
     skeleton.types[dIdx] (by simp [htarget]) (by simpa using htargetTr)
     normalized hscope hnormalized
 
@@ -6672,11 +6673,12 @@ closed source check through initialization of the ordered synthesized
 metadata prefix. -/
 theorem firstStep.initializesPrefix
     {skeleton : VInductDeclSkeleton}
+    {envTypes envCtors : VEnv}
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
     (Q : α → Prop)
     (Hc : ContextWF c)
-    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
-      indTypes.toList isUnsafe skeleton)
+    (Hdecl : TrInductDeclSkeletonCore Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton envTypes envCtors)
     (hctx : Hc.mlctx.vlctx = [])
     (hidx : 0 < indTypes.size)
     (hempty : stats.indConsts.isEmpty = true)
@@ -6690,8 +6692,8 @@ theorem firstStep.initializesPrefix
       stats'.levels = stats.levels →
       stats'.nindices = stats.nindices →
       stats'.indConsts = stats.indConsts →
-      TrInductDeclSkeleton Hc'.venv c'.lparams skeleton.nparams
-        indTypes.toList isUnsafe skeleton →
+      TrInductDeclSkeletonCore Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe skeleton envTypes envCtors →
       VLevel.ofLevel c'.lparams resultSort = some resultLevel →
       checkInductiveTypes.loopType.ParameterCachePrefix
         Hc'.venv c'.lparams Hc'.mlctx.vlctx stats'
@@ -6708,10 +6710,10 @@ theorem firstStep.initializesPrefix
     (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes 0
       stats k c).WF Q := by
   have hskeletonIdx : 0 < skeleton.types.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length Hdecl]
     simpa using hidx
   apply stepPrefix.refinesSkeleton (k := k) (Q := Q) Hc Hdecl hidx
-  intro checkedType type' checkedType' hchecked envTypes htypes
+  intro checkedType type' checkedType' hchecked translatedTypes htypes
     target htarget Htarget normalized _hscope hnormalized
   have htargetEq : target = skeleton.types[0] := by
     symm
@@ -6755,7 +6757,7 @@ theorem firstStep.initializesPrefix
       cases iEq
       apply firstResult.initializesPrefix k Q Hc' hempty' hskeletonIdx
         Hsynthesis' htype'
-      · rw [hlparams', ← Hdecl.2.1]
+      · rw [hlparams', ← Hdecl.uvars]
       · intro resultSort resultLevel hofLevel Hprefix Hambient
         apply Hrec Hc' hlparams' hlevels' hnindices' hconsts'
           (by simpa [hlparams'] using Hdecl') hofLevel Hcache' Hsuffix'
@@ -6764,8 +6766,8 @@ theorem firstStep.initializesPrefix
     (Hc := Hc) (hlparams := rfl) (hempty := hempty)
     (hlevelsStable := rfl) (hnindicesStable := rfl)
     (hconstsStable := rfl)
-    (R := fun env => TrInductDeclSkeleton env c.lparams
-      skeleton.nparams indTypes.toList isUnsafe skeleton)
+    (R := fun env => TrInductDeclSkeletonCore env c.lparams
+      skeleton.nparams indTypes.toList isUnsafe skeleton envTypes envCtors)
     (HR := Hdecl)
     (Hcache := Hcache) (Hsuffix := Hsuffix) (Hsynthesis := Hsynthesis)
     (hphase := by
@@ -6780,11 +6782,12 @@ ordered metadata entry. -/
 theorem laterStep.extendsPrefix
     {skeleton : VInductDeclSkeleton} {commonParams : List VExpr}
     {commonLevel : VLevel} {metadata : List (Nat × VLevel)}
+    {envTypes envCtors : VEnv}
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
     (Q : α → Prop)
     (Hc : ContextWF c)
-    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
-      indTypes.toList isUnsafe skeleton)
+    (Hdecl : TrInductDeclSkeletonCore Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton envTypes envCtors)
     (hidx : dIdx < indTypes.size)
     (_hnoninitial : 0 < dIdx)
     (hnonempty : stats.indConsts.isEmpty = false)
@@ -6804,8 +6807,8 @@ theorem laterStep.extendsPrefix
       {resultSort : Level} {resultLevel : VLevel},
       (Hc' : ContextWF c') →
       c'.lparams = c.lparams →
-      TrInductDeclSkeleton Hc'.venv c'.lparams skeleton.nparams
-        indTypes.toList isUnsafe skeleton →
+      TrInductDeclSkeletonCore Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe skeleton envTypes envCtors →
       checkInductiveTypes.loopType.ParameterCachePrefix
         Hc'.venv c'.lparams Hc'.mlctx.vlctx
         (updatedStats stats stats.lctx resultSort false nindices
@@ -6827,10 +6830,10 @@ theorem laterStep.extendsPrefix
     (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
       dIdx stats k c).WF Q := by
   have hskeletonIdx : dIdx < skeleton.types.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length Hdecl]
     simpa using hidx
   apply stepPrefix.refinesSkeleton (k := k) (Q := Q) Hc Hdecl hidx
-  intro checkedType type' checkedType' hchecked envTypes htypes
+  intro checkedType type' checkedType' hchecked translatedTypes htypes
     target htarget Htarget normalized hbelow hnormalized
   have htargetEq : target = skeleton.types[dIdx] := by
     symm
@@ -6896,8 +6899,8 @@ theorem laterStep.extendsPrefix
         (R := fun env =>
           checkInductiveTypes.loopType.SynthesizedHeaderPrefix env
               skeleton commonParams commonLevel metadata dIdx ∧
-            TrInductDeclSkeleton env c.lparams skeleton.nparams
-              indTypes.toList isUnsafe skeleton)
+            TrInductDeclSkeletonCore env c.lparams skeleton.nparams
+              indTypes.toList isUnsafe skeleton envTypes envCtors)
         (k := fun type stats nindices => show AddInductive.M α from do
           let type ← TypeChecker.ensureSort type
           let mut stats := stats
@@ -6930,8 +6933,8 @@ theorem laterStep.extendsPrefix
             (commonLevel := commonLevel) k Q Hc' hnonempty
             hskeletonIdx rfl Hprefix''' Hsynthesis'''
             Hruntime''' htypeNarrow''' htypeFull'''
-          · rw [hlparams', ← Hdecl.2.1]
-          · simpa [hlparams', ← Hdecl.2.1] using hparams'''
+          · rw [hlparams', ← Hdecl.uvars]
+          · simpa [hlparams', ← Hdecl.uvars] using hparams'''
           · simpa [hlparams'] using hcommon
           · intro resultSort resultLevel hguard hofLevel Hprefix'
             apply Hrec Hc' hlparams'
@@ -7021,11 +7024,12 @@ certificate. -/
 theorem laterSteps.materialize
     {skeleton : VInductDeclSkeleton} {commonParams : List VExpr}
     {commonLevel : VLevel} {metadata : List (Nat × VLevel)}
+    {envTypes envCtors : VEnv}
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
     (Q : α → Prop)
     (Hc : ContextWF c)
-    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
-      indTypes.toList isUnsafe skeleton)
+    (Hdecl : TrInductDeclSkeletonCore Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton envTypes envCtors)
     (hdone : dIdx ≤ indTypes.size)
     (hpositive : 0 < dIdx)
     (hlevels : stats.levels.length = c.lparams.length)
@@ -7051,8 +7055,8 @@ theorem laterSteps.materialize
       {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth' : Nat},
       (Hc' : ContextWF c') →
-      TrInductDecl Hc'.venv c'.lparams skeleton.nparams
-        indTypes.toList isUnsafe decl →
+      TrInductDeclCore Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe decl envTypes envCtors →
       MaterializedHeaderResult Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats' decl depth' →
       (k stats' c').WF Q) :
@@ -7066,9 +7070,9 @@ theorem laterSteps.materialize
           simpa [Array.isEmpty] using hempty
         omega
     have htargetIdx : dIdx < skeleton.types.length := by
-      rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+      rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length Hdecl]
       simpa using hidx
-    have hname := Lean4Lean.VerifyInductive.TrInductDeclSkeleton.typeNameAt
+    have hname := Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.typeNameAt
       Hdecl dIdx (by simpa using hidx) htargetIdx
     have hname' : indTypes[dIdx].name = skeleton.types[dIdx].name := by
       simpa using hname
@@ -7090,7 +7094,7 @@ theorem laterSteps.materialize
     · simp [updatedStats, hindicesExact]
     · rw [List.take_succ_eq_append_getElem]
       · simp [updatedStats, hconstsExact, hname']
-      · rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+      · rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length Hdecl]
         simpa using hidx
     · simpa [updatedStats] using hparams
     · exact Hcache'
@@ -7103,7 +7107,7 @@ theorem laterSteps.materialize
       exact Hfinish Hc'' Hdecl'' Hresult
   · have heq : dIdx = indTypes.size := by omega
     have htypes : skeleton.types.length = indTypes.size := by
-      rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl]
+      rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length Hdecl]
       simp
     have Hprefix' : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
         Hc.venv skeleton commonParams commonLevel metadata
@@ -7115,7 +7119,7 @@ theorem laterSteps.materialize
     have hfields := VInductDeclSkeleton.materialize_fields hmaterialize
     have herase := VInductDeclSkeleton.materialize_toSkeleton hmaterialize
     have Hdecl' :=
-      Lean4Lean.VerifyInductive.TrInductDeclSkeleton.materialized
+      Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.materialized
         Hdecl hmaterialize
     apply checkInductiveTypes.loopInd.result.WF
       (k := k) (Q := Q) hidx hlevels
@@ -7141,8 +7145,8 @@ theorem laterSteps.materialize
             Hc Hsuffix
         paramsContext := ?_
         narrowParams := ?_ }
-      · exact hlevels.trans (Hdecl.2.1.symm.trans hfields.1.symm)
-      · exact Hdecl.2.1.symm.trans hfields.1.symm
+      · exact hlevels.trans (Hdecl.uvars.symm.trans hfields.1.symm)
+      · exact Hdecl.uvars.symm.trans hfields.1.symm
       · have hconstMap :
             (decl.types.map fun type => Expr.const type.name stats.levels) =
               (skeleton.types.map fun type =>
@@ -7226,11 +7230,12 @@ def MaterializedHeaderResult.parameterSuffix
 first header that establishes the common parameters and result universe. -/
 theorem firstStep.materialize
     {skeleton : VInductDeclSkeleton}
+    {envTypes envCtors : VEnv}
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
     (Q : α → Prop)
     (Hc : ContextWF c)
-    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
-      indTypes.toList isUnsafe skeleton)
+    (Hdecl : TrInductDeclSkeletonCore Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton envTypes envCtors)
     (hctx : Hc.mlctx.vlctx = [])
     (hidx : 0 < indTypes.size)
     (hempty : stats.indConsts.isEmpty = true)
@@ -7243,8 +7248,8 @@ theorem firstStep.materialize
       {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth' : Nat},
       (Hc' : ContextWF c') →
-      TrInductDecl Hc'.venv c'.lparams skeleton.nparams
-        indTypes.toList isUnsafe decl →
+      TrInductDeclCore Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe decl envTypes envCtors →
       MaterializedHeaderResult Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats' decl depth' →
       (k stats' c').WF Q) :
@@ -7262,9 +7267,9 @@ theorem firstStep.materialize
       Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hcache'.params
     simpa using hlength
   have hskeletonIdx : 0 < skeleton.types.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeleton.types_length Hdecl']
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.types_length Hdecl']
     simpa using hidx
-  have hname := Lean4Lean.VerifyInductive.TrInductDeclSkeleton.typeNameAt
+  have hname := Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.typeNameAt
     Hdecl' 0 (by simpa using hidx) hskeletonIdx
   have hname' : indTypes[0].name = skeleton.types[0].name := by
     simpa using hname
@@ -7294,11 +7299,12 @@ checking returns a materialized abstract declaration, its source translation,
 and the independent header specification certificate to the continuation. -/
 theorem checkInductiveTypes.materialize
     {skeleton : VInductDeclSkeleton}
+    {envTypes envCtors : VEnv}
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
     (Q : α → Prop)
     (Hc : ContextWF c)
-    (Hdecl : TrInductDeclSkeleton Hc.venv c.lparams skeleton.nparams
-      indTypes.toList isUnsafe skeleton)
+    (Hdecl : TrInductDeclSkeletonCore Hc.venv c.lparams skeleton.nparams
+      indTypes.toList isUnsafe skeleton envTypes envCtors)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < indTypes.size)
     (hconsume : ConsumeTypeAnnotationsCompat)
@@ -7306,8 +7312,8 @@ theorem checkInductiveTypes.materialize
       {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth : Nat},
       (Hc' : ContextWF c') →
-      TrInductDecl Hc'.venv c'.lparams skeleton.nparams
-        indTypes.toList isUnsafe decl →
+      TrInductDeclCore Hc'.venv c'.lparams skeleton.nparams
+        indTypes.toList isUnsafe decl envTypes envCtors →
       MaterializedHeaderResult Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats' decl depth →
       (k stats' c').WF Q) :
@@ -18431,9 +18437,10 @@ structure DeclaredTypesResult (c : AddInductive.Context)
 fold installs precisely the independently specified mutual headers and
 transports the materialized header certificate into that environment. -/
 theorem AddInductive.declareInductiveTypes.WF
+    {envTypes envCtors : VEnv}
     (Hc : ContextWF c)
-    (Hdecl : TrInductDecl Hc.venv c.lparams numParams
-      indTypes.toList isUnsafe decl)
+    (Hdecl : TrInductDeclCore Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (Hmaterialized :
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
@@ -18448,8 +18455,7 @@ theorem AddInductive.declareInductiveTypes.WF
         ∃ _ : DeclaredTypesResult c stats decl depth Hc.venv
           indTypes outEnv, True := by
   rcases Hdecl with
-    ⟨hsource, huvars, hnparams, hunsafe, envTypes, envCtors,
-      htypesAdded, hctorsAdded, Htypes⟩
+    ⟨huvars, hnparams, hunsafe, htypesAdded, hctorsAdded, Htypes⟩
   let infos := AddInductive.inductiveTypeInfos stats numParams indTypes
     numNested isUnsafe c.lparams
   have Htranslated := AddInductive.inductiveTypeInfos.translated
@@ -18529,9 +18535,10 @@ theorem AddInductive.checkConstructors.WF
 /-- The exact executable prefix used by `AddInductive.run`, through mutual
 header installation and constructor checking, refines `FormationWF`. -/
 theorem AddInductive.formationPrefix.WF
+    {envTypes envCtors : VEnv}
     (Hc : ContextWF c)
-    (Hdecl : TrInductDecl Hc.venv c.lparams numParams
-      indTypes.toList isUnsafe decl)
+    (Hdecl : TrInductDeclCore Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe decl envTypes envCtors)
     (Hmaterialized :
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
