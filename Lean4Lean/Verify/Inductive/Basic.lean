@@ -823,8 +823,8 @@ theorem Expr.consumeTypeAnnotations_fvarsIn
       Expr.isAppOfArity, Expr.appFn!, Expr.appArg!, FVarsIn,
       -Expr.consumeTypeAnnotations_eq]
     case app fn arg =>
-      cases fn <;> simp_all [Expr.isAppOfArity, Expr.appFn!,
-        Expr.appArg!, FVarsIn, -Expr.consumeTypeAnnotations_eq]
+      cases fn <;> simp_all [Expr.isAppOfArity, FVarsIn,
+        -Expr.consumeTypeAnnotations_eq]
       case app fn' arg' =>
         exact Expr.consumeTypeAnnotations_fvarsIn H.1.2
   · split
@@ -1130,6 +1130,7 @@ structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
   shift : Lift
   lift : VLCtx.FVLift' scope expanded 0 shift 0
   context : VLCtx.IsDefEq env Us.length expanded runtime
+  upset : IsFVarUpSet (· ∈ scope.fvars) runtime
 
 theorem NarrowRuntimeScope.scopeWF
     (H : NarrowRuntimeScope env Us scope runtime)
@@ -1149,6 +1150,24 @@ theorem NarrowRuntimeScope.restrict
     ∃ e', TrExprS env Us scope e e' := by
   exact htr.weakFV'_inv henv H.lift
     (H.context.symm henv.ordered) hclosed hfvars
+
+/-- Restriction together with the definitional equality obtained by
+weakening the narrowed translation back into the executable context. -/
+theorem NarrowRuntimeScope.restrictEq
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (henv : env.WF)
+    (htr : TrExprS env Us runtime e e')
+    (hclosed : Closed e 0)
+    (hfvars : FVarsIn (· ∈ scope.fvars) e) :
+    ∃ narrow', TrExprS env Us scope e narrow' ∧
+      env.IsDefEqU Us.length runtime.toCtx e'
+        (narrow'.lift' H.shift) := by
+  rcases H.restrict henv htr hclosed hfvars with ⟨narrow', hnarrow⟩
+  have hweak : TrExprS env Us H.expanded e
+      (narrow'.lift' H.shift) := by
+    simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
+  exact ⟨narrow', hnarrow,
+    htr.uniq henv (H.context.symm henv.ordered) hweak⟩
 
 /-- Extend the embedding by a generated index free variable.  The new
 runtime domain need only be definitionally equal to the weakened semantic
@@ -1170,6 +1189,20 @@ def NarrowRuntimeScope.withIndex
   context := .cons H.context (by
     have hfresh := hnewRuntime.2.1
     simpa [H.context.fvars] using hfresh) (.vlam hdomain)
+  upset := by
+    have hfresh := hnewRuntime.2.1
+    refine ⟨?_, ?_⟩
+    · apply (IsFVarUpSet.congr hnewRuntime.1.fvwf ?_).2 H.upset
+      intro fv' hmem
+      simp only [VLCtx.fvars_cons_some, List.mem_cons]
+      constructor
+      · intro h
+        rcases h with rfl | h
+        · exact False.elim (hfresh _ _ rfl |>.1 hmem)
+        · exact h
+      · exact Or.inr
+    · intro _ dep hdep
+      exact List.mem_cons_of_mem _ (hdeps hdep)
 
 /-- At the parameter/index boundary, discard the ambient prefix retained
 from previously checked mutual headers and keep the exact cached-parameter
@@ -1189,9 +1222,17 @@ def NarrowRuntimeScope.ofParameterSuffix
     expanded := Hc.mlctx.vlctx
     shift := .skipN .refl Hsuffix.ambientDecls.toCtx.length
     lift := ?_
-    context := .refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf }
-  rw [Hsuffix.context]
-  exact W.toFVLift'
+    context := .refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+    upset := ?_ }
+  · rw [Hsuffix.context]
+    exact W.toFVLift'
+  · have hwf : VLCtx.WF Hc.venv c.lparams.length
+        (Hsuffix.ambientDecls ++ Hsuffix.parameterDecls) := by
+      rw [← Hsuffix.context]
+      exact Hc.mlctx_wf.tr.wf
+    simpa [Hsuffix.context] using
+      (IsFVarUpSet.suffixFVars Hsuffix.parameterDecls
+        Hsuffix.ambientDecls hwf)
 
 /-- Relate a domain translated in the semantic scope to the annotation-
 consumed domain installed by the executable checker. -/
@@ -3842,6 +3883,170 @@ theorem laterParameterSynthesisWF
     · have hieq : i = nparams := by omega
       exact Hresult hieq Hsynthesis (hcompleteScope hieq)
         htypeNarrow htypeFVars htypeFull
+
+/-- Traverse the index suffix of a later mutual header while keeping its
+semantic telescope independent of ambient declarations retained by the
+executable checker. -/
+theorem laterIndexSynthesisWF
+    {alpha : Type} {target : VInductiveTypeSkeleton}
+    (k : Expr → AddInductive.InductiveStats → Nat →
+      AddInductive.M alpha) (Q : alpha → Prop)
+    (Hresult : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (_hlparams : c'.lparams = c.lparams)
+      {type' narrowCurrent fullCurrent scope' nindices' fuel'},
+      (¬ ∃ name dom body bi, type' = .forallE name dom body bi) →
+      NarrowHeaderSynthesisCertificate Hc'.venv c'.lparams target
+        scope' narrowCurrent nparams nindices' →
+      NarrowRuntimeScope Hc'.venv c'.lparams scope' Hc'.mlctx.vlctx →
+      TrExprS Hc'.venv c'.lparams scope' type' narrowCurrent →
+      FVarsIn (· ∈ scope'.fvars) type' →
+      TrExpr Hc'.venv c'.lparams Hc'.mlctx.vlctx type' fullCurrent →
+      ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
+        stats nparams (depth + nindices') →
+      (AddInductive.checkInductiveTypes.loopType nparams stats type'
+        nparams nindices' fuel' k c').WF Q)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hc : ContextWF c)
+    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
+      stats nparams (depth + nindices))
+    (Hsynthesis : NarrowHeaderSynthesisCertificate Hc.venv c.lparams
+      target scope narrowCurrent nparams nindices)
+    (Hruntime : NarrowRuntimeScope Hc.venv c.lparams
+      scope Hc.mlctx.vlctx)
+    (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowCurrent)
+    (htypeFVars : FVarsIn (· ∈ scope.fvars) type)
+    (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      type fullCurrent) :
+    (AddInductive.checkInductiveTypes.loopType nparams stats type
+      nparams nindices fuel k c).WF Q := by
+  induction fuel generalizing c type scope narrowCurrent fullCurrent
+      nindices with
+  | zero => exact zero.WF
+  | succ fuel ih =>
+    by_cases hforall : ∃ name dom body bi,
+        type = .forallE name dom body bi
+    · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+      cases htypeNarrow with
+      | @forallE indexType narrowBody _ _ _ _ _
+          hdomType _hbodyType hdomNarrow hbodyNarrow =>
+        rcases TrExpr.forallE_source htypeFull with
+          ⟨sourceDom, fullBody, hdomFull, hbodyFull,
+            hdomFullType, _hbodyFullType, _hfullCurrent⟩
+        rcases hconsume c Hc hdomFull hdomFullType with
+          ⟨consumedDom, Hdom⟩
+        rcases Hdom.body Hc hbodyFull with
+          ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
+        apply index.scopeWF (stats := stats) (nparams := nparams)
+          (i := nparams) (nindices := nindices) (fuel := fuel)
+          (k := k) (Q := Q) Hc (by omega) Hdom.consumed Hdom.isType
+          hbodyConsumed
+        intro normalized hbelow hnormalized
+        let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType
+        have hdeps : dom.consumeTypeAnnotations.fvarsList ⊆ scope.fvars :=
+          (fvarsIn_iff.mp
+            (Expr.consumeTypeAnnotations_fvarsIn htypeFVars.1)).1
+        rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
+          ⟨domainLevel, hdomain⟩
+        let Hruntime' : NarrowRuntimeScope Hc'.venv c.lparams
+            ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotations.fvarsList),
+              .vlam indexType) :: scope)
+            Hc'.mlctx.vlctx :=
+          Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+        have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+        have hopenedNarrow : TrExprS Hc'.venv c.lparams
+            ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotations.fvarsList),
+              .vlam indexType) :: scope)
+            (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
+          rw [Expr.instantiate1_eq]
+          exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
+        have hopenedFVars : FVarsIn
+            (· ∈ VLCtx.fvars ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotations.fvarsList),
+              .vlam indexType) :: scope))
+            (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) := by
+          rw [Expr.instantiate1_eq]
+          apply (htypeFVars.2.mono fun fv hfv => by
+            rw [VLCtx.fvars_cons_some]
+            exact List.mem_cons_of_mem _ hfv).instantiate1
+          rw [VLCtx.fvars_cons_some]
+          exact List.mem_cons_self
+        have hnormalizedFVars := hbelow _ Hruntime'.upset hopenedFVars
+        rcases hnormalized with
+          ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
+        have hnormalizedClosed : Closed normalized 0 := by
+          have := hnormalizedFull.closed
+          have hnoBV : Hc'.mlctx.vlctx.bvars = 0 := Hc'.mlctx.noBV
+          rw [hnoBV] at this
+          exact this
+        rcases Hruntime'.restrictEq Hc'.checking.tr.wf
+            hnormalizedFull hnormalizedClosed hnormalizedFVars with
+          ⟨normalizedNarrow, hnormalizedNarrow, hnormalizedEq⟩
+        have hopenedWeak : TrExprS Hc'.venv c.lparams Hruntime'.expanded
+            (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
+            (narrowBody.lift' Hruntime'.shift) := by
+          simpa using hopenedNarrow.weakFV' Hc'.checking.tr.wf.ordered
+            Hruntime'.lift Hruntime'.context.wf
+        have hopenedFull := Hc.instantiateFresh
+          (name := name) (bi := bi) Hdom.consumed Hdom.isType
+          hbodyConsumed
+        have hopenedEq := hopenedWeak.uniq Hc'.checking.tr.wf
+          Hruntime'.context hopenedFull
+        have hopenedEq' := hopenedEq.defeqDFC
+          Hc'.checking.tr.wf.ordered Hruntime'.context.defeqCtx
+        have hnormalizeU : Hc'.venv.IsDefEqU c.lparams.length
+            Hc'.mlctx.vlctx.toCtx consumedBody normalizedFull :=
+          hnormalizeEq.symm
+        have hsourceNormalized := hopenedEq'.trans Hc'.checking.tr.wf
+          Hc'.mlctx_wf.tr.wf.toCtx hnormalizeU
+        have hfull : Hc'.venv.IsDefEqU c.lparams.length
+            Hc'.mlctx.vlctx.toCtx
+            (narrowBody.lift' Hruntime'.shift)
+            (normalizedNarrow.lift' Hruntime'.shift) :=
+          hsourceNormalized.trans Hc'.checking.tr.wf
+            Hc'.mlctx_wf.tr.wf.toCtx hnormalizedEq
+        have hexpanded := hfull.defeqDFC Hc'.checking.tr.wf.ordered
+          (Hruntime'.context.defeqCtx.symm Hc'.checking.tr.wf.ordered)
+        have hnarrow : Hc'.venv.IsDefEqU c.lparams.length
+            (indexType :: scope.toCtx)
+            narrowBody normalizedNarrow :=
+          (VEnv.IsDefEqU.weak'_iff Hc'.checking.tr.wf
+              Hruntime'.context.wf.toCtx Hruntime'.lift.toCtx).1 hexpanded
+        have hdomainNarrow : ∃ sourceDom',
+            TrExprS Hc'.venv c.lparams scope dom sourceDom' ∧
+            Hc'.venv.IsDefEqU c.lparams.length scope.toCtx
+              sourceDom' indexType :=
+          ⟨_, hdomNarrow,
+            ⟨.sort (Classical.choose hdomType),
+              Classical.choose_spec hdomType⟩⟩
+        have htransition : ∃ sourceBody' normalized',
+            TrExprS Hc'.venv c.lparams
+              ((none, .vlam indexType) :: scope)
+              body sourceBody' ∧
+            TrExprS Hc'.venv c.lparams
+              ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotations.fvarsList),
+                .vlam indexType) :: scope)
+              normalized normalized' ∧
+            Hc'.venv.IsDefEqU c.lparams.length
+              (indexType :: scope.toCtx)
+              sourceBody' normalized' :=
+          ⟨narrowBody, normalizedNarrow, hbodyNarrow,
+            hnormalizedNarrow, hnarrow⟩
+        rcases Hsynthesis.consumeIndex (name := name) (bi := bi)
+            Hc'.checking.tr.wf
+            (.forallE hdomType _hbodyType hdomNarrow hbodyNarrow)
+            hscopeWF hdomainNarrow htransition with
+          ⟨nextNarrow, hnextNarrow, ⟨Hsynthesis'⟩⟩
+        exact ih Hresult Hc'
+          (by simpa [Nat.add_assoc] using
+            Hcache.withIndex Hc Hdom.consumed Hdom.isType)
+          Hsynthesis' Hruntime' hnextNarrow hnormalizedFVars
+          ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
+    · exact Hresult Hc rfl hforall Hsynthesis Hruntime htypeNarrow
+        htypeFVars htypeFull Hcache
 
 end checkInductiveTypes.loopType
 
