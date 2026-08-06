@@ -5980,6 +5980,12 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
     (decl.paramVars depth)
   paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
   parameterScope : VLCtx
+  ambientScope : VLCtx
+  scopeDecomposition : Δ = ambientScope ++ parameterScope
+  ambientLength : ambientScope.length = depth
+  cachedScope : List.Forall₂
+    checkInductiveTypes.loopType.CachedParameterDecl
+    stats.params.toList.reverse parameterScope
   runtimeScope : checkInductiveTypes.loopType.NarrowRuntimeScope
     env Us parameterScope Δ
   paramsContext : VEnv.IsDefEqCtx env Us.length []
@@ -6105,6 +6111,10 @@ theorem laterSteps.materialize
         params := ?_
         paramFVars := Hcache.paramFVars
         parameterScope := Hsuffix.parameterDecls
+        ambientScope := Hsuffix.ambientDecls
+        scopeDecomposition := Hsuffix.context
+        ambientLength := Hsuffix.prefixLength
+        cachedScope := Hsuffix.cached
         runtimeScope :=
           checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
             Hc Hsuffix
@@ -6171,6 +6181,25 @@ theorem laterSteps.materialize
           exact hparams.trans hfields.2.1.symm
         simpa [hsize] using Hsuffix.narrowParams
 termination_by indTypes.size - dIdx
+
+def MaterializedHeaderResult.parameterSuffix
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : MaterializedHeaderResult Hc.venv c.lparams Hc.mlctx.vlctx
+      stats decl depth) :
+    checkInductiveTypes.loopType.ParameterContextSuffix Hc stats depth where
+  ambientDecls := H.ambientScope
+  parameterDecls := H.parameterScope
+  context := H.scopeDecomposition
+  prefixLength := H.ambientLength
+  cached := H.cachedScope
+  narrowParams := by
+    have hsize : stats.params.size = decl.nparams := by
+      have hlength :=
+        Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.narrowParams
+      simpa [VInductDecl.paramVars] using hlength
+    rw [hsize,
+      checkInductiveTypes.loopType.cachedParamVars_eq_paramVars decl]
+    exact H.narrowParams
 
 /-- Complete the whole nonempty mutual-header phase, including the special
 first header that establishes the common parameters and result universe. -/
@@ -9945,6 +9974,63 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       exact hempty.symm)
     Hinitial Hctor.type
     (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+
+/-- Fold the end-to-end constructor theorem over the production's nested
+family/constructor loops.  This is the constructor-formation result consumed
+by `FormationCertificate`; environment installation is intentionally a
+separate staging obligation. -/
+theorem checkConstructors.loopTypes.refinesMaterialized
+    {decl : VInductDecl} {sourceEnv : VEnv}
+    {params : List VExpr}
+    (Hc : ContextWF c)
+    (Htypes : List.Forall₂
+      (TrInductiveType sourceEnv Hc.venv c.lparams)
+      indTypes.toList decl.types)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    (hparams : Hmaterialized.headers.params = params)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel = .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0 c).WF
+      (fun _ => ConstructorCertificate sourceEnv decl Hc.venv params) := by
+  let Hsuffix := Hmaterialized.parameterSuffix
+  let Hstats :=
+    checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+      Hmaterialized
+  have hparamsCtx : VEnv.IsDefEqCtx Hc.venv decl.uvars []
+      params.reverse Hsuffix.parameterDecls.toCtx := by
+    change VEnv.IsDefEqCtx Hc.venv decl.uvars []
+      params.reverse Hmaterialized.parameterScope.toCtx
+    subst params
+    simpa [Hmaterialized.uvars] using Hmaterialized.paramsContext
+  apply checkConstructors.loopTypes.refinesBlock
+    (Q := fun _ => ConstructorCertificate sourceEnv decl Hc.venv params)
+    Hc Htypes (ConstructorTypesPrefix.empty Hc.venv decl params)
+    Hfresh
+  · intro targetIdx hsource htarget ctorIdx hctorSource hctorTarget
+      Hctor checkedType fullType checkedType' hchecked
+    apply checkConstructors.loopCtor.refinesCtorShape
+      (fuel := c.fuel.inductiveFuel) Hc Hsuffix Hstats hparamsCtx
+      Hctor hchecked htarget rfl hconsume hlit hproj hunsafe
+    exact hbound targetIdx htarget
+  · intro Hcomplete
+    exact Hcomplete.complete (env := sourceEnv)
 
 @[simp] theorem VInductDecl.recursorName_eq_mkRecName
     (decl : VInductDecl) (type : VInductiveType) :
