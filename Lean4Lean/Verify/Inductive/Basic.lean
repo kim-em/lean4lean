@@ -14314,6 +14314,39 @@ theorem instantiateForallParams_refines
           tail.instantiateRevRange 0 n params =
             residual.instantiateRevRange 0 n params))
 
+/-- Parameter replacement cannot truncate either side of the substitution:
+success records exact arity equality and the concrete simultaneous
+abstraction/instantiation result. -/
+theorem replaceNestedParams_refines
+    (params : Array Expr) (e : Expr) (args : Array Expr)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hsize : args.size = params.size) :
+    (Lean4Lean.ElimNestedInductive.replaceParams params e args env state).WF
+      fun out => out.1 = (e.abstract args).instantiateRev params := by
+  unfold Lean4Lean.ElimNestedInductive.replaceParams
+  simp [hsize]
+  intro out hout
+  cases hout
+  rfl
+
+/-- Source constructors may not mention the private namespace used for
+lowering-generated auxiliary families or projections. -/
+def NoNestedAux (e : Expr) : Prop :=
+  (e.find? fun
+    | .const c _ => (`_nested).isPrefixOf c
+    | .proj s _ _ => (`_nested).isPrefixOf s
+    | _ => false).isNone
+
+theorem checkNoNestedAux_refines (name : Name) (e : Expr) :
+    (Lean4Lean.checkNoNestedAux name e).WF fun _ => NoNestedAux e := by
+  unfold Lean4Lean.checkNoNestedAux NoNestedAux
+  cases hfind : e.find? fun
+    | .const c _ => (`_nested).isPrefixOf c
+    | .proj s _ _ => (`_nested).isPrefixOf s
+    | _ => false
+  · exact Except.WF.pure (by simp [hfind])
+  · exact Except.WF.throw
+
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
 type-checker's context-relative result into a source declaration judgment. -/
