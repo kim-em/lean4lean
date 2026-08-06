@@ -9854,6 +9854,49 @@ theorem RecursorFieldSelections.positions_ordered
     rcases List.mem_map.mp hold with ⟨oldCert, hmem, rfl⟩
     exact H.positions_lt oldCert hmem
 
+/-- The selected recursive array and its proof-side certificates remain
+pointwise aligned with the final all-fields array. In particular, the
+recorded field ordinal selects the very concrete argument paired with that
+certificate, even after later fields extend `bu`. -/
+theorem RecursorFieldSelections.arguments_at_positions
+    (H : RecursorFieldSelections env decl bu u fields) :
+    List.Forall₂ (fun cert arg =>
+      ∃ h : cert.fieldIndex < bu.size, arg = bu[cert.fieldIndex]'h)
+      fields u.toList := by
+  induction H with
+  | nil => exact .nil
+  | @nonrecursive bu u fields arg H ih =>
+      have lift : List.Forall₂ (fun cert selected =>
+          ∃ h : cert.fieldIndex < (bu.push arg).size,
+            selected = (bu.push arg)[cert.fieldIndex]'h)
+          fields u.toList := by
+        apply List.Forall₂.imp (R := fun cert selected =>
+          ∃ h : cert.fieldIndex < bu.size,
+            selected = bu[cert.fieldIndex]'h) (fun cert selected hhead => ?_) ih
+        rcases hhead with ⟨hpos, heq⟩
+        refine ⟨by simp; omega, ?_⟩
+        rw [heq]
+        exact (Array.getElem_push_lt hpos).symm
+      exact lift
+  | @recursive bu u fields arg cert H hindex ih =>
+      have lift : List.Forall₂ (fun old selected =>
+          ∃ h : old.fieldIndex < (bu.push arg).size,
+            selected = (bu.push arg)[old.fieldIndex]'h)
+          fields u.toList := by
+        apply List.Forall₂.imp (R := fun old selected =>
+          ∃ h : old.fieldIndex < bu.size,
+            selected = bu[old.fieldIndex]'h) (fun old selected hhead => ?_) ih
+        rcases hhead with ⟨hpos, heq⟩
+        refine ⟨by simp; omega, ?_⟩
+        rw [heq]
+        exact (Array.getElem_push_lt hpos).symm
+      rw [Array.toList_push]
+      apply checkPositivityStep.forall₂_append lift
+      apply List.Forall₂.cons
+      · refine ⟨by simp [hindex], ?_⟩
+        simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm
+      · exact .nil
+
 def RecursorRecursiveDomain.toRecursiveField
     (cert : RecursorRecursiveDomain env decl) (arg : VExpr) :
     decl.RecursiveField env where
@@ -9943,6 +9986,65 @@ theorem RecursorFieldsMaterialize.positions_lt
   rcases List.mem_map.mp hpos with ⟨cert, hcert, heq⟩
   rw [← heq]
   exact Hsel.positions_lt cert hcert
+
+/-- Materialized recursive fields select the corresponding translated
+constructor argument at their certified ordinal. This discharges the
+`IotaRule.fields_at_positions` obligation from the executable selection
+trace; uniqueness is needed only for the selected source field expression. -/
+theorem RecursorFieldsMaterialize.fields_at_positions
+    {env : VEnv} {decl : VInductDecl} {bu u : Array Expr}
+    {certs : List (RecursorRecursiveDomain env decl)}
+    {recursiveArgs allArgs : List VExpr}
+    {fields : List (decl.RecursiveField env)}
+    (Hsel : RecursorFieldSelections env decl bu u certs)
+    (Hmat : RecursorFieldsMaterialize env decl certs recursiveArgs fields)
+    (Hbu : List.Forall₂ (TrExprS env Us Δ) bu.toList allArgs)
+    (Hu : List.Forall₂ (TrExprS env Us Δ) u.toList recursiveArgs)
+    (Hunique : ∀ arg ∈ u.toList, TrExprS.IsUnique arg) :
+    ∀ field ∈ fields,
+      ∃ h : field.fieldIndex < allArgs.length,
+        field.arg = allArgs[field.fieldIndex]'h := by
+  intro field hfield
+  rcases List.mem_iff_getElem.mp hfield with ⟨j, hj, rfl⟩
+  have hfieldsArgs : fields.length = recursiveArgs.length := by
+    have := congrArg List.length Hmat.args
+    simpa using this
+  have hcertFields : certs.length = fields.length := by
+    have := congrArg List.length Hmat.positions
+    simpa using this.symm
+  have hjCert : j < certs.length := by omega
+  have hjRec : j < recursiveArgs.length := by omega
+  have hjU : j < u.toList.length := by
+    simpa only [Array.length_toList, ← Hsel.fields_length, hcertFields] using hj
+  have Halign := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hsel.arguments_at_positions j hjCert hjU
+  rcases Halign with ⟨hpos, hsource⟩
+  have hposAll : certs[j].fieldIndex < allArgs.length := by
+    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hbu
+    have hp : certs[j].fieldIndex < bu.toList.length := by
+      simpa using hpos
+    omega
+  have hposEq : fields[j].fieldIndex = certs[j].fieldIndex := by
+    have h := congrArg (fun xs => xs[j]?) Hmat.positions
+    simpa [hj, hjCert] using h
+  have hargEq : fields[j].arg = recursiveArgs[j] := by
+    have h := congrArg (fun xs => xs[j]?) Hmat.args
+    simpa [hj, hjRec] using h
+  refine ⟨hposEq.symm ▸ hposAll, ?_⟩
+  rw [hargEq]
+  have Hrec := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hu j hjU hjRec
+  have Hfield := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hbu certs[j].fieldIndex (by simpa using hpos) hposAll
+  have hsourceList : u.toList[j] = bu.toList[certs[j].fieldIndex] := by
+    simpa using hsource
+  have Hfield' : TrExprS env Us Δ u.toList[j]
+      allArgs[certs[j].fieldIndex] := by
+    rw [hsourceList]
+    exact Hfield
+  have heq := TrExprS.unique (Hunique u.toList[j]
+    (List.getElem_mem hjU)) Hrec Hfield'
+  simpa [hposEq] using heq
 
 /-- Exact concrete common-parameter prefix consumed by recursor generation.
 The relation is intentionally separate from field classification: agreement
