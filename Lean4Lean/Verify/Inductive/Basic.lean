@@ -10991,6 +10991,22 @@ theorem TrExprS.inferImplicit
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => simpa [Expr.inferImplicit] using H
 
+/-- Conversely, the annotation-only `inferImplicit` pass can be erased from
+the concrete side of a translation derivation. -/
+theorem TrExprS.of_inferImplicit
+    (H : TrExprS env Us Δ (e.inferImplicit numParams considerRange) e') :
+    TrExprS env Us Δ e e' := by
+  induction numParams generalizing e e' Δ with
+  | zero => simpa [Expr.inferImplicit] using H
+  | succ numParams ih =>
+    cases e with
+    | forallE name dom body bi =>
+      cases H with
+      | forallE hdomType hbodyType hdom hbody =>
+        exact .forallE hdomType hbodyType hdom (ih hbody)
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+      | proj => simpa [Expr.inferImplicit] using H
+
 /-- A concrete expression consists of exactly `arity` leading forall binders
 and the indicated residual body.  This deliberately forgets binder domains:
 `RecursorShape` records them existentially but constrains their cardinality. -/
@@ -13247,6 +13263,72 @@ theorem RecursorLocalSelections.recursorShape
   refine ⟨VInductDecl.RecursorShape.ofWrapped hdeclOwner rfl hname huvars
     hparams hmotives hminors hindices hmajor ?_ hresult⟩
   simpa [hdomains] using htype
+
+/-- Metadata and translation of the actual production `.recInfo` constant
+discharge the remaining premises of `recursorShape`. This is the boundary
+used by the outer installation loop after `inferImplicit`. -/
+theorem RecursorLocalSelections.recursorShape_of_recInfo
+    {indTypes : Array InductiveType}
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size)
+    (hnoalias : H.NoAlias)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl)
+    (hsourceOwner : ownerIdx < indTypes.size)
+    (elimLevel : Level) (info : RecursorVal) (recursor : VConstVal)
+    (Hinfo : TrConstVal safety env (.recInfo info) recursor)
+    (hlevels : info.levelParams =
+      AddInductive.getRecLevelParams elimLevel lparams)
+    (hname : info.name =
+      Lean.mkRecName (indTypes[ownerIdx]'(hsourceOwner)).name)
+    (htype : info.type =
+      (c.lctx.mkForall stats.params <|
+       c.lctx.mkForall (recInfos.map (·.motive)) <|
+       c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+       c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+       c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+         (.app (mkAppN recInfos[ownerIdx]!.motive
+           recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)).inferImplicit
+        1000 false) :
+    Nonempty (decl.RecursorShape
+      (decl.types[ownerIdx]'(by simpa [Hcard.records] using howner))
+      recursor) := by
+  have hdeclOwner : ownerIdx < decl.types.length := by
+    simpa [Hcard.records] using howner
+  rcases Lean4Lean.VerifyInductive.TrInductDecl.typeAt Hdecl ownerIdx
+      (by simpa using hsourceOwner) hdeclOwner with
+    ⟨_, _, Howner⟩
+  have hinfoName : info.name = recursor.name := by
+    simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using Hinfo.2
+  have hownerName : (decl.types[ownerIdx]'(hdeclOwner)).name =
+      (indTypes[ownerIdx]'(hsourceOwner)).name := by
+    simpa using Howner.header.name
+  have hrecName : recursor.name =
+      decl.recursorName (decl.types[ownerIdx]'(hdeclOwner)) := by
+    rw [← hinfoName, hname, VInductDecl.recursorName_eq_mkRecName,
+      hownerName]
+  have hrecUvars : recursor.uvars = decl.uvars ∨
+      recursor.uvars = decl.uvars + 1 := by
+    have htranslated : info.levelParams.length = recursor.uvars := by
+      simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
+        Hinfo.1.2.1
+    have hdeclUvars : decl.uvars = lparams.length := Hdecl.2.1
+    rw [hlevels] at htranslated
+    rcases AddInductive.getRecLevelParams_length
+        (elimLevel := elimLevel) (lparams := lparams) with hsame | hextra
+    · left
+      omega
+    · right
+      omega
+  have htranslated : TrExprS env info.levelParams [] info.type
+      recursor.type := by
+    simpa [ConstantInfo.levelParams, ConstantInfo.type,
+      ConstantInfo.toConstantVal] using Hinfo.1.2.2
+  rw [htype] at htranslated
+  have hpre := TrExprS.of_inferImplicit htranslated
+  exact H.recursorShape howner hnoalias Hcard hdeclOwner recursor
+    hrecName hrecUvars hpre
 
 /-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
 innermost order. Local lets are discharged by `mkForall'` and contribute no
