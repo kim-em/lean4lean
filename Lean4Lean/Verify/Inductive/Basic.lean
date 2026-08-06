@@ -12075,6 +12075,31 @@ theorem mkRecInfos.resultBindings {alpha : Type} {Q : alpha → Prop}
     exact Hk out cOut houtSize houtCounts HcOut HbindingsOut HaritiesOut
       HrootOut
 
+/-- Unified projection used by recursor generation: a single successful run
+supplies both the retained executable binders and the independent cardinality
+certificate derived from the translated source declaration. -/
+theorem mkRecInfos.resultCertificate {alpha : Type} {Q : alpha → Prop}
+    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        headerEnv lparams Δ stats decl depth)
+    (elimLevel : Level)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    (c : AddInductive.Context)
+    (Hc : BindingContextWF c)
+    (Hparams : BoundFVarArray c stats.params)
+    (Hk : ∀ out cOut, BindingContextWF cOut →
+      RecInfoBindings cOut out → BoundFVarArray cOut stats.params →
+      RecursorCardinalityCertificate stats out decl →
+      BindingContextLE c cOut → (k out cOut).WF Q) :
+    (AddInductive.mkRecInfos stats indTypes elimLevel k c).WF Q := by
+  apply mkRecInfos.resultBindings (Q := Q) stats indTypes elimLevel k c Hc
+  intro out cOut hsize hcounts HcOut Hbindings Harities Hroot
+  apply Hk out cOut HcOut Hbindings (Hparams.mono Hroot)
+  · exact RecursorCardinalityCertificate.ofResult Hdecl Hmaterialized
+      hsize hcounts Harities
+  · exact Hroot
+
 theorem LocalForallSelection.size
     (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
   rcases H with ⟨fvars, rfl, declarations⟩
