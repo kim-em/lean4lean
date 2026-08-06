@@ -11546,6 +11546,55 @@ theorem mkRecInfos.loopCtorArgs.resultBindings {alpha : Type}
     (BoundFVarArray.empty c) (BoundFVarArray.empty c)
     (BindingContextLE.refl c) Hk
 
+namespace mkRecInfos.loopU
+
+/-- Every induction-hypothesis declaration introduced by `loopU` is retained
+and appended to the certified hypothesis array. -/
+theorem resultBindings {alpha : Type}
+    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array Expr → AddInductive.M alpha) {Q : alpha → Prop}
+    (i : Nat) (v : Array Expr) (c : AddInductive.Context)
+    (Hc : BindingContextWF c) (Hv : BoundFVarArray c v)
+    (Hroot : BindingContextLE root c)
+    (Hk : ∀ v c, BindingContextWF c → BoundFVarArray c v →
+      BindingContextLE root c → (k v c).WF Q) :
+    (AddInductive.mkRecInfos.loopU stats u recInfos i v k c).WF Q := by
+  rw [AddInductive.mkRecInfos.loopU]
+  by_cases hnext : i < u.size
+  · rw [dif_pos hnext]
+    have hviTy :
+        ((AddInductive.mkRecInfos.loopUArgs u[i] fun uiTy xs => do
+          let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+          let motiveApp := .app
+            (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN u[i] xs)
+          return (← getLCtx).mkForall xs motiveApp) c).WF
+          (fun _ => True) := by
+      intro _ _
+      trivial
+    refine hviTy.bind fun viTy _ => ?_
+    have hget : ((getLCtx : AddInductive.M LocalContext) c).WF
+        (fun lctx => lctx = c.lctx) := by
+      intro lctx h
+      cases h
+      rfl
+    refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+      hget fun lctx hlctx => ?_
+    subst lctx
+    let vName := (c.lctx.get! u[i].fvarId!).userName.appendAfter "_ih"
+    apply withLocalDecl.continueRaw
+    exact resultBindings stats u recInfos k (i + 1)
+      (v.push (.fvar ⟨c.ngen.curr⟩)) _
+      (Hc.withLocalDecl vName viTy.consumeTypeAnnotations .default)
+      (Hv.pushCurrent vName viTy.consumeTypeAnnotations .default)
+      (Hroot.trans <| BindingContextLE.withLocalDecl c vName
+        viTy.consumeTypeAnnotations .default) Hk
+  · rw [dif_neg hnext]
+    exact Hk v c Hc Hv Hroot
+termination_by u.size - i
+
+end mkRecInfos.loopU
+
 theorem LocalForallSelection.size
     (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
   rcases H with ⟨fvars, rfl, declarations⟩
