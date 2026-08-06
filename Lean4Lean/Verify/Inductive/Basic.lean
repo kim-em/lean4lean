@@ -16451,6 +16451,31 @@ theorem BoundGeneratedRecursorRule.iotaRule_ofTranslationCertificate
     Hequation.domains_length Hequation.rhs_residual
     Hequation.field_args Hargs hfresh hctx hproj hrecursor
 
+/-- Complete local translation payload for one generated source rule. Unlike
+`IotaRule`, every field refers directly to retained executable data; global
+recursor installation and freshness are supplied once for the enclosing
+batch. -/
+structure BoundGeneratedRecursorRule.IotaRuleTranslation
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (trEnv : VEnv) (Us : List Name) (Δ : VLCtx)
+    (semanticEnv : VEnv) (decl : VInductDecl) (block : VInductBlock)
+    (owner : VInductiveType) (ctor : VConstVal) (rule : VDefEq) where
+  equation : H.IotaEquationTranslationCertificate trEnv Us Δ decl block
+    owner ctor rule
+  selections : List (RecursorRecursiveDomain semanticEnv decl)
+  selection : RecursorFieldSelections semanticEnv decl H.allArgs
+    H.recursiveArgs selections
+  owner_alignment : H.recursive_calls.OwnerAlignment decl selections
+  recursiveArgs : List VExpr
+  args : List.Forall₂
+    (TrExprS trEnv Us
+      (abstractForallContext equation.shape.domains Δ))
+    (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList
+    recursiveArgs
+  context_free : VLCtx.NoIndConsts (block.recursors.map (·.name))
+    (abstractForallContext equation.shape.domains Δ)
+
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
@@ -17801,6 +17826,104 @@ theorem GeneratedRecursors.recursorsPresent_ofOwnerAlignment
     hrecursors cert
   rw [Howners.recursorName i hi Hentry]
   simpa [cert] using hmem
+
+/-- Global recursor generation discharges the final coverage premise of the
+pointwise generated-rule theorem. Every recursive call is routed through its
+classifier-retained mutual owner and hence names an installed primary
+recursor. -/
+theorem GeneratedRecursors.iotaRule_ofTranslationCertificate
+    (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
+      stats indTypes recInfos entries)
+    (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl)
+    (block : VInductBlock)
+    (hrecursors : block.recursors = entries.map Prod.snd)
+    (Hequation : Hrule.IotaEquationTranslationCertificate trEnv Us Δ decl
+      block owner ctor rule)
+    (Hselection : RecursorFieldSelections semanticEnv decl Hrule.allArgs
+      Hrule.recursiveArgs selections)
+    (Howners : Hrule.recursive_calls.OwnerAlignment decl selections)
+    {recursiveArgs : List VExpr}
+    (Hargs : List.Forall₂
+      (TrExprS trEnv Us
+        (abstractForallContext Hequation.shape.domains Δ))
+      (Hrule.recursiveArgs.map fun arg =>
+        arg.abstractList Hrule.binders).toList recursiveArgs)
+    (hfresh : ∀ name ∈ block.recursors.map (·.name),
+      trEnv.constants name = none)
+    (hctx : VLCtx.NoIndConsts (block.recursors.map (·.name))
+      (abstractForallContext Hequation.shape.domains Δ))
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (block.recursors.map (·.name)) = false →
+      e''.containsAnyConst (block.recursors.map (·.name)) = false) :
+    Nonempty (decl.IotaRule semanticEnv block owner ctor rule) := by
+  have hpresent := Hgenerated.recursorsPresent_ofOwnerAlignment block Hcard
+    Hdecl hrecursors Hrule.recursive_calls Howners
+  exact Hrule.iotaRule_ofTranslationCertificate Hequation Hselection Hargs
+    hfresh hctx hproj hpresent
+
+theorem GeneratedRecursors.iotaRule_ofTranslation
+    (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
+      stats indTypes recInfos entries)
+    (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl)
+    (block : VInductBlock)
+    (hrecursors : block.recursors = entries.map Prod.snd)
+    (Htr : Hrule.IotaRuleTranslation trEnv Us Δ semanticEnv decl block owner
+      ctor rule)
+    (hfresh : ∀ name ∈ block.recursors.map (·.name),
+      trEnv.constants name = none)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (block.recursors.map (·.name)) = false →
+      e''.containsAnyConst (block.recursors.map (·.name)) = false) :
+    Nonempty (decl.IotaRule semanticEnv block owner ctor rule) :=
+  Hgenerated.iotaRule_ofTranslationCertificate Hrule Hcard Hdecl block
+    hrecursors Htr.equation Htr.selection Htr.owner_alignment Htr.args
+    hfresh Htr.context_free hproj
+
+/-- Append one generated family batch to the flattened iota accumulator.
+The pointwise premise now asks only for the explicit executable-to-`VDefEq`
+translation payload; `IotaRule` itself is derived uniformly using the global
+generated-recursor certificate. -/
+theorem GeneratedRecursors.appendIotaBatch
+    (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
+      stats indTypes recInfos entries)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl)
+    (block : VInductBlock)
+    (hrecursors : block.recursors = entries.map Prod.snd)
+    (Hbuild : IotaBuildCertificate semanticEnv decl block prior)
+    (Hbatch : BoundGeneratedRecursorRules indTypes stats motives minors lvls
+      ctors start sourceRules)
+    (hlength : abstractRules.length = sourceRules.length)
+    (hroom : abstractRules.length + prior.length ≤
+      decl.ownedConstructors.length)
+    (Htranslations : ∀ i (hctor : i < ctors.length)
+      (hsource : i < sourceRules.length)
+      (habstract : i < abstractRules.length)
+      (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+        ctors[i] (start + i) sourceRules[i]),
+      Nonempty (Hrule.IotaRuleTranslation trEnv Us Δ semanticEnv decl block
+        decl.ownedConstructors[prior.length + i].1
+        decl.ownedConstructors[prior.length + i].2 abstractRules[i]))
+    (hfresh : ∀ name ∈ block.recursors.map (·.name),
+      trEnv.constants name = none)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (block.recursors.map (·.name)) = false →
+      e''.containsAnyConst (block.recursors.map (·.name)) = false) :
+    IotaBuildCertificate semanticEnv decl block (prior ++ abstractRules) := by
+  apply Hbuild.appendBoundGeneratedRules Hbatch hlength hroom
+  intro i hctor hsource habstract Hrule
+  rcases Htranslations i hctor hsource habstract Hrule with ⟨Htr⟩
+  exact Hgenerated.iotaRule_ofTranslation Hrule Hcard Hdecl block hrecursors
+    Htr hfresh hproj
 
 theorem GeneratedRecursors.recursorCertificate
     (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
