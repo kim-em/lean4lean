@@ -190,11 +190,12 @@ def VInductDecl.TypeShape (env : VEnv) (decl : VInductDecl)
 
 def VInductDecl.CtorShape (env : VEnv) (decl : VInductDecl)
     (params : List VExpr) (target : VInductiveType) (ctor : VConstVal) : Prop :=
-  ∃ normalized ownParams tail exprType,
+  ∃ normalized ownParams tail exprType tailCtx,
     env.IsDefEq decl.uvars [] ctor.type normalized exprType ∧
     normalized.takeForalls decl.nparams = some (ownParams, tail) ∧
     decl.ParamsDefEq env params ownParams ∧
-    decl.CtorTailWF env target ownParams.reverse 0 tail
+    env.IsDefEqCtx decl.uvars [] ownParams.reverse tailCtx ∧
+    decl.CtorTailWF env target tailCtx 0 tail
 
 /-- Source-level obligations that cannot be erased by ordinary or nested
 compilation. In particular constructor types are checked in an environment
