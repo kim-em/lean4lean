@@ -14400,6 +14400,19 @@ theorem getNestedIfAuxCtor_refines
         exact ⟨⟨ctorInfo, hfound, rfl, hnested⟩⟩
     | _ => simp_all
 
+theorem restoreCtorName_eq
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (ctor auxFamily sourceFamily : Name)
+    (nested : Expr) (levels : List Level)
+    (hlookup : result.getNestedIfAuxCtor env ctor =
+      some (nested, auxFamily))
+    (hhead : nested.getAppFn = .const sourceFamily levels) :
+    result.restoreCtorName env ctor =
+      ctor.replacePrefix auxFamily sourceFamily := by
+  unfold Lean4Lean.ElimNestedInductive.Result.restoreCtorName
+  simp [hlookup, hhead]
+  rfl
+
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/
