@@ -11212,25 +11212,26 @@ records, aligned with the production array operations. -/
 structure RecInfoBindings (c : AddInductive.Context)
     (recInfos : Array AddInductive.RecInfo) where
   motives : BoundFVarArray c (recInfos.map (·.motive))
-  minors : BoundFVarArray c (recInfos.flatMap (·.minors))
   majors : BoundFVarArray c (recInfos.map (·.major))
   indices : ∀ i (hi : i < recInfos.size),
     BoundFVarArray c recInfos[i]!.indices
+  minors : ∀ i (hi : i < recInfos.size),
+    BoundFVarArray c recInfos[i]!.minors
 
 def RecInfoBindings.empty (c : AddInductive.Context) :
     RecInfoBindings c #[] where
   motives := by simpa using BoundFVarArray.empty c
-  minors := BoundFVarArray.empty c
   majors := by simpa using BoundFVarArray.empty c
   indices i hi := by simp at hi
+  minors i hi := by simp at hi
 
 def RecInfoBindings.mono
     (H : RecInfoBindings c recInfos) (hle : BindingContextLE c c') :
     RecInfoBindings c' recInfos where
   motives := H.motives.mono hle
-  minors := H.minors.mono hle
   majors := H.majors.mono hle
   indices i hi := (H.indices i hi).mono hle
+  minors i hi := (H.minors i hi).mono hle
 
 def RecInfoBindings.pushFrame
     {indices : Array Expr}
@@ -11268,14 +11269,13 @@ def RecInfoBindings.pushFrame
   let hall : BindingContextLE c cMotive := hle.trans (hMajor.trans hMotive)
   refine {
     motives := ?_
-    minors := ?_
     majors := ?_
     indices := ?_
+    minors := ?_
   }
   · simpa [cMajor, cMotive] using
       ((H.motives.mono (hle.trans hMajor)).pushCurrent
         motiveName motiveTy motiveBi)
-  · simpa using H.minors.mono hall
   · simpa [cMajor, cMotive] using
       (((H.majors.mono hle).pushCurrent majorName majorTy majorBi).weaken
         motiveName motiveTy motiveBi)
@@ -11296,6 +11296,23 @@ def RecInfoBindings.pushFrame
         exact Array.getElem_push_lt hiOld
       rw [hget]
       exact (H.indices i hiOld).mono hall
+  · intro i hi
+    by_cases hilast : i = recInfos.size
+    · subst i
+      simpa using BoundFVarArray.empty cMotive
+    · have hiSize : i < recInfos.size + 1 := by simpa using hi
+      have hiOld : i < recInfos.size := by omega
+      have hget : (recInfos.push {
+          motive := .fvar ⟨cMajor.ngen.curr⟩
+          minors := #[]
+          indices
+          major := .fvar ⟨cIndices.ngen.curr⟩ })[i]! = recInfos[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hi, dif_pos hiOld]
+        exact Array.getElem_push_lt hiOld
+      rw [hget]
+      exact (H.minors i hiOld).mono hall
 
 namespace mkRecInfos.loopArgs1
 
