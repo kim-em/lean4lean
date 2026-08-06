@@ -11119,6 +11119,26 @@ structure BoundFVarArray (c : AddInductive.Context) (xs : Array Expr) where
   expressions : xs = (fvars.map Expr.fvar).toArray
   members : ∀ fv ∈ fvars, fv ∈ c.lctx.fvars
 
+def BindingContextLE (c c' : AddInductive.Context) : Prop :=
+  c.lctx.fvars ⊆ c'.lctx.fvars
+
+theorem BindingContextLE.refl (c : AddInductive.Context) :
+    BindingContextLE c c := fun _ => id
+
+theorem BindingContextLE.trans
+    (H₁ : BindingContextLE c₁ c₂) (H₂ : BindingContextLE c₂ c₃) :
+    BindingContextLE c₁ c₃ := fun _ h => H₂ (H₁ h)
+
+theorem BindingContextLE.withLocalDecl
+    (c : AddInductive.Context) (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BindingContextLE c { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } := by
+  intro fv hfv
+  simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+    List.map_cons, LocalDecl.fvarId, List.mem_cons]
+  exact Or.inr hfv
+
 def BoundFVarArray.empty (c : AddInductive.Context) :
     BoundFVarArray c #[] where
   fvars := []
@@ -11137,6 +11157,13 @@ def BoundFVarArray.weaken
     simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
       List.map_cons, LocalDecl.fvarId, List.mem_cons]
     exact Or.inr (H.members fv hfv)
+
+def BoundFVarArray.mono
+    (H : BoundFVarArray c xs) (hle : BindingContextLE c c') :
+    BoundFVarArray c' xs where
+  fvars := H.fvars
+  expressions := H.expressions
+  members fv hfv := hle (H.members fv hfv)
 
 def BoundFVarArray.pushCurrent
     (H : BoundFVarArray c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
@@ -11177,14 +11204,15 @@ theorem continueWithBindings {alpha : Type}
     (k : Array Expr → AddInductive.M alpha)
     {Q : alpha → Prop}
     (Hk : ∀ indices c, BindingContextWF c → BoundFVarArray c indices →
-      (k indices c).WF Q) :
+      BindingContextLE root c → (k indices c).WF Q) :
     ∀ type i indices fuel c,
       BindingContextWF c → BoundFVarArray c indices →
+      BindingContextLE root c →
       (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
-  | _, _, _, 0, _, _, _ => by
+  | _, _, _, 0, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
-  | type, i, indices, fuel + 1, c, Hc, Hindices => by
+  | type, i, indices, fuel + 1, c, Hc, Hindices, Hroot => by
       cases type with
       | forallE name dom body bi =>
         rw [AddInductive.mkRecInfos.loopArgs1]
@@ -11198,7 +11226,7 @@ theorem continueWithBindings {alpha : Type}
             trivial
           exact hwhnf.bind fun next _ =>
             continueWithBindings stats k Hk next (i + 1) indices fuel c
-              Hc Hindices
+              Hc Hindices Hroot
         · rw [if_neg hparam]
           unfold Lean4Lean.withLocalDecl
             MonadLocalNameGenerator.withFreshId
@@ -11224,10 +11252,12 @@ theorem continueWithBindings {alpha : Type}
               (indices.push (.fvar ⟨c.ngen.curr⟩)) fuel c'
               (Hc.withLocalDecl name dom.consumeTypeAnnotations bi)
               (Hindices.pushCurrent name dom.consumeTypeAnnotations bi)
+              (Hroot.trans <| BindingContextLE.withLocalDecl c name
+                dom.consumeTypeAnnotations bi)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
           simpa [AddInductive.mkRecInfos.loopArgs1] using
-            Hk indices c Hc Hindices
+            Hk indices c Hc Hindices Hroot
 
 end mkRecInfos.loopArgs1
 
