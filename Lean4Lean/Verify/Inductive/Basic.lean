@@ -1480,6 +1480,41 @@ theorem NarrowHeaderSynthesisCertificate.consumeParameter
     exact ⟨normalized', hnormalized,
       ⟨H.withParameter henv hindices hscopeWF hstep⟩⟩
 
+theorem NarrowHeaderSynthesisCertificate.typeShape
+    {decl : VInductDecl} {target : VInductiveType}
+    (H : NarrowHeaderSynthesisCertificate env Us target.toSkeleton
+      scope current decl.nparams target.numIndices)
+    (henv : env.WF)
+    (huvars : Us.length = decl.uvars)
+    (hlevel : ∀ resultLevel,
+      VLevel.ofLevel Us level = some resultLevel →
+      resultLevel = target.resultLevel)
+    (hsort : TrExpr env Us scope (.sort level) current) :
+    decl.TypeShape env H.params target := by
+  have hparamsTake :
+      (VExpr.wrapForalls (H.params ++ H.indices) current).takeForalls
+        decl.nparams =
+      some (H.params, VExpr.wrapForalls H.indices current) := by
+    simpa only [H.parameterCount] using
+      VExpr.takeForalls_wrapForalls_append H.params H.indices current
+  have hindicesTake :
+      (VExpr.wrapForalls H.indices current).takeForalls target.numIndices =
+      some (H.indices, current) := by
+    simpa only [H.indexCount] using
+      VExpr.takeForalls_wrapForalls H.indices current
+  have hctxType : OnCtx (H.indices.reverse ++ H.params.reverse)
+      (env.IsType decl.uvars) := by
+    simpa [huvars, ← H.scopeCtx] using H.scopeWF.toCtx
+  apply TrExpr.typeShape (decl := decl) (target := target)
+    (params := H.params) (ownParams := H.params) (indices := H.indices)
+    (normalized := VExpr.wrapForalls (H.params ++ H.indices) current)
+    (afterParams := VExpr.wrapForalls H.indices current)
+    (result := current) (exprType := H.exprType)
+    henv H.scopeWF huvars H.scopeCtx
+    (by simpa [huvars, VInductiveType.toSkeleton] using H.header)
+    hparamsTake hindicesTake
+    (VInductDecl.paramsDefEq_reflOfAppend hctxType) hlevel hsort
+
 theorem HeaderSynthesisCertificate.typeShapeWithParams
     {c : AddInductive.Context} {Hc : ContextWF c}
     {decl : VInductDecl} {target : VInductiveType}
