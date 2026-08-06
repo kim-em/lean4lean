@@ -826,6 +826,92 @@ theorem ContextWF.findCDecl (H : ContextWF c)
   rw [← H.lctx_eq]
   exact hfind
 
+/-- Operational local-context invariant used by structurally exploded
+recursor traversals.  It records exactly what those proofs need in order to
+retain generated binders, without claiming semantic typing for their domains. -/
+structure BindingContextWF (c : AddInductive.Context) where
+  wf : c.lctx.WF
+  onlyLams : ∀ d ∈ c.lctx.toList, ∃ index fv name type bi kind,
+    d = .cdecl index fv name type bi kind
+  ngen_prefix : c.ngen.namePrefix = `_ind_fresh
+  fresh : ∀ fv ∈ c.lctx.fvars, c.ngen.Reserves fv
+  findCDecl : ∀ fv ∈ c.lctx.fvars, ∃ index name type bi kind,
+    c.lctx.find? fv = some (.cdecl index fv name type bi kind)
+
+theorem ContextWF.toBindingContextWF (H : ContextWF c) :
+    BindingContextWF c where
+  wf := H.lctx_eq ▸ H.mlctx_wf.tr.1
+  onlyLams := by
+    intro d hd
+    apply H.onlyLams d
+    rw [← H.mlctx_wf.toList_eq, H.lctx_eq]
+    exact hd
+  ngen_prefix := H.ngen_prefix
+  fresh := by
+    intro fv hfv
+    apply H.indFresh fv
+    rw [← H.mlctx_wf.tr.fvars_eq, H.lctx_eq]
+    exact hfv
+  findCDecl fv hfv := H.findCDecl <| by
+    rw [← H.mlctx_wf.tr.fvars_eq, H.lctx_eq]
+    exact hfv
+
+theorem BindingContextWF.current_not_mem (H : BindingContextWF c) :
+    ⟨c.ngen.curr⟩ ∉ c.lctx.fvars := fun hmem =>
+  c.ngen.not_reserves_self (H.fresh _ hmem)
+
+def BindingContextWF.withLocalDecl (H : BindingContextWF c)
+    (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BindingContextWF { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
+  wf := H.wf.mkLocalDecl <| by
+    rw [H.wf.find?_eq_find?_toList]
+    by_contra hne
+    rcases Option.ne_none_iff_exists.mp hne with ⟨d, hfind⟩
+    apply H.current_not_mem
+    rw [LocalContext.fvars]
+    apply List.mem_map.2
+    have hfind' := hfind.symm
+    refine ⟨d, List.mem_of_find?_eq_some hfind', ?_⟩
+    have hp := List.find?_some hfind'
+    have heq : ⟨c.ngen.curr⟩ = d.fvarId := by simpa using hp
+    exact heq.symm
+  onlyLams := by
+    intro d hd
+    simp only [LocalContext.mkLocalDecl_toList, List.mem_cons] at hd
+    rcases hd with rfl | hd
+    · exact ⟨_, _, _, _, _, _, rfl⟩
+    · exact H.onlyLams d hd
+  ngen_prefix := H.ngen_prefix
+  fresh := by
+    intro fv hmem
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons] at hmem
+    rcases hmem with rfl | hmem
+    · exact c.ngen.next_reserves_self
+    · exact (H.fresh _ hmem).mono NameGenerator.LE.next
+  findCDecl := by
+    intro fv hmem
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons] at hmem
+    rcases hmem with rfl | hmem
+    · refine ⟨c.lctx.decls.size, name, ty, bi, .default, ?_⟩
+      simp [LocalContext.mkLocalDecl, LocalContext.find?,
+        H.wf.map_wf.find?_insert]
+    · rcases H.findCDecl fv hmem with
+        ⟨index, oldName, oldType, oldBi, kind, hfind⟩
+      refine ⟨index, oldName, oldType, oldBi, kind, ?_⟩
+      simp only [LocalContext.mkLocalDecl, LocalContext.find?,
+        H.wf.map_wf.find?_insert]
+      rw [if_neg]
+      · exact hfind
+      · intro heq
+        have hsame : ⟨c.ngen.curr⟩ = fv := LawfulBEq.eq_of_beq heq
+        have : fv = ⟨c.ngen.curr⟩ := hsame.symm
+        subst fv
+        exact H.current_not_mem hmem
+
 theorem withLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF c)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
@@ -11025,6 +11111,61 @@ structure LocalForallSelection (lctx : LocalContext) (xs : Array Expr) where
   expressions : xs = (fvars.map Expr.fvar).toArray
   declarations : ∀ fv ∈ fvars, ∃ index name type bi kind,
     lctx.find? fv = some (.cdecl index fv name type bi kind)
+
+/-- Operational form of a local selection, convenient to preserve while the
+reader context is extended by generated binders. -/
+structure BoundFVarArray (c : AddInductive.Context) (xs : Array Expr) where
+  fvars : List FVarId
+  expressions : xs = (fvars.map Expr.fvar).toArray
+  members : ∀ fv ∈ fvars, fv ∈ c.lctx.fvars
+
+def BoundFVarArray.empty (c : AddInductive.Context) :
+    BoundFVarArray c #[] where
+  fvars := []
+  expressions := rfl
+  members _ h := by simp at h
+
+def BoundFVarArray.weaken
+    (H : BoundFVarArray c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BoundFVarArray { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
+  fvars := H.fvars
+  expressions := H.expressions
+  members := by
+    intro fv hfv
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons]
+    exact Or.inr (H.members fv hfv)
+
+def BoundFVarArray.pushCurrent
+    (H : BoundFVarArray c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BoundFVarArray { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+      (xs.push (.fvar ⟨c.ngen.curr⟩)) where
+  fvars := H.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)]
+  expressions := calc
+    xs.push (.fvar ⟨c.ngen.curr⟩) =
+        ((H.fvars.map Expr.fvar).toArray).push (.fvar ⟨c.ngen.curr⟩) :=
+      congrArg (fun ys => ys.push (.fvar ⟨c.ngen.curr⟩)) H.expressions
+    _ = ((H.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)]).map Expr.fvar).toArray := by
+      simp
+  members := by
+    intro fv hfv
+    simp only [List.mem_append, List.mem_singleton] at hfv
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons]
+    rcases hfv with hfv | rfl
+    · exact Or.inr (H.members fv hfv)
+    · exact Or.inl rfl
+
+def BoundFVarArray.toLocalForallSelection
+    (H : BoundFVarArray c xs) (Hc : BindingContextWF c) :
+    LocalForallSelection c.lctx xs where
+  fvars := H.fvars
+  expressions := H.expressions
+  declarations fv hfv := Hc.findCDecl fv (H.members fv hfv)
 
 theorem LocalForallSelection.size
     (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
