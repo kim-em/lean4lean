@@ -911,10 +911,84 @@ theorem TrInductDecl.types_length
   rcases H with ⟨_, _, _, _, _, _, _, _, htypes⟩
   exact Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes
 
+theorem VEnv.addConsts_append
+    {env middle out : VEnv} {xs ys : List VConstVal}
+    (hxs : env.addConsts xs = some middle)
+    (hys : middle.addConsts ys = some out) :
+    env.addConsts (xs ++ ys) = some out := by
+  induction xs generalizing env with
+  | nil =>
+    simp [VEnv.addConsts] at hxs
+    subst middle
+    exact hys
+  | cons x xs ih =>
+    simp only [List.cons_append, VEnv.addConsts] at hxs ⊢
+    cases hnext : env.addConst x.name x.toVConstant with
+    | none => simp [hnext] at hxs
+    | some next =>
+      rw [hnext] at hxs
+      simpa [hnext] using ih (by simpa using hxs)
+
+/-- Successful left-to-right abstract installation implies both freshness in
+the input environment and pairwise distinctness of all installed names. -/
+theorem VEnv.addConsts_names_fresh
+    {env out : VEnv} {constants : List VConstVal}
+    (H : env.addConsts constants = some out) :
+    (constants.map (·.name)).Nodup ∧
+      ∀ ci ∈ constants, env.constants ci.name = none := by
+  induction constants generalizing env with
+  | nil => simp
+  | cons ci constants ih =>
+    simp only [VEnv.addConsts] at H
+    cases hadd : env.addConst ci.name ci.toVConstant with
+    | none => simp [hadd] at H
+    | some next =>
+      rw [hadd] at H
+      rcases ih H with ⟨htail, hfresh⟩
+      have hinstalled : next.constants ci.name = some ci.toVConstant :=
+        VEnv.addConst_self hadd
+      have hhead : ci.name ∉ constants.map (·.name) := by
+        intro hmem
+        rcases List.mem_map.mp hmem with ⟨later, hlater, hname⟩
+        have habsent := hfresh later hlater
+        rw [hname, hinstalled] at habsent
+        contradiction
+      refine ⟨List.nodup_cons.mpr ⟨hhead, htail⟩, ?_⟩
+      intro later hlater
+      simp only [List.mem_cons] at hlater
+      rcases hlater with rfl | hlater
+      · unfold VEnv.addConst at hadd
+        split at hadd <;> cases hadd
+        assumption
+      · have habsent := hfresh later hlater
+        have hne : ci.name ≠ later.name := by
+          intro heq
+          apply hhead
+          exact List.mem_map.mpr ⟨later, hlater, heq.symm⟩
+        rw [VEnv.addConst_constants_of_ne hadd hne] at habsent
+        exact habsent
+
+theorem VEnv.addConsts_names_nodup
+    {env out : VEnv} {constants : List VConstVal}
+    (H : env.addConsts constants = some out) :
+    (constants.map (·.name)).Nodup :=
+  (VEnv.addConsts_names_fresh H).1
+
+theorem TrInductDeclCore.sourceNames_nodup
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors) :
+    decl.sourceNames.Nodup := by
+  have hadd : env.addConsts
+      (decl.typeConstants ++ decl.constructorConstants) = some envCtors :=
+    VEnv.addConsts_append H.typesAdded H.ctorsAdded
+  simpa [VInductDecl.sourceNames, List.map_append] using
+    VEnv.addConsts_names_nodup hadd
+
 /-- Pointwise original-source translations already contain all typing and
 universe facts required by `SourceWF`. Thus the aggregate source judgment
-adds only nonemptiness and global name uniqueness, both enforced by the
-outer declaration traversal. -/
+adds only nonemptiness and global name uniqueness. Nonemptiness comes from
+the lowering entry point; uniqueness follows from the staged `addConsts`
+equalities retained by the core translation. -/
 theorem TrInductDeclCore.sourceWF
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors)
@@ -960,6 +1034,22 @@ theorem TrInductDeclCore.toTrInductDecl
   exact ⟨TrInductDeclCore.sourceWF H hnonempty hnames,
     H.uvars, H.nparams, H.isUnsafe,
     envTypes, envCtors, H.typesAdded, H.ctorsAdded, H.types⟩
+
+theorem TrInductDeclCore.sourceWF_ofNonempty
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (hnonempty : decl.types ≠ []) :
+    decl.SourceWF env :=
+  Lean4Lean.VerifyInductive.TrInductDeclCore.sourceWF H hnonempty
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup H)
+
+theorem TrInductDeclCore.toTrInductDeclOfNonempty
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (hnonempty : decl.types ≠ []) :
+    TrInductDecl env lparams nparams types isUnsafe decl :=
+  Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDecl H hnonempty
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup H)
 
 theorem TrInductDeclCore.nonempty
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
@@ -19940,6 +20030,22 @@ theorem replaceIfNested_recognized
     | some info =>
       intro out _ hout
       exact ⟨info, hcandidate info rfl⟩
+
+/-- The first branch of nested lowering rejects an empty source block. This
+is the operational origin of the nonemptiness premise later used to recover
+`SourceWF` from `TrInductDeclCore`. -/
+theorem ElimNestedInductive.run.source_nonempty
+    (fuel nparams : Nat) (types : List InductiveType)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State) :
+    (Lean4Lean.ElimNestedInductive.run fuel nparams types env state).WF
+      fun _ => types ≠ [] := by
+  intro out hout
+  cases types with
+  | nil =>
+    change Except.error _ = Except.ok out at hout
+    contradiction
+  | cons type types =>
+    simp
 
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
