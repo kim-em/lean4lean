@@ -14527,6 +14527,62 @@ theorem isNestedInductiveApp_candidate
       cases hout
       simp at hinfo
 
+theorem isNestedInductiveApp_preservesState
+    (e : Expr) (env : Environment)
+    (state : Lean4Lean.ElimNestedInductive.State) :
+    (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
+      fun out => out.2 = state := by
+  intro out hout
+  unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
+  by_cases happ : e.isApp = false
+  · simp [happ] at hout
+    cases hout
+    rfl
+  · have happTrue : e.isApp = true := by
+      cases h : e.isApp <;> simp_all
+    cases hhead : e.getAppFn with
+    | const fn levels =>
+      simp [happTrue, hhead,
+        Lean4Lean.ElimNestedInductive.isNestedInductiveAppConst?] at hout
+      cases hfound : env.find? fn with
+      | none =>
+        simp [hfound] at hout
+        cases hout
+        rfl
+      | some found =>
+        cases found with
+        | inductInfo ci =>
+          simp only [hfound] at hout
+          by_cases harity : e.getAppArgs.size < ci.numParams
+          · simp [harity] at hout
+            cases hout
+            rfl
+          · simp only [harity, ↓reduceIte] at hout
+            let flags := Lean4Lean.ElimNestedInductive.nestedParamFlags
+              state.newTypes e.getAppArgs ci.numParams
+            by_cases hnested : flags.1 = false
+            · simp [flags, hnested] at hout
+              cases hout
+              rfl
+            · have hnestedTrue : flags.1 = true := by
+                cases h : flags.1 <;> simp_all
+              by_cases hloose : flags.2 = true
+              · simp [flags, hnestedTrue, hloose] at hout
+                cases hout
+              · have hlooseFalse : flags.2 = false := by
+                  cases h : flags.2 <;> simp_all
+                simp [flags, hnestedTrue, hlooseFalse] at hout
+                cases hout
+                rfl
+        | _ =>
+          simp [hfound] at hout
+          cases hout
+          rfl
+    | _ =>
+      simp [happTrue, hhead] at hout
+      cases hout
+      rfl
+
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
 type-checker's context-relative result into a source declaration judgment. -/
