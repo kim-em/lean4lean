@@ -10859,6 +10859,114 @@ theorem TrExprS.inferImplicit
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => simpa [Expr.inferImplicit] using H
 
+/-- A concrete expression consists of exactly `arity` leading forall binders
+and the indicated residual body.  This deliberately forgets binder domains:
+`RecursorShape` records them existentially but constrains their cardinality. -/
+inductive Expr.ForallTelescope : Expr → Nat → Expr → Prop
+  | nil (body : Expr) : ForallTelescope body 0 body
+  | cons : ForallTelescope body arity result →
+      ForallTelescope (.forallE name dom body bi) (arity + 1) result
+
+theorem Expr.ForallTelescope.trans
+    (Houter : Expr.ForallTelescope outer outerArity middle)
+    (Hinner : Expr.ForallTelescope middle innerArity result) :
+    Expr.ForallTelescope outer (outerArity + innerArity) result := by
+  induction Houter with
+  | nil => simpa using Hinner
+  | @cons body outerArity middle name dom bi Houter ih =>
+    have h := Expr.ForallTelescope.cons (name := name) (dom := dom)
+      (bi := bi) (ih Hinner)
+    rw [← Nat.add_right_comm outerArity innerArity 1]
+    exact h
+
+/-- Translation erases names and binder annotations but preserves the exact
+number of leading forall binders. -/
+theorem TrExprS.forallTelescope_shape
+    (Htel : Expr.ForallTelescope e arity result)
+    (Htr : TrExprS env Us Δ e e') :
+    ∃ domains result', domains.length = arity ∧
+      e' = VExpr.wrapForalls domains result' := by
+  induction Htel generalizing Δ e' with
+  | nil => exact ⟨[], e', rfl, rfl⟩
+  | @cons body arity result name dom bi Htel ih =>
+    cases Htr with
+    | @forallE ty' body' =>
+      rename_i _ _ _ hbody
+      rcases ih hbody with ⟨domains, result', hlength, heq⟩
+      exact ⟨ty' :: domains, result', by simp [hlength], by
+        simp [VExpr.wrapForalls, heq]⟩
+
+/-- Binding a list of ordinary local declarations creates one concrete forall
+per selected declaration and leaves precisely the simultaneous abstraction of
+the selected free variables as its residual body. -/
+theorem LocalContext.mkBindingList_forallTelescope
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind)) :
+    Expr.ForallTelescope
+      (LocalContext.mkBindingList false lctx fvs body)
+      fvs.length (body.abstractList fvs) := by
+  have go : ∀ (xs : List FVarId) (current : Expr),
+      (∀ fv ∈ xs, ∃ index name type bi kind,
+        lctx.find? fv = some (.cdecl index fv name type bi kind)) →
+      Expr.ForallTelescope
+        (LocalContext.mkBindingList.go false lctx xs current)
+        xs.length current := by
+    intro xs
+    induction xs with
+    | nil =>
+      intro current _
+      exact .nil _
+    | cons fv xs ih =>
+      intro current hxs
+      rw [LocalContext.mkBindingList.go]
+      have htail := ih
+        (LocalContext.mkBindingList1 false lctx xs.reverse fv current)
+        (fun x hx => hxs x (by simp [hx]))
+      rcases hxs fv (by simp) with
+        ⟨index, name, type, bi, kind, hfind⟩
+      have hhead : Expr.ForallTelescope
+          (LocalContext.mkBindingList1 false lctx xs.reverse fv current)
+          1 current := by
+        simp only [LocalContext.mkBindingList1, hfind]
+        exact Expr.ForallTelescope.cons (.nil _)
+      simpa using htail.trans hhead
+  simpa only [LocalContext.mkBindingList, LocalContext.mkBindingList.core,
+    List.length_reverse] using
+    go fvs.reverse (body.abstractList fvs) (fun fv hfv =>
+      hdecl fv (by simpa using hfv))
+
+/-- The production `LocalContext.mkForall` interface specialized to an
+explicit list of free variables known to denote ordinary declarations. -/
+theorem LocalContext.mkForall_fvars_forallTelescope
+    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind)) :
+    Expr.ForallTelescope
+      (lctx.mkForall (fvs.map Expr.fvar).toArray body)
+      fvs.length (body.abstractList fvs) := by
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
+  exact LocalContext.mkBindingList_forallTelescope hdecl
+
+/-- A selected executable array consists solely of ordinary free-variable
+declarations in the retained local context. -/
+structure LocalForallSelection (lctx : LocalContext) (xs : Array Expr) where
+  fvars : List FVarId
+  expressions : xs = (fvars.map Expr.fvar).toArray
+  declarations : ∀ fv ∈ fvars, ∃ index name type bi kind,
+    lctx.find? fv = some (.cdecl index fv name type bi kind)
+
+theorem LocalForallSelection.size
+    (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
+  rcases H with ⟨fvars, rfl, declarations⟩
+  simp
+
+theorem LocalForallSelection.forallTelescope
+    (H : LocalForallSelection lctx xs) (body : Expr) :
+    Expr.ForallTelescope (lctx.mkForall xs body) xs.size
+      (body.abstractList H.fvars) := by
+  rcases H with ⟨fvars, rfl, declarations⟩
+  simpa using LocalContext.mkForall_fvars_forallTelescope declarations
+
 /-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
 innermost order. Local lets are discharged by `mkForall'` and contribute no
 domain. -/
