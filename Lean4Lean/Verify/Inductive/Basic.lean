@@ -11364,6 +11364,99 @@ theorem continueWithBindings {alpha : Type}
 
 end mkRecInfos.loopArgs1
 
+namespace mkRecInfos.loopInd1
+
+/-- The first mutual pass retains selectable motive, index, and major binders
+for every appended `RecInfo`. -/
+theorem resultBindings {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    (c : AddInductive.Context)
+    (Hc : BindingContextWF c)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hroot : BindingContextLE root c)
+    (Hk : ∀ recInfos c, BindingContextWF c →
+      RecInfoBindings c recInfos → BindingContextLE root c →
+      (k recInfos c).WF Q) :
+    (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel dIdx
+      recInfos k c).WF Q := by
+  rw [AddInductive.mkRecInfos.loopInd1]
+  by_cases hidx : dIdx < indTypes.size
+  · rw [dif_pos hidx]
+    have hread : ((readThe AddInductive.Context :
+        AddInductive.M AddInductive.Context) c).WF
+        (fun c' => c' = c) := by
+      intro c' h
+      cases h
+      rfl
+    refine readerBind.WF (x := readThe AddInductive.Context)
+      hread fun ctx hctx => ?_
+    subst ctx
+    have hwhnf :
+        ((monadLift (TypeChecker.whnf indTypes[dIdx].type) :
+          AddInductive.M Expr) c).WF (fun _ => True) := by
+      intro _ _
+      trivial
+    refine hwhnf.bind fun type _ => ?_
+    apply mkRecInfos.loopArgs1.continueWithBindings
+      (root := c) stats
+    · intro indices cIndices HcIndices Hindices hIndices
+      by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
+      · rw [if_pos harity]
+        let majorTy :=
+          (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+            indices).consumeTypeAnnotations
+        apply withLocalDecl.continueRaw
+        let cMajor : AddInductive.Context := { cIndices with
+          ngen := cIndices.ngen.next
+          lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
+            majorTy .default }
+        have hget : ((getLCtx : AddInductive.M LocalContext) cMajor).WF
+            (fun lctx => lctx = cMajor.lctx) := by
+          intro lctx h
+          cases h
+          rfl
+        refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+          hget fun lctx hlctx => ?_
+        subst lctx
+        let major := Expr.fvar ⟨cIndices.ngen.curr⟩
+        let motiveTy := cMajor.lctx.mkForall indices <|
+          cMajor.lctx.mkForall #[major] <| .sort elimLevel
+        let motiveName := if indTypes.size > 1 then
+          (`motive).appendIndexAfter (dIdx + 1) else `motive
+        apply withLocalDecl.continueRaw
+        let cMotive : AddInductive.Context := { cMajor with
+          ngen := cMajor.ngen.next
+          lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩ motiveName
+            motiveTy.consumeTypeAnnotations .default }
+        refine mkRecInfos.loopInd1.resultBindings (root := root) (Q := Q)
+          stats indTypes elimLevel
+          (dIdx + 1) (recInfos.push {
+            motive := .fvar ⟨cMajor.ngen.curr⟩
+            minors := #[]
+            indices
+            major }) k cMotive ?_ ?_ ?_ Hk
+        · exact (HcIndices.withLocalDecl `t majorTy .default).withLocalDecl
+            motiveName motiveTy.consumeTypeAnnotations .default
+        · exact Hbindings.pushFrame hIndices Hindices `t majorTy .default
+            motiveName motiveTy.consumeTypeAnnotations .default
+        · exact Hroot.trans <| hIndices.trans <|
+            (BindingContextLE.withLocalDecl cIndices `t majorTy .default).trans <|
+              BindingContextLE.withLocalDecl cMajor motiveName
+                motiveTy.consumeTypeAnnotations .default
+      · rw [if_neg harity]
+        exact Except.WF.throw
+    · exact Hc
+    · exact BoundFVarArray.empty c
+    · exact BindingContextLE.refl c
+  · rw [dif_neg hidx]
+    exact Hk recInfos c Hc Hbindings Hroot
+termination_by indTypes.size - dIdx
+
+end mkRecInfos.loopInd1
+
 theorem LocalForallSelection.size
     (H : LocalForallSelection lctx xs) : xs.size = H.fvars.length := by
   rcases H with ⟨fvars, rfl, declarations⟩
