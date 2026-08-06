@@ -9883,6 +9883,36 @@ theorem mkRecInfos.resultCounts {α : Type} {Q : α → Prop}
   intro _ out cOut _ _ houtSize houtCounts _
   exact Hk out cOut houtSize houtCounts
 
+/-- Per-family minor counts imply the corresponding flattened block count
+used by production recursor types. -/
+theorem mkRecInfos.flatMinors_size
+    {recInfos : Array AddInductive.RecInfo}
+    {indTypes : Array InductiveType}
+    (hsize : recInfos.size = indTypes.size)
+    (hcounts : ∀ i, i < recInfos.size →
+      recInfos[i]!.minors.size = indTypes[i]!.ctors.length) :
+    (recInfos.flatMap (·.minors)).size =
+      (indTypes.flatMap fun type => type.ctors.toArray).size := by
+  rw [Array.size_flatMap, Array.size_flatMap]
+  congr 1
+  apply Array.ext
+  · simp [hsize]
+  · intro i hiLeft hiRight
+    simp only [Array.getElem_map]
+    have hiRec : i < recInfos.size := by simpa using hiLeft
+    have hiInd : i < indTypes.size := by omega
+    have hc := hcounts i hiRec
+    simpa [Array.getElem!_eq_getD, Array.getD, hiRec, hiInd] using hc
+
+theorem ownedConstructors_length_eq_flattened_size
+    (indTypes : Array InductiveType) :
+    (ownedConstructors indTypes.toList).length =
+      (indTypes.flatMap fun type => type.ctors.toArray).size := by
+  simp only [ownedConstructors, List.length_flatMap, List.length_map,
+    Array.size_flatMap]
+  rw [← Array.sum_toList, Array.toList_map]
+  simp
+
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
 theorem checkConstructors.loopCtor.tailRefinesFull
