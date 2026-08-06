@@ -14384,6 +14384,47 @@ def MentionsNestedNewType
     | .const name _ => newTypes.any fun type => name == type.name
     | _ => false).isSome
 
+theorem mentionsNestedNewType_iff
+    (newTypes : Array InductiveType) (e : Expr) :
+    Lean4Lean.ElimNestedInductive.mentionsNestedNewType newTypes e = true ↔
+      MentionsNestedNewType newTypes e := by
+  rfl
+
+theorem nestedParamFlags_fst
+    (newTypes : Array InductiveType) (args : Array Expr) (n : Nat) :
+    (Lean4Lean.ElimNestedInductive.nestedParamFlags newTypes args n).1 = true ↔
+      ∃ i, i < n ∧ MentionsNestedNewType newTypes args[i]! := by
+  induction n with
+  | zero => simp [Lean4Lean.ElimNestedInductive.nestedParamFlags]
+  | succ n ih =>
+    rw [Lean4Lean.ElimNestedInductive.nestedParamFlags]
+    simp only [Bool.or_eq_true, ih, mentionsNestedNewType_iff]
+    constructor
+    · rintro (⟨i, hi, hmentions⟩ | hmentions)
+      · exact ⟨i, by omega, hmentions⟩
+      · exact ⟨n, by omega, hmentions⟩
+    · rintro ⟨i, hi, hmentions⟩
+      by_cases h : i = n
+      · subst i; exact Or.inr hmentions
+      · exact Or.inl ⟨i, by omega, hmentions⟩
+
+theorem nestedParamFlags_snd_false
+    (newTypes : Array InductiveType) (args : Array Expr) (n : Nat) :
+    (Lean4Lean.ElimNestedInductive.nestedParamFlags newTypes args n).2 = false ↔
+      ∀ i, i < n → args[i]!.hasLooseBVars = false := by
+  induction n with
+  | zero => simp [Lean4Lean.ElimNestedInductive.nestedParamFlags]
+  | succ n ih =>
+    rw [Lean4Lean.ElimNestedInductive.nestedParamFlags]
+    simp only [Bool.or_eq_false_iff, ih]
+    constructor
+    · rintro ⟨hprev, hn⟩ i hi
+      by_cases h : i = n
+      · simpa [h] using hn
+      · exact hprev i (by omega)
+    · intro hall
+      exact ⟨fun i hi => hall i (by omega), hall n (by omega)⟩
+
 /-- Abstract contract for the parameter scan in
 `isNestedInductiveApp?`: the application has enough arguments, at least one
 parameter mentions a family currently being lowered, and every scanned
@@ -14415,6 +14456,76 @@ structure NestedAppCandidate (env : Environment)
   headFound : ∃ fn levels, e.getAppFn = .const fn levels ∧
     env.find? fn = some (.inductInfo info)
   parameters : NestedParameterScan state.newTypes e.getAppArgs info.numParams
+
+theorem isNestedInductiveApp_candidate
+    (e : Expr) (env : Environment)
+    (state : Lean4Lean.ElimNestedInductive.State) :
+    (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
+      fun out => ∀ info, out.1 = some info →
+        NestedAppCandidate env state e info := by
+  intro out hout info hinfo
+  unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
+  by_cases happ : e.isApp = false
+  · simp [happ] at hout
+    cases hout
+    simp at hinfo
+  · have happTrue : e.isApp = true := by
+      cases h : e.isApp <;> simp_all
+    cases hhead : e.getAppFn with
+    | const fn levels =>
+      simp [happTrue, hhead,
+        Lean4Lean.ElimNestedInductive.isNestedInductiveAppConst?] at hout
+      cases hfound : env.find? fn with
+      | none =>
+        simp [hfound] at hout
+        change Except.ok (none, state) = .ok out at hout
+        cases hout
+        simp at hinfo
+      | some found =>
+        cases found with
+        | inductInfo ci =>
+          simp only [hfound] at hout
+          by_cases harity : e.getAppArgs.size < ci.numParams
+          · simp [harity] at hout
+            cases hout
+            simp at hinfo
+          · simp only [harity, ↓reduceIte] at hout
+            let flags := Lean4Lean.ElimNestedInductive.nestedParamFlags
+              state.newTypes e.getAppArgs ci.numParams
+            by_cases hnested : flags.1 = false
+            · simp [flags, hnested] at hout
+              cases hout
+              simp at hinfo
+            · have hnestedTrue : flags.1 = true := by
+                cases h : flags.1 <;> simp_all
+              by_cases hloose : flags.2 = true
+              · simp [flags, hnestedTrue, hloose] at hout
+                cases hout
+              · have hlooseFalse : flags.2 = false := by
+                  cases h : flags.2 <;> simp_all
+                simp [flags, hnestedTrue, hlooseFalse] at hout
+                cases hout
+                simp only [Option.some.injEq] at hinfo
+                subst info
+                refine {
+                  shape := ⟨happTrue, ⟨fn, levels, hhead⟩⟩
+                  headFound := ⟨fn, levels, hhead, hfound⟩
+                  parameters := ?_ }
+                refine {
+                  arity := by omega
+                  nested := (nestedParamFlags_fst
+                    state.newTypes e.getAppArgs ci.numParams).mp hnestedTrue
+                  closed := (nestedParamFlags_snd_false
+                    state.newTypes e.getAppArgs ci.numParams).mp hlooseFalse }
+        | _ =>
+          simp [hfound] at hout
+          change Except.ok (none, state) = .ok out at hout
+          cases hout
+          simp at hinfo
+    | _ =>
+      simp [happTrue, hhead] at hout
+      cases hout
+      simp at hinfo
 
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the

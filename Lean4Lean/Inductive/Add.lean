@@ -663,29 +663,35 @@ def replaceParams (params : Array Expr) (e : Expr) (As : Array Expr) : M Expr :=
   2) the parametric arguments `Ds` do not contain loose bound variables, and do contain inductive datatypes in `m_new_types`
 THEN return the `inductive_val` in the `constant_info` associated with `I`.
 Otherwise, return none. -/
+def mentionsNestedNewType (newTypes : Array InductiveType) (e : Expr) : Bool :=
+  (e.find? fun
+    | .const t _ => newTypes.any fun ty => t == ty.name
+    | _ => false).isSome
+
+def nestedParamFlags (newTypes : Array InductiveType) (args : Array Expr) :
+    Nat → Bool × Bool
+  | 0 => (false, false)
+  | n + 1 =>
+    let flags := nestedParamFlags newTypes args n
+    (flags.1 || mentionsNestedNewType newTypes args[n]!,
+      flags.2 || args[n]!.hasLooseBVars)
+
+def isNestedInductiveAppConst? (e : Expr) (fn : Name) : M (Option InductiveVal) :=
+    fun env state => do
+  let some (.inductInfo ci) := env.find? fn | return (none, state)
+  let args := e.getAppArgs
+  if ci.numParams > args.size then return (none, state)
+  let flags := nestedParamFlags state.newTypes args ci.numParams
+  if !flags.1 then return (none, state)
+  if flags.2 then
+    throw <| .other s!"invalid nested inductive datatype '{fn}', \
+      nested inductive datatypes parameters cannot contain local variables."
+  return (some ci, state)
+
 def isNestedInductiveApp? (e : Expr) : M (Option InductiveVal) := do
   if !e.isApp then return none
   let .const fn _ := e.getAppFn | return none
-  let env ← read
-  let some (.inductInfo ci) := env.find? fn | return none
-  let args := e.getAppArgs
-  if ci.numParams > args.size then return none
-  let mut isNested := false
-  let mut looseBVars := false
-  for i in [0:ci.numParams] do
-    if args[i]!.hasLooseBVars then
-      looseBVars := true
-    let newTypes := (← get).newTypes
-    if let some _ := args[i]!.find? fun
-      | .const t _ => newTypes.any fun ty => t == ty.name
-      | _ => false
-    then
-      isNested := true
-  if !isNested then return none
-  if looseBVars then
-    throw <| .other s!"invalid nested inductive datatype '{fn}', \
-      nested inductive datatypes parameters cannot contain local variables."
-  return some ci
+  isNestedInductiveAppConst? e fn
 
 def instantiateForallParams (e : Expr) (hi : Nat) (params : Array Expr) :
     Except Exception Expr := do
