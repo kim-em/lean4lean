@@ -9742,6 +9742,10 @@ theorem SameFrame.refl (a : AddInductive.RecInfo) : SameFrame a a := rfl
 theorem SameFrame.trans (hab : SameFrame a b) (hbc : SameFrame b c) :
     SameFrame a c := Eq.trans hab hbc
 
+theorem SameFrame.indices_eq (H : SameFrame a b) : a.indices = b.indices := by
+  have h := congrArg AddInductive.RecInfo.indices H
+  simpa [SameFrame] using h
+
 /-- The second mutual pass finishes every family with exactly one minor per
 owned constructor. The prefix/suffix formulation makes the mutation boundary
 explicit and is directly initialized by `loopInd1`, whose minor arrays are
@@ -9979,6 +9983,9 @@ structure RecursorCardinalityCertificate
   motives : (recInfos.map (·.motive)).size = decl.types.length
   minors : (recInfos.flatMap (·.minors)).size =
     decl.ownedConstructors.length
+  indices : ∀ i (hi : i < recInfos.size),
+    recInfos[i]!.indices.size =
+      (decl.types[i]'(by simpa [records] using hi)).numIndices
 
 theorem RecursorCardinalityCertificate.ofResult
     {indTypes : Array InductiveType}
@@ -9989,7 +9996,9 @@ theorem RecursorCardinalityCertificate.ofResult
         headerEnv lparams Δ stats decl depth)
     (hsize : recInfos.size = indTypes.size)
     (hcounts : ∀ i, i < recInfos.size →
-      recInfos[i]!.minors.size = indTypes[i]!.ctors.length) :
+      recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
+    (harities : ∀ i, i < recInfos.size →
+      recInfos[i]!.indices.size = stats.nindices[i]!) :
     RecursorCardinalityCertificate stats recInfos decl where
   records := hsize.trans (by
     simpa using Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl)
@@ -9999,6 +10008,43 @@ theorem RecursorCardinalityCertificate.ofResult
     simpa [VInductDecl.paramVars] using hlen
   motives := mkRecInfos.motives_size_of_translation Hdecl hsize
   minors := mkRecInfos.flatMinors_size_of_translation Hdecl hsize hcounts
+  indices := by
+    let Hstats :=
+      checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader Hmaterialized
+    intro i hi
+    have hiDecl : i < decl.types.length := by
+      rw [← Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl]
+      simpa [hsize] using hi
+    have hn := Hstats.nindicesAt hiDecl
+    have hstats : stats.nindices[i]! = decl.types[i].numIndices := by
+      obtain ⟨hstatsBound, hnget⟩ := Array.getElem?_eq_some_iff.mp hn
+      simpa [Array.getElem!_eq_getD, Array.getD, hstatsBound] using hnget
+    exact (harities i hi).trans hstats
+
+/-- Public `mkRecInfos` boundary carrying all independently specified
+telescope cardinalities into the recursor-construction continuation. -/
+theorem AddInductive.mkRecInfos.cardinalityWF
+    {α : Type} {Q : α → Prop}
+    (k : Array AddInductive.RecInfo → AddInductive.M α)
+    (c : AddInductive.Context)
+    (Hdecl : TrInductDecl env lparams nparams indTypes.toList isUnsafe decl)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        headerEnv lparams Δ stats decl depth)
+    (Hk : ∀ recInfos c,
+      Nonempty (RecursorCardinalityCertificate stats recInfos decl) →
+      (k recInfos c).WF Q) :
+    (AddInductive.mkRecInfos stats indTypes elimLevel k c).WF Q := by
+  apply mkRecInfos.resultStructure (Q := Q) stats indTypes elimLevel k c
+  intro initial out cOut hinitial _ hinitialArities hout hcounts hframes
+  have houtArities : ∀ i, i < out.size →
+      out[i]!.indices.size = stats.nindices[i]! := by
+    intro i hi
+    have hiInitial : i < initial.size := by omega
+    rw [(hframes i hi).indices_eq]
+    exact hinitialArities i hiInitial
+  exact Hk out cOut ⟨RecursorCardinalityCertificate.ofResult
+    Hdecl Hmaterialized hout hcounts houtArities⟩
 
 /-- Constructor-tail refinement with the verified positivity traversal plugged
 into every safe field. -/
