@@ -1096,6 +1096,79 @@ structure ParameterContextSuffix (Hc : ContextWF c)
   cached : List.Forall₂ CachedParameterDecl
     stats.params.toList.reverse parameterDecls
 
+/-- A semantic header scope embedded in the larger executable local context.
+`expanded` is the literal weakening of the narrow scope; it is kept separate
+from `runtime` because annotation consumption can replace an installed binder
+domain by a merely definitionally equal expression. -/
+structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
+    (scope runtime : VLCtx) : Type where
+  expanded : VLCtx
+  shift : Lift
+  lift : VLCtx.FVLift' scope expanded 0 shift 0
+  context : VLCtx.IsDefEq env Us.length expanded runtime
+
+theorem NarrowRuntimeScope.scopeWF
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (henv : env.WF) :
+    scope.WF env Us.length :=
+  H.lift.wf henv H.context.wf
+
+/-- Restrict a translated concrete expression to its semantic header scope.
+The source-side free-variable premise is the deliberate ownership boundary:
+ambient declarations retained by the executable loop may not occur. -/
+theorem NarrowRuntimeScope.restrict
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (henv : env.WF)
+    (htr : TrExprS env Us runtime e e')
+    (hclosed : Closed e 0)
+    (hfvars : FVarsIn (· ∈ scope.fvars) e) :
+    ∃ e', TrExprS env Us scope e e' := by
+  exact htr.weakFV'_inv henv H.lift
+    (H.context.symm henv.ordered) hclosed hfvars
+
+/-- Extend the embedding by a generated index free variable.  The new
+runtime domain need only be definitionally equal to the weakened semantic
+domain. -/
+def NarrowRuntimeScope.withIndex
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (hnewRuntime : VLCtx.WF env Us.length
+      ((some (fv, deps), .vlam runtimeType) :: runtime))
+    (hdeps : deps ⊆ scope.fvars)
+    (hdomain : env.IsDefEq Us.length H.expanded.toCtx
+      (indexType.lift' H.shift) runtimeType (.sort u)) :
+    NarrowRuntimeScope env Us
+      ((some (fv, deps), .vlam indexType) :: scope)
+      ((some (fv, deps), .vlam runtimeType) :: runtime) where
+  expanded :=
+    (some (fv, deps), .vlam (indexType.lift' H.shift)) :: H.expanded
+  shift := H.shift.consN 1
+  lift := H.lift.cons_fvar (fv, deps) (.vlam indexType) hdeps
+  context := .cons H.context (by
+    have hfresh := hnewRuntime.2.1
+    simpa [H.context.fvars] using hfresh) (.vlam hdomain)
+
+/-- At the parameter/index boundary, discard the ambient prefix retained
+from previously checked mutual headers and keep the exact cached-parameter
+suffix as the semantic scope. -/
+def NarrowRuntimeScope.ofParameterSuffix
+    (Hc : ContextWF c)
+    (Hsuffix : ParameterContextSuffix Hc stats depth) :
+    NarrowRuntimeScope Hc.venv c.lparams Hsuffix.parameterDecls
+      Hc.mlctx.vlctx := by
+  have hambient : Hsuffix.ambientDecls.NoBV := by
+    apply VLCtx.NoBV.leftOfAppend Hsuffix.ambientDecls
+      Hsuffix.parameterDecls
+    rw [← Hsuffix.context]
+    exact Hc.mlctx.noBV
+  let W := VLCtx.FVLift.to_append Hsuffix.parameterDecls hambient
+  refine {
+    expanded := Hc.mlctx.vlctx
+    shift := .skipN .refl Hsuffix.ambientDecls.toCtx.length
+    lift := ?_
+    context := .refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf }
+  rw [Hsuffix.context]
+  exact W.toFVLift'
+
 /-- Shape of the CPS-retained runtime context after the first header has fixed
 the block-wide parameter telescope.  Header indices form an ambient prefix;
 the common parameters remain an exact suffix. -/
@@ -2168,6 +2241,24 @@ theorem LaterParameterScope.older_eq_nil
     (H : LaterParameterScope Hsuffix 0 e)
     (hi : 0 < stats.params.size) : H.older = [] :=
   List.eq_nil_of_length_eq_zero (H.olderLength hi)
+
+/-- After the final cached parameter is consumed, the accumulated narrow
+scope is exactly the complete cached-parameter suffix. -/
+theorem LaterParameterScope.completedScope
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
+    (H : LaterParameterScope Hsuffix i e)
+    (hdone : i + 1 = stats.params.size) :
+    (some (H.fv, H.deps), .vlam H.paramType) :: H.older =
+      Hsuffix.parameterDecls := by
+  have hnewerLength : H.newer.length = 0 := by
+    rw [H.newerLength]
+    omega
+  have hnewer : H.newer = [] :=
+    List.eq_nil_of_length_eq_zero hnewerLength
+  rw [H.parameterDecls, hnewer]
+  simp
 
 /-- Consecutive cached-parameter scopes agree on the consumed suffix. -/
 theorem LaterParameterScope.nextOlder
