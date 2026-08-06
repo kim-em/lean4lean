@@ -14183,6 +14183,85 @@ theorem checkType_closed.WF
     (wf := hvalid) (lparams := lparams) (fuel := fuel)
     (TypeChecker.checkType.WF hfvars)
 
+/-- Exact parameter-telescope path followed by nested lowering. The relation
+retains both the growing local context and the array of corresponding free
+variables, making the later restoration substitution auditable. -/
+inductive NestedParamOpening : LocalContext → Array Expr → Expr → Nat →
+    LocalContext → Expr → Array Expr → Prop
+  | done : NestedParamOpening lctx params type 0 lctx type params
+  | step {id : FVarId} {name : Name} {dom body : Expr} {bi : BinderInfo} :
+      NestedParamOpening
+        (lctx.mkLocalDecl id name dom bi) (params.push (.fvar id))
+        (body.instantiate1 (.fvar id)) n outLctx tail outParams →
+      NestedParamOpening lctx params (.forallE name dom body bi) (n + 1)
+        outLctx tail outParams
+
+theorem NestedParamOpening.params_size
+    (H : NestedParamOpening lctx params type n outLctx tail outParams) :
+    outParams.size = params.size + n := by
+  induction H with
+  | done => simp
+  | step _ ih => simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih
+
+theorem NestedParamOpening.params_extension
+    (H : NestedParamOpening lctx params type n outLctx tail outParams) :
+    ∃ suffix, outParams.toList = params.toList ++ suffix ∧
+      suffix.length = n := by
+  induction H with
+  | done => exact ⟨[], by simp⟩
+  | @step lctx params name dom body bi id n outLctx tail outParams H ih =>
+    rcases ih with ⟨suffix, heq, hlength⟩
+    refine ⟨(.fvar id) :: suffix, ?_, by simp [hlength]⟩
+    simpa [heq, List.append_assoc]
+
+theorem NestedParamOpening.initial_size
+    (H : NestedParamOpening {} #[] type n outLctx tail outParams) :
+    outParams.size = n := by simpa using H.params_size
+
+private theorem nestedWithParamsLoop_refines {α : Type}
+    (k : LocalContext → Expr → Array Expr →
+      Lean4Lean.ElimNestedInductive.M α)
+    (env : Environment)
+    (state : Lean4Lean.ElimNestedInductive.State)
+    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
+    (Hk : ∀ outLctx tail outParams outState,
+      NestedParamOpening lctx params type n outLctx tail outParams →
+      (k outLctx tail outParams env outState).WF Q) :
+    (Lean4Lean.ElimNestedInductive.withParams.loop
+      k lctx type params n env state).WF Q := by
+  induction n generalizing lctx type params state with
+  | zero =>
+    simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
+      Hk lctx type params state .done
+  | succ n ih =>
+    cases type with
+    | forallE name dom body bi =>
+      simp only [Lean4Lean.ElimNestedInductive.withParams.loop]
+      simp only [mkFreshId, getNGen, setNGen,
+        Lean4Lean.ElimNestedInductive.instMonadNameGeneratorM,
+        StateT.get, StateT.set, StateT.modifyGet,
+        bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
+      apply ih
+      intro outLctx tail outParams outState Hresult
+      exact Hk outLctx tail outParams outState (.step Hresult)
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+      | proj =>
+      exact Except.WF.throw
+
+theorem ElimNestedInductive.withParams.refines {α : Type}
+    (type : Expr) (nparams : Nat)
+    (k : LocalContext → Expr → Array Expr →
+      Lean4Lean.ElimNestedInductive.M α)
+    (env : Environment)
+    (state : Lean4Lean.ElimNestedInductive.State)
+    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
+    (Hk : ∀ lctx tail params outState,
+      NestedParamOpening {} #[] type nparams lctx tail params →
+      (k lctx tail params env outState).WF Q) :
+    (Lean4Lean.ElimNestedInductive.withParams
+      type nparams k env state).WF Q := by
+  exact nestedWithParamsLoop_refines k env state Q Hk
+
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
 type-checker's context-relative result into a source declaration judgment. -/
