@@ -679,6 +679,14 @@ variable! {env env' : VEnv} (henv : env ≤ env') in
 theorem TrExpr.mono (H : TrExpr env Us Δ e e') : TrExpr env' Us Δ e e' :=
   let ⟨_, H1, H2⟩ := H; ⟨_, H1.mono henv, H2.mono henv⟩
 
+theorem VLocalDecl.IsDefEq.mono
+    {env env' : VEnv} (henv : env ≤ env')
+    (H : VLocalDecl.IsDefEq env U Γ d₁ d₂) :
+    VLocalDecl.IsDefEq env' U Γ d₁ d₂ := by
+  cases H with
+  | vlam h => exact .vlam (h.mono henv)
+  | vlet hv ht => exact .vlet (hv.mono henv) (ht.mono henv)
+
 variable! (env : VEnv) (U : Nat) in
 inductive VLCtx.IsDefEq : VLCtx → VLCtx → Prop
   | nil : VLCtx.IsDefEq [] []
@@ -687,6 +695,14 @@ inductive VLCtx.IsDefEq : VLCtx → VLCtx → Prop
     (∀ fv deps, ofv = some (fv, deps) → fv ∉ Δ₁.fvars ∧ deps ⊆ Δ₁.fvars) →
     VLocalDecl.IsDefEq env U Δ₁.toCtx d₁ d₂ →
     VLCtx.IsDefEq ((ofv, d₁) :: Δ₁) ((ofv, d₂) :: Δ₂)
+
+theorem VLCtx.IsDefEq.mono {env env' : VEnv} (henv : env ≤ env')
+    (H : VLCtx.IsDefEq env U Δ₁ Δ₂) :
+    VLCtx.IsDefEq env' U Δ₁ Δ₂ := by
+  induction H with
+  | nil => exact .nil
+  | cons hctx hfresh hdecl ih =>
+    exact .cons ih hfresh (hdecl.mono henv)
 
 variable! (henv : Ordered env) (hΓ : OnCtx Γ (IsType env U)) in
 theorem VLocalDecl.IsDefEq.refl : ∀ {d}, VLocalDecl.WF env U Γ d → VLocalDecl.IsDefEq env U Γ d d

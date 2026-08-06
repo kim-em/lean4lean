@@ -166,6 +166,15 @@ def MLCtx.WF (env : VEnv) (Us : List Name) : MLCtx → Prop
     TrExprS env Us c.vlctx ty ty' ∧ TrExprS env Us c.vlctx v v' ∧
     env.HasType Us.length c.vlctx.toCtx v' ty'
 
+theorem MLCtx.WF.mono {env env' : VEnv} (henv : env ≤ env') :
+    ∀ {c : MLCtx}, c.WF env Us → c.WF env' Us
+  | .nil, _ => trivial
+  | .vlam .., ⟨hc, hfresh, htr, hty⟩ =>
+    ⟨hc.mono henv, hfresh, htr.mono henv, hty.mono henv⟩
+  | .vlet .., ⟨hc, hfresh, hty, hvalue, hhas⟩ =>
+    ⟨hc.mono henv, hfresh, hty.mono henv, hvalue.mono henv,
+      hhas.mono henv⟩
+
 theorem MLCtx.WF.tr : ∀ {c : MLCtx}, c.WF env Us → TrLCtx env Us c.lctx c.vlctx
   | .nil, _ => ⟨.nil, .nil⟩
   | .vlam .., ⟨h1, h2, h3, h4⟩ => .mkLocalDecl h1.tr h2 h3 h4

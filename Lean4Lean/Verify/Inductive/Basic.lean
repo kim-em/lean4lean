@@ -18,6 +18,23 @@ structure HeaderCertificate (env : VEnv) (decl : VInductDecl) where
   commonLevels : ∀ type ∈ decl.types, type.resultLevel ≈ resultLevel
   typeShapes : ∀ type ∈ decl.types, decl.TypeShape env params type
 
+theorem typeShape_mono {env env' : VEnv} (henv : env ≤ env')
+    (H : VInductDecl.TypeShape env decl params type) :
+    VInductDecl.TypeShape env' decl params type := by
+  rcases H with
+    ⟨normalized, ownParams, afterParams, indices, result, exprType,
+      hnormalized, hparamsTake, hindicesTake, hparams, hresult⟩
+  exact ⟨normalized, ownParams, afterParams, indices, result, exprType,
+    hnormalized.mono henv, hparamsTake, hindicesTake,
+    hparams.mono henv, hresult.mono henv⟩
+
+def HeaderCertificate.mono {env env' : VEnv} (henv : env ≤ env')
+    (H : HeaderCertificate env decl) : HeaderCertificate env' decl where
+  params := H.params
+  resultLevel := H.resultLevel
+  commonLevels := H.commonLevels
+  typeShapes type htype := typeShape_mono henv (H.typeShapes type htype)
+
 /-- Prefix invariant threaded through `checkInductiveTypes.loopInd`. -/
 structure HeaderPrefixCertificate (env : VEnv) (decl : VInductDecl)
     (params : List VExpr) (resultLevel : VLevel) (done : Nat) : Prop where
@@ -635,6 +652,21 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   ngen_prefix := rfl
   indFresh := nofun
   kernelFresh := nofun
+
+/-- Retain the local checker state while moving to a production and abstract
+environment pair known to represent the same extension. -/
+def ContextWF.withEnv (H : ContextWF c)
+    (hchecking : CheckingEnv.Valid c.safety env' venv')
+    (hle : H.venv ≤ venv') :
+    ContextWF { c with env := env' } where
+  venv := venv'
+  checking := hchecking
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf.mono hle
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
 
 theorem ContextWF.current_not_mem (H : ContextWF c) :
     ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
@@ -1330,6 +1362,17 @@ structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
   noBV : scope.NoBV
   noIndConsts : ∀ names,
     checkPositivityStep.VLCtx.NoIndConsts names scope
+
+def NarrowRuntimeScope.mono {env env' : VEnv} (henv : env ≤ env')
+    (H : NarrowRuntimeScope env Us scope runtime) :
+    NarrowRuntimeScope env' Us scope runtime where
+  expanded := H.expanded
+  shift := H.shift
+  lift := H.lift
+  context := H.context.mono henv
+  upset := H.upset
+  noBV := H.noBV
+  noIndConsts := H.noIndConsts
 
 theorem NarrowRuntimeScope.scopeWF
     (H : NarrowRuntimeScope env Us scope runtime)
@@ -5992,6 +6035,35 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
     headers.params.reverse parameterScope.toCtx
   narrowParams : List.Forall₂ (TrExprS env Us parameterScope)
     stats.params.toList (decl.paramVars 0)
+
+private theorem forall₂_trExprS_mono {env env' : VEnv}
+    (henv : env ≤ env') :
+    ∀ {es : List Expr} {es' : List VExpr},
+      List.Forall₂ (TrExprS env Us Δ) es es' →
+      List.Forall₂ (TrExprS env' Us Δ) es es'
+  | [], [], .nil => .nil
+  | _ :: _, _ :: _, .cons h hs => .cons (h.mono henv)
+      (forall₂_trExprS_mono henv hs)
+
+def MaterializedHeaderResult.mono {env env' : VEnv}
+    (henv : env ≤ env')
+    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
+    MaterializedHeaderResult env' Us Δ stats decl depth where
+  headers := H.headers.mono henv
+  levels := H.levels
+  uvars := H.uvars
+  consts := H.consts
+  indices := H.indices
+  params := forall₂_trExprS_mono henv H.params
+  paramFVars := H.paramFVars
+  parameterScope := H.parameterScope
+  ambientScope := H.ambientScope
+  scopeDecomposition := H.scopeDecomposition
+  ambientLength := H.ambientLength
+  cachedScope := H.cachedScope
+  runtimeScope := H.runtimeScope.mono henv
+  paramsContext := H.paramsContext.mono henv
+  narrowParams := forall₂_trExprS_mono henv H.narrowParams
 
 /-- Fold the verified noninitial step over the remainder of the mutual block.
 At exact coverage the executable length assertions are discharged and the

@@ -406,6 +406,13 @@ theorem IsDefEq.mono (H : env.IsDefEq U Γ e1 e2 A) : env'.IsDefEq U Γ e1 e2 A 
   | proofIrrel _ _ _ ih1 ih2 ih3 => exact .proofIrrel ih1 ih2 ih3
   | extra h1 h2 h3 => exact .extra (henv.2 h1) h2 h3
 
+theorem IsDefEqCtx.mono {env env' : VEnv} (henv : env ≤ env')
+    (H : IsDefEqCtx env U Γ₀ Γ₁ Γ₂) :
+    IsDefEqCtx env' U Γ₀ Γ₁ Γ₂ := by
+  induction H with
+  | zero => exact .zero
+  | succ _ h ih => exact .succ ih (h.mono henv)
+
 theorem HasType.mono {env env' : VEnv} (henv : env ≤ env') :
     env.HasType U Γ e A → env'.HasType U Γ e A := IsDefEq.mono henv
 
