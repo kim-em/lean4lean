@@ -13001,6 +13001,16 @@ def FreshBoundFVarArray.pushCurrent
     · intro hroot
       exact Hc.current_not_mem (Hroot hroot)
 
+def FreshBoundFVarArray.weaken
+    (H : FreshBoundFVarArray root c xs)
+    (name : Name) (ty : Expr) (bi : BinderInfo) :
+    FreshBoundFVarArray root { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
+  toBoundFVarArray := H.toBoundFVarArray.weaken name ty bi
+  nodup := H.nodup
+  fresh := H.fresh
+
 def BoundFVarArray.get
     (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
     BoundFVarArray c #[xs[i]] := by
@@ -14717,8 +14727,15 @@ structure BoundGeneratedRecursorRule
   params_bound : BoundFVarArray root stats.params
   motives_bound : BoundFVarArray root motives
   minors_bound : BoundFVarArray root minors
+  outer_binders_nodup :
+    ((params_bound.fvars ++ motives_bound.fvars) ++
+      minors_bound.fvars).Nodup
   all_args_bound : BoundFVarArray root allArgs
   recursive_args_bound : BoundFVarArray root recursiveArgs
+  all_args_nodup : all_args_bound.fvars.Nodup
+  recursive_args_nodup : recursive_args_bound.fvars.Nodup
+  all_args_outer_fresh : ∀ fv ∈ all_args_bound.fvars,
+    fv ∉ (params_bound.fvars ++ motives_bound.fvars) ++ minors_bound.fvars
   recursive_calls : BoundGeneratedRecursiveCalls indTypes stats motives
     minors lvls root recursiveArgs recursiveResults recursiveArgs.size
   ctor_eq : rule.ctor = ctor.name
@@ -14756,6 +14773,20 @@ theorem BoundGeneratedRecursorRule.iotaResults_ofFresh
       recursiveArgs recursiveResults :=
   H.recursive_calls.iotaResults_ofFresh H.recursive_args_bound
     Hargs Hresults hfresh hctx hproj henv hrecursor hheads
+
+/-- All source binders closed by a generated rule are globally distinct:
+outer recursor binders are no-alias by construction, while constructor fields
+are fresh relative to that outer context. -/
+theorem BoundGeneratedRecursorRule.binders_nodup
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    (((H.params_bound.fvars ++ H.motives_bound.fvars) ++
+      H.minors_bound.fvars) ++ H.all_args_bound.fvars).Nodup := by
+  apply List.nodup_append.mpr
+  refine ⟨H.outer_binders_nodup, H.all_args_nodup, ?_⟩
+  intro outer houter field hfield heq
+  subst outer
+  exact H.all_args_outer_fresh field hfield houter
 
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
@@ -14875,10 +14906,11 @@ theorem resultBindings {alpha : Type}
     {t : Expr} {i : Nat} {bu u : Array Expr} {fuel : Nat}
     {c : AddInductive.Context} {Q : alpha → Prop}
     (Hc : BindingContextWF c)
-    (Hbu : BoundFVarArray c bu) (Hu : BoundFVarArray c u)
+    (Hbu : FreshBoundFVarArray root c bu)
+    (Hu : FreshBoundFVarArray root c u)
     (Hroot : BindingContextLE root c)
     (Hk : ∀ t bu u c, BindingContextWF c →
-      BoundFVarArray c bu → BoundFVarArray c u →
+      FreshBoundFVarArray root c bu → FreshBoundFVarArray root c u →
       BindingContextLE root c → (k t bu u c).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs.loop stats k t i bu u fuel c).WF Q := by
   induction fuel generalizing c t i bu u with
@@ -14926,13 +14958,13 @@ theorem resultBindings {alpha : Type}
         cases selected with
         | none =>
           exact ih Hc'
-            (Hbu.pushCurrent name dom.consumeTypeAnnotations bi)
+            (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
             (Hu.weaken name dom.consumeTypeAnnotations bi)
             (Hroot.trans hstep)
         | some target =>
           exact ih Hc'
-            (Hbu.pushCurrent name dom.consumeTypeAnnotations bi)
-            (Hu.pushCurrent name dom.consumeTypeAnnotations bi)
+            (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
+            (Hu.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
             (Hroot.trans hstep)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj =>
@@ -14947,12 +14979,12 @@ theorem mkRecInfos.loopCtorArgs.resultBindings {alpha : Type}
     (c : AddInductive.Context) {Q : alpha → Prop}
     (Hc : BindingContextWF c)
     (Hk : ∀ t bu u c', BindingContextWF c' →
-      BoundFVarArray c' bu → BoundFVarArray c' u →
+      FreshBoundFVarArray c c' bu → FreshBoundFVarArray c c' u →
       BindingContextLE c c' → (k t bu u c').WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
   unfold AddInductive.mkRecInfos.loopCtorArgs
   exact mkRecInfos.loopCtorArgs.loop.resultBindings stats k Hc
-    (BoundFVarArray.empty c) (BoundFVarArray.empty c)
+    (FreshBoundFVarArray.empty c) (FreshBoundFVarArray.empty c)
     (BindingContextLE.refl c) Hk
 
 namespace mkRecRules.loopCtors
@@ -14967,7 +14999,9 @@ theorem boundGeneratedRules
     (Hc : BindingContextWF c)
     (Hparams : BoundFVarArray c stats.params)
     (Hmotives : BoundFVarArray c motives)
-    (Hminors : BoundFVarArray c minors) :
+    (Hminors : BoundFVarArray c minors)
+    (HouterNodup : ((Hparams.fvars ++ Hmotives.fvars) ++
+      Hminors.fvars).Nodup) :
     (AddInductive.mkRecRules.loopCtors indTypes stats motives minors lvls
       ctors acc start c).WF fun out =>
         ∃ generated,
@@ -15042,17 +15076,37 @@ theorem boundGeneratedRules
         intro v Hcalls
         simp only [buildRule, getLCtx, readThe, read, ReaderT.read]
         refine Except.WF.pure ⟨?_, rfl⟩
+        let Hparams' := Hparams.mono hroot
+        let Hmotives' := Hmotives.mono hroot
+        let Hminors' := Hminors.mono hroot
+        have HouterNodup' :
+            ((Hparams'.fvars ++ Hmotives'.fvars) ++
+              Hminors'.fvars).Nodup := by
+          change ((Hparams.fvars ++ Hmotives.fvars) ++
+            Hminors.fvars).Nodup
+          exact HouterNodup
         exact ⟨{
           root := c'
           root_wf := Hc'
           allArgs := bu
           recursiveArgs := u
           recursiveResults := v
-          params_bound := Hparams.mono hroot
-          motives_bound := Hmotives.mono hroot
-          minors_bound := Hminors.mono hroot
-          all_args_bound := Hbu
-          recursive_args_bound := Hu
+          params_bound := Hparams'
+          motives_bound := Hmotives'
+          minors_bound := Hminors'
+          outer_binders_nodup := HouterNodup'
+          all_args_bound := Hbu.toBoundFVarArray
+          recursive_args_bound := Hu.toBoundFVarArray
+          all_args_nodup := Hbu.nodup
+          recursive_args_nodup := Hu.nodup
+          all_args_outer_fresh := by
+            intro fv hfv houter
+            apply Hbu.fresh fv hfv
+            rcases List.mem_append.mp houter with hpm | hminor
+            · rcases List.mem_append.mp hpm with hparam | hmotive
+              · exact Hparams.members fv hparam
+              · exact Hmotives.members fv hmotive
+            · exact Hminors.members fv hminor
           recursive_calls := Hcalls
           ctor_eq := rfl
           fields_eq := rfl
@@ -15061,6 +15115,7 @@ theorem boundGeneratedRules
         rcases Hout with ⟨Hrule, hnext⟩
         have htail := ih (acc := acc.push out.1)
           (start := out.2) (c := c) Hc Hparams Hmotives Hminors
+            HouterNodup
         exact htail.mono fun result Hresult => by
           rcases Hresult with ⟨generated, hout, Hgenerated, hend⟩
           refine ⟨out.1 :: generated, ?_, .cons Hrule ?_, ?_⟩
@@ -15079,7 +15134,9 @@ theorem mkRecRules.boundGeneratedRules
     (c : AddInductive.Context) (Hc : BindingContextWF c)
     (Hparams : BoundFVarArray c stats.params)
     (Hmotives : BoundFVarArray c motives)
-    (Hminors : BoundFVarArray c minors) :
+    (Hminors : BoundFVarArray c minors)
+    (HouterNodup : ((Hparams.fvars ++ Hmotives.fvars) ++
+      Hminors.fvars).Nodup) :
     (AddInductive.mkRecRules indTypes elimLevel stats dIdx motives minors
       start c).WF fun out =>
         BoundGeneratedRecursorRules indTypes stats motives minors
@@ -15090,6 +15147,7 @@ theorem mkRecRules.boundGeneratedRules
   have H := mkRecRules.loopCtors.boundGeneratedRules indTypes stats
     motives minors (AddInductive.getRecLevels elimLevel stats.levels)
     indTypes[dIdx]!.ctors #[] start c Hc Hparams Hmotives Hminors
+      HouterNodup
   exact H.mono fun out Hout => by
     rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
     simpa using ⟨hout ▸ Hgenerated, hend⟩
