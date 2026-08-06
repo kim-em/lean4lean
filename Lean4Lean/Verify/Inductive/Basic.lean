@@ -10879,6 +10879,33 @@ theorem Expr.ForallTelescope.trans
     rw [← Nat.add_right_comm outerArity innerArity 1]
     exact h
 
+/-- Abstracting one retained free variable preserves telescope arity; the
+residual body is abstracted below all telescope binders. -/
+theorem Expr.ForallTelescope.abstract1
+    (H : Expr.ForallTelescope outer arity result)
+    (fv : FVarId) (k : Nat := 0) :
+    Expr.ForallTelescope (outer.abstract1 fv k) arity
+      (result.abstract1 fv (k + arity)) := by
+  induction H generalizing k with
+  | nil => exact .nil _
+  | cons H ih =>
+    simp only [Expr.abstract1]
+    apply Expr.ForallTelescope.cons
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
+
+/-- Simultaneous abstraction is the iterated form of `abstract1` and likewise
+preserves the exact leading telescope. -/
+theorem Expr.ForallTelescope.abstractList
+    (H : Expr.ForallTelescope outer arity result)
+    (fvs : List FVarId) (k : Nat := 0) :
+    Expr.ForallTelescope (outer.abstractList fvs k) arity
+      (result.abstractList fvs (k + arity)) := by
+  induction fvs generalizing outer result k with
+  | nil => simpa using H
+  | cons fv fvs ih =>
+    simp only [Expr.abstractList]
+    exact ih (H.abstract1 fv k) k
+
 /-- Translation erases names and binder annotations but preserves the exact
 number of leading forall binders. -/
 theorem TrExprS.forallTelescope_shape
