@@ -1278,6 +1278,47 @@ theorem AuxiliaryRestorationPrefix.appendRules
     · exact H.guarded rule hold
     · exact hnew rule hnewRule
 
+/-- Final nested-compilation assembly for the actual restored primary
+recursors and rules. Unlike the ordinary shortcut, these need not be the
+lowered constants verbatim: restoration may rewrite their telescopes while
+preserving the independent recursor/iota specifications. -/
+def NestedCompilationCertificate.ofRestoration
+    (decl : VInductDecl) (block : VInductBlock)
+    (main : VInductiveType) (rest : List VInductiveType)
+    (htypesSource : decl.types = main :: rest)
+    (primaryRecursors auxiliaryRecursors : List VConstVal)
+    (primaryRules auxiliaryRules : List VDefEq)
+    (HprimaryRecursors : RecursorCertificate decl primaryRecursors)
+    (HprimaryRules : IotaBuildCertificate env decl block primaryRules)
+    (hprimaryLength : primaryRules.length =
+      decl.ownedConstructors.length)
+    (Haux : AuxiliaryRestorationPrefix decl block main
+      auxiliaryRecursors auxiliaryRules)
+    (htypes : block.types = decl.typeConstants)
+    (hctors : block.ctors = decl.constructorConstants)
+    (hrecursors : block.recursors =
+      primaryRecursors ++ auxiliaryRecursors)
+    (hrules : block.rules = primaryRules ++ auxiliaryRules)
+    (hnames : List.Nodup
+      ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
+    NestedCompilationCertificate env decl block where
+  main := main
+  rest := rest
+  types_source := htypesSource
+  types := htypes
+  ctors := hctors
+  primaryRecursors := primaryRecursors
+  auxiliaryRecursors := auxiliaryRecursors
+  recursors_eq := hrecursors
+  primary_recursors := HprimaryRecursors
+  auxiliary_names := Haux.names
+  primaryRules := primaryRules
+  auxiliaryRules := auxiliaryRules
+  rules_eq := hrules
+  primary_rules := HprimaryRules.complete hprimaryLength
+  auxiliary_guarded := Haux.guarded
+  names := hnames
+
 /-- Verification state for the outer inductive-construction monad. The local
 context is represented by the same `MLCtx` used by the typechecker proof, while
 the production reader retains the independently generated `_ind_fresh` names. -/
@@ -19005,6 +19046,35 @@ inductive RestoreTelescope : Expr → Nat → Prop
   | lam : RestoreTelescope body n →
       RestoreTelescope (.lam name dom body bi) (n + 1)
 
+/-- Any prefix of a generated lambda telescope is accepted by nested
+restoration. -/
+theorem Expr.LambdaTelescope.restorePrefix
+    (H : Expr.LambdaTelescope e arity residual)
+    (hn : n ≤ arity) : RestoreTelescope e n := by
+  induction n generalizing e arity residual with
+  | zero => exact .done
+  | succ n ih =>
+    cases H with
+    | nil => simp at hn
+    | @cons body arity residual name dom bi Hbody =>
+      apply RestoreTelescope.lam
+      exact ih Hbody (by omega)
+
+/-- Production iota RHSs always expose at least the common-parameter lambda
+prefix consumed by `restoreNested`. -/
+theorem BoundGeneratedRecursorRule.rhsRestoreTelescope
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (hparams : nparams = stats.params.size) :
+    RestoreTelescope rule.rhs nparams := by
+  apply H.rhsLambdaTelescope.restorePrefix
+  rw [hparams]
+  have hp : stats.params.size = H.params_bound.fvars.length := by
+    simpa using congrArg Array.size H.params_bound.expressions
+  unfold BoundGeneratedRecursorRule.binders
+  simp only [List.length_append]
+  omega
+
 theorem RestoreTelescope.instantiate1'
     (H : RestoreTelescope e n) (arg : Expr) (depth : Nat) :
     RestoreTelescope (e.instantiate1' arg depth) n := by
@@ -19161,6 +19231,28 @@ inductive RulesRestoration
       RulesRestoration result env auxRec oldRecName newRecName
         (old :: olds) (new :: news)
 
+theorem RulesRestoration.length
+    (H : RulesRestoration result env auxRec oldRecName newRecName olds news) :
+    news.length = olds.length := by
+  induction H with
+  | nil => rfl
+  | cons _ _ ih => simp [ih]
+
+theorem RulesRestoration.entry
+    (H : RulesRestoration result env auxRec oldRecName newRecName olds news) :
+    ∀ i (hold : i < olds.length) (hnew : i < news.length),
+      RuleRestoration result env auxRec oldRecName newRecName
+        olds[i] news[i] := by
+  induction H with
+  | nil =>
+    intro i hold
+    simp at hold
+  | @cons old new olds news Hhead Htail ih =>
+    intro i hold hnew
+    cases i with
+    | zero => simpa using Hhead
+    | succ i => exact ih i (by simpa using hold) (by simpa using hnew)
+
 theorem restoreRules_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (auxRec : NameMap Name)
@@ -19177,6 +19269,26 @@ theorem restoreRules_refines
       (restoreRule_refines result env auxRec oldRecName newRecName rule
         (Htelescope rule (by simp)))
       (ih fun tail htail => Htelescope tail (by simp [htail]))
+
+/-- A complete generated constructor batch satisfies the operational
+restoration precondition without an additional telescope assumption. -/
+theorem BoundGeneratedRecursorRules.restoreRules_refines
+    (H : BoundGeneratedRecursorRules indTypes stats motives minors lvls
+      ctors start rules)
+    (hparams : result.nparams = stats.params.size)
+    (prodEnv : Environment) (auxRec : NameMap Name)
+    (oldRecName newRecName : Name) :
+    RulesRestoration result prodEnv auxRec oldRecName newRecName rules
+      (rules.map
+        (result.restoreRule prodEnv auxRec oldRecName newRecName)) := by
+  apply Lean4Lean.VerifyInductive.restoreRules_refines
+  intro rule hrule
+  rcases List.mem_iff_getElem.mp hrule with ⟨i, hi, rfl⟩
+  have hctor : i < ctors.length := by
+    rw [← H.length]
+    exact hi
+  rcases H.entry i hctor hi with ⟨Hrule⟩
+  exact Hrule.rhsRestoreTelescope hparams
 
 /-- Recursor-level restoration records every overwritten metadata field and
 the pointwise rule restoration relation. -/
@@ -19221,6 +19333,55 @@ theorem restoreRecursor_refines
     info.rules Hrules
   k := rfl
   isUnsafe := rfl
+
+/-- Installing an operationally restored auxiliary recursor advances the
+independent auxiliary-name certificate. Translation identifies the production
+`RecursorVal` name with the abstract constant name; no semantic claim about
+its restored rules is hidden in this naming step. -/
+theorem AuxiliaryRestorationPrefix.pushRestoredRecursor
+    (H : AuxiliaryRestorationPrefix decl block main recursors rules)
+    (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName oldInfo newInfo)
+    (Htr : TrConstVal safety trEnv (.recInfo newInfo) recursor)
+    (hnewName : newRecName =
+      (decl.recursorName main).appendIndexAfter (recursors.length + 1)) :
+    AuxiliaryRestorationPrefix decl block main
+      (recursors ++ [recursor]) rules := by
+  apply H.pushRecursor
+  calc
+    recursor.name = newInfo.name := Htr.2.symm
+    _ = newRecName := Hrestore.name
+    _ = (decl.recursorName main).appendIndexAfter
+        (recursors.length + 1) := hnewName
+
+/-- Restored-rule guardedness is deliberately supplied independently of
+`RuleRestoration`: the latter is a syntactic executable refinement, whereas
+this premise is the semantic fact required by `NestedCompilation`. -/
+theorem AuxiliaryRestorationPrefix.appendRestoredRules
+    (H : AuxiliaryRestorationPrefix decl block main recursors rules)
+    (Hrestore : RulesRestoration result prodEnv auxRec oldRecName newRecName
+      sourceRules restoredRules)
+    (htranslated : abstractRules.length = restoredRules.length)
+    (hguarded : ∀ i (hsource : i < sourceRules.length)
+      (hrestored : i < restoredRules.length)
+      (habstract : i < abstractRules.length),
+      RuleRestoration result prodEnv auxRec oldRecName newRecName
+        sourceRules[i] restoredRules[i] →
+      ∃ fieldVars, abstractRules[i].rhs.GuardedIota
+        (block.recursors.map (·.name)) fieldVars 0) :
+    AuxiliaryRestorationPrefix decl block main recursors
+      (rules ++ abstractRules) := by
+  apply H.appendRules
+  intro rule hrule
+  rcases List.mem_iff_getElem.mp hrule with ⟨i, hi, rfl⟩
+  have hrestored : i < restoredRules.length := by
+    rw [← htranslated]
+    simpa using hi
+  have hsource : i < sourceRules.length := by
+    rw [← Hrestore.length]
+    exact hrestored
+  have Hentry := Hrestore.entry i hsource hrestored
+  exact hguarded i hsource hrestored hi Hentry
 
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
