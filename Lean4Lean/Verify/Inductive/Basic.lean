@@ -6247,11 +6247,11 @@ freshness is exposed against the exact reachable state, while semantic shape
 checking is supplied one translated constructor at a time. -/
 theorem refinesType
     {decl : VInductDecl} {target : VInductiveType}
-    {envTypes : VEnv} {params : List VExpr}
+    {sourceEnv envTypes : VEnv} {params : List VExpr}
     {source : InductiveType}
     (Q : Unit → Prop)
     (Hc : ContextWF c)
-    (Htarget : TrInductiveType Hc.venv envTypes c.lparams source target)
+    (Htarget : TrInductiveType sourceEnv envTypes c.lparams source target)
     (Hnames : ConstructorNameState source.ctors ctorIdx foundCtors)
     (Hprefix : ConstructorTypePrefix envTypes decl params target ctorIdx)
     (Hfresh : ∀ {i found}, ConstructorNameState source.ctors i found →
@@ -6328,11 +6328,12 @@ theorem step.WF
 /-- Fold the verified inner constructor traversal over every family in a
 mutual block, retaining the same two-dimensional order as the source arrays. -/
 theorem refinesBlock
-    {decl : VInductDecl} {envTypes : VEnv} {params : List VExpr}
+    {decl : VInductDecl} {sourceEnv envTypes : VEnv}
+    {params : List VExpr}
     (Q : Unit → Prop)
     (Hc : ContextWF c)
     (Htypes : List.Forall₂
-      (TrInductiveType Hc.venv envTypes c.lparams)
+      (TrInductiveType sourceEnv envTypes c.lparams)
       indTypes.toList decl.types)
     (Hprefix : ConstructorTypesPrefix envTypes decl params targetIdx)
     (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
@@ -6362,7 +6363,7 @@ theorem refinesBlock
       have hlength : indTypes.size = decl.types.length := by
         simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
       omega
-    have Htarget : TrInductiveType Hc.venv envTypes c.lparams
+    have Htarget : TrInductiveType sourceEnv envTypes c.lparams
         indTypes[targetIdx] decl.types[targetIdx] := by
       have Htarget' := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
         targetIdx (by simpa using hidx) htarget
