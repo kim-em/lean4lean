@@ -11207,6 +11207,22 @@ def BoundFVarArray.append
     · exact H₁.members fv hfv
     · exact H₂.members fv hfv
 
+def BoundFVarArray.get
+    (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
+    BoundFVarArray c #[xs[i]] := by
+  rcases H with ⟨fvars, rfl, members⟩
+  let fv := fvars[i]'(by simpa using hi)
+  refine {
+    fvars := [fv]
+    expressions := ?_
+    members := ?_
+  }
+  · simp [fv]
+  · intro fv' hfv'
+    simp only [List.mem_singleton] at hfv'
+    subst fv'
+    exact members fv (List.getElem_mem (by simpa using hi))
+
 /-- All local free-variable arrays retained by the executable recursor-info
 records, aligned with the production array operations. -/
 structure RecInfoBindings (c : AddInductive.Context)
@@ -11240,6 +11256,35 @@ def RecInfoBindings.flatMinors
     simp only [List.mem_flatten, List.mem_ofFn] at hfv
     rcases hfv with ⟨fvs, ⟨i, rfl⟩, hfv⟩
     exact (H.minors i i.isLt).members fv hfv
+
+def RecInfoBindings.major
+    (H : RecInfoBindings c recInfos) (i : Nat) (hi : i < recInfos.size) :
+    BoundFVarArray c #[recInfos[i]!.major] := by
+  have himap : i < (recInfos.map (·.major)).size := by simpa using hi
+  have h := H.majors.get i himap
+  simpa [Array.getElem!_eq_getD, Array.getD, hi] using h
+
+/-- The five executable binder groups used to build one production recursor
+type, all selected from the same retained local context. -/
+structure RecursorLocalSelections (c : AddInductive.Context)
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo) (ownerIdx : Nat) where
+  params : LocalForallSelection c.lctx stats.params
+  motives : LocalForallSelection c.lctx (recInfos.map (·.motive))
+  minors : LocalForallSelection c.lctx (recInfos.flatMap (·.minors))
+  indices : LocalForallSelection c.lctx recInfos[ownerIdx]!.indices
+  major : LocalForallSelection c.lctx #[recInfos[ownerIdx]!.major]
+
+def RecInfoBindings.toRecursorLocalSelections
+    (H : RecInfoBindings c recInfos) (Hc : BindingContextWF c)
+    (Hparams : BoundFVarArray c stats.params)
+    (ownerIdx : Nat) (howner : ownerIdx < recInfos.size) :
+    RecursorLocalSelections c stats recInfos ownerIdx where
+  params := Hparams.toLocalForallSelection Hc
+  motives := H.motives.toLocalForallSelection Hc
+  minors := H.flatMinors.toLocalForallSelection Hc
+  indices := (H.indices ownerIdx howner).toLocalForallSelection Hc
+  major := (H.major ownerIdx howner).toLocalForallSelection Hc
 
 /-- The replayed index telescope of every accumulated recursor frame has the
 arity recorded by the checked inductive header. -/
