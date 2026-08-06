@@ -162,6 +162,84 @@ theorem VExpr.GuardedIota.recCallWrapped
   apply VExpr.GuardedIota.wrapLams hdomains
   exact .recCall hrecursor hargs hmajor
 
+/-- Semantic image of one higher-order recursive result emitted by
+`mkRecRules.loopU`.  This is deliberately independent of the executable
+syntax: the generator-facing proof only has to show that translating one
+`GeneratedRecursiveCall` produces this shape. -/
+structure IotaRecursiveResultCertificate
+    (recursors : List Name) (fieldVars : List Nat)
+    (major result : VExpr) where
+  domains : List VExpr
+  recursor : Name
+  levels : List VLevel
+  init : List VExpr
+  result_eq : result = (VExpr.wrapLams domains <|
+    VExpr.mkApps (.const recursor levels) (init ++ [major]))
+  domains_recursor_free : ∀ dom ∈ domains,
+    dom.containsAnyConst recursors = false
+  recursor_mem : recursor ∈ recursors
+  arguments_guarded : ∀ arg ∈ init ++ [major],
+    arg.GuardedIota recursors fieldVars domains.length
+  major_is_field : major.IsFieldApp fieldVars domains.length
+
+theorem IotaRecursiveResultCertificate.guarded
+    (H : IotaRecursiveResultCertificate recursors fieldVars major result) :
+    result.GuardedIota recursors fieldVars 0 := by
+  rw [H.result_eq]
+  exact VExpr.GuardedIota.recCallWrapped H.domains_recursor_free
+    H.recursor_mem (by simpa using H.arguments_guarded)
+      (by simpa using H.major_is_field)
+
+/-- Pointwise alignment of selected recursive constructor arguments with the
+translated recursive results supplied to the minor premise. -/
+structure IotaRecursiveResultsCertificate
+    (recursors : List Name) (fieldVars : List Nat)
+    (recursiveArgs recursiveResults : List VExpr) : Prop where
+  aligned : List.Forall₂ (fun major result =>
+    Nonempty (IotaRecursiveResultCertificate
+      recursors fieldVars major result)) recursiveArgs recursiveResults
+
+theorem IotaRecursiveResultsCertificate.length
+    (H : IotaRecursiveResultsCertificate recursors fieldVars
+      recursiveArgs recursiveResults) :
+    recursiveResults.length = recursiveArgs.length := by
+  rcases H with ⟨aligned⟩
+  induction aligned with
+  | nil => rfl
+  | cons _ _ ih => simp [ih]
+
+theorem IotaRecursiveResultsCertificate.results_guarded
+    (H : IotaRecursiveResultsCertificate recursors fieldVars
+      recursiveArgs recursiveResults) :
+    ∀ result ∈ recursiveResults,
+      result.GuardedIota recursors fieldVars 0 := by
+  rcases H with ⟨aligned⟩
+  induction aligned with
+  | nil => simp
+  | cons hhead _ ih =>
+    intro result hresult
+    simp only [List.mem_cons] at hresult
+    rcases hresult with rfl | htail
+    · rcases hhead with ⟨cert⟩
+      exact cert.guarded
+    · exact ih result htail
+
+/-- Once ordinary constructor arguments are recursor-free, the aligned
+recursive-result certificate discharges guardedness of the complete minor
+application used on an iota right-hand side. -/
+theorem IotaRecursiveResultsCertificate.minorRhs
+    (H : IotaRecursiveResultsCertificate recursors fieldVars
+      recursiveArgs recursiveResults)
+    (hfields : ∀ arg ∈ fieldArgs,
+      arg.containsAnyConst recursors = false) :
+    (VExpr.mkApps (.bvar minorVar)
+      (fieldArgs ++ recursiveResults)).GuardedIota
+        recursors fieldVars 0 := by
+  apply VExpr.GuardedIota.minorRhs
+  · intro arg harg
+    exact VExpr.GuardedIota.ofContainsAnyConstFalse (hfields arg harg)
+  · exact H.results_guarded
+
 /-- Completed output of the mutual-header traversal. -/
 structure HeaderCertificate (env : VEnv) (decl : VInductDecl) where
   params : List VExpr
