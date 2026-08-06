@@ -11218,6 +11218,29 @@ structure RecInfoBindings (c : AddInductive.Context)
   minors : ∀ i (hi : i < recInfos.size),
     BoundFVarArray c recInfos[i]!.minors
 
+def RecInfoBindings.flatMinors
+    (H : RecInfoBindings c recInfos) :
+    BoundFVarArray c (recInfos.flatMap (·.minors)) where
+  fvars := (List.ofFn fun i : Fin recInfos.size =>
+    (H.minors i i.isLt).fvars).flatten
+  expressions := by
+    rw [← Array.toList_inj]
+    simp only [Array.toList_flatMap, List.map_flatten]
+    rw [← List.ofFn_getElem (xs := recInfos.toList)]
+    apply congrArg List.flatten
+    simp only [List.map_ofFn]
+    apply List.ext_get
+    · simp
+    · intro n hleft hright
+      have hn : n < recInfos.size := by simpa using hleft
+      simpa [Array.getElem!_eq_getD, Array.getD, hn] using
+        congrArg Array.toList (H.minors n hn).expressions
+  members := by
+    intro fv hfv
+    simp only [List.mem_flatten, List.mem_ofFn] at hfv
+    rcases hfv with ⟨fvs, ⟨i, rfl⟩, hfv⟩
+    exact (H.minors i i.isLt).members fv hfv
+
 /-- The replayed index telescope of every accumulated recursor frame has the
 arity recorded by the checked inductive header. -/
 def RecInfoArities (stats : AddInductive.InductiveStats)
