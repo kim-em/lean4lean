@@ -1385,6 +1385,36 @@ theorem NarrowRuntimeScope.fullTargetEq
   exact (hsourceEq'.defeqDFC henv.ordered H.context.defeqCtx).trans
     henv (H.context.symm henv.ordered).wf.toCtx hsourceEq
 
+/-- Restrict a runtime expression translation whose target is already known
+in the semantic scope.  This packages the inverse-weakening argument needed
+after executable WHNF: restrict the normalized source translation, compare
+both weakened targets in the runtime context, then cancel the weakening. -/
+theorem NarrowRuntimeScope.restrictTrExpr
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (henv : env.WF)
+    (hnarrow : TrExprS env Us scope input narrowTarget)
+    (hfullInput : TrExpr env Us runtime input fullTarget)
+    (hfullResult : TrExpr env Us runtime result fullTarget)
+    (hclosed : Closed result 0)
+    (hfvars : FVarsIn (· ∈ scope.fvars) result) :
+    TrExpr env Us scope result narrowTarget := by
+  rcases hfullResult with ⟨resultFull, hresultFull, hresultTarget⟩
+  rcases H.restrictEq henv hresultFull hclosed hfvars with
+    ⟨resultNarrow, hresultNarrow, hresultLift⟩
+  have htargetLift := H.fullTargetEq henv hnarrow hfullInput
+  have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
+  have hlift : env.IsDefEqU Us.length runtime.toCtx
+      (resultNarrow.lift' H.shift) (narrowTarget.lift' H.shift) :=
+    (hresultLift.symm.trans henv hruntimeWF hresultTarget).trans
+      henv hruntimeWF htargetLift.symm
+  have hexpanded := hlift.defeqDFC henv.ordered
+    (H.context.defeqCtx.symm henv.ordered)
+  have hnarrowEq : env.IsDefEqU Us.length scope.toCtx
+      resultNarrow narrowTarget :=
+    (VEnv.IsDefEqU.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+      hexpanded
+  exact ⟨resultNarrow, hresultNarrow, hnarrowEq⟩
+
 /-- Move a successful runtime result-sort check back to the independent
 narrow header scope.  Both translations are tied to the same concrete
 residual, so uniqueness in the runtime context followed by inverse weakening
