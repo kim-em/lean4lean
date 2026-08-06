@@ -2143,7 +2143,7 @@ noncomputable def LaterParameterScope.next
 executable cached substitution is first restricted to the current-and-older
 parameter suffix, then the cached free variable is turned back into the
 source binder. -/
-theorem LaterParameterScope.uninstantiate
+theorem LaterParameterScope.uninstantiateEq
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth i : Nat}
     {Hsuffix : ParameterContextSuffix Hc stats depth}
@@ -2152,7 +2152,9 @@ theorem LaterParameterScope.uninstantiate
     (hopened : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
       (body.instantiate1 stats.params[i]!) body') :
     ∃ body'', TrExprS Hc.venv c.lparams
-      ((none, .vlam H.paramType) :: H.older) body body'' := by
+        ((none, .vlam H.paramType) :: H.older) body body'' ∧
+      Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+        body' (body''.liftN (VLCtx.toCtx H.added).length 0) := by
   have hopened' : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
       (body.instantiate1' (.fvar H.fv)) body' := by
     simpa [Expr.instantiate1_eq, H.parameter] using hopened
@@ -2166,9 +2168,88 @@ theorem LaterParameterScope.uninstantiate
   have hopenedClosed : Closed (body.instantiate1' (.fvar H.fv)) 0 := by
     have := hopened'.closed
     simpa [Hc.mlctx.noBV] using this
-  exact hopened'.uninstantiateAfterWeakFV Hc.checking.tr.wf H.lift
+  exact hopened'.uninstantiateAfterWeakFV_eq Hc.checking.tr.wf H.lift
     (.refl Hc.checking.tr.wf.ordered Hc.mlctx_wf.tr.wf)
     hopenedClosed H.openedFVars hsourceFresh
+
+/-- The core later-parameter abstraction step without exposing the equality
+back to the retained runtime context. -/
+theorem LaterParameterScope.uninstantiate
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {body : Expr} {body' : VExpr}
+    (H : LaterParameterScope Hsuffix i body)
+    (hopened : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) body') :
+    ∃ body'', TrExprS Hc.venv c.lparams
+      ((none, .vlam H.paramType) :: H.older) body body'' := by
+  rcases H.uninstantiateEq hopened with ⟨body'', hbody'', _⟩
+  exact ⟨body'', hbody''⟩
+
+/-- Restrict the post-substitution normal form to the consumed-parameter
+suffix and relate it to the reconstructed source body.  This is the semantic
+state transition used by the later-header telescope accumulator. -/
+theorem LaterParameterScope.normalizedBody
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {body normalized : Expr} {body' : VExpr}
+    (H : LaterParameterScope Hsuffix i body)
+    (hopened : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) body')
+    (hbelow : FVarsBelow Hc.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) normalized)
+    (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      normalized body') :
+    ∃ sourceBody' normalized',
+      TrExprS Hc.venv c.lparams
+        ((none, .vlam H.paramType) :: H.older) body sourceBody' ∧
+      TrExprS Hc.venv c.lparams
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
+        normalized normalized' ∧
+      Hc.venv.IsDefEqU c.lparams.length
+        ((H.paramType :: H.older.toCtx)) sourceBody' normalized' := by
+  rcases H.uninstantiateEq hopened with
+    ⟨sourceBody', hsourceBody, hopenedEq⟩
+  rcases hnormalized with ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
+  have hopenedFVars : FVarsIn
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      (body.instantiate1 stats.params[i]!) := by
+    rw [Expr.instantiate1_eq, H.parameter]
+    exact H.openedFVars
+  have hnormalizedFVars : FVarsIn
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      normalized :=
+    hbelow _ H.openedUpSet hopenedFVars
+  have hnormalizedClosed : Closed normalized 0 := by
+    have := hnormalizedFull.closed
+    simpa [Hc.mlctx.noBV] using this
+  rcases hnormalizedFull.weakFV_inv Hc.checking.tr.wf H.lift
+      (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+      hnormalizedClosed hnormalizedFVars with
+    ⟨normalized', hnormalized'⟩
+  have hnormalizedWeak := hnormalized'.weakFV
+    Hc.checking.tr.wf.ordered H.lift Hc.mlctx_wf.tr.wf
+  have hnormalizedUniq := hnormalizedFull.uniq Hc.checking.tr.wf
+    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hnormalizedWeak
+  have hfull : Hc.venv.IsDefEqU c.lparams.length
+      Hc.mlctx.vlctx.toCtx
+      (sourceBody'.liftN (VLCtx.toCtx H.added).length 0)
+      (normalized'.liftN (VLCtx.toCtx H.added).length 0) :=
+    hopenedEq.symm.trans Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
+      (hnormalizeEq.symm.trans Hc.checking.tr.wf
+        Hc.mlctx_wf.tr.wf.toCtx hnormalizedUniq)
+  have hnarrow : Hc.venv.IsDefEqU c.lparams.length
+      (VLCtx.toCtx
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      sourceBody' normalized' :=
+    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
+      Hc.mlctx_wf.tr.wf.toCtx H.lift.toCtx).1 hfull
+  exact ⟨sourceBody', normalized', hsourceBody, hnormalized',
+    by simpa [VLCtx.toCtx] using hnarrow⟩
 
 /-- Adding a common parameter weakens every cached parameter translation and
 appends the newly generated free variable, whose abstract image is `bvar 0`.
@@ -2857,6 +2938,17 @@ theorem laterParameter.scopeWF
           (body.instantiate1 stats.params[i]!) normalized →
         TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized
           (body'.inst param') →
+        (∃ sourceBody' normalized',
+          TrExprS Hc.venv c.lparams
+            ((none, .vlam Hscope.paramType) :: Hscope.older)
+            body sourceBody' ∧
+          TrExprS Hc.venv c.lparams
+            ((some (Hscope.fv, Hscope.deps),
+              .vlam Hscope.paramType) :: Hscope.older)
+            normalized normalized' ∧
+          Hc.venv.IsDefEqU c.lparams.length
+            (Hscope.paramType :: Hscope.older.toCtx)
+            sourceBody' normalized') →
         (i + 1 < stats.params.size →
           LaterParameterScope Hsuffix (i + 1) normalized) →
         (AddInductive.checkInductiveTypes.loopType nparams stats normalized
@@ -2888,6 +2980,7 @@ theorem laterParameter.scopeWF
     exact (whnfInContext.scopeWF Hc hopened).bind
       fun normalized hnormalized =>
       Hrec heq habstract normalized hnormalized.1 hnormalized.2
+        (Hbody.normalizedBody hopened hnormalized.1 hnormalized.2)
         (fun hnext => Hbody.next hnext hnormalized.1)
 
 /-- Complete cached-parameter step driven only by the retained scope.  In
@@ -2922,6 +3015,17 @@ theorem laterParameter.checkedScopeWF
           (body.instantiate1 stats.params[i]!) normalized →
         TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized
           (body'.inst param') →
+        (∃ sourceBody' normalized',
+          TrExprS Hc.venv c.lparams
+            ((none, .vlam Hscope.paramType) :: Hscope.older)
+            body sourceBody' ∧
+          TrExprS Hc.venv c.lparams
+            ((some (Hscope.fv, Hscope.deps),
+              .vlam Hscope.paramType) :: Hscope.older)
+            normalized normalized' ∧
+          Hc.venv.IsDefEqU c.lparams.length
+            (Hscope.paramType :: Hscope.older.toCtx)
+            sourceBody' normalized') →
         (i + 1 < stats.params.size →
           LaterParameterScope Hsuffix (i + 1) normalized) →
         (AddInductive.checkInductiveTypes.loopType nparams stats normalized
@@ -2934,10 +3038,10 @@ theorem laterParameter.checkedScopeWF
   apply laterParameter.scopeWF (stats := stats) (nparams := nparams)
     (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
     Hc hi hnonempty Hsuffix Hscope hget hdom hbody hparamTy hparam hparamType
-  intro heq habstract normalized hbelow hnormalized hnext
+  intro heq habstract normalized hbelow hnormalized htransition hnext
   exact Hrec hparam hparamType heq
     (Hscope.domainDefEq hdom hparamTyEq heq) habstract
-    normalized hbelow hnormalized hnext
+    normalized hbelow hnormalized htransition hnext
 
 /-- Reusing a cached parameter does not alter the retained ambient-prefix
 shape. -/
@@ -3084,7 +3188,7 @@ theorem laterParametersWF
           (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
           Hc hi hnonempty Hsuffix (Hscope histats) hdom hbody
         intro paramTy' param' _hparam _hparamType _heq _hdomain
-          _habstract normalized _hbelow hnormalized hnext
+          _habstract normalized _hbelow hnormalized _htransition hnext
         apply ih (i := i + 1) (current := body'.inst param')
         · omega
         · intro hlt

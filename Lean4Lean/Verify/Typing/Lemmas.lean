@@ -2188,6 +2188,24 @@ does not use; once the cached variable is again the head declaration,
 is the generic translation step needed by later mutual-inductive headers,
 where the production checker substitutes cached parameters instead of
 introducing fresh local declarations. -/
+theorem TrExprS.uninstantiateAfterWeakFV_eq
+    (henv : VEnv.WF env)
+    (W : VLCtx.FVLift ((some (v, deps), d) :: Δ) Δ₂ 0 n 0)
+    (hΔ : VLCtx.IsDefEq env Us.length Δ₁ Δ₂)
+    (H : TrExprS env Us Δ₁ (e.instantiate1' (.fvar v)) e')
+    (hc : Closed (e.instantiate1' (.fvar v)) 0)
+    (hv : FVarsIn
+      (· ∈ VLCtx.fvars ((some (v, deps), d) :: Δ))
+      (e.instantiate1' (.fvar v)))
+    (sc : FVarsIn (· ≠ v) e) :
+    ∃ e'', TrExprS env Us ((none, d) :: Δ) e e'' ∧
+      env.IsDefEqU Us.length Δ₁.toCtx e' (e''.liftN n 0) := by
+  rcases H.weakFV_inv henv W hΔ hc hv with ⟨e'', H'⟩
+  have Hweak := H'.weakFV henv.ordered W (hΔ.symm henv).wf
+  exact ⟨e'', H'.uninstantiate sc, H.uniq henv hΔ Hweak⟩
+
+/-- Recover a source binder after discarding unused concrete free-variable
+declarations. -/
 theorem TrExprS.uninstantiateAfterWeakFV
     (henv : VEnv.WF env)
     (W : VLCtx.FVLift ((some (v, deps), d) :: Δ) Δ₂ 0 n 0)
@@ -2199,8 +2217,9 @@ theorem TrExprS.uninstantiateAfterWeakFV
       (e.instantiate1' (.fvar v)))
     (sc : FVarsIn (· ≠ v) e) :
     ∃ e'', TrExprS env Us ((none, d) :: Δ) e e'' := by
-  rcases H.weakFV_inv henv W hΔ hc hv with ⟨e'', H'⟩
-  exact ⟨e'', H'.uninstantiate sc⟩
+  rcases H.uninstantiateAfterWeakFV_eq henv W hΔ hc hv sc with
+    ⟨e'', H', _⟩
+  exact ⟨e'', H'⟩
 
 theorem TrExprS.inst_fvar {Δ : VLCtx} (henv : Ordered env)
     (hΔ : VLCtx.WF env Us.length ((some (a, deps), d) :: Δ))
