@@ -657,6 +657,25 @@ theorem IotaCertificate.forall₂
   intro i hctor hrule
   exact H.rules i hctor hrule
 
+/-- Rule-list certificate used when nested restoration appends auxiliary
+rules after the primary rules corresponding to source constructors. -/
+structure IotaListCertificate (env : VEnv) (decl : VInductDecl)
+    (block : VInductBlock) (ruleList : List VDefEq) : Prop where
+  length : ruleList.length = decl.ownedConstructors.length
+  rules : ∀ i (hctor : i < decl.ownedConstructors.length)
+      (hrule : i < ruleList.length),
+    Nonempty (decl.IotaRule env block decl.ownedConstructors[i].1
+      decl.ownedConstructors[i].2 ruleList[i])
+
+theorem IotaListCertificate.forall₂
+    (H : IotaListCertificate env decl block ruleList) :
+    List.Forall₂ (fun owned rule =>
+      Nonempty (decl.IotaRule env block owned.1 owned.2 rule))
+      decl.ownedConstructors ruleList := by
+  apply List.forall₂_of_getElem H.length.symm
+  intro i hctor hrule
+  exact H.rules i hctor hrule
+
 /-- Generator-facing form of ordinary compilation. Its indexed fields match
 the loops in `mkRecInfos` and `mkRecRules`; `ordinary` below converts them to
 the independent list-relational specification. -/
@@ -682,6 +701,100 @@ theorem OrdinaryCompilationCertificate.compilesTo
     (H : OrdinaryCompilationCertificate env decl block) :
     decl.CompilesTo env block :=
   .ordinary H.ordinary
+
+/-- Indexed, generator-facing form of nested compilation. The primary
+recursors and rules use the same certificates as ordinary compilation, while
+the restoration-only suffix is isolated to deterministic names and guarded
+right-hand sides. -/
+structure NestedCompilationCertificate (env : VEnv)
+    (decl : VInductDecl) (block : VInductBlock) where
+  main : VInductiveType
+  rest : List VInductiveType
+  types_source : decl.types = main :: rest
+  types : block.types = decl.typeConstants
+  ctors : block.ctors = decl.constructorConstants
+  primaryRecursors : List VConstVal
+  auxiliaryRecursors : List VConstVal
+  recursors_eq : block.recursors = primaryRecursors ++ auxiliaryRecursors
+  primary_recursors : RecursorCertificate decl primaryRecursors
+  auxiliary_names : auxiliaryRecursors.map (·.name) =
+    (List.range auxiliaryRecursors.length).map fun i =>
+      (decl.recursorName main).appendIndexAfter (i + 1)
+  primaryRules : List VDefEq
+  auxiliaryRules : List VDefEq
+  rules_eq : block.rules = primaryRules ++ auxiliaryRules
+  primary_rules : IotaListCertificate env decl block primaryRules
+  auxiliary_guarded : ∀ rule ∈ auxiliaryRules,
+    ∃ fieldVars, rule.rhs.GuardedIota
+      (block.recursors.map (·.name)) fieldVars 0
+  names : List.Nodup
+    ((block.types ++ block.ctors ++ block.recursors).map (·.name))
+
+def NestedCompilationCertificate.nested
+    (H : NestedCompilationCertificate env decl block) :
+    decl.NestedCompilation env block where
+  main := H.main
+  rest := H.rest
+  types_source := H.types_source
+  types := H.types
+  ctors := H.ctors
+  primaryRecursors := H.primaryRecursors
+  auxiliaryRecursors := H.auxiliaryRecursors
+  recursors_eq := H.recursors_eq
+  primary_recursors := H.primary_recursors.forall₂
+  auxiliary_names := H.auxiliary_names
+  primaryRules := H.primaryRules
+  auxiliaryRules := H.auxiliaryRules
+  rules_eq := H.rules_eq
+  primary_rules := H.primary_rules.forall₂
+  auxiliary_guarded := H.auxiliary_guarded
+  names := H.names
+
+theorem NestedCompilationCertificate.compilesTo
+    (H : NestedCompilationCertificate env decl block) :
+    decl.CompilesTo env block := .nested H.nested
+
+/-- Append-oriented restoration invariant for the auxiliary recursor/rule
+suffix. It mirrors `processRec`: recursors receive consecutive `main.recN`
+names, while restored auxiliary rules must retain a guarded RHS. -/
+structure AuxiliaryRestorationPrefix (decl : VInductDecl)
+    (block : VInductBlock) (main : VInductiveType)
+    (recursors : List VConstVal) (rules : List VDefEq) : Prop where
+  names : recursors.map (·.name) =
+    (List.range recursors.length).map fun i =>
+      (decl.recursorName main).appendIndexAfter (i + 1)
+  guarded : ∀ rule ∈ rules, ∃ fieldVars,
+    rule.rhs.GuardedIota (block.recursors.map (·.name)) fieldVars 0
+
+theorem AuxiliaryRestorationPrefix.empty
+    (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType) :
+    AuxiliaryRestorationPrefix decl block main [] [] where
+  names := rfl
+  guarded _ h := by simp at h
+
+theorem AuxiliaryRestorationPrefix.pushRecursor
+    (H : AuxiliaryRestorationPrefix decl block main recursors rules)
+    (hname : recursor.name =
+      (decl.recursorName main).appendIndexAfter (recursors.length + 1)) :
+    AuxiliaryRestorationPrefix decl block main
+      (recursors ++ [recursor]) rules where
+  names := by
+    simp only [List.map_append, List.map_singleton, List.length_append,
+      List.length_singleton, List.range_succ, hname, H.names,
+      List.map_concat, Function.comp_apply]
+  guarded := H.guarded
+
+theorem AuxiliaryRestorationPrefix.appendRules
+    (H : AuxiliaryRestorationPrefix decl block main recursors rules)
+    (hnew : ∀ rule ∈ newRules, ∃ fieldVars,
+      rule.rhs.GuardedIota (block.recursors.map (·.name)) fieldVars 0) :
+    AuxiliaryRestorationPrefix decl block main recursors
+      (rules ++ newRules) where
+  names := H.names
+  guarded rule hrule := by
+    rcases List.mem_append.mp hrule with hold | hnewRule
+    · exact H.guarded rule hold
+    · exact hnew rule hnewRule
 
 /-- Verification state for the outer inductive-construction monad. The local
 context is represented by the same `MLCtx` used by the typechecker proof, while
@@ -13548,6 +13661,52 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
     names := hnames }
   rw [hrecursors]
   exact H.recursorCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl
+
+/-- Nested restoration reuses the verified primary recursor traversal and
+adds only the separately audited auxiliary-name/guardedness suffix. -/
+def GeneratedRecursors.nestedCompilationCertificate
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries)
+    (Hc : BindingContextWF c)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (hnoalias : Hbindings.NoAlias Hparams)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl)
+    (block : VInductBlock) (main : VInductiveType)
+    (rest : List VInductiveType)
+    (htypesSource : decl.types = main :: rest)
+    (auxRecursors : List VConstVal)
+    (primaryRules auxiliaryRules : List VDefEq)
+    (Haux : AuxiliaryRestorationPrefix decl block main
+      auxRecursors auxiliaryRules)
+    (htypes : block.types = decl.typeConstants)
+    (hctors : block.ctors = decl.constructorConstants)
+    (hrecursors : block.recursors =
+      entries.map Prod.snd ++ auxRecursors)
+    (hrules : block.rules = primaryRules ++ auxiliaryRules)
+    (hprimaryRules : IotaListCertificate sourceEnv decl block primaryRules)
+    (hnames : List.Nodup
+      ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
+    NestedCompilationCertificate sourceEnv decl block where
+  main := main
+  rest := rest
+  types_source := htypesSource
+  types := htypes
+  ctors := hctors
+  primaryRecursors := entries.map Prod.snd
+  auxiliaryRecursors := auxRecursors
+  recursors_eq := hrecursors
+  primary_recursors :=
+    H.recursorCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl
+  auxiliary_names := Haux.names
+  primaryRules := primaryRules
+  auxiliaryRules := auxiliaryRules
+  rules_eq := hrules
+  primary_rules := hprimaryRules
+  auxiliary_guarded := Haux.guarded
+  names := hnames
 
 /-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
 innermost order. Local lets are discharged by `mkForall'` and contribute no
