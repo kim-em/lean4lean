@@ -161,6 +161,26 @@ theorem VExpr.GuardedIota.wrapLams
           exact hdomains inner (by simp [hinner])
         · simpa [Nat.add_assoc, Nat.add_comm 1 domains.length] using hbody
 
+/-- If a lambda telescope contains none of the selected constants, neither
+its binder domains nor its residual body contain one. -/
+theorem VExpr.containsAnyConst_wrapLams_false
+    {domains : List VExpr} {body : VExpr} {names : List Name}
+    (hfree : (VExpr.wrapLams domains body).containsAnyConst names = false) :
+    (∀ dom ∈ domains, dom.containsAnyConst names = false) ∧
+      body.containsAnyConst names = false := by
+  induction domains with
+  | nil => simpa [VExpr.wrapLams] using hfree
+  | cons dom domains ih =>
+    simp only [VExpr.wrapLams, List.foldr_cons, VExpr.containsAnyConst,
+      Bool.or_eq_false_iff] at hfree
+    rcases ih hfree.2 with ⟨hdomains, hbody⟩
+    exact ⟨by
+      intro current hmem
+      simp only [List.mem_cons] at hmem
+      rcases hmem with rfl | hmem
+      · exact hfree.1
+      · exact hdomains current hmem, hbody⟩
+
 theorem VExpr.GuardedIota.mkApps
     {recursors : List Name} {fieldVars : List Nat} {depth : Nat}
     {fn : VExpr} {args : List VExpr}
@@ -8917,6 +8937,61 @@ theorem ValidAppStatsWF.translatedParam
 Literal expansion and projection translation are explicit side conditions:
 literals introduce old primitive constants, while `TrProj` is still an
 independent typing boundary in the existing model. -/
+theorem TrExprS.noFreshConsts
+    (hfresh : ∀ name ∈ names, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts names Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst names = false →
+      e''.containsAnyConst names = false)
+    (H : TrExprS env Us Δ e e') :
+    e'.containsAnyConst names = false := by
+  induction H with
+  | bvar hfind | fvar hfind => exact hctx hfind
+  | sort _ => rfl
+  | @const name _ _ _ _ hconst _ _ =>
+    change names.contains name = false
+    apply Bool.eq_false_iff.mpr
+    intro hcontains
+    have hmem : name ∈ names := by simpa using hcontains
+    rw [hfresh name hmem] at hconst
+    cases hconst
+  | app _ _ _ _ ihFn ihArg =>
+    exact Bool.or_eq_false_iff.mpr ⟨ihFn hctx, ihArg hctx⟩
+  | lam _ _ _ ihTy ihBody =>
+    apply Bool.or_eq_false_iff.mpr
+    refine ⟨ihTy hctx, ihBody ?_⟩
+    exact VLCtx.NoIndConsts.cons hctx (by rfl)
+  | forallE _ _ _ _ ihTy ihBody =>
+    apply Bool.or_eq_false_iff.mpr
+    refine ⟨ihTy hctx, ihBody ?_⟩
+    exact VLCtx.NoIndConsts.cons hctx (by rfl)
+  | letE _ _ _ _ ihTy ihValue ihBody =>
+    exact ihBody (hctx.cons (d := .vlet _ _) (ofv := none)
+      (ihValue hctx))
+  | lit _ _ ih => exact ih hctx
+  | mdata _ ih => exact ih hctx
+  | proj _ Hproj ih => exact hproj Hproj (ih hctx)
+
+/-- Pointwise form of `TrExprS.noFreshConsts` for a translated application
+spine. -/
+theorem List.Forall₂.targets_noFreshConsts
+    (H : List.Forall₂ (TrExprS env Us Δ) source target)
+    (hfresh : ∀ name ∈ names, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts names Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst names = false →
+      e''.containsAnyConst names = false) :
+    ∀ arg ∈ target, arg.containsAnyConst names = false := by
+  induction H with
+  | nil => simp
+  | cons Hhead _ ih =>
+    intro arg harg
+    simp only [List.mem_cons] at harg
+    rcases harg with rfl | harg
+    · exact checkPositivityStep.TrExprS.noFreshConsts
+        hfresh hctx hproj Hhead
+    · exact ih arg harg
+
 theorem TrExprS.noIndOcc
     (halign : IndConstNames indConsts names)
     (hlit : LiteralDisjoint indConsts)
@@ -12418,6 +12493,43 @@ theorem TrExprS.forallTelescope_shape
 def abstractForallContext (domains : List VExpr) (Δ : VLCtx) : VLCtx :=
   (domains.reverse.map fun type => (none, .vlam type)) ++ Δ
 
+/-- Abstracting a lambda telescope only prepends bound variables, so it
+preserves absence of a selected set of constants in context values. -/
+theorem VLCtx.NoIndConsts.abstractForallContext
+    (H : VLCtx.NoIndConsts names Δ) :
+    VLCtx.NoIndConsts names (abstractForallContext domains Δ) := by
+  unfold Lean4Lean.VerifyInductive.abstractForallContext
+  have go : ∀ (entries : List VExpr) {v : Nat ⊕ FVarId}
+      {mapped type : VExpr},
+      (VLCtx.find? ((entries.map fun type =>
+        ((none, VLocalDecl.vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) ++ Δ) v =
+        some (mapped, type)) →
+      mapped.containsAnyConst names = false := by
+    intro entries
+    induction entries with
+    | nil =>
+      intro v mapped type hfind
+      exact H hfind
+    | cons type entries ih =>
+      intro v mapped result hfind
+      have hprefix : VLCtx.NoIndConsts names
+          ((entries.map fun type =>
+            ((none, VLocalDecl.vlam type) :
+              Option (FVarId × List FVarId) × VLocalDecl)) ++ Δ) := by
+        intro v mapped result hfind
+        exact ih hfind
+      have hcons : VLCtx.NoIndConsts names
+          ((none, VLocalDecl.vlam type) ::
+            (entries.map fun type =>
+              ((none, VLocalDecl.vlam type) :
+                Option (FVarId × List FVarId) × VLocalDecl)) ++ Δ) :=
+        VLCtx.NoIndConsts.cons
+          (ofv := none) (d := VLocalDecl.vlam type) hprefix (by rfl)
+      exact hcons (by simpa only [List.map_cons, List.cons_append] using hfind)
+  intro v mapped type hfind
+  exact go domains.reverse hfind
+
 /-- Prepending the abstract lambda domains is the canonical bound-variable
 lift of the retained outer context. -/
 theorem abstractForallContext.bvLift
@@ -12650,6 +12762,46 @@ theorem TrExprS.lambdaTelescope_shape_with_context
       · simp [VExpr.wrapLams, heq]
       · simpa [abstractForallContext, List.map_append, List.append_assoc]
           using hresidual
+
+/-- Freshness-aware lambda-telescope inversion. Each translated binder domain
+is retained as recursor-free at the point where the translation constructor
+exposes it; the residual remains translated in the exact abstract context. -/
+theorem TrExprS.lambdaTelescope_shape_with_context_noFresh
+    (hfresh : ∀ name ∈ names, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts names Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst names = false →
+      e''.containsAnyConst names = false)
+    (Htel : Expr.LambdaTelescope e arity residual)
+    (Htr : TrExprS env Us Δ e e') :
+    ∃ domains residual', domains.length = arity ∧
+      e' = VExpr.wrapLams domains residual' ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        residual residual' ∧
+      ∀ dom ∈ domains, dom.containsAnyConst names = false := by
+  induction Htel generalizing Δ e' with
+  | nil =>
+    exact ⟨[], e', rfl, rfl,
+      by simpa [abstractForallContext] using Htr, by simp⟩
+  | @cons body arity residual name dom bi Htel ih =>
+    cases Htr with
+    | @lam dom' body' =>
+      rename_i _ hdom hbody
+      have hctx' : VLCtx.NoIndConsts names
+          ((none, VLocalDecl.vlam dom') :: Δ) :=
+        VLCtx.NoIndConsts.cons hctx (by rfl)
+      rcases ih hctx' hbody with
+        ⟨domains, residual', hlength, heq, hresidual, hfree⟩
+      refine ⟨dom' :: domains, residual', by simp [hlength], ?_, ?_, ?_⟩
+      · simp [VExpr.wrapLams, heq]
+      · simpa [abstractForallContext, List.map_append, List.append_assoc]
+          using hresidual
+      · intro current hmem
+        simp only [List.mem_cons] at hmem
+        rcases hmem with rfl | hmem
+        · exact checkPositivityStep.TrExprS.noFreshConsts
+            hfresh hctx hproj hdom
+        · exact hfree current hmem
 
 /-- Binding ordinary local declarations with `mkLambda` creates one concrete
 lambda per selected declaration and leaves simultaneous abstraction of those
@@ -14252,6 +14404,102 @@ theorem BoundGeneratedRecursiveCall.translatedCallShape
     congr 1
     rw [← hrebuild]
     simp [VExpr.mkApps, List.foldl_append]
+
+/-- Freshness-aware generated-call translation. Unlike freshness of the
+complete result (which deliberately contains the new recursor), this retains
+freshness exactly for the enclosing higher-order domains. -/
+theorem BoundGeneratedRecursiveCall.translatedCallShape_noFresh
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ value result)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false) :
+    ∃ domains levels init major,
+      domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains
+        (VExpr.mkApps (.const H.recursorName levels) (init ++ [major])) ∧
+      lvls.mapM (VLevel.ofLevel Us) = some levels ∧
+      List.Forall₂
+        (TrExprS env Us (abstractForallContext domains Δ))
+        H.abstractedRecursor.getAppArgsList init ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        H.abstractedMajor major ∧
+      ∀ dom ∈ domains, dom.containsAnyConst recursors = false := by
+  rcases TrExprS.lambdaTelescope_shape_with_context_noFresh
+      hfresh hctx hproj H.lambdaTelescope Htr with
+    ⟨domains, residual, hdomains, hresult, hresidual, hfree⟩
+  rw [H.abstractedBody_eq_named] at hresidual
+  cases hresidual with
+  | app _ _ hfn hmajor =>
+    rename_i recursorResult domain codomain majorResult
+      recursorType majorType
+    rcases checkPositivityStep.TrExprS.constAppSpine
+        hfn H.abstractedRecursor_head with
+      ⟨levels, init, hspine, hlevels, hinit⟩
+    have hrebuild := VExpr.mkApps_getAppFnArgs recursorResult
+    rw [hspine] at hrebuild
+    refine ⟨domains, levels, init, _, hdomains, ?_, hlevels, hinit,
+      hmajor, hfree⟩
+    rw [hresult]
+    congr 1
+    rw [← hrebuild]
+    simp [VExpr.mkApps, List.foldl_append]
+
+/-- A generated recursive result is semantically guarded whenever the new
+recursor names are fresh in the translation environment and the selected
+constructor field is already identified in the outer abstract context. -/
+theorem BoundGeneratedRecursiveCall.iotaResultCertificate_ofFresh
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root (.fvar fv) value)
+    (Htr : TrExprS env Us Δ value result)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (hrecursor : H.recursorName ∈ recursors)
+    (henv : env.Ordered)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (Hfield : TrExprS env Us Δ (.fvar fv) recursiveArg)
+    (hfield : recursiveArg.IsFieldApp fieldVars 0) :
+    Nonempty (IotaRecursiveResultCertificate recursors fieldVars
+      recursiveArg result) := by
+  rcases H.translatedCallShape_noFresh Htr hfresh hctx hproj with
+    ⟨domains, levels, init, major, hdomains, hresult, hlevels,
+      hinit, hmajor, hdomainsFree⟩
+  have hctx' : VLCtx.NoIndConsts recursors
+      (abstractForallContext domains Δ) :=
+    VLCtx.NoIndConsts.abstractForallContext
+      (domains := domains) hctx
+  have hinitFree : ∀ arg ∈ init,
+      arg.containsAnyConst recursors = false :=
+    checkPositivityStep.List.Forall₂.targets_noFreshConsts
+      hinit hfresh hctx' hproj
+  have hmajorFree : major.containsAnyConst recursors = false :=
+    checkPositivityStep.TrExprS.noFreshConsts
+      hfresh hctx' hproj hmajor
+  exact ⟨{
+    domains := domains
+    recursor := H.recursorName
+    levels := levels
+    init := init
+    major := major
+    result_eq := hresult
+    domains_recursor_free := hdomainsFree
+    recursor_mem := hrecursor
+    arguments_guarded := by
+      intro arg harg
+      rcases List.mem_append.mp harg with harg | harg
+      · exact VExpr.GuardedIota.ofContainsAnyConstFalse
+          (hinitFree arg harg)
+      · simp only [List.mem_singleton] at harg
+        subst arg
+        exact VExpr.GuardedIota.ofContainsAnyConstFalse hmajorFree
+    major_is_field := H.translatedMajor_isField henv hfieldRoot Hfield
+      hfield hdomains hmajor }⟩
 
 /-- Turn the syntax-directed call translation into the semantic guarded-call
 certificate. The remaining callback is precisely the guard proof; executable
