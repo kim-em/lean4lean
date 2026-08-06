@@ -8477,6 +8477,147 @@ theorem refines
         exact finish <| checkPositivityStep.validApplication.sourceRefines
           Hstats hexposed hlit hctx hproj hocc' hforall hvalid
 
+/-- Positivity refinement for constructor checking after mutual headers have
+left ambient declarations in the executable context.  The concrete checker
+runs in `Hc.mlctx.vlctx`, while every declarative judgment is constructed in
+the independent `scope`; runtime WHNF results are restricted before any
+positivity rule is emitted. -/
+theorem refinesNarrow
+    {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
+    {narrowType fullType : VExpr}
+    (Hc : ContextWF c)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+      Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      scope stats decl depth)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
+    (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
+    (AddInductive.checkPositivity.loop stats ctor idx type fuel c).WF
+      (fun _ => decl.Positive Hc.venv scope.toCtx depth narrowType) := by
+  induction fuel generalizing c type scope narrowType fullType depth with
+  | zero => exact zero.WF
+  | succ fuel ih =>
+    rcases htypeFull with ⟨sourceFull, hsourceFull, hsourceTarget⟩
+    refine succ.scopeWF Hc hsourceFull ?_
+    intro normalized hbelow hnormalized
+    have hnormalizedFVars : FVarsIn (· ∈ scope.fvars) normalized :=
+      hbelow _ Hruntime.upset htypeNarrow.fvarsIn
+    rcases hnormalized with
+      ⟨exposedFull, hexposedFull, hexposedTarget⟩
+    have hnormalizedClosed : Closed normalized 0 := by
+      have hclosed := hexposedFull.closed
+      rw [Hc.mlctx.noBV] at hclosed
+      exact hclosed
+    have hnormalizedFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+        normalized fullType :=
+      ⟨exposedFull, hexposedFull,
+        hexposedTarget.trans Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
+          hsourceTarget⟩
+    have hinputFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+        type fullType :=
+      ⟨sourceFull, hsourceFull, hsourceTarget⟩
+    rcases Hruntime.restrictTrExpr Hc.checking.tr.wf htypeNarrow
+        hinputFull hnormalizedFull hnormalizedClosed hnormalizedFVars with
+      ⟨exposed, hexposed, hexposedEq⟩
+    rcases hexposedEq.symm with ⟨exprType, htypeExposed⟩
+    have finish
+        (Hstep : (AddInductive.checkPositivityStep stats normalized ctor idx
+          (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
+          c).WF (fun _ =>
+            decl.SyntacticallyPositive Hc.venv scope.toCtx depth exposed)) :
+        (AddInductive.checkPositivityStep stats normalized ctor idx
+          (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
+          c).WF (fun _ =>
+            decl.Positive Hc.venv scope.toCtx depth narrowType) :=
+      Hstep.mono fun _ hpositive =>
+        .unfold (by simpa [Hstats.uvars] using htypeExposed) hpositive
+    by_cases hocc : AddInductive.hasIndOcc stats.indConsts normalized = false
+    · exact finish <| checkPositivityStep.noOccurrence.refines
+        Hstats.consts hlit
+        (Hruntime.noIndConsts (decl.types.map (·.name))) hproj hexposed hocc
+    have hocc' : AddInductive.hasIndOcc stats.indConsts normalized = true := by
+      cases h : AddInductive.hasIndOcc stats.indConsts normalized
+      · exact False.elim (hocc h)
+      · rfl
+    by_cases hforall : ∃ name dom body bi,
+        normalized = .forallE name dom body bi
+    · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+      by_cases hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = true
+      · exact checkPositivityStep.negativeDomain.WF hocc' hdomOcc
+      have hdomOcc' : AddInductive.hasIndOcc stats.indConsts dom = false := by
+        cases h : AddInductive.hasIndOcc stats.indConsts dom
+        · rfl
+        · exact False.elim (hdomOcc h)
+      cases hexposed with
+      | @forallE narrowDom narrowBody _ _ _ _ _
+          hdomNarrowType hbodyNarrowType hdomNarrow hbodyNarrow =>
+        cases hexposedFull with
+        | @forallE fullDom fullBody _ _ _ _ _
+            hdomFullType _ hdomFull hbodyFull =>
+          rcases hconsume c Hc hdomFull hdomFullType with
+            ⟨consumedDom, Hdom⟩
+          refine finish <| checkPositivityStep.forallE.sourceWF
+            (Q := fun _ => decl.SyntacticallyPositive Hc.venv
+              scope.toCtx depth (.forallE _ _))
+            (recur := fun body =>
+              AddInductive.checkPositivity.loop stats ctor idx body fuel)
+            Hc hocc' hdomOcc' Hdom hbodyFull ?_
+          intro bodyFull' _hbodyFullEq hopenedFull
+          let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType
+          have hdeps : dom.consumeTypeAnnotations.fvarsList ⊆ scope.fvars :=
+            (fvarsIn_iff.mp
+              (Expr.consumeTypeAnnotations_fvarsIn hnormalizedFVars.1)).1
+          rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
+            ⟨domainLevel, hdomain⟩
+          let Hruntime' :
+              checkInductiveTypes.loopType.NarrowRuntimeScope
+                Hc'.venv c.lparams
+                ((some (⟨c.ngen.curr⟩,
+                  dom.consumeTypeAnnotations.fvarsList),
+                  .vlam narrowDom) :: scope)
+                Hc'.mlctx.vlctx :=
+            Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+          have hopenedNarrow : TrExprS Hc'.venv c.lparams
+              ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotations.fvarsList),
+                .vlam narrowDom) :: scope)
+              (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
+            rw [Expr.instantiate1_eq]
+            exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
+          have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
+          have Hrec := ih Hc' Hruntime' Hstats' hopenedNarrow
+            (hopenedFull.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
+          exact Hrec.mono fun _ hpositive => by
+            rcases hdomNarrowType with ⟨domLevel, hdomTyped⟩
+            rcases hbodyNarrowType with ⟨bodyLevel, hbodyTyped⟩
+            change Hc.venv.IsDefEq c.lparams.length scope.toCtx
+              narrowDom narrowDom (.sort domLevel) at hdomTyped
+            change Hc.venv.IsDefEq c.lparams.length
+              (narrowDom :: scope.toCtx) narrowBody narrowBody
+              (.sort bodyLevel) at hbodyTyped
+            exact .forallE
+              (checkPositivityStep.TrExprS.noIndOcc Hstats.consts.names
+                hlit (Hruntime.noIndConsts (decl.types.map (·.name)))
+                hproj hdomNarrow hdomOcc')
+              (by simpa [Hstats.uvars] using hdomTyped)
+              (by simpa [Hstats.uvars] using hbodyTyped)
+              hpositive
+    · cases hvalid : AddInductive.isValidIndApp? stats normalized with
+      | none =>
+        exact checkPositivityStep.invalidApplication.WF hocc' hforall hvalid
+      | some target =>
+        exact finish <| checkPositivityStep.validApplication.sourceRefines
+          Hstats hexposed hlit
+            (Hruntime.noIndConsts (decl.types.map (·.name)))
+            hproj hocc' hforall hvalid
+
 end checkPositivity.loop
 
 theorem checkPositivity.WF
