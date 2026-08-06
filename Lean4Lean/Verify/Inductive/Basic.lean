@@ -12747,6 +12747,29 @@ theorem Expr.LambdaTelescope.trans
     rw [← Nat.add_right_comm outerArity innerArity 1]
     exact h
 
+theorem Expr.LambdaTelescope.abstract1
+    (H : Expr.LambdaTelescope outer arity result)
+    (fv : FVarId) (k : Nat := 0) :
+    Expr.LambdaTelescope (outer.abstract1 fv k) arity
+      (result.abstract1 fv (k + arity)) := by
+  induction H generalizing k with
+  | nil => exact .nil _
+  | cons H ih =>
+    simp only [Expr.abstract1]
+    apply Expr.LambdaTelescope.cons
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
+
+theorem Expr.LambdaTelescope.abstractList
+    (H : Expr.LambdaTelescope outer arity result)
+    (fvs : List FVarId) (k : Nat := 0) :
+    Expr.LambdaTelescope (outer.abstractList fvs k) arity
+      (result.abstractList fvs (k + arity)) := by
+  induction fvs generalizing outer result k with
+  | nil => simpa using H
+  | cons fv fvs ih =>
+    simp only [Expr.abstractList]
+    exact ih (H.abstract1 fv k) k
+
 /-- Translation of a lambda telescope retains its arity and exposes the
 residual translation beneath precisely the corresponding abstract binders. -/
 theorem TrExprS.lambdaTelescope_shape_with_context
@@ -14263,6 +14286,49 @@ theorem BoundGeneratedRecursiveCall.translatedLambdaShape
       TrExprS env Us (abstractForallContext domains Δ)
         (H.body.abstractList H.arguments_bound.fvars) residual := by
   exact TrExprS.lambdaTelescope_shape_with_context H.lambdaTelescope Htr
+
+/-- Closing a generated call over an additional rule-level binder list
+preserves its higher-order lambda arity. The residual records the necessary
+binder-depth shift explicitly, avoiding any assumption that translation and
+simultaneous abstraction commute definitionally. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedLambdaTelescope
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) (binders : List FVarId) :
+    Expr.LambdaTelescope (value.abstractList binders)
+      H.localArgs.size
+      ((H.body.abstractList H.arguments_bound.fvars).abstractList
+        binders H.localArgs.size) := by
+  simpa using H.lambdaTelescope.abstractList binders
+
+theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedLambdaShape
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ (value.abstractList binders) result) :
+    ∃ domains residual, domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains residual ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        ((H.body.abstractList H.arguments_bound.fvars).abstractList
+          binders H.localArgs.size) residual := by
+  exact TrExprS.lambdaTelescope_shape_with_context
+    (H.outerAbstractedLambdaTelescope binders) Htr
+
+theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedLambdaShape_noFresh
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ (value.abstractList binders) result)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false) :
+    ∃ domains residual, domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains residual ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        ((H.body.abstractList H.arguments_bound.fvars).abstractList
+          binders H.localArgs.size) residual ∧
+      ∀ dom ∈ domains, dom.containsAnyConst recursors = false := by
+  exact TrExprS.lambdaTelescope_shape_with_context_noFresh
+    hfresh hctx hproj (H.outerAbstractedLambdaTelescope binders) Htr
 
 /-- Simultaneous abstraction preserves the generated recursor spine and
 turns the freshly opened local arguments into the canonical de Bruijn spine
