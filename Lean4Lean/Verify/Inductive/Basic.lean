@@ -14262,6 +14262,58 @@ theorem ElimNestedInductive.withParams.refines {α : Type}
       type nparams k env state).WF Q := by
   exact nestedWithParamsLoop_refines k env state Q Hk
 
+/-- Successful parameter instantiation has consumed exactly the requested
+number of leading forall binders; the returned term is precisely the exposed
+residual instantiated with the supplied parameter array. -/
+private theorem stripForallList_refines
+    (indices : List Nat) (e : Expr) :
+    ((forIn indices e fun _ current =>
+      match current with
+      | .forallE _ _ body _ => pure (ForInStep.yield body)
+      | _ => do
+        throw Lean4Lean.ElimNestedInductive.illFormed
+        pure (ForInStep.yield current)) :
+        Except Exception Expr).WF
+      fun tail => Expr.ForallTelescope e indices.length tail := by
+  induction indices generalizing e with
+  | nil => exact Except.WF.pure (Expr.ForallTelescope.nil e)
+  | cons i indices ih =>
+    cases e with
+    | forallE name dom body bi =>
+      have Hrest := (ih body).mono fun tail H =>
+        Expr.ForallTelescope.cons (name := name) (dom := dom) (bi := bi) H
+      rw [List.forIn_cons]
+      exact Except.WF.pureBind Hrest
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+      | proj => exact Except.WF.throw
+
+theorem instantiateForallParams_refines
+    (e : Expr) (n : Nat) (params : Array Expr) :
+    (Lean4Lean.ElimNestedInductive.instantiateForallParams e n params).WF
+      fun out => ∃ tail, Expr.ForallTelescope e n tail ∧
+        out = tail.instantiateRevRange 0 n params := by
+  unfold Lean4Lean.ElimNestedInductive.instantiateForallParams
+  simp only [Std.Legacy.Range.forIn_eq_forIn_range',
+    Std.Legacy.Range.size, Nat.sub_zero, Nat.add_sub_cancel, Nat.div_one]
+  change (((fun tail =>
+      tail.instantiateRevRange 0 n params) <$>
+    (forIn (List.range' 0 n) e fun _ current =>
+      match current with
+      | .forallE _ _ body _ => pure (ForInStep.yield body)
+      | _ => do
+        throw Lean4Lean.ElimNestedInductive.illFormed
+        pure (ForInStep.yield current))) : Except Exception Expr).WF _
+  exact Except.WF.map
+    (f := fun tail => tail.instantiateRevRange 0 n params)
+    (R := fun out => ∃ residual, Expr.ForallTelescope e n residual ∧
+      out = residual.instantiateRevRange 0 n params)
+    (stripForallList_refines (List.range' 0 n) e)
+    (fun tail Htail =>
+      (⟨tail, by simpa using Htail, rfl⟩ :
+        ∃ residual, Expr.ForallTelescope e n residual ∧
+          tail.instantiateRevRange 0 n params =
+            residual.instantiateRevRange 0 n params))
+
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
 type-checker's context-relative result into a source declaration judgment. -/
