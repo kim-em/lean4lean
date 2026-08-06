@@ -13810,6 +13810,63 @@ theorem BoundGeneratedRecursiveCall.translatedLambdaShape
         (H.body.abstractList H.arguments_bound.fvars) residual := by
   exact TrExprS.lambdaTelescope_shape_with_context H.lambdaTelescope Htr
 
+/-- Simultaneous abstraction preserves the generated recursor spine and
+turns the freshly opened local arguments into the canonical de Bruijn spine
+on the recursive field. -/
+theorem BoundGeneratedRecursiveCall.abstractedBody_eq
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    let (typeIdx, indices) :=
+      AddInductive.getIIndices stats H.exposedType
+    H.body.abstractList H.arguments_bound.fvars =
+      (mkAppN
+        (mkAppN
+          (mkAppN
+            (mkAppN
+              (.const (Lean.mkRecName indTypes[typeIdx]!.name) lvls)
+              (stats.params.map fun e =>
+                e.abstractList H.arguments_bound.fvars))
+            (motives.map fun e =>
+              e.abstractList H.arguments_bound.fvars))
+          (minors.map fun e =>
+            e.abstractList H.arguments_bound.fvars))
+        (indices.map fun e =>
+          e.abstractList H.arguments_bound.fvars)).app
+        (mkAppN (field.abstractList H.arguments_bound.fvars)
+          (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+            Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray) := by
+  rcases hindices : AddInductive.getIIndices stats H.exposedType with
+    ⟨typeIdx, indices⟩
+  have hlocal :
+      H.localArgs.map (fun e =>
+        e.abstractList H.arguments_bound.fvars) =
+      (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+        Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray := by
+    calc
+      H.localArgs.map (fun e =>
+          e.abstractList H.arguments_bound.fvars) =
+          ((H.arguments_bound.fvars.map Expr.fvar).toArray.map fun e =>
+            e.abstractList H.arguments_bound.fvars) := by
+        exact congrArg (Array.map fun e =>
+          e.abstractList H.arguments_bound.fvars)
+            H.arguments_bound.expressions
+      _ = _ := by
+        simpa using Expr.abstractList_fvarArray
+          H.arguments_bound.fvars 0 H.arguments_bound.nodup
+  simp only [BoundGeneratedRecursiveCall.body, hindices,
+    Expr.abstractList_app, Expr.abstractList_mkAppN]
+  rw [hlocal]
+  have hconst :
+      (Expr.const (Lean.mkRecName indTypes[typeIdx]!.name) lvls).abstractList
+        H.arguments_bound.fvars =
+      .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls := by
+    induction H.arguments_bound.fvars with
+    | nil => simp
+    | cons fv fvs ih =>
+      simp only [Expr.abstractList]
+      simpa [Expr.abstract1] using ih
+  rw [hconst]
+
 /-- Prefix invariant for rule generation retaining both exact syntax and the
 binding evidence needed to translate every higher-order recursive result. -/
 structure BoundGeneratedRecursiveCalls
