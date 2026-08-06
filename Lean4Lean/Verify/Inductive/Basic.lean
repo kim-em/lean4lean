@@ -18911,9 +18911,8 @@ theorem BlockCertificate.addInductOfFormation
     VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) :=
   H.addInductAbstract (Hformation.declWF Hsource) Hcompile
 
-/-- Ordinary compilation closes the two aggregate source obligations omitted
-from the executable core translation, so formation and staging can be
-assembled directly into the abstract environment extension. -/
+/-- Ordinary compilation, source formation, and staged source translation
+assemble directly into the abstract environment extension. -/
 theorem BlockCertificate.addInductOfOrdinaryCompilation
     (H : BlockCertificate safety env venv blockTypes blockCtors
       blockRecursors rules outEnv outVEnv)
@@ -18924,15 +18923,15 @@ theorem BlockCertificate.addInductOfOrdinaryCompilation
     (Hcompile : OrdinaryCompilationCertificate venv decl H.block) :
     VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) := by
   have Htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfOrdinaryCompilation
-      Hsource hnonempty Hcompile
+    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
+      Hsource
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
   exact H.addInductOfFormation Hformation
     (Lean4Lean.TrInductDecl.sourceWF Htranslated)
     Hcompile.compilesTo
 
-/-- Nested restoration has the same source boundary: its final block-name
-certificate supplies freshness for the original declaration, while the
-core translation retains the pre-lowering constructor typing facts. -/
+/-- Nested restoration has the same source boundary: the core translation
+retains the pre-lowering constructor typing and staged freshness facts. -/
 theorem BlockCertificate.addInductOfNestedCompilation
     (H : BlockCertificate safety env venv blockTypes blockCtors
       blockRecursors rules outEnv outVEnv)
@@ -18943,8 +18942,9 @@ theorem BlockCertificate.addInductOfNestedCompilation
     (Hcompile : NestedCompilationCertificate venv decl H.block) :
     VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) := by
   have Htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNestedCompilation
-      Hsource hnonempty Hcompile
+    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
+      Hsource
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
   exact H.addInductOfFormation Hformation
     (Lean4Lean.TrInductDecl.sourceWF Htranslated)
     Hcompile.compilesTo
