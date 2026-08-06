@@ -731,6 +731,77 @@ structure IotaListCertificate (env : VEnv) (decl : VInductDecl)
     Nonempty (decl.IotaRule env block decl.ownedConstructors[i].1
       decl.ownedConstructors[i].2 ruleList[i])
 
+/-- Append-oriented iota invariant matching the per-family batches emitted by
+`mkRecRules`. The rule list may later become either the complete ordinary
+list or the primary prefix retained by nested restoration. -/
+structure IotaBuildCertificate (env : VEnv) (decl : VInductDecl)
+    (block : VInductBlock) (rules : List VDefEq) : Prop where
+  covered : rules.length ≤ decl.ownedConstructors.length
+  shapes : ∀ i (hrule : i < rules.length)
+      (hctor : i < decl.ownedConstructors.length),
+    Nonempty (decl.IotaRule env block decl.ownedConstructors[i].1
+      decl.ownedConstructors[i].2 rules[i])
+
+theorem IotaBuildCertificate.empty
+    (env : VEnv) (decl : VInductDecl) (block : VInductBlock) :
+    IotaBuildCertificate env decl block [] where
+  covered := Nat.zero_le _
+  shapes _ h := by simp at h
+
+theorem IotaBuildCertificate.push
+    (H : IotaBuildCertificate env decl block rules)
+    (hnext : rules.length < decl.ownedConstructors.length)
+    (hshape : Nonempty (decl.IotaRule env block
+      decl.ownedConstructors[rules.length].1
+      decl.ownedConstructors[rules.length].2 rule)) :
+    IotaBuildCertificate env decl block (rules ++ [rule]) where
+  covered := by simp; omega
+  shapes i hrule hctor := by
+    by_cases hold : i < rules.length
+    · simpa [List.getElem_append, hold] using H.shapes i hold hctor
+    · have hi : i = rules.length := by simp at hrule; omega
+      subst i
+      simpa using hshape
+
+theorem IotaBuildCertificate.append
+    (H : IotaBuildCertificate env decl block rules)
+    (hlen : newRules.length + rules.length ≤
+      decl.ownedConstructors.length)
+    (hshapes : ∀ i (hi : i < newRules.length),
+      Nonempty (decl.IotaRule env block
+        decl.ownedConstructors[rules.length + i].1
+        decl.ownedConstructors[rules.length + i].2 newRules[i])) :
+    IotaBuildCertificate env decl block (rules ++ newRules) := by
+  induction newRules generalizing rules with
+  | nil => simpa using H
+  | cons rule newRules ih =>
+      have hnext : rules.length < decl.ownedConstructors.length := by
+        simp at hlen
+        omega
+      have hhead := hshapes 0 (by simp)
+      have Hpush := H.push hnext (by simpa using hhead)
+      have Htail := ih Hpush (by
+          simp at hlen ⊢
+          omega) (by
+          intro i hi
+          have h := hshapes (i + 1) (by simpa using hi)
+          simpa [Nat.add_assoc, Nat.add_comm 1 i] using h)
+      simpa [List.append_assoc] using Htail
+
+theorem IotaBuildCertificate.complete
+    (H : IotaBuildCertificate env decl block rules)
+    (hcomplete : rules.length = decl.ownedConstructors.length) :
+    IotaListCertificate env decl block rules where
+  length := hcomplete
+  rules i hctor hrule := H.shapes i hrule hctor
+
+theorem IotaBuildCertificate.completeBlock
+    (H : IotaBuildCertificate env decl block block.rules)
+    (hcomplete : block.rules.length = decl.ownedConstructors.length) :
+    IotaCertificate env decl block where
+  length := hcomplete
+  rules i hctor hrule := H.shapes i hrule hctor
+
 theorem IotaListCertificate.forall₂
     (H : IotaListCertificate env decl block ruleList) :
     List.Forall₂ (fun owned rule =>
