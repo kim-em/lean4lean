@@ -485,6 +485,26 @@ def getRecLevels (elimLevel : Level) (levels : List Level) : List Level :=
 def getRecLevelParams (elimLevel : Level) (lparams : List Name) : List Name :=
   if let .param u := elimLevel then u :: lparams else lparams
 
+namespace mkRecRules
+
+def loopU (indTypes : Array InductiveType) (stats : InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level) (u : Array Expr)
+    (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
+  if _h : i < u.size then
+    let ui := u[i]
+    let val ← mkRecInfos.loopUArgs ui fun uiTy xs => do
+      let (itIdx, itIndices) := getIIndices stats uiTy
+      let val := .const (mkRecName indTypes[itIdx]!.name) lvls
+      let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params) motives)
+        minors) itIndices
+      return (← getLCtx).mkLambda xs <| val.app (mkAppN ui xs)
+    loopU indTypes stats motives minors lvls u (i + 1) (v.push val) k
+  else
+    k v
+termination_by u.size - i
+
+end mkRecRules
+
 def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : InductiveStats)
     (dIdx : Nat) (motives : Array Expr) (minors : Array Expr) :
     StateT Nat M (List RecursorRule) := do
@@ -493,19 +513,7 @@ def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : Ind
   let mut rules := #[]
   for ctor in d.ctors do
     let rule ← fun minorIdx => mkRecInfos.loopCtorArgs stats ctor.type fun _ bu u =>
-      let rec loopU i (v : Array Expr) k := do
-        if _h : i < u.size then
-          let ui := u[i]
-          let val ← mkRecInfos.loopUArgs ui fun uiTy xs => do
-            let (itIdx, itIndices) := getIIndices stats uiTy
-            let val := .const (mkRecName indTypes[itIdx]!.name) lvls
-            let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params) motives) minors) itIndices
-            return (← getLCtx).mkLambda xs <| val.app (mkAppN ui xs)
-          loopU (i + 1) (v.push val) k
-        else
-          k v
-      termination_by u.size - i
-      loopU 0 #[] fun v => do
+      mkRecRules.loopU indTypes stats motives minors lvls u 0 #[] fun v => do
       let lctx ← getLCtx
       let rule := {
         ctor := ctor.name

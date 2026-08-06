@@ -8126,6 +8126,8 @@ namespace mkRecRules.loopU
 each field selected by `loopCtorArgs`. The contents of each term are verified
 separately; this theorem fixes the cardinality and continuation boundary. -/
 theorem resultCount
+    {α : Type} {Q : α → Prop}
+    {k : Array Expr → AddInductive.M α}
     (hi : i ≤ u.size) (hv : v.size = i)
     (Hk : ∀ v c, v.size = u.size → (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
@@ -8156,6 +8158,8 @@ termination_by u.size - i
 end mkRecRules.loopU
 
 theorem mkRecRules.loopU.resultCountFromEmpty
+    {α : Type} {Q : α → Prop}
+    {k : Array Expr → AddInductive.M α}
     (Hk : ∀ v c, v.size = u.size → (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
       u 0 #[] k c).WF Q :=
