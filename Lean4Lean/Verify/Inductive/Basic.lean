@@ -134,6 +134,77 @@ theorem ConstructorCertificate.ctorShape
   apply H.shapes (type, ctor)
   simp [VInductDecl.ownedConstructors, htype, hctor]
 
+/-- Shapes accumulated by the inner constructor loop for one family. -/
+structure ConstructorTypePrefix (envTypes : VEnv) (decl : VInductDecl)
+    (params : List VExpr) (target : VInductiveType) (done : Nat) : Prop where
+  covered : done ≤ target.ctors.length
+  shapes : ∀ i, i < done → (hi : i < target.ctors.length) →
+    decl.CtorShape envTypes params target target.ctors[i]
+
+theorem ConstructorTypePrefix.empty (envTypes : VEnv) (decl : VInductDecl)
+    (params : List VExpr) (target : VInductiveType) :
+    ConstructorTypePrefix envTypes decl params target 0 where
+  covered := Nat.zero_le _
+  shapes _ h := by omega
+
+theorem ConstructorTypePrefix.push
+    (H : ConstructorTypePrefix envTypes decl params target done)
+    (hi : done < target.ctors.length)
+    (hshape : decl.CtorShape envTypes params target target.ctors[done]) :
+    ConstructorTypePrefix envTypes decl params target (done + 1) where
+  covered := by omega
+  shapes i hidone hi' := by
+    by_cases h : i = done
+    · subst i; exact hshape
+    · exact H.shapes i (by omega) hi'
+
+/-- Shapes accumulated by the outer family loop. -/
+structure ConstructorTypesPrefix (envTypes : VEnv) (decl : VInductDecl)
+    (params : List VExpr) (done : Nat) : Prop where
+  covered : done ≤ decl.types.length
+  shapes : ∀ i, i < done → (hi : i < decl.types.length) →
+    ∀ j (hj : j < decl.types[i].ctors.length),
+      decl.CtorShape envTypes params decl.types[i] decl.types[i].ctors[j]
+
+theorem ConstructorTypesPrefix.empty (envTypes : VEnv)
+    (decl : VInductDecl) (params : List VExpr) :
+    ConstructorTypesPrefix envTypes decl params 0 where
+  covered := Nat.zero_le _
+  shapes _ h := by omega
+
+theorem ConstructorTypesPrefix.push
+    (H : ConstructorTypesPrefix envTypes decl params done)
+    (hi : done < decl.types.length)
+    (Htype : ConstructorTypePrefix envTypes decl params decl.types[done]
+      decl.types[done].ctors.length) :
+    ConstructorTypesPrefix envTypes decl params (done + 1) where
+  covered := by omega
+  shapes i hidone hi' j hj := by
+    by_cases h : i = done
+    · subst i; exact Htype.shapes j hj hj
+    · exact H.shapes i (by omega) hi' j hj
+
+theorem ConstructorTypesPrefix.complete
+    (H : ConstructorTypesPrefix envTypes decl params decl.types.length) :
+    ConstructorCertificate env decl envTypes params where
+  shapes owned howned := by
+    rcases List.mem_flatMap.1 howned with ⟨target, htarget, hctor⟩
+    rcases List.mem_iff_getElem.1 htarget with ⟨i, hi, rfl⟩
+    simp only [List.mem_map] at hctor
+    rcases hctor with ⟨ctor, hctor, hpair⟩
+    cases hpair
+    rcases List.mem_iff_getElem.1 hctor with ⟨j, hj, hctorEq⟩
+    cases hctorEq
+    simpa using H.shapes i hi hi j hj
+
+/-- Exact name-set state reached by the production inner constructor loop. -/
+inductive ConstructorNameState (ctors : List Constructor) :
+    Nat → NameSet → Prop
+  | zero : ConstructorNameState ctors 0 {}
+  | succ (H : ConstructorNameState ctors i found)
+      (hi : i < ctors.length) :
+      ConstructorNameState ctors (i + 1) (found.insert ctors[i].name)
+
 /-- Fielded aggregation target for the executable header and constructor
 traversals. The public specification remains `VInductDecl.FormationWF`; this
 certificate gives the refinement proof stable, named obligations instead of
@@ -6171,6 +6242,66 @@ theorem stepCertificate.WF
     exact hshape
   exact Hnext (Hprefix.push hdone hshape')
 
+/-- Complete the production constructor loop for one family.  Name-set
+freshness is exposed against the exact reachable state, while semantic shape
+checking is supplied one translated constructor at a time. -/
+theorem refinesType
+    {decl : VInductDecl} {target : VInductiveType}
+    {envTypes : VEnv} {params : List VExpr}
+    {source : InductiveType}
+    (Q : Unit → Prop)
+    (Hc : ContextWF c)
+    (Htarget : TrInductiveType Hc.venv envTypes c.lparams source target)
+    (Hnames : ConstructorNameState source.ctors ctorIdx foundCtors)
+    (Hprefix : ConstructorTypePrefix envTypes decl params target ctorIdx)
+    (Hfresh : ∀ {i found}, ConstructorNameState source.ctors i found →
+      (hi : i < source.ctors.length) →
+      found.contains source.ctors[i].name = false)
+    (Hshape : ∀ i (hsource : i < source.ctors.length)
+      (htarget : i < target.ctors.length),
+      TrSourceConst envTypes c.lparams source.ctors[i].name
+        source.ctors[i].type target.ctors[i] →
+      ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        source.ctors[i].type checkedType type' checkedType' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe
+        source.ctors[i].name targetIdx source.ctors[i].type 0
+        c.fuel.inductiveFuel c).WF fun _ =>
+          decl.CtorShape envTypes params target target.ctors[i])
+    (Hfinish : ConstructorTypePrefix envTypes decl params target
+        target.ctors.length →
+      Q ()) :
+    (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+      source.ctors ctorIdx foundCtors c).WF Q := by
+  by_cases hidx : ctorIdx < source.ctors.length
+  · have htarget : ctorIdx < target.ctors.length := by
+      rw [← Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htarget]
+      exact hidx
+    have Hctor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt
+      Htarget ctorIdx hidx htarget
+    apply stepShape.WF (decl := decl) (target := target)
+      (ctor' := target.ctors[ctorIdx]) (Q := Q) Hc hidx
+      (Hfresh Hnames hidx)
+    · intro checkedType type' checkedType' hchecked
+      exact Hshape ctorIdx hidx htarget Hctor checkedType type'
+        checkedType' hchecked
+    · intro hshape
+      exact refinesType Q Hc Htarget (.succ Hnames hidx)
+        (Hprefix.push htarget hshape) Hfresh Hshape Hfinish
+  · have heq : ctorIdx = source.ctors.length := by
+      have := Hprefix.covered
+      rw [← Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htarget]
+        at this
+      omega
+    apply result.WF (Q := Q) hidx
+    have Hcomplete : ConstructorTypePrefix envTypes decl params target
+        target.ctors.length := by
+      simpa [heq,
+        Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htarget] using
+          Hprefix
+    exact Hfinish Hcomplete
+termination_by source.ctors.length - ctorIdx
+
 end checkConstructors.loopCtors
 
 namespace checkConstructors.loopTypes
@@ -6193,6 +6324,75 @@ theorem step.WF
       targetIdx c).WF Q := by
   rw [AddInductive.checkConstructors.loopTypes, dif_pos hidx]
   exact Hctors.bind fun _ hnext => hnext
+
+/-- Fold the verified inner constructor traversal over every family in a
+mutual block, retaining the same two-dimensional order as the source arrays. -/
+theorem refinesBlock
+    {decl : VInductDecl} {envTypes : VEnv} {params : List VExpr}
+    (Q : Unit → Prop)
+    (Hc : ContextWF c)
+    (Htypes : List.Forall₂
+      (TrInductiveType Hc.venv envTypes c.lparams)
+      indTypes.toList decl.types)
+    (Hprefix : ConstructorTypesPrefix envTypes decl params targetIdx)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (Hshape : ∀ targetIdx (hsource : targetIdx < indTypes.size)
+      (htarget : targetIdx < decl.types.length)
+      i (hctorSource : i < indTypes[targetIdx].ctors.length)
+      (hctorTarget : i < decl.types[targetIdx].ctors.length),
+      TrSourceConst envTypes c.lparams indTypes[targetIdx].ctors[i].name
+        indTypes[targetIdx].ctors[i].type decl.types[targetIdx].ctors[i] →
+      ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        indTypes[targetIdx].ctors[i].type checkedType type' checkedType' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe
+        indTypes[targetIdx].ctors[i].name targetIdx
+        indTypes[targetIdx].ctors[i].type 0 c.fuel.inductiveFuel c).WF
+        fun _ => decl.CtorShape envTypes params decl.types[targetIdx]
+          decl.types[targetIdx].ctors[i])
+    (Hfinish : ConstructorTypesPrefix envTypes decl params
+        decl.types.length → Q ()) :
+    (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
+      targetIdx c).WF Q := by
+  by_cases hidx : targetIdx < indTypes.size
+  · have htarget : targetIdx < decl.types.length := by
+      have hlength : indTypes.size = decl.types.length := by
+        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+      omega
+    have Htarget : TrInductiveType Hc.venv envTypes c.lparams
+        indTypes[targetIdx] decl.types[targetIdx] := by
+      have Htarget' := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
+        targetIdx (by simpa using hidx) htarget
+      rw [Array.getElem_toList] at Htarget'
+      exact Htarget'
+    apply step.WF (Q := Q) hidx
+    apply checkConstructors.loopCtors.refinesType
+      (Q := fun _ =>
+        (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
+          (targetIdx + 1) c).WF Q)
+      Hc Htarget .zero
+      (ConstructorTypePrefix.empty envTypes decl params decl.types[targetIdx])
+      (Hfresh targetIdx hidx)
+    · intro i hsource htarget' Hctor checkedType type' checkedType' hchecked
+      exact Hshape targetIdx hidx htarget i hsource htarget' Hctor
+        checkedType type' checkedType' hchecked
+    · intro Htype
+      exact refinesBlock Q Hc Htypes
+        (Hprefix.push htarget Htype) Hfresh Hshape Hfinish
+  · have heq : targetIdx = indTypes.size := by
+      have hlength : indTypes.size = decl.types.length := by
+        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+      have := Hprefix.covered
+      omega
+    apply result.WF (Q := Q) hidx
+    apply Hfinish
+    have hlength : indTypes.size = decl.types.length := by
+      simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+    simpa [heq, hlength] using Hprefix
+termination_by indTypes.size - targetIdx
 
 end checkConstructors.loopTypes
 
