@@ -15948,6 +15948,79 @@ theorem BoundGeneratedRecursorRule.iotaEquationCertificate
   rw [hctorArgs]
   simpa [ctorTailSource, hctorParamsLength] using HctorTail
 
+/-- Outer-loop form of `iotaEquationCertificate`: the header statistics and
+`mkRecInfos` cardinality certificates discharge every local arity premise,
+while source declaration translation identifies the selected mutual owner. -/
+theorem BoundGeneratedRecursorRule.iotaEquationCertificate_ofCardinality
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Htr : H.EquationTranslation trEnv Us Δ rule)
+    (Hdecl : TrInductDecl sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl)
+    (Hstats : checkPositivityStep.ValidAppStatsWF statsEnv statsParams statsCtx
+      stats decl depth)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (hmotives : motives = recInfos.map (·.motive))
+    (hminors : minors = recInfos.flatMap (·.minors))
+    (hvalid : AddInductive.isValidIndApp? stats H.target = some ownerIdx)
+    (htarget : AddInductive.getIIndices stats H.target =
+      (ownerIdx, indices))
+    (hownerLt : ownerIdx < decl.types.length)
+    (howner : decl.types[ownerIdx]'hownerLt = owner)
+    (recursor : VConstVal)
+    (hrecursorMem : recursor ∈ block.recursors)
+    (hrecursorName : recursor.name = decl.recursorName owner)
+    (hrecursorUvars : lvls.length = recursor.uvars)
+    (ctor : VConstVal)
+    (hctorName : sourceCtor.name = ctor.name)
+    (hruleUvars : rule.uvars = recursor.uvars) :
+    Nonempty (H.IotaEquationTranslationCertificate trEnv Us Δ decl block
+      owner ctor rule) := by
+  have hdeclOwner : ownerIdx < decl.types.length := hownerLt
+  have hsourceOwner : ownerIdx < indTypes.size := by
+    have hlen := Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl
+    have hsize : indTypes.size = decl.types.length := by simpa using hlen
+    rw [hsize]
+    exact hdeclOwner
+  rcases Lean4Lean.VerifyInductive.TrInductDecl.typeAt Hdecl ownerIdx
+      (by simpa using hsourceOwner) hdeclOwner with
+    ⟨_, _, Howner⟩
+  have hownerName : indTypes[ownerIdx]!.name = owner.name := by
+    have htranslated : decl.types[ownerIdx].name =
+        indTypes[ownerIdx].name := by
+      simpa using Howner.header.name
+    rw [← howner]
+    simpa [Array.getElem!_eq_getD, Array.getD, hsourceOwner] using
+      htranslated.symm
+  have hindexArity : indices.size = owner.numIndices := by
+    have h := checkPositivityStep.getIIndices.index_arity hvalid
+    rw [htarget] at h
+    have hlen : stats.nindices.size = decl.types.length := by
+      have := congrArg List.length Hstats.indices
+      simpa using this
+    have hget := congrArg (fun xs => xs[ownerIdx]?) Hstats.indices
+    have hn : stats.nindices[ownerIdx]! =
+        decl.types[ownerIdx].numIndices := by
+      simpa [Array.getElem!_eq_getD, Array.getD, hownerLt, hlen] using hget
+    calc
+      indices.size = stats.nindices[ownerIdx]! := h
+      _ = decl.types[ownerIdx].numIndices := hn
+      _ = owner.numIndices := by rw [howner]
+  apply H.iotaEquationCertificate (recursor := recursor) (ctor := ctor)
+    Htr htarget Hcard.params
+  · rw [hmotives]
+    exact Hcard.motives
+  · rw [hminors]
+    exact Hcard.minors
+  · exact hindexArity
+  · exact hownerName
+  · exact hrecursorMem
+  · exact hrecursorName
+  · exact hrecursorUvars
+  · exact hctorName
+  · exact Hstats.levels
+  · exact hruleUvars
+
 /-- Simultaneous abstraction turns the selected minor free variable into one
 in-scope de Bruijn variable and preserves the field/result application
 spines pointwise. -/
@@ -17807,6 +17880,32 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
     names := hnames }
   rw [hrecursors]
   exact H.recursorCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl
+
+/-- Rule-batch endpoint for ordinary compilation. Generated family batches
+accumulate `IotaRule` evidence with `IotaBuildCertificate`; exact flattened
+coverage turns that executable traversal invariant into the final rule
+certificate consumed by `OrdinaryCompilationCertificate`. -/
+theorem GeneratedRecursors.ordinaryCompilationCertificate_ofRuleBuild
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries)
+    (Hc : BindingContextWF c)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (hnoalias : Hbindings.NoAlias Hparams)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDecl sourceEnv lparams nparams
+      indTypes.toList isUnsafe decl)
+    (block : VInductBlock)
+    (htypes : block.types = decl.typeConstants)
+    (hctors : block.ctors = decl.constructorConstants)
+    (hrecursors : block.recursors = entries.map Prod.snd)
+    (Hrules : IotaBuildCertificate sourceEnv decl block block.rules)
+    (hrulesLength : block.rules.length = decl.ownedConstructors.length)
+    (hnames : List.Nodup
+      ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
+    OrdinaryCompilationCertificate sourceEnv decl block :=
+  H.ordinaryCompilationCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl
+    block htypes hctors hrecursors (Hrules.completeBlock hrulesLength) hnames
 
 /-- Nested restoration reuses the verified primary recursor traversal and
 adds only the separately audited auxiliary-name/guardedness suffix. -/
