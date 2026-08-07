@@ -22783,6 +22783,107 @@ theorem declareInductiveTypes_headersAndClosure
     declareInductiveTypes_closesMutuals stats numParams indTypes numNested
       isUnsafe c hwf hold hsize outEnv hout⟩
 
+/-- Compositional form of the executable header/constructor prefix carrying
+the mutual-lookup invariant across both environment-changing phases. -/
+theorem formationCoreAndClosure
+    (stats : AddInductive.InductiveStats) (numParams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
+    (c : AddInductive.Context)
+    (Htypes :
+      (AddInductive.declareInductiveTypes stats numParams indTypes numNested
+        isUnsafe c).WF fun headerEnv =>
+          ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
+            depth sourceEnv indTypes headerEnv,
+            MutualInductivesClosed headerEnv)
+    (Hphases : ∀ headerEnv
+      (Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe depth
+        sourceEnv indTypes headerEnv),
+      ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
+        AddInductive.declareConstructors stats indTypes isUnsafe)
+        { c with env := headerEnv }).WF fun outEnv =>
+          ∃ _ : ConstructorPhasesResult Hheaders outEnv, True) :
+    ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
+      isUnsafe >>= fun headerEnv =>
+        AddInductive.withEnv headerEnv do
+          AddInductive.checkConstructors indTypes stats isUnsafe
+          AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
+      fun outEnv =>
+        ∃ headerEnv : Environment,
+        ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
+          depth sourceEnv indTypes headerEnv,
+        ∃ _ : ConstructorPhasesResult Hheaders outEnv,
+          MutualInductivesClosed outEnv := by
+  exact Htypes.bind fun headerEnv Hheader => by
+    rcases Hheader with ⟨Hheaders, hclosed⟩
+    exact (constructorPhasesAndClosure (Hphases headerEnv Hheaders)
+      hclosed).mono fun outEnv Hresult => by
+        rcases Hresult with ⟨R, hclosedOut⟩
+        exact ⟨headerEnv, Hheaders, R, hclosedOut⟩
+
+/-- Formation/core specialization of `formationCoreAndClosure`, deriving the
+metadata cardinality needed for mutual closure from the independently
+translated headers. -/
+theorem AddInductive.formationCore.closedWF
+    {envTypes : VEnv}
+    (Hc : ContextWF c)
+    (Hclosed : MutualInductivesClosed c.env)
+    (Hdecl : TrInductDeclHeaders Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe decl envTypes)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprimTypes : ∀ info ∈
+      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+        isUnsafe c.lparams).toList,
+      ¬ Kernel.Environment.primitives.contains info.name)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel = .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel)
+    (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
+      ¬ Kernel.Environment.primitives.contains ctor.name) :
+    ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
+      isUnsafe >>= fun headerEnv =>
+        AddInductive.withEnv headerEnv do
+          AddInductive.checkConstructors indTypes stats isUnsafe
+          AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
+      fun outEnv => ∃ headerEnv : Environment,
+        ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
+          depth Hc.venv indTypes headerEnv,
+        ∃ _ : ConstructorPhasesResult Hheaders outEnv,
+          MutualInductivesClosed outEnv := by
+  have htypesLength : indTypes.size = decl.types.length := by
+    simpa using
+      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hdecl.types
+  have hsize : stats.nindices.size = indTypes.size := by
+    rw [Array.size_eq_length_toList, Hmaterialized.indices, List.length_map]
+    exact htypesLength.symm
+  have Hheaders := AddInductive.declareInductiveTypes.headersWF Hc Hdecl
+    Hmaterialized hvisible hnprimTypes
+  have HheadersClosed := declareInductiveTypes_headersAndClosure stats
+    numParams indTypes numNested isUnsafe c Hheaders
+    Hc.checking.tr.map_wf Hclosed hsize
+  apply formationCoreAndClosure stats numParams indTypes numNested isUnsafe c
+    HheadersClosed
+  intro headerEnv Hheader
+  exact AddInductive.constructorPhases.WF Hheader Hfresh hconsume hlit hproj
+    hunsafe hbound hvisible hnprimCtors
+
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/
