@@ -1218,6 +1218,17 @@ theorem TrInductiveTypeHeaders.ctorAt
       target.ctors[i] :=
   Lean4Lean.VerifyInductive.List.Forall₂.getElem H.ctors i hsource htarget
 
+theorem TrInductDeclCore.headers
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors) :
+    TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes where
+  uvars := H.uvars
+  nparams := H.nparams
+  isUnsafe := H.isUnsafe
+  typesAdded := H.typesAdded
+  types := Lean4Lean.List.Forall₂.imp
+    (fun _ _ h => TrInductiveType.headers h) H.types
+
 /-- Inductive metadata does not affect translation of the source header:
 only visibility, universe parameters, name, and type cross the production /
 abstract boundary. -/
@@ -19142,13 +19153,9 @@ theorem AddInductive.formationPrefix.WF
         AddInductive.withEnv outEnv
           (AddInductive.checkConstructors indTypes stats isUnsafe)) c).WF
       fun _ => Nonempty (FormationCertificate Hc.venv decl) := by
-  have Htypes := AddInductive.declareInductiveTypes.WF Hc Hdecl Hmaterialized
-    hvisible hnprim
-  exact Htypes.bind fun outEnv hresult => by
-    rcases hresult with ⟨Hstaged, _⟩
-    have Hconstructors := AddInductive.checkConstructors.WF Hstaged Hfresh
-      hconsume hlit hproj hunsafe hbound
-    exact Hconstructors.mono fun _ Hctors => ⟨Hstaged.formation Hctors⟩
+  exact AddInductive.formationPrefix.headersWF Hc
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.headers Hdecl)
+    Hmaterialized hvisible hnprim Hfresh hconsume hlit hproj hunsafe hbound
 
 /-- Three-stage installation certificate matching the executable order:
 mutual headers, constructors, then recursors. Reduction equations are not
