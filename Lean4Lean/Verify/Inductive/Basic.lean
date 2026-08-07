@@ -21055,6 +21055,62 @@ theorem checkNoNestedAux_refines (name : Name) (e : Expr) :
   · exact Except.WF.pure (by simp [hfind])
   · exact Except.WF.throw
 
+/-- Source constructor syntax retained before nested lowering rewrites its type. -/
+structure SourceConstructorSyntax (ctor : Constructor) : Prop where
+  closed : ctor.type.FVarsIn fun _ => False
+  noNestedAux : NoNestedAux ctor.type
+
+/-- Pointwise source-syntax certificates for a constructor list. -/
+inductive SourceConstructorSyntaxes : List Constructor → Prop where
+  | nil : SourceConstructorSyntaxes []
+  | cons : SourceConstructorSyntax ctor → SourceConstructorSyntaxes ctors →
+      SourceConstructorSyntaxes (ctor :: ctors)
+
+/-- Source inductive syntax retained before nested lowering rewrites the declaration. -/
+structure SourceInductiveSyntax (type : InductiveType) : Prop where
+  closed : type.type.FVarsIn fun _ => False
+  constructors : SourceConstructorSyntaxes type.ctors
+
+/-- The source-level closure and reserved-prefix checks for a mutual block. -/
+inductive SourceSyntaxChecks : List InductiveType → Prop where
+  | nil : SourceSyntaxChecks []
+  | cons : SourceInductiveSyntax type → SourceSyntaxChecks types →
+      SourceSyntaxChecks (type :: types)
+
+private theorem checkConstructorSources_refines
+    (env : Environment) (ctors : List Constructor) :
+    (Lean4Lean.checkConstructorSources env ctors).WF fun _ =>
+      SourceConstructorSyntaxes ctors := by
+  induction ctors with
+  | nil => exact Except.WF.pure .nil
+  | cons ctor ctors ih =>
+    rw [Lean4Lean.checkConstructorSources]
+    have Hclosed : (env.checkNoMVarNoFVar ctor.name ctor.type).WF
+        fun _ => ctor.type.FVarsIn fun _ => False := by
+      intro _ h
+      exact checkNoMVarNoFVar.closed (env := env) (name := ctor.name) h
+    exact Hclosed.bind fun _ hclosed =>
+      (checkNoNestedAux_refines ctor.name ctor.type).bind fun _ hreserved =>
+        ih.mono fun _ htail =>
+          .cons ⟨hclosed, hreserved⟩ htail
+
+theorem checkInductiveSources_refines
+    (env : Environment) (types : List InductiveType) :
+    (Lean4Lean.checkInductiveSources env types).WF fun _ =>
+      SourceSyntaxChecks types := by
+  induction types with
+  | nil => exact Except.WF.pure .nil
+  | cons type types ih =>
+    rw [Lean4Lean.checkInductiveSources]
+    have Hclosed : (env.checkNoMVarNoFVar type.name type.type).WF
+        fun _ => type.type.FVarsIn fun _ => False := by
+      intro _ h
+      exact checkNoMVarNoFVar.closed (env := env) (name := type.name) h
+    exact Hclosed.bind fun _ hclosed =>
+      (checkConstructorSources_refines env type.ctors).bind fun _ hctors =>
+        ih.mono fun _ htail =>
+          .cons ⟨hclosed, hctors⟩ htail
+
 /-- Independent lookup contract used when restoring a generated auxiliary
 constructor to its source constructor family. -/
 structure AuxiliaryConstructorLookup

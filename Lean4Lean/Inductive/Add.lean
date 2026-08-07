@@ -916,14 +916,26 @@ def checkNoNestedAux (n : Name) (e : Expr) : Except Exception Unit := do
       | _ => false).isSome then
     throw <| .other s!"invalid declaration '{n}', it uses the reserved prefix '_nested'"
 
+def checkConstructorSources (env : Environment) :
+    List Constructor → Except Exception Unit
+  | [] => pure ()
+  | ctor :: ctors => do
+    env.checkNoMVarNoFVar ctor.name ctor.type
+    checkNoNestedAux ctor.name ctor.type
+    checkConstructorSources env ctors
+
+def checkInductiveSources (env : Environment) :
+    List InductiveType → Except Exception Unit
+  | [] => pure ()
+  | indType :: types => do
+    env.checkNoMVarNoFVar indType.name indType.type
+    checkConstructorSources env indType.ctors
+    checkInductiveSources env types
+
 def Environment.addInductive (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe allowPrimitive : Bool) (fuel : FuelConfig := {}) :
     Except Exception Environment := do
-  for indType in types do
-    env.checkNoMVarNoFVar indType.name indType.type
-    for ctor in indType.ctors do
-      env.checkNoMVarNoFVar ctor.name ctor.type
-      checkNoNestedAux ctor.name ctor.type
+  checkInductiveSources env types
   let res ← ElimNestedInductive.run fuel.inductiveFuel nparams types env
     |>.run' { lvls := lparams.map .param, newTypes := types.toArray }
   let numNested := res.aux2nested.size
