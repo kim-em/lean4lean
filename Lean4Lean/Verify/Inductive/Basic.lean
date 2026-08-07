@@ -19889,6 +19889,36 @@ theorem ConstructorPhasesResult.mkRecInfosWF
     Hparams hparamsNodup
   exact Hk
 
+/-- Exact `run` prefix immediately after constructor installation.  The
+eliminator-level search is semantically relevant only through the level it
+returns; `mkRecInfosWF` validates every successful choice uniformly. -/
+theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
+    {alpha : Type} {Q : alpha → Prop}
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv)
+    (k : Level → Array AddInductive.RecInfo → AddInductive.M alpha)
+    (Hk : ∀ elimLevel recInfos cOut, BindingContextWF cOut →
+      (Hbindings : RecInfoBindings cOut recInfos) →
+      (Hparams : BoundFVarArray cOut stats.params) →
+      Hbindings.NoAlias Hparams →
+      RecursorCardinalityCertificate stats recInfos decl →
+      BindingContextLE { c with env := outEnv } cOut →
+      (k elimLevel recInfos cOut).WF Q) :
+    ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
+      AddInductive.mkRecInfos stats indTypes elimLevel
+        (k elimLevel)) { c with env := outEnv }).WF Q := by
+  have Helim : (AddInductive.getElimLevel stats indTypes
+      { c with env := outEnv }).WF fun _ => True :=
+    fun _ _ => trivial
+  exact Helim.bind fun elimLevel _ =>
+    R.mkRecInfosWF elimLevel (k elimLevel)
+      (Hk elimLevel)
+
 /-- The executable constructor check and declaration folds jointly establish
 the independent formation judgment and the complete pointwise source/core
 translation. -/

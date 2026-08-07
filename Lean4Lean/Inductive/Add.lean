@@ -537,17 +537,9 @@ def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : Ind
   mkRecRules.loopCtors indTypes stats motives minors
     (getRecLevels elimLevel stats.levels) indTypes[dIdx]!.ctors #[]
 
-def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) : M Environment := do
-  let isUnsafe := (← read).safety != .safe
-  let indTypes := types.toArray
-  let {lparams, ..} ← read
-  Environment.checkDuplicatedUnivParams lparams
-  checkInductiveTypes nparams indTypes fun stats => do
-  withEnv (← declareInductiveTypes stats nparams indTypes numNested isUnsafe) do
-  checkConstructors indTypes stats isUnsafe
-  withEnv (← declareConstructors stats indTypes isUnsafe) do
-  let elimLevel ← getElimLevel stats indTypes
-  mkRecInfos stats indTypes elimLevel fun recInfos => do
+def declareRecursors (stats : InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (recInfos : Array RecInfo) : M Environment := do
   let motives := recInfos.map (·.motive)
   let minors := recInfos.flatMap (·.minors)
   let numMinors := minors.size
@@ -555,7 +547,8 @@ def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) : M Envir
   let all := indTypes.map (·.name) |>.toList
   let lctx ← getLCtx
   let k ← isKTarget stats indTypes
-  let isUnsafe := (← read).safety != .safe
+  let {lparams, safety, ..} ← read
+  let isUnsafe := safety != .safe
   StateT.run' (s := 0) do
   let mut env ← getEnv
   let {allowPrimitive, ..} ← read
@@ -580,6 +573,19 @@ def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) : M Envir
       name, all, numMotives, numMinors, rules, k, isUnsafe
     }
   pure env
+
+def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) : M Environment := do
+  let isUnsafe := (← read).safety != .safe
+  let indTypes := types.toArray
+  let {lparams, ..} ← read
+  Environment.checkDuplicatedUnivParams lparams
+  checkInductiveTypes nparams indTypes fun stats => do
+  withEnv (← declareInductiveTypes stats nparams indTypes numNested isUnsafe) do
+  checkConstructors indTypes stats isUnsafe
+  withEnv (← declareConstructors stats indTypes isUnsafe) do
+  let elimLevel ← getElimLevel stats indTypes
+  mkRecInfos stats indTypes elimLevel fun recInfos => do
+  declareRecursors stats indTypes elimLevel recInfos
 
 end AddInductive
 
