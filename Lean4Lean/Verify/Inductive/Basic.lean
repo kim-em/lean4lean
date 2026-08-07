@@ -1205,6 +1205,19 @@ theorem TrInductiveType.headers
   ctors := Lean4Lean.List.Forall₂.imp
     (fun _ _ h => h.raw) H.ctors
 
+theorem TrInductiveTypeHeaders.ctors_length
+    (H : TrInductiveTypeHeaders env envTypes lparams type target) :
+    type.ctors.length = target.ctors.length :=
+  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.ctors
+
+theorem TrInductiveTypeHeaders.ctorAt
+    (H : TrInductiveTypeHeaders env envTypes lparams type target)
+    (i : Nat) (hsource : i < type.ctors.length)
+    (htarget : i < target.ctors.length) :
+    TrSourceConstRaw envTypes lparams type.ctors[i].name type.ctors[i].type
+      target.ctors[i] :=
+  Lean4Lean.VerifyInductive.List.Forall₂.getElem H.ctors i hsource htarget
+
 /-- Inductive metadata does not affect translation of the source header:
 only visibility, universe parameters, name, and type cross the production /
 abstract boundary. -/
@@ -7803,7 +7816,7 @@ theorem refinesType
     {source : InductiveType}
     (Q : Unit → Prop)
     (Hc : ContextWF c)
-    (Htarget : TrInductiveType sourceEnv envTypes c.lparams source target)
+    (Htarget : TrInductiveTypeHeaders sourceEnv envTypes c.lparams source target)
     (Hnames : ConstructorNameState source.ctors ctorIdx foundCtors)
     (Hprefix : ConstructorTypePrefix envTypes decl params target ctorIdx)
     (Hfresh : ∀ {i found}, ConstructorNameState source.ctors i found →
@@ -7811,7 +7824,7 @@ theorem refinesType
       found.contains source.ctors[i].name = false)
     (Hshape : ∀ i (hsource : i < source.ctors.length)
       (htarget : i < target.ctors.length),
-      TrSourceConst envTypes c.lparams source.ctors[i].name
+      TrSourceConstRaw envTypes c.lparams source.ctors[i].name
         source.ctors[i].type target.ctors[i] →
       ∀ checkedType type' checkedType',
       TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
@@ -7827,9 +7840,9 @@ theorem refinesType
       source.ctors ctorIdx foundCtors c).WF Q := by
   by_cases hidx : ctorIdx < source.ctors.length
   · have htarget : ctorIdx < target.ctors.length := by
-      rw [← Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htarget]
+      rw [← Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget]
       exact hidx
-    have Hctor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt
+    have Hctor := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctorAt
       Htarget ctorIdx hidx htarget
     apply stepShape.WF (decl := decl) (target := target)
       (ctor' := target.ctors[ctorIdx]) (Q := Q) Hc hidx
@@ -7842,14 +7855,14 @@ theorem refinesType
         (Hprefix.push htarget hshape) Hfresh Hshape Hfinish
   · have heq : ctorIdx = source.ctors.length := by
       have := Hprefix.covered
-      rw [← Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htarget]
+      rw [← Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget]
         at this
       omega
     apply result.WF (Q := Q) hidx
     have Hcomplete : ConstructorTypePrefix envTypes decl params target
         target.ctors.length := by
       simpa [heq,
-        Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htarget] using
+        Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget] using
           Hprefix
     exact Hfinish Hcomplete
 termination_by source.ctors.length - ctorIdx
@@ -7885,7 +7898,7 @@ theorem refinesBlock
     (Q : Unit → Prop)
     (Hc : ContextWF c)
     (Htypes : List.Forall₂
-      (TrInductiveType sourceEnv envTypes c.lparams)
+      (TrInductiveTypeHeaders sourceEnv envTypes c.lparams)
       indTypes.toList decl.types)
     (Hprefix : ConstructorTypesPrefix envTypes decl params targetIdx)
     (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
@@ -7896,7 +7909,7 @@ theorem refinesBlock
       (htarget : targetIdx < decl.types.length)
       i (hctorSource : i < indTypes[targetIdx].ctors.length)
       (hctorTarget : i < decl.types[targetIdx].ctors.length),
-      TrSourceConst envTypes c.lparams indTypes[targetIdx].ctors[i].name
+      TrSourceConstRaw envTypes c.lparams indTypes[targetIdx].ctors[i].name
         indTypes[targetIdx].ctors[i].type decl.types[targetIdx].ctors[i] →
       ∀ checkedType type' checkedType',
       TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
@@ -7915,7 +7928,7 @@ theorem refinesBlock
       have hlength : indTypes.size = decl.types.length := by
         simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
       omega
-    have Htarget : TrInductiveType sourceEnv envTypes c.lparams
+    have Htarget : TrInductiveTypeHeaders sourceEnv envTypes c.lparams
         indTypes[targetIdx] decl.types[targetIdx] := by
       have Htarget' := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
         targetIdx (by simpa using hidx) htarget
@@ -12073,13 +12086,10 @@ def constructorTelescopeTarget (ctorVal : VConstVal) :
 /-- Initialize constructor telescope synthesis from the independently
 translated source constant. -/
 noncomputable def ConstructorSynthesisState.initial
-    (Hctor : TrSourceConst env Us ctor type ctorVal) :
+    (Hctor : TrSourceConstRaw env Us ctor type ctorVal)
+    (htype : env.IsType Us.length [] ctorVal.type) :
     checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
       env Us (constructorTelescopeTarget ctorVal) [] ctorVal.type 0 0 := by
-  have htype : env.IsType Us.length [] ctorVal.type := by
-    have hwf := Hctor.wf
-    change env.IsType ctorVal.uvars [] ctorVal.type at hwf
-    rwa [Hctor.uvars] at hwf
   let level := Classical.choose htype
   have htyped := Classical.choose_spec htype
   exact checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
@@ -12664,7 +12674,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       Hsuffix.parameterDecls stats decl 0)
     (hparamsCtx : VEnv.IsDefEqCtx Hc.venv decl.uvars []
       params.reverse Hsuffix.parameterDecls.toCtx)
-    (Hctor : TrSourceConst Hc.venv c.lparams ctor source ctorVal)
+    (Hctor : TrSourceConstRaw Hc.venv c.lparams ctor source ctorVal)
     (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
       source checkedType fullType checkedType')
     (hi : targetIdx < decl.types.length)
@@ -12685,55 +12695,114 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       (fun _ => decl.CtorShape Hc.venv params target ctorVal) := by
   have hnoFVars : FVarsIn (fun _ => False) source := by
     simpa [VLCtx.fvars] using Hctor.type.fvarsIn
-  let Hinitial := ConstructorSynthesisState.initial Hctor
-  apply checkConstructors.loopCtor.parameterSynthesisWF
-    (decl := decl) (ctorVal := ctorVal) Hc
-    (Q := fun _ => decl.CtorShape Hc.venv params target ctorVal)
-    (Hresult := by
-      intro source' current' fullCurrent' fuel'
-        Hsynthesis' htrNarrow htrFull
-      have hindices : Hsynthesis'.indices = [] :=
-        List.eq_nil_of_length_eq_zero Hsynthesis'.indexCount
-      have hscopeCtx : Hsuffix.parameterDecls.toCtx =
-          Hsynthesis'.indices.reverse ++ Hsynthesis'.params.reverse :=
-        @checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.scopeCtx
-          Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
-          Hsuffix.parameterDecls current' decl.nparams 0 Hsynthesis'
-      have hparams : decl.ParamsDefEq Hc.venv
-          params Hsynthesis'.params := by
-        change VEnv.IsDefEqCtx Hc.venv decl.uvars []
-          params.reverse Hsynthesis'.params.reverse
-        simpa [hscopeCtx, hindices] using hparamsCtx
-      have hparamAt : stats.params[decl.nparams]? = none := by
-        rw [Array.getElem?_eq_none_iff]
-        exact Nat.le_of_eq Hstats.params_size
-      exact checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
-        (ctor := ctor) (fuel := fuel' + 1) Hc
+  by_cases hzero : decl.nparams = 0
+  ·
+    have hscopeLength : Hsuffix.parameterDecls.length = 0 := by
+      simpa [Hstats.params_size, hzero] using
+        Hsuffix.parameterDecls_length
+    have hscope : Hsuffix.parameterDecls = [] :=
+      List.eq_nil_of_length_eq_zero hscopeLength
+    have hparams : decl.ParamsDefEq Hc.venv params [] := by
+      change VEnv.IsDefEqCtx Hc.venv decl.uvars [] params.reverse []
+      simpa [hscope, VLCtx.toCtx] using hparamsCtx
+    have hctorWF : Hc.venv.IsDefEqU c.lparams.length []
+        ctorVal.type ctorVal.type :=
+      Hctor.type.wf Hc.checking.tr.wf.ordered (by trivial)
+    rcases hctorWF with ⟨exprType, hctorTyped⟩
+    cases fuel with
+    | zero => exact checkConstructors.loopCtor.zero.WF
+    | succ fuel =>
+      apply checkConstructors.loopCtor.ctorShapeRefinesNarrow
+        (decl := decl) (ctorVal := ctorVal) (params := params)
+        (type := source) (i := 0) (ctor := ctor) (fuel := fuel + 1) Hc
         (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
           Hc Hsuffix)
-        Hstats Hsynthesis' hi htarget hparamAt hconsume hlit hproj
-        hunsafe hbound hparams htrNarrow htrFull)
-    (Hearly := by
-      intro source' scope' current' fullCurrent' i' fuel' hi'
-        hforall Hscope' _Hsynthesis' _htrNarrow _htrFull
+        Hstats hi htarget (by
+          rw [Array.getElem?_eq_none_iff]
+          rw [Hstats.params_size, hzero]
+          omega)
+        hconsume hlit hproj hunsafe hbound
+        (normalized := ctorVal.type) (tail := ctorVal.type)
+        (exprType := exprType) (ownParams := [])
+      · simpa [Hstats.uvars] using hctorTyped
+      · rw [hzero]
+        rfl
+      · exact hparams
+      · rw [hscope]
+        change VEnv.IsDefEqCtx Hc.venv decl.uvars [] [] []
+        exact VEnv.IsDefEqCtx.refl (by trivial)
+      · rfl
+      · simpa [hscope] using Hctor.type
+      · exact hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+  by_cases hforall : ∃ name dom body bi,
+      source = .forallE name dom body bi
+  · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+    have htype : Hc.venv.IsType c.lparams.length [] ctorVal.type := by
+      rcases TrExpr.forallE_source
+          (Hctor.type.trExpr Hc.checking.tr.wf (by trivial)) with
+        ⟨dom', body', _hdom, _hbody, hdomType, hbodyType, heq⟩
+      exact (VEnv.IsType.forallE hdomType hbodyType).defeqU_l
+        Hc.checking.tr.wf (by trivial) heq
+    let Hinitial := ConstructorSynthesisState.initial Hctor htype
+    apply checkConstructors.loopCtor.parameterSynthesisWF
+      (decl := decl) (ctorVal := ctorVal) Hc
+      (Q := fun _ => decl.CtorShape Hc.venv params target ctorVal)
+      (Hresult := by
+        intro source' current' fullCurrent' fuel'
+          Hsynthesis' htrNarrow htrFull
+        have hindices : Hsynthesis'.indices = [] :=
+          List.eq_nil_of_length_eq_zero Hsynthesis'.indexCount
+        have hscopeCtx : Hsuffix.parameterDecls.toCtx =
+            Hsynthesis'.indices.reverse ++ Hsynthesis'.params.reverse :=
+          @checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.scopeCtx
+            Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
+            Hsuffix.parameterDecls current' decl.nparams 0 Hsynthesis'
+        have hparams : decl.ParamsDefEq Hc.venv
+            params Hsynthesis'.params := by
+          change VEnv.IsDefEqCtx Hc.venv decl.uvars []
+            params.reverse Hsynthesis'.params.reverse
+          simpa [hscopeCtx, hindices] using hparamsCtx
+        have hparamAt : stats.params[decl.nparams]? = none := by
+          rw [Array.getElem?_eq_none_iff]
+          exact Nat.le_of_eq Hstats.params_size
+        exact checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
+          (ctor := ctor) (fuel := fuel' + 1) Hc
+          (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+            Hc Hsuffix)
+          Hstats Hsynthesis' hi htarget hparamAt hconsume hlit hproj
+          hunsafe hbound hparams htrNarrow htrFull)
+      (Hearly := by
+        intro source' scope' current' fullCurrent' i' fuel' hi'
+          hforall Hscope' _Hsynthesis' _htrNarrow _htrFull
+        exact checkConstructors.loopCtor.earlyParameterResult.WF
+          (fuel := fuel') Hc Hscope'
+          (by simpa [Hstats.params_size] using hi') hforall)
+      Hstats.params_size (by omega)
+      (fun h =>
+        checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars h hnoFVars)
+      (fun h =>
+        (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
+          h hnoFVars).older_eq_nil h |>.symm)
+      (by
+        intro hdone
+        have hlength := Hsuffix.parameterDecls_length
+        have hempty : Hsuffix.parameterDecls = [] :=
+          List.eq_nil_of_length_eq_zero (by
+            rw [hlength, Hstats.params_size, hdone])
+        exact hempty.symm)
+      Hinitial Hctor.type
+      (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+  · cases fuel with
+    | zero => exact checkConstructors.loopCtor.zero.WF
+    | succ fuel =>
+      have hiStats : 0 < stats.params.size := by
+        rw [Hstats.params_size]
+        omega
       exact checkConstructors.loopCtor.earlyParameterResult.WF
-        (fuel := fuel') Hc Hscope'
-        (by simpa [Hstats.params_size] using hi') hforall)
-    Hstats.params_size (by omega)
-    (fun h =>
-      checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars h hnoFVars)
-    (fun h =>
-      (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
-        h hnoFVars).older_eq_nil h |>.symm)
-    (by
-      intro hzero
-      have hlength := Hsuffix.parameterDecls_length
-      have hempty : Hsuffix.parameterDecls = [] :=
-        List.eq_nil_of_length_eq_zero (by
-          rw [hlength, Hstats.params_size, hzero])
-      exact hempty.symm)
-    Hinitial Hctor.type
-    (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+        (Hsuffix := Hsuffix) (fuel := fuel) Hc
+        (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
+          (Hsuffix := Hsuffix) hiStats hnoFVars)
+        (by omega) hforall
 
 /-- Fold the end-to-end constructor theorem over the production's nested
 family/constructor loops.  This is the constructor-formation result consumed
@@ -12744,7 +12813,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
     {params : List VExpr}
     (Hc : ContextWF c)
     (Htypes : List.Forall₂
-      (TrInductiveType sourceEnv Hc.venv c.lparams)
+      (TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams)
       indTypes.toList decl.types)
     (Hmaterialized :
       checkInductiveTypes.loopInd.MaterializedHeaderResult
@@ -18826,6 +18895,107 @@ structure DeclaredTypesResult (c : AddInductive.Context)
     context.venv c.lparams context.mlctx.vlctx stats decl depth
   headerParams : materialized.headers.params = headers.params
 
+def DeclaredHeadersResult.formation
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes outEnv)
+    (Hconstructors : ConstructorCertificate sourceEnv decl H.context.venv
+      H.headers.params) :
+    FormationCertificate sourceEnv decl where
+  headers := H.headers
+  envTypes := H.context.venv
+  typesInstalled := H.translation.typesAdded
+  constructors := Hconstructors
+
+/-- Constructor checking consumes only the raw constructor translations
+retained by header installation.  In particular this boundary no longer
+assumes the source constructor constants are already well-formed. -/
+theorem AddInductive.checkConstructors.headersWF
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes outEnv)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel = .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    (AddInductive.checkConstructors indTypes stats isUnsafe
+      { c with env := outEnv }).WF fun _ =>
+        ConstructorCertificate sourceEnv decl H.context.venv
+          H.headers.params := by
+  have Hloops := checkConstructors.loopTypes.refinesMaterialized
+    H.context H.translation.types H.materialized H.headerParams Hfresh
+    hconsume hlit hproj hunsafe hbound
+  rw [AddInductive.checkConstructors]
+  change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
+    AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
+      { c with env := outEnv }).WF _
+  change (((liftM TypeChecker.getEnv : AddInductive.M _)
+    { c with env := outEnv } >>= fun _ =>
+      AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
+        { c with env := outEnv }).WF _)
+  rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
+    { c with env := outEnv } = .ok outEnv from rfl]
+  exact Hloops
+
+/-- Non-circular formation prefix: header installation starts from the raw
+phase translation and constructor checking itself supplies the formation
+certificate. -/
+theorem AddInductive.formationPrefix.headersWF
+    {envTypes : VEnv}
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclHeaders Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe decl envTypes)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprim : ∀ info ∈
+      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+        isUnsafe c.lparams).toList,
+      ¬ Kernel.Environment.primitives.contains info.name)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel = .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
+      isUnsafe >>= fun outEnv =>
+        AddInductive.withEnv outEnv
+          (AddInductive.checkConstructors indTypes stats isUnsafe)) c).WF
+      fun _ => Nonempty (FormationCertificate Hc.venv decl) := by
+  have Htypes := AddInductive.declareInductiveTypes.headersWF Hc Hdecl
+    Hmaterialized hvisible hnprim
+  exact Htypes.bind fun outEnv hresult => by
+    rcases hresult with ⟨Hstaged, _⟩
+    have Hconstructors := AddInductive.checkConstructors.headersWF Hstaged
+      Hfresh hconsume hlit hproj hunsafe hbound
+    exact Hconstructors.mono fun _ Hctors =>
+      ⟨Hstaged.formation Hctors⟩
+
 /-- End-to-end refinement of `declareInductiveTypes`: a successful executable
 fold installs precisely the independently specified mutual headers and
 transports the materialized header certificate into that environment. -/
@@ -18913,8 +19083,14 @@ theorem AddInductive.checkConstructors.WF
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         ConstructorCertificate sourceEnv decl H.context.venv H.headers.params := by
+  have Hheaders : List.Forall₂
+      (TrInductiveTypeHeaders sourceEnv H.context.venv c.lparams)
+      indTypes.toList decl.types :=
+    Lean4Lean.List.Forall₂.imp
+      (fun _ _ h => Lean4Lean.VerifyInductive.TrInductiveType.headers h)
+      H.sourceTypes
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
-    H.context H.sourceTypes H.materialized H.headerParams Hfresh hconsume
+    H.context Hheaders H.materialized H.headerParams Hfresh hconsume
     hlit hproj hunsafe hbound
   rw [AddInductive.checkConstructors]
   change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
