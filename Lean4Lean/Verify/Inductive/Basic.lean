@@ -22226,6 +22226,117 @@ theorem nestedBind.WF
     ((x >>= f) env state).WF Q := by
   exact Hx.bind fun result hresult => Hf result.1 result.2 hresult
 
+/-- Environment evidence for the mutually generated source families, kept in
+the same order as `InductiveVal.all`. -/
+inductive InductiveMemberInfos (env : Environment) : List Name → Prop
+  | nil : InductiveMemberInfos env []
+  | cons : env.find? name = some (.inductInfo info) →
+      InductiveMemberInfos env names →
+      InductiveMemberInfos env (name :: names)
+
+/-- A reviewable trace of the mutual-family generation loop.  Each list member
+has one certified fresh-generation step, and the accumulator passed to the
+tail is exactly the executable `Option.or` update. -/
+inductive GeneratedAuxiliaryBatch
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (targetName : Name) (levels : List Level) (nparams : Nat)
+    (args : Array Expr) : Option Expr → List Name →
+      Lean4Lean.ElimNestedInductive.State →
+      Option Expr × Lean4Lean.ElimNestedInductive.State → Prop
+  | nil (hresult : result.isSome = true) :
+      GeneratedAuxiliaryBatch env lctx params As targetName levels nparams args
+        result [] state (result, state)
+  | cons :
+      GeneratedAuxiliary env lctx params As targetName levels nparams args
+        sourceName sourceInfo state step →
+      GeneratedAuxiliaryBatch env lctx params As targetName levels nparams args
+        (step.1.or result) sourceNames step.2 out →
+      GeneratedAuxiliaryBatch env lctx params As targetName levels nparams args
+        result (sourceName :: sourceNames) state out
+
+theorem GeneratedAuxiliaryBatch.resultSome
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out) : out.1.isSome = true := by
+  induction H with
+  | nil hresult => exact hresult
+  | cons _ _ ih => exact ih
+
+theorem GeneratedAuxiliaryBatch.appendSizes
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out) :
+    out.2.nestedAux.size = state.nestedAux.size + sourceNames.length ∧
+    out.2.newTypes.size = state.newTypes.size + sourceNames.length := by
+  induction H with
+  | nil => simp
+  | cons Hstep Htail ih =>
+    rcases Hstep.generated with
+      ⟨auxName, nextIdx, data, Hfresh, Hdata, hresult, hstate⟩
+    constructor
+    · rw [ih.1, hstate]
+      simp only [Array.size_push, List.length_cons]
+      omega
+    · rw [ih.2, hstate]
+      simp only [Array.size_push, List.length_cons]
+      omega
+
+private theorem generateAuxiliariesLoop_refines
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (targetName : Name) (levels : List Level) (nparams : Nat)
+    (args : Array Expr) (hsize : As.size = params.size)
+    (sourceNames : List Name) (infos : InductiveMemberInfos env sourceNames)
+    (result : Option Expr) (state : Lean4Lean.ElimNestedInductive.State)
+    (hready : result.isSome = true ∨ targetName ∈ sourceNames) :
+    (Lean4Lean.ElimNestedInductive.generateAuxiliaries.loop lctx params As
+      targetName levels nparams args result sourceNames env state).WF fun out =>
+        GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+          args result sourceNames state out := by
+  induction infos generalizing result state with
+  | nil =>
+    rcases hready with hsome | hmem
+    · simp only [Lean4Lean.ElimNestedInductive.generateAuxiliaries.loop,
+        hsome, ↓reduceIte, pure, ReaderT.pure, StateT.pure]
+      exact Except.WF.pure (.nil hsome)
+    · simp at hmem
+  | @cons sourceName sourceInfo sourceNames hlookup infos ih =>
+    rw [Lean4Lean.ElimNestedInductive.generateAuxiliaries.loop]
+    refine nestedBind.WF
+      (generateAuxiliary_refines env lctx params As targetName levels nparams
+        args sourceName sourceInfo state hlookup hsize) ?_
+    intro found nextState Hstep
+    have hnext : (found.or result).isSome = true ∨
+        targetName ∈ sourceNames := by
+      rcases hready with hsome | hmem
+      · left
+        cases found <;> cases result <;> simp_all
+      · simp only [List.mem_cons] at hmem
+        rcases hmem with heq | htail
+        · subst sourceName
+          left
+          rcases Hstep.generated with
+            ⟨auxName, nextIdx, data, Hfresh, Hdata, hfound, hstate⟩
+          simp only [beq_self_eq_true, if_true] at hfound
+          rw [hfound]
+          simp
+        · exact Or.inr htail
+    exact (ih (result := found.or result) (state := nextState) hnext).mono
+      fun _ Htail => .cons Hstep Htail
+
+theorem generateAuxiliaries_refines
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (targetName : Name) (levels : List Level) (nparams : Nat)
+    (args : Array Expr) (value : InductiveVal)
+    (state : Lean4Lean.ElimNestedInductive.State)
+    (hsize : As.size = params.size)
+    (infos : InductiveMemberInfos env value.all)
+    (htarget : targetName ∈ value.all) :
+    (Lean4Lean.ElimNestedInductive.generateAuxiliaries lctx params As targetName
+      levels nparams args value env state).WF fun out =>
+        GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+          args none value.all state out := by
+  unfold Lean4Lean.ElimNestedInductive.generateAuxiliaries
+  exact generateAuxiliariesLoop_refines env lctx params As targetName levels
+    nparams args hsize value.all infos none state (Or.inr htarget)
+
 /-- Any successful replacement is rooted in an occurrence satisfying the
 independent recognition contract. This prefix theorem intentionally leaves
 cache reuse and fresh auxiliary generation to separate certificates. -/
