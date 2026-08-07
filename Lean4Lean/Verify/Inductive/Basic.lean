@@ -1166,6 +1166,23 @@ theorem VEnv.addConsts_append
       rw [hnext] at hxs
       simpa [hnext] using ih (by simpa using hxs)
 
+theorem VEnv.addConsts_append_inv
+    {env out : VEnv} {xs ys : List VConstVal}
+    (H : env.addConsts (xs ++ ys) = some out) :
+    ∃ middle, env.addConsts xs = some middle ∧
+      middle.addConsts ys = some out := by
+  induction xs generalizing env with
+  | nil =>
+    exact ⟨env, by simp [VEnv.addConsts], by simpa [VEnv.addConsts] using H⟩
+  | cons x xs ih =>
+    simp only [List.cons_append, VEnv.addConsts] at H
+    cases hnext : env.addConst x.name x.toVConstant with
+    | none => simp [hnext] at H
+    | some next =>
+      rw [hnext] at H
+      rcases ih H with ⟨middle, hprefix, hsuffix⟩
+      exact ⟨middle, by simp [VEnv.addConsts, hnext, hprefix], hsuffix⟩
+
 /-- Successful left-to-right abstract installation implies both freshness in
 the input environment and pairwise distinctness of all installed names. -/
 theorem VEnv.addConsts_names_fresh
@@ -1410,6 +1427,47 @@ theorem TrInductiveTypeHeaders.ctorAt
       target.ctors[i] :=
   Lean4Lean.VerifyInductive.List.Forall₂.getElem H.ctors i hsource htarget
 
+theorem TrSourceConstRaw.checked
+    (H : TrSourceConstRaw env lparams name type ci')
+    (hwf : ci'.toVConstant.WF env) :
+    TrSourceConst env lparams name type ci' :=
+  ⟨H.uvars, H.name, H.type, hwf⟩
+
+/-- Constructor checking supplies exactly the typing evidence omitted from
+the header phase's raw constructor translations. -/
+theorem CheckedConstructorCertificate.translated
+    {types : List InductiveType}
+    (H : CheckedConstructorCertificate sourceEnv decl envTypes params)
+    (Hdecl : TrInductDeclHeaders sourceEnv lparams nparams types isUnsafe
+      decl envTypes) :
+    List.Forall₂
+      (fun (source : InductiveType) (target : VInductiveType) => List.Forall₂
+        (fun (ctor : Constructor) (ctor' : VConstVal) =>
+          TrSourceConst envTypes lparams ctor.name ctor.type ctor')
+        source.ctors target.ctors)
+      types decl.types := by
+  have hlength : types.length = decl.types.length :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hdecl.types
+  apply List.forall₂_of_getElem hlength
+  intro i hsource htarget
+  have Htype := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hdecl.types i hsource htarget
+  have hctorLength : types[i].ctors.length = decl.types[i].ctors.length :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htype.ctors
+  apply List.forall₂_of_getElem hctorLength
+  intro j hsourceCtor htargetCtor
+  have Hctor := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Htype.ctors j hsourceCtor htargetCtor
+  apply Lean4Lean.VerifyInductive.TrSourceConstRaw.checked Hctor
+  have hwf := H.types decl.types[i].ctors[j] (by
+    simp only [VInductDecl.constructorConstants]
+    apply List.mem_flatMap.mpr
+    exact ⟨decl.types[i], List.getElem_mem htarget,
+      List.getElem_mem htargetCtor⟩)
+  have huvars : decl.types[i].ctors[j].uvars = decl.uvars :=
+    Hctor.uvars.trans Hdecl.uvars.symm
+  simpa [VConstant.WF, huvars] using hwf
+
 theorem TrInductDeclCore.headers
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors) :
@@ -1432,6 +1490,23 @@ theorem TrSourceConst.inductInfo
     (hvisible : safety ≤
       (if info.isUnsafe then DefinitionSafety.unsafe else .safe)) :
     TrConstVal safety env (.inductInfo info) ci' := by
+  subst lparams
+  subst name
+  subst type
+  constructor
+  · exact ⟨by simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
+        ConstantInfo.isPartial] using hvisible,
+      H.uvars.symm, H.type⟩
+  · exact H.name.symm
+
+theorem TrSourceConst.ctorInfo
+    (H : TrSourceConst env lparams name type ci')
+    (hlevelParams : info.levelParams = lparams)
+    (hname : info.name = name)
+    (htype : info.type = type)
+    (hvisible : safety ≤
+      (if info.isUnsafe then DefinitionSafety.unsafe else .safe)) :
+    TrConstVal safety env (.ctorInfo info) ci' := by
   subst lparams
   subst name
   subst type
@@ -19147,6 +19222,28 @@ inductive AddConstants (safety : DefinitionSafety) :
     AddConstants safety (env.add ci) venv' rest outEnv outVEnv →
     AddConstants safety env venv ((ci, ci') :: rest) outEnv outVEnv
 
+theorem AddConstants.append
+    (H₁ : AddConstants safety env venv entries middleEnv middleVEnv)
+    (H₂ : AddConstants safety middleEnv middleVEnv rest outEnv outVEnv) :
+    AddConstants safety env venv (entries ++ rest) outEnv outVEnv := by
+  induction H₁ with
+  | nil => exact H₂
+  | cons hn hnprim htr hwf hadd hdelta _ ih =>
+    exact .cons hn hnprim htr hwf hadd hdelta (ih H₂)
+
+theorem CheckingEnv.exists_addConst
+    (H : CheckingEnv safety env venv) (hn : env.find? name = none)
+    (ci' : VConstant) :
+    ∃ venv', venv.addConst name ci' = some venv' := by
+  unfold VEnv.addConst
+  cases hfind : venv.constants name with
+  | none => simp
+  | some ci =>
+    exfalso
+    rcases H.find?_iff.mpr ⟨ci, hfind⟩ with ⟨source, hsource, _⟩
+    rw [hn] at hsource
+    contradiction
+
 /-- A successful executable installation fold yields the lockstep production
 / abstract staging certificate. Translation and typing may be proved in an
 earlier environment and are transported through the already installed
@@ -19202,6 +19299,189 @@ theorem AddConstants.ofDeclareInductiveTypeInfos
           exact (ih HnextValid hnextLe hrest hnprimTail).mono fun outEnv Hrest => by
             simpa using AddConstants.cons (ci := .inductInfo info)
               (ci' := ci') hn hnprimHead htr hwf haddHead rfl Hrest
+
+/-- The inner production constructor fold installs a translated constructor
+list in lockstep with its abstract constants.  Constructor metadata is kept
+parametric because only the source name, type, level parameters, and safety
+participate in the translation relation. -/
+theorem AddConstants.ofConstructorList
+    {env : Environment} {venv sourceEnv : VEnv}
+    {ctors : List Constructor} {values : List VConstVal}
+    (mkInfo : Nat → Constructor → ConstructorVal)
+    (Hvalid : CheckingEnv.Valid safety env venv)
+    (Hentries : List.Forall₂
+      (fun ctor ci' => TrSourceConst sourceEnv lparams ctor.name ctor.type ci')
+      ctors values)
+    (hle : sourceEnv ≤ venv)
+    (hlevelParams : ∀ i ctor, (mkInfo i ctor).levelParams = lparams)
+    (hname : ∀ i ctor, (mkInfo i ctor).name = ctor.name)
+    (htype : ∀ i ctor, (mkInfo i ctor).type = ctor.type)
+    (hvisible : ∀ i ctor, safety ≤
+      (if (mkInfo i ctor).isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprim : ∀ ctor ∈ ctors,
+      ¬ Kernel.Environment.primitives.contains ctor.name) :
+    (ctors.foldlM (init := (start, env)) fun
+        (state : Nat × Environment) (ctor : Constructor) => do
+      let (cidx, env) := state
+      env.checkName ctor.name allowPrimitive
+      pure (cidx + 1, env.add (.ctorInfo (mkInfo cidx ctor)))).WF
+      fun result => ∃ outVEnv : VEnv,
+        ∃ entries : List (ConstantInfo × VConstVal),
+        entries.map Prod.snd = values ∧
+        AddConstants safety env venv entries result.2 outVEnv := by
+  induction Hentries generalizing start env venv with
+  | nil =>
+    exact Except.WF.pure ⟨venv, [], rfl, .nil⟩
+  | @cons ctor ci' ctors values Hentry _ ih =>
+    have hnprimHead := hnprim ctor (by simp)
+    have hnprimTail : ∀ ctor ∈ ctors,
+        ¬ Kernel.Environment.primitives.contains ctor.name := by
+      intro ctor hctor
+      exact hnprim ctor (by simp [hctor])
+    rw [List.foldlM_cons]
+    simpa using (checkName.WF Hvalid.tr.map_wf ctor.name allowPrimitive).bind
+      fun _ hchecked => by
+          rcases Lean4Lean.VerifyInductive.CheckingEnv.exists_addConst
+              Hvalid.tr hchecked.1 ci'.toVConstant with
+            ⟨nextVEnv, hnext⟩
+          let info := mkInfo start ctor
+          have htrSource : TrSourceConst venv lparams ctor.name ctor.type ci' :=
+            ⟨Hentry.uvars, Hentry.name, Hentry.type.mono hle,
+              Hentry.wf.mono hle⟩
+          have htr : TrConstVal safety venv (.ctorInfo info) ci' :=
+            Lean4Lean.VerifyInductive.TrSourceConst.ctorInfo htrSource
+              (hlevelParams start ctor)
+              (hname start ctor) (htype start ctor) (hvisible start ctor)
+          have hwf : ci'.toVConstant.WF venv := Hentry.wf.mono hle
+          have haddHead :
+              venv.addConst info.name ci'.toVConstant = some nextVEnv := by
+            simpa [info, hname start ctor, Hentry.name] using hnext
+          have hfindInfo : env.find? info.name = none := by
+            rw [hname start ctor]
+            exact hchecked.1
+          have hnprimInfo :
+              ¬ Kernel.Environment.primitives.contains info.name := by
+            rw [hname start ctor]
+            exact hnprimHead
+          have HnextValid : CheckingEnv.Valid safety
+              (env.add (.ctorInfo info)) nextVEnv :=
+            Hvalid.add hfindInfo hnprimInfo htr.1 hwf haddHead rfl
+          have hnextLe : sourceEnv ≤ nextVEnv :=
+            hle.trans (VEnv.addConst_le haddHead)
+          exact (ih (start := start + 1) HnextValid hnextLe
+            hnprimTail).mono
+            fun result Hrest => by
+              rcases Hrest with ⟨outVEnv, entries, hvalues, Hinstalled⟩
+              have hvalues' :
+                  (((.ctorInfo info, ci') :: entries).map Prod.snd) =
+                    ci' :: values := by simp [hvalues]
+              have Hinstalled' := AddConstants.cons
+                (ci := .ctorInfo info) (ci' := ci') hfindInfo hnprimInfo
+                htr hwf haddHead rfl Hinstalled
+              show ∃ outVEnv : VEnv,
+                ∃ newEntries : List (ConstantInfo × VConstVal),
+                newEntries.map Prod.snd = ci' :: values ∧
+                  AddConstants safety env venv newEntries result.2 outVEnv
+              exact ⟨outVEnv, (.ctorInfo info, ci') :: entries,
+                hvalues', Hinstalled'⟩
+
+/-- The outer mutual-family fold concatenates the independently verified
+constructor batches in the same family-major order as
+`VInductDecl.constructorConstants`. -/
+theorem AddConstants.ofConstructorTypes
+    {env : Environment} {venv sourceEnv : VEnv}
+    {types : List InductiveType} {targets : List VInductiveType}
+    (mkInfo : InductiveType → Nat → Constructor → ConstructorVal)
+    (Hvalid : CheckingEnv.Valid safety env venv)
+    (Hentries : List.Forall₂
+      (fun source target => List.Forall₂
+        (fun ctor ci' =>
+          TrSourceConst sourceEnv lparams ctor.name ctor.type ci')
+        source.ctors target.ctors)
+      types targets)
+    (hle : sourceEnv ≤ venv)
+    (hlevelParams : ∀ owner i ctor,
+      (mkInfo owner i ctor).levelParams = lparams)
+    (hname : ∀ owner i ctor, (mkInfo owner i ctor).name = ctor.name)
+    (htype : ∀ owner i ctor, (mkInfo owner i ctor).type = ctor.type)
+    (hvisible : ∀ owner i ctor, safety ≤
+      (if (mkInfo owner i ctor).isUnsafe then
+        DefinitionSafety.unsafe else .safe))
+    (hnprim : ∀ owner ∈ types, ∀ ctor ∈ owner.ctors,
+      ¬ Kernel.Environment.primitives.contains ctor.name) :
+    (types.foldlM (init := env) fun
+        (env : Environment) (owner : InductiveType) => do
+      let (_, env) ← owner.ctors.foldlM (init := (0, env)) fun
+          (state : Nat × Environment) (ctor : Constructor) => do
+        let (cidx, env) := state
+        env.checkName ctor.name allowPrimitive
+        pure (cidx + 1, env.add (.ctorInfo (mkInfo owner cidx ctor)))
+      pure env).WF fun outEnv =>
+        ∃ outVEnv : VEnv,
+          ∃ entries : List (ConstantInfo × VConstVal),
+          entries.map Prod.snd =
+            targets.flatMap (fun target : VInductiveType => target.ctors) ∧
+          AddConstants safety env venv entries outEnv outVEnv := by
+  induction Hentries generalizing env venv with
+  | nil =>
+    exact Except.WF.pure ⟨venv, [], rfl, .nil⟩
+  | @cons owner target types targets Hhead _ ih =>
+    have hnprimHead : ∀ ctor ∈ owner.ctors,
+        ¬ Kernel.Environment.primitives.contains ctor.name := by
+      intro ctor hctor
+      exact hnprim owner (by simp) ctor hctor
+    have hnprimTail : ∀ owner ∈ types, ∀ ctor ∈ owner.ctors,
+        ¬ Kernel.Environment.primitives.contains ctor.name := by
+      intro owner howner ctor hctor
+      exact hnprim owner (by simp [howner]) ctor hctor
+    rw [List.foldlM_cons]
+    let Hinner := AddConstants.ofConstructorList
+      (start := 0) (allowPrimitive := allowPrimitive)
+      (mkInfo owner) Hvalid Hhead hle
+      (hlevelParams owner) (hname owner) (htype owner) (hvisible owner)
+      hnprimHead
+    simpa using Hinner.bind fun result Hresult => by
+      rcases Hresult with
+        ⟨middleVEnv, headEntries, hheadValues, HheadInstalled⟩
+      have validInstalled : ∀ {priorEnv nextEnv : Environment}
+          {priorVEnv nextVEnv : VEnv} {entries},
+          AddConstants safety priorEnv priorVEnv entries nextEnv nextVEnv →
+          CheckingEnv.Valid safety priorEnv priorVEnv →
+          CheckingEnv.Valid safety nextEnv nextVEnv := by
+        intro priorEnv nextEnv priorVEnv nextVEnv entries Hinstalled Hprior
+        induction Hinstalled with
+        | nil => exact Hprior
+        | cons hn hnprim htr hwf hadd hdelta _ ih =>
+          exact ih (Hprior.add hn hnprim htr.1 hwf hadd hdelta)
+      have HnextValid : CheckingEnv.Valid safety result.2 middleVEnv := by
+        exact validInstalled HheadInstalled Hvalid
+      have installedLe : ∀ {priorEnv nextEnv : Environment}
+          {priorVEnv nextVEnv : VEnv} {entries},
+          AddConstants safety priorEnv priorVEnv entries nextEnv nextVEnv →
+          priorVEnv ≤ nextVEnv := by
+        intro priorEnv nextEnv priorVEnv nextVEnv entries Hinstalled
+        induction Hinstalled with
+        | nil => exact VEnv.LE.rfl
+        | cons _ _ _ _ hadd _ _ ih =>
+          exact (VEnv.addConst_le hadd).trans ih
+      have hnextLe : sourceEnv ≤ middleVEnv :=
+        hle.trans (installedLe HheadInstalled)
+      exact (ih HnextValid hnextLe hnprimTail).mono
+        fun outEnv Htail => by
+          rcases Htail with
+            ⟨finalVEnv, tailEntries, htailValues, HtailInstalled⟩
+          have hvalues : (headEntries ++ tailEntries).map Prod.snd =
+              (target :: targets).flatMap
+                (fun target : VInductiveType => target.ctors) := by
+            simp [hheadValues, htailValues]
+          show ∃ finalVEnv : VEnv,
+            ∃ entries : List (ConstantInfo × VConstVal),
+            entries.map Prod.snd =
+                (target :: targets).flatMap
+                  (fun target : VInductiveType => target.ctors) ∧
+              AddConstants safety env venv entries outEnv finalVEnv
+          exact ⟨finalVEnv, headEntries ++ tailEntries, hvalues,
+            HheadInstalled.append HtailInstalled⟩
 
 theorem AddConstants.valid
     (H : AddConstants safety env venv entries outEnv outVEnv)
@@ -19340,8 +19620,48 @@ def DeclaredHeadersResult.formation
   constructors := Hconstructors
 
 /-- Constructor checking consumes only the raw constructor translations
-retained by header installation.  In particular this boundary no longer
-assumes the source constructor constants are already well-formed. -/
+retained by header installation and returns both formation and pointwise
+constructor typing.  In particular this boundary does not assume the source
+constructor constants are already well-formed. -/
+theorem AddInductive.checkConstructors.checkedWF
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes outEnv)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel = .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    (AddInductive.checkConstructors indTypes stats isUnsafe
+      { c with env := outEnv }).WF fun _ =>
+        CheckedConstructorCertificate sourceEnv decl H.context.venv
+          H.headers.params := by
+  have Hloops := checkConstructors.loopTypes.refinesMaterialized
+    H.context H.translation.types H.translation.typesAdded H.materialized
+    H.headerParams Hfresh hconsume hlit hproj hunsafe hbound
+  rw [AddInductive.checkConstructors]
+  change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
+    AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
+      { c with env := outEnv }).WF _
+  change (((liftM TypeChecker.getEnv : AddInductive.M _)
+    { c with env := outEnv } >>= fun _ =>
+      AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
+        { c with env := outEnv }).WF _)
+  rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
+    { c with env := outEnv } = .ok outEnv from rfl]
+  exact Hloops
+
 theorem AddInductive.checkConstructors.headersWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
@@ -19365,21 +19685,89 @@ theorem AddInductive.checkConstructors.headersWF
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         ConstructorCertificate sourceEnv decl H.context.venv
-          H.headers.params := by
-  have Hloops := checkConstructors.loopTypes.refinesMaterialized
-    H.context H.translation.types H.translation.typesAdded H.materialized
-    H.headerParams Hfresh hconsume hlit hproj hunsafe hbound
-  rw [AddInductive.checkConstructors]
-  change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
-    AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
-      { c with env := outEnv }).WF _
-  change (((liftM TypeChecker.getEnv : AddInductive.M _)
-    { c with env := outEnv } >>= fun _ =>
-      AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
-        { c with env := outEnv }).WF _)
-  rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
-    { c with env := outEnv } = .ok outEnv from rfl]
-  exact Hloops.mono fun _ Hchecked => Hchecked.formation
+          H.headers.params :=
+  (AddInductive.checkConstructors.checkedWF H Hfresh hconsume hlit hproj
+    hunsafe hbound).mono fun _ Hchecked => Hchecked.formation
+
+/-- Verified boundary after the concrete constructor-info fold.  It retains
+the exact abstract constructor environment and the now-typed pointwise source
+translation needed to join the header and constructor phases. -/
+structure DeclaredConstructorsResult
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv)
+    (outEnv : Environment) where
+  venvCtors : VEnv
+  entries : List (ConstantInfo × VConstVal)
+  installed : AddConstants c.safety headerEnv H.context.venv entries
+    outEnv venvCtors
+  translation : TrInductDeclConstructors H.context.venv c.lparams
+    indTypes.toList decl venvCtors
+  context : ContextWF { c with env := outEnv }
+
+theorem AddInductive.declareConstructors.WF
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv)
+    (Hchecked : CheckedConstructorCertificate sourceEnv decl H.context.venv
+      H.headers.params)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprim : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
+      ¬ Kernel.Environment.primitives.contains ctor.name) :
+    (AddInductive.declareConstructors stats indTypes isUnsafe
+      { c with env := headerEnv }).WF fun outEnv =>
+        ∃ _ : DeclaredConstructorsResult H outEnv, True := by
+  let mkInfo (owner : InductiveType) (cidx : Nat)
+      (ctor : Constructor) : ConstructorVal :=
+    let type := ctor.type
+    let rec arity i
+      | .forallE _ _ body _ => arity (i + 1) body
+      | _ => i
+    let arity := arity 0 type
+    {
+      type, cidx, isUnsafe
+      levelParams := c.lparams
+      name := ctor.name
+      induct := owner.name
+      numParams := stats.params.size
+      numFields := assert! arity ≥ stats.params.size
+        arity - stats.params.size
+    }
+  have Htranslated := Hchecked.translated H.translation
+  have Hfold := AddConstants.ofConstructorTypes
+    (allowPrimitive := c.allowPrimitive) mkInfo H.context.checking
+    Htranslated VEnv.LE.rfl
+    (by intros; rfl) (by intros; rfl) (by intros; rfl)
+    (by
+      intro owner i ctor
+      simpa [mkInfo] using hvisible)
+    hnprim
+  rw [AddInductive.declareConstructors, ← Array.foldlM_toList]
+  change (indTypes.toList.foldlM (init := headerEnv) fun
+      (env : Environment) (owner : InductiveType) => do
+    let (_, env) ← owner.ctors.foldlM (init := (0, env)) fun
+        (state : Nat × Environment) (ctor : Constructor) => do
+      let (cidx, env) := state
+      env.checkName ctor.name c.allowPrimitive
+      pure (cidx + 1, env.add (.ctorInfo (mkInfo owner cidx ctor)))
+    pure env).WF _
+  exact Hfold.mono fun outEnv Hout => by
+    rcases Hout with ⟨venvCtors, entries, hvalues, Hinstalled⟩
+    have hctorsAdded : H.context.venv.addConsts decl.constructorConstants =
+        some venvCtors := by
+      simp only [VInductDecl.constructorConstants]
+      rw [← hvalues]
+      exact Hinstalled.abstract
+    let Htranslation : TrInductDeclConstructors H.context.venv c.lparams
+        indTypes.toList decl venvCtors := {
+      ctorsAdded := hctorsAdded
+      types := Htranslated }
+    exact ⟨{
+      venvCtors := venvCtors
+      entries := entries
+      installed := Hinstalled
+      translation := Htranslation
+      context := H.context.withEnv
+        (Hinstalled.valid H.context.checking) Hinstalled.le }, trivial⟩
 
 /-- Non-circular formation prefix: header installation starts from the raw
 phase translation and constructor checking itself supplies the formation
