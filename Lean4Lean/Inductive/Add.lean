@@ -863,6 +863,13 @@ def withParams (type : Expr) (nparams : Nat)
     let arg := .fvar id
     loop lctx (body.instantiate1 arg) (params.push arg) i
 
+def lowerConstructor (params : Array Expr) (nparams : Nat)
+    (ctor : Constructor) : M Constructor := do
+  withParams ctor.type nparams fun lctx ctorType As => do
+  assert! As.size == nparams
+  return { ctor with
+    type := lctx.mkForall As (← replaceAllNested lctx params As ctorType) }
+
 def run (fuel nparams : Nat) (types : List InductiveType) : M Result := do
   let I :: _ := types
     | throw <| .other s!"invalid empty (mutual) inductive datatype declaration, \
@@ -874,10 +881,7 @@ def run (fuel nparams : Nat) (types : List InductiveType) : M Result := do
     let s ← get
     if _h : i < s.newTypes.size then
       let indType := s.newTypes[i]
-      let ctors ← indType.ctors.mapM fun ctor => do
-        withParams ctor.type nparams fun lctx ctorType As => do
-        assert! As.size == nparams
-        return { ctor with type := lctx.mkForall As (← replaceAllNested lctx params As ctorType) }
+      let ctors ← indType.ctors.mapM (lowerConstructor params nparams)
       modify fun s => { s with newTypes := s.newTypes.set! i { indType with ctors } }
       loop (i+1) fuel
     else

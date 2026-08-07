@@ -21955,6 +21955,65 @@ theorem ElimNestedInductive.run.source_nonempty
   | cons type types =>
     simp
 
+/-- A successful lowering run carries the exact common-parameter opening of
+the first source header into the restoration data returned in `Result`. -/
+theorem ElimNestedInductive.run.parameterOpening
+    (fuel nparams : Nat) (types : List InductiveType)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State) :
+    (Lean4Lean.ElimNestedInductive.run fuel nparams types env state).WF
+      fun out => ∃ first rest tail,
+        types = first :: rest ∧
+        NestedParamOpening {} #[] first.type nparams
+          out.1.lctx tail out.1.params ∧
+        out.1.nparams = nparams := by
+  cases types with
+  | nil => exact Except.WF.throw
+  | cons first rest =>
+    unfold Lean4Lean.ElimNestedInductive.run
+    apply ElimNestedInductive.withParams.refines
+    intro lctx tail params outState Hopening
+    have loopWF : ∀ remaining i currentState,
+        (Lean4Lean.ElimNestedInductive.run.loop nparams lctx params i
+          remaining env currentState).WF fun out => ∃ first' rest' tail',
+            first :: rest = first' :: rest' ∧
+            NestedParamOpening {} #[] first'.type nparams
+              out.1.lctx tail' out.1.params ∧
+            out.1.nparams = nparams := by
+      intro remaining
+      induction remaining with
+      | zero => intro i currentState; exact Except.WF.throw
+      | succ remaining ih =>
+        intro i currentState out hout
+        simp only [Lean4Lean.ElimNestedInductive.run.loop, get,
+          bind, StateT.bind, ReaderT.bind, pure] at hout
+        have hget : ((getThe Lean4Lean.ElimNestedInductive.State :
+            Lean4Lean.ElimNestedInductive.M
+              Lean4Lean.ElimNestedInductive.State) env currentState) =
+            Except.ok (currentState, currentState) := rfl
+        rw [hget] at hout
+        change (((if h : i < currentState.newTypes.size then _ else _) :
+          Lean4Lean.ElimNestedInductive.M
+            Lean4Lean.ElimNestedInductive.Result) env currentState =
+              Except.ok out) at hout
+        by_cases hidx : i < currentState.newTypes.size
+        · rw [dif_pos hidx] at hout
+          simp only [ReaderT.bind, bind, StateT.bind] at hout
+          cases hmap : List.mapM
+              (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams)
+              currentState.newTypes[i].ctors env currentState with
+          | error err =>
+            rw [hmap] at hout
+            contradiction
+          | ok generated =>
+            rw [hmap] at hout
+            simp [modify] at hout
+            exact ih (i + 1) _ out hout
+        · rw [dif_neg hidx] at hout
+          cases hout
+          exact ⟨first, rest, tail, rfl, Hopening,
+            Hopening.initial_size⟩
+    exact loopWF fuel 0 outState
+
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
 type-checker's context-relative result into a source declaration judgment. -/
