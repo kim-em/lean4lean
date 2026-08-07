@@ -22073,6 +22073,61 @@ theorem ElimNestedInductive.lowerInductive.shape
   intro ctors nextState Hctors
   exact Except.WF.pure ⟨rfl, rfl, Hctors⟩
 
+/-- Exact state transition for one iteration of the dynamic lowering queue.
+The successful case retains the source family selected before lowering, while
+allowing `lowerInductive` to append freshly discovered auxiliary families
+before the selected slot is overwritten. -/
+inductive LowerNextResult (params : Array Expr) (nparams i : Nat)
+    (state : Lean4Lean.ElimNestedInductive.State) :
+    Option InductiveType → Lean4Lean.ElimNestedInductive.State → Prop
+  | done (hbound : state.newTypes.size ≤ i) :
+      LowerNextResult params nparams i state none state
+  | step {target : InductiveType}
+      {loweredState : Lean4Lean.ElimNestedInductive.State}
+      (hidx : i < state.newTypes.size)
+      (shape : LoweredInductiveShape nparams state.newTypes[i] target) :
+      LowerNextResult params nparams i state (some state.newTypes[i])
+        { loweredState with
+          newTypes := loweredState.newTypes.set! i target }
+
+theorem ElimNestedInductive.lowerNext.refines
+    (params : Array Expr) (nparams i : Nat)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State) :
+    (Lean4Lean.ElimNestedInductive.lowerNext params nparams i env state).WF
+      fun out => LowerNextResult params nparams i state out.1 out.2 := by
+  intro out hout
+  unfold Lean4Lean.ElimNestedInductive.lowerNext at hout
+  simp only [get, bind, StateT.bind, ReaderT.bind, pure] at hout
+  have hget : ((getThe Lean4Lean.ElimNestedInductive.State :
+      Lean4Lean.ElimNestedInductive.M
+        Lean4Lean.ElimNestedInductive.State) env state) =
+      Except.ok (state, state) := rfl
+  rw [hget] at hout
+  simp only [Except.bind] at hout
+  by_cases hidx : i < state.newTypes.size
+  · rw [dif_pos hidx] at hout
+    change ((Lean4Lean.ElimNestedInductive.lowerInductive
+      params nparams state.newTypes[i] env state).bind fun lowered =>
+        Except.ok (some state.newTypes[i],
+          { lowered.2 with
+            newTypes := lowered.2.newTypes.set! i lowered.1 })) =
+      Except.ok out at hout
+    cases hlower : Lean4Lean.ElimNestedInductive.lowerInductive
+        params nparams state.newTypes[i] env state with
+    | error err =>
+      rw [hlower] at hout
+      contradiction
+    | ok lowered =>
+      rw [hlower] at hout
+      simp at hout
+      cases hout
+      exact .step hidx
+        (ElimNestedInductive.lowerInductive.shape
+          params nparams state.newTypes[i] env state lowered hlower)
+  · rw [dif_neg hidx] at hout
+    cases hout
+    exact .done (Nat.le_of_not_gt hidx)
+
 /-- The first branch of nested lowering rejects an empty source block. This
 is the operational origin of the nonemptiness premise later used to recover
 `SourceWF` from `TrInductDeclCore`. -/
@@ -22117,34 +22172,17 @@ theorem ElimNestedInductive.run.parameterOpening
       induction remaining with
       | zero => intro i currentState; exact Except.WF.throw
       | succ remaining ih =>
-        intro i currentState out hout
-        simp only [Lean4Lean.ElimNestedInductive.run.loop, get,
-          bind, StateT.bind, ReaderT.bind, pure] at hout
-        have hget : ((getThe Lean4Lean.ElimNestedInductive.State :
-            Lean4Lean.ElimNestedInductive.M
-              Lean4Lean.ElimNestedInductive.State) env currentState) =
-            Except.ok (currentState, currentState) := rfl
-        rw [hget] at hout
-        change (((if h : i < currentState.newTypes.size then _ else _) :
-          Lean4Lean.ElimNestedInductive.M
-            Lean4Lean.ElimNestedInductive.Result) env currentState =
-              Except.ok out) at hout
-        by_cases hidx : i < currentState.newTypes.size
-        · rw [dif_pos hidx] at hout
-          simp only [ReaderT.bind, bind, StateT.bind] at hout
-          cases hmap : Lean4Lean.ElimNestedInductive.lowerInductive
-              params nparams currentState.newTypes[i] env currentState with
-          | error err =>
-            rw [hmap] at hout
-            contradiction
-          | ok generated =>
-            rw [hmap] at hout
-            simp [modify] at hout
-            exact ih (i + 1) _ out hout
-        · rw [dif_neg hidx] at hout
-          cases hout
-          exact ⟨first, rest, tail, rfl, Hopening,
-            Hopening.initial_size⟩
+        intro i currentState
+        simp only [Lean4Lean.ElimNestedInductive.run.loop]
+        exact (ElimNestedInductive.lowerNext.refines
+          params nparams i env currentState).bind fun next Hnext => by
+            rcases next with ⟨next, nextState⟩
+            cases Hnext with
+            | done hbound =>
+              exact Except.WF.pure ⟨first, rest, tail, rfl, Hopening,
+                Hopening.initial_size⟩
+            | step hidx Hshape =>
+              exact ih (i + 1) _
     exact loopWF fuel 0 outState
 
 /-- Reference formulation of the executable header-checking prefix. Keeping

@@ -875,6 +875,17 @@ def lowerInductive (params : Array Expr) (nparams : Nat)
   let ctors ← indType.ctors.mapM (lowerConstructor params nparams)
   return { indType with ctors }
 
+def lowerNext (params : Array Expr) (nparams i : Nat) :
+    M (Option InductiveType) := do
+  let s ← get
+  if _h : i < s.newTypes.size then
+    let source := s.newTypes[i]
+    let target ← lowerInductive params nparams source
+    modify fun s => { s with newTypes := s.newTypes.set! i target }
+    return some source
+  else
+    return none
+
 def run (fuel nparams : Nat) (types : List InductiveType) : M Result := do
   let I :: _ := types
     | throw <| .other s!"invalid empty (mutual) inductive datatype declaration, \
@@ -883,13 +894,10 @@ def run (fuel nparams : Nat) (types : List InductiveType) : M Result := do
   let rec loop i
   | 0 => throw <| .other "deep recursion: ElimNestedInductive.run.loop"
   | fuel+1 => do
-    let s ← get
-    if _h : i < s.newTypes.size then
-      let indType := s.newTypes[i]
-      let indType ← lowerInductive params nparams indType
-      modify fun s => { s with newTypes := s.newTypes.set! i indType }
-      loop (i+1) fuel
-    else
+    match ← lowerNext params nparams i with
+    | some _ => loop (i+1) fuel
+    | none =>
+      let s ← get
       let aux2nested := s.nestedAux.foldl (fun m (e, n) => m.insert n e) {}
       return { s with nparams := params.size, lctx, params, aux2nested, types := s.newTypes.toList }
   loop 0 fuel
