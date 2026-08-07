@@ -23131,6 +23131,95 @@ def RecursorPhasesResult.blockCertificate
   exact Hgenerated.toBlockCertificate H.staged H.localWF H.bindings H.params
     Hheaders.typesWF R.declared.ctorsWF hrules
 
+theorem RecursorPhasesResult.addInductOfOrdinaryCompilation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    (hnonempty : indTypes.toList ≠ [])
+    (Hcompile : OrdinaryCompilationCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block) :
+    VEnv.AddInduct sourceEnv decl (H.outVEnv.addDefEqs rules) :=
+  (H.blockCertificate rules hrules).addInductOfOrdinaryCompilation
+    R.formation R.core hnonempty Hcompile
+
+theorem RecursorPhasesResult.addInductOfNestedCompilation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    (hnonempty : indTypes.toList ≠ [])
+    (Hcompile : NestedCompilationCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block) :
+    VEnv.AddInduct sourceEnv decl (H.outVEnv.addDefEqs rules) :=
+  (H.blockCertificate rules hrules).addInductOfNestedCompilation
+    R.formation R.core hnonempty Hcompile
+
+/-- Compositional verifier for the complete production computation after
+`checkInductiveTypes` has materialized `stats`. This is the first boundary
+whose executable side contains every ordinary installation phase. -/
+theorem AddInductive.runWithStats.WF
+    (stats : AddInductive.InductiveStats) (nparams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
+    (c : AddInductive.Context)
+    (Hformation :
+      ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
+        isUnsafe >>= fun headerEnv =>
+          AddInductive.withEnv headerEnv do
+            AddInductive.checkConstructors indTypes stats isUnsafe
+            AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
+        fun ctorEnv => ∃ headerEnv : Environment,
+          ∃ Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe
+            depth sourceEnv indTypes headerEnv,
+          ∃ _ : ConstructorPhasesResult Hheaders ctorEnv,
+            MutualInductivesClosed ctorEnv)
+    (Htypes : ∀ headerEnv ctorEnv
+      (Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+        sourceEnv indTypes headerEnv)
+      (R : ConstructorPhasesResult Hheaders ctorEnv),
+      ∀ elimLevel recInfos localContext,
+        BindingContextWF localContext →
+        RecInfoBindings localContext recInfos →
+        BoundFVarArray localContext stats.params →
+        RecursorCardinalityCertificate stats recInfos decl →
+        BindingContextLE { c with env := ctorEnv } localContext →
+        RecursorTypeTranslations R.declared.venvCtors localContext.lparams
+          elimLevel localContext stats indTypes recInfos)
+    (hnprim : ∀ owner (howner : owner < indTypes.size),
+      ¬ Kernel.Environment.primitives.contains
+        (Lean.mkRecName indTypes[owner]!.name)) :
+    (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
+      fun outEnv => ∃ headerEnv ctorEnv,
+        ∃ Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+          sourceEnv indTypes headerEnv,
+        ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
+          Nonempty (RecursorPhasesResult R outEnv) := by
+  unfold AddInductive.runWithStats
+  have Hcombined := Hformation.bind fun ctorEnv Hresult => by
+      rcases Hresult with ⟨headerEnv, Hheaders, R, hclosed⟩
+      exact (R.recursorPhasesWF hclosed
+        (Htypes headerEnv ctorEnv Hheaders R) hnprim).mono
+          fun outEnv Hrecursors =>
+            show ∃ headerEnv ctorEnv,
+              ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
+                isUnsafe depth sourceEnv indTypes headerEnv,
+              ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
+                Nonempty (RecursorPhasesResult R outEnv)
+            from ⟨headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
+  simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
+
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/

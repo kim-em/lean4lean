@@ -638,18 +638,26 @@ def declareRecursors (stats : InductiveStats)
   declareRecursors.loop stats indTypes elimLevel recInfos motives minors
     numMinors numMotives all lctx k isUnsafe lparams allowPrimitive 0 env
 
+def runWithStats (stats : InductiveStats) (nparams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat)
+    (isUnsafe : Bool) : M Environment := do
+  let ctorEnv ←
+    declareInductiveTypes stats nparams indTypes numNested isUnsafe >>= fun headerEnv =>
+      withEnv headerEnv do
+        checkConstructors indTypes stats isUnsafe
+        declareConstructors stats indTypes isUnsafe
+  fun c =>
+    (getElimLevel stats indTypes >>= fun elimLevel =>
+      mkRecInfos stats indTypes elimLevel fun recInfos =>
+        declareRecursors stats indTypes elimLevel recInfos) { c with env := ctorEnv }
+
 def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) : M Environment := do
   let isUnsafe := (← read).safety != .safe
   let indTypes := types.toArray
   let {lparams, ..} ← read
   Environment.checkDuplicatedUnivParams lparams
-  checkInductiveTypes nparams indTypes fun stats => do
-  withEnv (← declareInductiveTypes stats nparams indTypes numNested isUnsafe) do
-  checkConstructors indTypes stats isUnsafe
-  withEnv (← declareConstructors stats indTypes isUnsafe) do
-  let elimLevel ← getElimLevel stats indTypes
-  mkRecInfos stats indTypes elimLevel fun recInfos => do
-  declareRecursors stats indTypes elimLevel recInfos
+  checkInductiveTypes nparams indTypes fun stats =>
+    runWithStats stats nparams indTypes numNested isUnsafe
 
 end AddInductive
 
