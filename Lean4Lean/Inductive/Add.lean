@@ -807,6 +807,11 @@ def instantiateForallParams (e : Expr) (hi : Nat) (params : Array Expr) :
     e := body
   return e.instantiateRevRange 0 hi params
 
+def findCachedAux? (nestedAux : Array (Expr × Name)) (nested : Expr) :
+    Option Name :=
+  nestedAux.findSome? fun (e, n) =>
+    if e == nested then some n else none
+
 /-- If `e` is a nested occurrence `I Ds is`, return `Iaux As is` -/
 def replaceIfNested (lctx : LocalContext) (params : Array Expr) (As : Array Expr) (e : Expr) :
     M (Option Expr) := do
@@ -818,9 +823,7 @@ def replaceIfNested (lctx : LocalContext) (params : Array Expr) (As : Array Expr
   let IAs := mkAppRange fn 0 I_nparams args -- `I As`
   let Iparams ← replaceParams params IAs As
   let st ← get
-  if let some auxI_name := st.nestedAux.findSome? fun (e, n) =>
-    if e == Iparams then some n else none
-  then
+  if let some auxI_name := findCachedAux? st.nestedAux Iparams then
     return mkAppRange (mkAppN (.const auxI_name st.lvls) As) I_nparams args.size args
   let mut result := none
   let env ← read

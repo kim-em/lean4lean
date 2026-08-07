@@ -21037,6 +21037,28 @@ theorem replaceNestedParams_refines
   cases hout
   rfl
 
+/-- A successful cache lookup is backed by an actual previously recorded
+auxiliary entry with the requested nested expression and returned name. -/
+structure CachedNestedAux
+    (nestedAux : Array (Expr × Name)) (nested : Expr) (auxName : Name) : Prop where
+  entry : ∃ item ∈ nestedAux, (item.1 == nested) = true ∧ item.2 = auxName
+
+theorem findCachedAux?_refines
+    (nestedAux : Array (Expr × Name)) (nested : Expr) (auxName : Name)
+    (hfind : Lean4Lean.ElimNestedInductive.findCachedAux?
+      nestedAux nested = some auxName) :
+    CachedNestedAux nestedAux nested auxName := by
+  unfold Lean4Lean.ElimNestedInductive.findCachedAux? at hfind
+  rcases Array.exists_of_findSome?_eq_some hfind with
+    ⟨⟨found, foundName⟩, hmem, hentry⟩
+  by_cases heq : (found == nested) = true
+  · simp [heq] at hentry
+    cases hentry
+    exact ⟨⟨(found, auxName), hmem, heq, rfl⟩⟩
+  · have heqFalse : (found == nested) = false := by
+      cases h : found == nested <;> simp_all
+    simp [heqFalse] at hentry
+
 /-- Source constructors may not mention the private namespace used for
 lowering-generated auxiliary families or projections. -/
 def NoNestedAux (e : Expr) : Prop :=
