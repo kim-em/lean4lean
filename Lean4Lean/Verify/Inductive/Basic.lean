@@ -19109,6 +19109,21 @@ def GeneratedRecursorsRange.atZero
   length := hcomplete
   entry i hi := by simpa using H.entry i hi
 
+theorem GeneratedRecursors.nonInductive
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries) :
+    ∀ (info : ConstantInfo) (value : VConstVal),
+      (info, value) ∈ entries → ∀ inductiveValue,
+        info ≠ ConstantInfo.inductInfo inductiveValue := by
+  intro info value hmem inductiveValue
+  rcases List.mem_iff_getElem.mp hmem with ⟨i, hi, heq⟩
+  have Hentry := H.entry i hi
+  rw [heq] at Hentry
+  have hsource : info = .recInfo Hentry.info := by
+    simpa using Hentry.source_eq
+  rw [hsource]
+  simp
+
 def GeneratedRecursorsPrefix.empty
     (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
     (elimLevel : Level) (c : AddInductive.Context)
@@ -22562,6 +22577,82 @@ theorem AddConstants.closesMutuals
     exact ih hnextWF hclosedNext fun entry hentry value =>
       hnind entry (by simp [hentry]) value
 
+theorem DeclaredConstructorsResult.closesMutuals
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : DeclaredConstructorsResult H outEnv)
+    (hclosed : MutualInductivesClosed headerEnv) :
+    MutualInductivesClosed outEnv :=
+  R.installed.closesMutuals H.context.checking.tr.map_wf hclosed
+    R.nonInductive
+
+theorem GeneratedRecursors.closesMutuals
+    (H : GeneratedRecursors safety sourceEnv lparams elimLevel c stats
+      indTypes recInfos entries)
+    (Hinstalled : AddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF) (hclosed : MutualInductivesClosed env) :
+    MutualInductivesClosed outEnv := by
+  apply Hinstalled.closesMutuals hwf hclosed
+  intro entry hmem inductiveValue
+  rcases entry with ⟨info, value⟩
+  exact H.nonInductive info value hmem inductiveValue
+
+/-- Add the lookup invariant to an already verified constructor phase without
+replaying either executable fold. -/
+theorem constructorPhasesAndClosure
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (Hphases :
+      ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
+        AddInductive.declareConstructors stats indTypes isUnsafe)
+        { c with env := headerEnv }).WF fun outEnv =>
+          ∃ _ : ConstructorPhasesResult H outEnv, True)
+    (hclosed : MutualInductivesClosed headerEnv) :
+    ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
+      AddInductive.declareConstructors stats indTypes isUnsafe)
+      { c with env := headerEnv }).WF fun outEnv =>
+        ∃ _ : ConstructorPhasesResult H outEnv,
+          MutualInductivesClosed outEnv := by
+  intro outEnv hout
+  rcases Hphases outEnv hout with ⟨R, _⟩
+  exact ⟨R, R.declared.closesMutuals hclosed⟩
+
+/-- Add the lookup invariant to the public recursor-installation refinement.
+The generated-recursors certificate supplies the required non-inductive
+shape of every installed production entry. -/
+theorem declareRecursorsAndClosure
+    (Hrecursors :
+      (AddInductive.declareRecursors stats indTypes elimLevel recInfos c).WF
+        fun outEnv =>
+          ∃ outVEnv : VEnv,
+          ∃ entries : List (ConstantInfo × VConstVal),
+            Nonempty (GeneratedRecursors c.safety venv c.lparams elimLevel c
+              stats indTypes recInfos entries) ∧
+            AddConstants c.safety c.env venv entries outEnv outVEnv)
+    (hwf : c.env.constants.WF)
+    (hclosed : MutualInductivesClosed c.env) :
+    (AddInductive.declareRecursors stats indTypes elimLevel recInfos c).WF
+      fun outEnv =>
+        ∃ outVEnv : VEnv,
+        ∃ entries : List (ConstantInfo × VConstVal),
+          Nonempty (GeneratedRecursors c.safety venv c.lparams elimLevel c
+            stats indTypes recInfos entries) ∧
+          AddConstants c.safety c.env venv entries outEnv outVEnv ∧
+          MutualInductivesClosed outEnv := by
+  intro outEnv hout
+  rcases Hrecursors outEnv hout with
+    ⟨outVEnv, entries, ⟨Hgenerated⟩, Hinstalled⟩
+  exact ⟨outVEnv, entries, ⟨Hgenerated⟩, Hinstalled,
+    Hgenerated.closesMutuals Hinstalled hwf hclosed⟩
+
 theorem DeclaredInductiveInfos.closesMutuals
     (H : DeclaredInductiveInfos source infos target)
     (hold : MutualInductivesClosed source)
@@ -22666,6 +22757,31 @@ theorem declareInductiveTypes_closesMutuals
         Hdeclared.closesMutuals hold
           (inductiveTypeInfos_uniformAll stats numParams indTypes numNested
             isUnsafe c.lparams hsize)
+
+/-- Pair the existing semantic header refinement with the independently
+proved production lookup invariant for the very same executable result. -/
+theorem declareInductiveTypes_headersAndClosure
+    (stats : AddInductive.InductiveStats) (numParams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
+    (c : AddInductive.Context)
+    (Hheaders :
+      (AddInductive.declareInductiveTypes stats numParams indTypes numNested
+        isUnsafe c).WF fun outEnv =>
+          ∃ _ : DeclaredHeadersResult c stats decl numParams isUnsafe depth
+            sourceEnv indTypes outEnv, True)
+    (hwf : c.env.constants.WF)
+    (hold : MutualInductivesClosed c.env)
+    (hsize : stats.nindices.size = indTypes.size) :
+    (AddInductive.declareInductiveTypes stats numParams indTypes numNested
+      isUnsafe c).WF fun outEnv =>
+        ∃ _ : DeclaredHeadersResult c stats decl numParams isUnsafe depth
+          sourceEnv indTypes outEnv,
+          MutualInductivesClosed outEnv := by
+  intro outEnv hout
+  rcases Hheaders outEnv hout with ⟨Hresult, _⟩
+  exact ⟨Hresult,
+    declareInductiveTypes_closesMutuals stats numParams indTypes numNested
+      isUnsafe c hwf hold hsize outEnv hout⟩
 
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
