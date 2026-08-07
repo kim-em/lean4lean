@@ -870,6 +870,11 @@ def lowerConstructor (params : Array Expr) (nparams : Nat)
   return { ctor with
     type := lctx.mkForall As (← replaceAllNested lctx params As ctorType) }
 
+def lowerInductive (params : Array Expr) (nparams : Nat)
+    (indType : InductiveType) : M InductiveType := do
+  let ctors ← indType.ctors.mapM (lowerConstructor params nparams)
+  return { indType with ctors }
+
 def run (fuel nparams : Nat) (types : List InductiveType) : M Result := do
   let I :: _ := types
     | throw <| .other s!"invalid empty (mutual) inductive datatype declaration, \
@@ -881,8 +886,8 @@ def run (fuel nparams : Nat) (types : List InductiveType) : M Result := do
     let s ← get
     if _h : i < s.newTypes.size then
       let indType := s.newTypes[i]
-      let ctors ← indType.ctors.mapM (lowerConstructor params nparams)
-      modify fun s => { s with newTypes := s.newTypes.set! i { indType with ctors } }
+      let indType ← lowerInductive params nparams indType
+      modify fun s => { s with newTypes := s.newTypes.set! i indType }
       loop (i+1) fuel
     else
       let aux2nested := s.nestedAux.foldl (fun m (e, n) => m.insert n e) {}

@@ -22053,6 +22053,26 @@ theorem ElimNestedInductive.lowerConstructors.shapes
     intro loweredTail finalState Htail
     exact Except.WF.pure (.cons Hlowered Htail)
 
+/-- Family-level lowering preserves the family header verbatim and changes
+only its positionally corresponding constructor types. -/
+structure LoweredInductiveShape
+    (nparams : Nat) (source target : InductiveType) : Prop where
+  name : target.name = source.name
+  type : target.type = source.type
+  constructors : LoweredConstructorShapes nparams source.ctors target.ctors
+
+theorem ElimNestedInductive.lowerInductive.shape
+    (params : Array Expr) (nparams : Nat) (indType : InductiveType)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State) :
+    (Lean4Lean.ElimNestedInductive.lowerInductive params nparams indType
+      env state).WF fun out => LoweredInductiveShape nparams indType out.1 := by
+  unfold Lean4Lean.ElimNestedInductive.lowerInductive
+  refine nestedBind.WF
+    (ElimNestedInductive.lowerConstructors.shapes
+      params nparams indType.ctors env state) ?_
+  intro ctors nextState Hctors
+  exact Except.WF.pure ⟨rfl, rfl, Hctors⟩
+
 /-- The first branch of nested lowering rejects an empty source block. This
 is the operational origin of the nonemptiness premise later used to recover
 `SourceWF` from `TrInductDeclCore`. -/
@@ -22112,9 +22132,8 @@ theorem ElimNestedInductive.run.parameterOpening
         by_cases hidx : i < currentState.newTypes.size
         · rw [dif_pos hidx] at hout
           simp only [ReaderT.bind, bind, StateT.bind] at hout
-          cases hmap : List.mapM
-              (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams)
-              currentState.newTypes[i].ctors env currentState with
+          cases hmap : Lean4Lean.ElimNestedInductive.lowerInductive
+              params nparams currentState.newTypes[i] env currentState with
           | error err =>
             rw [hmap] at hout
             contradiction
