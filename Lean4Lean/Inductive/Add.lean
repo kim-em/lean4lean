@@ -746,23 +746,31 @@ instance : MonadNameGenerator M where
   getNGen := return (← get).ngen
   setNGen ngen := modify fun s => { s with ngen }
 
-def mkUniqueName (n : Name) : M Name := fun env s =>
-  let rec loop i
-    | 0 => throw <| .other "failed to select a fresh nested-inductive name"
-    | fuel + 1 =>
+def findUniqueName (env : Environment) (n : Name) (i : Nat) :
+    Nat → Except Exception (Name × Nat)
+  | 0 => throw <| .other "failed to select a fresh nested-inductive name"
+  | fuel + 1 =>
     let r := n.appendIndexAfter i
     if env.contains r then
-      loop (i + 1) fuel
+      findUniqueName env n (i + 1) fuel
     else
-      pure (r, { s with nextIdx := i + 1 })
-  loop s.nextIdx (env.constants.toList.length + 1)
+      pure (r, i + 1)
+
+def mkUniqueName (n : Name) : M Name := fun env state => do
+  let (name, nextIdx) ←
+    findUniqueName env n state.nextIdx (env.constants.toList.length + 1)
+  return (name, { state with nextIdx })
 
 def illFormed : Exception :=
   .other "invalid nested inductive datatype, ill-formed declaration"
 
-def replaceParams (params : Array Expr) (e : Expr) (As : Array Expr) : M Expr := do
+def replaceParamsCore (params : Array Expr) (e : Expr) (As : Array Expr) :
+    Except Exception Expr := do
   assert! As.size == params.size
   return (e.abstract As).instantiateRev params
+
+def replaceParams (params : Array Expr) (e : Expr) (As : Array Expr) : M Expr :=
+  fun _ state => (fun result => (result, state)) <$> replaceParamsCore params e As
 
 /-- IF `e` is of the form `I Ds is` where
   1) `I` is a nested inductive datatype (i.e., a previously declared inductive datatype),
@@ -812,6 +820,63 @@ def findCachedAux? (nestedAux : Array (Expr × Name)) (nested : Expr) :
   nestedAux.findSome? fun (e, n) =>
     if e == nested then some n else none
 
+structure AuxiliaryData where
+  nested : Expr
+  type : InductiveType
+
+def buildAuxiliary (env : Environment) (lctx : LocalContext)
+    (params As : Array Expr) (I_lvls : List Level) (I_nparams : Nat)
+    (args : Array Expr) (J_name auxJ_name : Name) : Except Exception AuxiliaryData := do
+  let info ← env.get J_name
+  let J_info := match info with
+    | .inductInfo J_info => J_info
+    | _ => unreachable!
+  let J := .const J_name I_lvls
+  let JAs := mkAppRange J 0 I_nparams args
+  let auxJ_type := J_info.type.instantiateLevelParams J_info.levelParams I_lvls
+  let auxJ_type := lctx.mkForall As <|
+    ← instantiateForallParams auxJ_type I_nparams args
+  let JAs' ← replaceParamsCore params JAs As
+  let auxJ_ctors ← J_info.ctors.mapM fun J_ctor_name => do
+    let J_ctor_info ← env.get J_ctor_name
+    -- auxJ_cnstr_type still has references to `J`, this will be fixed later when we process it.
+    let auxJ_ctor_name := J_ctor_name.replacePrefix J_name auxJ_name
+    let auxJ_ctor_type := J_ctor_info.type.instantiateLevelParams
+      J_ctor_info.levelParams I_lvls
+    let auxJ_ctor_type ← instantiateForallParams auxJ_ctor_type I_nparams args
+    return { name := auxJ_ctor_name, type := lctx.mkForall As auxJ_ctor_type }
+  return {
+    nested := JAs'
+    type := { name := auxJ_name, type := auxJ_type, ctors := auxJ_ctors } }
+
+def generateAuxiliary (lctx : LocalContext) (params As : Array Expr)
+    (I_name : Name) (I_lvls : List Level) (I_nparams : Nat)
+    (args : Array Expr) (J_name : Name) : M (Option Expr) := do
+  let env ← read
+  let auxJ_name ← mkUniqueName (`_nested ++ J_name)
+  let data ← buildAuxiliary env lctx params As I_lvls I_nparams args J_name auxJ_name
+  modify fun st => { st with nestedAux := st.nestedAux.push (data.nested, auxJ_name) }
+  let result ← if J_name == I_name then
+    pure <| some <| mkAppRange
+      (mkAppN (.const auxJ_name (← get).lvls) As) I_nparams args.size args
+  else
+    pure none
+  modify fun st => { st with newTypes := st.newTypes.push data.type }
+  return result
+
+def generateAuxiliaries (lctx : LocalContext) (params As : Array Expr)
+    (I_name : Name) (I_lvls : List Level) (I_nparams : Nat)
+    (args : Array Expr) (I_val : InductiveVal) : M (Option Expr) :=
+  loop none I_val.all
+where
+  loop (result : Option Expr) : List Name → M (Option Expr)
+    | [] => do
+      assert! result.isSome
+      return result
+    | J_name :: names => do
+      let found ← generateAuxiliary lctx params As I_name I_lvls I_nparams args J_name
+      loop (found.or result) names
+
 /-- If `e` is a nested occurrence `I Ds is`, return `Iaux As is` -/
 def replaceIfNested (lctx : LocalContext) (params : Array Expr) (As : Array Expr) (e : Expr) :
     M (Option Expr) := do
@@ -825,31 +890,7 @@ def replaceIfNested (lctx : LocalContext) (params : Array Expr) (As : Array Expr
   let st ← get
   if let some auxI_name := findCachedAux? st.nestedAux Iparams then
     return mkAppRange (mkAppN (.const auxI_name st.lvls) As) I_nparams args.size args
-  let mut result := none
-  let env ← read
-  for J_name in I_val.all do
-    let .inductInfo J_info ← env.get J_name | unreachable!
-    let J := .const J_name I_lvls
-    let JAs := mkAppRange J 0 I_nparams args
-    let auxJ_name ← mkUniqueName (`_nested ++ J_name)
-    let auxJ_type := J_info.type.instantiateLevelParams J_info.levelParams I_lvls
-    let auxJ_type := lctx.mkForall As <| ← instantiateForallParams auxJ_type I_nparams args
-    let JAs' ← replaceParams params JAs As
-    modify fun st => { st with nestedAux := st.nestedAux.push (JAs', auxJ_name) }
-    if J_name == I_name then
-      result := some <|
-        mkAppRange (mkAppN (.const auxJ_name (← get).lvls) As) I_nparams args.size args
-    let auxJ_ctors ← J_info.ctors.mapM fun J_ctor_name => do
-      let J_ctor_info ← env.get J_ctor_name
-      -- auxJ_cnstr_type still has references to `J`, this will be fixed later when we process it.
-      let auxJ_ctor_name := J_ctor_name.replacePrefix J_name auxJ_name
-      let auxJ_ctor_type := J_ctor_info.type.instantiateLevelParams J_ctor_info.levelParams I_lvls
-      let auxJ_ctor_type ← instantiateForallParams auxJ_ctor_type I_nparams args
-      return { name := auxJ_ctor_name, type := lctx.mkForall As auxJ_ctor_type }
-    let newType := { name := auxJ_name, type := auxJ_type, ctors := auxJ_ctors }
-    modify fun st => { st with newTypes := st.newTypes.push newType }
-  assert! result.isSome
-  return result
+  generateAuxiliaries lctx params As I_name I_lvls I_nparams args I_val
 
 def replaceAllNested (lctx : LocalContext) (params : Array Expr) (As : Array Expr) (e : Expr) :
     M Expr := e.replaceM (replaceIfNested lctx params As)

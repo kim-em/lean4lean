@@ -21022,6 +21022,15 @@ theorem instantiateForallParams_refines
           tail.instantiateRevRange 0 n params =
             residual.instantiateRevRange 0 n params))
 
+theorem replaceNestedParamsCore_refines
+    (params : Array Expr) (e : Expr) (args : Array Expr)
+    (hsize : args.size = params.size) :
+    (Lean4Lean.ElimNestedInductive.replaceParamsCore params e args).WF
+      fun out => out = (e.abstract args).instantiateRev params := by
+  unfold Lean4Lean.ElimNestedInductive.replaceParamsCore
+  simp [hsize]
+  exact Except.WF.pure rfl
+
 /-- Parameter replacement cannot truncate either side of the substitution:
 success records exact arity equality and the concrete simultaneous
 abstraction/instantiation result. -/
@@ -21032,10 +21041,239 @@ theorem replaceNestedParams_refines
     (Lean4Lean.ElimNestedInductive.replaceParams params e args env state).WF
       fun out => out.1 = (e.abstract args).instantiateRev params := by
   unfold Lean4Lean.ElimNestedInductive.replaceParams
+    Lean4Lean.ElimNestedInductive.replaceParamsCore
   simp [hsize]
-  intro out hout
-  cases hout
-  rfl
+  exact Except.WF.pure rfl
+
+/-- The executable fresh-name search records the numeric suffix it selected,
+never moves backwards from its initial counter, and returns a name absent from
+the current environment. -/
+structure FreshNestedName (env : Environment) (base : Name) (start : Nat)
+    (name : Name) (nextIdx : Nat) : Prop where
+  index : ∃ i, start ≤ i ∧ name = base.appendIndexAfter i ∧ nextIdx = i + 1
+  fresh : env.contains name = false
+
+theorem findUniqueName_refines
+    (env : Environment) (base : Name) (start fuel : Nat) :
+    (Lean4Lean.ElimNestedInductive.findUniqueName env base start fuel).WF
+      fun out => FreshNestedName env base start out.1 out.2 := by
+  induction fuel generalizing start with
+  | zero => exact Except.WF.throw
+  | succ fuel ih =>
+    rw [Lean4Lean.ElimNestedInductive.findUniqueName]
+    split
+    next hcontains =>
+      exact (ih (start := start + 1)).mono fun out H => ⟨
+        ⟨H.index.choose, Nat.le_trans (Nat.le_add_right start 1)
+          H.index.choose_spec.1, H.index.choose_spec.2⟩,
+        H.fresh⟩
+    next hcontains =>
+      have hfresh : env.contains (base.appendIndexAfter start) = false := by
+        cases h : env.contains (base.appendIndexAfter start) <;> simp_all
+      exact Except.WF.pure ⟨⟨start, Nat.le_refl _, rfl, rfl⟩, hfresh⟩
+
+/-- `mkUniqueName` is a state-preserving wrapper around the pure search: only
+the fresh-name counter changes. -/
+theorem mkUniqueName_refines
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (base : Name) :
+    (Lean4Lean.ElimNestedInductive.mkUniqueName base env state).WF fun out =>
+      ∃ nextIdx,
+        FreshNestedName env base state.nextIdx out.1 nextIdx ∧
+        out.2 = { state with nextIdx } := by
+  unfold Lean4Lean.ElimNestedInductive.mkUniqueName
+  exact (findUniqueName_refines env base state.nextIdx
+    (env.constants.toList.length + 1)).bind fun out H =>
+      Except.WF.pure ⟨out.2, H, rfl⟩
+
+private theorem environmentGet_refines (env : Environment) (name : Name) :
+    (env.get name).WF fun info => env.find? name = some info := by
+  unfold Lean.Kernel.Environment.get
+  split
+  next h => exact Except.WF.pure h
+  next => exact Except.WF.throw
+
+/-- One generated constructor is obtained from the named source declaration by
+level instantiation, exact removal of the source parameters, and re-closing over
+the new mutual block parameters. -/
+structure BuiltAuxConstructor
+    (env : Environment) (lctx : LocalContext) (As : Array Expr)
+    (levels : List Level) (nparams : Nat) (args : Array Expr)
+    (sourceFamily auxFamily sourceName : Name) (target : Constructor) : Prop where
+  source : ∃ sourceInfo sourceTail,
+    env.find? sourceName = some sourceInfo ∧
+    Expr.ForallTelescope
+      (sourceInfo.type.instantiateLevelParams sourceInfo.levelParams levels)
+      nparams sourceTail ∧
+    target.name = sourceName.replacePrefix sourceFamily auxFamily ∧
+    target.type = lctx.mkForall As
+      (sourceTail.instantiateRevRange 0 nparams args)
+
+inductive BuiltAuxConstructors
+    (env : Environment) (lctx : LocalContext) (As : Array Expr)
+    (levels : List Level) (nparams : Nat) (args : Array Expr)
+    (sourceFamily auxFamily : Name) : List Name → List Constructor → Prop
+  | nil : BuiltAuxConstructors env lctx As levels nparams args
+      sourceFamily auxFamily [] []
+  | cons : BuiltAuxConstructor env lctx As levels nparams args sourceFamily
+      auxFamily sourceName target →
+      BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+        auxFamily sourceNames targets →
+      BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+        auxFamily (sourceName :: sourceNames) (target :: targets)
+
+private theorem buildAuxConstructors_refines
+    (env : Environment) (lctx : LocalContext) (As : Array Expr)
+    (levels : List Level) (nparams : Nat) (args : Array Expr)
+    (sourceFamily auxFamily : Name) (sourceNames : List Name) :
+    (sourceNames.mapM fun sourceName => do
+      let sourceInfo ← env.get sourceName
+      let targetName := sourceName.replacePrefix sourceFamily auxFamily
+      let sourceType := sourceInfo.type.instantiateLevelParams
+        sourceInfo.levelParams levels
+      let targetType ← Lean4Lean.ElimNestedInductive.instantiateForallParams
+        sourceType nparams args
+      return ({ name := targetName, type := lctx.mkForall As targetType } :
+        Constructor)).WF fun targets =>
+          BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+            auxFamily sourceNames targets := by
+  induction sourceNames with
+  | nil => exact Except.WF.pure .nil
+  | cons sourceName sourceNames ih =>
+    rw [List.mapM_cons]
+    have Hhead : (do
+        let sourceInfo ← env.get sourceName
+        let targetName := sourceName.replacePrefix sourceFamily auxFamily
+        let sourceType := sourceInfo.type.instantiateLevelParams
+          sourceInfo.levelParams levels
+        let targetType ←
+          Lean4Lean.ElimNestedInductive.instantiateForallParams
+            sourceType nparams args
+        return ({ name := targetName, type := lctx.mkForall As targetType } :
+          Constructor)).WF fun target =>
+            BuiltAuxConstructor env lctx As levels nparams args sourceFamily
+              auxFamily sourceName target :=
+      (environmentGet_refines env sourceName).bind fun sourceInfo hlookup =>
+      (instantiateForallParams_refines
+        (sourceInfo.type.instantiateLevelParams sourceInfo.levelParams levels)
+        nparams args).bind fun targetType Htype => Except.WF.pure
+          ⟨⟨sourceInfo, Htype.choose, hlookup, Htype.choose_spec.1,
+            rfl, congrArg (lctx.mkForall As) Htype.choose_spec.2⟩⟩
+    exact Hhead.bind fun _ Htarget =>
+      ih.bind fun _ Htargets => Except.WF.pure (.cons Htarget Htargets)
+
+/-- Pure auxiliary construction retains an independently inspectable account
+of the source family, its opened family type, parameter substitution, and every
+generated constructor. -/
+structure BuiltAuxiliary
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (levels : List Level) (nparams : Nat) (args : Array Expr)
+    (sourceName auxName : Name) (sourceInfo : InductiveVal)
+    (data : Lean4Lean.ElimNestedInductive.AuxiliaryData) : Prop where
+  lookup : env.find? sourceName = some (.inductInfo sourceInfo)
+  opening : ∃ sourceTail,
+    Expr.ForallTelescope
+      (sourceInfo.type.instantiateLevelParams sourceInfo.levelParams levels)
+      nparams sourceTail ∧
+    data.type.type = lctx.mkForall As
+      (sourceTail.instantiateRevRange 0 nparams args)
+  arity : As.size = params.size
+  nested : data.nested =
+    ((mkAppRange (.const sourceName levels) 0 nparams args).abstract As).instantiateRev params
+  name : data.type.name = auxName
+  constructors : BuiltAuxConstructors env lctx As levels nparams args
+    sourceName auxName sourceInfo.ctors data.type.ctors
+
+theorem buildAuxiliary_refines
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (levels : List Level) (nparams : Nat) (args : Array Expr)
+    (sourceName auxName : Name) (sourceInfo : InductiveVal)
+    (hlookup : env.find? sourceName = some (.inductInfo sourceInfo)) :
+    As.size = params.size →
+    (Lean4Lean.ElimNestedInductive.buildAuxiliary env lctx params As levels
+      nparams args sourceName auxName).WF fun data =>
+        BuiltAuxiliary env lctx params As levels nparams args sourceName auxName
+          sourceInfo data := by
+  intro hsize
+  unfold Lean4Lean.ElimNestedInductive.buildAuxiliary
+  simp only [Lean.Kernel.Environment.get, hlookup]
+  exact (instantiateForallParams_refines
+    (sourceInfo.type.instantiateLevelParams sourceInfo.levelParams levels)
+    nparams args).bind fun targetType Htype =>
+      (replaceNestedParamsCore_refines params
+        (mkAppRange (.const sourceName levels) 0 nparams args) As hsize).bind
+        fun nested Hnested =>
+          (buildAuxConstructors_refines env lctx As levels nparams args
+            sourceName auxName sourceInfo.ctors).bind fun targets Htargets =>
+              Except.WF.pure ⟨hlookup,
+                ⟨Htype.choose, Htype.choose_spec.1,
+                  congrArg (lctx.mkForall As) Htype.choose_spec.2⟩,
+                hsize, Hnested, rfl, Htargets⟩
+
+/-- A single fresh-family generation step pairs the cache entry and generated
+family through the same fresh name, and otherwise changes only the fresh-name
+counter and the two append-only arrays. -/
+structure GeneratedAuxiliary
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (targetName : Name) (levels : List Level) (nparams : Nat)
+    (args : Array Expr) (sourceName : Name) (sourceInfo : InductiveVal)
+    (state : Lean4Lean.ElimNestedInductive.State)
+    (out : Option Expr × Lean4Lean.ElimNestedInductive.State) : Prop where
+  generated : ∃ auxName nextIdx data,
+    FreshNestedName env (`_nested ++ sourceName) state.nextIdx auxName nextIdx ∧
+    BuiltAuxiliary env lctx params As levels nparams args sourceName auxName
+      sourceInfo data ∧
+    out.1 = (if sourceName == targetName then
+      some (mkAppRange (mkAppN (.const auxName state.lvls) As)
+        nparams args.size args)
+    else none) ∧
+    out.2 = { state with
+      nextIdx := nextIdx
+      nestedAux := state.nestedAux.push (data.nested, auxName)
+      newTypes := state.newTypes.push data.type }
+
+theorem generateAuxiliary_refines
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (targetName : Name) (levels : List Level) (nparams : Nat)
+    (args : Array Expr) (sourceName : Name) (sourceInfo : InductiveVal)
+    (state : Lean4Lean.ElimNestedInductive.State)
+    (hlookup : env.find? sourceName = some (.inductInfo sourceInfo))
+    (hsize : As.size = params.size) :
+    (Lean4Lean.ElimNestedInductive.generateAuxiliary lctx params As targetName
+      levels nparams args sourceName env state).WF fun out =>
+        GeneratedAuxiliary env lctx params As targetName levels nparams args
+          sourceName sourceInfo state out := by
+  unfold Lean4Lean.ElimNestedInductive.generateAuxiliary
+  simp only [read, ReaderT.read, bind, ReaderT.bind]
+  exact (mkUniqueName_refines env state (`_nested ++ sourceName)).bind
+    fun unique Hunique => by
+      rcases unique with ⟨auxName, nextState⟩
+      simp only at Hunique ⊢
+      rcases Hunique with ⟨nextIdx, Hfresh, hstate⟩
+      subst nextState
+      simp only [liftM, MonadLiftT.monadLift, MonadLift.monadLift,
+        StateT.instMonadLift, ReaderT.instMonadLift, StateT.lift,
+        StateT.modifyGet, modify, get, StateT.get,
+        bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
+      have Hbuild :
+          ((Lean4Lean.ElimNestedInductive.buildAuxiliary env lctx params As
+            levels nparams args sourceName auxName).bind fun data =>
+              Except.pure (data, { state with nextIdx })).WF fun out =>
+            BuiltAuxiliary env lctx params As levels nparams args sourceName
+              auxName sourceInfo out.1 ∧ out.2 = { state with nextIdx } :=
+        (buildAuxiliary_refines env lctx params As levels nparams args
+          sourceName auxName sourceInfo hlookup hsize).bind fun _ Hdata =>
+            Except.WF.pure ⟨Hdata, rfl⟩
+      exact Hbuild.bind fun built Hbuilt => by
+        rcases built with ⟨data, buildState⟩
+        rcases Hbuilt with ⟨Hdata, hbuildState⟩
+        simp only at Hdata hbuildState ⊢
+        subst buildState
+        simp only [modifyGet, getThe, StateT.modifyGet, StateT.get,
+          bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
+        split <;> rename_i heq <;>
+          exact Except.WF.pure ⟨⟨auxName, nextIdx, data, Hfresh, Hdata,
+            by simp [heq], rfl⟩⟩
 
 /-- A successful cache lookup is backed by an actual previously recorded
 auxiliary entry with the requested nested expression and returned name. -/
