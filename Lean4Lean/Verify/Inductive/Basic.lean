@@ -21995,6 +21995,64 @@ theorem replaceIfNested_recognized
       intro out _ hout
       exact ⟨info, hcandidate info rfl⟩
 
+/-- Structural contract for one constructor after nested lowering.  It
+records the exact source telescope opened by the executable pass, the arity
+check performed before rebuilding it, and the fact that lowering changes
+only the constructor type.  The node-level replacement semantics are exposed
+separately by `replaceIfNested_recognized`. -/
+structure LoweredConstructorShape
+    (nparams : Nat) (source target : Constructor) : Prop where
+  name : target.name = source.name
+  rebuilt : ∃ lctx tail As lowered,
+    NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+    As.size = nparams ∧
+    target.type = lctx.mkForall As lowered
+
+inductive LoweredConstructorShapes (nparams : Nat) :
+    List Constructor → List Constructor → Prop
+  | nil : LoweredConstructorShapes nparams [] []
+  | cons : LoweredConstructorShape nparams source target →
+      LoweredConstructorShapes nparams sources targets →
+      LoweredConstructorShapes nparams (source :: sources) (target :: targets)
+
+theorem ElimNestedInductive.lowerConstructor.shape
+    (params : Array Expr) (nparams : Nat) (ctor : Constructor)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State) :
+    (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams ctor
+      env state).WF fun out => LoweredConstructorShape nparams ctor out.1 := by
+  unfold Lean4Lean.ElimNestedInductive.lowerConstructor
+  apply ElimNestedInductive.withParams.refines
+  intro lctx tail As openedState Hopening
+  have hsize : As.size = nparams := Hopening.initial_size
+  simp only [hsize, beq_self_eq_true, if_true]
+  refine nestedBind.WF
+    (x := Lean4Lean.ElimNestedInductive.replaceAllNested lctx params As tail)
+    (P := fun _ => True) ?_ ?_
+  · intro _ _
+    trivial
+  · intro lowered nextState _
+    exact Except.WF.pure
+      ⟨rfl, lctx, tail, As, lowered, Hopening, hsize, rfl⟩
+
+theorem ElimNestedInductive.lowerConstructors.shapes
+    (params : Array Expr) (nparams : Nat) (ctors : List Constructor)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State) :
+    (ctors.mapM
+      (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams)
+      env state).WF fun out =>
+        LoweredConstructorShapes nparams ctors out.1 := by
+  induction ctors generalizing state with
+  | nil => exact Except.WF.pure .nil
+  | cons ctor ctors ih =>
+    rw [List.mapM_cons]
+    refine nestedBind.WF
+      (ElimNestedInductive.lowerConstructor.shape
+        params nparams ctor env state) ?_
+    intro lowered nextState Hlowered
+    refine nestedBind.WF (ih nextState) ?_
+    intro loweredTail finalState Htail
+    exact Except.WF.pure (.cons Hlowered Htail)
+
 /-- The first branch of nested lowering rejects an empty source block. This
 is the operational origin of the nonemptiness premise later used to recover
 `SourceWF` from `TrInductDeclCore`. -/
