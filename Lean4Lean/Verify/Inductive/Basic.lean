@@ -14088,6 +14088,85 @@ structure BoundFVarArray (c : AddInductive.Context) (xs : Array Expr) where
   expressions : xs = (fvars.map Expr.fvar).toArray
   members : ∀ fv ∈ fvars, fv ∈ c.lctx.fvars
 
+def recursorFVarId : Expr → FVarId
+  | .fvar fv => fv
+  | _ => default
+
+def ExprArrayFVarIds (xs : Array Expr) : List FVarId :=
+  xs.toList.map recursorFVarId
+
+theorem cachedParameterDecls_fvars
+    {decls : VLCtx}
+    (H : List.Forall₂
+      checkInductiveTypes.loopType.CachedParameterDecl params decls) :
+    ∃ fvars : List FVarId,
+      params = fvars.map Expr.fvar ∧ decls.fvars = fvars := by
+  induction H with
+  | nil => exact ⟨[], rfl, rfl⟩
+  | @cons param entry params decls Hhead _ ih =>
+    rcases Hhead with ⟨fv, deps, type, rfl, rfl⟩
+    rcases ih with ⟨fvars, hparams, hdecls⟩
+    exact ⟨fv :: fvars, by simp [hparams], by simp [hdecls]⟩
+
+/-- The exact cached-parameter suffix reconstructed by header checking is
+the bound, duplicate-free parameter array consumed by `mkRecInfos`. -/
+def checkInductiveTypes.loopType.ParameterContextSuffix.paramsBound
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : ParameterContextSuffix Hc stats depth) :
+    BoundFVarArray c stats.params := by
+  refine {
+    fvars := ExprArrayFVarIds stats.params
+    expressions := ?_
+    members := ?_ }
+  · rw [← Array.toList_inj]
+    rcases cachedParameterDecls_fvars H.cached with
+      ⟨reversedFVars, hparamsRev, hscopeFVars⟩
+    have hreverse := congrArg List.reverse hparamsRev
+    have hparams : stats.params.toList =
+        reversedFVars.reverse.map Expr.fvar := by
+      simpa [List.map_reverse] using hreverse
+    change stats.params.toList =
+      (ExprArrayFVarIds stats.params).map Expr.fvar
+    rw [ExprArrayFVarIds, hparams]
+    simp [recursorFVarId, Function.comp_def]
+  · intro fv hfv
+    rcases cachedParameterDecls_fvars H.cached with
+      ⟨reversedFVars, hparamsRev, hscopeFVars⟩
+    have hreverse := congrArg List.reverse hparamsRev
+    have hparams : stats.params.toList =
+        reversedFVars.reverse.map Expr.fvar := by
+      simpa [List.map_reverse] using hreverse
+    have hparameter : fv ∈ H.parameterDecls.fvars := by
+      rw [hscopeFVars]
+      change fv ∈ ExprArrayFVarIds stats.params at hfv
+      rw [ExprArrayFVarIds, hparams] at hfv
+      simpa [recursorFVarId, Function.comp_def] using hfv
+    have hfull : fv ∈ Hc.mlctx.vlctx.fvars := by
+      rw [H.context, VLCtx.fvars_append]
+      exact List.mem_append_right _ hparameter
+    rw [← Hc.mlctx_wf.tr.fvars_eq, Hc.lctx_eq] at hfull
+    exact hfull
+
+theorem checkInductiveTypes.loopType.ParameterContextSuffix.paramsBound_nodup
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : ParameterContextSuffix Hc stats depth) :
+    (H.paramsBound (c := c)).fvars.Nodup := by
+  change (ExprArrayFVarIds stats.params).Nodup
+  rcases cachedParameterDecls_fvars H.cached with
+    ⟨reversedFVars, hparamsRev, hscopeFVars⟩
+  have hreverse := congrArg List.reverse hparamsRev
+  have hparams : stats.params.toList =
+      reversedFVars.reverse.map Expr.fvar := by
+    simpa [List.map_reverse] using hreverse
+  have hfull := Hc.mlctx_wf.fvars_nodup
+  rw [H.context, VLCtx.fvars_append] at hfull
+  have hparameter : H.parameterDecls.fvars.Nodup :=
+    (List.nodup_append.mp hfull).2.1
+  rw [hscopeFVars] at hparameter
+  rw [ExprArrayFVarIds, hparams]
+  simpa [recursorFVarId, Function.comp_def] using
+    (List.nodup_reverse.2 hparameter)
+
 def BindingContextLE (c c' : AddInductive.Context) : Prop :=
   c.lctx.fvars ⊆ c'.lctx.fvars
 
@@ -14296,13 +14375,6 @@ theorem BoundFVarArray.fvars_subset_of_sublist
   have hy : Expr.fvar fv ∈ ys.toList := hxy.subset hx
   rw [H₂.expressions] at hy
   simpa using hy
-
-def recursorFVarId : Expr → FVarId
-  | .fvar fv => fv
-  | _ => default
-
-def ExprArrayFVarIds (xs : Array Expr) : List FVarId :=
-  xs.toList.map recursorFVarId
 
 theorem BoundFVarArray.exprArrayFVarIds
     (H : BoundFVarArray c xs) : ExprArrayFVarIds xs = H.fvars := by
@@ -19779,6 +19851,43 @@ structure ConstructorPhasesResult
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors
+
+/-- The verified header cache supplies the exact retained parameter binders
+needed by recursor-info generation, while the constructor phases supply its
+independent declaration/cardinality input. -/
+theorem ConstructorPhasesResult.mkRecInfosWF
+    {alpha : Type} {Q : alpha → Prop}
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv)
+    (elimLevel : Level)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    (Hk : ∀ recInfos cOut, BindingContextWF cOut →
+      (Hbindings : RecInfoBindings cOut recInfos) →
+      (Hparams : BoundFVarArray cOut stats.params) →
+      Hbindings.NoAlias Hparams →
+      RecursorCardinalityCertificate stats recInfos decl →
+      BindingContextLE { c with env := outEnv } cOut →
+      (k recInfos cOut).WF Q) :
+    (AddInductive.mkRecInfos stats indTypes elimLevel k
+      { c with env := outEnv }).WF Q := by
+  let Hsuffix := H.materialized.parameterSuffix
+  let HparamsHeader : BoundFVarArray { c with env := headerEnv }
+      stats.params := Hsuffix.paramsBound
+  let Hparams : BoundFVarArray { c with env := outEnv }
+      stats.params := HparamsHeader.mono (by intro fv; exact id)
+  have hparamsNodup : Hparams.fvars.Nodup := by
+    change HparamsHeader.fvars.Nodup
+    change (ExprArrayFVarIds stats.params).Nodup
+    exact Hsuffix.paramsBound_nodup
+  apply mkRecInfos.resultCertificate (Q := Q) R.core H.materialized elimLevel k
+    { c with env := outEnv } R.declared.context.toBindingContextWF
+    Hparams hparamsNodup
+  exact Hk
 
 /-- The executable constructor check and declaration folds jointly establish
 the independent formation judgment and the complete pointwise source/core
