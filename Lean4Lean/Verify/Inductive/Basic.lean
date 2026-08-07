@@ -14266,25 +14266,46 @@ theorem checkInductiveTypes.loopType.ParameterContextSuffix.paramsBound_nodup
   simpa [recursorFVarId, Function.comp_def] using
     (List.nodup_reverse.2 hparameter)
 
-def BindingContextLE (c c' : AddInductive.Context) : Prop :=
-  c.lctx.fvars ⊆ c'.lctx.fvars
+structure BindingContextLE (c c' : AddInductive.Context) : Prop where
+  fvars : c.lctx.fvars ⊆ c'.lctx.fvars
+  env_eq : c'.env = c.env
+  lparams_eq : c'.lparams = c.lparams
+  safety_eq : c'.safety = c.safety
+  allowPrimitive_eq : c'.allowPrimitive = c.allowPrimitive
+  fuel_eq : c'.fuel = c.fuel
+
+instance : CoeFun (BindingContextLE c c') fun _ =>
+    ∀ ⦃fv⦄, fv ∈ c.lctx.fvars → fv ∈ c'.lctx.fvars where
+  coe H := H.fvars
 
 theorem BindingContextLE.refl (c : AddInductive.Context) :
-    BindingContextLE c c := fun _ => id
+    BindingContextLE c c := ⟨fun _ => id, rfl, rfl, rfl, rfl, rfl⟩
 
 theorem BindingContextLE.trans
     (H₁ : BindingContextLE c₁ c₂) (H₂ : BindingContextLE c₂ c₃) :
-    BindingContextLE c₁ c₃ := fun _ h => H₂ (H₁ h)
+    BindingContextLE c₁ c₃ :=
+  ⟨fun _ h => H₂ (H₁ h),
+    H₂.env_eq.trans H₁.env_eq,
+    H₂.lparams_eq.trans H₁.lparams_eq,
+    H₂.safety_eq.trans H₁.safety_eq,
+    H₂.allowPrimitive_eq.trans H₁.allowPrimitive_eq,
+    H₂.fuel_eq.trans H₁.fuel_eq⟩
 
 theorem BindingContextLE.withLocalDecl
     (c : AddInductive.Context) (name : Name) (ty : Expr) (bi : BinderInfo) :
     BindingContextLE c { c with
       ngen := c.ngen.next
-      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } := by
-  intro fv hfv
-  simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
-    List.map_cons, LocalDecl.fvarId, List.mem_cons]
-  exact Or.inr hfv
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
+  fvars := by
+    intro fv hfv
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons]
+    exact Or.inr hfv
+  env_eq := rfl
+  lparams_eq := rfl
+  safety_eq := rfl
+  allowPrimitive_eq := rfl
+  fuel_eq := rfl
 
 def BoundFVarArray.empty (c : AddInductive.Context) :
     BoundFVarArray c #[] where
@@ -14307,6 +14328,14 @@ def BoundFVarArray.weaken
 
 def BoundFVarArray.mono
     (H : BoundFVarArray c xs) (hle : BindingContextLE c c') :
+    BoundFVarArray c' xs where
+  fvars := H.fvars
+  expressions := H.expressions
+  members fv hfv := hle (H.members fv hfv)
+
+def BoundFVarArray.monoFVars
+    (H : BoundFVarArray c xs)
+    (hle : c.lctx.fvars ⊆ c'.lctx.fvars) :
     BoundFVarArray c' xs where
   fvars := H.fvars
   expressions := H.expressions
@@ -20026,6 +20055,65 @@ termination_by indTypes.size - dIdx
 /-- Public recursor-declaration boundary. The executable setup is reduced to
 the verified indexed loop, yielding both the complete generated-recursors
 certificate and lockstep production/abstract installation. -/
+theorem AddInductive.declareRecursors.bindingWF
+    {envTypes envCtors : VEnv} {decl : VInductDecl}
+    {currentVEnv : VEnv}
+    (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
+    (Hcontext : BindingContextWF c)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    (Hdecl : TrInductDeclCore sourceEnv c.lparams nparams
+      indTypes.toList sourceIsUnsafe decl envTypes envCtors)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (hnoalias : Hbindings.NoAlias Hparams)
+    (Htypes : RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+      stats indTypes recInfos)
+    (hnprim : ∀ owner (howner : owner < indTypes.size),
+      ¬ Kernel.Environment.primitives.contains
+        (Lean.mkRecName indTypes[owner]!.name)) :
+    (AddInductive.declareRecursors stats indTypes elimLevel recInfos c).WF
+      fun outEnv =>
+        ∃ outVEnv : VEnv,
+        ∃ entries : List (ConstantInfo × VConstVal),
+          Nonempty (GeneratedRecursors c.safety currentVEnv c.lparams
+            elimLevel c stats indTypes recInfos entries) ∧
+          AddConstants c.safety c.env currentVEnv entries outEnv
+            outVEnv := by
+  unfold AddInductive.declareRecursors
+  simp only [getLCtx, readThe, read, ReaderT.read]
+  have Hk : (AddInductive.isKTarget stats indTypes c).WF fun _ => True :=
+    fun _ _ => trivial
+  exact Hk.bind fun k _ => by
+    simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
+    have Hcheck :
+        (AddInductive.declareRecursors.checkRecursorTypes stats indTypes
+          elimLevel recInfos (recInfos.flatMap (·.minors)).size
+          (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
+          c.lctx k (c.safety != .safe) c.lparams 0 c).WF fun _ => True :=
+      fun _ _ => trivial
+    refine Hcheck.bind fun _ _ => ?_
+    have Hloop := AddInductive.declareRecursors.loop.WF (elimLevel := elimLevel)
+      Hcard Hdecl c
+      Hcontext Hbindings Hparams hnoalias
+      (recInfos.flatMap (·.minors)).size
+      (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList k
+      (c.safety != .safe) c.allowPrimitive 0 (by omega) c.env
+      Hvalid VEnv.LE.rfl
+      (Htypes.recursorInfoTranslation k) hnprim
+    change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
+      elimLevel recInfos (recInfos.map (·.motive))
+      (recInfos.flatMap (·.minors)) (recInfos.flatMap (·.minors)).size
+      (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList c.lctx
+      k (c.safety != .safe) c.lparams c.allowPrimitive 0 c.env 0 c).WF _)
+    exact Hloop.map fun out Hout => by
+      rcases Hout with
+        ⟨outVEnv, entries, _hstate, ⟨Hrange⟩, Hinstalled⟩
+      have hsize : entries.length = recInfos.size := by
+        simpa using Hrange.covered
+      exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, Hinstalled⟩
+
+/-- Full-context wrapper for callers that have semantic local-context typing,
+retaining the original public interface. -/
 theorem AddInductive.declareRecursors.WF
     {envTypes envCtors : VEnv} {decl : VInductDecl}
     (Hcontext : ContextWF c)
@@ -20047,39 +20135,10 @@ theorem AddInductive.declareRecursors.WF
           Nonempty (GeneratedRecursors c.safety Hcontext.venv c.lparams
             elimLevel c stats indTypes recInfos entries) ∧
           AddConstants c.safety c.env Hcontext.venv entries outEnv
-            outVEnv := by
-  unfold AddInductive.declareRecursors
-  simp only [getLCtx, readThe, read, ReaderT.read]
-  have Hk : (AddInductive.isKTarget stats indTypes c).WF fun _ => True :=
-    fun _ _ => trivial
-  exact Hk.bind fun k _ => by
-    simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
-    have Hcheck :
-        (AddInductive.declareRecursors.checkRecursorTypes stats indTypes
-          elimLevel recInfos (recInfos.flatMap (·.minors)).size
-          (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
-          c.lctx k (c.safety != .safe) c.lparams 0 c).WF fun _ => True :=
-      fun _ _ => trivial
-    refine Hcheck.bind fun _ _ => ?_
-    have Hloop := AddInductive.declareRecursors.loop.WF (elimLevel := elimLevel)
-      Hcard Hdecl c
-      Hcontext.toBindingContextWF Hbindings Hparams hnoalias
-      (recInfos.flatMap (·.minors)).size
-      (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList k
-      (c.safety != .safe) c.allowPrimitive 0 (by omega) c.env
-      Hcontext.checking VEnv.LE.rfl
-      (Htypes.recursorInfoTranslation k) hnprim
-    change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
-      elimLevel recInfos (recInfos.map (·.motive))
-      (recInfos.flatMap (·.minors)) (recInfos.flatMap (·.minors)).size
-      (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList c.lctx
-      k (c.safety != .safe) c.lparams c.allowPrimitive 0 c.env 0 c).WF _)
-    exact Hloop.map fun out Hout => by
-      rcases Hout with
-        ⟨outVEnv, entries, _hstate, ⟨Hrange⟩, Hinstalled⟩
-      have hsize : entries.length = recInfos.size := by
-        simpa using Hrange.covered
-      exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, Hinstalled⟩
+            outVEnv :=
+  AddInductive.declareRecursors.bindingWF Hcontext.checking
+    Hcontext.toBindingContextWF Hcard Hdecl Hbindings Hparams hnoalias Htypes
+    hnprim
 
 /-- Non-circular result of mutual header declaration. It retains typed
 headers, raw constructor correspondence, and the exact installed header
@@ -20274,6 +20333,7 @@ structure DeclaredConstructorsResult
   translation : TrInductDeclConstructors H.context.venv c.lparams
     indTypes.toList decl venvCtors
   context : ContextWF { c with env := outEnv }
+  contextVEnv : context.venv = venvCtors
 
 theorem AddInductive.declareConstructors.WF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
@@ -20340,7 +20400,8 @@ theorem AddInductive.declareConstructors.WF
       nonInductive := hnind
       translation := Htranslation
       context := H.context.withEnv
-        (Hinstalled.valid H.context.checking) Hinstalled.le }, trivial⟩
+        (Hinstalled.valid H.context.checking) Hinstalled.le
+      contextVEnv := rfl }, trivial⟩
 
 structure ConstructorPhasesResult
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
@@ -20380,7 +20441,7 @@ theorem ConstructorPhasesResult.mkRecInfosWF
   let HparamsHeader : BoundFVarArray { c with env := headerEnv }
       stats.params := Hsuffix.paramsBound
   let Hparams : BoundFVarArray { c with env := outEnv }
-      stats.params := HparamsHeader.mono (by intro fv; exact id)
+      stats.params := HparamsHeader.monoFVars (by intro fv; exact id)
   have hparamsNodup : Hparams.fvars.Nodup := by
     change HparamsHeader.fvars.Nodup
     change (ExprArrayFVarIds stats.params).Nodup
@@ -22883,6 +22944,107 @@ theorem AddInductive.formationCore.closedWF
   intro headerEnv Hheader
   exact AddInductive.constructorPhases.WF Hheader Hfresh hconsume hlit hproj
     hunsafe hbound hvisible hnprimCtors
+
+/-- Complete output of the executable recursor suffix, retaining the local
+binder selections required for compilation and the final mutual-lookup
+invariant required by subsequent nested restoration. -/
+structure RecursorPhasesResult
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    (R : ConstructorPhasesResult Hheaders ctorEnv)
+    (outEnv : Environment) where
+  elimLevel : Level
+  recInfos : Array AddInductive.RecInfo
+  localContext : AddInductive.Context
+  localWF : BindingContextWF localContext
+  localExtends : BindingContextLE { c with env := ctorEnv } localContext
+  bindings : RecInfoBindings localContext recInfos
+  params : BoundFVarArray localContext stats.params
+  noAlias : bindings.NoAlias params
+  cardinality : RecursorCardinalityCertificate stats recInfos decl
+  outVEnv : VEnv
+  entries : List (ConstantInfo × VConstVal)
+  generated : GeneratedRecursors localContext.safety R.declared.venvCtors
+    localContext.lparams elimLevel localContext stats indTypes recInfos entries
+  installed : AddConstants localContext.safety localContext.env
+    R.declared.venvCtors
+    entries outEnv outVEnv
+  closed : MutualInductivesClosed outEnv
+
+/-- The exact `getElimLevel`/`mkRecInfos`/`declareRecursors` suffix of
+`AddInductive.run`. The only semantic callback left is translation of the
+freshly built recursor telescopes; all context conservation, installation,
+cardinality, and mutual-lookup obligations are discharged here. -/
+theorem ConstructorPhasesResult.recursorPhasesWF
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    (R : ConstructorPhasesResult Hheaders ctorEnv)
+    (hclosed : MutualInductivesClosed ctorEnv)
+    (Htypes : ∀ elimLevel recInfos localContext,
+      BindingContextWF localContext →
+      RecInfoBindings localContext recInfos →
+      BoundFVarArray localContext stats.params →
+      RecursorCardinalityCertificate stats recInfos decl →
+      BindingContextLE { c with env := ctorEnv } localContext →
+      RecursorTypeTranslations R.declared.venvCtors localContext.lparams
+        elimLevel localContext stats indTypes recInfos)
+    (hnprim : ∀ owner (howner : owner < indTypes.size),
+      ¬ Kernel.Environment.primitives.contains
+        (Lean.mkRecName indTypes[owner]!.name)) :
+    ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
+      AddInductive.mkRecInfos stats indTypes elimLevel fun recInfos =>
+        AddInductive.declareRecursors stats indTypes elimLevel recInfos)
+      { c with env := ctorEnv }).WF fun outEnv =>
+        Nonempty (RecursorPhasesResult R outEnv) := by
+  apply R.getElimLevelMkRecInfosWF
+    (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
+    (k := fun elimLevel recInfos =>
+      AddInductive.declareRecursors stats indTypes elimLevel recInfos)
+  intro elimLevel recInfos localContext Hlocal Hbindings Hparams hnoalias Hcard Hle
+  have Hvalid : CheckingEnv.Valid localContext.safety localContext.env
+      R.declared.venvCtors := by
+    rw [Hle.safety_eq, Hle.env_eq]
+    rw [← R.declared.contextVEnv]
+    exact R.declared.context.checking
+  have Hcore : TrInductDeclCore sourceEnv localContext.lparams nparams
+      indTypes.toList isUnsafe decl Hheaders.context.venv
+      R.declared.venvCtors := by
+    rw [Hle.lparams_eq]
+    exact R.core
+  have Hrecursors := AddInductive.declareRecursors.bindingWF Hvalid Hlocal
+    Hcard Hcore Hbindings Hparams hnoalias
+    (Htypes elimLevel recInfos localContext Hlocal Hbindings Hparams Hcard Hle)
+    hnprim
+  have hclosedLocal : MutualInductivesClosed localContext.env := by
+    rw [Hle.env_eq]
+    exact hclosed
+  exact Hrecursors.mono fun outEnv Hout => by
+    rcases Hout with
+      ⟨outVEnv, entries, ⟨Hgenerated⟩, Hinstalled⟩
+    exact ⟨{
+      elimLevel := elimLevel
+      recInfos := recInfos
+      localContext := localContext
+      localWF := Hlocal
+      localExtends := Hle
+      bindings := Hbindings
+      params := Hparams
+      noAlias := hnoalias
+      cardinality := Hcard
+      outVEnv := outVEnv
+      entries := entries
+      generated := Hgenerated
+      installed := Hinstalled
+      closed := Hgenerated.closesMutuals Hinstalled Hvalid.tr.map_wf
+        hclosedLocal }⟩
 
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
