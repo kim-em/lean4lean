@@ -22356,6 +22356,12 @@ structure MutualInductiveClosure
   members : InductiveMemberInfos env value.all
   target : targetName ∈ value.all
 
+/-- Global form of mutual-block closure used while recursively scanning an
+expression, where the particular nested family is not known in advance. -/
+def MutualInductivesClosed (env : Environment) : Prop :=
+  ∀ targetName value, env.find? targetName = some (.inductInfo value) →
+    MutualInductiveClosure env targetName value
+
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/
@@ -22438,10 +22444,7 @@ theorem replaceIfNested_refines
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (e : Expr) (state : Lean4Lean.ElimNestedInductive.State)
     (hsize : As.size = params.size)
-    (hclosures : ∀ targetName levels value,
-      e.getAppFn = .const targetName levels →
-      env.find? targetName = some (.inductInfo value) →
-      MutualInductiveClosure env targetName value) :
+    (hclosures : MutualInductivesClosed env) :
     (Lean4Lean.ElimNestedInductive.replaceIfNested lctx params As e env state).WF
       fun out => NestedReplacement env lctx params As e state out := by
   rw [Lean4Lean.ElimNestedInductive.replaceIfNested]
@@ -22468,8 +22471,238 @@ theorem replaceIfNested_refines
       rw [Expr.withApp_eq, hhead]
       exact (replaceRecognizedNested_refines env lctx params As targetName
         levels e.getAppArgs value state Hcandidate.parameters.arity hsize
-        (hclosures targetName levels value hhead hlookup)).mono fun _ Hresult =>
+        (hclosures targetName value hlookup)).mono fun _ Hresult =>
           .recognized Hcandidate hhead Hresult
+
+theorem RecognizedNestedReplacement.resultSome
+    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+      value state out) : out.1.isSome = true := by
+  cases H with
+  | cached => simp
+  | generated Hbatch => exact Hbatch.resultSome
+
+theorem NestedReplacement.outcome
+    (H : NestedReplacement env lctx params As e state out) :
+    out = (none, state) ∨ ∃ output nextState, out = (some output, nextState) := by
+  cases H with
+  | unrecognized => exact Or.inl rfl
+  | recognized Hcandidate hhead Hresult =>
+    right
+    have hsome := Hresult.resultSome
+    cases h : out.1 with
+    | none => simp [h] at hsome
+    | some output => exact ⟨output, out.2, by cases out; simp_all⟩
+
+/-- Stateful, top-down specification of `Expr.replaceM` for nested lowering.
+A successful node replacement stops descent; otherwise children are processed
+left-to-right with the exact intermediate states and update combinators used by
+Lean's expression traversal. -/
+inductive NestedExprReplacement
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr) :
+    Expr → Lean4Lean.ElimNestedInductive.State →
+      Expr × Lean4Lean.ElimNestedInductive.State → Prop
+  | hit : NestedReplacement env lctx params As input state
+      (some output, nextState) →
+      NestedExprReplacement env lctx params As input state (output, nextState)
+  | bvar : NestedReplacement env lctx params As (.bvar i) state (none, state) →
+      NestedExprReplacement env lctx params As (.bvar i) state (.bvar i, state)
+  | fvar {fvarId : FVarId} :
+      NestedReplacement env lctx params As (.fvar fvarId) state (none, state) →
+      NestedExprReplacement env lctx params As (.fvar fvarId) state
+        (.fvar fvarId, state)
+  | mvar {mvarId : MVarId} :
+      NestedReplacement env lctx params As (.mvar mvarId) state (none, state) →
+      NestedExprReplacement env lctx params As (.mvar mvarId) state
+        (.mvar mvarId, state)
+  | sort : NestedReplacement env lctx params As (.sort level) state (none, state) →
+      NestedExprReplacement env lctx params As (.sort level) state (.sort level, state)
+  | const : NestedReplacement env lctx params As (.const name levels) state
+      (none, state) →
+      NestedExprReplacement env lctx params As (.const name levels) state
+        (.const name levels, state)
+  | lit : NestedReplacement env lctx params As (.lit literal) state (none, state) →
+      NestedExprReplacement env lctx params As (.lit literal) state
+        (.lit literal, state)
+  | app : NestedReplacement env lctx params As (.app fn arg) state (none, state) →
+      NestedExprReplacement env lctx params As fn state (fn', fnState) →
+      NestedExprReplacement env lctx params As arg fnState (arg', outState) →
+      NestedExprReplacement env lctx params As (.app fn arg) state
+        (Expr.updateApp! (.app fn arg) fn' arg', outState)
+  | lam : NestedReplacement env lctx params As (.lam name dom body bi) state
+      (none, state) →
+      NestedExprReplacement env lctx params As dom state (dom', domState) →
+      NestedExprReplacement env lctx params As body domState (body', outState) →
+      NestedExprReplacement env lctx params As (.lam name dom body bi) state
+        (Expr.updateLambdaE! (.lam name dom body bi) dom' body', outState)
+  | forallE : NestedReplacement env lctx params As
+      (.forallE name dom body bi) state (none, state) →
+      NestedExprReplacement env lctx params As dom state (dom', domState) →
+      NestedExprReplacement env lctx params As body domState (body', outState) →
+      NestedExprReplacement env lctx params As (.forallE name dom body bi) state
+        (Expr.updateForallE! (.forallE name dom body bi) dom' body', outState)
+  | letE : NestedReplacement env lctx params As
+      (.letE name type value body nondep) state (none, state) →
+      NestedExprReplacement env lctx params As type state (type', typeState) →
+      NestedExprReplacement env lctx params As value typeState (value', valueState) →
+      NestedExprReplacement env lctx params As body valueState (body', outState) →
+      NestedExprReplacement env lctx params As (.letE name type value body nondep) state
+        (Expr.updateLet! (.letE name type value body nondep)
+          type' value' body' nondep, outState)
+  | mdata : NestedReplacement env lctx params As (.mdata data body) state
+      (none, state) →
+      NestedExprReplacement env lctx params As body state (body', outState) →
+      NestedExprReplacement env lctx params As (.mdata data body) state
+        (Expr.updateMData! (.mdata data body) body', outState)
+  | proj : NestedReplacement env lctx params As (.proj name idx body) state
+      (none, state) →
+      NestedExprReplacement env lctx params As body state (body', outState) →
+      NestedExprReplacement env lctx params As (.proj name idx body) state
+        (Expr.updateProj! (.proj name idx body) body', outState)
+
+theorem replaceAllNested_refines
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (e : Expr) (state : Lean4Lean.ElimNestedInductive.State)
+    (hsize : As.size = params.size)
+    (hclosures : MutualInductivesClosed env) :
+    (Lean4Lean.ElimNestedInductive.replaceAllNested lctx params As e env state).WF
+      fun out => NestedExprReplacement env lctx params As e state out := by
+  induction e generalizing state with
+  | bvar i =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As (.bvar i)
+      state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone; exact Except.WF.pure (.bvar Hnode)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | fvar id =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As (.fvar id)
+      state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone; exact Except.WF.pure (.fvar Hnode)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | mvar id =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As (.mvar id)
+      state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone; exact Except.WF.pure (.mvar Hnode)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | sort level =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As (.sort level)
+      state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone; exact Except.WF.pure (.sort Hnode)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | const name levels =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As
+      (.const name levels) state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone; exact Except.WF.pure (.const Hnode)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | lit literal =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As
+      (.lit literal) state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone; exact Except.WF.pure (.lit Hnode)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | app fn arg ihFn ihArg =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As
+      (.app fn arg) state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone
+      refine nestedBind.WF (ihFn state) ?_
+      intro fn' fnState Hfn
+      refine nestedBind.WF (ihArg fnState) ?_
+      intro arg' outState Harg
+      exact Except.WF.pure (.app Hnode Hfn Harg)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | lam name dom body bi ihDom ihBody =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As
+      (.lam name dom body bi) state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone
+      refine nestedBind.WF (ihDom state) ?_
+      intro dom' domState Hdom
+      refine nestedBind.WF (ihBody domState) ?_
+      intro body' outState Hbody
+      exact Except.WF.pure (.lam Hnode Hdom Hbody)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | forallE name dom body bi ihDom ihBody =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As
+      (.forallE name dom body bi) state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone
+      refine nestedBind.WF (ihDom state) ?_
+      intro dom' domState Hdom
+      refine nestedBind.WF (ihBody domState) ?_
+      intro body' outState Hbody
+      exact Except.WF.pure (.forallE Hnode Hdom Hbody)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | letE name type value body nondep ihType ihValue ihBody =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As
+      (.letE name type value body nondep) state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone
+      refine nestedBind.WF (ihType state) ?_
+      intro type' typeState Htype
+      refine nestedBind.WF (ihValue typeState) ?_
+      intro value' valueState Hvalue
+      refine nestedBind.WF (ihBody valueState) ?_
+      intro body' outState Hbody
+      exact Except.WF.pure (.letE Hnode Htype Hvalue Hbody)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | mdata data body ihBody =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As
+      (.mdata data body) state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone
+      refine nestedBind.WF (ihBody state) ?_
+      intro body' outState Hbody
+      exact Except.WF.pure (.mdata Hnode Hbody)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
+  | proj name idx body ihBody =>
+    simp only [Lean4Lean.ElimNestedInductive.replaceAllNested,
+      Expr.replaceM, Expr.replaceNoCacheT]
+    refine nestedBind.WF (replaceIfNested_refines env lctx params As
+      (.proj name idx body) state hsize hclosures) ?_
+    intro replacement nextState Hnode
+    rcases Hnode.outcome with hnone | ⟨output, finalState, hsome⟩
+    · cases hnone
+      refine nestedBind.WF (ihBody state) ?_
+      intro body' outState Hbody
+      exact Except.WF.pure (.proj Hnode Hbody)
+    · cases hsome; exact Except.WF.pure (.hit Hnode)
 
 /-- Any successful replacement is rooted in an occurrence satisfying the
 independent recognition contract. This prefix theorem intentionally leaves
@@ -22539,6 +22772,73 @@ theorem ElimNestedInductive.lowerConstructor.shape
     exact Except.WF.pure
       ⟨rfl, lctx, tail, As, lowered, Hopening, hsize, rfl⟩
 
+/-- Semantic constructor-lowering certificate.  In addition to the rebuilt
+telescope shape, it records the complete stateful nested-expression
+translation from the opened source tail to the installed constructor type. -/
+structure LoweredConstructorTranslation
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (source : Constructor) (state : Lean4Lean.ElimNestedInductive.State)
+    (out : Constructor × Lean4Lean.ElimNestedInductive.State) : Prop where
+  name : out.1.name = source.name
+  translated : ∃ lctx tail As lowered openedState,
+    NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+    As.size = nparams ∧
+    NestedExprReplacement env lctx params As tail openedState (lowered, out.2) ∧
+    out.1.type = lctx.mkForall As lowered
+
+theorem ElimNestedInductive.lowerConstructor.translation
+    (params : Array Expr) (nparams : Nat) (ctor : Constructor)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env) :
+    (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams ctor
+      env state).WF fun out =>
+        LoweredConstructorTranslation env params nparams ctor state out := by
+  unfold Lean4Lean.ElimNestedInductive.lowerConstructor
+  apply ElimNestedInductive.withParams.refines
+  intro lctx tail As openedState Hopening
+  have hsize : As.size = nparams := Hopening.initial_size
+  simp only [hsize, beq_self_eq_true, if_true]
+  have hsubst : As.size = params.size := by omega
+  refine nestedBind.WF
+    (replaceAllNested_refines env lctx params As tail openedState
+      hsubst hclosures) ?_
+  intro lowered outState Hlowered
+  exact Except.WF.pure
+    ⟨rfl, lctx, tail, As, lowered, openedState, Hopening, hsize,
+      Hlowered, rfl⟩
+
+/-- Stateful positional correspondence for an entire constructor list. -/
+inductive LoweredConstructorTranslations
+    (env : Environment) (params : Array Expr) (nparams : Nat) :
+    List Constructor → Lean4Lean.ElimNestedInductive.State →
+      List Constructor × Lean4Lean.ElimNestedInductive.State → Prop
+  | nil : LoweredConstructorTranslations env params nparams [] state ([], state)
+  | cons : LoweredConstructorTranslation env params nparams source state step →
+      LoweredConstructorTranslations env params nparams sources step.2 out →
+      LoweredConstructorTranslations env params nparams (source :: sources)
+        state (step.1 :: out.1, out.2)
+
+theorem ElimNestedInductive.lowerConstructors.translations
+    (params : Array Expr) (nparams : Nat) (ctors : List Constructor)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env) :
+    (ctors.mapM (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams)
+      env state).WF fun out =>
+        LoweredConstructorTranslations env params nparams ctors state out := by
+  induction ctors generalizing state with
+  | nil => exact Except.WF.pure .nil
+  | cons ctor ctors ih =>
+    rw [List.mapM_cons]
+    refine nestedBind.WF
+      (ElimNestedInductive.lowerConstructor.translation params nparams ctor
+        env state hparams hclosures) ?_
+    intro lowered nextState Hlowered
+    refine nestedBind.WF (ih nextState) ?_
+    intro loweredTail finalState Htail
+    exact Except.WF.pure (.cons Hlowered Htail)
+
 theorem ElimNestedInductive.lowerConstructors.shapes
     (params : Array Expr) (nparams : Nat) (ctors : List Constructor)
     (env : Environment) (state : Lean4Lean.ElimNestedInductive.State) :
@@ -22577,6 +22877,72 @@ theorem ElimNestedInductive.lowerInductive.shape
       params nparams indType.ctors env state) ?_
   intro ctors nextState Hctors
   exact Except.WF.pure ⟨rfl, rfl, Hctors⟩
+
+/-- Family-level semantic lowering: headers are preserved and the constructor
+list carries the full state-threaded nested-expression translation. -/
+structure LoweredInductiveTranslation
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (source : InductiveType) (state : Lean4Lean.ElimNestedInductive.State)
+    (out : InductiveType × Lean4Lean.ElimNestedInductive.State) : Prop where
+  name : out.1.name = source.name
+  type : out.1.type = source.type
+  constructors : LoweredConstructorTranslations env params nparams source.ctors
+    state (out.1.ctors, out.2)
+
+theorem ElimNestedInductive.lowerInductive.translation
+    (params : Array Expr) (nparams : Nat) (indType : InductiveType)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env) :
+    (Lean4Lean.ElimNestedInductive.lowerInductive params nparams indType
+      env state).WF fun out =>
+        LoweredInductiveTranslation env params nparams indType state out := by
+  unfold Lean4Lean.ElimNestedInductive.lowerInductive
+  refine nestedBind.WF
+    (ElimNestedInductive.lowerConstructors.translations params nparams
+      indType.ctors env state hparams hclosures) ?_
+  intro ctors nextState Hctors
+  exact Except.WF.pure ⟨rfl, rfl, Hctors⟩
+
+/-- Semantic state transition for a dynamic lowering-queue iteration. -/
+inductive LowerNextTranslation
+    (env : Environment) (params : Array Expr) (nparams i : Nat)
+    (state : Lean4Lean.ElimNestedInductive.State) :
+    Option InductiveType × Lean4Lean.ElimNestedInductive.State → Prop
+  | done (hbound : state.newTypes.size ≤ i) :
+      LowerNextTranslation env params nparams i state (none, state)
+  | step (hidx : i < state.newTypes.size)
+      (Hlowered : LoweredInductiveTranslation env params nparams
+        state.newTypes[i] state (target, loweredState)) :
+      LowerNextTranslation env params nparams i state
+        (some state.newTypes[i], { loweredState with
+          newTypes := loweredState.newTypes.set! i target })
+
+theorem ElimNestedInductive.lowerNext.translation
+    (params : Array Expr) (nparams i : Nat)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env) :
+    (Lean4Lean.ElimNestedInductive.lowerNext params nparams i env state).WF
+      fun out => LowerNextTranslation env params nparams i state out := by
+  unfold Lean4Lean.ElimNestedInductive.lowerNext
+  simp only [get, bind, StateT.bind, ReaderT.bind]
+  have hget : ((getThe Lean4Lean.ElimNestedInductive.State :
+      Lean4Lean.ElimNestedInductive.M Lean4Lean.ElimNestedInductive.State)
+      env state) = Except.ok (state, state) := rfl
+  rw [hget]
+  simp only [Except.bind]
+  by_cases hidx : i < state.newTypes.size
+  · rw [dif_pos hidx]
+    refine nestedBind.WF
+      (ElimNestedInductive.lowerInductive.translation params nparams
+        state.newTypes[i] env state hparams hclosures) ?_
+    intro target loweredState Htarget
+    simp only [modify, StateT.modifyGet, pure, StateT.pure, ReaderT.pure,
+      bind, StateT.bind, ReaderT.bind]
+    exact Except.WF.pure (.step hidx Htarget)
+  · rw [dif_neg hidx]
+    exact Except.WF.pure (.done (Nat.le_of_not_gt hidx))
 
 /-- Exact state transition for one iteration of the dynamic lowering queue.
 The successful case retains the source family selected before lowering, while
