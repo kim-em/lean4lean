@@ -215,13 +215,13 @@ structure TrInductiveTypeSkeleton (env envTypes : VEnv)
 /-- Header checking retains raw constructor correspondence, but deliberately
 does not claim constructor well-formedness before the mutual headers have
 been installed. -/
-structure TrInductiveTypeSkeletonHeaders (env : VEnv)
+structure TrInductiveTypeSkeletonHeaders (env envTypes : VEnv)
     (lparams : List Name) (type : InductiveType)
     (type' : VInductiveTypeSkeleton) : Prop where
   header : TrSourceConst env lparams type.name type.type type'.toVConstVal
   ctors : List.Forall₂
     (fun ctor ctor' =>
-      TrSourceConstRaw env lparams ctor.name ctor.type ctor')
+      TrSourceConstRaw envTypes lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
 
 def VInductDeclSkeleton.typeConstants
@@ -310,7 +310,7 @@ structure TrInductDeclSkeletonHeaders (env : VEnv) (lparams : List Name)
   isUnsafe : decl.isUnsafe = isUnsafe
   typesAdded : env.addConsts decl.typeConstants = some envTypes
   types : List.Forall₂
-    (TrInductiveTypeSkeletonHeaders env lparams) types decl.types
+    (TrInductiveTypeSkeletonHeaders env envTypes lparams) types decl.types
 
 theorem TrInductDeclSkeleton.core
     (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl) :
@@ -329,12 +329,12 @@ structure TrInductiveType (env envTypes : VEnv) (lparams : List Name)
     (fun ctor ctor' => TrSourceConst envTypes lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
 
-structure TrInductiveTypeHeaders (env : VEnv) (lparams : List Name)
+structure TrInductiveTypeHeaders (env envTypes : VEnv) (lparams : List Name)
     (type : InductiveType) (type' : VInductiveType) : Prop where
   header : TrSourceConst env lparams type.name type.type type'.toVConstVal
   ctors : List.Forall₂
     (fun ctor ctor' =>
-      TrSourceConstRaw env lparams ctor.name ctor.type ctor')
+      TrSourceConstRaw envTypes lparams ctor.name ctor.type ctor')
     type.ctors type'.ctors
 
 theorem TrInductiveType.toSkeleton
@@ -383,7 +383,7 @@ structure TrInductDeclHeaders (env : VEnv) (lparams : List Name)
   nparams : decl.nparams = nparams
   isUnsafe : decl.isUnsafe = isUnsafe
   typesAdded : env.addConsts decl.typeConstants = some envTypes
-  types : List.Forall₂ (TrInductiveTypeHeaders env lparams)
+  types : List.Forall₂ (TrInductiveTypeHeaders env envTypes lparams)
     types decl.types
 
 /-- Constructor-phase translation produced after all mutual headers are

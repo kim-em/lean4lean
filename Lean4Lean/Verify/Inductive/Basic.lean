@@ -792,7 +792,8 @@ theorem TrInductDeclSkeletonHeaders.typeAt
       envTypes)
     (i : Nat) (hsource : i < types.length)
     (htarget : i < decl.types.length) :
-    TrInductiveTypeSkeletonHeaders env lparams types[i] decl.types[i] :=
+    TrInductiveTypeSkeletonHeaders env envTypes lparams
+      types[i] decl.types[i] :=
   Lean4Lean.VerifyInductive.List.Forall₂.getElem H.types i hsource htarget
 
 theorem TrInductDeclSkeletonHeaders.typeNameAt
@@ -1054,7 +1055,8 @@ theorem TrInductDeclCore.ofPhases
     TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors := by
   have combine : ∀ {sources targets},
-      List.Forall₂ (TrInductiveTypeHeaders env lparams) sources targets →
+      List.Forall₂ (TrInductiveTypeHeaders env envTypes lparams)
+        sources targets →
       List.Forall₂
         (fun source target => List.Forall₂
           (fun ctor ctor' =>
@@ -1196,6 +1198,13 @@ theorem TrInductiveType.ctorAt
       target.ctors[i] :=
   Lean4Lean.VerifyInductive.List.Forall₂.getElem H.ctors i hsource htarget
 
+theorem TrInductiveType.headers
+    (H : TrInductiveType env envTypes lparams type target) :
+    TrInductiveTypeHeaders env envTypes lparams type target where
+  header := H.header
+  ctors := Lean4Lean.List.Forall₂.imp
+    (fun _ _ h => h.raw) H.ctors
+
 /-- Inductive metadata does not affect translation of the source header:
 only visibility, universe parameters, name, and type cross the production /
 abstract boundary. -/
@@ -1221,7 +1230,7 @@ pointwise to the abstract mutual type constants. -/
 theorem AddInductive.inductiveTypeInfos.translated
     {decl : VInductDecl}
     (Htypes : List.Forall₂
-      (TrInductiveType env envTypes lparams)
+      (TrInductiveTypeHeaders env envTypes lparams)
       indTypes.toList decl.types)
     (hindices : stats.nindices.toList = decl.types.map (·.numIndices))
     (hvisible : safety ≤
@@ -18722,6 +18731,81 @@ theorem AddConstants.le
     venv ≤ outVEnv :=
   VEnv.addConsts_le H.abstract
 
+/-- Non-circular result of mutual header declaration. It retains typed
+headers, raw constructor correspondence, and the exact installed header
+environment, but makes no constructor-WF claim. -/
+structure DeclaredHeadersResult (c : AddInductive.Context)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (nparams : Nat) (isUnsafe : Bool)
+    (depth : Nat) (sourceEnv : VEnv)
+    (indTypes : Array InductiveType) (outEnv : Environment) where
+  entries : List (ConstantInfo × VConstVal)
+  context : ContextWF { c with env := outEnv }
+  headers : HeaderCertificate sourceEnv decl
+  translation : TrInductDeclHeaders sourceEnv c.lparams nparams
+    indTypes.toList isUnsafe decl context.venv
+  installed : AddConstants c.safety c.env sourceEnv entries outEnv context.venv
+  materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    context.venv c.lparams context.mlctx.vlctx stats decl depth
+  headerParams : materialized.headers.params = headers.params
+
+/-- Header-only refinement of `declareInductiveTypes`. This is the executable
+prefix used before any constructor has been checked. -/
+theorem AddInductive.declareInductiveTypes.headersWF
+    {envTypes : VEnv}
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclHeaders Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe decl envTypes)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprim : ∀ info ∈
+      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+        isUnsafe c.lparams).toList,
+      ¬ Kernel.Environment.primitives.contains info.name) :
+    (AddInductive.declareInductiveTypes stats numParams indTypes numNested
+      isUnsafe c).WF fun outEnv =>
+        ∃ _ : DeclaredHeadersResult c stats decl numParams isUnsafe
+          depth Hc.venv
+          indTypes outEnv, True := by
+  rcases Hdecl with
+    ⟨huvars, hnparams, hunsafe, htypesAdded, Htypes⟩
+  let infos := AddInductive.inductiveTypeInfos stats numParams indTypes
+    numNested isUnsafe c.lparams
+  have Htranslated := AddInductive.inductiveTypeInfos.translated
+    (numParams := numParams) (numNested := numNested)
+    Htypes Hmaterialized.indices hvisible
+  have Hentries : List.Forall₂
+      (fun info ci' =>
+        TrConstVal c.safety Hc.venv (.inductInfo info) ci' ∧
+          ci'.toVConstant.WF Hc.venv)
+      infos.toList decl.typeConstants := by
+    simpa [infos, VInductDecl.typeConstants] using Htranslated
+  have Hinstall := AddConstants.ofDeclareInductiveTypeInfos
+    (allowPrimitive := c.allowPrimitive)
+    Hc.checking Hentries VEnv.LE.rfl htypesAdded (by
+      simpa [infos] using hnprim)
+  change (AddInductive.declareInductiveTypeInfos c.allowPrimitive
+    infos.toList c.env).WF _
+  exact Hinstall.mono fun outEnv Hinstalled => by
+    refine ⟨{
+      entries := List.zip
+        (infos.toList.map (fun info => .inductInfo info)) decl.typeConstants
+      context := Hc.withEnv (Hinstalled.valid Hc.checking) Hinstalled.le
+      headers := Hmaterialized.headers
+      translation := ?_
+      installed := Hinstalled
+      materialized := Hmaterialized.mono Hinstalled.le
+      headerParams := rfl }, trivial⟩
+    exact {
+      uvars := huvars
+      nparams := hnparams
+      isUnsafe := hunsafe
+      typesAdded := htypesAdded
+      types := Htypes }
+
 /-- Verified boundary after installing all mutual type constants and before
 checking any constructor. The executable and abstract environments are
 aligned, while the original source-to-constructor translation already points
@@ -18769,7 +18853,10 @@ theorem AddInductive.declareInductiveTypes.WF
     numNested isUnsafe c.lparams
   have Htranslated := AddInductive.inductiveTypeInfos.translated
     (numParams := numParams) (numNested := numNested)
-    Htypes Hmaterialized.indices hvisible
+    (Lean4Lean.List.Forall₂.imp
+      (fun _ _ h =>
+        Lean4Lean.VerifyInductive.TrInductiveType.headers h) Htypes)
+    Hmaterialized.indices hvisible
   have Hentries : List.Forall₂
       (fun info ci' =>
         TrConstVal c.safety Hc.venv (.inductInfo info) ci' ∧
