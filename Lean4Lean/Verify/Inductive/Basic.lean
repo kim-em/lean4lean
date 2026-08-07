@@ -14489,6 +14489,23 @@ theorem RecInfoBindings.allFvars_members
   · exact H.flatIndices.members fv hi
   · exact H.majors.members fv hma
 
+theorem RecInfoBindings.outerNodup
+    {stats : AddInductive.InductiveStats}
+    (H : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (hnoalias : H.NoAlias Hparams) :
+    ((Hparams.fvars ++ H.motives.fvars) ++
+      H.flatMinors.fvars).Nodup := by
+  have hsub : ((Hparams.fvars ++ H.motives.fvars) ++
+      H.flatMinors.fvars) <+ H.allFvars Hparams := by
+    rw [H.allFvars_eq Hparams]
+    simpa [List.append_assoc] using
+      ((List.Sublist.refl Hparams.fvars).append
+        ((List.Sublist.refl H.motives.fvars).append
+          ((List.Sublist.refl H.flatMinors.fvars).append
+            (List.nil_sublist _))))
+  exact hnoalias.sublist hsub
+
 def RecInfoBindings.major
     (H : RecInfoBindings c recInfos) (i : Nat) (hi : i < recInfos.size) :
     BoundFVarArray c #[recInfos[i]!.major] := by
