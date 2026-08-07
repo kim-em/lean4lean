@@ -18879,6 +18879,58 @@ theorem RecursorLocalSelections.recursorWF_of_recInfo
   rw [huvars] at hwf
   exact hwf
 
+/-- Semantic payload still required from `mkRecInfos`: every concrete
+recursor telescope translates, before the annotation-only `inferImplicit`
+pass, to an abstract type in the pre-recursor environment. Keeping this
+separate from operational fvar binding makes the remaining proof obligation
+both explicit and independently reviewable. -/
+structure RecursorTypeTranslations
+    (env : VEnv) (lparams : List Name) (elimLevel : Level)
+    (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType)
+    (recInfos : Array AddInductive.RecInfo) : Prop where
+  notPartial : c.safety ≠ .partial
+  typeAt : ∀ owner (howner : owner < indTypes.size),
+    ∃ type : VExpr,
+      TrExprS env (AddInductive.getRecLevelParams elimLevel lparams) []
+        (AddInductive.declareRecursors.recursorType stats recInfos c.lctx
+          owner) type ∧
+      env.IsType
+        (AddInductive.getRecLevelParams elimLevel lparams).length [] type
+
+/-- Once the generated telescope itself is translated, all production
+`RecursorVal` metadata is irrelevant to abstract constant construction.
+Rules and the K flag may therefore vary without reopening the typing proof. -/
+theorem RecursorTypeTranslations.recursorInfoTranslation
+    (H : RecursorTypeTranslations env lparams elimLevel c stats indTypes
+      recInfos)
+    (k : Bool) (owner : Nat) (howner : owner < indTypes.size)
+    (rules : List RecursorRule) :
+    ∃ recursor : VConstVal,
+      TrConstVal c.safety env
+        (.recInfo (AddInductive.declareRecursors.recursorInfo stats indTypes
+          elimLevel recInfos (recInfos.flatMap (·.minors)).size
+          (recInfos.map (·.motive)).size
+          (indTypes.map (·.name)).toList c.lctx k
+          (c.safety != .safe) lparams owner rules)) recursor ∧
+      recursor.toVConstant.WF env := by
+  rcases H.typeAt owner howner with ⟨type, Htr, Hwf⟩
+  let recursor : VConstVal := {
+    uvars := (AddInductive.getRecLevelParams elimLevel lparams).length
+    type := type
+    name := Lean.mkRecName indTypes[owner]!.name }
+  refine ⟨recursor, ?_, ?_⟩
+  · constructor
+    · refine ⟨?_, rfl, ?_⟩
+      · have hsafety := H.notPartial
+        cases hs : c.safety <;>
+          simp_all [ConstantInfo.safety, ConstantInfo.isUnsafe,
+            ConstantInfo.isPartial,
+            AddInductive.declareRecursors.recursorInfo]
+      · exact TrExprS.inferImplicit Htr 1000 false
+    · rfl
+  · exact Hwf
+
 /-- Pointwise record emitted by one iteration of the production recursor
 loop. It retains only the metadata needed to connect that iteration to the
 independent shape and semantic-typing judgments. -/
@@ -19825,7 +19877,7 @@ theorem AddInductive.declareRecursors.loop.WF
           numMinors numMotives all c.lctx k isUnsafe lparams allowPrimitive
           (dIdx + 1) (env.add (.recInfo info)) generated.2 c).WF _)
       have Hname := checkName.WF Hvalid.tr.map_wf info.name allowPrimitive
-      have Hrest := Hname.bind fun _ Hchecked => by
+      exact Hname.bind fun _ Hchecked => by
         rcases Htranslate dIdx hidx generated.1 with
           ⟨recursor, HtrSource, HwfSource⟩
         rcases CheckingEnv.exists_addConst Hvalid.tr Hchecked.1
@@ -19853,7 +19905,8 @@ theorem AddInductive.declareRecursors.loop.WF
           Hbindings Hparams hnoalias numMinors numMotives all k isUnsafe
           allowPrimitive (dIdx + 1) (by omega) (env.add (.recInfo info))
           HnextValid hnextLe Htranslate hnprim
-        have Htail' := Htail.mono fun out Hout => by
+        rw [Hgenerated.2]
+        exact Htail.mono fun out Hout => by
           rcases Hout with
             ⟨outVEnv, entries, hstate, ⟨Hrange⟩, Hinstalled⟩
           let entry : ConstantInfo × VConstVal := (.recInfo info, recursor)
@@ -19882,8 +19935,6 @@ theorem AddInductive.declareRecursors.loop.WF
             exact AddConstants.cons Hchecked.1
               hnprimInfo Htr Hwf haddInfo rfl Hinstalled
           exact ⟨outVEnv, entry :: entries, hstate, ⟨Hrange'⟩, Hinstalled'⟩
-        simpa only [Hgenerated.2] using Htail'
-      exact Hrest
   · rw [dif_neg hidx]
     have heq : dIdx = indTypes.size := by omega
     subst dIdx
@@ -19911,17 +19962,8 @@ theorem AddInductive.declareRecursors.WF
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
-    (Htranslate : ∀ (k : Bool) owner (howner : owner < indTypes.size)
-      (rules : List RecursorRule),
-      ∃ recursor : VConstVal,
-        TrConstVal c.safety Hcontext.venv
-          (.recInfo (AddInductive.declareRecursors.recursorInfo stats
-            indTypes elimLevel recInfos
-            (recInfos.flatMap (·.minors)).size
-            (recInfos.map (·.motive)).size
-            (indTypes.map (·.name)).toList c.lctx k
-            (c.safety != .safe) c.lparams owner rules)) recursor ∧
-        recursor.toVConstant.WF Hcontext.venv)
+    (Htypes : RecursorTypeTranslations Hcontext.venv c.lparams elimLevel c
+      stats indTypes recInfos)
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
@@ -19943,7 +19985,8 @@ theorem AddInductive.declareRecursors.WF
       (recInfos.flatMap (·.minors)).size
       (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList k
       (c.safety != .safe) c.allowPrimitive 0 (by omega) c.env
-      Hcontext.checking VEnv.LE.rfl (Htranslate k) hnprim
+      Hcontext.checking VEnv.LE.rfl
+      (Htypes.recursorInfoTranslation k) hnprim
     change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
       elimLevel recInfos (recInfos.map (·.motive))
       (recInfos.flatMap (·.minors)) (recInfos.flatMap (·.minors)).size
