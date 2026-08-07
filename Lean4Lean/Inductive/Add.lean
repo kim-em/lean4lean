@@ -567,6 +567,30 @@ def recursorInfo (stats : InductiveStats)
   k := k
   isUnsafe := isUnsafe
 
+/-- Independently validate the fully closed generated recursor type before
+installing its kernel metadata. The recursor may carry one fresh eliminator
+universe, so this deliberately uses `info.levelParams` and an empty local
+context rather than the surrounding declaration context. -/
+def checkRecursorType (info : RecursorVal) : M Expr := fun c => do
+  c.env.checkNoMVarNoFVar info.name info.type
+  TypeChecker.M.run c.env c.safety {} info.levelParams c.fuel do
+    let type ← TypeChecker.checkType info.type
+    _ ← TypeChecker.ensureSort type info.type
+    return type
+
+def checkRecursorTypes (stats : InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (recInfos : Array RecInfo) (numMinors numMotives : Nat)
+    (all : List Name) (lctx : LocalContext) (k isUnsafe : Bool)
+    (lparams : List Name) (dIdx : Nat) : M Unit := do
+  if h : dIdx < indTypes.size then
+    let info := recursorInfo stats indTypes elimLevel recInfos numMinors
+      numMotives all lctx k isUnsafe lparams dIdx []
+    _ ← checkRecursorType info
+    checkRecursorTypes stats indTypes elimLevel recInfos numMinors numMotives
+      all lctx k isUnsafe lparams (dIdx + 1)
+termination_by indTypes.size - dIdx
+
 def loop (stats : InductiveStats) (indTypes : Array InductiveType)
     (elimLevel : Level) (recInfos : Array RecInfo)
     (motives minors : Array Expr) (numMinors numMotives : Nat)
@@ -600,6 +624,8 @@ def declareRecursors (stats : InductiveStats)
   let k ← isKTarget stats indTypes
   let {lparams, safety, ..} ← read
   let isUnsafe := safety != .safe
+  AddInductive.declareRecursors.checkRecursorTypes stats indTypes elimLevel
+    recInfos numMinors numMotives all lctx k isUnsafe lparams 0
   StateT.run' (s := 0) do
   let env ← getEnv
   let {allowPrimitive, ..} ← read

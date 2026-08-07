@@ -2755,6 +2755,69 @@ theorem checkClosedType.WF (Hc : ContextWF c) :
   exact hno.bind fun _ hclosed =>
     checkTypeInContext.WF Hc (hclosed.mono fun _ h => False.elim h)
 
+/-- Verified boundary for the extra closed generated-recursor check. Unlike
+`checkClosedType`, this runs with an empty local context and the recursor's
+possibly extended universe-parameter list. -/
+theorem AddInductive.declareRecursors.checkRecursorType.WF
+    (Hvalid : CheckingEnv.Valid c.safety c.env venv)
+    (info : RecursorVal) :
+    (AddInductive.declareRecursors.checkRecursorType info c).WF fun ty =>
+      ∃ type', TrExprS venv info.levelParams [] info.type type' ∧
+        venv.IsType info.levelParams.length [] type' := by
+  unfold AddInductive.declareRecursors.checkRecursorType
+  have hno : (c.env.checkNoMVarNoFVar info.name info.type).WF
+      (fun _ => info.type.FVarsIn fun _ => False) := by
+    intro _ h
+    exact checkNoMVarNoFVar.closed (env := c.env) (name := info.name) h
+  exact hno.bind fun _ hclosed => by
+    have hfvars : info.type.FVarsIn fun fv => fv ∈
+        (TypeChecker.VContext.mkCheckingValid Hvalid info.levelParams
+          c.fuel).vlctx.fvars := by
+      simpa [TypeChecker.VContext.mkCheckingValid,
+        TypeChecker.VContext.mkChecking] using
+          (hclosed.mono fun _ h => False.elim h)
+    have Hcheck : TypeChecker.M.WF
+        (TypeChecker.VContext.mkCheckingValid Hvalid info.levelParams c.fuel)
+        {} (do
+          let type ← TypeChecker.checkType info.type
+          _ ← TypeChecker.ensureSort type info.type
+          return type) fun _ _ =>
+          ∃ type', TrExprS venv info.levelParams [] info.type type' ∧
+            venv.IsType info.levelParams.length [] type' := by
+      refine (TypeChecker.checkType.WF hfvars).bind
+        fun _ _ _ ⟨type', sort', _, htype, hsort, hhasType⟩ => ?_
+      refine (TypeChecker.ensureSort.WF hsort).bind
+        fun _ _ _ ⟨⟨_, hsort', hdefeq⟩, hsortEq⟩ => .pure ?_
+      obtain ⟨u, rfl⟩ := hsortEq
+      cases hsort' with
+      | sort hu =>
+        exact ⟨type', htype,
+          ⟨_, hhasType.defeqU_r Hvalid.tr.wf (by trivial) hdefeq.symm⟩⟩
+    exact TypeChecker.M.WF.runCheckingValid Hcheck
+
+/-- Package the validated generated type as the abstract constant installed
+by the recursor loop. -/
+theorem AddInductive.declareRecursors.checkRecursorType.constWF
+    (Hvalid : CheckingEnv.Valid c.safety c.env venv)
+    (info : RecursorVal)
+    (hvisible : c.safety ≤
+      (if info.isUnsafe then DefinitionSafety.unsafe else .safe)) :
+    (AddInductive.declareRecursors.checkRecursorType info c).WF fun _ =>
+      ∃ recursor : VConstVal,
+        TrConstVal c.safety venv (.recInfo info) recursor ∧
+        recursor.toVConstant.WF venv := by
+  exact (AddInductive.declareRecursors.checkRecursorType.WF Hvalid info).mono
+    fun _ ⟨type, Htyping, HwfType⟩ => by
+      let recursor : VConstVal := {
+        uvars := info.levelParams.length
+        type := type
+        name := info.name }
+      refine ⟨recursor, ?_, HwfType⟩
+      constructor
+      · exact ⟨by simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
+          ConstantInfo.isPartial] using hvisible, rfl, Htyping⟩
+      · rfl
+
 namespace checkInductiveTypes.loopType
 
 /-- Abstract images of the concrete parameter cache after `done` parameter
@@ -19849,92 +19912,81 @@ theorem AddInductive.declareRecursors.loop.WF
       simp only [liftM, MonadLiftT.monadLift, MonadLift.monadLift,
         StateT.instMonadLift, ReaderT.instMonadLift, StateT.lift, bind,
         StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
-      change ((((env.checkName info.name allowPrimitive).bind fun a =>
-        Except.pure (a, generated.2)).bind fun a =>
-          AddInductive.declareRecursors.loop stats indTypes elimLevel recInfos
-            (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-            numMinors numMotives all c.lctx k isUnsafe lparams allowPrimitive
-            (dIdx + 1) (env.add (.recInfo info)) a.2 c).WF _)
       have hnormalize :
           ((env.checkName info.name allowPrimitive).bind fun a =>
-            Except.pure (a, generated.2)).bind (fun a =>
+            Except.pure (a, generated.2)).bind (fun checked =>
               AddInductive.declareRecursors.loop stats indTypes elimLevel
                 recInfos (recInfos.map (·.motive))
-                (recInfos.flatMap (·.minors)) numMinors numMotives all
-                c.lctx k isUnsafe lparams allowPrimitive (dIdx + 1)
-                (env.add (.recInfo info)) a.2 c) =
+                (recInfos.flatMap (·.minors)) numMinors numMotives all c.lctx
+                k isUnsafe lparams allowPrimitive (dIdx + 1)
+                (env.add (.recInfo info)) checked.2 c) =
           (env.checkName info.name allowPrimitive).bind (fun _ =>
-            AddInductive.declareRecursors.loop stats indTypes elimLevel
-              recInfos (recInfos.map (·.motive))
-              (recInfos.flatMap (·.minors)) numMinors numMotives all c.lctx
-              k isUnsafe lparams allowPrimitive (dIdx + 1)
-              (env.add (.recInfo info)) generated.2 c) := by
+              AddInductive.declareRecursors.loop stats indTypes elimLevel
+                recInfos (recInfos.map (·.motive))
+                (recInfos.flatMap (·.minors)) numMinors numMotives all c.lctx
+                k isUnsafe lparams allowPrimitive (dIdx + 1)
+                (env.add (.recInfo info)) generated.2 c) := by
         cases env.checkName info.name allowPrimitive <;> rfl
       rw [hnormalize]
-      change ((env.checkName info.name allowPrimitive >>= fun _ =>
-        AddInductive.declareRecursors.loop stats indTypes elimLevel recInfos
-          (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-          numMinors numMotives all c.lctx k isUnsafe lparams allowPrimitive
-          (dIdx + 1) (env.add (.recInfo info)) generated.2 c).WF _)
       have Hname := checkName.WF Hvalid.tr.map_wf info.name allowPrimitive
       exact Hname.bind fun _ Hchecked => by
-        rcases Htranslate dIdx hidx generated.1 with
-          ⟨recursor, HtrSource, HwfSource⟩
-        rcases CheckingEnv.exists_addConst Hvalid.tr Hchecked.1
-            recursor.toVConstant with ⟨nextVEnv, hadd⟩
-        have Htr : TrConstVal c.safety currentVEnv (.recInfo info) recursor :=
-          HtrSource.mono hle
-        have Hwf : recursor.toVConstant.WF currentVEnv :=
-          HwfSource.mono hle
-        have hname : info.name = recursor.name := Htr.2
-        have haddInfo :
-            currentVEnv.addConst info.name recursor.toVConstant =
-              some nextVEnv := by
-          simpa [hname] using hadd
-        have hnprimInfo :
-            ¬ Kernel.Environment.primitives.contains
-              (ConstantInfo.recInfo info).name := by
-          simpa [ConstantInfo.name, ConstantInfo.toConstantVal, info,
-            AddInductive.declareRecursors.recursorInfo] using hnprim dIdx hidx
-        have HnextValid : CheckingEnv.Valid c.safety
-            (env.add (.recInfo info)) nextVEnv :=
-          Hvalid.add Hchecked.1 hnprimInfo Htr.1 Hwf haddInfo rfl
-        have hnextLe : sourceVEnv ≤ nextVEnv :=
-          hle.trans (VEnv.addConst_le haddInfo)
-        have Htail := AddInductive.declareRecursors.loop.WF Hcard Hdecl c Hc
-          Hbindings Hparams hnoalias numMinors numMotives all k isUnsafe
-          allowPrimitive (dIdx + 1) (by omega) (env.add (.recInfo info))
-          HnextValid hnextLe Htranslate hnprim
-        rw [Hgenerated.2]
-        exact Htail.mono fun out Hout => by
-          rcases Hout with
-            ⟨outVEnv, entries, hstate, ⟨Hrange⟩, Hinstalled⟩
-          let entry : ConstantInfo × VConstVal := (.recInfo info, recursor)
-          have Hentry : GeneratedRecursorEntry c.safety sourceVEnv lparams
-              elimLevel c stats indTypes recInfos dIdx entry := by
-            exact GeneratedRecursorEntry.ofRecursorInfo c.safety sourceVEnv
-              lparams elimLevel c stats indTypes recInfos numMinors
-              numMotives all k isUnsafe dIdx generated.1 recursor HtrSource
-              Hgenerated.1
-          have Hrange' : GeneratedRecursorsRange c.safety sourceVEnv
-              lparams elimLevel c stats indTypes recInfos dIdx
-              (entry :: entries) := by
-            refine {
-              covered := by
-                simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
-                  Hrange.covered
-              entry := ?_ }
-            intro i hi
-            cases i with
-            | zero => simpa [entry] using Hentry
-            | succ i =>
-              have hi' : i < entries.length := by simpa using hi
-              simpa [Nat.add_assoc, Nat.add_comm 1 i] using Hrange.entry i hi'
-          have Hinstalled' : AddConstants c.safety env currentVEnv
-              (entry :: entries) out.1 outVEnv := by
-            exact AddConstants.cons Hchecked.1
-              hnprimInfo Htr Hwf haddInfo rfl Hinstalled
-          exact ⟨outVEnv, entry :: entries, hstate, ⟨Hrange'⟩, Hinstalled'⟩
+          rcases Htranslate dIdx hidx generated.1 with
+            ⟨recursor, HtrSource, HwfSource⟩
+          rcases CheckingEnv.exists_addConst Hvalid.tr Hchecked.1
+              recursor.toVConstant with ⟨nextVEnv, hadd⟩
+          have Htr : TrConstVal c.safety currentVEnv (.recInfo info) recursor :=
+            HtrSource.mono hle
+          have Hwf : recursor.toVConstant.WF currentVEnv :=
+            HwfSource.mono hle
+          have hname : info.name = recursor.name := Htr.2
+          have haddInfo :
+              currentVEnv.addConst info.name recursor.toVConstant =
+                some nextVEnv := by
+            simpa [hname] using hadd
+          have hnprimInfo :
+              ¬ Kernel.Environment.primitives.contains
+                (ConstantInfo.recInfo info).name := by
+            simpa [ConstantInfo.name, ConstantInfo.toConstantVal, info,
+              AddInductive.declareRecursors.recursorInfo] using hnprim dIdx hidx
+          have HnextValid : CheckingEnv.Valid c.safety
+              (env.add (.recInfo info)) nextVEnv :=
+            Hvalid.add Hchecked.1 hnprimInfo Htr.1 Hwf haddInfo rfl
+          have hnextLe : sourceVEnv ≤ nextVEnv :=
+            hle.trans (VEnv.addConst_le haddInfo)
+          have Htail := AddInductive.declareRecursors.loop.WF Hcard Hdecl c Hc
+            Hbindings Hparams hnoalias numMinors numMotives all k
+            isUnsafe allowPrimitive (dIdx + 1) (by omega)
+            (env.add (.recInfo info)) HnextValid hnextLe Htranslate hnprim
+          rw [Hgenerated.2]
+          exact Htail.mono fun out Hout => by
+            rcases Hout with
+              ⟨outVEnv, entries, hstate, ⟨Hrange⟩, Hinstalled⟩
+            let entry : ConstantInfo × VConstVal := (.recInfo info, recursor)
+            have Hentry : GeneratedRecursorEntry c.safety sourceVEnv lparams
+                elimLevel c stats indTypes recInfos dIdx entry := by
+              exact GeneratedRecursorEntry.ofRecursorInfo c.safety sourceVEnv
+                lparams elimLevel c stats indTypes recInfos numMinors
+                numMotives all k isUnsafe dIdx generated.1 recursor HtrSource
+                Hgenerated.1
+            have Hrange' : GeneratedRecursorsRange c.safety sourceVEnv
+                lparams elimLevel c stats indTypes recInfos dIdx
+                (entry :: entries) := by
+              refine {
+                covered := by
+                  simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+                    Hrange.covered
+                entry := ?_ }
+              intro i hi
+              cases i with
+              | zero => simpa [entry] using Hentry
+              | succ i =>
+                have hi' : i < entries.length := by simpa using hi
+                simpa [Nat.add_assoc, Nat.add_comm 1 i] using Hrange.entry i hi'
+            have Hinstalled' : AddConstants c.safety env currentVEnv
+                (entry :: entries) out.1 outVEnv := by
+              exact AddConstants.cons Hchecked.1
+                hnprimInfo Htr Hwf haddInfo rfl Hinstalled
+            exact ⟨outVEnv, entry :: entries, hstate, ⟨Hrange'⟩, Hinstalled'⟩
   · rw [dif_neg hidx]
     have heq : dIdx = indTypes.size := by omega
     subst dIdx
@@ -19980,7 +20032,16 @@ theorem AddInductive.declareRecursors.WF
   have Hk : (AddInductive.isKTarget stats indTypes c).WF fun _ => True :=
     fun _ _ => trivial
   exact Hk.bind fun k _ => by
-    have Hloop := AddInductive.declareRecursors.loop.WF Hcard Hdecl c
+    simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
+    have Hcheck :
+        (AddInductive.declareRecursors.checkRecursorTypes stats indTypes
+          elimLevel recInfos (recInfos.flatMap (·.minors)).size
+          (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
+          c.lctx k (c.safety != .safe) c.lparams 0 c).WF fun _ => True :=
+      fun _ _ => trivial
+    refine Hcheck.bind fun _ _ => ?_
+    have Hloop := AddInductive.declareRecursors.loop.WF (elimLevel := elimLevel)
+      Hcard Hdecl c
       Hcontext.toBindingContextWF Hbindings Hparams hnoalias
       (recInfos.flatMap (·.minors)).size
       (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList k
