@@ -22944,6 +22944,94 @@ theorem ElimNestedInductive.lowerNext.translation
   · rw [dif_neg hidx]
     exact Except.WF.pure (.done (Nat.le_of_not_gt hidx))
 
+/-- Complete semantic trace of the dynamically growing lowering queue.  The
+queue stops only once the index reaches the then-current array size; each
+preceding step contains the semantic family translation, including any new
+auxiliary families appended while processing it. -/
+inductive LoweringQueueTrace
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (lctx : LocalContext) : Nat → Nat →
+      Lean4Lean.ElimNestedInductive.State →
+      Lean4Lean.ElimNestedInductive.Result ×
+        Lean4Lean.ElimNestedInductive.State → Prop
+  | done (hbound : state.newTypes.size ≤ i) :
+      LoweringQueueTrace env params nparams lctx i (fuel + 1) state
+        ({ state with
+          nparams := params.size
+          lctx
+          params
+          aux2nested := state.nestedAux.foldl
+            (fun map (nested, name) => map.insert name nested) {}
+          types := state.newTypes.toList }, state)
+  | step :
+      LowerNextTranslation env params nparams i state (some source, nextState) →
+      LoweringQueueTrace env params nparams lctx (i + 1) fuel nextState out →
+      LoweringQueueTrace env params nparams lctx i (fuel + 1) state out
+
+theorem LoweringQueueTrace.resultContext
+    (H : LoweringQueueTrace env params nparams lctx i fuel state out) :
+    out.1.lctx = lctx ∧ out.1.params = params := by
+  induction H with
+  | done => exact ⟨rfl, rfl⟩
+  | step _ _ ih => exact ih
+
+private theorem loweringQueueLoop_refines
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (lctx : LocalContext) (i fuel : Nat)
+    (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env) :
+    (Lean4Lean.ElimNestedInductive.run.loop nparams lctx params i fuel
+      env state).WF fun out =>
+        LoweringQueueTrace env params nparams lctx i fuel state out := by
+  induction fuel generalizing i state with
+  | zero => exact Except.WF.throw
+  | succ fuel ih =>
+    rw [Lean4Lean.ElimNestedInductive.run.loop]
+    refine nestedBind.WF
+      (ElimNestedInductive.lowerNext.translation params nparams i env state
+        hparams hclosures) ?_
+    intro next nextState Hnext
+    cases Hnext with
+    | done hbound =>
+      simp only [pure, ReaderT.pure, StateT.pure]
+      exact Except.WF.pure (.done hbound)
+    | step hidx Hlowered =>
+      exact (ih (i := i + 1) (state := _)).mono fun _ Htail =>
+        LoweringQueueTrace.step (LowerNextTranslation.step hidx Hlowered) Htail
+
+/-- End-to-end semantic certificate for nested lowering from the source
+parameter telescope through the complete dynamic family queue. -/
+structure NestedLoweringRun
+    (env : Environment) (fuel nparams : Nat) (types : List InductiveType)
+    (initialState : Lean4Lean.ElimNestedInductive.State)
+    (out : Lean4Lean.ElimNestedInductive.Result ×
+      Lean4Lean.ElimNestedInductive.State) : Prop where
+  source : ∃ first rest tail paramsState lctx params,
+    types = first :: rest ∧
+    NestedParamOpening {} #[] first.type nparams
+      lctx tail params ∧
+    LoweringQueueTrace env params nparams lctx 0 fuel
+      paramsState out
+
+theorem ElimNestedInductive.run.translation
+    (fuel nparams : Nat) (types : List InductiveType)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hclosures : MutualInductivesClosed env) :
+    (Lean4Lean.ElimNestedInductive.run fuel nparams types env state).WF
+      fun out => NestedLoweringRun env fuel nparams types state out := by
+  cases types with
+  | nil => exact Except.WF.throw
+  | cons first rest =>
+    unfold Lean4Lean.ElimNestedInductive.run
+    apply ElimNestedInductive.withParams.refines
+    intro lctx tail params paramsState Hopening
+    have hparams : params.size = nparams := Hopening.initial_size
+    exact (loweringQueueLoop_refines env params nparams lctx 0 fuel paramsState
+      hparams hclosures).mono fun _ Hqueue =>
+        ⟨⟨first, rest, tail, paramsState, lctx, params,
+          rfl, Hopening, Hqueue⟩⟩
+
 /-- Exact state transition for one iteration of the dynamic lowering queue.
 The successful case retains the source family selected before lowering, while
 allowing `lowerInductive` to append freshly discovered auxiliary families
