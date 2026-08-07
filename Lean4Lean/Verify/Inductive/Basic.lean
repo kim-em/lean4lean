@@ -23220,6 +23220,73 @@ theorem AddInductive.runWithStats.WF
             from ⟨headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
   simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
 
+/-- End-to-end post-analysis verifier specialized with the verified
+header/constructor formation pipeline. After `checkInductiveTypes` has
+materialized `stats`, the only semantic input left is translation of the
+generated recursor types (plus the explicit freshness side conditions used by
+the production installer). -/
+theorem AddInductive.runWithStats.closedWF
+    {envTypes : VEnv}
+    (Hc : ContextWF c)
+    (Hclosed : MutualInductivesClosed c.env)
+    (Hdecl : TrInductDeclHeaders Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe decl envTypes)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprimTypes : ∀ info ∈
+      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+        isUnsafe c.lparams).toList,
+      ¬ Kernel.Environment.primitives.contains info.name)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel = .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel)
+    (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
+      ¬ Kernel.Environment.primitives.contains ctor.name)
+    (Htypes : ∀ headerEnv ctorEnv
+      (Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe depth
+        Hc.venv indTypes headerEnv)
+      (R : ConstructorPhasesResult Hheaders ctorEnv),
+      ∀ elimLevel recInfos localContext,
+        BindingContextWF localContext →
+        RecInfoBindings localContext recInfos →
+        BoundFVarArray localContext stats.params →
+        RecursorCardinalityCertificate stats recInfos decl →
+        BindingContextLE { c with env := ctorEnv } localContext →
+        RecursorTypeTranslations R.declared.venvCtors localContext.lparams
+          elimLevel localContext stats indTypes recInfos)
+    (hnprimRecursors : ∀ owner (howner : owner < indTypes.size),
+      ¬ Kernel.Environment.primitives.contains
+        (Lean.mkRecName indTypes[owner]!.name)) :
+    (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe c).WF
+      fun outEnv => ∃ headerEnv ctorEnv,
+        ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
+          depth Hc.venv indTypes headerEnv,
+        ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
+          Nonempty (RecursorPhasesResult R outEnv) := by
+  apply AddInductive.runWithStats.WF stats numParams indTypes numNested
+    isUnsafe c
+  · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
+      hvisible hnprimTypes Hfresh hconsume hlit hproj hunsafe hbound hnprimCtors
+  · exact Htypes
+  · exact hnprimRecursors
+
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/
