@@ -21045,6 +21045,17 @@ theorem replaceNestedParams_refines
   simp [hsize]
   exact Except.WF.pure rfl
 
+theorem replaceNestedParams_state_refines
+    (params : Array Expr) (e : Expr) (args : Array Expr)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hsize : args.size = params.size) :
+    (Lean4Lean.ElimNestedInductive.replaceParams params e args env state).WF
+      fun out => out = ((e.abstract args).instantiateRev params, state) := by
+  unfold Lean4Lean.ElimNestedInductive.replaceParams
+    Lean4Lean.ElimNestedInductive.replaceParamsCore
+  simp [hsize]
+  exact Except.WF.pure rfl
+
 /-- The executable fresh-name search records the numeric suffix it selected,
 never moves backwards from its initial counter, and returns a name absent from
 the current environment. -/
@@ -22336,6 +22347,129 @@ theorem generateAuxiliaries_refines
   unfold Lean4Lean.ElimNestedInductive.generateAuxiliaries
   exact generateAuxiliariesLoop_refines env lctx params As targetName levels
     nparams args hsize value.all infos none state (Or.inr htarget)
+
+/-- The environment closure needed when a recognized family expands to its
+whole mutual block.  This is an abstract environment invariant, rather than a
+fact silently assumed by the executable traversal. -/
+structure MutualInductiveClosure
+    (env : Environment) (targetName : Name) (value : InductiveVal) : Prop where
+  members : InductiveMemberInfos env value.all
+  target : targetName ∈ value.all
+
+/-- Complete outcome specification for an application already recognized as
+nested: either an existing cache entry is reused without changing state, or a
+certified batch for the entire mutual block is generated. -/
+inductive RecognizedNestedReplacement
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (targetName : Name) (levels : List Level) (args : Array Expr)
+    (value : InductiveVal) (state : Lean4Lean.ElimNestedInductive.State) :
+    Option Expr × Lean4Lean.ElimNestedInductive.State → Prop
+  | cached (auxName : Name) :
+      CachedNestedAux state.nestedAux
+        ((mkAppRange (.const targetName levels) 0 value.numParams args).abstract As
+          |>.instantiateRev params) auxName →
+      RecognizedNestedReplacement env lctx params As targetName levels args
+        value state
+        (some (mkAppRange (mkAppN (.const auxName state.lvls) As)
+          value.numParams args.size args), state)
+  | generated :
+      GeneratedAuxiliaryBatch env lctx params As targetName levels
+        value.numParams args none value.all state out →
+      RecognizedNestedReplacement env lctx params As targetName levels args
+        value state out
+
+theorem replaceRecognizedNested_refines
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (targetName : Name) (levels : List Level) (args : Array Expr)
+    (value : InductiveVal) (state : Lean4Lean.ElimNestedInductive.State)
+    (hargs : value.numParams ≤ args.size)
+    (hsize : As.size = params.size)
+    (hclosure : MutualInductiveClosure env targetName value) :
+    (Lean4Lean.ElimNestedInductive.replaceRecognizedNested lctx params As
+      (.const targetName levels) args value env state).WF fun out =>
+        RecognizedNestedReplacement env lctx params As targetName levels args
+          value state out := by
+  unfold Lean4Lean.ElimNestedInductive.replaceRecognizedNested
+  simp only [hargs, ↓reduceIte]
+  refine nestedBind.WF
+    (replaceNestedParams_state_refines params
+      (mkAppRange (.const targetName levels) 0 value.numParams args) As
+      env state hsize) ?_
+  intro nested nextState hnested
+  cases hnested
+  simp only [get, bind, StateT.bind, ReaderT.bind]
+  have hget : ((getThe Lean4Lean.ElimNestedInductive.State :
+      Lean4Lean.ElimNestedInductive.M Lean4Lean.ElimNestedInductive.State)
+      env state) = Except.ok (state, state) := rfl
+  rw [hget]
+  simp only [Except.bind]
+  cases hcache : Lean4Lean.ElimNestedInductive.findCachedAux?
+      state.nestedAux
+        ((mkAppRange (.const targetName levels) 0 value.numParams args).abstract As
+          |>.instantiateRev params) with
+  | some auxName =>
+    simp only [pure, ReaderT.pure, StateT.pure]
+    exact Except.WF.pure (RecognizedNestedReplacement.cached auxName
+      (findCachedAux?_refines state.nestedAux
+        ((mkAppRange (.const targetName levels) 0 value.numParams args).abstract As
+          |>.instantiateRev params) auxName hcache))
+  | none =>
+    exact (generateAuxiliaries_refines env lctx params As targetName levels
+      value.numParams args value state hsize hclosure.members
+      hclosure.target).mono fun _ Hbatch =>
+        RecognizedNestedReplacement.generated Hbatch
+
+/-- Complete node-level result of nested replacement.  A non-candidate is
+left untouched; every accepted candidate carries both the independent
+recognition evidence and the cache-or-generation certificate. -/
+inductive NestedReplacement
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (e : Expr) (state : Lean4Lean.ElimNestedInductive.State) :
+    Option Expr × Lean4Lean.ElimNestedInductive.State → Prop
+  | unrecognized : NestedReplacement env lctx params As e state (none, state)
+  | recognized :
+      NestedAppCandidate env state e value →
+      e.getAppFn = .const targetName levels →
+      RecognizedNestedReplacement env lctx params As targetName levels
+        e.getAppArgs value state out →
+      NestedReplacement env lctx params As e state out
+
+theorem replaceIfNested_refines
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (e : Expr) (state : Lean4Lean.ElimNestedInductive.State)
+    (hsize : As.size = params.size)
+    (hclosures : ∀ targetName levels value,
+      e.getAppFn = .const targetName levels →
+      env.find? targetName = some (.inductInfo value) →
+      MutualInductiveClosure env targetName value) :
+    (Lean4Lean.ElimNestedInductive.replaceIfNested lctx params As e env state).WF
+      fun out => NestedReplacement env lctx params As e state out := by
+  rw [Lean4Lean.ElimNestedInductive.replaceIfNested]
+  refine nestedBind.WF
+    (x := Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e)
+    (P := fun recognized =>
+      recognized.2 = state ∧ ∀ value, recognized.1 = some value →
+        NestedAppCandidate env state e value) ?_ ?_
+  · intro recognized hrecognized
+    exact ⟨isNestedInductiveApp_preservesState e env state
+        recognized hrecognized,
+      isNestedInductiveApp_candidate e env state recognized hrecognized⟩
+  · intro recognized nextState hrecognized
+    rcases hrecognized with ⟨hstate, hcandidate⟩
+    simp only at hstate hcandidate ⊢
+    subst nextState
+    cases recognized with
+    | none => exact Except.WF.pure .unrecognized
+    | some value =>
+      have Hcandidate := hcandidate value rfl
+      rcases Hcandidate.headFound with
+        ⟨targetName, levels, hhead, hlookup⟩
+      simp only
+      rw [Expr.withApp_eq, hhead]
+      exact (replaceRecognizedNested_refines env lctx params As targetName
+        levels e.getAppArgs value state Hcandidate.parameters.arity hsize
+        (hclosures targetName levels value hhead hlookup)).mono fun _ Hresult =>
+          .recognized Hcandidate hhead Hresult
 
 /-- Any successful replacement is rooted in an occurrence satisfying the
 independent recognition contract. This prefix theorem intentionally leaves

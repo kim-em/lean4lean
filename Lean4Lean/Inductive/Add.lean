@@ -877,11 +877,8 @@ where
       let found ← generateAuxiliary lctx params As I_name I_lvls I_nparams args J_name
       loop (found.or result) names
 
-/-- If `e` is a nested occurrence `I Ds is`, return `Iaux As is` -/
-def replaceIfNested (lctx : LocalContext) (params : Array Expr) (As : Array Expr) (e : Expr) :
-    M (Option Expr) := do
-  let some I_val ← isNestedInductiveApp? e | return none
-  e.withApp fun fn args => do
+def replaceRecognizedNested (lctx : LocalContext) (params As : Array Expr)
+    (fn : Expr) (args : Array Expr) (I_val : InductiveVal) : M (Option Expr) := do
   let .const I_name I_lvls := fn | unreachable!
   let I_nparams := I_val.numParams
   assert! I_nparams ≤ args.size
@@ -891,6 +888,13 @@ def replaceIfNested (lctx : LocalContext) (params : Array Expr) (As : Array Expr
   if let some auxI_name := findCachedAux? st.nestedAux Iparams then
     return mkAppRange (mkAppN (.const auxI_name st.lvls) As) I_nparams args.size args
   generateAuxiliaries lctx params As I_name I_lvls I_nparams args I_val
+
+/-- If `e` is a nested occurrence `I Ds is`, return `Iaux As is` -/
+def replaceIfNested (lctx : LocalContext) (params : Array Expr) (As : Array Expr) (e : Expr) :
+    M (Option Expr) := do
+  let some I_val ← isNestedInductiveApp? e | return none
+  e.withApp fun fn args =>
+    replaceRecognizedNested lctx params As fn args I_val
 
 def replaceAllNested (lctx : LocalContext) (params : Array Expr) (As : Array Expr) (e : Expr) :
     M Expr := e.replaceM (replaceIfNested lctx params As)
