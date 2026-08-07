@@ -19769,6 +19769,117 @@ theorem AddInductive.declareConstructors.WF
       context := H.context.withEnv
         (Hinstalled.valid H.context.checking) Hinstalled.le }, trivial⟩
 
+structure ConstructorPhasesResult
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv)
+    (outEnv : Environment) where
+  checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
+    H.headers.params
+  declared : DeclaredConstructorsResult H outEnv
+  formation : FormationCertificate sourceEnv decl
+  core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
+    isUnsafe decl H.context.venv declared.venvCtors
+
+/-- The executable constructor check and declaration folds jointly establish
+the independent formation judgment and the complete pointwise source/core
+translation. -/
+theorem AddInductive.constructorPhases.WF
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel = .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprim : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
+      ¬ Kernel.Environment.primitives.contains ctor.name) :
+    ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
+      AddInductive.declareConstructors stats indTypes isUnsafe)
+      { c with env := headerEnv }).WF fun outEnv =>
+        ∃ _ : ConstructorPhasesResult H outEnv, True := by
+  have Hcheck := AddInductive.checkConstructors.checkedWF H Hfresh hconsume
+    hlit hproj hunsafe hbound
+  exact Hcheck.bind fun _ Hchecked =>
+    (AddInductive.declareConstructors.WF H Hchecked hvisible hnprim).mono
+      fun outEnv Hdeclared => by
+        rcases Hdeclared with ⟨Hdeclared, _⟩
+        exact ⟨{
+          checked := Hchecked
+          declared := Hdeclared
+          formation := H.formation Hchecked.formation
+          core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases
+            H.translation Hdeclared.translation }, trivial⟩
+
+/-- Header installation, constructor checking, and constructor installation
+in the exact production order.  The result is the first executable prefix
+that exposes both `FormationCertificate` and `TrInductDeclCore` without
+assuming either one. -/
+theorem AddInductive.formationCore.headersWF
+    {envTypes : VEnv}
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclHeaders Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe decl envTypes)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprimTypes : ∀ info ∈
+      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+        isUnsafe c.lparams).toList,
+      ¬ Kernel.Environment.primitives.contains info.name)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel = .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel)
+    (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
+      ¬ Kernel.Environment.primitives.contains ctor.name) :
+    ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
+      isUnsafe >>= fun headerEnv =>
+        AddInductive.withEnv headerEnv do
+          AddInductive.checkConstructors indTypes stats isUnsafe
+          AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
+      fun outEnv => ∃ headerEnv : Environment,
+        ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
+          depth Hc.venv indTypes headerEnv,
+        ∃ _ : ConstructorPhasesResult Hheaders outEnv, True := by
+  have Htypes := AddInductive.declareInductiveTypes.headersWF Hc Hdecl
+    Hmaterialized hvisible hnprimTypes
+  exact Htypes.bind fun headerEnv Hresult => by
+    rcases Hresult with ⟨Hheaders, _⟩
+    have Hphases := AddInductive.constructorPhases.WF Hheaders Hfresh
+      hconsume hlit hproj hunsafe hbound hvisible hnprimCtors
+    exact Hphases.mono fun outEnv Hresult => by
+      rcases Hresult with ⟨Hphases, _⟩
+      exact ⟨headerEnv, Hheaders, Hphases, trivial⟩
+
 /-- Non-circular formation prefix: header installation starts from the raw
 phase translation and constructor checking itself supplies the formation
 certificate. -/
