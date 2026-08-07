@@ -20149,6 +20149,7 @@ structure DeclaredHeadersResult (c : AddInductive.Context)
     (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (outEnv : Environment) where
   entries : List (ConstantInfo × VConstVal)
+  values : entries.map Prod.snd = decl.typeConstants
   context : ContextWF { c with env := outEnv }
   headers : HeaderCertificate sourceEnv decl
   translation : TrInductDeclHeaders sourceEnv c.lparams nparams
@@ -20199,9 +20200,18 @@ theorem AddInductive.declareInductiveTypes.headersWF
   change (AddInductive.declareInductiveTypeInfos c.allowPrimitive
     infos.toList c.env).WF _
   exact Hinstall.mono fun outEnv Hinstalled => by
+    have hvalues :
+        (List.zip
+          (infos.toList.map (fun info => ConstantInfo.inductInfo info))
+          decl.typeConstants).map Prod.snd = decl.typeConstants := by
+      have hlength : infos.toList.length = decl.typeConstants.length :=
+        Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hentries
+      apply List.map_snd_zip
+      simpa [hlength]
     refine ⟨{
       entries := List.zip
         (infos.toList.map (fun info => .inductInfo info)) decl.typeConstants
+      values := hvalues
       context := Hc.withEnv (Hinstalled.valid Hc.checking) Hinstalled.le
       headers := Hmaterialized.headers
       translation := ?_
@@ -20325,6 +20335,7 @@ structure DeclaredConstructorsResult
     (outEnv : Environment) where
   venvCtors : VEnv
   entries : List (ConstantInfo × VConstVal)
+  values : entries.map Prod.snd = decl.constructorConstants
   installed : AddConstants c.safety headerEnv H.context.venv entries
     outEnv venvCtors
   nonInductive : ∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
@@ -20396,6 +20407,7 @@ theorem AddInductive.declareConstructors.WF
     exact ⟨{
       venvCtors := venvCtors
       entries := entries
+      values := by simpa [VInductDecl.constructorConstants] using hvalues
       installed := Hinstalled
       nonInductive := hnind
       translation := Htranslation
@@ -23045,6 +23057,79 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       installed := Hinstalled
       closed := Hgenerated.closesMutuals Hinstalled Hvalid.tr.map_wf
         hclosedLocal }⟩
+
+def RecursorPhasesResult.staged
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) :
+    StagedBlock c.safety c.env sourceEnv Hheaders.entries R.declared.entries
+      H.entries outEnv H.outVEnv where
+  envTypes := headerEnv
+  venvTypes := Hheaders.context.venv
+  envCtors := ctorEnv
+  venvCtors := R.declared.venvCtors
+  typesAdded := Hheaders.installed
+  ctorsAdded := R.declared.installed
+  recursorsAdded := by
+    simpa [H.localExtends.safety_eq, H.localExtends.env_eq] using H.installed
+
+theorem DeclaredHeadersResult.typesWF
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes outEnv) :
+    ∀ ci ∈ H.entries.map Prod.snd, ci.toVConstant.WF sourceEnv := by
+  rw [H.values]
+  intro ci hci
+  simp only [VInductDecl.typeConstants] at hci
+  rcases List.mem_map.mp hci with ⟨target, htarget, rfl⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r H.translation.types target
+      htarget with ⟨source, _, Htarget⟩
+  exact Htarget.header.wf
+
+theorem DeclaredConstructorsResult.ctorsWF
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : DeclaredConstructorsResult H outEnv) :
+    ∀ ci ∈ R.entries.map Prod.snd,
+      ci.toVConstant.WF H.context.venv := by
+  rw [R.values]
+  intro ci hci
+  simp only [VInductDecl.constructorConstants, List.mem_flatMap] at hci
+  rcases hci with ⟨target, htarget, hci⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r R.translation.types target
+      htarget with ⟨source, _, Htarget⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget ci hci with
+    ⟨ctor, _, Hctor⟩
+  exact Hctor.wf
+
+def RecursorPhasesResult.blockCertificate
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
+    BlockCertificate c.safety c.env sourceEnv Hheaders.entries
+      R.declared.entries H.entries rules outEnv H.outVEnv := by
+  let Hgenerated : GeneratedRecursors c.safety R.declared.venvCtors
+      c.lparams H.elimLevel H.localContext stats indTypes H.recInfos
+      H.entries := by
+    simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using
+      H.generated
+  exact Hgenerated.toBlockCertificate H.staged H.localWF H.bindings H.params
+    Hheaders.typesWF R.declared.ctorsWF hrules
 
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
