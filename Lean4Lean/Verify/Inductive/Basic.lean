@@ -19673,10 +19673,13 @@ theorem AddConstants.ofConstructorList
       fun result => ∃ outVEnv : VEnv,
         ∃ entries : List (ConstantInfo × VConstVal),
         entries.map Prod.snd = values ∧
-        AddConstants safety env venv entries result.2 outVEnv := by
+        AddConstants safety env venv entries result.2 outVEnv ∧
+        (∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
+          ∀ (value : InductiveVal),
+          entry.1 ≠ ConstantInfo.inductInfo value) := by
   induction Hentries generalizing start env venv with
   | nil =>
-    exact Except.WF.pure ⟨venv, [], rfl, .nil⟩
+    exact Except.WF.pure ⟨venv, [], rfl, .nil, by simp⟩
   | @cons ctor ci' ctors values Hentry _ ih =>
     have hnprimHead := hnprim ctor (by simp)
     have hnprimTail : ∀ ctor ∈ ctors,
@@ -19716,19 +19719,21 @@ theorem AddConstants.ofConstructorList
           exact (ih (start := start + 1) HnextValid hnextLe
             hnprimTail).mono
             fun result Hrest => by
-              rcases Hrest with ⟨outVEnv, entries, hvalues, Hinstalled⟩
+              rcases Hrest with
+                ⟨outVEnv, entries, hvalues, Hinstalled, hnind⟩
               have hvalues' :
                   (((.ctorInfo info, ci') :: entries).map Prod.snd) =
                     ci' :: values := by simp [hvalues]
               have Hinstalled' := AddConstants.cons
                 (ci := .ctorInfo info) (ci' := ci') hfindInfo hnprimInfo
                 htr hwf haddHead rfl Hinstalled
-              show ∃ outVEnv : VEnv,
-                ∃ newEntries : List (ConstantInfo × VConstVal),
-                newEntries.map Prod.snd = ci' :: values ∧
-                  AddConstants safety env venv newEntries result.2 outVEnv
               exact ⟨outVEnv, (.ctorInfo info, ci') :: entries,
-                hvalues', Hinstalled'⟩
+                hvalues', Hinstalled', by
+                  intro entryInfo entryValue hentry value
+                  simp only [List.mem_cons, Prod.mk.injEq] at hentry
+                  rcases hentry with ⟨rfl, rfl⟩ | htail
+                  · simp
+                  · exact hnind (entryInfo, entryValue) htail value⟩
 
 /-- The outer mutual-family fold concatenates the independently verified
 constructor batches in the same family-major order as
@@ -19766,10 +19771,13 @@ theorem AddConstants.ofConstructorTypes
           ∃ entries : List (ConstantInfo × VConstVal),
           entries.map Prod.snd =
             targets.flatMap (fun target : VInductiveType => target.ctors) ∧
-          AddConstants safety env venv entries outEnv outVEnv := by
+          AddConstants safety env venv entries outEnv outVEnv ∧
+          (∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
+            ∀ (value : InductiveVal),
+            entry.1 ≠ ConstantInfo.inductInfo value) := by
   induction Hentries generalizing env venv with
   | nil =>
-    exact Except.WF.pure ⟨venv, [], rfl, .nil⟩
+    exact Except.WF.pure ⟨venv, [], rfl, .nil, by simp⟩
   | @cons owner target types targets Hhead _ ih =>
     have hnprimHead : ∀ ctor ∈ owner.ctors,
         ¬ Kernel.Environment.primitives.contains ctor.name := by
@@ -19787,7 +19795,7 @@ theorem AddConstants.ofConstructorTypes
       hnprimHead
     simpa using Hinner.bind fun result Hresult => by
       rcases Hresult with
-        ⟨middleVEnv, headEntries, hheadValues, HheadInstalled⟩
+        ⟨middleVEnv, headEntries, hheadValues, HheadInstalled, hheadNind⟩
       have validInstalled : ∀ {priorEnv nextEnv : Environment}
           {priorVEnv nextVEnv : VEnv} {entries},
           AddConstants safety priorEnv priorVEnv entries nextEnv nextVEnv →
@@ -19814,19 +19822,17 @@ theorem AddConstants.ofConstructorTypes
       exact (ih HnextValid hnextLe hnprimTail).mono
         fun outEnv Htail => by
           rcases Htail with
-            ⟨finalVEnv, tailEntries, htailValues, HtailInstalled⟩
+            ⟨finalVEnv, tailEntries, htailValues, HtailInstalled, htailNind⟩
           have hvalues : (headEntries ++ tailEntries).map Prod.snd =
               (target :: targets).flatMap
                 (fun target : VInductiveType => target.ctors) := by
             simp [hheadValues, htailValues]
-          show ∃ finalVEnv : VEnv,
-            ∃ entries : List (ConstantInfo × VConstVal),
-            entries.map Prod.snd =
-                (target :: targets).flatMap
-                  (fun target : VInductiveType => target.ctors) ∧
-              AddConstants safety env venv entries outEnv finalVEnv
           exact ⟨finalVEnv, headEntries ++ tailEntries, hvalues,
-            HheadInstalled.append HtailInstalled⟩
+            HheadInstalled.append HtailInstalled, by
+              intro entryInfo entryValue hentry value
+              rcases List.mem_append.mp hentry with hhead | htail
+              · exact hheadNind (entryInfo, entryValue) hhead value
+              · exact htailNind (entryInfo, entryValue) htail value⟩
 
 theorem AddConstants.valid
     (H : AddConstants safety env venv entries outEnv outVEnv)
@@ -19919,13 +19925,13 @@ theorem AddInductive.declareRecursors.loop.WF
                 recInfos (recInfos.map (·.motive))
                 (recInfos.flatMap (·.minors)) numMinors numMotives all c.lctx
                 k isUnsafe lparams allowPrimitive (dIdx + 1)
-                (env.add (.recInfo info)) checked.2 c) =
+                (AddInductive.addConstant env (.recInfo info)) checked.2 c) =
           (env.checkName info.name allowPrimitive).bind (fun _ =>
               AddInductive.declareRecursors.loop stats indTypes elimLevel
                 recInfos (recInfos.map (·.motive))
                 (recInfos.flatMap (·.minors)) numMinors numMotives all c.lctx
                 k isUnsafe lparams allowPrimitive (dIdx + 1)
-                (env.add (.recInfo info)) generated.2 c) := by
+                (AddInductive.addConstant env (.recInfo info)) generated.2 c) := by
         cases env.checkName info.name allowPrimitive <;> rfl
       rw [hnormalize]
       have Hname := checkName.WF Hvalid.tr.map_wf info.name allowPrimitive
@@ -20247,6 +20253,9 @@ structure DeclaredConstructorsResult
   entries : List (ConstantInfo × VConstVal)
   installed : AddConstants c.safety headerEnv H.context.venv entries
     outEnv venvCtors
+  nonInductive : ∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
+    ∀ (value : InductiveVal),
+    entry.1 ≠ ConstantInfo.inductInfo value
   translation : TrInductDeclConstructors H.context.venv c.lparams
     indTypes.toList decl venvCtors
   context : ContextWF { c with env := outEnv }
@@ -20298,7 +20307,8 @@ theorem AddInductive.declareConstructors.WF
       pure (cidx + 1, env.add (.ctorInfo (mkInfo owner cidx ctor)))
     pure env).WF _
   exact Hfold.mono fun outEnv Hout => by
-    rcases Hout with ⟨venvCtors, entries, hvalues, Hinstalled⟩
+    rcases Hout with
+      ⟨venvCtors, entries, hvalues, Hinstalled, hnind⟩
     have hctorsAdded : H.context.venv.addConsts decl.constructorConstants =
         some venvCtors := by
       simp only [VInductDecl.constructorConstants]
@@ -20312,6 +20322,7 @@ theorem AddInductive.declareConstructors.WF
       venvCtors := venvCtors
       entries := entries
       installed := Hinstalled
+      nonInductive := hnind
       translation := Htranslation
       context := H.context.withEnv
         (Hinstalled.valid H.context.checking) Hinstalled.le }, trivial⟩
@@ -22356,11 +22367,305 @@ structure MutualInductiveClosure
   members : InductiveMemberInfos env value.all
   target : targetName ∈ value.all
 
+theorem addConstant_find_self
+    (env : Environment) (info : ConstantInfo)
+    (hwf : env.constants.WF) (hfresh : env.find? info.name = none) :
+    (Lean4Lean.AddInductive.addConstant env info).find? info.name = some info := by
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
+  change (env.constants.insert info.name info).find?' info.name = some info
+  rw [(hwf.insert info.name info hfresh).find?'_eq_find?, hwf.find?_insert]
+  simp
+
+theorem addConstant_find_of_ne
+    (env : Environment) (info : ConstantInfo) (name : Name)
+    (hwf : env.constants.WF) (hfresh : env.find? info.name = none)
+    (hne : info.name ≠ name) (hfind : env.find? name = some found) :
+    (Lean4Lean.AddInductive.addConstant env info).find? name = some found := by
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh hfind
+  change (env.constants.insert info.name info).find?' name = some found
+  rw [(hwf.insert info.name info hfresh).find?'_eq_find?, hwf.find?_insert]
+  split
+  · rename_i heq
+    exact False.elim (hne (by simpa using heq))
+  · exact hfind
+
+theorem addConstant_find_cases
+    (env : Environment) (info : ConstantInfo) (name : Name)
+    (hwf : env.constants.WF) (hfresh : env.find? info.name = none)
+    (hfind : (Lean4Lean.AddInductive.addConstant env info).find? name =
+      some found) :
+    (name = info.name ∧ found = info) ∨ env.find? name = some found := by
+  have hfreshMap : env.constants.find? info.name = none := by
+    rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
+  change (env.constants.insert info.name info).find?' name = some found at hfind
+  rw [(hwf.insert info.name info hfreshMap).find?'_eq_find?,
+    hwf.find?_insert] at hfind
+  split at hfind
+  · rename_i heq
+    left
+    simp only [Option.some.injEq] at hfind
+    have hEq : info.name = name := by simpa using heq
+    exact ⟨hEq.symm, hfind.symm⟩
+  · right
+    rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
+
+theorem InductiveMemberInfos.addConstant
+    (H : InductiveMemberInfos env names)
+    (hwf : env.constants.WF) (hfresh : env.find? info.name = none) :
+    InductiveMemberInfos (Lean4Lean.AddInductive.addConstant env info) names := by
+  induction H with
+  | nil => exact .nil
+  | @cons name value names hlookup Htail ih =>
+    have hne : info.name ≠ name := by
+      intro heq
+      subst name
+      rw [hlookup] at hfresh
+      contradiction
+    exact .cons (addConstant_find_of_ne env info name hwf hfresh hne hlookup) ih
+
+theorem MutualInductiveClosure.addConstant
+    (H : MutualInductiveClosure env targetName value)
+    (hwf : env.constants.WF) (hfresh : env.find? info.name = none) :
+    MutualInductiveClosure (Lean4Lean.AddInductive.addConstant env info)
+      targetName value :=
+  ⟨H.members.addConstant hwf hfresh, H.target⟩
+
+/-- Exact lookup effect of the executable mutual-header installation fold. -/
+structure DeclaredInductiveInfos
+    (source : Environment) (infos : List InductiveVal)
+    (target : Environment) : Prop where
+  mapWF : target.constants.WF
+  preserves : ∀ {name found}, source.find? name = some found →
+    target.find? name = some found
+  origin : ∀ {name found}, target.find? name = some found →
+    source.find? name = some found ∨
+      ∃ info ∈ infos, name = info.name ∧ found = .inductInfo info
+  installed : ∀ info ∈ infos,
+    target.find? info.name = some (.inductInfo info)
+
+theorem declareInductiveTypeInfos_refines
+    (allowPrimitive : Bool) (infos : List InductiveVal) (env : Environment)
+    (hwf : env.constants.WF) :
+    (Lean4Lean.AddInductive.declareInductiveTypeInfos
+      allowPrimitive infos env).WF fun out =>
+        DeclaredInductiveInfos env infos out := by
+  induction infos generalizing env with
+  | nil =>
+    simp only [Lean4Lean.AddInductive.declareInductiveTypeInfos]
+    exact Except.WF.pure ⟨hwf, fun h => h, fun h => Or.inl h,
+      by simp⟩
+  | cons info infos ih =>
+    rw [Lean4Lean.AddInductive.declareInductiveTypeInfos]
+    exact (checkName.WF hwf info.name allowPrimitive).bind fun _ hchecked => by
+      have hfresh := hchecked.1
+      have hfreshMap : env.constants.find? info.name = none := by
+        rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
+      let nextEnv := Lean4Lean.AddInductive.addConstant env (.inductInfo info)
+      have hnextWF : nextEnv.constants.WF := by
+        change (env.constants.insert info.name (.inductInfo info)).WF
+        exact hwf.insert info.name (.inductInfo info) hfreshMap
+      exact (ih nextEnv hnextWF).mono fun out Htail => by
+        refine ⟨Htail.mapWF, ?_, ?_, ?_⟩
+        · intro name found hfind
+          have hne : info.name ≠ name := by
+            intro heq
+            subst name
+            rw [hfind] at hfresh
+            contradiction
+          exact Htail.preserves
+            (addConstant_find_of_ne env (.inductInfo info) name hwf
+              hfresh hne hfind)
+        · intro name found hfind
+          rcases Htail.origin hfind with hnext | ⟨tail, htail, hname, hfound⟩
+          · rcases addConstant_find_cases env (.inductInfo info) name hwf
+                hfresh hnext with hhead | hold
+            · right
+              exact ⟨info, by simp, hhead.1, hhead.2⟩
+            · exact Or.inl hold
+          · right
+            exact ⟨tail, by simp [htail], hname, hfound⟩
+        · have hinstalledHead := Htail.preserves
+            (addConstant_find_self env (.inductInfo info) hwf hfresh)
+          intro member hmem
+          simp only [List.mem_cons] at hmem
+          rcases hmem with rfl | htail
+          · exact hinstalledHead
+          · exact Htail.installed member htail
+
+theorem InductiveMemberInfos.mapEnvironment
+    (H : InductiveMemberInfos source names)
+    (hpreserves : ∀ {name found}, source.find? name = some found →
+      target.find? name = some found) :
+    InductiveMemberInfos target names := by
+  induction H with
+  | nil => exact .nil
+  | cons hlookup Htail ih => exact .cons (hpreserves hlookup) ih
+
+private theorem inductiveMemberInfos_of_forall
+    (infos : List InductiveVal)
+    (hlookup : ∀ info ∈ infos,
+      env.find? info.name = some (.inductInfo info)) :
+    InductiveMemberInfos env (infos.map (fun info => info.name)) := by
+  induction infos with
+  | nil => exact .nil
+  | cons info infos ih =>
+    exact .cons (hlookup info (by simp))
+      (ih fun member hmem => hlookup member (by simp [hmem]))
+
+theorem DeclaredInductiveInfos.newMembers
+    (H : DeclaredInductiveInfos source infos target) :
+    InductiveMemberInfos target (infos.map (fun info => info.name)) :=
+  inductiveMemberInfos_of_forall infos H.installed
+
 /-- Global form of mutual-block closure used while recursively scanning an
 expression, where the particular nested family is not known in advance. -/
 def MutualInductivesClosed (env : Environment) : Prop :=
   ∀ targetName value, env.find? targetName = some (.inductInfo value) →
     MutualInductiveClosure env targetName value
+
+/-- Adding a fresh non-inductive constant cannot create a new mutual block,
+and transports every existing block through the environment extension. -/
+theorem MutualInductivesClosed.addNonInductive
+    (H : MutualInductivesClosed env)
+    (hwf : env.constants.WF) (hfresh : env.find? info.name = none)
+    (hnind : ∀ value, info ≠ .inductInfo value) :
+    MutualInductivesClosed
+      (Lean4Lean.AddInductive.addConstant env info) := by
+  intro targetName value hfind
+  rcases addConstant_find_cases env info targetName hwf hfresh hfind with
+    ⟨_, hvalue⟩ | hold
+  · exact False.elim (hnind value hvalue.symm)
+  · exact (H targetName value hold).addConstant hwf hfresh
+
+/-- A lockstep installation consisting only of constructors, recursors, or
+other non-inductive constants preserves closure of all mutual blocks. -/
+theorem AddConstants.closesMutuals
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF) (hclosed : MutualInductivesClosed env)
+    (hnind : ∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
+      ∀ (value : InductiveVal),
+      entry.1 ≠ ConstantInfo.inductInfo value) :
+    MutualInductivesClosed outEnv := by
+  induction H with
+  | nil => exact hclosed
+  | @cons venv ci ci' venv' rest outEnv outVEnv env hn _ _ _ _ _ Htail ih =>
+    have hfreshMap : env.constants.find? ci.name = none := by
+      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+    have hnextWF : (env.add ci).constants.WF := by
+      change (env.constants.insert ci.name ci).WF
+      exact hwf.insert ci.name ci hfreshMap
+    have hclosedNext : MutualInductivesClosed (env.add ci) := by
+      change MutualInductivesClosed
+        (Lean4Lean.AddInductive.addConstant env ci)
+      exact hclosed.addNonInductive hwf hn
+        (fun value => hnind (ci, ci') (by simp) value)
+    exact ih hnextWF hclosedNext fun entry hentry value =>
+      hnind entry (by simp [hentry]) value
+
+theorem DeclaredInductiveInfos.closesMutuals
+    (H : DeclaredInductiveInfos source infos target)
+    (hold : MutualInductivesClosed source)
+    (huniform : ∀ info ∈ infos,
+      info.all = infos.map (fun member => member.name)) :
+    MutualInductivesClosed target := by
+  intro targetName value hfind
+  rcases H.origin hfind with holdLookup |
+      ⟨info, hinfo, hname, hvalue⟩
+  · have Hclosure := hold targetName value holdLookup
+    exact ⟨Hclosure.members.mapEnvironment H.preserves, Hclosure.target⟩
+  · cases hvalue
+    have hmembers := H.newMembers
+    rw [← huniform value hinfo] at hmembers
+    exact ⟨hmembers, by
+      rw [hname]
+      rw [huniform value hinfo]
+      exact List.mem_map.mpr ⟨value, hinfo, rfl⟩⟩
+
+private theorem property_of_mem_zipWith
+    (f : α → β → γ) (P : γ → Prop)
+    (hproperty : ∀ a b, P (f a b)) :
+    ∀ {as : List α} {bs : List β} {value : γ},
+      value ∈ List.zipWith f as bs → P value := by
+  intro as
+  induction as with
+  | nil => simp
+  | cons a as ih =>
+    intro bs value hmem
+    cases bs with
+    | nil => simp at hmem
+    | cons b bs =>
+      simp only [List.zipWith_cons_cons, List.mem_cons] at hmem
+      rcases hmem with rfl | htail
+      · exact hproperty a b
+      · exact ih htail
+
+private theorem zipWith_left_projection
+    (g : α → γ) {as : List α} {bs : List β}
+    (hlength : bs.length = as.length) :
+    List.zipWith (fun a _ => g a) as bs = as.map g := by
+  induction as generalizing bs with
+  | nil => simpa using hlength
+  | cons a as ih =>
+    cases bs with
+    | nil => simp at hlength
+    | cons b bs =>
+      have hlength' : bs.length = as.length := by
+        simp only [List.length_cons] at hlength
+        omega
+      simp [ih hlength']
+
+theorem inductiveTypeInfos_uniformAll
+    (stats : AddInductive.InductiveStats) (numParams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
+    (lparams : List Name)
+    (hsize : stats.nindices.size = indTypes.size) :
+    ∀ info ∈ (AddInductive.inductiveTypeInfos stats numParams indTypes
+      numNested isUnsafe lparams).toList,
+      info.all =
+        (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+          isUnsafe lparams).toList.map (fun member => member.name) := by
+  intro info hinfo
+  simp [AddInductive.inductiveTypeInfos, hsize] at hinfo ⊢
+  have hall := property_of_mem_zipWith
+    (fun (indType : InductiveType) (numIndices : Nat) =>
+      show InductiveVal from {
+        name := indType.name
+        levelParams := lparams
+        type := indType.type
+        numParams := numParams
+        numIndices := numIndices
+        all := indTypes.toList.map (fun type => type.name)
+        numNested := numNested
+        isUnsafe := isUnsafe
+        ctors := indType.ctors.map (fun ctor => ctor.name)
+        isRec := AddInductive.isRec indTypes stats.indConsts
+        isReflexive := AddInductive.isReflexive indTypes stats.indConsts })
+    (fun generated =>
+      generated.all = indTypes.toList.map (fun type => type.name))
+    (by intro _a _b; rfl) hinfo
+  have hlength : stats.nindices.toList.length = indTypes.toList.length := by
+    simpa using hsize
+  exact hall.trans (zipWith_left_projection
+    (fun type : InductiveType => type.name) hlength).symm
+
+/-- Installing the production metadata headers closes every new mutual block
+and preserves closure of the inductive blocks already present. -/
+theorem declareInductiveTypes_closesMutuals
+    (stats : AddInductive.InductiveStats) (numParams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
+    (c : AddInductive.Context)
+    (hwf : c.env.constants.WF)
+    (hold : MutualInductivesClosed c.env)
+    (hsize : stats.nindices.size = indTypes.size) :
+    (AddInductive.declareInductiveTypes stats numParams indTypes numNested
+      isUnsafe c).WF MutualInductivesClosed := by
+  unfold AddInductive.declareInductiveTypes
+  exact (declareInductiveTypeInfos_refines c.allowPrimitive
+    (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+      isUnsafe c.lparams).toList c.env hwf).mono fun _ Hdeclared =>
+        Hdeclared.closesMutuals hold
+          (inductiveTypeInfos_uniformAll stats numParams indTypes numNested
+            isUnsafe c.lparams hsize)
 
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a

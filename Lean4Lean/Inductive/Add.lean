@@ -167,13 +167,19 @@ def inductiveTypeInfos (stats : InductiveStats) (numParams : Nat)
       isRec := isRec indTypes stats.indConsts
       isReflexive := isReflexive indTypes stats.indConsts }
 
+/-- Public name for the private kernel environment insertion primitive used by
+the executable declaration fold.  Naming this boundary lets verification state
+and prove its lookup-preservation contract directly. -/
+def addConstant (env : Environment) (info : ConstantInfo) : Environment :=
+  env.add info
+
 def declareInductiveTypeInfos (allowPrimitive : Bool) :
     List InductiveVal → Environment → Except Exception Environment
   | [], env => pure env
   | info :: infos, env => do
     env.checkName info.name allowPrimitive
     declareInductiveTypeInfos allowPrimitive infos
-      (env.add (.inductInfo info))
+      (addConstant env (.inductInfo info))
 
 def declareInductiveTypes (stats : InductiveStats) (numParams : Nat)
     (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool) : M Environment :=
@@ -310,7 +316,7 @@ def declareConstructors (stats : InductiveStats)
         | _ => i
       let arity := arity 0 type
       env.checkName ctor.name c.allowPrimitive
-      pure (cidx + 1, env.add <| .ctorInfo {
+      pure (cidx + 1, addConstant env <| .ctorInfo {
         type, cidx, isUnsafe
         levelParams := c.lparams
         name := ctor.name
@@ -603,7 +609,7 @@ def loop (stats : InductiveStats) (indTypes : Array InductiveType)
       numMotives all lctx k isUnsafe lparams dIdx rules
     let name := info.name
     env.checkName name allowPrimitive
-    let env := env.add (.recInfo info)
+    let env := addConstant env (.recInfo info)
     loop stats indTypes elimLevel recInfos motives minors numMinors
       numMotives all lctx k isUnsafe lparams allowPrimitive (dIdx + 1) env
   else
