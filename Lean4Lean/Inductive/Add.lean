@@ -539,6 +539,34 @@ def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : Ind
 
 namespace declareRecursors
 
+def recursorType (stats : InductiveStats)
+    (recInfos : Array RecInfo) (lctx : LocalContext) (dIdx : Nat) : Expr :=
+  lctx.mkForall stats.params <|
+  lctx.mkForall (recInfos.map (·.motive)) <|
+  lctx.mkForall (recInfos.flatMap (·.minors)) <|
+  lctx.mkForall recInfos[dIdx]!.indices <|
+  lctx.mkForall #[recInfos[dIdx]!.major] <|
+  .app (mkAppN recInfos[dIdx]!.motive recInfos[dIdx]!.indices)
+    recInfos[dIdx]!.major
+
+def recursorInfo (stats : InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (recInfos : Array RecInfo) (numMinors numMotives : Nat)
+    (all : List Name) (lctx : LocalContext) (k isUnsafe : Bool)
+    (lparams : List Name) (dIdx : Nat)
+    (rules : List RecursorRule) : RecursorVal where
+  levelParams := getRecLevelParams elimLevel lparams
+  type := (recursorType stats recInfos lctx dIdx).inferImplicit 1000 false
+  numParams := stats.params.size
+  numIndices := stats.nindices[dIdx]!
+  name := mkRecName indTypes[dIdx]!.name
+  all := all
+  numMotives := numMotives
+  numMinors := numMinors
+  rules := rules
+  k := k
+  isUnsafe := isUnsafe
+
 def loop (stats : InductiveStats) (indTypes : Array InductiveType)
     (elimLevel : Level) (recInfos : Array RecInfo)
     (motives minors : Array Expr) (numMinors numMotives : Nat)
@@ -546,25 +574,12 @@ def loop (stats : InductiveStats) (indTypes : Array InductiveType)
     (lparams : List Name) (allowPrimitive : Bool)
     (dIdx : Nat) (env : Environment) : StateT Nat M Environment := do
   if h : dIdx < indTypes.size then
-    let indType := indTypes[dIdx]
-    let info := recInfos[dIdx]!
-    let ty :=
-      lctx.mkForall stats.params <|
-      lctx.mkForall motives <|
-      lctx.mkForall minors <|
-      lctx.mkForall info.indices <|
-      lctx.mkForall #[info.major] <|
-      .app (mkAppN info.motive info.indices) info.major
     let rules ← mkRecRules indTypes elimLevel stats dIdx motives minors
-    let name := mkRecName indType.name
+    let info := recursorInfo stats indTypes elimLevel recInfos numMinors
+      numMotives all lctx k isUnsafe lparams dIdx rules
+    let name := info.name
     env.checkName name allowPrimitive
-    let env := env.add <| .recInfo {
-      levelParams := getRecLevelParams elimLevel lparams
-      type := ty.inferImplicit 1000 false
-      numParams := stats.params.size
-      numIndices := stats.nindices[dIdx]!
-      name, all, numMotives, numMinors, rules, k, isUnsafe
-    }
+    let env := env.add (.recInfo info)
     loop stats indTypes elimLevel recInfos motives minors numMinors
       numMotives all lctx k isUnsafe lparams allowPrimitive (dIdx + 1) env
   else
