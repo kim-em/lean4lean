@@ -14,6 +14,74 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+/-- Materializing a source declaration from a prefix of an expanded
+declaration's recovered header metadata preserves the index count at every
+source position.  This is the metadata-level fact needed after nested
+lowering: original families retain their positions, while auxiliary families
+are appended to the expanded declaration. -/
+theorem VInductDeclSkeleton.materializePrefix_numIndices
+    (skeleton : VInductDeclSkeleton) (expanded source : VInductDecl)
+    (hle : skeleton.types.length ≤ expanded.types.length)
+    (Hmaterialize : skeleton.materialize
+      ((expanded.types.take skeleton.types.length).map fun type =>
+        (type.numIndices, type.resultLevel)) = some source)
+    (i : Nat) (hi : i < skeleton.types.length)
+    (hsource : i < source.types.length)
+    (hexpanded : i < expanded.types.length) :
+    (source.types[i]'hsource).numIndices =
+      (expanded.types[i]'hexpanded).numIndices := by
+  rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize hi with
+    ⟨data, hdata, hsourceLookup⟩
+  have hmetadata :
+      ((expanded.types.take skeleton.types.length).map fun type =>
+        (type.numIndices, type.resultLevel))[i]? =
+        some (expanded.types[i].numIndices,
+          expanded.types[i].resultLevel) := by
+    simp [hi, hle]
+  have hdataEq : data =
+      (expanded.types[i].numIndices, expanded.types[i].resultLevel) := by
+    rw [hmetadata] at hdata
+    exact Option.some.inj hdata.symm
+  subst data
+  have hsourceEq : source.types[i] =
+      skeleton.types[i].toVInductiveType expanded.types[i].numIndices
+        expanded.types[i].resultLevel := by
+    rw [List.getElem?_eq_getElem hsource] at hsourceLookup
+    exact Option.some.inj hsourceLookup
+  have hindices := congrArg VInductiveType.numIndices hsourceEq
+  simpa [VInductiveTypeSkeleton.toVInductiveType] using hindices
+
+/-- The original declaration is materialized from exactly the metadata prefix
+of an expanded declaration.  Nested lowering appends auxiliary families, so
+this is the declaration-level certificate connecting independently recovered
+source metadata to the lowered checker result. -/
+structure MaterializedInductivePrefix
+    (source expanded : VInductDecl) : Type where
+  skeleton : VInductDeclSkeleton
+  materialized : skeleton.materialize
+    ((expanded.types.take skeleton.types.length).map fun type =>
+      (type.numIndices, type.resultLevel)) = some source
+
+theorem MaterializedInductivePrefix.skeleton_length
+    {source expanded : VInductDecl}
+    (H : MaterializedInductivePrefix source expanded) :
+    H.skeleton.types.length = source.types.length := by
+  exact (VInductDeclSkeleton.materialize_fields H.materialized).2.2.2.symm
+
+theorem MaterializedInductivePrefix.numIndices
+    {source expanded : VInductDecl}
+    (H : MaterializedInductivePrefix source expanded)
+    (hle : source.types.length ≤ expanded.types.length)
+    (i : Nat) (hsource : i < source.types.length)
+    (hexpanded : i < expanded.types.length) :
+    (source.types[i]'hsource).numIndices =
+      (expanded.types[i]'hexpanded).numIndices := by
+  apply VInductDeclSkeleton.materializePrefix_numIndices H.skeleton expanded
+    source
+  · simpa [H.skeleton_length] using hle
+  · exact H.materialized
+  · simpa [H.skeleton_length] using hsource
+
 theorem OnCtx.append_right
     (H : OnCtx (xs ++ ys) P) : OnCtx ys P := by
   induction xs with
@@ -37494,10 +37562,9 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFresh
 
 /-- Realize one restored primary recursor from the one irreducibly semantic
 fact about it: translation of its restored concrete type in the canonical
-source environment.  Source translation, lowering, and the generated
-recursor certificate determine every name, universe, parameter, motive, and
-minor-cardinality premise; only equality of the independently recovered
-source index count remains explicit. -/
+source environment. Source translation, shared metadata materialization,
+lowering, and the generated recursor certificate determine every remaining
+name, universe, and telescope-cardinality premise. -/
 theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -37512,6 +37579,7 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
     (Hprod : RecursorPhasesResult R loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (hdecl : familyIdx < sourceDecl.types.length)
@@ -37521,9 +37589,7 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
       sourceTypes[familyIdx] sourceProdEnv targetProdEnv)
     (targetType : VExpr)
     (Htype : TrExprS envCtors Hstep.restored.recursor.oldInfo.levelParams []
-      Hstep.restored.recursor.restored.newInfo.type targetType)
-    (hindices : (sourceDecl.types[familyIdx]'hdecl).numIndices =
-      Hprod.recInfos[familyIdx]!.indices.size) :
+      Hstep.restored.recursor.restored.newInfo.type targetType) :
     ∃ recursor, Nonempty (SourcePrimaryRecursorRealization sourceDecl
       (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor envCtors
       recursor) := by
@@ -37533,6 +37599,21 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
   obtain ⟨hresultIdx, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
   have howner : familyIdx < result.types.toArray.size := by
     simpa using hresultIdx
+  have hrecInfo : familyIdx < Hprod.recInfos.size := by
+    simpa [Hprod.generated.length] using hentry
+  have hloweredDecl : familyIdx < loweredDecl.types.length := by
+    simpa [Hprod.cardinality.records] using hrecInfo
+  have hdeclLength : sourceDecl.types.length ≤ loweredDecl.types.length := by
+    calc
+      sourceDecl.types.length = sourceTypes.length :=
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource).symm
+      _ ≤ result.types.length := H.toResult.sourceTypes_length_le
+      _ = loweredDecl.types.length :=
+        Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
+  have hindices : (sourceDecl.types[familyIdx]'hdecl).numIndices =
+      Hprod.recInfos[familyIdx]!.indices.size := by
+    exact (Hmetadata.numIndices hdeclLength familyIdx hdecl hloweredDecl).trans
+      (Hprod.cardinality.indices familyIdx hrecInfo).symm
   have hsourceName : result.types.toArray[familyIdx]!.name =
       sourceTypes[familyIdx].name := by
     have harray : result.types.toArray[familyIdx]! = target := by
@@ -37820,10 +37901,10 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfRealizations
     Hrealization.source Hrefinement
 
 /-- Whole-mutual source semantics with the callback surface reduced to the
-canonical translation of each restored concrete primary-recursor type.  The
-index equality is kept alongside that translation because source and lowered
-headers are materialized independently; every other realization field is a
-consequence of the verified lowering and recursor phases. -/
+canonical translation of each restored concrete primary-recursor type.
+Source/lowered index arities are derived once from their shared materialized
+metadata prefix; every other realization field follows from the verified
+lowering and recursor phases. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTranslatedTypes
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -37839,6 +37920,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTranslatedTypes
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Hfamilies : ∀ name nested,
       result.aux2nested.find? name = some nested →
       (`_nested).isPrefixOf name = true)
@@ -37857,9 +37939,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTranslatedTypes
         sourceTypes[familyIdx] stepSource stepTarget),
       ∃ targetType,
         TrExprS envCtors Hstep.restored.recursor.oldInfo.levelParams []
-          Hstep.restored.recursor.restored.newInfo.type targetType ∧
-        (sourceDecl.types[familyIdx]'hdecl).numIndices =
-          Hprod.recInfos[familyIdx]!.indices.size) :
+          Hstep.restored.recursor.restored.newInfo.type targetType) :
     ∃ owners recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
         sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
@@ -37867,9 +37947,9 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTranslatedTypes
     Hfamilies Hconstructors hempty Hrestored
   intro familyIdx hfamily hdecl hentry stepSource stepTarget Hstep
   rcases HtranslatedTypes familyIdx hfamily hdecl hentry stepSource stepTarget
-      Hstep with ⟨targetType, Htype, hindices⟩
-  exact H.sourcePrimaryRecursorRealizationAtFresh Hprod Hsource hempty
-    familyIdx hfamily hdecl hentry Hstep targetType Htype hindices
+      Hstep with ⟨targetType, Htype⟩
+  exact H.sourcePrimaryRecursorRealizationAtFresh Hprod Hsource Hmetadata
+    hempty familyIdx hfamily hdecl hentry Hstep targetType Htype
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
