@@ -25047,6 +25047,7 @@ inductive RecognizedNestedReplacement
         (some (mkAppRange (mkAppN (.const auxName state.lvls) As)
           value.numParams args.size args), state)
   | generated :
+      MutualInductiveClosure env targetName value →
       GeneratedAuxiliaryBatch env lctx params As targetName levels
         value.numParams args none value.all state out →
       RecognizedNestedReplacement env lctx params As targetName levels args
@@ -25091,7 +25092,7 @@ theorem replaceRecognizedNested_refines
     exact (generateAuxiliaries_refines env lctx params As targetName levels
       value.numParams args value state hsize hclosure.members
       hclosure.target).mono fun _ Hbatch =>
-        RecognizedNestedReplacement.generated Hbatch
+        RecognizedNestedReplacement.generated hclosure Hbatch
 
 /-- Complete node-level result of nested replacement.  A non-candidate is
 left untouched; every accepted candidate carries both the independent
@@ -25147,7 +25148,7 @@ theorem RecognizedNestedReplacement.resultSome
       value state out) : out.1.isSome = true := by
   cases H with
   | cached => simp
-  | generated Hbatch => exact Hbatch.resultSome
+  | generated _ Hbatch => exact Hbatch.resultSome
 
 theorem NestedReplacement.outcome
     (H : NestedReplacement env lctx params As e state out) :
@@ -25314,6 +25315,16 @@ theorem NestedNewTypesLE.trans
   rcases H₂ with ⟨ys, hys⟩
   exact ⟨xs ++ ys, by simp [hys, hxs, List.append_assoc]⟩
 
+theorem NestedNewTypesLE.mem
+    (H : NestedNewTypesLE source target)
+    (hentry : entry ∈ source.newTypes) : entry ∈ target.newTypes := by
+  rcases H with ⟨suffix, hsuffix⟩
+  have hsource : entry ∈ source.newTypes.toList := by simpa using hentry
+  have htarget : entry ∈ target.newTypes.toList := by
+    rw [hsuffix]
+    exact List.mem_append_left suffix hsource
+  simpa using htarget
+
 theorem NestedNewTypesLE.getElem
     (H : NestedNewTypesLE source target) (hi : i < source.newTypes.size) :
     ∃ htarget : i < target.newTypes.size,
@@ -25358,19 +25369,112 @@ theorem GeneratedAuxiliaryBatch.nestedAuxLE
   | nil => exact .refl _
   | cons Hstep Htail ih => exact Hstep.nestedAuxLE.trans ih
 
+/-- Every source family traversed by the mutual-generation loop has a
+concrete auxiliary construction whose paired cache entry and lowered family
+both survive in the batch's final state. -/
+theorem GeneratedAuxiliaryBatch.generatedFor
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out)
+    (hsource : sourceName ∈ sourceNames) :
+    ∃ (stepState : Lean4Lean.ElimNestedInductive.State)
+        (sourceInfo : InductiveVal) (auxName : Name) (nextIdx : Nat)
+        (data : Lean4Lean.ElimNestedInductive.AuxiliaryData),
+      FreshNestedName env (`_nested ++ sourceName) stepState.nextIdx
+        auxName nextIdx ∧
+      BuiltAuxiliary env lctx params As levels nparams args sourceName auxName
+        sourceInfo data ∧
+      (data.nested, auxName) ∈ out.2.nestedAux ∧
+      data.type ∈ out.2.newTypes := by
+  induction H with
+  | nil => simp at hsource
+  | cons Hstep Htail ih =>
+    simp only [List.mem_cons] at hsource
+    rcases hsource with rfl | htail
+    · rcases Hstep.generated with
+        ⟨auxName, nextIdx, data, Hfresh, Hbuilt, _, hstep⟩
+      refine ⟨_, _, auxName, nextIdx, data, Hfresh, Hbuilt, ?_, ?_⟩
+      · apply Htail.nestedAuxLE.mem
+        rw [hstep]
+        simp
+      · apply Htail.newTypesLE.mem
+        rw [hstep]
+        simp
+    · exact ih htail
+
+/-- If the target family does not occur in the remaining mutual-family
+suffix, that suffix cannot replace the accumulated result. -/
+theorem GeneratedAuxiliaryBatch.result_eq_of_target_not_mem
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out)
+    (hnot : targetName ∉ sourceNames) : out.1 = result := by
+  induction H with
+  | nil => rfl
+  | @cons sourceName sourceInfo state step result sourceNames out Hstep Htail ih =>
+    simp only [List.mem_cons, not_or] at hnot
+    rcases Hstep.generated with
+      ⟨auxName, nextIdx, data, Hfresh, Hbuilt, hresult, hstate⟩
+    have hne : sourceName ≠ targetName := Ne.symm hnot.1
+    have hstep : step.1 = none := by
+      rw [hresult]
+      simp [hne]
+    have htail := ih hnot.2
+    simpa [hstep] using htail
+
+/-- With unique mutual-family names, the batch result is exactly the
+auxiliary application generated at the unique target-family step. The same
+fresh name remains paired with its source expression in the final cache. -/
+theorem GeneratedAuxiliaryBatch.targetResult
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out)
+    (hnodup : sourceNames.Nodup)
+    (htarget : targetName ∈ sourceNames) :
+    ∃ (stepState : Lean4Lean.ElimNestedInductive.State)
+        (sourceInfo : InductiveVal) (auxName : Name) (nextIdx : Nat)
+        (data : Lean4Lean.ElimNestedInductive.AuxiliaryData),
+      FreshNestedName env (`_nested ++ targetName) stepState.nextIdx
+        auxName nextIdx ∧
+      BuiltAuxiliary env lctx params As levels nparams args targetName auxName
+        sourceInfo data ∧
+      out.1 = some (mkAppRange
+        (mkAppN (.const auxName stepState.lvls) As) nparams args.size args) ∧
+      (data.nested, auxName) ∈ out.2.nestedAux ∧
+      data.type ∈ out.2.newTypes := by
+  induction H with
+  | nil => simp at htarget
+  | @cons sourceName sourceInfo state step result sourceNames out Hstep Htail ih =>
+    simp only [List.nodup_cons] at hnodup
+    simp only [List.mem_cons] at htarget
+    rcases htarget with hhead | htail
+    · subst sourceName
+      rcases Hstep.generated with
+        ⟨auxName, nextIdx, data, Hfresh, Hbuilt, hresult, hstepState⟩
+      have hstepResult : step.1 = some (mkAppRange
+          (mkAppN (.const auxName state.lvls) As) nparams args.size args) := by
+        simpa using hresult
+      have hfinal := Htail.result_eq_of_target_not_mem hnodup.1
+      refine ⟨state, _, auxName, nextIdx, data, Hfresh, Hbuilt, ?_, ?_, ?_⟩
+      · simpa [hstepResult] using hfinal
+      · apply Htail.nestedAuxLE.mem
+        rw [hstepState]
+        simp
+      · apply Htail.newTypesLE.mem
+        rw [hstepState]
+        simp
+    · exact ih hnodup.2 htail
+
 theorem RecognizedNestedReplacement.newTypesLE
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out) : NestedNewTypesLE state out.2 := by
   cases H with
   | cached => exact .refl _
-  | generated Hbatch => exact Hbatch.newTypesLE
+  | generated _ Hbatch => exact Hbatch.newTypesLE
 
 theorem RecognizedNestedReplacement.nestedAuxLE
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out) : NestedAuxLE state out.2 := by
   cases H with
   | cached => exact .refl _
-  | generated Hbatch => exact Hbatch.nestedAuxLE
+  | generated _ Hbatch => exact Hbatch.nestedAuxLE
 
 theorem NestedReplacement.newTypesLE
     (H : NestedReplacement env lctx params As e state out) :
