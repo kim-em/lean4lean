@@ -25986,6 +25986,29 @@ theorem RecursorRestoration.translated
     exact Htype
   · rw [ConstantInfo.name, ConstantInfo.toConstantVal, H.name, ← hname]
 
+/-- Translate a restored recursor without requiring the lowered recursor type
+to translate in the restored environment.  In a nested block the lowered type
+may mention auxiliary constants which are intentionally not installed there;
+only its safety and universe-count metadata survive restoration. -/
+theorem RecursorRestoration.translatedOfMetadata
+    (H : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName oldInfo newInfo)
+    (Hsafety : safety ≤ (ConstantInfo.recInfo oldInfo).safety)
+    (Huvars : oldInfo.levelParams.length = recursor.uvars)
+    (Htype : TrExprS venv oldInfo.levelParams [] newInfo.type recursor.type)
+    (hname : recursor.name = newRecName) :
+    TrConstVal safety venv (.recInfo newInfo) recursor := by
+  refine ⟨⟨?_, ?_, ?_⟩, ?_⟩
+  · simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
+      ConstantInfo.isPartial, H.isUnsafe] using Hsafety
+  · rw [ConstantInfo.levelParams, ConstantInfo.toConstantVal,
+      H.levelParams]
+    exact Huvars
+  · change TrExprS venv newInfo.levelParams [] newInfo.type recursor.type
+    rw [H.levelParams]
+    exact Htype
+  · rw [ConstantInfo.name, ConstantInfo.toConstantVal, H.name, ← hname]
+
 theorem restoreRecursor_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (auxRec : NameMap Name)
@@ -27065,6 +27088,41 @@ theorem RestoredRecursorInstallationSemantics.checking
     congrArg Prod.snd Hstep.restored.output
   rwa [htarget]
 
+theorem RestoredRecursorStep.installationOfMetadata
+    (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (recursor : VConstVal)
+    (Hsafety : safety ≤ (ConstantInfo.recInfo Hstep.oldInfo).safety)
+    (Huvars : Hstep.oldInfo.levelParams.length = recursor.uvars)
+    (Htype : TrExprS sourceVEnv Hstep.oldInfo.levelParams []
+      Hstep.restored.newInfo.type recursor.type)
+    (hname : recursor.name = Hstep.restored.newRecName)
+    (Hwf : recursor.toVConstant.WF sourceVEnv) :
+    ∃ targetVEnv,
+      Nonempty (RestoredRecursorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) := by
+  have hprodFresh : sourceProdEnv.find?
+      Hstep.restored.newInfo.name = none :=
+    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
+  have Htranslated := Hstep.restored.restoration.translatedOfMetadata
+    Hsafety Huvars Htype hname
+  rcases CheckingEnv.exists_addConst Hvalid hprodFresh
+      recursor.toVConstant with ⟨targetVEnv, Hinstalled⟩
+  have Hinstalled' : sourceVEnv.addConst recursor.name
+      recursor.toVConstant = some targetVEnv := by
+    rw [← Htranslated.2]
+    exact Hinstalled
+  exact ⟨targetVEnv, ⟨{
+    recursor := recursor
+    translated := Htranslated
+    wf := Hwf
+    installed := Hinstalled' }⟩⟩
+
+/-- Compatibility form for callers which already have a translation of the
+lowered recursor.  New nested-restoration proofs should use
+`installationOfMetadata`, since the lowered type can mention auxiliary
+constants absent from the restored environment. -/
 theorem RestoredRecursorStep.installation
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
@@ -27079,21 +27137,13 @@ theorem RestoredRecursorStep.installation
     ∃ targetVEnv,
       Nonempty (RestoredRecursorInstallationSemantics safety Hstep
         sourceVEnv targetVEnv) := by
-  have hprodFresh : sourceProdEnv.find?
-      Hstep.restored.newInfo.name = none :=
-    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
-  have Htranslated := Hstep.restored.restoration.translated Hold Htype hname
-  rcases CheckingEnv.exists_addConst Hvalid hprodFresh
-      recursor.toVConstant with ⟨targetVEnv, Hinstalled⟩
-  have Hinstalled' : sourceVEnv.addConst recursor.name
-      recursor.toVConstant = some targetVEnv := by
-    rw [← Htranslated.2]
-    exact Hinstalled
-  exact ⟨targetVEnv, ⟨{
-    recursor := recursor
-    translated := Htranslated
-    wf := Hwf
-    installed := Hinstalled' }⟩⟩
+  apply Hstep.installationOfMetadata Hvalid recursor
+  · exact Hold.1.1
+  · simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
+      Hold.1.2.1
+  · exact Htype
+  · exact hname
+  · exact Hwf
 
 /-- Trace-aligned installation semantics for a fold of restored recursors.
 The abstract environment advances at exactly the same step boundaries as the
