@@ -22039,6 +22039,41 @@ theorem restoreRecursor_refines
   k := rfl
   isUnsafe := rfl
 
+/-- Exact state transition of the production family-header restoration step. -/
+structure RestoredInductiveHeaderDeclResult
+    (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
+    (indName : Name) (oldInfo : InductiveVal)
+    (out : Unit × Environment) where
+  newInfo : InductiveVal
+  restored : newInfo = { oldInfo with all := allIndNames }
+  output : out = ((), sourceEnv.add (.inductInfo newInfo))
+
+theorem restoreInductiveHeaderDecl_refines
+    (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
+    (allowPrimitive : Bool) (indName : Name) (oldInfo : InductiveVal)
+    (hlookup : loweredEnv.find? indName = some (.inductInfo oldInfo)) :
+    (Lean4Lean.restoreInductiveHeaderDecl loweredEnv allIndNames
+      allowPrimitive indName sourceEnv).WF fun out =>
+        Nonempty (RestoredInductiveHeaderDeclResult loweredEnv sourceEnv
+          allIndNames indName oldInfo out) := by
+  intro out hout
+  unfold Lean4Lean.restoreInductiveHeaderDecl at hout
+  simp only [hlookup] at hout
+  change (sourceEnv.checkName oldInfo.name allowPrimitive).bind (fun _ =>
+    Except.ok ((), sourceEnv.add (.inductInfo
+      { oldInfo with all := allIndNames }))) = Except.ok out at hout
+  cases hcheck : sourceEnv.checkName oldInfo.name allowPrimitive with
+  | error err =>
+    simp only [hcheck, Except.bind] at hout
+    cases hout
+  | ok checked =>
+    simp only [hcheck, Except.bind, Except.ok.injEq] at hout
+    subst out
+    exact ⟨{
+      newInfo := { oldInfo with all := allIndNames }
+      restored := rfl
+      output := rfl }⟩
+
 /-- Constructor-level restoration records that the production step changes
 only the type, using the verified nested-expression traversal. -/
 structure ConstructorRestoration

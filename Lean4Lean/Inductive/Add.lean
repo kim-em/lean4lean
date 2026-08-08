@@ -1032,6 +1032,17 @@ def restoreConstructorDecl (res : ElimNestedInductive.Result)
     return ((), sourceEnv.add <| .ctorInfo { ctor with type := newType })
   | _ => .error <| .other s!"missing lowered constructor '{ctorName}'"
 
+/-- Restore and install one source inductive header by replacing the lowered
+mutual-family metadata with the source family names. -/
+def restoreInductiveHeaderDecl (loweredEnv : Environment)
+    (allIndNames : List Name) (allowPrimitive : Bool) (indName : Name) :
+    StateT Environment (Except Exception) Unit := fun sourceEnv =>
+  match loweredEnv.find? indName with
+  | some (.inductInfo ind) => do
+    sourceEnv.checkName ind.name allowPrimitive
+    return ((), sourceEnv.add <| .inductInfo { ind with all := allIndNames })
+  | _ => .error <| .other s!"missing lowered inductive '{indName}'"
+
 /-- Restore and install one source inductive family member, its constructors,
 and its primary recursor. -/
 def restoreInductiveDecl (res : ElimNestedInductive.Result)
@@ -1040,8 +1051,7 @@ def restoreInductiveDecl (res : ElimNestedInductive.Result)
     (indType : InductiveType) :
     StateT Environment (Except Exception) Unit := do
   let some (.inductInfo ind) := loweredEnv.find? indType.name | unreachable!
-  (← get).checkName ind.name allowPrimitive
-  modify (·.add <| .inductInfo { ind with all := allIndNames })
+  restoreInductiveHeaderDecl loweredEnv allIndNames allowPrimitive indType.name
   for ctorName in ind.ctors do
     restoreConstructorDecl res loweredEnv allowPrimitive ctorName
   restoreRecursorDecl res loweredEnv recNameMap allIndNames allowPrimitive
