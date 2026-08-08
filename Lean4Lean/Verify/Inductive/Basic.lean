@@ -27145,6 +27145,38 @@ theorem RestoredRecursorStep.installation
   · exact hname
   · exact Hwf
 
+/-- Specification-facing payload for one restored primary recursor.  The
+translated concrete telescope and independent abstract `RecursorShape` live
+in the same object, preventing installation correctness from being proved
+against a recursor unrelated to the source declaration. -/
+structure RestoredPrimaryRecursorSemantics
+    (decl : VInductDecl) (owner : VInductiveType)
+    (safety : DefinitionSafety)
+    (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv)
+    (sourceVEnv : VEnv) where
+  recursor : VConstVal
+  safety_le : safety ≤ (ConstantInfo.recInfo Hstep.oldInfo).safety
+  uvars : Hstep.oldInfo.levelParams.length = recursor.uvars
+  type : TrExprS sourceVEnv Hstep.oldInfo.levelParams []
+    Hstep.restored.newInfo.type recursor.type
+  name : recursor.name = Hstep.restored.newRecName
+  wf : recursor.toVConstant.WF sourceVEnv
+  shape : Nonempty (decl.RecursorShape owner recursor)
+
+theorem RestoredPrimaryRecursorSemantics.installation
+    {oldRecName : Name} {sourceProdEnv targetProdEnv : Environment}
+    {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv}
+    {sourceVEnv : VEnv}
+    (H : RestoredPrimaryRecursorSemantics decl owner safety Hstep sourceVEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
+    ∃ targetVEnv,
+      Nonempty (RestoredRecursorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) :=
+  Hstep.installationOfMetadata Hvalid H.recursor H.safety_le H.uvars H.type
+    H.name H.wf
+
 /-- Trace-aligned installation semantics for a fold of restored recursors.
 The abstract environment advances at exactly the same step boundaries as the
 production environment. -/
