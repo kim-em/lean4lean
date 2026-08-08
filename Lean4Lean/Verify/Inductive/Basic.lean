@@ -19798,6 +19798,57 @@ theorem AddConstants.append
   | cons hn hnprim htr hwf hadd hdelta _ ih =>
     exact .cons hn hnprim htr hwf hadd hdelta (ih H₂)
 
+/-- Lockstep installation preserves concrete/abstract alignment.  This is
+the production-map component of `AddInduct`; it follows from the executable
+staging trace and need not be supplied by a later compilation proof. -/
+theorem AddConstants.aligned
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (Haligned : Aligned safety env.constants venv) :
+    Aligned safety outEnv.constants outVEnv := by
+  induction H with
+  | nil => exact Haligned
+  | cons hn _hnprim htr _hwf hadd _hdelta _Htail ih =>
+    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
+    have hnMap : envHead.constants.find? ci.name = none := by
+      rw [← Haligned.map_wf.find?'_eq_find?]
+      exact hn
+    exact ih (Haligned.const hnMap htr.1 hadd rfl)
+
+/-- Constants introduced by an inductive staging trace have no delta value,
+so every delta-bearing entry in the final production map was already present
+in the source map. -/
+theorem AddConstants.deltaConservative
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (Halign : Aligned safety env.constants venv) :
+    ∀ {name ci}, outEnv.constants.find? name = some ci →
+      ci.deltaValue?.isSome → env.constants.find? name = some ci := by
+  induction H with
+  | nil => intro name ci hfind _; exact hfind
+  | cons hn _hnprim htr _hwf hadd hdelta _Htail ih =>
+    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
+    intro name found hfind hfoundDelta
+    have hnMap : envHead.constants.find? ci.name = none := by
+      rw [← Halign.map_wf.find?'_eq_find?]
+      exact hn
+    have Halign' : Aligned safety
+        (envHead.constants.insert ci.name ci) venvNext :=
+      Halign.const hnMap htr.1 hadd rfl
+    have hnext : (envHead.constants.insert ci.name ci).find? name = some found :=
+      ih Halign' hfind hfoundDelta
+    rw [Halign.map_wf.find?_insert] at hnext
+    split at hnext
+    · cases hnext
+      simp [hdelta] at hfoundDelta
+    · exact hnext
+
+theorem Aligned.addDefEqs
+    (H : Aligned safety C venv) (rules : List VDefEq) :
+    Aligned safety C (venv.addDefEqs rules) := by
+  induction rules generalizing venv with
+  | nil => exact H
+  | cons rule rules ih =>
+    exact ih H.defeq
+
 theorem CheckingEnv.exists_addConst
     (H : CheckingEnv safety env venv) (hn : env.find? name = none)
     (ci' : VConstant) :
@@ -21146,6 +21197,28 @@ theorem StagedBlock.abstract_recursors
     H.venvCtors.addConsts (recursors.map Prod.snd) = some outVEnv :=
   H.recursorsAdded.abstract
 
+theorem StagedBlock.aligned
+    (H : StagedBlock checkSafety env venv types ctors recursors
+      outEnv outVEnv)
+    (Halign : Aligned checkSafety env.constants venv) :
+    Aligned checkSafety outEnv.constants outVEnv :=
+  H.recursorsAdded.aligned
+    (H.ctorsAdded.aligned (H.typesAdded.aligned Halign))
+
+theorem StagedBlock.deltaConservative
+    (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv)
+    (Halign : Aligned safety env.constants venv) :
+    ∀ {name ci}, outEnv.constants.find? name = some ci →
+      ci.deltaValue?.isSome → env.constants.find? name = some ci := by
+  have HalignTypes := H.typesAdded.aligned Halign
+  have HalignCtors := H.ctorsAdded.aligned HalignTypes
+  intro name ci hfind hdelta
+  exact H.typesAdded.deltaConservative Halign
+    (H.ctorsAdded.deltaConservative HalignTypes
+      (H.recursorsAdded.deltaConservative HalignCtors hfind hdelta)
+      hdelta)
+    hdelta
+
 /-- The complete semantic certificate for the block assembled by the three
 executable installation stages. `AddConstants` records the per-step checking
 environment; the three `*WF` fields deliberately record the stronger
@@ -21284,14 +21357,15 @@ theorem BlockCertificate.addInduct
       rules outEnv outVEnv)
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
-    (haligned : ∀ safety, Aligned safety C venv →
-      Aligned safety C' (outVEnv.addDefEqs rules))
-    (hdelta : ∀ {name ci}, C'.find? name = some ci →
-      ci.deltaValue?.isSome → C.find? name = some ci)
-    (heq : ∀ info, C'.find? ``Eq = some (.inductInfo info) →
+    (hsourceAligned : Aligned checkSafety prodEnv.constants venv)
+    (haligned : ∀ safety, Aligned safety prodEnv.constants venv →
+      Aligned safety outEnv.constants (outVEnv.addDefEqs rules))
+    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
       (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
-    AddInduct C venv decl C' (outVEnv.addDefEqs rules) :=
-  .intro H.block hdecl hcompile H.wf H.install haligned hdelta heq
+    AddInduct prodEnv.constants venv decl outEnv.constants
+      (outVEnv.addDefEqs rules) :=
+  .intro H.block hdecl hcompile H.wf H.install haligned
+    (H.staged.deltaConservative hsourceAligned) heq
 
 /-- The first executable check on every source inductive header is an ordinary
 type-checker run. At an empty local context its successful result already
@@ -28634,6 +28708,53 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
     simpa [hnparams] using
       H.auxRestorationSourcesOfLowering Hc Hlower recName hrecName
   · exact Hvalidate
+
+/-- Closed-lowering specialization of `ofLoweringWF`.  The final auxiliary
+validation pass is no longer a semantic callback: every witness in the
+production `aux2nested` map is known to be scoped by the exact local context
+returned by lowering, so the ordinary type-checker soundness theorem applies
+directly in the restored environment. -/
+theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv res.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hc : ContextWF c) (H : RecursorPhasesResult R loweredEnv)
+    (Hlower : NestedLoweringResultClosed sourceProdEnv loweringFuel nparams
+      sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } res)
+    (lparams : List Name) (safety : DefinitionSafety)
+    (allowPrimitive : Bool) (fuel : FuelConfig)
+    (venv : VEnv)
+    (hvalid : ∀ restoredEnv,
+      Nonempty (RestoredNestedDeclarationsResult res loweredEnv sourceProdEnv
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+        (sourceTypes.map (·.name)) sourceTypes
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
+        ((), restoredEnv)) →
+      CheckingEnv.Valid safety restoredEnv venv)
+    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
+    (hlctx : mlctx.lctx = res.lctx)
+    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
+      ({} : TypeChecker.State).ngen.Reserves fv) :
+    (Environment.restoreNestedAfterInstall sourceProdEnv loweredEnv lparams
+      sourceTypes safety allowPrimitive fuel res).WF fun outEnv =>
+        RestoredAfterInstallResult res sourceProdEnv loweredEnv
+          (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+          (sourceTypes.map (·.name)) sourceTypes
+          (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
+          (fun _ => ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res)
+          outEnv := by
+  apply Environment.restoreNestedAfterInstall.ofLoweringWF Hc H
+    Hlower.toResult lparams safety allowPrimitive fuel
+    (fun _ => ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res)
+  intro restoredEnv Hrestoration
+  exact Hlower.validateNestedAuxiliariesWF
+    (hvalid restoredEnv Hrestoration) mlctx hmlctx hlctx hfresh
 
 theorem ElimNestedInductive.run'.translation
     (fuel nparams : Nat) (types : List InductiveType)
