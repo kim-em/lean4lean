@@ -889,6 +889,10 @@ theorem instantiate1'_instantiate1' (e1 e2 e3 j) :
   | [], _ => e
   | a :: as, k => instantiate1' (instantiateRevList e as k) a k
 
+theorem instantiateRevList'_eq_self (h : e.looseBVarRange' ≤ k) :
+    instantiateRevList e as k = e := by
+  induction as <;> simp [instantiateRevList, instantiate1'_eq_self, *]
+
 theorem instantiateList_eq_foldl :
     instantiateList e as k = as.foldl (instantiate1' · · k) e := by
   induction as generalizing e <;> simp [*]
@@ -927,6 +931,33 @@ theorem instantiateList_lam : instantiateList (.lam n ty body bi) as k =
 @[simp]
 theorem instantiateRevList_app : instantiateRevList (.app f a) as k =
     .app (instantiateRevList f as k) (instantiateRevList a as k) := by
+  induction as <;> simp [instantiate1', *]
+
+@[simp]
+theorem instantiateRevList_forallE :
+    instantiateRevList (.forallE n ty body bi) as k =
+      .forallE n (instantiateRevList ty as k)
+        (instantiateRevList body as (k + 1)) bi := by
+  induction as <;> simp [instantiate1', *]
+
+@[simp]
+theorem instantiateRevList_letE :
+    instantiateRevList (.letE n ty value body nondep) as k =
+      .letE n (instantiateRevList ty as k)
+        (instantiateRevList value as k)
+        (instantiateRevList body as (k + 1)) nondep := by
+  induction as <;> simp [instantiate1', *]
+
+@[simp]
+theorem instantiateRevList_mdata :
+    instantiateRevList (.mdata (md : MData) body) as k =
+      .mdata md (instantiateRevList body as k) := by
+  induction as <;> simp [instantiate1', *]
+
+@[simp]
+theorem instantiateRevList_proj :
+    instantiateRevList (.proj name idx body) as k =
+      .proj name idx (instantiateRevList body as k) := by
   induction as <;> simp [instantiate1', *]
 
 /-- Substituting a free variable below another binder commutes past opening
@@ -1005,6 +1036,17 @@ theorem instantiateRevList_bvar_fvars_ge
         k + (n + 1) + fvars.length by omega]
     rw [ih (n + 1)]
     simp [instantiate1']
+
+/-- Reverse-instantiation does not affect bound variables below the supplied
+de Bruijn depth. -/
+theorem instantiateRevList_bvar_fvars_lt
+    (fvars : List FVarId) (i k : Nat) (hi : i < k) :
+    (Expr.bvar i).instantiateRevList (fvars.map Expr.fvar) k = .bvar i := by
+  induction fvars with
+  | nil => simp
+  | cons fv fvars ih =>
+    simp only [List.map_cons, instantiateRevList, ih]
+    simp [instantiate1', hi]
 
 /-- Reverse-instantiating the canonical bound-variable index for an array
 position returns the free variable at that same position. -/

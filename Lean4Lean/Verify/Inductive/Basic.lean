@@ -13938,6 +13938,50 @@ theorem Expr.abstractList_bvar_lt (fvs : List FVarId)
   | cons fv fvs ih =>
     simp [Expr.abstractList, Expr.abstract1, ih]
 
+@[simp] theorem Expr.abstractList_lam :
+    (Expr.lam name dom body bi).abstractList fvars k =
+      .lam name (dom.abstractList fvars k)
+        (body.abstractList fvars (k + 1)) bi := by
+  induction fvars generalizing dom body k with
+  | nil => simp
+  | cons fv fvars ih =>
+    simp [Expr.abstractList, Expr.abstract1, ih]
+
+@[simp] theorem Expr.abstractList_forallE :
+    (Expr.forallE name dom body bi).abstractList fvars k =
+      .forallE name (dom.abstractList fvars k)
+        (body.abstractList fvars (k + 1)) bi := by
+  induction fvars generalizing dom body k with
+  | nil => simp
+  | cons fv fvars ih =>
+    simp [Expr.abstractList, Expr.abstract1, ih]
+
+@[simp] theorem Expr.abstractList_letE :
+    (Expr.letE name ty value body nondep).abstractList fvars k =
+      .letE name (ty.abstractList fvars k)
+        (value.abstractList fvars k)
+        (body.abstractList fvars (k + 1)) nondep := by
+  induction fvars generalizing ty value body k with
+  | nil => simp
+  | cons fv fvars ih =>
+    simp [Expr.abstractList, Expr.abstract1, ih]
+
+@[simp] theorem Expr.abstractList_mdata :
+    (Expr.mdata md body).abstractList fvars k =
+      .mdata md (body.abstractList fvars k) := by
+  induction fvars generalizing body k with
+  | nil => simp
+  | cons fv fvars ih =>
+    simp [Expr.abstractList, Expr.abstract1, ih]
+
+@[simp] theorem Expr.abstractList_proj :
+    (Expr.proj name idx body).abstractList fvars k =
+      .proj name idx (body.abstractList fvars k) := by
+  induction fvars generalizing body k with
+  | nil => simp
+  | cons fv fvars ih =>
+    simp [Expr.abstractList, Expr.abstract1, ih]
+
 theorem Expr.abstractList_mkAppN :
     (mkAppN fn args).abstractList fvs k =
       mkAppN (fn.abstractList fvs k)
@@ -14084,6 +14128,201 @@ theorem Expr.abstract_instantiateRev_fvar_getElem
 with another. -/
 def Expr.reopenParams (e : Expr) (params restoreAs : Array Expr) : Expr :=
   (e.abstract params).instantiateRev restoreAs
+
+/-- Transparent list model of parameter reopening at an arbitrary de Bruijn
+depth. -/
+def Expr.reopenFVarsAt (e : Expr) (fvars restoreFvars : List FVarId)
+    (k : Nat := 0) : Expr :=
+  (e.abstractList fvars k).instantiateRevList
+    (restoreFvars.map Expr.fvar) k
+
+theorem _root_.Lean4Lean.FVarsIn.abstractList_eq_self
+    (H : e.FVarsIn fun fv => fv ∉ fvars) (Hclosed : Closed e k) :
+    e.abstractList fvars k = e := by
+  induction fvars with
+  | nil => simp
+  | cons fv fvars ih =>
+    simp only [List.mem_cons, not_or] at H
+    simp only [Expr.abstractList]
+    rw [(H.mono fun other hother => hother.1).abstract_eq_self Hclosed]
+    exact ih (H.mono fun other hother => hother.2)
+
+theorem Expr.reopenFVarsAt_eq_self
+    (Hfvars : e.FVarsIn fun fv => fv ∉ fvars)
+    (Hclosed : Closed e k) (Hrange : e.looseBVarRange' ≤ k) :
+    Expr.reopenFVarsAt e fvars restoreFvars k = e := by
+  unfold Expr.reopenFVarsAt
+  rw [Hfvars.abstractList_eq_self Hclosed]
+  exact Expr.instantiateRevList'_eq_self Hrange
+
+theorem Expr.reopenFVarsAt_eq_self_of_abstract
+    (Habstract : ∀ k, e.abstractList fvars k = e)
+    (Hrange : e.looseBVarRange' = 0) (k : Nat) :
+    Expr.reopenFVarsAt e fvars restoreFvars k = e := by
+  unfold Expr.reopenFVarsAt
+  rw [Habstract]
+  exact Expr.instantiateRevList'_eq_self (by omega)
+
+theorem Expr.abstractList_eq_self_of_abstract1
+    (e : Expr) (H : ∀ fv k, e.abstract1 fv k = e)
+    (fvars : List FVarId) (k : Nat) :
+    e.abstractList fvars k = e := by
+  induction fvars with
+  | nil => simp
+  | cons fv fvars ih => simp [Expr.abstractList, H, ih]
+
+theorem Expr.reopenFVarsAt_bvar
+    (hsize : restoreFvars.length = fvars.length) (i k : Nat) :
+    Expr.reopenFVarsAt (.bvar i) fvars restoreFvars k = .bvar i := by
+  unfold Expr.reopenFVarsAt
+  by_cases hi : i < k
+  · rw [Expr.abstractList_bvar_lt fvars hi]
+    exact Expr.instantiateRevList_bvar_fvars_lt restoreFvars i k hi
+  · obtain ⟨n, rfl⟩ : ∃ n, i = k + n := by
+      exact ⟨i - k, by omega⟩
+    rw [Expr.abstractList_bvar_ge]
+    rw [← hsize]
+    exact Expr.instantiateRevList_bvar_fvars_ge restoreFvars k n
+
+theorem Expr.reopenFVarsAt_selected
+    (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
+    (i : Nat) (hi : i < fvars.length) (k : Nat) :
+    Expr.reopenFVarsAt (.fvar fvars[i]) fvars restoreFvars k =
+      .fvar restoreFvars[i] := by
+  unfold Expr.reopenFVarsAt
+  rw [Expr.abstractList_fvar_getElem hnd i hi]
+  rw [← hsize]
+  exact Expr.instantiateRevList_bvar_fvars_getElem restoreFvars i k
+    (by omega)
+
+/-- Close-and-reopen free-variable renaming is independent of the de Bruijn
+depth at which the surrounding syntax traversal encounters the expression. -/
+theorem Expr.reopenFVarsAt_depth_independent
+    (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
+    (e : Expr) (k₁ k₂ : Nat) :
+    Expr.reopenFVarsAt e fvars restoreFvars k₁ =
+      Expr.reopenFVarsAt e fvars restoreFvars k₂ := by
+  induction e generalizing k₁ k₂ with
+  | bvar i =>
+    rw [Expr.reopenFVarsAt_bvar hsize,
+      Expr.reopenFVarsAt_bvar hsize]
+  | fvar fv =>
+    by_cases hfv : fv ∈ fvars
+    · rcases List.mem_iff_getElem.mp hfv with ⟨i, hi, rfl⟩
+      rw [Expr.reopenFVarsAt_selected hnd hsize i hi,
+        Expr.reopenFVarsAt_selected hnd hsize i hi]
+    · have habstract : ∀ k, (Expr.fvar fv).abstractList fvars k = .fvar fv := by
+        intro k
+        exact Expr.abstractList_fvar_of_not_mem hfv
+      rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+          (by simp [Expr.looseBVarRange']) k₁,
+        Expr.reopenFVarsAt_eq_self_of_abstract habstract
+          (by simp [Expr.looseBVarRange']) k₂]
+  | mvar id =>
+    have habstract : ∀ k, (Expr.mvar id).abstractList fvars k = .mvar id := by
+      exact Expr.abstractList_eq_self_of_abstract1
+        (.mvar id) (by intro fv k; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange']) k₁,
+      Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange']) k₂]
+  | sort u =>
+    have habstract : ∀ k, (Expr.sort u).abstractList fvars k = .sort u := by
+      exact Expr.abstractList_eq_self_of_abstract1
+        (.sort u) (by intro fv k; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange']) k₁,
+      Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange']) k₂]
+  | const name levels =>
+    have habstract : ∀ k, (Expr.const name levels).abstractList fvars k =
+        .const name levels := by
+      exact Expr.abstractList_eq_self_of_abstract1
+        (.const name levels) (by intro fv k; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange']) k₁,
+      Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange']) k₂]
+  | lit literal =>
+    have habstract : ∀ k, (Expr.lit literal).abstractList fvars k =
+        .lit literal := by
+      exact Expr.abstractList_eq_self_of_abstract1
+        (.lit literal) (by intro fv k; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange']) k₁,
+      Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange']) k₂]
+  | app fn arg ihFn ihArg =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_app,
+      Expr.instantiateRevList_app]
+    change Expr.app (Expr.reopenFVarsAt fn fvars restoreFvars k₁)
+        (Expr.reopenFVarsAt arg fvars restoreFvars k₁) =
+      Expr.app (Expr.reopenFVarsAt fn fvars restoreFvars k₂)
+        (Expr.reopenFVarsAt arg fvars restoreFvars k₂)
+    rw [ihFn k₁ k₂, ihArg k₁ k₂]
+  | lam name dom body bi ihDom ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_lam,
+      Expr.instantiateRevList_lam]
+    change Expr.lam name (Expr.reopenFVarsAt dom fvars restoreFvars k₁)
+        (Expr.reopenFVarsAt body fvars restoreFvars (k₁ + 1)) bi =
+      Expr.lam name (Expr.reopenFVarsAt dom fvars restoreFvars k₂)
+        (Expr.reopenFVarsAt body fvars restoreFvars (k₂ + 1)) bi
+    rw [ihDom k₁ k₂, ihBody (k₁ + 1) (k₂ + 1)]
+  | forallE name dom body bi ihDom ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_forallE,
+      Expr.instantiateRevList_forallE]
+    change Expr.forallE name (Expr.reopenFVarsAt dom fvars restoreFvars k₁)
+        (Expr.reopenFVarsAt body fvars restoreFvars (k₁ + 1)) bi =
+      Expr.forallE name (Expr.reopenFVarsAt dom fvars restoreFvars k₂)
+        (Expr.reopenFVarsAt body fvars restoreFvars (k₂ + 1)) bi
+    rw [ihDom k₁ k₂, ihBody (k₁ + 1) (k₂ + 1)]
+  | letE name ty value body nondep ihTy ihValue ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_letE,
+      Expr.instantiateRevList_letE]
+    change Expr.letE name (Expr.reopenFVarsAt ty fvars restoreFvars k₁)
+        (Expr.reopenFVarsAt value fvars restoreFvars k₁)
+        (Expr.reopenFVarsAt body fvars restoreFvars (k₁ + 1)) nondep =
+      Expr.letE name (Expr.reopenFVarsAt ty fvars restoreFvars k₂)
+        (Expr.reopenFVarsAt value fvars restoreFvars k₂)
+        (Expr.reopenFVarsAt body fvars restoreFvars (k₂ + 1)) nondep
+    rw [ihTy k₁ k₂, ihValue k₁ k₂, ihBody (k₁ + 1) (k₂ + 1)]
+  | mdata md body ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_mdata,
+      Expr.instantiateRevList_mdata]
+    change Expr.mdata md (Expr.reopenFVarsAt body fvars restoreFvars k₁) =
+      Expr.mdata md (Expr.reopenFVarsAt body fvars restoreFvars k₂)
+    rw [ihBody k₁ k₂]
+  | proj name idx body ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_proj,
+      Expr.instantiateRevList_proj]
+    change Expr.proj name idx (Expr.reopenFVarsAt body fvars restoreFvars k₁) =
+      Expr.proj name idx (Expr.reopenFVarsAt body fvars restoreFvars k₂)
+    rw [ihBody k₁ k₂]
+
+/-- The implementation's array operation is the depth-zero instance of the
+transparent free-variable reopening model. -/
+theorem Expr.reopenParams_eq_reopenFVarsAt
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hrestore : restoreAs = (restoreFvars.map Expr.fvar).toArray) :
+    Expr.reopenParams e params restoreAs =
+      Expr.reopenFVarsAt e fvars restoreFvars 0 := by
+  subst params
+  subst restoreAs
+  simp [Expr.reopenParams, Expr.reopenFVarsAt, Expr.abstract_eq,
+    Expr.instantiateRev_eq, Expr.instantiate_eq, Array.toList_reverse,
+    Expr.instantiateList_reverse]
+
+/-- Reopening at the depth of a syntax traversal agrees with the operational
+depth-zero parameter reopening. -/
+theorem Expr.reopenFVarsAt_eq_reopenParams
+    (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hrestore : restoreAs = (restoreFvars.map Expr.fvar).toArray)
+    (e : Expr) (k : Nat) :
+    Expr.reopenFVarsAt e fvars restoreFvars k =
+      Expr.reopenParams e params restoreAs := by
+  rw [Expr.reopenFVarsAt_depth_independent hnd hsize e k 0]
+  exact (Expr.reopenParams_eq_reopenFVarsAt hparams hrestore).symm
 
 theorem Expr.reopenParams_app
     (fvars : List FVarId)
@@ -26593,6 +26832,37 @@ theorem isNestedInductiveApp_candidate
       cases hout
       simp at hinfo
 
+/-- Completeness of the independent recognition contract: every abstract
+candidate is returned by the executable recognizer. -/
+theorem NestedAppCandidate.recognized
+    (H : NestedAppCandidate env state e info) :
+    (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
+      fun out => out.1 = some info := by
+  intro out hout
+  rcases H.headFound with ⟨fn, levels, hhead, hfound⟩
+  have hnested :
+      (Lean4Lean.ElimNestedInductive.nestedParamFlags state.newTypes
+        e.getAppArgs info.numParams).1 = true :=
+    (nestedParamFlags_fst state.newTypes e.getAppArgs info.numParams).mpr
+      H.parameters.nested
+  have hloose :
+      (Lean4Lean.ElimNestedInductive.nestedParamFlags state.newTypes
+        e.getAppArgs info.numParams).2 = false :=
+    (nestedParamFlags_snd_false state.newTypes e.getAppArgs
+      info.numParams).mpr H.parameters.closed
+  have harity : ¬ e.getAppArgs.size < info.numParams :=
+    Nat.not_lt_of_ge H.parameters.arity
+  unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
+  simp only [H.shape.isApp, Bool.not_true, Bool.false_eq_true, ↓reduceIte,
+    hhead, Lean4Lean.ElimNestedInductive.isNestedInductiveAppConst?] at hout
+  simp [hfound, harity, hnested, hloose] at hout
+  cases hout
+  rfl
+
+def NoNestedAppCandidate (env : Environment)
+    (state : Lean4Lean.ElimNestedInductive.State) (e : Expr) : Prop :=
+  ∀ info, ¬ NestedAppCandidate env state e info
+
 theorem isNestedInductiveApp_preservesState
     (e : Expr) (env : Environment)
     (state : Lean4Lean.ElimNestedInductive.State) :
@@ -28698,7 +28968,8 @@ inductive NestedReplacement
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (e : Expr) (state : Lean4Lean.ElimNestedInductive.State) :
     Option Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | unrecognized : NestedReplacement env lctx params As e state (none, state)
+  | unrecognized : NoNestedAppCandidate env state e →
+      NestedReplacement env lctx params As e state (none, state)
   | recognized :
       NestedAppCandidate env state e value →
       e.getAppFn = .const targetName levels →
@@ -28717,18 +28988,26 @@ theorem replaceIfNested_refines
   refine nestedBind.WF
     (x := Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e)
     (P := fun recognized =>
-      recognized.2 = state ∧ ∀ value, recognized.1 = some value →
-        NestedAppCandidate env state e value) ?_ ?_
+      recognized.2 = state ∧
+      (∀ value, recognized.1 = some value →
+        NestedAppCandidate env state e value) ∧
+      (recognized.1 = none → NoNestedAppCandidate env state e)) ?_ ?_
   · intro recognized hrecognized
-    exact ⟨isNestedInductiveApp_preservesState e env state
+    refine ⟨isNestedInductiveApp_preservesState e env state
         recognized hrecognized,
-      isNestedInductiveApp_candidate e env state recognized hrecognized⟩
+      isNestedInductiveApp_candidate e env state recognized hrecognized, ?_⟩
+    intro hnone info Hcandidate
+    have hcomplete := Hcandidate.recognized recognized hrecognized
+    change recognized.1 = some info at hcomplete
+    rw [hnone] at hcomplete
+    cases hcomplete
   · intro recognized nextState hrecognized
-    rcases hrecognized with ⟨hstate, hcandidate⟩
-    simp only at hstate hcandidate ⊢
+    rcases hrecognized with ⟨hstate, hcandidate, hnone⟩
+    simp only at hstate hcandidate hnone ⊢
     subst nextState
     cases recognized with
-    | none => exact Except.WF.pure .unrecognized
+    | none =>
+      exact Except.WF.pure (.unrecognized (hnone rfl))
     | some value =>
       have Hcandidate := hcandidate value rfl
       rcases Hcandidate.headFound with
@@ -29472,38 +29751,52 @@ inductive NestedExprMapping
       output finalResult →
       NestedExprMapping env lctx params As finalResult input state
         (output, nextState)
-  | bvar : NestedExprMapping env lctx params As finalResult (.bvar i) state
+  | bvar : NestedReplacement env lctx params As (.bvar i) state (none, state) →
+      NestedExprMapping env lctx params As finalResult (.bvar i) state
       (.bvar i, state)
-  | fvar {fvarId : FVarId} : NestedExprMapping env lctx params As finalResult
+  | fvar {fvarId : FVarId} :
+      NestedReplacement env lctx params As (.fvar fvarId) state (none, state) →
+      NestedExprMapping env lctx params As finalResult
       (.fvar fvarId) state (.fvar fvarId, state)
-  | mvar {mvarId : MVarId} : NestedExprMapping env lctx params As finalResult
+  | mvar {mvarId : MVarId} :
+      NestedReplacement env lctx params As (.mvar mvarId) state (none, state) →
+      NestedExprMapping env lctx params As finalResult
       (.mvar mvarId) state (.mvar mvarId, state)
-  | sort : NestedExprMapping env lctx params As finalResult (.sort level) state
+  | sort : NestedReplacement env lctx params As (.sort level) state (none, state) →
+      NestedExprMapping env lctx params As finalResult (.sort level) state
       (.sort level, state)
-  | const : NestedExprMapping env lctx params As finalResult
+  | const : NestedReplacement env lctx params As (.const name levels) state
+      (none, state) → NestedExprMapping env lctx params As finalResult
       (.const name levels) state (.const name levels, state)
-  | lit : NestedExprMapping env lctx params As finalResult (.lit literal) state
+  | lit : NestedReplacement env lctx params As (.lit literal) state (none, state) →
+      NestedExprMapping env lctx params As finalResult (.lit literal) state
       (.lit literal, state)
-  | app : NestedExprMapping env lctx params As finalResult fn state
+  | app : NestedReplacement env lctx params As (.app fn arg) state (none, state) →
+      NestedExprMapping env lctx params As finalResult fn state
       (fn', fnState) →
       NestedExprMapping env lctx params As finalResult arg fnState
         (arg', outState) →
       NestedExprMapping env lctx params As finalResult (.app fn arg) state
         (Expr.updateApp! (.app fn arg) fn' arg', outState)
-  | lam : NestedExprMapping env lctx params As finalResult dom state
+  | lam : NestedReplacement env lctx params As (.lam name dom body bi) state
+      (none, state) → NestedExprMapping env lctx params As finalResult dom state
       (dom', domState) →
       NestedExprMapping env lctx params As finalResult body domState
         (body', outState) →
       NestedExprMapping env lctx params As finalResult (.lam name dom body bi)
         state (Expr.updateLambdaE! (.lam name dom body bi) dom' body', outState)
-  | forallE : NestedExprMapping env lctx params As finalResult dom state
+  | forallE : NestedReplacement env lctx params As
+      (.forallE name dom body bi) state (none, state) →
+      NestedExprMapping env lctx params As finalResult dom state
       (dom', domState) →
       NestedExprMapping env lctx params As finalResult body domState
         (body', outState) →
       NestedExprMapping env lctx params As finalResult
         (.forallE name dom body bi) state
         (Expr.updateForallE! (.forallE name dom body bi) dom' body', outState)
-  | letE : NestedExprMapping env lctx params As finalResult type state
+  | letE : NestedReplacement env lctx params As
+      (.letE name type value body nondep) state (none, state) →
+      NestedExprMapping env lctx params As finalResult type state
       (type', typeState) →
       NestedExprMapping env lctx params As finalResult value typeState
         (value', valueState) →
@@ -29513,11 +29806,13 @@ inductive NestedExprMapping
         (.letE name type value body nondep) state
         (Expr.updateLet! (.letE name type value body nondep)
           type' value' body' nondep, outState)
-  | mdata : NestedExprMapping env lctx params As finalResult body state
+  | mdata : NestedReplacement env lctx params As (.mdata data body) state
+      (none, state) → NestedExprMapping env lctx params As finalResult body state
       (body', outState) →
       NestedExprMapping env lctx params As finalResult (.mdata data body) state
         (Expr.updateMData! (.mdata data body) body', outState)
-  | proj : NestedExprMapping env lctx params As finalResult body state
+  | proj : NestedReplacement env lctx params As (.proj name idx body) state
+      (none, state) → NestedExprMapping env lctx params As finalResult body state
       (body', outState) →
       NestedExprMapping env lctx params As finalResult (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
@@ -29534,42 +29829,54 @@ inductive NestedExprReopening
       finalResult restoreAs →
       NestedExprReopening env lctx params As finalResult restoreAs input state
         (output, nextState)
-  | bvar : NestedExprReopening env lctx params As finalResult restoreAs
+  | bvar : NestedReplacement env lctx params As (.bvar i) state (none, state) →
+      NestedExprReopening env lctx params As finalResult restoreAs
       (.bvar i) state (.bvar i, state)
   | fvar {fvarId : FVarId} :
+      NestedReplacement env lctx params As (.fvar fvarId) state (none, state) →
       NestedExprReopening env lctx params As finalResult restoreAs
         (.fvar fvarId) state (.fvar fvarId, state)
   | mvar {mvarId : MVarId} :
+      NestedReplacement env lctx params As (.mvar mvarId) state (none, state) →
       NestedExprReopening env lctx params As finalResult restoreAs
         (.mvar mvarId) state (.mvar mvarId, state)
-  | sort : NestedExprReopening env lctx params As finalResult restoreAs
+  | sort : NestedReplacement env lctx params As (.sort level) state (none, state) →
+      NestedExprReopening env lctx params As finalResult restoreAs
       (.sort level) state (.sort level, state)
-  | const : NestedExprReopening env lctx params As finalResult restoreAs
+  | const : NestedReplacement env lctx params As (.const name levels) state
+      (none, state) → NestedExprReopening env lctx params As finalResult restoreAs
       (.const name levels) state (.const name levels, state)
-  | lit : NestedExprReopening env lctx params As finalResult restoreAs
+  | lit : NestedReplacement env lctx params As (.lit literal) state (none, state) →
+      NestedExprReopening env lctx params As finalResult restoreAs
       (.lit literal) state (.lit literal, state)
-  | app : NestedExprReopening env lctx params As finalResult restoreAs fn state
+  | app : NestedReplacement env lctx params As (.app fn arg) state (none, state) →
+      NestedExprReopening env lctx params As finalResult restoreAs fn state
       (fn', fnState) →
       NestedExprReopening env lctx params As finalResult restoreAs arg fnState
         (arg', outState) →
       NestedExprReopening env lctx params As finalResult restoreAs
         (.app fn arg) state
         (Expr.updateApp! (.app fn arg) fn' arg', outState)
-  | lam : NestedExprReopening env lctx params As finalResult restoreAs dom state
+  | lam : NestedReplacement env lctx params As (.lam name dom body bi) state
+      (none, state) → NestedExprReopening env lctx params As finalResult restoreAs dom state
       (dom', domState) →
       NestedExprReopening env lctx params As finalResult restoreAs body domState
         (body', outState) →
       NestedExprReopening env lctx params As finalResult restoreAs
         (.lam name dom body bi) state
         (Expr.updateLambdaE! (.lam name dom body bi) dom' body', outState)
-  | forallE : NestedExprReopening env lctx params As finalResult restoreAs dom
+  | forallE : NestedReplacement env lctx params As
+      (.forallE name dom body bi) state (none, state) →
+      NestedExprReopening env lctx params As finalResult restoreAs dom
       state (dom', domState) →
       NestedExprReopening env lctx params As finalResult restoreAs body domState
         (body', outState) →
       NestedExprReopening env lctx params As finalResult restoreAs
         (.forallE name dom body bi) state
         (Expr.updateForallE! (.forallE name dom body bi) dom' body', outState)
-  | letE : NestedExprReopening env lctx params As finalResult restoreAs type state
+  | letE : NestedReplacement env lctx params As
+      (.letE name type value body nondep) state (none, state) →
+      NestedExprReopening env lctx params As finalResult restoreAs type state
       (type', typeState) →
       NestedExprReopening env lctx params As finalResult restoreAs value typeState
         (value', valueState) →
@@ -29579,12 +29886,14 @@ inductive NestedExprReopening
         (.letE name type value body nondep) state
         (Expr.updateLet! (.letE name type value body nondep)
           type' value' body' nondep, outState)
-  | mdata : NestedExprReopening env lctx params As finalResult restoreAs body state
+  | mdata : NestedReplacement env lctx params As (.mdata data body) state
+      (none, state) → NestedExprReopening env lctx params As finalResult restoreAs body state
       (body', outState) →
       NestedExprReopening env lctx params As finalResult restoreAs
         (.mdata data body) state
         (Expr.updateMData! (.mdata data body) body', outState)
-  | proj : NestedExprReopening env lctx params As finalResult restoreAs body state
+  | proj : NestedReplacement env lctx params As (.proj name idx body) state
+      (none, state) → NestedExprReopening env lctx params As finalResult restoreAs body state
       (body', outState) →
       NestedExprReopening env lctx params As finalResult restoreAs
         (.proj name idx body) state
@@ -29607,29 +29916,29 @@ theorem NestedExprMapping.reopens
   | hit Hnode =>
     exact .hit (Hnode.reopensOfFVars hresultParams fvars hparams hnodup
       Hselection Hinput)
-  | bvar => exact .bvar
-  | fvar => exact .fvar
-  | mvar => exact .mvar
-  | sort => exact .sort
-  | const => exact .const
-  | lit => exact .lit
-  | app Hfn Harg ihFn ihArg =>
+  | bvar Hnode => exact .bvar Hnode
+  | fvar Hnode => exact .fvar Hnode
+  | mvar Hnode => exact .mvar Hnode
+  | sort Hnode => exact .sort Hnode
+  | const Hnode => exact .const Hnode
+  | lit Hnode => exact .lit Hnode
+  | app Hnode Hfn Harg ihFn ihArg =>
     simp only [Lean4Lean.FVarsIn] at Hinput
-    exact .app (ihFn Hinput.1) (ihArg Hinput.2)
-  | lam Hdom Hbody ihDom ihBody =>
+    exact .app Hnode (ihFn Hinput.1) (ihArg Hinput.2)
+  | lam Hnode Hdom Hbody ihDom ihBody =>
     simp only [Lean4Lean.FVarsIn] at Hinput
-    exact .lam (ihDom Hinput.1) (ihBody Hinput.2)
-  | forallE Hdom Hbody ihDom ihBody =>
+    exact .lam Hnode (ihDom Hinput.1) (ihBody Hinput.2)
+  | forallE Hnode Hdom Hbody ihDom ihBody =>
     simp only [Lean4Lean.FVarsIn] at Hinput
-    exact .forallE (ihDom Hinput.1) (ihBody Hinput.2)
-  | letE Htype Hvalue Hbody ihType ihValue ihBody =>
+    exact .forallE Hnode (ihDom Hinput.1) (ihBody Hinput.2)
+  | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
     simp only [Lean4Lean.FVarsIn] at Hinput
-    exact .letE (ihType Hinput.1) (ihValue Hinput.2.1)
+    exact .letE Hnode (ihType Hinput.1) (ihValue Hinput.2.1)
       (ihBody Hinput.2.2)
-  | mdata Hbody ihBody =>
-    exact .mdata (ihBody Hinput)
-  | proj Hbody ihBody =>
-    exact .proj (ihBody Hinput)
+  | mdata Hnode Hbody ihBody =>
+    exact .mdata Hnode (ihBody Hinput)
+  | proj Hnode Hbody ihBody =>
+    exact .proj Hnode (ihBody Hinput)
 
 theorem RecognizedNestedReplacement.auxFVarsIn
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
@@ -29874,29 +30183,29 @@ theorem NestedExprReplacement.finalMapping
     NestedExprMapping env lctx params As finalResult input state out := by
   induction H generalizing finalState with
   | hit Hnode => exact .hit (Hnode.finalMapping Hlater Hmap)
-  | bvar => exact .bvar
-  | fvar => exact .fvar
-  | mvar => exact .mvar
-  | sort => exact .sort
-  | const => exact .const
-  | lit => exact .lit
+  | bvar Hnode => exact .bvar Hnode
+  | fvar Hnode => exact .fvar Hnode
+  | mvar Hnode => exact .mvar Hnode
+  | sort Hnode => exact .sort Hnode
+  | const Hnode => exact .const Hnode
+  | lit Hnode => exact .lit Hnode
   | app Hnode Hfn Harg ihFn ihArg =>
-    exact .app (ihFn (Harg.nestedAuxLE.trans Hlater) Hmap)
+    exact .app Hnode (ihFn (Harg.nestedAuxLE.trans Hlater) Hmap)
       (ihArg Hlater Hmap)
   | lam Hnode Hdom Hbody ihDom ihBody =>
-    exact .lam (ihDom (Hbody.nestedAuxLE.trans Hlater) Hmap)
+    exact .lam Hnode (ihDom (Hbody.nestedAuxLE.trans Hlater) Hmap)
       (ihBody Hlater Hmap)
   | forallE Hnode Hdom Hbody ihDom ihBody =>
-    exact .forallE (ihDom (Hbody.nestedAuxLE.trans Hlater) Hmap)
+    exact .forallE Hnode (ihDom (Hbody.nestedAuxLE.trans Hlater) Hmap)
       (ihBody Hlater Hmap)
   | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
-    exact .letE
+    exact .letE Hnode
       (ihType (Hvalue.nestedAuxLE.trans
         (Hbody.nestedAuxLE.trans Hlater)) Hmap)
       (ihValue (Hbody.nestedAuxLE.trans Hlater) Hmap)
       (ihBody Hlater Hmap)
-  | mdata Hnode Hbody ihBody => exact .mdata (ihBody Hlater Hmap)
-  | proj Hnode Hbody ihBody => exact .proj (ihBody Hlater Hmap)
+  | mdata Hnode Hbody ihBody => exact .mdata Hnode (ihBody Hlater Hmap)
+  | proj Hnode Hbody ihBody => exact .proj Hnode (ihBody Hlater Hmap)
 
 theorem replaceAllNested_refines
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
