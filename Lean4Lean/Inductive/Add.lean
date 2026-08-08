@@ -1007,6 +1007,53 @@ def checkInductiveSources (env : Environment) :
     checkConstructorSources env indType.ctors
     checkInductiveSources env types
 
+/-- Restore and install one recursor emitted for the lowered nested block. -/
+def restoreRecursorDecl (res : ElimNestedInductive.Result)
+    (loweredEnv : Environment) (recNameMap : NameMap Name)
+    (allIndNames : List Name) (allowPrimitive : Bool) (recName : Name) :
+    StateT Environment (Except Exception) Unit := fun sourceEnv =>
+  let newRecName := recNameMap.getD recName recName
+  match loweredEnv.find? recName with
+  | some (.recInfo recInfo) => do
+    sourceEnv.checkName newRecName allowPrimitive
+    return ((), sourceEnv.add <| .recInfo <|
+      res.restoreRecursor loweredEnv recNameMap allIndNames recName newRecName
+        recInfo)
+  | _ => .error <| .other s!"missing lowered recursor '{recName}'"
+
+/-- Restore and install one source inductive family member, its constructors,
+and its primary recursor. -/
+def restoreInductiveDecl (res : ElimNestedInductive.Result)
+    (loweredEnv : Environment) (recNameMap : NameMap Name)
+    (allIndNames : List Name) (allowPrimitive : Bool)
+    (indType : InductiveType) :
+    StateT Environment (Except Exception) Unit := do
+  let some (.inductInfo ind) := loweredEnv.find? indType.name | unreachable!
+  (← get).checkName ind.name allowPrimitive
+  modify (·.add <| .inductInfo { ind with all := allIndNames })
+  for ctorName in ind.ctors do
+    let some (.ctorInfo ctor) := loweredEnv.find? ctorName | unreachable!
+    let newType := res.restoreNested loweredEnv ctor.type
+    (← get).checkName ctor.name allowPrimitive
+    modify (·.add <| .ctorInfo { ctor with type := newType })
+  restoreRecursorDecl res loweredEnv recNameMap allIndNames allowPrimitive
+    (mkRecName indType.name)
+
+/-- The complete declaration-restoration loop for a lowered nested block.
+Kept separate from `Environment.addInductive` so its state transition can be
+verified compositionally. -/
+def restoreNestedDeclarations (res : ElimNestedInductive.Result)
+    (loweredEnv : Environment) (recNameMap : NameMap Name)
+    (allIndNames : List Name) (allowPrimitive : Bool)
+    (types : List InductiveType) (auxRecNames : List Name) :
+    StateT Environment (Except Exception) Unit := do
+  types.forM fun indType =>
+    restoreInductiveDecl res loweredEnv recNameMap allIndNames
+      allowPrimitive indType
+  auxRecNames.forM fun recName =>
+    restoreRecursorDecl res loweredEnv recNameMap allIndNames
+      allowPrimitive recName
+
 def Environment.addInductive (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe allowPrimitive : Bool) (fuel : FuelConfig := {}) :
     Except Exception Environment := do
@@ -1021,24 +1068,8 @@ def Environment.addInductive (env : Environment) (lparams : List Name) (nparams 
   let allIndNames := types.map (·.name)
   let (recNames', recNameMap') := mkAuxRecNameMap env' types
   (·.2) <$> StateT.run (s := env) do
-  let processRec recName := do
-    let newRecName := recNameMap'.getD recName recName
-    let some (.recInfo recInfo) := env'.find? recName | unreachable!
-    (← MonadState.get).checkName newRecName allowPrimitive
-    modify (·.add <| .recInfo <|
-      res.restoreRecursor env' recNameMap' allIndNames
-        recName newRecName recInfo)
-  for indType in types do
-    let some (.inductInfo ind) := env'.find? indType.name | unreachable!
-    (← get).checkName ind.name allowPrimitive
-    modify (·.add <| .inductInfo { ind with all := allIndNames })
-    for ctorName in ind.ctors do
-      let some (.ctorInfo ctor) := env'.find? ctorName | unreachable!
-      let newType := res.restoreNested env' ctor.type
-      (← get).checkName ctor.name allowPrimitive
-      modify (·.add <| .ctorInfo { ctor with type := newType })
-    processRec (mkRecName indType.name)
-  recNames'.forM processRec
+  restoreNestedDeclarations res env' recNameMap' allIndNames allowPrimitive
+    types recNames'
   TypeChecker.M.run (← get) (safety := safety) (lctx := res.lctx)
       (lparams := lparams) (fuel := fuel) do
     res.aux2nested.forM fun _ e => do _ ← TypeChecker.checkType e

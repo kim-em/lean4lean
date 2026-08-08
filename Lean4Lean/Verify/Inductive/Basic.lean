@@ -22039,6 +22039,60 @@ theorem restoreRecursor_refines
   k := rfl
   isUnsafe := rfl
 
+/-- Exact state transition of one production recursor-restoration step. The
+semantic use of the restored metadata remains factored through
+`RecursorRestoration`. -/
+structure RestoredRecursorDeclResult
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (oldRecName : Name)
+    (oldInfo : RecursorVal) (out : Unit × Environment) where
+  newRecName : Name
+  newInfo : RecursorVal
+  mappedName : newRecName = auxRec.getD oldRecName oldRecName
+  restoration : RecursorRestoration result loweredEnv auxRec allIndNames
+    oldRecName newRecName oldInfo newInfo
+  output : out = ((), sourceEnv.add (.recInfo newInfo))
+
+theorem restoreRecursorDecl_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (allowPrimitive : Bool) (oldRecName : Name)
+    (oldInfo : RecursorVal)
+    (hlookup : loweredEnv.find? oldRecName = some (.recInfo oldInfo))
+    (Htype : RestoreTelescope oldInfo.type result.nparams)
+    (Hrules : ∀ rule ∈ oldInfo.rules,
+      RestoreTelescope rule.rhs result.nparams) :
+    (Lean4Lean.restoreRecursorDecl result loweredEnv auxRec allIndNames
+      allowPrimitive oldRecName sourceEnv).WF fun out =>
+        Nonempty (RestoredRecursorDeclResult result loweredEnv sourceEnv auxRec
+          allIndNames oldRecName oldInfo out) := by
+  intro out hout
+  unfold Lean4Lean.restoreRecursorDecl at hout
+  simp only [hlookup] at hout
+  change (sourceEnv.checkName (auxRec.getD oldRecName oldRecName)
+    allowPrimitive).bind (fun _ => Except.ok ((), sourceEnv.add (.recInfo
+      (result.restoreRecursor loweredEnv auxRec allIndNames oldRecName
+        (auxRec.getD oldRecName oldRecName) oldInfo)))) = Except.ok out at hout
+  cases hcheck : sourceEnv.checkName (auxRec.getD oldRecName oldRecName)
+      allowPrimitive with
+  | error err =>
+    simp only [hcheck, Except.bind] at hout
+    cases hout
+  | ok checked =>
+    simp only [hcheck, Except.bind, Except.ok.injEq] at hout
+    subst out
+    let newRecName := auxRec.getD oldRecName oldRecName
+    let newInfo := result.restoreRecursor loweredEnv auxRec allIndNames
+      oldRecName newRecName oldInfo
+    exact ⟨{
+      newRecName := newRecName
+      newInfo := newInfo
+      mappedName := rfl
+      restoration := restoreRecursor_refines result loweredEnv auxRec
+        allIndNames oldRecName newRecName oldInfo Htype Hrules
+      output := rfl }⟩
+
 /-- Installing an operationally restored auxiliary recursor advances the
 independent auxiliary-name certificate. Translation identifies the production
 `RecursorVal` name with the abstract constant name; no semantic claim about
