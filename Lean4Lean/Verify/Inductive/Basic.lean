@@ -25392,6 +25392,120 @@ theorem RestoreParamOpening.root_mkForall_fvarIdsClosed
     exact ⟨d, hfind d hd⟩
   · exact hnodup
 
+/-- Two expressions have the same concrete leading forall binders, while
+their residual bodies may differ.  This is the exact syntactic relation
+between a source constructor and its nested-lowered constructor. -/
+inductive Expr.SameForallPrefix : Nat → Expr → Expr → Prop
+  | nil : Expr.SameForallPrefix 0 left right
+  | cons : Expr.SameForallPrefix n left right →
+      Expr.SameForallPrefix (n + 1)
+        (.forallE name dom left bi) (.forallE name dom right bi)
+
+theorem Expr.SameForallPrefix.instantiate1'
+    (H : Expr.SameForallPrefix n left right) (arg : Expr) (k : Nat := 0) :
+    Expr.SameForallPrefix n
+      (left.instantiate1' arg k) (right.instantiate1' arg k) := by
+  induction H generalizing k with
+  | nil => exact .nil
+  | cons H ih =>
+    simp only [Expr.instantiate1']
+    exact .cons (ih (k + 1))
+
+theorem Expr.SameForallPrefix.abstract1
+    (H : Expr.SameForallPrefix n left right) (fv : FVarId) (k : Nat := 0) :
+    Expr.SameForallPrefix n
+      (left.abstract1 fv k) (right.abstract1 fv k) := by
+  induction H generalizing k with
+  | nil => exact .nil
+  | cons H ih =>
+    simp only [Expr.abstract1]
+    exact .cons (ih (k + 1))
+
+theorem Expr.SameForallPrefix.target_isForall_of_pos
+    (H : Expr.SameForallPrefix n source target) (hpos : 0 < n) :
+    target.isForall = true := by
+  cases H with
+  | nil => simp at hpos
+  | cons => rfl
+
+/-- Closing two residual bodies with the same ordinary declarations creates
+the same concrete forall prefix around both. -/
+theorem LocalContext.sameForallPrefix_fold
+    {lctx : LocalContext} {fvars : List FVarId}
+    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (left right : Expr) :
+    Expr.SameForallPrefix fvars.length
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1 false lctx [] fv
+            (result.abstract1 fv)) left)
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1 false lctx [] fv
+            (result.abstract1 fv)) right) := by
+  induction fvars with
+  | nil => exact .nil
+  | cons fv fvars ih =>
+    rcases hdecl fv (by simp) with ⟨index, name, type, bi, kind, hfind⟩
+    simp only [List.foldr_cons, List.length_cons]
+    simp only [LocalContext.mkBindingList1, hfind]
+    exact Expr.SameForallPrefix.cons
+      ((ih (fun other hother => hdecl other (by simp [hother]))).abstract1 fv)
+
+/-- A concrete restoration opening transfers across an identical forall
+prefix, retaining exactly the same generated context and parameter array. -/
+theorem Expr.SameForallPrefix.transferRestoreOpening
+    (Hsame : Expr.SameForallPrefix n source target)
+    (Hopen : RestoreParamOpening lctx As target n outLctx outAs targetTail) :
+    ∃ sourceTail,
+      RestoreParamOpening lctx As source n outLctx outAs sourceTail := by
+  induction n generalizing source target lctx As with
+  | zero =>
+    cases Hsame with
+    | nil =>
+      cases Hopen with
+      | done => exact ⟨source, .done⟩
+  | succ n ih =>
+    cases Hsame with
+    | @cons _ sourceBody targetBody name dom bi Hinner =>
+      cases Hopen with
+      | forallE Hnext =>
+        rename_i id
+        have Hinst : Expr.SameForallPrefix n
+            (sourceBody.instantiate1 (.fvar id))
+            (targetBody.instantiate1 (.fvar id)) := by
+          simpa [Expr.instantiate1_eq] using
+            Hinner.instantiate1' (.fvar id) 0
+        rcases ih Hinst Hnext with ⟨sourceTail, Hsource⟩
+        exact ⟨sourceTail, .forallE Hsource⟩
+
+/-- Lean expression equivalence of residual bodies is preserved when both
+are closed by the same selected forall declarations. -/
+theorem LocalForallSelection.mkForall_eqv
+    (Hselection : LocalForallSelection lctx As)
+    (hnodup : Hselection.fvars.Nodup)
+    (Hbody : (left == right) = true) :
+    ((lctx.mkForall As left == lctx.mkForall As right)) = true := by
+  rcases Hselection with ⟨fvars, rfl, hdecl⟩
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
+    LocalContext.mkForall, LocalContext.mkBinding_eq]
+  have hfind : ∀ fv ∈ fvars, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    rcases hdecl fv hfv with ⟨index, name, type, bi, kind, hlookup⟩
+    exact ⟨.cdecl index fv name type bi kind, hlookup⟩
+  rw [LocalContext.mkBindingList_eq_fold hfind hnodup,
+    LocalContext.mkBindingList_eq_fold hfind hnodup]
+  induction fvars with
+  | nil => exact Hbody
+  | cons fv fvars ih =>
+    rcases hdecl fv (by simp) with ⟨index, name, type, bi, kind, hlookup⟩
+    simp only [List.foldr_cons, LocalContext.mkBindingList1, hlookup]
+    apply Expr.forallE_eqv (Expr.eqv_refl type)
+    exact Expr.abstract1_eqv (ih (fun other hother => hdecl other (by
+      simp [hother])) (List.nodup_cons.mp hnodup).2
+      (fun other hother => hfind other (by simp [hother])))
+
 /-- The suffix created by restoration opening consists exactly of the fresh
 free variables introduced by its telescope traversal. -/
 theorem RestoreParamOpening.params_fvars_extension
@@ -32015,6 +32129,66 @@ theorem LoweredConstructorMapping.targetFVarIdsClosed
   exact Hopening.toRestoreParamOpening.root_mkForall_fvarIdsClosed hlctxWF
     Htelescope (FVarsIn_to_FVarIdsIn Hsource) Hselection Hlowered
 
+/-- Source and lowered constructor types have exactly the same retained
+forall prefix; lowering changes only the residual constructor body. -/
+theorem LoweredConstructorMapping.sourceTargetSameForallPrefix
+    (H : LoweredConstructorMapping env params nparams finalResult source state
+      out)
+    (Hsource : source.type.FVarsIn fun _ => False) :
+    Expr.SameForallPrefix nparams source.type out.1.type := by
+  rcases H.mapped with
+    ⟨lctx, tail, As, lowered, openedState, Hopening, hlctxWF, Hselection,
+      hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hmapping, htype⟩
+  rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
+  rcases Hopening.toRestoreParamOpening.forall_rebuilding_data hlctxWF
+      Htelescope with
+    ⟨decls, _hlctx, hparams, _hlength, _hdeclNodup, _hfind, hrebuild⟩
+  have hids : Hselection.fvars = decls.map (fun d => d.fvarId) := by
+    have harr : (Hselection.fvars.map Expr.fvar).toArray =
+        ((decls.map (fun d => d.fvarId)).map Expr.fvar).toArray := by
+      rw [← Hselection.expressions]
+      apply Array.toList_inj.mp
+      simpa [Function.comp_def] using hparams
+    have hlist : Hselection.fvars.map Expr.fvar =
+        (decls.map (fun d => d.fvarId)).map Expr.fvar := by
+      simpa using congrArg Array.toList harr
+    exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
+  have hsourceFold :
+      Hselection.fvars.foldr
+          (fun fv result =>
+            LocalContext.mkBindingList1 false lctx [] fv
+              (result.abstract1 fv)) tail = source.type := by
+    have hclosed := FVarsIn_to_FVarIdsIn Hsource
+    have havoid : source.type.FVarIdsIn
+        (fun fv => fv ∉ decls.map (fun d => d.fvarId)) :=
+      hclosed.mono fun fv hfalse => False.elim hfalse
+    simpa [hids] using hrebuild havoid
+  have htargetFold : lctx.mkForall As lowered =
+      Hselection.fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1 false lctx [] fv
+            (result.abstract1 fv)) lowered := by
+    calc
+      lctx.mkForall As lowered =
+          lctx.mkForall (Hselection.fvars.map Expr.fvar).toArray lowered :=
+        congrArg (fun xs => lctx.mkForall xs lowered) Hselection.expressions
+      _ = _ := by
+        rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
+        apply LocalContext.mkBindingList_eq_fold
+        · intro fv hfv
+          rcases Hselection.declarations fv hfv with
+            ⟨index, name, type, bi, kind, hfind⟩
+          exact ⟨.cdecl index fv name type bi kind, hfind⟩
+        · exact hnodupAs
+  have hsame := LocalContext.sameForallPrefix_fold
+    Hselection.declarations tail lowered
+  have hlen : Hselection.fvars.length = nparams := by
+    have := congrArg Array.size Hselection.expressions
+    simpa [hsize] using this.symm
+  rw [hlen] at hsame
+  rw [hsourceFold, ← htargetFold, ← htype] at hsame
+  exact hsame
+
 theorem LoweredConstructorMapping.reopens
     (H : LoweredConstructorMapping env params nparams finalResult source state
       out)
@@ -32233,6 +32407,9 @@ structure ConstructorRestorationBodyInverse
   sourceTail : Expr
   sourceAs : Array Expr
   sourceClosed : source.type.FVarsIn fun _ => False
+  loweredFVarIdsClosed : lowered.type.FVarIdsIn fun _ => False
+  sourceLoweredPrefix :
+    Expr.SameForallPrefix nparams source.type lowered.type
   sourceOpening : NestedParamOpening {} #[] source.type nparams sourceLctx
     sourceTail sourceAs
   sourceSelection : LocalForallSelection sourceLctx sourceAs
@@ -32280,6 +32457,8 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
     sourceTail := sourceTail
     sourceAs := sourceAs
     sourceClosed := Hsyntax.closed
+    loweredFVarIdsClosed := H.targetFVarIdsClosed Hsyntax.closed
+    sourceLoweredPrefix := H.sourceTargetSameForallPrefix Hsyntax.closed
     sourceOpening := HsourceOpening
     sourceSelection := Hselection
     sourceNodup := hsourceNodup
@@ -32312,6 +32491,53 @@ theorem ConstructorRestorationBodyInverse.restoredBody_residual
   have hinverse := H.bodyInverse
   rw [hopen] at hinverse
   exact ⟨residual, Htelescope, hinverse⟩
+
+/-- Whole-constructor inverse: rebuilding the restored body under the copied
+parameter telescope yields a constructor type equivalent to the independent
+source constructor type. -/
+theorem ConstructorRestorationBodyInverse.restoredType_eqv_source
+    (H : ConstructorRestorationBodyInverse result env nparams source lowered
+      restoredType) :
+    (restoredType == source.type) = true := by
+  rcases H.sourceLoweredPrefix.transferRestoreOpening H.loweredOpening with
+    ⟨sourceOpened, HsourceRestore⟩
+  rcases H.restoredBody_residual with
+    ⟨residual, Htelescope, hbodyResidual⟩
+  have hsourceOpened :
+      sourceOpened = residual.instantiateRev H.restoreAs :=
+    HsourceRestore.forallResidual Htelescope
+  have hbodyOpened : (H.restoredBody == sourceOpened) = true := by
+    rw [hsourceOpened]
+    exact hbodyResidual
+  have hclosedSource : source.type.FVarIdsIn fun _ => False :=
+    FVarsIn_to_FVarIdsIn H.sourceClosed
+  have hsourceRebuild :
+      H.restoreLctx.mkForall H.restoreAs sourceOpened = source.type :=
+    HsourceRestore.root_mkForall_tail H.restoreLctxWF Htelescope hclosedSource
+  have hwrapped := H.restoreSelection.mkForall_eqv H.restoreNodup hbodyOpened
+  rw [hsourceRebuild] at hwrapped
+  have houtput : restoredType =
+      H.restoreLctx.mkForall H.restoreAs H.restoredBody := by
+    refine H.output.trans ?_
+    by_cases hzero : nparams = 0
+    · have hsize : H.restoreAs.size = 0 :=
+        H.loweredOpening.initial_size.trans hzero
+      have hempty : H.restoreAs = #[] :=
+        Array.eq_empty_of_size_eq_zero hsize
+      rw [hempty]
+      split
+      · rfl
+      · rw [LocalContext.mkForall, LocalContext.mkLambda]
+        rw [show (#[] : Array Expr) =
+            (([] : List FVarId).map Expr.fvar).toArray from rfl,
+          LocalContext.mkBinding_eq, LocalContext.mkBinding_eq]
+        simp only [LocalContext.mkBindingList_nil]
+    · have hpos : 0 < nparams := Nat.pos_of_ne_zero hzero
+      have hisForall :=
+        H.sourceLoweredPrefix.target_isForall_of_pos hpos
+      simp [hisForall]
+  rw [houtput]
+  exact hwrapped
 
 /-- Metadata-facing form of the constructor inverse.  Installation exposes a
 `ConstructorVal`, while lowering is indexed by the corresponding
