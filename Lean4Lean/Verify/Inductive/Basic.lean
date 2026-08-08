@@ -13878,6 +13878,25 @@ theorem Expr.ForallTelescope.trans
     rw [← Nat.add_right_comm outerArity innerArity 1]
     exact h
 
+/-- Structural translation of a concrete forall telescope exposes exactly
+the same number of abstract forall domains.  Binder types may translate to
+different expressions, so they are returned existentially in source order. -/
+theorem Expr.ForallTelescope.translatedTakeForalls
+    (Htelescope : Expr.ForallTelescope input arity residual)
+    (Htranslation : TrExprS env Us Δ input output) :
+    ∃ domains translatedResidual,
+      output.takeForalls arity = some (domains, translatedResidual) ∧
+      domains.length = arity := by
+  induction Htelescope generalizing Δ output with
+  | nil => exact ⟨[], output, rfl, rfl⟩
+  | @cons body arity residual name dom bi Htail ih =>
+    cases Htranslation with
+    | forallE hdomType hbodyType hdom hbody =>
+      rename_i ty' body'
+      rcases ih hbody with ⟨domains, translatedResidual, htake, hlength⟩
+      exact ⟨ty' :: domains, translatedResidual, by
+        simp [VExpr.takeForalls, htake], by simp [hlength]⟩
+
 /-- Abstracting one retained free variable preserves telescope arity; the
 residual body is abstracted below all telescope binders. -/
 theorem Expr.ForallTelescope.abstract1
@@ -24817,6 +24836,31 @@ inductive ExprReplacement (replaceNode : Expr → Option Expr) : Expr → Expr �
       ExprReplacement replaceNode (.proj typeName index body)
         (Expr.updateProj! (.proj typeName index body) body')
 
+/-- A replacement callback which never matches a forall node preserves every
+leading forall telescope and its exact arity.  The residual expression may
+change, which is precisely what nested restoration does to auxiliary
+applications below the binders. -/
+theorem ExprReplacement.forallTelescope
+    (Hnone : ∀ name dom body bi,
+      replaceNode (.forallE name dom body bi) = none)
+    (Hreplace : ExprReplacement replaceNode input output)
+    (Htelescope : Expr.ForallTelescope input arity residual) :
+    ∃ restoredResidual,
+      Expr.ForallTelescope output arity restoredResidual := by
+  induction Htelescope generalizing output with
+  | nil => exact ⟨output, .nil output⟩
+  | @cons body arity residual name dom bi Htail ih =>
+    cases Hreplace with
+    | hit h =>
+      rw [Hnone] at h
+      contradiction
+    | forallE h hdom hbody =>
+      rcases ih hbody with ⟨restoredResidual, Hrestored⟩
+      refine ⟨restoredResidual, ?_⟩
+      simpa [Expr.updateForallE!] using
+        (Expr.ForallTelescope.cons (name := name) (dom := _)
+          (bi := bi) Hrestored)
+
 theorem ExprReplacement.ofReplace
     (replaceNode : Expr → Option Expr) :
     ∀ input, ExprReplacement replaceNode input (input.replace replaceNode) := by
@@ -25047,6 +25091,24 @@ theorem GeneratedRecursorEntry.typeRestoreTelescope
   rcases (Hparams.forallTelescope _).inferImplicit 1000 false with
     ⟨residual, Htelescope⟩
   exact Htelescope.restorePrefix (Nat.le_refl _)
+
+/-- The generated `RecursorVal.type` retains the complete five-part recursor
+telescope even after production's implicit-binder annotation pass. -/
+theorem GeneratedRecursorEntry.typeForallTelescope
+    (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx) :
+    ∃ residual,
+      Expr.ForallTelescope H.info.type
+        (stats.params.size + (recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1)
+        residual := by
+  rw [H.type]
+  exact (Hselections.forallTelescope
+    (.app (mkAppN recInfos[ownerIdx]!.motive
+      recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)).inferImplicit
+        1000 false
 
 theorem GeneratedRecursorEntry.rulesRestoreTelescope
     (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
@@ -25780,6 +25842,30 @@ theorem RestoreParamOpening.forallResidual
   rw [htail, Expr.instantiateRev_eq, Expr.instantiate_eq, hAs']
   simp [Expr.instantiateList_reverse]
 
+/-- Opening an initial parameter prefix of a longer forall telescope leaves
+the exact suffix arity intact in the opened body. -/
+theorem RestoreParamOpening.forallSuffix
+    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
+    (Htelescope : Expr.ForallTelescope outer (n + suffixArity) residual) :
+    ∃ tailResidual,
+      Expr.ForallTelescope tail suffixArity tailResidual := by
+  induction Hopen generalizing suffixArity residual with
+  | done =>
+    exact ⟨residual, by simpa using Htelescope⟩
+  | forallE Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    rw [show (n' + 1) + suffixArity = (n' + suffixArity) + 1 by omega]
+      at Htelescope
+    cases Htelescope with
+    | cons Hbody =>
+      have Hbody' := Hbody.instantiate1' (.fvar id) 0
+      exact ih (by simpa [Expr.instantiate1_eq] using Hbody')
+  | lam Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    rw [show (n' + 1) + suffixArity = (n' + suffixArity) + 1 by omega]
+      at Htelescope
+    cases Htelescope
+
 theorem RestoreParamOpening.initial_size
     (H : RestoreParamOpening {} #[] e n outLctx outAs tail) :
     outAs.size = n := by
@@ -25873,6 +25959,41 @@ def NestedRestoration
       body restoredBody ∧
     output = if input.isForall then lctx.mkForall As restoredBody
       else lctx.mkLambda As restoredBody
+
+@[simp] theorem restoreNestedNode_forall
+    (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
+    (As : Array Expr) (auxRec : NameMap Name) :
+    result.restoreNestedNode env As auxRec (.forallE name dom body bi) =
+      none := by
+  simp [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode,
+    Expr.getAppFn]
+
+/-- Restoring nested occurrences below the retained parameter prefix cannot
+change the arity of a generated recursor telescope.  The replacement callback
+does not rewrite forall nodes, while rebuilding the opened prefix restores
+exactly `result.nparams` outer binders. -/
+theorem NestedRestoration.forallTelescope
+    (H : NestedRestoration result env auxRec input output)
+    (Htelescope : Expr.ForallTelescope input
+      (result.nparams + suffixArity) residual)
+    (hsuffix : 0 < suffixArity) :
+    ∃ restoredResidual,
+      Expr.ForallTelescope output (result.nparams + suffixArity)
+        restoredResidual := by
+  rcases H with ⟨lctx, As, body, restoredBody,
+    ⟨Hopening, _Hlctx, Hselection, _Hnodup⟩, Hreplacement, houtput⟩
+  rcases Hopening.forallSuffix Htelescope with
+    ⟨bodyResidual, Hbody⟩
+  rcases Hreplacement.forallTelescope
+      (fun name dom body bi => restoreNestedNode_forall
+        (result := result) (env := env) (As := As) (auxRec := auxRec))
+      Hbody with ⟨restoredResidual, Hrestored⟩
+  have hfor : input.isForall = true :=
+    Htelescope.isForall_of_pos (by omega)
+  rw [houtput, hfor]
+  have Hcombined := Hselection.prependTelescope Hrestored
+  rw [Hopening.initial_size] at Hcombined
+  exact ⟨_, Hcombined⟩
 
 theorem restoreNested_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
@@ -26006,6 +26127,57 @@ structure RecursorRestoration
     oldInfo.rules newInfo.rules
   k : newInfo.k = oldInfo.k
   isUnsafe : newInfo.isUnsafe = oldInfo.isUnsafe
+
+/-- Combining the generation and restoration certificates exposes the exact
+complete telescope of the restored primary recursor.  In particular, nested
+restoration preserves all motive and minor binders, including those belonging
+to auxiliary families, as well as the owner's indices and major premise. -/
+theorem RecursorRestoration.typeForallTelescope
+    (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName Hentry.info newInfo)
+    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hparams : result.nparams = stats.params.size) :
+    ∃ residual,
+      Expr.ForallTelescope newInfo.type
+        (result.nparams + ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1))
+        residual := by
+  rcases Hentry.typeForallTelescope Hselections with ⟨residual, Htype⟩
+  rw [← hparams] at Htype
+  apply Hrestore.type.forallTelescope (suffixArity :=
+    (recInfos.map (·.motive)).size +
+      (recInfos.flatMap (·.minors)).size +
+      recInfos[ownerIdx]!.indices.size + 1) (by
+        simpa [Nat.add_assoc] using Htype) (by omega)
+
+/-- Translation into the canonical source environment preserves the complete
+restored recursor arity.  This is deliberately stated about the target of the
+restored type translation, never about the lowered abstract recursor type. -/
+theorem RecursorRestoration.translatedTypeForallArity
+    (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName Hentry.info newInfo)
+    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hparams : result.nparams = stats.params.size)
+    (Htranslation : TrExprS canonicalEnv Hentry.info.levelParams []
+      newInfo.type targetType) :
+    ∃ domains translatedResidual,
+      targetType.takeForalls
+        (result.nparams + ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1)) =
+          some (domains, translatedResidual) ∧
+      domains.length =
+        result.nparams + ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1) := by
+  rcases Hrestore.typeForallTelescope Hentry Hselections hparams with
+    ⟨residual, Htelescope⟩
+  exact Htelescope.translatedTakeForalls Htranslation
 
 /-- Recursor restoration changes the production name and concrete type while
 preserving the metadata observed by `TrConstVal`.  Translation of that new
