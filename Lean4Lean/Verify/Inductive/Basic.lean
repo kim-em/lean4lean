@@ -21563,6 +21563,21 @@ theorem BlockCertificate.install
     H.staged.abstract_types, H.staged.abstract_ctors,
     H.staged.abstract_recursors]
 
+theorem BlockCertificate.names
+    (H : BlockCertificate safety env venv types ctors recursors
+      rules outEnv outVEnv) :
+    List.Nodup
+      ((H.block.types ++ H.block.ctors ++ H.block.recursors).map (·.name)) := by
+  have hall : venv.addConsts
+      (types.map Prod.snd ++ ctors.map Prod.snd ++ recursors.map Prod.snd) =
+      some outVEnv :=
+    VEnv.addConsts_append
+      (VEnv.addConsts_append H.staged.abstract_types
+        H.staged.abstract_ctors)
+      H.staged.abstract_recursors
+  simpa [BlockCertificate.block, List.map_append] using
+    VEnv.addConsts_names_nodup hall
+
 theorem BlockCertificate.hasPrimitives
     (H : BlockCertificate safety env venv types ctors recursors
       rules outEnv outVEnv)
@@ -26068,6 +26083,39 @@ def RecursorPhasesResult.blockCertificate
   exact Hgenerated.toBlockCertificate H.staged H.localWF H.bindings H.params
     Hheaders.typesWF R.declared.ctorsWF hrules
 
+/-- The complete recursor phase determines every ordinary-compilation field
+except the semantic interpretation of its generated iota-rule batch. Block
+layout and name uniqueness are consequences of the staging certificate. -/
+theorem RecursorPhasesResult.ordinaryCompilationOfRuleBuild
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    (Hrules : IotaBuildCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block rules)
+    (hrulesLength : rules.length = decl.ownedConstructors.length) :
+    OrdinaryCompilationCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block := by
+  let Hgenerated : GeneratedRecursors c.safety R.declared.venvCtors
+      c.lparams H.elimLevel H.localContext stats indTypes H.recInfos
+      H.entries := by
+    simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using
+      H.generated
+  apply Hgenerated.ordinaryCompilationCertificate_ofRuleBuild H.localWF
+    H.bindings H.params H.noAlias H.cardinality R.core
+  · exact Hheaders.values
+  · exact R.declared.values
+  · rfl
+  · exact Hrules
+  · simpa [BlockCertificate.block] using hrulesLength
+  · exact (H.blockCertificate rules hrules).names
+
 theorem RecursorPhasesResult.addInductOfOrdinaryCompilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -26396,6 +26444,7 @@ def VerifiedInductiveRunResult
     ∃ Hheaders : DeclaredHeadersResult c' stats decl skeleton.nparams
       (source.safety != .safe) depth Hc'.venv types.toArray headerEnv,
     ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
+      types.toArray.toList ≠ [] ∧
       Nonempty (RecursorPhasesResult R outEnv)
 
 theorem AddInductive.run.closedWF
@@ -26427,11 +26476,47 @@ theorem AddInductive.run.closedWF
     fun outEnv Hout => by
       rcases Hout with ⟨headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
       exact ⟨c', stats, decl, depth, Hc', Hdecl', Hmaterialized,
-        headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
+        headerEnv, ctorEnv, Hheaders, R, by
+          simpa using List.ne_nil_of_length_pos
+            (by simpa using hnonempty : 0 < types.length),
+        Hrecursors⟩
 
 /-- Close a verified ordinary executable run against the independent
 `VEnv.AddInduct` specification once the generated rule batch and compilation
 certificate are supplied. -/
+theorem VerifiedInductiveRunResult.addInductOfRuleBuild
+    (Hrun : VerifiedInductiveRunResult source skeleton envTypes types
+      numNested outEnv)
+    (Hrules : ∀ c' stats decl depth
+      (Hc' : ContextWF c')
+      (Hdecl : TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
+        types.toArray.toList (source.safety != .safe) decl envTypes)
+      (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth)
+      headerEnv ctorEnv
+      (Hheaders : DeclaredHeadersResult c' stats decl skeleton.nparams
+        (source.safety != .safe) depth Hc'.venv types.toArray headerEnv)
+      (R : ConstructorPhasesResult Hheaders ctorEnv)
+      (Hrecursors : RecursorPhasesResult R outEnv),
+      ∃ rules : List VDefEq,
+        ∃ hrules : (∀ df ∈ rules, df.WF Hrecursors.outVEnv),
+        IotaBuildCertificate Hc'.venv decl
+          (Hrecursors.blockCertificate rules hrules).block rules ∧
+        rules.length = decl.ownedConstructors.length) :
+    ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
+      ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
+        VEnv.AddInduct Hc'.venv decl finalVEnv := by
+  rcases Hrun with ⟨c', stats, decl, depth, Hc', Hdecl, Hmaterialized,
+    headerEnv, ctorEnv, Hheaders, R, hnonempty, ⟨Hrecursors⟩⟩
+  rcases Hrules c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
+      ctorEnv Hheaders R Hrecursors with
+    ⟨rules, hrules, HruleBuild, hrulesLength⟩
+  have Hcompile := Hrecursors.ordinaryCompilationOfRuleBuild rules hrules
+    HruleBuild hrulesLength
+  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs rules,
+    Hrecursors.addInductOfOrdinaryCompilation rules hrules hnonempty
+      Hcompile⟩
+
 theorem VerifiedInductiveRunResult.addInductOfOrdinaryCompilation
     (Hrun : VerifiedInductiveRunResult source skeleton envTypes types
       numNested outEnv)
@@ -26448,17 +26533,16 @@ theorem VerifiedInductiveRunResult.addInductOfOrdinaryCompilation
       (Hrecursors : RecursorPhasesResult R outEnv),
       ∃ rules : List VDefEq,
         ∃ hrules : (∀ df ∈ rules, df.WF Hrecursors.outVEnv),
-        types.toArray.toList ≠ [] ∧
         OrdinaryCompilationCertificate Hc'.venv decl
           (Hrecursors.blockCertificate rules hrules).block) :
     ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
       ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
         VEnv.AddInduct Hc'.venv decl finalVEnv := by
   rcases Hrun with ⟨c', stats, decl, depth, Hc', Hdecl, Hmaterialized,
-    headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
+    headerEnv, ctorEnv, Hheaders, R, hnonempty, ⟨Hrecursors⟩⟩
   rcases Hcompile c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
     ctorEnv Hheaders R Hrecursors with
-    ⟨rules, hrules, hnonempty, Hcompilation⟩
+    ⟨rules, hrules, Hcompilation⟩
   exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs rules,
     Hrecursors.addInductOfOrdinaryCompilation rules hrules hnonempty
       Hcompilation⟩
@@ -26481,17 +26565,16 @@ theorem VerifiedInductiveRunResult.addInductOfNestedCompilation
       (Hrecursors : RecursorPhasesResult R outEnv),
       ∃ rules : List VDefEq,
         ∃ hrules : (∀ df ∈ rules, df.WF Hrecursors.outVEnv),
-        types.toArray.toList ≠ [] ∧
         Nonempty (NestedCompilationCertificate Hc'.venv decl
           (Hrecursors.blockCertificate rules hrules).block)) :
     ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
       ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
         VEnv.AddInduct Hc'.venv decl finalVEnv := by
   rcases Hrun with ⟨c', stats, decl, depth, Hc', Hdecl, Hmaterialized,
-    headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
+    headerEnv, ctorEnv, Hheaders, R, hnonempty, ⟨Hrecursors⟩⟩
   rcases Hcompile c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
     ctorEnv Hheaders R Hrecursors with
-    ⟨rules, hrules, hnonempty, ⟨Hcompilation⟩⟩
+    ⟨rules, hrules, ⟨Hcompilation⟩⟩
   exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs rules,
     Hrecursors.addInductOfNestedCompilation rules hrules hnonempty
       Hcompilation⟩
