@@ -26506,6 +26506,25 @@ def RecursorPhasesResult.generatedCertificate
       H.localContext stats indTypes H.recInfos H.entries := by
   simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using H.generated
 
+theorem RecursorPhasesResult.recursorNamesFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq) (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
+    ∀ name ∈ (H.blockCertificate rules hrules).block.recursors.map (·.name),
+      R.declared.venvCtors.constants name = none := by
+  have hfresh :=
+    VEnv.addConsts_names_fresh H.installed.abstract |>.2
+  intro name hname
+  change name ∈ (H.entries.map Prod.snd).map (·.name) at hname
+  rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
+  exact hfresh recursor hrecursor
+
 /-- The complete recursor phase determines every ordinary-compilation field
 except the semantic interpretation of its generated iota-rule batch. Block
 layout and name uniqueness are consequences of the staging certificate. -/
@@ -26552,17 +26571,14 @@ theorem RecursorPhasesResult.ordinaryCompilationOfRuleTranslations
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     (H : RecursorPhasesResult R outEnv)
-    (trEnv : VEnv) (Us : List Name) (Δ : VLCtx)
+    (Us : List Name) (Δ : VLCtx)
     (rules : List VDefEq)
     (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
     (owner : Nat)
     (Htranslations : GeneratedIotaTranslations H.generatedCertificate
-      sourceEnv trEnv Us Δ decl (H.blockCertificate rules hrules).block
-      owner rules)
+      sourceEnv R.declared.venvCtors Us Δ decl
+      (H.blockCertificate rules hrules).block owner rules)
     (hcomplete : owner = H.entries.length)
-    (hfresh : ∀ name ∈
-      (H.blockCertificate rules hrules).block.recursors.map (·.name),
-      trEnv.constants name = none)
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
       e'.containsAnyConst
         ((H.blockCertificate rules hrules).block.recursors.map (·.name)) =
@@ -26575,7 +26591,7 @@ theorem RecursorPhasesResult.ordinaryCompilationOfRuleTranslations
   have Hbuild : IotaBuildCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block rules :=
     Htranslations.build H.generatedCertificate H.cardinality R.core rfl
-      hfresh hproj
+      (H.recursorNamesFresh rules hrules) hproj
   have hlength : rules.length = decl.ownedConstructors.length :=
     Htranslations.completeLength H.generatedCertificate H.cardinality R.core
       hcomplete
@@ -26592,18 +26608,15 @@ structure OrdinaryRuleTranslationResult
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     (H : RecursorPhasesResult R outEnv) where
-  trEnv : VEnv
   Us : List Name
   Δ : VLCtx
   rules : List VDefEq
   rulesWF : ∀ df ∈ rules, df.WF H.outVEnv
   owner : Nat
   translations : GeneratedIotaTranslations H.generatedCertificate sourceEnv
-    trEnv Us Δ decl (H.blockCertificate rules rulesWF).block owner rules
+    R.declared.venvCtors Us Δ decl
+    (H.blockCertificate rules rulesWF).block owner rules
   complete : owner = H.entries.length
-  fresh : ∀ name ∈
-    (H.blockCertificate rules rulesWF).block.recursors.map (·.name),
-    trEnv.constants name = none
   projections : ∀ {Δ : VLCtx} {s i e' e''},
     TrProj Δ.toCtx s i e' e'' →
     e'.containsAnyConst
@@ -26625,8 +26638,8 @@ theorem OrdinaryRuleTranslationResult.compilation
     (T : OrdinaryRuleTranslationResult H) :
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate T.rules T.rulesWF).block :=
-  H.ordinaryCompilationOfRuleTranslations T.trEnv T.Us T.Δ T.rules
-    T.rulesWF T.owner T.translations T.complete T.fresh T.projections
+  H.ordinaryCompilationOfRuleTranslations T.Us T.Δ T.rules T.rulesWF
+    T.owner T.translations T.complete T.projections
 
 theorem RecursorPhasesResult.addInductOfOrdinaryCompilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
