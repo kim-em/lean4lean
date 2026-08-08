@@ -23928,6 +23928,27 @@ theorem RecursorPhasesResult.findConstructorOfMem
   apply H.installed.preservesFind hlocalWF
   rwa [H.localExtends.env_eq]
 
+/-- Source alignment identifies the exact concrete constructor metadata that
+nested restoration will read from the final lowered environment. -/
+theorem RecursorPhasesResult.findSourceConstructor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (howner : owner ∈ indTypes.toList) (hctor : ctor ∈ owner.ctors) :
+    ∃ info : ConstructorVal,
+      outEnv.find? ctor.name = some (.ctorInfo info) ∧
+      info.type = ctor.type := by
+  rcases R.declared.sourceAligned.findSource howner hctor with
+    ⟨info, value, hentry, hname, htype⟩
+  refine ⟨info, ?_, htype⟩
+  rw [← hname]
+  exact H.findConstructorOfMem hentry
+
 /-- Every generated primary recursor is retrievable with the exact production
 metadata retained by the verified recursor phase. -/
 theorem RecursorPhasesResult.findRecursorOfMem
