@@ -25034,15 +25034,59 @@ theorem openRestoreParams_refines
       exact .lam (ih (Hbody.instantiate1 (.fvar ⟨ngen.curr⟩))
         _ _ _ out outNgen hout)
 
+/-- Restoration opening together with the duplicate-free local-variable
+selection produced by its concrete name generator. -/
+def RestoreParamOpeningSelected
+    (lctx : LocalContext) (As : Array Expr) (e : Expr) (n : Nat)
+    (outLctx : LocalContext) (outAs : Array Expr) (tail : Expr) : Prop :=
+  RestoreParamOpening lctx As e n outLctx outAs tail ∧
+  ∃ Hselection : LocalForallSelection outLctx outAs,
+    Hselection.fvars.Nodup
+
+theorem openRestoreParams_refinesSelected
+    (H : RestoreTelescope e n)
+    (Hctx : NestedBindingContextWF lctx ngen)
+    (Hparams : NestedBoundParams lctx As) :
+    ∀ (out : LocalContext × Array Expr × Expr) outNgen,
+      Lean4Lean.ElimNestedInductive.Result.openRestoreParams n lctx As e ngen =
+        (out, outNgen) →
+      RestoreParamOpeningSelected lctx As e n out.1 out.2.1 out.2.2 := by
+  induction n generalizing e lctx As ngen with
+  | zero =>
+    intro out outNgen hout
+    simp [Lean4Lean.ElimNestedInductive.Result.openRestoreParams] at hout
+    cases hout
+    exact ⟨.done, Hparams.toSelection Hctx, Hparams.nodup⟩
+  | succ n ih =>
+    cases H with
+    | @forallE body _ name dom bi Hbody =>
+      intro out outNgen hout
+      simp only [Lean4Lean.ElimNestedInductive.Result.openRestoreParams,
+        mkFreshId, getNGen, setNGen, StateT.get, StateT.set,
+        StateT.modifyGet, bind, StateT.bind, pure, StateT.pure] at hout
+      have Hnext := ih (Hbody.instantiate1 (.fvar ⟨ngen.curr⟩))
+        (Hctx := Hctx.withLocalDecl name dom bi)
+        (Hparams := Hparams.push Hctx name dom bi) out outNgen hout
+      exact ⟨.forallE Hnext.1, Hnext.2⟩
+    | @lam body _ name dom bi Hbody =>
+      intro out outNgen hout
+      simp only [Lean4Lean.ElimNestedInductive.Result.openRestoreParams,
+        mkFreshId, getNGen, setNGen, StateT.get, StateT.set,
+        StateT.modifyGet, bind, StateT.bind, pure, StateT.pure] at hout
+      have Hnext := ih (Hbody.instantiate1 (.fvar ⟨ngen.curr⟩))
+        (Hctx := Hctx.withLocalDecl name dom bi)
+        (Hparams := Hparams.push Hctx name dom bi) out outNgen hout
+      exact ⟨.lam Hnext.1, Hnext.2⟩
+
 /-- End-to-end abstract relation for nested restoration: open exactly the
 recorded parameter telescope, restore every body node, then rebuild the same
 outer forall/lambda kind selected by the source root. -/
 def NestedRestoration
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (auxRec : NameMap Name)
-    (input output : Expr) : Prop :=
+  (input output : Expr) : Prop :=
   ∃ lctx As body restoredBody,
-    RestoreParamOpening {} #[] input result.nparams lctx As body ∧
+    RestoreParamOpeningSelected {} #[] input result.nparams lctx As body ∧
     ExprReplacement (result.restoreNestedNode env As auxRec)
       body restoredBody ∧
     output = if input.isForall then lctx.mkForall As restoredBody
@@ -25059,9 +25103,10 @@ theorem restoreNested_refines
     Lean4Lean.ElimNestedInductive.Result.openRestoreParams result.nparams
       {} #[] input ({ namePrefix := `_nested_fresh } : NameGenerator) = opened
   rcases opened with ⟨⟨lctx, As, body⟩, outNGen⟩
-  have Hopening := openRestoreParams_refines Htelescope {} #[]
-    ({ namePrefix := `_nested_fresh } : NameGenerator)
-    (lctx, As, body) outNGen hopen
+  have Hopening := openRestoreParams_refinesSelected Htelescope
+    (NestedBindingContextWF.empty
+      ({ namePrefix := `_nested_fresh } : NameGenerator))
+    NestedBoundParams.empty (lctx, As, body) outNGen hopen
   simp [hopen]
   exact ⟨lctx, As, body,
     body.replace (result.restoreNestedNode env As auxRec),
@@ -31624,6 +31669,8 @@ structure ConstructorRestorationBodyInverse
   restoredBody : Expr
   loweredOpening : RestoreParamOpening {} #[] lowered.type nparams
     restoreLctx restoreAs openedBody
+  restoreSelection : LocalForallSelection restoreLctx restoreAs
+  restoreNodup : restoreSelection.fvars.Nodup
   bodyRestoration : ExprReplacement
     (result.restoreNestedNode env restoreAs {}) openedBody restoredBody
   output : restoredType = if lowered.type.isForall then
@@ -31656,7 +31703,8 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
   rcases Hrestored with
     ⟨restoreLctx, restoreAs, openedBody, restoredBody, Hopening,
       Hbody, houtput⟩
-  have Hopening' := Hopening
+  rcases Hopening.2 with ⟨HrestoreSelection, hrestoreNodup⟩
+  have Hopening' := Hopening.1
   rw [hresultNParams] at Hopening'
   rcases H.restoredBody_inverseOfSyntax hresultParams paramFvars hparams
       hnodup Hsyntax Hreserved restoreLctx restoreAs openedBody restoredBody
@@ -31669,6 +31717,8 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
     openedBody := openedBody
     restoredBody := restoredBody
     loweredOpening := Hopening'
+    restoreSelection := HrestoreSelection
+    restoreNodup := hrestoreNodup
     bodyRestoration := Hbody
     output := houtput
     sourceLctx := sourceLctx
