@@ -25584,6 +25584,21 @@ theorem GeneratedRecursorEntry.telescopeTranslation
   · simpa [hdomains] using htarget
   · simpa [hdomains] using Hresult
 
+/-- Pointwise five-group translation certificate for an entire generated
+mutual recursor block. -/
+def GeneratedRecursorTelescopeTranslations
+    (env : VEnv) (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (entries : List (ConstantInfo × VConstVal)) : Prop :=
+  ∀ ownerIdx (hentry : ownerIdx < entries.length),
+    ∃ info : RecursorVal,
+      entries[ownerIdx].1 = .recInfo info ∧
+      Nonempty (GeneratedRecursorTelescopeTranslation env info.levelParams
+        info.type entries[ownerIdx].2.type stats.params.size
+        (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx)
+
 theorem GeneratedRecursorEntry.rulesRestoreTelescope
     (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)
@@ -31205,6 +31220,32 @@ def RecursorPhasesResult.staged
   ctorsAdded := R.declared.installed
   recursorsAdded := by
     simpa [H.localExtends.safety_eq, H.localExtends.env_eq] using H.installed
+
+/-- The executable recursor phase supplies the binder-explicit translation
+certificate for every owner in the mutual block.  Binder selections and
+their no-alias proof are recovered from the retained `mkRecInfos` state. -/
+theorem RecursorPhasesResult.generatedTelescopeTranslations
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) :
+    GeneratedRecursorTelescopeTranslations R.declared.venvCtors stats
+      H.recInfos H.entries := by
+  intro ownerIdx hentry
+  have hrecInfo : ownerIdx < H.recInfos.size := by
+    rw [← H.generated.length]
+    exact hentry
+  let E := H.generated.entry ownerIdx hentry
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    ownerIdx hrecInfo
+  have hnoalias : selections.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias ownerIdx hrecInfo
+  refine ⟨E.info, E.source_eq, ?_⟩
+  exact E.telescopeTranslation selections hrecInfo hnoalias
 
 /-- Header metadata installed at the start of the verified pipeline remains
 retrievable, unchanged, after constructors and recursors are installed. -/
