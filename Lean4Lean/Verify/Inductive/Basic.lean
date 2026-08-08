@@ -25814,6 +25814,13 @@ theorem LoweringQueueTrace.resultContext
   | done => exact ⟨rfl, rfl⟩
   | step _ _ ih => exact ih
 
+theorem LoweringQueueTrace.resultNParams
+    (H : LoweringQueueTrace env params nparams lctx i fuel state out) :
+    out.1.nparams = params.size := by
+  induction H with
+  | done => rfl
+  | step _ _ ih => exact ih
+
 theorem LoweringQueueTrace.resultRestorable
     (H : LoweringQueueTrace env params nparams lctx i fuel state out)
     (Hprefix : RestorableNewTypesPrefix nparams i state) :
@@ -25883,6 +25890,13 @@ theorem NestedLoweringRun.resultRestorable
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, Hqueue⟩
   exact Hqueue.resultRestorable (.zero paramsState)
+
+theorem NestedLoweringRun.resultNParams
+    (H : NestedLoweringRun env fuel nparams types initialState out) :
+    out.1.nparams = nparams := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _, Hopening, _, Hqueue⟩
+  exact Hqueue.resultNParams.trans Hopening.initial_size
 
 theorem NestedLoweringRun.preservesInitialTypeName
     (H : NestedLoweringRun env fuel nparams types initialState out)
@@ -26040,6 +26054,12 @@ theorem NestedLoweringResult.resultRestorable
   rcases H with ⟨finalState, Hrun⟩
   exact Hrun.resultRestorable
 
+theorem NestedLoweringResult.resultNParams
+    (H : NestedLoweringResult env fuel nparams types initialState result) :
+    result.nparams = nparams := by
+  rcases H with ⟨finalState, Hrun⟩
+  exact Hrun.resultNParams
+
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResult env fuel nparams types
@@ -26142,6 +26162,52 @@ theorem RecursorPhasesResult.auxRestorationSourcesOfLowering
     ⟨_oldIndInfo, _hindFind, _hctors, recInfo, hrecFind, hrecType,
       hrecRules⟩
   exact ⟨recInfo, hrecFind, hrecType, hrecRules⟩
+
+/-- End-to-end verifier for production nested restoration after a verified
+lowered installation. Both declaration-source arguments are now consequences
+of lowering and installation; only the subsequent auxiliary type-checking
+pass remains parameterized by its own semantic postcondition. -/
+theorem Environment.restoreNestedAfterInstall.ofLoweringWF
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv res.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hc : ContextWF c) (H : RecursorPhasesResult R loweredEnv)
+    (Hlower : NestedLoweringResult sourceProdEnv loweringFuel nparams
+      sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } res)
+    (lparams : List Name) (safety : DefinitionSafety)
+    (allowPrimitive : Bool) (fuel : FuelConfig)
+    (Validated : Environment → Prop)
+    (Hvalidate : ∀ restoredEnv,
+      Nonempty (RestoredNestedDeclarationsResult res loweredEnv sourceProdEnv
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+        (sourceTypes.map (·.name)) sourceTypes
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
+        ((), restoredEnv)) →
+      (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
+        res).WF fun _ => Validated restoredEnv) :
+    (Environment.restoreNestedAfterInstall sourceProdEnv loweredEnv lparams
+      sourceTypes safety allowPrimitive fuel res).WF fun outEnv =>
+        RestoredAfterInstallResult res sourceProdEnv loweredEnv
+          (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+          (sourceTypes.map (·.name)) sourceTypes
+          (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
+          Validated outEnv := by
+  have hnparams : res.nparams = nparams := Hlower.resultNParams
+  apply Environment.restoreNestedAfterInstall.WF sourceProdEnv loweredEnv
+    lparams sourceTypes safety allowPrimitive fuel res
+  · intro owner howner
+    simpa [hnparams] using
+      H.restorationSourcesOfLowering Hc Hlower owner howner
+  · intro recName hrecName
+    simpa [hnparams] using
+      H.auxRestorationSourcesOfLowering Hc Hlower recName hrecName
+  · exact Hvalidate
 
 theorem ElimNestedInductive.run'.translation
     (fuel nparams : Nat) (types : List InductiveType)
