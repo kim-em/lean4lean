@@ -24044,6 +24044,93 @@ theorem Environment.addInductiveAfterLowering.WF
       exact (Hrestore loweredEnv Hinstalled hzero).mono fun outEnv Hrestored =>
         .nested hzero Hinstalled Hrestored
 
+/-- Successful nested restoration retains both the exact declaration-fold
+trace and the independently specified auxiliary-witness validation. -/
+structure RestoredAfterInstallResult
+    (res : Lean4Lean.ElimNestedInductive.Result)
+    (sourceEnv loweredEnv : Environment) (recNameMap : NameMap Name)
+    (allIndNames : List Name) (types : List InductiveType)
+    (auxRecNames : List Name) (Validated : Environment → Prop)
+    (outEnv : Environment) : Prop where
+  restoration : Nonempty (RestoredNestedDeclarationsResult res loweredEnv
+    sourceEnv recNameMap allIndNames types auxRecNames ((), outEnv))
+  validated : Validated outEnv
+
+/-- Compose the verified declaration-restoration folds with the production
+auxiliary validation pass. -/
+theorem Environment.restoreNestedAfterInstall.WF
+    (env loweredEnv : Environment) (lparams : List Name)
+    (types : List InductiveType) (safety : DefinitionSafety)
+    (allowPrimitive : Bool) (fuel : FuelConfig)
+    (res : Lean4Lean.ElimNestedInductive.Result)
+    (Htypes : ∀ indType, indType ∈ types →
+      ∃ oldInfo : InductiveVal,
+        loweredEnv.find? indType.name = some (.inductInfo oldInfo) ∧
+        (∀ ctorName, ctorName ∈ oldInfo.ctors →
+          ∃ ctorInfo : ConstructorVal,
+            loweredEnv.find? ctorName = some (.ctorInfo ctorInfo) ∧
+            RestoreTelescope ctorInfo.type res.nparams) ∧
+        ∃ recInfo : RecursorVal,
+          loweredEnv.find? (Lean.mkRecName indType.name) =
+            some (.recInfo recInfo) ∧
+          RestoreTelescope recInfo.type res.nparams ∧
+          ∀ rule ∈ recInfo.rules,
+            RestoreTelescope rule.rhs res.nparams)
+    (Haux : ∀ recName,
+      recName ∈ (Lean4Lean.mkAuxRecNameMap loweredEnv types).1 →
+      ∃ oldInfo : RecursorVal,
+        loweredEnv.find? recName = some (.recInfo oldInfo) ∧
+        RestoreTelescope oldInfo.type res.nparams ∧
+        ∀ rule ∈ oldInfo.rules,
+          RestoreTelescope rule.rhs res.nparams)
+    (Validated : Environment → Prop)
+    (Hvalidate : ∀ restoredEnv,
+      Nonempty (RestoredNestedDeclarationsResult res loweredEnv env
+        (Lean4Lean.mkAuxRecNameMap loweredEnv types).2 (types.map (·.name))
+        types (Lean4Lean.mkAuxRecNameMap loweredEnv types).1
+        ((), restoredEnv)) →
+      (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
+        res).WF fun _ => Validated restoredEnv) :
+    (Environment.restoreNestedAfterInstall env loweredEnv lparams types safety
+      allowPrimitive fuel res).WF fun outEnv =>
+        RestoredAfterInstallResult res env loweredEnv
+          (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
+          (types.map (·.name)) types
+          (Lean4Lean.mkAuxRecNameMap loweredEnv types).1 Validated outEnv := by
+  let recNames := (Lean4Lean.mkAuxRecNameMap loweredEnv types).1
+  let recNameMap := (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
+  let allIndNames := types.map (·.name)
+  have Hdeclarations := restoreNestedDeclarations_refines res loweredEnv env
+    recNameMap allIndNames allowPrimitive types recNames Htypes (by
+      simpa [recNames] using Haux)
+  have HrestoredEnv :
+      ((·.2) <$> Lean4Lean.restoreNestedDeclarations res loweredEnv
+        recNameMap allIndNames allowPrimitive types recNames env).WF
+          fun restoredEnv => Nonempty (RestoredNestedDeclarationsResult res
+            loweredEnv env recNameMap allIndNames types recNames
+              ((), restoredEnv)) := by
+    exact Hdeclarations.map fun restored Hrestored => by
+      rcases restored with ⟨unit, restoredEnv⟩
+      rcases unit with ⟨⟩
+      exact Hrestored
+  have Houtput :
+      (((·.2) <$> Lean4Lean.restoreNestedDeclarations res loweredEnv
+          recNameMap allIndNames allowPrimitive types recNames env).bind
+        fun restoredEnv =>
+          (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
+            res).bind fun _ => Except.pure restoredEnv).WF
+        (RestoredAfterInstallResult res env loweredEnv recNameMap allIndNames
+          types recNames Validated) :=
+    HrestoredEnv.bind fun restoredEnv Hrestored => by
+      exact (Hvalidate restoredEnv (by
+        simpa [recNames, recNameMap, allIndNames] using Hrestored)).bind
+          fun _ Hvalidated => Except.WF.pure (show
+            RestoredAfterInstallResult res env loweredEnv recNameMap
+              allIndNames types recNames Validated restoredEnv from
+                ⟨Hrestored, Hvalidated⟩)
+  simpa [Environment.restoreNestedAfterInstall, recNames, recNameMap,
+    allIndNames, StateT.run, bind, Except.bind, pure] using Houtput
+
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/

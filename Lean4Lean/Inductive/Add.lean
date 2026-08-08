@@ -1072,6 +1072,15 @@ def restoreNestedDeclarations (res : ElimNestedInductive.Result)
     restoreRecursorDecl res loweredEnv recNameMap allIndNames
       allowPrimitive recName
 
+/-- Validate every generated auxiliary witness in the restored local
+parameter context. -/
+def validateNestedAuxiliaries (env : Environment) (lparams : List Name)
+    (safety : DefinitionSafety) (fuel : FuelConfig)
+    (res : ElimNestedInductive.Result) : Except Exception Unit :=
+  TypeChecker.M.run env (safety := safety) (lctx := res.lctx)
+      (lparams := lparams) (fuel := fuel) do
+    res.aux2nested.forM fun _ e => do _ ← TypeChecker.checkType e
+
 /-- Restore a successfully installed lowered block and validate the generated
 auxiliary witnesses before returning the source-shaped environment. -/
 def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
@@ -1080,12 +1089,11 @@ def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
     (res : ElimNestedInductive.Result) : Except Exception Environment := do
   let allIndNames := types.map (·.name)
   let (recNames', recNameMap') := mkAuxRecNameMap loweredEnv types
-  (·.2) <$> StateT.run (s := env) do
-  restoreNestedDeclarations res loweredEnv recNameMap' allIndNames
-    allowPrimitive types recNames'
-  TypeChecker.M.run (← get) (safety := safety) (lctx := res.lctx)
-      (lparams := lparams) (fuel := fuel) do
-    res.aux2nested.forM fun _ e => do _ ← TypeChecker.checkType e
+  let restoredEnv ← (·.2) <$> StateT.run (s := env)
+    (restoreNestedDeclarations res loweredEnv recNameMap' allIndNames
+      allowPrimitive types recNames')
+  validateNestedAuxiliaries restoredEnv lparams safety fuel res
+  return restoredEnv
 
 /-- Complete production pipeline after nested lowering has produced its
 result: install the lowered block, then either return it directly or restore
