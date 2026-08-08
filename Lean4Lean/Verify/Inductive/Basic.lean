@@ -24925,6 +24925,26 @@ theorem RestoreParamOpening.params_extension
     refine ⟨(.fvar id) :: suffix, ?_, by simp [hlength]⟩
     simpa [heq, List.append_assoc]
 
+/-- Exact local-declaration extension performed alongside parameter opening.
+Declarations are recorded in binder order; `LocalContext.toList` stores the
+same suffix in reverse because newer declarations are at the front. -/
+theorem RestoreParamOpening.context_extension
+    (H : RestoreParamOpening lctx As e n outLctx outAs tail) :
+    ∃ decls : List LocalDecl,
+      outLctx.toList = decls.reverse ++ lctx.toList ∧
+      outAs.toList = As.toList ++ decls.map (fun d => .fvar d.fvarId) ∧
+      decls.length = n := by
+  induction H with
+  | done => exact ⟨[], by simp⟩
+  | forallE Hnext ih | lam Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    rcases ih with ⟨decls, hlctx, hparams, hlength⟩
+    let decl : LocalDecl :=
+      .cdecl lctx'.decls.size id name dom bi .default
+    refine ⟨decl :: decls, ?_, ?_, by simp [hlength]⟩
+    · simp [hlctx, decl, LocalContext.mkLocalDecl_toList]
+    · simp [hparams, decl, List.append_assoc, LocalDecl.fvarId]
+
 /-- The suffix created by restoration opening consists exactly of the fresh
 free variables introduced by its telescope traversal. -/
 theorem RestoreParamOpening.params_fvars_extension
@@ -25040,6 +25060,7 @@ def RestoreParamOpeningSelected
     (lctx : LocalContext) (As : Array Expr) (e : Expr) (n : Nat)
     (outLctx : LocalContext) (outAs : Array Expr) (tail : Expr) : Prop :=
   RestoreParamOpening lctx As e n outLctx outAs tail ∧
+  outLctx.WF ∧
   ∃ Hselection : LocalForallSelection outLctx outAs,
     Hselection.fvars.Nodup
 
@@ -25056,7 +25077,7 @@ theorem openRestoreParams_refinesSelected
     intro out outNgen hout
     simp [Lean4Lean.ElimNestedInductive.Result.openRestoreParams] at hout
     cases hout
-    exact ⟨.done, Hparams.toSelection Hctx, Hparams.nodup⟩
+    exact ⟨.done, Hctx.wf, Hparams.toSelection Hctx, Hparams.nodup⟩
   | succ n ih =>
     cases H with
     | @forallE body _ name dom bi Hbody =>
@@ -31669,6 +31690,7 @@ structure ConstructorRestorationBodyInverse
   restoredBody : Expr
   loweredOpening : RestoreParamOpening {} #[] lowered.type nparams
     restoreLctx restoreAs openedBody
+  restoreLctxWF : restoreLctx.WF
   restoreSelection : LocalForallSelection restoreLctx restoreAs
   restoreNodup : restoreSelection.fvars.Nodup
   bodyRestoration : ExprReplacement
@@ -31703,7 +31725,8 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
   rcases Hrestored with
     ⟨restoreLctx, restoreAs, openedBody, restoredBody, Hopening,
       Hbody, houtput⟩
-  rcases Hopening.2 with ⟨HrestoreSelection, hrestoreNodup⟩
+  rcases Hopening.2 with ⟨hrestoreLctxWF, HrestoreSelection,
+    hrestoreNodup⟩
   have Hopening' := Hopening.1
   rw [hresultNParams] at Hopening'
   rcases H.restoredBody_inverseOfSyntax hresultParams paramFvars hparams
@@ -31717,6 +31740,7 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
     openedBody := openedBody
     restoredBody := restoredBody
     loweredOpening := Hopening'
+    restoreLctxWF := hrestoreLctxWF
     restoreSelection := HrestoreSelection
     restoreNodup := hrestoreNodup
     bodyRestoration := Hbody
