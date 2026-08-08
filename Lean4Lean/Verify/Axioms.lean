@@ -159,6 +159,17 @@ open private mkLevelIMaxCore from Lean.Level in
 /-- Workaround for https://github.com/leanprover/lean4/pull/7631#issuecomment-3289800246 -/
 @[simp] axiom mkLevelIMaxCore_eq (e : Expr) (n : Nat) : mkLevelIMaxCore = mkIMaxCore
 
+/-- The optimized universe normalizers are opaque runtime helpers.  They may
+discard or reassociate their inputs, but cannot manufacture a universe
+metavariable when neither input contains one. -/
+axiom mkLevelMax'_hasMVar_false (u v : Level) :
+    u.hasMVar' = false → v.hasMVar' = false →
+      (mkLevelMax' u v).hasMVar' = false
+
+axiom mkLevelIMax'_hasMVar_false (u v : Level) :
+    u.hasMVar' = false → v.hasMVar' = false →
+      (mkLevelIMax' u v).hasMVar' = false
+
 end Level
 
 namespace Name

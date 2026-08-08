@@ -12855,6 +12855,82 @@ theorem _root_.Lean4Lean.FVarsIn.instantiateRev
   apply Hsubst a
   simpa using ha
 
+/-- Range-restricted reverse instantiation has the same free-variable
+discipline as the underlying simultaneous instantiation. -/
+theorem _root_.Lean4Lean.FVarsIn.instantiateRevRange
+    (He : FVarsIn P e) (Hsubst : ∀ a ∈ subst, FVarsIn P a) :
+    FVarsIn P (e.instantiateRevRange start stop subst) := by
+  rw [Expr.instantiateRevRange_eq]
+  apply He.instantiateRev
+  intro a ha
+  rcases Array.mem_iff_getElem.mp ha with ⟨i, hi, heq⟩
+  have hi' : start + i < subst.size := by
+    rw [Array.size_extract] at hi
+    have hmin := Nat.min_le_right stop subst.size
+    omega
+  apply Hsubst a
+  rw [← heq, Array.getElem_extract]
+  exact Array.getElem_mem hi'
+
+/-- Replacing universe parameters by universe expressions without metavariables
+does not introduce a universe metavariable. -/
+theorem _root_.Lean.Level.substParams'_hasMVar_false
+    (Hu : u.hasMVar' = false)
+    (Hs : ∀ name, (s name).hasMVar' = false) :
+    (Lean.Level.substParams' s red u).hasMVar' = false := by
+  induction u generalizing red with
+  | zero | param | mvar => simp_all [Lean.Level.substParams', Lean.Level.hasMVar']
+  | succ u ih =>
+      simp only [Lean.Level.substParams', Lean.Level.hasMVar'] at Hu ⊢
+      exact ih Hu
+  | max u v ihu ihv =>
+      simp only [Lean.Level.hasMVar'] at Hu
+      have Hu' := Bool.or_eq_false_iff.mp Hu
+      simp only [Lean.Level.substParams']
+      split
+      · exact Lean.Level.mkLevelMax'_hasMVar_false _ _
+          (ihu Hu'.1) (ihv Hu'.2)
+      · simp [Lean.Level.hasMVar', ihu Hu'.1, ihv Hu'.2]
+  | imax u v ihu ihv =>
+      simp only [Lean.Level.hasMVar'] at Hu
+      have Hu' := Bool.or_eq_false_iff.mp Hu
+      simp only [Lean.Level.substParams']
+      split
+      · exact Lean.Level.mkLevelIMax'_hasMVar_false _ _
+          (ihu Hu'.1) (ihv Hu'.2)
+      · simp [Lean.Level.hasMVar', ihu Hu'.1, ihv Hu'.2]
+
+/-- Universe-parameter instantiation preserves the expression free-variable
+predicate when every supplied universe is metavariable-free. -/
+theorem _root_.Lean4Lean.FVarsIn.instantiateLevelParams
+    (He : FVarsIn P e)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false) :
+    FVarsIn P (e.instantiateLevelParams levelParams levels) := by
+  rw [Expr.instantiateLevelParams_eq]
+  have Hsubst : ∀ name,
+      (((levelParams.idxOf? name).bind fun i => levels[i]?).getD
+        (.param name)).hasMVar' = false := by
+    intro name
+    cases hidx : levelParams.idxOf? name with
+    | none => simp [hidx, Lean.Level.hasMVar']
+    | some i =>
+      cases hget : levels[i]? with
+      | none => simp [hidx, hget, Lean.Level.hasMVar']
+      | some level =>
+        simp only [hidx, Option.bind_some, hget, Option.getD_some]
+        have hi : i < levels.length := by
+          by_contra hnot
+          have hnone := List.getElem?_eq_none (Nat.le_of_not_gt hnot)
+          rw [hget] at hnone
+          contradiction
+        have heq : levels[i]'hi = level := by
+          rw [← Option.some.injEq, ← hget]
+          exact (List.getElem?_eq_getElem hi).symm
+        exact Hlevels level (heq ▸ List.getElem_mem hi)
+  induction e <;>
+    simp_all [Expr.instantiateLevelParamsCore', Lean4Lean.FVarsIn,
+      Lean.Level.substParams'_hasMVar_false]
+
 theorem _root_.Lean4Lean.FVarsIn.mkAppRange_zero
     (hn : n ≤ args.size) (Hfn : FVarsIn P fn)
     (Hargs : ∀ arg ∈ args, FVarsIn P arg) :
@@ -21432,6 +21508,148 @@ def NestedBoundParams.toSelection
   expressions := H.expressions
   declarations fv hfv := Hctx.findCDecl fv (H.members fv hfv)
 
+/-- Parameter contexts opened by nested lowering can close any expression
+whose free variables are among the opened parameters. This strengthens the
+plain local-context/selection witnesses with the exact fact needed when a
+generated auxiliary family is itself processed by the dynamic queue. -/
+structure NestedClosingContext (lctx : LocalContext) (params : Array Expr)
+    (ngen : NameGenerator) where
+  binding : NestedBindingContextWF lctx ngen
+  selection : LocalForallSelection lctx params
+  nodup : selection.fvars.Nodup
+  close : ∀ body, body.FVarsIn (· ∈ selection.fvars) →
+    (lctx.mkForall params body).FVarsIn fun _ => False
+
+def NestedClosingContext.empty (ngen : NameGenerator) :
+    NestedClosingContext {} #[] ngen where
+  binding := NestedBindingContextWF.empty ngen
+  selection := {
+    fvars := []
+    expressions := by simp
+    declarations := by simp }
+  nodup := by simp
+  close := by
+    intro body Hbody
+    have Hbody' : body.FVarsIn (fun _ => False) := by
+      simpa [Lean4Lean.FVarsIn] using Hbody
+    rw [show (#[] : Array Expr) = ([].map Expr.fvar).toArray from rfl,
+      LocalContext.mkForall, LocalContext.mkBinding_eq]
+    simpa only [LocalContext.mkBindingList_nil] using Hbody'
+
+def NestedClosingContext.push
+    (H : NestedClosingContext lctx params ngen)
+    (name : Name) (dom : Expr) (bi : BinderInfo)
+    (Hdom : dom.FVarsIn (· ∈ H.selection.fvars)) :
+    NestedClosingContext
+      (lctx.mkLocalDecl ⟨ngen.curr⟩ name dom bi)
+      (params.push (.fvar ⟨ngen.curr⟩)) ngen.next := by
+  let id : FVarId := ⟨ngen.curr⟩
+  let nextLctx := lctx.mkLocalDecl id name dom bi
+  let nextParams := params.push (.fvar id)
+  have hidNotMem : id ∉ H.selection.fvars := by
+    intro hid
+    rcases H.selection.declarations id hid with
+      ⟨index, oldName, oldType, oldBi, kind, hfind⟩
+    exact ngen.not_reserves_self (H.binding.fresh id <| by
+      rw [LocalContext.fvars]
+      apply List.mem_map.mpr
+      rw [H.binding.wf.find?_eq_find?_toList] at hfind
+      exact ⟨.cdecl index id oldName oldType oldBi kind,
+        List.mem_of_find?_eq_some hfind, rfl⟩)
+  let nextSelection : LocalForallSelection nextLctx nextParams := {
+    fvars := H.selection.fvars ++ [id]
+    expressions := by
+      simp [nextParams, H.selection.expressions]
+    declarations := by
+      intro fv hfv
+      simp only [List.mem_append, List.mem_singleton] at hfv
+      rcases hfv with hold | rfl
+      · rcases H.selection.declarations fv hold with
+          ⟨index, oldName, oldType, oldBi, kind, hfind⟩
+        refine ⟨index, oldName, oldType, oldBi, kind, ?_⟩
+        simp only [nextLctx, LocalContext.mkLocalDecl, LocalContext.find?,
+          H.binding.wf.map_wf.find?_insert]
+        rw [if_neg]
+        · exact hfind
+        · intro heq
+          exact hidNotMem (by
+            have heq' : id = fv := beq_iff_eq.mp heq
+            exact heq' ▸ hold)
+      · refine ⟨lctx.decls.size, name, dom, bi, .default, ?_⟩
+        simp [nextLctx, LocalContext.mkLocalDecl, LocalContext.find?,
+          H.binding.wf.map_wf.find?_insert] }
+  refine {
+    binding := H.binding.withLocalDecl name dom bi
+    selection := nextSelection
+    nodup := by
+      simp only [nextSelection]
+      apply List.nodup_append.mpr
+      refine ⟨H.nodup, by simp, ?_⟩
+      intro fv hfv fv' hfv'
+      simp only [List.mem_singleton] at hfv'
+      subst fv'
+      exact fun heq => hidNotMem (heq ▸ hfv)
+    close := ?_ }
+  intro body Hbody
+  have hnextDecls : ∀ fv ∈ nextSelection.fvars, ∃ decl,
+      nextLctx.find? fv = some decl := by
+    intro fv hfv
+    rcases nextSelection.declarations fv hfv with
+      ⟨index, declName, type, declBi, kind, hfind⟩
+    exact ⟨.cdecl index fv declName type declBi kind, hfind⟩
+  have holdDecls : ∀ fv ∈ H.selection.fvars, ∃ decl,
+      nextLctx.find? fv = some decl := by
+    intro fv hfv
+    exact hnextDecls fv (by simp [nextSelection, hfv])
+  have hfindOld : ∀ fv ∈ H.selection.fvars,
+      nextLctx.find? fv = lctx.find? fv := by
+    intro fv hfv
+    simp only [nextLctx, LocalContext.mkLocalDecl, LocalContext.find?,
+      H.binding.wf.map_wf.find?_insert]
+    rw [if_neg]
+    intro heq
+    exact hidNotMem (by
+      have heq' : id = fv := beq_iff_eq.mp heq
+      exact heq' ▸ hfv)
+  have happend :
+      LocalContext.mkBindingList false nextLctx nextSelection.fvars body =
+        LocalContext.mkBindingList false nextLctx H.selection.fvars
+          (.forallE name dom (body.abstract1 id) bi) := by
+    rw [LocalContext.mkBindingList_eq_fold hnextDecls (by
+      simp only [nextSelection]
+      apply List.nodup_append.mpr
+      refine ⟨H.nodup, by simp, ?_⟩
+      intro fv hfv fv' hfv'
+      simp only [List.mem_singleton] at hfv'
+      subst fv'
+      exact fun heq => hidNotMem (heq ▸ hfv))]
+    rw [LocalContext.mkBindingList_eq_fold holdDecls H.nodup]
+    simp only [nextSelection, List.foldr_append, List.foldr_cons,
+      List.foldr_nil]
+    simp [LocalContext.mkBindingList1, nextLctx,
+      LocalContext.mkLocalDecl, LocalContext.find?,
+      H.binding.wf.map_wf.find?_insert]
+  have hcloseEq :
+      nextLctx.mkForall nextParams body =
+        lctx.mkForall params (.forallE name dom (body.abstract1 id) bi) := by
+    rw [show nextParams = (nextSelection.fvars.map Expr.fvar).toArray from
+      nextSelection.expressions]
+    rw [show params = (H.selection.fvars.map Expr.fvar).toArray from
+      H.selection.expressions]
+    rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
+      LocalContext.mkForall, LocalContext.mkBinding_eq, happend]
+    exact LocalContext.mkBindingList_congr hfindOld
+  rw [hcloseEq]
+  apply H.close
+  constructor
+  · exact Hdom
+  · apply FVarsIn.abstract1_of
+    exact Hbody.mono fun fv hfv => by
+      simp only [nextSelection, List.mem_append, List.mem_singleton] at hfv
+      rcases hfv with hfv | hfv
+      · exact Or.inr hfv
+      · exact Or.inl hfv
+
 theorem NestedParamOpening.params_size
     (H : NestedParamOpening lctx params type n outLctx tail outParams) :
     outParams.size = params.size + n := by
@@ -21543,6 +21761,64 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => exact Except.WF.throw
 
+/-- Strengthened parameter opening for a closed source telescope.  Besides
+the operational opening trace, the continuation receives a certificate that
+re-closing an expression open over exactly those parameters is closed. -/
+private theorem nestedWithParamsLoop_refinesClosing {α : Type}
+    (k : LocalContext → Expr → Array Expr →
+      Lean4Lean.ElimNestedInductive.M α)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (Hclosing : NestedClosingContext lctx params state.ngen)
+    (Htype : type.FVarsIn (· ∈ Hclosing.selection.fvars))
+    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
+    (Hk : ∀ outLctx tail outParams outState,
+      NestedParamOpening lctx params type n outLctx tail outParams →
+      (HoutClosing :
+        NestedClosingContext outLctx outParams outState.ngen) →
+      tail.FVarsIn (· ∈ HoutClosing.selection.fvars) →
+      outState.newTypes = state.newTypes →
+      outState.nestedAux = state.nestedAux →
+      outState.nextIdx = state.nextIdx →
+      (k outLctx tail outParams env outState).WF Q) :
+    (Lean4Lean.ElimNestedInductive.withParams.loop
+      k lctx type params n env state).WF Q := by
+  induction n generalizing lctx type params state with
+  | zero =>
+    simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
+      Hk lctx type params state .done Hclosing Htype rfl rfl rfl
+  | succ n ih =>
+    cases type with
+    | forallE name dom body bi =>
+      simp only [Lean4Lean.ElimNestedInductive.withParams.loop]
+      simp only [mkFreshId, getNGen, setNGen,
+        Lean4Lean.ElimNestedInductive.instMonadNameGeneratorM,
+        StateT.get, StateT.set, StateT.modifyGet,
+        bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
+      let HnextClosing := Hclosing.push name dom bi Htype.1
+      have HnextType :
+          (body.instantiate1 (.fvar ⟨state.ngen.curr⟩)).FVarsIn
+            (· ∈ HnextClosing.selection.fvars) := by
+        rw [Expr.instantiate1_eq]
+        have HbodyNext :
+            body.FVarsIn (· ∈ HnextClosing.selection.fvars) := by
+          apply Htype.2.mono
+          intro fv hfv
+          change fv ∈ Hclosing.selection.fvars ++ [⟨state.ngen.curr⟩]
+          simp [hfv]
+        apply HbodyNext.instantiate1
+        simp only [Lean4Lean.FVarsIn]
+        change (⟨state.ngen.curr⟩ : FVarId) ∈
+          Hclosing.selection.fvars ++ [⟨state.ngen.curr⟩]
+        simp
+      apply ih (Hclosing := HnextClosing) (Htype := HnextType)
+      intro outLctx tail outParams outState Hresult HresultClosing Htail
+        hnewTypes hnestedAux hnextIdx
+      exact Hk outLctx tail outParams outState (.step Hresult)
+        HresultClosing Htail (by simpa using hnewTypes)
+        (by simpa using hnestedAux) (by simpa using hnextIdx)
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+      | proj => exact Except.WF.throw
+
 theorem ElimNestedInductive.withParams.refinesSelected {α : Type}
     (type : Expr) (nparams : Nat)
     (k : LocalContext → Expr → Array Expr →
@@ -21561,6 +21837,28 @@ theorem ElimNestedInductive.withParams.refinesSelected {α : Type}
       type nparams k env state).WF Q := by
   exact nestedWithParamsLoop_refinesSelected k env state
     (NestedBindingContextWF.empty state.ngen) NestedBoundParams.empty Q Hk
+
+theorem ElimNestedInductive.withParams.refinesClosing {α : Type}
+    (type : Expr) (nparams : Nat)
+    (k : LocalContext → Expr → Array Expr →
+      Lean4Lean.ElimNestedInductive.M α)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (Htype : type.FVarsIn fun _ => False)
+    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
+    (Hk : ∀ lctx tail params outState,
+      NestedParamOpening {} #[] type nparams lctx tail params →
+      (HoutClosing : NestedClosingContext lctx params outState.ngen) →
+      tail.FVarsIn (· ∈ HoutClosing.selection.fvars) →
+      outState.newTypes = state.newTypes →
+      outState.nestedAux = state.nestedAux →
+      outState.nextIdx = state.nextIdx →
+      (k lctx tail params env outState).WF Q) :
+    (Lean4Lean.ElimNestedInductive.withParams
+      type nparams k env state).WF Q := by
+  let Hclosing := NestedClosingContext.empty state.ngen
+  apply nestedWithParamsLoop_refinesClosing k env state Hclosing
+  · exact Htype.mono fun fv hfalse => False.elim hfalse
+  · exact Hk
 
 theorem ElimNestedInductive.withParams.refines {α : Type}
     (type : Expr) (nparams : Nat)
@@ -21758,6 +22056,24 @@ private theorem environmentGet_refines (env : Environment) (name : Name) :
 /-- One generated constructor is obtained from the named source declaration by
 level instantiation, exact removal of the source parameters, and re-closing over
 the new mutual block parameters. -/
+def EnvironmentTypesClosed (env : Environment) : Prop :=
+  ∀ name info, env.find? name = some info →
+    info.type.FVarsIn fun _ => False
+
+theorem VEnvs.WF.environmentTypesClosed
+    (H : VEnvs.WF env ves) : EnvironmentTypesClosed env := by
+  intro name info hfind
+  rcases (H.tr (safety := .unsafe)).find? hfind
+      DefinitionSafety.unsafe_le with ⟨vinfo, _hvfind, Htr⟩
+  exact Htr.2.2.fvarsIn.mono fun fv hfv => by simp at hfv
+
+theorem Expr.ForallTelescope.resultFVarsIn
+    (H : Expr.ForallTelescope outer arity result)
+    (Houter : outer.FVarsIn P) : result.FVarsIn P := by
+  induction H with
+  | nil => exact Houter
+  | cons _ ih => exact ih Houter.2
+
 structure BuiltAuxConstructor
     (env : Environment) (lctx : LocalContext) (As : Array Expr)
     (levels : List Level) (nparams : Nat) (args : Array Expr)
@@ -21771,6 +22087,26 @@ structure BuiltAuxConstructor
     target.type = lctx.mkForall As
       (sourceTail.instantiateRevRange 0 nparams args)
 
+theorem BuiltAuxConstructor.closed
+    (H : BuiltAuxConstructor env lctx As levels nparams args sourceFamily
+      auxFamily sourceName target)
+    (Henv : EnvironmentTypesClosed env)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (· ∈ Hclosing.selection.fvars)) :
+    target.type.FVarsIn fun _ => False := by
+  rcases H.source with
+    ⟨sourceInfo, sourceTail, hfind, Htelescope, _hname, htype⟩
+  rw [htype]
+  apply Hclosing.close
+  apply FVarsIn.instantiateRevRange
+  · apply Htelescope.resultFVarsIn
+    apply ((Henv sourceName sourceInfo hfind).mono fun fv hfalse =>
+      False.elim hfalse).instantiateLevelParams
+    exact Hlevels
+  · exact Hargs
+
 inductive BuiltAuxConstructors
     (env : Environment) (lctx : LocalContext) (As : Array Expr)
     (levels : List Level) (nparams : Nat) (args : Array Expr)
@@ -21783,6 +22119,24 @@ inductive BuiltAuxConstructors
         auxFamily sourceNames targets →
       BuiltAuxConstructors env lctx As levels nparams args sourceFamily
         auxFamily (sourceName :: sourceNames) (target :: targets)
+
+theorem BuiltAuxConstructors.closed
+    (H : BuiltAuxConstructors env lctx As levels nparams args sourceFamily
+      auxFamily sourceNames targets)
+    (Henv : EnvironmentTypesClosed env)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (· ∈ Hclosing.selection.fvars)) :
+    ∀ target ∈ targets, target.type.FVarsIn fun _ => False := by
+  induction H with
+  | nil => simp
+  | cons Hhead Htail ih =>
+    intro target htarget
+    simp only [List.mem_cons] at htarget
+    rcases htarget with rfl | htail
+    · exact Hhead.closed Henv Hclosing Hlevels Hargs
+    · exact ih target htail
 
 private theorem buildAuxConstructors_refines
     (env : Environment) (lctx : LocalContext) (As : Array Expr)
@@ -21845,6 +22199,20 @@ structure BuiltAuxiliary
   name : data.type.name = auxName
   constructors : BuiltAuxConstructors env lctx As levels nparams args
     sourceName auxName sourceInfo.ctors data.type.ctors
+
+def InductiveConstructorsClosed (type : InductiveType) : Prop :=
+  ∀ ctor ∈ type.ctors, ctor.type.FVarsIn fun _ => False
+
+theorem BuiltAuxiliary.constructorsClosed
+    (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
+      auxName sourceInfo data)
+    (Henv : EnvironmentTypesClosed env)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (· ∈ Hclosing.selection.fvars)) :
+    InductiveConstructorsClosed data.type := by
+  exact H.constructors.closed Henv Hclosing Hlevels Hargs
 
 /-- Every cached nested witness is open only over the retained outer
 parameter context selected by the lowering run. -/
@@ -21982,6 +22350,36 @@ theorem GeneratedAuxiliary.auxFVarsIn
   · cases hnew
     exact Hbuilt.nestedFVarsIn HAs hnparams Hlevels Hargs Hparams
 
+/-- Constructor closedness for every queue entry at or beyond a cursor.  Slots
+strictly behind the cursor have already been lowered and need not be processed
+again; newly appended auxiliary families must satisfy this invariant. -/
+def PendingNewTypesClosed (cursor : Nat)
+    (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
+  ∀ j, cursor ≤ j → (hj : j < state.newTypes.size) →
+    InductiveConstructorsClosed state.newTypes[j]
+
+theorem GeneratedAuxiliary.pendingNewTypesClosed
+    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+      sourceName sourceInfo state out)
+    (Henv : EnvironmentTypesClosed env)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (· ∈ Hclosing.selection.fvars))
+    (Hstate : PendingNewTypesClosed cursor state) :
+    PendingNewTypesClosed cursor out.2 := by
+  rcases H.generated with
+    ⟨auxName, nextIdx, data, _Hfresh, Hbuilt, _hresult, hstate⟩
+  rw [hstate]
+  intro j hcursor hj
+  simp only [Array.size_push] at hj
+  by_cases hold : j < state.newTypes.size
+  · simpa [Array.getElem_push, hold] using Hstate j hcursor hold
+  · have heq : j = state.newTypes.size := by omega
+    subst j
+    simpa [Array.getElem_push] using
+      Hbuilt.constructorsClosed Henv Hclosing Hlevels Hargs
+
 /-- A successful cache lookup is backed by an actual previously recorded
 auxiliary entry with the requested nested expression and returned name. -/
 structure CachedNestedAux
@@ -22043,6 +22441,40 @@ inductive SourceSyntaxChecks : List InductiveType → Prop where
   | nil : SourceSyntaxChecks []
   | cons : SourceInductiveSyntax type → SourceSyntaxChecks types →
       SourceSyntaxChecks (type :: types)
+
+theorem SourceConstructorSyntaxes.closed
+    (H : SourceConstructorSyntaxes ctors) :
+    ∀ ctor ∈ ctors, ctor.type.FVarsIn fun _ => False := by
+  induction H with
+  | nil => simp
+  | cons Hhead Htail ih =>
+    intro ctor hctor
+    simp only [List.mem_cons] at hctor
+    rcases hctor with rfl | htail
+    · exact Hhead.closed
+    · exact ih ctor htail
+
+theorem SourceSyntaxChecks.typeClosed
+    (H : SourceSyntaxChecks types) (hmem : type ∈ types) :
+    type.type.FVarsIn fun _ => False := by
+  induction H with
+  | nil => simp at hmem
+  | cons Hhead Htail ih =>
+    simp only [List.mem_cons] at hmem
+    rcases hmem with rfl | htail
+    · exact Hhead.closed
+    · exact ih htail
+
+theorem SourceSyntaxChecks.constructorsClosed
+    (H : SourceSyntaxChecks types) (hmem : type ∈ types) :
+    InductiveConstructorsClosed type := by
+  induction H with
+  | nil => simp at hmem
+  | cons Hhead Htail ih =>
+    simp only [List.mem_cons] at hmem
+    rcases hmem with rfl | htail
+    · exact Hhead.constructors.closed
+    · exact ih htail
 
 private theorem checkConstructorSources_refines
     (env : Environment) (ctors : List Constructor) :
@@ -23760,6 +24192,21 @@ theorem GeneratedAuxiliaryBatch.auxFVarsIn
   | nil => exact Hstate
   | cons Hstep Htail ih =>
     exact ih (Hstep.auxFVarsIn HAs hnparams Hlevels Hargs Hparams Hstate)
+
+theorem GeneratedAuxiliaryBatch.pendingNewTypesClosed
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out)
+    (Henv : EnvironmentTypesClosed env)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (· ∈ Hclosing.selection.fvars))
+    (Hstate : PendingNewTypesClosed cursor state) :
+    PendingNewTypesClosed cursor out.2 := by
+  induction H with
+  | nil => exact Hstate
+  | cons Hstep Htail ih =>
+    exact ih (Hstep.pendingNewTypesClosed Henv Hclosing Hlevels Hargs Hstate)
 
 private theorem generateAuxiliariesLoop_refines
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
@@ -26126,6 +26573,41 @@ theorem NestedReplacement.auxFVarsIn
     · exact Hparams
     · exact Hstate
 
+theorem RecognizedNestedReplacement.pendingNewTypesClosed
+    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+      value state out)
+    (Henv : EnvironmentTypesClosed env)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (· ∈ Hclosing.selection.fvars))
+    (Hstate : PendingNewTypesClosed cursor state) :
+    PendingNewTypesClosed cursor out.2 := by
+  cases H with
+  | cached => exact Hstate
+  | generated _ Hbatch =>
+    exact Hbatch.pendingNewTypesClosed Henv Hclosing Hlevels Hargs Hstate
+
+theorem NestedReplacement.pendingNewTypesClosed
+    (H : NestedReplacement env lctx params As e state out)
+    (Henv : EnvironmentTypesClosed env)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (Hinput : e.FVarsIn (· ∈ Hclosing.selection.fvars))
+    (Hstate : PendingNewTypesClosed cursor state) :
+    PendingNewTypesClosed cursor out.2 := by
+  cases H with
+  | unrecognized => exact Hstate
+  | @recognized value targetName levels out Hcandidate hhead Hresult =>
+    apply Hresult.pendingNewTypesClosed Henv Hclosing
+    · have Hfn := Hinput.getAppFn
+      rw [hhead] at Hfn
+      simpa [Lean4Lean.FVarsIn] using Hfn
+    · intro arg harg
+      apply Hinput.getAppArgsList
+      rw [← Expr.getAppArgs_toList]
+      exact Array.mem_toList_iff.mpr harg
+    · exact Hstate
+
 theorem RecognizedNestedReplacement.newTypesLE
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out) : NestedNewTypesLE state out.2 := by
@@ -26218,6 +26700,43 @@ theorem NestedExprReplacement.namesWF
     exact ihBody (ihValue (ihType (Hnode.namesWF Hindex Hstate)))
   | mdata Hnode Hbody ihBody | proj Hnode Hbody ihBody =>
     exact ihBody (Hnode.namesWF Hindex Hstate)
+
+theorem NestedExprReplacement.pendingNewTypesClosed
+    (H : NestedExprReplacement env lctx params As e state out)
+    (Henv : EnvironmentTypesClosed env)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (Hinput : e.FVarsIn (· ∈ Hclosing.selection.fvars))
+    (Hstate : PendingNewTypesClosed cursor state) :
+    PendingNewTypesClosed cursor out.2 := by
+  induction H with
+  | hit Hnode =>
+    exact Hnode.pendingNewTypesClosed Henv Hclosing Hinput Hstate
+  | bvar Hnode | fvar Hnode | mvar Hnode | sort Hnode | const Hnode
+      | lit Hnode =>
+    exact Hnode.pendingNewTypesClosed Henv Hclosing Hinput Hstate
+  | app Hnode Hfn Harg ihFn ihArg =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihArg Hinput.2
+      (ihFn Hinput.1
+        (Hnode.pendingNewTypesClosed Henv Hclosing
+          ⟨Hinput.1, Hinput.2⟩ Hstate))
+  | lam Hnode Hdom Hbody ihDom ihBody
+      | forallE Hnode Hdom Hbody ihDom ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihBody Hinput.2
+      (ihDom Hinput.1
+        (Hnode.pendingNewTypesClosed Henv Hclosing
+          ⟨Hinput.1, Hinput.2⟩ Hstate))
+  | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihBody Hinput.2.2
+      (ihValue Hinput.2.1
+        (ihType Hinput.1
+          (Hnode.pendingNewTypesClosed Henv Hclosing
+            ⟨Hinput.1, Hinput.2.1, Hinput.2.2⟩ Hstate)))
+  | mdata Hnode Hbody ihBody | proj Hnode Hbody ihBody =>
+    exact ihBody Hinput
+      (Hnode.pendingNewTypesClosed Henv Hclosing Hinput Hstate)
 
 theorem NestedExprReplacement.auxFVarsIn
     (H : NestedExprReplacement env lctx params As e state out)
@@ -26640,6 +27159,45 @@ theorem ElimNestedInductive.lowerConstructor.translation
     ⟨rfl, lctx, tail, As, lowered, openedState, Hopening, Hselection,
       hopenedTypes, hopenedAux, hopenedNext, hsize, Hlowered, rfl⟩
 
+theorem ElimNestedInductive.lowerConstructor.translationPending
+    (params : Array Expr) (nparams : Nat) (ctor : Constructor)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env)
+    (Henv : EnvironmentTypesClosed env)
+    (Hctor : ctor.type.FVarsIn fun _ => False)
+    (Hstate : PendingNewTypesClosed cursor state) :
+    (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams ctor
+      env state).WF fun out =>
+        LoweredConstructorTranslation env params nparams ctor state out ∧
+        PendingNewTypesClosed cursor out.2 := by
+  unfold Lean4Lean.ElimNestedInductive.lowerConstructor
+  apply ElimNestedInductive.withParams.refinesClosing (Htype := Hctor)
+  intro lctx tail As openedState Hopening Hclosing Htail hopenedTypes
+    hopenedAux hopenedNext
+  have hsize : As.size = nparams := Hopening.initial_size
+  simp only [hsize, beq_self_eq_true, if_true]
+  have hsubst : As.size = params.size := by omega
+  refine nestedBind.WF
+    (replaceAllNested_refines env lctx params As tail openedState
+      hsubst hclosures) ?_
+  intro lowered outState Hlowered
+  have HopenedPending : PendingNewTypesClosed cursor openedState := by
+    intro j hcursor hj
+    have hjState : j < state.newTypes.size := by
+      simpa [hopenedTypes] using hj
+    have hvalue : openedState.newTypes[j] = state.newTypes[j] := by
+      have heq := congrArg
+        (fun xs : Array InductiveType => xs[j]!) hopenedTypes
+      simpa [Array.getElem!_eq_getD, Array.getD, hj, hjState] using heq
+    rw [hvalue]
+    exact Hstate j hcursor hjState
+  exact Except.WF.pure ⟨
+    ⟨rfl, lctx, tail, As, lowered, openedState, Hopening,
+      Hclosing.selection, hopenedTypes, hopenedAux, hopenedNext, hsize,
+      Hlowered, rfl⟩,
+    Hlowered.pendingNewTypesClosed Henv Hclosing Htail HopenedPending⟩
+
 /-- Stateful positional correspondence for an entire constructor list. -/
 inductive LoweredConstructorTranslations
     (env : Environment) (params : Array Expr) (nparams : Nat) :
@@ -26745,6 +27303,31 @@ theorem ElimNestedInductive.lowerConstructors.translations
     refine nestedBind.WF (ih nextState) ?_
     intro loweredTail finalState Htail
     exact Except.WF.pure (.cons Hlowered Htail)
+
+theorem ElimNestedInductive.lowerConstructors.translationsPending
+    (params : Array Expr) (nparams : Nat) (ctors : List Constructor)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env)
+    (Henv : EnvironmentTypesClosed env)
+    (Hctors : ∀ ctor ∈ ctors, ctor.type.FVarsIn fun _ => False)
+    (Hstate : PendingNewTypesClosed cursor state) :
+    (ctors.mapM (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams)
+      env state).WF fun out =>
+        LoweredConstructorTranslations env params nparams ctors state out ∧
+        PendingNewTypesClosed cursor out.2 := by
+  induction ctors generalizing state with
+  | nil => exact Except.WF.pure ⟨.nil, Hstate⟩
+  | cons ctor ctors ih =>
+    rw [List.mapM_cons]
+    refine nestedBind.WF
+      (ElimNestedInductive.lowerConstructor.translationPending params nparams
+        ctor env state hparams hclosures Henv (Hctors ctor (by simp)) Hstate) ?_
+    intro lowered nextState Hlowered
+    refine nestedBind.WF (ih nextState
+      (fun tail htail => Hctors tail (by simp [htail])) Hlowered.2) ?_
+    intro loweredTail finalState Htail
+    exact Except.WF.pure ⟨.cons Hlowered.1 Htail.1, Htail.2⟩
 
 theorem ElimNestedInductive.lowerConstructors.shapes
     (params : Array Expr) (nparams : Nat) (ctors : List Constructor)
@@ -26873,6 +27456,25 @@ theorem ElimNestedInductive.lowerInductive.translation
       indType.ctors env state hparams hclosures) ?_
   intro ctors nextState Hctors
   exact Except.WF.pure ⟨rfl, rfl, Hctors⟩
+
+theorem ElimNestedInductive.lowerInductive.translationPending
+    (params : Array Expr) (nparams : Nat) (indType : InductiveType)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env)
+    (Henv : EnvironmentTypesClosed env)
+    (Hsource : InductiveConstructorsClosed indType)
+    (Hstate : PendingNewTypesClosed cursor state) :
+    (Lean4Lean.ElimNestedInductive.lowerInductive params nparams indType
+      env state).WF fun out =>
+        LoweredInductiveTranslation env params nparams indType state out ∧
+        PendingNewTypesClosed cursor out.2 := by
+  unfold Lean4Lean.ElimNestedInductive.lowerInductive
+  refine nestedBind.WF
+    (ElimNestedInductive.lowerConstructors.translationsPending params nparams
+      indType.ctors env state hparams hclosures Henv Hsource Hstate) ?_
+  intro ctors nextState Hctors
+  exact Except.WF.pure ⟨⟨rfl, rfl, Hctors.1⟩, Hctors.2⟩
 
 /-- Semantic state transition for a dynamic lowering-queue iteration. -/
 inductive LowerNextTranslation
@@ -27052,6 +27654,54 @@ theorem ElimNestedInductive.lowerNext.translation
   · rw [dif_neg hidx]
     exact Except.WF.pure (.done (Nat.le_of_not_gt hidx))
 
+theorem ElimNestedInductive.lowerNext.translationPending
+    (params : Array Expr) (nparams i : Nat)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env)
+    (Henv : EnvironmentTypesClosed env)
+    (Hstate : PendingNewTypesClosed i state) :
+    (Lean4Lean.ElimNestedInductive.lowerNext params nparams i env state).WF
+      fun out =>
+        LowerNextTranslation env params nparams i state out ∧
+        PendingNewTypesClosed (i + 1) out.2 := by
+  unfold Lean4Lean.ElimNestedInductive.lowerNext
+  simp only [get, bind, StateT.bind, ReaderT.bind]
+  have hget : ((getThe Lean4Lean.ElimNestedInductive.State :
+      Lean4Lean.ElimNestedInductive.M Lean4Lean.ElimNestedInductive.State)
+      env state) = Except.ok (state, state) := rfl
+  rw [hget]
+  simp only [Except.bind]
+  by_cases hidx : i < state.newTypes.size
+  · rw [dif_pos hidx]
+    refine nestedBind.WF
+      (ElimNestedInductive.lowerInductive.translationPending params nparams
+        state.newTypes[i] env state hparams hclosures Henv
+        (Hstate i (Nat.le_refl _) hidx) Hstate) ?_
+    intro target loweredState Htarget
+    simp only [modify, StateT.modifyGet, pure, StateT.pure, ReaderT.pure,
+      bind, StateT.bind, ReaderT.bind]
+    have HnextPending : PendingNewTypesClosed (i + 1)
+        { loweredState with
+          newTypes := loweredState.newTypes.set! i target } := by
+      intro j hcursor hj
+      have hjLowered : j < loweredState.newTypes.size := by
+        simpa [Array.size_set!] using hj
+      have hne : j ≠ i := by omega
+      have hvalue := Array.getElem_setIfInBounds
+        (xs := loweredState.newTypes) (i := i) (a := target)
+        (j := j) hjLowered
+      rw [if_neg (fun heq : i = j => hne heq.symm)] at hvalue
+      change InductiveConstructorsClosed
+        (loweredState.newTypes.set! i target)[j]
+      rw [show (loweredState.newTypes.set! i target)[j] =
+        loweredState.newTypes[j] by simpa [Array.set!] using hvalue]
+      exact Htarget.2 j (by omega) hjLowered
+    exact Except.WF.pure ⟨.step hidx Htarget.1, HnextPending⟩
+  · rw [dif_neg hidx]
+    exact Except.WF.pure ⟨.done (Nat.le_of_not_gt hidx),
+      fun j hcursor hj => Hstate j (by omega) hj⟩
+
 /-- Complete semantic trace of the dynamically growing lowering queue.  The
 queue stops only once the index reaches the then-current array size; each
 preceding step contains the semantic family translation, including any new
@@ -27211,6 +27861,53 @@ private theorem loweringQueueLoop_refines
     | step hidx Hlowered =>
       exact (ih (i := i + 1) (state := _)).mono fun _ Htail =>
         LoweringQueueTrace.step (LowerNextTranslation.step hidx Hlowered) Htail
+
+/-- The dynamic queue invariant used by auxiliary validation. Every pending
+family has closed constructor types, so processing it preserves the cache
+free-variable invariant and proves every newly appended family closed before
+the cursor can reach it. -/
+private theorem loweringQueueLoop_refinesClosed
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (lctx : LocalContext) (i fuel : Nat)
+    (state : Lean4Lean.ElimNestedInductive.State)
+    (hparams : params.size = nparams)
+    (hclosures : MutualInductivesClosed env)
+    (Henv : EnvironmentTypesClosed env)
+    (Hparams : ∀ param ∈ params, param.FVarsIn P)
+    (Hpending : PendingNewTypesClosed i state)
+    (Hcache : NestedAuxFVarsIn P state) :
+    (Lean4Lean.ElimNestedInductive.run.loop nparams lctx params i fuel
+      env state).WF fun out =>
+        LoweringQueueTrace env params nparams lctx i fuel state out ∧
+        NestedAuxFVarsIn P out.2 := by
+  induction fuel generalizing i state with
+  | zero => exact Except.WF.throw
+  | succ fuel ih =>
+    rw [Lean4Lean.ElimNestedInductive.run.loop]
+    refine nestedBind.WF
+      (ElimNestedInductive.lowerNext.translationPending params nparams i env
+        state hparams hclosures Henv Hpending) ?_
+    intro next nextState Hnext
+    rcases Hnext with ⟨Htranslation, HpendingNext⟩
+    cases Htranslation with
+    | done hbound =>
+      simp only [pure, ReaderT.pure, StateT.pure]
+      exact Except.WF.pure ⟨.done hbound, Hcache⟩
+    | step hidx Hlowered =>
+      rename_i target loweredState
+      have HcacheNext : NestedAuxFVarsIn P
+          { loweredState with
+            newTypes := loweredState.newTypes.set! i target } := by
+        have HcacheLower := Hlowered.auxFVarsIn
+          (Hpending i (Nat.le_refl _) hidx) Hparams Hcache
+        intro nested name hentry
+        exact HcacheLower nested name hentry
+      exact (ih (i := i + 1)
+        (state := { loweredState with
+          newTypes := loweredState.newTypes.set! i target })
+        HpendingNext HcacheNext).mono fun _ Htail =>
+          ⟨LoweringQueueTrace.step (.step hidx Hlowered) Htail.1,
+            Htail.2⟩
 
 /-- End-to-end semantic certificate for nested lowering from the source
 parameter telescope through the complete dynamic family queue. -/
@@ -27457,6 +28154,62 @@ theorem ElimNestedInductive.run.translation
           rfl, Hopening, hnewTypes, hnestedAux, hnextIdx, Hctx,
           ⟨Hselection⟩, Hqueue⟩⟩
 
+/-- End-to-end queue safety from the executable source checks.  This closes
+the dynamic-generation loop: source constructors are closed, every generated
+auxiliary constructor is re-closed over the verified parameter context, and
+therefore every final cache witness is open only over the retained result
+context. -/
+theorem ElimNestedInductive.run.translationClosed
+    (fuel nparams : Nat) (types : List InductiveType)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hclosures : MutualInductivesClosed env)
+    (Henv : EnvironmentTypesClosed env)
+    (Hsources : SourceSyntaxChecks types)
+    (hinitial : state.newTypes = types.toArray)
+    (hempty : state.nestedAux = #[]) :
+    (Lean4Lean.ElimNestedInductive.run fuel nparams types env state).WF
+      fun out =>
+        NestedLoweringRun env fuel nparams types state out ∧
+        NestedAuxFVarsIn (· ∈ out.1.lctx.fvars) out.2 := by
+  cases types with
+  | nil => exact Except.WF.throw
+  | cons first rest =>
+    unfold Lean4Lean.ElimNestedInductive.run
+    apply ElimNestedInductive.withParams.refinesClosing
+      (Htype := Hsources.typeClosed (by simp))
+    intro lctx tail params paramsState Hopening Hclosing Htail hnewTypes
+      hnestedAux hnextIdx
+    have hparams : params.size = nparams := Hopening.initial_size
+    have Hparams : ∀ param ∈ params,
+        param.FVarsIn (· ∈ lctx.fvars) :=
+      Hclosing.selection.fvarsIn Hclosing.binding.wf
+    have Hpending : PendingNewTypesClosed 0 paramsState := by
+      intro j _hj hj
+      have hjState : j < state.newTypes.size := by
+        simpa [hnewTypes] using hj
+      have hvalue : paramsState.newTypes[j] = state.newTypes[j] := by
+        have heq := congrArg
+          (fun xs : Array InductiveType => xs[j]!) hnewTypes
+        simpa [Array.getElem!_eq_getD, Array.getD, hj, hjState] using heq
+      rw [hvalue]
+      have hmember : state.newTypes[j] ∈ first :: rest := by
+        have hmemState : state.newTypes[j] ∈ state.newTypes :=
+          Array.getElem_mem hjState
+        simpa [hinitial] using hmemState
+      exact Hsources.constructorsClosed hmember
+    have Hcache : NestedAuxFVarsIn (· ∈ lctx.fvars) paramsState := by
+      intro nested name hentry
+      rw [hnestedAux, hempty] at hentry
+      simp at hentry
+    exact (loweringQueueLoop_refinesClosed env params nparams lctx 0 fuel
+      paramsState hparams hclosures Henv Hparams Hpending Hcache).mono
+        fun _ Hqueue => by
+          refine ⟨⟨⟨first, rest, tail, paramsState, lctx, params,
+            rfl, Hopening, hnewTypes, hnestedAux, hnextIdx,
+            Hclosing.binding, ⟨Hclosing.selection⟩, Hqueue.1⟩⟩, ?_⟩
+          rw [Hqueue.1.resultContext.1]
+          exact Hqueue.2
+
 /-- Exact state transition for one iteration of the dynamic lowering queue.
 The successful case retains the source family selected before lowering, while
 allowing `lowerInductive` to append freshly discovered auxiliary families
@@ -27577,6 +28330,42 @@ def NestedLoweringResult
     (result : Lean4Lean.ElimNestedInductive.Result) : Prop :=
   ∃ finalState, NestedLoweringRun env fuel nparams types initialState
     (result, finalState)
+
+/-- Lowering result with the dynamic-queue closure argument discharged.  The
+final cache predicate is stated against the exact local context returned in
+the executable restoration record. -/
+def NestedLoweringResultClosed
+    (env : Environment) (fuel nparams : Nat) (types : List InductiveType)
+    (initialState : Lean4Lean.ElimNestedInductive.State)
+    (result : Lean4Lean.ElimNestedInductive.Result) : Prop :=
+  ∃ finalState,
+    NestedLoweringRun env fuel nparams types initialState
+      (result, finalState) ∧
+    NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState
+
+theorem NestedLoweringResultClosed.toResult
+    (H : NestedLoweringResultClosed env fuel nparams types initialState result) :
+    NestedLoweringResult env fuel nparams types initialState result := by
+  rcases H with ⟨finalState, Hrun, _Hcache⟩
+  exact ⟨finalState, Hrun⟩
+
+theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
+    (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
+      initialState res)
+    (hvalid : CheckingEnv.Valid safety restoredEnv venv)
+    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
+    (hlctx : mlctx.lctx = res.lctx)
+    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
+      ({} : TypeChecker.State).ngen.Reserves fv) :
+    (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
+      res).WF fun _ =>
+        ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res := by
+  rcases H with ⟨finalState, Hrun, Hcache⟩
+  apply Hrun.validateNestedAuxiliariesWF hvalid mlctx hmlctx hlctx hfresh
+  have hfvars : res.lctx.fvars = mlctx.vlctx.fvars := by
+    rw [← hlctx, hmlctx.tr.fvars_eq]
+  intro nested name hentry
+  simpa [hfvars] using Hcache nested name hentry
 
 theorem NestedLoweringResult.resultRestorable
     (H : NestedLoweringResult env fuel nparams types initialState result) :
@@ -27859,6 +28648,23 @@ theorem ElimNestedInductive.run'.translation
       ⟨out.2, Hout⟩
   simpa [StateT.run'] using Hprojected
 
+theorem ElimNestedInductive.run'.translationClosed
+    (fuel nparams : Nat) (types : List InductiveType)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hclosures : MutualInductivesClosed env)
+    (Henv : EnvironmentTypesClosed env)
+    (Hsources : SourceSyntaxChecks types)
+    (hinitial : state.newTypes = types.toArray)
+    (hempty : state.nestedAux = #[]) :
+    ((Lean4Lean.ElimNestedInductive.run fuel nparams types env).run'
+      state).WF (NestedLoweringResultClosed env fuel nparams types state) := by
+  have Hrun := ElimNestedInductive.run.translationClosed fuel nparams types env
+    state hclosures Henv Hsources hinitial hempty
+  have Hprojected := Hrun.map fun out Hout =>
+    show NestedLoweringResultClosed env fuel nparams types state out.1 from
+      ⟨out.2, Hout.1, Hout.2⟩
+  simpa [StateT.run'] using Hprojected
+
 /-- Exact outer composition for `Environment.addInductive`, retaining both
 the source-syntax checks and the complete lowering trace for the continuation.
 These are independent inputs to the later source-WF and nested-compilation
@@ -27885,6 +28691,35 @@ theorem Environment.addInductive.checkedLoweringWF
     { lvls := lparams.map .param, newTypes := types.toArray } hclosures
   have Hcombined := Hsources.bind fun _ Hsource =>
     Hlowering.bind fun res Hres => Hfinish res Hsource Hres
+  simpa [Environment.addInductive] using Hcombined
+
+/-- Strengthened outer composition used by the soundness proof.  Unlike the
+compatibility theorem above, this result discharges dynamic auxiliary-family
+closedness and the final cache scoping invariant from the source checks and
+the verified production environment. -/
+theorem Environment.addInductive.checkedLoweringClosedWF
+    (env : Environment) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
+    (fuel : FuelConfig)
+    (hclosures : MutualInductivesClosed env)
+    (Henv : EnvironmentTypesClosed env)
+    (Q : Environment → Prop)
+    (Hfinish : ∀ res,
+      SourceSyntaxChecks types →
+      NestedLoweringResultClosed env fuel.inductiveFuel nparams types
+        { lvls := lparams.map .param, newTypes := types.toArray } res →
+      (Environment.addInductiveAfterLowering env lparams nparams types
+        isUnsafe allowPrimitive fuel res).WF Q) :
+    (Environment.addInductive env lparams nparams types isUnsafe
+      allowPrimitive fuel).WF Q := by
+  have Hsources : (Lean4Lean.checkInductiveSources env types).WF
+      fun _ => SourceSyntaxChecks types :=
+    checkInductiveSources_refines env types
+  have Hcombined := Hsources.bind fun _ Hsource =>
+    (ElimNestedInductive.run'.translationClosed fuel.inductiveFuel nparams
+      types env { lvls := lparams.map .param, newTypes := types.toArray }
+      hclosures Henv Hsource rfl rfl).bind fun res Hres =>
+        Hfinish res Hsource Hres
   simpa [Environment.addInductive] using Hcombined
 
 /-- Compatibility projection of `checkedLoweringWF` for clients whose final
