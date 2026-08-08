@@ -20002,6 +20002,82 @@ structure RecursorTypeTranslations
       env.IsType
         (AddInductive.getRecLevelParams elimLevel lparams).length [] type
 
+/-- Soundness of the executable pre-installation validation loop.  Each
+successful iteration checks the fully closed generated recursor type with the
+recursor's exact universe parameters; erasing `inferImplicit` recovers the
+pre-annotation telescope used by `RecursorTypeTranslations`. -/
+theorem AddInductive.declareRecursors.checkRecursorTypes.translationsWF
+    (Hvalid : CheckingEnv.Valid c.safety c.env venv)
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (recInfos : Array AddInductive.RecInfo) (numMinors numMotives : Nat)
+    (all : List Name) (lctx : LocalContext) (k isUnsafe : Bool)
+    (lparams : List Name) (dIdx : Nat) :
+    (AddInductive.declareRecursors.checkRecursorTypes stats indTypes elimLevel
+      recInfos numMinors numMotives all lctx k isUnsafe lparams dIdx c).WF
+      fun _ => ∀ owner, dIdx ≤ owner →
+        (howner : owner < indTypes.size) →
+        ∃ type : VExpr,
+          TrExprS venv (AddInductive.getRecLevelParams elimLevel lparams) []
+            (AddInductive.declareRecursors.recursorType stats recInfos lctx
+              owner) type ∧
+          venv.IsType
+            (AddInductive.getRecLevelParams elimLevel lparams).length []
+            type := by
+  rw [AddInductive.declareRecursors.checkRecursorTypes]
+  by_cases hidx : dIdx < indTypes.size
+  · rw [dif_pos hidx]
+    let info := AddInductive.declareRecursors.recursorInfo stats indTypes
+      elimLevel recInfos numMinors numMotives all lctx k isUnsafe lparams
+      dIdx []
+    refine (AddInductive.declareRecursors.checkRecursorType.WF Hvalid info).bind
+      fun _ ⟨type, Htype, HisType⟩ => ?_
+    have Htype' : TrExprS venv
+        (AddInductive.getRecLevelParams elimLevel lparams) []
+        (AddInductive.declareRecursors.recursorType stats recInfos lctx
+          dIdx) type := by
+      apply TrExprS.of_inferImplicit
+        (numParams := 1000) (considerRange := false)
+      simpa [info, AddInductive.declareRecursors.recursorInfo] using Htype
+    have HisType' : venv.IsType
+        (AddInductive.getRecLevelParams elimLevel lparams).length [] type := by
+      simpa [info, AddInductive.declareRecursors.recursorInfo] using HisType
+    refine (AddInductive.declareRecursors.checkRecursorTypes.translationsWF
+      Hvalid stats indTypes elimLevel recInfos numMinors numMotives all lctx k
+      isUnsafe lparams (dIdx + 1)).mono fun _ Htail owner hdone howner => ?_
+    by_cases heq : owner = dIdx
+    · subst owner
+      exact ⟨type, Htype', HisType'⟩
+    · exact Htail owner (by omega) howner
+  · rw [dif_neg hidx]
+    exact Except.WF.pure fun owner _ howner =>
+      False.elim (hidx (by omega))
+termination_by indTypes.size - dIdx
+
+/-- The complete executable validation loop supplies precisely the semantic
+recursor-type certificate consumed by the installation loop.  The sole
+non-computational premise excludes `.partial`, which production inductive
+checking never uses and whose visibility order is incompatible with the
+generated `isUnsafe` bit. -/
+theorem AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF
+    (Hvalid : CheckingEnv.Valid c.safety c.env venv)
+    (hnotPartial : c.safety ≠ .partial)
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (recInfos : Array AddInductive.RecInfo) (numMinors numMotives : Nat)
+    (all : List Name) (lctx : LocalContext) (k isUnsafe : Bool)
+    (lparams : List Name) :
+    (AddInductive.declareRecursors.checkRecursorTypes stats indTypes elimLevel
+      recInfos numMinors numMotives all lctx k isUnsafe lparams 0 c).WF
+      fun _ => RecursorTypeTranslations venv lparams elimLevel
+        { c with lctx := lctx } stats indTypes recInfos := by
+  refine (AddInductive.declareRecursors.checkRecursorTypes.translationsWF
+    Hvalid stats indTypes elimLevel recInfos numMinors numMotives all lctx k
+    isUnsafe lparams 0).mono fun _ Hall => ?_
+  exact {
+    notPartial := hnotPartial
+    typeAt := fun owner howner => Hall owner (Nat.zero_le _) howner }
+
 /-- Once the generated telescope itself is translated, all production
 `RecursorVal` metadata is irrelevant to abstract constant construction.
 Rules and the K flag may therefore vary without reopening the typing proof. -/
@@ -21575,8 +21651,7 @@ theorem AddInductive.declareRecursors.bindingWF
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
-    (Htypes : RecursorTypeTranslations currentVEnv c.lparams elimLevel c
-      stats indTypes recInfos)
+    (hnotPartial : c.safety ≠ .partial)
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
@@ -21598,9 +21673,17 @@ theorem AddInductive.declareRecursors.bindingWF
         (AddInductive.declareRecursors.checkRecursorTypes stats indTypes
           elimLevel recInfos (recInfos.flatMap (·.minors)).size
           (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
-          c.lctx k (c.safety != .safe) c.lparams 0 c).WF fun _ => True :=
-      fun _ _ => trivial
-    refine Hcheck.bind fun _ _ => ?_
+          c.lctx k (c.safety != .safe) c.lparams 0 c).WF fun _ =>
+            RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+              stats indTypes recInfos := by
+      simpa using
+        (AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF
+          Hvalid hnotPartial stats indTypes elimLevel recInfos
+          (recInfos.flatMap (·.minors)).size
+          (recInfos.map (·.motive)).size
+          (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)
+          c.lparams)
+    refine Hcheck.bind fun _ Htypes => ?_
     have Hloop := AddInductive.declareRecursors.loop.WF (elimLevel := elimLevel)
       Hcard Hdecl c
       Hcontext Hbindings Hparams hnoalias
@@ -21632,8 +21715,7 @@ theorem AddInductive.declareRecursors.WF
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
-    (Htypes : RecursorTypeTranslations Hcontext.venv c.lparams elimLevel c
-      stats indTypes recInfos)
+    (hnotPartial : c.safety ≠ .partial)
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
@@ -21646,7 +21728,8 @@ theorem AddInductive.declareRecursors.WF
           AddConstants c.safety c.env Hcontext.venv entries outEnv
             outVEnv :=
   AddInductive.declareRecursors.bindingWF Hcontext.checking
-    Hcontext.toBindingContextWF Hcard Hdecl Hbindings Hparams hnoalias Htypes
+    Hcontext.toBindingContextWF Hcard Hdecl Hbindings Hparams hnoalias
+    hnotPartial
     hnprim
 
 /-- Non-circular result of mutual header declaration. It retains typed
@@ -30705,9 +30788,9 @@ structure RecursorPhasesResult
   closed : MutualInductivesClosed outEnv
 
 /-- The exact `getElimLevel`/`mkRecInfos`/`declareRecursors` suffix of
-`AddInductive.run`. The only semantic callback left is translation of the
-freshly built recursor telescopes; all context conservation, installation,
-cardinality, and mutual-lookup obligations are discharged here. -/
+`AddInductive.run`.  The executable `checkRecursorTypes` pass now supplies
+translation of every freshly built telescope, while this theorem discharges
+context conservation, installation, cardinality, and mutual lookup. -/
 theorem ConstructorPhasesResult.recursorPhasesWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -30717,14 +30800,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       sourceEnv indTypes headerEnv}
     (R : ConstructorPhasesResult Hheaders ctorEnv)
     (hclosed : MutualInductivesClosed ctorEnv)
-    (Htypes : ∀ elimLevel recInfos localContext,
-      BindingContextWF localContext →
-      RecInfoBindings localContext recInfos →
-      BoundFVarArray localContext stats.params →
-      RecursorCardinalityCertificate stats recInfos decl →
-      BindingContextLE { c with env := ctorEnv } localContext →
-      RecursorTypeTranslations R.declared.venvCtors localContext.lparams
-        elimLevel localContext stats indTypes recInfos)
+    (hnotPartial : c.safety ≠ .partial)
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
@@ -30748,10 +30824,11 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       R.declared.venvCtors := by
     rw [Hle.lparams_eq]
     exact R.core
-  have Hrecursors := AddInductive.declareRecursors.bindingWF Hvalid Hlocal
-    Hcard Hcore Hbindings Hparams hnoalias
-    (Htypes elimLevel recInfos localContext Hlocal Hbindings Hparams Hcard Hle)
-    hnprim
+  have Hrecursors := AddInductive.declareRecursors.bindingWF
+    (elimLevel := elimLevel) Hvalid Hlocal
+    Hcard Hcore Hbindings Hparams hnoalias (by
+      rw [Hle.safety_eq]
+      exact hnotPartial) hnprim
   have hclosedLocal : MutualInductivesClosed localContext.env := by
     rw [Hle.env_eq]
     exact hclosed
@@ -31801,18 +31878,7 @@ theorem AddInductive.runWithStats.WF
             depth sourceEnv indTypes headerEnv,
           ∃ _ : ConstructorPhasesResult Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
-    (Htypes : ∀ headerEnv ctorEnv
-      (Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-        sourceEnv indTypes headerEnv)
-      (R : ConstructorPhasesResult Hheaders ctorEnv),
-      ∀ elimLevel recInfos localContext,
-        BindingContextWF localContext →
-        RecInfoBindings localContext recInfos →
-        BoundFVarArray localContext stats.params →
-        RecursorCardinalityCertificate stats recInfos decl →
-        BindingContextLE { c with env := ctorEnv } localContext →
-        RecursorTypeTranslations R.declared.venvCtors localContext.lparams
-          elimLevel localContext stats indTypes recInfos)
+    (hnotPartial : c.safety ≠ .partial)
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
@@ -31825,8 +31891,7 @@ theorem AddInductive.runWithStats.WF
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
       rcases Hresult with ⟨headerEnv, Hheaders, R, hclosed⟩
-      exact (R.recursorPhasesWF hclosed
-        (Htypes headerEnv ctorEnv Hheaders R) hnprim).mono
+      exact (R.recursorPhasesWF hclosed hnotPartial hnprim).mono
           fun outEnv Hrecursors =>
             show ∃ headerEnv ctorEnv,
               ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
@@ -31837,10 +31902,9 @@ theorem AddInductive.runWithStats.WF
   simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
 
 /-- End-to-end post-analysis verifier specialized with the verified
-header/constructor formation pipeline. After `checkInductiveTypes` has
-materialized `stats`, the only semantic input left is translation of the
-generated recursor types (plus the explicit freshness side conditions used by
-the production installer). -/
+header/constructor formation pipeline.  Generated recursor types are checked
+by the executable pipeline itself, leaving only its production freshness and
+formation side conditions. -/
 theorem AddInductive.runWithStats.closedWF
     {envTypes : VEnv}
     (Hc : ContextWF c)
@@ -31875,18 +31939,7 @@ theorem AddInductive.runWithStats.closedWF
         fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
-    (Htypes : ∀ headerEnv ctorEnv
-      (Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe depth
-        Hc.venv indTypes headerEnv)
-      (R : ConstructorPhasesResult Hheaders ctorEnv),
-      ∀ elimLevel recInfos localContext,
-        BindingContextWF localContext →
-        RecInfoBindings localContext recInfos →
-        BoundFVarArray localContext stats.params →
-        RecursorCardinalityCertificate stats recInfos decl →
-        BindingContextLE { c with env := ctorEnv } localContext →
-        RecursorTypeTranslations R.declared.venvCtors localContext.lparams
-          elimLevel localContext stats indTypes recInfos)
+    (hnotPartial : c.safety ≠ .partial)
     (hnprimRecursors : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
@@ -31900,7 +31953,7 @@ theorem AddInductive.runWithStats.closedWF
     isUnsafe c
   · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
       hvisible hnprimTypes Hfresh hconsume hlit hproj hunsafe hbound hnprimCtors
-  · exact Htypes
+  · exact hnotPartial
   · exact hnprimRecursors
 
 /-- Front-end composition for `AddInductive.run`: the executable header
@@ -31980,18 +32033,7 @@ structure RunWithStatsVerificationInputs
   freshConstructorConstants : ∀ owner ∈ indTypes.toList,
     ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name
-  recursorTypes : ∀ headerEnv ctorEnv
-    (Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe depth
-      Hc.venv indTypes headerEnv)
-    (R : ConstructorPhasesResult Hheaders ctorEnv),
-    ∀ elimLevel recInfos localContext,
-      BindingContextWF localContext →
-      RecInfoBindings localContext recInfos →
-      BoundFVarArray localContext stats.params →
-      RecursorCardinalityCertificate stats recInfos decl →
-      BindingContextLE { c with env := ctorEnv } localContext →
-      RecursorTypeTranslations R.declared.venvCtors localContext.lparams
-        elimLevel localContext stats indTypes recInfos
+  notPartial : c.safety ≠ .partial
   freshRecursors : ∀ owner (howner : owner < indTypes.size),
     ¬ Kernel.Environment.primitives.contains
       (Lean.mkRecName indTypes[owner]!.name)
@@ -32008,7 +32050,7 @@ theorem RunWithStatsVerificationInputs.verify
   AddInductive.runWithStats.closedWF Hc H.closed Hdecl Hmaterialized
     H.visible H.freshTypes H.freshConstructors H.consume H.literalDisjoint
     H.projections H.unsafeDecl H.universeBound H.freshConstructorConstants
-    H.recursorTypes H.freshRecursors
+    H.notPartial H.freshRecursors
 
 /-- Declaration-facing successful result of the complete ordinary executable
 checker, including the independently materialized declaration and the exact
