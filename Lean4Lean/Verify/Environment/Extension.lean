@@ -74,6 +74,72 @@ theorem VEnv.addDefEq_mono {env₁ env₂ : VEnv} (H : env₁ ≤ env₂) :
     · exact .inl rfl
     · exact .inr (H.defeqs hd)
 
+theorem VEnv.addConsts_mono {env₁ env₂ env₁' env₂' : VEnv}
+    {cis : List VConstVal}
+    (H : env₁ ≤ env₂)
+    (h₁ : env₁.addConsts cis = some env₁')
+    (h₂ : env₂.addConsts cis = some env₂') :
+    env₁' ≤ env₂' := by
+  induction cis generalizing env₁ env₂ env₁' env₂' with
+  | nil =>
+    simp [VEnv.addConsts] at h₁ h₂
+    subst env₁'
+    subst env₂'
+    exact H
+  | cons ci constants ih =>
+    simp only [VEnv.addConsts] at h₁ h₂
+    cases hhead₁ : env₁.addConst ci.name ci.toVConstant with
+    | none => simp [hhead₁] at h₁
+    | some middle₁ =>
+      cases hhead₂ : env₂.addConst ci.name ci.toVConstant with
+      | none => simp [hhead₂] at h₂
+      | some middle₂ =>
+        rw [hhead₁] at h₁
+        rw [hhead₂] at h₂
+        exact ih (VEnv.addConst_mono H hhead₁ hhead₂) h₁ h₂
+
+theorem VEnv.addDefEqs_mono {env₁ env₂ : VEnv} {dfs : List VDefEq}
+    (H : env₁ ≤ env₂) :
+    env₁.addDefEqs dfs ≤ env₂.addDefEqs dfs := by
+  induction dfs generalizing env₁ env₂ with
+  | nil => exact H
+  | cons rule rules ih => exact ih (VEnv.addDefEq_mono H)
+
+theorem VInductBlock.install_mono
+    (H : env₁ ≤ env₂)
+    (h₁ : VInductBlock.install env₁ block = some env₁')
+    (h₂ : VInductBlock.install env₂ block = some env₂') :
+    env₁' ≤ env₂' := by
+  unfold VInductBlock.install at h₁ h₂
+  cases htypes₁ : env₁.addConsts block.types with
+  | none => simp [htypes₁] at h₁
+  | some types₁ =>
+    cases htypes₂ : env₂.addConsts block.types with
+    | none => simp [htypes₂] at h₂
+    | some types₂ =>
+      cases hctors₁ : types₁.addConsts block.ctors with
+      | none => simp [htypes₁, hctors₁] at h₁
+      | some ctors₁ =>
+        cases hctors₂ : types₂.addConsts block.ctors with
+        | none => simp [htypes₂, hctors₂] at h₂
+        | some ctors₂ =>
+          cases hrecs₁ : ctors₁.addConsts block.recursors with
+          | none => simp [htypes₁, hctors₁, hrecs₁] at h₁
+          | some recs₁ =>
+            cases hrecs₂ : ctors₂.addConsts block.recursors with
+            | none => simp [htypes₂, hctors₂, hrecs₂] at h₂
+            | some recs₂ =>
+              simp [htypes₁, hctors₁, hrecs₁] at h₁
+              simp [htypes₂, hctors₂, hrecs₂] at h₂
+              subst env₁'
+              subst env₂'
+              apply VEnv.addDefEqs_mono
+              apply VEnv.addConsts_mono
+                (cis := block.recursors) _ hrecs₁ hrecs₂
+              apply VEnv.addConsts_mono
+                (cis := block.ctors) _ hctors₁ hctors₂
+              exact VEnv.addConsts_mono H htypes₁ htypes₂
+
 theorem VEnv.addConst_eq_of_ne
     {env env' : VEnv}
     (hadd : env.addConst name ci = some env') (hne : name ≠ n) :

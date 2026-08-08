@@ -19812,6 +19812,47 @@ theorem AddConstants.hasPrimitives
     exact ih (Lean4Lean.VEnv.HasPrimitives.addConst Hprimitives
       hnonprim hadd)
 
+/-- Replay a lockstep constant installation in a larger abstract source
+environment.  The production trace and generated constants are unchanged;
+translations and typing are weakened monotonically, and the resulting target
+extends the original abstract target. -/
+theorem AddConstants.rebase
+    (H : AddConstants checkSafety prodEnv base entries outProd outBase)
+    (Hvalid : CheckingEnv.Valid safety prodEnv largerBase)
+    (hsafety : safety ≤ checkSafety)
+    (hbase : base ≤ largerBase) :
+    ∃ largerOut,
+      AddConstants safety prodEnv largerBase entries outProd largerOut ∧
+      outBase ≤ largerOut := by
+  induction H generalizing largerBase with
+  | nil => exact ⟨largerBase, .nil, hbase⟩
+  | cons hn hnprim htr hwf hadd hdelta _Htail ih =>
+    rename_i baseHead ci ci' baseNext rest outProd outBase prodHead
+    have hexists : ∃ largerNext,
+        largerBase.addConst ci.name ci'.toVConstant = some largerNext := by
+      unfold VEnv.addConst
+      cases hfind : largerBase.constants ci.name with
+      | none => simp
+      | some existing =>
+        exfalso
+        rcases Hvalid.tr.find?_iff.mpr ⟨existing, hfind⟩ with
+          ⟨source, hsource, _⟩
+        rw [hn] at hsource
+        contradiction
+    rcases hexists with ⟨largerNext, hlargerAdd⟩
+    have htrLarger :
+        TrConstVal safety largerBase ci ci' :=
+      ⟨(htr.1.sf_mono hsafety).mono hbase, htr.2⟩
+    have hwfLarger : ci'.toVConstant.WF largerBase := hwf.mono hbase
+    have HvalidNext : CheckingEnv.Valid safety (prodHead.add ci)
+        largerNext :=
+      Hvalid.add hn hnprim htrLarger.1 hwfLarger hlargerAdd hdelta
+    have hnext : baseNext ≤ largerNext :=
+      VEnv.addConst_mono hbase hadd hlargerAdd
+    rcases ih HvalidNext hnext with ⟨largerOut, Htail, hout⟩
+    exact ⟨largerOut,
+      .cons hn hnprim htrLarger hwfLarger hlargerAdd hdelta Htail, hout⟩
+
 /-- Lockstep installation preserves concrete/abstract alignment.  This is
 the production-map component of `AddInduct`; it follows from the executable
 staging trace and need not be supplied by a later compilation proof. -/
@@ -21319,6 +21360,40 @@ theorem BlockCertificate.hasPrimitives
   hasPrimitives_addDefEqs (H.staged.recursorsAdded.hasPrimitives
     (H.staged.ctorsAdded.hasPrimitives
       (H.staged.typesAdded.hasPrimitives Hprimitives))) rules
+
+/-- Replay a certified block in a larger abstract environment.  This is the
+core transport used by safe declarations across the unsafe/partial/safe
+models: it reconstructs all three installation stages, their stage-relative
+typing proofs, and monotonicity of the final rule-extended environment. -/
+theorem BlockCertificate.rebase
+    (H : BlockCertificate checkSafety prodEnv base types ctors recursors
+      rules outEnv outBase)
+    (Hvalid : CheckingEnv.Valid safety prodEnv largerBase)
+    (hsafety : safety ≤ checkSafety)
+    (hbase : base ≤ largerBase) :
+    ∃ largerOut,
+      H.block.WF largerBase ∧
+      H.block.install largerBase = some largerOut ∧
+      outBase.addDefEqs rules ≤ largerOut := by
+  rcases H.staged.typesAdded.rebase Hvalid hsafety hbase with
+    ⟨largerTypes, Htypes, htypesLE⟩
+  have HvalidTypes := Htypes.valid Hvalid
+  rcases H.staged.ctorsAdded.rebase HvalidTypes hsafety htypesLE with
+    ⟨largerCtors, Hctors, hctorsLE⟩
+  have HvalidCtors := Hctors.valid HvalidTypes
+  rcases H.staged.recursorsAdded.rebase HvalidCtors hsafety hctorsLE with
+    ⟨largerRecursors, Hrecursors, hrecursorsLE⟩
+  let largerOut := largerRecursors.addDefEqs rules
+  refine ⟨largerOut, ?_, ?_, ?_⟩
+  · exact ⟨largerTypes, largerCtors, largerRecursors,
+      Htypes.abstract, Hctors.abstract, Hrecursors.abstract,
+      fun ci hci => (H.typesWF ci hci).mono hbase,
+      fun ci hci => (H.ctorsWF ci hci).mono htypesLE,
+      fun ci hci => (H.recursorsWF ci hci).mono hctorsLE,
+      fun df hdf => (H.rulesWF df hdf).mono hrecursorsLE⟩
+  · simp [BlockCertificate.block, VInductBlock.install,
+      Htypes.abstract, Hctors.abstract, Hrecursors.abstract, largerOut]
+  · exact VEnv.addDefEqs_mono hrecursorsLE
 
 /-- Lift one unsafe block installation to the three safety-indexed abstract
 environments.  Partial and safe translation traces normally come from
