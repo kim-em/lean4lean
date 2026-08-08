@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Environment.Extension
+import Lean4Lean.Verify.Inductive.Basic
 
 namespace Lean4Lean
 
@@ -110,6 +111,86 @@ theorem checkEqType.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
       exact hfind
     exact (wf.tr (safety := .unsafe)).eq_quotReady hfind'
   | _ => simp_all [( · >>= · ), Except.bind, pure, Pure.pure, Except.pure]
+
+/-- Exact declaration-dispatch bridge for inductives.  The primitive-family
+precheck is retained in the premise so the verified continuation receives the
+same `allowPrimitive` bit as the executable branch. -/
+theorem addInductiveDeclaration.WF
+    (env : Environment) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
+    (Q : Environment → Prop)
+    (Hadd : ∀ allowPrimitive,
+      Environment.checkPrimitiveInductive env lparams nparams types isUnsafe =
+        .ok allowPrimitive →
+      (Environment.addInductive env lparams nparams types isUnsafe
+        allowPrimitive fuel).WF Q) :
+    (addDecl env (.inductDecl lparams nparams types isUnsafe)
+      (check := true) (fuel := fuel)).WF Q := by
+  have Hcheck :
+      (Environment.checkPrimitiveInductive env lparams nparams types
+        isUnsafe).WF fun allowPrimitive =>
+          (Environment.addInductive env lparams nparams types isUnsafe
+            allowPrimitive fuel).WF Q := by
+    intro allowPrimitive hallow
+    exact Hadd allowPrimitive hallow
+  have Hcombined := Hcheck.bind fun _ Hrun => Hrun
+  simpa [addDecl] using Hcombined
+
+/-- Declaration-level composition through source checking and nested
+lowering.  The continuation starts exactly at `addInductiveAfterLowering`
+and receives both the source-syntax certificate and the closed lowering
+trace; primitive recognition has already been synchronized with `addDecl`. -/
+theorem addInductiveDeclaration.checkedLoweringClosedWF
+    (env : Environment) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
+    (hclosures : VerifyInductive.MutualInductivesClosed env)
+    (Henv : VerifyInductive.EnvironmentTypesClosed env)
+    (Q : Environment → Prop)
+    (Hfinish : ∀ allowPrimitive res,
+      Environment.checkPrimitiveInductive env lparams nparams types
+        isUnsafe = .ok allowPrimitive →
+      VerifyInductive.SourceSyntaxChecks types →
+      VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
+        nparams types
+        { lvls := lparams.map .param, newTypes := types.toArray } res →
+      (Environment.addInductiveAfterLowering env lparams nparams types
+        isUnsafe allowPrimitive fuel res).WF Q) :
+    (addDecl env (.inductDecl lparams nparams types isUnsafe)
+      (check := true) (fuel := fuel)).WF Q := by
+  apply addInductiveDeclaration.WF env lparams nparams types isUnsafe fuel Q
+  intro allowPrimitive hallow
+  apply VerifyInductive.Environment.addInductive.checkedLoweringClosedWF
+    env lparams nparams types isUnsafe allowPrimitive fuel hclosures Henv Q
+  intro res Hsource Hlower
+  exact Hfinish allowPrimitive res hallow Hsource Hlower
+
+/-- Well-formed-environment specialization of the declaration bridge.  This
+is the inductive analogue of `addAxiom.WF`/`addTheorem.WF`: all front-end and
+lowering obligations are discharged here, while `Hfinish` is precisely the
+remaining installation/restoration-to-`AddInduct` proof. -/
+theorem addInductiveDeclaration.preservesWF
+    {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (lparams : List Name) (nparams : Nat) (types : List InductiveType)
+    (isUnsafe : Bool) (fuel : FuelConfig)
+    (hclosures : VerifyInductive.MutualInductivesClosed env)
+    (Hfinish : ∀ allowPrimitive res,
+      Environment.checkPrimitiveInductive env lparams nparams types
+        isUnsafe = .ok allowPrimitive →
+      VerifyInductive.SourceSyntaxChecks types →
+      VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
+        nparams types
+        { lvls := lparams.map .param, newTypes := types.toArray } res →
+      (Environment.addInductiveAfterLowering env lparams nparams types
+        isUnsafe allowPrimitive fuel res).WF fun env' =>
+          ∃ ves' : VEnvs, ves'.WF env' ∧
+            ∀ safety, ves.venv safety ≤ ves'.venv safety) :
+    (addDecl env (.inductDecl lparams nparams types isUnsafe)
+      (check := true) (fuel := fuel)).WF fun env' =>
+        ∃ ves' : VEnvs, ves'.WF env' ∧
+          ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  exact addInductiveDeclaration.checkedLoweringClosedWF env lparams nparams
+    types isUnsafe fuel hclosures
+      (VerifyInductive.VEnvs.WF.environmentTypesClosed wf) _ Hfinish
 
 /-- Declaration forms currently represented by `TrEnv`. Recursive unsafe definitions and
 mutual definitions require a recursive-body relation, while inductives require a

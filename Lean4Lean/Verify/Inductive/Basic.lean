@@ -19841,7 +19841,7 @@ theorem AddConstants.deltaConservative
       simp [hdelta] at hfoundDelta
     · exact hnext
 
-theorem Aligned.addDefEqs
+theorem aligned_addDefEqs
     (H : Aligned safety C venv) (rules : List VDefEq) :
     Aligned safety C (venv.addDefEqs rules) := by
   induction rules generalizing venv with
@@ -21358,14 +21358,41 @@ theorem BlockCertificate.addInduct
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
     (hsourceAligned : Aligned checkSafety prodEnv.constants venv)
-    (haligned : ∀ safety, Aligned safety prodEnv.constants venv →
+    (halignedOther : ∀ safety, safety ≠ checkSafety →
+      Aligned safety prodEnv.constants venv →
       Aligned safety outEnv.constants (outVEnv.addDefEqs rules))
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
       (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
     AddInduct prodEnv.constants venv decl outEnv.constants
+      (outVEnv.addDefEqs rules) := by
+  apply AddInduct.intro H.block hdecl hcompile H.wf H.install
+  · intro safety Haligned
+    by_cases hsafety : safety = checkSafety
+    · subst safety
+      exact aligned_addDefEqs (H.staged.aligned Haligned) rules
+    · exact halignedOther safety hsafety Haligned
+  · exact H.staged.deltaConservative hsourceAligned
+  · exact heq
+
+/-- Install a certified inductive block directly into the concrete
+environment-refinement judgment.  This is the abstract/executable seam used
+by the inductive branch of declaration verification. -/
+theorem BlockCertificate.trEnv'
+    {decl : VInductDecl}
+    (H : BlockCertificate checkSafety prodEnv venv types ctors recursors
+      rules outEnv outVEnv)
+    (hdecl : decl.WF venv)
+    (hcompile : decl.CompilesTo venv H.block)
+    (hsource : TrEnv' checkSafety prodEnv.constants quotInit venv)
+    (halignedOther : ∀ safety, safety ≠ checkSafety →
+      Aligned safety prodEnv.constants venv →
+      Aligned safety outEnv.constants (outVEnv.addDefEqs rules))
+    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+    TrEnv' checkSafety outEnv.constants quotInit
       (outVEnv.addDefEqs rules) :=
-  .intro H.block hdecl hcompile H.wf H.install haligned
-    (H.staged.deltaConservative hsourceAligned) heq
+  .induct hdecl
+    (H.addInduct hdecl hcompile hsource.aligned halignedOther heq) hsource
 
 /-- The first executable check on every source inductive header is an ordinary
 type-checker run. At an empty local context its successful result already
