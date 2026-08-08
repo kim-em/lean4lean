@@ -35572,6 +35572,38 @@ theorem NestedLoweringResultClosed.sourceFinalMappingAtFreshAligned
   exact ⟨fvars, stepState, target, loweredState, hresultParams, hnodup,
     by simpa [hparams] using hsize, Hmapping, htarget⟩
 
+/-- Original family headers need no semantic restoration: lowering preserves
+them verbatim, so the positional translation proved for the lowered block is
+already the independently checked translation of the corresponding source
+header.  This theorem deliberately uses the list position fixed by the
+lowering trace, rather than recovering the owner by name. -/
+theorem NestedLoweringResultClosed.sourceHeaderTranslationAtFresh
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (hempty : initialState.nestedAux = #[])
+    (Hcore : TrInductDeclCore sourceVEnv lparams nparams result.types
+      isUnsafe decl envTypes envCtors)
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length) :
+    ∃ hdecl : familyIdx < decl.types.length,
+      TrSourceConst sourceVEnv lparams sourceTypes[familyIdx].name
+        sourceTypes[familyIdx].type
+        (decl.types[familyIdx]'hdecl).toVConstVal := by
+  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+    ⟨_fvars, _stepState, target, _loweredState, _hparams, _hnodup,
+      _hsize, Hmapping, htarget⟩
+  obtain ⟨hsourceCore, htargetEq⟩ :=
+    _root_.getElem?_eq_some_iff.mp htarget
+  have hdecl : familyIdx < decl.types.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hcore]
+    exact hsourceCore
+  have Hheader :=
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hcore familyIdx
+      hsourceCore hdecl).header
+  refine ⟨hdecl, ?_⟩
+  rw [← Hmapping.name, ← Hmapping.type]
+  simpa [htargetEq] using Hheader
+
 /-- End-to-end positional constructor mapping for an original source family.
 This is the alignment consumed by restoration: it identifies the exact
 lowered constructor at the same family and constructor indices while retaining
