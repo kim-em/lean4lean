@@ -24277,6 +24277,28 @@ inductive SourceSyntaxChecks : List InductiveType → Prop where
   | cons : SourceInductiveSyntax type → SourceSyntaxChecks types →
       SourceSyntaxChecks (type :: types)
 
+theorem SourceConstructorSyntaxes.getElem
+    (H : SourceConstructorSyntaxes ctors) (i : Nat)
+    (hi : i < ctors.length) : SourceConstructorSyntax ctors[i] := by
+  induction H generalizing i with
+  | nil => simp at hi
+  | cons Hhead Htail ih =>
+    cases i with
+    | zero => exact Hhead
+    | succ i =>
+      apply ih i
+
+theorem SourceSyntaxChecks.getElem
+    (H : SourceSyntaxChecks types) (i : Nat)
+    (hi : i < types.length) : SourceInductiveSyntax types[i] := by
+  induction H generalizing i with
+  | nil => simp at hi
+  | cons Hhead Htail ih =>
+    cases i with
+    | zero => exact Hhead
+    | succ i =>
+      apply ih i
+
 theorem SourceConstructorSyntaxes.closed
     (H : SourceConstructorSyntaxes ctors) :
     ∀ ctor ∈ ctors, ctor.type.FVarsIn fun _ => False := by
@@ -31648,6 +31670,36 @@ inductive LoweredConstructorMappings
       LoweredConstructorMappings env params nparams finalResult
         (source :: sources) state (step.1 :: out.1, out.2)
 
+theorem LoweredConstructorMappings.length
+    (H : LoweredConstructorMappings env params nparams finalResult sources
+      state out) : out.1.length = sources.length := by
+  induction H with
+  | nil => rfl
+  | cons Hhead Htail ih => simp [ih]
+
+/-- Positional projection of the state-threaded constructor mapping.  Both
+the source and target list lookups are retained, so subsequent restoration
+folds can align their metadata without a name-based uniqueness assumption. -/
+theorem LoweredConstructorMappings.mappingAt
+    (H : LoweredConstructorMappings env params nparams finalResult sources
+      state out) (i : Nat) (hi : i < sources.length) :
+    ∃ source target before after,
+      sources[i]? = some source ∧
+      out.1[i]? = some target ∧
+      LoweredConstructorMapping env params nparams finalResult source before
+        (target, after) := by
+  induction H generalizing i with
+  | nil => simp at hi
+  | @cons source state step sources out Hhead Htail ih =>
+    cases i with
+    | zero => exact ⟨source, step.1, state, step.2, by simp, by simp, Hhead⟩
+    | succ i =>
+      simp only [List.length_cons, Nat.add_lt_add_iff_right] at hi
+      rcases ih i hi with
+        ⟨tailSource, tailTarget, before, after, hsource, htarget, Hmapping⟩
+      exact ⟨tailSource, tailTarget, before, after, by simpa, by simpa,
+        Hmapping⟩
+
 inductive LoweredConstructorReopenings
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (finalResult : Lean4Lean.ElimNestedInductive.Result)
@@ -33030,6 +33082,39 @@ theorem NestedLoweringResultClosed.sourceFinalMappingAtFreshAligned
   rw [← hparams] at Hmapping
   exact ⟨fvars, stepState, target, loweredState, hresultParams, hnodup,
     by simpa [hparams] using hsize, Hmapping, htarget⟩
+
+/-- End-to-end positional constructor mapping for an original source family.
+This is the alignment consumed by restoration: it identifies the exact
+lowered constructor at the same family and constructor indices while retaining
+the final parameter presentation needed by the expression inverse. -/
+theorem NestedLoweringResultClosed.sourceConstructorMappingAtFreshAligned
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (hempty : initialState.nestedAux = #[])
+    (familyIdx ctorIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
+    (hctor : ctorIdx < sourceTypes[familyIdx].ctors.length) :
+    ∃ fvars : List FVarId, ∃ target sourceCtor targetCtor before after,
+      result.params = (fvars.map Expr.fvar).toArray ∧
+      fvars.Nodup ∧
+      result.params.size = nparams ∧
+      SourceConstructorSyntax sourceTypes[familyIdx].ctors[ctorIdx] ∧
+      sourceTypes[familyIdx].ctors[ctorIdx]? = some sourceCtor ∧
+      target.ctors[ctorIdx]? = some targetCtor ∧
+      LoweredConstructorMapping env result.params nparams result sourceCtor
+        before (targetCtor, after) ∧
+      result.types[familyIdx]? = some target := by
+  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+    ⟨fvars, stepState, target, loweredState, hparams, hnodup, hsize,
+      Hmapping, htarget⟩
+  rcases Hmapping.constructors.mappingAt ctorIdx hctor with
+    ⟨sourceCtor, targetCtor, before, after, hsourceCtor, htargetCtor,
+      HctorMapping⟩
+  exact ⟨fvars, target, sourceCtor, targetCtor, before, after, hparams,
+    hnodup, hsize,
+    (Hsources.getElem familyIdx hfamily).constructors.getElem ctorIdx hctor,
+    hsourceCtor, htargetCtor, HctorMapping, htarget⟩
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
