@@ -23937,6 +23937,73 @@ theorem AddInductive.run.closedWF
       exact ⟨c', stats, decl, depth, Hc', Hdecl', Hmaterialized,
         headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
 
+/-- Close a verified ordinary executable run against the independent
+`VEnv.AddInduct` specification once the generated rule batch and compilation
+certificate are supplied. -/
+theorem VerifiedInductiveRunResult.addInductOfOrdinaryCompilation
+    (Hrun : VerifiedInductiveRunResult source skeleton envTypes types
+      numNested outEnv)
+    (Hcompile : ∀ c' stats decl depth
+      (Hc' : ContextWF c')
+      (Hdecl : TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
+        types.toArray.toList (source.safety != .safe) decl envTypes)
+      (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth)
+      headerEnv ctorEnv
+      (Hheaders : DeclaredHeadersResult c' stats decl skeleton.nparams
+        (source.safety != .safe) depth Hc'.venv types.toArray headerEnv)
+      (R : ConstructorPhasesResult Hheaders ctorEnv)
+      (Hrecursors : RecursorPhasesResult R outEnv),
+      ∃ rules : List VDefEq,
+        ∃ hrules : (∀ df ∈ rules, df.WF Hrecursors.outVEnv),
+        types.toArray.toList ≠ [] ∧
+        OrdinaryCompilationCertificate Hc'.venv decl
+          (Hrecursors.blockCertificate rules hrules).block) :
+    ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
+      ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
+        VEnv.AddInduct Hc'.venv decl finalVEnv := by
+  rcases Hrun with ⟨c', stats, decl, depth, Hc', Hdecl, Hmaterialized,
+    headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
+  rcases Hcompile c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
+    ctorEnv Hheaders R Hrecursors with
+    ⟨rules, hrules, hnonempty, Hcompilation⟩
+  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs rules,
+    Hrecursors.addInductOfOrdinaryCompilation rules hrules hnonempty
+      Hcompilation⟩
+
+/-- Nested counterpart of
+`VerifiedInductiveRunResult.addInductOfOrdinaryCompilation`. -/
+theorem VerifiedInductiveRunResult.addInductOfNestedCompilation
+    (Hrun : VerifiedInductiveRunResult source skeleton envTypes types
+      numNested outEnv)
+    (Hcompile : ∀ c' stats decl depth
+      (Hc' : ContextWF c')
+      (Hdecl : TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
+        types.toArray.toList (source.safety != .safe) decl envTypes)
+      (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth)
+      headerEnv ctorEnv
+      (Hheaders : DeclaredHeadersResult c' stats decl skeleton.nparams
+        (source.safety != .safe) depth Hc'.venv types.toArray headerEnv)
+      (R : ConstructorPhasesResult Hheaders ctorEnv)
+      (Hrecursors : RecursorPhasesResult R outEnv),
+      ∃ rules : List VDefEq,
+        ∃ hrules : (∀ df ∈ rules, df.WF Hrecursors.outVEnv),
+        types.toArray.toList ≠ [] ∧
+        Nonempty (NestedCompilationCertificate Hc'.venv decl
+          (Hrecursors.blockCertificate rules hrules).block)) :
+    ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
+      ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
+        VEnv.AddInduct Hc'.venv decl finalVEnv := by
+  rcases Hrun with ⟨c', stats, decl, depth, Hc', Hdecl, Hmaterialized,
+    headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
+  rcases Hcompile c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
+    ctorEnv Hheaders R Hrecursors with
+    ⟨rules, hrules, hnonempty, ⟨Hcompilation⟩⟩
+  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs rules,
+    Hrecursors.addInductOfNestedCompilation rules hrules hnonempty
+      Hcompilation⟩
+
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/
