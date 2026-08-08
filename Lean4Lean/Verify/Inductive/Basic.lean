@@ -19693,6 +19693,65 @@ theorem AddConstants.ofDeclareInductiveTypeInfos
 list in lockstep with its abstract constants.  Constructor metadata is kept
 parametric because only the source name, type, level parameters, and safety
 participate in the translation relation. -/
+inductive ConstructorListEntries
+    (mkInfo : Nat → Constructor → ConstructorVal) :
+    Nat → List Constructor → List (ConstantInfo × VConstVal) → Prop
+  | nil : ConstructorListEntries mkInfo start [] []
+  | cons : ConstructorListEntries mkInfo (start + 1) ctors entries →
+      ConstructorListEntries mkInfo start (ctor :: ctors)
+        ((.ctorInfo (mkInfo start ctor), value) :: entries)
+
+/-- Family-major source alignment of the complete constructor-entry batch. -/
+inductive ConstructorTypeEntries
+    (mkInfo : InductiveType → Nat → Constructor → ConstructorVal) :
+    List InductiveType → List (ConstantInfo × VConstVal) → Prop
+  | nil : ConstructorTypeEntries mkInfo [] []
+  | cons : ConstructorListEntries (mkInfo owner) 0 owner.ctors head →
+      ConstructorTypeEntries mkInfo owners tail →
+      ConstructorTypeEntries mkInfo (owner :: owners) (head ++ tail)
+
+theorem ConstructorListEntries.findSource
+    {initial : Nat}
+    (H : ConstructorListEntries
+      (AddInductive.constructorInfo stats lparams isUnsafe owner)
+      initial ctors entries)
+    (hctor : ctor ∈ ctors) :
+    ∃ info : ConstructorVal, ∃ value : VConstVal,
+      (.ctorInfo info, value) ∈ entries ∧
+      info.name = ctor.name ∧ info.type = ctor.type := by
+  cases H with
+  | nil => simp at hctor
+  | cons Htail =>
+    rename_i tail tailEntries headValue
+    simp only [List.mem_cons] at hctor
+    rcases hctor with rfl | htail
+    · exact ⟨AddInductive.constructorInfo stats lparams isUnsafe owner
+        initial ctor, headValue, by simp,
+        by simp [AddInductive.constructorInfo],
+        by simp [AddInductive.constructorInfo]⟩
+    · rcases Htail.findSource htail with
+        ⟨info, value, hmem, hname, htype⟩
+      exact ⟨info, value, by simp [hmem], hname, htype⟩
+
+theorem ConstructorTypeEntries.findSource
+    (H : ConstructorTypeEntries
+      (AddInductive.constructorInfo stats lparams isUnsafe) types entries)
+    (howner : owner ∈ types) (hctor : ctor ∈ owner.ctors) :
+    ∃ info : ConstructorVal, ∃ value : VConstVal,
+      (.ctorInfo info, value) ∈ entries ∧
+      info.name = ctor.name ∧ info.type = ctor.type := by
+  induction H generalizing owner with
+  | nil => simp at howner
+  | cons Hhead Htail ih =>
+    simp only [List.mem_cons] at howner
+    rcases howner with rfl | htailOwner
+    · rcases Hhead.findSource hctor with
+        ⟨info, value, hmem, hname, htype⟩
+      exact ⟨info, value, List.mem_append_left _ hmem, hname, htype⟩
+    · rcases ih htailOwner hctor with
+        ⟨info, value, hmem, hname, htype⟩
+      exact ⟨info, value, List.mem_append_right _ hmem, hname, htype⟩
+
 theorem AddConstants.ofConstructorList
     {env : Environment} {venv sourceEnv : VEnv}
     {ctors : List Constructor} {values : List VConstVal}
@@ -19718,6 +19777,7 @@ theorem AddConstants.ofConstructorList
         ∃ entries : List (ConstantInfo × VConstVal),
         entries.map Prod.snd = values ∧
         AddConstants safety env venv entries result.2 outVEnv ∧
+        ConstructorListEntries mkInfo start ctors entries ∧
         (∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
           ∃ info : ConstructorVal,
             entry.1 = ConstantInfo.ctorInfo info) ∧
@@ -19726,7 +19786,7 @@ theorem AddConstants.ofConstructorList
           entry.1 ≠ ConstantInfo.inductInfo value) := by
   induction Hentries generalizing start env venv with
   | nil =>
-    exact Except.WF.pure ⟨venv, [], rfl, .nil, by simp, by simp⟩
+    exact Except.WF.pure ⟨venv, [], rfl, .nil, .nil, by simp, by simp⟩
   | @cons ctor ci' ctors values Hentry _ ih =>
     have hnprimHead := hnprim ctor (by simp)
     have hnprimTail : ∀ ctor ∈ ctors,
@@ -19767,7 +19827,8 @@ theorem AddConstants.ofConstructorList
             hnprimTail).mono
             fun result Hrest => by
               rcases Hrest with
-                ⟨outVEnv, entries, hvalues, Hinstalled, hctor, hnind⟩
+                ⟨outVEnv, entries, hvalues, Hinstalled, Haligned,
+                  hctor, hnind⟩
               have hvalues' :
                   (((.ctorInfo info, ci') :: entries).map Prod.snd) =
                     ci' :: values := by simp [hvalues]
@@ -19775,7 +19836,7 @@ theorem AddConstants.ofConstructorList
                 (ci := .ctorInfo info) (ci' := ci') hfindInfo hnprimInfo
                 htr hwf haddHead rfl Hinstalled
               exact ⟨outVEnv, (.ctorInfo info, ci') :: entries,
-                hvalues', Hinstalled', by
+                hvalues', Hinstalled', .cons Haligned, by
                   intro entryInfo entryValue hentry
                   simp only [List.mem_cons] at hentry
                   rcases hentry with hhead | htail
@@ -19824,6 +19885,7 @@ theorem AddConstants.ofConstructorTypes
           entries.map Prod.snd =
             targets.flatMap (fun target : VInductiveType => target.ctors) ∧
           AddConstants safety env venv entries outEnv outVEnv ∧
+          ConstructorTypeEntries mkInfo types entries ∧
           (∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
             ∃ info : ConstructorVal,
               entry.1 = ConstantInfo.ctorInfo info) ∧
@@ -19832,7 +19894,7 @@ theorem AddConstants.ofConstructorTypes
             entry.1 ≠ ConstantInfo.inductInfo value) := by
   induction Hentries generalizing env venv with
   | nil =>
-    exact Except.WF.pure ⟨venv, [], rfl, .nil, by simp, by simp⟩
+    exact Except.WF.pure ⟨venv, [], rfl, .nil, .nil, by simp, by simp⟩
   | @cons owner target types targets Hhead _ ih =>
     have hnprimHead : ∀ ctor ∈ owner.ctors,
         ¬ Kernel.Environment.primitives.contains ctor.name := by
@@ -19851,7 +19913,7 @@ theorem AddConstants.ofConstructorTypes
     simpa using Hinner.bind fun result Hresult => by
       rcases Hresult with
         ⟨middleVEnv, headEntries, hheadValues, HheadInstalled,
-          hheadCtor, hheadNind⟩
+          HheadAligned, hheadCtor, hheadNind⟩
       have validInstalled : ∀ {priorEnv nextEnv : Environment}
           {priorVEnv nextVEnv : VEnv} {entries},
           AddConstants safety priorEnv priorVEnv entries nextEnv nextVEnv →
@@ -19879,13 +19941,14 @@ theorem AddConstants.ofConstructorTypes
         fun outEnv Htail => by
           rcases Htail with
             ⟨finalVEnv, tailEntries, htailValues, HtailInstalled,
-              htailCtor, htailNind⟩
+              HtailAligned, htailCtor, htailNind⟩
           have hvalues : (headEntries ++ tailEntries).map Prod.snd =
               (target :: targets).flatMap
                 (fun target : VInductiveType => target.ctors) := by
             simp [hheadValues, htailValues]
           exact ⟨finalVEnv, headEntries ++ tailEntries, hvalues,
-            HheadInstalled.append HtailInstalled, by
+            HheadInstalled.append HtailInstalled,
+            .cons HheadAligned HtailAligned, by
               intro entryInfo entryValue hentry
               rcases List.mem_append.mp hentry with hhead | htail
               · exact hheadCtor (entryInfo, entryValue) hhead
@@ -20379,6 +20442,9 @@ structure DeclaredConstructorsResult
   values : entries.map Prod.snd = decl.constructorConstants
   installed : AddConstants c.safety headerEnv H.context.venv entries
     outEnv venvCtors
+  sourceAligned : ConstructorTypeEntries
+    (AddInductive.constructorInfo stats c.lparams isUnsafe)
+    indTypes.toList entries
   production : ∀ entry ∈ entries,
     ∃ info : ConstructorVal, entry.1 = ConstantInfo.ctorInfo info
   nonInductive : ∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
@@ -20422,7 +20488,8 @@ theorem AddInductive.declareConstructors.WF
     pure env).WF _
   exact Hfold.mono fun outEnv Hout => by
     rcases Hout with
-      ⟨venvCtors, entries, hvalues, Hinstalled, hproduction, hnind⟩
+      ⟨venvCtors, entries, hvalues, Hinstalled, Haligned, hproduction,
+        hnind⟩
     have hctorsAdded : H.context.venv.addConsts decl.constructorConstants =
         some venvCtors := by
       simp only [VInductDecl.constructorConstants]
@@ -20437,6 +20504,7 @@ theorem AddInductive.declareConstructors.WF
       entries := entries
       values := by simpa [VInductDecl.constructorConstants] using hvalues
       installed := Hinstalled
+      sourceAligned := by simpa [mkInfo] using Haligned
       production := hproduction
       nonInductive := hnind
       translation := Htranslation
