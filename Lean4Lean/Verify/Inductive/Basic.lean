@@ -23715,6 +23715,26 @@ structure NestedAuxNamesWF
     (nested, name) ∈ state.nestedAux →
     (`_nested).isPrefixOf name = true
 
+def NestedAuxNamesFresh (env : Environment)
+    (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
+  ∀ nested name, (nested, name) ∈ state.nestedAux →
+    env.contains name = false
+
+theorem NestedAuxNamesFresh.empty
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hempty : state.nestedAux = #[]) : NestedAuxNamesFresh env state := by
+  intro nested name hentry
+  rw [hempty] at hentry
+  simp at hentry
+
+theorem NestedAuxNamesFresh.ofCacheEq
+    (H : NestedAuxNamesFresh env source)
+    (haux : target.nestedAux = source.nestedAux) :
+    NestedAuxNamesFresh env target := by
+  intro nested name hentry
+  apply H nested name
+  simpa [haux] using hentry
+
 private theorem nested_isPrefix_appendIndexAfter
     (sourceName : Name) (index : Nat) :
     (`_nested).isPrefixOf
@@ -30528,10 +30548,28 @@ def NestedAuxMapNamesReserved
   ∀ (name : Name) (nested : Expr), map[name]? = some nested →
     (`_nested).isPrefixOf name = true
 
+def NestedAuxMapNamesFresh (env : Environment)
+    (map : Std.TreeMap Name Expr Name.quickCmp) : Prop :=
+  ∀ (name : Name) (nested : Expr), map[name]? = some nested →
+    env.contains name = false
+
 theorem NestedAuxMapNamesReserved.insert
     (Hmap : NestedAuxMapNamesReserved map)
     (Hname : (`_nested).isPrefixOf name = true) :
     NestedAuxMapNamesReserved (map.insert name nested) := by
+  intro query value hfind
+  rw [Std.TreeMap.getElem?_insert] at hfind
+  split at hfind
+  next hcmp =>
+    cases hfind
+    rw [← Std.LawfulEqCmp.eq_of_compare hcmp]
+    exact Hname
+  next => exact Hmap query value hfind
+
+theorem NestedAuxMapNamesFresh.insert
+    (Hmap : NestedAuxMapNamesFresh env map)
+    (Hname : env.contains name = false) :
+    NestedAuxMapNamesFresh env (map.insert name nested) := by
   intro query value hfind
   rw [Std.TreeMap.getElem?_insert] at hfind
   split at hfind
@@ -30575,6 +30613,24 @@ theorem nestedAuxFold_namesReserved
       (`_nested).isPrefixOf entry.2 = true)
     (Hmap : NestedAuxMapNamesReserved map) :
     NestedAuxMapNamesReserved
+      (entries.foldl
+        (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+          (entry : Expr × Name) => map.insert entry.2 entry.1)
+        map) := by
+  induction entries generalizing map with
+  | nil => exact Hmap
+  | cons entry entries ih =>
+    simp only [List.foldl_cons]
+    apply ih
+    · intro tail htail
+      exact Hentries tail (by simp [htail])
+    · exact Hmap.insert (Hentries entry (by simp))
+
+theorem nestedAuxFold_namesFresh
+    (entries : List (Expr × Name))
+    (Hentries : ∀ entry ∈ entries, env.contains entry.2 = false)
+    (Hmap : NestedAuxMapNamesFresh env map) :
+    NestedAuxMapNamesFresh env
       (entries.foldl
         (fun (map : Std.TreeMap Name Expr Name.quickCmp)
           (entry : Expr × Name) => map.insert entry.2 entry.1)
@@ -30723,6 +30779,21 @@ theorem GeneratedAuxiliary.namesWF
       rw [hname]
       exact nested_isPrefix_appendIndexAfter sourceName index
 
+theorem GeneratedAuxiliary.namesFresh
+    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+      sourceName sourceInfo state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 := by
+  rcases H.generated with
+    ⟨auxName, nextIdx, data, Hfresh, Hbuilt, hresult, hstate⟩
+  rw [hstate]
+  intro nested name hentry
+  simp only [Array.mem_push] at hentry
+  rcases hentry with hold | hnew
+  · exact Hstate nested name hold
+  · cases hnew
+    exact Hfresh.fresh
+
 theorem GeneratedAuxiliaryBatch.newTypesLE
     (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
       args result sourceNames state out) : NestedNewTypesLE state out.2 := by
@@ -30745,6 +30816,15 @@ theorem GeneratedAuxiliaryBatch.namesWF
   induction H with
   | nil => exact Hstate
   | cons Hstep Htail ih => exact ih (Hstep.namesWF Hindex Hstate)
+
+theorem GeneratedAuxiliaryBatch.namesFresh
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 := by
+  induction H with
+  | nil => exact Hstate
+  | cons Hstep Htail ih => exact ih (Hstep.namesFresh Hstate)
 
 /-- Every source family traversed by the mutual-generation loop has a
 concrete auxiliary construction whose paired cache entry and lowered family
@@ -31833,6 +31913,15 @@ theorem RecognizedNestedReplacement.namesWF
   | cached => exact Hstate
   | generated _ Hbatch => exact Hbatch.namesWF Hindex Hstate
 
+theorem RecognizedNestedReplacement.namesFresh
+    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+      value state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 := by
+  cases H with
+  | cached => exact Hstate
+  | generated _ Hbatch => exact Hbatch.namesFresh Hstate
+
 theorem NestedReplacement.newTypesLE
     (H : NestedReplacement env lctx params As e state out) :
     NestedNewTypesLE state out.2 := by
@@ -31854,6 +31943,14 @@ theorem NestedReplacement.namesWF
   cases H with
   | unrecognized => exact Hstate
   | recognized _ _ Hresult => exact Hresult.namesWF Hindex Hstate
+
+theorem NestedReplacement.namesFresh
+    (H : NestedReplacement env lctx params As e state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 := by
+  cases H with
+  | unrecognized => exact Hstate
+  | recognized _ _ Hresult => exact Hresult.namesFresh Hstate
 
 theorem NestedExprReplacement.newTypesLE
     (H : NestedExprReplacement env lctx params As e state out) :
@@ -31902,6 +31999,23 @@ theorem NestedExprReplacement.namesWF
     exact ihBody (ihValue (ihType (Hnode.namesWF Hindex Hstate)))
   | mdata Hnode Hbody ihBody | proj Hnode Hbody ihBody =>
     exact ihBody (Hnode.namesWF Hindex Hstate)
+
+theorem NestedExprReplacement.namesFresh
+    (H : NestedExprReplacement env lctx params As e state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 := by
+  induction H with
+  | hit Hnode => exact Hnode.namesFresh Hstate
+  | bvar | fvar | mvar | sort | const | lit => exact Hstate
+  | app Hnode Hfn Harg ihFn ihArg =>
+    exact ihArg (ihFn (Hnode.namesFresh Hstate))
+  | lam Hnode Hdom Hbody ihDom ihBody
+      | forallE Hnode Hdom Hbody ihDom ihBody =>
+    exact ihBody (ihDom (Hnode.namesFresh Hstate))
+  | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
+    exact ihBody (ihValue (ihType (Hnode.namesFresh Hstate)))
+  | mdata Hnode Hbody ihBody | proj Hnode Hbody ihBody =>
+    exact ihBody (Hnode.namesFresh Hstate)
 
 theorem NestedExprReplacement.pendingNewTypesClosed
     (H : NestedExprReplacement env lctx params As e state out)
@@ -32284,6 +32398,15 @@ theorem LoweredConstructorTranslation.namesWF
       hopenedNext, _, Hreplace, _⟩
   exact Hreplace.namesWF Hindex
     (Hstate.ofCacheCounterEq hopenedAux hopenedNext)
+
+theorem LoweredConstructorTranslation.namesFresh
+    (H : LoweredConstructorTranslation env params nparams source state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 := by
+  rcases H.translated with
+    ⟨lctx, tail, As, lowered, openedState, _, _, _, _, _, hopenedAux,
+      _, _, Hreplace, _⟩
+  exact Hreplace.namesFresh (Hstate.ofCacheEq hopenedAux)
 
 theorem LoweredConstructorTranslation.auxFVarsIn
     (H : LoweredConstructorTranslation env params nparams source state out)
@@ -33095,6 +33218,14 @@ theorem LoweredConstructorTranslations.namesWF
   | nil => exact Hstate
   | cons Hhead Htail ih => exact ih (Hhead.namesWF Hindex Hstate)
 
+theorem LoweredConstructorTranslations.namesFresh
+    (H : LoweredConstructorTranslations env params nparams sources state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 := by
+  induction H with
+  | nil => exact Hstate
+  | cons Hhead Htail ih => exact ih (Hhead.namesFresh Hstate)
+
 theorem LoweredConstructorTranslations.auxFVarsIn
     (H : LoweredConstructorTranslations env params nparams sources state out)
     (Hsources : ∀ source ∈ sources,
@@ -33357,6 +33488,12 @@ theorem LoweredInductiveTranslation.namesWF
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 :=
   H.constructors.namesWF Hindex Hstate
 
+theorem LoweredInductiveTranslation.namesFresh
+    (H : LoweredInductiveTranslation env params nparams source state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 :=
+  H.constructors.namesFresh Hstate
+
 theorem LoweredInductiveTranslation.auxFVarsIn
     (H : LoweredInductiveTranslation env params nparams source state out)
     (Hsource : ∀ ctor ∈ source.ctors,
@@ -33493,6 +33630,14 @@ theorem LowerNextTranslation.namesWF
   | done => exact Hstate
   | step _ Hlowered =>
     exact (Hlowered.namesWF Hindex Hstate).ofCacheCounterEq rfl rfl
+
+theorem LowerNextTranslation.namesFresh
+    (H : LowerNextTranslation env params nparams i state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 := by
+  cases H with
+  | done => exact Hstate
+  | step _ Hlowered => exact (Hlowered.namesFresh Hstate).ofCacheEq rfl
 
 theorem LowerNextTranslation.preservesTypeName
     (H : LowerNextTranslation env params nparams i state
@@ -33716,6 +33861,14 @@ theorem LoweringQueueTrace.resultNamesWF
   induction H with
   | done => exact Hstate
   | step Hnext Htail ih => exact ih (Hnext.namesWF Hindex Hstate)
+
+theorem LoweringQueueTrace.resultNamesFresh
+    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+    (Hstate : NestedAuxNamesFresh env state) :
+    NestedAuxNamesFresh env out.2 := by
+  induction H with
+  | done => exact Hstate
+  | step Hnext Htail ih => exact ih (Hnext.namesFresh Hstate)
 
 /-- Once an index lies strictly behind the queue cursor, later lowering
 steps preserve the exact family stored there through to the final result. -/
@@ -33967,6 +34120,24 @@ theorem NestedLoweringRun.resultAuxNamesReserved
   · intro name nested hfind
     simp at hfind
 
+theorem NestedLoweringRun.resultAuxNamesFresh
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (Hnames : NestedAuxNamesFresh env finalState) :
+    NestedAuxMapNamesFresh env
+      (show Std.TreeMap Name Expr Name.quickCmp from result.aux2nested) := by
+  rw [H.resultAuxMap]
+  change NestedAuxMapNamesFresh env
+    (finalState.nestedAux.foldl
+      (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+        (entry : Expr × Name) => map.insert entry.2 entry.1) {})
+  rw [← Array.foldl_toList]
+  apply nestedAuxFold_namesFresh finalState.nestedAux.toList
+  · intro entry hentry
+    exact Hnames entry.1 entry.2 (by simpa using hentry)
+  · intro name nested hfind
+    simp at hfind
+
 theorem NestedLoweringRun.validateNestedAuxiliariesWF
     (H : NestedLoweringRun sourceEnv loweringFuel nparams sourceTypes
       initialState (res, finalState))
@@ -34026,6 +34197,43 @@ theorem NestedLoweringRun.resultNamesWF
       hinitialNext, _Hctx, _Hselection, Hqueue⟩
   exact Hqueue.resultNamesWF Hindex
     (Hstate.ofCacheCounterEq hinitialAux hinitialNext)
+
+theorem NestedLoweringRun.resultNamesFresh
+    (H : NestedLoweringRun env fuel nparams types initialState out)
+    (Hstate : NestedAuxNamesFresh env initialState) :
+    NestedAuxNamesFresh env out.2 := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _, _, _, hinitialAux,
+      _hinitialNext, _Hctx, _Hselection, Hqueue⟩
+  exact Hqueue.resultNamesFresh (Hstate.ofCacheEq hinitialAux)
+
+theorem NestedLoweringRun.resultFamilyNamesFreshOfEmpty
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (hwf : env.constants.WF)
+    (hempty : initialState.nestedAux = #[]) :
+    RestoreAuxFamiliesFresh result env := by
+  have Hnames := H.resultNamesFresh
+    (NestedAuxNamesFresh.empty env initialState hempty)
+  have Hmap := H.resultAuxNamesFresh Hnames
+  intro name nested hfind
+  exact find?_none_of_contains_false hwf (Hmap name nested hfind)
+
+/-- End-to-end freshness bridge for restoration: lowering proves auxiliary
+families fresh in the production source, and lockstep installation turns that
+into abstract freshness for every constructor recognized through those
+families. -/
+theorem NestedLoweringRun.restoreAuxConstructorsFreshOfInstallation
+    (H : NestedLoweringRun sourceProdEnv fuel nparams types initialState
+      (result, finalState))
+    (Hinstall : AddConstants safety sourceProdEnv sourceVEnv entries
+      loweredEnv loweredVEnv)
+    (hwf : sourceProdEnv.constants.WF)
+    (Howners : ConstructorOwnersPresent sourceProdEnv)
+    (hempty : initialState.nestedAux = #[]) :
+    RestoreAuxConstructorsFresh result loweredEnv sourceVEnv :=
+  Hinstall.restoreAuxConstructorsFresh hwf Howners
+    (H.resultFamilyNamesFreshOfEmpty hwf hempty)
 
 theorem NestedLoweringRun.resultNamesNodupOfEmpty
     (H : NestedLoweringRun env fuel nparams types initialState out)
