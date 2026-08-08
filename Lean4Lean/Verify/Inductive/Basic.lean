@@ -36259,6 +36259,56 @@ theorem NestedLoweringResult.sourceFinalMappingAtFreshAligned
   apply Hrun.resultNamesNodupOfEmpty appendIndexAfterIndexFaithful
   simpa using hempty
 
+/-- Every original family retains its positional slot in the expanded
+lowering result, so the original mutual block is no longer than that result. -/
+theorem NestedLoweringResult.sourceTypes_length_le
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResult env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result) :
+    sourceTypes.length ≤ result.types.length := by
+  by_contra hle
+  have hj : result.types.length < sourceTypes.length := Nat.lt_of_not_ge hle
+  rcases H.sourceTranslationAt (j := result.types.length) hj with
+    ⟨_params, _stepState, _target, _loweredState, _hparams, _Htranslation,
+      htarget, _finalState, _Hrun, _Haux⟩
+  exact (Nat.lt_irrefl result.types.length)
+    (_root_.getElem?_eq_some_iff.mp htarget).1
+
+/-- Lowering preserves the constructor count of every original family and
+only appends auxiliary families.  Consequently the source constructor batch
+is a cardinality prefix of the expanded lowered batch. -/
+theorem NestedLoweringResult.sourceOwnedConstructors_length_le
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResult env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (hempty : initialState.nestedAux = #[]) :
+    (Lean4Lean.VerifyInductive.ownedConstructors sourceTypes).length ≤
+      (Lean4Lean.VerifyInductive.ownedConstructors result.types).length := by
+  have htypes := H.sourceTypes_length_le
+  have hprefix :
+      (result.types.take sourceTypes.length).map
+          (fun type => type.ctors.length) =
+        sourceTypes.map (fun type => type.ctors.length) := by
+    apply List.ext_getElem
+    · simp [List.length_take, htypes]
+    · intro i hresult hsource
+      rw [List.getElem_map, List.getElem_take, List.getElem_map]
+      rcases H.sourceFinalMappingAtFresh hempty (j := i) (by simpa using hsource)
+          with ⟨_params, _stepState, target, _loweredState, _hparams,
+            Hmapping, htarget⟩
+      obtain ⟨hiResult, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
+      rw [htargetEq]
+      exact Hmapping.constructors.length
+  have hsplit := congrArg
+    (fun types : List InductiveType =>
+      (types.map (fun type => type.ctors.length)).sum)
+    (List.take_append_drop sourceTypes.length result.types)
+  simp only [List.map_append, List.sum_append] at hsplit
+  rw [hprefix] at hsplit
+  simp only [Lean4Lean.VerifyInductive.ownedConstructors,
+    List.length_flatMap, List.length_map]
+  omega
+
 /-- Closed-lowering specialization of the aligned source mapping.  It
 exposes the exact duplicate-free free-variable presentation of the final
 parameter array needed by abstraction/instantiation cancellation. -/
