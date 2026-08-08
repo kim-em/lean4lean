@@ -131,7 +131,8 @@ def enumRecursorShape : enumDecl.RecursorShape enumType enumRecursor where
   indices_take := rfl
   major_take := rfl
   result_eq := by
-    simp [VInductDecl.recursorResult, enumDecl, enumType, VExpr.mkApps]
+    simp [VInductDecl.recursorResult, VInductDecl.recursorResultWithCounts,
+      enumDecl, enumType, VExpr.mkApps]
 
 def enumRule : VDefEq where
   uvars := 0

@@ -1837,6 +1837,32 @@ theorem RecursorCertificate.forall₂
   intro i htype hrec
   exact H.shapes i htype hrec
 
+/-- Indexed primary-recursor certificate for a restored nested block.  Its
+motives and minors may include the auxiliary suffix produced by lowering. -/
+structure NestedRecursorCertificate (decl : VInductDecl)
+    (recursors : List VConstVal) : Prop where
+  length : recursors.length = decl.types.length
+  shapes : ∀ i (htype : i < decl.types.length)
+      (hrec : i < recursors.length),
+    Nonempty (decl.NestedRecursorShape decl.types[i] recursors[i])
+
+theorem NestedRecursorCertificate.forall₂
+    (H : NestedRecursorCertificate decl recursors) :
+    List.Forall₂ (fun type recursor =>
+      Nonempty (decl.NestedRecursorShape type recursor))
+      decl.types recursors := by
+  apply List.forall₂_of_getElem H.length.symm
+  intro i htype hrec
+  exact H.shapes i htype hrec
+
+theorem RecursorCertificate.toNested
+    (H : RecursorCertificate decl recursors) :
+    NestedRecursorCertificate decl recursors where
+  length := H.length
+  shapes i htype hrec := by
+    rcases H.shapes i htype hrec with ⟨Hshape⟩
+    exact ⟨Hshape.toNested⟩
+
 /-- Indexed output certificate for exactly one iota rule per owned
 constructor, in the same flattened order used for minors. -/
 structure IotaCertificate (env : VEnv) (decl : VInductDecl)
@@ -2015,7 +2041,7 @@ structure NestedCompilationCertificate (env : VEnv)
   primaryRecursors : List VConstVal
   auxiliaryRecursors : List VConstVal
   recursors_eq : block.recursors = primaryRecursors ++ auxiliaryRecursors
-  primary_recursors : RecursorCertificate decl primaryRecursors
+  primary_recursors : NestedRecursorCertificate decl primaryRecursors
   auxiliary_names : auxiliaryRecursors.map (·.name) =
     (List.range auxiliaryRecursors.length).map fun i =>
       (decl.recursorName main).appendIndexAfter (i + 1)
@@ -2140,7 +2166,7 @@ def NestedCompilationCertificate.ofRestoration
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
-    (HprimaryRecursors : RecursorCertificate decl primaryRecursors)
+    (HprimaryRecursors : NestedRecursorCertificate decl primaryRecursors)
     (HprimaryRules : IotaBuildCertificate env decl block primaryRules)
     (hprimaryLength : primaryRules.length =
       decl.ownedConstructors.length)
@@ -19798,8 +19824,10 @@ theorem RecursorLocalSelections.recursorShape
   have hresult : result =
       decl.recursorResult ownerIdx minors.length
         (decl.types[ownerIdx]'(hdeclOwner)) := by
-    simpa [VInductDecl.recursorResult, Hcard.records, Hcard.motives,
-      Hcard.minors, Hcard.indices ownerIdx howner, hminors] using
+    simpa [VInductDecl.recursorResult,
+      VInductDecl.recursorResultWithCounts, List.map_reverse,
+      Hcard.records, Hcard.motives, Hcard.minors,
+      Hcard.indices ownerIdx howner, hminors] using
         hresultConcrete
   refine ⟨VInductDecl.RecursorShape.ofWrapped hdeclOwner rfl hname huvars
     hparams hmotives hminors hindices hmajor ?_ hresult⟩
@@ -20632,7 +20660,7 @@ def GeneratedRecursors.nestedCompilationCertificate
   auxiliaryRecursors := auxRecursors
   recursors_eq := hrecursors
   primary_recursors :=
-    H.recursorCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl
+    (H.recursorCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl).toNested
   auxiliary_names := Haux.names
   primaryRules := primaryRules
   auxiliaryRules := auxiliaryRules
@@ -27186,7 +27214,7 @@ theorem RestoredRecursorStep.installation
   · exact Hwf
 
 /-- Specification-facing payload for one restored primary recursor.  The
-translated concrete telescope and independent abstract `RecursorShape` live
+translated concrete telescope and independent abstract `NestedRecursorShape` live
 in the same object, preventing installation correctness from being proved
 against a recursor unrelated to the source declaration. -/
 structure RestoredPrimaryRecursorSemantics
@@ -27202,7 +27230,7 @@ structure RestoredPrimaryRecursorSemantics
     Hstep.restored.newInfo.type recursor.type
   name : recursor.name = Hstep.restored.newRecName
   wf : recursor.toVConstant.WF sourceVEnv
-  shape : Nonempty (decl.RecursorShape owner recursor)
+  shape : Nonempty (decl.NestedRecursorShape owner recursor)
 
 /-- The genuinely canonical-environment obligations left after a restored
 primary recursor has been matched to its generated production entry. -/
@@ -27225,7 +27253,7 @@ structure SourcePrimaryRecursorSemantics
   recursor : VConstVal
   name : recursor.name = sourceDecl.recursorName owner
   isType : canonicalEnv.IsType recursor.uvars [] recursor.type
-  shape : Nonempty (sourceDecl.RecursorShape owner recursor)
+  shape : Nonempty (sourceDecl.NestedRecursorShape owner recursor)
 
 /-- Executable-to-specification refinement for a restored primary recursor.
 The source recursor is fixed by `SourcePrimaryRecursorSemantics`; this record
@@ -27282,7 +27310,7 @@ theorem GeneratedRecursors.sourcePrimaryRecursorSemantics
     recursor := recursor
     name := Hshape.name
     isType := ?_
-    shape := ⟨Hshape⟩ }⟩
+    shape := ⟨Hshape.toNested⟩ }⟩
   exact H.recursorsWF Hc Hbindings Hparams recursor hrecursor
 
 theorem RestoredPrimaryRecursorSemantics.installation
@@ -27334,7 +27362,7 @@ theorem RestoredPrimaryRecursorSemanticTrace.forall₂
     (H : RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
       Htrace owners recursors) :
     List.Forall₂ (fun owner recursor =>
-      Nonempty (decl.RecursorShape owner recursor)) owners recursors := by
+      Nonempty (decl.NestedRecursorShape owner recursor)) owners recursors := by
   induction H with
   | nil => exact .nil
   | cons Hstep Htail Hsemantic Hrest ih =>
@@ -27344,7 +27372,7 @@ theorem RestoredPrimaryRecursorSemanticTrace.recursorCertificate
     (H : RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
       Htrace owners recursors)
     (htypes : decl.types = owners) :
-    RecursorCertificate decl recursors := by
+    NestedRecursorCertificate decl recursors := by
   have Hshapes := H.forall₂
   rw [← htypes] at Hshapes
   refine {
@@ -27792,7 +27820,7 @@ theorem RestoredSourceInductiveSemanticTrace.recursorCertificate
     (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors)
     (htypes : decl.types = owners) :
-    RecursorCertificate decl recursors :=
+    NestedRecursorCertificate decl recursors :=
   H.primaryRecursors.recursorCertificate htypes
 
 /-- Installation semantics for one complete restored source family: header,
@@ -28079,7 +28107,7 @@ inductive RestoredPrimaryRecursorShapes
       (Hrest : RestoredInductiveInstallationTrace safety Htail middleVEnv
         constants targetVEnv)
       (Hshape : Nonempty
-        (decl.RecursorShape owner Hsemantic.recursor.recursor))
+        (decl.NestedRecursorShape owner Hsemantic.recursor.recursor))
       (HrestShapes : RestoredPrimaryRecursorShapes decl result loweredEnv
         auxRec allIndNames safety Hrest owners recursors) :
       RestoredPrimaryRecursorShapes decl result loweredEnv auxRec allIndNames
@@ -28102,7 +28130,7 @@ theorem RestoredPrimaryRecursorShapes.forall₂
     (H : RestoredPrimaryRecursorShapes decl result loweredEnv auxRec
       allIndNames safety Hinstall owners recursors) :
     List.Forall₂ (fun owner recursor =>
-      Nonempty (decl.RecursorShape owner recursor)) owners recursors := by
+      Nonempty (decl.NestedRecursorShape owner recursor)) owners recursors := by
   induction H with
   | nil => exact .nil
   | cons Hstep Htail Hsemantic Hrest Hshape HrestShapes ih =>
@@ -28129,13 +28157,13 @@ structure RestoredPrimaryRecursorCertificate
   trace : RestoredPrimaryRecursors result loweredEnv auxRec allIndNames safety
     H recursors
   shapes : List.Forall₂ (fun owner recursor =>
-    Nonempty (decl.RecursorShape owner recursor))
+    Nonempty (decl.NestedRecursorShape owner recursor))
     decl.types recursors
 
 theorem RestoredPrimaryRecursorCertificate.recursorCertificate
     (H : RestoredPrimaryRecursorCertificate decl result loweredEnv auxRec
       allIndNames safety Htrace Hinstall recursors) :
-    RecursorCertificate decl recursors := by
+    NestedRecursorCertificate decl recursors := by
   refine {
     length := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.shapes |>.symm
     shapes := ?_ }
@@ -28490,7 +28518,7 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilation
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
-    (HprimaryRecursors : RecursorCertificate decl primaryRecursors)
+    (HprimaryRecursors : NestedRecursorCertificate decl primaryRecursors)
     (HprimaryRules : IotaBuildCertificate sourceEnv decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
@@ -28626,7 +28654,8 @@ theorem RestoredNestedDeclarationsResult.sourceCoreAndNestedCompilation
 
 /-- Trace-aligned form of `canonicalNestedCompilation`.  The primary
 recursor certificate is derived from the exact restored installation trace,
-so the abstract `RecursorShape` witnesses cannot describe a detached list. -/
+so the abstract `NestedRecursorShape` witnesses cannot describe a detached
+list. -/
 theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfInstallation
     (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
@@ -28725,7 +28754,7 @@ theorem RestoredNestedDeclarationsResult.nestedCompilationCertificate
     (rest : List VInductiveType)
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors : List VConstVal) (primaryRules : List VDefEq)
-    (HprimaryRecursors : RecursorCertificate decl primaryRecursors)
+    (HprimaryRecursors : NestedRecursorCertificate decl primaryRecursors)
     (HprimaryRules : IotaBuildCertificate sourceEnv decl block primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
     (htypes : block.types = decl.typeConstants)
@@ -30593,7 +30622,8 @@ def RecursorPhasesResult.restoredPrimaryRecursorSemantics
   · rw [holdInfo]
     simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
       E.translated.1.2.1
-  · simpa only [List.getElem_map] using Hshape
+  · rcases Hshape with ⟨Hshape⟩
+    exact ⟨by simpa only [List.getElem_map] using Hshape.toNested⟩
 
 theorem DeclaredHeadersResult.typesWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv

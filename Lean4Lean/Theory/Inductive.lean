@@ -47,6 +47,22 @@ def VExpr.takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
     return (dom :: doms, result)
   | _ + 1, _ => none
 
+theorem VExpr.takeForalls_domains_length
+    {e : VExpr} {n : Nat} {domains : List VExpr} {result : VExpr}
+    (H : e.takeForalls n = some (domains, result)) :
+    domains.length = n := by
+  induction n generalizing e domains result with
+  | zero =>
+    change some ([], e) = some (domains, result) at H
+    cases Option.some.inj H
+    rfl
+  | succ n ih =>
+    cases e <;> simp [VExpr.takeForalls] at H
+    case forallE dom body =>
+      rcases H with ⟨tailDomains, htail, hd⟩
+      rw [← hd]
+      simp [ih htail]
+
 /-- Head and left-to-right arguments of an application spine. -/
 def VExpr.getAppFnArgs (e : VExpr) : VExpr × List VExpr :=
   go e []
@@ -483,16 +499,21 @@ def VInductDecl.RecursiveField.mono
     (henv : env ≤ env') (H : decl.RecursiveField env) :
     (H.mono henv).arg = H.arg := rfl
 
-/-- Final result of the recursor telescope for one mutual-family member. At
-this point all motives and minors, this type's indices, and the major premise
-are in scope. -/
-def VInductDecl.recursorResult (decl : VInductDecl)
-    (ownerIdx numMinors : Nat) (owner : VInductiveType) : VExpr :=
+/-- Recursor result with an explicit motive count.  Ordinary compilation has
+one motive per source family; nested compilation may append motives for
+lowering-generated auxiliary families while retaining each source owner's
+original position. -/
+def VInductDecl.recursorResultWithCounts (_decl : VInductDecl)
+    (ownerIdx numMotives numMinors : Nat) (owner : VInductiveType) : VExpr :=
   let motiveOffset :=
-    1 + owner.numIndices + numMinors + (decl.types.length - 1 - ownerIdx)
+    1 + owner.numIndices + numMinors + (numMotives - 1 - ownerIdx)
   let indexVars := (List.range owner.numIndices).reverse.map fun i =>
     VExpr.bvar (i + 1)
   VExpr.mkApps (.bvar motiveOffset) (indexVars ++ [.bvar 0])
+
+def VInductDecl.recursorResult (decl : VInductDecl)
+    (ownerIdx numMinors : Nat) (owner : VInductiveType) : VExpr :=
+  decl.recursorResultWithCounts ownerIdx decl.types.length numMinors owner
 
 /-- Independent shape of a generated recursor. Besides its conventional name
 and universe count, the leading telescope contains exactly the common
@@ -577,6 +598,130 @@ def VInductDecl.RecursorShape.ofWrapped
     exact VExpr.takeForalls_wrapForalls_append indices major result
   · rw [← hmajor]
     exact VExpr.takeForalls_wrapForalls major result
+
+/-- Shape of a restored primary recursor for a nested declaration.  Lowering
+appends auxiliary families and constructors to the mutual block, so their
+motives and minors remain in the restored primary telescope.  The original
+source families and constructors form prefixes of those two groups; the
+source owner keeps its original motive position. -/
+structure VInductDecl.NestedRecursorShape (decl : VInductDecl)
+    (owner : VInductiveType) (recursor : VConstVal) where
+  ownerIdx : Nat
+  owner_lt : ownerIdx < decl.types.length
+  owner_eq : decl.types[ownerIdx] = owner
+  name : recursor.name = decl.recursorName owner
+  uvars : recursor.uvars = decl.uvars ∨ recursor.uvars = decl.uvars + 1
+  params : List VExpr
+  motives : List VExpr
+  minors : List VExpr
+  indices : List VExpr
+  major : List VExpr
+  source_motives : decl.types.length ≤ motives.length
+  source_minors : decl.ownedConstructors.length ≤ minors.length
+  afterParams : VExpr
+  afterMotives : VExpr
+  afterMinors : VExpr
+  afterIndices : VExpr
+  result : VExpr
+  params_take : recursor.type.takeForalls decl.nparams =
+    some (params, afterParams)
+  motives_take : afterParams.takeForalls motives.length =
+    some (motives, afterMotives)
+  minors_take : afterMotives.takeForalls minors.length =
+    some (minors, afterMinors)
+  indices_take : afterMinors.takeForalls owner.numIndices =
+    some (indices, afterIndices)
+  major_take : afterIndices.takeForalls 1 = some (major, result)
+  result_eq : result = decl.recursorResultWithCounts ownerIdx
+    motives.length minors.length owner
+
+/-- Canonical constructor for the nested recursor shape from its complete
+restored telescope. -/
+def VInductDecl.NestedRecursorShape.ofWrapped
+    {decl : VInductDecl} {owner : VInductiveType} {recursor : VConstVal}
+    {ownerIdx : Nat} {params motives minors indices major : List VExpr}
+    {result : VExpr}
+    (owner_lt : ownerIdx < decl.types.length)
+    (owner_eq : decl.types[ownerIdx] = owner)
+    (name : recursor.name = decl.recursorName owner)
+    (uvars : recursor.uvars = decl.uvars ∨
+      recursor.uvars = decl.uvars + 1)
+    (hparams : params.length = decl.nparams)
+    (hsourceMotives : decl.types.length ≤ motives.length)
+    (hsourceMinors : decl.ownedConstructors.length ≤ minors.length)
+    (hindices : indices.length = owner.numIndices)
+    (hmajor : major.length = 1)
+    (htype : recursor.type = VExpr.wrapForalls
+      (params ++ motives ++ minors ++ indices ++ major) result)
+    (hresult : result = decl.recursorResultWithCounts ownerIdx
+      motives.length minors.length owner) :
+    decl.NestedRecursorShape owner recursor := by
+  refine {
+    ownerIdx, owner_lt, owner_eq, name, uvars, params, motives, minors, indices,
+    major, source_motives := hsourceMotives, source_minors := hsourceMinors
+    afterParams := VExpr.wrapForalls (motives ++ minors ++ indices ++ major) result
+    afterMotives := VExpr.wrapForalls (minors ++ indices ++ major) result
+    afterMinors := VExpr.wrapForalls (indices ++ major) result
+    afterIndices := VExpr.wrapForalls major result
+    result
+    params_take := ?_
+    motives_take := ?_
+    minors_take := ?_
+    indices_take := ?_
+    major_take := ?_
+    result_eq := hresult }
+  · rw [← hparams, htype]
+    simpa only [List.append_assoc] using
+      VExpr.takeForalls_wrapForalls_append params
+        (motives ++ minors ++ indices ++ major) result
+  · simpa only [List.append_assoc] using
+      VExpr.takeForalls_wrapForalls_append motives
+        (minors ++ indices ++ major) result
+  · simpa only [List.append_assoc] using
+      VExpr.takeForalls_wrapForalls_append minors
+        (indices ++ major) result
+  · rw [← hindices]
+    exact VExpr.takeForalls_wrapForalls_append indices major result
+  · rw [← hmajor]
+    exact VExpr.takeForalls_wrapForalls major result
+
+/-- Ordinary recursors are the zero-auxiliary special case of nested
+recursors. -/
+def VInductDecl.RecursorShape.toNested
+    {decl : VInductDecl} {owner : VInductiveType} {recursor : VConstVal}
+    (H : decl.RecursorShape owner recursor) :
+    decl.NestedRecursorShape owner recursor where
+  ownerIdx := H.ownerIdx
+  owner_lt := H.owner_lt
+  owner_eq := H.owner_eq
+  name := H.name
+  uvars := H.uvars
+  params := H.params
+  motives := H.motives
+  minors := H.minors
+  indices := H.indices
+  major := H.major
+  source_motives := Nat.le_of_eq
+    (VExpr.takeForalls_domains_length H.motives_take).symm
+  source_minors := Nat.le_of_eq
+    (VExpr.takeForalls_domains_length H.minors_take).symm
+  afterParams := H.afterParams
+  afterMotives := H.afterMotives
+  afterMinors := H.afterMinors
+  afterIndices := H.afterIndices
+  result := H.result
+  params_take := H.params_take
+  motives_take := by
+    rw [VExpr.takeForalls_domains_length H.motives_take]
+    exact H.motives_take
+  minors_take := by
+    rw [VExpr.takeForalls_domains_length H.minors_take]
+    exact H.minors_take
+  indices_take := H.indices_take
+  major_take := H.major_take
+  result_eq := by
+    rw [VExpr.takeForalls_domains_length H.motives_take]
+    simpa [VInductDecl.recursorResult] using H.result_eq
 
 /-- One declarative iota equation. The left-hand side is a recursor whose final
 argument is the matching constructor application. The right-hand side may call
@@ -688,7 +833,8 @@ structure VInductDecl.NestedCompilation
   auxiliaryRecursors : List VConstVal
   recursors_eq : block.recursors = primaryRecursors ++ auxiliaryRecursors
   primary_recursors : List.Forall₂ (fun type recursor =>
-    Nonempty (decl.RecursorShape type recursor)) decl.types primaryRecursors
+    Nonempty (decl.NestedRecursorShape type recursor))
+    decl.types primaryRecursors
   auxiliary_names : auxiliaryRecursors.map (·.name) =
     (List.range auxiliaryRecursors.length).map fun i =>
       (decl.recursorName main).appendIndexAfter (i + 1)
