@@ -24945,6 +24945,101 @@ theorem RestoreParamOpening.context_extension
     · simp [hlctx, decl, LocalContext.mkLocalDecl_toList]
     · simp [hparams, decl, List.append_assoc, LocalDecl.fvarId]
 
+/-- In a well-formed local context, a declaration occurring in `toList` is
+the unique declaration found at its free-variable identifier. -/
+theorem LocalContextWF_find?_eq_some_of_mem
+    {lctx : LocalContext} {d : LocalDecl}
+    (H : lctx.WF) (hd : d ∈ lctx.toList) :
+    lctx.find? d.fvarId = some d := by
+  rw [H.find?_eq_find?_toList]
+  have find_of_nodup : ∀ (ds : List LocalDecl) (d : LocalDecl),
+      (ds.map (fun decl => decl.fvarId)).Nodup → d ∈ ds →
+      ds.find? (d.fvarId == ·.fvarId) = some d := by
+    intro ds
+    induction ds with
+    | nil => simp
+    | cons head tail ih =>
+      intro d hnodup hmem
+      simp only [List.map_cons, List.nodup_cons] at hnodup
+      simp only [List.mem_cons] at hmem
+      rcases hmem with rfl | hmem
+      · simp
+      · have hne : d.fvarId ≠ head.fvarId := by
+          intro heq
+          exact hnodup.1 (heq ▸ List.mem_map.mpr ⟨d, hmem, rfl⟩)
+        simp [hne, ih d hnodup.2 hmem]
+  exact find_of_nodup lctx.toList d H.nodup hd
+
+/-- Every declaration recorded in restoration's extension certificate is
+the exact declaration visible to the final local-context lookup. -/
+theorem RestoreParamOpening.context_extension_find
+    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+    (Hwf : outLctx.WF) :
+    ∃ decls : List LocalDecl,
+      outLctx.toList = decls.reverse ++ lctx.toList ∧
+      outAs.toList = As.toList ++ decls.map (fun d => .fvar d.fvarId) ∧
+      decls.length = n ∧
+      ∀ d ∈ decls, outLctx.find? d.fvarId = some d := by
+  rcases Hopen.context_extension with ⟨decls, hlctx, hparams, hlength⟩
+  refine ⟨decls, hlctx, hparams, hlength, ?_⟩
+  intro d hd
+  apply LocalContextWF_find?_eq_some_of_mem Hwf
+  rw [hlctx]
+  exact List.mem_append_left _ (List.mem_reverse.mpr hd)
+
+/-- Root opening data in the exact representation consumed by
+`LocalContext.mkBindingList`: binder-order identifiers, duplicate-freedom,
+and exact declaration lookup. -/
+theorem RestoreParamOpening.root_binding_data
+    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
+    (Hwf : outLctx.WF) :
+    ∃ decls : List LocalDecl,
+      outAs = (decls.map (fun d => Expr.fvar d.fvarId)).toArray ∧
+      decls.length = n ∧
+      (decls.map (fun d => d.fvarId)).Nodup ∧
+      ∀ d ∈ decls, outLctx.find? d.fvarId = some d := by
+  rcases Hopen.context_extension_find Hwf with
+    ⟨decls, hlctx, hparams, hlength, hfind⟩
+  have harray :
+      outAs = (decls.map (fun d => Expr.fvar d.fvarId)).toArray := by
+    apply Array.toList_inj.mp
+    simpa using hparams
+  have hrevNodup :
+      (decls.reverse.map (fun d => d.fvarId)).Nodup := by
+    have hall := Hwf.nodup
+    rw [hlctx, List.map_append] at hall
+    exact (List.nodup_append.mp hall).1
+  have hnodup : (decls.map (fun d => d.fvarId)).Nodup := by
+    rw [List.map_reverse] at hrevNodup
+    exact List.nodup_reverse.mp hrevNodup
+  exact ⟨decls, harray, hlength, hnodup, hfind⟩
+
+/-- `mkForall` after root restoration is exactly the binder-order fold over
+the declarations recorded by `root_binding_data`. -/
+theorem RestoreParamOpening.root_mkForall_eq_fold
+    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
+    (Hwf : outLctx.WF) (body : Expr) :
+    ∃ decls : List LocalDecl,
+      decls.length = n ∧
+      (∀ d ∈ decls, outLctx.find? d.fvarId = some d) ∧
+      outLctx.mkForall outAs body =
+        (decls.map (fun d => d.fvarId)).foldr
+          (fun fv result =>
+            LocalContext.mkBindingList1 false outLctx [] fv
+              (result.abstract1 fv)) body := by
+  rcases Hopen.root_binding_data Hwf with
+    ⟨decls, harray, hlength, hnodup, hfind⟩
+  refine ⟨decls, hlength, hfind, ?_⟩
+  rw [harray, LocalContext.mkForall]
+  rw [show decls.map (fun d => Expr.fvar d.fvarId) =
+      (decls.map (fun d => d.fvarId)).map Expr.fvar by simp]
+  rw [LocalContext.mkBinding_eq]
+  apply LocalContext.mkBindingList_eq_fold
+  · intro fv hfv
+    rcases List.mem_map.mp hfv with ⟨d, hd, rfl⟩
+    exact ⟨d, hfind d hd⟩
+  · exact hnodup
+
 /-- The suffix created by restoration opening consists exactly of the fresh
 free variables introduced by its telescope traversal. -/
 theorem RestoreParamOpening.params_fvars_extension
