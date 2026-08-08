@@ -26762,6 +26762,53 @@ structure NestedAppCandidate (env : Environment)
     env.find? fn = some (.inductInfo info)
   parameters : NestedParameterScan state.newTypes e.getAppArgs info.numParams
 
+/-- Recognition is maximal over an application spine: adding trailing
+arguments preserves a nested-family candidate because only its leading
+parameter prefix is inspected. -/
+theorem NestedAppCandidate.app
+    (H : NestedAppCandidate env state fn info) (arg : Expr) :
+    NestedAppCandidate env state (.app fn arg) info := by
+  have hargs : (Expr.app fn arg).getAppArgs = fn.getAppArgs.push arg := by
+    rw [Expr.getAppArgs_eq, Expr.getAppArgs_eq, Expr.getAppArgsList_app]
+    simp
+  refine {
+    shape := ⟨rfl, ?_⟩
+    headFound := ?_
+    parameters := ?_ }
+  · rcases H.shape.constHead with ⟨name, levels, hhead⟩
+    exact ⟨name, levels, by simpa [Expr.getAppFn] using hhead⟩
+  · rcases H.headFound with ⟨name, levels, hhead, hfound⟩
+    exact ⟨name, levels, by simpa [Expr.getAppFn] using hhead, hfound⟩
+  · refine {
+      arity := by
+        rw [hargs]
+        exact Nat.le_trans H.parameters.arity (by simp)
+      nested := ?_
+      closed := ?_ }
+    · rcases H.parameters.nested with ⟨i, hi, hmentions⟩
+      refine ⟨i, hi, ?_⟩
+      have hiOld : i < fn.getAppArgs.size :=
+        Nat.lt_of_lt_of_le hi H.parameters.arity
+      have hiPush : i < (fn.getAppArgs.push arg).size := by simp; omega
+      have hbang : (fn.getAppArgs.push arg)[i]! = fn.getAppArgs[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hiPush, dif_pos hiOld]
+        exact Array.getElem_push_lt hiOld
+      rw [hargs, hbang]
+      exact hmentions
+    · intro i hi
+      have hiOld : i < fn.getAppArgs.size :=
+        Nat.lt_of_lt_of_le hi H.parameters.arity
+      have hiPush : i < (fn.getAppArgs.push arg).size := by simp; omega
+      have hbang : (fn.getAppArgs.push arg)[i]! = fn.getAppArgs[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hiPush, dif_pos hiOld]
+        exact Array.getElem_push_lt hiOld
+      rw [hargs, hbang]
+      exact H.parameters.closed i hi
+
 theorem isNestedInductiveApp_candidate
     (e : Expr) (env : Environment)
     (state : Lean4Lean.ElimNestedInductive.State) :
@@ -29939,6 +29986,35 @@ theorem NestedExprMapping.reopens
     exact .mdata Hnode (ihBody Hinput)
   | proj Hnode Hbody ihBody =>
     exact .proj Hnode (ihBody Hinput)
+
+/-- A structural lowering trace cannot introduce a constant application head
+unless the root itself was recognized. In the application case, maximality
+rules out a recognized function prefix whenever the parent has a certified
+miss. -/
+theorem NestedExprReopening.constHead_of_noCandidate
+    (H : NestedExprReopening env lctx params As finalResult restoreAs input
+      state out)
+    (Hmiss : NoNestedAppCandidate env state input)
+    (Hhead : out.1.getAppFn = .const name levels) :
+    input.getAppFn = .const name levels := by
+  induction H with
+  | hit Hnode =>
+    rcases Hnode with
+      ⟨value, targetName, levels, auxName, auxLevels, nested,
+        Hcandidate, hhead, hlowered, hlookup, hreopens⟩
+    exact False.elim (Hmiss value Hcandidate)
+  | bvar | fvar | mvar | sort | const | lit => exact Hhead
+  | @app fn arg state fn' fnState arg' outState Hnode Hfn Harg ihFn ihArg =>
+    have HfnMiss : NoNestedAppCandidate env state fn := by
+      intro info Hcandidate
+      exact Hmiss info (Hcandidate.app arg)
+    apply ihFn HfnMiss
+    simpa [Expr.getAppFn] using Hhead
+  | lam => simp [Expr.getAppFn] at Hhead
+  | forallE => simp [Expr.getAppFn] at Hhead
+  | letE => simp [Expr.getAppFn] at Hhead
+  | mdata => simp [Expr.getAppFn] at Hhead
+  | proj => simp [Expr.getAppFn] at Hhead
 
 theorem RecognizedNestedReplacement.auxFVarsIn
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
