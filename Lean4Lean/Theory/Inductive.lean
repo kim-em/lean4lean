@@ -723,6 +723,51 @@ def VInductDecl.RecursorShape.toNested
     rw [VExpr.takeForalls_domains_length H.motives_take]
     simpa [VInductDecl.recursorResult] using H.result_eq
 
+/-- Reinterpret an expanded nested-recursor telescope at a compatible source
+declaration.  This is the declarative lowering boundary: auxiliary motives
+and minors remain in the telescope, while the source declaration supplies
+the original family prefix, universe/parameter metadata, and owner. -/
+def VInductDecl.NestedRecursorShape.ofCompatible
+    {loweredDecl sourceDecl : VInductDecl}
+    {loweredOwner sourceOwner : VInductiveType} {recursor : VConstVal}
+    (H : loweredDecl.NestedRecursorShape loweredOwner recursor)
+    (howner : H.ownerIdx < sourceDecl.types.length)
+    (hownerEq : sourceDecl.types[H.ownerIdx] = sourceOwner)
+    (hname : recursor.name = sourceDecl.recursorName sourceOwner)
+    (huvars : recursor.uvars = sourceDecl.uvars ∨
+      recursor.uvars = sourceDecl.uvars + 1)
+    (hnparams : sourceDecl.nparams = loweredDecl.nparams)
+    (hmotives : sourceDecl.types.length ≤ H.motives.length)
+    (hminors : sourceDecl.ownedConstructors.length ≤ H.minors.length)
+    (hindices : sourceOwner.numIndices = loweredOwner.numIndices) :
+    sourceDecl.NestedRecursorShape sourceOwner recursor where
+  ownerIdx := H.ownerIdx
+  owner_lt := howner
+  owner_eq := hownerEq
+  name := hname
+  uvars := huvars
+  params := H.params
+  motives := H.motives
+  minors := H.minors
+  indices := H.indices
+  major := H.major
+  source_motives := hmotives
+  source_minors := hminors
+  afterParams := H.afterParams
+  afterMotives := H.afterMotives
+  afterMinors := H.afterMinors
+  afterIndices := H.afterIndices
+  result := H.result
+  params_take := by simpa [hnparams] using H.params_take
+  motives_take := H.motives_take
+  minors_take := H.minors_take
+  indices_take := by simpa [hindices] using H.indices_take
+  major_take := H.major_take
+  result_eq := by
+    rw [H.result_eq]
+    simp only [VInductDecl.recursorResultWithCounts]
+    rw [hindices]
+
 /-- One declarative iota equation. The left-hand side is a recursor whose final
 argument is the matching constructor application. The right-hand side may call
 any sibling recursor in a mutual block, but only on explicitly identified

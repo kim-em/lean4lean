@@ -134,6 +134,16 @@ def enumRecursorShape : enumDecl.RecursorShape enumType enumRecursor where
     simp [VInductDecl.recursorResult, VInductDecl.recursorResultWithCounts,
       enumDecl, enumType, VExpr.mkApps]
 
+def enumNestedRecursorShape :
+    enumDecl.NestedRecursorShape enumType enumRecursor :=
+  enumRecursorShape.toNested.ofCompatible
+    (by simpa [enumDecl] using enumRecursorShape.toNested.owner_lt)
+    (by simp [enumDecl, enumType])
+    (by simp [enumRecursor, VInductDecl.recursorName, enumType])
+    (by simp [enumRecursor, enumDecl]) rfl
+    enumRecursorShape.toNested.source_motives
+    enumRecursorShape.toNested.source_minors rfl
+
 def enumRule : VDefEq where
   uvars := 0
   lhs := .lam (.sort (.succ .zero)) (.lam (.sort .zero)

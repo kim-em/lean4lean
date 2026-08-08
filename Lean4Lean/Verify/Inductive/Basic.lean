@@ -27267,6 +27267,53 @@ structure RestoredPrimaryRecursorRefinement
   type : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
     Hstep.restored.newInfo.type recursor.type
 
+/-- One abstract source recursor realized by a particular restored concrete
+recursor.  The equality field prevents the source witness and refinement
+proof from drifting to different constants. -/
+structure SourcePrimaryRecursorRealization
+    (sourceDecl : VInductDecl) (sourceOwner : VInductiveType)
+    (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv)
+    (canonicalEnv : VEnv) (recursor : VConstVal) where
+  source : SourcePrimaryRecursorSemantics sourceDecl sourceOwner canonicalEnv
+  recursor_eq : source.recursor = recursor
+  refinement : RestoredPrimaryRecursorRefinement Hstep canonicalEnv recursor
+
+/-- Discharge both source-recursion callbacks from one canonical restored
+recursor once lowering has supplied the declarative compatibility facts.  In
+particular, the abstract recursor is not chosen independently of the concrete
+restoration step: its translated type and well-formedness come from
+`Hcanonical`, while its source shape is transported from the expanded
+lowered declaration. -/
+def RestoredPrimaryRecursorCanonicalInputs.sourceSemanticsOfCompatible
+    {loweredDecl sourceDecl : VInductDecl}
+    {loweredOwner sourceOwner : VInductiveType}
+    {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv}
+    {recursor : VConstVal} {canonicalEnv : VEnv}
+    (Hcanonical : RestoredPrimaryRecursorCanonicalInputs Hstep recursor
+      canonicalEnv)
+    (Hshape : loweredDecl.NestedRecursorShape loweredOwner recursor)
+    (howner : Hshape.ownerIdx < sourceDecl.types.length)
+    (hownerEq : sourceDecl.types[Hshape.ownerIdx] = sourceOwner)
+    (hsourceName : Hstep.restored.newRecName =
+      sourceDecl.recursorName sourceOwner)
+    (hsourceUvars : recursor.uvars = sourceDecl.uvars ∨
+      recursor.uvars = sourceDecl.uvars + 1)
+    (holdUvars : Hstep.oldInfo.levelParams.length = recursor.uvars)
+    (hnparams : sourceDecl.nparams = loweredDecl.nparams)
+    (hmotives : sourceDecl.types.length ≤ Hshape.motives.length)
+    (hminors : sourceDecl.ownedConstructors.length ≤ Hshape.minors.length)
+    (hindices : sourceOwner.numIndices = loweredOwner.numIndices) :
+    SourcePrimaryRecursorRealization sourceDecl sourceOwner Hstep canonicalEnv
+      recursor where
+  source := ⟨recursor, Hcanonical.name.trans hsourceName, Hcanonical.wf,
+    ⟨Hshape.ofCompatible howner hownerEq
+      (Hcanonical.name.trans hsourceName) hsourceUvars hnparams hmotives
+      hminors hindices⟩⟩
+  recursor_eq := rfl
+  refinement := ⟨holdUvars, Hcanonical.type⟩
+
 /-- For an ordinary block, the verified production recursor certificate
 already supplies the independent source-level recursor semantics.  Nested
 lowering cannot use this theorem directly for an original source family,
@@ -36622,6 +36669,74 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFresh
     HsourceRec
     (HrecursorRefinements familyIdx hfamily hdecl hentry stepSource stepTarget
       Hstep HsourceRec)
+
+/-- Joint recursor-realization form of `sourceSemanticTraceAtFresh`.  This is
+the preferred executable/specification boundary: each operational restoration
+step must produce one source semantic witness together with a refinement of
+that very same recursor, rather than satisfying two independently quantified
+callbacks. -/
+theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfRealizations
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv envTypes)
+    (hempty : initialState.nestedAux = #[])
+    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv
+      loweredSourceEnv (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+      allIndNames sourceTypes auxRecNames out)
+    (Hrealizations : ∀ familyIdx
+      (hfamily : familyIdx < sourceTypes.length)
+      (hdecl : familyIdx < sourceDecl.types.length)
+      (hentry : familyIdx < Hprod.entries.length)
+      (stepSource stepTarget : Environment)
+      (Hstep : RestoredInductiveStep result loweredEnv
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
+        sourceTypes[familyIdx] stepSource stepTarget),
+      ∃ recursor, Nonempty (SourcePrimaryRecursorRealization sourceDecl
+        (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor envCtors
+        recursor)) :
+    ∃ owners recursors,
+      RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
+        sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
+  apply Hrestored.inductives.sourceInductiveSemanticTrace
+  intro indType stepSource stepTarget Hstep hmem
+  rcases List.mem_iff_getElem.mp hmem with ⟨familyIdx, hfamily, heq⟩
+  subst indType
+  have hdecl : familyIdx < sourceDecl.types.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource]
+    exact hfamily
+  rcases H.toResult.sourceFinalMappingAtFresh hempty hfamily with
+    ⟨_mappingParams, _mappingState, _mappingTarget, _mappingLowered,
+      _mappingSize, _mapping, htarget⟩
+  have hresult : familyIdx < result.types.length :=
+    (_root_.getElem?_eq_some_iff.mp htarget).1
+  have hentry : familyIdx < Hprod.entries.length := by
+    rw [Hprod.generated.length, Hprod.cardinality.records,
+      ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
+    simpa using hresult
+  rcases Hrealizations familyIdx hfamily hdecl hentry stepSource stepTarget
+      Hstep with ⟨recursor, ⟨Hrealization⟩⟩
+  have Hrefinement := Hrealization.refinement
+  rw [← Hrealization.recursor_eq] at Hrefinement
+  exact H.sourceInductiveSemanticsAtFresh Hc Hprod Hsources hempty
+    familyIdx hfamily hdecl hentry
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource familyIdx
+      hfamily hdecl) Hfamilies Hconstructors Hstep
+    Hrealization.source Hrefinement
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
