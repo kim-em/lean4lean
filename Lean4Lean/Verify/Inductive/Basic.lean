@@ -29218,6 +29218,115 @@ inductive NestedExprMapping
       NestedExprMapping env lctx params As finalResult (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
 
+/-- Structural lowering map with every successful leaf upgraded to its
+parameter-reopening certificate. -/
+inductive NestedExprReopening
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (finalResult : Lean4Lean.ElimNestedInductive.Result)
+    (restoreAs : Array Expr) :
+    Expr → Lean4Lean.ElimNestedInductive.State →
+      Expr × Lean4Lean.ElimNestedInductive.State → Prop
+  | hit : NestedReplacementReopens env lctx params As input state output
+      finalResult restoreAs →
+      NestedExprReopening env lctx params As finalResult restoreAs input state
+        (output, nextState)
+  | bvar : NestedExprReopening env lctx params As finalResult restoreAs
+      (.bvar i) state (.bvar i, state)
+  | fvar {fvarId : FVarId} :
+      NestedExprReopening env lctx params As finalResult restoreAs
+        (.fvar fvarId) state (.fvar fvarId, state)
+  | mvar {mvarId : MVarId} :
+      NestedExprReopening env lctx params As finalResult restoreAs
+        (.mvar mvarId) state (.mvar mvarId, state)
+  | sort : NestedExprReopening env lctx params As finalResult restoreAs
+      (.sort level) state (.sort level, state)
+  | const : NestedExprReopening env lctx params As finalResult restoreAs
+      (.const name levels) state (.const name levels, state)
+  | lit : NestedExprReopening env lctx params As finalResult restoreAs
+      (.lit literal) state (.lit literal, state)
+  | app : NestedExprReopening env lctx params As finalResult restoreAs fn state
+      (fn', fnState) →
+      NestedExprReopening env lctx params As finalResult restoreAs arg fnState
+        (arg', outState) →
+      NestedExprReopening env lctx params As finalResult restoreAs
+        (.app fn arg) state
+        (Expr.updateApp! (.app fn arg) fn' arg', outState)
+  | lam : NestedExprReopening env lctx params As finalResult restoreAs dom state
+      (dom', domState) →
+      NestedExprReopening env lctx params As finalResult restoreAs body domState
+        (body', outState) →
+      NestedExprReopening env lctx params As finalResult restoreAs
+        (.lam name dom body bi) state
+        (Expr.updateLambdaE! (.lam name dom body bi) dom' body', outState)
+  | forallE : NestedExprReopening env lctx params As finalResult restoreAs dom
+      state (dom', domState) →
+      NestedExprReopening env lctx params As finalResult restoreAs body domState
+        (body', outState) →
+      NestedExprReopening env lctx params As finalResult restoreAs
+        (.forallE name dom body bi) state
+        (Expr.updateForallE! (.forallE name dom body bi) dom' body', outState)
+  | letE : NestedExprReopening env lctx params As finalResult restoreAs type state
+      (type', typeState) →
+      NestedExprReopening env lctx params As finalResult restoreAs value typeState
+        (value', valueState) →
+      NestedExprReopening env lctx params As finalResult restoreAs body valueState
+        (body', outState) →
+      NestedExprReopening env lctx params As finalResult restoreAs
+        (.letE name type value body nondep) state
+        (Expr.updateLet! (.letE name type value body nondep)
+          type' value' body' nondep, outState)
+  | mdata : NestedExprReopening env lctx params As finalResult restoreAs body state
+      (body', outState) →
+      NestedExprReopening env lctx params As finalResult restoreAs
+        (.mdata data body) state
+        (Expr.updateMData! (.mdata data body) body', outState)
+  | proj : NestedExprReopening env lctx params As finalResult restoreAs body state
+      (body', outState) →
+      NestedExprReopening env lctx params As finalResult restoreAs
+        (.proj name idx body) state
+        (Expr.updateProj! (.proj name idx body) body', outState)
+
+/-- Lift a complete expression mapping to leafwise reopening.  Source
+free-variable scoping is split structurally in exactly the same way as the
+lowering traversal. -/
+theorem NestedExprMapping.reopens
+    (H : NestedExprMapping env lctx params As finalResult input state out)
+    (hresultParams : finalResult.params = params)
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hnodup : fvars.Nodup)
+    (Hselection : LocalForallSelection lctx As)
+    (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
+    NestedExprReopening env lctx params As finalResult restoreAs input state
+      out := by
+  induction H with
+  | hit Hnode =>
+    exact .hit (Hnode.reopensOfFVars hresultParams fvars hparams hnodup
+      Hselection Hinput)
+  | bvar => exact .bvar
+  | fvar => exact .fvar
+  | mvar => exact .mvar
+  | sort => exact .sort
+  | const => exact .const
+  | lit => exact .lit
+  | app Hfn Harg ihFn ihArg =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact .app (ihFn Hinput.1) (ihArg Hinput.2)
+  | lam Hdom Hbody ihDom ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact .lam (ihDom Hinput.1) (ihBody Hinput.2)
+  | forallE Hdom Hbody ihDom ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact .forallE (ihDom Hinput.1) (ihBody Hinput.2)
+  | letE Htype Hvalue Hbody ihType ihValue ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact .letE (ihType Hinput.1) (ihValue Hinput.2.1)
+      (ihBody Hinput.2.2)
+  | mdata Hbody ihBody =>
+    exact .mdata (ihBody Hinput)
+  | proj Hbody ihBody =>
+    exact .proj (ihBody Hinput)
+
 theorem RecognizedNestedReplacement.auxFVarsIn
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out)
@@ -29805,6 +29914,48 @@ structure LoweredConstructorMapping
         (lowered, out.2) ∧
       out.1.type = lctx.mkForall As lowered
 
+/-- Constructor lowering with its expression mapping upgraded pointwise to
+reopening under a restoration parameter array. -/
+structure LoweredConstructorReopening
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (finalResult : Lean4Lean.ElimNestedInductive.Result)
+    (restoreAs : Array Expr)
+    (source : Constructor) (state : Lean4Lean.ElimNestedInductive.State)
+    (out : Constructor × Lean4Lean.ElimNestedInductive.State) : Prop where
+  name : out.1.name = source.name
+  reopened : ∃ lctx tail As lowered openedState,
+    NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+    ∃ Hselection : LocalForallSelection lctx As,
+      openedState.newTypes = state.newTypes ∧
+      openedState.nestedAux = state.nestedAux ∧
+      openedState.nextIdx = state.nextIdx ∧
+      As.size = nparams ∧
+      NestedExprReopening env lctx params As finalResult restoreAs tail
+        openedState (lowered, out.2) ∧
+      out.1.type = lctx.mkForall As lowered
+
+theorem LoweredConstructorMapping.reopens
+    (H : LoweredConstructorMapping env params nparams finalResult source state
+      out)
+    (hresultParams : finalResult.params = params)
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hnodup : fvars.Nodup)
+    (Hsource : source.type.FVarsIn fun _ => False) :
+    LoweredConstructorReopening env params nparams finalResult restoreAs source
+      state out := by
+  refine ⟨H.name, ?_⟩
+  rcases H.mapped with
+    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+      hopenedTypes, hopenedAux, hopenedNext, hsize, Hmapping, htype⟩
+  have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
+    Hopening.tailFVarsIn Hselection
+      (Hsource.mono fun fv hfalse => False.elim hfalse)
+  exact ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+    hopenedTypes, hopenedAux, hopenedNext, hsize,
+    Hmapping.reopens hresultParams fvars hparams hnodup Hselection Htail,
+    htype⟩
+
 theorem LoweredConstructorTranslation.finalMapping
     (H : LoweredConstructorTranslation env params nparams source state out)
     (Hlater : NestedAuxLE out.2 finalState)
@@ -29942,6 +30093,42 @@ inductive LoweredConstructorMappings
       LoweredConstructorMappings env params nparams finalResult
         (source :: sources) state (step.1 :: out.1, out.2)
 
+inductive LoweredConstructorReopenings
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (finalResult : Lean4Lean.ElimNestedInductive.Result)
+    (restoreAs : Array Expr) :
+    List Constructor → Lean4Lean.ElimNestedInductive.State →
+      List Constructor × Lean4Lean.ElimNestedInductive.State → Prop
+  | nil : LoweredConstructorReopenings env params nparams finalResult restoreAs
+      [] state ([], state)
+  | cons : LoweredConstructorReopening env params nparams finalResult restoreAs
+      source state step →
+      LoweredConstructorReopenings env params nparams finalResult restoreAs
+        sources step.2 out →
+      LoweredConstructorReopenings env params nparams finalResult restoreAs
+        (source :: sources) state (step.1 :: out.1, out.2)
+
+theorem LoweredConstructorMappings.reopens
+    (H : LoweredConstructorMappings env params nparams finalResult sources
+      state out)
+    (hresultParams : finalResult.params = params)
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hnodup : fvars.Nodup)
+    (Hsources : ∀ source ∈ sources,
+      source.type.FVarsIn fun _ => False) :
+    LoweredConstructorReopenings env params nparams finalResult restoreAs
+      sources state out := by
+  induction H with
+  | nil => exact .nil
+  | cons Hhead Htail ih =>
+    apply LoweredConstructorReopenings.cons
+    · exact Hhead.reopens hresultParams fvars hparams hnodup
+        (Hsources _ (by simp))
+    · apply ih
+      intro source hsource
+      exact Hsources source (by simp [hsource])
+
 theorem LoweredConstructorTranslations.finalMapping
     (H : LoweredConstructorTranslations env params nparams sources state out)
     (Hlater : NestedAuxLE out.2 finalState)
@@ -30070,6 +30257,30 @@ structure LoweredInductiveMapping
   type : out.1.type = source.type
   constructors : LoweredConstructorMappings env params nparams finalResult
     source.ctors state (out.1.ctors, out.2)
+
+structure LoweredInductiveReopening
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (finalResult : Lean4Lean.ElimNestedInductive.Result)
+    (restoreAs : Array Expr)
+    (source : InductiveType) (state : Lean4Lean.ElimNestedInductive.State)
+    (out : InductiveType × Lean4Lean.ElimNestedInductive.State) : Prop where
+  name : out.1.name = source.name
+  type : out.1.type = source.type
+  constructors : LoweredConstructorReopenings env params nparams finalResult
+    restoreAs source.ctors state (out.1.ctors, out.2)
+
+theorem LoweredInductiveMapping.reopens
+    (H : LoweredInductiveMapping env params nparams finalResult source state out)
+    (hresultParams : finalResult.params = params)
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hnodup : fvars.Nodup)
+    (Hsource : ∀ ctor ∈ source.ctors,
+      ctor.type.FVarsIn fun _ => False) :
+    LoweredInductiveReopening env params nparams finalResult restoreAs source
+      state out :=
+  ⟨H.name, H.type,
+    H.constructors.reopens hresultParams fvars hparams hnodup Hsource⟩
 
 theorem LoweredInductiveTranslation.newTypesLE
     (H : LoweredInductiveTranslation env params nparams source state out) :
