@@ -24171,6 +24171,34 @@ def RestoreSourceDisjoint
   | .mdata _ body | .proj _ _ body =>
       RestoreSourceDisjoint result env body
 
+/-- Every concrete constant occurring syntactically in an expression resolves
+in the abstract environment used to translate it. Projections deliberately
+follow the translated body only, matching `RestoreSourceDisjoint`. -/
+def _root_.Lean.Expr.ConstantsDefined (env : VEnv) : Expr → Prop
+  | .bvar _ | .fvar _ | .mvar _ | .sort _ | .lit _ => True
+  | .const name _ => env.constants name ≠ none
+  | .app fn arg => fn.ConstantsDefined env ∧ arg.ConstantsDefined env
+  | .lam _ dom body _ | .forallE _ dom body _ =>
+      dom.ConstantsDefined env ∧ body.ConstantsDefined env
+  | .letE _ type value body _ =>
+      type.ConstantsDefined env ∧ value.ConstantsDefined env ∧
+        body.ConstantsDefined env
+  | .mdata _ body | .proj _ _ body => body.ConstantsDefined env
+
+theorem _root_.Lean4Lean.TrExprS.constantsDefined
+    (H : TrExprS env Us Δ source target) : source.ConstantsDefined env := by
+  induction H <;> simp_all [Expr.ConstantsDefined]
+
+/-- Any name recognized as an auxiliary constructor was absent from the
+abstract environment in which the independent source expression was
+translated. -/
+def RestoreAuxConstructorsFresh
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (prodEnv : Environment) (sourceVEnv : VEnv) : Prop :=
+  ∀ name nested auxFamily,
+    result.getNestedIfAuxCtor prodEnv name = some (nested, auxFamily) →
+    sourceVEnv.constants name = none
+
 /-- Every name that the concrete restoration callback treats as an
 auxiliary family or constructor lies in the namespace rejected by the source
 syntax check.  This separates the name-generation argument from the
@@ -24252,6 +24280,82 @@ theorem NoNestedAux.restoreSourceDisjoint
       simpa only [RestoreSourceDisjoint] using ihBody hbody
   apply go e
   simpa only [p] using H.findAny_false
+
+/-- Derive semantic restoration disjointness without assuming generated
+constructor names live below `_nested`. Family collisions are rejected by
+the source syntax namespace check; constructor collisions contradict source
+translation and freshness of the lowered block. -/
+theorem NoNestedAux.restoreSourceDisjointOfFresh
+    (H : NoNestedAux e)
+    (Hdefined : e.ConstantsDefined sourceVEnv)
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result prodEnv sourceVEnv) :
+    RestoreSourceDisjoint result prodEnv e := by
+  let p : Expr → Bool := fun
+    | .const c _ => (`_nested).isPrefixOf c
+    | .proj s _ _ => (`_nested).isPrefixOf s
+    | _ => false
+  have orFalse : ∀ a b : Bool, (a || b) = false →
+      a = false ∧ b = false := by
+    intro a b h
+    cases a <;> cases b <;> simp_all
+  have go : ∀ source, source.findAny p = false →
+      source.ConstantsDefined sourceVEnv →
+      RestoreSourceDisjoint result prodEnv source := by
+    intro source
+    induction source with
+    | bvar | fvar | mvar | sort | lit =>
+      intro _Hfind _HsourceDefined
+      trivial
+    | const name levels =>
+      intro Hfind HsourceDefined
+      have hprefix : (`_nested).isPrefixOf name = false := by
+        simpa [Expr.findAny, p] using Hfind
+      constructor
+      · cases hfamily : result.aux2nested.find? name with
+        | none => rfl
+        | some nested =>
+          have hreserved := Hfamilies name nested hfamily
+          simp_all
+      · cases hctor : result.getNestedIfAuxCtor prodEnv name with
+        | none => rfl
+        | some pair =>
+          rcases pair with ⟨nested, auxFamily⟩
+          have hfresh := Hconstructors name nested auxFamily hctor
+          exact False.elim (HsourceDefined hfresh)
+    | app fn arg ihFn ihArg =>
+      intro Hfind HsourceDefined
+      simp only [Expr.findAny, p, Bool.false_or] at Hfind
+      rcases orFalse _ _ Hfind with ⟨hfn, harg⟩
+      exact ⟨ihFn hfn HsourceDefined.1, ihArg harg HsourceDefined.2⟩
+    | lam name dom body bi ihDom ihBody
+        | forallE name dom body bi ihDom ihBody =>
+      intro Hfind HsourceDefined
+      simp only [Expr.findAny, p, Bool.false_or] at Hfind
+      rcases orFalse _ _ Hfind with ⟨hdom, hbody⟩
+      exact ⟨ihDom hdom HsourceDefined.1,
+        ihBody hbody HsourceDefined.2⟩
+    | letE name type value body nondep ihType ihValue ihBody =>
+      intro Hfind HsourceDefined
+      simp only [Expr.findAny, p, Bool.false_or] at Hfind
+      rcases orFalse _ _ Hfind with ⟨htypeValue, hbody⟩
+      rcases orFalse _ _ htypeValue with ⟨htype, hvalue⟩
+      exact ⟨ihType htype HsourceDefined.1,
+        ihValue hvalue HsourceDefined.2.1,
+        ihBody hbody HsourceDefined.2.2⟩
+    | mdata data body ihBody =>
+      intro Hfind HsourceDefined
+      simpa only [RestoreSourceDisjoint] using
+        ihBody Hfind HsourceDefined
+    | proj structName idx body ihBody =>
+      intro Hfind HsourceDefined
+      simp only [Expr.findAny, p] at Hfind
+      exact ihBody (orFalse _ _ Hfind).2 HsourceDefined
+  apply go e
+  · simpa only [p] using H.findAny_false
+  · exact Hdefined
 
 theorem RestoreSourceDisjoint.getAppFn
     (H : RestoreSourceDisjoint result env e)
@@ -32733,6 +32837,47 @@ theorem RestoredConstructorStep.installationOfDisjoint
   · exact Hmapping.restoredType_translation hresultParams paramFvars
       hparams hnodup HsourceClosed HsourceDisjoint hresultNParams
       Hstep.restored.restoration htype Hsource
+  · exact Hwf
+
+/-- Preferred source-syntax installation endpoint. Auxiliary family names are
+reserved by the lowering cache, while auxiliary constructor names need only
+be fresh in the abstract source environment; no constructor namespace
+convention is assumed. -/
+theorem RestoredConstructorStep.installationOfFresh
+    (Hstep : RestoredConstructorStep result loweredEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+      source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (Hsyntax : SourceConstructorSyntax source)
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv sourceVEnv)
+    (hresultNParams : result.nparams = nparams)
+    (htype : Hstep.oldInfo.type = out.1.type)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (constructor : VConstVal)
+    (Hold : TrConstVal safety sourceVEnv
+      (.ctorInfo Hstep.oldInfo) constructor)
+    (Hsource : TrExprS sourceVEnv Hstep.oldInfo.levelParams [] source.type
+      constructor.type)
+    (Hwf : constructor.toVConstant.WF sourceVEnv) :
+    ∃ targetVEnv,
+      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) := by
+  apply Hstep.installationOfDisjoint Hmapping hresultParams paramFvars hparams
+    hnodup Hsyntax.closed
+  · exact Hsyntax.noNestedAux.restoreSourceDisjointOfFresh
+      Hsource.constantsDefined Hfamilies Hconstructors
+  · exact hresultNParams
+  · exact htype
+  · exact Hvalid
+  · exact Hold
+  · exact Hsource
   · exact Hwf
 
 /-- Namespace-based convenience specialization of
