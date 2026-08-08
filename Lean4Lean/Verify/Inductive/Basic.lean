@@ -13893,6 +13893,47 @@ theorem Expr.ForallTelescope.instantiate1'
     apply Expr.ForallTelescope.cons
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
 
+theorem Expr.ForallTelescope.isForall_of_pos
+    (H : Expr.ForallTelescope outer arity residual) (hpos : 0 < arity) :
+    outer.isForall = true := by
+  cases H with
+  | nil => simp at hpos
+  | cons => rfl
+
+/-- Substitution by a free variable cannot manufacture a leading forall.
+This reflection lemma is the converse shape fact needed to recover the
+original source telescope from lowering's successively opened one. -/
+theorem Expr.ForallTelescope.reflect_instantiate1'_fvar
+    (H : Expr.ForallTelescope
+      (e.instantiate1' (.fvar fv) k) arity residual) :
+    ∃ sourceResidual, Expr.ForallTelescope e arity sourceResidual := by
+  induction arity generalizing e residual k with
+  | zero => exact ⟨e, .nil _⟩
+  | succ arity ih =>
+    cases e with
+    | forallE name dom body bi =>
+      simp only [Expr.instantiate1'] at H
+      cases H with
+      | cons Htail =>
+        rcases ih Htail with ⟨sourceResidual, Hsource⟩
+        exact ⟨sourceResidual, .cons Hsource⟩
+    | bvar i =>
+      by_cases hlt : i < k
+      · simp only [Expr.instantiate1', hlt, ↓reduceIte] at H
+        exact Bool.noConfusion (H.isForall_of_pos (by omega))
+      · by_cases heq : i = k
+        · subst i
+          simp only [Expr.instantiate1', Nat.lt_irrefl, ↓reduceIte] at H
+          rw [Expr.liftLooseBVars_eq_self
+            (by simp [Expr.looseBVarRange'])] at H
+          exact Bool.noConfusion (H.isForall_of_pos (by omega))
+        · simp only [Expr.instantiate1', hlt, heq, ↓reduceIte] at H
+          exact Bool.noConfusion (H.isForall_of_pos (by omega))
+    | fvar | mvar | sort | const | app | lam | letE | lit | mdata | proj =>
+      simp only [Expr.instantiate1'] at H
+      have hfor := H.isForall_of_pos (by omega)
+      exact Bool.noConfusion hfor
+
 theorem Expr.abstractList_fvar_of_not_mem
     (hmem : fv ∉ fvs) :
     (Expr.fvar fv).abstractList fvs k = .fvar fv := by
@@ -23322,6 +23363,18 @@ theorem NestedParamOpening.params_size
   | done => simp
   | step _ ih => simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih
 
+theorem NestedParamOpening.forallTelescope
+    (H : NestedParamOpening lctx As e n outLctx tail outAs) :
+    ∃ residual, Expr.ForallTelescope e n residual := by
+  induction H with
+  | done => exact ⟨_, .nil _⟩
+  | step Hnext ih =>
+    rcases ih with ⟨openedResidual, Hopened⟩
+    rw [Expr.instantiate1_eq] at Hopened
+    rcases Hopened.reflect_instantiate1'_fvar with
+      ⟨sourceResidual, Hsource⟩
+    exact ⟨sourceResidual, .cons Hsource⟩
+
 theorem NestedParamOpening.params_extension
     (H : NestedParamOpening lctx params type n outLctx tail outParams) :
     ∃ suffix, outParams.toList = params.toList ++ suffix ∧
@@ -24843,6 +24896,16 @@ inductive RestoreParamOpening : LocalContext → Array Expr → Expr → Nat →
       RestoreParamOpening lctx As (.lam name dom body bi) (n + 1)
         outLctx outAs tail
 
+/-- Nested lowering's parameter traversal is the forall-only fragment of the
+restoration traversal.  Sharing this relation gives both phases one audited
+telescope-substitution model. -/
+theorem NestedParamOpening.toRestoreParamOpening
+    (H : NestedParamOpening lctx As e n outLctx tail outAs) :
+    RestoreParamOpening lctx As e n outLctx outAs tail := by
+  induction H with
+  | done => exact .done
+  | step Hnext ih => exact .forallE ih
+
 theorem RestoreParamOpening.params_size
     (H : RestoreParamOpening lctx As e n outLctx outAs tail) :
     outAs.size = As.size + n := by
@@ -24907,6 +24970,20 @@ theorem RestoreParamOpening.forallResidualData
         rw [hlength] at hcomm
         simpa using hcomm
   | lam Hnext ih => cases Htel
+
+/-- Lowering's source traversal exposes an ordinary residual telescope and
+substitutes exactly the free variables appended to its parameter array. -/
+theorem NestedParamOpening.sourceResidualData
+    (H : NestedParamOpening lctx As outer n outLctx tail outAs) :
+    ∃ residual, ∃ fvars : List FVarId,
+      Expr.ForallTelescope outer n residual ∧
+      outAs.toList = As.toList ++ fvars.map Expr.fvar ∧
+      fvars.length = n ∧
+      tail = residual.instantiateRevList (fvars.map Expr.fvar) := by
+  rcases H.forallTelescope with ⟨residual, Htel⟩
+  rcases H.toRestoreParamOpening.forallResidualData Htel with
+    ⟨fvars, hparams, hlength, htail⟩
+  exact ⟨residual, fvars, Htel, hparams, hlength, htail⟩
 
 /-- Root specialization of `forallResidualData`, stated using Lean's
 production array primitive. -/
@@ -31555,6 +31632,7 @@ structure ConstructorRestorationBodyInverse
   sourceLctx : LocalContext
   sourceTail : Expr
   sourceAs : Array Expr
+  sourceClosed : source.type.FVarsIn fun _ => False
   sourceOpening : NestedParamOpening {} #[] source.type nparams sourceLctx
     sourceTail sourceAs
   sourceSelection : LocalForallSelection sourceLctx sourceAs
@@ -31596,11 +31674,39 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
     sourceLctx := sourceLctx
     sourceTail := sourceTail
     sourceAs := sourceAs
+    sourceClosed := Hsyntax.closed
     sourceOpening := HsourceOpening
     sourceSelection := Hselection
     sourceNodup := hsourceNodup
     sourceArity := hsourceArity
     bodyInverse := hinverse }⟩
+
+/-- Eliminate the source-opening free variables from the body inverse.  The
+restored body is the ordinary residual of the original constructor telescope,
+instantiated only with restoration's fresh parameter array. -/
+theorem ConstructorRestorationBodyInverse.restoredBody_residual
+    (H : ConstructorRestorationBodyInverse result env nparams source lowered
+      restoredType) :
+    ∃ residual,
+      Expr.ForallTelescope source.type nparams residual ∧
+      (H.restoredBody == residual.instantiateRev H.restoreAs) = true := by
+  rcases H.sourceOpening.forallTelescope with ⟨residual, Htelescope⟩
+  have htail : H.sourceTail = residual.instantiateRev H.sourceAs :=
+    H.sourceOpening.toRestoreParamOpening.forallResidual Htelescope
+  have hfree : residual.FVarsIn
+      (fun fv => fv ∉ H.sourceSelection.fvars) :=
+    (Htelescope.resultFVarsIn H.sourceClosed).mono fun fv hfalse =>
+      False.elim hfalse
+  have hcancel := hfree.reabstract_instantiateRev_fvarArray H.sourceAs
+    H.restoreAs H.sourceSelection.fvars H.sourceSelection.expressions
+    H.sourceNodup
+  have hopen : Expr.reopenParams H.sourceTail H.sourceAs H.restoreAs =
+      residual.instantiateRev H.restoreAs := by
+    rw [htail]
+    simpa [Expr.reopenParams] using hcancel
+  have hinverse := H.bodyInverse
+  rw [hopen] at hinverse
+  exact ⟨residual, Htelescope, hinverse⟩
 
 /-- Metadata-facing form of the constructor inverse.  Installation exposes a
 `ConstructorVal`, while lowering is indexed by the corresponding
