@@ -480,38 +480,39 @@ inductive Aligned : ConstMap → VEnv → Prop where
     venv.addConst n ci' = some venv' → ci.name = n → Aligned (C.insert n ci) venv'
   | defeq : Aligned C venv → Aligned C (venv.addDefEq df)
 
-/-- Constructive implementation boundary for an inductive extension. Besides
-the independent compilation and installation witnesses, it records the exact
-production-map alignment proof that the executable `addInductive` verifier
-must eventually construct. The `Eq` clause is the canonicality fact consumed
-by quotient initialization. -/
-inductive AddInduct (m₁ : ConstMap) (env₁ : VEnv) (decl : VInductDecl)
+/-- Constructive implementation boundary for an inductive extension at one
+observer safety. Besides the independent compilation and installation
+witnesses, it records exact production-map alignment at that safety. The
+`Eq` clause is the canonicality fact consumed by quotient initialization. -/
+inductive AddInduct (safety : DefinitionSafety)
+    (m₁ : ConstMap) (env₁ : VEnv) (decl : VInductDecl)
     (m₂ : ConstMap) (env₂ : VEnv) : Prop where
   | intro (_block : VInductBlock) :
     decl.WF env₁ →
     VInductDecl.CompilesTo env₁ decl _block →
     VInductBlock.WF env₁ _block →
     VInductBlock.install env₁ _block = some env₂ →
-    (∀ safety, Aligned safety m₁ env₁ → Aligned safety m₂ env₂) →
+    (Aligned safety m₁ env₁ → Aligned safety m₂ env₂) →
     (∀ {name ci}, m₂.find? name = some ci → ci.deltaValue?.isSome →
       m₁.find? name = some ci) →
     (∀ info, m₂.find? ``Eq = some (.inductInfo info) →
       env₂.constants ``Eq = some eqConst) →
-    AddInduct m₁ env₁ decl m₂ env₂
+    AddInduct safety m₁ env₁ decl m₂ env₂
 
 theorem AddInduct.toVEnv
-    (H : AddInduct m₁ env₁ decl m₂ env₂) : VEnv.AddInduct env₁ decl env₂ :=
+    (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
+    VEnv.AddInduct env₁ decl env₂ :=
   match H with
   | .intro _ hdecl hcompile hblock hinstall _ _ _ =>
     .intro hdecl hcompile hblock hinstall
 
 theorem AddInduct.declWF
-    (H : AddInduct m₁ env₁ decl m₂ env₂) : decl.WF env₁ := by
+    (H : AddInduct safety m₁ env₁ decl m₂ env₂) : decl.WF env₁ := by
   cases H with
   | intro _ hdecl => exact hdecl
 
 theorem AddInduct.le
-    (H : AddInduct m₁ env₁ decl m₂ env₂) : env₁ ≤ env₂ := by
+    (H : AddInduct safety m₁ env₁ decl m₂ env₂) : env₁ ≤ env₂ := by
   cases H with
   | intro _ _ _ _ hinstall => exact VInductBlock.install_le hinstall
 
@@ -556,7 +557,7 @@ inductive TrEnv' : ConstMap → Bool → VEnv → Prop where
     TrEnv' C' true env'
   | induct :
     decl.WF env →
-    AddInduct C env decl C' env' →
+    AddInduct safety C env decl C' env' →
     TrEnv' C Q env →
     TrEnv' C' Q env'
 

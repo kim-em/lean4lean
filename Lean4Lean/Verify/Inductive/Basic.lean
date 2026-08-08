@@ -19918,6 +19918,26 @@ theorem AddConstants.aligned
       exact hn
     exact ih (Haligned.const hnMap htr.1 hadd rfl)
 
+/-- If every newly installed production constant is hidden from an observer,
+the observer's abstract environment is unchanged across the whole lockstep
+installation. -/
+theorem AddConstants.trEnvIgnore
+    (H : AddConstants checkSafety prodEnv venv entries outEnv outVEnv)
+    (hhidden : ∀ entry ∈ entries, ¬ observerSafety ≤ entry.1.safety)
+    (htr : TrEnv' observerSafety prodEnv.constants quotInit observerEnv) :
+    TrEnv' observerSafety outEnv.constants quotInit observerEnv := by
+  induction H with
+  | nil => exact htr
+  | cons hn _hnprim _hentry _hwf _hadd _hdelta _Htail ih =>
+    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
+    have hnMap : envHead.constants.find? ci.name = none := by
+      rw [← htr.map_wf.find?'_eq_find?]
+      exact hn
+    have htrHead : TrEnv' observerSafety
+        (envHead.constants.insert ci.name ci) quotInit observerEnv :=
+      TrEnv'.ignore hnMap (hhidden (ci, ci') (by simp)) htr
+    exact ih (fun entry hentry => hhidden entry (by simp [hentry])) htrHead
+
 /-- Constants introduced by an inductive staging trace have no delta value,
 so every delta-bearing entry in the final production map was already present
 in the source map. -/
@@ -21386,6 +21406,19 @@ theorem StagedBlock.aligned
   H.recursorsAdded.aligned
     (H.ctorsAdded.aligned (H.typesAdded.aligned Halign))
 
+theorem StagedBlock.trEnvIgnore
+    (H : StagedBlock checkSafety prodEnv venv types ctors recursors
+      outEnv outVEnv)
+    (htypes : ∀ entry ∈ types, ¬ observerSafety ≤ entry.1.safety)
+    (hctors : ∀ entry ∈ ctors, ¬ observerSafety ≤ entry.1.safety)
+    (hrecursors : ∀ entry ∈ recursors,
+      ¬ observerSafety ≤ entry.1.safety)
+    (htr : TrEnv' observerSafety prodEnv.constants quotInit observerEnv) :
+    TrEnv' observerSafety outEnv.constants quotInit observerEnv :=
+  H.recursorsAdded.trEnvIgnore hrecursors
+    (H.ctorsAdded.trEnvIgnore hctors
+      (H.typesAdded.trEnvIgnore htypes htr))
+
 theorem StagedBlock.deltaConservative
     (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv)
     (Halign : Aligned safety env.constants venv) :
@@ -21751,25 +21784,18 @@ theorem BlockCertificate.addInduct
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
     (hsourceAligned : Aligned checkSafety prodEnv.constants venv)
-    (halignedOther : ∀ safety, safety ≠ checkSafety →
-      Aligned safety prodEnv.constants venv →
-      Aligned safety outEnv.constants (outVEnv.addDefEqs rules))
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
       (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
-    AddInduct prodEnv.constants venv decl outEnv.constants
+    AddInduct checkSafety prodEnv.constants venv decl outEnv.constants
       (outVEnv.addDefEqs rules) := by
   apply AddInduct.intro H.block hdecl hcompile H.wf H.install
-  · intro safety Haligned
-    by_cases hsafety : safety = checkSafety
-    · subst safety
-      exact aligned_addDefEqs (H.staged.aligned Haligned) rules
-    · exact halignedOther safety hsafety Haligned
+  · intro Haligned
+    exact aligned_addDefEqs (H.staged.aligned Haligned) rules
   · exact H.staged.deltaConservative hsourceAligned
   · exact heq
 
-/-- For a safe declaration, the staging trace itself supplies alignment at
-every observer safety: translate the same generated entries by safety
-monotonicity, then replay the three certified installation stages. -/
+/-- For a safe declaration, the staging trace directly supplies the concrete
+safe-observer alignment required by `AddInduct`. -/
 theorem BlockCertificate.addInductSafe
     (H : BlockCertificate .safe prodEnv venv types ctors recursors
       rules outEnv outVEnv)
@@ -21778,18 +21804,12 @@ theorem BlockCertificate.addInductSafe
     (hsourceAligned : Aligned .safe prodEnv.constants venv)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
       (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
-    AddInduct prodEnv.constants venv decl outEnv.constants
+    AddInduct .safe prodEnv.constants venv decl outEnv.constants
       (outVEnv.addDefEqs rules) := by
-  apply H.addInduct hdecl hcompile hsourceAligned
-  · intro safety _ Haligned
-    exact aligned_addDefEqs
-      ((H.sf_mono DefinitionSafety.le_safe).staged.aligned Haligned) rules
-  · exact heq
+  exact H.addInduct hdecl hcompile hsourceAligned heq
 
 /-- Replay a safe certified block into any safety-indexed source model and
-construct the full concrete `AddInduct` relation there.  Observer alignment
-uses `reindex`: translations come from the original safe trace, while all
-freshness and target equations come from the replayed trace. -/
+construct the concrete `AddInduct` relation at that model's observer safety. -/
 theorem BlockCertificate.rebaseAddInductSafe
     (H : BlockCertificate .safe prodEnv base types ctors recursors
       rules outEnv outBase)
@@ -21803,7 +21823,7 @@ theorem BlockCertificate.rebaseAddInductSafe
     ∃ largerOutBase,
       Nonempty (BlockCertificate targetSafety prodEnv largerBase types ctors
         recursors rules outEnv largerOutBase) ∧
-      AddInduct prodEnv.constants largerBase decl outEnv.constants
+      AddInduct targetSafety prodEnv.constants largerBase decl outEnv.constants
         (largerOutBase.addDefEqs rules) ∧
       outBase.addDefEqs rules ≤ largerOutBase.addDefEqs rules := by
   rcases H.rebaseCertificate Hvalid DefinitionSafety.le_safe hbase with
@@ -21813,14 +21833,10 @@ theorem BlockCertificate.rebaseAddInductSafe
       hcompile.types hcompile.ctors
   have hcompileLarger : decl.CompilesTo largerBase Hlarger.block :=
     hcompile.mono hbase
-  have hadd : AddInduct prodEnv.constants largerBase decl outEnv.constants
+  have hadd : AddInduct targetSafety prodEnv.constants largerBase decl outEnv.constants
       (largerOutBase.addDefEqs rules) := by
-    apply Hlarger.addInduct hdeclLarger hcompileLarger Hvalid.tr.aligned
-    · intro observerSafety _ Haligned
-      exact aligned_addDefEqs
-        ((H.reindex Hlarger DefinitionSafety.le_safe hbase).staged.aligned
-          Haligned) rules
-    · exact heq largerOutBase
+    exact Hlarger.addInduct hdeclLarger hcompileLarger Hvalid.tr.aligned
+      (heq largerOutBase)
   exact ⟨largerOutBase, ⟨Hlarger⟩, hadd,
     VEnv.addDefEqs_mono houtBase⟩
 
@@ -21868,7 +21884,7 @@ theorem BlockCertificate.extendSafe
     | .partial => Hpartial
     | .safe => Hsafe
   let adds : ∀ safety,
-      AddInduct prodEnv.constants (ves.venv safety) decl outEnv.constants
+      AddInduct safety prodEnv.constants (ves.venv safety) decl outEnv.constants
         (next safety)
     | .unsafe => HunsafeAdd
     | .partial => HpartialAdd
@@ -21892,15 +21908,12 @@ theorem BlockCertificate.trEnv'
     (hdecl : decl.WF venv)
     (hcompile : decl.CompilesTo venv H.block)
     (hsource : TrEnv' checkSafety prodEnv.constants quotInit venv)
-    (halignedOther : ∀ safety, safety ≠ checkSafety →
-      Aligned safety prodEnv.constants venv →
-      Aligned safety outEnv.constants (outVEnv.addDefEqs rules))
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
       (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
     TrEnv' checkSafety outEnv.constants quotInit
       (outVEnv.addDefEqs rules) :=
   .induct hdecl
-    (H.addInduct hdecl hcompile hsource.aligned halignedOther heq) hsource
+    (H.addInduct hdecl hcompile hsource.aligned heq) hsource
 
 theorem BlockCertificate.trEnvSafe
     {decl : VInductDecl}
@@ -21916,6 +21929,65 @@ theorem BlockCertificate.trEnvSafe
   .induct hdecl
     (H.addInductSafe hdecl hcompile hsource.aligned heq) hsource
 
+/-- Unsafe inductives extend only the unsafe abstract model; partial and safe
+models replay the concrete additions through `TrEnv'.ignore`. -/
+theorem BlockCertificate.extendUnsafeOfHidden
+    {ves : VEnvs} {decl : VInductDecl}
+    (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
+      recursors rules outEnv outVEnv)
+    (wf : ves.WF prodEnv)
+    (hdecl : decl.WF (ves.venv .unsafe))
+    (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
+    (hquot : outEnv.quotInit = prodEnv.quotInit)
+    (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
+      entry.1.safety = .unsafe)
+    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  have validUnsafe : CheckingEnv.Valid .unsafe prodEnv
+      (ves.venv .unsafe) :=
+    (wf.tr (safety := .unsafe)).toCheckingValid
+      (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
+  have hiddenPartial : ∀ entry ∈ types ++ ctors ++ recursors,
+      ¬ DefinitionSafety.partial ≤ entry.1.safety := by
+    intro entry hentry
+    rw [hunsafe entry hentry]
+    decide
+  have hiddenSafe : ∀ entry ∈ types ++ ctors ++ recursors,
+      ¬ DefinitionSafety.safe ≤ entry.1.safety := by
+    intro entry hentry
+    rw [hunsafe entry hentry]
+    decide
+  have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
+      (outVEnv.addDefEqs rules) := by
+    rw [hquot]
+    exact H.trEnv' hdecl hcompile (wf.tr (safety := .unsafe)) heq
+  have htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
+      (ves.venv .partial) := by
+    rw [hquot]
+    apply H.staged.trEnvIgnore
+    · intro entry hentry
+      exact hiddenPartial entry (by simp [hentry])
+    · intro entry hentry
+      exact hiddenPartial entry (by simp [hentry])
+    · intro entry hentry
+      exact hiddenPartial entry (by simp [hentry])
+    · exact wf.tr (safety := .partial)
+  have htrSafe : TrEnv' .safe outEnv.constants outEnv.quotInit
+      (ves.venv .safe) := by
+    rw [hquot]
+    apply H.staged.trEnvIgnore
+    · intro entry hentry
+      exact hiddenSafe entry (by simp [hentry])
+    · intro entry hentry
+      exact hiddenSafe entry (by simp [hentry])
+    · intro entry hentry
+      exact hiddenSafe entry (by simp [hentry])
+    · exact wf.tr (safety := .safe)
+  exact H.extendUnsafe wf htrUnsafe htrPartial htrSafe
+    (H.staged.valid validUnsafe).safePrimitives
+
 theorem BlockCertificate.trEnvOfOrdinaryCompilation
     (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors
       blockRecursors rules outEnv outVEnv)
@@ -21925,9 +21997,6 @@ theorem BlockCertificate.trEnvOfOrdinaryCompilation
     (hnonempty : sourceTypes ≠ [])
     (Hcompile : OrdinaryCompilationCertificate venv decl H.block)
     (htr : TrEnv' checkSafety prodEnv.constants quotInit venv)
-    (halignedOther : ∀ safety, safety ≠ checkSafety →
-      Aligned safety prodEnv.constants venv →
-      Aligned safety outEnv.constants (outVEnv.addDefEqs rules))
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
       (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
     TrEnv' checkSafety outEnv.constants quotInit
@@ -21937,7 +22006,7 @@ theorem BlockCertificate.trEnvOfOrdinaryCompilation
       Hsource
       (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
   exact H.trEnv' (Hformation.declWF Htranslated.sourceWF)
-    Hcompile.compilesTo htr halignedOther heq
+    Hcompile.compilesTo htr heq
 
 theorem BlockCertificate.trEnvOfNestedCompilation
     (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors
@@ -21948,9 +22017,6 @@ theorem BlockCertificate.trEnvOfNestedCompilation
     (hnonempty : sourceTypes ≠ [])
     (Hcompile : NestedCompilationCertificate venv decl H.block)
     (htr : TrEnv' checkSafety prodEnv.constants quotInit venv)
-    (halignedOther : ∀ safety, safety ≠ checkSafety →
-      Aligned safety prodEnv.constants venv →
-      Aligned safety outEnv.constants (outVEnv.addDefEqs rules))
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
       (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
     TrEnv' checkSafety outEnv.constants quotInit
@@ -21959,7 +22025,7 @@ theorem BlockCertificate.trEnvOfNestedCompilation
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNestedCompilation
       Hsource hnonempty Hcompile
   exact H.trEnv' (Hformation.declWF Htranslated.sourceWF)
-    Hcompile.compilesTo htr halignedOther heq
+    Hcompile.compilesTo htr heq
 
 /-- The first executable check on every source inductive header is an ordinary
 type-checker run. At an empty local context its successful result already
@@ -26046,15 +26112,12 @@ theorem RecursorPhasesResult.trEnvOfOrdinaryCompilation
     (Hcompile : OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block)
     (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv)
-    (halignedOther : ∀ safety, safety ≠ c.safety →
-      Aligned safety c.env.constants sourceEnv →
-      Aligned safety outEnv.constants (H.outVEnv.addDefEqs rules))
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
       (H.outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
     TrEnv' c.safety outEnv.constants c.env.quotInit
       (H.outVEnv.addDefEqs rules) :=
   (H.blockCertificate rules hrules).trEnvOfOrdinaryCompilation R.formation
-    R.core hnonempty Hcompile htr halignedOther heq
+    R.core hnonempty Hcompile htr heq
 
 /-- Nested-compilation counterpart of `trEnvOfOrdinaryCompilation`. -/
 theorem RecursorPhasesResult.trEnvOfNestedCompilation
@@ -26072,15 +26135,12 @@ theorem RecursorPhasesResult.trEnvOfNestedCompilation
     (Hcompile : NestedCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block)
     (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv)
-    (halignedOther : ∀ safety, safety ≠ c.safety →
-      Aligned safety c.env.constants sourceEnv →
-      Aligned safety outEnv.constants (H.outVEnv.addDefEqs rules))
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
       (H.outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
     TrEnv' c.safety outEnv.constants c.env.quotInit
       (H.outVEnv.addDefEqs rules) :=
   (H.blockCertificate rules hrules).trEnvOfNestedCompilation R.formation
-    R.core hnonempty Hcompile htr halignedOther heq
+    R.core hnonempty Hcompile htr heq
 
 /-- Compositional verifier for the complete production computation after
 `checkInductiveTypes` has materialized `stats`. This is the first boundary

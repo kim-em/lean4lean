@@ -335,7 +335,7 @@ theorem VEnvs.WF.extendInduct
     {ves : VEnvs} {env env' : Environment} (wf : ves.WF env)
     (decl : VInductDecl) (next : DefinitionSafety → VEnv)
     (hadd : ∀ safety,
-      AddInduct env.constants (ves.venv safety) decl
+      AddInduct safety env.constants (ves.venv safety) decl
         env'.constants (next safety))
     (hquot : env'.quotInit = env.quotInit)
     (hprimitives : ∀ safety, (next safety).HasPrimitives)

@@ -58,10 +58,10 @@ nonrec theorem Aligned.addQuot (H : AddQuot C₁ C₂ venv₁ venv₂)
   refine (addQuot1 <| addQuot1 <| addQuot1 <| addQuot1 ?_) _ _ wf H
   rintro _ _ h ⟨rfl, rfl⟩; exact h.defeq
 
-theorem Aligned.addInduct (H : AddInduct C₁ venv₁ decl C₂ venv₂) :
+theorem Aligned.addInduct (H : AddInduct safety C₁ venv₁ decl C₂ venv₂) :
     Aligned safety C₁ venv₁ → Aligned safety C₂ venv₂ := by
   cases H with
-  | intro _ _ _ _ _ haligned _ _ => exact haligned safety
+  | intro _ _ _ _ _ haligned _ _ => exact haligned
 
 theorem TrEnv'.aligned (H : TrEnv' safety C Q venv) : Aligned safety C venv := by
   induction H with
