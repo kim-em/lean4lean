@@ -24909,6 +24909,65 @@ theorem RestoredAuxiliaryStepSemantics.advance
   exact Hrecursor.appendRestoredRules Hstep.restored.restoration.rules
     H.rulesLength H.guarded
 
+/-- Trace-aligned semantic interpretation of an auxiliary restoration fold.
+Unlike a callback over arbitrary prefixes, this object records the exact
+abstract recursor and rule batch chosen for every operational step. -/
+inductive RestoredAuxiliarySemanticTrace
+    (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
+    (safety : DefinitionSafety) (trEnv : VEnv) :
+    ∀ {names sourceEnv targetEnv},
+      StateForMTrace
+        (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+        names sourceEnv targetEnv →
+      List VConstVal → List VDefEq →
+      List VConstVal → List VDefEq → Prop
+  | nil (sourceEnv) (recursors rules) :
+      RestoredAuxiliarySemanticTrace decl block main safety trEnv
+        (StateForMTrace.nil (P :=
+          RestoredRecursorStep result loweredEnv auxRec allIndNames)
+          (source := sourceEnv)) recursors rules recursors rules
+  | cons
+      (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+        oldRecName sourceEnv middleEnv)
+      (Htail : StateForMTrace
+        (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+        names middleEnv targetEnv)
+      (Hsemantic : RestoredAuxiliaryStepSemantics decl block main safety trEnv
+        Hstep priorRecursors)
+      (Hrest : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+        Htail (priorRecursors ++ [Hsemantic.recursor])
+          (priorRules ++ Hsemantic.rules) finalRecursors finalRules) :
+      RestoredAuxiliarySemanticTrace decl block main safety trEnv
+        (.cons Hstep Htail) priorRecursors priorRules
+          finalRecursors finalRules
+
+theorem RestoredAuxiliarySemanticTrace.prefix
+    (H : RestoredAuxiliarySemanticTrace decl block main safety trEnv Htrace
+      priorRecursors priorRules finalRecursors finalRules)
+    (Hprefix : AuxiliaryRestorationPrefix decl block main priorRecursors
+      priorRules) :
+    AuxiliaryRestorationPrefix decl block main finalRecursors finalRules := by
+  induction H with
+  | nil => exact Hprefix
+  | cons Hstep Htail Hsemantic Hrest ih =>
+    exact ih (Hsemantic.advance Hprefix)
+
+theorem RestoredAuxiliarySemanticTrace.recursorsLength
+    {names : List Name} {sourceEnv targetEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+      names sourceEnv targetEnv}
+    (H : RestoredAuxiliarySemanticTrace decl block main safety trEnv Htrace
+      priorRecursors priorRules finalRecursors finalRules) :
+    finalRecursors.length = priorRecursors.length + names.length := by
+  induction H with
+  | nil => simp
+  | cons Hstep Htail Hsemantic Hrest ih =>
+    simp only [List.length_cons]
+    rw [ih]
+    simp
+    omega
+
 /-- Interpret the exact auxiliary-recursors state trace into the independent
 append-oriented restoration specification. The callback must justify both the
 translated recursor and its guarded abstract rules from each operational
@@ -24998,6 +25057,65 @@ theorem RestoredNestedDeclarationsResult.auxiliaryRestorationOfSemantics
         auxiliaryRules ∧
       auxiliaryRecursors.length = auxRecNames.length :=
   H.auxiliaries.auxiliaryRestorationOfSemantics Hsemantics
+
+/-- Source-shaped block determined by restored primary declarations and the
+trace-aligned auxiliary suffix. -/
+def canonicalRestoredBlock (decl : VInductDecl)
+    (primaryRecursors auxiliaryRecursors : List VConstVal)
+    (primaryRules auxiliaryRules : List VDefEq) : VInductBlock where
+  types := decl.typeConstants
+  ctors := decl.constructorConstants
+  recursors := primaryRecursors ++ auxiliaryRecursors
+  rules := primaryRules ++ auxiliaryRules
+
+/-- Canonical nested-compilation endpoint.  All block layout equations are
+definitional; the exact auxiliary semantic trace supplies guardedness and
+sequential names. Production restoration supplies name uniqueness, with only
+an order-insensitive correspondence required because restoration installs
+family members interleaved rather than in abstract block order. -/
+theorem RestoredNestedDeclarationsResult.canonicalNestedCompilation
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames types auxRecNames out)
+    (rest : List VInductiveType)
+    (htypesSource : decl.types = main :: rest)
+    (primaryRecursors auxiliaryRecursors : List VConstVal)
+    (primaryRules auxiliaryRules : List VDefEq)
+    (HprimaryRecursors : RecursorCertificate decl primaryRecursors)
+    (HprimaryRules : IotaBuildCertificate sourceEnv decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules) primaryRules)
+    (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
+    (Hauxiliary : RestoredAuxiliarySemanticTrace decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
+      [] [] auxiliaryRecursors auxiliaryRules)
+    (hsourceWF : sourceProdEnv.constants.WF)
+    (Hnames : ∀ entries,
+      FreshConstantTrace sourceProdEnv entries out.2 →
+      ((canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).types ++
+        (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).ctors ++
+        (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).recursors).map (·.name) ~
+        entries.map (·.name)) :
+    Nonempty (NestedCompilationCertificate sourceEnv decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules)) := by
+  let block := canonicalRestoredBlock decl primaryRecursors
+    auxiliaryRecursors primaryRules auxiliaryRules
+  have Haux : AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
+      auxiliaryRules := by
+    exact Hauxiliary.prefix (AuxiliaryRestorationPrefix.empty decl block main)
+  rcases H.freshTrace hsourceWF with ⟨entries, Hentries⟩
+  have hnames : List.Nodup
+      ((block.types ++ block.ctors ++ block.recursors).map (·.name)) :=
+    (Hnames entries Hentries).nodup_iff.mpr
+      (Hentries.namesNodup hsourceWF)
+  exact ⟨NestedCompilationCertificate.ofRestoration decl block main rest
+    htypesSource primaryRecursors auxiliaryRecursors primaryRules
+    auxiliaryRules HprimaryRecursors HprimaryRules hprimaryLength Haux rfl rfl
+    rfl rfl hnames⟩
 
 /-- Assemble the independent nested-compilation certificate from the exact
 restoration trace. Primary recursors/rules retain their ordinary certificates;
