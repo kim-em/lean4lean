@@ -23472,6 +23472,7 @@ structure MutualInductiveClosure
     (env : Environment) (targetName : Name) (value : InductiveVal) : Prop where
   members : InductiveMemberInfos env value.all
   target : targetName ∈ value.all
+  names : value.all.Nodup
 
 theorem addConstant_find_self
     (env : Environment) (info : ConstantInfo)
@@ -23585,7 +23586,7 @@ theorem MutualInductiveClosure.addConstant
     (hwf : env.constants.WF) (hfresh : env.find? info.name = none) :
     MutualInductiveClosure (Lean4Lean.AddInductive.addConstant env info)
       targetName value :=
-  ⟨H.members.addConstant hwf hfresh, H.target⟩
+  ⟨H.members.addConstant hwf hfresh, H.target, H.names⟩
 
 /-- Exact lookup effect of the executable mutual-header installation fold. -/
 structure DeclaredInductiveInfos
@@ -23599,6 +23600,8 @@ structure DeclaredInductiveInfos
       ∃ info ∈ infos, name = info.name ∧ found = .inductInfo info
   installed : ∀ info ∈ infos,
     target.find? info.name = some (.inductInfo info)
+  sourceFresh : ∀ info ∈ infos, source.find? info.name = none
+  namesNodup : (infos.map (fun info => info.name)).Nodup
 
 theorem declareInductiveTypeInfos_refines
     (allowPrimitive : Bool) (infos : List InductiveVal) (env : Environment)
@@ -23610,7 +23613,7 @@ theorem declareInductiveTypeInfos_refines
   | nil =>
     simp only [Lean4Lean.AddInductive.declareInductiveTypeInfos]
     exact Except.WF.pure ⟨hwf, fun h => h, fun h => Or.inl h,
-      by simp⟩
+      by simp, by simp, by simp⟩
   | cons info infos ih =>
     rw [Lean4Lean.AddInductive.declareInductiveTypeInfos]
     exact (checkName.WF hwf info.name allowPrimitive).bind fun _ hchecked => by
@@ -23622,7 +23625,7 @@ theorem declareInductiveTypeInfos_refines
         change (env.constants.insert info.name (.inductInfo info)).WF
         exact hwf.insert info.name (.inductInfo info) hfreshMap
       exact (ih nextEnv hnextWF).mono fun out Htail => by
-        refine ⟨Htail.mapWF, ?_, ?_, ?_⟩
+        refine ⟨Htail.mapWF, ?_, ?_, ?_, ?_, ?_⟩
         · intro name found hfind
           have hne : info.name ≠ name := by
             intro heq
@@ -23648,6 +23651,46 @@ theorem declareInductiveTypeInfos_refines
           rcases hmem with rfl | htail
           · exact hinstalledHead
           · exact Htail.installed member htail
+        · intro member hmember
+          simp only [List.mem_cons] at hmember
+          rcases hmember with rfl | htail
+          · exact hfresh
+          · have hnextFresh := Htail.sourceFresh member htail
+            by_cases hsame : info.name = member.name
+            · have hnextFind :
+                  nextEnv.find? info.name = some (.inductInfo info) := by
+                have hself :=
+                  addConstant_find_self env (.inductInfo info) hwf hfresh
+                change (Lean4Lean.AddInductive.addConstant env
+                  (.inductInfo info)).find? info.name =
+                    some (.inductInfo info) at hself
+                simpa only [nextEnv] using hself
+              rw [← hsame, hnextFind] at hnextFresh
+              contradiction
+            · by_contra hsource
+              cases hsourceFind : env.find? member.name with
+              | none => exact hsource hsourceFind
+              | some found =>
+                have hnextFind := addConstant_find_of_ne env
+                  (.inductInfo info) member.name hwf hfresh hsame hsourceFind
+                rw [hnextFind] at hnextFresh
+                contradiction
+        · simp only [List.map_cons, List.nodup_cons]
+          refine ⟨?_, Htail.namesNodup⟩
+          intro hmemberName
+          rcases List.mem_map.mp hmemberName with
+            ⟨member, hmember, hname⟩
+          have hnextFresh := Htail.sourceFresh member hmember
+          have hnextFind :
+              nextEnv.find? info.name = some (.inductInfo info) := by
+            have hself :=
+              addConstant_find_self env (.inductInfo info) hwf hfresh
+            change (Lean4Lean.AddInductive.addConstant env
+              (.inductInfo info)).find? info.name =
+                some (.inductInfo info) at hself
+            simpa only [nextEnv] using hself
+          rw [hname, hnextFind] at hnextFresh
+          contradiction
 
 theorem InductiveMemberInfos.mapEnvironment
     (H : InductiveMemberInfos source names)
@@ -23805,14 +23848,17 @@ theorem DeclaredInductiveInfos.closesMutuals
   rcases H.origin hfind with holdLookup |
       ⟨info, hinfo, hname, hvalue⟩
   · have Hclosure := hold targetName value holdLookup
-    exact ⟨Hclosure.members.mapEnvironment H.preserves, Hclosure.target⟩
+    exact ⟨Hclosure.members.mapEnvironment H.preserves, Hclosure.target,
+      Hclosure.names⟩
   · cases hvalue
     have hmembers := H.newMembers
     rw [← huniform value hinfo] at hmembers
     exact ⟨hmembers, by
       rw [hname]
       rw [huniform value hinfo]
-      exact List.mem_map.mpr ⟨value, hinfo, rfl⟩⟩
+      exact List.mem_map.mpr ⟨value, hinfo, rfl⟩, by
+        rw [huniform value hinfo]
+        exact H.namesNodup⟩
 
 private theorem property_of_mem_zipWith
     (f : α → β → γ) (P : γ → Prop)
@@ -25201,6 +25247,63 @@ theorem NestedAuxLE.trans
   rcases H₂ with ⟨ys, hys⟩
   exact ⟨xs ++ ys, by simp [hys, hxs, List.append_assoc]⟩
 
+theorem NestedAuxLE.mem
+    (H : NestedAuxLE source target)
+    (hentry : entry ∈ source.nestedAux) : entry ∈ target.nestedAux := by
+  rcases H with ⟨suffix, hsuffix⟩
+  have hsource : entry ∈ source.nestedAux.toList := by simpa using hentry
+  have htarget : entry ∈ target.nestedAux.toList := by
+    rw [hsuffix]
+    exact List.mem_append_left suffix hsource
+  simpa using htarget
+
+private theorem nestedAuxFold_find_of_not_mem
+    (entries : List (Expr × Name))
+    (map : Std.TreeMap Name Expr Name.quickCmp)
+    (hnot : name ∉ entries.map Prod.snd) :
+    (entries.foldl
+      (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+        (entry : Expr × Name) => map.insert entry.2 entry.1)
+      map)[name]? = map[name]? := by
+  induction entries generalizing map with
+  | nil => rfl
+  | cons entry entries ih =>
+    simp only [List.map_cons, List.mem_cons, not_or] at hnot
+    simp only [List.foldl_cons]
+    rw [ih _ hnot.2]
+    rw [Std.TreeMap.getElem?_insert]
+    split
+    next heq =>
+      have hname : entry.2 = name :=
+        Std.LawfulEqCmp.compare_eq_iff_eq.mp heq
+      exact False.elim (hnot.1 hname.symm)
+    next => rfl
+
+/-- Folding a cache with unique generated names retrieves the nested
+expression paired with every cache entry. -/
+theorem nestedAuxFold_find
+    (entries : List (Expr × Name))
+    (map : Std.TreeMap Name Expr Name.quickCmp)
+    (hnodup : (entries.map Prod.snd).Nodup)
+    (hentry : (nested, name) ∈ entries) :
+    (entries.foldl
+      (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+        (entry : Expr × Name) => map.insert entry.2 entry.1)
+      map)[name]? = some nested := by
+  induction entries generalizing map with
+  | nil => simp at hentry
+  | cons entry entries ih =>
+    simp only [List.map_cons, List.nodup_cons] at hnodup
+    simp only [List.mem_cons] at hentry
+    simp only [List.foldl_cons]
+    rcases hentry with hhead | htail
+    · cases hhead
+      rw [nestedAuxFold_find_of_not_mem entries _ hnodup.1]
+      simp
+    · have htailNodup : (entries.map Prod.snd).Nodup := hnodup.2
+      have htailFind := ih (map.insert entry.2 entry.1) htailNodup htail
+      simpa using htailFind
+
 theorem NestedNewTypesLE.refl (state : Lean4Lean.ElimNestedInductive.State) :
     NestedNewTypesLE state state := ⟨[], by simp⟩
 
@@ -25883,6 +25986,7 @@ theorem LowerNextTranslation.getElem_selected
       LoweredInductiveTranslation env params nparams
         state.newTypes[i] state
         (target, loweredState) ∧
+      nextState.nestedAux = loweredState.nestedAux ∧
       ∃ hiNext : i < nextState.newTypes.size,
         nextState.newTypes[i] = target := by
   cases H with
@@ -25893,7 +25997,7 @@ theorem LowerNextTranslation.getElem_selected
         ({ loweredState with
           newTypes := loweredState.newTypes.set! i target }).newTypes.size := by
       simpa [Array.size_set!] using hiLowered
-    refine ⟨target, loweredState, Hlowered, hiNext, ?_⟩
+    refine ⟨target, loweredState, Hlowered, rfl, hiNext, ?_⟩
     change (loweredState.newTypes.set! i target)[i] = target
     simp [Array.getElem_setIfInBounds, hiLowered]
 
@@ -26001,7 +26105,8 @@ theorem LoweringQueueTrace.translationAt
     ∃ stepState target loweredState,
       LoweredInductiveTranslation env params nparams state.newTypes[j]
         stepState (target, loweredState) ∧
-      out.1.types[j]? = some target := by
+      out.1.types[j]? = some target ∧
+      NestedAuxLE loweredState out.2 := by
   revert j
   induction H with
   | done hdone =>
@@ -26013,16 +26118,18 @@ theorem LoweringQueueTrace.translationAt
     by_cases hji : j = iStep
     · subst j
       rcases Hnext.getElem_selected hj with
-        ⟨target, loweredState, Htranslated, hiNext, htarget⟩
-      refine ⟨stateStep, target, loweredState, Htranslated, ?_⟩
+        ⟨target, loweredState, Htranslated, hnextAux, hiNext, htarget⟩
+      refine ⟨stateStep, target, loweredState, Htranslated, ?_, ?_⟩
       have hfinal := Htail.getElem_before (j := iStep) (by omega) hiNext
       simpa [htarget] using hfinal
+      rcases Htail.resultNestedAuxLE with ⟨suffix, hsuffix⟩
+      exact ⟨suffix, by simpa [hnextAux] using hsuffix⟩
     · have hij' : iStep + 1 ≤ j := by omega
       rcases Hnext.getElem_ne hj hji with ⟨hjNext, hsame⟩
       rcases ih hij' hjNext with
-        ⟨stepState, target, loweredState, Htranslated, hfinal⟩
+        ⟨stepState, target, loweredState, Htranslated, hfinal, Haux⟩
       rw [hsame] at Htranslated
-      exact ⟨stepState, target, loweredState, Htranslated, hfinal⟩
+      exact ⟨stepState, target, loweredState, Htranslated, hfinal, Haux⟩
 
 theorem LoweringQueueTrace.resultRestorable
     (H : LoweringQueueTrace env params nparams lctx i fuel state out)
@@ -26110,6 +26217,23 @@ theorem NestedLoweringRun.resultAuxMap
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, Hqueue⟩
   exact Hqueue.resultAuxMap
 
+/-- Under the separately stated fresh-name invariant, every final cache entry
+is retrieved exactly by the production `aux2nested` map. -/
+theorem NestedLoweringRun.resultAuxLookup
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (hnodup : (finalState.nestedAux.toList.map Prod.snd).Nodup)
+    (hentry : (nested, name) ∈ finalState.nestedAux) :
+    result.aux2nested.find? name = some nested := by
+  rw [H.resultAuxMap]
+  change (finalState.nestedAux.foldl
+    (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+      (entry : Expr × Name) => map.insert entry.2 entry.1)
+    {})[name]? = some nested
+  rw [← Array.foldl_toList]
+  exact nestedAuxFold_find finalState.nestedAux.toList {} hnodup
+    (by simpa using hentry)
+
 theorem NestedLoweringRun.resultNestedAuxLE
     (H : NestedLoweringRun env fuel nparams types initialState out) :
     NestedAuxLE initialState out.2 := by
@@ -26129,21 +26253,22 @@ theorem NestedLoweringRun.translationAtInitial
       params.size = nparams ∧
       LoweredInductiveTranslation env params nparams
         initialState.newTypes[j] stepState (target, loweredState) ∧
-      out.1.types[j]? = some target := by
+      out.1.types[j]? = some target ∧
+      NestedAuxLE loweredState out.2 := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _htypes, Hopening,
       hinitial, _hinitialAux, Hqueue⟩
   have hjParams : j < paramsState.newTypes.size := by
     simpa [hinitial] using hj
   rcases Hqueue.translationAt (Nat.zero_le j) hjParams with
-    ⟨stepState, target, loweredState, Htranslated, htarget⟩
+    ⟨stepState, target, loweredState, Htranslated, htarget, Haux⟩
   have hvalue : paramsState.newTypes[j] = initialState.newTypes[j] := by
     have heq := congrArg
       (fun xs : Array InductiveType => xs[j]!) hinitial
     simpa [Array.getElem!_eq_getD, Array.getD, hjParams, hj] using heq
   rw [hvalue] at Htranslated
   exact ⟨params, stepState, target, loweredState,
-    Hopening.initial_size, Htranslated, htarget⟩
+    Hopening.initial_size, Htranslated, htarget, Haux⟩
 
 theorem NestedLoweringRun.preservesInitialTypeName
     (H : NestedLoweringRun env fuel nparams types initialState out)
@@ -26336,7 +26461,12 @@ theorem NestedLoweringResult.sourceTranslationAt
       params.size = nparams ∧
       LoweredInductiveTranslation env params nparams sourceTypes[j]
         stepState (target, loweredState) ∧
-      result.types[j]? = some target := by
+      result.types[j]? = some target ∧
+      ∃ finalState,
+        NestedLoweringRun env fuel nparams sourceTypes
+          { initialState with newTypes := sourceTypes.toArray }
+          (result, finalState) ∧
+        NestedAuxLE loweredState finalState := by
   rcases H with ⟨finalState, Hrun⟩
   have hjInitial : j <
       ({ initialState with
@@ -26344,9 +26474,9 @@ theorem NestedLoweringResult.sourceTranslationAt
     simpa using hj
   rcases Hrun.translationAtInitial hjInitial with
     ⟨params, stepState, target, loweredState, hparams, Htranslated,
-      htarget⟩
+      htarget, Haux⟩
   exact ⟨params, stepState, target, loweredState, hparams,
-    by simpa using Htranslated, htarget⟩
+    by simpa using Htranslated, htarget, finalState, Hrun, Haux⟩
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
