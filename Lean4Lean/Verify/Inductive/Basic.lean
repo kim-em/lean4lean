@@ -21848,6 +21848,37 @@ inductive RestoreTelescope : Expr → Nat → Prop
   | lam : RestoreTelescope body n →
       RestoreTelescope (.lam name dom body bi) (n + 1)
 
+theorem Expr.ForallTelescope.inferImplicit
+    (H : Expr.ForallTelescope e arity residual)
+    (max : Nat) (inferBinderTypes : Bool) :
+    ∃ residual',
+      Expr.ForallTelescope (e.inferImplicit max inferBinderTypes) arity
+        residual' := by
+  induction max generalizing e arity residual with
+  | zero => exact ⟨residual, by simpa [Expr.inferImplicit] using H⟩
+  | succ max ih =>
+    cases H with
+    | nil => exact ⟨_, .nil _⟩
+    | cons Htail =>
+      rcases ih Htail with ⟨residual', Htail'⟩
+      exact ⟨residual', by
+        simp only [Expr.inferImplicit]
+        exact Expr.ForallTelescope.cons Htail'⟩
+
+/-- Any prefix of a generated forall telescope is accepted by nested
+restoration. -/
+theorem Expr.ForallTelescope.restorePrefix
+    (H : Expr.ForallTelescope e arity residual)
+    (hn : n ≤ arity) : RestoreTelescope e n := by
+  induction n generalizing e arity residual with
+  | zero => exact .done
+  | succ n ih =>
+    cases H with
+    | nil => simp at hn
+    | cons Hbody =>
+      apply RestoreTelescope.forallE
+      exact ih Hbody (by omega)
+
 /-- Any prefix of a generated lambda telescope is accepted by nested
 restoration. -/
 theorem Expr.LambdaTelescope.restorePrefix
@@ -21876,6 +21907,32 @@ theorem BoundGeneratedRecursorRule.rhsRestoreTelescope
   unfold BoundGeneratedRecursorRule.binders
   simp only [List.length_append]
   omega
+
+/-- The production recursor type exposes the same retained parameter prefix
+that was bound while generating its telescope. -/
+theorem GeneratedRecursorEntry.typeRestoreTelescope
+    (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hparams : LocalForallSelection c.lctx stats.params)
+    (hparams : nparams = stats.params.size) :
+    RestoreTelescope H.info.type nparams := by
+  rw [H.type, hparams]
+  rcases (Hparams.forallTelescope _).inferImplicit 1000 false with
+    ⟨residual, Htelescope⟩
+  exact Htelescope.restorePrefix (Nat.le_refl _)
+
+theorem GeneratedRecursorEntry.rulesRestoreTelescope
+    (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (hparams : nparams = stats.params.size) :
+    ∀ rule ∈ H.info.rules, RestoreTelescope rule.rhs nparams := by
+  intro rule hrule
+  rcases List.mem_iff_getElem.mp hrule with ⟨i, hi, rfl⟩
+  have hctor : i < indTypes[ownerIdx]!.ctors.length := by
+    rw [← H.rules.length]
+    exact hi
+  rcases H.rules.entry i hctor hi with ⟨Hrule⟩
+  exact Hrule.rhsRestoreTelescope hparams
 
 theorem RestoreTelescope.instantiate1'
     (H : RestoreTelescope e n) (arg : Expr) (depth : Nat) :
@@ -23966,6 +24023,46 @@ theorem RecursorPhasesResult.findRecursorOfMem
     rw [H.localExtends.env_eq]
     exact R.declared.context.checking.tr.map_wf
   exact H.installed.findOfMem hlocalWF hentry
+
+/-- The generated primary recursor for every lowered family is present in the
+final environment and satisfies both telescope preconditions consumed by
+nested restoration. -/
+theorem RecursorPhasesResult.findSourceRecursor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (ownerIdx : Nat) (howner : ownerIdx < indTypes.size) :
+    ∃ info : RecursorVal,
+      outEnv.find? (Lean.mkRecName indTypes[ownerIdx]!.name) =
+        some (.recInfo info) ∧
+      RestoreTelescope info.type nparams ∧
+      ∀ rule ∈ info.rules, RestoreTelescope rule.rhs nparams := by
+  have htypes : indTypes.size = decl.types.length := by
+    simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
+  have hrecInfo : ownerIdx < H.recInfos.size := by
+    rw [H.cardinality.records, ← htypes]
+    exact howner
+  have hentry : ownerIdx < H.entries.length := by
+    rw [H.generated.length]
+    exact hrecInfo
+  let E := H.generated.entry ownerIdx hentry
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    ownerIdx hrecInfo
+  have hparams : nparams = stats.params.size :=
+    R.core.nparams.symm.trans H.cardinality.params.symm
+  have hlookup := H.findRecursorOfMem (List.getElem_mem hentry)
+  refine ⟨E.info, ?_, E.typeRestoreTelescope selections.params hparams,
+    E.rulesRestoreTelescope hparams⟩
+  change outEnv.find? H.entries[ownerIdx].1.name =
+    some H.entries[ownerIdx].1 at hlookup
+  rw [E.source_eq] at hlookup
+  change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
+  rwa [E.name] at hlookup
 
 theorem DeclaredHeadersResult.typesWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
