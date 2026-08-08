@@ -1286,6 +1286,41 @@ instance : EquivBEq Expr where
   trans h1 h2 := eqv_euc (eqv_euc h1 (eqv_refl _)) h2
   rfl := eqv_refl _
 
+theorem app_eqv (hfn : fn₁ == fn₂) (harg : arg₁ == arg₂) :
+    (Expr.app fn₁ arg₁ == Expr.app fn₂ arg₂) := by
+  simpa [(· == ·), Expr.eqv'] using And.intro hfn harg
+
+theorem lam_eqv (hdom : dom₁ == dom₂) (hbody : body₁ == body₂) :
+    (Expr.lam name dom₁ body₁ bi == Expr.lam name dom₂ body₂ bi) := by
+  simpa [(· == ·), Expr.eqv'] using And.intro hdom hbody
+
+theorem forallE_eqv (hdom : dom₁ == dom₂) (hbody : body₁ == body₂) :
+    (Expr.forallE name dom₁ body₁ bi ==
+      Expr.forallE name dom₂ body₂ bi) := by
+  simpa [(· == ·), Expr.eqv'] using And.intro hdom hbody
+
+theorem letE_eqv (htype : type₁ == type₂) (hvalue : value₁ == value₂)
+    (hbody : body₁ == body₂) :
+    (Expr.letE name type₁ value₁ body₁ nondep ==
+      Expr.letE name type₂ value₂ body₂ nondep) := by
+  simpa [(· == ·), Expr.eqv'] using And.intro (And.intro htype hvalue) hbody
+
+theorem mdata_eqv (md : MData) (hbody : body₁ == body₂) :
+    (Expr.mdata md body₁ == Expr.mdata md body₂) := by
+  have hbody' : body₁.eqv' body₂ = true := by
+    simpa [(· == ·)] using hbody
+  have hrefl := Expr.eqv_refl (Expr.mdata md body₁)
+  simp [(· == ·), Expr.eqv'] at hrefl ⊢
+  exact And.intro hbody' hrefl.2
+
+theorem proj_eqv (hbody : body₁ == body₂) :
+    (Expr.proj name idx body₁ == Expr.proj name idx body₂) := by
+  have hbody' : body₁.eqv' body₂ = true := by
+    simpa [(· == ·)] using hbody
+  have hrefl := Expr.eqv_refl (Expr.proj name idx body₁)
+  simp [(· == ·), Expr.eqv'] at hrefl ⊢
+  exact And.intro hbody' hrefl.2
+
 theorem mkAppList_eqv {fn₁ fn₂ : Expr} (h : fn₁ == fn₂)
     (args : List Expr) :
     fn₁.mkAppList args == fn₂.mkAppList args := by

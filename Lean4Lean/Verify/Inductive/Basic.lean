@@ -14171,6 +14171,14 @@ theorem Expr.abstractList_eq_self_of_abstract1
   | nil => simp
   | cons fv fvars ih => simp [Expr.abstractList, H, ih]
 
+theorem Expr.reopenFVarsAt_of_abstract1_eq_self
+    (H : ∀ fv depth, e.abstract1 fv depth = e)
+    (Hrange : e.looseBVarRange' = 0) (fvars restoreFvars : List FVarId)
+    (k : Nat) : Expr.reopenFVarsAt e fvars restoreFvars k = e := by
+  apply Expr.reopenFVarsAt_eq_self_of_abstract
+    (fun depth => Expr.abstractList_eq_self_of_abstract1 e H fvars depth)
+    Hrange
+
 theorem Expr.reopenFVarsAt_bvar
     (hsize : restoreFvars.length = fvars.length) (i k : Nat) :
     Expr.reopenFVarsAt (.bvar i) fvars restoreFvars k = .bvar i := by
@@ -14194,6 +14202,18 @@ theorem Expr.reopenFVarsAt_selected
   rw [← hsize]
   exact Expr.instantiateRevList_bvar_fvars_getElem restoreFvars i k
     (by omega)
+
+theorem Expr.reopenFVarsAt_fvar_exists
+    (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
+    (fv : FVarId) (k : Nat) :
+    ∃ restored, Expr.reopenFVarsAt (.fvar fv) fvars restoreFvars k =
+      .fvar restored := by
+  by_cases hfv : fv ∈ fvars
+  · rcases List.mem_iff_getElem.mp hfv with ⟨i, hi, rfl⟩
+    exact ⟨restoreFvars[i], Expr.reopenFVarsAt_selected hnd hsize i hi k⟩
+  · refine ⟨fv, Expr.reopenFVarsAt_eq_self_of_abstract
+      (fun depth => Expr.abstractList_fvar_of_not_mem hfv)
+      (by simp [Expr.looseBVarRange']) k⟩
 
 /-- Close-and-reopen free-variable renaming is independent of the de Bruijn
 depth at which the surrounding syntax traversal encounters the expression. -/
@@ -14298,6 +14318,158 @@ theorem Expr.reopenFVarsAt_depth_independent
     change Expr.proj name idx (Expr.reopenFVarsAt body fvars restoreFvars k₁) =
       Expr.proj name idx (Expr.reopenFVarsAt body fvars restoreFvars k₂)
     rw [ihBody k₁ k₂]
+
+/-- Reopening replaces free variables only by free variables, so it cannot
+manufacture a constant node. -/
+theorem Expr.reopenFVarsAt_eq_const
+    (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
+    (e : Expr) (k : Nat)
+    (H : Expr.reopenFVarsAt e fvars restoreFvars k = .const name levels) :
+    e = .const name levels := by
+  induction e generalizing k with
+  | bvar i =>
+    rw [Expr.reopenFVarsAt_bvar hsize] at H
+    cases H
+  | fvar fv =>
+    by_cases hfv : fv ∈ fvars
+    · rcases List.mem_iff_getElem.mp hfv with ⟨i, hi, rfl⟩
+      rw [Expr.reopenFVarsAt_selected hnd hsize i hi] at H
+      cases H
+    · have habstract : ∀ depth,
+          (Expr.fvar fv).abstractList fvars depth = .fvar fv := by
+        intro depth
+        exact Expr.abstractList_fvar_of_not_mem hfv
+      rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange'])] at H
+      cases H
+  | mvar id =>
+    have habstract : ∀ depth,
+        (Expr.mvar id).abstractList fvars depth = .mvar id := by
+      exact Expr.abstractList_eq_self_of_abstract1 (.mvar id)
+        (by intro fv depth; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+      (by simp [Expr.looseBVarRange'])] at H
+    cases H
+  | sort u =>
+    have habstract : ∀ depth,
+        (Expr.sort u).abstractList fvars depth = .sort u := by
+      exact Expr.abstractList_eq_self_of_abstract1 (.sort u)
+        (by intro fv depth; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+      (by simp [Expr.looseBVarRange'])] at H
+    cases H
+  | const sourceName sourceLevels =>
+    have habstract : ∀ depth,
+        (Expr.const sourceName sourceLevels).abstractList fvars depth =
+          .const sourceName sourceLevels := by
+      exact Expr.abstractList_eq_self_of_abstract1 (.const sourceName sourceLevels)
+        (by intro fv depth; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+      (by simp [Expr.looseBVarRange'])] at H
+    exact H
+  | lit literal =>
+    have habstract : ∀ depth,
+        (Expr.lit literal).abstractList fvars depth = .lit literal := by
+      exact Expr.abstractList_eq_self_of_abstract1 (.lit literal)
+        (by intro fv depth; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+      (by simp [Expr.looseBVarRange'])] at H
+    cases H
+  | app fn arg ihFn ihArg =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_app,
+      Expr.instantiateRevList_app] at H
+    cases H
+  | lam name dom body bi ihDom ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_lam,
+      Expr.instantiateRevList_lam] at H
+    cases H
+  | forallE name dom body bi ihDom ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_forallE,
+      Expr.instantiateRevList_forallE] at H
+    cases H
+  | letE name ty value body nondep ihTy ihValue ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_letE,
+      Expr.instantiateRevList_letE] at H
+    cases H
+  | mdata md body ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_mdata,
+      Expr.instantiateRevList_mdata] at H
+    cases H
+  | proj typeName idx body ihBody =>
+    simp only [Expr.reopenFVarsAt, Expr.abstractList_proj,
+      Expr.instantiateRevList_proj] at H
+    cases H
+
+/-- Constant application heads are likewise reflected by free-variable
+reopening. -/
+theorem Expr.getAppFn_reopenFVarsAt_eq_const
+    (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
+    (e : Expr) (k : Nat)
+    (H : (Expr.reopenFVarsAt e fvars restoreFvars k).getAppFn =
+      .const name levels) :
+    e.getAppFn = .const name levels := by
+  induction e generalizing k with
+  | app fn arg ihFn ihArg =>
+    apply ihFn
+    simpa [Expr.reopenFVarsAt, Expr.getAppFn] using H
+  | bvar i =>
+    rw [Expr.reopenFVarsAt_bvar hsize] at H
+    exact H
+  | fvar fv =>
+    by_cases hfv : fv ∈ fvars
+    · rcases List.mem_iff_getElem.mp hfv with ⟨i, hi, rfl⟩
+      rw [Expr.reopenFVarsAt_selected hnd hsize i hi] at H
+      cases H
+    · have habstract : ∀ depth,
+          (Expr.fvar fv).abstractList fvars depth = .fvar fv := by
+        intro depth
+        exact Expr.abstractList_fvar_of_not_mem hfv
+      rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+        (by simp [Expr.looseBVarRange'])] at H
+      exact H
+  | mvar id =>
+    have habstract : ∀ depth,
+        (Expr.mvar id).abstractList fvars depth = .mvar id := by
+      exact Expr.abstractList_eq_self_of_abstract1 (.mvar id)
+        (by intro fv depth; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+      (by simp [Expr.looseBVarRange'])] at H
+    exact H
+  | sort u =>
+    have habstract : ∀ depth,
+        (Expr.sort u).abstractList fvars depth = .sort u := by
+      exact Expr.abstractList_eq_self_of_abstract1 (.sort u)
+        (by intro fv depth; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+      (by simp [Expr.looseBVarRange'])] at H
+    exact H
+  | const sourceName sourceLevels =>
+    have habstract : ∀ depth,
+        (Expr.const sourceName sourceLevels).abstractList fvars depth =
+          .const sourceName sourceLevels := by
+      exact Expr.abstractList_eq_self_of_abstract1 (.const sourceName sourceLevels)
+        (by intro fv depth; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+      (by simp [Expr.looseBVarRange'])] at H
+    exact H
+  | lit literal =>
+    have habstract : ∀ depth,
+        (Expr.lit literal).abstractList fvars depth = .lit literal := by
+      exact Expr.abstractList_eq_self_of_abstract1 (.lit literal)
+        (by intro fv depth; simp [Expr.abstract1]) fvars
+    rw [Expr.reopenFVarsAt_eq_self_of_abstract habstract
+      (by simp [Expr.looseBVarRange'])] at H
+    exact H
+  | lam name dom body bi ihDom ihBody =>
+    simp [Expr.reopenFVarsAt, Expr.getAppFn] at H
+  | forallE name dom body bi ihDom ihBody =>
+    simp [Expr.reopenFVarsAt, Expr.getAppFn] at H
+  | letE name ty value body nondep ihTy ihValue ihBody =>
+    simp [Expr.reopenFVarsAt, Expr.getAppFn] at H
+  | mdata md body ihBody =>
+    simp [Expr.reopenFVarsAt, Expr.getAppFn] at H
+  | proj typeName idx body ihBody =>
+    simp [Expr.reopenFVarsAt, Expr.getAppFn] at H
 
 /-- The implementation's array operation is the depth-zero instance of the
 transparent free-variable reopening model. -/
@@ -23905,6 +24077,92 @@ def NoNestedAux (e : Expr) : Prop :=
     | .proj s _ _ => (`_nested).isPrefixOf s
     | _ => false).isNone
 
+/-- Source-side disjointness required by restoration: no constant occurring
+in the source expression is already an auxiliary family or an auxiliary
+constructor in the final lowered environment. -/
+def RestoreSourceDisjoint
+    (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment) :
+    Expr → Prop
+  | .bvar _ | .fvar _ | .mvar _ | .sort _ | .lit _ => True
+  | .const name _ =>
+      result.aux2nested.find? name = none ∧
+      result.getNestedIfAuxCtor env name = none
+  | .app fn arg =>
+      RestoreSourceDisjoint result env fn ∧
+      RestoreSourceDisjoint result env arg
+  | .lam _ dom body _ | .forallE _ dom body _ =>
+      RestoreSourceDisjoint result env dom ∧
+      RestoreSourceDisjoint result env body
+  | .letE _ type value body _ =>
+      RestoreSourceDisjoint result env type ∧
+      RestoreSourceDisjoint result env value ∧
+      RestoreSourceDisjoint result env body
+  | .mdata _ body | .proj _ _ body =>
+      RestoreSourceDisjoint result env body
+
+theorem RestoreSourceDisjoint.getAppFn
+    (H : RestoreSourceDisjoint result env e)
+    (hhead : e.getAppFn = .const name levels) :
+    result.aux2nested.find? name = none ∧
+      result.getNestedIfAuxCtor env name = none := by
+  induction e with
+  | const sourceName sourceLevels =>
+    change (Expr.const sourceName sourceLevels) = .const name levels at hhead
+    cases hhead
+    exact H
+  | app fn arg ihFn ihArg =>
+    exact ihFn H.1 (by simpa [Expr.getAppFn] using hhead)
+  | bvar | fvar | mvar | sort | lam | forallE | letE | lit | mdata | proj =>
+    simp [Expr.getAppFn] at hhead
+
+theorem RestoreSourceDisjoint.instantiate1'_fvar
+    (H : RestoreSourceDisjoint result env e) (fv : FVarId) (k : Nat) :
+    RestoreSourceDisjoint result env (e.instantiate1' (.fvar fv) k) := by
+  induction e generalizing k with
+  | bvar i =>
+    by_cases hlt : i < k
+    · simp [Expr.instantiate1', hlt, RestoreSourceDisjoint]
+    · by_cases heq : i = k
+      · simp only [Expr.instantiate1', hlt, heq, ↓reduceIte]
+        simp only [Nat.lt_irrefl, ↓reduceIte]
+        change RestoreSourceDisjoint result env (.fvar fv)
+        trivial
+      · simp [Expr.instantiate1', hlt, heq, RestoreSourceDisjoint]
+  | fvar | mvar | sort | const | lit =>
+    simpa [Expr.instantiate1', RestoreSourceDisjoint] using H
+  | app fn arg ihFn ihArg =>
+    simp only [Expr.instantiate1', RestoreSourceDisjoint] at H ⊢
+    exact ⟨ihFn H.1 k, ihArg H.2 k⟩
+  | lam name dom body bi ihDom ihBody =>
+    simp only [Expr.instantiate1', RestoreSourceDisjoint] at H ⊢
+    exact ⟨ihDom H.1 k, ihBody H.2 (k + 1)⟩
+  | forallE name dom body bi ihDom ihBody =>
+    simp only [Expr.instantiate1', RestoreSourceDisjoint] at H ⊢
+    exact ⟨ihDom H.1 k, ihBody H.2 (k + 1)⟩
+  | letE name type value body nondep ihType ihValue ihBody =>
+    simp only [Expr.instantiate1', RestoreSourceDisjoint] at H ⊢
+    exact ⟨ihType H.1 k, ihValue H.2.1 k, ihBody H.2.2 (k + 1)⟩
+  | mdata data body ihBody =>
+    simpa only [Expr.instantiate1', RestoreSourceDisjoint] using ihBody H k
+  | proj name idx body ihBody =>
+    simpa only [Expr.instantiate1', RestoreSourceDisjoint] using ihBody H k
+
+theorem RestoreSourceDisjoint.instantiate1_fvar
+    (H : RestoreSourceDisjoint result env e) (fv : FVarId) :
+    RestoreSourceDisjoint result env (e.instantiate1 (.fvar fv)) := by
+  rw [Expr.instantiate1_eq]
+  exact H.instantiate1'_fvar fv 0
+
+theorem NestedParamOpening.tailRestoreSourceDisjoint
+    (Hopen : NestedParamOpening lctx params source n outLctx tail outParams)
+    (Hsource : RestoreSourceDisjoint result env source) :
+    RestoreSourceDisjoint result env tail := by
+  induction Hopen with
+  | done => exact Hsource
+  | step Hnext ih =>
+    apply ih
+    exact Hsource.2.instantiate1_fvar _
+
 theorem checkNoNestedAux_refines (name : Name) (e : Expr) :
     (Lean4Lean.checkNoNestedAux name e).WF fun _ => NoNestedAux e := by
   unfold Lean4Lean.checkNoNestedAux NoNestedAux
@@ -29085,6 +29343,15 @@ theorem NestedReplacement.outcome
     | none => simp [h] at hsome
     | some output => exact ⟨output, out.2, by cases out; simp_all⟩
 
+theorem NestedReplacement.noCandidate
+    (H : NestedReplacement env lctx params As e state (none, state)) :
+    NoNestedAppCandidate env state e := by
+  cases H with
+  | unrecognized Hnone => exact Hnone
+  | recognized Hcandidate hhead Hresult =>
+    have hsome := Hresult.resultSome
+    simp at hsome
+
 /-- Stateful, top-down specification of `Expr.replaceM` for nested lowering.
 A successful node replacement stops descent; otherwise children are processed
 left-to-right with the exact intermediate states and update combinators used by
@@ -30016,6 +30283,308 @@ theorem NestedExprReopening.constHead_of_noCandidate
   | mdata => simp [Expr.getAppFn] at Hhead
   | proj => simp [Expr.getAppFn] at Hhead
 
+/-- The constant-head reflection theorem remains true after the constructor
+parameters have been renamed at an arbitrary binder depth. -/
+theorem NestedExprReopening.reopenedConstHead_of_noCandidate
+    (H : NestedExprReopening env lctx params As finalResult restoreAs input
+      state out)
+    (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
+    (Hmiss : NoNestedAppCandidate env state input)
+    (Hhead : (Expr.reopenFVarsAt out.1 fvars restoreFvars k).getAppFn =
+      .const name levels) :
+    input.getAppFn = .const name levels := by
+  apply H.constHead_of_noCandidate Hmiss
+  exact Expr.getAppFn_reopenFVarsAt_eq_const hnd hsize out.1 k Hhead
+
+/-- At a structural lowering node, restoration must miss the node itself.
+The proof uses recognition maximality for the lowered head and source-map
+disjointness for the corresponding original constant. -/
+theorem NestedExprReopening.restoreNode_none
+    (H : NestedExprReopening env lctx params As finalResult targetAs input
+      state out)
+    (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
+    (Hmiss : NoNestedAppCandidate env state input)
+    (Hsource : RestoreSourceDisjoint finalResult env input) (k : Nat) :
+    finalResult.restoreNestedNode env targetAs {}
+      (Expr.reopenFVarsAt out.1 fvars restoreFvars k) = none := by
+  generalize ht : Expr.reopenFVarsAt out.1 fvars restoreFvars k = t
+  cases t with
+  | const name levels =>
+    have hsourceHead : input.getAppFn = .const name levels :=
+      H.reopenedConstHead_of_noCandidate hnd hsize Hmiss (by
+        rw [ht]
+        rfl)
+    have hdisjoint := Hsource.getAppFn hsourceHead
+    have hrec : ({} : NameMap Name).find? name = none := rfl
+    simp [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode,
+      Expr.getAppFn, hrec, hdisjoint.1, hdisjoint.2]
+  | app fn arg =>
+    cases hhead : (Expr.app fn arg).getAppFn with
+    | const name levels =>
+      simp only [Expr.getAppFn] at hhead
+      have hsourceHead : input.getAppFn = .const name levels :=
+        H.reopenedConstHead_of_noCandidate hnd hsize Hmiss (by
+          rw [ht]
+          exact hhead)
+      have hdisjoint := Hsource.getAppFn hsourceHead
+      simp [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode,
+        Expr.getAppFn, hhead, hdisjoint.1, hdisjoint.2]
+    | bvar | fvar | mvar | sort | app | lam | forallE | letE | lit | mdata
+        | proj =>
+      simp only [Expr.getAppFn] at hhead
+      simp [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode,
+        Expr.getAppFn, hhead]
+  | bvar | fvar | mvar | sort | lam | forallE | letE | lit | mdata | proj =>
+    simp [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode,
+      Expr.getAppFn]
+
+/-- Restoring a completely lowered expression is a left inverse, up to Lean
+expression equivalence, of the nested-expression traversal. The proof follows
+the same top-down stopping rule as `Expr.replace`: hits restore immediately,
+while certified misses recurse through the renamed children. -/
+theorem NestedExprReopening.restore_eqv
+    (H : NestedExprReopening env lctx params As finalResult targetAs input
+      state out)
+    (Hselection : LocalForallSelection lctx As)
+    (hnd : Hselection.fvars.Nodup)
+    (restoreFvars : List FVarId)
+    (hrestore : targetAs = (restoreFvars.map Expr.fvar).toArray)
+    (hsize : restoreFvars.length = Hselection.fvars.length)
+    (hresultNParams : finalResult.nparams = As.size)
+    (Hsource : RestoreSourceDisjoint finalResult env input)
+    (k : Nat) :
+    ((Expr.reopenFVarsAt out.1 Hselection.fvars restoreFvars k).replace
+        (finalResult.restoreNestedNode env targetAs {}) ==
+      Expr.reopenFVarsAt input Hselection.fvars restoreFvars k) = true := by
+  induction H generalizing k with
+  | @hit hitInput hitState hitOutput nextState Hnode =>
+    have hout := Expr.reopenFVarsAt_eq_reopenParams hnd hsize
+      Hselection.expressions hrestore hitOutput k
+    have hin := Expr.reopenFVarsAt_eq_reopenParams hnd hsize
+      Hselection.expressions hrestore hitInput k
+    rcases Hnode.restoreNode Hselection hresultNParams with
+      ⟨restored, hrestored, heqv⟩
+    rw [hout, hin]
+    rw [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hrestored]
+    exact heqv
+  | bvar Hnode =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.bvar Hnode) hnd hsize
+      Hnode.noCandidate Hsource k
+    rw [Expr.reopenFVarsAt_bvar hsize] at hnone ⊢
+    simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
+  | fvar Hnode =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.fvar Hnode) hnd hsize
+      Hnode.noCandidate Hsource k
+    rcases Expr.reopenFVarsAt_fvar_exists hnd hsize _ k with
+      ⟨restored, hopen⟩
+    rw [hopen] at hnone ⊢
+    simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
+  | @mvar stepState id Hnode =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.mvar Hnode) hnd hsize
+      Hnode.noCandidate Hsource k
+    have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
+      (e := Expr.mvar id) (by intro fv depth; simp [Expr.abstract1])
+      (by simp [Expr.looseBVarRange']) Hselection.fvars restoreFvars k
+    rw [hopen] at hnone ⊢
+    simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
+  | @sort level stepState Hnode =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.sort Hnode) hnd hsize
+      Hnode.noCandidate Hsource k
+    have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
+      (e := Expr.sort level) (by intro fv depth; simp [Expr.abstract1])
+      (by simp [Expr.looseBVarRange']) Hselection.fvars restoreFvars k
+    rw [hopen] at hnone ⊢
+    simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
+  | @const name levels stepState Hnode =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.const Hnode) hnd hsize
+      Hnode.noCandidate Hsource k
+    have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
+      (e := Expr.const name levels) (by intro fv depth; simp [Expr.abstract1])
+      (by simp [Expr.looseBVarRange']) Hselection.fvars restoreFvars k
+    rw [hopen] at hnone ⊢
+    simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
+  | @lit literal stepState Hnode =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.lit Hnode) hnd hsize
+      Hnode.noCandidate Hsource k
+    have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
+      (e := Expr.lit literal) (by intro fv depth; simp [Expr.abstract1])
+      (by simp [Expr.looseBVarRange']) Hselection.fvars restoreFvars k
+    rw [hopen] at hnone ⊢
+    simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
+  | @app fn arg stepState fn' fnState arg' outState Hnode Hfn Harg ihFn ihArg =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.app Hnode Hfn Harg) hnd hsize Hnode.noCandidate Hsource k
+    let R : Expr → Expr := fun e =>
+      Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
+    have hopen : R (Expr.updateApp! (.app fn arg) fn' arg') =
+        .app (R fn') (R arg') := by
+      simp [R, Expr.reopenFVarsAt]
+    have hinput : R (.app fn arg) = .app (R fn) (R arg) := by
+      simp [R, Expr.reopenFVarsAt]
+    change ((R (Expr.updateApp! (.app fn arg) fn' arg')).replace
+      (finalResult.restoreNestedNode env targetAs {}) == R (.app fn arg)) = true
+    change finalResult.restoreNestedNode env targetAs {}
+      (R (Expr.updateApp! (.app fn arg) fn' arg')) = none at hnone
+    rw [hopen] at hnone
+    rw [hopen, hinput, Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def]
+    rw [hnone]
+    have hfn := ihFn Hsource.1 k
+    have harg := ihArg Hsource.2 k
+    rw [Expr.replace_eq] at hfn harg
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R fn') == R fn) = true) at hfn
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R arg') == R arg) = true) at harg
+    exact Expr.app_eqv hfn harg
+  | @lam name dom body bi stepState dom' domState body' outState
+      Hnode Hdom Hbody ihDom ihBody =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.lam Hnode Hdom Hbody) hnd hsize Hnode.noCandidate Hsource k
+    let R0 : Expr → Expr := fun e =>
+      Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
+    let R1 : Expr → Expr := fun e =>
+      Expr.reopenFVarsAt e Hselection.fvars restoreFvars (k + 1)
+    have hopen : R0 (Expr.updateLambdaE! (.lam name dom body bi) dom' body') =
+        .lam name (R0 dom') (R1 body') bi := by
+      simp [R0, R1, Expr.reopenFVarsAt]
+    have hinput : R0 (.lam name dom body bi) =
+        .lam name (R0 dom) (R1 body) bi := by
+      simp [R0, R1, Expr.reopenFVarsAt]
+    change ((R0 (Expr.updateLambdaE! (.lam name dom body bi) dom' body')).replace
+      (finalResult.restoreNestedNode env targetAs {}) ==
+        R0 (.lam name dom body bi)) = true
+    change finalResult.restoreNestedNode env targetAs {}
+      (R0 (Expr.updateLambdaE! (.lam name dom body bi) dom' body')) = none
+        at hnone
+    rw [hopen] at hnone
+    rw [hopen, hinput, Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def,
+      hnone]
+    have hdom := ihDom Hsource.1 k
+    have hbody := ihBody Hsource.2 (k + 1)
+    rw [Expr.replace_eq] at hdom hbody
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R0 dom') == R0 dom) = true) at hdom
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R1 body') == R1 body) = true) at hbody
+    exact Expr.lam_eqv hdom hbody
+  | @forallE name dom body bi stepState dom' domState body' outState
+      Hnode Hdom Hbody ihDom ihBody =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.forallE Hnode Hdom Hbody) hnd hsize Hnode.noCandidate Hsource k
+    let R0 : Expr → Expr := fun e =>
+      Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
+    let R1 : Expr → Expr := fun e =>
+      Expr.reopenFVarsAt e Hselection.fvars restoreFvars (k + 1)
+    have hopen : R0 (Expr.updateForallE! (.forallE name dom body bi) dom' body') =
+        .forallE name (R0 dom') (R1 body') bi := by
+      simp [R0, R1, Expr.reopenFVarsAt]
+    have hinput : R0 (.forallE name dom body bi) =
+        .forallE name (R0 dom) (R1 body) bi := by
+      simp [R0, R1, Expr.reopenFVarsAt]
+    change ((R0 (Expr.updateForallE! (.forallE name dom body bi) dom' body')).replace
+      (finalResult.restoreNestedNode env targetAs {}) ==
+        R0 (.forallE name dom body bi)) = true
+    change finalResult.restoreNestedNode env targetAs {}
+      (R0 (Expr.updateForallE! (.forallE name dom body bi) dom' body')) = none
+        at hnone
+    rw [hopen] at hnone
+    rw [hopen, hinput, Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def,
+      hnone]
+    have hdom := ihDom Hsource.1 k
+    have hbody := ihBody Hsource.2 (k + 1)
+    rw [Expr.replace_eq] at hdom hbody
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R0 dom') == R0 dom) = true) at hdom
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R1 body') == R1 body) = true) at hbody
+    exact Expr.forallE_eqv hdom hbody
+  | @letE name type value body nondep stepState type' typeState value'
+      valueState body' outState Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.letE Hnode Htype Hvalue Hbody) hnd hsize Hnode.noCandidate Hsource k
+    let R0 : Expr → Expr := fun e =>
+      Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
+    let R1 : Expr → Expr := fun e =>
+      Expr.reopenFVarsAt e Hselection.fvars restoreFvars (k + 1)
+    have hopen : R0 (Expr.updateLet! (.letE name type value body nondep)
+        type' value' body' nondep) =
+        .letE name (R0 type') (R0 value') (R1 body') nondep := by
+      simp [R0, R1, Expr.reopenFVarsAt]
+    have hinput : R0 (.letE name type value body nondep) =
+        .letE name (R0 type) (R0 value) (R1 body) nondep := by
+      simp [R0, R1, Expr.reopenFVarsAt]
+    change ((R0 (Expr.updateLet! (.letE name type value body nondep)
+      type' value' body' nondep)).replace
+        (finalResult.restoreNestedNode env targetAs {}) ==
+      R0 (.letE name type value body nondep)) = true
+    change finalResult.restoreNestedNode env targetAs {}
+      (R0 (Expr.updateLet! (.letE name type value body nondep)
+        type' value' body' nondep)) = none at hnone
+    rw [hopen] at hnone
+    rw [hopen, hinput, Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def,
+      hnone]
+    have htype := ihType Hsource.1 k
+    have hvalue := ihValue Hsource.2.1 k
+    have hbody := ihBody Hsource.2.2 (k + 1)
+    rw [Expr.replace_eq] at htype hvalue hbody
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R0 type') == R0 type) = true) at htype
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R0 value') == R0 value) = true) at hvalue
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R1 body') == R1 body) = true) at hbody
+    exact Expr.letE_eqv htype hvalue hbody
+  | @mdata data body stepState body' outState Hnode Hbody ihBody =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.mdata Hnode Hbody) hnd hsize Hnode.noCandidate Hsource k
+    let R : Expr → Expr := fun e =>
+      Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
+    have hopen : R (Expr.updateMData! (.mdata data body) body') =
+        .mdata data (R body') := by simp [R, Expr.reopenFVarsAt]
+    have hinput : R (.mdata data body) = .mdata data (R body) := by
+      simp [R, Expr.reopenFVarsAt]
+    change ((R (Expr.updateMData! (.mdata data body) body')).replace
+      (finalResult.restoreNestedNode env targetAs {}) ==
+        R (.mdata data body)) = true
+    change finalResult.restoreNestedNode env targetAs {}
+      (R (Expr.updateMData! (.mdata data body) body')) = none at hnone
+    rw [hopen] at hnone
+    rw [hopen, hinput, Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def,
+      hnone]
+    have hbody := ihBody Hsource k
+    rw [Expr.replace_eq] at hbody
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R body') == R body) = true) at hbody
+    exact Expr.mdata_eqv data hbody
+  | @proj name idx body stepState body' outState Hnode Hbody ihBody =>
+    have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
+      (.proj Hnode Hbody) hnd hsize Hnode.noCandidate Hsource k
+    let R : Expr → Expr := fun e =>
+      Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
+    have hopen : R (Expr.updateProj! (.proj name idx body) body') =
+        .proj name idx (R body') := by simp [R, Expr.reopenFVarsAt]
+    have hinput : R (.proj name idx body) = .proj name idx (R body) := by
+      simp [R, Expr.reopenFVarsAt]
+    change ((R (Expr.updateProj! (.proj name idx body) body')).replace
+      (finalResult.restoreNestedNode env targetAs {}) ==
+        R (.proj name idx body)) = true
+    change finalResult.restoreNestedNode env targetAs {}
+      (R (Expr.updateProj! (.proj name idx body) body')) = none at hnone
+    rw [hopen] at hnone
+    rw [hopen, hinput, Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def,
+      hnone]
+    have hbody := ihBody Hsource k
+    rw [Expr.replace_eq] at hbody
+    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+      (R body') == R body) = true) at hbody
+    exact Expr.proj_eqv hbody
+
 theorem RecognizedNestedReplacement.auxFVarsIn
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out)
@@ -30689,6 +31258,69 @@ theorem LoweredConstructorReopening.restoreTail
     hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening, htype,
     ?_⟩
   simpa [habstract] using htail
+
+/-- The body exposed by restoration is the original constructor body with
+the restoration parameters substituted for lowering's fresh parameters.
+This is the constructor-scoped inverse theorem: it combines the exact two
+telescope traversals with the structural inverse for nested replacement. -/
+theorem LoweredConstructorReopening.restoreTail_inverse
+    (H : LoweredConstructorReopening env params nparams finalResult targetAs
+      source state out)
+    (restoreLctx : LocalContext) (restoreAs : Array Expr)
+    (restoredTail : Expr)
+    (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
+      restoreAs restoredTail)
+    (htargetAs : targetAs = restoreAs)
+    (hresultNParams : finalResult.nparams = nparams)
+    (Hsource : RestoreSourceDisjoint finalResult env source.type) :
+    ∃ lctx tail As lowered openedState,
+      NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+      ∃ Hselection : LocalForallSelection lctx As,
+        Hselection.fvars.Nodup ∧
+        openedState.newTypes = state.newTypes ∧
+        openedState.nestedAux = state.nestedAux ∧
+        openedState.nextIdx = state.nextIdx ∧
+        As.size = nparams ∧
+        NestedExprReopening env lctx params As finalResult targetAs tail
+          openedState (lowered, out.2) ∧
+        out.1.type = lctx.mkForall As lowered ∧
+        restoredTail = (lowered.abstract As).instantiateRev restoreAs ∧
+        ((restoredTail.replace
+            (finalResult.restoreNestedNode env restoreAs {})) ==
+          Expr.reopenParams tail As restoreAs) = true := by
+  rcases H.restoreTail restoreLctx restoreAs restoredTail Hrestore with
+    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+      hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening,
+      htype, hrestoredTail⟩
+  rcases Hrestore.params_fvars_extension with
+    ⟨restoreFvars, hrestoreList, hrestoreLength⟩
+  have hrestoreArray :
+      restoreAs = (restoreFvars.map Expr.fvar).toArray := by
+    apply Array.toList_inj.mp
+    simpa using hrestoreList
+  have hselectionLength : Hselection.fvars.length = As.size := by
+    simpa using (congrArg Array.size Hselection.expressions).symm
+  have hrestoreSize :
+      restoreFvars.length = Hselection.fvars.length := by
+    rw [hrestoreLength, hselectionLength, hsize]
+  have hresultSize : finalResult.nparams = As.size := by
+    rw [hresultNParams, hsize]
+  have HtailSource : RestoreSourceDisjoint finalResult env tail :=
+    Hopening.tailRestoreSourceDisjoint Hsource
+  have hinverse := Hreopening.restore_eqv Hselection hnodupAs restoreFvars
+    (by simpa [htargetAs] using hrestoreArray) hrestoreSize hresultSize
+    HtailSource 0
+  have hloweredOpen := Expr.reopenFVarsAt_eq_reopenParams hnodupAs
+    hrestoreSize Hselection.expressions hrestoreArray lowered 0
+  have hsourceOpen := Expr.reopenFVarsAt_eq_reopenParams hnodupAs
+    hrestoreSize Hselection.expressions hrestoreArray tail 0
+  have hrestoredOpen :
+      restoredTail = Expr.reopenParams lowered As restoreAs := by
+    simpa [Expr.reopenParams] using hrestoredTail
+  rw [htargetAs, hloweredOpen, hsourceOpen, ← hrestoredOpen] at hinverse
+  exact ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+    hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening,
+    htype, hrestoredTail, hinverse⟩
 
 theorem LoweredConstructorTranslation.finalMapping
     (H : LoweredConstructorTranslation env params nparams source state out)
