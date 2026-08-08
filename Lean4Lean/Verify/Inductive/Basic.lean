@@ -30283,6 +30283,32 @@ private theorem mkRecName_injective : Function.Injective Lean.mkRecName := by
   simpa [Lean.mkRecName, Lean.Name.getPrefix] using
     congrArg Lean.Name.getPrefix heq
 
+/-- A recursor shape's existential owner position is the concrete generated
+position whenever the declaration's source names are duplicate-free.  This
+is the positional bridge needed before transporting a lowered shape back to
+the corresponding source-family index. -/
+theorem VInductDecl.NestedRecursorShape.ownerIdx_eq_of_name
+    {decl : VInductDecl} {owner : VInductiveType} {recursor : VConstVal}
+    (H : decl.NestedRecursorShape owner recursor)
+    (ownerIdx : Nat) (howner : ownerIdx < decl.types.length)
+    (hname : recursor.name = decl.recursorName decl.types[ownerIdx])
+    (hnodup : decl.sourceNames.Nodup) :
+    H.ownerIdx = ownerIdx := by
+  have htypeNames : (decl.types.map (fun type => type.name)).Nodup := by
+    have hprefix := (List.nodup_append.mp hnodup).1
+    simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
+      VInductiveType.toVConstVal, Function.comp_def] using hprefix
+  have hshapeMap : H.ownerIdx <
+      (decl.types.map (fun type => type.name)).length := by
+    simpa using H.owner_lt
+  have hownerMap : ownerIdx <
+      (decl.types.map (fun type => type.name)).length := by
+    simpa using howner
+  apply (List.getElem_inj (h₀ := hshapeMap) (h₁ := hownerMap)
+    htypeNames).mp
+  rw [List.getElem_map, List.getElem_map, H.owner_eq]
+  exact mkRecName_injective (H.name.symm.trans hname)
+
 /-- Constructor metadata installed in the middle phase remains retrievable,
 unchanged, after recursor installation. -/
 theorem RecursorPhasesResult.findConstructorOfMem
