@@ -24004,6 +24004,46 @@ theorem VerifiedInductiveRunResult.addInductOfNestedCompilation
     Hrecursors.addInductOfNestedCompilation rules hrules hnonempty
       Hcompilation⟩
 
+/-- Exact branch certificate for the production post-lowering pipeline. -/
+inductive AddInductiveAfterLoweringResult
+    (res : Lean4Lean.ElimNestedInductive.Result)
+    (Installed : Environment → Prop)
+    (Restored : Environment → Environment → Prop) :
+    Environment → Prop
+  | ordinary : res.aux2nested.size = 0 → Installed outEnv →
+      AddInductiveAfterLoweringResult res Installed Restored outEnv
+  | nested : res.aux2nested.size ≠ 0 → Installed loweredEnv →
+      Restored loweredEnv outEnv →
+      AddInductiveAfterLoweringResult res Installed Restored outEnv
+
+/-- Compositional verifier for the exact ordinary/nested branch in
+`Environment.addInductiveAfterLowering`. -/
+theorem Environment.addInductiveAfterLowering.WF
+    (env : Environment) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
+    (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)
+    (Installed : Environment → Prop)
+    (Restored : Environment → Environment → Prop)
+    (Hrun : (AddInductive.run nparams res.types res.aux2nested.size
+      { env, allowPrimitive, lparams, fuel,
+        safety := if isUnsafe then .unsafe else .safe }).WF Installed)
+    (Hrestore : ∀ loweredEnv, Installed loweredEnv →
+      res.aux2nested.size ≠ 0 →
+      (Environment.restoreNestedAfterInstall env loweredEnv lparams types
+        (if isUnsafe then .unsafe else .safe) allowPrimitive fuel res).WF
+          (Restored loweredEnv)) :
+    (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
+      allowPrimitive fuel res).WF
+        (AddInductiveAfterLoweringResult res Installed Restored) := by
+  unfold Environment.addInductiveAfterLowering
+  exact Hrun.bind fun loweredEnv Hinstalled => by
+    by_cases hzero : res.aux2nested.size = 0
+    · simp only [hzero, ↓reduceIte]
+      exact Except.WF.pure (.ordinary hzero Hinstalled)
+    · simp only [hzero, ↓reduceIte]
+      exact (Hrestore loweredEnv Hinstalled hzero).mono fun outEnv Hrestored =>
+        .nested hzero Hinstalled Hrestored
+
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/

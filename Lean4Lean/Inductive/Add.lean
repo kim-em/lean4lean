@@ -1072,22 +1072,41 @@ def restoreNestedDeclarations (res : ElimNestedInductive.Result)
     restoreRecursorDecl res loweredEnv recNameMap allIndNames
       allowPrimitive recName
 
+/-- Restore a successfully installed lowered block and validate the generated
+auxiliary witnesses before returning the source-shaped environment. -/
+def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
+    (lparams : List Name) (types : List InductiveType)
+    (safety : DefinitionSafety) (allowPrimitive : Bool) (fuel : FuelConfig)
+    (res : ElimNestedInductive.Result) : Except Exception Environment := do
+  let allIndNames := types.map (·.name)
+  let (recNames', recNameMap') := mkAuxRecNameMap loweredEnv types
+  (·.2) <$> StateT.run (s := env) do
+  restoreNestedDeclarations res loweredEnv recNameMap' allIndNames
+    allowPrimitive types recNames'
+  TypeChecker.M.run (← get) (safety := safety) (lctx := res.lctx)
+      (lparams := lparams) (fuel := fuel) do
+    res.aux2nested.forM fun _ e => do _ ← TypeChecker.checkType e
+
+/-- Complete production pipeline after nested lowering has produced its
+result: install the lowered block, then either return it directly or restore
+the source declarations and validate every generated auxiliary witness. -/
+def Environment.addInductiveAfterLowering (env : Environment)
+    (lparams : List Name) (nparams : Nat) (types : List InductiveType)
+    (isUnsafe allowPrimitive : Bool) (fuel : FuelConfig)
+    (res : ElimNestedInductive.Result) : Except Exception Environment := do
+  let numNested := res.aux2nested.size
+  let safety := if isUnsafe then .unsafe else .safe
+  let env' ← AddInductive.run nparams res.types numNested
+    { env, allowPrimitive, lparams, fuel, safety }
+  if numNested = 0 then return env'
+  Environment.restoreNestedAfterInstall env env' lparams types safety
+    allowPrimitive fuel res
+
 def Environment.addInductive (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe allowPrimitive : Bool) (fuel : FuelConfig := {}) :
     Except Exception Environment := do
   checkInductiveSources env types
   let res ← ElimNestedInductive.run fuel.inductiveFuel nparams types env
     |>.run' { lvls := lparams.map .param, newTypes := types.toArray }
-  let numNested := res.aux2nested.size
-  let safety := if isUnsafe then .unsafe else .safe
-  let env' ← AddInductive.run nparams res.types numNested
-    { env, allowPrimitive, lparams, fuel, safety }
-  if numNested = 0 then return env'
-  let allIndNames := types.map (·.name)
-  let (recNames', recNameMap') := mkAuxRecNameMap env' types
-  (·.2) <$> StateT.run (s := env) do
-  restoreNestedDeclarations res env' recNameMap' allIndNames allowPrimitive
-    types recNames'
-  TypeChecker.M.run (← get) (safety := safety) (lctx := res.lctx)
-      (lparams := lparams) (fuel := fuel) do
-    res.aux2nested.forM fun _ e => do _ ← TypeChecker.checkType e
+  Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
+    allowPrimitive fuel res
