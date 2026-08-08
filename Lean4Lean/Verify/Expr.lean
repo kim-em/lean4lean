@@ -929,6 +929,67 @@ theorem instantiateRevList_app : instantiateRevList (.app f a) as k =
     .app (instantiateRevList f as k) (instantiateRevList a as k) := by
   induction as <;> simp [instantiate1', *]
 
+/-- Substituting a free variable below another binder commutes past opening
+that binder, with the expected one-place decrease in de Bruijn depth. -/
+theorem instantiate1'_instantiate1'_fvars
+    (e : Expr) (outer inner : FVarId) (j d : Nat) :
+    instantiate1' (instantiate1' e (.fvar outer) (j + d + 1))
+        (.fvar inner) j =
+      instantiate1' (instantiate1' e (.fvar inner) j)
+        (.fvar outer) (j + d) := by
+  induction e generalizing j with
+  | bvar i =>
+    simp only [instantiate1']
+    repeat' first | split
+    all_goals try simp only [instantiate1']
+    all_goals repeat' first | split
+    all_goals try simp only [liftLooseBVars']
+    all_goals first | rfl | (exfalso; omega)
+  | fvar | mvar | sort | const | lit => rfl
+  | app fn arg ihFn ihArg =>
+    simp only [instantiate1']
+    rw [ihFn, ihArg]
+  | lam name dom body bi ihDom ihBody =>
+    simp only [instantiate1']
+    rw [ihDom]
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+      ihBody (j + 1)
+  | forallE name dom body bi ihDom ihBody =>
+    simp only [instantiate1']
+    rw [ihDom]
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+      ihBody (j + 1)
+  | letE name ty value body nondep ihTy ihValue ihBody =>
+    simp only [instantiate1']
+    rw [ihTy, ihValue]
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+      ihBody (j + 1)
+  | mdata md body ihBody =>
+    simp only [instantiate1']
+    rw [ihBody]
+  | proj name idx body ihBody =>
+    simp only [instantiate1']
+    rw [ihBody]
+
+/-- Opening one outer binder below a list of inner binders commutes with
+opening those inner binders, when all opening terms are free variables. -/
+theorem instantiateRevList_instantiate1'_fvars
+    (e : Expr) (fv : FVarId) (fvs : List FVarId)
+    (k d : Nat := 0) :
+    instantiateRevList
+        (instantiate1' e (.fvar fv) (k + fvs.length + d))
+        (fvs.map Expr.fvar) k =
+      instantiate1' (instantiateRevList e (fvs.map Expr.fvar) k)
+        (.fvar fv) (k + d) := by
+  induction fvs generalizing d with
+  | nil => simp
+  | cons head tail ih =>
+    simp only [List.length_cons, List.map_cons, instantiateRevList]
+    rw [show k + (tail.length + 1) + d =
+        k + tail.length + (d + 1) by omega]
+    rw [ih (d + 1)]
+    exact instantiate1'_instantiate1'_fvars _ _ _ k d
+
 @[simp]
 theorem instantiateList_app : instantiateList (.app f a) as k =
     .app (instantiateList f as k) (instantiateList a as k) := by

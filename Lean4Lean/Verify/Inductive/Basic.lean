@@ -13879,6 +13879,20 @@ theorem Expr.ForallTelescope.abstractList
     simp only [Expr.abstractList]
     exact ih (H.abstract1 fv k) k
 
+/-- Instantiating below a forall telescope preserves its arity and performs
+the same instantiation below all retained binders in the residual. -/
+theorem Expr.ForallTelescope.instantiate1'
+    (H : Expr.ForallTelescope outer arity result)
+    (arg : Expr) (k : Nat := 0) :
+    Expr.ForallTelescope (outer.instantiate1' arg k) arity
+      (result.instantiate1' arg (k + arity)) := by
+  induction H generalizing k with
+  | nil => exact .nil _
+  | cons H ih =>
+    simp only [Expr.instantiate1']
+    apply Expr.ForallTelescope.cons
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
+
 theorem Expr.abstractList_fvar_of_not_mem
     (hmem : fv ∉ fvs) :
     (Expr.fvar fv).abstractList fvs k = .fvar fv := by
@@ -24061,6 +24075,66 @@ theorem RestoreParamOpening.params_extension
     rcases ih with ⟨suffix, heq, hlength⟩
     refine ⟨(.fvar id) :: suffix, ?_, by simp [hlength]⟩
     simpa [heq, List.append_assoc]
+
+/-- The suffix created by restoration opening consists exactly of the fresh
+free variables introduced by its telescope traversal. -/
+theorem RestoreParamOpening.params_fvars_extension
+    (H : RestoreParamOpening lctx As e n outLctx outAs tail) :
+    ∃ fvars : List FVarId,
+      outAs.toList = As.toList ++ fvars.map Expr.fvar ∧
+      fvars.length = n := by
+  induction H with
+  | done => exact ⟨[], by simp⟩
+  | forallE H ih | lam H ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    rcases ih with ⟨fvars, heq, hlength⟩
+    refine ⟨id :: fvars, ?_, by simp [hlength]⟩
+    simpa [heq, List.append_assoc]
+
+/-- Jointly opening a generated forall telescope substitutes precisely the
+fresh restoration variables into its residual body. -/
+theorem RestoreParamOpening.forallResidualData
+    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
+    (Htel : Expr.ForallTelescope outer n residual) :
+    ∃ fvars : List FVarId,
+      outAs.toList = As.toList ++ fvars.map Expr.fvar ∧
+      fvars.length = n ∧
+      tail = residual.instantiateRevList (fvars.map Expr.fvar) := by
+  induction Hopen generalizing residual with
+  | done =>
+    cases Htel
+    exact ⟨[], by simp⟩
+  | forallE Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    cases Htel with
+    | cons Hbody =>
+      have Hbody' := Hbody.instantiate1' (.fvar id) 0
+      rcases ih (residual := residual.instantiate1' (.fvar id) n')
+        (by simpa [Expr.instantiate1_eq] using Hbody') with
+        ⟨fvars, heq, hlength, htail⟩
+      refine ⟨id :: fvars, ?_, by simp [hlength], ?_⟩
+      · simpa [heq, List.append_assoc]
+      · rw [htail]
+        have hcomm := Expr.instantiateRevList_instantiate1'_fvars
+          residual id fvars 0 0
+        simp only [Nat.zero_add, Nat.add_zero] at hcomm
+        rw [hlength] at hcomm
+        simpa using hcomm
+  | lam Hnext ih => cases Htel
+
+/-- Root specialization of `forallResidualData`, stated using Lean's
+production array primitive. -/
+theorem RestoreParamOpening.forallResidual
+    (Hopen : RestoreParamOpening {} #[] outer n outLctx outAs tail)
+    (Htel : Expr.ForallTelescope outer n residual) :
+    tail = residual.instantiateRev outAs := by
+  rcases Hopen.forallResidualData Htel with
+    ⟨fvars, hAs, _hlength, htail⟩
+  have hAs' : outAs = (fvars.map Expr.fvar).toArray := by
+    apply Array.toList_inj.mp
+    simpa using hAs
+  rw [htail, Expr.instantiateRev_eq, Expr.instantiate_eq, hAs']
+  simp [Expr.instantiateList_reverse]
 
 theorem RestoreParamOpening.initial_size
     (H : RestoreParamOpening {} #[] e n outLctx outAs tail) :
