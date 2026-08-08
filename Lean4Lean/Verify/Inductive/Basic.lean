@@ -29097,6 +29097,45 @@ theorem NestedReplacementHasFinalMapping.reopens
   rw [hcancel] at heqv
   exact heqv
 
+/-- A recognized nested application's source-family prefix becomes closed
+once all constructor-opening free variables are abstracted. -/
+theorem NestedAppCandidate.abstractedPrefixClosed
+    (H : NestedAppCandidate env state input value)
+    (Hselection : LocalForallSelection lctx As)
+    (Hinput : FVarsIn (· ∈ Hselection.fvars) input)
+    (hhead : input.getAppFn = .const targetName levels) :
+    FVarsIn (fun _ => False)
+      ((mkAppRange (.const targetName levels) 0 value.numParams
+        input.getAppArgs).abstract As) := by
+  apply FVarsIn.abstract_fvarArray_of Hselection.fvars As
+    Hselection.expressions
+  apply FVarsIn.mkAppRange_zero H.parameters.arity
+  · have Hfn := Hinput.getAppFn
+    rw [hhead] at Hfn
+    exact Hfn
+  · intro arg harg
+    have harg' : arg ∈ input.getAppArgsList := by
+      rw [← Expr.getAppArgs_toList]
+      exact Array.mem_toList_iff.mpr harg
+    exact (Hinput.getAppArgsList harg').mono fun fv hfv => Or.inl hfv
+
+/-- Constructor-scoped specialization of `reopens`; the closedness premise
+is derived from the source body's free-variable invariant. -/
+theorem NestedReplacementHasFinalMapping.reopensOfFVars
+    (H : NestedReplacementHasFinalMapping env lctx params As input state
+      lowered finalResult)
+    (hresultParams : finalResult.params = params)
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hnodup : fvars.Nodup)
+    (Hselection : LocalForallSelection lctx As)
+    (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
+    NestedReplacementReopens env lctx params As input state lowered
+      finalResult restoreAs := by
+  apply H.reopens hresultParams fvars hparams hnodup
+  intro value targetName levels Hcandidate hhead
+  exact Hcandidate.abstractedPrefixClosed Hselection Hinput hhead
+
 /-- Successful node replacement retains both the independent recognition
 certificate and the final restoration-map entry for the auxiliary family it
 returns. This is the leaf case needed by the structural expression inverse. -/
