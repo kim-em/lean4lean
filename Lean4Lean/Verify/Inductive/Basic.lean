@@ -24199,6 +24199,20 @@ def RestoreAuxConstructorsFresh
     result.getNestedIfAuxCtor prodEnv name = some (nested, auxFamily) →
     sourceVEnv.constants name = none
 
+/-- Input production environments do not contain dangling constructor
+metadata: every constructor's recorded owner is itself present. -/
+def ConstructorOwnersPresent (env : Environment) : Prop :=
+  ∀ name info, env.find? name = some (.ctorInfo info) →
+    ∃ owner, env.find? info.induct = some (.inductInfo owner)
+
+/-- Every auxiliary family recorded by lowering was fresh in the production
+environment from which the inductive block was built. -/
+def RestoreAuxFamiliesFresh
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (sourceEnv : Environment) : Prop :=
+  ∀ name nested, result.aux2nested.find? name = some nested →
+    sourceEnv.find? name = none
+
 /-- Every name that the concrete restoration callback treats as an
 auxiliary family or constructor lies in the namespace rejected by the source
 syntax check.  This separates the name-generation argument from the
@@ -28424,6 +28438,67 @@ theorem AddConstants.preservesFind
     apply ih hnextWF
     change (Lean4Lean.AddInductive.addConstant envHead ci).find? name = some found
     exact addConstant_find_of_ne envHead ci name hwf hn hne hfind
+
+/-- Every lookup in the target of a lockstep installation either came from
+the source environment or is one of the exact newly installed production
+entries. -/
+theorem AddConstants.origin
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hfind : outEnv.find? name = some found) :
+    env.find? name = some found ∨
+      ∃ entry ∈ entries, name = entry.1.name ∧ found = entry.1 := by
+  induction H with
+  | nil => exact Or.inl hfind
+  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
+    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
+    have hfreshMap : envHead.constants.find? ci.name = none := by
+      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+    have hnextWF : (envHead.add ci).constants.WF := by
+      change (envHead.constants.insert ci.name ci).WF
+      exact hwf.insert ci.name ci hfreshMap
+    rcases ih hnextWF hfind with hnext | ⟨entry, hentry, hname, hfound⟩
+    · rcases addConstant_find_cases envHead ci name hwf hn hnext with
+        ⟨hname, hfound⟩ | hold
+      · exact Or.inr ⟨(ci, ci'), by simp, hname, hfound⟩
+      · exact Or.inl hold
+    · exact Or.inr ⟨entry, by simp [hentry], hname, hfound⟩
+
+theorem AddConstants.entryNames
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hentry : entry ∈ entries) : entry.1.name = entry.2.name := by
+  induction H with
+  | nil => simp at hentry
+  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
+    simp only [List.mem_cons] at hentry
+    rcases hentry with rfl | htail
+    · exact htr.2
+    · exact ih htail
+
+/-- A successful lockstep installation makes every constructor recognized as
+belonging to a fresh auxiliary family absent from the original abstract
+environment. -/
+theorem AddConstants.restoreAuxConstructorsFresh
+    (H : AddConstants safety sourceProdEnv sourceVEnv entries
+      loweredEnv loweredVEnv)
+    (hwf : sourceProdEnv.constants.WF)
+    (Howners : ConstructorOwnersPresent sourceProdEnv)
+    (Hfamilies : RestoreAuxFamiliesFresh result sourceProdEnv) :
+    RestoreAuxConstructorsFresh result loweredEnv sourceVEnv := by
+  intro name nested auxFamily hrecognized
+  rcases getNestedIfAuxCtor_refines result loweredEnv name nested auxFamily
+      hrecognized with ⟨⟨info, hlookup, hfamily, hmap⟩⟩
+  rcases H.origin hwf hlookup with hold | hnew
+  · rcases Howners name info hold with ⟨owner, howner⟩
+    have hfresh := Hfamilies info.induct nested hmap
+    rw [howner] at hfresh
+    contradiction
+  · rcases hnew with ⟨entry, hentry, hname, hfound⟩
+    have habstractFresh := (VEnv.addConsts_names_fresh H.abstract).2
+      entry.2 (List.mem_map.mpr ⟨entry, hentry, rfl⟩)
+    have hentryNames := H.entryNames hentry
+    rw [hname, hentryNames]
+    exact habstractFresh
 
 /-- Every production entry named by an `AddConstants` certificate is present
 with its exact metadata in the final environment. -/
