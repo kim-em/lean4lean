@@ -22708,6 +22708,44 @@ theorem RestoredNestedDeclarationsResult.auxiliaryRestorationOfSemantics
       auxiliaryRecursors.length = auxRecNames.length :=
   H.auxiliaries.auxiliaryRestorationOfSemantics Hsemantics
 
+/-- Assemble the independent nested-compilation certificate from the exact
+restoration trace. Primary recursors/rules retain their ordinary certificates;
+the operational auxiliary suffix is interpreted by `Hsemantics`. -/
+theorem RestoredNestedDeclarationsResult.nestedCompilationCertificate
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames types auxRecNames out)
+    (Hsemantics : ∀ oldRecName stepSource stepTarget
+      (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+        oldRecName stepSource stepTarget)
+      recursors rules,
+      AuxiliaryRestorationPrefix decl block main recursors rules →
+      Nonempty (RestoredAuxiliaryStepSemantics decl block main safety trEnv
+        Hstep recursors))
+    (rest : List VInductiveType)
+    (htypesSource : decl.types = main :: rest)
+    (primaryRecursors : List VConstVal) (primaryRules : List VDefEq)
+    (HprimaryRecursors : RecursorCertificate decl primaryRecursors)
+    (HprimaryRules : IotaBuildCertificate sourceEnv decl block primaryRules)
+    (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
+    (htypes : block.types = decl.typeConstants)
+    (hctors : block.ctors = decl.constructorConstants)
+    (Hlayout : ∀ auxiliaryRecursors auxiliaryRules,
+      AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
+        auxiliaryRules →
+      block.recursors = primaryRecursors ++ auxiliaryRecursors ∧
+      block.rules = primaryRules ++ auxiliaryRules)
+    (hnames : List.Nodup
+      ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
+    Nonempty (NestedCompilationCertificate sourceEnv decl block) := by
+  rcases H.auxiliaryRestorationOfSemantics Hsemantics with
+    ⟨auxiliaryRecursors, auxiliaryRules, Haux, _hlength⟩
+  rcases Hlayout auxiliaryRecursors auxiliaryRules Haux with
+    ⟨hrecursors, hrules⟩
+  exact ⟨NestedCompilationCertificate.ofRestoration decl block main rest
+    htypesSource primaryRecursors auxiliaryRecursors primaryRules
+    auxiliaryRules HprimaryRecursors HprimaryRules hprimaryLength Haux htypes
+    hctors hrecursors hrules hnames⟩
+
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/
