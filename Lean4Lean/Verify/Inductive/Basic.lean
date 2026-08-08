@@ -19878,6 +19878,13 @@ theorem AddConstants.prod_eq
     cases H₂ with
     | cons _ _ _ _ _ _ Htail₂ => exact ih Htail₂
 
+theorem AddConstants.quotInit_eq
+    (H : AddConstants safety prodEnv venv entries outEnv outVEnv) :
+    outEnv.quotInit = prodEnv.quotInit := by
+  induction H with
+  | nil => rfl
+  | cons _ _ _ _ _ _ _ ih => exact ih
+
 /-- Combine translations from an original strong-safety trace with the
 freshness/install equations of a replayed trace.  This permits the replayed
 abstract target to be viewed at any observer safety supported by the
@@ -21419,6 +21426,13 @@ theorem StagedBlock.trEnvIgnore
     (H.ctorsAdded.trEnvIgnore hctors
       (H.typesAdded.trEnvIgnore htypes htr))
 
+theorem StagedBlock.quotInit_eq
+    (H : StagedBlock safety prodEnv venv types ctors recursors
+      outEnv outVEnv) :
+    outEnv.quotInit = prodEnv.quotInit :=
+  H.recursorsAdded.quotInit_eq.trans
+    (H.ctorsAdded.quotInit_eq.trans H.typesAdded.quotInit_eq)
+
 theorem StagedBlock.deltaConservative
     (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv)
     (Halign : Aligned safety env.constants venv) :
@@ -21817,9 +21831,9 @@ theorem BlockCertificate.rebaseAddInductSafe
     (hbase : base ≤ largerBase)
     (hdecl : decl.WF base)
     (hcompile : decl.CompilesTo base H.block)
-    (heq : ∀ (candidate : VEnv) info,
+    (heq : ∀ info,
       outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (candidate.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outBase.addDefEqs rules).constants ``Eq = some eqConst) :
     ∃ largerOutBase,
       Nonempty (BlockCertificate targetSafety prodEnv largerBase types ctors
         recursors rules outEnv largerOutBase) ∧
@@ -21836,7 +21850,8 @@ theorem BlockCertificate.rebaseAddInductSafe
   have hadd : AddInduct targetSafety prodEnv.constants largerBase decl outEnv.constants
       (largerOutBase.addDefEqs rules) := by
     exact Hlarger.addInduct hdeclLarger hcompileLarger Hvalid.tr.aligned
-      (heq largerOutBase)
+      (fun info hfind =>
+        (VEnv.addDefEqs_mono houtBase).constants (heq info hfind))
   exact ⟨largerOutBase, ⟨Hlarger⟩, hadd,
     VEnv.addDefEqs_mono houtBase⟩
 
@@ -21850,13 +21865,9 @@ theorem BlockCertificate.extendSafe
     (wf : ves.WF prodEnv)
     (hdecl : decl.WF (ves.venv .safe))
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
-    (hquot : outEnv.quotInit = prodEnv.quotInit)
-    (hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
-      Kernel.Environment.primitives.contains n →
-      ci.safety = .safe ∧ ci.levelParams = [])
-    (heq : ∀ (candidate : VEnv) info,
+    (heq : ∀ info,
       outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (candidate.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outBase.addDefEqs rules).constants ``Eq = some eqConst) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   have valid (safety : DefinitionSafety) :
@@ -21889,11 +21900,11 @@ theorem BlockCertificate.extendSafe
     | .unsafe => HunsafeAdd
     | .partial => HpartialAdd
     | .safe => HsafeAdd
-  apply wf.extendInduct decl next adds hquot
+  apply wf.extendInduct decl next adds H.staged.quotInit_eq
   · intro safety
     exact (cert safety).hasPrimitives
       (wf.hasPrimitives (safety := safety))
-  · exact hsafePrimitives
+  · exact (Hsafe.staged.valid (valid .safe)).safePrimitives
   · intro safety safety' hle
     exact VInductBlock.install_mono (wf.mono hle)
       (cert safety').install (cert safety).install
@@ -21938,7 +21949,6 @@ theorem BlockCertificate.extendUnsafeOfHidden
     (wf : ves.WF prodEnv)
     (hdecl : decl.WF (ves.venv .unsafe))
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
-    (hquot : outEnv.quotInit = prodEnv.quotInit)
     (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
       entry.1.safety = .unsafe)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
@@ -21961,11 +21971,11 @@ theorem BlockCertificate.extendUnsafeOfHidden
     decide
   have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
       (outVEnv.addDefEqs rules) := by
-    rw [hquot]
+    rw [H.staged.quotInit_eq]
     exact H.trEnv' hdecl hcompile (wf.tr (safety := .unsafe)) heq
   have htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
       (ves.venv .partial) := by
-    rw [hquot]
+    rw [H.staged.quotInit_eq]
     apply H.staged.trEnvIgnore
     · intro entry hentry
       exact hiddenPartial entry (by simp [hentry])
@@ -21976,7 +21986,7 @@ theorem BlockCertificate.extendUnsafeOfHidden
     · exact wf.tr (safety := .partial)
   have htrSafe : TrEnv' .safe outEnv.constants outEnv.quotInit
       (ves.venv .safe) := by
-    rw [hquot]
+    rw [H.staged.quotInit_eq]
     apply H.staged.trEnvIgnore
     · intro entry hentry
       exact hiddenSafe entry (by simp [hentry])
