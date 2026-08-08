@@ -27591,6 +27591,42 @@ inductive RestoredPrimaryRecursors
           Hstep Htail Hsemantic Hrest)
         (Hsemantic.recursor.recursor :: recursors)
 
+theorem RestoredInductiveInstallationTrace.existsPrimaryRecursors
+    {types : List InductiveType}
+    {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+      types sourceProdEnv targetProdEnv}
+    {sourceVEnv targetVEnv : VEnv} {constants : List VConstVal}
+    (H : RestoredInductiveInstallationTrace safety Htrace sourceVEnv
+      constants targetVEnv) :
+    ∃ recursors, RestoredPrimaryRecursors result loweredEnv auxRec
+      allIndNames safety H recursors := by
+  induction H with
+  | nil => exact ⟨[], .nil _ _⟩
+  | cons Hstep Htail Hsemantic Hrest ih =>
+    rcases ih with ⟨recursors, Hrecursors⟩
+    exact ⟨Hsemantic.recursor.recursor :: recursors,
+      .cons Hstep Htail Hsemantic Hrest Hrecursors⟩
+
+theorem RestoredPrimaryRecursors.length
+    {types : List InductiveType}
+    {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+      types sourceProdEnv targetProdEnv}
+    {sourceVEnv targetVEnv : VEnv} {constants recursors : List VConstVal}
+    {Hinstall : RestoredInductiveInstallationTrace safety Htrace sourceVEnv
+      constants targetVEnv}
+    (H : RestoredPrimaryRecursors result loweredEnv auxRec allIndNames safety
+      Hinstall recursors) :
+    recursors.length = types.length := by
+  induction H with
+  | nil => rfl
+  | cons Hstep Htail Hsemantic Hrest HrestRecursors ih =>
+    simp only [List.length_cons]
+    rw [ih]
+
 /-- Abstract recursor shapes aligned with the exact operational restoration
 trace.  This is the specification-facing certificate for primary restored
 recursors; no independently chosen list can be substituted for the values
