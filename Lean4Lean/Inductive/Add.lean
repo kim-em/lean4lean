@@ -651,13 +651,13 @@ def runWithStats (stats : InductiveStats) (nparams : Nat)
       mkRecInfos stats indTypes elimLevel fun recInfos =>
         declareRecursors stats indTypes elimLevel recInfos) { c with env := ctorEnv }
 
-def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) : M Environment := do
-  let isUnsafe := (← read).safety != .safe
+def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) :
+    M Environment := fun c => do
+  let isUnsafe := c.safety != .safe
   let indTypes := types.toArray
-  let {lparams, ..} ← read
-  Environment.checkDuplicatedUnivParams lparams
-  checkInductiveTypes nparams indTypes fun stats =>
-    runWithStats stats nparams indTypes numNested isUnsafe
+  Environment.checkDuplicatedUnivParams c.lparams
+  checkInductiveTypes nparams indTypes (fun stats =>
+    runWithStats stats nparams indTypes numNested isUnsafe) c
 
 end AddInductive
 

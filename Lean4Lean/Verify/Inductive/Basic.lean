@@ -23780,6 +23780,43 @@ theorem AddInductive.runWithStats.closedWF
   · exact Htypes
   · exact hnprimRecursors
 
+/-- Front-end composition for `AddInductive.run`: the executable header
+analysis materializes an independent declaration before the post-analysis
+installer is invoked. This theorem deliberately leaves the latter callback
+parametric, so environment conservation and formation assumptions are visible
+at their exact boundary. -/
+theorem AddInductive.run.materialize
+    (numNested : Nat) (Q : Environment → Prop)
+    (Hc : ContextWF c)
+    (Hdecl : TrInductDeclSkeletonHeaders Hc.venv c.lparams skeleton.nparams
+      types.toArray.toList (c.safety != .safe) skeleton envTypes)
+    (hctx : Hc.mlctx.vlctx = [])
+    (hnonempty : 0 < types.toArray.size)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hfinish : ∀ {c' : AddInductive.Context}
+      {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+      {depth : Nat},
+      (Hc' : ContextWF c') →
+      TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
+        types.toArray.toList (c.safety != .safe) decl envTypes →
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth →
+      (AddInductive.runWithStats stats skeleton.nparams types.toArray
+        numNested (c.safety != .safe) c').WF Q) :
+    (AddInductive.run skeleton.nparams types numNested c).WF Q := by
+  have Hanalysis :=
+    Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.checkInductiveTypes.materialize
+    (fun stats => AddInductive.runWithStats stats skeleton.nparams
+      types.toArray numNested (c.safety != .safe)) Q Hc Hdecl hctx hnonempty
+      hconsume Hfinish
+  have Hduplicates :
+      (Kernel.Environment.checkDuplicatedUnivParams c.lparams).WF
+        fun _ => True := by
+    intro _ _
+    trivial
+  have Hcombined := Hduplicates.bind fun _ _ => Hanalysis
+  simpa [AddInductive.run] using Hcombined
+
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
 certified batch for the entire mutual block is generated. -/
