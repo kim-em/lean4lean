@@ -18530,6 +18530,22 @@ theorem LocalForallSelection.size
   rcases H with ⟨fvars, rfl, declarations⟩
   simp
 
+theorem LocalForallSelection.fvarsIn
+    (H : LocalForallSelection lctx xs) (Hlctx : lctx.WF) :
+    ∀ e ∈ xs, e.FVarsIn (· ∈ lctx.fvars) := by
+  rcases H with ⟨fvars, rfl, declarations⟩
+  intro e he
+  rw [List.mem_toArray, List.mem_map] at he
+  rcases he with ⟨fv, hfv, rfl⟩
+  simp only [Expr.FVarsIn]
+  rcases declarations fv hfv with
+    ⟨index, name, type, bi, kind, hfind⟩
+  rw [Hlctx.find?_eq_find?_toList] at hfind
+  rw [LocalContext.fvars]
+  exact List.mem_map.mpr
+    ⟨.cdecl index fv name type bi kind,
+      List.mem_of_find?_eq_some hfind, rfl⟩
+
 theorem LocalForallSelection.forallTelescope
     (H : LocalForallSelection lctx xs) (body : Expr) :
     Expr.ForallTelescope (lctx.mkForall xs body) xs.size
@@ -21391,6 +21407,7 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
     (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
     (Hk : ∀ outLctx tail outParams outState,
       NestedParamOpening lctx params type n outLctx tail outParams →
+      NestedBindingContextWF outLctx outState.ngen →
       LocalForallSelection outLctx outParams →
       outState.newTypes = state.newTypes →
       outState.nestedAux = state.nestedAux →
@@ -21401,7 +21418,8 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
   induction n generalizing lctx type params state with
   | zero =>
     simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
-      Hk lctx type params state .done (Hparams.toSelection Hctx) rfl rfl rfl
+      Hk lctx type params state .done Hctx (Hparams.toSelection Hctx)
+        rfl rfl rfl
   | succ n ih =>
     cases type with
     | forallE name dom body bi =>
@@ -21413,10 +21431,10 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
       apply ih
         (Hctx := Hctx.withLocalDecl name dom bi)
         (Hparams := Hparams.push state.ngen name dom bi)
-      intro outLctx tail outParams outState Hresult Hselection hnewTypes
-        hnestedAux hnextIdx
-      exact Hk outLctx tail outParams outState (.step Hresult) Hselection
-        (by simpa using hnewTypes) (by simpa using hnestedAux)
+      intro outLctx tail outParams outState Hresult HresultCtx Hselection
+        hnewTypes hnestedAux hnextIdx
+      exact Hk outLctx tail outParams outState (.step Hresult) HresultCtx
+        Hselection (by simpa using hnewTypes) (by simpa using hnestedAux)
         (by simpa using hnextIdx)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => exact Except.WF.throw
@@ -21429,6 +21447,7 @@ theorem ElimNestedInductive.withParams.refinesSelected {α : Type}
     (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
     (Hk : ∀ lctx tail params outState,
       NestedParamOpening {} #[] type nparams lctx tail params →
+      NestedBindingContextWF lctx outState.ngen →
       LocalForallSelection lctx params →
       outState.newTypes = state.newTypes →
       outState.nestedAux = state.nestedAux →
@@ -26205,8 +26224,8 @@ theorem ElimNestedInductive.lowerConstructor.shape
       env state).WF fun out => LoweredConstructorShape nparams ctor out.1 := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
   apply ElimNestedInductive.withParams.refinesSelected
-  intro lctx tail As openedState Hopening Hselection _hnewTypes _hnestedAux
-    _hnextIdx
+  intro lctx tail As openedState Hopening _Hctx Hselection _hnewTypes
+    _hnestedAux _hnextIdx
   have hsize : As.size = nparams := Hopening.initial_size
   simp only [hsize, beq_self_eq_true, if_true]
   refine nestedBind.WF
@@ -26318,7 +26337,7 @@ theorem ElimNestedInductive.lowerConstructor.translation
         LoweredConstructorTranslation env params nparams ctor state out := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
   apply ElimNestedInductive.withParams.refinesSelected
-  intro lctx tail As openedState Hopening Hselection hopenedTypes
+  intro lctx tail As openedState Hopening _Hctx Hselection hopenedTypes
     hopenedAux hopenedNext
   have hsize : As.size = nparams := Hopening.initial_size
   simp only [hsize, beq_self_eq_true, if_true]
@@ -26893,6 +26912,8 @@ structure NestedLoweringRun
     paramsState.newTypes = initialState.newTypes ∧
     paramsState.nestedAux = initialState.nestedAux ∧
     paramsState.nextIdx = initialState.nextIdx ∧
+    NestedBindingContextWF lctx paramsState.ngen ∧
+    Nonempty (LocalForallSelection lctx params) ∧
     LoweringQueueTrace env params nparams lctx 0 fuel
       paramsState out
 
@@ -26900,22 +26921,49 @@ theorem NestedLoweringRun.resultRestorable
     (H : NestedLoweringRun env fuel nparams types initialState out) :
     ∀ type ∈ out.1.types, RestorableInductiveType nparams type := by
   rcases H.source with
-    ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, Hqueue⟩
+    ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultRestorable (.zero paramsState)
 
 theorem NestedLoweringRun.resultNParams
     (H : NestedLoweringRun env fuel nparams types initialState out) :
     out.1.nparams = nparams := by
   rcases H.source with
-    ⟨first, rest, tail, paramsState, lctx, params, _, Hopening, _, _, _, Hqueue⟩
+    ⟨first, rest, tail, paramsState, lctx, params, _, Hopening, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultNParams.trans Hopening.initial_size
+
+/-- The final restoration context is exactly the source parameter selection
+opened before the dynamic lowering queue starts. -/
+theorem NestedLoweringRun.resultContextSelection
+    (H : NestedLoweringRun env fuel nparams types initialState out) :
+    Nonempty (LocalForallSelection out.1.lctx out.1.params) := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _,
+      _Hctx, Hselection, Hqueue⟩
+  rcases Hqueue.resultContext with ⟨hlctx, hparams⟩
+  rw [hlctx, hparams]
+  exact Hselection
+
+theorem NestedLoweringRun.resultContextWF
+    (H : NestedLoweringRun env fuel nparams types initialState out) :
+    out.1.lctx.WF := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, Hctx,
+      _Hselection, Hqueue⟩
+  rw [Hqueue.resultContext.1]
+  exact Hctx.wf
+
+theorem NestedLoweringRun.resultParamsFVarsIn
+    (H : NestedLoweringRun env fuel nparams types initialState out) :
+    ∀ e ∈ out.1.params, e.FVarsIn (· ∈ out.1.lctx.fvars) := by
+  rcases H.resultContextSelection with ⟨Hselection⟩
+  exact Hselection.fvarsIn H.resultContextWF
 
 theorem NestedLoweringRun.resultAuxMap
     (H : NestedLoweringRun env fuel nparams types initialState out) :
     out.1.aux2nested = out.2.nestedAux.foldl
       (fun map (entry : Expr × Name) => map.insert entry.2 entry.1) {} := by
   rcases H.source with
-    ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, Hqueue⟩
+    ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultAuxMap
 
 /-- Under the separately stated fresh-name invariant, every final cache entry
@@ -26948,7 +26996,7 @@ theorem NestedLoweringRun.resultNestedAuxLE
     NestedAuxLE initialState out.2 := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _hnewTypes,
-      hinitialAux, _hinitialNext, Hqueue⟩
+      hinitialAux, _hinitialNext, _Hctx, _Hselection, Hqueue⟩
   rcases Hqueue.resultNestedAuxLE with ⟨suffix, hsuffix⟩
   exact ⟨suffix, by simpa [hinitialAux] using hsuffix⟩
 
@@ -26958,7 +27006,7 @@ theorem NestedLoweringRun.resultNamesWF
     (Hstate : NestedAuxNamesWF initialState) : NestedAuxNamesWF out.2 := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, hinitialAux,
-      hinitialNext, Hqueue⟩
+      hinitialNext, _Hctx, _Hselection, Hqueue⟩
   exact Hqueue.resultNamesWF Hindex
     (Hstate.ofCacheCounterEq hinitialAux hinitialNext)
 
@@ -26998,7 +27046,7 @@ theorem NestedLoweringRun.translationAtInitial
       NestedAuxLE loweredState out.2 := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _htypes, Hopening,
-      hinitial, _hinitialAux, _hinitialNext, Hqueue⟩
+      hinitial, _hinitialAux, _hinitialNext, _Hctx, _Hselection, Hqueue⟩
   have hjParams : j < paramsState.newTypes.size := by
     simpa [hinitial] using hj
   rcases Hqueue.translationAt (Nat.zero_le j) hjParams with
@@ -27036,7 +27084,7 @@ theorem NestedLoweringRun.preservesInitialTypeName
     ∃ type ∈ out.1.types, type.name = name := by
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, hnewTypes,
-      _hnewAux, _hnextIdx, Hqueue⟩
+      _hnewAux, _hnextIdx, _Hctx, _Hselection, Hqueue⟩
   apply Hqueue.preservesTypeName
   unfold NewTypeNamePresent at Hname ⊢
   rwa [hnewTypes]
@@ -27052,13 +27100,14 @@ theorem ElimNestedInductive.run.translation
   | cons first rest =>
     unfold Lean4Lean.ElimNestedInductive.run
     apply ElimNestedInductive.withParams.refinesSelected
-    intro lctx tail params paramsState Hopening Hselection hnewTypes
+    intro lctx tail params paramsState Hopening Hctx Hselection hnewTypes
       hnestedAux hnextIdx
     have hparams : params.size = nparams := Hopening.initial_size
     exact (loweringQueueLoop_refines env params nparams lctx 0 fuel paramsState
       hparams hclosures).mono fun _ Hqueue =>
         ⟨⟨first, rest, tail, paramsState, lctx, params,
-          rfl, Hopening, hnewTypes, hnestedAux, hnextIdx, Hqueue⟩⟩
+          rfl, Hopening, hnewTypes, hnestedAux, hnextIdx, Hctx,
+          ⟨Hselection⟩, Hqueue⟩⟩
 
 /-- Exact state transition for one iteration of the dynamic lowering queue.
 The successful case retains the source family selected before lowering, while
@@ -27372,7 +27421,7 @@ theorem RecursorPhasesResult.auxRestorationSourcesOfLowering
   rcases Hlower with ⟨finalState, Hrun⟩
   rcases Hrun.source with
     ⟨main, rest, tail, paramsState, lctx, params, hsource, Hopening,
-      hinitial, _hinitialAux, _hinitialNext, Hqueue⟩
+      hinitial, _hinitialAux, _hinitialNext, _Hctx, _Hselection, Hqueue⟩
   subst sourceTypes
   have Hrestorable := H.restorationSources Hc (by
     intro lowered hlowered ctor hctor
