@@ -27224,7 +27224,6 @@ structure RestoredPrimaryRecursorSourceInputs
     (recursor : VConstVal) (canonicalEnv : VEnv) : Prop where
   type : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
     Hstep.restored.newInfo.type recursor.type
-  isType : canonicalEnv.IsType Hstep.oldInfo.levelParams.length [] recursor.type
 
 theorem RestoredPrimaryRecursorSemantics.installation
     {oldRecName : Name} {sourceProdEnv targetProdEnv : Environment}
@@ -36335,9 +36334,10 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFresh
 /-- Package one original family into the payload consumed by whole-mutual
 semantic-trace assembly.  Header and constructor semantics come from the
 independent source translation; generated-entry alignment supplies every
-primary-recursor field except its canonical restored-type translation and
-canonical well-formedness, which remain explicit premises.  Primary-name
-preservation is derived from the production auxiliary-map domain. -/
+primary-recursor field except its canonical restored-type translation.
+Primary-name preservation is derived from the production auxiliary-map
+domain, and canonical well-formedness transports across the uniquely
+determined abstract constructor environment. -/
 theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -36355,8 +36355,8 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (hdecl : familyIdx < decl.types.length)
     (hentry : familyIdx < Hprod.entries.length)
-    (Hsource : TrInductiveType sourceVEnv envTypes c.lparams
-      sourceTypes[familyIdx] (decl.types[familyIdx]'hdecl))
+    (Hcore : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe decl envTypes envCtors)
     (Hfamilies : ∀ name nested,
       result.aux2nested.find? name = some nested →
       (`_nested).isPrefixOf name = true)
@@ -36368,6 +36368,9 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
       (Hprod.entries[familyIdx]'hentry).2 envCtors) :
     Nonempty (RestoredSourceInductiveSemantics decl c.lparams c.safety
       sourceVEnv envTypes envCtors Hstep) := by
+  have Hsource :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hcore familyIdx
+      hfamily hdecl
   rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _stepState, target, _loweredState, _hparams, _hnodup,
       _hsize, Hmapping, htarget⟩
@@ -36408,16 +36411,17 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
   have HrecName : (Hprod.entries[familyIdx]'hentry).2.name =
       Hstep.restored.recursor.restored.newRecName :=
     hgeneratedName.trans hrestoredName.symm
-  have HrecUvars : Hstep.restored.recursor.oldInfo.levelParams.length =
-      (Hprod.entries[familyIdx]'hentry).2.uvars :=
-    Hprod.restoredPrimaryRecursorUvars familyIdx hentry
-      Hstep.restored.recursor (congrArg Lean.mkRecName hsourceName.symm)
+  have henvTypes : envTypes = Hheaders.context.venv :=
+    Option.some.inj (Hcore.typesAdded.symm.trans R.core.typesAdded)
+  have henvCtors : envCtors = R.declared.venvCtors := by
+    subst envTypes
+    exact Option.some.inj (Hcore.ctorsAdded.symm.trans R.core.ctorsAdded)
   have HrecWF :
       (Hprod.entries[familyIdx]'hentry).2.toVConstant.WF envCtors := by
-    change envCtors.IsType (Hprod.entries[familyIdx]'hentry).2.uvars []
-      (Hprod.entries[familyIdx]'hentry).2.type
-    rw [← HrecUvars]
-    exact Hrec.isType
+    rw [henvCtors]
+    apply Hprod.generated.recursorsWF Hprod.localWF Hprod.bindings Hprod.params
+    apply List.mem_map.mpr
+    exact ⟨Hprod.entries[familyIdx], List.getElem_mem hentry, rfl⟩
   have HrecSemantics : RestoredPrimaryRecursorSemantics decl
       (decl.types[familyIdx]'hdecl) c.safety Hstep.restored.recursor envCtors := by
     simpa [hsourceName] using
@@ -36482,8 +36486,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFresh
     exact hdecl
   exact H.sourceInductiveSemanticsAtFresh Hc Hprod Hsources hempty
     familyIdx hfamily hdecl hentry
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource familyIdx
-      hfamily hdecl) Hfamilies Hconstructors Hstep
+    Hsource Hfamilies Hconstructors Hstep
     (Hrecursors familyIdx hfamily hdecl hentry stepSource stepTarget Hstep)
 
 theorem NestedLoweringResult.sourceTypeName
