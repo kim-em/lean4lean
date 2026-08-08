@@ -22039,6 +22039,75 @@ theorem restoreRecursor_refines
   k := rfl
   isUnsafe := rfl
 
+/-- Constructor-level restoration records that the production step changes
+only the type, using the verified nested-expression traversal. -/
+structure ConstructorRestoration
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (oldInfo newInfo : ConstructorVal) : Prop where
+  name : newInfo.name = oldInfo.name
+  levelParams : newInfo.levelParams = oldInfo.levelParams
+  type : NestedRestoration result env {} oldInfo.type newInfo.type
+  induct : newInfo.induct = oldInfo.induct
+  cidx : newInfo.cidx = oldInfo.cidx
+  numParams : newInfo.numParams = oldInfo.numParams
+  numFields : newInfo.numFields = oldInfo.numFields
+  isUnsafe : newInfo.isUnsafe = oldInfo.isUnsafe
+
+theorem restoreConstructor_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (info : ConstructorVal)
+    (Htelescope : RestoreTelescope info.type result.nparams) :
+    ConstructorRestoration result env info
+      { info with type := result.restoreNested env info.type } where
+  name := rfl
+  levelParams := rfl
+  type := restoreNested_refines result env {} info.type Htelescope
+  induct := rfl
+  cidx := rfl
+  numParams := rfl
+  numFields := rfl
+  isUnsafe := rfl
+
+/-- Exact state transition of one production constructor-restoration step. -/
+structure RestoredConstructorDeclResult
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv sourceEnv : Environment) (ctorName : Name)
+    (oldInfo : ConstructorVal) (out : Unit × Environment) where
+  newInfo : ConstructorVal
+  restoration : ConstructorRestoration result loweredEnv oldInfo newInfo
+  output : out = ((), sourceEnv.add (.ctorInfo newInfo))
+
+theorem restoreConstructorDecl_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv sourceEnv : Environment) (allowPrimitive : Bool)
+    (ctorName : Name) (oldInfo : ConstructorVal)
+    (hlookup : loweredEnv.find? ctorName = some (.ctorInfo oldInfo))
+    (Htelescope : RestoreTelescope oldInfo.type result.nparams) :
+    (Lean4Lean.restoreConstructorDecl result loweredEnv allowPrimitive ctorName
+      sourceEnv).WF fun out =>
+        Nonempty (RestoredConstructorDeclResult result loweredEnv sourceEnv
+          ctorName oldInfo out) := by
+  intro out hout
+  unfold Lean4Lean.restoreConstructorDecl at hout
+  simp only [hlookup] at hout
+  change (sourceEnv.checkName oldInfo.name allowPrimitive).bind (fun _ =>
+    Except.ok ((), sourceEnv.add (.ctorInfo
+      { oldInfo with type := result.restoreNested loweredEnv oldInfo.type }))) =
+        Except.ok out at hout
+  cases hcheck : sourceEnv.checkName oldInfo.name allowPrimitive with
+  | error err =>
+    simp only [hcheck, Except.bind] at hout
+    cases hout
+  | ok checked =>
+    simp only [hcheck, Except.bind, Except.ok.injEq] at hout
+    subst out
+    exact ⟨{
+      newInfo := { oldInfo with
+        type := result.restoreNested loweredEnv oldInfo.type }
+      restoration := restoreConstructor_refines result loweredEnv oldInfo
+        Htelescope
+      output := rfl }⟩
+
 /-- Exact state transition of one production recursor-restoration step. The
 semantic use of the restored metadata remains factored through
 `RecursorRestoration`. -/

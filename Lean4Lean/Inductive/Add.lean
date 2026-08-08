@@ -1021,6 +1021,17 @@ def restoreRecursorDecl (res : ElimNestedInductive.Result)
         recInfo)
   | _ => .error <| .other s!"missing lowered recursor '{recName}'"
 
+/-- Restore and install one constructor emitted for the lowered nested block. -/
+def restoreConstructorDecl (res : ElimNestedInductive.Result)
+    (loweredEnv : Environment) (allowPrimitive : Bool) (ctorName : Name) :
+    StateT Environment (Except Exception) Unit := fun sourceEnv =>
+  match loweredEnv.find? ctorName with
+  | some (.ctorInfo ctor) => do
+    let newType := res.restoreNested loweredEnv ctor.type
+    sourceEnv.checkName ctor.name allowPrimitive
+    return ((), sourceEnv.add <| .ctorInfo { ctor with type := newType })
+  | _ => .error <| .other s!"missing lowered constructor '{ctorName}'"
+
 /-- Restore and install one source inductive family member, its constructors,
 and its primary recursor. -/
 def restoreInductiveDecl (res : ElimNestedInductive.Result)
@@ -1032,10 +1043,7 @@ def restoreInductiveDecl (res : ElimNestedInductive.Result)
   (← get).checkName ind.name allowPrimitive
   modify (·.add <| .inductInfo { ind with all := allIndNames })
   for ctorName in ind.ctors do
-    let some (.ctorInfo ctor) := loweredEnv.find? ctorName | unreachable!
-    let newType := res.restoreNested loweredEnv ctor.type
-    (← get).checkName ctor.name allowPrimitive
-    modify (·.add <| .ctorInfo { ctor with type := newType })
+    restoreConstructorDecl res loweredEnv allowPrimitive ctorName
   restoreRecursorDecl res loweredEnv recNameMap allIndNames allowPrimitive
     (mkRecName indType.name)
 
