@@ -27512,6 +27512,154 @@ theorem RestoredConstructorInstallationTrace.checking
   | cons Hstep Htail Hsemantic Hrest ih =>
     exact ih (Hsemantic.checking Hvalid)
 
+/-- One source constructor paired with the exact operational restoration
+step that installs it.  Source translation is stated in the canonical
+post-header environment, not the production interleaved environment. -/
+structure RestoredSourceConstructorSemantics
+    (lparams : List Name) (safety : DefinitionSafety) (canonicalEnv : VEnv)
+    (Hstep : RestoredConstructorStep result loweredEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (source : Constructor) where
+  constructor : VConstVal
+  sourceTranslation : TrSourceConst canonicalEnv lparams source.name
+    source.type constructor
+  restoredTranslation : TrConstVal safety canonicalEnv
+    (.ctorInfo Hstep.restored.newInfo) constructor
+
+/-- Positional source-constructor semantics for the exact constructor
+restoration fold of one family. -/
+inductive RestoredSourceConstructorTrace
+    (lparams : List Name) (safety : DefinitionSafety) (canonicalEnv : VEnv) :
+    ∀ {names sourceProdEnv targetProdEnv},
+      StateForMTrace (RestoredConstructorStep result loweredEnv)
+        names sourceProdEnv targetProdEnv →
+      List Constructor → List VConstVal → Prop
+  | nil (sourceProdEnv : Environment) :
+      RestoredSourceConstructorTrace lparams safety canonicalEnv
+        (StateForMTrace.nil (P := RestoredConstructorStep result loweredEnv)
+          (source := sourceProdEnv)) [] []
+  | cons
+      (Hstep : RestoredConstructorStep result loweredEnv ctorName
+        sourceProdEnv middleProdEnv)
+      (Htail : StateForMTrace (RestoredConstructorStep result loweredEnv)
+        names middleProdEnv targetProdEnv)
+      (Hsemantic : RestoredSourceConstructorSemantics lparams safety
+        canonicalEnv Hstep source)
+      (Hrest : RestoredSourceConstructorTrace lparams safety canonicalEnv
+        Htail sources constructors) :
+      RestoredSourceConstructorTrace lparams safety canonicalEnv
+        (.cons Hstep Htail) (source :: sources)
+        (Hsemantic.constructor :: constructors)
+
+theorem RestoredSourceConstructorTrace.forall₂
+    (H : RestoredSourceConstructorTrace lparams safety canonicalEnv Htrace
+      sources constructors) :
+    List.Forall₂ (fun source constructor =>
+      TrSourceConst canonicalEnv lparams source.name source.type constructor)
+      sources constructors := by
+  induction H with
+  | nil => exact .nil
+  | cons Hstep Htail Hsemantic Hrest ih =>
+    exact .cons Hsemantic.sourceTranslation ih
+
+/-- Source-family semantics indexed by the production restoration trace but
+staged in the canonical abstract environments required by mutual typing. -/
+inductive RestoredSourceInductiveSemanticTrace
+    (decl : VInductDecl) (lparams : List Name)
+    (safety : DefinitionSafety)
+    (sourceVEnv envTypes envCtors : VEnv) :
+    ∀ {types sourceProdEnv targetProdEnv},
+      StateForMTrace
+        (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+        types sourceProdEnv targetProdEnv →
+      List VInductiveType → List VConstVal → Prop
+  | nil (sourceProdEnv : Environment) :
+      RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+        envTypes envCtors
+        (StateForMTrace.nil (P :=
+          RestoredInductiveStep result loweredEnv auxRec allIndNames)
+          (source := sourceProdEnv)) [] []
+  | cons
+      (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+        indType sourceProdEnv middleProdEnv)
+      (Htail : StateForMTrace
+        (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+        types middleProdEnv targetProdEnv)
+      (Hheader : TrSourceConst sourceVEnv lparams indType.name indType.type
+        owner.toVConstVal)
+      (Hconstructors : RestoredSourceConstructorTrace lparams safety envTypes
+        Hstep.restored.constructors indType.ctors owner.ctors)
+      (Hrecursor : RestoredPrimaryRecursorSemantics decl owner safety
+        Hstep.restored.recursor envCtors)
+      (Hrest : RestoredSourceInductiveSemanticTrace decl lparams safety
+        sourceVEnv envTypes envCtors Htail owners recursors) :
+      RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+        envTypes envCtors (.cons Hstep Htail) (owner :: owners)
+        (Hrecursor.recursor :: recursors)
+
+theorem RestoredSourceInductiveSemanticTrace.types
+    {sourceTypes : List InductiveType}
+    {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+      sourceTypes sourceProdEnv targetProdEnv}
+    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+      envTypes envCtors Htrace owners recursors) :
+    List.Forall₂ (TrInductiveType sourceVEnv envTypes lparams)
+      sourceTypes owners := by
+  induction H with
+  | nil => exact .nil
+  | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
+    exact .cons ⟨Hheader, Hconstructors.forall₂⟩ ih
+
+theorem RestoredSourceInductiveSemanticTrace.primaryRecursors
+    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+      envTypes envCtors Htrace owners recursors) :
+    RestoredPrimaryRecursorSemanticTrace decl safety envCtors Htrace owners
+      recursors := by
+  induction H with
+  | nil => exact .nil _
+  | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
+    exact .cons Hstep Htail Hrecursor ih
+
+/-- Reconstruct the independent source declaration translation from the
+canonical-stage semantic trace.  The executable restoration trace fixes all
+pointwise source/target correspondences; only the canonical abstract stage
+extensions and declaration metadata are supplied separately. -/
+theorem RestoredSourceInductiveSemanticTrace.core
+    {sourceTypes : List InductiveType}
+    {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+      sourceTypes sourceProdEnv targetProdEnv}
+    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+      envTypes envCtors Htrace owners recursors)
+    (htypes : decl.types = owners)
+    (huvars : decl.uvars = lparams.length)
+    (hnparams : decl.nparams = nparams)
+    (hisUnsafe : decl.isUnsafe = isUnsafe)
+    (htypesAdded : sourceVEnv.addConsts decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+      some envCtors) :
+    TrInductDeclCore sourceVEnv lparams nparams sourceTypes isUnsafe decl
+      envTypes envCtors := by
+  refine {
+    uvars := huvars
+    nparams := hnparams
+    isUnsafe := hisUnsafe
+    typesAdded := htypesAdded
+    ctorsAdded := hctorsAdded
+    types := ?_ }
+  rw [htypes]
+  exact H.types
+
+theorem RestoredSourceInductiveSemanticTrace.recursorCertificate
+    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+      envTypes envCtors Htrace owners recursors)
+    (htypes : decl.types = owners) :
+    RecursorCertificate decl recursors :=
+  H.primaryRecursors.recursorCertificate htypes
+
 /-- Installation semantics for one complete restored source family: header,
 its exact constructor fold, and its primary recursor. -/
 structure RestoredInductiveInstallationSemantics
@@ -28281,6 +28429,60 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfSemanticTra
   apply H.canonicalNestedCompilation rest htypesSource primaryRecursors
     auxiliaryRecursors primaryRules auxiliaryRules
   · exact HprimaryRecursors.recursorCertificate htypesSource
+  · exact HprimaryRules
+  · exact hprimaryLength
+  · exact Hauxiliary
+  · exact hsourceWF
+  · exact Hnames
+
+/-- Joint implementation/specification boundary for a restored nested block.
+One canonical-stage semantic trace reconstructs the original source
+declaration translation and certifies the exact restored primary recursors;
+the auxiliary trace supplies the guarded restoration-only suffix. -/
+theorem RestoredNestedDeclarationsResult.sourceCoreAndNestedCompilation
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames out)
+    (main : VInductiveType) (rest : List VInductiveType)
+    (primaryRecursors auxiliaryRecursors : List VConstVal)
+    (primaryRules auxiliaryRules : List VDefEq)
+    (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
+      sourceVEnv envTypes envCtors H.inductives (main :: rest)
+      primaryRecursors)
+    (htypesSource : decl.types = main :: rest)
+    (huvars : decl.uvars = lparams.length)
+    (hnparams : decl.nparams = nparams)
+    (hisUnsafe : decl.isUnsafe = isUnsafe)
+    (htypesAdded : sourceVEnv.addConsts decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+      some envCtors)
+    (HprimaryRules : IotaBuildCertificate sourceVEnv decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules) primaryRules)
+    (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
+    (Hauxiliary : RestoredAuxiliarySemanticTrace decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
+      [] [] auxiliaryRecursors auxiliaryRules)
+    (hsourceWF : sourceProdEnv.constants.WF)
+    (Hnames : ∀ entries,
+      FreshConstantTrace sourceProdEnv entries out.2 →
+      ((canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).types ++
+        (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).ctors ++
+        (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).recursors).map (·.name) ~
+        entries.map (·.name)) :
+    TrInductDeclCore sourceVEnv lparams nparams sourceTypes isUnsafe decl
+        envTypes envCtors ∧
+      Nonempty (NestedCompilationCertificate sourceVEnv decl
+        (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules)) := by
+  refine ⟨Hsource.core htypesSource huvars hnparams hisUnsafe htypesAdded
+    hctorsAdded, ?_⟩
+  apply H.canonicalNestedCompilation rest htypesSource primaryRecursors
+    auxiliaryRecursors primaryRules auxiliaryRules
+  · exact Hsource.recursorCertificate htypesSource
   · exact HprimaryRules
   · exact hprimaryLength
   · exact Hauxiliary
