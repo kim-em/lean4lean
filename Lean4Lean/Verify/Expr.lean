@@ -990,6 +990,49 @@ theorem instantiateRevList_instantiate1'_fvars
     rw [ih (d + 1)]
     exact instantiate1'_instantiate1'_fvars _ _ _ k d
 
+/-- Reverse-instantiating a bound variable above all supplied free-variable
+arguments removes exactly the size of that substitution block. -/
+theorem instantiateRevList_bvar_fvars_ge
+    (fvars : List FVarId) (k n : Nat) :
+    (Expr.bvar (k + n + fvars.length)).instantiateRevList
+        (fvars.map Expr.fvar) k =
+      .bvar (k + n) := by
+  induction fvars generalizing n with
+  | nil => simp
+  | cons fv fvars ih =>
+    simp only [List.length_cons, List.map_cons, instantiateRevList]
+    rw [show k + n + (fvars.length + 1) =
+        k + (n + 1) + fvars.length by omega]
+    rw [ih (n + 1)]
+    simp [instantiate1']
+
+/-- Reverse-instantiating the canonical bound-variable index for an array
+position returns the free variable at that same position. -/
+theorem instantiateRevList_bvar_fvars_getElem
+    (fvars : List FVarId) (i k : Nat) (hi : i < fvars.length) :
+    (Expr.bvar (k + (fvars.length - 1 - i))).instantiateRevList
+        (fvars.map Expr.fvar) k =
+      .fvar fvars[i] := by
+  induction fvars generalizing i with
+  | nil => simp at hi
+  | cons fv fvars ih =>
+    cases i with
+    | zero =>
+      simp only [List.length_cons, Nat.sub_zero,
+        List.map_cons, instantiateRevList, List.getElem_cons_zero]
+      rw [show k + (fvars.length + 1 - 1) =
+          k + 0 + fvars.length by omega]
+      rw [instantiateRevList_bvar_fvars_ge]
+      simp [instantiate1', liftLooseBVars']
+    | succ i =>
+      have hi' : i < fvars.length := by simpa using hi
+      simp only [List.length_cons, List.map_cons, instantiateRevList,
+        List.getElem_cons_succ]
+      rw [show k + (fvars.length + 1 - 1 - (i + 1)) =
+          k + (fvars.length - 1 - i) by omega]
+      rw [ih i hi']
+      simp [instantiate1']
+
 @[simp]
 theorem instantiateList_app : instantiateList (.app f a) as k =
     .app (instantiateList f as k) (instantiateList a as k) := by
@@ -1200,6 +1243,16 @@ instance : EquivBEq Expr where
   symm h := eqv_euc h (eqv_refl _)
   trans h1 h2 := eqv_euc (eqv_euc h1 (eqv_refl _)) h2
   rfl := eqv_refl _
+
+theorem mkAppList_eqv {fn₁ fn₂ : Expr} (h : fn₁ == fn₂)
+    (args : List Expr) :
+    fn₁.mkAppList args == fn₂.mkAppList args := by
+  induction args generalizing fn₁ fn₂ with
+  | nil => exact h
+  | cons arg args ih =>
+    apply ih
+    simpa [(· == ·), Expr.eqv'] using
+      And.intro h (Expr.eqv_refl arg)
 
 theorem data_eq {e₁ e₂ : Expr} : e₁ == e₂ → e₁.data = e₂.data := by
   simp [(· == ·)]; induction e₁ generalizing e₂

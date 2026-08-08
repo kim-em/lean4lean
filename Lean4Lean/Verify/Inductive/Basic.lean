@@ -13961,6 +13961,67 @@ theorem Expr.abstractList_mkAppN :
     simp only [List.foldl_cons, Lean.mkApp]
     exact ih (.app fn arg)
 
+theorem Expr.mkAppN_eq_mkAppList (fn : Expr) (args : Array Expr) :
+    mkAppN fn args = Expr.mkAppList fn args.toList := by
+  unfold mkAppN
+  rw [← Array.foldl_toList, Expr.mkAppList_eq_foldl]
+  exact Expr.foldl_mkApp_eq args.toList fn
+
+theorem Expr.mkAppRange_to_end
+    (fn : Expr) (args : Array Expr) (start : Nat)
+    (hstart : start ≤ args.size) :
+    mkAppRange fn start args.size args =
+      Expr.mkAppList fn (args.toList.drop start) := by
+  apply Expr.mkAppRange_eq
+      (l₁ := args.toList.take start) (l₂ := args.toList.drop start)
+      (l₃ := [])
+  · simp
+  · simp [List.length_take, Nat.min_eq_left hstart]
+  · simp
+
+theorem Expr.mkAppRange_from_zero
+    (fn : Expr) (args : Array Expr) (stop : Nat)
+    (hstop : stop ≤ args.size) :
+    mkAppRange fn 0 stop args =
+      Expr.mkAppList fn (args.toList.take stop) := by
+  apply Expr.mkAppRange_eq
+      (l₁ := []) (l₂ := args.toList.take stop)
+      (l₃ := args.toList.drop stop)
+  · simp
+  · rfl
+  · simp [List.length_take, Nat.min_eq_left hstop]
+
+theorem Expr.getAppFn_mkAppList (fn : Expr) (args : List Expr) :
+    (Expr.mkAppList fn args).getAppFn = fn.getAppFn := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih =>
+    simp only [Expr.mkAppList]
+    simpa [Expr.getAppFn] using ih (.app fn arg)
+
+theorem Expr.getAppArgsList_mkAppList (fn : Expr) (args : List Expr) :
+    (Expr.mkAppList fn args).getAppArgsList =
+      fn.getAppArgsList ++ args := by
+  induction args generalizing fn with
+  | nil => simp
+  | cons arg args ih =>
+    simp only [Expr.mkAppList]
+    rw [ih]
+    simp [Expr.getAppArgsList_app, List.append_assoc]
+
+theorem Expr.getAppFn_mkAppList_const
+    (name : Name) (levels : List Level) (args : List Expr) :
+    (Expr.mkAppList (.const name levels) args).getAppFn =
+      .const name levels := by
+  simpa [Expr.getAppFn] using
+    Expr.getAppFn_mkAppList (.const name levels) args
+
+theorem Expr.getAppArgsList_mkAppList_const
+    (name : Name) (levels : List Level) (args : List Expr) :
+    (Expr.mkAppList (.const name levels) args).getAppArgsList = args := by
+  rw [Expr.getAppArgsList_mkAppList, Expr.getAppArgsList_const]
+  simp
+
 theorem Expr.abstractList_fvar_getElem
     (hnd : fvs.Nodup) (i : Nat) (hi : i < fvs.length) :
     (Expr.fvar fvs[i]).abstractList fvs k =
@@ -14000,6 +14061,89 @@ theorem Expr.abstractList_fvarArray
     simp only [Array.getElem_map, List.getElem_toArray,
       List.getElem_map, List.getElem_ofFn]
     exact Expr.abstractList_fvar_getElem hnd i (by simpa using hiLeft)
+
+/-- Closing a selected free variable and reopening with an equally sized
+free-variable array returns the reopening variable at the same position. -/
+theorem Expr.abstract_instantiateRev_fvar_getElem
+    (fvars restoreFvars : List FVarId)
+    (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
+    (i : Nat) (hi : i < fvars.length) :
+    ((Expr.fvar fvars[i]).abstract
+        (fvars.map Expr.fvar).toArray).instantiateRev
+        (restoreFvars.map Expr.fvar).toArray =
+      .fvar restoreFvars[i] := by
+  rw [Expr.abstract_eq, Expr.abstractList_fvar_getElem hnd i hi,
+    Expr.instantiateRev_eq, Expr.instantiate_eq]
+  simp only [Array.toList_reverse]
+  rw [Expr.instantiateList_reverse]
+  rw [← hsize]
+  exact Expr.instantiateRevList_bvar_fvars_getElem restoreFvars i 0
+    (by omega)
+
+/-- Close an expression over one free-variable parameter array and reopen it
+with another. -/
+def Expr.reopenParams (e : Expr) (params restoreAs : Array Expr) : Expr :=
+  (e.abstract params).instantiateRev restoreAs
+
+theorem Expr.reopenParams_app
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray) :
+    Expr.reopenParams (.app fn arg) params restoreAs =
+      .app (Expr.reopenParams fn params restoreAs)
+        (Expr.reopenParams arg params restoreAs) := by
+  subst params
+  simp [Expr.reopenParams, Expr.abstract_eq, Expr.instantiateRev_eq,
+    Expr.instantiate_eq, Array.toList_reverse]
+
+theorem Expr.reopenParams_const
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray) :
+    Expr.reopenParams (.const name levels) params restoreAs =
+      .const name levels := by
+  subst params
+  simp only [Expr.reopenParams, Expr.abstract_eq,
+    Expr.instantiateRev_eq, Expr.instantiate_eq]
+  have habstract : (Expr.const name levels).abstractList fvars =
+      .const name levels := by
+    induction fvars <;> simp [Expr.abstractList, Expr.abstract1, *]
+  rw [habstract]
+  apply Expr.instantiateList'_eq_self
+  exact Nat.le_refl 0
+
+theorem Expr.reopenParams_mkAppList
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray) :
+    Expr.reopenParams (Expr.mkAppList fn args) params restoreAs =
+      Expr.mkAppList (Expr.reopenParams fn params restoreAs)
+        (args.map fun arg => Expr.reopenParams arg params restoreAs) := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih =>
+    simp only [Expr.mkAppList, List.map_cons]
+    rw [ih, Expr.reopenParams_app fvars hparams]
+
+theorem Expr.reopenParams_of_getAppFn_const
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hhead : input.getAppFn = .const name levels) :
+    Expr.reopenParams input params restoreAs =
+      Expr.mkAppList (.const name levels)
+        (input.getAppArgsList.map fun arg =>
+          Expr.reopenParams arg params restoreAs) := by
+  calc
+    Expr.reopenParams input params restoreAs =
+        Expr.reopenParams
+          (Expr.mkAppList input.getAppFn input.getAppArgsList)
+          params restoreAs :=
+      congrArg (fun e => Expr.reopenParams e params restoreAs)
+        (Expr.mkAppList_getAppArgsList input).symm
+    _ = Expr.mkAppList
+          (Expr.reopenParams input.getAppFn params restoreAs)
+          (input.getAppArgsList.map fun arg =>
+            Expr.reopenParams arg params restoreAs) :=
+      Expr.reopenParams_mkAppList fvars hparams
+    _ = _ := by
+      rw [hhead, Expr.reopenParams_const fvars hparams]
 
 theorem Expr.abstractList_fvarArray_of_disjoint
     (xs binders : List FVarId) (k : Nat)
@@ -29123,6 +29267,92 @@ def NestedReplacementReopens
       ((mkAppRange (.const targetName levels) 0 value.numParams
         input.getAppArgs).abstract As).instantiateRev restoreAs) = true
 
+/-- A reopened lowering hit is interpreted by the concrete family branch of
+`restoreNestedNode`.  The auxiliary parameter prefix is discarded and the
+reopened source-family prefix is reattached to the identically renamed
+non-parameter arguments, yielding the renamed original application up to
+Lean expression equivalence. -/
+theorem NestedReplacementReopens.restoreNode
+    (H : NestedReplacementReopens env lctx params As input state lowered
+      finalResult restoreAs)
+    (Hselection : LocalForallSelection lctx As)
+    (hresultNParams : finalResult.nparams = As.size) :
+    ∃ restored,
+      finalResult.restoreNestedNode env restoreAs {}
+          (Expr.reopenParams lowered As restoreAs) = some restored ∧
+      (restored == Expr.reopenParams input As restoreAs) = true := by
+  rcases H with
+    ⟨value, targetName, levels, auxName, auxLevels, nested,
+      Hcandidate, hhead, hlowered, hlookup, hreopens⟩
+  let R : Expr → Expr := fun e => Expr.reopenParams e As restoreAs
+  let trailing : List Expr :=
+    input.getAppArgsList.drop value.numParams |>.map R
+  let paramPrefix : List Expr := As.toList.map R
+  have hloweredReopened : R lowered =
+      Expr.mkAppList (.const auxName auxLevels) (paramPrefix ++ trailing) := by
+    rw [hlowered]
+    rw [Expr.mkAppRange_to_end _ _ _ Hcandidate.parameters.arity]
+    rw [Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append]
+    change Expr.reopenParams _ As restoreAs = _
+    rw [Expr.reopenParams_mkAppList Hselection.fvars
+      Hselection.expressions]
+    rw [Expr.reopenParams_const Hselection.fvars Hselection.expressions]
+    simp [R, paramPrefix, trailing, Expr.getAppArgs_toList]
+  have hfn : (R lowered).getAppFn = .const auxName auxLevels := by
+    rw [hloweredReopened]
+    exact Expr.getAppFn_mkAppList_const auxName auxLevels _
+  have hargsList : (R lowered).getAppArgsList = paramPrefix ++ trailing := by
+    rw [hloweredReopened]
+    exact Expr.getAppArgsList_mkAppList_const auxName auxLevels _
+  have hargs : (R lowered).getAppArgs = (paramPrefix ++ trailing).toArray := by
+    rw [Expr.getAppArgs_eq, hargsList]
+  have hprefixLength : paramPrefix.length = finalResult.nparams := by
+    simp [paramPrefix, hresultNParams]
+  have harity : finalResult.nparams ≤ (R lowered).getAppArgs.size := by
+    rw [hargs]
+    simp [hprefixLength]
+  have hnode := restoreNestedNode_family_general finalResult env restoreAs {}
+    (R lowered) nested auxName auxLevels hfn (by rfl) hlookup harity
+  have hrestored :
+      mkAppRange ((nested.abstract finalResult.params).instantiateRev restoreAs)
+          finalResult.nparams (R lowered).getAppArgs.size
+          (R lowered).getAppArgs =
+        Expr.mkAppList
+          ((nested.abstract finalResult.params).instantiateRev restoreAs)
+          trailing := by
+    rw [Expr.mkAppRange_to_end _ _ _ harity, hargs]
+    simp [hprefixLength]
+  refine ⟨Expr.mkAppList
+      ((nested.abstract finalResult.params).instantiateRev restoreAs)
+      trailing, ?_, ?_⟩
+  · rw [hrestored] at hnode
+    simpa only [R] using hnode
+  · have hprefixSource :
+        R (mkAppRange (.const targetName levels) 0 value.numParams
+          input.getAppArgs) =
+          Expr.mkAppList (.const targetName levels)
+            (input.getAppArgsList.take value.numParams |>.map R) := by
+      rw [Expr.mkAppRange_from_zero _ _ _ Hcandidate.parameters.arity]
+      change Expr.reopenParams _ As restoreAs = _
+      rw [Expr.reopenParams_mkAppList Hselection.fvars
+        Hselection.expressions]
+      rw [Expr.reopenParams_const Hselection.fvars Hselection.expressions]
+      simp [R, Expr.getAppArgs_toList]
+    change (((nested.abstract finalResult.params).instantiateRev restoreAs) ==
+      R (mkAppRange (.const targetName levels) 0 value.numParams
+        input.getAppArgs)) = true at hreopens
+    have happended := Expr.mkAppList_eqv hreopens trailing
+    rw [hprefixSource] at happended
+    have hinput : R input =
+        Expr.mkAppList (.const targetName levels)
+          (input.getAppArgsList.map R) :=
+      Expr.reopenParams_of_getAppFn_const Hselection.fvars
+        Hselection.expressions hhead
+    rw [← Expr.mkAppList_append] at happended
+    simp only [trailing] at happended
+    rw [List.map_take, List.map_drop, List.take_append_drop] at happended
+    simpa [hinput, trailing, R] using happended
+
 /-- The final-map witness retained at a lowering hit is a left inverse for
 the abstraction/reopening part of `restoreNestedNode`.  The only local
 scoping premise is that abstracting the constructor-opening parameters has
@@ -29900,7 +30130,8 @@ structure LoweredConstructorTranslation
   name : out.1.name = source.name
   translated : ∃ lctx tail As lowered openedState,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
-    ∃ _ : LocalForallSelection lctx As,
+    ∃ Hselection : LocalForallSelection lctx As,
+      Hselection.fvars.Nodup ∧
       openedState.newTypes = state.newTypes ∧
       openedState.nestedAux = state.nestedAux ∧
       openedState.nextIdx = state.nextIdx ∧
@@ -29914,7 +30145,7 @@ theorem LoweredConstructorTranslation.targetRestoreTelescope
     RestoreTelescope out.1.type nparams := by
   rcases H.translated with
     ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
-      hopenedTypes, _hopenedAux, _hopenedNext, hsize, Hreplace, htype⟩
+      _hnodup, hopenedTypes, _hopenedAux, _hopenedNext, hsize, Hreplace, htype⟩
   rw [htype, ← hsize]
   exact (Hselection.forallTelescope lowered).restorePrefix (Nat.le_refl _)
 
@@ -29922,7 +30153,7 @@ theorem LoweredConstructorTranslation.newTypesLE
     (H : LoweredConstructorTranslation env params nparams source state out) :
     NestedNewTypesLE state out.2 := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, _, _, hopenedTypes, _, _,
+    ⟨lctx, tail, As, lowered, openedState, _, _, _, hopenedTypes, _, _,
       _, Hreplace, _⟩
   rcases Hreplace.newTypesLE with ⟨suffix, hsuffix⟩
   exact ⟨suffix, by simpa [hopenedTypes] using hsuffix⟩
@@ -29931,7 +30162,7 @@ theorem LoweredConstructorTranslation.nestedAuxLE
     (H : LoweredConstructorTranslation env params nparams source state out) :
     NestedAuxLE state out.2 := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, _, _, _, hopenedAux, _, _,
+    ⟨lctx, tail, As, lowered, openedState, _, _, _, _, hopenedAux, _, _,
       Hreplace, _⟩
   rcases Hreplace.nestedAuxLE with ⟨suffix, hsuffix⟩
   exact ⟨suffix, by simpa [hopenedAux] using hsuffix⟩
@@ -29941,7 +30172,7 @@ theorem LoweredConstructorTranslation.namesWF
     (Hindex : AppendIndexAfterIndexFaithful)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, _, _, _, hopenedAux,
+    ⟨lctx, tail, As, lowered, openedState, _, _, _, _, hopenedAux,
       hopenedNext, _, Hreplace, _⟩
   exact Hreplace.namesWF Hindex
     (Hstate.ofCacheCounterEq hopenedAux hopenedNext)
@@ -29954,7 +30185,8 @@ theorem LoweredConstructorTranslation.auxFVarsIn
     NestedAuxFVarsIn P out.2 := by
   rcases H.translated with
     ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
-      _hopenedTypes, hopenedAux, _hopenedNext, _hsize, Hreplace, _htype⟩
+      _hnodup, _hopenedTypes, hopenedAux, _hopenedNext, _hsize, Hreplace,
+      _htype⟩
   have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
     Hopening.tailFVarsIn Hselection
       (Hsource.mono fun _ hfalse => False.elim hfalse)
@@ -29979,7 +30211,8 @@ structure LoweredConstructorMapping
   name : out.1.name = source.name
   mapped : ∃ lctx tail As lowered openedState,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
-    ∃ _ : LocalForallSelection lctx As,
+    ∃ Hselection : LocalForallSelection lctx As,
+      Hselection.fvars.Nodup ∧
       openedState.newTypes = state.newTypes ∧
       openedState.nestedAux = state.nestedAux ∧
       openedState.nextIdx = state.nextIdx ∧
@@ -30000,6 +30233,7 @@ structure LoweredConstructorReopening
   reopened : ∃ lctx tail As lowered openedState,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
     ∃ Hselection : LocalForallSelection lctx As,
+      Hselection.fvars.Nodup ∧
       openedState.newTypes = state.newTypes ∧
       openedState.nestedAux = state.nestedAux ∧
       openedState.nextIdx = state.nextIdx ∧
@@ -30021,12 +30255,12 @@ theorem LoweredConstructorMapping.reopens
   refine ⟨H.name, ?_⟩
   rcases H.mapped with
     ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
-      hopenedTypes, hopenedAux, hopenedNext, hsize, Hmapping, htype⟩
+      hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hmapping, htype⟩
   have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
     Hopening.tailFVarsIn Hselection
       (Hsource.mono fun fv hfalse => False.elim hfalse)
   exact ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
-    hopenedTypes, hopenedAux, hopenedNext, hsize,
+    hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize,
     Hmapping.reopens hresultParams fvars hparams hnodup Hselection Htail,
     htype⟩
 
@@ -30043,6 +30277,7 @@ theorem LoweredConstructorReopening.restoreTail
     ∃ lctx tail As lowered openedState,
       NestedParamOpening {} #[] source.type nparams lctx tail As ∧
       ∃ Hselection : LocalForallSelection lctx As,
+        Hselection.fvars.Nodup ∧
         openedState.newTypes = state.newTypes ∧
         openedState.nestedAux = state.nestedAux ∧
         openedState.nextIdx = state.nextIdx ∧
@@ -30053,7 +30288,7 @@ theorem LoweredConstructorReopening.restoreTail
         restoredTail = (lowered.abstract As).instantiateRev restoreAs := by
   rcases H.reopened with
     ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
-      hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening, htype⟩
+      hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening, htype⟩
   have Htelescope := Hselection.forallTelescope lowered
   rw [hsize, ← htype] at Htelescope
   have htail := Hrestore.forallResidual Htelescope
@@ -30066,7 +30301,8 @@ theorem LoweredConstructorReopening.restoreTail
       _ = lowered.abstractList Hselection.fvars :=
         Expr.abstract_eq lowered Hselection.fvars
   refine ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
-    hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening, htype, ?_⟩
+    hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening, htype,
+    ?_⟩
   simpa [habstract] using htail
 
 theorem LoweredConstructorTranslation.finalMapping
@@ -30077,9 +30313,9 @@ theorem LoweredConstructorTranslation.finalMapping
   refine ⟨H.name, ?_⟩
   rcases H.translated with
     ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
-      hopenedTypes, hopenedAux, hopenedNext, hsize, Hreplace, htype⟩
+      hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreplace, htype⟩
   exact ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
-    hopenedTypes, hopenedAux, hopenedNext, hsize,
+    hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize,
     Hreplace.finalMapping Hlater Hmap, htype⟩
 
 theorem ElimNestedInductive.lowerConstructor.translation
@@ -30092,7 +30328,7 @@ theorem ElimNestedInductive.lowerConstructor.translation
         LoweredConstructorTranslation env params nparams ctor state out := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
   apply ElimNestedInductive.withParams.refinesSelected
-  intro lctx tail As openedState Hopening _Hctx Hselection _hnodup hopenedTypes
+  intro lctx tail As openedState Hopening _Hctx Hselection hnodup hopenedTypes
     hopenedAux hopenedNext
   have hsize : As.size = nparams := Hopening.initial_size
   simp only [hsize, beq_self_eq_true, if_true]
@@ -30103,7 +30339,7 @@ theorem ElimNestedInductive.lowerConstructor.translation
   intro lowered outState Hlowered
   exact Except.WF.pure
     ⟨rfl, lctx, tail, As, lowered, openedState, Hopening, Hselection,
-      hopenedTypes, hopenedAux, hopenedNext, hsize, Hlowered, rfl⟩
+      hnodup, hopenedTypes, hopenedAux, hopenedNext, hsize, Hlowered, rfl⟩
 
 theorem ElimNestedInductive.lowerConstructor.translationPending
     (params : Array Expr) (nparams : Nat) (ctor : Constructor)
@@ -30140,7 +30376,7 @@ theorem ElimNestedInductive.lowerConstructor.translationPending
     exact Hstate j hcursor hjState
   exact Except.WF.pure ⟨
     ⟨rfl, lctx, tail, As, lowered, openedState, Hopening,
-      Hclosing.selection, hopenedTypes, hopenedAux, hopenedNext, hsize,
+      Hclosing.selection, Hclosing.nodup, hopenedTypes, hopenedAux, hopenedNext, hsize,
       Hlowered, rfl⟩,
     Hlowered.pendingNewTypesClosed Henv Hclosing Htail HopenedPending⟩
 
