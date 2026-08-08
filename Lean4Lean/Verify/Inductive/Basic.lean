@@ -26326,6 +26326,30 @@ theorem ConstructorRestoration.translated
   · rw [ConstantInfo.name, ConstantInfo.toConstantVal, H.name]
     exact Hold.2
 
+/-- Translate a restored constructor from the metadata that restoration
+actually preserves.  The old lowered constructor type need not translate in
+the restored source environment, where generated auxiliary families are
+intentionally absent. -/
+theorem ConstructorRestoration.translatedOfMetadata
+    (H : ConstructorRestoration result prodEnv oldInfo newInfo)
+    (Hsafety : safety ≤ (ConstantInfo.ctorInfo oldInfo).safety)
+    (Huvars : oldInfo.levelParams.length = constructor.uvars)
+    (Hname : oldInfo.name = constructor.name)
+    (Htype : TrExprS venv oldInfo.levelParams [] newInfo.type
+      constructor.type) :
+    TrConstVal safety venv (.ctorInfo newInfo) constructor := by
+  refine ⟨⟨?_, ?_, ?_⟩, ?_⟩
+  · simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
+      ConstantInfo.isPartial, H.isUnsafe] using Hsafety
+  · rw [ConstantInfo.levelParams, ConstantInfo.toConstantVal,
+      H.levelParams]
+    exact Huvars
+  · change TrExprS venv newInfo.levelParams [] newInfo.type constructor.type
+    rw [H.levelParams]
+    exact Htype
+  · rw [ConstantInfo.name, ConstantInfo.toConstantVal, H.name]
+    exact Hname
+
 theorem restoreConstructor_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (info : ConstructorVal)
@@ -27306,6 +27330,39 @@ theorem RestoredConstructorInstallationSemantics.checking
 and freshness facts are derived; the only restoration-specific semantic
 premise is translation of the restored concrete type to the original
 abstract constructor type. -/
+theorem RestoredConstructorStep.installationOfMetadata
+    (Hstep : RestoredConstructorStep result loweredEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (constructor : VConstVal)
+    (Hsafety : safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety)
+    (Huvars : Hstep.oldInfo.levelParams.length = constructor.uvars)
+    (Hname : Hstep.oldInfo.name = constructor.name)
+    (Htype : TrExprS sourceVEnv Hstep.oldInfo.levelParams []
+      Hstep.restored.newInfo.type constructor.type)
+    (Hwf : constructor.toVConstant.WF sourceVEnv) :
+    ∃ targetVEnv,
+      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) := by
+  have hprodFresh : sourceProdEnv.find?
+      Hstep.restored.newInfo.name = none :=
+    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
+  have Htranslated := Hstep.restored.restoration.translatedOfMetadata
+    Hsafety Huvars Hname Htype
+  rcases CheckingEnv.exists_addConst Hvalid hprodFresh
+      constructor.toVConstant with ⟨targetVEnv, Hinstalled⟩
+  have Hinstalled' : sourceVEnv.addConst constructor.name
+      constructor.toVConstant = some targetVEnv := by
+    rw [← Htranslated.2]
+    exact Hinstalled
+  exact ⟨targetVEnv, ⟨{
+    constructor := constructor
+    translated := Htranslated
+    wf := Hwf
+    installed := Hinstalled' }⟩⟩
+
+/-- Compatibility form for non-nested callers which already translate the
+old constructor in the target environment. -/
 theorem RestoredConstructorStep.installation
     (Hstep : RestoredConstructorStep result loweredEnv ctorName
       sourceProdEnv targetProdEnv)
@@ -27319,21 +27376,13 @@ theorem RestoredConstructorStep.installation
     ∃ targetVEnv,
       Nonempty (RestoredConstructorInstallationSemantics safety Hstep
         sourceVEnv targetVEnv) := by
-  have hprodFresh : sourceProdEnv.find?
-      Hstep.restored.newInfo.name = none :=
-    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
-  have Htranslated := Hstep.restored.restoration.translated Hold Htype
-  rcases CheckingEnv.exists_addConst Hvalid hprodFresh
-      constructor.toVConstant with ⟨targetVEnv, Hinstalled⟩
-  have Hinstalled' : sourceVEnv.addConst constructor.name
-      constructor.toVConstant = some targetVEnv := by
-    rw [← Htranslated.2]
-    exact Hinstalled
-  exact ⟨targetVEnv, ⟨{
-    constructor := constructor
-    translated := Htranslated
-    wf := Hwf
-    installed := Hinstalled' }⟩⟩
+  apply Hstep.installationOfMetadata Hvalid constructor
+  · exact Hold.1.1
+  · simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
+      Hold.1.2.1
+  · simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using Hold.2
+  · exact Htype
+  · exact Hwf
 
 inductive RestoredConstructorInstallationTrace
     (safety : DefinitionSafety) :
@@ -33255,19 +33304,55 @@ theorem RestoredConstructorStep.installationOfDisjoint
     (htype : Hstep.oldInfo.type = out.1.type)
     (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
     (constructor : VConstVal)
-    (Hold : TrConstVal safety sourceVEnv
-      (.ctorInfo Hstep.oldInfo) constructor)
+    (Hsafety : safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety)
+    (Huvars : Hstep.oldInfo.levelParams.length = constructor.uvars)
+    (Hname : Hstep.oldInfo.name = constructor.name)
     (Hsource : TrExprS sourceVEnv Hstep.oldInfo.levelParams [] source.type
       constructor.type)
     (Hwf : constructor.toVConstant.WF sourceVEnv) :
     ∃ targetVEnv,
       Nonempty (RestoredConstructorInstallationSemantics safety Hstep
         sourceVEnv targetVEnv) := by
-  apply Hstep.installation Hvalid constructor Hold
+  apply Hstep.installationOfMetadata Hvalid constructor Hsafety Huvars Hname
   · exact Hmapping.restoredType_translation hresultParams paramFvars
       hparams hnodup HsourceClosed HsourceDisjoint hresultNParams
       Hstep.restored.restoration htype Hsource
   · exact Hwf
+
+/-- Source-declaration specialization of `installationOfDisjoint`.  A single
+`TrSourceConst` supplies the abstract constructor used both by the source
+`TrInductDeclCore` and by the exact restored installation trace. -/
+theorem RestoredConstructorStep.installationOfSource
+    (Hstep : RestoredConstructorStep result loweredEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+      source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (HsourceDisjoint : RestoreSourceDisjoint result loweredEnv source.type)
+    (hresultNParams : result.nparams = nparams)
+    (htype : Hstep.oldInfo.type = out.1.type)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (constructor : VConstVal)
+    (Hsafety : safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety)
+    (hlevels : Hstep.oldInfo.levelParams = lparams)
+    (hname : Hstep.oldInfo.name = source.name)
+    (Hsource : TrSourceConst sourceVEnv lparams source.name source.type
+      constructor) :
+    ∃ targetVEnv,
+      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) := by
+  apply Hstep.installationOfDisjoint Hmapping hresultParams paramFvars hparams
+    hnodup HsourceClosed HsourceDisjoint hresultNParams htype Hvalid
+    constructor Hsafety
+  · rw [hlevels]
+    exact Hsource.uvars.symm
+  · exact hname.trans Hsource.name.symm
+  · simpa [hlevels] using Hsource.type
+  · exact Hsource.wf
 
 /-- Preferred source-syntax installation endpoint. Auxiliary family names are
 reserved by the lowering cache, while auxiliary constructor names need only
@@ -33291,8 +33376,9 @@ theorem RestoredConstructorStep.installationOfFresh
     (htype : Hstep.oldInfo.type = out.1.type)
     (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
     (constructor : VConstVal)
-    (Hold : TrConstVal safety sourceVEnv
-      (.ctorInfo Hstep.oldInfo) constructor)
+    (Hsafety : safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety)
+    (Huvars : Hstep.oldInfo.levelParams.length = constructor.uvars)
+    (Hname : Hstep.oldInfo.name = constructor.name)
     (Hsource : TrExprS sourceVEnv Hstep.oldInfo.levelParams [] source.type
       constructor.type)
     (Hwf : constructor.toVConstant.WF sourceVEnv) :
@@ -33306,9 +33392,52 @@ theorem RestoredConstructorStep.installationOfFresh
   · exact hresultNParams
   · exact htype
   · exact Hvalid
-  · exact Hold
+  · exact Hsafety
+  · exact Huvars
+  · exact Hname
   · exact Hsource
   · exact Hwf
+
+/-- Preferred end-to-end constructor endpoint.  Fresh-cache lowering gives
+the semantic restoration disjointness, while the independent source
+translation is reused unchanged by declaration formation and installation. -/
+theorem RestoredConstructorStep.installationOfFreshSource
+    (Hstep : RestoredConstructorStep result loweredEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+      source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (Hsyntax : SourceConstructorSyntax source)
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv sourceVEnv)
+    (hresultNParams : result.nparams = nparams)
+    (htype : Hstep.oldInfo.type = out.1.type)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (constructor : VConstVal)
+    (Hsafety : safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety)
+    (hlevels : Hstep.oldInfo.levelParams = lparams)
+    (hname : Hstep.oldInfo.name = source.name)
+    (Hsource : TrSourceConst sourceVEnv lparams source.name source.type
+      constructor) :
+    ∃ targetVEnv,
+      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) := by
+  apply Hstep.installationOfSource Hmapping hresultParams paramFvars hparams
+    hnodup Hsyntax.closed
+  · exact Hsyntax.noNestedAux.restoreSourceDisjointOfFresh
+      Hsource.type.constantsDefined Hfamilies Hconstructors
+  · exact hresultNParams
+  · exact htype
+  · exact Hvalid
+  · exact Hsafety
+  · exact hlevels
+  · exact hname
+  · exact Hsource
 
 /-- Namespace-based convenience specialization of
 `installationOfDisjoint`.  The semantic endpoint above is the preferred path
@@ -33336,10 +33465,16 @@ theorem RestoredConstructorStep.installationOfSyntax
     ∃ targetVEnv,
       Nonempty (RestoredConstructorInstallationSemantics safety Hstep
         sourceVEnv targetVEnv) := by
-  exact Hstep.installationOfDisjoint Hmapping hresultParams paramFvars hparams
+  apply Hstep.installationOfDisjoint Hmapping hresultParams paramFvars hparams
     hnodup Hsyntax.closed
     (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams htype
-    Hvalid constructor Hold Hsource Hwf
+    Hvalid constructor
+  · exact Hold.1.1
+  · simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
+      Hold.1.2.1
+  · simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using Hold.2
+  · exact Hsource
+  · exact Hwf
 
 theorem LoweredConstructorTranslation.finalMapping
     (H : LoweredConstructorTranslation env params nparams source state out)
