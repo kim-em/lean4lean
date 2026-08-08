@@ -113,6 +113,34 @@ theorem VExpr.takeForalls_rebuild
         exact ⟨by simp [VExpr.wrapForalls, hrebuild], by simp [hlength]⟩
     | bvar | sort | const | app | lam => simp [VExpr.takeForalls] at H
 
+/-- Split one successful telescope decomposition at an arbitrary intermediate
+arity.  This lets a total translated recursor telescope be recovered as its
+parameter, motive, minor, index, and major groups without inspecting binder
+domains. -/
+theorem VExpr.takeForalls_split
+    {type result : VExpr} {domains : List VExpr}
+    {leftArity rightArity : Nat}
+    (H : type.takeForalls (leftArity + rightArity) =
+      some (domains, result)) :
+    ∃ left middle right,
+      domains = left ++ right ∧
+      type.takeForalls leftArity = some (left, middle) ∧
+      middle.takeForalls rightArity = some (right, result) := by
+  rcases VExpr.takeForalls_rebuild H with ⟨hrebuild, hlength⟩
+  let left := domains.take leftArity
+  let right := domains.drop leftArity
+  have hleft : left.length = leftArity := by
+    simp [left, hlength]
+  have hright : right.length = rightArity := by
+    simp [right, hlength]
+  have hdomains : domains = left ++ right := by
+    exact (List.take_append_drop leftArity domains).symm
+  refine ⟨left, VExpr.wrapForalls right result, right, hdomains, ?_, ?_⟩
+  · rw [hrebuild, hdomains, ← hleft]
+    exact VExpr.takeForalls_wrapForalls_append left right result
+  · rw [← hright]
+    exact VExpr.takeForalls_wrapForalls right result
+
 theorem VEnv.IsType.wrapForalls_inv
     {env : VEnv} (henv : env.Ordered)
     (hctx : OnCtx ctx (env.IsType uvars))
@@ -24861,6 +24889,31 @@ theorem ExprReplacement.forallTelescope
         (Expr.ForallTelescope.cons (name := name) (dom := _)
           (bi := bi) Hrestored)
 
+/-- Residual-sensitive form of `forallTelescope`: replacement below the
+leading binders is retained as an explicit relation between the old and new
+residual expressions. -/
+theorem ExprReplacement.forallTelescope_residual
+    (Hnone : ∀ name dom body bi,
+      replaceNode (.forallE name dom body bi) = none)
+    (Hreplace : ExprReplacement replaceNode input output)
+    (Htelescope : Expr.ForallTelescope input arity residual) :
+    ∃ restoredResidual,
+      Expr.ForallTelescope output arity restoredResidual ∧
+      ExprReplacement replaceNode residual restoredResidual := by
+  induction Htelescope generalizing output with
+  | nil => exact ⟨output, .nil output, Hreplace⟩
+  | @cons body arity residual name dom bi Htail ih =>
+    cases Hreplace with
+    | hit h =>
+      rw [Hnone] at h
+      contradiction
+    | forallE h hdom hbody =>
+      rcases ih hbody with ⟨restoredResidual, Hrestored, Hresidual⟩
+      refine ⟨restoredResidual, ?_, Hresidual⟩
+      simpa [Expr.updateForallE!] using
+        (Expr.ForallTelescope.cons (name := name) (dom := _)
+          (bi := bi) Hrestored)
+
 theorem ExprReplacement.ofReplace
     (replaceNode : Expr → Option Expr) :
     ∀ input, ExprReplacement replaceNode input (input.replace replaceNode) := by
@@ -25035,6 +25088,27 @@ theorem Expr.ForallTelescope.inferImplicit
       exact ⟨residual', by
         simp only [Expr.inferImplicit]
         exact Expr.ForallTelescope.cons Htail'⟩
+
+/-- `inferImplicit` changes binder annotations only, so the terminal
+expression of a forall telescope is preserved literally. -/
+theorem Expr.ForallTelescope.inferImplicit_sameResidual
+    (H : Expr.ForallTelescope e arity residual)
+    (Hresidual : residual.isForall = false)
+    (max : Nat) (inferBinderTypes : Bool) :
+    Expr.ForallTelescope (e.inferImplicit max inferBinderTypes) arity
+      residual := by
+  induction max generalizing e arity residual with
+  | zero => simpa [Expr.inferImplicit] using H
+  | succ max ih =>
+    cases H with
+    | nil =>
+      have heq : e.inferImplicit (max + 1) inferBinderTypes = e := by
+        cases e <;> simp_all [Expr.inferImplicit, Expr.isForall]
+      rw [heq]
+      exact .nil _
+    | cons Htail =>
+      simp only [Expr.inferImplicit]
+      exact Expr.ForallTelescope.cons (ih Htail Hresidual)
 
 /-- Any prefix of a generated forall telescope is accepted by nested
 restoration. -/
@@ -25866,6 +25940,35 @@ theorem RestoreParamOpening.forallSuffix
       at Htelescope
     cases Htelescope
 
+/-- If the residual refers only to the unopened suffix, opening an outer
+prefix preserves that residual literally.  Generated recursor results have
+exactly this property: they mention motives, indices, and the major premise,
+but never the common parameter binders outside them. -/
+theorem RestoreParamOpening.forallSuffix_sameResidual
+    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
+    (Htelescope : Expr.ForallTelescope outer (n + suffixArity) residual)
+    (Hrange : residual.looseBVarRange' ≤ suffixArity) :
+    Expr.ForallTelescope tail suffixArity residual := by
+  induction Hopen generalizing residual with
+  | done => simpa using Htelescope
+  | forallE Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    rw [show (n' + 1) + suffixArity = (n' + suffixArity) + 1 by omega]
+      at Htelescope
+    cases Htelescope with
+    | cons Hbody =>
+      have Hbody' := Hbody.instantiate1' (.fvar id) 0
+      have hresidual :
+          residual.instantiate1' (.fvar id) (n' + suffixArity) = residual :=
+        Expr.instantiate1'_eq_self (by omega)
+      exact ih (residual := residual)
+        (by simpa [Expr.instantiate1_eq, hresidual] using Hbody') Hrange
+  | lam Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    rw [show (n' + 1) + suffixArity = (n' + suffixArity) + 1 by omega]
+      at Htelescope
+    cases Htelescope
+
 theorem RestoreParamOpening.initial_size
     (H : RestoreParamOpening {} #[] e n outLctx outAs tail) :
     outAs.size = n := by
@@ -25968,6 +26071,201 @@ def NestedRestoration
   simp [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode,
     Expr.getAppFn]
 
+theorem restoreNestedNode_of_bvar_head
+    (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
+    (As : Array Expr) (auxRec : NameMap Name)
+    (hhead : input.getAppFn = .bvar index) :
+    result.restoreNestedNode env As auxRec input = none := by
+  cases input <;>
+    simp_all [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode,
+      Expr.getAppFn]
+
+theorem ExprReplacement.restoreNested_bvarApps
+    (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
+    (As : Array Expr) (auxRec : NameMap Name) (root : Nat) :
+    ∀ args : List Nat,
+      ExprReplacement (result.restoreNestedNode env As auxRec)
+        (args.foldl (fun fn index => .app fn (.bvar index)) (.bvar root))
+        (args.foldl (fun fn index => .app fn (.bvar index)) (.bvar root)) := by
+  intro args
+  have go : ∀ (tail : List Nat) (fn : Expr) (headIndex : Nat),
+      fn.getAppFn = .bvar headIndex →
+      ExprReplacement (result.restoreNestedNode env As auxRec) fn fn →
+      ExprReplacement (result.restoreNestedNode env As auxRec)
+        (tail.foldl (fun fn index => .app fn (.bvar index)) fn)
+        (tail.foldl (fun fn index => .app fn (.bvar index)) fn) := by
+    intro tail
+    induction tail with
+    | nil => exact fun fn headIndex hhead Hfn => Hfn
+    | cons index tail ih =>
+      intro fn headIndex hhead Hfn
+      simp only [List.foldl_cons]
+      have happHead : (Expr.app fn (.bvar index)).getAppFn =
+          Expr.bvar headIndex := by
+        simpa [Expr.getAppFn] using hhead
+      have Happ : ExprReplacement (result.restoreNestedNode env As auxRec)
+          (.app fn (.bvar index)) (.app fn (.bvar index)) := by
+        apply ExprReplacement.app
+        · exact restoreNestedNode_of_bvar_head result env As auxRec happHead
+        · exact Hfn
+        · exact .bvar
+            (restoreNestedNode_of_bvar_head result env As auxRec rfl)
+      exact ih _ _ happHead Happ
+  exact go args (.bvar root) root rfl <|
+    .bvar (restoreNestedNode_of_bvar_head result env As auxRec rfl)
+
+theorem Expr.looseBVarRange_foldl_bvarApps
+    {fn : Expr} {args : List Nat} {arity : Nat}
+    (Hfn : fn.looseBVarRange' ≤ arity)
+    (Hargs : ∀ index ∈ args, index < arity) :
+    (args.foldl (fun fn index => .app fn (.bvar index)) fn
+      ).looseBVarRange' ≤ arity := by
+  induction args generalizing fn with
+  | nil => exact Hfn
+  | cons index args ih =>
+    simp only [List.foldl_cons]
+    apply ih
+    · exact Nat.max_le.mpr ⟨Hfn,
+        Nat.succ_le_iff.mpr (Hargs index (by simp))⟩
+    · intro other hother
+      exact Hargs other (by simp [hother])
+
+theorem Closed.foldl_bvarApps
+    {fn : Expr} {args : List Nat} {arity : Nat}
+    (Hfn : Closed fn arity)
+    (Hargs : ∀ index ∈ args, index < arity) :
+    Closed (args.foldl (fun fn index => .app fn (.bvar index)) fn) arity := by
+  induction args generalizing fn with
+  | nil => exact Hfn
+  | cons index args ih =>
+    simp only [List.foldl_cons]
+    apply ih
+    · exact ⟨Hfn, Hargs index (by simp)⟩
+    · intro other hother
+      exact Hargs other (by simp [hother])
+
+theorem FVarsIn.foldl_bvarApps
+    {fn : Expr} {args : List Nat} {predicate : FVarId → Prop}
+    (Hfn : fn.FVarsIn predicate) :
+    (args.foldl (fun fn index => .app fn (.bvar index)) fn
+      ).FVarsIn predicate := by
+  induction args generalizing fn with
+  | nil => exact Hfn
+  | cons index args ih =>
+    simp only [List.foldl_cons]
+    exact ih ⟨Hfn, True.intro⟩
+
+/-- The generated recursor result contains only an application spine of bound
+variables.  Nested restoration therefore leaves it literally unchanged. -/
+theorem ExprReplacement.restoreNested_concreteRecursorResult
+    (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
+    (As : Array Expr) (auxRec : NameMap Name)
+    (numMotives numMinors numIndices ownerIdx : Nat) :
+    ExprReplacement (result.restoreNestedNode env As auxRec)
+      (concreteRecursorResult numMotives numMinors numIndices ownerIdx)
+      (concreteRecursorResult numMotives numMinors numIndices ownerIdx) := by
+  let motiveOffset :=
+    1 + numIndices + numMinors + (numMotives - 1 - ownerIdx)
+  let indices : List Nat := List.ofFn fun i : Fin numIndices =>
+    1 + (numIndices - 1 - i)
+  have Hfn := ExprReplacement.restoreNested_bvarApps result env As auxRec
+    motiveOffset indices
+  have Hfn' : ExprReplacement (result.restoreNestedNode env As auxRec)
+      (mkAppN (.bvar motiveOffset) (indices.map Expr.bvar).toArray)
+      (mkAppN (.bvar motiveOffset) (indices.map Expr.bvar).toArray) := by
+    simpa [mkAppN, List.foldl_map, Function.comp_def] using Hfn
+  have hindices :
+      List.ofFn (fun i : Fin numIndices =>
+        Expr.bvar (1 + (numIndices - 1 - i))) = indices.map Expr.bvar := by
+    apply List.ext_getElem
+    · simp [indices]
+    · intro i hleft hright
+      simp [indices]
+  unfold concreteRecursorResult
+  rw [hindices]
+  change ExprReplacement (result.restoreNestedNode env As auxRec)
+    (.app (mkAppN (.bvar motiveOffset) (indices.map Expr.bvar).toArray)
+      (.bvar 0))
+    (.app (mkAppN (.bvar motiveOffset) (indices.map Expr.bvar).toArray)
+      (.bvar 0))
+  apply ExprReplacement.app
+  · apply restoreNestedNode_of_bvar_head result env As auxRec
+    rw [Expr.getAppFn, Expr.getAppFn_mkAppN]
+    rfl
+  · exact Hfn'
+  · exact .bvar
+      (restoreNestedNode_of_bvar_head result env As auxRec rfl)
+
+theorem concreteRecursorResult_closed
+    (howner : ownerIdx < numMotives) :
+    Closed (concreteRecursorResult numMotives numMinors numIndices ownerIdx)
+      (numMotives + numMinors + numIndices + 1) := by
+  let arity := numMotives + numMinors + numIndices + 1
+  let motiveOffset :=
+    1 + numIndices + numMinors + (numMotives - 1 - ownerIdx)
+  let indices : List Nat := List.ofFn fun i : Fin numIndices =>
+    1 + (numIndices - 1 - i)
+  have hoffset : motiveOffset < arity := by
+    dsimp [motiveOffset, arity]
+    omega
+  have hindicesBound : ∀ index ∈ indices, index < arity := by
+    intro index hindex
+    simp only [indices, List.mem_ofFn] at hindex
+    rcases hindex with ⟨i, rfl⟩
+    dsimp [arity]
+    omega
+  have Hfn := Closed.foldl_bvarApps
+    (fn := .bvar motiveOffset) (args := indices) (arity := arity)
+    hoffset hindicesBound
+  have hindices :
+      List.ofFn (fun i : Fin numIndices =>
+        Expr.bvar (1 + (numIndices - 1 - i))) = indices.map Expr.bvar := by
+    apply List.ext_getElem
+    · simp [indices]
+    · intro i hleft hright
+      simp [indices]
+  unfold concreteRecursorResult
+  rw [hindices]
+  change Closed
+    (.app (mkAppN (.bvar motiveOffset) (indices.map Expr.bvar).toArray)
+      (.bvar 0)) arity
+  constructor
+  · simpa [mkAppN, List.foldl_map, Function.comp_def] using Hfn
+  · dsimp [arity]
+    exact Nat.zero_lt_succ _
+
+theorem concreteRecursorResult_noFVars :
+    (concreteRecursorResult numMotives numMinors numIndices ownerIdx).FVarsIn
+      (fun _ => False) := by
+  let motiveOffset :=
+    1 + numIndices + numMinors + (numMotives - 1 - ownerIdx)
+  let indices : List Nat := List.ofFn fun i : Fin numIndices =>
+    1 + (numIndices - 1 - i)
+  have Hfn := FVarsIn.foldl_bvarApps (predicate := fun _ => False)
+    (fn := .bvar motiveOffset) (args := indices) (by trivial)
+  have hindices :
+      List.ofFn (fun i : Fin numIndices =>
+        Expr.bvar (1 + (numIndices - 1 - i))) = indices.map Expr.bvar := by
+    apply List.ext_getElem
+    · simp [indices]
+    · intro i hleft hright
+      simp [indices]
+  unfold concreteRecursorResult
+  rw [hindices]
+  change (Expr.app
+    (mkAppN (.bvar motiveOffset) (indices.map Expr.bvar).toArray)
+    (.bvar 0)).FVarsIn (fun _ => False)
+  constructor
+  · simpa [mkAppN, List.foldl_map, Function.comp_def] using Hfn
+  · trivial
+
+theorem concreteRecursorResult_looseBVarRange
+    (howner : ownerIdx < numMotives) :
+    (concreteRecursorResult numMotives numMinors numIndices ownerIdx
+      ).looseBVarRange' ≤
+      numMotives + numMinors + numIndices + 1 :=
+  (concreteRecursorResult_closed howner).looseBVarRange_le
+
 /-- Restoring nested occurrences below the retained parameter prefix cannot
 change the arity of a generated recursor telescope.  The replacement callback
 does not rewrite forall nodes, while rebuilding the opened prefix restores
@@ -25994,6 +26292,53 @@ theorem NestedRestoration.forallTelescope
   have Hcombined := Hselection.prependTelescope Hrestored
   rw [Hopening.initial_size] at Hcombined
   exact ⟨_, Hcombined⟩
+
+/-- Strong recursor specialization: restoration preserves not only the total
+telescope arity but its canonical de Bruijn result expression. -/
+theorem NestedRestoration.concreteRecursorResult_forallTelescope
+    (H : NestedRestoration result env auxRec input output)
+    (howner : ownerIdx < numMotives)
+    (Htelescope : Expr.ForallTelescope input
+      (result.nparams +
+        (numMotives + numMinors + numIndices + 1))
+      (concreteRecursorResult numMotives numMinors numIndices ownerIdx)) :
+    Expr.ForallTelescope output
+      (result.nparams +
+        (numMotives + numMinors + numIndices + 1))
+      (concreteRecursorResult numMotives numMinors numIndices ownerIdx) := by
+  rcases H with ⟨lctx, As, body, restoredBody,
+    ⟨Hopening, _Hlctx, Hselection, _Hnodup⟩, Hreplacement, houtput⟩
+  let recResult :=
+    concreteRecursorResult numMotives numMinors numIndices ownerIdx
+  have Hbody : Expr.ForallTelescope body
+      (numMotives + numMinors + numIndices + 1) recResult :=
+    Hopening.forallSuffix_sameResidual Htelescope
+      (concreteRecursorResult_looseBVarRange howner)
+  rcases Hreplacement.forallTelescope_residual
+      (fun name dom body bi => restoreNestedNode_forall
+        (result := result) (env := env) (As := As) (auxRec := auxRec))
+      Hbody with ⟨restoredResidual, Hrestored, Hresidual⟩
+  have Hidentity := ExprReplacement.restoreNested_concreteRecursorResult
+    result env As auxRec numMotives numMinors numIndices ownerIdx
+  have hresidual : restoredResidual = recResult := by
+    calc
+      restoredResidual = recResult.replace
+          (result.restoreNestedNode env As auxRec) := Hresidual.eq_replace
+      _ = recResult := by
+        simpa [recResult] using Hidentity.eq_replace.symm
+  subst restoredResidual
+  have hfor : input.isForall = true :=
+    Htelescope.isForall_of_pos (by omega)
+  rw [houtput, hfor]
+  have Hcombined := Hselection.prependTelescope Hrestored
+  rw [Hopening.initial_size] at Hcombined
+  have habstract : recResult.abstractList Hselection.fvars
+      (numMotives + numMinors + numIndices + 1) = recResult := by
+    apply (concreteRecursorResult_noFVars.mono fun fv hfalse =>
+      False.elim hfalse).abstractList_eq_self
+    exact concreteRecursorResult_closed howner
+  rw [habstract] at Hcombined
+  simpa [recResult] using Hcombined
 
 theorem restoreNested_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
@@ -26153,6 +26498,38 @@ theorem RecursorRestoration.typeForallTelescope
       recInfos[ownerIdx]!.indices.size + 1) (by
         simpa [Nat.add_assoc] using Htype) (by omega)
 
+/-- Exact restored telescope, including the canonical motive application at
+its residual.  This is the syntactic certificate consumed by the independent
+source-side nested recursor specification. -/
+theorem RecursorRestoration.typeConcreteRecursorResultForallTelescope
+    (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName Hentry.info newInfo)
+    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size)
+    (hnoalias : Hselections.NoAlias)
+    (hparams : result.nparams = stats.params.size) :
+    Expr.ForallTelescope newInfo.type
+      (result.nparams + ((recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size + 1))
+      (concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx) := by
+  have Htype := Hselections.forallTelescope
+    (.app (mkAppN recInfos[ownerIdx]!.motive
+      recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+  rw [Hselections.residual_eq_concreteRecursorResult howner hnoalias] at Htype
+  have Htype' := Htype.inferImplicit_sameResidual (by rfl) 1000 false
+  rw [← Hentry.type, ← hparams] at Htype'
+  apply Hrestore.type.concreteRecursorResult_forallTelescope
+    (numMotives := (recInfos.map (·.motive)).size)
+    (numMinors := (recInfos.flatMap (·.minors)).size)
+    (numIndices := recInfos[ownerIdx]!.indices.size)
+    (ownerIdx := ownerIdx) (by simpa using howner)
+  simpa only [Nat.add_assoc] using Htype'
+
 /-- Translation into the canonical source environment preserves the complete
 restored recursor arity.  This is deliberately stated about the target of the
 restored type translation, never about the lowered abstract recursor type. -/
@@ -26178,6 +26555,70 @@ theorem RecursorRestoration.translatedTypeForallArity
   rcases Hrestore.typeForallTelescope Hentry Hselections hparams with
     ⟨residual, Htelescope⟩
   exact Htelescope.translatedTakeForalls Htranslation
+
+/-- Construct the independent source nested-recursor specification directly
+from the restored production telescope translated in the canonical source
+environment.  No lowered abstract recursor is reused: its auxiliary-bearing
+type need not even be well-formed in `canonicalEnv`. -/
+theorem RecursorRestoration.nestedRecursorShape
+    (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName Hentry.info newInfo)
+    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size)
+    (hnoalias : Hselections.NoAlias)
+    (hparams : result.nparams = stats.params.size)
+    (sourceDecl : VInductDecl) (owner : VInductiveType)
+    (hdeclOwner : ownerIdx < sourceDecl.types.length)
+    (hownerEq : sourceDecl.types[ownerIdx] = owner)
+    (recursor : VConstVal)
+    (hname : recursor.name = sourceDecl.recursorName owner)
+    (huvars : recursor.uvars = sourceDecl.uvars ∨
+      recursor.uvars = sourceDecl.uvars + 1)
+    (hnparams : sourceDecl.nparams = result.nparams)
+    (hmotives : sourceDecl.types.length ≤
+      (recInfos.map (·.motive)).size)
+    (hminors : sourceDecl.ownedConstructors.length ≤
+      (recInfos.flatMap (·.minors)).size)
+    (hindices : owner.numIndices = recInfos[ownerIdx]!.indices.size)
+    (Htranslation : TrExprS canonicalEnv Hentry.info.levelParams []
+      newInfo.type recursor.type) :
+    Nonempty (sourceDecl.NestedRecursorShape owner recursor) := by
+  have Htelescope := Hrestore.typeConcreteRecursorResultForallTelescope
+    Hentry Hselections howner hnoalias hparams
+  rcases TrExprS.forallTelescope_shape_with_context Htelescope Htranslation with
+    ⟨domains, abstractResult, hdomainsLength, htype, Hresult⟩
+  have htotal : result.nparams + (recInfos.map (·.motive)).size +
+      (recInfos.flatMap (·.minors)).size +
+      recInfos[ownerIdx]!.indices.size + 1 ≤ domains.length := by
+    rw [hdomainsLength]
+    simp only [Nat.add_assoc, Nat.le_refl]
+  have hownerMotive : ownerIdx < (recInfos.map (·.motive)).size := by
+    simpa using howner
+  have hresultConcrete := TrExprS.concreteRecursorResult_eq
+    (numParams := result.nparams) hownerMotive htotal Hresult
+  have hdomainsSpec : domains.length =
+      sourceDecl.nparams + (recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size + owner.numIndices + 1 := by
+    rw [hdomainsLength, hnparams, hindices]
+    simp only [Nat.add_assoc]
+  rcases List.exists_append_five_of_length_eq domains sourceDecl.nparams
+      (recInfos.map (·.motive)).size
+      (recInfos.flatMap (·.minors)).size owner.numIndices 1
+      hdomainsSpec with
+    ⟨params, motives, minors, indices, major, hdomains,
+      hparamsLength, hmotivesLength, hminorsLength, hindicesLength,
+      hmajorLength⟩
+  have hresult : abstractResult = sourceDecl.recursorResultWithCounts
+      ownerIdx motives.length minors.length owner := by
+    simpa [VInductDecl.recursorResultWithCounts, List.map_reverse,
+      hmotivesLength, hminorsLength, hindices] using hresultConcrete
+  refine ⟨VInductDecl.NestedRecursorShape.ofWrapped hdeclOwner hownerEq
+    hname huvars hparamsLength ?_ ?_ hindicesLength hmajorLength ?_ hresult⟩
+  · simpa [hmotivesLength] using hmotives
+  · simpa [hminorsLength] using hminors
+  · simpa [hdomains] using htype
 
 /-- Recursor restoration changes the production name and concrete type while
 preserving the metadata observed by `TrConstVal`.  Translation of that new
@@ -30869,6 +31310,91 @@ def RecursorPhasesResult.restoredPrimaryRecursorSemantics
       E.translated.1.2.1
   · rcases Hshape with ⟨Hshape⟩
     exact ⟨by simpa only [List.getElem_map] using Hshape.toNested⟩
+
+/-- Direct executable-to-source realization for a restored primary recursor.
+Unlike `restoredPrimaryRecursorSemantics`, this theorem does not transport a
+shape from the expanded abstract declaration.  It derives the source shape
+from the generated concrete binder selections, operational restoration, and
+translation of the restored type in the canonical source environment. -/
+def RecursorPhasesResult.restoredSourcePrimaryRecursorRealization
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+      depth sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
+    (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv)
+    (holdRecName : oldRecName =
+      Lean.mkRecName indTypes[ownerIdx]!.name)
+    (sourceDecl : VInductDecl)
+    (hsourceOwner : ownerIdx < sourceDecl.types.length)
+    (recursor : VConstVal) (canonicalEnv : VEnv)
+    (hname : recursor.name = sourceDecl.recursorName
+      (sourceDecl.types[ownerIdx]'hsourceOwner))
+    (huvars : recursor.uvars = sourceDecl.uvars ∨
+      recursor.uvars = sourceDecl.uvars + 1)
+    (huvarArity : Hstep.oldInfo.levelParams.length = recursor.uvars)
+    (hresultNparams : result.nparams = nparams)
+    (hnparams : sourceDecl.nparams = result.nparams)
+    (hmotives : sourceDecl.types.length ≤
+      (H.recInfos.map (·.motive)).size)
+    (hminors : sourceDecl.ownedConstructors.length ≤
+      (H.recInfos.flatMap (·.minors)).size)
+    (hindices : (sourceDecl.types[ownerIdx]'hsourceOwner).numIndices =
+      H.recInfos[ownerIdx]!.indices.size)
+    (Htype : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
+      Hstep.restored.newInfo.type recursor.type)
+    (Hwf : recursor.toVConstant.WF canonicalEnv) :
+    SourcePrimaryRecursorRealization sourceDecl
+      (sourceDecl.types[ownerIdx]'hsourceOwner) Hstep canonicalEnv recursor := by
+  have hrecInfo : ownerIdx < H.recInfos.size := by
+    simpa [H.generated.length] using hentry
+  let E := H.generated.entry ownerIdx hentry
+  have hlookup := H.findRecursorOfMem (List.getElem_mem hentry)
+  have hlookupE : outEnv.find? (Lean.mkRecName indTypes[ownerIdx]!.name) =
+      some (.recInfo E.info) := by
+    change outEnv.find? H.entries[ownerIdx].1.name =
+      some H.entries[ownerIdx].1 at hlookup
+    rw [E.source_eq] at hlookup
+    change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
+    rwa [E.name] at hlookup
+  have holdInfo : Hstep.oldInfo = E.info := by
+    have hstepLookup : outEnv.find?
+        (Lean.mkRecName indTypes[ownerIdx]!.name) =
+          some (.recInfo Hstep.oldInfo) := by
+      simpa [holdRecName] using Hstep.lookup
+    exact ConstantInfo.recInfo.inj (Option.some.inj
+      (hstepLookup.symm.trans hlookupE))
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    ownerIdx hrecInfo
+  have hselectionNoAlias : selections.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias ownerIdx hrecInfo
+  have hrestoration : RecursorRestoration result outEnv auxRec allIndNames
+      oldRecName Hstep.restored.newRecName E.info
+        Hstep.restored.newInfo := by
+    simpa [holdInfo] using Hstep.restored.restoration
+  have hparams : result.nparams = stats.params.size :=
+    hresultNparams.trans <| R.core.nparams.symm.trans
+      H.cardinality.params.symm
+  have Htype' : TrExprS canonicalEnv E.info.levelParams []
+      Hstep.restored.newInfo.type recursor.type := by
+    simpa [holdInfo] using Htype
+  have Hshape := hrestoration.nestedRecursorShape E selections hrecInfo
+    hselectionNoAlias hparams sourceDecl
+    (sourceDecl.types[ownerIdx]'hsourceOwner) hsourceOwner rfl recursor hname
+    huvars hnparams hmotives hminors hindices Htype'
+  refine {
+    source := {
+      recursor := recursor
+      name := hname
+      isType := Hwf
+      shape := Hshape }
+    recursor_eq := rfl
+    refinement := ⟨huvarArity, Htype⟩ }
 
 theorem DeclaredHeadersResult.typesWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
