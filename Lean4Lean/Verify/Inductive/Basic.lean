@@ -25757,6 +25757,55 @@ theorem LowerNextTranslation.preservesTypeName
       rw [this]
       exact hname
 
+/-- A queue step changes only its selected slot. Auxiliary discovery may
+append new families before that slot is overwritten, but every distinct
+pre-existing index retains its exact family record. -/
+theorem LowerNextTranslation.getElem_ne
+    (H : LowerNextTranslation env params nparams i state
+      (some source, nextState))
+    (hj : j < state.newTypes.size) (hne : j ≠ i) :
+    ∃ hjNext : j < nextState.newTypes.size,
+      nextState.newTypes[j] = state.newTypes[j] := by
+  cases H with
+  | step hi Hlowered =>
+    rename_i target loweredState
+    rcases Hlowered.newTypesLE.getElem hj with
+      ⟨hjLowered, hsame⟩
+    have hjNext : j <
+        ({ loweredState with
+          newTypes := loweredState.newTypes.set! i target }).newTypes.size := by
+      simpa [Array.size_set!] using hjLowered
+    refine ⟨hjNext, ?_⟩
+    change (loweredState.newTypes.set! i target)[j] = state.newTypes[j]
+    have hget := Array.getElem_setIfInBounds
+      (xs := loweredState.newTypes) (i := i) (a := target)
+      (j := j) hjLowered
+    rw [if_neg (fun h : i = j => hne h.symm)] at hget
+    simpa [Array.set!] using hget.trans hsame
+
+/-- The selected queue slot contains the just-lowered target after the step,
+even when lowering appended auxiliary families along the way. -/
+theorem LowerNextTranslation.getElem_selected
+    (H : LowerNextTranslation env params nparams i state
+      (some source, nextState)) (hi : i < state.newTypes.size) :
+    ∃ target loweredState,
+      LoweredInductiveTranslation env params nparams
+        state.newTypes[i] state
+        (target, loweredState) ∧
+      ∃ hiNext : i < nextState.newTypes.size,
+        nextState.newTypes[i] = target := by
+  cases H with
+  | step hi Hlowered =>
+    rename_i target loweredState
+    have hiLowered := Hlowered.newTypesLE.getElem hi |>.choose
+    have hiNext : i <
+        ({ loweredState with
+          newTypes := loweredState.newTypes.set! i target }).newTypes.size := by
+      simpa [Array.size_set!] using hiLowered
+    refine ⟨target, loweredState, Hlowered, hiNext, ?_⟩
+    change (loweredState.newTypes.set! i target)[i] = target
+    simp [Array.getElem_setIfInBounds, hiLowered]
+
 theorem ElimNestedInductive.lowerNext.translation
     (params : Array Expr) (nparams i : Nat)
     (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
@@ -25820,6 +25869,54 @@ theorem LoweringQueueTrace.resultNParams
   induction H with
   | done => rfl
   | step _ _ ih => exact ih
+
+/-- Once an index lies strictly behind the queue cursor, later lowering
+steps preserve the exact family stored there through to the final result. -/
+theorem LoweringQueueTrace.getElem_before
+    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+    (hj : j < i) (hbound : j < state.newTypes.size) :
+    out.1.types[j]? = some state.newTypes[j] := by
+  induction H with
+  | done =>
+    simp only
+    rw [List.getElem?_eq_getElem (by simpa using hbound)]
+    rfl
+  | step Hnext Htail ih =>
+    rcases Hnext.getElem_ne hbound (by omega) with
+      ⟨hnextBound, hsame⟩
+    simpa [hsame] using ih (by omega) hnextBound
+
+/-- Every not-yet-processed family within the current queue has a unique
+future lowering step. The theorem retains that exact semantic translation
+and identifies its target at the same index in the final result list. -/
+theorem LoweringQueueTrace.translationAt
+    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+    (hij : i ≤ j) (hj : j < state.newTypes.size) :
+    ∃ stepState target loweredState,
+      LoweredInductiveTranslation env params nparams state.newTypes[j]
+        stepState (target, loweredState) ∧
+      out.1.types[j]? = some target := by
+  revert j
+  induction H with
+  | done hdone =>
+    intro j hij hj
+    omega
+  | @step iStep stateStep sourceStep nextStateStep fuelStep outStep
+      Hnext Htail ih =>
+    intro j hij hj
+    by_cases hji : j = iStep
+    · subst j
+      rcases Hnext.getElem_selected hj with
+        ⟨target, loweredState, Htranslated, hiNext, htarget⟩
+      refine ⟨stateStep, target, loweredState, Htranslated, ?_⟩
+      have hfinal := Htail.getElem_before (j := iStep) (by omega) hiNext
+      simpa [htarget] using hfinal
+    · have hij' : iStep + 1 ≤ j := by omega
+      rcases Hnext.getElem_ne hj hji with ⟨hjNext, hsame⟩
+      rcases ih hij' hjNext with
+        ⟨stepState, target, loweredState, Htranslated, hfinal⟩
+      rw [hsame] at Htranslated
+      exact ⟨stepState, target, loweredState, Htranslated, hfinal⟩
 
 theorem LoweringQueueTrace.resultRestorable
     (H : LoweringQueueTrace env params nparams lctx i fuel state out)
@@ -25897,6 +25994,32 @@ theorem NestedLoweringRun.resultNParams
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, Hopening, _, Hqueue⟩
   exact Hqueue.resultNParams.trans Hopening.initial_size
+
+/-- Positional lowering witness for any family present in the initial queue.
+Unlike name preservation, this exposes the complete constructor-expression
+translation performed at that family's actual dynamic queue step. -/
+theorem NestedLoweringRun.translationAtInitial
+    (H : NestedLoweringRun env fuel nparams types initialState out)
+    (hj : j < initialState.newTypes.size) :
+    ∃ params stepState target loweredState,
+      params.size = nparams ∧
+      LoweredInductiveTranslation env params nparams
+        initialState.newTypes[j] stepState (target, loweredState) ∧
+      out.1.types[j]? = some target := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _htypes, Hopening,
+      hinitial, Hqueue⟩
+  have hjParams : j < paramsState.newTypes.size := by
+    simpa [hinitial] using hj
+  rcases Hqueue.translationAt (Nat.zero_le j) hjParams with
+    ⟨stepState, target, loweredState, Htranslated, htarget⟩
+  have hvalue : paramsState.newTypes[j] = initialState.newTypes[j] := by
+    have heq := congrArg
+      (fun xs : Array InductiveType => xs[j]!) hinitial
+    simpa [Array.getElem!_eq_getD, Array.getD, hjParams, hj] using heq
+  rw [hvalue] at Htranslated
+  exact ⟨params, stepState, target, loweredState,
+    Hopening.initial_size, Htranslated, htarget⟩
 
 theorem NestedLoweringRun.preservesInitialTypeName
     (H : NestedLoweringRun env fuel nparams types initialState out)
@@ -26060,6 +26183,27 @@ theorem NestedLoweringResult.resultNParams
   rcases H with ⟨finalState, Hrun⟩
   exact Hrun.resultNParams
 
+theorem NestedLoweringResult.sourceTranslationAt
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResult env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (hj : j < sourceTypes.length) :
+    ∃ params stepState target loweredState,
+      params.size = nparams ∧
+      LoweredInductiveTranslation env params nparams sourceTypes[j]
+        stepState (target, loweredState) ∧
+      result.types[j]? = some target := by
+  rcases H with ⟨finalState, Hrun⟩
+  have hjInitial : j <
+      ({ initialState with
+        newTypes := sourceTypes.toArray }).newTypes.size := by
+    simpa using hj
+  rcases Hrun.translationAtInitial hjInitial with
+    ⟨params, stepState, target, loweredState, hparams, Htranslated,
+      htarget⟩
+  exact ⟨params, stepState, target, loweredState, hparams,
+    by simpa using Htranslated, htarget⟩
+
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResult env fuel nparams types
@@ -26222,9 +26366,36 @@ theorem ElimNestedInductive.run'.translation
       ⟨out.2, Hout⟩
   simpa [StateT.run'] using Hprojected
 
-/-- Exact outer composition for `Environment.addInductive`: source closure
-checks, verified nested lowering, then the already isolated post-lowering
-installation/restoration pipeline. -/
+/-- Exact outer composition for `Environment.addInductive`, retaining both
+the source-syntax checks and the complete lowering trace for the continuation.
+These are independent inputs to the later source-WF and nested-compilation
+proofs, so neither is intentionally discarded here. -/
+theorem Environment.addInductive.checkedLoweringWF
+    (env : Environment) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
+    (fuel : FuelConfig)
+    (hclosures : MutualInductivesClosed env)
+    (Q : Environment → Prop)
+    (Hfinish : ∀ res,
+      SourceSyntaxChecks types →
+      NestedLoweringResult env fuel.inductiveFuel nparams types
+        { lvls := lparams.map .param, newTypes := types.toArray } res →
+      (Environment.addInductiveAfterLowering env lparams nparams types
+        isUnsafe allowPrimitive fuel res).WF Q) :
+    (Environment.addInductive env lparams nparams types isUnsafe
+      allowPrimitive fuel).WF Q := by
+  have Hsources : (Lean4Lean.checkInductiveSources env types).WF
+      fun _ => SourceSyntaxChecks types :=
+    checkInductiveSources_refines env types
+  have Hlowering := ElimNestedInductive.run'.translation fuel.inductiveFuel
+    nparams types env
+    { lvls := lparams.map .param, newTypes := types.toArray } hclosures
+  have Hcombined := Hsources.bind fun _ Hsource =>
+    Hlowering.bind fun res Hres => Hfinish res Hsource Hres
+  simpa [Environment.addInductive] using Hcombined
+
+/-- Compatibility projection of `checkedLoweringWF` for clients whose final
+postcondition does not depend on the retained source-syntax certificate. -/
 theorem Environment.addInductive.loweringWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
@@ -26238,16 +26409,10 @@ theorem Environment.addInductive.loweringWF
         isUnsafe allowPrimitive fuel res).WF Q) :
     (Environment.addInductive env lparams nparams types isUnsafe
       allowPrimitive fuel).WF Q := by
-  have Hsources : (Lean4Lean.checkInductiveSources env types).WF
-      fun _ => True := by
-    intro _ _
-    trivial
-  have Hlowering := ElimNestedInductive.run'.translation fuel.inductiveFuel
-    nparams types env
-    { lvls := lparams.map .param, newTypes := types.toArray } hclosures
-  have Hcombined := Hsources.bind fun _ _ =>
-    Hlowering.bind fun res Hres => Hfinish res Hres
-  simpa [Environment.addInductive] using Hcombined
+  apply Environment.addInductive.checkedLoweringWF env lparams nparams types
+    isUnsafe allowPrimitive fuel hclosures Q
+  intro res _Hsource Hlower
+  exact Hfinish res Hlower
 
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
