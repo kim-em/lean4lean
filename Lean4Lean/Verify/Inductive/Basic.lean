@@ -26530,6 +26530,25 @@ theorem RecursorRestoration.typeConcreteRecursorResultForallTelescope
     (ownerIdx := ownerIdx) (by simpa using howner)
   simpa only [Nat.add_assoc] using Htype'
 
+/-- A canonical translation of the restored recursor telescope is already a
+well-formed abstract type.  The final major-premise binder makes the telescope
+nonempty, so no separate abstract-WF callback is necessary. -/
+theorem RecursorRestoration.translatedTypeIsType
+    (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName Hentry.info newInfo)
+    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size)
+    (hnoalias : Hselections.NoAlias)
+    (hparams : result.nparams = stats.params.size)
+    (Htranslation : TrExprS canonicalEnv Hentry.info.levelParams []
+      newInfo.type targetType) :
+    canonicalEnv.IsType Hentry.info.levelParams.length [] targetType := by
+  have Htelescope := Hrestore.typeConcreteRecursorResultForallTelescope
+    Hentry Hselections howner hnoalias hparams
+  exact TrExprS.isType_of_forallTelescope Htelescope (by omega) Htranslation
+
 /-- Translation into the canonical source environment preserves the complete
 restored recursor arity.  This is deliberately stated about the target of the
 restored type translation, never about the lowered abstract recursor type. -/
@@ -31347,8 +31366,7 @@ def RecursorPhasesResult.restoredSourcePrimaryRecursorRealization
     (hindices : (sourceDecl.types[ownerIdx]'hsourceOwner).numIndices =
       H.recInfos[ownerIdx]!.indices.size)
     (Htype : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
-      Hstep.restored.newInfo.type recursor.type)
-    (Hwf : recursor.toVConstant.WF canonicalEnv) :
+      Hstep.restored.newInfo.type recursor.type) :
     SourcePrimaryRecursorRealization sourceDecl
       (sourceDecl.types[ownerIdx]'hsourceOwner) Hstep canonicalEnv recursor := by
   have hrecInfo : ownerIdx < H.recInfos.size := by
@@ -31387,11 +31405,16 @@ def RecursorPhasesResult.restoredSourcePrimaryRecursorRealization
     hselectionNoAlias hparams sourceDecl
     (sourceDecl.types[ownerIdx]'hsourceOwner) hsourceOwner rfl recursor hname
     huvars hnparams hmotives hminors hindices Htype'
+  have HisType := hrestoration.translatedTypeIsType E selections hrecInfo
+    hselectionNoAlias hparams Htype'
+  have huvarArity' : E.info.levelParams.length = recursor.uvars := by
+    simpa [holdInfo] using huvarArity
+  rw [huvarArity'] at HisType
   refine {
     source := {
       recursor := recursor
       name := hname
-      isType := Hwf
+      isType := HisType
       shape := Hshape }
     recursor_eq := rfl
     refinement := ⟨huvarArity, Htype⟩ }
