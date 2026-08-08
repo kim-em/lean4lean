@@ -30030,6 +30030,45 @@ theorem LoweredConstructorMapping.reopens
     Hmapping.reopens hresultParams fvars hparams hnodup Hselection Htail,
     htype⟩
 
+/-- Opening the lowered constructor with restoration's fresh parameters
+produces the lowering body renamed from its original parameter selection to
+the concrete restoration array. -/
+theorem LoweredConstructorReopening.restoreTail
+    (H : LoweredConstructorReopening env params nparams finalResult targetAs
+      source state out)
+    (restoreLctx : LocalContext) (restoreAs : Array Expr)
+    (restoredTail : Expr)
+    (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
+      restoreAs restoredTail) :
+    ∃ lctx tail As lowered openedState,
+      NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+      ∃ Hselection : LocalForallSelection lctx As,
+        openedState.newTypes = state.newTypes ∧
+        openedState.nestedAux = state.nestedAux ∧
+        openedState.nextIdx = state.nextIdx ∧
+        As.size = nparams ∧
+        NestedExprReopening env lctx params As finalResult targetAs tail
+          openedState (lowered, out.2) ∧
+        out.1.type = lctx.mkForall As lowered ∧
+        restoredTail = (lowered.abstract As).instantiateRev restoreAs := by
+  rcases H.reopened with
+    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+      hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening, htype⟩
+  have Htelescope := Hselection.forallTelescope lowered
+  rw [hsize, ← htype] at Htelescope
+  have htail := Hrestore.forallResidual Htelescope
+  have habstract : lowered.abstract As =
+      lowered.abstractList Hselection.fvars :=
+    calc
+      lowered.abstract As = lowered.abstract
+          (Hselection.fvars.map Expr.fvar).toArray :=
+        congrArg lowered.abstract Hselection.expressions
+      _ = lowered.abstractList Hselection.fvars :=
+        Expr.abstract_eq lowered Hselection.fvars
+  refine ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+    hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening, htype, ?_⟩
+  simpa [habstract] using htail
+
 theorem LoweredConstructorTranslation.finalMapping
     (H : LoweredConstructorTranslation env params nparams source state out)
     (Hlater : NestedAuxLE out.2 finalState)
