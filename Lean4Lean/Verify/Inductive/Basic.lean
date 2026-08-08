@@ -19992,6 +19992,42 @@ theorem AddConstants.existsEntryOfValue
   subst entryValue
   exact ⟨info, hentry⟩
 
+inductive InductiveHeaderEntries :
+    List InductiveVal → List (ConstantInfo × VConstVal) → Prop
+  | nil : InductiveHeaderEntries [] []
+  | cons : InductiveHeaderEntries infos entries →
+      InductiveHeaderEntries (info :: infos)
+        ((.inductInfo info, value) :: entries)
+
+theorem InductiveHeaderEntries.ofZip
+    (hlength : infos.length = values.length) :
+    InductiveHeaderEntries infos
+      (List.zip (infos.map (fun info => .inductInfo info)) values) := by
+  induction infos generalizing values with
+  | nil =>
+    cases values with
+    | nil => exact .nil
+    | cons value values => simp at hlength
+  | cons info infos ih =>
+    cases values with
+    | nil => simp at hlength
+    | cons value values =>
+      simp only [List.length_cons] at hlength
+      exact .cons (ih (by omega))
+
+theorem InductiveHeaderEntries.findInfo
+    (H : InductiveHeaderEntries infos entries) (hinfo : info ∈ infos) :
+    ∃ value, (.inductInfo info, value) ∈ entries := by
+  cases H with
+  | nil => simp at hinfo
+  | cons Htail =>
+    rename_i tail entries headValue
+    simp only [List.mem_cons] at hinfo
+    rcases hinfo with rfl | htail
+    · exact ⟨headValue, by simp⟩
+    · rcases Htail.findInfo htail with ⟨value, hmem⟩
+      exact ⟨value, by simp [hmem]⟩
+
 theorem AddConstants.le
     (H : AddConstants safety env venv entries outEnv outVEnv) :
     venv ≤ outVEnv :=
@@ -20242,6 +20278,10 @@ structure DeclaredHeadersResult (c : AddInductive.Context)
     entries.map Prod.fst =
       (AddInductive.inductiveTypeInfos stats nparams indTypes numNested
         isUnsafe c.lparams).toList.map (fun info => .inductInfo info)
+  sourceAligned : ∃ numNested,
+    InductiveHeaderEntries
+      (AddInductive.inductiveTypeInfos stats nparams indTypes numNested
+        isUnsafe c.lparams).toList entries
   values : entries.map Prod.snd = decl.typeConstants
   context : ContextWF { c with env := outEnv }
   headers : HeaderCertificate sourceEnv decl
@@ -20315,6 +20355,10 @@ theorem AddInductive.declareInductiveTypes.headersWF
             Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hentries
           simpa using Nat.le_of_eq hlength
         simpa [infos] using hfst
+      sourceAligned := ⟨numNested, by
+        apply InductiveHeaderEntries.ofZip
+        simpa using
+          Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hentries⟩
       values := hvalues
       context := Hc.withEnv (Hinstalled.valid Hc.checking) Hinstalled.le
       headers := Hmaterialized.headers
@@ -23675,6 +23719,30 @@ theorem inductiveTypeInfos_uniformAll
   exact hall.trans (zipWith_left_projection
     (fun type : InductiveType => type.name) hlength).symm
 
+theorem inductiveTypeInfos_source_mem
+    (stats : AddInductive.InductiveStats) (numParams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
+    (lparams : List Name)
+    (hsize : stats.nindices.size = indTypes.size)
+    (howner : owner ∈ indTypes.toList) :
+    ∃ info ∈ (AddInductive.inductiveTypeInfos stats numParams indTypes
+        numNested isUnsafe lparams).toList,
+      info.name = owner.name ∧
+      info.ctors = owner.ctors.map (fun ctor => ctor.name) := by
+  rcases List.mem_iff_getElem.mp howner with ⟨i, hi, rfl⟩
+  have hinfosSize :
+      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+        isUnsafe lparams).size = indTypes.size := by
+    simp [AddInductive.inductiveTypeInfos, hsize]
+  let info := (AddInductive.inductiveTypeInfos stats numParams indTypes
+    numNested isUnsafe lparams)[i]'(by simpa [hinfosSize] using hi)
+  refine ⟨info, ?_, ?_, ?_⟩
+  · simpa [info] using Array.getElem_mem (xs :=
+      AddInductive.inductiveTypeInfos stats numParams indTypes numNested
+        isUnsafe lparams) (by simpa [hinfosSize] using hi)
+  · simp [info, AddInductive.inductiveTypeInfos, hsize]
+  · simp [info, AddInductive.inductiveTypeInfos, hsize]
+
 /-- Installing the production metadata headers closes every new mutual block
 and preserves closure of the inductive blocks already present. -/
 theorem declareInductiveTypes_closesMutuals
@@ -23964,6 +24032,37 @@ theorem RecursorPhasesResult.findHeaderOfMem
   apply H.installed.preservesFind hlocalWF
   rwa [H.localExtends.env_eq]
 
+/-- Exact source-family metadata is present after the complete lowered
+installation, including the constructor-name list used by restoration. -/
+theorem RecursorPhasesResult.findSourceHeader
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv)
+    (howner : owner ∈ indTypes.toList) :
+    ∃ info : InductiveVal,
+      outEnv.find? owner.name = some (.inductInfo info) ∧
+      info.ctors = owner.ctors.map (fun ctor => ctor.name) := by
+  rcases Hheaders.sourceAligned with ⟨numNested, Haligned⟩
+  have htypesLength : indTypes.size = decl.types.length := by
+    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      Hheaders.translation.types
+  have hsize : stats.nindices.size = indTypes.size := by
+    rw [Array.size_eq_length_toList, Hheaders.materialized.indices,
+      List.length_map]
+    exact htypesLength.symm
+  rcases inductiveTypeInfos_source_mem stats nparams indTypes numNested
+      isUnsafe c.lparams hsize howner with
+    ⟨info, hinfo, hname, hctors⟩
+  rcases Haligned.findInfo hinfo with ⟨value, hentry⟩
+  refine ⟨info, ?_, hctors⟩
+  rw [← hname]
+  exact H.findHeaderOfMem Hc hentry
+
 /-- Constructor metadata installed in the middle phase remains retrievable,
 unchanged, after recursor installation. -/
 theorem RecursorPhasesResult.findConstructorOfMem
@@ -24063,6 +24162,54 @@ theorem RecursorPhasesResult.findSourceRecursor
   rw [E.source_eq] at hlookup
   change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
   rwa [E.name] at hlookup
+
+/-- Assemble the complete per-family lookup/telescope premise consumed by
+the operational nested-restoration fold. Constructor telescope syntax is the
+only remaining source-side premise; header, constructor, and recursor lookups
+and both generated recursor telescopes are derived from installation. -/
+theorem RecursorPhasesResult.restorationSources
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv)
+    (HctorTelescope : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
+      RestoreTelescope ctor.type nparams) :
+    ∀ owner, owner ∈ indTypes.toList →
+      ∃ oldInfo : InductiveVal,
+        outEnv.find? owner.name = some (.inductInfo oldInfo) ∧
+        (∀ ctorName, ctorName ∈ oldInfo.ctors →
+          ∃ ctorInfo : ConstructorVal,
+            outEnv.find? ctorName = some (.ctorInfo ctorInfo) ∧
+            RestoreTelescope ctorInfo.type nparams) ∧
+        ∃ recInfo : RecursorVal,
+          outEnv.find? (Lean.mkRecName owner.name) = some (.recInfo recInfo) ∧
+          RestoreTelescope recInfo.type nparams ∧
+          ∀ rule ∈ recInfo.rules,
+            RestoreTelescope rule.rhs nparams := by
+  intro owner howner
+  rcases H.findSourceHeader Hc howner with
+    ⟨oldInfo, hheader, hctors⟩
+  rcases List.mem_iff_getElem.mp howner with ⟨ownerIdx, hownerIdx, rfl⟩
+  rcases H.findSourceRecursor ownerIdx (by simpa using hownerIdx) with
+    ⟨recInfo, hrecursor, hrecType, hrecRules⟩
+  refine ⟨oldInfo, hheader, ?_, recInfo, ?_, hrecType, hrecRules⟩
+  · intro ctorName hctorName
+    rw [hctors] at hctorName
+    rcases List.mem_map.mp hctorName with ⟨ctor, hctor, rfl⟩
+    rcases H.findSourceConstructor (List.getElem_mem hownerIdx) hctor with
+      ⟨ctorInfo, hlookup, htype⟩
+    refine ⟨ctorInfo, hlookup, ?_⟩
+    rw [htype]
+    exact HctorTelescope _ (List.getElem_mem hownerIdx) ctor hctor
+  · have hbang : indTypes[ownerIdx]! = indTypes[ownerIdx] := by
+      have hownerArray : ownerIdx < indTypes.size := by simpa using hownerIdx
+      simp [Array.getElem!_eq_getD, Array.getD, hownerArray]
+    rw [hbang] at hrecursor
+    exact hrecursor
 
 theorem DeclaredHeadersResult.typesWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
