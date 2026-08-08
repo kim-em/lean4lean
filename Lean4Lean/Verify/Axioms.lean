@@ -161,6 +161,20 @@ open private mkLevelIMaxCore from Lean.Level in
 
 end Level
 
+namespace Name
+
+/-- `Name.appendIndexAfter` is implemented with opaque
+`String.Internal.append`, for which core exposes no logical specification.
+This is the precise suffix-parsing fact needed to verify freshness of names
+generated with a monotone numeric counter. -/
+axiom appendIndexAfter_index_injective
+    (firstBase secondBase : Name) (firstIndex secondIndex : Nat) :
+    firstBase.appendIndexAfter firstIndex =
+      secondBase.appendIndexAfter secondIndex →
+    firstIndex = secondIndex
+
+end Name
+
 namespace Expr
 
 def mkData'

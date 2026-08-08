@@ -21480,6 +21480,9 @@ def AppendIndexAfterIndexFaithful : Prop :=
       secondBase.appendIndexAfter secondIndex →
     firstIndex = secondIndex
 
+theorem appendIndexAfterIndexFaithful : AppendIndexAfterIndexFaithful :=
+  Lean.Name.appendIndexAfter_index_injective
+
 /-- Generated cache names are unique and each retained name records a suffix
 index strictly below the state's next fresh-name counter. -/
 structure NestedAuxNamesWF
@@ -26896,6 +26899,13 @@ theorem NestedLoweringRun.resultAuxMapModelsOfEmpty
     NestedAuxMapModels result finalState :=
   H.resultAuxMapModels (H.resultNamesNodupOfEmpty Hindex hempty)
 
+theorem NestedLoweringRun.resultAuxMapModelsFresh
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (hempty : initialState.nestedAux = #[]) :
+    NestedAuxMapModels result finalState :=
+  H.resultAuxMapModelsOfEmpty appendIndexAfterIndexFaithful hempty
+
 /-- Positional lowering witness for any family present in the initial queue.
 Unlike name preservation, this exposes the complete constructor-expression
 translation performed at that family's actual dynamic queue step. -/
@@ -27198,6 +27208,19 @@ theorem NestedLoweringResult.sourceFinalMappingAtOfIndexFaithful
   apply Hmapped
   apply Hrun.resultNamesNodupOfEmpty Hindex
   simpa using hempty
+
+theorem NestedLoweringResult.sourceFinalMappingAtFresh
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResult env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (hempty : initialState.nestedAux = #[])
+    (hj : j < sourceTypes.length) :
+    ∃ params stepState target loweredState,
+      params.size = nparams ∧
+      LoweredInductiveMapping env params nparams result sourceTypes[j]
+        stepState (target, loweredState) ∧
+      result.types[j]? = some target :=
+  H.sourceFinalMappingAtOfIndexFaithful appendIndexAfterIndexFaithful hempty hj
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
