@@ -12794,6 +12794,83 @@ theorem _root_.Lean4Lean.FVarsIn.getAppArgsList
     simpa [← Expr.getAppArgsList_reverse] using ha
   exact (FVarsIn.appRevList.mp H').2 a ha'
 
+theorem _root_.Lean4Lean.FVarsIn.getAppFn
+    (H : FVarsIn P e) : FVarsIn P e.getAppFn := by
+  have H' : FVarsIn P (e.getAppFn.mkAppList e.getAppArgsList) := by
+    rw [Expr.mkAppList_getAppArgsList]
+    exact H
+  exact (FVarsIn.mkAppList.mp H').1
+
+/-- Abstracting a free variable removes precisely that variable from the
+free-variable obligation. This is the structural lemma needed for nested
+parameter replacement, whose runtime `Expr.abstract` boundary is opaque. -/
+theorem _root_.Lean4Lean.FVarsIn.abstract1_of
+    (H : FVarsIn (fun fv => fv = selected ∨ P fv) e) :
+    FVarsIn P (Expr.abstract1 selected e k) := by
+  induction e generalizing k <;>
+    simp_all [Lean4Lean.FVarsIn, Expr.abstract1]
+  case fvar fv =>
+    split
+    · trivial
+    · rename_i hne
+      rcases H with heq | hP
+      · subst fv
+        simp at hne
+      · exact hP
+
+/-- Abstracting a list of selected variables removes the entire selection
+from the free-variable obligation. -/
+theorem _root_.Lean4Lean.FVarsIn.abstractList_of
+    (H : FVarsIn (fun fv => fv ∈ selected ∨ P fv) e) :
+    FVarsIn P (e.abstractList selected k) := by
+  induction selected generalizing e with
+  | nil => simpa [Expr.abstractList] using H
+  | cons selected rest ih =>
+    simp only [Expr.abstractList]
+    apply ih
+    apply FVarsIn.abstract1_of
+    exact H.mono fun fv hfv => by
+      rcases hfv with hmem | hP
+      · rcases List.mem_cons.mp hmem with heq | hrest
+        · exact Or.inl heq
+        · exact Or.inr (Or.inl hrest)
+      · exact Or.inr (Or.inr hP)
+
+theorem _root_.Lean4Lean.FVarsIn.abstract_fvarArray_of
+    (fvars : List FVarId) (selected : Array Expr)
+    (hselected : selected = (fvars.map Expr.fvar).toArray)
+    (H : FVarsIn (fun fv => fv ∈ fvars ∨ P fv) e) :
+    FVarsIn P (e.abstract selected) := by
+  rw [hselected, Expr.abstract_eq]
+  exact H.abstractList_of
+
+/-- `instantiateRev` introduces no free variables beyond those already in
+the body and substitution array. -/
+theorem _root_.Lean4Lean.FVarsIn.instantiateRev
+    (He : FVarsIn P e) (Hsubst : ∀ a ∈ subst, FVarsIn P a) :
+    FVarsIn P (e.instantiateRev subst) := by
+  rw [Expr.instantiateRev_eq, Expr.instantiate_eq]
+  apply He.instantiateList
+  intro a ha
+  apply Hsubst a
+  simpa using ha
+
+theorem _root_.Lean4Lean.FVarsIn.mkAppRange_zero
+    (hn : n ≤ args.size) (Hfn : FVarsIn P fn)
+    (Hargs : ∀ arg ∈ args, FVarsIn P arg) :
+    FVarsIn P (mkAppRange fn 0 n args) := by
+  rw [Expr.mkAppRange_eq (l₁ := []) (l₂ := args.toList.take n)
+    (l₃ := args.toList.drop n)]
+  · rw [FVarsIn.mkAppList]
+    refine ⟨Hfn, ?_⟩
+    intro arg harg
+    apply Hargs arg
+    apply Array.mem_toList_iff.mp
+    exact List.mem_of_mem_take harg
+  · simpa using (List.take_append_drop n args.toList).symm
+  · rfl
+  · simp [List.length_take, Nat.min_eq_left (by simpa using hn)]
+
 theorem _root_.Lean4Lean.Expr.eqv_fvar_eq
     (H : (((.fvar fv : Expr) == e)) = true) : e = .fvar fv := by
   cases e <;> simp [(· == ·), Expr.eqv'] at H
@@ -18546,6 +18623,15 @@ theorem LocalForallSelection.fvarsIn
     ⟨.cdecl index fv name type bi kind,
       List.mem_of_find?_eq_some hfind, rfl⟩
 
+theorem LocalForallSelection.fvar_mem
+    (H : LocalForallSelection lctx xs) (hfv : (.fvar fv : Expr) ∈ xs) :
+    fv ∈ H.fvars := by
+  rcases H with ⟨fvars, rfl, declarations⟩
+  rw [List.mem_toArray, List.mem_map] at hfv
+  rcases hfv with ⟨other, hother, heq⟩
+  cases heq
+  exact hother
+
 theorem LocalForallSelection.forallTelescope
     (H : LocalForallSelection lctx xs) (body : Expr) :
     Expr.ForallTelescope (lctx.mkForall xs body) xs.size
@@ -21364,6 +21450,24 @@ theorem NestedParamOpening.params_extension
     refine ⟨(.fvar id) :: suffix, ?_, by simp [hlength]⟩
     simpa [heq, List.append_assoc]
 
+theorem NestedParamOpening.tailFVarsIn
+    (H : NestedParamOpening lctx params type n outLctx tail outParams)
+    (Hselection : LocalForallSelection outLctx outParams)
+    (Htype : type.FVarsIn (· ∈ Hselection.fvars)) :
+    tail.FVarsIn (· ∈ Hselection.fvars) := by
+  induction H with
+  | done => exact Htype
+  | @step lctx params name dom body bi id n outLctx tail outParams Hnext ih =>
+    apply ih Hselection
+    rw [Expr.instantiate1_eq]
+    apply Htype.2.instantiate1
+    simp only [Lean4Lean.FVarsIn]
+    apply Hselection.fvar_mem
+    rcases Hnext.params_extension with ⟨suffix, hsuffix, _⟩
+    apply Array.mem_toList_iff.mp
+    rw [hsuffix]
+    simp
+
 theorem NestedParamOpening.initial_size
     (H : NestedParamOpening {} #[] type n outLctx tail outParams) :
     outParams.size = n := by simpa using H.params_size
@@ -21742,6 +21846,30 @@ structure BuiltAuxiliary
   constructors : BuiltAuxConstructors env lctx As levels nparams args
     sourceName auxName sourceInfo.ctors data.type.ctors
 
+/-- Every cached nested witness is open only over the retained outer
+parameter context selected by the lowering run. -/
+def NestedAuxFVarsIn (P : FVarId → Prop)
+    (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
+  ∀ nested name, (nested, name) ∈ state.nestedAux → nested.FVarsIn P
+
+theorem BuiltAuxiliary.nestedFVarsIn
+    (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
+      auxName sourceInfo data)
+    (HAs : LocalForallSelection lctx As)
+    (hnparams : nparams ≤ args.size)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
+    (Hparams : ∀ param ∈ params, param.FVarsIn P) :
+    data.nested.FVarsIn P := by
+  rw [H.nested]
+  apply FVarsIn.instantiateRev
+  · apply FVarsIn.abstract_fvarArray_of HAs.fvars As HAs.expressions
+    apply FVarsIn.mkAppRange_zero hnparams
+    · simpa [Lean4Lean.FVarsIn] using Hlevels
+    · exact Hargs
+  · exact Hparams
+
 theorem buildAuxiliary_refines
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (levels : List Level) (nparams : Nat) (args : Array Expr)
@@ -21832,6 +21960,27 @@ theorem generateAuxiliary_refines
         split <;> rename_i heq <;>
           exact Except.WF.pure ⟨⟨auxName, nextIdx, data, Hfresh, Hdata,
             by simp [heq], rfl⟩⟩
+
+theorem GeneratedAuxiliary.auxFVarsIn
+    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+      sourceName sourceInfo state out)
+    (HAs : LocalForallSelection lctx As)
+    (hnparams : nparams ≤ args.size)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
+    (Hparams : ∀ param ∈ params, param.FVarsIn P)
+    (Hstate : NestedAuxFVarsIn P state) :
+    NestedAuxFVarsIn P out.2 := by
+  rcases H.generated with
+    ⟨auxName, nextIdx, data, _Hfresh, Hbuilt, _hresult, hstate⟩
+  rw [hstate]
+  intro nested name hentry
+  simp only [Array.mem_push] at hentry
+  rcases hentry with hold | hnew
+  · exact Hstate nested name hold
+  · cases hnew
+    exact Hbuilt.nestedFVarsIn HAs hnparams Hlevels Hargs Hparams
 
 /-- A successful cache lookup is backed by an actual previously recorded
 auxiliary entry with the requested nested expression and returned name. -/
@@ -23595,6 +23744,22 @@ theorem GeneratedAuxiliaryBatch.appendSizes
     · rw [ih.2, hstate]
       simp only [Array.size_push, List.length_cons]
       omega
+
+theorem GeneratedAuxiliaryBatch.auxFVarsIn
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out)
+    (HAs : LocalForallSelection lctx As)
+    (hnparams : nparams ≤ args.size)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
+    (Hparams : ∀ param ∈ params, param.FVarsIn P)
+    (Hstate : NestedAuxFVarsIn P state) :
+    NestedAuxFVarsIn P out.2 := by
+  induction H with
+  | nil => exact Hstate
+  | cons Hstep Htail ih =>
+    exact ih (Hstep.auxFVarsIn HAs hnparams Hlevels Hargs Hparams Hstate)
 
 private theorem generateAuxiliariesLoop_refines
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
@@ -25469,6 +25634,39 @@ private theorem nestedAuxFold_find_of_not_mem
       exact False.elim (hnot.1 hname.symm)
     next => rfl
 
+def NestedAuxMapFVarsIn (P : FVarId → Prop)
+    (map : Std.TreeMap Name Expr Name.quickCmp) : Prop :=
+  ∀ (name : Name) (nested : Expr),
+    map[name]? = some nested → nested.FVarsIn P
+
+theorem NestedAuxMapFVarsIn.insert
+    (Hmap : NestedAuxMapFVarsIn P map) (Hnested : nested.FVarsIn P) :
+    NestedAuxMapFVarsIn P (map.insert name nested) := by
+  intro query value hfind
+  rw [Std.TreeMap.getElem?_insert] at hfind
+  split at hfind
+  · cases hfind
+    exact Hnested
+  · exact Hmap query value hfind
+
+theorem nestedAuxFold_fvarsIn
+    (entries : List (Expr × Name))
+    (Hentries : ∀ entry ∈ entries, entry.1.FVarsIn P)
+    (Hmap : NestedAuxMapFVarsIn P map) :
+    NestedAuxMapFVarsIn P
+      (entries.foldl
+        (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+          (entry : Expr × Name) => map.insert entry.2 entry.1)
+        map) := by
+  induction entries generalizing map with
+  | nil => exact Hmap
+  | cons entry entries ih =>
+    simp only [List.foldl_cons]
+    apply ih
+    · intro tail htail
+      exact Hentries tail (by simp [htail])
+    · exact Hmap.insert (Hentries entry (by simp))
+
 /-- Folding a cache with unique generated names retrieves the nested
 expression paired with every cache entry. -/
 theorem nestedAuxFold_find
@@ -25891,6 +26089,43 @@ inductive NestedExprMapping
       NestedExprMapping env lctx params As finalResult (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
 
+theorem RecognizedNestedReplacement.auxFVarsIn
+    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+      value state out)
+    (HAs : LocalForallSelection lctx As)
+    (hnparams : value.numParams ≤ args.size)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args,
+      arg.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
+    (Hparams : ∀ param ∈ params, param.FVarsIn P)
+    (Hstate : NestedAuxFVarsIn P state) :
+    NestedAuxFVarsIn P out.2 := by
+  cases H with
+  | cached => exact Hstate
+  | generated _ Hbatch =>
+    exact Hbatch.auxFVarsIn HAs hnparams Hlevels Hargs Hparams Hstate
+
+theorem NestedReplacement.auxFVarsIn
+    (H : NestedReplacement env lctx params As e state out)
+    (HAs : LocalForallSelection lctx As)
+    (Hinput : e.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
+    (Hparams : ∀ param ∈ params, param.FVarsIn P)
+    (Hstate : NestedAuxFVarsIn P state) :
+    NestedAuxFVarsIn P out.2 := by
+  cases H with
+  | unrecognized => exact Hstate
+  | @recognized value targetName levels out Hcandidate hhead Hresult =>
+    apply Hresult.auxFVarsIn HAs Hcandidate.parameters.arity
+    · have Hfn := Hinput.getAppFn
+      rw [hhead] at Hfn
+      simpa [Lean4Lean.FVarsIn] using Hfn
+    · intro arg harg
+      apply Hinput.getAppArgsList
+      rw [← Expr.getAppArgs_toList]
+      exact Array.mem_toList_iff.mpr harg
+    · exact Hparams
+    · exact Hstate
+
 theorem RecognizedNestedReplacement.newTypesLE
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out) : NestedNewTypesLE state out.2 := by
@@ -25983,6 +26218,40 @@ theorem NestedExprReplacement.namesWF
     exact ihBody (ihValue (ihType (Hnode.namesWF Hindex Hstate)))
   | mdata Hnode Hbody ihBody | proj Hnode Hbody ihBody =>
     exact ihBody (Hnode.namesWF Hindex Hstate)
+
+theorem NestedExprReplacement.auxFVarsIn
+    (H : NestedExprReplacement env lctx params As e state out)
+    (HAs : LocalForallSelection lctx As)
+    (Hinput : e.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
+    (Hparams : ∀ param ∈ params, param.FVarsIn P)
+    (Hstate : NestedAuxFVarsIn P state) :
+    NestedAuxFVarsIn P out.2 := by
+  induction H generalizing P with
+  | hit Hnode => exact Hnode.auxFVarsIn HAs Hinput Hparams Hstate
+  | bvar Hnode | fvar Hnode | mvar Hnode | sort Hnode | const Hnode
+      | lit Hnode =>
+    exact Hnode.auxFVarsIn HAs Hinput Hparams Hstate
+  | app Hnode Hfn Harg ihFn ihArg =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihArg Hinput.2 Hparams
+      (ihFn Hinput.1 Hparams
+        (Hnode.auxFVarsIn HAs Hinput Hparams Hstate))
+  | lam Hnode Hdom Hbody ihDom ihBody
+      | forallE Hnode Hdom Hbody ihDom ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihBody Hinput.2 Hparams
+      (ihDom Hinput.1 Hparams
+        (Hnode.auxFVarsIn HAs Hinput Hparams Hstate))
+  | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihBody Hinput.2.2 Hparams
+      (ihValue Hinput.2.1 Hparams
+        (ihType Hinput.1 Hparams
+          (Hnode.auxFVarsIn HAs Hinput Hparams Hstate)))
+  | mdata Hnode Hbody ihBody | proj Hnode Hbody ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihBody Hinput Hparams
+      (Hnode.auxFVarsIn HAs Hinput Hparams Hstate)
 
 theorem NestedExprReplacement.finalMapping
     (H : NestedExprReplacement env lctx params As input state out)
@@ -26293,6 +26562,27 @@ theorem LoweredConstructorTranslation.namesWF
   exact Hreplace.namesWF Hindex
     (Hstate.ofCacheCounterEq hopenedAux hopenedNext)
 
+theorem LoweredConstructorTranslation.auxFVarsIn
+    (H : LoweredConstructorTranslation env params nparams source state out)
+    (Hsource : source.type.FVarsIn fun _ => False)
+    (Hparams : ∀ param ∈ params, param.FVarsIn P)
+    (Hstate : NestedAuxFVarsIn P state) :
+    NestedAuxFVarsIn P out.2 := by
+  rcases H.translated with
+    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+      _hopenedTypes, hopenedAux, _hopenedNext, _hsize, Hreplace, _htype⟩
+  have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
+    Hopening.tailFVarsIn Hselection
+      (Hsource.mono fun _ hfalse => False.elim hfalse)
+  have Hinput : tail.FVarsIn
+      (fun fv => fv ∈ Hselection.fvars ∨ P fv) :=
+    Htail.mono fun _ hfv => Or.inl hfv
+  have Hopened : NestedAuxFVarsIn P openedState := by
+    intro nested name hentry
+    apply Hstate nested name
+    rwa [hopenedAux] at hentry
+  exact Hreplace.auxFVarsIn Hselection Hinput Hparams Hopened
+
 /-- Constructor lowering interpreted against the final restoration map. The
 opened source telescope and rebuilt target telescope are retained verbatim,
 while the body traversal is promoted from operational replacement to the
@@ -26382,6 +26672,21 @@ theorem LoweredConstructorTranslations.namesWF
   induction H with
   | nil => exact Hstate
   | cons Hhead Htail ih => exact ih (Hhead.namesWF Hindex Hstate)
+
+theorem LoweredConstructorTranslations.auxFVarsIn
+    (H : LoweredConstructorTranslations env params nparams sources state out)
+    (Hsources : ∀ source ∈ sources,
+      source.type.FVarsIn fun _ => False)
+    (Hparams : ∀ param ∈ params, param.FVarsIn P)
+    (Hstate : NestedAuxFVarsIn P state) :
+    NestedAuxFVarsIn P out.2 := by
+  induction H with
+  | nil => exact Hstate
+  | cons Hhead Htail ih =>
+    apply ih
+    · intro source hsource
+      exact Hsources source (by simp [hsource])
+    · exact Hhead.auxFVarsIn (Hsources _ (by simp)) Hparams Hstate
 
 inductive LoweredConstructorMappings
     (env : Environment) (params : Array Expr) (nparams : Nat)
@@ -26514,6 +26819,15 @@ theorem LoweredInductiveTranslation.namesWF
     (Hindex : AppendIndexAfterIndexFaithful)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 :=
   H.constructors.namesWF Hindex Hstate
+
+theorem LoweredInductiveTranslation.auxFVarsIn
+    (H : LoweredInductiveTranslation env params nparams source state out)
+    (Hsource : ∀ ctor ∈ source.ctors,
+      ctor.type.FVarsIn fun _ => False)
+    (Hparams : ∀ param ∈ params, param.FVarsIn P)
+    (Hstate : NestedAuxFVarsIn P state) :
+    NestedAuxFVarsIn P out.2 :=
+  H.constructors.auxFVarsIn Hsource Hparams Hstate
 
 theorem LoweredInductiveTranslation.finalMapping
     (H : LoweredInductiveTranslation env params nparams source state out)
@@ -26965,6 +27279,40 @@ theorem NestedLoweringRun.resultAuxMap
   rcases H.source with
     ⟨first, rest, tail, paramsState, lctx, params, _, _, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultAuxMap
+
+theorem NestedLoweringRun.resultAuxFVarsIn
+    (H : NestedLoweringRun env fuel nparams types initialState out)
+    (Hcache : NestedAuxFVarsIn P out.2) :
+    NestedAuxMapFVarsIn P
+      (show Std.TreeMap Name Expr Name.quickCmp from out.1.aux2nested) := by
+  rw [H.resultAuxMap]
+  change NestedAuxMapFVarsIn P
+    (out.2.nestedAux.foldl
+      (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+        (entry : Expr × Name) => map.insert entry.2 entry.1) {})
+  rw [← Array.foldl_toList]
+  apply nestedAuxFold_fvarsIn out.2.nestedAux.toList
+  · intro entry hentry
+    exact Hcache entry.1 entry.2 (by simpa using hentry)
+  · unfold NestedAuxMapFVarsIn
+    intro name nested hfind
+    simp at hfind
+
+theorem NestedLoweringRun.validateNestedAuxiliariesWF
+    (H : NestedLoweringRun sourceEnv loweringFuel nparams sourceTypes
+      initialState (res, finalState))
+    (hvalid : CheckingEnv.Valid safety restoredEnv venv)
+    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
+    (hlctx : mlctx.lctx = res.lctx)
+    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
+      ({} : TypeChecker.State).ngen.Reserves fv)
+    (Hcache : NestedAuxFVarsIn (· ∈ mlctx.vlctx.fvars) finalState) :
+    (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
+      res).WF fun _ =>
+        ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res := by
+  apply validateNestedAuxiliaries.WF hvalid mlctx hmlctx hlctx hfresh
+  intro name nested hfind
+  exact H.resultAuxFVarsIn Hcache name nested hfind
 
 /-- Under the separately stated fresh-name invariant, every final cache entry
 is retrieved exactly by the production `aux2nested` map. -/
