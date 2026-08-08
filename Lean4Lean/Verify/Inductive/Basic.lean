@@ -21144,6 +21144,114 @@ inductive NestedParamOpening : LocalContext → Array Expr → Expr → Nat →
       NestedParamOpening lctx params (.forallE name dom body bi) (n + 1)
         outLctx tail outParams
 
+/-- Fresh local-context invariant for the `_nested_fresh` name generator used
+by `ElimNestedInductive.withParams`. -/
+structure NestedBindingContextWF (lctx : LocalContext)
+    (ngen : NameGenerator) where
+  wf : lctx.WF
+  fresh : ∀ fv ∈ lctx.fvars, ngen.Reserves fv
+  findCDecl : ∀ fv ∈ lctx.fvars, ∃ index name type bi kind,
+    lctx.find? fv = some (.cdecl index fv name type bi kind)
+
+def NestedBindingContextWF.empty (ngen : NameGenerator) :
+    NestedBindingContextWF {} ngen :=
+  ⟨.nil, by
+    intro fv hmem
+    have hempty :
+        ((.empty : PersistentArray (Option LocalDecl)).toList') = [] := rfl
+    have htoList : ({} : LocalContext).toList = [] := by
+      unfold LocalContext.toList
+      change ((.empty : PersistentArray (Option LocalDecl)).toList').reverse.filterMap id = []
+      rw [hempty]
+      rfl
+    rw [LocalContext.fvars, htoList] at hmem
+    simp at hmem, by
+    intro fv hmem
+    have hempty :
+        ((.empty : PersistentArray (Option LocalDecl)).toList') = [] := rfl
+    have htoList : ({} : LocalContext).toList = [] := by
+      unfold LocalContext.toList
+      change ((.empty : PersistentArray (Option LocalDecl)).toList').reverse.filterMap id = []
+      rw [hempty]
+      rfl
+    rw [LocalContext.fvars, htoList] at hmem
+    simp at hmem⟩
+
+def NestedBindingContextWF.withLocalDecl
+    (H : NestedBindingContextWF lctx ngen)
+    (name : Name) (type : Expr) (bi : BinderInfo) :
+    NestedBindingContextWF
+      (lctx.mkLocalDecl ⟨ngen.curr⟩ name type bi) ngen.next where
+  wf := H.wf.mkLocalDecl <| by
+    rw [H.wf.find?_eq_find?_toList]
+    by_contra hne
+    rcases Option.ne_none_iff_exists.mp hne with ⟨d, hfind⟩
+    exact ngen.not_reserves_self (H.fresh _ <| by
+      rw [LocalContext.fvars]
+      apply List.mem_map.mpr
+      have hp := List.find?_some hfind.symm
+      have heq : ⟨ngen.curr⟩ = d.fvarId := by simpa using hp
+      exact ⟨d, List.mem_of_find?_eq_some hfind.symm, heq.symm⟩)
+  fresh := by
+    intro fv hmem
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons] at hmem
+    rcases hmem with rfl | hmem
+    · exact ngen.next_reserves_self
+    · exact (H.fresh _ hmem).mono NameGenerator.LE.next
+  findCDecl := by
+    intro fv hmem
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons] at hmem
+    rcases hmem with rfl | hmem
+    · refine ⟨lctx.decls.size, name, type, bi, .default, ?_⟩
+      simp [LocalContext.mkLocalDecl, LocalContext.find?,
+        H.wf.map_wf.find?_insert]
+    · rcases H.findCDecl fv hmem with
+        ⟨index, oldName, oldType, oldBi, kind, hfind⟩
+      refine ⟨index, oldName, oldType, oldBi, kind, ?_⟩
+      simp only [LocalContext.mkLocalDecl, LocalContext.find?,
+        H.wf.map_wf.find?_insert]
+      rw [if_neg]
+      · exact hfind
+      · intro heq
+        have : fv = ⟨ngen.curr⟩ :=
+          (LawfulBEq.eq_of_beq heq).symm
+        subst fv
+        exact ngen.not_reserves_self (H.fresh _ hmem)
+
+/-- Exact free-variable array threaded alongside the nested local context. -/
+structure NestedBoundParams (lctx : LocalContext) (params : Array Expr) where
+  fvars : List FVarId
+  expressions : params = (fvars.map Expr.fvar).toArray
+  members : ∀ fv ∈ fvars, fv ∈ lctx.fvars
+
+def NestedBoundParams.empty : NestedBoundParams {} #[] :=
+  ⟨[], by simp, by simp⟩
+
+def NestedBoundParams.push
+    (H : NestedBoundParams lctx params) (ngen : NameGenerator)
+    (name : Name) (type : Expr) (bi : BinderInfo) :
+    NestedBoundParams (lctx.mkLocalDecl ⟨ngen.curr⟩ name type bi)
+      (params.push (.fvar ⟨ngen.curr⟩)) where
+  fvars := H.fvars ++ [⟨ngen.curr⟩]
+  expressions := by simp [H.expressions]
+  members := by
+    intro fv hmem
+    simp only [List.mem_append, List.mem_singleton] at hmem
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons]
+    rcases hmem with hold | rfl
+    · exact Or.inr (H.members fv hold)
+    · exact Or.inl rfl
+
+def NestedBoundParams.toSelection
+    (H : NestedBoundParams lctx params) (Hctx : NestedBindingContextWF lctx ngen) :
+    LocalForallSelection lctx params where
+  fvars := H.fvars
+  expressions := H.expressions
+  declarations fv hfv := Hctx.findCDecl fv (H.members fv hfv)
+
 theorem NestedParamOpening.params_size
     (H : NestedParamOpening lctx params type n outLctx tail outParams) :
     outParams.size = params.size + n := by
@@ -21195,6 +21303,54 @@ private theorem nestedWithParamsLoop_refines {α : Type}
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj =>
       exact Except.WF.throw
+
+private theorem nestedWithParamsLoop_refinesSelected {α : Type}
+    (k : LocalContext → Expr → Array Expr →
+      Lean4Lean.ElimNestedInductive.M α)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (Hctx : NestedBindingContextWF lctx state.ngen)
+    (Hparams : NestedBoundParams lctx params)
+    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
+    (Hk : ∀ outLctx tail outParams outState,
+      NestedParamOpening lctx params type n outLctx tail outParams →
+      LocalForallSelection outLctx outParams →
+      (k outLctx tail outParams env outState).WF Q) :
+    (Lean4Lean.ElimNestedInductive.withParams.loop
+      k lctx type params n env state).WF Q := by
+  induction n generalizing lctx type params state with
+  | zero =>
+    simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
+      Hk lctx type params state .done (Hparams.toSelection Hctx)
+  | succ n ih =>
+    cases type with
+    | forallE name dom body bi =>
+      simp only [Lean4Lean.ElimNestedInductive.withParams.loop]
+      simp only [mkFreshId, getNGen, setNGen,
+        Lean4Lean.ElimNestedInductive.instMonadNameGeneratorM,
+        StateT.get, StateT.set, StateT.modifyGet,
+        bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
+      apply ih
+        (Hctx := Hctx.withLocalDecl name dom bi)
+        (Hparams := Hparams.push state.ngen name dom bi)
+      intro outLctx tail outParams outState Hresult Hselection
+      exact Hk outLctx tail outParams outState (.step Hresult) Hselection
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+      | proj => exact Except.WF.throw
+
+theorem ElimNestedInductive.withParams.refinesSelected {α : Type}
+    (type : Expr) (nparams : Nat)
+    (k : LocalContext → Expr → Array Expr →
+      Lean4Lean.ElimNestedInductive.M α)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
+    (Hk : ∀ lctx tail params outState,
+      NestedParamOpening {} #[] type nparams lctx tail params →
+      LocalForallSelection lctx params →
+      (k lctx tail params env outState).WF Q) :
+    (Lean4Lean.ElimNestedInductive.withParams
+      type nparams k env state).WF Q := by
+  exact nestedWithParamsLoop_refinesSelected k env state
+    (NestedBindingContextWF.empty state.ngen) NestedBoundParams.empty Q Hk
 
 theorem ElimNestedInductive.withParams.refines {α : Type}
     (type : Expr) (nparams : Nat)
@@ -25152,8 +25308,16 @@ structure LoweredConstructorShape
   name : target.name = source.name
   rebuilt : ∃ lctx tail As lowered,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
-    As.size = nparams ∧
-    target.type = lctx.mkForall As lowered
+    ∃ _ : LocalForallSelection lctx As,
+      As.size = nparams ∧ target.type = lctx.mkForall As lowered
+
+theorem LoweredConstructorShape.targetRestoreTelescope
+    (H : LoweredConstructorShape nparams source target) :
+    RestoreTelescope target.type nparams := by
+  rcases H.rebuilt with
+    ⟨lctx, tail, As, lowered, Hopening, Hselection, hsize, htype⟩
+  rw [htype, ← hsize]
+  exact (Hselection.forallTelescope lowered).restorePrefix (Nat.le_refl _)
 
 inductive LoweredConstructorShapes (nparams : Nat) :
     List Constructor → List Constructor → Prop
@@ -25168,8 +25332,8 @@ theorem ElimNestedInductive.lowerConstructor.shape
     (Lean4Lean.ElimNestedInductive.lowerConstructor params nparams ctor
       env state).WF fun out => LoweredConstructorShape nparams ctor out.1 := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
-  apply ElimNestedInductive.withParams.refines
-  intro lctx tail As openedState Hopening
+  apply ElimNestedInductive.withParams.refinesSelected
+  intro lctx tail As openedState Hopening Hselection
   have hsize : As.size = nparams := Hopening.initial_size
   simp only [hsize, beq_self_eq_true, if_true]
   refine nestedBind.WF
@@ -25179,7 +25343,7 @@ theorem ElimNestedInductive.lowerConstructor.shape
     trivial
   · intro lowered nextState _
     exact Except.WF.pure
-      ⟨rfl, lctx, tail, As, lowered, Hopening, hsize, rfl⟩
+      ⟨rfl, lctx, tail, As, lowered, Hopening, Hselection, hsize, rfl⟩
 
 /-- Semantic constructor-lowering certificate.  In addition to the rebuilt
 telescope shape, it records the complete stateful nested-expression
