@@ -32482,14 +32482,18 @@ structure ConstructorRestorationBodyInverse
   bodyInverse :
     (restoredBody == Expr.reopenParams sourceTail sourceAs restoreAs) = true
 
-theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
+/-- Whole-constructor restoration inverse stated at its semantic boundary.
+This form does not assume any naming convention for generated auxiliary
+constructors; callers may establish source disjointness from typing and
+freshness instead. -/
+theorem LoweredConstructorMapping.nestedRestoration_inverse
     (H : LoweredConstructorMapping env params nparams result source state out)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
-    (Hsyntax : SourceConstructorSyntax source)
-    (Hreserved : RestoreNamesReserved result env)
+    (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (HsourceDisjoint : RestoreSourceDisjoint result env source.type)
     (hresultNParams : result.nparams = nparams)
     (Hrestored : NestedRestoration result env {} out.1.type restoredType) :
     Nonempty (ConstructorRestorationBodyInverse result env nparams source
@@ -32501,9 +32505,9 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
     hrestoreNodup⟩
   have Hopening' := Hopening.1
   rw [hresultNParams] at Hopening'
-  rcases H.restoredBody_inverseOfSyntax hresultParams paramFvars hparams
-      hnodup Hsyntax Hreserved restoreLctx restoreAs openedBody restoredBody
-      Hopening' Hbody hresultNParams with
+  rcases H.restoredBody_inverse hresultParams paramFvars hparams hnodup
+      HsourceClosed restoreLctx restoreAs openedBody restoredBody Hopening'
+      Hbody hresultNParams HsourceDisjoint with
     ⟨sourceLctx, sourceTail, sourceAs, HsourceOpening, Hselection,
       hsourceNodup, hsourceArity, hinverse⟩
   exact ⟨{
@@ -32520,14 +32524,30 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
     sourceLctx := sourceLctx
     sourceTail := sourceTail
     sourceAs := sourceAs
-    sourceClosed := Hsyntax.closed
-    loweredFVarIdsClosed := H.targetFVarIdsClosed Hsyntax.closed
-    sourceLoweredPrefix := H.sourceTargetSameForallPrefix Hsyntax.closed
+    sourceClosed := HsourceClosed
+    loweredFVarIdsClosed := H.targetFVarIdsClosed HsourceClosed
+    sourceLoweredPrefix := H.sourceTargetSameForallPrefix HsourceClosed
     sourceOpening := HsourceOpening
     sourceSelection := Hselection
     sourceNodup := hsourceNodup
     sourceArity := hsourceArity
     bodyInverse := hinverse }⟩
+
+theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
+    (H : LoweredConstructorMapping env params nparams result source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (Hsyntax : SourceConstructorSyntax source)
+    (Hreserved : RestoreNamesReserved result env)
+    (hresultNParams : result.nparams = nparams)
+    (Hrestored : NestedRestoration result env {} out.1.type restoredType) :
+    Nonempty (ConstructorRestorationBodyInverse result env nparams source
+      out.1 restoredType) := by
+  exact H.nestedRestoration_inverse hresultParams paramFvars hparams hnodup
+    Hsyntax.closed (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved)
+    hresultNParams Hrestored
 
 /-- Eliminate the source-opening free variables from the body inverse.  The
 restored body is the ordinary residual of the original constructor telescope,
@@ -32607,6 +32627,23 @@ theorem ConstructorRestorationBodyInverse.restoredType_eqv_source
 `ConstructorVal`, while lowering is indexed by the corresponding
 `Constructor`; the explicit type equality is the only alignment fact needed
 to connect the two verified traces. -/
+theorem LoweredConstructorMapping.constructorRestoration_inverse
+    (H : LoweredConstructorMapping env params nparams result source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (HsourceDisjoint : RestoreSourceDisjoint result env source.type)
+    (hresultNParams : result.nparams = nparams)
+    (Hrestored : ConstructorRestoration result env oldInfo newInfo)
+    (htype : oldInfo.type = out.1.type) :
+    Nonempty (ConstructorRestorationBodyInverse result env nparams source
+      out.1 newInfo.type) := by
+  apply H.nestedRestoration_inverse hresultParams paramFvars hparams hnodup
+    HsourceClosed HsourceDisjoint hresultNParams
+  simpa [htype] using Hrestored.type
+
 theorem LoweredConstructorMapping.constructorRestoration_inverseOfSyntax
     (H : LoweredConstructorMapping env params nparams result source state out)
     (hresultParams : result.params = params)
@@ -32623,6 +32660,28 @@ theorem LoweredConstructorMapping.constructorRestoration_inverseOfSyntax
   apply H.nestedRestoration_inverseOfSyntax hresultParams paramFvars hparams
     hnodup Hsyntax Hreserved hresultNParams
   simpa [htype] using Hrestored.type
+
+/-- Transport source translation across constructor restoration using exact
+semantic disjointness, without imposing a namespace convention on generated
+constructor names. -/
+theorem LoweredConstructorMapping.restoredType_translation
+    (H : LoweredConstructorMapping env params nparams result source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (HsourceDisjoint : RestoreSourceDisjoint result env source.type)
+    (hresultNParams : result.nparams = nparams)
+    (Hrestored : ConstructorRestoration result env oldInfo newInfo)
+    (htype : oldInfo.type = out.1.type)
+    (Hsource : TrExprS venv oldInfo.levelParams [] source.type targetType) :
+    TrExprS venv oldInfo.levelParams [] newInfo.type targetType := by
+  rcases H.constructorRestoration_inverse hresultParams paramFvars hparams
+      hnodup HsourceClosed HsourceDisjoint hresultNParams Hrestored htype with
+    ⟨Hinverse⟩
+  apply Hsource.eqv
+  simpa [beq_comm] using Hinverse.restoredType_eqv_source
 
 /-- Transport a source constructor's abstract translation across lowering and
 restoration.  This is the semantic premise needed by constructor installation;
@@ -32641,16 +32700,44 @@ theorem LoweredConstructorMapping.restoredType_translationOfSyntax
     (htype : oldInfo.type = out.1.type)
     (Hsource : TrExprS venv oldInfo.levelParams [] source.type targetType) :
     TrExprS venv oldInfo.levelParams [] newInfo.type targetType := by
-  rcases H.constructorRestoration_inverseOfSyntax hresultParams paramFvars
-      hparams hnodup Hsyntax Hreserved hresultNParams Hrestored htype with
-    ⟨Hinverse⟩
-  apply Hsource.eqv
-  simpa [beq_comm] using Hinverse.restoredType_eqv_source
+  exact H.restoredType_translation hresultParams paramFvars hparams hnodup
+    Hsyntax.closed (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved)
+    hresultNParams Hrestored htype Hsource
 
-/-- Install a restored constructor directly from the independent source
-constructor translation and the verified lowering/restoration inverse.  The
-name-reservation premise is intentionally explicit until it is derived from
-the production fresh-name trace. -/
+/-- Install a restored constructor from its independent source translation
+and exact semantic disjointness from the generated auxiliary declarations. -/
+theorem RestoredConstructorStep.installationOfDisjoint
+    (Hstep : RestoredConstructorStep result loweredEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+      source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (HsourceDisjoint : RestoreSourceDisjoint result loweredEnv source.type)
+    (hresultNParams : result.nparams = nparams)
+    (htype : Hstep.oldInfo.type = out.1.type)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (constructor : VConstVal)
+    (Hold : TrConstVal safety sourceVEnv
+      (.ctorInfo Hstep.oldInfo) constructor)
+    (Hsource : TrExprS sourceVEnv Hstep.oldInfo.levelParams [] source.type
+      constructor.type)
+    (Hwf : constructor.toVConstant.WF sourceVEnv) :
+    ∃ targetVEnv,
+      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) := by
+  apply Hstep.installation Hvalid constructor Hold
+  · exact Hmapping.restoredType_translation hresultParams paramFvars
+      hparams hnodup HsourceClosed HsourceDisjoint hresultNParams
+      Hstep.restored.restoration htype Hsource
+  · exact Hwf
+
+/-- Namespace-based convenience specialization of
+`installationOfDisjoint`.  The semantic endpoint above is the preferred path
+for arbitrary kernel constructor names. -/
 theorem RestoredConstructorStep.installationOfSyntax
     (Hstep : RestoredConstructorStep result loweredEnv ctorName
       sourceProdEnv targetProdEnv)
@@ -32674,11 +32761,10 @@ theorem RestoredConstructorStep.installationOfSyntax
     ∃ targetVEnv,
       Nonempty (RestoredConstructorInstallationSemantics safety Hstep
         sourceVEnv targetVEnv) := by
-  apply Hstep.installation Hvalid constructor Hold
-  · exact Hmapping.restoredType_translationOfSyntax hresultParams
-      paramFvars hparams hnodup Hsyntax Hreserved hresultNParams
-      Hstep.restored.restoration htype Hsource
-  · exact Hwf
+  exact Hstep.installationOfDisjoint Hmapping hresultParams paramFvars hparams
+    hnodup Hsyntax.closed
+    (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams htype
+    Hvalid constructor Hold Hsource Hwf
 
 theorem LoweredConstructorTranslation.finalMapping
     (H : LoweredConstructorTranslation env params nparams source state out)
