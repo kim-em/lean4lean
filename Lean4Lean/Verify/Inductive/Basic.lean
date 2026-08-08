@@ -36309,6 +36309,80 @@ theorem NestedLoweringResult.sourceOwnedConstructors_length_le
     List.length_flatMap, List.length_map]
   omega
 
+/-- Transport an installed lowered recursor shape to its original source
+family.  Lowering and the two declaration translations discharge owner/name,
+universe, parameter, and prefix-cardinality compatibility; only equality of
+the independently recovered source/lowered index counts remains explicit. -/
+theorem VInductDecl.NestedRecursorShape.toSourceOfLowering
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hlower : NestedLoweringResult env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (hempty : initialState.nestedAux = #[])
+    (Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
+      isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
+    (Hexpanded : TrInductDeclCore expandedVEnv lparams nparams result.types
+      isUnsafe loweredDecl expandedEnvTypes expandedEnvCtors)
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
+    (hsourceDecl : familyIdx < sourceDecl.types.length)
+    (hloweredDecl : familyIdx < loweredDecl.types.length)
+    {recursor : VConstVal}
+    (Hshape : loweredDecl.NestedRecursorShape
+      (loweredDecl.types[familyIdx]'hloweredDecl) recursor)
+    (hindices : (sourceDecl.types[familyIdx]'hsourceDecl).numIndices =
+      (loweredDecl.types[familyIdx]'hloweredDecl).numIndices) :
+    Nonempty (sourceDecl.NestedRecursorShape
+      (sourceDecl.types[familyIdx]'hsourceDecl) recursor) := by
+  rcases Hlower.sourceFinalMappingAtFresh hempty hfamily with
+    ⟨_params, _stepState, target, _loweredState, _hparams, Hmapping,
+      htarget⟩
+  obtain ⟨hresult, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
+  have HsourceType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
+    Hsource familyIdx hfamily hsourceDecl
+  have HexpandedType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
+    Hexpanded familyIdx hresult hloweredDecl
+  have hloweredOwnerName :
+      (loweredDecl.types[familyIdx]'hloweredDecl).name =
+        sourceTypes[familyIdx].name := by
+    exact HexpandedType.header.name.trans <| by
+      simpa [htargetEq] using Hmapping.name
+  have hsourceOwnerName :
+      (sourceDecl.types[familyIdx]'hsourceDecl).name =
+        sourceTypes[familyIdx].name := HsourceType.header.name
+  have hshapeIdx : Hshape.ownerIdx = familyIdx := by
+    exact Lean4Lean.VerifyInductive.VInductDecl.NestedRecursorShape.ownerIdx_eq_of_name
+      Hshape familyIdx hloweredDecl Hshape.name
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup Hexpanded)
+  refine ⟨Hshape.ofCompatible ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_⟩
+  · simpa [hshapeIdx] using hsourceDecl
+  · simpa [hshapeIdx]
+  · rw [Hshape.name]
+    simp only [VInductDecl.recursorName_eq_mkRecName]
+    exact congrArg Lean.mkRecName (hloweredOwnerName.trans hsourceOwnerName.symm)
+  · have huvars := Hshape.uvars
+    rw [Hexpanded.uvars] at huvars
+    rw [Hsource.uvars]
+    exact huvars
+  · exact Hsource.nparams.trans Hexpanded.nparams.symm
+  · calc
+      sourceDecl.types.length = sourceTypes.length :=
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource).symm
+      _ ≤ result.types.length := Hlower.sourceTypes_length_le
+      _ = loweredDecl.types.length :=
+        Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hexpanded
+      _ ≤ Hshape.motives.length := Hshape.source_motives
+  · calc
+      sourceDecl.ownedConstructors.length =
+          (Lean4Lean.VerifyInductive.ownedConstructors sourceTypes).length :=
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length
+          Hsource).symm
+      _ ≤ (Lean4Lean.VerifyInductive.ownedConstructors result.types).length :=
+        Hlower.sourceOwnedConstructors_length_le hempty
+      _ = loweredDecl.ownedConstructors.length :=
+        Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length
+          Hexpanded
+      _ ≤ Hshape.minors.length := Hshape.source_minors
+  · exact hindices
+
 /-- Closed-lowering specialization of the aligned source mapping.  It
 exposes the exact duplicate-free free-variable presentation of the final
 parameter array needed by abstraction/instantiation cancellation. -/
