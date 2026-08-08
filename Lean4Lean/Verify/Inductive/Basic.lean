@@ -20175,8 +20175,10 @@ structure DeclaredHeadersResult (c : AddInductive.Context)
     (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (outEnv : Environment) where
   entries : List (ConstantInfo × VConstVal)
-  production : ∀ source ∈ entries.map Prod.fst,
-    ∃ info, source = ConstantInfo.inductInfo info
+  production : ∃ numNested,
+    entries.map Prod.fst =
+      (AddInductive.inductiveTypeInfos stats nparams indTypes numNested
+        isUnsafe c.lparams).toList.map (fun info => .inductInfo info)
   values : entries.map Prod.snd = decl.typeConstants
   context : ContextWF { c with env := outEnv }
   headers : HeaderCertificate sourceEnv decl
@@ -20240,7 +20242,7 @@ theorem AddInductive.declareInductiveTypes.headersWF
       entries := List.zip
         (infos.toList.map (fun info => .inductInfo info)) decl.typeConstants
       production := by
-        intro source hsource
+        refine ⟨numNested, ?_⟩
         have hfst : (List.zip
             (infos.toList.map (fun info => ConstantInfo.inductInfo info))
             decl.typeConstants).map Prod.fst =
@@ -20249,9 +20251,7 @@ theorem AddInductive.declareInductiveTypes.headersWF
           have hlength :=
             Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hentries
           simpa using Nat.le_of_eq hlength
-        rw [hfst] at hsource
-        rcases List.mem_map.mp hsource with ⟨info, _, rfl⟩
-        exact ⟨info, rfl⟩
+        simpa [infos] using hfst
       values := hvalues
       context := Hc.withEnv (Hinstalled.valid Hc.checking) Hinstalled.le
       headers := Hmaterialized.headers
@@ -20401,22 +20401,7 @@ theorem AddInductive.declareConstructors.WF
     (AddInductive.declareConstructors stats indTypes isUnsafe
       { c with env := headerEnv }).WF fun outEnv =>
         ∃ _ : DeclaredConstructorsResult H outEnv, True := by
-  let mkInfo (owner : InductiveType) (cidx : Nat)
-      (ctor : Constructor) : ConstructorVal :=
-    let type := ctor.type
-    let rec arity i
-      | .forallE _ _ body _ => arity (i + 1) body
-      | _ => i
-    let arity := arity 0 type
-    {
-      type, cidx, isUnsafe
-      levelParams := c.lparams
-      name := ctor.name
-      induct := owner.name
-      numParams := stats.params.size
-      numFields := assert! arity ≥ stats.params.size
-        arity - stats.params.size
-    }
+  let mkInfo := AddInductive.constructorInfo stats c.lparams isUnsafe
   have Htranslated := Hchecked.translated H.translation
   have Hfold := AddConstants.ofConstructorTypes
     (allowPrimitive := c.allowPrimitive) mkInfo H.context.checking
@@ -20424,7 +20409,7 @@ theorem AddInductive.declareConstructors.WF
     (by intros; rfl) (by intros; rfl) (by intros; rfl)
     (by
       intro owner i ctor
-      simpa [mkInfo] using hvisible)
+      simpa [mkInfo, AddInductive.constructorInfo] using hvisible)
     hnprim
   rw [AddInductive.declareConstructors, ← Array.foldlM_toList]
   change (indTypes.toList.foldlM (init := headerEnv) fun

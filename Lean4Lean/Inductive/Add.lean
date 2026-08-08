@@ -306,24 +306,34 @@ def checkConstructors (indTypes : Array InductiveType)
   let _ ← getEnv
   checkConstructors.loopTypes indTypes stats isUnsafe 0
 
+/-- Production metadata for one constructor. Keeping this record construction
+named lets verification retain the exact source-aligned entry, rather than
+only its translated type. -/
+def constructorInfo (stats : InductiveStats) (lparams : List Name)
+    (isUnsafe : Bool) (indType : InductiveType) (cidx : Nat)
+    (ctor : Constructor) : ConstructorVal :=
+  let type := ctor.type
+  let rec arity i
+    | .forallE _ _ body _ => arity (i + 1) body
+    | _ => i
+  let arity := arity 0 type
+  {
+    type, cidx, isUnsafe
+    levelParams := lparams
+    name := ctor.name
+    induct := indType.name
+    numParams := stats.params.size
+    numFields := assert! arity ≥ stats.params.size
+      arity - stats.params.size
+  }
+
 def declareConstructors (stats : InductiveStats)
     (indTypes : Array InductiveType) (isUnsafe : Bool) : M Environment :=
   fun c => indTypes.foldlM (init := c.env) fun env indType => do
     let (_, env) ← indType.ctors.foldlM (init := (0, env)) fun (cidx, env) ctor => do
-      let type := ctor.type
-      let rec arity i
-        | .forallE _ _ body _ => arity (i+1) body
-        | _ => i
-      let arity := arity 0 type
       env.checkName ctor.name c.allowPrimitive
-      pure (cidx + 1, addConstant env <| .ctorInfo {
-        type, cidx, isUnsafe
-        levelParams := c.lparams
-        name := ctor.name
-        induct := indType.name
-        numParams := stats.params.size
-        numFields := assert! arity ≥ stats.params.size; arity - stats.params.size
-      })
+      pure (cidx + 1, addConstant env <| .ctorInfo
+        (constructorInfo stats c.lparams isUnsafe indType cidx ctor))
     pure env
 
 /-- Return true if recursor can map into any universe -/
