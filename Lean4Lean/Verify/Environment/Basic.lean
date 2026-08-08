@@ -505,6 +505,16 @@ theorem AddInduct.toVEnv
   | .intro _ hdecl hcompile hblock hinstall _ _ _ =>
     .intro hdecl hcompile hblock hinstall
 
+theorem AddInduct.declWF
+    (H : AddInduct m₁ env₁ decl m₂ env₂) : decl.WF env₁ := by
+  cases H with
+  | intro _ hdecl => exact hdecl
+
+theorem AddInduct.le
+    (H : AddInduct m₁ env₁ decl m₂ env₂) : env₁ ≤ env₂ := by
+  cases H with
+  | intro _ _ _ _ hinstall => exact VInductBlock.install_le hinstall
+
 variable (safety : DefinitionSafety) in
 inductive TrEnv' : ConstMap → Bool → VEnv → Prop where
   | empty : TrEnv' {} false .empty

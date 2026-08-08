@@ -19866,6 +19866,42 @@ def AddConstants.sf_mono
     exact .cons hn hnprim ⟨htr.1.sf_mono hsafety, htr.2⟩ hwf hadd
       hdelta ih
 
+theorem AddConstants.prod_eq
+    (H₁ : AddConstants safety₁ prodEnv venv₁ entries outEnv₁ outVEnv₁)
+    (H₂ : AddConstants safety₂ prodEnv venv₂ entries outEnv₂ outVEnv₂) :
+    outEnv₁ = outEnv₂ := by
+  induction H₁ generalizing venv₂ outEnv₂ outVEnv₂ with
+  | nil =>
+    cases H₂
+    rfl
+  | cons _hn _hnprim _htr _hwf _hadd _hdelta _Htail ih =>
+    cases H₂ with
+    | cons _ _ _ _ _ _ Htail₂ => exact ih Htail₂
+
+/-- Combine translations from an original strong-safety trace with the
+freshness/install equations of a replayed trace.  This permits the replayed
+abstract target to be viewed at any observer safety supported by the
+original trace, even when that observer is stronger than the safety index at
+which the replay itself was constructed. -/
+theorem AddConstants.reindex
+    (H : AddConstants checkSafety prodEnv base entries outEnv outBase)
+    (Hlarger : AddConstants targetSafety prodEnv largerBase entries
+      outEnv largerOut)
+    (hsafety : safety ≤ checkSafety)
+    (hbase : base ≤ largerBase) :
+    AddConstants safety prodEnv largerBase entries outEnv largerOut := by
+  induction H generalizing largerBase largerOut with
+  | nil =>
+    cases Hlarger
+    exact .nil
+  | cons hn hnprim htr hwf hadd hdelta _Htail ih =>
+    cases Hlarger with
+    | cons hnL hnprimL _htrL _hwfL haddL hdeltaL HtailL =>
+      exact .cons hnL hnprimL
+        ⟨(htr.1.sf_mono hsafety).mono hbase, htr.2⟩
+        (hwf.mono hbase) haddL hdeltaL
+        (ih HtailL (VEnv.addConst_mono hbase hadd haddL))
+
 /-- Lockstep installation preserves concrete/abstract alignment.  This is
 the production-map component of `AddInduct`; it follows from the executable
 staging trace and need not be supplied by a later compilation proof. -/
@@ -21264,6 +21300,63 @@ def StagedBlock.sf_mono
   ctorsAdded := H.ctorsAdded.sf_mono hsafety
   recursorsAdded := H.recursorsAdded.sf_mono hsafety
 
+/-- Reinterpret a replayed three-stage installation using the translations
+of its original stronger-safety certificate. -/
+def StagedBlock.reindex
+    (H : StagedBlock checkSafety prodEnv base types ctors recursors
+      outEnv outBase)
+    (Hlarger : StagedBlock targetSafety prodEnv largerBase types ctors
+      recursors outEnv largerOut)
+    (hsafety : safety ≤ checkSafety)
+    (hbase : base ≤ largerBase) :
+    StagedBlock safety prodEnv largerBase types ctors recursors
+      outEnv largerOut := by
+  have henvTypes : H.envTypes = Hlarger.envTypes :=
+    H.typesAdded.prod_eq Hlarger.typesAdded
+  let Htypes : AddConstants checkSafety prodEnv base types
+      Hlarger.envTypes H.venvTypes := henvTypes ▸ H.typesAdded
+  let HctorsBase : AddConstants checkSafety Hlarger.envTypes H.venvTypes ctors
+      H.envCtors H.venvCtors := henvTypes ▸ H.ctorsAdded
+  have henvCtors : H.envCtors = Hlarger.envCtors :=
+    HctorsBase.prod_eq Hlarger.ctorsAdded
+  let Hctors : AddConstants checkSafety Hlarger.envTypes H.venvTypes ctors
+      Hlarger.envCtors H.venvCtors := henvCtors ▸ HctorsBase
+  let Hrecursors : AddConstants checkSafety Hlarger.envCtors H.venvCtors
+      recursors outEnv outBase := henvCtors ▸ H.recursorsAdded
+  have htypes : H.venvTypes ≤ Hlarger.venvTypes :=
+    VEnv.addConsts_mono hbase H.typesAdded.abstract
+      Hlarger.typesAdded.abstract
+  have hctors : H.venvCtors ≤ Hlarger.venvCtors :=
+    VEnv.addConsts_mono htypes H.ctorsAdded.abstract
+      Hlarger.ctorsAdded.abstract
+  exact {
+    envTypes := Hlarger.envTypes
+    venvTypes := Hlarger.venvTypes
+    envCtors := Hlarger.envCtors
+    venvCtors := Hlarger.venvCtors
+    typesAdded := Htypes.reindex Hlarger.typesAdded hsafety hbase
+    ctorsAdded := Hctors.reindex Hlarger.ctorsAdded hsafety htypes
+    recursorsAdded := Hrecursors.reindex Hlarger.recursorsAdded
+      hsafety hctors }
+
+@[simp] theorem StagedBlock.reindex_venvTypes
+    (H : StagedBlock checkSafety prodEnv base types ctors recursors
+      outEnv outBase)
+    (Hlarger : StagedBlock targetSafety prodEnv largerBase types ctors
+      recursors outEnv largerOut)
+    (hsafety : safety ≤ checkSafety) (hbase : base ≤ largerBase) :
+    (H.reindex Hlarger hsafety hbase).venvTypes = Hlarger.venvTypes := by
+  rfl
+
+@[simp] theorem StagedBlock.reindex_venvCtors
+    (H : StagedBlock checkSafety prodEnv base types ctors recursors
+      outEnv outBase)
+    (Hlarger : StagedBlock targetSafety prodEnv largerBase types ctors
+      recursors outEnv largerOut)
+    (hsafety : safety ≤ checkSafety) (hbase : base ≤ largerBase) :
+    (H.reindex Hlarger hsafety hbase).venvCtors = Hlarger.venvCtors := by
+  rfl
+
 theorem StagedBlock.valid
     (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv)
     (hvalid : CheckingEnv.Valid safety env venv) :
@@ -21337,6 +21430,39 @@ def BlockCertificate.sf_mono
   ctorsWF := H.ctorsWF
   recursorsWF := H.recursorsWF
   rulesWF := H.rulesWF
+
+/-- A replayed block inherits every observer-safety interpretation carried
+by its original certificate. -/
+def BlockCertificate.reindex
+    (H : BlockCertificate checkSafety prodEnv base types ctors recursors
+      rules outEnv outBase)
+    (Hlarger : BlockCertificate targetSafety prodEnv largerBase types ctors
+      recursors rules outEnv largerOut)
+    (hsafety : safety ≤ checkSafety)
+    (hbase : base ≤ largerBase) :
+    BlockCertificate safety prodEnv largerBase types ctors recursors
+      rules outEnv largerOut := by
+  have htypes : H.staged.venvTypes ≤ Hlarger.staged.venvTypes :=
+    VEnv.addConsts_mono hbase H.staged.typesAdded.abstract
+      Hlarger.staged.typesAdded.abstract
+  have hctors : H.staged.venvCtors ≤ Hlarger.staged.venvCtors :=
+    VEnv.addConsts_mono htypes H.staged.ctorsAdded.abstract
+      Hlarger.staged.ctorsAdded.abstract
+  have hout : outBase ≤ largerOut :=
+    VEnv.addConsts_mono hctors H.staged.recursorsAdded.abstract
+      Hlarger.staged.recursorsAdded.abstract
+  exact {
+    staged := H.staged.reindex Hlarger.staged hsafety hbase
+    typesWF := fun ci hci => (H.typesWF ci hci).mono hbase
+    ctorsWF := by
+      intro ci hci
+      change ci.toVConstant.WF Hlarger.staged.venvTypes
+      exact (H.ctorsWF ci hci).mono htypes
+    recursorsWF := by
+      intro ci hci
+      change ci.toVConstant.WF Hlarger.staged.venvCtors
+      exact (H.recursorsWF ci hci).mono hctors
+    rulesWF := fun df hdf => (H.rulesWF df hdf).mono hout }
 
 /-- Generated recursor traversal discharges the recursor-typing field of the
 semantic block certificate in the exact pre-recursor environment recorded by
@@ -21641,6 +21767,121 @@ theorem BlockCertificate.addInduct
   · exact H.staged.deltaConservative hsourceAligned
   · exact heq
 
+/-- For a safe declaration, the staging trace itself supplies alignment at
+every observer safety: translate the same generated entries by safety
+monotonicity, then replay the three certified installation stages. -/
+theorem BlockCertificate.addInductSafe
+    (H : BlockCertificate .safe prodEnv venv types ctors recursors
+      rules outEnv outVEnv)
+    (hdecl : decl.WF venv)
+    (hcompile : decl.CompilesTo venv H.block)
+    (hsourceAligned : Aligned .safe prodEnv.constants venv)
+    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+    AddInduct prodEnv.constants venv decl outEnv.constants
+      (outVEnv.addDefEqs rules) := by
+  apply H.addInduct hdecl hcompile hsourceAligned
+  · intro safety _ Haligned
+    exact aligned_addDefEqs
+      ((H.sf_mono DefinitionSafety.le_safe).staged.aligned Haligned) rules
+  · exact heq
+
+/-- Replay a safe certified block into any safety-indexed source model and
+construct the full concrete `AddInduct` relation there.  Observer alignment
+uses `reindex`: translations come from the original safe trace, while all
+freshness and target equations come from the replayed trace. -/
+theorem BlockCertificate.rebaseAddInductSafe
+    (H : BlockCertificate .safe prodEnv base types ctors recursors
+      rules outEnv outBase)
+    (Hvalid : CheckingEnv.Valid targetSafety prodEnv largerBase)
+    (hbase : base ≤ largerBase)
+    (hdecl : decl.WF base)
+    (hcompile : decl.CompilesTo base H.block)
+    (heq : ∀ (candidate : VEnv) info,
+      outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (candidate.addDefEqs rules).constants ``Eq = some eqConst) :
+    ∃ largerOutBase,
+      Nonempty (BlockCertificate targetSafety prodEnv largerBase types ctors
+        recursors rules outEnv largerOutBase) ∧
+      AddInduct prodEnv.constants largerBase decl outEnv.constants
+        (largerOutBase.addDefEqs rules) ∧
+      outBase.addDefEqs rules ≤ largerOutBase.addDefEqs rules := by
+  rcases H.rebaseCertificate Hvalid DefinitionSafety.le_safe hbase with
+    ⟨largerOutBase, ⟨Hlarger⟩, houtBase⟩
+  have hdeclLarger : decl.WF largerBase :=
+    VInductDecl.WF.rebaseOfBlock hdecl hbase Hlarger.wf
+      hcompile.types hcompile.ctors
+  have hcompileLarger : decl.CompilesTo largerBase Hlarger.block :=
+    hcompile.mono hbase
+  have hadd : AddInduct prodEnv.constants largerBase decl outEnv.constants
+      (largerOutBase.addDefEqs rules) := by
+    apply Hlarger.addInduct hdeclLarger hcompileLarger Hvalid.tr.aligned
+    · intro observerSafety _ Haligned
+      exact aligned_addDefEqs
+        ((H.reindex Hlarger DefinitionSafety.le_safe hbase).staged.aligned
+          Haligned) rules
+    · exact heq largerOutBase
+  exact ⟨largerOutBase, ⟨Hlarger⟩, hadd,
+    VEnv.addDefEqs_mono houtBase⟩
+
+/-- A safe executable block extends all three abstract safety models.  Each
+model is replayed independently, while monotonicity of the resulting family
+is recovered from the shared abstract block installation. -/
+theorem BlockCertificate.extendSafe
+    {ves : VEnvs} {decl : VInductDecl}
+    (H : BlockCertificate .safe prodEnv (ves.venv .safe) types ctors
+      recursors rules outEnv outBase)
+    (wf : ves.WF prodEnv)
+    (hdecl : decl.WF (ves.venv .safe))
+    (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
+    (hquot : outEnv.quotInit = prodEnv.quotInit)
+    (hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
+      Kernel.Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (heq : ∀ (candidate : VEnv) info,
+      outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (candidate.addDefEqs rules).constants ``Eq = some eqConst) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  have valid (safety : DefinitionSafety) :
+      CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
+    (wf.tr (safety := safety)).toCheckingValid
+      (wf.hasPrimitives (safety := safety)) wf.safePrimitives
+  rcases H.rebaseAddInductSafe (valid .unsafe)
+      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile heq with
+    ⟨unsafeBase, ⟨Hunsafe⟩, HunsafeAdd, _hunsafeLE⟩
+  rcases H.rebaseAddInductSafe (valid .partial)
+      (wf.mono DefinitionSafety.le_safe) hdecl hcompile heq with
+    ⟨partialBase, ⟨Hpartial⟩, HpartialAdd, _hpartialLE⟩
+  rcases H.rebaseAddInductSafe (valid .safe) VEnv.LE.rfl
+      hdecl hcompile heq with
+    ⟨safeBase, ⟨Hsafe⟩, HsafeAdd, _hsafeLE⟩
+  let pre : DefinitionSafety → VEnv
+    | .unsafe => unsafeBase
+    | .partial => partialBase
+    | .safe => safeBase
+  let next (safety : DefinitionSafety) := (pre safety).addDefEqs rules
+  let cert : ∀ safety,
+      BlockCertificate safety prodEnv (ves.venv safety) types ctors
+        recursors rules outEnv (pre safety)
+    | .unsafe => Hunsafe
+    | .partial => Hpartial
+    | .safe => Hsafe
+  let adds : ∀ safety,
+      AddInduct prodEnv.constants (ves.venv safety) decl outEnv.constants
+        (next safety)
+    | .unsafe => HunsafeAdd
+    | .partial => HpartialAdd
+    | .safe => HsafeAdd
+  apply wf.extendInduct decl next adds hquot
+  · intro safety
+    exact (cert safety).hasPrimitives
+      (wf.hasPrimitives (safety := safety))
+  · exact hsafePrimitives
+  · intro safety safety' hle
+    exact VInductBlock.install_mono (wf.mono hle)
+      (cert safety').install (cert safety).install
+
 /-- Install a certified inductive block directly into the concrete
 environment-refinement judgment.  This is the abstract/executable seam used
 by the inductive branch of declaration verification. -/
@@ -21660,6 +21901,20 @@ theorem BlockCertificate.trEnv'
       (outVEnv.addDefEqs rules) :=
   .induct hdecl
     (H.addInduct hdecl hcompile hsource.aligned halignedOther heq) hsource
+
+theorem BlockCertificate.trEnvSafe
+    {decl : VInductDecl}
+    (H : BlockCertificate .safe prodEnv venv types ctors recursors
+      rules outEnv outVEnv)
+    (hdecl : decl.WF venv)
+    (hcompile : decl.CompilesTo venv H.block)
+    (hsource : TrEnv' .safe prodEnv.constants quotInit venv)
+    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+    TrEnv' .safe outEnv.constants quotInit
+      (outVEnv.addDefEqs rules) :=
+  .induct hdecl
+    (H.addInductSafe hdecl hcompile hsource.aligned heq) hsource
 
 theorem BlockCertificate.trEnvOfOrdinaryCompilation
     (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors

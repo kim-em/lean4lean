@@ -327,6 +327,44 @@ theorem VEnvs.WF.extendUnsafe
     | «partial» => exact VEnv.LE.rfl
     | safe => exact VEnv.LE.rfl
 
+/-- Assemble the three safety-indexed results of one concrete inductive
+extension.  All implementation-specific work is isolated in the pointwise
+`AddInduct` witnesses; this theorem supplies the `TrEnv'` constructors,
+cross-safety monotonicity, and old-to-new inclusions required by `VEnvs.WF`. -/
+theorem VEnvs.WF.extendInduct
+    {ves : VEnvs} {env env' : Environment} (wf : ves.WF env)
+    (decl : VInductDecl) (next : DefinitionSafety → VEnv)
+    (hadd : ∀ safety,
+      AddInduct env.constants (ves.venv safety) decl
+        env'.constants (next safety))
+    (hquot : env'.quotInit = env.quotInit)
+    (hprimitives : ∀ safety, (next safety).HasPrimitives)
+    (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
+      Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (hmono : ∀ {safety safety'}, safety ≤ safety' →
+      next safety' ≤ next safety) :
+    ∃ ves' : VEnvs, ves'.WF env' ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  let ves' : VEnvs := ⟨next⟩
+  refine ⟨ves', ?_, ?_⟩
+  · exact {
+      tr := by
+        intro safety
+        change TrEnv' safety env'.constants env'.quotInit (next safety)
+        rw [hquot]
+        exact TrEnv'.induct (hadd safety).declWF
+          (hadd safety) (wf.tr (safety := safety))
+      hasPrimitives := by
+        intro safety
+        exact hprimitives safety
+      safePrimitives := hsafePrimitives
+      mono := by
+        intro _ _ hle
+        exact hmono hle }
+  · intro safety
+    exact (hadd safety).le
+
 theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (ci : ConstantInfo) (ci' : VConstVal) (checkSafety : DefinitionSafety)
     (visible_le : ∀ safety, safety ≤ ci.safety → safety ≤ checkSafety)
