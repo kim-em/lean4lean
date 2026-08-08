@@ -36522,8 +36522,8 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFresh
       (hfamily : familyIdx < sourceTypes.length)
       (hdecl : familyIdx < sourceDecl.types.length)
       (_hentry : familyIdx < Hprod.entries.length),
-      SourcePrimaryRecursorSemantics sourceDecl
-        (sourceDecl.types[familyIdx]'hdecl) envCtors)
+      Nonempty (SourcePrimaryRecursorSemantics sourceDecl
+        (sourceDecl.types[familyIdx]'hdecl) envCtors))
     (HrecursorRefinements : ∀ familyIdx
       (hfamily : familyIdx < sourceTypes.length)
       (hdecl : familyIdx < sourceDecl.types.length)
@@ -36531,9 +36531,11 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFresh
       (stepSource stepTarget : Environment)
       (Hstep : RestoredInductiveStep result loweredEnv
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
-        sourceTypes[familyIdx] stepSource stepTarget),
+        sourceTypes[familyIdx] stepSource stepTarget)
+      (HsourceRec : SourcePrimaryRecursorSemantics sourceDecl
+        (sourceDecl.types[familyIdx]'hdecl) envCtors),
       RestoredPrimaryRecursorRefinement Hstep.restored.recursor envCtors
-        (HsourceRecursors familyIdx hfamily hdecl hentry).recursor) :
+        HsourceRec.recursor) :
     ∃ owners recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety sourceVEnv
         envTypes envCtors Hrestored.inductives owners recursors := by
@@ -36553,13 +36555,15 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFresh
     rw [Hprod.generated.length, Hprod.cardinality.records,
       ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
     simpa using hresult
+  rcases HsourceRecursors familyIdx hfamily hdecl hentry with
+    ⟨HsourceRec⟩
   exact H.sourceInductiveSemanticsAtFresh Hc Hprod Hsources hempty
     familyIdx hfamily hdecl hentry
     (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource familyIdx
       hfamily hdecl) Hfamilies Hconstructors Hstep
-    (HsourceRecursors familyIdx hfamily hdecl hentry)
+    HsourceRec
     (HrecursorRefinements familyIdx hfamily hdecl hentry stepSource stepTarget
-      Hstep)
+      Hstep HsourceRec)
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
