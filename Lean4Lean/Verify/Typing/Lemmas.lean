@@ -107,6 +107,61 @@ theorem FVarsIn.instantiateList (h1 : FVarsIn P e) (h2 : ∀ a ∈ as, FVarsIn P
     FVarsIn P (Expr.instantiateList e as k) := by
   induction as generalizing e <;> simp_all [Expr.instantiateList, FVarsIn.instantiate1_go]
 
+/-- Simultaneous abstraction cancels simultaneous instantiation by a
+duplicate-free list of fresh variables.  This is stated for the transparent
+list models of Lean's opaque `Expr.instantiateRev` and `Expr.abstract`
+primitives, so users of those primitives can reach it through
+`Expr.instantiateRev_eq` and `Expr.abstract_eq`. -/
+theorem FVarsIn.abstractList_instantiateRevList
+    (hfree : FVarsIn (fun v => v ∉ vars) e)
+    (hnodup : vars.Nodup) :
+    (e.instantiateRevList (vars.map Expr.fvar) k).abstractList vars k = e := by
+  induction vars generalizing e with
+  | nil => simp
+  | cons v vars ih =>
+    simp only [List.nodup_cons] at hnodup
+    simp only [List.map_cons, Expr.instantiateRevList, Expr.abstractList]
+    rw [FVarsIn.abstract_instantiate1]
+    · apply ih
+      · exact hfree.mono fun fv hfv hmem => hfv (by simp [hmem])
+      · exact hnodup.2
+    · rw [← Expr.instantiateList_reverse]
+      apply FVarsIn.instantiateList
+        (P := fun fv => fv ≠ v)
+        (e := e) (k := k)
+        (as := (vars.map Expr.fvar).reverse)
+      · exact hfree.mono fun fv hfv heq => hfv (by simp [heq])
+      · intro replacement hreplacement
+        have hreplacement' : replacement ∈ vars.map Expr.fvar := by
+          simpa using hreplacement
+        rcases List.mem_map.mp hreplacement' with ⟨fv, hfv, rfl⟩
+        change fv ≠ v
+        exact fun heq => hnodup.1 (heq ▸ hfv)
+
+/-- Array-facing cancellation law for Lean's production abstraction and
+reverse-instantiation primitives. -/
+theorem FVarsIn.abstract_instantiateRev_fvarArray
+    (xs : Array Expr) (vars : List FVarId)
+    (hvars : xs = (vars.map Expr.fvar).toArray)
+    (hfree : FVarsIn (fun v => v ∉ vars) e)
+    (hnodup : vars.Nodup) :
+    (e.instantiateRev xs).abstract xs = e := by
+  subst xs
+  rw [Expr.instantiateRev_eq, Expr.instantiate_eq, Expr.abstract_eq]
+  simpa [Expr.instantiateList_reverse] using
+    hfree.abstractList_instantiateRevList (k := 0) hnodup
+
+/-- Reopening after the cancellation law substitutes a new parameter array
+into the original abstract body. -/
+theorem FVarsIn.reabstract_instantiateRev_fvarArray
+    (xs ys : Array Expr) (vars : List FVarId)
+    (hvars : xs = (vars.map Expr.fvar).toArray)
+    (hfree : FVarsIn (fun v => v ∉ vars) e)
+    (hnodup : vars.Nodup) :
+    ((e.instantiateRev xs).abstract xs).instantiateRev ys =
+      e.instantiateRev ys := by
+  rw [hfree.abstract_instantiateRev_fvarArray xs vars hvars hnodup]
+
 theorem FVarsIn.abstract1 (h1 : FVarsIn P e) :
     FVarsIn P (Expr.abstract1 a e k) := by
   induction e generalizing k <;> simp_all [FVarsIn, Expr.abstract1]

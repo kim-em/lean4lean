@@ -30688,6 +30688,38 @@ theorem NestedLoweringRun.finalMappingAtInitial
   exact ⟨params, stepState, target, loweredState, hparams,
     Htranslated.finalMapping Hlater (H.resultAuxMapModels hauxNames), htarget⟩
 
+/-- Parameter-aligned form of `finalMappingAtInitial`.  The expression
+mapping for each source family is performed with exactly the parameter array
+stored in the final restoration record, rather than merely with an array of
+the same size.  This identity is what later lets restoration cancel the
+abstraction performed when a nested application was cached. -/
+theorem NestedLoweringRun.finalMappingAtInitialAligned
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (hauxNames : (finalState.nestedAux.toList.map Prod.snd).Nodup)
+    (hj : j < initialState.newTypes.size) :
+    ∃ params stepState target loweredState,
+      result.params = params ∧
+      params.size = nparams ∧
+      LoweredInductiveMapping env params nparams result
+        initialState.newTypes[j] stepState (target, loweredState) ∧
+      result.types[j]? = some target := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _htypes, Hopening,
+      hinitial, _hinitialAux, _hinitialNext, _Hctx, _Hselection, Hqueue⟩
+  have hjParams : j < paramsState.newTypes.size := by
+    simpa [hinitial] using hj
+  rcases Hqueue.translationAt (Nat.zero_le j) hjParams with
+    ⟨stepState, target, loweredState, Htranslated, htarget, Hlater⟩
+  have hvalue : paramsState.newTypes[j] = initialState.newTypes[j] := by
+    have heq := congrArg
+      (fun xs : Array InductiveType => xs[j]!) hinitial
+    simpa [Array.getElem!_eq_getD, Array.getD, hjParams, hj] using heq
+  rw [hvalue] at Htranslated
+  exact ⟨params, stepState, target, loweredState,
+    Hqueue.resultContext.2, Hopening.initial_size,
+    Htranslated.finalMapping Hlater (H.resultAuxMapModels hauxNames), htarget⟩
+
 theorem NestedLoweringRun.preservesInitialTypeName
     (H : NestedLoweringRun env fuel nparams types initialState out)
     (Hname : NewTypeNamePresent initialState name) :
@@ -31050,6 +31082,29 @@ theorem NestedLoweringResult.sourceFinalMappingAtFresh
         stepState (target, loweredState) ∧
       result.types[j]? = some target :=
   H.sourceFinalMappingAtOfIndexFaithful appendIndexAfterIndexFaithful hempty hj
+
+/-- Fresh-cache source mapping with the lowering parameters identified with
+the parameters retained by the production restoration record. -/
+theorem NestedLoweringResult.sourceFinalMappingAtFreshAligned
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResult env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (hempty : initialState.nestedAux = #[])
+    (hj : j < sourceTypes.length) :
+    ∃ params stepState target loweredState,
+      result.params = params ∧
+      params.size = nparams ∧
+      LoweredInductiveMapping env params nparams result sourceTypes[j]
+        stepState (target, loweredState) ∧
+      result.types[j]? = some target := by
+  rcases H with ⟨finalState, Hrun⟩
+  have hjInitial : j <
+      ({ initialState with
+        newTypes := sourceTypes.toArray }).newTypes.size := by
+    simpa using hj
+  apply Hrun.finalMappingAtInitialAligned _ hjInitial
+  apply Hrun.resultNamesNodupOfEmpty appendIndexAfterIndexFaithful
+  simpa using hempty
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
