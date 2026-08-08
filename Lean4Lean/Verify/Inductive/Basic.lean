@@ -21131,6 +21131,84 @@ theorem checkType_closed.WF
     (wf := hvalid) (lparams := lparams) (fuel := fuel)
     (TypeChecker.checkType.WF hfvars)
 
+/-- Semantic postcondition of the production nested-auxiliary validation pass:
+every witness stored in `aux2nested` has a translated typing derivation in the
+restored parameter context. -/
+def ValidatedNestedAuxiliaries (venv : VEnv) (lparams : List Name)
+    (vlctx : VLCtx) (res : Lean4Lean.ElimNestedInductive.Result) : Prop :=
+  ∀ name e, res.aux2nested.find? name = some e →
+    ∃ ty e' ty', TrTyping venv lparams vlctx e ty e' ty'
+
+private theorem checkNestedAuxiliaryList.WF
+    {c : TypeChecker.VContext} {s : TypeChecker.VState}
+    (items : List (Name × Expr))
+    (hfvars : ∀ item ∈ items,
+      item.2.FVarsIn (· ∈ c.vlctx.fvars)) :
+    (items.forM fun item => do
+      _ ← TypeChecker.checkType item.2).WF c s fun _ _ =>
+        ∀ item ∈ items, ∃ ty e' ty',
+          TrTyping c.venv c.lparams c.vlctx item.2 ty e' ty' := by
+  induction items generalizing s with
+  | nil =>
+    rw [List.forM]
+    exact .pure fun item hitem => by simp at hitem
+  | cons head tail ih =>
+    rw [List.forM]
+    have Hhead : (do
+        _ ← TypeChecker.checkType head.2).WF c s fun _ _ =>
+          ∃ ty e' ty', TrTyping c.venv c.lparams c.vlctx
+            head.2 ty e' ty' := by
+      refine (TypeChecker.checkType.WF (hfvars head (by simp))).bind
+        fun ty _ _ htyping => .pure ?_
+      rcases htyping with ⟨e', ty', htyping⟩
+      exact ⟨ty, e', ty', htyping⟩
+    have htail : ∀ item ∈ tail,
+        item.2.FVarsIn (· ∈ c.vlctx.fvars) := by
+      intro item hitem
+      exact hfvars item (by simp [hitem])
+    exact Hhead.bind fun _ _ _ hhead =>
+      (ih htail).mono fun _ _ _ hall item hitem => by
+        rcases List.mem_cons.mp hitem with heq | hitem
+        · subst item
+          exact hhead
+        · exact hall item hitem
+
+/-- The executable `validateNestedAuxiliaries` loop establishes its concrete
+typing postcondition, assuming the restored environment and parameter local
+context already refine their abstract counterparts. -/
+theorem validateNestedAuxiliaries.WF
+    (hvalid : CheckingEnv.Valid safety env venv)
+    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
+    (hlctx : mlctx.lctx = res.lctx)
+    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
+      ({} : TypeChecker.State).ngen.Reserves fv)
+    (hfvars : ∀ name e, res.aux2nested.find? name = some e →
+      e.FVarsIn (· ∈ mlctx.vlctx.fvars)) :
+    (Lean4Lean.validateNestedAuxiliaries env lparams safety fuel res).WF
+      fun _ => ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res := by
+  unfold Lean4Lean.validateNestedAuxiliaries
+  rw [← hlctx]
+  change (TypeChecker.M.run env safety mlctx.lctx lparams fuel
+    ((show Std.TreeMap Name Expr Name.quickCmp from res.aux2nested).forM
+      fun _ e => do _ ← TypeChecker.checkType e)).WF _
+  rw [Std.TreeMap.forM_eq_forM, Std.TreeMap.forM_eq_forM_toList]
+  refine TypeChecker.M.WF.runCheckingValidMLC
+    (wf := hvalid) (mlctx_wf := hmlctx) hfresh ?_
+  refine (checkNestedAuxiliaryList.WF
+    (c := TypeChecker.VContext.mkCheckingValidMLC hvalid mlctx hmlctx fuel)
+    (s := {}) res.aux2nested.toList ?_).mono ?_
+  · intro item hitem
+    apply hfvars item.1 item.2
+    change (show Std.TreeMap Name Expr Name.quickCmp from
+      res.aux2nested)[item.1]? = some item.2
+    exact Std.TreeMap.mem_toList_iff_getElem?_eq_some.mp hitem
+  · intro _ _ _ hall name e hfind
+    apply hall (name, e)
+    apply Std.TreeMap.mem_toList_iff_getElem?_eq_some.mpr
+    change (show Std.TreeMap Name Expr Name.quickCmp from
+      res.aux2nested)[name]? = some e
+    exact hfind
+
 /-- Exact parameter-telescope path followed by nested lowering. The relation
 retains both the growing local context and the array of corresponding free
 variables, making the later restoration substitution auditable. -/
