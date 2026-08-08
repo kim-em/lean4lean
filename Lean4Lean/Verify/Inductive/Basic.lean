@@ -30271,6 +30271,77 @@ theorem RecursorPhasesResult.restorationSources
     rw [hbang] at hrecursor
     exact hrecursor
 
+/-- Turn the actual generated recursor entry selected by a primary
+restoration step into specification-facing semantics.  Installation fixes
+the old metadata and the independent recursor certificate fixes the abstract
+shape; callers supply only translation of the restored concrete telescope
+and the (separately audited) primary-name preservation fact. -/
+def RecursorPhasesResult.restoredPrimaryRecursorSemantics
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (ownerIdx : Nat) (howner : ownerIdx < indTypes.size)
+    (hentry : ownerIdx < H.entries.length)
+    (hdecl : ownerIdx < decl.types.length)
+    (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
+      (Lean.mkRecName indTypes[ownerIdx]!.name) sourceProdEnv targetProdEnv)
+    (canonicalEnv : VEnv)
+    (Htype : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
+      Hstep.restored.newInfo.type (H.entries[ownerIdx]'hentry).2.type)
+    (hname : (H.entries[ownerIdx]'hentry).2.name =
+      Hstep.restored.newRecName)
+    (Hwf : (H.entries[ownerIdx]'hentry).2.toVConstant.WF canonicalEnv) :
+    RestoredPrimaryRecursorSemantics decl (decl.types[ownerIdx]'hdecl) c.safety
+      Hstep
+      canonicalEnv := by
+  have hrecInfo : ownerIdx < H.recInfos.size := by
+    rw [H.cardinality.records]
+    have htypes : indTypes.size = decl.types.length := by
+      simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
+    rwa [← htypes]
+  let E := H.generated.entry ownerIdx hentry
+  have hlookup := H.findRecursorOfMem (List.getElem_mem hentry)
+  have hlookupE : outEnv.find? (Lean.mkRecName indTypes[ownerIdx]!.name) =
+      some (.recInfo E.info) := by
+    change outEnv.find? H.entries[ownerIdx].1.name =
+      some H.entries[ownerIdx].1 at hlookup
+    rw [E.source_eq] at hlookup
+    change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
+    rwa [E.name] at hlookup
+  have holdInfo : Hstep.oldInfo = E.info := by
+    exact ConstantInfo.recInfo.inj (Option.some.inj
+      (Hstep.lookup.symm.trans hlookupE))
+  have Hcore : TrInductDeclCore sourceEnv H.localContext.lparams nparams
+      indTypes.toList isUnsafe decl Hheaders.context.venv
+        R.declared.venvCtors := by
+    rw [H.localExtends.lparams_eq]
+    exact R.core
+  have Hcertificate := H.generated.recursorCertificate H.localWF H.bindings
+    H.params H.noAlias H.cardinality Hcore
+  have hrecursor : ownerIdx < (H.entries.map Prod.snd).length := by
+    simpa using hentry
+  have Hshape := Hcertificate.shapes ownerIdx hdecl hrecursor
+  refine {
+    recursor := (H.entries[ownerIdx]'hentry).2
+    safety_le := ?_
+    uvars := ?_
+    type := Htype
+    name := hname
+    wf := Hwf
+    shape := ?_ }
+  · rw [← H.localExtends.safety_eq]
+    rw [holdInfo]
+    exact E.translated.1.1
+  · rw [holdInfo]
+    simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
+      E.translated.1.2.1
+  · simpa only [List.getElem_map] using Hshape
+
 theorem DeclaredHeadersResult.typesWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv) :
