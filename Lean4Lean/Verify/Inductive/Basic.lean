@@ -22074,6 +22074,48 @@ theorem restoreInductiveHeaderDecl_refines
       restored := rfl
       output := rfl }⟩
 
+/-- Generic compositional trace for the stateful list folds used by nested
+declaration restoration. -/
+inductive StateForMTrace (P : α → σ → σ → Type) :
+    List α → σ → σ → Type
+  | nil : StateForMTrace P [] source source
+  | cons : P head source middle →
+      StateForMTrace P tail middle target →
+      StateForMTrace P (head :: tail) source target
+
+theorem stateForM_refines
+    (step : α → StateT σ (Except Exception) Unit)
+    (P : α → σ → σ → Type) :
+    ∀ (items : List α),
+      (∀ item, item ∈ items → ∀ source,
+        (step item source).WF fun out =>
+          out.1 = () ∧ Nonempty (P item source out.2)) →
+      ∀ (source : σ),
+      (List.forM items step source).WF fun out =>
+        out.1 = () ∧ Nonempty (StateForMTrace P items source out.2) := by
+  intro items
+  induction items with
+  | nil =>
+    intro _Hstep
+    intro source
+    exact Except.WF.pure ⟨rfl, ⟨StateForMTrace.nil⟩⟩
+  | cons head tail ih =>
+    intro Hstep
+    intro source
+    rw [List.forM]
+    exact (Hstep head (by simp) source).bind fun out Hout => by
+      rcases out with ⟨unit, middle⟩
+      rcases unit with ⟨⟩
+      rcases Hout with ⟨_, ⟨Hhead⟩⟩
+      have Htail : ∀ item, item ∈ tail → ∀ source,
+          (step item source).WF fun out =>
+            out.1 = () ∧ Nonempty (P item source out.2) := by
+        intro item hitem
+        exact Hstep item (by simp [hitem])
+      exact (ih Htail middle).mono fun final Hfinal => by
+        rcases Hfinal with ⟨hunit, ⟨Htail⟩⟩
+        exact ⟨hunit, ⟨StateForMTrace.cons Hhead Htail⟩⟩
+
 /-- Constructor-level restoration records that the production step changes
 only the type, using the verified nested-expression traversal. -/
 structure ConstructorRestoration
@@ -22143,6 +22185,47 @@ theorem restoreConstructorDecl_refines
         Htelescope
       output := rfl }⟩
 
+/-- One element of the executable constructor-restoration fold, retaining the
+lowered lookup and telescope premise used to justify restoration. -/
+structure RestoredConstructorStep
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv : Environment) (ctorName : Name)
+    (sourceEnv targetEnv : Environment) where
+  oldInfo : ConstructorVal
+  lookup : loweredEnv.find? ctorName = some (.ctorInfo oldInfo)
+  telescope : RestoreTelescope oldInfo.type result.nparams
+  restored : RestoredConstructorDeclResult result loweredEnv sourceEnv
+    ctorName oldInfo ((), targetEnv)
+
+theorem restoreConstructorDecls_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv : Environment) (allowPrimitive : Bool)
+    (ctorNames : List Name)
+    (Hsources : ∀ ctorName, ctorName ∈ ctorNames →
+      ∃ oldInfo : ConstructorVal,
+        loweredEnv.find? ctorName = some (.ctorInfo oldInfo) ∧
+        RestoreTelescope oldInfo.type result.nparams) :
+    ∀ sourceEnv,
+      (ctorNames.forM fun ctorName =>
+        Lean4Lean.restoreConstructorDecl result loweredEnv allowPrimitive
+          ctorName) sourceEnv |>.WF fun out =>
+            out.1 = () ∧ Nonempty (StateForMTrace
+              (RestoredConstructorStep result loweredEnv)
+              ctorNames sourceEnv out.2) := by
+  apply stateForM_refines
+  intro ctorName hctor sourceEnv
+  rcases Hsources ctorName hctor with ⟨oldInfo, hlookup, Htelescope⟩
+  exact (restoreConstructorDecl_refines result loweredEnv sourceEnv
+    allowPrimitive ctorName oldInfo hlookup Htelescope).mono fun out Hout => by
+      rcases out with ⟨unit, targetEnv⟩
+      rcases unit with ⟨⟩
+      rcases Hout with ⟨Hrestored⟩
+      exact ⟨rfl, ⟨{
+        oldInfo := oldInfo
+        lookup := hlookup
+        telescope := Htelescope
+        restored := Hrestored }⟩⟩
+
 /-- Exact state transition of one production recursor-restoration step. The
 semantic use of the restored metadata remains factored through
 `RecursorRestoration`. -/
@@ -22196,6 +22279,55 @@ theorem restoreRecursorDecl_refines
       restoration := restoreRecursor_refines result loweredEnv auxRec
         allIndNames oldRecName newRecName oldInfo Htype Hrules
       output := rfl }⟩
+
+/-- One element of an executable recursor-restoration fold. -/
+structure RestoredRecursorStep
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (oldRecName : Name)
+    (sourceEnv targetEnv : Environment) where
+  oldInfo : RecursorVal
+  lookup : loweredEnv.find? oldRecName = some (.recInfo oldInfo)
+  typeTelescope : RestoreTelescope oldInfo.type result.nparams
+  ruleTelescopes : ∀ rule ∈ oldInfo.rules,
+    RestoreTelescope rule.rhs result.nparams
+  restored : RestoredRecursorDeclResult result loweredEnv sourceEnv auxRec
+    allIndNames oldRecName oldInfo ((), targetEnv)
+
+theorem restoreRecursorDecls_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (allowPrimitive : Bool)
+    (recNames : List Name)
+    (Hsources : ∀ recName, recName ∈ recNames →
+      ∃ oldInfo : RecursorVal,
+        loweredEnv.find? recName = some (.recInfo oldInfo) ∧
+        RestoreTelescope oldInfo.type result.nparams ∧
+        ∀ rule ∈ oldInfo.rules,
+          RestoreTelescope rule.rhs result.nparams) :
+    ∀ sourceEnv,
+      (recNames.forM fun recName =>
+        Lean4Lean.restoreRecursorDecl result loweredEnv auxRec allIndNames
+          allowPrimitive recName) sourceEnv |>.WF fun out =>
+            out.1 = () ∧ Nonempty (StateForMTrace
+              (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+              recNames sourceEnv out.2) := by
+  apply stateForM_refines
+  intro recName hrec sourceEnv
+  rcases Hsources recName hrec with
+    ⟨oldInfo, hlookup, Htype, Hrules⟩
+  exact (restoreRecursorDecl_refines result loweredEnv sourceEnv auxRec
+    allIndNames allowPrimitive recName oldInfo hlookup Htype Hrules).mono
+      fun out Hout => by
+        rcases out with ⟨unit, targetEnv⟩
+        rcases unit with ⟨⟩
+        rcases Hout with ⟨Hrestored⟩
+        exact ⟨rfl, ⟨{
+          oldInfo := oldInfo
+          lookup := hlookup
+          typeTelescope := Htype
+          ruleTelescopes := Hrules
+          restored := Hrestored }⟩⟩
 
 /-- Installing an operationally restored auxiliary recursor advances the
 independent auxiliary-name certificate. Translation identifies the production
