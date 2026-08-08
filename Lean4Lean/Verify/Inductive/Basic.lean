@@ -27201,6 +27201,61 @@ theorem RestoredPrimaryRecursorSemantics.installation
   Hstep.installationOfMetadata Hvalid H.recursor H.safety_le H.uvars H.type
     H.name H.wf
 
+/-- Primary recursor semantics indexed directly by the operational family
+restoration trace, but interpreted in the single canonical abstract
+post-constructor environment.  This separation is essential for mutual
+inductives: production restoration is family-interleaved, whereas abstract
+typing requires all mutual headers and constructors to be present first. -/
+inductive RestoredPrimaryRecursorSemanticTrace
+    (decl : VInductDecl) (safety : DefinitionSafety)
+    (canonicalEnv : VEnv) :
+    ∀ {types sourceProdEnv targetProdEnv},
+      StateForMTrace
+        (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+        types sourceProdEnv targetProdEnv →
+      List VInductiveType → List VConstVal → Prop
+  | nil (sourceProdEnv : Environment) :
+      RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
+        (StateForMTrace.nil (P :=
+          RestoredInductiveStep result loweredEnv auxRec allIndNames)
+          (source := sourceProdEnv)) [] []
+  | cons
+      (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+        indType sourceProdEnv middleProdEnv)
+      (Htail : StateForMTrace
+        (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+        types middleProdEnv targetProdEnv)
+      (Hsemantic : RestoredPrimaryRecursorSemantics decl owner safety
+        Hstep.restored.recursor canonicalEnv)
+      (Hrest : RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
+        Htail owners recursors) :
+      RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
+        (.cons Hstep Htail) (owner :: owners)
+        (Hsemantic.recursor :: recursors)
+
+theorem RestoredPrimaryRecursorSemanticTrace.forall₂
+    (H : RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
+      Htrace owners recursors) :
+    List.Forall₂ (fun owner recursor =>
+      Nonempty (decl.RecursorShape owner recursor)) owners recursors := by
+  induction H with
+  | nil => exact .nil
+  | cons Hstep Htail Hsemantic Hrest ih =>
+    exact .cons Hsemantic.shape ih
+
+theorem RestoredPrimaryRecursorSemanticTrace.recursorCertificate
+    (H : RestoredPrimaryRecursorSemanticTrace decl safety canonicalEnv
+      Htrace owners recursors)
+    (htypes : decl.types = owners) :
+    RecursorCertificate decl recursors := by
+  have Hshapes := H.forall₂
+  rw [← htypes] at Hshapes
+  refine {
+    length := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hshapes |>.symm
+    shapes := ?_ }
+  intro i htype hrec
+  exact Lean4Lean.VerifyInductive.List.Forall₂.getElem Hshapes i htype hrec
+
 /-- Trace-aligned installation semantics for a fold of restored recursors.
 The abstract environment advances at exactly the same step boundaries as the
 production environment. -/
@@ -28188,6 +28243,49 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilation
     htypesSource primaryRecursors auxiliaryRecursors primaryRules
     auxiliaryRules HprimaryRecursors HprimaryRules hprimaryLength Haux rfl rfl
     rfl rfl hnames⟩
+
+/-- Mutual-safe canonical endpoint.  The operational restoration trace fixes
+the primary recursor list, while all primary recursors are interpreted in the
+canonical environment containing every source constructor.  No abstract
+environment is advanced in the production family-interleaved order. -/
+theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfSemanticTrace
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames types auxRecNames out)
+    (rest : List VInductiveType)
+    (htypesSource : decl.types = main :: rest)
+    (primaryRecursors auxiliaryRecursors : List VConstVal)
+    (primaryRules auxiliaryRules : List VDefEq)
+    (HprimaryRecursors : RestoredPrimaryRecursorSemanticTrace decl safety
+      canonicalCtorEnv H.inductives (main :: rest) primaryRecursors)
+    (HprimaryRules : IotaBuildCertificate sourceEnv decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules) primaryRules)
+    (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
+    (Hauxiliary : RestoredAuxiliarySemanticTrace decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
+      [] [] auxiliaryRecursors auxiliaryRules)
+    (hsourceWF : sourceProdEnv.constants.WF)
+    (Hnames : ∀ entries,
+      FreshConstantTrace sourceProdEnv entries out.2 →
+      ((canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).types ++
+        (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).ctors ++
+        (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).recursors).map (·.name) ~
+        entries.map (·.name)) :
+    Nonempty (NestedCompilationCertificate sourceEnv decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules)) := by
+  apply H.canonicalNestedCompilation rest htypesSource primaryRecursors
+    auxiliaryRecursors primaryRules auxiliaryRules
+  · exact HprimaryRecursors.recursorCertificate htypesSource
+  · exact HprimaryRules
+  · exact hprimaryLength
+  · exact Hauxiliary
+  · exact hsourceWF
+  · exact Hnames
 
 /-- Trace-aligned form of `canonicalNestedCompilation`.  The primary
 recursor certificate is derived from the exact restored installation trace,
