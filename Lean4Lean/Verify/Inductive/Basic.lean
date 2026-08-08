@@ -22581,6 +22581,43 @@ theorem AuxiliaryRestorationPrefix.appendRestoredRules
   have Hentry := Hrestore.entry i hsource hrestored
   exact hguarded i hsource hrestored hi Hentry
 
+/-- Independent semantic interpretation of one operational auxiliary
+recursor step. The syntactic restoration relation comes from the executable
+trace; translation, sequential naming, and guardedness are supplied here. -/
+structure RestoredAuxiliaryStepSemantics
+    (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
+    (safety : DefinitionSafety) (trEnv : VEnv)
+    (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceEnv targetEnv)
+    (priorRecursors : List VConstVal) where
+  recursor : VConstVal
+  rules : List VDefEq
+  translated : TrConstVal safety trEnv
+    (.recInfo Hstep.restored.newInfo) recursor
+  sequentialName : Hstep.restored.newRecName =
+    (decl.recursorName main).appendIndexAfter (priorRecursors.length + 1)
+  rulesLength : rules.length = Hstep.restored.newInfo.rules.length
+  guarded : ∀ i (hsource : i < Hstep.oldInfo.rules.length)
+    (hrestored : i < Hstep.restored.newInfo.rules.length)
+    (habstract : i < rules.length),
+    RuleRestoration result loweredEnv auxRec oldRecName
+      Hstep.restored.newRecName Hstep.oldInfo.rules[i]
+      Hstep.restored.newInfo.rules[i] →
+    ∃ fieldVars, rules[i].rhs.GuardedIota
+      (block.recursors.map (·.name)) fieldVars 0
+
+theorem RestoredAuxiliaryStepSemantics.advance
+    (H : RestoredAuxiliaryStepSemantics decl block main safety trEnv Hstep
+      priorRecursors)
+    (Hprefix : AuxiliaryRestorationPrefix decl block main priorRecursors
+      priorRules) :
+    AuxiliaryRestorationPrefix decl block main
+      (priorRecursors ++ [H.recursor]) (priorRules ++ H.rules) := by
+  have Hrecursor := Hprefix.pushRestoredRecursor
+    Hstep.restored.restoration H.translated H.sequentialName
+  exact Hrecursor.appendRestoredRules Hstep.restored.restoration.rules
+    H.rulesLength H.guarded
+
 /-- Interpret the exact auxiliary-recursors state trace into the independent
 append-oriented restoration specification. The callback must justify both the
 translated recursor and its guarded abstract rules from each operational
@@ -22631,6 +22668,45 @@ theorem StateForMTrace.auxiliaryRestoration
       auxiliaryRecursors.length = names.length := by
   simpa using Htrace.auxiliaryRestorationPrefix Hadvance [] []
     (AuxiliaryRestorationPrefix.empty decl block main)
+
+/-- Semantic-callback specialization of `auxiliaryRestoration`: each exact
+operational step is interpreted through `RestoredAuxiliaryStepSemantics`. -/
+theorem StateForMTrace.auxiliaryRestorationOfSemantics
+    (Htrace : StateForMTrace
+      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+      names sourceEnv targetEnv)
+    (Hsemantics : ∀ oldRecName stepSource stepTarget
+      (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+        oldRecName stepSource stepTarget)
+      recursors rules,
+      AuxiliaryRestorationPrefix decl block main recursors rules →
+      Nonempty (RestoredAuxiliaryStepSemantics decl block main safety trEnv
+        Hstep recursors)) :
+    ∃ auxiliaryRecursors auxiliaryRules,
+      AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
+        auxiliaryRules ∧
+      auxiliaryRecursors.length = names.length := by
+  apply Htrace.auxiliaryRestoration
+  intro oldRecName stepSource stepTarget Hstep recursors rules Hprefix
+  rcases Hsemantics oldRecName stepSource stepTarget Hstep recursors rules
+    Hprefix with ⟨Hsemantic⟩
+  exact ⟨Hsemantic.recursor, Hsemantic.rules, Hsemantic.advance Hprefix⟩
+
+theorem RestoredNestedDeclarationsResult.auxiliaryRestorationOfSemantics
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceEnv auxRec
+      allIndNames types auxRecNames out)
+    (Hsemantics : ∀ oldRecName stepSource stepTarget
+      (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+        oldRecName stepSource stepTarget)
+      recursors rules,
+      AuxiliaryRestorationPrefix decl block main recursors rules →
+      Nonempty (RestoredAuxiliaryStepSemantics decl block main safety trEnv
+        Hstep recursors)) :
+    ∃ auxiliaryRecursors auxiliaryRules,
+      AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
+        auxiliaryRules ∧
+      auxiliaryRecursors.length = auxRecNames.length :=
+  H.auxiliaries.auxiliaryRestorationOfSemantics Hsemantics
 
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
