@@ -176,6 +176,66 @@ inductive VInductDecl.CtorTailWF (env : VEnv) (decl : VInductDecl)
     decl.CtorTailWF env target (checkedDom :: ctx) (depth + 1) checkedBody →
     decl.CtorTailWF env target ctx depth (.forallE dom body)
 
+theorem VInductDecl.ParamsDefEq.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : decl.ParamsDefEq env params params') :
+    decl.ParamsDefEq env' params params' :=
+  VEnv.IsDefEqCtx.mono henv H
+
+theorem VInductDecl.Positive.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : decl.Positive env ctx depth e) :
+    decl.Positive env' ctx depth e := by
+  exact VInductDecl.Positive.rec
+    (motive_1 := fun ctx depth e _ => decl.Positive env' ctx depth e)
+    (motive_2 := fun ctx depth e _ =>
+      decl.SyntacticallyPositive env' ctx depth e)
+    (fun hdef _ ih => .unfold (hdef.mono henv) ih)
+    (fun h => .nonrecursive h)
+    (fun hcontains hdom hbody _ ih =>
+      .forallE hcontains (hdom.mono henv) (hbody.mono henv) ih)
+    (fun h => .recursive h) H
+
+theorem VInductDecl.SyntacticallyPositive.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : decl.SyntacticallyPositive env ctx depth e) :
+    decl.SyntacticallyPositive env' ctx depth e := by
+  exact VInductDecl.SyntacticallyPositive.rec
+    (motive_1 := fun ctx depth e _ => decl.Positive env' ctx depth e)
+    (motive_2 := fun ctx depth e _ =>
+      decl.SyntacticallyPositive env' ctx depth e)
+    (fun hdef _ ih => .unfold (hdef.mono henv) ih)
+    (fun h => .nonrecursive h)
+    (fun hcontains hdom hbody _ ih =>
+      .forallE hcontains (hdom.mono henv) (hbody.mono henv) ih)
+    (fun h => .recursive h) H
+
+theorem VInductDecl.RecursiveArg.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : decl.RecursiveArg env ctx depth e) :
+    decl.RecursiveArg env' ctx depth e := by
+  induction H with
+  | direct hdef happ => exact .direct (hdef.mono henv) happ
+  | forallE he hdom hbody _ ih =>
+    exact .forallE (he.mono henv) (hdom.mono henv) (hbody.mono henv) ih
+
+theorem VInductDecl.CtorTailWF.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : decl.CtorTailWF env target ctx depth e) :
+    decl.CtorTailWF env' target ctx depth e := by
+  induction H with
+  | result happ hdef => exact .result happ (hdef.mono henv)
+  | field htype hlevel hpositive hdom hbody _ ih =>
+    exact .field (htype.mono henv) hlevel
+      (hpositive.elim (fun h => .inl h)
+        (fun h => .inr (h.mono henv)))
+      (hdom.mono henv) (hbody.mono henv) ih
+
 /-- Shape of one inductive type after normalization: common parameters,
 exactly the recorded indices, and the recorded result sort. -/
 def VInductDecl.TypeShape (env : VEnv) (decl : VInductDecl)
@@ -196,6 +256,29 @@ def VInductDecl.CtorShape (env : VEnv) (decl : VInductDecl)
     decl.ParamsDefEq env params ownParams ∧
     env.IsDefEqCtx decl.uvars [] ownParams.reverse tailCtx ∧
     decl.CtorTailWF env target tailCtx 0 tail
+
+theorem VInductDecl.TypeShape.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : decl.TypeShape env params type) :
+    decl.TypeShape env' params type := by
+  rcases H with
+    ⟨normalized, ownParams, afterParams, indices, result, exprType,
+      htype, hparams, hindices, hparamsDefEq, hresult⟩
+  exact ⟨normalized, ownParams, afterParams, indices, result, exprType,
+    htype.mono henv, hparams, hindices, hparamsDefEq.mono henv,
+    hresult.mono henv⟩
+
+theorem VInductDecl.CtorShape.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : decl.CtorShape env params target ctor) :
+    decl.CtorShape env' params target ctor := by
+  rcases H with
+    ⟨normalized, ownParams, tail, exprType, tailCtx, htype, hparams,
+      hparamsDefEq, hctx, htail⟩
+  exact ⟨normalized, ownParams, tail, exprType, tailCtx, htype.mono henv,
+    hparams, hparamsDefEq.mono henv, hctx.mono henv, htail.mono henv⟩
 
 /-- Source-level obligations that cannot be erased by ordinary or nested
 compilation. In particular constructor types are checked in an environment
@@ -379,6 +462,27 @@ structure VInductDecl.RecursiveField (env : VEnv) (decl : VInductDecl) where
   domain : VExpr
   recursive : decl.RecursiveArg env ctx depth domain
 
+def VInductDecl.RecursiveField.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env') (H : decl.RecursiveField env) :
+    decl.RecursiveField env' where
+  fieldIndex := H.fieldIndex
+  arg := H.arg
+  ctx := H.ctx
+  depth := H.depth
+  domain := H.domain
+  recursive := H.recursive.mono henv
+
+@[simp] theorem VInductDecl.RecursiveField.mono_fieldIndex
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env') (H : decl.RecursiveField env) :
+    (H.mono henv).fieldIndex = H.fieldIndex := rfl
+
+@[simp] theorem VInductDecl.RecursiveField.mono_arg
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env') (H : decl.RecursiveField env) :
+    (H.mono henv).arg = H.arg := rfl
+
 /-- Final result of the recursor telescope for one mutual-family member. At
 this point all motives and minors, this type's indices, and the major premise
 are in scope. -/
@@ -533,6 +637,26 @@ structure VInductDecl.IotaRule (env : VEnv)
     (rhsArgs.drop (ctorArgs.length - decl.nparams)).length = recursiveArgs.length
   rhs_guarded : rhsBody.GuardedIota (block.recursors.map (·.name)) fieldVars 0
 
+def VInductDecl.IotaRule.mono
+    {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (henv : env ≤ env')
+    (H : decl.IotaRule env block owner ctor rule) :
+    decl.IotaRule env' block owner ctor rule := by
+  let fields := H.recursiveFields.map fun field => field.mono henv
+  refine { H with
+    recursiveFields := fields
+    fieldPositions_eq := ?_
+    fields_at_positions := ?_
+    recursiveArgs_eq := ?_ }
+  · rw [H.fieldPositions_eq]
+    simp [fields, VInductDecl.RecursiveField.mono]
+  · intro field hfield
+    rcases List.mem_map.mp hfield with ⟨source, hsource, rfl⟩
+    rcases H.fields_at_positions source hsource with ⟨hindex, harg⟩
+    exact ⟨hindex, harg⟩
+  · rw [H.recursiveArgs_eq]
+    simp [fields, VInductDecl.RecursiveField.mono]
+
 /-- Independent ordinary/mutual compilation interface. It is deliberately
 stronger than mere well-typedness: source constants are preserved exactly,
 recursor names and arities are constrained, and constructor/rule coverage is
@@ -587,6 +711,49 @@ inductive VInductDecl.CompilesTo (env : VEnv) : VInductDecl → VInductBlock →
       VInductDecl.CompilesTo env decl block
   | nested : VInductDecl.NestedCompilation env decl block →
       VInductDecl.CompilesTo env decl block
+
+theorem VInductDecl.OrdinaryCompilation.mono
+    {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (henv : env ≤ env')
+    (H : decl.OrdinaryCompilation env block) :
+    decl.OrdinaryCompilation env' block :=
+  { H with
+    rules := Lean4Lean.List.Forall₂.imp
+      (fun _ _ h => let ⟨rule⟩ := h; ⟨rule.mono henv⟩) H.rules }
+
+def VInductDecl.NestedCompilation.mono
+    {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (henv : env ≤ env')
+    (H : decl.NestedCompilation env block) :
+    decl.NestedCompilation env' block :=
+  { H with
+    primary_rules := Lean4Lean.List.Forall₂.imp
+      (fun _ _ h => let ⟨rule⟩ := h; ⟨rule.mono henv⟩)
+      H.primary_rules }
+
+theorem VInductDecl.CompilesTo.mono
+    {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (henv : env ≤ env')
+    (H : decl.CompilesTo env block) : decl.CompilesTo env' block := by
+  cases H with
+  | ordinary H => exact .ordinary (H.mono henv)
+  | nested H => exact .nested (H.mono henv)
+
+theorem VInductDecl.CompilesTo.types
+    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) :
+    block.types = decl.typeConstants := by
+  cases H with
+  | ordinary H => exact H.types
+  | nested H => exact H.types
+
+theorem VInductDecl.CompilesTo.ctors
+    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) :
+    block.ctors = decl.constructorConstants := by
+  cases H with
+  | ordinary H => exact H.ctors
+  | nested H => exact H.ctors
 
 /-- Relational abstract environment extension for inductive declarations.
 Unlike the old placeholder function, this exposes the compiled block witness

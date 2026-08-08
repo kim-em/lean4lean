@@ -19853,6 +19853,19 @@ theorem AddConstants.rebase
     exact ⟨largerOut,
       .cons hn hnprim htrLarger hwfLarger hlargerAdd hdelta Htail, hout⟩
 
+/-- A lockstep installation checked at a stronger visibility level is also a
+valid installation trace for every weaker observer.  The installed abstract
+constants and all freshness/typing facts are unchanged. -/
+def AddConstants.sf_mono
+    (hsafety : safety ≤ checkSafety)
+    (H : AddConstants checkSafety prodEnv venv entries outEnv outVEnv) :
+    AddConstants safety prodEnv venv entries outEnv outVEnv := by
+  induction H with
+  | nil => exact .nil
+  | cons hn hnprim htr hwf hadd hdelta _Htail ih =>
+    exact .cons hn hnprim ⟨htr.1.sf_mono hsafety, htr.2⟩ hwf hadd
+      hdelta ih
+
 /-- Lockstep installation preserves concrete/abstract alignment.  This is
 the production-map component of `AddInduct`; it follows from the executable
 staging trace and need not be supplied by a later compilation proof. -/
@@ -21238,6 +21251,19 @@ structure StagedBlock (safety : DefinitionSafety)
   ctorsAdded : AddConstants safety envTypes venvTypes ctors envCtors venvCtors
   recursorsAdded : AddConstants safety envCtors venvCtors recursors outEnv outVEnv
 
+def StagedBlock.sf_mono
+    (hsafety : safety ≤ checkSafety)
+    (H : StagedBlock checkSafety env venv types ctors recursors
+      outEnv outVEnv) :
+    StagedBlock safety env venv types ctors recursors outEnv outVEnv where
+  envTypes := H.envTypes
+  venvTypes := H.venvTypes
+  envCtors := H.envCtors
+  venvCtors := H.venvCtors
+  typesAdded := H.typesAdded.sf_mono hsafety
+  ctorsAdded := H.ctorsAdded.sf_mono hsafety
+  recursorsAdded := H.recursorsAdded.sf_mono hsafety
+
 theorem StagedBlock.valid
     (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv)
     (hvalid : CheckingEnv.Valid safety env venv) :
@@ -21300,6 +21326,18 @@ structure BlockCertificate (safety : DefinitionSafety)
     ci.toVConstant.WF staged.venvCtors
   rulesWF : ∀ df ∈ rules, df.WF outVEnv
 
+def BlockCertificate.sf_mono
+    (hsafety : safety ≤ checkSafety)
+    (H : BlockCertificate checkSafety env venv types ctors recursors
+      rules outEnv outVEnv) :
+    BlockCertificate safety env venv types ctors recursors rules
+      outEnv outVEnv where
+  staged := H.staged.sf_mono hsafety
+  typesWF := H.typesWF
+  ctorsWF := H.ctorsWF
+  recursorsWF := H.recursorsWF
+  rulesWF := H.rulesWF
+
 /-- Generated recursor traversal discharges the recursor-typing field of the
 semantic block certificate in the exact pre-recursor environment recorded by
 the staging invariant. -/
@@ -21361,6 +21399,43 @@ theorem BlockCertificate.hasPrimitives
     (H.staged.ctorsAdded.hasPrimitives
       (H.staged.typesAdded.hasPrimitives Hprimitives))) rules
 
+/-- Replay all three executable installation stages in a larger abstract
+environment, retaining a complete block certificate rather than only its
+abstract endpoint.  The production environments and generated entries stay
+fixed; only their safety-indexed abstract interpretation changes. -/
+theorem BlockCertificate.rebaseCertificate
+    (H : BlockCertificate checkSafety prodEnv base types ctors recursors
+      rules outEnv outBase)
+    (Hvalid : CheckingEnv.Valid safety prodEnv largerBase)
+    (hsafety : safety ≤ checkSafety)
+    (hbase : base ≤ largerBase) :
+    ∃ largerOutBase,
+      Nonempty (BlockCertificate safety prodEnv largerBase types ctors
+        recursors rules outEnv largerOutBase) ∧
+      outBase ≤ largerOutBase := by
+  rcases H.staged.typesAdded.rebase Hvalid hsafety hbase with
+    ⟨largerTypes, Htypes, htypesLE⟩
+  have HvalidTypes := Htypes.valid Hvalid
+  rcases H.staged.ctorsAdded.rebase HvalidTypes hsafety htypesLE with
+    ⟨largerCtors, Hctors, hctorsLE⟩
+  have HvalidCtors := Hctors.valid HvalidTypes
+  rcases H.staged.recursorsAdded.rebase HvalidCtors hsafety hctorsLE with
+    ⟨largerOutBase, Hrecursors, hrecursorsLE⟩
+  refine ⟨largerOutBase, ⟨?_⟩, hrecursorsLE⟩
+  exact {
+    staged := {
+      envTypes := H.staged.envTypes
+      venvTypes := largerTypes
+      envCtors := H.staged.envCtors
+      venvCtors := largerCtors
+      typesAdded := Htypes
+      ctorsAdded := Hctors
+      recursorsAdded := Hrecursors }
+    typesWF := fun ci hci => (H.typesWF ci hci).mono hbase
+    ctorsWF := fun ci hci => (H.ctorsWF ci hci).mono htypesLE
+    recursorsWF := fun ci hci => (H.recursorsWF ci hci).mono hctorsLE
+    rulesWF := fun df hdf => (H.rulesWF df hdf).mono hrecursorsLE }
+
 /-- Replay a certified block in a larger abstract environment.  This is the
 core transport used by safe declarations across the unsafe/partial/safe
 models: it reconstructs all three installation stages, their stage-relative
@@ -21375,25 +21450,86 @@ theorem BlockCertificate.rebase
       H.block.WF largerBase ∧
       H.block.install largerBase = some largerOut ∧
       outBase.addDefEqs rules ≤ largerOut := by
-  rcases H.staged.typesAdded.rebase Hvalid hsafety hbase with
-    ⟨largerTypes, Htypes, htypesLE⟩
-  have HvalidTypes := Htypes.valid Hvalid
-  rcases H.staged.ctorsAdded.rebase HvalidTypes hsafety htypesLE with
-    ⟨largerCtors, Hctors, hctorsLE⟩
-  have HvalidCtors := Hctors.valid HvalidTypes
-  rcases H.staged.recursorsAdded.rebase HvalidCtors hsafety hctorsLE with
-    ⟨largerRecursors, Hrecursors, hrecursorsLE⟩
-  let largerOut := largerRecursors.addDefEqs rules
-  refine ⟨largerOut, ?_, ?_, ?_⟩
-  · exact ⟨largerTypes, largerCtors, largerRecursors,
-      Htypes.abstract, Hctors.abstract, Hrecursors.abstract,
-      fun ci hci => (H.typesWF ci hci).mono hbase,
-      fun ci hci => (H.ctorsWF ci hci).mono htypesLE,
-      fun ci hci => (H.recursorsWF ci hci).mono hctorsLE,
-      fun df hdf => (H.rulesWF df hdf).mono hrecursorsLE⟩
-  · simp [BlockCertificate.block, VInductBlock.install,
-      Htypes.abstract, Hctors.abstract, Hrecursors.abstract, largerOut]
-  · exact VEnv.addDefEqs_mono hrecursorsLE
+  rcases H.rebaseCertificate Hvalid hsafety hbase with
+    ⟨largerOutBase, ⟨Hlarger⟩, houtBase⟩
+  exact ⟨largerOutBase.addDefEqs rules, Hlarger.wf, Hlarger.install,
+    VEnv.addDefEqs_mono houtBase⟩
+
+/-- Re-establish source and formation well-formedness in a larger safety
+model using the freshly replayed block installation.  Freshness-sensitive
+`addConsts` facts come from `Hblock`; all semantic typing and positivity facts
+are transported monotonically from the original declaration judgment. -/
+theorem VInductDecl.WF.rebaseOfBlock
+    {decl : VInductDecl} {block : VInductBlock}
+    {base largerBase : VEnv}
+    (H : decl.WF base)
+    (hbase : base ≤ largerBase)
+    (Hblock : block.WF largerBase)
+    (htypes : block.types = decl.typeConstants)
+    (hctors : block.ctors = decl.constructorConstants) :
+    decl.WF largerBase := by
+  rcases Hblock with
+    ⟨largerTypes, largerCtors, largerRecursors, hlargerTypes,
+      hlargerCtors, hlargerRecursors, _htypesWF, _hctorsWF, _hrecsWF,
+      _hrulesWF⟩
+  have hlargerTypes' :
+      largerBase.addConsts decl.typeConstants = some largerTypes := by
+    simpa [htypes] using hlargerTypes
+  have hlargerCtors' :
+      largerTypes.addConsts decl.constructorConstants = some largerCtors := by
+    simpa [hctors] using hlargerCtors
+  rcases H.1 with
+    ⟨hnonempty, hnames, htypeUvars, hctorUvars, sourceTypes,
+      sourceCtors, hsourceTypes, hsourceCtors, hsourceTypesWF,
+      hsourceCtorsWF⟩
+  have hsourceTypesLE : sourceTypes ≤ largerTypes :=
+    VEnv.addConsts_mono hbase hsourceTypes hlargerTypes'
+  have Hsource : decl.SourceWF largerBase :=
+    ⟨hnonempty, hnames, htypeUvars, hctorUvars, largerTypes, largerCtors,
+      hlargerTypes', hlargerCtors',
+      fun type htype => (hsourceTypesWF type htype).mono hbase,
+      fun ctor hctor => (hsourceCtorsWF ctor hctor).mono hsourceTypesLE⟩
+  rcases H.2 with
+    ⟨params, resultLevel, formationTypes, hformationTypes, htypeShapes,
+      hctorShapes⟩
+  have hformationTypesLE : formationTypes ≤ largerTypes :=
+    VEnv.addConsts_mono hbase hformationTypes hlargerTypes'
+  have Hformation : decl.FormationWF largerBase :=
+    ⟨params, resultLevel, largerTypes, hlargerTypes',
+      fun type htype =>
+        ⟨(htypeShapes type htype).1,
+          (htypeShapes type htype).2.mono hbase⟩,
+      fun type htype ctor hctor =>
+        (hctorShapes type htype ctor hctor).mono hformationTypesLE⟩
+  exact ⟨Hsource, Hformation⟩
+
+/-- Replay a complete inductive refinement in a larger safety-indexed model.
+The fresh block supplies the source-installation facts that plain weakening
+cannot preserve, while source well-formedness and compilation semantics are
+transported from the original model. -/
+theorem BlockCertificate.rebaseAddInduct
+    (H : BlockCertificate checkSafety prodEnv base types ctors recursors
+      rules outEnv outBase)
+    (Hvalid : CheckingEnv.Valid safety prodEnv largerBase)
+    (hsafety : safety ≤ checkSafety)
+    (hbase : base ≤ largerBase)
+    (hdecl : decl.WF base)
+    (hcompile : decl.CompilesTo base H.block) :
+    ∃ largerOutBase,
+      Nonempty (BlockCertificate safety prodEnv largerBase types ctors
+        recursors rules outEnv largerOutBase) ∧
+      VEnv.AddInduct largerBase decl (largerOutBase.addDefEqs rules) ∧
+      outBase.addDefEqs rules ≤ largerOutBase.addDefEqs rules := by
+  rcases H.rebaseCertificate Hvalid hsafety hbase with
+    ⟨largerOutBase, ⟨Hlarger⟩, houtBase⟩
+  have hdeclLarger : decl.WF largerBase :=
+    VInductDecl.WF.rebaseOfBlock hdecl hbase Hlarger.wf
+      hcompile.types hcompile.ctors
+  have hcompileLarger : decl.CompilesTo largerBase Hlarger.block :=
+    hcompile.mono hbase
+  exact ⟨largerOutBase, ⟨Hlarger⟩,
+    .intro hdeclLarger hcompileLarger Hlarger.wf Hlarger.install,
+    VEnv.addDefEqs_mono houtBase⟩
 
 /-- Lift one unsafe block installation to the three safety-indexed abstract
 environments.  Partial and safe translation traces normally come from
