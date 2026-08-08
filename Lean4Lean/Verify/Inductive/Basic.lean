@@ -25596,6 +25596,102 @@ theorem RecognizedNestedReplacement.finalMapping
     rw [Hbuilt.nested]
     simp
 
+def NestedReplacementHasFinalMapping
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (input : Expr) (state : Lean4Lean.ElimNestedInductive.State)
+    (lowered : Expr) (finalResult : Lean4Lean.ElimNestedInductive.Result) : Prop :=
+    ∃ value targetName levels auxName auxLevels nested,
+      NestedAppCandidate env state input value ∧
+      input.getAppFn = .const targetName levels ∧
+      lowered = mkAppRange (mkAppN (.const auxName auxLevels) As)
+        value.numParams input.getAppArgs.size input.getAppArgs ∧
+      (nested ==
+        ((mkAppRange (.const targetName levels) 0 value.numParams
+          input.getAppArgs).abstract As).instantiateRev params) = true ∧
+      finalResult.aux2nested.find? auxName = some nested
+
+/-- Successful node replacement retains both the independent recognition
+certificate and the final restoration-map entry for the auxiliary family it
+returns. This is the leaf case needed by the structural expression inverse. -/
+theorem NestedReplacement.finalMapping
+    (H : NestedReplacement env lctx params As input state
+      (some lowered, nextState))
+    (Hlater : NestedAuxLE nextState finalState)
+    (Hmap : NestedAuxMapModels finalResult finalState) :
+    NestedReplacementHasFinalMapping env lctx params As input state lowered
+      finalResult := by
+  cases H with
+  | recognized Hcandidate hhead Hrecognized =>
+    rcases Hrecognized.finalMapping Hlater Hmap with
+      ⟨auxName, auxLevels, nested, replacement, hresult, hreplacement,
+        hnested, hlookup⟩
+    cases hresult
+    exact ⟨_, _, _, auxName, auxLevels, nested,
+      Hcandidate, hhead, hreplacement, hnested, hlookup⟩
+
+/-- Structural expression-lowering relation whose successful leaves are
+already connected to the final restoration map. Unlike the operational trace,
+this relation forgets monadic control flow and retains exactly the semantic
+information needed to interpret the lowered expression. -/
+inductive NestedExprMapping
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (finalResult : Lean4Lean.ElimNestedInductive.Result) :
+    Expr → Lean4Lean.ElimNestedInductive.State →
+      Expr × Lean4Lean.ElimNestedInductive.State → Prop
+  | hit : NestedReplacementHasFinalMapping env lctx params As input state
+      output finalResult →
+      NestedExprMapping env lctx params As finalResult input state
+        (output, nextState)
+  | bvar : NestedExprMapping env lctx params As finalResult (.bvar i) state
+      (.bvar i, state)
+  | fvar {fvarId : FVarId} : NestedExprMapping env lctx params As finalResult
+      (.fvar fvarId) state (.fvar fvarId, state)
+  | mvar {mvarId : MVarId} : NestedExprMapping env lctx params As finalResult
+      (.mvar mvarId) state (.mvar mvarId, state)
+  | sort : NestedExprMapping env lctx params As finalResult (.sort level) state
+      (.sort level, state)
+  | const : NestedExprMapping env lctx params As finalResult
+      (.const name levels) state (.const name levels, state)
+  | lit : NestedExprMapping env lctx params As finalResult (.lit literal) state
+      (.lit literal, state)
+  | app : NestedExprMapping env lctx params As finalResult fn state
+      (fn', fnState) →
+      NestedExprMapping env lctx params As finalResult arg fnState
+        (arg', outState) →
+      NestedExprMapping env lctx params As finalResult (.app fn arg) state
+        (Expr.updateApp! (.app fn arg) fn' arg', outState)
+  | lam : NestedExprMapping env lctx params As finalResult dom state
+      (dom', domState) →
+      NestedExprMapping env lctx params As finalResult body domState
+        (body', outState) →
+      NestedExprMapping env lctx params As finalResult (.lam name dom body bi)
+        state (Expr.updateLambdaE! (.lam name dom body bi) dom' body', outState)
+  | forallE : NestedExprMapping env lctx params As finalResult dom state
+      (dom', domState) →
+      NestedExprMapping env lctx params As finalResult body domState
+        (body', outState) →
+      NestedExprMapping env lctx params As finalResult
+        (.forallE name dom body bi) state
+        (Expr.updateForallE! (.forallE name dom body bi) dom' body', outState)
+  | letE : NestedExprMapping env lctx params As finalResult type state
+      (type', typeState) →
+      NestedExprMapping env lctx params As finalResult value typeState
+        (value', valueState) →
+      NestedExprMapping env lctx params As finalResult body valueState
+        (body', outState) →
+      NestedExprMapping env lctx params As finalResult
+        (.letE name type value body nondep) state
+        (Expr.updateLet! (.letE name type value body nondep)
+          type' value' body' nondep, outState)
+  | mdata : NestedExprMapping env lctx params As finalResult body state
+      (body', outState) →
+      NestedExprMapping env lctx params As finalResult (.mdata data body) state
+        (Expr.updateMData! (.mdata data body) body', outState)
+  | proj : NestedExprMapping env lctx params As finalResult body state
+      (body', outState) →
+      NestedExprMapping env lctx params As finalResult (.proj name idx body) state
+        (Expr.updateProj! (.proj name idx body) body', outState)
+
 theorem RecognizedNestedReplacement.newTypesLE
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out) : NestedNewTypesLE state out.2 := by
@@ -25653,6 +25749,37 @@ theorem NestedExprReplacement.nestedAuxLE
     exact Hnode.nestedAuxLE.trans (ihType.trans (ihValue.trans ihBody))
   | mdata Hnode _ ihBody | proj Hnode _ ihBody =>
     exact Hnode.nestedAuxLE.trans ihBody
+
+theorem NestedExprReplacement.finalMapping
+    (H : NestedExprReplacement env lctx params As input state out)
+    (Hlater : NestedAuxLE out.2 finalState)
+    (Hmap : NestedAuxMapModels finalResult finalState) :
+    NestedExprMapping env lctx params As finalResult input state out := by
+  induction H generalizing finalState with
+  | hit Hnode => exact .hit (Hnode.finalMapping Hlater Hmap)
+  | bvar => exact .bvar
+  | fvar => exact .fvar
+  | mvar => exact .mvar
+  | sort => exact .sort
+  | const => exact .const
+  | lit => exact .lit
+  | app Hnode Hfn Harg ihFn ihArg =>
+    exact .app (ihFn (Harg.nestedAuxLE.trans Hlater) Hmap)
+      (ihArg Hlater Hmap)
+  | lam Hnode Hdom Hbody ihDom ihBody =>
+    exact .lam (ihDom (Hbody.nestedAuxLE.trans Hlater) Hmap)
+      (ihBody Hlater Hmap)
+  | forallE Hnode Hdom Hbody ihDom ihBody =>
+    exact .forallE (ihDom (Hbody.nestedAuxLE.trans Hlater) Hmap)
+      (ihBody Hlater Hmap)
+  | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
+    exact .letE
+      (ihType (Hvalue.nestedAuxLE.trans
+        (Hbody.nestedAuxLE.trans Hlater)) Hmap)
+      (ihValue (Hbody.nestedAuxLE.trans Hlater) Hmap)
+      (ihBody Hlater Hmap)
+  | mdata Hnode Hbody ihBody => exact .mdata (ihBody Hlater Hmap)
+  | proj Hnode Hbody ihBody => exact .proj (ihBody Hlater Hmap)
 
 theorem replaceAllNested_refines
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
@@ -25920,6 +26047,38 @@ theorem LoweredConstructorTranslation.nestedAuxLE
   rcases Hreplace.nestedAuxLE with ⟨suffix, hsuffix⟩
   exact ⟨suffix, by simpa [hopenedAux] using hsuffix⟩
 
+/-- Constructor lowering interpreted against the final restoration map. The
+opened source telescope and rebuilt target telescope are retained verbatim,
+while the body traversal is promoted from operational replacement to the
+semantic `NestedExprMapping` relation. -/
+structure LoweredConstructorMapping
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (finalResult : Lean4Lean.ElimNestedInductive.Result)
+    (source : Constructor) (state : Lean4Lean.ElimNestedInductive.State)
+    (out : Constructor × Lean4Lean.ElimNestedInductive.State) : Prop where
+  name : out.1.name = source.name
+  mapped : ∃ lctx tail As lowered openedState,
+    NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+    ∃ _ : LocalForallSelection lctx As,
+      openedState.newTypes = state.newTypes ∧
+      openedState.nestedAux = state.nestedAux ∧
+      As.size = nparams ∧
+      NestedExprMapping env lctx params As finalResult tail openedState
+        (lowered, out.2) ∧
+      out.1.type = lctx.mkForall As lowered
+
+theorem LoweredConstructorTranslation.finalMapping
+    (H : LoweredConstructorTranslation env params nparams source state out)
+    (Hlater : NestedAuxLE out.2 finalState)
+    (Hmap : NestedAuxMapModels finalResult finalState) :
+    LoweredConstructorMapping env params nparams finalResult source state out := by
+  refine ⟨H.name, ?_⟩
+  rcases H.translated with
+    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+      hopenedTypes, hopenedAux, hsize, Hreplace, htype⟩
+  exact ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+    hopenedTypes, hopenedAux, hsize, Hreplace.finalMapping Hlater Hmap, htype⟩
+
 theorem ElimNestedInductive.lowerConstructor.translation
     (params : Array Expr) (nparams : Nat) (ctor : Constructor)
     (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
@@ -25967,6 +26126,32 @@ theorem LoweredConstructorTranslations.nestedAuxLE
   induction H with
   | nil => exact .refl _
   | cons Hhead Htail ih => exact Hhead.nestedAuxLE.trans ih
+
+inductive LoweredConstructorMappings
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (finalResult : Lean4Lean.ElimNestedInductive.Result) :
+    List Constructor → Lean4Lean.ElimNestedInductive.State →
+      List Constructor × Lean4Lean.ElimNestedInductive.State → Prop
+  | nil : LoweredConstructorMappings env params nparams finalResult [] state
+      ([], state)
+  | cons : LoweredConstructorMapping env params nparams finalResult source
+      state step →
+      LoweredConstructorMappings env params nparams finalResult sources step.2
+        out →
+      LoweredConstructorMappings env params nparams finalResult
+        (source :: sources) state (step.1 :: out.1, out.2)
+
+theorem LoweredConstructorTranslations.finalMapping
+    (H : LoweredConstructorTranslations env params nparams sources state out)
+    (Hlater : NestedAuxLE out.2 finalState)
+    (Hmap : NestedAuxMapModels finalResult finalState) :
+    LoweredConstructorMappings env params nparams finalResult sources state out := by
+  induction H generalizing finalState with
+  | nil => exact .nil
+  | cons Hhead Htail ih =>
+    exact .cons
+      (Hhead.finalMapping (Htail.nestedAuxLE.trans Hlater) Hmap)
+      (ih Hlater Hmap)
 
 theorem LoweredConstructorTranslations.targetsRestoreTelescope
     (H : LoweredConstructorTranslations env params nparams sources state out) :
@@ -26050,6 +26235,16 @@ structure LoweredInductiveTranslation
   constructors : LoweredConstructorTranslations env params nparams source.ctors
     state (out.1.ctors, out.2)
 
+structure LoweredInductiveMapping
+    (env : Environment) (params : Array Expr) (nparams : Nat)
+    (finalResult : Lean4Lean.ElimNestedInductive.Result)
+    (source : InductiveType) (state : Lean4Lean.ElimNestedInductive.State)
+    (out : InductiveType × Lean4Lean.ElimNestedInductive.State) : Prop where
+  name : out.1.name = source.name
+  type : out.1.type = source.type
+  constructors : LoweredConstructorMappings env params nparams finalResult
+    source.ctors state (out.1.ctors, out.2)
+
 theorem LoweredInductiveTranslation.newTypesLE
     (H : LoweredInductiveTranslation env params nparams source state out) :
     NestedNewTypesLE state out.2 := H.constructors.newTypesLE
@@ -26057,6 +26252,13 @@ theorem LoweredInductiveTranslation.newTypesLE
 theorem LoweredInductiveTranslation.nestedAuxLE
     (H : LoweredInductiveTranslation env params nparams source state out) :
     NestedAuxLE state out.2 := H.constructors.nestedAuxLE
+
+theorem LoweredInductiveTranslation.finalMapping
+    (H : LoweredInductiveTranslation env params nparams source state out)
+    (Hlater : NestedAuxLE out.2 finalState)
+    (Hmap : NestedAuxMapModels finalResult finalState) :
+    LoweredInductiveMapping env params nparams finalResult source state out :=
+  ⟨H.name, H.type, H.constructors.finalMapping Hlater Hmap⟩
 
 theorem LoweredInductiveTranslation.targetRestoreTelescope
     (H : LoweredInductiveTranslation env params nparams source state out) :
@@ -26516,6 +26718,25 @@ theorem NestedLoweringRun.translationAtInitial
   exact ⟨params, stepState, target, loweredState,
     Hopening.initial_size, Htranslated, htarget, Haux⟩
 
+/-- Once final cache-name uniqueness is supplied, every initially declared
+family has a positional lowering certificate whose constructor bodies are
+all interpreted by the actual final restoration map. -/
+theorem NestedLoweringRun.finalMappingAtInitial
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (hauxNames : (finalState.nestedAux.toList.map Prod.snd).Nodup)
+    (hj : j < initialState.newTypes.size) :
+    ∃ params stepState target loweredState,
+      params.size = nparams ∧
+      LoweredInductiveMapping env params nparams result
+        initialState.newTypes[j] stepState (target, loweredState) ∧
+      result.types[j]? = some target := by
+  rcases H.translationAtInitial hj with
+    ⟨params, stepState, target, loweredState, hparams, Htranslated,
+      htarget, Hlater⟩
+  exact ⟨params, stepState, target, loweredState, hparams,
+    Htranslated.finalMapping Hlater (H.resultAuxMapModels hauxNames), htarget⟩
+
 theorem NestedLoweringRun.preservesInitialTypeName
     (H : NestedLoweringRun env fuel nparams types initialState out)
     (Hname : NewTypeNamePresent initialState name) :
@@ -26723,6 +26944,36 @@ theorem NestedLoweringResult.sourceTranslationAt
       htarget, Haux⟩
   exact ⟨params, stepState, target, loweredState, hparams,
     by simpa using Htranslated, htarget, finalState, Hrun, Haux⟩
+
+/-- End-to-end source-family mapping, with the one still-unproved production
+fresh-name obligation exposed at the final cache boundary rather than hidden
+inside the semantic certificate. -/
+theorem NestedLoweringResult.sourceFinalMappingAt
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResult env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (hj : j < sourceTypes.length) :
+    ∃ finalState,
+      NestedLoweringRun env fuel nparams sourceTypes
+        { initialState with newTypes := sourceTypes.toArray }
+        (result, finalState) ∧
+      ((finalState.nestedAux.toList.map Prod.snd).Nodup →
+        ∃ params stepState target loweredState,
+          params.size = nparams ∧
+          LoweredInductiveMapping env params nparams result sourceTypes[j]
+            stepState (target, loweredState) ∧
+          result.types[j]? = some target) := by
+  rcases H with ⟨finalState, Hrun⟩
+  refine ⟨finalState, Hrun, ?_⟩
+  intro hauxNames
+  have hjInitial : j <
+      ({ initialState with
+        newTypes := sourceTypes.toArray }).newTypes.size := by
+    simpa using hj
+  rcases Hrun.finalMappingAtInitial hauxNames hjInitial with
+    ⟨params, stepState, target, loweredState, hparams, Hmapped, htarget⟩
+  exact ⟨params, stepState, target, loweredState, hparams,
+    by simpa using Hmapped, htarget⟩
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
