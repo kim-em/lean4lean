@@ -200,6 +200,67 @@ theorem VEnvs.WF.safePrimitives_add {ves : VEnvs} {env : Environment}
     rw [Kernel.Environment.find?, mapWF.find?'_eq_find?]
     exact hfind
 
+/-- Extend only the unsafe abstract model.  This is the safety-indexed shape
+of an unsafe inductive declaration: the production map changes for every
+checker view, but partial and safe views justify that change through
+`TrEnv'.ignore`, while the unsafe view receives the abstract block. -/
+theorem VEnvs.WF.extendUnsafe
+    {ves : VEnvs} {env env' : Environment} (wf : ves.WF env)
+    (unsafeEnv : VEnv)
+    (htrUnsafe : TrEnv' .unsafe env'.constants env'.quotInit unsafeEnv)
+    (htrPartial : TrEnv' .partial env'.constants env'.quotInit
+      (ves.venv .partial))
+    (htrSafe : TrEnv' .safe env'.constants env'.quotInit
+      (ves.venv .safe))
+    (hunsafePrimitives : unsafeEnv.HasPrimitives)
+    (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
+      Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (hleUnsafe : ves.venv .unsafe ≤ unsafeEnv) :
+    ∃ ves' : VEnvs, ves'.WF env' ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  let next : DefinitionSafety → VEnv
+    | .unsafe => unsafeEnv
+    | .partial => ves.venv .partial
+    | .safe => ves.venv .safe
+  let ves' : VEnvs := ⟨next⟩
+  refine ⟨ves', ?_, ?_⟩
+  · refine {
+      tr := ?_
+      hasPrimitives := ?_
+      safePrimitives := hsafePrimitives
+      mono := ?_ }
+    · intro safety
+      cases safety with
+      | «unsafe» => exact htrUnsafe
+      | «partial» => exact htrPartial
+      | safe => exact htrSafe
+    · intro safety
+      cases safety with
+      | «unsafe» => exact hunsafePrimitives
+      | «partial» => exact wf.hasPrimitives
+      | safe => exact wf.hasPrimitives
+    · intro safety safety' hle
+      cases safety <;> cases safety' <;>
+        simp only [ves', next]
+      · exact VEnv.LE.rfl
+      · exact (wf.mono DefinitionSafety.unsafe_le).trans hleUnsafe
+      · exact (wf.mono DefinitionSafety.unsafe_le).trans hleUnsafe
+      · exact False.elim ((by decide : ¬ (DefinitionSafety.safe ≤
+          DefinitionSafety.unsafe)) hle)
+      · exact wf.mono DefinitionSafety.le_rfl
+      · exact False.elim ((by decide : ¬ (DefinitionSafety.safe ≤
+          DefinitionSafety.partial)) hle)
+      · exact False.elim ((by decide : ¬ (DefinitionSafety.partial ≤
+          DefinitionSafety.unsafe)) hle)
+      · exact wf.mono DefinitionSafety.le_safe
+      · exact wf.mono DefinitionSafety.le_rfl
+  · intro safety
+    cases safety with
+    | «unsafe» => exact hleUnsafe
+    | «partial» => exact VEnv.LE.rfl
+    | safe => exact VEnv.LE.rfl
+
 theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (ci : ConstantInfo) (ci' : VConstVal) (checkSafety : DefinitionSafety)
     (visible_le : ∀ safety, safety ≤ ci.safety → safety ≤ checkSafety)

@@ -1,7 +1,7 @@
 import Init.Data.Array.Lemmas
 import Init.Data.List.Sublist
 import Lean4Lean.Inductive.Add
-import Lean4Lean.Verify.Environment.Checker
+import Lean4Lean.Verify.Environment.Extension
 import Lean4Lean.Verify.TypeChecker
 
 namespace Lean4Lean
@@ -19798,6 +19798,20 @@ theorem AddConstants.append
   | cons hn hnprim htr hwf hadd hdelta _ ih =>
     exact .cons hn hnprim htr hwf hadd hdelta (ih H₂)
 
+theorem AddConstants.hasPrimitives
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (Hprimitives : venv.HasPrimitives) : outVEnv.HasPrimitives := by
+  induction H with
+  | nil => exact Hprimitives
+  | cons _hn hnprim _htr _hwf hadd _hdelta _Htail ih =>
+    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
+    have hnonprim :
+        Kernel.Environment.primitives.contains ci.name = false := by
+      cases h : Kernel.Environment.primitives.contains ci.name <;>
+        simp_all
+    exact ih (Lean4Lean.VEnv.HasPrimitives.addConst Hprimitives
+      hnonprim hadd)
+
 /-- Lockstep installation preserves concrete/abstract alignment.  This is
 the production-map component of `AddInduct`; it follows from the executable
 staging trace and need not be supplied by a later compilation proof. -/
@@ -19848,6 +19862,13 @@ theorem aligned_addDefEqs
   | nil => exact H
   | cons rule rules ih =>
     exact ih H.defeq
+
+theorem hasPrimitives_addDefEqs
+    {venv : VEnv} (H : venv.HasPrimitives) (rules : List VDefEq) :
+    (venv.addDefEqs rules).HasPrimitives := by
+  induction rules generalizing venv with
+  | nil => exact H
+  | cons rule rules ih => exact ih H.addDefEq
 
 theorem CheckingEnv.exists_addConst
     (H : CheckingEnv safety env venv) (hn : env.find? name = none)
@@ -21289,6 +21310,41 @@ theorem BlockCertificate.install
   simp [BlockCertificate.block, VInductBlock.install,
     H.staged.abstract_types, H.staged.abstract_ctors,
     H.staged.abstract_recursors]
+
+theorem BlockCertificate.hasPrimitives
+    (H : BlockCertificate safety env venv types ctors recursors
+      rules outEnv outVEnv)
+    (Hprimitives : venv.HasPrimitives) :
+    (outVEnv.addDefEqs rules).HasPrimitives :=
+  hasPrimitives_addDefEqs (H.staged.recursorsAdded.hasPrimitives
+    (H.staged.ctorsAdded.hasPrimitives
+      (H.staged.typesAdded.hasPrimitives Hprimitives))) rules
+
+/-- Lift one unsafe block installation to the three safety-indexed abstract
+environments.  Partial and safe translation traces normally come from
+ignoring the newly installed unsafe production constants; every other field
+is derived from the block certificate and the source `VEnvs.WF`. -/
+theorem BlockCertificate.extendUnsafe
+    {ves : VEnvs}
+    (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
+      recursors rules outEnv outVEnv)
+    (wf : ves.WF prodEnv)
+    (htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
+      (outVEnv.addDefEqs rules))
+    (htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
+      (ves.venv .partial))
+    (htrSafe : TrEnv' .safe outEnv.constants outEnv.quotInit
+      (ves.venv .safe))
+    (hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
+      Kernel.Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = []) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  apply Lean4Lean.VEnvs.WF.extendUnsafe wf (outVEnv.addDefEqs rules)
+    htrUnsafe htrPartial htrSafe
+  · exact H.hasPrimitives wf.hasPrimitives
+  · exact hsafePrimitives
+  · exact VInductBlock.install_le H.install
 
 /-- Semantic endpoint of the executable block certificates. Once source
 typing/formation and the independent compilation relation are supplied, the
