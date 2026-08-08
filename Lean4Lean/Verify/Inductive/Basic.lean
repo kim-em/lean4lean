@@ -30048,6 +30048,66 @@ theorem RecursorPhasesResult.findSourceConstructor
   rw [← hname]
   exact H.findConstructorOfMem hentry
 
+/-- The concrete constructor read by an operational restoration step is the
+positionally aligned lowered constructor installed by the verified producer.
+Only equality of the fold item name is required; lookup functionality then
+forces equality of the complete `ConstructorVal`, and hence of its type. -/
+theorem RestoredConstructorStep.oldType_eq_ofInstalled
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (Hstep : RestoredConstructorStep result outEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (H : RecursorPhasesResult R outEnv)
+    (howner : owner ∈ indTypes.toList) (hctor : ctor ∈ owner.ctors)
+    (hname : ctorName = ctor.name) :
+    Hstep.oldInfo.type = ctor.type := by
+  rcases H.findSourceConstructor howner hctor with
+    ⟨info, hlookup, htype⟩
+  have hstepLookup :
+      outEnv.find? ctor.name = some (.ctorInfo Hstep.oldInfo) := by
+    simpa [hname] using Hstep.lookup
+  have hinfo : Hstep.oldInfo = info := by
+    have heq : ConstantInfo.ctorInfo Hstep.oldInfo = .ctorInfo info :=
+      Option.some.inj (hstepLookup.symm.trans hlookup)
+    exact ConstantInfo.ctorInfo.inj heq
+  rw [hinfo]
+  exact htype
+
+/-- The constructor fold nested inside an operational family restoration is
+indexed by exactly the constructor-name list of the aligned installed lowered
+family.  This is the family-level lookup bridge used before applying
+`oldType_eq_ofInstalled` pointwise. -/
+theorem RestoredInductiveStep.oldConstructors_eq_ofInstalled
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (Hstep : RestoredInductiveStep result outEnv auxRec allIndNames indType
+      sourceProdEnv targetProdEnv)
+    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv)
+    (howner : owner ∈ indTypes.toList)
+    (hname : indType.name = owner.name) :
+    Hstep.oldInfo.ctors = owner.ctors.map (fun ctor => ctor.name) := by
+  rcases H.findSourceHeader Hc howner with
+    ⟨info, hlookup, hctors, _hall⟩
+  have hstepLookup :
+      outEnv.find? owner.name = some (.inductInfo Hstep.oldInfo) := by
+    simpa [hname] using Hstep.lookup
+  have hinfo : Hstep.oldInfo = info := by
+    have heq : ConstantInfo.inductInfo Hstep.oldInfo = .inductInfo info :=
+      Option.some.inj (hstepLookup.symm.trans hlookup)
+    exact ConstantInfo.inductInfo.inj heq
+  rw [hinfo]
+  exact hctors
+
 /-- Every generated primary recursor is retrievable with the exact production
 metadata retained by the verified recursor phase. -/
 theorem RecursorPhasesResult.findRecursorOfMem
@@ -31774,10 +31834,11 @@ Lean expression equivalence. -/
 theorem NestedReplacementReopens.restoreNode
     (H : NestedReplacementReopens env lctx params As input state lowered
       finalResult restoreAs)
+    (restoreEnv : Environment)
     (Hselection : LocalForallSelection lctx As)
     (hresultNParams : finalResult.nparams = As.size) :
     ∃ restored,
-      finalResult.restoreNestedNode env restoreAs {}
+      finalResult.restoreNestedNode restoreEnv restoreAs {}
           (Expr.reopenParams lowered As restoreAs) = some restored ∧
       (restored == Expr.reopenParams input As restoreAs) = true := by
   rcases H with
@@ -31810,7 +31871,8 @@ theorem NestedReplacementReopens.restoreNode
   have harity : finalResult.nparams ≤ (R lowered).getAppArgs.size := by
     rw [hargs]
     simp [hprefixLength]
-  have hnode := restoreNestedNode_family_general finalResult env restoreAs {}
+  have hnode := restoreNestedNode_family_general finalResult restoreEnv
+    restoreAs {}
     (R lowered) nested auxName auxLevels hfn (by rfl) hlookup harity
   have hrestored :
       mkAppRange ((nested.abstract finalResult.params).instantiateRev restoreAs)
@@ -32240,10 +32302,11 @@ disjointness for the corresponding original constant. -/
 theorem NestedExprReopening.restoreNode_none
     (H : NestedExprReopening env lctx params As finalResult targetAs input
       state out)
+    (restoreEnv : Environment)
     (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
     (Hmiss : NoNestedAppCandidate env state input)
-    (Hsource : RestoreSourceDisjoint finalResult env input) (k : Nat) :
-    finalResult.restoreNestedNode env targetAs {}
+    (Hsource : RestoreSourceDisjoint finalResult restoreEnv input) (k : Nat) :
+    finalResult.restoreNestedNode restoreEnv targetAs {}
       (Expr.reopenFVarsAt out.1 fvars restoreFvars k) = none := by
   generalize ht : Expr.reopenFVarsAt out.1 fvars restoreFvars k = t
   cases t with
@@ -32283,16 +32346,17 @@ while certified misses recurse through the renamed children. -/
 theorem NestedExprReopening.restore_eqv
     (H : NestedExprReopening env lctx params As finalResult targetAs input
       state out)
+    (restoreEnv : Environment)
     (Hselection : LocalForallSelection lctx As)
     (hnd : Hselection.fvars.Nodup)
     (restoreFvars : List FVarId)
     (hrestore : targetAs = (restoreFvars.map Expr.fvar).toArray)
     (hsize : restoreFvars.length = Hselection.fvars.length)
     (hresultNParams : finalResult.nparams = As.size)
-    (Hsource : RestoreSourceDisjoint finalResult env input)
+    (Hsource : RestoreSourceDisjoint finalResult restoreEnv input)
     (k : Nat) :
     ((Expr.reopenFVarsAt out.1 Hselection.fvars restoreFvars k).replace
-        (finalResult.restoreNestedNode env targetAs {}) ==
+        (finalResult.restoreNestedNode restoreEnv targetAs {}) ==
       Expr.reopenFVarsAt input Hselection.fvars restoreFvars k) = true := by
   induction H generalizing k with
   | @hit hitInput hitState hitOutput nextState Hnode =>
@@ -32300,20 +32364,20 @@ theorem NestedExprReopening.restore_eqv
       Hselection.expressions hrestore hitOutput k
     have hin := Expr.reopenFVarsAt_eq_reopenParams hnd hsize
       Hselection.expressions hrestore hitInput k
-    rcases Hnode.restoreNode Hselection hresultNParams with
+    rcases Hnode.restoreNode restoreEnv Hselection hresultNParams with
       ⟨restored, hrestored, heqv⟩
     rw [hout, hin]
     rw [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hrestored]
     exact heqv
   | bvar Hnode =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.bvar Hnode) hnd hsize
+      (.bvar Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     rw [Expr.reopenFVarsAt_bvar hsize] at hnone ⊢
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | fvar Hnode =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.fvar Hnode) hnd hsize
+      (.fvar Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     rcases Expr.reopenFVarsAt_fvar_exists hnd hsize _ k with
       ⟨restored, hopen⟩
@@ -32321,7 +32385,7 @@ theorem NestedExprReopening.restore_eqv
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @mvar stepState id Hnode =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.mvar Hnode) hnd hsize
+      (.mvar Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
       (e := Expr.mvar id) (by intro fv depth; simp [Expr.abstract1])
@@ -32330,7 +32394,7 @@ theorem NestedExprReopening.restore_eqv
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @sort level stepState Hnode =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.sort Hnode) hnd hsize
+      (.sort Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
       (e := Expr.sort level) (by intro fv depth; simp [Expr.abstract1])
@@ -32339,7 +32403,7 @@ theorem NestedExprReopening.restore_eqv
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @const name levels stepState Hnode =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.const Hnode) hnd hsize
+      (.const Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
       (e := Expr.const name levels) (by intro fv depth; simp [Expr.abstract1])
@@ -32348,7 +32412,7 @@ theorem NestedExprReopening.restore_eqv
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @lit literal stepState Hnode =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.lit Hnode) hnd hsize
+      (.lit Hnode) restoreEnv hnd hsize
       Hnode.noCandidate Hsource k
     have hopen := Expr.reopenFVarsAt_of_abstract1_eq_self
       (e := Expr.lit literal) (by intro fv depth; simp [Expr.abstract1])
@@ -32357,7 +32421,7 @@ theorem NestedExprReopening.restore_eqv
     simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hnone]
   | @app fn arg stepState fn' fnState arg' outState Hnode Hfn Harg ihFn ihArg =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.app Hnode Hfn Harg) hnd hsize Hnode.noCandidate Hsource k
+      (.app Hnode Hfn Harg) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
     have hopen : R (Expr.updateApp! (.app fn arg) fn' arg') =
@@ -32366,8 +32430,9 @@ theorem NestedExprReopening.restore_eqv
     have hinput : R (.app fn arg) = .app (R fn) (R arg) := by
       simp [R, Expr.reopenFVarsAt]
     change ((R (Expr.updateApp! (.app fn arg) fn' arg')).replace
-      (finalResult.restoreNestedNode env targetAs {}) == R (.app fn arg)) = true
-    change finalResult.restoreNestedNode env targetAs {}
+      (finalResult.restoreNestedNode restoreEnv targetAs {}) ==
+        R (.app fn arg)) = true
+    change finalResult.restoreNestedNode restoreEnv targetAs {}
       (R (Expr.updateApp! (.app fn arg) fn' arg')) = none at hnone
     rw [hopen] at hnone
     rw [hopen, hinput, Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def]
@@ -32375,15 +32440,17 @@ theorem NestedExprReopening.restore_eqv
     have hfn := ihFn Hsource.1 k
     have harg := ihArg Hsource.2 k
     rw [Expr.replace_eq] at hfn harg
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R fn') == R fn) = true) at hfn
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R arg') == R arg) = true) at harg
     exact Expr.app_eqv hfn harg
   | @lam name dom body bi stepState dom' domState body' outState
       Hnode Hdom Hbody ihDom ihBody =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.lam Hnode Hdom Hbody) hnd hsize Hnode.noCandidate Hsource k
+      (.lam Hnode Hdom Hbody) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R0 : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
     let R1 : Expr → Expr := fun e =>
@@ -32395,9 +32462,9 @@ theorem NestedExprReopening.restore_eqv
         .lam name (R0 dom) (R1 body) bi := by
       simp [R0, R1, Expr.reopenFVarsAt]
     change ((R0 (Expr.updateLambdaE! (.lam name dom body bi) dom' body')).replace
-      (finalResult.restoreNestedNode env targetAs {}) ==
+      (finalResult.restoreNestedNode restoreEnv targetAs {}) ==
         R0 (.lam name dom body bi)) = true
-    change finalResult.restoreNestedNode env targetAs {}
+    change finalResult.restoreNestedNode restoreEnv targetAs {}
       (R0 (Expr.updateLambdaE! (.lam name dom body bi) dom' body')) = none
         at hnone
     rw [hopen] at hnone
@@ -32406,15 +32473,17 @@ theorem NestedExprReopening.restore_eqv
     have hdom := ihDom Hsource.1 k
     have hbody := ihBody Hsource.2 (k + 1)
     rw [Expr.replace_eq] at hdom hbody
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R0 dom') == R0 dom) = true) at hdom
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R1 body') == R1 body) = true) at hbody
     exact Expr.lam_eqv hdom hbody
   | @forallE name dom body bi stepState dom' domState body' outState
       Hnode Hdom Hbody ihDom ihBody =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.forallE Hnode Hdom Hbody) hnd hsize Hnode.noCandidate Hsource k
+      (.forallE Hnode Hdom Hbody) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R0 : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
     let R1 : Expr → Expr := fun e =>
@@ -32426,9 +32495,9 @@ theorem NestedExprReopening.restore_eqv
         .forallE name (R0 dom) (R1 body) bi := by
       simp [R0, R1, Expr.reopenFVarsAt]
     change ((R0 (Expr.updateForallE! (.forallE name dom body bi) dom' body')).replace
-      (finalResult.restoreNestedNode env targetAs {}) ==
+      (finalResult.restoreNestedNode restoreEnv targetAs {}) ==
         R0 (.forallE name dom body bi)) = true
-    change finalResult.restoreNestedNode env targetAs {}
+    change finalResult.restoreNestedNode restoreEnv targetAs {}
       (R0 (Expr.updateForallE! (.forallE name dom body bi) dom' body')) = none
         at hnone
     rw [hopen] at hnone
@@ -32437,15 +32506,18 @@ theorem NestedExprReopening.restore_eqv
     have hdom := ihDom Hsource.1 k
     have hbody := ihBody Hsource.2 (k + 1)
     rw [Expr.replace_eq] at hdom hbody
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R0 dom') == R0 dom) = true) at hdom
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R1 body') == R1 body) = true) at hbody
     exact Expr.forallE_eqv hdom hbody
   | @letE name type value body nondep stepState type' typeState value'
       valueState body' outState Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.letE Hnode Htype Hvalue Hbody) hnd hsize Hnode.noCandidate Hsource k
+      (.letE Hnode Htype Hvalue Hbody) restoreEnv hnd hsize
+        Hnode.noCandidate Hsource k
     let R0 : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
     let R1 : Expr → Expr := fun e =>
@@ -32459,9 +32531,9 @@ theorem NestedExprReopening.restore_eqv
       simp [R0, R1, Expr.reopenFVarsAt]
     change ((R0 (Expr.updateLet! (.letE name type value body nondep)
       type' value' body' nondep)).replace
-        (finalResult.restoreNestedNode env targetAs {}) ==
+        (finalResult.restoreNestedNode restoreEnv targetAs {}) ==
       R0 (.letE name type value body nondep)) = true
-    change finalResult.restoreNestedNode env targetAs {}
+    change finalResult.restoreNestedNode restoreEnv targetAs {}
       (R0 (Expr.updateLet! (.letE name type value body nondep)
         type' value' body' nondep)) = none at hnone
     rw [hopen] at hnone
@@ -32471,16 +32543,19 @@ theorem NestedExprReopening.restore_eqv
     have hvalue := ihValue Hsource.2.1 k
     have hbody := ihBody Hsource.2.2 (k + 1)
     rw [Expr.replace_eq] at htype hvalue hbody
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R0 type') == R0 type) = true) at htype
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R0 value') == R0 value) = true) at hvalue
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R1 body') == R1 body) = true) at hbody
     exact Expr.letE_eqv htype hvalue hbody
   | @mdata data body stepState body' outState Hnode Hbody ihBody =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.mdata Hnode Hbody) hnd hsize Hnode.noCandidate Hsource k
+      (.mdata Hnode Hbody) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
     have hopen : R (Expr.updateMData! (.mdata data body) body') =
@@ -32488,21 +32563,22 @@ theorem NestedExprReopening.restore_eqv
     have hinput : R (.mdata data body) = .mdata data (R body) := by
       simp [R, Expr.reopenFVarsAt]
     change ((R (Expr.updateMData! (.mdata data body) body')).replace
-      (finalResult.restoreNestedNode env targetAs {}) ==
+      (finalResult.restoreNestedNode restoreEnv targetAs {}) ==
         R (.mdata data body)) = true
-    change finalResult.restoreNestedNode env targetAs {}
+    change finalResult.restoreNestedNode restoreEnv targetAs {}
       (R (Expr.updateMData! (.mdata data body) body')) = none at hnone
     rw [hopen] at hnone
     rw [hopen, hinput, Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def,
       hnone]
     have hbody := ihBody Hsource k
     rw [Expr.replace_eq] at hbody
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R body') == R body) = true) at hbody
     exact Expr.mdata_eqv data hbody
   | @proj name idx body stepState body' outState Hnode Hbody ihBody =>
     have hnone := NestedExprReopening.restoreNode_none (targetAs := targetAs)
-      (.proj Hnode Hbody) hnd hsize Hnode.noCandidate Hsource k
+      (.proj Hnode Hbody) restoreEnv hnd hsize Hnode.noCandidate Hsource k
     let R : Expr → Expr := fun e =>
       Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
     have hopen : R (Expr.updateProj! (.proj name idx body) body') =
@@ -32510,16 +32586,17 @@ theorem NestedExprReopening.restore_eqv
     have hinput : R (.proj name idx body) = .proj name idx (R body) := by
       simp [R, Expr.reopenFVarsAt]
     change ((R (Expr.updateProj! (.proj name idx body) body')).replace
-      (finalResult.restoreNestedNode env targetAs {}) ==
+      (finalResult.restoreNestedNode restoreEnv targetAs {}) ==
         R (.proj name idx body)) = true
-    change finalResult.restoreNestedNode env targetAs {}
+    change finalResult.restoreNestedNode restoreEnv targetAs {}
       (R (Expr.updateProj! (.proj name idx body) body')) = none at hnone
     rw [hopen] at hnone
     rw [hopen, hinput, Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def,
       hnone]
     have hbody := ihBody Hsource k
     rw [Expr.replace_eq] at hbody
-    change ((Expr.replaceNoCache (finalResult.restoreNestedNode env targetAs {})
+    change ((Expr.replaceNoCache
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
       (R body') == R body) = true) at hbody
     exact Expr.proj_eqv hbody
 
@@ -33334,9 +33411,10 @@ theorem LoweredConstructorReopening.restoreTail_inverse
     (restoredTail : Expr)
     (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
       restoreAs restoredTail)
+    (restoreEnv : Environment)
     (htargetAs : targetAs = restoreAs)
     (hresultNParams : finalResult.nparams = nparams)
-    (Hsource : RestoreSourceDisjoint finalResult env source.type) :
+    (Hsource : RestoreSourceDisjoint finalResult restoreEnv source.type) :
     ∃ lctx tail As lowered openedState,
       NestedParamOpening {} #[] source.type nparams lctx tail As ∧
       ∃ Hselection : LocalForallSelection lctx As,
@@ -33350,7 +33428,7 @@ theorem LoweredConstructorReopening.restoreTail_inverse
         out.1.type = lctx.mkForall As lowered ∧
         restoredTail = (lowered.abstract As).instantiateRev restoreAs ∧
         ((restoredTail.replace
-            (finalResult.restoreNestedNode env restoreAs {})) ==
+            (finalResult.restoreNestedNode restoreEnv restoreAs {})) ==
           Expr.reopenParams tail As restoreAs) = true := by
   rcases H.restoreTail restoreLctx restoreAs restoredTail Hrestore with
     ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
@@ -33369,9 +33447,10 @@ theorem LoweredConstructorReopening.restoreTail_inverse
     rw [hrestoreLength, hselectionLength, hsize]
   have hresultSize : finalResult.nparams = As.size := by
     rw [hresultNParams, hsize]
-  have HtailSource : RestoreSourceDisjoint finalResult env tail :=
+  have HtailSource : RestoreSourceDisjoint finalResult restoreEnv tail :=
     Hopening.tailRestoreSourceDisjoint Hsource
-  have hinverse := Hreopening.restore_eqv Hselection hnodupAs restoreFvars
+  have hinverse := Hreopening.restore_eqv restoreEnv Hselection hnodupAs
+    restoreFvars
     (by simpa [htargetAs] using hrestoreArray) hrestoreSize hresultSize
     HtailSource 0
   have hloweredOpen := Expr.reopenFVarsAt_eq_reopenParams hnodupAs
@@ -33403,10 +33482,12 @@ theorem LoweredConstructorMapping.restoredBody_inverse
     (openedBody restoredBody : Expr)
     (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
       restoreAs openedBody)
+    (restoreEnv : Environment)
     (Hbody : ExprReplacement
-      (finalResult.restoreNestedNode env restoreAs {}) openedBody restoredBody)
+      (finalResult.restoreNestedNode restoreEnv restoreAs {}) openedBody
+        restoredBody)
     (hresultNParams : finalResult.nparams = nparams)
-    (Hsource : RestoreSourceDisjoint finalResult env source.type) :
+    (Hsource : RestoreSourceDisjoint finalResult restoreEnv source.type) :
     ∃ lctx tail As,
       NestedParamOpening {} #[] source.type nparams lctx tail As ∧
       ∃ Hselection : LocalForallSelection lctx As,
@@ -33416,7 +33497,7 @@ theorem LoweredConstructorMapping.restoredBody_inverse
       restoreAs source state out :=
     H.reopens hresultParams paramFvars hparams hnodup HsourceClosed
   rcases Hreopening.restoreTail_inverse restoreLctx restoreAs openedBody
-      Hrestore rfl hresultNParams Hsource with
+      Hrestore restoreEnv rfl hresultNParams Hsource with
     ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
       hnodupAs, _hopenedTypes, _hopenedAux, _hopenedNext, hsize,
       _Hreopening, _htype, _hopenedBody, hinverse⟩
@@ -33435,13 +33516,15 @@ theorem LoweredConstructorMapping.restoredBody_inverseOfSyntax
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (Hsyntax : SourceConstructorSyntax source)
-    (Hreserved : RestoreNamesReserved finalResult env)
+    (restoreEnv : Environment)
+    (Hreserved : RestoreNamesReserved finalResult restoreEnv)
     (restoreLctx : LocalContext) (restoreAs : Array Expr)
     (openedBody restoredBody : Expr)
     (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
       restoreAs openedBody)
     (Hbody : ExprReplacement
-      (finalResult.restoreNestedNode env restoreAs {}) openedBody restoredBody)
+      (finalResult.restoreNestedNode restoreEnv restoreAs {}) openedBody
+        restoredBody)
     (hresultNParams : finalResult.nparams = nparams) :
     ∃ lctx tail As,
       NestedParamOpening {} #[] source.type nparams lctx tail As ∧
@@ -33449,8 +33532,9 @@ theorem LoweredConstructorMapping.restoredBody_inverseOfSyntax
         Hselection.fvars.Nodup ∧ As.size = nparams ∧
         (restoredBody == Expr.reopenParams tail As restoreAs) = true :=
   H.restoredBody_inverse hresultParams paramFvars hparams hnodup
-    Hsyntax.closed restoreLctx restoreAs openedBody restoredBody Hrestore Hbody
-    hresultNParams (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved)
+    Hsyntax.closed restoreLctx restoreAs openedBody restoredBody Hrestore
+    restoreEnv Hbody hresultNParams
+    (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved)
 
 /-- A whole operational `NestedRestoration` of a lowered constructor, with
 its restored body related back to the independently checked source
@@ -33500,10 +33584,12 @@ theorem LoweredConstructorMapping.nestedRestoration_inverse
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (HsourceClosed : source.type.FVarsIn fun _ => False)
-    (HsourceDisjoint : RestoreSourceDisjoint result env source.type)
+    (restoreEnv : Environment)
+    (HsourceDisjoint : RestoreSourceDisjoint result restoreEnv source.type)
     (hresultNParams : result.nparams = nparams)
-    (Hrestored : NestedRestoration result env {} out.1.type restoredType) :
-    Nonempty (ConstructorRestorationBodyInverse result env nparams source
+    (Hrestored : NestedRestoration result restoreEnv {} out.1.type
+      restoredType) :
+    Nonempty (ConstructorRestorationBodyInverse result restoreEnv nparams source
       out.1 restoredType) := by
   rcases Hrestored with
     ⟨restoreLctx, restoreAs, openedBody, restoredBody, Hopening,
@@ -33514,7 +33600,7 @@ theorem LoweredConstructorMapping.nestedRestoration_inverse
   rw [hresultNParams] at Hopening'
   rcases H.restoredBody_inverse hresultParams paramFvars hparams hnodup
       HsourceClosed restoreLctx restoreAs openedBody restoredBody Hopening'
-      Hbody hresultNParams HsourceDisjoint with
+      restoreEnv Hbody hresultNParams HsourceDisjoint with
     ⟨sourceLctx, sourceTail, sourceAs, HsourceOpening, Hselection,
       hsourceNodup, hsourceArity, hinverse⟩
   exact ⟨{
@@ -33547,14 +33633,17 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (Hsyntax : SourceConstructorSyntax source)
-    (Hreserved : RestoreNamesReserved result env)
+    (restoreEnv : Environment)
+    (Hreserved : RestoreNamesReserved result restoreEnv)
     (hresultNParams : result.nparams = nparams)
-    (Hrestored : NestedRestoration result env {} out.1.type restoredType) :
-    Nonempty (ConstructorRestorationBodyInverse result env nparams source
+    (Hrestored : NestedRestoration result restoreEnv {} out.1.type
+      restoredType) :
+    Nonempty (ConstructorRestorationBodyInverse result restoreEnv nparams source
       out.1 restoredType) := by
   exact H.nestedRestoration_inverse hresultParams paramFvars hparams hnodup
-    Hsyntax.closed (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved)
-    hresultNParams Hrestored
+    Hsyntax.closed restoreEnv
+    (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams
+    Hrestored
 
 /-- Eliminate the source-opening free variables from the body inverse.  The
 restored body is the ordinary residual of the original constructor telescope,
@@ -33641,14 +33730,15 @@ theorem LoweredConstructorMapping.constructorRestoration_inverse
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (HsourceClosed : source.type.FVarsIn fun _ => False)
-    (HsourceDisjoint : RestoreSourceDisjoint result env source.type)
+    (restoreEnv : Environment)
+    (HsourceDisjoint : RestoreSourceDisjoint result restoreEnv source.type)
     (hresultNParams : result.nparams = nparams)
-    (Hrestored : ConstructorRestoration result env oldInfo newInfo)
+    (Hrestored : ConstructorRestoration result restoreEnv oldInfo newInfo)
     (htype : oldInfo.type = out.1.type) :
-    Nonempty (ConstructorRestorationBodyInverse result env nparams source
+    Nonempty (ConstructorRestorationBodyInverse result restoreEnv nparams source
       out.1 newInfo.type) := by
   apply H.nestedRestoration_inverse hresultParams paramFvars hparams hnodup
-    HsourceClosed HsourceDisjoint hresultNParams
+    HsourceClosed restoreEnv HsourceDisjoint hresultNParams
   simpa [htype] using Hrestored.type
 
 theorem LoweredConstructorMapping.constructorRestoration_inverseOfSyntax
@@ -33658,14 +33748,15 @@ theorem LoweredConstructorMapping.constructorRestoration_inverseOfSyntax
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (Hsyntax : SourceConstructorSyntax source)
-    (Hreserved : RestoreNamesReserved result env)
+    (restoreEnv : Environment)
+    (Hreserved : RestoreNamesReserved result restoreEnv)
     (hresultNParams : result.nparams = nparams)
-    (Hrestored : ConstructorRestoration result env oldInfo newInfo)
+    (Hrestored : ConstructorRestoration result restoreEnv oldInfo newInfo)
     (htype : oldInfo.type = out.1.type) :
-    Nonempty (ConstructorRestorationBodyInverse result env nparams source
+    Nonempty (ConstructorRestorationBodyInverse result restoreEnv nparams source
       out.1 newInfo.type) := by
   apply H.nestedRestoration_inverseOfSyntax hresultParams paramFvars hparams
-    hnodup Hsyntax Hreserved hresultNParams
+    hnodup Hsyntax restoreEnv Hreserved hresultNParams
   simpa [htype] using Hrestored.type
 
 /-- Transport source translation across constructor restoration using exact
@@ -33678,14 +33769,16 @@ theorem LoweredConstructorMapping.restoredType_translation
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (HsourceClosed : source.type.FVarsIn fun _ => False)
-    (HsourceDisjoint : RestoreSourceDisjoint result env source.type)
+    (restoreEnv : Environment)
+    (HsourceDisjoint : RestoreSourceDisjoint result restoreEnv source.type)
     (hresultNParams : result.nparams = nparams)
-    (Hrestored : ConstructorRestoration result env oldInfo newInfo)
+    (Hrestored : ConstructorRestoration result restoreEnv oldInfo newInfo)
     (htype : oldInfo.type = out.1.type)
     (Hsource : TrExprS venv oldInfo.levelParams [] source.type targetType) :
     TrExprS venv oldInfo.levelParams [] newInfo.type targetType := by
   rcases H.constructorRestoration_inverse hresultParams paramFvars hparams
-      hnodup HsourceClosed HsourceDisjoint hresultNParams Hrestored htype with
+      hnodup HsourceClosed restoreEnv HsourceDisjoint hresultNParams Hrestored
+      htype with
     ⟨Hinverse⟩
   apply Hsource.eqv
   simpa [beq_comm] using Hinverse.restoredType_eqv_source
@@ -33701,22 +33794,24 @@ theorem LoweredConstructorMapping.restoredType_translationOfSyntax
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (Hsyntax : SourceConstructorSyntax source)
-    (Hreserved : RestoreNamesReserved result env)
+    (restoreEnv : Environment)
+    (Hreserved : RestoreNamesReserved result restoreEnv)
     (hresultNParams : result.nparams = nparams)
-    (Hrestored : ConstructorRestoration result env oldInfo newInfo)
+    (Hrestored : ConstructorRestoration result restoreEnv oldInfo newInfo)
     (htype : oldInfo.type = out.1.type)
     (Hsource : TrExprS venv oldInfo.levelParams [] source.type targetType) :
     TrExprS venv oldInfo.levelParams [] newInfo.type targetType := by
   exact H.restoredType_translation hresultParams paramFvars hparams hnodup
-    Hsyntax.closed (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved)
-    hresultNParams Hrestored htype Hsource
+    Hsyntax.closed restoreEnv
+    (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams
+    Hrestored htype Hsource
 
 /-- Install a restored constructor from its independent source translation
 and exact semantic disjointness from the generated auxiliary declarations. -/
 theorem RestoredConstructorStep.installationOfDisjoint
     (Hstep : RestoredConstructorStep result loweredEnv ctorName
       sourceProdEnv targetProdEnv)
-    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+    (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
       source state out)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
@@ -33739,7 +33834,7 @@ theorem RestoredConstructorStep.installationOfDisjoint
         sourceVEnv targetVEnv) := by
   apply Hstep.installationOfMetadata Hvalid constructor Hsafety Huvars Hname
   · exact Hmapping.restoredType_translation hresultParams paramFvars
-      hparams hnodup HsourceClosed HsourceDisjoint hresultNParams
+      hparams hnodup HsourceClosed loweredEnv HsourceDisjoint hresultNParams
       Hstep.restored.restoration htype Hsource
   · exact Hwf
 
@@ -33749,7 +33844,7 @@ theorem RestoredConstructorStep.installationOfDisjoint
 theorem RestoredConstructorStep.installationOfSource
     (Hstep : RestoredConstructorStep result loweredEnv ctorName
       sourceProdEnv targetProdEnv)
-    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+    (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
       source state out)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
@@ -33785,7 +33880,7 @@ convention is assumed. -/
 theorem RestoredConstructorStep.installationOfFresh
     (Hstep : RestoredConstructorStep result loweredEnv ctorName
       sourceProdEnv targetProdEnv)
-    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+    (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
       source state out)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
@@ -33828,7 +33923,7 @@ translation is reused unchanged by declaration formation and installation. -/
 theorem RestoredConstructorStep.installationOfFreshSource
     (Hstep : RestoredConstructorStep result loweredEnv ctorName
       sourceProdEnv targetProdEnv)
-    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+    (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
       source state out)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
@@ -33869,7 +33964,7 @@ for arbitrary kernel constructor names. -/
 theorem RestoredConstructorStep.installationOfSyntax
     (Hstep : RestoredConstructorStep result loweredEnv ctorName
       sourceProdEnv targetProdEnv)
-    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+    (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
       source state out)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
@@ -34075,6 +34170,76 @@ theorem LoweredConstructorMappings.mappingAt
         ⟨tailSource, tailTarget, before, after, hsource, htarget, Hmapping⟩
       exact ⟨tailSource, tailTarget, before, after, by simpa, by simpa,
         Hmapping⟩
+
+/-- Lockstep alignment of the state-threaded constructor lowering relation
+with the exact operational restoration fold.  The production lookup theorem
+has already identified the `oldInfo.type` read at every step with that step's
+positionally corresponding lowered constructor type. -/
+inductive RestoredConstructorMappingTrace
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (mappingEnv loweredEnv : Environment) (params : Array Expr)
+    (nparams : Nat) :
+    ∀ {sources state targets finalState sourceProdEnv targetProdEnv},
+      LoweredConstructorMappings mappingEnv params nparams result sources
+        state (targets, finalState) →
+      StateForMTrace (RestoredConstructorStep result loweredEnv)
+        (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv →
+      Prop
+  | nil (state : Lean4Lean.ElimNestedInductive.State)
+      (sourceProdEnv : Environment) :
+      RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
+        (LoweredConstructorMappings.nil (state := state))
+        (StateForMTrace.nil (source := sourceProdEnv))
+  | cons
+      (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
+        source state (target, nextState))
+      (Hmappings : LoweredConstructorMappings mappingEnv params nparams result
+        sources nextState (targets, finalState))
+      (Hstep : RestoredConstructorStep result loweredEnv target.name
+        sourceProdEnv middleProdEnv)
+      (Hsteps : StateForMTrace (RestoredConstructorStep result loweredEnv)
+        (targets.map (fun ctor => ctor.name)) middleProdEnv targetProdEnv)
+      (htype : Hstep.oldInfo.type = target.type)
+      (Hrest : RestoredConstructorMappingTrace result mappingEnv loweredEnv params
+        nparams Hmappings Hsteps) :
+      RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
+        (.cons Hmapping Hmappings) (.cons Hstep Hsteps)
+
+/-- Build the lockstep constructor trace from verified lowered installation.
+The only list premise is that all mapped targets belong to the installed
+owner; in the family specialization this is immediate because `targets` is
+that owner's constructor list. -/
+theorem RestoredConstructorMappingTrace.ofInstalled
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (Hprod : RecursorPhasesResult R loweredEnv)
+    (howner : owner ∈ indTypes.toList)
+    (Hmapping : LoweredConstructorMappings mappingEnv params nparams result
+      sources state (targets, finalState))
+    (Htrace : StateForMTrace (RestoredConstructorStep result loweredEnv)
+      (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv)
+    (Htargets : ∀ target ∈ targets, target ∈ owner.ctors) :
+    RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
+      Hmapping Htrace := by
+  cases Hmapping with
+  | nil =>
+    cases Htrace
+    exact .nil _ _
+  | cons Hhead Htail =>
+    cases Htrace with
+    | cons Hstep Hsteps =>
+      apply RestoredConstructorMappingTrace.cons Hhead Htail Hstep Hsteps
+      · exact Hstep.oldType_eq_ofInstalled Hprod howner
+          (Htargets _ (by simp)) rfl
+      · apply RestoredConstructorMappingTrace.ofInstalled Hprod howner
+          Htail Hsteps
+        intro target htarget
+        exact Htargets target (by simp [htarget])
 
 inductive LoweredConstructorReopenings
     (env : Environment) (params : Array Expr) (nparams : Nat)
@@ -35636,6 +35801,62 @@ theorem NestedLoweringResultClosed.sourceConstructorMappingAtFreshAligned
     hnodup, hsize,
     (Hsources.getElem familyIdx hfamily).constructors.getElem ctorIdx hctor,
     hsourceCtor, htargetCtor, HctorMapping, htarget⟩
+
+/-- End-to-end alignment of one original source family's lowering with the
+exact constructor-restoration fold selected by production.  All concrete
+`oldInfo.type = lowered.type` facts are consequences of the verified lowered
+installation; the returned certificate retains only the genuinely semantic
+source-to-abstract constructor work for the next layer. -/
+theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (hempty : initialState.nestedAux = #[])
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
+    (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+      sourceTypes[familyIdx] sourceProdEnv targetProdEnv) :
+    ∃ fvars : List FVarId, ∃ stepState target loweredState,
+      result.params = (fvars.map Expr.fvar).toArray ∧
+      fvars.Nodup ∧
+      result.params.size = nparams ∧
+      result.types[familyIdx]? = some target ∧
+      ∃ Hmappings : LoweredConstructorMappings loweredSourceEnv result.params
+          nparams result sourceTypes[familyIdx].ctors stepState
+            (target.ctors, loweredState),
+        ∃ Htrace : StateForMTrace
+          (RestoredConstructorStep result loweredEnv)
+          (target.ctors.map (fun ctor => ctor.name))
+          Hstep.restored.headerEnv Hstep.restored.constructorEnv,
+          RestoredConstructorMappingTrace result loweredSourceEnv loweredEnv
+            result.params nparams Hmappings Htrace := by
+  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+    ⟨fvars, stepState, target, loweredState, hparams, hnodup, hsize,
+      Hmapping, htarget⟩
+  have htargetMem : target ∈ result.types.toArray.toList := by
+    simpa using List.mem_of_getElem? htarget
+  have hctorNames : Hstep.oldInfo.ctors =
+      target.ctors.map (fun ctor => ctor.name) :=
+    Hstep.oldConstructors_eq_ofInstalled Hc Hprod htargetMem
+      Hmapping.name.symm
+  have Htrace : StateForMTrace
+      (RestoredConstructorStep result loweredEnv)
+      (target.ctors.map (fun ctor => ctor.name)) Hstep.restored.headerEnv
+        Hstep.restored.constructorEnv := by
+    rw [← hctorNames]
+    exact Hstep.restored.constructors
+  have Haligned := RestoredConstructorMappingTrace.ofInstalled Hprod
+    htargetMem Hmapping.constructors Htrace (by
+      intro targetCtor htargetCtor
+      exact htargetCtor)
+  exact ⟨fvars, stepState, target, loweredState, hparams, hnodup, hsize,
+    htarget, Hmapping.constructors, Htrace, Haligned⟩
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
