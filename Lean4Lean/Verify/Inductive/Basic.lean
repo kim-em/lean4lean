@@ -21021,7 +21021,8 @@ theorem ConstructorListEntries.findSource
     (hctor : ctor ∈ ctors) :
     ∃ info : ConstructorVal, ∃ value : VConstVal,
       (.ctorInfo info, value) ∈ entries ∧
-      info.name = ctor.name ∧ info.type = ctor.type := by
+      info.name = ctor.name ∧ info.type = ctor.type ∧
+      info.levelParams = lparams ∧ info.isUnsafe = isUnsafe := by
   cases H with
   | nil => simp at hctor
   | cons Htail =>
@@ -21031,10 +21032,12 @@ theorem ConstructorListEntries.findSource
     · exact ⟨AddInductive.constructorInfo stats lparams isUnsafe owner
         initial ctor, headValue, by simp,
         by simp [AddInductive.constructorInfo],
+        by simp [AddInductive.constructorInfo],
+        by simp [AddInductive.constructorInfo],
         by simp [AddInductive.constructorInfo]⟩
     · rcases Htail.findSource htail with
-        ⟨info, value, hmem, hname, htype⟩
-      exact ⟨info, value, by simp [hmem], hname, htype⟩
+        ⟨info, value, hmem, hname, htype, hlevels, hunsafe⟩
+      exact ⟨info, value, by simp [hmem], hname, htype, hlevels, hunsafe⟩
 
 theorem ConstructorTypeEntries.findSource
     (H : ConstructorTypeEntries
@@ -21042,18 +21045,21 @@ theorem ConstructorTypeEntries.findSource
     (howner : owner ∈ types) (hctor : ctor ∈ owner.ctors) :
     ∃ info : ConstructorVal, ∃ value : VConstVal,
       (.ctorInfo info, value) ∈ entries ∧
-      info.name = ctor.name ∧ info.type = ctor.type := by
+      info.name = ctor.name ∧ info.type = ctor.type ∧
+      info.levelParams = lparams ∧ info.isUnsafe = isUnsafe := by
   induction H generalizing owner with
   | nil => simp at howner
   | cons Hhead Htail ih =>
     simp only [List.mem_cons] at howner
     rcases howner with rfl | htailOwner
     · rcases Hhead.findSource hctor with
-        ⟨info, value, hmem, hname, htype⟩
-      exact ⟨info, value, List.mem_append_left _ hmem, hname, htype⟩
+        ⟨info, value, hmem, hname, htype, hlevels, hunsafe⟩
+      exact ⟨info, value, List.mem_append_left _ hmem, hname, htype,
+        hlevels, hunsafe⟩
     · rcases ih htailOwner hctor with
-        ⟨info, value, hmem, hname, htype⟩
-      exact ⟨info, value, List.mem_append_right _ hmem, hname, htype⟩
+        ⟨info, value, hmem, hname, htype, hlevels, hunsafe⟩
+      exact ⟨info, value, List.mem_append_right _ hmem, hname, htype,
+        hlevels, hunsafe⟩
 
 theorem AddConstants.ofConstructorList
     {env : Environment} {venv sourceEnv : VEnv}
@@ -29200,6 +29206,17 @@ theorem AddConstants.entryNames
     · exact htr.2
     · exact ih htail
 
+theorem AddConstants.entrySafety
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hentry : entry ∈ entries) : safety ≤ entry.1.safety := by
+  induction H with
+  | nil => simp at hentry
+  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
+    simp only [List.mem_cons] at hentry
+    rcases hentry with rfl | htail
+    · exact htr.1.1
+    · exact ih htail
+
 /-- A successful lockstep installation makes every constructor recognized as
 belonging to a fresh auxiliary family absent from the original abstract
 environment. -/
@@ -30043,7 +30060,7 @@ theorem RecursorPhasesResult.findSourceConstructor
       outEnv.find? ctor.name = some (.ctorInfo info) ∧
       info.type = ctor.type := by
   rcases R.declared.sourceAligned.findSource howner hctor with
-    ⟨info, value, hentry, hname, htype⟩
+    ⟨info, value, hentry, hname, htype, _hlevels, _hunsafe⟩
   refine ⟨info, ?_, htype⟩
   rw [← hname]
   exact H.findConstructorOfMem hentry
@@ -30077,6 +30094,40 @@ theorem RestoredConstructorStep.oldType_eq_ofInstalled
     exact ConstantInfo.ctorInfo.inj heq
   rw [hinfo]
   exact htype
+
+/-- Safety, universe parameters, and name of the constructor read by
+restoration are all fixed by the verified lowered installation. -/
+theorem RestoredConstructorStep.metadataOfInstalled
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (Hstep : RestoredConstructorStep result outEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (H : RecursorPhasesResult R outEnv)
+    (howner : owner ∈ indTypes.toList) (hctor : ctor ∈ owner.ctors)
+    (hname : ctorName = ctor.name) :
+    c.safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety ∧
+      Hstep.oldInfo.levelParams = c.lparams ∧
+      Hstep.oldInfo.name = ctor.name := by
+  rcases R.declared.sourceAligned.findSource howner hctor with
+    ⟨info, value, hentry, hinfoName, _hinfoType, hlevels, _hunsafe⟩
+  have hlookup := H.findConstructorOfMem hentry
+  have hstepLookup :
+      outEnv.find? ctor.name = some (.ctorInfo Hstep.oldInfo) := by
+    simpa [hname] using Hstep.lookup
+  have hinfo : Hstep.oldInfo = info := by
+    have hlookup' : outEnv.find? info.name = some (.ctorInfo info) := by
+      simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using hlookup
+    rw [hinfoName] at hlookup'
+    have heq : ConstantInfo.ctorInfo Hstep.oldInfo = .ctorInfo info :=
+      Option.some.inj (hstepLookup.symm.trans hlookup')
+    exact ConstantInfo.ctorInfo.inj heq
+  subst info
+  exact ⟨R.declared.installed.entrySafety hentry, hlevels, hinfoName⟩
 
 /-- The constructor fold nested inside an operational family restoration is
 indexed by exactly the constructor-name list of the aligned installed lowered
@@ -34178,18 +34229,20 @@ positionally corresponding lowered constructor type. -/
 inductive RestoredConstructorMappingTrace
     (result : Lean4Lean.ElimNestedInductive.Result)
     (mappingEnv loweredEnv : Environment) (params : Array Expr)
-    (nparams : Nat) :
+    (nparams : Nat) (safety : DefinitionSafety) (lparams : List Name) :
     ∀ {sources state targets finalState sourceProdEnv targetProdEnv},
       LoweredConstructorMappings mappingEnv params nparams result sources
         state (targets, finalState) →
       StateForMTrace (RestoredConstructorStep result loweredEnv)
         (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv →
-      Prop
+      List Constructor → List Constructor →
+        Environment → Environment → Prop
   | nil (state : Lean4Lean.ElimNestedInductive.State)
       (sourceProdEnv : Environment) :
-      RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
-        (LoweredConstructorMappings.nil (state := state))
-        (StateForMTrace.nil (source := sourceProdEnv))
+      RestoredConstructorMappingTrace result mappingEnv loweredEnv params
+        nparams safety lparams (LoweredConstructorMappings.nil (state := state))
+        (StateForMTrace.nil (source := sourceProdEnv)) [] [] sourceProdEnv
+          sourceProdEnv
   | cons
       (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
         source state (target, nextState))
@@ -34199,11 +34252,16 @@ inductive RestoredConstructorMappingTrace
         sourceProdEnv middleProdEnv)
       (Hsteps : StateForMTrace (RestoredConstructorStep result loweredEnv)
         (targets.map (fun ctor => ctor.name)) middleProdEnv targetProdEnv)
+      (hsafety : safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety)
+      (hlevels : Hstep.oldInfo.levelParams = lparams)
+      (hname : Hstep.oldInfo.name = target.name)
       (htype : Hstep.oldInfo.type = target.type)
       (Hrest : RestoredConstructorMappingTrace result mappingEnv loweredEnv params
-        nparams Hmappings Hsteps) :
+        nparams safety lparams Hmappings Hsteps sources targets middleProdEnv
+          targetProdEnv) :
       RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
-        (.cons Hmapping Hmappings) (.cons Hstep Hsteps)
+        safety lparams (.cons Hmapping Hmappings) (.cons Hstep Hsteps)
+          (source :: sources) (target :: targets) sourceProdEnv targetProdEnv
 
 /-- Build the lockstep constructor trace from verified lowered installation.
 The only list premise is that all mapped targets belong to the installed
@@ -34225,7 +34283,8 @@ theorem RestoredConstructorMappingTrace.ofInstalled
       (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv)
     (Htargets : ∀ target ∈ targets, target ∈ owner.ctors) :
     RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
-      Hmapping Htrace := by
+      c.safety c.lparams Hmapping Htrace sources targets sourceProdEnv
+        targetProdEnv := by
   cases Hmapping with
   | nil =>
     cases Htrace
@@ -34233,7 +34292,12 @@ theorem RestoredConstructorMappingTrace.ofInstalled
   | cons Hhead Htail =>
     cases Htrace with
     | cons Hstep Hsteps =>
+      have Hmetadata := Hstep.metadataOfInstalled Hprod howner
+        (Htargets _ (by simp)) rfl
       apply RestoredConstructorMappingTrace.cons Hhead Htail Hstep Hsteps
+      · exact Hmetadata.1
+      · exact Hmetadata.2.1
+      · exact Hmetadata.2.2
       · exact Hstep.oldType_eq_ofInstalled Hprod howner
           (Htargets _ (by simp)) rfl
       · apply RestoredConstructorMappingTrace.ofInstalled Hprod howner
@@ -35835,7 +35899,9 @@ theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
           (target.ctors.map (fun ctor => ctor.name))
           Hstep.restored.headerEnv Hstep.restored.constructorEnv,
           RestoredConstructorMappingTrace result loweredSourceEnv loweredEnv
-            result.params nparams Hmappings Htrace := by
+            result.params nparams c.safety c.lparams Hmappings Htrace
+              sourceTypes[familyIdx].ctors target.ctors
+              Hstep.restored.headerEnv Hstep.restored.constructorEnv := by
   rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
     ⟨fvars, stepState, target, loweredState, hparams, hnodup, hsize,
       Hmapping, htarget⟩
