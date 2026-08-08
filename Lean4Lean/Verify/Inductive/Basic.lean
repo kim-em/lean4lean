@@ -27708,6 +27708,68 @@ theorem RestoredPrimaryRecursors.length
     simp only [List.length_cons]
     rw [ih]
 
+/-- Pointwise source recursor shapes accumulated in the same order as the
+exact restored-family installation trace. -/
+inductive RestoredPrimaryRecursorShapes
+    (decl : VInductDecl)
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (safety : DefinitionSafety) :
+    ∀ {types : List InductiveType}
+      {sourceProdEnv targetProdEnv : Environment}
+      {Htrace : StateForMTrace
+        (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+        types sourceProdEnv targetProdEnv}
+      {sourceVEnv targetVEnv : VEnv} {constants : List VConstVal},
+      RestoredInductiveInstallationTrace safety Htrace sourceVEnv constants
+        targetVEnv →
+      List VInductiveType → List VConstVal → Prop
+  | nil (sourceProdEnv : Environment) (sourceVEnv : VEnv) :
+      RestoredPrimaryRecursorShapes decl result loweredEnv auxRec allIndNames
+        safety
+        (RestoredInductiveInstallationTrace.nil (safety := safety)
+          (result := result) (loweredEnv := loweredEnv) (auxRec := auxRec)
+          (allIndNames := allIndNames) sourceProdEnv sourceVEnv) [] []
+  | cons
+      (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+        indType sourceProdEnv middleProdEnv)
+      (Htail : StateForMTrace
+        (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+        types middleProdEnv targetProdEnv)
+      (Hsemantic : RestoredInductiveInstallationSemantics safety Hstep
+        sourceVEnv middleVEnv)
+      (Hrest : RestoredInductiveInstallationTrace safety Htail middleVEnv
+        constants targetVEnv)
+      (Hshape : Nonempty
+        (decl.RecursorShape owner Hsemantic.recursor.recursor))
+      (HrestShapes : RestoredPrimaryRecursorShapes decl result loweredEnv
+        auxRec allIndNames safety Hrest owners recursors) :
+      RestoredPrimaryRecursorShapes decl result loweredEnv auxRec allIndNames
+        safety
+        (RestoredInductiveInstallationTrace.cons (safety := safety)
+          Hstep Htail Hsemantic Hrest)
+        (owner :: owners) (Hsemantic.recursor.recursor :: recursors)
+
+theorem RestoredPrimaryRecursorShapes.trace
+    (H : RestoredPrimaryRecursorShapes decl result loweredEnv auxRec
+      allIndNames safety Hinstall owners recursors) :
+    RestoredPrimaryRecursors result loweredEnv auxRec allIndNames safety
+      Hinstall recursors := by
+  induction H with
+  | nil => exact .nil _ _
+  | cons Hstep Htail Hsemantic Hrest Hshape HrestShapes ih =>
+    exact .cons Hstep Htail Hsemantic Hrest ih
+
+theorem RestoredPrimaryRecursorShapes.forall₂
+    (H : RestoredPrimaryRecursorShapes decl result loweredEnv auxRec
+      allIndNames safety Hinstall owners recursors) :
+    List.Forall₂ (fun owner recursor =>
+      Nonempty (decl.RecursorShape owner recursor)) owners recursors := by
+  induction H with
+  | nil => exact .nil
+  | cons Hstep Htail Hsemantic Hrest Hshape HrestShapes ih =>
+    exact .cons Hshape ih
+
 /-- Abstract recursor shapes aligned with the exact operational restoration
 trace.  This is the specification-facing certificate for primary restored
 recursors; no independently chosen list can be substituted for the values
@@ -27741,6 +27803,24 @@ theorem RestoredPrimaryRecursorCertificate.recursorCertificate
     shapes := ?_ }
   intro i htype hrec
   exact Lean4Lean.VerifyInductive.List.Forall₂.getElem H.shapes i htype hrec
+
+theorem RestoredPrimaryRecursorShapes.certificate
+    {types : List InductiveType}
+    {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+      types sourceProdEnv targetProdEnv}
+    {sourceVEnv targetVEnv : VEnv} {constants : List VConstVal}
+    {Hinstall : RestoredInductiveInstallationTrace safety Htrace sourceVEnv
+      constants targetVEnv}
+    (H : RestoredPrimaryRecursorShapes decl result loweredEnv auxRec
+      allIndNames safety Hinstall owners recursors)
+    (htypes : decl.types = owners) :
+    RestoredPrimaryRecursorCertificate decl result loweredEnv auxRec
+      allIndNames safety Htrace Hinstall recursors := by
+  refine ⟨H.trace, ?_⟩
+  rw [htypes]
+  exact H.forall₂
 
 theorem RestoredInductiveInstallationTrace.translatedFresh
     {types : List InductiveType}
@@ -28149,6 +28229,50 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfInstallatio
     auxiliaryRecursors primaryRules auxiliaryRules
     HprimaryRecursors.recursorCertificate HprimaryRules hprimaryLength
     Hauxiliary hsourceWF Hnames
+
+/-- Fully structural primary-recursor specialization.  The family-indexed
+shape fold itself supplies both trace alignment and the indexed
+`RecursorCertificate` consumed by nested compilation. -/
+theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfShapes
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames types auxRecNames out)
+    (Hprimary : RestoredInductiveInstallationTrace safety H.inductives
+      sourceEnv primaryConstants primaryVEnv)
+    (rest : List VInductiveType)
+    (htypesSource : decl.types = main :: rest)
+    (primaryRecursors auxiliaryRecursors : List VConstVal)
+    (primaryRules auxiliaryRules : List VDefEq)
+    (HprimaryShapes : RestoredPrimaryRecursorShapes decl result loweredEnv
+      auxRec allIndNames safety Hprimary (main :: rest) primaryRecursors)
+    (HprimaryRules : IotaBuildCertificate sourceEnv decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules) primaryRules)
+    (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
+    (Hauxiliary : RestoredAuxiliarySemanticTrace decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
+      [] [] auxiliaryRecursors auxiliaryRules)
+    (hsourceWF : sourceProdEnv.constants.WF)
+    (Hnames : ∀ entries,
+      FreshConstantTrace sourceProdEnv entries out.2 →
+      ((canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).types ++
+        (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).ctors ++
+        (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+          primaryRules auxiliaryRules).recursors).map (·.name) ~
+        entries.map (·.name)) :
+    Nonempty (NestedCompilationCertificate sourceEnv decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules)) := by
+  apply H.canonicalNestedCompilationOfInstallation Hprimary rest htypesSource
+    primaryRecursors auxiliaryRecursors primaryRules auxiliaryRules
+  · exact HprimaryShapes.certificate htypesSource
+  · exact HprimaryRules
+  · exact hprimaryLength
+  · exact Hauxiliary
+  · exact hsourceWF
+  · exact Hnames
 
 /-- Assemble the independent nested-compilation certificate from the exact
 restoration trace. Primary recursors/rules retain their ordinary certificates;
