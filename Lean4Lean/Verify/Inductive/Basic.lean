@@ -27911,6 +27911,44 @@ structure SourcePrimaryRecursorRealization
   recursor_eq : source.recursor = recursor
   refinement : RestoredPrimaryRecursorRefinement Hstep canonicalEnv recursor
 
+/-- A joint source realization supplies the specification, canonical typing,
+and executable refinement needed by the restored installation layer. -/
+def SourcePrimaryRecursorRealization.toRestoredSemantics
+    (H : SourcePrimaryRecursorRealization sourceDecl sourceOwner Hstep
+      canonicalEnv recursor)
+    (safety_le : safety ≤ (ConstantInfo.recInfo Hstep.oldInfo).safety)
+    (hname : recursor.name = Hstep.restored.newRecName) :
+    RestoredPrimaryRecursorSemantics sourceDecl sourceOwner safety Hstep
+      canonicalEnv where
+  recursor := recursor
+  safety_le := safety_le
+  uvars := H.refinement.uvars
+  type := H.refinement.type
+  name := hname
+  wf := by
+    rw [← H.recursor_eq]
+    exact H.source.isType
+  shape := by
+    rw [← H.recursor_eq]
+    exact H.source.shape
+
+theorem SourcePrimaryRecursorRealization.installation
+    {sourceProdEnv targetProdEnv : Environment}
+    {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv}
+    (H : SourcePrimaryRecursorRealization sourceDecl sourceOwner Hstep
+      canonicalEnv recursor)
+    (safety_le : safety ≤ (ConstantInfo.recInfo Hstep.oldInfo).safety)
+    (hname : recursor.name = Hstep.restored.newRecName)
+    (Hvalid : CheckingEnv safety sourceProdEnv canonicalEnv) :
+    ∃ targetVEnv,
+      Nonempty (RestoredRecursorInstallationSemantics safety Hstep
+        canonicalEnv targetVEnv) :=
+  Hstep.installationOfMetadata Hvalid recursor safety_le H.refinement.uvars
+    H.refinement.type hname (by
+      rw [← H.recursor_eq]
+      exact H.source.isType)
+
 /-- Discharge both source-recursion callbacks from one canonical restored
 recursor once lowering has supplied the declarative compatibility facts.  In
 particular, the abstract recursor is not chosen independently of the concrete
