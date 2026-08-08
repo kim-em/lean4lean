@@ -24503,6 +24503,16 @@ theorem SourceConstructorSyntaxes.getElem
     | succ i =>
       apply ih i
 
+theorem SourceConstructorSyntaxes.of_mem
+    (H : SourceConstructorSyntaxes ctors) (hctor : ctor ∈ ctors) :
+    SourceConstructorSyntax ctor := by
+  induction H with
+  | nil => simp at hctor
+  | cons Hhead Htail ih =>
+    rcases List.mem_cons.mp hctor with rfl | htail
+    · exact Hhead
+    · exact ih htail
+
 theorem SourceSyntaxChecks.getElem
     (H : SourceSyntaxChecks types) (i : Nat)
     (hi : i < types.length) : SourceInductiveSyntax types[i] := by
@@ -27536,36 +27546,31 @@ structure RestoredSourceConstructorSemantics
 restoration fold of one family. -/
 inductive RestoredSourceConstructorTrace
     (lparams : List Name) (safety : DefinitionSafety) (canonicalEnv : VEnv) :
-    ∀ {names sourceProdEnv targetProdEnv},
-      StateForMTrace (RestoredConstructorStep result loweredEnv)
-        names sourceProdEnv targetProdEnv →
+    List Name → Environment → Environment →
       List Constructor → List VConstVal → Prop
   | nil (sourceProdEnv : Environment) :
       RestoredSourceConstructorTrace lparams safety canonicalEnv
-        (StateForMTrace.nil (P := RestoredConstructorStep result loweredEnv)
-          (source := sourceProdEnv)) [] []
+        [] sourceProdEnv sourceProdEnv [] []
   | cons
       (Hstep : RestoredConstructorStep result loweredEnv ctorName
         sourceProdEnv middleProdEnv)
-      (Htail : StateForMTrace (RestoredConstructorStep result loweredEnv)
-        names middleProdEnv targetProdEnv)
       (Hsemantic : RestoredSourceConstructorSemantics lparams safety
         canonicalEnv Hstep source)
       (Hrest : RestoredSourceConstructorTrace lparams safety canonicalEnv
-        Htail sources constructors) :
+        names middleProdEnv targetProdEnv sources constructors) :
       RestoredSourceConstructorTrace lparams safety canonicalEnv
-        (.cons Hstep Htail) (source :: sources)
+        (ctorName :: names) sourceProdEnv targetProdEnv (source :: sources)
         (Hsemantic.constructor :: constructors)
 
 theorem RestoredSourceConstructorTrace.forall₂
-    (H : RestoredSourceConstructorTrace lparams safety canonicalEnv Htrace
-      sources constructors) :
+    (H : RestoredSourceConstructorTrace lparams safety canonicalEnv names
+      sourceProdEnv targetProdEnv sources constructors) :
     List.Forall₂ (fun source constructor =>
       TrSourceConst canonicalEnv lparams source.name source.type constructor)
       sources constructors := by
   induction H with
   | nil => exact .nil
-  | cons Hstep Htail Hsemantic Hrest ih =>
+  | cons Hstep Hsemantic Hrest ih =>
     exact .cons Hsemantic.sourceTranslation ih
 
 /-- Source-family semantics indexed by the production restoration trace but
@@ -27594,7 +27599,8 @@ inductive RestoredSourceInductiveSemanticTrace
       (Hheader : TrSourceConst sourceVEnv lparams indType.name indType.type
         owner.toVConstVal)
       (Hconstructors : RestoredSourceConstructorTrace lparams safety envTypes
-        Hstep.restored.constructors indType.ctors owner.ctors)
+        Hstep.oldInfo.ctors Hstep.restored.headerEnv
+          Hstep.restored.constructorEnv indType.ctors owner.ctors)
       (Hrecursor : RestoredPrimaryRecursorSemantics decl owner safety
         Hstep.restored.recursor envCtors)
       (Hrest : RestoredSourceInductiveSemanticTrace decl lparams safety
@@ -34230,38 +34236,28 @@ inductive RestoredConstructorMappingTrace
     (result : Lean4Lean.ElimNestedInductive.Result)
     (mappingEnv loweredEnv : Environment) (params : Array Expr)
     (nparams : Nat) (safety : DefinitionSafety) (lparams : List Name) :
-    ∀ {sources state targets finalState sourceProdEnv targetProdEnv},
-      LoweredConstructorMappings mappingEnv params nparams result sources
-        state (targets, finalState) →
-      StateForMTrace (RestoredConstructorStep result loweredEnv)
-        (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv →
-      List Constructor → List Constructor →
-        Environment → Environment → Prop
+    List Constructor → Lean4Lean.ElimNestedInductive.State →
+      List Constructor → Lean4Lean.ElimNestedInductive.State →
+      Environment → Environment → Prop
   | nil (state : Lean4Lean.ElimNestedInductive.State)
       (sourceProdEnv : Environment) :
       RestoredConstructorMappingTrace result mappingEnv loweredEnv params
-        nparams safety lparams (LoweredConstructorMappings.nil (state := state))
-        (StateForMTrace.nil (source := sourceProdEnv)) [] [] sourceProdEnv
-          sourceProdEnv
+        nparams safety lparams [] state [] state sourceProdEnv sourceProdEnv
   | cons
       (Hmapping : LoweredConstructorMapping mappingEnv params nparams result
         source state (target, nextState))
-      (Hmappings : LoweredConstructorMappings mappingEnv params nparams result
-        sources nextState (targets, finalState))
       (Hstep : RestoredConstructorStep result loweredEnv target.name
         sourceProdEnv middleProdEnv)
-      (Hsteps : StateForMTrace (RestoredConstructorStep result loweredEnv)
-        (targets.map (fun ctor => ctor.name)) middleProdEnv targetProdEnv)
       (hsafety : safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety)
       (hlevels : Hstep.oldInfo.levelParams = lparams)
       (hname : Hstep.oldInfo.name = target.name)
       (htype : Hstep.oldInfo.type = target.type)
       (Hrest : RestoredConstructorMappingTrace result mappingEnv loweredEnv params
-        nparams safety lparams Hmappings Hsteps sources targets middleProdEnv
-          targetProdEnv) :
+        nparams safety lparams sources nextState targets finalState
+          middleProdEnv targetProdEnv) :
       RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
-        safety lparams (.cons Hmapping Hmappings) (.cons Hstep Hsteps)
-          (source :: sources) (target :: targets) sourceProdEnv targetProdEnv
+        safety lparams (source :: sources) state (target :: targets) finalState
+          sourceProdEnv targetProdEnv
 
 /-- Build the lockstep constructor trace from verified lowered installation.
 The only list premise is that all mapped targets belong to the installed
@@ -34283,7 +34279,7 @@ theorem RestoredConstructorMappingTrace.ofInstalled
       (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv)
     (Htargets : ∀ target ∈ targets, target ∈ owner.ctors) :
     RestoredConstructorMappingTrace result mappingEnv loweredEnv params nparams
-      c.safety c.lparams Hmapping Htrace sources targets sourceProdEnv
+      c.safety c.lparams sources state targets finalState sourceProdEnv
         targetProdEnv := by
   cases Hmapping with
   | nil =>
@@ -34294,7 +34290,7 @@ theorem RestoredConstructorMappingTrace.ofInstalled
     | cons Hstep Hsteps =>
       have Hmetadata := Hstep.metadataOfInstalled Hprod howner
         (Htargets _ (by simp)) rfl
-      apply RestoredConstructorMappingTrace.cons Hhead Htail Hstep Hsteps
+      apply RestoredConstructorMappingTrace.cons Hhead Hstep
       · exact Hmetadata.1
       · exact Hmetadata.2.1
       · exact Hmetadata.2.2
@@ -34304,6 +34300,65 @@ theorem RestoredConstructorMappingTrace.ofInstalled
           Htail Hsteps
         intro target htarget
         exact Htargets target (by simp [htarget])
+
+/-- Interpret the proof-independent lowering/restoration trace against the
+independently translated source constructors.  This is the constructor-list
+implementation/specification bridge: every executable restoration step is
+shown to translate the same abstract constructor that appears in the source
+inductive specification. -/
+theorem RestoredConstructorMappingTrace.sourceSemantics
+    (H : RestoredConstructorMappingTrace result mappingEnv loweredEnv params
+      nparams safety lparams sources state targets finalState sourceProdEnv
+        targetProdEnv)
+    (Hsources : List.Forall₂ (fun source constructor =>
+      TrSourceConst canonicalEnv lparams source.name source.type constructor)
+      sources constructors)
+    (Hsyntax : SourceConstructorSyntaxes sources)
+    (Hdisjoint : ∀ source ∈ sources,
+      RestoreSourceDisjoint result loweredEnv source.type)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (hresultNParams : result.nparams = nparams) :
+    RestoredSourceConstructorTrace lparams safety canonicalEnv
+      (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv
+        sources constructors := by
+  induction H generalizing constructors with
+  | nil =>
+    cases Hsources
+    exact .nil _
+  | @cons source state target nextState sourceProdEnv middleProdEnv sources
+      finalState targets targetProdEnv Hmapping Hstep hsafety hlevels hname
+      htype Hrest ih =>
+    cases Hsources with
+    | cons Hsource Hsources =>
+      rename_i vctor vconstructors
+      cases Hsyntax with
+      | cons HsourceSyntax Hsyntax =>
+        have HsourceType : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
+            source.type vctor.type := by
+          simpa [hlevels] using Hsource.type
+        have HrestoredType : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
+            Hstep.restored.newInfo.type vctor.type :=
+          Hmapping.restoredType_translation hresultParams paramFvars hparams
+            hnodup HsourceSyntax.closed loweredEnv
+            (Hdisjoint source (by simp)) hresultNParams
+            Hstep.restored.restoration htype HsourceType
+        have Htranslated : TrConstVal safety canonicalEnv
+            (.ctorInfo Hstep.restored.newInfo) vctor :=
+          Hstep.restored.restoration.translatedOfMetadata hsafety (by
+            rw [hlevels]
+            exact Hsource.uvars.symm) (by
+            exact (hname.trans Hmapping.name).trans Hsource.name.symm)
+            HrestoredType
+        apply RestoredSourceConstructorTrace.cons Hstep
+          { constructor := vctor
+            sourceTranslation := Hsource
+            restoredTranslation := Htranslated }
+        apply ih Hsources Hsyntax
+        intro tail htail
+        exact Hdisjoint tail (by simp [htail])
 
 inductive LoweredConstructorReopenings
     (env : Environment) (params : Array Expr) (nparams : Nat)
@@ -35891,6 +35946,7 @@ theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
       fvars.Nodup ∧
       result.params.size = nparams ∧
       result.types[familyIdx]? = some target ∧
+      Hstep.oldInfo.ctors = target.ctors.map (fun ctor => ctor.name) ∧
       ∃ Hmappings : LoweredConstructorMappings loweredSourceEnv result.params
           nparams result sourceTypes[familyIdx].ctors stepState
             (target.ctors, loweredState),
@@ -35899,8 +35955,8 @@ theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
           (target.ctors.map (fun ctor => ctor.name))
           Hstep.restored.headerEnv Hstep.restored.constructorEnv,
           RestoredConstructorMappingTrace result loweredSourceEnv loweredEnv
-            result.params nparams c.safety c.lparams Hmappings Htrace
-              sourceTypes[familyIdx].ctors target.ctors
+            result.params nparams c.safety c.lparams
+              sourceTypes[familyIdx].ctors stepState target.ctors loweredState
               Hstep.restored.headerEnv Hstep.restored.constructorEnv := by
   rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
     ⟨fvars, stepState, target, loweredState, hparams, hnodup, hsize,
@@ -35922,7 +35978,53 @@ theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
       intro targetCtor htargetCtor
       exact htargetCtor)
   exact ⟨fvars, stepState, target, loweredState, hparams, hnodup, hsize,
-    htarget, Hmapping.constructors, Htrace, Haligned⟩
+    htarget, hctorNames, Hmapping.constructors, Htrace, Haligned⟩
+
+/-- Interpret one source family's exact constructor-restoration fold using
+the independently checked source constructor translations.  Fresh generated
+names turn the syntactic no-auxiliary condition into the semantic
+disjointness required by the lowering/restoration inverse. -/
+theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv canonicalEnv : VEnv} {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (hfamily : familyIdx < sourceTypes.length)
+    (Htranslations : List.Forall₂ (fun source constructor =>
+      TrSourceConst canonicalEnv c.lparams source.name source.type constructor)
+      sourceTypes[familyIdx].ctors constructors)
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv canonicalEnv)
+    (hempty : initialState.nestedAux = #[])
+    (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+      sourceTypes[familyIdx] sourceProdEnv targetProdEnv) :
+    RestoredSourceConstructorTrace c.lparams c.safety canonicalEnv
+      Hstep.oldInfo.ctors Hstep.restored.headerEnv
+        Hstep.restored.constructorEnv sourceTypes[familyIdx].ctors
+          constructors := by
+  rcases H.sourceConstructorRestorationTraceAtFresh Hc Hprod hempty
+      familyIdx hfamily Hstep with
+    ⟨fvars, stepState, target, loweredState, hparams, hnodup, _hsize,
+      htarget, hctorNames, Hmappings, Htrace, Haligned⟩
+  have Hsyntax := (Hsources.getElem familyIdx hfamily).constructors
+  have Hsemantic := Haligned.sourceSemantics Htranslations Hsyntax (by
+    intro source hsource
+    have HsourceTranslation :=
+      Lean4Lean.List.Forall₂.forall_exists_l Htranslations source hsource
+    rcases HsourceTranslation with ⟨constructor, _hconstructor, Hsource⟩
+    exact (Hsyntax.of_mem hsource).noNestedAux
+      |>.restoreSourceDisjointOfFresh Hsource.type.constantsDefined Hfamilies
+        Hconstructors) rfl fvars hparams hnodup H.toResult.resultNParams
+  simpa [hctorNames] using Hsemantic
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
