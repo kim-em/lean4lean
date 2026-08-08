@@ -19719,11 +19719,14 @@ theorem AddConstants.ofConstructorList
         entries.map Prod.snd = values ∧
         AddConstants safety env venv entries result.2 outVEnv ∧
         (∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
+          ∃ info : ConstructorVal,
+            entry.1 = ConstantInfo.ctorInfo info) ∧
+        (∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
           ∀ (value : InductiveVal),
           entry.1 ≠ ConstantInfo.inductInfo value) := by
   induction Hentries generalizing start env venv with
   | nil =>
-    exact Except.WF.pure ⟨venv, [], rfl, .nil, by simp⟩
+    exact Except.WF.pure ⟨venv, [], rfl, .nil, by simp, by simp⟩
   | @cons ctor ci' ctors values Hentry _ ih =>
     have hnprimHead := hnprim ctor (by simp)
     have hnprimTail : ∀ ctor ∈ ctors,
@@ -19764,7 +19767,7 @@ theorem AddConstants.ofConstructorList
             hnprimTail).mono
             fun result Hrest => by
               rcases Hrest with
-                ⟨outVEnv, entries, hvalues, Hinstalled, hnind⟩
+                ⟨outVEnv, entries, hvalues, Hinstalled, hctor, hnind⟩
               have hvalues' :
                   (((.ctorInfo info, ci') :: entries).map Prod.snd) =
                     ci' :: values := by simp [hvalues]
@@ -19773,6 +19776,11 @@ theorem AddConstants.ofConstructorList
                 htr hwf haddHead rfl Hinstalled
               exact ⟨outVEnv, (.ctorInfo info, ci') :: entries,
                 hvalues', Hinstalled', by
+                  intro entryInfo entryValue hentry
+                  simp only [List.mem_cons] at hentry
+                  rcases hentry with hhead | htail
+                  · exact ⟨info, congrArg Prod.fst hhead⟩
+                  · exact hctor (entryInfo, entryValue) htail, by
                   intro entryInfo entryValue hentry value
                   simp only [List.mem_cons, Prod.mk.injEq] at hentry
                   rcases hentry with ⟨rfl, rfl⟩ | htail
@@ -19817,11 +19825,14 @@ theorem AddConstants.ofConstructorTypes
             targets.flatMap (fun target : VInductiveType => target.ctors) ∧
           AddConstants safety env venv entries outEnv outVEnv ∧
           (∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
+            ∃ info : ConstructorVal,
+              entry.1 = ConstantInfo.ctorInfo info) ∧
+          (∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
             ∀ (value : InductiveVal),
             entry.1 ≠ ConstantInfo.inductInfo value) := by
   induction Hentries generalizing env venv with
   | nil =>
-    exact Except.WF.pure ⟨venv, [], rfl, .nil, by simp⟩
+    exact Except.WF.pure ⟨venv, [], rfl, .nil, by simp, by simp⟩
   | @cons owner target types targets Hhead _ ih =>
     have hnprimHead : ∀ ctor ∈ owner.ctors,
         ¬ Kernel.Environment.primitives.contains ctor.name := by
@@ -19839,7 +19850,8 @@ theorem AddConstants.ofConstructorTypes
       hnprimHead
     simpa using Hinner.bind fun result Hresult => by
       rcases Hresult with
-        ⟨middleVEnv, headEntries, hheadValues, HheadInstalled, hheadNind⟩
+        ⟨middleVEnv, headEntries, hheadValues, HheadInstalled,
+          hheadCtor, hheadNind⟩
       have validInstalled : ∀ {priorEnv nextEnv : Environment}
           {priorVEnv nextVEnv : VEnv} {entries},
           AddConstants safety priorEnv priorVEnv entries nextEnv nextVEnv →
@@ -19866,13 +19878,18 @@ theorem AddConstants.ofConstructorTypes
       exact (ih HnextValid hnextLe hnprimTail).mono
         fun outEnv Htail => by
           rcases Htail with
-            ⟨finalVEnv, tailEntries, htailValues, HtailInstalled, htailNind⟩
+            ⟨finalVEnv, tailEntries, htailValues, HtailInstalled,
+              htailCtor, htailNind⟩
           have hvalues : (headEntries ++ tailEntries).map Prod.snd =
               (target :: targets).flatMap
                 (fun target : VInductiveType => target.ctors) := by
             simp [hheadValues, htailValues]
           exact ⟨finalVEnv, headEntries ++ tailEntries, hvalues,
             HheadInstalled.append HtailInstalled, by
+              intro entryInfo entryValue hentry
+              rcases List.mem_append.mp hentry with hhead | htail
+              · exact hheadCtor (entryInfo, entryValue) hhead
+              · exact htailCtor (entryInfo, entryValue) htail, by
               intro entryInfo entryValue hentry value
               rcases List.mem_append.mp hentry with hhead | htail
               · exact hheadNind (entryInfo, entryValue) hhead value
@@ -19902,6 +19919,15 @@ theorem AddConstants.abstract
   | cons _ _ htr _ hadd _ _ ih =>
     rw [List.map_cons, VEnv.addConsts, ← htr.2, hadd]
     exact ih
+
+theorem AddConstants.existsEntryOfValue
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hvalue : value ∈ entries.map Prod.snd) :
+    ∃ info, (info, value) ∈ entries := by
+  rcases List.mem_map.mp hvalue with ⟨⟨info, entryValue⟩, hentry, heq⟩
+  simp only at heq
+  subst entryValue
+  exact ⟨info, hentry⟩
 
 theorem AddConstants.le
     (H : AddConstants safety env venv entries outEnv outVEnv) :
@@ -20149,6 +20175,8 @@ structure DeclaredHeadersResult (c : AddInductive.Context)
     (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (outEnv : Environment) where
   entries : List (ConstantInfo × VConstVal)
+  production : ∀ source ∈ entries.map Prod.fst,
+    ∃ info, source = ConstantInfo.inductInfo info
   values : entries.map Prod.snd = decl.typeConstants
   context : ContextWF { c with env := outEnv }
   headers : HeaderCertificate sourceEnv decl
@@ -20211,6 +20239,19 @@ theorem AddInductive.declareInductiveTypes.headersWF
     refine ⟨{
       entries := List.zip
         (infos.toList.map (fun info => .inductInfo info)) decl.typeConstants
+      production := by
+        intro source hsource
+        have hfst : (List.zip
+            (infos.toList.map (fun info => ConstantInfo.inductInfo info))
+            decl.typeConstants).map Prod.fst =
+            infos.toList.map (fun info => ConstantInfo.inductInfo info) := by
+          apply List.map_fst_zip
+          have hlength :=
+            Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hentries
+          simpa using Nat.le_of_eq hlength
+        rw [hfst] at hsource
+        rcases List.mem_map.mp hsource with ⟨info, _, rfl⟩
+        exact ⟨info, rfl⟩
       values := hvalues
       context := Hc.withEnv (Hinstalled.valid Hc.checking) Hinstalled.le
       headers := Hmaterialized.headers
@@ -20338,6 +20379,8 @@ structure DeclaredConstructorsResult
   values : entries.map Prod.snd = decl.constructorConstants
   installed : AddConstants c.safety headerEnv H.context.venv entries
     outEnv venvCtors
+  production : ∀ entry ∈ entries,
+    ∃ info : ConstructorVal, entry.1 = ConstantInfo.ctorInfo info
   nonInductive : ∀ (entry : ConstantInfo × VConstVal), entry ∈ entries →
     ∀ (value : InductiveVal),
     entry.1 ≠ ConstantInfo.inductInfo value
@@ -20394,7 +20437,7 @@ theorem AddInductive.declareConstructors.WF
     pure env).WF _
   exact Hfold.mono fun outEnv Hout => by
     rcases Hout with
-      ⟨venvCtors, entries, hvalues, Hinstalled, hnind⟩
+      ⟨venvCtors, entries, hvalues, Hinstalled, hproduction, hnind⟩
     have hctorsAdded : H.context.venv.addConsts decl.constructorConstants =
         some venvCtors := by
       simp only [VInductDecl.constructorConstants]
@@ -20409,6 +20452,7 @@ theorem AddInductive.declareConstructors.WF
       entries := entries
       values := by simpa [VInductDecl.constructorConstants] using hvalues
       installed := Hinstalled
+      production := hproduction
       nonInductive := hnind
       translation := Htranslation
       context := H.context.withEnv
@@ -23786,6 +23830,68 @@ def RecursorPhasesResult.staged
   ctorsAdded := R.declared.installed
   recursorsAdded := by
     simpa [H.localExtends.safety_eq, H.localExtends.env_eq] using H.installed
+
+/-- Header metadata installed at the start of the verified pipeline remains
+retrievable, unchanged, after constructors and recursors are installed. -/
+theorem RecursorPhasesResult.findHeaderOfMem
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (Hc : ContextWF c)
+    (H : RecursorPhasesResult R outEnv)
+    (hentry : (info, value) ∈ Hheaders.entries) :
+    outEnv.find? info.name = some info := by
+  have hheader := Hheaders.installed.findOfMem Hc.checking.tr.map_wf hentry
+  have hctor := R.declared.installed.preservesFind
+    Hheaders.context.checking.tr.map_wf hheader
+  have hlocalWF : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]
+    exact R.declared.context.checking.tr.map_wf
+  apply H.installed.preservesFind hlocalWF
+  rwa [H.localExtends.env_eq]
+
+/-- Constructor metadata installed in the middle phase remains retrievable,
+unchanged, after recursor installation. -/
+theorem RecursorPhasesResult.findConstructorOfMem
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (hentry : (info, value) ∈ R.declared.entries) :
+    outEnv.find? info.name = some info := by
+  have hctor := R.declared.installed.findOfMem
+    Hheaders.context.checking.tr.map_wf hentry
+  have hlocalWF : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]
+    exact R.declared.context.checking.tr.map_wf
+  apply H.installed.preservesFind hlocalWF
+  rwa [H.localExtends.env_eq]
+
+/-- Every generated primary recursor is retrievable with the exact production
+metadata retained by the verified recursor phase. -/
+theorem RecursorPhasesResult.findRecursorOfMem
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (hentry : (info, value) ∈ H.entries) :
+    outEnv.find? info.name = some info := by
+  have hlocalWF : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]
+    exact R.declared.context.checking.tr.map_wf
+  exact H.installed.findOfMem hlocalWF hentry
 
 theorem DeclaredHeadersResult.typesWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
