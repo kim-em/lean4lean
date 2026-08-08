@@ -25512,6 +25512,80 @@ theorem RestoredInductiveInstallationTrace.translatedFresh
       HfamilyFresh.append HtailFresh,
       HfamilyTranslated.append HtailTranslated⟩
 
+private theorem perm_group_familyConstants
+    (header recursor : VConstVal)
+    (tailTypes familyCtors tailCtors tailRecursors : List VConstVal) :
+    (header :: tailTypes) ++ (familyCtors ++ tailCtors) ++
+        (recursor :: tailRecursors) ~
+      (header :: familyCtors ++ [recursor]) ++
+        (tailTypes ++ tailCtors ++ tailRecursors) := by
+  apply List.Perm.cons header
+  have htypes : tailTypes ++ familyCtors ~ familyCtors ++ tailTypes :=
+    List.perm_append_comm
+  have hfirst :
+      tailTypes ++ familyCtors ++ tailCtors ++ recursor :: tailRecursors ~
+        familyCtors ++ tailTypes ++ tailCtors ++ recursor :: tailRecursors := by
+    simpa only [List.append_assoc] using
+      htypes.append_right (tailCtors ++ recursor :: tailRecursors)
+  have hrecursor :
+      tailTypes ++ tailCtors ++ [recursor] ~
+        [recursor] ++ tailTypes ++ tailCtors := by
+    simpa only [List.append_assoc] using
+      (List.perm_append_comm :
+        (tailTypes ++ tailCtors) ++ [recursor] ~
+          [recursor] ++ (tailTypes ++ tailCtors))
+  have hsecond :
+      familyCtors ++ tailTypes ++ tailCtors ++ recursor :: tailRecursors ~
+        familyCtors ++
+          (recursor :: (tailTypes ++ tailCtors ++ tailRecursors)) := by
+    simpa only [List.append_assoc, List.singleton_append, List.cons_append,
+      List.nil_append] using
+      (List.Perm.refl familyCtors).append
+        (hrecursor.append_right tailRecursors)
+  have h := hfirst.trans hsecond
+  have hleft :
+      (tailTypes.append (familyCtors ++ tailCtors)).append
+          (recursor :: tailRecursors) =
+        ((tailTypes.append familyCtors).append tailCtors).append
+          (recursor :: tailRecursors) := by
+    exact congrArg (· ++ (recursor :: tailRecursors))
+      (List.append_assoc tailTypes familyCtors tailCtors).symm
+  have hright :
+      (familyCtors.append [recursor]).append
+          (tailTypes ++ tailCtors ++ tailRecursors) =
+        familyCtors ++
+          (recursor :: (tailTypes ++ tailCtors ++ tailRecursors)) := by
+    exact (List.append_assoc familyCtors [recursor]
+      (tailTypes ++ tailCtors ++ tailRecursors)).trans <|
+        congrArg (familyCtors ++ ·) List.singleton_append
+  exact hleft.symm ▸ hright.symm ▸ h
+
+structure RestoredPrimaryConstantLayout (constants : List VConstVal) where
+  types : List VConstVal
+  ctors : List VConstVal
+  recursors : List VConstVal
+  grouped : types ++ ctors ++ recursors ~ constants
+
+theorem RestoredInductiveInstallationTrace.primaryLayout
+    (H : RestoredInductiveInstallationTrace safety Htrace sourceVEnv
+      constants targetVEnv) :
+    Nonempty (RestoredPrimaryConstantLayout constants) := by
+  induction H with
+  | nil => exact ⟨⟨[], [], [], .refl []⟩⟩
+  | cons Hstep Htail Hsemantic Hrest ih =>
+    rcases ih with ⟨layout⟩
+    refine ⟨{
+      types := Hsemantic.header :: layout.types
+      ctors := Hsemantic.constructors ++ layout.ctors
+      recursors := Hsemantic.recursor.recursor :: layout.recursors
+      grouped := ?_ }⟩
+    exact (perm_group_familyConstants Hsemantic.header
+      Hsemantic.recursor.recursor layout.types Hsemantic.constructors
+      layout.ctors layout.recursors).trans <|
+        (List.Perm.refl
+          (Hsemantic.header :: Hsemantic.constructors ++
+            [Hsemantic.recursor.recursor])).append layout.grouped
+
 theorem RestoredNestedDeclarationsResult.translatedFreshOfInstallation
     (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
@@ -25568,6 +25642,41 @@ theorem RestoredNestedDeclarationsResult.restoredBlockCertificateOfInstallation
     ctorsWF := HctorsWF
     recursorsWF := HrecursorsWF
     rulesWF := HrulesWF }⟩
+
+/-- Layout-specialized restored-block assembly.  Interleaving is proved once
+by `primaryLayout`; callers identify only the three canonical component
+lists, rather than supplying an opaque permutation of the full block. -/
+theorem RestoredNestedDeclarationsResult.restoredBlockCertificateOfLayout
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames types auxRecNames out)
+    (Hprimary : RestoredInductiveInstallationTrace safety H.inductives
+      sourceVEnv primaryConstants primaryVEnv)
+    (Hauxiliary : RestoredRecursorInstallationTrace safety H.auxiliaries
+      primaryVEnv auxiliaryConstants outVEnv)
+    (layout : RestoredPrimaryConstantLayout primaryConstants)
+    (htypes : block.types = layout.types)
+    (hctors : block.ctors = layout.ctors)
+    (hrecursors : block.recursors = layout.recursors ++ auxiliaryConstants)
+    (hsourceWF : sourceProdEnv.constants.WF)
+    (HtypesWF : ∀ ci ∈ block.types, ci.toVConstant.WF sourceVEnv)
+    (HctorsWF : ∀ envTypes,
+      sourceVEnv.addConsts block.types = some envTypes →
+      ∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes)
+    (HrecursorsWF : ∀ envTypes envCtors,
+      sourceVEnv.addConsts block.types = some envTypes →
+      envTypes.addConsts block.ctors = some envCtors →
+      ∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors)
+    (HrulesWF : ∀ df ∈ block.rules, df.WF outVEnv) :
+    Nonempty (RestoredBlockCertificate sourceVEnv block) := by
+  apply H.restoredBlockCertificateOfInstallation Hprimary Hauxiliary
+    hsourceWF
+  · rw [htypes, hctors, hrecursors]
+    simpa only [List.append_assoc] using
+      layout.grouped.append_right auxiliaryConstants
+  · exact HtypesWF
+  · exact HctorsWF
+  · exact HrecursorsWF
+  · exact HrulesWF
 
 /-- Interpret the exact auxiliary-recursors state trace into the independent
 append-oriented restoration specification. The callback must justify both the
