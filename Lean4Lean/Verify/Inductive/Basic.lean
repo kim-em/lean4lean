@@ -32560,6 +32560,62 @@ theorem LoweredConstructorMapping.constructorRestoration_inverseOfSyntax
     hnodup Hsyntax Hreserved hresultNParams
   simpa [htype] using Hrestored.type
 
+/-- Transport a source constructor's abstract translation across lowering and
+restoration.  This is the semantic premise needed by constructor installation;
+unlike translation of the lowered constructor, it is obtained from the
+independent pre-lowering source type. -/
+theorem LoweredConstructorMapping.restoredType_translationOfSyntax
+    (H : LoweredConstructorMapping env params nparams result source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (Hsyntax : SourceConstructorSyntax source)
+    (Hreserved : RestoreNamesReserved result env)
+    (hresultNParams : result.nparams = nparams)
+    (Hrestored : ConstructorRestoration result env oldInfo newInfo)
+    (htype : oldInfo.type = out.1.type)
+    (Hsource : TrExprS venv oldInfo.levelParams [] source.type targetType) :
+    TrExprS venv oldInfo.levelParams [] newInfo.type targetType := by
+  rcases H.constructorRestoration_inverseOfSyntax hresultParams paramFvars
+      hparams hnodup Hsyntax Hreserved hresultNParams Hrestored htype with
+    ⟨Hinverse⟩
+  apply Hsource.eqv
+  simpa [beq_comm] using Hinverse.restoredType_eqv_source
+
+/-- Install a restored constructor directly from the independent source
+constructor translation and the verified lowering/restoration inverse.  The
+name-reservation premise is intentionally explicit until it is derived from
+the production fresh-name trace. -/
+theorem RestoredConstructorStep.installationOfSyntax
+    (Hstep : RestoredConstructorStep result loweredEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (Hmapping : LoweredConstructorMapping loweredEnv params nparams result
+      source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (Hsyntax : SourceConstructorSyntax source)
+    (Hreserved : RestoreNamesReserved result loweredEnv)
+    (hresultNParams : result.nparams = nparams)
+    (htype : Hstep.oldInfo.type = out.1.type)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (constructor : VConstVal)
+    (Hold : TrConstVal safety sourceVEnv
+      (.ctorInfo Hstep.oldInfo) constructor)
+    (Hsource : TrExprS sourceVEnv Hstep.oldInfo.levelParams [] source.type
+      constructor.type)
+    (Hwf : constructor.toVConstant.WF sourceVEnv) :
+    ∃ targetVEnv,
+      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) := by
+  apply Hstep.installation Hvalid constructor Hold
+  · exact Hmapping.restoredType_translationOfSyntax hresultParams
+      paramFvars hparams hnodup Hsyntax Hreserved hresultNParams
+      Hstep.restored.restoration htype Hsource
+  · exact Hwf
+
 theorem LoweredConstructorTranslation.finalMapping
     (H : LoweredConstructorTranslation env params nparams source state out)
     (Hlater : NestedAuxLE out.2 finalState)
