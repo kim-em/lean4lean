@@ -1162,3 +1162,17 @@ theorem instantiate1_eqv {e₁ e₂ : Expr} :
 theorem instantiateList_eqv {e₁ e₂ : Expr} (h : e₁ == e₂) :
     e₁.instantiateList as k == e₂.instantiateList as k := by
   induction as generalizing e₁ e₂ <;> simp [instantiate1_eqv, *]
+
+theorem abstract1_eqv {e₁ e₂ : Expr} :
+    e₁ == e₂ → e₁.abstract1 v k == e₂.abstract1 v k := by
+  simp [(· == ·)]
+  induction e₁ generalizing e₂ k
+  all_goals
+    cases e₂ <;> try change false = _ → _; rintro ⟨⟩
+    simp [abstract1, eqv']
+  all_goals intros; subst_vars; try simp [*]
+  split <;> simpa [(· == ·)] using eqv_refl _
+
+theorem abstractList_eqv {e₁ e₂ : Expr} (h : e₁ == e₂) :
+    e₁.abstractList vars k == e₂.abstractList vars k := by
+  induction vars generalizing e₁ e₂ <;> simp [abstract1_eqv, *]

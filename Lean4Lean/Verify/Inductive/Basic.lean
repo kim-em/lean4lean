@@ -29032,6 +29032,71 @@ def NestedReplacementHasFinalMapping
           input.getAppArgs).abstract As).instantiateRev params) = true ∧
       finalResult.aux2nested.find? auxName = some nested
 
+/-- A mapped lowering leaf after reopening its cached source application with
+the parameter array chosen by restoration. -/
+def NestedReplacementReopens
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (input : Expr) (state : Lean4Lean.ElimNestedInductive.State)
+    (lowered : Expr) (finalResult : Lean4Lean.ElimNestedInductive.Result)
+    (restoreAs : Array Expr) : Prop :=
+  ∃ value targetName levels auxName auxLevels nested,
+    NestedAppCandidate env state input value ∧
+    input.getAppFn = .const targetName levels ∧
+    lowered = mkAppRange (mkAppN (.const auxName auxLevels) As)
+      value.numParams input.getAppArgs.size input.getAppArgs ∧
+    finalResult.aux2nested.find? auxName = some nested ∧
+    (((nested.abstract finalResult.params).instantiateRev restoreAs) ==
+      ((mkAppRange (.const targetName levels) 0 value.numParams
+        input.getAppArgs).abstract As).instantiateRev restoreAs) = true
+
+/-- The final-map witness retained at a lowering hit is a left inverse for
+the abstraction/reopening part of `restoreNestedNode`.  The only local
+scoping premise is that abstracting the constructor-opening parameters has
+removed all free variables; constructor lowering establishes that fact from
+its closed source type. -/
+theorem NestedReplacementHasFinalMapping.reopens
+    (H : NestedReplacementHasFinalMapping env lctx params As input state
+      lowered finalResult)
+    (hresultParams : finalResult.params = params)
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hnodup : fvars.Nodup)
+    (hclosed : ∀ value targetName levels,
+      NestedAppCandidate env state input value →
+      input.getAppFn = .const targetName levels →
+      FVarsIn (fun _ => False)
+        ((mkAppRange (.const targetName levels) 0 value.numParams
+          input.getAppArgs).abstract As)) :
+    NestedReplacementReopens env lctx params As input state lowered
+      finalResult restoreAs := by
+  rcases H with
+    ⟨value, targetName, levels, auxName, auxLevels, nested,
+      Hcandidate, hhead, hlowered, hnested, hlookup⟩
+  let base := (mkAppRange (.const targetName levels) 0 value.numParams
+    input.getAppArgs).abstract As
+  have habstract :
+      (nested.abstract params) ==
+        ((base.instantiateRev params).abstract params) := by
+    rw [hparams, Expr.abstract_eq, Expr.abstract_eq]
+    apply Expr.abstractList_eqv
+    simpa [base, hparams] using hnested
+  have heqv :
+      ((nested.abstract finalResult.params).instantiateRev restoreAs) ==
+        (((base.instantiateRev params).abstract params).instantiateRev
+          restoreAs) := by
+    rw [hresultParams, Expr.instantiateRev_eq, Expr.instantiate_eq,
+      Expr.instantiateRev_eq, Expr.instantiate_eq]
+    exact Expr.instantiateList_eqv habstract
+  refine ⟨value, targetName, levels, auxName, auxLevels, nested, Hcandidate,
+    hhead, hlowered, hlookup, ?_⟩
+  have hfree : FVarsIn (fun fv => fv ∉ fvars) base :=
+    (hclosed value targetName levels Hcandidate hhead).mono
+      fun fv hfalse => False.elim hfalse
+  have hcancel := hfree.reabstract_instantiateRev_fvarArray
+    params restoreAs fvars hparams hnodup
+  rw [hcancel] at heqv
+  exact heqv
+
 /-- Successful node replacement retains both the independent recognition
 certificate and the final restoration-map entry for the auxiliary family it
 returns. This is the leaf case needed by the structural expression inverse. -/
