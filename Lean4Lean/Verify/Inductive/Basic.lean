@@ -21394,6 +21394,51 @@ theorem BlockCertificate.trEnv'
   .induct hdecl
     (H.addInduct hdecl hcompile hsource.aligned halignedOther heq) hsource
 
+theorem BlockCertificate.trEnvOfOrdinaryCompilation
+    (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors
+      blockRecursors rules outEnv outVEnv)
+    (Hformation : FormationCertificate venv decl)
+    (Hsource : TrInductDeclCore venv lparams nparams sourceTypes isUnsafe decl
+      sourceEnvTypes sourceEnvCtors)
+    (hnonempty : sourceTypes ≠ [])
+    (Hcompile : OrdinaryCompilationCertificate venv decl H.block)
+    (htr : TrEnv' checkSafety prodEnv.constants quotInit venv)
+    (halignedOther : ∀ safety, safety ≠ checkSafety →
+      Aligned safety prodEnv.constants venv →
+      Aligned safety outEnv.constants (outVEnv.addDefEqs rules))
+    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+    TrEnv' checkSafety outEnv.constants quotInit
+      (outVEnv.addDefEqs rules) := by
+  have Htranslated :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
+      Hsource
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
+  exact H.trEnv' (Hformation.declWF Htranslated.sourceWF)
+    Hcompile.compilesTo htr halignedOther heq
+
+theorem BlockCertificate.trEnvOfNestedCompilation
+    (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors
+      blockRecursors rules outEnv outVEnv)
+    (Hformation : FormationCertificate venv decl)
+    (Hsource : TrInductDeclCore venv lparams nparams sourceTypes isUnsafe decl
+      sourceEnvTypes sourceEnvCtors)
+    (hnonempty : sourceTypes ≠ [])
+    (Hcompile : NestedCompilationCertificate venv decl H.block)
+    (htr : TrEnv' checkSafety prodEnv.constants quotInit venv)
+    (halignedOther : ∀ safety, safety ≠ checkSafety →
+      Aligned safety prodEnv.constants venv →
+      Aligned safety outEnv.constants (outVEnv.addDefEqs rules))
+    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+    TrEnv' checkSafety outEnv.constants quotInit
+      (outVEnv.addDefEqs rules) := by
+  have Htranslated :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNestedCompilation
+      Hsource hnonempty Hcompile
+  exact H.trEnv' (Hformation.declWF Htranslated.sourceWF)
+    Hcompile.compilesTo htr halignedOther heq
+
 /-- The first executable check on every source inductive header is an ordinary
 type-checker run. At an empty local context its successful result already
 provides both the source translation and the abstract typing derivation; later
@@ -25460,6 +25505,60 @@ theorem RecursorPhasesResult.addInductOfNestedCompilation
     VEnv.AddInduct sourceEnv decl (H.outVEnv.addDefEqs rules) :=
   (H.blockCertificate rules hrules).addInductOfNestedCompilation
     R.formation R.core hnonempty Hcompile
+
+/-- Concrete-environment endpoint for an ordinary executable recursor run.
+The staged installation, formation, source typing, and compilation proof now
+enter `TrEnv'` in one step. -/
+theorem RecursorPhasesResult.trEnvOfOrdinaryCompilation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    (hnonempty : indTypes.toList ≠ [])
+    (Hcompile : OrdinaryCompilationCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block)
+    (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv)
+    (halignedOther : ∀ safety, safety ≠ c.safety →
+      Aligned safety c.env.constants sourceEnv →
+      Aligned safety outEnv.constants (H.outVEnv.addDefEqs rules))
+    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (H.outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+    TrEnv' c.safety outEnv.constants c.env.quotInit
+      (H.outVEnv.addDefEqs rules) :=
+  (H.blockCertificate rules hrules).trEnvOfOrdinaryCompilation R.formation
+    R.core hnonempty Hcompile htr halignedOther heq
+
+/-- Nested-compilation counterpart of `trEnvOfOrdinaryCompilation`. -/
+theorem RecursorPhasesResult.trEnvOfNestedCompilation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    (hnonempty : indTypes.toList ≠ [])
+    (Hcompile : NestedCompilationCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block)
+    (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv)
+    (halignedOther : ∀ safety, safety ≠ c.safety →
+      Aligned safety c.env.constants sourceEnv →
+      Aligned safety outEnv.constants (H.outVEnv.addDefEqs rules))
+    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
+      (H.outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+    TrEnv' c.safety outEnv.constants c.env.quotInit
+      (H.outVEnv.addDefEqs rules) :=
+  (H.blockCertificate rules hrules).trEnvOfNestedCompilation R.formation
+    R.core hnonempty Hcompile htr halignedOther heq
 
 /-- Compositional verifier for the complete production computation after
 `checkInductiveTypes` has materialized `stats`. This is the first boundary
