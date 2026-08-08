@@ -27609,6 +27609,46 @@ inductive RestoredSourceInductiveSemanticTrace
         envTypes envCtors (.cons Hstep Htail) (owner :: owners)
         (Hrecursor.recursor :: recursors)
 
+/-- All canonical-stage semantic data for one exact operational family
+restoration step.  Bundling the fields keeps mutual-trace assembly independent
+of how headers, constructors, and primary recursors are proved. -/
+structure RestoredSourceInductiveSemantics
+    (decl : VInductDecl) (lparams : List Name)
+    (safety : DefinitionSafety) (sourceVEnv envTypes envCtors : VEnv)
+    (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+      indType sourceProdEnv targetProdEnv) where
+  owner : VInductiveType
+  header : TrSourceConst sourceVEnv lparams indType.name indType.type
+    owner.toVConstVal
+  constructors : RestoredSourceConstructorTrace lparams safety envTypes
+    Hstep.oldInfo.ctors Hstep.restored.headerEnv
+      Hstep.restored.constructorEnv indType.ctors owner.ctors
+  recursor : RestoredPrimaryRecursorSemantics decl owner safety
+    Hstep.restored.recursor envCtors
+
+/-- Assemble per-family semantic payloads over the exact executable mutual
+restoration trace.  This discharges all ordering and state-threading work and
+returns the source owners and primary recursors selected by those payloads. -/
+theorem StateForMTrace.sourceInductiveSemanticTrace
+    (Htrace : StateForMTrace
+      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+      types sourceProdEnv targetProdEnv)
+    (Hsemantics : ∀ indType stepSource stepTarget
+      (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+        indType stepSource stepTarget),
+      Nonempty (RestoredSourceInductiveSemantics decl lparams safety
+        sourceVEnv envTypes envCtors Hstep)) :
+    ∃ owners recursors,
+      RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+        envTypes envCtors Htrace owners recursors := by
+  induction Htrace with
+  | nil => exact ⟨[], [], .nil _⟩
+  | cons Hstep Htail ih =>
+    rcases Hsemantics _ _ _ Hstep with ⟨Hhead⟩
+    rcases ih with ⟨owners, recursors, Hrest⟩
+    exact ⟨Hhead.owner :: owners, Hhead.recursor.recursor :: recursors,
+      .cons Hstep Htail Hhead.header Hhead.constructors Hhead.recursor Hrest⟩
+
 theorem RestoredSourceInductiveSemanticTrace.types
     {sourceTypes : List InductiveType}
     {sourceProdEnv targetProdEnv : Environment}
@@ -30289,7 +30329,9 @@ def RecursorPhasesResult.restoredPrimaryRecursorSemantics
     (hentry : ownerIdx < H.entries.length)
     (hdecl : ownerIdx < decl.types.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
-      (Lean.mkRecName indTypes[ownerIdx]!.name) sourceProdEnv targetProdEnv)
+      oldRecName sourceProdEnv targetProdEnv)
+    (holdRecName : oldRecName =
+      Lean.mkRecName indTypes[ownerIdx]!.name)
     (canonicalEnv : VEnv)
     (Htype : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
       Hstep.restored.newInfo.type (H.entries[ownerIdx]'hentry).2.type)
@@ -30314,8 +30356,12 @@ def RecursorPhasesResult.restoredPrimaryRecursorSemantics
     change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
     rwa [E.name] at hlookup
   have holdInfo : Hstep.oldInfo = E.info := by
+    have hstepLookup : outEnv.find?
+        (Lean.mkRecName indTypes[ownerIdx]!.name) =
+          some (.recInfo Hstep.oldInfo) := by
+      simpa [holdRecName] using Hstep.lookup
     exact ConstantInfo.recInfo.inj (Option.some.inj
-      (Hstep.lookup.symm.trans hlookupE))
+      (hstepLookup.symm.trans hlookupE))
   have Hcore : TrInductDeclCore sourceEnv H.localContext.lparams nparams
       indTypes.toList isUnsafe decl Hheaders.context.venv
         R.declared.venvCtors := by
@@ -36096,6 +36142,70 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFresh
       |>.restoreSourceDisjointOfFresh Hsource.type.constantsDefined Hfamilies
         Hconstructors) rfl fvars hparams hnodup H.toResult.resultNParams
   simpa [hctorNames] using Hsemantic
+
+/-- Package one original family into the payload consumed by whole-mutual
+semantic-trace assembly.  Header and constructor semantics come from the
+independent source translation; generated-entry alignment supplies every
+primary-recursor field except its canonical restored-type translation, name
+preservation, and canonical well-formedness, which remain explicit premises. -/
+theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (hempty : initialState.nestedAux = #[])
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
+    (hdecl : familyIdx < decl.types.length)
+    (hentry : familyIdx < Hprod.entries.length)
+    (Hsource : TrInductiveType sourceVEnv envTypes c.lparams
+      sourceTypes[familyIdx] (decl.types[familyIdx]'hdecl))
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv envTypes)
+    (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+      sourceTypes[familyIdx] sourceProdEnv targetProdEnv)
+    (HrecType : TrExprS envCtors
+      Hstep.restored.recursor.oldInfo.levelParams []
+      Hstep.restored.recursor.restored.newInfo.type
+        (Hprod.entries[familyIdx]'hentry).2.type)
+    (HrecName : (Hprod.entries[familyIdx]'hentry).2.name =
+      Hstep.restored.recursor.restored.newRecName)
+    (HrecWF : (Hprod.entries[familyIdx]'hentry).2.toVConstant.WF envCtors) :
+    Nonempty (RestoredSourceInductiveSemantics decl c.lparams c.safety
+      sourceVEnv envTypes envCtors Hstep) := by
+  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+    ⟨_fvars, _stepState, target, _loweredState, _hparams, _hnodup,
+      _hsize, Hmapping, htarget⟩
+  obtain ⟨hresultIdx, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
+  have howner : familyIdx < result.types.toArray.size := by simpa using hresultIdx
+  have hsourceName : result.types.toArray[familyIdx]!.name =
+      sourceTypes[familyIdx].name := by
+    have harray : result.types.toArray[familyIdx]! = target := by
+      simp [Array.getElem!_eq_getD, Array.getD, howner, hresultIdx,
+        htargetEq]
+    rw [harray, Hmapping.name]
+  have HctorSemantics := H.sourceConstructorSemanticsAtFresh Hc Hprod
+    Hsources hfamily Hsource.ctors Hfamilies Hconstructors hempty Hstep
+  have HrecSemantics : RestoredPrimaryRecursorSemantics decl
+      (decl.types[familyIdx]'hdecl) c.safety Hstep.restored.recursor envCtors := by
+    simpa [hsourceName] using
+      Hprod.restoredPrimaryRecursorSemantics familyIdx howner hentry hdecl
+        Hstep.restored.recursor (congrArg Lean.mkRecName hsourceName.symm)
+        envCtors HrecType HrecName HrecWF
+  exact ⟨{
+    owner := decl.types[familyIdx]'hdecl
+    header := Hsource.header
+    constructors := HctorSemantics
+    recursor := HrecSemantics }⟩
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
