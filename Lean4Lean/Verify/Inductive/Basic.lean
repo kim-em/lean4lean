@@ -23935,6 +23935,7 @@ structure RestoredInductiveHeaderDeclResult
     (out : Unit × Environment) where
   newInfo : InductiveVal
   restored : newInfo = { oldInfo with all := allIndNames }
+  fresh : sourceEnv.contains newInfo.name = false
   output : out = ((), sourceEnv.add (.inductInfo newInfo))
 
 theorem restoreInductiveHeaderDecl_refines
@@ -23958,9 +23959,15 @@ theorem restoreInductiveHeaderDecl_refines
   | ok checked =>
     simp only [hcheck, Except.bind, Except.ok.injEq] at hout
     subst out
+    have hfresh : sourceEnv.contains oldInfo.name = false := by
+      cases hcontains : sourceEnv.contains oldInfo.name
+      · rfl
+      · simp [Environment.checkName, hcontains, (· >>= ·), Except.bind]
+          at hcheck
     exact ⟨{
       newInfo := { oldInfo with all := allIndNames }
       restored := rfl
+      fresh := hfresh
       output := rfl }⟩
 
 /-- Generic compositional trace for the stateful list folds used by nested
@@ -23971,6 +23978,97 @@ inductive StateForMTrace (P : α → σ → σ → Type) :
   | cons : P head source middle →
       StateForMTrace P tail middle target →
       StateForMTrace P (head :: tail) source target
+
+/-- Environment additions whose names were checked immediately before each
+installation.  This forgetful trace is shared by all three nested-restoration
+folds and exposes the freshness invariant without importing any semantic
+typing assumptions. -/
+inductive FreshConstantTrace :
+    Environment → List ConstantInfo → Environment → Prop
+  | nil : FreshConstantTrace env [] env
+  | cons : env.find? ci.name = none →
+      FreshConstantTrace (env.add ci) cis outEnv →
+      FreshConstantTrace env (ci :: cis) outEnv
+
+theorem FreshConstantTrace.append
+    (H₁ : FreshConstantTrace env entries middleEnv)
+    (H₂ : FreshConstantTrace middleEnv rest outEnv) :
+    FreshConstantTrace env (entries ++ rest) outEnv := by
+  induction H₁ with
+  | nil => exact H₂
+  | cons hfresh _Htail ih => exact .cons hfresh (ih H₂)
+
+private theorem find?_none_of_add_none
+    {env : Environment} {head : ConstantInfo} {name : Name}
+    (hwf : env.constants.WF) (hfresh : env.find? head.name = none)
+    (hnext : (env.add head).find? name = none) : env.find? name = none := by
+  have hfreshMap : env.constants.find? head.name = none := by
+    change env.constants.find?' head.name = none at hfresh
+    rwa [hwf.find?'_eq_find?] at hfresh
+  have hnextWF := hwf.insert head.name head hfreshMap
+  change SMap.find?' (env.constants.insert head.name head) name = none at hnext
+  rw [hnextWF.find?'_eq_find?, hwf.find?_insert] at hnext
+  split at hnext
+  · contradiction
+  · change env.constants.find?' name = none
+    rwa [hwf.find?'_eq_find?]
+
+private theorem find?_add_self
+    {env : Environment} {ci : ConstantInfo}
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none) :
+    (env.add ci).find? ci.name = some ci := by
+  have hfreshMap : env.constants.find? ci.name = none := by
+    change env.constants.find?' ci.name = none at hfresh
+    rwa [hwf.find?'_eq_find?] at hfresh
+  have hnextWF := hwf.insert ci.name ci hfreshMap
+  change SMap.find?' (env.constants.insert ci.name ci) ci.name = some ci
+  rw [hnextWF.find?'_eq_find?, hwf.find?_insert]
+  simp
+
+private theorem constantsWF_add_checked
+    {env : Environment} {ci : ConstantInfo} (hwf : env.constants.WF)
+    (hfresh : env.find? ci.name = none) : (env.add ci).constants.WF := by
+  have hfreshMap : env.constants.find? ci.name = none := by
+    change env.constants.find?' ci.name = none at hfresh
+    rwa [hwf.find?'_eq_find?] at hfresh
+  exact hwf.insert ci.name ci hfreshMap
+
+theorem FreshConstantTrace.sourceFresh
+    (H : FreshConstantTrace env entries outEnv)
+    (hwf : env.constants.WF) (hentry : ci ∈ entries) :
+    env.find? ci.name = none := by
+  induction H with
+  | nil => simp at hentry
+  | cons hfresh Htail ih =>
+    simp only [List.mem_cons] at hentry
+    rcases hentry with rfl | htail
+    · exact hfresh
+    · have hnextWF := constantsWF_add_checked hwf hfresh
+      exact find?_none_of_add_none hwf hfresh
+        (ih hnextWF htail)
+
+theorem FreshConstantTrace.namesNodup
+    (H : FreshConstantTrace env entries outEnv) (hwf : env.constants.WF) :
+    (entries.map (·.name)).Nodup := by
+  induction H with
+  | nil => simp
+  | cons hfresh Htail ih =>
+    have hnextWF := constantsWF_add_checked hwf hfresh
+    simp only [List.map_cons, List.nodup_cons]
+    refine ⟨?_, ih hnextWF⟩
+    intro hname
+    rcases List.mem_map.mp hname with ⟨ci, hci, heq⟩
+    have htailFresh := Htail.sourceFresh hnextWF hci
+    have hheadPresent := find?_add_self hwf hfresh
+    rw [← heq, htailFresh] at hheadPresent
+    contradiction
+
+theorem FreshConstantTrace.targetWF
+    (H : FreshConstantTrace env entries outEnv) (hwf : env.constants.WF) :
+    outEnv.constants.WF := by
+  induction H with
+  | nil => exact hwf
+  | cons hfresh _Htail ih => exact ih (constantsWF_add_checked hwf hfresh)
 
 theorem stateForM_refines
     (step : α → StateT σ (Except Exception) Unit)
@@ -24041,6 +24139,7 @@ structure RestoredConstructorDeclResult
     (oldInfo : ConstructorVal) (out : Unit × Environment) where
   newInfo : ConstructorVal
   restoration : ConstructorRestoration result loweredEnv oldInfo newInfo
+  fresh : sourceEnv.contains newInfo.name = false
   output : out = ((), sourceEnv.add (.ctorInfo newInfo))
 
 theorem restoreConstructorDecl_refines
@@ -24067,11 +24166,17 @@ theorem restoreConstructorDecl_refines
   | ok checked =>
     simp only [hcheck, Except.bind, Except.ok.injEq] at hout
     subst out
+    have hfresh : sourceEnv.contains oldInfo.name = false := by
+      cases hcontains : sourceEnv.contains oldInfo.name
+      · rfl
+      · simp [Environment.checkName, hcontains, (· >>= ·), Except.bind]
+          at hcheck
     exact ⟨{
       newInfo := { oldInfo with
         type := result.restoreNested loweredEnv oldInfo.type }
       restoration := restoreConstructor_refines result loweredEnv oldInfo
         Htelescope
+      fresh := hfresh
       output := rfl }⟩
 
 /-- One element of the executable constructor-restoration fold, retaining the
@@ -24128,6 +24233,7 @@ structure RestoredRecursorDeclResult
   mappedName : newRecName = auxRec.getD oldRecName oldRecName
   restoration : RecursorRestoration result loweredEnv auxRec allIndNames
     oldRecName newRecName oldInfo newInfo
+  fresh : sourceEnv.contains newInfo.name = false
   output : out = ((), sourceEnv.add (.recInfo newInfo))
 
 theorem restoreRecursorDecl_refines
@@ -24161,12 +24267,20 @@ theorem restoreRecursorDecl_refines
     let newRecName := auxRec.getD oldRecName oldRecName
     let newInfo := result.restoreRecursor loweredEnv auxRec allIndNames
       oldRecName newRecName oldInfo
+    have hfresh : sourceEnv.contains newRecName = false := by
+      cases hcontains : sourceEnv.contains newRecName
+      · rfl
+      · simp [Environment.checkName, hcontains, (· >>= ·), Except.bind,
+          newRecName] at hcheck
     exact ⟨{
       newRecName := newRecName
       newInfo := newInfo
       mappedName := rfl
       restoration := restoreRecursor_refines result loweredEnv auxRec
         allIndNames oldRecName newRecName oldInfo Htype Hrules
+      fresh := by
+        change sourceEnv.contains newRecName = false
+        exact hfresh
       output := rfl }⟩
 
 /-- One element of an executable recursor-restoration fold. -/
@@ -24366,6 +24480,117 @@ structure RestoredNestedDeclarationsResult
     (RestoredRecursorStep result loweredEnv auxRec allIndNames)
     auxRecNames primaryEnv out.2
   outputUnit : out.1 = ()
+
+private theorem find?_none_of_contains_false
+    {env : Environment} {name : Name} (hwf : env.constants.WF)
+    (hfresh : env.contains name = false) : env.find? name = none := by
+  change env.constants.contains name = false at hfresh
+  rw [SMap.find?_isSome] at hfresh
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
+  cases hfind : env.constants.find? name <;> simp_all
+
+theorem StateForMTrace.constructorFreshTrace
+    (H : StateForMTrace (RestoredConstructorStep result loweredEnv)
+      names sourceEnv targetEnv)
+    (hwf : sourceEnv.constants.WF) :
+    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+  induction H with
+  | nil => exact ⟨[], .nil⟩
+  | cons Hstep Htail ih =>
+    let ci : ConstantInfo := .ctorInfo Hstep.restored.newInfo
+    have hfresh :=
+      find?_none_of_contains_false hwf Hstep.restored.fresh
+    have htarget := congrArg Prod.snd Hstep.restored.output
+    simp only at htarget
+    rw [htarget] at Htail ih
+    rcases ih (constantsWF_add_checked hwf hfresh) with ⟨entries, Hentries⟩
+    exact ⟨ci :: entries, .cons hfresh Hentries⟩
+
+theorem StateForMTrace.recursorFreshTrace
+    (H : StateForMTrace
+      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+      names sourceEnv targetEnv)
+    (hwf : sourceEnv.constants.WF) :
+    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+  induction H with
+  | nil => exact ⟨[], .nil⟩
+  | cons Hstep Htail ih =>
+    let ci : ConstantInfo := .recInfo Hstep.restored.newInfo
+    have hfresh :=
+      find?_none_of_contains_false hwf Hstep.restored.fresh
+    have htarget := congrArg Prod.snd Hstep.restored.output
+    simp only at htarget
+    rw [htarget] at Htail ih
+    rcases ih (constantsWF_add_checked hwf hfresh) with ⟨entries, Hentries⟩
+    exact ⟨ci :: entries, .cons hfresh Hentries⟩
+
+theorem RestoredInductiveDeclResult.freshTrace
+    (H : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
+      allIndNames indType oldInfo ((), targetEnv))
+    (hwf : sourceEnv.constants.WF) :
+    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+  let header : ConstantInfo := .inductInfo H.header.newInfo
+  have hheaderEnv : H.headerEnv = sourceEnv.add header :=
+    congrArg Prod.snd H.header.output
+  have hheaderFresh : sourceEnv.find? header.name = none :=
+    find?_none_of_contains_false hwf H.header.fresh
+  have hwfHeader := constantsWF_add_checked hwf hheaderFresh
+  have Hconstructors' : StateForMTrace
+      (RestoredConstructorStep result loweredEnv) oldInfo.ctors
+      (sourceEnv.add header) H.constructorEnv := by
+    rw [← hheaderEnv]
+    exact H.constructors
+  rcases Hconstructors'.constructorFreshTrace hwfHeader with
+    ⟨constructors, Hconstructors⟩
+  have hwfConstructors : H.constructorEnv.constants.WF :=
+    Hconstructors.targetWF hwfHeader
+  let recursor : ConstantInfo := .recInfo H.recursor.restored.newInfo
+  have htarget : targetEnv = H.constructorEnv.add recursor :=
+    congrArg Prod.snd H.recursor.restored.output
+  have hrecFresh : H.constructorEnv.find? recursor.name = none :=
+    find?_none_of_contains_false hwfConstructors H.recursor.restored.fresh
+  rw [htarget]
+  exact ⟨header :: constructors ++ [recursor],
+    FreshConstantTrace.cons hheaderFresh
+      (Hconstructors.append (.cons hrecFresh .nil))⟩
+
+theorem StateForMTrace.inductiveFreshTrace
+    (H : StateForMTrace
+      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+      types sourceEnv targetEnv)
+    (hwf : sourceEnv.constants.WF) :
+    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+  induction H with
+  | nil => exact ⟨[], .nil⟩
+  | cons Hstep _Htail ih =>
+    rcases Hstep.restored.freshTrace hwf with ⟨headEntries, Hhead⟩
+    rcases ih (Hhead.targetWF hwf) with ⟨tailEntries, Htail⟩
+    exact ⟨headEntries ++ tailEntries, Hhead.append Htail⟩
+
+theorem RestoredNestedDeclarationsResult.freshTrace
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceEnv auxRec
+      allIndNames types auxRecNames out)
+    (hwf : sourceEnv.constants.WF) :
+    ∃ entries, FreshConstantTrace sourceEnv entries out.2 := by
+  rcases H.inductives.inductiveFreshTrace hwf with
+    ⟨primaryEntries, Hprimary⟩
+  rcases H.auxiliaries.recursorFreshTrace (Hprimary.targetWF hwf) with
+    ⟨auxiliaryEntries, Hauxiliary⟩
+  exact ⟨primaryEntries ++ auxiliaryEntries,
+    Hprimary.append Hauxiliary⟩
+
+/-- The complete restored declaration order is globally name-unique.  This
+is derived solely from the successful production `checkName` calls and the
+two exact restoration folds. -/
+theorem RestoredNestedDeclarationsResult.namesNodup
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceEnv auxRec
+      allIndNames types auxRecNames out)
+    (hwf : sourceEnv.constants.WF) :
+    ∃ entries,
+      FreshConstantTrace sourceEnv entries out.2 ∧
+      (entries.map (·.name)).Nodup := by
+  rcases H.freshTrace hwf with ⟨entries, Hentries⟩
+  exact ⟨entries, Hentries, Hentries.namesNodup hwf⟩
 
 theorem restoreNestedDeclarations_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
@@ -24618,18 +24843,26 @@ theorem RestoredNestedDeclarationsResult.nestedCompilationCertificate
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
+    (hsourceWF : sourceProdEnv.constants.WF)
     (Hlayout : ∀ auxiliaryRecursors auxiliaryRules,
       AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
         auxiliaryRules →
       block.recursors = primaryRecursors ++ auxiliaryRecursors ∧
       block.rules = primaryRules ++ auxiliaryRules)
-    (hnames : List.Nodup
-      ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
+    (Hnames : ∀ entries,
+      FreshConstantTrace sourceProdEnv entries out.2 →
+      (block.types ++ block.ctors ++ block.recursors).map (·.name) =
+        entries.map (·.name)) :
     Nonempty (NestedCompilationCertificate sourceEnv decl block) := by
   rcases H.auxiliaryRestorationOfSemantics Hsemantics with
     ⟨auxiliaryRecursors, auxiliaryRules, Haux, _hlength⟩
   rcases Hlayout auxiliaryRecursors auxiliaryRules Haux with
     ⟨hrecursors, hrules⟩
+  rcases H.freshTrace hsourceWF with ⟨entries, Hentries⟩
+  have hnames : List.Nodup
+      ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
+    rw [Hnames entries Hentries]
+    exact Hentries.namesNodup hsourceWF
   exact ⟨NestedCompilationCertificate.ofRestoration decl block main rest
     htypesSource primaryRecursors auxiliaryRecursors primaryRules
     auxiliaryRules HprimaryRecursors HprimaryRules hprimaryLength Haux htypes
