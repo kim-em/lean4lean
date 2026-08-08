@@ -22566,12 +22566,14 @@ structure NestedBoundParams (lctx : LocalContext) (params : Array Expr) where
   fvars : List FVarId
   expressions : params = (fvars.map Expr.fvar).toArray
   members : ∀ fv ∈ fvars, fv ∈ lctx.fvars
+  nodup : fvars.Nodup
 
 def NestedBoundParams.empty : NestedBoundParams {} #[] :=
-  ⟨[], by simp, by simp⟩
+  ⟨[], by simp, by simp, by simp⟩
 
 def NestedBoundParams.push
-    (H : NestedBoundParams lctx params) (ngen : NameGenerator)
+    (H : NestedBoundParams lctx params)
+    (Hctx : NestedBindingContextWF lctx ngen)
     (name : Name) (type : Expr) (bi : BinderInfo) :
     NestedBoundParams (lctx.mkLocalDecl ⟨ngen.curr⟩ name type bi)
       (params.push (.fvar ⟨ngen.curr⟩)) where
@@ -22585,6 +22587,15 @@ def NestedBoundParams.push
     rcases hmem with hold | rfl
     · exact Or.inr (H.members fv hold)
     · exact Or.inl rfl
+  nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨H.nodup, by simp, ?_⟩
+    intro fv hfv fresh hfresh
+    simp only [List.mem_singleton] at hfresh
+    subst fresh
+    intro heq
+    subst fv
+    exact ngen.not_reserves_self <| Hctx.fresh _ (H.members _ hfv)
 
 def NestedBoundParams.toSelection
     (H : NestedBoundParams lctx params) (Hctx : NestedBindingContextWF lctx ngen) :
@@ -22815,7 +22826,8 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
     (Hk : ∀ outLctx tail outParams outState,
       NestedParamOpening lctx params type n outLctx tail outParams →
       NestedBindingContextWF outLctx outState.ngen →
-      LocalForallSelection outLctx outParams →
+      (Hselection : LocalForallSelection outLctx outParams) →
+      Hselection.fvars.Nodup →
       outState.newTypes = state.newTypes →
       outState.nestedAux = state.nestedAux →
       outState.nextIdx = state.nextIdx →
@@ -22826,7 +22838,7 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
   | zero =>
     simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
       Hk lctx type params state .done Hctx (Hparams.toSelection Hctx)
-        rfl rfl rfl
+        Hparams.nodup rfl rfl rfl
   | succ n ih =>
     cases type with
     | forallE name dom body bi =>
@@ -22837,11 +22849,11 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
         bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
       apply ih
         (Hctx := Hctx.withLocalDecl name dom bi)
-        (Hparams := Hparams.push state.ngen name dom bi)
+        (Hparams := Hparams.push Hctx name dom bi)
       intro outLctx tail outParams outState Hresult HresultCtx Hselection
-        hnewTypes hnestedAux hnextIdx
+        hnodup hnewTypes hnestedAux hnextIdx
       exact Hk outLctx tail outParams outState (.step Hresult) HresultCtx
-        Hselection (by simpa using hnewTypes) (by simpa using hnestedAux)
+        Hselection hnodup (by simpa using hnewTypes) (by simpa using hnestedAux)
         (by simpa using hnextIdx)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => exact Except.WF.throw
@@ -22913,7 +22925,8 @@ theorem ElimNestedInductive.withParams.refinesSelected {α : Type}
     (Hk : ∀ lctx tail params outState,
       NestedParamOpening {} #[] type nparams lctx tail params →
       NestedBindingContextWF lctx outState.ngen →
-      LocalForallSelection lctx params →
+      (Hselection : LocalForallSelection lctx params) →
+      Hselection.fvars.Nodup →
       outState.newTypes = state.newTypes →
       outState.nestedAux = state.nestedAux →
       outState.nextIdx = state.nextIdx →
@@ -29577,7 +29590,7 @@ theorem ElimNestedInductive.lowerConstructor.shape
       env state).WF fun out => LoweredConstructorShape nparams ctor out.1 := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
   apply ElimNestedInductive.withParams.refinesSelected
-  intro lctx tail As openedState Hopening _Hctx Hselection _hnewTypes
+  intro lctx tail As openedState Hopening _Hctx Hselection _hnodup _hnewTypes
     _hnestedAux _hnextIdx
   have hsize : As.size = nparams := Hopening.initial_size
   simp only [hsize, beq_self_eq_true, if_true]
@@ -29711,7 +29724,7 @@ theorem ElimNestedInductive.lowerConstructor.translation
         LoweredConstructorTranslation env params nparams ctor state out := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
   apply ElimNestedInductive.withParams.refinesSelected
-  intro lctx tail As openedState Hopening _Hctx Hselection hopenedTypes
+  intro lctx tail As openedState Hopening _Hctx Hselection _hnodup hopenedTypes
     hopenedAux hopenedNext
   have hsize : As.size = nparams := Hopening.initial_size
   simp only [hsize, beq_self_eq_true, if_true]
@@ -30742,7 +30755,7 @@ theorem ElimNestedInductive.run.translation
   | cons first rest =>
     unfold Lean4Lean.ElimNestedInductive.run
     apply ElimNestedInductive.withParams.refinesSelected
-    intro lctx tail params paramsState Hopening Hctx Hselection hnewTypes
+    intro lctx tail params paramsState Hopening Hctx Hselection _hnodup hnewTypes
       hnestedAux hnextIdx
     have hparams : params.size = nparams := Hopening.initial_size
     exact (loweringQueueLoop_refines env params nparams lctx 0 fuel paramsState
@@ -30750,6 +30763,13 @@ theorem ElimNestedInductive.run.translation
         ⟨⟨first, rest, tail, paramsState, lctx, params,
           rfl, Hopening, hnewTypes, hnestedAux, hnextIdx, Hctx,
           ⟨Hselection⟩, Hqueue⟩⟩
+
+/-- The final restoration parameter array is an ordered array of distinct
+free variables. -/
+def NestedResultParamsNodup
+    (result : Lean4Lean.ElimNestedInductive.Result) : Prop :=
+  ∃ fvars : List FVarId,
+    result.params = (fvars.map Expr.fvar).toArray ∧ fvars.Nodup
 
 /-- End-to-end queue safety from the executable source checks.  This closes
 the dynamic-generation loop: source constructors are closed, every generated
@@ -30767,7 +30787,8 @@ theorem ElimNestedInductive.run.translationClosed
     (Lean4Lean.ElimNestedInductive.run fuel nparams types env state).WF
       fun out =>
         NestedLoweringRun env fuel nparams types state out ∧
-        NestedAuxFVarsIn (· ∈ out.1.lctx.fvars) out.2 := by
+        NestedAuxFVarsIn (· ∈ out.1.lctx.fvars) out.2 ∧
+        NestedResultParamsNodup out.1 := by
   cases types with
   | nil => exact Except.WF.throw
   | cons first rest =>
@@ -30803,9 +30824,12 @@ theorem ElimNestedInductive.run.translationClosed
         fun _ Hqueue => by
           refine ⟨⟨⟨first, rest, tail, paramsState, lctx, params,
             rfl, Hopening, hnewTypes, hnestedAux, hnextIdx,
-            Hclosing.binding, ⟨Hclosing.selection⟩, Hqueue.1⟩⟩, ?_⟩
-          rw [Hqueue.1.resultContext.1]
-          exact Hqueue.2
+            Hclosing.binding, ⟨Hclosing.selection⟩, Hqueue.1⟩⟩, ?_, ?_⟩
+          · rw [Hqueue.1.resultContext.1]
+            exact Hqueue.2
+          · exact ⟨Hclosing.selection.fvars,
+              Hqueue.1.resultContext.2.trans Hclosing.selection.expressions,
+              Hclosing.nodup⟩
 
 /-- Exact state transition for one iteration of the dynamic lowering queue.
 The successful case retains the source family selected before lowering, while
@@ -30938,13 +30962,20 @@ def NestedLoweringResultClosed
   ∃ finalState,
     NestedLoweringRun env fuel nparams types initialState
       (result, finalState) ∧
-    NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState
+    NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState ∧
+    NestedResultParamsNodup result
 
 theorem NestedLoweringResultClosed.toResult
     (H : NestedLoweringResultClosed env fuel nparams types initialState result) :
     NestedLoweringResult env fuel nparams types initialState result := by
-  rcases H with ⟨finalState, Hrun, _Hcache⟩
+  rcases H with ⟨finalState, Hrun, _Hcache, _Hparams⟩
   exact ⟨finalState, Hrun⟩
+
+theorem NestedLoweringResultClosed.resultParamsNodup
+    (H : NestedLoweringResultClosed env fuel nparams types initialState result) :
+    NestedResultParamsNodup result := by
+  rcases H with ⟨_finalState, _Hrun, _Hcache, Hparams⟩
+  exact Hparams
 
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
@@ -30957,7 +30988,7 @@ theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
       res).WF fun _ =>
         ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res := by
-  rcases H with ⟨finalState, Hrun, Hcache⟩
+  rcases H with ⟨finalState, Hrun, Hcache, _Hparams⟩
   apply Hrun.validateNestedAuxiliariesWF hvalid mlctx hmlctx hlctx hfresh
   have hfvars : res.lctx.fvars = mlctx.vlctx.fvars := by
     rw [← hlctx, hmlctx.tr.fvars_eq]
@@ -31105,6 +31136,30 @@ theorem NestedLoweringResult.sourceFinalMappingAtFreshAligned
   apply Hrun.finalMappingAtInitialAligned _ hjInitial
   apply Hrun.resultNamesNodupOfEmpty appendIndexAfterIndexFaithful
   simpa using hempty
+
+/-- Closed-lowering specialization of the aligned source mapping.  It
+exposes the exact duplicate-free free-variable presentation of the final
+parameter array needed by abstraction/instantiation cancellation. -/
+theorem NestedLoweringResultClosed.sourceFinalMappingAtFreshAligned
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (hempty : initialState.nestedAux = #[])
+    (hj : j < sourceTypes.length) :
+    ∃ fvars : List FVarId, ∃ stepState target loweredState,
+      result.params = (fvars.map Expr.fvar).toArray ∧
+      fvars.Nodup ∧
+      result.params.size = nparams ∧
+      LoweredInductiveMapping env result.params nparams result sourceTypes[j]
+        stepState (target, loweredState) ∧
+      result.types[j]? = some target := by
+  rcases H.resultParamsNodup with ⟨fvars, hresultParams, hnodup⟩
+  rcases H.toResult.sourceFinalMappingAtFreshAligned hempty hj with
+    ⟨params, stepState, target, loweredState, hparams, hsize,
+      Hmapping, htarget⟩
+  rw [← hparams] at Hmapping
+  exact ⟨fvars, stepState, target, loweredState, hresultParams, hnodup,
+    by simpa [hparams] using hsize, Hmapping, htarget⟩
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -31329,7 +31384,7 @@ theorem ElimNestedInductive.run'.translationClosed
     state hclosures Henv Hsources hinitial hempty
   have Hprojected := Hrun.map fun out Hout =>
     show NestedLoweringResultClosed env fuel nparams types state out.1 from
-      ⟨out.2, Hout.1, Hout.2⟩
+      ⟨out.2, Hout.1, Hout.2.1, Hout.2.2⟩
   simpa [StateT.run'] using Hprojected
 
 /-- Exact outer composition for `Environment.addInductive`, retaining both
