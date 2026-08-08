@@ -25601,6 +25601,10 @@ theorem RestorableNewTypesPrefix.zero
   intro j hj
   omega
 
+def NewTypeNamePresent (state : Lean4Lean.ElimNestedInductive.State)
+    (name : Name) : Prop :=
+  ∃ type ∈ state.newTypes.toList, type.name = name
+
 theorem ElimNestedInductive.lowerInductive.translation
     (params : Array Expr) (nparams : Nat) (indType : InductiveType)
     (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
@@ -25663,6 +25667,44 @@ theorem LowerNextTranslation.restorablePrefix
         exact hget]
       rw [hsame]
       exact Hprefix j hjlt _
+
+theorem LowerNextTranslation.preservesTypeName
+    (H : LowerNextTranslation env params nparams i state
+      (some source, nextState))
+    (Hname : NewTypeNamePresent state name) :
+    NewTypeNamePresent nextState name := by
+  cases H with
+  | step hidx Hlowered =>
+    rename_i target loweredState
+    rcases Hname with ⟨type, htype, hname⟩
+    rcases List.mem_iff_getElem.mp htype with ⟨j, hj, htypeEq⟩
+    have hjState : j < state.newTypes.size := by simpa using hj
+    rcases Hlowered.newTypesLE.getElem hjState with
+      ⟨hjLowered, hpreserved⟩
+    have hjNext : j < (loweredState.newTypes.set! i target).size := by
+      simpa [Array.size_set!] using hjLowered
+    let finalType := (loweredState.newTypes.set! i target)[j]
+    refine ⟨finalType, by
+      exact List.getElem_mem hjNext, ?_⟩
+    by_cases hji : j = i
+    · subst j
+      have hset : finalType = target := by
+        simp [finalType, Array.getElem_setIfInBounds, hjLowered]
+      rw [hset, Hlowered.name]
+      have hsource : state.newTypes[i] = type := by
+        simpa using htypeEq
+      rw [hsource]
+      exact hname
+    · have hset : finalType = loweredState.newTypes[j] := by
+        have hget := Array.getElem_setIfInBounds
+          (xs := loweredState.newTypes) (i := i) (a := target)
+          (j := j) hjLowered
+        rw [if_neg (fun h : i = j => hji h.symm)] at hget
+        exact hget
+      rw [hset, hpreserved]
+      have : state.newTypes[j] = type := by simpa using htypeEq
+      rw [this]
+      exact hname
 
 theorem ElimNestedInductive.lowerNext.translation
     (params : Array Expr) (nparams i : Nat)
@@ -25736,6 +25778,14 @@ theorem LoweringQueueTrace.resultRestorable
   | step Hnext Htail ih =>
     exact ih (Hnext.restorablePrefix Hprefix)
 
+theorem LoweringQueueTrace.preservesTypeName
+    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+    (Hname : NewTypeNamePresent state name) :
+    ∃ type ∈ out.1.types, type.name = name := by
+  induction H with
+  | done => simpa [NewTypeNamePresent] using Hname
+  | step Hnext Htail ih => exact ih (Hnext.preservesTypeName Hname)
+
 private theorem loweringQueueLoop_refines
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (lctx : LocalContext) (i fuel : Nat)
@@ -25772,6 +25822,7 @@ structure NestedLoweringRun
     types = first :: rest ∧
     NestedParamOpening {} #[] first.type nparams
       lctx tail params ∧
+    paramsState.newTypes = initialState.newTypes ∧
     LoweringQueueTrace env params nparams lctx 0 fuel
       paramsState out
 
@@ -25779,8 +25830,19 @@ theorem NestedLoweringRun.resultRestorable
     (H : NestedLoweringRun env fuel nparams types initialState out) :
     ∀ type ∈ out.1.types, RestorableInductiveType nparams type := by
   rcases H.source with
-    ⟨first, rest, tail, paramsState, lctx, params, _, _, Hqueue⟩
+    ⟨first, rest, tail, paramsState, lctx, params, _, _, _, Hqueue⟩
   exact Hqueue.resultRestorable (.zero paramsState)
+
+theorem NestedLoweringRun.preservesInitialTypeName
+    (H : NestedLoweringRun env fuel nparams types initialState out)
+    (Hname : NewTypeNamePresent initialState name) :
+    ∃ type ∈ out.1.types, type.name = name := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _, _, hnewTypes,
+      Hqueue⟩
+  apply Hqueue.preservesTypeName
+  unfold NewTypeNamePresent at Hname ⊢
+  rwa [hnewTypes]
 
 theorem ElimNestedInductive.run.translation
     (fuel nparams : Nat) (types : List InductiveType)
@@ -25792,13 +25854,13 @@ theorem ElimNestedInductive.run.translation
   | nil => exact Except.WF.throw
   | cons first rest =>
     unfold Lean4Lean.ElimNestedInductive.run
-    apply ElimNestedInductive.withParams.refines
-    intro lctx tail params paramsState Hopening
+    apply ElimNestedInductive.withParams.refinesSelected
+    intro lctx tail params paramsState Hopening Hselection hnewTypes
     have hparams : params.size = nparams := Hopening.initial_size
     exact (loweringQueueLoop_refines env params nparams lctx 0 fuel paramsState
       hparams hclosures).mono fun _ Hqueue =>
         ⟨⟨first, rest, tail, paramsState, lctx, params,
-          rfl, Hopening, Hqueue⟩⟩
+          rfl, Hopening, hnewTypes, Hqueue⟩⟩
 
 /-- Exact state transition for one iteration of the dynamic lowering queue.
 The successful case retains the source family selected before lowering, while
@@ -25926,6 +25988,16 @@ theorem NestedLoweringResult.resultRestorable
     ∀ type ∈ result.types, RestorableInductiveType nparams type := by
   rcases H with ⟨finalState, Hrun⟩
   exact Hrun.resultRestorable
+
+theorem NestedLoweringResult.sourceTypeName
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResult env fuel nparams types
+      { initialState with newTypes := types.toArray } result)
+    (hsource : source ∈ types) :
+    ∃ lowered ∈ result.types, lowered.name = source.name := by
+  rcases H with ⟨finalState, Hrun⟩
+  apply Hrun.preservesInitialTypeName
+  exact ⟨source, by simpa using hsource, rfl⟩
 
 theorem ElimNestedInductive.run'.translation
     (fuel nparams : Nat) (types : List InductiveType)
