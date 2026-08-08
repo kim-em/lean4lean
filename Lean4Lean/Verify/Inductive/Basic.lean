@@ -22581,6 +22581,57 @@ theorem AuxiliaryRestorationPrefix.appendRestoredRules
   have Hentry := Hrestore.entry i hsource hrestored
   exact hguarded i hsource hrestored hi Hentry
 
+/-- Interpret the exact auxiliary-recursors state trace into the independent
+append-oriented restoration specification. The callback must justify both the
+translated recursor and its guarded abstract rules from each operational
+step; this theorem supplies all fold ordering and cardinality bookkeeping. -/
+theorem StateForMTrace.auxiliaryRestorationPrefix
+    (Htrace : StateForMTrace
+      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+      names sourceEnv targetEnv)
+    (Hadvance : ∀ oldRecName stepSource stepTarget
+      (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+        oldRecName stepSource stepTarget)
+      recursors rules,
+      AuxiliaryRestorationPrefix decl block main recursors rules →
+      ∃ recursor : VConstVal, ∃ newRules : List VDefEq,
+        AuxiliaryRestorationPrefix decl block main
+          (recursors ++ [recursor]) (rules ++ newRules))
+    (recursors : List VConstVal) (rules : List VDefEq)
+    (Hprefix : AuxiliaryRestorationPrefix decl block main recursors rules) :
+    ∃ finalRecursors finalRules,
+      AuxiliaryRestorationPrefix decl block main finalRecursors finalRules ∧
+      finalRecursors.length = recursors.length + names.length := by
+  induction Htrace generalizing recursors rules with
+  | nil => exact ⟨recursors, rules, Hprefix, by simp⟩
+  | cons Hstep Htail ih =>
+    rcases Hadvance _ _ _ Hstep recursors rules
+      Hprefix with ⟨recursor, newRules, Hnext⟩
+    rcases ih (recursors ++ [recursor]) (rules ++ newRules) Hnext with
+      ⟨finalRecursors, finalRules, Hfinal, hlength⟩
+    exact ⟨finalRecursors, finalRules, Hfinal, by
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hlength⟩
+
+/-- Empty-start specialization used by nested compilation assembly. -/
+theorem StateForMTrace.auxiliaryRestoration
+    (Htrace : StateForMTrace
+      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+      names sourceEnv targetEnv)
+    (Hadvance : ∀ oldRecName stepSource stepTarget
+      (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+        oldRecName stepSource stepTarget)
+      recursors rules,
+      AuxiliaryRestorationPrefix decl block main recursors rules →
+      ∃ recursor : VConstVal, ∃ newRules : List VDefEq,
+        AuxiliaryRestorationPrefix decl block main
+          (recursors ++ [recursor]) (rules ++ newRules)) :
+    ∃ auxiliaryRecursors auxiliaryRules,
+      AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
+        auxiliaryRules ∧
+      auxiliaryRecursors.length = names.length := by
+  simpa using Htrace.auxiliaryRestorationPrefix Hadvance [] []
+    (AuxiliaryRestorationPrefix.empty decl block main)
+
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
 separately, at the point where their reader/state effects are exposed. -/
