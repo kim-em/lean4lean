@@ -21857,6 +21857,50 @@ theorem restoreNestedNode_family
   | bvar | fvar | mvar | sort | const | lam | forallE | letE | lit | mdata
       | proj => cases happ
 
+/-- Family restoration including the zero-argument case, where the lowered
+family is represented by a bare constant. In that case the production code
+consults the auxiliary-recursor map first, so disjointness is an explicit
+premise. -/
+theorem restoreNestedNode_family_general
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
+    (t nested : Expr) (family : Name) (levels : List Level)
+    (hhead : t.getAppFn = .const family levels)
+    (hrec : auxRec.find? family = none)
+    (hfamily : result.aux2nested.find? family = some nested)
+    (harity : result.nparams ≤ t.getAppArgs.size) :
+    result.restoreNestedNode env As auxRec t = some
+      (mkAppRange ((nested.abstract result.params).instantiateRev As)
+        result.nparams t.getAppArgs.size t.getAppArgs) := by
+  cases t with
+  | const name constLevels =>
+    change (.const name constLevels : Expr) = .const family levels at hhead
+    cases hhead
+    have hargs : (.const family levels : Expr).getAppArgs = #[] := rfl
+    rw [hargs] at harity ⊢
+    have hnparams : result.nparams = 0 := by simpa using harity
+    unfold Lean4Lean.ElimNestedInductive.Result.restoreNestedNode
+    simp only [hrec]
+    have hfn : (.const family levels : Expr).getAppFn =
+        .const family levels := rfl
+    rw [hfn]
+    simp only
+    rw [hfamily, hargs, hnparams]
+    rfl
+  | app fn arg =>
+    exact restoreNestedNode_family result env As auxRec (.app fn arg) nested
+      family levels rfl hhead hfamily harity
+  | bvar i => cases hhead
+  | fvar i => cases hhead
+  | mvar i => cases hhead
+  | sort level => cases hhead
+  | lam name dom body bi => cases hhead
+  | forallE name dom body bi => cases hhead
+  | letE name type value body nondep => cases hhead
+  | lit literal => cases hhead
+  | mdata data body => cases hhead
+  | proj name idx body => cases hhead
+
 theorem restoreNestedNode_constructor
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
@@ -25305,6 +25349,14 @@ theorem nestedAuxFold_find
       have htailFind := ih (map.insert entry.2 entry.1) htailNodup htail
       simpa using htailFind
 
+/-- A final restoration map faithfully represents every entry retained in a
+nested-lowering state. This isolates the map property needed by local
+lowering/restoration proofs from the particular fold that builds the map. -/
+def NestedAuxMapModels (result : Lean4Lean.ElimNestedInductive.Result)
+    (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
+  ∀ nested name, (nested, name) ∈ state.nestedAux →
+    result.aux2nested.find? name = some nested
+
 theorem NestedNewTypesLE.refl (state : Lean4Lean.ElimNestedInductive.State) :
     NestedNewTypesLE state state := ⟨[], by simp⟩
 
@@ -25461,6 +25513,88 @@ theorem GeneratedAuxiliaryBatch.targetResult
         rw [hstepState]
         simp
     · exact ih hnodup.2 htail
+
+/-- The exact target result is already reversible by the map obtained from
+folding the batch's final cache, provided the separately tracked generated
+names are unique. -/
+theorem GeneratedAuxiliaryBatch.targetResultLookup
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out)
+    (hsourceNames : sourceNames.Nodup)
+    (htarget : targetName ∈ sourceNames)
+    (hauxNames : (out.2.nestedAux.toList.map Prod.snd).Nodup) :
+    ∃ (stepState : Lean4Lean.ElimNestedInductive.State)
+        (sourceInfo : InductiveVal) (auxName : Name)
+        (data : Lean4Lean.ElimNestedInductive.AuxiliaryData),
+      BuiltAuxiliary env lctx params As levels nparams args targetName auxName
+        sourceInfo data ∧
+      out.1 = some (mkAppRange
+        (mkAppN (.const auxName stepState.lvls) As) nparams args.size args) ∧
+      (out.2.nestedAux.toList.foldl
+        (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+          (entry : Expr × Name) => map.insert entry.2 entry.1)
+        {})[auxName]? = some data.nested := by
+  rcases H.targetResult hsourceNames htarget with
+    ⟨stepState, sourceInfo, auxName, _nextIdx, data, _Hfresh, Hbuilt,
+      hresult, hentry, _htype⟩
+  exact ⟨stepState, sourceInfo, auxName, data, Hbuilt, hresult,
+    nestedAuxFold_find out.2.nestedAux.toList {} hauxNames
+      (by simpa using hentry)⟩
+
+/-- Global map-model evidence turns the unique target step into the exact
+`aux2nested` lookup used by restoration, even after later lowering has
+appended more cache entries. -/
+theorem GeneratedAuxiliaryBatch.targetResultMapped
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out)
+    (hsourceNames : sourceNames.Nodup)
+    (htarget : targetName ∈ sourceNames)
+    (Hlater : NestedAuxLE out.2 finalState)
+    (Hmap : NestedAuxMapModels finalResult finalState) :
+    ∃ (stepState : Lean4Lean.ElimNestedInductive.State)
+        (sourceInfo : InductiveVal) (auxName : Name)
+        (data : Lean4Lean.ElimNestedInductive.AuxiliaryData),
+      BuiltAuxiliary env lctx params As levels nparams args targetName auxName
+        sourceInfo data ∧
+      out.1 = some (mkAppRange
+        (mkAppN (.const auxName stepState.lvls) As) nparams args.size args) ∧
+      finalResult.aux2nested.find? auxName = some data.nested := by
+  rcases H.targetResult hsourceNames htarget with
+    ⟨stepState, sourceInfo, auxName, _nextIdx, data, _Hfresh, Hbuilt,
+      hresult, hentry, _htype⟩
+  exact ⟨stepState, sourceInfo, auxName, data, Hbuilt, hresult,
+    Hmap data.nested auxName (Hlater.mem hentry)⟩
+
+/-- Both cache reuse and fresh mutual-family generation expose the same
+restoration-facing fact: the returned auxiliary application is keyed in the
+final map by the normalized source-family application it replaced. -/
+theorem RecognizedNestedReplacement.finalMapping
+    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+      value state out)
+    (Hlater : NestedAuxLE out.2 finalState)
+    (Hmap : NestedAuxMapModels finalResult finalState) :
+    ∃ auxName auxLevels nested lowered,
+      out.1 = some lowered ∧
+      lowered = mkAppRange (mkAppN (.const auxName auxLevels) As)
+        value.numParams args.size args ∧
+      (nested ==
+        ((mkAppRange (.const targetName levels) 0 value.numParams args).abstract
+          As).instantiateRev params) = true ∧
+      finalResult.aux2nested.find? auxName = some nested := by
+  cases H with
+  | cached auxName Hcached =>
+    rcases Hcached.entry with
+      ⟨⟨found, foundName⟩, hentry, heq, hname⟩
+    change foundName = auxName at hname
+    rw [hname] at hentry
+    refine ⟨auxName, state.lvls, found, _, rfl, rfl, heq, ?_⟩
+    exact Hmap _ auxName (Hlater.mem hentry)
+  | generated Hclosure Hbatch =>
+    rcases Hbatch.targetResultMapped Hclosure.names Hclosure.target Hlater Hmap
+      with ⟨stepState, sourceInfo, auxName, data, Hbuilt, hresult, hlookup⟩
+    refine ⟨auxName, stepState.lvls, data.nested, _, hresult, rfl, ?_, hlookup⟩
+    rw [Hbuilt.nested]
+    simp
 
 theorem RecognizedNestedReplacement.newTypesLE
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
@@ -26337,6 +26471,14 @@ theorem NestedLoweringRun.resultAuxLookup
   rw [← Array.foldl_toList]
   exact nestedAuxFold_find finalState.nestedAux.toList {} hnodup
     (by simpa using hentry)
+
+theorem NestedLoweringRun.resultAuxMapModels
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (hnodup : (finalState.nestedAux.toList.map Prod.snd).Nodup) :
+    NestedAuxMapModels result finalState := by
+  intro nested name hentry
+  exact H.resultAuxLookup hnodup hentry
 
 theorem NestedLoweringRun.resultNestedAuxLE
     (H : NestedLoweringRun env fuel nparams types initialState out) :
