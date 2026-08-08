@@ -1294,6 +1294,69 @@ theorem VInductBlock.install_of_permutedConstants
     ⟨envCtors, hctors, hrecursors⟩
   simp [VInductBlock.install, htypes, hctors, hrecursors]
 
+/-- Semantic certificate for a block whose constants were produced in
+restoration order.  Typing is stated at the canonical dependency stages,
+while freshness/installation may be witnessed by any permutation of those
+constants. -/
+structure RestoredBlockCertificate (env : VEnv)
+    (block : VInductBlock) where
+  constants : List VConstVal
+  outVEnv : VEnv
+  order : block.types ++ block.ctors ++ block.recursors ~ constants
+  installed : env.addConsts constants = some outVEnv
+  typesWF : ∀ ci ∈ block.types, ci.toVConstant.WF env
+  ctorsWF : ∀ envTypes,
+    env.addConsts block.types = some envTypes →
+    ∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes
+  recursorsWF : ∀ envTypes envCtors,
+    env.addConsts block.types = some envTypes →
+    envTypes.addConsts block.ctors = some envCtors →
+    ∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors
+  rulesWF : ∀ df ∈ block.rules, df.WF outVEnv
+
+theorem RestoredBlockCertificate.canonicalStages
+    (H : RestoredBlockCertificate env block) :
+    ∃ envTypes envCtors,
+      env.addConsts block.types = some envTypes ∧
+      envTypes.addConsts block.ctors = some envCtors ∧
+      envCtors.addConsts block.recursors = some H.outVEnv := by
+  have hcanonical : env.addConsts
+      (block.types ++ block.ctors ++ block.recursors) = some H.outVEnv :=
+    VEnv.addConsts_perm H.order.symm H.installed
+  rcases VEnv.addConsts_append_inv (xs := block.types)
+      (ys := block.ctors ++ block.recursors) (by
+        simpa only [List.append_assoc] using hcanonical) with
+    ⟨envTypes, htypes, htail⟩
+  rcases VEnv.addConsts_append_inv (xs := block.ctors)
+      (ys := block.recursors) htail with
+    ⟨envCtors, hctors, hrecursors⟩
+  exact ⟨envTypes, envCtors, htypes, hctors, hrecursors⟩
+
+/-- Restoration-order installation plus canonical stage typing discharges
+the independent compiled-block well-formedness judgment. -/
+theorem RestoredBlockCertificate.wf
+    (H : RestoredBlockCertificate env block) : block.WF env := by
+  rcases H.canonicalStages with
+    ⟨envTypes, envCtors, htypes, hctors, hrecursors⟩
+  exact ⟨envTypes, envCtors, H.outVEnv, htypes, hctors, hrecursors,
+    H.typesWF, H.ctorsWF envTypes htypes,
+    H.recursorsWF envTypes envCtors htypes hctors, H.rulesWF⟩
+
+theorem RestoredBlockCertificate.install
+    (H : RestoredBlockCertificate env block) :
+    block.install env = some (H.outVEnv.addDefEqs block.rules) :=
+  VInductBlock.install_of_permutedConstants H.order H.installed
+
+/-- Final abstract inductive-extension assembly specialized to a restored
+block.  The declaration and compilation judgments remain independent inputs;
+the restoration certificate supplies block well-formedness and installation. -/
+theorem RestoredBlockCertificate.addInduct
+    (H : RestoredBlockCertificate env block)
+    (Hdecl : decl.WF env)
+    (Hcompile : decl.CompilesTo env block) :
+    VEnv.AddInduct env decl (H.outVEnv.addDefEqs block.rules) :=
+  .intro Hdecl Hcompile H.wf H.install
+
 theorem VEnv.addConsts_get
     {env out : VEnv} {constants : List VConstVal}
     (H : env.addConsts constants = some out)
@@ -2004,6 +2067,26 @@ def NestedCompilationCertificate.nested
 theorem NestedCompilationCertificate.compilesTo
     (H : NestedCompilationCertificate env decl block) :
     decl.CompilesTo env block := .nested H.nested
+
+/-- Restored-block counterpart of the executable staged endpoint: source
+translation and formation establish declaration well-formedness, nested
+compilation supplies the independent compilation relation, and restoration
+supplies block installation. -/
+theorem RestoredBlockCertificate.addInductOfNestedCompilation
+    (H : RestoredBlockCertificate env block)
+    (Hformation : FormationCertificate env decl)
+    (Hsource : TrInductDeclCore env lparams nparams sourceTypes isUnsafe decl
+      sourceEnvTypes sourceEnvCtors)
+    (hnonempty : sourceTypes ≠ [])
+    (Hcompile : NestedCompilationCertificate env decl block) :
+    VEnv.AddInduct env decl (H.outVEnv.addDefEqs block.rules) := by
+  have Htranslated :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
+      Hsource
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
+  exact H.addInduct
+    (Hformation.declWF (Lean4Lean.TrInductDecl.sourceWF Htranslated))
+    Hcompile.compilesTo
 
 /-- Append-oriented restoration invariant for the auxiliary recursor/rule
 suffix. It mirrors `processRec`: recursors receive consecutive `main.recN`
@@ -24313,6 +24396,50 @@ theorem FreshConstantTrace.targetWF
   | nil => exact hwf
   | cons hfresh _Htail ih => exact ih (constantsWF_add_checked hwf hfresh)
 
+/-- Semantic interpretation of an exact production freshness trace.  Each
+restored production constant is paired with its translated abstract constant
+in the abstract environment current at that same step. -/
+inductive TranslatedFreshConstantTrace (safety : DefinitionSafety) :
+    ∀ {prodEnv entries outProd},
+      FreshConstantTrace prodEnv entries outProd →
+      VEnv → List VConstVal → VEnv → Prop
+  | nil (prodEnv : Environment) (venv : VEnv) :
+      TranslatedFreshConstantTrace safety
+        (FreshConstantTrace.nil (env := prodEnv)) venv [] venv
+  | cons
+      {prodEnv outProd : Environment} {ci : ConstantInfo}
+      {entries : List ConstantInfo} {venv nextVEnv outVEnv : VEnv}
+      {ci' : VConstVal} {constants : List VConstVal}
+      (hfresh : prodEnv.find? ci.name = none)
+      (Hfresh : FreshConstantTrace (prodEnv.add ci) entries outProd)
+      (Htr : TrConstVal safety venv ci ci')
+      (Hwf : ci'.toVConstant.WF venv)
+      (Hadd : venv.addConst ci'.name ci'.toVConstant = some nextVEnv)
+      (Htail : TranslatedFreshConstantTrace safety Hfresh nextVEnv
+        constants outVEnv) :
+      TranslatedFreshConstantTrace safety (.cons hfresh Hfresh) venv
+        (ci' :: constants) outVEnv
+
+theorem TranslatedFreshConstantTrace.abstract
+    (H : TranslatedFreshConstantTrace safety Hfresh venv constants outVEnv) :
+    venv.addConsts constants = some outVEnv := by
+  induction H with
+  | nil => rfl
+  | cons _hfresh _Hfresh _Htr _Hwf Hadd _Htail ih =>
+    simp only [VEnv.addConsts]
+    rw [Hadd]
+    exact ih
+
+theorem TranslatedFreshConstantTrace.names
+    {prodEnv outProd : Environment} {entries : List ConstantInfo}
+    {Hfresh : FreshConstantTrace prodEnv entries outProd}
+    (H : TranslatedFreshConstantTrace safety Hfresh venv constants outVEnv) :
+    constants.map (·.name) = entries.map (·.name) := by
+  induction H with
+  | nil => rfl
+  | cons _hfresh _Hfresh Htr _Hwf _Hadd _Htail ih =>
+    simp [← Htr.2, ih]
+
 theorem stateForM_refines
     (step : α → StateT σ (Except Exception) Unit)
     (P : α → σ → σ → Type) :
@@ -24834,6 +24961,48 @@ theorem RestoredNestedDeclarationsResult.namesNodup
       (entries.map (·.name)).Nodup := by
   rcases H.freshTrace hwf with ⟨entries, Hentries⟩
   exact ⟨entries, Hentries, Hentries.namesNodup hwf⟩
+
+/-- Interpret the exact production restoration trace as a semantically typed
+abstract block.  The only semantic callback is pointwise translation of that
+exact trace; installation and its restoration/canonical order reconciliation
+are derived here. -/
+theorem RestoredNestedDeclarationsResult.restoredBlockCertificate
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames types auxRecNames out)
+    (hsourceWF : sourceProdEnv.constants.WF)
+    (Hsemantics : ∀ entries
+      (Hentries : FreshConstantTrace sourceProdEnv entries out.2),
+      ∃ constants outVEnv,
+        TranslatedFreshConstantTrace safety Hentries sourceVEnv constants
+          outVEnv ∧
+        block.types ++ block.ctors ++ block.recursors ~ constants)
+    (HtypesWF : ∀ ci ∈ block.types, ci.toVConstant.WF sourceVEnv)
+    (HctorsWF : ∀ envTypes,
+      sourceVEnv.addConsts block.types = some envTypes →
+      ∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes)
+    (HrecursorsWF : ∀ envTypes envCtors,
+      sourceVEnv.addConsts block.types = some envTypes →
+      envTypes.addConsts block.ctors = some envCtors →
+      ∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors)
+    (HrulesWF : ∀ entries
+      (Hentries : FreshConstantTrace sourceProdEnv entries out.2)
+      constants outVEnv,
+      TranslatedFreshConstantTrace safety Hentries sourceVEnv constants
+        outVEnv →
+      ∀ df ∈ block.rules, df.WF outVEnv) :
+    Nonempty (RestoredBlockCertificate sourceVEnv block) := by
+  rcases H.freshTrace hsourceWF with ⟨entries, Hentries⟩
+  rcases Hsemantics entries Hentries with
+    ⟨constants, outVEnv, Htranslated, Horder⟩
+  exact ⟨{
+    constants := constants
+    outVEnv := outVEnv
+    order := Horder
+    installed := Htranslated.abstract
+    typesWF := HtypesWF
+    ctorsWF := HctorsWF
+    recursorsWF := HrecursorsWF
+    rulesWF := HrulesWF entries Hentries constants outVEnv Htranslated }⟩
 
 theorem restoreNestedDeclarations_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
