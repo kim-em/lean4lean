@@ -14945,6 +14945,61 @@ theorem TrExprS.isType_of_forallTelescope
     | forallE hdomType hbodyType _ _ =>
       exact VEnv.IsType.forallE hdomType hbodyType
 
+/-- Compositional semantic certificate for a concrete forall telescope.
+Unlike a bare whole-expression translation, this exposes the translation and
+typehood obligation at every binder and at the final residual. -/
+inductive Expr.ForallTelescopeTypeTranslation
+    (env : VEnv) (Us : List Name) : VLCtx → Expr → Nat → VExpr → Prop
+  | nil (Htr : TrExprS env Us Δ body body')
+      (Htype : env.IsType Us.length Δ.toCtx body') :
+      Expr.ForallTelescopeTypeTranslation env Us Δ body 0 body'
+  | cons
+      (Hdom : TrExprS env Us Δ dom dom')
+      (HdomType : env.IsType Us.length Δ.toCtx dom')
+      (Hbody : Expr.ForallTelescopeTypeTranslation env Us
+        ((none, .vlam dom') :: Δ) body n body') :
+      Expr.ForallTelescopeTypeTranslation env Us Δ
+        (.forallE name dom body bi) (n + 1) (.forallE dom' body')
+
+theorem Expr.ForallTelescopeTypeTranslation.isType
+    (H : Expr.ForallTelescopeTypeTranslation env Us Δ e n e') :
+    env.IsType Us.length Δ.toCtx e' := by
+  induction H with
+  | nil _ Htype => exact Htype
+  | cons _ HdomType _ ih => exact .forallE HdomType ih
+
+theorem Expr.ForallTelescopeTypeTranslation.translation
+    (H : Expr.ForallTelescopeTypeTranslation env Us Δ e n e') :
+    TrExprS env Us Δ e e' := by
+  induction H with
+  | nil Htr _ => exact Htr
+  | cons Hdom HdomType Hbody ih =>
+    exact .forallE HdomType Hbody.isType Hdom ih
+
+theorem Expr.ForallTelescopeTypeTranslation.telescope
+    (H : Expr.ForallTelescopeTypeTranslation env Us Δ e n e') :
+    ∃ residual, Expr.ForallTelescope e n residual := by
+  induction H with
+  | nil => exact ⟨_, .nil _⟩
+  | cons _ _ _ ih =>
+    rcases ih with ⟨residual, Htel⟩
+    exact ⟨residual, .cons Htel⟩
+
+/-- A translated telescope known to be a type decomposes canonically into
+the binder-by-binder certificate. This establishes that the new interface
+loses no information while exposing exactly where restoration must act. -/
+theorem Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    (Htel : Expr.ForallTelescope e n residual)
+    (Htr : TrExprS env Us Δ e e')
+    (Htype : env.IsType Us.length Δ.toCtx e') :
+    Expr.ForallTelescopeTypeTranslation env Us Δ e n e' := by
+  induction Htel generalizing Δ e' with
+  | nil => exact .nil Htr Htype
+  | cons Htail ih =>
+    cases Htr with
+    | forallE HdomType HbodyType Hdom Hbody =>
+      exact .cons Hdom HdomType (ih Hbody HbodyType)
+
 private theorem List.exists_append_five_of_length_eq
     (xs : List α) (a b c d e : Nat)
     (h : xs.length = a + b + c + d + e) :
