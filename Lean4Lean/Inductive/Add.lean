@@ -1052,7 +1052,7 @@ def restoreInductiveDecl (res : ElimNestedInductive.Result)
     StateT Environment (Except Exception) Unit := do
   let some (.inductInfo ind) := loweredEnv.find? indType.name | unreachable!
   restoreInductiveHeaderDecl loweredEnv allIndNames allowPrimitive indType.name
-  for ctorName in ind.ctors do
+  ind.ctors.forM fun ctorName =>
     restoreConstructorDecl res loweredEnv allowPrimitive ctorName
   restoreRecursorDecl res loweredEnv recNameMap allIndNames allowPrimitive
     (mkRecName indType.name)

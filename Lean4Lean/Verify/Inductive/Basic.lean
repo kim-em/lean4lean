@@ -22329,6 +22329,209 @@ theorem restoreRecursorDecls_refines
           ruleTelescopes := Hrules
           restored := Hrestored }⟩⟩
 
+/-- Complete operational trace for restoring one source family member: its
+header, constructor list, and primary recursor. -/
+structure RestoredInductiveDeclResult
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (indType : InductiveType)
+    (oldInfo : InductiveVal) (out : Unit × Environment) where
+  headerEnv : Environment
+  constructorEnv : Environment
+  header : RestoredInductiveHeaderDeclResult loweredEnv sourceEnv allIndNames
+    indType.name oldInfo ((), headerEnv)
+  constructors : StateForMTrace
+    (RestoredConstructorStep result loweredEnv) oldInfo.ctors headerEnv
+      constructorEnv
+  recursor : RestoredRecursorStep result loweredEnv auxRec allIndNames
+    (Lean.mkRecName indType.name) constructorEnv out.2
+  outputUnit : out.1 = ()
+
+theorem restoreInductiveDecl_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (allowPrimitive : Bool)
+    (indType : InductiveType) (oldInfo : InductiveVal)
+    (hlookup : loweredEnv.find? indType.name = some (.inductInfo oldInfo))
+    (Hctors : ∀ ctorName, ctorName ∈ oldInfo.ctors →
+      ∃ ctorInfo : ConstructorVal,
+        loweredEnv.find? ctorName = some (.ctorInfo ctorInfo) ∧
+        RestoreTelescope ctorInfo.type result.nparams)
+    (recInfo : RecursorVal)
+    (hrecLookup : loweredEnv.find? (Lean.mkRecName indType.name) =
+      some (.recInfo recInfo))
+    (HrecType : RestoreTelescope recInfo.type result.nparams)
+    (HrecRules : ∀ rule ∈ recInfo.rules,
+      RestoreTelescope rule.rhs result.nparams) :
+    (Lean4Lean.restoreInductiveDecl result loweredEnv auxRec allIndNames
+      allowPrimitive indType sourceEnv).WF fun out =>
+        Nonempty (RestoredInductiveDeclResult result loweredEnv sourceEnv
+          auxRec allIndNames indType oldInfo out) := by
+  have Hheader := restoreInductiveHeaderDecl_refines loweredEnv sourceEnv
+    allIndNames allowPrimitive indType.name oldInfo hlookup
+  have Hcombined :
+      ((Lean4Lean.restoreInductiveHeaderDecl loweredEnv allIndNames
+          allowPrimitive indType.name sourceEnv).bind fun headerOut =>
+        ((oldInfo.ctors.forM fun ctorName =>
+          Lean4Lean.restoreConstructorDecl result loweredEnv allowPrimitive
+            ctorName) headerOut.2).bind fun constructorOut =>
+          Lean4Lean.restoreRecursorDecl result loweredEnv auxRec allIndNames
+            allowPrimitive (Lean.mkRecName indType.name) constructorOut.2).WF
+        fun out => Nonempty (RestoredInductiveDeclResult result loweredEnv
+          sourceEnv auxRec allIndNames indType oldInfo out) :=
+    Hheader.bind fun headerOut HheaderOut => by
+    rcases headerOut with ⟨unit, headerEnv⟩
+    rcases unit with ⟨⟩
+    rcases HheaderOut with ⟨HheaderResult⟩
+    have HconstructorFold := restoreConstructorDecls_refines result loweredEnv
+      allowPrimitive oldInfo.ctors Hctors headerEnv
+    exact HconstructorFold.bind fun constructorOut HconstructorOut => by
+      rcases constructorOut with ⟨unit, constructorEnv⟩
+      rcases unit with ⟨⟩
+      rcases HconstructorOut with ⟨_, ⟨HconstructorTrace⟩⟩
+      have Hrecursor := restoreRecursorDecl_refines result loweredEnv
+        constructorEnv auxRec allIndNames allowPrimitive
+        (Lean.mkRecName indType.name) recInfo hrecLookup HrecType HrecRules
+      exact Hrecursor.mono fun recursorOut HrecursorOut => by
+        rcases recursorOut with ⟨unit, targetEnv⟩
+        rcases unit with ⟨⟩
+        rcases HrecursorOut with ⟨HrecursorResult⟩
+        exact ⟨{
+          headerEnv := headerEnv
+          constructorEnv := constructorEnv
+          header := HheaderResult
+          constructors := HconstructorTrace
+          recursor := {
+            oldInfo := recInfo
+            lookup := hrecLookup
+            typeTelescope := HrecType
+            ruleTelescopes := HrecRules
+            restored := HrecursorResult }
+          outputUnit := rfl }⟩
+  simpa [Lean4Lean.restoreInductiveDecl, hlookup, bind, StateT.bind] using
+    Hcombined
+
+/-- One family member in the outer source-inductive restoration fold. -/
+structure RestoredInductiveStep
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (indType : InductiveType)
+    (sourceEnv targetEnv : Environment) where
+  oldInfo : InductiveVal
+  lookup : loweredEnv.find? indType.name = some (.inductInfo oldInfo)
+  restored : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
+    allIndNames indType oldInfo ((), targetEnv)
+
+theorem restoreInductiveDecls_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (allowPrimitive : Bool)
+    (types : List InductiveType)
+    (Hsources : ∀ indType, indType ∈ types →
+      ∃ oldInfo : InductiveVal,
+        loweredEnv.find? indType.name = some (.inductInfo oldInfo) ∧
+        (∀ ctorName, ctorName ∈ oldInfo.ctors →
+          ∃ ctorInfo : ConstructorVal,
+            loweredEnv.find? ctorName = some (.ctorInfo ctorInfo) ∧
+            RestoreTelescope ctorInfo.type result.nparams) ∧
+        ∃ recInfo : RecursorVal,
+          loweredEnv.find? (Lean.mkRecName indType.name) =
+            some (.recInfo recInfo) ∧
+          RestoreTelescope recInfo.type result.nparams ∧
+          ∀ rule ∈ recInfo.rules,
+            RestoreTelescope rule.rhs result.nparams) :
+    ∀ sourceEnv,
+      (types.forM fun indType =>
+        Lean4Lean.restoreInductiveDecl result loweredEnv auxRec allIndNames
+          allowPrimitive indType) sourceEnv |>.WF fun out =>
+            out.1 = () ∧ Nonempty (StateForMTrace
+              (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+              types sourceEnv out.2) := by
+  apply stateForM_refines
+  intro indType hind sourceEnv
+  rcases Hsources indType hind with
+    ⟨oldInfo, hlookup, Hctors, recInfo, hrecLookup, HrecType, HrecRules⟩
+  exact (restoreInductiveDecl_refines result loweredEnv sourceEnv auxRec
+    allIndNames allowPrimitive indType oldInfo hlookup Hctors recInfo
+    hrecLookup HrecType HrecRules).mono fun out Hout => by
+      rcases out with ⟨unit, targetEnv⟩
+      rcases unit with ⟨⟩
+      rcases Hout with ⟨Hrestored⟩
+      exact ⟨rfl, ⟨{
+        oldInfo := oldInfo
+        lookup := hlookup
+        restored := Hrestored }⟩⟩
+
+/-- Exact operational certificate for the two folds comprising nested
+declaration restoration: source families first, then auxiliary recursors. -/
+structure RestoredNestedDeclarationsResult
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (types : List InductiveType)
+    (auxRecNames : List Name) (out : Unit × Environment) where
+  primaryEnv : Environment
+  inductives : StateForMTrace
+    (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+    types sourceEnv primaryEnv
+  auxiliaries : StateForMTrace
+    (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+    auxRecNames primaryEnv out.2
+  outputUnit : out.1 = ()
+
+theorem restoreNestedDeclarations_refines
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
+    (allIndNames : List Name) (allowPrimitive : Bool)
+    (types : List InductiveType) (auxRecNames : List Name)
+    (Htypes : ∀ indType, indType ∈ types →
+      ∃ oldInfo : InductiveVal,
+        loweredEnv.find? indType.name = some (.inductInfo oldInfo) ∧
+        (∀ ctorName, ctorName ∈ oldInfo.ctors →
+          ∃ ctorInfo : ConstructorVal,
+            loweredEnv.find? ctorName = some (.ctorInfo ctorInfo) ∧
+            RestoreTelescope ctorInfo.type result.nparams) ∧
+        ∃ recInfo : RecursorVal,
+          loweredEnv.find? (Lean.mkRecName indType.name) =
+            some (.recInfo recInfo) ∧
+          RestoreTelescope recInfo.type result.nparams ∧
+          ∀ rule ∈ recInfo.rules,
+            RestoreTelescope rule.rhs result.nparams)
+    (Haux : ∀ recName, recName ∈ auxRecNames →
+      ∃ oldInfo : RecursorVal,
+        loweredEnv.find? recName = some (.recInfo oldInfo) ∧
+        RestoreTelescope oldInfo.type result.nparams ∧
+        ∀ rule ∈ oldInfo.rules,
+          RestoreTelescope rule.rhs result.nparams) :
+    (Lean4Lean.restoreNestedDeclarations result loweredEnv auxRec allIndNames
+      allowPrimitive types auxRecNames sourceEnv).WF fun out =>
+        Nonempty (RestoredNestedDeclarationsResult result loweredEnv sourceEnv
+          auxRec allIndNames types auxRecNames out) := by
+  have Hinductives := restoreInductiveDecls_refines result loweredEnv auxRec
+    allIndNames allowPrimitive types Htypes sourceEnv
+  have Hcombined :
+      (((types.forM fun indType => Lean4Lean.restoreInductiveDecl result
+          loweredEnv auxRec allIndNames allowPrimitive indType) sourceEnv).bind
+        fun primaryOut =>
+          (auxRecNames.forM fun recName => Lean4Lean.restoreRecursorDecl result
+            loweredEnv auxRec allIndNames allowPrimitive recName)
+            primaryOut.2).WF fun out =>
+              Nonempty (RestoredNestedDeclarationsResult result loweredEnv
+                sourceEnv auxRec allIndNames types auxRecNames out) :=
+    Hinductives.bind fun primaryOut Hprimary => by
+      rcases primaryOut with ⟨unit, primaryEnv⟩
+      rcases unit with ⟨⟩
+      rcases Hprimary with ⟨_, ⟨HinductiveTrace⟩⟩
+      have Hauxiliaries := restoreRecursorDecls_refines result loweredEnv
+        auxRec allIndNames allowPrimitive auxRecNames Haux primaryEnv
+      exact Hauxiliaries.mono fun out Hout => by
+        rcases Hout with ⟨hunit, ⟨HauxTrace⟩⟩
+        exact ⟨{
+          primaryEnv := primaryEnv
+          inductives := HinductiveTrace
+          auxiliaries := HauxTrace
+          outputUnit := hunit }⟩
+  simpa [Lean4Lean.restoreNestedDeclarations, bind, StateT.bind] using Hcombined
+
 /-- Installing an operationally restored auxiliary recursor advances the
 independent auxiliary-name certificate. Translation identifies the production
 `RecursorVal` name with the abstract constant name; no semantic claim about
