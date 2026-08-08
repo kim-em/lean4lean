@@ -19550,6 +19550,183 @@ theorem GeneratedRecursors.appendIotaBatch
   exact Hgenerated.iotaRule_ofTranslation Hrule Hcard Hdecl block hrecursors
     Htr hfresh hproj
 
+/-- Per-owner semantic payload for the exact rule batches retained by
+`GeneratedRecursors`.  The index is the number of mutual-family recursors
+already consumed; the accumulated rules are therefore in the flattened
+constructor order required by `IotaBuildCertificate`. -/
+inductive GeneratedIotaTranslations
+    (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
+      stats indTypes recInfos entries)
+    (semanticEnv trEnv : VEnv) (Us : List Name) (Δ : VLCtx)
+    (decl : VInductDecl) (block : VInductBlock) :
+    Nat → List VDefEq → Prop
+  | nil : GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ decl
+      block 0 []
+  | cons
+      (Hprior : GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ
+        decl block owner prior)
+      (howner : owner < entries.length)
+      (batch : List VDefEq)
+      (hlength : batch.length =
+        (Hgenerated.entry owner howner).info.rules.length)
+      (hroom : batch.length + prior.length ≤
+        decl.ownedConstructors.length)
+      (translations : ∀ i
+        (hctor : i < indTypes[owner]!.ctors.length)
+        (hsource : i <
+          (Hgenerated.entry owner howner).info.rules.length)
+        (habstract : i < batch.length)
+        (Hrule : BoundGeneratedRecursorRule indTypes stats
+          (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
+          (AddInductive.getRecLevels elimLevel stats.levels)
+          indTypes[owner]!.ctors[i]
+          (recursorMinorOffset indTypes owner + i)
+          (Hgenerated.entry owner howner).info.rules[i]),
+        (hindex : prior.length + i < decl.ownedConstructors.length) →
+        Nonempty (Hrule.IotaRuleTranslation trEnv Us Δ semanticEnv decl block
+          (decl.ownedConstructors[prior.length + i]'hindex).1
+          (decl.ownedConstructors[prior.length + i]'hindex).2 batch[i])) :
+      GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ decl block
+        (owner + 1) (prior ++ batch)
+
+theorem GeneratedIotaTranslations.ruleLength
+    (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
+      stats indTypes recInfos entries)
+    (H : GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ decl
+      block owner rules)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors) :
+    rules.length = recursorMinorOffset indTypes owner := by
+  induction H with
+  | nil => simp [recursorMinorOffset]
+  | @cons actualOwner actualPrior Hprior howner batch hlength _hroom
+      _translations ih =>
+    let E := Hgenerated.entry _ howner
+    have hsource : actualOwner < indTypes.size := by
+      have hrec : actualOwner < recInfos.size := by
+        simpa [Hgenerated.length] using howner
+      have htypes : recInfos.size = indTypes.size := by
+        rw [Hcard.records]
+        simpa using
+          (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl).symm
+      omega
+    have hrules : E.info.rules.length = indTypes[actualOwner]!.ctors.length :=
+      E.rules.length
+    simp only [List.length_append]
+    rw [hlength, hrules, ih,
+      recursorMinorOffset_step indTypes actualOwner hsource]
+
+/-- Add one owner batch without asking the caller to prove flattened-index
+room.  Batch length, source translation, and the recursor offset determine
+that arithmetic fact. -/
+theorem GeneratedIotaTranslations.push
+    (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
+      stats indTypes recInfos entries)
+    (Hprior : GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ
+      decl block owner prior)
+    (howner : owner < entries.length)
+    (batch : List VDefEq)
+    (hlength : batch.length =
+      (Hgenerated.entry owner howner).info.rules.length)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
+    (translations : ∀ i
+      (hctor : i < indTypes[owner]!.ctors.length)
+      (hsource : i < (Hgenerated.entry owner howner).info.rules.length)
+      (habstract : i < batch.length)
+      (Hrule : BoundGeneratedRecursorRule indTypes stats
+        (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
+        (AddInductive.getRecLevels elimLevel stats.levels)
+        indTypes[owner]!.ctors[i]
+        (recursorMinorOffset indTypes owner + i)
+        (Hgenerated.entry owner howner).info.rules[i]),
+      (hindex : prior.length + i < decl.ownedConstructors.length) →
+      Nonempty (Hrule.IotaRuleTranslation trEnv Us Δ semanticEnv decl block
+        (decl.ownedConstructors[prior.length + i]'hindex).1
+        (decl.ownedConstructors[prior.length + i]'hindex).2 batch[i])) :
+    GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ decl block
+      (owner + 1) (prior ++ batch) := by
+  let E := Hgenerated.entry owner howner
+  have hsourceOwner : owner < indTypes.size := by
+    have hrec : owner < recInfos.size := by
+      simpa [Hgenerated.length] using howner
+    have htypes : recInfos.size = indTypes.size := by
+      rw [Hcard.records]
+      simpa using
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl).symm
+    omega
+  have hpriorLength : prior.length = recursorMinorOffset indTypes owner :=
+    Hprior.ruleLength Hgenerated Hcard Hdecl
+  have hbatchLength : batch.length = indTypes[owner]!.ctors.length := by
+    rw [hlength, E.rules.length]
+  have hconcreteRoom := recursorMinorOffset_room indTypes owner hsourceOwner
+  have hownedLength :
+      (indTypes.toList.flatMap (fun type => type.ctors)).length =
+        decl.ownedConstructors.length := by
+    simpa [ownedConstructors, List.length_flatMap] using
+      Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length Hdecl
+  exact .cons Hprior howner batch hlength (by
+    rw [hbatchLength, hpriorLength, ← hownedLength]
+    omega) translations
+
+theorem GeneratedIotaTranslations.build
+    (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
+      stats indTypes recInfos entries)
+    (H : GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ decl
+      block owner rules)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
+    (hrecursors : block.recursors = entries.map Prod.snd)
+    (hfresh : ∀ name ∈ block.recursors.map (·.name),
+      trEnv.constants name = none)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst (block.recursors.map (·.name)) = false →
+      e''.containsAnyConst (block.recursors.map (·.name)) = false) :
+    IotaBuildCertificate semanticEnv decl block rules := by
+  induction H with
+  | nil => exact .empty semanticEnv decl block
+  | cons Hprior howner batch hlength hroom Htranslations ih =>
+    let E := Hgenerated.entry _ howner
+    exact Hgenerated.appendIotaBatch Hcard Hdecl block hrecursors ih E.rules
+      hlength hroom
+      (fun i hctor hsource habstract Hrule =>
+        Htranslations i hctor hsource habstract Hrule (by omega))
+      hfresh hproj
+
+theorem GeneratedIotaTranslations.completeLength
+    (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
+      stats indTypes recInfos entries)
+    (H : GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ decl
+      block owner rules)
+    (Hcard : RecursorCardinalityCertificate stats recInfos decl)
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
+      indTypes.toList isUnsafe decl envTypes envCtors)
+    (hcomplete : owner = entries.length) :
+    rules.length = decl.ownedConstructors.length := by
+  have htypes : indTypes.size = decl.types.length := by
+    simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl
+  have howner : owner = indTypes.size := by
+    rw [hcomplete, Hgenerated.length, Hcard.records, ← htypes]
+  rw [H.ruleLength Hgenerated Hcard Hdecl, howner]
+  have hoffset : recursorMinorOffset indTypes indTypes.size =
+      (indTypes.toList.flatMap (fun type => type.ctors)).length := by
+    unfold recursorMinorOffset
+    simp only [List.length_flatMap]
+    have hlen : indTypes.size =
+        (indTypes.toList.map (fun type => type.ctors.length)).length := by
+      simp
+    rw [hlen, List.map_take, List.take_length]
+  rw [hoffset]
+  simpa [ownedConstructors, List.length_flatMap] using
+    Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length Hdecl
+
 theorem GeneratedRecursors.recursorCertificate
     (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
       recInfos entries)
@@ -26316,6 +26493,19 @@ def RecursorPhasesResult.blockCertificate
   exact Hgenerated.toBlockCertificate H.staged H.localWF H.bindings H.params
     Hheaders.typesWF R.declared.ctorsWF hrules
 
+def RecursorPhasesResult.generatedCertificate
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) :
+    GeneratedRecursors c.safety R.declared.venvCtors c.lparams H.elimLevel
+      H.localContext stats indTypes H.recInfos H.entries := by
+  simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using H.generated
+
 /-- The complete recursor phase determines every ordinary-compilation field
 except the semantic interpretation of its generated iota-rule batch. Block
 layout and name uniqueness are consequences of the staging certificate. -/
@@ -26348,6 +26538,95 @@ theorem RecursorPhasesResult.ordinaryCompilationOfRuleBuild
   · exact Hrules
   · simpa [BlockCertificate.block] using hrulesLength
   · exact (H.blockCertificate rules hrules).names
+
+/-- Close ordinary compilation from the exact per-owner generated-rule
+translations.  Mutual traversal order, flattened constructor coverage, and
+the final rule count are derived from `GeneratedRecursors`; callers retain
+only the local executable-to-abstract translation payload. -/
+theorem RecursorPhasesResult.ordinaryCompilationOfRuleTranslations
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (trEnv : VEnv) (Us : List Name) (Δ : VLCtx)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    (owner : Nat)
+    (Htranslations : GeneratedIotaTranslations H.generatedCertificate
+      sourceEnv trEnv Us Δ decl (H.blockCertificate rules hrules).block
+      owner rules)
+    (hcomplete : owner = H.entries.length)
+    (hfresh : ∀ name ∈
+      (H.blockCertificate rules hrules).block.recursors.map (·.name),
+      trEnv.constants name = none)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst
+        ((H.blockCertificate rules hrules).block.recursors.map (·.name)) =
+          false →
+      e''.containsAnyConst
+        ((H.blockCertificate rules hrules).block.recursors.map (·.name)) =
+          false) :
+    OrdinaryCompilationCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block := by
+  have Hbuild : IotaBuildCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block rules :=
+    Htranslations.build H.generatedCertificate H.cardinality R.core rfl
+      hfresh hproj
+  have hlength : rules.length = decl.ownedConstructors.length :=
+    Htranslations.completeLength H.generatedCertificate H.cardinality R.core
+      hcomplete
+  exact H.ordinaryCompilationOfRuleBuild rules hrules Hbuild hlength
+
+/-- Declaration-facing package for the remaining local rule-translation
+work of an ordinary recursor run. -/
+structure OrdinaryRuleTranslationResult
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) where
+  trEnv : VEnv
+  Us : List Name
+  Δ : VLCtx
+  rules : List VDefEq
+  rulesWF : ∀ df ∈ rules, df.WF H.outVEnv
+  owner : Nat
+  translations : GeneratedIotaTranslations H.generatedCertificate sourceEnv
+    trEnv Us Δ decl (H.blockCertificate rules rulesWF).block owner rules
+  complete : owner = H.entries.length
+  fresh : ∀ name ∈
+    (H.blockCertificate rules rulesWF).block.recursors.map (·.name),
+    trEnv.constants name = none
+  projections : ∀ {Δ : VLCtx} {s i e' e''},
+    TrProj Δ.toCtx s i e' e'' →
+    e'.containsAnyConst
+      ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) =
+        false →
+    e''.containsAnyConst
+      ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) =
+        false
+
+theorem OrdinaryRuleTranslationResult.compilation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    (T : OrdinaryRuleTranslationResult H) :
+    OrdinaryCompilationCertificate sourceEnv decl
+      (H.blockCertificate T.rules T.rulesWF).block :=
+  H.ordinaryCompilationOfRuleTranslations T.trEnv T.Us T.Δ T.rules
+    T.rulesWF T.owner T.translations T.complete T.fresh T.projections
 
 theorem RecursorPhasesResult.addInductOfOrdinaryCompilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -26713,6 +26992,34 @@ theorem AddInductive.run.closedWF
           simpa using List.ne_nil_of_length_pos
             (by simpa using hnonempty : 0 < types.length),
         Hrecursors⟩
+
+/-- Close a successful ordinary declaration run from the exact generated
+rule translations retained per mutual-family owner. -/
+theorem VerifiedInductiveRunResult.addInductOfRuleTranslations
+    (Hrun : VerifiedInductiveRunResult source skeleton envTypes types
+      numNested outEnv)
+    (Hrules : ∀ c' stats decl depth
+      (Hc' : ContextWF c')
+      (Hdecl : TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
+        types.toArray.toList (source.safety != .safe) decl envTypes)
+      (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth)
+      headerEnv ctorEnv
+      (Hheaders : DeclaredHeadersResult c' stats decl skeleton.nparams
+        (source.safety != .safe) depth Hc'.venv types.toArray headerEnv)
+      (R : ConstructorPhasesResult Hheaders ctorEnv)
+      (Hrecursors : RecursorPhasesResult R outEnv),
+      Nonempty (OrdinaryRuleTranslationResult Hrecursors)) :
+    ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
+      ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
+        VEnv.AddInduct Hc'.venv decl finalVEnv := by
+  rcases Hrun with ⟨c', stats, decl, depth, Hc', Hdecl, Hmaterialized,
+    headerEnv, ctorEnv, Hheaders, R, hnonempty, ⟨Hrecursors⟩⟩
+  rcases Hrules c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
+      ctorEnv Hheaders R Hrecursors with ⟨T⟩
+  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs T.rules,
+    Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
+      T.compilation⟩
 
 /-- Close a verified ordinary executable run against the independent
 `VEnv.AddInduct` specification once the generated rule batch and compilation
