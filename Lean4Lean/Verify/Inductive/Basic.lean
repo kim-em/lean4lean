@@ -31533,6 +31533,96 @@ theorem LoweredConstructorMapping.restoredBody_inverseOfSyntax
     Hsyntax.closed restoreLctx restoreAs openedBody restoredBody Hrestore Hbody
     hresultNParams (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved)
 
+/-- A whole operational `NestedRestoration` of a lowered constructor, with
+its restored body related back to the independently checked source
+constructor body.  The outer telescope equations are retained explicitly;
+the next abstraction layer can therefore prove alpha-equivalence without
+replaying either executable traversal. -/
+structure ConstructorRestorationBodyInverse
+    (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
+    (nparams : Nat) (source lowered : Constructor) (restoredType : Expr) where
+  restoreLctx : LocalContext
+  restoreAs : Array Expr
+  openedBody : Expr
+  restoredBody : Expr
+  loweredOpening : RestoreParamOpening {} #[] lowered.type nparams
+    restoreLctx restoreAs openedBody
+  bodyRestoration : ExprReplacement
+    (result.restoreNestedNode env restoreAs {}) openedBody restoredBody
+  output : restoredType = if lowered.type.isForall then
+    restoreLctx.mkForall restoreAs restoredBody
+    else restoreLctx.mkLambda restoreAs restoredBody
+  sourceLctx : LocalContext
+  sourceTail : Expr
+  sourceAs : Array Expr
+  sourceOpening : NestedParamOpening {} #[] source.type nparams sourceLctx
+    sourceTail sourceAs
+  sourceSelection : LocalForallSelection sourceLctx sourceAs
+  sourceNodup : sourceSelection.fvars.Nodup
+  sourceArity : sourceAs.size = nparams
+  bodyInverse :
+    (restoredBody == Expr.reopenParams sourceTail sourceAs restoreAs) = true
+
+theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
+    (H : LoweredConstructorMapping env params nparams result source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (Hsyntax : SourceConstructorSyntax source)
+    (Hreserved : RestoreNamesReserved result env)
+    (hresultNParams : result.nparams = nparams)
+    (Hrestored : NestedRestoration result env {} out.1.type restoredType) :
+    Nonempty (ConstructorRestorationBodyInverse result env nparams source
+      out.1 restoredType) := by
+  rcases Hrestored with
+    ⟨restoreLctx, restoreAs, openedBody, restoredBody, Hopening,
+      Hbody, houtput⟩
+  have Hopening' := Hopening
+  rw [hresultNParams] at Hopening'
+  rcases H.restoredBody_inverseOfSyntax hresultParams paramFvars hparams
+      hnodup Hsyntax Hreserved restoreLctx restoreAs openedBody restoredBody
+      Hopening' Hbody hresultNParams with
+    ⟨sourceLctx, sourceTail, sourceAs, HsourceOpening, Hselection,
+      hsourceNodup, hsourceArity, hinverse⟩
+  exact ⟨{
+    restoreLctx := restoreLctx
+    restoreAs := restoreAs
+    openedBody := openedBody
+    restoredBody := restoredBody
+    loweredOpening := Hopening'
+    bodyRestoration := Hbody
+    output := houtput
+    sourceLctx := sourceLctx
+    sourceTail := sourceTail
+    sourceAs := sourceAs
+    sourceOpening := HsourceOpening
+    sourceSelection := Hselection
+    sourceNodup := hsourceNodup
+    sourceArity := hsourceArity
+    bodyInverse := hinverse }⟩
+
+/-- Metadata-facing form of the constructor inverse.  Installation exposes a
+`ConstructorVal`, while lowering is indexed by the corresponding
+`Constructor`; the explicit type equality is the only alignment fact needed
+to connect the two verified traces. -/
+theorem LoweredConstructorMapping.constructorRestoration_inverseOfSyntax
+    (H : LoweredConstructorMapping env params nparams result source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (Hsyntax : SourceConstructorSyntax source)
+    (Hreserved : RestoreNamesReserved result env)
+    (hresultNParams : result.nparams = nparams)
+    (Hrestored : ConstructorRestoration result env oldInfo newInfo)
+    (htype : oldInfo.type = out.1.type) :
+    Nonempty (ConstructorRestorationBodyInverse result env nparams source
+      out.1 newInfo.type) := by
+  apply H.nestedRestoration_inverseOfSyntax hresultParams paramFvars hparams
+    hnodup Hsyntax Hreserved hresultNParams
+  simpa [htype] using Hrestored.type
+
 theorem LoweredConstructorTranslation.finalMapping
     (H : LoweredConstructorTranslation env params nparams source state out)
     (Hlater : NestedAuxLE out.2 finalState)
