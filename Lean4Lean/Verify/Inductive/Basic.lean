@@ -21314,13 +21314,14 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
     (Hk : ∀ outLctx tail outParams outState,
       NestedParamOpening lctx params type n outLctx tail outParams →
       LocalForallSelection outLctx outParams →
+      outState.newTypes = state.newTypes →
       (k outLctx tail outParams env outState).WF Q) :
     (Lean4Lean.ElimNestedInductive.withParams.loop
       k lctx type params n env state).WF Q := by
   induction n generalizing lctx type params state with
   | zero =>
     simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
-      Hk lctx type params state .done (Hparams.toSelection Hctx)
+      Hk lctx type params state .done (Hparams.toSelection Hctx) rfl
   | succ n ih =>
     cases type with
     | forallE name dom body bi =>
@@ -21332,8 +21333,9 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
       apply ih
         (Hctx := Hctx.withLocalDecl name dom bi)
         (Hparams := Hparams.push state.ngen name dom bi)
-      intro outLctx tail outParams outState Hresult Hselection
+      intro outLctx tail outParams outState Hresult Hselection hnewTypes
       exact Hk outLctx tail outParams outState (.step Hresult) Hselection
+        (by simpa using hnewTypes)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => exact Except.WF.throw
 
@@ -21346,6 +21348,7 @@ theorem ElimNestedInductive.withParams.refinesSelected {α : Type}
     (Hk : ∀ lctx tail params outState,
       NestedParamOpening {} #[] type nparams lctx tail params →
       LocalForallSelection lctx params →
+      outState.newTypes = state.newTypes →
       (k lctx tail params env outState).WF Q) :
     (Lean4Lean.ElimNestedInductive.withParams
       type nparams k env state).WF Q := by
@@ -25124,6 +25127,79 @@ inductive NestedExprReplacement
       NestedExprReplacement env lctx params As (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
 
+/-- Nested lowering only appends to `newTypes` while traversing expressions. -/
+def NestedNewTypesLE (source target : Lean4Lean.ElimNestedInductive.State) : Prop :=
+  ∃ suffix, target.newTypes.toList = source.newTypes.toList ++ suffix
+
+theorem NestedNewTypesLE.refl (state : Lean4Lean.ElimNestedInductive.State) :
+    NestedNewTypesLE state state := ⟨[], by simp⟩
+
+theorem NestedNewTypesLE.trans
+    (H₁ : NestedNewTypesLE first middle)
+    (H₂ : NestedNewTypesLE middle last) : NestedNewTypesLE first last := by
+  rcases H₁ with ⟨xs, hxs⟩
+  rcases H₂ with ⟨ys, hys⟩
+  exact ⟨xs ++ ys, by simp [hys, hxs, List.append_assoc]⟩
+
+theorem NestedNewTypesLE.getElem
+    (H : NestedNewTypesLE source target) (hi : i < source.newTypes.size) :
+    ∃ htarget : i < target.newTypes.size,
+      target.newTypes[i] = source.newTypes[i] := by
+  rcases H with ⟨suffix, hsuffix⟩
+  have htarget : i < target.newTypes.size := by
+    have hsizes := congrArg List.length hsuffix
+    have hlen : target.newTypes.size =
+        source.newTypes.size + suffix.length := by simpa using hsizes
+    rw [hlen]
+    omega
+  refine ⟨htarget, ?_⟩
+  have hlist : target.newTypes.toList[i] = source.newTypes.toList[i] := by
+    simpa [hsuffix, List.getElem_append, hi]
+  simpa using hlist
+
+theorem GeneratedAuxiliary.newTypesLE
+    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+      sourceName sourceInfo state out) : NestedNewTypesLE state out.2 := by
+  rcases H.generated with ⟨auxName, nextIdx, data, _, _, _, hstate⟩
+  rw [hstate]
+  exact ⟨[data.type], by simp⟩
+
+theorem GeneratedAuxiliaryBatch.newTypesLE
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out) : NestedNewTypesLE state out.2 := by
+  induction H with
+  | nil => exact .refl _
+  | cons Hstep Htail ih => exact Hstep.newTypesLE.trans ih
+
+theorem RecognizedNestedReplacement.newTypesLE
+    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+      value state out) : NestedNewTypesLE state out.2 := by
+  cases H with
+  | cached => exact .refl _
+  | generated Hbatch => exact Hbatch.newTypesLE
+
+theorem NestedReplacement.newTypesLE
+    (H : NestedReplacement env lctx params As e state out) :
+    NestedNewTypesLE state out.2 := by
+  cases H with
+  | unrecognized => exact .refl _
+  | recognized _ _ Hresult => exact Hresult.newTypesLE
+
+theorem NestedExprReplacement.newTypesLE
+    (H : NestedExprReplacement env lctx params As e state out) :
+    NestedNewTypesLE state out.2 := by
+  induction H with
+  | hit Hnode => exact Hnode.newTypesLE
+  | bvar | fvar | mvar | sort | const | lit => exact .refl _
+  | app Hnode _ _ ihFn ihArg =>
+    exact Hnode.newTypesLE.trans (ihFn.trans ihArg)
+  | lam Hnode _ _ ihDom ihBody | forallE Hnode _ _ ihDom ihBody =>
+    exact Hnode.newTypesLE.trans (ihDom.trans ihBody)
+  | letE Hnode _ _ _ ihType ihValue ihBody =>
+    exact Hnode.newTypesLE.trans (ihType.trans (ihValue.trans ihBody))
+  | mdata Hnode _ ihBody | proj Hnode _ ihBody =>
+    exact Hnode.newTypesLE.trans ihBody
+
 theorem replaceAllNested_refines
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (e : Expr) (state : Lean4Lean.ElimNestedInductive.State)
@@ -25333,7 +25409,7 @@ theorem ElimNestedInductive.lowerConstructor.shape
       env state).WF fun out => LoweredConstructorShape nparams ctor out.1 := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
   apply ElimNestedInductive.withParams.refinesSelected
-  intro lctx tail As openedState Hopening Hselection
+  intro lctx tail As openedState Hopening Hselection _hnewTypes
   have hsize : As.size = nparams := Hopening.initial_size
   simp only [hsize, beq_self_eq_true, if_true]
   refine nestedBind.WF
@@ -25355,9 +25431,30 @@ structure LoweredConstructorTranslation
   name : out.1.name = source.name
   translated : ∃ lctx tail As lowered openedState,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
-    As.size = nparams ∧
-    NestedExprReplacement env lctx params As tail openedState (lowered, out.2) ∧
-    out.1.type = lctx.mkForall As lowered
+    ∃ _ : LocalForallSelection lctx As,
+      openedState.newTypes = state.newTypes ∧
+      As.size = nparams ∧
+      NestedExprReplacement env lctx params As tail openedState
+        (lowered, out.2) ∧
+      out.1.type = lctx.mkForall As lowered
+
+theorem LoweredConstructorTranslation.targetRestoreTelescope
+    (H : LoweredConstructorTranslation env params nparams source state out) :
+    RestoreTelescope out.1.type nparams := by
+  rcases H.translated with
+    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+      hopenedTypes, hsize, Hreplace, htype⟩
+  rw [htype, ← hsize]
+  exact (Hselection.forallTelescope lowered).restorePrefix (Nat.le_refl _)
+
+theorem LoweredConstructorTranslation.newTypesLE
+    (H : LoweredConstructorTranslation env params nparams source state out) :
+    NestedNewTypesLE state out.2 := by
+  rcases H.translated with
+    ⟨lctx, tail, As, lowered, openedState, _, _, hopenedTypes, _,
+      Hreplace, _⟩
+  rcases Hreplace.newTypesLE with ⟨suffix, hsuffix⟩
+  exact ⟨suffix, by simpa [hopenedTypes] using hsuffix⟩
 
 theorem ElimNestedInductive.lowerConstructor.translation
     (params : Array Expr) (nparams : Nat) (ctor : Constructor)
@@ -25368,8 +25465,8 @@ theorem ElimNestedInductive.lowerConstructor.translation
       env state).WF fun out =>
         LoweredConstructorTranslation env params nparams ctor state out := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
-  apply ElimNestedInductive.withParams.refines
-  intro lctx tail As openedState Hopening
+  apply ElimNestedInductive.withParams.refinesSelected
+  intro lctx tail As openedState Hopening Hselection hopenedTypes
   have hsize : As.size = nparams := Hopening.initial_size
   simp only [hsize, beq_self_eq_true, if_true]
   have hsubst : As.size = params.size := by omega
@@ -25378,8 +25475,8 @@ theorem ElimNestedInductive.lowerConstructor.translation
       hsubst hclosures) ?_
   intro lowered outState Hlowered
   exact Except.WF.pure
-    ⟨rfl, lctx, tail, As, lowered, openedState, Hopening, hsize,
-      Hlowered, rfl⟩
+    ⟨rfl, lctx, tail, As, lowered, openedState, Hopening, Hselection,
+      hopenedTypes, hsize, Hlowered, rfl⟩
 
 /-- Stateful positional correspondence for an entire constructor list. -/
 inductive LoweredConstructorTranslations
@@ -25391,6 +25488,25 @@ inductive LoweredConstructorTranslations
       LoweredConstructorTranslations env params nparams sources step.2 out →
       LoweredConstructorTranslations env params nparams (source :: sources)
         state (step.1 :: out.1, out.2)
+
+theorem LoweredConstructorTranslations.newTypesLE
+    (H : LoweredConstructorTranslations env params nparams sources state out) :
+    NestedNewTypesLE state out.2 := by
+  induction H with
+  | nil => exact .refl _
+  | cons Hhead Htail ih => exact Hhead.newTypesLE.trans ih
+
+theorem LoweredConstructorTranslations.targetsRestoreTelescope
+    (H : LoweredConstructorTranslations env params nparams sources state out) :
+    ∀ ctor ∈ out.1, RestoreTelescope ctor.type nparams := by
+  induction H with
+  | nil => simp
+  | cons Hhead Htail ih =>
+    intro ctor hctor
+    simp only [List.mem_cons] at hctor
+    rcases hctor with rfl | htail
+    · exact Hhead.targetRestoreTelescope
+    · exact ih ctor htail
 
 theorem ElimNestedInductive.lowerConstructors.translations
     (params : Array Expr) (nparams : Nat) (ctors : List Constructor)
@@ -25462,6 +25578,29 @@ structure LoweredInductiveTranslation
   constructors : LoweredConstructorTranslations env params nparams source.ctors
     state (out.1.ctors, out.2)
 
+theorem LoweredInductiveTranslation.newTypesLE
+    (H : LoweredInductiveTranslation env params nparams source state out) :
+    NestedNewTypesLE state out.2 := H.constructors.newTypesLE
+
+theorem LoweredInductiveTranslation.targetRestoreTelescope
+    (H : LoweredInductiveTranslation env params nparams source state out) :
+    ∀ ctor ∈ out.1.ctors, RestoreTelescope ctor.type nparams :=
+  H.constructors.targetsRestoreTelescope
+
+def RestorableInductiveType (nparams : Nat) (type : InductiveType) : Prop :=
+  ∀ ctor ∈ type.ctors, RestoreTelescope ctor.type nparams
+
+def RestorableNewTypesPrefix (nparams i : Nat)
+    (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
+  ∀ j, j < i → (hj : j < state.newTypes.size) →
+    RestorableInductiveType nparams state.newTypes[j]
+
+theorem RestorableNewTypesPrefix.zero
+    (state : Lean4Lean.ElimNestedInductive.State) :
+    RestorableNewTypesPrefix nparams 0 state := by
+  intro j hj
+  omega
+
 theorem ElimNestedInductive.lowerInductive.translation
     (params : Array Expr) (nparams : Nat) (indType : InductiveType)
     (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
@@ -25490,6 +25629,40 @@ inductive LowerNextTranslation
       LowerNextTranslation env params nparams i state
         (some state.newTypes[i], { loweredState with
           newTypes := loweredState.newTypes.set! i target })
+
+theorem LowerNextTranslation.restorablePrefix
+    (H : LowerNextTranslation env params nparams i state
+      (some source, nextState))
+    (Hprefix : RestorableNewTypesPrefix nparams i state) :
+    RestorableNewTypesPrefix nparams (i + 1) nextState := by
+  cases H with
+  | step hidx Hlowered =>
+    rename_i target loweredState
+    have Hle := Hlowered.newTypesLE
+    have hiLowered := (Hle.getElem hidx).choose
+    intro j hj hjNext
+    have hjLowered : j < loweredState.newTypes.size := by
+      simpa [Array.size_set!] using hjNext
+    by_cases hji : j = i
+    · subst j
+      change RestorableInductiveType nparams
+        (loweredState.newTypes.set! i target)[i]
+      simpa [Array.getElem_setIfInBounds, hiLowered,
+        RestorableInductiveType] using Hlowered.targetRestoreTelescope
+    · have hjlt : j < i := by omega
+      rcases Hle.getElem (show j < state.newTypes.size by omega) with
+        ⟨hjInLowered, hsame⟩
+      change RestorableInductiveType nparams
+        (loweredState.newTypes.set! i target)[j]
+      rw [show (loweredState.newTypes.set! i target)[j] =
+          loweredState.newTypes[j] by
+        have hget := Array.getElem_setIfInBounds
+          (xs := loweredState.newTypes) (i := i) (a := target)
+          (j := j) hjInLowered
+        rw [if_neg (fun h : i = j => hji h.symm)] at hget
+        exact hget]
+      rw [hsame]
+      exact Hprefix j hjlt _
 
 theorem ElimNestedInductive.lowerNext.translation
     (params : Array Expr) (nparams i : Nat)
@@ -25548,6 +25721,21 @@ theorem LoweringQueueTrace.resultContext
   | done => exact ⟨rfl, rfl⟩
   | step _ _ ih => exact ih
 
+theorem LoweringQueueTrace.resultRestorable
+    (H : LoweringQueueTrace env params nparams lctx i fuel state out)
+    (Hprefix : RestorableNewTypesPrefix nparams i state) :
+    ∀ type ∈ out.1.types, RestorableInductiveType nparams type := by
+  induction H with
+  | @done iDone fuelDone stateDone hbound =>
+    intro type htype
+    simp only at htype
+    rcases List.mem_iff_getElem.mp htype with ⟨j, hj, rfl⟩
+    apply Hprefix j
+    · have hjSize : j < stateDone.newTypes.size := by simpa using hj
+      omega
+  | step Hnext Htail ih =>
+    exact ih (Hnext.restorablePrefix Hprefix)
+
 private theorem loweringQueueLoop_refines
     (env : Environment) (params : Array Expr) (nparams : Nat)
     (lctx : LocalContext) (i fuel : Nat)
@@ -25586,6 +25774,13 @@ structure NestedLoweringRun
       lctx tail params ∧
     LoweringQueueTrace env params nparams lctx 0 fuel
       paramsState out
+
+theorem NestedLoweringRun.resultRestorable
+    (H : NestedLoweringRun env fuel nparams types initialState out) :
+    ∀ type ∈ out.1.types, RestorableInductiveType nparams type := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _, _, Hqueue⟩
+  exact Hqueue.resultRestorable (.zero paramsState)
 
 theorem ElimNestedInductive.run.translation
     (fuel nparams : Nat) (types : List InductiveType)
@@ -25725,6 +25920,12 @@ def NestedLoweringResult
     (result : Lean4Lean.ElimNestedInductive.Result) : Prop :=
   ∃ finalState, NestedLoweringRun env fuel nparams types initialState
     (result, finalState)
+
+theorem NestedLoweringResult.resultRestorable
+    (H : NestedLoweringResult env fuel nparams types initialState result) :
+    ∀ type ∈ result.types, RestorableInductiveType nparams type := by
+  rcases H with ⟨finalState, Hrun⟩
+  exact Hrun.resultRestorable
 
 theorem ElimNestedInductive.run'.translation
     (fuel nparams : Nat) (types : List InductiveType)
