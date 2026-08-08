@@ -30490,6 +30490,34 @@ theorem RecursorPhasesResult.restoredPrimaryRecursorMetadata
     simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
       E.translated.1.2.1
 
+/-- The installed ordinary recursor phase already realizes the independent
+source-recursion specification for the declaration it compiled.  This is the
+pointwise form useful to later restoration proofs; for a genuinely nested
+source declaration, that declaration is still the expanded lowered one. -/
+theorem RecursorPhasesResult.sourcePrimaryRecursorSemantics
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length) :
+    Nonempty (SourcePrimaryRecursorSemantics decl
+      (decl.types[ownerIdx]'(by
+        have howner : ownerIdx < H.recInfos.size := by
+          simpa [H.generated.length] using hentry
+        simpa [H.cardinality.records] using howner))
+      R.declared.venvCtors) := by
+  have Hcore : TrInductDeclCore sourceEnv H.localContext.lparams nparams
+      indTypes.toList isUnsafe decl Hheaders.context.venv
+      R.declared.venvCtors := by
+    rw [H.localExtends.lparams_eq]
+    exact R.core
+  exact H.generated.sourcePrimaryRecursorSemantics H.localWF H.bindings
+    H.params H.noAlias H.cardinality Hcore ownerIdx hentry
+
 /-- Turn the actual generated recursor entry selected by a primary
 restoration step into specification-facing semantics.  Installation fixes
 the old metadata and the independent recursor certificate fixes the abstract
