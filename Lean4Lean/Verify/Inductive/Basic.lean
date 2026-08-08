@@ -23711,12 +23711,27 @@ structure NestedAuxNamesWF
     (nested, name) ∈ state.nestedAux →
     ∃ (base : Name) (index : Nat),
       name = base.appendIndexAfter index ∧ index < state.nextIdx
+  reserved : ∀ (nested : Expr) (name : Name),
+    (nested, name) ∈ state.nestedAux →
+    (`_nested).isPrefixOf name = true
+
+private theorem nested_isPrefix_appendIndexAfter
+    (sourceName : Name) (index : Nat) :
+    (`_nested).isPrefixOf
+      ((`_nested ++ sourceName).appendIndexAfter index) = true := by
+  have hprefixScopes : (`_nested : Name).hasMacroScopes = false := by
+    native_decide
+  exact Lean.Name.isPrefixOf_append_appendIndexAfter
+    `_nested sourceName index hprefixScopes
 
 theorem NestedAuxNamesWF.empty
     (state : Lean4Lean.ElimNestedInductive.State)
     (hempty : state.nestedAux = #[]) : NestedAuxNamesWF state := by
   constructor
   · simpa [hempty]
+  · intro nested name hentry
+    rw [hempty] at hentry
+    simp at hentry
   · intro nested name hentry
     rw [hempty] at hentry
     simp at hentry
@@ -23732,6 +23747,9 @@ theorem NestedAuxNamesWF.ofCacheCounterEq
       simpa [haux] using hentry
     rcases H.indexed nested name hold with ⟨base, index, hname, hindex⟩
     exact ⟨base, index, hname, by simpa [hnext] using hindex⟩
+  · intro nested name hentry
+    apply H.reserved nested name
+    simpa [haux] using hentry
 
 theorem findUniqueName_refines
     (env : Environment) (base : Name) (start fuel : Nat) :
@@ -30324,6 +30342,26 @@ def NestedAuxMapFVarsIn (P : FVarId → Prop)
   ∀ (name : Name) (nested : Expr),
     map[name]? = some nested → nested.FVarsIn P
 
+/-- Every key in a restoration map belongs to the private namespace used by
+the lowering-generated auxiliary families. -/
+def NestedAuxMapNamesReserved
+    (map : Std.TreeMap Name Expr Name.quickCmp) : Prop :=
+  ∀ (name : Name) (nested : Expr), map[name]? = some nested →
+    (`_nested).isPrefixOf name = true
+
+theorem NestedAuxMapNamesReserved.insert
+    (Hmap : NestedAuxMapNamesReserved map)
+    (Hname : (`_nested).isPrefixOf name = true) :
+    NestedAuxMapNamesReserved (map.insert name nested) := by
+  intro query value hfind
+  rw [Std.TreeMap.getElem?_insert] at hfind
+  split at hfind
+  next hcmp =>
+    cases hfind
+    rw [← Std.LawfulEqCmp.eq_of_compare hcmp]
+    exact Hname
+  next => exact Hmap query value hfind
+
 theorem NestedAuxMapFVarsIn.insert
     (Hmap : NestedAuxMapFVarsIn P map) (Hnested : nested.FVarsIn P) :
     NestedAuxMapFVarsIn P (map.insert name nested) := by
@@ -30339,6 +30377,25 @@ theorem nestedAuxFold_fvarsIn
     (Hentries : ∀ entry ∈ entries, entry.1.FVarsIn P)
     (Hmap : NestedAuxMapFVarsIn P map) :
     NestedAuxMapFVarsIn P
+      (entries.foldl
+        (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+          (entry : Expr × Name) => map.insert entry.2 entry.1)
+        map) := by
+  induction entries generalizing map with
+  | nil => exact Hmap
+  | cons entry entries ih =>
+    simp only [List.foldl_cons]
+    apply ih
+    · intro tail htail
+      exact Hentries tail (by simp [htail])
+    · exact Hmap.insert (Hentries entry (by simp))
+
+theorem nestedAuxFold_namesReserved
+    (entries : List (Expr × Name))
+    (Hentries : ∀ entry ∈ entries,
+      (`_nested).isPrefixOf entry.2 = true)
+    (Hmap : NestedAuxMapNamesReserved map) :
+    NestedAuxMapNamesReserved
       (entries.foldl
         (fun (map : Std.TreeMap Name Expr Name.quickCmp)
           (entry : Expr × Name) => map.insert entry.2 entry.1)
@@ -30479,6 +30536,13 @@ theorem GeneratedAuxiliary.namesWF
       change index < nextIdx
       rw [hnext]
       omega
+  · intro nested name hentry
+    simp only [Array.mem_push] at hentry
+    rcases hentry with hold | hnew
+    · exact Hstate.reserved nested name hold
+    · cases hnew
+      rw [hname]
+      exact nested_isPrefix_appendIndexAfter sourceName index
 
 theorem GeneratedAuxiliaryBatch.newTypesLE
     (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
@@ -33579,6 +33643,24 @@ theorem NestedLoweringRun.resultAuxFVarsIn
     intro name nested hfind
     simp at hfind
 
+theorem NestedLoweringRun.resultAuxNamesReserved
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (Hnames : NestedAuxNamesWF finalState) :
+    NestedAuxMapNamesReserved
+      (show Std.TreeMap Name Expr Name.quickCmp from result.aux2nested) := by
+  rw [H.resultAuxMap]
+  change NestedAuxMapNamesReserved
+    (finalState.nestedAux.foldl
+      (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+        (entry : Expr × Name) => map.insert entry.2 entry.1) {})
+  rw [← Array.foldl_toList]
+  apply nestedAuxFold_namesReserved finalState.nestedAux.toList
+  · intro entry hentry
+    exact Hnames.reserved entry.1 entry.2 (by simpa using hentry)
+  · intro name nested hfind
+    simp at hfind
+
 theorem NestedLoweringRun.validateNestedAuxiliariesWF
     (H : NestedLoweringRun sourceEnv loweringFuel nparams sourceTypes
       initialState (res, finalState))
@@ -33645,6 +33727,24 @@ theorem NestedLoweringRun.resultNamesNodupOfEmpty
     (hempty : initialState.nestedAux = #[]) :
     (out.2.nestedAux.toList.map Prod.snd).Nodup :=
   (H.resultNamesWF Hindex (NestedAuxNamesWF.empty initialState hempty)).nodup
+
+theorem NestedLoweringRun.resultFamilyNamesReservedOfEmpty
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (Hindex : AppendIndexAfterIndexFaithful)
+    (hempty : initialState.nestedAux = #[]) :
+    NestedAuxMapNamesReserved
+      (show Std.TreeMap Name Expr Name.quickCmp from result.aux2nested) :=
+  H.resultAuxNamesReserved
+    (H.resultNamesWF Hindex (NestedAuxNamesWF.empty initialState hempty))
+
+theorem NestedLoweringRun.resultFamilyNamesReservedFresh
+    (H : NestedLoweringRun env fuel nparams types initialState
+      (result, finalState))
+    (hempty : initialState.nestedAux = #[]) :
+    NestedAuxMapNamesReserved
+      (show Std.TreeMap Name Expr Name.quickCmp from result.aux2nested) :=
+  H.resultFamilyNamesReservedOfEmpty appendIndexAfterIndexFaithful hempty
 
 theorem NestedLoweringRun.resultAuxMapModelsOfEmpty
     (H : NestedLoweringRun env fuel nparams types initialState

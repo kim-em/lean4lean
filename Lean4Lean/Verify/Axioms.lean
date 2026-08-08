@@ -184,6 +184,16 @@ axiom appendIndexAfter_index_injective
       secondBase.appendIndexAfter secondIndex →
     firstIndex = secondIndex
 
+/-- Macro-aware `Name.append` and `Name.appendIndexAfter` are implemented via
+opaque manipulation of `MacroScopesView` and `String.Internal.append`.  This
+is the prefix-preservation fact used to show that lowering-generated names
+remain inside their private namespace, including when the appended source
+name carries macro scopes. -/
+axiom isPrefixOf_append_appendIndexAfter
+    (pre suffix : Name) (index : Nat) :
+    pre.hasMacroScopes = false →
+    pre.isPrefixOf ((pre ++ suffix).appendIndexAfter index) = true
+
 end Name
 
 namespace Expr
