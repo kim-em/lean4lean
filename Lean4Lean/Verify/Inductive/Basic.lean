@@ -24925,6 +24925,101 @@ theorem RestoreParamOpening.params_extension
     refine ⟨(.fvar id) :: suffix, ?_, by simp [hlength]⟩
     simpa [heq, List.append_assoc]
 
+/-- The free-variable-ID fragment of `FVarsIn`.  Unlike `FVarsIn`, this
+predicate intentionally says nothing about universe or expression
+metavariables; binder opening/closing cancellation depends only on free
+variable capture. -/
+def _root_.Lean.Expr.FVarIdsIn (e : Expr) (P : FVarId → Prop) : Prop :=
+  match e with
+  | .fvar fv => P fv
+  | .app fn arg => fn.FVarIdsIn P ∧ arg.FVarIdsIn P
+  | .lam _ dom body _ | .forallE _ dom body _ =>
+      dom.FVarIdsIn P ∧ body.FVarIdsIn P
+  | .letE _ type value body _ =>
+      type.FVarIdsIn P ∧ value.FVarIdsIn P ∧ body.FVarIdsIn P
+  | .mdata _ body | .proj _ _ body => body.FVarIdsIn P
+  | .bvar _ | .mvar _ | .sort _ | .const _ _ | .lit _ => True
+
+theorem _root_.Lean.Expr.FVarIdsIn.mono
+    {e : Expr} {P Q : FVarId → Prop}
+    (H : e.FVarIdsIn P) (hmono : ∀ fv, P fv → Q fv) :
+    e.FVarIdsIn Q := by
+  induction e <;> simp_all [Expr.FVarIdsIn]
+
+theorem FVarsIn_to_FVarIdsIn {e : Expr} {P : FVarId → Prop}
+    (H : e.FVarsIn P) : e.FVarIdsIn P := by
+  induction e <;> simp_all [FVarsIn, Expr.FVarIdsIn]
+
+theorem _root_.Lean.Expr.FVarIdsIn.liftLooseBVars
+    {e : Expr} {P : FVarId → Prop} {s d : Nat}
+    (H : e.FVarIdsIn P) : (e.liftLooseBVars' s d).FVarIdsIn P := by
+  induction e generalizing s <;>
+    simp_all [Expr.FVarIdsIn, Expr.liftLooseBVars']
+
+theorem _root_.Lean.Expr.FVarIdsIn.instantiate1_go
+    {e a : Expr} {P : FVarId → Prop} {k : Nat}
+    (He : e.FVarIdsIn P) (Ha : a.FVarIdsIn P) :
+    (e.instantiate1' a k).FVarIdsIn P := by
+  induction e generalizing k <;>
+    simp_all [Expr.FVarIdsIn, Expr.instantiate1']
+  case bvar =>
+    split
+    · simp [Expr.FVarIdsIn]
+    · split
+      · exact Ha.liftLooseBVars
+      · simp [Expr.FVarIdsIn]
+
+theorem _root_.Lean.Expr.FVarIdsIn.instantiate1
+    {e a : Expr} {P : FVarId → Prop}
+    (He : e.FVarIdsIn P) (Ha : a.FVarIdsIn P) :
+    (e.instantiate1 a).FVarIdsIn P := by
+  rw [Expr.instantiate1_eq]
+  exact He.instantiate1_go Ha
+
+theorem _root_.Lean.Expr.FVarIdsIn.abstract_instantiate1
+    {e : Expr} {fv : FVarId} {k : Nat}
+    (H : e.FVarIdsIn (· ≠ fv)) :
+    (e.instantiate1' (.fvar fv) k).abstract1 fv k = e := by
+  induction e generalizing k with
+    simp_all [Expr.FVarIdsIn, Expr.instantiate1', Expr.abstract1]
+  | bvar i =>
+    split <;> [skip; split]
+    · simp [Expr.abstract1, *]
+    · simp [Expr.abstract1, Expr.liftLooseBVars', *]
+    · obtain _ | i := i <;> simp [Expr.abstract1] <;> omega
+  | fvar other => exact Ne.symm H
+
+theorem _root_.Lean.Expr.FVarIdsIn.abstract1_of
+    {e : Expr} {selected : FVarId} {P : FVarId → Prop} {k : Nat}
+    (H : e.FVarIdsIn (fun fv => fv = selected ∨ P fv)) :
+    (e.abstract1 selected k).FVarIdsIn P := by
+  induction e generalizing k <;>
+    simp_all [Expr.FVarIdsIn, Expr.abstract1]
+  case fvar fv =>
+    split
+    next => trivial
+    next hne =>
+      rcases H with heq | hP
+      · subst fv
+        simp at hne
+      · exact hP
+
+theorem _root_.Lean.Expr.FVarIdsIn.mkAppList
+    {fn : Expr} {args : List Expr} {P : FVarId → Prop} :
+    (fn.mkAppList args).FVarIdsIn P ↔
+      fn.FVarIdsIn P ∧ ∀ arg ∈ args, arg.FVarIdsIn P := by
+  induction args generalizing fn <;>
+    simp_all [Expr.mkAppList, Expr.FVarIdsIn, and_assoc]
+
+theorem _root_.Lean.Expr.FVarIdsIn.getAppArgsList
+    {e a : Expr} {P : FVarId → Prop}
+    (H : e.FVarIdsIn P) (ha : a ∈ e.getAppArgsList) :
+    a.FVarIdsIn P := by
+  have H' : (e.getAppFn.mkAppList e.getAppArgsList).FVarIdsIn P := by
+    rw [Expr.mkAppList_getAppArgsList]
+    exact H
+  exact (Expr.FVarIdsIn.mkAppList.mp H').2 a ha
+
 /-- Exact local-declaration extension performed alongside parameter opening.
 Declarations are recorded in binder order; `LocalContext.toList` stores the
 same suffix in reverse because newer declarations are at the front. -/
@@ -25035,6 +25130,263 @@ theorem RestoreParamOpening.root_mkForall_eq_fold
       (decls.map (fun d => d.fvarId)).map Expr.fvar by simp]
   rw [LocalContext.mkBinding_eq]
   apply LocalContext.mkBindingList_eq_fold
+  · intro fv hfv
+    rcases List.mem_map.mp hfv with ⟨d, hd, rfl⟩
+    exact ⟨d, hfind d hd⟩
+  · exact hnodup
+
+/-- A forall-only restoration opening records enough information to cancel
+its substitutions binder by binder.  The freshness hypothesis is deliberately
+relative to the declarations introduced by this opening, so recursive calls
+may still mention parameters introduced by earlier calls. -/
+theorem RestoreParamOpening.forall_rebuilding_data
+    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+    (Hwf : outLctx.WF)
+    (Htel : Expr.ForallTelescope e n residual) :
+    ∃ decls : List LocalDecl,
+      outLctx.toList = decls.reverse ++ lctx.toList ∧
+      outAs.toList = As.toList ++
+        decls.map (fun d => Expr.fvar d.fvarId) ∧
+      decls.length = n ∧
+      (decls.map (fun d => d.fvarId)).Nodup ∧
+      (∀ d ∈ decls, outLctx.find? d.fvarId = some d) ∧
+      (e.FVarIdsIn (fun fv => fv ∉ decls.map (fun d => d.fvarId)) →
+        (decls.map (fun d => d.fvarId)).foldr
+          (fun fv result =>
+            LocalContext.mkBindingList1 false outLctx [] fv
+              (result.abstract1 fv)) tail = e) := by
+  induction Hopen generalizing residual with
+  | done =>
+    cases Htel
+    exact ⟨[], by simp⟩
+  | forallE Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    cases Htel with
+    | cons Hbody =>
+      have HbodyInst : Expr.ForallTelescope
+          (body.instantiate1 (.fvar id)) n'
+          (residual.instantiate1' (.fvar id) n') := by
+        simpa [Expr.instantiate1_eq] using
+          Hbody.instantiate1' (.fvar id) 0
+      rcases ih Hwf HbodyInst with
+        ⟨decls, hlctx, hparams, hlength, hnodup, hfind, hrebuild⟩
+      let decl : LocalDecl :=
+        .cdecl lctx'.decls.size id name dom bi .default
+      have hlctx' : outLctx'.toList =
+          (decl :: decls).reverse ++ lctx'.toList := by
+        simp [hlctx, decl, LocalContext.mkLocalDecl_toList]
+      have hparams' : outAs'.toList = As'.toList ++
+          (decl :: decls).map (fun d => Expr.fvar d.fvarId) := by
+        simp [hparams, decl, List.append_assoc, LocalDecl.fvarId]
+      have hallNodup :
+          ((decl :: decls).map (fun d => d.fvarId)).Nodup := by
+        have hall := Hwf.nodup
+        rw [hlctx', List.map_append] at hall
+        have hrev := (List.nodup_append.mp hall).1
+        rw [List.map_reverse] at hrev
+        exact List.nodup_reverse.mp hrev
+      have hfind' : ∀ d ∈ decl :: decls,
+          outLctx'.find? d.fvarId = some d := by
+        intro d hd
+        apply LocalContextWF_find?_eq_some_of_mem Hwf
+        rw [hlctx']
+        exact List.mem_append_left _ (List.mem_reverse.mpr hd)
+      refine ⟨decl :: decls, hlctx', hparams', by simp [hlength],
+        hallNodup, hfind', ?_⟩
+      intro hfree
+      simp only [Expr.FVarIdsIn] at hfree
+      simp only [List.map_cons, List.mem_cons, not_or, decl,
+        LocalDecl.fvarId] at hfree
+      have hbodyNoId : body.FVarIdsIn (fun fv => fv ≠ id) :=
+        hfree.2.mono fun _ hfv => hfv.1
+      have hbodyNoRest : body.FVarIdsIn
+          (fun fv => fv ∉ decls.map (fun d => d.fvarId)) :=
+        hfree.2.mono fun _ hfv => hfv.2
+      have hallNodup' : id ∉ decls.map (fun d => d.fvarId) ∧
+          (decls.map (fun d => d.fvarId)).Nodup := by
+        simpa [decl, LocalDecl.fvarId] using hallNodup
+      have hidNotRest : id ∉ decls.map (fun d => d.fvarId) := by
+        exact hallNodup'.1
+      have hopenFree : (body.instantiate1 (.fvar id)).FVarIdsIn
+          (fun fv => fv ∉ decls.map (fun d => d.fvarId)) := by
+        apply hbodyNoRest.instantiate1
+        simpa [Expr.FVarIdsIn] using hidNotRest
+      have hinner := hrebuild hopenFree
+      simp only [List.map_cons, List.foldr_cons]
+      rw [hinner]
+      have hhead := hfind' decl (by simp)
+      have hheadId : outLctx'.find? id = some decl := by
+        simpa [decl, LocalDecl.fvarId] using hhead
+      simp [LocalContext.mkBindingList1, hheadId, decl, LocalDecl.fvarId,
+        Expr.instantiate1_eq, hbodyNoId.abstract_instantiate1]
+  | lam Hnext ih => cases Htel
+
+/-- Folding the declarations copied by a forall opening removes exactly the
+new parameter IDs.  `P` describes the free variables allowed before the
+opening; the root specialization uses `P := False`. -/
+theorem RestoreParamOpening.forall_closing_data
+    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+    (Hwf : outLctx.WF)
+    (Htel : Expr.ForallTelescope e n residual)
+    (Hsource : e.FVarIdsIn P) :
+    ∃ decls : List LocalDecl,
+      outLctx.toList = decls.reverse ++ lctx.toList ∧
+      outAs.toList = As.toList ++
+        decls.map (fun d => Expr.fvar d.fvarId) ∧
+      decls.length = n ∧
+      (decls.map (fun d => d.fvarId)).Nodup ∧
+      (∀ d ∈ decls, outLctx.find? d.fvarId = some d) ∧
+      ∀ newBody,
+        newBody.FVarIdsIn
+          (fun fv => P fv ∨ fv ∈ decls.map (fun d => d.fvarId)) →
+        ((decls.map (fun d => d.fvarId)).foldr
+          (fun fv result =>
+            LocalContext.mkBindingList1 false outLctx [] fv
+              (result.abstract1 fv)) newBody).FVarIdsIn P := by
+  induction Hopen generalizing residual P with
+  | done =>
+    cases Htel
+    refine ⟨[], by simp, by simp, by simp, by simp, by simp, ?_⟩
+    intro newBody Hnew
+    exact Hnew.mono fun fv h => by simpa using h
+  | forallE Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    cases Htel with
+    | cons Hbody =>
+      simp only [Expr.FVarIdsIn] at Hsource
+      have HbodyInst : Expr.ForallTelescope
+          (body.instantiate1 (.fvar id)) n'
+          (residual.instantiate1' (.fvar id) n') := by
+        simpa [Expr.instantiate1_eq] using
+          Hbody.instantiate1' (.fvar id) 0
+      have HopenedSource : (body.instantiate1 (.fvar id)).FVarIdsIn
+          (fun fv => P fv ∨ fv = id) := by
+        have HbodyScope : body.FVarIdsIn
+            (fun fv => P fv ∨ fv = id) :=
+          Hsource.2.mono fun fv hP => Or.inl hP
+        apply HbodyScope.instantiate1
+        simp [Expr.FVarIdsIn]
+      rcases ih Hwf HbodyInst HopenedSource with
+        ⟨decls, hlctx, hparams, hlength, hnodup, hfind, hclose⟩
+      let decl : LocalDecl :=
+        .cdecl lctx'.decls.size id name dom bi .default
+      have hlctx' : outLctx'.toList =
+          (decl :: decls).reverse ++ lctx'.toList := by
+        simp [hlctx, decl, LocalContext.mkLocalDecl_toList]
+      have hparams' : outAs'.toList = As'.toList ++
+          (decl :: decls).map (fun d => Expr.fvar d.fvarId) := by
+        simp [hparams, decl, List.append_assoc, LocalDecl.fvarId]
+      have hallNodup :
+          ((decl :: decls).map (fun d => d.fvarId)).Nodup := by
+        have hall := Hwf.nodup
+        rw [hlctx', List.map_append] at hall
+        have hrev := (List.nodup_append.mp hall).1
+        rw [List.map_reverse] at hrev
+        exact List.nodup_reverse.mp hrev
+      have hfind' : ∀ d ∈ decl :: decls,
+          outLctx'.find? d.fvarId = some d := by
+        intro d hd
+        apply LocalContextWF_find?_eq_some_of_mem Hwf
+        rw [hlctx']
+        exact List.mem_append_left _ (List.mem_reverse.mpr hd)
+      refine ⟨decl :: decls, hlctx', hparams', by simp [hlength],
+        hallNodup, hfind', ?_⟩
+      intro newBody Hnew
+      have HnewInner : newBody.FVarIdsIn
+          (fun fv => (P fv ∨ fv = id) ∨
+            fv ∈ decls.map (fun d => d.fvarId)) := by
+        apply Hnew.mono
+        intro fv hfv
+        rcases hfv with hP | hnew
+        · exact Or.inl (Or.inl hP)
+        · simp only [List.map_cons, List.mem_cons, decl,
+            LocalDecl.fvarId] at hnew
+          rcases hnew with hid | hrest
+          · exact Or.inl (Or.inr hid)
+          · exact Or.inr hrest
+      have Hinner := hclose newBody HnewInner
+      have Habstract :
+          ((decls.map (fun d => d.fvarId)).foldr
+            (fun fv result =>
+              LocalContext.mkBindingList1 false outLctx' [] fv
+                (result.abstract1 fv)) newBody).abstract1 id |>.FVarIdsIn P := by
+        apply Expr.FVarIdsIn.abstract1_of
+        exact Hinner.mono fun fv hfv => by
+          rcases hfv with hP | hid
+          · exact Or.inr hP
+          · exact Or.inl hid
+      simp only [List.map_cons, List.foldr_cons]
+      have hhead := hfind' decl (by simp)
+      have hheadId : outLctx'.find? id = some decl := by
+        simpa [decl, LocalDecl.fvarId] using hhead
+      simpa [LocalContext.mkBindingList1, hheadId, decl,
+        LocalDecl.fvarId, Expr.FVarIdsIn] using
+        And.intro Hsource.1 Habstract
+  | lam Hnext ih => cases Htel
+
+/-- Closing a root forall opening with its unchanged exposed body reproduces
+the original telescope exactly. -/
+theorem RestoreParamOpening.root_mkForall_tail
+    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
+    (Hwf : outLctx.WF)
+    (Htel : Expr.ForallTelescope e n residual)
+    (Hclosed : e.FVarIdsIn fun _ => False) :
+    outLctx.mkForall outAs tail = e := by
+  rcases Hopen.forall_rebuilding_data Hwf Htel with
+    ⟨decls, _hlctx, hparams, _hlength, hnodup, hfind, hrebuild⟩
+  have harray :
+      outAs = (decls.map (fun d => Expr.fvar d.fvarId)).toArray := by
+    apply Array.toList_inj.mp
+    simpa using hparams
+  rw [harray, LocalContext.mkForall]
+  rw [show decls.map (fun d => Expr.fvar d.fvarId) =
+      (decls.map (fun d => d.fvarId)).map Expr.fvar by simp]
+  rw [LocalContext.mkBinding_eq]
+  rw [LocalContext.mkBindingList_eq_fold]
+  · apply hrebuild
+    exact Hclosed.mono fun fv hfalse => False.elim hfalse
+  · intro fv hfv
+    rcases List.mem_map.mp hfv with ⟨d, hd, rfl⟩
+    exact ⟨d, hfind d hd⟩
+  · exact hnodup
+
+/-- Closing an arbitrary body scoped by a root opening's selected parameters
+produces an expression with no free-variable IDs. -/
+theorem RestoreParamOpening.root_mkForall_fvarIdsClosed
+    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
+    (Hwf : outLctx.WF)
+    (Htel : Expr.ForallTelescope e n residual)
+    (Hsource : e.FVarIdsIn fun _ => False)
+    (Hselection : LocalForallSelection outLctx outAs)
+    (Hbody : body.FVarIdsIn (· ∈ Hselection.fvars)) :
+    (outLctx.mkForall outAs body).FVarIdsIn fun _ => False := by
+  rcases Hopen.forall_closing_data Hwf Htel Hsource with
+    ⟨decls, _hlctx, hparams, _hlength, hnodup, hfind, hclose⟩
+  have harray :
+      outAs = (decls.map (fun d => Expr.fvar d.fvarId)).toArray := by
+    apply Array.toList_inj.mp
+    simpa using hparams
+  have hselectionIds :
+      Hselection.fvars = decls.map (fun d => d.fvarId) := by
+    have harr : (Hselection.fvars.map Expr.fvar).toArray =
+        ((decls.map (fun d => d.fvarId)).map Expr.fvar).toArray := by
+      rw [← Hselection.expressions, harray]
+      simp
+    have hlist : Hselection.fvars.map Expr.fvar =
+        (decls.map (fun d => d.fvarId)).map Expr.fvar := by
+      simpa using congrArg Array.toList harr
+    exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
+  have Hbody' : body.FVarIdsIn
+      (fun fv => False ∨ fv ∈ decls.map (fun d => d.fvarId)) := by
+    apply Hbody.mono
+    intro fv hfv
+    exact Or.inr (by simpa [hselectionIds] using hfv)
+  rw [harray, LocalContext.mkForall]
+  rw [show decls.map (fun d => Expr.fvar d.fvarId) =
+      (decls.map (fun d => d.fvarId)).map Expr.fvar by simp]
+  rw [LocalContext.mkBinding_eq]
+  rw [LocalContext.mkBindingList_eq_fold]
+  · exact hclose body Hbody'
   · intro fv hfv
     rcases List.mem_map.mp hfv with ⟨d, hd, rfl⟩
     exact ⟨d, hfind d hd⟩
@@ -30226,6 +30578,35 @@ def NestedReplacementHasFinalMapping
           input.getAppArgs).abstract As).instantiateRev params) = true ∧
       finalResult.aux2nested.find? auxName = some nested
 
+/-- A mapped lowering hit introduces only its selected parameter variables;
+all trailing arguments are inherited from the source application. -/
+theorem NestedReplacementHasFinalMapping.outputFVarsIn
+    (H : NestedReplacementHasFinalMapping env lctx params As input state
+      lowered finalResult)
+    (Hselection : LocalForallSelection lctx As)
+    (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
+    lowered.FVarIdsIn (· ∈ Hselection.fvars) := by
+  rcases H with
+    ⟨value, targetName, levels, auxName, auxLevels, nested,
+      Hcandidate, hhead, hlowered, hnested, hlookup⟩
+  have HAs : ∀ arg ∈ As.toList,
+      arg.FVarIdsIn (· ∈ Hselection.fvars) := by
+    intro arg harg
+    rw [Hselection.expressions] at harg
+    rcases List.mem_map.mp harg with ⟨fv, hfv, rfl⟩
+    simpa [Expr.FVarIdsIn] using hfv
+  rw [hlowered]
+  rw [Expr.mkAppRange_to_end _ _ _ Hcandidate.parameters.arity]
+  apply Expr.FVarIdsIn.mkAppList.mpr
+  constructor
+  · rw [Expr.mkAppN_eq_mkAppList]
+    exact Expr.FVarIdsIn.mkAppList.mpr
+      ⟨by simp [Expr.FVarIdsIn], HAs⟩
+  · intro arg harg
+    apply Hinput.getAppArgsList
+    rw [← Expr.getAppArgs_toList]
+    exact List.mem_of_mem_drop harg
+
 /-- A mapped lowering leaf after reopening its cached source application with
 the parameter array chosen by restoration. -/
 def NestedReplacementReopens
@@ -30513,6 +30894,38 @@ inductive NestedExprMapping
       (body', outState) →
       NestedExprMapping env lctx params As finalResult (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
+
+/-- Nested lowering preserves free-variable-ID scoping. Successful hits use
+`outputFVarsIn`; structural misses inherit the property componentwise. -/
+theorem NestedExprMapping.outputFVarIdsIn
+    (H : NestedExprMapping env lctx params As finalResult input state out)
+    (Hselection : LocalForallSelection lctx As)
+    (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
+    out.1.FVarIdsIn (· ∈ Hselection.fvars) := by
+  induction H with
+  | hit Hnode => exact Hnode.outputFVarsIn Hselection Hinput
+  | bvar | fvar | mvar | sort | const | lit => exact Hinput
+  | app Hnode Hfn Harg ihFn ihArg =>
+    simp only [Expr.FVarIdsIn] at Hinput
+    simpa [Expr.updateApp!, Expr.FVarIdsIn] using
+      And.intro (ihFn Hinput.1) (ihArg Hinput.2)
+  | lam Hnode Hdom Hbody ihDom ihBody =>
+    simp only [Expr.FVarIdsIn] at Hinput
+    simpa [Expr.updateLambdaE!, Expr.FVarIdsIn] using
+      And.intro (ihDom Hinput.1) (ihBody Hinput.2)
+  | forallE Hnode Hdom Hbody ihDom ihBody =>
+    simp only [Expr.FVarIdsIn] at Hinput
+    simpa [Expr.updateForallE!, Expr.FVarIdsIn] using
+      And.intro (ihDom Hinput.1) (ihBody Hinput.2)
+  | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
+    simp only [Expr.FVarIdsIn] at Hinput
+    simpa [Expr.updateLet!, Expr.FVarIdsIn] using
+      And.intro (ihType Hinput.1)
+        (And.intro (ihValue Hinput.2.1) (ihBody Hinput.2.2))
+  | mdata Hnode Hbody ihBody =>
+    simpa [Expr.updateMData!, Expr.FVarIdsIn] using ihBody Hinput
+  | proj Hnode Hbody ihBody =>
+    simpa [Expr.updateProj!, Expr.FVarIdsIn] using ihBody Hinput
 
 /-- Structural lowering map with every successful leaf upgraded to its
 parameter-reopening certificate. -/
@@ -31467,6 +31880,7 @@ structure LoweredConstructorTranslation
   name : out.1.name = source.name
   translated : ∃ lctx tail As lowered openedState,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+    lctx.WF ∧
     ∃ Hselection : LocalForallSelection lctx As,
       Hselection.fvars.Nodup ∧
       openedState.newTypes = state.newTypes ∧
@@ -31481,7 +31895,7 @@ theorem LoweredConstructorTranslation.targetRestoreTelescope
     (H : LoweredConstructorTranslation env params nparams source state out) :
     RestoreTelescope out.1.type nparams := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+    ⟨lctx, tail, As, lowered, openedState, Hopening, _hlctxWF, Hselection,
       _hnodup, hopenedTypes, _hopenedAux, _hopenedNext, hsize, Hreplace, htype⟩
   rw [htype, ← hsize]
   exact (Hselection.forallTelescope lowered).restorePrefix (Nat.le_refl _)
@@ -31490,7 +31904,7 @@ theorem LoweredConstructorTranslation.newTypesLE
     (H : LoweredConstructorTranslation env params nparams source state out) :
     NestedNewTypesLE state out.2 := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, _, _, _, hopenedTypes, _, _,
+    ⟨lctx, tail, As, lowered, openedState, _, _, _, _, hopenedTypes, _, _,
       _, Hreplace, _⟩
   rcases Hreplace.newTypesLE with ⟨suffix, hsuffix⟩
   exact ⟨suffix, by simpa [hopenedTypes] using hsuffix⟩
@@ -31499,7 +31913,7 @@ theorem LoweredConstructorTranslation.nestedAuxLE
     (H : LoweredConstructorTranslation env params nparams source state out) :
     NestedAuxLE state out.2 := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, _, _, _, _, hopenedAux, _, _,
+    ⟨lctx, tail, As, lowered, openedState, _, _, _, _, _, hopenedAux, _, _,
       Hreplace, _⟩
   rcases Hreplace.nestedAuxLE with ⟨suffix, hsuffix⟩
   exact ⟨suffix, by simpa [hopenedAux] using hsuffix⟩
@@ -31509,7 +31923,7 @@ theorem LoweredConstructorTranslation.namesWF
     (Hindex : AppendIndexAfterIndexFaithful)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, _, _, _, _, hopenedAux,
+    ⟨lctx, tail, As, lowered, openedState, _, _, _, _, _, hopenedAux,
       hopenedNext, _, Hreplace, _⟩
   exact Hreplace.namesWF Hindex
     (Hstate.ofCacheCounterEq hopenedAux hopenedNext)
@@ -31521,7 +31935,7 @@ theorem LoweredConstructorTranslation.auxFVarsIn
     (Hstate : NestedAuxFVarsIn P state) :
     NestedAuxFVarsIn P out.2 := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+    ⟨lctx, tail, As, lowered, openedState, Hopening, _hlctxWF, Hselection,
       _hnodup, _hopenedTypes, hopenedAux, _hopenedNext, _hsize, Hreplace,
       _htype⟩
   have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
@@ -31548,6 +31962,7 @@ structure LoweredConstructorMapping
   name : out.1.name = source.name
   mapped : ∃ lctx tail As lowered openedState,
     NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+    lctx.WF ∧
     ∃ Hselection : LocalForallSelection lctx As,
       Hselection.fvars.Nodup ∧
       openedState.newTypes = state.newTypes ∧
@@ -31579,6 +31994,27 @@ structure LoweredConstructorReopening
         openedState (lowered, out.2) ∧
       out.1.type = lctx.mkForall As lowered
 
+/-- A mapped lowered constructor type contains no free-variable IDs: the
+translated body remains scoped by the copied source parameters, and the
+rebuilt forall telescope closes exactly those parameters. -/
+theorem LoweredConstructorMapping.targetFVarIdsClosed
+    (H : LoweredConstructorMapping env params nparams finalResult source state
+      out)
+    (Hsource : source.type.FVarsIn fun _ => False) :
+    out.1.type.FVarIdsIn fun _ => False := by
+  rcases H.mapped with
+    ⟨lctx, tail, As, lowered, openedState, Hopening, hlctxWF, Hselection,
+      hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hmapping, htype⟩
+  have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
+    Hopening.tailFVarsIn Hselection
+      (Hsource.mono fun fv hfalse => False.elim hfalse)
+  have Hlowered : lowered.FVarIdsIn (· ∈ Hselection.fvars) :=
+    Hmapping.outputFVarIdsIn Hselection (FVarsIn_to_FVarIdsIn Htail)
+  rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
+  rw [htype]
+  exact Hopening.toRestoreParamOpening.root_mkForall_fvarIdsClosed hlctxWF
+    Htelescope (FVarsIn_to_FVarIdsIn Hsource) Hselection Hlowered
+
 theorem LoweredConstructorMapping.reopens
     (H : LoweredConstructorMapping env params nparams finalResult source state
       out)
@@ -31591,7 +32027,7 @@ theorem LoweredConstructorMapping.reopens
       state out := by
   refine ⟨H.name, ?_⟩
   rcases H.mapped with
-    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+    ⟨lctx, tail, As, lowered, openedState, Hopening, _hlctxWF, Hselection,
       hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hmapping, htype⟩
   have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
     Hopening.tailFVarsIn Hselection
@@ -31905,9 +32341,9 @@ theorem LoweredConstructorTranslation.finalMapping
     LoweredConstructorMapping env params nparams finalResult source state out := by
   refine ⟨H.name, ?_⟩
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+    ⟨lctx, tail, As, lowered, openedState, Hopening, hlctxWF, Hselection,
       hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreplace, htype⟩
-  exact ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+  exact ⟨lctx, tail, As, lowered, openedState, Hopening, hlctxWF, Hselection,
     hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize,
     Hreplace.finalMapping Hlater Hmap, htype⟩
 
@@ -31921,7 +32357,7 @@ theorem ElimNestedInductive.lowerConstructor.translation
         LoweredConstructorTranslation env params nparams ctor state out := by
   unfold Lean4Lean.ElimNestedInductive.lowerConstructor
   apply ElimNestedInductive.withParams.refinesSelected
-  intro lctx tail As openedState Hopening _Hctx Hselection hnodup hopenedTypes
+  intro lctx tail As openedState Hopening Hctx Hselection hnodup hopenedTypes
     hopenedAux hopenedNext
   have hsize : As.size = nparams := Hopening.initial_size
   simp only [hsize, beq_self_eq_true, if_true]
@@ -31931,7 +32367,7 @@ theorem ElimNestedInductive.lowerConstructor.translation
       hsubst hclosures) ?_
   intro lowered outState Hlowered
   exact Except.WF.pure
-    ⟨rfl, lctx, tail, As, lowered, openedState, Hopening, Hselection,
+    ⟨rfl, lctx, tail, As, lowered, openedState, Hopening, Hctx.wf, Hselection,
       hnodup, hopenedTypes, hopenedAux, hopenedNext, hsize, Hlowered, rfl⟩
 
 theorem ElimNestedInductive.lowerConstructor.translationPending
@@ -31969,7 +32405,8 @@ theorem ElimNestedInductive.lowerConstructor.translationPending
     exact Hstate j hcursor hjState
   exact Except.WF.pure ⟨
     ⟨rfl, lctx, tail, As, lowered, openedState, Hopening,
-      Hclosing.selection, Hclosing.nodup, hopenedTypes, hopenedAux, hopenedNext, hsize,
+      Hclosing.binding.wf, Hclosing.selection, Hclosing.nodup,
+      hopenedTypes, hopenedAux, hopenedNext, hsize,
       Hlowered, rfl⟩,
     Hlowered.pendingNewTypesClosed Henv Hclosing Htail HopenedPending⟩
 
