@@ -27224,7 +27224,7 @@ structure RestoredPrimaryRecursorSourceInputs
     (recursor : VConstVal) (canonicalEnv : VEnv) : Prop where
   type : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
     Hstep.restored.newInfo.type recursor.type
-  wf : recursor.toVConstant.WF canonicalEnv
+  isType : canonicalEnv.IsType Hstep.oldInfo.levelParams.length [] recursor.type
 
 theorem RestoredPrimaryRecursorSemantics.installation
     {oldRecName : Name} {sourceProdEnv targetProdEnv : Environment}
@@ -30389,6 +30389,43 @@ theorem RecursorPhasesResult.restorationSources
       simp [Array.getElem!_eq_getD, Array.getD, hownerArray]
     rw [hbang] at hrecursor
     exact hrecursor
+
+/-- The installed generated entry fixes the universe arity of the old
+recursor metadata read by primary restoration. -/
+theorem RecursorPhasesResult.restoredPrimaryRecursorUvars
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
+    (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv)
+    (holdRecName : oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name) :
+    Hstep.oldInfo.levelParams.length =
+      (H.entries[ownerIdx]'hentry).2.uvars := by
+  let E := H.generated.entry ownerIdx hentry
+  have hlookup := H.findRecursorOfMem (List.getElem_mem hentry)
+  have hlookupE : outEnv.find? (Lean.mkRecName indTypes[ownerIdx]!.name) =
+      some (.recInfo E.info) := by
+    change outEnv.find? H.entries[ownerIdx].1.name =
+      some H.entries[ownerIdx].1 at hlookup
+    rw [E.source_eq] at hlookup
+    change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
+    rwa [E.name] at hlookup
+  have holdInfo : Hstep.oldInfo = E.info := by
+    have hstepLookup : outEnv.find?
+        (Lean.mkRecName indTypes[ownerIdx]!.name) =
+          some (.recInfo Hstep.oldInfo) := by
+      simpa [holdRecName] using Hstep.lookup
+    exact ConstantInfo.recInfo.inj (Option.some.inj
+      (hstepLookup.symm.trans hlookupE))
+  rw [holdInfo]
+  simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
+    E.translated.1.2.1
 
 /-- Turn the actual generated recursor entry selected by a primary
 restoration step into specification-facing semantics.  Installation fixes
@@ -36371,12 +36408,22 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
   have HrecName : (Hprod.entries[familyIdx]'hentry).2.name =
       Hstep.restored.recursor.restored.newRecName :=
     hgeneratedName.trans hrestoredName.symm
+  have HrecUvars : Hstep.restored.recursor.oldInfo.levelParams.length =
+      (Hprod.entries[familyIdx]'hentry).2.uvars :=
+    Hprod.restoredPrimaryRecursorUvars familyIdx hentry
+      Hstep.restored.recursor (congrArg Lean.mkRecName hsourceName.symm)
+  have HrecWF :
+      (Hprod.entries[familyIdx]'hentry).2.toVConstant.WF envCtors := by
+    change envCtors.IsType (Hprod.entries[familyIdx]'hentry).2.uvars []
+      (Hprod.entries[familyIdx]'hentry).2.type
+    rw [← HrecUvars]
+    exact Hrec.isType
   have HrecSemantics : RestoredPrimaryRecursorSemantics decl
       (decl.types[familyIdx]'hdecl) c.safety Hstep.restored.recursor envCtors := by
     simpa [hsourceName] using
       Hprod.restoredPrimaryRecursorSemantics familyIdx howner hentry hdecl
         Hstep.restored.recursor (congrArg Lean.mkRecName hsourceName.symm)
-        envCtors Hrec.type HrecName Hrec.wf
+        envCtors Hrec.type HrecName HrecWF
   exact ⟨{
     owner := decl.types[familyIdx]'hdecl
     header := Hsource.header
