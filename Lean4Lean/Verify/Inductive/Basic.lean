@@ -23314,6 +23314,47 @@ def ClosedValidatedNestedAuxiliaries (venv : VEnv) (lparams : List Name)
   ∀ name e, res.aux2nested.find? name = some e →
     ∃ e', TrExprS venv lparams [] (res.lctx.mkForall res.params e) e'
 
+/-- De-Bruijn form of one closed auxiliary witness.  It records both the
+closed translation and the residual translation obtained by inverting its
+parameter forall telescope, so no production free-variable identifier occurs
+in the semantic context. -/
+structure ClosedNestedAuxiliaryTranslation
+    (venv : VEnv) (lparams : List Name)
+    (res : Lean4Lean.ElimNestedInductive.Result)
+    (selection : LocalForallSelection res.lctx res.params)
+    (e : Expr) where
+  closedTarget : VExpr
+  domains : List VExpr
+  residualTarget : VExpr
+  arity : domains.length = res.params.size
+  closed : TrExprS venv lparams []
+    (res.lctx.mkForall res.params e) closedTarget
+  target : closedTarget = VExpr.wrapForalls domains residualTarget
+  residual : TrExprS venv lparams (abstractForallContext domains [])
+    (e.abstractList selection.fvars) residualTarget
+
+def ClosedNestedAuxiliaryTranslations
+    (venv : VEnv) (lparams : List Name)
+    (res : Lean4Lean.ElimNestedInductive.Result)
+    (selection : LocalForallSelection res.lctx res.params) : Prop :=
+  ∀ name e, res.aux2nested.find? name = some e →
+    Nonempty (ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+
+/-- Telescope inversion turns every context-independent validated witness
+into the canonical bound-variable representation used beneath restored
+recursor parameter binders. -/
+theorem ClosedValidatedNestedAuxiliaries.residualTranslations
+    (H : ClosedValidatedNestedAuxiliaries venv lparams res)
+    (selection : LocalForallSelection res.lctx res.params) :
+    ClosedNestedAuxiliaryTranslations venv lparams res selection := by
+  intro name e hfind
+  rcases H name e hfind with ⟨closedTarget, Hclosed⟩
+  have Htel := selection.forallTelescope e
+  rcases TrExprS.forallTelescope_shape_with_context Htel Hclosed with
+    ⟨domains, residualTarget, harity, htarget, Hresidual⟩
+  exact ⟨⟨closedTarget, domains, residualTarget, harity, Hclosed,
+    htarget, Hresidual⟩⟩
+
 private theorem checkNestedAuxiliaryList.WF
     {c : TypeChecker.VContext} {s : TypeChecker.VState}
     (items : List (Name × Expr))
@@ -36627,6 +36668,23 @@ theorem NestedLoweringRun.closeValidatedNestedAuxiliaries
   rw [hconcrete]
   exact Hclosed.1
 
+/-- Fully name-independent auxiliary semantics retained after validation:
+the lowering-selected production variables are abstracted into the canonical
+de-Bruijn parameter context before restoration is inspected. -/
+theorem NestedLoweringRun.validatedAuxiliaryResidualTranslations
+    (H : NestedLoweringRun sourceEnv fuel nparams types initialState
+      (res, finalState))
+    (henv : venv.WF)
+    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
+    (hlctx : mlctx.lctx = res.lctx)
+    (Hvalidated : ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res) :
+    ∃ selection : LocalForallSelection res.lctx res.params,
+      ClosedNestedAuxiliaryTranslations venv lparams res selection := by
+  rcases H.resultContextSelection with ⟨selection⟩
+  exact ⟨selection,
+    (H.closeValidatedNestedAuxiliaries henv mlctx hmlctx hlctx Hvalidated
+      ).residualTranslations selection⟩
+
 theorem NestedLoweringRun.resultParamsFVarsIn
     (H : NestedLoweringRun env fuel nparams types initialState out) :
     ∀ e ∈ out.1.params, e.FVarsIn (· ∈ out.1.lctx.fvars) := by
@@ -38285,19 +38343,21 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
           (fun _ =>
             ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
-            ClosedValidatedNestedAuxiliaries venv lparams res)
+            ∃ selection : LocalForallSelection res.lctx res.params,
+              ClosedNestedAuxiliaryTranslations venv lparams res selection)
           outEnv := by
   apply Environment.restoreNestedAfterInstall.ofLoweringWF Hc H
     Hlower.toResult lparams safety allowPrimitive fuel
     (fun _ =>
       ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
-      ClosedValidatedNestedAuxiliaries venv lparams res)
+      ∃ selection : LocalForallSelection res.lctx res.params,
+        ClosedNestedAuxiliaryTranslations venv lparams res selection)
   intro restoredEnv Hrestoration
   have Hvalid := hvalid restoredEnv Hrestoration
   refine (Hlower.validateNestedAuxiliariesWF Hvalid mlctx hmlctx hlctx
     hfresh).mono fun _ Hvalidated => ⟨Hvalidated, ?_⟩
   rcases Hlower with ⟨finalState, Hrun, _Hcache, _Hparams⟩
-  exact Hrun.closeValidatedNestedAuxiliaries Hvalid.tr.wf
+  exact Hrun.validatedAuxiliaryResidualTranslations Hvalid.tr.wf
     mlctx hmlctx hlctx Hvalidated
 
 theorem ElimNestedInductive.run'.translation
