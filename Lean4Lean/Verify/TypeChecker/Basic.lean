@@ -741,6 +741,18 @@ theorem MLCtx.fvarRevList_prefix (c : MLCtx)
   | zero => simp
   | succ n ih => match c with | .vlam .. | .vlet .. => simp [ih]
 
+theorem MLCtx.fvarRevList_all (c : MLCtx) :
+    c.fvarRevList c.length (Nat.le_refl _) = c.vlctx.fvars := by
+  induction c with
+  | nil => rfl
+  | vlam _ _ _ _ _ c ih | vlet _ _ _ _ _ _ c ih => simp [ih]
+
+theorem MLCtx.dropN_all (c : MLCtx) :
+    c.dropN c.length (Nat.le_refl _) = .nil := by
+  induction c with
+  | nil => rfl
+  | vlam _ _ _ _ _ c ih | vlet _ _ _ _ _ _ c ih => simpa using ih
+
 theorem MLCtx.WF.fvars_nodup : ∀ {c : MLCtx}, c.WF env Us → c.vlctx.fvars.Nodup
   | .nil, _ => .nil
   | .vlam _ _ _ _ _ c, ⟨h1, h2, _⟩

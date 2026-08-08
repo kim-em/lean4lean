@@ -1241,7 +1241,10 @@ theorem TrInductDeclSkeletonCore.materializeExpandedPrefix
       MaterializedInductivePrefix source expanded := by
   rcases VInductDeclSkeleton.materializeExpandedPrefix skeleton expanded hle with
     ⟨source, Hmaterialize, Hprefix⟩
-  exact ⟨source, H.materialized Hmaterialize, Hprefix⟩
+  exact ⟨source,
+    Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.materialized
+      H Hmaterialize,
+    Hprefix⟩
 
 theorem TrInductDeclSkeleton.materializeExpandedPrefix
     (H : TrInductDeclSkeleton env lparams nparams types isUnsafe skeleton)
@@ -1252,7 +1255,10 @@ theorem TrInductDeclSkeleton.materializeExpandedPrefix
       MaterializedInductivePrefix source expanded := by
   rcases VInductDeclSkeleton.materializeExpandedPrefix skeleton expanded hle with
     ⟨source, Hmaterialize, Hprefix⟩
-  exact ⟨source, H.materialized Hmaterialize, Hprefix⟩
+  exact ⟨source,
+    Lean4Lean.VerifyInductive.TrInductDeclSkeleton.materialized
+      H Hmaterialize,
+    Hprefix⟩
 
 /-- Materialization preserves the header-only translation while filling the
 semantic arity metadata recovered by the executable header checker. -/
@@ -23296,7 +23302,17 @@ restored parameter context. -/
 def ValidatedNestedAuxiliaries (venv : VEnv) (lparams : List Name)
     (vlctx : VLCtx) (res : Lean4Lean.ElimNestedInductive.Result) : Prop :=
   ∀ name e, res.aux2nested.find? name = some e →
-    ∃ ty e' ty', TrTyping venv lparams vlctx e ty e' ty'
+    ∃ ty e' ty', TrTyping venv lparams vlctx e ty e' ty' ∧
+      venv.IsType lparams.length vlctx.toCtx e'
+
+/-- Context-independent form of nested-auxiliary validation.  Each open
+witness is closed using the exact parameter telescope retained by lowering,
+so later restoration may choose fresh binder names without changing the
+statement that must be translated. -/
+def ClosedValidatedNestedAuxiliaries (venv : VEnv) (lparams : List Name)
+    (res : Lean4Lean.ElimNestedInductive.Result) : Prop :=
+  ∀ name e, res.aux2nested.find? name = some e →
+    ∃ e', TrExprS venv lparams [] (res.lctx.mkForall res.params e) e'
 
 private theorem checkNestedAuxiliaryList.WF
     {c : TypeChecker.VContext} {s : TypeChecker.VState}
@@ -23304,9 +23320,11 @@ private theorem checkNestedAuxiliaryList.WF
     (hfvars : ∀ item ∈ items,
       item.2.FVarsIn (· ∈ c.vlctx.fvars)) :
     (items.forM fun item => do
-      _ ← TypeChecker.checkType item.2).WF c s fun _ _ =>
+      let type ← TypeChecker.checkType item.2
+      _ ← TypeChecker.ensureSort type item.2).WF c s fun _ _ =>
         ∀ item ∈ items, ∃ ty e' ty',
-          TrTyping c.venv c.lparams c.vlctx item.2 ty e' ty' := by
+          TrTyping c.venv c.lparams c.vlctx item.2 ty e' ty' ∧
+          c.venv.IsType c.lparams.length c.vlctx.toCtx e' := by
   induction items generalizing s with
   | nil =>
     rw [List.forM]
@@ -23314,13 +23332,22 @@ private theorem checkNestedAuxiliaryList.WF
   | cons head tail ih =>
     rw [List.forM]
     have Hhead : (do
-        _ ← TypeChecker.checkType head.2).WF c s fun _ _ =>
+        let type ← TypeChecker.checkType head.2
+        _ ← TypeChecker.ensureSort type head.2).WF c s fun _ _ =>
           ∃ ty e' ty', TrTyping c.venv c.lparams c.vlctx
-            head.2 ty e' ty' := by
+            head.2 ty e' ty' ∧
+            c.venv.IsType c.lparams.length c.vlctx.toCtx e' := by
       refine (TypeChecker.checkType.WF (hfvars head (by simp))).bind
-        fun ty _ _ htyping => .pure ?_
+        fun ty _ _ htyping => ?_
       rcases htyping with ⟨e', ty', htyping⟩
-      exact ⟨ty, e', ty', htyping⟩
+      rcases htyping with ⟨hbelow, hexpr, htype, hhasType⟩
+      refine (TypeChecker.ensureSort.WF htype).bind
+        fun _ _ _ ⟨⟨_, hsort, hdefeq⟩, hsortEq⟩ => .pure ?_
+      obtain ⟨u, rfl⟩ := hsortEq
+      cases hsort with
+      | sort hu =>
+        exact ⟨ty, e', ty', ⟨hbelow, hexpr, htype, hhasType⟩,
+          ⟨_, hhasType.defeqU_r c.Ewf c.Δwf hdefeq.symm⟩⟩
     have htail : ∀ item ∈ tail,
         item.2.FVarsIn (· ∈ c.vlctx.fvars) := by
       intro item hitem
@@ -23349,7 +23376,9 @@ theorem validateNestedAuxiliaries.WF
   rw [← hlctx]
   change (TypeChecker.M.run env safety mlctx.lctx lparams fuel
     ((show Std.TreeMap Name Expr Name.quickCmp from res.aux2nested).forM
-      fun _ e => do _ ← TypeChecker.checkType e)).WF _
+      fun _ e => do
+        let type ← TypeChecker.checkType e
+        _ ← TypeChecker.ensureSort type e)).WF _
   rw [Std.TreeMap.forM_eq_forM, Std.TreeMap.forM_eq_forM_toList]
   refine TypeChecker.M.WF.runCheckingValidMLC
     (wf := hvalid) (mlctx_wf := hmlctx) hfresh ?_
@@ -25649,6 +25678,23 @@ theorem RestoreParamOpening.root_binding_data
     rw [List.map_reverse] at hrevNodup
     exact List.nodup_reverse.mp hrevNodup
   exact ⟨decls, harray, hlength, hnodup, hfind⟩
+
+/-- At a root opening, the parameter array is in binder order while the
+local-context free-variable list is in the reverse (most-recent-first) order.
+This is the ordering convention required by `MLCtx.mkForall`. -/
+theorem RestoreParamOpening.root_params_reverse_fvars
+    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail) :
+    outAs.toList.reverse = outLctx.fvars.map Expr.fvar := by
+  rcases Hopen.context_extension with
+    ⟨decls, hlctx, hparams, _hlength⟩
+  have hparams' : outAs.toList =
+      decls.map (fun d => Expr.fvar d.fvarId) := by
+    simpa using hparams
+  have hlctx' : outLctx.toList = decls.reverse := by
+    change outLctx.toList = decls.reverse ++ [] at hlctx
+    simpa using hlctx
+  rw [hparams', LocalContext.fvars, hlctx']
+  simp [Function.comp_def]
 
 /-- `mkForall` after root restoration is exactly the binder-order fold over
 the declarations recorded by `root_binding_data`. -/
@@ -36536,6 +36582,51 @@ theorem NestedLoweringRun.resultContextWF
   rw [Hqueue.resultContext.1]
   exact Hctx.wf
 
+/-- Lowering stores common parameters in source binder order, whereas its
+local context (and therefore every `MLCtx.vlctx`) stores free variables in
+most-recent-first order. -/
+theorem NestedLoweringRun.resultParams_reverse_fvars
+    (H : NestedLoweringRun env fuel nparams types initialState out) :
+    out.1.params.toList.reverse = out.1.lctx.fvars.map Expr.fvar := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _htypes, Hopening,
+      _hnewTypes, _hnestedAux, _hnextIdx, _Hctx, _Hselection, Hqueue⟩
+  rcases Hqueue.resultContext with ⟨hlctx, hparams⟩
+  rw [hlctx, hparams]
+  exact Hopening.toRestoreParamOpening.root_params_reverse_fvars
+
+/-- The executable auxiliary checks can be closed over lowering's retained
+parameter telescope.  This removes the concrete free-variable names from the
+semantic certificate before restoration reopens the same telescope with its
+own fresh names. -/
+theorem NestedLoweringRun.closeValidatedNestedAuxiliaries
+    (H : NestedLoweringRun sourceEnv fuel nparams types initialState
+      (res, finalState))
+    (henv : venv.WF)
+    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
+    (hlctx : mlctx.lctx = res.lctx)
+    (Hvalidated : ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res) :
+    ClosedValidatedNestedAuxiliaries venv lparams res := by
+  have hfull : mlctx.fvarRevList mlctx.length (Nat.le_refl _) =
+      mlctx.vlctx.fvars := mlctx.fvarRevList_all
+  have hparams : res.params.toList.reverse =
+      (mlctx.fvarRevList mlctx.length (Nat.le_refl _)).map Expr.fvar := by
+    rw [hfull, ← hmlctx.tr.fvars_eq, hlctx]
+    exact H.resultParams_reverse_fvars
+  intro name e hfind
+  rcases Hvalidated name e hfind with
+    ⟨ty, e', ty', ⟨_hfvars, Hexpr, _Htype, _Htyping⟩, HisType⟩
+  have Hclosed := hmlctx.mkForall_trS henv Hexpr HisType
+    mlctx.length (Nat.le_refl _)
+  rw [mlctx.dropN_all] at Hclosed
+  have hconcrete : res.lctx.mkForall res.params e =
+      mlctx.mkForall mlctx.length (Nat.le_refl _) e := by
+    rw [← hlctx]
+    exact hmlctx.mkForall_eq mlctx.length (Nat.le_refl _) hparams
+  refine ⟨mlctx.mkForall' mlctx.length (Nat.le_refl _) e', ?_⟩
+  rw [hconcrete]
+  exact Hclosed.1
+
 theorem NestedLoweringRun.resultParamsFVarsIn
     (H : NestedLoweringRun env fuel nparams types initialState out) :
     ∀ e ∈ out.1.params, e.FVarsIn (· ∈ out.1.lctx.fvars) := by
@@ -38192,14 +38283,22 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) sourceTypes
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
-          (fun _ => ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res)
+          (fun _ =>
+            ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
+            ClosedValidatedNestedAuxiliaries venv lparams res)
           outEnv := by
   apply Environment.restoreNestedAfterInstall.ofLoweringWF Hc H
     Hlower.toResult lparams safety allowPrimitive fuel
-    (fun _ => ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res)
+    (fun _ =>
+      ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
+      ClosedValidatedNestedAuxiliaries venv lparams res)
   intro restoredEnv Hrestoration
-  exact Hlower.validateNestedAuxiliariesWF
-    (hvalid restoredEnv Hrestoration) mlctx hmlctx hlctx hfresh
+  have Hvalid := hvalid restoredEnv Hrestoration
+  refine (Hlower.validateNestedAuxiliariesWF Hvalid mlctx hmlctx hlctx
+    hfresh).mono fun _ Hvalidated => ⟨Hvalidated, ?_⟩
+  rcases Hlower with ⟨finalState, Hrun, _Hcache, _Hparams⟩
+  exact Hrun.closeValidatedNestedAuxiliaries Hvalid.tr.wf
+    mlctx hmlctx hlctx Hvalidated
 
 theorem ElimNestedInductive.run'.translation
     (fuel nparams : Nat) (types : List InductiveType)

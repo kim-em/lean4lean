@@ -1089,7 +1089,9 @@ def validateNestedAuxiliaries (env : Environment) (lparams : List Name)
     (res : ElimNestedInductive.Result) : Except Exception Unit :=
   TypeChecker.M.run env (safety := safety) (lctx := res.lctx)
       (lparams := lparams) (fuel := fuel) do
-    res.aux2nested.forM fun _ e => do _ ← TypeChecker.checkType e
+    res.aux2nested.forM fun _ e => do
+      let type ← TypeChecker.checkType e
+      _ ← TypeChecker.ensureSort type e
 
 /-- Restore a successfully installed lowered block and validate the generated
 auxiliary witnesses before returning the source-shaped environment. -/
