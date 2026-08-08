@@ -25514,6 +25514,76 @@ theorem GeneratedRecursorEntry.typeForallTelescope
       recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)).inferImplicit
         1000 false
 
+/-- Binder-by-binder semantic decomposition of a generated recursor type.
+The five lists are the abstract domains corresponding respectively to the
+production parameter, motive, minor, index, and major binder groups.  Keeping
+the translated residual in their exact abstract context makes the pieces that
+must later be transported across nested restoration explicit. -/
+structure GeneratedRecursorTelescopeTranslation
+    (env : VEnv) (Us : List Name) (source : Expr) (target : VExpr)
+    (numParams numMotives numMinors numIndices ownerIdx : Nat) where
+  params : List VExpr
+  motives : List VExpr
+  minors : List VExpr
+  indices : List VExpr
+  major : List VExpr
+  result : VExpr
+  target_eq : target = VExpr.wrapForalls
+    (params ++ motives ++ minors ++ indices ++ major) result
+  params_length : params.length = numParams
+  motives_length : motives.length = numMotives
+  minors_length : minors.length = numMinors
+  indices_length : indices.length = numIndices
+  major_length : major.length = 1
+  typed : Expr.ForallTelescopeTypeTranslation env Us [] source
+    (numParams + numMotives + numMinors + numIndices + 1) target
+  residual : TrExprS env Us
+    (abstractForallContext
+      (params ++ motives ++ minors ++ indices ++ major) [])
+    (concreteRecursorResult numMotives numMinors numIndices ownerIdx) result
+
+/-- The actual translated `.recInfo` emitted by production canonically
+determines the five-group telescope certificate.  This contains no semantic
+callback: it is obtained solely by inverting the retained executable
+translation and the exact binder selections used by `declareRecursors`. -/
+theorem GeneratedRecursorEntry.telescopeTranslation
+    (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size)
+    (hnoalias : Hselections.NoAlias) :
+    Nonempty (GeneratedRecursorTelescopeTranslation env H.info.levelParams
+      H.info.type entry.2.type stats.params.size
+      (recInfos.map (·.motive)).size (recInfos.flatMap (·.minors)).size
+      recInfos[ownerIdx]!.indices.size ownerIdx) := by
+  have Htranslated : TrExprS env H.info.levelParams [] H.info.type
+      entry.2.type := by
+    simpa [ConstantInfo.levelParams, ConstantInfo.type,
+      ConstantInfo.toConstantVal] using H.translated.1.2.2
+  have HrawTelescope := Hselections.forallTelescope
+    (.app (mkAppN recInfos[ownerIdx]!.motive
+      recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+  rw [Hselections.residual_eq_concreteRecursorResult howner hnoalias] at HrawTelescope
+  have Htelescope := HrawTelescope.inferImplicit_sameResidual (by rfl)
+    1000 false
+  rw [← H.type] at Htelescope
+  have HtargetType : env.IsType H.info.levelParams.length [] entry.2.type :=
+    TrExprS.isType_of_forallTelescope Htelescope (by omega) Htranslated
+  have Htyped := Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    Htelescope Htranslated HtargetType
+  rcases TrExprS.forallTelescope_shape_with_context Htelescope Htranslated with
+    ⟨domains, result, hdomainsLength, htarget, Hresult⟩
+  rcases List.exists_append_five_of_length_eq domains stats.params.size
+      (recInfos.map (·.motive)).size
+      (recInfos.flatMap (·.minors)).size
+      recInfos[ownerIdx]!.indices.size 1 hdomainsLength with
+    ⟨params, motives, minors, indices, major, hdomains,
+      hparams, hmotives, hminors, hindices, hmajor⟩
+  refine ⟨⟨params, motives, minors, indices, major, result, ?_, hparams,
+    hmotives, hminors, hindices, hmajor, Htyped, ?_⟩⟩
+  · simpa [hdomains] using htarget
+  · simpa [hdomains] using Hresult
+
 theorem GeneratedRecursorEntry.rulesRestoreTelescope
     (H : GeneratedRecursorEntry safety env lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)
