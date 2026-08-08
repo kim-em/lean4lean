@@ -24100,6 +24100,88 @@ def RestoreSourceDisjoint
   | .mdata _ body | .proj _ _ body =>
       RestoreSourceDisjoint result env body
 
+/-- Every name that the concrete restoration callback treats as an
+auxiliary family or constructor lies in the namespace rejected by the source
+syntax check.  This separates the name-generation argument from the
+expression-level restoration inverse. -/
+structure RestoreNamesReserved
+    (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment) : Prop
+    where
+  family : ∀ name nested, result.aux2nested.find? name = some nested →
+    (`_nested).isPrefixOf name = true
+  constructor : ∀ name nested auxFamily,
+    result.getNestedIfAuxCtor env name = some (nested, auxFamily) →
+    (`_nested).isPrefixOf name = true
+
+theorem NoNestedAux.findAny_false (H : NoNestedAux e) :
+    e.findAny (fun
+      | .const c _ => (`_nested).isPrefixOf c
+      | .proj s _ _ => (`_nested).isPrefixOf s
+      | _ => false) = false := by
+  unfold NoNestedAux at H
+  rw [← Expr.find?_isSome_eq_findAny]
+  cases hfind : e.find? fun
+    | .const c _ => (`_nested).isPrefixOf c
+    | .proj s _ _ => (`_nested).isPrefixOf s
+    | _ => false <;> simp_all
+
+theorem NoNestedAux.restoreSourceDisjoint
+    (H : NoNestedAux e) (Hreserved : RestoreNamesReserved result env) :
+    RestoreSourceDisjoint result env e := by
+  let p : Expr → Bool := fun
+    | .const c _ => (`_nested).isPrefixOf c
+    | .proj s _ _ => (`_nested).isPrefixOf s
+    | _ => false
+  have orFalse : ∀ a b : Bool, (a || b) = false →
+      a = false ∧ b = false := by
+    intro a b h
+    cases a <;> cases b <;> simp_all
+  have go : ∀ source, source.findAny p = false →
+      RestoreSourceDisjoint result env source := by
+    intro source Hfind
+    induction source with
+    | bvar | fvar | mvar | sort | lit => trivial
+    | const name levels =>
+      have hprefix : (`_nested).isPrefixOf name = false := by
+        simpa [Expr.findAny, p] using Hfind
+      constructor
+      · cases hfamily : result.aux2nested.find? name with
+        | none => rfl
+        | some nested =>
+          have := Hreserved.family name nested hfamily
+          simp_all
+      · cases hctor : result.getNestedIfAuxCtor env name with
+        | none => rfl
+        | some pair =>
+          rcases pair with ⟨nested, auxFamily⟩
+          have := Hreserved.constructor name nested auxFamily hctor
+          simp_all
+    | app fn arg ihFn ihArg =>
+      simp only [Expr.findAny, p, Bool.false_or] at Hfind
+      rcases orFalse _ _ Hfind with ⟨hfn, harg⟩
+      exact ⟨ihFn hfn, ihArg harg⟩
+    | lam name dom body bi ihDom ihBody =>
+      simp only [Expr.findAny, p, Bool.false_or] at Hfind
+      rcases orFalse _ _ Hfind with ⟨hdom, hbody⟩
+      exact ⟨ihDom hdom, ihBody hbody⟩
+    | forallE name dom body bi ihDom ihBody =>
+      simp only [Expr.findAny, p, Bool.false_or] at Hfind
+      rcases orFalse _ _ Hfind with ⟨hdom, hbody⟩
+      exact ⟨ihDom hdom, ihBody hbody⟩
+    | letE name type value body nondep ihType ihValue ihBody =>
+      simp only [Expr.findAny, p, Bool.false_or] at Hfind
+      rcases orFalse _ _ Hfind with ⟨htypeValue, hbody⟩
+      rcases orFalse _ _ htypeValue with ⟨htype, hvalue⟩
+      exact ⟨ihType htype, ihValue hvalue, ihBody hbody⟩
+    | mdata data body ihBody =>
+      simpa only [RestoreSourceDisjoint] using ihBody Hfind
+    | proj name idx body ihBody =>
+      simp only [Expr.findAny, p] at Hfind
+      rcases orFalse _ _ Hfind with ⟨hprefix, hbody⟩
+      simpa only [RestoreSourceDisjoint] using ihBody hbody
+  apply go e
+  simpa only [p] using H.findAny_false
+
 theorem RestoreSourceDisjoint.getAppFn
     (H : RestoreSourceDisjoint result env e)
     (hhead : e.getAppFn = .const name levels) :
@@ -24556,6 +24638,47 @@ theorem ExprReplacement.ofReplace
     | some output =>
       simpa [Expr.replace_eq, Expr.replaceNoCache, h] using
         (ExprReplacement.hit h)
+
+/-- The relational restoration traversal is functional and computes exactly
+`Expr.replace`.  This lets later semantic inverse theorems consume the
+abstract `ExprReplacement` witness retained by `NestedRestoration`. -/
+theorem ExprReplacement.eq_replace
+    (H : ExprReplacement replaceNode input output) :
+    output = input.replace replaceNode := by
+  induction H with
+  | hit h => simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, h]
+  | bvar h | fvar h | mvar h | sort h | const h | lit h =>
+    simp [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, h]
+  | app h hfn harg ihFn ihArg =>
+    rw [Expr.replace_eq] at ihFn ihArg
+    rw [Expr.replace_eq]
+    rw [Lean.Expr.replaceNoCache.eq_def, h]
+    dsimp only
+    rw [← ihFn, ← ihArg]
+  | lam h hdom hbody ihDom ihBody =>
+    rw [Expr.replace_eq] at ihDom ihBody
+    rw [Expr.replace_eq]
+    rw [Lean.Expr.replaceNoCache.eq_def, h]
+    dsimp only
+    rw [← ihDom, ← ihBody]
+  | forallE h hdom hbody ihDom ihBody =>
+    rw [Expr.replace_eq] at ihDom ihBody
+    rw [Expr.replace_eq]
+    rw [Lean.Expr.replaceNoCache.eq_def, h]
+    dsimp only
+    rw [← ihDom, ← ihBody]
+  | letE h htype hvalue hbody ihType ihValue ihBody =>
+    rw [Expr.replace_eq] at ihType ihValue ihBody
+    rw [Expr.replace_eq]
+    rw [Lean.Expr.replaceNoCache.eq_def, h]
+    dsimp only
+    rw [← ihType, ← ihValue, ← ihBody]
+  | mdata h hbody ihBody | proj h hbody ihBody =>
+    rw [Expr.replace_eq] at ihBody
+    rw [Expr.replace_eq]
+    rw [Lean.Expr.replaceNoCache.eq_def, h]
+    dsimp only
+    rw [← ihBody]
 
 /-- The body traversal used by `restoreNested` is now related exactly to its
 three independently specified node-restoration cases. -/
@@ -31321,6 +31444,72 @@ theorem LoweredConstructorReopening.restoreTail_inverse
   exact ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
     hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening,
     htype, hrestoredTail, hinverse⟩
+
+/-- Operational constructor restoration consumes a mapped lowering body and
+produces the correspondingly renamed source body.  Unlike
+`restoreTail_inverse`, this theorem starts from the mapping certificate
+available before restoration chooses its fresh variables and concludes about
+the `restoredBody` retained by `NestedRestoration`. -/
+theorem LoweredConstructorMapping.restoredBody_inverse
+    (H : LoweredConstructorMapping env params nparams finalResult source state
+      out)
+    (hresultParams : finalResult.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (restoreLctx : LocalContext) (restoreAs : Array Expr)
+    (openedBody restoredBody : Expr)
+    (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
+      restoreAs openedBody)
+    (Hbody : ExprReplacement
+      (finalResult.restoreNestedNode env restoreAs {}) openedBody restoredBody)
+    (hresultNParams : finalResult.nparams = nparams)
+    (Hsource : RestoreSourceDisjoint finalResult env source.type) :
+    ∃ lctx tail As,
+      NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+      ∃ Hselection : LocalForallSelection lctx As,
+        Hselection.fvars.Nodup ∧ As.size = nparams ∧
+        (restoredBody == Expr.reopenParams tail As restoreAs) = true := by
+  have Hreopening : LoweredConstructorReopening env params nparams finalResult
+      restoreAs source state out :=
+    H.reopens hresultParams paramFvars hparams hnodup HsourceClosed
+  rcases Hreopening.restoreTail_inverse restoreLctx restoreAs openedBody
+      Hrestore rfl hresultNParams Hsource with
+    ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
+      hnodupAs, _hopenedTypes, _hopenedAux, _hopenedNext, hsize,
+      _Hreopening, _htype, _hopenedBody, hinverse⟩
+  have hrestoredInverse :
+      (restoredBody == Expr.reopenParams tail As restoreAs) = true := by
+    rw [Hbody.eq_replace]
+    exact hinverse
+  exact ⟨lctx, tail, As, Hopening, Hselection, hnodupAs, hsize,
+    hrestoredInverse⟩
+
+theorem LoweredConstructorMapping.restoredBody_inverseOfSyntax
+    (H : LoweredConstructorMapping env params nparams finalResult source state
+      out)
+    (hresultParams : finalResult.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (Hsyntax : SourceConstructorSyntax source)
+    (Hreserved : RestoreNamesReserved finalResult env)
+    (restoreLctx : LocalContext) (restoreAs : Array Expr)
+    (openedBody restoredBody : Expr)
+    (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
+      restoreAs openedBody)
+    (Hbody : ExprReplacement
+      (finalResult.restoreNestedNode env restoreAs {}) openedBody restoredBody)
+    (hresultNParams : finalResult.nparams = nparams) :
+    ∃ lctx tail As,
+      NestedParamOpening {} #[] source.type nparams lctx tail As ∧
+      ∃ Hselection : LocalForallSelection lctx As,
+        Hselection.fvars.Nodup ∧ As.size = nparams ∧
+        (restoredBody == Expr.reopenParams tail As restoreAs) = true :=
+  H.restoredBody_inverse hresultParams paramFvars hparams hnodup
+    Hsyntax.closed restoreLctx restoreAs openedBody restoredBody Hrestore Hbody
+    hresultNParams (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved)
 
 theorem LoweredConstructorTranslation.finalMapping
     (H : LoweredConstructorTranslation env params nparams source state out)
