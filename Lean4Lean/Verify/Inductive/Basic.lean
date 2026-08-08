@@ -36604,6 +36604,110 @@ theorem NestedLoweringResultClosed.sourceRecursorUnmappedAtFresh
       (hfamilyInfo.trans hsuffixInfo.symm)
   omega
 
+/-- Realize one source primary recursor from the exact generated lowered
+entry and its exact operational restoration step.  Shape, name, universe
+arity, and owner alignment are all derived here; callers retain only the
+canonical restored-type translation and equality of the independently
+recovered source/lowered index counts. -/
+theorem NestedLoweringResultClosed.sourceRecursorRealizationAtFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv} {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (hempty : initialState.nestedAux = #[])
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
+    (hdecl : familyIdx < sourceDecl.types.length)
+    (hentry : familyIdx < Hprod.entries.length)
+    (Hstep : RestoredInductiveStep result loweredEnv
+      (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
+      sourceTypes[familyIdx] stepSource stepTarget)
+    (Hcanonical : RestoredPrimaryRecursorCanonicalInputs Hstep.restored.recursor
+      (Hprod.entries[familyIdx]'hentry).2 envCtors)
+    (hindices : (sourceDecl.types[familyIdx]'hdecl).numIndices =
+      (loweredDecl.types[familyIdx]'(by
+        have hrecInfo : familyIdx < Hprod.recInfos.size := by
+          simpa [Hprod.generated.length] using hentry
+        simpa [Hprod.cardinality.records] using hrecInfo)).numIndices) :
+    Nonempty (SourcePrimaryRecursorRealization sourceDecl
+      (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor envCtors
+      (Hprod.entries[familyIdx]'hentry).2) := by
+  have hrecInfo : familyIdx < Hprod.recInfos.size := by
+    simpa [Hprod.generated.length] using hentry
+  have hloweredDecl : familyIdx < loweredDecl.types.length := by
+    simpa [Hprod.cardinality.records] using hrecInfo
+  have hresult : familyIdx < result.types.length := by
+    have htypes : result.types.length = loweredDecl.types.length := by
+      simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
+    rw [htypes]
+    exact hloweredDecl
+  rcases H.toResult.sourceFinalMappingAtFresh hempty hfamily with
+    ⟨_params, _mappingState, target, _mappingLowered, _mappingSize,
+      Hmapping, htarget⟩
+  obtain ⟨_hresult', htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
+  have hsourceName : result.types.toArray[familyIdx]!.name =
+      sourceTypes[familyIdx].name := by
+    have harray : result.types.toArray[familyIdx]! = target := by
+      simp [Array.getElem!_eq_getD, Array.getD, hresult, htargetEq]
+    rw [harray, Hmapping.name]
+  have hrestoredName : Hstep.restored.recursor.restored.newRecName =
+      Lean.mkRecName sourceTypes[familyIdx].name := by
+    have hunmapped := H.sourceRecursorUnmappedAtFresh Hc Hprod hempty
+      familyIdx hfamily
+    rw [Hstep.restored.recursor.restored.mappedName]
+    apply Std.TreeMap.getD_eq_fallback_of_contains_eq_false
+    change Std.TreeMap.contains
+      (show Std.TreeMap Name Name Name.quickCmp from
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2)
+        (Lean.mkRecName sourceTypes[familyIdx].name) = false
+    rw [Std.TreeMap.contains_eq_isSome_getElem?]
+    change ((Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2.find?
+      (Lean.mkRecName sourceTypes[familyIdx].name)).isSome = false
+    rw [hunmapped]
+    rfl
+  have Hcore : TrInductDeclCore sourceVEnv Hprod.localContext.lparams nparams
+      result.types isUnsafe loweredDecl Hheaders.context.venv
+        R.declared.venvCtors := by
+    rw [Hprod.localExtends.lparams_eq]
+    exact R.core
+  have Hcertificate := Hprod.generated.recursorCertificate Hprod.localWF
+    Hprod.bindings Hprod.params Hprod.noAlias Hprod.cardinality Hcore
+  have hrecursor : familyIdx < (Hprod.entries.map Prod.snd).length := by
+    simpa using hentry
+  rcases Hcertificate.shapes familyIdx hloweredDecl hrecursor with
+    ⟨HloweredShape⟩
+  rw [List.getElem_map] at HloweredShape
+  have HsourceShape :=
+    Lean4Lean.VerifyInductive.VInductDecl.NestedRecursorShape.toSourceOfLowering
+      H.toResult hempty Hsource R.core familyIdx hfamily hdecl hloweredDecl
+        HloweredShape.toNested hindices
+  have Hmetadata := Hprod.restoredPrimaryRecursorMetadata familyIdx hentry
+    Hstep.restored.recursor (congrArg Lean.mkRecName hsourceName.symm)
+  have hownerName : (sourceDecl.types[familyIdx]'hdecl).name =
+      sourceTypes[familyIdx].name := by
+    simpa using (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource
+      familyIdx hfamily hdecl).header.name
+  have hname : (Hprod.entries[familyIdx]'hentry).2.name =
+      sourceDecl.recursorName (sourceDecl.types[familyIdx]'hdecl) := by
+    exact Hcanonical.name.trans <| hrestoredName.trans <| by
+      simpa only [VInductDecl.recursorName_eq_mkRecName] using
+        congrArg Lean.mkRecName hownerName.symm
+  exact ⟨{
+    source := {
+      recursor := (Hprod.entries[familyIdx]'hentry).2
+      name := hname
+      isType := Hcanonical.wf
+      shape := HsourceShape }
+    recursor_eq := rfl
+    refinement := ⟨Hmetadata.2, Hcanonical.type⟩ }⟩
+
 /-- Interpret one source family's exact constructor-restoration fold using
 the independently checked source constructor translations.  Fresh generated
 names turn the syntactic no-auxiliary condition into the semantic
