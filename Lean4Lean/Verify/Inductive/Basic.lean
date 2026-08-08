@@ -23155,6 +23155,57 @@ theorem addConstant_find_cases
   · right
     rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
 
+/-- A lockstep installation preserves every lookup from its source production
+environment. -/
+theorem AddConstants.preservesFind
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hfind : env.find? name = some found) :
+    outEnv.find? name = some found := by
+  induction H with
+  | nil => exact hfind
+  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
+    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
+    have hne : ci.name ≠ name := by
+      intro heq
+      subst name
+      rw [hfind] at hn
+      contradiction
+    have hfreshMap : envHead.constants.find? ci.name = none := by
+      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+    have hnextWF : (envHead.add ci).constants.WF := by
+      change (envHead.constants.insert ci.name ci).WF
+      exact hwf.insert ci.name ci hfreshMap
+    apply ih hnextWF
+    change (Lean4Lean.AddInductive.addConstant envHead ci).find? name = some found
+    exact addConstant_find_of_ne envHead ci name hwf hn hne hfind
+
+/-- Every production entry named by an `AddConstants` certificate is present
+with its exact metadata in the final environment. -/
+theorem AddConstants.findOfMem
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hentry : (info, value) ∈ entries) :
+    outEnv.find? info.name = some info := by
+  induction H with
+  | nil => simp at hentry
+  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
+    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
+    simp only [List.mem_cons] at hentry
+    have hfreshMap : envHead.constants.find? ci.name = none := by
+      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+    have hnextWF : (envHead.add ci).constants.WF := by
+      change (envHead.constants.insert ci.name ci).WF
+      exact hwf.insert ci.name ci hfreshMap
+    rcases hentry with hhead | htail
+    · have hinstalled : outProd.find? ci.name = some ci := by
+        apply Htail.preservesFind hnextWF
+        change (Lean4Lean.AddInductive.addConstant envHead ci).find? ci.name = some ci
+        exact addConstant_find_self envHead ci hwf hn
+      have hi : info = ci := congrArg Prod.fst hhead
+      simpa [hi] using hinstalled
+    · exact ih hnextWF htail
+
 theorem InductiveMemberInfos.addConstant
     (H : InductiveMemberInfos env names)
     (hwf : env.constants.WF) (hfresh : env.find? info.name = none) :
