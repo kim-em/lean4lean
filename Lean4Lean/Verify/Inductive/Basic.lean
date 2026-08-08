@@ -55,18 +55,13 @@ theorem VInductDeclSkeleton.materializePrefix_numIndices
 of an expanded declaration.  Nested lowering appends auxiliary families, so
 this is the declaration-level certificate connecting independently recovered
 source metadata to the lowered checker result. -/
-structure MaterializedInductivePrefix
-    (source expanded : VInductDecl) : Type where
-  skeleton : VInductDeclSkeleton
-  materialized : skeleton.materialize
-    ((expanded.types.take skeleton.types.length).map fun type =>
-      (type.numIndices, type.resultLevel)) = some source
-
-theorem MaterializedInductivePrefix.skeleton_length
-    {source expanded : VInductDecl}
-    (H : MaterializedInductivePrefix source expanded) :
-    H.skeleton.types.length = source.types.length := by
-  exact (VInductDeclSkeleton.materialize_fields H.materialized).2.2.2.symm
+inductive MaterializedInductivePrefix
+    (source expanded : VInductDecl) : Prop
+  | intro (skeleton : VInductDeclSkeleton)
+      (materialized : skeleton.materialize
+        ((expanded.types.take skeleton.types.length).map fun type =>
+          (type.numIndices, type.resultLevel)) = some source) :
+      MaterializedInductivePrefix source expanded
 
 theorem MaterializedInductivePrefix.numIndices
     {source expanded : VInductDecl}
@@ -76,11 +71,42 @@ theorem MaterializedInductivePrefix.numIndices
     (hexpanded : i < expanded.types.length) :
     (source.types[i]'hsource).numIndices =
       (expanded.types[i]'hexpanded).numIndices := by
-  apply VInductDeclSkeleton.materializePrefix_numIndices H.skeleton expanded
+  rcases H with ⟨skeleton, Hmaterialize⟩
+  have hskeleton : skeleton.types.length = source.types.length :=
+    (VInductDeclSkeleton.materialize_fields Hmaterialize).2.2.2.symm
+  apply VInductDeclSkeleton.materializePrefix_numIndices skeleton expanded
     source
-  · simpa [H.skeleton_length] using hle
-  · exact H.materialized
-  · simpa [H.skeleton_length] using hsource
+  · simpa [hskeleton] using hle
+  · exact Hmaterialize
+  · simpa [hskeleton] using hsource
+
+/-- Every sufficiently long expanded declaration determines a unique-sized
+source materialization from a metadata-free skeleton by taking the expanded
+metadata prefix.  This is the constructor used by the outer nested verifier;
+the source declaration is produced rather than supplied with unconstrained
+semantic arities. -/
+theorem VInductDeclSkeleton.materializeExpandedPrefix
+    (skeleton : VInductDeclSkeleton) (expanded : VInductDecl)
+    (hle : skeleton.types.length ≤ expanded.types.length) :
+    ∃ source,
+      skeleton.materialize
+        ((expanded.types.take skeleton.types.length).map fun type =>
+          (type.numIndices, type.resultLevel)) = some source ∧
+      MaterializedInductivePrefix source expanded := by
+  let metadata :=
+    (expanded.types.take skeleton.types.length).map fun type =>
+      (type.numIndices, type.resultLevel)
+  have hmetadata : metadata.length = skeleton.types.length := by
+    simp [metadata, List.length_take, Nat.min_eq_left hle]
+  let source : VInductDecl := {
+    uvars := skeleton.uvars
+    nparams := skeleton.nparams
+    types := List.zipWith (fun type data =>
+      type.toVInductiveType data.1 data.2) skeleton.types metadata
+    isUnsafe := skeleton.isUnsafe }
+  have Hmaterialize : skeleton.materialize metadata = some source := by
+    simp [VInductDeclSkeleton.materialize, hmetadata, source]
+  exact ⟨source, Hmaterialize, ⟨skeleton, Hmaterialize⟩⟩
 
 theorem OnCtx.append_right
     (H : OnCtx (xs ++ ys) P) : OnCtx ys P := by
@@ -1199,6 +1225,34 @@ theorem TrInductDeclSkeletonCore.materialized
   rw [htarget']
   exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.materialized
     htranslated
+
+/-- Materialize the original source skeleton with the metadata prefix of an
+expanded nested-lowering declaration, simultaneously obtaining the ordinary
+source translation and the arity-alignment certificate consumed by restored
+recursor verification. -/
+theorem TrInductDeclSkeletonCore.materializeExpandedPrefix
+    (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe skeleton
+      envTypes envCtors)
+    (expanded : VInductDecl)
+    (hle : skeleton.types.length ≤ expanded.types.length) :
+    ∃ source,
+      TrInductDeclCore env lparams nparams types isUnsafe source
+        envTypes envCtors ∧
+      MaterializedInductivePrefix source expanded := by
+  rcases VInductDeclSkeleton.materializeExpandedPrefix skeleton expanded hle with
+    ⟨source, Hmaterialize, Hprefix⟩
+  exact ⟨source, H.materialized Hmaterialize, Hprefix⟩
+
+theorem TrInductDeclSkeleton.materializeExpandedPrefix
+    (H : TrInductDeclSkeleton env lparams nparams types isUnsafe skeleton)
+    (expanded : VInductDecl)
+    (hle : skeleton.types.length ≤ expanded.types.length) :
+    ∃ source,
+      TrInductDecl env lparams nparams types isUnsafe source ∧
+      MaterializedInductivePrefix source expanded := by
+  rcases VInductDeclSkeleton.materializeExpandedPrefix skeleton expanded hle with
+    ⟨source, Hmaterialize, Hprefix⟩
+  exact ⟨source, H.materialized Hmaterialize, Hprefix⟩
 
 /-- Materialization preserves the header-only translation while filling the
 semantic arity metadata recovered by the executable header checker. -/
