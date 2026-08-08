@@ -24230,6 +24230,29 @@ structure RecursorRestoration
   k : newInfo.k = oldInfo.k
   isUnsafe : newInfo.isUnsafe = oldInfo.isUnsafe
 
+/-- Recursor restoration changes the production name and concrete type while
+preserving the metadata observed by `TrConstVal`.  Translation of that new
+type is the sole semantic premise; the old translated recursor may be renamed
+on the abstract side to match `newRecName`. -/
+theorem RecursorRestoration.translated
+    (H : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName oldInfo newInfo)
+    (Hold : TrConstVal safety venv (.recInfo oldInfo)
+      { recursor with name := oldRecName })
+    (Htype : TrExprS venv oldInfo.levelParams [] newInfo.type recursor.type)
+    (hname : recursor.name = newRecName) :
+    TrConstVal safety venv (.recInfo newInfo) recursor := by
+  refine ⟨⟨?_, ?_, ?_⟩, ?_⟩
+  · simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
+      ConstantInfo.isPartial, H.isUnsafe] using Hold.1.1
+  · rw [ConstantInfo.levelParams, ConstantInfo.toConstantVal,
+      H.levelParams]
+    exact Hold.1.2.1
+  · change TrExprS venv newInfo.levelParams [] newInfo.type recursor.type
+    rw [H.levelParams]
+    exact Htype
+  · rw [ConstantInfo.name, ConstantInfo.toConstantVal, H.name, ← hname]
+
 theorem restoreRecursor_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (auxRec : NameMap Name)
@@ -24263,6 +24286,27 @@ structure RestoredInductiveHeaderDeclResult
   restored : newInfo = { oldInfo with all := allIndNames }
   fresh : sourceEnv.contains newInfo.name = false
   output : out = ((), sourceEnv.add (.inductInfo newInfo))
+
+/-- Changing the mutual-family metadata list does not affect translation of
+an inductive header: `TrConstVal` observes only safety, universes, name, and
+type. -/
+theorem TrConstVal.inductInfo_setAll
+    (H : TrConstVal safety venv (.inductInfo oldInfo) header) :
+    TrConstVal safety venv
+      (.inductInfo { oldInfo with all := allIndNames }) header := by
+  cases oldInfo
+  simpa [TrConstVal, TrConstant, ConstantInfo.safety,
+    ConstantInfo.isUnsafe, ConstantInfo.isPartial,
+    ConstantInfo.levelParams, ConstantInfo.type, ConstantInfo.name,
+    ConstantInfo.toConstantVal] using H
+
+theorem RestoredInductiveHeaderDeclResult.translated
+    (H : RestoredInductiveHeaderDeclResult loweredEnv sourceProdEnv
+      allIndNames indName oldInfo out)
+    (Htr : TrConstVal safety venv (.inductInfo oldInfo) header) :
+    TrConstVal safety venv (.inductInfo H.newInfo) header := by
+  rw [H.restored]
+  exact TrConstVal.inductInfo_setAll Htr
 
 theorem restoreInductiveHeaderDecl_refines
     (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
@@ -24504,6 +24548,27 @@ structure ConstructorRestoration
   numParams : newInfo.numParams = oldInfo.numParams
   numFields : newInfo.numFields = oldInfo.numFields
   isUnsafe : newInfo.isUnsafe = oldInfo.isUnsafe
+
+/-- Constructor restoration preserves every `TrConstVal` field except the
+concrete type expression.  Thus the semantic inverse of nested-expression
+lowering is isolated as the single `Htype` premise below. -/
+theorem ConstructorRestoration.translated
+    (H : ConstructorRestoration result prodEnv oldInfo newInfo)
+    (Hold : TrConstVal safety venv (.ctorInfo oldInfo) constructor)
+    (Htype : TrExprS venv oldInfo.levelParams [] newInfo.type
+      constructor.type) :
+    TrConstVal safety venv (.ctorInfo newInfo) constructor := by
+  refine ⟨⟨?_, ?_, ?_⟩, ?_⟩
+  · simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
+      ConstantInfo.isPartial, H.isUnsafe] using Hold.1.1
+  · rw [ConstantInfo.levelParams, ConstantInfo.toConstantVal,
+      H.levelParams]
+    exact Hold.1.2.1
+  · change TrExprS venv newInfo.levelParams [] newInfo.type constructor.type
+    rw [H.levelParams]
+    exact Htype
+  · rw [ConstantInfo.name, ConstantInfo.toConstantVal, H.name]
+    exact Hold.2
 
 theorem restoreConstructor_refines
     (result : Lean4Lean.ElimNestedInductive.Result)
@@ -25236,6 +25301,67 @@ structure RestoredRecursorInstallationSemantics
   installed : sourceVEnv.addConst recursor.name recursor.toVConstant =
     some targetVEnv
 
+theorem RestoredRecursorInstallationSemantics.checking
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceProdEnv targetProdEnv : Environment}
+    {auxRec : NameMap Name} {allIndNames : List Name}
+    {oldRecName : Name}
+    {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv}
+    {sourceVEnv targetVEnv : VEnv}
+    (H : RestoredRecursorInstallationSemantics safety Hstep sourceVEnv
+      targetVEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
+    CheckingEnv safety targetProdEnv targetVEnv := by
+  have hprodFresh : sourceProdEnv.find?
+      Hstep.restored.newInfo.name = none :=
+    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
+  have Hadd : sourceVEnv.addConst Hstep.restored.newInfo.name
+      H.recursor.toVConstant = some targetVEnv := by
+    have hname : Hstep.restored.newInfo.name = H.recursor.name := by
+      simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using
+        H.translated.2
+    rw [hname]
+    exact H.installed
+  have Hnext := CheckingEnv.add
+    (ci := .recInfo Hstep.restored.newInfo)
+    (ci' := H.recursor.toVConstant) Hvalid hprodFresh H.translated.1
+    H.wf Hadd rfl
+  have htarget : targetProdEnv = sourceProdEnv.add
+      (.recInfo Hstep.restored.newInfo) :=
+    congrArg Prod.snd Hstep.restored.output
+  rwa [htarget]
+
+theorem RestoredRecursorStep.installation
+    (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (recursor : VConstVal)
+    (Hold : TrConstVal safety sourceVEnv (.recInfo Hstep.oldInfo)
+      { recursor with name := oldRecName })
+    (Htype : TrExprS sourceVEnv Hstep.oldInfo.levelParams []
+      Hstep.restored.newInfo.type recursor.type)
+    (hname : recursor.name = Hstep.restored.newRecName)
+    (Hwf : recursor.toVConstant.WF sourceVEnv) :
+    ∃ targetVEnv,
+      Nonempty (RestoredRecursorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) := by
+  have hprodFresh : sourceProdEnv.find?
+      Hstep.restored.newInfo.name = none :=
+    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
+  have Htranslated := Hstep.restored.restoration.translated Hold Htype hname
+  rcases CheckingEnv.exists_addConst Hvalid hprodFresh
+      recursor.toVConstant with ⟨targetVEnv, Hinstalled⟩
+  have Hinstalled' : sourceVEnv.addConst recursor.name
+      recursor.toVConstant = some targetVEnv := by
+    rw [← Htranslated.2]
+    exact Hinstalled
+  exact ⟨targetVEnv, ⟨{
+    recursor := recursor
+    translated := Htranslated
+    wf := Hwf
+    installed := Hinstalled' }⟩⟩
+
 /-- Trace-aligned installation semantics for a fold of restored recursors.
 The abstract environment advances at exactly the same step boundaries as the
 production environment. -/
@@ -25304,6 +25430,21 @@ theorem RestoredRecursorInstallationTrace.translatedFresh
       .cons hfresh Hfresh' Hsemantic.translated Hsemantic.wf
         Hsemantic.installed Htranslated'⟩
 
+theorem RestoredRecursorInstallationTrace.checking
+    {names : List Name} {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+      names sourceProdEnv targetProdEnv}
+    {sourceVEnv targetVEnv : VEnv} {recursors : List VConstVal}
+    (H : RestoredRecursorInstallationTrace safety Htrace sourceVEnv
+      recursors targetVEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
+    CheckingEnv safety targetProdEnv targetVEnv := by
+  induction H with
+  | nil => exact Hvalid
+  | cons Hstep Htail Hsemantic Hrest ih =>
+    exact ih (Hsemantic.checking Hvalid)
+
 structure RestoredConstructorInstallationSemantics
     (safety : DefinitionSafety)
     (Hstep : RestoredConstructorStep result loweredEnv ctorName
@@ -25315,6 +25456,69 @@ structure RestoredConstructorInstallationSemantics
   wf : constructor.toVConstant.WF sourceVEnv
   installed : sourceVEnv.addConst constructor.name constructor.toVConstant =
     some targetVEnv
+
+theorem RestoredConstructorInstallationSemantics.checking
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceProdEnv targetProdEnv : Environment}
+    {ctorName : Name}
+    {Hstep : RestoredConstructorStep result loweredEnv ctorName
+      sourceProdEnv targetProdEnv}
+    {sourceVEnv targetVEnv : VEnv}
+    (H : RestoredConstructorInstallationSemantics safety Hstep sourceVEnv
+      targetVEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
+    CheckingEnv safety targetProdEnv targetVEnv := by
+  have hprodFresh : sourceProdEnv.find?
+      Hstep.restored.newInfo.name = none :=
+    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
+  have Hadd : sourceVEnv.addConst Hstep.restored.newInfo.name
+      H.constructor.toVConstant = some targetVEnv := by
+    have hname : Hstep.restored.newInfo.name = H.constructor.name := by
+      simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using
+        H.translated.2
+    rw [hname]
+    exact H.installed
+  have Hnext := CheckingEnv.add
+    (ci := .ctorInfo Hstep.restored.newInfo)
+    (ci' := H.constructor.toVConstant) Hvalid hprodFresh H.translated.1
+    H.wf Hadd rfl
+  have htarget : targetProdEnv = sourceProdEnv.add
+      (.ctorInfo Hstep.restored.newInfo) :=
+    congrArg Prod.snd Hstep.restored.output
+  rwa [htarget]
+
+/-- Build the installation payload for a restored constructor.  All metadata
+and freshness facts are derived; the only restoration-specific semantic
+premise is translation of the restored concrete type to the original
+abstract constructor type. -/
+theorem RestoredConstructorStep.installation
+    (Hstep : RestoredConstructorStep result loweredEnv ctorName
+      sourceProdEnv targetProdEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (constructor : VConstVal)
+    (Hold : TrConstVal safety sourceVEnv
+      (.ctorInfo Hstep.oldInfo) constructor)
+    (Htype : TrExprS sourceVEnv Hstep.oldInfo.levelParams []
+      Hstep.restored.newInfo.type constructor.type)
+    (Hwf : constructor.toVConstant.WF sourceVEnv) :
+    ∃ targetVEnv,
+      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
+        sourceVEnv targetVEnv) := by
+  have hprodFresh : sourceProdEnv.find?
+      Hstep.restored.newInfo.name = none :=
+    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
+  have Htranslated := Hstep.restored.restoration.translated Hold Htype
+  rcases CheckingEnv.exists_addConst Hvalid hprodFresh
+      constructor.toVConstant with ⟨targetVEnv, Hinstalled⟩
+  have Hinstalled' : sourceVEnv.addConst constructor.name
+      constructor.toVConstant = some targetVEnv := by
+    rw [← Htranslated.2]
+    exact Hinstalled
+  exact ⟨targetVEnv, ⟨{
+    constructor := constructor
+    translated := Htranslated
+    wf := Hwf
+    installed := Hinstalled' }⟩⟩
 
 inductive RestoredConstructorInstallationTrace
     (safety : DefinitionSafety) :
@@ -25375,6 +25579,20 @@ theorem RestoredConstructorInstallationTrace.translatedFresh
       .cons hfresh Hfresh' Hsemantic.translated Hsemantic.wf
         Hsemantic.installed Htranslated'⟩
 
+theorem RestoredConstructorInstallationTrace.checking
+    {names : List Name} {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace (RestoredConstructorStep result loweredEnv)
+      names sourceProdEnv targetProdEnv}
+    {sourceVEnv targetVEnv : VEnv} {constructors : List VConstVal}
+    (H : RestoredConstructorInstallationTrace safety Htrace sourceVEnv
+      constructors targetVEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
+    CheckingEnv safety targetProdEnv targetVEnv := by
+  induction H with
+  | nil => exact Hvalid
+  | cons Hstep Htail Hsemantic Hrest ih =>
+    exact ih (Hsemantic.checking Hvalid)
+
 /-- Installation semantics for one complete restored source family: header,
 its exact constructor fold, and its primary recursor. -/
 structure RestoredInductiveInstallationSemantics
@@ -25395,6 +25613,37 @@ structure RestoredInductiveInstallationSemantics
     Hstep.restored.constructors headerVEnv constructors constructorVEnv
   recursor : RestoredRecursorInstallationSemantics safety
     Hstep.restored.recursor constructorVEnv targetVEnv
+
+/-- Header translation and abstract installation are inherited directly from
+the unchanged lowered header.  Restoration's production freshness check and
+the source checking-environment alignment determine the fresh abstract
+target; no restoration-specific expression proof is required. -/
+theorem RestoredInductiveStep.headerInstallation
+    (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+      indType sourceProdEnv targetProdEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (header : VConstVal)
+    (Htr : TrConstVal safety sourceVEnv
+      (.inductInfo Hstep.oldInfo) header)
+    (Hwf : header.toVConstant.WF sourceVEnv) :
+    ∃ headerVEnv,
+      TrConstVal safety sourceVEnv
+        (.inductInfo Hstep.restored.header.newInfo) header ∧
+      header.toVConstant.WF sourceVEnv ∧
+      sourceVEnv.addConst header.name header.toVConstant =
+        some headerVEnv := by
+  have hprodFresh : sourceProdEnv.find?
+      Hstep.restored.header.newInfo.name = none :=
+    find?_none_of_contains_false Hvalid.map_wf
+      Hstep.restored.header.fresh
+  have Htranslated := Hstep.restored.header.translated Htr
+  rcases CheckingEnv.exists_addConst Hvalid hprodFresh
+      header.toVConstant with ⟨headerVEnv, Hinstalled⟩
+  have Hinstalled' : sourceVEnv.addConst header.name header.toVConstant =
+      some headerVEnv := by
+    rw [← Htranslated.2]
+    exact Hinstalled
+  exact ⟨headerVEnv, Htranslated, Hwf, Hinstalled'⟩
 
 theorem RestoredInductiveInstallationSemantics.translatedFresh
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -25459,6 +25708,39 @@ theorem RestoredInductiveInstallationSemantics.translatedFresh
     HprimaryFresh, by simpa only [List.singleton_append] using
       HprimaryTranslated⟩
 
+theorem RestoredInductiveInstallationSemantics.checking
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceProdEnv targetProdEnv : Environment}
+    {auxRec : NameMap Name} {allIndNames : List Name}
+    {indType : InductiveType}
+    {Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+      indType sourceProdEnv targetProdEnv}
+    {sourceVEnv targetVEnv : VEnv}
+    (H : RestoredInductiveInstallationSemantics safety Hstep sourceVEnv
+      targetVEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
+    CheckingEnv safety targetProdEnv targetVEnv := by
+  let headerInfo : ConstantInfo :=
+    .inductInfo Hstep.restored.header.newInfo
+  have hprodFresh : sourceProdEnv.find? headerInfo.name = none :=
+    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.header.fresh
+  have hname : headerInfo.name = H.header.name := H.headerTranslated.2
+  have Hadd : sourceVEnv.addConst headerInfo.name H.header.toVConstant =
+      some H.headerVEnv := by
+    rw [hname]
+    exact H.headerInstalled
+  have HheaderChecking : CheckingEnv safety Hstep.restored.headerEnv
+      H.headerVEnv := by
+    have Hnext := CheckingEnv.add (ci := headerInfo)
+      (ci' := H.header.toVConstant) Hvalid hprodFresh H.headerTranslated.1
+      H.headerWF Hadd rfl
+    have htarget : Hstep.restored.headerEnv = sourceProdEnv.add headerInfo :=
+      congrArg Prod.snd Hstep.restored.header.output
+    rwa [htarget]
+  have HconstructorChecking :=
+    H.constructorTrace.checking HheaderChecking
+  exact H.recursor.checking HconstructorChecking
+
 inductive RestoredInductiveInstallationTrace
     (safety : DefinitionSafety) :
     ∀ {types sourceProdEnv targetProdEnv},
@@ -25511,6 +25793,22 @@ theorem RestoredInductiveInstallationTrace.translatedFresh
     exact ⟨familyEntries ++ tailEntries,
       HfamilyFresh.append HtailFresh,
       HfamilyTranslated.append HtailTranslated⟩
+
+theorem RestoredInductiveInstallationTrace.checking
+    {types : List InductiveType}
+    {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+      types sourceProdEnv targetProdEnv}
+    {sourceVEnv targetVEnv : VEnv} {constants : List VConstVal}
+    (H : RestoredInductiveInstallationTrace safety Htrace sourceVEnv
+      constants targetVEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
+    CheckingEnv safety targetProdEnv targetVEnv := by
+  induction H with
+  | nil => exact Hvalid
+  | cons Hstep Htail Hsemantic Hrest ih =>
+    exact ih (Hsemantic.checking Hvalid)
 
 private theorem perm_group_familyConstants
     (header recursor : VConstVal)
@@ -25606,6 +25904,17 @@ theorem RestoredNestedDeclarationsResult.translatedFreshOfInstallation
   exact ⟨primaryEntries ++ auxiliaryEntries,
     HprimaryFresh.append HauxiliaryFresh,
     HprimaryTranslated.append HauxiliaryTranslated⟩
+
+theorem RestoredNestedDeclarationsResult.checkingOfInstallation
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames types auxRecNames out)
+    (Hprimary : RestoredInductiveInstallationTrace safety H.inductives
+      sourceVEnv primaryConstants primaryVEnv)
+    (Hauxiliary : RestoredRecursorInstallationTrace safety H.auxiliaries
+      primaryVEnv auxiliaryConstants outVEnv)
+    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
+    CheckingEnv safety out.2 outVEnv :=
+  Hauxiliary.checking (Hprimary.checking Hvalid)
 
 /-- Compositional restored-block assembly.  Unlike
 `restoredBlockCertificate`, this endpoint takes exact per-family and
