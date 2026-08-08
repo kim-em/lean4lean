@@ -36992,6 +36992,60 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfRealizations
       hfamily hdecl) Hfamilies Hconstructors Hstep
     Hrealization.source Hrefinement
 
+/-- Mutual-family endpoint whose only recursor premise concerns the restored
+type of the actual generated entry.  All abstract source-recursion semantics,
+shape transport, production metadata, and witness identity are derived by
+`sourceRecursorRealizationAtFresh`. -/
+theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfCanonical
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv envTypes)
+    (hempty : initialState.nestedAux = #[])
+    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv
+      loweredSourceEnv (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+      allIndNames sourceTypes auxRecNames out)
+    (Hcanonical : ∀ familyIdx
+      (hfamily : familyIdx < sourceTypes.length)
+      (hdecl : familyIdx < sourceDecl.types.length)
+      (hentry : familyIdx < Hprod.entries.length)
+      (stepSource stepTarget : Environment)
+      (Hstep : RestoredInductiveStep result loweredEnv
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
+        sourceTypes[familyIdx] stepSource stepTarget),
+      RestoredPrimaryRecursorCanonicalInputs Hstep.restored.recursor
+          (Hprod.entries[familyIdx]'hentry).2 envCtors ∧
+        (sourceDecl.types[familyIdx]'hdecl).numIndices =
+          (loweredDecl.types[familyIdx]'(by
+            have hrecInfo : familyIdx < Hprod.recInfos.size := by
+              simpa [Hprod.generated.length] using hentry
+            simpa [Hprod.cardinality.records] using hrecInfo)).numIndices) :
+    ∃ owners recursors,
+      RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
+        sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
+  apply H.sourceSemanticTraceAtFreshOfRealizations Hc Hprod Hsources Hsource
+    Hfamilies Hconstructors hempty Hrestored
+  intro familyIdx hfamily hdecl hentry stepSource stepTarget Hstep
+  rcases Hcanonical familyIdx hfamily hdecl hentry stepSource stepTarget Hstep
+    with ⟨Hinputs, hindices⟩
+  exact ⟨(Hprod.entries[familyIdx]'hentry).2,
+    H.sourceRecursorRealizationAtFresh Hc Hprod Hsource hempty familyIdx
+      hfamily hdecl hentry Hstep Hinputs hindices⟩
+
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResult env fuel nparams types
