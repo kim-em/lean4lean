@@ -23887,7 +23887,8 @@ theorem inductiveTypeInfos_source_mem
     ∃ info ∈ (AddInductive.inductiveTypeInfos stats numParams indTypes
         numNested isUnsafe lparams).toList,
       info.name = owner.name ∧
-      info.ctors = owner.ctors.map (fun ctor => ctor.name) := by
+      info.ctors = owner.ctors.map (fun ctor => ctor.name) ∧
+      info.all = indTypes.toList.map (fun type => type.name) := by
   rcases List.mem_iff_getElem.mp howner with ⟨i, hi, rfl⟩
   have hinfosSize :
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
@@ -23895,10 +23896,11 @@ theorem inductiveTypeInfos_source_mem
     simp [AddInductive.inductiveTypeInfos, hsize]
   let info := (AddInductive.inductiveTypeInfos stats numParams indTypes
     numNested isUnsafe lparams)[i]'(by simpa [hinfosSize] using hi)
-  refine ⟨info, ?_, ?_, ?_⟩
+  refine ⟨info, ?_, ?_, ?_, ?_⟩
   · simpa [info] using Array.getElem_mem (xs :=
       AddInductive.inductiveTypeInfos stats numParams indTypes numNested
         isUnsafe lparams) (by simpa [hinfosSize] using hi)
+  · simp [info, AddInductive.inductiveTypeInfos, hsize]
   · simp [info, AddInductive.inductiveTypeInfos, hsize]
   · simp [info, AddInductive.inductiveTypeInfos, hsize]
 
@@ -24205,7 +24207,8 @@ theorem RecursorPhasesResult.findSourceHeader
     (howner : owner ∈ indTypes.toList) :
     ∃ info : InductiveVal,
       outEnv.find? owner.name = some (.inductInfo info) ∧
-      info.ctors = owner.ctors.map (fun ctor => ctor.name) := by
+      info.ctors = owner.ctors.map (fun ctor => ctor.name) ∧
+      info.all = indTypes.toList.map (fun type => type.name) := by
   rcases Hheaders.sourceAligned with ⟨numNested, Haligned⟩
   have htypesLength : indTypes.size = decl.types.length := by
     simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
@@ -24216,11 +24219,59 @@ theorem RecursorPhasesResult.findSourceHeader
     exact htypesLength.symm
   rcases inductiveTypeInfos_source_mem stats nparams indTypes numNested
       isUnsafe c.lparams hsize howner with
-    ⟨info, hinfo, hname, hctors⟩
+    ⟨info, hinfo, hname, hctors, hall⟩
   rcases Haligned.findInfo hinfo with ⟨value, hentry⟩
-  refine ⟨info, ?_, hctors⟩
+  refine ⟨info, ?_, hctors, hall⟩
   rw [← hname]
   exact H.findHeaderOfMem Hc hentry
+
+private theorem mkAuxRecNameMap_fold_recNames
+    (names : List Name) (acc : Array Name × NameMap Name × Nat)
+    (mainName : Name) :
+    (names.foldl (fun b name =>
+      (b.1.push (Lean.mkRecName name),
+        b.2.1.insert (Lean.mkRecName name)
+          ((Lean.mkRecName mainName).appendIndexAfter b.2.2),
+        b.2.2 + 1)) acc).1.toList =
+      acc.1.toList ++ names.map Lean.mkRecName := by
+  induction names generalizing acc with
+  | nil => simp
+  | cons name names ih =>
+    simp only [List.foldl_cons, List.map_cons]
+    rw [ih]
+    simp
+
+/-- The first component of the production auxiliary-recursor map is exactly
+the recursor-name image of the extra family names recorded in the installed
+main-family metadata. -/
+theorem mkAuxRecNameMap_recNames
+    (main : InductiveType) (rest : List InductiveType)
+    (env : Environment) (info : InductiveVal)
+    (hfind : env.find? main.name = some (.inductInfo info))
+    (hlength : (main :: rest).length < info.all.length) :
+    (Lean4Lean.mkAuxRecNameMap env (main :: rest)).1 =
+      (info.all.drop (main :: rest).length).map Lean.mkRecName := by
+  have hlength' : rest.length + 1 < info.all.length := by
+    simpa using hlength
+  simp [Lean4Lean.mkAuxRecNameMap, hfind, hlength',
+    mkAuxRecNameMap_fold_recNames]
+
+theorem mkAuxRecNameMap_recNames_mem
+    (main : InductiveType) (rest : List InductiveType)
+    (env : Environment) (info : InductiveVal)
+    (hfind : env.find? main.name = some (.inductInfo info))
+    (hmem : recName ∈
+      (Lean4Lean.mkAuxRecNameMap env (main :: rest)).1) :
+    ∃ name ∈ info.all, recName = Lean.mkRecName name := by
+  by_cases hlength : (main :: rest).length < info.all.length
+  · rw [mkAuxRecNameMap_recNames main rest env info hfind hlength] at hmem
+    rcases List.mem_map.mp hmem with ⟨name, hname, rfl⟩
+    exact ⟨name, List.mem_of_mem_drop hname, rfl⟩
+  · have hlength' : ¬ rest.length + 1 < info.all.length := by
+      simpa using hlength
+    simp [Lean4Lean.mkAuxRecNameMap, hfind, hlength'] at hmem
+    change recName ∈ ([] : List Name) at hmem
+    simp at hmem
 
 /-- Constructor metadata installed in the middle phase remains retrievable,
 unchanged, after recursor installation. -/
@@ -24351,7 +24402,7 @@ theorem RecursorPhasesResult.restorationSources
             RestoreTelescope rule.rhs nparams := by
   intro owner howner
   rcases H.findSourceHeader Hc howner with
-    ⟨oldInfo, hheader, hctors⟩
+    ⟨oldInfo, hheader, hctors, _hall⟩
   rcases List.mem_iff_getElem.mp howner with ⟨ownerIdx, hownerIdx, rfl⟩
   rcases H.findSourceRecursor ownerIdx (by simpa using hownerIdx) with
     ⟨recInfo, hrecursor, hrecType, hrecRules⟩
@@ -25998,6 +26049,99 @@ theorem NestedLoweringResult.sourceTypeName
   rcases H with ⟨finalState, Hrun⟩
   apply Hrun.preservesInitialTypeName
   exact ⟨source, by simpa using hsource, rfl⟩
+
+/-- Specialize `restorationSources` from the installed lowered family list
+back to each original source family, using the lowering trace for name
+preservation and target constructor telescopes. -/
+theorem RecursorPhasesResult.restorationSourcesOfLowering
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv res.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv)
+    (Hlower : NestedLoweringResult prodEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } res) :
+    ∀ owner, owner ∈ sourceTypes →
+      ∃ oldInfo : InductiveVal,
+        outEnv.find? owner.name = some (.inductInfo oldInfo) ∧
+        (∀ ctorName, ctorName ∈ oldInfo.ctors →
+          ∃ ctorInfo : ConstructorVal,
+            outEnv.find? ctorName = some (.ctorInfo ctorInfo) ∧
+            RestoreTelescope ctorInfo.type nparams) ∧
+        ∃ recInfo : RecursorVal,
+          outEnv.find? (Lean.mkRecName owner.name) = some (.recInfo recInfo) ∧
+          RestoreTelescope recInfo.type nparams ∧
+          ∀ rule ∈ recInfo.rules,
+            RestoreTelescope rule.rhs nparams := by
+  have Hlowered := H.restorationSources Hc (by
+    intro lowered hlowered ctor hctor
+    apply Hlower.resultRestorable lowered (by simpa using hlowered)
+    exact hctor)
+  intro owner howner
+  rcases Hlower.sourceTypeName howner with
+    ⟨lowered, hlowered, hname⟩
+  simpa [hname] using Hlowered lowered (by simpa using hlowered)
+
+/-- Every auxiliary recursor selected by the production restoration map is
+the installed recursor of one of the dynamically generated lowered families.
+Consequently its type and every rule RHS satisfy the telescope discipline
+required by restoration. -/
+theorem RecursorPhasesResult.auxRestorationSourcesOfLowering
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv res.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv)
+    (Hlower : NestedLoweringResult prodEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } res) :
+    ∀ recName,
+      recName ∈ (Lean4Lean.mkAuxRecNameMap outEnv sourceTypes).1 →
+      ∃ oldInfo : RecursorVal,
+        outEnv.find? recName = some (.recInfo oldInfo) ∧
+        RestoreTelescope oldInfo.type nparams ∧
+        ∀ rule ∈ oldInfo.rules,
+          RestoreTelescope rule.rhs nparams := by
+  rcases Hlower with ⟨finalState, Hrun⟩
+  rcases Hrun.source with
+    ⟨main, rest, tail, paramsState, lctx, params, hsource, Hopening,
+      hinitial, Hqueue⟩
+  subst sourceTypes
+  have Hrestorable := H.restorationSources Hc (by
+    intro lowered hlowered ctor hctor
+    apply Hrun.resultRestorable lowered (by simpa using hlowered)
+    exact hctor)
+  have hmainPresent :
+      NewTypeNamePresent
+        { initialState with newTypes := (main :: rest).toArray } main.name :=
+    ⟨main, by simp, rfl⟩
+  rcases Hrun.preservesInitialTypeName hmainPresent with
+    ⟨loweredMain, hloweredMain, hmainName⟩
+  rcases H.findSourceHeader Hc (by simpa using hloweredMain) with
+    ⟨mainInfo, hmainFind, _hctors, hall⟩
+  have hmainFind' :
+      outEnv.find? main.name = some (.inductInfo mainInfo) := by
+    simpa [hmainName] using hmainFind
+  have hall' :
+      mainInfo.all = res.types.map (fun type => type.name) := by
+    simpa using hall
+  intro recName hrecName
+  rcases mkAuxRecNameMap_recNames_mem main rest outEnv mainInfo hmainFind'
+      hrecName with ⟨familyName, hfamilyName, rfl⟩
+  rw [hall'] at hfamilyName
+  rcases List.mem_map.mp hfamilyName with
+    ⟨family, hfamily, rfl⟩
+  rcases Hrestorable family (by simpa using hfamily) with
+    ⟨_oldIndInfo, _hindFind, _hctors, recInfo, hrecFind, hrecType,
+      hrecRules⟩
+  exact ⟨recInfo, hrecFind, hrecType, hrecRules⟩
 
 theorem ElimNestedInductive.run'.translation
     (fuel nparams : Nat) (types : List InductiveType)
