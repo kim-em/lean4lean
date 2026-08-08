@@ -37990,6 +37990,46 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
     hindices ?_⟩⟩
   simpa [recursor] using Htype
 
+/-- Binder-explicit form of `sourcePrimaryRecursorRealizationAtFresh`.
+This is the preferred boundary for the pending nested-restoration transport:
+the caller must provide the exact typed restored telescope, rather than an
+opaque translation of the whole expression. -/
+theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFreshOfTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (hempty : initialState.nestedAux = #[])
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
+    (hdecl : familyIdx < sourceDecl.types.length)
+    (hentry : familyIdx < Hprod.entries.length)
+    (Hstep : RestoredInductiveStep result loweredEnv
+      (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
+      sourceTypes[familyIdx] sourceProdEnv targetProdEnv)
+    (targetType : VExpr)
+    (Htype : Expr.ForallTelescopeTypeTranslation envCtors
+      Hstep.restored.recursor.oldInfo.levelParams []
+      Hstep.restored.recursor.restored.newInfo.type
+      (result.nparams + (Hprod.recInfos.map (·.motive)).size +
+        (Hprod.recInfos.flatMap (·.minors)).size +
+        Hprod.recInfos[familyIdx]!.indices.size + 1)
+      targetType) :
+    ∃ recursor, Nonempty (SourcePrimaryRecursorRealization sourceDecl
+      (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor envCtors
+      recursor) :=
+  H.sourcePrimaryRecursorRealizationAtFresh Hprod Hsource Hmetadata hempty
+    familyIdx hfamily hdecl hentry Hstep targetType Htype.translation
+
 /-- Package one original family into the payload consumed by whole-mutual
 semantic-trace assembly.  Header and constructor semantics come from the
 independent source translation. The source-recursion payload is explicitly
@@ -38278,6 +38318,59 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTranslatedTypes
       Hstep with ⟨targetType, Htype⟩
   exact H.sourcePrimaryRecursorRealizationAtFresh Hprod Hsource Hmetadata
     hempty familyIdx hfamily hdecl hentry Hstep targetType Htype
+
+/-- Preferred whole-mutual boundary for canonical restored recursor typing.
+The remaining family-wise obligation is decomposed at every forall binder and
+already includes typehood of every domain and the final result. -/
+theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTelescopeTranslations
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv envTypes)
+    (hempty : initialState.nestedAux = #[])
+    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv
+      loweredSourceEnv (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+      allIndNames sourceTypes auxRecNames out)
+    (HtelescopeTypes : ∀ familyIdx
+      (hfamily : familyIdx < sourceTypes.length)
+      (hdecl : familyIdx < sourceDecl.types.length)
+      (hentry : familyIdx < Hprod.entries.length)
+      (stepSource stepTarget : Environment)
+      (Hstep : RestoredInductiveStep result loweredEnv
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
+        sourceTypes[familyIdx] stepSource stepTarget),
+      ∃ targetType, Expr.ForallTelescopeTypeTranslation envCtors
+        Hstep.restored.recursor.oldInfo.levelParams []
+        Hstep.restored.recursor.restored.newInfo.type
+        (result.nparams + (Hprod.recInfos.map (·.motive)).size +
+          (Hprod.recInfos.flatMap (·.minors)).size +
+          Hprod.recInfos[familyIdx]!.indices.size + 1)
+        targetType) :
+    ∃ owners recursors,
+      RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
+        sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
+  apply H.sourceSemanticTraceAtFreshOfRealizations Hc Hprod Hsources Hsource
+    Hfamilies Hconstructors hempty Hrestored
+  intro familyIdx hfamily hdecl hentry stepSource stepTarget Hstep
+  rcases HtelescopeTypes familyIdx hfamily hdecl hentry stepSource stepTarget
+      Hstep with ⟨targetType, Htype⟩
+  exact H.sourcePrimaryRecursorRealizationAtFreshOfTelescope Hprod Hsource
+    Hmetadata hempty familyIdx hfamily hdecl hentry Hstep targetType Htype
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
