@@ -1228,6 +1228,72 @@ theorem VEnv.addConsts_names_nodup
     (constants.map (·.name)).Nodup :=
   (VEnv.addConsts_names_fresh H).1
 
+/-- Two fresh abstract constants with distinct names may be installed in
+either order, producing the same functional environment. -/
+theorem VEnv.addConsts_swap
+    {env out : VEnv} {a b : VConstVal}
+    (hne : a.name ≠ b.name)
+    (H : env.addConsts [a, b] = some out) :
+    env.addConsts [b, a] = some out := by
+  have hfresh := VEnv.addConsts_names_fresh H |>.2
+  have haFresh := hfresh a (by simp)
+  have hbFresh := hfresh b (by simp)
+  simp [VEnv.addConsts, VEnv.addConst, haFresh, hbFresh, hne, hne.symm] at H ⊢
+  rw [← H]
+  congr 1
+  funext name
+  by_cases haName : a.name = name <;>
+    by_cases hbName : b.name = name <;> simp_all
+
+/-- Installing a list of fresh abstract constants is invariant under
+permutation: only the resulting finite map matters, not insertion order. -/
+theorem VEnv.addConsts_perm
+    {env out : VEnv} {constants constants' : List VConstVal}
+    (Hperm : constants ~ constants')
+    (H : env.addConsts constants = some out) :
+    env.addConsts constants' = some out := by
+  induction Hperm generalizing env out with
+  | nil => exact H
+  | @cons ci constants constants' _ ih =>
+    simp only [VEnv.addConsts] at H ⊢
+    cases hadd : env.addConst ci.name ci.toVConstant with
+    | none => simp [hadd] at H
+    | some next =>
+      rw [hadd] at H
+      simpa using ih H
+  | @swap a b constants =>
+    change env.addConsts ([b, a] ++ constants) = some out at H
+    rcases VEnv.addConsts_append_inv H with
+      ⟨middle, hprefix, hsuffix⟩
+    have hnodup := VEnv.addConsts_names_nodup hprefix
+    have hne : b.name ≠ a.name := by
+      simpa using hnodup
+    change env.addConsts ([a, b] ++ constants) = some out
+    exact VEnv.addConsts_append
+      (VEnv.addConsts_swap hne hprefix) hsuffix
+  | trans _ _ ih₁ ih₂ =>
+    exact ih₂ (ih₁ H)
+
+/-- Recover the canonical dependency-ordered block installation from a
+successful installation of the same constants in any restoration order. -/
+theorem VInductBlock.install_of_permutedConstants
+    {env out : VEnv} {block : VInductBlock}
+    {constants : List VConstVal}
+    (Hperm : block.types ++ block.ctors ++ block.recursors ~ constants)
+    (H : env.addConsts constants = some out) :
+    block.install env = some (out.addDefEqs block.rules) := by
+  have hcanonical : env.addConsts
+      (block.types ++ block.ctors ++ block.recursors) = some out :=
+    VEnv.addConsts_perm Hperm.symm H
+  rcases VEnv.addConsts_append_inv (xs := block.types)
+      (ys := block.ctors ++ block.recursors) (by
+        simpa only [List.append_assoc] using hcanonical) with
+    ⟨envTypes, htypes, htail⟩
+  rcases VEnv.addConsts_append_inv (xs := block.ctors)
+      (ys := block.recursors) htail with
+    ⟨envCtors, hctors, hrecursors⟩
+  simp [VInductBlock.install, htypes, hctors, hrecursors]
+
 theorem VEnv.addConsts_get
     {env out : VEnv} {constants : List VConstVal}
     (H : env.addConsts constants = some out)
