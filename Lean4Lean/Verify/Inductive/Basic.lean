@@ -24913,6 +24913,55 @@ theorem ElimNestedInductive.run.parameterOpening
               exact ih (i + 1) _
     exact loopWF fuel 0 outState
 
+/-- Projection of the complete lowering trace through the `StateT.run'` used
+by `Environment.addInductive`. -/
+def NestedLoweringResult
+    (env : Environment) (fuel nparams : Nat) (types : List InductiveType)
+    (initialState : Lean4Lean.ElimNestedInductive.State)
+    (result : Lean4Lean.ElimNestedInductive.Result) : Prop :=
+  ∃ finalState, NestedLoweringRun env fuel nparams types initialState
+    (result, finalState)
+
+theorem ElimNestedInductive.run'.translation
+    (fuel nparams : Nat) (types : List InductiveType)
+    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
+    (hclosures : MutualInductivesClosed env) :
+    ((Lean4Lean.ElimNestedInductive.run fuel nparams types env).run'
+      state).WF (NestedLoweringResult env fuel nparams types state) := by
+  have Hrun := ElimNestedInductive.run.translation fuel nparams types env state
+    hclosures
+  have Hprojected := Hrun.map fun out Hout =>
+    show NestedLoweringResult env fuel nparams types state out.1 from
+      ⟨out.2, Hout⟩
+  simpa [StateT.run'] using Hprojected
+
+/-- Exact outer composition for `Environment.addInductive`: source closure
+checks, verified nested lowering, then the already isolated post-lowering
+installation/restoration pipeline. -/
+theorem Environment.addInductive.loweringWF
+    (env : Environment) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
+    (fuel : FuelConfig)
+    (hclosures : MutualInductivesClosed env)
+    (Q : Environment → Prop)
+    (Hfinish : ∀ res,
+      NestedLoweringResult env fuel.inductiveFuel nparams types
+        { lvls := lparams.map .param, newTypes := types.toArray } res →
+      (Environment.addInductiveAfterLowering env lparams nparams types
+        isUnsafe allowPrimitive fuel res).WF Q) :
+    (Environment.addInductive env lparams nparams types isUnsafe
+      allowPrimitive fuel).WF Q := by
+  have Hsources : (Lean4Lean.checkInductiveSources env types).WF
+      fun _ => True := by
+    intro _ _
+    trivial
+  have Hlowering := ElimNestedInductive.run'.translation fuel.inductiveFuel
+    nparams types env
+    { lvls := lparams.map .param, newTypes := types.toArray } hclosures
+  have Hcombined := Hsources.bind fun _ _ =>
+    Hlowering.bind fun res Hres => Hfinish res Hres
+  simpa [Environment.addInductive] using Hcombined
+
 /-- Reference formulation of the executable header-checking prefix. Keeping
 the closure check in the statement is important: it is what turns the
 type-checker's context-relative result into a source declaration judgment. -/
