@@ -15814,6 +15814,39 @@ theorem BoundFVarArray.get_eq_fvar
   refine ⟨fvars[i], ?_, members fvars[i] (List.getElem_mem hifvars)⟩
   simp
 
+/-- The retained free variable at one array position together with the exact
+ordinary local declaration which introduced it. -/
+structure BoundFVarDeclarationAt
+    (c : AddInductive.Context) (xs : Array Expr) (i : Nat) where
+  inBounds : i < xs.size
+  fvar : FVarId
+  expression : xs[i] = .fvar fvar
+  index : Nat
+  userName : Name
+  type : Expr
+  binderInfo : BinderInfo
+  kind : LocalDeclKind
+  declaration : c.lctx.find? fvar = some
+    (.cdecl index fvar userName type binderInfo kind)
+
+theorem BoundFVarArray.declarationAt
+    (H : BoundFVarArray c xs) (Hc : BindingContextWF c)
+    (i : Nat) (hi : i < xs.size) :
+    Nonempty (BoundFVarDeclarationAt c xs i) := by
+  rcases H.get_eq_fvar i hi with ⟨fv, hexpression, hfv⟩
+  rcases Hc.findCDecl fv hfv with
+    ⟨index, userName, type, binderInfo, kind, hdeclaration⟩
+  exact ⟨{
+    inBounds := hi
+    fvar := fv
+    expression := hexpression
+    index := index
+    userName := userName
+    type := type
+    binderInfo := binderInfo
+    kind := kind
+    declaration := hdeclaration }⟩
+
 theorem BoundFVarArray.getElem_eq_fvar
     (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
     ∃ hiFvars : i < H.fvars.length,
@@ -27909,6 +27942,71 @@ theorem GeneratedRecursorDomainPosition.of_lookup
         rw [hoffset, heq]
         exact .major
 
+/-- A classified suffix slot paired with the exact retained local declaration
+whose type production uses as that forall domain. -/
+inductive GeneratedRecursorDomainDeclaration
+    (c : AddInductive.Context) (recInfos : Array AddInductive.RecInfo)
+    (ownerIdx : Nat) : Nat → GeneratedRecursorDomainSlot → Type
+  | motive (i : Nat)
+      (declaration : BoundFVarDeclarationAt c
+        (recInfos.map (·.motive)) i) :
+      GeneratedRecursorDomainDeclaration c recInfos ownerIdx i (.motive i)
+  | minor (i : Nat)
+      (declaration : BoundFVarDeclarationAt c
+        (recInfos.flatMap (·.minors)) i) :
+      GeneratedRecursorDomainDeclaration c recInfos ownerIdx
+        ((recInfos.map (·.motive)).size + i) (.minor i)
+  | index (i : Nat)
+      (declaration : BoundFVarDeclarationAt c
+        recInfos[ownerIdx]!.indices i) :
+      GeneratedRecursorDomainDeclaration c recInfos ownerIdx
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size + i) (.index i)
+  | major
+      (declaration : BoundFVarDeclarationAt c
+        #[recInfos[ownerIdx]!.major] 0) :
+      GeneratedRecursorDomainDeclaration c recInfos ownerIdx
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size) .major
+
+/-- `RecInfoBindings` does not merely show that generated recursor binders are
+free variables: together with context well-formedness it recovers the exact
+local declaration behind every classified suffix position. -/
+theorem RecInfoBindings.domainDeclaration
+    (H : RecInfoBindings c recInfos) (Hc : BindingContextWF c)
+    (howner : ownerIdx < recInfos.size)
+    (Hposition : GeneratedRecursorDomainPosition recInfos ownerIdx
+      position slot) :
+    Nonempty (GeneratedRecursorDomainDeclaration c recInfos ownerIdx
+      position slot) := by
+  cases Hposition with
+  | motive =>
+      rcases H.motives.declarationAt Hc position (by omega) with
+        ⟨Hdeclaration⟩
+      exact ⟨.motive position Hdeclaration⟩
+  | minor i =>
+      rcases H.flatMinors.declarationAt Hc i (by omega) with ⟨Hdeclaration⟩
+      exact ⟨.minor i Hdeclaration⟩
+  | index i =>
+      rcases (H.indices ownerIdx howner).declarationAt Hc i (by omega) with
+        ⟨Hdeclaration⟩
+      exact ⟨.index i Hdeclaration⟩
+  | major =>
+      rcases (H.major ownerIdx howner).declarationAt Hc 0 (by simp) with
+        ⟨Hdeclaration⟩
+      exact ⟨.major Hdeclaration⟩
+
+theorem RecInfoBindings.domainDeclarationOfLookup
+    (H : RecInfoBindings c recInfos) (Hc : BindingContextWF c)
+    (howner : ownerIdx < recInfos.size)
+    (hlookup : (generatedRecursorDomainSlots recInfos ownerIdx)[position]? =
+      some slot) :
+    Nonempty (GeneratedRecursorDomainDeclaration c recInfos ownerIdx
+      position slot) :=
+  H.domainDeclaration Hc howner
+    (GeneratedRecursorDomainPosition.of_lookup hlookup)
+
 /-- The exact operational trace relevant to semantic transport of a generated
 primary recursor: common parameters are opened once, every remaining domain
 is paired with its restored domain, and the canonical motive-application
@@ -28054,19 +28152,27 @@ structure GeneratedRecursorRestoredDomainTranslations
       newInfo Hentry)
     (newEnv : VEnv) (newBase : VLCtx) : Prop where
   motive : ∀ i (hi : i < (recInfos.map (·.motive)).size)
+      (declaration : BoundFVarDeclarationAt c
+        (recInfos.map (·.motive)) i)
       (binderDepth : Nat) (accumulated : List VExpr),
     GeneratedRecursorRestoredDomainTranslation H newEnv newBase i
       binderDepth accumulated
   minor : ∀ i (hi : i < (recInfos.flatMap (·.minors)).size)
+      (declaration : BoundFVarDeclarationAt c
+        (recInfos.flatMap (·.minors)) i)
       (binderDepth : Nat) (accumulated : List VExpr),
     GeneratedRecursorRestoredDomainTranslation H newEnv newBase
       ((recInfos.map (·.motive)).size + i) binderDepth accumulated
   index : ∀ i (hi : i < recInfos[ownerIdx]!.indices.size)
+      (declaration : BoundFVarDeclarationAt c
+        recInfos[ownerIdx]!.indices i)
       (binderDepth : Nat) (accumulated : List VExpr),
     GeneratedRecursorRestoredDomainTranslation H newEnv newBase
       ((recInfos.map (·.motive)).size +
         (recInfos.flatMap (·.minors)).size + i) binderDepth accumulated
-  major : ∀ (binderDepth : Nat) (accumulated : List VExpr),
+  major : ∀ (declaration : BoundFVarDeclarationAt c
+      #[recInfos[ownerIdx]!.major] 0)
+      (binderDepth : Nat) (accumulated : List VExpr),
     GeneratedRecursorRestoredDomainTranslation H newEnv newBase
       ((recInfos.map (·.motive)).size +
         (recInfos.flatMap (·.minors)).size +
@@ -28230,6 +28336,8 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
     (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
       newInfo Hentry)
     (newEnv : VEnv) (newBase : VLCtx) (newPrefix : List VExpr)
+    (Hc : BindingContextWF c) (Hbindings : RecInfoBindings c recInfos)
+    (howner : ownerIdx < recInfos.size)
     (Hdomains : GeneratedRecursorRestoredDomainTranslations H newEnv newBase)
     (Hresidual : ∀ {oldΔ oldResidualTarget}
         (accumulated : List VExpr),
@@ -28275,16 +28383,25 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
       accumulated slot hlookup Hreplacement Htr Htype
     cases GeneratedRecursorDomainPosition.of_lookup hlookup with
     | motive =>
-        exact Hdomains.motive _ (by omega) binderDepth accumulated
-          Hreplacement Htr Htype
+        rcases Hbindings.motives.declarationAt Hc _ (by omega) with
+          ⟨Hdeclaration⟩
+        exact Hdomains.motive _ (by omega) Hdeclaration binderDepth
+          accumulated Hreplacement Htr Htype
     | minor =>
-        exact Hdomains.minor _ (by omega) binderDepth accumulated
-          Hreplacement Htr Htype
+        rcases Hbindings.flatMinors.declarationAt Hc _ (by omega) with
+          ⟨Hdeclaration⟩
+        exact Hdomains.minor _ (by omega) Hdeclaration binderDepth
+          accumulated Hreplacement Htr Htype
     | index =>
-        exact Hdomains.index _ (by omega) binderDepth accumulated
-          Hreplacement Htr Htype
+        rcases (Hbindings.indices ownerIdx howner).declarationAt Hc _
+            (by omega) with ⟨Hdeclaration⟩
+        exact Hdomains.index _ (by omega) Hdeclaration binderDepth
+          accumulated Hreplacement Htr Htype
     | major =>
-        exact Hdomains.major binderDepth accumulated Hreplacement Htr Htype
+        rcases (Hbindings.major ownerIdx howner).declarationAt Hc 0
+            (by simp) with ⟨Hdeclaration⟩
+        exact Hdomains.major Hdeclaration binderDepth accumulated
+          Hreplacement Htr Htype
   · exact Hresidual
 
 /-- A canonical translation of the restored recursor telescope is already a
