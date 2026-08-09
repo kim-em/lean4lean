@@ -25868,6 +25868,76 @@ theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedAt
         (Expr.ForallTelescopeTypeTranslation.cons
           (name := name) (bi := bi) HnewDomain HnewDomainType HnewBody')
 
+/-- Position-indexed form of `transportAbstractedAt`.  The first restored
+domain is presented at `position`; recursive calls increment it exactly once
+per forall binder.  This is the bridge from the structural replacement fold
+to the motive/minor/index/major slot layout of a generated recursor. -/
+theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedAtFrom
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual)
+    (Hold : Expr.ForallTelescopeTypeTranslation oldEnv Us oldΔ
+      (input.abstractList oldParams depth) arity oldTarget)
+    (limit position : Nat) (hspan : position + arity = limit)
+    (Hdomains : ∀ {oldΔ oldDomain newDomain oldDomainTarget}
+        (position binderDepth : Nat) (newPrefix : List VExpr),
+      position < limit →
+      ExprReplacement replaceNode oldDomain newDomain →
+      TrExprS oldEnv Us oldΔ
+        (oldDomain.abstractList oldParams binderDepth) oldDomainTarget →
+      oldEnv.IsType Us.length oldΔ.toCtx oldDomainTarget →
+      Expr.AbstractTypeTranslation newEnv Us
+        (abstractForallContext newPrefix newBase)
+        (newDomain.abstractList newParams binderDepth))
+    (Hresidual : ∀ {oldΔ oldResidualTarget}
+        (newPrefix : List VExpr),
+      ExprReplacement replaceNode oldResidual newResidual →
+      TrExprS oldEnv Us oldΔ
+        (oldResidual.abstractList oldParams (depth + arity))
+        oldResidualTarget →
+      oldEnv.IsType Us.length oldΔ.toCtx oldResidualTarget →
+      Expr.AbstractTypeTranslation newEnv Us
+        (abstractForallContext newPrefix newBase)
+        (newResidual.abstractList newParams (depth + arity))) :
+    ∃ newTarget,
+      Expr.ForallTelescopeTypeTranslation newEnv Us
+        (abstractForallContext newPrefix newBase)
+        (output.abstractList newParams depth) arity newTarget := by
+  induction H generalizing oldΔ oldTarget depth position newPrefix with
+  | nil Hbody =>
+    rcases Hresidual newPrefix Hbody Hold.translation Hold.isType with
+      ⟨target, Htr, Htype⟩
+    exact ⟨target, .nil Htr Htype⟩
+  | @cons name oldDom oldBody bi newDom newBody arity oldResidual newResidual
+      Hnone Hdom Hbody ih =>
+    rw [Expr.abstractList_forallE] at Hold
+    cases Hold with
+    | cons HoldDom HoldDomType HoldBody =>
+      rcases Hdomains position depth newPrefix (by omega) Hdom HoldDom
+          HoldDomType with
+        ⟨newDomainTarget, HnewDomain, HnewDomainType⟩
+      rcases ih HoldBody (Hresidual := by
+          intro oldΔ oldResidualTarget extendedPrefix Hreplacement Htr Htype
+          have Htransported := Hresidual extendedPrefix Hreplacement (by
+            simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Htr)
+            Htype
+          simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+            Htransported)
+          (depth := depth + 1) (position := position + 1)
+          (hspan := by omega)
+          (newPrefix := newPrefix ++ [newDomainTarget]) with
+        ⟨newBodyTarget, HnewBody⟩
+      have HnewBody' : Expr.ForallTelescopeTypeTranslation newEnv Us
+          ((none, .vlam newDomainTarget) ::
+            abstractForallContext newPrefix newBase)
+          (newBody.abstractList newParams (depth + 1)) arity
+          newBodyTarget := by
+        simpa [abstractForallContext, List.reverse_append,
+          List.map_append, List.append_assoc] using HnewBody
+      refine ⟨.forallE newDomainTarget newBodyTarget, ?_⟩
+      simpa [Expr.updateForallE!, Expr.abstractList_forallE] using
+        (Expr.ForallTelescopeTypeTranslation.cons
+          (name := name) (bi := bi) HnewDomain HnewDomainType HnewBody')
+
 theorem ExprReplacement.ofReplace
     (replaceNode : Expr → Option Expr) :
     ∀ input, ExprReplacement replaceNode input (input.replace replaceNode) := by
@@ -27697,6 +27767,60 @@ def generatedRecursorDomainSlots
   simp [generatedRecursorDomainSlots]
   omega
 
+@[simp] theorem generatedRecursorDomainSlots_motive
+    (recInfos : Array AddInductive.RecInfo) (ownerIdx i : Nat)
+    (hi : i < (recInfos.map (·.motive)).size) :
+    (generatedRecursorDomainSlots recInfos ownerIdx)[i]? =
+      some (.motive i) := by
+  simp only [Array.size_map] at hi ⊢
+  have htotal : i <
+      (generatedRecursorDomainSlots recInfos ownerIdx).length := by
+    rw [generatedRecursorDomainSlots_length]
+    simp only [Array.size_map, Array.size_flatMap]
+    omega
+  rw [List.getElem?_eq_getElem htotal]
+  simp [generatedRecursorDomainSlots, List.getElem_append, hi] <;> omega
+
+@[simp] theorem generatedRecursorDomainSlots_minor
+    (recInfos : Array AddInductive.RecInfo) (ownerIdx i : Nat)
+    (hi : i < (recInfos.flatMap (·.minors)).size) :
+    (generatedRecursorDomainSlots recInfos ownerIdx)[
+        (recInfos.map (·.motive)).size + i]? =
+      some (.minor i) := by
+  simp only [Array.size_map, Array.size_flatMap] at hi ⊢
+  have htotal : recInfos.size + i <
+      (generatedRecursorDomainSlots recInfos ownerIdx).length := by
+    rw [generatedRecursorDomainSlots_length]
+    simp only [Array.size_map, Array.size_flatMap]
+    omega
+  rw [List.getElem?_eq_getElem htotal]
+  simp [generatedRecursorDomainSlots, List.getElem_append, hi] <;> omega
+
+@[simp] theorem generatedRecursorDomainSlots_index
+    (recInfos : Array AddInductive.RecInfo) (ownerIdx i : Nat)
+    (hi : i < recInfos[ownerIdx]!.indices.size) :
+    (generatedRecursorDomainSlots recInfos ownerIdx)[
+        (recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size + i]? =
+      some (.index i) := by
+  simp only [Array.size_map, Array.size_flatMap] at ⊢
+  unfold generatedRecursorDomainSlots
+  rw [List.getElem?_append_left (by simp; omega)]
+  rw [List.getElem?_append_right (by simp)]
+  simp [hi]
+
+@[simp] theorem generatedRecursorDomainSlots_major
+    (recInfos : Array AddInductive.RecInfo) (ownerIdx : Nat) :
+    (generatedRecursorDomainSlots recInfos ownerIdx)[
+        (recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size]? = some .major := by
+  simp only [Array.size_map, Array.size_flatMap] at ⊢
+  unfold generatedRecursorDomainSlots
+  rw [List.getElem?_append_right (by simp; omega)]
+  rw [List.getElem?_singleton]
+  split <;> simp_all <;> omega
+
 /-- The exact operational trace relevant to semantic transport of a generated
 primary recursor: common parameters are opened once, every remaining domain
 is paired with its restored domain, and the canonical motive-application
@@ -27866,7 +27990,10 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
       newInfo Hentry)
     (newEnv : VEnv) (newBase : VLCtx) (newPrefix : List VExpr)
     (Hdomains : ∀ {oldΔ oldDomain newDomain oldDomainTarget}
-        (binderDepth : Nat) (accumulated : List VExpr),
+        (position binderDepth : Nat) (accumulated : List VExpr)
+        (slot : GeneratedRecursorDomainSlot),
+      (generatedRecursorDomainSlots recInfos ownerIdx)[position]? =
+        some slot →
       ExprReplacement
           (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
           oldDomain newDomain →
@@ -27917,11 +28044,28 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
           (recInfos.flatMap (·.minors)).size +
           recInfos[ownerIdx]!.indices.size + 1)
         target := by
-  apply H.trace.suffix.transportAbstractedAt
+  apply H.trace.suffix.transportAbstractedAtFrom
     (oldParams := H.trace.opening.selection.fvars)
     (newParams := H.trace.opening.selection.fvars)
-    (depth := 0) (newPrefix := newPrefix) (newBase := newBase)
-    H.oldSuffix Hdomains
+    (depth := 0)
+    (limit := (recInfos.map (·.motive)).size +
+      (recInfos.flatMap (·.minors)).size +
+      recInfos[ownerIdx]!.indices.size + 1)
+    (position := 0) (hspan := by omega)
+    (newPrefix := newPrefix) (newBase := newBase)
+    H.oldSuffix
+  · intro oldΔ oldDomain newDomain oldDomainTarget position binderDepth
+      accumulated hposition Hreplacement Htr Htype
+    have hslot : position <
+        (generatedRecursorDomainSlots recInfos ownerIdx).length := by
+      simpa using hposition
+    let slot :=
+      (generatedRecursorDomainSlots recInfos ownerIdx)[position]'hslot
+    apply Hdomains position binderDepth accumulated slot
+    · exact List.getElem?_eq_getElem hslot
+    · exact Hreplacement
+    · exact Htr
+    · exact Htype
   intro oldΔ oldResidualTarget accumulated Hreplacement Htr Htype
   have Htr' : TrExprS venv Hentry.info.levelParams oldΔ
       ((concreteRecursorResult (recInfos.map (·.motive)).size
