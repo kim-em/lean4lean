@@ -23656,6 +23656,20 @@ theorem ClosedNestedAuxiliaryTranslation.residualUnder
     hselectionNodup] at Hweak
   simpa using Hweak
 
+/-- Typehood is weakened through the same suffix context as `residualUnder`.
+Together the two theorems provide exactly the leaf payload required by
+`ForallTelescopeTypeTranslation`. -/
+theorem ClosedNestedAuxiliaryTranslation.residualTypeUnder
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (henv : venv.Ordered) (suffixDomains : List VExpr) :
+    venv.IsType lparams.length
+      (abstractForallContext suffixDomains
+        (abstractForallContext H.domains [])).toCtx
+      (H.residualTarget.liftN suffixDomains.length 0) := by
+  exact H.residualType.weakN henv
+    (abstractForallContext.bvLift suffixDomains
+      (abstractForallContext H.domains [])).toCtx
+
 def ClosedNestedAuxiliaryTranslations
     (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result)
@@ -25514,6 +25528,75 @@ theorem ExprReplacement.forallTelescope_residual
         (Expr.ForallTelescope.cons (name := name) (dom := _)
           (bi := bi) Hrestored)
 
+/-- Binder-aligned form of expression replacement.  Unlike the existential
+`forallTelescope_residual` theorem, this relation retains the replacement
+proof for every old/restored domain and for the final residual. -/
+inductive ExprReplacement.ForallTelescopeReplacement
+    (replaceNode : Expr → Option Expr) :
+    Expr → Expr → Nat → Expr → Expr → Prop
+  | nil (Hbody : ExprReplacement replaceNode oldBody newBody) :
+      ExprReplacement.ForallTelescopeReplacement replaceNode
+        oldBody newBody 0 oldBody newBody
+  | cons
+      (Hnone : replaceNode (.forallE name oldDom oldBody bi) = none)
+      (Hdom : ExprReplacement replaceNode oldDom newDom)
+      (Hbody : ExprReplacement.ForallTelescopeReplacement replaceNode
+        oldBody newBody arity oldResidual newResidual) :
+      ExprReplacement.ForallTelescopeReplacement replaceNode
+        (.forallE name oldDom oldBody bi)
+        (Expr.updateForallE! (.forallE name oldDom oldBody bi)
+          newDom newBody)
+        (arity + 1) oldResidual newResidual
+
+/-- Decompose a replacement of a known forall telescope into the exact
+binder-aligned replacement trace. -/
+theorem ExprReplacement.forallTelescopeReplacement
+    (Hnone : ∀ name dom body bi,
+      replaceNode (.forallE name dom body bi) = none)
+    (Hreplace : ExprReplacement replaceNode input output)
+    (Htelescope : Expr.ForallTelescope input arity residual) :
+    ∃ restoredResidual,
+      ExprReplacement.ForallTelescopeReplacement replaceNode input output
+        arity residual restoredResidual := by
+  induction Htelescope generalizing output with
+  | nil => exact ⟨output, .nil Hreplace⟩
+  | @cons body arity residual name dom bi Htail ih =>
+    cases Hreplace with
+    | hit h =>
+      rw [Hnone] at h
+      contradiction
+    | forallE h hdom hbody =>
+      rcases ih hbody with ⟨restoredResidual, Hrestored⟩
+      exact ⟨restoredResidual, .cons h hdom Hrestored⟩
+
+theorem ExprReplacement.ForallTelescopeReplacement.oldTelescope
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual) :
+    Expr.ForallTelescope input arity oldResidual := by
+  induction H with
+  | nil => exact .nil _
+  | cons _ _ _ ih => exact .cons ih
+
+theorem ExprReplacement.ForallTelescopeReplacement.newTelescope
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual) :
+    Expr.ForallTelescope output arity newResidual := by
+  induction H with
+  | nil => exact .nil _
+  | @cons name oldDom oldBody bi newDom newBody arity oldResidual newResidual
+      Hnone Hdom Hbody ih =>
+    simpa [Expr.updateForallE!] using
+      (Expr.ForallTelescope.cons (name := name) (dom := newDom)
+        (bi := bi) ih)
+
+theorem ExprReplacement.ForallTelescopeReplacement.residualReplacement
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual) :
+    ExprReplacement replaceNode oldResidual newResidual := by
+  induction H with
+  | nil Hbody => exact Hbody
+  | cons _ _ _ ih => exact ih
+
 theorem ExprReplacement.ofReplace
     (replaceNode : Expr → Option Expr) :
     ∀ input, ExprReplacement replaceNode input (input.replace replaceNode) := by
@@ -26813,6 +26896,24 @@ theorem NestedRestoration.opening
   simp [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode,
     Expr.getAppFn]
 
+/-- After restoration opens the common-parameter prefix, the remaining
+generated recursor telescope is retained as a binder-aligned replacement
+trace.  The residual remains literal when it only refers to that suffix. -/
+theorem NestedRestorationOpening.suffixTelescopeReplacement
+    (Hopen : NestedRestorationOpening result env auxRec input output)
+    (Htelescope : Expr.ForallTelescope input
+      (result.nparams + suffixArity) residual)
+    (Hrange : residual.looseBVarRange' ≤ suffixArity) :
+    ∃ restoredResidual,
+      ExprReplacement.ForallTelescopeReplacement
+        (result.restoreNestedNode env Hopen.params auxRec)
+        Hopen.body Hopen.restoredBody suffixArity residual
+        restoredResidual := by
+  have Hsuffix := Hopen.opening.forallSuffix_sameResidual Htelescope Hrange
+  exact Hopen.replacement.forallTelescopeReplacement
+    (fun _name _dom _body _bi =>
+      restoreNestedNode_forall result env Hopen.params auxRec) Hsuffix
+
 theorem restoreNestedNode_of_bvar_head
     (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
     (As : Array Expr) (auxRec : NameMap Name)
@@ -27271,6 +27372,76 @@ theorem RecursorRestoration.typeConcreteRecursorResultForallTelescope
     (numIndices := recInfos[ownerIdx]!.indices.size)
     (ownerIdx := ownerIdx) (by simpa using howner)
   simpa only [Nat.add_assoc] using Htype'
+
+/-- The exact operational trace relevant to semantic transport of a generated
+primary recursor: common parameters are opened once, every remaining domain
+is paired with its restored domain, and the canonical motive-application
+residual is unchanged. -/
+structure GeneratedRecursorRestorationTelescopeTrace
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (prodEnv : Environment) (auxRec : NameMap Name)
+    (newInfo : RecursorVal)
+    (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry) where
+  opening : NestedRestorationOpening result prodEnv auxRec Hentry.info.type
+    newInfo.type
+  suffix : ExprReplacement.ForallTelescopeReplacement
+    (result.restoreNestedNode prodEnv opening.params auxRec)
+    opening.body opening.restoredBody
+    ((recInfos.map (·.motive)).size +
+      (recInfos.flatMap (·.minors)).size +
+      recInfos[ownerIdx]!.indices.size + 1)
+    (concreteRecursorResult (recInfos.map (·.motive)).size
+      (recInfos.flatMap (·.minors)).size
+      recInfos[ownerIdx]!.indices.size ownerIdx)
+    (concreteRecursorResult (recInfos.map (·.motive)).size
+      (recInfos.flatMap (·.minors)).size
+      recInfos[ownerIdx]!.indices.size ownerIdx)
+
+theorem RecursorRestoration.generatedTelescopeTrace
+    (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName Hentry.info newInfo)
+    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size)
+    (hnoalias : Hselections.NoAlias)
+    (hparams : result.nparams = stats.params.size)
+    (hresultParams : result.params.size = result.nparams) :
+    Nonempty (GeneratedRecursorRestorationTelescopeTrace result prodEnv auxRec
+      newInfo Hentry) := by
+  let numMotives := (recInfos.map (·.motive)).size
+  let numMinors := (recInfos.flatMap (·.minors)).size
+  let numIndices := recInfos[ownerIdx]!.indices.size
+  let recResult := concreteRecursorResult numMotives numMinors numIndices
+    ownerIdx
+  have Hraw := Hselections.forallTelescope
+    (.app (mkAppN recInfos[ownerIdx]!.motive
+      recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+  rw [Hselections.residual_eq_concreteRecursorResult howner hnoalias] at Hraw
+  have Himplicit := Hraw.inferImplicit_sameResidual (by rfl) 1000 false
+  rw [← Hentry.type, ← hparams] at Himplicit
+  have Htelescope : Expr.ForallTelescope Hentry.info.type
+      (result.nparams + (numMotives + numMinors + numIndices + 1))
+      recResult := by
+    simpa [numMotives, numMinors, numIndices, recResult, Nat.add_assoc] using
+      Himplicit
+  rcases Hrestore.type.opening hresultParams with ⟨Hopen⟩
+  rcases Hopen.suffixTelescopeReplacement Htelescope
+      (concreteRecursorResult_looseBVarRange (by simpa [numMotives] using
+        howner)) with ⟨restoredResidual, Hsuffix⟩
+  have Hidentity := ExprReplacement.restoreNested_concreteRecursorResult
+    result prodEnv Hopen.params auxRec numMotives numMinors numIndices ownerIdx
+  have hresidual : restoredResidual = recResult := by
+    calc
+      restoredResidual = recResult.replace
+          (result.restoreNestedNode prodEnv Hopen.params auxRec) :=
+        Hsuffix.residualReplacement.eq_replace
+      _ = recResult := by
+        simpa [recResult] using Hidentity.eq_replace.symm
+  subst restoredResidual
+  exact ⟨⟨Hopen, by
+    simpa [numMotives, numMinors, numIndices, recResult] using Hsuffix⟩⟩
 
 /-- A canonical translation of the restored recursor telescope is already a
 well-formed abstract type.  The final major-premise binder makes the telescope
@@ -37820,6 +37991,30 @@ theorem NestedRestorationOpening.auxiliaryTranslationUnder
     suffixDomains.length]
   exact Haux.residualUnder henv (Hlower.selectionNodup selection)
     suffixDomains
+
+/-- Typed form of `auxiliaryTranslationUnder`, packaging the translation and
+the abstract domain-type proof needed by the enclosing restored telescope. -/
+theorem NestedRestorationOpening.auxiliaryTypedUnder
+    (Hopen : NestedRestorationOpening result prodEnv auxRec input output)
+    (Hlower : NestedLoweringResultClosed env fuel nparams types initialState
+      result)
+    (selection : LocalForallSelection result.lctx result.params)
+    (Haux : ClosedNestedAuxiliaryTranslation venv lparams result selection e)
+    (henv : venv.Ordered)
+    (name : Name) (hfind : result.aux2nested.find? name = some e)
+    (suffixDomains : List VExpr) :
+    TrExprS venv lparams
+        (abstractForallContext suffixDomains
+          (abstractForallContext Haux.domains []))
+        (((e.abstract result.params).instantiateRev Hopen.params).abstractList
+          Hopen.selection.fvars suffixDomains.length)
+        (Haux.residualTarget.liftN suffixDomains.length 0) ∧
+      venv.IsType lparams.length
+        (abstractForallContext suffixDomains
+          (abstractForallContext Haux.domains [])).toCtx
+        (Haux.residualTarget.liftN suffixDomains.length 0) := by
+  exact ⟨Hopen.auxiliaryTranslationUnder Hlower selection Haux henv name
+    hfind suffixDomains, Haux.residualTypeUnder henv suffixDomains⟩
 
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
