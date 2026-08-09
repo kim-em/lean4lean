@@ -17797,6 +17797,7 @@ structure CheckedRecursorHeaderAt
     Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth
   sourceTranslation : TrSourceConst Hc.venv c.lparams source.name
     source.type target.toVConstVal
+  targetLookup : Hc.venv.constants target.name = some target.toVConstant
 
 theorem CheckedRecursorHeaderAt.target_mem
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
@@ -17900,9 +17901,9 @@ theorem CheckedRecursorHeaderAt.completedArguments
         canonicalIndexVars H.target.numIndices) := by
   rcases H.completedIndexCount Hindices hreplay harity with
     ⟨_concrete, _abstract, hnindices⟩
-  subst nindices
-  rw [hcanonical]
-  exact Lean4Lean.VerifyInductive.List.Forall₂.append' Hstats.params Hindices
+  have Hall :=
+    Lean4Lean.VerifyInductive.List.Forall₂.append' Hstats.params Hindices
+  simpa [hnindices, hcanonical] using Hall
 
 /-- One semantically justified cached-parameter step.  The syntax translation
 of the cached free variable is not enough on its own: preservation of
@@ -24441,11 +24442,21 @@ def ConstructorPhasesResult.checkedRecursorHeaderAt
     target := decl.types[familyIdx]
     targetAt := by simp [htarget]
     materialized := ?_
-    sourceTranslation := ?_ }
+    sourceTranslation := ?_
+    targetLookup := ?_ }
   · rw [R.declared.contextVEnv]
     simpa only [R.declared.contextMLCtx] using Hmaterialized
   · rw [R.declared.contextVEnv]
     simpa using Hsource
+  · have hheaderLookup : H.context.venv.constants
+        decl.types[familyIdx].name =
+        some decl.types[familyIdx].toVConstant := by
+      apply VEnv.addConsts_get H.installed.abstract
+      rw [H.values]
+      exact List.mem_map.mpr
+        ⟨decl.types[familyIdx], List.getElem_mem htarget, rfl⟩
+    rw [R.declared.contextVEnv]
+    exact R.declared.installed.le.constants hheaderLookup
 
 /-- The verified header cache supplies the exact retained parameter binders
 needed by recursor-info generation, while the constructor phases supply its
