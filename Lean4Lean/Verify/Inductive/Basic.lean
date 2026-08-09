@@ -14671,6 +14671,58 @@ def AddInductive.AdmissibleElimLevel (lparams : List Name) : Level → Prop
   | .param name => name ∉ lparams
   | _ => False
 
+theorem AddInductive.getElimLevel.loop.WF
+    (lparams : List Name) (candidate : Name) (i fuel : Nat)
+    (c : AddInductive.Context) :
+    (AddInductive.getElimLevel.loop lparams candidate i fuel c).WF
+      fun level => ∃ name, level = .param name ∧ name ∉ lparams := by
+  induction fuel generalizing candidate i with
+  | zero =>
+    rw [AddInductive.getElimLevel.loop]
+    exact Except.WF.throw
+  | succ fuel ih =>
+    rw [AddInductive.getElimLevel.loop]
+    by_cases hcontains : lparams.contains candidate = true
+    · rw [if_pos hcontains]
+      exact ih _ _
+    · have hnotMem : candidate ∉ lparams := by
+        intro hmem
+        exact hcontains (List.contains_iff_mem.mpr hmem)
+      have hp : (pure (Level.param candidate) :
+          Except Exception Level).WF
+          (fun level => ∃ name, level = .param name ∧ name ∉ lparams) :=
+        Except.WF.pure ⟨candidate, rfl, hnotMem⟩
+      rw [if_neg hcontains]
+      exact hp
+
+/-- The production eliminator-level search returns only a small eliminator
+level or a parameter fresh for the declaration's existing universe list. -/
+theorem AddInductive.getElimLevel.WF
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (c : AddInductive.Context) :
+    (AddInductive.getElimLevel stats indTypes c).WF
+      (AddInductive.AdmissibleElimLevel c.lparams) := by
+  unfold AddInductive.getElimLevel
+  have Hlarge : (AddInductive.isLargeEliminator stats indTypes c).WF
+      (fun _ => True) := fun _ _ => trivial
+  refine Hlarge.bind fun large _ => ?_
+  cases large with
+  | false =>
+    exact Except.WF.pure trivial
+  | true =>
+    have hread : ((readThe AddInductive.Context :
+        AddInductive.M AddInductive.Context) c).WF (fun c' => c' = c) := by
+      intro c' h
+      cases h
+      rfl
+    refine readerBind.WF (x := readThe AddInductive.Context) hread
+      fun c' hc' => ?_
+    subst c'
+    exact (AddInductive.getElimLevel.loop.WF c.lparams `u 1
+      (c.lparams.length + 1) c).mono fun level Hlevel => by
+        rcases Hlevel with ⟨name, rfl, hfresh⟩
+        exact hfresh
+
 /-- An admissible eliminator level is well formed under the exact universe
 parameter list later assigned to generated recursors. -/
 theorem AddInductive.AdmissibleElimLevel.ofLevel
