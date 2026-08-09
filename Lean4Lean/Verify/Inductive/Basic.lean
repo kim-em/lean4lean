@@ -14336,6 +14336,126 @@ theorem Expr.abstractList_fvar_getElem
       simp only [List.length_cons]
       omega
 
+/-- Abstracting free variables below `extra` freshly introduced binders is
+the same operation as abstracting at the original depth and weakening the
+result.  Closedness rules out pre-existing loose variables at the insertion
+cut, so the two de Bruijn presentations agree exactly. -/
+theorem Expr.abstractList_add_eq_liftLooseBVars
+    (Hclosed : Closed e depth) (Hnodup : fvars.Nodup) :
+    e.abstractList fvars (depth + extra) =
+      (e.abstractList fvars depth).liftLooseBVars' depth extra := by
+  induction e generalizing depth extra with
+  | bvar i =>
+    simp only [Closed] at Hclosed
+    rw [Expr.abstractList_bvar_lt fvars (by omega),
+      Expr.abstractList_bvar_lt fvars Hclosed]
+    simp [Expr.liftLooseBVars', Hclosed]
+  | fvar fv =>
+    by_cases hmem : fv ∈ fvars
+    · rcases List.getElem_of_mem hmem with ⟨i, hi, hget⟩
+      subst fv
+      rw [Expr.abstractList_fvar_getElem Hnodup i hi,
+        Expr.abstractList_fvar_getElem Hnodup i hi]
+      simp only [Expr.liftLooseBVars']
+      rw [if_neg (by omega)]
+      simp [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+    · rw [Expr.abstractList_fvar_of_not_mem hmem,
+        Expr.abstractList_fvar_of_not_mem hmem]
+      rfl
+  | sort =>
+    induction fvars <;> simp_all [Expr.abstractList, Expr.abstract1,
+      Expr.liftLooseBVars']
+  | const =>
+    simp [Expr.liftLooseBVars']
+  | mvar =>
+    induction fvars <;> simp_all [Expr.abstractList, Expr.abstract1,
+      Expr.liftLooseBVars']
+  | lit =>
+    induction fvars <;> simp_all [Expr.abstractList, Expr.abstract1,
+      Expr.liftLooseBVars']
+  | app fn arg ihFn ihArg =>
+    rcases Hclosed with ⟨Hfn, Harg⟩
+    simp [Expr.liftLooseBVars', ihFn Hfn, ihArg Harg]
+  | lam name dom body bi ihDom ihBody =>
+    rcases Hclosed with ⟨Hdom, Hbody⟩
+    simp only [Expr.abstractList_lam, Expr.liftLooseBVars']
+    rw [ihDom Hdom]
+    rw [show depth + extra + 1 = (depth + 1) + extra by omega]
+    rw [ihBody Hbody]
+  | forallE name dom body bi ihDom ihBody =>
+    rcases Hclosed with ⟨Hdom, Hbody⟩
+    simp only [Expr.abstractList_forallE, Expr.liftLooseBVars']
+    rw [ihDom Hdom]
+    rw [show depth + extra + 1 = (depth + 1) + extra by omega]
+    rw [ihBody Hbody]
+  | letE name ty value body nondep ihTy ihValue ihBody =>
+    rcases Hclosed with ⟨Hty, Hvalue, Hbody⟩
+    simp only [Expr.abstractList_letE, Expr.liftLooseBVars']
+    rw [ihTy Hty, ihValue Hvalue]
+    rw [show depth + extra + 1 = (depth + 1) + extra by omega]
+    rw [ihBody Hbody]
+  | mdata md body ih =>
+    simpa [Expr.liftLooseBVars'] using ih Hclosed
+  | proj name idx body ih =>
+    simpa [Expr.liftLooseBVars'] using ih Hclosed
+
+/-- If closing a list of free variables yields a term scoped by exactly the
+new de Bruijn prefix, the original term had no loose variables at the
+abstraction cut. -/
+theorem Expr.closed_of_abstractList
+    (Hclosed : Closed (e.abstractList fvars depth)
+      (depth + fvars.length)) :
+    Closed e depth := by
+  induction e generalizing depth with
+  | bvar i =>
+    by_cases hi : i < depth
+    · exact hi
+    · have heq : i = depth + (i - depth) := by omega
+      rw [heq, Expr.abstractList_bvar_ge] at Hclosed
+      simpa only [Closed] using (show i < depth from by
+        simp only [Closed] at Hclosed
+        omega)
+  | fvar => trivial
+  | sort => trivial
+  | const => trivial
+  | mvar id =>
+    have heq : (Expr.mvar id).abstractList fvars depth =
+        .mvar id := by
+      clear Hclosed
+      induction fvars <;> simp_all [Expr.abstractList, Expr.abstract1]
+    rw [heq] at Hclosed
+    exact Hclosed
+  | lit => trivial
+  | app fn arg ihFn ihArg =>
+    rw [Expr.abstractList_app] at Hclosed
+    simp only [Closed] at Hclosed ⊢
+    rcases Hclosed with ⟨Hfn, Harg⟩
+    exact ⟨ihFn Hfn, ihArg Harg⟩
+  | lam name dom body bi ihDom ihBody =>
+    rw [Expr.abstractList_lam] at Hclosed
+    simp only [Closed] at Hclosed ⊢
+    rcases Hclosed with ⟨Hdom, Hbody⟩
+    refine ⟨ihDom Hdom, ihBody ?_⟩
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hbody
+  | forallE name dom body bi ihDom ihBody =>
+    rw [Expr.abstractList_forallE] at Hclosed
+    simp only [Closed] at Hclosed ⊢
+    rcases Hclosed with ⟨Hdom, Hbody⟩
+    refine ⟨ihDom Hdom, ihBody ?_⟩
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hbody
+  | letE name ty value body nondep ihTy ihValue ihBody =>
+    rw [Expr.abstractList_letE] at Hclosed
+    simp only [Closed] at Hclosed ⊢
+    rcases Hclosed with ⟨Hty, Hvalue, Hbody⟩
+    refine ⟨ihTy Hty, ihValue Hvalue, ihBody ?_⟩
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hbody
+  | mdata md body ih =>
+    rw [Expr.abstractList_mdata] at Hclosed
+    simpa only [Closed] using ih Hclosed
+  | proj name idx body ih =>
+    rw [Expr.abstractList_proj] at Hclosed
+    simpa only [Closed] using ih Hclosed
+
 theorem Expr.abstractList_fvarArray
     (fvs : List FVarId) (k : Nat) (hnd : fvs.Nodup) :
     ((fvs.map Expr.fvar).toArray.map fun e => e.abstractList fvs k) =
@@ -23491,6 +23611,50 @@ theorem ClosedNestedAuxiliaryTranslation.telescopeTyped
   have Htel := selection.forallTelescope e
   exact Expr.ForallTelescopeTypeTranslation.ofTrExprS Htel H.closed
     H.closedType
+
+/-- The open auxiliary witness contains no pre-existing loose bound
+variables.  This is derived from the residual translation's scoping theorem,
+not imposed as an additional executable validation condition. -/
+theorem ClosedNestedAuxiliaryTranslation.sourceClosed
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e) :
+    Closed e 0 := by
+  have HresidualClosed := H.residual.closed
+  have hmap : ∀ domains : List VExpr,
+      VLCtx.bvars (domains.map fun type =>
+        ((none, VLocalDecl.vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) = domains.length := by
+    intro domains
+    induction domains with
+    | nil => rfl
+    | cons domain domains ih => simp [VLCtx.bvars, ih]
+  have hbvars : (abstractForallContext H.domains []).bvars =
+      H.domains.length := by
+    simp only [abstractForallContext,
+      VLCtx.bvars_append, VLCtx.bvars, Nat.add_zero]
+    rw [hmap]
+    simp
+  apply Expr.closed_of_abstractList
+  rw [hbvars] at HresidualClosed
+  simpa [H.arity, selection.size] using HresidualClosed
+
+/-- The residual auxiliary translation remains valid underneath any suffix
+of freshly introduced recursor binders.  The concrete source is presented at
+the actual binder depth used by restoration rather than as an opaque lift. -/
+theorem ClosedNestedAuxiliaryTranslation.residualUnder
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (henv : venv.Ordered) (hselectionNodup : selection.fvars.Nodup)
+    (suffixDomains : List VExpr) :
+    TrExprS venv lparams
+      (abstractForallContext suffixDomains
+        (abstractForallContext H.domains []))
+      (e.abstractList selection.fvars suffixDomains.length)
+      (H.residualTarget.liftN suffixDomains.length 0) := by
+  have Hweak := H.residual.weakBV henv
+    (abstractForallContext.bvLift suffixDomains
+      (abstractForallContext H.domains []))
+  rw [← Expr.abstractList_add_eq_liftLooseBVars H.sourceClosed
+    hselectionNodup] at Hweak
+  simpa using Hweak
 
 def ClosedNestedAuxiliaryTranslations
     (venv : VEnv) (lparams : List Name)
@@ -37633,6 +37797,29 @@ theorem NestedRestorationOpening.auxiliaryAlphaAt
     rw [Hopen.selectionLength, ← selection.size]
   exact Haux.restorationAlphaAt Hscope (Hlower.selectionNodup selection)
     Hopen.selection Hopen.selectionNodup hsize k
+
+/-- A concrete family head inserted by operational restoration has the
+validated auxiliary translation in the abstract context extended by the
+recursor binders beneath which the hit occurs. -/
+theorem NestedRestorationOpening.auxiliaryTranslationUnder
+    (Hopen : NestedRestorationOpening result prodEnv auxRec input output)
+    (Hlower : NestedLoweringResultClosed env fuel nparams types initialState
+      result)
+    (selection : LocalForallSelection result.lctx result.params)
+    (Haux : ClosedNestedAuxiliaryTranslation venv lparams result selection e)
+    (henv : venv.Ordered)
+    (name : Name) (hfind : result.aux2nested.find? name = some e)
+    (suffixDomains : List VExpr) :
+    TrExprS venv lparams
+      (abstractForallContext suffixDomains
+        (abstractForallContext Haux.domains []))
+      (((e.abstract result.params).instantiateRev Hopen.params).abstractList
+        Hopen.selection.fvars suffixDomains.length)
+      (Haux.residualTarget.liftN suffixDomains.length 0) := by
+  rw [Hopen.auxiliaryAlphaAt Hlower selection Haux name hfind
+    suffixDomains.length]
+  exact Haux.residualUnder henv (Hlower.selectionNodup selection)
+    suffixDomains
 
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
