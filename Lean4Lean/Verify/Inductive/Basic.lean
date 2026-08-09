@@ -8484,6 +8484,7 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
     (decl : VInductDecl) (depth : Nat) where
   headers : HeaderCertificate env decl
   levels : stats.levels.length = decl.uvars
+  levelParams : stats.levels = Us.map .param
   uvars : Us.length = decl.uvars
   consts : stats.indConsts =
     (decl.types.map fun type => .const type.name stats.levels).toArray
@@ -8520,6 +8521,7 @@ def MaterializedHeaderResult.mono {env env' : VEnv}
     MaterializedHeaderResult env' Us Δ stats decl depth where
   headers := H.headers.mono henv
   levels := H.levels
+  levelParams := H.levelParams
   uvars := H.uvars
   consts := H.consts
   indices := H.indices
@@ -8550,6 +8552,7 @@ theorem laterSteps.materialize
     (hdone : dIdx ≤ indTypes.size)
     (hpositive : 0 < dIdx)
     (hlevels : stats.levels.length = c.lparams.length)
+    (hlevelParams : stats.levels = c.lparams.map .param)
     (hindices : stats.nindices.size = dIdx)
     (hconsts : stats.indConsts.size = dIdx)
     (hindicesExact : stats.nindices.toList = metadata.map Prod.fst)
@@ -8606,6 +8609,7 @@ theorem laterSteps.materialize
     · omega
     · omega
     · simpa [updatedStats, hlparams'] using hlevels
+    · simpa [updatedStats, hlparams'] using hlevelParams
     · simp [updatedStats, hindices]
     · simp [updatedStats, hconsts]
     · simp [updatedStats, hindicesExact]
@@ -8647,6 +8651,7 @@ theorem laterSteps.materialize
       refine {
         headers := Hheaders
         levels := ?_
+        levelParams := hlevelParams
         uvars := ?_
         consts := ?_
         indices := ?_
@@ -8757,6 +8762,7 @@ theorem firstStep.materialize
     (hidx : 0 < indTypes.size)
     (hempty : stats.indConsts.isEmpty = true)
     (hlevels : stats.levels.length = c.lparams.length)
+    (hlevelParams : stats.levels = c.lparams.map .param)
     (hnindices : stats.nindices = #[])
     (hconsts : stats.indConsts = #[])
     (hparams : stats.params = #[])
@@ -8797,6 +8803,8 @@ theorem firstStep.materialize
   · omega
   · omega
   · simpa [statsNext, updatedStats, hlevels', hlparams'] using hlevels
+  · dsimp [statsNext]
+    rw [updatedStats_levels, hlevels', hlevelParams, hlparams']
   · simp [statsNext, updatedStats, hnindices', hnindices]
   · simp [statsNext, updatedStats, hconsts', hconsts]
   · simp [statsNext, updatedStats, hnindices', hnindices]
@@ -8841,6 +8849,7 @@ theorem checkInductiveTypes.materialize
   apply firstStep.materialize k Q Hc Hdecl hctx hnonempty
   · rfl
   · simp
+  · rfl
   · rfl
   · rfl
   · rfl
