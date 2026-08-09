@@ -14662,6 +14662,30 @@ theorem AddInductive.getRecLevelParams_length_of_not_param
       lparams.length := by
   cases elimLevel <;> simp_all [AddInductive.getRecLevelParams, Level.isParam]
 
+/-- Universe-level side condition required by recursor-frame semantics.  A
+small eliminator uses `0`; a large eliminator uses a parameter fresh for the
+inductive declaration.  Other level syntax is never produced by
+`getElimLevel`. -/
+def AddInductive.AdmissibleElimLevel (lparams : List Name) : Level → Prop
+  | .zero => True
+  | .param name => name ∉ lparams
+  | _ => False
+
+/-- An admissible eliminator level is well formed under the exact universe
+parameter list later assigned to generated recursors. -/
+theorem AddInductive.AdmissibleElimLevel.ofLevel
+    (H : AddInductive.AdmissibleElimLevel lparams elimLevel) :
+    ∃ level, VLevel.ofLevel
+      (AddInductive.getRecLevelParams elimLevel lparams) elimLevel =
+        some level := by
+  cases elimLevel with
+  | zero => exact ⟨.zero, rfl⟩
+  | param name =>
+    exact ⟨.param 0, by
+      simp [AddInductive.getRecLevelParams, VLevel.ofLevel]⟩
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at H
+
 /-- `Expr.inferImplicit` changes only concrete binder annotations, which are
 erased by the abstract expression translation.  In particular the abstract
 recursor type proved before this production post-processing step remains the
