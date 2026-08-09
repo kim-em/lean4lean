@@ -8506,6 +8506,32 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
   narrowParams : List.Forall₂ (TrExprS env Us parameterScope)
     stats.params.toList (decl.paramVars 0)
 
+/-- The executable universe arguments initialized from the declaration's
+level-parameter names translate pointwise to their abstract parameter
+indices. -/
+theorem VLevel.mapM_ofLevel_paramNames (names : List Name) :
+    (names.map Level.param).mapM (VLevel.ofLevel names) =
+      some (names.map fun name => .param (names.idxOf name)) := by
+  have go : ∀ xs : List Name, xs ⊆ names →
+      (xs.map Level.param).mapM (VLevel.ofLevel names) =
+        some (xs.map fun name => .param (names.idxOf name)) := by
+    intro xs hsubset
+    induction xs with
+    | nil => rfl
+    | cons name xs ih =>
+      have hname : names.idxOf name < names.length :=
+        List.idxOf_lt_length_iff.2 (hsubset (by simp))
+      simp [VLevel.ofLevel, hname,
+        ih (fun value hvalue => hsubset (by simp [hvalue]))]
+  exact go names fun _ => id
+
+theorem MaterializedHeaderResult.levelTranslation
+    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
+    stats.levels.mapM (VLevel.ofLevel Us) =
+      some (Us.map fun name => .param (Us.idxOf name)) := by
+  rw [H.levelParams]
+  exact VLevel.mapM_ofLevel_paramNames Us
+
 private theorem forall₂_trExprS_mono {env env' : VEnv}
     (henv : env ≤ env') :
     ∀ {es : List Expr} {es' : List VExpr},
