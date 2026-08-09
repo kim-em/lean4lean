@@ -1046,6 +1046,19 @@ theorem VEnv.IsDefEqCtx.dropPrefixes
         apply ih H
         simpa using Nat.succ.inj hlen
 
+/-- Remove the same number of newest declarations from both sides of a
+complete context conversion. -/
+theorem VEnv.IsDefEqCtx.dropHeads
+    (H : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂) (n : Nat) :
+    VEnv.IsDefEqCtx env U [] (Γ₁.drop n) (Γ₂.drop n) := by
+  induction n generalizing Γ₁ Γ₂ with
+  | zero => simpa using H
+  | succ n ih =>
+    cases H with
+    | zero => exact .zero
+    | succ H _ =>
+      simpa only [List.drop_succ_cons] using ih H
+
 /-- Select one corresponding declaration from a complete context
 conversion.  The selected types are compared in the older left-hand suffix,
 which is the context in which that declaration was originally formed. -/
@@ -3322,6 +3335,25 @@ def CachedParameterDecl (param : Expr)
   ∃ fv deps type,
     param = .fvar fv ∧ entry = (some (fv, deps), .vlam type)
 
+theorem VLCtx.toCtx_length_le (scope : VLCtx) :
+    (VLCtx.toCtx scope).length ≤ scope.length := by
+  induction scope with
+  | nil => exact Nat.le_refl 0
+  | cons entry scope ih =>
+    rcases entry with ⟨ofv, decl⟩
+    cases decl <;> simp [VLCtx.toCtx] <;> omega
+
+/-- Cached parameter declarations are all lambda declarations, so conversion
+to the abstract typing context drops no entries. -/
+theorem CachedParameterDecl.forall₂_toCtx_length
+    (H : List.Forall₂ CachedParameterDecl params scope) :
+    (VLCtx.toCtx scope).length = scope.length := by
+  induction H with
+  | nil => rfl
+  | cons h _ ih =>
+    rcases h with ⟨fv, deps, type, rfl, rfl⟩
+    simp [VLCtx.toCtx, ih]
+
 /-- Structural companion to `ParameterCachePrefix`.  Cached parameter local
 declarations form an exact suffix of the retained context; every index added
 after the parameter phase belongs to `ambientDecls`.  The reverse is
@@ -4918,6 +4950,150 @@ theorem LaterParameterScope.olderLength
   simp only [List.length_append, List.length_cons] at hparts
   rw [htotal, H.newerLength] at hparts
   omega
+
+/-- The block-wide abstract parameter at the current position denotes the
+exact cached local declaration type selected by `LaterParameterScope`.
+Crucially, the equality lives in `older.toCtx`, the scope containing exactly
+the parameters already replayed. -/
+theorem LaterParameterScope.parameterDefEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
+    {params : List VExpr}
+    (H : LaterParameterScope Hsuffix i e)
+    (hi : i < stats.params.size)
+    (hparams : params.length = stats.params.size)
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx) :
+    ∃ u, Hc.venv.IsDefEq c.lparams.length H.older.toCtx
+      (params[i]'(hparams.symm ▸ hi)) H.paramType (.sort u) := by
+  have hcachedLength :=
+    CachedParameterDecl.forall₂_toCtx_length Hsuffix.cached
+  have hdeclLength := Hsuffix.parameterDecls_length
+  have hnewerLe := VLCtx.toCtx_length_le H.newer
+  have holderLe := VLCtx.toCtx_length_le H.older
+  have hctxParts := congrArg List.length <| congrArg VLCtx.toCtx H.parameterDecls
+  simp only [VLCtx.toCtx_append, VLCtx.toCtx, List.length_append,
+    List.length_cons] at hctxParts
+  have hlistParts := congrArg List.length H.parameterDecls
+  simp only [List.length_append, List.length_cons] at hlistParts
+  have hnewerCtx : H.newer.toCtx.length = H.newer.length := by omega
+  let j := H.newer.toCtx.length
+  have hj : j < params.reverse.length := by
+    simp only [List.length_reverse, j, hnewerCtx, hparams,
+      H.newerLength]
+    omega
+  have hscopeCtx : Hsuffix.parameterDecls.toCtx =
+      H.newer.toCtx ++ H.paramType :: H.older.toCtx := by
+    rw [H.parameterDecls]
+    simp [VLCtx.toCtx]
+  have hctx' : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse (H.newer.toCtx ++ H.paramType :: H.older.toCtx) := by
+    rw [← hscopeCtx]
+    exact hctx
+  have hentry := VEnv.IsDefEqCtx.getElemRight
+    Hc.checking.tr.wf.ordered hctx' hj
+  have hjEq : j = stats.params.size - 1 - i := by
+    change H.newer.toCtx.length = stats.params.size - 1 - i
+    rw [hnewerCtx]
+    exact H.newerLength
+  have hsourceIndex : params.length - 1 - j = i := by
+    rw [hparams, hjEq]
+    omega
+  have hsourceIndex' :
+      params.length - 1 - H.newer.toCtx.length = i := by
+    simpa [j] using hsourceIndex
+  rcases hentry with ⟨u, hentry⟩
+  simp [j] at hentry
+  refine ⟨u, ?_⟩
+  simpa only [List.getElem_reverse, hsourceIndex'] using hentry
+
+/-- The already replayed common-parameter prefix and the concrete `older`
+suffix are definitionally equal contexts. -/
+theorem LaterParameterScope.parameterPrefixDefEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
+    {params : List VExpr}
+    (H : LaterParameterScope Hsuffix i e)
+    (hi : i < stats.params.size)
+    (hparams : params.length = stats.params.size)
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx) :
+    VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      (params.take i).reverse H.older.toCtx := by
+  have hcachedLength :=
+    CachedParameterDecl.forall₂_toCtx_length Hsuffix.cached
+  have hdeclLength := Hsuffix.parameterDecls_length
+  have hnewerLe := VLCtx.toCtx_length_le H.newer
+  have holderLe := VLCtx.toCtx_length_le H.older
+  have hctxParts := congrArg List.length <| congrArg VLCtx.toCtx H.parameterDecls
+  simp only [VLCtx.toCtx_append, VLCtx.toCtx, List.length_append,
+    List.length_cons] at hctxParts
+  have hlistParts := congrArg List.length H.parameterDecls
+  simp only [List.length_append, List.length_cons] at hlistParts
+  have hnewerCtx : H.newer.toCtx.length = H.newer.length := by omega
+  have hscopeCtx : Hsuffix.parameterDecls.toCtx =
+      H.newer.toCtx ++ H.paramType :: H.older.toCtx := by
+    rw [H.parameterDecls]
+    simp [VLCtx.toCtx]
+  have hctx' : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse (H.newer.toCtx ++ H.paramType :: H.older.toCtx) := by
+    rw [← hscopeCtx]
+    exact hctx
+  let j := H.newer.toCtx.length
+  have hjEq : j = stats.params.size - 1 - i := by
+    change H.newer.toCtx.length = stats.params.size - 1 - i
+    rw [hnewerCtx]
+    exact H.newerLength
+  have htake : params.length - (j + 1) = i := by
+    rw [hparams, hjEq]
+    omega
+  have htake' : params.length - (H.newer.toCtx.length + 1) = i := by
+    simpa [j] using htake
+  have hdrop := VEnv.IsDefEqCtx.dropHeads hctx' (j + 1)
+  simp [j] at hdrop
+  simpa [List.drop_reverse, htake'] using hdrop
+
+/-- A family-local parameter domain selected by `TypeShape.ParamsDefEq` is
+definitionally equal to the exact cached declaration type used by executable
+parameter replay. -/
+theorem LaterParameterScope.ownParameterDefEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
+    {decl : VInductDecl} {params ownParams : List VExpr}
+    (H : LaterParameterScope Hsuffix i e)
+    (hi : i < stats.params.size)
+    (hparamsLength : params.length = stats.params.size)
+    (huvars : c.lparams.length = decl.uvars)
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx)
+    (hown : decl.ParamsDefEq Hc.venv params ownParams) :
+    ∃ u, Hc.venv.IsDefEq c.lparams.length H.older.toCtx
+      (ownParams[i]'(by
+        have hlen : params.length = ownParams.length := by
+          simpa using hown.length_eq
+        omega)) H.paramType (.sort u) := by
+  have hiparams : i < params.length := by omega
+  rcases VInductDecl.ParamsDefEq.getElem hown hiparams with
+    ⟨u, hcommonOwn⟩
+  have hcommonOwnAtRuntime : Hc.venv.IsDefEq c.lparams.length
+      (params.take i).reverse params[i]
+      (ownParams[i]'(by
+        have hlen : params.length = ownParams.length := by
+          simpa using hown.length_eq
+        omega)) (.sort u) := by
+    simpa only [huvars] using hcommonOwn
+  have hprefix := H.parameterPrefixDefEq hi hparamsLength hctx
+  have hcommonOwn' := hcommonOwnAtRuntime.defeqDFC
+    Hc.checking.tr.wf.ordered hprefix
+  rcases H.parameterDefEq hi hparamsLength hctx with
+    ⟨cachedLevel, hcommonCached⟩
+  have holderWF :=
+    (H.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf).1
+  exact ⟨cachedLevel, hcommonOwn'.symm.trans_r Hc.checking.tr.wf
+    holderWF.toCtx hcommonCached⟩
 
 theorem LaterParameterScope.older_eq_nil
     {c : AddInductive.Context} {Hc : ContextWF c}
