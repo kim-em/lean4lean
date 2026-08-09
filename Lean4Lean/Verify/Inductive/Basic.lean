@@ -17751,6 +17751,38 @@ theorem RecInfoBindings.addMinor_noAlias
 
 namespace mkRecInfos.loopArgs1
 
+/-- Canonical abstract variables for indices retained in source binder order
+inside a context that stores the most recently opened index first. -/
+def canonicalIndexVars (n : Nat) : List VExpr :=
+  (List.range n).reverse.map .bvar
+
+@[simp] theorem canonicalIndexVars_zero : canonicalIndexVars 0 = [] := rfl
+
+@[simp] theorem canonicalIndexVars_succ (n : Nat) :
+    (canonicalIndexVars n).map (fun target => target.liftN 1 0) ++
+      [.bvar 0] = canonicalIndexVars (n + 1) := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    rw [show canonicalIndexVars (n + 1) =
+        .bvar n :: canonicalIndexVars n by
+      simp [canonicalIndexVars, List.range_succ]]
+    simp only [List.map_cons, VExpr.liftN, Nat.zero_le, ↓reduceIte,
+      List.cons_append]
+    rw [ih]
+    simp [canonicalIndexVars, List.range_succ]
+
+/-- Common parameters beneath `n` index binders followed by those index
+variables are exactly the canonical variables for the whole header. -/
+theorem VInductDecl.paramVars_append_canonicalIndexVars
+    (decl : VInductDecl) (n : Nat) :
+    decl.paramVars n ++ canonicalIndexVars n =
+      canonicalIndexVars (decl.nparams + n) := by
+  unfold VInductDecl.paramVars canonicalIndexVars
+  rw [Nat.add_comm decl.nparams n, List.range_add,
+    List.reverse_append, List.map_append]
+  simp [Function.comp_def, Nat.add_comm]
+
 /-- All independently checked inputs needed to replay one source family
 header during recursor construction.  The family index is retained in the
 package, so parameter/index arities cannot be borrowed from another member
@@ -17833,6 +17865,20 @@ theorem CheckedRecursorHeaderAt.completedIndexCount
   have hfamily : stats.nindices[familyIdx]! = H.target.numIndices := by
     simp [Array.getElem!_eq_getD, H.indexCount]
   omega
+
+theorem CheckedRecursorHeaderAt.completedIndexVars
+    {c' : AddInductive.Context} {Hc' : ContextWF c'}
+    {indices : Array Expr} {indexTargets : List VExpr} {nindices : Nat}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Hindices : List.Forall₂ (TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx)
+      indices.toList indexTargets)
+    (hreplay : indexTargets.length = nindices)
+    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (harity : (indices.size == stats.nindices[familyIdx]!) = true) :
+    indexTargets = canonicalIndexVars H.target.numIndices := by
+  rcases H.completedIndexCount Hindices hreplay harity with
+    ⟨_concrete, _abstract, hnindices⟩
+  simpa [hnindices] using hcanonical
 
 /-- One semantically justified cached-parameter step.  The syntax translation
 of the cached free variable is not enough on its own: preservation of
@@ -18130,6 +18176,7 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       indexTargets.length = nindices →
+      indexTargets = canonicalIndexVars nindices →
       TranslatedOriginTypes Hc originTypes →
       (k indices c).WF Q) :
     ∀ type fullTarget narrowTarget scope i nindices indices originTypes
@@ -18149,15 +18196,16 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       indexTargets.length = nindices →
+      indexTargets = canonicalIndexVars nindices →
       TranslatedOriginTypes Hc originTypes →
       (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
-  | _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | type, fullTarget, narrowTarget, scope, i, nindices, indices,
       originTypes, indexTargets, fuel + 1, c, hdone, Hc, Hsynthesis,
       Hruntime, htypeNarrow, htypeFVars, htypeFull, htypeFullType,
-      Hindices, hindexCount, Horigins => by
+      Hindices, hindexCount, hcanonical, Horigins => by
       cases type with
       | forallE name dom body bi =>
         rw [AddInductive.mkRecInfos.loopArgs1]
@@ -18328,13 +18376,14 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
               hnextNarrow hnormalizedFVars
               ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
               hconsumedBodyType Hindices' (by simp [hindexCount])
+              (by simpa [hcanonical] using canonicalIndexVars_succ nindices)
               (Horigins.push Hdom name bi)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
           have hi : ¬ i < stats.params.size := by omega
           simpa [AddInductive.mkRecInfos.loopArgs1, hi] using
             Hk Hc Hsynthesis Hruntime htypeNarrow htypeFVars htypeFull
-              htypeFullType Hindices hindexCount Horigins
+              htypeFullType Hindices hindexCount hcanonical Horigins
 
 /-- Replay the common-parameter prefix from the independent family shape,
 advancing both the retained concrete suffix and the narrow semantic header.
@@ -18365,6 +18414,7 @@ theorem continueCheckedSemantics {alpha : Type}
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       indexTargets.length = nindices →
+      indexTargets = canonicalIndexVars nindices →
       TranslatedOriginTypes Hc originTypes →
       (k indices c).WF Q)
     {c : AddInductive.Context} (Hc : ContextWF c)
@@ -18394,15 +18444,16 @@ theorem continueCheckedSemantics {alpha : Type}
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       indexTargets.length = 0 →
+      indexTargets = canonicalIndexVars 0 →
       TranslatedOriginTypes Hc originTypes →
       (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
-  | _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | type, fullTarget, narrowTarget, scope, i, indices, originTypes,
       indexTargets, fuel + 1, hbound, Hscope, hscopeEq, hcompleteScope,
       Hsynthesis, htypeNarrow, htypeFVars, htypeFull, htypeFullType,
-      Hindices, hindexCount, Horigins => by
+      Hindices, hindexCount, hcanonical, Horigins => by
       by_cases hdone : stats.params.size ≤ i
       · have hieq : i = stats.params.size := by omega
         subst i
@@ -18416,7 +18467,7 @@ theorem continueCheckedSemantics {alpha : Type}
           fullTarget narrowTarget Hsuffix.parameterDecls stats.params.size 0
           indices originTypes indexTargets (fuel + 1) c (by omega) Hc
           Hsynthesis Hruntime htypeNarrow htypeFVars htypeFull
-          htypeFullType Hindices hindexCount Horigins
+          htypeFullType Hindices hindexCount hcanonical Horigins
       · have hi : i < stats.params.size := by omega
         cases type with
         | forallE name dom body bi =>
@@ -18468,7 +18519,7 @@ theorem continueCheckedSemantics {alpha : Type}
                   exact Hcurrent.completedScope hfinished)
                 Hsynthesis' hnormalizedNarrow'
                 (Hbody.consumedFVars hnext.1) hnext.2 hopenedType
-                Hindices hindexCount Horigins
+                Hindices hindexCount hcanonical Horigins
         | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
           | proj =>
             simp only [AddInductive.mkRecInfos.loopArgs1, hi, if_pos]
@@ -18501,6 +18552,7 @@ theorem startCheckedSemantics {alpha : Type}
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       indexTargets.length = nindices →
+      indexTargets = canonicalIndexVars nindices →
       TranslatedOriginTypes Hc originTypes →
       (k indices c).WF Q)
     {c : AddInductive.Context} (Hc : ContextWF c)
@@ -18574,7 +18626,8 @@ theorem startCheckedSemantics {alpha : Type}
       hparams huvars hctx hshape normalized target.type narrowTarget [] 0
       #[] #[] [] fuel (by omega) Hscope hscopeEq hcompleteScope Hsynthesis
       hnormalizedNarrow (by simpa [VLCtx.fvars] using hnormalizedNoFVars)
-      hnormalized.2 hsourceType .nil rfl (TranslatedOriginTypes.empty Hc)
+      hnormalized.2 hsourceType .nil rfl rfl
+      (TranslatedOriginTypes.empty Hc)
 
 /-- Package-facing entry to checked recursor replay.  All family selection,
 parameter-cache, universe, and source-translation premises are projected from
@@ -18602,6 +18655,7 @@ theorem CheckedRecursorHeaderAt.startSemantics {alpha : Type}
       List.Forall₂ (TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx)
         indices.toList indexTargets →
       indexTargets.length = nindices →
+      indexTargets = canonicalIndexVars nindices →
       TranslatedOriginTypes Hc' originTypes →
       (k indices c').WF Q)
     (fuel : Nat) :
