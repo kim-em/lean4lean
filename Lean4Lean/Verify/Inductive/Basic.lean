@@ -15913,6 +15913,64 @@ structure BoundFVarTypeOrigins (c : AddInductive.Context)
   declaration : ∀ i (hi : i < xs.size),
     ∃ D : BoundFVarDeclarationAt c xs i, D.type = origins[i]!
 
+/-- Semantic translations of the exact declaration-origin expressions in
+the current executable context.  Targets are retained explicitly because
+later recursor restoration must weaken them beneath subsequently introduced
+mutual binders. -/
+structure TranslatedOriginTypes (Hc : ContextWF c)
+    (origins : Array Expr) where
+  targets : List VExpr
+  translated : List.Forall₂
+    (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+    origins.toList targets
+  isType : ∀ target ∈ targets,
+    Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx target
+
+def TranslatedOriginTypes.empty (Hc : ContextWF c) :
+    TranslatedOriginTypes Hc #[] where
+  targets := []
+  translated := .nil
+  isType _ h := by simp at h
+
+/-- Append a newly consumed declaration domain and weaken all earlier origin
+translations through the corresponding fresh local declaration. -/
+def TranslatedOriginTypes.push
+    (H : TranslatedOriginTypes Hc origins)
+    (Hdom : Hc.ConsumedDomain dom sourceTarget consumedTarget)
+    (name : Name) (bi : BinderInfo) :
+    let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+      Hdom.consumed Hdom.isType
+    TranslatedOriginTypes Hc' (origins.push dom.consumeTypeAnnotations) := by
+  dsimp only
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+    Hdom.consumed Hdom.isType
+  let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
+    .skip_fvar _ _ .refl
+  let liftedTargets := H.targets.map fun target => target.liftN 1 0
+  refine {
+    targets := liftedTargets ++ [consumedTarget.liftN 1 0]
+    translated := ?_
+    isType := ?_ }
+  · rw [Array.toList_push]
+    apply checkPositivityStep.forall₂_append
+    · apply checkPositivityStep.forall₂_map_right H.translated
+      intro source target Hsource
+      exact Hsource.weakFV Hc.checking.tr.wf.ordered W Hc'.mlctx_wf.tr.wf
+    · apply List.Forall₂.cons
+      · exact Hdom.consumed.weakFV Hc.checking.tr.wf.ordered W
+          Hc'.mlctx_wf.tr.wf
+      · exact .nil
+  · intro target htarget
+    simp only [liftedTargets, List.mem_append, List.mem_map,
+      List.mem_singleton] at htarget
+    rcases htarget with ⟨oldTarget, hold, rfl⟩ | rfl
+    · exact (H.isType oldTarget hold).weakN Hc.checking.tr.wf.ordered
+        (.one : Ctx.LiftN 1 0 Hc.mlctx.vlctx.toCtx
+          (consumedTarget :: Hc.mlctx.vlctx.toCtx))
+    · exact Hdom.isType.weakN Hc.checking.tr.wf.ordered
+        (.one : Ctx.LiftN 1 0 Hc.mlctx.vlctx.toCtx
+          (consumedTarget :: Hc.mlctx.vlctx.toCtx))
+
 /-- Two retained declarations for the same expression in one local context
 have the same declaration type.  This deliberately permits different source
 arrays and indices: the free-variable identity, rather than an incidental
@@ -17172,6 +17230,39 @@ theorem RecInfoBindings.addMinor_noAlias
 
 namespace mkRecInfos.loopArgs1
 
+/-- One semantically justified cached-parameter step.  The syntax translation
+of the cached free variable is not enough on its own: preservation of
+typehood uses the definitional equality between the exposed header domain and
+the cached parameter type that was established by `checkInductiveTypes`. -/
+theorem parameterStep
+    (Hc : ContextWF c)
+    {stats : AddInductive.InductiveStats} {i : Nat}
+    {name : Name} {dom body : Expr} {bi : BinderInfo}
+    {current paramTarget paramType : VExpr}
+    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      (.forallE name dom body bi) current)
+    (hparam : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      stats.params[i]! paramTarget)
+    (hparamType : Hc.venv.HasType c.lparams.length
+      Hc.mlctx.vlctx.toCtx paramTarget paramType)
+    (hmatch : ∀ {domainTarget},
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom domainTarget →
+      Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+        domainTarget paramType) :
+    ∃ bodyTarget,
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+        (body.instantiate1 stats.params[i]!) bodyTarget ∧
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx bodyTarget := by
+  rcases TrExpr.forallE_source htype with
+    ⟨domainTarget, sourceBody, hdom, hbody, _hdomType, hbodyType,
+      _hcurrent⟩
+  have heq := hmatch hdom
+  have hparamType' := hparamType.defeqU_r Hc.checking.tr.wf
+    Hc.mlctx_wf.tr.wf.toCtx heq.symm
+  refine ⟨sourceBody.inst paramTarget,
+    Hc.instantiateDefEq hbody hparam hparamType heq, ?_⟩
+  exact hbodyType.instN Hc.checking.tr.wf.ordered .zero hparamType'
+
 /-- Operational strengthening of `continueWith`: every non-parameter binder
 opened while replaying an inductive header is retained in the local context
 and appended to the certified index array. -/
@@ -17241,6 +17332,178 @@ theorem continueWithBindings {alpha : Type}
         | proj =>
           simpa [AddInductive.mkRecInfos.loopArgs1] using
             Hk indices originTypes c Hc Hindices Horigins Hroot
+
+/-- Semantic strengthening for the genuine-index suffix of `loopArgs1`.
+Every introduced index variable remains translated in the final reader
+context, and every exact consumed declaration type is retained with a typed
+translation.  Common parameters are deliberately excluded here; the caller
+enters this theorem once `i` has reached `stats.params.size`. -/
+theorem continueIndexSemantics {alpha : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Array Expr → AddInductive.M alpha)
+    {Q : alpha → Prop}
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+      {type : Expr} {typeTarget : VExpr} {indices originTypes : Array Expr}
+      {indexTargets : List VExpr},
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type typeTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx typeTarget →
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc originTypes →
+      (k indices c).WF Q) :
+    ∀ type typeTarget i indices originTypes indexTargets fuel c,
+      stats.params.size ≤ i →
+      (Hc : ContextWF c) →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type typeTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx typeTarget →
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc originTypes →
+      (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
+  | _, _, _, _, _, _, 0, _, _, _, _, _, _, _ => by
+      intro _ h
+      simp [AddInductive.mkRecInfos.loopArgs1] at h
+  | type, typeTarget, i, indices, originTypes, indexTargets, fuel + 1, c,
+      hdone, Hc, htype, htypeType, Hindices, Horigins => by
+      cases type with
+      | forallE name dom body bi =>
+        rw [AddInductive.mkRecInfos.loopArgs1]
+        have hparam : ¬ i < stats.params.size := by omega
+        rw [if_neg hparam]
+        rcases TrExpr.forallE_source htype with
+          ⟨sourceDom, sourceBody, hdom, hbody, hdomType, hbodyType,
+            _hcurrent⟩
+        rcases hconsume c Hc hdom hdomType with
+          ⟨consumedDom, Hdom⟩
+        rcases Hdom.body Hc hbody with
+          ⟨consumedBody, hbodyConsumed, hbodyEq⟩
+        refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+          Hc Hdom.consumed Hdom.isType ?_
+        let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType
+        let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
+          .skip_fvar _ _ .refl
+        have HindicesWeak : List.Forall₂
+            (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+            indices.toList (indexTargets.map fun target => target.liftN 1 0) := by
+          apply checkPositivityStep.forall₂_map_right Hindices
+          intro source target Hsource
+          exact Hsource.weakFV Hc.checking.tr.wf.ordered W
+            Hc'.mlctx_wf.tr.wf
+        have Hindex : TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx
+            (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
+          exact TrExprS.fvar (A := consumedDom.lift) (by
+            change VLCtx.find? ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+                Hc.mlctx.vlctx) (Sum.inr ⟨c.ngen.curr⟩) = _
+            simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+              VLocalDecl.value, VLocalDecl.type])
+        have Hindices' : List.Forall₂
+            (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+            (indices.push (.fvar ⟨c.ngen.curr⟩)).toList
+            ((indexTargets.map fun target => target.liftN 1 0) ++ [.bvar 0]) := by
+          simpa using checkPositivityStep.forall₂_append HindicesWeak
+            (.cons Hindex .nil)
+        have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType hbodyConsumed
+        rcases Hdom.source_defeq with ⟨_sort, hsourceDefEq⟩
+        have hctx : VLCtx.IsDefEq Hc.venv c.lparams.length
+            ((none, .vlam sourceDom) :: Hc.mlctx.vlctx)
+            ((none, .vlam consumedDom) :: Hc.mlctx.vlctx) :=
+          VLCtx.IsDefEq.cons
+            (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) nofun
+            (.vlam hsourceDefEq)
+        have hsourceBodyType : Hc'.venv.IsType c.lparams.length
+            Hc'.mlctx.vlctx.toCtx sourceBody := by
+          simpa only [Hc', ContextWF.withLocalDecl_venv,
+            ContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+            hbodyType.defeqDFC Hc.checking.tr.wf.ordered hctx.defeqCtx
+        have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
+        have hconsumedBodyType : Hc'.venv.IsType c.lparams.length
+            Hc'.mlctx.vlctx.toCtx consumedBody := by
+          apply hsourceBodyType.defeqU_l Hc'.checking.tr.wf
+            Hc'.mlctx_wf.tr.wf.toCtx
+          simpa only [Hc', ContextWF.withLocalDecl_venv,
+            ContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
+        have hwhnf := whnfInContext.WF Hc' hopened
+        exact hwhnf.bind fun next hnext =>
+          continueIndexSemantics stats k hconsume Hk next consumedBody i
+            (indices.push (.fvar ⟨c.ngen.curr⟩))
+            (originTypes.push dom.consumeTypeAnnotations)
+            ((indexTargets.map fun target => target.liftN 1 0) ++ [.bvar 0])
+            fuel _ hdone Hc' hnext hconsumedBodyType Hindices'
+            (Horigins.push Hdom name bi)
+      | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+        | proj =>
+          simpa [AddInductive.mkRecInfos.loopArgs1] using
+            Hk Hc htype htypeType Hindices Horigins
+
+/-- Semantic interface for replaying the already checked common-parameter
+prefix of a family header.  Unlike index binders, these variables already
+exist in the retained context, so one step substitutes the cached parameter
+without extending the reader context. -/
+def ParameterReplaySemantics (Hc : ContextWF c)
+    (stats : AddInductive.InductiveStats) : Prop :=
+  ∀ i (hi : i < stats.params.size) name dom body bi current,
+    TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      (.forallE name dom body bi) current →
+    Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx current →
+    ∃ bodyTarget,
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+        (body.instantiate1 stats.params[i]!) bodyTarget ∧
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx bodyTarget
+
+/-- Full semantically typed replay of `loopArgs1`.  Parameter steps use the
+checked-header replay certificate; at the first genuine index it hands off
+to `continueIndexSemantics`, which records every exact origin type. -/
+theorem continueSemantics {alpha : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Array Expr → AddInductive.M alpha)
+    {Q : alpha → Prop}
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+      {type : Expr} {typeTarget : VExpr} {indices originTypes : Array Expr}
+      {indexTargets : List VExpr},
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type typeTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx typeTarget →
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc originTypes →
+      (k indices c).WF Q) :
+    ∀ type typeTarget i indices originTypes indexTargets fuel c,
+      (Hc : ContextWF c) →
+      ParameterReplaySemantics Hc stats →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type typeTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx typeTarget →
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc originTypes →
+      (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
+  | _, _, _, _, _, _, 0, _, _, _, _, _, _, _ => by
+      intro _ h
+      simp [AddInductive.mkRecInfos.loopArgs1] at h
+  | type, typeTarget, i, indices, originTypes, indexTargets, fuel + 1, c,
+      Hc, Hparams, htype, htypeType, Hindices, Horigins => by
+      by_cases hdone : stats.params.size ≤ i
+      · exact continueIndexSemantics stats k hconsume Hk type typeTarget i
+          indices originTypes indexTargets (fuel + 1) c hdone Hc htype
+          htypeType Hindices Horigins
+      · have hi : i < stats.params.size := by omega
+        cases type with
+        | forallE name dom body bi =>
+          rw [AddInductive.mkRecInfos.loopArgs1, if_pos hi]
+          rcases Hparams i hi name dom body bi typeTarget htype htypeType with
+            ⟨bodyTarget, hopened, hopenedType⟩
+          have hwhnf := whnfInContext.WF Hc hopened
+          exact hwhnf.bind fun next hnext =>
+            continueSemantics stats k hconsume Hk next bodyTarget (i + 1)
+              indices originTypes indexTargets fuel c Hc Hparams hnext
+              hopenedType Hindices Horigins
+        | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+          | proj =>
+            simpa [AddInductive.mkRecInfos.loopArgs1] using
+              Hk Hc htype htypeType Hindices Horigins
 
 end mkRecInfos.loopArgs1
 
