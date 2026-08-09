@@ -27778,6 +27778,93 @@ theorem RecursorRestoration.generatedTelescopeAlignment
   · rw [hbody]
     simpa [suffixArity] using Hsuffix
 
+/-- Run the accumulator-aware semantic replacement fold over the exact
+generated/restored suffix alignment.  This packages the bookkeeping that is
+common to every restored primary recursor: the old parameter variables are
+closed at depth zero, the same operational variables close the restored
+suffix, and callbacks see the progressively accumulated canonical domains.
+
+The two callbacks are intentionally the remaining semantic boundary.  In
+particular, they must interpret recursive replacement nodes (motive and minor
+types), rather than merely postulating a translation for the final restored
+type. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (newEnv : VEnv) (newBase : VLCtx) (newPrefix : List VExpr)
+    (Hdomains : ∀ {oldΔ oldDomain newDomain oldDomainTarget}
+        (binderDepth : Nat) (accumulated : List VExpr),
+      ExprReplacement
+          (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
+          oldDomain newDomain →
+      TrExprS venv Hentry.info.levelParams oldΔ
+        (oldDomain.abstractList H.trace.opening.selection.fvars binderDepth)
+        oldDomainTarget →
+      venv.IsType Hentry.info.levelParams.length oldΔ.toCtx
+        oldDomainTarget →
+      Expr.AbstractTypeTranslation newEnv Hentry.info.levelParams
+        (abstractForallContext accumulated newBase)
+        (newDomain.abstractList H.trace.opening.selection.fvars binderDepth))
+    (Hresidual : ∀ {oldΔ oldResidualTarget}
+        (accumulated : List VExpr),
+      ExprReplacement
+          (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
+          (concreteRecursorResult (recInfos.map (·.motive)).size
+            (recInfos.flatMap (·.minors)).size
+            recInfos[ownerIdx]!.indices.size ownerIdx)
+          (concreteRecursorResult (recInfos.map (·.motive)).size
+            (recInfos.flatMap (·.minors)).size
+            recInfos[ownerIdx]!.indices.size ownerIdx) →
+      TrExprS venv Hentry.info.levelParams oldΔ
+        ((concreteRecursorResult (recInfos.map (·.motive)).size
+          (recInfos.flatMap (·.minors)).size
+          recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+          H.trace.opening.selection.fvars
+          ((recInfos.map (·.motive)).size +
+            (recInfos.flatMap (·.minors)).size +
+            recInfos[ownerIdx]!.indices.size + 1))
+        oldResidualTarget →
+      venv.IsType Hentry.info.levelParams.length oldΔ.toCtx
+        oldResidualTarget →
+      Expr.AbstractTypeTranslation newEnv Hentry.info.levelParams
+        (abstractForallContext accumulated newBase)
+        ((concreteRecursorResult (recInfos.map (·.motive)).size
+          (recInfos.flatMap (·.minors)).size
+          recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+          H.trace.opening.selection.fvars
+          ((recInfos.map (·.motive)).size +
+            (recInfos.flatMap (·.minors)).size +
+            recInfos[ownerIdx]!.indices.size + 1))) :
+    ∃ target,
+      Expr.ForallTelescopeTypeTranslation newEnv Hentry.info.levelParams
+        (abstractForallContext newPrefix newBase)
+        (H.trace.opening.restoredBody.abstractList
+          H.trace.opening.selection.fvars)
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1)
+        target := by
+  apply H.trace.suffix.transportAbstractedAt
+    (oldParams := H.trace.opening.selection.fvars)
+    (newParams := H.trace.opening.selection.fvars)
+    (depth := 0) (newPrefix := newPrefix) (newBase := newBase)
+    H.oldSuffix Hdomains
+  intro oldΔ oldResidualTarget accumulated Hreplacement Htr Htype
+  have Htr' : TrExprS venv Hentry.info.levelParams oldΔ
+      ((concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+        H.trace.opening.selection.fvars
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1))
+      oldResidualTarget := by
+    simpa using Htr
+  simpa using Hresidual accumulated Hreplacement Htr' Htype
+
 /-- A canonical translation of the restored recursor telescope is already a
 well-formed abstract type.  The final major-premise binder makes the telescope
 nonempty, so no separate abstract-WF callback is necessary. -/
@@ -38413,6 +38500,33 @@ theorem NestedRestorationOpening.exactFamilyHitAbstractTypeTranslation
       levels hfind hrec t restored hhead hargs Hhit suffixDomains with
     ⟨Htr, Htype⟩
   exact ⟨_, Htr, Htype⟩
+
+/-- Context-normalized form of the exact-family interpreter.  The semantic
+common-parameter domains are the initial prefix of the restored recursor;
+`suffixDomains` are precisely the binders already traversed by the suffix
+telescope fold. -/
+theorem NestedRestorationOpening.exactFamilyHitAbstractTypeTranslationAtPrefix
+    (Hopen : NestedRestorationOpening result prodEnv auxRec input output)
+    (Hlower : NestedLoweringResultClosed env fuel nparams types initialState
+      result)
+    (selection : LocalForallSelection result.lctx result.params)
+    (Haux : ClosedNestedAuxiliaryTranslation venv lparams result selection e)
+    (henv : venv.Ordered)
+    (family : Name) (levels : List Level)
+    (hfind : result.aux2nested.find? family = some e)
+    (hrec : auxRec.find? family = none)
+    (t restored : Expr)
+    (hhead : t.getAppFn = .const family levels)
+    (hargs : t.getAppArgs.size = result.nparams)
+    (Hhit : result.restoreNestedNode prodEnv Hopen.params auxRec t =
+      some restored)
+    (suffixDomains : List VExpr) :
+    Expr.AbstractTypeTranslation venv lparams
+      (abstractForallContext (Haux.domains ++ suffixDomains) [])
+      (restored.abstractList Hopen.selection.fvars suffixDomains.length) := by
+  simpa only [abstractForallContext_append] using
+    Hopen.exactFamilyHitAbstractTypeTranslation Hlower selection Haux henv
+      family levels hfind hrec t restored hhead hargs Hhit suffixDomains
 
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
