@@ -342,6 +342,32 @@ theorem VEnv.HasType.mkApps_isType
       exact ih (fn := .app fn arg) (fnType := body.inst arg)
         (hfn.app harg) (hbody.inst arg) happs
 
+/-- A term whose type is a dependent forall telescope can be weakened beneath
+that telescope and applied to the canonical variables for all of its binders.
+The result has the unabstracted residual type in the completed telescope
+context. -/
+theorem VEnv.HasType.mkApps_wrapForalls_canonical
+    {env : VEnv} {uvars : Nat} {ctx : List VExpr} {fn : VExpr}
+    {domains : List VExpr} {body : VExpr}
+    (henv : VEnv.Ordered env)
+    (H : VEnv.HasType env uvars ctx fn (VExpr.wrapForalls domains body)) :
+    VEnv.HasType env uvars (domains.reverse ++ ctx)
+      (VExpr.mkApps (fn.liftN domains.length 0)
+        ((List.range domains.length).reverse.map .bvar)) body := by
+  induction domains generalizing ctx fn with
+  | nil => simpa [VExpr.mkApps, VExpr.wrapForalls] using H
+  | cons domain domains ih =>
+    have hfirst := (H.weakN henv (Ctx.LiftN.one (A := domain))).app
+      (VEnv.HasType.bvar Lookup.zero)
+    have hfirst' : VEnv.HasType env uvars (domain :: ctx)
+        (.app (fn.liftN 1 0) (.bvar 0))
+        (VExpr.wrapForalls domains body) := by
+      simpa [VExpr.wrapForalls, VExpr.liftN, VExpr.instN_bvar0] using hfirst
+    have hrest := ih hfirst'
+    simpa [VExpr.wrapForalls, VExpr.mkApps, List.range_succ,
+      List.reverse_cons, List.append_assoc, VExpr.liftN,
+      VExpr.instN_bvar0, VExpr.liftN_liftN, Nat.add_comm] using hrest
+
 @[simp] theorem VExpr.getAppFnArgs_mkApps_bvar
     (index : Nat) (args : List VExpr) :
     (VExpr.mkApps (.bvar index) args).getAppFnArgs = (.bvar index, args) := by
@@ -10170,6 +10196,31 @@ theorem TrExprS.mkAppList_inv
       | app _ _ hfn harg =>
         refine ⟨_, _ :: args', hfn, .cons harg hargs, ?_⟩
         simpa [VExpr.mkApps] using hout
+
+/-- Pointwise expression translation can be assembled into an application
+spine once the independently derived abstract spine is known to be
+well-typed.  Inverting that typing derivation supplies the function and
+argument premises required by each `TrExprS.app` constructor. -/
+theorem TrExprS.mkAppList
+    (henv : VEnv.Ordered env)
+    (hctx : OnCtx Δ.toCtx (env.IsType Us.length))
+    (hfn : TrExprS env Us Δ fn fn')
+    (hargs : List.Forall₂ (TrExprS env Us Δ) args args')
+    (happs : VExpr.WF env Us.length Δ.toCtx
+      (VExpr.mkApps fn' args')) :
+    TrExprS env Us Δ (Expr.mkAppList fn args)
+      (VExpr.mkApps fn' args') := by
+  induction hargs generalizing fn fn' with
+  | nil => simpa [Expr.mkAppList, VExpr.mkApps] using hfn
+  | @cons arg arg' args args' harg hargs ih =>
+    have hprefix := VExpr.WF.mkApps_fn henv hctx
+      (fn := .app fn' arg') (args := args') happs
+    rcases hprefix.app_inv henv hctx with
+      ⟨domain, body, hfnType, hargType⟩
+    have happ : TrExprS env Us Δ (.app fn arg) (.app fn' arg') :=
+      .app hfnType hargType hfn harg
+    simpa [Expr.mkAppList, VExpr.mkApps] using
+      ih (fn := .app fn arg) (fn' := .app fn' arg') happ happs
 
 /-- Application-spine inversion with an exact split between two concrete
 argument groups. -/
