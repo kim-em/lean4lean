@@ -186,3 +186,57 @@ theorem WF.of_mapM_ofLevel (h : List.mapM (VLevel.ofLevel Us) us = some us')
     (a) (hl : a ∈ us') : VLevel.WF Us.length a := by
   rw [List.mapM_eq_some] at h
   have ⟨_, _, h⟩ := h.forall_exists_r _ hl; exact .of_ofLevel h
+
+/-- Substitution which shifts every existing abstract universe parameter by
+one position, making room for a freshly prepended concrete parameter. -/
+def prependShift (n : Nat) : List VLevel :=
+  (List.range n).map fun i => .param (i + 1)
+
+@[simp] theorem prependShift_length : (prependShift n).length = n := by
+  simp [prependShift]
+
+theorem prependShift_wf :
+    ∀ level ∈ prependShift n, level.WF (n + 1) := by
+  simp [prependShift, VLevel.WF]
+
+/-- Translating the same concrete level after prepending a genuinely fresh
+universe name shifts precisely the old abstract parameter positions. -/
+theorem ofLevel_fresh_cons
+    (hfresh : fresh ∉ Us)
+    (H : VLevel.ofLevel Us level = some target) :
+    VLevel.ofLevel (fresh :: Us) level =
+      some (target.inst (prependShift Us.length)) := by
+  induction level generalizing target with
+    simp [VLevel.ofLevel, bind] at H ⊢
+  | zero => cases H; rfl
+  | succ _ ih =>
+    obtain ⟨inner, hinner, ⟨⟩⟩ := H
+    simp [VLevel.inst, ih hinner]
+  | max _ _ ihLeft ihRight | imax _ _ ihLeft ihRight =>
+    obtain ⟨leftTarget, hleft, rightTarget, hright, ⟨⟩⟩ := H
+    simp [VLevel.inst, ihLeft hleft, ihRight hright]
+  | param name =>
+    have hold : Us.idxOf name < Us.length := H.1
+    have hmem : name ∈ Us := List.idxOf_lt_length_iff.mp hold
+    have hne : fresh ≠ name := fun heq => hfresh (heq ▸ hmem)
+    have hbeq : (fresh == name) = false := by
+      apply Bool.eq_false_iff.mpr
+      exact fun heq => hne (LawfulBEq.eq_of_beq heq)
+    rw [← H.2]
+    rw [List.idxOf_cons]
+    simp [hbeq, hold, VLevel.inst, prependShift,
+      List.getD_eq_getElem?_getD]
+
+theorem mapM_ofLevel_fresh_cons
+    {levels : List Lean.Level} {targets : List VLevel}
+    (hfresh : fresh ∉ Us)
+    (H : levels.mapM (VLevel.ofLevel Us) = some targets) :
+    levels.mapM (VLevel.ofLevel (fresh :: Us)) =
+      some (targets.map (VLevel.inst (prependShift Us.length))) := by
+  induction levels generalizing targets with
+  | nil => simpa using H
+  | cons level levels ih =>
+    simp [List.mapM_cons] at H ⊢
+    rcases H with ⟨target, htarget, tail, htail, rfl⟩
+    exact ⟨_, ofLevel_fresh_cons hfresh htarget,
+      _, ih htail, rfl⟩

@@ -591,6 +591,16 @@ protected theorem Abstract.find? (W : Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ) (h
 theorem instL_eq_map (Δ : VLCtx) : Δ.instL ls = Δ.map (fun (ofv, d) => (ofv, d.instL ls)) := by
   induction Δ <;> simp [instL, *]
 
+@[simp] theorem instL_fvars (Δ : VLCtx) :
+    (Δ.instL ls).fvars = Δ.fvars := by
+  induction Δ with
+  | nil => rfl
+  | cons head tail ih =>
+    rcases head with ⟨ofv, decl⟩
+    rcases ofv with _ | ⟨fv, deps⟩
+    · simpa [instL, fvars] using ih
+    · simpa [instL, fvars] using congrArg (List.cons fv) ih
+
 @[simp] theorem instL_toCtx (Δ : VLCtx) : (Δ.instL ls).toCtx = Δ.toCtx.map (·.instL ls) := by
   induction Δ with
   | nil => rfl
@@ -1507,6 +1517,49 @@ theorem ofLevel_mkLevelIMax'
 variable! {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U') in
 theorem TrProj.instL (H : TrProj Γ s i e e') :
     TrProj (Γ.map (VExpr.instL ls)) s i (e.instL ls) (e'.instL ls) := sorry
+
+/-- Universe weakening for strict concrete-expression translation.  A fresh
+concrete parameter is prepended, the concrete expression is unchanged, and
+all existing abstract universe indices are shifted by one. -/
+theorem TrExprS.prependLevelParam
+    (henv : env.WF) (hΔ : Δ.WF env Us.length)
+    (hfresh : fresh ∉ Us)
+    (H : TrExprS env Us Δ e e') :
+    TrExprS env (fresh :: Us)
+      (Δ.instL (VLevel.prependShift Us.length)) e
+      (e'.instL (VLevel.prependShift Us.length)) := by
+  let shift := VLevel.prependShift Us.length
+  have hshift : ∀ level ∈ shift, level.WF (fresh :: Us).length := by
+    simpa [shift] using VLevel.prependShift_wf (n := Us.length)
+  induction H with
+  | bvar hfind => exact .bvar (VLCtx.find?_instL hfind)
+  | fvar hfind => exact .fvar (VLCtx.find?_instL hfind)
+  | sort hlevel => exact .sort (VLevel.ofLevel_fresh_cons hfresh hlevel)
+  | const hlookup hlevels harity =>
+    exact .const hlookup
+      (VLevel.mapM_ofLevel_fresh_cons hfresh hlevels) harity
+  | app hfn harg _ _ ihFn ihArg =>
+    exact .app
+      (VLCtx.instL_toCtx _ ▸ hfn.instL hshift)
+      (VLCtx.instL_toCtx _ ▸ harg.instL hshift)
+      (ihFn hΔ) (ihArg hΔ)
+  | lam hdom _ _ ihDom ihBody =>
+    exact .lam
+      (VLCtx.instL_toCtx _ ▸ hdom.instL hshift)
+      (ihDom hΔ) (ihBody ⟨hΔ, nofun, hdom⟩)
+  | forallE hdom hbody _ _ ihDom ihBody =>
+    exact .forallE
+      (VLCtx.instL_toCtx _ ▸ hdom.instL hshift)
+      (VLCtx.instL_toCtx _ ▸ hbody.instL hshift)
+      (ihDom hΔ) (ihBody ⟨hΔ, nofun, hdom⟩)
+  | letE hval _ _ _ ihTy ihVal ihBody =>
+    exact .letE
+      (VLCtx.instL_toCtx _ ▸ hval.instL hshift)
+      (ihTy hΔ) (ihVal hΔ) (ihBody ⟨hΔ, nofun, hval⟩)
+  | lit hlit _ ih => exact .lit hlit (ih hΔ)
+  | mdata _ ih => exact .mdata (ih hΔ)
+  | proj _ hproj ih =>
+    exact .proj (ih hΔ) (VLCtx.instL_toCtx _ ▸ hproj.instL hshift)
 
 section
 

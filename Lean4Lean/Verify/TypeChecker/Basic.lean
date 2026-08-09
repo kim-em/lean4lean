@@ -166,6 +166,42 @@ def MLCtx.WF (env : VEnv) (Us : List Name) : MLCtx → Prop
     TrExprS env Us c.vlctx ty ty' ∧ TrExprS env Us c.vlctx v v' ∧
     env.HasType Us.length c.vlctx.toCtx v' ty'
 
+/-- Keep the concrete local context fixed while shifting every stored
+abstract universe parameter to make room for one fresh leading parameter. -/
+def MLCtx.prependLevelParam (c : MLCtx) (oldUvars : Nat) : MLCtx :=
+  match c with
+  | .nil => .nil
+  | .vlam fv name ty ty' bi tail =>
+    .vlam fv name ty (ty'.instL (VLevel.prependShift oldUvars)) bi
+      (tail.prependLevelParam oldUvars)
+  | .vlet fv name ty value ty' value' tail =>
+    .vlet fv name ty value
+      (ty'.instL (VLevel.prependShift oldUvars))
+      (value'.instL (VLevel.prependShift oldUvars))
+      (tail.prependLevelParam oldUvars)
+
+@[simp] theorem MLCtx.prependLevelParam_length
+    {c : MLCtx} {oldUvars : Nat} :
+    (c.prependLevelParam oldUvars).length = c.length := by
+  induction c <;> simp [MLCtx.prependLevelParam, *]
+
+@[simp] theorem MLCtx.prependLevelParam_lctx
+    {c : MLCtx} {oldUvars : Nat} :
+    (c.prependLevelParam oldUvars).lctx = c.lctx := by
+  induction c <;> simp [MLCtx.prependLevelParam, MLCtx.lctx, *]
+
+@[simp] theorem MLCtx.prependLevelParam_decls
+    {c : MLCtx} {oldUvars : Nat} :
+    (c.prependLevelParam oldUvars).decls = c.decls := by
+  induction c <;> simp [MLCtx.prependLevelParam, MLCtx.decls, *]
+
+@[simp] theorem MLCtx.prependLevelParam_vlctx
+    {c : MLCtx} {oldUvars : Nat} :
+    (c.prependLevelParam oldUvars).vlctx =
+      c.vlctx.instL (VLevel.prependShift oldUvars) := by
+  induction c <;> simp [MLCtx.prependLevelParam, MLCtx.vlctx,
+    VLCtx.instL, VLocalDecl.instL, *]
+
 theorem MLCtx.WF.mono {env env' : VEnv} (henv : env ≤ env') :
     ∀ {c : MLCtx}, c.WF env Us → c.WF env' Us
   | .nil, _ => trivial
@@ -179,6 +215,29 @@ theorem MLCtx.WF.tr : ∀ {c : MLCtx}, c.WF env Us → TrLCtx env Us c.lctx c.vl
   | .nil, _ => ⟨.nil, .nil⟩
   | .vlam .., ⟨h1, h2, h3, h4⟩ => .mkLocalDecl h1.tr h2 h3 h4
   | .vlet .., ⟨h1, h2, h3, h4, h5⟩ => .mkLetDecl h1.tr h2 h3 h4 h5
+
+/-- The rebased `MLCtx` is semantically well formed under the extended
+universe list; crucially, all concrete local declaration types are unchanged. -/
+theorem MLCtx.WF.prependLevelParam
+    {c : MLCtx} {env : VEnv} {Us : List Name} {fresh : Name}
+    (H : c.WF env Us) (henv : env.WF) (hfresh : fresh ∉ Us) :
+    (c.prependLevelParam Us.length).WF env (fresh :: Us) := by
+  let shift := VLevel.prependShift Us.length
+  have hshift : ∀ level ∈ shift, level.WF (fresh :: Us).length := by
+    simpa [shift] using VLevel.prependShift_wf (n := Us.length)
+  induction c with
+  | nil => trivial
+  | vlam fv name ty ty' bi tail ih =>
+    rcases H with ⟨Htail, hfind, htr, hty⟩
+    refine ⟨ih Htail, by simpa using hfind, ?_, ?_⟩
+    · simpa [shift] using htr.prependLevelParam henv Htail.tr.wf hfresh
+    · simpa [shift] using hty.instL hshift
+  | vlet fv name ty value ty' value' tail ih =>
+    rcases H with ⟨Htail, hfind, hty, hvalue, hhas⟩
+    refine ⟨ih Htail, by simpa using hfind, ?_, ?_, ?_⟩
+    · simpa [shift] using hty.prependLevelParam henv Htail.tr.wf hfresh
+    · simpa [shift] using hvalue.prependLevelParam henv Htail.tr.wf hfresh
+    · simpa [shift] using hhas.instL hshift
 
 theorem MLCtx.WF.dropN {c : MLCtx} (n hn) : c.WF env Us → (c.dropN n hn).WF env Us :=
   match n, c, hn with

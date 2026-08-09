@@ -2720,6 +2720,35 @@ def ContextWF.toRecursorContextWF (H : ContextWF c) :
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
 
+/-- Reinterpret an already verified executable local context after prepending
+one fresh recursor universe parameter.  Concrete declarations and free-variable
+names are unchanged; only their stored abstract universe indices move. -/
+def ContextWF.prependRecursorLevelParam
+    (H : ContextWF c) (hfresh : fresh ∉ c.lparams) :
+    RecursorContextWF c (fresh :: c.lparams) := by
+  let mlctx := H.mlctx.prependLevelParam c.lparams.length
+  have hfv : mlctx.vlctx.fvars = H.mlctx.vlctx.fvars := by
+    dsimp [mlctx]
+    rw [TypeChecker.MLCtx.prependLevelParam_vlctx]
+    exact VLCtx.instL_fvars H.mlctx.vlctx
+  exact {
+    venv := H.venv
+    checking := H.checking
+    mlctx := mlctx
+    mlctx_wf := H.mlctx_wf.prependLevelParam H.checking.tr.wf hfresh
+    onlyLams := by
+      intro d hd
+      apply H.onlyLams d
+      simpa [mlctx] using hd
+    lctx_eq := by simpa [mlctx] using H.lctx_eq
+    ngen_prefix := H.ngen_prefix
+    indFresh := by
+      intro fv hmem
+      exact H.indFresh fv (hfv ▸ hmem)
+    kernelFresh := by
+      intro fv hmem
+      exact H.kernelFresh fv (hfv ▸ hmem) }
+
 theorem RecursorContextWF.current_not_mem
     (H : RecursorContextWF c recLparams) :
     ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
@@ -14897,6 +14926,22 @@ theorem AddInductive.AdmissibleElimLevel.sortType
   rcases H.ofLevel with ⟨level, hlevel⟩
   refine ⟨level, TrExprS.sort hlevel, ?_⟩
   exact ⟨.succ level, VEnv.HasType.sort (.of_ofLevel hlevel)⟩
+
+/-- Uniform entry into recursor-universe semantics for the exact two cases
+produced by `getElimLevel`. -/
+def ContextWF.toAdmissibleRecursorContextWF
+    (H : ContextWF c)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    RecursorContextWF c
+      (AddInductive.getRecLevelParams elimLevel c.lparams) := by
+  cases elimLevel with
+  | zero =>
+    simpa [AddInductive.getRecLevelParams] using H.toRecursorContextWF
+  | param name =>
+    simpa [AddInductive.getRecLevelParams] using
+      H.prependRecursorLevelParam Helim
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
 
 /-- `Expr.inferImplicit` changes only concrete binder annotations, which are
 erased by the abstract expression translation.  In particular the abstract
