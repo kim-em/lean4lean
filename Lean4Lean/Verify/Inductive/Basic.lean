@@ -25597,6 +25597,137 @@ theorem ExprReplacement.ForallTelescopeReplacement.residualReplacement
   | nil Hbody => exact Hbody
   | cons _ _ _ ih => exact ih
 
+/-- Existential target of a concrete expression which translates to an
+abstract type in the indicated context. -/
+def Expr.AbstractTypeTranslation
+    (env : VEnv) (Us : List Name) (Δ : VLCtx) (source : Expr) : Prop :=
+  ∃ target, TrExprS env Us Δ source target ∧
+    env.IsType Us.length Δ.toCtx target
+
+/-- Semantic fold over a binder-aligned replacement trace.  It isolates the
+remaining restoration proof to typed translation of each restored domain and
+of the final residual in their exact progressively extended contexts. -/
+theorem ExprReplacement.ForallTelescopeReplacement.typeTranslation
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual)
+    (Hdomains : ∀ {oldDomain newDomain},
+      ExprReplacement replaceNode oldDomain newDomain →
+      ∀ Δ, Expr.AbstractTypeTranslation env Us Δ newDomain)
+    (Hresidual : ∀ Δ,
+      Expr.AbstractTypeTranslation env Us Δ newResidual) :
+    ∃ target,
+      Expr.ForallTelescopeTypeTranslation env Us Δ output arity target := by
+  induction H generalizing Δ with
+  | nil Hbody =>
+    rcases Hresidual Δ with ⟨target, Htr, Htype⟩
+    exact ⟨target, .nil Htr Htype⟩
+  | @cons name oldDom oldBody bi newDom newBody arity oldResidual newResidual
+      Hnone Hdom Hbody ih =>
+    rcases Hdomains Hdom Δ with ⟨domain, Hdomain, HdomainType⟩
+    rcases ih (Δ := (none, .vlam domain) :: Δ) Hresidual with
+      ⟨body, HbodyTyped⟩
+    refine ⟨.forallE domain body, ?_⟩
+    simpa [Expr.updateForallE!] using
+      (Expr.ForallTelescopeTypeTranslation.cons
+        (name := name) (bi := bi) Hdomain HdomainType HbodyTyped)
+
+/-- Lockstep semantic transport from an already typed old telescope to its
+restored telescope.  Each callback receives the exact old translation and
+typehood derivation together with the exact replacement proof that produced
+the new concrete expression. -/
+theorem ExprReplacement.ForallTelescopeReplacement.transportTypeTranslation
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual)
+    (Hold : Expr.ForallTelescopeTypeTranslation oldEnv Us oldΔ input arity
+      oldTarget)
+    (Hdomains : ∀ {oldΔ newΔ oldDomain newDomain oldDomainTarget},
+      ExprReplacement replaceNode oldDomain newDomain →
+      TrExprS oldEnv Us oldΔ oldDomain oldDomainTarget →
+      oldEnv.IsType Us.length oldΔ.toCtx oldDomainTarget →
+      Expr.AbstractTypeTranslation newEnv Us newΔ newDomain)
+    (Hresidual : ∀ {oldΔ newΔ oldResidualTarget},
+      ExprReplacement replaceNode oldResidual newResidual →
+      TrExprS oldEnv Us oldΔ oldResidual oldResidualTarget →
+      oldEnv.IsType Us.length oldΔ.toCtx oldResidualTarget →
+      Expr.AbstractTypeTranslation newEnv Us newΔ newResidual) :
+    ∃ newTarget,
+      Expr.ForallTelescopeTypeTranslation newEnv Us newΔ output arity
+        newTarget := by
+  induction H generalizing oldΔ newΔ oldTarget with
+  | nil Hbody =>
+    rcases Hresidual Hbody Hold.translation Hold.isType with
+      ⟨target, Htr, Htype⟩
+    exact ⟨target, .nil Htr Htype⟩
+  | @cons name oldDom oldBody bi newDom newBody arity oldResidual newResidual
+      Hnone Hdom Hbody ih =>
+    cases Hold with
+    | cons HoldDom HoldDomType HoldBody =>
+      rcases Hdomains Hdom HoldDom HoldDomType with
+        ⟨newDomainTarget, HnewDomain, HnewDomainType⟩
+      rcases ih HoldBody (Hresidual := Hresidual)
+          (newΔ := (none, .vlam newDomainTarget) :: newΔ) with
+        ⟨newBodyTarget, HnewBody⟩
+      refine ⟨.forallE newDomainTarget newBodyTarget, ?_⟩
+      simpa [Expr.updateForallE!] using
+        (Expr.ForallTelescopeTypeTranslation.cons
+          (name := name) (bi := bi) HnewDomain HnewDomainType HnewBody)
+
+/-- Parameter-closing form of `transportTypeTranslation`.  Restoration first
+opens common parameters as fresh fvars; the installed recursor then closes
+them outside the suffix telescope.  This theorem performs that abstraction
+at the exact suffix depth of every domain and residual. -/
+theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedTypeTranslation
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual)
+    (Hold : Expr.ForallTelescopeTypeTranslation oldEnv Us oldΔ
+      (input.abstractList oldParams depth) arity oldTarget)
+    (Hdomains : ∀ {oldΔ newΔ oldDomain newDomain oldDomainTarget}
+        (binderDepth : Nat),
+      ExprReplacement replaceNode oldDomain newDomain →
+      TrExprS oldEnv Us oldΔ
+        (oldDomain.abstractList oldParams binderDepth) oldDomainTarget →
+      oldEnv.IsType Us.length oldΔ.toCtx oldDomainTarget →
+      Expr.AbstractTypeTranslation newEnv Us newΔ
+        (newDomain.abstractList newParams binderDepth))
+    (Hresidual : ∀ {oldΔ newΔ oldResidualTarget},
+      ExprReplacement replaceNode oldResidual newResidual →
+      TrExprS oldEnv Us oldΔ
+        (oldResidual.abstractList oldParams (depth + arity))
+        oldResidualTarget →
+      oldEnv.IsType Us.length oldΔ.toCtx oldResidualTarget →
+      Expr.AbstractTypeTranslation newEnv Us newΔ
+        (newResidual.abstractList newParams (depth + arity))) :
+    ∃ newTarget,
+      Expr.ForallTelescopeTypeTranslation newEnv Us newΔ
+        (output.abstractList newParams depth) arity newTarget := by
+  induction H generalizing oldΔ newΔ oldTarget depth with
+  | nil Hbody =>
+    rcases Hresidual Hbody Hold.translation Hold.isType with
+      ⟨target, Htr, Htype⟩
+    exact ⟨target, .nil Htr Htype⟩
+  | @cons name oldDom oldBody bi newDom newBody arity oldResidual newResidual
+      Hnone Hdom Hbody ih =>
+    rw [Expr.abstractList_forallE] at Hold
+    cases Hold with
+    | cons HoldDom HoldDomType HoldBody =>
+      rcases Hdomains (oldΔ := oldΔ) (newΔ := newΔ) depth Hdom HoldDom
+          HoldDomType with
+        ⟨newDomainTarget, HnewDomain, HnewDomainType⟩
+      rcases ih HoldBody (Hresidual := by
+          intro oldΔ newΔ oldResidualTarget Hreplacement Htr Htype
+          have Htransported := Hresidual (oldΔ := oldΔ) (newΔ := newΔ)
+            Hreplacement (by
+            simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Htr)
+            Htype
+          simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+            Htransported)
+          (newΔ := (none, .vlam newDomainTarget) :: newΔ)
+          (depth := depth + 1) with ⟨newBodyTarget, HnewBody⟩
+      refine ⟨.forallE newDomainTarget newBodyTarget, ?_⟩
+      simpa [Expr.updateForallE!, Expr.abstractList_forallE] using
+        (Expr.ForallTelescopeTypeTranslation.cons
+          (name := name) (bi := bi) HnewDomain HnewDomainType HnewBody)
+
 theorem ExprReplacement.ofReplace
     (replaceNode : Expr → Option Expr) :
     ∀ input, ExprReplacement replaceNode input (input.replace replaceNode) := by
