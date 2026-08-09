@@ -14753,6 +14753,35 @@ theorem AddInductive.AdmissibleElimLevel.recLevelParamsNodup
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at H
 
+/-- The recursor universe list is obtained by prepending at most the one fresh
+large-elimination parameter.  This positional fact is kept explicit because
+old declaration levels must later be reinterpreted beneath that prefix. -/
+theorem AddInductive.AdmissibleElimLevel.recLevelParamsDecomposition
+    (H : AddInductive.AdmissibleElimLevel lparams elimLevel) :
+    ∃ pre : List Name, pre.length ≤ 1 ∧
+      AddInductive.getRecLevelParams elimLevel lparams = pre ++ lparams := by
+  cases elimLevel with
+  | zero => exact ⟨[], by simp [AddInductive.getRecLevelParams]⟩
+  | param name =>
+    exact ⟨[name], by simp [AddInductive.getRecLevelParams]⟩
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at H
+
+/-- Independent semantic seed for the codomain of every generated motive.
+The concrete sort is interpreted under the exact universe list assigned to
+the generated recursor, without consulting `checkRecursorTypes`. -/
+theorem AddInductive.AdmissibleElimLevel.sortType
+    (H : AddInductive.AdmissibleElimLevel lparams elimLevel) :
+    ∃ level,
+      TrExprS env (AddInductive.getRecLevelParams elimLevel lparams) Δ
+        (.sort elimLevel) (.sort level) ∧
+      env.IsType
+        (AddInductive.getRecLevelParams elimLevel lparams).length
+        Δ.toCtx (.sort level) := by
+  rcases H.ofLevel with ⟨level, hlevel⟩
+  refine ⟨level, TrExprS.sort hlevel, ?_⟩
+  exact ⟨.succ level, VEnv.HasType.sort (.of_ofLevel hlevel)⟩
+
 /-- `Expr.inferImplicit` changes only concrete binder annotations, which are
 erased by the abstract expression translation.  In particular the abstract
 recursor type proved before this production post-processing step remains the
