@@ -18236,18 +18236,45 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
 
 /-- Replay the common-parameter prefix from the independent family shape,
 advancing both the retained concrete suffix and the narrow semantic header.
-At parameter completion the residual is passed to `continueIndexSemantics`,
-which owns the genuine-index suffix. -/
+At parameter completion the exact cached-parameter scope is re-embedded in
+the executable context and passed to `continueIndexSynthesisSemantics`, which
+owns the genuine-index suffix.  A defensive executable exit before that
+boundary is exposed separately to the caller. -/
 theorem continueCheckedSemantics {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (k : Array Expr → AddInductive.M alpha)
     {Q : alpha → Prop}
+    {target : VInductiveType}
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
-      {type : Expr} {typeTarget : VExpr} {indices originTypes : Array Expr}
+    (Hearly : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+      {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
+      {i : Nat} {indices originTypes : Array Expr}
       {indexTargets : List VExpr},
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type typeTarget →
-      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx typeTarget →
+      i < stats.params.size →
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc.venv c.lparams target.toSkeleton scope narrowTarget i 0 →
+      TrExprS Hc.venv c.lparams scope type narrowTarget →
+      FVarsIn (· ∈ scope.fvars) type →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc originTypes →
+      (k indices c).WF Q)
+    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+      {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
+      {nindices : Nat} {indices originTypes : Array Expr}
+      {indexTargets : List VExpr},
+      (Hsynthesis :
+        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          Hc.venv c.lparams target.toSkeleton scope narrowTarget
+          stats.params.size nindices) →
+      checkInductiveTypes.loopType.NarrowRuntimeScope Hc.venv c.lparams
+        scope Hc.mlctx.vlctx →
+      TrExprS Hc.venv c.lparams scope type narrowTarget →
+      FVarsIn (· ∈ scope.fvars) type →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       TranslatedOriginTypes Hc originTypes →
@@ -18257,7 +18284,6 @@ theorem continueCheckedSemantics {alpha : Type}
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
     {decl : VInductDecl} {params : List VExpr}
-    {target : VInductiveType}
     (hparams : stats.params.size = decl.nparams)
     (huvars : c.lparams.length = decl.uvars)
     (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
@@ -18270,24 +18296,37 @@ theorem continueCheckedSemantics {alpha : Type}
         checkInductiveTypes.loopType.LaterParameterScope
           Hsuffix i type) →
       (∀ hi : i < stats.params.size, scope = (Hscope hi).older) →
+      (i = stats.params.size → scope = Hsuffix.parameterDecls) →
       checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
         Hc.venv c.lparams target.toSkeleton scope narrowTarget i 0 →
       TrExprS Hc.venv c.lparams scope type narrowTarget →
+      FVarsIn (· ∈ scope.fvars) type →
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
       Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       TranslatedOriginTypes Hc originTypes →
       (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
-  | _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | type, fullTarget, narrowTarget, scope, i, indices, originTypes,
-      indexTargets, fuel + 1, hbound, Hscope, hscopeEq, Hsynthesis,
-      htypeNarrow, htypeFull, htypeFullType, Hindices, Horigins => by
+      indexTargets, fuel + 1, hbound, Hscope, hscopeEq, hcompleteScope,
+      Hsynthesis, htypeNarrow, htypeFVars, htypeFull, htypeFullType,
+      Hindices, Horigins => by
       by_cases hdone : stats.params.size ≤ i
-      · exact continueIndexSemantics stats k hconsume Hk type fullTarget i
-          indices originTypes indexTargets (fuel + 1) c hdone Hc htypeFull
+      · have hieq : i = stats.params.size := by omega
+        subst i
+        have hscope : scope = Hsuffix.parameterDecls :=
+          hcompleteScope rfl
+        subst scope
+        let Hruntime :=
+          checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+            Hc Hsuffix
+        exact continueIndexSynthesisSemantics stats k hconsume Hk type
+          fullTarget narrowTarget Hsuffix.parameterDecls stats.params.size 0
+          indices originTypes indexTargets (fuel + 1) c (by omega) Hc
+          Hsynthesis Hruntime htypeNarrow htypeFVars htypeFull
           htypeFullType Hindices Horigins
       · have hi : i < stats.params.size := by omega
         cases type with
@@ -18326,8 +18365,8 @@ theorem continueCheckedSemantics {alpha : Type}
                   ⟨sourceBody, normalizedTarget, hsourceBody,
                     hnormalizedNarrow, hbodyEq⟩ with
                 ⟨nextNarrow, hnormalizedNarrow', ⟨Hsynthesis'⟩⟩
-              exact continueCheckedSemantics stats k hconsume Hk Hc Hsuffix
-                hparams huvars hctx hshape next bodyTarget nextNarrow
+              exact continueCheckedSemantics stats k hconsume Hearly Hk Hc
+                Hsuffix hparams huvars hctx hshape next bodyTarget nextNarrow
                 ((some (Hcurrent.fv, Hcurrent.deps),
                   .vlam Hcurrent.paramType) :: Hcurrent.older)
                 (i + 1) indices originTypes indexTargets fuel
@@ -18335,12 +18374,17 @@ theorem continueCheckedSemantics {alpha : Type}
                 (fun hlt => Hbody.next hlt hnext.1)
                 (fun hlt => Hbody.nextOlder
                   (Hbody.next hlt hnext.1) hlt)
-                Hsynthesis' hnormalizedNarrow' hnext.2 hopenedType
+                (fun heq => by
+                  have hfinished : i + 1 = stats.params.size := heq
+                  exact Hcurrent.completedScope hfinished)
+                Hsynthesis' hnormalizedNarrow'
+                (Hbody.consumedFVars hnext.1) hnext.2 hopenedType
                 Hindices Horigins
         | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
           | proj =>
             simpa [AddInductive.mkRecInfos.loopArgs1] using
-              Hk Hc htypeFull htypeFullType Hindices Horigins
+              Hearly Hc hi Hsynthesis htypeNarrow htypeFVars htypeFull
+                htypeFullType Hindices Horigins
 
 /-- Start checked argument replay at the exact `whnf` boundary used by
 `loopInd1`.  Closed source headers initialize an empty narrow scope; the
@@ -18349,12 +18393,38 @@ theorem startCheckedSemantics {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (k : Array Expr → AddInductive.M alpha)
     {Q : alpha → Prop}
+    {decl : VInductDecl} {params : List VExpr}
+    {source : InductiveType} {target : VInductiveType}
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
-      {type : Expr} {typeTarget : VExpr} {indices originTypes : Array Expr}
+    (Hearly : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+      {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
+      {i : Nat} {indices originTypes : Array Expr}
       {indexTargets : List VExpr},
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type typeTarget →
-      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx typeTarget →
+      i < stats.params.size →
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc.venv c.lparams target.toSkeleton scope narrowTarget i 0 →
+      TrExprS Hc.venv c.lparams scope type narrowTarget →
+      FVarsIn (· ∈ scope.fvars) type →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc originTypes →
+      (k indices c).WF Q)
+    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+      {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
+      {nindices : Nat} {indices originTypes : Array Expr}
+      {indexTargets : List VExpr},
+      (Hsynthesis :
+        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          Hc.venv c.lparams target.toSkeleton scope narrowTarget
+          stats.params.size nindices) →
+      checkInductiveTypes.loopType.NarrowRuntimeScope Hc.venv c.lparams
+        scope Hc.mlctx.vlctx →
+      TrExprS Hc.venv c.lparams scope type narrowTarget →
+      FVarsIn (· ∈ scope.fvars) type →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       TranslatedOriginTypes Hc originTypes →
@@ -18363,8 +18433,6 @@ theorem startCheckedSemantics {alpha : Type}
     {depth : Nat}
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
-    {decl : VInductDecl} {params : List VExpr}
-    {source : InductiveType} {target : VInductiveType}
     (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
       target.toVConstVal)
     (hparams : stats.params.size = decl.nparams)
@@ -18407,9 +18475,15 @@ theorem startCheckedSemantics {alpha : Type}
         [] = (Hscope hi).older := by
       intro hi
       exact (Hscope hi).older_eq_nil hi |>.symm
-    exact continueCheckedSemantics stats k hconsume Hk Hc Hsuffix hparams
-      huvars hctx hshape normalized sourceTarget narrowTarget [] 0 #[] #[]
-      [] fuel (by omega) Hscope hscopeEq Hsynthesis hnormalizedNarrow
+    have hcompleteScope : 0 = stats.params.size →
+        ([] : VLCtx) = Hsuffix.parameterDecls := by
+      intro hzero
+      exact (List.eq_nil_of_length_eq_zero (by
+        rw [Hsuffix.parameterDecls_length, ← hzero])).symm
+    exact continueCheckedSemantics stats k hconsume Hearly Hk Hc Hsuffix
+      hparams huvars hctx hshape normalized sourceTarget narrowTarget [] 0
+      #[] #[] [] fuel (by omega) Hscope hscopeEq hcompleteScope Hsynthesis
+      hnormalizedNarrow (by simpa [VLCtx.fvars] using hnormalizedNoFVars)
       hnormalized.2 hsourceType .nil (TranslatedOriginTypes.empty Hc)
 
 end mkRecInfos.loopArgs1
