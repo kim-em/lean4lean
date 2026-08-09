@@ -17932,25 +17932,11 @@ theorem continueIndexSemantics {alpha : Type}
           simpa [AddInductive.mkRecInfos.loopArgs1] using
             Hk Hc htype htypeType Hindices Horigins
 
-/-- Semantic interface for replaying the already checked common-parameter
-prefix of a family header.  Unlike index binders, these variables already
-exist in the retained context, so one step substitutes the cached parameter
-without extending the reader context. -/
-def ParameterReplaySemantics (Hc : ContextWF c)
-    (stats : AddInductive.InductiveStats) : Prop :=
-  ∀ i (hi : i < stats.params.size) name dom body bi current,
-    TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
-      (.forallE name dom body bi) current →
-    Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx current →
-    ∃ bodyTarget,
-      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-        (body.instantiate1 stats.params[i]!) bodyTarget ∧
-      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx bodyTarget
-
-/-- Full semantically typed replay of `loopArgs1`.  Parameter steps use the
-checked-header replay certificate; at the first genuine index it hands off
-to `continueIndexSemantics`, which records every exact origin type. -/
-theorem continueSemantics {alpha : Type}
+/-- Replay the common-parameter prefix from the independent family shape,
+advancing both the retained concrete suffix and the narrow semantic header.
+At parameter completion the residual is passed to `continueIndexSemantics`,
+which owns the genuine-index suffix. -/
+theorem continueCheckedSemantics {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (k : Array Expr → AddInductive.M alpha)
     {Q : alpha → Prop}
@@ -17963,40 +17949,96 @@ theorem continueSemantics {alpha : Type}
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       TranslatedOriginTypes Hc originTypes →
-      (k indices c).WF Q) :
-    ∀ type typeTarget i indices originTypes indexTargets fuel c,
-      (Hc : ContextWF c) →
-      ParameterReplaySemantics Hc stats →
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type typeTarget →
-      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx typeTarget →
+      (k indices c).WF Q)
+    {c : AddInductive.Context} (Hc : ContextWF c)
+    {depth : Nat}
+    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth)
+    {decl : VInductDecl} {params : List VExpr}
+    {target : VInductiveType}
+    (hparams : stats.params.size = decl.nparams)
+    (huvars : c.lparams.length = decl.uvars)
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx)
+    (hshape : decl.TypeShape Hc.venv params target) :
+    ∀ type fullTarget narrowTarget scope i indices originTypes
+        indexTargets fuel,
+      i ≤ stats.params.size →
+      (Hscope : ∀ hi : i < stats.params.size,
+        checkInductiveTypes.loopType.LaterParameterScope
+          Hsuffix i type) →
+      (∀ hi : i < stats.params.size, scope = (Hscope hi).older) →
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc.venv c.lparams target.toSkeleton scope narrowTarget i 0 →
+      TrExprS Hc.venv c.lparams scope type narrowTarget →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
       List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
         indices.toList indexTargets →
       TranslatedOriginTypes Hc originTypes →
       (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
-  | _, _, _, _, _, _, 0, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
-  | type, typeTarget, i, indices, originTypes, indexTargets, fuel + 1, c,
-      Hc, Hparams, htype, htypeType, Hindices, Horigins => by
+  | type, fullTarget, narrowTarget, scope, i, indices, originTypes,
+      indexTargets, fuel + 1, hbound, Hscope, hscopeEq, Hsynthesis,
+      htypeNarrow, htypeFull, htypeFullType, Hindices, Horigins => by
       by_cases hdone : stats.params.size ≤ i
-      · exact continueIndexSemantics stats k hconsume Hk type typeTarget i
-          indices originTypes indexTargets (fuel + 1) c hdone Hc htype
-          htypeType Hindices Horigins
+      · exact continueIndexSemantics stats k hconsume Hk type fullTarget i
+          indices originTypes indexTargets (fuel + 1) c hdone Hc htypeFull
+          htypeFullType Hindices Horigins
       · have hi : i < stats.params.size := by omega
         cases type with
         | forallE name dom body bi =>
           rw [AddInductive.mkRecInfos.loopArgs1, if_pos hi]
-          rcases Hparams i hi name dom body bi typeTarget htype htypeType with
-            ⟨bodyTarget, hopened, hopenedType⟩
-          have hwhnf := whnfInContext.WF Hc hopened
-          exact hwhnf.bind fun next hnext =>
-            continueSemantics stats k hconsume Hk next bodyTarget (i + 1)
-              indices originTypes indexTargets fuel c Hc Hparams hnext
-              hopenedType Hindices Horigins
+          have htypeNarrow' := htypeNarrow
+          cases htypeNarrow with
+          | @forallE currentDomain currentBody _ _ _ _ _
+              _hdomType _hbodyType hdomNarrow _hbodyNarrow =>
+            let Hcurrent := Hscope hi
+            have hscope : scope = Hcurrent.older := hscopeEq hi
+            subst scope
+            rcases parameterStepOfCheckedHeader Hc Hcurrent Hsynthesis hi
+                hparams huvars hctx hshape
+                htypeNarrow' htypeFull with
+              ⟨bodyTarget, hopened, hopenedType⟩
+            have hwhnf := whnfInContext.scopeWF Hc hopened
+            exact hwhnf.bind fun next hnext => by
+              have hnarrowMatch := Hcurrent.currentDomainDefEq Hsynthesis
+                hi hparams huvars hctx hshape
+              have hindices : Hsynthesis.indices = [] :=
+                List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
+              have hcurrentWF := Hcurrent.lift.wf Hc.checking.tr.wf
+                Hc.mlctx_wf.tr.wf
+              let Hbody :
+                  checkInductiveTypes.loopType.LaterParameterScope
+                    Hsuffix i body :=
+                { Hcurrent with fvars := Hcurrent.fvars.2 }
+              rcases Hbody.normalizedBody hopened hnext.1 hnext.2 with
+                ⟨sourceBody, normalizedTarget, hsourceBody,
+                  hnormalizedNarrow, hbodyEq⟩
+              rcases Hsynthesis.consumeParameter Hc.checking.tr.wf
+                  hindices htypeNarrow'
+                  hcurrentWF
+                  ⟨currentDomain, hdomNarrow, hnarrowMatch⟩
+                  ⟨sourceBody, normalizedTarget, hsourceBody,
+                    hnormalizedNarrow, hbodyEq⟩ with
+                ⟨nextNarrow, hnormalizedNarrow', ⟨Hsynthesis'⟩⟩
+              exact continueCheckedSemantics stats k hconsume Hk Hc Hsuffix
+                hparams huvars hctx hshape next bodyTarget nextNarrow
+                ((some (Hcurrent.fv, Hcurrent.deps),
+                  .vlam Hcurrent.paramType) :: Hcurrent.older)
+                (i + 1) indices originTypes indexTargets fuel
+                (by omega)
+                (fun hlt => Hbody.next hlt hnext.1)
+                (fun hlt => Hbody.nextOlder
+                  (Hbody.next hlt hnext.1) hlt)
+                Hsynthesis' hnormalizedNarrow' hnext.2 hopenedType
+                Hindices Horigins
         | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
           | proj =>
             simpa [AddInductive.mkRecInfos.loopArgs1] using
-              Hk Hc htype htypeType Hindices Horigins
+              Hk Hc htypeFull htypeFullType Hindices Horigins
 
 end mkRecInfos.loopArgs1
 
