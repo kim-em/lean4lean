@@ -3692,6 +3692,31 @@ theorem NarrowRuntimeScope.hasTypeOfFull
   exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
     hexpanded
 
+/-- Weaken a translated type from the independent header scope into the
+executable reader context.  Context conversion may choose a definitionally
+equal target, so the transported target is returned existentially together
+with its preserved typehood. -/
+theorem NarrowRuntimeScope.transportType
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (henv : env.WF)
+    (htr : TrExprS env Us scope e narrow')
+    (htype : env.IsType Us.length scope.toCtx narrow') :
+    ∃ runtime', TrExprS env Us runtime e runtime' ∧
+      env.IsType Us.length runtime.toCtx runtime' := by
+  have hweak : TrExprS env Us H.expanded e (narrow'.lift' H.shift) := by
+    simpa using htr.weakFV' henv.ordered H.lift H.context.wf
+  have hweakType : env.IsType Us.length H.expanded.toCtx
+      (narrow'.lift' H.shift) :=
+    htype.weak' henv.ordered H.lift.toCtx
+  rcases hweak.defeqDFC henv H.context with ⟨runtime', hruntime⟩
+  have heq := hweak.uniq henv H.context hruntime
+  have hweakTypeRuntime := hweakType.defeqDFC henv.ordered
+    H.context.defeqCtx
+  have heqRuntime := heq.defeqDFC henv.ordered H.context.defeqCtx
+  exact ⟨runtime', hruntime,
+    hweakTypeRuntime.defeqU_l henv
+      (H.context.symm henv.ordered).wf.toCtx heqRuntime⟩
+
 /-- Move a successful runtime result-sort check back to the independent
 narrow header scope.  Both translations are tied to the same concrete
 residual, so uniqueness in the runtime context followed by inverse weakening
@@ -18131,7 +18156,7 @@ header type. -/
 theorem CheckedRecursorHeaderAt.completedNarrowFamilyApplication
     {c : AddInductive.Context} {Hc : ContextWF c}
     {c' : AddInductive.Context} {Hc' : ContextWF c'}
-    {scope : VLCtx} {type narrowTarget : VExpr}
+    {scope : VLCtx} {type : VExpr}
     {indices : Array Expr} {indexTargets : List VExpr} {nindices : Nat}
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
     (Hsynthesis :
@@ -18153,7 +18178,10 @@ theorem CheckedRecursorHeaderAt.completedNarrowFamilyApplication
         (canonicalIndexVars (decl.nparams + H.target.numIndices))) ∧
     Hc'.venv.HasType c'.lparams.length scope.toCtx
       (VExpr.mkApps (.const H.target.name H.abstractLevels)
-        (canonicalIndexVars (decl.nparams + H.target.numIndices))) type := by
+        (canonicalIndexVars (decl.nparams + H.target.numIndices))) type ∧
+    Hc'.venv.IsType c'.lparams.length scope.toCtx
+      (VExpr.mkApps (.const H.target.name H.abstractLevels)
+        (canonicalIndexVars (decl.nparams + H.target.numIndices))) := by
   have htranslated : indices.size = indexTargets.length := by
     simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hindices
   have hguard : indices.size = stats.nindices[familyIdx]! := by
@@ -18165,6 +18193,47 @@ theorem CheckedRecursorHeaderAt.completedNarrowFamilyApplication
     hcanonical harity
   have hhead := H.indConstTranslation Hstats henv hlparams
   have happ := H.canonicalFamilyApplication Hsynthesis henv hlparams hnindices
+  have huvars : H.target.uvars = decl.uvars := by
+    rw [H.sourceTranslation.uvars, H.materialized.uvars]
+  have htargetWF : H.target.toVConstant.WF Hc'.venv := by
+    simpa [henv] using H.sourceTranslation.wf
+  have hshape : decl.TypeShape Hc'.venv
+      H.materialized.headers.params H.target := by
+    simpa [henv] using H.shape
+  rcases typeShape_forallAritySort huvars Hc'.checking.tr.wf htargetWF
+      hshape with
+    ⟨functionType, typeLevel, hfunctionType, hfunctionShape⟩
+  have hlevelsWF : ∀ level ∈ H.abstractLevels,
+      level.WF c'.lparams.length := by
+    rw [H.abstractLevels_eq_params, hlparams]
+    exact VLevel.params_wf
+  have hlevelsLength : H.abstractLevels.length = H.target.uvars := by
+    rw [H.abstractLevels_eq_params, VLevel.params_length,
+      H.sourceTranslation.uvars]
+  have hfunctionTypeInst := hfunctionType.instL hlevelsWF
+  have hlookup : Hc'.venv.constants H.target.name =
+      some H.target.toVConstant := by
+    simpa [henv] using H.targetLookup
+  have hconstBase := VEnv.HasType.const (env := Hc'.venv)
+    (U := c'.lparams.length) (Γ := scope.toCtx) hlookup
+    hlevelsWF hlevelsLength
+  have hconstType : Hc'.venv.HasType c'.lparams.length scope.toCtx
+      (.const H.target.name H.abstractLevels)
+      (functionType.instL H.abstractLevels) := by
+    have hfunctionTypeInst' : Hc'.venv.IsDefEq c'.lparams.length []
+        (H.target.type.instL H.abstractLevels)
+        (functionType.instL H.abstractLevels)
+        (.sort (typeLevel.inst H.abstractLevels)) := by
+      simpa [henv, hlparams, VExpr.instL] using hfunctionTypeInst
+    exact (hfunctionTypeInst'.weak0 Hc'.checking.tr.wf.ordered).defeq hconstBase
+  have happType : Hc'.venv.IsType c'.lparams.length scope.toCtx
+      (VExpr.mkApps (.const H.target.name H.abstractLevels)
+        (canonicalIndexVars (decl.nparams + H.target.numIndices))) := by
+    apply VEnv.HasType.mkApps_isType Hc'.checking.tr.wf
+      Hsynthesis.scopeWF.toCtx hconstType
+    · simpa [canonicalIndexVars] using
+        hfunctionShape.instL H.abstractLevels
+    · exact ⟨type, happ⟩
   have htr : TrExprS Hc'.venv c'.lparams scope
       (Expr.mkAppList stats.indConsts[familyIdx]!
         (stats.params.toList ++ indices.toList))
@@ -18172,8 +18241,49 @@ theorem CheckedRecursorHeaderAt.completedNarrowFamilyApplication
         (canonicalIndexVars (decl.nparams + H.target.numIndices))) :=
     checkPositivityStep.TrExprS.mkAppList Hc'.checking.tr.wf.ordered
       Hsynthesis.scopeWF.toCtx hhead hargs ⟨_, happ⟩
-  refine ⟨?_, happ⟩
+  refine ⟨?_, happ, happType⟩
   simpa [Expr.mkAppN_eq_mkAppList, Expr.mkAppList_append] using htr
+
+/-- The exact executable family application used for the major premise has a
+well-formed annotation-consumed interpretation in the actual reader context.
+The independent family shape establishes typehood in the narrow header scope;
+the recorded scope embedding and annotation compatibility are used only at
+the executable boundary. -/
+theorem CheckedRecursorHeaderAt.completedMajorDomain
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {c' : AddInductive.Context} {Hc' : ContextWF c'}
+    {scope : VLCtx} {type : VExpr}
+    {indices : Array Expr} {indexTargets : List VExpr}
+    {nindices : Nat}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc'.venv c'.lparams H.target.toSkeleton scope type
+        stats.params.size nindices)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc'.venv c'.lparams
+      scope stats decl nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+      Hc'.venv c'.lparams scope Hc'.mlctx.vlctx)
+    (Hindices : List.Forall₂ (TrExprS Hc'.venv c'.lparams scope)
+      indices.toList indexTargets)
+    (hreplay : indexTargets.length = nindices)
+    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (harity : (indices.size == stats.nindices[familyIdx]!) = true)
+    (henv : Hc'.venv = Hc.venv)
+    (hlparams : c'.lparams = c.lparams)
+    (hconsume : ConsumeTypeAnnotationsCompat) :
+    ∃ sourceTarget consumedTarget,
+      Hc'.ConsumedDomain
+        (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params) indices)
+        sourceTarget consumedTarget := by
+  rcases H.completedNarrowFamilyApplication Hsynthesis Hstats Hindices
+      hreplay hcanonical harity henv hlparams with
+    ⟨hnarrow, _happ, hnarrowType⟩
+  rcases Hruntime.transportType Hc'.checking.tr.wf hnarrow hnarrowType with
+    ⟨sourceTarget, hsource, hsourceType⟩
+  rcases hconsume c' Hc' hsource hsourceType with
+    ⟨consumedTarget, Hconsumed⟩
+  exact ⟨sourceTarget, consumedTarget, Hconsumed⟩
 
 /-- One semantically justified cached-parameter step.  The syntax translation
 of the cached free variable is not enough on its own: preservation of
