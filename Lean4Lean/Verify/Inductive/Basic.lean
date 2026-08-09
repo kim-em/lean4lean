@@ -18440,15 +18440,31 @@ theorem startCheckedSemantics {alpha : Type}
     (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
       params.reverse Hsuffix.parameterDecls.toCtx)
     (hshape : decl.TypeShape Hc.venv params target)
-    {sourceTarget : VExpr}
-    (hsource : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      source.type sourceTarget)
-    (hsourceType : Hc.venv.IsType c.lparams.length
-      Hc.mlctx.vlctx.toCtx sourceTarget)
     (fuel : Nat) :
     ((monadLift (TypeChecker.whnf source.type) : AddInductive.M Expr) c >>=
       fun normalized => AddInductive.mkRecInfos.loopArgs1 stats normalized 0
         #[] fuel k c).WF Q := by
+  let W : VLCtx.FVLift [] Hc.mlctx.vlctx 0
+      Hc.mlctx.vlctx.toCtx.length 0 :=
+    VLCtx.FVLift.from_nil Hc.mlctx.noBV
+  have htargetType : Hc.venv.IsType c.lparams.length [] target.type := by
+    have htargetType := Htarget.wf
+    change Hc.venv.IsType target.uvars [] target.type at htargetType
+    rwa [Htarget.uvars] at htargetType
+  have hsource : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      source.type (target.type.liftN Hc.mlctx.vlctx.toCtx.length 0) := by
+    simpa using Htarget.type.weakFV Hc.checking.tr.wf.ordered W
+      Hc.mlctx_wf.tr.wf
+  have hsourceTarget :
+      target.type.liftN Hc.mlctx.vlctx.toCtx.length 0 = target.type := by
+    have hclosed := (Classical.choose_spec htargetType).closedN
+      Hc.checking.tr.wf.ordered (by trivial)
+    exact hclosed.liftN_eq (Nat.zero_le _)
+  rw [hsourceTarget] at hsource
+  have hsourceType : Hc.venv.IsType c.lparams.length
+      Hc.mlctx.vlctx.toCtx target.type := by
+    have hweak := htargetType.weakN Hc.checking.tr.wf.ordered W.toCtx
+    simpa [hsourceTarget] using hweak
   have hwhnf := whnfInContext.scopeWF Hc hsource
   exact hwhnf.bind fun normalized hnormalized => by
     have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
@@ -18481,7 +18497,7 @@ theorem startCheckedSemantics {alpha : Type}
       exact (List.eq_nil_of_length_eq_zero (by
         rw [Hsuffix.parameterDecls_length, ← hzero])).symm
     exact continueCheckedSemantics stats k hconsume Hearly Hk Hc Hsuffix
-      hparams huvars hctx hshape normalized sourceTarget narrowTarget [] 0
+      hparams huvars hctx hshape normalized target.type narrowTarget [] 0
       #[] #[] [] fuel (by omega) Hscope hscopeEq hcompleteScope Hsynthesis
       hnormalizedNarrow (by simpa [VLCtx.fvars] using hnormalizedNoFVars)
       hnormalized.2 hsourceType .nil (TranslatedOriginTypes.empty Hc)
