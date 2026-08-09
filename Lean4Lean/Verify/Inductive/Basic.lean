@@ -15619,6 +15619,8 @@ theorem checkInductiveTypes.loopType.ParameterContextSuffix.paramsBound_nodup
 
 structure BindingContextLE (c c' : AddInductive.Context) : Prop where
   fvars : c.lctx.fvars ⊆ c'.lctx.fvars
+  declarations : ∀ fv ∈ c.lctx.fvars,
+    c'.lctx.find? fv = c.lctx.find? fv
   env_eq : c'.env = c.env
   lparams_eq : c'.lparams = c.lparams
   safety_eq : c'.safety = c.safety
@@ -15630,12 +15632,15 @@ instance : CoeFun (BindingContextLE c c') fun _ =>
   coe H := H.fvars
 
 theorem BindingContextLE.refl (c : AddInductive.Context) :
-    BindingContextLE c c := ⟨fun _ => id, rfl, rfl, rfl, rfl, rfl⟩
+    BindingContextLE c c :=
+  ⟨fun _ => id, fun _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 theorem BindingContextLE.trans
     (H₁ : BindingContextLE c₁ c₂) (H₂ : BindingContextLE c₂ c₃) :
     BindingContextLE c₁ c₃ :=
   ⟨fun _ h => H₂ (H₁ h),
+    fun fv hfv => (H₂.declarations fv (H₁ hfv)).trans
+      (H₁.declarations fv hfv),
     H₂.env_eq.trans H₁.env_eq,
     H₂.lparams_eq.trans H₁.lparams_eq,
     H₂.safety_eq.trans H₁.safety_eq,
@@ -15643,7 +15648,8 @@ theorem BindingContextLE.trans
     H₂.fuel_eq.trans H₁.fuel_eq⟩
 
 theorem BindingContextLE.withLocalDecl
-    (c : AddInductive.Context) (name : Name) (ty : Expr) (bi : BinderInfo) :
+    (c : AddInductive.Context) (Hc : BindingContextWF c)
+    (name : Name) (ty : Expr) (bi : BinderInfo) :
     BindingContextLE c { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
@@ -15652,6 +15658,15 @@ theorem BindingContextLE.withLocalDecl
     simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
       List.map_cons, LocalDecl.fvarId, List.mem_cons]
     exact Or.inr hfv
+  declarations := by
+    intro fv hfv
+    simp only [LocalContext.mkLocalDecl, LocalContext.find?,
+      Hc.wf.map_wf.find?_insert]
+    rw [if_neg]
+    intro heq
+    have : fv = ⟨c.ngen.curr⟩ := (LawfulBEq.eq_of_beq heq).symm
+    subst fv
+    exact Hc.current_not_mem hfv
   env_eq := rfl
   lparams_eq := rfl
   safety_eq := rfl
@@ -15821,6 +15836,7 @@ structure BoundFVarDeclarationAt
   inBounds : i < xs.size
   fvar : FVarId
   expression : xs[i] = .fvar fvar
+  member : fvar ∈ c.lctx.fvars
   index : Nat
   userName : Name
   type : Expr
@@ -15840,12 +15856,32 @@ theorem BoundFVarArray.declarationAt
     inBounds := hi
     fvar := fv
     expression := hexpression
+    member := hfv
     index := index
     userName := userName
     type := type
     binderInfo := binderInfo
     kind := kind
     declaration := hdeclaration }⟩
+
+/-- Exact declaration provenance survives a verified binding-context
+extension.  In particular the declaration type cannot silently change while
+the retained free variable is threaded through later `mkRecInfos` passes. -/
+def BoundFVarDeclarationAt.mono
+    (D : BoundFVarDeclarationAt c xs i) (H : BindingContextLE c c') :
+    BoundFVarDeclarationAt c' xs i where
+  inBounds := D.inBounds
+  fvar := D.fvar
+  expression := D.expression
+  member := H D.member
+  index := D.index
+  userName := D.userName
+  type := D.type
+  binderInfo := D.binderInfo
+  kind := D.kind
+  declaration := by
+    rw [H.declarations D.fvar D.member]
+    exact D.declaration
 
 theorem BoundFVarArray.getElem_eq_fvar
     (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
@@ -16255,6 +16291,7 @@ def RecInfoBindings.pushFrame
     {indices : Array Expr}
     (H : RecInfoBindings c recInfos)
     (hle : BindingContextLE c cIndices)
+    (HcIndices : BindingContextWF cIndices)
     (Hindices : BoundFVarArray cIndices indices)
     (majorName : Name) (majorTy : Expr) (majorBi : BinderInfo)
     (motiveName : Name) (motiveTy : Expr) (motiveBi : BinderInfo) :
@@ -16280,9 +16317,10 @@ def RecInfoBindings.pushFrame
     ngen := cMajor.ngen.next
     lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩
       motiveName motiveTy motiveBi }
-  let hMajor := BindingContextLE.withLocalDecl cIndices
+  let hMajor := BindingContextLE.withLocalDecl cIndices HcIndices
     majorName majorTy majorBi
   let hMotive := BindingContextLE.withLocalDecl cMajor
+    (HcIndices.withLocalDecl majorName majorTy majorBi)
     motiveName motiveTy motiveBi
   let hall : BindingContextLE c cMotive := hle.trans (hMajor.trans hMotive)
   refine {
@@ -16337,6 +16375,7 @@ theorem RecInfoBindings.pushFrame_allFvars_perm
     (H : RecInfoBindings c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (hle : BindingContextLE c cIndices)
+    (HcIndices : BindingContextWF cIndices)
     (Hindices : BoundFVarArray cIndices indices)
     (majorName : Name) (majorTy : Expr) (majorBi : BinderInfo)
     (motiveName : Name) (motiveTy : Expr) (motiveBi : BinderInfo) :
@@ -16349,9 +16388,12 @@ theorem RecInfoBindings.pushFrame_allFvars_perm
       lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩
         motiveName motiveTy motiveBi }
     let hall : BindingContextLE c cMotive := hle.trans <|
-      (BindingContextLE.withLocalDecl cIndices majorName majorTy majorBi).trans <|
-        BindingContextLE.withLocalDecl cMajor motiveName motiveTy motiveBi
-    ((H.pushFrame hle Hindices majorName majorTy majorBi
+      (BindingContextLE.withLocalDecl cIndices HcIndices
+        majorName majorTy majorBi).trans <|
+        BindingContextLE.withLocalDecl cMajor
+          (HcIndices.withLocalDecl majorName majorTy majorBi)
+          motiveName motiveTy motiveBi
+    ((H.pushFrame hle HcIndices Hindices majorName majorTy majorBi
       motiveName motiveTy motiveBi).allFvars (Hparams.mono hall)).Perm
       (H.allFvars Hparams ++ Hindices.fvars ++
         [(⟨cIndices.ngen.curr⟩ : FVarId),
@@ -16409,9 +16451,13 @@ theorem RecInfoBindings.pushFrame_noAlias
       lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩
         motiveName motiveTy motiveBi }
     let hall : BindingContextLE c cMotive := hle.trans <|
-      (BindingContextLE.withLocalDecl cIndices majorName majorTy majorBi).trans <|
-        BindingContextLE.withLocalDecl cMajor motiveName motiveTy motiveBi
-    (H.pushFrame hle Hindices.toBoundFVarArray majorName majorTy majorBi
+      (BindingContextLE.withLocalDecl cIndices HcIndices
+        majorName majorTy majorBi).trans <|
+        BindingContextLE.withLocalDecl cMajor
+          (HcIndices.withLocalDecl majorName majorTy majorBi)
+          motiveName motiveTy motiveBi
+    (H.pushFrame hle HcIndices Hindices.toBoundFVarArray
+      majorName majorTy majorBi
       motiveName motiveTy motiveBi).NoAlias (Hparams.mono hall) := by
   dsimp only
   let old := H.allFvars Hparams
@@ -16462,7 +16508,7 @@ theorem RecInfoBindings.pushFrame_noAlias
       simp only [List.mem_singleton] at hfv'
       subst fv'
       exact fun heq => hMotiveFresh (heq ▸ hfv)⟩
-  apply (H.pushFrame_allFvars_perm Hparams hle
+  apply (H.pushFrame_allFvars_perm Hparams hle HcIndices
     Hindices.toBoundFVarArray majorName majorTy majorBi
     motiveName motiveTy motiveBi).symm.nodup
   simpa [old, indexFVars, major, motive, List.append_assoc] using hCombined
@@ -16471,6 +16517,7 @@ def RecInfoBindings.addMinor
     (H : RecInfoBindings c recInfos) (dIdx : Nat)
     (hidx : dIdx < recInfos.size)
     (hle : BindingContextLE c cMinorTy)
+    (HcMinorTy : BindingContextWF cMinorTy)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo) :
     let cMinor : AddInductive.Context := { cMinorTy with
       ngen := cMinorTy.ngen.next
@@ -16483,7 +16530,7 @@ def RecInfoBindings.addMinor
     ngen := cMinorTy.ngen.next
     lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
       minorName minorTy minorBi }
-  let hstep := BindingContextLE.withLocalDecl cMinorTy
+  let hstep := BindingContextLE.withLocalDecl cMinorTy HcMinorTy
     minorName minorTy minorBi
   let hall := hle.trans hstep
   refine {
@@ -16573,14 +16620,16 @@ theorem RecInfoBindings.addMinor_allFvars_perm
     (Hparams : BoundFVarArray c stats.params)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (hle : BindingContextLE c cMinorTy)
+    (HcMinorTy : BindingContextWF cMinorTy)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo) :
     let cMinor : AddInductive.Context := { cMinorTy with
       ngen := cMinorTy.ngen.next
       lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
         minorName minorTy minorBi }
     let hall : BindingContextLE c cMinor := hle.trans <|
-      BindingContextLE.withLocalDecl cMinorTy minorName minorTy minorBi
-    ((H.addMinor dIdx hidx hle minorName minorTy minorBi).allFvars
+      BindingContextLE.withLocalDecl cMinorTy HcMinorTy
+        minorName minorTy minorBi
+    ((H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi).allFvars
       (Hparams.mono hall)).Perm
       (H.allFvars Hparams ++ [(⟨cMinorTy.ngen.curr⟩ : FVarId)]) := by
   dsimp only
@@ -16660,8 +16709,9 @@ theorem RecInfoBindings.addMinor_noAlias
       lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
         minorName minorTy minorBi }
     let hall : BindingContextLE c cMinor := hle.trans <|
-      BindingContextLE.withLocalDecl cMinorTy minorName minorTy minorBi
-    (H.addMinor dIdx hidx hle minorName minorTy minorBi).NoAlias
+      BindingContextLE.withLocalDecl cMinorTy HcMinorTy
+        minorName minorTy minorBi
+    (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi).NoAlias
       (Hparams.mono hall) := by
   dsimp only
   let minor : FVarId := ⟨cMinorTy.ngen.curr⟩
@@ -16676,7 +16726,7 @@ theorem RecInfoBindings.addMinor_noAlias
       simp only [List.mem_singleton] at hfv'
       subst fv'
       exact fun heq => hfresh (heq ▸ hfv)⟩
-  apply (H.addMinor_allFvars_perm Hparams dIdx hidx hle
+  apply (H.addMinor_allFvars_perm Hparams dIdx hidx hle HcMinorTy
     minorName minorTy minorBi).symm.nodup
   simpa [minor] using hcombined
 
@@ -16740,7 +16790,7 @@ theorem continueWithBindings {alpha : Type}
               (Hc.withLocalDecl name dom.consumeTypeAnnotations bi)
               (Hindices.pushCurrent Hc Hroot name
                 dom.consumeTypeAnnotations bi)
-              (Hroot.trans <| BindingContextLE.withLocalDecl c name
+              (Hroot.trans <| BindingContextLE.withLocalDecl c Hc name
                 dom.consumeTypeAnnotations bi)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
@@ -16835,19 +16885,24 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
             major }) k cMotive ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
         · exact (HcIndices.withLocalDecl `t majorTy .default).withLocalDecl
             motiveName motiveTy.consumeTypeAnnotations .default
-        · exact Hbindings.pushFrame hIndices Hindices.toBoundFVarArray
+        · exact Hbindings.pushFrame hIndices HcIndices
+            Hindices.toBoundFVarArray
             `t majorTy .default
             motiveName motiveTy.consumeTypeAnnotations .default
         · exact Hparams.mono <| hIndices.trans <|
-            (BindingContextLE.withLocalDecl cIndices `t majorTy .default).trans <|
-              BindingContextLE.withLocalDecl cMajor motiveName
+            (BindingContextLE.withLocalDecl cIndices HcIndices
+              `t majorTy .default).trans <|
+              BindingContextLE.withLocalDecl cMajor
+                (HcIndices.withLocalDecl `t majorTy .default) motiveName
                 motiveTy.consumeTypeAnnotations .default
         · exact Hbindings.pushFrame_noAlias Hparams HnoAlias hIndices
             HcIndices Hindices `t majorTy .default motiveName
               motiveTy.consumeTypeAnnotations .default
         · exact Hroot.trans <| hIndices.trans <|
-            (BindingContextLE.withLocalDecl cIndices `t majorTy .default).trans <|
-              BindingContextLE.withLocalDecl cMajor motiveName
+            (BindingContextLE.withLocalDecl cIndices HcIndices
+              `t majorTy .default).trans <|
+              BindingContextLE.withLocalDecl cMajor
+                (HcIndices.withLocalDecl `t majorTy .default) motiveName
                 motiveTy.consumeTypeAnnotations .default
         · simp [hprogress]
         · apply Harities.push
@@ -16920,7 +16975,7 @@ theorem resultBindings {alpha : Type}
       exact hwhnf.bind fun normalized _ =>
         ih (Hc.withLocalDecl name dom.consumeTypeAnnotations bi)
           (Hxs.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
-          (Hroot.trans <| BindingContextLE.withLocalDecl c name
+          (Hroot.trans <| BindingContextLE.withLocalDecl c Hc name
             dom.consumeTypeAnnotations bi)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
@@ -19295,7 +19350,7 @@ theorem resultBindings {alpha : Type}
           trivial
         refine hclass.bind fun selected _ => ?_
         let Hc' := Hc.withLocalDecl name dom.consumeTypeAnnotations bi
-        let hstep := BindingContextLE.withLocalDecl c name
+        let hstep := BindingContextLE.withLocalDecl c Hc name
           dom.consumeTypeAnnotations bi
         cases selected with
         | none =>
@@ -19622,7 +19677,7 @@ theorem resultBindings {alpha : Type}
       (v.push (.fvar ⟨c.ngen.curr⟩)) _
       (Hc.withLocalDecl vName viTy.consumeTypeAnnotations .default)
       (Hv.pushCurrent vName viTy.consumeTypeAnnotations .default)
-      (Hroot.trans <| BindingContextLE.withLocalDecl c vName
+      (Hroot.trans <| BindingContextLE.withLocalDecl c Hc vName
         viTy.consumeTypeAnnotations .default) Hk
   · rw [dif_neg hnext]
     exact Hk v c Hc Hv Hroot
@@ -19727,15 +19782,15 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       let HcMinor := HcIH.withLocalDecl minorName
         minorTy.consumeTypeAnnotations .default
       let HbindingsMinor := Hbindings.addMinor dIdx hidx (hArgs.trans hIH)
-        minorName minorTy.consumeTypeAnnotations .default
+        HcIH minorName minorTy.consumeTypeAnnotations .default
       let HparamsMinor := Hparams.mono <| (hArgs.trans hIH).trans <|
-          BindingContextLE.withLocalDecl cIH minorName
+          BindingContextLE.withLocalDecl cIH HcIH minorName
             minorTy.consumeTypeAnnotations .default
       let HnoAliasMinor := Hbindings.addMinor_noAlias Hparams HnoAlias
         dIdx hidx (hArgs.trans hIH) HcIH minorName
           minorTy.consumeTypeAnnotations .default
       let HrootMinor := (Hroot.trans hArgs).trans <| hIH.trans <|
-          BindingContextLE.withLocalDecl cIH minorName
+          BindingContextLE.withLocalDecl cIH HcIH minorName
             minorTy.consumeTypeAnnotations .default
       refine ih next cMinor HcMinor HbindingsMinor HparamsMinor HnoAliasMinor
         HrootMinor ?_ ?_ ?_
