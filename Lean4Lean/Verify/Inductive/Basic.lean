@@ -2688,6 +2688,99 @@ theorem ContextWF.withLocalDecl_toCtx (H : ContextWF c)
     (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx.toCtx =
       ty' :: H.mlctx.vlctx.toCtx := rfl
 
+/-- Semantic local-context invariant for generated recursor frames.  Its
+universe parameter list is deliberately independent of `c.lparams`: during
+large elimination, `mkRecInfos` builds raw locals in the original reader
+context, while their types are interpreted under the recursor's fresh
+universe parameter. -/
+structure RecursorContextWF (c : AddInductive.Context)
+    (recLparams : List Name) where
+  venv : VEnv
+  checking : CheckingEnv.Valid c.safety c.env venv
+  mlctx : TypeChecker.MLCtx
+  mlctx_wf : mlctx.WF venv recLparams
+  onlyLams : MLCtxOnlyLams mlctx
+  lctx_eq : mlctx.lctx = c.lctx
+  ngen_prefix : c.ngen.namePrefix = `_ind_fresh
+  indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
+  kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
+    ({} : TypeChecker.State).ngen.Reserves fv
+
+/-- An ordinary verified context is already a recursor context when no
+universe rebasing is required. -/
+def ContextWF.toRecursorContextWF (H : ContextWF c) :
+    RecursorContextWF c c.lparams where
+  venv := H.venv
+  checking := H.checking
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf
+  onlyLams := H.onlyLams
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
+
+theorem RecursorContextWF.current_not_mem
+    (H : RecursorContextWF c recLparams) :
+    ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
+  c.ngen.not_reserves_self (H.indFresh _ hmem)
+
+theorem RecursorContextWF.kernel_reserves_current
+    (H : RecursorContextWF c recLparams) :
+    ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ := by
+  apply NameGenerator.Reserves.num_of_prefix_ne
+  simp [H.ngen_prefix]
+
+/-- Extend a universe-rebased recursor context by one semantically checked
+raw local declaration. -/
+def RecursorContextWF.withLocalDecl
+    (H : RecursorContextWF c recLparams)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    RecursorContextWF { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } recLparams where
+  venv := H.venv
+  checking := H.checking
+  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
+  mlctx_wf := ⟨H.mlctx_wf,
+    H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩
+  onlyLams := H.onlyLams.vlam
+  lctx_eq := by
+    change H.mlctx.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi =
+      c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+    rw [H.lctx_eq]
+  ngen_prefix := by
+    change c.ngen.namePrefix = `_ind_fresh
+    exact H.ngen_prefix
+  indFresh := by
+    intro fv hmem
+    simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
+      List.mem_cons] at hmem
+    rcases hmem with rfl | hmem
+    · exact c.ngen.next_reserves_self
+    · exact (H.indFresh _ hmem).mono NameGenerator.LE.next
+  kernelFresh := by
+    intro fv hmem
+    simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
+      List.mem_cons] at hmem
+    rcases hmem with rfl | hmem
+    · exact H.kernel_reserves_current
+    · exact H.kernelFresh _ hmem
+
+@[simp] theorem RecursorContextWF.withLocalDecl_venv
+    (H : RecursorContextWF c recLparams)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withLocalDecl (name := name) (bi := bi) htr hty).venv = H.venv := rfl
+
+@[simp] theorem RecursorContextWF.withLocalDecl_toCtx
+    (H : RecursorContextWF c recLparams)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx.toCtx =
+      ty' :: H.mlctx.vlctx.toCtx := rfl
+
 theorem ContextWF.findCDecl (H : ContextWF c)
     (hmem : fv ∈ H.mlctx.vlctx.fvars) :
     ∃ index name type bi kind,
