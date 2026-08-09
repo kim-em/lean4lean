@@ -17870,6 +17870,7 @@ structure CheckedRecursorHeaderAt
   sourceTranslation : TrSourceConst Hc.venv c.lparams source.name
     source.type target.toVConstVal
   targetLookup : Hc.venv.constants target.name = some target.toVConstant
+  lparamsNodup : c.lparams.Nodup
 
 theorem CheckedRecursorHeaderAt.target_mem
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
@@ -17921,6 +17922,43 @@ def CheckedRecursorHeaderAt.abstractLevels
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
     List VLevel :=
   c.lparams.map fun name => .param (c.lparams.idxOf name)
+
+theorem CheckedRecursorHeaderAt.abstractLevels_eq_params
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    H.abstractLevels = VLevel.params c.lparams.length := by
+  apply List.ext_getElem
+  · simp [CheckedRecursorHeaderAt.abstractLevels, VLevel.params]
+  · intro i hleft hright
+    have hi : i < c.lparams.length := by
+      simpa [VLevel.params] using hright
+    simp [CheckedRecursorHeaderAt.abstractLevels, VLevel.params,
+      H.lparamsNodup.idxOf_getElem i hi]
+
+theorem CheckedRecursorHeaderAt.targetType_inst_abstractLevels
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    H.target.type.instL H.abstractLevels = H.target.type := by
+  rw [H.abstractLevels_eq_params, ← H.sourceTranslation.uvars]
+  have htyped := Classical.choose_spec H.sourceTranslation.wf
+  exact (htyped.levelWF (by trivial)).1.instL_id
+
+/-- The installed family constant at its concrete translated universe
+arguments has the original abstract header type. -/
+theorem CheckedRecursorHeaderAt.constHasType
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    Hc.venv.HasType c.lparams.length []
+      (.const H.target.name H.abstractLevels) H.target.type := by
+  have hlevels : ∀ level ∈ H.abstractLevels,
+      level.WF c.lparams.length := by
+    rw [H.abstractLevels_eq_params]
+    exact VLevel.params_wf
+  have hlength : H.abstractLevels.length = H.target.uvars := by
+    rw [H.abstractLevels_eq_params, VLevel.params_length,
+      H.sourceTranslation.uvars]
+  have hconst := VEnv.HasType.const (Γ := []) H.targetLookup hlevels hlength
+  simpa [H.targetType_inst_abstractLevels] using hconst
 
 /-- The concrete family constant retained in the mutable statistics translates
 to the independently installed abstract family constant, with exactly the
@@ -18047,6 +18085,95 @@ theorem CheckedRecursorHeaderAt.completedNarrowArguments
     Lean4Lean.VerifyInductive.List.Forall₂.append' Hstats.params Hindices
   rw [hcanonical, VInductDecl.paramVars_append_canonicalIndexVars] at Hall
   simpa [hnindices, H.parameterCount] using Hall
+
+/-- Applying the independently installed family constant to the canonical
+variables of the completed synthesized header yields its residual type in the
+exact narrow replay scope. -/
+theorem CheckedRecursorHeaderAt.canonicalFamilyApplication
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {c' : AddInductive.Context} {Hc' : ContextWF c'}
+    {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc'.venv c'.lparams H.target.toSkeleton scope narrowTarget
+        stats.params.size nindices)
+    (henv : Hc'.venv = Hc.venv)
+    (hlparams : c'.lparams = c.lparams)
+    (hnindices : nindices = H.target.numIndices) :
+    Hc'.venv.HasType c'.lparams.length scope.toCtx
+      (VExpr.mkApps (.const H.target.name H.abstractLevels)
+        (canonicalIndexVars (decl.nparams + H.target.numIndices)))
+      narrowTarget := by
+  have hhead : Hc'.venv.HasType c'.lparams.length []
+      (.const H.target.name H.abstractLevels) H.target.type := by
+    simpa [henv, hlparams] using H.constHasType
+  have hheadTelescope : Hc'.venv.HasType c'.lparams.length []
+      (.const H.target.name H.abstractLevels)
+      (VExpr.wrapForalls (Hsynthesis.params ++ Hsynthesis.indices)
+        narrowTarget) := by
+    apply hhead.defeqU_r Hc'.checking.tr.wf (by trivial)
+    exact ⟨Hsynthesis.exprType, by
+      simpa [VInductiveType.toSkeleton] using Hsynthesis.header⟩
+  have happ := VEnv.HasType.mkApps_wrapForalls_canonical
+    Hc'.checking.tr.wf.ordered hheadTelescope
+  have hparamCount : Hsynthesis.params.length = decl.nparams := by
+    rw [Hsynthesis.parameterCount, H.parameterCount]
+  have hindexCount : Hsynthesis.indices.length = H.target.numIndices := by
+    rw [Hsynthesis.indexCount, hnindices]
+  simpa [List.reverse_append, Hsynthesis.scopeCtx, hparamCount,
+    hindexCount, canonicalIndexVars, VExpr.liftN, ← List.map_reverse] using happ
+
+/-- At the successful family arity guard, the exact executable type used for
+the major premise strictly translates in the independent replay scope to the
+canonical abstract family application, and that application has the residual
+header type. -/
+theorem CheckedRecursorHeaderAt.completedNarrowFamilyApplication
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {c' : AddInductive.Context} {Hc' : ContextWF c'}
+    {scope : VLCtx} {type narrowTarget : VExpr}
+    {indices : Array Expr} {indexTargets : List VExpr} {nindices : Nat}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc'.venv c'.lparams H.target.toSkeleton scope type
+        stats.params.size nindices)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc'.venv c'.lparams
+      scope stats decl nindices)
+    (Hindices : List.Forall₂ (TrExprS Hc'.venv c'.lparams scope)
+      indices.toList indexTargets)
+    (hreplay : indexTargets.length = nindices)
+    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (harity : (indices.size == stats.nindices[familyIdx]!) = true)
+    (henv : Hc'.venv = Hc.venv)
+    (hlparams : c'.lparams = c.lparams) :
+    TrExprS Hc'.venv c'.lparams scope
+      (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params) indices)
+      (VExpr.mkApps (.const H.target.name H.abstractLevels)
+        (canonicalIndexVars (decl.nparams + H.target.numIndices))) ∧
+    Hc'.venv.HasType c'.lparams.length scope.toCtx
+      (VExpr.mkApps (.const H.target.name H.abstractLevels)
+        (canonicalIndexVars (decl.nparams + H.target.numIndices))) type := by
+  have htranslated : indices.size = indexTargets.length := by
+    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hindices
+  have hguard : indices.size = stats.nindices[familyIdx]! := by
+    simpa using harity
+  have hfamily : stats.nindices[familyIdx]! = H.target.numIndices := by
+    simp [Array.getElem!_eq_getD, H.indexCount]
+  have hnindices : nindices = H.target.numIndices := by omega
+  have hargs := H.completedNarrowArguments Hstats Hindices hreplay
+    hcanonical harity
+  have hhead := H.indConstTranslation Hstats henv hlparams
+  have happ := H.canonicalFamilyApplication Hsynthesis henv hlparams hnindices
+  have htr : TrExprS Hc'.venv c'.lparams scope
+      (Expr.mkAppList stats.indConsts[familyIdx]!
+        (stats.params.toList ++ indices.toList))
+      (VExpr.mkApps (.const H.target.name H.abstractLevels)
+        (canonicalIndexVars (decl.nparams + H.target.numIndices))) :=
+    checkPositivityStep.TrExprS.mkAppList Hc'.checking.tr.wf.ordered
+      Hsynthesis.scopeWF.toCtx hhead hargs ⟨_, happ⟩
+  refine ⟨?_, happ⟩
+  simpa [Expr.mkAppN_eq_mkAppList, Expr.mkAppList_append] using htr
 
 /-- One semantically justified cached-parameter step.  The syntax translation
 of the cached free variable is not enough on its own: preservation of
@@ -24644,7 +24771,8 @@ def ConstructorPhasesResult.checkedRecursorHeaderAt
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
     (R : ConstructorPhasesResult H outEnv)
-    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size) :
+    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
+    (hlparams : c.lparams.Nodup) :
     mkRecInfos.loopArgs1.CheckedRecursorHeaderAt R.declared.context stats
       decl depth indTypes[familyIdx] familyIdx := by
   have htarget : familyIdx < decl.types.length := by
@@ -24661,7 +24789,8 @@ def ConstructorPhasesResult.checkedRecursorHeaderAt
     targetAt := by simp [htarget]
     materialized := ?_
     sourceTranslation := ?_
-    targetLookup := ?_ }
+    targetLookup := ?_
+    lparamsNodup := hlparams }
   · rw [R.declared.contextVEnv]
     simpa only [R.declared.contextMLCtx] using Hmaterialized
   · rw [R.declared.contextVEnv]
