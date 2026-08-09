@@ -35204,6 +35204,59 @@ theorem NestedExprReopening.restore_eqv
       (R body') == R body) = true) at hbody
     exact Expr.proj_eqv hbody
 
+/-- Semantic form of the structural lowering left inverse.  Once the reopened
+source expression has a canonical typed translation, restoring its lowered
+image has the same translation and type.  This interprets arbitrary nested
+applications (including trailing arguments) compositionally, rather than
+classifying the concrete `restoreNestedNode` hit at the root. -/
+theorem NestedExprReopening.restoredAbstractTypeTranslation
+    (H : NestedExprReopening env lctx params As finalResult targetAs input
+      state out)
+    (restoreEnv : Environment)
+    (Hselection : LocalForallSelection lctx As)
+    (hnd : Hselection.fvars.Nodup)
+    (restoreFvars : List FVarId)
+    (hrestore : targetAs = (restoreFvars.map Expr.fvar).toArray)
+    (hsize : restoreFvars.length = Hselection.fvars.length)
+    (hresultNParams : finalResult.nparams = As.size)
+    (Hsource : RestoreSourceDisjoint finalResult restoreEnv input)
+    (k : Nat)
+    (Htyped : Expr.AbstractTypeTranslation venv lparams Δ
+      (Expr.reopenFVarsAt input Hselection.fvars restoreFvars k)) :
+    Expr.AbstractTypeTranslation venv lparams Δ
+      ((Expr.reopenFVarsAt out.1 Hselection.fvars restoreFvars k).replace
+        (finalResult.restoreNestedNode restoreEnv targetAs {})) := by
+  rcases Htyped with ⟨target, Htr, Htype⟩
+  have Heqv := H.restore_eqv restoreEnv Hselection hnd restoreFvars hrestore
+    hsize hresultNParams Hsource k
+  exact ⟨target, Htr.eqv (BEq.symm Heqv), Htype⟩
+
+/-- Relational form consumed directly by the restored-telescope fold.  The
+`ExprReplacement` certificate identifies its output with the concrete
+`Expr.replace` interpreted by `restoredAbstractTypeTranslation`. -/
+theorem NestedExprReopening.replacementAbstractTypeTranslation
+    (H : NestedExprReopening env lctx params As finalResult targetAs input
+      state out)
+    (restoreEnv : Environment)
+    (Hselection : LocalForallSelection lctx As)
+    (hnd : Hselection.fvars.Nodup)
+    (restoreFvars : List FVarId)
+    (hrestore : targetAs = (restoreFvars.map Expr.fvar).toArray)
+    (hsize : restoreFvars.length = Hselection.fvars.length)
+    (hresultNParams : finalResult.nparams = As.size)
+    (Hsource : RestoreSourceDisjoint finalResult restoreEnv input)
+    (k : Nat)
+    (restored : Expr)
+    (Hreplacement : ExprReplacement
+      (finalResult.restoreNestedNode restoreEnv targetAs {})
+      (Expr.reopenFVarsAt out.1 Hselection.fvars restoreFvars k) restored)
+    (Htyped : Expr.AbstractTypeTranslation venv lparams Δ
+      (Expr.reopenFVarsAt input Hselection.fvars restoreFvars k)) :
+    Expr.AbstractTypeTranslation venv lparams Δ restored := by
+  rw [Hreplacement.eq_replace]
+  exact H.restoredAbstractTypeTranslation restoreEnv Hselection hnd
+    restoreFvars hrestore hsize hresultNParams Hsource k Htyped
+
 theorem RecognizedNestedReplacement.auxFVarsIn
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out)
