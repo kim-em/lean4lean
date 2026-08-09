@@ -25650,6 +25650,27 @@ theorem ExprReplacement.ForallTelescopeReplacement.residualReplacement
   | nil Hbody => exact Hbody
   | cons _ _ _ ih => exact ih
 
+/-- Ordered data view of the binder-aligned replacement telescope.  Because
+the replacement derivation lives in `Prop`, the list is exposed
+existentially; each pair retains its exact relational replacement fact. -/
+theorem ExprReplacement.ForallTelescopeReplacement.domainPairs
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual) :
+    ∃ pairs : List (Expr × Expr),
+      pairs.length = arity ∧
+      ∀ pair ∈ pairs,
+        ExprReplacement replaceNode pair.1 pair.2 := by
+  induction H with
+  | nil => exact ⟨[], rfl, by simp⟩
+  | @cons name oldDomain oldBody bi newDomain newBody arity oldResidual
+      newResidual Hnone Hdomain Hbody ih =>
+    rcases ih with ⟨pairs, hlength, Hpairs⟩
+    refine ⟨(oldDomain, newDomain) :: pairs, by simp [hlength], ?_⟩
+    intro pair hpair
+    rcases List.mem_cons.mp hpair with rfl | htail
+    · exact Hdomain
+    · exact Hpairs pair htail
+
 /-- Existential target of a concrete expression which translates to an
 abstract type in the indicated context. -/
 def Expr.AbstractTypeTranslation
@@ -27646,6 +27667,36 @@ theorem RecursorRestoration.typeConcreteRecursorResultForallTelescope
     (ownerIdx := ownerIdx) (by simpa using howner)
   simpa only [Nat.add_assoc] using Htype'
 
+/-- Positional specification of the generated recursor suffix.  Global motive
+and minor indices follow the exact `Array.map`/`Array.flatMap` order used by
+production; owner indices and the major premise form the final two groups. -/
+inductive GeneratedRecursorDomainSlot
+  | motive (index : Nat)
+  | minor (index : Nat)
+  | index (index : Nat)
+  | major
+  deriving DecidableEq, Repr
+
+def generatedRecursorDomainSlots
+    (recInfos : Array AddInductive.RecInfo) (ownerIdx : Nat) :
+    List GeneratedRecursorDomainSlot :=
+  (List.range (recInfos.map (·.motive)).size).map
+      GeneratedRecursorDomainSlot.motive ++
+    (List.range (recInfos.flatMap (·.minors)).size).map
+      GeneratedRecursorDomainSlot.minor ++
+    (List.range recInfos[ownerIdx]!.indices.size).map
+      GeneratedRecursorDomainSlot.index ++
+    [.major]
+
+@[simp] theorem generatedRecursorDomainSlots_length
+    (recInfos : Array AddInductive.RecInfo) (ownerIdx : Nat) :
+    (generatedRecursorDomainSlots recInfos ownerIdx).length =
+      (recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size + 1 := by
+  simp [generatedRecursorDomainSlots]
+  omega
+
 /-- The exact operational trace relevant to semantic transport of a generated
 primary recursor: common parameters are opened once, every remaining domain
 is paired with its restored domain, and the canonical motive-application
@@ -27670,6 +27721,25 @@ structure GeneratedRecursorRestorationTelescopeTrace
     (concreteRecursorResult (recInfos.map (·.motive)).size
       (recInfos.flatMap (·.minors)).size
       recInfos[ownerIdx]!.indices.size ownerIdx)
+
+/-- The operational domain replacements and the independent positional
+suffix layout have identical length, so subsequent provenance certificates
+can zip them without a truncation side condition. -/
+theorem GeneratedRecursorRestorationTelescopeTrace.domainSlots_length
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeTrace result prodEnv auxRec
+      newInfo Hentry) :
+    ∃ pairs : List (Expr × Expr),
+      pairs.length = (generatedRecursorDomainSlots recInfos ownerIdx).length ∧
+      ∀ pair ∈ pairs,
+        ExprReplacement
+          (result.restoreNestedNode prodEnv H.opening.params auxRec)
+          pair.1 pair.2 := by
+  rcases H.suffix.domainPairs with ⟨pairs, hlength, Hpairs⟩
+  refine ⟨pairs, ?_, Hpairs⟩
+  rw [hlength, generatedRecursorDomainSlots_length]
 
 theorem RecursorRestoration.generatedTelescopeTrace
     (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
