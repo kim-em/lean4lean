@@ -2749,6 +2749,15 @@ def ContextWF.prependRecursorLevelParam
       intro fv hmem
       exact H.kernelFresh fv (hfv ▸ hmem) }
 
+@[simp] theorem ContextWF.prependRecursorLevelParam_venv
+    (H : ContextWF c) (hfresh : fresh ∉ c.lparams) :
+    (H.prependRecursorLevelParam hfresh).venv = H.venv := rfl
+
+@[simp] theorem ContextWF.prependRecursorLevelParam_mlctx
+    (H : ContextWF c) (hfresh : fresh ∉ c.lparams) :
+    (H.prependRecursorLevelParam hfresh).mlctx =
+      H.mlctx.prependLevelParam c.lparams.length := rfl
+
 theorem RecursorContextWF.current_not_mem
     (H : RecursorContextWF c recLparams) :
     ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
@@ -14940,6 +14949,47 @@ def ContextWF.toAdmissibleRecursorContextWF
   | param name =>
     simpa [AddInductive.getRecLevelParams] using
       H.prependRecursorLevelParam Helim
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+/-- A domain already checked under the inductive declaration universes can be
+used unchanged as concrete syntax under the recursor universes.  Its abstract
+target is shifted only in the fresh large-elimination case. -/
+theorem ContextWF.ConsumedDomain.toRecursorContext
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {dom : Expr} {sourceTarget consumedTarget : VExpr}
+    (Hdom : Hc.ConsumedDomain dom sourceTarget consumedTarget)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    let R := Hc.toAdmissibleRecursorContextWF Helim
+    ∃ target,
+      TrExprS R.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        R.mlctx.vlctx dom.consumeTypeAnnotations target ∧
+      R.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length
+        R.mlctx.vlctx.toCtx target := by
+  dsimp only
+  cases elimLevel with
+  | zero =>
+    exact ⟨consumedTarget, Hdom.consumed, Hdom.isType⟩
+  | param name =>
+    change ∃ target,
+      TrExprS Hc.venv (name :: c.lparams)
+        (Hc.mlctx.prependLevelParam c.lparams.length).vlctx
+        dom.consumeTypeAnnotations target ∧
+      Hc.venv.IsType (name :: c.lparams).length
+        (Hc.mlctx.prependLevelParam c.lparams.length).vlctx.toCtx target
+    let shift := VLevel.prependShift c.lparams.length
+    have hshift : ∀ level ∈ shift,
+        level.WF (name :: c.lparams).length := by
+      simpa [shift] using VLevel.prependShift_wf (n := c.lparams.length)
+    refine ⟨consumedTarget.instL shift, ?_, ?_⟩
+    · simpa only [TypeChecker.MLCtx.prependLevelParam_vlctx, shift] using
+        Hdom.consumed.prependLevelParam
+          Hc.checking.tr.wf Hc.mlctx_wf.tr.wf Helim
+    · simpa only [TypeChecker.MLCtx.prependLevelParam_vlctx,
+        VLCtx.instL_toCtx, List.length_cons, shift] using
+        Hdom.isType.instL hshift
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
