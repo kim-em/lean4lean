@@ -2781,6 +2781,29 @@ def RecursorContextWF.withLocalDecl
     (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx.toCtx =
       ty' :: H.mlctx.vlctx.toCtx := rfl
 
+/-- Close the `n` most recently introduced recursor locals into the exact
+production `LocalContext.mkForall` telescope.  The free-variable equation is
+the reviewable boundary connecting the executable selection array to the
+semantic `MLCtx` suffix. -/
+theorem RecursorContextWF.mkForallRecent
+    (H : RecursorContextWF c recLparams)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx body body')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx body')
+    (n : Nat) (hn : n ≤ H.mlctx.length) (xs : Array Expr)
+    (hxs : xs.toList.reverse =
+      (H.mlctx.fvarRevList n hn).map Expr.fvar) :
+    TrExprS H.venv recLparams (H.mlctx.dropN n hn).vlctx
+        (c.lctx.mkForall xs body) (H.mlctx.mkForall' n hn body') ∧
+      H.venv.IsType recLparams.length
+        (H.mlctx.dropN n hn).vlctx.toCtx
+        (H.mlctx.mkForall' n hn body') := by
+  have hsource : c.lctx.mkForall xs body =
+      H.mlctx.mkForall n hn body := by
+    rw [← H.lctx_eq]
+    exact H.mlctx_wf.mkForall_eq n hn hxs
+  rw [hsource]
+  exact H.mlctx_wf.mkForall_trS H.checking.tr.wf htr hty n hn
+
 theorem ContextWF.findCDecl (H : ContextWF c)
     (hmem : fv ∈ H.mlctx.vlctx.fvars) :
     ∃ index name type bi kind,
