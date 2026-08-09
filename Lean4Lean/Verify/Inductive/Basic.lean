@@ -12754,7 +12754,10 @@ theorem continueWith {α : Type}
               (indices.push (.fvar ⟨c.ngen.curr⟩)) fuel c'
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
-          simpa [AddInductive.mkRecInfos.loopArgs1] using Hk indices c
+          by_cases hi : i < stats.params.size
+          · simp only [AddInductive.mkRecInfos.loopArgs1, hi, if_pos]
+            exact Except.WF.throw
+          · simpa [AddInductive.mkRecInfos.loopArgs1, hi] using Hk indices c
 
 end mkRecInfos.loopArgs1
 
@@ -17963,7 +17966,10 @@ theorem continueWithBindings {alpha : Type}
                 dom.consumeTypeAnnotations bi)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
-          simpa [AddInductive.mkRecInfos.loopArgs1] using
+          by_cases hi : i < stats.params.size
+          · simp only [AddInductive.mkRecInfos.loopArgs1, hi, if_pos]
+            exact Except.WF.throw
+          · simpa [AddInductive.mkRecInfos.loopArgs1, hi] using
             Hk indices originTypes c Hc Hindices Horigins Hroot
 
 /-- Semantic strengthening for the genuine-index suffix of `loopArgs1`.
@@ -18069,7 +18075,8 @@ theorem continueIndexSemantics {alpha : Type}
             (Horigins.push Hdom name bi)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
-          simpa [AddInductive.mkRecInfos.loopArgs1] using
+          have hi : ¬ i < stats.params.size := by omega
+          simpa [AddInductive.mkRecInfos.loopArgs1, hi] using
             Hk Hc htype htypeType Hindices Horigins
 
 /-- Semantic index replay retaining the independently synthesized header.
@@ -18298,7 +18305,8 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
               hconsumedBodyType Hindices' (Horigins.push Hdom name bi)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
-          simpa [AddInductive.mkRecInfos.loopArgs1] using
+          have hi : ¬ i < stats.params.size := by omega
+          simpa [AddInductive.mkRecInfos.loopArgs1, hi] using
             Hk Hc Hsynthesis Hruntime htypeNarrow htypeFVars htypeFull
               htypeFullType Hindices Horigins
 
@@ -18307,28 +18315,13 @@ advancing both the retained concrete suffix and the narrow semantic header.
 At parameter completion the exact cached-parameter scope is re-embedded in
 the executable context and passed to `continueIndexSynthesisSemantics`, which
 owns the genuine-index suffix.  A defensive executable exit before that
-boundary is exposed separately to the caller. -/
+boundary is rejected before the continuation is invoked. -/
 theorem continueCheckedSemantics {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (k : Array Expr → AddInductive.M alpha)
     {Q : alpha → Prop}
     {target : VInductiveType}
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (Hearly : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
-      {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
-      {i : Nat} {indices originTypes : Array Expr}
-      {indexTargets : List VExpr},
-      i < stats.params.size →
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
-        Hc.venv c.lparams target.toSkeleton scope narrowTarget i 0 →
-      TrExprS Hc.venv c.lparams scope type narrowTarget →
-      FVarsIn (· ∈ scope.fvars) type →
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
-      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
-      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
-        indices.toList indexTargets →
-      TranslatedOriginTypes Hc originTypes →
-      (k indices c).WF Q)
     (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
       {nindices : Nat} {indices originTypes : Array Expr}
@@ -18433,7 +18426,7 @@ theorem continueCheckedSemantics {alpha : Type}
                   ⟨sourceBody, normalizedTarget, hsourceBody,
                     hnormalizedNarrow, hbodyEq⟩ with
                 ⟨nextNarrow, hnormalizedNarrow', ⟨Hsynthesis'⟩⟩
-              exact continueCheckedSemantics stats k hconsume Hearly Hk Hc
+              exact continueCheckedSemantics stats k hconsume Hk Hc
                 Hsuffix hparams huvars hctx hshape next bodyTarget nextNarrow
                 ((some (Hcurrent.fv, Hcurrent.deps),
                   .vlam Hcurrent.paramType) :: Hcurrent.older)
@@ -18450,9 +18443,8 @@ theorem continueCheckedSemantics {alpha : Type}
                 Hindices Horigins
         | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
           | proj =>
-            simpa [AddInductive.mkRecInfos.loopArgs1] using
-              Hearly Hc hi Hsynthesis htypeNarrow htypeFVars htypeFull
-                htypeFullType Hindices Horigins
+            simp only [AddInductive.mkRecInfos.loopArgs1, hi, if_pos]
+            exact Except.WF.throw
 
 /-- Start checked argument replay at the exact `whnf` boundary used by
 `loopInd1`.  Closed source headers initialize an empty narrow scope; the
@@ -18464,21 +18456,6 @@ theorem startCheckedSemantics {alpha : Type}
     {decl : VInductDecl} {params : List VExpr}
     {source : InductiveType} {target : VInductiveType}
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (Hearly : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
-      {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
-      {i : Nat} {indices originTypes : Array Expr}
-      {indexTargets : List VExpr},
-      i < stats.params.size →
-      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
-        Hc.venv c.lparams target.toSkeleton scope narrowTarget i 0 →
-      TrExprS Hc.venv c.lparams scope type narrowTarget →
-      FVarsIn (· ∈ scope.fvars) type →
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
-      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
-      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
-        indices.toList indexTargets →
-      TranslatedOriginTypes Hc originTypes →
-      (k indices c).WF Q)
     (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
       {nindices : Nat} {indices originTypes : Array Expr}
@@ -18564,7 +18541,7 @@ theorem startCheckedSemantics {alpha : Type}
       intro hzero
       exact (List.eq_nil_of_length_eq_zero (by
         rw [Hsuffix.parameterDecls_length, ← hzero])).symm
-    exact continueCheckedSemantics stats k hconsume Hearly Hk Hc Hsuffix
+    exact continueCheckedSemantics stats k hconsume Hk Hc Hsuffix
       hparams huvars hctx hshape normalized target.type narrowTarget [] 0
       #[] #[] [] fuel (by omega) Hscope hscopeEq hcompleteScope Hsynthesis
       hnormalizedNarrow (by simpa [VLCtx.fvars] using hnormalizedNoFVars)

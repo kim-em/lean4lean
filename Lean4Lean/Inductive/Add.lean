@@ -396,7 +396,10 @@ def loopArgs1 (stats : InductiveStats) (type : Expr) (i : Nat) (indices : Array 
         withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
         loopArgs1 stats (← whnf <| body.instantiate1 arg) i (indices.push arg) fuel k
     else
-      k indices
+      if i < stats.params.size then
+        throw <| .other "recursor parameter arity does not match checked inductive header"
+      else
+        k indices
 
 variable (stats : InductiveStats) (indTypes : Array InductiveType) (elimLevel : Level) in
 def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α) : M α := do
