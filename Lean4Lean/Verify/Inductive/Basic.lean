@@ -267,6 +267,39 @@ theorem VEnv.IsType.wrapForalls
       (OnCtx.append_right hctx').2
     exact VEnv.IsType.forallE hdomain hrest
 
+/-- Inject the next domain after two equally long definitionally equal forall
+prefixes.  The result is stated in the left prefix context, matching the
+narrow replay context built from already consumed family parameters. -/
+theorem VEnv.IsDefEqU.wrapForalls_next
+    (henv : VEnv.WF env)
+    (hctx : OnCtx ctx (env.IsType uvars))
+    (hlen : left.length = right.length)
+    (H : env.IsDefEqU uvars ctx
+      (VExpr.wrapForalls left (.forallE leftNext leftBody))
+      (VExpr.wrapForalls right (.forallE rightNext rightBody))) :
+    ∃ u, env.IsDefEq uvars (left.reverse ++ ctx)
+      leftNext rightNext (.sort u) := by
+  induction left generalizing right ctx with
+  | nil =>
+    have hright : right = [] := List.eq_nil_of_length_eq_zero hlen.symm
+    subst right
+    simpa [VExpr.wrapForalls] using
+      (VEnv.IsDefEqU.forallE_inv henv hctx H).1
+  | cons leftHead leftTail ih =>
+    cases right with
+    | nil => simp at hlen
+    | cons rightHead rightTail =>
+      have hlength : leftTail.length = rightTail.length := by
+        simpa using Nat.succ.inj hlen
+      have hinv := VEnv.IsDefEqU.forallE_inv henv hctx H
+      rcases hinv.1 with ⟨headLevel, hhead⟩
+      rcases hinv.2 with ⟨bodyLevel, hbody⟩
+      have hctx' : OnCtx (leftHead :: ctx) (env.IsType uvars) :=
+        ⟨hctx, ⟨headLevel, hhead.hasType.1⟩⟩
+      have hnext := ih (right := rightTail) (ctx := leftHead :: ctx)
+        hctx' hlength ⟨_, hbody⟩
+      simpa [List.reverse_cons, List.append_assoc] using hnext
+
 /-- Repeated application syntax retains a well-typed prefix. -/
 theorem VExpr.WF.mkApps_fn
     (henv : env.Ordered) (hctx : OnCtx ctx (env.IsType uvars))
@@ -648,6 +681,58 @@ theorem typeShape_mono {env env' : VEnv} (henv : env ≤ env')
   exact ⟨normalized, ownParams, afterParams, indices, result, exprType,
     hnormalized.mono henv, hparamsTake, hindicesTake,
     hparams.mono henv, hresult.mono henv⟩
+
+/-- Expose the next family-local parameter from `TypeShape` as a certified
+presentation of the whole source header. -/
+theorem VInductDecl.TypeShape.nextParameter
+    {decl : VInductDecl} {env : VEnv} {params : List VExpr}
+    {target : VInductiveType} {i : Nat}
+    (H : decl.TypeShape env params target)
+    (hi : i < decl.nparams) :
+    ∃ ownParams expectedDomain expectedBody targetType,
+      ownParams.length = decl.nparams ∧
+      ownParams[i]? = some expectedDomain ∧
+      decl.ParamsDefEq env params ownParams ∧
+      env.IsDefEq decl.uvars [] target.type
+        (VExpr.wrapForalls (ownParams.take i)
+          (.forallE expectedDomain expectedBody)) targetType := by
+  rcases H with
+    ⟨normalized, ownParams, afterParams, indices, result, exprType,
+      hnormalized, hparamsTake, _hindicesTake, hparams, _hresult⟩
+  rcases VExpr.takeForalls_rebuild hparamsTake with
+    ⟨hnormalizedEq, hownLength⟩
+  have hiOwn : i < ownParams.length := by omega
+  let expectedBody :=
+    VExpr.wrapForalls (ownParams.drop (i + 1)) afterParams
+  have hdecomp : ownParams =
+      ownParams.take i ++ ownParams[i] :: ownParams.drop (i + 1) := by
+    calc
+      ownParams = ownParams.take (i + 1) ++ ownParams.drop (i + 1) :=
+        (List.take_append_drop (i + 1) ownParams).symm
+      _ = (ownParams.take i ++ [ownParams[i]]) ++
+          ownParams.drop (i + 1) := by
+        rw [List.take_succ_eq_append_getElem hiOwn]
+      _ = ownParams.take i ++ ownParams[i] :: ownParams.drop (i + 1) := by
+        simp
+  refine ⟨ownParams, ownParams[i], expectedBody, exprType, hownLength,
+    List.getElem?_eq_getElem hiOwn, hparams, ?_⟩
+  have hwrap : VExpr.wrapForalls ownParams afterParams =
+      VExpr.wrapForalls (ownParams.take i)
+        (.forallE ownParams[i] expectedBody) := by
+    calc
+      VExpr.wrapForalls ownParams afterParams =
+          VExpr.wrapForalls
+            (ownParams.take i ++ ownParams[i] :: ownParams.drop (i + 1))
+            afterParams := congrArg (fun xs =>
+              VExpr.wrapForalls xs afterParams) hdecomp
+      _ = VExpr.wrapForalls (ownParams.take i)
+          (VExpr.wrapForalls
+            (ownParams[i] :: ownParams.drop (i + 1)) afterParams) :=
+        VExpr.wrapForalls_append _ _ _
+      _ = VExpr.wrapForalls (ownParams.take i)
+          (.forallE ownParams[i] expectedBody) := rfl
+  rw [hnormalizedEq, hwrap] at hnormalized
+  exact hnormalized
 
 def HeaderCertificate.mono {env env' : VEnv} (henv : env ≤ env')
     (H : HeaderCertificate env decl) : HeaderCertificate env' decl where
@@ -4122,6 +4207,29 @@ noncomputable def NarrowHeaderSynthesisCertificate.withIndex
       simpa [VExpr.wrapForalls, VExpr.wrapForalls_append,
         List.append_assoc] using hwrapped }
 
+/-- Compare the next domain of a narrow replay state with the next domain of
+another certified presentation of the same source header. -/
+theorem NarrowHeaderSynthesisCertificate.nextDomainDefEq
+    (henv : env.WF)
+    (H : NarrowHeaderSynthesisCertificate env Us target scope
+      (.forallE currentDomain currentBody) i nindices)
+    (hindices : H.indices = [])
+    (hlen : H.params.length = expectedPrefix.length)
+    (htarget : env.IsDefEq Us.length [] target.type
+      (VExpr.wrapForalls expectedPrefix
+        (.forallE expectedDomain expectedBody)) targetType) :
+    ∃ u, env.IsDefEq Us.length H.params.reverse
+      currentDomain expectedDomain (.sort u) := by
+  have hleftTarget : env.IsDefEqU Us.length []
+      (VExpr.wrapForalls H.params (.forallE currentDomain currentBody))
+      target.type := ⟨_, by simpa [hindices] using H.header.symm⟩
+  have htargetRight : env.IsDefEqU Us.length [] target.type
+      (VExpr.wrapForalls expectedPrefix
+        (.forallE expectedDomain expectedBody)) := ⟨_, htarget⟩
+  have hboth := hleftTarget.trans henv (by trivial) htargetRight
+  simpa using VEnv.IsDefEqU.wrapForalls_next henv (by trivial)
+    hlen hboth
+
 /-- Build the semantic parameter transition from the narrowed syntax
 translation and the executable comparison/normalization witnesses. -/
 theorem NarrowHeaderSynthesisCertificate.consumeParameter
@@ -5094,6 +5202,71 @@ theorem LaterParameterScope.ownParameterDefEq
     (H.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf).1
   exact ⟨cachedLevel, hcommonOwn'.symm.trans_r Hc.checking.tr.wf
     holderWF.toCtx hcommonCached⟩
+
+/-- The domain currently exposed by narrow header replay is the exact cached
+parameter declaration selected by the executable traversal.  This joins the
+independent source `TypeShape`, the narrow synthesis state, and the retained
+parameter cache; no successful executable `isDefEq` comparison is used. -/
+theorem LaterParameterScope.currentDomainDefEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {name : Name} {dom body : Expr} {bi : BinderInfo}
+    {decl : VInductDecl} {params : List VExpr}
+    {target : VInductiveType}
+    {currentDomain currentBody : VExpr}
+    (Hscope : LaterParameterScope Hsuffix i
+      (.forallE name dom body bi))
+    (Hsynthesis : NarrowHeaderSynthesisCertificate Hc.venv c.lparams
+      target.toSkeleton Hscope.older
+      (.forallE currentDomain currentBody) i 0)
+    (hi : i < stats.params.size)
+    (hparams : stats.params.size = decl.nparams)
+    (huvars : c.lparams.length = decl.uvars)
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx)
+    (hshape : decl.TypeShape Hc.venv params target) :
+    Hc.venv.IsDefEqU c.lparams.length Hscope.older.toCtx
+      currentDomain Hscope.paramType := by
+  have hiDecl : i < decl.nparams := by omega
+  rcases VInductDecl.TypeShape.nextParameter hshape hiDecl with
+    ⟨ownParams, expectedDomain, expectedBody, targetType,
+      hownLength, hget, hown, hpresentation⟩
+  have hiOwn : i < ownParams.length := by omega
+  have hexpected : expectedDomain = ownParams[i] := by
+    have hget' : some ownParams[i] = some expectedDomain := by
+      simpa [List.getElem?_eq_getElem hiOwn] using hget
+    exact (Option.some.inj hget').symm
+  have hindices : Hsynthesis.indices = [] :=
+    List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
+  have hprefixLength : Hsynthesis.params.length =
+      (ownParams.take i).length := by
+    rw [Hsynthesis.parameterCount, List.length_take]
+    omega
+  have hpresentation' : Hc.venv.IsDefEq c.lparams.length []
+      target.toSkeleton.type
+      (VExpr.wrapForalls (ownParams.take i)
+        (.forallE expectedDomain expectedBody)) targetType := by
+    simpa [VInductiveType.toSkeleton, huvars] using hpresentation
+  rcases Hsynthesis.nextDomainDefEq Hc.checking.tr.wf hindices
+      hprefixLength hpresentation' with ⟨nextLevel, hnext⟩
+  have hscopeCtx : Hscope.older.toCtx = Hsynthesis.params.reverse := by
+    simpa [hindices] using Hsynthesis.scopeCtx
+  have hnext' : Hc.venv.IsDefEq c.lparams.length Hscope.older.toCtx
+      currentDomain expectedDomain (.sort nextLevel) := by
+    rw [hscopeCtx]
+    exact hnext
+  have hparamsLength : params.length = stats.params.size := by
+    have hlength : params.length = ownParams.length := by
+      simpa using hown.length_eq
+    omega
+  rcases Hscope.ownParameterDefEq hi hparamsLength huvars hctx hown with
+    ⟨cachedLevel, hcached⟩
+  have hcached' : Hc.venv.IsDefEq c.lparams.length Hscope.older.toCtx
+      expectedDomain Hscope.paramType (.sort cachedLevel) := by
+    simpa [hexpected] using hcached
+  exact ⟨_, hnext'.trans_r Hc.checking.tr.wf
+    (Hscope.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf).1.toCtx hcached'⟩
 
 theorem LaterParameterScope.older_eq_nil
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -17527,6 +17700,61 @@ theorem parameterStep
   refine ⟨sourceBody.inst paramTarget,
     Hc.instantiateDefEq hbody hparam hparamType heq, ?_⟩
   exact hbodyType.instN Hc.checking.tr.wf.ordered .zero hparamType'
+
+/-- Discharge `parameterStep`'s domain match from the independently checked
+family shape and the retained parameter-cache certificates.  The narrow
+equality is lifted into the executable reader context only after it has been
+proved against the source specification. -/
+theorem parameterStepOfCheckedHeader
+    (Hc : ContextWF c)
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth}
+    {name : Name} {dom body : Expr} {bi : BinderInfo}
+    {decl : VInductDecl} {params : List VExpr}
+    {target : VInductiveType}
+    {current currentDomain currentBody : VExpr}
+    (Hscope : checkInductiveTypes.loopType.LaterParameterScope Hsuffix i
+      (.forallE name dom body bi))
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc.venv c.lparams target.toSkeleton Hscope.older
+        (.forallE currentDomain currentBody) i 0)
+    (hi : i < stats.params.size)
+    (hparams : stats.params.size = decl.nparams)
+    (huvars : c.lparams.length = decl.uvars)
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx)
+    (hshape : decl.TypeShape Hc.venv params target)
+    (htypeNarrow : TrExprS Hc.venv c.lparams Hscope.older
+      (.forallE name dom body bi) (.forallE currentDomain currentBody))
+    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      (.forallE name dom body bi) current) :
+    ∃ bodyTarget,
+      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+        (body.instantiate1 stats.params[i]!) bodyTarget ∧
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx bodyTarget := by
+  rcases Hscope.typing with
+    ⟨_paramTy, paramTy', param', _hget, _hparamTy, hparamTyEq,
+      hparam, hparamType⟩
+  have hnarrowMatch := Hscope.currentDomainDefEq Hsynthesis hi hparams
+    huvars hctx hshape
+  cases htypeNarrow with
+  | forallE _hdomType _hbodyType hdomNarrow _hbodyNarrow =>
+    apply parameterStep Hc htype hparam hparamType
+    intro domainTarget hdomFull
+    have hdomWeak := hdomNarrow.weakFV Hc.checking.tr.wf.ordered
+      Hscope.olderLift Hc.mlctx_wf.tr.wf
+    have hdomainToNarrow := hdomFull.uniq Hc.checking.tr.wf
+      (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hdomWeak
+    have hmatchFull :=
+      (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
+        Hc.mlctx_wf.tr.wf.toCtx Hscope.olderLift.toCtx).2 hnarrowMatch
+    have hresult := hdomainToNarrow.trans Hc.checking.tr.wf
+      Hc.mlctx_wf.tr.wf.toCtx hmatchFull
+    rw [hparamTyEq]
+    simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
+      using hresult
 
 /-- Operational strengthening of `continueWith`: every non-parameter binder
 opened while replaying an inductive header is retained in the local context
