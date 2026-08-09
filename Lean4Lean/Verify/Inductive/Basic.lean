@@ -23454,6 +23454,34 @@ theorem ClosedNestedAuxiliaryTranslation.restorationAlpha
   rw [hlowered]
   exact Hcancel
 
+/-- Depth-general form of `restorationAlpha`, for auxiliary occurrences
+encountered underneath the remaining recursor binders. -/
+theorem ClosedNestedAuxiliaryTranslation.restorationAlphaAt
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (Hscope : e.FVarsIn (· ∈ selection.fvars))
+    (hselectionNodup : selection.fvars.Nodup)
+    (restoreSelection : LocalForallSelection restoreLctx restoreAs)
+    (hrestoreNodup : restoreSelection.fvars.Nodup)
+    (hsize : restoreSelection.fvars.length = selection.fvars.length)
+    (k : Nat) :
+    ((e.abstract res.params).instantiateRev restoreAs).abstractList
+        restoreSelection.fvars k =
+      e.abstractList selection.fvars k := by
+  have hopen : (e.abstract res.params).instantiateRev restoreAs =
+      Expr.reopenFVarsAt e selection.fvars restoreSelection.fvars k := by
+    symm
+    exact Expr.reopenFVarsAt_eq_reopenParams hselectionNodup hsize
+      selection.expressions restoreSelection.expressions e k
+  rw [hopen]
+  unfold Expr.reopenFVarsAt
+  apply FVarsIn.abstractList_instantiateRevList
+  · have Hclosed : (e.abstractList selection.fvars k).FVarsIn
+        (fun _ => False) := by
+      apply FVarsIn.abstractList_of
+      exact Hscope.mono fun fv hfv => Or.inl hfv
+    exact Hclosed.mono fun _ hfalse => False.elim hfalse
+  · exact hrestoreNodup
+
 def ClosedNestedAuxiliaryTranslations
     (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result)
@@ -36836,6 +36864,14 @@ theorem NestedLoweringRun.resultNParams
     ⟨first, rest, tail, paramsState, lctx, params, _, Hopening, _, _, _, _, _, Hqueue⟩
   exact Hqueue.resultNParams.trans Hopening.initial_size
 
+theorem NestedLoweringRun.resultParamsSize
+    (H : NestedLoweringRun env fuel nparams types initialState out) :
+    out.1.params.size = nparams := by
+  rcases H.source with
+    ⟨first, rest, tail, paramsState, lctx, params, _, Hopening, _, _, _, _, _, Hqueue⟩
+  rw [Hqueue.resultContext.2]
+  exact Hopening.initial_size
+
 /-- The final restoration context is exactly the source parameter selection
 opened before the dynamic lowering queue starts. -/
 theorem NestedLoweringRun.resultContextSelection
@@ -37506,6 +37542,28 @@ theorem NestedLoweringResultClosed.resultParamsNodup
     NestedResultParamsNodup result := by
   rcases H with ⟨_finalState, _Hrun, _Hcache, Hparams⟩
   exact Hparams
+
+theorem NestedLoweringResultClosed.selectionNodup
+    (H : NestedLoweringResultClosed env fuel nparams types initialState result)
+    (selection : LocalForallSelection result.lctx result.params) :
+    selection.fvars.Nodup := by
+  rcases H.resultParamsNodup with ⟨fvars, hparams, hnodup⟩
+  have harrays : (selection.fvars.map Expr.fvar).toArray =
+      (fvars.map Expr.fvar).toArray := by
+    rw [← selection.expressions, ← hparams]
+  have hlists : selection.fvars.map Expr.fvar =
+      fvars.map Expr.fvar := by
+    simpa using congrArg Array.toList harrays
+  have heq : selection.fvars = fvars :=
+    (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlists
+  rw [heq]
+  exact hnodup
+
+theorem NestedLoweringResultClosed.resultParamsSize
+    (H : NestedLoweringResultClosed env fuel nparams types initialState result) :
+    result.params.size = result.nparams := by
+  rcases H with ⟨_finalState, Hrun, _Hcache, _Hparams⟩
+  exact Hrun.resultParamsSize.trans Hrun.resultNParams.symm
 
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
