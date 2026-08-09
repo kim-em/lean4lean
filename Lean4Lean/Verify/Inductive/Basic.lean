@@ -15913,6 +15913,31 @@ structure BoundFVarTypeOrigins (c : AddInductive.Context)
   declaration : ∀ i (hi : i < xs.size),
     ∃ D : BoundFVarDeclarationAt c xs i, D.type = origins[i]!
 
+/-- Two retained declarations for the same expression in one local context
+have the same declaration type.  This deliberately permits different source
+arrays and indices: the free-variable identity, rather than an incidental
+array presentation, determines the local declaration. -/
+theorem BoundFVarDeclarationAt.type_eq_of_expression
+    (D : BoundFVarDeclarationAt c xs i)
+    (E : BoundFVarDeclarationAt c ys j)
+    (hexpression : xs[i]'D.inBounds = ys[j]'E.inBounds) :
+    D.type = E.type := by
+  have hfvarExpr : Expr.fvar D.fvar = Expr.fvar E.fvar :=
+    D.expression.symm.trans (hexpression.trans E.expression)
+  have hfvar : D.fvar = E.fvar := Expr.fvar.inj hfvarExpr
+  have hdeclaration := E.declaration
+  rw [← hfvar, D.declaration] at hdeclaration
+  exact congrArg LocalDecl.type (Option.some.inj hdeclaration)
+
+/-- Recover the exact production origin type from any declaration witness for
+the same retained array position. -/
+theorem BoundFVarTypeOrigins.type_eq
+    (H : BoundFVarTypeOrigins c xs origins)
+    (D : BoundFVarDeclarationAt c xs i) :
+    D.type = origins[i]! := by
+  rcases H.declaration i D.inBounds with ⟨E, htype⟩
+  exact (D.type_eq_of_expression E (by rfl)).trans htype
+
 def BoundFVarTypeOrigins.empty (c : AddInductive.Context) :
     BoundFVarTypeOrigins c #[] #[] where
   bound := BoundFVarArray.empty c
@@ -16094,6 +16119,56 @@ def RecInfoTypeOrigins.mono
   majors := H.majors.mono hle
   indices i hi := (H.indices i hi).mono hle
   minors i hi := (H.minors i hi).mono hle
+
+/-- Row-wise inverse image of one declaration in production's flattened
+minor array.  It records the mutual-family owner, the constructor-local
+position, and the exact type used when that minor premise was introduced. -/
+structure RecInfoTypeOrigins.FlatMinorOrigin
+    (H : RecInfoTypeOrigins c recInfos)
+    (D : BoundFVarDeclarationAt c (recInfos.flatMap (·.minors)) i) where
+  owner : Nat
+  owner_lt : owner < recInfos.size
+  localIndex : Nat
+  local_lt : localIndex < recInfos[owner].minors.size
+  declaration : BoundFVarDeclarationAt c recInfos[owner].minors localIndex
+  expression_eq : recInfos[owner].minors[localIndex]'local_lt =
+    (recInfos.flatMap (·.minors))[i]'D.inBounds
+  originType_eq : D.type = H.minorTypes[owner]![localIndex]!
+
+/-- Every flattened minor declaration comes from an actual owner row.  The
+proof follows the executable `Array.flatMap` membership, then uses local
+declaration uniqueness to connect the row certificate to the flattened
+witness. -/
+theorem RecInfoTypeOrigins.flatMinorOrigin
+    (H : RecInfoTypeOrigins c recInfos)
+    (D : BoundFVarDeclarationAt c (recInfos.flatMap (·.minors)) i) :
+    Nonempty (H.FlatMinorOrigin D) := by
+  have hmember : Expr.fvar D.fvar ∈ recInfos.flatMap (·.minors) := by
+    rw [← D.expression]
+    exact Array.getElem_mem D.inBounds
+  rcases Array.mem_flatMap.mp hmember with ⟨info, hinfo, hminor⟩
+  rcases Array.mem_iff_getElem.mp hinfo with ⟨owner, howner, hinfoEq⟩
+  rcases Array.mem_iff_getElem.mp hminor with
+    ⟨localIndex, hlocal, hlocalEq⟩
+  subst info
+  have hinfoBang : recInfos[owner]! = recInfos[owner] := by
+    simp [Array.getElem!_eq_getD, Array.getD, howner]
+  have Hrow : BoundFVarTypeOrigins c recInfos[owner].minors
+      H.minorTypes[owner]! := by
+    simpa only [hinfoBang] using H.minors owner howner
+  rcases Hrow.declaration localIndex hlocal with
+    ⟨E, htype⟩
+  have hexpression : recInfos[owner].minors[localIndex]'hlocal =
+      (recInfos.flatMap (·.minors))[i]'D.inBounds :=
+    hlocalEq.trans D.expression.symm
+  exact ⟨{
+    owner := owner
+    owner_lt := howner
+    localIndex := localIndex
+    local_lt := hlocal
+    declaration := E
+    expression_eq := hexpression
+    originType_eq := (D.type_eq_of_expression E hexpression.symm).trans htype }⟩
 
 def RecInfoBindings.flatMinors
     (H : RecInfoBindings c recInfos) :
@@ -28592,28 +28667,34 @@ structure GeneratedRecursorRestoredDomainTranslations
       indTypes recInfos ownerIdx entry}
     (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
       newInfo Hentry)
+    (Horigins : RecInfoTypeOrigins c recInfos)
     (newEnv : VEnv) (newBase : VLCtx) : Prop where
   motive : ∀ i (hi : i < (recInfos.map (·.motive)).size)
       (declaration : BoundFVarDeclarationAt c
         (recInfos.map (·.motive)) i)
+      (originType_eq : declaration.type = Horigins.motiveTypes[i]!)
       (binderDepth : Nat) (accumulated : List VExpr),
     GeneratedRecursorRestoredDomainTranslation H newEnv newBase i
       binderDepth accumulated
   minor : ∀ i (hi : i < (recInfos.flatMap (·.minors)).size)
       (declaration : BoundFVarDeclarationAt c
         (recInfos.flatMap (·.minors)) i)
+      (origin : Horigins.FlatMinorOrigin declaration)
       (binderDepth : Nat) (accumulated : List VExpr),
     GeneratedRecursorRestoredDomainTranslation H newEnv newBase
       ((recInfos.map (·.motive)).size + i) binderDepth accumulated
   index : ∀ i (hi : i < recInfos[ownerIdx]!.indices.size)
       (declaration : BoundFVarDeclarationAt c
         recInfos[ownerIdx]!.indices i)
+      (originType_eq : declaration.type =
+        Horigins.indexTypes[ownerIdx]![i]!)
       (binderDepth : Nat) (accumulated : List VExpr),
     GeneratedRecursorRestoredDomainTranslation H newEnv newBase
       ((recInfos.map (·.motive)).size +
         (recInfos.flatMap (·.minors)).size + i) binderDepth accumulated
   major : ∀ (declaration : BoundFVarDeclarationAt c
       #[recInfos[ownerIdx]!.major] 0)
+      (originType_eq : declaration.type = Horigins.majorTypes[ownerIdx]!)
       (binderDepth : Nat) (accumulated : List VExpr),
     GeneratedRecursorRestoredDomainTranslation H newEnv newBase
       ((recInfos.map (·.motive)).size +
@@ -28779,8 +28860,10 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
       newInfo Hentry)
     (newEnv : VEnv) (newBase : VLCtx) (newPrefix : List VExpr)
     (Hc : BindingContextWF c) (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
     (howner : ownerIdx < recInfos.size)
-    (Hdomains : GeneratedRecursorRestoredDomainTranslations H newEnv newBase)
+    (Hdomains : GeneratedRecursorRestoredDomainTranslations H Horigins
+      newEnv newBase)
     (Hresidual : ∀ {oldΔ oldResidualTarget}
         (accumulated : List VExpr),
       ExprReplacement
@@ -28827,23 +28910,35 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
     | motive =>
         rcases Hbindings.motives.declarationAt Hc _ (by omega) with
           ⟨Hdeclaration⟩
-        exact Hdomains.motive _ (by omega) Hdeclaration binderDepth
+        exact Hdomains.motive _ (by omega) Hdeclaration
+          (Horigins.motives.type_eq Hdeclaration) binderDepth
           accumulated Hreplacement Htr Htype
     | minor =>
         rcases Hbindings.flatMinors.declarationAt Hc _ (by omega) with
           ⟨Hdeclaration⟩
-        exact Hdomains.minor _ (by omega) Hdeclaration binderDepth
-          accumulated Hreplacement Htr Htype
+        rcases Horigins.flatMinorOrigin Hdeclaration with ⟨Horigin⟩
+        exact Hdomains.minor _ (by omega) Hdeclaration Horigin
+          binderDepth accumulated Hreplacement Htr Htype
     | index =>
         rcases (Hbindings.indices ownerIdx howner).declarationAt Hc _
             (by omega) with ⟨Hdeclaration⟩
-        exact Hdomains.index _ (by omega) Hdeclaration binderDepth
-          accumulated Hreplacement Htr Htype
+        exact Hdomains.index _ (by omega) Hdeclaration
+          ((Horigins.indices ownerIdx howner).type_eq Hdeclaration)
+          binderDepth accumulated Hreplacement Htr Htype
     | major =>
         rcases (Hbindings.major ownerIdx howner).declarationAt Hc 0
             (by simp) with ⟨Hdeclaration⟩
-        exact Hdomains.major Hdeclaration binderDepth accumulated
-          Hreplacement Htr Htype
+        rcases Horigins.majors.declaration ownerIdx (by simpa using howner) with
+          ⟨Horigin, horiginType⟩
+        have hmapped : ownerIdx < (recInfos.map (·.major)).size := by
+          simpa using howner
+        have hexpression :
+            (#[recInfos[ownerIdx]!.major] : Array Expr)[0]'(by simp) =
+              (recInfos.map (·.major))[ownerIdx]'hmapped := by
+          simp [Array.getElem!_eq_getD, Array.getD, howner]
+        have htypeEq := Hdeclaration.type_eq_of_expression Horigin hexpression
+        exact Hdomains.major Hdeclaration (htypeEq.trans horiginType)
+          binderDepth accumulated Hreplacement Htr Htype
   · exact Hresidual
 
 /-- A canonical translation of the restored recursor telescope is already a
