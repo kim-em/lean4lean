@@ -27821,6 +27821,94 @@ def generatedRecursorDomainSlots
   rw [List.getElem?_singleton]
   split <;> simp_all <;> omega
 
+/-- Arithmetic-free inverse view of the generated suffix layout.  Consumers
+can recover the exact in-group index from an operational list lookup without
+repeating the `map`/`flatMap` offset calculation. -/
+inductive GeneratedRecursorDomainPosition
+    (recInfos : Array AddInductive.RecInfo) (ownerIdx : Nat) :
+    Nat → GeneratedRecursorDomainSlot → Prop
+  | motive (i : Nat) (hi : i < (recInfos.map (·.motive)).size) :
+      GeneratedRecursorDomainPosition recInfos ownerIdx i (.motive i)
+  | minor (i : Nat) (hi : i < (recInfos.flatMap (·.minors)).size) :
+      GeneratedRecursorDomainPosition recInfos ownerIdx
+        ((recInfos.map (·.motive)).size + i) (.minor i)
+  | index (i : Nat) (hi : i < recInfos[ownerIdx]!.indices.size) :
+      GeneratedRecursorDomainPosition recInfos ownerIdx
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size + i) (.index i)
+  | major : GeneratedRecursorDomainPosition recInfos ownerIdx
+      ((recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size) .major
+
+/-- Every successful operational suffix-slot lookup has exactly one of the
+four production origins. -/
+theorem GeneratedRecursorDomainPosition.of_lookup
+    (hlookup : (generatedRecursorDomainSlots recInfos ownerIdx)[position]? =
+      some slot) :
+    GeneratedRecursorDomainPosition recInfos ownerIdx position slot := by
+  have hposition : position <
+      (generatedRecursorDomainSlots recInfos ownerIdx).length :=
+    (List.getElem?_eq_some_iff.mp hlookup).1
+  have htotal : position <
+      (recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size + 1 := by
+    simpa using hposition
+  by_cases hmotive : position < (recInfos.map (·.motive)).size
+  · have hcanonical := generatedRecursorDomainSlots_motive recInfos ownerIdx
+      position hmotive
+    rw [hlookup] at hcanonical
+    have heq : slot = .motive position := Option.some.inj hcanonical
+    rw [heq]
+    exact .motive position hmotive
+  · by_cases hminor : position <
+        (recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size
+    · let i := position - (recInfos.map (·.motive)).size
+      have hi : i < (recInfos.flatMap (·.minors)).size := by
+        dsimp [i]
+        omega
+      have hoffset : (recInfos.map (·.motive)).size + i = position := by
+        dsimp [i]
+        omega
+      have hcanonical := generatedRecursorDomainSlots_minor recInfos ownerIdx
+        i hi
+      rw [hoffset, hlookup] at hcanonical
+      have heq : slot = .minor i := Option.some.inj hcanonical
+      rw [← hoffset, heq]
+      exact .minor i hi
+    · by_cases hindex : position <
+          (recInfos.map (·.motive)).size +
+            (recInfos.flatMap (·.minors)).size +
+            recInfos[ownerIdx]!.indices.size
+      · let i := position - ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size)
+        have hi : i < recInfos[ownerIdx]!.indices.size := by
+          dsimp [i]
+          omega
+        have hoffset : (recInfos.map (·.motive)).size +
+            (recInfos.flatMap (·.minors)).size + i = position := by
+          dsimp [i]
+          omega
+        have hcanonical := generatedRecursorDomainSlots_index recInfos
+          ownerIdx i hi
+        rw [hoffset, hlookup] at hcanonical
+        have heq : slot = .index i := Option.some.inj hcanonical
+        rw [← hoffset, heq]
+        exact .index i hi
+      · have hoffset : position =
+            (recInfos.map (·.motive)).size +
+              (recInfos.flatMap (·.minors)).size +
+              recInfos[ownerIdx]!.indices.size := by
+          omega
+        have hcanonical := generatedRecursorDomainSlots_major recInfos
+          ownerIdx
+        rw [← hoffset, hlookup] at hcanonical
+        have heq : slot = .major := Option.some.inj hcanonical
+        rw [hoffset, heq]
+        exact .major
+
 /-- The exact operational trace relevant to semantic transport of a generated
 primary recursor: common parameters are opened once, every remaining domain
 is paired with its restored domain, and the canonical motive-application
@@ -27930,6 +28018,59 @@ structure GeneratedRecursorRestorationTelescopeAlignment
       (recInfos.flatMap (·.minors)).size +
       recInfos[ownerIdx]!.indices.size + 1)
     oldSuffixTarget
+
+/-- The semantic obligation for one concrete restored suffix domain at a
+fixed production position.  It is intentionally independent of the slot
+category; `GeneratedRecursorRestoredDomainTranslations` assigns one such
+obligation to every motive, minor, index, and major origin. -/
+def GeneratedRecursorRestoredDomainTranslation
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (newEnv : VEnv) (newBase : VLCtx)
+    (position binderDepth : Nat) (accumulated : List VExpr) : Prop :=
+  ∀ {oldΔ oldDomain newDomain oldDomainTarget},
+    ExprReplacement
+        (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
+        oldDomain newDomain →
+    TrExprS venv Hentry.info.levelParams oldΔ
+      (oldDomain.abstractList H.trace.opening.selection.fvars binderDepth)
+      oldDomainTarget →
+    venv.IsType Hentry.info.levelParams.length oldΔ.toCtx oldDomainTarget →
+    Expr.AbstractTypeTranslation newEnv Hentry.info.levelParams
+      (abstractForallContext accumulated newBase)
+      (newDomain.abstractList H.trace.opening.selection.fvars binderDepth)
+
+/-- Slot-indexed semantic provenance for every domain of the restored
+generated recursor suffix.  The four fields mirror the production order and
+retain the exact global position at which each in-group entry is consumed. -/
+structure GeneratedRecursorRestoredDomainTranslations
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (newEnv : VEnv) (newBase : VLCtx) : Prop where
+  motive : ∀ i (hi : i < (recInfos.map (·.motive)).size)
+      (binderDepth : Nat) (accumulated : List VExpr),
+    GeneratedRecursorRestoredDomainTranslation H newEnv newBase i
+      binderDepth accumulated
+  minor : ∀ i (hi : i < (recInfos.flatMap (·.minors)).size)
+      (binderDepth : Nat) (accumulated : List VExpr),
+    GeneratedRecursorRestoredDomainTranslation H newEnv newBase
+      ((recInfos.map (·.motive)).size + i) binderDepth accumulated
+  index : ∀ i (hi : i < recInfos[ownerIdx]!.indices.size)
+      (binderDepth : Nat) (accumulated : List VExpr),
+    GeneratedRecursorRestoredDomainTranslation H newEnv newBase
+      ((recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size + i) binderDepth accumulated
+  major : ∀ (binderDepth : Nat) (accumulated : List VExpr),
+    GeneratedRecursorRestoredDomainTranslation H newEnv newBase
+      ((recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size) binderDepth accumulated
 
 theorem RecursorRestoration.generatedTelescopeAlignment
     (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
@@ -28078,6 +28219,73 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
       oldResidualTarget := by
     simpa using Htr
   simpa using Hresidual accumulated Hreplacement Htr' Htype
+
+/-- Transport the restored suffix from category-indexed provenance.  All
+lookup inversion is discharged here, leaving callers with four source-facing
+domain families rather than one callback over an unclassified position. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (newEnv : VEnv) (newBase : VLCtx) (newPrefix : List VExpr)
+    (Hdomains : GeneratedRecursorRestoredDomainTranslations H newEnv newBase)
+    (Hresidual : ∀ {oldΔ oldResidualTarget}
+        (accumulated : List VExpr),
+      ExprReplacement
+          (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
+          (concreteRecursorResult (recInfos.map (·.motive)).size
+            (recInfos.flatMap (·.minors)).size
+            recInfos[ownerIdx]!.indices.size ownerIdx)
+          (concreteRecursorResult (recInfos.map (·.motive)).size
+            (recInfos.flatMap (·.minors)).size
+            recInfos[ownerIdx]!.indices.size ownerIdx) →
+      TrExprS venv Hentry.info.levelParams oldΔ
+        ((concreteRecursorResult (recInfos.map (·.motive)).size
+          (recInfos.flatMap (·.minors)).size
+          recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+          H.trace.opening.selection.fvars
+          ((recInfos.map (·.motive)).size +
+            (recInfos.flatMap (·.minors)).size +
+            recInfos[ownerIdx]!.indices.size + 1))
+        oldResidualTarget →
+      venv.IsType Hentry.info.levelParams.length oldΔ.toCtx
+        oldResidualTarget →
+      Expr.AbstractTypeTranslation newEnv Hentry.info.levelParams
+        (abstractForallContext accumulated newBase)
+        ((concreteRecursorResult (recInfos.map (·.motive)).size
+          (recInfos.flatMap (·.minors)).size
+          recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+          H.trace.opening.selection.fvars
+          ((recInfos.map (·.motive)).size +
+            (recInfos.flatMap (·.minors)).size +
+            recInfos[ownerIdx]!.indices.size + 1))) :
+    ∃ target,
+      Expr.ForallTelescopeTypeTranslation newEnv Hentry.info.levelParams
+        (abstractForallContext newPrefix newBase)
+        (H.trace.opening.restoredBody.abstractList
+          H.trace.opening.selection.fvars)
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1)
+        target := by
+  apply H.transportSuffix newEnv newBase newPrefix
+  · intro oldΔ oldDomain newDomain oldDomainTarget position binderDepth
+      accumulated slot hlookup Hreplacement Htr Htype
+    cases GeneratedRecursorDomainPosition.of_lookup hlookup with
+    | motive =>
+        exact Hdomains.motive _ (by omega) binderDepth accumulated
+          Hreplacement Htr Htype
+    | minor =>
+        exact Hdomains.minor _ (by omega) binderDepth accumulated
+          Hreplacement Htr Htype
+    | index =>
+        exact Hdomains.index _ (by omega) binderDepth accumulated
+          Hreplacement Htr Htype
+    | major =>
+        exact Hdomains.major binderDepth accumulated Hreplacement Htr Htype
+  · exact Hresidual
 
 /-- A canonical translation of the restored recursor telescope is already a
 well-formed abstract type.  The final major-premise binder makes the telescope
