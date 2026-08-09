@@ -8532,6 +8532,14 @@ theorem MaterializedHeaderResult.levelTranslation
   rw [H.levelParams]
   exact VLevel.mapM_ofLevel_paramNames Us
 
+def _root_.Lean4Lean.TrSourceConst.mono {env env' : VEnv} (henv : env ≤ env')
+    (H : TrSourceConst env Us name type value) :
+    TrSourceConst env' Us name type value where
+  uvars := H.uvars
+  name := H.name
+  type := H.type.mono henv
+  wf := H.wf.mono henv
+
 private theorem forall₂_trExprS_mono {env env' : VEnv}
     (henv : env ≤ env') :
     ∀ {es : List Expr} {es' : List VExpr},
@@ -17740,6 +17748,66 @@ theorem RecInfoBindings.addMinor_noAlias
 
 namespace mkRecInfos.loopArgs1
 
+/-- All independently checked inputs needed to replay one source family
+header during recursor construction.  The family index is retained in the
+package, so parameter/index arities cannot be borrowed from another member
+of a mutual block. -/
+structure CheckedRecursorHeaderAt
+    (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
+    (decl : VInductDecl) (depth : Nat) (source : InductiveType)
+    (familyIdx : Nat) where
+  target : VInductiveType
+  targetAt : decl.types[familyIdx]? = some target
+  materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth
+  sourceTranslation : TrSourceConst Hc.venv c.lparams source.name
+    source.type target.toVConstVal
+
+theorem CheckedRecursorHeaderAt.target_mem
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    H.target ∈ decl.types :=
+  List.mem_of_getElem? H.targetAt
+
+theorem CheckedRecursorHeaderAt.shape
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    decl.TypeShape Hc.venv H.materialized.headers.params H.target :=
+  H.materialized.headers.typeShapes H.target H.target_mem
+
+theorem CheckedRecursorHeaderAt.parameterCount
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    stats.params.size = decl.nparams := by
+  have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    H.materialized.narrowParams
+  simpa [VInductDecl.paramVars] using hlength
+
+def CheckedRecursorHeaderAt.parameterSuffix
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    checkInductiveTypes.loopType.ParameterContextSuffix Hc stats depth :=
+  H.materialized.parameterSuffix
+
+theorem CheckedRecursorHeaderAt.paramsContext
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      H.materialized.headers.params.reverse
+      H.parameterSuffix.parameterDecls.toCtx := by
+  exact H.materialized.paramsContext
+
+theorem CheckedRecursorHeaderAt.indexCount
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
+    stats.nindices[familyIdx]? = some H.target.numIndices := by
+  have htargetBound : familyIdx < decl.types.length :=
+    List.getElem?_eq_some_iff.mp H.targetAt |>.1
+  have hstatsLength : stats.nindices.size = decl.types.length := by
+    simpa using congrArg List.length H.materialized.indices
+  have hstatsBound : familyIdx < stats.nindices.size := by omega
+  rw [Array.getElem?_eq_getElem hstatsBound]
+  have hentry := congrArg (fun values => values[familyIdx]?)
+    H.materialized.indices
+  simp only [Array.getElem?_toList, Array.getElem?_eq_getElem hstatsBound,
+    List.getElem?_map, H.targetAt, Option.map_some] at hentry
+  exact hentry
+
 /-- One semantically justified cached-parameter step.  The syntax translation
 of the cached free variable is not enough on its own: preservation of
 typehood uses the definitional equality between the exposed header domain and
@@ -24139,6 +24207,7 @@ structure DeclaredConstructorsResult
     indTypes.toList decl venvCtors
   context : ContextWF { c with env := outEnv }
   contextVEnv : context.venv = venvCtors
+  contextMLCtx : context.mlctx = H.context.mlctx
 
 theorem AddInductive.declareConstructors.WF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
@@ -24195,7 +24264,8 @@ theorem AddInductive.declareConstructors.WF
       translation := Htranslation
       context := H.context.withEnv
         (Hinstalled.valid H.context.checking) Hinstalled.le
-      contextVEnv := rfl }, trivial⟩
+      contextVEnv := rfl
+      contextMLCtx := rfl }, trivial⟩
 
 structure ConstructorPhasesResult
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
@@ -24207,6 +24277,39 @@ structure ConstructorPhasesResult
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors
+
+/-- Select one mutual-family header for recursor replay after transporting
+both its source translation and the materialized header certificate through
+header and constructor installation. -/
+def ConstructorPhasesResult.checkedRecursorHeaderAt
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv)
+    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size) :
+    mkRecInfos.loopArgs1.CheckedRecursorHeaderAt R.declared.context stats
+      decl depth indTypes[familyIdx] familyIdx := by
+  have htarget : familyIdx < decl.types.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
+    simpa using hfamily
+  have Htype := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
+    familyIdx (by simpa using hfamily) htarget
+  have hsourceLE : sourceEnv ≤ R.declared.venvCtors :=
+    H.installed.le.trans R.declared.installed.le
+  have Hmaterialized := H.materialized.mono R.declared.installed.le
+  have Hsource := Htype.header.mono hsourceLE
+  refine {
+    target := decl.types[familyIdx]
+    targetAt := by simp [htarget]
+    materialized := ?_
+    sourceTranslation := ?_ }
+  · rw [R.declared.contextVEnv]
+    simpa only [R.declared.contextMLCtx] using Hmaterialized
+  · rw [R.declared.contextVEnv]
+    simpa using Hsource
 
 /-- The verified header cache supplies the exact retained parameter binders
 needed by recursor-info generation, while the constructor phases supply its
