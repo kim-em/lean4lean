@@ -23482,6 +23482,16 @@ theorem ClosedNestedAuxiliaryTranslation.restorationAlphaAt
     exact Hclosed.mono fun _ hfalse => False.elim hfalse
   · exact hrestoreNodup
 
+/-- The closed auxiliary witness itself is a binder-by-binder typed
+telescope, using the same certificate language as restored recursor types. -/
+theorem ClosedNestedAuxiliaryTranslation.telescopeTyped
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e) :
+    Expr.ForallTelescopeTypeTranslation venv lparams []
+      (res.lctx.mkForall res.params e) res.params.size H.closedTarget := by
+  have Htel := selection.forallTelescope e
+  exact Expr.ForallTelescopeTypeTranslation.ofTrExprS Htel H.closed
+    H.closedType
+
 def ClosedNestedAuxiliaryTranslations
     (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result)
@@ -26590,6 +26600,46 @@ def NestedRestoration
       body restoredBody ∧
     output = if input.isForall then lctx.mkForall As restoredBody
       else lctx.mkLambda As restoredBody
+
+/-- The concrete parameter-opening data hidden by `NestedRestoration`, with
+the exact binder-order selection and its length exposed for alpha-invariant
+semantic transport. -/
+structure NestedRestorationOpening
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (auxRec : NameMap Name)
+    (input output : Expr) where
+  lctx : LocalContext
+  params : Array Expr
+  body : Expr
+  restoredBody : Expr
+  opening : RestoreParamOpening {} #[] input result.nparams lctx params body
+  selection : LocalForallSelection lctx params
+  selectionNodup : selection.fvars.Nodup
+  selectionLength : selection.fvars.length = result.params.size
+  replacement : ExprReplacement (result.restoreNestedNode env params auxRec)
+    body restoredBody
+  output_eq : output = if input.isForall then
+    lctx.mkForall params restoredBody else lctx.mkLambda params restoredBody
+
+theorem NestedRestoration.opening
+    (H : NestedRestoration result env auxRec input output)
+    (hparams : result.params.size = result.nparams) :
+    Nonempty (NestedRestorationOpening result env auxRec input output) := by
+  rcases H with ⟨lctx, params, body, restoredBody,
+    ⟨Hopening, _Hlctx, Hselection, Hnodup⟩, Hreplacement, houtput⟩
+  have hselectionSize : Hselection.fvars.length = result.params.size := by
+    rw [← Hselection.size, Hopening.initial_size, ← hparams]
+  exact ⟨{
+    lctx := lctx
+    params := params
+    body := body
+    restoredBody := restoredBody
+    opening := Hopening
+    selection := Hselection
+    selectionNodup := Hnodup
+    selectionLength := hselectionSize
+    replacement := Hreplacement
+    output_eq := houtput }⟩
 
 @[simp] theorem restoreNestedNode_forall
     (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
@@ -37564,6 +37614,25 @@ theorem NestedLoweringResultClosed.resultParamsSize
     result.params.size = result.nparams := by
   rcases H with ⟨_finalState, Hrun, _Hcache, _Hparams⟩
   exact Hrun.resultParamsSize.trans Hrun.resultNParams.symm
+
+/-- Actual operational restoration openings satisfy the arbitrary-depth
+alpha law for every validated auxiliary hit. -/
+theorem NestedRestorationOpening.auxiliaryAlphaAt
+    (Hopen : NestedRestorationOpening result prodEnv auxRec input output)
+    (Hlower : NestedLoweringResultClosed env fuel nparams types initialState
+      result)
+    (selection : LocalForallSelection result.lctx result.params)
+    (Haux : ClosedNestedAuxiliaryTranslation venv lparams result selection e)
+    (name : Name) (hfind : result.aux2nested.find? name = some e)
+    (k : Nat) :
+    ((e.abstract result.params).instantiateRev Hopen.params).abstractList
+        Hopen.selection.fvars k =
+      e.abstractList selection.fvars k := by
+  have Hscope := Hlower.auxFVarsInSelection selection name e hfind
+  have hsize : Hopen.selection.fvars.length = selection.fvars.length := by
+    rw [Hopen.selectionLength, ← selection.size]
+  exact Haux.restorationAlphaAt Hscope (Hlower.selectionNodup selection)
+    Hopen.selection Hopen.selectionNodup hsize k
 
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
