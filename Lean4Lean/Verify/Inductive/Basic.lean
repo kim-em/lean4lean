@@ -7169,13 +7169,13 @@ noncomputable def initialLaterParameterScope
 context, both the source header and its initial normal form are closed.  The
 normalization equality therefore descends to the empty abstract context,
 where it can seed an independent later-header telescope certificate. -/
-theorem initialLaterHeaderDefEq
+theorem initialLaterHeaderDefEqOfTranslation
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c)
     (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
       target.toVConstVal)
-    (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
-      source.type checkedType sourceType checkedType')
+    (hsource : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      source.type sourceType)
     (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
       normalized sourceType)
     (hfvars : FVarsIn (fun _ => False) normalized) :
@@ -7200,12 +7200,12 @@ theorem initialLaterHeaderDefEq
     Htarget.type.fvarsIn.mono fun fv hfv => by
       simpa [VLCtx.fvars] using hfv
   have hsourceClosed : Closed source.type 0 := by
-    have := hchecked.2.1.closed
+    have := hsource.closed
     simpa [Hc.mlctx.noBV] using this
   have hsourceNoFVars' :
       FVarsIn (fun fv => fv ∈ VLCtx.fvars []) source.type := by
     simpa [VLCtx.fvars] using hsourceNoFVars
-  rcases hchecked.2.1.weakFV_inv Hc.checking.tr.wf W
+  rcases hsource.weakFV_inv Hc.checking.tr.wf W
       (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
       hsourceClosed hsourceNoFVars' with
     ⟨sourceType', hsourceType'⟩
@@ -7215,7 +7215,7 @@ theorem initialLaterHeaderDefEq
     W Hc.mlctx_wf.tr.wf
   have hnormalizedUniq := hnormalizedFull.uniq Hc.checking.tr.wf
     (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hnormalizedWeak
-  have hsourceUniq := hchecked.2.1.uniq Hc.checking.tr.wf
+  have hsourceUniq := hsource.uniq Hc.checking.tr.wf
     (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hsourceWeak
   have hfull : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
       (normalized'.liftN Hc.mlctx.vlctx.toCtx.length 0)
@@ -7235,9 +7235,8 @@ theorem initialLaterHeaderDefEq
   exact ⟨normalized', hnormalized',
     htarget.trans Hc.checking.tr.wf (by trivial) hempty.symm⟩
 
-/-- Initialize the narrow later-header synthesis state in the empty consumed
-scope. -/
-theorem initialLaterHeaderSynthesisState
+/-- Checker-facing wrapper for the direct source-translation initializer. -/
+theorem initialLaterHeaderDefEq
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c)
     (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
@@ -7249,9 +7248,28 @@ theorem initialLaterHeaderSynthesisState
     (hfvars : FVarsIn (fun _ => False) normalized) :
     ∃ normalized',
       TrExprS Hc.venv c.lparams [] normalized normalized' ∧
+      Hc.venv.IsDefEqU c.lparams.length [] target.type normalized' :=
+  initialLaterHeaderDefEqOfTranslation Hc Htarget hchecked.2.1
+    hnormalized hfvars
+
+/-- Initialize the narrow later-header synthesis state in the empty consumed
+scope. -/
+theorem initialLaterHeaderSynthesisStateOfTranslation
+    {source : InductiveType} {target : VInductiveTypeSkeleton}
+    (Hc : ContextWF c)
+    (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
+      target.toVConstVal)
+    (hsource : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      source.type sourceType)
+    (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      normalized sourceType)
+    (hfvars : FVarsIn (fun _ => False) normalized) :
+    ∃ normalized',
+      TrExprS Hc.venv c.lparams [] normalized normalized' ∧
       Nonempty (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
         Hc.venv c.lparams target [] normalized' 0 0) := by
-  rcases initialLaterHeaderDefEq Hc Htarget hchecked hnormalized hfvars with
+  rcases initialLaterHeaderDefEqOfTranslation Hc Htarget hsource
+      hnormalized hfvars with
     ⟨normalized', hnormalized', hheader⟩
   have htargetType : Hc.venv.IsType c.lparams.length [] target.type := by
     have hwf := Htarget.wf
@@ -7266,6 +7284,25 @@ theorem initialLaterHeaderSynthesisState
   exact ⟨normalized', hnormalized',
     ⟨checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
       ⟨targetLevel, htargetType⟩ hnormalizedType hheaderTyped⟩⟩
+
+/-- Checker-facing wrapper for the direct source-translation synthesis
+initializer. -/
+theorem initialLaterHeaderSynthesisState
+    {source : InductiveType} {target : VInductiveTypeSkeleton}
+    (Hc : ContextWF c)
+    (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
+      target.toVConstVal)
+    (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+      source.type checkedType sourceType checkedType')
+    (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
+      normalized sourceType)
+    (hfvars : FVarsIn (fun _ => False) normalized) :
+    ∃ normalized',
+      TrExprS Hc.venv c.lparams [] normalized normalized' ∧
+      Nonempty (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc.venv c.lparams target [] normalized' 0 0) :=
+  initialLaterHeaderSynthesisStateOfTranslation Hc Htarget hchecked.2.1
+    hnormalized hfvars
 
 private def updatedStats (stats : AddInductive.InductiveStats)
     (lctx : LocalContext) (resultLevel : Level) (setResult : Bool)
@@ -18039,6 +18076,76 @@ theorem continueCheckedSemantics {alpha : Type}
           | proj =>
             simpa [AddInductive.mkRecInfos.loopArgs1] using
               Hk Hc htypeFull htypeFullType Hindices Horigins
+
+/-- Start checked argument replay at the exact `whnf` boundary used by
+`loopInd1`.  Closed source headers initialize an empty narrow scope; the
+materialized parameter suffix supplies every subsequent cached parameter. -/
+theorem startCheckedSemantics {alpha : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Array Expr → AddInductive.M alpha)
+    {Q : alpha → Prop}
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+      {type : Expr} {typeTarget : VExpr} {indices originTypes : Array Expr}
+      {indexTargets : List VExpr},
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type typeTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx typeTarget →
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc originTypes →
+      (k indices c).WF Q)
+    {c : AddInductive.Context} (Hc : ContextWF c)
+    {depth : Nat}
+    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth)
+    {decl : VInductDecl} {params : List VExpr}
+    {source : InductiveType} {target : VInductiveType}
+    (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
+      target.toVConstVal)
+    (hparams : stats.params.size = decl.nparams)
+    (huvars : c.lparams.length = decl.uvars)
+    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx)
+    (hshape : decl.TypeShape Hc.venv params target)
+    {sourceTarget : VExpr}
+    (hsource : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+      source.type sourceTarget)
+    (hsourceType : Hc.venv.IsType c.lparams.length
+      Hc.mlctx.vlctx.toCtx sourceTarget)
+    (fuel : Nat) :
+    ((monadLift (TypeChecker.whnf source.type) : AddInductive.M Expr) c >>=
+      fun normalized => AddInductive.mkRecInfos.loopArgs1 stats normalized 0
+        #[] fuel k c).WF Q := by
+  have hwhnf := whnfInContext.scopeWF Hc hsource
+  exact hwhnf.bind fun normalized hnormalized => by
+    have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
+      Htarget.type.fvarsIn.mono fun fv hfv => by
+        simpa [VLCtx.fvars] using hfv
+    have hfalseUpSet : IsFVarUpSet (fun _ => False) Hc.mlctx.vlctx := by
+      have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
+        Hc.mlctx.vlctx (by simpa using Hc.mlctx_wf.tr.wf)
+      simpa [VLCtx.fvars] using hsuffix
+    have hnormalizedNoFVars : FVarsIn (fun _ => False) normalized :=
+      hnormalized.1 _ hfalseUpSet hsourceNoFVars
+    have HtargetSkeleton : TrSourceConst Hc.venv c.lparams
+        source.name source.type target.toSkeleton.toVConstVal := by
+      simpa [VInductiveType.toSkeleton] using Htarget
+    rcases checkInductiveTypes.loopInd.initialLaterHeaderSynthesisStateOfTranslation Hc
+        HtargetSkeleton hsource hnormalized.2 hnormalizedNoFVars with
+      ⟨narrowTarget, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
+    let Hscope : ∀ hi : 0 < stats.params.size,
+        checkInductiveTypes.loopType.LaterParameterScope
+          Hsuffix 0 normalized := fun hi =>
+      checkInductiveTypes.loopInd.initialLaterParameterScope Hc Hsuffix hi
+        HtargetSkeleton hnormalized.1
+    have hscopeEq : ∀ hi : 0 < stats.params.size,
+        [] = (Hscope hi).older := by
+      intro hi
+      exact (Hscope hi).older_eq_nil hi |>.symm
+    exact continueCheckedSemantics stats k hconsume Hk Hc Hsuffix hparams
+      huvars hctx hshape normalized sourceTarget narrowTarget [] 0 #[] #[]
+      [] fuel (by omega) Hscope hscopeEq Hsynthesis hnormalizedNarrow
+      hnormalized.2 hsourceType .nil (TranslatedOriginTypes.empty Hc)
 
 end mkRecInfos.loopArgs1
 
