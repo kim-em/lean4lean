@@ -38581,6 +38581,38 @@ theorem NestedRestorationOpening.exactFamilyHitAbstractTypeTranslationAtPrefix
     Hopen.exactFamilyHitAbstractTypeTranslation Hlower selection Haux henv
       family levels hfind hrec t restored hhead hargs Hhit suffixDomains
 
+/-- Lookup-driven form used by a recursor-domain callback.  Validation of all
+cached auxiliaries supplies the particular closed translation selected by the
+same `aux2nested` lookup that triggered the executable restoration hit. -/
+theorem NestedRestorationOpening.exactFamilyHitOfTranslationsAtPrefix
+    (Hopen : NestedRestorationOpening result prodEnv auxRec input output)
+    (Hlower : NestedLoweringResultClosed env fuel nparams types initialState
+      result)
+    (selection : LocalForallSelection result.lctx result.params)
+    (Htranslations : ClosedNestedAuxiliaryTranslations venv lparams result
+      selection)
+    (henv : venv.Ordered)
+    (family : Name) (levels : List Level) (e : Expr)
+    (hfind : result.aux2nested.find? family = some e)
+    (hrec : auxRec.find? family = none)
+    (t restored : Expr)
+    (hhead : t.getAppFn = .const family levels)
+    (hargs : t.getAppArgs.size = result.nparams)
+    (Hhit : result.restoreNestedNode prodEnv Hopen.params auxRec t =
+      some restored)
+    (suffixDomains : List VExpr) :
+    ∃ parameterDomains,
+      parameterDomains.length = result.params.size ∧
+      Expr.AbstractTypeTranslation venv lparams
+        (abstractForallContext (parameterDomains ++ suffixDomains) [])
+        (restored.abstractList Hopen.selection.fvars
+          suffixDomains.length) := by
+  rcases Htranslations family e hfind with ⟨Haux⟩
+  exact ⟨Haux.domains, Haux.arity,
+    Hopen.exactFamilyHitAbstractTypeTranslationAtPrefix Hlower selection Haux
+      henv family levels hfind hrec t restored hhead hargs Hhit
+      suffixDomains⟩
+
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
       initialState res)
