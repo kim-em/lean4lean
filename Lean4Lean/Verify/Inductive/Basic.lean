@@ -8833,6 +8833,72 @@ def MaterializedHeaderResult.parameterSuffix
       checkInductiveTypes.loopType.cachedParamVars_eq_paramVars decl]
     exact H.narrowParams
 
+/-- Extend a completed header result by one semantically verified ambient
+declaration.  The cached common-parameter suffix is unchanged; only its
+runtime embedding and the ambient depth advance.  This is the transport used
+between mutual recursor frames. -/
+def MaterializedHeaderResult.withAmbient
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : MaterializedHeaderResult Hc.venv c.lparams Hc.mlctx.vlctx
+      stats decl depth)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+    MaterializedHeaderResult Hc'.venv c.lparams Hc'.mlctx.vlctx
+      stats decl (depth + 1) := by
+  dsimp only
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+  let Hsuffix' := H.parameterSuffix.withIndex Hc
+    (name := name) (bi := bi) htr hty
+  let entry : Option (FVarId × List FVarId) × VLocalDecl :=
+    (some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty')
+  let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
+    .skip_fvar _ _ .refl
+  have weakenParams : ∀ {sources targets},
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        sources targets →
+      List.Forall₂ (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+        sources (targets.map fun target => target.liftN 1 0) := by
+    intro sources targets Htranslated
+    induction Htranslated with
+    | nil => exact .nil
+    | cons hsource _ ih =>
+      exact .cons
+        (hsource.weakFV Hc.checking.tr.wf.ordered W Hc'.mlctx_wf.tr.wf)
+        ih
+  have hparams := weakenParams H.params
+  refine {
+    headers := H.headers
+    levels := H.levels
+    levelParams := H.levelParams
+    uvars := H.uvars
+    consts := H.consts
+    indices := H.indices
+    params := ?_
+    paramFVars := H.paramFVars
+    parameterScope := H.parameterScope
+    ambientScope := entry :: H.ambientScope
+    scopeDecomposition := by
+      change entry :: Hc.mlctx.vlctx =
+        (entry :: H.ambientScope) ++ H.parameterScope
+      simpa only [List.cons_append] using
+        congrArg (entry :: ·) H.scopeDecomposition
+    ambientLength := by simp [H.ambientLength]
+    cachedScope := H.cachedScope
+    runtimeScope :=
+      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+        Hc' Hsuffix'
+    paramsContext := ?_
+    narrowParams := ?_ }
+  · have heq : (decl.paramVars depth).map (fun target =>
+        target.liftN 1 0) = decl.paramVars (depth + 1) := by
+      simp [VInductDecl.paramVars, VExpr.liftN]
+      omega
+    rw [← heq]
+    exact hparams
+  · exact H.paramsContext
+  · exact H.narrowParams
+
 /-- Complete the whole nonempty mutual-header phase, including the special
 first header that establishes the common parameters and result universe. -/
 theorem firstStep.materialize
@@ -17918,6 +17984,25 @@ def CheckedRecursorHeaderAt.parameterSuffix
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
     checkInductiveTypes.loopType.ParameterContextSuffix Hc stats depth :=
   H.materialized.parameterSuffix
+
+/-- Preserve a selected family header after one verified recursor-frame
+declaration is added to the ambient executable context. -/
+def CheckedRecursorHeaderAt.withAmbient
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+    CheckedRecursorHeaderAt Hc' stats decl (depth + 1) source familyIdx := by
+  dsimp only
+  exact {
+    target := H.target
+    targetAt := H.targetAt
+    materialized := H.materialized.withAmbient
+      (name := name) (bi := bi) htr hty
+    sourceTranslation := H.sourceTranslation
+    targetLookup := H.targetLookup
+    lparamsNodup := H.lparamsNodup }
 
 theorem CheckedRecursorHeaderAt.paramsContext
     {c : AddInductive.Context} {Hc : ContextWF c}
