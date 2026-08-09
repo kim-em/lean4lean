@@ -15883,6 +15883,112 @@ def BoundFVarDeclarationAt.mono
     rw [H.declarations D.fvar D.member]
     exact D.declaration
 
+def BoundFVarDeclarationAt.pushArray
+    (D : BoundFVarDeclarationAt c xs i) (value : Expr) :
+    BoundFVarDeclarationAt c (xs.push value) i where
+  inBounds := by
+    simp only [Array.size_push]
+    have := D.inBounds
+    omega
+  fvar := D.fvar
+  expression := by
+    rw [Array.getElem_push_lt D.inBounds]
+    exact D.expression
+  member := D.member
+  index := D.index
+  userName := D.userName
+  type := D.type
+  binderInfo := D.binderInfo
+  kind := D.kind
+  declaration := D.declaration
+
+/-- Parallel origin types for a retained free-variable array.  Unlike plain
+`BoundFVarArray`, this certificate remembers the exact type used at each
+`withLocalDecl`, and the strengthened context-extension relation makes that
+fact stable in all later contexts. -/
+structure BoundFVarTypeOrigins (c : AddInductive.Context)
+    (xs origins : Array Expr) where
+  bound : BoundFVarArray c xs
+  size_eq : origins.size = xs.size
+  declaration : ∀ i (hi : i < xs.size),
+    ∃ D : BoundFVarDeclarationAt c xs i, D.type = origins[i]!
+
+def BoundFVarTypeOrigins.empty (c : AddInductive.Context) :
+    BoundFVarTypeOrigins c #[] #[] where
+  bound := BoundFVarArray.empty c
+  size_eq := rfl
+  declaration i hi := by simp at hi
+
+def BoundFVarTypeOrigins.mono
+    (H : BoundFVarTypeOrigins c xs origins)
+    (hle : BindingContextLE c c') :
+    BoundFVarTypeOrigins c' xs origins where
+  bound := H.bound.mono hle
+  size_eq := H.size_eq
+  declaration i hi := by
+    rcases H.declaration i hi with ⟨D, htype⟩
+    exact ⟨D.mono hle, htype⟩
+
+def BoundFVarTypeOrigins.pushCurrent
+    (H : BoundFVarTypeOrigins c xs origins)
+    (Hc : BindingContextWF c)
+    (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BoundFVarTypeOrigins
+      { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+      (xs.push (.fvar ⟨c.ngen.curr⟩)) (origins.push ty) := by
+  let c' : AddInductive.Context := { c with
+    ngen := c.ngen.next
+    lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+  let hstep := BindingContextLE.withLocalDecl c Hc name ty bi
+  refine {
+    bound := H.bound.pushCurrent name ty bi
+    size_eq := by simpa using H.size_eq
+    declaration := ?_ }
+  intro i hi
+  by_cases hilast : i = xs.size
+  · subst i
+    let D : BoundFVarDeclarationAt c'
+        (xs.push (.fvar ⟨c.ngen.curr⟩)) xs.size := {
+      inBounds := by simpa
+      fvar := ⟨c.ngen.curr⟩
+      expression := by simp
+      member := by
+        simp only [c', LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+          List.map_cons, LocalDecl.fvarId, List.mem_cons]
+        exact Or.inl trivial
+      index := c.lctx.decls.size
+      userName := name
+      type := ty
+      binderInfo := bi
+      kind := .default
+      declaration := by
+        simp [c', LocalContext.mkLocalDecl, LocalContext.find?,
+          Hc.wf.map_wf.find?_insert] }
+    refine ⟨D, ?_⟩
+    change ty = (origins.push ty)[xs.size]!
+    rw [show xs.size = origins.size from H.size_eq.symm]
+    simp
+  · have hiOld : i < xs.size := by
+      have : i < xs.size + 1 := by simpa using hi
+      omega
+    rcases H.declaration i hiOld with ⟨D, htype⟩
+    refine ⟨(D.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep, ?_⟩
+    have hsizes := H.size_eq
+    have hiOrigins : i < origins.size := by omega
+    change D.type = (origins.push ty)[i]!
+    rw [Array.getElem!_eq_getD] at htype ⊢
+    unfold Array.getD at htype ⊢
+    rw [dif_pos hiOrigins] at htype
+    have hiPush : i < (origins.push ty).size := by
+      simp only [Array.size_push]
+      omega
+    rw [dif_pos hiPush]
+    have heq : (origins.push ty)[i]'hiPush = origins[i]'hiOrigins :=
+      Array.getElem_push_lt hiOrigins
+    exact htype.trans heq.symm
+
 theorem BoundFVarArray.getElem_eq_fvar
     (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
     ∃ hiFvars : i < H.fvars.length,
@@ -15943,6 +16049,51 @@ structure RecInfoBindings (c : AddInductive.Context)
     BoundFVarArray c recInfos[i]!.indices
   minors : ∀ i (hi : i < recInfos.size),
     BoundFVarArray c recInfos[i]!.minors
+
+/-- Exact `withLocalDecl` origin types retained in the same row structure as
+production `RecInfo`s.  Per-owner rows avoid losing the insertion position of
+minor premises during the second mutual pass. -/
+structure RecInfoTypeOrigins (c : AddInductive.Context)
+    (recInfos : Array AddInductive.RecInfo) where
+  motiveTypes : Array Expr
+  majorTypes : Array Expr
+  indexTypes : Array (Array Expr)
+  minorTypes : Array (Array Expr)
+  indexTypes_size : indexTypes.size = recInfos.size
+  minorTypes_size : minorTypes.size = recInfos.size
+  motives : BoundFVarTypeOrigins c (recInfos.map (·.motive)) motiveTypes
+  majors : BoundFVarTypeOrigins c (recInfos.map (·.major)) majorTypes
+  indices : ∀ i (hi : i < recInfos.size),
+    BoundFVarTypeOrigins c recInfos[i]!.indices indexTypes[i]!
+  minors : ∀ i (hi : i < recInfos.size),
+    BoundFVarTypeOrigins c recInfos[i]!.minors minorTypes[i]!
+
+def RecInfoTypeOrigins.empty (c : AddInductive.Context) :
+    RecInfoTypeOrigins c #[] where
+  motiveTypes := #[]
+  majorTypes := #[]
+  indexTypes := #[]
+  minorTypes := #[]
+  indexTypes_size := rfl
+  minorTypes_size := rfl
+  motives := by simpa using BoundFVarTypeOrigins.empty c
+  majors := by simpa using BoundFVarTypeOrigins.empty c
+  indices i hi := by simp at hi
+  minors i hi := by simp at hi
+
+def RecInfoTypeOrigins.mono
+    (H : RecInfoTypeOrigins c recInfos) (hle : BindingContextLE c c') :
+    RecInfoTypeOrigins c' recInfos where
+  motiveTypes := H.motiveTypes
+  majorTypes := H.majorTypes
+  indexTypes := H.indexTypes
+  minorTypes := H.minorTypes
+  indexTypes_size := H.indexTypes_size
+  minorTypes_size := H.minorTypes_size
+  motives := H.motives.mono hle
+  majors := H.majors.mono hle
+  indices i hi := (H.indices i hi).mono hle
+  minors i hi := (H.minors i hi).mono hle
 
 def RecInfoBindings.flatMinors
     (H : RecInfoBindings c recInfos) :
@@ -16370,6 +16521,132 @@ def RecInfoBindings.pushFrame
       rw [hget]
       exact (H.minors i hiOld).mono hall
 
+def RecInfoTypeOrigins.pushFrame
+    {indices indexOrigins : Array Expr}
+    (H : RecInfoTypeOrigins c recInfos)
+    (hle : BindingContextLE c cIndices)
+    (HcIndices : BindingContextWF cIndices)
+    (Hindices : BoundFVarTypeOrigins cIndices indices indexOrigins)
+    (majorName : Name) (majorTy : Expr) (majorBi : BinderInfo)
+    (motiveName : Name) (motiveTy : Expr) (motiveBi : BinderInfo) :
+    let cMajor : AddInductive.Context := { cIndices with
+      ngen := cIndices.ngen.next
+      lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩
+        majorName majorTy majorBi }
+    let cMotive : AddInductive.Context := { cMajor with
+      ngen := cMajor.ngen.next
+      lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩
+        motiveName motiveTy motiveBi }
+    RecInfoTypeOrigins cMotive (recInfos.push {
+      motive := .fvar ⟨cMajor.ngen.curr⟩
+      minors := #[]
+      indices
+      major := .fvar ⟨cIndices.ngen.curr⟩ }) := by
+  dsimp only
+  let cMajor : AddInductive.Context := { cIndices with
+    ngen := cIndices.ngen.next
+    lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩
+      majorName majorTy majorBi }
+  let cMotive : AddInductive.Context := { cMajor with
+    ngen := cMajor.ngen.next
+    lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩
+      motiveName motiveTy motiveBi }
+  let HcMajor := HcIndices.withLocalDecl majorName majorTy majorBi
+  let hMajor := BindingContextLE.withLocalDecl cIndices HcIndices
+    majorName majorTy majorBi
+  let hMotive := BindingContextLE.withLocalDecl cMajor HcMajor
+    motiveName motiveTy motiveBi
+  let hall : BindingContextLE c cMotive := hle.trans (hMajor.trans hMotive)
+  refine {
+    motiveTypes := H.motiveTypes.push motiveTy
+    majorTypes := H.majorTypes.push majorTy
+    indexTypes := H.indexTypes.push indexOrigins
+    minorTypes := H.minorTypes.push #[]
+    indexTypes_size := by simpa using H.indexTypes_size
+    minorTypes_size := by simpa using H.minorTypes_size
+    motives := ?_
+    majors := ?_
+    indices := ?_
+    minors := ?_ }
+  · simpa [cMajor, cMotive] using
+      (H.motives.mono (hle.trans hMajor)).pushCurrent HcMajor
+        motiveName motiveTy motiveBi
+  · simpa [cMajor, cMotive] using
+      ((H.majors.mono hle).pushCurrent HcIndices
+        majorName majorTy majorBi).mono hMotive
+  · intro i hi
+    by_cases hilast : i = recInfos.size
+    · subst i
+      have hindexOrigins :
+          (H.indexTypes.push indexOrigins)[recInfos.size]! = indexOrigins := by
+        rw [show recInfos.size = H.indexTypes.size from
+          H.indexTypes_size.symm]
+        simp
+      rw [hindexOrigins]
+      simpa [cMajor, cMotive] using Hindices.mono (hMajor.trans hMotive)
+    · have hiOld : i < recInfos.size := by
+        have : i < recInfos.size + 1 := by simpa using hi
+        omega
+      have hrec : (recInfos.push {
+          motive := .fvar ⟨cMajor.ngen.curr⟩
+          minors := #[]
+          indices
+          major := .fvar ⟨cIndices.ngen.curr⟩ })[i]! = recInfos[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hi, dif_pos hiOld]
+        exact Array.getElem_push_lt hiOld
+      rw [hrec]
+      have hiTypes : i < H.indexTypes.size := by
+        rw [H.indexTypes_size]
+        exact hiOld
+      have horigin : (H.indexTypes.push indexOrigins)[i]! =
+          H.indexTypes[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        have hiPush : i < (H.indexTypes.push indexOrigins).size := by
+          simp only [Array.size_push]
+          omega
+        rw [dif_pos hiPush, dif_pos hiTypes]
+        exact Array.getElem_push_lt hiTypes
+      rw [horigin]
+      exact (H.indices i hiOld).mono hall
+  · intro i hi
+    by_cases hilast : i = recInfos.size
+    · subst i
+      have horigin : (H.minorTypes.push #[])[recInfos.size]! = #[] := by
+        rw [show recInfos.size = H.minorTypes.size from
+          H.minorTypes_size.symm]
+        simp
+      rw [horigin]
+      simpa using BoundFVarTypeOrigins.empty cMotive
+    · have hiOld : i < recInfos.size := by
+        have : i < recInfos.size + 1 := by simpa using hi
+        omega
+      have hrec : (recInfos.push {
+          motive := .fvar ⟨cMajor.ngen.curr⟩
+          minors := #[]
+          indices
+          major := .fvar ⟨cIndices.ngen.curr⟩ })[i]! = recInfos[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hi, dif_pos hiOld]
+        exact Array.getElem_push_lt hiOld
+      rw [hrec]
+      have hiTypes : i < H.minorTypes.size := by
+        rw [H.minorTypes_size]
+        exact hiOld
+      have horigin : (H.minorTypes.push #[])[i]! = H.minorTypes[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        have hiPush : i < (H.minorTypes.push #[]).size := by
+          simp only [Array.size_push]
+          omega
+        rw [dif_pos hiPush, dif_pos hiTypes]
+        exact Array.getElem_push_lt hiTypes
+      rw [horigin]
+      exact (H.minors i hiOld).mono hall
+
 theorem RecInfoBindings.pushFrame_allFvars_perm
     {stats : AddInductive.InductiveStats} {indices : Array Expr}
     (H : RecInfoBindings c recInfos)
@@ -16578,6 +16855,94 @@ def RecInfoBindings.addMinor
     · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hiOld heq]
       exact (H.minors i hiOld).mono hall
 
+def RecInfoTypeOrigins.addMinor
+    (H : RecInfoTypeOrigins c recInfos) (dIdx : Nat)
+    (hidx : dIdx < recInfos.size)
+    (hle : BindingContextLE c cMinorTy)
+    (HcMinorTy : BindingContextWF cMinorTy)
+    (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo) :
+    let cMinor : AddInductive.Context := { cMinorTy with
+      ngen := cMinorTy.ngen.next
+      lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
+        minorName minorTy minorBi }
+    RecInfoTypeOrigins cMinor (recInfos.modify dIdx fun info =>
+      { info with minors := info.minors.push (.fvar ⟨cMinorTy.ngen.curr⟩) }) := by
+  dsimp only
+  let cMinor : AddInductive.Context := { cMinorTy with
+    ngen := cMinorTy.ngen.next
+    lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
+      minorName minorTy minorBi }
+  let hstep := BindingContextLE.withLocalDecl cMinorTy HcMinorTy
+    minorName minorTy minorBi
+  let hall := hle.trans hstep
+  let nextMinorTypes := H.minorTypes.modify dIdx fun types =>
+    types.push minorTy
+  refine {
+    motiveTypes := H.motiveTypes
+    majorTypes := H.majorTypes
+    indexTypes := H.indexTypes
+    minorTypes := nextMinorTypes
+    indexTypes_size := by simpa using H.indexTypes_size
+    minorTypes_size := by simpa [nextMinorTypes] using H.minorTypes_size
+    motives := ?_
+    majors := ?_
+    indices := ?_
+    minors := ?_ }
+  · have heq : (recInfos.modify dIdx fun info =>
+        { info with
+          minors := info.minors.push (.fvar ⟨cMinorTy.ngen.curr⟩) }).map
+          (·.motive) = recInfos.map (·.motive) := by
+      apply Array.ext
+      · simp
+      · intro i hiLeft hiRight
+        by_cases hdi : dIdx = i <;> simp [Array.getElem_modify, hdi]
+    rw [heq]
+    exact H.motives.mono hall
+  · have heq : (recInfos.modify dIdx fun info =>
+        { info with
+          minors := info.minors.push (.fvar ⟨cMinorTy.ngen.curr⟩) }).map
+          (·.major) = recInfos.map (·.major) := by
+      apply Array.ext
+      · simp
+      · intro i hiLeft hiRight
+        by_cases hdi : dIdx = i <;> simp [Array.getElem_modify, hdi]
+    rw [heq]
+    exact H.majors.mono hall
+  · intro i hi
+    have hiOld : i < recInfos.size := by simpa using hi
+    by_cases hdi : dIdx = i
+    · subst i
+      rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+      exact (H.indices dIdx hidx).mono hall
+    · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _
+        hiOld hdi]
+      exact (H.indices i hiOld).mono hall
+  · intro i hi
+    have hiOld : i < recInfos.size := by simpa using hi
+    have hiTypes : i < H.minorTypes.size := by
+      rw [H.minorTypes_size]
+      exact hiOld
+    by_cases hdi : dIdx = i
+    · subst i
+      rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+      have horigin : nextMinorTypes[dIdx]! =
+          (H.minorTypes[dIdx]!).push minorTy := by
+        dsimp [nextMinorTypes]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx _
+          hiTypes]
+      rw [horigin]
+      simpa [cMinor] using
+        ((H.minors dIdx hidx).mono hle).pushCurrent HcMinorTy
+          minorName minorTy minorBi
+    · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _
+        hiOld hdi]
+      have horigin : nextMinorTypes[i]! = H.minorTypes[i]! := by
+        dsimp [nextMinorTypes]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx i _
+          hiTypes hdi]
+      rw [horigin]
+      exact (H.minors i hiOld).mono hall
+
 private def recInfoMinorIds (info : AddInductive.RecInfo) : List FVarId :=
   ExprArrayFVarIds info.minors
 
@@ -16739,17 +17104,20 @@ theorem continueWithBindings {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (k : Array Expr → AddInductive.M alpha)
     {Q : alpha → Prop}
-    (Hk : ∀ indices c, BindingContextWF c →
+    (Hk : ∀ indices originTypes c, BindingContextWF c →
       FreshBoundFVarArray root c indices →
+      BoundFVarTypeOrigins c indices originTypes →
       BindingContextLE root c → (k indices c).WF Q) :
-    ∀ type i indices fuel c,
+    ∀ type i indices originTypes fuel c,
       BindingContextWF c → FreshBoundFVarArray root c indices →
+      BoundFVarTypeOrigins c indices originTypes →
       BindingContextLE root c →
       (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
-  | _, _, _, 0, _, _, _, _ => by
+  | _, _, _, _, 0, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
-  | type, i, indices, fuel + 1, c, Hc, Hindices, Hroot => by
+  | type, i, indices, originTypes, fuel + 1, c, Hc, Hindices, Horigins,
+      Hroot => by
       cases type with
       | forallE name dom body bi =>
         rw [AddInductive.mkRecInfos.loopArgs1]
@@ -16762,8 +17130,8 @@ theorem continueWithBindings {alpha : Type}
             intro _ _
             trivial
           exact hwhnf.bind fun next _ =>
-            continueWithBindings stats k Hk next (i + 1) indices fuel c
-              Hc Hindices Hroot
+            continueWithBindings stats k Hk next (i + 1) indices originTypes
+              fuel c Hc Hindices Horigins Hroot
         · rw [if_neg hparam]
           unfold Lean4Lean.withLocalDecl
             MonadLocalNameGenerator.withFreshId
@@ -16786,16 +17154,18 @@ theorem continueWithBindings {alpha : Type}
             trivial
           exact hwhnf.bind fun next _ =>
             continueWithBindings stats k Hk next i
-              (indices.push (.fvar ⟨c.ngen.curr⟩)) fuel c'
+              (indices.push (.fvar ⟨c.ngen.curr⟩))
+              (originTypes.push dom.consumeTypeAnnotations) fuel c'
               (Hc.withLocalDecl name dom.consumeTypeAnnotations bi)
               (Hindices.pushCurrent Hc Hroot name
                 dom.consumeTypeAnnotations bi)
+              (Horigins.pushCurrent Hc name dom.consumeTypeAnnotations bi)
               (Hroot.trans <| BindingContextLE.withLocalDecl c Hc name
                 dom.consumeTypeAnnotations bi)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
           simpa [AddInductive.mkRecInfos.loopArgs1] using
-            Hk indices c Hc Hindices Hroot
+            Hk indices originTypes c Hc Hindices Horigins Hroot
 
 end mkRecInfos.loopArgs1
 
@@ -16811,6 +17181,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (c : AddInductive.Context)
     (Hc : BindingContextWF c)
     (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
     (Hroot : BindingContextLE root c)
@@ -16820,6 +17191,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (Hk : ∀ out c,
       out.size = recInfos.size + (indTypes.size - dIdx) →
       BindingContextWF c → (Hbindings : RecInfoBindings c out) →
+      (Horigins : RecInfoTypeOrigins c out) →
       (Hparams : BoundFVarArray c stats.params) →
       Hbindings.NoAlias Hparams →
       RecInfoArities stats out →
@@ -16847,7 +17219,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     refine hwhnf.bind fun type _ => ?_
     apply mkRecInfos.loopArgs1.continueWithBindings
       (root := c) stats
-    · intro indices cIndices HcIndices Hindices hIndices
+    · intro indices originTypes cIndices HcIndices Hindices HindexOrigins hIndices
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
       · rw [if_pos harity]
         let majorTy :=
@@ -16882,13 +17254,16 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
             motive := .fvar ⟨cMajor.ngen.curr⟩
             minors := #[]
             indices
-            major }) k cMotive ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
+            major }) k cMotive ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
         · exact (HcIndices.withLocalDecl `t majorTy .default).withLocalDecl
             motiveName motiveTy.consumeTypeAnnotations .default
         · exact Hbindings.pushFrame hIndices HcIndices
             Hindices.toBoundFVarArray
             `t majorTy .default
             motiveName motiveTy.consumeTypeAnnotations .default
+        · exact Horigins.pushFrame hIndices HcIndices HindexOrigins
+            `t majorTy .default motiveName
+              motiveTy.consumeTypeAnnotations .default
         · exact Hparams.mono <| hIndices.trans <|
             (BindingContextLE.withLocalDecl cIndices HcIndices
               `t majorTy .default).trans <|
@@ -16910,21 +17285,22 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
             simpa using harity
           simpa [hprogress] using hnew
         · exact Hempty.push
-        · intro out cOut houtSize HcOut HbindingsOut HparamsOut
+        · intro out cOut houtSize HcOut HbindingsOut HoriginsOut HparamsOut
             HnoAliasOut HaritiesOut HemptyOut HrootOut
           have houtSize' : out.size = recInfos.size +
               (indTypes.size - dIdx) := by
             simp only [Array.size_push] at houtSize
             omega
-          exact Hk out cOut houtSize' HcOut HbindingsOut HparamsOut
+          exact Hk out cOut houtSize' HcOut HbindingsOut HoriginsOut HparamsOut
             HnoAliasOut HaritiesOut HemptyOut HrootOut
       · rw [if_neg harity]
         exact Except.WF.throw
     · exact Hc
     · exact FreshBoundFVarArray.empty c
+    · exact BoundFVarTypeOrigins.empty c
     · exact BindingContextLE.refl c
   · rw [dif_neg hidx]
-    exact Hk recInfos c (by omega) Hc Hbindings Hparams HnoAlias
+    exact Hk recInfos c (by omega) Hc Hbindings Horigins Hparams HnoAlias
       Harities Hempty Hroot
 termination_by indTypes.size - dIdx
 
@@ -19698,6 +20074,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (c : AddInductive.Context)
     (Hc : BindingContextWF c)
     (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
     (Hroot : BindingContextLE root c)
@@ -19710,6 +20087,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
         out[i]!.minors.size = recInfos[i]!.minors.size) →
       BindingContextWF c →
       (Hbindings : RecInfoBindings c out) →
+      (Horigins : RecInfoTypeOrigins c out) →
       (Hparams : BoundFVarArray c stats.params) →
       Hbindings.NoAlias Hparams → RecInfoArities stats out →
       BindingContextLE root c →
@@ -19720,7 +20098,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
   | nil =>
       simpa [AddInductive.mkRecInfos.loopCtors] using
         Hk recInfos c rfl (by simp) (by intros; rfl)
-          Hc Hbindings Hparams HnoAlias Harities Hroot
+          Hc Hbindings Horigins Hparams HnoAlias Harities Hroot
   | cons ctor ctors ih =>
       rw [AddInductive.mkRecInfos.loopCtors]
       refine mkRecInfos.loopCtorArgs.resultBindings (Q := Q) stats ctor.type
@@ -19783,6 +20161,8 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
         minorTy.consumeTypeAnnotations .default
       let HbindingsMinor := Hbindings.addMinor dIdx hidx (hArgs.trans hIH)
         HcIH minorName minorTy.consumeTypeAnnotations .default
+      let HoriginsMinor := Horigins.addMinor dIdx hidx (hArgs.trans hIH)
+        HcIH minorName minorTy.consumeTypeAnnotations .default
       let HparamsMinor := Hparams.mono <| (hArgs.trans hIH).trans <|
           BindingContextLE.withLocalDecl cIH HcIH minorName
             minorTy.consumeTypeAnnotations .default
@@ -19792,13 +20172,14 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       let HrootMinor := (Hroot.trans hArgs).trans <| hIH.trans <|
           BindingContextLE.withLocalDecl cIH HcIH minorName
             minorTy.consumeTypeAnnotations .default
-      refine ih next cMinor HcMinor HbindingsMinor HparamsMinor HnoAliasMinor
+      refine ih next cMinor HcMinor HbindingsMinor HoriginsMinor
+        HparamsMinor HnoAliasMinor
         HrootMinor ?_ ?_ ?_
       · simpa [next] using hidx
       · exact Harities.modifyMinors dIdx (fun minors =>
           minors.push (.fvar ⟨cIH.ngen.curr⟩))
       · intro out cOut houtSize houtCount houtOther HcOut HbindingsOut
-          HparamsOut HnoAliasOut HaritiesOut HrootOut
+          HoriginsOut HparamsOut HnoAliasOut HaritiesOut HrootOut
         have houtSize' : out.size = recInfos.size := by
           simpa [next] using houtSize
         have houtCount' : out[dIdx]!.minors.size =
@@ -19816,7 +20197,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _
             hi hine]
         exact Hk out cOut houtSize' houtCount' houtOther' HcOut HbindingsOut
-          HparamsOut HnoAliasOut HaritiesOut HrootOut
+          HoriginsOut HparamsOut HnoAliasOut HaritiesOut HrootOut
 
 end mkRecInfos.loopCtors
 
@@ -19832,6 +20213,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (c : AddInductive.Context)
     (Hc : BindingContextWF c)
     (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
     (Hroot : BindingContextLE root c)
@@ -19846,6 +20228,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
         out[i]!.minors.size = indTypes[i]!.ctors.length) →
       BindingContextWF c →
       (Hbindings : RecInfoBindings c out) →
+      (Horigins : RecInfoTypeOrigins c out) →
       (Hparams : BoundFVarArray c stats.params) →
       Hbindings.NoAlias Hparams → RecInfoArities stats out →
       BindingContextLE root c →
@@ -19858,13 +20241,13 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       indTypes[dIdx].name dIdx recInfos indTypes[dIdx].ctors
       (fun out => AddInductive.mkRecInfos.loopInd2 stats indTypes
         (dIdx + 1) out k)
-      c Hc Hbindings Hparams HnoAlias Hroot
+      c Hc Hbindings Horigins Hparams HnoAlias Hroot
       (by simpa [hsize] using hidx)
       Harities
     intro out cOut houtSize houtCount houtOther HcOut HbindingsOut
-      HparamsOut HnoAliasOut HaritiesOut HrootOut
+      HoriginsOut HparamsOut HnoAliasOut HaritiesOut HrootOut
     apply resultBindings (root := root) (Q := Q) stats indTypes (dIdx + 1)
-      out k cOut HcOut HbindingsOut HparamsOut HnoAliasOut HrootOut
+      out k cOut HcOut HbindingsOut HoriginsOut HparamsOut HnoAliasOut HrootOut
     · exact houtSize.trans hsize
     · exact HaritiesOut
     · intro i hiDone hiOut
@@ -19882,7 +20265,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     · exact Hk
   · rw [dif_neg hidx]
     exact Hk recInfos c hsize (fun i hi => Hprefix i (by omega) hi)
-      Hc Hbindings Hparams HnoAlias Harities Hroot
+      Hc Hbindings Horigins Hparams HnoAlias Harities Hroot
 termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd2
@@ -19902,6 +20285,7 @@ theorem mkRecInfos.resultBindings {alpha : Type} {Q : alpha → Prop}
       (∀ i, i < out.size →
         out[i]!.minors.size = indTypes[i]!.ctors.length) →
       BindingContextWF cOut → (Hbindings : RecInfoBindings cOut out) →
+      (Horigins : RecInfoTypeOrigins cOut out) →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
       RecInfoArities stats out →
@@ -19912,24 +20296,24 @@ theorem mkRecInfos.resultBindings {alpha : Type} {Q : alpha → Prop}
     stats indTypes elimLevel 0 #[]
     (fun recInfos => AddInductive.mkRecInfos.loopInd2 stats indTypes 0
       recInfos k)
-    c Hc (RecInfoBindings.empty c) Hparams
+    c Hc (RecInfoBindings.empty c) (RecInfoTypeOrigins.empty c) Hparams
       (RecInfoBindings.empty_noAlias c Hparams hparamsNodup)
       (BindingContextLE.refl c) rfl
       (RecInfoArities.empty stats) RecInfoMinorsEmpty.empty
-  intro recInfos cFrames hsize HcFrames HbindingsFrames HparamsFrames
+  intro recInfos cFrames hsize HcFrames HbindingsFrames HoriginsFrames HparamsFrames
     HnoAliasFrames HaritiesFrames HemptyFrames HrootFrames
   apply mkRecInfos.loopInd2.resultBindings (root := c) (Q := Q)
-    stats indTypes 0 recInfos k cFrames HcFrames HbindingsFrames HparamsFrames
-      HnoAliasFrames HrootFrames
+    stats indTypes 0 recInfos k cFrames HcFrames HbindingsFrames HoriginsFrames
+      HparamsFrames HnoAliasFrames HrootFrames
   · simpa using hsize
   · exact HaritiesFrames
   · intro i hi
     omega
   · intro i _ hi
     exact HemptyFrames i hi
-  · intro out cOut houtSize houtCounts HcOut HbindingsOut HparamsOut
+  · intro out cOut houtSize houtCounts HcOut HbindingsOut HoriginsOut HparamsOut
       HnoAliasOut HaritiesOut HrootOut
-    exact Hk out cOut houtSize houtCounts HcOut HbindingsOut HparamsOut
+    exact Hk out cOut houtSize houtCounts HcOut HbindingsOut HoriginsOut HparamsOut
       HnoAliasOut HaritiesOut HrootOut
 
 /-- Unified projection used by recursor generation: a single successful run
@@ -19950,6 +20334,7 @@ theorem mkRecInfos.resultCertificate {alpha : Type} {Q : alpha → Prop}
     (hparamsNodup : Hparams.fvars.Nodup)
     (Hk : ∀ out cOut, BindingContextWF cOut →
       (Hbindings : RecInfoBindings cOut out) →
+      (Horigins : RecInfoTypeOrigins cOut out) →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
       RecursorCardinalityCertificate stats out decl →
@@ -19957,9 +20342,9 @@ theorem mkRecInfos.resultCertificate {alpha : Type} {Q : alpha → Prop}
     (AddInductive.mkRecInfos stats indTypes elimLevel k c).WF Q := by
   apply mkRecInfos.resultBindings (Q := Q) stats indTypes elimLevel k c Hc
     Hparams hparamsNodup
-  intro out cOut hsize hcounts HcOut Hbindings HparamsOut HnoAlias
+  intro out cOut hsize hcounts HcOut Hbindings Horigins HparamsOut HnoAlias
     Harities Hroot
-  apply Hk out cOut HcOut Hbindings HparamsOut HnoAlias
+  apply Hk out cOut HcOut Hbindings Horigins HparamsOut HnoAlias
   · exact RecursorCardinalityCertificate.ofResult Hdecl Hmaterialized
       hsize hcounts Harities
   · exact Hroot
@@ -22504,6 +22889,7 @@ theorem ConstructorPhasesResult.mkRecInfosWF
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
     (Hk : ∀ recInfos cOut, BindingContextWF cOut →
       (Hbindings : RecInfoBindings cOut recInfos) →
+      (Horigins : RecInfoTypeOrigins cOut recInfos) →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
       RecursorCardinalityCertificate stats recInfos decl →
@@ -22540,6 +22926,7 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
     (k : Level → Array AddInductive.RecInfo → AddInductive.M alpha)
     (Hk : ∀ elimLevel recInfos cOut, BindingContextWF cOut →
       (Hbindings : RecInfoBindings cOut recInfos) →
+      (Horigins : RecInfoTypeOrigins cOut recInfos) →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
       RecursorCardinalityCertificate stats recInfos decl →
@@ -32621,6 +33008,7 @@ structure RecursorPhasesResult
   localWF : BindingContextWF localContext
   localExtends : BindingContextLE { c with env := ctorEnv } localContext
   bindings : RecInfoBindings localContext recInfos
+  origins : RecInfoTypeOrigins localContext recInfos
   params : BoundFVarArray localContext stats.params
   noAlias : bindings.NoAlias params
   cardinality : RecursorCardinalityCertificate stats recInfos decl
@@ -32659,7 +33047,8 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
     (k := fun elimLevel recInfos =>
       AddInductive.declareRecursors stats indTypes elimLevel recInfos)
-  intro elimLevel recInfos localContext Hlocal Hbindings Hparams hnoalias Hcard Hle
+  intro elimLevel recInfos localContext Hlocal Hbindings Horigins Hparams
+    hnoalias Hcard Hle
   have Hvalid : CheckingEnv.Valid localContext.safety localContext.env
       R.declared.venvCtors := by
     rw [Hle.safety_eq, Hle.env_eq]
@@ -32688,6 +33077,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       localWF := Hlocal
       localExtends := Hle
       bindings := Hbindings
+      origins := Horigins
       params := Hparams
       noAlias := hnoalias
       cardinality := Hcard
