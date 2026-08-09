@@ -25781,6 +25781,72 @@ theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedTypeTransl
         (Expr.ForallTelescopeTypeTranslation.cons
           (name := name) (bi := bi) HnewDomain HnewDomainType HnewBody)
 
+/-- Accumulator-aware parameter-closing transport.  `newPrefix` is the list
+of restored abstract domains already traversed, so every callback receives
+the exact `abstractForallContext newPrefix newBase` in which its concrete
+domain is translated. -/
+theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedAt
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual)
+    (Hold : Expr.ForallTelescopeTypeTranslation oldEnv Us oldΔ
+      (input.abstractList oldParams depth) arity oldTarget)
+    (Hdomains : ∀ {oldΔ oldDomain newDomain oldDomainTarget}
+        (binderDepth : Nat) (newPrefix : List VExpr),
+      ExprReplacement replaceNode oldDomain newDomain →
+      TrExprS oldEnv Us oldΔ
+        (oldDomain.abstractList oldParams binderDepth) oldDomainTarget →
+      oldEnv.IsType Us.length oldΔ.toCtx oldDomainTarget →
+      Expr.AbstractTypeTranslation newEnv Us
+        (abstractForallContext newPrefix newBase)
+        (newDomain.abstractList newParams binderDepth))
+    (Hresidual : ∀ {oldΔ oldResidualTarget}
+        (newPrefix : List VExpr),
+      ExprReplacement replaceNode oldResidual newResidual →
+      TrExprS oldEnv Us oldΔ
+        (oldResidual.abstractList oldParams (depth + arity))
+        oldResidualTarget →
+      oldEnv.IsType Us.length oldΔ.toCtx oldResidualTarget →
+      Expr.AbstractTypeTranslation newEnv Us
+        (abstractForallContext newPrefix newBase)
+        (newResidual.abstractList newParams (depth + arity))) :
+    ∃ newTarget,
+      Expr.ForallTelescopeTypeTranslation newEnv Us
+        (abstractForallContext newPrefix newBase)
+        (output.abstractList newParams depth) arity newTarget := by
+  induction H generalizing oldΔ oldTarget depth newPrefix with
+  | nil Hbody =>
+    rcases Hresidual newPrefix Hbody Hold.translation Hold.isType with
+      ⟨target, Htr, Htype⟩
+    exact ⟨target, .nil Htr Htype⟩
+  | @cons name oldDom oldBody bi newDom newBody arity oldResidual newResidual
+      Hnone Hdom Hbody ih =>
+    rw [Expr.abstractList_forallE] at Hold
+    cases Hold with
+    | cons HoldDom HoldDomType HoldBody =>
+      rcases Hdomains depth newPrefix Hdom HoldDom HoldDomType with
+        ⟨newDomainTarget, HnewDomain, HnewDomainType⟩
+      rcases ih HoldBody (Hresidual := by
+          intro oldΔ oldResidualTarget extendedPrefix Hreplacement Htr Htype
+          have Htransported := Hresidual extendedPrefix Hreplacement (by
+            simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Htr)
+            Htype
+          simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+            Htransported)
+          (depth := depth + 1)
+          (newPrefix := newPrefix ++ [newDomainTarget]) with
+        ⟨newBodyTarget, HnewBody⟩
+      have HnewBody' : Expr.ForallTelescopeTypeTranslation newEnv Us
+          ((none, .vlam newDomainTarget) ::
+            abstractForallContext newPrefix newBase)
+          (newBody.abstractList newParams (depth + 1)) arity
+          newBodyTarget := by
+        simpa [abstractForallContext, List.reverse_append,
+          List.map_append, List.append_assoc] using HnewBody
+      refine ⟨.forallE newDomainTarget newBodyTarget, ?_⟩
+      simpa [Expr.updateForallE!, Expr.abstractList_forallE] using
+        (Expr.ForallTelescopeTypeTranslation.cons
+          (name := name) (bi := bi) HnewDomain HnewDomainType HnewBody')
+
 theorem ExprReplacement.ofReplace
     (replaceNode : Expr → Option Expr) :
     ∀ input, ExprReplacement replaceNode input (input.replace replaceNode) := by
@@ -38322,6 +38388,31 @@ theorem NestedRestorationOpening.exactFamilyHitTypedUnder
   subst restored
   exact Hopen.auxiliaryTypedUnder Hlower selection Haux henv family hfind
     suffixDomains
+
+theorem NestedRestorationOpening.exactFamilyHitAbstractTypeTranslation
+    (Hopen : NestedRestorationOpening result prodEnv auxRec input output)
+    (Hlower : NestedLoweringResultClosed env fuel nparams types initialState
+      result)
+    (selection : LocalForallSelection result.lctx result.params)
+    (Haux : ClosedNestedAuxiliaryTranslation venv lparams result selection e)
+    (henv : venv.Ordered)
+    (family : Name) (levels : List Level)
+    (hfind : result.aux2nested.find? family = some e)
+    (hrec : auxRec.find? family = none)
+    (t restored : Expr)
+    (hhead : t.getAppFn = .const family levels)
+    (hargs : t.getAppArgs.size = result.nparams)
+    (Hhit : result.restoreNestedNode prodEnv Hopen.params auxRec t =
+      some restored)
+    (suffixDomains : List VExpr) :
+    Expr.AbstractTypeTranslation venv lparams
+      (abstractForallContext suffixDomains
+        (abstractForallContext Haux.domains []))
+      (restored.abstractList Hopen.selection.fvars suffixDomains.length) := by
+  rcases Hopen.exactFamilyHitTypedUnder Hlower selection Haux henv family
+      levels hfind hrec t restored hhead hargs Hhit suffixDomains with
+    ⟨Htr, Htype⟩
+  exact ⟨_, Htr, Htype⟩
 
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
