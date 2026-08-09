@@ -36041,6 +36041,25 @@ theorem AddInductive.runWithStats.closedWF
   · exact hnotPartial
   · exact hnprimRecursors
 
+/-- The production universe-parameter guard succeeds only for a duplicate-free
+parameter list. -/
+theorem Kernel.Environment.checkDuplicatedUnivParams.WF
+    (lparams : List Name) :
+    (Kernel.Environment.checkDuplicatedUnivParams lparams).WF
+      (fun _ => lparams.Nodup) := by
+  induction lparams with
+  | nil =>
+    intro out hout
+    cases hout
+    trivial
+  | cons param lparams ih =>
+    by_cases hmem : param ∈ lparams
+    · rw [Kernel.Environment.checkDuplicatedUnivParams]
+      simp only [hmem, if_pos, Except.bind]
+      exact Except.WF.throw
+    · simpa [Kernel.Environment.checkDuplicatedUnivParams, hmem] using
+        ih.mono fun _ htail => List.nodup_cons.mpr ⟨hmem, htail⟩
+
 /-- Front-end composition for `AddInductive.run`: the executable header
 analysis materializes an independent declaration before the post-analysis
 installer is invoked. This theorem deliberately leaves the latter callback
@@ -36062,20 +36081,22 @@ theorem AddInductive.run.materialize
         types.toArray.toList (c.safety != .safe) decl envTypes →
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth →
+      c.lparams.Nodup →
       (AddInductive.runWithStats stats skeleton.nparams types.toArray
         numNested (c.safety != .safe) c').WF Q) :
     (AddInductive.run skeleton.nparams types numNested c).WF Q := by
-  have Hanalysis :=
-    Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.checkInductiveTypes.materialize
-    (fun stats => AddInductive.runWithStats stats skeleton.nparams
-      types.toArray numNested (c.safety != .safe)) Q Hc Hdecl hctx hnonempty
-      hconsume Hfinish
   have Hduplicates :
       (Kernel.Environment.checkDuplicatedUnivParams c.lparams).WF
-        fun _ => True := by
-    intro _ _
-    trivial
-  have Hcombined := Hduplicates.bind fun _ _ => Hanalysis
+        fun _ => c.lparams.Nodup :=
+    Kernel.Environment.checkDuplicatedUnivParams.WF c.lparams
+  have Hcombined := Hduplicates.bind fun _ hnodup => by
+    apply Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.checkInductiveTypes.materialize
+      (fun stats => AddInductive.runWithStats stats skeleton.nparams
+        types.toArray numNested (c.safety != .safe)) Q Hc Hdecl hctx hnonempty
+      hconsume
+    intro c' stats decl depth Hc' Hdecl' Hmaterialized
+    apply Hfinish Hc' Hdecl' Hmaterialized
+    exact hnodup
   simpa [AddInductive.run] using Hcombined
 
 /-- The explicit semantic/freshness inputs needed to verify one set of
@@ -36181,7 +36202,7 @@ theorem AddInductive.run.closedWF
   apply AddInductive.run.materialize numNested
     (VerifiedInductiveRunResult c skeleton envTypes types numNested)
     Hc Hdecl hctx hnonempty hconsume
-  intro c' stats decl depth Hc' Hdecl' Hmaterialized
+  intro c' stats decl depth Hc' Hdecl' Hmaterialized _hlparamsNodup
   exact (Hinputs Hc' Hdecl' Hmaterialized).verify.mono
     fun outEnv Hout => by
       rcases Hout with ⟨headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
