@@ -25430,6 +25430,27 @@ theorem restoreNestedNode_family_general
   | mdata data body => cases hhead
   | proj name idx body => cases hhead
 
+/-- Exact-parameter specialization of family restoration.  With no trailing
+arguments, the replacement node is precisely the reopened cached witness. -/
+theorem restoreNestedNode_family_exactParams
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
+    (t nested : Expr) (family : Name) (levels : List Level)
+    (hhead : t.getAppFn = .const family levels)
+    (hrec : auxRec.find? family = none)
+    (hfamily : result.aux2nested.find? family = some nested)
+    (hargs : t.getAppArgs.size = result.nparams) :
+    result.restoreNestedNode env As auxRec t = some
+      ((nested.abstract result.params).instantiateRev As) := by
+  have Hgeneral := restoreNestedNode_family_general result env As auxRec t
+    nested family levels hhead hrec hfamily (by omega)
+  rw [Hgeneral]
+  rw [Expr.mkAppRange_to_end _ _ _ (by omega)]
+  have hdrop : t.getAppArgs.toList.drop result.nparams = [] := by
+    apply List.drop_eq_nil_iff.mpr
+    simpa [hargs]
+  simp [hdrop]
+
 theorem restoreNestedNode_constructor
     (result : Lean4Lean.ElimNestedInductive.Result)
     (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
@@ -38263,6 +38284,44 @@ theorem NestedRestorationOpening.auxiliaryTypedUnder
         (Haux.residualTarget.liftN suffixDomains.length 0) := by
   exact ⟨Hopen.auxiliaryTranslationUnder Hlower selection Haux henv name
     hfind suffixDomains, Haux.residualTypeUnder henv suffixDomains⟩
+
+/-- Interpret a complete restoration hit on an auxiliary-family application
+which has exactly the common-parameter arguments.  The executable output is
+identified with the validated reopened witness, then translated and typed in
+the exact current suffix context. -/
+theorem NestedRestorationOpening.exactFamilyHitTypedUnder
+    (Hopen : NestedRestorationOpening result prodEnv auxRec input output)
+    (Hlower : NestedLoweringResultClosed env fuel nparams types initialState
+      result)
+    (selection : LocalForallSelection result.lctx result.params)
+    (Haux : ClosedNestedAuxiliaryTranslation venv lparams result selection e)
+    (henv : venv.Ordered)
+    (family : Name) (levels : List Level)
+    (hfind : result.aux2nested.find? family = some e)
+    (hrec : auxRec.find? family = none)
+    (t restored : Expr)
+    (hhead : t.getAppFn = .const family levels)
+    (hargs : t.getAppArgs.size = result.nparams)
+    (Hhit : result.restoreNestedNode prodEnv Hopen.params auxRec t =
+      some restored)
+    (suffixDomains : List VExpr) :
+    TrExprS venv lparams
+        (abstractForallContext suffixDomains
+          (abstractForallContext Haux.domains []))
+        (restored.abstractList Hopen.selection.fvars suffixDomains.length)
+        (Haux.residualTarget.liftN suffixDomains.length 0) ∧
+      venv.IsType lparams.length
+        (abstractForallContext suffixDomains
+          (abstractForallContext Haux.domains [])).toCtx
+        (Haux.residualTarget.liftN suffixDomains.length 0) := by
+  have Hexact := restoreNestedNode_family_exactParams result prodEnv
+    Hopen.params auxRec t e family levels hhead hrec hfind hargs
+  have hrestored : restored =
+      (e.abstract result.params).instantiateRev Hopen.params :=
+    Option.some.inj (Hhit.symm.trans Hexact)
+  subst restored
+  exact Hopen.auxiliaryTypedUnder Hlower selection Haux henv family hfind
+    suffixDomains
 
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
