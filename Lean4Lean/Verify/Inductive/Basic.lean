@@ -18004,6 +18004,236 @@ theorem continueIndexSemantics {alpha : Type}
           simpa [AddInductive.mkRecInfos.loopArgs1] using
             Hk Hc htype htypeType Hindices Horigins
 
+/-- Semantic index replay retaining the independently synthesized header.
+Unlike `continueIndexSemantics`, the terminal continuation receives the
+completed narrow telescope and its embedding into the executable context;
+this is the evidence needed to construct the family application used as the
+major-premise type. -/
+theorem continueIndexSynthesisSemantics {alpha : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Array Expr → AddInductive.M alpha)
+    {Q : alpha → Prop}
+    {target : VInductiveTypeSkeleton}
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+      {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
+      {nindices : Nat} {indices originTypes : Array Expr}
+      {indexTargets : List VExpr},
+      (Hsynthesis :
+        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          Hc.venv c.lparams target scope narrowTarget
+          stats.params.size nindices) →
+      checkInductiveTypes.loopType.NarrowRuntimeScope Hc.venv c.lparams
+        scope Hc.mlctx.vlctx →
+      TrExprS Hc.venv c.lparams scope type narrowTarget →
+      FVarsIn (· ∈ scope.fvars) type →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc originTypes →
+      (k indices c).WF Q) :
+    ∀ type fullTarget narrowTarget scope i nindices indices originTypes
+        indexTargets fuel c,
+      stats.params.size ≤ i →
+      (Hc : ContextWF c) →
+      (Hsynthesis :
+        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          Hc.venv c.lparams target scope narrowTarget
+          stats.params.size nindices) →
+      checkInductiveTypes.loopType.NarrowRuntimeScope Hc.venv c.lparams
+        scope Hc.mlctx.vlctx →
+      TrExprS Hc.venv c.lparams scope type narrowTarget →
+      FVarsIn (· ∈ scope.fvars) type →
+      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
+      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
+      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc originTypes →
+      (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
+  | _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _ => by
+      intro _ h
+      simp [AddInductive.mkRecInfos.loopArgs1] at h
+  | type, fullTarget, narrowTarget, scope, i, nindices, indices,
+      originTypes, indexTargets, fuel + 1, c, hdone, Hc, Hsynthesis,
+      Hruntime, htypeNarrow, htypeFVars, htypeFull, htypeFullType,
+      Hindices, Horigins => by
+      cases type with
+      | forallE name dom body bi =>
+        rw [AddInductive.mkRecInfos.loopArgs1]
+        have hparam : ¬ i < stats.params.size := by omega
+        rw [if_neg hparam]
+        cases htypeNarrow with
+        | @forallE indexType narrowBody _ _ _ _ _
+            hdomType _hbodyType hdomNarrow hbodyNarrow =>
+          rcases TrExpr.forallE_source htypeFull with
+            ⟨sourceDom, fullBody, hdomFull, hbodyFull, hdomFullType,
+              hbodyFullType, _hfullCurrent⟩
+          rcases hconsume c Hc hdomFull hdomFullType with
+            ⟨consumedDom, Hdom⟩
+          rcases Hdom.body Hc hbodyFull with
+            ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
+          refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+            Hc Hdom.consumed Hdom.isType ?_
+          let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType
+          let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
+            .skip_fvar _ _ .refl
+          have HindicesWeak : List.Forall₂
+              (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+              indices.toList
+              (indexTargets.map fun result => result.liftN 1 0) := by
+            apply checkPositivityStep.forall₂_map_right Hindices
+            intro source result Hsource
+            exact Hsource.weakFV Hc.checking.tr.wf.ordered W
+              Hc'.mlctx_wf.tr.wf
+          have Hindex : TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx
+              (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
+            exact TrExprS.fvar (A := consumedDom.lift) (by
+              change VLCtx.find? ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+                  Hc.mlctx.vlctx) (Sum.inr ⟨c.ngen.curr⟩) = _
+              simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+                VLocalDecl.value, VLocalDecl.type])
+          have Hindices' : List.Forall₂
+              (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
+              (indices.push (.fvar ⟨c.ngen.curr⟩)).toList
+              ((indexTargets.map fun result => result.liftN 1 0) ++
+                [.bvar 0]) := by
+            simpa using checkPositivityStep.forall₂_append HindicesWeak
+              (.cons Hindex .nil)
+          have hopened := Hc.instantiateFresh (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType hbodyConsumed
+          have hctx : VLCtx.IsDefEq Hc.venv c.lparams.length
+              ((none, .vlam sourceDom) :: Hc.mlctx.vlctx)
+              ((none, .vlam consumedDom) :: Hc.mlctx.vlctx) :=
+            VLCtx.IsDefEq.cons
+              (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) nofun
+              (.vlam Hdom.source_defeq.choose_spec)
+          have hsourceBodyType : Hc'.venv.IsType c.lparams.length
+              Hc'.mlctx.vlctx.toCtx fullBody := by
+            simpa only [Hc', ContextWF.withLocalDecl_venv,
+              ContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+              hbodyFullType.defeqDFC Hc.checking.tr.wf.ordered hctx.defeqCtx
+          have hbodyEq' := Hdom.bodyDefEqConsumed Hc _hbodyEq
+          have hconsumedBodyType : Hc'.venv.IsType c.lparams.length
+              Hc'.mlctx.vlctx.toCtx consumedBody := by
+            apply hsourceBodyType.defeqU_l Hc'.checking.tr.wf
+              Hc'.mlctx_wf.tr.wf.toCtx
+            simpa only [Hc', ContextWF.withLocalDecl_venv,
+              ContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
+          have hdeps : dom.consumeTypeAnnotations.fvarsList ⊆ scope.fvars :=
+            (fvarsIn_iff.mp
+              (Expr.consumeTypeAnnotations_fvarsIn htypeFVars.1)).1
+          rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
+            ⟨_domainLevel, hdomain⟩
+          let Hruntime' :
+              checkInductiveTypes.loopType.NarrowRuntimeScope
+                Hc'.venv c.lparams
+                ((some (⟨c.ngen.curr⟩,
+                  dom.consumeTypeAnnotations.fvarsList),
+                  .vlam indexType) :: scope)
+                Hc'.mlctx.vlctx :=
+            Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+          have hopenedNarrow : TrExprS Hc'.venv c.lparams
+              ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotations.fvarsList),
+                .vlam indexType) :: scope)
+              (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
+            rw [Expr.instantiate1_eq]
+            exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
+          have hopenedFVars : FVarsIn
+              (· ∈ VLCtx.fvars ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotations.fvarsList),
+                .vlam indexType) :: scope))
+              (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) := by
+            rw [Expr.instantiate1_eq]
+            apply (htypeFVars.2.mono fun fv hfv => by
+              rw [VLCtx.fvars_cons_some]
+              exact List.mem_cons_of_mem _ hfv).instantiate1
+            rw [VLCtx.fvars_cons_some]
+            exact List.mem_cons_self
+          have hwhnf := whnfInContext.scopeWF Hc' hopened
+          exact hwhnf.bind fun next hnext => by
+            have hnormalizedFVars :=
+              hnext.1 _ Hruntime'.upset hopenedFVars
+            rcases hnext.2 with
+              ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
+            have hnormalizedClosed : Closed next 0 := by
+              have := hnormalizedFull.closed
+              simpa [Hc'.mlctx.noBV] using this
+            rcases Hruntime'.restrictEq Hc'.checking.tr.wf
+                hnormalizedFull hnormalizedClosed hnormalizedFVars with
+              ⟨normalizedNarrow, hnormalizedNarrow, hnormalizedEq⟩
+            have hopenedWeak : TrExprS Hc'.venv c.lparams
+                Hruntime'.expanded
+                (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
+                (narrowBody.lift' Hruntime'.shift) := by
+              simpa using hopenedNarrow.weakFV' Hc'.checking.tr.wf.ordered
+                Hruntime'.lift Hruntime'.context.wf
+            have hopenedEq := hopenedWeak.uniq Hc'.checking.tr.wf
+              Hruntime'.context hopened
+            have hopenedEq' := hopenedEq.defeqDFC
+              Hc'.checking.tr.wf.ordered Hruntime'.context.defeqCtx
+            have hnormalizeU : Hc'.venv.IsDefEqU c.lparams.length
+                Hc'.mlctx.vlctx.toCtx consumedBody normalizedFull :=
+              hnormalizeEq.symm
+            have hsourceNormalized := hopenedEq'.trans Hc'.checking.tr.wf
+              Hc'.mlctx_wf.tr.wf.toCtx hnormalizeU
+            have hfull : Hc'.venv.IsDefEqU c.lparams.length
+                Hc'.mlctx.vlctx.toCtx
+                (narrowBody.lift' Hruntime'.shift)
+                (normalizedNarrow.lift' Hruntime'.shift) :=
+              hsourceNormalized.trans Hc'.checking.tr.wf
+                Hc'.mlctx_wf.tr.wf.toCtx hnormalizedEq
+            have hexpanded := hfull.defeqDFC Hc'.checking.tr.wf.ordered
+              (Hruntime'.context.defeqCtx.symm Hc'.checking.tr.wf.ordered)
+            have hnarrow : Hc'.venv.IsDefEqU c.lparams.length
+                (indexType :: scope.toCtx) narrowBody normalizedNarrow :=
+              (VEnv.IsDefEqU.weak'_iff Hc'.checking.tr.wf
+                Hruntime'.context.wf.toCtx Hruntime'.lift.toCtx).1 hexpanded
+            have hdomainNarrow : ∃ sourceDom',
+                TrExprS Hc'.venv c.lparams scope dom sourceDom' ∧
+                Hc'.venv.IsDefEqU c.lparams.length scope.toCtx
+                  sourceDom' indexType :=
+              ⟨_, hdomNarrow, ⟨.sort (Classical.choose hdomType),
+                Classical.choose_spec hdomType⟩⟩
+            have htransition : ∃ sourceBody' normalized',
+                TrExprS Hc'.venv c.lparams
+                  ((none, .vlam indexType) :: scope) body sourceBody' ∧
+                TrExprS Hc'.venv c.lparams
+                  ((some (⟨c.ngen.curr⟩,
+                    dom.consumeTypeAnnotations.fvarsList),
+                    .vlam indexType) :: scope) next normalized' ∧
+                Hc'.venv.IsDefEqU c.lparams.length
+                  (indexType :: scope.toCtx) sourceBody' normalized' :=
+              ⟨narrowBody, normalizedNarrow, hbodyNarrow,
+                hnormalizedNarrow, hnarrow⟩
+            rcases Hsynthesis.consumeIndex (name := name) (bi := bi)
+                Hc'.checking.tr.wf
+                (.forallE hdomType _hbodyType hdomNarrow hbodyNarrow)
+                hscopeWF hdomainNarrow htransition with
+              ⟨nextNarrow, hnextNarrow, Hsynthesis', _hparams⟩
+            exact continueIndexSynthesisSemantics stats k hconsume Hk
+              next consumedBody nextNarrow
+              ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotations.fvarsList),
+                .vlam indexType) :: scope)
+              i (nindices + 1)
+              (indices.push (.fvar ⟨c.ngen.curr⟩))
+              (originTypes.push dom.consumeTypeAnnotations)
+              ((indexTargets.map fun result => result.liftN 1 0) ++
+                [.bvar 0]) fuel _ hdone Hc' Hsynthesis' Hruntime'
+              hnextNarrow hnormalizedFVars
+              ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
+              hconsumedBodyType Hindices' (Horigins.push Hdom name bi)
+      | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+        | proj =>
+          simpa [AddInductive.mkRecInfos.loopArgs1] using
+            Hk Hc Hsynthesis Hruntime htypeNarrow htypeFVars htypeFull
+              htypeFullType Hindices Horigins
+
 /-- Replay the common-parameter prefix from the independent family shape,
 advancing both the retained concrete suffix and the narrow semantic header.
 At parameter completion the residual is passed to `continueIndexSemantics`,
