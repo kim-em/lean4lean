@@ -15136,6 +15136,38 @@ theorem Expr.ForallTelescopeTypeTranslation.telescope
     rcases ih with ⟨residual, Htel⟩
     exact ⟨residual, .cons Htel⟩
 
+/-- Split an exactly sized typed telescope after `prefixArity` binders,
+retaining both the translated prefix domains and the binder-by-binder typed
+suffix in their canonical abstract context. -/
+theorem Expr.ForallTelescopeTypeTranslation.dropPrefix
+    (H : Expr.ForallTelescopeTypeTranslation env Us Δ source
+      (prefixArity + suffixArity) target) :
+    ∃ prefixDomains suffixSource suffixTarget,
+      prefixDomains.length = prefixArity ∧
+      Expr.ForallTelescope source prefixArity suffixSource ∧
+      target = VExpr.wrapForalls prefixDomains suffixTarget ∧
+      Expr.ForallTelescopeTypeTranslation env Us
+        (abstractForallContext prefixDomains Δ)
+        suffixSource suffixArity suffixTarget := by
+  induction prefixArity generalizing Δ source target with
+  | zero =>
+    exact ⟨[], source, target, rfl, .nil source, by rfl, by
+      simpa [abstractForallContext] using H⟩
+  | succ prefixArity ih =>
+    rw [show (prefixArity + 1) + suffixArity =
+      (prefixArity + suffixArity) + 1 by omega] at H
+    cases H with
+    | @cons Δ dom domTarget body arity bodyTarget name bi
+        Hdom HdomType Hbody =>
+      rcases ih Hbody with
+        ⟨domains, suffixSource, suffixTarget, hlength, Hsource,
+          htarget, Hsuffix⟩
+      refine ⟨domTarget :: domains, suffixSource, suffixTarget,
+        by simp [hlength], .cons Hsource, ?_, ?_⟩
+      · simp [VExpr.wrapForalls, htarget]
+      · simpa [abstractForallContext, List.map_append,
+          List.append_assoc] using Hsuffix
+
 /-- A translated telescope known to be a type decomposes canonically into
 the binder-by-binder certificate. This establishes that the new interface
 loses no information while exposing exactly where restoration must act. -/
@@ -27019,6 +27051,29 @@ theorem NestedRestoration.opening
     replacement := Hreplacement
     output_eq := houtput }⟩
 
+/-- Closing the fresh parameter variables exposed by an operational root
+opening recovers the original de Bruijn suffix of a closed forall telescope. -/
+theorem NestedRestorationOpening.abstractBody_eq_suffix
+    (Hopen : NestedRestorationOpening result env auxRec input output)
+    (Htelescope : Expr.ForallTelescope input result.nparams suffix)
+    (Hinput : input.FVarsIn fun _ => False) :
+    Hopen.body.abstractList Hopen.selection.fvars = suffix := by
+  have hbody := Hopen.opening.forallResidual Htelescope
+  have Hsuffix : suffix.FVarsIn (fun _ => False) :=
+    Htelescope.resultFVarsIn Hinput
+  have Haway : suffix.FVarsIn (fun fv => fv ∉ Hopen.selection.fvars) :=
+    Hsuffix.mono fun _ hfalse => False.elim hfalse
+  have Hcancel := Haway.abstract_instantiateRev_fvarArray Hopen.params
+    Hopen.selection.fvars Hopen.selection.expressions Hopen.selectionNodup
+  calc
+    Hopen.body.abstractList Hopen.selection.fvars =
+        Hopen.body.abstract
+          (Hopen.selection.fvars.map Expr.fvar).toArray :=
+      (Expr.abstract_eq Hopen.body Hopen.selection.fvars).symm
+    _ = Hopen.body.abstract Hopen.params :=
+      congrArg Hopen.body.abstract Hopen.selection.expressions.symm
+    _ = suffix := by simpa [hbody] using Hcancel
+
 @[simp] theorem restoreNestedNode_forall
     (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
     (As : Array Expr) (auxRec : NameMap Name) :
@@ -27573,6 +27628,68 @@ theorem RecursorRestoration.generatedTelescopeTrace
   subst restoredResidual
   exact ⟨⟨Hopen, by
     simpa [numMotives, numMinors, numIndices, recResult] using Hsuffix⟩⟩
+
+/-- The operational restoration suffix and the generated semantic suffix are
+aligned on the same parameter-closed concrete body. -/
+structure GeneratedRecursorRestorationTelescopeAlignment
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (prodEnv : Environment) (auxRec : NameMap Name)
+    (newInfo : RecursorVal)
+    (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry) where
+  trace : GeneratedRecursorRestorationTelescopeTrace result prodEnv auxRec
+    newInfo Hentry
+  oldParamDomains : List VExpr
+  oldSuffixTarget : VExpr
+  oldParamDomains_length : oldParamDomains.length = result.nparams
+  oldSuffix : Expr.ForallTelescopeTypeTranslation venv Hentry.info.levelParams
+    (abstractForallContext oldParamDomains [])
+    (trace.opening.body.abstractList trace.opening.selection.fvars)
+    ((recInfos.map (·.motive)).size +
+      (recInfos.flatMap (·.minors)).size +
+      recInfos[ownerIdx]!.indices.size + 1)
+    oldSuffixTarget
+
+theorem RecursorRestoration.generatedTelescopeAlignment
+    (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry)
+    (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
+      oldRecName newRecName Hentry.info newInfo)
+    (Hselections : RecursorLocalSelections c stats recInfos ownerIdx)
+    (howner : ownerIdx < recInfos.size)
+    (hnoalias : Hselections.NoAlias)
+    (hparams : result.nparams = stats.params.size)
+    (hresultParams : result.params.size = result.nparams) :
+    Nonempty (GeneratedRecursorRestorationTelescopeAlignment result prodEnv
+      auxRec newInfo Hentry) := by
+  rcases Hrestore.generatedTelescopeTrace Hentry Hselections howner hnoalias
+      hparams hresultParams with ⟨Htrace⟩
+  rcases Hentry.telescopeTranslation Hselections howner hnoalias with
+    ⟨Hgenerated⟩
+  let suffixArity := (recInfos.map (·.motive)).size +
+    (recInfos.flatMap (·.minors)).size +
+    recInfos[ownerIdx]!.indices.size + 1
+  have Htyped : Expr.ForallTelescopeTypeTranslation venv
+      Hentry.info.levelParams [] Hentry.info.type
+      (stats.params.size + suffixArity) entry.2.type := by
+    simpa [suffixArity, Nat.add_assoc] using Hgenerated.typed
+  rcases Htyped.dropPrefix
+      (prefixArity := stats.params.size) (suffixArity := suffixArity) with
+    ⟨paramDomains, suffixSource, suffixTarget, hparamDomains,
+      HsourcePrefix, htarget, Hsuffix⟩
+  have HsourcePrefix' : Expr.ForallTelescope Hentry.info.type
+      result.nparams suffixSource := by
+    simpa [hparams] using HsourcePrefix
+  have Hinput : Hentry.info.type.FVarsIn fun _ => False := by
+    have := Hgenerated.typed.translation.fvarsIn
+    simpa using this
+  have hbody : Htrace.opening.body.abstractList
+      Htrace.opening.selection.fvars = suffixSource :=
+    Htrace.opening.abstractBody_eq_suffix HsourcePrefix' Hinput
+  refine ⟨⟨Htrace, paramDomains, suffixTarget, ?_, ?_⟩⟩
+  · exact hparamDomains.trans hparams.symm
+  · rw [hbody]
+    simpa [suffixArity] using Hsuffix
 
 /-- A canonical translation of the restored recursor telescope is already a
 well-formed abstract type.  The final major-premise binder makes the telescope
