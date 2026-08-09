@@ -14738,6 +14738,21 @@ theorem AddInductive.AdmissibleElimLevel.ofLevel
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at H
 
+/-- Adding the fresh large-elimination parameter preserves the kernel's
+no-duplicate universe-parameter invariant.  The small-elimination case leaves
+the declaration's universe list unchanged. -/
+theorem AddInductive.AdmissibleElimLevel.recLevelParamsNodup
+    (H : AddInductive.AdmissibleElimLevel lparams elimLevel)
+    (hlparams : lparams.Nodup) :
+    (AddInductive.getRecLevelParams elimLevel lparams).Nodup := by
+  cases elimLevel with
+  | zero => simpa [AddInductive.getRecLevelParams] using hlparams
+  | param name =>
+    simpa [AddInductive.getRecLevelParams] using List.nodup_cons.mpr
+      ⟨H, hlparams⟩
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at H
+
 /-- `Expr.inferImplicit` changes only concrete binder annotations, which are
 erased by the abstract expression translation.  In particular the abstract
 recursor type proved before this production post-processing step remains the
@@ -25127,7 +25142,9 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
       indTypes headerEnv}
     (R : ConstructorPhasesResult H outEnv)
     (k : Level → Array AddInductive.RecInfo → AddInductive.M alpha)
-    (Hk : ∀ elimLevel recInfos cOut, BindingContextWF cOut →
+    (Hk : ∀ elimLevel,
+      AddInductive.AdmissibleElimLevel c.lparams elimLevel →
+      ∀ recInfos cOut, BindingContextWF cOut →
       (Hbindings : RecInfoBindings cOut recInfos) →
       (Horigins : RecInfoTypeOrigins cOut recInfos) →
       (Hparams : BoundFVarArray cOut stats.params) →
@@ -25138,12 +25155,11 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
     ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
       AddInductive.mkRecInfos stats indTypes elimLevel
         (k elimLevel)) { c with env := outEnv }).WF Q := by
-  have Helim : (AddInductive.getElimLevel stats indTypes
-      { c with env := outEnv }).WF fun _ => True :=
-    fun _ _ => trivial
-  exact Helim.bind fun elimLevel _ =>
+  have Helim := AddInductive.getElimLevel.WF stats indTypes
+    { c with env := outEnv }
+  exact Helim.bind fun elimLevel hElim =>
     R.mkRecInfosWF elimLevel (k elimLevel)
-      (Hk elimLevel)
+      (Hk elimLevel hElim)
 
 /-- The executable constructor check and declaration folds jointly establish
 the independent formation judgment and the complete pointwise source/core
@@ -35226,6 +35242,7 @@ structure RecursorPhasesResult
     (R : ConstructorPhasesResult Hheaders ctorEnv)
     (outEnv : Environment) where
   elimLevel : Level
+  elimLevelAdmissible : AddInductive.AdmissibleElimLevel c.lparams elimLevel
   recInfos : Array AddInductive.RecInfo
   localContext : AddInductive.Context
   localWF : BindingContextWF localContext
@@ -35270,7 +35287,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
     (k := fun elimLevel recInfos =>
       AddInductive.declareRecursors stats indTypes elimLevel recInfos)
-  intro elimLevel recInfos localContext Hlocal Hbindings Horigins Hparams
+  intro elimLevel hElim recInfos localContext Hlocal Hbindings Horigins Hparams
     hnoalias Hcard Hle
   have Hvalid : CheckingEnv.Valid localContext.safety localContext.env
       R.declared.venvCtors := by
@@ -35295,6 +35312,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       ⟨outVEnv, entries, ⟨Hgenerated⟩, Hinstalled⟩
     exact ⟨{
       elimLevel := elimLevel
+      elimLevelAdmissible := hElim
       recInfos := recInfos
       localContext := localContext
       localWF := Hlocal
