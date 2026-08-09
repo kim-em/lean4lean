@@ -18547,6 +18547,41 @@ theorem startCheckedSemantics {alpha : Type}
       hnormalizedNarrow (by simpa [VLCtx.fvars] using hnormalizedNoFVars)
       hnormalized.2 hsourceType .nil (TranslatedOriginTypes.empty Hc)
 
+/-- Package-facing entry to checked recursor replay.  All family selection,
+parameter-cache, universe, and source-translation premises are projected from
+one indexed header certificate; only the completed-index continuation remains
+for `loopInd1` to discharge. -/
+theorem CheckedRecursorHeaderAt.startSemantics {alpha : Type}
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (k : Array Expr → AddInductive.M alpha) {Q : alpha → Prop}
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hk : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
+      {nindices : Nat} {indices originTypes : Array Expr}
+      {indexTargets : List VExpr},
+      (Hsynthesis :
+        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          Hc'.venv c'.lparams H.target.toSkeleton scope narrowTarget
+          stats.params.size nindices) →
+      checkInductiveTypes.loopType.NarrowRuntimeScope Hc'.venv c'.lparams
+        scope Hc'.mlctx.vlctx →
+      TrExprS Hc'.venv c'.lparams scope type narrowTarget →
+      FVarsIn (· ∈ scope.fvars) type →
+      TrExpr Hc'.venv c'.lparams Hc'.mlctx.vlctx type fullTarget →
+      Hc'.venv.IsType c'.lparams.length Hc'.mlctx.vlctx.toCtx fullTarget →
+      List.Forall₂ (TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx)
+        indices.toList indexTargets →
+      TranslatedOriginTypes Hc' originTypes →
+      (k indices c').WF Q)
+    (fuel : Nat) :
+    ((monadLift (TypeChecker.whnf source.type) : AddInductive.M Expr) c >>=
+      fun normalized => AddInductive.mkRecInfos.loopArgs1 stats normalized 0
+        #[] fuel k c).WF Q := by
+  exact startCheckedSemantics stats k hconsume Hk Hc H.parameterSuffix
+    H.sourceTranslation H.parameterCount H.materialized.uvars H.paramsContext
+    H.shape fuel
+
 end mkRecInfos.loopArgs1
 
 namespace mkRecInfos.loopInd1
