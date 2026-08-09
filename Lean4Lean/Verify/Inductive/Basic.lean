@@ -1046,6 +1046,95 @@ theorem VEnv.IsDefEqCtx.dropPrefixes
         apply ih H
         simpa using Nat.succ.inj hlen
 
+/-- Select one corresponding declaration from a complete context
+conversion.  The selected types are compared in the older left-hand suffix,
+which is the context in which that declaration was originally formed. -/
+theorem VEnv.IsDefEqCtx.getElem
+    (H : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂)
+    (hi : i < Γ₁.length) :
+    ∃ u, env.IsDefEq U (Γ₁.drop (i + 1)) Γ₁[i]
+      (Γ₂[i]'(H.length_eq ▸ hi)) (.sort u) := by
+  induction H generalizing i with
+  | zero => simp at hi
+  | @succ Γ₁ Γ₂ A₁ A₂ u H hhead ih =>
+    cases i with
+    | zero =>
+      exact ⟨u, by simpa using hhead⟩
+    | succ i =>
+      have hi' : i < Γ₁.length := by simpa using hi
+      simpa only [List.length_cons, List.getElem_cons_succ,
+        List.drop_succ_cons, Nat.succ_eq_add_one] using ih hi'
+
+/-- Right-context form of `IsDefEqCtx.getElem`.  This is convenient when the
+consumer has already moved into the converted telescope. -/
+theorem VEnv.IsDefEqCtx.getElemRight
+    (henv : VEnv.Ordered env)
+    (H : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂)
+    (hi : i < Γ₁.length) :
+    ∃ u, env.IsDefEq U (Γ₂.drop (i + 1)) Γ₁[i]
+      (Γ₂[i]'(H.length_eq ▸ hi)) (.sort u) := by
+  induction H generalizing i with
+  | zero => simp at hi
+  | @succ Γ₁ Γ₂ A₁ A₂ u H hhead ih =>
+    cases i with
+    | zero =>
+      exact ⟨u, by simpa using hhead.defeqDFC henv H⟩
+    | succ i =>
+      have hi' : i < Γ₁.length := by simpa using hi
+      simpa only [List.length_cons, List.getElem_cons_succ,
+        List.drop_succ_cons, Nat.succ_eq_add_one] using ih hi'
+
+/-- Pointwise form of `ParamsDefEq`.  Parameter `i` is compared with the
+corresponding family-local parameter in precisely the context of the earlier
+parameters, matching the order in which cached headers are replayed. -/
+theorem VInductDecl.ParamsDefEq.getElem
+    {decl : VInductDecl} {env : VEnv} {params ownParams : List VExpr}
+    {i : Nat}
+    (H : decl.ParamsDefEq env params ownParams)
+    (hi : i < params.length) :
+    ∃ u, env.IsDefEq decl.uvars (params.take i).reverse
+      params[i] (ownParams[i]'(by
+        have hlen : params.length = ownParams.length := by
+          simpa using H.length_eq
+        omega)) (.sort u) := by
+  have hlen : params.length = ownParams.length := by
+    simpa using H.length_eq
+  have hrev : params.length - 1 - i < params.reverse.length := by
+    simp
+    omega
+  have hentry := VEnv.IsDefEqCtx.getElem H hrev
+  have htake :
+      params.length - (params.length - (1 + i) + 1) = i := by omega
+  have hindex :
+      params.length - (1 + (params.length - (1 + i))) = i := by omega
+  simpa [List.getElem_reverse, List.drop_reverse, hlen.symm, Nat.sub_sub,
+    htake, hindex] using hentry
+
+/-- Family-local-context form of `ParamsDefEq.getElem`. -/
+theorem VInductDecl.ParamsDefEq.getElemRight
+    {decl : VInductDecl} {env : VEnv} {params ownParams : List VExpr}
+    {i : Nat}
+    (henv : VEnv.Ordered env)
+    (H : decl.ParamsDefEq env params ownParams)
+    (hi : i < params.length) :
+    ∃ u, env.IsDefEq decl.uvars (ownParams.take i).reverse
+      params[i] (ownParams[i]'(by
+        have hlen : params.length = ownParams.length := by
+          simpa using H.length_eq
+        omega)) (.sort u) := by
+  have hlen : params.length = ownParams.length := by
+    simpa using H.length_eq
+  have hrev : params.length - 1 - i < params.reverse.length := by
+    simp
+    omega
+  have hentry := VEnv.IsDefEqCtx.getElemRight henv H hrev
+  have htake :
+      params.length - (params.length - (1 + i) + 1) = i := by omega
+  have hindex :
+      params.length - (1 + (params.length - (1 + i))) = i := by omega
+  simpa [List.getElem_reverse, List.drop_reverse, hlen.symm, Nat.sub_sub,
+    htake, hindex] using hentry
+
 theorem VInductDecl.paramsDefEq_reflOfAppend
     {decl : VInductDecl} {env : VEnv} {indices params : List VExpr}
     (H : OnCtx (indices.reverse ++ params.reverse)
