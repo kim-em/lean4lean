@@ -447,6 +447,22 @@ theorem RecursorMotiveTelescope.liftN
     apply RecursorMotiveTelescope.succ
     simpa [VExpr.liftN, VExpr.lift, VExpr.lift_liftN'] using ih (k + 1)
 
+/-- Weakening a parallel motive telescope by an arbitrary context embedding
+preserves the relation.  The embedding is extended below each shared binder,
+exactly as `VExpr.lift'` traverses a dependent forall. -/
+theorem RecursorMotiveTelescope.lift'
+    (H : RecursorMotiveTelescope resultLevel arity family familyType
+      motiveType) (shift : Lift) :
+    RecursorMotiveTelescope resultLevel arity
+      (family.lift' shift) (familyType.lift' shift)
+      (motiveType.lift' shift) := by
+  induction H generalizing shift with
+  | zero => simp [RecursorMotiveTelescope.zero]
+  | @succ family domain familyType motiveType arity Htail ih =>
+    apply RecursorMotiveTelescope.succ
+    simpa [VExpr.liftN, VExpr.lift, VExpr.lift_eq_lift',
+      ← VExpr.lift'_comp] using ih shift.cons
+
 /-- Simultaneous term substitution preserves the parallel family/motive
 telescope relation.  The explicit cutoff is needed under dependent binders. -/
 theorem RecursorMotiveTelescope.instN
@@ -1294,6 +1310,40 @@ theorem Expr.getAppArgsList_mkAppN (fn : Expr) (args : Array Expr) :
 
 theorem Expr.getAppArgsList_const (name : Name) (levels : List Level) :
     (Expr.const name levels).getAppArgsList = [] := rfl
+
+@[simp] theorem Expr.foldl_mkApp_eq (args : List Expr) (fn : Expr) :
+    args.foldl Lean.mkApp fn = args.foldl Expr.app fn := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih =>
+    simp only [List.foldl_cons, Lean.mkApp]
+    exact ih (.app fn arg)
+
+theorem Expr.mkAppN_eq_mkAppList (fn : Expr) (args : Array Expr) :
+    mkAppN fn args = Expr.mkAppList fn args.toList := by
+  unfold mkAppN
+  rw [← Array.foldl_toList, Expr.mkAppList_eq_foldl]
+  exact Expr.foldl_mkApp_eq args.toList fn
+
+theorem TrExprS.IsUnique.mkAppList
+    (hfn : TrExprS.IsUnique fn)
+    (hargs : ∀ arg ∈ args, TrExprS.IsUnique arg) :
+    TrExprS.IsUnique (Expr.mkAppList fn args) := by
+  induction args generalizing fn with
+  | nil => exact hfn
+  | cons arg args ih =>
+    exact ih ⟨hfn, hargs arg (by simp)⟩ (by
+      intro later hlater
+      exact hargs later (by simp [hlater]))
+
+theorem TrExprS.IsUnique.mkAppN
+    (hfn : TrExprS.IsUnique fn)
+    (hargs : ∀ arg ∈ args, TrExprS.IsUnique arg) :
+    TrExprS.IsUnique (mkAppN fn args) := by
+  rw [Expr.mkAppN_eq_mkAppList]
+  exact Lean4Lean.VerifyInductive.TrExprS.IsUnique.mkAppList hfn
+    fun arg harg => hargs arg
+    (Array.mem_toList_iff.mp harg)
 
 /-- Remove equally long outer prefixes from a context conversion.  Since
 `IsDefEqCtx` is built from the shared innermost suffix outwards, the proof is
@@ -16710,6 +16760,25 @@ theorem RecursorValidAppStatsWF.indConstAt
   rw [H.consts.exact]
   simp [hi]
 
+theorem RecursorValidAppStatsWF.familyPrefixUnique
+    (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
+    (target : Nat) (htarget : target < decl.types.length) :
+    TrExprS.IsUnique
+      (mkAppN stats.indConsts[target]! stats.params) := by
+  have hstats : target < stats.indConsts.size := by
+    rw [H.types_size]
+    exact htarget
+  have hconst : stats.indConsts[target] =
+      .const decl.types[target].name stats.levels := by
+    exact Option.some.inj <|
+      (Array.getElem?_eq_getElem hstats).symm.trans (H.indConstAt htarget)
+  apply TrExprS.IsUnique.mkAppN (by
+    simpa [Array.getElem!_eq_getD, Array.getD, hstats] using
+      (show TrExprS.IsUnique stats.indConsts[target] by rw [hconst]; trivial))
+  intro param hparam
+  rcases H.paramFVars param hparam with ⟨fv, rfl⟩
+  trivial
+
 theorem RecursorValidAppStatsWF.nindicesAt
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
     (hi : i < decl.types.length) :
@@ -16990,17 +17059,6 @@ theorem RecursorValidAppStatsWF.translatedIndices
   have hsourceHead : type.getAppFn = stats.indConsts[typeIdx]! := by
     rw [hhead, hconstSource]
   have hsourcePrefix := H.sourceParameterPrefix hvalidIdx
-  have hmkAppN : mkAppN stats.indConsts[typeIdx]! stats.params =
-      Expr.mkAppList stats.indConsts[typeIdx]! stats.params.toList := by
-    unfold mkAppN
-    rw [← Array.foldl_toList]
-    generalize stats.params.toList = args
-    generalize stats.indConsts[typeIdx]! = fn
-    induction args generalizing fn with
-    | nil => rfl
-    | cons arg args ih =>
-      simp only [List.foldl_cons, Expr.mkAppList]
-      simpa [Lean.mkApp] using ih (.app fn arg)
   have hsourceSplit : type = Expr.mkAppList
       (mkAppN stats.indConsts[typeIdx]! stats.params)
       (type.getAppArgsList.drop stats.params.size) := by
@@ -17019,7 +17077,7 @@ theorem RecursorValidAppStatsWF.translatedIndices
       _ = Expr.mkAppList
           (mkAppN stats.indConsts[typeIdx]! stats.params)
           (type.getAppArgsList.drop stats.params.size) := by
-        rw [hsourceHead, hsourcePrefix, hmkAppN]
+        rw [hsourceHead, hsourcePrefix, Expr.mkAppN_eq_mkAppList]
   have hsplitTr : TrExprS env recLparams scope
       (Expr.mkAppList (mkAppN stats.indConsts[typeIdx]! stats.params)
         (type.getAppArgsList.drop stats.params.size)) type' := by
@@ -17594,35 +17652,52 @@ theorem ContextWF.ConsumedDomain.toRecursorContext
     (Hdom : Hc.ConsumedDomain dom sourceTarget consumedTarget)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     let R := Hc.toAdmissibleRecursorContextWF Helim
-    ∃ target,
-      TrExprS R.venv
-        (AddInductive.getRecLevelParams elimLevel c.lparams)
-        R.mlctx.vlctx dom.consumeTypeAnnotations target ∧
-      R.venv.IsType
-        (AddInductive.getRecLevelParams elimLevel c.lparams).length
-        R.mlctx.vlctx.toCtx target := by
+    ∃ sourceTarget' consumedTarget',
+      R.ConsumedDomain dom sourceTarget' consumedTarget' := by
   dsimp only
   cases elimLevel with
   | zero =>
-    exact ⟨consumedTarget, Hdom.consumed, Hdom.isType⟩
+    change ∃ sourceTarget' consumedTarget',
+      (Hc.toRecursorContextWF).ConsumedDomain
+        dom sourceTarget' consumedTarget'
+    exact ⟨sourceTarget, consumedTarget, {
+      source := Hdom.source
+      consumed := Hdom.consumed
+      isType := Hdom.isType
+      source_defeq := Hdom.source_defeq }⟩
   | param name =>
-    change ∃ target,
-      TrExprS Hc.venv (name :: c.lparams)
-        (Hc.mlctx.prependLevelParam c.lparams.length).vlctx
-        dom.consumeTypeAnnotations target ∧
-      Hc.venv.IsType (name :: c.lparams).length
-        (Hc.mlctx.prependLevelParam c.lparams.length).vlctx.toCtx target
+    change ∃ sourceTarget' consumedTarget',
+      (Hc.prependRecursorLevelParam Helim).ConsumedDomain
+        dom sourceTarget' consumedTarget'
     let shift := VLevel.prependShift c.lparams.length
     have hshift : ∀ level ∈ shift,
         level.WF (name :: c.lparams).length := by
       simpa [shift] using VLevel.prependShift_wf (n := c.lparams.length)
-    refine ⟨consumedTarget.instL shift, ?_, ?_⟩
-    · simpa only [TypeChecker.MLCtx.prependLevelParam_vlctx, shift] using
+    refine ⟨sourceTarget.instL shift, consumedTarget.instL shift, {
+      source := ?_
+      consumed := ?_
+      isType := ?_
+      source_defeq := ?_ }⟩
+    · simpa only [ContextWF.prependRecursorLevelParam,
+        TypeChecker.MLCtx.prependLevelParam_vlctx, shift] using
+        Hdom.source.prependLevelParam
+          Hc.checking.tr.wf Hc.mlctx_wf.tr.wf Helim
+    · simpa only [ContextWF.prependRecursorLevelParam,
+        TypeChecker.MLCtx.prependLevelParam_vlctx, shift] using
         Hdom.consumed.prependLevelParam
           Hc.checking.tr.wf Hc.mlctx_wf.tr.wf Helim
-    · simpa only [TypeChecker.MLCtx.prependLevelParam_vlctx,
-        VLCtx.instL_toCtx, List.length_cons, shift] using
-        Hdom.isType.instL hshift
+    · rcases Hdom.isType with ⟨level, htype⟩
+      exact ⟨level.inst shift, by
+        simpa only [ContextWF.prependRecursorLevelParam,
+          TypeChecker.MLCtx.prependLevelParam_vlctx, VLCtx.instL_toCtx,
+          List.length_cons, VExpr.instL, shift] using
+          htype.instL hshift⟩
+    · rcases Hdom.source_defeq with ⟨level, heq⟩
+      exact ⟨level.inst shift, by
+        simpa only [ContextWF.prependRecursorLevelParam,
+          TypeChecker.MLCtx.prependLevelParam_vlctx, VLCtx.instL_toCtx,
+          List.length_cons, VExpr.instL, shift] using
+          heq.instL hshift⟩
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
@@ -17635,6 +17710,10 @@ structure RecursorMotiveFrameWF
     (Rindices : RecursorContextWF c recLparams)
     (stats : AddInductive.InductiveStats) (familyIdx : Nat)
     (indices : Array Expr) (elimLevel : Level) where
+  familyTarget : VExpr
+  familyTr :
+    TrExprS Rindices.venv recLparams Rindices.mlctx.vlctx
+      (mkAppN stats.indConsts[familyIdx]! stats.params) familyTarget
   majorTarget : VExpr
   majorTr :
     let majorTy :=
@@ -17941,20 +18020,6 @@ theorem Expr.abstractList_mkAppN :
     simp only [List.foldl_cons, List.map_cons]
     rw [ih]
     simp
-
-@[simp] theorem Expr.foldl_mkApp_eq (args : List Expr) (fn : Expr) :
-    args.foldl Lean.mkApp fn = args.foldl Expr.app fn := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih =>
-    simp only [List.foldl_cons, Lean.mkApp]
-    exact ih (.app fn arg)
-
-theorem Expr.mkAppN_eq_mkAppList (fn : Expr) (args : Array Expr) :
-    mkAppN fn args = Expr.mkAppList fn args.toList := by
-  unfold mkAppN
-  rw [← Array.foldl_toList, Expr.mkAppList_eq_foldl]
-  exact Expr.foldl_mkApp_eq args.toList fn
 
 theorem Expr.mkAppRange_to_end
     (fn : Expr) (args : Array Expr) (start : Nat)
@@ -21019,6 +21084,114 @@ theorem RecursorMotiveTelescopeAt.toApplication
   rcases H R Hext binding Hexposed HsyntaxType Hvalidated with ⟨Hevidence⟩
   exact Hevidence.applyMajor Hmajor HmajorType
 
+/-- Context-rooted semantic seed for one generated motive.  The first
+`mkRecInfos` pass establishes this package at the point where the motive is
+introduced.  Its family prefix has unique concrete translation, while the
+stored motive type is compared definitionally after later context extension. -/
+structure RecursorMotiveTelescopeSeed
+    {root : AddInductive.Context} {recLparams : List Name}
+    (Rroot : RecursorContextWF root recLparams)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (target : Nat) (info : AddInductive.RecInfo)
+    (elimLevel : Level) : Type where
+  target_lt : target < decl.types.length
+  indexCount : info.indices.size =
+    (decl.types[target]'target_lt).numIndices
+  family : VExpr
+  familyActualType : VExpr
+  familyType : VExpr
+  motiveType : VExpr
+  resultLevel : VLevel
+  familyUnique : TrExprS.IsUnique
+    (mkAppN stats.indConsts[target]! stats.params)
+  familyTr : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
+    (mkAppN stats.indConsts[target]! stats.params) family
+  familyTyping : Rroot.venv.HasType recLparams.length
+    Rroot.mlctx.vlctx.toCtx family familyActualType
+  familyTypeDefEq : Rroot.venv.IsDefEqU recLparams.length
+    Rroot.mlctx.vlctx.toCtx familyActualType familyType
+  indicesBound : BoundFVarArray root info.indices
+  majorBound : BoundFVarArray root #[info.major]
+  motiveTypeTr : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
+    (root.lctx.mkForall info.indices
+      (root.lctx.mkForall #[info.major] (.sort elimLevel))) motiveType
+  telescope : RecursorMotiveTelescope resultLevel info.indices.size
+    family familyType motiveType
+
+/-- A first-pass telescope seed supplies the context-polymorphic contract
+used by recursive constructor traversal.  Exact context extensions preserve
+the seed; unique translation identifies the validated family prefix, and
+translation uniqueness relates the later motive binding to the stored
+canonical motive telescope. -/
+theorem RecursorMotiveTelescopeSeed.toTelescopeAt
+    {root : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    (H : RecursorMotiveTelescopeSeed Rroot stats decl target info
+      elimLevel) :
+    RecursorMotiveTelescopeAt Rroot stats decl target info elimLevel := by
+  intro current R Hext depth exposedType syntaxTarget binding Hexposed
+    HsyntaxType Hvalidated
+  rcases Hvalidated.indices_payload with
+    ⟨levels, params, indices, hspine, _hparams, hindicesLength,
+      Hindices, HfamilyPayload⟩
+  have HfamilyWeak := Hext.weakTrExprS H.familyTr
+  have hfamilyEq :
+      VExpr.mkApps
+          (.const (decl.types[target]'Hvalidated.target_lt).name levels)
+          params =
+        H.family.lift' (Hext.shift.consN 0) :=
+    TrExprS.unique H.familyUnique HfamilyPayload HfamilyWeak
+  have HfamilyTyping := Hext.weakHasType H.familyTyping
+  have HfamilyTyping' : R.venv.HasType recLparams.length
+      R.mlctx.vlctx.toCtx
+      (VExpr.mkApps
+        (.const (decl.types[target]'Hvalidated.target_lt).name levels)
+        params)
+      (H.familyActualType.lift' (Hext.shift.consN 0)) := by
+    rwa [hfamilyEq]
+  have HfamilyTypeDefEq := Hext.weakDefEqU H.familyTypeDefEq
+  have Htelescope := H.telescope.lift' (Hext.shift.consN 0)
+  have hmajorSource :
+      current.lctx.mkForall #[info.major] (.sort elimLevel) =
+        root.lctx.mkForall #[info.major] (.sort elimLevel) :=
+    H.majorBound.mkForall_mono Hext.contextLE _
+  have hmotiveSource :
+      current.lctx.mkForall info.indices
+          (current.lctx.mkForall #[info.major] (.sort elimLevel)) =
+        root.lctx.mkForall info.indices
+          (root.lctx.mkForall #[info.major] (.sort elimLevel)) := by
+    calc
+      current.lctx.mkForall info.indices
+          (current.lctx.mkForall #[info.major] (.sort elimLevel)) =
+          current.lctx.mkForall info.indices
+            (root.lctx.mkForall #[info.major] (.sort elimLevel)) :=
+        congrArg (fun body => current.lctx.mkForall info.indices body)
+          hmajorSource
+      _ = root.lctx.mkForall info.indices
+            (root.lctx.mkForall #[info.major] (.sort elimLevel)) :=
+        H.indicesBound.mkForall_mono Hext.contextLE _
+  have HmotiveWeak := Hext.weakTrExprS H.motiveTypeTr
+  rw [← hmotiveSource] at HmotiveWeak
+  have HmotiveDefEq : R.venv.IsDefEqU recLparams.length
+      R.mlctx.vlctx.toCtx binding.motiveTypeTarget
+      (H.motiveType.lift' (Hext.shift.consN 0)) :=
+    (HmotiveWeak.uniq R.checking.tr.wf
+      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
+      binding.motiveType).symm
+  have Htelescope' : RecursorMotiveTelescope H.resultLevel indices.length
+      (VExpr.mkApps
+        (.const (decl.types[target]'Hvalidated.target_lt).name levels)
+        params)
+      (H.familyType.lift' (Hext.shift.consN 0))
+      (H.motiveType.lift' (Hext.shift.consN 0)) := by
+    rw [hfamilyEq, hindicesLength, ← H.indexCount]
+    simpa using Htelescope
+  exact Hvalidated.motiveTelescopeEvidence binding
+    (H.familyActualType.lift' (Hext.shift.consN 0))
+    (H.familyType.lift' (Hext.shift.consN 0))
+    (H.motiveType.lift' (Hext.shift.consN 0)) H.resultLevel hspine Hindices
+    HfamilyTyping' HfamilyTypeDefEq HmotiveDefEq Htelescope'
+
 /-- Pointwise shared family/motive telescopes for a completed mutual record
 array.  This is stronger and easier to establish than storing applications
 for arbitrary majors directly. -/
@@ -23810,9 +23983,18 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
       hcanonical harity henv hlparams hconsume with
     ⟨sourceTarget, consumedTarget, Hdom⟩
   rcases Hdom.toRecursorContext Helim with
-    ⟨majorTarget, hmajor, hmajorType⟩
+    ⟨sourceTarget', majorTarget, Hdom'⟩
+  have hsourceList : TrExprS Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel c'.lparams)
+      Rindices.mlctx.vlctx
+      (Expr.mkAppList
+        (mkAppN stats.indConsts[familyIdx]! stats.params) indices.toList)
+      sourceTarget' := by
+    simpa only [← Expr.mkAppN_eq_mkAppList] using Hdom'.source
+  rcases checkPositivityStep.TrExprS.mkAppList_inv hsourceList with
+    ⟨familyTarget, _indexTargets', hfamily, _hindices', _hsourceTarget'⟩
   let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
-    hmajor hmajorType
+    Hdom'.consumed Hdom'.isType
   let cMajor : AddInductive.Context := { c' with
     ngen := c'.ngen.next
     lctx := c'.lctx.mkLocalDecl ⟨c'.ngen.curr⟩ `t majorTy .default }
@@ -23887,6 +24069,8 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
     exact Rindices.onlyLams.mkForall_consumeTypeAnnotations_eq_self
       indices.size hindicesSize hconsumeMajor
   refine ⟨{
+    familyTarget := familyTarget
+    familyTr := hfamily
     majorTarget := majorTarget
     majorTr := ?_
     majorType := ?_
@@ -23900,11 +24084,11 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
   · change TrExprS Rindices.venv
       (AddInductive.getRecLevelParams elimLevel c'.lparams)
       Rindices.mlctx.vlctx majorTy majorTarget
-    exact hmajor
+    exact Hdom'.consumed
   · change Rindices.venv.IsType
       (AddInductive.getRecLevelParams elimLevel c'.lparams).length
       Rindices.mlctx.vlctx.toCtx majorTarget
-    exact hmajorType
+    exact Hdom'.isType
   · change TrExprS Rmajor.venv
       (AddInductive.getRecLevelParams elimLevel c'.lparams)
       Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotations _
@@ -23961,7 +24145,16 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
       indices).consumeTypeAnnotations
   rcases H.completedRecursorMajorDomain Helim Rindices Hsynthesis Hstats
       Hruntime Hindices hreplay hcanonical harity henv hconsume with
-    ⟨_sourceTarget, majorTarget, Hdom⟩
+    ⟨sourceTarget, majorTarget, Hdom⟩
+  have hsourceList : TrExprS Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      Rindices.mlctx.vlctx
+      (Expr.mkAppList
+        (mkAppN stats.indConsts[familyIdx]! stats.params) indices.toList)
+      sourceTarget := by
+    simpa only [← Expr.mkAppN_eq_mkAppList] using Hdom.source
+  rcases checkPositivityStep.TrExprS.mkAppList_inv hsourceList with
+    ⟨familyTarget, _indexTargets', hfamily, _hindices', _hsourceTarget⟩
   let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
     Hdom.consumed Hdom.isType
   let cMajor : AddInductive.Context := { current with
@@ -24039,6 +24232,8 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
     exact Rindices.onlyLams.mkForall_consumeTypeAnnotations_eq_self
       indices.size hindicesSize hconsumeMajor
   refine ⟨{
+    familyTarget := familyTarget
+    familyTr := hfamily
     majorTarget := majorTarget
     majorTr := Hdom.consumed
     majorType := Hdom.isType
