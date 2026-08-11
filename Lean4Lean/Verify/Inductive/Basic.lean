@@ -20597,16 +20597,22 @@ structure RecursorMotiveTelescopeEvidence
     (exposedType : Expr) (syntaxTarget : VExpr) : Type where
   indices : List VExpr
   family : VExpr
+  familyActualType : VExpr
   familyType : VExpr
+  motiveType : VExpr
   resultLevel : VLevel
   syntax_eq : syntaxTarget = VExpr.mkApps family indices
   indices_translation : List.Forall₂
     (TrExprS R.venv recLparams R.mlctx.vlctx)
     (exposedType.getAppArgs[stats.params.size:]).toList indices
   family_typing : R.venv.HasType recLparams.length
-    R.mlctx.vlctx.toCtx family familyType
+    R.mlctx.vlctx.toCtx family familyActualType
+  family_type_defeq : R.venv.IsDefEqU recLparams.length
+    R.mlctx.vlctx.toCtx familyActualType familyType
+  motive_type_defeq : R.venv.IsDefEqU recLparams.length
+    R.mlctx.vlctx.toCtx binding.motiveTypeTarget motiveType
   telescope : RecursorMotiveTelescope resultLevel indices.length family
-    familyType binding.motiveTypeTarget
+    familyType motiveType
 
 /-- The family prefix of a validated, well-formed terminal application is
 itself well typed.  This is obtained by retaining the prefix of the complete
@@ -20654,7 +20660,8 @@ theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
     (H : RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx
       stats decl depth exposedType syntaxTarget target)
     (binding : RecursorMotiveBinding R info elimLevel)
-    (familyType : VExpr) (resultLevel : VLevel)
+    (familyActualType familyType motiveType : VExpr)
+    (resultLevel : VLevel)
     {levels : List VLevel} {params indices : List VExpr}
     (hspine : syntaxTarget.getAppFnArgs =
       (.const (decl.types[target]'H.target_lt).name levels,
@@ -20666,12 +20673,16 @@ theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
       R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
         (VExpr.mkApps
           (.const (decl.types[target]'H.target_lt).name levels) params)
-        familyType)
+        familyActualType)
+    (HfamilyType : R.venv.IsDefEqU recLparams.length
+      R.mlctx.vlctx.toCtx familyActualType familyType)
+    (HmotiveType : R.venv.IsDefEqU recLparams.length
+      R.mlctx.vlctx.toCtx binding.motiveTypeTarget motiveType)
     (Htelescope :
       RecursorMotiveTelescope resultLevel indices.length
         (VExpr.mkApps
           (.const (decl.types[target]'H.target_lt).name levels) params)
-        familyType binding.motiveTypeTarget) :
+        familyType motiveType) :
     Nonempty (RecursorMotiveTelescopeEvidence R stats info binding
       exposedType syntaxTarget) := by
   let family := VExpr.mkApps
@@ -20684,11 +20695,15 @@ theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
   exact ⟨{
     indices := indices
     family := family
+    familyActualType := familyActualType
     familyType := familyType
+    motiveType := motiveType
     resultLevel := resultLevel
     syntax_eq := hsyntax
     indices_translation := Hindices
     family_typing := Hfamily
+    family_type_defeq := HfamilyType
+    motive_type_defeq := HmotiveType
     telescope := Htelescope }⟩
 
 /-- A shared family/motive telescope supplies the complete independent
@@ -20715,8 +20730,16 @@ theorem RecursorMotiveTelescopeEvidence.applyMajor
   have HmajorType' : R.venv.HasType recLparams.length
       R.mlctx.vlctx.toCtx majorTarget (VExpr.mkApps H.family H.indices) := by
     rwa [← H.syntax_eq]
+  have Hfamily : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      H.family H.familyType :=
+    H.family_typing.defeqU_r R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
+      H.family_type_defeq
+  have Hmotive : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      binding.motiveTarget H.motiveType :=
+    binding.typing.defeqU_r R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
+      H.motive_type_defeq
   have Hresult := H.telescope.applyMajor R.checking.tr.wf
-    R.mlctx_wf.tr.wf.toCtx H.family_typing binding.typing HmajorType'
+    R.mlctx_wf.tr.wf.toCtx Hfamily Hmotive HmajorType'
   let motiveTarget :=
     VExpr.app (VExpr.mkApps binding.motiveTarget H.indices) majorTarget
   have Hresult' : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
