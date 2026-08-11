@@ -15772,6 +15772,242 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           (Hsuffix := Hsuffix) hiStats hnoFVars)
         (by omega) hforall
 
+/-- Checked concrete parameter replays accumulated within one production
+constructor array. -/
+structure ConstructorParamPrefixRow
+    (stats : AddInductive.InductiveStats) (ctors : List Constructor)
+    (done : Nat) : Prop where
+  covered : done ≤ ctors.length
+  prefixes : ∀ i, i < done → (hi : i < ctors.length) →
+    ∃ tail, RecursorParamPrefix stats 0 ctors[i].type tail
+
+def ConstructorParamPrefixRow.empty
+    (stats : AddInductive.InductiveStats) (ctors : List Constructor) :
+    ConstructorParamPrefixRow stats ctors 0 where
+  covered := Nat.zero_le _
+  prefixes _ hi := by omega
+
+def ConstructorParamPrefixRow.push
+    (H : ConstructorParamPrefixRow stats ctors done)
+    (hi : done < ctors.length)
+    (Hprefix : RecursorParamPrefix stats 0 ctors[done].type tail) :
+    ConstructorParamPrefixRow stats ctors (done + 1) where
+  covered := by omega
+  prefixes i hidone hi' := by
+    by_cases hlast : i = done
+    · subst i
+      exact ⟨tail, Hprefix⟩
+    · exact H.prefixes i (by omega) hi'
+
+/-- Completed replay rows accumulated across the production mutual-family
+array. -/
+structure ConstructorParamPrefixRows
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (done : Nat) : Prop where
+  covered : done ≤ indTypes.size
+  rows : ∀ i, i < done → (hi : i < indTypes.size) →
+    ConstructorParamPrefixRow stats indTypes[i].ctors
+      indTypes[i].ctors.length
+
+def ConstructorParamPrefixRows.empty
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) :
+    ConstructorParamPrefixRows stats indTypes 0 where
+  covered := Nat.zero_le _
+  rows _ hi := by omega
+
+def ConstructorParamPrefixRows.push
+    (H : ConstructorParamPrefixRows stats indTypes done)
+    (hi : done < indTypes.size)
+    (Hrow : ConstructorParamPrefixRow stats indTypes[done].ctors
+      indTypes[done].ctors.length) :
+    ConstructorParamPrefixRows stats indTypes (done + 1) where
+  covered := by omega
+  rows i hidone hi' := by
+    by_cases hlast : i = done
+    · subst i
+      exact Hrow
+    · exact H.rows i (by omega) hi'
+
+/-- Public completed concrete replay certificate selected by family and
+constructor positions. -/
+structure CheckedRecursorParameterPrefixes
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) : Prop where
+  replay : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
+      (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
+    ∃ tail, RecursorParamPrefix stats 0
+      indTypes[familyIdx].ctors[ctorIdx].type tail
+
+def ConstructorParamPrefixRows.complete
+    (H : ConstructorParamPrefixRows stats indTypes indTypes.size) :
+    CheckedRecursorParameterPrefixes stats indTypes where
+  replay familyIdx hfamily ctorIdx hctor :=
+    (H.rows familyIdx hfamily hfamily).prefixes ctorIdx hctor hctor
+
+namespace checkConstructors.loopCtors
+
+/-- Replay-retaining form of `refinesType`.  It follows the same executable
+constructor loop while accumulating the exact checked common-parameter tail
+beside the existing abstract shape/type prefix. -/
+theorem refinesTypeWithReplay
+    {decl : VInductDecl} {target : VInductiveType}
+    {sourceEnv envTypes : VEnv} {params : List VExpr}
+    {source : InductiveType}
+    (Q : Unit → Prop)
+    (Hc : ContextWF c)
+    (Htarget : TrInductiveTypeHeaders sourceEnv envTypes c.lparams source target)
+    (Hnames : ConstructorNameState source.ctors ctorIdx foundCtors)
+    (Hprefix : ConstructorTypePrefix envTypes decl params target ctorIdx)
+    (Hreplay : ConstructorParamPrefixRow stats source.ctors ctorIdx)
+    (Hfresh : ∀ {i found}, ConstructorNameState source.ctors i found →
+      (hi : i < source.ctors.length) →
+      found.contains source.ctors[i].name = false)
+    (Hshape : ∀ i (hsource : i < source.ctors.length)
+      (htarget : i < target.ctors.length),
+      TrSourceConstRaw envTypes c.lparams source.ctors[i].name
+        source.ctors[i].type target.ctors[i] →
+      ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        source.ctors[i].type checkedType type' checkedType' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe
+        source.ctors[i].name targetIdx source.ctors[i].type 0
+        c.fuel.inductiveFuel c).WF fun _ => ∃ tail,
+          RecursorParamPrefix stats 0 source.ctors[i].type tail ∧
+          decl.CtorShape envTypes params target target.ctors[i] ∧
+          envTypes.IsType decl.uvars [] target.ctors[i].type)
+    (Hfinish : ConstructorTypePrefix envTypes decl params target
+        target.ctors.length →
+      ConstructorParamPrefixRow stats source.ctors source.ctors.length →
+      Q ()) :
+    (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+      source.ctors ctorIdx foundCtors c).WF Q := by
+  by_cases hidx : ctorIdx < source.ctors.length
+  · have htarget : ctorIdx < target.ctors.length := by
+      rw [← Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget]
+      exact hidx
+    have Hctor := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctorAt
+      Htarget ctorIdx hidx htarget
+    apply stepPrefix.WF (stats := stats) (isUnsafe := isUnsafe)
+      (targetIdx := targetIdx) (Q := Q) Hc hidx (Hfresh Hnames hidx)
+    intro checkedType type' checkedType' hchecked
+    have Hchecked := Hshape ctorIdx hidx htarget Hctor checkedType type'
+      checkedType' hchecked
+    exact Hchecked.mono fun _ HcheckedCtor => by
+      rcases HcheckedCtor with ⟨tail, Hparam, HctorShape, HctorType⟩
+      exact refinesTypeWithReplay Q Hc Htarget (.succ Hnames hidx)
+        (Hprefix.push htarget HctorShape HctorType)
+        (Hreplay.push hidx Hparam) Hfresh Hshape Hfinish
+  · have heq : ctorIdx = source.ctors.length := by
+      have := Hprefix.covered
+      rw [← Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget]
+        at this
+      omega
+    apply result.WF (Q := Q) hidx
+    have Hcomplete : ConstructorTypePrefix envTypes decl params target
+        target.ctors.length := by
+      simpa [heq,
+        Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget] using
+          Hprefix
+    have HreplayComplete : ConstructorParamPrefixRow stats source.ctors
+        source.ctors.length := by simpa [heq] using Hreplay
+    exact Hfinish Hcomplete HreplayComplete
+termination_by source.ctors.length - ctorIdx
+
+end checkConstructors.loopCtors
+
+namespace checkConstructors.loopTypes
+
+/-- Mutual-family fold retaining every concrete constructor parameter replay. -/
+theorem refinesBlockWithReplay
+    {decl : VInductDecl} {sourceEnv envTypes : VEnv}
+    {params : List VExpr}
+    (Q : Unit → Prop)
+    (Hc : ContextWF c)
+    (Htypes : List.Forall₂
+      (TrInductiveTypeHeaders sourceEnv envTypes c.lparams)
+      indTypes.toList decl.types)
+    (Hprefix : ConstructorTypesPrefix envTypes decl params targetIdx)
+    (Hreplays : ConstructorParamPrefixRows stats indTypes targetIdx)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (Hshape : ∀ targetIdx (hsource : targetIdx < indTypes.size)
+      (htarget : targetIdx < decl.types.length)
+      i (hctorSource : i < indTypes[targetIdx].ctors.length)
+      (hctorTarget : i < decl.types[targetIdx].ctors.length),
+      TrSourceConstRaw envTypes c.lparams indTypes[targetIdx].ctors[i].name
+        indTypes[targetIdx].ctors[i].type decl.types[targetIdx].ctors[i] →
+      ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        indTypes[targetIdx].ctors[i].type checkedType type' checkedType' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe
+        indTypes[targetIdx].ctors[i].name targetIdx
+        indTypes[targetIdx].ctors[i].type 0 c.fuel.inductiveFuel c).WF
+        fun _ => ∃ tail,
+          RecursorParamPrefix stats 0 indTypes[targetIdx].ctors[i].type tail ∧
+          decl.CtorShape envTypes params decl.types[targetIdx]
+            decl.types[targetIdx].ctors[i] ∧
+          envTypes.IsType decl.uvars [] decl.types[targetIdx].ctors[i].type)
+    (Hfinish : ConstructorTypesPrefix envTypes decl params
+        decl.types.length →
+      ConstructorParamPrefixRows stats indTypes indTypes.size → Q ()) :
+    (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
+      targetIdx c).WF Q := by
+  by_cases hidx : targetIdx < indTypes.size
+  · have htarget : targetIdx < decl.types.length := by
+      have hlength : indTypes.size = decl.types.length := by
+        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+      omega
+    have Htarget : TrInductiveTypeHeaders sourceEnv envTypes c.lparams
+        indTypes[targetIdx] decl.types[targetIdx] := by
+      have Htarget' := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
+        targetIdx (by simpa using hidx) htarget
+      rw [Array.getElem_toList] at Htarget'
+      exact Htarget'
+    apply step.WF (Q := Q) hidx
+    apply checkConstructors.loopCtors.refinesTypeWithReplay
+      (Q := fun _ =>
+        (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
+          (targetIdx + 1) c).WF Q)
+      Hc Htarget .zero
+      (ConstructorTypePrefix.empty envTypes decl params decl.types[targetIdx])
+      (ConstructorParamPrefixRow.empty stats indTypes[targetIdx].ctors)
+      (Hfresh targetIdx hidx)
+    · intro i hsource htarget' Hctor checkedType type' checkedType' hchecked
+      exact Hshape targetIdx hidx htarget i hsource htarget' Hctor
+        checkedType type' checkedType' hchecked
+    · intro Htype Hrow
+      exact refinesBlockWithReplay Q Hc Htypes
+        (Hprefix.push htarget Htype) (Hreplays.push hidx Hrow)
+        Hfresh Hshape Hfinish
+  · have heq : targetIdx = indTypes.size := by
+      have hlength : indTypes.size = decl.types.length := by
+        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+      have := Hprefix.covered
+      omega
+    apply result.WF (Q := Q) hidx
+    apply Hfinish
+    · have hlength : indTypes.size = decl.types.length := by
+        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+      simpa [heq, hlength] using Hprefix
+    · simpa [heq] using Hreplays
+termination_by indTypes.size - targetIdx
+
+end checkConstructors.loopTypes
+
+/-- Constructor-checking output needed by both declaration installation and
+recursor replay.  The first component is the abstract formation certificate;
+the second retains the exact concrete parameter tails for production
+constructors. -/
+structure CheckedConstructorsResult
+    (sourceEnv : VEnv) (decl : VInductDecl) (envTypes : VEnv)
+    (params : List VExpr) (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) : Prop where
+  checked : CheckedConstructorCertificate sourceEnv decl envTypes params
+  parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
+
 /-- Fold the end-to-end constructor theorem over the production's nested
 family/constructor loops.  This is the constructor-formation result consumed
 by `FormationCertificate`; environment installation is intentionally a
@@ -15806,8 +16042,8 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0 c).WF
-      (fun _ => CheckedConstructorCertificate sourceEnv decl Hc.venv
-        params) := by
+      (fun _ => CheckedConstructorsResult sourceEnv decl Hc.venv
+        params stats indTypes) := by
   let Hsuffix := Hmaterialized.parameterSuffix
   let Hstats :=
     checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
@@ -15818,10 +16054,11 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       params.reverse Hmaterialized.parameterScope.toCtx
     subst params
     simpa [Hmaterialized.uvars] using Hmaterialized.paramsContext
-  apply checkConstructors.loopTypes.refinesBlock
-    (Q := fun _ => CheckedConstructorCertificate sourceEnv decl Hc.venv
-      params)
+  apply checkConstructors.loopTypes.refinesBlockWithReplay
+    (Q := fun _ => CheckedConstructorsResult sourceEnv decl Hc.venv
+      params stats indTypes)
     Hc Htypes (ConstructorTypesPrefix.empty Hc.venv decl params)
+    (ConstructorParamPrefixRows.empty stats indTypes)
     Hfresh
   · intro targetIdx hsource htarget ctorIdx hctorSource hctorTarget
       Hctor checkedType fullType checkedType' hchecked
@@ -15848,11 +16085,11 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       (fuel := c.fuel.inductiveFuel) Hc Hsuffix Hstats hparamsCtx
       Hctor hchecked htarget rfl htargetUvars htargetLookup htargetWF
       htargetShape hconsume hlit hproj hunsafe (hbound targetIdx htarget)
-    exact Hchecked.mono fun _ Hresult => by
-      rcases Hresult with ⟨_tail, _prefix, Hshape, Htype⟩
-      exact ⟨Hshape, Htype⟩
-  · intro Hcomplete
-    exact Hcomplete.checkedComplete (env := sourceEnv)
+    exact Hchecked
+  · intro Hcomplete Hreplays
+    exact {
+      checked := Hcomplete.checkedComplete (env := sourceEnv)
+      parameterPrefixes := Hreplays.complete }
 
 @[simp] theorem VInductDecl.recursorName_eq_mkRecName
     (decl : VInductDecl) (type : VInductiveType) :
@@ -34785,8 +35022,8 @@ theorem AddInductive.checkConstructors.checkedWF
         fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
-        CheckedConstructorCertificate sourceEnv decl H.context.venv
-          H.headers.params := by
+        CheckedConstructorsResult sourceEnv decl H.context.venv
+          H.headers.params stats indTypes := by
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
     H.context H.translation.types H.translation.typesAdded H.materialized
     H.headerParams Hfresh hconsume hlit hproj hunsafe hbound
@@ -34827,7 +35064,7 @@ theorem AddInductive.checkConstructors.headersWF
         ConstructorCertificate sourceEnv decl H.context.venv
           H.headers.params :=
   (AddInductive.checkConstructors.checkedWF H Hfresh hconsume hlit hproj
-    hunsafe hbound).mono fun _ Hchecked => Hchecked.formation
+    hunsafe hbound).mono fun _ Hchecked => Hchecked.checked.formation
 
 /-- Verified boundary after the concrete constructor-info fold.  It retains
 the exact abstract constructor environment and the now-typed pointwise source
@@ -34919,6 +35156,7 @@ structure ConstructorPhasesResult
     (outEnv : Environment) where
   checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
     H.headers.params
+  parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
   declared : DeclaredConstructorsResult H outEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
@@ -34941,6 +35179,23 @@ def ConstructorPhasesResult.materialized
   have Hmaterialized := H.materialized.mono R.declared.installed.le
   rw [R.declared.contextVEnv]
   simpa only [R.declared.contextMLCtx] using Hmaterialized
+
+/-- Select the exact checked common-parameter tail for a production
+constructor.  This is the concrete half of the constructor/recursor bridge;
+the abstract formation half remains available through `R.checked`. -/
+def ConstructorPhasesResult.checkedRecursorParameterPrefixAt
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv)
+    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
+    (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
+    ∃ tail, RecursorParamPrefix stats 0
+      indTypes[familyIdx].ctors[ctorIdx].type tail :=
+  R.parameterPrefixes.replay familyIdx hfamily ctorIdx hctor
 
 /-- Select one mutual-family header for recursor replay after transporting
 both its source translation and the materialized header certificate through
@@ -35189,13 +35444,14 @@ theorem AddInductive.constructorPhases.WF
   have Hcheck := AddInductive.checkConstructors.checkedWF H Hfresh hconsume
     hlit hproj hunsafe hbound
   exact Hcheck.bind fun _ Hchecked =>
-    (AddInductive.declareConstructors.WF H Hchecked hvisible hnprim).mono
+    (AddInductive.declareConstructors.WF H Hchecked.checked hvisible hnprim).mono
       fun outEnv Hdeclared => by
         rcases Hdeclared with ⟨Hdeclared, _⟩
         exact ⟨{
-          checked := Hchecked
+          checked := Hchecked.checked
+          parameterPrefixes := Hchecked.parameterPrefixes
           declared := Hdeclared
-          formation := H.formation Hchecked.formation
+          formation := H.formation Hchecked.checked.formation
           core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases
             H.translation Hdeclared.translation }, trivial⟩
 
@@ -35409,7 +35665,7 @@ theorem AddInductive.checkConstructors.WF
         { c with env := outEnv }).WF _)
   rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
     { c with env := outEnv } = .ok outEnv from rfl]
-  exact Hloops.mono fun _ Hchecked => Hchecked.formation
+  exact Hloops.mono fun _ Hchecked => Hchecked.checked.formation
 
 /-- The exact executable prefix used by `AddInductive.run`, through mutual
 header installation and constructor checking, refines `FormationWF`. -/
