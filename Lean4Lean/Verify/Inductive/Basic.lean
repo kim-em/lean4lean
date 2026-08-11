@@ -368,6 +368,33 @@ theorem VEnv.HasType.mkApps_wrapForalls_canonical
       List.reverse_cons, List.append_assoc, VExpr.liftN,
       VExpr.instN_bvar0, VExpr.liftN_liftN, Nat.add_comm] using hrest
 
+/-- Applying only an initial segment of a dependent telescope leaves the
+remaining suffix as the type of the canonical partial application. -/
+theorem VEnv.HasType.mkApps_wrapForalls_prefix_canonical
+    {env : VEnv} {uvars : Nat} {ctx : List VExpr} {fn : VExpr}
+    {initial suffix : List VExpr} {body : VExpr}
+    (henv : VEnv.Ordered env)
+    (H : VEnv.HasType env uvars ctx fn
+      (VExpr.wrapForalls (initial ++ suffix) body)) :
+    VEnv.HasType env uvars (initial.reverse ++ ctx)
+      (VExpr.mkApps (fn.liftN initial.length 0)
+        ((List.range initial.length).reverse.map .bvar))
+      (VExpr.wrapForalls suffix body) := by
+  rw [VExpr.wrapForalls_append] at H
+  exact VEnv.HasType.mkApps_wrapForalls_canonical henv H
+
+/-- Canonical variables for a telescope, in source binder order. -/
+def recursorCanonicalVars (n : Nat) : List VExpr :=
+  (List.range n).reverse.map .bvar
+
+@[simp] theorem recursorCanonicalVars_zero : recursorCanonicalVars 0 = [] :=
+  rfl
+
+theorem recursorCanonicalVars_succ_cons (n : Nat) :
+    recursorCanonicalVars (n + 1) =
+      .bvar n :: recursorCanonicalVars n := by
+  simp [recursorCanonicalVars, List.range_succ]
+
 /-- Parallel telescope relation between an inductive family and its motive.
 Both functions consume the same dependent domains.  Once all domains have
 been consumed, the motive expects an inhabitant of the corresponding family
@@ -382,6 +409,43 @@ inductive RecursorMotiveTelescope (resultLevel : VLevel) :
         (.app (family.liftN 1 0) (.bvar 0)) familyType motiveType →
       RecursorMotiveTelescope resultLevel (arity + 1) family
         (.forallE domain familyType) (.forallE domain motiveType)
+
+/-- Closing the same dependent domains over a family result and over the
+corresponding family-major proposition produces a parallel motive
+telescope. -/
+theorem RecursorMotiveTelescope.wrapForalls
+    (domains : List VExpr) (family familyResult : VExpr)
+    (resultLevel : VLevel) :
+    RecursorMotiveTelescope resultLevel domains.length family
+      (VExpr.wrapForalls domains familyResult)
+      (VExpr.wrapForalls domains
+        (.forallE
+          (VExpr.mkApps (family.liftN domains.length 0)
+            (recursorCanonicalVars domains.length))
+          (.sort resultLevel))) := by
+  induction domains generalizing family with
+  | nil =>
+    simpa [VExpr.wrapForalls, VExpr.mkApps] using
+      (RecursorMotiveTelescope.zero (resultLevel := resultLevel)
+        family familyResult)
+  | cons domain domains ih =>
+    apply RecursorMotiveTelescope.succ
+    simpa [VExpr.wrapForalls, recursorCanonicalVars_succ_cons,
+      VExpr.mkApps, VExpr.liftN, VExpr.liftN_liftN, Nat.add_comm] using
+      ih (.app (family.liftN 1 0) (.bvar 0))
+
+/-- Weakening all three expressions preserves a parallel motive telescope. -/
+theorem RecursorMotiveTelescope.liftN
+    (H : RecursorMotiveTelescope resultLevel arity family familyType
+      motiveType) (n k : Nat) :
+    RecursorMotiveTelescope resultLevel arity
+      (family.liftN n k) (familyType.liftN n k)
+      (motiveType.liftN n k) := by
+  induction H generalizing k with
+  | zero => simp [VExpr.liftN, RecursorMotiveTelescope.zero]
+  | @succ family domain familyType motiveType arity Htail ih =>
+    apply RecursorMotiveTelescope.succ
+    simpa [VExpr.liftN, VExpr.lift, VExpr.lift_liftN'] using ih (k + 1)
 
 /-- Simultaneous term substitution preserves the parallel family/motive
 telescope relation.  The explicit cutoff is needed under dependent binders. -/
@@ -23198,6 +23262,71 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowArguments
 
 /-- Applying the installed family constant to the canonical variables of a
 rebased completed header yields its residual synthesized type. -/
+theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefix
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {current : AddInductive.Context}
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (H.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (henv : R.venv = Hc.venv) :
+    R.venv.HasType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      Hsynthesis.params.reverse
+      (VExpr.mkApps
+        ((VExpr.const H.target.name (H.recursorAbstractLevels Helim)).liftN
+          Hsynthesis.params.length 0)
+        (recursorCanonicalVars Hsynthesis.params.length))
+      (VExpr.wrapForalls Hsynthesis.indices narrowTarget) := by
+  have hhead := H.recursorConstHasType Helim R henv
+  have hheadTelescope : R.venv.HasType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+      (.const H.target.name (H.recursorAbstractLevels Helim))
+      (VExpr.wrapForalls (Hsynthesis.params ++ Hsynthesis.indices)
+        narrowTarget) := by
+    apply hhead.defeqU_r R.checking.tr.wf (by trivial)
+    exact ⟨Hsynthesis.exprType, Hsynthesis.header⟩
+  simpa [recursorCanonicalVars] using
+    VEnv.HasType.mkApps_wrapForalls_prefix_canonical
+      R.checking.tr.wf.ordered hheadTelescope
+
+/-- The canonical family prefix remains typed after reopening the exact
+index scope; both the prefix and its residual index telescope are shifted
+beneath those ambient index variables. -/
+theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefixAtScope
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {current : AddInductive.Context}
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (H.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (henv : R.venv = Hc.venv) :
+    R.venv.HasType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
+      ((VExpr.mkApps
+        ((VExpr.const H.target.name (H.recursorAbstractLevels Helim)).liftN
+          Hsynthesis.params.length 0)
+        (recursorCanonicalVars Hsynthesis.params.length)).liftN
+          Hsynthesis.indices.length 0)
+      ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
+        Hsynthesis.indices.length 0) := by
+  have hprefix := H.recursorCanonicalFamilyPrefix Helim R Hsynthesis henv
+  have hweakened := hprefix.weakN R.checking.tr.wf.ordered
+    (Ctx.LiftN.zero Hsynthesis.indices.reverse)
+  simpa [Hsynthesis.scopeCtx, List.reverse_append] using hweakened
+
 theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyApplication
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
