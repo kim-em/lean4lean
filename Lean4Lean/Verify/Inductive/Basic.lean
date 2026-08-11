@@ -12177,10 +12177,234 @@ theorem ValidAppStatsWF.translatedParam
     hparam harg heq
   rw [htarget, hparamTarget, ← habstract]
 
-/-- Absence of a newly declared constant is preserved by syntax translation.
+/- Absence of a newly declared constant is preserved by syntax translation.
 Literal expansion and projection translation are explicit side conditions:
 literals introduce old primitive constants, while `TrProj` is still an
 independent typing boundary in the existing model. -/
+
+/-- Source-syntax absence of a set of constants.  This is deliberately an
+inductive judgment rather than a Boolean fold: the literal case records the
+expanded constructor syntax that `TrExprS.lit` actually translates. -/
+inductive _root_.Lean.Expr.AvoidsConsts (names : List Name) : Expr → Prop
+  | bvar (i) : AvoidsConsts names (.bvar i)
+  | fvar (fv) : AvoidsConsts names (.fvar fv)
+  | mvar (mv) : AvoidsConsts names (.mvar mv)
+  | sort (u) : AvoidsConsts names (.sort u)
+  | const (name levels) (fresh : name ∉ names) :
+      AvoidsConsts names (.const name levels)
+  | app (fn arg) : AvoidsConsts names fn → AvoidsConsts names arg →
+      AvoidsConsts names (.app fn arg)
+  | lam (name dom body bi) :
+      AvoidsConsts names dom → AvoidsConsts names body →
+      AvoidsConsts names (.lam name dom body bi)
+  | forallE (name dom body bi) :
+      AvoidsConsts names dom → AvoidsConsts names body →
+      AvoidsConsts names (.forallE name dom body bi)
+  | letE (name type value body nondep) :
+      AvoidsConsts names type → AvoidsConsts names value →
+      AvoidsConsts names body →
+      AvoidsConsts names (.letE name type value body nondep)
+  | lit (value) : AvoidsConsts names value.toConstructor →
+      AvoidsConsts names (.lit value)
+  | mdata (data body) : AvoidsConsts names body →
+      AvoidsConsts names (.mdata data body)
+  | proj (structName idx body) : AvoidsConsts names body →
+      AvoidsConsts names (.proj structName idx body)
+
+/-- Closing a free variable cannot introduce a constant name. -/
+theorem _root_.Lean.Expr.AvoidsConsts.abstract1
+    (H : Lean.Expr.AvoidsConsts names e) (fv : FVarId) (k : Nat := 0) :
+    Lean.Expr.AvoidsConsts names (Lean.Expr.abstract1 fv e k) := by
+  induction H generalizing k with
+  | bvar i => exact Lean.Expr.AvoidsConsts.bvar _
+  | fvar other =>
+      by_cases h : fv == other
+      · simpa [Expr.abstract1, h] using
+          (Lean.Expr.AvoidsConsts.bvar k :
+            Lean.Expr.AvoidsConsts names (.bvar k))
+      · simpa [Expr.abstract1, h] using
+          (Lean.Expr.AvoidsConsts.fvar other :
+            Lean.Expr.AvoidsConsts names (.fvar other))
+  | mvar mv => simpa [Expr.abstract1] using
+      (Lean.Expr.AvoidsConsts.mvar mv :
+        Lean.Expr.AvoidsConsts names (.mvar mv))
+  | sort u => simpa [Expr.abstract1] using
+      (Lean.Expr.AvoidsConsts.sort u :
+        Lean.Expr.AvoidsConsts names (.sort u))
+  | const name levels fresh =>
+      simpa [Expr.abstract1] using
+        Lean.Expr.AvoidsConsts.const name levels fresh
+  | app fn arg _ _ ihFn ihArg =>
+      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.app _ _
+        (ihFn k) (ihArg k)
+  | lam name dom body bi _ _ ihDom ihBody =>
+      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.lam name _ _ bi
+        (ihDom k) (ihBody (k + 1))
+  | forallE name dom body bi _ _ ihDom ihBody =>
+      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.forallE name _ _ bi
+        (ihDom k) (ihBody (k + 1))
+  | letE name type value body nondep _ _ _ ihType ihValue ihBody =>
+      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.letE name _ _ _
+        nondep (ihType k) (ihValue k) (ihBody (k + 1))
+  | lit value expanded ih =>
+      simpa [Expr.abstract1] using
+        Lean.Expr.AvoidsConsts.lit value expanded
+  | mdata data body _ ih =>
+      simpa [Expr.abstract1] using Lean.Expr.AvoidsConsts.mdata data _ (ih k)
+  | proj structName idx body _ ih =>
+      simpa [Expr.abstract1] using
+        Lean.Expr.AvoidsConsts.proj structName idx _ (ih k)
+
+/-- Simultaneous abstraction likewise preserves source-level absence. -/
+theorem _root_.Lean.Expr.AvoidsConsts.abstractList
+    (H : Lean.Expr.AvoidsConsts names e) (fvs : List FVarId)
+    (k : Nat := 0) :
+    Lean.Expr.AvoidsConsts names (Lean.Expr.abstractList e fvs k) := by
+  induction fvs generalizing e with
+  | nil => simpa using H
+  | cons fv fvs ih =>
+      simp only [Expr.abstractList]
+      exact ih (H.abstract1 fv k)
+
+/-- Every argument in an application spine is a constant-avoiding
+subexpression whenever the complete source expression is. -/
+theorem _root_.Lean.Expr.AvoidsConsts.getAppArgsList
+    (H : Lean.Expr.AvoidsConsts names e)
+    (harg : arg ∈ e.getAppArgsList) :
+    Lean.Expr.AvoidsConsts names arg := by
+  induction H with
+  | app fn value hfn hvalue ihFn ihValue =>
+    rw [Expr.getAppArgsList_app] at harg
+    rcases List.mem_append.mp harg with harg | harg
+    · exact ihFn harg
+    · simp only [List.mem_singleton] at harg
+      subst arg
+      exact hvalue
+  | bvar | fvar | mvar | sort | const | lam | forallE | letE | lit |
+      mdata | proj => simp [Expr.getAppArgsList] at harg
+
+theorem _root_.Lean.Expr.AvoidsConsts.mkAppN
+    (Hfn : Lean.Expr.AvoidsConsts names fn)
+    (Hargs : ∀ arg ∈ args, Lean.Expr.AvoidsConsts names arg) :
+    Lean.Expr.AvoidsConsts names (Lean.mkAppN fn args) := by
+  rw [Expr.mkAppN_eq_mkAppList]
+  have go : ∀ (list : List Expr) (fn : Expr),
+      Lean.Expr.AvoidsConsts names fn →
+      (∀ arg ∈ list, Lean.Expr.AvoidsConsts names arg) →
+      Lean.Expr.AvoidsConsts names (Expr.mkAppList fn list) := by
+    intro list
+    induction list with
+    | nil => intro fn hfn _; exact hfn
+    | cons arg rest ih =>
+      intro fn hfn hlist
+      simp only [Expr.mkAppList]
+      apply ih (.app fn arg)
+      · exact Lean.Expr.AvoidsConsts.app _ _ hfn
+          (hlist arg (by simp))
+      · intro inner hinner
+        exact hlist inner (by simp [hinner])
+  apply go args.toList fn Hfn
+  intro arg harg
+  exact Hargs arg (Array.mem_toList_iff.mp harg)
+
+/-- A translation performed before a fresh constant is installed certifies
+that the source syntax itself does not mention that constant.  Unlike
+`TrExprS.noFreshConsts`, this fact remains usable when the same source
+fragment is translated later in an extended environment. -/
+theorem TrExprS.sourceAvoidsFresh
+    (hfresh : ∀ name ∈ names, env.constants name = none)
+    (H : TrExprS env Us Δ e e') : e.AvoidsConsts names := by
+  induction H with
+  | bvar => exact .bvar _
+  | fvar => exact .fvar _
+  | sort => exact .sort _
+  | @const name levels _ _ _ hlookup _ _ =>
+    apply Lean.Expr.AvoidsConsts.const
+    intro hmem
+    rw [hfresh name hmem] at hlookup
+    cases hlookup
+  | app _ _ _ _ ihFn ihArg => exact .app _ _ ihFn ihArg
+  | lam _ _ _ ihDom ihBody => exact .lam _ _ _ _ ihDom ihBody
+  | forallE _ _ _ _ ihDom ihBody =>
+    exact .forallE _ _ _ _ ihDom ihBody
+  | letE _ _ _ _ ihType ihValue ihBody =>
+    exact .letE _ _ _ _ _ ihType ihValue ihBody
+  | lit _ _ ih => exact .lit _ ih
+  | mdata _ ih => exact .mdata _ _ ih
+  | proj _ _ ih => exact .proj _ _ _ ih
+
+/-- Every ordinary local declaration type in a recursor context predating a
+fresh constant set avoids those names in its concrete syntax. -/
+theorem RecursorContextWF.cdeclTypeAvoids
+    (R : RecursorContextWF c recLparams)
+    (hfresh : ∀ name ∈ names, R.venv.constants name = none)
+    (hfind : c.lctx.find? fv =
+      some (.cdecl index fv userName type bi kind)) :
+    type.AvoidsConsts names := by
+  have hfind' : R.mlctx.lctx.find? fv =
+      some (.cdecl index fv userName type bi kind) := by
+    rw [R.lctx_eq]
+    exact hfind
+  rw [R.mlctx_wf.tr.1.find?_eq_find?_toList] at hfind'
+  have hmem : (.cdecl index fv userName type bi kind) ∈
+      R.mlctx.lctx.toList :=
+    List.mem_of_find?_eq_some hfind'
+  rcases R.mlctx_wf.tr.find?_of_mem R.checking.tr.wf hmem with
+    ⟨valueTarget, typeTarget, hlookup, hvalueBelow, htypeBelow,
+      hvalueTr, htypeTr⟩
+  exact checkPositivityStep.TrExprS.sourceAvoidsFresh hfresh htypeTr
+
+/-- Source-level absence, rather than absence from the current environment,
+is sufficient to show that a translation contains no selected constants.
+This is the post-installation half of the split freshness argument used by
+generated iota equations. -/
+theorem TrExprS.noConstsOfSourceAvoids
+    (hsource : e.AvoidsConsts names)
+    (hctx : VLCtx.NoIndConsts names Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst names = false →
+      e''.containsAnyConst names = false)
+    (H : TrExprS env Us Δ e e') :
+    e'.containsAnyConst names = false := by
+  induction H with
+  | bvar hfind | fvar hfind => exact hctx hfind
+  | sort _ => rfl
+  | @const name levels _ _ _ _ _ _ =>
+    cases hsource with
+    | const _ _ hnot =>
+      simp only [VExpr.containsAnyConst]
+      exact Bool.eq_false_iff.mpr fun hcontains =>
+        hnot (by simpa using hcontains)
+  | app _ _ _ _ ihFn ihArg =>
+    cases hsource with
+    | app _ _ hfn harg =>
+      exact Bool.or_eq_false_iff.mpr
+        ⟨ihFn hfn hctx, ihArg harg hctx⟩
+  | lam _ _ _ ihDom ihBody =>
+    cases hsource with
+    | lam _ _ _ _ hdom hbody =>
+      exact Bool.or_eq_false_iff.mpr ⟨ihDom hdom hctx,
+        ihBody hbody (VLCtx.NoIndConsts.cons hctx (by rfl))⟩
+  | forallE _ _ _ _ ihDom ihBody =>
+    cases hsource with
+    | forallE _ _ _ _ hdom hbody =>
+      exact Bool.or_eq_false_iff.mpr ⟨ihDom hdom hctx,
+        ihBody hbody (VLCtx.NoIndConsts.cons hctx (by rfl))⟩
+  | letE _ _ _ _ ihType ihValue ihBody =>
+    cases hsource with
+    | letE _ _ _ _ _ htype hvalue hbody =>
+      exact ihBody hbody <| hctx.cons (d := .vlet _ _) (ofv := none)
+        (ihValue hvalue hctx)
+  | lit _ _ ih =>
+    cases hsource with
+    | lit _ hexpanded => exact ih hexpanded hctx
+  | mdata _ ih =>
+    cases hsource with
+    | mdata _ _ hbody => exact ih hbody hctx
+  | proj _ Hproj ih =>
+    cases hsource with
+    | proj _ _ _ hbody => exact hproj Hproj (ih hbody hctx)
+
 theorem TrExprS.noFreshConsts
     (hfresh : ∀ name ∈ names, env.constants name = none)
     (hctx : VLCtx.NoIndConsts names Δ)
@@ -12235,6 +12459,28 @@ theorem List.Forall₂.targets_noFreshConsts
     · exact checkPositivityStep.TrExprS.noFreshConsts
         hfresh hctx hproj Hhead
     · exact ih arg harg
+
+/-- Pointwise post-installation counterpart driven by source-syntax
+absence rather than environment freshness. -/
+theorem List.Forall₂.targets_noConstsOfSourceAvoids
+    (H : List.Forall₂ (TrExprS env Us Delta) source target)
+    (hsource : ∀ arg ∈ source, arg.AvoidsConsts names)
+    (hctx : VLCtx.NoIndConsts names Delta)
+    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
+      TrProj Delta.toCtx s i e' e'' →
+      e'.containsAnyConst names = false →
+      e''.containsAnyConst names = false) :
+    ∀ arg ∈ target, arg.containsAnyConst names = false := by
+  induction H with
+  | nil => simp
+  | cons Hhead Htail ih =>
+    intro arg harg
+    simp only [List.mem_cons] at harg
+    rcases harg with rfl | harg
+    · exact checkPositivityStep.TrExprS.noConstsOfSourceAvoids
+        (hsource _ (by simp)) hctx hproj Hhead
+    · exact ih (fun sourceArg hmem => hsource sourceArg (by simp [hmem]))
+        arg harg
 
 theorem TrExprS.noIndOcc
     (halign : IndConstNames indConsts names)
@@ -20987,6 +21233,58 @@ theorem Expr.LambdaTelescope.abstractList
     simp only [Expr.abstractList]
     exact ih (H.abstract1 fv k) k
 
+/-- A lambda telescope whose binder domains avoid a selected set of
+constants.  The residual body is intentionally unrestricted: generated
+recursive calls contain the newly installed recursor in that position. -/
+inductive Expr.AvoidingLambdaTelescope (names : List Name) :
+    Expr → Nat → Expr → Prop
+  | nil (body : Expr) : AvoidingLambdaTelescope names body 0 body
+  | cons : dom.AvoidsConsts names →
+      AvoidingLambdaTelescope names body arity result →
+      AvoidingLambdaTelescope names (.lam name dom body bi) (arity + 1)
+        result
+
+theorem Expr.AvoidingLambdaTelescope.toLambdaTelescope
+    (H : Expr.AvoidingLambdaTelescope names outer arity result) :
+    Expr.LambdaTelescope outer arity result := by
+  induction H with
+  | nil => exact .nil _
+  | cons _ _ ih => exact .cons ih
+
+theorem Expr.AvoidingLambdaTelescope.trans
+    (Houter : Expr.AvoidingLambdaTelescope names outer outerArity middle)
+    (Hinner : Expr.AvoidingLambdaTelescope names middle innerArity result) :
+    Expr.AvoidingLambdaTelescope names outer (outerArity + innerArity)
+      result := by
+  induction Houter with
+  | nil => simpa using Hinner
+  | cons hdom Houter ih =>
+    simpa [Nat.add_assoc, Nat.add_comm innerArity 1] using
+      Expr.AvoidingLambdaTelescope.cons hdom (ih Hinner)
+
+theorem Expr.AvoidingLambdaTelescope.abstract1
+    (H : Expr.AvoidingLambdaTelescope names outer arity result)
+    (fv : FVarId) (k : Nat := 0) :
+    Expr.AvoidingLambdaTelescope names (outer.abstract1 fv k) arity
+      (result.abstract1 fv (k + arity)) := by
+  induction H generalizing k with
+  | nil => exact .nil _
+  | cons hdom H ih =>
+    simp only [Expr.abstract1]
+    apply Expr.AvoidingLambdaTelescope.cons (hdom.abstract1 fv k)
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
+
+theorem Expr.AvoidingLambdaTelescope.abstractList
+    (H : Expr.AvoidingLambdaTelescope names outer arity result)
+    (fvs : List FVarId) (k : Nat := 0) :
+    Expr.AvoidingLambdaTelescope names (outer.abstractList fvs k) arity
+      (result.abstractList fvs (k + arity)) := by
+  induction fvs generalizing outer result k with
+  | nil => simpa using H
+  | cons fv fvs ih =>
+    simp only [Expr.abstractList]
+    exact ih (H.abstract1 fv k) k
+
 /-- Translation of a lambda telescope retains its arity and exposes the
 residual translation beneath precisely the corresponding abstract binders. -/
 theorem TrExprS.lambdaTelescope_shape_with_context
@@ -21010,6 +21308,48 @@ theorem TrExprS.lambdaTelescope_shape_with_context
       · simp [VExpr.wrapLams, heq]
       · simpa [abstractForallContext, List.map_append, List.append_assoc]
           using hresidual
+
+/-- Post-installation telescope inversion driven by source-syntax absence.
+Only binder domains are shown recursor-free; the residual is allowed to
+contain the newly installed recursor constants. -/
+theorem TrExprS.avoidingLambdaTelescope_shape_with_context
+    (Htel : Expr.AvoidingLambdaTelescope names e arity residual)
+    (hctx : VLCtx.NoIndConsts names Delta)
+    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
+      TrProj Delta.toCtx s i e' e'' →
+      e'.containsAnyConst names = false →
+      e''.containsAnyConst names = false)
+    (Htr : TrExprS env Us Delta e e') :
+    ∃ domains residual', domains.length = arity ∧
+      e' = VExpr.wrapLams domains residual' ∧
+      TrExprS env Us (abstractForallContext domains Delta)
+        residual residual' ∧
+      ∀ dom ∈ domains, dom.containsAnyConst names = false := by
+  induction Htel generalizing Delta e' with
+  | nil =>
+    exact ⟨[], e', rfl, rfl,
+      by simpa [abstractForallContext] using Htr, by simp⟩
+  | @cons dom body arity residual name bi hdom Htel ih =>
+    cases Htr with
+    | @lam dom' body' =>
+      rename_i _ hdomTr hbody
+      have hdomFree :=
+        checkPositivityStep.TrExprS.noConstsOfSourceAvoids
+          hdom hctx hproj hdomTr
+      have hctx' : VLCtx.NoIndConsts names
+          ((none, VLocalDecl.vlam dom') :: Delta) :=
+        VLCtx.NoIndConsts.cons hctx (by rfl)
+      rcases ih hctx' hbody with
+        ⟨domains, residual', hlength, heq, hresidual, hfree⟩
+      refine ⟨dom' :: domains, residual', by simp [hlength], ?_, ?_, ?_⟩
+      · simp [VExpr.wrapLams, heq]
+      · simpa [abstractForallContext, List.map_append, List.append_assoc]
+          using hresidual
+      · intro current hmem
+        simp only [List.mem_cons] at hmem
+        rcases hmem with rfl | hmem
+        · exact hdomFree
+        · exact hfree current hmem
 
 /-- Freshness-aware lambda-telescope inversion. Each translated binder domain
 is retained as recursor-free at the point where the translation constructor
@@ -21101,6 +21441,67 @@ theorem LocalContext.mkLambda_fvars_lambdaTelescope
       fvs.length (body.abstractList fvs) := by
   rw [LocalContext.mkLambda, LocalContext.mkBinding_eq]
   exact LocalContext.mkBindingList_lambdaTelescope hdecl
+
+/-- Binder-aware counterpart retaining source-level absence for every
+selected local declaration type. -/
+theorem LocalContext.mkBindingList_avoidingLambdaTelescope
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (havoid : ∀ fv index name type bi kind,
+      fv ∈ fvs →
+      lctx.find? fv = some (.cdecl index fv name type bi kind) →
+      type.AvoidsConsts namesToAvoid) :
+    Expr.AvoidingLambdaTelescope namesToAvoid
+      (LocalContext.mkBindingList true lctx fvs body)
+      fvs.length (body.abstractList fvs) := by
+  have go : ∀ (xs : List FVarId) (current : Expr),
+      xs ⊆ fvs →
+      (∀ fv ∈ xs, ∃ index name type bi kind,
+        lctx.find? fv = some (.cdecl index fv name type bi kind)) →
+      Expr.AvoidingLambdaTelescope namesToAvoid
+        (LocalContext.mkBindingList.go true lctx xs current)
+        xs.length current := by
+    intro xs
+    induction xs with
+    | nil =>
+      intro current _ _
+      exact .nil _
+    | cons fv xs ih =>
+      intro current hsubset hxs
+      rw [LocalContext.mkBindingList.go]
+      have htail := ih
+        (LocalContext.mkBindingList1 true lctx xs.reverse fv current)
+        (fun x hx => hsubset (by simp [hx]))
+        (fun x hx => hxs x (by simp [hx]))
+      rcases hxs fv (by simp) with
+        ⟨index, name, type, bi, kind, hfind⟩
+      have hhead : Expr.AvoidingLambdaTelescope namesToAvoid
+          (LocalContext.mkBindingList1 true lctx xs.reverse fv current)
+          1 current := by
+        simp only [LocalContext.mkBindingList1, hfind]
+        apply Expr.AvoidingLambdaTelescope.cons
+        · exact (havoid fv index name type bi kind
+            (hsubset (by simp)) hfind).abstractList xs.reverse
+        · exact .nil _
+      simpa using htail.trans hhead
+  simpa only [LocalContext.mkBindingList, LocalContext.mkBindingList.core,
+    List.length_reverse] using
+    go fvs.reverse (body.abstractList fvs) (by simp)
+      (fun fv hfv => hdecl fv (by simpa using hfv))
+
+theorem LocalContext.mkLambda_fvars_avoidingLambdaTelescope
+    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (havoid : ∀ fv index name type bi kind,
+      fv ∈ fvs →
+      lctx.find? fv = some (.cdecl index fv name type bi kind) →
+      type.AvoidsConsts namesToAvoid) :
+    Expr.AvoidingLambdaTelescope namesToAvoid
+      (lctx.mkLambda (fvs.map Expr.fvar).toArray body)
+      fvs.length (body.abstractList fvs) := by
+  rw [LocalContext.mkLambda, LocalContext.mkBinding_eq]
+  exact LocalContext.mkBindingList_avoidingLambdaTelescope hdecl havoid
 
 /-- With distinct selected declarations, closing a concatenated free-variable
 list is exactly the same as closing the suffix and then the prefix. -/
@@ -22997,6 +23398,14 @@ theorem BoundFVarArray.get_eq_fvar
   have hifvars : i < fvars.length := by simpa using hi
   refine ⟨fvars[i], ?_, members fvars[i] (List.getElem_mem hifvars)⟩
   simp
+
+theorem BoundFVarArray.avoidsConsts
+    (H : BoundFVarArray c xs) (e : Expr) (he : e ∈ xs) :
+    e.AvoidsConsts names := by
+  rcases Array.mem_iff_getElem.mp he with ⟨i, hi, heq⟩
+  rcases H.get_eq_fvar i hi with ⟨fv, hfv, _⟩
+  rw [← heq, hfv]
+  exact Lean.Expr.AvoidsConsts.fvar fv
 
 /-- The retained free variable at one array position together with the exact
 ordinary local declaration which introduced it. -/
@@ -30669,6 +31078,12 @@ structure SemanticBoundGeneratedRecursiveCall
     (decl : VInductDecl) (depth : Nat) (field value : Expr) where
   generated : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
     root field value
+  current_context : RecursorContextWF generated.current recLparams
+  recent : RecursorRecentBoundFVarArray R current_context
+    generated.localArgs
+  exposedTarget : VExpr
+  exposed_translation : TrExprS current_context.venv recLparams
+    current_context.mlctx.vlctx generated.exposedType exposedTarget
   fieldTarget : VExpr
   domain : VExpr
   field_translation : TrExprS R.venv recLparams R.mlctx.vlctx
@@ -30733,7 +31148,12 @@ theorem mkRecRules.boundGeneratedCallSemantic
     (Q := fun target value =>
       ∃ H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
           root (.fvar fv) value,
-        H.ownerIdx = target)
+        H.ownerIdx = target ∧
+        ∃ Rcurrent : RecursorContextWF H.current recLparams,
+          ∃ Hrecent : RecursorRecentBoundFVarArray R Rcurrent H.localArgs,
+            ∃ syntaxTarget,
+              TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+                H.exposedType syntaxTarget)
     (by
       intro current Rcurrent exposedType syntaxTarget terminalTarget
         appliedTarget args target hsyntax hdefeq htype Hrecent happlied
@@ -30751,7 +31171,20 @@ theorem mkRecRules.boundGeneratedCallSemantic
               minors)
             exposedType.getAppArgs[stats.params.size:]).app
               (mkAppN (.fvar fv) args))).WF _
-      refine Except.WF.pure ⟨{
+      let Hgenerated : BoundGeneratedRecursiveCall indTypes stats motives
+          minors lvls root (.fvar fv)
+          (current.lctx.mkLambda args <|
+            (mkAppN
+              (mkAppN
+                (mkAppN
+                  (mkAppN
+                    (Expr.const
+                      (Lean.mkRecName indTypes[target]!.name) lvls)
+                    stats.params)
+                  motives)
+                minors)
+              exposedType.getAppArgs[stats.params.size:]).app
+                (mkAppN (.fvar fv) args)) := {
         exposedType := exposedType
         ownerIdx := target
         owner_valid := hvalid
@@ -30760,15 +31193,20 @@ theorem mkRecRules.boundGeneratedCallSemantic
         current_wf := Rcurrent.toBindingContextWF
         current_extends := Hrecent.contextLE
         arguments_bound := Hrecent.toFreshBoundFVarArray
-        value_eq := ?_ }, rfl⟩
-      simp [AddInductive.getIIndices, hvalid])
+        value_eq := by simp [AddInductive.getIIndices, hvalid] }
+      exact Except.WF.pure
+        ⟨Hgenerated, rfl, Rcurrent, Hrecent, syntaxTarget, hsyntax⟩)
   exact Hloop.mono fun value Hout => by
     rcases Hout with
       ⟨domain, hfieldTyping, target, htarget, hrecursive,
-        Hgenerated, howner⟩
+        Hgenerated, howner, Rcurrent, Hrecent, syntaxTarget, hsyntax⟩
     subst target
     exact ⟨{
       generated := Hgenerated
+      current_context := Rcurrent
+      recent := Hrecent
+      exposedTarget := syntaxTarget
+      exposed_translation := hsyntax
       fieldTarget := fieldTarget
       domain := domain
       field_translation := hfield
@@ -30828,6 +31266,61 @@ theorem BoundGeneratedRecursiveCall.lambdaTelescope
   simpa using
     (LocalContext.mkLambda_fvars_lambdaTelescope
       (body := callBody) Hdecl)
+
+/-- The higher-order lambda domains of a semantically retained generated
+call predate the generated recursors.  Closing the surrounding rule binders
+therefore yields a source telescope whose domains avoid every fresh recursor
+name, while imposing no such condition on the call body. -/
+theorem SemanticBoundGeneratedRecursiveCall.outerAvoidingLambdaTelescope
+    (H : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value)
+    (hfresh : ∀ name ∈ names, R.venv.constants name = none)
+    (binders : List FVarId) :
+    Expr.AvoidingLambdaTelescope names
+      (value.abstractList binders) H.generated.localArgs.size
+      ((H.generated.body.abstractList H.generated.arguments_bound.fvars).abstractList
+        binders H.generated.localArgs.size) := by
+  have hcurrentFresh : ∀ name ∈ names,
+      H.current_context.venv.constants name = none := by
+    intro name hname
+    rw [H.recent.venv_eq]
+    exact hfresh name hname
+  let Hselection :=
+    H.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+      H.generated.current_wf
+  have hdecl : ∀ fv ∈ H.generated.arguments_bound.fvars,
+      ∃ index name type bi kind,
+        H.generated.current.lctx.find? fv =
+          some (.cdecl index fv name type bi kind) := by
+    intro fv hfv
+    exact Hselection.declarations fv hfv
+  have Htel : Expr.AvoidingLambdaTelescope names
+      (H.generated.current.lctx.mkLambda
+        (H.generated.arguments_bound.fvars.map Expr.fvar).toArray
+        H.generated.body)
+      H.generated.arguments_bound.fvars.length
+      (H.generated.body.abstractList
+        H.generated.arguments_bound.fvars) :=
+    LocalContext.mkLambda_fvars_avoidingLambdaTelescope hdecl
+      (fun fv index userName type bi kind hfv hfind =>
+        checkPositivityStep.RecursorContextWF.cdeclTypeAvoids
+          H.current_context hcurrentFresh hfind)
+  have hlocalSize : H.generated.localArgs.size =
+      H.generated.arguments_bound.fvars.length := by
+    have := congrArg Array.size H.generated.arguments_bound.expressions
+    simpa using this
+  have Htel' : Expr.AvoidingLambdaTelescope names value
+      H.generated.localArgs.size
+      (H.generated.body.abstractList
+        H.generated.arguments_bound.fvars) := by
+    let n := H.generated.localArgs.size
+    let residual := H.generated.body.abstractList
+      H.generated.arguments_bound.fvars
+    change Expr.AvoidingLambdaTelescope names value n residual
+    rw [H.generated.value_eq_body]
+    simpa only [n, residual, H.generated.arguments_bound.expressions,
+      hlocalSize] using Htel
+  simpa using Htel'.abstractList binders
 
 /-- Translating a bound generated call exposes the exact abstract lambda
 domains and the translation of its simultaneously abstracted call body. -/
@@ -31058,6 +31551,24 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar
       List.getElem_ofFn]
     omega
 
+theorem BoundGeneratedRecursiveCall.outerAbstractedMajorAvoids
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root (.fvar fv) value)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup)
+    (hfield : fv ∈ binders) :
+    (H.outerAbstractedMajor binders).AvoidsConsts names := by
+  rcases H.outerAbstractedMajor_eq_bvar hfieldRoot hbinders hfield with
+    ⟨fieldVar, _hfieldVar, _hfieldSource, hsource⟩
+  rw [hsource]
+  apply Lean.Expr.AvoidsConsts.mkAppN
+  · exact .bvar _
+  · intro arg harg
+    rcases Array.mem_iff_getElem.mp harg with ⟨i, hi, heq⟩
+    rw [← heq]
+    simp only [List.getElem_toArray, List.getElem_map]
+    exact .bvar _
+
 theorem BoundGeneratedRecursiveCall.abstractedBody_eq_named
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
       root field value) :
@@ -31117,6 +31628,81 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedRecursor_head
     Expr.abstractList_mkAppN]
   repeat' rw [getAppFn_mkAppN]
   simp [Expr.getAppFn]
+
+/-- Every non-head argument of the generated recursor spine predates the
+recursor declaration. Parameters, motives, and minors are supplied by their
+bound-variable certificates; indices are subexpressions of the retained
+pre-installation exposed type. -/
+theorem SemanticBoundGeneratedRecursiveCall.outerAbstractedRecursorArgsAvoids
+    (H : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value)
+    (hfresh : ∀ name ∈ names, R.venv.constants name = none)
+    (hparams : ∀ arg ∈ stats.params, arg.AvoidsConsts names)
+    (hmotives : ∀ arg ∈ motives, arg.AvoidsConsts names)
+    (hminors : ∀ arg ∈ minors, arg.AvoidsConsts names)
+    (binders : List FVarId) :
+    ∀ arg ∈ (H.generated.outerAbstractedRecursor binders).getAppArgsList,
+      arg.AvoidsConsts names := by
+  have hcurrentFresh : ∀ name ∈ names,
+      H.current_context.venv.constants name = none := by
+    intro name hname
+    rw [H.recent.venv_eq]
+    exact hfresh name hname
+  have hexposed : H.generated.exposedType.AvoidsConsts names :=
+    checkPositivityStep.TrExprS.sourceAvoidsFresh hcurrentFresh
+      H.exposed_translation
+  intro arg harg
+  unfold BoundGeneratedRecursiveCall.outerAbstractedRecursor at harg
+  rw [Expr.getAppArgsList_abstractList H.generated.abstractedRecursor
+    binders H.generated.localArgs.size] at harg
+  rcases List.mem_map.mp harg with ⟨base, hbase, rfl⟩
+  apply Lean.Expr.AvoidsConsts.abstractList
+  unfold BoundGeneratedRecursiveCall.abstractedRecursor at hbase
+  simp only [Expr.getAppArgsList_mkAppN, Expr.getAppArgsList_const,
+    List.nil_append, Array.toList_map, List.append_assoc] at hbase
+  rcases List.mem_append.mp hbase with hparam | hrest
+  · rcases List.mem_map.mp hparam with ⟨source, hsource, rfl⟩
+    exact (hparams source (Array.mem_toList_iff.mp hsource)).abstractList
+      H.generated.arguments_bound.fvars
+  · rcases List.mem_append.mp hrest with hmotive | hrest
+    · rcases List.mem_map.mp hmotive with ⟨source, hsource, rfl⟩
+      exact (hmotives source (Array.mem_toList_iff.mp hsource)).abstractList
+        H.generated.arguments_bound.fvars
+    · rcases List.mem_append.mp hrest with hminor | hindices
+      · rcases List.mem_map.mp hminor with ⟨source, hsource, rfl⟩
+        exact (hminors source (Array.mem_toList_iff.mp hsource)).abstractList
+          H.generated.arguments_bound.fvars
+      · rcases List.mem_map.mp hindices with ⟨source, hsource, rfl⟩
+        have hsourceArray : source ∈
+            (AddInductive.getIIndices stats H.generated.exposedType).2 :=
+          Array.mem_toList_iff.mp hsource
+        unfold AddInductive.getIIndices at hsourceArray
+        change source ∈
+          (H.generated.exposedType.getAppArgs.toSubarray
+            stats.params.size).toArray at hsourceArray
+        let sub := H.generated.exposedType.getAppArgs.toSubarray
+          stats.params.size
+        have hsourceSubArray : source ∈ sub.toArray := by
+          simpa [sub] using hsourceArray
+        have hsourceArrayList : source ∈ sub.toArray.toList :=
+          Array.mem_toList_iff.mpr hsourceSubArray
+        have hsub : source ∈
+            (H.generated.exposedType.getAppArgs.toSubarray
+              stats.params.size).toList := by
+          rw [← Subarray.toList_toArray]
+          simpa [sub] using hsourceArrayList
+        rw [Subarray.toList_eq_drop_take,
+          Array.array_toSubarray] at hsub
+        have htake := List.mem_of_mem_drop hsub
+        have hfull : source ∈
+            H.generated.exposedType.getAppArgs.toList :=
+          List.mem_of_mem_take htake
+        have hfullList : source ∈
+            H.generated.exposedType.getAppArgsList := by
+          rw [← Expr.getAppArgs_toList]
+          exact hfull
+        exact (hexposed.getAppArgsList hfullList).abstractList
+          H.generated.arguments_bound.fvars
 
 /-- Exact translation of the generated major premise for a selected field
 free variable. Outer translations are shifted under the generated lambdas;
@@ -31409,6 +31995,124 @@ theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedCallShape_noFresh
     rw [← hrebuild]
     simp [VExpr.mkApps, List.foldl_append]
 
+/-- Stage-correct call-spine inversion for a semantically retained call.
+The complete translation may see the newly installed recursor, while the
+lambda-domain freshness follows from the retained pre-installation source
+telescope. -/
+theorem SemanticBoundGeneratedRecursiveCall.translatedOuterAbstractedCallShape
+    (H : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value)
+    (Htr : TrExprS env Us Delta (value.abstractList binders) result)
+    (hfresh : ∀ name ∈ recursors, R.venv.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors Delta)
+    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
+      TrProj Delta.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false) :
+    ∃ domains levels init major,
+      domains.length = H.generated.localArgs.size ∧
+      result = VExpr.wrapLams domains
+        (VExpr.mkApps (.const H.generated.recursorName levels)
+          (init ++ [major])) ∧
+      lvls.mapM (VLevel.ofLevel Us) = some levels ∧
+      List.Forall₂
+        (TrExprS env Us (abstractForallContext domains Delta))
+        (H.generated.outerAbstractedRecursor binders).getAppArgsList init ∧
+      TrExprS env Us (abstractForallContext domains Delta)
+        (H.generated.outerAbstractedMajor binders) major ∧
+      ∀ dom ∈ domains, dom.containsAnyConst recursors = false := by
+  rcases TrExprS.avoidingLambdaTelescope_shape_with_context
+      (H.outerAvoidingLambdaTelescope hfresh binders) hctx hproj Htr with
+    ⟨domains, residual, hdomains, hresult, hresidual, hfree⟩
+  rw [H.generated.outerAbstractedBody_eq_named] at hresidual
+  cases hresidual with
+  | app _ _ hfn hmajor =>
+    rename_i recursorResult domain codomain majorResult
+      recursorType majorType
+    rcases checkPositivityStep.TrExprS.constAppSpine
+        hfn H.generated.outerAbstractedRecursor_head with
+      ⟨levels, init, hspine, hlevels, hinit⟩
+    have hrebuild := VExpr.mkApps_getAppFnArgs recursorResult
+    rw [hspine] at hrebuild
+    refine ⟨domains, levels, init, _, hdomains, ?_, hlevels, hinit,
+      hmajor, hfree⟩
+    rw [hresult]
+    congr 1
+    rw [← hrebuild]
+    simp [VExpr.mkApps, List.foldl_append]
+
+/-- Complete stage-correct guarded-result certificate for one semantically
+retained call.  Freshness is used only in the pre-installation environment
+to establish source absence; the equation itself is translated after the
+recursors have been installed. -/
+theorem SemanticBoundGeneratedRecursiveCall.outerAbstractedIotaResultCertificate
+    {root : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF root recLparams}
+    (H : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value)
+    (hfieldEq : field = .fvar fv)
+    (Htr : TrExprS env Us (abstractForallContext ruleDomains Delta)
+      (value.abstractList binders) result)
+    (hfresh : ∀ name ∈ recursors, R.venv.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors
+      (abstractForallContext ruleDomains Delta))
+    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
+      TrProj Delta.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (hrecursor : H.generated.recursorName ∈ recursors)
+    (hparams : ∀ arg ∈ stats.params, arg.AvoidsConsts recursors)
+    (hmotives : ∀ arg ∈ motives, arg.AvoidsConsts recursors)
+    (hminors : ∀ arg ∈ minors, arg.AvoidsConsts recursors)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup)
+    (hfield : fv ∈ binders)
+    (hruleDomains : ruleDomains.length = binders.length)
+    (hfieldVars : ∀ fieldVar,
+      (Expr.fvar fv).abstractList binders = .bvar fieldVar →
+      fieldVar ∈ fieldVars) :
+    Nonempty (IotaRecursiveResultCertificate recursors fieldVars
+      recursiveArg result) := by
+  subst field
+  rcases H.translatedOuterAbstractedCallShape Htr hfresh hctx hproj with
+    ⟨domains, levels, init, major, hdomains, hresult, hlevels,
+      hinit, hmajor, hdomainsFree⟩
+  have hctx' : VLCtx.NoIndConsts recursors
+      (abstractForallContext domains
+        (abstractForallContext ruleDomains Delta)) :=
+    VLCtx.NoIndConsts.abstractForallContext (domains := domains) hctx
+  have hsourceInit := H.outerAbstractedRecursorArgsAvoids hfresh
+    hparams hmotives hminors binders
+  have hinitFree : ∀ arg ∈ init,
+      arg.containsAnyConst recursors = false :=
+    checkPositivityStep.List.Forall₂.targets_noConstsOfSourceAvoids
+      hinit hsourceInit hctx' hproj
+  have hsourceMajor :
+      (H.generated.outerAbstractedMajor binders).AvoidsConsts recursors :=
+    H.generated.outerAbstractedMajorAvoids hfieldRoot hbinders hfield
+  have hmajorFree : major.containsAnyConst recursors = false :=
+    checkPositivityStep.TrExprS.noConstsOfSourceAvoids
+      hsourceMajor hctx' hproj hmajor
+  exact ⟨{
+    domains := domains
+    recursor := H.generated.recursorName
+    levels := levels
+    init := init
+    major := major
+    result_eq := hresult
+    domains_recursor_free := hdomainsFree
+    recursor_mem := hrecursor
+    arguments_guarded := by
+      intro arg harg
+      rcases List.mem_append.mp harg with harg | harg
+      · exact VExpr.GuardedIota.ofContainsAnyConstFalse
+          (hinitFree arg harg)
+      · simp only [List.mem_singleton] at harg
+        subst arg
+        exact VExpr.GuardedIota.ofContainsAnyConstFalse hmajorFree
+    major_is_field := H.generated.translatedOuterAbstractedMajor_isField
+      hfieldRoot hbinders hfield hruleDomains hdomains hfieldVars hmajor }⟩
+
 /-- Guarded recursive-result certificate for the simultaneously abstracted
 generated value that occurs in a closed rule RHS. -/
 theorem BoundGeneratedRecursiveCall.outerAbstractedIotaResultCertificate_ofFresh
@@ -31495,6 +32199,52 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedIotaResultCertificate_ofFresh
   subst field
   exact H.outerAbstractedIotaResultCertificate_ofFresh Htr hfresh hctx
     hproj hrecursor hfieldRoot hbinders hfield hruleDomains hfieldVars
+
+/-- Stage-correct guarded recursive-result certificate for the closed form
+of a generated call.  Translation happens in the post-installation
+environment, so freshness cannot be demanded of the complete call.  Instead
+the semantic producer supplies exactly the three guard facts extracted from
+the translated domains and call spine. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedIotaResultCertificate
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us (abstractForallContext ruleDomains Delta)
+      (value.abstractList binders) result)
+    (hrecursor : H.recursorName ∈ recursors)
+    (Hguard : ∀ (domains : List VExpr) (levels : List VLevel)
+      (init : List VExpr) (major : VExpr),
+      domains.length = H.localArgs.size →
+      List.Forall₂
+        (TrExprS env Us
+          (abstractForallContext domains
+            (abstractForallContext ruleDomains Delta)))
+        (H.outerAbstractedRecursor binders).getAppArgsList init →
+      TrExprS env Us
+        (abstractForallContext domains
+          (abstractForallContext ruleDomains Delta))
+        (H.outerAbstractedMajor binders) major →
+      (∀ dom ∈ domains, dom.containsAnyConst recursors = false) ∧
+      (∀ arg ∈ init ++ [major],
+        arg.GuardedIota recursors fieldVars domains.length) ∧
+      major.IsFieldApp fieldVars domains.length) :
+    Nonempty (IotaRecursiveResultCertificate recursors fieldVars
+      recursiveArg result) := by
+  rcases H.translatedOuterAbstractedCallShape Htr with
+    ⟨domains, levels, init, major, hdomains, hresult, hlevels,
+      hinit, hmajor⟩
+  rcases Hguard domains levels init major hdomains hinit hmajor with
+    ⟨hdomainsFree, harguments, hmajorField⟩
+  exact ⟨{
+    domains := domains
+    recursor := H.recursorName
+    levels := levels
+    init := init
+    major := major
+    result_eq := hresult
+    domains_recursor_free := hdomainsFree
+    recursor_mem := hrecursor
+    arguments_guarded := harguments
+    major_is_field := hmajorField }⟩
 
 /-- A generated recursive result is semantically guarded whenever the new
 recursor names are fresh in the translation environment and the selected
@@ -31943,6 +32693,88 @@ theorem BoundGeneratedRecursiveCalls.abstractedIotaResults_ofFresh
     hrecursor i hi Hentry
   apply Hentry.outerAbstractedIotaResultCertificate_ofFresh_eq hsource'
     Hresult hfresh hctx hproj hrecursorMemBefore hfieldRoot hbinders hfield
+      hruleDomains
+  intro fieldVar hfieldSource
+  have HArg' := HArgFv
+  rw [hfieldSource] at HArg'
+  have hfieldBound : fieldVar < ruleDomains.length := by
+    rcases List.mem_iff_getElem.mp hfield with ⟨j, hj, hget⟩
+    have hcanonical := Expr.abstractList_fvar_getElem
+      hbinders j hj (k := 0)
+    rw [hget, hfieldSource] at hcanonical
+    have : fieldVar = binders.length - 1 - j := by
+      cases hcanonical
+      simp
+    rw [hruleDomains]
+    omega
+  have hargEq : recursiveArgs[i] = .bvar fieldVar :=
+    TrExprS.bvar_eq_of_abstractForallContext HArg' hfieldBound
+  have hhead : recursiveArgs[i].bvarHead? = some fieldVar := by
+    rw [hargEq]
+    rfl
+  exact List.mem_filterMap.mpr
+    ⟨recursiveArgs[i], List.getElem_mem hiarg, hhead⟩
+
+/-- Stage-correct array lift using the semantic call retained at each exact
+recursive-field position.  The source environment supplies freshness while
+the rule equation and recursive results are translated in the later
+post-installation environment. -/
+theorem SemanticBoundGeneratedRecursiveCalls.abstractedIotaResults
+    {root : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF root recLparams}
+    (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
+      lvls R decl depth u v u.size)
+    (Hbound : BoundFVarArray root u)
+    (Hargs : List.Forall₂
+      (TrExprS env Us (abstractForallContext ruleDomains Delta))
+      (u.map fun arg => arg.abstractList binders).toList recursiveArgs)
+    (Hresults : List.Forall₂
+      (TrExprS env Us (abstractForallContext ruleDomains Delta))
+      (v.map fun result => result.abstractList binders).toList
+      recursiveResults)
+    (hfresh : ∀ name ∈ recursors, R.venv.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors
+      (abstractForallContext ruleDomains Delta))
+    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
+      TrProj Delta.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false)
+    (hrecursor : H.bound.RecursorsPresent recursors)
+    (hparams : ∀ arg ∈ stats.params, arg.AvoidsConsts recursors)
+    (hmotives : ∀ arg ∈ motives, arg.AvoidsConsts recursors)
+    (hminors : ∀ arg ∈ minors, arg.AvoidsConsts recursors)
+    (hbinders : binders.Nodup)
+    (hruleDomains : ruleDomains.length = binders.length)
+    (hselected : ∀ fv ∈ Hbound.fvars, fv ∈ binders) :
+    IotaRecursiveResultsCertificate recursors
+      (recursiveArgs.filterMap VExpr.bvarHead?)
+      recursiveArgs recursiveResults := by
+  refine H.bound.abstractedIotaResults Hargs Hresults ?_
+  intro i hi hiarg hiresult _Hentry Harg Hresult
+  rcases H.entries i hi hi with ⟨E⟩
+  have hargTr := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hargs i (by simpa using hi) hiarg
+  have hresultTr := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hresults i (by simpa [H.size] using hi) hiresult
+  rcases Hbound.getElem_eq_fvar i hi with ⟨hiFvars, hsource⟩
+  let fv := Hbound.fvars[i]
+  have hfieldRoot : fv ∈ root.lctx.fvars :=
+    Hbound.members fv (List.getElem_mem hiFvars)
+  have hfield : fv ∈ binders :=
+    hselected fv (List.getElem_mem hiFvars)
+  have HArgFv : TrExprS env Us
+      (abstractForallContext ruleDomains Delta)
+      ((Expr.fvar fv).abstractList binders) recursiveArgs[i] := by
+    simpa [hsource] using hargTr
+  have hiV : i < v.size := by simpa [H.size] using hi
+  have hresultTr' : TrExprS env Us
+      (abstractForallContext ruleDomains Delta)
+      (v[i]!.abstractList binders) recursiveResults[i] := by
+    simpa [Array.getElem!_eq_getD, Array.getD, hiV] using hresultTr
+  have hrecursorMem : E.generated.recursorName ∈ recursors :=
+    hrecursor i hi E.generated
+  apply E.outerAbstractedIotaResultCertificate hsource hresultTr' hfresh hctx
+    hproj hrecursorMem hparams hmotives hminors hfieldRoot hbinders hfield
       hruleDomains
   intro fieldVar hfieldSource
   have HArg' := HArgFv
@@ -32864,6 +33696,53 @@ theorem BoundGeneratedRecursorRule.abstractedAllArgsUnique
   rw [← heq, hentry]
   trivial
 
+/-- Every translated ordinary constructor field is a bound variable in the
+closed rule telescope.  Hence it is recursor-free in any translation
+environment, including the post-recursor environment used for the equation. -/
+theorem BoundGeneratedRecursorRule.abstractedAllArgsNoConsts
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (Hargs : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (H.allArgs.map fun arg => arg.abstractList H.binders).toList args)
+    (hdomains : domains.length = H.binders.length) :
+    ∀ arg ∈ args, arg.containsAnyConst names = false := by
+  intro arg harg
+  rcases List.mem_iff_getElem.mp harg with ⟨i, hiArgs, hargEq⟩
+  have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hargs
+  have hiSource : i <
+      (H.allArgs.map fun value => value.abstractList H.binders).toList.length :=
+    by omega
+  have hiArray : i < H.allArgs.size := by simpa using hiSource
+  have Harg := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hargs i hiSource hiArgs
+  rcases H.all_args_bound.getElem_eq_fvar i hiArray with
+    ⟨hiFvars, hsource⟩
+  let fv := H.all_args_bound.fvars[i]
+  have hselected : fv ∈ H.binders := by
+    unfold BoundGeneratedRecursorRule.binders
+    exact List.mem_append_right _ (List.getElem_mem hiFvars)
+  rcases List.mem_iff_getElem.mp hselected with ⟨j, hj, hget⟩
+  let fieldVar := H.binders.length - 1 - j
+  have habstract := Expr.abstractList_fvar_getElem
+    H.binders_nodup j hj (k := 0)
+  unfold BoundGeneratedRecursorRule.binders at hget
+  rw [hget] at habstract
+  have hsourceAbstract :
+      (H.allArgs.map fun value => value.abstractList H.binders).toList[i] =
+        .bvar fieldVar := by
+    calc
+      _ = H.allArgs[i].abstractList H.binders := by simp
+      _ = (Expr.fvar fv).abstractList H.binders := by rw [hsource]
+      _ = .bvar fieldVar := by
+        simpa [BoundGeneratedRecursorRule.binders, fieldVar,
+          List.append_assoc] using habstract
+  rw [hsourceAbstract] at Harg
+  have hbound : fieldVar < domains.length := by rw [hdomains]; omega
+  have htranslated := TrExprS.bvar_eq_of_abstractForallContext Harg hbound
+  rw [← hargEq, htranslated]
+  rfl
+
 /-- Selected recursive fields inherit translation uniqueness from the full
 constructor-field array after simultaneous closing. -/
 theorem BoundGeneratedRecursorRule.abstractedRecursiveArgsUnique
@@ -32877,6 +33756,57 @@ theorem BoundGeneratedRecursorRule.abstractedRecursiveArgsUnique
   have hsub := H.recursive_args_sublist.map
     (fun arg => arg.abstractList H.binders)
   exact List.Sublist.mem he (by simpa using hsub)
+
+/-- Assemble the exact iota RHS from a post-installation translation while
+keeping the two genuinely freshness-sensitive facts explicit: ordinary
+constructor fields contain no recursor constants, and every generated
+recursive result has the guarded call shape.  This formulation does not ask
+the pre-recursor environment to translate the recursive calls themselves. -/
+theorem BoundGeneratedRecursorRule.iotaRhsCertificateFor
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    {fieldArgs recursiveArgs : List VExpr}
+    (hdomains : domains.length = H.binders.length)
+    (Htr : TrExprS env Us (abstractForallContext domains Δ)
+      (H.sourceRhsBody.abstractList H.binders) rhsBody)
+    (Hfields : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (H.allArgs.map fun arg => arg.abstractList H.binders).toList
+      fieldArgs)
+    (Hargs : List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList
+      recursiveArgs)
+    (hfieldsFree : ∀ field ∈ fieldArgs,
+      field.containsAnyConst recursors = false)
+    (Hresults : ∀ translatedResults,
+      List.Forall₂
+        (TrExprS env Us (abstractForallContext domains Δ))
+        (H.recursiveResults.map fun result =>
+          result.abstractList H.binders).toList translatedResults →
+      IotaRecursiveResultsCertificate recursors
+        (recursiveArgs.filterMap VExpr.bvarHead?) recursiveArgs
+        translatedResults) :
+    Nonempty (IotaRhsCertificate recursors domains fieldArgs recursiveArgs
+      rhsBody) := by
+  rcases H.translatedRhsResidual hdomains Htr with
+    ⟨minorVar, generatedFields, recursiveResults, hminor,
+      HgeneratedFields, HtranslatedResults, hrhs⟩
+  have hfieldsEq : generatedFields = fieldArgs :=
+    Lean4Lean.VerifyInductive.List.Forall₂.targets_eq_of_unique
+      HgeneratedFields Hfields H.abstractedAllArgsUnique
+  subst generatedFields
+  exact ⟨{
+    minorVar := minorVar
+    minor_in_scope := hminor
+    recursiveResults := recursiveResults
+    rhs_eq := hrhs
+    fieldVars := recursiveArgs.filterMap VExpr.bvarHead?
+    fieldVars_eq := rfl
+    fields_in_scope := H.abstractedRecursiveHeadsInScope Hargs hdomains
+    fields_recursor_free := hfieldsFree
+    recursive_results := Hresults recursiveResults HtranslatedResults
+  }⟩
 
 /-- Assemble the abstract iota RHS certificate directly from the translated
 production RHS and the independently translated selected-field spine. -/
@@ -33066,6 +33996,104 @@ structure BoundGeneratedRecursorRule.IotaRuleTranslation
   context_free : VLCtx.NoIndConsts (block.recursors.map (·.name))
     (abstractForallContext equation.shape.domains Δ)
 
+/-- Stage-correct local payload for a generated iota rule.  The equation and
+recursive-result syntax are translated after the recursors have been
+installed.  Freshness is retained only through the two consequences actually
+needed by `GuardedIota`: ordinary fields are recursor-free, and translated
+recursive results have the guarded call shape. -/
+structure BoundGeneratedRecursorRule.StagedIotaRuleTranslation
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (trEnv : VEnv) (Us : List Name) (Δ : VLCtx)
+    (semanticEnv : VEnv) (decl : VInductDecl) (block : VInductBlock)
+    (owner : VInductiveType) (ctor : VConstVal) (rule : VDefEq) where
+  equation : H.IotaEquationTranslationCertificate trEnv Us Δ decl block
+    owner ctor rule
+  selections : List (RecursorRecursiveDomain semanticEnv decl)
+  selection : RecursorFieldSelections semanticEnv decl H.allArgs
+    H.recursiveArgs selections
+  recursiveArgs : List VExpr
+  args : List.Forall₂
+    (TrExprS trEnv Us
+      (abstractForallContext equation.shape.domains Δ))
+    (H.recursiveArgs.map fun arg =>
+      arg.abstractList H.binders).toList recursiveArgs
+  fields_recursor_free : ∀ field ∈
+      equation.shape.ctorArgs.drop decl.nparams,
+    field.containsAnyConst (block.recursors.map (·.name)) = false
+  recursive_results : ∀ translatedResults,
+    List.Forall₂
+      (TrExprS trEnv Us
+        (abstractForallContext equation.shape.domains Δ))
+      (H.recursiveResults.map fun result =>
+        result.abstractList H.binders).toList translatedResults →
+    IotaRecursiveResultsCertificate (block.recursors.map (·.name))
+      (recursiveArgs.filterMap VExpr.bvarHead?) recursiveArgs
+      translatedResults
+
+/-- Consume the stage-correct payload without any pre-installation
+translation of a generated recursive call. -/
+theorem BoundGeneratedRecursorRule.iotaRule_ofStagedTranslation
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Htr : H.StagedIotaRuleTranslation trEnv Us Δ semanticEnv decl block
+      owner ctor rule) :
+    Nonempty (decl.IotaRule semanticEnv block owner ctor rule) := by
+  let Hselection' := Htr.selection.map
+    (fun arg => arg.abstractList H.binders)
+  rcases Hselection'.exists_materialization Htr.args with
+    ⟨fields, Hfields⟩
+  let Hfield := Hfields.iotaFieldCertificate Hselection'
+    Htr.equation.field_args Htr.args H.abstractedRecursiveArgsUnique
+  have Hrhs := H.iotaRhsCertificateFor
+    Htr.equation.domains_length Htr.equation.rhs_residual
+    Htr.equation.field_args Htr.args Htr.fields_recursor_free
+    Htr.recursive_results
+  rcases Hrhs with ⟨Hrhs⟩
+  exact ⟨VInductDecl.IotaRule.ofCertificates
+    Htr.equation.shape Hfield Hrhs⟩
+
+/-- Equation reconstruction and semantic field selection determine every
+stage-correct field of the local payload except the guarded interpretation of
+the generated recursive-result list. -/
+theorem BoundGeneratedRecursorRule.stagedIotaRuleTranslationOfResults
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Hequation : H.IotaEquationTranslationCertificate trEnv Us Δ decl block
+      owner ctor rule)
+    (Hselection : RecursorFieldSelections semanticEnv decl H.allArgs
+      H.recursiveArgs selections)
+    (Hresults : ∀ recursiveArgs,
+      List.Forall₂
+        (TrExprS trEnv Us
+          (abstractForallContext Hequation.shape.domains Δ))
+        (H.recursiveArgs.map fun arg =>
+          arg.abstractList H.binders).toList recursiveArgs →
+      ∀ translatedResults,
+        List.Forall₂
+          (TrExprS trEnv Us
+            (abstractForallContext Hequation.shape.domains Δ))
+          (H.recursiveResults.map fun result =>
+            result.abstractList H.binders).toList translatedResults →
+        IotaRecursiveResultsCertificate (block.recursors.map (·.name))
+          (recursiveArgs.filterMap VExpr.bvarHead?) recursiveArgs
+          translatedResults) :
+    Nonempty (H.StagedIotaRuleTranslation trEnv Us Δ semanticEnv decl
+      block owner ctor rule) := by
+  let Hselection' := Hselection.map
+    (fun arg => arg.abstractList H.binders)
+  rcases Hselection'.translations_of_all Hequation.field_args with
+    ⟨recursiveArgs, Hargs⟩
+  exact ⟨{
+    equation := Hequation
+    selections := selections
+    selection := Hselection
+    recursiveArgs := recursiveArgs
+    args := Hargs
+    fields_recursor_free := H.abstractedAllArgsNoConsts
+      Hequation.field_args Hequation.domains_length
+    recursive_results := Hresults recursiveArgs Hargs }⟩
+
 /-- Equation reconstruction and the executable field-selection trace already
 determine the translated recursive-argument list.  This is the minimal local
 producer boundary for one generated iota rule: callers no longer choose an
@@ -33116,10 +34144,11 @@ recursive-domain evidence that the operational `RecursorRule` omits. -/
 structure BoundGeneratedRecursorRule.Semantics
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
-    (recLparams : List Name) (decl : VInductDecl)
+    (recLparams : List Name) (semanticEnv : VEnv) (decl : VInductDecl)
     (expectedOwnerIdx : Nat) where
   depth : Nat
   context : RecursorContextWF H.root recLparams
+  context_venv : context.venv = semanticEnv
   validStats : RecursorValidAppStatsWF context.venv recLparams
     context.mlctx.vlctx stats decl depth
   ownerIdx : Nat
@@ -33148,7 +34177,7 @@ and the outer mutual-family traversal. -/
 theorem BoundGeneratedRecursorRule.Semantics.owner_eq
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
-    (Hsemantic : H.Semantics recLparams decl expectedOwnerIdx)
+    (Hsemantic : H.Semantics recLparams semanticEnv decl expectedOwnerIdx)
     (hnames : (decl.types.map (·.name)).Nodup) :
     Hsemantic.ownerIdx = expectedOwnerIdx := by
   have hselectedValid : AddInductive.isValidIndAppIdx stats H.target
@@ -33208,14 +34237,59 @@ theorem BoundGeneratedRecursorRule.iotaRuleTranslation_ofSemanticCalls
 theorem BoundGeneratedRecursorRule.iotaRuleTranslation_ofSemantics
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
-    (Hsemantic : H.Semantics recLparams decl expectedOwnerIdx)
+    (Hsemantic : H.Semantics recLparams semanticEnv decl expectedOwnerIdx)
     (Hequation : H.IotaEquationTranslationCertificate trEnv Us Δ decl block
       owner ctor rule)
     (hctx : VLCtx.NoIndConsts (block.recursors.map (·.name)) Δ) :
-    Nonempty (H.IotaRuleTranslation trEnv Us Δ Hsemantic.context.venv decl
-      block owner ctor rule) :=
-  H.iotaRuleTranslation_ofSemanticCalls Hsemantic.calls
+    Nonempty (H.IotaRuleTranslation trEnv Us Δ semanticEnv decl block owner
+      ctor rule) := by
+  rw [← Hsemantic.context_venv]
+  exact H.iotaRuleTranslation_ofSemanticCalls Hsemantic.calls
     Hsemantic.selection Hequation hctx
+
+/-- Stage-correct producer for the complete local iota payload.  Unlike the
+legacy translation record, this theorem permits equation translation after
+recursor installation and derives guarded recursive results from the
+retained pre-installation semantic calls. -/
+theorem BoundGeneratedRecursorRule.stagedIotaRuleTranslation_ofSemantics
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Hsemantic : H.Semantics recLparams semanticEnv decl expectedOwnerIdx)
+    (Hequation : H.IotaEquationTranslationCertificate trEnv Us Delta decl
+      block owner ctor rule)
+    (hfresh : ∀ name ∈ block.recursors.map (·.name),
+      semanticEnv.constants name = none)
+    (hctx : VLCtx.NoIndConsts (block.recursors.map (·.name)) Delta)
+    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
+      TrProj Delta.toCtx s i e' e'' →
+      e'.containsAnyConst (block.recursors.map (·.name)) = false →
+      e''.containsAnyConst (block.recursors.map (·.name)) = false)
+    (hrecursor : Hsemantic.calls.bound.RecursorsPresent
+      (block.recursors.map (·.name))) :
+    Nonempty (H.StagedIotaRuleTranslation trEnv Us Delta
+      semanticEnv decl block owner ctor rule) := by
+  rw [← Hsemantic.context_venv] at hfresh ⊢
+  rcases Hsemantic.calls.sourceSelection Hsemantic.selection with
+    ⟨selections, HsourceSelection⟩
+  apply H.stagedIotaRuleTranslationOfResults Hequation HsourceSelection
+  intro recursiveArgs Hargs translatedResults Hresults
+  apply Hsemantic.calls.abstractedIotaResults H.recursive_args_bound
+    Hargs Hresults hfresh
+    (VLCtx.NoIndConsts.abstractForallContext hctx) hproj hrecursor
+  · intro arg harg
+    exact H.params_bound.avoidsConsts arg harg
+  · intro arg harg
+    exact H.motives_bound.avoidsConsts arg harg
+  · intro arg harg
+    exact H.minors_bound.avoidsConsts arg harg
+  · exact H.binders_nodup
+  · exact Hequation.domains_length
+  · intro fv hfv
+    have hall : fv ∈ H.all_args_bound.fvars :=
+      H.recursive_args_bound.fvars_subset_of_sublist H.all_args_bound
+        H.recursive_args_sublist hfv
+    unfold BoundGeneratedRecursorRule.binders
+    exact List.mem_append_right _ hall
 
 /-- Ordered binder-aware coverage of a constructor suffix. -/
 inductive BoundGeneratedRecursorRules
@@ -33239,22 +34313,26 @@ ordinal in lockstep. -/
 inductive SemanticBoundGeneratedRecursorRules
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
-    (recLparams : List Name) (decl : VInductDecl) (ownerIdx : Nat) :
+    (recLparams : List Name) (semanticEnv : VEnv) (decl : VInductDecl)
+    (ownerIdx : Nat) :
     List Constructor → Nat → List RecursorRule → Prop
   | nil : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams decl ownerIdx [] start []
+      lvls recLparams semanticEnv decl ownerIdx [] start []
   | cons
       (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
         ctor start rule)
-      (Hsemantic : Nonempty (Hrule.Semantics recLparams decl ownerIdx))
+      (Hsemantic : Nonempty
+        (Hrule.Semantics recLparams semanticEnv decl ownerIdx))
       (Htail : SemanticBoundGeneratedRecursorRules indTypes stats motives
-        minors lvls recLparams decl ownerIdx ctors (start + 1) rules) :
+        minors lvls recLparams semanticEnv decl ownerIdx ctors (start + 1)
+          rules) :
       SemanticBoundGeneratedRecursorRules indTypes stats motives minors lvls
-        recLparams decl ownerIdx (ctor :: ctors) start (rule :: rules)
+        recLparams semanticEnv decl ownerIdx (ctor :: ctors) start
+          (rule :: rules)
 
 theorem SemanticBoundGeneratedRecursorRules.bound
     (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams decl ownerIdx ctors start rules) :
+      lvls recLparams semanticEnv decl ownerIdx ctors start rules) :
     BoundGeneratedRecursorRules indTypes stats motives minors lvls ctors
       start rules := by
   induction H with
@@ -33263,7 +34341,7 @@ theorem SemanticBoundGeneratedRecursorRules.bound
 
 theorem SemanticBoundGeneratedRecursorRules.length
     (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams decl ownerIdx ctors start rules) :
+      lvls recLparams semanticEnv decl ownerIdx ctors start rules) :
     rules.length = ctors.length := by
   induction H with
   | nil => rfl
@@ -33271,11 +34349,11 @@ theorem SemanticBoundGeneratedRecursorRules.length
 
 theorem SemanticBoundGeneratedRecursorRules.entry
     (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams decl ownerIdx ctors start rules) :
+      lvls recLparams semanticEnv decl ownerIdx ctors start rules) :
     ∀ i (hctor : i < ctors.length) (hrule : i < rules.length),
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
           ctors[i] (start + i) rules[i],
-        Nonempty (Hrule.Semantics recLparams decl ownerIdx) := by
+        Nonempty (Hrule.Semantics recLparams semanticEnv decl ownerIdx) := by
   induction H with
   | nil =>
       intro i hctor
@@ -33660,7 +34738,7 @@ theorem oneRuleSemantics
             return (rule, minorIdx + 1)) c).WF fun out =>
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors
           lvls ctor minorIdx out.1,
-        Nonempty (Hrule.Semantics recLparams decl ownerIdx) ∧
+        Nonempty (Hrule.Semantics recLparams R.venv decl ownerIdx) ∧
         out.2 = minorIdx + 1 := by
   let process : Expr → Array Expr → Array Expr →
       AddInductive.M (RecursorRule × Nat) := fun _ allArgs recursiveArgs =>
@@ -33680,7 +34758,7 @@ theorem oneRuleSemantics
     (Q := fun out =>
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors
           lvls ctor minorIdx out.1,
-        Nonempty (Hrule.Semantics recLparams decl ownerIdx) ∧
+        Nonempty (Hrule.Semantics recLparams R.venv decl ownerIdx) ∧
         out.2 = minorIdx + 1)
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
@@ -33723,7 +34801,7 @@ theorem oneRuleSemantics
     (Q := fun out =>
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors
           lvls ctor minorIdx out.1,
-        Nonempty (Hrule.Semantics recLparams decl ownerIdx) ∧
+        Nonempty (Hrule.Semantics recLparams R.venv decl ownerIdx) ∧
         out.2 = minorIdx + 1)
     (indTypes := indTypes) (stats := stats) (motives := motives)
     (minors := minors) (lvls := lvls) (u := recursiveArgs)
@@ -33797,9 +34875,10 @@ theorem oneRuleSemantics
     ctor_eq := rfl
     fields_eq := rfl
     rhs_eq := rfl }
-  let Hsemantic : Hrule.Semantics recLparams decl ownerIdx := {
+  let Hsemantic : Hrule.Semantics recLparams R.venv decl ownerIdx := {
     depth := depth + allArgs.size
     context := Rargs
+    context_venv := HfieldsRecent.venv_eq
     validStats := HstatsArgs
     ownerIdx := selectedOwner
     owner_lt := hselectedOwnerLt
@@ -33858,7 +34937,7 @@ theorem semanticGeneratedRules
         ∃ generated,
           out.1 = acc.toList ++ generated ∧
           SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-            lvls recLparams decl ownerIdx ctors start generated ∧
+            lvls recLparams R.venv decl ownerIdx ctors start generated ∧
           out.2 = start + ctors.length := by
   induction ctors generalizing acc start with
   | nil =>
@@ -34110,8 +35189,8 @@ theorem mkRecRules.semanticGeneratedRules
     (AddInductive.mkRecRules indTypes elimLevel stats dIdx motives minors
       start c).WF fun out =>
         SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-          (AddInductive.getRecLevels elimLevel stats.levels) recLparams decl
-          dIdx indTypes[dIdx]!.ctors start out.1 ∧
+          (AddInductive.getRecLevels elimLevel stats.levels) recLparams R.venv
+          decl dIdx indTypes[dIdx]!.ctors start out.1 ∧
         out.2 = start + indTypes[dIdx]!.ctors.length := by
   unfold AddInductive.mkRecRules
   have H := mkRecRules.loopCtors.semanticGeneratedRules indTypes stats
@@ -34203,9 +35282,9 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
       (recursorMinorOffset indTypes dIdx) c).WF fun out =>
         SemanticBoundGeneratedRecursorRules indTypes stats
           (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-          (AddInductive.getRecLevels elimLevel stats.levels) recLparams decl
-          dIdx indTypes[dIdx]!.ctors (recursorMinorOffset indTypes dIdx)
-          out.1 ∧
+          (AddInductive.getRecLevels elimLevel stats.levels) recLparams R.venv
+          decl dIdx indTypes[dIdx]!.ctors
+          (recursorMinorOffset indTypes dIdx) out.1 ∧
         out.2 = recursorMinorOffset indTypes (dIdx + 1) := by
   have htotal :
       (indTypes.toList.flatMap (fun type => type.ctors)).length =
@@ -36316,7 +37395,7 @@ this certificate retains, for the same owner slice, the exact field
 classification and recursive-call evidence produced while constructing each
 rule.  It deliberately does not duplicate the translated recursor value. -/
 structure GeneratedRecursorRuleSemanticsRange
-    (recLparams : List Name) (decl : VInductDecl)
+    (recLparams : List Name) (semanticEnv : VEnv) (decl : VInductDecl)
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
     (recInfos : Array AddInductive.RecInfo)
@@ -36328,8 +37407,8 @@ structure GeneratedRecursorRuleSemanticsRange
       entries[i].1 = .recInfo info ∧
       SemanticBoundGeneratedRecursorRules indTypes stats
         (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-        (AddInductive.getRecLevels elimLevel stats.levels) recLparams decl
-        (start + i) indTypes[start + i]!.ctors
+        (AddInductive.getRecLevels elimLevel stats.levels) recLparams
+        semanticEnv decl (start + i) indTypes[start + i]!.ctors
         (recursorMinorOffset indTypes (start + i)) info.rules
 
 def GeneratedRecursorsRange.atZero
@@ -36533,17 +37612,10 @@ theorem GeneratedRecursors.iotaRule_ofTranslation
       indTypes.toList isUnsafe decl envTypes envCtors)
     (block : VInductBlock)
     (hrecursors : block.recursors = entries.map Prod.snd)
-    (Htr : Hrule.IotaRuleTranslation trEnv Us Δ semanticEnv decl block owner
-      ctor rule)
-    (hfresh : ∀ name ∈ block.recursors.map (·.name),
-      trEnv.constants name = none)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (block.recursors.map (·.name)) = false →
-      e''.containsAnyConst (block.recursors.map (·.name)) = false) :
+    (Htr : Hrule.StagedIotaRuleTranslation trEnv Us Δ semanticEnv decl
+      block owner ctor rule) :
     Nonempty (decl.IotaRule semanticEnv block owner ctor rule) :=
-  Hgenerated.iotaRule_ofTranslationCertificate Hrule Hcard Hdecl block
-    hrecursors Htr.equation Htr.selection Htr.args
-    hfresh Htr.context_free hproj
+  Hrule.iotaRule_ofStagedTranslation Htr
 
 /-- Append one generated family batch to the flattened iota accumulator.
 The pointwise premise now asks only for the explicit executable-to-`VDefEq`
@@ -36569,20 +37641,15 @@ theorem GeneratedRecursors.appendIotaBatch
       (habstract : i < abstractRules.length)
       (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
         ctors[i] (start + i) sourceRules[i]),
-      Nonempty (Hrule.IotaRuleTranslation trEnv Us Δ semanticEnv decl block
-        decl.ownedConstructors[prior.length + i].1
-        decl.ownedConstructors[prior.length + i].2 abstractRules[i]))
-    (hfresh : ∀ name ∈ block.recursors.map (·.name),
-      trEnv.constants name = none)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (block.recursors.map (·.name)) = false →
-      e''.containsAnyConst (block.recursors.map (·.name)) = false) :
+      Nonempty (Hrule.StagedIotaRuleTranslation trEnv Us Δ semanticEnv
+        decl block decl.ownedConstructors[prior.length + i].1
+        decl.ownedConstructors[prior.length + i].2 abstractRules[i])) :
     IotaBuildCertificate semanticEnv decl block (prior ++ abstractRules) := by
   apply Hbuild.appendBoundGeneratedRules Hbatch hlength hroom
   intro i hctor hsource habstract Hrule
   rcases Htranslations i hctor hsource habstract Hrule with ⟨Htr⟩
   exact Hgenerated.iotaRule_ofTranslation Hrule Hcard Hdecl block hrecursors
-    Htr hfresh hproj
+    Htr
 
 /-- Per-owner semantic payload for the exact rule batches retained by
 `GeneratedRecursors`.  The index is the number of mutual-family recursors
@@ -36617,8 +37684,8 @@ inductive GeneratedIotaTranslations
           (recursorMinorOffset indTypes owner + i)
           (Hgenerated.entry owner howner).info.rules[i]),
         (hindex : prior.length + i < decl.ownedConstructors.length) →
-        Nonempty (Hrule.IotaRuleTranslation trEnv Us Δ semanticEnv decl block
-          (decl.ownedConstructors[prior.length + i]'hindex).1
+        Nonempty (Hrule.StagedIotaRuleTranslation trEnv Us Δ semanticEnv
+          decl block (decl.ownedConstructors[prior.length + i]'hindex).1
           (decl.ownedConstructors[prior.length + i]'hindex).2 batch[i])) :
       GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ decl block
         (owner + 1) (prior ++ batch)
@@ -36679,8 +37746,8 @@ theorem GeneratedIotaTranslations.push
         (recursorMinorOffset indTypes owner + i)
         (Hgenerated.entry owner howner).info.rules[i]),
       (hindex : prior.length + i < decl.ownedConstructors.length) →
-      Nonempty (Hrule.IotaRuleTranslation trEnv Us Δ semanticEnv decl block
-        (decl.ownedConstructors[prior.length + i]'hindex).1
+      Nonempty (Hrule.StagedIotaRuleTranslation trEnv Us Δ semanticEnv
+        decl block (decl.ownedConstructors[prior.length + i]'hindex).1
         (decl.ownedConstructors[prior.length + i]'hindex).2 batch[i])) :
     GeneratedIotaTranslations Hgenerated semanticEnv trEnv Us Δ decl block
       (owner + 1) (prior ++ batch) := by
@@ -36716,12 +37783,7 @@ theorem GeneratedIotaTranslations.build
     {envTypes envCtors : VEnv}
     (Hdecl : TrInductDeclCore sourceEnv sourceParams nparams
       indTypes.toList isUnsafe decl envTypes envCtors)
-    (hrecursors : block.recursors = entries.map Prod.snd)
-    (hfresh : ∀ name ∈ block.recursors.map (·.name),
-      trEnv.constants name = none)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (block.recursors.map (·.name)) = false →
-      e''.containsAnyConst (block.recursors.map (·.name)) = false) :
+    (hrecursors : block.recursors = entries.map Prod.snd) :
     IotaBuildCertificate semanticEnv decl block rules := by
   induction H with
   | nil => exact .empty semanticEnv decl block
@@ -36731,7 +37793,6 @@ theorem GeneratedIotaTranslations.build
       hlength hroom
       (fun i hctor hsource habstract Hrule =>
         Htranslations i hctor hsource habstract Hrule (by omega))
-      hfresh hproj
 
 theorem GeneratedIotaTranslations.completeLength
     (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
@@ -37799,8 +38860,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
           out.2 = recursorMinorOffset indTypes indTypes.size ∧
           Nonempty (GeneratedRecursorsRange c.safety sourceVEnv lparams
             elimLevel c stats indTypes recInfos dIdx entries) ∧
-          Nonempty (GeneratedRecursorRuleSemanticsRange recLparams decl
-            stats indTypes recInfos elimLevel dIdx entries) ∧
+          Nonempty (GeneratedRecursorRuleSemanticsRange recLparams R.venv
+            decl stats indTypes recInfos elimLevel dIdx entries) ∧
           AddConstants c.safety env currentVEnv entries out.1 outVEnv := by
   rw [AddInductive.declareRecursors.loop]
   by_cases hidx : dIdx < indTypes.size
@@ -37889,7 +38950,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
                 have hi' : i < entries.length := by simpa using hi
                 simpa [Nat.add_assoc, Nat.add_comm 1 i] using Hrange.entry i hi'
             have HsemRange' : GeneratedRecursorRuleSemanticsRange recLparams
-                decl stats indTypes recInfos elimLevel dIdx
+                R.venv decl stats indTypes recInfos elimLevel dIdx
                 (entry :: entries) := by
               refine {
                 covered := by
@@ -38050,8 +39111,8 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
         ∃ entries : List (ConstantInfo × VConstVal),
           Nonempty (GeneratedRecursors c.safety currentVEnv c.lparams
             elimLevel c stats indTypes recInfos entries) ∧
-          Nonempty (GeneratedRecursorRuleSemanticsRange recLparams decl
-            stats indTypes recInfos elimLevel 0 entries) ∧
+          Nonempty (GeneratedRecursorRuleSemanticsRange recLparams R.venv
+            decl stats indTypes recInfos elimLevel 0 entries) ∧
           AddConstants c.safety c.env currentVEnv entries outEnv
             outVEnv := by
   unfold AddInductive.declareRecursors
@@ -49257,8 +50318,8 @@ structure RecursorPhasesResult
   generated : GeneratedRecursors localContext.safety R.declared.venvCtors
     localContext.lparams elimLevel localContext stats indTypes recInfos entries
   ruleSemantics : GeneratedRecursorRuleSemanticsRange
-    (AddInductive.getRecLevelParams elimLevel c.lparams) decl stats indTypes
-    recInfos elimLevel 0 entries
+    (AddInductive.getRecLevelParams elimLevel c.lparams)
+    R.declared.venvCtors decl stats indTypes recInfos elimLevel 0 entries
   installed : AddConstants localContext.safety localContext.env
     R.declared.venvCtors
     entries outEnv outVEnv
@@ -49356,6 +50417,9 @@ theorem ConstructorPhasesResult.recursorPhasesWF
   exact Hrecursors.mono fun outEnv Hout => by
     rcases Hout with
       ⟨outVEnv, entries, ⟨Hgenerated⟩, ⟨HruleSemantics⟩, Hinstalled⟩
+    have hsemanticEnv : Rlocal.venv = R.declared.venvCtors :=
+      henvLocal.trans R.declared.contextVEnv
+    rw [hsemanticEnv] at HruleSemantics
     exact ⟨{
       elimLevel := elimLevel
       elimLevelAdmissible := hElim
@@ -50221,8 +51285,9 @@ theorem RecursorPhasesResult.generatedRuleSemantics
     SemanticBoundGeneratedRecursorRules indTypes stats
       (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
       (AddInductive.getRecLevels H.elimLevel stats.levels)
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams) decl
-      owner indTypes[owner]!.ctors (recursorMinorOffset indTypes owner)
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      R.declared.venvCtors decl owner indTypes[owner]!.ctors
+      (recursorMinorOffset indTypes owner)
       (H.generated.entry owner howner).info.rules := by
   rcases H.ruleSemantics.entry owner howner with
     ⟨info, hsource, Hsemantic⟩
@@ -50256,7 +51321,8 @@ theorem RecursorPhasesResult.generatedRuleSemantic
         (recursorMinorOffset indTypes owner + i)
         (H.generated.entry owner howner).info.rules[i],
       Nonempty (Hrule.Semantics
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams) decl owner) :=
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        R.declared.venvCtors decl owner) :=
   (H.generatedRuleSemantics owner howner).entry i hctor hrule
 
 /-- The family selected from the generated residual is exactly the outer
@@ -50280,7 +51346,8 @@ theorem RecursorPhasesResult.generatedRuleSemanticOwner
         (recursorMinorOffset indTypes owner + i)
         (H.generated.entry owner howner).info.rules[i],
       ∃ Hsemantic : Hrule.Semantics
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams) decl owner,
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+          R.declared.venvCtors decl owner,
         Hsemantic.ownerIdx = owner := by
   rcases H.generatedRuleSemantic owner howner i hctor hrule with
     ⟨Hrule, ⟨Hsemantic⟩⟩
@@ -50327,7 +51394,8 @@ structure RecursorPhasesResult.GeneratedRuleAlignment
     (recursorMinorOffset indTypes owner + i)
     (H.generated.entry owner howner).info.rules[i]
   semantics : rule.Semantics
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams) decl owner
+    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    R.declared.venvCtors decl owner
   semantic_owner : semantics.ownerIdx = owner
 
 /-- Select the fully aligned pointwise rule package directly from the
@@ -50402,6 +51470,208 @@ theorem RecursorPhasesResult.recursorNamesFresh
   rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
   exact hfresh recursor hrecursor
 
+/-- Recover the complete staged iota payload for one generated source rule
+from the concrete equation translation alone.  The recursor phase retains
+the semantic call trace for the same rule; global installation supplies both
+freshness in the constructor environment and presence in the final block. -/
+theorem RecursorPhasesResult.stagedIotaRuleTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    (Us : List Name) (Delta : VLCtx)
+    (owner : Nat) (howner : owner < H.entries.length)
+    (i : Nat) (hctor : i < indTypes[owner]!.ctors.length)
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (ownerType : VInductiveType) (ctor : VConstVal) (rule : VDefEq)
+    (Hequation : A.rule.IotaEquationTranslationCertificate H.outVEnv Us Delta
+      decl (H.blockCertificate rules hrules).block ownerType ctor rule)
+    (hctx : VLCtx.NoIndConsts
+      ((H.blockCertificate rules hrules).block.recursors.map (·.name)) Delta)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''}, TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst
+        ((H.blockCertificate rules hrules).block.recursors.map (·.name)) =
+          false →
+      e''.containsAnyConst
+        ((H.blockCertificate rules hrules).block.recursors.map (·.name)) =
+          false) :
+    Nonempty (A.rule.StagedIotaRuleTranslation H.outVEnv Us Delta
+      R.declared.venvCtors decl (H.blockCertificate rules hrules).block
+      ownerType ctor rule) := by
+  have hpresent := H.generatedCertificate.recursorsPresent
+    (H.blockCertificate rules hrules).block H.cardinality R.core rfl
+    A.semantics.calls.bound
+  exact A.rule.stagedIotaRuleTranslation_ofSemantics A.semantics Hequation
+    (H.recursorNamesFresh rules hrules) hctx hproj hpresent
+
+/-- Equation-only payload for the generated rule batches of a completed
+recursor phase.  Unlike `GeneratedIotaTranslations`, this boundary does not
+ask its caller to reconstruct field selection or recursive-result semantics:
+each equation is paired with the exact retained semantic rule alignment. -/
+inductive RecursorPhasesResult.GeneratedIotaEquationTranslations
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (Us : List Name) (Delta : VLCtx)
+    (allRules : List VDefEq)
+    (allRulesWF : ∀ df ∈ allRules, df.WF H.outVEnv) :
+    Nat → List VDefEq → Prop
+  | nil : H.GeneratedIotaEquationTranslations Us Delta allRules allRulesWF
+      0 []
+  | cons
+      (Hprior : H.GeneratedIotaEquationTranslations Us Delta allRules
+        allRulesWF owner prior)
+      (howner : owner < H.entries.length)
+      (batch : List VDefEq)
+      (hlength : batch.length =
+        (H.generated.entry owner howner).info.rules.length)
+      (hroom : batch.length + prior.length ≤
+        decl.ownedConstructors.length)
+      (equations : ∀ i
+        (hctor : i < indTypes[owner]!.ctors.length)
+        (hsource : i <
+          (H.generated.entry owner howner).info.rules.length)
+        (habstract : i < batch.length)
+        (hindex : prior.length + i < decl.ownedConstructors.length),
+        ∃ A : H.GeneratedRuleAlignment owner howner i hctor,
+          Nonempty (A.rule.IotaEquationTranslationCertificate H.outVEnv Us
+            Delta decl (H.blockCertificate allRules allRulesWF).block
+            (decl.ownedConstructors[prior.length + i]'hindex).1
+            (decl.ownedConstructors[prior.length + i]'hindex).2 batch[i])) :
+      H.GeneratedIotaEquationTranslations Us Delta allRules allRulesWF
+        (owner + 1) (prior ++ batch)
+
+/-- Equation-only traversal has the same flattened rule count as the
+concrete mutual-family prefix it covers. -/
+theorem RecursorPhasesResult.GeneratedIotaEquationTranslations.ruleLength
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {Us : List Name} {Delta : VLCtx} {allRules : List VDefEq}
+    {allRulesWF : ∀ df ∈ allRules, df.WF H.outVEnv}
+    (T : H.GeneratedIotaEquationTranslations Us Delta allRules allRulesWF
+      owner rules) :
+    rules.length = recursorMinorOffset indTypes owner := by
+  induction T with
+  | nil => simp [recursorMinorOffset]
+  | @cons actualOwner actualPrior Hprior howner batch hlength _hroom
+      _equations ih =>
+    let E := H.generated.entry actualOwner howner
+    have hsourceOwner : actualOwner < indTypes.size := by
+      have hrec : actualOwner < H.recInfos.size := by
+        simpa [H.generated.length] using howner
+      have htypes : H.recInfos.size = indTypes.size := by
+        rw [H.cardinality.records]
+        simpa using
+          (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
+      omega
+    have hrules : E.info.rules.length =
+        indTypes[actualOwner]!.ctors.length := E.rules.length
+    simp only [List.length_append]
+    rw [hlength, hrules, ih,
+      recursorMinorOffset_step indTypes actualOwner hsourceOwner]
+
+/-- Convert the equation-only traversal into the independent iota build
+certificate.  All semantic payload is recovered pointwise from the completed
+recursor phase. -/
+theorem RecursorPhasesResult.GeneratedIotaEquationTranslations.build
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {Us : List Name} {Delta : VLCtx} {allRules : List VDefEq}
+    {allRulesWF : ∀ df ∈ allRules, df.WF H.outVEnv}
+    (T : H.GeneratedIotaEquationTranslations Us Delta allRules allRulesWF
+      owner rules)
+    (hctx : VLCtx.NoIndConsts
+      ((H.blockCertificate allRules allRulesWF).block.recursors.map (·.name))
+      Delta)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''}, TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst
+        ((H.blockCertificate allRules allRulesWF).block.recursors.map
+          (·.name)) = false →
+      e''.containsAnyConst
+        ((H.blockCertificate allRules allRulesWF).block.recursors.map
+          (·.name)) = false) :
+    IotaBuildCertificate R.declared.venvCtors decl
+      (H.blockCertificate allRules allRulesWF).block rules := by
+  induction T with
+  | nil => exact .empty _ _ _
+  | @cons actualOwner actualPrior Hprior howner batch hlength hroom
+      equations ih =>
+    apply ih.append hroom
+    intro i habstract
+    let E := H.generated.entry actualOwner howner
+    have hsource : i < E.info.rules.length := by
+      change i < (H.generated.entry actualOwner howner).info.rules.length
+      rw [← hlength]
+      exact habstract
+    have hctor : i < indTypes[actualOwner]!.ctors.length := by
+      rw [← E.rules.length]
+      exact hsource
+    have hindex : actualPrior.length + i <
+        decl.ownedConstructors.length := by omega
+    rcases equations i hctor hsource habstract hindex with
+      ⟨A, ⟨Hequation⟩⟩
+    rcases H.stagedIotaRuleTranslation allRules allRulesWF Us Delta
+        actualOwner howner i hctor A
+        (decl.ownedConstructors[actualPrior.length + i]'hindex).1
+        (decl.ownedConstructors[actualPrior.length + i]'hindex).2 batch[i]
+        Hequation hctx hproj with ⟨Hstaged⟩
+    exact A.rule.iotaRule_ofStagedTranslation Hstaged
+
+theorem RecursorPhasesResult.GeneratedIotaEquationTranslations.completeLength
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {Us : List Name} {Delta : VLCtx} {allRules : List VDefEq}
+    {allRulesWF : ∀ df ∈ allRules, df.WF H.outVEnv}
+    (T : H.GeneratedIotaEquationTranslations Us Delta allRules allRulesWF
+      owner rules)
+    (hcomplete : owner = H.entries.length) :
+    rules.length = decl.ownedConstructors.length := by
+  have htypes : indTypes.size = decl.types.length := by
+    simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
+  have howner : owner = indTypes.size := by
+    rw [hcomplete, H.generated.length, H.cardinality.records, ← htypes]
+  rw [T.ruleLength, howner]
+  have hoffset : recursorMinorOffset indTypes indTypes.size =
+      (indTypes.toList.flatMap (fun type => type.ctors)).length := by
+    unfold recursorMinorOffset
+    simp only [List.length_flatMap]
+    have hlen : indTypes.size =
+        (indTypes.toList.map (fun type => type.ctors.length)).length := by
+      simp
+    rw [hlen, List.map_take, List.take_length]
+  rw [hoffset]
+  simpa [ownedConstructors, List.length_flatMap] using
+    Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length R.core
+
 /-- The complete recursor phase determines every ordinary-compilation field
 except the semantic interpretation of its generated iota-rule batch. Block
 layout and name uniqueness are consequences of the staging certificate. -/
@@ -50453,29 +51723,24 @@ theorem RecursorPhasesResult.ordinaryCompilationOfRuleTranslations
     (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
     (owner : Nat)
     (Htranslations : GeneratedIotaTranslations H.generatedCertificate
-      R.declared.venvCtors R.declared.venvCtors Us Δ decl
+      R.declared.venvCtors H.outVEnv Us Δ decl
       (H.blockCertificate rules hrules).block owner rules)
-    (hcomplete : owner = H.entries.length)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst
-        ((H.blockCertificate rules hrules).block.recursors.map (·.name)) =
-          false →
-      e''.containsAnyConst
-        ((H.blockCertificate rules hrules).block.recursors.map (·.name)) =
-          false) :
+    (hcomplete : owner = H.entries.length) :
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block := by
   have Hbuild : IotaBuildCertificate R.declared.venvCtors decl
       (H.blockCertificate rules hrules).block rules :=
     Htranslations.build H.generatedCertificate H.cardinality R.core rfl
-      (H.recursorNamesFresh rules hrules) hproj
   have hlength : rules.length = decl.ownedConstructors.length :=
     Htranslations.completeLength H.generatedCertificate H.cardinality R.core
       hcomplete
   exact H.ordinaryCompilationOfRuleBuild rules hrules Hbuild hlength
 
-/-- Declaration-facing package for the remaining local rule-translation
-work of an ordinary recursor run. -/
+/-- Declaration-facing package for the remaining concrete equation
+translations of an ordinary recursor run.  Field selection, recursive-call
+semantics, recursor presence, and pre-installation freshness are all derived
+from `RecursorPhasesResult`; callers retain only post-installation equation
+translation plus the opaque projection-preservation boundary. -/
 structure OrdinaryRuleTranslationResult
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -50490,18 +51755,19 @@ structure OrdinaryRuleTranslationResult
   rules : List VDefEq
   rulesWF : ∀ df ∈ rules, df.WF H.outVEnv
   owner : Nat
-  translations : GeneratedIotaTranslations H.generatedCertificate
-    R.declared.venvCtors R.declared.venvCtors Us Δ decl
-    (H.blockCertificate rules rulesWF).block owner rules
-  complete : owner = H.entries.length
-  projections : ∀ {Δ : VLCtx} {s i e' e''},
-    TrProj Δ.toCtx s i e' e'' →
+  equations : H.GeneratedIotaEquationTranslations Us Δ rules rulesWF
+    owner rules
+  contextFree : VLCtx.NoIndConsts
+    ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) Δ
+  projections : ∀ {Delta : VLCtx} {s j e' e''},
+    TrProj Delta.toCtx s j e' e'' →
     e'.containsAnyConst
       ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) =
         false →
     e''.containsAnyConst
       ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) =
         false
+  complete : owner = H.entries.length
 
 theorem OrdinaryRuleTranslationResult.compilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -50515,8 +51781,9 @@ theorem OrdinaryRuleTranslationResult.compilation
     (T : OrdinaryRuleTranslationResult H) :
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate T.rules T.rulesWF).block :=
-  H.ordinaryCompilationOfRuleTranslations T.Us T.Δ T.rules T.rulesWF
-    T.owner T.translations T.complete T.projections
+  H.ordinaryCompilationOfRuleBuild T.rules T.rulesWF
+    (T.equations.build T.contextFree T.projections)
+    (T.equations.completeLength T.complete)
 
 theorem RecursorPhasesResult.addInductOfOrdinaryCompilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
