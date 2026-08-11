@@ -15078,6 +15078,165 @@ iteration of `declareRecursors.loop`. -/
 def recursorMinorOffset (indTypes : Array InductiveType) (dIdx : Nat) : Nat :=
   ((indTypes.toList.take dIdx).flatMap (fun type => type.ctors)).length
 
+/-- The element at a flattened prefix offset is the selected element of the
+current row.  Keeping this generic isolates the list arithmetic shared by
+concrete and abstract owned-constructor enumerations. -/
+theorem List.flatMap_getElem_prefix
+    (rows : List α) (entries : α → List β)
+    (owner i : Nat) (howner : owner < rows.length)
+    (hi : i < (entries rows[owner]).length)
+    (hindex : ((rows.take owner).flatMap entries).length + i <
+      (rows.flatMap entries).length) :
+    (rows.flatMap entries)[((rows.take owner).flatMap entries).length + i]'hindex =
+      (entries rows[owner])[i]'hi := by
+  have hsplit : rows = rows.take owner ++ rows[owner] ::
+      rows.drop (owner + 1) := by
+    calc
+      rows = rows.take (owner + 1) ++ rows.drop (owner + 1) :=
+        (List.take_append_drop (owner + 1) rows).symm
+      _ = (rows.take owner ++ [rows[owner]]) ++
+          rows.drop (owner + 1) := by
+        rw [List.take_append_getElem howner]
+      _ = rows.take owner ++ rows[owner] :: rows.drop (owner + 1) := by
+        simp [List.append_assoc]
+  have hrow : entries rows[owner] =
+      (entries rows[owner]).take i ++
+        (entries rows[owner])[i] ::
+          (entries rows[owner]).drop (i + 1) := by
+    calc
+      entries rows[owner] =
+          (entries rows[owner]).take (i + 1) ++
+            (entries rows[owner]).drop (i + 1) :=
+        (List.take_append_drop (i + 1) (entries rows[owner])).symm
+      _ = ((entries rows[owner]).take i ++
+            [(entries rows[owner])[i]]) ++
+          (entries rows[owner]).drop (i + 1) := by
+        rw [List.take_append_getElem hi]
+      _ = (entries rows[owner]).take i ++
+          (entries rows[owner])[i] ::
+            (entries rows[owner]).drop (i + 1) := by
+        simp [List.append_assoc]
+  have houter : rows.flatMap entries =
+      (rows.take owner).flatMap entries ++ entries rows[owner] ++
+        (rows.drop (owner + 1)).flatMap entries := by
+    simpa only [List.flatMap_append, List.flatMap_cons,
+      List.append_assoc] using congrArg (List.flatMap entries) hsplit
+  have hflat : rows.flatMap entries =
+      ((rows.take owner).flatMap entries ++
+        (entries rows[owner]).take i) ++
+      (entries rows[owner])[i] ::
+        ((entries rows[owner]).drop (i + 1) ++
+          (rows.drop (owner + 1)).flatMap entries) := by
+    calc
+      rows.flatMap entries =
+          (rows.take owner).flatMap entries ++ entries rows[owner] ++
+            (rows.drop (owner + 1)).flatMap entries := houter
+      _ = (rows.take owner).flatMap entries ++
+          ((entries rows[owner]).take i ++
+            (entries rows[owner])[i] ::
+              (entries rows[owner]).drop (i + 1)) ++
+          (rows.drop (owner + 1)).flatMap entries :=
+        congrArg
+          (fun xs => (rows.take owner).flatMap entries ++ xs ++
+            (rows.drop (owner + 1)).flatMap entries) hrow
+      _ = ((rows.take owner).flatMap entries ++
+            (entries rows[owner]).take i) ++
+          (entries rows[owner])[i] ::
+            ((entries rows[owner]).drop (i + 1) ++
+              (rows.drop (owner + 1)).flatMap entries) := by
+        simp only [List.append_assoc, List.cons_append]
+  exact List.getElem_of_append hflat (by
+    simp [Nat.min_eq_left (Nat.le_of_lt hi)])
+
+/-- The abstract owned-constructor enumeration uses the same owner-major,
+constructor-minor order as its defining nested flattening. -/
+theorem VInductDecl.ownedConstructors_getElem_prefix
+    (decl : VInductDecl) (owner i : Nat)
+    (howner : owner < decl.types.length)
+    (hi : i < (decl.types[owner]).ctors.length)
+    (hindex : ((decl.types.take owner).flatMap
+      (fun type => type.ctors)).length + i < decl.ownedConstructors.length) :
+    decl.ownedConstructors[
+        ((decl.types.take owner).flatMap
+          (fun type => type.ctors)).length + i]'hindex =
+      (decl.types[owner], (decl.types[owner]).ctors[i]) := by
+  have hiMapped : i <
+      ((decl.types[owner]).ctors.map (decl.types[owner], ·)).length := by
+    simpa using hi
+  have hindexMapped :
+      ((decl.types.take owner).flatMap
+          (fun type => type.ctors.map (type, ·))).length + i <
+        (decl.types.flatMap
+          (fun type => type.ctors.map (type, ·))).length := by
+    simpa [VInductDecl.ownedConstructors, List.length_flatMap] using hindex
+  simpa [VInductDecl.ownedConstructors, List.length_flatMap] using
+    List.flatMap_getElem_prefix decl.types
+      (fun type => type.ctors.map (type, ·)) owner i howner hiMapped
+      hindexMapped
+
+/-- Translation preserves the number of constructors in every mutual-family
+prefix, so production's running minor offset is the abstract flattening
+offset for the same owner. -/
+theorem TrInductDeclCore.recursorMinorOffset_eq_abstract
+    (H : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe decl
+      envTypes envCtors)
+    (owner : Nat) (howner : owner ≤ indTypes.size) :
+    recursorMinorOffset indTypes owner =
+      ((decl.types.take owner).flatMap
+        (fun type => type.ctors)).length := by
+  induction owner with
+  | zero => simp [recursorMinorOffset]
+  | succ owner ih =>
+    have hsourceOwner : owner < indTypes.size := by omega
+    have htypes : indTypes.size = decl.types.length := by
+      simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length H
+    have habstractOwner : owner < decl.types.length := by omega
+    have hsourceList : owner < indTypes.toList.length := by
+      simpa only [Array.length_toList] using hsourceOwner
+    have Howner := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt H owner
+      hsourceList habstractOwner
+    unfold recursorMinorOffset at ih ⊢
+    rw [← List.take_append_getElem hsourceList]
+    rw [← List.take_append_getElem habstractOwner]
+    simp only [List.flatMap_append, List.flatMap_singleton, List.length_append]
+    rw [ih (by omega)]
+    simpa [Array.getElem!_eq_getD, Array.getD, hsourceOwner] using
+      Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Howner
+
+/-- Select the canonical abstract owner/constructor at production's concrete
+minor offset.  This is the pointwise bridge needed to package raw generated
+equation translations as specification iota rules. -/
+theorem TrInductDeclCore.ownedConstructorAtMinorOffset
+    (H : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe decl
+      envTypes envCtors)
+    (owner i : Nat) (howner : owner < indTypes.size)
+    (hi : i < indTypes[owner]!.ctors.length)
+    (habstractOwner : owner < decl.types.length)
+    (habstractCtor : i < (decl.types[owner]'habstractOwner).ctors.length)
+    (hindex : recursorMinorOffset indTypes owner + i <
+      decl.ownedConstructors.length) :
+    decl.ownedConstructors[recursorMinorOffset indTypes owner + i]'hindex =
+      (decl.types[owner]'habstractOwner,
+        (decl.types[owner]'habstractOwner).ctors[i]'habstractCtor) := by
+  have htypes : indTypes.size = decl.types.length := by
+    simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length H
+  let Howner := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt H owner
+    (by simpa using howner) habstractOwner
+  have habstractCtor' : i < (decl.types[owner]).ctors.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Howner]
+    simpa [Array.getElem!_eq_getD, Array.getD, howner] using hi
+  have hoffset :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.recursorMinorOffset_eq_abstract
+      H owner (Nat.le_of_lt howner)
+  have habstractIndex :
+      ((decl.types.take owner).flatMap
+        (fun type => type.ctors)).length + i <
+        decl.ownedConstructors.length := by
+    simpa [hoffset] using hindex
+  simpa [hoffset] using
+    Lean4Lean.VerifyInductive.VInductDecl.ownedConstructors_getElem_prefix
+      decl owner i habstractOwner habstractCtor' habstractIndex
+
 theorem recursorMinorOffset_step
     (indTypes : Array InductiveType) (dIdx : Nat)
     (hidx : dIdx < indTypes.size) :
@@ -51470,6 +51629,105 @@ theorem RecursorPhasesResult.recursorNamesFresh
   rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
   exact hfresh recursor hrecursor
 
+/-- The local translation of a reconstructed equation determines its full
+iota-equation certificate at the canonical owner/constructor selected by the
+generated-rule alignment.  Recursor identity and arity come from the installed
+recursor certificate; constructor identity comes from source translation. -/
+theorem RecursorPhasesResult.GeneratedRuleAlignment.iotaEquationTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    {rule : VDefEq}
+    (Htr : A.rule.EquationTranslation H.outVEnv Us Delta rule)
+    (hruleUvars : rule.uvars = H.entries[owner].2.uvars) :
+    Nonempty (A.rule.IotaEquationTranslationCertificate H.outVEnv Us Delta
+      decl (H.blockCertificate rules hrules).block
+      (decl.types[owner]'A.abstractOwner_lt)
+      ((decl.types[owner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt)
+      rule) := by
+  let recursor := H.entries[owner].2
+  let E := H.generated.entry owner howner
+  have hrecursorMem : recursor ∈
+      (H.blockCertificate rules hrules).block.recursors := by
+    change recursor ∈ H.entries.map Prod.snd
+    exact List.mem_map.mpr
+      ⟨H.entries[owner], List.getElem_mem howner, rfl⟩
+  have hrecursorIndex : owner < (H.entries.map Prod.snd).length := by
+    simpa using howner
+  rcases (H.generatedCertificate.recursorCertificate H.localWF H.bindings
+      H.params H.noAlias H.cardinality R.core).shapes owner
+      A.abstractOwner_lt hrecursorIndex with ⟨Hshape⟩
+  have hrecursorName : recursor.name =
+      decl.recursorName (decl.types[owner]'A.abstractOwner_lt) := by
+    simpa [recursor] using Hshape.name
+  have hrecursorUvars :
+      (AddInductive.getRecLevels H.elimLevel stats.levels).length =
+        recursor.uvars := by
+    have htranslated : E.info.levelParams.length = recursor.uvars := by
+      simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal, E,
+        recursor] using E.translated.1.2.1
+    have hrecParams :
+        (AddInductive.getRecLevelParams H.elimLevel
+          H.localContext.lparams).length = recursor.uvars :=
+      (congrArg List.length E.levels).symm.trans htranslated
+    have hstatsLevels : stats.levels.length = c.lparams.length :=
+      A.semantics.validStats.levels.trans R.core.uvars
+    have hlocalLevels : H.localContext.lparams.length = c.lparams.length := by
+      rw [H.localExtends.lparams_eq]
+    have hadmissible := H.elimLevelAdmissible
+    cases hElim : H.elimLevel <;>
+      simp_all [AddInductive.getRecLevels, AddInductive.getRecLevelParams,
+        AddInductive.AdmissibleElimLevel, Level.isParam]
+  rcases htarget : AddInductive.getIIndices stats A.rule.target with
+    ⟨selectedOwner, indices⟩
+  have hselectedOwner : selectedOwner = owner := by
+    have hfirst := checkPositivityStep.getIIndices.fst_eq_of_valid
+      A.semantics.target_valid
+    rw [htarget] at hfirst
+    exact hfirst.trans A.semantic_owner
+  subst selectedOwner
+  have hselectedLt : owner < decl.types.length := by
+    exact A.abstractOwner_lt
+  have hindices : indices.size =
+      (decl.types[owner]'A.abstractOwner_lt).numIndices := by
+    have harity := checkPositivityStep.getIIndices.index_arity
+      A.semantics.target_valid
+    rw [htarget, A.semantic_owner] at harity
+    have hlen : stats.nindices.size = decl.types.length := by
+      have := congrArg List.length A.semantics.validStats.indices
+      simpa using this
+    have hget := congrArg (fun xs => xs[owner]?)
+      A.semantics.validStats.indices
+    have hn : stats.nindices[owner]! =
+        (decl.types[owner]'A.abstractOwner_lt).numIndices := by
+      simpa [Array.getElem!_eq_getD, Array.getD, A.abstractOwner_lt, hlen]
+        using hget
+    exact harity.trans hn
+  apply A.rule.iotaEquationCertificate (ownerIdx := owner)
+    (indices := indices) (recursor := recursor)
+    (ctor := (decl.types[owner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt)
+    Htr htarget H.cardinality.params H.cardinality.motives
+    H.cardinality.minors hindices
+  · simpa [Array.getElem!_eq_getD, Array.getD, A.sourceOwner_lt] using
+      A.ownerTranslation.header.name.symm
+  · exact hrecursorMem
+  · exact hrecursorName
+  · exact hrecursorUvars
+  · simpa [Array.getElem!_eq_getD, Array.getD, A.sourceOwner_lt] using
+      A.ctorTranslation.name.symm
+  · exact A.semantics.validStats.levels
+  · simpa [recursor] using hruleUvars
+
 /-- Recover the complete staged iota payload for one generated source rule
 from the concrete equation translation alone.  The recursor phase retains
 the semantic call trace for the same rule; global installation supplies both
@@ -51545,10 +51803,8 @@ inductive RecursorPhasesResult.GeneratedIotaEquationTranslations
         (habstract : i < batch.length)
         (hindex : prior.length + i < decl.ownedConstructors.length),
         ∃ A : H.GeneratedRuleAlignment owner howner i hctor,
-          Nonempty (A.rule.IotaEquationTranslationCertificate H.outVEnv Us
-            Delta decl (H.blockCertificate allRules allRulesWF).block
-            (decl.ownedConstructors[prior.length + i]'hindex).1
-            (decl.ownedConstructors[prior.length + i]'hindex).2 batch[i])) :
+          Nonempty (A.rule.EquationTranslation H.outVEnv Us Delta batch[i]) ∧
+          batch[i].uvars = H.entries[owner].2.uvars) :
       H.GeneratedIotaEquationTranslations Us Delta allRules allRulesWF
         (owner + 1) (prior ++ batch)
 
@@ -51632,12 +51888,30 @@ theorem RecursorPhasesResult.GeneratedIotaEquationTranslations.build
     have hindex : actualPrior.length + i <
         decl.ownedConstructors.length := by omega
     rcases equations i hctor hsource habstract hindex with
-      ⟨A, ⟨Hequation⟩⟩
+      ⟨A, ⟨Htranslation⟩, hruleUvars⟩
+    rcases A.iotaEquationTranslation allRules allRulesWF Htranslation
+        hruleUvars with ⟨Hequation⟩
     rcases H.stagedIotaRuleTranslation allRules allRulesWF Us Delta
         actualOwner howner i hctor A
-        (decl.ownedConstructors[actualPrior.length + i]'hindex).1
-        (decl.ownedConstructors[actualPrior.length + i]'hindex).2 batch[i]
+        (decl.types[actualOwner]'A.abstractOwner_lt)
+        ((decl.types[actualOwner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt)
+        batch[i]
         Hequation hctx hproj with ⟨Hstaged⟩
+    have hpriorOffset : actualPrior.length =
+        recursorMinorOffset indTypes actualOwner := Hprior.ruleLength
+    have hminorIndex : recursorMinorOffset indTypes actualOwner + i <
+        decl.ownedConstructors.length := by
+      simpa [hpriorOffset] using hindex
+    have howned :=
+      Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructorAtMinorOffset
+        R.core actualOwner i A.sourceOwner_lt hctor A.abstractOwner_lt
+        A.abstractCtor_lt hminorIndex
+    have hownedPrior :
+        decl.ownedConstructors[actualPrior.length + i]'hindex =
+          (decl.types[actualOwner]'A.abstractOwner_lt,
+            (decl.types[actualOwner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt) := by
+      simpa [hpriorOffset] using howned
+    rw [hownedPrior]
     exact A.rule.iotaRule_ofStagedTranslation Hstaged
 
 theorem RecursorPhasesResult.GeneratedIotaEquationTranslations.completeLength
