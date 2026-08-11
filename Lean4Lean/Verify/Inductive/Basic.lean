@@ -562,6 +562,16 @@ theorem VExpr.liftN_mkApps
   | cons arg args ih =>
     simpa [VExpr.mkApps, VExpr.liftN] using ih (.app fn arg)
 
+theorem VExpr.lift'_mkApps
+    (fn : VExpr) (args : List VExpr) (shift : Lift) :
+    (VExpr.mkApps fn args).lift' shift =
+      VExpr.mkApps (fn.lift' shift)
+        (args.map fun arg => arg.lift' shift) := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih =>
+    simpa [VExpr.mkApps] using ih (.app fn arg)
+
 theorem VExpr.IsFieldApp.lift
     {e : VExpr}
     (H : e.IsFieldApp fieldVars depth) (n : Nat) :
@@ -1378,6 +1388,35 @@ theorem VEnv.IsDefEqCtx.dropHeads
     | zero => exact .zero
     | succ H _ =>
       simpa only [List.drop_succ_cons] using ih H
+
+/-- Close the same number of newest declarations on both sides of a context
+conversion.  Corresponding domains may differ definitionally, so the two
+resulting forall telescopes need not be syntactically equal; `forallEDF`
+turns the context conversion into exactly the required type equality. -/
+theorem VEnv.IsDefEqCtx.closeHeads
+    (H : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂)
+    (n : Nat) (hn : n ≤ Γ₁.length)
+    (Hbody : env.IsDefEq U Γ₁ body₁ body₂ (.sort bodyLevel)) :
+    ∃ resultLevel, env.IsDefEq U (Γ₁.drop n)
+      (VExpr.wrapForalls (Γ₁.take n).reverse body₁)
+      (VExpr.wrapForalls (Γ₂.take n).reverse body₂)
+      (.sort resultLevel) := by
+  induction n generalizing Γ₁ Γ₂ body₁ body₂ bodyLevel with
+  | zero =>
+    exact ⟨bodyLevel, by simpa [VExpr.wrapForalls] using Hbody⟩
+  | succ n ih =>
+    cases H with
+    | zero => simp at hn
+    | @succ Γ₁ Γ₂ domain₁ domain₂ domainLevel Hctx Hdomain =>
+      have hn' : n ≤ Γ₁.length := by simpa using hn
+      have Hforall : env.IsDefEq U Γ₁
+          (.forallE domain₁ body₁) (.forallE domain₂ body₂)
+          (.sort (.imax domainLevel bodyLevel)) :=
+        .forallEDF Hdomain Hbody
+      rcases ih Hctx hn' Hforall with ⟨resultLevel, Hclosed⟩
+      refine ⟨resultLevel, ?_⟩
+      simpa [VExpr.wrapForalls, List.take_succ_cons,
+        List.reverse_cons, VExpr.wrapForalls_append] using Hclosed
 
 /-- Select one corresponding declaration from a complete context
 conversion.  The selected types are compared in the older left-hand suffix,
@@ -2808,6 +2847,67 @@ theorem MLCtxOnlyLams.vlet_false
     ⟨index, fv', name', type', bi, kind, h⟩
   cases h
 
+/-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
+innermost order. Local lets are discharged by `mkForall'` and contribute no
+domain. -/
+def MLCtxForallDomains (c : TypeChecker.MLCtx) :
+    (n : Nat) → n ≤ c.length → List VExpr
+  | 0, _ => []
+  | n + 1, h =>
+    match c with
+    | .vlam _ _ _ type' _ c =>
+      MLCtxForallDomains c n (Nat.le_of_succ_le_succ h) ++ [type']
+    | .vlet _ _ _ _ _ _ c =>
+      MLCtxForallDomains c n (Nat.le_of_succ_le_succ h)
+
+theorem TypeChecker.MLCtx.mkForall'_eq_wrapForalls
+    (c : TypeChecker.MLCtx) (n : Nat) (hn : n ≤ c.length) (body : VExpr) :
+    c.mkForall' n hn body =
+      VExpr.wrapForalls (MLCtxForallDomains c n hn) body := by
+  induction n generalizing c body with
+  | zero => simp [TypeChecker.MLCtx.mkForall', MLCtxForallDomains,
+      VExpr.wrapForalls]
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam fv name type type' bi c =>
+      simp only [TypeChecker.MLCtx.mkForall', MLCtxForallDomains]
+      rw [ih, VExpr.wrapForalls_append]
+      rfl
+    | vlet fv name type value type' value' c =>
+      simp only [TypeChecker.MLCtx.mkForall', MLCtxForallDomains]
+      exact ih c (Nat.le_of_succ_le_succ hn) body
+
+theorem MLCtxOnlyLams.forallDomains_length
+    (H : MLCtxOnlyLams c) (n : Nat) (hn : n ≤ c.length) :
+    (MLCtxForallDomains c n hn).length = n := by
+  induction n generalizing c with
+  | zero => simp [MLCtxForallDomains]
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      simp only [MLCtxForallDomains, List.length_append,
+        List.length_singleton]
+      rw [ih H.tail_vlam (Nat.le_of_succ_le_succ hn)]
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
+theorem MLCtxOnlyLams.forallDomains_eq_take_reverse
+    (H : MLCtxOnlyLams c) (n : Nat) (hn : n ≤ c.length) :
+    MLCtxForallDomains c n hn = (c.vlctx.toCtx.take n).reverse := by
+  induction n generalizing c with
+  | zero => simp [MLCtxForallDomains]
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      simp only [MLCtxForallDomains, TypeChecker.MLCtx.vlctx,
+        VLCtx.toCtx, List.take_succ_cons, List.reverse_cons]
+      rw [ih H.tail_vlam (Nat.le_of_succ_le_succ hn)]
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
 /-- Dropping an ordinary-local suffix and then restoring it is precisely a
 free-variable weakening.  The generated inductive contexts contain no local
 lets, so the lift amount agrees with the number of dropped declarations. -/
@@ -4142,6 +4242,46 @@ theorem AddInductive.declareRecursors.checkRecursorType.constWF
           ConstantInfo.isPartial] using hvisible, rfl, Htyping⟩
       · rfl
 
+/-- Definitionally equal translation contexts backed by lambda-only
+`MLCtx`s retain the same declaration spine and free-variable identities.
+Syntax-directed expressions therefore see them as a unique-context pair
+even when annotation erasure changed corresponding declaration types. -/
+theorem VLCtx.IsDefEq.toIsUniqueCtx_ofOnlyLams
+    {m : TypeChecker.MLCtx}
+    (H : VLCtx.IsDefEq env U Δ m.vlctx) (Hm : MLCtxOnlyLams m) :
+    TrExprS.IsUniqueCtx Δ m.vlctx := by
+  induction m generalizing Δ with
+  | nil =>
+    cases H
+    exact .base
+  | vlam fv name type type' bi tail ih =>
+    cases H with
+    | cons Htail _ hdecl =>
+      cases hdecl with
+      | vlam =>
+        exact .cons (ih Htail Hm.tail_vlam) .vlam
+  | vlet fv name type value type' value' tail ih =>
+    exact Hm.vlet_false.elim
+
+/-- Pointwise syntax-directed translation uniqueness, lifted to an aligned
+list of source expressions. -/
+theorem TrExprS.forall₂_unique
+    (Hctx : TrExprS.IsUniqueCtx Δ₁ Δ₂)
+    (Hunique : ∀ source ∈ sources, TrExprS.IsUnique source)
+    (H₁ : List.Forall₂ (TrExprS env Us Δ₁) sources targets₁)
+    (H₂ : List.Forall₂ (TrExprS env Us Δ₂) sources targets₂) :
+    targets₁ = targets₂ := by
+  induction H₁ generalizing targets₂ with
+  | nil => cases H₂; rfl
+  | @cons source target sources targets Hhead Htail ih =>
+    cases H₂ with
+    | cons Hhead₂ Htail₂ =>
+      congr
+      · exact TrExprS.unique' Hctx (Hunique source (by simp))
+          Hhead Hhead₂
+      · exact ih (fun later hlater => Hunique later (by simp [hlater]))
+          Htail₂
+
 namespace checkInductiveTypes.loopType
 
 /-- Abstract images of the concrete parameter cache after `done` parameter
@@ -4374,11 +4514,107 @@ theorem ParameterContextSuffix.noIndConsts
 `expanded` is the literal weakening of the narrow scope; it is kept separate
 from `runtime` because annotation consumption can replace an installed binder
 domain by a merely definitionally equal expression. -/
+inductive FrontFVLift : List VExpr → List VExpr →
+    VLCtx → VLCtx → Lift → Prop
+  | zero (W : VLCtx.FVLift' scope expanded 0 shift 0) :
+      FrontFVLift [] [] scope expanded shift
+  | cons (fv deps indexType)
+      (H : FrontFVLift sourceDomains expandedDomains
+        scope expanded shift) :
+      FrontFVLift (sourceDomains ++ [indexType])
+        (expandedDomains ++ [indexType.lift' shift])
+        ((some (fv, deps), .vlam indexType) :: scope)
+        ((some (fv, deps), .vlam (indexType.lift' shift)) :: expanded)
+        (shift.consN 1)
+
+theorem FrontFVLift.sourcePrefix
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    (scope.toCtx.take sourceDomains.length).reverse = sourceDomains := by
+  induction H with
+  | zero => rfl
+  | cons fv deps indexType H ih =>
+    simp [VLCtx.toCtx, ih, List.take_succ_cons, List.reverse_cons]
+
+theorem FrontFVLift.expandedPrefix
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    (expanded.toCtx.take expandedDomains.length).reverse =
+      expandedDomains := by
+  induction H with
+  | zero => rfl
+  | cons fv deps indexType H ih =>
+    simp [VLCtx.toCtx, ih, List.take_succ_cons, List.reverse_cons]
+
+theorem FrontFVLift.length_eq
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    sourceDomains.length = expandedDomains.length := by
+  induction H with
+  | zero => rfl
+  | cons _ _ _ _ ih => simpa using congrArg Nat.succ ih
+
+theorem FrontFVLift.sourceLengthLE
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    sourceDomains.length ≤ scope.toCtx.length := by
+  induction H with
+  | zero => simp
+  | cons _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
+
+theorem FrontFVLift.expandedLengthLE
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    expandedDomains.length ≤ expanded.toCtx.length := by
+  induction H with
+  | zero => simp
+  | cons _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
+
+theorem Lift.closeReopen_cons (shift : Lift) (n : Nat) :
+    Lift.comp (Lift.comp (Lift.skipN .refl n) shift) (.skip .refl) =
+      Lift.comp (Lift.skipN .refl (n + 1)) (.cons shift) := by
+  induction shift generalizing n with
+  | refl => simp [Lift.skipN_skipN]
+  | skip shift ih => simp [ih, Lift.skipN_skipN]
+  | cons shift ih =>
+    cases n with
+    | zero => rfl
+    | succ n => simp [ih, Lift.skipN_skipN, Nat.add_assoc]
+
+theorem VExpr.liftN_lift'_liftN_one (body : VExpr)
+    (shift : Lift) (n : Nat) :
+    ((body.liftN n 0).lift' shift).liftN 1 0 =
+      (body.liftN (n + 1) 0).lift' shift.cons := by
+  simp only [← VExpr.lift'_consN_skipN, Lift.consN, Lift.skipN,
+    ← VExpr.lift'_comp]
+  rw [Lift.closeReopen_cons]
+  rw [show n + 1 = Nat.succ n by omega]
+  rfl
+
+/-- Closing the leading declarations represented by a front-preserving
+free-variable lift and then reopening them in the ambient context commutes
+strictly with weakening. -/
+theorem FrontFVLift.closeReopen
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift)
+    (body : VExpr) :
+    ((VExpr.wrapForalls sourceDomains body).liftN
+        sourceDomains.length 0).lift' shift =
+      (VExpr.wrapForalls expandedDomains (body.lift' shift)).liftN
+        expandedDomains.length 0 := by
+  induction H generalizing body with
+  | zero => simp [VExpr.wrapForalls]
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType H ih =>
+    have h := congrArg (fun result => result.liftN 1 0)
+      (ih (.forallE indexType body))
+    simpa [VExpr.wrapForalls_append, VExpr.wrapForalls, VExpr.liftN,
+      VExpr.liftN_liftN, Nat.add_comm, Nat.add_left_comm,
+      Nat.add_assoc, VExpr.liftN_lift'_liftN_one] using h
+
 structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
     (scope runtime : VLCtx) : Type where
   expanded : VLCtx
   shift : Lift
   lift : VLCtx.FVLift' scope expanded 0 shift 0
+  frontSourceDomains : List VExpr
+  frontExpandedDomains : List VExpr
+  front : FrontFVLift frontSourceDomains frontExpandedDomains
+    scope expanded shift
   context : VLCtx.IsDefEq env Us.length expanded runtime
   upset : IsFVarUpSet (· ∈ scope.fvars) runtime
   noBV : scope.NoBV
@@ -4391,6 +4627,9 @@ def NarrowRuntimeScope.mono {env env' : VEnv} (henv : env ≤ env')
   expanded := H.expanded
   shift := H.shift
   lift := H.lift
+  frontSourceDomains := H.frontSourceDomains
+  frontExpandedDomains := H.frontExpandedDomains
+  front := H.front
   context := H.context.mono henv
   upset := H.upset
   noBV := H.noBV
@@ -4571,6 +4810,10 @@ def NarrowRuntimeScope.withIndex
     (some (fv, deps), .vlam (indexType.lift' H.shift)) :: H.expanded
   shift := H.shift.consN 1
   lift := H.lift.cons_fvar (fv, deps) (.vlam indexType) hdeps
+  frontSourceDomains := H.frontSourceDomains ++ [indexType]
+  frontExpandedDomains :=
+    H.frontExpandedDomains ++ [indexType.lift' H.shift]
+  front := H.front.cons fv deps indexType
   context := .cons H.context (by
     have hfresh := hnewRuntime.2.1
     simpa [H.context.fvars] using hfresh) (.vlam hdomain)
@@ -4613,12 +4856,18 @@ def NarrowRuntimeScope.ofParameterSuffix
     expanded := Hc.mlctx.vlctx
     shift := .skipN .refl Hsuffix.ambientDecls.toCtx.length
     lift := ?_
+    frontSourceDomains := []
+    frontExpandedDomains := []
+    front := ?_
     context := .refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
     upset := ?_
     noBV := ?_
     noIndConsts := Hsuffix.noIndConsts }
   · rw [Hsuffix.context]
     exact W.toFVLift'
+  · exact .zero (by
+      rw [Hsuffix.context]
+      exact W.toFVLift')
   · have hwf : VLCtx.WF Hc.venv c.lparams.length
         (Hsuffix.ambientDecls ++ Hsuffix.parameterDecls) := by
       rw [← Hsuffix.context]
@@ -5190,7 +5439,8 @@ theorem NarrowHeaderSynthesisCertificate.consumeIndex
         normalized normalized' ∧
       ∃ H' : NarrowHeaderSynthesisCertificate env Us target
         ((some (fv, deps), .vlam indexType) :: scope)
-        normalized' i (nindices + 1), H'.params = H.params := by
+        normalized' i (nindices + 1),
+        H'.params = H.params ∧ H'.indices = H.indices ++ [indexType] := by
   cases htype with
   | forallE hdomType hbodyType hdom hbody =>
     rcases hdomain with ⟨sourceDom', hsourceDom, hsourceDomEq⟩
@@ -5222,7 +5472,7 @@ theorem NarrowHeaderSynthesisCertificate.consumeIndex
         (.forallE _ _) (.forallE indexType normalized') :=
       ⟨_, .forallEDF hdomTyped hbodyTyped⟩
     exact ⟨normalized', hnormalized,
-      H.withIndex henv hscopeWF hstep, rfl⟩
+      H.withIndex henv hscopeWF hstep, rfl, rfl⟩
 
 theorem NarrowHeaderSynthesisCertificate.typeShape
     {decl : VInductDecl} {target : VInductiveType}
@@ -7896,7 +8146,8 @@ theorem laterIndexSynthesisWF
             Hc'.checking.tr.wf
             (.forallE hdomType _hbodyType hdomNarrow hbodyNarrow)
             hscopeWF hdomainNarrow htransition with
-          ⟨nextNarrow, hnextNarrow, Hsynthesis', hparamsPreserved⟩
+          ⟨nextNarrow, hnextNarrow, Hsynthesis',
+            ⟨hparamsPreserved, _hindicesPreserved⟩⟩
         exact ih (fun Hc'' hlparams'' =>
             Hresult Hc'' (by simpa using hlparams'')) Hc'
           (by simpa [Nat.add_assoc] using
@@ -15855,12 +16106,18 @@ def RecursorParameterContextSuffix.runtimeScope
     expanded := R.mlctx.vlctx
     shift := .skipN .refl H.ambientDecls.toCtx.length
     lift := ?_
+    frontSourceDomains := []
+    frontExpandedDomains := []
+    front := ?_
     context := .refl R.checking.tr.wf R.mlctx_wf.tr.wf
     upset := ?_
     noBV := ?_
     noIndConsts := H.noIndConsts }
   · rw [H.context]
     exact W.toFVLift'
+  · exact .zero (by
+      rw [H.context]
+      exact W.toFVLift')
   · have hwf : VLCtx.WF R.venv recLparams.length
         (H.ambientDecls ++ H.parameterDecls) := by
       rw [← H.context]
@@ -17714,7 +17971,17 @@ structure RecursorMotiveFrameWF
   familyTr :
     TrExprS Rindices.venv recLparams Rindices.mlctx.vlctx
       (mkAppN stats.indConsts[familyIdx]! stats.params) familyTarget
+  familyIndexTargets : List VExpr
+  familyIndicesTr : List.Forall₂
+    (TrExprS Rindices.venv recLparams Rindices.mlctx.vlctx)
+    indices.toList familyIndexTargets
+  majorSourceTarget : VExpr
+  majorSourceEq : majorSourceTarget =
+    VExpr.mkApps familyTarget familyIndexTargets
   majorTarget : VExpr
+  majorSourceDefEq :
+    Rindices.venv.IsDefEqU recLparams.length Rindices.mlctx.vlctx.toCtx
+      majorSourceTarget majorTarget
   majorTr :
     let majorTy :=
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
@@ -17726,7 +17993,18 @@ structure RecursorMotiveFrameWF
     Rindices.venv.IsType
       recLparams.length
       Rindices.mlctx.vlctx.toCtx majorTarget
+  indexDomains : List VExpr
+  indexDomains_length : indexDomains.length = indices.size
+  indexDomains_eq : indexDomains =
+    (Rindices.mlctx.vlctx.toCtx.take indices.size).reverse
+  resultLevel : VLevel
+  resultLevelWF : resultLevel.WF recLparams.length
   motiveTarget : VExpr
+  motiveTarget_eq :
+    motiveTarget =
+      ((VExpr.wrapForalls indexDomains
+        (.forallE majorTarget (.sort resultLevel))).liftN
+          indices.size 0).liftN 1 0
   motiveTr :
     let majorTy :=
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
@@ -17759,6 +18037,24 @@ structure RecursorMotiveFrameWF
     let motiveTy := cMajor.lctx.mkForall indices <|
       cMajor.lctx.mkForall #[major] <| .sort elimLevel
     motiveTy.consumeTypeAnnotations = motiveTy
+
+/-- The independent canonical family/motive telescope attached to one
+completed executable frame.  Its motive type is still compared with the
+annotation-consumed production target in a separate step; this package
+records the exact declarative telescope and types its family endpoint. -/
+structure RecursorMotiveCanonicalFrameWF
+    {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    (stats : AddInductive.InductiveStats) (familyIdx : Nat)
+    (indices : Array Expr) (elimLevel : Level)
+    (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
+    Type where
+  familyType : VExpr
+  motiveType : VExpr
+  familyTyping : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+    Hframe.familyTarget familyType
+  telescope : RecursorMotiveTelescope Hframe.resultLevel indices.size
+    Hframe.familyTarget familyType motiveType
 
 /-- `Expr.inferImplicit` changes only concrete binder annotations, which are
 erased by the abstract expression translation.  In particular the abstract
@@ -21100,6 +21396,7 @@ structure RecursorMotiveTelescopeSeed
   family : VExpr
   familyActualType : VExpr
   familyType : VExpr
+  motiveActualType : VExpr
   motiveType : VExpr
   resultLevel : VLevel
   familyUnique : TrExprS.IsUnique
@@ -21114,7 +21411,9 @@ structure RecursorMotiveTelescopeSeed
   majorBound : BoundFVarArray root #[info.major]
   motiveTypeTr : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
     (root.lctx.mkForall info.indices
-      (root.lctx.mkForall #[info.major] (.sort elimLevel))) motiveType
+      (root.lctx.mkForall #[info.major] (.sort elimLevel))) motiveActualType
+  motiveTypeDefEq : Rroot.venv.IsDefEqU recLparams.length
+    Rroot.mlctx.vlctx.toCtx motiveActualType motiveType
   telescope : RecursorMotiveTelescope resultLevel info.indices.size
     family familyType motiveType
 
@@ -21172,12 +21471,14 @@ theorem RecursorMotiveTelescopeSeed.toTelescopeAt
         H.indicesBound.mkForall_mono Hext.contextLE _
   have HmotiveWeak := Hext.weakTrExprS H.motiveTypeTr
   rw [← hmotiveSource] at HmotiveWeak
-  have HmotiveDefEq : R.venv.IsDefEqU recLparams.length
+  have HbindingActual : R.venv.IsDefEqU recLparams.length
       R.mlctx.vlctx.toCtx binding.motiveTypeTarget
-      (H.motiveType.lift' (Hext.shift.consN 0)) :=
+      (H.motiveActualType.lift' (Hext.shift.consN 0)) :=
     (HmotiveWeak.uniq R.checking.tr.wf
       (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
       binding.motiveType).symm
+  have HmotiveDefEq := HbindingActual.trans R.checking.tr.wf
+    R.mlctx_wf.tr.wf.toCtx (Hext.weakDefEqU H.motiveTypeDefEq)
   have Htelescope' : RecursorMotiveTelescope H.resultLevel indices.length
       (VExpr.mkApps
         (.const (decl.types[target]'Hvalidated.target_lt).name levels)
@@ -23758,6 +24059,486 @@ theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyPrefixAtScope
     (Ctx.LiftN.zero Hsynthesis.indices.reverse)
   simpa [Hsynthesis.scopeCtx, List.reverse_append] using hweakened
 
+/-- The concrete family prefix, before its indices are applied, translates
+to the canonical parameter application in the completed narrow replay scope.
+This is the translation counterpart of
+`recursorCanonicalFamilyPrefixAtScope`. -/
+theorem CheckedRecursorHeaderAt.recursorNarrowFamilyPrefixTranslation
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {current : AddInductive.Context}
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (H.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (Hstats : RecursorValidAppStatsWF R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope stats decl nindices)
+    (henv : R.venv = Hc.venv) :
+    let family := VExpr.mkApps
+      (.const H.target.name (H.recursorAbstractLevels Helim))
+      (decl.paramVars nindices)
+    TrExprS R.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams) scope
+        (mkAppN stats.indConsts[familyIdx]! stats.params) family ∧
+      R.venv.HasType
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length
+        scope.toCtx family
+          ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
+            nindices 0) := by
+  dsimp only
+  have hcanonical := H.recursorCanonicalFamilyPrefixAtScope Helim R
+    Hsynthesis henv
+  have hparamCount : Hsynthesis.params.length = decl.nparams := by
+    rw [Hsynthesis.parameterCount, H.parameterCount]
+  have hindexCount : Hsynthesis.indices.length = nindices :=
+    Hsynthesis.indexCount
+  have hfamilyType : R.venv.HasType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
+      (VExpr.mkApps
+        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (decl.paramVars nindices))
+      ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
+        nindices 0) := by
+    simpa [recursorCanonicalVars, VInductDecl.paramVars, hparamCount,
+      hindexCount, VExpr.liftN_mkApps, VExpr.liftN,
+      ← List.map_reverse, Function.comp_def, Nat.add_comm] using hcanonical
+  have hhead := H.recursorIndConstTranslation Helim R Hstats henv
+  have htranslated := checkPositivityStep.TrExprS.mkAppList
+    R.checking.tr.wf.ordered Hsynthesis.scopeWF.toCtx hhead Hstats.params
+    (show VExpr.WF R.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length
+        scope.toCtx
+        (VExpr.mkApps
+          (.const H.target.name (H.recursorAbstractLevels Helim))
+          (decl.paramVars nindices)) from ⟨_, hfamilyType⟩)
+  exact ⟨by
+    simpa [Expr.mkAppN_eq_mkAppList] using htranslated, hfamilyType⟩
+
+/-- Transport the canonical narrow family-prefix typing into the executable
+index context and identify its term with the prefix retained in the motive
+frame.  Strict equality is available because the concrete constant/free-
+variable application has unique translation. -/
+theorem CheckedRecursorHeaderAt.completedRecursorFamilyPrefixTyping
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {current : AddInductive.Context}
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
+    {indices : Array Expr}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (H.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (Hstats : RecursorValidAppStatsWF R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope stats decl nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope R.mlctx.vlctx)
+    (henv : R.venv = Hc.venv)
+    (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
+    let familyType :=
+      ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
+        nindices 0).lift' Hruntime.shift
+    R.venv.HasType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      R.mlctx.vlctx.toCtx Hframe.familyTarget familyType := by
+  dsimp only
+  rcases H.recursorNarrowFamilyPrefixTranslation Helim R Hsynthesis Hstats
+      henv with ⟨Hfamily, HfamilyType⟩
+  have HfamilyWeak : TrExprS R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      Hruntime.expanded
+      (mkAppN stats.indConsts[familyIdx]! stats.params)
+      ((VExpr.mkApps
+        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (decl.paramVars nindices)).lift' Hruntime.shift) := by
+    simpa using Hfamily.weakFV' R.checking.tr.wf.ordered Hruntime.lift
+      Hruntime.context.wf
+  have HtypeWeak := HfamilyType.weak' R.checking.tr.wf.ordered
+    Hruntime.lift.toCtx
+  have HtypeRuntime := HtypeWeak.defeqDFC R.checking.tr.wf.ordered
+    Hruntime.context.defeqCtx
+  have HfamilyEqU : R.venv.IsDefEqU
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      R.mlctx.vlctx.toCtx
+      ((VExpr.mkApps
+        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (decl.paramVars nindices)).lift' (Hruntime.shift.consN 0))
+      Hframe.familyTarget := by
+    have Heq := HfamilyWeak.uniq R.checking.tr.wf
+      Hruntime.context Hframe.familyTr
+    exact Heq.defeqDFC R.checking.tr.wf.ordered Hruntime.context.defeqCtx
+  exact HtypeRuntime.defeqU_l R.checking.tr.wf
+    R.mlctx_wf.tr.wf.toCtx HfamilyEqU
+
+/-- The canonical narrow family prefix and the prefix retained by the
+executable motive frame are not merely definitionally equal.  Their source
+is syntax-directed and the narrow/runtime contexts have the same declaration
+spine, so translation uniqueness identifies the terms strictly. -/
+theorem CheckedRecursorHeaderAt.completedRecursorFamilyPrefixEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {current : AddInductive.Context}
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
+    {indices : Array Expr}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (H.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (Hstats : RecursorValidAppStatsWF R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope stats decl nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope R.mlctx.vlctx)
+    (henv : R.venv = Hc.venv)
+    (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
+    (VExpr.mkApps
+        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (decl.paramVars nindices)).lift' Hruntime.shift =
+      Hframe.familyTarget := by
+  rcases H.recursorNarrowFamilyPrefixTranslation Helim R Hsynthesis Hstats
+      henv with ⟨Hfamily, _HfamilyType⟩
+  have HfamilyWeak : TrExprS R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      Hruntime.expanded
+      (mkAppN stats.indConsts[familyIdx]! stats.params)
+      ((VExpr.mkApps
+        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (decl.paramVars nindices)).lift' Hruntime.shift) := by
+    simpa using Hfamily.weakFV' R.checking.tr.wf.ordered Hruntime.lift
+      Hruntime.context.wf
+  exact TrExprS.unique'
+    (Lean4Lean.VerifyInductive.VLCtx.IsDefEq.toIsUniqueCtx_ofOnlyLams
+      Hruntime.context R.onlyLams)
+    (Hstats.familyPrefixUnique familyIdx
+      (List.getElem?_eq_some_iff.mp H.targetAt).1)
+    HfamilyWeak Hframe.familyTr
+
+/-- The index arguments recovered from the executable major application are
+exactly the weakened canonical variables of the independent narrow replay.
+The source array contains only retained free variables, so the same
+cross-context uniqueness argument applies pointwise. -/
+theorem CheckedRecursorHeaderAt.completedRecursorIndexTargetsEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {current : AddInductive.Context}
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
+    {indices : Array Expr} {indexTargets : List VExpr}
+    (_Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (H.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope R.mlctx.vlctx)
+    (Hindices : List.Forall₂ (TrExprS R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams) scope)
+      indices.toList indexTargets)
+    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (Hbound : BoundFVarArray current indices)
+    (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
+    (canonicalIndexVars nindices).map (fun target =>
+        target.lift' Hruntime.shift) = Hframe.familyIndexTargets := by
+  have Hweak : List.Forall₂ (TrExprS R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      Hruntime.expanded) indices.toList
+      (indexTargets.map fun target => target.lift' Hruntime.shift) := by
+    apply checkPositivityStep.forall₂_map_right Hindices
+    intro source target Hsource
+    simpa using Hsource.weakFV' R.checking.tr.wf.ordered Hruntime.lift
+      Hruntime.context.wf
+  have hbound : indices.toList = Hbound.fvars.map Expr.fvar := by
+    simpa using congrArg Array.toList Hbound.expressions
+  have Hunique : ∀ source ∈ indices.toList,
+      TrExprS.IsUnique source := by
+    intro source hsource
+    rw [hbound] at hsource
+    rcases List.mem_map.mp hsource with ⟨fv, _hfv, rfl⟩
+    trivial
+  have Heq := Lean4Lean.VerifyInductive.TrExprS.forall₂_unique
+    (Lean4Lean.VerifyInductive.VLCtx.IsDefEq.toIsUniqueCtx_ofOnlyLams
+      Hruntime.context R.onlyLams)
+    Hunique Hweak Hframe.familyIndicesTr
+  simpa [hcanonical] using Heq
+
+/-- Instantiate the abstract parallel motive telescope from the independently
+checked header, weaken it through the exact runtime embedding, and identify
+its family head with the executable frame by strict translation uniqueness. -/
+theorem CheckedRecursorHeaderAt.completedRecursorCanonicalMotiveFrame
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {current : AddInductive.Context}
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
+    {indices : Array Expr}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (H.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (Hstats : RecursorValidAppStatsWF R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope stats decl nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope R.mlctx.vlctx)
+    (henv : R.venv = Hc.venv)
+    (hindices : indices.size = nindices)
+    (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
+    ∃ Hcanonical : RecursorMotiveCanonicalFrameWF R stats familyIdx
+        indices elimLevel Hframe,
+      Hcanonical.familyType =
+        ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
+          nindices 0).lift' Hruntime.shift ∧
+      Hcanonical.motiveType =
+        ((VExpr.wrapForalls Hsynthesis.indices
+          (.forallE
+            (VExpr.mkApps
+              ((VExpr.mkApps
+                (.const H.target.name (H.recursorAbstractLevels Helim))
+                (recursorCanonicalVars Hsynthesis.params.length)).liftN
+                  Hsynthesis.indices.length 0)
+              (recursorCanonicalVars Hsynthesis.indices.length))
+            (.sort Hframe.resultLevel))).liftN nindices 0).lift'
+              Hruntime.shift := by
+  let familyBase := VExpr.mkApps
+    (.const H.target.name (H.recursorAbstractLevels Helim))
+    (recursorCanonicalVars Hsynthesis.params.length)
+  let Hbase := RecursorMotiveTelescope.wrapForalls Hsynthesis.indices
+    familyBase narrowTarget Hframe.resultLevel
+  let Hscope := Hbase.liftN nindices 0
+  let Hfull := Hscope.lift' Hruntime.shift
+  have hparameterCount : Hsynthesis.params.length = decl.nparams := by
+    rw [Hsynthesis.parameterCount, H.parameterCount]
+  have hfamilyScope : familyBase.liftN nindices 0 =
+      VExpr.mkApps
+        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (decl.paramVars nindices) := by
+    simp [familyBase, recursorCanonicalVars, VInductDecl.paramVars,
+      VExpr.liftN_mkApps, VExpr.liftN, hparameterCount,
+      ← List.map_reverse, Function.comp_def, Nat.add_comm]
+  have hfamily := H.completedRecursorFamilyPrefixEq Helim R Hsynthesis
+    Hstats Hruntime henv Hframe
+  have hfamilyFull :
+      (familyBase.liftN nindices 0).lift' Hruntime.shift =
+        Hframe.familyTarget := by
+    rw [hfamilyScope]
+    exact hfamily
+  have Htelescope : RecursorMotiveTelescope Hframe.resultLevel indices.size
+      Hframe.familyTarget
+      (((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
+        nindices 0).lift' Hruntime.shift)
+      (((VExpr.wrapForalls Hsynthesis.indices
+        (.forallE
+          (VExpr.mkApps (familyBase.liftN Hsynthesis.indices.length 0)
+            (recursorCanonicalVars Hsynthesis.indices.length))
+          (.sort Hframe.resultLevel))).liftN nindices 0).lift'
+            Hruntime.shift) := by
+    have harity : Hsynthesis.indices.length = indices.size :=
+      Hsynthesis.indexCount.trans hindices.symm
+    have Hfull' := Hfull
+    rw [hfamilyFull] at Hfull'
+    simpa only [harity] using Hfull'
+  refine ⟨{
+    familyType :=
+      ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
+        nindices 0).lift' Hruntime.shift
+    motiveType :=
+      ((VExpr.wrapForalls Hsynthesis.indices
+        (.forallE
+          (VExpr.mkApps (familyBase.liftN Hsynthesis.indices.length 0)
+            (recursorCanonicalVars Hsynthesis.indices.length))
+          (.sort Hframe.resultLevel))).liftN nindices 0).lift'
+            Hruntime.shift
+    familyTyping := H.completedRecursorFamilyPrefixTyping Helim R Hsynthesis
+      Hstats Hruntime henv Hframe
+    telescope := Htelescope }, rfl, ?_⟩
+  rfl
+
+/-- The motive telescope generated by production is definitionally equal to
+the independently reconstructed canonical telescope.  The proof closes the
+leading index declarations on both sides of the narrow/runtime context
+conversion, compares the canonical family application with the consumed
+major domain, and then reopens the closed telescope in the executable
+context. -/
+theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {current : AddInductive.Context}
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    {scope : VLCtx} {narrowTarget : VExpr} {nindices : Nat}
+    {indices : Array Expr} {indexTargets : List VExpr}
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (H.recursorTargetSkeleton Helim) scope narrowTarget
+        stats.params.size nindices)
+    (Hstats : RecursorValidAppStatsWF R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope stats decl nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      scope R.mlctx.vlctx)
+    (Hindices : List.Forall₂ (TrExprS R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams) scope)
+      indices.toList indexTargets)
+    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (Hbound : BoundFVarArray current indices)
+    (henv : R.venv = Hc.venv)
+    (hindices : indices.size = nindices)
+    (hfront : Hruntime.frontSourceDomains = Hsynthesis.indices)
+    (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
+    ∃ Hcanonical : RecursorMotiveCanonicalFrameWF R stats familyIdx
+        indices elimLevel Hframe,
+      R.venv.IsDefEqU
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length
+        R.mlctx.vlctx.toCtx
+        ((VExpr.wrapForalls Hframe.indexDomains
+          (.forallE Hframe.majorTarget
+            (.sort Hframe.resultLevel))).liftN indices.size 0)
+        Hcanonical.motiveType := by
+  rcases H.completedRecursorCanonicalMotiveFrame Helim R Hsynthesis Hstats
+      Hruntime henv hindices Hframe with
+    ⟨Hcanonical, _hfamilyType, hmotiveType⟩
+  let familyBase := VExpr.mkApps
+    (.const H.target.name (H.recursorAbstractLevels Helim))
+    (recursorCanonicalVars Hsynthesis.params.length)
+  let canonicalMajor := VExpr.mkApps
+    (familyBase.liftN Hsynthesis.indices.length 0)
+    (recursorCanonicalVars Hsynthesis.indices.length)
+  let canonicalBody :=
+    VExpr.forallE canonicalMajor (.sort Hframe.resultLevel)
+  have hparameterCount : Hsynthesis.params.length = decl.nparams := by
+    rw [Hsynthesis.parameterCount, H.parameterCount]
+  have hfamilyScope : familyBase.liftN nindices 0 =
+      VExpr.mkApps
+        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (decl.paramVars nindices) := by
+    simp [familyBase, recursorCanonicalVars, VInductDecl.paramVars,
+      VExpr.liftN_mkApps, VExpr.liftN, hparameterCount,
+      ← List.map_reverse, Function.comp_def, Nat.add_comm]
+  have hfamily := H.completedRecursorFamilyPrefixEq Helim R Hsynthesis
+    Hstats Hruntime henv Hframe
+  have hfamilyFull :
+      (familyBase.liftN nindices 0).lift' Hruntime.shift =
+        Hframe.familyTarget := by
+    rw [hfamilyScope]
+    exact hfamily
+  have hindexTargets := H.completedRecursorIndexTargetsEq Helim R Hsynthesis
+    Hruntime Hindices hcanonical Hbound Hframe
+  have hcanonicalMajor : canonicalMajor.lift' Hruntime.shift =
+      Hframe.majorSourceTarget := by
+    dsimp only [canonicalMajor]
+    rw [VExpr.lift'_mkApps]
+    have hfamilyFull' :
+        (familyBase.liftN Hsynthesis.indices.length 0).lift'
+            Hruntime.shift = Hframe.familyTarget := by
+      simpa [Hsynthesis.indexCount] using hfamilyFull
+    rw [hfamilyFull']
+    have hindexTargets' :
+        (recursorCanonicalVars Hsynthesis.indices.length).map
+            (fun target => target.lift' Hruntime.shift) =
+          Hframe.familyIndexTargets := by
+      simpa [recursorCanonicalVars, canonicalIndexVars,
+        List.map_reverse, Function.comp_def, Hsynthesis.indexCount] using
+        hindexTargets
+    rw [hindexTargets']
+    exact Hframe.majorSourceEq.symm
+  have hcanonicalBody : canonicalBody.lift' Hruntime.shift =
+      .forallE Hframe.majorSourceTarget (.sort Hframe.resultLevel) := by
+    simp [canonicalBody, hcanonicalMajor]
+  rcases Hframe.majorType with ⟨majorLevel, hmajorType⟩
+  have hmajorRuntime := Hframe.majorSourceDefEq.of_r R.checking.tr.wf
+    R.mlctx_wf.tr.wf.toCtx hmajorType
+  have hbodyRuntime : R.venv.IsDefEq
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      R.mlctx.vlctx.toCtx
+      (.forallE Hframe.majorSourceTarget (.sort Hframe.resultLevel))
+      (.forallE Hframe.majorTarget (.sort Hframe.resultLevel))
+      (.sort (.imax majorLevel (.succ Hframe.resultLevel))) :=
+    .forallEDF hmajorRuntime (VEnv.HasType.sort Hframe.resultLevelWF)
+  have hbodyExpanded := hbodyRuntime.defeqDFC R.checking.tr.wf.ordered
+    (Hruntime.context.defeqCtx.symm R.checking.tr.wf.ordered)
+  have hfrontLength : Hruntime.frontExpandedDomains.length = indices.size := by
+    rw [← Hruntime.front.length_eq, hfront, Hsynthesis.indexCount,
+      ← hindices]
+  have hcloseLE : indices.size ≤ Hruntime.expanded.toCtx.length := by
+    rw [← hfrontLength]
+    exact Hruntime.front.expandedLengthLE
+  rcases Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.closeHeads
+      Hruntime.context.defeqCtx indices.size hcloseLE hbodyExpanded with
+    ⟨closedLevel, hclosed⟩
+  have hexpandedPrefix :
+      (Hruntime.expanded.toCtx.take indices.size).reverse =
+        Hruntime.frontExpandedDomains := by
+    rw [← hfrontLength]
+    exact Hruntime.front.expandedPrefix
+  have hruntimePrefix :
+      (R.mlctx.vlctx.toCtx.take indices.size).reverse =
+        Hframe.indexDomains := Hframe.indexDomains_eq.symm
+  rw [hexpandedPrefix, hruntimePrefix] at hclosed
+  have hclosedRuntime := hclosed.defeqDFC R.checking.tr.wf.ordered
+    (Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.dropHeads
+      Hruntime.context.defeqCtx indices.size)
+  have hreopened := hclosedRuntime.weakN R.checking.tr.wf.ordered
+    (Ctx.LiftN.zero (R.mlctx.vlctx.toCtx.take indices.size))
+  have hruntimeLE : indices.size ≤ R.mlctx.vlctx.toCtx.length := by
+    have hlength := Hframe.indexDomains_length
+    rw [Hframe.indexDomains_eq, List.length_reverse,
+      List.length_take] at hlength
+    omega
+  have hreopened' : R.venv.IsDefEq
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      R.mlctx.vlctx.toCtx
+      ((VExpr.wrapForalls Hruntime.frontExpandedDomains
+        (.forallE Hframe.majorSourceTarget
+          (.sort Hframe.resultLevel))).liftN indices.size 0)
+      ((VExpr.wrapForalls Hframe.indexDomains
+        (.forallE Hframe.majorTarget
+          (.sort Hframe.resultLevel))).liftN indices.size 0)
+      ((VExpr.sort closedLevel).liftN indices.size 0) := by
+    simpa [List.take_append_drop, Nat.min_eq_left hruntimeLE] using hreopened
+  have hnatural := Hruntime.front.closeReopen canonicalBody
+  have hnatural' :
+      ((VExpr.wrapForalls Hsynthesis.indices canonicalBody).liftN
+          indices.size 0).lift' Hruntime.shift =
+        (VExpr.wrapForalls Hruntime.frontExpandedDomains
+          (.forallE Hframe.majorSourceTarget
+            (.sort Hframe.resultLevel))).liftN indices.size 0 := by
+    simpa [hfront, Hsynthesis.indexCount, hindices, hfrontLength,
+      hcanonicalBody] using hnatural
+  have hmotiveType' : Hcanonical.motiveType =
+      ((VExpr.wrapForalls Hsynthesis.indices canonicalBody).liftN
+        indices.size 0).lift' Hruntime.shift := by
+    simpa [familyBase, canonicalMajor, canonicalBody, hindices] using
+      hmotiveType
+  have hresult := hreopened'.symm
+  rw [← hnatural', ← hmotiveType'] at hresult
+  exact ⟨Hcanonical, ⟨_, hresult⟩⟩
+
 theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyApplication
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
@@ -23992,7 +24773,8 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
       sourceTarget' := by
     simpa only [← Expr.mkAppN_eq_mkAppList] using Hdom'.source
   rcases checkPositivityStep.TrExprS.mkAppList_inv hsourceList with
-    ⟨familyTarget, _indexTargets', hfamily, _hindices', _hsourceTarget'⟩
+    ⟨familyTarget, familyIndexTargets, hfamily, hfamilyIndices,
+      hsourceTarget'⟩
   let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
     Hdom'.consumed Hdom'.isType
   let cMajor : AddInductive.Context := { c' with
@@ -24071,13 +24853,40 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
   refine ⟨{
     familyTarget := familyTarget
     familyTr := hfamily
+    familyIndexTargets := familyIndexTargets
+    familyIndicesTr := hfamilyIndices
+    majorSourceTarget := sourceTarget'
+    majorSourceEq := hsourceTarget'
+    majorSourceDefEq := by
+      rcases Hdom'.source_defeq with ⟨level, heq⟩
+      exact ⟨.sort level, heq⟩
     majorTarget := majorTarget
     majorTr := ?_
     majorType := ?_
+    indexDomains := MLCtxForallDomains Rindices.mlctx indices.size
+      hindicesSize
+    indexDomains_length :=
+      Rindices.onlyLams.forallDomains_length indices.size hindicesSize
+    indexDomains_eq :=
+      Rindices.onlyLams.forallDomains_eq_take_reverse indices.size
+        hindicesSize
+    resultLevel := sortLevel
+    resultLevelWF := by
+      cases hsort with
+      | sort hlevel => exact .of_ofLevel hlevel
     motiveTarget :=
       ((Rindices.mlctx.mkForall' indices.size hindicesSize
         (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel))).liftN
           indices.size 0).liftN 1 0
+    motiveTarget_eq := by
+      rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls,
+        TypeChecker.MLCtx.mkForall'_eq_wrapForalls]
+      have hmajorDomains : MLCtxForallDomains Rmajor.mlctx 1 hone =
+          [majorTarget] := by
+        dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+        simp only [MLCtxForallDomains, List.nil_append]
+      rw [hmajorDomains]
+      rfl
     motiveTr := ?_
     motiveType := ?_
     motiveSourceEq := ?_ }⟩
@@ -24154,7 +24963,8 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
       sourceTarget := by
     simpa only [← Expr.mkAppN_eq_mkAppList] using Hdom.source
   rcases checkPositivityStep.TrExprS.mkAppList_inv hsourceList with
-    ⟨familyTarget, _indexTargets', hfamily, _hindices', _hsourceTarget⟩
+    ⟨familyTarget, familyIndexTargets, hfamily, hfamilyIndices,
+      hsourceTarget⟩
   let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
     Hdom.consumed Hdom.isType
   let cMajor : AddInductive.Context := { current with
@@ -24234,13 +25044,40 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
   refine ⟨{
     familyTarget := familyTarget
     familyTr := hfamily
+    familyIndexTargets := familyIndexTargets
+    familyIndicesTr := hfamilyIndices
+    majorSourceTarget := sourceTarget
+    majorSourceEq := hsourceTarget
+    majorSourceDefEq := by
+      rcases Hdom.source_defeq with ⟨level, heq⟩
+      exact ⟨.sort level, heq⟩
     majorTarget := majorTarget
     majorTr := Hdom.consumed
     majorType := Hdom.isType
+    indexDomains := MLCtxForallDomains Rindices.mlctx indices.size
+      hindicesSize
+    indexDomains_length :=
+      Rindices.onlyLams.forallDomains_length indices.size hindicesSize
+    indexDomains_eq :=
+      Rindices.onlyLams.forallDomains_eq_take_reverse indices.size
+        hindicesSize
+    resultLevel := sortLevel
+    resultLevelWF := by
+      cases hsort with
+      | sort hlevel => exact .of_ofLevel hlevel
     motiveTarget :=
       ((Rindices.mlctx.mkForall' indices.size hindicesSize
         (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel))).liftN
           indices.size 0).liftN 1 0
+    motiveTarget_eq := by
+      rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls,
+        TypeChecker.MLCtx.mkForall'_eq_wrapForalls]
+      have hmajorDomains : MLCtxForallDomains Rmajor.mlctx 1 hone =
+          [majorTarget] := by
+        dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+        simp only [MLCtxForallDomains, List.nil_append]
+      rw [hmajorDomains]
+      rfl
     motiveTr := ?_
     motiveType := ?_
     motiveSourceEq := ?_ }⟩
@@ -24878,7 +25715,8 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
                 Hc'.checking.tr.wf
                 (.forallE hdomType _hbodyType hdomNarrow hbodyNarrow)
                 hscopeWF hdomainNarrow htransition with
-              ⟨nextNarrow, hnextNarrow, Hsynthesis', _hparams⟩
+              ⟨nextNarrow, hnextNarrow, Hsynthesis',
+                ⟨_hparams, _hindices⟩⟩
             exact continueIndexSynthesisSemantics stats k HrootCtx hconsume Hk
               next consumedBody nextNarrow
               ((some (⟨c.ngen.curr⟩,
@@ -25119,9 +25957,10 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         R.mlctx.vlctx stats decl runtimeDepth →
-      checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
-        scope R.mlctx.vlctx →
+        scope R.mlctx.vlctx) →
+      Hruntime.frontSourceDomains = Hsynthesis.indices →
       TrExprS R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope type narrowTarget →
@@ -25163,9 +26002,10 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         R.mlctx.vlctx stats decl runtimeDepth →
-      checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
-        scope R.mlctx.vlctx →
+        scope R.mlctx.vlctx) →
+      Hruntime.frontSourceDomains = Hsynthesis.indices →
       TrExprS R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope type narrowTarget →
@@ -25189,13 +26029,13 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       RecursorRecentBoundFVarArray Rroot R indices →
       (AddInductive.mkRecInfos.loopArgs1 stats type stats.params.size
         indices fuel k current).WF Q
-  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | current, runtimeDepth, R, henv, Hsuffix, hparameterDecls, type,
       fullTarget, narrowTarget,
       scope, nindices, indices, originTypes, indexTargets, fuel + 1, Hsynthesis,
-      HnarrowStats, Hstats, Hruntime, htypeNarrow, htypeFVars, htypeFull,
+      HnarrowStats, Hstats, Hruntime, hfront, htypeNarrow, htypeFVars, htypeFull,
       htypeFullType, Hindices, HnarrowIndices, hindexCount, hcanonical,
       Horigins, HoriginTypes, Hrecent => by
       cases type with
@@ -25413,7 +26253,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 R'.checking.tr.wf
                 (.forallE hdomType _hbodyType hdomNarrow hbodyNarrow)
                 hscopeWF hdomainNarrow htransition with
-              ⟨nextNarrow, hnextNarrow, Hsynthesis', _hparams⟩
+              ⟨nextNarrow, hnextNarrow, Hsynthesis',
+                ⟨_hparams, hfrontIndices⟩⟩
             exact continueRecursorIndexSynthesisSemantics stats k H Helim
               Rroot hwhnf hconsume Hk R' (by simpa [R'] using henv)
               Hsuffix' (by
@@ -25430,7 +26271,11 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 [.bvar 0]) fuel Hsynthesis'
               (HnarrowStats.withFVar R'.checking.tr.wf hscopeWF)
               (Hstats.withFVar R'.checking.tr.wf R'.mlctx_wf.tr.wf)
-              Hruntime' hnextNarrow hnormalizedFVars
+              Hruntime' (by
+                change Hruntime.frontSourceDomains ++ [indexType] =
+                  Hsynthesis'.indices
+                rw [hfront, hfrontIndices])
+              hnextNarrow hnormalizedFVars
               ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
               hconsumedBodyType Hindices' HnarrowIndices'
               (by simp [hindexCount])
@@ -25446,7 +26291,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
         | proj =>
           simpa [AddInductive.mkRecInfos.loopArgs1] using
             Hk R henv Hsuffix hparameterDecls Hsynthesis HnarrowStats Hstats Hruntime
-              htypeNarrow htypeFVars htypeFull htypeFullType Hindices
+              hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
               HnarrowIndices hindexCount hcanonical Horigins HoriginTypes Hrecent
 termination_by
   current runtimeDepth R henv Hsuffix hparameterDecls type fullTarget narrowTarget scope
@@ -25486,9 +26331,10 @@ theorem continueRecursorParameterSemantics {alpha : Type}
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls stats decl 0 →
-      checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
-        Hsuffix.parameterDecls R.mlctx.vlctx →
+        Hsuffix.parameterDecls R.mlctx.vlctx) →
+      Hruntime.frontSourceDomains = Hsynthesis.indices →
       TrExprS R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls type narrowTarget →
@@ -25538,7 +26384,11 @@ theorem continueRecursorParameterSemantics {alpha : Type}
           hcompleteScope rfl
         subst scope
         exact Hk Hsynthesis (Hsuffix.narrowStats Hstats)
-          Hsuffix.runtimeScope htypeNarrow htypeFVars htypeFull
+          Hsuffix.runtimeScope (by
+            change [] = Hsynthesis.indices
+            exact (List.eq_nil_of_length_eq_zero
+              Hsynthesis.indexCount).symm)
+          htypeNarrow htypeFVars htypeFull
           htypeFullType indices (fuel + 1) hindicesEmpty
       · have hi : i < stats.params.size := by omega
         cases type with
@@ -25736,9 +26586,10 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls stats decl 0 →
-      checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
-        Hsuffix.parameterDecls R.mlctx.vlctx →
+        Hsuffix.parameterDecls R.mlctx.vlctx) →
+      Hruntime.frontSourceDomains = Hsynthesis.indices →
       TrExprS R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls type narrowTarget →
@@ -25851,9 +26702,10 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
       RecursorValidAppStatsWF Rnext.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Rnext.mlctx.vlctx stats decl nextDepth →
-      checkInductiveTypes.loopType.NarrowRuntimeScope Rnext.venv
+      (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope Rnext.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
-        scope Rnext.mlctx.vlctx →
+        scope Rnext.mlctx.vlctx) →
+      Hruntime.frontSourceDomains = Hsynthesis.indices →
       TrExprS Rnext.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope type narrowTarget →
@@ -25883,14 +26735,14 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
           current).WF Q := by
   refine H.startRecursorParameterSemantics Helim R hwhnf henv Hsuffix hctx
     Hstats k ?_ fuel
-  intro type fullTarget narrowTarget Hsynthesis HnarrowStats Hruntime
+  intro type fullTarget narrowTarget Hsynthesis HnarrowStats Hruntime hfront
     htypeNarrow htypeFVars htypeFull htypeFullType indices remaining
     hindicesEmpty
   subst indices
   exact continueRecursorIndexSynthesisSemantics stats k H Helim R hwhnf
     hconsume Hk R henv Hsuffix rfl type fullTarget narrowTarget
     Hsuffix.parameterDecls 0 #[] #[] [] remaining Hsynthesis HnarrowStats
-    Hstats Hruntime htypeNarrow htypeFVars htypeFull htypeFullType .nil .nil
+    Hstats Hruntime hfront htypeNarrow htypeFVars htypeFull htypeFullType .nil .nil
     rfl rfl (BoundFVarTypeOrigins.empty current)
     (RecursorTranslatedOriginTypes.empty R)
     (RecursorRecentBoundFVarArray.empty R)
@@ -26114,6 +26966,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes current recInfos
       Horigins.motiveTypes elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl recInfos elimLevel)
     (HindexTypeRows :
       RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
     (Hparams : BoundFVarArray current stats.params)
@@ -26137,6 +26990,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl out elimLevel →
       RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
@@ -26185,7 +27039,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         hparameterDecls type
         fullTarget narrowTarget scope nindices indices indexOrigins
         indexTargets Hsynthesis HnarrowStats HstatsIndices Hruntime
-        htypeNarrow htypeFVars htypeFull htypeFullType Hindices
+        hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
         HnarrowIndices hindexCount hcanonical HindexOrigins HindexTypes
         Hrecent
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
@@ -26194,6 +27048,14 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         rcases Hheader.completedRecursorFrame Helim R Rindices Hsynthesis
             HnarrowStats Hruntime HnarrowIndices hindexCount hcanonical
             harity henvIndices hconsume Hrecent with ⟨Hframe⟩
+        have hindicesSize : indices.size = nindices := by
+          have hlength :=
+            Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HnarrowIndices
+          simpa [hindexCount] using hlength
+        rcases Hheader.completedRecursorMotiveTypeDefEq Helim Rindices
+            Hsynthesis HnarrowStats Hruntime HnarrowIndices hcanonical
+            HindexOrigins.bound henvIndices hindicesSize hfront Hframe with
+          ⟨Hcanonical, HmotiveCanonical⟩
         let majorTy :=
           (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
             indices).consumeTypeAnnotations
@@ -26354,6 +27216,149 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           simp only [majorTy, nextInfo]
           rw [hprogress]
         let HmajorShapes' := HmajorShapes.push nextInfo majorTy hnewMajorShape
+        let HmajorExtension :=
+          RecursorContextExtension.withLocalDecl (name := `t)
+            (bi := .default) Rindices
+            Hframe.majorTr Hframe.majorType
+        let HmotiveExtension :=
+          RecursorContextExtension.withLocalDecl (name := motiveName)
+            (bi := .default) Rmajor
+            Hframe.motiveTr Hframe.motiveType
+        let HframeExtension : RecursorContextExtension Rindices Rmotive :=
+          HmajorExtension.trans HmotiveExtension
+        let HrootExtension : RecursorContextExtension R Rmotive :=
+          Hrecent.contextExtension.trans HframeExtension
+        have HfamilyTrMajor := HmajorExtension.weakTrExprS Hframe.familyTr
+        have HfamilyTrMotive :=
+          HmotiveExtension.weakTrExprS HfamilyTrMajor
+        have HfamilyTypingMajor :=
+          HmajorExtension.weakHasType Hcanonical.familyTyping
+        have HfamilyTypingMotive :=
+          HmotiveExtension.weakHasType HfamilyTypingMajor
+        have HmotiveTypeTrMotive :=
+          HmotiveExtension.weakTrExprS Hframe.motiveTr
+        have HfamilyTrSeed : TrExprS Rmotive.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams)
+            Rmotive.mlctx.vlctx
+            (mkAppN stats.indConsts[dIdx]! stats.params)
+            ((Hframe.familyTarget.lift' (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)) := by
+          simpa only [Rmotive] using HfamilyTrMotive
+        have HfamilyTypingSeed : Rmotive.venv.HasType
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            Rmotive.mlctx.vlctx.toCtx
+            ((Hframe.familyTarget.lift' (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0))
+            ((Hcanonical.familyType.lift'
+                (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)) := by
+          simpa only [Rmotive] using HfamilyTypingMotive
+        have HfamilyTypeIsType := HfamilyTypingSeed.isType
+          Rmotive.checking.tr.wf Rmotive.mlctx_wf.tr.wf.toCtx
+        have HfamilyTypeDefEq : Rmotive.venv.IsDefEqU
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            Rmotive.mlctx.vlctx.toCtx
+            ((Hcanonical.familyType.lift'
+                (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0))
+            ((Hcanonical.familyType.lift'
+                (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)) :=
+          ⟨_, Classical.choose_spec HfamilyTypeIsType⟩
+        have HmotiveTypeTrSeed : TrExprS Rmotive.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams)
+            Rmotive.mlctx.vlctx
+            (cMotive.lctx.mkForall nextInfo.indices
+              (cMotive.lctx.mkForall #[nextInfo.major]
+                (.sort elimLevel)))
+            (Hframe.motiveTarget.lift'
+              (HmotiveExtension.shift.consN 0)) := by
+          rw [← hnewMotiveShape']
+          simpa only [Rmotive] using HmotiveTypeTrMotive
+        have HmotiveTypeDefEqMajor :=
+          HmajorExtension.weakDefEqU HmotiveCanonical
+        have hmajorLift (expression : VExpr) :
+            expression.liftN 1 0 =
+              expression.lift' (HmajorExtension.shift.consN 0) := by
+          change expression.liftN 1 0 =
+            expression.lift' ((Lift.skip .refl).consN 0)
+          rw [← Lift.skipN_one, VExpr.lift'_consN_skipN]
+        have HmotiveTypeDefEqMajor' : Rmajor.venv.IsDefEqU
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            Rmajor.mlctx.vlctx.toCtx Hframe.motiveTarget
+            (Hcanonical.motiveType.lift'
+              (HmajorExtension.shift.consN 0)) := by
+          rw [Hframe.motiveTarget_eq]
+          rw [hmajorLift]
+          exact HmotiveTypeDefEqMajor
+        have HmotiveTypeDefEqWeak :=
+          HmotiveExtension.weakDefEqU HmotiveTypeDefEqMajor'
+        have HmotiveTypeDefEqSeed : Rmotive.venv.IsDefEqU
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            Rmotive.mlctx.vlctx.toCtx
+            (Hframe.motiveTarget.lift'
+              (HmotiveExtension.shift.consN 0))
+            ((Hcanonical.motiveType.lift'
+                (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)) := by
+          simpa only [Rmotive] using HmotiveTypeDefEqWeak
+        have htargetLt : dIdx < decl.types.length :=
+          (List.getElem?_eq_some_iff.mp Hheader.targetAt).1
+        have htargetEq : decl.types[dIdx] = Hheader.target := by
+          have htargetAt := Hheader.targetAt
+          rw [List.getElem?_eq_getElem htargetLt] at htargetAt
+          exact Option.some.inj htargetAt
+        have hseedIndexCount : indices.size =
+            (decl.types[dIdx]'htargetLt).numIndices := by
+          rw [htargetEq]
+          have hguard : indices.size = stats.nindices[dIdx]! := by
+            simpa using harity
+          exact hguard.trans (by
+            simp [Array.getElem!_eq_getD, Hheader.indexCount])
+        let HindicesAtMotive : BoundFVarArray cMotive indices :=
+          HindexOrigins.bound.mono (hMajorFrame.trans hMotiveFrame)
+        let HmajorAtMotiveBound : BoundFVarArray cMotive #[major] :=
+          HmajorAtMajor.mono hMotiveFrame
+        let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx
+            nextInfo elimLevel := {
+          target_lt := htargetLt
+          indexCount := hseedIndexCount
+          family := (Hframe.familyTarget.lift'
+            (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)
+          familyActualType :=
+            (Hcanonical.familyType.lift'
+              (HmajorExtension.shift.consN 0)).lift'
+                (HmotiveExtension.shift.consN 0)
+          familyType :=
+            (Hcanonical.familyType.lift'
+              (HmajorExtension.shift.consN 0)).lift'
+                (HmotiveExtension.shift.consN 0)
+          motiveActualType :=
+            Hframe.motiveTarget.lift' (HmotiveExtension.shift.consN 0)
+          motiveType :=
+            (Hcanonical.motiveType.lift'
+              (HmajorExtension.shift.consN 0)).lift'
+                (HmotiveExtension.shift.consN 0)
+          resultLevel := Hframe.resultLevel
+          familyUnique := HnarrowStats.familyPrefixUnique dIdx htargetLt
+          familyTr := HfamilyTrSeed
+          familyTyping := HfamilyTypingSeed
+          familyTypeDefEq := HfamilyTypeDefEq
+          indicesBound := HindicesAtMotive
+          majorBound := HmajorAtMotiveBound
+          motiveTypeTr := HmotiveTypeTrSeed
+          motiveTypeDefEq := HmotiveTypeDefEqSeed
+          telescope := (Hcanonical.telescope.lift'
+            (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0) }
+        have HseedAt : RecursorMotiveTelescopeAt Rmotive stats decl
+            recInfos.size nextInfo elimLevel := by
+          rw [hprogress]
+          exact Hseed.toTelescopeAt
+        let Htelescopes' :=
+          (Htelescopes.mono HrootExtension).push nextInfo
+            HseedAt
         refine resultSemantics Hbase stats indTypes elimLevel Helim Hheaders
           hwhnf hconsume (dIdx + 1)
           (recInfos.push {
@@ -26362,7 +27367,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             indices
             major }) k Rmotive (by simpa [Rmotive, Rmajor] using henvIndices)
           HsuffixMotive HparamsCtx' HstatsMotive Hbindings' Horigins'
-          ?_ ?_ ?_ ?_ ?_ Hparams' HnoAlias'
+          ?_ ?_ ?_ ?_ Htelescopes' ?_ Hparams' HnoAlias'
           (Hroot.trans <| hIndices.trans <|
             (BindingContextLE.withLocalDecl cIndices
               Rindices.toBindingContextWF `t majorTy .default).trans <|
@@ -26405,11 +27410,11 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           exact HindexRows'
         · intro cOut outDepth out Rout henvOut HsuffixOut HstatsOut HbindingsOut
             HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
-            HindexRowsOut
+            HtelescopesOut HindexRowsOut
             HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut houtSize
           apply Hk out Rout henvOut HsuffixOut HstatsOut HbindingsOut
             HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
-            HindexRowsOut HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut
+            HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut
           simp only [Array.size_push] at houtSize
           omega
       · simp only [loopK]
@@ -26417,7 +27422,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         exact Except.WF.throw
   · rw [dif_neg hidx]
     exact Hk recInfos R henv Hsuffix Hstats Hbindings Horigins HmajorTypes
-      HmajorShapes HmotiveTypes HmotiveShapes HindexTypeRows Hparams HnoAlias
+      HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexTypeRows Hparams HnoAlias
       Harities Hempty Hroot (by omega)
 termination_by indTypes.size - dIdx
 
@@ -32074,36 +33079,6 @@ def GeneratedRecursors.nestedCompilationCertificate
   auxiliary_guarded := Haux.guarded
   names := hnames
 
-/-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
-innermost order. Local lets are discharged by `mkForall'` and contribute no
-domain. -/
-def MLCtxForallDomains (c : TypeChecker.MLCtx) :
-    (n : Nat) → n ≤ c.length → List VExpr
-  | 0, _ => []
-  | n + 1, h =>
-    match c with
-    | .vlam _ _ _ type' _ c =>
-      MLCtxForallDomains c n (Nat.le_of_succ_le_succ h) ++ [type']
-    | .vlet _ _ _ _ _ _ c =>
-      MLCtxForallDomains c n (Nat.le_of_succ_le_succ h)
-
-theorem TypeChecker.MLCtx.mkForall'_eq_wrapForalls
-    (c : TypeChecker.MLCtx) (n : Nat) (hn : n ≤ c.length) (body : VExpr) :
-    c.mkForall' n hn body = VExpr.wrapForalls (MLCtxForallDomains c n hn) body := by
-  induction n generalizing c body with
-  | zero => simp [TypeChecker.MLCtx.mkForall', MLCtxForallDomains,
-      VExpr.wrapForalls]
-  | succ n ih =>
-    cases c with
-    | nil => simp at hn
-    | vlam fv name type type' bi c =>
-      simp only [TypeChecker.MLCtx.mkForall', MLCtxForallDomains]
-      rw [ih, VExpr.wrapForalls_append]
-      rfl
-    | vlet fv name type value type' value' c =>
-      simp only [TypeChecker.MLCtx.mkForall', MLCtxForallDomains]
-      exact ih c (Nat.le_of_succ_le_succ hn) body
-
 /-- Exact certificate for a suffix of local declarations introduced by
 `withLocalDecl`; its domains are recorded in the same outermost-to-innermost
 order used by generated recursor telescopes. -/
@@ -33413,6 +34388,7 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
       RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl recInfos elimLevel →
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
@@ -33465,15 +34441,16 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     (RecInfoMajorTypeShapes.empty stats)
     (RecursorTranslatedOriginTypes.empty Rbase)
     (RecInfoMotiveTypeShapes.empty _ elimLevel)
+    (RecInfoMotiveTelescopes.empty Rbase stats decl elimLevel)
     (RecursorTranslatedOriginTypeRows.empty Rbase) Hparams
     (RecInfoBindings.empty_noAlias _ Hparams hparamsNodup)
     (BindingContextLE.refl _) rfl (RecInfoArities.empty stats)
     RecInfoMinorsEmpty.empty ?_
   intro cOut outDepth recInfos Rout henvOut HsuffixOut HstatsOut
     Hbindings Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
-    HindexRows HparamsOut HnoAlias Harities Hempty Hroot hsize
+    Htelescopes HindexRows HparamsOut HnoAlias Harities Hempty Hroot hsize
   apply Hk recInfos Rout henvOut HsuffixOut HstatsOut Hbindings Horigins
-    HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes HindexRows HparamsOut
+    HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows HparamsOut
     HnoAlias Harities Hempty Hroot
   simpa using hsize
 
