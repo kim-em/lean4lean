@@ -267,6 +267,44 @@ theorem VEnv.IsType.wrapForalls
       (OnCtx.append_right hctx').2
     exact VEnv.IsType.forallE hdomain hrest
 
+/-- Closing a term over a semantically well-formed telescope preserves its
+typing.  The domains use the source binder order, while typing contexts use
+the corresponding most-recent-first order. -/
+theorem VEnv.HasType.wrapLams
+    {env : VEnv} (hctx : OnCtx (domains.reverse ++ ctx)
+      (env.IsType uvars))
+    (H : env.HasType uvars (domains.reverse ++ ctx) body typeBody) :
+    env.HasType uvars ctx (VExpr.wrapLams domains body)
+      (VExpr.wrapForalls domains typeBody) := by
+  induction domains generalizing ctx with
+  | nil => simpa [VExpr.wrapLams, VExpr.wrapForalls] using H
+  | cons domain domains ih =>
+    have hctx' : OnCtx (domains.reverse ++ (domain :: ctx))
+        (env.IsType uvars) := by
+      simpa [List.reverse_cons, List.append_assoc] using hctx
+    have hrest := ih hctx' (by
+      simpa [List.reverse_cons, List.append_assoc] using H)
+    rcases (OnCtx.append_right hctx').2 with ⟨level, hdomain⟩
+    simpa [VExpr.wrapLams, VExpr.wrapForalls] using hdomain.lam hrest
+
+/-- Package two equally typed residual bodies as one closed, well-formed
+definitional equation.  This is the common specification-side endpoint for
+ordinary and restored nested iota equations. -/
+theorem VDefEq.wf_of_wrappedBodies
+    {env : VEnv} {uvars : Nat} {domains : List VExpr}
+    {lhsBody rhsBody typeBody : VExpr}
+    (hctx : OnCtx domains.reverse (env.IsType uvars))
+    (hlhs : env.HasType uvars domains.reverse lhsBody typeBody)
+    (hrhs : env.HasType uvars domains.reverse rhsBody typeBody) :
+    ({ uvars := uvars
+       lhs := VExpr.wrapLams domains lhsBody
+       rhs := VExpr.wrapLams domains rhsBody
+       type := VExpr.wrapForalls domains typeBody } : VDefEq).WF env := by
+  have hctx' : OnCtx (domains.reverse ++ []) (env.IsType uvars) := by
+    simpa using hctx
+  exact ⟨VEnv.HasType.wrapLams hctx' (by simpa using hlhs),
+    VEnv.HasType.wrapLams hctx' (by simpa using hrhs)⟩
+
 /-- Inject the next domain after two equally long definitionally equal forall
 prefixes.  The result is stated in the left prefix context, matching the
 narrow replay context built from already consumed family parameters. -/
@@ -21150,6 +21188,15 @@ theorem Expr.ForallTelescopeTypeTranslation.translation
   | cons Hdom HdomType Hbody ih =>
     exact .forallE HdomType Hbody.isType Hdom ih
 
+theorem Expr.ForallTelescopeTypeTranslation.mono
+    (henv : env ≤ env')
+    (H : Expr.ForallTelescopeTypeTranslation env Us Δ source arity target) :
+    Expr.ForallTelescopeTypeTranslation env' Us Δ source arity target := by
+  induction H with
+  | nil Htr Htype => exact .nil (Htr.mono henv) (Htype.mono henv)
+  | cons Hdom HdomType Hbody ih =>
+    exact .cons (Hdom.mono henv) (HdomType.mono henv) ih
+
 theorem Expr.ForallTelescopeTypeTranslation.telescope
     (H : Expr.ForallTelescopeTypeTranslation env Us Δ e n e') :
     ∃ residual, Expr.ForallTelescope e n residual := by
@@ -33640,6 +33687,91 @@ theorem BoundGeneratedRecursorRule.abstractedSourceRhs
   rw [Expr.abstractList_mkAppN, Expr.abstractList_mkAppN,
     hminorBang, habstract']
 
+/-- The selected minor has a canonical de Bruijn position in the closed rule
+telescope: constructor fields are newer, and the remaining minors occur in
+reverse order immediately behind them. -/
+theorem BoundGeneratedRecursorRule.abstractedSourceRhsAtMinor
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    let minorVar := H.all_args_bound.fvars.length +
+      (H.minors_bound.fvars.length - 1 - minorIdx)
+    H.sourceRhsBody.abstractList H.binders =
+      mkAppN
+        (mkAppN (.bvar minorVar)
+          (H.allArgs.map fun arg => arg.abstractList H.binders))
+        (H.recursiveResults.map fun result =>
+          result.abstractList H.binders) := by
+  rcases H.minors_bound.getElem_eq_fvar minorIdx H.minor_valid with
+    ⟨hiFvars, hminor⟩
+  let fv := H.minors_bound.fvars[minorIdx]
+  let outerPrefix := H.params_bound.fvars ++ H.motives_bound.fvars
+  let before := outerPrefix ++ H.minors_bound.fvars.take minorIdx
+  let after := H.minors_bound.fvars.drop (minorIdx + 1) ++
+    H.all_args_bound.fvars
+  have hminorDecomp : H.minors_bound.fvars =
+      H.minors_bound.fvars.take minorIdx ++ fv ::
+        H.minors_bound.fvars.drop (minorIdx + 1) := by
+    calc
+      H.minors_bound.fvars =
+          H.minors_bound.fvars.take (minorIdx + 1) ++
+            H.minors_bound.fvars.drop (minorIdx + 1) :=
+        (List.take_append_drop (minorIdx + 1) _).symm
+      _ = (H.minors_bound.fvars.take minorIdx ++ [fv]) ++
+          H.minors_bound.fvars.drop (minorIdx + 1) := by
+        rw [List.take_succ_eq_append_getElem hiFvars]
+      _ = H.minors_bound.fvars.take minorIdx ++ fv ::
+          H.minors_bound.fvars.drop (minorIdx + 1) := by simp
+  have hbindersDecomp : H.binders = before ++ fv :: after := by
+    change ((outerPrefix ++ H.minors_bound.fvars) ++
+      H.all_args_bound.fvars) = before ++ fv :: after
+    rw [hminorDecomp]
+    dsimp only [before, after]
+    simp only [List.append_assoc]
+    rw [List.cons_append]
+  have hnodup : (before ++ fv :: after).Nodup := by
+    rw [← hbindersDecomp]
+    exact H.binders_nodup
+  have habstract := Expr.abstractList_fvar_getElem
+    hnodup before.length (by simp) (k := 0)
+  have habstract' : (Expr.fvar fv).abstractList
+      (before ++ fv :: after) =
+      .bvar ((before ++ fv :: after).length - 1 - before.length) := by
+    simpa using habstract
+  let minorVar := H.all_args_bound.fvars.length +
+    (H.minors_bound.fvars.length - 1 - minorIdx)
+  have hafterLength : after.length = minorVar := by
+    unfold after minorVar
+    simp only [List.length_append, List.length_drop]
+    omega
+  have habstractFinal : (Expr.fvar fv).abstractList H.binders =
+      .bvar minorVar := by
+    rw [hbindersDecomp]
+    simpa [hafterLength] using habstract'
+  have hminorBang : minors[minorIdx]! = .fvar fv := by
+    rw [Array.getElem!_eq_getD, Array.getD, dif_pos H.minor_valid]
+    exact hminor
+  unfold BoundGeneratedRecursorRule.sourceRhsBody
+  rw [Expr.abstractList_mkAppN, Expr.abstractList_mkAppN,
+    hminorBang, habstractFinal]
+
+theorem BoundGeneratedRecursorRule.abstractedSourceRhsAtMinorArray
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    let minorVar := H.allArgs.size + (minors.size - 1 - minorIdx)
+    H.sourceRhsBody.abstractList H.binders =
+      mkAppN
+        (mkAppN (.bvar minorVar)
+          (H.allArgs.map fun arg => arg.abstractList H.binders))
+        (H.recursiveResults.map fun result =>
+          result.abstractList H.binders) := by
+  have hall : H.all_args_bound.fvars.length = H.allArgs.size := by
+    have h := congrArg Array.size H.all_args_bound.expressions
+    simpa using h.symm
+  have hminors : H.minors_bound.fvars.length = minors.size := by
+    have h := congrArg Array.size H.minors_bound.expressions
+    simpa using h.symm
+  simpa [hall, hminors] using H.abstractedSourceRhsAtMinor
+
 /-- Translation of the exact production rule RHS exposes the abstract rule
 telescope and leaves only the simultaneously abstracted minor application as
 the residual translation obligation. -/
@@ -34320,6 +34452,11 @@ structure BoundGeneratedRecursorRule.Semantics
     H.target targetTarget
   target_type : context.venv.IsType recLparams.length
     context.mlctx.vlctx.toCtx targetTarget
+  constructorTarget : VExpr
+  constructor_translation : TrExprS context.venv recLparams
+    context.mlctx.vlctx H.sourceConstructorMajor constructorTarget
+  constructor_typing : context.venv.HasType recLparams.length
+    context.mlctx.vlctx.toCtx constructorTarget targetTarget
   target_valid : AddInductive.isValidIndApp? stats H.target = some ownerIdx
   fields : List
     (RecursorRecursiveDomainAt context.venv decl recLparams.length)
@@ -35046,6 +35183,11 @@ theorem oneRuleSemantics
     targetTarget := terminalTarget
     target_translation := Hterminal
     target_type := HterminalType
+    constructorTarget := appliedTarget
+    constructor_translation := by
+      simpa [BoundGeneratedRecursorRule.sourceConstructorMajor, mkAppN] using
+        _HintroApplied
+    constructor_typing := _HintroAppliedType
     target_valid := hselectedOwner
     fields := fields
     selection := Hselection
@@ -44101,6 +44243,74 @@ structure GeneratedRecursorTelescopeTranslation
       (params ++ motives ++ minors ++ indices ++ major) [])
     (concreteRecursorResult numMotives numMinors numIndices ownerIdx) result
 
+/-- Applying the parameter, motive, and minor prefix of a translated
+recursor to its canonical variables leaves exactly the index/major suffix.
+This is the typed spine shared by every generated equation for the owner. -/
+theorem GeneratedRecursorTelescopeTranslation.prefixTyping
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (henv : env.Ordered)
+    (hfn : env.HasType Us.length [] fn target) :
+    env.HasType Us.length
+      (T.params ++ T.motives ++ T.minors).reverse
+      (VExpr.mkApps (fn.liftN
+        (T.params ++ T.motives ++ T.minors).length 0)
+        (recursorCanonicalVars
+          (T.params ++ T.motives ++ T.minors).length))
+      (VExpr.wrapForalls (T.indices ++ T.major) T.result) := by
+  have hfn' : env.HasType Us.length [] fn
+      (VExpr.wrapForalls
+        ((T.params ++ T.motives ++ T.minors) ++
+          (T.indices ++ T.major)) T.result) := by
+    rw [T.target_eq] at hfn
+    simpa [List.append_assoc] using hfn
+  have happ := VEnv.HasType.mkApps_wrapForalls_prefix_canonical henv hfn'
+  simpa [recursorCanonicalVars] using happ
+
+/-- The common parameter/motive/minor prefix is itself a well-formed local
+context, independently of the owner-specific index and major suffix. -/
+theorem GeneratedRecursorTelescopeTranslation.prefixContext
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (henv : env.Ordered) :
+    OnCtx (T.params ++ T.motives ++ T.minors).reverse
+      (env.IsType Us.length) := by
+  have htype := T.typed.isType
+  change env.IsType Us.length [] target at htype
+  rw [T.target_eq] at htype
+  have htype' : env.IsType Us.length []
+      (VExpr.wrapForalls
+        (T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major)
+        T.result) := by
+    simpa using htype
+  have hgrouped : env.IsType Us.length []
+      (VExpr.wrapForalls (T.params ++ T.motives ++ T.minors)
+        (VExpr.wrapForalls (T.indices ++ T.major) T.result)) := by
+    simpa [VExpr.wrapForalls_append, List.append_assoc] using htype'
+  simpa using
+    (VEnv.IsType.wrapForalls_inv henv (by trivial) hgrouped).1
+
+def GeneratedRecursorTelescopeTranslation.mono
+    (henv : env ≤ env')
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx) :
+    GeneratedRecursorTelescopeTranslation env' Us source target
+      numParams numMotives numMinors numIndices ownerIdx where
+  params := T.params
+  motives := T.motives
+  minors := T.minors
+  indices := T.indices
+  major := T.major
+  result := T.result
+  target_eq := T.target_eq
+  params_length := T.params_length
+  motives_length := T.motives_length
+  minors_length := T.minors_length
+  indices_length := T.indices_length
+  major_length := T.major_length
+  typed := T.typed.mono henv
+  residual := T.residual.mono henv
+
 /-- The actual translated `.recInfo` emitted by production canonically
 determines the five-group telescope certificate.  This contains no semantic
 callback: it is obtained solely by inverting the retained executable
@@ -50633,6 +50843,21 @@ def RecursorPhasesResult.staged
   recursorsAdded := by
     simpa [H.localExtends.safety_eq, H.localExtends.env_eq] using H.installed
 
+theorem RecursorPhasesResult.outVEnvWF
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) : H.outVEnv.WF := by
+  have hvalid : CheckingEnv.Valid H.localContext.safety
+      H.localContext.env R.declared.venvCtors := by
+    rw [← R.declared.contextVEnv, ← H.recursorEnv]
+    exact H.recursorWF.checking
+  exact (H.installed.valid hvalid).tr.wf
+
 /-- The executable recursor phase supplies the binder-explicit translation
 certificate for every owner in the mutual block.  Binder selections and
 their no-alias proof are recovered from the retained `mkRecInfos` state. -/
@@ -51610,6 +51835,158 @@ theorem RecursorPhasesResult.generatedRuleAlignment
     semantics := Hsemantic
     semantic_owner := hsemanticOwner }⟩
 
+/-- The recursor selected by a generated rule carries the exact five-part,
+binder-typed telescope recovered from the production `.recInfo`.  This is
+the canonical source of the parameter, motive, and minor domains used when
+typing the corresponding equation; it does not reconstruct those domains
+from the rule RHS. -/
+theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTelescopeTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (_A : H.GeneratedRuleAlignment owner howner i hctor) :
+    Nonempty (GeneratedRecursorTelescopeTranslation R.declared.venvCtors
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) := by
+  let E := H.generated.entry owner howner
+  rcases H.generatedTelescopeTranslations owner howner with
+    ⟨info, hinfo, ⟨T⟩⟩
+  have hinfoEq : info = E.info := by
+    have heq : ConstantInfo.recInfo info = .recInfo E.info :=
+      hinfo.symm.trans E.source_eq
+    injection heq
+  subst info
+  refine ⟨?_⟩
+  simpa [E.levels, H.localExtends.lparams_eq] using T
+
+theorem RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorTelescopeTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    Nonempty (GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) := by
+  rcases A.recursorTelescopeTranslation with ⟨T⟩
+  exact ⟨T.mono H.installed.le⟩
+
+/-- The aligned recursor is present and well typed in the final environment
+at its identity universe instantiation.  Rule typing can therefore consume
+the independently recovered telescope without appealing to the equation
+being constructed. -/
+theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (_A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let recursor := H.entries[owner].2
+    H.outVEnv.HasType recursor.uvars []
+      (.const recursor.name (VLevel.params recursor.uvars)) recursor.type := by
+  let recursor := H.entries[owner].2
+  have hmem : recursor ∈ H.entries.map Prod.snd := by
+    exact List.mem_map.mpr
+      ⟨H.entries[owner], List.getElem_mem howner, rfl⟩
+  have hlookup : H.outVEnv.constants recursor.name =
+      some recursor.toVConstant := by
+    apply VEnv.addConsts_get H.installed.abstract
+    exact hmem
+  have hwfBase : recursor.toVConstant.WF R.declared.venvCtors :=
+    H.generated.recursorsWF H.localWF H.bindings H.params recursor hmem
+  have hwf : recursor.toVConstant.WF H.outVEnv :=
+    hwfBase.mono H.installed.le
+  exact VEnv.HasType.const0 hlookup hwf
+
+/-- The production recursor level-parameter list and the installed abstract
+constant have the same arity. -/
+theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorUvars
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (_A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (AddInductive.getRecLevelParams H.elimLevel c.lparams).length =
+      H.entries[owner].2.uvars := by
+  let E := H.generated.entry owner howner
+  have htranslated : E.info.levelParams.length =
+      H.entries[owner].2.uvars := by
+    simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal, E] using
+      E.translated.1.2.1
+  simpa [E.levels, H.localExtends.lparams_eq] using htranslated
+
+/-- Typed canonical application of the common recursor prefix used by this
+rule.  The remaining function consumes precisely the owner's indices and
+major premise. -/
+theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorPrefixTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let recursor := H.entries[owner].2
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type recursor.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      H.outVEnv.HasType Us.length
+        (T.params ++ T.motives ++ T.minors).reverse
+        (VExpr.mkApps
+          ((VExpr.const recursor.name (VLevel.params Us.length)).liftN
+            (T.params ++ T.motives ++ T.minors).length 0)
+          (recursorCanonicalVars
+            (T.params ++ T.motives ++ T.minors).length))
+        (VExpr.wrapForalls (T.indices ++ T.major) T.result) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let recursor := H.entries[owner].2
+  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  have hrec := A.recursorTyping
+  have huvars := A.recursorUvars
+  change Us.length = recursor.uvars at huvars
+  change H.outVEnv.HasType recursor.uvars []
+    (.const recursor.name (VLevel.params recursor.uvars)) recursor.type at hrec
+  rw [← huvars] at hrec
+  exact ⟨T, T.prefixTyping H.outVEnvWF.ordered hrec⟩
+
 theorem RecursorPhasesResult.recursorNamesFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -52023,6 +52400,148 @@ structure RecursorPhasesResult.GeneratedEquationWitness
   translation : alignment.rule.EquationTranslation H.outVEnv Us [] rule
   uvars : rule.uvars = H.entries[owner].2.uvars
   wf : rule.WF H.outVEnv
+
+/-- Canonical abstract equation assembled from the residual bodies exposed by
+one generated source rule. -/
+def RecursorPhasesResult.GeneratedRuleAlignment.abstractEquation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (_A : H.GeneratedRuleAlignment owner howner i hctor)
+    (domains : List VExpr) (lhsBody rhsBody typeBody : VExpr) : VDefEq where
+  uvars := H.entries[owner].2.uvars
+  lhs := VExpr.wrapLams domains lhsBody
+  rhs := VExpr.wrapLams domains rhsBody
+  type := VExpr.wrapForalls domains typeBody
+
+/-- Residual translation and typing are sufficient to construct the exact
+pointwise witness consumed by the flattened equation builder.  In particular,
+the wrapper syntax and equation universe count are canonical rather than
+caller-supplied proof obligations. -/
+def RecursorPhasesResult.GeneratedRuleAlignment.equationWitnessOfBodies
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv} {Us : List Name}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (domains : List VExpr) (lhsBody rhsBody typeBody : VExpr)
+    (hdomains : domains.length = A.rule.binders.length)
+    (hlhsResidual : TrExprS H.outVEnv Us
+      (abstractForallContext domains [])
+      (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody)
+    (hrhsResidual : TrExprS H.outVEnv Us
+      (abstractForallContext domains [])
+      (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody)
+    (hctx : OnCtx domains.reverse
+      (H.outVEnv.IsType H.entries[owner].2.uvars))
+    (hlhs : H.outVEnv.HasType H.entries[owner].2.uvars domains.reverse
+      lhsBody typeBody)
+    (hrhs : H.outVEnv.HasType H.entries[owner].2.uvars domains.reverse
+      rhsBody typeBody) :
+    H.GeneratedEquationWitness Us owner howner i hctor
+      (A.abstractEquation domains lhsBody rhsBody typeBody) where
+  alignment := A
+  translation := {
+    domains := domains
+    lhsBody := lhsBody
+    rhsBody := rhsBody
+    typeBody := typeBody
+    domains_length := hdomains
+    lhs_wrapped := rfl
+    rhs_wrapped := rfl
+    type_wrapped := rfl
+    lhs_residual := hlhsResidual
+    rhs_residual := hrhsResidual }
+  uvars := rfl
+  wf := VDefEq.wf_of_wrappedBodies hctx hlhs hrhs
+
+/-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
+common prefix is taken from the independently typed recursor telescope and
+only the constructor-field suffix remains local to the generated rule. -/
+def RecursorPhasesResult.GeneratedRuleAlignment.equationWitnessOfCanonicalBodies
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr) (lhsBody rhsBody typeBody : VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (hlhsResidual : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        ((T.params ++ T.motives ++ T.minors) ++ fieldDomains) [])
+      (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody)
+    (hrhsResidual : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        ((T.params ++ T.motives ++ T.minors) ++ fieldDomains) [])
+      (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody)
+    (hctx : OnCtx
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      (H.outVEnv.IsType H.entries[owner].2.uvars))
+    (hlhs : H.outVEnv.HasType H.entries[owner].2.uvars
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      lhsBody typeBody)
+    (hrhs : H.outVEnv.HasType H.entries[owner].2.uvars
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      rhsBody typeBody) :
+    H.GeneratedEquationWitness
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      owner howner i hctor
+      (A.abstractEquation
+        ((T.params ++ T.motives ++ T.minors) ++ fieldDomains)
+        lhsBody rhsBody typeBody) := by
+  have hparams : A.rule.params_bound.fvars.length = stats.params.size := by
+    have h := congrArg Array.size A.rule.params_bound.expressions
+    simpa using h.symm
+  have hmotives : A.rule.motives_bound.fvars.length =
+      (H.recInfos.map (·.motive)).size := by
+    have h := congrArg Array.size A.rule.motives_bound.expressions
+    simpa using h.symm
+  have hminors : A.rule.minors_bound.fvars.length =
+      (H.recInfos.flatMap (·.minors)).size := by
+    have h := congrArg Array.size A.rule.minors_bound.expressions
+    simpa using h.symm
+  have hallArgs : A.rule.all_args_bound.fvars.length =
+      A.rule.allArgs.size := by
+    have h := congrArg Array.size A.rule.all_args_bound.expressions
+    simpa using h.symm
+  have hdomains :
+      ((T.params ++ T.motives ++ T.minors) ++ fieldDomains).length =
+        A.rule.binders.length := by
+    unfold BoundGeneratedRecursorRule.binders
+    simp only [List.length_append]
+    rw [T.params_length, T.motives_length, T.minors_length,
+      hfields, hparams, hmotives, hminors, hallArgs]
+  exact A.equationWitnessOfBodies
+    ((T.params ++ T.motives ++ T.minors) ++ fieldDomains)
+    lhsBody rhsBody typeBody hdomains hlhsResidual hrhsResidual hctx
+    hlhs hrhs
 
 /-- Owner-prefix accumulation of reconstructed equations and their typing
 proofs.  Keeping the equation traversal independent of the final block lets
