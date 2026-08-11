@@ -3375,6 +3375,21 @@ def ConsumeTypeAnnotationsCompat : Prop :=
     Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx source' →
     ∃ consumed', Hc.ConsumedDomain dom source' consumed'
 
+/-- Executable locality boundary for weak-head normalization.  `whnf` only
+uses type inference in `inferOnly` mode, so changing the reader's admitted
+universe-parameter names does not affect reduction.  Keeping this statement
+separate makes the remaining implementation proof (by inspection of the
+mutually recursive reduction functions) explicit, instead of baking it into
+the recursor invariant. -/
+def WhnfLParamsCompat : Prop :=
+  ∀ (env : Environment) (safety : DefinitionSafety)
+    (lctx : LocalContext) (lparams lparams' : List Name)
+    (fuel : FuelConfig) (e : Expr),
+    TypeChecker.M.run env safety lctx lparams fuel
+        (TypeChecker.whnf e) =
+      TypeChecker.M.run env safety lctx lparams' fuel
+        (TypeChecker.whnf e)
+
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
 
@@ -3414,6 +3429,44 @@ theorem whnfInContext.scopeWF (Hc : ContextWF c)
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' :=
   liftTypeChecker.WF Hc
     ((TypeChecker.Inner.whnf.WF he).run)
+
+/-- Interpret typechecker verification under the recursor's universe
+parameters while retaining the executable local context built by
+`AddInductive`. -/
+def RecursorContextWF.typeChecker
+    (H : RecursorContextWF c recLparams) : TypeChecker.VContext :=
+  TypeChecker.VContext.mkCheckingValidMLC
+    H.checking H.mlctx H.mlctx_wf c.fuel
+
+@[simp] theorem RecursorContextWF.typeChecker_lctx
+    (H : RecursorContextWF c recLparams) :
+    H.typeChecker.lctx = c.lctx := by
+  simp [RecursorContextWF.typeChecker,
+    TypeChecker.VContext.mkCheckingValidMLC, H.lctx_eq]
+
+/-- Run verified weak-head normalization in a universe-rebased recursor
+context.  Production still executes with `c.lparams`; the locality boundary
+rewrites that run to the `recLparams` under which the semantic local context
+is well formed. -/
+theorem whnfInRecursorContext.scopeWF
+    (hwhnf : WhnfLParamsCompat)
+    (Hc : RecursorContextWF c recLparams)
+    (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx e e') :
+    ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
+      FVarsBelow Hc.mlctx.vlctx e e₁ ∧
+      TrExpr Hc.venv recLparams Hc.mlctx.vlctx e₁ e' := by
+  change (TypeChecker.M.run c.env c.safety c.lctx c.lparams c.fuel
+    (TypeChecker.whnf e)).WF _
+  rw [hwhnf c.env c.safety c.lctx c.lparams recLparams c.fuel e]
+  rw [← Hc.lctx_eq]
+  have Hx : TypeChecker.M.WF Hc.typeChecker {}
+      (TypeChecker.whnf e) (fun e₁ _ =>
+      FVarsBelow Hc.mlctx.vlctx e e₁ ∧
+      TrExpr Hc.venv recLparams Hc.mlctx.vlctx e₁ e') :=
+    (TypeChecker.Inner.whnf.WF he).run
+  exact TypeChecker.M.WF.runCheckingValidMLC
+    (lparams := recLparams) (fuel := c.fuel)
+    Hc.kernelFresh Hx
 
 theorem ensureSortInContext.WF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
