@@ -395,7 +395,7 @@ theorem RecursorMotiveTelescope.instN
   | zero => simp [VExpr.inst, RecursorMotiveTelescope.zero]
   | @succ family domain familyType motiveType arity Htail ih =>
       apply RecursorMotiveTelescope.succ
-      simpa [VExpr.inst, VExpr.liftN, VExpr.instN_liftN_add] using
+      simpa [VExpr.inst, VExpr.lift, VExpr.lift_instN_lo] using
         ih (k + 1)
 
 /-- Consuming the outer shared domain advances a parallel telescope to the
@@ -407,14 +407,17 @@ theorem RecursorMotiveTelescope.consume
     RecursorMotiveTelescope resultLevel arity (.app family arg)
       (familyType.inst arg) (motiveType.inst arg) := by
   cases H with
-  | succ Htail =>
-      simpa [VExpr.inst, VExpr.instN_bvar0] using Htail.instN arg 0
+  | @succ _ _ _ _ _ Htail =>
+      simpa [VExpr.inst, VExpr.instN_bvar0, VExpr.inst_liftN] using
+        RecursorMotiveTelescope.instN Htail arg 0
 
 /-- Apply a family and a parallel motive to the same argument spine, then
 apply the resulting motive to a major premise of the family application.
 Typing of the shared arguments is recovered from the independently typed
 family application and transported to the declared telescope by uniqueness. -/
 theorem RecursorMotiveTelescope.applyMajor
+    {args : List VExpr} {env : VEnv} {uvars : Nat} {ctx : List VExpr}
+    {motive major : VExpr}
     (H : RecursorMotiveTelescope resultLevel args.length family
       familyType motiveType)
     (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
@@ -428,7 +431,8 @@ theorem RecursorMotiveTelescope.applyMajor
       cases H with
       | zero =>
           exact ⟨resultLevel, by
-            simpa [VExpr.mkApps] using VEnv.HasType.app Hmotive Hmajor⟩
+            simpa [VExpr.mkApps, VExpr.inst] using
+              VEnv.HasType.app Hmotive Hmajor⟩
   | cons arg args ih =>
       cases H with
       | @succ _ domain familyBody motiveBody _ Htail =>
@@ -455,7 +459,7 @@ theorem RecursorMotiveTelescope.applyMajor
         have Htail'' : RecursorMotiveTelescope resultLevel args.length
             (.app family arg) (familyBody.inst arg)
             (motiveBody.inst arg) := by
-          simpa [VExpr.inst, VExpr.instN_bvar0] using Htail'
+          simpa [VExpr.inst, VExpr.instN_bvar0, VExpr.inst_liftN] using Htail'
         exact ih Htail'' Hfamily' Hmotive' Hmajor
 
 @[simp] theorem VExpr.getAppFnArgs_mkApps_bvar
@@ -20544,18 +20548,21 @@ structure RecursorMotiveTelescopeEvidence
 itself well typed.  This is obtained by retaining the prefix of the complete
 abstract application spine, without choosing or normalizing its type. -/
 theorem RecursorValidatedIndAppAt.familyPrefixTyping
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
     (H : RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx
       stats decl depth exposedType syntaxTarget target)
     (HsyntaxType : R.venv.IsType recLparams.length
-      R.mlctx.vlctx.toCtx syntaxTarget) :
-    let ⟨levels, params, _indices, _⟩ := H.indices_payload
+      R.mlctx.vlctx.toCtx syntaxTarget)
+    {levels : List VLevel} {params indices : List VExpr}
+    (hspine : syntaxTarget.getAppFnArgs =
+      (.const (decl.types[target]'H.target_lt).name levels,
+        params ++ indices)) :
     ∃ familyType,
       R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
         (VExpr.mkApps
           (.const (decl.types[target]'H.target_lt).name levels) params)
         familyType := by
-  rcases H.indices_payload with
-    ⟨levels, params, indices, hspine, _hparams, _hlength, _Hindices⟩
   let family := VExpr.mkApps
     (.const (decl.types[target]'H.target_lt).name levels) params
   have hrebuild := VExpr.mkApps_getAppFnArgs syntaxTarget
@@ -20578,26 +20585,31 @@ validated terminal payload.  The only remaining inputs are the semantic
 typing of the family prefix and its parallel relation to the retained motive
 type. -/
 theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
     (H : RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx
       stats decl depth exposedType syntaxTarget target)
     (binding : RecursorMotiveBinding R info elimLevel)
     (familyType : VExpr) (resultLevel : VLevel)
+    {levels : List VLevel} {params indices : List VExpr}
+    (hspine : syntaxTarget.getAppFnArgs =
+      (.const (decl.types[target]'H.target_lt).name levels,
+        params ++ indices))
+    (Hindices : List.Forall₂
+      (TrExprS R.venv recLparams R.mlctx.vlctx)
+      (exposedType.getAppArgs[stats.params.size:]).toList indices)
     (Hfamily :
-      let ⟨levels, params, _indices, _⟩ := H.indices_payload
       R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
         (VExpr.mkApps
           (.const (decl.types[target]'H.target_lt).name levels) params)
         familyType)
     (Htelescope :
-      let ⟨levels, params, indices, _⟩ := H.indices_payload
       RecursorMotiveTelescope resultLevel indices.length
         (VExpr.mkApps
           (.const (decl.types[target]'H.target_lt).name levels) params)
         familyType binding.motiveTypeTarget) :
     Nonempty (RecursorMotiveTelescopeEvidence R stats info binding
       exposedType syntaxTarget) := by
-  rcases H.indices_payload with
-    ⟨levels, params, indices, hspine, _hparams, _hlength, Hindices⟩
   let family := VExpr.mkApps
     (.const (decl.types[target]'H.target_lt).name levels) params
   have hrebuild := VExpr.mkApps_getAppFnArgs syntaxTarget
@@ -20620,6 +20632,11 @@ motive-application contract.  The proof applies the abstract parallel
 telescope, then uses its resulting well-typed spine to assemble the concrete
 `TrExprS` application without invoking executable inference. -/
 theorem RecursorMotiveTelescopeEvidence.applyMajor
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {elimLevel : Level}
+    {info : AddInductive.RecInfo}
+    {binding : RecursorMotiveBinding R info elimLevel}
     (H : RecursorMotiveTelescopeEvidence R stats info binding
       exposedType syntaxTarget)
     {major : Expr} {majorTarget : VExpr}
@@ -20645,8 +20662,10 @@ theorem RecursorMotiveTelescopeEvidence.applyMajor
       R.mlctx.vlctx.toCtx motiveTarget := by
     rcases Hresult' with ⟨level, Htyped⟩
     exact ⟨.sort level, Htyped⟩
-  have Hargs := H.indices_translation.append (.cons Hmajor .nil)
-  have Htranslated := TrExprS.mkAppList R.checking.tr.wf.ordered
+  have Hargs := List.Forall₂.append' H.indices_translation
+    (.cons Hmajor .nil)
+  have Htranslated := checkPositivityStep.TrExprS.mkAppList
+    R.checking.tr.wf.ordered
     R.mlctx_wf.tr.wf.toCtx binding.motive Hargs (by
       simpa [motiveTarget, VExpr.mkApps, List.foldl_append] using HtargetWF)
   refine ⟨motiveTarget, ?_, Hresult'⟩
@@ -20703,7 +20722,7 @@ def RecInfoMotiveTelescopes.mono
     (H : RecInfoMotiveTelescopes root stats decl recInfos elimLevel)
     (Hle : BindingContextLE root current) :
     RecInfoMotiveTelescopes current stats decl recInfos elimLevel where
-  telescope target htarget R Hlater :=
+  telescope target htarget := fun R Hlater =>
     H.telescope target htarget R (Hle.trans Hlater)
 
 def RecInfoMotiveTelescopes.push
@@ -20716,7 +20735,9 @@ def RecInfoMotiveTelescopes.push
   telescope target htarget := by
     by_cases hlast : target = recInfos.size
     · subst target
-      simpa using Hnext
+      have hget : (recInfos.push next)[recInfos.size]! = next := by simp
+      rw [hget]
+      exact Hnext
     · have hold : target < recInfos.size := by
         simp only [Array.size_push] at htarget
         omega
@@ -20755,7 +20776,7 @@ def RecInfoMotiveApplications.mono
     (H : RecInfoMotiveApplications root stats decl recInfos elimLevel)
     (Hle : BindingContextLE root current) :
     RecInfoMotiveApplications current stats decl recInfos elimLevel where
-  application target htarget R Hlater :=
+  application target htarget := fun R Hlater =>
     H.application target htarget R (Hle.trans Hlater)
 
 /-- Extend the pointwise motive contract in lockstep with the first mutual
@@ -20771,7 +20792,9 @@ def RecInfoMotiveApplications.push
   application target htarget := by
     by_cases hlast : target = recInfos.size
     · subst target
-      simpa using Hnext
+      have hget : (recInfos.push next)[recInfos.size]! = next := by simp
+      rw [hget]
+      exact Hnext
     · have hold : target < recInfos.size := by
         simp only [Array.size_push] at htarget
         omega
@@ -20787,7 +20810,7 @@ def RecInfoMotiveTelescopes.applications
     (H : RecInfoMotiveTelescopes root stats decl recInfos elimLevel) :
     RecInfoMotiveApplications root stats decl recInfos elimLevel where
   application target htarget :=
-    (H.telescope target htarget).toApplication
+    RecursorMotiveTelescopeAt.toApplication (H.telescope target htarget)
 
 /-- Semantic lookup package for one generated major premise and its exact
 family-application declaration type. -/
