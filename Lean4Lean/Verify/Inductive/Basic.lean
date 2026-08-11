@@ -17072,6 +17072,30 @@ theorem RecursorFieldSelectionsAt.arguments_at_positions
       simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm
     · exact .nil
 
+/-- Replace every semantic certificate in a field-selection trace while
+preserving its recorded concrete field ordinal.  The operational selection
+arrays are unchanged; this is the bridge used to substitute the stronger
+call-time recursive-domain certificates for the earlier classifier trace. -/
+theorem RecursorFieldSelectionsAt.replace
+    (H : RecursorFieldSelectionsAt env decl uvars bu u fields)
+    (Haligned : List.Forall₂
+      (fun old replacement =>
+        old.fieldIndex = replacement.fieldIndex)
+      fields replacements) :
+    RecursorFieldSelectionsAt env decl uvars bu u replacements := by
+  induction H generalizing replacements with
+  | nil =>
+    cases Haligned
+    exact .nil
+  | nonrecursive _ ih =>
+    exact .nonrecursive (ih Haligned)
+  | @recursive bu u fields arg cert H hindex ih =>
+    rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Haligned with
+      ⟨replacementPrefix, replacement, rfl, Hprefix, Hlast⟩
+    apply RecursorFieldSelectionsAt.recursive (cert := replacement)
+      (ih Hprefix)
+    exact Hlast ▸ hindex
+
 /-- Specialize a recursor-universe recursive-domain witness to the declaration
 universe arity.  Zero is a valid specialization for every recursor universe;
 the concrete field selection remains unchanged, while the semantic context
@@ -25239,7 +25263,7 @@ theorem resultRecursiveDomain {alpha : Type}
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     {uiTy : Expr} {xs : Array Expr} {fuel : Nat}
-    {c : AddInductive.Context} {Q : alpha → Prop}
+    {c : AddInductive.Context} {Q : Nat → alpha → Prop}
     (R : RecursorContextWF c recLparams)
     {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
@@ -25270,7 +25294,8 @@ theorem resultRecursiveDomain {alpha : Type}
         (mkAppN head args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
-      (k exposedType args target current).WF Q) :
+      AddInductive.isValidIndApp? stats exposedType = some target →
+      (k exposedType args target current).WF (Q target)) :
     (AddInductive.mkRecInfos.loopUArgs.loop
       (fun exposedType args => do
         let some target := AddInductive.isValidIndApp? stats exposedType
@@ -25279,9 +25304,9 @@ theorem resultRecursiveDomain {alpha : Type}
         k exposedType args target)
       uiTy xs fuel c).WF fun out =>
         ∃ target, ∃ htarget : target < decl.types.length,
-          decl.RecursiveArgAtTarget R.venv recLparams.length
-            (decl.types[target]'htarget).name
-            R.mlctx.vlctx.toCtx depth typeTarget ∧ Q out := by
+            decl.RecursiveArgAtTarget R.venv recLparams.length
+              (decl.types[target]'htarget).name
+              R.mlctx.vlctx.toCtx depth typeTarget ∧ Q target out := by
   induction fuel generalizing c uiTy xs typeTarget appliedTarget depth with
   | zero =>
     intro _ h
@@ -25302,7 +25327,7 @@ theorem resultRecursiveDomain {alpha : Type}
           ∃ target, ∃ htarget : target < decl.types.length,
             decl.RecursiveArgAtTarget R.venv recLparams.length
               (decl.types[target]'htarget).name
-              R.mlctx.vlctx.toCtx depth typeTarget ∧ Q out)
+              R.mlctx.vlctx.toCtx depth typeTarget ∧ Q target out)
         R Hdom.consumed Hdom.isType ?_
       let R' := R.withLocalDecl (name := name) (bi := bi)
         Hdom.consumed Hdom.isType
@@ -25420,7 +25445,7 @@ theorem resultRecursiveDomain {alpha : Type}
         let Hvalid := Hstats.validatedIndAppAt hsyntax hvalid htarget
           hlit hctx hproj
         have Hterminal := Hk (target := target) R hsyntax hdefeq htypeType
-          Hxs happlied happliedType
+          Hxs happlied happliedType hvalid
         exact Hterminal.mono fun out hout => by
           rcases hdefeq.symm with ⟨exprType, hterminal⟩
           exact ⟨target, htarget,
@@ -25531,7 +25556,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
     {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
-    {Q : alpha → Prop}
+    {Q : Nat → alpha → Prop}
     (Hk : ∀ {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
       {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
@@ -25547,7 +25572,8 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
         (mkAppN (.fvar fv) args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
-      (k exposedType args target current).WF Q) :
+      AddInductive.isValidIndApp? stats exposedType = some target →
+      (k exposedType args target current).WF (Q target)) :
     (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
       (fun exposedType args => do
         let some target := AddInductive.isValidIndApp? stats exposedType
@@ -25560,7 +25586,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
             ∃ target, ∃ htarget : target < decl.types.length,
               decl.RecursiveArgAtTarget R.venv recLparams.length
                 (decl.types[target]'htarget).name
-                R.mlctx.vlctx.toCtx depth domain ∧ Q out := by
+                R.mlctx.vlctx.toCtx depth domain ∧ Q target out := by
   unfold AddInductive.mkRecInfos.loopUArgs
   have hinfer := inferTypeFVarInRecursorContext.WF R hfield
   refine hinfer.bind fun inferred hinferred => ?_
@@ -25687,6 +25713,125 @@ structure BoundGeneratedRecursiveCall
       indices
     value = (current.lctx.mkLambda localArgs <|
       recursor.app (mkAppN field localArgs))
+
+/-- A generated recursive call paired with the independent recursive-domain
+judgment for the exact selected field.  The retained executable owner is the
+owner appearing in the semantic judgment; this is the pointwise payload from
+which a rule-level `RecursorFieldSelections` certificate can be rebuilt. -/
+structure SemanticBoundGeneratedRecursiveCall
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    {root : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF root recLparams)
+    (decl : VInductDecl) (depth : Nat) (field value : Expr) where
+  generated : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+    root field value
+  fieldTarget : VExpr
+  domain : VExpr
+  field_translation : TrExprS R.venv recLparams R.mlctx.vlctx
+    field fieldTarget
+  field_typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+    fieldTarget domain
+  owner_lt : generated.ownerIdx < decl.types.length
+  recursive : decl.RecursiveArgAtTarget R.venv recLparams.length
+    (decl.types[generated.ownerIdx]'owner_lt).name
+    R.mlctx.vlctx.toCtx depth domain
+
+/-- Pointwise semantic refinement of the exact recursive-call builder used
+by `mkRecRules.loopU`.  It couples the implementation's validated owner with
+the complete higher-order recursive domain reconstructed by `loopUArgs`. -/
+theorem mkRecRules.boundGeneratedCallSemantic
+    (indTypes : Array InductiveType)
+    (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    {root : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF root recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (fv : FVarId) {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
+      (fun exposedType args => do
+        let some target := AddInductive.isValidIndApp? stats exposedType
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        let indices := exposedType.getAppArgs[stats.params.size:]
+        let recursor :=
+          Expr.const (Lean.mkRecName indTypes[target]!.name) lvls
+        let recursor := mkAppN
+          (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+          indices
+        return (← getLCtx).mkLambda args <|
+          recursor.app (mkAppN (.fvar fv) args)) root).WF fun value =>
+        Nonempty (SemanticBoundGeneratedRecursiveCall indTypes stats motives
+          minors lvls R decl depth (.fvar fv) value) := by
+  let buildCallAt : Expr → Array Expr → Nat → AddInductive.M Expr :=
+    fun exposedType args target => do
+      let indices := exposedType.getAppArgs[stats.params.size:]
+      let recursor := Expr.const
+        (Lean.mkRecName indTypes[target]!.name) lvls
+      let recursor := mkAppN
+        (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+        indices
+      return (← getLCtx).mkLambda args <|
+        recursor.app (mkAppN (.fvar fv) args)
+  have Hloop := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats
+    buildCallAt root R Hstats hwhnf hconsume hlit hctx hproj hfield
+    (Q := fun target value =>
+      ∃ H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+          root (.fvar fv) value,
+        H.ownerIdx = target)
+    (by
+      intro current Rcurrent exposedType syntaxTarget terminalTarget
+        appliedTarget args target hsyntax hdefeq htype Hrecent happlied
+        happliedType hvalid
+      change (Except.ok
+        (current.lctx.mkLambda args <|
+          (mkAppN
+            (mkAppN
+              (mkAppN
+                (mkAppN
+                  (Expr.const
+                    (Lean.mkRecName indTypes[target]!.name) lvls)
+                  stats.params)
+                motives)
+              minors)
+            exposedType.getAppArgs[stats.params.size:]).app
+              (mkAppN (.fvar fv) args))).WF _
+      refine Except.WF.pure ⟨{
+        exposedType := exposedType
+        ownerIdx := target
+        owner_valid := hvalid
+        localArgs := args
+        current := current
+        current_wf := Rcurrent.toBindingContextWF
+        current_extends := Hrecent.contextLE
+        arguments_bound := Hrecent.toFreshBoundFVarArray
+        value_eq := ?_ }, rfl⟩
+      simp [AddInductive.getIIndices, hvalid])
+  exact Hloop.mono fun value Hout => by
+    rcases Hout with
+      ⟨domain, hfieldTyping, target, htarget, hrecursive,
+        Hgenerated, howner⟩
+    subst target
+    exact ⟨{
+      generated := Hgenerated
+      fieldTarget := fieldTarget
+      domain := domain
+      field_translation := hfield
+      field_typing := hfieldTyping
+      owner_lt := htarget
+      recursive := hrecursive }⟩
 
 theorem BoundGeneratedRecursiveCall.generated
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
@@ -26512,6 +26657,151 @@ structure BoundGeneratedRecursiveCalls
   entries : ∀ i, i < done → (hi : i < u.size) →
     Nonempty (BoundGeneratedRecursiveCall indTypes stats motives minors lvls
       root u[i] v[i]!)
+
+/-- Prefix invariant for recursive-result generation with each executable
+call coupled to the independent recursive-domain judgment for its exact
+selected field. -/
+structure SemanticBoundGeneratedRecursiveCalls
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    {root : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF root recLparams)
+    (decl : VInductDecl) (depth : Nat)
+    (u v : Array Expr) (done : Nat) : Prop where
+  covered : done ≤ u.size
+  size : v.size = done
+  entries : ∀ i, i < done → (hi : i < u.size) →
+    Nonempty (SemanticBoundGeneratedRecursiveCall indTypes stats motives
+      minors lvls R decl depth u[i] v[i]!)
+
+def SemanticBoundGeneratedRecursiveCalls.empty
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    {root : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF root recLparams)
+    (decl : VInductDecl) (depth : Nat) (u : Array Expr) :
+    SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      R decl depth u #[] 0 where
+  covered := Nat.zero_le _
+  size := rfl
+  entries _ h := by omega
+
+def SemanticBoundGeneratedRecursiveCalls.push
+    (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
+      lvls R decl depth u v done)
+    (hdone : done < u.size)
+    (Hentry : SemanticBoundGeneratedRecursiveCall indTypes stats motives
+      minors lvls R decl depth u[done] value) :
+    SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      R decl depth u (v.push value) (done + 1) where
+  covered := by omega
+  size := by simp [H.size]
+  entries i hi hiu := by
+    by_cases h : i = done
+    · subst i
+      have hpush : done < (v.push value).size := by simp [H.size]
+      have hbang : (v.push value)[done]! = value := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hpush]
+        simpa [H.size] using (@Array.getElem_push_eq Expr v value)
+      rw [hbang]
+      exact ⟨Hentry⟩
+    · have hold : i < done := by omega
+      have hv : i < v.size := by simpa [H.size] using hold
+      have hpush : i < (v.push value).size := by
+        simpa using Nat.lt_succ_of_lt hv
+      have hbang : (v.push value)[i]! = v[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hpush, dif_pos hv]
+        exact Array.getElem_push_lt hv
+      rw [hbang]
+      exact H.entries i hold hiu
+
+theorem SemanticBoundGeneratedRecursiveCalls.bound
+    {root : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF root recLparams}
+    (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
+      lvls R decl depth u v done) :
+    BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v done where
+  covered := H.covered
+  size := H.size
+  entries i hi hiu := by
+    rcases H.entries i hi hiu with ⟨Hentry⟩
+    exact ⟨Hentry.generated⟩
+
+/-- Repackage the array-aligned semantic calls as replacement certificates
+for an earlier field-selection trace.  Only the old concrete ordinal is
+retained; owner, domain, context, and recursive judgment all come from the
+call-time validation of the exact field at the corresponding selected-array
+position. -/
+theorem SemanticBoundGeneratedRecursiveCalls.replacements
+    {root : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF root recLparams}
+    {fields : List
+      (RecursorRecursiveDomainAt R.venv decl recLparams.length)}
+    (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
+      lvls R decl depth u v u.size)
+    (hlength : fields.length = u.size) :
+    ∃ replacements : List
+        (RecursorRecursiveDomainAt R.venv decl recLparams.length),
+      List.Forall₂
+        (fun old replacement =>
+          old.fieldIndex = replacement.fieldIndex)
+        fields replacements := by
+  classical
+  have build : ∀ (offset : Nat)
+      (remaining : List
+        (RecursorRecursiveDomainAt R.venv decl recLparams.length)),
+      offset + remaining.length ≤ u.size →
+      ∃ replacements : List
+          (RecursorRecursiveDomainAt R.venv decl recLparams.length),
+        List.Forall₂
+          (fun old replacement =>
+            old.fieldIndex = replacement.fieldIndex)
+          remaining replacements := by
+    intro offset remaining hroom
+    induction remaining generalizing offset with
+    | nil => exact ⟨[], .nil⟩
+    | cons old remaining ih =>
+      have hoffset : offset < u.size := by simp at hroom; omega
+      let E := Classical.choice (H.entries offset hoffset hoffset)
+      let replacement : RecursorRecursiveDomainAt
+          R.venv decl recLparams.length := {
+        fieldIndex := old.fieldIndex
+        ownerIdx := E.generated.ownerIdx
+        owner_lt := E.owner_lt
+        ctx := R.mlctx.vlctx.toCtx
+        depth := depth
+        domain := E.domain
+        recursive := E.recursive }
+      rcases ih (offset + 1) (by simp at hroom ⊢; omega) with
+        ⟨tail, Htail⟩
+      exact ⟨replacement :: tail, .cons (by rfl) Htail⟩
+  apply build 0 fields
+  simpa [hlength]
+
+/-- Substitute the call-time semantic domains into the exact operational
+field-selection trace and specialize the result back to declaration
+universes.  This produces precisely the source-level selection certificate
+consumed by generated iota rules. -/
+theorem SemanticBoundGeneratedRecursiveCalls.sourceSelection
+    {root : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF root recLparams}
+    {fields : List
+      (RecursorRecursiveDomainAt R.venv decl recLparams.length)}
+    (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
+      lvls R decl depth u v u.size)
+    (Hselection : RecursorFieldSelectionsAt R.venv decl recLparams.length
+      bu u fields) :
+    ∃ selections : List (RecursorRecursiveDomain R.venv decl),
+      RecursorFieldSelections R.venv decl bu u selections := by
+  rcases H.replacements Hselection.fields_length with
+    ⟨replacements, Haligned⟩
+  exact ⟨replacements.map RecursorRecursiveDomainAt.toSource,
+    (Hselection.replace Haligned).toSource⟩
 
 def BoundGeneratedRecursiveCalls.empty
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
@@ -27939,6 +28229,76 @@ theorem boundGeneratedCalls
     simpa [hdone] using Hprefix
 termination_by u.size - i
 
+/-- Semantic binder-aware refinement of the production recursive-result
+loop.  Every selected source field is supplied with its translation in the
+root recursor context; `loopUArgs` then reconstructs and couples the complete
+recursive domain to the exact generated call at the same array position. -/
+theorem semanticBoundGeneratedCalls
+    {alpha : Type} {Q : alpha → Prop}
+    {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hfields : ∀ i (hi : i < u.size),
+      ∃ fv fieldTarget,
+        u[i] = .fvar fv ∧
+        TrExprS R.venv recLparams R.mlctx.vlctx
+          (.fvar fv) fieldTarget)
+    {k : Array Expr → AddInductive.M alpha}
+    (Hprefix : SemanticBoundGeneratedRecursiveCalls indTypes stats motives
+      minors lvls R decl depth u v i)
+    (Hk : ∀ v,
+      SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
+        lvls R decl depth u v u.size →
+      (k v c).WF Q) :
+    (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
+      u i v k c).WF Q := by
+  rw [AddInductive.mkRecRules.loopU.eq_1]
+  by_cases hnext : i < u.size
+  · rw [dif_pos hnext]
+    rcases Hfields i hnext with ⟨fv, fieldTarget, hfield, Hfield⟩
+    let buildCall : Expr → Array Expr → AddInductive.M Expr :=
+      fun exposedType args => do
+        let some target := AddInductive.isValidIndApp? stats exposedType
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        let indices := exposedType.getAppArgs[stats.params.size:]
+        let recursor :=
+          Expr.const (Lean.mkRecName indTypes[target]!.name) lvls
+        let recursor := mkAppN
+          (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+          indices
+        return (← getLCtx).mkLambda args <|
+          recursor.app (mkAppN u[i] args)
+    have hval :
+        (AddInductive.mkRecInfos.loopUArgs u[i] buildCall c).WF
+          (fun value => Nonempty
+            (SemanticBoundGeneratedRecursiveCall indTypes stats motives
+              minors lvls R decl depth u[i] value)) := by
+      rw [hfield]
+      simpa only [buildCall, hfield] using
+        mkRecRules.boundGeneratedCallSemantic indTypes stats motives minors
+          lvls R Hstats hwhnf hconsume hlit hctx hproj fv Hfield
+    exact hval.bind fun value Hvalue => by
+      rcases Hvalue with ⟨Hvalue⟩
+      exact semanticBoundGeneratedCalls R Hstats hwhnf hconsume hlit hctx
+        hproj Hfields (Hprefix.push hnext Hvalue) Hk
+  · rw [dif_neg hnext]
+    apply Hk
+    have hcovered := Hprefix.covered
+    have hdone : i = u.size := by omega
+    simpa [hdone] using Hprefix
+termination_by u.size - i
+
 end mkRecRules.loopU
 
 theorem mkRecRules.loopU.boundGeneratedCallsFromEmpty
@@ -27954,6 +28314,38 @@ theorem mkRecRules.loopU.boundGeneratedCallsFromEmpty
   mkRecRules.loopU.boundGeneratedCalls Hc
     (BoundGeneratedRecursiveCalls.empty
       indTypes stats motives minors lvls c u) Hk
+
+theorem mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty
+    {alpha : Type} {Q : alpha → Prop}
+    {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hfields : ∀ i (hi : i < u.size),
+      ∃ fv fieldTarget,
+        u[i] = .fvar fv ∧
+        TrExprS R.venv recLparams R.mlctx.vlctx
+          (.fvar fv) fieldTarget)
+    {k : Array Expr → AddInductive.M alpha}
+    (Hk : ∀ v,
+      SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
+        lvls R decl depth u v u.size →
+      (k v c).WF Q) :
+    (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
+      u 0 #[] k c).WF Q :=
+  mkRecRules.loopU.semanticBoundGeneratedCalls R Hstats hwhnf hconsume hlit
+    hctx hproj Hfields
+    (SemanticBoundGeneratedRecursiveCalls.empty indTypes stats motives minors
+      lvls R decl depth u) Hk
 
 namespace mkRecInfos.loopCtorArgs.loop
 
