@@ -4127,7 +4127,9 @@ theorem MLCtxOnlyLams.noIndConsts_of_dropN
     (hdrop : VLCtx.NoIndConsts names (m.dropN n hn).vlctx) :
     VLCtx.NoIndConsts names m.vlctx := by
   induction n generalizing m with
-  | zero => simpa using hdrop
+  | zero =>
+    intro v mapped type hfind
+    exact hdrop hfind
   | succ n ih =>
     cases m with
     | nil => simp at hn
@@ -4135,8 +4137,11 @@ theorem MLCtxOnlyLams.noIndConsts_of_dropN
       have Htail := H.tail_vlam
       have htail : VLCtx.NoIndConsts names tail.vlctx := by
         apply ih Htail (Nat.le_of_succ_le_succ hn)
-        simpa only [TypeChecker.MLCtx.dropN] using hdrop
-      exact VLCtx.NoIndConsts.cons htail rfl
+        intro v mapped type hfind
+        exact hdrop hfind
+      change checkPositivityStep.VLCtx.NoIndConsts names
+        ((some (fv, type.fvarsList), .vlam type') :: tail.vlctx)
+      exact checkPositivityStep.VLCtx.NoIndConsts.cons htail rfl
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
@@ -10911,6 +10916,16 @@ theorem List.Forall₂.split_left
         rcases ih htail with ⟨cs₁, cs₂, rfl, hleft, hright⟩
         exact ⟨_ :: cs₁, cs₂, by simp, .cons hab hleft, hright⟩
 
+theorem List.Forall₂.drop
+    (H : List.Forall₂ R as bs) (n : Nat) :
+    List.Forall₂ R (as.drop n) (bs.drop n) := by
+  induction H generalizing n with
+  | nil => simp
+  | cons hab _ ih =>
+    cases n with
+    | zero => exact .cons hab (ih 0)
+    | succ n => exact ih n
+
 /-- Exact inversion of a translated concrete application list.  Unlike the
 typechecker-oriented `AppStack`, this retains the final abstract spine, which
 is needed to split the field arguments and recursive results of an iota RHS. -/
@@ -11381,7 +11396,15 @@ theorem generatedCalls
             lvls u[i] value) := by
       apply mkRecInfos.loopUArgs.continueWith
       intro uiTy xs c'
-      exact Except.WF.pure ⟨uiTy, xs, c'.lctx, rfl⟩
+      unfold buildCall
+      cases hvalid : AddInductive.isValidIndApp? stats uiTy with
+      | none =>
+        simp only [hvalid, bind, Except.bind]
+        exact Except.WF.throw
+      | some target =>
+        simp only [hvalid, bind, Except.bind]
+        refine Except.WF.pure ⟨uiTy, xs, c'.lctx, ?_⟩
+        simp [AddInductive.getIIndices, hvalid]
     · exact hval.bind fun value Hvalue =>
         generatedCalls
           (Hprefix.push hnext Hvalue) Hk
@@ -16686,6 +16709,116 @@ theorem RecursorValidAppStatsWF.validIndAppAt
     exact hsourceBound
   exact (H.validIndAppAtTarget htr hvalid hi hlit hctx hproj).forgetTarget
 
+/-- The concrete suffix consumed by motive application translates exactly to
+the abstract index suffix of a validated mutual-family application. -/
+theorem RecursorValidAppStatsWF.translatedIndices
+    (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
+    (htr : TrExprS env recLparams scope type type')
+    (hvalid : AddInductive.isValidIndApp? stats type = some typeIdx)
+    (hi : typeIdx < decl.types.length) :
+    ∃ levels' params' indices',
+      type'.getAppFnArgs =
+        (.const (decl.types[typeIdx]'hi).name levels', params' ++ indices') ∧
+      params' = decl.paramVars depth ∧
+      indices'.length = (decl.types[typeIdx]'hi).numIndices ∧
+      List.Forall₂ (TrExprS env recLparams scope)
+        (type.getAppArgs[stats.params.size:]).toList indices' := by
+  rcases checkPositivityStep.isValidIndApp?_some hvalid with
+    ⟨_sourceBound, hvalidIdx⟩
+  have hhead := checkPositivityStep.isValidIndAppIdx.constHead
+    hvalidIdx (H.indConstAt hi)
+  rcases checkPositivityStep.TrExprS.constAppSpine htr hhead with
+    ⟨levels', args', hspine, _hlevels, hargs⟩
+  let params' := args'.take decl.nparams
+  let indices' := args'.drop decl.nparams
+  have hsplit : args' = params' ++ indices' := by
+    exact (List.take_append_drop decl.nparams args').symm
+  have hparams : params' = decl.paramVars depth := by
+    dsimp only [params']
+    apply List.ext_getElem?
+    intro j
+    rw [List.getElem?_take]
+    by_cases hj : j < decl.nparams
+    · rw [if_pos hj]
+      apply H.translatedParam hvalidIdx hargs
+      rw [H.params_size]
+      exact hj
+    · rw [if_neg hj]
+      simp [VInductDecl.paramVars, hj]
+  have hindicesLength : indices'.length =
+      (decl.types[typeIdx]'hi).numIndices := by
+    have harity := checkPositivityStep.isValidIndAppIdx.arity hvalidIdx
+    have hnindices : stats.nindices[typeIdx]! =
+        (decl.types[typeIdx]'hi).numIndices := by
+      simp [Array.getElem!_eq_getD, H.nindicesAt hi]
+    have hargsLength := checkPositivityStep.forall₂_length_eq hargs
+    have hsourceLength : type.getAppArgsList.length =
+        type.getAppArgs.size := by
+      rw [← Expr.getAppArgs_toList]
+      simp
+    have hargsLen : args'.length =
+        stats.params.size + stats.nindices[typeIdx]! := by
+      omega
+    dsimp only [indices']
+    rw [List.length_drop, hargsLen, H.params_size, hnindices]
+    omega
+  have hindicesTr : List.Forall₂ (TrExprS env recLparams scope)
+      (type.getAppArgs[stats.params.size:]).toList indices' := by
+    have hdrop := checkPositivityStep.List.Forall₂.drop
+      hargs stats.params.size
+    have hparamsSize := H.params_size
+    rw [hparamsSize] at hdrop ⊢
+    have hsuffix : (type.getAppArgs[decl.nparams:]).toList =
+        type.getAppArgs.toList.drop decl.nparams := by
+      rw [List.drop_eq_drop_min]
+      simp only [Subarray.toList_eq, Array.array_toSubarray,
+        Array.start_toSubarray, Array.stop_toSubarray, Nat.min_self,
+        Array.toList_extract, List.extract_eq_take_drop,
+        Array.length_toList]
+      apply List.take_of_length_le
+      simp
+    rw [hsuffix]
+    simpa only [Expr.getAppArgs_toList] using hdrop
+  refine ⟨levels', params', indices', ?_, hparams, hindicesLength,
+    hindicesTr⟩
+  simpa [hsplit] using hspine
+
+/-- Complete terminal payload produced by the explicit recursive-result
+validation branch.  It packages the targeted abstract application together
+with the exact concrete/abstract index correspondence used by the motive. -/
+structure RecursorValidatedIndAppAt
+    (env : VEnv) (recLparams : List Name) (scope : VLCtx)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (depth : Nat) (type : Expr) (type' : VExpr) (target : Nat) : Prop where
+  target_lt : target < decl.types.length
+  application : decl.ValidIndAppAt
+    (some (decl.types[target]'target_lt).name) depth type'
+  indices_payload : ∃ levels params indices,
+    type'.getAppFnArgs =
+      (.const (decl.types[target]'target_lt).name levels, params ++ indices) ∧
+    params = decl.paramVars depth ∧
+    indices.length = (decl.types[target]'target_lt).numIndices ∧
+    List.Forall₂ (TrExprS env recLparams scope)
+      (type.getAppArgs[stats.params.size:]).toList indices
+
+def RecursorValidAppStatsWF.validatedIndAppAt
+    (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
+    (htr : TrExprS env recLparams scope type type')
+    (hvalid : AddInductive.isValidIndApp? stats type = some target)
+    (htarget : target < decl.types.length)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) scope)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''},
+      TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+    RecursorValidatedIndAppAt env recLparams scope stats decl depth
+      type type' target := by
+  exact {
+    target_lt := htarget
+    application := H.validIndAppAtTarget htr hvalid htarget hlit hctx hproj
+    indices_payload := H.translatedIndices htr hvalid htarget }
+
 namespace isRecArg.loop
 
 /-- The recursive-field classifier remains sound after generated recursor
@@ -19209,8 +19342,10 @@ theorem RecursorRecentBoundFVarArray.noIndConsts
     (H : RecursorRecentBoundFVarArray Rroot R xs)
     (hroot : VLCtx.NoIndConsts names Rroot.mlctx.vlctx) :
     VLCtx.NoIndConsts names R.mlctx.vlctx := by
-  apply R.onlyLams.noIndConsts_of_dropN xs.size H.size_le
-  simpa only [H.drop_eq] using hroot
+  apply checkInductiveTypes.loopType.MLCtxOnlyLams.noIndConsts_of_dropN
+    R.onlyLams xs.size H.size_le
+  rw [H.drop_eq]
+  exact hroot
 
 /-- Semantic translations of an executable origin-type array under the
 recursor universe list.  This is the universe-parametric counterpart of
@@ -24622,17 +24757,22 @@ theorem mkRecInfos.loopUArgs.resultValidatedIndApp {alpha : Type}
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx typeTarget →
       (Hrecent : RecursorRecentBoundFVarArray R Rcurrent args) →
-      (htarget : target < decl.types.length) →
-      decl.ValidIndAppAt
-        (some (decl.types[target]'htarget).name)
-        (depth + args.size) syntaxTarget →
+      RecursorValidatedIndAppAt Rcurrent.venv recLparams
+        Rcurrent.mlctx.vlctx stats decl (depth + args.size)
+        exposedType syntaxTarget target →
       (k exposedType args target current).WF Q) :
     (AddInductive.mkRecInfos.loopUArgs (.fvar fv) (fun exposedType args => do
       let some target := AddInductive.isValidIndApp? stats exposedType
         | throw (.other
           "recursive constructor field lost its inductive result type")
       k exposedType args target) c).WF Q := by
-  apply mkRecInfos.loopUArgs.resultSemantics fv _ c R hwhnf hconsume hfield
+  refine mkRecInfos.loopUArgs.resultSemantics fv
+    (fun exposedType args => do
+      let some target := AddInductive.isValidIndApp? stats exposedType
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      k exposedType args target)
+    c R hwhnf hconsume hfield ?_
   intro current Rcurrent exposedType typeTarget args htype htypeType Hrecent
   rcases htype with ⟨syntaxTarget, hsyntax, hdefeq⟩
   cases hvalid : AddInductive.isValidIndApp? stats exposedType with
@@ -24650,8 +24790,8 @@ theorem mkRecInfos.loopUArgs.resultValidatedIndApp {alpha : Type}
       have hctxCurrent : VLCtx.NoIndConsts
           (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
         Hrecent.noIndConsts hctx
-      exact Hk Rcurrent hsyntax hdefeq htypeType Hrecent htarget
-        (HstatsCurrent.validIndAppAtTarget hsyntax hvalid htarget
+      exact Hk Rcurrent hsyntax hdefeq htypeType Hrecent
+        (HstatsCurrent.validatedIndAppAt hsyntax hvalid htarget
           hlit hctxCurrent hproj)
 
 /-- Exact recursive-call syntax together with the inner binding context used
@@ -26902,14 +27042,22 @@ theorem boundGeneratedCalls
         (Q := fun value => Nonempty (BoundGeneratedRecursiveCall indTypes
           stats motives minors lvls c u[i] value)) u[i] buildCall c Hc ?_
       intro uiTy xs c' Hc' Hxs Hle
-      exact Except.WF.pure ⟨{
-        exposedType := uiTy
-        localArgs := xs
-        current := c'
-        current_wf := Hc'
-        current_extends := Hle
-        arguments_bound := Hxs
-        value_eq := rfl }⟩
+      unfold buildCall
+      cases hvalid : AddInductive.isValidIndApp? stats uiTy with
+      | none =>
+        simp only [hvalid, bind, Except.bind]
+        exact Except.WF.throw
+      | some target =>
+        simp only [hvalid, bind, Except.bind]
+        refine Except.WF.pure ⟨{
+          exposedType := uiTy
+          localArgs := xs
+          current := c'
+          current_wf := Hc'
+          current_extends := Hle
+          arguments_bound := Hxs
+          value_eq := ?_ }⟩
+        simp [AddInductive.getIIndices, hvalid]
     exact hval.bind fun value Hvalue => by
       rcases Hvalue with ⟨Hvalue⟩
       exact boundGeneratedCalls Hc
