@@ -14149,6 +14149,7 @@ structure RecursorCardinalityCertificate
     (recInfos : Array AddInductive.RecInfo)
     (decl : VInductDecl) : Prop where
   records : recInfos.size = decl.types.length
+  families : stats.indConsts.size = decl.types.length
   params : stats.params.size = decl.nparams
   motives : (recInfos.map (·.motive)).size = decl.types.length
   minors : (recInfos.flatMap (·.minors)).size =
@@ -14174,6 +14175,10 @@ theorem RecursorCardinalityCertificate.ofResult
     RecursorCardinalityCertificate stats recInfos decl where
   records := hsize.trans (by
     simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl)
+  families := by
+    exact
+      (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader
+        Hmaterialized).types_size
   params := by
     have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
       Hmaterialized.narrowParams
@@ -26338,44 +26343,6 @@ def BoundGeneratedRecursiveCalls.RecursorsPresent
         lvls root u[i] v[i]!),
     Hentry.recursorName ∈ recursors
 
-/-- Pointwise owner alignment between typed recursive-field classification
-and the later recursive-call generator. Establishing this relation is the
-remaining local determinism obligation between the two production passes. -/
-structure BoundGeneratedRecursiveCalls.OwnerAlignment
-    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
-      root u v u.size)
-    (decl : VInductDecl)
-    (certs : List (RecursorRecursiveDomain domainEnv decl)) : Prop where
-  length : certs.length = u.size
-  ownerIdx : ∀ i (hi : i < u.size)
-      (Hentry : BoundGeneratedRecursiveCall indTypes stats motives minors
-        lvls root u[i] v[i]!),
-    Hentry.ownerIdx = (certs[i]'(by omega)).ownerIdx
-
-theorem BoundGeneratedRecursiveCalls.OwnerAlignment.recursorName
-    {domainEnv : VEnv} {decl : VInductDecl}
-    {certs : List (RecursorRecursiveDomain domainEnv decl)}
-    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
-      root u v u.size)
-    (Howners : H.OwnerAlignment decl certs)
-    (i : Nat) (hi : i < u.size)
-    (Hentry : BoundGeneratedRecursiveCall indTypes stats motives minors
-      lvls root u[i] v[i]!) :
-    Hentry.recursorName =
-      Lean.mkRecName indTypes[(certs[i]'(by
-        rw [Howners.length]
-        exact hi)).ownerIdx]!.name := by
-  have howner := Howners.ownerIdx i hi Hentry
-  calc
-    Hentry.recursorName =
-        Lean.mkRecName indTypes[Hentry.ownerIdx]!.name :=
-      Hentry.recursorName_eq_owner
-    _ = Lean.mkRecName indTypes[(certs[i]'(by
-          rw [Howners.length]
-          exact hi)).ownerIdx]!.name := by
-      simpa using congrArg
-        (fun owner => Lean.mkRecName indTypes[owner]!.name) howner
-
 theorem BoundGeneratedRecursiveCalls.abstractedIotaResults_ofFresh
     (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
       root u v u.size)
@@ -27533,7 +27500,6 @@ structure BoundGeneratedRecursorRule.IotaRuleTranslation
   selections : List (RecursorRecursiveDomain semanticEnv decl)
   selection : RecursorFieldSelections semanticEnv decl H.allArgs
     H.recursiveArgs selections
-  owner_alignment : H.recursive_calls.OwnerAlignment decl selections
   recursiveArgs : List VExpr
   args : List.Forall₂
     (TrExprS trEnv Us
@@ -29175,9 +29141,12 @@ theorem GeneratedRecursors.recursiveDomainRecursor_mem_block
     exact cert.owner_lt
   exact H.recursorName_mem_block block hrecords hrecursors cert.ownerIdx howner
 
-/-- Owner alignment discharges the exact generated-call recursor coverage
-used by guarded iota RHS construction. -/
-theorem GeneratedRecursors.recursorsPresent_ofOwnerAlignment
+/-- Every validated generated call selects an in-range mutual-family owner,
+so its recursor is present in the installed block.  The independent field
+classifier need not reproduce that owner choice: rule typing already checks
+the generated sibling-recursion application, while `IotaRule` requires only
+that it is guarded on a certified recursive field. -/
+theorem GeneratedRecursors.recursorsPresent
     (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
       recInfos entries)
     (block : VInductBlock)
@@ -29187,17 +29156,23 @@ theorem GeneratedRecursors.recursorsPresent_ofOwnerAlignment
       indTypes.toList isUnsafe decl envTypes envCtors)
     (hrecursors : block.recursors = entries.map Prod.snd)
     (Hcalls : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
-      root u v u.size)
-    (Howners : Hcalls.OwnerAlignment decl certs) :
+      root u v u.size) :
     Hcalls.RecursorsPresent (block.recursors.map (·.name)) := by
   intro i hi Hentry
-  have hiCert : i < certs.length := by rw [Howners.length]; exact hi
-  let cert := certs[i]
-  have hmem := H.recursiveDomainRecursor_mem_block block Hcard Hdecl
-    hrecursors cert
-  rw [BoundGeneratedRecursiveCalls.OwnerAlignment.recursorName Hcalls
-    Howners i hi Hentry]
-  simpa [cert] using hmem
+  have hstats : Hentry.ownerIdx < stats.indConsts.size :=
+    (checkPositivityStep.isValidIndApp?_some Hentry.owner_valid).1
+  have hdeclOwner : Hentry.ownerIdx < decl.types.length := by
+    rwa [Hcard.families] at hstats
+  have hsourceOwner : Hentry.ownerIdx < indTypes.size := by
+    have htypes : indTypes.size = decl.types.length := by
+      simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl
+    rwa [htypes]
+  rw [Hentry.recursorName_eq_owner]
+  exact H.recursorName_mem_block block (by
+    rw [Hcard.records]
+    simpa using
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl).symm)
+    hrecursors Hentry.ownerIdx hsourceOwner
 
 /-- Global recursor generation discharges the final coverage premise of the
 pointwise generated-rule theorem. Every recursive call is routed through its
@@ -29218,7 +29193,6 @@ theorem GeneratedRecursors.iotaRule_ofTranslationCertificate
       block owner ctor rule)
     (Hselection : RecursorFieldSelections semanticEnv decl Hrule.allArgs
       Hrule.recursiveArgs selections)
-    (Howners : Hrule.recursive_calls.OwnerAlignment decl selections)
     {recursiveArgs : List VExpr}
     (Hargs : List.Forall₂
       (TrExprS trEnv Us
@@ -29233,8 +29207,8 @@ theorem GeneratedRecursors.iotaRule_ofTranslationCertificate
       e'.containsAnyConst (block.recursors.map (·.name)) = false →
       e''.containsAnyConst (block.recursors.map (·.name)) = false) :
     Nonempty (decl.IotaRule semanticEnv block owner ctor rule) := by
-  have hpresent := Hgenerated.recursorsPresent_ofOwnerAlignment block Hcard
-    Hdecl hrecursors Hrule.recursive_calls Howners
+  have hpresent := Hgenerated.recursorsPresent block Hcard Hdecl hrecursors
+    Hrule.recursive_calls
   exact Hrule.iotaRule_ofTranslationCertificate Hequation Hselection Hargs
     hfresh hctx hproj hpresent
 
@@ -29258,7 +29232,7 @@ theorem GeneratedRecursors.iotaRule_ofTranslation
       e''.containsAnyConst (block.recursors.map (·.name)) = false) :
     Nonempty (decl.IotaRule semanticEnv block owner ctor rule) :=
   Hgenerated.iotaRule_ofTranslationCertificate Hrule Hcard Hdecl block
-    hrecursors Htr.equation Htr.selection Htr.owner_alignment Htr.args
+    hrecursors Htr.equation Htr.selection Htr.args
     hfresh Htr.context_free hproj
 
 /-- Append one generated family batch to the flattened iota accumulator.
