@@ -11602,6 +11602,53 @@ theorem isValidIndAppIdx.indexNoOccurrence
   cases hocc : AddInductive.hasIndOcc stats.indConsts type.getAppArgs[j] <;>
     simp_all
 
+/-- The observable components of a valid inductive application are also
+sufficient for the executable classifier.  This converse keeps later
+alpha-renaming arguments independent of the implementation's nested
+`unless` encoding. -/
+theorem isValidIndAppIdx.intro
+    (hhead : (type.getAppFn == stats.indConsts[i]!) = true)
+    (harity : type.getAppArgs.size =
+      stats.params.size + stats.nindices[i]!)
+    (hparam : ∀ j (hj : j < stats.params.size),
+      stats.params[j] = type.getAppArgs[j]'(by omega))
+    (hindex : ∀ j (hlower : stats.params.size ≤ j)
+      (hupper : j < type.getAppArgs.size),
+      AddInductive.hasIndOcc stats.indConsts type.getAppArgs[j] = false) :
+    AddInductive.isValidIndAppIdx stats type i = true := by
+  have hparamsEq :
+      stats.params = type.getAppArgs.extract 0 stats.params.size := by
+    apply Array.ext
+    · simp [harity]
+    · intro j hjLeft hjRight
+      simpa only [Array.getElem_extract, Nat.zero_add] using hparam j hjLeft
+  have hparamsBeq :
+      (stats.params == type.getAppArgs.extract 0 stats.params.size) = true := by
+    calc
+      (stats.params == type.getAppArgs.extract 0 stats.params.size) =
+          (stats.params == stats.params) :=
+        congrArg (fun xs => stats.params == xs) hparamsEq.symm
+      _ = true := beq_self_eq_true stats.params
+  have hindices :
+      (type.getAppArgs.extract stats.params.size type.getAppArgs.size).all
+        (fun arg => !AddInductive.hasIndOcc stats.indConsts arg) = true := by
+    apply Array.all_eq_true.mpr
+    intro j hj
+    simp only [Array.size_extract] at hj
+    simp only [Array.getElem_extract]
+    have hclean := hindex (stats.params.size + j) (by omega) (by omega)
+    simp [hclean]
+  have hindices' :
+      (type.getAppArgs.extract stats.params.size
+        (stats.params.size + stats.nindices[i]!)).all
+          (fun arg => !AddInductive.hasIndOcc stats.indConsts arg) = true := by
+    rw [← harity]
+    exact hindices
+  simp only [AddInductive.isValidIndAppIdx, Expr.withApp_eq, hhead, harity,
+    beq_self_eq_true, Bool.true_and, hparamsBeq, hindices', Bool.not_false,
+    ↓reduceIte]
+  rfl
+
 theorem isValidIndAppFrom?_some
     (h : AddInductive.isValidIndAppFrom? stats type start fuel = some i) :
     start ≤ i ∧ i < start + fuel ∧
@@ -19852,6 +19899,456 @@ theorem Expr.abstractList_fvarArray_of_disjoint
     exact Expr.abstractList_fvar_of_not_mem <|
       hdisjoint xs[i] (List.getElem_mem hi)
 
+/-- Closing one free variable does not change the head of an application
+spine, except for closing that head itself. -/
+theorem Expr.getAppFn_abstract1 (e : Expr) (fv : FVarId) (k : Nat := 0) :
+    (e.abstract1 fv k).getAppFn = e.getAppFn.abstract1 fv k := by
+  induction e generalizing k with
+  | app fn arg ihFn _ =>
+    simpa [Expr.abstract1, Expr.getAppFn] using ihFn k
+  | bvar i => simp [Expr.abstract1, Expr.getAppFn]
+  | fvar other =>
+    by_cases h : (fv == other) = true <;>
+      simp [Expr.abstract1, Expr.getAppFn, h]
+  | mvar | sort | const | lam | forallE | letE | lit | mdata | proj =>
+    simp [Expr.abstract1, Expr.getAppFn]
+
+/-- Closing free variables does not change the head of an application spine,
+except for closing that head itself. -/
+theorem Expr.getAppFn_abstractList (e : Expr) (fvars : List FVarId)
+    (k : Nat := 0) :
+    (e.abstractList fvars k).getAppFn =
+      e.getAppFn.abstractList fvars k := by
+  induction fvars generalizing e with
+  | nil => rfl
+  | cons fv fvars ih =>
+    simp only [Expr.abstractList]
+    rw [ih]
+    exact congrArg (fun head => head.abstractList fvars k)
+      (Expr.getAppFn_abstract1 e fv k)
+
+/-- Closing one free variable acts pointwise on the arguments of an
+application spine and preserves their order. -/
+theorem Expr.getAppArgsList_abstract1 (e : Expr) (fv : FVarId)
+    (k : Nat := 0) :
+    (e.abstract1 fv k).getAppArgsList =
+      e.getAppArgsList.map fun arg => arg.abstract1 fv k := by
+  induction e generalizing k with
+  | app fn arg ihFn _ =>
+    simp only [Expr.abstract1, Expr.getAppArgsList_app, ihFn,
+      List.map_append, List.map_cons, List.map_nil]
+  | bvar i => simp [Expr.abstract1, Expr.getAppArgsList]
+  | fvar other =>
+    by_cases h : (fv == other) = true <;>
+      simp [Expr.abstract1, Expr.getAppArgsList, h]
+  | mvar | sort | const | lam | forallE | letE | lit | mdata | proj =>
+    simp [Expr.abstract1, Expr.getAppArgsList]
+
+/-- Closing free variables acts pointwise on the arguments of an application
+spine and preserves their order. -/
+theorem Expr.getAppArgsList_abstractList (e : Expr)
+    (fvars : List FVarId) (k : Nat := 0) :
+    (e.abstractList fvars k).getAppArgsList =
+      e.getAppArgsList.map fun arg => arg.abstractList fvars k := by
+  induction fvars generalizing e with
+  | nil => simp
+  | cons fv fvars ih =>
+    simp only [Expr.abstractList]
+    calc
+      ((e.abstract1 fv k).abstractList fvars k).getAppArgsList =
+          (e.abstract1 fv k).getAppArgsList.map
+            (fun arg => arg.abstractList fvars k) := ih _
+      _ = (e.getAppArgsList.map fun arg => arg.abstract1 fv k).map
+            (fun arg => arg.abstractList fvars k) :=
+        congrArg (fun args => args.map
+          (fun arg => arg.abstractList fvars k))
+          (Expr.getAppArgsList_abstract1 e fv k)
+      _ = e.getAppArgsList.map fun arg =>
+          (arg.abstract1 fv k).abstractList fvars k := by
+        simp only [List.map_map]
+        apply congrArg (fun f => List.map f e.getAppArgsList)
+        funext arg
+        rfl
+
+/-- Array form of `getAppArgsList_abstractList`. -/
+theorem Expr.getAppArgs_abstractList (e : Expr) (fvars : List FVarId)
+    (k : Nat := 0) :
+    (e.abstractList fvars k).getAppArgs =
+      e.getAppArgs.map fun arg => arg.abstractList fvars k := by
+  apply Array.toList_inj.mp
+  simp only [Expr.getAppArgs_toList, Expr.getAppArgsList_abstractList,
+    Array.toList_map]
+
+/-- The concrete inductive-occurrence scan observes only constants, so
+closing a free variable cannot affect its result. -/
+theorem checkPositivityStep.hasIndOcc_abstract1
+    (indConsts : Array Expr) (e : Expr) (fv : FVarId) (k : Nat := 0) :
+    AddInductive.hasIndOcc indConsts (e.abstract1 fv k) =
+      AddInductive.hasIndOcc indConsts e := by
+  rw [checkPositivityStep.hasIndOcc_eq_findAny,
+    checkPositivityStep.hasIndOcc_eq_findAny]
+  induction e generalizing k with
+  | bvar i => simp [Expr.abstract1, Expr.findAny]
+  | fvar other =>
+    by_cases h : fv == other
+    · simp [Expr.abstract1, Expr.findAny, h]
+    · simp [Expr.abstract1, Expr.findAny, h]
+  | mvar | sort | const | lit => simp [Expr.abstract1, Expr.findAny]
+  | app fn arg ihFn ihArg =>
+    simp [Expr.abstract1, Expr.findAny, ihFn, ihArg]
+  | lam name dom body bi ihDom ihBody =>
+    simp [Expr.abstract1, Expr.findAny, ihDom, ihBody]
+  | forallE name dom body bi ihDom ihBody =>
+    simp [Expr.abstract1, Expr.findAny, ihDom, ihBody]
+  | letE name ty value body nondep ihTy ihValue ihBody =>
+    simp [Expr.abstract1, Expr.findAny, ihTy, ihValue, ihBody]
+  | mdata md body ih => simp [Expr.abstract1, Expr.findAny, ih]
+  | proj name idx body ih => simp [Expr.abstract1, Expr.findAny, ih]
+
+/-- Simultaneously closing any list of free variables preserves the concrete
+inductive-occurrence scan. -/
+theorem checkPositivityStep.hasIndOcc_abstractList
+    (indConsts : Array Expr) (e : Expr) (fvars : List FVarId)
+    (k : Nat := 0) :
+    AddInductive.hasIndOcc indConsts (e.abstractList fvars k) =
+      AddInductive.hasIndOcc indConsts e := by
+  induction fvars generalizing e with
+  | nil => rfl
+  | cons fv fvars ih =>
+    simp only [Expr.abstractList]
+    rw [ih]
+    exact checkPositivityStep.hasIndOcc_abstract1 indConsts e fv k
+
+/-- Closing a free variable cannot manufacture a constant. -/
+theorem Expr.abstract1_eq_const
+    {e : Expr} {fv : FVarId} {k : Nat} {name : Name}
+    {levels : List Level}
+    (H : e.abstract1 fv k = .const name levels) :
+    e = .const name levels := by
+  induction e generalizing k with
+  | bvar i => simp [Expr.abstract1] at H
+  | fvar other =>
+    by_cases h : (fv == other) = true <;> simp [Expr.abstract1, h] at H
+  | mvar | sort | lit => simp [Expr.abstract1] at H
+  | const => simpa [Expr.abstract1] using H
+  | app | lam | forallE | letE | mdata | proj =>
+    simp [Expr.abstract1] at H
+
+/-- Iterated closing likewise reflects constant syntax. -/
+theorem Expr.abstractList_eq_const
+    {e : Expr} {fvars : List FVarId} {k : Nat} {name : Name}
+    {levels : List Level}
+    (H : e.abstractList fvars k = .const name levels) :
+    e = .const name levels := by
+  induction fvars generalizing e with
+  | nil => exact H
+  | cons fv fvars ih =>
+    simp only [Expr.abstractList] at H
+    exact Expr.abstract1_eq_const (ih H)
+
+/-- If the target variable is not the one being closed, a resulting free
+variable was already that exact free variable in the source. -/
+theorem Expr.abstract1_eq_fvar_of_ne
+    {e : Expr} {target fv : FVarId} {k : Nat}
+    (hne : target ≠ fv)
+    (H : e.abstract1 fv k = .fvar target) :
+    e = .fvar target := by
+  induction e generalizing k with
+  | bvar i => simp [Expr.abstract1] at H
+  | fvar other =>
+    by_cases h : (fv == other) = true
+    · simp [Expr.abstract1, h] at H
+    · simp only [Expr.abstract1, h, ↓reduceIte] at H
+      cases H
+      rfl
+  | mvar | sort | const | lit => simp [Expr.abstract1] at H
+  | app | lam | forallE | letE | mdata | proj =>
+    simp [Expr.abstract1] at H
+
+/-- Reflection of a free variable through a list abstraction disjoint from
+that variable. -/
+theorem Expr.abstractList_eq_fvar_of_not_mem
+    {e : Expr} {target : FVarId} {fvars : List FVarId} {k : Nat}
+    (hnot : target ∉ fvars)
+    (H : e.abstractList fvars k = .fvar target) :
+    e = .fvar target := by
+  induction fvars generalizing e with
+  | nil => exact H
+  | cons fv fvars ih =>
+    simp only [List.mem_cons, not_or] at hnot
+    simp only [Expr.abstractList] at H
+    have Hinter : e.abstract1 fv k = .fvar target := ih hnot.2 H
+    exact Expr.abstract1_eq_fvar_of_ne (target := target) (fv := fv)
+      hnot.1 Hinter
+
+/-- A valid concrete inductive application remains valid after closing a
+set of fresh field variables.  The disjointness premise says precisely that
+the cached common parameters belong to the older root context. -/
+theorem checkPositivityStep.isValidIndAppIdx.abstractList
+    (hvalid : AddInductive.isValidIndAppIdx stats type i = true)
+    (hconst : stats.indConsts[i]? = some (.const name levels))
+    (paramFvars binders : List FVarId)
+    (hparams : stats.params = (paramFvars.map Expr.fvar).toArray)
+    (hdisjoint : ∀ fv, fv ∈ paramFvars → fv ∉ binders)
+    (k : Nat := 0) :
+    AddInductive.isValidIndAppIdx stats
+      (type.abstractList binders k) i = true := by
+  have hconstGet : stats.indConsts[i]! = .const name levels := by
+    simp [Array.getElem!_eq_getD, hconst]
+  have hhead := checkPositivityStep.isValidIndAppIdx.constHead
+    hvalid hconst
+  have habstractHead : (type.abstractList binders k).getAppFn =
+      .const name levels := by
+    rw [Expr.getAppFn_abstractList type binders k, hhead]
+    induction binders <;> simp_all [Expr.abstractList, Expr.abstract1]
+  have hheadClosed :
+      ((type.abstractList binders k).getAppFn == stats.indConsts[i]!) =
+        true := by
+    simpa only [habstractHead, hconstGet] using
+      (beq_self_eq_true (Expr.const name levels))
+  have harityClosed : (type.abstractList binders k).getAppArgs.size =
+      stats.params.size + stats.nindices[i]! := by
+    rw [Expr.getAppArgs_abstractList type binders k, Array.size_map]
+    exact checkPositivityStep.isValidIndAppIdx.arity hvalid
+  have hparamsClosed : ∀ j
+      (hj : j < stats.params.size),
+      stats.params[j] =
+        (type.abstractList binders k).getAppArgs[j]'(by omega) := by
+    intro j hj
+    have hsize : stats.params.size = paramFvars.length := by
+      rw [hparams]
+      simp
+    have hjFvars : j < paramFvars.length := by omega
+    have hjSource : j < type.getAppArgs.size := by
+      have := checkPositivityStep.isValidIndAppIdx.arity hvalid
+      omega
+    have hjClosed : j <
+        (type.abstractList binders k).getAppArgs.size := by
+      omega
+    have hparamAt : stats.params[j] = .fvar paramFvars[j] := by
+      have hget := congrArg (fun xs : Array Expr => xs[j]!) hparams
+      simpa [Array.getElem!_eq_getD, Array.getD, hj, hjFvars] using hget
+    have hargEqv := checkPositivityStep.isValidIndAppIdx.param hvalid hj
+    rw [hparamAt] at hargEqv
+    have harg : type.getAppArgs[j]'hjSource = .fvar paramFvars[j] :=
+      Expr.eqv_fvar_eq hargEqv
+    have habstractArg :
+        (type.abstractList binders k).getAppArgs[j]'hjClosed =
+          .fvar paramFvars[j] := by
+      have hargs := Expr.getAppArgs_abstractList type binders k
+      have hget := congrArg (fun xs : Array Expr => xs[j]!) hargs
+      have habstract :
+          (type.getAppArgs[j]'hjSource).abstractList binders k =
+            .fvar paramFvars[j] := by
+        rw [harg]
+        exact Expr.abstractList_fvar_of_not_mem
+          (hdisjoint paramFvars[j] (List.getElem_mem hjFvars))
+      simpa [Array.getElem!_eq_getD, Array.getD, hjClosed, hjSource,
+        habstract] using hget
+    exact hparamAt.trans habstractArg.symm
+  have hindicesClosed : ∀ j
+      (hlower : stats.params.size ≤ j)
+      (hupper : j < (type.abstractList binders k).getAppArgs.size),
+      AddInductive.hasIndOcc stats.indConsts
+        (type.abstractList binders k).getAppArgs[j] = false := by
+    intro j hlower hupper
+    have hupperSource : j < type.getAppArgs.size := by
+      simpa only [Expr.getAppArgs_abstractList type binders k,
+        Array.size_map] using hupper
+    have hsource :=
+      checkPositivityStep.isValidIndAppIdx.indexNoOccurrence hvalid
+        hlower hupperSource
+    have hargs := Expr.getAppArgs_abstractList type binders k
+    have hget := congrArg (fun xs : Array Expr => xs[j]!) hargs
+    have hargEq :
+        (type.abstractList binders k).getAppArgs[j]'hupper =
+          (type.getAppArgs[j]'hupperSource).abstractList binders k := by
+      simpa [Array.getElem!_eq_getD, Array.getD, hupper,
+        hupperSource] using hget
+    calc
+      AddInductive.hasIndOcc stats.indConsts
+          (type.abstractList binders k).getAppArgs[j] =
+          AddInductive.hasIndOcc stats.indConsts
+            ((type.getAppArgs[j]'hupperSource).abstractList binders k) :=
+        congrArg (AddInductive.hasIndOcc stats.indConsts) hargEq
+      _ = AddInductive.hasIndOcc stats.indConsts
+          type.getAppArgs[j] :=
+        checkPositivityStep.hasIndOcc_abstractList stats.indConsts
+          type.getAppArgs[j] binders k
+      _ = false := hsource
+  exact checkPositivityStep.isValidIndAppIdx.intro hheadClosed harityClosed
+    hparamsClosed hindicesClosed
+
+/-- Conversely, closing fresh field variables cannot turn an invalid
+application into a valid one.  Together with `abstractList`, this is the
+alpha-invariance bridge used between constructor checking and recursor
+generation. -/
+theorem checkPositivityStep.isValidIndAppIdx.of_abstractList
+    (paramFvars binders : List FVarId) (k : Nat := 0)
+    (hvalid : AddInductive.isValidIndAppIdx stats
+      (type.abstractList binders k) i = true)
+    (hconst : stats.indConsts[i]? = some (.const name levels))
+    (hparams : stats.params = (paramFvars.map Expr.fvar).toArray)
+    (hdisjoint : ∀ fv, fv ∈ paramFvars → fv ∉ binders) :
+    AddInductive.isValidIndAppIdx stats type i = true := by
+  have hconstGet : stats.indConsts[i]! = .const name levels := by
+    simp [Array.getElem!_eq_getD, hconst]
+  have habstractHead := checkPositivityStep.isValidIndAppIdx.constHead
+    hvalid hconst
+  have habstractSourceHead :
+      type.getAppFn.abstractList binders k = .const name levels := by
+    rw [← Expr.getAppFn_abstractList type binders k]
+    exact habstractHead
+  have hsourceHead : type.getAppFn = .const name levels :=
+    Expr.abstractList_eq_const habstractSourceHead
+  have hheadSource : (type.getAppFn == stats.indConsts[i]!) = true := by
+    simpa only [hsourceHead, hconstGet] using
+      (beq_self_eq_true (Expr.const name levels))
+  have haritySource : type.getAppArgs.size =
+      stats.params.size + stats.nindices[i]! := by
+    have hclosed := checkPositivityStep.isValidIndAppIdx.arity hvalid
+    simpa only [Expr.getAppArgs_abstractList type binders k,
+      Array.size_map] using hclosed
+  have hparamsSource : ∀ j (hj : j < stats.params.size),
+      stats.params[j] = type.getAppArgs[j]'(by omega) := by
+    intro j hj
+    have hsize : stats.params.size = paramFvars.length := by
+      rw [hparams]
+      simp
+    have hjFvars : j < paramFvars.length := by omega
+    have hjSource : j < type.getAppArgs.size := by omega
+    have hjClosed : j <
+        (type.abstractList binders k).getAppArgs.size := by
+      have := checkPositivityStep.isValidIndAppIdx.arity hvalid
+      omega
+    have hparamAt : stats.params[j] = .fvar paramFvars[j] := by
+      have hget := congrArg (fun xs : Array Expr => xs[j]!) hparams
+      simpa [Array.getElem!_eq_getD, Array.getD, hj, hjFvars] using hget
+    have hclosedEqv :=
+      checkPositivityStep.isValidIndAppIdx.param hvalid hj
+    rw [hparamAt] at hclosedEqv
+    have hclosedArg :
+        (type.abstractList binders k).getAppArgs[j]'hjClosed =
+          .fvar paramFvars[j] := Expr.eqv_fvar_eq hclosedEqv
+    have hargs := Expr.getAppArgs_abstractList type binders k
+    have hget := congrArg (fun xs : Array Expr => xs[j]!) hargs
+    have habstractArg :
+        (type.getAppArgs[j]'hjSource).abstractList binders k =
+          .fvar paramFvars[j] := by
+      have hpointwise :
+          (type.abstractList binders k).getAppArgs[j]'hjClosed =
+            (type.getAppArgs[j]'hjSource).abstractList binders k := by
+        simpa [Array.getElem!_eq_getD, Array.getD, hjClosed,
+          hjSource] using hget
+      exact hpointwise.symm.trans hclosedArg
+    have hsourceArg : type.getAppArgs[j]'hjSource =
+        .fvar paramFvars[j] :=
+      Expr.abstractList_eq_fvar_of_not_mem
+        (hdisjoint paramFvars[j] (List.getElem_mem hjFvars)) habstractArg
+    exact hparamAt.trans hsourceArg.symm
+  have hindicesSource : ∀ j (hlower : stats.params.size ≤ j)
+      (hupper : j < type.getAppArgs.size),
+      AddInductive.hasIndOcc stats.indConsts type.getAppArgs[j] = false := by
+    intro j hlower hupper
+    have hupperClosed : j <
+        (type.abstractList binders k).getAppArgs.size := by
+      simpa only [Expr.getAppArgs_abstractList type binders k,
+        Array.size_map] using hupper
+    have hclosed :=
+      checkPositivityStep.isValidIndAppIdx.indexNoOccurrence hvalid
+        hlower hupperClosed
+    have hargs := Expr.getAppArgs_abstractList type binders k
+    have hget := congrArg (fun xs : Array Expr => xs[j]!) hargs
+    have hargEq :
+        (type.abstractList binders k).getAppArgs[j]'hupperClosed =
+          (type.getAppArgs[j]'hupper).abstractList binders k := by
+      simpa [Array.getElem!_eq_getD, Array.getD, hupperClosed,
+        hupper] using hget
+    calc
+      AddInductive.hasIndOcc stats.indConsts type.getAppArgs[j] =
+          AddInductive.hasIndOcc stats.indConsts
+            ((type.getAppArgs[j]'hupper).abstractList binders k) :=
+        (checkPositivityStep.hasIndOcc_abstractList stats.indConsts
+          type.getAppArgs[j] binders k).symm
+      _ = AddInductive.hasIndOcc stats.indConsts
+          (type.abstractList binders k).getAppArgs[j] :=
+        congrArg (AddInductive.hasIndOcc stats.indConsts) hargEq.symm
+      _ = false := hclosed
+  exact checkPositivityStep.isValidIndAppIdx.intro hheadSource haritySource
+    hparamsSource hindicesSource
+
+/-- Opening one more telescope binder and then closing the complete ordered
+field list recovers the body obtained by stripping that binder from the
+already-closed telescope. -/
+theorem Expr.instantiate1_fvar_abstractList_append
+    {fv : FVarId} {fvars : List FVarId} {body : Expr}
+    (hfv : fv ∉ fvars)
+    (hbody : body.FVarsIn (fun other => other ≠ fv)) :
+    (body.instantiate1 (.fvar fv)).abstractList (fvars ++ [fv]) =
+      body.abstractList fvars 1 := by
+  rw [Expr.abstractList_append]
+  simp only [Expr.abstractList]
+  rw [Expr.abstract1_abstractList hfv]
+  rw [Expr.instantiate1_eq, hbody.abstract_instantiate1]
+
+/-- Canonical alpha-normalization trace for a constructor-field traversal.
+`current` is the opened residual seen by production, while `residual` is the
+same point of the original telescope with all opened fields closed back to
+de Bruijn variables. -/
+structure ConstructorFieldOpening
+    (source current : Expr) (fields : Array Expr) : Type where
+  fvars : List FVarId
+  expressions : fields = (fvars.map Expr.fvar).toArray
+  nodup : fvars.Nodup
+  residual : Expr
+  telescope : Expr.ForallTelescope source fields.size residual
+  closed : current.abstractList fvars = residual
+
+def ConstructorFieldOpening.empty (source : Expr) :
+    ConstructorFieldOpening source source #[] where
+  fvars := []
+  expressions := rfl
+  nodup := .nil
+  residual := source
+  telescope := .nil source
+  closed := rfl
+
+/-- Extend the canonical opening trace by the fresh field chosen by
+`withLocalDecl`. -/
+def ConstructorFieldOpening.push
+    (H : ConstructorFieldOpening source
+      (.forallE name dom body bi) fields)
+    (hfv : fv ∉ H.fvars)
+    (hbody : body.FVarsIn (fun other => other ≠ fv)) :
+    ConstructorFieldOpening source
+      (body.instantiate1 (.fvar fv))
+      (fields.push (.fvar fv)) := by
+  have hsize : fields.size = H.fvars.length := by
+    have := congrArg Array.size H.expressions
+    simpa using this
+  let nextResidual := body.abstractList H.fvars 1
+  have Hinner : Expr.ForallTelescope H.residual 1 nextResidual := by
+    rw [← H.closed]
+    simp only [Expr.abstractList_forallE]
+    exact .cons (.nil nextResidual)
+  refine {
+    fvars := H.fvars ++ [fv]
+    expressions := ?_
+    nodup := ?_
+    residual := nextResidual
+    telescope := ?_
+    closed := ?_ }
+  · simp [H.expressions]
+  · apply List.nodup_append.mpr
+    refine ⟨H.nodup, by simp, ?_⟩
+    intro other hother selected hselected
+    simp only [List.mem_singleton] at hselected
+    subst selected
+    exact fun heq => hfv (heq ▸ hother)
+  · have Htel := H.telescope.trans Hinner
+    simpa [hsize] using Htel
+  · exact Expr.instantiate1_fvar_abstractList_append hfv hbody
+
 theorem Expr.abstractList_indexBVars
     (binders : List FVarId) (n k : Nat) (hk : n < k) :
     ((List.ofFn fun i : Fin n =>
@@ -21112,6 +21609,17 @@ theorem RecursorFieldSelectionsAt.selectedFVars
   refine ⟨fv, target, hu, ?_⟩
   simpa [target, hu] using hargTr
 
+theorem ConstructorFieldOpening.fvars_eq_bound
+    (H : ConstructorFieldOpening source current fields)
+    (B : BoundFVarArray c fields) :
+    H.fvars = B.fvars := by
+  have harrays : (H.fvars.map Expr.fvar).toArray =
+      (B.fvars.map Expr.fvar).toArray :=
+    H.expressions.symm.trans B.expressions
+  have hlists : H.fvars.map Expr.fvar = B.fvars.map Expr.fvar := by
+    simpa using congrArg Array.toList harrays
+  exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlists
+
 namespace mkRecInfos.loopCtorArgs.loop
 
 /-- Strengthening of `recursiveDomainsRecursor` which also records that the
@@ -21124,7 +21632,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (k : Expr → Array Expr → Array Expr → AddInductive.M alpha)
     {decl : VInductDecl} {depth : Nat} {typeTarget : VExpr}
     {recLparams : List Name}
-    {t : Expr} {i : Nat} {bu u : Array Expr} {fuel : Nat}
+    {source t : Expr} {i : Nat} {bu u : Array Expr} {fuel : Nat}
     {root c : AddInductive.Context} {Q : alpha → Prop}
     (Rroot : RecursorContextWF root recLparams)
     (R : RecursorContextWF c recLparams)
@@ -21151,6 +21659,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (hargs : List.Forall₂
       (TrExprS R.venv recLparams R.mlctx.vlctx) u.toList args)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R bu)
+    (Hopening : ConstructorFieldOpening source t bu)
     {appliedTarget : VExpr}
     (happlied : TrExprS R.venv recLparams R.mlctx.vlctx
       (mkAppN head bu) appliedTarget)
@@ -21172,6 +21681,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
       RecursorRecentBoundFVarArray Rroot Rcurrent bu' →
+      ConstructorFieldOpening source t' bu' →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN head bu') appliedTarget' →
       Rcurrent.venv.HasType recLparams.length
@@ -21295,12 +21805,31 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
       let Hrecent' := Hrecent.pushCurrent name dom.consumeTypeAnnotations
         consumedDom bi Hdom.consumed Hdom.isType
+      have hopenFvars : Hopening.fvars =
+          Hrecent.toBoundFVarArray.fvars :=
+        Hopening.fvars_eq_bound Hrecent.toBoundFVarArray
+      have hcurrentFresh : (⟨c.ngen.curr⟩ : FVarId) ∉ Hopening.fvars := by
+        rw [hopenFvars]
+        intro hmem
+        exact R.toBindingContextWF.current_not_mem
+          (Hrecent.toBoundFVarArray.members _ hmem)
+      have hbodyFresh : body.FVarsIn
+          (fun other => other ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
+        apply hbody.fvarsIn.mono
+        intro other hother heq
+        subst other
+        have hbase : (⟨c.ngen.curr⟩ : FVarId) ∈
+            R.mlctx.vlctx.fvars := by
+          simpa using hother
+        rw [← R.mlctx_wf.tr.fvars_eq, R.lctx_eq] at hbase
+        exact R.toBindingContextWF.current_not_mem hbase
+      let Hopening' := Hopening.push hcurrentFresh hbodyFresh
       refine Hclass.bind fun selected hselected => ?_
       cases selected with
       | none =>
         exact ih R' Hstats' (by omega) hctx' hopened
           hconsumedBodyType (.nonrecursive hfields) hargsWeak Hrecent'
-          happlied' happliedType'
+          Hopening' happlied' happliedType'
       | some target =>
         rcases hselected target rfl with ⟨howner, hrecursive⟩
         let cert : RecursorRecursiveDomainAt
@@ -21321,11 +21850,11 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         exact ih R' Hstats' (by omega) hctx' hopened
           hconsumedBodyType
           (.recursive hfields (cert := cert) rfl) hargs' Hrecent'
-          happlied' happliedType'
+          Hopening' happlied' happliedType'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
       exact Hk R htype htypeType hfields hargs Hrecent
-        happlied happliedType
+        Hopening happlied happliedType
 
 end mkRecInfos.loopCtorArgs.loop
 
@@ -21375,6 +21904,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
       RecursorRecentBoundFVarArray R Rcurrent bu' →
+      ConstructorFieldOpening tail t' bu' →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN head bu') appliedTarget' →
       Rcurrent.venv.HasType recLparams.length
@@ -21397,6 +21927,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     exact mkRecInfos.loopCtorArgs.loop.recursiveDomainsRecursorRecent
       stats head k R R Hstats (Nat.le_refl _) hwhnf hconsume hlit hctx hproj
       htail htailType .nil .nil (RecursorRecentBoundFVarArray.empty R)
+      (ConstructorFieldOpening.empty tail)
       (by simpa [mkAppN] using happlied) happliedType Hk
   exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
     inputContext.fuel.inductiveFuel
@@ -32853,7 +33384,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       htailType Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allFields
     recursiveFields fields args Hterminal HterminalType Hselections
-    Hrecursive HfieldsRecent HintroApplied HintroAppliedType
+    Hrecursive HfieldsRecent _Hopening HintroApplied HintroAppliedType
   let HextArgs := HfieldsRecent.contextExtension
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
   have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
