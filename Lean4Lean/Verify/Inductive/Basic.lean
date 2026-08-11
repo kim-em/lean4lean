@@ -13815,6 +13815,44 @@ inductive RecursorParamPrefix (stats : AddInductive.InductiveStats) :
       RecursorParamPrefix stats (i + 1) (body.instantiate1 param) tail →
       RecursorParamPrefix stats i (.forallE name dom body bi) tail
 
+/-- A partially consumed common-parameter prefix.  Constructor checking
+builds this left-to-right; when `stop = stats.params.size`, it is exactly the
+complete prefix replay required by recursor generation. -/
+inductive RecursorParamSegment (stats : AddInductive.InductiveStats) :
+    Nat → Nat → Expr → Expr → Prop
+  | done : RecursorParamSegment stats i i source source
+  | step {i stop : Nat} {param body tail dom : Expr}
+      {name : Name} {bi : BinderInfo} :
+      stats.params[i]? = some param →
+      RecursorParamSegment stats (i + 1) stop
+        (body.instantiate1 param) tail →
+      RecursorParamSegment stats i stop (.forallE name dom body bi) tail
+
+theorem RecursorParamSegment.trans
+    (H₁ : RecursorParamSegment stats start middle source current)
+    (H₂ : RecursorParamSegment stats middle stop current tail) :
+    RecursorParamSegment stats start stop source tail := by
+  induction H₁ with
+  | done => exact H₂
+  | step hparam _ ih => exact .step hparam (ih H₂)
+
+theorem RecursorParamSegment.push
+    {body param dom : Expr} {name : Name} {bi : BinderInfo}
+    (H : RecursorParamSegment stats start i source
+      (.forallE name dom body bi))
+    (hparam : stats.params[i]? = some param) :
+    RecursorParamSegment stats start (i + 1) source
+      (body.instantiate1 param) := by
+  exact H.trans (.step hparam .done)
+
+theorem RecursorParamSegment.complete
+    (H : RecursorParamSegment stats start stop source tail)
+    (hstop : stop = stats.params.size) :
+    RecursorParamPrefix stats start source tail := by
+  induction H with
+  | done => exact .done hstop
+  | step hparam _ ih => exact .step hparam (ih hstop)
+
 namespace mkRecInfos.loopCtorArgs.loop
 
 /-- `loopCtorArgs.loop` follows a certified common-parameter prefix without
@@ -14830,6 +14868,7 @@ to the field verifier, while an early non-forall is discharged separately by
 the invalid-result argument. -/
 theorem checkConstructors.loopCtor.parameterSynthesisWF
     {decl : VInductDecl} {ctorVal : VConstVal}
+    {original : Expr}
     (Hc : ContextWF c)
     {Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth}
@@ -14842,6 +14881,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
           Hsuffix.parameterDecls current' decl.nparams 0) →
       TrExprS Hc.venv c.lparams Hsuffix.parameterDecls source' current' →
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx source' fullCurrent' →
+      RecursorParamSegment stats 0 decl.nparams original source' →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
         source' decl.nparams (fuel' + 1) c).WF Q)
     (Hearly : ∀ {source' : Expr} {scope' : VLCtx}
@@ -14860,6 +14900,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
         source' i' (fuel' + 1) c).WF Q)
     (hparams : stats.params.size = decl.nparams)
     (hbound : i ≤ decl.nparams)
+    (Hsegment : RecursorParamSegment stats 0 i original source)
     (Hscope : ∀ h : i < stats.params.size,
       checkInductiveTypes.loopType.LaterParameterScope Hsuffix i source)
     (hscopeEq : ∀ h : i < stats.params.size,
@@ -14942,6 +14983,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
                 rw [hparams]
                 exact heq
               exact Hbody.completedScope hdone)
+            (Hsegment := Hsegment.push hparamAt)
             Hsynthesis' hopenedNarrow'
             (hopenedFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
       · exact Hearly hi hforall (Hscope histats)
@@ -14950,7 +14992,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
       subst i
       have hscope := hcompleteScope rfl
       subst scope
-      exact Hresult Hsynthesis htypeNarrow htypeFull
+      exact Hresult Hsynthesis htypeNarrow htypeFull Hsegment
 
 theorem _root_.Lean4Lean.FVarsIn.getAppArgsList
     (H : FVarsIn P e) (ha : a ∈ e.getAppArgsList) : FVarsIn P a := by
@@ -15594,7 +15636,9 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source 0 fuel c).WF
-      (fun _ => decl.CtorShape Hc.venv params target ctorVal ∧
+      (fun _ => ∃ tail,
+        RecursorParamPrefix stats 0 source tail ∧
+        decl.CtorShape Hc.venv params target ctorVal ∧
         Hc.venv.IsType decl.uvars [] ctorVal.type) := by
   have hnoFVars : FVarsIn (fun _ => False) source := by
     simpa [VLCtx.fvars] using Hctor.type.fvarsIn
@@ -15615,28 +15659,35 @@ theorem checkConstructors.loopCtor.refinesCtorShape
     cases fuel with
     | zero => exact checkConstructors.loopCtor.zero.WF
     | succ fuel =>
-      apply checkConstructors.loopCtor.ctorShapeRefinesNarrow
-        (decl := decl) (ctorVal := ctorVal) (params := params)
-        (type := source) (i := 0) (ctor := ctor) (fuel := fuel + 1) Hc
-        (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
-          Hc Hsuffix)
-        Hstats hi htarget htargetUvars htargetLookup htargetWF htargetShape (by
-          rw [Array.getElem?_eq_none_iff]
-          rw [Hstats.params_size, hzero]
-          omega)
-        hconsume hlit hproj hunsafe hbound
-        (normalized := ctorVal.type) (tail := ctorVal.type)
-        (exprType := exprType) (ownParams := [])
-      · simpa [Hstats.uvars] using hctorTyped
-      · rw [hzero]
-        rfl
-      · exact hparams
-      · rw [hscope]
-        change VEnv.IsDefEqCtx Hc.venv decl.uvars [] [] []
-        exact VEnv.IsDefEqCtx.refl (by trivial)
-      · rfl
-      · simpa [hscope] using Hctor.type
-      · exact hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+      have Hshape :
+          (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor
+            targetIdx source 0 (fuel + 1) c).WF
+            (fun _ => decl.CtorShape Hc.venv params target ctorVal ∧
+              Hc.venv.IsType decl.uvars [] ctorVal.type) := by
+        exact checkConstructors.loopCtor.ctorShapeRefinesNarrow
+          (decl := decl) (ctorVal := ctorVal) (params := params)
+          (type := source) (i := 0) (ctor := ctor) (fuel := fuel + 1) Hc
+          (narrowType := ctorVal.type) (fullType := fullType)
+          (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+            Hc Hsuffix)
+          Hstats hi htarget htargetUvars htargetLookup htargetWF htargetShape
+          (by
+            rw [Array.getElem?_eq_none_iff]
+            rw [Hstats.params_size, hzero]
+            omega)
+          hconsume hlit hproj hunsafe hbound
+          (normalized := ctorVal.type) (tail := ctorVal.type)
+          (exprType := exprType) (ownParams := [])
+          (by simpa [Hstats.uvars] using hctorTyped)
+          (by rw [hzero]; rfl) hparams
+          (by
+            rw [hscope]
+            change VEnv.IsDefEqCtx Hc.venv decl.uvars [] [] []
+            exact VEnv.IsDefEqCtx.refl (by trivial))
+          rfl (by simpa [hscope] using Hctor.type)
+          (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+      exact Hshape.mono fun _ Hchecked =>
+        ⟨source, .done (by rw [Hstats.params_size, hzero]), Hchecked⟩
   by_cases hforall : ∃ name dom body bi,
       source = .forallE name dom body bi
   · rcases hforall with ⟨name, dom, body, bi, rfl⟩
@@ -15649,11 +15700,13 @@ theorem checkConstructors.loopCtor.refinesCtorShape
     let Hinitial := ConstructorSynthesisState.initial Hctor htype
     apply checkConstructors.loopCtor.parameterSynthesisWF
       (decl := decl) (ctorVal := ctorVal) Hc
-      (Q := fun _ => decl.CtorShape Hc.venv params target ctorVal ∧
+      (Q := fun _ => ∃ tail,
+        RecursorParamPrefix stats 0 (.forallE name dom body bi) tail ∧
+        decl.CtorShape Hc.venv params target ctorVal ∧
         Hc.venv.IsType decl.uvars [] ctorVal.type)
       (Hresult := by
         intro source' current' fullCurrent' fuel'
-          Hsynthesis' htrNarrow htrFull
+          Hsynthesis' htrNarrow htrFull Hsegment'
         have hindices : Hsynthesis'.indices = [] :=
           List.eq_nil_of_length_eq_zero Hsynthesis'.indexCount
         have hscopeCtx : Hsuffix.parameterDecls.toCtx =
@@ -15669,20 +15722,30 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         have hparamAt : stats.params[decl.nparams]? = none := by
           rw [Array.getElem?_eq_none_iff]
           exact Nat.le_of_eq Hstats.params_size
-        exact checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
-          (ctor := ctor) (fuel := fuel' + 1) Hc
-          (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
-            Hc Hsuffix)
-          Hstats Hsynthesis' hi htarget htargetUvars htargetLookup
-          htargetWF htargetShape hparamAt hconsume hlit hproj hunsafe
-          hbound hparams htrNarrow htrFull)
+        have Hshape :
+            (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor
+              targetIdx source' decl.nparams (fuel' + 1) c).WF
+              (fun _ => decl.CtorShape Hc.venv params target ctorVal ∧
+                Hc.venv.IsType decl.uvars [] ctorVal.type) := by
+          exact checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
+            (ctor := ctor) (fuel := fuel' + 1) Hc
+            (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+              Hc Hsuffix)
+            Hstats Hsynthesis' hi htarget htargetUvars htargetLookup
+            htargetWF htargetShape hparamAt hconsume hlit hproj hunsafe
+            hbound hparams htrNarrow htrFull
+        exact Hshape.mono fun _ Hchecked => by
+          have HsegmentComplete : RecursorParamSegment stats 0
+              stats.params.size (.forallE name dom body bi) source' := by
+            simpa only [Hstats.params_size] using Hsegment'
+          exact ⟨source', HsegmentComplete.complete rfl, Hchecked⟩)
       (Hearly := by
         intro source' scope' current' fullCurrent' i' fuel' hi'
           hforall Hscope' _Hsynthesis' _htrNarrow _htrFull
         exact checkConstructors.loopCtor.earlyParameterResult.WF
           (fuel := fuel') Hc Hscope'
           (by simpa [Hstats.params_size] using hi') hforall)
-      Hstats.params_size (by omega)
+      Hstats.params_size (by omega) (.done)
       (fun h =>
         checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars h hnoFVars)
       (fun h =>
@@ -15785,7 +15848,9 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       (fuel := c.fuel.inductiveFuel) Hc Hsuffix Hstats hparamsCtx
       Hctor hchecked htarget rfl htargetUvars htargetLookup htargetWF
       htargetShape hconsume hlit hproj hunsafe (hbound targetIdx htarget)
-    exact Hchecked
+    exact Hchecked.mono fun _ Hresult => by
+      rcases Hresult with ⟨_tail, _prefix, Hshape, Htype⟩
+      exact ⟨Hshape, Htype⟩
   · intro Hcomplete
     exact Hcomplete.checkedComplete (env := sourceEnv)
 
