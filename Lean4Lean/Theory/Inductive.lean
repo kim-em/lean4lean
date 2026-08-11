@@ -124,6 +124,16 @@ def VInductDecl.ValidIndAppAt (decl : VInductDecl) (target : Option Name)
       ∀ arg ∈ args.drop decl.nparams,
         arg.containsAnyConst (decl.types.map (·.name)) = false
 
+theorem VInductDecl.ValidIndAppAt.forgetTarget
+    {decl : VInductDecl} {target : Option Name}
+    {depth : Nat} {e : VExpr}
+    (H : decl.ValidIndAppAt target depth e) :
+    decl.ValidIndAppAt none depth e := by
+  rcases H with ⟨type, htype, _htarget, levels, hfn, hlevels,
+    hargs, hparams, hindices⟩
+  exact ⟨type, htype, Or.inl rfl, levels, hfn, hlevels,
+    hargs, hparams, hindices⟩
+
 /- Positivity is recursively modulo definitional equality: the executable
 checker exposes every higher-order body to WHNF, not only the outermost field
 type.  `SyntacticallyPositive` classifies one exposed head, while `Positive`
@@ -175,6 +185,71 @@ inductive VInductDecl.RecursiveArg (env : VEnv) (decl : VInductDecl) :
     env.IsDefEq decl.uvars (dom :: ctx) body checkedBody bodyType →
     decl.RecursiveArg env (checkedDom :: ctx) (depth + 1) checkedBody →
     decl.RecursiveArg env ctx depth e
+
+/-- Universe-parametric form of `RecursiveArg`.  Constructor declarations are
+checked at `decl.uvars`, but generated large-elimination recursors interpret
+the same recursive-domain syntax after prepending a fresh universe parameter.
+Keeping the universe arity explicit lets the implementation refinement state
+that intermediate invariant without identifying those two contexts. -/
+inductive VInductDecl.RecursiveArgAt (env : VEnv) (decl : VInductDecl)
+    (uvars : Nat) : List VExpr → Nat → VExpr → Prop
+  | direct :
+    env.IsDefEq uvars ctx e exposed type →
+    decl.ValidIndAppAt none depth exposed →
+    decl.RecursiveArgAt env uvars ctx depth e
+  | forallE :
+    env.IsDefEq uvars ctx e (.forallE dom body) type →
+    env.IsDefEq uvars ctx dom checkedDom (.sort domLevel) →
+    env.IsDefEq uvars (dom :: ctx) body checkedBody bodyType →
+    decl.RecursiveArgAt env uvars (checkedDom :: ctx) (depth + 1)
+      checkedBody →
+    decl.RecursiveArgAt env uvars ctx depth e
+
+/-- Target-preserving recursive-argument classification.  The executable
+classifier returns a mutual-family index; this judgment carries the matching
+family name through every higher-order binder instead of forgetting it at the
+direct application. -/
+inductive VInductDecl.RecursiveArgAtTarget
+    (env : VEnv) (decl : VInductDecl) (uvars : Nat) (target : Name) :
+    List VExpr → Nat → VExpr → Prop
+  | direct :
+    env.IsDefEq uvars ctx e exposed type →
+    decl.ValidIndAppAt (some target) depth exposed →
+    decl.RecursiveArgAtTarget env uvars target ctx depth e
+  | forallE :
+    env.IsDefEq uvars ctx e (.forallE dom body) type →
+    env.IsDefEq uvars ctx dom checkedDom (.sort domLevel) →
+    env.IsDefEq uvars (dom :: ctx) body checkedBody bodyType →
+    decl.RecursiveArgAtTarget env uvars target
+      (checkedDom :: ctx) (depth + 1) checkedBody →
+    decl.RecursiveArgAtTarget env uvars target ctx depth e
+
+theorem VInductDecl.RecursiveArgAtTarget.forgetTarget
+    {decl : VInductDecl} {env : VEnv} {uvars : Nat} {target : Name}
+    {ctx : List VExpr} {depth : Nat} {e : VExpr}
+    (H : decl.RecursiveArgAtTarget env uvars target ctx depth e) :
+    decl.RecursiveArgAt env uvars ctx depth e := by
+  induction H with
+  | direct hdef happ => exact .direct hdef happ.forgetTarget
+  | forallE he hdom hbody _ ih => exact .forallE he hdom hbody ih
+
+theorem VInductDecl.RecursiveArg.toAt
+    {decl : VInductDecl} {env : VEnv} {ctx : List VExpr}
+    {depth : Nat} {e : VExpr}
+    (H : decl.RecursiveArg env ctx depth e) :
+    decl.RecursiveArgAt env decl.uvars ctx depth e := by
+  induction H with
+  | direct hdef happ => exact .direct hdef happ
+  | forallE he hdom hbody _ ih => exact .forallE he hdom hbody ih
+
+theorem VInductDecl.RecursiveArgAt.toRecursiveArg
+    {decl : VInductDecl} {env : VEnv} {ctx : List VExpr}
+    {depth : Nat} {e : VExpr}
+    (H : decl.RecursiveArgAt env decl.uvars ctx depth e) :
+    decl.RecursiveArg env ctx depth e := by
+  induction H with
+  | direct hdef happ => exact .direct hdef happ
+  | forallE he hdom hbody _ ih => exact .forallE he hdom hbody ih
 
 /-- Constructor fields followed by the constructor's target application. -/
 inductive VInductDecl.CtorTailWF (env : VEnv) (decl : VInductDecl)
@@ -234,6 +309,28 @@ theorem VInductDecl.RecursiveArg.mono
     (henv : env ≤ env')
     (H : decl.RecursiveArg env ctx depth e) :
     decl.RecursiveArg env' ctx depth e := by
+  induction H with
+  | direct hdef happ => exact .direct (hdef.mono henv) happ
+  | forallE he hdom hbody _ ih =>
+    exact .forallE (he.mono henv) (hdom.mono henv) (hbody.mono henv) ih
+
+theorem VInductDecl.RecursiveArgAt.mono
+    {env env' : VEnv} {decl : VInductDecl} {uvars : Nat}
+    {ctx : List VExpr} {depth : Nat} {e : VExpr}
+    (henv : env ≤ env')
+    (H : decl.RecursiveArgAt env uvars ctx depth e) :
+    decl.RecursiveArgAt env' uvars ctx depth e := by
+  induction H with
+  | direct hdef happ => exact .direct (hdef.mono henv) happ
+  | forallE he hdom hbody _ ih =>
+    exact .forallE (he.mono henv) (hdom.mono henv) (hbody.mono henv) ih
+
+theorem VInductDecl.RecursiveArgAtTarget.mono
+    {env env' : VEnv} {decl : VInductDecl} {uvars : Nat}
+    {target : Name} {ctx : List VExpr} {depth : Nat} {e : VExpr}
+    (henv : env ≤ env')
+    (H : decl.RecursiveArgAtTarget env uvars target ctx depth e) :
+    decl.RecursiveArgAtTarget env' uvars target ctx depth e := by
   induction H with
   | direct hdef happ => exact .direct (hdef.mono henv) happ
   | forallE he hdom hbody _ ih =>
