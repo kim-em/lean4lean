@@ -19932,6 +19932,66 @@ structure RecInfoTypeOrigins (c : AddInductive.Context)
   minors : ∀ i (hi : i < recInfos.size),
     BoundFVarTypeOrigins c recInfos[i]!.minors minorTypes[i]!
 
+/-- Exact production shape of every generated major-premise declaration.
+This positional certificate is independent of translation: it records that
+the stored origin is the selected family applied to the retained common
+parameters and this record's indices. -/
+structure RecInfoMajorTypeShapes (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo) (majorTypes : Array Expr) : Prop where
+  size_eq : majorTypes.size = recInfos.size
+  shape : ∀ i (hi : i < recInfos.size),
+    majorTypes[i]! =
+      (mkAppN (mkAppN stats.indConsts[i]! stats.params)
+        recInfos[i]!.indices).consumeTypeAnnotations
+
+def RecInfoMajorTypeShapes.empty (stats : AddInductive.InductiveStats) :
+    RecInfoMajorTypeShapes stats #[] #[] where
+  size_eq := rfl
+  shape i hi := by simp at hi
+
+/-- Append one family frame to the positional major-domain certificate. -/
+def RecInfoMajorTypeShapes.push
+    (H : RecInfoMajorTypeShapes stats recInfos majorTypes)
+    (info : AddInductive.RecInfo) (majorType : Expr)
+    (hnew : majorType =
+      (mkAppN (mkAppN stats.indConsts[recInfos.size]! stats.params)
+        info.indices).consumeTypeAnnotations) :
+    RecInfoMajorTypeShapes stats (recInfos.push info)
+      (majorTypes.push majorType) where
+  size_eq := by simpa using H.size_eq
+  shape i hi := by
+    by_cases hold : i < recInfos.size
+    · have hmajor : i < majorTypes.size := by
+        rw [H.size_eq]
+        exact hold
+      have hmajorPush : (majorTypes.push majorType)[i]! = majorTypes[i]! := by
+        have hpush : i < (majorTypes.push majorType).size := by
+          simp only [Array.size_push]
+          omega
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hpush, dif_pos hmajor]
+        exact Array.getElem_push_lt hmajor
+      have hinfoPush : (recInfos.push info)[i]! = recInfos[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hi, dif_pos hold]
+        exact Array.getElem_push_lt hold
+      rw [hmajorPush, hinfoPush]
+      exact H.shape i hold
+    · have hieq : i = recInfos.size := by
+        simp only [Array.size_push] at hi
+        omega
+      subst i
+      have hmajorPush :
+          (majorTypes.push majorType)[recInfos.size]! = majorType := by
+        rw [show recInfos.size = majorTypes.size from H.size_eq.symm]
+        simp
+      have hinfoPush : (recInfos.push info)[recInfos.size]! = info := by
+        simp
+      rw [hmajorPush, hinfoPush]
+      exact hnew
+
 def RecInfoTypeOrigins.empty (c : AddInductive.Context) :
     RecInfoTypeOrigins c #[] where
   motiveTypes := #[]
@@ -19993,6 +20053,73 @@ structure RecursorMotiveBindingAt
     motiveTarget motiveTypeTarget
   typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
     motiveTypeTarget
+
+/-- Semantic lookup package for one generated major premise and its exact
+family-application declaration type. -/
+structure RecursorMajorBindingAt
+    {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo) (target : Nat) : Type where
+  target_lt : target < recInfos.size
+  majorTarget : VExpr
+  majorTypeTarget : VExpr
+  major : TrExprS R.venv recLparams R.mlctx.vlctx
+    recInfos[target]!.major majorTarget
+  majorType : TrExprS R.venv recLparams R.mlctx.vlctx
+    ((mkAppN (mkAppN stats.indConsts[target]! stats.params)
+      recInfos[target]!.indices).consumeTypeAnnotations) majorTypeTarget
+  typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+    majorTarget majorTypeTarget
+  typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
+    majorTypeTarget
+
+/-- Recover a generated major premise from its retained binding and exact
+positional family-application origin. -/
+theorem RecInfoMajorTypeShapes.majorBindingAt
+    (R : RecursorContextWF c recLparams)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hshape : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes)
+    (target : Nat) (htarget : target < recInfos.size) :
+    Nonempty (RecursorMajorBindingAt R stats recInfos target) := by
+  have htargetMap : target < (recInfos.map (·.major)).size := by
+    simpa using htarget
+  rcases Hbindings.majors.declarationAt R.toBindingContextWF target
+      htargetMap with ⟨D⟩
+  have hmajor : recInfos[target]!.major = .fvar D.fvar := by
+    have h := D.expression
+    simpa [Array.getElem!_eq_getD, Array.getD, htarget] using h
+  have htype : D.type =
+      (mkAppN (mkAppN stats.indConsts[target]! stats.params)
+        recInfos[target]!.indices).consumeTypeAnnotations :=
+    (Horigins.majors.type_eq D).trans (Hshape.shape target htarget)
+  have hfind := D.declaration
+  rw [R.toBindingContextWF.wf.find?_eq_find?_toList] at hfind
+  have hmember : (.cdecl D.index D.fvar D.userName D.type
+      D.binderInfo D.kind) ∈ c.lctx.toList :=
+    List.mem_of_find?_eq_some hfind
+  have hmember' : (.cdecl D.index D.fvar D.userName D.type
+      D.binderInfo D.kind) ∈ R.mlctx.lctx.toList := by
+    rw [R.lctx_eq]
+    exact hmember
+  rcases R.mlctx_wf.tr.find?_of_mem R.checking.tr.wf hmember' with
+    ⟨majorTarget, majorTypeTarget, hlookup, _hvalueBelow,
+      _htypeBelow, hmajorTr, hmajorTypeTr⟩
+  have hmajorTyping := R.mlctx_wf.tr.wf.find?_wf
+    R.checking.tr.wf.ordered hlookup
+  refine ⟨{
+    target_lt := htarget
+    majorTarget := majorTarget
+    majorTypeTarget := majorTypeTarget
+    major := ?_
+    majorType := ?_
+    typing := hmajorTyping
+    typeIsType := hmajorTyping.isType R.checking.tr.wf
+      R.mlctx_wf.tr.wf.toCtx }⟩
+  · simpa [Lean.LocalDecl.value', hmajor] using hmajorTr
+  · rw [← htype]
+    simpa only [Lean.LocalDecl.type] using hmajorTypeTr
 
 /-- Recover one motive's complete semantic lookup package from the binding,
 origin, and telescope-shape invariants retained by the first mutual pass. -/
@@ -20506,6 +20633,22 @@ theorem RecInfoMotiveTypeShapes.motiveBindingAtRecent
   let HshapeCurrent := Hshape.mono Hbindings Hrecent.contextLE
   exact HshapeCurrent.motiveBindingAt Rcurrent HbindingsCurrent
     HoriginsCurrent target htarget
+
+/-- Select the matching major premise after a higher-order recursive suffix
+has extended the local context. -/
+theorem RecInfoMajorTypeShapes.majorBindingAtRecent
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {Rcurrent : RecursorContextWF current recLparams} {args : Array Expr}
+    (Hbindings : RecInfoBindings root recInfos)
+    (Horigins : RecInfoTypeOrigins root recInfos)
+    (Hshape : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes)
+    (Hrecent : RecursorRecentBoundFVarArray Rroot Rcurrent args)
+    (target : Nat) (htarget : target < recInfos.size) :
+    Nonempty (RecursorMajorBindingAt Rcurrent stats recInfos target) := by
+  exact Hshape.majorBindingAt Rcurrent
+    (Hbindings.mono Hrecent.contextLE) (Horigins.mono Hrecent.contextLE)
+    target htarget
 
 theorem RecInfoBindings.empty_noAlias
     {stats : AddInductive.InductiveStats}
@@ -24523,6 +24666,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Hbindings : RecInfoBindings current recInfos)
     (Horigins : RecInfoTypeOrigins current recInfos)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
+    (HmajorShapes : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes)
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes current recInfos
       Horigins.motiveTypes elimLevel)
@@ -24546,6 +24690,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
       RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
@@ -24759,6 +24904,12 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           exact hnewMotiveShape
         let HmotiveShapes' := HmotiveShapes.push Hbindings hAllFrames
           nextInfo motiveTy.consumeTypeAnnotations hnewMotiveShape'
+        have hnewMajorShape : majorTy =
+            (mkAppN (mkAppN stats.indConsts[recInfos.size]! stats.params)
+              nextInfo.indices).consumeTypeAnnotations := by
+          simp only [majorTy, nextInfo]
+          rw [hprogress]
+        let HmajorShapes' := HmajorShapes.push nextInfo majorTy hnewMajorShape
         refine resultSemantics Hbase stats indTypes elimLevel Helim Hheaders
           hwhnf hconsume (dIdx + 1)
           (recInfos.push {
@@ -24767,7 +24918,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             indices
             major }) k Rmotive (by simpa [Rmotive, Rmajor] using henvIndices)
           HsuffixMotive HparamsCtx' HstatsMotive Hbindings' Horigins'
-          ?_ ?_ ?_ ?_ Hparams' HnoAlias'
+          ?_ ?_ ?_ ?_ ?_ Hparams' HnoAlias'
           (Hroot.trans <| hIndices.trans <|
             (BindingContextLE.withLocalDecl cIndices
               Rindices.toBindingContextWF `t majorTy .default).trans <|
@@ -24785,6 +24936,14 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         · change RecursorTranslatedOriginTypes Rmotive
             (Horigins.majorTypes.push majorTy)
           exact HmajorAtMotive
+        · change RecInfoMajorTypeShapes stats
+            (recInfos.push {
+              motive := .fvar ⟨cMajor.ngen.curr⟩
+              minors := #[]
+              indices
+              major })
+            (Horigins.majorTypes.push majorTy)
+          exact HmajorShapes'
         · change RecursorTranslatedOriginTypes Rmotive
             (Horigins.motiveTypes.push motiveTy.consumeTypeAnnotations)
           exact HmotiveAtMotive
@@ -24801,11 +24960,12 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             (Horigins.indexTypes.push indexOrigins)
           exact HindexRows'
         · intro cOut outDepth out Rout henvOut HsuffixOut HstatsOut HbindingsOut
-            HoriginsOut HmajorOut HmotiveOut HmotiveShapesOut HindexRowsOut
+            HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
+            HindexRowsOut
             HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut houtSize
           apply Hk out Rout henvOut HsuffixOut HstatsOut HbindingsOut
-            HoriginsOut HmajorOut HmotiveOut HmotiveShapesOut HindexRowsOut
-            HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut
+            HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
+            HindexRowsOut HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut
           simp only [Array.size_push] at houtSize
           omega
       · simp only [loopK]
@@ -24813,8 +24973,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         exact Except.WF.throw
   · rw [dif_neg hidx]
     exact Hk recInfos R henv Hsuffix Hstats Hbindings Horigins HmajorTypes
-      HmotiveTypes HmotiveShapes HindexTypeRows Hparams HnoAlias Harities Hempty Hroot
-      (by omega)
+      HmajorShapes HmotiveTypes HmotiveShapes HindexTypeRows Hparams HnoAlias
+      Harities Hempty Hroot (by omega)
 termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd1
@@ -30761,6 +30921,7 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
       (Hbindings : RecInfoBindings cOut recInfos)
       (Horigins : RecInfoTypeOrigins cOut recInfos),
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
+      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
@@ -30812,6 +30973,7 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     Hsuffix HparamsCtx
     Hstats (RecInfoBindings.empty _) (RecInfoTypeOrigins.empty _)
     (RecursorTranslatedOriginTypes.empty Rbase)
+    (RecInfoMajorTypeShapes.empty stats)
     (RecursorTranslatedOriginTypes.empty Rbase)
     (RecInfoMotiveTypeShapes.empty _ elimLevel)
     (RecursorTranslatedOriginTypeRows.empty Rbase) Hparams
@@ -30819,11 +30981,11 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     (BindingContextLE.refl _) rfl (RecInfoArities.empty stats)
     RecInfoMinorsEmpty.empty ?_
   intro cOut outDepth recInfos Rout henvOut HsuffixOut HstatsOut
-    Hbindings Horigins HmajorTypes HmotiveTypes HmotiveShapes HindexRows
-    HparamsOut HnoAlias Harities Hempty Hroot hsize
+    Hbindings Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
+    HindexRows HparamsOut HnoAlias Harities Hempty Hroot hsize
   apply Hk recInfos Rout henvOut HsuffixOut HstatsOut Hbindings Horigins
-    HmajorTypes HmotiveTypes HmotiveShapes HindexRows HparamsOut HnoAlias
-    Harities Hempty Hroot
+    HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes HindexRows HparamsOut
+    HnoAlias Harities Hempty Hroot
   simpa using hsize
 
 /-- The verified header cache supplies the exact retained parameter binders
