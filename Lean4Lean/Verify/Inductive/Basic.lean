@@ -16808,6 +16808,53 @@ def FreshBoundFVarArray.pushCurrent
     · intro hroot
       exact Hc.current_not_mem (Hroot hroot)
 
+/-- The exact ordered suffix of ordinary locals introduced after `root`.
+Unlike `FreshBoundFVarArray`, this remembers both that no unrelated local was
+interleaved and that `xs` lists the suffix in introduction order.  These are
+the equations required by `RecursorContextWF.mkForallRecent`. -/
+structure RecentBoundFVarArray {root c : AddInductive.Context}
+    (Hroot : ContextWF root) (Hc : ContextWF c) (xs : Array Expr)
+    extends FreshBoundFVarArray root c xs where
+  contextLE : BindingContextLE root c
+  size_le : xs.size ≤ Hc.mlctx.length
+  reverse_eq : xs.toList.reverse =
+    (Hc.mlctx.fvarRevList xs.size size_le).map Expr.fvar
+  drop_eq : Hc.mlctx.dropN xs.size size_le = Hroot.mlctx
+
+def RecentBoundFVarArray.empty (Hc : ContextWF c) :
+    RecentBoundFVarArray Hc Hc #[] where
+  toFreshBoundFVarArray := FreshBoundFVarArray.empty c
+  contextLE := BindingContextLE.refl c
+  size_le := by simp
+  reverse_eq := by simp
+  drop_eq := rfl
+
+def RecentBoundFVarArray.pushCurrent {root c : AddInductive.Context}
+    {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
+    (H : RecentBoundFVarArray Hroot Hc xs)
+    (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    RecentBoundFVarArray Hroot
+      (ContextWF.withLocalDecl (c := c) (name := name) (ty := ty)
+        (ty' := ty') (bi := bi) (H := Hc) htr hty)
+      (xs.push (.fvar ⟨c.ngen.curr⟩)) where
+  toFreshBoundFVarArray := H.toFreshBoundFVarArray.pushCurrent
+    Hc.toBindingContextWF H.contextLE name ty bi
+  contextLE := H.contextLE.trans <|
+    BindingContextLE.withLocalDecl c Hc.toBindingContextWF name ty bi
+  size_le := by
+    simpa only [Array.size_push, ContextWF.withLocalDecl,
+      TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
+  reverse_eq := by
+    simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
+      List.singleton_append, Array.size_push, ContextWF.withLocalDecl,
+      TypeChecker.MLCtx.fvarRevList, List.map_cons] using
+        congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
+  drop_eq := by
+    simpa only [Array.size_push, ContextWF.withLocalDecl,
+      TypeChecker.MLCtx.dropN] using H.drop_eq
+
 def FreshBoundFVarArray.weaken
     (H : FreshBoundFVarArray root c xs)
     (name : Name) (ty : Expr) (bi : BinderInfo) :
@@ -18979,6 +19026,8 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
     (k : Array Expr → AddInductive.M alpha)
     {Q : alpha → Prop}
     {target : VInductiveTypeSkeleton} {decl : VInductDecl} {depth : Nat}
+    {root : AddInductive.Context}
+    (HrootCtx : ContextWF root)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
@@ -19005,6 +19054,7 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
       indexTargets.length = nindices →
       indexTargets = canonicalIndexVars nindices →
       TranslatedOriginTypes Hc originTypes →
+      RecentBoundFVarArray HrootCtx Hc indices →
       (k indices c).WF Q) :
     ∀ type fullTarget narrowTarget scope i nindices indices originTypes
         indexTargets fuel c,
@@ -19031,15 +19081,16 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
       indexTargets.length = nindices →
       indexTargets = canonicalIndexVars nindices →
       TranslatedOriginTypes Hc originTypes →
+      RecentBoundFVarArray HrootCtx Hc indices →
       (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel k c).WF Q
-  | _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | type, fullTarget, narrowTarget, scope, i, nindices, indices,
       originTypes, indexTargets, fuel + 1, c, hdone, Hc, Hsynthesis,
       HnarrowStats, Hstats, Hruntime, htypeNarrow, htypeFVars, htypeFull,
       htypeFullType, Hindices, HnarrowIndices, hindexCount, hcanonical,
-      Horigins => by
+      Horigins, Hrecent => by
       cases type with
       | forallE name dom body bi =>
         rw [AddInductive.mkRecInfos.loopArgs1]
@@ -19231,7 +19282,7 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
                 (.forallE hdomType _hbodyType hdomNarrow hbodyNarrow)
                 hscopeWF hdomainNarrow htransition with
               ⟨nextNarrow, hnextNarrow, Hsynthesis', _hparams⟩
-            exact continueIndexSynthesisSemantics stats k hconsume Hk
+            exact continueIndexSynthesisSemantics stats k HrootCtx hconsume Hk
               next consumedBody nextNarrow
               ((some (⟨c.ngen.curr⟩,
                 dom.consumeTypeAnnotations.fvarsList),
@@ -19251,13 +19302,15 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
               (by simp [hindexCount])
               (by simpa [hcanonical] using canonicalIndexVars_succ nindices)
               (Horigins.push Hdom name bi)
+              (Hrecent.pushCurrent name dom.consumeTypeAnnotations consumedDom
+                bi Hdom.consumed Hdom.isType)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
           have hi : ¬ i < stats.params.size := by omega
           simpa [AddInductive.mkRecInfos.loopArgs1, hi] using
             Hk Hc Hsynthesis HnarrowStats Hstats Hruntime htypeNarrow
               htypeFVars htypeFull htypeFullType Hindices HnarrowIndices
-              hindexCount hcanonical Horigins
+              hindexCount hcanonical Horigins Hrecent
 
 /-- Replay the common-parameter prefix from the independent family shape,
 advancing both the retained concrete suffix and the narrow semantic header.
@@ -19271,33 +19324,34 @@ theorem continueCheckedSemantics {alpha : Type}
     {Q : alpha → Prop}
     {target : VInductiveType} {decl : VInductDecl} {depth : Nat}
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+    {c : AddInductive.Context} (Hc : ContextWF c)
+    (Hk : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
       {nindices : Nat} {indices originTypes : Array Expr}
       {indexTargets : List VExpr},
       (Hsynthesis :
         checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
-          Hc.venv c.lparams target.toSkeleton scope narrowTarget
+          Hc'.venv c'.lparams target.toSkeleton scope narrowTarget
           stats.params.size nindices) →
-      checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams scope stats decl
+      checkPositivityStep.ValidAppStatsWF Hc'.venv c'.lparams scope stats decl
         nindices →
-      checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams Hc.mlctx.vlctx stats decl
+      checkPositivityStep.ValidAppStatsWF Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl
         (depth + nindices) →
-      checkInductiveTypes.loopType.NarrowRuntimeScope Hc.venv c.lparams
-        scope Hc.mlctx.vlctx →
-      TrExprS Hc.venv c.lparams scope type narrowTarget →
+      checkInductiveTypes.loopType.NarrowRuntimeScope Hc'.venv c'.lparams
+        scope Hc'.mlctx.vlctx →
+      TrExprS Hc'.venv c'.lparams scope type narrowTarget →
       FVarsIn (· ∈ scope.fvars) type →
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
-      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
-      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+      TrExpr Hc'.venv c'.lparams Hc'.mlctx.vlctx type fullTarget →
+      Hc'.venv.IsType c'.lparams.length Hc'.mlctx.vlctx.toCtx fullTarget →
+      List.Forall₂ (TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx)
         indices.toList indexTargets →
-      List.Forall₂ (TrExprS Hc.venv c.lparams scope)
+      List.Forall₂ (TrExprS Hc'.venv c'.lparams scope)
         indices.toList indexTargets →
       indexTargets.length = nindices →
       indexTargets = canonicalIndexVars nindices →
-      TranslatedOriginTypes Hc originTypes →
-      (k indices c).WF Q)
-    {c : AddInductive.Context} (Hc : ContextWF c)
+      TranslatedOriginTypes Hc' originTypes →
+      RecentBoundFVarArray Hc Hc' indices →
+      (k indices c').WF Q)
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
     {params : List VExpr}
@@ -19352,18 +19406,24 @@ theorem continueCheckedSemantics {alpha : Type}
             Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hindices
           rw [hindexTargets] at hlength
           exact hlength
+        have hindicesEmpty : indices = #[] := by
+          apply Array.eq_empty_of_size_eq_zero
+          simpa using congrArg List.length hindicesList
+        have Hrecent : RecentBoundFVarArray Hc Hc indices := by
+          rw [hindicesEmpty]
+          exact RecentBoundFVarArray.empty Hc
         have HnarrowIndices : List.Forall₂
             (TrExprS Hc.venv c.lparams Hsuffix.parameterDecls)
             indices.toList indexTargets := by
           rw [hindicesList, hindexTargets]
           exact .nil
-        exact continueIndexSynthesisSemantics stats k hconsume Hk type
+        exact continueIndexSynthesisSemantics stats k Hc hconsume Hk type
           fullTarget narrowTarget Hsuffix.parameterDecls stats.params.size 0
           indices originTypes indexTargets (fuel + 1) c (by omega) Hc
           Hsynthesis (Hsuffix.narrowStats Hstats hparams) Hstats Hruntime
           htypeNarrow htypeFVars htypeFull htypeFullType Hindices
           HnarrowIndices
-          hindexCount hcanonical Horigins
+          hindexCount hcanonical Horigins Hrecent
       · have hi : i < stats.params.size := by omega
         cases type with
         | forallE name dom body bi =>
@@ -19401,7 +19461,7 @@ theorem continueCheckedSemantics {alpha : Type}
                   ⟨sourceBody, normalizedTarget, hsourceBody,
                     hnormalizedNarrow, hbodyEq⟩ with
                 ⟨nextNarrow, hnormalizedNarrow', ⟨Hsynthesis'⟩⟩
-              exact continueCheckedSemantics stats k hconsume Hk Hc
+              exact continueCheckedSemantics stats k hconsume Hc Hk
                 Hsuffix hparams huvars hctx hshape Hstats next bodyTarget nextNarrow
                 ((some (Hcurrent.fv, Hcurrent.deps),
                   .vlam Hcurrent.paramType) :: Hcurrent.older)
@@ -19433,33 +19493,34 @@ theorem startCheckedSemantics {alpha : Type}
     {decl : VInductDecl} {params : List VExpr} {depth : Nat}
     {source : InductiveType} {target : VInductiveType}
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (Hk : ∀ {c : AddInductive.Context} (Hc : ContextWF c)
+    {c : AddInductive.Context} (Hc : ContextWF c)
+    (Hk : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
       {nindices : Nat} {indices originTypes : Array Expr}
       {indexTargets : List VExpr},
       (Hsynthesis :
         checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
-          Hc.venv c.lparams target.toSkeleton scope narrowTarget
+          Hc'.venv c'.lparams target.toSkeleton scope narrowTarget
           stats.params.size nindices) →
-      checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams scope stats decl
+      checkPositivityStep.ValidAppStatsWF Hc'.venv c'.lparams scope stats decl
         nindices →
-      checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams Hc.mlctx.vlctx stats decl
+      checkPositivityStep.ValidAppStatsWF Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl
         (depth + nindices) →
-      checkInductiveTypes.loopType.NarrowRuntimeScope Hc.venv c.lparams
-        scope Hc.mlctx.vlctx →
-      TrExprS Hc.venv c.lparams scope type narrowTarget →
+      checkInductiveTypes.loopType.NarrowRuntimeScope Hc'.venv c'.lparams
+        scope Hc'.mlctx.vlctx →
+      TrExprS Hc'.venv c'.lparams scope type narrowTarget →
       FVarsIn (· ∈ scope.fvars) type →
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullTarget →
-      Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx fullTarget →
-      List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+      TrExpr Hc'.venv c'.lparams Hc'.mlctx.vlctx type fullTarget →
+      Hc'.venv.IsType c'.lparams.length Hc'.mlctx.vlctx.toCtx fullTarget →
+      List.Forall₂ (TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx)
         indices.toList indexTargets →
-      List.Forall₂ (TrExprS Hc.venv c.lparams scope)
+      List.Forall₂ (TrExprS Hc'.venv c'.lparams scope)
         indices.toList indexTargets →
       indexTargets.length = nindices →
       indexTargets = canonicalIndexVars nindices →
-      TranslatedOriginTypes Hc originTypes →
-      (k indices c).WF Q)
-    {c : AddInductive.Context} (Hc : ContextWF c)
+      TranslatedOriginTypes Hc' originTypes →
+      RecentBoundFVarArray Hc Hc' indices →
+      (k indices c').WF Q)
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
     (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
@@ -19527,7 +19588,7 @@ theorem startCheckedSemantics {alpha : Type}
       intro hzero
       exact (List.eq_nil_of_length_eq_zero (by
         rw [Hsuffix.parameterDecls_length, ← hzero])).symm
-    exact continueCheckedSemantics stats k hconsume Hk Hc Hsuffix
+    exact continueCheckedSemantics stats k hconsume Hc Hk Hsuffix
       hparams huvars hctx hshape Hstats normalized target.type narrowTarget [] 0
       #[] #[] [] fuel (by omega) Hscope hscopeEq hcompleteScope Hsynthesis
       hnormalizedNarrow (by simpa [VLCtx.fvars] using hnormalizedNoFVars)
@@ -19568,12 +19629,13 @@ theorem CheckedRecursorHeaderAt.startSemantics {alpha : Type}
       indexTargets.length = nindices →
       indexTargets = canonicalIndexVars nindices →
       TranslatedOriginTypes Hc' originTypes →
+      RecentBoundFVarArray Hc Hc' indices →
       (k indices c').WF Q)
     (fuel : Nat) :
     ((monadLift (TypeChecker.whnf source.type) : AddInductive.M Expr) c >>=
       fun normalized => AddInductive.mkRecInfos.loopArgs1 stats normalized 0
         #[] fuel k c).WF Q := by
-  exact startCheckedSemantics stats k hconsume Hk Hc H.parameterSuffix
+  exact startCheckedSemantics stats k hconsume Hc Hk H.parameterSuffix
     H.sourceTranslation H.parameterCount H.materialized.uvars H.paramsContext
     H.shape (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader
       H.materialized) fuel
