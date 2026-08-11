@@ -37926,11 +37926,30 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
-    (Hk : ∀ recInfos cOut, BindingContextWF cOut →
+    (Hk : ∀ {cOut : AddInductive.Context} {outDepth : Nat}
+      (recInfos : Array AddInductive.RecInfo)
+      (Rout : RecursorContextWF cOut
+        (AddInductive.getRecLevelParams elimLevel c.lparams)),
+      Rout.venv = R.declared.context.venv →
+      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) →
+      HsuffixOut.parameterDecls =
+        (R.materialized.parameterSuffix.toRecursorContext
+          Helim).parameterDecls →
+      RecursorValidAppStatsWF Rout.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        Rout.mlctx.vlctx stats decl outDepth →
+      VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
       (Hbindings : RecInfoBindings cOut recInfos) →
       (Horigins : RecInfoTypeOrigins cOut recInfos) →
+      RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
+      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
+      RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
+      RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl recInfos elimLevel →
+      RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
+      RecInfoArities stats recInfos →
       RecursorCardinalityCertificate stats recInfos decl →
       BindingContextLE { c with env := outEnv } cOut →
       (k recInfos cOut).WF Q) :
@@ -37977,8 +37996,10 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       HmajorTypesOut HmajorShapesOut HmotiveTypesOut HmotiveShapesOut
       HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HaritiesOut
       HrootOut
-    exact Hk out cOut Rout.toBindingContextWF HbindingsOut HoriginsOut
-      HparamsOut HnoAliasOut
+    exact Hk out Rout henvOut HsuffixOut hparameterDeclsOut HstatsOut
+      hctxOut HbindingsOut HoriginsOut HmajorTypesOut HmajorShapesOut
+      HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
+      HparamsOut HnoAliasOut HaritiesOut
       (RecursorCardinalityCertificate.ofResult R.core H.materialized
         houtSize houtCounts HaritiesOut)
       HrootOut
@@ -38005,12 +38026,31 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (k : Level → Array AddInductive.RecInfo → AddInductive.M alpha)
     (Hk : ∀ elimLevel,
-      AddInductive.AdmissibleElimLevel c.lparams elimLevel →
-      ∀ recInfos cOut, BindingContextWF cOut →
+      (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) →
+      ∀ {cOut : AddInductive.Context} {outDepth : Nat}
+      (recInfos : Array AddInductive.RecInfo)
+      (Rout : RecursorContextWF cOut
+        (AddInductive.getRecLevelParams elimLevel c.lparams)),
+      Rout.venv = R.declared.context.venv →
+      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) →
+      HsuffixOut.parameterDecls =
+        (R.materialized.parameterSuffix.toRecursorContext
+          Helim).parameterDecls →
+      RecursorValidAppStatsWF Rout.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        Rout.mlctx.vlctx stats decl outDepth →
+      VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
       (Hbindings : RecInfoBindings cOut recInfos) →
       (Horigins : RecInfoTypeOrigins cOut recInfos) →
+      RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
+      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
+      RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
+      RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl recInfos elimLevel →
+      RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
+      RecInfoArities stats recInfos →
       RecursorCardinalityCertificate stats recInfos decl →
       BindingContextLE { c with env := outEnv } cOut →
       (k elimLevel recInfos cOut).WF Q) :
@@ -48126,10 +48166,33 @@ structure RecursorPhasesResult
   localContext : AddInductive.Context
   localWF : BindingContextWF localContext
   localExtends : BindingContextLE { c with env := ctorEnv } localContext
+  recursorDepth : Nat
+  recursorWF : RecursorContextWF localContext
+    (AddInductive.getRecLevelParams elimLevel c.lparams)
+  recursorEnv : recursorWF.venv = R.declared.context.venv
+  parameterSuffix : RecursorParameterContextSuffix recursorWF stats
+    recursorDepth
+  parameterDecls : parameterSuffix.parameterDecls =
+    (R.materialized.parameterSuffix.toRecursorContext
+      elimLevelAdmissible).parameterDecls
+  validStats : RecursorValidAppStatsWF recursorWF.venv
+    (AddInductive.getRecLevelParams elimLevel c.lparams)
+    recursorWF.mlctx.vlctx stats decl recursorDepth
+  noIndConsts : VLCtx.NoIndConsts (decl.types.map (·.name))
+    recursorWF.mlctx.vlctx
   bindings : RecInfoBindings localContext recInfos
   origins : RecInfoTypeOrigins localContext recInfos
+  majorTypes : RecursorTranslatedOriginTypes recursorWF origins.majorTypes
+  majorShapes : RecInfoMajorTypeShapes stats recInfos origins.majorTypes
+  motiveTypes : RecursorTranslatedOriginTypes recursorWF origins.motiveTypes
+  motiveShapes : RecInfoMotiveTypeShapes localContext recInfos
+    origins.motiveTypes elimLevel
+  motiveTelescopes : RecInfoMotiveTelescopes recursorWF stats decl recInfos
+    elimLevel
+  indexRows : RecursorTranslatedOriginTypeRows recursorWF origins.indexTypes
   params : BoundFVarArray localContext stats.params
   noAlias : bindings.NoAlias params
+  arities : RecInfoArities stats recInfos
   cardinality : RecursorCardinalityCertificate stats recInfos decl
   outVEnv : VEnv
   entries : List (ConstantInfo × VConstVal)
@@ -48174,8 +48237,10 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
     (k := fun elimLevel recInfos =>
       AddInductive.declareRecursors stats indTypes elimLevel recInfos)
-  intro elimLevel hElim recInfos localContext Hlocal Hbindings Horigins Hparams
-    hnoalias Hcard Hle
+  intro elimLevel hElim recInfos localContext localDepth Rlocal henvLocal
+    HsuffixLocal hparameterDeclsLocal HstatsLocal hctxLocal Hbindings
+    Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
+    Htelescopes HindexRows Hparams hnoalias Harities Hcard Hle
   have Hvalid : CheckingEnv.Valid localContext.safety localContext.env
       R.declared.venvCtors := by
     rw [Hle.safety_eq, Hle.env_eq]
@@ -48187,7 +48252,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     rw [Hle.lparams_eq]
     exact R.core
   have Hrecursors := AddInductive.declareRecursors.bindingWF
-    (elimLevel := elimLevel) Hvalid Hlocal
+    (elimLevel := elimLevel) Hvalid Rlocal.toBindingContextWF
     Hcard Hcore Hbindings Hparams hnoalias (by
       rw [Hle.safety_eq]
       exact hnotPartial) hnprim
@@ -48202,12 +48267,26 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       elimLevelAdmissible := hElim
       recInfos := recInfos
       localContext := localContext
-      localWF := Hlocal
+      localWF := Rlocal.toBindingContextWF
       localExtends := Hle
+      recursorDepth := localDepth
+      recursorWF := Rlocal
+      recursorEnv := henvLocal
+      parameterSuffix := HsuffixLocal
+      parameterDecls := hparameterDeclsLocal
+      validStats := HstatsLocal
+      noIndConsts := hctxLocal
       bindings := Hbindings
       origins := Horigins
+      majorTypes := HmajorTypes
+      majorShapes := HmajorShapes
+      motiveTypes := HmotiveTypes
+      motiveShapes := HmotiveShapes
+      motiveTelescopes := Htelescopes
+      indexRows := HindexRows
       params := Hparams
       noAlias := hnoalias
+      arities := Harities
       cardinality := Hcard
       outVEnv := outVEnv
       entries := entries
