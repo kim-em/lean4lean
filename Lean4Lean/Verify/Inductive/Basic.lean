@@ -18543,6 +18543,68 @@ def RecursorTranslatedOriginTypes.weakenRecent
       simpa only [Hrecent.venv_eq, Hrecent.drop_eq] using H.isType _ hold
     exact htype.weakN R.checking.tr.wf.ordered W.toCtx
 
+/-- Row-wise semantic translations for the per-family origin arrays retained
+by `RecInfoTypeOrigins`. -/
+structure RecursorTranslatedOriginTypeRows
+    {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    (origins : Array (Array Expr)) where
+  rows : ∀ i (hi : i < origins.size),
+    RecursorTranslatedOriginTypes R origins[i]
+
+def RecursorTranslatedOriginTypeRows.empty
+    (R : RecursorContextWF c recLparams) :
+    RecursorTranslatedOriginTypeRows R #[] where
+  rows i hi := by simp at hi
+
+def RecursorTranslatedOriginTypeRows.rowAt
+    (H : RecursorTranslatedOriginTypeRows R origins)
+    (i : Nat) (hi : i < origins.size) :
+    RecursorTranslatedOriginTypes R origins[i] :=
+  H.rows i hi
+
+/-- Weaken every retained origin row through one semantically checked local. -/
+def RecursorTranslatedOriginTypeRows.withLocalDecl
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {origins : Array (Array Expr)}
+    {ty : Expr} {ty' : VExpr} {name : Name} {bi : BinderInfo}
+    (H : RecursorTranslatedOriginTypeRows R origins)
+    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
+    let R' := R.withLocalDecl (c := c) (recLparams := recLparams)
+      (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty
+    RecursorTranslatedOriginTypeRows R' origins := by
+  dsimp only
+  exact {
+    rows := fun i hi => (H.rows i hi).withLocalDecl htr hty }
+
+/-- Weaken every retained row across the consecutive index suffix introduced
+since the root recursor context. -/
+def RecursorTranslatedOriginTypeRows.weakenRecent
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {indices : Array Expr}
+    (H : RecursorTranslatedOriginTypeRows Rroot origins)
+    (Hrecent : RecursorRecentBoundFVarArray Rroot R indices) :
+    RecursorTranslatedOriginTypeRows R origins where
+  rows i hi := (H.rows i hi).weakenRecent Hrecent
+
+/-- Append one fully translated family row without changing the ambient
+recursor context. -/
+def RecursorTranslatedOriginTypeRows.push
+    (H : RecursorTranslatedOriginTypeRows R origins)
+    (Hrow : RecursorTranslatedOriginTypes R row) :
+    RecursorTranslatedOriginTypeRows R (origins.push row) where
+  rows i hi := by
+    by_cases hold : i < origins.size
+    · simpa only [Array.getElem_push_lt hold] using H.rows i hold
+    · have hieq : i = origins.size := by
+        simp only [Array.size_push] at hi
+        omega
+      subst i
+      simpa using Hrow
+
 def FreshBoundFVarArray.weaken
     (H : FreshBoundFVarArray root c xs)
     (name : Name) (ty : Expr) (bi : BinderInfo) :
@@ -22340,6 +22402,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       indexTargets.length = nindices →
       indexTargets = canonicalIndexVars nindices →
       BoundFVarTypeOrigins current indices originTypes →
+      RecursorTranslatedOriginTypes R originTypes →
       RecursorRecentBoundFVarArray Rroot R indices →
       (k indices current).WF Q) :
     ∀ {current : AddInductive.Context} {runtimeDepth : Nat}
@@ -22383,10 +22446,11 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       indexTargets.length = nindices →
       indexTargets = canonicalIndexVars nindices →
       BoundFVarTypeOrigins current indices originTypes →
+      RecursorTranslatedOriginTypes R originTypes →
       RecursorRecentBoundFVarArray Rroot R indices →
       (AddInductive.mkRecInfos.loopArgs1 stats type stats.params.size
         indices fuel k current).WF Q
-  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | current, runtimeDepth, R, henv, Hsuffix, hparameterDecls, type,
@@ -22394,7 +22458,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       scope, nindices, indices, originTypes, indexTargets, fuel + 1, Hsynthesis,
       HnarrowStats, Hstats, Hruntime, htypeNarrow, htypeFVars, htypeFull,
       htypeFullType, Hindices, HnarrowIndices, hindexCount, hcanonical,
-      Horigins, Hrecent => by
+      Horigins, HoriginTypes, Hrecent => by
       cases type with
       | forallE name dom body bi =>
         rw [AddInductive.mkRecInfos.loopArgs1]
@@ -22635,6 +22699,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 canonicalIndexVars_succ nindices)
               (Horigins.pushCurrent R.toBindingContextWF name
                 dom.consumeTypeAnnotations bi)
+              (HoriginTypes.push (name := name) (bi := bi)
+                Hdom.consumed Hdom.isType)
               (Hrecent.pushCurrent name dom.consumeTypeAnnotations consumedDom
                 bi Hdom.consumed Hdom.isType)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
@@ -22642,7 +22708,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           simpa [AddInductive.mkRecInfos.loopArgs1] using
             Hk R henv Hsuffix hparameterDecls Hsynthesis HnarrowStats Hstats Hruntime
               htypeNarrow htypeFVars htypeFull htypeFullType Hindices
-              HnarrowIndices hindexCount hcanonical Horigins Hrecent
+              HnarrowIndices hindexCount hcanonical Horigins HoriginTypes Hrecent
 termination_by
   current runtimeDepth R henv Hsuffix hparameterDecls type fullTarget narrowTarget scope
     nindices indices originTypes indexTargets fuel => fuel
@@ -23068,6 +23134,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
       indexTargets.length = nindices →
       indexTargets = canonicalIndexVars nindices →
       BoundFVarTypeOrigins next indices originTypes →
+      RecursorTranslatedOriginTypes Rnext originTypes →
       RecursorRecentBoundFVarArray R Rnext indices →
       (k indices next).WF Q)
     (fuel : Nat) :
@@ -23086,6 +23153,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
     Hsuffix.parameterDecls 0 #[] #[] [] remaining Hsynthesis HnarrowStats
     Hstats Hruntime htypeNarrow htypeFVars htypeFull htypeFullType .nil .nil
     rfl rfl (BoundFVarTypeOrigins.empty current)
+    (RecursorTranslatedOriginTypes.empty R)
     (RecursorRecentBoundFVarArray.empty R)
 
 /-- Package-facing entry to checked recursor replay.  All family selection,
@@ -23273,8 +23341,8 @@ termination_by indTypes.size - dIdx
 /-- Semantic strengthening of the first mutual recursor pass.  In addition
 to the operational binder certificates retained by `resultBindings`, every
 family is replayed against its independently checked header under the common
-recursor universe list, and the exact major/motive origin-type rows remain
-translated and typed after all later mutual frames. -/
+recursor universe list, and the exact index/major/motive origin-type rows
+remain translated and typed after all later mutual frames. -/
 theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     {base current : AddInductive.Context} (Hbase : ContextWF base)
     {decl : VInductDecl} {baseDepth runtimeDepth : Nat}
@@ -23304,6 +23372,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Horigins : RecInfoTypeOrigins current recInfos)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
+    (HindexTypeRows :
+      RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
     (Hparams : BoundFVarArray current stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
     (Hroot : BindingContextLE base current)
@@ -23323,6 +23393,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
+      RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
       RecInfoArities stats out →
@@ -23371,7 +23442,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         fullTarget narrowTarget scope nindices indices indexOrigins
         indexTargets Hsynthesis HnarrowStats HstatsIndices Hruntime
         htypeNarrow htypeFVars htypeFull htypeFullType Hindices
-        HnarrowIndices hindexCount hcanonical HindexOrigins Hrecent
+        HnarrowIndices hindexCount hcanonical HindexOrigins HindexTypes
+        Hrecent
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
       · simp only [loopK]
         rw [if_pos harity]
@@ -23417,6 +23489,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           Rmotive.mlctx_wf.tr.wf
         have HmajorAtIndices := HmajorTypes.weakenRecent Hrecent
         have HmotiveAtIndices := HmotiveTypes.weakenRecent Hrecent
+        have HindexRowsAtIndices := HindexTypeRows.weakenRecent Hrecent
         let HmajorAtMotive :=
           (HmajorAtIndices.push (name := `t) (bi := .default)
             Hframe.majorTr Hframe.majorType).withLocalDecl
@@ -23427,6 +23500,17 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             Hframe.majorTr Hframe.majorType).push
               (name := motiveName) (bi := .default)
               Hframe.motiveTr Hframe.motiveType
+        let HindexRowsAtMotive :=
+          (HindexRowsAtIndices.withLocalDecl (name := `t) (bi := .default)
+            Hframe.majorTr Hframe.majorType).withLocalDecl
+              (name := motiveName) (bi := .default)
+              Hframe.motiveTr Hframe.motiveType
+        let HindexTypesAtMotive :=
+          (HindexTypes.withLocalDecl (name := `t) (bi := .default)
+            Hframe.majorTr Hframe.majorType).withLocalDecl
+              (name := motiveName) (bi := .default)
+              Hframe.motiveTr Hframe.motiveType
+        let HindexRows' := HindexRowsAtMotive.push HindexTypesAtMotive
         let cMotive : AddInductive.Context := { cMajor with
           ngen := cMajor.ngen.next
           lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩ motiveName
@@ -23479,7 +23563,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             indices
             major }) k Rmotive (by simpa [Rmotive, Rmajor] using henvIndices)
           HsuffixMotive HparamsCtx' HstatsMotive Hbindings' Horigins'
-          ?_ ?_ Hparams' HnoAlias'
+          ?_ ?_ ?_ Hparams' HnoAlias'
           (Hroot.trans <| hIndices.trans <|
             (BindingContextLE.withLocalDecl cIndices
               Rindices.toBindingContextWF `t majorTy .default).trans <|
@@ -23500,11 +23584,14 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         · change RecursorTranslatedOriginTypes Rmotive
             (Horigins.motiveTypes.push motiveTy.consumeTypeAnnotations)
           exact HmotiveAtMotive
+        · change RecursorTranslatedOriginTypeRows Rmotive
+            (Horigins.indexTypes.push indexOrigins)
+          exact HindexRows'
         · intro cOut outDepth out Rout henvOut HsuffixOut HstatsOut HbindingsOut
-            HoriginsOut HmajorOut HmotiveOut HparamsOut HnoAliasOut
+            HoriginsOut HmajorOut HmotiveOut HindexRowsOut HparamsOut HnoAliasOut
             HaritiesOut HemptyOut HrootOut houtSize
           apply Hk out Rout henvOut HsuffixOut HstatsOut HbindingsOut
-            HoriginsOut HmajorOut HmotiveOut HparamsOut HnoAliasOut
+            HoriginsOut HmajorOut HmotiveOut HindexRowsOut HparamsOut HnoAliasOut
             HaritiesOut HemptyOut HrootOut
           simp only [Array.size_push] at houtSize
           omega
@@ -23513,7 +23600,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         exact Except.WF.throw
   · rw [dif_neg hidx]
     exact Hk recInfos R henv Hsuffix Hstats Hbindings Horigins HmajorTypes
-      HmotiveTypes Hparams HnoAlias Harities Hempty Hroot (by omega)
+      HmotiveTypes HindexTypeRows Hparams HnoAlias Harities Hempty Hroot
+      (by omega)
 termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd1
@@ -29151,7 +29239,7 @@ def ConstructorPhasesResult.checkedRecursorHeaderAt
 /-- Enter the independently verified first mutual recursor pass from the
 constructor-phase result.  The continuation receives the complete structural
 state together with recursor-universe translations of every accumulated
-major and motive origin type. -/
+index, major, and motive origin type. -/
 theorem ConstructorPhasesResult.loopInd1SemanticWF
     {alpha : Type} {Q : alpha → Prop}
     {c : AddInductive.Context}
@@ -29180,6 +29268,7 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
       (Horigins : RecInfoTypeOrigins cOut recInfos),
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
+      RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
       RecInfoArities stats recInfos →
@@ -29228,15 +29317,16 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     Hsuffix HparamsCtx
     Hstats (RecInfoBindings.empty _) (RecInfoTypeOrigins.empty _)
     (RecursorTranslatedOriginTypes.empty Rbase)
-    (RecursorTranslatedOriginTypes.empty Rbase) Hparams
+    (RecursorTranslatedOriginTypes.empty Rbase)
+    (RecursorTranslatedOriginTypeRows.empty Rbase) Hparams
     (RecInfoBindings.empty_noAlias _ Hparams hparamsNodup)
     (BindingContextLE.refl _) rfl (RecInfoArities.empty stats)
     RecInfoMinorsEmpty.empty ?_
   intro cOut outDepth recInfos Rout henvOut HsuffixOut HstatsOut
-    Hbindings Horigins HmajorTypes HmotiveTypes HparamsOut HnoAlias
+    Hbindings Horigins HmajorTypes HmotiveTypes HindexRows HparamsOut HnoAlias
     Harities Hempty Hroot hsize
   apply Hk recInfos Rout henvOut HsuffixOut HstatsOut Hbindings Horigins
-    HmajorTypes HmotiveTypes HparamsOut HnoAlias Harities Hempty Hroot
+    HmajorTypes HmotiveTypes HindexRows HparamsOut HnoAlias Harities Hempty Hroot
   simpa using hsize
 
 /-- The verified header cache supplies the exact retained parameter binders
