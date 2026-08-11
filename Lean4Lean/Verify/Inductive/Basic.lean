@@ -3312,7 +3312,9 @@ theorem RecursorContextWF.instantiateFresh
     (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
     (hbody : TrExprS R.venv recLparams
       ((none, .vlam ty') :: R.mlctx.vlctx) body body') :
-    let R' := R.withLocalDecl (name := name) (bi := bi) htr hty
+    let R' := R.withLocalDecl (c := c) (recLparams := recLparams)
+      (ty := ty) (ty' := ty')
+      (name := name) (bi := bi) htr hty
     TrExprS R'.venv recLparams R'.mlctx.vlctx
       (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body' := by
   dsimp only
@@ -15304,6 +15306,16 @@ def ContextWF.toAdmissibleRecursorContextWF
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
+@[simp] theorem ContextWF.toAdmissibleRecursorContextWF_venv
+    (H : ContextWF c)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    (H.toAdmissibleRecursorContextWF Helim).venv = H.venv := by
+  cases elimLevel with
+  | zero => rfl
+  | param name => rfl
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
 /-- Exact cached-parameter suffix after the local context has moved to the
 recursor universe list.  The declaration itself still has `decl.uvars`
 universes; this invariant deliberately mentions only the translations that
@@ -15504,7 +15516,8 @@ def RecursorParameterContextSuffix.withAmbient
     (H : RecursorParameterContextSuffix R stats depth)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
     (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
-    let R' := R.withLocalDecl (name := name) (bi := bi) htr hty
+    let R' := @RecursorContextWF.withLocalDecl c recLparams ty ty' name bi
+      R htr hty
     RecursorParameterContextSuffix R' stats (depth + 1) := by
   dsimp only
   let entry : Option (FVarId × List FVarId) × VLocalDecl :=
@@ -18440,13 +18453,18 @@ def RecursorTranslatedOriginTypes.empty
 /-- Weaken an existing origin-type row through one newly checked recursor
 local without appending a new row entry. -/
 def RecursorTranslatedOriginTypes.withLocalDecl
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {origins : Array Expr}
+    {ty : Expr} {ty' : VExpr} {name : Name} {bi : BinderInfo}
     (H : RecursorTranslatedOriginTypes R origins)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
     (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
-    let R' := R.withLocalDecl (name := name) (bi := bi) htr hty
+    let R' := R.withLocalDecl (c := c) (recLparams := recLparams)
+      (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty
     RecursorTranslatedOriginTypes R' origins := by
   dsimp only
-  let R' := R.withLocalDecl (name := name) (bi := bi) htr hty
+  let R' := R.withLocalDecl (c := c) (recLparams := recLparams)
+    (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty
   let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
   exact {
@@ -18463,13 +18481,18 @@ def RecursorTranslatedOriginTypes.withLocalDecl
 /-- Append a newly checked origin type while weakening all older entries
 through its declaration. -/
 def RecursorTranslatedOriginTypes.push
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {origins : Array Expr}
+    {ty : Expr} {ty' : VExpr} {name : Name} {bi : BinderInfo}
     (H : RecursorTranslatedOriginTypes R origins)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
     (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
-    let R' := R.withLocalDecl (name := name) (bi := bi) htr hty
+    let R' := R.withLocalDecl (c := c) (recLparams := recLparams)
+      (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty
     RecursorTranslatedOriginTypes R' (origins.push ty) := by
   dsimp only
-  let R' := R.withLocalDecl (name := name) (bi := bi) htr hty
+  let R' := R.withLocalDecl (c := c) (recLparams := recLparams)
+    (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty
   let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
   let liftedTargets := H.targets.map fun target => target.liftN 1 0
@@ -22271,6 +22294,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (Rroot : RecursorContextWF root
       (AddInductive.getRecLevelParams elimLevel base.lparams))
+    {rootParameterDecls : VLCtx}
     (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (Hk : ∀ {current : AddInductive.Context} {runtimeDepth : Nat}
@@ -22278,6 +22302,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
         (AddInductive.getRecLevelParams elimLevel base.lparams))
       (henv : R.venv = Hbase.venv)
       (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+      (hparameterDecls :
+        Hsuffix.parameterDecls = rootParameterDecls)
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
       {nindices : Nat} {indices originTypes : Array Expr}
       {indexTargets : List VExpr},
@@ -22321,6 +22347,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
         (AddInductive.getRecLevelParams elimLevel base.lparams))
       (henv : R.venv = Hbase.venv)
       (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+      (hparameterDecls : Hsuffix.parameterDecls = rootParameterDecls)
       type fullTarget narrowTarget scope nindices indices originTypes
         indexTargets fuel,
       (Hsynthesis :
@@ -22359,10 +22386,11 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       RecursorRecentBoundFVarArray Rroot R indices →
       (AddInductive.mkRecInfos.loopArgs1 stats type stats.params.size
         indices fuel k current).WF Q
-  | _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
-  | current, runtimeDepth, R, henv, Hsuffix, type, fullTarget, narrowTarget,
+  | current, runtimeDepth, R, henv, Hsuffix, hparameterDecls, type,
+      fullTarget, narrowTarget,
       scope, nindices, indices, originTypes, indexTargets, fuel + 1, Hsynthesis,
       HnarrowStats, Hstats, Hruntime, htypeNarrow, htypeFVars, htypeFull,
       htypeFullType, Hindices, HnarrowIndices, hindexCount, hcanonical,
@@ -22585,7 +22613,10 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               ⟨nextNarrow, hnextNarrow, Hsynthesis', _hparams⟩
             exact continueRecursorIndexSynthesisSemantics stats k H Helim
               Rroot hwhnf hconsume Hk R' (by simpa [R'] using henv)
-              Hsuffix' next consumedBody nextNarrow
+              Hsuffix' (by
+                change Hsuffix.parameterDecls = rootParameterDecls
+                exact hparameterDecls)
+              next consumedBody nextNarrow
               ((some (⟨current.ngen.curr⟩,
                 dom.consumeTypeAnnotations.fvarsList),
                 .vlam indexType) :: scope)
@@ -22609,11 +22640,11 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
           simpa [AddInductive.mkRecInfos.loopArgs1] using
-            Hk R henv Hsuffix Hsynthesis HnarrowStats Hstats Hruntime
+            Hk R henv Hsuffix hparameterDecls Hsynthesis HnarrowStats Hstats Hruntime
               htypeNarrow htypeFVars htypeFull htypeFullType Hindices
               HnarrowIndices hindexCount hcanonical Horigins Hrecent
 termination_by
-  current runtimeDepth R henv Hsuffix type fullTarget narrowTarget scope
+  current runtimeDepth R henv Hsuffix hparameterDecls type fullTarget narrowTarget scope
     nindices indices originTypes indexTargets fuel => fuel
 
 /-- Replay the cached common-parameter prefix directly in a universe-rebased
@@ -22998,6 +23029,8 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
         (AddInductive.getRecLevelParams elimLevel base.lparams))
       (henvNext : Rnext.venv = Hbase.venv)
       (HsuffixNext : RecursorParameterContextSuffix Rnext stats nextDepth)
+      (hparameterDecls :
+        HsuffixNext.parameterDecls = Hsuffix.parameterDecls)
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
       {nindices : Nat} {indices originTypes : Array Expr}
       {indexTargets : List VExpr},
@@ -23049,7 +23082,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
     hindicesEmpty
   subst indices
   exact continueRecursorIndexSynthesisSemantics stats k H Helim R hwhnf
-    hconsume Hk R henv Hsuffix type fullTarget narrowTarget
+    hconsume Hk R henv Hsuffix rfl type fullTarget narrowTarget
     Hsuffix.parameterDecls 0 #[] #[] [] remaining Hsynthesis HnarrowStats
     Hstats Hruntime htypeNarrow htypeFVars htypeFull htypeFullType .nil .nil
     rfl rfl (BoundFVarTypeOrigins.empty current)
@@ -23287,7 +23320,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Rout.mlctx.vlctx stats decl outDepth)
       (HbindingsOut : RecInfoBindings outCtx out)
-      (HoriginsOut : RecInfoTypeOrigins outCtx out)
+      (HoriginsOut : RecInfoTypeOrigins outCtx out),
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
@@ -23312,31 +23345,36 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       hread fun ctx hctx => ?_
     subst ctx
     let Hheader := Hheaders dIdx hidx
+    let loopK : Array Expr → AddInductive.M alpha := fun indices => do
+      unless indices.size == stats.nindices[dIdx]! do
+        throw <| .other
+          "recursor index arity does not match checked inductive header"
+      let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
+      withLocalDecl `t .default tTy.consumeTypeAnnotations fun major => do
+      let lctx ← getLCtx
+      let motiveTy := lctx.mkForall indices <|
+        lctx.mkForall #[major] <| .sort elimLevel
+      let name := if indTypes.size > 1 then
+        (`motive).appendIndexAfter (dIdx + 1) else `motive
+      withLocalDecl name .default motiveTy.consumeTypeAnnotations fun motive =>
+      AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel (dIdx + 1)
+        (recInfos.push { motive, minors := #[], indices, major }) k
+    change ((monadLift (TypeChecker.whnf indTypes[dIdx].type) :
+        AddInductive.M Expr) current >>= fun normalized =>
+      AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[]
+        current.fuel.inductiveFuel loopK current).WF Q
     refine Hheader.startRecursorSemantics Helim R hwhnf hconsume henv
       Hsuffix (HparamsCtx dIdx hidx) Hstats
-      (fun indices => ?_) ?_ current.fuel.inductiveFuel
-    · intro indices
-      exact do
-        unless indices.size == stats.nindices[dIdx]! do
-          throw <| .other
-            "recursor index arity does not match checked inductive header"
-        let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
-        withLocalDecl `t .default tTy.consumeTypeAnnotations fun major => do
-        let lctx ← getLCtx
-        let motiveTy := lctx.mkForall indices <|
-          lctx.mkForall #[major] <| .sort elimLevel
-        let name := if indTypes.size > 1 then
-          (`motive).appendIndexAfter (dIdx + 1) else `motive
-        withLocalDecl name .default motiveTy.consumeTypeAnnotations fun motive =>
-        AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel (dIdx + 1)
-          (recInfos.push { motive, minors := #[], indices, major }) k
-    · intro cIndices nextDepth Rindices henvIndices HsuffixIndices type
+      loopK ?_ current.fuel.inductiveFuel
+    · intro cIndices nextDepth Rindices henvIndices HsuffixIndices
+        hparameterDecls type
         fullTarget narrowTarget scope nindices indices indexOrigins
         indexTargets Hsynthesis HnarrowStats HstatsIndices Hruntime
         htypeNarrow htypeFVars htypeFull htypeFullType Hindices
         HnarrowIndices hindexCount hcanonical HindexOrigins Hrecent
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
-      · rw [if_pos harity]
+      · simp only [loopK]
+        rw [if_pos harity]
         rcases Hheader.completedRecursorFrame Helim R Rindices Hsynthesis
             HnarrowStats Hruntime HnarrowIndices hindexCount hcanonical
             harity henvIndices hconsume Hrecent with ⟨Hframe⟩
@@ -23422,8 +23460,17 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               ((Hheaders i hi).recursorParams Helim).reverse
               HsuffixMotive.parameterDecls.toCtx := by
           intro i hi
-          simpa [Rmotive, Rmajor, HsuffixMotive, HsuffixMajor] using
-            HparamsCtx i hi
+          have hvenvMotive : Rmotive.venv = R.venv := by
+            change Rindices.venv = R.venv
+            exact henvIndices.trans henv.symm
+          have hparameterDeclsMotive :
+              HsuffixMotive.parameterDecls = Hsuffix.parameterDecls := by
+            calc
+              HsuffixMotive.parameterDecls =
+                  HsuffixIndices.parameterDecls := by rfl
+              _ = Hsuffix.parameterDecls := hparameterDecls
+          rw [hvenvMotive, hparameterDeclsMotive]
+          exact HparamsCtx i hi
         refine resultSemantics Hbase stats indTypes elimLevel Helim Hheaders
           hwhnf hconsume (dIdx + 1)
           (recInfos.push {
@@ -23447,9 +23494,13 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               simpa using harity
             simpa [hprogress] using hnew)
           Hempty.push ?_
-        · simpa [Horigins', HmajorAtMotive] using HmajorAtMotive
-        · simpa [Horigins', HmotiveAtMotive] using HmotiveAtMotive
-        · intro out Rout henvOut HsuffixOut HstatsOut HbindingsOut
+        · change RecursorTranslatedOriginTypes Rmotive
+            (Horigins.majorTypes.push majorTy)
+          exact HmajorAtMotive
+        · change RecursorTranslatedOriginTypes Rmotive
+            (Horigins.motiveTypes.push motiveTy.consumeTypeAnnotations)
+          exact HmotiveAtMotive
+        · intro cOut outDepth out Rout henvOut HsuffixOut HstatsOut HbindingsOut
             HoriginsOut HmajorOut HmotiveOut HparamsOut HnoAliasOut
             HaritiesOut HemptyOut HrootOut houtSize
           apply Hk out Rout henvOut HsuffixOut HstatsOut HbindingsOut
@@ -23457,7 +23508,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             HaritiesOut HemptyOut HrootOut
           simp only [Array.size_push] at houtSize
           omega
-      · rw [if_neg harity]
+      · simp only [loopK]
+        rw [if_neg harity]
         exact Except.WF.throw
   · rw [dif_neg hidx]
     exact Hk recInfos R henv Hsuffix Hstats Hbindings Horigins HmajorTypes
@@ -29035,6 +29087,24 @@ structure ConstructorPhasesResult
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors
 
+/-- The materialized header cache transported through both header and
+constructor installation, in the exact context where recursor generation
+starts. -/
+def ConstructorPhasesResult.materialized
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv) :
+    checkInductiveTypes.loopInd.MaterializedHeaderResult
+      R.declared.context.venv c.lparams R.declared.context.mlctx.vlctx
+      stats decl depth := by
+  have Hmaterialized := H.materialized.mono R.declared.installed.le
+  rw [R.declared.contextVEnv]
+  simpa only [R.declared.contextMLCtx] using Hmaterialized
+
 /-- Select one mutual-family header for recursor replay after transporting
 both its source translation and the materialized header certificate through
 header and constructor installation. -/
@@ -29057,7 +29127,6 @@ def ConstructorPhasesResult.checkedRecursorHeaderAt
     familyIdx (by simpa using hfamily) htarget
   have hsourceLE : sourceEnv ≤ R.declared.venvCtors :=
     H.installed.le.trans R.declared.installed.le
-  have Hmaterialized := H.materialized.mono R.declared.installed.le
   have Hsource := Htype.header.mono hsourceLE
   refine {
     target := decl.types[familyIdx]
@@ -29066,8 +29135,7 @@ def ConstructorPhasesResult.checkedRecursorHeaderAt
     sourceTranslation := ?_
     targetLookup := ?_
     lparamsNodup := hlparams }
-  · rw [R.declared.contextVEnv]
-    simpa only [R.declared.contextMLCtx] using Hmaterialized
+  · exact R.materialized
   · rw [R.declared.contextVEnv]
     simpa using Hsource
   · have hheaderLookup : H.context.venv.constants
@@ -29079,6 +29147,97 @@ def ConstructorPhasesResult.checkedRecursorHeaderAt
         ⟨decl.types[familyIdx], List.getElem_mem htarget, rfl⟩
     rw [R.declared.contextVEnv]
     exact R.declared.installed.le.constants hheaderLookup
+
+/-- Enter the independently verified first mutual recursor pass from the
+constructor-phase result.  The continuation receives the complete structural
+state together with recursor-universe translations of every accumulated
+major and motive origin type. -/
+theorem ConstructorPhasesResult.loopInd1SemanticWF
+    {alpha : Type} {Q : alpha → Prop}
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv)
+    (elimLevel : Level)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    (hlparams : c.lparams.Nodup)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    (Hk : ∀ {cOut : AddInductive.Context} {outDepth : Nat}
+      (recInfos : Array AddInductive.RecInfo)
+      (Rout : RecursorContextWF cOut
+        (AddInductive.getRecLevelParams elimLevel c.lparams))
+      (henvOut : Rout.venv = R.declared.context.venv)
+      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (HstatsOut : RecursorValidAppStatsWF Rout.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        Rout.mlctx.vlctx stats decl outDepth)
+      (Hbindings : RecInfoBindings cOut recInfos)
+      (Horigins : RecInfoTypeOrigins cOut recInfos),
+      RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
+      RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
+      (Hparams : BoundFVarArray cOut stats.params) →
+      Hbindings.NoAlias Hparams →
+      RecInfoArities stats recInfos →
+      RecInfoMinorsEmpty recInfos →
+      BindingContextLE { c with env := outEnv } cOut →
+      recInfos.size = indTypes.size →
+      (k recInfos cOut).WF Q) :
+    (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel 0 #[] k
+      { c with env := outEnv }).WF Q := by
+  let Hbase := R.declared.context
+  let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
+  let Hmaterialized := R.materialized
+  let Hsuffix := Hmaterialized.parameterSuffix.toRecursorContext Helim
+  let HstatsOrdinary :=
+    checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader Hmaterialized
+  let Hstats := HstatsOrdinary.toRecursorContext Helim
+  let Hheaders : ∀ i (hi : i < indTypes.size),
+      mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl depth
+        indTypes[i] i := fun i hi =>
+    R.checkedRecursorHeaderAt i hi hlparams
+  have HparamsCtx : ∀ i (hi : i < indTypes.size),
+      VEnv.IsDefEqCtx Rbase.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+        ((Hheaders i hi).recursorParams Helim).reverse
+        Hsuffix.parameterDecls.toCtx := by
+    intro i hi
+    have hmaterialized : (Hheaders i hi).materialized = Hmaterialized := by
+      rfl
+    change VEnv.IsDefEqCtx Rbase.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+      ((Hheaders i hi).recursorParams Helim).reverse
+      (Hmaterialized.parameterSuffix.toRecursorContext
+        Helim).parameterDecls.toCtx
+    rw [← hmaterialized]
+    exact (Hheaders i hi).recursorParamsContext Helim
+  let HparamsHeader : BoundFVarArray { c with env := headerEnv }
+      stats.params := H.materialized.parameterSuffix.paramsBound
+  let Hparams : BoundFVarArray { c with env := outEnv } stats.params :=
+    HparamsHeader.monoFVars (by intro fv; exact id)
+  have hparamsNodup : Hparams.fvars.Nodup := by
+    change HparamsHeader.fvars.Nodup
+    change (ExprArrayFVarIds stats.params).Nodup
+    exact H.materialized.parameterSuffix.paramsBound_nodup
+  refine mkRecInfos.loopInd1.resultSemantics Hbase stats indTypes elimLevel
+    Helim Hheaders hwhnf hconsume 0 #[] k Rbase (by simp [Rbase, Hbase])
+    Hsuffix HparamsCtx
+    Hstats (RecInfoBindings.empty _) (RecInfoTypeOrigins.empty _)
+    (RecursorTranslatedOriginTypes.empty Rbase)
+    (RecursorTranslatedOriginTypes.empty Rbase) Hparams
+    (RecInfoBindings.empty_noAlias _ Hparams hparamsNodup)
+    (BindingContextLE.refl _) rfl (RecInfoArities.empty stats)
+    RecInfoMinorsEmpty.empty ?_
+  intro cOut outDepth recInfos Rout henvOut HsuffixOut HstatsOut
+    Hbindings Horigins HmajorTypes HmotiveTypes HparamsOut HnoAlias
+    Harities Hempty Hroot hsize
+  apply Hk recInfos Rout henvOut HsuffixOut HstatsOut Hbindings Horigins
+    HmajorTypes HmotiveTypes HparamsOut HnoAlias Harities Hempty Hroot
+  simpa using hsize
 
 /-- The verified header cache supplies the exact retained parameter binders
 needed by recursor-info generation, while the constructor phases supply its
