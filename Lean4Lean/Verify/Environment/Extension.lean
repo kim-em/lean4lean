@@ -53,19 +53,6 @@ theorem TrEnv'.eq_quotReady (H : TrEnv' .unsafe C Q venv)
     cases hadd with
     | intro _ _ _ _ _ _ _ heqReady => exact heqReady _ heq
 
-theorem VEnv.addConst_mono {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ ≤ env₂)
-    (h₁ : env₁.addConst name ci = some env₁') (h₂ : env₂.addConst name ci = some env₂') :
-    env₁' ≤ env₂' := by
-  unfold VEnv.addConst at h₁ h₂
-  split at h₁ <;> cases h₁
-  split at h₂ <;> cases h₂
-  constructor
-  · intro n a ha
-    simp at ha ⊢
-    split at ha <;> split <;> simp_all
-    exact H.constants ha
-  · exact H.defeqs
-
 theorem VEnv.addDefEq_mono {env₁ env₂ : VEnv} (H : env₁ ≤ env₂) :
     env₁.addDefEq df ≤ env₂.addDefEq df := by
   constructor
@@ -73,30 +60,6 @@ theorem VEnv.addDefEq_mono {env₁ env₂ : VEnv} (H : env₁ ≤ env₂) :
   · rintro d (rfl | hd)
     · exact .inl rfl
     · exact .inr (H.defeqs hd)
-
-theorem VEnv.addConsts_mono {env₁ env₂ env₁' env₂' : VEnv}
-    {cis : List VConstVal}
-    (H : env₁ ≤ env₂)
-    (h₁ : env₁.addConsts cis = some env₁')
-    (h₂ : env₂.addConsts cis = some env₂') :
-    env₁' ≤ env₂' := by
-  induction cis generalizing env₁ env₂ env₁' env₂' with
-  | nil =>
-    simp [VEnv.addConsts] at h₁ h₂
-    subst env₁'
-    subst env₂'
-    exact H
-  | cons ci constants ih =>
-    simp only [VEnv.addConsts] at h₁ h₂
-    cases hhead₁ : env₁.addConst ci.name ci.toVConstant with
-    | none => simp [hhead₁] at h₁
-    | some middle₁ =>
-      cases hhead₂ : env₂.addConst ci.name ci.toVConstant with
-      | none => simp [hhead₂] at h₂
-      | some middle₂ =>
-        rw [hhead₁] at h₁
-        rw [hhead₂] at h₂
-        exact ih (VEnv.addConst_mono H hhead₁ hhead₂) h₁ h₂
 
 theorem VEnv.addDefEqs_mono {env₁ env₂ : VEnv} {dfs : List VDefEq}
     (H : env₁ ≤ env₂) :

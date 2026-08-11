@@ -2597,7 +2597,10 @@ structure OrdinaryCompilationCertificate (env : VEnv)
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
   recursors : RecursorCertificate decl block.recursors
-  rules : IotaCertificate env decl block
+  rules : ∃ envTypes envCtors,
+    env.addConsts block.types = some envTypes ∧
+    envTypes.addConsts block.ctors = some envCtors ∧
+    IotaCertificate envCtors decl block
   names : List.Nodup
     ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 
@@ -2632,12 +2635,14 @@ theorem TrInductDeclCore.toTrInductDeclOfOrdinaryCompilation
 
 theorem OrdinaryCompilationCertificate.ordinary
     (H : OrdinaryCompilationCertificate env decl block) :
-    decl.OrdinaryCompilation env block where
+    decl.OrdinaryCompilation env block := by
+  rcases H.rules with ⟨envTypes, envCtors, htypes, hctors, Hrules⟩
+  exact {
   types := H.types
   ctors := H.ctors
   recursors := H.recursors.forall₂
-  rules := H.rules.forall₂
-  names := H.names
+  rules := ⟨envTypes, envCtors, htypes, hctors, Hrules.forall₂⟩
+  names := H.names }
 
 theorem OrdinaryCompilationCertificate.compilesTo
     (H : OrdinaryCompilationCertificate env decl block) :
@@ -2655,6 +2660,10 @@ structure NestedCompilationCertificate (env : VEnv)
   types_source : decl.types = main :: rest
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
+  envTypes : VEnv
+  envCtors : VEnv
+  types_added : env.addConsts block.types = some envTypes
+  ctors_added : envTypes.addConsts block.ctors = some envCtors
   primaryRecursors : List VConstVal
   auxiliaryRecursors : List VConstVal
   recursors_eq : block.recursors = primaryRecursors ++ auxiliaryRecursors
@@ -2665,7 +2674,7 @@ structure NestedCompilationCertificate (env : VEnv)
   primaryRules : List VDefEq
   auxiliaryRules : List VDefEq
   rules_eq : block.rules = primaryRules ++ auxiliaryRules
-  primary_rules : IotaListCertificate env decl block primaryRules
+  primary_rules : IotaListCertificate envCtors decl block primaryRules
   auxiliary_guarded : ∀ rule ∈ auxiliaryRules,
     ∃ fieldVars, rule.rhs.GuardedIota
       (block.recursors.map (·.name)) fieldVars 0
@@ -2703,7 +2712,8 @@ def NestedCompilationCertificate.nested
   primaryRules := H.primaryRules
   auxiliaryRules := H.auxiliaryRules
   rules_eq := H.rules_eq
-  primary_rules := H.primary_rules.forall₂
+  primary_rules := ⟨H.envTypes, H.envCtors, H.types_added, H.ctors_added,
+    H.primary_rules.forall₂⟩
   auxiliary_guarded := H.auxiliary_guarded
   names := H.names
 
@@ -2778,19 +2788,22 @@ recursors and rules. Unlike the ordinary shortcut, these need not be the
 lowered constants verbatim: restoration may rewrite their telescopes while
 preserving the independent recursor/iota specifications. -/
 def NestedCompilationCertificate.ofRestoration
-    (decl : VInductDecl) (block : VInductBlock)
+    (env envTypes envCtors : VEnv) (decl : VInductDecl)
+    (block : VInductBlock)
     (main : VInductiveType) (rest : List VInductiveType)
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryRecursors : NestedRecursorCertificate decl primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate env decl block primaryRules)
+    (HprimaryRules : IotaBuildCertificate envCtors decl block primaryRules)
     (hprimaryLength : primaryRules.length =
       decl.ownedConstructors.length)
     (Haux : AuxiliaryRestorationPrefix decl block main
       auxiliaryRecursors auxiliaryRules)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
+    (htypesAdded : env.addConsts block.types = some envTypes)
+    (hctorsAdded : envTypes.addConsts block.ctors = some envCtors)
     (hrecursors : block.recursors =
       primaryRecursors ++ auxiliaryRecursors)
     (hrules : block.rules = primaryRules ++ auxiliaryRules)
@@ -2802,6 +2815,10 @@ def NestedCompilationCertificate.ofRestoration
   types_source := htypesSource
   types := htypes
   ctors := hctors
+  envTypes := envTypes
+  envCtors := envCtors
+  types_added := htypesAdded
+  ctors_added := hctorsAdded
   primaryRecursors := primaryRecursors
   auxiliaryRecursors := auxiliaryRecursors
   recursors_eq := hrecursors
@@ -23286,10 +23303,10 @@ theorem BoundFVarArray.ofSublist
     | cons fv fvars ih =>
       intro h
       cases h with
-      | cons htail =>
+      | cons _ htail =>
         rcases ih htail with ⟨selected, hes, hselected⟩
         exact ⟨selected, hes, .cons _ hselected⟩
-      | cons_cons htail =>
+      | cons_cons _ htail =>
         rcases ih htail with ⟨selected, hes, hselected⟩
         exact ⟨fv :: selected, by simp [hes], .cons_cons _ hselected⟩
   have hy : ys.toList = H.fvars.map Expr.fvar := by
@@ -33133,7 +33150,7 @@ theorem BoundGeneratedRecursorRule.Semantics.owner_eq
       sourceCtor minorIdx sourceRule)
     (Hsemantic : H.Semantics recLparams decl expectedOwnerIdx)
     (hnames : (decl.types.map (·.name)).Nodup) :
-    Hsemantic.ownerIdx = Hsemantic.expectedOwnerIdx := by
+    Hsemantic.ownerIdx = expectedOwnerIdx := by
   have hselectedValid : AddInductive.isValidIndAppIdx stats H.target
       Hsemantic.ownerIdx = true :=
     (checkPositivityStep.isValidIndApp?_some Hsemantic.target_valid).2
@@ -33144,19 +33161,19 @@ theorem BoundGeneratedRecursorRule.Semantics.owner_eq
       (Hsemantic.validStats.indConstAt Hsemantic.owner_lt)
   have hexpectedHead : H.target.getAppFn =
       .const
-        (decl.types[Hsemantic.expectedOwnerIdx]'Hsemantic.expected_owner_lt).name
+        (decl.types[expectedOwnerIdx]'Hsemantic.expected_owner_lt).name
         stats.levels :=
     checkPositivityStep.isValidIndAppIdx.constHead
       Hsemantic.expected_target_valid
       (Hsemantic.validStats.indConstAt Hsemantic.expected_owner_lt)
   have hname :
       (decl.types[Hsemantic.ownerIdx]'Hsemantic.owner_lt).name =
-      (decl.types[Hsemantic.expectedOwnerIdx]'Hsemantic.expected_owner_lt).name := by
+      (decl.types[expectedOwnerIdx]'Hsemantic.expected_owner_lt).name := by
     have heq := hselectedHead.symm.trans hexpectedHead
     injection heq
   have hleft : Hsemantic.ownerIdx < (decl.types.map (·.name)).length := by
     simpa using Hsemantic.owner_lt
-  have hright : Hsemantic.expectedOwnerIdx <
+  have hright : expectedOwnerIdx <
       (decl.types.map (·.name)).length := by
     simpa using Hsemantic.expected_owner_lt
   apply (List.getElem_inj (h₀ := hleft) (h₁ := hright) hnames).mp
@@ -33269,7 +33286,9 @@ theorem SemanticBoundGeneratedRecursorRules.entry
       | zero => exact ⟨Hrule, Hsemantic⟩
       | succ i =>
         have h := ih i (by simpa using hctor) (by simpa using hrule)
-        simpa [Nat.add_assoc] using h
+        have hindex : start + 1 + i = start + (i + 1) := by omega
+        rw [hindex] at h
+        exact h
 
 theorem BoundGeneratedRecursorRules.length
     (H : BoundGeneratedRecursorRules indTypes stats motives minors lvls
@@ -33643,7 +33662,8 @@ theorem oneRuleSemantics
           lvls ctor minorIdx out.1,
         Nonempty (Hrule.Semantics recLparams decl ownerIdx) ∧
         out.2 = minorIdx + 1 := by
-  let process := fun _ allArgs recursiveArgs =>
+  let process : Expr → Array Expr → Array Expr →
+      AddInductive.M (RecursorRule × Nat) := fun _ allArgs recursiveArgs =>
     AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
       recursiveArgs 0 #[] fun recursiveResults => do
         let lctx ← getLCtx
@@ -33676,7 +33696,8 @@ theorem oneRuleSemantics
     HfieldsRecent.noIndConsts (names := decl.types.map (·.name)) hctx
   have hvalidIdx : AddInductive.isValidIndAppIdx stats terminal ownerIdx =
       true :=
-    Hnormal.validOfOpening _Hopening Hparams HfieldsRecent
+    Hnormal.validOfOpening _Hopening Hparams
+      HfieldsRecent.toFreshBoundFVarArray
       (Hstats.indConstAt howner) hterminalNonforall
   rcases checkPositivityStep.isValidIndApp?_exists_of_valid hvalidIdx
       (Hstats.indConstAt howner) with ⟨selectedOwner, hselectedOwner⟩
@@ -33698,7 +33719,15 @@ theorem oneRuleSemantics
     return (rule, minorIdx + 1)
   change (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
     recursiveArgs 0 #[] buildRule current).WF _
-  apply mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty Rargs
+  apply mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty
+    (Q := fun out =>
+      ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors
+          lvls ctor minorIdx out.1,
+        Nonempty (Hrule.Semantics recLparams decl ownerIdx) ∧
+        out.2 = minorIdx + 1)
+    (indTypes := indTypes) (stats := stats) (motives := motives)
+    (minors := minors) (lvls := lvls) (u := recursiveArgs)
+    (k := buildRule) (c := current) (decl := decl) Rargs
     HstatsArgs hwhnf hconsume hlit hctxArgs hproj
     (Hselection.selectedFVars
       HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray Hrecursive)
@@ -33719,11 +33748,18 @@ theorem oneRuleSemantics
   have hrecursiveNodup : HrecursiveBound.fvars.Nodup := by
     have hallExpr : allArgs.toList.Nodup := by
       rw [HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.expressions]
-      exact HfieldsRecent.toFreshBoundFVarArray.nodup.map
-        (fun _ _ h => Expr.fvar.inj h)
+      exact List.Pairwise.map Expr.fvar
+        (fun _ _ hne heq => hne (Expr.fvar.inj heq))
+        HfieldsRecent.toFreshBoundFVarArray.nodup
     have hrecursiveExpr := hallExpr.sublist hselected
     rw [HrecursiveBound.expressions] at hrecursiveExpr
-    simpa using hrecursiveExpr
+    change List.Pairwise (fun a b : Expr => a ≠ b)
+      (HrecursiveBound.fvars.map Expr.fvar) at hrecursiveExpr
+    rw [List.pairwise_map] at hrecursiveExpr
+    change List.Pairwise (fun a b : FVarId => a ≠ b)
+      HrecursiveBound.fvars
+    exact hrecursiveExpr.imp fun hneq heq =>
+      hneq (congrArg Expr.fvar heq)
   let Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       ctor minorIdx {
         ctor := ctor.name
@@ -33761,8 +33797,7 @@ theorem oneRuleSemantics
     ctor_eq := rfl
     fields_eq := rfl
     rhs_eq := rfl }
-  refine Except.WF.pure ⟨Hrule, ⟨?__⟩, rfl⟩
-  exact {
+  let Hsemantic : Hrule.Semantics recLparams decl ownerIdx := {
     depth := depth + allArgs.size
     context := Rargs
     validStats := HstatsArgs
@@ -33777,6 +33812,9 @@ theorem oneRuleSemantics
     fields := fields
     selection := Hselection
     calls := Hcalls }
+  apply Except.WF.pure
+  refine Exists.intro Hrule ?_
+  exact And.intro (Nonempty.intro Hsemantic) rfl
 
 /-- Semantic traversal of a complete constructor batch.  It follows the
 production accumulator and minor-state equations exactly, while obtaining
@@ -36791,7 +36829,7 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
     (hrecursors : block.recursors = entries.map Prod.snd)
-    (hrules : IotaCertificate sourceEnv decl block)
+    (hrules : IotaCertificate envCtors decl block)
     (hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
     OrdinaryCompilationCertificate sourceEnv decl block := by
@@ -36799,7 +36837,8 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
     types := htypes
     ctors := hctors
     recursors := ?_
-    rules := hrules
+    rules := ⟨envTypes, envCtors, by simpa [htypes] using Hdecl.typesAdded,
+      by simpa [hctors] using Hdecl.ctorsAdded, hrules⟩
     names := hnames }
   rw [hrecursors]
   exact H.recursorCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl
@@ -36823,7 +36862,7 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate_ofRuleBuild
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
     (hrecursors : block.recursors = entries.map Prod.snd)
-    (Hrules : IotaBuildCertificate sourceEnv decl block block.rules)
+    (Hrules : IotaBuildCertificate envCtors decl block block.rules)
     (hrulesLength : block.rules.length = decl.ownedConstructors.length)
     (hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
@@ -36856,7 +36895,7 @@ def GeneratedRecursors.nestedCompilationCertificate
     (hrecursors : block.recursors =
       entries.map Prod.snd ++ auxRecursors)
     (hrules : block.rules = primaryRules ++ auxiliaryRules)
-    (hprimaryRules : IotaListCertificate sourceEnv decl block primaryRules)
+    (hprimaryRules : IotaListCertificate envCtors decl block primaryRules)
     (hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
     NestedCompilationCertificate sourceEnv decl block where
@@ -36865,6 +36904,10 @@ def GeneratedRecursors.nestedCompilationCertificate
   types_source := htypesSource
   types := htypes
   ctors := hctors
+  envTypes := envTypes
+  envCtors := envCtors
+  types_added := by simpa [htypes] using Hdecl.typesAdded
+  ctors_added := by simpa [hctors] using Hdecl.ctorsAdded
   primaryRecursors := entries.map Prod.snd
   auxiliaryRecursors := auxRecursors
   recursors_eq := hrecursors
@@ -37856,7 +37899,9 @@ theorem AddInductive.declareRecursors.loop.semanticWF
               intro i hi
               cases i with
               | zero =>
-                exact ⟨info, by simp [entry], by simpa [info] using Hgenerated.1⟩
+                exact ⟨info, by simp [entry], by
+                  simpa [info, AddInductive.declareRecursors.recursorInfo]
+                    using Hgenerated.1⟩
               | succ i =>
                 have hi' : i < entries.length := by simpa using hi
                 simpa [Nat.add_assoc, Nat.add_comm 1 i] using
@@ -38982,7 +39027,8 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       HmajorTypesOut HmajorShapesOut HmotiveTypesOut HmotiveShapesOut
       HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HaritiesOut
       HrootOut
-    exact Hk out Rout henvOut HsuffixOut hparameterDeclsOut HstatsOut
+    exact Hk out Rout (henvOut.trans henvFrames) HsuffixOut
+      (hparameterDeclsOut.trans hparameterDeclsFrames) HstatsOut
       hctxOut HbindingsOut HoriginsOut HmajorTypesOut HmajorShapesOut
       HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
       HparamsOut HnoAliasOut HaritiesOut
@@ -39779,7 +39825,7 @@ theorem BlockCertificate.rebaseAddInduct
     VInductDecl.WF.rebaseOfBlock hdecl hbase Hlarger.wf
       hcompile.types hcompile.ctors
   have hcompileLarger : decl.CompilesTo largerBase Hlarger.block :=
-    hcompile.mono hbase
+    hcompile.mono hbase Hlarger.wf
   exact ⟨largerOutBase, ⟨Hlarger⟩,
     .intro hdeclLarger hcompileLarger Hlarger.wf Hlarger.install,
     VEnv.addDefEqs_mono houtBase⟩
@@ -39926,7 +39972,7 @@ theorem BlockCertificate.rebaseAddInductSafe
     VInductDecl.WF.rebaseOfBlock hdecl hbase Hlarger.wf
       hcompile.types hcompile.ctors
   have hcompileLarger : decl.CompilesTo largerBase Hlarger.block :=
-    hcompile.mono hbase
+    hcompile.mono hbase Hlarger.wf
   have hadd : AddInduct targetSafety prodEnv.constants largerBase decl outEnv.constants
       (largerOutBase.addDefEqs rules) := by
     exact Hlarger.addInduct hdeclLarger hcompileLarger Hvalid.tr.aligned
@@ -47691,15 +47737,18 @@ family members interleaved rather than in abstract block order. -/
 theorem RestoredNestedDeclarationsResult.canonicalNestedCompilation
     (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
-    (rest : List VInductiveType)
+    (envTypes envCtors : VEnv) (rest : List VInductiveType)
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryRecursors : NestedRecursorCertificate decl primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate sourceEnv decl
+    (HprimaryRules : IotaBuildCertificate envCtors decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
+    (htypesAdded : sourceEnv.addConsts decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+      some envCtors)
     (Hauxiliary : RestoredAuxiliarySemanticTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
@@ -47727,9 +47776,11 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilation
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) :=
     (Hnames entries Hentries).nodup_iff.mpr
       (Hentries.namesNodup hsourceWF)
-  exact ⟨NestedCompilationCertificate.ofRestoration decl block main rest
+  exact ⟨NestedCompilationCertificate.ofRestoration sourceEnv envTypes
+    envCtors decl block main rest
     htypesSource primaryRecursors auxiliaryRecursors primaryRules
     auxiliaryRules HprimaryRecursors HprimaryRules hprimaryLength Haux rfl rfl
+    htypesAdded hctorsAdded
     rfl rfl hnames⟩
 
 /-- Mutual-safe canonical endpoint.  The operational restoration trace fixes
@@ -47739,16 +47790,19 @@ environment is advanced in the production family-interleaved order. -/
 theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfSemanticTrace
     (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
-    (rest : List VInductiveType)
+    (envTypes envCtors : VEnv) (rest : List VInductiveType)
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryRecursors : RestoredPrimaryRecursorSemanticTrace decl safety
       canonicalCtorEnv H.inductives (main :: rest) primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate sourceEnv decl
+    (HprimaryRules : IotaBuildCertificate envCtors decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
+    (htypesAdded : sourceEnv.addConsts decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+      some envCtors)
     (Hauxiliary : RestoredAuxiliarySemanticTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
@@ -47766,11 +47820,14 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfSemanticTra
     Nonempty (NestedCompilationCertificate sourceEnv decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules)) := by
-  apply H.canonicalNestedCompilation rest htypesSource primaryRecursors
+  apply H.canonicalNestedCompilation envTypes envCtors rest htypesSource
+    primaryRecursors
     auxiliaryRecursors primaryRules auxiliaryRules
   · exact HprimaryRecursors.recursorCertificate htypesSource
   · exact HprimaryRules
   · exact hprimaryLength
+  · exact htypesAdded
+  · exact hctorsAdded
   · exact Hauxiliary
   · exact hsourceWF
   · exact Hnames
@@ -47795,7 +47852,7 @@ theorem RestoredNestedDeclarationsResult.sourceCoreAndNestedCompilation
     (htypesAdded : sourceVEnv.addConsts decl.typeConstants = some envTypes)
     (hctorsAdded : envTypes.addConsts decl.constructorConstants =
       some envCtors)
-    (HprimaryRules : IotaBuildCertificate sourceVEnv decl
+    (HprimaryRules : IotaBuildCertificate envCtors decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
@@ -47820,11 +47877,14 @@ theorem RestoredNestedDeclarationsResult.sourceCoreAndNestedCompilation
           primaryRules auxiliaryRules)) := by
   refine ⟨Hsource.core htypesSource huvars hnparams hisUnsafe htypesAdded
     hctorsAdded, ?_⟩
-  apply H.canonicalNestedCompilation rest htypesSource primaryRecursors
+  apply H.canonicalNestedCompilation envTypes envCtors rest htypesSource
+    primaryRecursors
     auxiliaryRecursors primaryRules auxiliaryRules
   · exact Hsource.recursorCertificate htypesSource
   · exact HprimaryRules
   · exact hprimaryLength
+  · exact htypesAdded
+  · exact hctorsAdded
   · exact Hauxiliary
   · exact hsourceWF
   · exact Hnames
@@ -47838,17 +47898,20 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfInstallatio
       auxRec allIndNames types auxRecNames out)
     (Hprimary : RestoredInductiveInstallationTrace safety H.inductives
       sourceEnv primaryConstants primaryVEnv)
-    (rest : List VInductiveType)
+    (envTypes envCtors : VEnv) (rest : List VInductiveType)
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryRecursors : RestoredPrimaryRecursorCertificate decl result
       loweredEnv auxRec allIndNames safety H.inductives Hprimary
       primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate sourceEnv decl
+    (HprimaryRules : IotaBuildCertificate envCtors decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
+    (htypesAdded : sourceEnv.addConsts decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+      some envCtors)
     (Hauxiliary : RestoredAuxiliarySemanticTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
@@ -47866,10 +47929,10 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfInstallatio
     Nonempty (NestedCompilationCertificate sourceEnv decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules)) := by
-  exact H.canonicalNestedCompilation rest htypesSource primaryRecursors
-    auxiliaryRecursors primaryRules auxiliaryRules
+  exact H.canonicalNestedCompilation envTypes envCtors rest htypesSource
+    primaryRecursors auxiliaryRecursors primaryRules auxiliaryRules
     HprimaryRecursors.recursorCertificate HprimaryRules hprimaryLength
-    Hauxiliary hsourceWF Hnames
+    htypesAdded hctorsAdded Hauxiliary hsourceWF Hnames
 
 /-- Fully structural primary-recursor specialization.  The family-indexed
 shape fold itself supplies both trace alignment and the indexed
@@ -47879,16 +47942,19 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfShapes
       auxRec allIndNames types auxRecNames out)
     (Hprimary : RestoredInductiveInstallationTrace safety H.inductives
       sourceEnv primaryConstants primaryVEnv)
-    (rest : List VInductiveType)
+    (envTypes envCtors : VEnv) (rest : List VInductiveType)
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryShapes : RestoredPrimaryRecursorShapes decl result loweredEnv
       auxRec allIndNames safety Hprimary (main :: rest) primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate sourceEnv decl
+    (HprimaryRules : IotaBuildCertificate envCtors decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
+    (htypesAdded : sourceEnv.addConsts decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+      some envCtors)
     (Hauxiliary : RestoredAuxiliarySemanticTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
@@ -47906,11 +47972,14 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfShapes
     Nonempty (NestedCompilationCertificate sourceEnv decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules)) := by
-  apply H.canonicalNestedCompilationOfInstallation Hprimary rest htypesSource
-    primaryRecursors auxiliaryRecursors primaryRules auxiliaryRules
+  apply H.canonicalNestedCompilationOfInstallation Hprimary envTypes envCtors
+    rest htypesSource primaryRecursors auxiliaryRecursors primaryRules
+    auxiliaryRules
   · exact HprimaryShapes.certificate htypesSource
   · exact HprimaryRules
   · exact hprimaryLength
+  · exact htypesAdded
+  · exact hctorsAdded
   · exact Hauxiliary
   · exact hsourceWF
   · exact Hnames
@@ -47928,14 +47997,16 @@ theorem RestoredNestedDeclarationsResult.nestedCompilationCertificate
       AuxiliaryRestorationPrefix decl block main recursors rules →
       Nonempty (RestoredAuxiliaryStepSemantics decl block main safety trEnv
         Hstep recursors))
-    (rest : List VInductiveType)
+    (envTypes envCtors : VEnv) (rest : List VInductiveType)
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors : List VConstVal) (primaryRules : List VDefEq)
     (HprimaryRecursors : NestedRecursorCertificate decl primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate sourceEnv decl block primaryRules)
+    (HprimaryRules : IotaBuildCertificate envCtors decl block primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
+    (htypesAdded : sourceEnv.addConsts block.types = some envTypes)
+    (hctorsAdded : envTypes.addConsts block.ctors = some envCtors)
     (hsourceWF : sourceProdEnv.constants.WF)
     (Hlayout : ∀ auxiliaryRecursors auxiliaryRules,
       AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
@@ -47956,10 +48027,11 @@ theorem RestoredNestedDeclarationsResult.nestedCompilationCertificate
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
     rw [Hnames entries Hentries]
     exact Hentries.namesNodup hsourceWF
-  exact ⟨NestedCompilationCertificate.ofRestoration decl block main rest
+  exact ⟨NestedCompilationCertificate.ofRestoration sourceEnv envTypes
+    envCtors decl block main rest
     htypesSource primaryRecursors auxiliaryRecursors primaryRules
     auxiliaryRules HprimaryRecursors HprimaryRules hprimaryLength Haux htypes
-    hctors hrecursors hrules hnames⟩
+    hctors htypesAdded hctorsAdded hrecursors hrules hnames⟩
 
 /-- Syntactic facts that must hold before an expression can be treated as a
 nested occurrence. The environment lookup and parameter scan are certified
@@ -49226,7 +49298,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
     (k := fun elimLevel recInfos =>
       AddInductive.declareRecursors stats indTypes elimLevel recInfos)
-  intro elimLevel hElim recInfos localContext localDepth Rlocal henvLocal
+  intro elimLevel hElim localContext localDepth recInfos Rlocal henvLocal
     HsuffixLocal hparameterDeclsLocal HstatsLocal hctxLocal Hbindings
     Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
     Htelescopes HindexRows Hparams hnoalias Harities Hcard Hle
@@ -49261,6 +49333,9 @@ theorem ConstructorPhasesResult.recursorPhasesWF
             (AddInductive.getRecLevelParams elimLevel c.lparams).length
             Rlocal.mlctx.vlctx.toCtx introTarget tailTarget := by
     intro owner howner ctor hctor
+    have hownerBang : indTypes[owner]! = indTypes[owner] := by
+      simp [Array.getElem!_eq_getD, Array.getD, howner]
+    rw [hownerBang] at hctor
     rcases List.mem_iff_getElem.mp hctor with ⟨ctorIdx, hctorIdx, rfl⟩
     rcases R.checkedConstructorRuntimeSeedAt elimLevel hElim hlparams Rlocal
         henvLocal HsuffixLocal hparameterDeclsLocal owner howner ctorIdx
@@ -50210,7 +50285,9 @@ theorem RecursorPhasesResult.generatedRuleSemanticOwner
   rcases H.generatedRuleSemantic owner howner i hctor hrule with
     ⟨Hrule, ⟨Hsemantic⟩⟩
   have htypeNames : (decl.types.map (·.name)).Nodup := by
-    have hprefix := (List.nodup_append.mp R.core.sourceNames_nodup).1
+    have hprefix := (List.nodup_append.mp
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup
+        R.core)).1
     simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
       VInductiveType.toVConstVal, Function.comp_def] using hprefix
   exact ⟨Hrule, Hsemantic, Hsemantic.owner_eq Hrule htypeNames⟩
@@ -50232,8 +50309,9 @@ structure RecursorPhasesResult.GeneratedRuleAlignment
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     (H : RecursorPhasesResult R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
-    (i : Nat) (hctor : i < indTypes[owner]!.ctors.length) : Prop where
+    (i : Nat) (hctor : i < indTypes[owner]!.ctors.length) where
   sourceOwner_lt : owner < indTypes.size
+  sourceCtor_lt : i < indTypes[owner].ctors.length
   abstractOwner_lt : owner < decl.types.length
   abstractCtor_lt : i < decl.types[owner].ctors.length
   ownerTranslation : TrInductiveType sourceEnv Hheaders.context.venv
@@ -50269,20 +50347,23 @@ theorem RecursorPhasesResult.generatedRuleAlignment
     Nonempty (H.GeneratedRuleAlignment owner howner i hctor) := by
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  have hsourceOwner : owner < indTypes.size := by
-    rw [H.cardinality.records] at hrecInfo
-    simpa using hrecInfo
   have habstractOwner : owner < decl.types.length := by
-    have htypes := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-      R.core
+    simpa [H.cardinality.records] using hrecInfo
+  have hsourceOwner : owner < indTypes.size := by
+    have htypes : indTypes.size = decl.types.length := by
+      simpa using
+        Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
     omega
-  let Howner := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
-    owner (by simpa using hsourceOwner) habstractOwner
-  have habstractCtor : i < decl.types[owner].ctors.length := by
-    rw [← Howner.ctors_length]
+  have hsourceCtor : i < indTypes[owner].ctors.length := by
     simpa [Array.getElem!_eq_getD, Array.getD, hsourceOwner] using hctor
-  let Hctor := Howner.ctorAt i
-    (by simpa [Array.getElem!_eq_getD, Array.getD, hsourceOwner] using hctor)
+  have Howner := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
+    owner (by simpa using hsourceOwner) habstractOwner
+  rw [Array.getElem_toList] at Howner
+  have habstractCtor : i < decl.types[owner].ctors.length := by
+    rw [← Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Howner]
+    exact hsourceCtor
+  let Hctor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt Howner i
+    hsourceCtor
     habstractCtor
   let E := H.generated.entry owner howner
   have hsourceRule : i < E.info.rules.length := by
@@ -50292,6 +50373,7 @@ theorem RecursorPhasesResult.generatedRuleAlignment
     ⟨Hrule, Hsemantic, hsemanticOwner⟩
   exact ⟨{
     sourceOwner_lt := hsourceOwner
+    sourceCtor_lt := hsourceCtor
     abstractOwner_lt := habstractOwner
     abstractCtor_lt := habstractCtor
     ownerTranslation := Howner
@@ -50334,7 +50416,7 @@ theorem RecursorPhasesResult.ordinaryCompilationOfRuleBuild
     (H : RecursorPhasesResult R outEnv)
     (rules : List VDefEq)
     (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
-    (Hrules : IotaBuildCertificate sourceEnv decl
+    (Hrules : IotaBuildCertificate R.declared.venvCtors decl
       (H.blockCertificate rules hrules).block rules)
     (hrulesLength : rules.length = decl.ownedConstructors.length) :
     OrdinaryCompilationCertificate sourceEnv decl
@@ -50371,7 +50453,7 @@ theorem RecursorPhasesResult.ordinaryCompilationOfRuleTranslations
     (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
     (owner : Nat)
     (Htranslations : GeneratedIotaTranslations H.generatedCertificate
-      sourceEnv R.declared.venvCtors Us Δ decl
+      R.declared.venvCtors R.declared.venvCtors Us Δ decl
       (H.blockCertificate rules hrules).block owner rules)
     (hcomplete : owner = H.entries.length)
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
@@ -50383,7 +50465,7 @@ theorem RecursorPhasesResult.ordinaryCompilationOfRuleTranslations
           false) :
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block := by
-  have Hbuild : IotaBuildCertificate sourceEnv decl
+  have Hbuild : IotaBuildCertificate R.declared.venvCtors decl
       (H.blockCertificate rules hrules).block rules :=
     Htranslations.build H.generatedCertificate H.cardinality R.core rfl
       (H.recursorNamesFresh rules hrules) hproj
@@ -50408,8 +50490,8 @@ structure OrdinaryRuleTranslationResult
   rules : List VDefEq
   rulesWF : ∀ df ∈ rules, df.WF H.outVEnv
   owner : Nat
-  translations : GeneratedIotaTranslations H.generatedCertificate sourceEnv
-    R.declared.venvCtors Us Δ decl
+  translations : GeneratedIotaTranslations H.generatedCertificate
+    R.declared.venvCtors R.declared.venvCtors Us Δ decl
     (H.blockCertificate rules rulesWF).block owner rules
   complete : owner = H.entries.length
   projections : ∀ {Δ : VLCtx} {s i e' e''},
@@ -50855,7 +50937,7 @@ theorem VerifiedInductiveRunResult.addInductOfRuleBuild
       (Hrecursors : RecursorPhasesResult R outEnv),
       ∃ rules : List VDefEq,
         ∃ hrules : (∀ df ∈ rules, df.WF Hrecursors.outVEnv),
-        IotaBuildCertificate Hc'.venv decl
+        IotaBuildCertificate R.declared.venvCtors decl
           (Hrecursors.blockCertificate rules hrules).block rules ∧
         rules.length = decl.ownedConstructors.length) :
     ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',

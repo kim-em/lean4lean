@@ -22,6 +22,45 @@ def addConsts : VEnv → List VConstVal → Option VEnv
     let env ← env.addConst ci.name ci.toVConstant
     env.addConsts cis
 
+theorem addConst_mono
+    {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ ≤ env₂)
+    (h₁ : env₁.addConst name ci = some env₁')
+    (h₂ : env₂.addConst name ci = some env₂') :
+    env₁' ≤ env₂' := by
+  unfold VEnv.addConst at h₁ h₂
+  split at h₁ <;> cases h₁
+  split at h₂ <;> cases h₂
+  constructor
+  · intro n a ha
+    simp at ha ⊢
+    split at ha <;> split <;> simp_all
+    exact H.constants ha
+  · exact H.defeqs
+
+theorem addConsts_mono
+    {env₁ env₂ env₁' env₂' : VEnv} {cis : List VConstVal}
+    (H : env₁ ≤ env₂)
+    (h₁ : env₁.addConsts cis = some env₁')
+    (h₂ : env₂.addConsts cis = some env₂') :
+    env₁' ≤ env₂' := by
+  induction cis generalizing env₁ env₂ env₁' env₂' with
+  | nil =>
+    simp [VEnv.addConsts] at h₁ h₂
+    subst env₁'
+    subst env₂'
+    exact H
+  | cons ci cis ih =>
+    simp only [VEnv.addConsts] at h₁ h₂
+    cases hhead₁ : env₁.addConst ci.name ci.toVConstant with
+    | none => simp [hhead₁] at h₁
+    | some middle₁ =>
+      cases hhead₂ : env₂.addConst ci.name ci.toVConstant with
+      | none => simp [hhead₂] at h₂
+      | some middle₂ =>
+        simp [hhead₁] at h₁
+        simp [hhead₂] at h₂
+        exact ih (addConst_mono H hhead₁ hhead₂) h₁ h₂
+
 /-- Reduction equations do not introduce names and therefore cannot fail. -/
 def addDefEqs : VEnv → List VDefEq → VEnv
   | env, [] => env
@@ -1076,9 +1115,12 @@ structure VInductDecl.OrdinaryCompilation
   recursors : List.Forall₂ (fun type recursor =>
     Nonempty (decl.RecursorShape type recursor))
     decl.types block.recursors
-  rules : List.Forall₂ (fun owned rule =>
-    Nonempty (decl.IotaRule env block owned.1 owned.2 rule))
-    decl.ownedConstructors block.rules
+  rules : ∃ envTypes envCtors,
+    env.addConsts block.types = some envTypes ∧
+    envTypes.addConsts block.ctors = some envCtors ∧
+    List.Forall₂ (fun owned rule =>
+      Nonempty (decl.IotaRule envCtors block owned.1 owned.2 rule))
+      decl.ownedConstructors block.rules
   names : List.Nodup ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 
 /-- Compilation interface for a source declaration containing nested
@@ -1104,9 +1146,12 @@ structure VInductDecl.NestedCompilation
   primaryRules : List VDefEq
   auxiliaryRules : List VDefEq
   rules_eq : block.rules = primaryRules ++ auxiliaryRules
-  primary_rules : List.Forall₂ (fun owned rule =>
-    Nonempty (decl.IotaRule env block owned.1 owned.2 rule))
-    decl.ownedConstructors primaryRules
+  primary_rules : ∃ envTypes envCtors,
+    env.addConsts block.types = some envTypes ∧
+    envTypes.addConsts block.ctors = some envCtors ∧
+    List.Forall₂ (fun owned rule =>
+      Nonempty (decl.IotaRule envCtors block owned.1 owned.2 rule))
+      decl.ownedConstructors primaryRules
   auxiliary_guarded : ∀ rule ∈ auxiliaryRules,
     ∃ fieldVars, rule.rhs.GuardedIota
       (block.recursors.map (·.name)) fieldVars 0
@@ -1124,29 +1169,40 @@ inductive VInductDecl.CompilesTo (env : VEnv) : VInductDecl → VInductBlock →
 theorem VInductDecl.OrdinaryCompilation.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
     (henv : env ≤ env')
+    (Hblock : block.WF env')
     (H : decl.OrdinaryCompilation env block) :
-    decl.OrdinaryCompilation env' block :=
-  { H with
-    rules := Lean4Lean.List.Forall₂.imp
-      (fun _ _ h => let ⟨rule⟩ := h; ⟨rule.mono henv⟩) H.rules }
-
-def VInductDecl.NestedCompilation.mono
-    {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (henv : env ≤ env')
-    (H : decl.NestedCompilation env block) :
-    decl.NestedCompilation env' block :=
-  { H with
-    primary_rules := Lean4Lean.List.Forall₂.imp
-      (fun _ _ h => let ⟨rule⟩ := h; ⟨rule.mono henv⟩)
-      H.primary_rules }
+    decl.OrdinaryCompilation env' block := by
+  rcases H.rules with
+    ⟨oldTypes, oldCtors, holdTypes, holdCtors, holdRules⟩
+  rcases Hblock with
+    ⟨envTypes, envCtors, _envRecursors, htypes, hctors, _hrecs, _⟩
+  have htypesLE := VEnv.addConsts_mono henv holdTypes htypes
+  have hctorsLE := VEnv.addConsts_mono htypesLE holdCtors hctors
+  exact { H with
+    rules := ⟨envTypes, envCtors, htypes, hctors,
+      Lean4Lean.List.Forall₂.imp
+      (fun _ _ h => let ⟨rule⟩ := h; ⟨rule.mono hctorsLE⟩)
+      holdRules⟩ }
 
 theorem VInductDecl.CompilesTo.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
     (henv : env ≤ env')
+    (Hblock : block.WF env')
     (H : decl.CompilesTo env block) : decl.CompilesTo env' block := by
   cases H with
-  | ordinary H => exact .ordinary (H.mono henv)
-  | nested H => exact .nested (H.mono henv)
+  | ordinary H => exact .ordinary (H.mono henv Hblock)
+  | nested H =>
+    rcases H.primary_rules with
+      ⟨oldTypes, oldCtors, holdTypes, holdCtors, holdRules⟩
+    rcases Hblock with
+      ⟨envTypes, envCtors, _envRecursors, htypes, hctors, _hrecs, _⟩
+    have htypesLE := VEnv.addConsts_mono henv holdTypes htypes
+    have hctorsLE := VEnv.addConsts_mono htypesLE holdCtors hctors
+    exact .nested { H with
+      primary_rules := ⟨envTypes, envCtors, htypes, hctors,
+        Lean4Lean.List.Forall₂.imp
+          (fun _ _ h => let ⟨rule⟩ := h; ⟨rule.mono hctorsLE⟩)
+          holdRules⟩ }
 
 theorem VInductDecl.CompilesTo.types
     {env : VEnv} {decl : VInductDecl} {block : VInductBlock}

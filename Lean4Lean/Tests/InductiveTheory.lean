@@ -159,7 +159,8 @@ def enumBlock : VInductBlock where
   recursors := [enumRecursor]
   rules := [enumRule]
 
-def enumIota : enumDecl.IotaRule .empty enumBlock enumType enumCtor enumRule where
+def enumIota : enumDecl.IotaRule enumCtorsEnv enumBlock enumType enumCtor
+    enumRule where
   recursor := enumRecursor
   recursor_mem := by simp [enumBlock]
   recursor_name := by simp [enumRecursor, VInductDecl.recursorName, enumType]
@@ -208,7 +209,12 @@ theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation .empty enumBlock 
   recursors := by
     exact .cons ⟨enumRecursorShape⟩ .nil
   rules := by
-    exact .cons ⟨enumIota⟩ .nil
+    refine ⟨enumTypesEnv, enumCtorsEnv, ?_, ?_, .cons ⟨enumIota⟩ .nil⟩
+    · simp [enumBlock, enumDecl, enumType, enumTypesEnv,
+        VInductDecl.typeConstants, VEnv.addConsts, VEnv.addConst, VEnv.empty]
+    · simp [enumBlock, enumDecl, enumType, enumCtor, enumTypesEnv,
+        enumCtorsEnv, VInductDecl.constructorConstants, VEnv.addConsts,
+        VEnv.addConst]
   names := by
     simp [enumBlock, enumDecl, enumType, enumCtor, enumRecursor,
       VInductDecl.typeConstants, VInductDecl.constructorConstants]
