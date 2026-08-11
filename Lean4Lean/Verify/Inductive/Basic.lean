@@ -23276,18 +23276,27 @@ theorem BoundFVarArray.ofSublist
       es.Sublist (fvars.map Expr.fvar) →
       ∃ selected : List FVarId,
         es = selected.map Expr.fvar ∧ selected.Sublist fvars := by
-    intro es fvars h
-    induction h with
-    | slnil => exact ⟨[], rfl, .slnil⟩
-    | @cons _ fv _ _ _ ih =>
-      rcases ih with ⟨selected, hes, hselected⟩
-      exact ⟨selected, hes, .cons _ hselected⟩
-    | @cons₂ _ fv _ _ _ ih =>
-      rcases ih with ⟨selected, hes, hselected⟩
-      exact ⟨fv :: selected, by simp [hes], .cons₂ _ hselected⟩
+    intro es fvars
+    induction fvars generalizing es with
+    | nil =>
+      intro h
+      have hes : es = [] := List.sublist_nil.mp (by simpa using h)
+      subst es
+      exact ⟨[], rfl, .slnil⟩
+    | cons fv fvars ih =>
+      intro h
+      cases h with
+      | slnil => exact ⟨[], rfl, .slnil⟩
+      | cons htail =>
+        rcases ih htail with ⟨selected, hes, hselected⟩
+        exact ⟨selected, hes, .cons _ hselected⟩
+      | cons₂ htail =>
+        rcases ih htail with ⟨selected, hes, hselected⟩
+        exact ⟨fv :: selected, by simp [hes], .cons₂ _ hselected⟩
+  have hy : ys.toList = H.fvars.map Expr.fvar := by
+    simpa using congrArg Array.toList H.expressions
   have hsource : xs.toList.Sublist (H.fvars.map Expr.fvar) := by
-    rw [← Array.toList_inj, H.expressions]
-    exact hxy
+    rwa [← hy]
   rcases extract hsource with ⟨selected, hselectedExprs, hselected⟩
   exact ⟨{
     fvars := selected
@@ -33091,9 +33100,23 @@ recursive-domain evidence that the operational `RecursorRule` omits. -/
 structure BoundGeneratedRecursorRule.Semantics
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
-    (recLparams : List Name) (decl : VInductDecl) where
+    (recLparams : List Name) (decl : VInductDecl)
+    (expectedOwnerIdx : Nat) where
   depth : Nat
   context : RecursorContextWF H.root recLparams
+  validStats : RecursorValidAppStatsWF context.venv recLparams
+    context.mlctx.vlctx stats decl depth
+  ownerIdx : Nat
+  owner_lt : ownerIdx < decl.types.length
+  expected_owner_lt : expectedOwnerIdx < decl.types.length
+  expected_target_valid : AddInductive.isValidIndAppIdx stats H.target
+    expectedOwnerIdx = true
+  targetTarget : VExpr
+  target_translation : TrExprS context.venv recLparams context.mlctx.vlctx
+    H.target targetTarget
+  target_type : context.venv.IsType recLparams.length
+    context.mlctx.vlctx.toCtx targetTarget
+  target_valid : AddInductive.isValidIndApp? stats H.target = some ownerIdx
   fields : List
     (RecursorRecursiveDomainAt context.venv decl recLparams.length)
   selection : RecursorFieldSelectionsAt context.venv decl recLparams.length
@@ -33101,6 +33124,44 @@ structure BoundGeneratedRecursorRule.Semantics
   calls : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
     lvls context decl depth H.recursiveArgs H.recursiveResults
     H.recursiveArgs.size
+
+/-- Duplicate-free declaration names identify the first family selected by
+`isValidIndApp?` with the constructor owner certified by the earlier checker
+pass.  This is the explicit bridge between the scan used by rule generation
+and the outer mutual-family traversal. -/
+theorem BoundGeneratedRecursorRule.Semantics.owner_eq
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule)
+    (Hsemantic : H.Semantics recLparams decl expectedOwnerIdx)
+    (hnames : (decl.types.map (·.name)).Nodup) :
+    Hsemantic.ownerIdx = Hsemantic.expectedOwnerIdx := by
+  have hselectedValid : AddInductive.isValidIndAppIdx stats H.target
+      Hsemantic.ownerIdx = true :=
+    (checkPositivityStep.isValidIndApp?_some Hsemantic.target_valid).2
+  have hselectedHead : H.target.getAppFn =
+      .const (decl.types[Hsemantic.ownerIdx]'Hsemantic.owner_lt).name
+        stats.levels :=
+    checkPositivityStep.isValidIndAppIdx.constHead hselectedValid
+      (Hsemantic.validStats.indConstAt Hsemantic.owner_lt)
+  have hexpectedHead : H.target.getAppFn =
+      .const
+        (decl.types[Hsemantic.expectedOwnerIdx]'Hsemantic.expected_owner_lt).name
+        stats.levels :=
+    checkPositivityStep.isValidIndAppIdx.constHead
+      Hsemantic.expected_target_valid
+      (Hsemantic.validStats.indConstAt Hsemantic.expected_owner_lt)
+  have hname :
+      (decl.types[Hsemantic.ownerIdx]'Hsemantic.owner_lt).name =
+      (decl.types[Hsemantic.expectedOwnerIdx]'Hsemantic.expected_owner_lt).name := by
+    have heq := hselectedHead.symm.trans hexpectedHead
+    injection heq
+  have hleft : Hsemantic.ownerIdx < (decl.types.map (·.name)).length := by
+    simpa using Hsemantic.owner_lt
+  have hright : Hsemantic.expectedOwnerIdx <
+      (decl.types.map (·.name)).length := by
+    simpa using Hsemantic.expected_owner_lt
+  apply (List.getElem_inj (h₀ := hleft) (h₁ := hright) hnames).mp
+  simpa only [List.getElem_map] using hname
 
 /-- The semantic refinement of the actual recursive-call loop and the
 classifier trace together produce the source-level field selection consumed
@@ -33114,6 +33175,8 @@ theorem BoundGeneratedRecursorRule.iotaRuleTranslation_ofSemanticCalls
     (Hcalls : SemanticBoundGeneratedRecursiveCalls indTypes stats motives
       minors lvls R decl depth H.recursiveArgs H.recursiveResults
       H.recursiveArgs.size)
+    {fields : List
+      (RecursorRecursiveDomainAt R.venv decl recLparams.length)}
     (Hselection : RecursorFieldSelectionsAt R.venv decl recLparams.length
       H.allArgs H.recursiveArgs fields)
     (Hequation : H.IotaEquationTranslationCertificate trEnv Us Δ decl block
@@ -33129,7 +33192,7 @@ theorem BoundGeneratedRecursorRule.iotaRuleTranslation_ofSemanticCalls
 theorem BoundGeneratedRecursorRule.iotaRuleTranslation_ofSemantics
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
-    (Hsemantic : H.Semantics recLparams decl)
+    (Hsemantic : H.Semantics recLparams decl expectedOwnerIdx)
     (Hequation : H.IotaEquationTranslationCertificate trEnv Us Δ decl block
       owner ctor rule)
     (hctx : VLCtx.NoIndConsts (block.recursors.map (·.name)) Δ) :
@@ -33160,22 +33223,22 @@ ordinal in lockstep. -/
 inductive SemanticBoundGeneratedRecursorRules
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
-    (recLparams : List Name) (decl : VInductDecl) :
+    (recLparams : List Name) (decl : VInductDecl) (ownerIdx : Nat) :
     List Constructor → Nat → List RecursorRule → Prop
   | nil : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams decl [] start []
+      lvls recLparams decl ownerIdx [] start []
   | cons
       (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
         ctor start rule)
-      (Hsemantic : Nonempty (Hrule.Semantics recLparams decl))
+      (Hsemantic : Nonempty (Hrule.Semantics recLparams decl ownerIdx))
       (Htail : SemanticBoundGeneratedRecursorRules indTypes stats motives
-        minors lvls recLparams decl ctors (start + 1) rules) :
+        minors lvls recLparams decl ownerIdx ctors (start + 1) rules) :
       SemanticBoundGeneratedRecursorRules indTypes stats motives minors lvls
-        recLparams decl (ctor :: ctors) start (rule :: rules)
+        recLparams decl ownerIdx (ctor :: ctors) start (rule :: rules)
 
 theorem SemanticBoundGeneratedRecursorRules.bound
     (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams decl ctors start rules) :
+      lvls recLparams decl ownerIdx ctors start rules) :
     BoundGeneratedRecursorRules indTypes stats motives minors lvls ctors
       start rules := by
   induction H with
@@ -33184,7 +33247,7 @@ theorem SemanticBoundGeneratedRecursorRules.bound
 
 theorem SemanticBoundGeneratedRecursorRules.length
     (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams decl ctors start rules) :
+      lvls recLparams decl ownerIdx ctors start rules) :
     rules.length = ctors.length := by
   induction H with
   | nil => rfl
@@ -33192,11 +33255,11 @@ theorem SemanticBoundGeneratedRecursorRules.length
 
 theorem SemanticBoundGeneratedRecursorRules.entry
     (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams decl ctors start rules) :
+      lvls recLparams decl ownerIdx ctors start rules) :
     ∀ i (hctor : i < ctors.length) (hrule : i < rules.length),
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
           ctors[i] (start + i) rules[i],
-        Nonempty (Hrule.Semantics recLparams decl) := by
+        Nonempty (Hrule.Semantics recLparams decl ownerIdx) := by
   induction H with
   | nil =>
       intro i hctor
@@ -33207,8 +33270,7 @@ theorem SemanticBoundGeneratedRecursorRules.entry
       | zero => exact ⟨Hrule, Hsemantic⟩
       | succ i =>
         have h := ih i (by simpa using hctor) (by simpa using hrule)
-        simpa only [List.getElem_cons_succ, Nat.add_assoc,
-          Nat.add_comm 1 i] using h
+        simpa [Nat.add_assoc] using h
 
 theorem BoundGeneratedRecursorRules.length
     (H : BoundGeneratedRecursorRules indTypes stats motives minors lvls
@@ -33533,14 +33595,16 @@ certificate and the new pointwise semantic payload. -/
 theorem oneRuleSemantics
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
-    (ctor : Constructor) (minorIdx : Nat)
+    (ctor : Constructor) (minorIdx ownerIdx : Nat)
     {recLparams : List Name} {depth : Nat}
     {c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
-    {decl : VInductDecl} {tail tailTarget introTarget : Expr}
+    {decl : VInductDecl} {tail : Expr} {tailTarget introTarget : VExpr}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hprefix : RecursorParamPrefix stats 0 ctor.type tail)
+    (howner : ownerIdx < decl.types.length)
+    (Hnormal : CheckedConstructorOwnerNormalForm stats ownerIdx tail)
     (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
@@ -33578,7 +33642,7 @@ theorem oneRuleSemantics
             return (rule, minorIdx + 1)) c).WF fun out =>
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors
           lvls ctor minorIdx out.1,
-        Nonempty (Hrule.Semantics recLparams decl) ∧
+        Nonempty (Hrule.Semantics recLparams decl ownerIdx) ∧
         out.2 = minorIdx + 1 := by
   let process := fun _ allArgs recursiveArgs =>
     AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
@@ -33597,20 +33661,31 @@ theorem oneRuleSemantics
     (Q := fun out =>
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors
           lvls ctor minorIdx out.1,
-        Nonempty (Hrule.Semantics recLparams decl) ∧
+        Nonempty (Hrule.Semantics recLparams decl ownerIdx) ∧
         out.2 = minorIdx + 1)
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
       process c R Hstats hprefix hwhnf hconsume hlit hctx hproj Htail
       HtailType Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allArgs
-    recursiveArgs fields args _hterminalNonforall _Hterminal _HterminalType
+    recursiveArgs fields args hterminalNonforall Hterminal HterminalType
     Hselection Hrecursive HfieldsRecent _Hopening _HintroApplied
     _HintroAppliedType
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
   have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
       Rargs.mlctx.vlctx :=
     HfieldsRecent.noIndConsts (names := decl.types.map (·.name)) hctx
+  have hvalidIdx : AddInductive.isValidIndAppIdx stats terminal ownerIdx =
+      true :=
+    Hnormal.validOfOpening _Hopening Hparams HfieldsRecent
+      (Hstats.indConstAt howner) hterminalNonforall
+  rcases checkPositivityStep.isValidIndApp?_exists_of_valid hvalidIdx
+      (Hstats.indConstAt howner) with ⟨selectedOwner, hselectedOwner⟩
+  have hselectedStats :=
+    checkPositivityStep.isValidIndApp?_some hselectedOwner
+  have hselectedOwnerLt : selectedOwner < decl.types.length := by
+    rw [← Hstats.types_size]
+    exact hselectedStats.1
   let buildRule : Array Expr →
       AddInductive.M (RecursorRule × Nat) := fun recursiveResults => do
     let lctx ← getLCtx
@@ -33691,6 +33766,15 @@ theorem oneRuleSemantics
   exact {
     depth := depth + allArgs.size
     context := Rargs
+    validStats := HstatsArgs
+    ownerIdx := selectedOwner
+    owner_lt := hselectedOwnerLt
+    expected_owner_lt := howner
+    expected_target_valid := hvalidIdx
+    targetTarget := terminalTarget
+    target_translation := Hterminal
+    target_type := HterminalType
+    target_valid := hselectedOwner
     fields := fields
     selection := Hselection
     calls := Hcalls }
@@ -33701,12 +33785,13 @@ each constructor seed from the earlier checker certificate. -/
 theorem semanticGeneratedRules
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
-    (ctors : List Constructor) (acc : Array RecursorRule) (start : Nat)
+    (ctors : List Constructor) (acc : Array RecursorRule) (start ownerIdx : Nat)
     {recLparams : List Name} {depth : Nat} {c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
     {decl : VInductDecl}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
+    (howner : ownerIdx < decl.types.length)
     (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
@@ -33724,6 +33809,7 @@ theorem semanticGeneratedRules
     (Hseed : ∀ ctor, ctor ∈ ctors →
       ∃ tail tailTarget introTarget,
         RecursorParamPrefix stats 0 ctor.type tail ∧
+        Nonempty (CheckedConstructorOwnerNormalForm stats ownerIdx tail) ∧
         TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
         R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
@@ -33735,7 +33821,7 @@ theorem semanticGeneratedRules
         ∃ generated,
           out.1 = acc.toList ++ generated ∧
           SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-            lvls recLparams decl ctors start generated ∧
+            lvls recLparams decl ownerIdx ctors start generated ∧
           out.2 = start + ctors.length := by
   induction ctors generalizing acc start with
   | nil =>
@@ -33745,11 +33831,12 @@ theorem semanticGeneratedRules
       exact ⟨[], by simp, .nil, by simp⟩
   | cons ctor ctors ih =>
       rcases Hseed ctor (by simp) with
-        ⟨tail, tailTarget, introTarget, Hprefix, Htail, HtailType,
+        ⟨tail, tailTarget, introTarget, Hprefix, ⟨Hnormal⟩, Htail, HtailType,
           Hintro, HintroType⟩
       rw [AddInductive.mkRecRules.loopCtors]
       have Hone := oneRuleSemantics indTypes stats motives minors lvls ctor
-        start R Hstats Hprefix hwhnf hconsume hlit hctx hproj Htail
+        start ownerIdx R Hstats Hprefix howner Hnormal hwhnf hconsume hlit
+        hctx hproj Htail
         HtailType Hintro HintroType Hparams Hmotives Hminors HouterNodup
         (by simp at hminorsRoom; omega)
       exact Hone.bind fun out Hout => by
@@ -33757,6 +33844,8 @@ theorem semanticGeneratedRules
         have HtailSeed : ∀ nextCtor, nextCtor ∈ ctors →
             ∃ tail tailTarget introTarget,
               RecursorParamPrefix stats 0 nextCtor.type tail ∧
+              Nonempty
+                (CheckedConstructorOwnerNormalForm stats ownerIdx tail) ∧
               TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
               R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
                 tailTarget ∧
@@ -33773,8 +33862,8 @@ theorem semanticGeneratedRules
           rcases Hresult with ⟨generated, hout, Hgenerated, hend⟩
           refine ⟨out.1 :: generated, ?_, ?_, ?_⟩
           · simpa [hout]
-          · apply SemanticBoundGeneratedRecursorRules.cons Hrule Hsemantic
-            (by simpa [hnext] using Hgenerated)
+          · exact SemanticBoundGeneratedRecursorRules.cons Hrule Hsemantic
+              (by simpa [hnext] using Hgenerated)
           · simp at hend ⊢
             omega
 
@@ -33956,6 +34045,7 @@ theorem mkRecRules.semanticGeneratedRules
     {decl : VInductDecl}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
+    (howner : dIdx < decl.types.length)
     (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
@@ -33973,6 +34063,7 @@ theorem mkRecRules.semanticGeneratedRules
     (Hseed : ∀ ctor, ctor ∈ indTypes[dIdx]!.ctors →
       ∃ tail tailTarget introTarget,
         RecursorParamPrefix stats 0 ctor.type tail ∧
+        Nonempty (CheckedConstructorOwnerNormalForm stats dIdx tail) ∧
         TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
         R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
@@ -33983,12 +34074,12 @@ theorem mkRecRules.semanticGeneratedRules
       start c).WF fun out =>
         SemanticBoundGeneratedRecursorRules indTypes stats motives minors
           (AddInductive.getRecLevels elimLevel stats.levels) recLparams decl
-          indTypes[dIdx]!.ctors start out.1 ∧
+          dIdx indTypes[dIdx]!.ctors start out.1 ∧
         out.2 = start + indTypes[dIdx]!.ctors.length := by
   unfold AddInductive.mkRecRules
   have H := mkRecRules.loopCtors.semanticGeneratedRules indTypes stats
     motives minors (AddInductive.getRecLevels elimLevel stats.levels)
-    indTypes[dIdx]!.ctors #[] start R Hstats hwhnf hconsume hlit hctx
+    indTypes[dIdx]!.ctors #[] start dIdx R Hstats howner hwhnf hconsume hlit hctx
     hproj Hparams Hmotives Hminors HouterNodup hminorsRoom Hseed
   exact H.mono fun out Hout => by
     rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
@@ -34063,6 +34154,7 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
     (Hseed : ∀ ctor, ctor ∈ indTypes[dIdx]!.ctors →
       ∃ tail tailTarget introTarget,
         RecursorParamPrefix stats 0 ctor.type tail ∧
+        Nonempty (CheckedConstructorOwnerNormalForm stats dIdx tail) ∧
         TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
         R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
@@ -34075,7 +34167,8 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
         SemanticBoundGeneratedRecursorRules indTypes stats
           (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
           (AddInductive.getRecLevels elimLevel stats.levels) recLparams decl
-          indTypes[dIdx]!.ctors (recursorMinorOffset indTypes dIdx) out.1 ∧
+          dIdx indTypes[dIdx]!.ctors (recursorMinorOffset indTypes dIdx)
+          out.1 ∧
         out.2 = recursorMinorOffset indTypes (dIdx + 1) := by
   have htotal :
       (indTypes.toList.flatMap (fun type => type.ctors)).length =
@@ -34089,9 +34182,13 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
     exact howners'.trans Hcard.minors.symm
   have hroom := recursorMinorOffset_room indTypes dIdx hidx
   rw [htotal] at hroom
+  have howner : dIdx < decl.types.length := by
+    have htypes := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl
+    have hsize : indTypes.size = decl.types.length := by simpa using htypes
+    rwa [← hsize]
   have H := mkRecRules.semanticGeneratedRules indTypes elimLevel stats dIdx
     (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-    (recursorMinorOffset indTypes dIdx) R Hstats hwhnf hconsume hlit hctx
+    (recursorMinorOffset indTypes dIdx) R Hstats howner hwhnf hconsume hlit hctx
     hproj Hparams Hbindings.motives Hbindings.flatMinors
     (Hbindings.outerNodup Hparams hnoalias) hroom Hseed
   exact H.mono fun out Hout => by
@@ -36195,8 +36292,8 @@ structure GeneratedRecursorRuleSemanticsRange
       SemanticBoundGeneratedRecursorRules indTypes stats
         (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels elimLevel stats.levels) recLparams decl
-        indTypes[start + i]!.ctors (recursorMinorOffset indTypes (start + i))
-        info.rules
+        (start + i) indTypes[start + i]!.ctors
+        (recursorMinorOffset indTypes (start + i)) info.rules
 
 def GeneratedRecursorsRange.atZero
     (H : GeneratedRecursorsRange safety env lparams elimLevel c stats
@@ -37625,6 +37722,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
       ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
         ∃ tail tailTarget introTarget,
           RecursorParamPrefix stats 0 ctor.type tail ∧
+          Nonempty
+            (CheckedConstructorOwnerNormalForm stats owner tail) ∧
           TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
           TrExprS R.venv recLparams R.mlctx.vlctx
@@ -37888,6 +37987,8 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
       ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
         ∃ tail tailTarget introTarget,
           RecursorParamPrefix stats 0 ctor.type tail ∧
+          Nonempty
+            (CheckedConstructorOwnerNormalForm stats owner tail) ∧
           TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
           TrExprS R.venv recLparams R.mlctx.vlctx
@@ -49144,6 +49245,8 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
         ∃ tail tailTarget introTarget,
           RecursorParamPrefix stats 0 ctor.type tail ∧
+          Nonempty
+            (CheckedConstructorOwnerNormalForm stats owner tail) ∧
           TrExprS Rlocal.venv
             (AddInductive.getRecLevelParams elimLevel c.lparams)
             Rlocal.mlctx.vlctx tail tailTarget ∧
@@ -49163,9 +49266,9 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     rcases R.checkedConstructorRuntimeSeedAt elimLevel hElim hlparams Rlocal
         henvLocal HsuffixLocal hparameterDeclsLocal owner howner ctorIdx
         hctorIdx with
-      ⟨tail, tailTarget, introTarget, Hprefix, _Hnormal, Htail, HtailType,
+      ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, Htail, HtailType,
         Hintro, HintroType⟩
-    exact ⟨tail, tailTarget, introTarget, Hprefix, Htail, HtailType,
+    exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, Htail, HtailType,
       Hintro, HintroType⟩
   have Hrecursors := AddInductive.declareRecursors.bindingSemanticWF
     (elimLevel := elimLevel) Hvalid Rlocal.toBindingContextWF Rlocal
@@ -50045,7 +50148,7 @@ theorem RecursorPhasesResult.generatedRuleSemantics
       (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
       (AddInductive.getRecLevels H.elimLevel stats.levels)
       (AddInductive.getRecLevelParams H.elimLevel c.lparams) decl
-      indTypes[owner]!.ctors (recursorMinorOffset indTypes owner)
+      owner indTypes[owner]!.ctors (recursorMinorOffset indTypes owner)
       (H.generated.entry owner howner).info.rules := by
   rcases H.ruleSemantics.entry owner howner with
     ⟨info, hsource, Hsemantic⟩
@@ -50079,8 +50182,39 @@ theorem RecursorPhasesResult.generatedRuleSemantic
         (recursorMinorOffset indTypes owner + i)
         (H.generated.entry owner howner).info.rules[i],
       Nonempty (Hrule.Semantics
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams) decl) :=
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams) decl owner) :=
   (H.generatedRuleSemantics owner howner).entry i hctor hrule
+
+/-- The family selected from the generated residual is exactly the outer
+owner whose constructor batch is being traversed. -/
+theorem RecursorPhasesResult.generatedRuleSemanticOwner
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length)
+    (i : Nat) (hctor : i < indTypes[owner]!.ctors.length)
+    (hrule : i < (H.generated.entry owner howner).info.rules.length) :
+    ∃ Hrule : BoundGeneratedRecursorRule indTypes stats
+        (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
+        (AddInductive.getRecLevels H.elimLevel stats.levels)
+        indTypes[owner]!.ctors[i]
+        (recursorMinorOffset indTypes owner + i)
+        (H.generated.entry owner howner).info.rules[i],
+      ∃ Hsemantic : Hrule.Semantics
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams) decl owner,
+        Hsemantic.ownerIdx = owner := by
+  rcases H.generatedRuleSemantic owner howner i hctor hrule with
+    ⟨Hrule, ⟨Hsemantic⟩⟩
+  have htypeNames : (decl.types.map (·.name)).Nodup := by
+    have hprefix := (List.nodup_append.mp R.core.sourceNames_nodup).1
+    simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
+      VInductiveType.toVConstVal, Function.comp_def] using hprefix
+  exact ⟨Hrule, Hsemantic, Hsemantic.owner_eq Hrule htypeNames⟩
 
 theorem RecursorPhasesResult.recursorNamesFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
