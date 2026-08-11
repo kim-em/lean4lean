@@ -4378,6 +4378,19 @@ theorem cachedParamVars_eq_paramVars (decl : VInductDecl) :
       omega)]
     simp [hi]
 
+theorem cachedParamVars_zero_eq_recursorCanonicalVars (n : Nat) :
+    cachedParamVars n 0 = recursorCanonicalVars n := by
+  unfold recursorCanonicalVars
+  apply List.ext_getElem?
+  intro i
+  rw [cachedParamVars_getElem?]
+  by_cases hi : i < n
+  · rw [List.getElem?_map, List.getElem?_reverse (by simp [hi])]
+    have hj : n - 1 - i < n := by omega
+    simp [hi, hj]
+  · rw [List.getElem?_eq_none_iff.2 (by simp; omega)]
+    simp [hi]
+
 /-- Local invariant for the first header's common-parameter branch. -/
 structure ParameterCachePrefix (env : VEnv) (Us : List Name) (Δ : VLCtx)
     (stats : AddInductive.InductiveStats) (done depth : Nat) : Prop where
@@ -15641,6 +15654,10 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         TrExprS Hc.venv c.lparams Hsuffix.parameterDecls tail tailTarget ∧
         ConstructorTailCertificate Hc.venv decl target
           Hsuffix.parameterDecls.toCtx 0 tailTarget ∧
+        Nonempty
+          (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+            Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
+            Hsuffix.parameterDecls tailTarget stats.params.size 0) ∧
         decl.CtorShape Hc.venv params target ctorVal ∧
         Hc.venv.IsType decl.uvars [] ctorVal.type) := by
   have hnoFVars : FVarsIn (fun _ => False) source := by
@@ -15702,10 +15719,15 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       intro out hout
       have Hchecked := Hshape out hout
       have Htail' := Htail out hout
+      let Hinitial := ConstructorSynthesisState.initial Hctor
+        (by simpa [Hstats.uvars] using Hchecked.2)
       exact ⟨source, ctorVal.type,
         .done (by rw [Hstats.params_size, hzero]),
         by simpa [hscope] using Hctor.type,
-        by simpa [hscope] using Htail', Hchecked⟩
+        by simpa [hscope] using Htail',
+        by simpa [hscope, Hstats.params_size, hzero] using
+          (show Nonempty _ from ⟨Hinitial⟩),
+        Hchecked⟩
   by_cases hforall : ∃ name dom body bi,
       source = .forallE name dom body bi
   · rcases hforall with ⟨name, dom, body, bi, rfl⟩
@@ -15724,6 +15746,10 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         TrExprS Hc.venv c.lparams Hsuffix.parameterDecls tail tailTarget ∧
         ConstructorTailCertificate Hc.venv decl target
           Hsuffix.parameterDecls.toCtx 0 tailTarget ∧
+        Nonempty
+          (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+            Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
+            Hsuffix.parameterDecls tailTarget stats.params.size 0) ∧
         decl.CtorShape Hc.venv params target ctorVal ∧
         Hc.venv.IsType decl.uvars [] ctorVal.type)
       (Hresult := by
@@ -15771,7 +15797,10 @@ theorem checkConstructors.loopCtor.refinesCtorShape
             stats.params.size (.forallE name dom body bi) source' := by
           simpa only [Hstats.params_size] using Hsegment'
         exact ⟨source', current', HsegmentComplete.complete rfl,
-          htrNarrow, Htail', Hchecked⟩)
+          htrNarrow, Htail',
+          by simpa [Hstats.params_size] using
+            (show Nonempty _ from ⟨Hsynthesis'⟩),
+          Hchecked⟩)
       (Hearly := by
         intro source' scope' current' fullCurrent' i' fuel' hi'
           hforall Hscope' _Hsynthesis' _htrNarrow _htrFull
@@ -15882,11 +15911,17 @@ def ConstructorParamPrefixRows.complete
 def CheckedConstructorTailReplayAt
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
-    (target : VInductiveType) (source : Expr) : Prop :=
-  ∃ tail tailTarget,
-    RecursorParamPrefix stats 0 source tail ∧
+    (target : VInductiveType) (source : Constructor) : Prop :=
+  ∃ ctorVal tail tailTarget,
+    ctorVal ∈ target.ctors ∧
+    TrSourceConstRaw env Us source.name source.type ctorVal ∧
+    RecursorParamPrefix stats 0 source.type tail ∧
     TrExprS env Us scope tail tailTarget ∧
-    ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget
+    ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget ∧
+    Nonempty
+      (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        env Us (constructorTelescopeTarget ctorVal) scope tailTarget
+        stats.params.size 0)
 
 structure ConstructorTailReplayRow
     (env : VEnv) (Us : List Name) (scope : VLCtx)
@@ -15895,7 +15930,7 @@ structure ConstructorTailReplayRow
     (done : Nat) : Prop where
   covered : done ≤ ctors.length
   replays : ∀ i, i < done → (hi : i < ctors.length) →
-    CheckedConstructorTailReplayAt env Us scope stats decl target ctors[i].type
+    CheckedConstructorTailReplayAt env Us scope stats decl target ctors[i]
 
 def ConstructorTailReplayRow.empty
     (env : VEnv) (Us : List Name) (scope : VLCtx)
@@ -15909,7 +15944,7 @@ def ConstructorTailReplayRow.push
     (H : ConstructorTailReplayRow env Us scope stats decl target ctors done)
     (hi : done < ctors.length)
     (Hreplay : CheckedConstructorTailReplayAt env Us scope stats decl target
-      ctors[done].type) :
+      ctors[done]) :
     ConstructorTailReplayRow env Us scope stats decl target ctors (done + 1) where
   covered := by omega
   replays i hidone hi' := by
@@ -15961,7 +15996,7 @@ structure CheckedRecursorConstructorTails
   replay : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
       (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
     CheckedConstructorTailReplayAt env Us scope stats decl
-      decl.types[familyIdx] indTypes[familyIdx].ctors[ctorIdx].type
+      decl.types[familyIdx] indTypes[familyIdx].ctors[ctorIdx]
 
 def ConstructorTailReplayRows.complete
     (H : ConstructorTailReplayRows env Us scope stats decl indTypes
@@ -16006,6 +16041,13 @@ theorem refinesTypeWithReplay
           TrExprS Hc.venv c.lparams tailScope tail tailTarget ∧
           ConstructorTailCertificate Hc.venv decl target
             tailScope.toCtx 0 tailTarget ∧
+          TrSourceConstRaw Hc.venv c.lparams source.ctors[i].name
+            source.ctors[i].type target.ctors[i] ∧
+          Nonempty
+            (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+              Hc.venv c.lparams
+              (constructorTelescopeTarget target.ctors[i]) tailScope
+              tailTarget stats.params.size 0) ∧
           decl.CtorShape envTypes params target target.ctors[i] ∧
           envTypes.IsType decl.uvars [] target.ctors[i].type)
     (Hfinish : ConstructorTypePrefix envTypes decl params target
@@ -16029,11 +16071,13 @@ theorem refinesTypeWithReplay
       checkedType' hchecked
     exact Hchecked.mono fun _ HcheckedCtor => by
       rcases HcheckedCtor with
-        ⟨tail, tailTarget, Hparam, Htranslated, Htail,
-          HctorShape, HctorType⟩
+        ⟨tail, tailTarget, Hparam, Htranslated, Htail, HctorNarrow,
+          Hsynthesis, HctorShape, HctorType⟩
       have HtailReplay : CheckedConstructorTailReplayAt Hc.venv c.lparams
-          tailScope stats decl target source.ctors[ctorIdx].type :=
-        ⟨tail, tailTarget, Hparam, Htranslated, Htail⟩
+          tailScope stats decl target source.ctors[ctorIdx] :=
+        ⟨target.ctors[ctorIdx], tail, tailTarget,
+          List.getElem_mem htarget, HctorNarrow, Hparam, Htranslated, Htail,
+          Hsynthesis⟩
       exact refinesTypeWithReplay Q Hc Htarget (.succ Hnames hidx)
         (Hprefix.push htarget HctorShape HctorType)
         (Hreplay.push hidx Hparam) (Htails.push hidx HtailReplay)
@@ -16096,6 +16140,16 @@ theorem refinesBlockWithReplay
           TrExprS Hc.venv c.lparams tailScope tail tailTarget ∧
           ConstructorTailCertificate Hc.venv decl decl.types[targetIdx]
             tailScope.toCtx 0 tailTarget ∧
+          TrSourceConstRaw Hc.venv c.lparams
+            indTypes[targetIdx].ctors[i].name
+            indTypes[targetIdx].ctors[i].type
+            decl.types[targetIdx].ctors[i] ∧
+          Nonempty
+            (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+              Hc.venv c.lparams
+              (constructorTelescopeTarget
+                decl.types[targetIdx].ctors[i]) tailScope tailTarget
+              stats.params.size 0) ∧
           decl.CtorShape envTypes params decl.types[targetIdx]
             decl.types[targetIdx].ctors[i] ∧
           envTypes.IsType decl.uvars [] decl.types[targetIdx].ctors[i].type)
@@ -16251,9 +16305,9 @@ theorem checkConstructors.loopTypes.refinesMaterialized
     exact Hchecked.mono fun _ Hresult => by
       rcases Hresult with
         ⟨tail, tailTarget, Hprefix, Htranslated, HtailCertificate,
-          Hshape, Htype⟩
+          Hsynthesis, Hshape, Htype⟩
       exact ⟨tail, tailTarget, Hprefix, Htranslated, HtailCertificate,
-        Hshape, Htype⟩
+        Hctor, Hsynthesis, Hshape, Htype⟩
   · intro Hcomplete Hreplays Htails
     exact {
       checked := Hcomplete.checkedComplete (env := sourceEnv)
@@ -16466,6 +16520,118 @@ theorem VEnv.IsDefEqCtx.instL
   | _, _, _, .succ hctx htype =>
     .succ (VEnv.IsDefEqCtx.instL hls hctx) (htype.instL hls)
 
+theorem _root_.Lean4Lean.VLCtx.WF.mono
+    {env env' : VEnv} (henv : env ≤ env') :
+    ∀ {scope : VLCtx}, VLCtx.WF env U scope → VLCtx.WF env' U scope
+  | [], H => H
+  | (ofv, decl) :: scope, ⟨Hscope, Hfresh, Hdecl⟩ => by
+    refine ⟨VLCtx.WF.mono henv Hscope, Hfresh, ?_⟩
+    cases decl with
+    | vlam type => exact Hdecl.mono henv
+    | vlet type value => exact Hdecl.mono henv
+
+/-- Universe-instantiated view of a synthesized header target.  The stored
+constant arity and identity are unchanged; only the type interpreted under
+the new universe context is substituted. -/
+def _root_.Lean4Lean.VInductiveTypeSkeleton.instL
+    (target : VInductiveTypeSkeleton) (levels : List VLevel) :
+    VInductiveTypeSkeleton :=
+  { target with type := target.type.instL levels }
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instL_wrapForalls
+    (domains : List VExpr) (result : VExpr) (levels : List VLevel) :
+    (VExpr.wrapForalls domains result).instL levels =
+      VExpr.wrapForalls (domains.map (VExpr.instL levels))
+        (result.instL levels) := by
+  induction domains with
+  | nil => rfl
+  | cons domain domains ih =>
+    exact congrArg (VExpr.forallE (domain.instL levels)) ih
+
+def checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.mono
+    {env env' : VEnv} (henv : env ≤ env')
+    (H : checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      env Us target scope current i nindices) :
+    checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      env' Us target scope current i nindices where
+  params := H.params
+  indices := H.indices
+  parameterCount := H.parameterCount
+  indexCount := H.indexCount
+  scopeCtx := H.scopeCtx
+  scopeWF := H.scopeWF.mono henv
+  currentType := H.currentType.mono henv
+  exprType := H.exprType
+  header := H.header.mono henv
+
+/-- Reinterpret an exact narrow telescope synthesis under an arbitrary
+universe substitution.  This is the semantic bridge used by constructor
+replay when large elimination prepends its fresh universe parameter. -/
+noncomputable def
+    checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.instL
+    {Us' : List Name}
+    (hlevels : ∀ level ∈ levels, level.WF Us'.length)
+    (hlength : levels.length = Us.length)
+    (H : checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      env Us target scope current i nindices) :
+    checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      env Us'
+      (target.instL levels) (scope.instL levels) (current.instL levels)
+      i nindices where
+  params := H.params.map (VExpr.instL levels)
+  indices := H.indices.map (VExpr.instL levels)
+  parameterCount := by simp [H.parameterCount]
+  indexCount := by simp [H.indexCount]
+  scopeCtx := by
+    simpa [VLCtx.instL_toCtx, List.map_append, List.map_reverse,
+      Function.comp_def] using
+      congrArg (List.map (VExpr.instL levels)) H.scopeCtx
+  scopeWF := by
+    have hsource : VLCtx.WF env levels.length scope := by
+      simpa [hlength] using H.scopeWF
+    exact hsource.instL hlevels
+  currentType := by
+    have hsource : env.IsType levels.length scope.toCtx current := by
+      simpa [hlength] using H.currentType
+    simpa [VLCtx.instL_toCtx] using hsource.instL hlevels
+  exprType := H.exprType.instL levels
+  header := by
+    have hsource : env.IsDefEq levels.length [] target.type
+        (VExpr.wrapForalls (H.params ++ H.indices) current) H.exprType := by
+      simpa [hlength] using H.header
+    simpa [VInductiveTypeSkeleton.instL, List.map_append] using
+      hsource.instL hlevels
+
+/-- Applying an installed constant to the canonical variables of an exact
+narrow parameter synthesis produces the retained residual tail type. -/
+theorem checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.canonicalApplication
+    {ctorVal : VConstVal} {levels : List VLevel}
+    (H : checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+      env Us target scope current i 0)
+    (henv : env.WF)
+    (hlookup : env.constants ctorVal.name = some ctorVal.toVConstant)
+    (hlevels : ∀ level ∈ levels, level.WF Us.length)
+    (hlength : levels.length = ctorVal.uvars)
+    (htarget : ctorVal.type.instL levels = target.type) :
+    env.HasType Us.length scope.toCtx
+      (VExpr.mkApps (.const ctorVal.name levels)
+        (recursorCanonicalVars H.params.length)) current := by
+  have hindices : H.indices = [] :=
+    List.eq_nil_of_length_eq_zero H.indexCount
+  have hconst := VEnv.HasType.const (Γ := []) hlookup hlevels hlength
+  have hhead : env.HasType Us.length []
+      (.const ctorVal.name levels) target.type := by
+    simpa [htarget] using hconst
+  have htelescope : env.HasType Us.length []
+      (.const ctorVal.name levels)
+      (VExpr.wrapForalls H.params current) := by
+    apply hhead.defeqU_r henv (by trivial)
+    exact ⟨H.exprType, by simpa [hindices] using H.header⟩
+  have happ := VEnv.HasType.mkApps_wrapForalls_canonical
+    henv.ordered htelescope
+  simpa [hindices, H.scopeCtx, recursorCanonicalVars,
+    VExpr.liftN] using happ
+
 /-- Rebase the independently checked parameter suffix into the exact
 recursor universe context.  In the small-elimination case this is identity;
 in the large-elimination case concrete declarations and free-variable names
@@ -16564,6 +16730,200 @@ def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
         rw [VLCtx.instL_eq_map, List.length_map, H.prefixLength]
       cached := hcached
       narrowParams := hnarrow }
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+/-- The exact constructor telescope target as interpreted by generated
+recursor code. -/
+def recursorConstructorTelescopeTarget
+    (ctorVal : VConstVal)
+    (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) :
+    VInductiveTypeSkeleton :=
+  match elimLevel with
+  | .zero => constructorTelescopeTarget ctorVal
+  | .param _ => (constructorTelescopeTarget ctorVal).instL
+      (VLevel.prependShift lparams.length)
+  | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
+
+def recursorDeclarationAbstractLevels
+    (lparams : List Name)
+    (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) :
+    List VLevel :=
+  match elimLevel with
+  | .zero => VLevel.params lparams.length
+  | .param _ => (VLevel.params lparams.length).map
+      (VLevel.inst (VLevel.prependShift lparams.length))
+  | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
+
+theorem List.map_param_idxOf_eq_params
+    {names : List Name} (H : names.Nodup) :
+    names.map (fun name => VLevel.param (names.idxOf name)) =
+      VLevel.params names.length := by
+  apply List.ext_getElem
+  · simp [VLevel.params]
+  · intro i hleft hright
+    have hi : i < names.length := by
+      simpa [VLevel.params] using hright
+    simp [VLevel.params, H.idxOf_getElem i hi]
+
+theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.recursorLevelTranslation
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+      Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    (hlparams : c.lparams.Nodup)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    stats.levels.mapM (VLevel.ofLevel
+      (AddInductive.getRecLevelParams elimLevel c.lparams)) =
+      some (recursorDeclarationAbstractLevels c.lparams Helim) := by
+  cases elimLevel with
+  | zero =>
+    simpa [AddInductive.getRecLevelParams,
+      recursorDeclarationAbstractLevels,
+      List.map_param_idxOf_eq_params hlparams] using H.levelTranslation
+  | param fresh =>
+    have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim H.levelTranslation
+    simpa [AddInductive.getRecLevelParams,
+      recursorDeclarationAbstractLevels,
+      List.map_param_idxOf_eq_params hlparams] using hshifted
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+theorem recursorDeclarationAbstractLevels_wf
+    (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) :
+    ∀ level ∈ recursorDeclarationAbstractLevels lparams Helim,
+      level.WF (AddInductive.getRecLevelParams elimLevel lparams).length := by
+  cases elimLevel with
+  | zero =>
+    simpa [recursorDeclarationAbstractLevels,
+      AddInductive.getRecLevelParams] using VLevel.params_wf
+  | param fresh =>
+    let shift := VLevel.prependShift lparams.length
+    have hshift : ∀ level ∈ shift,
+        level.WF (fresh :: lparams).length := by
+      simpa [shift] using VLevel.prependShift_wf (n := lparams.length)
+    intro level hlevel
+    rw [recursorDeclarationAbstractLevels, List.mem_map] at hlevel
+    rcases hlevel with ⟨sourceLevel, hsourceLevel, rfl⟩
+    exact VLevel.WF.inst hshift
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+theorem recursorDeclarationAbstractLevels_length
+    (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) :
+    (recursorDeclarationAbstractLevels lparams Helim).length =
+      lparams.length := by
+  cases elimLevel with
+  | zero => simp [recursorDeclarationAbstractLevels, VLevel.params]
+  | param fresh =>
+    simp [recursorDeclarationAbstractLevels, VLevel.params]
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+theorem VConstVal.type_instL_recursorDeclarationAbstractLevels
+    (Hwf : ctorVal.toVConstant.WF env)
+    (huvars : ctorVal.uvars = lparams.length)
+    (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) :
+    ctorVal.type.instL (recursorDeclarationAbstractLevels lparams Helim) =
+      (recursorConstructorTelescopeTarget ctorVal Helim).type := by
+  have hlevelWF : ctorVal.type.LevelWF ctorVal.uvars := by
+    exact (Classical.choose_spec Hwf).levelWF (by trivial) |>.1
+  cases elimLevel with
+  | zero =>
+    simpa [recursorDeclarationAbstractLevels,
+      recursorConstructorTelescopeTarget, constructorTelescopeTarget,
+      huvars] using hlevelWF.instL_id
+  | param fresh =>
+    let shift := VLevel.prependShift lparams.length
+    have hid : ctorVal.type.instL (VLevel.params lparams.length) =
+        ctorVal.type := by simpa [← huvars] using hlevelWF.instL_id
+    rw [recursorDeclarationAbstractLevels,
+      recursorConstructorTelescopeTarget, ← VExpr.instL_instL, hid]
+    rfl
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+/-- Rebase one retained constructor replay into the exact parameter scope
+and universe list used at the start of recursor generation. -/
+theorem CheckedConstructorTailReplayAt.toRecursorContext
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {sourceEnv : VEnv} {decl : VInductDecl}
+    {target : VInductiveType} {source : Constructor}
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
+    (H : CheckedConstructorTailReplayAt sourceEnv c.lparams
+      Hmaterialized.parameterScope stats decl target source)
+    (henv : sourceEnv ≤ Hc.venv)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    let R := Hc.toAdmissibleRecursorContextWF Helim
+    let Hsuffix := Hmaterialized.parameterSuffix.toRecursorContext Helim
+    ∃ ctorVal tail tailTarget,
+      ctorVal ∈ target.ctors ∧
+      ctorVal.name = source.name ∧
+      ctorVal.uvars = c.lparams.length ∧
+      RecursorParamPrefix stats 0 source.type tail ∧
+      TrExprS R.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        Hsuffix.parameterDecls tail tailTarget ∧
+      R.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length
+        Hsuffix.parameterDecls.toCtx tailTarget ∧
+      Nonempty
+        (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+          (recursorConstructorTelescopeTarget ctorVal Helim)
+          Hsuffix.parameterDecls tailTarget stats.params.size 0) := by
+  rcases H with
+    ⟨ctorVal, tail, tailTarget, hmem, Hraw, Hprefix, Htranslated,
+      Htail, Hsynthesis⟩
+  rcases Hsynthesis with ⟨Hsynthesis⟩
+  dsimp only
+  cases elimLevel with
+  | zero =>
+    refine ⟨ctorVal, tail, tailTarget, hmem, Hraw.name, Hraw.uvars,
+      Hprefix, ?_, ?_, ?_⟩
+    · change TrExprS Hc.venv c.lparams Hmaterialized.parameterScope
+        tail tailTarget
+      exact Htranslated.mono henv
+    · change Hc.venv.IsType c.lparams.length
+        Hmaterialized.parameterScope.toCtx tailTarget
+      simpa [Hmaterialized.uvars] using Htail.isType.mono henv
+    · refine ⟨?_⟩
+      change checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
+        Hmaterialized.parameterScope tailTarget stats.params.size 0
+      exact Hsynthesis.mono henv
+  | param fresh =>
+    let shift := VLevel.prependShift c.lparams.length
+    have hshift : ∀ level ∈ shift,
+        level.WF (fresh :: c.lparams).length := by
+      simpa [shift] using VLevel.prependShift_wf (n := c.lparams.length)
+    have hshiftLength : shift.length = c.lparams.length := by
+      simp [shift, VLevel.prependShift]
+    have hscopeWF : Hmaterialized.parameterScope.WF
+        Hc.venv c.lparams.length :=
+      (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+        Hc Hmaterialized.parameterSuffix).scopeWF Hc.checking.tr.wf
+    refine ⟨ctorVal, tail, tailTarget.instL shift, hmem, Hraw.name,
+      Hraw.uvars, Hprefix, ?_, ?_, ?_⟩
+    · change TrExprS Hc.venv (fresh :: c.lparams)
+        (Hmaterialized.parameterScope.instL shift) tail
+        (tailTarget.instL shift)
+      simpa [shift] using (Htranslated.mono henv).prependLevelParam
+        Hc.checking.tr.wf hscopeWF Helim
+    · have htype := (Htail.isType.mono henv).instL hshift
+      change Hc.venv.IsType (fresh :: c.lparams).length
+        (Hmaterialized.parameterScope.instL shift).toCtx
+        (tailTarget.instL shift)
+      simpa [VLCtx.instL_toCtx, shift, Hmaterialized.uvars] using htype
+    · refine ⟨?_⟩
+      change checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc.venv (fresh :: c.lparams)
+        ((constructorTelescopeTarget ctorVal).instL shift)
+        (Hmaterialized.parameterScope.instL shift)
+        (tailTarget.instL shift) stats.params.size 0
+      simpa [shift] using
+        (Hsynthesis.mono henv).instL hshift hshiftLength
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
@@ -35348,9 +35708,30 @@ def ConstructorPhasesResult.materialized
     checkInductiveTypes.loopInd.MaterializedHeaderResult
       R.declared.context.venv c.lparams R.declared.context.mlctx.vlctx
       stats decl depth := by
-  have Hmaterialized := H.materialized.mono R.declared.installed.le
-  rw [R.declared.contextVEnv]
-  simpa only [R.declared.contextMLCtx] using Hmaterialized
+  have henv : H.context.venv ≤ R.declared.context.venv := by
+    rw [R.declared.contextVEnv]
+    exact R.declared.installed.le
+  let M := H.materialized.mono henv
+  exact {
+    headers := M.headers
+    levels := M.levels
+    levelParams := M.levelParams
+    uvars := M.uvars
+    consts := M.consts
+    indices := M.indices
+    params := by
+      simpa only [R.declared.contextMLCtx] using M.params
+    paramFVars := M.paramFVars
+    parameterScope := M.parameterScope
+    ambientScope := M.ambientScope
+    scopeDecomposition := by
+      simpa only [R.declared.contextMLCtx] using M.scopeDecomposition
+    ambientLength := M.ambientLength
+    cachedScope := M.cachedScope
+    runtimeScope := by
+      simpa only [R.declared.contextMLCtx] using M.runtimeScope
+    paramsContext := M.paramsContext
+    narrowParams := M.narrowParams }
 
 /-- Select the exact checked common-parameter tail for a production
 constructor.  This is the concrete half of the constructor/recursor bridge;
@@ -35386,8 +35767,154 @@ def ConstructorPhasesResult.checkedRecursorConstructorTailAt
       (decl.types[familyIdx]'(by
         rw [← R.constructorTails.size_eq]
         exact hfamily))
-      indTypes[familyIdx].ctors[ctorIdx].type :=
+      indTypes[familyIdx].ctors[ctorIdx] :=
   R.constructorTails.replay familyIdx hfamily ctorIdx hctor
+
+/-- The checked constructor replay supplies a typed application of the
+installed constructor to all common parameters in the independently retained
+recursor parameter scope. -/
+theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    (hlparams : c.lparams.Nodup)
+    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
+    (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
+    let Hbase := R.declared.context
+    let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
+    let Hmaterialized := R.materialized
+    let Hsuffix := Hmaterialized.parameterSuffix.toRecursorContext Helim
+    ∃ ctorVal tail tailTarget introTarget,
+      ctorVal ∈ (decl.types[familyIdx]'(by
+        rw [← R.constructorTails.size_eq]
+        exact hfamily)).ctors ∧
+      ctorVal.name = indTypes[familyIdx].ctors[ctorIdx].name ∧
+      RecursorParamPrefix stats 0
+        indTypes[familyIdx].ctors[ctorIdx].type tail ∧
+      TrExprS Rbase.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        Hsuffix.parameterDecls tail tailTarget ∧
+      Rbase.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length
+        Hsuffix.parameterDecls.toCtx tailTarget ∧
+      TrExprS Rbase.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        Hsuffix.parameterDecls
+        (mkAppN
+          (.const indTypes[familyIdx].ctors[ctorIdx].name stats.levels)
+          stats.params) introTarget ∧
+      Rbase.venv.HasType
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length
+        Hsuffix.parameterDecls.toCtx introTarget tailTarget := by
+  let Hbase := R.declared.context
+  let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
+  let Hmaterialized := R.materialized
+  let Hsuffix := Hmaterialized.parameterSuffix.toRecursorContext Helim
+  have hheaderLE : H.context.venv ≤ Hbase.venv := by
+    change H.context.venv ≤ R.declared.context.venv
+    rw [R.declared.contextVEnv]
+    exact R.declared.installed.le
+  have Hreplay := R.checkedRecursorConstructorTailAt
+    familyIdx hfamily ctorIdx hctor
+  have Hreplay' : CheckedConstructorTailReplayAt H.context.venv c.lparams
+      Hmaterialized.parameterScope stats decl
+      (decl.types[familyIdx]'(by
+        rw [← R.constructorTails.size_eq]
+        exact hfamily))
+      indTypes[familyIdx].ctors[ctorIdx] := by
+    have hscope : Hmaterialized.parameterScope =
+        H.materialized.parameterScope := by
+      simp [Hmaterialized, ConstructorPhasesResult.materialized,
+        checkInductiveTypes.loopInd.MaterializedHeaderResult.mono]
+    rw [hscope]
+    exact Hreplay
+  have Hrebased := Hreplay'.toRecursorContext
+    Hmaterialized hheaderLE Helim
+  change ∃ ctorVal tail tailTarget introTarget, _
+  rcases Hrebased with
+    ⟨ctorVal, tail, tailTarget, hctorMem, hctorName, hctorUvars,
+      Hprefix, Htail, HtailType, ⟨Hsynthesis⟩⟩
+  have hfamilyDecl : familyIdx < decl.types.length := by
+    rw [← R.constructorTails.size_eq]
+    exact hfamily
+  have hctorConstantMem : ctorVal ∈ decl.constructorConstants := by
+    simp only [VInductDecl.constructorConstants]
+    apply List.mem_flatMap.mpr
+    exact ⟨decl.types[familyIdx], List.getElem_mem hfamilyDecl, hctorMem⟩
+  have hctorWFHeader : ctorVal.toVConstant.WF H.context.venv :=
+    by
+      simpa [VConstant.WF, hctorUvars, H.materialized.uvars] using
+        R.checked.types ctorVal hctorConstantMem
+  have hctorWF : ctorVal.toVConstant.WF Rbase.venv := by
+    simpa [Rbase, Hbase] using hctorWFHeader.mono hheaderLE
+  have hctorLookup : Rbase.venv.constants ctorVal.name =
+      some ctorVal.toVConstant := by
+    have hlookup : Hbase.venv.constants ctorVal.name =
+        some ctorVal.toVConstant := by
+      change R.declared.context.venv.constants ctorVal.name =
+        some ctorVal.toVConstant
+      rw [R.declared.contextVEnv]
+      apply VEnv.addConsts_get R.declared.translation.ctorsAdded
+      exact hctorConstantMem
+    simpa [Rbase] using hlookup
+  let levels := recursorDeclarationAbstractLevels c.lparams Helim
+  have hlevelsWF : ∀ level ∈ levels,
+      level.WF (AddInductive.getRecLevelParams
+        elimLevel c.lparams).length :=
+    recursorDeclarationAbstractLevels_wf Helim
+  have hlevelsLength : levels.length = ctorVal.uvars := by
+    rw [recursorDeclarationAbstractLevels_length Helim, hctorUvars]
+  have hsourceLevelsLength : stats.levels.length = ctorVal.uvars := by
+    calc
+      stats.levels.length = decl.uvars := Hmaterialized.levels
+      _ = c.lparams.length := Hmaterialized.uvars.symm
+      _ = ctorVal.uvars := hctorUvars.symm
+  have htargetType : ctorVal.type.instL levels =
+      (recursorConstructorTelescopeTarget ctorVal Helim).type :=
+    VConstVal.type_instL_recursorDeclarationAbstractLevels
+      hctorWF hctorUvars Helim
+  have HintroType := Hsynthesis.canonicalApplication Rbase.checking.tr.wf
+    hctorLookup hlevelsWF hlevelsLength htargetType
+  have Hhead : TrExprS Rbase.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      Hsuffix.parameterDecls
+      (.const ctorVal.name stats.levels) (.const ctorVal.name levels) := by
+    exact TrExprS.const hctorLookup
+      (Hmaterialized.recursorLevelTranslation hlparams Helim)
+      hsourceLevelsLength
+  have hcanonical :
+      checkInductiveTypes.loopType.cachedParamVars stats.params.size 0 =
+        recursorCanonicalVars Hsynthesis.params.length := by
+    rw [checkInductiveTypes.loopType.cachedParamVars_zero_eq_recursorCanonicalVars,
+      Hsynthesis.parameterCount]
+  have Hargs : List.Forall₂
+      (TrExprS Rbase.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        Hsuffix.parameterDecls)
+      stats.params.toList
+      (recursorCanonicalVars Hsynthesis.params.length) := by
+    rw [← hcanonical]
+    exact Hsuffix.narrowParams
+  have Hintro : TrExprS Rbase.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      Hsuffix.parameterDecls
+      (Expr.mkAppList (.const ctorVal.name stats.levels)
+        stats.params.toList)
+      (VExpr.mkApps (.const ctorVal.name levels)
+        (recursorCanonicalVars Hsynthesis.params.length)) :=
+    checkPositivityStep.TrExprS.mkAppList Rbase.checking.tr.wf.ordered
+      Hsynthesis.scopeWF.toCtx Hhead Hargs ⟨tailTarget, HintroType⟩
+  refine ⟨ctorVal, tail, tailTarget,
+    VExpr.mkApps (.const ctorVal.name levels)
+      (recursorCanonicalVars Hsynthesis.params.length),
+    hctorMem, hctorName, Hprefix, Htail, HtailType, ?_, HintroType⟩
+  simpa [Expr.mkAppN_eq_mkAppList, hctorName, Rbase, Hbase,
+    Hmaterialized, Hsuffix] using Hintro
 
 /-- Select one mutual-family header for recursor replay after transporting
 both its source translation and the materialized header certificate through
