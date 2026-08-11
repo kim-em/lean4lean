@@ -15053,6 +15053,374 @@ def ContextWF.toAdmissibleRecursorContextWF
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
+/-- Exact cached-parameter suffix after the local context has moved to the
+recursor universe list.  The declaration itself still has `decl.uvars`
+universes; this invariant deliberately mentions only the translations that
+remain meaningful after the optional fresh eliminator parameter is prepended.
+Generated major and motive locals accumulate in `ambientDecls`, while later
+family replay starts from the unchanged `parameterDecls` suffix. -/
+structure RecursorParameterContextSuffix
+    {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    (stats : AddInductive.InductiveStats) (depth : Nat) : Type where
+  ambientDecls : VLCtx
+  parameterDecls : VLCtx
+  context : R.mlctx.vlctx = ambientDecls ++ parameterDecls
+  prefixLength : ambientDecls.length = depth
+  cached : List.Forall₂
+    checkInductiveTypes.loopType.CachedParameterDecl
+    stats.params.toList.reverse parameterDecls
+  narrowParams : List.Forall₂
+    (TrExprS R.venv recLparams parameterDecls)
+    stats.params.toList
+    (checkInductiveTypes.loopType.cachedParamVars stats.params.size 0)
+
+/-- Rebase the independently checked parameter suffix into the exact
+recursor universe context.  In the small-elimination case this is identity;
+in the large-elimination case concrete declarations and free-variable names
+are unchanged and their abstract types are shifted by one universe slot. -/
+def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : checkInductiveTypes.loopType.ParameterContextSuffix Hc stats depth)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    let R := Hc.toAdmissibleRecursorContextWF Helim
+    RecursorParameterContextSuffix R stats depth := by
+  dsimp only
+  cases elimLevel with
+  | zero =>
+    exact {
+      ambientDecls := H.ambientDecls
+      parameterDecls := H.parameterDecls
+      context := H.context
+      prefixLength := H.prefixLength
+      cached := H.cached
+      narrowParams := H.narrowParams }
+  | param fresh =>
+    let shift := VLevel.prependShift c.lparams.length
+    have hcached : List.Forall₂
+        checkInductiveTypes.loopType.CachedParameterDecl
+        stats.params.toList.reverse (H.parameterDecls.instL shift) := by
+      have go : ∀ {params : List Expr} {entries : VLCtx},
+          List.Forall₂ checkInductiveTypes.loopType.CachedParameterDecl
+              params entries →
+          List.Forall₂ checkInductiveTypes.loopType.CachedParameterDecl
+              params (entries.instL shift) := by
+        intro params entries Hcached
+        induction Hcached with
+        | nil => exact .nil
+        | @cons param entry params entries hentry _ ih =>
+          rcases hentry with ⟨fv, deps, type, rfl, rfl⟩
+          exact .cons ⟨fv, deps, type.instL shift, rfl, by
+            simp [VLCtx.instL, VLocalDecl.instL]⟩ ih
+      exact go H.cached
+    have hnarrow : List.Forall₂
+        (TrExprS Hc.venv (fresh :: c.lparams)
+          (H.parameterDecls.instL shift))
+        stats.params.toList
+        (checkInductiveTypes.loopType.cachedParamVars stats.params.size 0) := by
+      have go : ∀ {sources targets},
+          List.Forall₂ (TrExprS Hc.venv c.lparams H.parameterDecls)
+              sources targets →
+          List.Forall₂ (TrExprS Hc.venv (fresh :: c.lparams)
+              (H.parameterDecls.instL shift))
+            sources (targets.map fun target => target.instL shift) := by
+        intro sources targets Htranslated
+        induction Htranslated with
+        | nil => exact .nil
+        | cons hsource _ ih =>
+          exact .cons
+            (by
+              simpa [shift] using
+                (hsource.prependLevelParam Hc.checking.tr.wf
+                  ((checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+                    Hc H).scopeWF Hc.checking.tr.wf) Helim))
+            ih
+      have hshifted := go H.narrowParams
+      have htargets :
+          (checkInductiveTypes.loopType.cachedParamVars
+              stats.params.size 0).map (fun target => target.instL shift) =
+            checkInductiveTypes.loopType.cachedParamVars
+              stats.params.size 0 := by
+        induction stats.params.size with
+        | zero => rfl
+        | succ n ih =>
+          rw [checkInductiveTypes.loopType.cachedParamVars_succ,
+            List.map_append, List.map_map]
+          congr 1
+          · rw [show
+                (fun target : VExpr => target.instL shift) ∘
+                    (fun target : VExpr => target.liftN 1 0) =
+                  (fun target : VExpr =>
+                    (target.instL shift).liftN 1 0) by
+                funext target
+                simpa [Function.comp_apply] using
+                  (VExpr.instL_liftN (e := target) (n := 1)
+                    (k := 0) (ls := shift))]
+            simpa [List.map_map] using congrArg
+              (List.map fun target : VExpr => target.liftN 1 0) ih
+      rw [htargets] at hshifted
+      exact hshifted
+    exact {
+      ambientDecls := H.ambientDecls.instL shift
+      parameterDecls := H.parameterDecls.instL shift
+      context := by
+        have hcontext := congrArg (fun Δ : VLCtx => Δ.instL shift) H.context
+        change (Hc.mlctx.prependLevelParam c.lparams.length).vlctx =
+          H.ambientDecls.instL shift ++ H.parameterDecls.instL shift
+        simpa only [TypeChecker.MLCtx.prependLevelParam_vlctx,
+          shift, VLCtx.instL_eq_map, List.map_append] using hcontext
+      prefixLength := by
+        rw [VLCtx.instL_eq_map, List.length_map, H.prefixLength]
+      cached := hcached
+      narrowParams := hnarrow }
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+theorem RecursorParameterContextSuffix.noIndConsts
+    (H : RecursorParameterContextSuffix R stats depth)
+    (names : List Name) :
+    checkPositivityStep.VLCtx.NoIndConsts names H.parameterDecls := by
+  have go : ∀ {params : List Expr} {entries : VLCtx},
+      List.Forall₂ checkInductiveTypes.loopType.CachedParameterDecl
+          params entries →
+      checkPositivityStep.VLCtx.NoIndConsts names entries := by
+    intro params entries hcached
+    induction hcached with
+    | nil =>
+      intro v mapped type hfind
+      simp [VLCtx.find?] at hfind
+    | @cons param entry params entries hentry _ ih =>
+      rcases hentry with ⟨fv, deps, type, rfl, rfl⟩
+      exact checkPositivityStep.VLCtx.NoIndConsts.cons ih rfl
+  intro v mapped type hfind
+  exact go H.cached hfind
+
+/-- Recover the narrow semantic parameter scope embedded in the complete
+universe-rebased runtime context. -/
+def RecursorParameterContextSuffix.runtimeScope
+    {c : AddInductive.Context}
+    {R : RecursorContextWF c recLparams}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    checkInductiveTypes.loopType.NarrowRuntimeScope
+      R.venv recLparams H.parameterDecls R.mlctx.vlctx := by
+  have hambient : H.ambientDecls.NoBV := by
+    apply VLCtx.NoBV.leftOfAppend H.ambientDecls H.parameterDecls
+    rw [← H.context]
+    exact R.mlctx.noBV
+  let W := VLCtx.FVLift.to_append H.parameterDecls hambient
+  refine {
+    expanded := R.mlctx.vlctx
+    shift := .skipN .refl H.ambientDecls.toCtx.length
+    lift := ?_
+    context := .refl R.checking.tr.wf R.mlctx_wf.tr.wf
+    upset := ?_
+    noBV := ?_
+    noIndConsts := H.noIndConsts }
+  · rw [H.context]
+    exact W.toFVLift'
+  · have hwf : VLCtx.WF R.venv recLparams.length
+        (H.ambientDecls ++ H.parameterDecls) := by
+      rw [← H.context]
+      exact R.mlctx_wf.tr.wf
+    simpa [H.context] using
+      (IsFVarUpSet.suffixFVars H.parameterDecls H.ambientDecls hwf)
+  · have hfull : (H.ambientDecls ++ H.parameterDecls).NoBV := by
+      rw [← H.context]
+      exact R.mlctx.noBV
+    change H.parameterDecls.bvars = 0
+    change (H.ambientDecls ++ H.parameterDecls).bvars = 0 at hfull
+    rw [VLCtx.bvars_append] at hfull
+    omega
+
+/-- Any generated recursor local extends only the ambient prefix.  The cached
+parameter suffix and all of its narrow translations remain literally
+unchanged. -/
+def RecursorParameterContextSuffix.withAmbient
+    {c : AddInductive.Context}
+    {R : RecursorContextWF c recLparams}
+    (H : RecursorParameterContextSuffix R stats depth)
+    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
+    let R' := R.withLocalDecl (name := name) (bi := bi) htr hty
+    RecursorParameterContextSuffix R' stats (depth + 1) := by
+  dsimp only
+  let entry : Option (FVarId × List FVarId) × VLocalDecl :=
+    (some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty')
+  exact {
+    ambientDecls := entry :: H.ambientDecls
+    parameterDecls := H.parameterDecls
+    context := by
+      change entry :: R.mlctx.vlctx =
+        (entry :: H.ambientDecls) ++ H.parameterDecls
+      simpa only [List.cons_append] using congrArg (entry :: ·) H.context
+    prefixLength := by simp [H.prefixLength]
+    cached := H.cached
+    narrowParams := H.narrowParams }
+
+theorem RecursorParameterContextSuffix.parameterDecls_length
+    (H : RecursorParameterContextSuffix R stats depth) :
+    H.parameterDecls.length = stats.params.size := by
+  have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.cached
+  simpa using hlength.symm
+
+theorem RecursorParameterContextSuffix.parameterAt
+    (H : RecursorParameterContextSuffix R stats depth)
+    (hi : i < stats.params.size)
+    (hj : stats.params.size - 1 - i < H.parameterDecls.length) :
+    checkInductiveTypes.loopType.CachedParameterDecl stats.params[i]
+      H.parameterDecls[stats.params.size - 1 - i] := by
+  let j := stats.params.size - 1 - i
+  have hj' : j < stats.params.size := by
+    dsimp [j]
+    omega
+  have hleft : j < stats.params.toList.reverse.length := by
+    simpa using hj'
+  have hright : j < H.parameterDecls.length := hj
+  have hcached := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    H.cached j hleft hright
+  simp only [List.getElem_reverse, Array.getElem_toList] at hcached
+  change checkInductiveTypes.loopType.CachedParameterDecl
+    stats.params[stats.params.size - 1 - j] H.parameterDecls[j] at hcached
+  dsimp [j] at hcached ⊢
+  have hindex : stats.params.size - 1 -
+      (stats.params.size - 1 - i) = i := by omega
+  have helem :
+      stats.params[stats.params.size - 1 -
+        (stats.params.size - 1 - i)] = stats.params[i] :=
+    getElem_congr rfl hindex (by omega)
+  rw [← helem]
+  exact hcached
+
+/-- Application statistics interpreted under recursor universes.  Unlike
+`ValidAppStatsWF`, this structure does not claim that the recursor universe
+list has the declaration's arity: large elimination has one additional
+parameter.  The original constant-level arity remains recorded by `levels`,
+while all concrete cached parameters are translated in the actual recursor
+context. -/
+structure RecursorValidAppStatsWF
+    (env : VEnv) (recLparams : List Name) (Δ : VLCtx)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (depth : Nat) : Prop where
+  levels : stats.levels.length = decl.uvars
+  consts : checkPositivityStep.IndConstArray stats.levels stats.indConsts
+    (decl.types.map (·.name))
+  indices : stats.nindices.toList = decl.types.map (·.numIndices)
+  params : List.Forall₂ (TrExprS env recLparams Δ) stats.params.toList
+    (decl.paramVars depth)
+  paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
+
+/-- Reinterpret complete application statistics after introducing the
+optional fresh recursor universe parameter. -/
+def checkPositivityStep.ValidAppStatsWF.toRecursorContext
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hc.mlctx.vlctx stats decl depth)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    let R := Hc.toAdmissibleRecursorContextWF Helim
+    RecursorValidAppStatsWF R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      R.mlctx.vlctx stats decl depth := by
+  dsimp only
+  cases elimLevel with
+  | zero =>
+    exact {
+      levels := H.levels
+      consts := H.consts
+      indices := H.indices
+      params := H.params
+      paramFVars := H.paramFVars }
+  | param fresh =>
+    let shift := VLevel.prependShift c.lparams.length
+    have hparamsShift : List.Forall₂
+        (TrExprS Hc.venv (fresh :: c.lparams)
+          (Hc.mlctx.vlctx.instL shift))
+        stats.params.toList
+        ((decl.paramVars depth).map fun target => target.instL shift) := by
+      have go : ∀ {sources targets},
+          List.Forall₂ (TrExprS Hc.venv c.lparams Hc.mlctx.vlctx)
+              sources targets →
+          List.Forall₂ (TrExprS Hc.venv (fresh :: c.lparams)
+              (Hc.mlctx.vlctx.instL shift))
+            sources (targets.map fun target => target.instL shift) := by
+        intro sources targets Htranslated
+        induction Htranslated with
+        | nil => exact .nil
+        | cons hsource _ ih =>
+          exact .cons
+            (by simpa [shift] using
+              (hsource.prependLevelParam Hc.checking.tr.wf
+                Hc.mlctx_wf.tr.wf Helim)) ih
+      exact go H.params
+    have hparamsTarget :
+        (decl.paramVars depth).map (fun target => target.instL shift) =
+          decl.paramVars depth := by
+      simp [VInductDecl.paramVars, VExpr.instL]
+    rw [hparamsTarget] at hparamsShift
+    exact {
+      levels := H.levels
+      consts := H.consts
+      indices := H.indices
+      params := by
+        change List.Forall₂
+          (TrExprS Hc.venv (fresh :: c.lparams)
+            (Hc.mlctx.prependLevelParam c.lparams.length).vlctx)
+          stats.params.toList (decl.paramVars depth)
+        simpa only [TypeChecker.MLCtx.prependLevelParam_vlctx, shift]
+          using hparamsShift
+      paramFVars := H.paramFVars }
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+/-- Restrict recursor application statistics to the exact cached-parameter
+suffix, independently of all generated ambient frames. -/
+def RecursorParameterContextSuffix.narrowStats
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    (H : RecursorParameterContextSuffix R stats depth)
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
+      stats decl depth) :
+    RecursorValidAppStatsWF R.venv recLparams H.parameterDecls
+      stats decl 0 where
+  levels := Hstats.levels
+  consts := Hstats.consts
+  indices := Hstats.indices
+  params := by
+    have hsize : stats.params.size = decl.nparams := by
+      have hlength :=
+        Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hstats.params
+      simpa [VInductDecl.paramVars] using hlength
+    rw [← checkInductiveTypes.loopType.cachedParamVars_eq_paramVars decl,
+      ← hsize]
+    exact H.narrowParams
+  paramFVars := Hstats.paramFVars
+
+/-- Opening one semantic index under recursor universes weakens every cached
+parameter target by exactly one binder. -/
+theorem RecursorValidAppStatsWF.withFVar
+    (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
+    (henv : env.WF)
+    (hscope' : VLCtx.WF env recLparams.length
+      ((some (fv, deps), .vlam fieldType) :: scope)) :
+    RecursorValidAppStatsWF env recLparams
+      ((some (fv, deps), .vlam fieldType) :: scope)
+      stats decl (depth + 1) := by
+  let W : VLCtx.FVLift scope
+      ((some (fv, deps), .vlam fieldType) :: scope) 0 1 0 :=
+    .skip_fvar _ _ .refl
+  have hparams := checkPositivityStep.forall₂_map_right
+    (f := fun target => target.liftN 1 0)
+    (S := TrExprS env recLparams
+      ((some (fv, deps), .vlam fieldType) :: scope))
+    H.params fun h => h.weakFV henv.ordered W hscope'
+  exact {
+    levels := H.levels
+    consts := H.consts
+    indices := H.indices
+    params := by
+      rw [← checkPositivityStep.VInductDecl.paramVars_liftN]
+      exact hparams
+    paramFVars := H.paramFVars }
+
 /-- A domain already checked under the inductive declaration universes can be
 used unchanged as concrete syntax under the recursor universes.  Its abstract
 target is shifted only in the fresh large-elimination case. -/
@@ -18546,6 +18914,73 @@ structure CheckedRecursorHeaderAt
     source.type target.toVConstVal
   targetLookup : Hc.venv.constants target.name = some target.toVConstant
   lparamsNodup : c.lparams.Nodup
+
+/-- The semantic family header seen by generated recursor code.  Small
+elimination keeps the checked header unchanged.  Large elimination shifts
+the header's abstract universe indices under the fresh leading recursor
+parameter; its stored declaration arity is intentionally not changed. -/
+def CheckedRecursorHeaderAt.recursorTargetSkeleton
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    VInductiveTypeSkeleton :=
+  match elimLevel with
+  | .zero => H.target.toSkeleton
+  | .param _ =>
+    { H.target.toSkeleton with
+      type := H.target.type.instL
+        (VLevel.prependShift c.lparams.length) }
+  | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
+
+@[simp] theorem CheckedRecursorHeaderAt.recursorTargetSkeleton_zero
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams (.zero)) :
+    H.recursorTargetSkeleton Helim = H.target.toSkeleton := rfl
+
+/-- The closed concrete source header translates to the rebased semantic
+header under the exact universe list assigned to generated recursors. -/
+theorem CheckedRecursorHeaderAt.recursorSourceTranslation
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    TrExprS Hc.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams) []
+      source.type (H.recursorTargetSkeleton Helim).type := by
+  cases elimLevel with
+  | zero => exact H.sourceTranslation.type
+  | param fresh =>
+    change TrExprS Hc.venv (fresh :: c.lparams) [] source.type
+      (H.target.type.instL (VLevel.prependShift c.lparams.length))
+    simpa [VLCtx.instL] using H.sourceTranslation.type.prependLevelParam
+      Hc.checking.tr.wf (by trivial) Helim
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+/-- The rebased semantic header remains a type in the recursor universe
+context. -/
+theorem CheckedRecursorHeaderAt.recursorTargetType
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    Hc.venv.IsType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+      (H.recursorTargetSkeleton Helim).type := by
+  have htarget : Hc.venv.IsType c.lparams.length [] H.target.type := by
+    have htyped := H.sourceTranslation.wf
+    change Hc.venv.IsType H.target.uvars [] H.target.type at htyped
+    rwa [H.sourceTranslation.uvars] at htyped
+  cases elimLevel with
+  | zero => exact htarget
+  | param fresh =>
+    let shift := VLevel.prependShift c.lparams.length
+    have hshift : ∀ level ∈ shift,
+        level.WF (fresh :: c.lparams).length := by
+      simpa [shift] using
+        VLevel.prependShift_wf (n := c.lparams.length)
+    exact htarget.instL hshift
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
 
 theorem CheckedRecursorHeaderAt.target_mem
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
