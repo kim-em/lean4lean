@@ -4532,6 +4532,19 @@ theorem MLCtxOnlyLams.noIndConsts_of_dropN
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
+/-- A lambda-only translated local context can return only bound variables
+from lookup, independently of the constants appearing in binder types. -/
+theorem MLCtxOnlyLams.noIndConsts
+    (H : MLCtxOnlyLams m) : VLCtx.NoIndConsts names m.vlctx := by
+  induction m with
+  | nil =>
+      intro v mapped type hfind
+      simp [VLCtx.find?] at hfind
+  | vlam fv name type type' bi tail ih =>
+      exact VLCtx.NoIndConsts.cons (ih H.tail_vlam) rfl
+  | vlet fv name type value type' value' tail ih =>
+      exact H.vlet_false.elim
+
 theorem ParameterContextSuffix.noIndConsts
     (H : ParameterContextSuffix Hc stats depth) (names : List Name) :
     checkPositivityStep.VLCtx.NoIndConsts names H.parameterDecls := by
@@ -4800,6 +4813,46 @@ theorem NarrowRuntimeScope.transportType
   exact ⟨runtime', hruntime,
     hweakTypeRuntime.defeqU_l henv
       (H.context.symm henv.ordered).wf.toCtx heqRuntime⟩
+
+/-- Weaken a term together with its independently translated type from the
+narrow parameter scope into the executable runtime context. -/
+theorem NarrowRuntimeScope.transportTypedTerm
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (henv : env.WF)
+    (hterm : TrExprS env Us scope term termTarget)
+    (htype : TrExprS env Us scope type typeTarget)
+    (htyping : env.HasType Us.length scope.toCtx termTarget typeTarget)
+    (htypeType : env.IsType Us.length scope.toCtx typeTarget) :
+    ∃ termRuntime typeRuntime,
+      TrExprS env Us runtime term termRuntime ∧
+      TrExprS env Us runtime type typeRuntime ∧
+      env.HasType Us.length runtime.toCtx termRuntime typeRuntime ∧
+      env.IsType Us.length runtime.toCtx typeRuntime := by
+  rcases H.transportType henv htype htypeType with
+    ⟨typeRuntime, htypeRuntime, htypeRuntimeType⟩
+  have htermWeak : TrExprS env Us H.expanded term
+      (termTarget.lift' H.shift) := by
+    simpa using hterm.weakFV' henv.ordered H.lift H.context.wf
+  have htypeWeak : TrExprS env Us H.expanded type
+      (typeTarget.lift' H.shift) := by
+    simpa using htype.weakFV' henv.ordered H.lift H.context.wf
+  rcases htermWeak.defeqDFC henv H.context with
+    ⟨termRuntime, htermRuntime⟩
+  have htermEq := htermWeak.uniq henv H.context htermRuntime
+  have htypeEq := htypeWeak.uniq henv H.context htypeRuntime
+  have htermEqRuntime :=
+    htermEq.defeqDFC henv.ordered H.context.defeqCtx
+  have htypeEqRuntime :=
+    htypeEq.defeqDFC henv.ordered H.context.defeqCtx
+  have htypingWeak := htyping.weak' henv.ordered H.lift.toCtx
+  have htypingRuntime := htypingWeak.defeqDFC henv.ordered
+    H.context.defeqCtx
+  have htypingTerm := htypingRuntime.defeqU_l henv
+    (H.context.symm henv.ordered).wf.toCtx htermEqRuntime
+  have htypingBoth := htypingTerm.defeqU_r henv
+    (H.context.symm henv.ordered).wf.toCtx htypeEqRuntime
+  exact ⟨termRuntime, typeRuntime, htermRuntime, htypeRuntime,
+    htypingBoth, htypeRuntimeType⟩
 
 /-- Move a successful runtime result-sort check back to the independent
 narrow header scope.  Both translations are tied to the same concrete
@@ -9777,6 +9830,7 @@ theorem laterSteps.materialize
       {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth' : Nat},
       (Hc' : ContextWF c') →
+      c'.lparams = c.lparams →
       TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe decl envTypes →
       MaterializedHeaderResult Hc'.venv c'.lparams Hc'.mlctx.vlctx
@@ -9826,8 +9880,8 @@ theorem laterSteps.materialize
     · exact Hambient'
     · simpa [updatedStats, hlparams'] using hcommon
     · exact hconsume
-    · intro c'' stats'' decl depth'' Hc'' Hdecl'' Hresult
-      exact Hfinish Hc'' Hdecl'' Hresult
+    · intro c'' stats'' decl depth'' Hc'' hlparams'' Hdecl'' Hresult
+      exact Hfinish Hc'' (hlparams''.trans hlparams') Hdecl'' Hresult
   · have heq : dIdx = indTypes.size := by omega
     have htypes : skeleton.types.length = indTypes.size := by
       rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.types_length Hdecl]
@@ -9849,7 +9903,7 @@ theorem laterSteps.materialize
     · simpa [heq] using hindices
     · simpa [heq] using hconsts
     · exact hparams
-    · apply Hfinish (depth' := depth) Hc Hdecl'
+    · apply Hfinish (depth' := depth) Hc rfl Hdecl'
       refine {
         headers := Hheaders
         levels := ?_
@@ -10039,6 +10093,7 @@ theorem firstStep.materialize
       {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth' : Nat},
       (Hc' : ContextWF c') →
+      c'.lparams = c.lparams →
       TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe decl envTypes →
       MaterializedHeaderResult Hc'.venv c'.lparams Hc'.mlctx.vlctx
@@ -10085,7 +10140,8 @@ theorem firstStep.materialize
   · exact Hambient'
   · simpa [statsNext, updatedStats] using hofLevel
   · exact hconsume
-  · exact Hfinish
+  · intro c'' stats'' decl depth'' Hc'' hlparams'' Hdecl'' Hresult
+    exact Hfinish Hc'' (hlparams''.trans hlparams') Hdecl'' Hresult
 
 /-- Public verifier for the executable mutual-header checker.  Successful
 checking returns a materialized abstract declaration, its source translation,
@@ -10105,6 +10161,7 @@ theorem checkInductiveTypes.materialize
       {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth : Nat},
       (Hc' : ContextWF c') →
+      c'.lparams = c.lparams →
       TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe decl envTypes →
       MaterializedHeaderResult Hc'.venv c'.lparams Hc'.mlctx.vlctx
@@ -11668,6 +11725,43 @@ theorem isValidIndAppFrom?_some
       simp [hfalse] at h
       rcases ih h with ⟨hlower, hupper, hvalid⟩
       exact ⟨by omega, by omega, hvalid⟩
+
+/-- If any member in the scanned interval validates, the first-match scan
+returns some member (possibly an earlier equivalent entry). -/
+theorem isValidIndAppFrom?_exists_of_valid
+    (hvalid : AddInductive.isValidIndAppIdx stats type target = true)
+    (hlower : start ≤ target) (hupper : target < start + fuel) :
+    ∃ owner,
+      AddInductive.isValidIndAppFrom? stats type start fuel = some owner := by
+  induction fuel generalizing start with
+  | zero => omega
+  | succ fuel ih =>
+    rw [AddInductive.isValidIndAppFrom?]
+    by_cases hstart :
+        AddInductive.isValidIndAppIdx stats type start = true
+    · rw [if_pos hstart]
+      exact ⟨start, rfl⟩
+    · have hstartFalse :
+          AddInductive.isValidIndAppIdx stats type start = false := by
+        cases h : AddInductive.isValidIndAppIdx stats type start
+        · rfl
+        · exact False.elim (hstart h)
+      rw [if_neg hstart]
+      have hne : start ≠ target := by
+        intro heq
+        subst target
+        exact Bool.noConfusion (hstartFalse.symm.trans hvalid)
+      exact ih (start := start + 1) (by omega) (by omega)
+
+theorem isValidIndApp?_exists_of_valid
+    (hvalid : AddInductive.isValidIndAppIdx stats type target = true)
+    (hconst : stats.indConsts[target]? = some value) :
+    ∃ owner, AddInductive.isValidIndApp? stats type = some owner := by
+  have htarget : target < stats.indConsts.size :=
+    (Array.getElem?_eq_some_iff.mp hconst).1
+  simpa [AddInductive.isValidIndApp?] using
+    (isValidIndAppFrom?_exists_of_valid hvalid (start := 0)
+      (fuel := stats.indConsts.size) (by omega) (by omega))
 
 theorem isValidIndApp?_some
     (h : AddInductive.isValidIndApp? stats type = some i) :
@@ -13874,6 +13968,31 @@ inductive RecursorParamPrefix (stats : AddInductive.InductiveStats) :
   | step : stats.params[i]? = some param →
       RecursorParamPrefix stats (i + 1) (body.instantiate1 param) tail →
       RecursorParamPrefix stats i (.forallE name dom body bi) tail
+
+/-- Replaying the cached parameter prefix is deterministic. -/
+theorem RecursorParamPrefix.tail_eq
+    (Hleft : RecursorParamPrefix stats i source left)
+    (Hright : RecursorParamPrefix stats i source right) : left = right := by
+  induction Hleft with
+  | done hi =>
+    cases Hright with
+    | done => rfl
+    | step hparam _ =>
+      have hnone : stats.params[stats.params.size]? = none :=
+        Array.getElem?_eq_none (by omega)
+      rw [hi, hnone] at hparam
+      contradiction
+  | @step i param body left dom name bi hparam Hleft ih =>
+    cases Hright with
+    | done hi =>
+      have hnone : stats.params[stats.params.size]? = none :=
+        Array.getElem?_eq_none (by omega)
+      rw [hi, hnone] at hparam
+      contradiction
+    | step hparam' Hright =>
+      have heq : param = _ := Option.some.inj (hparam.symm.trans hparam')
+      subst_vars
+      exact ih Hright
 
 /-- A partially consumed common-parameter prefix.  Constructor checking
 builds this left-to-right; when `stop = stats.params.size`, it is exactly the
@@ -19083,6 +19202,27 @@ theorem Expr.ForallTelescope.isForall_of_pos
   | nil => simp at hpos
   | cons => rfl
 
+/-- A maximal forall decomposition is unique.  This is deliberately stated
+with a non-forall condition on both residuals: without maximality, the same
+source admits every shorter prefix as another `ForallTelescope`. -/
+theorem Expr.ForallTelescope.eq_of_residual_not_forall
+    (Hleft : Expr.ForallTelescope source leftArity leftResidual)
+    (Hright : Expr.ForallTelescope source rightArity rightResidual)
+    (hleft : leftResidual.isForall = false)
+    (hright : rightResidual.isForall = false) :
+    leftArity = rightArity ∧ leftResidual = rightResidual := by
+  induction Hleft generalizing rightArity rightResidual with
+  | nil =>
+    cases Hright with
+    | nil => exact ⟨rfl, rfl⟩
+    | cons Htail => simp [Expr.isForall] at hleft
+  | @cons body leftArity leftResidual name dom bi Hleft ih =>
+    cases Hright with
+    | nil => simp [Expr.isForall] at hright
+    | cons Hright =>
+      rcases ih Hright hleft hright with ⟨harity, hresidual⟩
+      exact ⟨by omega, hresidual⟩
+
 /-- Substitution by a free variable cannot manufacture a leading forall.
 This reflection lemma is the converse shape fact needed to recover the
 original source telescope from lowering's successively opened one. -/
@@ -20290,6 +20430,22 @@ theorem Expr.instantiate1_fvar_abstractList_append
   simp only [Expr.abstractList]
   rw [Expr.abstract1_abstractList hfv]
   rw [Expr.instantiate1_eq, hbody.abstract_instantiate1]
+
+/-- Closing free variables changes leaves but never the outer expression
+constructor, so in particular it cannot create or remove a leading forall. -/
+@[simp] theorem Expr.abstractList_isForall
+    (e : Expr) (fvars : List FVarId) (k : Nat := 0) :
+    (e.abstractList fvars k).isForall = e.isForall := by
+  induction fvars generalizing e k with
+  | nil => rfl
+  | cons fv fvars ih =>
+    simp only [Expr.abstractList]
+    rw [ih]
+    cases e <;> simp only [Expr.abstract1, Expr.isForall]
+    case fvar fvarId =>
+      by_cases h : (fv == fvarId) = true
+      · rw [if_pos h]
+      · rw [if_neg h]
 
 /-- Canonical alpha-normalization trace for a constructor-field traversal.
 `current` is the opened residual seen by production, while `residual` is the
@@ -21620,6 +21776,570 @@ theorem ConstructorFieldOpening.fvars_eq_bound
     simpa using congrArg Array.toList harrays
   exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlists
 
+/-- Alpha-independent result of the checker constructor traversal.  The
+terminal application itself contains checker-chosen free variables, so the
+certificate retains only its maximal closed telescope residual. -/
+structure CheckedConstructorOwnerNormalForm
+    (stats : AddInductive.InductiveStats) (targetIdx : Nat)
+    (source : Expr) : Type where
+  arity : Nat
+  residual : Expr
+  telescope : Expr.ForallTelescope source arity residual
+  maximal : residual.isForall = false
+  valid : AddInductive.isValidIndAppIdx stats residual targetIdx = true
+
+/-- Close a successful checker traversal to its canonical owner normal form.
+The parameter array belongs to the root context, while every field belongs to
+the fresh suffix, which is exactly the disjointness needed by validation. -/
+def CheckedConstructorOwnerNormalForm.ofOpening
+    {root current : AddInductive.Context}
+    (Hopening : ConstructorFieldOpening source terminal fields)
+    (Hparams : BoundFVarArray root stats.params)
+    (Hfields : FreshBoundFVarArray root current fields)
+    (hconst : stats.indConsts[targetIdx]? = some (.const name levels))
+    (hterminal : terminal.isForall = false)
+    (hvalid : AddInductive.isValidIndAppIdx stats terminal targetIdx = true) :
+    CheckedConstructorOwnerNormalForm stats targetIdx source := by
+  have hopenFvars : Hopening.fvars = Hfields.toBoundFVarArray.fvars :=
+    Hopening.fvars_eq_bound Hfields.toBoundFVarArray
+  have hdisjoint : ∀ fv, fv ∈ Hparams.fvars → fv ∉ Hopening.fvars := by
+    intro fv hparam hfield
+    rw [hopenFvars] at hfield
+    exact Hfields.fresh fv hfield (Hparams.members fv hparam)
+  refine {
+    arity := fields.size
+    residual := Hopening.residual
+    telescope := Hopening.telescope
+    maximal := ?_
+    valid := ?_ }
+  · rw [← Hopening.closed, Expr.abstractList_isForall, hterminal]
+  · rw [← Hopening.closed]
+    exact checkPositivityStep.isValidIndAppIdx.abstractList
+      hvalid hconst Hparams.fvars Hopening.fvars Hparams.expressions
+      hdisjoint
+
+/-- Reopening a checked constructor telescope with a different fresh suffix
+recovers the same validated family application. -/
+theorem CheckedConstructorOwnerNormalForm.validOfOpening
+    {root current : AddInductive.Context}
+    (H : CheckedConstructorOwnerNormalForm stats targetIdx source)
+    (Hopening : ConstructorFieldOpening source terminal fields)
+    (Hparams : BoundFVarArray root stats.params)
+    (Hfields : FreshBoundFVarArray root current fields)
+    (hconst : stats.indConsts[targetIdx]? = some (.const name levels))
+    (hterminal : terminal.isForall = false) :
+    AddInductive.isValidIndAppIdx stats terminal targetIdx = true := by
+  have hopenFvars : Hopening.fvars = Hfields.toBoundFVarArray.fvars :=
+    Hopening.fvars_eq_bound Hfields.toBoundFVarArray
+  have hdisjoint : ∀ fv, fv ∈ Hparams.fvars → fv ∉ Hopening.fvars := by
+    intro fv hparam hfield
+    rw [hopenFvars] at hfield
+    exact Hfields.fresh fv hfield (Hparams.members fv hparam)
+  have hopenTerminal : Hopening.residual.isForall = false := by
+    rw [← Hopening.closed, Expr.abstractList_isForall, hterminal]
+  have hresidual : H.residual = Hopening.residual :=
+    (H.telescope.eq_of_residual_not_forall Hopening.telescope
+      H.maximal hopenTerminal).2
+  have hclosedValid : AddInductive.isValidIndAppIdx stats
+      (terminal.abstractList Hopening.fvars) targetIdx = true := by
+    rw [Hopening.closed, ← hresidual]
+    exact H.valid
+  exact checkPositivityStep.isValidIndAppIdx.of_abstractList
+    Hparams.fvars Hopening.fvars 0 hclosedValid hconst
+    Hparams.expressions hdisjoint
+
+/-- The production constructor checker emits a canonical owner certificate
+at its terminal success.  This traversal is intentionally separate from the
+semantic `CtorTailWF` projection: both inspect the same executable run, while
+this one retains the concrete alpha-normalized evidence needed later by
+`mkRecInfos`. -/
+theorem checkConstructors.loopCtor.ownerNormalFormWF
+    {decl : VInductDecl} {scope : VLCtx} {depth : Nat}
+    {narrowType fullType : VExpr}
+    {root c : AddInductive.Context} {Hroot : ContextWF root}
+    {fields : Array Expr} {source : Expr}
+    (Hc : ContextWF c)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+      Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      scope stats decl depth)
+    (hi : targetIdx < decl.types.length)
+    (hparamAt : stats.params[i]? = none)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hparams : BoundFVarArray root stats.params)
+    (Hfields : RecentBoundFVarArray Hroot Hc fields)
+    (Hopening : ConstructorFieldOpening source type fields)
+    (htrNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
+    (htrFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      type i fuel c).WF
+      (fun _ => Nonempty
+        (CheckedConstructorOwnerNormalForm stats targetIdx source)) := by
+  induction fuel generalizing c type scope narrowType fullType depth i fields with
+  | zero => exact checkConstructors.loopCtor.zero.WF
+  | succ fuel ih =>
+    by_cases hforall : ∃ name dom body bi,
+        type = .forallE name dom body bi
+    · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+      rcases htrFull with ⟨fullForall, hfullForall, _hfullTarget⟩
+      cases htrNarrow with
+      | @forallE narrowDom narrowBody _ _ _ _ _
+          _hdomNarrowType _hbodyNarrowType hdomNarrow hbodyNarrow =>
+        cases hfullForall with
+        | @forallE fullDom fullBody _ _ _ _ _
+            hdomFullType _ hdomFull hbodyFull =>
+          rcases hconsume c Hc hdomFull hdomFullType with
+            ⟨consumedDom, Hdom⟩
+          have hparamNext : stats.params[i + 1]? = none := by
+            rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
+            omega
+          have hdeps : dom.consumeTypeAnnotations.fvarsList ⊆ scope.fvars :=
+            (fvarsIn_iff.mp
+              (Expr.consumeTypeAnnotations_fvarsIn hdomNarrow.fvarsIn)).1
+          rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
+            ⟨_domainLevel, hdomain⟩
+          cases isUnsafe with
+          | false =>
+            have Hpos := checkPositivity.refinesNarrow
+              (ctor := ctor) (idx := i) Hc Hruntime Hstats
+              hconsume hlit hproj hdomNarrow
+              (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+            refine checkConstructors.loopCtor.safeField.sourceWF
+              (Q := fun _ => Nonempty
+                (CheckedConstructorOwnerNormalForm stats targetIdx source))
+              Hc hparamAt Hdom hbodyFull Hpos ?_
+            intro _fieldType _fieldLevel _fieldLevel' _hfield _hlevel
+              _htyped _hfieldBound _hpositive bodyFull' _hbodyFullEq
+              hopenedFull
+            let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+              Hdom.consumed Hdom.isType
+            let Hruntime' :
+                checkInductiveTypes.loopType.NarrowRuntimeScope
+                  Hc'.venv c.lparams
+                  ((some (⟨c.ngen.curr⟩,
+                    dom.consumeTypeAnnotations.fvarsList),
+                    .vlam narrowDom) :: scope)
+                  Hc'.mlctx.vlctx :=
+              Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+            have hopenedNarrow : TrExprS Hc'.venv c.lparams
+                ((some (⟨c.ngen.curr⟩,
+                  dom.consumeTypeAnnotations.fvarsList),
+                  .vlam narrowDom) :: scope)
+                (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
+              rw [Expr.instantiate1_eq]
+              exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
+            have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
+            let Hfields' := Hfields.pushCurrent name
+              dom.consumeTypeAnnotations consumedDom bi
+              Hdom.consumed Hdom.isType
+            have hopenFvars : Hopening.fvars =
+                Hfields.toBoundFVarArray.fvars :=
+              Hopening.fvars_eq_bound Hfields.toBoundFVarArray
+            have hcurrentFresh :
+                (⟨c.ngen.curr⟩ : FVarId) ∉ Hopening.fvars := by
+              rw [hopenFvars]
+              intro hmem
+              exact Hc.toBindingContextWF.current_not_mem
+                (Hfields.toBoundFVarArray.members _ hmem)
+            have hbodyFresh : body.FVarsIn
+                (fun other => other ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
+              apply hbodyFull.fvarsIn.mono
+              intro other hother heq
+              subst other
+              have hbase : (⟨c.ngen.curr⟩ : FVarId) ∈
+                  Hc.mlctx.vlctx.fvars := by simpa using hother
+              exact Hc.current_not_mem hbase
+            let Hopening' := Hopening.push hcurrentFresh hbodyFresh
+            exact ih Hc' Hruntime' Hstats' hparamNext Hfields'
+              Hopening' hopenedNarrow
+              (hopenedFull.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
+          | true =>
+            refine checkConstructors.loopCtor.unsafeField.sourceWF
+              (Q := fun _ => Nonempty
+                (CheckedConstructorOwnerNormalForm stats targetIdx source))
+              Hc hparamAt Hdom hbodyFull ?_
+            intro _fieldType _fieldLevel _fieldLevel' _hfield _hlevel
+              _htyped _hfieldBound bodyFull' _hbodyFullEq hopenedFull
+            let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+              Hdom.consumed Hdom.isType
+            let Hruntime' :
+                checkInductiveTypes.loopType.NarrowRuntimeScope
+                  Hc'.venv c.lparams
+                  ((some (⟨c.ngen.curr⟩,
+                    dom.consumeTypeAnnotations.fvarsList),
+                    .vlam narrowDom) :: scope)
+                  Hc'.mlctx.vlctx :=
+              Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+            have hopenedNarrow : TrExprS Hc'.venv c.lparams
+                ((some (⟨c.ngen.curr⟩,
+                  dom.consumeTypeAnnotations.fvarsList),
+                  .vlam narrowDom) :: scope)
+                (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
+              rw [Expr.instantiate1_eq]
+              exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
+            have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
+            let Hfields' := Hfields.pushCurrent name
+              dom.consumeTypeAnnotations consumedDom bi
+              Hdom.consumed Hdom.isType
+            have hopenFvars : Hopening.fvars =
+                Hfields.toBoundFVarArray.fvars :=
+              Hopening.fvars_eq_bound Hfields.toBoundFVarArray
+            have hcurrentFresh :
+                (⟨c.ngen.curr⟩ : FVarId) ∉ Hopening.fvars := by
+              rw [hopenFvars]
+              intro hmem
+              exact Hc.toBindingContextWF.current_not_mem
+                (Hfields.toBoundFVarArray.members _ hmem)
+            have hbodyFresh : body.FVarsIn
+                (fun other => other ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
+              apply hbodyFull.fvarsIn.mono
+              intro other hother heq
+              subst other
+              have hbase : (⟨c.ngen.curr⟩ : FVarId) ∈
+                  Hc.mlctx.vlctx.fvars := by simpa using hother
+              exact Hc.current_not_mem hbase
+            let Hopening' := Hopening.push hcurrentFresh hbodyFresh
+            exact ih Hc' Hruntime' Hstats' hparamNext Hfields'
+              Hopening' hopenedNarrow
+              (hopenedFull.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
+    · cases hvalid :
+          AddInductive.isValidIndAppIdx stats type targetIdx
+      · exact checkConstructors.loopCtor.invalidResult.WF hforall hvalid
+      · exact checkConstructors.loopCtor.result.WF hforall hvalid
+          ⟨CheckedConstructorOwnerNormalForm.ofOpening Hopening Hparams
+            Hfields.toFreshBoundFVarArray (Hstats.indConstAt hi)
+            (by cases type <;> simp_all [Expr.isForall]) hvalid⟩
+
+/-- Public owner-normal-form projection from the beginning of a constructor
+telescope.  Cached parameters are replayed exactly as in
+`refinesCtorShape`; only genuine constructor fields enter the alpha-closed
+normal form. -/
+theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
+    {decl : VInductDecl} {ctorVal : VConstVal}
+    (Hc : ContextWF c)
+    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hsuffix.parameterDecls stats decl 0)
+    (Hctor : TrSourceConstRaw Hc.venv c.lparams ctor source ctorVal)
+    (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+      source checkedType fullType checkedType')
+    (hi : targetIdx < decl.types.length)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
+      source 0 fuel c).WF
+      (fun _ => ∃ tail,
+        RecursorParamPrefix stats 0 source tail ∧
+        Nonempty
+          (CheckedConstructorOwnerNormalForm stats targetIdx tail)) := by
+  have hnoFVars : FVarsIn (fun _ => False) source := by
+    simpa [VLCtx.fvars] using Hctor.type.fvarsIn
+  by_cases hzero : decl.nparams = 0
+  · have hscopeLength : Hsuffix.parameterDecls.length = 0 := by
+      simpa [Hstats.params_size, hzero] using
+        Hsuffix.parameterDecls_length
+    have hscope : Hsuffix.parameterDecls = [] :=
+      List.eq_nil_of_length_eq_zero hscopeLength
+    cases fuel with
+    | zero => exact checkConstructors.loopCtor.zero.WF
+    | succ fuel =>
+      have hparamAt : stats.params[0]? = none := by
+        rw [Array.getElem?_eq_none_iff, Hstats.params_size, hzero]
+        omega
+      have Hnormal := checkConstructors.loopCtor.ownerNormalFormWF
+        (type := source) (source := source) (fields := #[])
+        (i := 0) (ctor := ctor) (fuel := fuel + 1)
+        (isUnsafe := isUnsafe)
+        (Hroot := Hc) Hc
+        (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+          Hc Hsuffix)
+        Hstats hi hparamAt hconsume hlit hproj Hsuffix.paramsBound
+        (RecentBoundFVarArray.empty Hc)
+        (ConstructorFieldOpening.empty source)
+        (by simpa [hscope] using Hctor.type)
+        (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+      exact Hnormal.mono fun _ Hnormal =>
+        ⟨source, .done (by rw [Hstats.params_size, hzero]), Hnormal⟩
+  by_cases hforall : ∃ name dom body bi,
+      source = .forallE name dom body bi
+  · rcases hforall with ⟨name, dom, body, bi, rfl⟩
+    have htype : Hc.venv.IsType c.lparams.length [] ctorVal.type := by
+      rcases TrExpr.forallE_source
+          (Hctor.type.trExpr Hc.checking.tr.wf (by trivial)) with
+        ⟨dom', body', _hdom, _hbody, hdomType, hbodyType, heq⟩
+      exact (VEnv.IsType.forallE hdomType hbodyType).defeqU_l
+        Hc.checking.tr.wf (by trivial) heq
+    let Hinitial := ConstructorSynthesisState.initial Hctor htype
+    apply checkConstructors.loopCtor.parameterSynthesisWF
+      (decl := decl) (ctorVal := ctorVal) Hc
+      (Q := fun _ => ∃ tail,
+        RecursorParamPrefix stats 0 (.forallE name dom body bi) tail ∧
+        Nonempty
+          (CheckedConstructorOwnerNormalForm stats targetIdx tail))
+      (Hresult := by
+        intro source' current' fullCurrent' fuel'
+          _Hsynthesis htrNarrow htrFull Hsegment
+        have hparamAt : stats.params[decl.nparams]? = none := by
+          rw [Array.getElem?_eq_none_iff]
+          exact Nat.le_of_eq Hstats.params_size
+        have Hnormal := checkConstructors.loopCtor.ownerNormalFormWF
+          (type := source') (source := source') (fields := #[])
+          (i := decl.nparams) (ctor := ctor) (fuel := fuel' + 1)
+          (isUnsafe := isUnsafe)
+          (Hroot := Hc) Hc
+          (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+            Hc Hsuffix)
+          Hstats hi hparamAt hconsume hlit hproj Hsuffix.paramsBound
+          (RecentBoundFVarArray.empty Hc)
+          (ConstructorFieldOpening.empty source') htrNarrow htrFull
+        exact Hnormal.mono fun _ Hnormal =>
+          ⟨source', by
+            have Hcomplete : RecursorParamSegment stats 0 stats.params.size
+                (.forallE name dom body bi) source' := by
+              simpa only [Hstats.params_size] using Hsegment
+            exact Hcomplete.complete rfl,
+            Hnormal⟩)
+      (Hearly := by
+        intro source' scope' current' fullCurrent' i' fuel' hi'
+          hforall Hscope' _Hsynthesis _htrNarrow _htrFull
+        exact checkConstructors.loopCtor.earlyParameterResult.WF
+          (fuel := fuel') Hc Hscope'
+          (by simpa [Hstats.params_size] using hi') hforall)
+      Hstats.params_size (by omega) (.done)
+      (fun h =>
+        checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars h hnoFVars)
+      (fun h =>
+        (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
+          h hnoFVars).older_eq_nil h |>.symm)
+      (by
+        intro hdone
+        have hlength := Hsuffix.parameterDecls_length
+        have hempty : Hsuffix.parameterDecls = [] :=
+          List.eq_nil_of_length_eq_zero (by
+            rw [hlength, Hstats.params_size, hdone])
+        exact hempty.symm)
+      Hinitial Hctor.type
+      (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+  · cases fuel with
+    | zero => exact checkConstructors.loopCtor.zero.WF
+    | succ fuel =>
+      have hiStats : 0 < stats.params.size := by
+        rw [Hstats.params_size]
+        omega
+      exact checkConstructors.loopCtor.earlyParameterResult.WF
+        (Hsuffix := Hsuffix) (fuel := fuel) Hc
+        (checkInductiveTypes.loopType.LaterParameterScope.ofNoFVars
+          (Hsuffix := Hsuffix) hiStats hnoFVars)
+        (by omega) hforall
+
+/-- Checked owner normal form selected by a concrete constructor position. -/
+def CheckedConstructorOwnerNormalFormAt
+    (stats : AddInductive.InductiveStats) (targetIdx : Nat)
+    (ctor : Constructor) : Prop :=
+  ∃ tail,
+    RecursorParamPrefix stats 0 ctor.type tail ∧
+    Nonempty (CheckedConstructorOwnerNormalForm stats targetIdx tail)
+
+structure ConstructorOwnerNormalFormRow
+    (stats : AddInductive.InductiveStats) (targetIdx : Nat)
+    (ctors : List Constructor) (done : Nat) : Prop where
+  covered : done ≤ ctors.length
+  entries : ∀ i, i < done → (hi : i < ctors.length) →
+    CheckedConstructorOwnerNormalFormAt stats targetIdx ctors[i]
+
+def ConstructorOwnerNormalFormRow.empty
+    (stats : AddInductive.InductiveStats) (targetIdx : Nat)
+    (ctors : List Constructor) :
+    ConstructorOwnerNormalFormRow stats targetIdx ctors 0 where
+  covered := Nat.zero_le _
+  entries _ hi := by omega
+
+def ConstructorOwnerNormalFormRow.push
+    (H : ConstructorOwnerNormalFormRow stats targetIdx ctors done)
+    (hi : done < ctors.length)
+    (Hentry : CheckedConstructorOwnerNormalFormAt stats targetIdx ctors[done]) :
+    ConstructorOwnerNormalFormRow stats targetIdx ctors (done + 1) where
+  covered := by omega
+  entries i hidone hi' := by
+    by_cases hlast : i = done
+    · subst i
+      exact Hentry
+    · exact H.entries i (by omega) hi'
+
+structure ConstructorOwnerNormalFormRows
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (done : Nat) : Prop where
+  covered : done ≤ indTypes.size
+  rows : ∀ i, i < done → (hi : i < indTypes.size) →
+    ConstructorOwnerNormalFormRow stats i indTypes[i].ctors
+      indTypes[i].ctors.length
+
+def ConstructorOwnerNormalFormRows.empty
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) :
+    ConstructorOwnerNormalFormRows stats indTypes 0 where
+  covered := Nat.zero_le _
+  rows _ hi := by omega
+
+def ConstructorOwnerNormalFormRows.push
+    (H : ConstructorOwnerNormalFormRows stats indTypes done)
+    (hi : done < indTypes.size)
+    (Hrow : ConstructorOwnerNormalFormRow stats done
+      indTypes[done].ctors indTypes[done].ctors.length) :
+    ConstructorOwnerNormalFormRows stats indTypes (done + 1) where
+  covered := by omega
+  rows i hidone hi' := by
+    by_cases hlast : i = done
+    · subst i
+      exact Hrow
+    · exact H.rows i (by omega) hi'
+
+/-- Public matrix of checker-produced owner normal forms, indexed in the
+same family/constructor coordinates later traversed by `mkRecInfos`. -/
+structure CheckedConstructorOwnerNormalForms
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) : Prop where
+  replay : ∀ familyIdx (hfamily : familyIdx < indTypes.size)
+      ctorIdx (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
+    CheckedConstructorOwnerNormalFormAt stats familyIdx
+      indTypes[familyIdx].ctors[ctorIdx]
+
+def ConstructorOwnerNormalFormRows.complete
+    (H : ConstructorOwnerNormalFormRows stats indTypes indTypes.size) :
+    CheckedConstructorOwnerNormalForms stats indTypes where
+  replay familyIdx hfamily ctorIdx hctor :=
+    (H.rows familyIdx hfamily hfamily).entries ctorIdx hctor hctor
+
+namespace checkConstructors.loopCtors
+
+/-- Accumulate owner normal forms across the executable constructor loop. -/
+theorem ownerNormalFormsWF
+    {decl : VInductDecl} {sourceEnv : VEnv}
+    {source : InductiveType} {target : VInductiveType}
+    (Hc : ContextWF c)
+    (Htarget : TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams
+      source target)
+    (Hnames : ConstructorNameState source.ctors ctorIdx foundCtors)
+    (Hrow : ConstructorOwnerNormalFormRow stats targetIdx
+      source.ctors ctorIdx)
+    (Hfresh : ∀ {i found}, ConstructorNameState source.ctors i found →
+      (hi : i < source.ctors.length) →
+      found.contains source.ctors[i].name = false)
+    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hsuffix.parameterDecls stats decl 0)
+    (htargetIdx : targetIdx < decl.types.length)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hfinish : ConstructorOwnerNormalFormRow stats targetIdx source.ctors
+        source.ctors.length → Q ()) :
+    (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+      source.ctors ctorIdx foundCtors c).WF Q := by
+  by_cases hidx : ctorIdx < source.ctors.length
+  · have htarget : ctorIdx < target.ctors.length := by
+      rw [← Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length
+        Htarget]
+      exact hidx
+    have Hctor := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctorAt
+      Htarget ctorIdx hidx htarget
+    apply stepPrefix.WF (stats := stats) (isUnsafe := isUnsafe)
+      (targetIdx := targetIdx) (Q := Q) Hc hidx (Hfresh Hnames hidx)
+    intro checkedType type' checkedType' hchecked
+    have Hnormal :=
+      checkConstructors.loopCtor.ownerNormalFormFromStartWF
+        (fuel := c.fuel.inductiveFuel) (isUnsafe := isUnsafe)
+        Hc Hsuffix Hstats Hctor hchecked
+        htargetIdx hconsume hlit hproj
+    exact Hnormal.mono fun _ Hentry =>
+      ownerNormalFormsWF Hc Htarget (.succ Hnames hidx)
+        (Hrow.push hidx Hentry) Hfresh Hsuffix Hstats htargetIdx
+        hconsume hlit hproj Hfinish
+  · have heq : ctorIdx = source.ctors.length := by
+      have := Hrow.covered
+      omega
+    apply result.WF (Q := Q) hidx
+    exact Hfinish (by simpa [heq] using Hrow)
+termination_by source.ctors.length - ctorIdx
+
+end checkConstructors.loopCtors
+
+namespace checkConstructors.loopTypes
+
+/-- Accumulate the owner-normal-form rows across every mutual family. -/
+theorem ownerNormalFormsWF
+    {decl : VInductDecl} {sourceEnv : VEnv}
+    (Hc : ContextWF c)
+    (Htypes : List.Forall₂
+      (TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams)
+      indTypes.toList decl.types)
+    (Hrows : ConstructorOwnerNormalFormRows stats indTypes targetIdx)
+    (Hfresh : ∀ familyIdx (hfamily : familyIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[familyIdx].ctors i found →
+      (hi : i < indTypes[familyIdx].ctors.length) →
+      found.contains indTypes[familyIdx].ctors[i].name = false)
+    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      Hc stats depth)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
+      Hsuffix.parameterDecls stats decl 0)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hfinish : ConstructorOwnerNormalFormRows stats indTypes indTypes.size →
+      Q ()) :
+    (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
+      targetIdx c).WF Q := by
+  by_cases hidx : targetIdx < indTypes.size
+  · have htarget : targetIdx < decl.types.length := by
+      have hlength : indTypes.size = decl.types.length := by
+        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+      omega
+    have Htarget : TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams
+        indTypes[targetIdx] decl.types[targetIdx] := by
+      have Htarget' := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
+        targetIdx (by simpa using hidx) htarget
+      rw [Array.getElem_toList] at Htarget'
+      exact Htarget'
+    apply step.WF (Q := Q) hidx
+    apply checkConstructors.loopCtors.ownerNormalFormsWF
+      (Q := fun _ =>
+        (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
+          (targetIdx + 1) c).WF Q)
+      Hc Htarget .zero
+      (ConstructorOwnerNormalFormRow.empty stats targetIdx
+        indTypes[targetIdx].ctors)
+      (Hfresh targetIdx hidx) Hsuffix Hstats htarget hconsume hlit hproj
+    intro Hrow
+    exact ownerNormalFormsWF Hc Htypes (Hrows.push hidx Hrow) Hfresh
+      Hsuffix Hstats hconsume hlit hproj Hfinish
+  · have heq : targetIdx = indTypes.size := by
+      have := Hrows.covered
+      omega
+    apply result.WF (Q := Q) hidx
+    exact Hfinish (by simpa [heq] using Hrows)
+termination_by indTypes.size - targetIdx
+
+end checkConstructors.loopTypes
+
 namespace mkRecInfos.loopCtorArgs.loop
 
 /-- Strengthening of `recursiveDomainsRecursor` which also records that the
@@ -21671,6 +22391,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       {bu' u' : Array Expr}
       {fields' : List (RecursorRecursiveDomainAt
         Rcurrent.venv decl recLparams.length)} {args' : List VExpr},
+      t'.isForall = false →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         t' typeTarget' →
       Rcurrent.venv.IsType recLparams.length
@@ -21853,7 +22574,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           Hopening' happlied' happliedType'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
-      exact Hk R htype htypeType hfields hargs Hrecent
+      exact Hk R rfl htype htypeType hfields hargs Hrecent
         Hopening happlied happliedType
 
 end mkRecInfos.loopCtorArgs.loop
@@ -21894,6 +22615,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       {bu' u' : Array Expr}
       {fields' : List (RecursorRecursiveDomainAt
         Rcurrent.venv decl recLparams.length)} {args' : List VExpr},
+      t'.isForall = false →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         t' typeTarget' →
       Rcurrent.venv.IsType recLparams.length
@@ -28638,6 +29360,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         (AddInductive.getRecLevelParams elimLevel base.lparams))
       (henvOut : Rout.venv = Hbase.venv)
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (hparameterDeclsOut :
+        HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
       (HstatsOut : RecursorValidAppStatsWF Rout.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Rout.mlctx.vlctx stats decl outDepth)
@@ -28801,6 +29525,12 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             Hrecent.toFreshBoundFVarArray
             `t majorTy .default motiveName
             motiveTy.consumeTypeAnnotations .default
+        have hparameterDeclsMotive :
+            HsuffixMotive.parameterDecls = Hsuffix.parameterDecls := by
+          calc
+            HsuffixMotive.parameterDecls =
+                HsuffixIndices.parameterDecls := by rfl
+            _ = Hsuffix.parameterDecls := hparameterDecls
         have HparamsCtx' : ∀ i (hi : i < indTypes.size),
             VEnv.IsDefEqCtx Rmotive.venv
               (AddInductive.getRecLevelParams elimLevel base.lparams).length []
@@ -28810,12 +29540,6 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           have hvenvMotive : Rmotive.venv = R.venv := by
             change Rindices.venv = R.venv
             exact henvIndices.trans henv.symm
-          have hparameterDeclsMotive :
-              HsuffixMotive.parameterDecls = Hsuffix.parameterDecls := by
-            calc
-              HsuffixMotive.parameterDecls =
-                  HsuffixIndices.parameterDecls := by rfl
-              _ = Hsuffix.parameterDecls := hparameterDecls
           rw [hvenvMotive, hparameterDeclsMotive]
           exact HparamsCtx i hi
         let hMajorFrame := BindingContextLE.withLocalDecl cIndices
@@ -29065,11 +29789,14 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         · change RecursorTranslatedOriginTypeRows Rmotive
             (Horigins.indexTypes.push indexOrigins)
           exact HindexRows'
-        · intro cOut outDepth out Rout henvOut HsuffixOut HstatsOut HbindingsOut
+        · intro cOut outDepth out Rout henvOut HsuffixOut
+            hparameterDeclsOut HstatsOut HbindingsOut
             HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
             HtelescopesOut HindexRowsOut
             HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut houtSize
-          apply Hk out Rout henvOut HsuffixOut HstatsOut HbindingsOut
+          apply Hk out Rout henvOut HsuffixOut
+            (hparameterDeclsOut.trans hparameterDeclsMotive)
+            HstatsOut HbindingsOut
             HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
             HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut
           simp only [Array.size_push] at houtSize
@@ -29078,7 +29805,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         rw [if_neg harity]
         exact Except.WF.throw
   · rw [dif_neg hidx]
-    exact Hk recInfos R henv Hsuffix Hstats Hbindings Horigins HmajorTypes
+    exact Hk recInfos R henv Hsuffix rfl Hstats Hbindings Horigins HmajorTypes
       HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexTypeRows Hparams HnoAlias
       Harities Hempty Hroot (by omega)
 termination_by indTypes.size - dIdx
@@ -33199,13 +33926,20 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
+      (henvOut : Rout.venv = R.venv)
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (hparameterDeclsOut :
+        HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
       (HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
         Rout.mlctx.vlctx stats decl outDepth)
       (hctxOut : VLCtx.NoIndConsts
         (decl.types.map (·.name)) Rout.mlctx.vlctx)
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
+      out.size = recInfos.size →
+      out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + 1 →
+      (∀ i, i < recInfos.size → dIdx ≠ i →
+        out[i]!.minors.size = recInfos[i]!.minors.size) →
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
       RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
@@ -33241,10 +33975,18 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (BindingContextLE.refl c) R.toBindingContextWF minorName
       minorTy.consumeTypeAnnotations .default
   let HparamsMinor := Hparams.mono Hstep.contextLE
-  refine Hk next Rminor (Hsuffix.withAmbient Hminor HminorType)
+  refine Hk next Rminor rfl (Hsuffix.withAmbient Hminor HminorType) rfl
     (Hstats.withFVar Rminor.checking.tr.wf Rminor.mlctx_wf.tr.wf)
     (VLCtx.NoIndConsts.cons hctx rfl)
-    HbindingsMinor HoriginsMinor ?_ ?_ ?_ ?_ ?_ ?_ HparamsMinor ?_ ?_ ?_
+    HbindingsMinor HoriginsMinor ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
+      HparamsMinor ?_ ?_ ?_
+  · simp [next]
+  · dsimp [next]
+    rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+    simp
+  · intro i hi hine
+    dsimp [next]
+    rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi hine]
   · exact HmajorTypes.mono Hstep
   · exact HmajorShapes.modifyMinors dIdx
       (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))
@@ -33311,24 +34053,25 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (hidx : dIdx < recInfos.size)
     (Harities : RecInfoArities stats recInfos)
     (hrecords : recInfos.size = stats.indConsts.size)
-    (Howner : ∀ {current : AddInductive.Context}
-      (Rcurrent : RecursorContextWF current recLparams)
-      {terminal : Expr} {terminalTarget : VExpr}
-      {allFields : Array Expr},
-      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
-        terminal terminalTarget →
-      RecursorRecentBoundFVarArray R Rcurrent allFields →
-      ∃ ownerIdx, AddInductive.isValidIndApp? stats terminal = some ownerIdx)
+    (Hnormal : Nonempty
+      (CheckedConstructorOwnerNormalForm stats dIdx tail))
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
+      (henvOut : Rout.venv = R.venv)
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (hparameterDeclsOut :
+        HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
       (HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
         Rout.mlctx.vlctx stats decl outDepth)
       (hctxOut : VLCtx.NoIndConsts
         (decl.types.map (·.name)) Rout.mlctx.vlctx)
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
+      out.size = recInfos.size →
+      out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + 1 →
+      (∀ i, i < recInfos.size → dIdx ≠ i →
+        out[i]!.minors.size = recInfos[i]!.minors.size) →
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
       RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
@@ -33383,14 +34126,22 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       process c R Hstats hprefix hwhnf hconsume hlit hctx hproj htail
       htailType Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allFields
-    recursiveFields fields args Hterminal HterminalType Hselections
-    Hrecursive HfieldsRecent _Hopening HintroApplied HintroAppliedType
+    recursiveFields fields args HterminalNonforall Hterminal HterminalType Hselections
+    Hrecursive HfieldsRecent Hopening HintroApplied HintroAppliedType
   let HextArgs := HfieldsRecent.contextExtension
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
   have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
       Rargs.mlctx.vlctx :=
     HfieldsRecent.noIndConsts (names := decl.types.map (·.name)) hctx
-  rcases Howner Rargs Hterminal HfieldsRecent with
+  have hdidxDecl : dIdx < decl.types.length := by
+    rw [← Hstats.types_size, ← hrecords]
+    exact hidx
+  have hdidxConst := Hstats.indConstAt hdidxDecl
+  rcases Hnormal with ⟨Hnormal⟩
+  have hdidxValid := Hnormal.validOfOpening Hopening Hparams
+    HfieldsRecent.toFreshBoundFVarArray hdidxConst HterminalNonforall
+  rcases checkPositivityStep.isValidIndApp?_exists_of_valid
+      hdidxValid hdidxConst with
     ⟨ownerIdx, hownerValid⟩
   let Happlication : RecursorConstructorApplicationAt Rargs stats ctor
       terminal allFields terminalTarget := {
@@ -33523,13 +34274,13 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
   let HbindingsOut := Hbindings.mono HextAll.contextLE
   let HoriginsOut := Horigins.mono HextAll.contextLE
   let HparamsOut := Hparams.mono HextAll.contextLE
-  apply continueMinorSemantics stats dIdx recInfos
+  refine continueMinorSemantics (Q := Q) stats dIdx recInfos
     (ctor.name.replacePrefix indTypeName .anonymous)
     (outCtx.lctx.mkForall allFields
       (outCtx.lctx.mkForall hypotheses
         (Expr.app
           (mkAppN recInfos[Happlication.ownerIdx]!.motive
-            terminal.getAppArgs[stats.params.size:])
+            indices)
           (mkAppN
             (mkAppN (.const ctor.name stats.levels) stats.params)
             allFields))))
@@ -33541,7 +34292,164 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       HparamsOut
       (Hbindings.mono_noAlias Hparams HextAll.contextLE HnoAlias)
       (Hroot.trans HextAll.contextLE) hidx Harities Hconsumed.consumed
-      Hconsumed.isType Hk
+      Hconsumed.isType ?_
+  intro nextCtx nextDepth next Rnext henvNext HsuffixNext
+    hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
+    hsizeNext hcountNext hotherNext HmajorTypesNext HmajorShapesNext
+    HmotiveTypesNext HmotiveShapesNext HtelescopesNext HindexRowsNext
+    HparamsNext HnoAliasNext HaritiesNext HrootNext
+  exact Hk next Rnext (henvNext.trans HextAll.venv_eq) HsuffixNext
+    (hparameterDeclsNext.trans (by rfl)) HstatsNext hctxNext
+    HbindingsNext HoriginsNext hsizeNext hcountNext hotherNext
+    HmajorTypesNext HmajorShapesNext HmotiveTypesNext HmotiveShapesNext
+    HtelescopesNext HindexRowsNext HparamsNext HnoAliasNext HaritiesNext
+    HrootNext
+
+/-- Semantic refinement of the complete constructor list for one mutual
+family.  Each iteration consumes the checker-produced runtime seed for its
+constructor and adds exactly one verified minor to the owning recursor row. -/
+theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats) (indTypeName : Name)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (ctors : List Constructor)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    {recLparams : List Name} {depth : Nat}
+    {root c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl}
+    (Hsuffix : RecursorParameterContextSuffix R stats depth)
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
+    (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
+      Horigins.majorTypes)
+    (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
+    (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
+      Horigins.motiveTypes elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl recInfos elimLevel)
+    (HindexRows : RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
+    (Hparams : BoundFVarArray c stats.params)
+    (HnoAlias : Hbindings.NoAlias Hparams)
+    (Hroot : BindingContextLE root c)
+    (hidx : dIdx < recInfos.size)
+    (Harities : RecInfoArities stats recInfos)
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Hseed : ∀ {current : AddInductive.Context} {currentDepth : Nat}
+      (Rcurrent : RecursorContextWF current recLparams),
+      Rcurrent.venv = R.venv →
+      (HsuffixCurrent : RecursorParameterContextSuffix Rcurrent stats
+        currentDepth) →
+      HsuffixCurrent.parameterDecls = Hsuffix.parameterDecls →
+      ∀ ctor, ctor ∈ ctors →
+      ∃ tail tailTarget introTarget,
+        RecursorParamPrefix stats 0 ctor.type tail ∧
+        Nonempty (CheckedConstructorOwnerNormalForm stats dIdx tail) ∧
+        TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+          tail tailTarget ∧
+        Rcurrent.venv.IsType recLparams.length
+          Rcurrent.mlctx.vlctx.toCtx tailTarget ∧
+        TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+          (mkAppN (.const ctor.name stats.levels) stats.params)
+          introTarget ∧
+        Rcurrent.venv.HasType recLparams.length
+          Rcurrent.mlctx.vlctx.toCtx introTarget tailTarget)
+    (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
+      (out : Array AddInductive.RecInfo)
+      (Rout : RecursorContextWF outCtx recLparams),
+      Rout.venv = R.venv →
+      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) →
+      HsuffixOut.parameterDecls = Hsuffix.parameterDecls →
+      RecursorValidAppStatsWF Rout.venv recLparams
+        Rout.mlctx.vlctx stats decl outDepth →
+      VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
+      (HbindingsOut : RecInfoBindings outCtx out) →
+      (HoriginsOut : RecInfoTypeOrigins outCtx out) →
+      out.size = recInfos.size →
+      out[dIdx]!.minors.size =
+        recInfos[dIdx]!.minors.size + ctors.length →
+      (∀ i, i < recInfos.size → dIdx ≠ i →
+        out[i]!.minors.size = recInfos[i]!.minors.size) →
+      RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
+      RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
+      RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl out elimLevel →
+      RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
+      (HparamsOut : BoundFVarArray outCtx stats.params) →
+      HbindingsOut.NoAlias HparamsOut →
+      RecInfoArities stats out →
+      BindingContextLE root outCtx →
+      (k out outCtx).WF Q) :
+    (AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
+      ctors k c).WF Q := by
+  induction ctors generalizing recInfos c depth with
+  | nil =>
+      exact Hk recInfos R rfl Hsuffix rfl Hstats hctx Hbindings Horigins
+        rfl (by simp) (by intros; rfl) HmajorTypes HmajorShapes
+        HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams HnoAlias
+        Harities Hroot
+  | cons ctor ctors ih =>
+      rcases Hseed R rfl Hsuffix rfl ctor (by simp) with
+        ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, Htail,
+          HtailType, Hintro, HintroType⟩
+      rw [AddInductive.mkRecInfos.loopCtors]
+      refine oneConstructorSemantics (Q := Q) stats indTypeName dIdx recInfos
+        ctor tail
+        (fun next => AddInductive.mkRecInfos.loopCtors stats indTypeName
+          dIdx next ctors k)
+        R Hsuffix Hstats Hprefix hwhnf hconsume hlit hctx hproj Htail
+        HtailType Hintro HintroType Hbindings Horigins HmajorTypes
+        HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows
+        Hparams HnoAlias Hroot hidx Harities hrecords Hnormal ?_
+      intro nextCtx nextDepth next Rnext henvNext HsuffixNext
+        hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
+        hsizeNext hcountNext hotherNext HmajorTypesNext HmajorShapesNext
+        HmotiveTypesNext HmotiveShapesNext HtelescopesNext HindexRowsNext
+        HparamsNext HnoAliasNext HaritiesNext HrootNext
+      refine ih next Rnext HsuffixNext HstatsNext hctxNext HbindingsNext
+        HoriginsNext HmajorTypesNext HmajorShapesNext HmotiveTypesNext
+        HmotiveShapesNext HtelescopesNext HindexRowsNext HparamsNext
+        HnoAliasNext HrootNext ?_ HaritiesNext ?_ ?_ ?_
+      · simpa [hsizeNext] using hidx
+      · exact hsizeNext.trans hrecords
+      · intro current currentDepth Rcurrent henvCurrent HsuffixCurrent
+          hparameterDeclsCurrent nextCtor hnextCtor
+        apply Hseed Rcurrent (henvCurrent.trans henvNext) HsuffixCurrent
+          (hparameterDeclsCurrent.trans hparameterDeclsNext) nextCtor
+        simp [hnextCtor]
+      · intro outCtx outDepth out Rout henvOut HsuffixOut
+          hparameterDeclsOut HstatsOut hctxOut HbindingsOut HoriginsOut
+          houtSize houtCount houtOther HmajorTypesOut HmajorShapesOut
+          HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
+          HparamsOut HnoAliasOut HaritiesOut HrootOut
+        have houtSize' : out.size = recInfos.size :=
+          houtSize.trans hsizeNext
+        have houtCount' : out[dIdx]!.minors.size =
+            recInfos[dIdx]!.minors.size + (ctor :: ctors).length := by
+          rw [houtCount, hcountNext]
+          simp
+          omega
+        have houtOther' : ∀ i, i < recInfos.size → dIdx ≠ i →
+            out[i]!.minors.size = recInfos[i]!.minors.size := by
+          intro i hi hine
+          rw [houtOther i (by simpa [hsizeNext] using hi) hine]
+          exact hotherNext i hi hine
+        exact Hk out Rout (henvOut.trans henvNext) HsuffixOut
+          (hparameterDeclsOut.trans hparameterDeclsNext) HstatsOut hctxOut
+          HbindingsOut HoriginsOut houtSize' houtCount' houtOther'
+          HmajorTypesOut HmajorShapesOut HmotiveTypesOut HmotiveShapesOut
+          HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HaritiesOut
+          HrootOut
 
 /-- Processing constructors retains every field and induction-hypothesis
 binder and appends the resulting minor binder to the certificate of its
@@ -33746,6 +34654,162 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
   · rw [dif_neg hidx]
     exact Hk recInfos c hsize (fun i hi => Hprefix i (by omega) hi)
       Hc Hbindings Horigins Hparams HnoAlias Harities Hroot
+termination_by indTypes.size - dIdx
+
+/-- Semantic refinement of the complete second mutual pass.  The processed
+prefix has its exact constructor/minor cardinalities, the unprocessed suffix
+is empty, and every checker-produced constructor seed is consumed at its
+original mutual-family owner. -/
+theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (dIdx : Nat)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    {recLparams : List Name} {depth : Nat}
+    {root c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl}
+    (HsuffixCtx : RecursorParameterContextSuffix R stats depth)
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
+    (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
+      Horigins.majorTypes)
+    (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
+    (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
+      Horigins.motiveTypes elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl recInfos elimLevel)
+    (HindexRows : RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
+    (Hparams : BoundFVarArray c stats.params)
+    (HnoAlias : Hbindings.NoAlias Hparams)
+    (Hroot : BindingContextLE root c)
+    (hsize : recInfos.size = indTypes.size)
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Harities : RecInfoArities stats recInfos)
+    (Hprefix : ∀ i, i < dIdx → i < recInfos.size →
+      recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
+    (HemptySuffix : ∀ i, dIdx ≤ i → i < recInfos.size →
+      recInfos[i]!.minors.size = 0)
+    (Hseed : ∀ {current : AddInductive.Context} {currentDepth : Nat}
+      (Rcurrent : RecursorContextWF current recLparams),
+      Rcurrent.venv = R.venv →
+      (HsuffixCurrent : RecursorParameterContextSuffix Rcurrent stats
+        currentDepth) →
+      HsuffixCurrent.parameterDecls = HsuffixCtx.parameterDecls →
+      ∀ familyIdx, (hfamily : familyIdx < indTypes.size) →
+      ∀ ctor, ctor ∈ indTypes[familyIdx].ctors →
+      ∃ tail tailTarget introTarget,
+        RecursorParamPrefix stats 0 ctor.type tail ∧
+        Nonempty
+          (CheckedConstructorOwnerNormalForm stats familyIdx tail) ∧
+        TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+          tail tailTarget ∧
+        Rcurrent.venv.IsType recLparams.length
+          Rcurrent.mlctx.vlctx.toCtx tailTarget ∧
+        TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+          (mkAppN (.const ctor.name stats.levels) stats.params)
+          introTarget ∧
+        Rcurrent.venv.HasType recLparams.length
+          Rcurrent.mlctx.vlctx.toCtx introTarget tailTarget)
+    (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
+      (out : Array AddInductive.RecInfo)
+      (Rout : RecursorContextWF outCtx recLparams),
+      Rout.venv = R.venv →
+      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) →
+      HsuffixOut.parameterDecls = HsuffixCtx.parameterDecls →
+      RecursorValidAppStatsWF Rout.venv recLparams
+        Rout.mlctx.vlctx stats decl outDepth →
+      VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
+      (HbindingsOut : RecInfoBindings outCtx out) →
+      (HoriginsOut : RecInfoTypeOrigins outCtx out) →
+      out.size = indTypes.size →
+      (∀ i, i < out.size →
+        out[i]!.minors.size = indTypes[i]!.ctors.length) →
+      RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
+      RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
+      RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl out elimLevel →
+      RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
+      (HparamsOut : BoundFVarArray outCtx stats.params) →
+      HbindingsOut.NoAlias HparamsOut →
+      RecInfoArities stats out →
+      BindingContextLE root outCtx →
+      (k out outCtx).WF Q) :
+    (AddInductive.mkRecInfos.loopInd2 stats indTypes dIdx recInfos k c).WF Q := by
+  rw [AddInductive.mkRecInfos.loopInd2]
+  by_cases hfamily : dIdx < indTypes.size
+  · rw [dif_pos hfamily]
+    refine mkRecInfos.loopCtors.resultSemantics (Q := Q) stats
+      indTypes[dIdx].name dIdx recInfos indTypes[dIdx].ctors
+      (fun out => AddInductive.mkRecInfos.loopInd2 stats indTypes
+        (dIdx + 1) out k)
+      R HsuffixCtx Hstats hwhnf hconsume hlit hctx hproj Hbindings
+      Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
+      Htelescopes HindexRows Hparams HnoAlias Hroot
+      (by simpa [hsize] using hfamily) Harities hrecords ?_ ?_
+    · intro current currentDepth Rcurrent henvCurrent HsuffixCurrent
+        hparameterDeclsCurrent ctor hctor
+      exact Hseed Rcurrent henvCurrent HsuffixCurrent
+        hparameterDeclsCurrent dIdx hfamily ctor hctor
+    · intro outCtx outDepth out Rout henvOut HsuffixOut
+        hparameterDeclsOut HstatsOut hctxOut HbindingsOut HoriginsOut
+        houtSize houtCount houtOther HmajorTypesOut HmajorShapesOut
+        HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
+        HparamsOut HnoAliasOut HaritiesOut HrootOut
+      refine resultSemantics (root := root) (Q := Q) stats indTypes
+        (dIdx + 1) out k Rout HsuffixOut HstatsOut hwhnf hconsume hlit
+        hctxOut hproj HbindingsOut HoriginsOut HmajorTypesOut
+        HmajorShapesOut HmotiveTypesOut HmotiveShapesOut HtelescopesOut
+        HindexRowsOut HparamsOut HnoAliasOut HrootOut ?_ ?_ HaritiesOut
+        ?_ ?_ ?_ ?_
+      · exact houtSize.trans hsize
+      · exact houtSize.trans hrecords
+      · intro i hiDone hiOut
+        by_cases hieq : i = dIdx
+        · subst i
+          rw [houtCount, HemptySuffix dIdx (Nat.le_refl _) (by
+            simpa [houtSize] using hiOut)]
+          simp [Array.getElem!_eq_getD, Array.getD, hfamily]
+        · rw [houtOther i (by simpa [houtSize] using hiOut)
+            (Ne.symm hieq)]
+          exact Hprefix i (by omega) (by simpa [houtSize] using hiOut)
+      · intro i hiNext hiOut
+        have hine : dIdx ≠ i := by omega
+        rw [houtOther i (by simpa [houtSize] using hiOut) hine]
+        exact HemptySuffix i (by omega) (by simpa [houtSize] using hiOut)
+      · intro current currentDepth Rcurrent henvCurrent HsuffixCurrent
+          hparameterDeclsCurrent familyIdx hfamilyIdx ctor hctor
+        exact Hseed Rcurrent (henvCurrent.trans henvOut) HsuffixCurrent
+          (hparameterDeclsCurrent.trans hparameterDeclsOut) familyIdx
+          hfamilyIdx ctor hctor
+      · intro finalCtx finalDepth final Rfinal henvFinal HsuffixFinal
+          hparameterDeclsFinal HstatsFinal hctxFinal HbindingsFinal
+          HoriginsFinal hfinalSize hfinalCounts HmajorTypesFinal
+          HmajorShapesFinal HmotiveTypesFinal HmotiveShapesFinal
+          HtelescopesFinal HindexRowsFinal HparamsFinal HnoAliasFinal
+          HaritiesFinal HrootFinal
+        exact Hk final Rfinal (henvFinal.trans henvOut) HsuffixFinal
+          (hparameterDeclsFinal.trans hparameterDeclsOut) HstatsFinal
+          hctxFinal HbindingsFinal HoriginsFinal hfinalSize hfinalCounts
+          HmajorTypesFinal HmajorShapesFinal HmotiveTypesFinal
+          HmotiveShapesFinal HtelescopesFinal HindexRowsFinal HparamsFinal
+          HnoAliasFinal HaritiesFinal HrootFinal
+  · rw [dif_neg hfamily]
+    exact Hk recInfos R rfl HsuffixCtx rfl Hstats hctx Hbindings Horigins
+      hsize (fun i hi => Hprefix i (by omega) hi) HmajorTypes
+      HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams
+      HnoAlias Harities Hroot
 termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd2
@@ -36213,6 +37277,49 @@ theorem AddInductive.checkConstructors.checkedWF
     { c with env := outEnv } = .ok outEnv from rfl]
   exact Hloops
 
+/-- The same executable constructor check also retains the canonical owner
+normal form for every constructor.  This proof is kept as an independent
+projection so the abstract formation certificate does not depend on the
+later recursor implementation. -/
+theorem AddInductive.checkConstructors.ownerNormalFormsWF
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes outEnv)
+    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
+      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
+      (hi : i < indTypes[targetIdx].ctors.length) →
+      found.contains indTypes[targetIdx].ctors[i].name = false)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+    (AddInductive.checkConstructors indTypes stats isUnsafe
+      { c with env := outEnv }).WF fun _ =>
+        CheckedConstructorOwnerNormalForms stats indTypes := by
+  let Hsuffix := H.materialized.parameterSuffix
+  let Hstats :=
+    checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+      H.materialized
+  have Hloops := checkConstructors.loopTypes.ownerNormalFormsWF
+    (Q := fun _ => CheckedConstructorOwnerNormalForms stats indTypes)
+    (isUnsafe := isUnsafe)
+    H.context H.translation.types
+    (ConstructorOwnerNormalFormRows.empty stats indTypes)
+    Hfresh Hsuffix Hstats hconsume hlit hproj
+    (fun Hrows => Hrows.complete)
+  rw [AddInductive.checkConstructors]
+  change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
+    AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
+      { c with env := outEnv }).WF _
+  change (((liftM TypeChecker.getEnv : AddInductive.M _)
+    { c with env := outEnv } >>= fun _ =>
+      AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
+        { c with env := outEnv }).WF _)
+  rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
+    { c with env := outEnv } = .ok outEnv from rfl]
+  exact Hloops
+
 theorem AddInductive.checkConstructors.headersWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
@@ -36333,6 +37440,7 @@ structure ConstructorPhasesResult
   parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
   constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
     H.materialized.parameterScope stats decl indTypes
+  ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
   declared : DeclaredConstructorsResult H outEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
@@ -36560,6 +37668,93 @@ theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
   simpa [Expr.mkAppN_eq_mkAppList, hctorName, Rbase, Hbase,
     Hmaterialized, Hsuffix] using Hintro
 
+/-- Reinterpret a checked constructor seed in any later recursor context
+whose parameter suffix is the one retained by the first pass. -/
+theorem ConstructorPhasesResult.checkedConstructorRuntimeSeedAt
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv)
+    (elimLevel : Level)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    (hlparams : c.lparams.Nodup)
+    {current : AddInductive.Context}
+    (Rcurrent : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    (henvCurrent : Rcurrent.venv = R.declared.context.venv)
+    {runtimeDepth : Nat}
+    (HsuffixCurrent : RecursorParameterContextSuffix Rcurrent stats
+      runtimeDepth)
+    (hparameterDecls : HsuffixCurrent.parameterDecls =
+      (R.materialized.parameterSuffix.toRecursorContext
+        Helim).parameterDecls)
+    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
+    (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
+    ∃ tail tailTarget introTarget,
+      RecursorParamPrefix stats 0
+        indTypes[familyIdx].ctors[ctorIdx].type tail ∧
+      Nonempty (CheckedConstructorOwnerNormalForm stats familyIdx tail) ∧
+      TrExprS Rcurrent.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        Rcurrent.mlctx.vlctx tail tailTarget ∧
+      Rcurrent.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length
+        Rcurrent.mlctx.vlctx.toCtx tailTarget ∧
+      TrExprS Rcurrent.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        Rcurrent.mlctx.vlctx
+        (mkAppN
+          (.const indTypes[familyIdx].ctors[ctorIdx].name stats.levels)
+          stats.params) introTarget ∧
+      Rcurrent.venv.HasType
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length
+        Rcurrent.mlctx.vlctx.toCtx introTarget tailTarget := by
+  let Hbase := R.declared.context
+  let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
+  let HsuffixBase := R.materialized.parameterSuffix.toRecursorContext Helim
+  rcases R.checkedConstructorPrefixSeedAt Helim hlparams familyIdx hfamily
+      ctorIdx hctor with
+    ⟨_ctorVal, tail, tailNarrow, introNarrow, _hmem, _hname,
+      Hprefix, Htail, HtailType, Hintro, HintroType⟩
+  rcases R.ownerNormalForms.replay familyIdx hfamily ctorIdx hctor with
+    ⟨normalTail, HnormalPrefix, Hnormal⟩
+  have htailEq : normalTail = tail :=
+    HnormalPrefix.tail_eq Hprefix
+  subst normalTail
+  have HtailCurrent : TrExprS Rcurrent.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      HsuffixCurrent.parameterDecls tail tailNarrow := by
+    rw [henvCurrent, hparameterDecls]
+    simpa [Rbase, Hbase, HsuffixBase] using Htail
+  have HtailTypeCurrent : Rcurrent.venv.IsType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      HsuffixCurrent.parameterDecls.toCtx tailNarrow := by
+    rw [henvCurrent, hparameterDecls]
+    simpa [Rbase, Hbase, HsuffixBase] using HtailType
+  have HintroCurrent : TrExprS Rcurrent.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      HsuffixCurrent.parameterDecls
+      (mkAppN
+        (.const indTypes[familyIdx].ctors[ctorIdx].name stats.levels)
+        stats.params) introNarrow := by
+    rw [henvCurrent, hparameterDecls]
+    simpa [Rbase, Hbase, HsuffixBase] using Hintro
+  have HintroTypeCurrent : Rcurrent.venv.HasType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      HsuffixCurrent.parameterDecls.toCtx introNarrow tailNarrow := by
+    rw [henvCurrent, hparameterDecls]
+    simpa [Rbase, Hbase, HsuffixBase] using HintroType
+  rcases HsuffixCurrent.runtimeScope.transportTypedTerm
+      Rcurrent.checking.tr.wf HintroCurrent HtailCurrent
+      HintroTypeCurrent HtailTypeCurrent with
+    ⟨introTarget, tailTarget, HintroRuntime, HtailRuntime,
+      HintroTypeRuntime, HtailTypeRuntime⟩
+  exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal,
+    HtailRuntime, HtailTypeRuntime, HintroRuntime, HintroTypeRuntime⟩
+
 /-- Select one mutual-family header for recursor replay after transporting
 both its source translation and the materialized header certificate through
 header and constructor installation. -/
@@ -36628,6 +37823,9 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
         (AddInductive.getRecLevelParams elimLevel c.lparams))
       (henvOut : Rout.venv = R.declared.context.venv)
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (hparameterDeclsOut : HsuffixOut.parameterDecls =
+        (R.materialized.parameterSuffix.toRecursorContext
+          Helim).parameterDecls)
       (HstatsOut : RecursorValidAppStatsWF Rout.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
         Rout.mlctx.vlctx stats decl outDepth)
@@ -36695,10 +37893,12 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     (RecInfoBindings.empty_noAlias _ Hparams hparamsNodup)
     (BindingContextLE.refl _) rfl (RecInfoArities.empty stats)
     RecInfoMinorsEmpty.empty ?_
-  intro cOut outDepth recInfos Rout henvOut HsuffixOut HstatsOut
+  intro cOut outDepth recInfos Rout henvOut HsuffixOut hparameterDeclsOut
+    HstatsOut
     Hbindings Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
     Htelescopes HindexRows HparamsOut HnoAlias Harities Hempty Hroot hsize
-  apply Hk recInfos Rout henvOut HsuffixOut HstatsOut Hbindings Horigins
+  apply Hk recInfos Rout henvOut HsuffixOut hparameterDeclsOut HstatsOut
+    Hbindings Horigins
     HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows HparamsOut
     HnoAlias Harities Hempty Hroot
   simpa using hsize
@@ -36716,6 +37916,15 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       indTypes headerEnv}
     (R : ConstructorPhasesResult H outEnv)
     (elimLevel : Level)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    (hlparams : c.lparams.Nodup)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
     (Hk : ∀ recInfos cOut, BindingContextWF cOut →
       (Hbindings : RecInfoBindings cOut recInfos) →
@@ -36727,19 +37936,52 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       (k recInfos cOut).WF Q) :
     (AddInductive.mkRecInfos stats indTypes elimLevel k
       { c with env := outEnv }).WF Q := by
-  let Hsuffix := H.materialized.parameterSuffix
-  let HparamsHeader : BoundFVarArray { c with env := headerEnv }
-      stats.params := Hsuffix.paramsBound
-  let Hparams : BoundFVarArray { c with env := outEnv }
-      stats.params := HparamsHeader.monoFVars (by intro fv; exact id)
-  have hparamsNodup : Hparams.fvars.Nodup := by
-    change HparamsHeader.fvars.Nodup
-    change (ExprArrayFVarIds stats.params).Nodup
-    exact Hsuffix.paramsBound_nodup
-  apply mkRecInfos.resultCertificate (Q := Q) R.core H.materialized elimLevel k
-    { c with env := outEnv } R.declared.context.toBindingContextWF
-    Hparams hparamsNodup
-  exact Hk
+  unfold AddInductive.mkRecInfos
+  refine R.loopInd1SemanticWF elimLevel Helim hlparams hwhnf hconsume
+    (fun recInfos =>
+      AddInductive.mkRecInfos.loopInd2 stats indTypes 0 recInfos k) ?_
+  intro cFrames frameDepth recInfos Rframes henvFrames HsuffixFrames
+    hparameterDeclsFrames HstatsFrames HbindingsFrames HoriginsFrames
+    HmajorTypesFrames HmajorShapesFrames HmotiveTypesFrames
+    HmotiveShapesFrames HtelescopesFrames HindexRowsFrames HparamsFrames
+    HnoAliasFrames HaritiesFrames HemptyFrames HrootFrames hsizeFrames
+  have hrecordsFrames : recInfos.size = stats.indConsts.size := by
+    calc
+      recInfos.size = indTypes.size := hsizeFrames
+      _ = indTypes.toList.length := by simp
+      _ = decl.types.length :=
+        Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
+      _ = stats.indConsts.size := HstatsFrames.types_size.symm
+  refine mkRecInfos.loopInd2.resultSemantics (root := { c with env := outEnv })
+    (Q := Q) stats indTypes 0 recInfos k Rframes HsuffixFrames
+    HstatsFrames hwhnf hconsume hlit
+    (checkInductiveTypes.loopType.MLCtxOnlyLams.noIndConsts
+      Rframes.onlyLams) hproj
+    HbindingsFrames HoriginsFrames HmajorTypesFrames HmajorShapesFrames
+    HmotiveTypesFrames HmotiveShapesFrames HtelescopesFrames
+    HindexRowsFrames HparamsFrames HnoAliasFrames HrootFrames hsizeFrames
+    hrecordsFrames HaritiesFrames ?_ ?_ ?_ ?_
+  · intro i hi
+    omega
+  · intro i _ hi
+    exact HemptyFrames i hi
+  · intro current currentDepth Rcurrent henvCurrent HsuffixCurrent
+      hparameterDeclsCurrent familyIdx hfamily ctor hctor
+    rcases List.mem_iff_getElem.mp hctor with ⟨ctorIdx, hctorIdx, rfl⟩
+    exact R.checkedConstructorRuntimeSeedAt elimLevel Helim hlparams Rcurrent
+      (henvCurrent.trans henvFrames) HsuffixCurrent
+      (hparameterDeclsCurrent.trans hparameterDeclsFrames) familyIdx
+      hfamily ctorIdx hctorIdx
+  · intro cOut outDepth out Rout henvOut HsuffixOut hparameterDeclsOut
+      HstatsOut hctxOut HbindingsOut HoriginsOut houtSize houtCounts
+      HmajorTypesOut HmajorShapesOut HmotiveTypesOut HmotiveShapesOut
+      HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HaritiesOut
+      HrootOut
+    exact Hk out cOut Rout.toBindingContextWF HbindingsOut HoriginsOut
+      HparamsOut HnoAliasOut
+      (RecursorCardinalityCertificate.ofResult R.core H.materialized
+        houtSize houtCounts HaritiesOut)
+      HrootOut
 
 /-- Exact `run` prefix immediately after constructor installation.  The
 eliminator-level search is semantically relevant only through the level it
@@ -36753,6 +37995,14 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
     (R : ConstructorPhasesResult H outEnv)
+    (hlparams : c.lparams.Nodup)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (k : Level → Array AddInductive.RecInfo → AddInductive.M alpha)
     (Hk : ∀ elimLevel,
       AddInductive.AdmissibleElimLevel c.lparams elimLevel →
@@ -36770,7 +38020,8 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
   have Helim := AddInductive.getElimLevel.WF stats indTypes
     { c with env := outEnv }
   exact Helim.bind fun elimLevel hElim =>
-    R.mkRecInfosWF elimLevel (k elimLevel)
+    R.mkRecInfosWF elimLevel hElim hlparams hwhnf hconsume hlit hproj
+      (k elimLevel)
       (Hk elimLevel hElim)
 
 /-- The executable constructor check and declaration folds jointly establish
@@ -36806,7 +38057,20 @@ theorem AddInductive.constructorPhases.WF
         ∃ _ : ConstructorPhasesResult H outEnv, True := by
   have Hcheck := AddInductive.checkConstructors.checkedWF H Hfresh hconsume
     hlit hproj hunsafe hbound
-  exact Hcheck.bind fun _ Hchecked =>
+  have Howners := AddInductive.checkConstructors.ownerNormalFormsWF H Hfresh
+    hconsume hlit hproj
+  have HcheckBoth :
+      (AddInductive.checkConstructors indTypes stats isUnsafe
+        { c with env := headerEnv }).WF fun _ =>
+          CheckedConstructorsResult sourceEnv decl H.context.venv
+              H.headers.params stats indTypes c.lparams
+              H.materialized.parameterScope ∧
+            CheckedConstructorOwnerNormalForms stats indTypes := by
+    intro out hout
+    exact ⟨Hcheck out hout, Howners out hout⟩
+  exact HcheckBoth.bind fun _ HcheckedBoth =>
+    let Hchecked := HcheckedBoth.1
+    let HownerNormalForms := HcheckedBoth.2
     (AddInductive.declareConstructors.WF H Hchecked.checked hvisible hnprim).mono
       fun outEnv Hdeclared => by
         rcases Hdeclared with ⟨Hdeclared, _⟩
@@ -36814,6 +38078,7 @@ theorem AddInductive.constructorPhases.WF
           checked := Hchecked.checked
           parameterPrefixes := Hchecked.parameterPrefixes
           constructorTails := Hchecked.constructorTails
+          ownerNormalForms := HownerNormalForms
           declared := Hdeclared
           formation := H.formation Hchecked.checked.formation
           core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases
@@ -46888,6 +48153,14 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       sourceEnv indTypes headerEnv}
     (R : ConstructorPhasesResult Hheaders ctorEnv)
     (hclosed : MutualInductivesClosed ctorEnv)
+    (hlparams : c.lparams.Nodup)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
@@ -46897,7 +48170,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
         AddInductive.declareRecursors stats indTypes elimLevel recInfos)
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (RecursorPhasesResult R outEnv) := by
-  apply R.getElimLevelMkRecInfosWF
+  apply R.getElimLevelMkRecInfosWF hlparams hwhnf hconsume hlit hproj
     (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
     (k := fun elimLevel recInfos =>
       AddInductive.declareRecursors stats indTypes elimLevel recInfos)
@@ -47995,6 +49268,14 @@ theorem AddInductive.runWithStats.WF
             depth sourceEnv indTypes headerEnv,
           ∃ _ : ConstructorPhasesResult Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
+    (hlparams : c.lparams.Nodup)
+    (hwhnf : WhnfLParamsCompat)
+    (hrecConsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
@@ -48008,7 +49289,8 @@ theorem AddInductive.runWithStats.WF
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
       rcases Hresult with ⟨headerEnv, Hheaders, R, hclosed⟩
-      exact (R.recursorPhasesWF hclosed hnotPartial hnprim).mono
+      exact (R.recursorPhasesWF hclosed hlparams hwhnf hrecConsume hlit
+        hproj hnotPartial hnprim).mono
           fun outEnv Hrecursors =>
             show ∃ headerEnv ctorEnv,
               ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
@@ -48042,6 +49324,9 @@ theorem AddInductive.runWithStats.closedWF
       (hi : i < indTypes[targetIdx].ctors.length) →
       found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlparams : c.lparams.Nodup)
+    (hwhnf : WhnfLParamsCompat)
+    (hrecConsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
@@ -48070,6 +49355,11 @@ theorem AddInductive.runWithStats.closedWF
     isUnsafe c
   · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
       hvisible hnprimTypes Hfresh hconsume hlit hproj hunsafe hbound hnprimCtors
+  · exact hlparams
+  · exact hwhnf
+  · exact hrecConsume
+  · exact hlit
+  · exact hproj
   · exact hnotPartial
   · exact hnprimRecursors
 
@@ -48113,7 +49403,7 @@ theorem AddInductive.run.materialize
         types.toArray.toList (c.safety != .safe) decl envTypes →
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth →
-      c.lparams.Nodup →
+      c'.lparams.Nodup →
       (AddInductive.runWithStats stats skeleton.nparams types.toArray
         numNested (c.safety != .safe) c').WF Q) :
     (AddInductive.run skeleton.nparams types numNested c).WF Q := by
@@ -48126,9 +49416,9 @@ theorem AddInductive.run.materialize
       (fun stats => AddInductive.runWithStats stats skeleton.nparams
         types.toArray numNested (c.safety != .safe)) Q Hc Hdecl hctx hnonempty
       hconsume
-    intro c' stats decl depth Hc' Hdecl' Hmaterialized
+    intro c' stats decl depth Hc' hlparamsEq Hdecl' Hmaterialized
     apply Hfinish Hc' Hdecl' Hmaterialized
-    exact hnodup
+    simpa [hlparamsEq] using hnodup
   simpa [AddInductive.run] using Hcombined
 
 /-- The explicit semantic/freshness inputs needed to verify one set of
@@ -48156,6 +49446,8 @@ structure RunWithStatsVerificationInputs
     (hi : i < indTypes[targetIdx].ctors.length) →
     found.contains indTypes[targetIdx].ctors[i].name = false
   consume : ConsumeTypeAnnotationsCompat
+  whnfLParams : WhnfLParamsCompat
+  recursorConsume : RecursorConsumeTypeAnnotationsCompat
   literalDisjoint : checkPositivityStep.LiteralDisjoint stats.indConsts
   projections : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
     e'.containsAnyConst (decl.types.map (·.name)) = false →
@@ -48179,16 +49471,18 @@ structure RunWithStatsVerificationInputs
 theorem RunWithStatsVerificationInputs.verify
     (H : RunWithStatsVerificationInputs c stats decl numParams depth
       numNested indTypes isUnsafe Hc Hdecl Hmaterialized) :
+    c.lparams.Nodup →
     (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe
       c).WF fun outEnv => ∃ headerEnv ctorEnv,
         ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
           depth Hc.venv indTypes headerEnv,
         ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
           Nonempty (RecursorPhasesResult R outEnv) :=
-  AddInductive.runWithStats.closedWF Hc H.closed Hdecl Hmaterialized
-    H.visible H.freshTypes H.freshConstructors H.consume H.literalDisjoint
-    H.projections H.unsafeDecl H.universeBound H.freshConstructorConstants
-    H.notPartial H.freshRecursors
+  fun hlparams => AddInductive.runWithStats.closedWF Hc H.closed Hdecl
+    Hmaterialized H.visible H.freshTypes H.freshConstructors H.consume
+    hlparams H.whnfLParams H.recursorConsume H.literalDisjoint H.projections
+    H.unsafeDecl H.universeBound H.freshConstructorConstants H.notPartial
+    H.freshRecursors
 
 /-- Declaration-facing successful result of the complete ordinary executable
 checker, including the independently materialized declaration and the exact
@@ -48234,8 +49528,8 @@ theorem AddInductive.run.closedWF
   apply AddInductive.run.materialize numNested
     (VerifiedInductiveRunResult c skeleton envTypes types numNested)
     Hc Hdecl hctx hnonempty hconsume
-  intro c' stats decl depth Hc' Hdecl' Hmaterialized _hlparamsNodup
-  exact (Hinputs Hc' Hdecl' Hmaterialized).verify.mono
+  intro c' stats decl depth Hc' Hdecl' Hmaterialized hlparamsNodup
+  exact ((Hinputs Hc' Hdecl' Hmaterialized).verify hlparamsNodup).mono
     fun outEnv Hout => by
       rcases Hout with ⟨headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
       exact ⟨c', stats, decl, depth, Hc', Hdecl', Hmaterialized,
