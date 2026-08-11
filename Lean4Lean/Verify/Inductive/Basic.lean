@@ -17070,7 +17070,41 @@ theorem RecursorFieldSelectionsAt.arguments_at_positions
     apply List.Forall₂.cons
     · refine ⟨by simp [hindex], ?_⟩
       simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm
-    · exact .nil
+      · exact .nil
+
+/-- Specialize a recursor-universe recursive-domain witness to the declaration
+universe arity.  Zero is a valid specialization for every recursor universe;
+the concrete field selection remains unchanged, while the semantic context
+and domain are instantiated in lockstep. -/
+def RecursorRecursiveDomainAt.toSource
+    (cert : RecursorRecursiveDomainAt env decl uvars) :
+    RecursorRecursiveDomain env decl where
+  fieldIndex := cert.fieldIndex
+  ownerIdx := cert.ownerIdx
+  owner_lt := cert.owner_lt
+  ctx := cert.ctx.map (VExpr.instL (List.replicate uvars .zero))
+  depth := cert.depth
+  domain := cert.domain.instL (List.replicate uvars .zero)
+  recursive := cert.recursive.instL (List.replicate uvars .zero)
+    (by simp [VLevel.WF])
+
+@[simp] theorem RecursorRecursiveDomainAt.toSource_fieldIndex
+    (cert : RecursorRecursiveDomainAt env decl uvars) :
+    cert.toSource.fieldIndex = cert.fieldIndex := rfl
+
+/-- Field selection is operationally universe-insensitive.  Specializing each
+semantic domain therefore converts the second-pass trace directly into the
+source-universe trace consumed by the independent iota specification. -/
+theorem RecursorFieldSelectionsAt.toSource
+    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
+    RecursorFieldSelections env decl bu u
+      (fields.map RecursorRecursiveDomainAt.toSource) := by
+  induction H with
+  | nil => exact .nil
+  | nonrecursive _ ih => exact .nonrecursive ih
+  | @recursive bu u fields arg cert H hindex ih =>
+    simpa using RecursorFieldSelections.recursive
+      (cert := cert.toSource) ih hindex
 
 namespace mkRecInfos.loopCtorArgs.loop
 

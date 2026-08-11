@@ -117,11 +117,30 @@ private theorem VExpr.getAppFnArgs.go_append
     (head, args ++ [arg])
   simpa using getAppFnArgs.go_append fn [] [arg]
 
+/-- Universe substitution commutes with exposing an application spine. -/
+@[simp] theorem VExpr.getAppFnArgs_instL (e : VExpr) (levels : List VLevel) :
+    (e.instL levels).getAppFnArgs =
+      let (fn, args) := e.getAppFnArgs
+      (fn.instL levels, args.map (VExpr.instL levels)) := by
+  induction e with
+  | app fn arg ihFn _ =>
+    simp only [VExpr.instL, VExpr.getAppFnArgs_app, ihFn]
+    simp
+  | bvar | sort | const | lam | forallE =>
+    rfl
+
 def VExpr.containsAnyConst (names : List Name) : VExpr → Bool
   | .bvar _ | .sort _ => false
   | .const name _ => names.contains name
   | .app fn arg | .lam fn arg | .forallE fn arg =>
     fn.containsAnyConst names || arg.containsAnyConst names
+
+/-- Universe substitution changes levels but not the constant-name support
+of an expression. -/
+@[simp] theorem VExpr.containsAnyConst_instL
+    (e : VExpr) (levels : List VLevel) :
+    (e.instL levels).containsAnyConst names = e.containsAnyConst names := by
+  induction e <;> simp [VExpr.instL, VExpr.containsAnyConst, *]
 
 /-- The common parameters as de Bruijn variables beneath `depth` additional
 constructor-field binders. -/
@@ -156,6 +175,30 @@ theorem VInductDecl.ValidIndAppAt.forgetTarget
     hargs, hparams, hindices⟩
   exact ⟨type, htype, Or.inl rfl, levels, hfn, hlevels,
     hargs, hparams, hindices⟩
+
+/-- Instantiating universes preserves the syntactic recursive-application
+criterion.  In particular this lets a recursive domain checked under a fresh
+recursor universe be specialized back to the declaration universe arity. -/
+theorem VInductDecl.ValidIndAppAt.instL
+    {decl : VInductDecl} {target : Option Name}
+    {depth : Nat} {e : VExpr} (levels : List VLevel)
+    (H : decl.ValidIndAppAt target depth e) :
+    decl.ValidIndAppAt target depth (e.instL levels) := by
+  unfold VInductDecl.ValidIndAppAt at H ⊢
+  generalize hspine : e.getAppFnArgs = spine at H
+  rcases spine with ⟨fn, args⟩
+  rw [VExpr.getAppFnArgs_instL, hspine]
+  rcases H with ⟨type, htype, htarget, sourceLevels, hfn,
+    hlevelLength, hargLength, hparams, hindices⟩
+  refine ⟨type, htype, htarget, sourceLevels.map (VLevel.inst levels),
+    ?_, by simpa using hlevelLength, by simpa using hargLength, ?_, ?_⟩
+  · simp [hfn, VExpr.instL]
+  · rw [← List.map_take, hparams]
+    simp [VInductDecl.paramVars, VExpr.instL]
+  · intro arg harg
+    rw [← List.map_drop] at harg
+    rcases List.mem_map.mp harg with ⟨source, hsource, rfl⟩
+    simpa using hindices source hsource
 
 /-- A concrete application spine cannot name two different members of the
 same inductive block.  Keeping this fact at the abstract boundary lets later
@@ -290,6 +333,26 @@ theorem VInductDecl.RecursiveArgAtTarget.forgetTarget
   induction H with
   | direct hdef happ => exact .direct hdef happ.forgetTarget
   | forallE he hdom hbody _ ih => exact .forallE he hdom hbody ih
+
+/-- Recursive-argument classification is stable under arbitrary universe
+specialization.  The context and classified domain are instantiated in
+lockstep with every definitional-equality premise. -/
+theorem VInductDecl.RecursiveArgAtTarget.instL
+    {decl : VInductDecl} {env : VEnv} {uvars targetUvars : Nat}
+    {target : Name} {ctx : List VExpr} {depth : Nat} {e : VExpr}
+    (levels : List VLevel)
+    (hlevels : ∀ level ∈ levels, level.WF targetUvars)
+    (H : decl.RecursiveArgAtTarget env uvars target ctx depth e) :
+    decl.RecursiveArgAtTarget env targetUvars target
+      (ctx.map (VExpr.instL levels)) depth (e.instL levels) := by
+  induction H with
+  | direct hdef happ =>
+    exact .direct (hdef.instL hlevels) (happ.instL levels)
+  | forallE he hdom hbody _ ih =>
+    simpa [VExpr.instL] using
+      VInductDecl.RecursiveArgAtTarget.forallE
+        (he.instL hlevels) (hdom.instL hlevels)
+        (hbody.instL hlevels) ih
 
 theorem VInductDecl.RecursiveArg.toAt
     {decl : VInductDecl} {env : VEnv} {ctx : List VExpr}
