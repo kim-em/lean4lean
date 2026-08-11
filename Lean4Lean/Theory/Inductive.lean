@@ -38,6 +38,29 @@ def VInductDecl.constructorConstants (decl : VInductDecl) : List VConstVal :=
 def VInductDecl.sourceNames (decl : VInductDecl) : List Name :=
   decl.typeConstants.map VConstVal.name ++ decl.constructorConstants.map VConstVal.name
 
+theorem VInductDecl.typeNames_nodup
+    {decl : VInductDecl} (H : decl.sourceNames.Nodup) :
+    (decl.types.map (·.name)).Nodup := by
+  have hprefix := (List.nodup_append.mp H).1
+  simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
+    VInductiveType.toVConstVal, Function.comp_def] using hprefix
+
+/-- Duplicate-free source names turn equality of family names back into
+equality of their positions in the mutual block. -/
+theorem VInductDecl.typeIndex_eq_of_name
+    {decl : VInductDecl} (H : decl.sourceNames.Nodup)
+    {left right : Nat} (hleft : left < decl.types.length)
+    (hright : right < decl.types.length)
+    (hname : decl.types[left].name = decl.types[right].name) :
+    left = right := by
+  have hleftMap : left < (decl.types.map (·.name)).length := by
+    simpa using hleft
+  have hrightMap : right < (decl.types.map (·.name)).length := by
+    simpa using hright
+  apply (List.getElem_inj (h₀ := hleftMap) (h₁ := hrightMap)
+    (VInductDecl.typeNames_nodup H)).mp
+  simpa using hname
+
 /-- Split exactly `n` leading forall binders, retaining domains in outermost to
 innermost order. -/
 def VExpr.takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
@@ -133,6 +156,41 @@ theorem VInductDecl.ValidIndAppAt.forgetTarget
     hargs, hparams, hindices⟩
   exact ⟨type, htype, Or.inl rfl, levels, hfn, hlevels,
     hargs, hparams, hindices⟩
+
+/-- A concrete application spine cannot name two different members of the
+same inductive block.  Keeping this fact at the abstract boundary lets later
+implementation proofs compare independently replayed classifier passes
+without appealing to array indices or executable name lookup. -/
+theorem VInductDecl.ValidIndAppAt.target_unique
+    {decl : VInductDecl} {left right : Name}
+    {depth : Nat} {e : VExpr}
+    (Hleft : decl.ValidIndAppAt (some left) depth e)
+    (Hright : decl.ValidIndAppAt (some right) depth e) :
+    left = right := by
+  rcases Hleft with ⟨leftType, _hleftType, hleftTarget,
+    leftLevels, hleftHead, _⟩
+  rcases Hright with ⟨rightType, _hrightType, hrightTarget,
+    rightLevels, hrightHead, _⟩
+  have htypeNames : leftType.name = rightType.name := by
+    exact (VExpr.const.inj (hleftHead.symm.trans hrightHead)).1
+  rcases hleftTarget with hnone | hleft
+  · cases hnone
+  rcases hrightTarget with hnone | hright
+  · cases hnone
+  exact Option.some.inj hleft |>.trans <|
+    htypeNames.trans (Option.some.inj hright).symm
+
+theorem VInductDecl.ValidIndAppAt.targetIndex_unique
+    {decl : VInductDecl} (hnames : decl.sourceNames.Nodup)
+    {left right : Nat} (hleft : left < decl.types.length)
+    (hright : right < decl.types.length) {depth : Nat} {e : VExpr}
+    (Hleft : decl.ValidIndAppAt
+      (some (decl.types[left]'hleft).name) depth e)
+    (Hright : decl.ValidIndAppAt
+      (some (decl.types[right]'hright).name) depth e) :
+    left = right := by
+  apply VInductDecl.typeIndex_eq_of_name hnames hleft hright
+  exact Hleft.target_unique Hright
 
 /- Positivity is recursively modulo definitional equality: the executable
 checker exposes every higher-order body to WHNF, not only the outermost field

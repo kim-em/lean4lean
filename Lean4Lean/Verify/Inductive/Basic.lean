@@ -16800,6 +16800,93 @@ inductive RecursorFieldSelectionsAt
       RecursorFieldSelectionsAt env decl uvars (bu.push arg) (u.push arg)
         (fields ++ [cert])
 
+theorem RecursorFieldSelectionsAt.fields_length
+    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
+    fields.length = u.size := by
+  induction H with
+  | nil => rfl
+  | nonrecursive _ ih => exact ih
+  | recursive _ _ ih => simp [ih]
+
+theorem RecursorFieldSelectionsAt.positions_lt
+    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
+    ∀ cert ∈ fields, cert.fieldIndex < bu.size := by
+  induction H with
+  | nil => simp
+  | @nonrecursive bu u fields arg _ ih =>
+    intro cert hmem
+    have := ih cert hmem
+    simp only [Array.size_push]
+    omega
+  | @recursive bu u fields arg cert _ hindex ih =>
+    intro old hmem
+    simp only [List.mem_append, List.mem_singleton] at hmem
+    rcases hmem with hmem | rfl
+    · have := ih old hmem
+      simp only [Array.size_push]
+      omega
+    · simp only [Array.size_push, hindex]
+      omega
+
+theorem RecursorFieldSelectionsAt.positions_ordered
+    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
+    (fields.map (·.fieldIndex)).Pairwise (· < ·) := by
+  induction H with
+  | nil => simp
+  | nonrecursive _ ih => exact ih
+  | @recursive bu u fields arg cert H hindex ih =>
+    simp only [List.map_append, List.map_singleton]
+    rw [List.pairwise_append]
+    refine ⟨ih, by simp, ?_⟩
+    intro old hold _ hnew
+    simp only [List.mem_singleton] at hnew
+    subst hnew
+    rw [hindex]
+    rcases List.mem_map.mp hold with ⟨oldCert, hmem, rfl⟩
+    exact H.positions_lt oldCert hmem
+
+/-- The target-indexed recursor trace retains the same pointwise alignment
+between selected recursive fields and the complete constructor-field array
+as its declaration-universe counterpart. -/
+theorem RecursorFieldSelectionsAt.arguments_at_positions
+    (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
+    List.Forall₂ (fun cert arg =>
+      ∃ h : cert.fieldIndex < bu.size, arg = bu[cert.fieldIndex]'h)
+      fields u.toList := by
+  induction H with
+  | nil => exact .nil
+  | @nonrecursive bu u fields arg H ih =>
+    have lift : List.Forall₂ (fun cert selected =>
+        ∃ h : cert.fieldIndex < (bu.push arg).size,
+          selected = (bu.push arg)[cert.fieldIndex]'h)
+        fields u.toList := by
+      apply List.Forall₂.imp (R := fun cert selected =>
+        ∃ h : cert.fieldIndex < bu.size,
+          selected = bu[cert.fieldIndex]'h) (fun cert selected hhead => ?_) ih
+      rcases hhead with ⟨hpos, heq⟩
+      refine ⟨by simp; omega, ?_⟩
+      rw [heq]
+      exact (Array.getElem_push_lt hpos).symm
+    exact lift
+  | @recursive bu u fields arg cert H hindex ih =>
+    have lift : List.Forall₂ (fun old selected =>
+        ∃ h : old.fieldIndex < (bu.push arg).size,
+          selected = (bu.push arg)[old.fieldIndex]'h)
+        fields u.toList := by
+      apply List.Forall₂.imp (R := fun old selected =>
+        ∃ h : old.fieldIndex < bu.size,
+          selected = bu[old.fieldIndex]'h) (fun old selected hhead => ?_) ih
+      rcases hhead with ⟨hpos, heq⟩
+      refine ⟨by simp; omega, ?_⟩
+      rw [heq]
+      exact (Array.getElem_push_lt hpos).symm
+    rw [Array.toList_push]
+    apply checkPositivityStep.forall₂_append lift
+    apply List.Forall₂.cons
+    · refine ⟨by simp [hindex], ?_⟩
+      simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm
+    · exact .nil
+
 namespace mkRecInfos.loopCtorArgs.loop
 
 /-- Typed second-pass refinement of the genuine constructor-field suffix.
