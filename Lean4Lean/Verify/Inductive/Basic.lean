@@ -21120,6 +21120,7 @@ the production traversal.  This trace is required when the second pass closes
 all field binders around the generated minor premise. -/
 theorem recursiveDomainsRecursorRecent {alpha : Type}
     (stats : AddInductive.InductiveStats)
+    (head : Expr)
     (k : Expr → Array Expr → Array Expr → AddInductive.M alpha)
     {decl : VInductDecl} {depth : Nat} {typeTarget : VExpr}
     {recLparams : List Name}
@@ -21143,28 +21144,43 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htype : TrExprS R.venv recLparams R.mlctx.vlctx t typeTarget)
+    (htypeType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx typeTarget)
     (hfields : RecursorFieldSelectionsAt R.venv decl recLparams.length
       bu u fields)
     (hargs : List.Forall₂
       (TrExprS R.venv recLparams R.mlctx.vlctx) u.toList args)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R bu)
+    {appliedTarget : VExpr}
+    (happlied : TrExprS R.venv recLparams R.mlctx.vlctx
+      (mkAppN head bu) appliedTarget)
+    (happliedType : R.venv.HasType recLparams.length
+      R.mlctx.vlctx.toCtx appliedTarget typeTarget)
     (Hk : ∀ {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
-      {t' : Expr} {typeTarget' : VExpr} {bu' u' : Array Expr}
+      {t' : Expr} {typeTarget' appliedTarget' : VExpr}
+      {bu' u' : Array Expr}
       {fields' : List (RecursorRecursiveDomainAt
         Rcurrent.venv decl recLparams.length)} {args' : List VExpr},
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         t' typeTarget' →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx typeTarget' →
       RecursorFieldSelectionsAt Rcurrent.venv decl recLparams.length
         bu' u' fields' →
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
       RecursorRecentBoundFVarArray Rroot Rcurrent bu' →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN head bu') appliedTarget' →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget' typeTarget' →
       (k t' bu' u' current).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs.loop stats k
       t i bu u fuel c).WF Q := by
-  induction fuel generalizing c t i bu u depth typeTarget fields args with
+  induction fuel generalizing c t i bu u depth typeTarget fields args
+      appliedTarget with
   | zero =>
     intro _ h
     simp [AddInductive.mkRecInfos.loopCtorArgs.loop] at h
@@ -21178,7 +21194,8 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       rw [hparam]
       have htypeTr := htype.trExpr R.checking.tr.wf R.mlctx_wf.tr.wf
       rcases TrExpr.forallE_source htypeTr with
-        ⟨sourceDom, sourceBody, hdom, hbody, hdomType, _, _⟩
+        ⟨sourceDom, sourceBody, hdom, hbody, hdomType,
+          hbodyType, hforallEq⟩
       rcases hconsume c recLparams R hdom hdomType with
         ⟨consumedDom, Hdom⟩
       rcases Hdom.body R hbody with
@@ -21195,6 +21212,14 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         rfl
       let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
         .skip_fvar _ _ .refl
+      have happliedFn := happlied.weakFV R.checking.tr.wf.ordered W
+        R'.mlctx_wf.tr.wf
+      have happliedFnType : R'.venv.HasType recLparams.length
+          R'.mlctx.vlctx.toCtx (appliedTarget.liftN 1 0)
+          ((VExpr.forallE sourceDom sourceBody).liftN 1 0) := by
+        exact (happliedType.defeqU_r R.checking.tr.wf
+          R.mlctx_wf.tr.wf.toCtx hforallEq.symm).weakN
+            R.checking.tr.wf.ordered W.toCtx
       have hdomWeak : TrExprS R'.venv recLparams R'.mlctx.vlctx dom
           (sourceDom.liftN 1 0) := by
         exact Hdom.source.weakFV R.checking.tr.wf.ordered W
@@ -21213,8 +21238,58 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
               R.mlctx.vlctx) (Sum.inr ⟨c.ngen.curr⟩) = _
           simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
             VLocalDecl.value, VLocalDecl.type])
+      have hargType : R'.venv.HasType recLparams.length
+          R'.mlctx.vlctx.toCtx (.bvar 0) (sourceDom.liftN 1 0) := by
+        have hlookup : R'.mlctx.vlctx.find? (.inr ⟨c.ngen.curr⟩) =
+            some ((.bvar 0), consumedDom.liftN 1 0) := by
+          change VLCtx.find?
+            ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+              R.mlctx.vlctx)
+            (.inr ⟨c.ngen.curr⟩) =
+              some ((.bvar 0), consumedDom.liftN 1 0)
+          simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+            VLocalDecl.value, VLocalDecl.type, VExpr.lift]
+        have hconsumed := R'.mlctx_wf.tr.wf.find?_wf
+          R'.checking.tr.wf.ordered hlookup
+        have hdomainEq := Hdom.source_defeq.choose_spec.weakN
+          R.checking.tr.wf.ordered W.toCtx
+        exact hconsumed.defeqU_r R'.checking.tr.wf
+          R'.mlctx_wf.tr.wf.toCtx hdomainEq.symm.toU
+      have happlied' : TrExprS R'.venv recLparams R'.mlctx.vlctx
+          (mkAppN head (bu.push (.fvar ⟨c.ngen.curr⟩)))
+          (.app (appliedTarget.liftN 1 0) (.bvar 0)) := by
+        simpa [mkAppN] using
+          TrExprS.app happliedFnType hargType happliedFn harg
+      have happliedType' : R'.venv.HasType recLparams.length
+          R'.mlctx.vlctx.toCtx
+          (.app (appliedTarget.liftN 1 0) (.bvar 0)) consumedBody := by
+        have happ := VEnv.HasType.app happliedFnType hargType
+        have hbodyEq' := Hdom.bodyDefEqConsumed R _hbodyEq
+        apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
+        simpa only [R', RecursorContextWF.withLocalDecl_venv,
+          RecursorContextWF.withLocalDecl_toCtx, VExpr.instN_bvar0] using
+            hbodyEq'
       have hopened := R.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbodyConsumed
+      have hsourceBodyType : R'.venv.IsType recLparams.length
+          R'.mlctx.vlctx.toCtx sourceBody := by
+        let hctxEq : VLCtx.IsDefEq R.venv recLparams.length
+            ((none, .vlam sourceDom) :: R.mlctx.vlctx)
+            ((none, .vlam consumedDom) :: R.mlctx.vlctx) :=
+          VLCtx.IsDefEq.cons
+            (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) nofun
+            (.vlam Hdom.source_defeq.choose_spec)
+        simpa only [R', RecursorContextWF.withLocalDecl_venv,
+          RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+          hbodyType.defeqDFC R.checking.tr.wf.ordered hctxEq.defeqCtx
+      have hbodyEq' := Hdom.bodyDefEqConsumed R _hbodyEq
+      have hconsumedBodyType : R'.venv.IsType recLparams.length
+          R'.mlctx.vlctx.toCtx consumedBody := by
+        apply hsourceBodyType.defeqU_l R'.checking.tr.wf
+          R'.mlctx_wf.tr.wf.toCtx
+        simpa only [R', RecursorContextWF.withLocalDecl_venv,
+          RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
       have Hclass := isRecArg.refinesRecursor R' Hstats' hwhnf hconsume
         hlit hctx' hproj
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
@@ -21224,7 +21299,8 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       cases selected with
       | none =>
         exact ih R' Hstats' (by omega) hctx' hopened
-          (.nonrecursive hfields) hargsWeak Hrecent'
+          hconsumedBodyType (.nonrecursive hfields) hargsWeak Hrecent'
+          happlied' happliedType'
       | some target =>
         rcases hselected target rfl with ⟨howner, hrecursive⟩
         let cert : RecursorRecursiveDomainAt
@@ -21243,10 +21319,13 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           simpa using checkPositivityStep.forall₂_append
             hargsWeak (.cons harg .nil)
         exact ih R' Hstats' (by omega) hctx' hopened
+          hconsumedBodyType
           (.recursive hfields (cert := cert) rfl) hargs' Hrecent'
+          happlied' happliedType'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
-      exact Hk R htype hfields hargs Hrecent
+      exact Hk R htype htypeType hfields hargs Hrecent
+        happlied happliedType
 
 end mkRecInfos.loopCtorArgs.loop
 
@@ -21254,6 +21333,7 @@ end mkRecInfos.loopCtorArgs.loop
 selection and the exact consecutive all-field suffix. -/
 theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     (stats : AddInductive.InductiveStats) (t tail : Expr)
+    (head : Expr)
     (k : Expr → Array Expr → Array Expr → AddInductive.M alpha)
     (c : AddInductive.Context) {Q : alpha → Prop}
     {decl : VInductDecl} {depth : Nat} {tailTarget : VExpr}
@@ -21272,19 +21352,33 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
+    (htailType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx tailTarget)
+    {appliedTarget : VExpr}
+    (happlied : TrExprS R.venv recLparams R.mlctx.vlctx
+      head appliedTarget)
+    (happliedType : R.venv.HasType recLparams.length
+      R.mlctx.vlctx.toCtx appliedTarget tailTarget)
     (Hk : ∀ {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
-      {t' : Expr} {typeTarget' : VExpr} {bu' u' : Array Expr}
+      {t' : Expr} {typeTarget' appliedTarget' : VExpr}
+      {bu' u' : Array Expr}
       {fields' : List (RecursorRecursiveDomainAt
         Rcurrent.venv decl recLparams.length)} {args' : List VExpr},
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         t' typeTarget' →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx typeTarget' →
       RecursorFieldSelectionsAt Rcurrent.venv decl recLparams.length
         bu' u' fields' →
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
       RecursorRecentBoundFVarArray R Rcurrent bu' →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN head bu') appliedTarget' →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget' typeTarget' →
       (k t' bu' u' current).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
   let inputContext := c
@@ -21301,8 +21395,9 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         stats.params.size #[] #[] fuel inputContext).WF Q := by
     intro fuel
     exact mkRecInfos.loopCtorArgs.loop.recursiveDomainsRecursorRecent
-      stats k R R Hstats (Nat.le_refl _) hwhnf hconsume hlit hctx hproj
-      htail .nil .nil (RecursorRecentBoundFVarArray.empty R) Hk
+      stats head k R R Hstats (Nat.le_refl _) hwhnf hconsume hlit hctx hproj
+      htail htailType .nil .nil (RecursorRecentBoundFVarArray.empty R)
+      (by simpa [mkAppN] using happlied) happliedType Hk
   exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
     inputContext.fuel.inductiveFuel
 
@@ -32662,6 +32757,13 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
+    (htailType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx tailTarget)
+    {introTarget : VExpr}
+    (Hintro : TrExprS R.venv recLparams R.mlctx.vlctx
+      (mkAppN (.const ctor.name stats.levels) stats.params) introTarget)
+    (HintroType : R.venv.HasType recLparams.length
+      R.mlctx.vlctx.toCtx introTarget tailTarget)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
@@ -32678,15 +32780,14 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (hidx : dIdx < recInfos.size)
     (Harities : RecInfoArities stats recInfos)
     (hrecords : recInfos.size = stats.indConsts.size)
-    (Hctor : ∀ {current : AddInductive.Context}
+    (Howner : ∀ {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
       {terminal : Expr} {terminalTarget : VExpr}
       {allFields : Array Expr},
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         terminal terminalTarget →
       RecursorRecentBoundFVarArray R Rcurrent allFields →
-      RecursorConstructorApplicationAt Rcurrent stats ctor terminal
-        allFields terminalTarget)
+      ∃ ownerIdx, AddInductive.isValidIndApp? stats terminal = some ownerIdx)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
@@ -32746,16 +32847,28 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           k next
   change (AddInductive.mkRecInfos.loopCtorArgs stats ctor.type process c).WF Q
   apply mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent (Q := Q)
-    stats ctor.type tail process c R Hstats hprefix hwhnf hconsume hlit
-      hctx hproj htail
-  intro current Rargs terminal terminalTarget allFields recursiveFields
-    fields args Hterminal Hselections Hrecursive HfieldsRecent
+    stats ctor.type tail
+      (mkAppN (.const ctor.name stats.levels) stats.params)
+      process c R Hstats hprefix hwhnf hconsume hlit hctx hproj htail
+      htailType Hintro HintroType
+  intro current Rargs terminal terminalTarget appliedTarget allFields
+    recursiveFields fields args Hterminal HterminalType Hselections
+    Hrecursive HfieldsRecent HintroApplied HintroAppliedType
   let HextArgs := HfieldsRecent.contextExtension
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
   have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
       Rargs.mlctx.vlctx :=
     HfieldsRecent.noIndConsts (names := decl.types.map (·.name)) hctx
-  let Happlication := Hctor Rargs Hterminal HfieldsRecent
+  rcases Howner Rargs Hterminal HfieldsRecent with
+    ⟨ownerIdx, hownerValid⟩
+  let Happlication : RecursorConstructorApplicationAt Rargs stats ctor
+      terminal allFields terminalTarget := {
+    ownerIdx := ownerIdx
+    owner_valid := hownerValid
+    terminal_type := HterminalType
+    introTarget := appliedTarget
+    intro := by simpa [mkAppN] using HintroApplied
+    typing := HintroAppliedType }
   have htargetStats : Happlication.ownerIdx < stats.indConsts.size :=
     (checkPositivityStep.isValidIndApp?_some Happlication.owner_valid).1
   have htarget : Happlication.ownerIdx < recInfos.size := by
