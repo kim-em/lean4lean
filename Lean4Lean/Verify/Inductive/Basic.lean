@@ -3249,6 +3249,39 @@ theorem ContextWF.instantiateDefEq (Hc : ContextWF c)
   rw [Expr.instantiate1_eq]
   exact hbody.inst Hc.checking.tr.wf.ordered hargType' harg
 
+/-- Recursor-universe analogue of `ContextWF.instantiateFresh`. -/
+theorem RecursorContextWF.instantiateFresh
+    (R : RecursorContextWF c recLparams)
+    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
+    (hbody : TrExprS R.venv recLparams
+      ((none, .vlam ty') :: R.mlctx.vlctx) body body') :
+    let R' := R.withLocalDecl (name := name) (bi := bi) htr hty
+    TrExprS R'.venv recLparams R'.mlctx.vlctx
+      (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body' := by
+  dsimp only
+  rw [Expr.instantiate1_eq]
+  exact hbody.inst_fvar R.checking.tr.wf.ordered
+    (R.withLocalDecl htr hty).mlctx_wf.tr.wf
+
+/-- Instantiate a recursor-universe source binder with an existing cached
+argument whose semantic type is definitionally equal to its domain. -/
+theorem RecursorContextWF.instantiateDefEq
+    (R : RecursorContextWF c recLparams)
+    (hbody : TrExprS R.venv recLparams
+      ((none, .vlam dom') :: R.mlctx.vlctx) body body')
+    (harg : TrExprS R.venv recLparams R.mlctx.vlctx arg arg')
+    (hargType : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      arg' argType')
+    (heq : R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx
+      dom' argType') :
+    TrExprS R.venv recLparams R.mlctx.vlctx
+      (body.instantiate1 arg) (body'.inst arg') := by
+  have hargType' := hargType.defeqU_r R.checking.tr.wf
+    R.mlctx_wf.tr.wf.toCtx heq.symm
+  rw [Expr.instantiate1_eq]
+  exact hbody.inst R.checking.tr.wf.ordered hargType' harg
+
 /-- Semantic certificate for the production checker's removal of binder type
 annotations.  The consumed syntax may translate to a different abstract term,
 but it must remain a type definitionally equal to the source domain. -/
@@ -15868,6 +15901,189 @@ noncomputable def RecursorLaterParameterScope.next
       lift := hlift
       fvars := hnextFVars }⟩
 
+/-- Consecutive universe-rebased cached-parameter cursors expose the same
+consumed suffix. -/
+theorem RecursorLaterParameterScope.nextOlder
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    {e next : Expr}
+    (H : RecursorLaterParameterScope Hsuffix i e)
+    (Hnext : RecursorLaterParameterScope Hsuffix (i + 1) next)
+    (hi : i + 1 < stats.params.size) :
+    (some (H.fv, H.deps), .vlam H.paramType) :: H.older =
+      Hnext.older := by
+  let currentEntry : Option (FVarId × List FVarId) × VLocalDecl :=
+    (some (H.fv, H.deps), .vlam H.paramType)
+  let nextEntry : Option (FVarId × List FVarId) × VLocalDecl :=
+    (some (Hnext.fv, Hnext.deps), .vlam Hnext.paramType)
+  have hdecomp :
+      H.newer ++ currentEntry :: H.older =
+        (Hnext.newer ++ [nextEntry]) ++ Hnext.older := by
+    calc
+      H.newer ++ currentEntry :: H.older =
+          Hsuffix.parameterDecls := H.parameterDecls.symm
+      _ = Hnext.newer ++ nextEntry :: Hnext.older :=
+        Hnext.parameterDecls
+      _ = (Hnext.newer ++ [nextEntry]) ++ Hnext.older := by
+        simp [List.append_assoc]
+  have hprefixLength :
+      H.newer.length = (Hnext.newer ++ [nextEntry]).length := by
+    simp only [List.length_append, List.length_singleton]
+    rw [H.newerLength, Hnext.newerLength]
+    omega
+  simpa only [currentEntry] using
+    List.append_inj_right hdecomp hprefixLength
+
+/-- Descend a successful executable parameter-domain comparison to the exact
+already-consumed recursor parameter suffix. -/
+theorem RecursorLaterParameterScope.domainDefEq
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    {name : Name} {dom body : Expr} {bi : BinderInfo}
+    {dom' paramTy' : VExpr}
+    (H : RecursorLaterParameterScope Hsuffix i
+      (.forallE name dom body bi))
+    (hdom : TrExprS R.venv recLparams R.mlctx.vlctx dom dom')
+    (hparamTyEq : paramTy' = H.paramType.lift.liftN
+      (VLCtx.toCtx H.added).length 0)
+    (heq : R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx
+      dom' paramTy') :
+    ∃ sourceDom',
+      TrExprS R.venv recLparams H.older dom sourceDom' ∧
+      R.venv.IsDefEqU recLparams.length H.older.toCtx
+        sourceDom' H.paramType := by
+  rcases H.domainTranslation hdom with ⟨sourceDom', hsourceDom⟩
+  have hweak := hsourceDom.weakFV R.checking.tr.wf.ordered
+    H.olderLift R.mlctx_wf.tr.wf
+  have htranslated : R.venv.IsDefEqU recLparams.length
+      R.mlctx.vlctx.toCtx dom'
+      (sourceDom'.liftN (VLCtx.toCtx H.added).length.succ 0) :=
+    hdom.uniq R.checking.tr.wf
+      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hweak
+  rw [hparamTyEq] at heq
+  have hfull := htranslated.symm.trans R.checking.tr.wf
+    R.mlctx_wf.tr.wf.toCtx heq
+  have hfull' : R.venv.IsDefEqU recLparams.length
+      R.mlctx.vlctx.toCtx
+      (sourceDom'.liftN (VLCtx.toCtx H.added).length.succ 0)
+      (H.paramType.liftN (VLCtx.toCtx H.added).length.succ 0) := by
+    simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
+      using hfull
+  exact ⟨sourceDom', hsourceDom,
+    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
+      R.mlctx_wf.tr.wf.toCtx H.olderLift.toCtx).1 hfull'⟩
+
+/-- Reconstruct the source binder after substituting its cached concrete
+parameter in a universe-rebased recursor context, retaining the equality back
+in the full executable context. -/
+theorem RecursorLaterParameterScope.uninstantiateEq
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    {body : Expr} {body' : VExpr}
+    (H : RecursorLaterParameterScope Hsuffix i body)
+    (hopened : TrExprS R.venv recLparams R.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) body') :
+    ∃ body'', TrExprS R.venv recLparams
+        ((none, .vlam H.paramType) :: H.older) body body'' ∧
+      R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx
+        body' (body''.liftN (VLCtx.toCtx H.added).length 0) := by
+  have hopened' : TrExprS R.venv recLparams R.mlctx.vlctx
+      (body.instantiate1' (.fvar H.fv)) body' := by
+    simpa [Expr.instantiate1_eq, H.parameter] using hopened
+  have hsuffixWF := H.lift.wf R.checking.tr.wf R.mlctx_wf.tr.wf
+  have hfresh : H.fv ∉ H.older.fvars :=
+    (hsuffixWF.2.1 H.fv H.deps rfl).1
+  have hsourceFresh : FVarsIn (· ≠ H.fv) body :=
+    H.fvars.mono fun fv hfv heq => by
+      subst fv
+      exact hfresh hfv
+  have hopenedClosed : Closed (body.instantiate1' (.fvar H.fv)) 0 := by
+    have hclosed := hopened'.closed
+    simpa [R.mlctx.noBV] using hclosed
+  exact hopened'.uninstantiateAfterWeakFV_eq R.checking.tr.wf H.lift
+    (.refl R.checking.tr.wf.ordered R.mlctx_wf.tr.wf)
+    hopenedClosed H.openedFVars hsourceFresh
+
+theorem RecursorLaterParameterScope.uninstantiate
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    {body : Expr} {body' : VExpr}
+    (H : RecursorLaterParameterScope Hsuffix i body)
+    (hopened : TrExprS R.venv recLparams R.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) body') :
+    ∃ body'', TrExprS R.venv recLparams
+      ((none, .vlam H.paramType) :: H.older) body body'' := by
+  rcases H.uninstantiateEq hopened with ⟨body'', hbody'', _⟩
+  exact ⟨body'', hbody''⟩
+
+/-- Restrict a normalized cached-parameter substitution to the exact
+consumed recursor suffix and relate it to the reconstructed source body. -/
+theorem RecursorLaterParameterScope.normalizedBody
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    {body normalized : Expr} {body' : VExpr}
+    (H : RecursorLaterParameterScope Hsuffix i body)
+    (hopened : TrExprS R.venv recLparams R.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) body')
+    (hbelow : FVarsBelow R.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) normalized)
+    (hnormalized : TrExpr R.venv recLparams R.mlctx.vlctx
+      normalized body') :
+    ∃ sourceBody' normalized',
+      TrExprS R.venv recLparams
+        ((none, .vlam H.paramType) :: H.older) body sourceBody' ∧
+      TrExprS R.venv recLparams
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
+        normalized normalized' ∧
+      R.venv.IsDefEqU recLparams.length
+        (H.paramType :: H.older.toCtx) sourceBody' normalized' := by
+  rcases H.uninstantiateEq hopened with
+    ⟨sourceBody', hsourceBody, hopenedEq⟩
+  rcases hnormalized with ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
+  have hopenedFVars : FVarsIn
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      (body.instantiate1 stats.params[i]!) := by
+    rw [Expr.instantiate1_eq, H.parameter]
+    exact H.openedFVars
+  have hnormalizedFVars : FVarsIn
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      normalized :=
+    hbelow _ H.openedUpSet hopenedFVars
+  have hnormalizedClosed : Closed normalized 0 := by
+    have hclosed := hnormalizedFull.closed
+    simpa [R.mlctx.noBV] using hclosed
+  rcases hnormalizedFull.weakFV_inv R.checking.tr.wf H.lift
+      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
+      hnormalizedClosed hnormalizedFVars with
+    ⟨normalized', hnormalized'⟩
+  have hnormalizedWeak := hnormalized'.weakFV
+    R.checking.tr.wf.ordered H.lift R.mlctx_wf.tr.wf
+  have hnormalizedUniq := hnormalizedFull.uniq R.checking.tr.wf
+    (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hnormalizedWeak
+  have hfull : R.venv.IsDefEqU recLparams.length
+      R.mlctx.vlctx.toCtx
+      (sourceBody'.liftN (VLCtx.toCtx H.added).length 0)
+      (normalized'.liftN (VLCtx.toCtx H.added).length 0) :=
+    hopenedEq.symm.trans R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
+      (hnormalizeEq.symm.trans R.checking.tr.wf
+        R.mlctx_wf.tr.wf.toCtx hnormalizedUniq)
+  have hnarrow : R.venv.IsDefEqU recLparams.length
+      (VLCtx.toCtx
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      sourceBody' normalized' :=
+    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
+      R.mlctx_wf.tr.wf.toCtx H.lift.toCtx).1 hfull
+  exact ⟨sourceBody', normalized', hsourceBody, hnormalized',
+    by simpa [VLCtx.toCtx] using hnarrow⟩
+
 /-- Application statistics interpreted under recursor universes.  Unlike
 `ValidAppStatsWF`, this structure does not claim that the recursor universe
 list has the declaration's arity: large elimination has one additional
@@ -20490,6 +20706,96 @@ theorem parameterStepOfCheckedHeader
     simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
       using hresult
 
+/-- One cached-parameter substitution interpreted directly under the
+recursor universe list. -/
+theorem recursorParameterStep
+    {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {stats : AddInductive.InductiveStats} {i : Nat}
+    {name : Name} {dom body : Expr} {bi : BinderInfo}
+    {current paramTarget paramType : VExpr}
+    (htype : TrExpr R.venv recLparams R.mlctx.vlctx
+      (.forallE name dom body bi) current)
+    (hparam : TrExprS R.venv recLparams R.mlctx.vlctx
+      stats.params[i]! paramTarget)
+    (hparamType : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      paramTarget paramType)
+    (hmatch : ∀ {domainTarget},
+      TrExprS R.venv recLparams R.mlctx.vlctx dom domainTarget →
+      R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx
+        domainTarget paramType) :
+    ∃ bodyTarget,
+      TrExprS R.venv recLparams R.mlctx.vlctx
+        (body.instantiate1 stats.params[i]!) bodyTarget ∧
+      R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx bodyTarget := by
+  rcases TrExpr.forallE_source htype with
+    ⟨domainTarget, sourceBody, hdom, hbody, _hdomType, hbodyType,
+      _hcurrent⟩
+  have heq := hmatch hdom
+  have hparamType' := hparamType.defeqU_r R.checking.tr.wf
+    R.mlctx_wf.tr.wf.toCtx heq.symm
+  refine ⟨sourceBody.inst paramTarget,
+    R.instantiateDefEq hbody hparam hparamType heq, ?_⟩
+  exact hbodyType.instN R.checking.tr.wf.ordered .zero hparamType'
+
+/-- Discharge a recursor-universe cached-parameter step from the independent
+rebased family header and the exact retained suffix. -/
+theorem parameterStepOfCheckedRecursorHeader
+    {base current : AddInductive.Context} {Hbase : ContextWF base}
+    (H : CheckedRecursorHeaderAt Hbase stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel base.lparams))
+    {Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth}
+    {i : Nat} {name : Name} {dom body : Expr} {bi : BinderInfo}
+    {currentTarget currentDomain currentBody : VExpr}
+    (Hscope : RecursorLaterParameterScope Hsuffix i
+      (.forallE name dom body bi))
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
+        (H.recursorTargetSkeleton Helim) Hscope.older
+        (.forallE currentDomain currentBody) i 0)
+    (hi : i < stats.params.size)
+    (henv : R.venv = Hbase.venv)
+    (hctx : VEnv.IsDefEqCtx R.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length []
+      (H.recursorParams Helim).reverse Hsuffix.parameterDecls.toCtx)
+    (htypeNarrow : TrExprS R.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams) Hscope.older
+      (.forallE name dom body bi) (.forallE currentDomain currentBody))
+    (htype : TrExpr R.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams) R.mlctx.vlctx
+      (.forallE name dom body bi) currentTarget) :
+    ∃ bodyTarget,
+      TrExprS R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams) R.mlctx.vlctx
+        (body.instantiate1 stats.params[i]!) bodyTarget ∧
+      R.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        R.mlctx.vlctx.toCtx bodyTarget := by
+  rcases Hscope.typing with
+    ⟨_paramTy, paramTy', param', _hget, _hparamTy, hparamTyEq,
+      hparam, hparamType⟩
+  have hnarrowMatch := H.recursorCurrentDomainDefEq Helim Hscope
+    Hsynthesis hi henv hctx
+  cases htypeNarrow with
+  | forallE _hdomType _hbodyType hdomNarrow _hbodyNarrow =>
+    apply recursorParameterStep R htype hparam hparamType
+    intro domainTarget hdomFull
+    have hdomWeak := hdomNarrow.weakFV R.checking.tr.wf.ordered
+      Hscope.olderLift R.mlctx_wf.tr.wf
+    have hdomainToNarrow := hdomFull.uniq R.checking.tr.wf
+      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hdomWeak
+    have hmatchFull :=
+      (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
+        R.mlctx_wf.tr.wf.toCtx Hscope.olderLift.toCtx).2 hnarrowMatch
+    have hresult := hdomainToNarrow.trans R.checking.tr.wf
+      R.mlctx_wf.tr.wf.toCtx hmatchFull
+    rw [hparamTyEq]
+    simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
+      using hresult
+
 /-- Operational strengthening of `continueWith`: every non-parameter binder
 opened while replaying an inductive header is retained in the local context
 and appended to the certified index array. -/
@@ -21137,6 +21443,145 @@ theorem continueCheckedSemantics {alpha : Type}
 termination_by
   type fullTarget narrowTarget scope i indices originTypes indexTargets fuel => fuel
 
+/-- Replay the cached common-parameter prefix directly in a universe-rebased
+recursor context.  The terminal continuation begins at the genuine-index
+boundary with the exact completed narrow suffix; no generated index, major,
+or motive declaration is admitted into the parameter telescope. -/
+theorem continueRecursorParameterSemantics {alpha : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Array Expr → AddInductive.M alpha)
+    {Q : alpha → Prop}
+    {base current : AddInductive.Context} {Hbase : ContextWF base}
+    {decl : VInductDecl} {depth runtimeDepth familyIdx : Nat}
+    {source : InductiveType}
+    (H : CheckedRecursorHeaderAt Hbase stats decl depth source familyIdx)
+    {elimLevel : Level}
+    (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel base.lparams))
+    (hwhnf : WhnfLParamsCompat)
+    (henv : R.venv = Hbase.venv)
+    (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+    (hctx : VEnv.IsDefEqCtx R.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length []
+      (H.recursorParams Helim).reverse Hsuffix.parameterDecls.toCtx)
+    (Hstats : RecursorValidAppStatsWF R.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams) R.mlctx.vlctx
+      stats decl runtimeDepth)
+    (Hk : ∀ {type : Expr} {fullTarget narrowTarget : VExpr},
+      (Hsynthesis :
+        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
+          (H.recursorTargetSkeleton Helim) Hsuffix.parameterDecls
+          narrowTarget stats.params.size 0) →
+      RecursorValidAppStatsWF R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        Hsuffix.parameterDecls stats decl 0 →
+      checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        Hsuffix.parameterDecls R.mlctx.vlctx →
+      TrExprS R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        Hsuffix.parameterDecls type narrowTarget →
+      FVarsIn (· ∈ Hsuffix.parameterDecls.fvars) type →
+      TrExpr R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        R.mlctx.vlctx type fullTarget →
+      R.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        R.mlctx.vlctx.toCtx fullTarget →
+      ∀ indices fuel,
+        (AddInductive.mkRecInfos.loopArgs1 stats type stats.params.size
+          indices fuel k current).WF Q) :
+    ∀ type fullTarget narrowTarget scope i indices fuel,
+      i ≤ stats.params.size →
+      (Hscope : ∀ hi : i < stats.params.size,
+        RecursorLaterParameterScope Hsuffix i type) →
+      (∀ hi : i < stats.params.size, scope = (Hscope hi).older) →
+      (i = stats.params.size → scope = Hsuffix.parameterDecls) →
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
+        (H.recursorTargetSkeleton Helim) scope narrowTarget i 0 →
+      TrExprS R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        scope type narrowTarget →
+      FVarsIn (· ∈ scope.fvars) type →
+      TrExpr R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        R.mlctx.vlctx type fullTarget →
+      R.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        R.mlctx.vlctx.toCtx fullTarget →
+      (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel
+        k current).WF Q
+  | _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _ => by
+      intro _ h
+      simp [AddInductive.mkRecInfos.loopArgs1] at h
+  | type, fullTarget, narrowTarget, scope, i, indices, fuel + 1,
+      hbound, Hscope, hscopeEq, hcompleteScope, Hsynthesis,
+      htypeNarrow, htypeFVars, htypeFull, htypeFullType => by
+      by_cases hdone : stats.params.size ≤ i
+      · have hieq : i = stats.params.size := by omega
+        subst i
+        have hscope : scope = Hsuffix.parameterDecls :=
+          hcompleteScope rfl
+        subst scope
+        exact Hk Hsynthesis (Hsuffix.narrowStats Hstats)
+          Hsuffix.runtimeScope htypeNarrow htypeFVars htypeFull
+          htypeFullType indices (fuel + 1)
+      · have hi : i < stats.params.size := by omega
+        cases type with
+        | forallE name dom body bi =>
+          rw [AddInductive.mkRecInfos.loopArgs1, if_pos hi]
+          have htypeNarrow' := htypeNarrow
+          cases htypeNarrow with
+          | @forallE currentDomain currentBody _ _ _ _ _ _hdomType
+              _hbodyType hdomNarrow _hbodyNarrow =>
+            let Hcurrent := Hscope hi
+            have hscope : scope = Hcurrent.older := hscopeEq hi
+            subst scope
+            rcases parameterStepOfCheckedRecursorHeader H Helim R Hcurrent
+                Hsynthesis hi henv hctx htypeNarrow' htypeFull with
+              ⟨bodyTarget, hopened, hopenedType⟩
+            have hnormalize :=
+              whnfInRecursorContext.scopeWF hwhnf R hopened
+            exact hnormalize.bind fun next hnext => by
+              have hnarrowMatch := H.recursorCurrentDomainDefEq Helim
+                Hcurrent Hsynthesis hi henv hctx
+              have hindices : Hsynthesis.indices = [] :=
+                List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
+              have hcurrentWF := Hcurrent.lift.wf R.checking.tr.wf
+                R.mlctx_wf.tr.wf
+              let Hbody : RecursorLaterParameterScope Hsuffix i body :=
+                { Hcurrent with fvars := Hcurrent.fvars.2 }
+              rcases Hbody.normalizedBody hopened hnext.1 hnext.2 with
+                ⟨sourceBody, normalizedTarget, hsourceBody,
+                  hnormalizedNarrow, hbodyEq⟩
+              rcases Hsynthesis.consumeParameter R.checking.tr.wf
+                  hindices htypeNarrow' hcurrentWF
+                  ⟨currentDomain, hdomNarrow, hnarrowMatch⟩
+                  ⟨sourceBody, normalizedTarget, hsourceBody,
+                    hnormalizedNarrow, hbodyEq⟩ with
+                ⟨nextNarrow, hnextNarrow, ⟨Hsynthesis'⟩⟩
+              exact continueRecursorParameterSemantics stats k H Helim R
+                hwhnf henv Hsuffix hctx Hstats Hk next bodyTarget
+                nextNarrow
+                ((some (Hcurrent.fv, Hcurrent.deps),
+                  .vlam Hcurrent.paramType) :: Hcurrent.older)
+                (i + 1) indices fuel (by omega)
+                (fun hlt => Hbody.next hlt hnext.1)
+                (fun hlt => Hbody.nextOlder
+                  (Hbody.next hlt hnext.1) hlt)
+                (fun heq => Hcurrent.completedScope heq)
+                Hsynthesis' hnextNarrow
+                (Hbody.consumedFVars hnext.1) hnext.2 hopenedType
+        | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+          | proj =>
+            simp only [AddInductive.mkRecInfos.loopArgs1, hi, if_pos]
+            exact Except.WF.throw
+termination_by
+  type fullTarget narrowTarget scope i indices fuel => fuel
+
 /-- Start checked argument replay at the exact `whnf` boundary used by
 `loopInd1`.  Closed source headers initialize an empty narrow scope; the
 materialized parameter suffix supplies every subsequent cached parameter. -/
@@ -21248,6 +21693,105 @@ theorem startCheckedSemantics {alpha : Type}
       hnormalizedNarrow (by simpa [VLCtx.fvars] using hnormalizedNoFVars)
       hnormalized.2 hsourceType .nil rfl rfl
       (TranslatedOriginTypes.empty Hc)
+
+/-- Start universe-rebased cached-parameter replay from the exact production
+`whnf` boundary.  This wrapper is valid after arbitrary earlier mutual
+recursor frames have accumulated in the executable reader context. -/
+theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
+    {alpha : Type} {Q : alpha → Prop}
+    {base current : AddInductive.Context} {Hbase : ContextWF base}
+    (H : CheckedRecursorHeaderAt Hbase stats decl depth source familyIdx)
+    {elimLevel : Level}
+    (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel base.lparams))
+    (hwhnf : WhnfLParamsCompat)
+    (henv : R.venv = Hbase.venv)
+    (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+    (hctx : VEnv.IsDefEqCtx R.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams).length []
+      (H.recursorParams Helim).reverse Hsuffix.parameterDecls.toCtx)
+    (Hstats : RecursorValidAppStatsWF R.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams) R.mlctx.vlctx
+      stats decl runtimeDepth)
+    (k : Array Expr → AddInductive.M alpha)
+    (Hk : ∀ {type : Expr} {fullTarget narrowTarget : VExpr},
+      (Hsynthesis :
+        checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
+          (H.recursorTargetSkeleton Helim) Hsuffix.parameterDecls
+          narrowTarget stats.params.size 0) →
+      RecursorValidAppStatsWF R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        Hsuffix.parameterDecls stats decl 0 →
+      checkInductiveTypes.loopType.NarrowRuntimeScope R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        Hsuffix.parameterDecls R.mlctx.vlctx →
+      TrExprS R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        Hsuffix.parameterDecls type narrowTarget →
+      FVarsIn (· ∈ Hsuffix.parameterDecls.fvars) type →
+      TrExpr R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        R.mlctx.vlctx type fullTarget →
+      R.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        R.mlctx.vlctx.toCtx fullTarget →
+      ∀ indices fuel,
+        (AddInductive.mkRecInfos.loopArgs1 stats type stats.params.size
+          indices fuel k current).WF Q)
+    (fuel : Nat) :
+    ((monadLift (TypeChecker.whnf source.type) : AddInductive.M Expr)
+      current >>= fun normalized =>
+        AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[] fuel k
+          current).WF Q := by
+  have hstart := H.startRecursorHeaderSemantics Helim R henv hwhnf
+  exact hstart.bind fun normalized hnormalized => by
+    rcases hnormalized.2 with
+      ⟨narrowTarget, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
+    have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
+      (H.recursorSourceTranslation Helim).fvarsIn.mono fun fv hfv => by
+        simpa [VLCtx.fvars] using hfv
+    have hfalseUpSet : IsFVarUpSet (fun _ => False) R.mlctx.vlctx := by
+      have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
+        R.mlctx.vlctx (by simpa using R.mlctx_wf.tr.wf)
+      simpa [VLCtx.fvars] using hsuffix
+    have hnormalizedNoFVars : FVarsIn (fun _ => False) normalized :=
+      hnormalized.1 _ hfalseUpSet hsourceNoFVars
+    let W : VLCtx.FVLift [] R.mlctx.vlctx 0
+        R.mlctx.vlctx.toCtx.length 0 :=
+      VLCtx.FVLift.from_nil R.mlctx.noBV
+    have hnormalizedFullS := hnormalizedNarrow.weakFV
+      R.checking.tr.wf.ordered W R.mlctx_wf.tr.wf
+    have hnormalizedFull : TrExpr R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        R.mlctx.vlctx normalized
+        (narrowTarget.liftN R.mlctx.vlctx.toCtx.length 0) :=
+      hnormalizedFullS.trExpr R.checking.tr.wf R.mlctx_wf.tr.wf
+    have hnormalizedFullType : R.venv.IsType
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        R.mlctx.vlctx.toCtx
+        (narrowTarget.liftN R.mlctx.vlctx.toCtx.length 0) :=
+      Hsynthesis.currentType.weakN R.checking.tr.wf.ordered W.toCtx
+    let Hscope : ∀ hi : 0 < stats.params.size,
+        RecursorLaterParameterScope Hsuffix 0 normalized := fun hi =>
+      RecursorLaterParameterScope.ofNoFVars hi hnormalizedNoFVars
+    have hscopeEq : ∀ hi : 0 < stats.params.size,
+        [] = (Hscope hi).older := by
+      intro hi
+      exact (Hscope hi).older_eq_nil hi |>.symm
+    have hcompleteScope : 0 = stats.params.size →
+        ([] : VLCtx) = Hsuffix.parameterDecls := by
+      intro hzero
+      exact (List.eq_nil_of_length_eq_zero (by
+        rw [Hsuffix.parameterDecls_length, ← hzero])).symm
+    exact continueRecursorParameterSemantics stats k H Helim R hwhnf henv
+      Hsuffix hctx Hstats Hk normalized
+      (narrowTarget.liftN R.mlctx.vlctx.toCtx.length 0) narrowTarget [] 0
+      #[] fuel (by omega) Hscope hscopeEq hcompleteScope Hsynthesis
+      hnormalizedNarrow
+      (by simpa [VLCtx.fvars] using hnormalizedNoFVars)
+      hnormalizedFull hnormalizedFullType
 
 /-- Package-facing entry to checked recursor replay.  All family selection,
 parameter-cache, universe, and source-translation premises are projected from
