@@ -715,7 +715,8 @@ theorem VInductDecl.TypeShape.nextParameter
     {target : VInductiveType} {i : Nat}
     (H : decl.TypeShape env params target)
     (hi : i < decl.nparams) :
-    ∃ ownParams expectedDomain expectedBody targetType,
+    ∃ (ownParams : List VExpr)
+        (expectedDomain expectedBody targetType : VExpr),
       ownParams.length = decl.nparams ∧
       ownParams[i]? = some expectedDomain ∧
       decl.ParamsDefEq env params ownParams ∧
@@ -3467,6 +3468,77 @@ theorem whnfInRecursorContext.scopeWF
   exact TypeChecker.M.WF.runCheckingValidMLC
     (lparams := recLparams) (fuel := c.fuel)
     Hc.kernelFresh Hx
+
+/-- Descend normalization of a closed source header from the full generated
+recursor context to the empty semantic scope.  Earlier mutual-family frames
+may occur in `R.mlctx`, but neither the source header nor its normal form owns
+any of their free variables. -/
+theorem RecursorContextWF.initialClosedHeaderDefEq
+    {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    (htarget : TrExprS R.venv recLparams [] source target)
+    (hsource : TrExprS R.venv recLparams R.mlctx.vlctx
+      source sourceTarget)
+    (hnormalized : TrExpr R.venv recLparams R.mlctx.vlctx
+      normalized sourceTarget)
+    (hfvars : FVarsIn (fun _ => False) normalized) :
+    ∃ normalizedTarget,
+      TrExprS R.venv recLparams [] normalized normalizedTarget ∧
+      R.venv.IsDefEqU recLparams.length [] target normalizedTarget := by
+  rcases hnormalized with
+    ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
+  let W : VLCtx.FVLift [] R.mlctx.vlctx 0
+      R.mlctx.vlctx.toCtx.length 0 :=
+    VLCtx.FVLift.from_nil R.mlctx.noBV
+  have hnormalizedClosed : Closed normalized 0 := by
+    have hclosed := hnormalizedFull.closed
+    simpa [R.mlctx.noBV] using hclosed
+  have hnormalizedNoFVars :
+      FVarsIn (fun fv => fv ∈ VLCtx.fvars []) normalized := by
+    simpa [VLCtx.fvars] using hfvars
+  rcases hnormalizedFull.weakFV_inv R.checking.tr.wf W
+      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
+      hnormalizedClosed hnormalizedNoFVars with
+    ⟨normalizedTarget, hnormalizedTarget⟩
+  have hsourceNoFVars : FVarsIn (fun _ => False) source :=
+    htarget.fvarsIn.mono fun fv hfv => by
+      simpa [VLCtx.fvars] using hfv
+  have hsourceClosed : Closed source 0 := by
+    have hclosed := hsource.closed
+    simpa [R.mlctx.noBV] using hclosed
+  have hsourceNoFVars' :
+      FVarsIn (fun fv => fv ∈ VLCtx.fvars []) source := by
+    simpa [VLCtx.fvars] using hsourceNoFVars
+  rcases hsource.weakFV_inv R.checking.tr.wf W
+      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
+      hsourceClosed hsourceNoFVars' with
+    ⟨sourceTarget', hsourceTarget'⟩
+  have hnormalizedWeak := hnormalizedTarget.weakFV
+    R.checking.tr.wf.ordered W R.mlctx_wf.tr.wf
+  have hsourceWeak := hsourceTarget'.weakFV
+    R.checking.tr.wf.ordered W R.mlctx_wf.tr.wf
+  have hnormalizedUniq := hnormalizedFull.uniq R.checking.tr.wf
+    (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hnormalizedWeak
+  have hsourceUniq := hsource.uniq R.checking.tr.wf
+    (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hsourceWeak
+  have hfull : R.venv.IsDefEqU recLparams.length
+      R.mlctx.vlctx.toCtx
+      (normalizedTarget.liftN R.mlctx.vlctx.toCtx.length 0)
+      (sourceTarget'.liftN R.mlctx.vlctx.toCtx.length 0) :=
+    hnormalizedUniq.symm.trans R.checking.tr.wf
+      R.mlctx_wf.tr.wf.toCtx
+      (hnormalizeEq.trans R.checking.tr.wf
+        R.mlctx_wf.tr.wf.toCtx hsourceUniq)
+  have hempty : R.venv.IsDefEqU recLparams.length []
+      normalizedTarget sourceTarget' :=
+    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
+      R.mlctx_wf.tr.wf.toCtx W.toCtx).1 hfull
+  have htargetEq : R.venv.IsDefEqU recLparams.length []
+      target sourceTarget' :=
+    htarget.uniq R.checking.tr.wf
+      (.refl R.checking.tr.wf (by trivial)) hsourceTarget'
+  exact ⟨normalizedTarget, hnormalizedTarget,
+    htargetEq.trans R.checking.tr.wf (by trivial) hempty.symm⟩
 
 theorem ensureSortInContext.WF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
@@ -15075,6 +15147,18 @@ structure RecursorParameterContextSuffix
     stats.params.toList
     (checkInductiveTypes.loopType.cachedParamVars stats.params.size 0)
 
+theorem VEnv.IsDefEqCtx.instL
+    (hls : ∀ level ∈ levels, level.WF U') :
+    ∀ {base left right},
+      VEnv.IsDefEqCtx env U base left right →
+      VEnv.IsDefEqCtx env U'
+        (base.map (VExpr.instL levels))
+        (left.map (VExpr.instL levels))
+        (right.map (VExpr.instL levels))
+  | _, _, _, .zero => .zero
+  | _, _, _, .succ hctx htype =>
+    .succ (VEnv.IsDefEqCtx.instL hls hctx) (htype.instL hls)
+
 /-- Rebase the independently checked parameter suffix into the exact
 recursor universe context.  In the small-elimination case this is identity;
 in the large-elimination case concrete declarations and free-variable names
@@ -15290,6 +15374,499 @@ theorem RecursorParameterContextSuffix.parameterAt
     getElem_congr rfl hindex (by omega)
   rw [← helem]
   exact hcached
+
+theorem RecursorParameterContextSuffix.splitAt
+    (H : RecursorParameterContextSuffix R stats depth)
+    (hi : i < stats.params.size) :
+    ∃ newer entry older,
+      H.parameterDecls = newer ++ entry :: older ∧
+      newer.length = stats.params.size - 1 - i ∧
+      checkInductiveTypes.loopType.CachedParameterDecl stats.params[i]
+        entry := by
+  let j := stats.params.size - 1 - i
+  have hj : j < H.parameterDecls.length := by
+    rw [H.parameterDecls_length]
+    dsimp [j]
+    omega
+  refine ⟨H.parameterDecls.take j, H.parameterDecls[j],
+    H.parameterDecls.drop (j + 1), ?_, ?_, ?_⟩
+  · calc
+      H.parameterDecls =
+          H.parameterDecls.take j ++ H.parameterDecls.drop j :=
+        (List.take_append_drop j H.parameterDecls).symm
+      _ = H.parameterDecls.take j ++
+          H.parameterDecls[j] :: H.parameterDecls.drop (j + 1) := by
+        rw [List.drop_eq_getElem_cons hj]
+  · simp [List.length_take, Nat.min_eq_left (Nat.le_of_lt hj), j]
+  · exact H.parameterAt hi hj
+
+theorem RecursorParameterContextSuffix.fvLiftAt
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    (H : RecursorParameterContextSuffix R stats depth)
+    (hi : i < stats.params.size) :
+    ∃ added newer older fv deps paramType,
+      H.parameterDecls =
+        newer ++ (some (fv, deps), .vlam paramType) :: older ∧
+      newer.length = stats.params.size - 1 - i ∧
+      added = H.ambientDecls ++ newer ∧
+      R.mlctx.vlctx =
+        added ++ (some (fv, deps), .vlam paramType) :: older ∧
+      stats.params[i] = .fvar fv ∧
+      VLCtx.FVLift ((some (fv, deps), .vlam paramType) :: older)
+        R.mlctx.vlctx 0 (VLCtx.toCtx added).length 0 := by
+  rcases H.splitAt hi with
+    ⟨newer, entry, older, hdecls, hnewer, hcached⟩
+  rcases hcached with ⟨fv, deps, paramType, hparam, rfl⟩
+  let added := H.ambientDecls ++ newer
+  have hcontext : R.mlctx.vlctx =
+      added ++ (some (fv, deps), .vlam paramType) :: older := by
+    rw [H.context, hdecls]
+    simp only [added, List.append_assoc]
+  have hfullNoBV :
+      (added ++ (some (fv, deps), .vlam paramType) :: older).NoBV := by
+    rw [← hcontext]
+    exact R.mlctx.noBV
+  have hadded : added.NoBV :=
+    VLCtx.NoBV.leftOfAppend added
+      ((some (fv, deps), .vlam paramType) :: older) hfullNoBV
+  have hlift := VLCtx.FVLift.to_append
+    ((some (fv, deps), .vlam paramType) :: older) hadded
+  rw [← hcontext] at hlift
+  exact ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer,
+    rfl, hcontext, hparam, hlift⟩
+
+/-- Cursor exposing cached parameter `i` while later-family header replay is
+performed in a universe-rebased recursor context. -/
+structure RecursorLaterParameterScope
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    (Hsuffix : RecursorParameterContextSuffix R stats depth)
+    (i : Nat) (e : Expr) : Type where
+  added : VLCtx
+  newer : VLCtx
+  older : VLCtx
+  fv : FVarId
+  deps : List FVarId
+  paramType : VExpr
+  parameterDecls : Hsuffix.parameterDecls =
+    newer ++ (some (fv, deps), .vlam paramType) :: older
+  newerLength : newer.length = stats.params.size - 1 - i
+  addedEq : added = Hsuffix.ambientDecls ++ newer
+  context : R.mlctx.vlctx =
+    added ++ (some (fv, deps), .vlam paramType) :: older
+  parameter : stats.params[i]! = .fvar fv
+  lift : VLCtx.FVLift ((some (fv, deps), .vlam paramType) :: older)
+    R.mlctx.vlctx 0 (VLCtx.toCtx added).length 0
+  fvars : FVarsIn (· ∈ older.fvars) e
+
+theorem RecursorLaterParameterScope.olderLength
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth} {e : Expr}
+    (H : RecursorLaterParameterScope Hsuffix i e)
+    (hi : i < stats.params.size) : H.older.length = i := by
+  have htotal := Hsuffix.parameterDecls_length
+  have hparts := congrArg List.length H.parameterDecls
+  simp only [List.length_append, List.length_cons] at hparts
+  rw [htotal, H.newerLength] at hparts
+  omega
+
+theorem RecursorLaterParameterScope.parameterDefEq
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    {params : List VExpr}
+    (H : RecursorLaterParameterScope Hsuffix i e)
+    (hi : i < stats.params.size)
+    (hparams : params.length = stats.params.size)
+    (hctx : VEnv.IsDefEqCtx R.venv recLparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx) :
+    ∃ u, R.venv.IsDefEq recLparams.length H.older.toCtx
+      (params[i]'(hparams.symm ▸ hi)) H.paramType (.sort u) := by
+  have hcachedLength :=
+    checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
+      Hsuffix.cached
+  have hdeclLength := Hsuffix.parameterDecls_length
+  have hnewerLe :=
+    checkInductiveTypes.loopType.VLCtx.toCtx_length_le H.newer
+  have holderLe :=
+    checkInductiveTypes.loopType.VLCtx.toCtx_length_le H.older
+  have hctxParts := congrArg List.length <|
+    congrArg VLCtx.toCtx H.parameterDecls
+  simp only [VLCtx.toCtx_append, VLCtx.toCtx, List.length_append,
+    List.length_cons] at hctxParts
+  have hlistParts := congrArg List.length H.parameterDecls
+  simp only [List.length_append, List.length_cons] at hlistParts
+  have hnewerCtx : H.newer.toCtx.length = H.newer.length := by omega
+  let j := H.newer.toCtx.length
+  have hj : j < params.reverse.length := by
+    simp only [List.length_reverse, j, hnewerCtx, hparams,
+      H.newerLength]
+    omega
+  have hscopeCtx : Hsuffix.parameterDecls.toCtx =
+      H.newer.toCtx ++ H.paramType :: H.older.toCtx := by
+    rw [H.parameterDecls]
+    simp [VLCtx.toCtx]
+  have hctx' : VEnv.IsDefEqCtx R.venv recLparams.length []
+      params.reverse (H.newer.toCtx ++ H.paramType :: H.older.toCtx) := by
+    rw [← hscopeCtx]
+    exact hctx
+  have hentry := VEnv.IsDefEqCtx.getElemRight
+    R.checking.tr.wf.ordered hctx' hj
+  have hjEq : j = stats.params.size - 1 - i := by
+    change H.newer.toCtx.length = stats.params.size - 1 - i
+    rw [hnewerCtx]
+    exact H.newerLength
+  have hsourceIndex : params.length - 1 - j = i := by
+    rw [hparams, hjEq]
+    omega
+  have hsourceIndex' :
+      params.length - 1 - H.newer.toCtx.length = i := by
+    simpa [j] using hsourceIndex
+  rcases hentry with ⟨u, hentry⟩
+  simp [j] at hentry
+  exact ⟨u, by
+    simpa only [List.getElem_reverse, hsourceIndex'] using hentry⟩
+
+theorem RecursorLaterParameterScope.parameterPrefixDefEq
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    {params : List VExpr}
+    (H : RecursorLaterParameterScope Hsuffix i e)
+    (hi : i < stats.params.size)
+    (hparams : params.length = stats.params.size)
+    (hctx : VEnv.IsDefEqCtx R.venv recLparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx) :
+    VEnv.IsDefEqCtx R.venv recLparams.length []
+      (params.take i).reverse H.older.toCtx := by
+  have hcachedLength :=
+    checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
+      Hsuffix.cached
+  have hdeclLength := Hsuffix.parameterDecls_length
+  have hnewerLe :=
+    checkInductiveTypes.loopType.VLCtx.toCtx_length_le H.newer
+  have holderLe :=
+    checkInductiveTypes.loopType.VLCtx.toCtx_length_le H.older
+  have hctxParts := congrArg List.length <|
+    congrArg VLCtx.toCtx H.parameterDecls
+  simp only [VLCtx.toCtx_append, VLCtx.toCtx, List.length_append,
+    List.length_cons] at hctxParts
+  have hlistParts := congrArg List.length H.parameterDecls
+  simp only [List.length_append, List.length_cons] at hlistParts
+  have hnewerCtx : H.newer.toCtx.length = H.newer.length := by omega
+  have hscopeCtx : Hsuffix.parameterDecls.toCtx =
+      H.newer.toCtx ++ H.paramType :: H.older.toCtx := by
+    rw [H.parameterDecls]
+    simp [VLCtx.toCtx]
+  have hctx' : VEnv.IsDefEqCtx R.venv recLparams.length []
+      params.reverse (H.newer.toCtx ++ H.paramType :: H.older.toCtx) := by
+    rw [← hscopeCtx]
+    exact hctx
+  let j := H.newer.toCtx.length
+  have hjEq : j = stats.params.size - 1 - i := by
+    change H.newer.toCtx.length = stats.params.size - 1 - i
+    rw [hnewerCtx]
+    exact H.newerLength
+  have htake : params.length - (j + 1) = i := by
+    rw [hparams, hjEq]
+    omega
+  have htake' : params.length - (H.newer.toCtx.length + 1) = i := by
+    simpa [j] using htake
+  have hdrop := VEnv.IsDefEqCtx.dropHeads hctx' (j + 1)
+  simp [j] at hdrop
+  simpa [List.drop_reverse, htake'] using hdrop
+
+theorem RecursorLaterParameterScope.ownParameterDefEq
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    {params ownParams : List VExpr}
+    (H : RecursorLaterParameterScope Hsuffix i e)
+    (hi : i < stats.params.size)
+    (hparamsLength : params.length = stats.params.size)
+    (hctx : VEnv.IsDefEqCtx R.venv recLparams.length []
+      params.reverse Hsuffix.parameterDecls.toCtx)
+    (hown : VEnv.IsDefEqCtx R.venv recLparams.length []
+      params.reverse ownParams.reverse) :
+    ∃ u, R.venv.IsDefEq recLparams.length H.older.toCtx
+      (ownParams[i]'(by
+        have hlen : params.length = ownParams.length := by
+          simpa using hown.length_eq
+        omega)) H.paramType (.sort u) := by
+  have hiparams : i < params.length := by omega
+  have hlen : params.length = ownParams.length := by
+    simpa using hown.length_eq
+  have hrev : params.length - 1 - i < params.reverse.length := by
+    simp
+    omega
+  have hentry := VEnv.IsDefEqCtx.getElem hown hrev
+  have htake :
+      params.length - (params.length - (1 + i) + 1) = i := by omega
+  have hindex :
+      params.length - (1 + (params.length - (1 + i))) = i := by omega
+  have hcommonOwn : ∃ u, R.venv.IsDefEq recLparams.length
+      (params.take i).reverse params[i]
+      (ownParams[i]'(hlen ▸ hiparams)) (.sort u) := by
+    simpa [List.getElem_reverse, List.drop_reverse, hlen.symm,
+      Nat.sub_sub, htake, hindex] using hentry
+  rcases hcommonOwn with ⟨u, hcommonOwn⟩
+  have hprefix := H.parameterPrefixDefEq hi hparamsLength hctx
+  have hcommonOwn' := hcommonOwn.defeqDFC
+    R.checking.tr.wf.ordered hprefix
+  rcases H.parameterDefEq hi hparamsLength hctx with
+    ⟨cachedLevel, hcommonCached⟩
+  have holderWF :=
+    (H.lift.wf R.checking.tr.wf R.mlctx_wf.tr.wf).1
+  exact ⟨cachedLevel, hcommonOwn'.symm.trans_r R.checking.tr.wf
+    holderWF.toCtx hcommonCached⟩
+
+theorem RecursorLaterParameterScope.older_eq_nil
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth} {e : Expr}
+    (H : RecursorLaterParameterScope Hsuffix 0 e)
+    (hi : 0 < stats.params.size) : H.older = [] :=
+  List.eq_nil_of_length_eq_zero (H.olderLength hi)
+
+theorem RecursorLaterParameterScope.completedScope
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth} {e : Expr}
+    (H : RecursorLaterParameterScope Hsuffix i e)
+    (hdone : i + 1 = stats.params.size) :
+    (some (H.fv, H.deps), .vlam H.paramType) :: H.older =
+      Hsuffix.parameterDecls := by
+  have hnewerLength : H.newer.length = 0 := by
+    rw [H.newerLength]
+    omega
+  have hnewer : H.newer = [] :=
+    List.eq_nil_of_length_eq_zero hnewerLength
+  rw [H.parameterDecls, hnewer]
+  simp
+
+noncomputable def RecursorLaterParameterScope.ofNoFVars
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    (hi : i < stats.params.size)
+    (hfvars : FVarsIn (fun _ => False) e) :
+    RecursorLaterParameterScope Hsuffix i e :=
+  Classical.choice <| by
+    rcases Hsuffix.fvLiftAt hi with
+      ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer,
+        hadd, hcontext, hparam, hlift⟩
+    exact ⟨{
+      added := added
+      newer := newer
+      older := older
+      fv := fv
+      deps := deps
+      paramType := paramType
+      parameterDecls := hdecls
+      newerLength := hnewer
+      addedEq := hadd
+      context := hcontext
+      parameter := by
+        simpa [Array.getElem!_eq_getD, hi] using hparam
+      lift := hlift
+      fvars := hfvars.mono fun _ h => False.elim h }⟩
+
+theorem RecursorLaterParameterScope.openedFVars
+    (H : RecursorLaterParameterScope Hsuffix i body) :
+    FVarsIn
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      (body.instantiate1' (.fvar H.fv)) := by
+  apply (H.fvars.mono fun fv hfv => by
+    rw [VLCtx.fvars_cons_some]
+    exact List.mem_cons_of_mem H.fv hfv).instantiate1
+  simp only [FVarsIn]
+  rw [VLCtx.fvars_cons_some]
+  exact List.mem_cons_self
+
+theorem RecursorLaterParameterScope.openedUpSet
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    (H : RecursorLaterParameterScope Hsuffix i body) :
+    IsFVarUpSet
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      R.mlctx.vlctx := by
+  rw [H.context]
+  exact IsFVarUpSet.suffixFVars
+    ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
+    H.added (by simpa [H.context] using R.mlctx_wf.tr.wf)
+
+theorem RecursorLaterParameterScope.consumedFVars
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    (H : RecursorLaterParameterScope Hsuffix i body)
+    (hbelow : FVarsBelow R.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) normalized) :
+    FVarsIn
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      normalized := by
+  have hopened : FVarsIn
+      (· ∈ VLCtx.fvars
+        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
+      (body.instantiate1 stats.params[i]!) := by
+    rw [Expr.instantiate1_eq, H.parameter]
+    exact H.openedFVars
+  exact hbelow _ H.openedUpSet hopened
+
+theorem RecursorLaterParameterScope.olderLift
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    (H : RecursorLaterParameterScope Hsuffix i body) :
+    VLCtx.FVLift H.older R.mlctx.vlctx 0
+      (VLCtx.toCtx H.added).length.succ 0 := by
+  let current : Option (FVarId × List FVarId) × VLocalDecl :=
+    (some (H.fv, H.deps), .vlam H.paramType)
+  have hcontext : R.mlctx.vlctx =
+      (H.added ++ [current]) ++ H.older := by
+    simpa only [current, List.append_assoc, List.singleton_append]
+      using H.context
+  have hfullNoBV : ((H.added ++ [current]) ++ H.older).NoBV := by
+    rw [← hcontext]
+    exact R.mlctx.noBV
+  have hprefixNoBV : (H.added ++ [current]).NoBV :=
+    VLCtx.NoBV.leftOfAppend (H.added ++ [current]) H.older hfullNoBV
+  have hlift := VLCtx.FVLift.to_append H.older hprefixNoBV
+  rw [← hcontext] at hlift
+  simpa [current, VLCtx.toCtx] using hlift
+
+theorem RecursorLaterParameterScope.domainTranslation
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    {name : Name} {dom body : Expr} {bi : BinderInfo} {dom' : VExpr}
+    (H : RecursorLaterParameterScope Hsuffix i
+      (.forallE name dom body bi))
+    (hdom : TrExprS R.venv recLparams R.mlctx.vlctx dom dom') :
+    ∃ sourceDom', TrExprS R.venv recLparams H.older dom sourceDom' := by
+  have hclosed : Closed dom 0 := by
+    have h := hdom.closed
+    simpa [R.mlctx.noBV] using h
+  exact hdom.weakFV_inv R.checking.tr.wf H.olderLift
+    (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hclosed H.fvars.1
+
+/-- Recover the cached parameter's concrete type and its recursor-universe
+translation from the exact generated local context. -/
+theorem RecursorLaterParameterScope.typing
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    (H : RecursorLaterParameterScope Hsuffix i body) :
+    ∃ paramTy paramTy' param',
+      (AddInductive.getType stats.params[i]! c).WF
+        (fun ty => ty = paramTy) ∧
+      TrExprS R.venv recLparams R.mlctx.vlctx paramTy paramTy' ∧
+      paramTy' = H.paramType.lift.liftN
+        (VLCtx.toCtx H.added).length 0 ∧
+      TrExprS R.venv recLparams R.mlctx.vlctx
+        stats.params[i]! param' ∧
+      R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+        param' paramTy' := by
+  have hhead : VLCtx.find?
+      ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
+      (.inr H.fv) = some (.bvar 0, H.paramType.lift) := by
+    simp [VLCtx.find?, VLCtx.next, VLocalDecl.value, VLocalDecl.type]
+  have hfull := H.lift.find? R.mlctx_wf.tr.wf hhead
+  let param' := (VExpr.bvar 0).liftN (VLCtx.toCtx H.added).length 0
+  let paramTy' := H.paramType.lift.liftN
+    (VLCtx.toCtx H.added).length 0
+  have hfind : R.mlctx.vlctx.find? (.inr H.fv) =
+      some (param', paramTy') := by
+    simpa [param', paramTy'] using hfull
+  have hfv : H.fv ∈ R.mlctx.vlctx.fvars :=
+    VLCtx.find?_eq_some.1 ⟨_, hfind⟩
+  rcases (R.mlctx_wf.tr.find?_eq_some (fv := H.fv)).2 hfv with
+    ⟨localDecl, hlocal⟩
+  have hlocal' : c.lctx.find? H.fv = some localDecl := by
+    rw [← R.lctx_eq]
+    exact hlocal
+  have hlist := hlocal
+  rw [R.mlctx_wf.tr.1.find?_eq_find?_toList] at hlist
+  have hid : H.fv = localDecl.fvarId := by
+    simpa using List.find?_some hlist
+  have hmem : localDecl ∈ R.mlctx.lctx.toList :=
+    List.mem_of_find?_eq_some hlist
+  rcases R.mlctx_wf.tr.find?_of_mem R.checking.tr.wf hmem with
+    ⟨value', type', hfind', _hvalueBelow, _htypeBelow,
+      _hvalue, htype⟩
+  rw [← hid] at hfind'
+  rw [hfind] at hfind'
+  cases hfind'
+  refine ⟨localDecl.type, paramTy', param', ?_, htype, rfl, ?_, ?_⟩
+  · intro ty hrun
+    rw [H.parameter] at hrun
+    change Except.ok ((c.lctx.get! H.fv).type) = Except.ok ty at hrun
+    simp [LocalContext.get!, hlocal'] at hrun
+    exact hrun.symm
+  · rw [H.parameter]
+    exact .fvar hfind
+  · exact R.mlctx_wf.tr.wf.find?_wf R.checking.tr.wf hfind
+
+noncomputable def RecursorLaterParameterScope.next
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth}
+    (H : RecursorLaterParameterScope Hsuffix i body)
+    (hi : i + 1 < stats.params.size)
+    (hbelow : FVarsBelow R.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) normalized) :
+    RecursorLaterParameterScope Hsuffix (i + 1) normalized :=
+  Classical.choice <| by
+    rcases Hsuffix.fvLiftAt hi with
+      ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer,
+        hadd, hcontext, hparam, hlift⟩
+    let currentEntry : Option (FVarId × List FVarId) × VLocalDecl :=
+      (some (H.fv, H.deps), .vlam H.paramType)
+    let nextEntry : Option (FVarId × List FVarId) × VLocalDecl :=
+      (some (fv, deps), .vlam paramType)
+    have hdecomp : H.newer ++ currentEntry :: H.older =
+        (newer ++ [nextEntry]) ++ older := by
+      calc
+        H.newer ++ currentEntry :: H.older =
+            Hsuffix.parameterDecls := H.parameterDecls.symm
+        _ = newer ++ nextEntry :: older := hdecls
+        _ = (newer ++ [nextEntry]) ++ older := by
+          simp [List.append_assoc]
+    have hprefixLength :
+        H.newer.length = (newer ++ [nextEntry]).length := by
+      simp only [List.length_append, List.length_singleton]
+      rw [H.newerLength, hnewer]
+      omega
+    have htail : currentEntry :: H.older = older :=
+      List.append_inj_right hdecomp hprefixLength
+    have hnormalized := H.consumedFVars hbelow
+    have hnextFVars : FVarsIn (· ∈ VLCtx.fvars older) normalized := by
+      rw [← htail]
+      exact hnormalized
+    exact ⟨{
+      added := added
+      newer := newer
+      older := older
+      fv := fv
+      deps := deps
+      paramType := paramType
+      parameterDecls := hdecls
+      newerLength := hnewer
+      addedEq := hadd
+      context := hcontext
+      parameter := by
+        simpa [Array.getElem!_eq_getD, hi] using hparam
+      lift := hlift
+      fvars := hnextFVars }⟩
 
 /-- Application statistics interpreted under recursor universes.  Unlike
 `ValidAppStatsWF`, this structure does not claim that the recursor universe
@@ -18932,6 +19509,238 @@ def CheckedRecursorHeaderAt.recursorTargetSkeleton
         (VLevel.prependShift c.lparams.length) }
   | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
 
+/-- Common header parameters after the optional leading recursor universe is
+introduced.  Term-variable indices are unchanged; only universe indices in
+their domain types move. -/
+def CheckedRecursorHeaderAt.recursorParams
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    List VExpr :=
+  match elimLevel with
+  | .zero => H.materialized.headers.params
+  | .param _ => H.materialized.headers.params.map
+      (VExpr.instL (VLevel.prependShift c.lparams.length))
+  | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
+
+/-- The independently specified common parameters remain definitionally
+equal to the exact cached executable suffix after universe rebasing. -/
+theorem CheckedRecursorHeaderAt.recursorParamsContext
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    let R := Hc.toAdmissibleRecursorContextWF Helim
+    let Hsuffix := H.materialized.parameterSuffix.toRecursorContext Helim
+    VEnv.IsDefEqCtx R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+      (H.recursorParams Helim).reverse Hsuffix.parameterDecls.toCtx := by
+  dsimp only
+  cases elimLevel with
+  | zero => exact H.materialized.paramsContext
+  | param fresh =>
+    let shift := VLevel.prependShift c.lparams.length
+    change VEnv.IsDefEqCtx Hc.venv (fresh :: c.lparams).length []
+      (H.materialized.headers.params.map (VExpr.instL shift)).reverse
+      (H.materialized.parameterScope.instL shift).toCtx
+    have hshift : ∀ level ∈ shift,
+        level.WF (fresh :: c.lparams).length := by
+      simpa [shift] using
+        VLevel.prependShift_wf (n := c.lparams.length)
+    have hctx := Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.instL hshift
+      H.materialized.paramsContext
+    simpa only [CheckedRecursorHeaderAt.recursorParams,
+      List.map_reverse, List.map_nil, TypeChecker.MLCtx.prependLevelParam_vlctx,
+      VLCtx.instL_toCtx, shift] using hctx
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+/-- Expose the next family-local parameter from the independent `TypeShape`
+after shifting it beneath the optional fresh recursor universe parameter. -/
+theorem CheckedRecursorHeaderAt.recursorNextParameter
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    (hi : i < decl.nparams) :
+    ∃ (ownParams : List VExpr)
+        (expectedDomain expectedBody targetType : VExpr),
+      ownParams.length = decl.nparams ∧
+      ownParams[i]? = some expectedDomain ∧
+      VEnv.IsDefEqCtx Hc.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+        (H.recursorParams Helim).reverse ownParams.reverse ∧
+      Hc.venv.IsDefEq
+        (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+        (H.recursorTargetSkeleton Helim).type
+        (VExpr.wrapForalls (ownParams.take i)
+          (.forallE expectedDomain expectedBody)) targetType := by
+  have hshape : decl.TypeShape Hc.venv
+      H.materialized.headers.params H.target :=
+    H.materialized.headers.typeShapes H.target
+      (List.mem_of_getElem? H.targetAt)
+  cases elimLevel with
+  | zero =>
+    simpa [AddInductive.getRecLevelParams,
+      CheckedRecursorHeaderAt.recursorParams,
+      CheckedRecursorHeaderAt.recursorTargetSkeleton,
+      VInductDecl.ParamsDefEq, VInductiveType.toSkeleton,
+      H.materialized.uvars] using
+      VInductDecl.TypeShape.nextParameter hshape hi
+  | param fresh =>
+    let shift := VLevel.prependShift c.lparams.length
+    change ∃ (ownParams : List VExpr)
+        (expectedDomain expectedBody targetType : VExpr),
+      ownParams.length = decl.nparams ∧
+      ownParams[i]? = some expectedDomain ∧
+      VEnv.IsDefEqCtx Hc.venv (fresh :: c.lparams).length []
+        (H.materialized.headers.params.map
+          (VExpr.instL shift)).reverse ownParams.reverse ∧
+      Hc.venv.IsDefEq (fresh :: c.lparams).length []
+        (H.target.type.instL shift)
+        (VExpr.wrapForalls (ownParams.take i)
+          (.forallE expectedDomain expectedBody)) targetType
+    rcases VInductDecl.TypeShape.nextParameter hshape hi with
+      ⟨ownParams, expectedDomain, expectedBody, targetType,
+        hlength, hget, hown, hpresentation⟩
+    have hshift : ∀ level ∈ shift,
+        level.WF (fresh :: c.lparams).length := by
+      simpa [shift] using
+        VLevel.prependShift_wf (n := c.lparams.length)
+    let ownParams' := ownParams.map (VExpr.instL shift)
+    let expectedDomain' := expectedDomain.instL shift
+    let expectedBody' := expectedBody.instL shift
+    let targetType' := targetType.instL shift
+    refine ⟨ownParams', expectedDomain', expectedBody', targetType',
+      ?_, ?_, ?_, ?_⟩
+    · simp [ownParams', hlength]
+    · simp [ownParams', expectedDomain', hget]
+    · have hown' :=
+        Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.instL hshift hown
+      simpa only [CheckedRecursorHeaderAt.recursorParams,
+        ownParams', List.map_reverse, List.map_nil, shift] using hown'
+    · have hpresentation' := hpresentation.instL hshift
+      have instL_wrapForalls (domains : List VExpr) (result : VExpr) :
+          (VExpr.wrapForalls domains result).instL shift =
+            VExpr.wrapForalls (domains.map (VExpr.instL shift))
+              (result.instL shift) := by
+        induction domains with
+        | nil => rfl
+        | cons domain domains ih =>
+          change VExpr.forallE (domain.instL shift)
+              ((VExpr.wrapForalls domains result).instL shift) =
+            VExpr.forallE (domain.instL shift)
+              (VExpr.wrapForalls (domains.map (VExpr.instL shift))
+                (result.instL shift))
+          exact congrArg (VExpr.forallE (domain.instL shift)) ih
+      simpa only [CheckedRecursorHeaderAt.recursorTargetSkeleton,
+        ownParams', expectedDomain', expectedBody', targetType',
+        List.map_nil, List.map_take, List.map_reverse,
+        VExpr.instL, instL_wrapForalls] using hpresentation'
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+/-- The next domain exposed by independent rebased header synthesis is the
+exact cached parameter declaration selected in the current recursor context.
+No successful executable `isDefEq` result is used to establish the match. -/
+theorem CheckedRecursorHeaderAt.recursorCurrentDomainDefEq
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {c' : AddInductive.Context}
+    {R : RecursorContextWF c'
+      (AddInductive.getRecLevelParams elimLevel c.lparams)}
+    {Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth}
+    {name : Name} {dom body : Expr} {bi : BinderInfo}
+    {currentDomain currentBody : VExpr}
+    (Hscope : RecursorLaterParameterScope Hsuffix i
+      (.forallE name dom body bi))
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        R.venv (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (H.recursorTargetSkeleton Helim) Hscope.older
+        (.forallE currentDomain currentBody) i 0)
+    (hi : i < stats.params.size)
+    (henv : R.venv = Hc.venv)
+    (hctx : VEnv.IsDefEqCtx R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+      (H.recursorParams Helim).reverse Hsuffix.parameterDecls.toCtx) :
+    R.venv.IsDefEqU
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      Hscope.older.toCtx currentDomain Hscope.paramType := by
+  have hparameterCount : stats.params.size = decl.nparams := by
+    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      H.materialized.narrowParams
+    simpa [VInductDecl.paramVars] using hlength
+  have hiDecl : i < decl.nparams := by
+    rw [← hparameterCount]
+    exact hi
+  rcases H.recursorNextParameter Helim hiDecl with
+    ⟨ownParams, expectedDomain, expectedBody, targetType,
+      hownLength, hget, hown, hpresentation⟩
+  have hiOwn : i < ownParams.length := by omega
+  have hexpected : expectedDomain = ownParams[i] := by
+    have hget' : some ownParams[i] = some expectedDomain := by
+      simpa [List.getElem?_eq_getElem hiOwn] using hget
+    exact (Option.some.inj hget').symm
+  have hindices : Hsynthesis.indices = [] :=
+    List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
+  have hprefixLength : Hsynthesis.params.length =
+      (ownParams.take i).length := by
+    rw [Hsynthesis.parameterCount, List.length_take]
+    omega
+  have hpresentationR : R.venv.IsDefEq
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+      (H.recursorTargetSkeleton Helim).type
+      (VExpr.wrapForalls (ownParams.take i)
+        (.forallE expectedDomain expectedBody)) targetType := by
+    simpa [henv] using hpresentation
+  rcases Hsynthesis.nextDomainDefEq R.checking.tr.wf hindices
+      hprefixLength hpresentationR with ⟨nextLevel, hnext⟩
+  have hscopeCtx : Hscope.older.toCtx = Hsynthesis.params.reverse := by
+    simpa [hindices] using Hsynthesis.scopeCtx
+  have hnext' : R.venv.IsDefEq
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      Hscope.older.toCtx currentDomain expectedDomain (.sort nextLevel) := by
+    rw [hscopeCtx]
+    exact hnext
+  have hparamsLength : (H.recursorParams Helim).length =
+      stats.params.size := by
+    have hctxLength := H.materialized.paramsContext.length_eq
+    have hcachedCtx :=
+      checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
+        H.materialized.cachedScope
+    have hcachedLength :=
+      Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+        H.materialized.cachedScope
+    have hbaseLength : H.materialized.headers.params.length =
+        stats.params.size := by
+      calc
+        H.materialized.headers.params.length =
+            H.materialized.headers.params.reverse.length := by simp
+        _ = H.materialized.parameterScope.toCtx.length := hctxLength
+        _ = H.materialized.parameterScope.length := hcachedCtx
+        _ = stats.params.size := by simpa using hcachedLength.symm
+    cases elimLevel with
+    | zero => simpa [CheckedRecursorHeaderAt.recursorParams]
+        using hbaseLength
+    | param fresh => simpa [CheckedRecursorHeaderAt.recursorParams]
+        using hbaseLength
+    | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+      simp [AddInductive.AdmissibleElimLevel] at Helim
+  have hownR : VEnv.IsDefEqCtx R.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length []
+      (H.recursorParams Helim).reverse ownParams.reverse := by
+    simpa [henv] using hown
+  rcases Hscope.ownParameterDefEq hi hparamsLength hctx hownR with
+    ⟨cachedLevel, hcached⟩
+  have hcached' : R.venv.IsDefEq
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      Hscope.older.toCtx expectedDomain Hscope.paramType
+      (.sort cachedLevel) := by
+    simpa [hexpected] using hcached
+  exact ⟨_, hnext'.trans_r R.checking.tr.wf
+    (Hscope.lift.wf R.checking.tr.wf R.mlctx_wf.tr.wf).1.toCtx
+    hcached'⟩
+
 @[simp] theorem CheckedRecursorHeaderAt.recursorTargetSkeleton_zero
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
@@ -18981,6 +19790,68 @@ theorem CheckedRecursorHeaderAt.recursorTargetType
     exact htarget.instL hshift
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
+
+/-- Normalize a later mutual-family header in the actual generated recursor
+context and restart independent narrow synthesis in the empty closed scope.
+This is the first operational step that remains valid after earlier major and
+motive frames have introduced the fresh large-elimination universe. -/
+theorem CheckedRecursorHeaderAt.startRecursorHeaderSemantics
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
+    {c' : AddInductive.Context}
+    (R : RecursorContextWF c'
+      (AddInductive.getRecLevelParams elimLevel c.lparams))
+    (henv : R.venv = Hc.venv)
+    (hwhnf : WhnfLParamsCompat) :
+    ((monadLift (TypeChecker.whnf source.type) :
+        AddInductive.M Expr) c').WF fun normalized =>
+      FVarsBelow R.mlctx.vlctx source.type normalized ∧
+      ∃ normalizedTarget,
+        TrExprS R.venv
+          (AddInductive.getRecLevelParams elimLevel c.lparams) []
+          normalized normalizedTarget ∧
+        Nonempty
+          (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+            R.venv
+            (AddInductive.getRecLevelParams elimLevel c.lparams)
+            (H.recursorTargetSkeleton Helim) [] normalizedTarget 0 0) := by
+  let recLparams :=
+    AddInductive.getRecLevelParams elimLevel c.lparams
+  have htarget : TrExprS R.venv recLparams [] source.type
+      (H.recursorTargetSkeleton Helim).type := by
+    simpa [recLparams, henv] using H.recursorSourceTranslation Helim
+  have htargetType : R.venv.IsType recLparams.length []
+      (H.recursorTargetSkeleton Helim).type := by
+    simpa [recLparams, henv] using H.recursorTargetType Helim
+  let W : VLCtx.FVLift [] R.mlctx.vlctx 0
+      R.mlctx.vlctx.toCtx.length 0 :=
+    VLCtx.FVLift.from_nil R.mlctx.noBV
+  have hsource := htarget.weakFV R.checking.tr.wf.ordered W
+    R.mlctx_wf.tr.wf
+  have hnormalize := whnfInRecursorContext.scopeWF hwhnf R hsource
+  exact hnormalize.mono fun normalized hnormalized => by
+    have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
+      htarget.fvarsIn.mono fun fv hfv => by
+        simpa [VLCtx.fvars] using hfv
+    have hfalseUpSet : IsFVarUpSet (fun _ => False) R.mlctx.vlctx := by
+      have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
+        R.mlctx.vlctx (by simpa using R.mlctx_wf.tr.wf)
+      simpa [VLCtx.fvars] using hsuffix
+    have hnormalizedNoFVars : FVarsIn (fun _ => False) normalized :=
+      hnormalized.1 _ hfalseUpSet hsourceNoFVars
+    rcases R.initialClosedHeaderDefEq htarget hsource hnormalized.2
+        hnormalizedNoFVars with
+      ⟨normalizedTarget, hnormalizedTarget, hheader⟩
+    have hnormalizedType : R.venv.IsType recLparams.length []
+        normalizedTarget :=
+      htargetType.defeqU_l R.checking.tr.wf (by trivial) hheader
+    rcases htargetType with ⟨targetLevel, htargetHasType⟩
+    have hheaderTyped := hheader.of_l R.checking.tr.wf (by trivial)
+      htargetHasType
+    exact ⟨hnormalized.1, normalizedTarget, hnormalizedTarget,
+      ⟨checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
+        ⟨targetLevel, htargetHasType⟩ hnormalizedType hheaderTyped⟩⟩
 
 theorem CheckedRecursorHeaderAt.target_mem
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
