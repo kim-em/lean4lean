@@ -368,6 +368,96 @@ theorem VEnv.HasType.mkApps_wrapForalls_canonical
       List.reverse_cons, List.append_assoc, VExpr.liftN,
       VExpr.instN_bvar0, VExpr.liftN_liftN, Nat.add_comm] using hrest
 
+/-- Parallel telescope relation between an inductive family and its motive.
+Both functions consume the same dependent domains.  Once all domains have
+been consumed, the motive expects an inhabitant of the corresponding family
+application and returns the selected elimination sort. -/
+inductive RecursorMotiveTelescope (resultLevel : VLevel) :
+    Nat → VExpr → VExpr → VExpr → Prop
+  | zero (family familyType : VExpr) :
+      RecursorMotiveTelescope resultLevel 0 family familyType
+        (.forallE family (.sort resultLevel))
+  | succ (family domain familyType motiveType : VExpr) {arity : Nat} :
+      RecursorMotiveTelescope resultLevel arity
+        (.app (family.liftN 1 0) (.bvar 0)) familyType motiveType →
+      RecursorMotiveTelescope resultLevel (arity + 1) family
+        (.forallE domain familyType) (.forallE domain motiveType)
+
+/-- Simultaneous term substitution preserves the parallel family/motive
+telescope relation.  The explicit cutoff is needed under dependent binders. -/
+theorem RecursorMotiveTelescope.instN
+    (H : RecursorMotiveTelescope resultLevel arity family familyType
+      motiveType) (value : VExpr) (k : Nat) :
+    RecursorMotiveTelescope resultLevel arity
+      (family.inst value k) (familyType.inst value k)
+      (motiveType.inst value k) := by
+  induction H generalizing k with
+  | zero => simp [VExpr.inst, RecursorMotiveTelescope.zero]
+  | @succ family domain familyType motiveType arity Htail ih =>
+      apply RecursorMotiveTelescope.succ
+      simpa [VExpr.inst, VExpr.liftN, VExpr.instN_liftN_add] using
+        ih (k + 1)
+
+/-- Consuming the outer shared domain advances a parallel telescope to the
+family application at that argument. -/
+theorem RecursorMotiveTelescope.consume
+    (H : RecursorMotiveTelescope resultLevel (arity + 1) family
+      (.forallE domain familyType) (.forallE domain motiveType))
+    (arg : VExpr) :
+    RecursorMotiveTelescope resultLevel arity (.app family arg)
+      (familyType.inst arg) (motiveType.inst arg) := by
+  cases H with
+  | succ Htail =>
+      simpa [VExpr.inst, VExpr.instN_bvar0] using Htail.instN arg 0
+
+/-- Apply a family and a parallel motive to the same argument spine, then
+apply the resulting motive to a major premise of the family application.
+Typing of the shared arguments is recovered from the independently typed
+family application and transported to the declared telescope by uniqueness. -/
+theorem RecursorMotiveTelescope.applyMajor
+    (H : RecursorMotiveTelescope resultLevel args.length family
+      familyType motiveType)
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (Hfamily : env.HasType uvars ctx family familyType)
+    (Hmotive : env.HasType uvars ctx motive motiveType)
+    (Hmajor : env.HasType uvars ctx major (VExpr.mkApps family args)) :
+    env.IsType uvars ctx
+      (.app (VExpr.mkApps motive args) major) := by
+  induction args generalizing family familyType motive motiveType with
+  | nil =>
+      cases H with
+      | zero =>
+          exact ⟨resultLevel, by
+            simpa [VExpr.mkApps] using VEnv.HasType.app Hmotive Hmajor⟩
+  | cons arg args ih =>
+      cases H with
+      | @succ _ domain familyBody motiveBody _ Htail =>
+        have HfamilyAppType := Hmajor.isType henv hctx
+        have HfamilyAppWF : VExpr.WF env uvars ctx
+            (VExpr.mkApps family (arg :: args)) := by
+          rcases HfamilyAppType with ⟨level, Htype⟩
+          exact ⟨.sort level, Htype⟩
+        have Hprefix := VExpr.WF.mkApps_fn henv.ordered hctx
+          (fn := .app family arg) (args := args) HfamilyAppWF
+        rcases Hprefix.app_inv henv.ordered hctx with
+          ⟨actualDomain, actualBody, HfamilyActual, HargActual⟩
+        have HfunctionEq := Hfamily.uniqU henv hctx HfamilyActual
+        have HdomainEq :=
+          (VEnv.IsDefEqU.forallE_inv henv hctx HfunctionEq).1
+        rcases HdomainEq with ⟨domainLevel, HdomainEq⟩
+        have Harg : env.HasType uvars ctx arg domain :=
+          HdomainEq.defeq' HargActual
+        have Hfamily' : env.HasType uvars ctx (.app family arg)
+            (familyBody.inst arg) := Hfamily.app Harg
+        have Hmotive' : env.HasType uvars ctx (.app motive arg)
+            (motiveBody.inst arg) := Hmotive.app Harg
+        have Htail' := Htail.instN arg 0
+        have Htail'' : RecursorMotiveTelescope resultLevel args.length
+            (.app family arg) (familyBody.inst arg)
+            (motiveBody.inst arg) := by
+          simpa [VExpr.inst, VExpr.instN_bvar0] using Htail'
+        exact ih Htail'' Hfamily' Hmotive' Hmajor
+
 @[simp] theorem VExpr.getAppFnArgs_mkApps_bvar
     (index : Nat) (args : List VExpr) :
     (VExpr.mkApps (.bvar index) args).getAppFnArgs = (.bvar index, args) := by
@@ -16804,6 +16894,7 @@ structure RecursorValidatedIndAppAt
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (depth : Nat) (type : Expr) (type' : VExpr) (target : Nat) : Prop where
   target_lt : target < decl.types.length
+  owner_valid : AddInductive.isValidIndApp? stats type = some target
   application : decl.ValidIndAppAt
     (some (decl.types[target]'target_lt).name) depth type'
   indices_payload : ∃ levels params indices,
@@ -16829,6 +16920,7 @@ def RecursorValidAppStatsWF.validatedIndAppAt
       type type' target := by
   exact {
     target_lt := htarget
+    owner_valid := hvalid
     application := H.validIndAppAtTarget htr hvalid htarget hlit hctx hproj
     indices_payload := H.translatedIndices htr hvalid htarget }
 
@@ -20359,6 +20451,344 @@ structure RecursorMotiveBindingAt
   typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
     motiveTypeTarget
 
+/-- Context-local semantic package for a generated motive, stated directly
+against one `RecInfo`.  The indexed lookup package below is converted to this
+form before invoking the context-independent motive application invariant. -/
+structure RecursorMotiveBinding
+    {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    (info : AddInductive.RecInfo) (elimLevel : Level) : Type where
+  motiveTarget : VExpr
+  motiveTypeTarget : VExpr
+  motive : TrExprS R.venv recLparams R.mlctx.vlctx
+    info.motive motiveTarget
+  motiveType : TrExprS R.venv recLparams R.mlctx.vlctx
+    (c.lctx.mkForall info.indices
+      (c.lctx.mkForall #[info.major] (.sort elimLevel)))
+    motiveTypeTarget
+  typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+    motiveTarget motiveTypeTarget
+  typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
+    motiveTypeTarget
+
+def RecursorMotiveBindingAt.toBinding
+    (H : RecursorMotiveBindingAt R recInfos target elimLevel) :
+    RecursorMotiveBinding R recInfos[target]! elimLevel where
+  motiveTarget := H.motiveTarget
+  motiveTypeTarget := H.motiveTypeTarget
+  motive := H.motive
+  motiveType := H.motiveType
+  typing := H.typing
+  typeIsType := H.typeIsType
+
+/-- Independent semantic contract for applying one generated motive.  It is
+deliberately quantified over the eventual reader context: the first
+`mkRecInfos` pass records this property once for each `RecInfo`, while the
+second pass may use it after opening any number of constructor or
+higher-order recursive binders.
+
+The validated application supplies the exact source/abstract index payload.
+The other two typing premises say that the exposed family application is a
+type and that the proposed major premise inhabits it.  Thus this contract is
+precisely the declarative fact needed to justify production's motive
+application, rather than an assertion about the executable classifier. -/
+def RecursorMotiveApplicationAt
+    (root : AddInductive.Context)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (target : Nat) (info : AddInductive.RecInfo)
+    (elimLevel : Level) : Prop :=
+  ∀ {current : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF current recLparams)
+    (_Hle : BindingContextLE root current)
+    {depth : Nat}
+    {exposedType major : Expr} {syntaxTarget majorTarget : VExpr},
+    RecursorMotiveBinding R info elimLevel →
+    TrExprS R.venv recLparams R.mlctx.vlctx exposedType syntaxTarget →
+    R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx syntaxTarget →
+    TrExprS R.venv recLparams R.mlctx.vlctx major majorTarget →
+    R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      majorTarget syntaxTarget →
+    RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx stats decl
+      depth exposedType syntaxTarget target →
+    let itIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app (mkAppN info.motive itIndices) major
+    ∃ motiveTarget,
+      TrExprS R.venv recLparams R.mlctx.vlctx motiveApp motiveTarget ∧
+      R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx motiveTarget
+
+/-- The smaller semantic payload from which a motive application follows.
+It states that the validated terminal family application and the retained
+motive type consume the same abstract index telescope.  Keeping this
+separate makes the first-pass obligation reviewable: it need not mention a
+particular recursive field or induction-hypothesis major. -/
+structure RecursorMotiveTelescopeEvidence
+    {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    (stats : AddInductive.InductiveStats) (info : AddInductive.RecInfo)
+    (binding : RecursorMotiveBinding R info elimLevel)
+    (exposedType : Expr) (syntaxTarget : VExpr) : Type where
+  indices : List VExpr
+  family : VExpr
+  familyType : VExpr
+  resultLevel : VLevel
+  syntax_eq : syntaxTarget = VExpr.mkApps family indices
+  indices_translation : List.Forall₂
+    (TrExprS R.venv recLparams R.mlctx.vlctx)
+    (exposedType.getAppArgs[stats.params.size:]).toList indices
+  family_typing : R.venv.HasType recLparams.length
+    R.mlctx.vlctx.toCtx family familyType
+  telescope : RecursorMotiveTelescope resultLevel indices.length family
+    familyType binding.motiveTypeTarget
+
+/-- The family prefix of a validated, well-formed terminal application is
+itself well typed.  This is obtained by retaining the prefix of the complete
+abstract application spine, without choosing or normalizing its type. -/
+theorem RecursorValidatedIndAppAt.familyPrefixTyping
+    (H : RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx
+      stats decl depth exposedType syntaxTarget target)
+    (HsyntaxType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx syntaxTarget) :
+    let ⟨levels, params, _indices, _⟩ := H.indices_payload
+    ∃ familyType,
+      R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+        (VExpr.mkApps
+          (.const (decl.types[target]'H.target_lt).name levels) params)
+        familyType := by
+  rcases H.indices_payload with
+    ⟨levels, params, indices, hspine, _hparams, _hlength, _Hindices⟩
+  let family := VExpr.mkApps
+    (.const (decl.types[target]'H.target_lt).name levels) params
+  have hrebuild := VExpr.mkApps_getAppFnArgs syntaxTarget
+  rw [hspine] at hrebuild
+  have hsyntax : syntaxTarget = VExpr.mkApps family indices := by
+    rw [← hrebuild]
+    simp [family, VExpr.mkApps, List.foldl_append]
+  have HsyntaxWF : VExpr.WF R.venv recLparams.length
+      R.mlctx.vlctx.toCtx syntaxTarget := by
+    rcases HsyntaxType with ⟨level, Htyped⟩
+    exact ⟨.sort level, Htyped⟩
+  have HfullWF : VExpr.WF R.venv recLparams.length
+      R.mlctx.vlctx.toCtx (VExpr.mkApps family indices) := by
+    rwa [← hsyntax]
+  exact VExpr.WF.mkApps_fn R.checking.tr.wf.ordered
+    R.mlctx_wf.tr.wf.toCtx HfullWF
+
+/-- Fill the syntactic half of shared-telescope evidence directly from the
+validated terminal payload.  The only remaining inputs are the semantic
+typing of the family prefix and its parallel relation to the retained motive
+type. -/
+theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
+    (H : RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx
+      stats decl depth exposedType syntaxTarget target)
+    (binding : RecursorMotiveBinding R info elimLevel)
+    (familyType : VExpr) (resultLevel : VLevel)
+    (Hfamily :
+      let ⟨levels, params, _indices, _⟩ := H.indices_payload
+      R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+        (VExpr.mkApps
+          (.const (decl.types[target]'H.target_lt).name levels) params)
+        familyType)
+    (Htelescope :
+      let ⟨levels, params, indices, _⟩ := H.indices_payload
+      RecursorMotiveTelescope resultLevel indices.length
+        (VExpr.mkApps
+          (.const (decl.types[target]'H.target_lt).name levels) params)
+        familyType binding.motiveTypeTarget) :
+    Nonempty (RecursorMotiveTelescopeEvidence R stats info binding
+      exposedType syntaxTarget) := by
+  rcases H.indices_payload with
+    ⟨levels, params, indices, hspine, _hparams, _hlength, Hindices⟩
+  let family := VExpr.mkApps
+    (.const (decl.types[target]'H.target_lt).name levels) params
+  have hrebuild := VExpr.mkApps_getAppFnArgs syntaxTarget
+  rw [hspine] at hrebuild
+  have hsyntax : syntaxTarget = VExpr.mkApps family indices := by
+    rw [← hrebuild]
+    simp [family, VExpr.mkApps, List.foldl_append]
+  exact ⟨{
+    indices := indices
+    family := family
+    familyType := familyType
+    resultLevel := resultLevel
+    syntax_eq := hsyntax
+    indices_translation := Hindices
+    family_typing := Hfamily
+    telescope := Htelescope }⟩
+
+/-- A shared family/motive telescope supplies the complete independent
+motive-application contract.  The proof applies the abstract parallel
+telescope, then uses its resulting well-typed spine to assemble the concrete
+`TrExprS` application without invoking executable inference. -/
+theorem RecursorMotiveTelescopeEvidence.applyMajor
+    (H : RecursorMotiveTelescopeEvidence R stats info binding
+      exposedType syntaxTarget)
+    {major : Expr} {majorTarget : VExpr}
+    (Hmajor : TrExprS R.venv recLparams R.mlctx.vlctx major majorTarget)
+    (HmajorType : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      majorTarget syntaxTarget) :
+    let itIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app (mkAppN info.motive itIndices) major
+    ∃ motiveTarget,
+      TrExprS R.venv recLparams R.mlctx.vlctx motiveApp motiveTarget ∧
+      R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx motiveTarget := by
+  have HmajorType' : R.venv.HasType recLparams.length
+      R.mlctx.vlctx.toCtx majorTarget (VExpr.mkApps H.family H.indices) := by
+    rwa [← H.syntax_eq]
+  have Hresult := H.telescope.applyMajor R.checking.tr.wf
+    R.mlctx_wf.tr.wf.toCtx H.family_typing binding.typing HmajorType'
+  let motiveTarget :=
+    VExpr.app (VExpr.mkApps binding.motiveTarget H.indices) majorTarget
+  have Hresult' : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
+      motiveTarget := by
+    simpa [motiveTarget, VExpr.mkApps, List.foldl_append] using Hresult
+  have HtargetWF : VExpr.WF R.venv recLparams.length
+      R.mlctx.vlctx.toCtx motiveTarget := by
+    rcases Hresult' with ⟨level, Htyped⟩
+    exact ⟨.sort level, Htyped⟩
+  have Hargs := H.indices_translation.append (.cons Hmajor .nil)
+  have Htranslated := TrExprS.mkAppList R.checking.tr.wf.ordered
+    R.mlctx_wf.tr.wf.toCtx binding.motive Hargs (by
+      simpa [motiveTarget, VExpr.mkApps, List.foldl_append] using HtargetWF)
+  refine ⟨motiveTarget, ?_, Hresult'⟩
+  simpa [motiveTarget, Expr.mkAppN_eq_mkAppList,
+    Expr.mkAppList_append, VExpr.mkApps, List.foldl_append] using Htranslated
+
+/-- Rooted, context-polymorphic form of the shared telescope evidence.  This
+is the invariant established by the first `mkRecInfos` pass; later recursive
+field traversals supply only the validated terminal application. -/
+def RecursorMotiveTelescopeAt
+    (root : AddInductive.Context)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (target : Nat) (info : AddInductive.RecInfo)
+    (elimLevel : Level) : Prop :=
+  ∀ {current : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF current recLparams)
+    (_Hle : BindingContextLE root current)
+    {depth : Nat} {exposedType : Expr} {syntaxTarget : VExpr}
+    (binding : RecursorMotiveBinding R info elimLevel),
+    TrExprS R.venv recLparams R.mlctx.vlctx exposedType syntaxTarget →
+    R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx syntaxTarget →
+    RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx stats decl
+      depth exposedType syntaxTarget target →
+    Nonempty (RecursorMotiveTelescopeEvidence R stats info binding
+      exposedType syntaxTarget)
+
+theorem RecursorMotiveTelescopeAt.toApplication
+    (H : RecursorMotiveTelescopeAt root stats decl target info elimLevel) :
+    RecursorMotiveApplicationAt root stats decl target info elimLevel := by
+  intro current recLparams R Hle depth exposedType major syntaxTarget
+    majorTarget binding Hexposed HsyntaxType Hmajor HmajorType Hvalidated
+  rcases H R Hle binding Hexposed HsyntaxType Hvalidated with ⟨Hevidence⟩
+  exact Hevidence.applyMajor Hmajor HmajorType
+
+/-- Pointwise shared family/motive telescopes for a completed mutual record
+array.  This is stronger and easier to establish than storing applications
+for arbitrary majors directly. -/
+structure RecInfoMotiveTelescopes
+    (root : AddInductive.Context)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
+  telescope : ∀ target (htarget : target < recInfos.size),
+    RecursorMotiveTelescopeAt root stats decl target recInfos[target]!
+      elimLevel
+
+def RecInfoMotiveTelescopes.empty
+    (root : AddInductive.Context)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (elimLevel : Level) :
+    RecInfoMotiveTelescopes root stats decl #[] elimLevel where
+  telescope target htarget := by simp at htarget
+
+def RecInfoMotiveTelescopes.mono
+    (H : RecInfoMotiveTelescopes root stats decl recInfos elimLevel)
+    (Hle : BindingContextLE root current) :
+    RecInfoMotiveTelescopes current stats decl recInfos elimLevel where
+  telescope target htarget R Hlater :=
+    H.telescope target htarget R (Hle.trans Hlater)
+
+def RecInfoMotiveTelescopes.push
+    (H : RecInfoMotiveTelescopes root stats decl recInfos elimLevel)
+    (next : AddInductive.RecInfo)
+    (Hnext : RecursorMotiveTelescopeAt root stats decl recInfos.size next
+      elimLevel) :
+    RecInfoMotiveTelescopes root stats decl (recInfos.push next)
+      elimLevel where
+  telescope target htarget := by
+    by_cases hlast : target = recInfos.size
+    · subst target
+      simpa using Hnext
+    · have hold : target < recInfos.size := by
+        simp only [Array.size_push] at htarget
+        omega
+      have hget : (recInfos.push next)[target]! = recInfos[target]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos htarget, dif_pos hold]
+        exact Array.getElem_push_lt hold
+      rw [hget]
+      exact H.telescope target hold
+
+/-- Pointwise motive-application contracts for the complete mutual `RecInfo`
+array.  Array indexing, rather than family names, is intentional: production
+selects motives with the target returned by `isValidIndApp?`, and the
+validated application certificate proves that the same target denotes the
+independent source family. -/
+structure RecInfoMotiveApplications
+    (root : AddInductive.Context)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
+  application : ∀ target (htarget : target < recInfos.size),
+    RecursorMotiveApplicationAt root stats decl target recInfos[target]!
+      elimLevel
+
+def RecInfoMotiveApplications.empty
+    (root : AddInductive.Context)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (elimLevel : Level) :
+    RecInfoMotiveApplications root stats decl #[] elimLevel where
+  application target htarget := by simp at htarget
+
+/-- Re-root every existing contract at a later production context.  A use
+still has to provide an extension of the new root; composing inclusions shows
+that it is also a legitimate use of the original contract. -/
+def RecInfoMotiveApplications.mono
+    (H : RecInfoMotiveApplications root stats decl recInfos elimLevel)
+    (Hle : BindingContextLE root current) :
+    RecInfoMotiveApplications current stats decl recInfos elimLevel where
+  application target htarget R Hlater :=
+    H.application target htarget R (Hle.trans Hlater)
+
+/-- Extend the pointwise motive contract in lockstep with the first mutual
+pass.  Earlier contracts are definitionally unchanged by `Array.push`; only
+the newly generated frame needs a fresh semantic application proof. -/
+def RecInfoMotiveApplications.push
+    (H : RecInfoMotiveApplications root stats decl recInfos elimLevel)
+    (next : AddInductive.RecInfo)
+    (Hnext : RecursorMotiveApplicationAt root stats decl recInfos.size next
+      elimLevel) :
+    RecInfoMotiveApplications root stats decl (recInfos.push next)
+      elimLevel where
+  application target htarget := by
+    by_cases hlast : target = recInfos.size
+    · subst target
+      simpa using Hnext
+    · have hold : target < recInfos.size := by
+        simp only [Array.size_push] at htarget
+        omega
+      have hget : (recInfos.push next)[target]! = recInfos[target]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos htarget, dif_pos hold]
+        exact Array.getElem_push_lt hold
+      rw [hget]
+      exact H.application target hold
+
+def RecInfoMotiveTelescopes.applications
+    (H : RecInfoMotiveTelescopes root stats decl recInfos elimLevel) :
+    RecInfoMotiveApplications root stats decl recInfos elimLevel where
+  application target htarget :=
+    (H.telescope target htarget).toApplication
+
 /-- Semantic lookup package for one generated major premise and its exact
 family-application declaration type. -/
 structure RecursorMajorBindingAt
@@ -20919,9 +21349,27 @@ def RecInfoBindings.mono
   indices i hi := (H.indices i hi).mono hle
   minors i hi := (H.minors i hi).mono hle
 
-/-- Select a motive after `loopUArgs` has opened a consecutive higher-order
-argument suffix.  All declaration origins and the exact motive telescope are
-transported through the same executable context extension. -/
+/-- Select a motive in any later executable binding context.  All declaration
+origins and the exact telescope shape are monotone; the semantic lookup is
+then reconstructed from the later context's own `RecursorContextWF`. -/
+theorem RecInfoMotiveTypeShapes.motiveBindingAtMono
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {Rcurrent : RecursorContextWF current recLparams}
+    (Hbindings : RecInfoBindings root recInfos)
+    (Horigins : RecInfoTypeOrigins root recInfos)
+    (Hshape : RecInfoMotiveTypeShapes root recInfos
+      Horigins.motiveTypes elimLevel)
+    (Hle : BindingContextLE root current)
+    (target : Nat) (htarget : target < recInfos.size) :
+    Nonempty (RecursorMotiveBindingAt Rcurrent recInfos target elimLevel) := by
+  let HbindingsCurrent := Hbindings.mono Hle
+  let HoriginsCurrent := Horigins.mono Hle
+  let HshapeCurrent := Hshape.mono Hbindings Hle
+  exact HshapeCurrent.motiveBindingAt Rcurrent HbindingsCurrent
+    HoriginsCurrent target htarget
+
+/-- Consecutive higher-order suffix specialization of
+`motiveBindingAtMono`. -/
 theorem RecInfoMotiveTypeShapes.motiveBindingAtRecent
     {root current : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
@@ -20932,12 +21380,98 @@ theorem RecInfoMotiveTypeShapes.motiveBindingAtRecent
       Horigins.motiveTypes elimLevel)
     (Hrecent : RecursorRecentBoundFVarArray Rroot Rcurrent args)
     (target : Nat) (htarget : target < recInfos.size) :
-    Nonempty (RecursorMotiveBindingAt Rcurrent recInfos target elimLevel) := by
-  let HbindingsCurrent := Hbindings.mono Hrecent.contextLE
-  let HoriginsCurrent := Horigins.mono Hrecent.contextLE
-  let HshapeCurrent := Hshape.mono Hbindings Hrecent.contextLE
-  exact HshapeCurrent.motiveBindingAt Rcurrent HbindingsCurrent
-    HoriginsCurrent target htarget
+    Nonempty (RecursorMotiveBindingAt Rcurrent recInfos target elimLevel) :=
+  Hshape.motiveBindingAtMono Hbindings Horigins Hrecent.contextLE target
+    htarget
+
+/-- Use a retained target-indexed motive contract after a higher-order local
+suffix has been opened.  The executable traversal exposes a terminal type
+only up to definitional equality; this bridge transports both typehood and
+the major's typing back to the validated syntax target before invoking the
+independent motive property. -/
+theorem RecInfoMotiveApplications.applyAtMono
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {Rcurrent : RecursorContextWF current recLparams}
+    (Happlications : RecInfoMotiveApplications root stats decl recInfos
+      elimLevel)
+    (Hbindings : RecInfoBindings root recInfos)
+    (Horigins : RecInfoTypeOrigins root recInfos)
+    (Hshape : RecInfoMotiveTypeShapes root recInfos
+      Horigins.motiveTypes elimLevel)
+    (Hle : BindingContextLE root current)
+    (target : Nat) (htarget : target < recInfos.size)
+    {depth : Nat} {exposedType major : Expr}
+    {syntaxTarget terminalTarget majorTarget : VExpr}
+    (Hexposed : TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+      exposedType syntaxTarget)
+    (Hdefeq : Rcurrent.venv.IsDefEqU recLparams.length
+      Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget)
+    (Hterminal : Rcurrent.venv.IsType recLparams.length
+      Rcurrent.mlctx.vlctx.toCtx terminalTarget)
+    (Hmajor : TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+      major majorTarget)
+    (HmajorType : Rcurrent.venv.HasType recLparams.length
+      Rcurrent.mlctx.vlctx.toCtx majorTarget terminalTarget)
+    (Hvalidated : RecursorValidatedIndAppAt Rcurrent.venv recLparams
+      Rcurrent.mlctx.vlctx stats decl depth exposedType syntaxTarget target) :
+    let itIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[target]!.motive itIndices) major
+    ∃ motiveTarget,
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        motiveApp motiveTarget ∧
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx motiveTarget := by
+  rcases Hshape.motiveBindingAtMono Hbindings Horigins Hle target
+      htarget with ⟨Hbinding⟩
+  have HsyntaxType : Rcurrent.venv.IsType recLparams.length
+      Rcurrent.mlctx.vlctx.toCtx syntaxTarget :=
+    Hterminal.defeqU_l Rcurrent.checking.tr.wf
+      Rcurrent.mlctx_wf.tr.wf.toCtx Hdefeq.symm
+  have HmajorType' : Rcurrent.venv.HasType recLparams.length
+      Rcurrent.mlctx.vlctx.toCtx majorTarget syntaxTarget :=
+    HmajorType.defeqU_r Rcurrent.checking.tr.wf
+      Rcurrent.mlctx_wf.tr.wf.toCtx Hdefeq.symm
+  exact Happlications.application target htarget Rcurrent Hle
+    Hbinding.toBinding Hexposed HsyntaxType Hmajor HmajorType' Hvalidated
+
+/-- Exact-suffix specialization of `applyAtMono`. -/
+theorem RecInfoMotiveApplications.applyAtRecent
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {Rcurrent : RecursorContextWF current recLparams} {args : Array Expr}
+    (Happlications : RecInfoMotiveApplications root stats decl recInfos
+      elimLevel)
+    (Hbindings : RecInfoBindings root recInfos)
+    (Horigins : RecInfoTypeOrigins root recInfos)
+    (Hshape : RecInfoMotiveTypeShapes root recInfos
+      Horigins.motiveTypes elimLevel)
+    (Hrecent : RecursorRecentBoundFVarArray Rroot Rcurrent args)
+    (target : Nat) (htarget : target < recInfos.size)
+    {depth : Nat} {exposedType major : Expr}
+    {syntaxTarget terminalTarget majorTarget : VExpr}
+    (Hexposed : TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+      exposedType syntaxTarget)
+    (Hdefeq : Rcurrent.venv.IsDefEqU recLparams.length
+      Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget)
+    (Hterminal : Rcurrent.venv.IsType recLparams.length
+      Rcurrent.mlctx.vlctx.toCtx terminalTarget)
+    (Hmajor : TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+      major majorTarget)
+    (HmajorType : Rcurrent.venv.HasType recLparams.length
+      Rcurrent.mlctx.vlctx.toCtx majorTarget terminalTarget)
+    (Hvalidated : RecursorValidatedIndAppAt Rcurrent.venv recLparams
+      Rcurrent.mlctx.vlctx stats decl depth exposedType syntaxTarget target) :
+    let itIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[target]!.motive itIndices) major
+    ∃ motiveTarget,
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        motiveApp motiveTarget ∧
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx motiveTarget :=
+  Happlications.applyAtMono Hbindings Horigins Hshape Hrecent.contextLE
+    target htarget Hexposed Hdefeq Hterminal Hmajor HmajorType Hvalidated
 
 /-- Select the matching major premise after a higher-order recursive suffix
 has extended the local context. -/
@@ -29229,6 +29763,129 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     HappliedType hvalid
   exact Happ Rnext Rcurrent HfieldAt Hexposed Hdefeq Hterminal Hargs
     Happlied HappliedType hvalid
+
+/-- Close the semantic induction-hypothesis loop from the retained
+target-indexed motive contracts.  Unlike `resultSemantics`, this public
+strengthening has no ad hoc motive-application premise: the terminal
+classifier result is upgraded to `RecursorValidatedIndAppAt`, its target is
+bounded by the completed mutual record cardinality, and the corresponding
+independent motive contract is selected directly. -/
+theorem resultSemanticsOfMotiveApplications
+    {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array Expr → AddInductive.M alpha)
+    {recLparams : List Name} {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hfields : ∀ j (hj : j < u.size),
+      ∃ fv fieldTarget,
+        u[j] = .fvar fv ∧
+        TrExprS R.venv recLparams R.mlctx.vlctx
+          (.fvar fv) fieldTarget)
+    (Happlications : RecInfoMotiveApplications c stats decl recInfos
+      elimLevel)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hshape : RecInfoMotiveTypeShapes c recInfos
+      Horigins.motiveTypes elimLevel)
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Hk : ∀ {out : AddInductive.Context}
+      (Rout : RecursorContextWF out recLparams)
+      (values : Array Expr),
+      RecursorRecentBoundFVarArray R Rout values →
+      (k values out).WF Q) :
+    (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q := by
+  apply resultSemanticBindings stats u recInfos k R R 0 #[]
+    (RecursorRecentBoundFVarArray.empty R) ?_ Hk
+  intro next Rnext prior Hprior j hj
+  rcases Hfields j hj with ⟨fv, fieldTarget, hfieldEq, Hfield⟩
+  let W := Rnext.onlyLams.dropN_fvlift prior.size Hprior.size_le
+  have HfieldAt : TrExprS Rnext.venv recLparams Rnext.mlctx.vlctx
+      (.fvar fv) (fieldTarget.liftN prior.size 0) := by
+    have HfieldBase : TrExprS Rnext.venv recLparams
+        (Rnext.mlctx.dropN prior.size Hprior.size_le).vlctx
+        (.fvar fv) fieldTarget := by
+      simpa only [Hprior.venv_eq, Hprior.drop_eq] using Hfield
+    exact HfieldBase.weakFV Rnext.checking.tr.wf.ordered W
+      Rnext.mlctx_wf.tr.wf
+  have HstatsNext := Hstats.weakenRecent Hprior
+  have hctxNext : VLCtx.NoIndConsts (decl.types.map (·.name))
+      Rnext.mlctx.vlctx :=
+    Hprior.noIndConsts (names := decl.types.map (·.name)) hctx
+  rw [hfieldEq]
+  apply mkRecInfos.loopUArgs.inductionHypothesisType fv stats recInfos next
+    Rnext HstatsNext hwhnf hconsume hlit hctxNext hproj HfieldAt
+  intro current Rcurrent exposedType syntaxTarget terminalTarget
+    appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
+    HappliedType hvalid
+  let HstatsCurrent := HstatsNext.weakenRecent Hargs
+  have htargetStats : target < stats.indConsts.size :=
+    (checkPositivityStep.isValidIndApp?_some hvalid).1
+  have htarget : target < recInfos.size := by
+    rw [hrecords]
+    exact htargetStats
+  have htargetDecl : target < decl.types.length := by
+    rw [← HstatsCurrent.types_size]
+    exact htargetStats
+  have hctxCurrent : VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
+    Hargs.noIndConsts (names := decl.types.map (·.name)) hctxNext
+  let Hvalidated := HstatsCurrent.validatedIndAppAt Hexposed hvalid
+    htargetDecl hlit hctxCurrent hproj
+  exact Happlications.applyAtMono Hbindings Horigins Hshape
+    (Hprior.contextLE.trans Hargs.contextLE) target htarget Hexposed Hdefeq
+    Hterminal Happlied HappliedType Hvalidated
+
+/-- Shared-telescope form used by the strengthened first pass. -/
+theorem resultSemanticsOfMotiveTelescopes
+    {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array Expr → AddInductive.M alpha)
+    {recLparams : List Name} {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hfields : ∀ j (hj : j < u.size),
+      ∃ fv fieldTarget,
+        u[j] = .fvar fv ∧
+        TrExprS R.venv recLparams R.mlctx.vlctx
+          (.fvar fv) fieldTarget)
+    (Htelescopes : RecInfoMotiveTelescopes c stats decl recInfos elimLevel)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hshape : RecInfoMotiveTypeShapes c recInfos
+      Horigins.motiveTypes elimLevel)
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Hk : ∀ {out : AddInductive.Context}
+      (Rout : RecursorContextWF out recLparams)
+      (values : Array Expr),
+      RecursorRecentBoundFVarArray R Rout values →
+      (k values out).WF Q) :
+    (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q :=
+  resultSemanticsOfMotiveApplications stats u recInfos k R Hstats hwhnf
+    hconsume hlit hctx hproj Hfields Htelescopes.applications Hbindings
+    Horigins Hshape hrecords Hk
 
 end mkRecInfos.loopU
 
