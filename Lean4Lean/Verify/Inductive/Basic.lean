@@ -17329,6 +17329,17 @@ structure RecursorMotiveFrameWF
     Rmajor.venv.IsType
       recLparams.length
       Rmajor.mlctx.vlctx.toCtx motiveTarget
+  motiveSourceEq :
+    let majorTy :=
+      (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+        indices).consumeTypeAnnotations
+    let cMajor : AddInductive.Context := { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ `t majorTy .default }
+    let major := Expr.fvar ⟨c.ngen.curr⟩
+    let motiveTy := cMajor.lctx.mkForall indices <|
+      cMajor.lctx.mkForall #[major] <| .sort elimLevel
+    motiveTy.consumeTypeAnnotations = motiveTy
 
 /-- `Expr.inferImplicit` changes only concrete binder annotations, which are
 erased by the abstract expression translation.  In particular the abstract
@@ -19907,6 +19918,25 @@ def RecInfoTypeOrigins.mono
   indices i hi := (H.indices i hi).mono hle
   minors i hi := (H.minors i hi).mono hle
 
+/-- Exact production shape of every motive declaration domain.  This is
+kept separately from `RecursorTranslatedOriginTypes`: the latter certifies
+that the stored domain translates to a type, while this certificate states
+which dependent forall telescope that domain is supposed to be. -/
+structure RecInfoMotiveTypeShapes (c : AddInductive.Context)
+    (recInfos : Array AddInductive.RecInfo) (motiveTypes : Array Expr)
+    (elimLevel : Level) : Prop where
+  size_eq : motiveTypes.size = recInfos.size
+  shape : ∀ i (hi : i < recInfos.size),
+    motiveTypes[i]! =
+      c.lctx.mkForall recInfos[i]!.indices
+        (c.lctx.mkForall #[recInfos[i]!.major] (.sort elimLevel))
+
+def RecInfoMotiveTypeShapes.empty (c : AddInductive.Context)
+    (elimLevel : Level) :
+    RecInfoMotiveTypeShapes c #[] #[] elimLevel where
+  size_eq := rfl
+  shape i hi := by simp at hi
+
 /-- Row-wise inverse image of one declaration in production's flattened
 minor array.  It records the mutual-family owner, the constructor-local
 position, and the exact type used when that minor premise was introduced. -/
@@ -20086,6 +20116,77 @@ def RecInfoBindings.major
     simp only [List.mem_singleton] at hfv'
     subst fv'
     exact H.majors.members fv (List.getElem_mem (by simpa [hsize] using hi))
+
+/-- Motive telescope shapes are stable under verified local-context
+extension because all selected index and major declarations retain their
+original declaration data. -/
+def RecInfoMotiveTypeShapes.mono
+    (H : RecInfoMotiveTypeShapes c recInfos motiveTypes elimLevel)
+    (Hbindings : RecInfoBindings c recInfos)
+    (hle : BindingContextLE c c') :
+    RecInfoMotiveTypeShapes c' recInfos motiveTypes elimLevel where
+  size_eq := H.size_eq
+  shape i hi := by
+    let Hindices := Hbindings.indices i hi
+    let Hmajor := Hbindings.major i hi
+    calc
+      motiveTypes[i]! =
+          c.lctx.mkForall recInfos[i]!.indices
+            (c.lctx.mkForall #[recInfos[i]!.major] (.sort elimLevel)) :=
+        H.shape i hi
+      _ = c'.lctx.mkForall recInfos[i]!.indices
+            (c.lctx.mkForall #[recInfos[i]!.major] (.sort elimLevel)) :=
+        (Hindices.mkForall_mono hle _).symm
+      _ = c'.lctx.mkForall recInfos[i]!.indices
+            (c'.lctx.mkForall #[recInfos[i]!.major] (.sort elimLevel)) := by
+        rw [Hmajor.mkForall_mono hle]
+
+/-- Append one newly constructed motive telescope while weakening every
+earlier family shape into the final frame context. -/
+def RecInfoMotiveTypeShapes.push
+    (H : RecInfoMotiveTypeShapes c recInfos motiveTypes elimLevel)
+    (Hbindings : RecInfoBindings c recInfos)
+    (hle : BindingContextLE c c')
+    (info : AddInductive.RecInfo) (motiveType : Expr)
+    (hnew : motiveType =
+      c'.lctx.mkForall info.indices
+        (c'.lctx.mkForall #[info.major] (.sort elimLevel))) :
+    RecInfoMotiveTypeShapes c' (recInfos.push info)
+      (motiveTypes.push motiveType) elimLevel where
+  size_eq := by simpa using H.size_eq
+  shape i hi := by
+    by_cases hold : i < recInfos.size
+    · have hmotives : i < motiveTypes.size := by
+        rw [H.size_eq]
+        exact hold
+      have hmotivesPush : (motiveTypes.push motiveType)[i]! =
+          motiveTypes[i]! := by
+        have hmotivesPushBounds : i < (motiveTypes.push motiveType).size := by
+          simp only [Array.size_push]
+          omega
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hmotivesPushBounds, dif_pos hmotives]
+        exact Array.getElem_push_lt hmotives
+      have hinfoPush : (recInfos.push info)[i]! = recInfos[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos hi, dif_pos hold]
+        exact Array.getElem_push_lt hold
+      rw [hmotivesPush, hinfoPush]
+      exact (H.mono Hbindings hle).shape i hold
+    · have hieq : i = recInfos.size := by
+        simp only [Array.size_push] at hi
+        omega
+      subst i
+      have hmotivesPush :
+          (motiveTypes.push motiveType)[recInfos.size]! = motiveType := by
+        rw [show recInfos.size = motiveTypes.size from H.size_eq.symm]
+        simp
+      have hinfoPush : (recInfos.push info)[recInfos.size]! = info := by
+        simp
+      rw [hmotivesPush, hinfoPush]
+      exact hnew
 
 /-- The five executable binder groups used to build one production recursor
 type, all selected from the same retained local context. -/
@@ -22272,7 +22373,8 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
         (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel))).liftN
           indices.size 0).liftN 1 0
     motiveTr := ?_
-    motiveType := ?_ }⟩
+    motiveType := ?_
+    motiveSourceEq := ?_ }⟩
   · change TrExprS Rindices.venv
       (AddInductive.getRecLevelParams elimLevel c'.lparams)
       Rindices.mlctx.vlctx majorTy majorTarget
@@ -22290,6 +22392,7 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
       (AddInductive.getRecLevelParams elimLevel c'.lparams).length
       Rmajor.mlctx.vlctx.toCtx _
     exact hmotiveTypeAtMajor
+  · exact hconsumeMotive
 
 /-- Construct the major/motive frame from a completed header replay in any
 existing recursor context.  This is the mutual-recursion form of
@@ -22422,7 +22525,8 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
         (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel))).liftN
           indices.size 0).liftN 1 0
     motiveTr := ?_
-    motiveType := ?_ }⟩
+    motiveType := ?_
+    motiveSourceEq := ?_ }⟩
   · change TrExprS Rmajor.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotations _
@@ -22432,6 +22536,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
       (AddInductive.getRecLevelParams elimLevel base.lparams).length
       Rmajor.mlctx.vlctx.toCtx _
     exact hmotiveTypeAtMajor
+  · exact hconsumeMotive
 
 /-- One semantically justified cached-parameter step.  The syntax translation
 of the cached free variable is not enough on its own: preservation of
@@ -24289,6 +24394,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Horigins : RecInfoTypeOrigins current recInfos)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
+    (HmotiveShapes : RecInfoMotiveTypeShapes current recInfos
+      Horigins.motiveTypes elimLevel)
     (HindexTypeRows :
       RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
     (Hparams : BoundFVarArray current stats.params)
@@ -24310,6 +24417,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
       RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
+      RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
       RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
@@ -24472,6 +24580,55 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               _ = Hsuffix.parameterDecls := hparameterDecls
           rw [hvenvMotive, hparameterDeclsMotive]
           exact HparamsCtx i hi
+        let hMajorFrame := BindingContextLE.withLocalDecl cIndices
+          Rindices.toBindingContextWF `t majorTy .default
+        let hMotiveFrame := BindingContextLE.withLocalDecl cMajor
+          (Rindices.toBindingContextWF.withLocalDecl
+            `t majorTy .default)
+          motiveName motiveTy.consumeTypeAnnotations .default
+        let hAllFrames : BindingContextLE current cMotive :=
+          hIndices.trans (hMajorFrame.trans hMotiveFrame)
+        let HindicesAtMajor : BoundFVarArray cMajor indices :=
+          HindexOrigins.bound.mono hMajorFrame
+        let HmajorAtMajor : BoundFVarArray cMajor #[major] := by
+          simpa [cMajor, major] using
+            (BoundFVarArray.empty cIndices).pushCurrent
+              `t majorTy .default
+        have hsourceShape : motiveTy.consumeTypeAnnotations =
+            cMajor.lctx.mkForall indices
+              (cMajor.lctx.mkForall #[major] (.sort elimLevel)) := by
+          change motiveTy.consumeTypeAnnotations = motiveTy
+          exact Hframe.motiveSourceEq
+        have hnewMotiveShape : motiveTy.consumeTypeAnnotations =
+            cMotive.lctx.mkForall indices
+              (cMotive.lctx.mkForall #[major] (.sort elimLevel)) := by
+          calc
+            motiveTy.consumeTypeAnnotations =
+                cMajor.lctx.mkForall indices
+                  (cMajor.lctx.mkForall #[major] (.sort elimLevel)) :=
+              hsourceShape
+            _ = cMotive.lctx.mkForall indices
+                  (cMajor.lctx.mkForall #[major] (.sort elimLevel)) :=
+              (HindicesAtMajor.mkForall_mono hMotiveFrame _).symm
+            _ = cMotive.lctx.mkForall indices
+                  (cMotive.lctx.mkForall #[major] (.sort elimLevel)) :=
+              congrArg (fun body => cMotive.lctx.mkForall indices body)
+                (HmajorAtMajor.mkForall_mono hMotiveFrame _).symm
+        let nextInfo : AddInductive.RecInfo := {
+          motive := .fvar ⟨cMajor.ngen.curr⟩
+          minors := #[]
+          indices
+          major }
+        have hnewMotiveShape' : motiveTy.consumeTypeAnnotations =
+            cMotive.lctx.mkForall nextInfo.indices
+              (cMotive.lctx.mkForall #[nextInfo.major]
+                (.sort elimLevel)) := by
+          change motiveTy.consumeTypeAnnotations =
+            cMotive.lctx.mkForall indices
+              (cMotive.lctx.mkForall #[major] (.sort elimLevel))
+          exact hnewMotiveShape
+        let HmotiveShapes' := HmotiveShapes.push Hbindings hAllFrames
+          nextInfo motiveTy.consumeTypeAnnotations hnewMotiveShape'
         refine resultSemantics Hbase stats indTypes elimLevel Helim Hheaders
           hwhnf hconsume (dIdx + 1)
           (recInfos.push {
@@ -24480,7 +24637,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             indices
             major }) k Rmotive (by simpa [Rmotive, Rmajor] using henvIndices)
           HsuffixMotive HparamsCtx' HstatsMotive Hbindings' Horigins'
-          ?_ ?_ ?_ Hparams' HnoAlias'
+          ?_ ?_ ?_ ?_ Hparams' HnoAlias'
           (Hroot.trans <| hIndices.trans <|
             (BindingContextLE.withLocalDecl cIndices
               Rindices.toBindingContextWF `t majorTy .default).trans <|
@@ -24501,15 +24658,24 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         · change RecursorTranslatedOriginTypes Rmotive
             (Horigins.motiveTypes.push motiveTy.consumeTypeAnnotations)
           exact HmotiveAtMotive
+        · change RecInfoMotiveTypeShapes cMotive
+            (recInfos.push {
+              motive := .fvar ⟨cMajor.ngen.curr⟩
+              minors := #[]
+              indices
+              major })
+            (Horigins.motiveTypes.push motiveTy.consumeTypeAnnotations)
+            elimLevel
+          exact HmotiveShapes'
         · change RecursorTranslatedOriginTypeRows Rmotive
             (Horigins.indexTypes.push indexOrigins)
           exact HindexRows'
         · intro cOut outDepth out Rout henvOut HsuffixOut HstatsOut HbindingsOut
-            HoriginsOut HmajorOut HmotiveOut HindexRowsOut HparamsOut HnoAliasOut
-            HaritiesOut HemptyOut HrootOut houtSize
+            HoriginsOut HmajorOut HmotiveOut HmotiveShapesOut HindexRowsOut
+            HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut houtSize
           apply Hk out Rout henvOut HsuffixOut HstatsOut HbindingsOut
-            HoriginsOut HmajorOut HmotiveOut HindexRowsOut HparamsOut HnoAliasOut
-            HaritiesOut HemptyOut HrootOut
+            HoriginsOut HmajorOut HmotiveOut HmotiveShapesOut HindexRowsOut
+            HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut
           simp only [Array.size_push] at houtSize
           omega
       · simp only [loopK]
@@ -24517,7 +24683,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         exact Except.WF.throw
   · rw [dif_neg hidx]
     exact Hk recInfos R henv Hsuffix Hstats Hbindings Horigins HmajorTypes
-      HmotiveTypes HindexTypeRows Hparams HnoAlias Harities Hempty Hroot
+      HmotiveTypes HmotiveShapes HindexTypeRows Hparams HnoAlias Harities Hempty Hroot
       (by omega)
 termination_by indTypes.size - dIdx
 
@@ -30388,6 +30554,7 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
       (Horigins : RecInfoTypeOrigins cOut recInfos),
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
+      RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
@@ -30438,15 +30605,17 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     Hstats (RecInfoBindings.empty _) (RecInfoTypeOrigins.empty _)
     (RecursorTranslatedOriginTypes.empty Rbase)
     (RecursorTranslatedOriginTypes.empty Rbase)
+    (RecInfoMotiveTypeShapes.empty _ elimLevel)
     (RecursorTranslatedOriginTypeRows.empty Rbase) Hparams
     (RecInfoBindings.empty_noAlias _ Hparams hparamsNodup)
     (BindingContextLE.refl _) rfl (RecInfoArities.empty stats)
     RecInfoMinorsEmpty.empty ?_
   intro cOut outDepth recInfos Rout henvOut HsuffixOut HstatsOut
-    Hbindings Horigins HmajorTypes HmotiveTypes HindexRows HparamsOut HnoAlias
-    Harities Hempty Hroot hsize
+    Hbindings Horigins HmajorTypes HmotiveTypes HmotiveShapes HindexRows
+    HparamsOut HnoAlias Harities Hempty Hroot hsize
   apply Hk recInfos Rout henvOut HsuffixOut HstatsOut Hbindings Horigins
-    HmajorTypes HmotiveTypes HindexRows HparamsOut HnoAlias Harities Hempty Hroot
+    HmajorTypes HmotiveTypes HmotiveShapes HindexRows HparamsOut HnoAlias
+    Harities Hempty Hroot
   simpa using hsize
 
 /-- The verified header cache supplies the exact retained parameter binders
