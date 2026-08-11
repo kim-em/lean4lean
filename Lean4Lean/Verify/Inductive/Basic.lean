@@ -23286,13 +23286,12 @@ theorem BoundFVarArray.ofSublist
     | cons fv fvars ih =>
       intro h
       cases h with
-      | slnil => exact ⟨[], rfl, .slnil⟩
       | cons htail =>
         rcases ih htail with ⟨selected, hes, hselected⟩
         exact ⟨selected, hes, .cons _ hselected⟩
-      | cons₂ htail =>
+      | cons_cons htail =>
         rcases ih htail with ⟨selected, hes, hselected⟩
-        exact ⟨fv :: selected, by simp [hes], .cons₂ _ hselected⟩
+        exact ⟨fv :: selected, by simp [hes], .cons_cons _ hselected⟩
   have hy : ys.toList = H.fvars.map Expr.fvar := by
     simpa using congrArg Array.toList H.expressions
   have hsource : xs.toList.Sublist (H.fvars.map Expr.fvar) := by
@@ -50215,6 +50214,92 @@ theorem RecursorPhasesResult.generatedRuleSemanticOwner
     simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
       VInductiveType.toVConstVal, Function.comp_def] using hprefix
   exact ⟨Hrule, Hsemantic, Hsemantic.owner_eq Hrule htypeNames⟩
+
+/-- Complete source alignment for one rule emitted by the mutual recursor
+loop.  The entry index selects the same concrete family in `indTypes`, the
+same abstract family in `decl.types`, and the same abstract constructor in
+that family's constructor list.  The semantic target selected while building
+the rule is additionally identified with this owner.  Keeping these facts in
+one dependent record prevents later iota reconstruction from silently mixing
+the three independent indexing conventions. -/
+structure RecursorPhasesResult.GeneratedRuleAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length)
+    (i : Nat) (hctor : i < indTypes[owner]!.ctors.length) : Prop where
+  sourceOwner_lt : owner < indTypes.size
+  abstractOwner_lt : owner < decl.types.length
+  abstractCtor_lt : i < decl.types[owner].ctors.length
+  ownerTranslation : TrInductiveType sourceEnv Hheaders.context.venv
+    c.lparams indTypes[owner] decl.types[owner]
+  ctorTranslation : TrSourceConst Hheaders.context.venv c.lparams
+    indTypes[owner].ctors[i].name indTypes[owner].ctors[i].type
+    decl.types[owner].ctors[i]
+  sourceRule_lt : i < (H.generated.entry owner howner).info.rules.length
+  rule : BoundGeneratedRecursorRule indTypes stats
+    (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
+    (AddInductive.getRecLevels H.elimLevel stats.levels)
+    indTypes[owner]!.ctors[i]
+    (recursorMinorOffset indTypes owner + i)
+    (H.generated.entry owner howner).info.rules[i]
+  semantics : rule.Semantics
+    (AddInductive.getRecLevelParams H.elimLevel c.lparams) decl owner
+  semantic_owner : semantics.ownerIdx = owner
+
+/-- Select the fully aligned pointwise rule package directly from the
+completed recursor phase.  All bounds not supplied by the caller follow from
+the generated-recursors cardinality and the source-declaration translation. -/
+theorem RecursorPhasesResult.generatedRuleAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length)
+    (i : Nat) (hctor : i < indTypes[owner]!.ctors.length) :
+    Nonempty (H.GeneratedRuleAlignment owner howner i hctor) := by
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hsourceOwner : owner < indTypes.size := by
+    rw [H.cardinality.records] at hrecInfo
+    simpa using hrecInfo
+  have habstractOwner : owner < decl.types.length := by
+    have htypes := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
+      R.core
+    omega
+  let Howner := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
+    owner (by simpa using hsourceOwner) habstractOwner
+  have habstractCtor : i < decl.types[owner].ctors.length := by
+    rw [← Howner.ctors_length]
+    simpa [Array.getElem!_eq_getD, Array.getD, hsourceOwner] using hctor
+  let Hctor := Howner.ctorAt i
+    (by simpa [Array.getElem!_eq_getD, Array.getD, hsourceOwner] using hctor)
+    habstractCtor
+  let E := H.generated.entry owner howner
+  have hsourceRule : i < E.info.rules.length := by
+    rw [E.rules.length]
+    exact hctor
+  rcases H.generatedRuleSemanticOwner owner howner i hctor hsourceRule with
+    ⟨Hrule, Hsemantic, hsemanticOwner⟩
+  exact ⟨{
+    sourceOwner_lt := hsourceOwner
+    abstractOwner_lt := habstractOwner
+    abstractCtor_lt := habstractCtor
+    ownerTranslation := Howner
+    ctorTranslation := Hctor
+    sourceRule_lt := hsourceRule
+    rule := Hrule
+    semantics := Hsemantic
+    semantic_owner := hsemanticOwner }⟩
 
 theorem RecursorPhasesResult.recursorNamesFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
