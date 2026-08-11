@@ -12554,8 +12554,8 @@ theorem checkPositivity.refinesNarrow
 
 namespace isRecArg.loop
 
-/-- The recursive-argument classifier used by recursor generation refines the
-independent `RecursiveArg` judgment whenever it returns a family index. -/
+/-- The recursive-argument classifier used by recursor generation retains
+the exact mutual-family target whenever it returns a family index. -/
 theorem refines
     {decl : VInductDecl} {depth : Nat} {type' : VExpr}
     (Hc : ContextWF c)
@@ -12571,8 +12571,10 @@ theorem refines
     (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
     (AddInductive.isRecArg.loop stats type fuel c).WF
       (fun result => ∀ target, result = some target →
-        target < decl.types.length ∧
-        decl.RecursiveArg Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
+        ∃ htarget : target < decl.types.length,
+        decl.RecursiveArgAtTarget Hc.venv decl.uvars
+          (decl.types[target]'htarget).name
+          Hc.mlctx.vlctx.toCtx depth type') := by
   induction fuel generalizing c type type' depth with
   | zero =>
     intro _ h
@@ -12595,8 +12597,10 @@ theorem refines
         rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
         refine withLocalDecl.WF (name := name) (bi := bi)
           (Q := fun result => ∀ target, result = some target →
-            target < decl.types.length ∧
-            decl.RecursiveArg Hc.venv Hc.mlctx.vlctx.toCtx depth type')
+            ∃ htarget : target < decl.types.length,
+            decl.RecursiveArgAtTarget Hc.venv decl.uvars
+              (decl.types[target]'htarget).name
+              Hc.mlctx.vlctx.toCtx depth type')
           Hc Hdom.consumed Hdom.isType ?_
         let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType
@@ -12624,13 +12628,14 @@ theorem refines
         change (Except.ok (AddInductive.isValidIndApp? stats _)).WF _
         exact Except.WF.pure fun target hvalid => by
           rcases checkPositivityStep.isValidIndApp?_some hvalid with
-            ⟨htargetLt, _⟩
-          refine ⟨?_, .direct
+            ⟨htargetLt, hvalidIdx⟩
+          have htargetDecl : target < decl.types.length := by
+            rw [← Hstats.types_size]
+            exact htargetLt
+          refine ⟨htargetDecl, .direct
             (by simpa [Hstats.uvars] using hsourceExposed)
-            (checkPositivityStep.isValidIndApp?.validIndAppAt Hstats hexposed
-              hvalid hlit hctx hproj)⟩
-          rw [← Hstats.types_size]
-          exact htargetLt
+            (checkPositivityStep.isValidIndAppIdx.validIndAppAt Hstats
+              htargetDecl hexposed hvalidIdx (Or.inr rfl) hlit hctx hproj)⟩
 
 end isRecArg.loop
 
@@ -12649,8 +12654,10 @@ theorem isRecArg.refines
     (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
     (AddInductive.isRecArg stats type c).WF
       (fun result => ∀ target, result = some target →
-        target < decl.types.length ∧
-        decl.RecursiveArg Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
+        ∃ htarget : target < decl.types.length,
+        decl.RecursiveArgAtTarget Hc.venv decl.uvars
+          (decl.types[target]'htarget).name
+          Hc.mlctx.vlctx.toCtx depth type') := by
   unfold AddInductive.isRecArg
   have hread : ((read : AddInductive.M AddInductive.Context) c).WF
       (fun c' => c' = c) := by
@@ -12858,7 +12865,8 @@ structure RecursorRecursiveDomain (env : VEnv) (decl : VInductDecl) where
   ctx : List VExpr
   depth : Nat
   domain : VExpr
-  recursive : decl.RecursiveArg env ctx depth domain
+  recursive : decl.RecursiveArgAtTarget env decl.uvars
+    (decl.types[ownerIdx]'owner_lt).name ctx depth domain
 
 /-- Exact correspondence between the two arrays built by `loopCtorArgs` and
 the proof-side recursive-domain certificates. Constructors preserve the
@@ -13036,7 +13044,7 @@ def RecursorRecursiveDomain.toRecursiveField
   ctx := cert.ctx
   depth := cert.depth
   domain := cert.domain
-  recursive := cert.recursive
+  recursive := cert.recursive.forgetTarget.toRecursiveArg
 
 /-- Zips the proof-side domain certificates with their final translated field
 arguments to obtain the public `RecursiveField` witnesses used by iota rules. -/
@@ -25335,6 +25343,8 @@ structure BoundGeneratedRecursiveCall
     (motives minors : Array Expr) (lvls : List Level)
     (root : AddInductive.Context) (field value : Expr) where
   exposedType : Expr
+  ownerIdx : Nat
+  owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
   localArgs : Array Expr
   current : AddInductive.Context
   current_wf : BindingContextWF current
@@ -25378,7 +25388,9 @@ theorem BoundGeneratedRecursiveCall.lambdaTelescope
       root field value) :
     Expr.LambdaTelescope value H.localArgs.size
       (H.body.abstractList H.arguments_bound.fvars) := by
-  rcases H with ⟨exposedType, localArgs, current, Hwf, Hle, Hargs, Hvalue⟩
+  rcases H with
+    ⟨exposedType, ownerIdx, howner, localArgs, current, Hwf, Hle, Hargs,
+      Hvalue⟩
   let callBody : Expr :=
     let (typeIdx, indices) := AddInductive.getIIndices stats exposedType
     let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
@@ -25516,6 +25528,15 @@ def BoundGeneratedRecursiveCall.recursorName
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
       root field value) : Name :=
   Lean.mkRecName indTypes[(AddInductive.getIIndices stats H.exposedType).1]!.name
+
+/-- The owner retained at the successful validation branch is exactly the
+family index consumed by the partial production helper. -/
+theorem BoundGeneratedRecursiveCall.recursorName_eq_owner
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    H.recursorName = Lean.mkRecName indTypes[H.ownerIdx]!.name := by
+  simp only [BoundGeneratedRecursiveCall.recursorName,
+    checkPositivityStep.getIIndices.fst_eq_of_valid H.owner_valid]
 
 def BoundGeneratedRecursiveCall.abstractedRecursor
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
@@ -26326,11 +26347,34 @@ structure BoundGeneratedRecursiveCalls.OwnerAlignment
     (decl : VInductDecl)
     (certs : List (RecursorRecursiveDomain domainEnv decl)) : Prop where
   length : certs.length = u.size
-  recursorName : ∀ i (hi : i < u.size)
+  ownerIdx : ∀ i (hi : i < u.size)
       (Hentry : BoundGeneratedRecursiveCall indTypes stats motives minors
         lvls root u[i] v[i]!),
+    Hentry.ownerIdx = (certs[i]'(by omega)).ownerIdx
+
+theorem BoundGeneratedRecursiveCalls.OwnerAlignment.recursorName
+    {domainEnv : VEnv} {decl : VInductDecl}
+    {certs : List (RecursorRecursiveDomain domainEnv decl)}
+    (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
+      root u v u.size)
+    (Howners : H.OwnerAlignment decl certs)
+    (i : Nat) (hi : i < u.size)
+    (Hentry : BoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls root u[i] v[i]!) :
     Hentry.recursorName =
-      Lean.mkRecName indTypes[(certs[i]'(by omega)).ownerIdx]!.name
+      Lean.mkRecName indTypes[(certs[i]'(by
+        rw [Howners.length]
+        exact hi)).ownerIdx]!.name := by
+  have howner := Howners.ownerIdx i hi Hentry
+  calc
+    Hentry.recursorName =
+        Lean.mkRecName indTypes[Hentry.ownerIdx]!.name :=
+      Hentry.recursorName_eq_owner
+    _ = Lean.mkRecName indTypes[(certs[i]'(by
+          rw [Howners.length]
+          exact hi)).ownerIdx]!.name := by
+      simpa using congrArg
+        (fun owner => Lean.mkRecName indTypes[owner]!.name) howner
 
 theorem BoundGeneratedRecursiveCalls.abstractedIotaResults_ofFresh
     (H : BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
@@ -27585,6 +27629,8 @@ theorem boundGeneratedCalls
         simp only [hvalid, bind, Except.bind]
         refine Except.WF.pure ⟨{
           exposedType := uiTy
+          ownerIdx := target
+          owner_valid := hvalid
           localArgs := xs
           current := c'
           current_wf := Hc'
@@ -29149,7 +29195,8 @@ theorem GeneratedRecursors.recursorsPresent_ofOwnerAlignment
   let cert := certs[i]
   have hmem := H.recursiveDomainRecursor_mem_block block Hcard Hdecl
     hrecursors cert
-  rw [Howners.recursorName i hi Hentry]
+  rw [BoundGeneratedRecursiveCalls.OwnerAlignment.recursorName Hcalls
+    Howners i hi Hentry]
   simpa [cert] using hmem
 
 /-- Global recursor generation discharges the final coverage premise of the
