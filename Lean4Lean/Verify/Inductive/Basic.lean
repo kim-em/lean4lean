@@ -2586,6 +2586,39 @@ theorem MLCtxOnlyLams.vlam
   · exact ⟨_, _, _, _, _, _, rfl⟩
   · exact H d hd
 
+theorem MLCtxOnlyLams.tail_vlam
+    (H : MLCtxOnlyLams (.vlam fv name type type' bi m)) :
+    MLCtxOnlyLams m := by
+  intro d hd
+  exact H d (by simp [TypeChecker.MLCtx.decls, hd])
+
+theorem MLCtxOnlyLams.vlet_false
+    (H : MLCtxOnlyLams (.vlet fv name type value type' value' m)) : False := by
+  rcases H (.ldecl m.length fv name type value false default)
+      (by simp [TypeChecker.MLCtx.decls]) with
+    ⟨index, fv', name', type', bi, kind, h⟩
+  cases h
+
+/-- Dropping an ordinary-local suffix and then restoring it is precisely a
+free-variable weakening.  The generated inductive contexts contain no local
+lets, so the lift amount agrees with the number of dropped declarations. -/
+theorem MLCtxOnlyLams.dropN_fvlift
+    (H : MLCtxOnlyLams m) (n : Nat) (hn : n ≤ m.length) :
+    VLCtx.FVLift (m.dropN n hn).vlctx m.vlctx 0 n 0 := by
+  induction n generalizing m with
+  | zero => exact .refl
+  | succ n ih =>
+    cases m with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      have Htail := H.tail_vlam
+      have W := ih Htail (Nat.le_of_succ_le_succ hn)
+      simpa only [TypeChecker.MLCtx.dropN, TypeChecker.MLCtx.vlctx,
+        VLocalDecl.depth, Nat.add_comm] using
+          VLCtx.FVLift.skip_fvar (fv, type.fvarsList) (.vlam type') W
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
 structure ContextWF (c : AddInductive.Context) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
@@ -3232,6 +3265,21 @@ theorem Expr.consumeTypeAnnotations_eq_self {dom : Expr}
     (hout : dom.isOutParam = false) (hsemi : dom.isSemiOutParam = false) :
     dom.consumeTypeAnnotations = dom := by
   simp [hopt, hauto, hout, hsemi]
+
+theorem MLCtxOnlyLams.mkForall_consumeTypeAnnotations_eq_self
+    (H : MLCtxOnlyLams m) (n : Nat) (hn : n ≤ m.length)
+    (hbody : body.consumeTypeAnnotations = body) :
+    (m.mkForall n hn body).consumeTypeAnnotations = m.mkForall n hn body := by
+  induction n generalizing m body with
+  | zero => exact hbody
+  | succ n ih =>
+    cases m with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      apply ih H.tail_vlam (Nat.le_of_succ_le_succ hn)
+      apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
 
 /-- Removing binder annotations only selects subexpressions of the original
 domain, so it cannot introduce a new free-variable dependency. -/
@@ -14993,6 +15041,53 @@ theorem ContextWF.ConsumedDomain.toRecursorContext
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
+/-- Semantic certificate for the two locals installed by the first recursor
+pass after a family's indices have been replayed. -/
+structure RecursorMotiveFrameWF
+    {c : AddInductive.Context} (Hc : ContextWF c)
+    (stats : AddInductive.InductiveStats) (familyIdx : Nat)
+    (indices : Array Expr) (elimLevel : Level) where
+  elimLevelAdmissible :
+    AddInductive.AdmissibleElimLevel c.lparams elimLevel
+  majorTarget : VExpr
+  majorTr :
+    let majorTy :=
+      (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+        indices).consumeTypeAnnotations
+    let Rindices := Hc.toAdmissibleRecursorContextWF elimLevelAdmissible
+    TrExprS Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      Rindices.mlctx.vlctx majorTy majorTarget
+  majorType :
+    let Rindices := Hc.toAdmissibleRecursorContextWF elimLevelAdmissible
+    Rindices.venv.IsType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      Rindices.mlctx.vlctx.toCtx majorTarget
+  motiveTarget : VExpr
+  motiveTr :
+    let majorTy :=
+      (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+        indices).consumeTypeAnnotations
+    let Rindices := Hc.toAdmissibleRecursorContextWF elimLevelAdmissible
+    let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
+      majorTr majorType
+    let cMajor : AddInductive.Context := { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ `t majorTy .default }
+    let major := Expr.fvar ⟨c.ngen.curr⟩
+    let motiveTy := cMajor.lctx.mkForall indices <|
+      cMajor.lctx.mkForall #[major] <| .sort elimLevel
+    TrExprS Rmajor.venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotations motiveTarget
+  motiveType :
+    let Rindices := Hc.toAdmissibleRecursorContextWF elimLevelAdmissible
+    let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
+      majorTr majorType
+    Rmajor.venv.IsType
+      (AddInductive.getRecLevelParams elimLevel c.lparams).length
+      Rmajor.mlctx.vlctx.toCtx motiveTarget
+
 /-- `Expr.inferImplicit` changes only concrete binder annotations, which are
 erased by the abstract expression translation.  In particular the abstract
 recursor type proved before this production post-processing step remains the
@@ -16352,6 +16447,15 @@ theorem Expr.LambdaTelescope.trans
     rw [← Nat.add_right_comm outerArity innerArity 1]
     exact h
 
+theorem Expr.ForallTelescope.consumeTypeAnnotations_eq_self
+    (H : Expr.ForallTelescope outer arity body)
+    (hbody : body.consumeTypeAnnotations = body) :
+    outer.consumeTypeAnnotations = outer := by
+  cases H with
+  | nil => exact hbody
+  | cons H =>
+    apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+
 theorem Expr.LambdaTelescope.abstract1
     (H : Expr.LambdaTelescope outer arity result)
     (fv : FVarId) (k : Nat := 0) :
@@ -16764,6 +16868,17 @@ def BoundFVarArray.append
     · exact H₁.members fv hfv
     · exact H₂.members fv hfv
 
+theorem BoundFVarArray.mkForall_mono
+    (H : BoundFVarArray c xs) (hle : BindingContextLE c c')
+    (body : Expr) :
+    c'.lctx.mkForall xs body = c.lctx.mkForall xs body := by
+  rcases H with ⟨fvars, rfl, members⟩
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
+    LocalContext.mkForall, LocalContext.mkBinding_eq]
+  apply LocalContext.mkBindingList_congr
+  intro fv hfv
+  exact hle.declarations fv (members fv hfv)
+
 /-- A retained array introduced strictly after `root`. Besides recording that
 its entries remain selectable, this packages the two facts needed to combine
 it with selections already present at `root`: its entries are distinct and
@@ -16854,6 +16969,44 @@ def RecentBoundFVarArray.pushCurrent {root c : AddInductive.Context}
   drop_eq := by
     simpa only [Array.size_push, ContextWF.withLocalDecl,
       TypeChecker.MLCtx.dropN] using H.drop_eq
+
+def RecentBoundFVarArray.recursorSizeLE {root c : AddInductive.Context}
+    {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
+    (H : RecentBoundFVarArray Hroot Hc xs)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    xs.size ≤ (Hc.toAdmissibleRecursorContextWF Helim).mlctx.length := by
+  cases elimLevel with
+  | zero =>
+    change xs.size ≤ Hc.mlctx.length
+    exact H.size_le
+  | param name =>
+    change xs.size ≤
+      (Hc.mlctx.prependLevelParam c.lparams.length).length
+    simpa using H.size_le
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+theorem RecentBoundFVarArray.recursorReverseEq {root c : AddInductive.Context}
+    {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
+    (H : RecentBoundFVarArray Hroot Hc xs)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    xs.toList.reverse =
+      ((Hc.toAdmissibleRecursorContextWF Helim).mlctx.fvarRevList xs.size
+        (H.recursorSizeLE Helim)).map Expr.fvar := by
+  cases elimLevel with
+  | zero =>
+    change xs.toList.reverse =
+      (Hc.mlctx.fvarRevList xs.size _).map Expr.fvar
+    exact H.reverse_eq
+  | param name =>
+    change xs.toList.reverse =
+      ((Hc.mlctx.prependLevelParam c.lparams.length).fvarRevList xs.size _).map
+        Expr.fvar
+    rw [TypeChecker.MLCtx.prependLevelParam_fvarRevList
+      (hn := H.size_le)]
+    exact H.reverse_eq
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
 
 def FreshBoundFVarArray.weaken
     (H : FreshBoundFVarArray root c xs)
@@ -18747,6 +18900,148 @@ theorem CheckedRecursorHeaderAt.completedMajorDomain
   rcases hconsume c' Hc' hsource hsourceType with
     ⟨consumedTarget, Hconsumed⟩
   exact ⟨sourceTarget, consumedTarget, Hconsumed⟩
+
+/-- The successful arity branch independently types both declarations added
+by one `loopInd1` frame: the family major and the exact nested `mkForall`
+motive used by production. -/
+theorem CheckedRecursorHeaderAt.completedRecursorFrame
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {c' : AddInductive.Context} {Hc' : ContextWF c'}
+    {scope : VLCtx} {type : VExpr}
+    {indices : Array Expr} {indexTargets : List VExpr}
+    {nindices : Nat}
+    (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
+    (Hsynthesis :
+      checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+        Hc'.venv c'.lparams H.target.toSkeleton scope type
+        stats.params.size nindices)
+    (Hstats : checkPositivityStep.ValidAppStatsWF Hc'.venv c'.lparams
+      scope stats decl nindices)
+    (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
+      Hc'.venv c'.lparams scope Hc'.mlctx.vlctx)
+    (Hindices : List.Forall₂ (TrExprS Hc'.venv c'.lparams scope)
+      indices.toList indexTargets)
+    (hreplay : indexTargets.length = nindices)
+    (hcanonical : indexTargets = canonicalIndexVars nindices)
+    (harity : (indices.size == stats.nindices[familyIdx]!) = true)
+    (henv : Hc'.venv = Hc.venv)
+    (hlparams : c'.lparams = c.lparams)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (Hrecent : RecentBoundFVarArray Hc Hc' indices)
+    (Helim : AddInductive.AdmissibleElimLevel c'.lparams elimLevel) :
+    Nonempty (RecursorMotiveFrameWF Hc' stats familyIdx indices elimLevel) := by
+  let majorTy :=
+    (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+      indices).consumeTypeAnnotations
+  let Rindices := Hc'.toAdmissibleRecursorContextWF Helim
+  rcases H.completedMajorDomain Hsynthesis Hstats Hruntime Hindices hreplay
+      hcanonical harity henv hlparams hconsume with
+    ⟨sourceTarget, consumedTarget, Hdom⟩
+  rcases Hdom.toRecursorContext Helim with
+    ⟨majorTarget, hmajor, hmajorType⟩
+  let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
+    hmajor hmajorType
+  let cMajor : AddInductive.Context := { c' with
+    ngen := c'.ngen.next
+    lctx := c'.lctx.mkLocalDecl ⟨c'.ngen.curr⟩ `t majorTy .default }
+  let major := Expr.fvar ⟨c'.ngen.curr⟩
+  let majorBody := cMajor.lctx.mkForall #[major] (.sort elimLevel)
+  let motiveTy := cMajor.lctx.mkForall indices majorBody
+  rcases Helim.sortType (env := Rmajor.venv) (Δ := Rmajor.mlctx.vlctx) with
+    ⟨sortLevel, hsort, hsortType⟩
+  have hone : 1 ≤ Rmajor.mlctx.length := by
+    dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+    simp
+  have hmajorRecent : #[major].toList.reverse =
+      (Rmajor.mlctx.fvarRevList 1 hone).map Expr.fvar := by
+    dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl]
+    simp
+  have hmajorClosed := Rmajor.mkForallRecent hsort hsortType 1 hone #[major]
+    hmajorRecent
+  have hmajorClosed' :
+      TrExprS Rindices.venv
+          (AddInductive.getRecLevelParams elimLevel c'.lparams)
+          Rindices.mlctx.vlctx majorBody
+          (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)) ∧
+        Rindices.venv.IsType
+          (AddInductive.getRecLevelParams elimLevel c'.lparams).length
+          Rindices.mlctx.vlctx.toCtx
+          (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)) := by
+    simpa only [majorBody, Rmajor, RecursorContextWF.withLocalDecl,
+      TypeChecker.MLCtx.dropN] using hmajorClosed
+  let hindicesSize := Hrecent.recursorSizeLE Helim
+  have hindicesRecent : indices.toList.reverse =
+      (Rindices.mlctx.fvarRevList indices.size hindicesSize).map Expr.fvar :=
+    Hrecent.recursorReverseEq Helim
+  have hmotiveClosed := Rindices.mkForallRecent hmajorClosed'.1
+    hmajorClosed'.2 indices.size hindicesSize indices hindicesRecent
+  let hmajorLE := BindingContextLE.withLocalDecl c'
+    Hc'.toBindingContextWF `t majorTy .default
+  have hmotiveConcrete : motiveTy = c'.lctx.mkForall indices majorBody := by
+    dsimp [motiveTy]
+    exact Hrecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+      hmajorLE majorBody
+  rw [← hmotiveConcrete] at hmotiveClosed
+  let Windices := Rindices.onlyLams.dropN_fvlift indices.size hindicesSize
+  have hmotiveAtIndices := hmotiveClosed.1.weakFV
+    Rindices.checking.tr.wf.ordered Windices Rindices.mlctx_wf.tr.wf
+  have hmotiveTypeAtIndices := hmotiveClosed.2.weakN
+    Rindices.checking.tr.wf.ordered Windices.toCtx
+  let Wmajor : VLCtx.FVLift Rindices.mlctx.vlctx Rmajor.mlctx.vlctx 0 1 0 :=
+    .skip_fvar _ _ .refl
+  have hmotiveAtMajor := hmotiveAtIndices.weakFV
+    Rmajor.checking.tr.wf.ordered Wmajor Rmajor.mlctx_wf.tr.wf
+  have hmotiveTypeAtMajor := hmotiveTypeAtIndices.weakN
+    Rmajor.checking.tr.wf.ordered Wmajor.toCtx
+  have hmajorConcrete : majorBody =
+      Rmajor.mlctx.mkForall 1 hone (Expr.sort elimLevel) := by
+    dsimp only [majorBody]
+    rw [← Rmajor.lctx_eq]
+    exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent
+  have hsortConsume : (Expr.sort elimLevel).consumeTypeAnnotations =
+      Expr.sort elimLevel := by
+    apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+  have hconsumeMajor : majorBody.consumeTypeAnnotations = majorBody := by
+    rw [hmajorConcrete]
+    exact Rmajor.onlyLams.mkForall_consumeTypeAnnotations_eq_self
+      1 hone hsortConsume
+  have hmotiveMkForall : motiveTy =
+      Rindices.mlctx.mkForall indices.size hindicesSize majorBody := by
+    rw [hmotiveConcrete, ← Rindices.lctx_eq]
+    exact Rindices.mlctx_wf.mkForall_eq indices.size hindicesSize
+      hindicesRecent
+  have hconsumeMotive : motiveTy.consumeTypeAnnotations = motiveTy := by
+    rw [hmotiveMkForall]
+    exact Rindices.onlyLams.mkForall_consumeTypeAnnotations_eq_self
+      indices.size hindicesSize hconsumeMajor
+  refine ⟨{
+    elimLevelAdmissible := Helim
+    majorTarget := majorTarget
+    majorTr := ?_
+    majorType := ?_
+    motiveTarget :=
+      ((Rindices.mlctx.mkForall' indices.size hindicesSize
+        (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel))).liftN
+          indices.size 0).liftN 1 0
+    motiveTr := ?_
+    motiveType := ?_ }⟩
+  · change TrExprS Rindices.venv
+      (AddInductive.getRecLevelParams elimLevel c'.lparams)
+      Rindices.mlctx.vlctx majorTy majorTarget
+    exact hmajor
+  · change Rindices.venv.IsType
+      (AddInductive.getRecLevelParams elimLevel c'.lparams).length
+      Rindices.mlctx.vlctx.toCtx majorTarget
+    exact hmajorType
+  · change TrExprS Rmajor.venv
+      (AddInductive.getRecLevelParams elimLevel c'.lparams)
+      Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotations _
+    rw [hconsumeMotive]
+    exact hmotiveAtMajor
+  · change Rmajor.venv.IsType
+      (AddInductive.getRecLevelParams elimLevel c'.lparams).length
+      Rmajor.mlctx.vlctx.toCtx _
+    exact hmotiveTypeAtMajor
 
 /-- One semantically justified cached-parameter step.  The syntax translation
 of the cached free variable is not enough on its own: preservation of

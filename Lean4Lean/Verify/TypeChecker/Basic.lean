@@ -202,6 +202,40 @@ def MLCtx.prependLevelParam (c : MLCtx) (oldUvars : Nat) : MLCtx :=
   induction c <;> simp [MLCtx.prependLevelParam, MLCtx.vlctx,
     VLCtx.instL, VLocalDecl.instL, *]
 
+@[simp] theorem MLCtx.prependLevelParam_fvarRevList
+    {c : MLCtx} {oldUvars n : Nat}
+    (hn : n ≤ c.length) :
+    (c.prependLevelParam oldUvars).fvarRevList n (by simpa) =
+      c.fvarRevList n hn := by
+  induction n generalizing c with
+  | zero => simp
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam id name ty ty' bi tail =>
+      simp only [MLCtx.prependLevelParam, MLCtx.fvarRevList]
+      exact congrArg (List.cons id) (ih (Nat.le_of_succ_le_succ hn))
+    | vlet id name ty value ty' value' tail =>
+      simp only [MLCtx.prependLevelParam, MLCtx.fvarRevList]
+      exact congrArg (List.cons id) (ih (Nat.le_of_succ_le_succ hn))
+
+@[simp] theorem MLCtx.prependLevelParam_dropN
+    {c : MLCtx} {oldUvars n : Nat}
+    (hn : n ≤ c.length) :
+    (c.prependLevelParam oldUvars).dropN n (by simpa) =
+      (c.dropN n hn).prependLevelParam oldUvars := by
+  induction n generalizing c with
+  | zero => simp
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam id name ty ty' bi tail =>
+      simp only [MLCtx.prependLevelParam, MLCtx.dropN]
+      exact ih (Nat.le_of_succ_le_succ hn)
+    | vlet id name ty value ty' value' tail =>
+      simp only [MLCtx.prependLevelParam, MLCtx.dropN]
+      exact ih (Nat.le_of_succ_le_succ hn)
+
 theorem MLCtx.WF.mono {env env' : VEnv} (henv : env ≤ env') :
     ∀ {c : MLCtx}, c.WF env Us → c.WF env' Us
   | .nil, _ => trivial
