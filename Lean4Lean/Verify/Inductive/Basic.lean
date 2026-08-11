@@ -16770,6 +16770,36 @@ theorem RecursorValidAppStatsWF.translatedParam
     hparam harg heq
   rw [htarget, hparamTarget, ← habstract]
 
+/-- The executable parameter-prefix comparison is structural once the cached
+parameters are known to be free variables.  This turns the kernel's
+annotation-insensitive `Expr.eqv` guard into the exact application split used
+by translation inversion below. -/
+theorem RecursorValidAppStatsWF.sourceParameterPrefix
+    (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
+    (hvalid : AddInductive.isValidIndAppIdx stats type typeIdx = true) :
+    type.getAppArgsList.take stats.params.size = stats.params.toList := by
+  apply List.ext_getElem?
+  intro j
+  rw [List.getElem?_take]
+  by_cases hj : j < stats.params.size
+  · rw [if_pos hj]
+    have harity := checkPositivityStep.isValidIndAppIdx.arity hvalid
+    have hjArgs : j < type.getAppArgs.size := by omega
+    have hsource : type.getAppArgsList[j]? =
+        some type.getAppArgs[j] := by
+      rw [← Expr.getAppArgs_toList]
+      simp [hjArgs]
+    have hcached : stats.params.toList[j]? = some stats.params[j] := by
+      simp [hj]
+    rcases H.paramFVarAt hj with ⟨fv, hfv⟩
+    have hargEq := checkPositivityStep.isValidIndAppIdx.param hvalid hj
+    rw [hfv] at hargEq
+    have harg : type.getAppArgs[j] = .fvar fv :=
+      Expr.eqv_fvar_eq hargEq
+    rw [hsource, hcached, harg, hfv]
+  · rw [if_neg hj]
+    simp [hj]
+
 theorem RecursorValidAppStatsWF.translatedIndexNoOccurrence
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
     (hvalid : AddInductive.isValidIndAppIdx stats type typeIdx = true)
@@ -16893,7 +16923,11 @@ theorem RecursorValidAppStatsWF.translatedIndices
       params' = decl.paramVars depth ∧
       indices'.length = (decl.types[typeIdx]'hi).numIndices ∧
       List.Forall₂ (TrExprS env recLparams scope)
-        (type.getAppArgs[stats.params.size:]).toList indices' := by
+        (type.getAppArgs[stats.params.size:]).toList indices' ∧
+      TrExprS env recLparams scope
+        (mkAppN stats.indConsts[typeIdx]! stats.params)
+        (VExpr.mkApps
+          (.const (decl.types[typeIdx]'hi).name levels') params') := by
   rcases checkPositivityStep.isValidIndApp?_some hvalid with
     ⟨_sourceBound, hvalidIdx⟩
   have hhead := checkPositivityStep.isValidIndAppIdx.constHead
@@ -16950,9 +16984,80 @@ theorem RecursorValidAppStatsWF.translatedIndices
       simp
     rw [hsuffix]
     simpa only [Expr.getAppArgs_toList] using hdrop
+  have hconstSource : stats.indConsts[typeIdx]! =
+      .const (decl.types[typeIdx]'hi).name stats.levels := by
+    simp [Array.getElem!_eq_getD, H.indConstAt hi]
+  have hsourceHead : type.getAppFn = stats.indConsts[typeIdx]! := by
+    rw [hhead, hconstSource]
+  have hsourcePrefix := H.sourceParameterPrefix hvalidIdx
+  have hmkAppN : mkAppN stats.indConsts[typeIdx]! stats.params =
+      Expr.mkAppList stats.indConsts[typeIdx]! stats.params.toList := by
+    unfold mkAppN
+    rw [← Array.foldl_toList]
+    generalize stats.params.toList = args
+    generalize stats.indConsts[typeIdx]! = fn
+    induction args generalizing fn with
+    | nil => rfl
+    | cons arg args ih =>
+      simp only [List.foldl_cons, Expr.mkAppList]
+      simpa [Lean.mkApp] using ih (.app fn arg)
+  have hsourceSplit : type = Expr.mkAppList
+      (mkAppN stats.indConsts[typeIdx]! stats.params)
+      (type.getAppArgsList.drop stats.params.size) := by
+    calc
+      type = Expr.mkAppList type.getAppFn type.getAppArgsList :=
+        (Expr.mkAppList_getAppArgsList type).symm
+      _ = Expr.mkAppList type.getAppFn
+          (type.getAppArgsList.take stats.params.size ++
+            type.getAppArgsList.drop stats.params.size) := by
+        rw [List.take_append_drop]
+      _ = Expr.mkAppList
+          (Expr.mkAppList type.getAppFn
+            (type.getAppArgsList.take stats.params.size))
+          (type.getAppArgsList.drop stats.params.size) := by
+        rw [Expr.mkAppList_append]
+      _ = Expr.mkAppList
+          (mkAppN stats.indConsts[typeIdx]! stats.params)
+          (type.getAppArgsList.drop stats.params.size) := by
+        rw [hsourceHead, hsourcePrefix, hmkAppN]
+  have hsplitTr : TrExprS env recLparams scope
+      (Expr.mkAppList (mkAppN stats.indConsts[typeIdx]! stats.params)
+        (type.getAppArgsList.drop stats.params.size)) type' := by
+    rwa [← hsourceSplit]
+  rcases checkPositivityStep.TrExprS.mkAppList_inv hsplitTr with
+    ⟨familyTarget, _suffixTargets, hfamilyTr, _hsuffixTr, _hout⟩
+  have hsourceFamilyHead :
+      (mkAppN stats.indConsts[typeIdx]! stats.params).getAppFn =
+        .const (decl.types[typeIdx]'hi).name stats.levels := by
+    rw [Expr.getAppFn_mkAppN, hconstSource]
+    rfl
+  rcases checkPositivityStep.TrExprS.constAppSpine hfamilyTr
+      hsourceFamilyHead with
+    ⟨familyLevels, familyParams, hfamilySpine, hfamilyLevels,
+      hfamilyParams⟩
+  have hfamilyParams' : List.Forall₂ (TrExprS env recLparams scope)
+      stats.params.toList familyParams := by
+    simpa [Expr.getAppArgsList_mkAppN, hconstSource,
+      Expr.getAppArgsList_const] using hfamilyParams
+  have hfamilyParamsEq : familyParams = decl.paramVars depth := by
+    apply List.Forall₂.targets_eq_of_unique
+      hfamilyParams' H.params
+    intro param hparam
+    have hparamArray : param ∈ stats.params :=
+      Array.mem_toList_iff.mp hparam
+    rcases H.paramFVars param hparamArray with ⟨fv, rfl⟩
+    trivial
+  have hfamilyLevelsEq : familyLevels = levels' := by
+    exact Option.some.inj (hfamilyLevels.symm.trans _hlevels)
+  have hfamilyTargetEq : familyTarget = VExpr.mkApps
+      (.const (decl.types[typeIdx]'hi).name levels') params' := by
+    have hrebuild := VExpr.mkApps_getAppFnArgs familyTarget
+    rw [hfamilySpine] at hrebuild
+    rw [← hrebuild, hfamilyLevelsEq, hfamilyParamsEq, hparams]
   refine ⟨levels', params', indices', ?_, hparams, hindicesLength,
-    hindicesTr⟩
-  simpa [hsplit] using hspine
+    hindicesTr, ?_⟩
+  · simpa [hsplit] using hspine
+  · rwa [hfamilyTargetEq] at hfamilyTr
 
 /-- Complete terminal payload produced by the explicit recursive-result
 validation branch.  It packages the targeted abstract application together
@@ -16971,7 +17076,11 @@ structure RecursorValidatedIndAppAt
     params = decl.paramVars depth ∧
     indices.length = (decl.types[target]'target_lt).numIndices ∧
     List.Forall₂ (TrExprS env recLparams scope)
-      (type.getAppArgs[stats.params.size:]).toList indices
+      (type.getAppArgs[stats.params.size:]).toList indices ∧
+    TrExprS env recLparams scope
+      (mkAppN stats.indConsts[target]! stats.params)
+      (VExpr.mkApps
+        (.const (decl.types[target]'target_lt).name levels) params)
 
 def RecursorValidAppStatsWF.validatedIndAppAt
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
