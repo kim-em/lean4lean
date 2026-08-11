@@ -453,7 +453,10 @@ def loopU (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
   if _h : i < u.size then
     let ui := u[i]
     let viTy ← loopUArgs ui fun uiTy xs => do
-      let (itIdx, itIndices) := getIIndices stats uiTy
+      let some itIdx := isValidIndApp? stats uiTy
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      let itIndices := uiTy.getAppArgs[stats.params.size:]
       return (← getLCtx).mkForall xs <|
         .app (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN ui xs)
     let vName := ((← getLCtx).get! ui.fvarId!).userName.appendAfter "_ih"
@@ -512,7 +515,10 @@ def loopU (indTypes : Array InductiveType) (stats : InductiveStats)
   if _h : i < u.size then
     let ui := u[i]
     let val ← mkRecInfos.loopUArgs ui fun uiTy xs => do
-      let (itIdx, itIndices) := getIIndices stats uiTy
+      let some itIdx := isValidIndApp? stats uiTy
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      let itIndices := uiTy.getAppArgs[stats.params.size:]
       let val := .const (mkRecName indTypes[itIdx]!.name) lvls
       let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params) motives)
         minors) itIndices

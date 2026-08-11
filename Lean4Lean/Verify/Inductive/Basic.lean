@@ -4119,6 +4119,27 @@ theorem _root_.Lean4Lean.VLCtx.NoIndConsts.cons
     VLCtx.NoIndConsts names ((ofv, d) :: Δ) :=
   checkPositivityStep.VLCtx.NoIndConsts.cons H hvalue
 
+/-- Every local introduced by the inductive machinery denotes its own bound
+variable.  Consequently restoring a dropped suffix of such locals cannot
+introduce an inductive constant into context lookup results. -/
+theorem MLCtxOnlyLams.noIndConsts_of_dropN
+    (H : MLCtxOnlyLams m) (n : Nat) (hn : n ≤ m.length)
+    (hdrop : VLCtx.NoIndConsts names (m.dropN n hn).vlctx) :
+    VLCtx.NoIndConsts names m.vlctx := by
+  induction n generalizing m with
+  | zero => simpa using hdrop
+  | succ n ih =>
+    cases m with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      have Htail := H.tail_vlam
+      have htail : VLCtx.NoIndConsts names tail.vlctx := by
+        apply ih Htail (Nat.le_of_succ_le_succ hn)
+        simpa only [TypeChecker.MLCtx.dropN] using hdrop
+      exact VLCtx.NoIndConsts.cons htail rfl
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
 theorem ParameterContextSuffix.noIndConsts
     (H : ParameterContextSuffix Hc stats depth) (names : List Name) :
     checkPositivityStep.VLCtx.NoIndConsts names H.parameterDecls := by
@@ -10292,6 +10313,14 @@ theorem forall₂_map_right
   simp [VInductDecl.paramVars, VExpr.liftN]
   omega
 
+@[simp] theorem VInductDecl.paramVars_liftN_many
+    {decl : VInductDecl} {depth n : Nat} :
+    (decl.paramVars depth).map (fun e => VExpr.liftN n e 0) =
+      decl.paramVars (depth + n) := by
+  simp [VInductDecl.paramVars, VExpr.liftN]
+  congr 2
+  omega
+
 theorem ValidAppStatsWF.withLocalDecl
     (Hc : ContextWF c)
     (H : ValidAppStatsWF Hc.venv c.lparams Hc.mlctx.vlctx
@@ -11154,7 +11183,11 @@ theorem resultCount
   · rw [dif_pos hnext]
     have hval :
         ((AddInductive.mkRecInfos.loopUArgs u[i] (fun uiTy xs =>
-          let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+          do
+          let some itIdx := AddInductive.isValidIndApp? stats uiTy
+            | throw (.other
+              "recursive constructor field lost its inductive result type")
+          let itIndices := uiTy.getAppArgs[stats.params.size:]
           let val := Expr.const (Lean.mkRecName indTypes[itIdx]!.name) lvls
           let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params)
             motives) minors) itIndices
@@ -11334,7 +11367,10 @@ theorem generatedCalls
   · rw [dif_pos hnext]
     let buildCall : Expr → Array Expr → AddInductive.M Expr :=
       fun uiTy xs => do
-        let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+        let some itIdx := AddInductive.isValidIndApp? stats uiTy
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        let itIndices := uiTy.getAppArgs[stats.params.size:]
         let val := Expr.const (Lean.mkRecName indTypes[itIdx]!.name) lvls
         let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params)
           motives) minors) itIndices
@@ -13667,7 +13703,10 @@ theorem continueWith {α : Type}
       · rw [dif_pos hnext]
         have hviTy :
             ((AddInductive.mkRecInfos.loopUArgs u[i] fun uiTy xs => do
-              let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+              let some itIdx := AddInductive.isValidIndApp? stats uiTy
+                | throw (.other
+                  "recursive constructor field lost its inductive result type")
+              let itIndices := uiTy.getAppArgs[stats.params.size:]
               let motiveApp := .app
                 (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN u[i] xs)
               return (← getLCtx).mkForall xs motiveApp) c).WF
@@ -19130,6 +19169,49 @@ def RecursorRecentBoundFVarArray.pushCurrent
     simpa only [Array.size_push, RecursorContextWF.withLocalDecl,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
+/-- Cached inductive parameters remain aligned after `loopUArgs` opens an
+exact suffix of higher-order arguments.  The semantic parameter variables
+shift by the suffix length, matching the executable context extension. -/
+def RecursorValidAppStatsWF.weakenRecent
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorValidAppStatsWF Rroot.venv recLparams
+      Rroot.mlctx.vlctx stats decl depth)
+    (Hrecent : RecursorRecentBoundFVarArray Rroot R xs) :
+    RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
+      stats decl (depth + xs.size) := by
+  let W := R.onlyLams.dropN_fvlift xs.size Hrecent.size_le
+  have hparams : List.Forall₂
+      (TrExprS R.venv recLparams R.mlctx.vlctx)
+      stats.params.toList
+      ((decl.paramVars depth).map fun target =>
+        target.liftN xs.size 0) := by
+    apply checkPositivityStep.forall₂_map_right H.params
+    intro source target Hsource
+    have Hsource' : TrExprS R.venv recLparams
+        (R.mlctx.dropN xs.size Hrecent.size_le).vlctx source target := by
+      simpa only [Hrecent.venv_eq, Hrecent.drop_eq] using Hsource
+    exact Hsource'.weakFV R.checking.tr.wf.ordered W R.mlctx_wf.tr.wf
+  exact {
+    levels := H.levels
+    consts := H.consts
+    indices := H.indices
+    params := by simpa using hparams
+    paramFVars := H.paramFVars }
+
+/-- Lookup values in the exact higher-order suffix are fresh bound variables,
+so a no-inductive-constants context invariant extends across that suffix. -/
+theorem RecursorRecentBoundFVarArray.noIndConsts
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (hroot : VLCtx.NoIndConsts names Rroot.mlctx.vlctx) :
+    VLCtx.NoIndConsts names R.mlctx.vlctx := by
+  apply R.onlyLams.noIndConsts_of_dropN xs.size H.size_le
+  simpa only [H.drop_eq] using hroot
+
 /-- Semantic translations of an executable origin-type array under the
 recursor universe list.  This is the universe-parametric counterpart of
 `TranslatedOriginTypes`, used for major and motive rows after large
@@ -24505,6 +24587,73 @@ theorem mkRecInfos.loopUArgs.resultSemantics {alpha : Type}
   exact mkRecInfos.loopUArgs.loop.resultSemantics k R hwhnf hconsume R
     hnormalized.2 hinferredType (RecursorRecentBoundFVarArray.empty R) Hk
 
+/-- Semantic interface for the strengthened recursive-field terminal check.
+The executable callback now validates the exposed result before projecting a
+mutual-family index; this theorem turns that branch into the corresponding
+targeted abstract application and retains the exact higher-order suffix. -/
+theorem mkRecInfos.loopUArgs.resultValidatedIndApp {alpha : Type}
+    (fv : FVarId) (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Nat → AddInductive.M alpha)
+    (c : AddInductive.Context) {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''},
+      TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    {Q : alpha → Prop}
+    (Hk : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {syntaxTarget typeTarget : VExpr}
+      {args : Array Expr} {target : Nat},
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+      Rcurrent.venv.IsDefEqU recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget typeTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx typeTarget →
+      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent args) →
+      (htarget : target < decl.types.length) →
+      decl.ValidIndAppAt
+        (some (decl.types[target]'htarget).name)
+        (depth + args.size) syntaxTarget →
+      (k exposedType args target current).WF Q) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv) (fun exposedType args => do
+      let some target := AddInductive.isValidIndApp? stats exposedType
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      k exposedType args target) c).WF Q := by
+  apply mkRecInfos.loopUArgs.resultSemantics fv _ c R hwhnf hconsume hfield
+  intro current Rcurrent exposedType typeTarget args htype htypeType Hrecent
+  rcases htype with ⟨syntaxTarget, hsyntax, hdefeq⟩
+  cases hvalid : AddInductive.isValidIndApp? stats exposedType with
+  | none =>
+      simp only [hvalid, bind, Except.bind]
+      exact Except.WF.throw
+  | some target =>
+      simp only [hvalid, bind, Except.bind]
+      let HstatsCurrent := Hstats.weakenRecent Hrecent
+      have htargetStats : target < stats.indConsts.size :=
+        (checkPositivityStep.isValidIndApp?_some hvalid).1
+      have htarget : target < decl.types.length := by
+        rw [← HstatsCurrent.types_size]
+        exact htargetStats
+      have hctxCurrent : VLCtx.NoIndConsts
+          (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
+        Hrecent.noIndConsts hctx
+      exact Hk Rcurrent hsyntax hdefeq htypeType Hrecent htarget
+        (HstatsCurrent.validIndAppAtTarget hsyntax hvalid htarget
+          hlit hctxCurrent hproj)
+
 /-- Exact recursive-call syntax together with the inner binding context used
 to close its higher-order arguments. -/
 structure BoundGeneratedRecursiveCall
@@ -26737,7 +26886,10 @@ theorem boundGeneratedCalls
   · rw [dif_pos hnext]
     let buildCall : Expr → Array Expr → AddInductive.M Expr :=
       fun uiTy xs => do
-        let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+        let some itIdx := AddInductive.isValidIndApp? stats uiTy
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        let itIndices := uiTy.getAppArgs[stats.params.size:]
         let val := Expr.const (Lean.mkRecName indTypes[itIdx]!.name) lvls
         let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params)
           motives) minors) itIndices
@@ -27148,7 +27300,10 @@ theorem resultBindings {alpha : Type}
   · rw [dif_pos hnext]
     have hviTy :
         ((AddInductive.mkRecInfos.loopUArgs u[i] fun uiTy xs => do
-          let (itIdx, itIndices) := AddInductive.getIIndices stats uiTy
+          let some itIdx := AddInductive.isValidIndApp? stats uiTy
+            | throw (.other
+              "recursive constructor field lost its inductive result type")
+          let itIndices := uiTy.getAppArgs[stats.params.size:]
           let motiveApp := .app
             (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN u[i] xs)
           return (← getLCtx).mkForall xs motiveApp) c).WF
