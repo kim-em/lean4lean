@@ -113,12 +113,29 @@ def VExpr.boolLit : Bool → VExpr
   | .false => .boolFalse
   | .true => .boolTrue
 
+@[simp] theorem VExpr.boolLit_false : VExpr.boolLit false = .boolFalse := rfl
+@[simp] theorem VExpr.boolLit_true : VExpr.boolLit true = .boolTrue := rfl
+@[simp] theorem VExpr.inst_boolTrue : VExpr.boolTrue.inst e k = .boolTrue := rfl
+@[simp] theorem VExpr.inst_boolFalse : VExpr.boolFalse.inst e k = .boolFalse := rfl
+
 def VExpr.nat : VExpr := .const ``Nat []
 def VExpr.natZero : VExpr := .const ``Nat.zero []
 def VExpr.natSucc : VExpr := .const ``Nat.succ []
 def VExpr.natLit : Nat → VExpr
   | 0 => .natZero
   | n+1 => .app .natSucc (.natLit n)
+
+@[simp] theorem VExpr.natLit_zero : VExpr.natLit 0 = .natZero := rfl
+@[simp] theorem VExpr.inst_nat : VExpr.nat.inst e k = .nat := rfl
+@[simp] theorem VExpr.inst_natZero : VExpr.natZero.inst e k = .natZero := rfl
+@[simp] theorem VExpr.inst_natSucc : VExpr.natSucc.inst e k = .natSucc := rfl
+@[simp] theorem VExpr.inst_natLit : (VExpr.natLit n).inst e k = .natLit n := by
+  induction n <;> simp [VExpr.natLit, VExpr.inst, *]
+@[simp] theorem VExpr.liftN_nat : VExpr.nat.liftN n k = .nat := rfl
+@[simp] theorem VExpr.liftN_natZero : VExpr.natZero.liftN n k = .natZero := rfl
+@[simp] theorem VExpr.liftN_natSucc : VExpr.natSucc.liftN n k = .natSucc := rfl
+@[simp] theorem VExpr.liftN_natLit : (VExpr.natLit m).liftN n k = .natLit m := by
+  induction m <;> simp [VExpr.natLit, VExpr.liftN, *]
 
 def VExpr.char : VExpr := .const ``Char []
 def VExpr.string : VExpr := .const ``String []

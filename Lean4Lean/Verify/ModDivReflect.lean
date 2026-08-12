@@ -661,7 +661,8 @@ theorem VEnv.natModTopThen_beta
       env.HasType 0 [] proof propV ∧
       env.IsDefEqU 0 [] (.app tV proof) (bodyV.inst proof) := by
   have htSLam : TrExprS env [] []
-      (.lam `_ (natModTopPropInst b) (natModTopThenBodyInst x b) .default)
+      (.lam `_ (natModTopPropInst b) (natModTopThenBodyInst x b)
+        (default : BinderInfo))
       tV := by
     simpa only [natModTopThenInst, natModTopThen,
       natModTopPropInst, natModTopThenBodyInst, Expr.lam0] using htS
@@ -669,7 +670,8 @@ theorem VEnv.natModTopThen_beta
   | lam hdomType hdomS hbodyS =>
     rename_i propV bodyV
     have hlamS : TrExprS env [] []
-        (.lam `_ (natModTopPropInst b) (natModTopThenBodyInst x b) .default)
+        (.lam `_ (natModTopPropInst b) (natModTopThenBodyInst x b)
+          (default : BinderInfo))
         (.lam propV bodyV) := .lam hdomType hdomS hbodyS
     obtain ⟨_, hlamCanonT⟩ := TrExprS.closedLam_hasType wf hlamS
     obtain ⟨_, _, hlamT, hproofT⟩ := happT.app_inv wf.ordered trivial
@@ -855,7 +857,8 @@ theorem VEnv.natModTopInnerElse_beta
   have heSLam : TrExprS env [] []
       (.lam `_ (mkApp q(Not) (natModTopPropInst b))
         (mkApp q(Nat.succ)
-          ((Expr.natLitToConstructor x).liftLooseBVars 0 1)) .default)
+          ((Expr.natLitToConstructor x).liftLooseBVars 0 1))
+        (default : BinderInfo))
       eV := by
     simpa only [natModTopInnerElseInst, natModTopInnerElse,
       natModTopPropInst, Expr.lam0] using heS
@@ -865,7 +868,8 @@ theorem VEnv.natModTopInnerElse_beta
     have hlamS : TrExprS env [] []
         (.lam `_ (mkApp q(Not) (natModTopPropInst b))
           (mkApp q(Nat.succ)
-            ((Expr.natLitToConstructor x).liftLooseBVars 0 1)) .default)
+            ((Expr.natLitToConstructor x).liftLooseBVars 0 1))
+          (default : BinderInfo))
         (.lam propV bodyV) := .lam hdomType hdomS hbodyS
     obtain ⟨_, hlamCanonT⟩ := TrExprS.closedLam_hasType wf hlamS
     obtain ⟨_, _, hlamT, hproofT⟩ := happT.app_inv wf.ordered trivial
@@ -1080,7 +1084,7 @@ theorem VEnv.select_natDivTop_rhs
             have hHS' : TrExprS env [] [] (natDivTopProofInst b) HV := by
               simpa [natDivTopProofInst, Condition.natLE, Lean.mkAppN] using hHS
             have htS' : TrExprS env [] [] (natDivTopThenInst a b) tV := by
-              simpa only [natDivTopThenInst,
+              simpa [natDivTopThenInst,
                 natDivTopThenBodyInst, natDivTopPropInst, Expr.lam0,
                 Expr.liftLooseBVars_eq, Lean.mkAppN, mkApp5, mkApp4,
                 mkApp2, mkApp, mkAppB]
@@ -1147,14 +1151,16 @@ theorem VEnv.natDivTopThen_beta
       env.HasType 0 [] proof propV ∧
       env.IsDefEqU 0 [] (.app tV proof) (bodyV.inst proof) := by
   have htSLam : TrExprS env [] []
-      (.lam `_ (natDivTopPropInst b) (natDivTopThenBodyInst a b) .default)
+      (.lam `_ (natDivTopPropInst b) (natDivTopThenBodyInst a b)
+        (default : BinderInfo))
       tV := by
     simpa only [natDivTopThenInst, Expr.lam0] using htS
   cases htSLam with
   | lam hdomType hdomS hbodyS =>
     rename_i propV bodyV
     have hlamS : TrExprS env [] []
-        (.lam `_ (natDivTopPropInst b) (natDivTopThenBodyInst a b) .default)
+        (.lam `_ (natDivTopPropInst b) (natDivTopThenBodyInst a b)
+          (default : BinderInfo))
         (.lam propV bodyV) := .lam hdomType hdomS hbodyS
     obtain ⟨bodyTy, hlamCanonT⟩ := TrExprS.closedLam_hasType wf hlamS
     obtain ⟨_, _, hlamT, hproofT⟩ := happT.app_inv wf.ordered trivial
@@ -1333,14 +1339,16 @@ theorem VEnv.natDivTopElse_beta
   have heSLam := heS
   simp only [natDivTopElseInst] at heSLam
   have heSLam' : TrExprS env [] []
-      (.lam `_ (mkApp q(Not) (natDivTopPropInst b)) q(Nat.zero) .default)
+      (.lam `_ (mkApp q(Not) (natDivTopPropInst b)) q(Nat.zero)
+        (default : BinderInfo))
       eV := by
     simpa only [Expr.lam0] using heSLam
   cases heSLam' with
   | lam hdomType hdomS hbodyS =>
     rename_i tyV bodyV
     have hlamS : TrExprS env [] []
-        (.lam `_ (mkApp q(Not) (natDivTopPropInst b)) q(Nat.zero) .default)
+        (.lam `_ (mkApp q(Not) (natDivTopPropInst b)) q(Nat.zero)
+          (default : BinderInfo))
         (.lam tyV bodyV) := .lam hdomType hdomS hbodyS
     obtain ⟨bodyTy, hlamCanonT⟩ := TrExprS.closedLam_hasType wf hlamS
     obtain ⟨_, _, hlamT, hproofT⟩ := happT.app_inv wf.ordered trivial
@@ -1354,7 +1362,7 @@ theorem VEnv.natDivTopElse_beta
     | const hzero hus hlen =>
       simp at hus
       subst hus
-      exact ⟨_, by simpa [VExpr.inst] using
+      exact ⟨_, by simpa [VExpr.inst, VExpr.natZero] using
         (VEnv.IsDefEq.beta hbodyWF.hasType.1 hproofT')⟩
 
 /-- The checked closed top-level division equation has exactly the semantic
@@ -1578,7 +1586,9 @@ theorem VEnv.NatModGoEquationTranslation.of_checked
                         simpa [natModGoRhsBody, natModGoThen,
                           natModGoThenBody, natModGoElse, natDivGoProp,
                           natDivGoBle, natDivGoProof, Condition.natLE,
-                          Condition.reflectedDITE, Reflection.natDITE]
+                          Condition.reflectedDITE, Reflection.natDITE,
+                          Lean.mkAppN, Expr.liftLooseBVars_eq,
+                          Expr.liftLooseBVars']
                           using hbodyR
                       exact .intro yTyL hyTyL fuelTyL xTyL hTyL bodyL
                         yTyR hyTyR fuelTyR xTyR hTyR bodyR
@@ -2830,6 +2840,7 @@ theorem checkPrimitiveDef.natMod.WF_typed
         ∃ selector : VEnv.NatLESelectorCertificate c.venv,
           c.HasType go' goTy' ∧
           c.IsDefEqU topL' topR' ∧ c.IsDefEqU goL' goR' := by
+  apply checkPrimitiveDef.WF_of_core (by simp)
   rw [checkPrimitiveDef.natMod_eq hname]
   refine TypeChecker.getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
@@ -2974,6 +2985,7 @@ theorem checkPrimitiveDef.natDiv.WF_typed
     (hty : c.TrExprS src.type ty') (hvalue : c.TrExprS src.value value') :
     TypeChecker.M.WF c s (checkPrimitiveDef src) fun b _ => b →
       NatDivPrimitiveEvidence c src ty' := by
+  apply checkPrimitiveDef.WF_of_core (by simp)
   rw [checkPrimitiveDef.natDiv_eq hname]
   refine TypeChecker.getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩

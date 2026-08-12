@@ -6,6 +6,39 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel TypeChecker
 
+/- Lean 4.31's notation typeclass wrappers no longer simplify to the named
+functions automatically.  Keeping the semantic side in the named form makes
+the reflection statements independent of notation elaboration. -/
+@[simp] private theorem Nat.mod_eq_hmod (a b : Nat) : a.mod b = a % b := rfl
+@[simp] private theorem Nat.div_eq_hdiv (a b : Nat) : a.div b = a / b := rfl
+
+/- These constructors are marked `expose` in Lean 4.31, but are no longer
+reduced by `simp` in all of the translated-expression goals below. -/
+@[simp] private theorem mkAppB_eq_app (f a b : Expr) :
+    mkAppB f a b = (f.app a).app b := rfl
+@[simp] private theorem mkApp2_eq_app (f a b : Expr) :
+    mkApp2 f a b = (f.app a).app b := rfl
+@[simp] private theorem Expr.lam0_eq_lam (ty body : Expr) :
+    Expr.lam0 ty body = .lam `_ ty body .default := rfl
+@[simp] private theorem Expr.instantiate1'_const (n : Name) (ls : List Level)
+    (a : Expr) (d : Nat) : (Expr.const n ls).instantiate1' a d = .const n ls := rfl
+@[simp] private theorem Expr.instantiate1'_app (f a subst : Expr) (d : Nat) :
+    (f.app a).instantiate1' subst d =
+      (f.instantiate1' subst d).app (a.instantiate1' subst d) := rfl
+@[simp] private theorem Expr.instantiate1'_bvar (i : Nat) (subst : Expr) (d : Nat) :
+    (Expr.bvar i).instantiate1' subst d =
+      if i < d then .bvar i else if i = d then subst.liftLooseBVars' 0 d
+      else .bvar (i - 1) := rfl
+@[simp] private theorem Expr.instantiate1'_lam (n : Name) (ty body subst : Expr)
+    (bi : BinderInfo) (d : Nat) :
+    (Expr.lam n ty body bi).instantiate1' subst d =
+      .lam n (ty.instantiate1' subst d) (body.instantiate1' subst (d + 1)) bi := rfl
+@[simp] private theorem Expr.natLitToConstructor_zero :
+    Expr.natLitToConstructor 0 = q(Nat.zero) := rfl
+@[simp] private theorem VEnv.hasType_eq_isDefEq (env : VEnv) (U : Nat)
+    (Γ : List VExpr) (e A : VExpr) :
+    env.HasType U Γ e A = env.IsDefEq U Γ e e A := rfl
+
 theorem VEnv.ReflectsNatNatNat.addDefEq {env : VEnv} {df : VDefEq}
     (h : env.ReflectsNatNatNat fc f) :
     (env.addDefEq df).ReflectsNatNatNat fc f := by
@@ -2692,10 +2725,23 @@ theorem VEnv.HasPrimitives.addStringOfList {env env' : VEnv}
 
 namespace Environment
 
+/-- Lift a proof about the primitive checker's substantive core through the
+public safety guard.  Primitive verification postconditions all hold
+vacuously when the guarded checker returns `false`. -/
+theorem checkPrimitiveDef.WF_of_core {c : VContext} {s : VState}
+    {post : Bool → VState → Prop} (hfalse : post false s)
+    (hcore : M.WF c s (checkPrimitiveDefCore v) post) :
+    M.WF c s (checkPrimitiveDef v) post := by
+  simp only [checkPrimitiveDef]
+  split
+  · exact hcore
+  · exact .pure hfalse
+
 theorem checkPrimitiveDef.WF_of_not_primitive {c : VContext} {s : VState}
     (hn : ¬Lean.Kernel.Environment.primitives.contains v.name) :
     M.WF c s (checkPrimitiveDef v) fun b _ => b = false := by
-  simp [checkPrimitiveDef, Lean.Kernel.Environment.primitives,
+  apply checkPrimitiveDef.WF_of_core rfl
+  simp [checkPrimitiveDefCore, Lean.Kernel.Environment.primitives,
     NameSet.contains, NameSet.ofList] at hn ⊢
   split <;> simp_all
   exact getEnv.WF.bind fun _ _ _ _ => .pure rfl
@@ -2705,10 +2751,11 @@ theorem checkPrimitiveDef.WF_of_inductive_name {c : VContext} {s : VState}
       v.name = ``Bool.true ∨ v.name = ``Nat ∨
       v.name = ``Nat.zero ∨ v.name = ``Nat.succ) :
     M.WF c s (checkPrimitiveDef v) fun b _ => b = false := by
+  apply checkPrimitiveDef.WF_of_core rfl
   refine getEnv.WF.bind fun _ _ _ _ => ?_
   rcases hname with hname | hname | hname | hname | hname | hname
   all_goals
-    simp [checkPrimitiveDef, hname]
+    simp [hname]
     exact .pure rfl
 
 /-- A globally closed translation can be reused under freshly introduced
@@ -5731,13 +5778,13 @@ theorem Condition.natLE.check.WF
 
 set_option maxHeartbeats 800000 in
 theorem checkPrimitiveDef.natMod_eq (hname : v.name = ``Nat.mod) :
-    checkPrimitiveDef v = (do
+    checkPrimitiveDefCore v = (do
       let env ← getEnv
       let fail {α} : M α :=
         throw <| .other s!"invalid form for primitive def {v.name}"
       checkNatModPrimitive env v fail
       pure true) := by
-  simp only [checkPrimitiveDef, hname]
+  simp only [checkPrimitiveDefCore, hname]
 
 set_option maxHeartbeats 800000 in
 theorem checkNatModPrimitive.WF {c : VContext} {s : VState}
@@ -5957,13 +6004,13 @@ theorem checkNatModPrimitive.WF_typed {c : VContext} {s : VState}
 
 set_option maxHeartbeats 800000 in
 theorem checkPrimitiveDef.natDiv_eq (hname : v.name = ``Nat.div) :
-    checkPrimitiveDef v = (do
+    checkPrimitiveDefCore v = (do
       let env ← getEnv
       let fail {α} : M α :=
         throw <| .other s!"invalid form for primitive def {v.name}"
       checkNatDivPrimitive env v fail
       pure true) := by
-  simp only [checkPrimitiveDef, hname]
+  simp only [checkPrimitiveDefCore, hname]
 
 set_option maxHeartbeats 800000 in
 theorem checkNatDivPrimitive.WF {c : VContext} {s : VState}
@@ -6234,7 +6281,8 @@ theorem checkPrimitiveDef.charOfNat.WF_typed {c : VContext} {s : VState}
     M.WF c s (checkPrimitiveDef v) fun b _ => b →
       v.levelParams = [] ∧ c.venv.contains ``Nat ∧
       c.venv.IsDefEqU c.lparams.length [] ty' (.forallE .nat .char) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split
@@ -6451,11 +6499,11 @@ theorem getRequiredConstant.WF {c : VContext} {s : VState}
 
 theorem checkPrimitiveDef.stringOfList_eq
     (hname : v.name = ``String.ofList) :
-    checkPrimitiveDef v = (do
+    checkPrimitiveDefCore v = (do
       let env ← getEnv
       checkStringOfListPrimitive env v
       pure true) := by
-  simp only [checkPrimitiveDef, hname]
+  simp only [checkPrimitiveDefCore, hname]
 
 theorem checkStringOfListPrimitive.WF {c : VContext} {s : VState}
     (hty : c.TrExprS v.type ty')
@@ -6757,6 +6805,7 @@ theorem checkPrimitiveDef.stringOfList.WF_typed
       c.HasType .listCharNil .listChar ∧
       c.HasType .listCharCons
         (.forallE .char <| .forallE .listChar .listChar) := by
+  apply checkPrimitiveDef.WF_of_core (by simp)
   rw [checkPrimitiveDef.stringOfList_eq hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
@@ -6995,7 +7044,8 @@ theorem checkPrimitiveDef.natAdd.WF_typed {c : VContext} {s : VState}
           .app (.app value' (.bvar 1)) (.app .natSucc (.bvar 0)))
         (.lam .nat <| .lam .nat <|
           .app .natSucc (.app (.app value' (.bvar 1)) (.bvar 0))) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split
@@ -7038,7 +7088,8 @@ theorem checkPrimitiveDef.natPred.WF_typed {c : VContext} {s : VState}
       c.venv.IsDefEqU c.lparams.length []
         (.lam .nat <| .app value' (.app .natSucc (.bvar 0)))
         (.lam .nat <| .bvar 0) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split
@@ -7176,7 +7227,8 @@ theorem checkPrimitiveDef.natSub.WF_typed {c : VContext} {s : VState}
         (.lam .nat <| .lam .nat <|
           .app (.const ``Nat.pred [])
             (.app (.app value' (.bvar 1)) (.bvar 0))) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split
@@ -7224,7 +7276,8 @@ theorem checkPrimitiveDef.natMul.WF_typed {c : VContext} {s : VState}
         (.lam .nat <| .lam .nat <|
           .app (.app (.const ``Nat.add [])
             (.app (.app value' (.bvar 1)) (.bvar 0))) (.bvar 1)) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split
@@ -7274,7 +7327,8 @@ theorem checkPrimitiveDef.natPow.WF_typed {c : VContext} {s : VState}
         (.lam .nat <| .lam .nat <|
           .app (.app (.const ``Nat.mul [])
             (.app (.app value' (.bvar 1)) (.bvar 0))) (.bvar 1)) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split
@@ -7329,7 +7383,8 @@ theorem checkPrimitiveDef.natGcd.WF_typed {c : VContext} {s : VState}
     (hvalueT : c.HasType value' ty') :
     M.WF c s (checkPrimitiveDef v) fun b _ => b →
       NatGcdPrimitiveEvidence c v ty' := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   by_cases hdeps : (c.env.contains ``Nat.mod &&
@@ -7932,7 +7987,8 @@ theorem checkPrimitiveDef.natBEq.WF_typed {c : VContext} {s : VState}
             (.app .natSucc (.bvar 0)))
         (.lam .nat <| .lam .nat <|
           .app (.app value' (.bvar 1)) (.bvar 0)) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   by_cases hdeps : (c.env.contains ``Nat && c.env.contains ``Bool &&
@@ -7988,7 +8044,8 @@ theorem checkPrimitiveDef.natBLE.WF_typed {c : VContext} {s : VState}
             (.app .natSucc (.bvar 0)))
         (.lam .nat <| .lam .nat <|
           .app (.app value' (.bvar 1)) (.bvar 0)) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   by_cases hdeps : (c.env.contains ``Nat && c.env.contains ``Bool &&
@@ -8053,7 +8110,8 @@ theorem checkPrimitiveDef.natBitwise.WF_typedCore
         fun _ _ => Rbool) :
     M.WF c s (checkPrimitiveDef v) fun b _ => b →
       NatBitwisePrimitiveCoreEvidence c v ty' Rnat Rbool := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   by_cases hdeps : (c.env.contains ``Nat && c.env.contains ``Bool &&
@@ -8393,7 +8451,8 @@ theorem checkPrimitiveDef.natShiftLeft.WF_typed {c : VContext} {s : VState}
           .app (.app value'
             (.app (.app (.const ``Nat.mul []) (.natLit 2)) (.bvar 0)))
             (.bvar 1)) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split
@@ -8468,7 +8527,8 @@ theorem checkPrimitiveDef.natShiftRight.WF_typed {c : VContext} {s : VState}
         (.lam .nat <| .lam .nat <|
           .app (.app (.const ``Nat.div [])
             (.app (.app value' (.bvar 0)) (.bvar 1))) (.natLit 2)) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split
@@ -8531,7 +8591,8 @@ theorem checkPrimitiveDef.natXor.WF_typed {c : VContext} {s : VState}
         c.IsDefEqU (.app (.app op' .boolTrue) .boolFalse) .boolTrue ∧
         c.IsDefEqU (.app (.app op' .boolFalse) .boolTrue) .boolTrue ∧
         c.IsDefEqU (.app (.app op' .boolTrue) .boolTrue) .boolFalse := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   by_cases hdeps : (c.env.contains ``Nat.bitwise &&
@@ -8624,7 +8685,8 @@ theorem checkPrimitiveDef.natLand.WF_typed {c : VContext} {s : VState}
         c.IsDefEqU
           (.lam .bool <| .app (.app op' .boolTrue) (.bvar 0))
           (.lam .bool <| .bvar 0) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split
@@ -8722,7 +8784,8 @@ theorem checkPrimitiveDef.natLor.WF_typed {c : VContext} {s : VState}
         c.IsDefEqU
           (.lam .bool <| .app (.app op' .boolTrue) (.bvar 0))
           (.lam .bool .boolTrue) := by
-  simp only [checkPrimitiveDef, hname]
+  apply checkPrimitiveDef.WF_of_core (by simp)
+  simp only [checkPrimitiveDefCore, hname]
   refine getEnv.WF.bind ?_
   intro _ _ _ ⟨rfl, rfl⟩
   split

@@ -854,7 +854,8 @@ theorem Condition.natEqDecideFn.to_reflected_ite
           (.lit (.natVal a)) (.lit (.natVal b)))) q(true)) q(false))
       (.app (.app (.app (.app (.app iteV .bool) propV) decV)
         .boolTrue) .boolFalse) := by
-    simpa [Condition.decide, Condition.ite] using hcallS
+    simpa [Condition.decide, Condition.ite, Lean.mkAppN,
+      mkApp5, mkApp4, mkApp3, mkApp2, mkAppB, mkApp] using hcallS
   have hreflectedCall := TrExprS.replaceITECondition wf hcallExpanded
     hreflectedS hlocalReflected
   obtain ⟨_, houtWF⟩ := hcallS.wf wf.ordered

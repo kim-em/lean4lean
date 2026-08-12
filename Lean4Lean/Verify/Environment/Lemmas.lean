@@ -48,15 +48,6 @@ private theorem VEnv.addMutualDefEqs_mem {env : VEnv} {vs : List VDefVal}
         (vs := tail)).defeqs VEnv.addDefEq_self
     · exact ih (env := env.addDefEq head.toDefEq) h
 
-private theorem List.Forall₂.and {R S : α → β → Prop} {xs : List α} {ys : List β}
-    (hR : List.Forall₂ R xs ys) (hS : List.Forall₂ S xs ys) :
-    List.Forall₂ (fun x y => R x y ∧ S x y) xs ys := by
-  induction hR with
-  | nil => cases hS; exact .nil
-  | cons hR hRs ih =>
-    cases hS with
-    | cons hS hSs => exact .cons ⟨hR, hS⟩ (ih hSs)
-
 private theorem ConstMap.find?_insert_cases {C : ConstMap} {n name : Name}
     {ci ci' : ConstantInfo} (hC : C.WF)
     (h : (C.insert n ci').find? name = some ci) :
@@ -199,7 +190,8 @@ private theorem Aligned.addMutualHeaders
     | some env' =>
       simp [VEnv.addMutualHeaders, hhead] at hadd
       have hhead' : env.addConst v.name v'.toVConstant = some env' := by
-        have hname : v.name = v'.name := by simpa using htr.2
+        have hname := htr.2
+        change v.name = v'.name at hname
         rw [hname]
         exact hhead
       have H' : Aligned safety (C.insert v.name (.defnInfo v)) env' :=
@@ -240,7 +232,8 @@ private theorem Aligned.addMutualOpaqueHeaders
     | none => simp [VEnv.addMutualHeaders, hhead] at hadd
     | some env' =>
       simp [VEnv.addMutualHeaders, hhead] at hadd
-      have hname : v.name = v'.name := by simpa using htr.2
+      have hname := htr.2
+      change v.name = v'.name at hname
       have hhead' : env.addConst v.name v'.toVConstant = some env' := by
         rw [hname]
         exact hhead

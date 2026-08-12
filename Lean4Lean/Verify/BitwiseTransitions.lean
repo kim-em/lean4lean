@@ -436,7 +436,7 @@ theorem NatBitwiseFixCertificate.zero_right_semantics {env : VEnv}
                         exact ⟨trivial, (hEqD.hasType.1.lam_inv wf trivial).1⟩
                       obtain ⟨prefixArgTy, prefixBodyTy,
                           hprefixLocalFinalT, hproofVarFinalT⟩ :=
-                        hbodyLocalFinalT.app_inv wf.ordered hΓ
+                        VEnv.HasType.app_inv wf.ordered hΓ hbodyLocalFinalT
                       obtain ⟨_, _, hprefixBeforeZeroT, hzeroLocalT⟩ :=
                         hprefixLocalFinalT.app_inv wf.ordered hΓ
                       obtain ⟨_, _, hprefixBeforeAT, hsuccALocalT⟩ :=

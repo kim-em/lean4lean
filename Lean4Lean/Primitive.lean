@@ -1369,8 +1369,7 @@ def checkNatDivPrimitive (env : Environment) (v : DefinitionVal)
   _ ← checkType goR
   unless ← isDefEq goL goR do fail
 
-def checkPrimitiveDef (v : DefinitionVal) : M Bool := do
-  unless v.safety == .safe do return false
+def checkPrimitiveDefCore (v : DefinitionVal) : M Bool := do
   let fail {α} : M α := throw <| .other s!"invalid form for primitive def {v.name}"
   let tru := q(true)
   let fal := q(false)
@@ -1554,6 +1553,10 @@ def checkPrimitiveDef (v : DefinitionVal) : M Bool := do
     checkStringOfListPrimitive env v
   | _ => return false
   return true
+
+def checkPrimitiveDef (v : DefinitionVal) : M Bool := do
+  unless v.safety == .safe do return false
+  checkPrimitiveDefCore v
 
 def checkPrimitiveInductive (_env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) : Except Exception Bool := do

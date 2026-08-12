@@ -29,6 +29,8 @@ structure VInductDecl where
   types : List VInductiveType
 
 inductive VDecl where
+  /-- Reserve a constant name which is not visible at this safety level. -/
+  | block (n : Name)
   | axiom (_ : VConstVal)
   | def (_ : VDefVal)
   | opaque (_ : VDefVal)
@@ -36,4 +38,3 @@ inductive VDecl where
   | example (_ : VDefVal)
   | quot
   | induct (_ : VInductDecl)
-  | mutualDef (_ : List VDefVal)

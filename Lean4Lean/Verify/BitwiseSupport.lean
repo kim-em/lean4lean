@@ -63,7 +63,7 @@ theorem Condition.natEqDecideFn.call_eq {env : VEnv} (wf : env.WF)
             ((body.inst x' 1).inst y') := by
           simpa [Condition.natEqDecideFn, Condition.decide,
             Condition.ite, Condition.natEq, VExpr.inst,
-            Lean.mkAppN,
+            Lean.mkAppN, mkApp5, mkApp4, mkApp3, mkApp2, mkAppB, mkApp,
             Expr.instantiate1', Expr.instantiate1'_instantiate1',
             Expr.instantiate1'_liftLooseBVars_0] using hbodyInst₂
         have houtEq := TrExprS.uniq (Us := []) wf hctx hcall hbodyInst₂'
