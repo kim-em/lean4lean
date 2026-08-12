@@ -257,7 +257,7 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
           (body.instantiate1 param) (i + 1) fuel
       else
         let s ← ensureType dom
-        unless stats.resultLevel.isAlwaysZero || stats.resultLevel.geq s.sortLevel! do
+        unless stats.resultLevel.isAlwaysZero || stats.resultLevel.geq' s.sortLevel! do
           throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
             is too big for the corresponding inductive datatype"
         if !isUnsafe then

@@ -281,8 +281,8 @@ def TrInductDeclSkeleton (env : VEnv) (lparams : List Name) (nparams : Nat)
   decl.nparams = nparams ∧
   decl.isUnsafe = isUnsafe ∧
   ∃ envTypes envCtors,
-    env.addConsts decl.typeConstants = some envTypes ∧
-    envTypes.addConsts decl.constructorConstants = some envCtors ∧
+    env.addConstVals decl.typeConstants = some envTypes ∧
+    envTypes.addConstVals decl.constructorConstants = some envCtors ∧
     List.Forall₂ (TrInductiveTypeSkeleton env envTypes lparams)
       types decl.types
 
@@ -295,8 +295,8 @@ structure TrInductDeclSkeletonCore (env : VEnv) (lparams : List Name)
   uvars : decl.uvars = lparams.length
   nparams : decl.nparams = nparams
   isUnsafe : decl.isUnsafe = isUnsafe
-  typesAdded : env.addConsts decl.typeConstants = some envTypes
-  ctorsAdded : envTypes.addConsts decl.constructorConstants = some envCtors
+  typesAdded : env.addConstVals decl.typeConstants = some envTypes
+  ctorsAdded : envTypes.addConstVals decl.constructorConstants = some envCtors
   types : List.Forall₂ (TrInductiveTypeSkeleton env envTypes lparams)
     types decl.types
 
@@ -308,7 +308,7 @@ structure TrInductDeclSkeletonHeaders (env : VEnv) (lparams : List Name)
   uvars : decl.uvars = lparams.length
   nparams : decl.nparams = nparams
   isUnsafe : decl.isUnsafe = isUnsafe
-  typesAdded : env.addConsts decl.typeConstants = some envTypes
+  typesAdded : env.addConstVals decl.typeConstants = some envTypes
   types : List.Forall₂
     (TrInductiveTypeSkeletonHeaders env envTypes lparams) types decl.types
 
@@ -354,8 +354,8 @@ def TrInductDecl (env : VEnv) (lparams : List Name) (nparams : Nat)
   decl.nparams = nparams ∧
   decl.isUnsafe = isUnsafe ∧
   ∃ envTypes envCtors,
-    env.addConsts decl.typeConstants = some envTypes ∧
-    envTypes.addConsts decl.constructorConstants = some envCtors ∧
+    env.addConstVals decl.typeConstants = some envTypes ∧
+    envTypes.addConstVals decl.constructorConstants = some envCtors ∧
     List.Forall₂ (TrInductiveType env envTypes lparams) types decl.types
 
 /-- Source translation without assuming the aggregate `SourceWF` judgment.
@@ -368,8 +368,8 @@ structure TrInductDeclCore (env : VEnv) (lparams : List Name) (nparams : Nat)
   uvars : decl.uvars = lparams.length
   nparams : decl.nparams = nparams
   isUnsafe : decl.isUnsafe = isUnsafe
-  typesAdded : env.addConsts decl.typeConstants = some envTypes
-  ctorsAdded : envTypes.addConsts decl.constructorConstants = some envCtors
+  typesAdded : env.addConstVals decl.typeConstants = some envTypes
+  ctorsAdded : envTypes.addConstVals decl.constructorConstants = some envCtors
   types : List.Forall₂ (TrInductiveType env envTypes lparams)
     types decl.types
 
@@ -382,7 +382,7 @@ structure TrInductDeclHeaders (env : VEnv) (lparams : List Name)
   uvars : decl.uvars = lparams.length
   nparams : decl.nparams = nparams
   isUnsafe : decl.isUnsafe = isUnsafe
-  typesAdded : env.addConsts decl.typeConstants = some envTypes
+  typesAdded : env.addConstVals decl.typeConstants = some envTypes
   types : List.Forall₂ (TrInductiveTypeHeaders env envTypes lparams)
     types decl.types
 
@@ -392,7 +392,7 @@ constructor environment. -/
 structure TrInductDeclConstructors (envTypes : VEnv) (lparams : List Name)
     (types : List InductiveType) (decl : VInductDecl)
     (envCtors : VEnv) : Prop where
-  ctorsAdded : envTypes.addConsts decl.constructorConstants = some envCtors
+  ctorsAdded : envTypes.addConstVals decl.constructorConstants = some envCtors
   types : List.Forall₂
     (fun source target => List.Forall₂
       (fun ctor ctor' =>
@@ -487,20 +487,20 @@ nonrec theorem AddQuot.le (H : AddQuot m₁ m₂ env₁ env₂) : env₁ ≤ env
 theorem VInductBlock.install_le
     (H : VInductBlock.install env block = some env') : env ≤ env' := by
   unfold VInductBlock.install at H
-  cases htypes : env.addConsts block.types with
+  cases htypes : env.addConstVals block.types with
   | none => simp [htypes] at H
   | some envTypes =>
-    cases hctors : envTypes.addConsts block.ctors with
+    cases hctors : envTypes.addConstVals block.ctors with
     | none => simp [htypes, hctors] at H
     | some envCtors =>
-      cases hrecursors : envCtors.addConsts block.recursors with
+      cases hrecursors : envCtors.addConstVals block.recursors with
       | none => simp [htypes, hctors, hrecursors] at H
       | some envRecursors =>
         simp [htypes, hctors, hrecursors] at H
         subst env'
-        exact (VEnv.addConsts_le htypes).trans <|
-          (VEnv.addConsts_le hctors).trans <|
-            (VEnv.addConsts_le hrecursors).trans VEnv.addDefEqs_le
+        exact (VEnv.addConstVals_le htypes).trans <|
+          (VEnv.addConstVals_le hctors).trans <|
+            (VEnv.addConstVals_le hrecursors).trans VEnv.addDefEqRules_le
 
 variable (safety : DefinitionSafety) in
 inductive Aligned : ConstMap → VEnv → Prop where
@@ -547,6 +547,19 @@ theorem AddInduct.le
   cases H with
   | intro _ _ _ _ hinstall => exact VInductBlock.install_le hinstall
 
+/-- Insert a whole block of definitions into the constant map. -/
+def insertDefs (C : ConstMap) (cis : List DefinitionVal) : ConstMap :=
+  cis.foldl (fun C ci => C.insert ci.name (.defnInfo ci)) C
+
+variable (safety : DefinitionSafety) (env env' : VEnv) in
+/-- Translation data for a mutual block: the headers are translated against the environment
+before the block is added, the values against the environment that already has every constant
+of the block, mirroring the kernel adding them all as axioms first. -/
+def TrDefBlock (cis : List DefinitionVal) (cis' : List VDefVal) : Prop :=
+  List.Forall₂ (fun ci ci' =>
+    TrConstVal safety env (.defnInfo ci) ci'.toVConstVal ∧
+    TrExprS env' ci.levelParams [] ci.value ci'.value) cis cis'
+
 variable (safety : DefinitionSafety) in
 inductive TrEnv' : ConstMap → Bool → VEnv → Prop where
   | empty : TrEnv' {} false .empty
@@ -566,6 +579,17 @@ inductive TrEnv' : ConstMap → Bool → VEnv → Prop where
     env.addConst ci.name ci'.toVConstant = some env' →
     TrEnv' C Q env →
     TrEnv' (C.insert ci.name (.defnInfo ci)) Q (env'.addDefEq ci'.toDefEq)
+  /-- A mutual block, and an unsafe definition as the one-element case. -/
+  | mutualDef {cis : List DefinitionVal} {cis' : List VDefVal} :
+    TrDefBlock safety env env' cis cis' →
+    -- the block's names are distinct; `addMutual` checks this, as does lean4#14632
+    (cis.map (·.name)).Nodup →
+    (∀ ci ∈ cis, C.find? ci.name = none) →
+    (∀ ci' ∈ cis', ci'.toVConstant.WF env) →
+    env.addConsts cis' = some env' →
+    (∀ ci' ∈ cis', ci'.WF env') →
+    TrEnv' C Q env →
+    TrEnv' (insertDefs C cis) Q (env'.addDefEqs cis')
   | thm {ci' : VDefVal} :
     TrDefVal safety env (.thmInfo ci) ci' →
     C.find? ci.name = none → ci'.WF env →
@@ -604,6 +628,9 @@ theorem TrEnv'.wf (H : TrEnv' safety C Q venv) : venv.WF := by
     have ⟨_, H⟩ := ih
     have := h1.1.2; dsimp [ConstantInfo.name, ConstantInfo.toConstantVal] at this
     exact ⟨_, H.decl <| .def h2 (this ▸ h3)⟩
+  | mutualDef _ _ _ h2 h3 h4 _ ih =>
+    have ⟨_, H⟩ := ih
+    exact ⟨_, H.decl <| .mutualDef h2 h3 h4⟩
   | thm h1 _ h2 h3 h4 _ ih =>
     have ⟨_, H⟩ := ih
     have hn := h1.1.2

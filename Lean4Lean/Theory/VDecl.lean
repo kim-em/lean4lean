@@ -35,3 +35,4 @@ inductive VDecl where
   | example (_ : VDefVal)
   | quot
   | induct (_ : VInductDecl)
+  | mutualDef (_ : List VDefVal)

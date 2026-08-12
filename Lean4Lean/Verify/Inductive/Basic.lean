@@ -1225,7 +1225,7 @@ repeatedly unpacking a large existential. -/
 structure FormationCertificate (env : VEnv) (decl : VInductDecl) where
   headers : HeaderCertificate env decl
   envTypes : VEnv
-  typesInstalled : env.addConsts decl.typeConstants = some envTypes
+  typesInstalled : env.addConstVals decl.typeConstants = some envTypes
   constructors : ConstructorCertificate env decl envTypes headers.params
 
 theorem FormationCertificate.formationWF
@@ -1244,7 +1244,7 @@ def FormationCertificate.ofPrefixes
     (Hheaders : HeaderLoopCertificate env lparams decl params stats
       decl.types.length)
     (envTypes : VEnv)
-    (htypes : env.addConsts decl.typeConstants = some envTypes)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes)
     (Hctors : ConstructorPrefixCertificate env decl envTypes params
       decl.ownedConstructors.length) :
     FormationCertificate env decl where
@@ -1611,7 +1611,7 @@ theorem TrInductDeclSkeleton.typeAt
     (H : TrInductDeclSkeleton env lparams nparams types isUnsafe decl)
     (i : Nat) (hsource : i < types.length)
     (htarget : i < decl.types.length) :
-    ∃ envTypes, env.addConsts decl.typeConstants = some envTypes ∧
+    ∃ envTypes, env.addConstVals decl.typeConstants = some envTypes ∧
       TrInductiveTypeSkeleton env envTypes lparams
         types[i] decl.types[i] := by
   rcases H with ⟨_, _, _, _, envTypes, envCtors, htypesAdded,
@@ -1803,52 +1803,52 @@ theorem TrInductDecl.types_length
   rcases H with ⟨_, _, _, _, _, _, _, _, htypes⟩
   exact Lean4Lean.VerifyInductive.List.Forall₂.length_eq' htypes
 
-theorem VEnv.addConsts_append
+theorem VEnv.addConstVals_append
     {env middle out : VEnv} {xs ys : List VConstVal}
-    (hxs : env.addConsts xs = some middle)
-    (hys : middle.addConsts ys = some out) :
-    env.addConsts (xs ++ ys) = some out := by
+    (hxs : env.addConstVals xs = some middle)
+    (hys : middle.addConstVals ys = some out) :
+    env.addConstVals (xs ++ ys) = some out := by
   induction xs generalizing env with
   | nil =>
-    simp [VEnv.addConsts] at hxs
+    simp [VEnv.addConstVals] at hxs
     subst middle
     exact hys
   | cons x xs ih =>
-    simp only [List.cons_append, VEnv.addConsts] at hxs ⊢
+    simp only [List.cons_append, VEnv.addConstVals] at hxs ⊢
     cases hnext : env.addConst x.name x.toVConstant with
     | none => simp [hnext] at hxs
     | some next =>
       rw [hnext] at hxs
       simpa [hnext] using ih (by simpa using hxs)
 
-theorem VEnv.addConsts_append_inv
+theorem VEnv.addConstVals_append_inv
     {env out : VEnv} {xs ys : List VConstVal}
-    (H : env.addConsts (xs ++ ys) = some out) :
-    ∃ middle, env.addConsts xs = some middle ∧
-      middle.addConsts ys = some out := by
+    (H : env.addConstVals (xs ++ ys) = some out) :
+    ∃ middle, env.addConstVals xs = some middle ∧
+      middle.addConstVals ys = some out := by
   induction xs generalizing env with
   | nil =>
-    exact ⟨env, by simp [VEnv.addConsts], by simpa [VEnv.addConsts] using H⟩
+    exact ⟨env, by simp [VEnv.addConstVals], by simpa [VEnv.addConstVals] using H⟩
   | cons x xs ih =>
-    simp only [List.cons_append, VEnv.addConsts] at H
+    simp only [List.cons_append, VEnv.addConstVals] at H
     cases hnext : env.addConst x.name x.toVConstant with
     | none => simp [hnext] at H
     | some next =>
       rw [hnext] at H
       rcases ih H with ⟨middle, hprefix, hsuffix⟩
-      exact ⟨middle, by simp [VEnv.addConsts, hnext, hprefix], hsuffix⟩
+      exact ⟨middle, by simp [VEnv.addConstVals, hnext, hprefix], hsuffix⟩
 
 /-- Successful left-to-right abstract installation implies both freshness in
 the input environment and pairwise distinctness of all installed names. -/
-theorem VEnv.addConsts_names_fresh
+theorem VEnv.addConstVals_names_fresh
     {env out : VEnv} {constants : List VConstVal}
-    (H : env.addConsts constants = some out) :
+    (H : env.addConstVals constants = some out) :
     (constants.map (·.name)).Nodup ∧
       ∀ ci ∈ constants, env.constants ci.name = none := by
   induction constants generalizing env with
   | nil => simp
   | cons ci constants ih =>
-    simp only [VEnv.addConsts] at H
+    simp only [VEnv.addConstVals] at H
     cases hadd : env.addConst ci.name ci.toVConstant with
     | none => simp [hadd] at H
     | some next =>
@@ -1877,23 +1877,23 @@ theorem VEnv.addConsts_names_fresh
         rw [VEnv.addConst_constants_of_ne hadd hne] at habsent
         exact habsent
 
-theorem VEnv.addConsts_names_nodup
+theorem VEnv.addConstVals_names_nodup
     {env out : VEnv} {constants : List VConstVal}
-    (H : env.addConsts constants = some out) :
+    (H : env.addConstVals constants = some out) :
     (constants.map (·.name)).Nodup :=
-  (VEnv.addConsts_names_fresh H).1
+  (VEnv.addConstVals_names_fresh H).1
 
 /-- Two fresh abstract constants with distinct names may be installed in
 either order, producing the same functional environment. -/
-theorem VEnv.addConsts_swap
+theorem VEnv.addConstVals_swap
     {env out : VEnv} {a b : VConstVal}
     (hne : a.name ≠ b.name)
-    (H : env.addConsts [a, b] = some out) :
-    env.addConsts [b, a] = some out := by
-  have hfresh := VEnv.addConsts_names_fresh H |>.2
+    (H : env.addConstVals [a, b] = some out) :
+    env.addConstVals [b, a] = some out := by
+  have hfresh := VEnv.addConstVals_names_fresh H |>.2
   have haFresh := hfresh a (by simp)
   have hbFresh := hfresh b (by simp)
-  simp [VEnv.addConsts, VEnv.addConst, haFresh, hbFresh, hne, hne.symm] at H ⊢
+  simp [VEnv.addConstVals, VEnv.addConst, haFresh, hbFresh, hne, hne.symm] at H ⊢
   rw [← H]
   congr 1
   funext name
@@ -1902,30 +1902,30 @@ theorem VEnv.addConsts_swap
 
 /-- Installing a list of fresh abstract constants is invariant under
 permutation: only the resulting finite map matters, not insertion order. -/
-theorem VEnv.addConsts_perm
+theorem VEnv.addConstVals_perm
     {env out : VEnv} {constants constants' : List VConstVal}
     (Hperm : constants ~ constants')
-    (H : env.addConsts constants = some out) :
-    env.addConsts constants' = some out := by
+    (H : env.addConstVals constants = some out) :
+    env.addConstVals constants' = some out := by
   induction Hperm generalizing env out with
   | nil => exact H
   | @cons ci constants constants' _ ih =>
-    simp only [VEnv.addConsts] at H ⊢
+    simp only [VEnv.addConstVals] at H ⊢
     cases hadd : env.addConst ci.name ci.toVConstant with
     | none => simp [hadd] at H
     | some next =>
       rw [hadd] at H
       simpa using ih H
   | @swap a b constants =>
-    change env.addConsts ([b, a] ++ constants) = some out at H
-    rcases VEnv.addConsts_append_inv H with
+    change env.addConstVals ([b, a] ++ constants) = some out at H
+    rcases VEnv.addConstVals_append_inv H with
       ⟨middle, hprefix, hsuffix⟩
-    have hnodup := VEnv.addConsts_names_nodup hprefix
+    have hnodup := VEnv.addConstVals_names_nodup hprefix
     have hne : b.name ≠ a.name := by
       simpa using hnodup
-    change env.addConsts ([a, b] ++ constants) = some out
-    exact VEnv.addConsts_append
-      (VEnv.addConsts_swap hne hprefix) hsuffix
+    change env.addConstVals ([a, b] ++ constants) = some out
+    exact VEnv.addConstVals_append
+      (VEnv.addConstVals_swap hne hprefix) hsuffix
   | trans _ _ ih₁ ih₂ =>
     exact ih₂ (ih₁ H)
 
@@ -1935,16 +1935,16 @@ theorem VInductBlock.install_of_permutedConstants
     {env out : VEnv} {block : VInductBlock}
     {constants : List VConstVal}
     (Hperm : block.types ++ block.ctors ++ block.recursors ~ constants)
-    (H : env.addConsts constants = some out) :
-    block.install env = some (out.addDefEqs block.rules) := by
-  have hcanonical : env.addConsts
+    (H : env.addConstVals constants = some out) :
+    block.install env = some (out.addDefEqRules block.rules) := by
+  have hcanonical : env.addConstVals
       (block.types ++ block.ctors ++ block.recursors) = some out :=
-    VEnv.addConsts_perm Hperm.symm H
-  rcases VEnv.addConsts_append_inv (xs := block.types)
+    VEnv.addConstVals_perm Hperm.symm H
+  rcases VEnv.addConstVals_append_inv (xs := block.types)
       (ys := block.ctors ++ block.recursors) (by
         simpa only [List.append_assoc] using hcanonical) with
     ⟨envTypes, htypes, htail⟩
-  rcases VEnv.addConsts_append_inv (xs := block.ctors)
+  rcases VEnv.addConstVals_append_inv (xs := block.ctors)
       (ys := block.recursors) htail with
     ⟨envCtors, hctors, hrecursors⟩
   simp [VInductBlock.install, htypes, hctors, hrecursors]
@@ -1958,31 +1958,31 @@ structure RestoredBlockCertificate (env : VEnv)
   constants : List VConstVal
   outVEnv : VEnv
   order : block.types ++ block.ctors ++ block.recursors ~ constants
-  installed : env.addConsts constants = some outVEnv
+  installed : env.addConstVals constants = some outVEnv
   typesWF : ∀ ci ∈ block.types, ci.toVConstant.WF env
   ctorsWF : ∀ envTypes,
-    env.addConsts block.types = some envTypes →
+    env.addConstVals block.types = some envTypes →
     ∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes
   recursorsWF : ∀ envTypes envCtors,
-    env.addConsts block.types = some envTypes →
-    envTypes.addConsts block.ctors = some envCtors →
+    env.addConstVals block.types = some envTypes →
+    envTypes.addConstVals block.ctors = some envCtors →
     ∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors
   rulesWF : ∀ df ∈ block.rules, df.WF outVEnv
 
 theorem RestoredBlockCertificate.canonicalStages
     (H : RestoredBlockCertificate env block) :
     ∃ envTypes envCtors,
-      env.addConsts block.types = some envTypes ∧
-      envTypes.addConsts block.ctors = some envCtors ∧
-      envCtors.addConsts block.recursors = some H.outVEnv := by
-  have hcanonical : env.addConsts
+      env.addConstVals block.types = some envTypes ∧
+      envTypes.addConstVals block.ctors = some envCtors ∧
+      envCtors.addConstVals block.recursors = some H.outVEnv := by
+  have hcanonical : env.addConstVals
       (block.types ++ block.ctors ++ block.recursors) = some H.outVEnv :=
-    VEnv.addConsts_perm H.order.symm H.installed
-  rcases VEnv.addConsts_append_inv (xs := block.types)
+    VEnv.addConstVals_perm H.order.symm H.installed
+  rcases VEnv.addConstVals_append_inv (xs := block.types)
       (ys := block.ctors ++ block.recursors) (by
         simpa only [List.append_assoc] using hcanonical) with
     ⟨envTypes, htypes, htail⟩
-  rcases VEnv.addConsts_append_inv (xs := block.ctors)
+  rcases VEnv.addConstVals_append_inv (xs := block.ctors)
       (ys := block.recursors) htail with
     ⟨envCtors, hctors, hrecursors⟩
   exact ⟨envTypes, envCtors, htypes, hctors, hrecursors⟩
@@ -1999,7 +1999,7 @@ theorem RestoredBlockCertificate.wf
 
 theorem RestoredBlockCertificate.install
     (H : RestoredBlockCertificate env block) :
-    block.install env = some (H.outVEnv.addDefEqs block.rules) :=
+    block.install env = some (H.outVEnv.addDefEqRules block.rules) :=
   VInductBlock.install_of_permutedConstants H.order H.installed
 
 /-- Final abstract inductive-extension assembly specialized to a restored
@@ -2009,35 +2009,35 @@ theorem RestoredBlockCertificate.addInduct
     (H : RestoredBlockCertificate env block)
     (Hdecl : decl.WF env)
     (Hcompile : decl.CompilesTo env block) :
-    VEnv.AddInduct env decl (H.outVEnv.addDefEqs block.rules) :=
+    VEnv.AddInduct env decl (H.outVEnv.addDefEqRules block.rules) :=
   .intro Hdecl Hcompile H.wf H.install
 
-theorem VEnv.addConsts_get
+theorem VEnv.addConstVals_get
     {env out : VEnv} {constants : List VConstVal}
-    (H : env.addConsts constants = some out)
+    (H : env.addConstVals constants = some out)
     (hci : ci ∈ constants) :
     out.constants ci.name = some ci.toVConstant := by
   induction constants generalizing env with
   | nil => simp at hci
   | cons head tail ih =>
-    simp only [VEnv.addConsts] at H
+    simp only [VEnv.addConstVals] at H
     cases hadd : env.addConst head.name head.toVConstant with
     | none => simp [hadd] at H
     | some next =>
       rw [hadd] at H
       rcases List.mem_cons.mp hci with rfl | htail
-      · exact (VEnv.addConsts_le H).constants (VEnv.addConst_self hadd)
+      · exact (VEnv.addConstVals_le H).constants (VEnv.addConst_self hadd)
       · exact ih H htail
 
 theorem TrInductDeclCore.sourceNames_nodup
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors) :
     decl.sourceNames.Nodup := by
-  have hadd : env.addConsts
+  have hadd : env.addConstVals
       (decl.typeConstants ++ decl.constructorConstants) = some envCtors :=
-    VEnv.addConsts_append H.typesAdded H.ctorsAdded
+    VEnv.addConstVals_append H.typesAdded H.ctorsAdded
   simpa [VInductDecl.sourceNames, List.map_append] using
-    VEnv.addConsts_names_nodup hadd
+    VEnv.addConstVals_names_nodup hadd
 
 /-- The two executable checking phases jointly recover the pointwise core
 translation, without assuming aggregate source well-formedness. -/
@@ -2078,7 +2078,7 @@ theorem TrInductDeclCore.ofPhases
 /-- Pointwise original-source translations already contain all typing and
 universe facts required by `SourceWF`. Thus the aggregate source judgment
 adds only nonemptiness and global name uniqueness. Nonemptiness comes from
-the lowering entry point; uniqueness follows from the staged `addConsts`
+the lowering entry point; uniqueness follows from the staged `addConstVals`
 equalities retained by the core translation. -/
 theorem TrInductDeclCore.sourceWF
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
@@ -2171,7 +2171,7 @@ theorem TrInductDecl.typeAt
     (H : TrInductDecl env lparams nparams types isUnsafe decl)
     (i : Nat) (hsource : i < types.length)
     (htarget : i < decl.types.length) :
-    ∃ envTypes, env.addConsts decl.typeConstants = some envTypes ∧
+    ∃ envTypes, env.addConstVals decl.typeConstants = some envTypes ∧
       TrInductiveType env envTypes lparams types[i] decl.types[i] := by
   rcases H with ⟨_, _, _, _, envTypes, envCtors, htypesAdded,
     hctorsAdded, htypes⟩
@@ -2370,7 +2370,7 @@ theorem TrInductiveType.ownedConstructors
 theorem TrInductDecl.ownedConstructors
     (H : TrInductDecl env lparams nparams types isUnsafe decl) :
     ∃ envTypes,
-      env.addConsts decl.typeConstants = some envTypes ∧
+      env.addConstVals decl.typeConstants = some envTypes ∧
       List.Forall₂ (TrOwnedConstructor env envTypes lparams)
         (Lean4Lean.VerifyInductive.ownedConstructors types)
         decl.ownedConstructors := by
@@ -2432,7 +2432,7 @@ theorem TrInductDecl.ownedConstructorAt
     (i : Nat)
     (hsource : i < (Lean4Lean.VerifyInductive.ownedConstructors types).length)
     (htarget : i < decl.ownedConstructors.length) :
-    ∃ envTypes, env.addConsts decl.typeConstants = some envTypes ∧
+    ∃ envTypes, env.addConstVals decl.typeConstants = some envTypes ∧
       TrOwnedConstructor env envTypes lparams
         (Lean4Lean.VerifyInductive.ownedConstructors types)[i]
         decl.ownedConstructors[i] := by
@@ -2636,8 +2636,8 @@ structure OrdinaryCompilationCertificate (env : VEnv)
   ctors : block.ctors = decl.constructorConstants
   recursors : RecursorCertificate decl block.recursors
   rules : ∃ envTypes envCtors,
-    env.addConsts block.types = some envTypes ∧
-    envTypes.addConsts block.ctors = some envCtors ∧
+    env.addConstVals block.types = some envTypes ∧
+    envTypes.addConstVals block.ctors = some envCtors ∧
     IotaCertificate envCtors decl block
   names : List.Nodup
     ((block.types ++ block.ctors ++ block.recursors).map (·.name))
@@ -2700,8 +2700,8 @@ structure NestedCompilationCertificate (env : VEnv)
   ctors : block.ctors = decl.constructorConstants
   envTypes : VEnv
   envCtors : VEnv
-  types_added : env.addConsts block.types = some envTypes
-  ctors_added : envTypes.addConsts block.ctors = some envCtors
+  types_added : env.addConstVals block.types = some envTypes
+  ctors_added : envTypes.addConstVals block.ctors = some envCtors
   primaryRecursors : List VConstVal
   auxiliaryRecursors : List VConstVal
   recursors_eq : block.recursors = primaryRecursors ++ auxiliaryRecursors
@@ -2770,7 +2770,7 @@ theorem RestoredBlockCertificate.addInductOfNestedCompilation
       sourceEnvTypes sourceEnvCtors)
     (hnonempty : sourceTypes ≠ [])
     (Hcompile : NestedCompilationCertificate env decl block) :
-    VEnv.AddInduct env decl (H.outVEnv.addDefEqs block.rules) := by
+    VEnv.AddInduct env decl (H.outVEnv.addDefEqRules block.rules) := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       Hsource
@@ -2840,8 +2840,8 @@ def NestedCompilationCertificate.ofRestoration
       auxiliaryRecursors auxiliaryRules)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
-    (htypesAdded : env.addConsts block.types = some envTypes)
-    (hctorsAdded : envTypes.addConsts block.ctors = some envCtors)
+    (htypesAdded : env.addConstVals block.types = some envTypes)
+    (hctorsAdded : envTypes.addConstVals block.ctors = some envCtors)
     (hrecursors : block.recursors =
       primaryRecursors ++ auxiliaryRecursors)
     (hrules : block.rules = primaryRules ++ auxiliaryRules)
@@ -9419,7 +9419,7 @@ theorem stepPrefix.refinesSkeleton
       TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
         indTypes[dIdx].type checkedType type' checkedType' →
       ∀ envTypes,
-        Hc.venv.addConsts skeleton.typeConstants = some envTypes →
+        Hc.venv.addConstVals skeleton.typeConstants = some envTypes →
         ∀ target,
         skeleton.types[dIdx]? = some target →
         TrSourceConst Hc.venv c.lparams indTypes[dIdx].name
@@ -10252,7 +10252,7 @@ theorem stepPrefix.refinesTrInduct
       TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
         indTypes[dIdx].type checkedType type' checkedType' →
       ∀ envTypes,
-        Hc.venv.addConsts decl.typeConstants = some envTypes →
+        Hc.venv.addConstVals decl.typeConstants = some envTypes →
         ∀ target,
         decl.types[dIdx]? = some target →
         TrInductiveType Hc.venv envTypes c.lparams
@@ -10646,7 +10646,7 @@ theorem safeField.sourceWF
       Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
         fieldType' (.sort fieldLevel') →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       Pos →
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
@@ -10671,7 +10671,7 @@ theorem safeField.sourceWF
     hfieldLevel, hfieldHasType⟩
   change ((do
     unless stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel! do
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel! do
       throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
         is too big for the corresponding inductive datatype"
     if !false then
@@ -10681,7 +10681,7 @@ theorem safeField.sourceWF
         (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
   by_cases hbound :
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
     refine Hpos.bind fun _ hpos => ?_
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
@@ -10713,7 +10713,7 @@ theorem unsafeField.sourceWF
       Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
         fieldType' (.sort fieldLevel') →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
           (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
@@ -10737,7 +10737,7 @@ theorem unsafeField.sourceWF
     hfieldLevel, hfieldHasType⟩
   change ((do
     unless stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel! do
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel! do
       throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
         is too big for the corresponding inductive datatype"
     if !true then
@@ -10747,7 +10747,7 @@ theorem unsafeField.sourceWF
         (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
   by_cases hbound :
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
     refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
@@ -11476,7 +11476,7 @@ structure CheckedFormationResult (env : VEnv) (Us : List Name) (Δ : VLCtx)
 def HeaderTraversalResult.withConstructors
     (H : HeaderTraversalResult env Us Δ decl stats depth)
     (envTypes : VEnv)
-    (htypes : env.addConsts decl.typeConstants = some envTypes)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes)
     (Hctors : ConstructorPrefixCertificate env decl envTypes
       H.headers.params decl.ownedConstructors.length) :
     CheckedFormationResult env Us Δ decl stats depth where
@@ -11490,7 +11490,7 @@ def HeaderTraversalResult.withConstructors
 def HeaderTraversalResult.withConstructorTypes
     (H : HeaderTraversalResult env Us Δ decl stats depth)
     (envTypes : VEnv)
-    (htypes : env.addConsts decl.typeConstants = some envTypes)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes)
     (Hctors : ConstructorTypesPrefix envTypes decl H.headers.params
       decl.types.length) :
     CheckedFormationResult env Us Δ decl stats depth where
@@ -12971,7 +12971,7 @@ theorem safeField.refines
     (Hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
     (Hrec : ∀ fieldType' fieldLevel fieldLevel',
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
@@ -12979,7 +12979,7 @@ theorem safeField.refines
       Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
         fieldType' (.sort fieldLevel') →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.Positive Hc.venv ctorCtx depth sourceDom' →
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
@@ -13037,7 +13037,7 @@ theorem unsafeField.refines
     (Hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
     (Hrec : ∀ fieldType' fieldLevel fieldLevel',
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
@@ -13045,7 +13045,7 @@ theorem unsafeField.refines
       Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
         fieldType' (.sort fieldLevel') →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
           (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
@@ -13111,7 +13111,7 @@ theorem tailRefines
     (hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
     (hpositivity : ∀ {c : AddInductive.Context} {depth posIdx : Nat}
       {type : Expr} {type' : VExpr} (Hc : ContextWF c),
@@ -15436,7 +15436,7 @@ theorem checkConstructors.loopCtor.tailRefinesFull
     (hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type') :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
@@ -15899,7 +15899,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
     (hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
     (htrNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htrFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
@@ -16103,7 +16103,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefines
     (hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
     (hctor : Hc.venv.IsDefEq decl.uvars [] ctorVal.type normalized exprType)
     (htake : normalized.takeForalls decl.nparams = some (ownParams, tail))
@@ -16157,7 +16157,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesNarrow
     (hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
     (hctor : Hc.venv.IsDefEq decl.uvars [] ctorVal.type normalized exprType)
     (htake : normalized.takeForalls decl.nparams = some (ownParams, tail))
@@ -16225,7 +16225,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
     (hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
     (hparams : decl.ParamsDefEq Hc.venv params Hsynthesis.params)
     (htrNarrow : TrExprS Hc.venv c.lparams scope source current)
@@ -16298,7 +16298,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
     (hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source 0 fuel c).WF
@@ -16885,7 +16885,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
     (Htypes : List.Forall₂
       (TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams)
       indTypes.toList decl.types)
-    (htypesAdded : sourceEnv.addConsts decl.typeConstants = some Hc.venv)
+    (htypesAdded : sourceEnv.addConstVals decl.typeConstants = some Hc.venv)
     (Hmaterialized :
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
@@ -16904,7 +16904,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0 c).WF
@@ -16942,11 +16942,11 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       exact Htarget.header.uvars.trans Hstats.uvars
     have htargetLookup : Hc.venv.constants decl.types[targetIdx].name =
         some decl.types[targetIdx].toVConstant := by
-      apply VEnv.addConsts_get htypesAdded
+      apply VEnv.addConstVals_get htypesAdded
       exact List.mem_map.mpr
         ⟨decl.types[targetIdx], List.getElem_mem htarget, rfl⟩
     have htargetWF : decl.types[targetIdx].toVConstant.WF Hc.venv :=
-      Htarget.header.wf.mono (VEnv.addConsts_le htypesAdded)
+      Htarget.header.wf.mono (VEnv.addConstVals_le htypesAdded)
     have htargetShape : decl.TypeShape Hc.venv params
         decl.types[targetIdx] := by
       rw [← hparams]
@@ -38522,7 +38522,7 @@ theorem AddConstants.deltaConservative
 
 theorem aligned_addDefEqs
     (H : Aligned safety C venv) (rules : List VDefEq) :
-    Aligned safety C (venv.addDefEqs rules) := by
+    Aligned safety C (venv.addDefEqRules rules) := by
   induction rules generalizing venv with
   | nil => exact H
   | cons rule rules ih =>
@@ -38530,7 +38530,7 @@ theorem aligned_addDefEqs
 
 theorem hasPrimitives_addDefEqs
     {venv : VEnv} (H : venv.HasPrimitives) (rules : List VDefEq) :
-    (venv.addDefEqs rules).HasPrimitives := by
+    (venv.addDefEqRules rules).HasPrimitives := by
   induction rules generalizing venv with
   | nil => exact H
   | cons rule rules ih => exact ih H.addDefEq
@@ -38560,7 +38560,7 @@ theorem AddConstants.ofDeclareInductiveTypeInfos
           ci'.toVConstant.WF sourceEnv)
       infos values)
     (hle : sourceEnv ≤ venv)
-    (hadd : venv.addConsts values = some outVEnv)
+    (hadd : venv.addConstVals values = some outVEnv)
     (hnprim : ∀ info ∈ infos,
       ¬ Kernel.Environment.primitives.contains info.name) :
     (AddInductive.declareInductiveTypeInfos allowPrimitive infos env).WF
@@ -38570,16 +38570,16 @@ theorem AddConstants.ofDeclareInductiveTypeInfos
           outEnv outVEnv := by
   induction Hentries generalizing env venv with
   | nil =>
-    simp [AddInductive.declareInductiveTypeInfos, VEnv.addConsts] at hadd ⊢
+    simp [AddInductive.declareInductiveTypeInfos, VEnv.addConstVals] at hadd ⊢
     subst outVEnv
     exact Except.WF.pure .nil
   | @cons info ci' infos values Hentry _ ih =>
     have hname : info.name = ci'.name := Hentry.1.2
     cases hnext : venv.addConst ci'.name ci'.toVConstant with
-    | none => simp [VEnv.addConsts, hnext] at hadd
+    | none => simp [VEnv.addConstVals, hnext] at hadd
     | some nextVEnv =>
-      have hrest : nextVEnv.addConsts values = some outVEnv := by
-        simpa [VEnv.addConsts, hnext] using hadd
+      have hrest : nextVEnv.addConstVals values = some outVEnv := by
+        simpa [VEnv.addConstVals, hnext] using hadd
       have hnprimHead := hnprim info (by simp)
       have hnprimTail : ∀ info ∈ infos,
           ¬ Kernel.Environment.primitives.contains info.name := by
@@ -38897,11 +38897,11 @@ theorem AddConstants.production
 
 theorem AddConstants.abstract
     (H : AddConstants safety env venv entries outEnv outVEnv) :
-    venv.addConsts (entries.map Prod.snd) = some outVEnv := by
+    venv.addConstVals (entries.map Prod.snd) = some outVEnv := by
   induction H with
-  | nil => simp [VEnv.addConsts]
+  | nil => simp [VEnv.addConstVals]
   | cons _ _ htr _ hadd _ _ ih =>
-    rw [List.map_cons, VEnv.addConsts, ← htr.2, hadd]
+    rw [List.map_cons, VEnv.addConstVals, ← htr.2, hadd]
     exact ih
 
 theorem AddConstants.existsEntryOfValue
@@ -38952,7 +38952,7 @@ theorem InductiveHeaderEntries.findInfo
 theorem AddConstants.le
     (H : AddConstants safety env venv entries outEnv outVEnv) :
     venv ≤ outVEnv :=
-  VEnv.addConsts_le H.abstract
+  VEnv.addConstVals_le H.abstract
 
 /-- Refinement of the explicit production recursor loop, parameterized only
 by translation of each generated recursor telescope. Everything else—rule
@@ -39606,7 +39606,7 @@ structure DeclaredTypesResult (c : AddInductive.Context)
   entries : List (ConstantInfo × VConstVal)
   context : ContextWF { c with env := outEnv }
   headers : HeaderCertificate sourceEnv decl
-  typesInstalled : sourceEnv.addConsts decl.typeConstants = some context.venv
+  typesInstalled : sourceEnv.addConstVals decl.typeConstants = some context.venv
   sourceTypes : List.Forall₂
     (TrInductiveType sourceEnv context.venv c.lparams)
     indTypes.toList decl.types
@@ -39647,7 +39647,7 @@ theorem AddInductive.checkConstructors.checkedWF
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
@@ -39730,7 +39730,7 @@ theorem AddInductive.checkConstructors.headersWF
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
@@ -39801,7 +39801,7 @@ theorem AddInductive.declareConstructors.WF
     rcases Hout with
       ⟨venvCtors, entries, hvalues, Hinstalled, Haligned, hproduction,
         hnind⟩
-    have hctorsAdded : H.context.venv.addConsts decl.constructorConstants =
+    have hctorsAdded : H.context.venv.addConstVals decl.constructorConstants =
         some venvCtors := by
       simp only [VInductDecl.constructorConstants]
       rw [← hvalues]
@@ -40004,7 +40004,7 @@ theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
       change R.declared.context.venv.constants ctorVal.name =
         some ctorVal.toVConstant
       rw [R.declared.contextVEnv]
-      apply VEnv.addConsts_get R.declared.translation.ctorsAdded
+      apply VEnv.addConstVals_get R.declared.translation.ctorsAdded
       exact hctorConstantMem
     simpa [Rbase] using hlookup
   let levels := recursorDeclarationAbstractLevels c.lparams Helim
@@ -40184,7 +40184,7 @@ def ConstructorPhasesResult.checkedRecursorHeaderAt
   · have hheaderLookup : H.context.venv.constants
         decl.types[familyIdx].name =
         some decl.types[familyIdx].toVConstant := by
-      apply VEnv.addConsts_get H.installed.abstract
+      apply VEnv.addConstVals_get H.installed.abstract
       rw [H.values]
       exact List.mem_map.mpr
         ⟨decl.types[familyIdx], List.getElem_mem htarget, rfl⟩
@@ -40478,7 +40478,7 @@ theorem AddInductive.constructorPhases.WF
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hvisible : c.safety ≤
@@ -40550,7 +40550,7 @@ theorem AddInductive.formationCore.headersWF
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
@@ -40605,7 +40605,7 @@ theorem AddInductive.formationPrefix.headersWF
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
@@ -40703,7 +40703,7 @@ theorem AddInductive.checkConstructors.WF
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
@@ -40760,7 +40760,7 @@ theorem AddInductive.formationPrefix.WF
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
@@ -40824,10 +40824,10 @@ def StagedBlock.reindex
   let Hrecursors : AddConstants checkSafety Hlarger.envCtors H.venvCtors
       recursors outEnv outBase := henvCtors ▸ H.recursorsAdded
   have htypes : H.venvTypes ≤ Hlarger.venvTypes :=
-    VEnv.addConsts_mono hbase H.typesAdded.abstract
+    VEnv.addConstVals_mono hbase H.typesAdded.abstract
       Hlarger.typesAdded.abstract
   have hctors : H.venvCtors ≤ Hlarger.venvCtors :=
-    VEnv.addConsts_mono htypes H.ctorsAdded.abstract
+    VEnv.addConstVals_mono htypes H.ctorsAdded.abstract
       Hlarger.ctorsAdded.abstract
   exact {
     envTypes := Hlarger.envTypes
@@ -40865,17 +40865,17 @@ theorem StagedBlock.valid
 
 theorem StagedBlock.abstract_types
     (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv) :
-    venv.addConsts (types.map Prod.snd) = some H.venvTypes :=
+    venv.addConstVals (types.map Prod.snd) = some H.venvTypes :=
   H.typesAdded.abstract
 
 theorem StagedBlock.abstract_ctors
     (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv) :
-    H.venvTypes.addConsts (ctors.map Prod.snd) = some H.venvCtors :=
+    H.venvTypes.addConstVals (ctors.map Prod.snd) = some H.venvCtors :=
   H.ctorsAdded.abstract
 
 theorem StagedBlock.abstract_recursors
     (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv) :
-    H.venvCtors.addConsts (recursors.map Prod.snd) = some outVEnv :=
+    H.venvCtors.addConstVals (recursors.map Prod.snd) = some outVEnv :=
   H.recursorsAdded.abstract
 
 theorem StagedBlock.aligned
@@ -40963,13 +40963,13 @@ def BlockCertificate.reindex
     BlockCertificate safety prodEnv largerBase types ctors recursors
       rules outEnv largerOut := by
   have htypes : H.staged.venvTypes ≤ Hlarger.staged.venvTypes :=
-    VEnv.addConsts_mono hbase H.staged.typesAdded.abstract
+    VEnv.addConstVals_mono hbase H.staged.typesAdded.abstract
       Hlarger.staged.typesAdded.abstract
   have hctors : H.staged.venvCtors ≤ Hlarger.staged.venvCtors :=
-    VEnv.addConsts_mono htypes H.staged.ctorsAdded.abstract
+    VEnv.addConstVals_mono htypes H.staged.ctorsAdded.abstract
       Hlarger.staged.ctorsAdded.abstract
   have hout : outBase ≤ largerOut :=
-    VEnv.addConsts_mono hctors H.staged.recursorsAdded.abstract
+    VEnv.addConstVals_mono hctors H.staged.recursorsAdded.abstract
       Hlarger.staged.recursorsAdded.abstract
   exact {
     staged := H.staged.reindex Hlarger.staged hsafety hbase
@@ -41031,7 +41031,7 @@ certificate; reduction rules are installed only after every recursor. -/
 theorem BlockCertificate.install
     (H : BlockCertificate safety env venv types ctors recursors
       rules outEnv outVEnv) :
-    H.block.install venv = some (outVEnv.addDefEqs rules) := by
+    H.block.install venv = some (outVEnv.addDefEqRules rules) := by
   simp [BlockCertificate.block, VInductBlock.install,
     H.staged.abstract_types, H.staged.abstract_ctors,
     H.staged.abstract_recursors]
@@ -41041,21 +41041,21 @@ theorem BlockCertificate.names
       rules outEnv outVEnv) :
     List.Nodup
       ((H.block.types ++ H.block.ctors ++ H.block.recursors).map (·.name)) := by
-  have hall : venv.addConsts
+  have hall : venv.addConstVals
       (types.map Prod.snd ++ ctors.map Prod.snd ++ recursors.map Prod.snd) =
       some outVEnv :=
-    VEnv.addConsts_append
-      (VEnv.addConsts_append H.staged.abstract_types
+    VEnv.addConstVals_append
+      (VEnv.addConstVals_append H.staged.abstract_types
         H.staged.abstract_ctors)
       H.staged.abstract_recursors
   simpa [BlockCertificate.block, List.map_append] using
-    VEnv.addConsts_names_nodup hall
+    VEnv.addConstVals_names_nodup hall
 
 theorem BlockCertificate.hasPrimitives
     (H : BlockCertificate safety env venv types ctors recursors
       rules outEnv outVEnv)
     (Hprimitives : venv.HasPrimitives) :
-    (outVEnv.addDefEqs rules).HasPrimitives :=
+    (outVEnv.addDefEqRules rules).HasPrimitives :=
   hasPrimitives_addDefEqs (H.staged.recursorsAdded.hasPrimitives
     (H.staged.ctorsAdded.hasPrimitives
       (H.staged.typesAdded.hasPrimitives Hprimitives))) rules
@@ -41110,15 +41110,15 @@ theorem BlockCertificate.rebase
     ∃ largerOut,
       H.block.WF largerBase ∧
       H.block.install largerBase = some largerOut ∧
-      outBase.addDefEqs rules ≤ largerOut := by
+      outBase.addDefEqRules rules ≤ largerOut := by
   rcases H.rebaseCertificate Hvalid hsafety hbase with
     ⟨largerOutBase, ⟨Hlarger⟩, houtBase⟩
-  exact ⟨largerOutBase.addDefEqs rules, Hlarger.wf, Hlarger.install,
-    VEnv.addDefEqs_mono houtBase⟩
+  exact ⟨largerOutBase.addDefEqRules rules, Hlarger.wf, Hlarger.install,
+    VEnv.addDefEqRules_mono houtBase⟩
 
 /-- Re-establish source and formation well-formedness in a larger safety
 model using the freshly replayed block installation.  Freshness-sensitive
-`addConsts` facts come from `Hblock`; all semantic typing and positivity facts
+`addConstVals` facts come from `Hblock`; all semantic typing and positivity facts
 are transported monotonically from the original declaration judgment. -/
 theorem VInductDecl.WF.rebaseOfBlock
     {decl : VInductDecl} {block : VInductBlock}
@@ -41134,17 +41134,17 @@ theorem VInductDecl.WF.rebaseOfBlock
       hlargerCtors, hlargerRecursors, _htypesWF, _hctorsWF, _hrecsWF,
       _hrulesWF⟩
   have hlargerTypes' :
-      largerBase.addConsts decl.typeConstants = some largerTypes := by
+      largerBase.addConstVals decl.typeConstants = some largerTypes := by
     simpa [htypes] using hlargerTypes
   have hlargerCtors' :
-      largerTypes.addConsts decl.constructorConstants = some largerCtors := by
+      largerTypes.addConstVals decl.constructorConstants = some largerCtors := by
     simpa [hctors] using hlargerCtors
   rcases H.1 with
     ⟨hnonempty, hnames, htypeUvars, hctorUvars, sourceTypes,
       sourceCtors, hsourceTypes, hsourceCtors, hsourceTypesWF,
       hsourceCtorsWF⟩
   have hsourceTypesLE : sourceTypes ≤ largerTypes :=
-    VEnv.addConsts_mono hbase hsourceTypes hlargerTypes'
+    VEnv.addConstVals_mono hbase hsourceTypes hlargerTypes'
   have Hsource : decl.SourceWF largerBase :=
     ⟨hnonempty, hnames, htypeUvars, hctorUvars, largerTypes, largerCtors,
       hlargerTypes', hlargerCtors',
@@ -41154,7 +41154,7 @@ theorem VInductDecl.WF.rebaseOfBlock
     ⟨params, resultLevel, formationTypes, hformationTypes, htypeShapes,
       hctorShapes⟩
   have hformationTypesLE : formationTypes ≤ largerTypes :=
-    VEnv.addConsts_mono hbase hformationTypes hlargerTypes'
+    VEnv.addConstVals_mono hbase hformationTypes hlargerTypes'
   have Hformation : decl.FormationWF largerBase :=
     ⟨params, resultLevel, largerTypes, hlargerTypes',
       fun type htype =>
@@ -41179,8 +41179,8 @@ theorem BlockCertificate.rebaseAddInduct
     ∃ largerOutBase,
       Nonempty (BlockCertificate safety prodEnv largerBase types ctors
         recursors rules outEnv largerOutBase) ∧
-      VEnv.AddInduct largerBase decl (largerOutBase.addDefEqs rules) ∧
-      outBase.addDefEqs rules ≤ largerOutBase.addDefEqs rules := by
+      VEnv.AddInduct largerBase decl (largerOutBase.addDefEqRules rules) ∧
+      outBase.addDefEqRules rules ≤ largerOutBase.addDefEqRules rules := by
   rcases H.rebaseCertificate Hvalid hsafety hbase with
     ⟨largerOutBase, ⟨Hlarger⟩, houtBase⟩
   have hdeclLarger : decl.WF largerBase :=
@@ -41190,7 +41190,7 @@ theorem BlockCertificate.rebaseAddInduct
     hcompile.mono hbase Hlarger.wf
   exact ⟨largerOutBase, ⟨Hlarger⟩,
     .intro hdeclLarger hcompileLarger Hlarger.wf Hlarger.install,
-    VEnv.addDefEqs_mono houtBase⟩
+    VEnv.addDefEqRules_mono houtBase⟩
 
 /-- Lift one unsafe block installation to the three safety-indexed abstract
 environments.  Partial and safe translation traces normally come from
@@ -41202,7 +41202,7 @@ theorem BlockCertificate.extendUnsafe
       recursors rules outEnv outVEnv)
     (wf : ves.WF prodEnv)
     (htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
-      (outVEnv.addDefEqs rules))
+      (outVEnv.addDefEqRules rules))
     (htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
       (ves.venv .partial))
     (htrSafe : TrEnv' .safe outEnv.constants outEnv.quotInit
@@ -41212,7 +41212,7 @@ theorem BlockCertificate.extendUnsafe
       ci.safety = .safe ∧ ci.levelParams = []) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  apply Lean4Lean.VEnvs.WF.extendUnsafe wf (outVEnv.addDefEqs rules)
+  apply Lean4Lean.VEnvs.WF.extendUnsafe wf (outVEnv.addDefEqRules rules)
     htrUnsafe htrPartial htrSafe
   · exact H.hasPrimitives wf.hasPrimitives
   · exact hsafePrimitives
@@ -41226,7 +41226,7 @@ theorem BlockCertificate.addInductAbstract
       rules outEnv outVEnv)
     (Hdecl : decl.WF venv)
     (Hcompile : decl.CompilesTo venv H.block) :
-    VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) :=
+    VEnv.AddInduct venv decl (outVEnv.addDefEqRules rules) :=
   .intro Hdecl Hcompile H.wf H.install
 
 theorem BlockCertificate.addInductOfFormation
@@ -41235,7 +41235,7 @@ theorem BlockCertificate.addInductOfFormation
     (Hformation : FormationCertificate venv decl)
     (Hsource : decl.SourceWF venv)
     (Hcompile : decl.CompilesTo venv H.block) :
-    VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) :=
+    VEnv.AddInduct venv decl (outVEnv.addDefEqRules rules) :=
   H.addInductAbstract (Hformation.declWF Hsource) Hcompile
 
 /-- Ordinary compilation, source formation, and staged source translation
@@ -41248,7 +41248,7 @@ theorem BlockCertificate.addInductOfOrdinaryCompilation
       sourceEnvTypes sourceEnvCtors)
     (hnonempty : sourceTypes ≠ [])
     (Hcompile : OrdinaryCompilationCertificate venv decl H.block) :
-    VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) := by
+    VEnv.AddInduct venv decl (outVEnv.addDefEqRules rules) := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       Hsource
@@ -41267,7 +41267,7 @@ theorem BlockCertificate.addInductOfNestedCompilation
       sourceEnvTypes sourceEnvCtors)
     (hnonempty : sourceTypes ≠ [])
     (Hcompile : NestedCompilationCertificate venv decl H.block) :
-    VEnv.AddInduct venv decl (outVEnv.addDefEqs rules) := by
+    VEnv.AddInduct venv decl (outVEnv.addDefEqRules rules) := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       Hsource
@@ -41287,9 +41287,9 @@ theorem BlockCertificate.addInduct
     (hcompile : decl.CompilesTo venv H.block)
     (hsourceAligned : Aligned checkSafety prodEnv.constants venv)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
     AddInduct checkSafety prodEnv.constants venv decl outEnv.constants
-      (outVEnv.addDefEqs rules) := by
+      (outVEnv.addDefEqRules rules) := by
   apply AddInduct.intro H.block hdecl hcompile H.wf H.install
   · intro Haligned
     exact aligned_addDefEqs (H.staged.aligned Haligned) rules
@@ -41305,9 +41305,9 @@ theorem BlockCertificate.addInductSafe
     (hcompile : decl.CompilesTo venv H.block)
     (hsourceAligned : Aligned .safe prodEnv.constants venv)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
     AddInduct .safe prodEnv.constants venv decl outEnv.constants
-      (outVEnv.addDefEqs rules) := by
+      (outVEnv.addDefEqRules rules) := by
   exact H.addInduct hdecl hcompile hsourceAligned heq
 
 /-- Replay a safe certified block into any safety-indexed source model and
@@ -41321,13 +41321,13 @@ theorem BlockCertificate.rebaseAddInductSafe
     (hcompile : decl.CompilesTo base H.block)
     (heq : ∀ info,
       outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outBase.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outBase.addDefEqRules rules).constants ``Eq = some eqConst) :
     ∃ largerOutBase,
       Nonempty (BlockCertificate targetSafety prodEnv largerBase types ctors
         recursors rules outEnv largerOutBase) ∧
       AddInduct targetSafety prodEnv.constants largerBase decl outEnv.constants
-        (largerOutBase.addDefEqs rules) ∧
-      outBase.addDefEqs rules ≤ largerOutBase.addDefEqs rules := by
+        (largerOutBase.addDefEqRules rules) ∧
+      outBase.addDefEqRules rules ≤ largerOutBase.addDefEqRules rules := by
   rcases H.rebaseCertificate Hvalid DefinitionSafety.le_safe hbase with
     ⟨largerOutBase, ⟨Hlarger⟩, houtBase⟩
   have hdeclLarger : decl.WF largerBase :=
@@ -41336,12 +41336,12 @@ theorem BlockCertificate.rebaseAddInductSafe
   have hcompileLarger : decl.CompilesTo largerBase Hlarger.block :=
     hcompile.mono hbase Hlarger.wf
   have hadd : AddInduct targetSafety prodEnv.constants largerBase decl outEnv.constants
-      (largerOutBase.addDefEqs rules) := by
+      (largerOutBase.addDefEqRules rules) := by
     exact Hlarger.addInduct hdeclLarger hcompileLarger Hvalid.tr.aligned
       (fun info hfind =>
-        (VEnv.addDefEqs_mono houtBase).constants (heq info hfind))
+        (VEnv.addDefEqRules_mono houtBase).constants (heq info hfind))
   exact ⟨largerOutBase, ⟨Hlarger⟩, hadd,
-    VEnv.addDefEqs_mono houtBase⟩
+    VEnv.addDefEqRules_mono houtBase⟩
 
 /-- A safe executable block extends all three abstract safety models.  Each
 model is replayed independently, while monotonicity of the resulting family
@@ -41355,7 +41355,7 @@ theorem BlockCertificate.extendSafe
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (heq : ∀ info,
       outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outBase.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outBase.addDefEqRules rules).constants ``Eq = some eqConst) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   have valid (safety : DefinitionSafety) :
@@ -41375,7 +41375,7 @@ theorem BlockCertificate.extendSafe
     | .unsafe => unsafeBase
     | .partial => partialBase
     | .safe => safeBase
-  let next (safety : DefinitionSafety) := (pre safety).addDefEqs rules
+  let next (safety : DefinitionSafety) := (pre safety).addDefEqRules rules
   let cert : ∀ safety,
       BlockCertificate safety prodEnv (ves.venv safety) types ctors
         recursors rules outEnv (pre safety)
@@ -41408,9 +41408,9 @@ theorem BlockCertificate.trEnv'
     (hcompile : decl.CompilesTo venv H.block)
     (hsource : TrEnv' checkSafety prodEnv.constants quotInit venv)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
     TrEnv' checkSafety outEnv.constants quotInit
-      (outVEnv.addDefEqs rules) :=
+      (outVEnv.addDefEqRules rules) :=
   .induct hdecl
     (H.addInduct hdecl hcompile hsource.aligned heq) hsource
 
@@ -41422,9 +41422,9 @@ theorem BlockCertificate.trEnvSafe
     (hcompile : decl.CompilesTo venv H.block)
     (hsource : TrEnv' .safe prodEnv.constants quotInit venv)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
     TrEnv' .safe outEnv.constants quotInit
-      (outVEnv.addDefEqs rules) :=
+      (outVEnv.addDefEqRules rules) :=
   .induct hdecl
     (H.addInductSafe hdecl hcompile hsource.aligned heq) hsource
 
@@ -41440,7 +41440,7 @@ theorem BlockCertificate.extendUnsafeOfHidden
     (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
       entry.1.safety = .unsafe)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   have validUnsafe : CheckingEnv.Valid .unsafe prodEnv
@@ -41458,7 +41458,7 @@ theorem BlockCertificate.extendUnsafeOfHidden
     rw [hunsafe entry hentry]
     decide
   have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
-      (outVEnv.addDefEqs rules) := by
+      (outVEnv.addDefEqRules rules) := by
     rw [H.staged.quotInit_eq]
     exact H.trEnv' hdecl hcompile (wf.tr (safety := .unsafe)) heq
   have htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
@@ -41496,9 +41496,9 @@ theorem BlockCertificate.trEnvOfOrdinaryCompilation
     (Hcompile : OrdinaryCompilationCertificate venv decl H.block)
     (htr : TrEnv' checkSafety prodEnv.constants quotInit venv)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
     TrEnv' checkSafety outEnv.constants quotInit
-      (outVEnv.addDefEqs rules) := by
+      (outVEnv.addDefEqRules rules) := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       Hsource
@@ -41516,9 +41516,9 @@ theorem BlockCertificate.trEnvOfNestedCompilation
     (Hcompile : NestedCompilationCertificate venv decl H.block)
     (htr : TrEnv' checkSafety prodEnv.constants quotInit venv)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
     TrEnv' checkSafety outEnv.constants quotInit
-      (outVEnv.addDefEqs rules) := by
+      (outVEnv.addDefEqRules rules) := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNestedCompilation
       Hsource hnonempty Hcompile
@@ -46834,11 +46834,11 @@ inductive TranslatedFreshConstantTrace (safety : DefinitionSafety) :
 
 theorem TranslatedFreshConstantTrace.abstract
     (H : TranslatedFreshConstantTrace safety Hfresh venv constants outVEnv) :
-    venv.addConsts constants = some outVEnv := by
+    venv.addConstVals constants = some outVEnv := by
   induction H with
   | nil => rfl
   | cons _hfresh _Hfresh _Htr _Hwf Hadd _Htail ih =>
-    simp only [VEnv.addConsts]
+    simp only [VEnv.addConstVals]
     rw [Hadd]
     exact ih
 
@@ -47453,11 +47453,11 @@ theorem RestoredNestedDeclarationsResult.restoredBlockCertificate
         block.types ++ block.ctors ++ block.recursors ~ constants)
     (HtypesWF : ∀ ci ∈ block.types, ci.toVConstant.WF sourceVEnv)
     (HctorsWF : ∀ envTypes,
-      sourceVEnv.addConsts block.types = some envTypes →
+      sourceVEnv.addConstVals block.types = some envTypes →
       ∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes)
     (HrecursorsWF : ∀ envTypes envCtors,
-      sourceVEnv.addConsts block.types = some envTypes →
-      envTypes.addConsts block.ctors = some envCtors →
+      sourceVEnv.addConstVals block.types = some envTypes →
+      envTypes.addConstVals block.ctors = some envCtors →
       ∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors)
     (HrulesWF : ∀ entries
       (Hentries : FreshConstantTrace sourceProdEnv entries out.2)
@@ -48454,8 +48454,8 @@ theorem RestoredSourceInductiveSemanticTrace.core
     (huvars : decl.uvars = lparams.length)
     (hnparams : decl.nparams = nparams)
     (hisUnsafe : decl.isUnsafe = isUnsafe)
-    (htypesAdded : sourceVEnv.addConsts decl.typeConstants = some envTypes)
-    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+    (htypesAdded : sourceVEnv.addConstVals decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConstVals decl.constructorConstants =
       some envCtors) :
     TrInductDeclCore sourceVEnv lparams nparams sourceTypes isUnsafe decl
       envTypes envCtors := by
@@ -49004,11 +49004,11 @@ theorem RestoredNestedDeclarationsResult.restoredBlockCertificateOfInstallation
       primaryConstants ++ auxiliaryConstants)
     (HtypesWF : ∀ ci ∈ block.types, ci.toVConstant.WF sourceVEnv)
     (HctorsWF : ∀ envTypes,
-      sourceVEnv.addConsts block.types = some envTypes →
+      sourceVEnv.addConstVals block.types = some envTypes →
       ∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes)
     (HrecursorsWF : ∀ envTypes envCtors,
-      sourceVEnv.addConsts block.types = some envTypes →
-      envTypes.addConsts block.ctors = some envCtors →
+      sourceVEnv.addConstVals block.types = some envTypes →
+      envTypes.addConstVals block.ctors = some envCtors →
       ∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors)
     (HrulesWF : ∀ df ∈ block.rules, df.WF outVEnv) :
     Nonempty (RestoredBlockCertificate sourceVEnv block) := by
@@ -49041,11 +49041,11 @@ theorem RestoredNestedDeclarationsResult.restoredBlockCertificateOfLayout
     (hsourceWF : sourceProdEnv.constants.WF)
     (HtypesWF : ∀ ci ∈ block.types, ci.toVConstant.WF sourceVEnv)
     (HctorsWF : ∀ envTypes,
-      sourceVEnv.addConsts block.types = some envTypes →
+      sourceVEnv.addConstVals block.types = some envTypes →
       ∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes)
     (HrecursorsWF : ∀ envTypes envCtors,
-      sourceVEnv.addConsts block.types = some envTypes →
-      envTypes.addConsts block.ctors = some envCtors →
+      sourceVEnv.addConstVals block.types = some envTypes →
+      envTypes.addConstVals block.ctors = some envCtors →
       ∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors)
     (HrulesWF : ∀ df ∈ block.rules, df.WF outVEnv) :
     Nonempty (RestoredBlockCertificate sourceVEnv block) := by
@@ -49176,8 +49176,8 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilation
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
-    (htypesAdded : sourceEnv.addConsts decl.typeConstants = some envTypes)
-    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+    (htypesAdded : sourceEnv.addConstVals decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConstVals decl.constructorConstants =
       some envCtors)
     (Hauxiliary : RestoredAuxiliarySemanticTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
@@ -49230,8 +49230,8 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfSemanticTra
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
-    (htypesAdded : sourceEnv.addConsts decl.typeConstants = some envTypes)
-    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+    (htypesAdded : sourceEnv.addConstVals decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConstVals decl.constructorConstants =
       some envCtors)
     (Hauxiliary : RestoredAuxiliarySemanticTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
@@ -49279,8 +49279,8 @@ theorem RestoredNestedDeclarationsResult.sourceCoreAndNestedCompilation
     (huvars : decl.uvars = lparams.length)
     (hnparams : decl.nparams = nparams)
     (hisUnsafe : decl.isUnsafe = isUnsafe)
-    (htypesAdded : sourceVEnv.addConsts decl.typeConstants = some envTypes)
-    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+    (htypesAdded : sourceVEnv.addConstVals decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConstVals decl.constructorConstants =
       some envCtors)
     (HprimaryRules : IotaBuildCertificate envCtors decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
@@ -49339,8 +49339,8 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfInstallatio
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
-    (htypesAdded : sourceEnv.addConsts decl.typeConstants = some envTypes)
-    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+    (htypesAdded : sourceEnv.addConstVals decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConstVals decl.constructorConstants =
       some envCtors)
     (Hauxiliary : RestoredAuxiliarySemanticTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
@@ -49382,8 +49382,8 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfShapes
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
-    (htypesAdded : sourceEnv.addConsts decl.typeConstants = some envTypes)
-    (hctorsAdded : envTypes.addConsts decl.constructorConstants =
+    (htypesAdded : sourceEnv.addConstVals decl.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConstVals decl.constructorConstants =
       some envCtors)
     (Hauxiliary : RestoredAuxiliarySemanticTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
@@ -49435,8 +49435,8 @@ theorem RestoredNestedDeclarationsResult.nestedCompilationCertificate
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
-    (htypesAdded : sourceEnv.addConsts block.types = some envTypes)
-    (hctorsAdded : envTypes.addConsts block.ctors = some envCtors)
+    (htypesAdded : sourceEnv.addConstVals block.types = some envTypes)
+    (hctorsAdded : envTypes.addConstVals block.ctors = some envCtors)
     (hsourceWF : sourceProdEnv.constants.WF)
     (Hlayout : ∀ auxiliaryRecursors auxiliaryRules,
       AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
@@ -50073,7 +50073,7 @@ theorem AddConstants.restoreAuxConstructorsFresh
     rw [howner] at hfresh
     contradiction
   · rcases hnew with ⟨entry, hentry, hname, hfound⟩
-    have habstractFresh := (VEnv.addConsts_names_fresh H.abstract).2
+    have habstractFresh := (VEnv.addConstVals_names_fresh H.abstract).2
       entry.2 (List.mem_map.mpr ⟨entry, hentry, rfl⟩)
     have hentryNames := H.entryNames hentry
     rw [hname, hentryNames]
@@ -50604,7 +50604,7 @@ theorem AddInductive.formationCore.closedWF
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
@@ -51915,7 +51915,7 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTyping
       ⟨H.entries[owner], List.getElem_mem howner, rfl⟩
   have hlookup : H.outVEnv.constants recursor.name =
       some recursor.toVConstant := by
-    apply VEnv.addConsts_get H.installed.abstract
+    apply VEnv.addConstVals_get H.installed.abstract
     exact hmem
   have hwfBase : recursor.toVConstant.WF R.declared.venvCtors :=
     H.generated.recursorsWF H.localWF H.bindings H.params recursor hmem
@@ -52000,7 +52000,7 @@ theorem RecursorPhasesResult.recursorNamesFresh
     ∀ name ∈ (H.blockCertificate rules hrules).block.recursors.map (·.name),
       R.declared.venvCtors.constants name = none := by
   have hfresh :=
-    VEnv.addConsts_names_fresh H.installed.abstract |>.2
+    VEnv.addConstVals_names_fresh H.installed.abstract |>.2
   intro name hname
   change name ∈ (H.entries.map Prod.snd).map (·.name) at hname
   rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
@@ -52788,7 +52788,7 @@ theorem RecursorPhasesResult.addInductOfOrdinaryCompilation
     (hnonempty : indTypes.toList ≠ [])
     (Hcompile : OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block) :
-    VEnv.AddInduct sourceEnv decl (H.outVEnv.addDefEqs rules) :=
+    VEnv.AddInduct sourceEnv decl (H.outVEnv.addDefEqRules rules) :=
   (H.blockCertificate rules hrules).addInductOfOrdinaryCompilation
     R.formation R.core hnonempty Hcompile
 
@@ -52806,7 +52806,7 @@ theorem RecursorPhasesResult.addInductOfNestedCompilation
     (hnonempty : indTypes.toList ≠ [])
     (Hcompile : NestedCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block) :
-    VEnv.AddInduct sourceEnv decl (H.outVEnv.addDefEqs rules) :=
+    VEnv.AddInduct sourceEnv decl (H.outVEnv.addDefEqRules rules) :=
   (H.blockCertificate rules hrules).addInductOfNestedCompilation
     R.formation R.core hnonempty Hcompile
 
@@ -52829,9 +52829,9 @@ theorem RecursorPhasesResult.trEnvOfOrdinaryCompilation
       (H.blockCertificate rules hrules).block)
     (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (H.outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+      (H.outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
     TrEnv' c.safety outEnv.constants c.env.quotInit
-      (H.outVEnv.addDefEqs rules) :=
+      (H.outVEnv.addDefEqRules rules) :=
   (H.blockCertificate rules hrules).trEnvOfOrdinaryCompilation R.formation
     R.core hnonempty Hcompile htr heq
 
@@ -52852,9 +52852,9 @@ theorem RecursorPhasesResult.trEnvOfNestedCompilation
       (H.blockCertificate rules hrules).block)
     (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (H.outVEnv.addDefEqs rules).constants ``Eq = some eqConst) :
+      (H.outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
     TrEnv' c.safety outEnv.constants c.env.quotInit
-      (H.outVEnv.addDefEqs rules) :=
+      (H.outVEnv.addDefEqRules rules) :=
   (H.blockCertificate rules hrules).trEnvOfNestedCompilation R.formation
     R.core hnonempty Hcompile htr heq
 
@@ -52944,7 +52944,7 @@ theorem AddInductive.runWithStats.closedWF
       fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel = .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
@@ -53065,7 +53065,7 @@ structure RunWithStatsVerificationInputs
     fieldLevel fieldLevel',
     VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
     (stats.resultLevel.isAlwaysZero ||
-      stats.resultLevel.geq (Expr.sort fieldLevel).sortLevel!) = true →
+      stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
     decl.types[targetIdx].resultLevel = .zero ∨
       fieldLevel' ≤ decl.types[targetIdx].resultLevel
   freshConstructorConstants : ∀ owner ∈ indTypes.toList,
@@ -53170,7 +53170,7 @@ theorem VerifiedInductiveRunResult.addInductOfRuleTranslations
     headerEnv, ctorEnv, Hheaders, R, hnonempty, ⟨Hrecursors⟩⟩
   rcases Hrules c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
       ctorEnv Hheaders R Hrecursors with ⟨T⟩
-  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs T.rules,
+  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules T.rules,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
       T.compilation⟩
 
@@ -53206,7 +53206,7 @@ theorem VerifiedInductiveRunResult.addInductOfRuleBuild
     ⟨rules, hrules, HruleBuild, hrulesLength⟩
   have Hcompile := Hrecursors.ordinaryCompilationOfRuleBuild rules hrules
     HruleBuild hrulesLength
-  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs rules,
+  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules rules,
     Hrecursors.addInductOfOrdinaryCompilation rules hrules hnonempty
       Hcompile⟩
 
@@ -53236,7 +53236,7 @@ theorem VerifiedInductiveRunResult.addInductOfOrdinaryCompilation
   rcases Hcompile c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
     ctorEnv Hheaders R Hrecursors with
     ⟨rules, hrules, Hcompilation⟩
-  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs rules,
+  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules rules,
     Hrecursors.addInductOfOrdinaryCompilation rules hrules hnonempty
       Hcompilation⟩
 
@@ -53268,7 +53268,7 @@ theorem VerifiedInductiveRunResult.addInductOfNestedCompilation
   rcases Hcompile c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
     ctorEnv Hheaders R Hrecursors with
     ⟨rules, hrules, ⟨Hcompilation⟩⟩
-  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqs rules,
+  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules rules,
     Hrecursors.addInductOfNestedCompilation rules hrules hnonempty
       Hcompilation⟩
 

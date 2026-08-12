@@ -16,13 +16,13 @@ namespace VEnv
 
 /-- Add a list of constants from left to right, failing on the first name
 collision. -/
-def addConsts : VEnv → List VConstVal → Option VEnv
+def addConstVals : VEnv → List VConstVal → Option VEnv
   | env, [] => some env
   | env, ci :: cis => do
     let env ← env.addConst ci.name ci.toVConstant
-    env.addConsts cis
+    env.addConstVals cis
 
-theorem addConst_mono
+theorem addConstVal_mono
     {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ ≤ env₂)
     (h₁ : env₁.addConst name ci = some env₁')
     (h₂ : env₂.addConst name ci = some env₂') :
@@ -37,20 +37,20 @@ theorem addConst_mono
     exact H.constants ha
   · exact H.defeqs
 
-theorem addConsts_mono
+theorem addConstVals_mono
     {env₁ env₂ env₁' env₂' : VEnv} {cis : List VConstVal}
     (H : env₁ ≤ env₂)
-    (h₁ : env₁.addConsts cis = some env₁')
-    (h₂ : env₂.addConsts cis = some env₂') :
+    (h₁ : env₁.addConstVals cis = some env₁')
+    (h₂ : env₂.addConstVals cis = some env₂') :
     env₁' ≤ env₂' := by
   induction cis generalizing env₁ env₂ env₁' env₂' with
   | nil =>
-    simp [VEnv.addConsts] at h₁ h₂
+    simp [VEnv.addConstVals] at h₁ h₂
     subst env₁'
     subst env₂'
     exact H
   | cons ci cis ih =>
-    simp only [VEnv.addConsts] at h₁ h₂
+    simp only [VEnv.addConstVals] at h₁ h₂
     cases hhead₁ : env₁.addConst ci.name ci.toVConstant with
     | none => simp [hhead₁] at h₁
     | some middle₁ =>
@@ -59,12 +59,12 @@ theorem addConsts_mono
       | some middle₂ =>
         simp [hhead₁] at h₁
         simp [hhead₂] at h₂
-        exact ih (addConst_mono H hhead₁ hhead₂) h₁ h₂
+        exact ih (addConstVal_mono H hhead₁ hhead₂) h₁ h₂
 
 /-- Reduction equations do not introduce names and therefore cannot fail. -/
-def addDefEqs : VEnv → List VDefEq → VEnv
+def addDefEqRules : VEnv → List VDefEq → VEnv
   | env, [] => env
-  | env, df :: dfs => addDefEqs (env.addDefEq df) dfs
+  | env, df :: dfs => addDefEqRules (env.addDefEq df) dfs
 
 end VEnv
 
@@ -563,8 +563,8 @@ def VInductDecl.SourceWF (env : VEnv) (decl : VInductDecl) : Prop :=
   (∀ type ∈ decl.types, type.uvars = decl.uvars) ∧
   (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) ∧
   ∃ envTypes envCtors,
-    env.addConsts decl.typeConstants = some envTypes ∧
-    envTypes.addConsts decl.constructorConstants = some envCtors ∧
+    env.addConstVals decl.typeConstants = some envTypes ∧
+    envTypes.addConstVals decl.constructorConstants = some envCtors ∧
     (∀ type ∈ decl.types, type.toVConstant.WF env) ∧
     ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes
 
@@ -573,7 +573,7 @@ Nested declarations use the same source judgment; their lowering must later
 produce these conditions for the expanded mutual family. -/
 def VInductDecl.FormationWF (env : VEnv) (decl : VInductDecl) : Prop :=
   ∃ params resultLevel envTypes,
-    env.addConsts decl.typeConstants = some envTypes ∧
+    env.addConstVals decl.typeConstants = some envTypes ∧
     (∀ type ∈ decl.types,
       type.resultLevel ≈ resultLevel ∧ decl.TypeShape env params type) ∧
     ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
@@ -600,7 +600,7 @@ theorem VInductDecl.SourceWF.originalConstructors
     {env : VEnv} {decl : VInductDecl}
     (H : decl.SourceWF env) :
     ∃ envTypes,
-      env.addConsts decl.typeConstants = some envTypes ∧
+      env.addConstVals decl.typeConstants = some envTypes ∧
       ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes := by
   rcases H with ⟨_, _, _, _, envTypes, envCtors, htypes, hctors, _, hwf⟩
   exact ⟨envTypes, htypes, hwf⟩
@@ -609,24 +609,24 @@ theorem VInductDecl.WF.originalConstructors
     {env : VEnv} {decl : VInductDecl}
     (H : decl.WF env) :
     ∃ envTypes,
-      env.addConsts decl.typeConstants = some envTypes ∧
+      env.addConstVals decl.typeConstants = some envTypes ∧
       ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes :=
   H.1.originalConstructors
 
 /-- Install a compiled block in dependency order. -/
 def VInductBlock.install (env : VEnv) (block : VInductBlock) : Option VEnv := do
-  let env ← env.addConsts block.types
-  let env ← env.addConsts block.ctors
-  let env ← env.addConsts block.recursors
-  return env.addDefEqs block.rules
+  let env ← env.addConstVals block.types
+  let env ← env.addConstVals block.ctors
+  let env ← env.addConstVals block.recursors
+  return env.addDefEqRules block.rules
 
 /-- A compiled block is semantically well formed when every declaration is
 well formed at the stage where it is installed, and installation succeeds. -/
 def VInductBlock.WF (env : VEnv) (block : VInductBlock) : Prop :=
   ∃ envTypes envCtors envRecursors,
-    env.addConsts block.types = some envTypes ∧
-    envTypes.addConsts block.ctors = some envCtors ∧
-    envCtors.addConsts block.recursors = some envRecursors ∧
+    env.addConstVals block.types = some envTypes ∧
+    envTypes.addConstVals block.ctors = some envCtors ∧
+    envCtors.addConstVals block.recursors = some envRecursors ∧
     (∀ ci ∈ block.types, ci.toVConstant.WF env) ∧
     (∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes) ∧
     (∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors) ∧
@@ -635,7 +635,7 @@ def VInductBlock.WF (env : VEnv) (block : VInductBlock) : Prop :=
 theorem VInductBlock.WF.exists_install (H : VInductBlock.WF env block) :
     ∃ env', VInductBlock.install env block = some env' := by
   rcases H with ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, _⟩
-  exact ⟨envRecursors.addDefEqs block.rules, by
+  exact ⟨envRecursors.addDefEqRules block.rules, by
     simp [VInductBlock.install, htypes, hctors, hrecs]⟩
 
 def VExpr.mkApps (fn : VExpr) (args : List VExpr) : VExpr :=
@@ -1116,8 +1116,8 @@ structure VInductDecl.OrdinaryCompilation
     Nonempty (decl.RecursorShape type recursor))
     decl.types block.recursors
   rules : ∃ envTypes envCtors,
-    env.addConsts block.types = some envTypes ∧
-    envTypes.addConsts block.ctors = some envCtors ∧
+    env.addConstVals block.types = some envTypes ∧
+    envTypes.addConstVals block.ctors = some envCtors ∧
     List.Forall₂ (fun owned rule =>
       Nonempty (decl.IotaRule envCtors block owned.1 owned.2 rule))
       decl.ownedConstructors block.rules
@@ -1147,8 +1147,8 @@ structure VInductDecl.NestedCompilation
   auxiliaryRules : List VDefEq
   rules_eq : block.rules = primaryRules ++ auxiliaryRules
   primary_rules : ∃ envTypes envCtors,
-    env.addConsts block.types = some envTypes ∧
-    envTypes.addConsts block.ctors = some envCtors ∧
+    env.addConstVals block.types = some envTypes ∧
+    envTypes.addConstVals block.ctors = some envCtors ∧
     List.Forall₂ (fun owned rule =>
       Nonempty (decl.IotaRule envCtors block owned.1 owned.2 rule))
       decl.ownedConstructors primaryRules
@@ -1176,8 +1176,8 @@ theorem VInductDecl.OrdinaryCompilation.mono
     ⟨oldTypes, oldCtors, holdTypes, holdCtors, holdRules⟩
   rcases Hblock with
     ⟨envTypes, envCtors, _envRecursors, htypes, hctors, _hrecs, _⟩
-  have htypesLE := VEnv.addConsts_mono henv holdTypes htypes
-  have hctorsLE := VEnv.addConsts_mono htypesLE holdCtors hctors
+  have htypesLE := VEnv.addConstVals_mono henv holdTypes htypes
+  have hctorsLE := VEnv.addConstVals_mono htypesLE holdCtors hctors
   exact { H with
     rules := ⟨envTypes, envCtors, htypes, hctors,
       Lean4Lean.List.Forall₂.imp
@@ -1196,8 +1196,8 @@ theorem VInductDecl.CompilesTo.mono
       ⟨oldTypes, oldCtors, holdTypes, holdCtors, holdRules⟩
     rcases Hblock with
       ⟨envTypes, envCtors, _envRecursors, htypes, hctors, _hrecs, _⟩
-    have htypesLE := VEnv.addConsts_mono henv holdTypes htypes
-    have hctorsLE := VEnv.addConsts_mono htypesLE holdCtors hctors
+    have htypesLE := VEnv.addConstVals_mono henv holdTypes htypes
+    have hctorsLE := VEnv.addConstVals_mono htypesLE holdCtors hctors
     exact .nested { H with
       primary_rules := ⟨envTypes, envCtors, htypes, hctors,
         Lean4Lean.List.Forall₂.imp

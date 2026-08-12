@@ -34,12 +34,12 @@ def enumCtorsEnv : VEnv where
 
 theorem enumDecl_wf : enumDecl.WF .empty := by
   unfold VInductDecl.WF VInductDecl.SourceWF VInductDecl.FormationWF
-  have haddType : VEnv.empty.addConsts enumDecl.typeConstants = some enumTypesEnv := by
+  have haddType : VEnv.empty.addConstVals enumDecl.typeConstants = some enumTypesEnv := by
     simp [enumDecl, enumType, enumTypesEnv, VInductDecl.typeConstants,
-      VEnv.addConsts, VEnv.addConst, VEnv.empty]
-  have haddCtor : enumTypesEnv.addConsts enumDecl.constructorConstants = some enumCtorsEnv := by
+      VEnv.addConstVals, VEnv.addConst, VEnv.empty]
+  have haddCtor : enumTypesEnv.addConstVals enumDecl.constructorConstants = some enumCtorsEnv := by
     simp [enumDecl, enumType, enumCtor, enumTypesEnv, enumCtorsEnv,
-      VInductDecl.constructorConstants, VEnv.addConsts, VEnv.addConst]
+      VInductDecl.constructorConstants, VEnv.addConstVals, VEnv.addConst]
   have htype : enumType.toVConstant.WF VEnv.empty := by
     exact ⟨_, .sortDF (by trivial) (by trivial) (by rfl)⟩
   have hlookup : enumTypesEnv.constants `Enum0 = some enumType.toVConstant := by
@@ -211,9 +211,9 @@ theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation .empty enumBlock 
   rules := by
     refine ⟨enumTypesEnv, enumCtorsEnv, ?_, ?_, .cons ⟨enumIota⟩ .nil⟩
     · simp [enumBlock, enumDecl, enumType, enumTypesEnv,
-        VInductDecl.typeConstants, VEnv.addConsts, VEnv.addConst, VEnv.empty]
+        VInductDecl.typeConstants, VEnv.addConstVals, VEnv.addConst, VEnv.empty]
     · simp [enumBlock, enumDecl, enumType, enumCtor, enumTypesEnv,
-        enumCtorsEnv, VInductDecl.constructorConstants, VEnv.addConsts,
+        enumCtorsEnv, VInductDecl.constructorConstants, VEnv.addConstVals,
         VEnv.addConst]
   names := by
     simp [enumBlock, enumDecl, enumType, enumCtor, enumRecursor,
