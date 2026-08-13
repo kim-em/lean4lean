@@ -40195,7 +40195,13 @@ theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
           stats.params) introTarget ∧
       Rbase.venv.HasType
         (AddInductive.getRecLevelParams elimLevel c.lparams).length
-        Hsuffix.parameterDecls.toCtx introTarget tailTarget := by
+        Hsuffix.parameterDecls.toCtx introTarget tailTarget ∧
+      Nonempty
+        (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          Rbase.venv
+          (AddInductive.getRecLevelParams elimLevel c.lparams)
+          (recursorConstructorTelescopeTarget ctorVal Helim)
+          Hsuffix.parameterDecls tailTarget stats.params.size 0) := by
   let Hbase := R.declared.context
   let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
   let Hmaterialized := R.materialized
@@ -40298,8 +40304,10 @@ theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
     VExpr.mkApps (.const ctorVal.name levels)
       (recursorCanonicalVars Hsynthesis.params.length),
     hctorMem, hctorName, Hprefix, Htail, HtailType, ?_, HintroType⟩
-  simpa [Expr.mkAppN_eq_mkAppList, hctorName, Rbase, Hbase,
-    Hmaterialized, Hsuffix] using Hintro
+  exact ⟨by
+    simpa [Expr.mkAppN_eq_mkAppList, hctorName, Rbase, Hbase,
+      Hmaterialized, Hsuffix] using Hintro,
+    ⟨Hsynthesis⟩⟩
 
 /-- Reinterpret a checked constructor seed in any later recursor context
 whose parameter suffix is the one retained by the first pass. -/
@@ -40351,7 +40359,7 @@ theorem ConstructorPhasesResult.checkedConstructorRuntimeSeedAt
   rcases R.checkedConstructorPrefixSeedAt Helim hlparams familyIdx hfamily
       ctorIdx hctor with
     ⟨_ctorVal, tail, tailNarrow, introNarrow, _hmem, _hname,
-      Hprefix, Htail, HtailType, Hintro, HintroType⟩
+      Hprefix, Htail, HtailType, Hintro, HintroType, _Hsynthesis⟩
   rcases R.ownerNormalForms.replay familyIdx hfamily ctorIdx hctor with
     ⟨normalTail, HnormalPrefix, Hnormal⟩
   have htailEq : normalTail = tail :=
@@ -50963,6 +50971,7 @@ structure RecursorPhasesResult
     (outEnv : Environment) where
   elimLevel : Level
   elimLevelAdmissible : AddInductive.AdmissibleElimLevel c.lparams elimLevel
+  lparamsNodup : c.lparams.Nodup
   recInfos : Array AddInductive.RecInfo
   localContext : AddInductive.Context
   localWF : BindingContextWF localContext
@@ -51105,6 +51114,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     exact ⟨{
       elimLevel := elimLevel
       elimLevelAdmissible := hElim
+      lparamsNodup := hlparams
       recInfos := recInfos
       localContext := localContext
       localWF := Rlocal.toBindingContextWF
@@ -52333,6 +52343,48 @@ theorem
   rcases A.finalSourceConstructorTelescope with
     ⟨_residual, _Htelescope, Htyped⟩
   exact Htyped.dropPrefix
+
+/-- Re-select the constructor-checking synthesis for this exact source
+position and transport it across recursor installation.  Unlike
+`finalSourceConstructorFrame`, this certificate is already rebased to the
+recursor universe list and uses the materialized canonical parameter scope. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedConstructorSynthesis
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ ctorVal tailTarget,
+      ctorVal ∈ decl.types[owner].ctors ∧
+      ctorVal.name = indTypes[owner].ctors[i].name ∧
+      Nonempty
+        (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
+          H.outVEnv Us
+          (recursorConstructorTelescopeTarget ctorVal
+            H.elimLevelAdmissible)
+          parameterDecls tailTarget stats.params.size 0) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases R.checkedConstructorPrefixSeedAt H.elimLevelAdmissible
+      H.lparamsNodup owner A.sourceOwner_lt i A.sourceCtor_lt with
+    ⟨ctorVal, _tail, tailTarget, _introTarget, hctorMem, hctorName,
+      _Hprefix, _Htail, _HtailType, _Hintro, _HintroType, ⟨Hsynthesis⟩⟩
+  refine ⟨ctorVal, tailTarget, ?_, hctorName, ⟨?_⟩⟩
+  · simpa using hctorMem
+  · simpa [Us, parameterDecls] using Hsynthesis.mono H.installed.le
 
 /-- The exact field telescope retained by rule generation remains available
 after the generated recursors are installed.  This is the stage-correct form
