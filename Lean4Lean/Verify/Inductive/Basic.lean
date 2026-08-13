@@ -21557,6 +21557,32 @@ theorem abstractForallContext.find?_bvar
   apply vlamPrefix_find_bvar domains.reverse Δ i
   simpa using hi
 
+/-- Every in-range source de Bruijn variable translates to the identically
+numbered abstract variable in a canonical forall context. -/
+theorem TrExprS.bvar_of_abstractForallContext
+    (domains : List VExpr) (Δ : VLCtx) (i : Nat)
+    (hi : i < domains.length) :
+    TrExprS env Us (abstractForallContext domains Δ)
+      (.bvar i) (.bvar i) := by
+  rcases abstractForallContext.find?_bvar domains Δ i hi with
+    ⟨type, hfind⟩
+  exact .bvar hfind
+
+/-- Pointwise form of `bvar_of_abstractForallContext` for an arbitrary
+in-range application spine. -/
+theorem TrExprS.bvars_of_abstractForallContext
+    (domains : List VExpr) (Δ : VLCtx) (indices : List Nat)
+    (hindices : ∀ index ∈ indices, index < domains.length) :
+    List.Forall₂ (TrExprS env Us (abstractForallContext domains Δ))
+      (indices.map Expr.bvar) (indices.map VExpr.bvar) := by
+  induction indices with
+  | nil => exact .nil
+  | cons index indices ih =>
+    apply List.Forall₂.cons
+    · exact TrExprS.bvar_of_abstractForallContext domains Δ index
+        (hindices index (by simp))
+    · exact ih fun other hother => hindices other (by simp [hother])
+
 theorem TrExprS.bvar_eq_of_abstractForallContext
     (H : TrExprS env Us (abstractForallContext domains Δ) (.bvar i) out)
     (hi : i < domains.length) : out = .bvar i := by
