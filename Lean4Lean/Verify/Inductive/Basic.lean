@@ -31360,6 +31360,17 @@ structure SemanticBoundGeneratedRecursiveCall
   exposedTarget : VExpr
   exposed_translation : TrExprS current_context.venv recLparams
     current_context.mlctx.vlctx generated.exposedType exposedTarget
+  terminalTarget : VExpr
+  exposed_defeq : current_context.venv.IsDefEqU recLparams.length
+    current_context.mlctx.vlctx.toCtx exposedTarget terminalTarget
+  terminal_type : current_context.venv.IsType recLparams.length
+    current_context.mlctx.vlctx.toCtx terminalTarget
+  appliedFieldTarget : VExpr
+  applied_field_translation : TrExprS current_context.venv recLparams
+    current_context.mlctx.vlctx
+    (mkAppN field generated.localArgs) appliedFieldTarget
+  applied_field_typing : current_context.venv.HasType recLparams.length
+    current_context.mlctx.vlctx.toCtx appliedFieldTarget terminalTarget
   fieldTarget : VExpr
   domain : VExpr
   field_translation : TrExprS R.venv recLparams R.mlctx.vlctx
@@ -31370,6 +31381,65 @@ structure SemanticBoundGeneratedRecursiveCall
   recursive : decl.RecursiveArgAtTarget R.venv recLparams.length
     (decl.types[generated.ownerIdx]'owner_lt).name
     R.mlctx.vlctx.toCtx depth domain
+
+/-- The exact higher-order argument suffix of a recursive constructor field,
+closed back to the rule's field context.  The exposed result type and the
+eta-expanded field use one shared domain list; this is the typed major premise
+later supplied to the recursively selected generated recursor. -/
+structure SemanticBoundGeneratedRecursiveCall.AppliedFieldTelescope
+    {R : RecursorContextWF root recLparams}
+    (S : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value) where
+  domains : List VExpr
+  domains_length : domains.length = S.generated.localArgs.size
+  exposed_translation : TrExprS R.venv recLparams R.mlctx.vlctx
+    (S.generated.current.lctx.mkForall S.generated.localArgs
+      S.generated.exposedType)
+    (VExpr.wrapForalls domains S.exposedTarget)
+  exposed_type : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
+    (VExpr.wrapForalls domains S.exposedTarget)
+  applied_translation : TrExprS R.venv recLparams R.mlctx.vlctx
+    (S.generated.current.lctx.mkLambda S.generated.localArgs
+      (mkAppN field S.generated.localArgs))
+    (VExpr.wrapLams domains S.appliedFieldTarget)
+  applied_typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+    (VExpr.wrapLams domains S.appliedFieldTarget)
+    (VExpr.wrapForalls domains S.exposedTarget)
+
+/-- Recover the shared higher-order field telescope from the semantic facts
+already established by `loopUArgs`.  The executable normalizer may expose a
+definitionally equal terminal type, so it is transported back to the exact
+syntax translation before the suffix is closed. -/
+def SemanticBoundGeneratedRecursiveCall.appliedFieldTelescope
+    {R : RecursorContextWF root recLparams}
+    (S : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value) :
+    S.AppliedFieldTelescope := by
+  have HexposedType : S.current_context.venv.IsType recLparams.length
+      S.current_context.mlctx.vlctx.toCtx S.exposedTarget :=
+    VEnv.IsType.defeqU_l S.current_context.checking.tr.wf
+      S.current_context.mlctx_wf.tr.wf.toCtx S.exposed_defeq.symm
+      S.terminal_type
+  have HappliedType : S.current_context.venv.HasType recLparams.length
+      S.current_context.mlctx.vlctx.toCtx S.appliedFieldTarget
+      S.exposedTarget :=
+    S.applied_field_typing.defeqU_r S.current_context.checking.tr.wf
+      S.current_context.mlctx_wf.tr.wf.toCtx S.exposed_defeq.symm
+  let domains := MLCtxForallDomains S.current_context.mlctx
+    S.generated.localArgs.size S.recent.size_le
+  have Hexposed := S.recent.mkForallExact S.exposed_translation
+    HexposedType
+  have Happlied := S.recent.mkLambda S.applied_field_translation
+    HappliedType
+  exact {
+    domains := domains
+    domains_length :=
+      S.current_context.onlyLams.forallDomains_length
+        S.generated.localArgs.size S.recent.size_le
+    exposed_translation := by simpa [domains] using Hexposed.1
+    exposed_type := by simpa [domains] using Hexposed.2
+    applied_translation := by simpa [domains] using Happlied.1
+    applied_typing := by simpa [domains] using Happlied.2 }
 
 /-- Pointwise semantic refinement of the exact recursive-call builder used
 by `mkRecRules.loopU`.  It couples the implementation's validated owner with
@@ -31427,9 +31497,17 @@ theorem mkRecRules.boundGeneratedCallSemantic
         H.ownerIdx = target ∧
         ∃ Rcurrent : RecursorContextWF H.current recLparams,
           ∃ Hrecent : RecursorRecentBoundFVarArray R Rcurrent H.localArgs,
-            ∃ syntaxTarget,
+            ∃ syntaxTarget terminalTarget appliedTarget,
               TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
-                H.exposedType syntaxTarget)
+                  H.exposedType syntaxTarget ∧
+                Rcurrent.venv.IsDefEqU recLparams.length
+                  Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget ∧
+                Rcurrent.venv.IsType recLparams.length
+                  Rcurrent.mlctx.vlctx.toCtx terminalTarget ∧
+                TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+                  (mkAppN (.fvar fv) H.localArgs) appliedTarget ∧
+                Rcurrent.venv.HasType recLparams.length
+                  Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget)
     (by
       intro current Rcurrent exposedType syntaxTarget terminalTarget
         appliedTarget args target hsyntax hdefeq htype Hrecent happlied
@@ -31471,11 +31549,13 @@ theorem mkRecRules.boundGeneratedCallSemantic
         arguments_bound := Hrecent.toFreshBoundFVarArray
         value_eq := by simp [AddInductive.getIIndices, hvalid] }
       exact Except.WF.pure
-        ⟨Hgenerated, rfl, Rcurrent, Hrecent, syntaxTarget, hsyntax⟩)
+        ⟨Hgenerated, rfl, Rcurrent, Hrecent, syntaxTarget, terminalTarget,
+          appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType⟩)
   exact Hloop.mono fun value Hout => by
     rcases Hout with
       ⟨domain, hfieldTyping, target, htarget, hrecursive,
-        Hgenerated, howner, Rcurrent, Hrecent, syntaxTarget, hsyntax⟩
+        Hgenerated, howner, Rcurrent, Hrecent, syntaxTarget, terminalTarget,
+        appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType⟩
     subst target
     exact ⟨{
       generated := Hgenerated
@@ -31483,6 +31563,12 @@ theorem mkRecRules.boundGeneratedCallSemantic
       recent := Hrecent
       exposedTarget := syntaxTarget
       exposed_translation := hsyntax
+      terminalTarget := terminalTarget
+      exposed_defeq := hdefeq
+      terminal_type := htype
+      appliedFieldTarget := appliedTarget
+      applied_field_translation := happlied
+      applied_field_typing := happliedType
       fieldTarget := fieldTarget
       domain := domain
       field_translation := hfield
@@ -52068,6 +52154,66 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.finalFieldTelescope
   exact ⟨F.domains, F.domains_length, Htarget.mono H.installed.le,
     HtargetType.mono H.installed.le, Hmajor.mono H.installed.le,
     HmajorType.mono H.installed.le⟩
+
+/-- Every recursive result selected by an aligned generated rule retains the
+typed higher-order field telescope from which its recursive call was built.
+The pointwise semantic entry fixes the exact source array positions; this
+theorem merely transports its already checked payload across recursor
+installation. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalRecursiveAppliedFieldTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats
+        (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
+        (AddInductive.getRecLevels H.elimLevel stats.levels)
+        A.semantics.context decl A.semantics.depth
+        A.rule.recursiveArgs[j] A.rule.recursiveResults[j]!,
+      ∃ domains : List VExpr,
+        domains.length = S.generated.localArgs.size ∧
+        TrExprS H.outVEnv
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+          A.semantics.context.mlctx.vlctx
+          (S.generated.current.lctx.mkForall S.generated.localArgs
+            S.generated.exposedType)
+          (VExpr.wrapForalls domains S.exposedTarget) ∧
+        H.outVEnv.IsType
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+          A.semantics.context.mlctx.vlctx.toCtx
+          (VExpr.wrapForalls domains S.exposedTarget) ∧
+        TrExprS H.outVEnv
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+          A.semantics.context.mlctx.vlctx
+          (S.generated.current.lctx.mkLambda S.generated.localArgs
+            (mkAppN A.rule.recursiveArgs[j] S.generated.localArgs))
+          (VExpr.wrapLams domains S.appliedFieldTarget) ∧
+        H.outVEnv.HasType
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+          A.semantics.context.mlctx.vlctx.toCtx
+          (VExpr.wrapLams domains S.appliedFieldTarget)
+          (VExpr.wrapForalls domains S.exposedTarget) := by
+  rcases A.semantics.calls.entries j hj hj with ⟨S⟩
+  let F := S.appliedFieldTelescope
+  have hsemantic : A.semantics.context.venv = R.declared.venvCtors :=
+    A.semantics.context_venv
+  have Hexposed := F.exposed_translation
+  have HexposedType := F.exposed_type
+  have Happlied := F.applied_translation
+  have HappliedType := F.applied_typing
+  rw [hsemantic] at Hexposed HexposedType Happlied HappliedType
+  exact ⟨S, F.domains, F.domains_length,
+    Hexposed.mono H.installed.le, HexposedType.mono H.installed.le,
+    Happlied.mono H.installed.le, HappliedType.mono H.installed.le⟩
 
 /-- The aligned recursor is present and well typed in the final environment
 at its identity universe instantiation.  Rule typing can therefore consume
