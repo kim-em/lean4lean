@@ -257,19 +257,56 @@ theorem VExpr.wrapForalls_prefix_domains_eq
   exact congrArg Prod.fst (Option.some.inj htake)
 
 /-- Lift a recent context prefix over a block inserted immediately beneath
-it.  The cutoff decreases as the prefix is traversed from newest to oldest,
-which is the binder-sensitive operation needed for dependent telescopes. -/
-def liftContextPrefix (n : Nat) : List VExpr → List VExpr
+it, starting at cutoff `k` below the whole prefix.  The cutoff decreases as
+the prefix is traversed from newest to oldest. -/
+def liftContextPrefixAt (n k : Nat) : List VExpr → List VExpr
   | [] => []
   | domain :: domains =>
-    domain.liftN n domains.length :: liftContextPrefix n domains
+    domain.liftN n (k + domains.length) ::
+      liftContextPrefixAt n k domains
+
+def liftContextPrefix (n : Nat) (domains : List VExpr) : List VExpr :=
+  liftContextPrefixAt n 0 domains
+
+@[simp] theorem liftContextPrefixAt_length
+    (n k : Nat) (domains : List VExpr) :
+    (liftContextPrefixAt n k domains).length = domains.length := by
+  induction domains with
+  | nil => rfl
+  | cons domain domains ih => simp [liftContextPrefixAt, ih]
 
 @[simp] theorem liftContextPrefix_length
     (n : Nat) (domains : List VExpr) :
     (liftContextPrefix n domains).length = domains.length := by
+  exact liftContextPrefixAt_length n 0 domains
+
+theorem liftContextPrefixAt_append_singleton
+    (n k : Nat) (domains : List VExpr) (domain : VExpr) :
+    liftContextPrefixAt n k (domains ++ [domain]) =
+      liftContextPrefixAt n (k + 1) domains ++ [domain.liftN n k] := by
   induction domains with
-  | nil => rfl
-  | cons domain domains ih => simp [liftContextPrefix, ih]
+  | nil => simp [liftContextPrefixAt]
+  | cons head domains ih =>
+    simp [liftContextPrefixAt, ih, Nat.add_assoc, Nat.add_comm,
+      Nat.add_left_comm]
+
+/-- Lifting a dependent forall telescope is dual to lifting its reversed
+context prefix. -/
+theorem VExpr.liftN_wrapForalls
+    (domains : List VExpr) (body : VExpr) (n k : Nat) :
+    (VExpr.wrapForalls domains body).liftN n k =
+      VExpr.wrapForalls
+        ((liftContextPrefixAt n k domains.reverse).reverse)
+        (body.liftN n (k + domains.length)) := by
+  induction domains generalizing k with
+  | nil => simp [VExpr.wrapForalls, liftContextPrefixAt]
+  | cons domain domains ih =>
+    change VExpr.forallE (domain.liftN n k)
+      ((VExpr.wrapForalls domains body).liftN n (k + 1)) = _
+    rw [ih,
+      List.reverse_cons, liftContextPrefixAt_append_singleton]
+    simp [VExpr.wrapForalls, Nat.add_assoc, Nat.add_comm,
+      Nat.add_left_comm]
 
 /-- Insert `inserted` below `prefix` and above `suffix`, lifting each
 dependent prefix declaration at its exact de Bruijn cutoff. -/
@@ -279,10 +316,10 @@ theorem Ctx.LiftN.insertAfterPrefix
       (liftContextPrefix inserted.length recent ++ inserted ++ suffix) := by
   induction recent with
   | nil =>
-    simpa [liftContextPrefix] using
+    simpa [liftContextPrefix, liftContextPrefixAt, List.append_assoc] using
       (Ctx.LiftN.zero (Γ := suffix) inserted)
   | cons domain recent ih =>
-    simpa [liftContextPrefix, List.append_assoc] using
+    simpa [liftContextPrefix, liftContextPrefixAt, List.append_assoc] using
       (Ctx.LiftN.succ (A := domain) ih)
 
 theorem VEnv.IsType.wrapForalls_inv
@@ -52936,6 +52973,10 @@ theorem
           (VExpr.wrapForalls fieldDomains fieldResult) ∧
         H.outVEnv.IsType Us.length parameterDecls.toCtx
           (VExpr.wrapForalls fieldDomains fieldResult) ∧
+        H.outVEnv.IsType Us.length T.params.reverse
+          (VExpr.wrapForalls fieldDomains fieldResult) ∧
+        OnCtx (fieldDomains.reverse ++ T.params.reverse)
+          (H.outVEnv.IsType Us.length) ∧
         H.outVEnv.HasType Us.length T.params.reverse introTarget
           (VExpr.wrapForalls fieldDomains fieldResult) ∧
         TrExprS H.outVEnv Us parameterDecls
@@ -52993,8 +53034,17 @@ theorem
     ⟨fieldDomains, _sourceResidual, fieldResult, hfields,
       _Htelescope, htarget, _Hresult, _HresultType⟩
   subst tailTarget
+  have HtailTypeT : H.outVEnv.IsType Us.length T.params.reverse
+      (VExpr.wrapForalls fieldDomains fieldResult) :=
+    HtailType'.defeqDFC H.outVEnvWF.ordered
+      (hparams.symm H.outVEnvWF.ordered)
+  have HfieldContext : OnCtx
+      (fieldDomains.reverse ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) :=
+    (VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
+      hparams.isType HtailTypeT).1
   exact ⟨T, fieldDomains, fieldResult, introTarget, hfields,
-    Htail', HtailType', HintroType', Hintro'⟩
+    Htail', HtailType', HtailTypeT, HfieldContext, HintroType', Hintro'⟩
 
 /-- Apply the checked constructor to the canonical variables of its genuine
 field telescope.  This is done before inserting motives and minors, avoiding
@@ -53027,7 +53077,8 @@ theorem
           fieldResult := by
   rcases A.finalCheckedConstructorFieldFrame with
     ⟨T, fieldDomains, fieldResult, introTarget, hfields,
-      _Htail, _HtailType, HintroType, _Hintro⟩
+      _Htail, _HtailType, _HtailTypeT, _HfieldContext,
+      HintroType, _Hintro⟩
   have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
     H.outVEnvWF.ordered HintroType
   exact ⟨T, fieldDomains, fieldResult, introTarget, hfields, by
@@ -53057,6 +53108,9 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
         fieldDomains.length = A.rule.allArgs.size ∧
+        OnCtx
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          (H.outVEnv.IsType Us.length) ∧
         H.outVEnv.HasType Us.length
           (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
           ((VExpr.mkApps
@@ -53065,8 +53119,13 @@ theorem
             (T.motives ++ T.minors).length A.rule.allArgs.size)
           (fieldResult.liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size) := by
-  rcases A.finalCheckedConstructorFieldApplication with
-    ⟨T, originalDomains, fieldResult, introTarget, hfields, Happ⟩
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalCheckedConstructorFieldFrame with
+    ⟨T, originalDomains, fieldResult, introTarget, hfields,
+      _Htail, _HtailType, HtailTypeT, _HfieldContext,
+      HintroType, _Hintro⟩
+  have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
+    H.outVEnvWF.ordered HintroType
   let added := (T.motives ++ T.minors).reverse
   let liftedPrefix := liftContextPrefix added.length originalDomains.reverse
   let fieldDomains := liftedPrefix.reverse
@@ -53076,11 +53135,27 @@ theorem
     simpa [liftedPrefix] using
       Ctx.LiftN.insertAfterPrefix originalDomains.reverse added T.params.reverse
   have Hweak := Happ.weakN H.outVEnvWF.ordered W
+  have W0 : Ctx.LiftN added.length 0 T.params.reverse
+      (added ++ T.params.reverse) := .zero added
+  have HliftedType := HtailTypeT.weakN H.outVEnvWF.ordered W0
+  rw [VExpr.liftN_wrapForalls] at HliftedType
+  have hbase : OnCtx (added ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [added, List.reverse_append, List.append_assoc] using
+      T.prefixContext H.outVEnvWF.ordered
+  have Hcontext : OnCtx
+      (liftedPrefix ++ added ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    have Hopened := VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
+      hbase HliftedType
+    simpa [liftedPrefix, liftContextPrefix] using Hopened.1
   have hfieldDomains : fieldDomains.length = A.rule.allArgs.size := by
     simp [fieldDomains, liftedPrefix, hfields]
-  refine ⟨T, fieldDomains, fieldResult, introTarget, hfieldDomains, ?_⟩
-  simpa [fieldDomains, liftedPrefix, added, hfields, List.reverse_append,
-    List.append_assoc, Nat.add_comm] using Hweak
+  refine ⟨T, fieldDomains, fieldResult, introTarget, hfieldDomains, ?_, ?_⟩
+  · simpa [fieldDomains, liftedPrefix, added, List.reverse_append,
+      List.append_assoc] using Hcontext
+  · simpa [fieldDomains, liftedPrefix, added, hfields, List.reverse_append,
+      List.append_assoc, Nat.add_comm, recursorCanonicalVars] using Hweak
 
 /-- Weaken the checked constructor major below the generated motive/minor
 prefix.  The explicit lift is the de Bruijn shift later field and equation
