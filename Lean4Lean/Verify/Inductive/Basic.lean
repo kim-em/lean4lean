@@ -55185,7 +55185,24 @@ theorem
                 (T.params ++ T.motives ++ T.minors).length 0)
               (recursorCanonicalVars
                 (T.params ++ T.motives ++ T.minors).length)).liftN
-            fieldDomains.length 0) := by
+            fieldDomains.length 0) ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            ((T.params ++ T.motives ++ T.minors) ++ fieldDomains) [])
+          (mkAppN
+            (mkAppN
+              (.const
+                ((indTypes[owner]'A.sourceOwner_lt).ctors[i]
+                  'A.sourceCtor_lt).name
+                stats.levels)
+              (stats.params.map fun arg =>
+                arg.abstractList A.rule.binders))
+            (A.rule.allArgs.map fun arg =>
+              arg.abstractList A.rule.binders))
+          ((VExpr.mkApps
+              (introTarget.liftN A.rule.allArgs.size 0)
+              (recursorCanonicalVars A.rule.allArgs.size)).liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let recursor := H.entries[owner].2
   rcases A.finalRecursorPrefixEquationContext with
@@ -55193,8 +55210,10 @@ theorem
       hfields, Hctx, Hmajor, Hprefix, HintroShape⟩
   have Htr := A.canonicalRecursorPrefixResidualTranslation
     T fieldDomains hfields Hctx Hprefix
+  have HmajorTr := A.canonicalConstructorMajorResidualTranslation
+    T fieldDomains fieldResult introTarget hfields Hctx Hmajor HintroShape
   exact ⟨T, fieldDomains, fieldResult, introTarget,
-    hfields, Hctx, Hmajor, Hprefix, HintroShape, Htr⟩
+    hfields, Hctx, Hmajor, Hprefix, HintroShape, Htr, HmajorTr⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
