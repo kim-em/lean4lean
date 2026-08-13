@@ -40746,6 +40746,10 @@ theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
         (mkAppN
           (.const indTypes[familyIdx].ctors[ctorIdx].name stats.levels)
           stats.params) introTarget ∧
+      introTarget = VExpr.mkApps
+        (.const indTypes[familyIdx].ctors[ctorIdx].name
+          (recursorDeclarationAbstractLevels c.lparams Helim))
+        (recursorCanonicalVars stats.params.size) ∧
       Rbase.venv.HasType
         (AddInductive.getRecLevelParams elimLevel c.lparams).length
         Hsuffix.parameterDecls.toCtx introTarget tailTarget ∧
@@ -40856,10 +40860,11 @@ theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
   refine ⟨ctorVal, tail, tailTarget,
     VExpr.mkApps (.const ctorVal.name levels)
       (recursorCanonicalVars Hsynthesis.params.length),
-    hctorMem, hctorName, Hprefix, Htail, HtailType, ?_, HintroType,
+    hctorMem, hctorName, Hprefix, Htail, HtailType, ?_, ?_, HintroType,
     ⟨Hsynthesis⟩⟩
-  simpa [Expr.mkAppN_eq_mkAppList, hctorName, Rbase, Hbase,
-    Hmaterialized, Hsuffix] using Hintro
+  · simpa [Expr.mkAppN_eq_mkAppList, hctorName, Rbase, Hbase,
+      Hmaterialized, Hsuffix] using Hintro
+  · simp [levels, hctorName, Hsynthesis.parameterCount]
 
 /-- Reinterpret a checked constructor seed in any later recursor context
 whose parameter suffix is the one retained by the first pass. -/
@@ -40911,7 +40916,8 @@ theorem ConstructorPhasesResult.checkedConstructorRuntimeSeedAt
   rcases R.checkedConstructorPrefixSeedAt Helim hlparams familyIdx hfamily
       ctorIdx hctor with
     ⟨_ctorVal, tail, tailNarrow, introNarrow, _hmem, _hname,
-      Hprefix, Htail, HtailType, Hintro, HintroType, _Hsynthesis⟩
+      Hprefix, Htail, HtailType, Hintro, _HintroShape,
+      HintroType, _Hsynthesis⟩
   rcases R.ownerNormalForms.replay familyIdx hfamily ctorIdx hctor with
     ⟨normalTail, HnormalPrefix, Hnormal⟩
   have htailEq : normalTail = tail :=
@@ -53118,7 +53124,8 @@ theorem
   rcases R.checkedConstructorPrefixSeedAt H.elimLevelAdmissible
       H.lparamsNodup owner A.sourceOwner_lt i A.sourceCtor_lt with
     ⟨ctorVal, _tail, tailTarget, _introTarget, hctorMem, hctorName,
-      _Hprefix, _Htail, _HtailType, _Hintro, _HintroType, ⟨Hsynthesis⟩⟩
+      _Hprefix, _Htail, _HtailType, _Hintro, _HintroShape,
+      _HintroType, ⟨Hsynthesis⟩⟩
   refine ⟨ctorVal, tailTarget, ?_, hctorName, ⟨?_⟩⟩
   · simpa using hctorMem
   · have hbaseLE :
@@ -53162,6 +53169,12 @@ theorem
               ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
               stats.levels)
             stats.params) introTarget ∧
+        introTarget = VExpr.mkApps
+          (.const
+            ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+            (recursorDeclarationAbstractLevels c.lparams
+              H.elimLevelAdmissible))
+          (recursorCanonicalVars stats.params.size) ∧
         H.outVEnv.HasType Us.length T.params.reverse
           introTarget tailTarget := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -53172,7 +53185,8 @@ theorem
   rcases R.checkedConstructorPrefixSeedAt H.elimLevelAdmissible
       H.lparamsNodup owner A.sourceOwner_lt i A.sourceCtor_lt with
     ⟨_ctorVal, _tail, tailTarget, introTarget, _hctorMem, _hctorName,
-      _Hprefix, _Htail, _HtailType, Hintro, HintroType, _Hsynthesis⟩
+      _Hprefix, _Htail, _HtailType, Hintro, HintroShape,
+      HintroType, _Hsynthesis⟩
   have hbaseLE :
       (R.declared.context.toAdmissibleRecursorContextWF
         H.elimLevelAdmissible).venv ≤ H.outVEnv := by
@@ -53188,7 +53202,7 @@ theorem
   have HintroType' : H.outVEnv.HasType Us.length parameterDecls.toCtx
       introTarget tailTarget := by
     simpa [Us, parameterDecls] using HintroType.mono hbaseLE
-  refine ⟨T, tailTarget, introTarget, Hintro', ?_⟩
+  refine ⟨T, tailTarget, introTarget, Hintro', HintroShape, ?_⟩
   exact HintroType'.defeqDFC H.outVEnvWF.ordered
     (hparams.symm H.outVEnvWF.ordered)
 
@@ -53241,7 +53255,13 @@ theorem
             (.const
               ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
               stats.levels)
-            stats.params) introTarget := by
+            stats.params) introTarget ∧
+        introTarget = VExpr.mkApps
+          (.const
+            ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+            (recursorDeclarationAbstractLevels c.lparams
+              H.elimLevelAdmissible))
+          (recursorCanonicalVars stats.params.size) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls :=
     (R.materialized.parameterSuffix.toRecursorContext
@@ -53250,7 +53270,8 @@ theorem
   rcases R.checkedConstructorPrefixSeedAt H.elimLevelAdmissible
       H.lparamsNodup owner A.sourceOwner_lt i A.sourceCtor_lt with
     ⟨_ctorVal, tail, tailTarget, introTarget, _hctorMem, _hctorName,
-      Hprefix, Htail, HtailType, Hintro, HintroType, _Hsynthesis⟩
+      Hprefix, Htail, HtailType, Hintro, HintroShape,
+      HintroType, _Hsynthesis⟩
   have HsemanticPrefix : RecursorParamPrefix stats 0
       ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).type
       A.semantics.parameterTail := by
@@ -53311,7 +53332,7 @@ theorem
       hparams.isType HtailTypeT).1
   exact ⟨T, fieldDomains, fieldResult, introTarget, hfields,
     Htail', HfieldResidual, HtailType', HtailTypeT, HfieldContext,
-    HintroType', Hintro'⟩
+    HintroType', Hintro', HintroShape⟩
 
 /-- Apply the checked constructor to the canonical variables of its genuine
 field telescope.  This is done before inserting motives and minors, avoiding
@@ -53345,7 +53366,7 @@ theorem
   rcases A.finalCheckedConstructorFieldFrame with
     ⟨T, fieldDomains, fieldResult, introTarget, hfields,
       _Htail, _HfieldResidual, _HtailType, _HtailTypeT, _HfieldContext,
-      HintroType, _Hintro⟩
+      HintroType, _Hintro, _HintroShape⟩
   have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
     H.outVEnvWF.ordered HintroType
   exact ⟨T, fieldDomains, fieldResult, introTarget, hfields, by
@@ -53385,12 +53406,18 @@ theorem
               (recursorCanonicalVars A.rule.allArgs.size)).liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size)
           (fieldResult.liftN
-            (T.motives ++ T.minors).length A.rule.allArgs.size) := by
+            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+        introTarget = VExpr.mkApps
+          (.const
+            ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+            (recursorDeclarationAbstractLevels c.lparams
+              H.elimLevelAdmissible))
+          (recursorCanonicalVars stats.params.size) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases A.finalCheckedConstructorFieldFrame with
     ⟨T, originalDomains, fieldResult, introTarget, hfields,
       _Htail, _HfieldResidual, _HtailType, HtailTypeT, _HfieldContext,
-      HintroType, _Hintro⟩
+      HintroType, _Hintro, HintroShape⟩
   have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
     H.outVEnvWF.ordered HintroType
   let added := (T.motives ++ T.minors).reverse
@@ -53418,7 +53445,8 @@ theorem
     simpa [liftedPrefix, liftContextPrefix] using Hopened.1
   have hfieldDomains : fieldDomains.length = A.rule.allArgs.size := by
     simp [fieldDomains, liftedPrefix, hfields]
-  refine ⟨T, fieldDomains, fieldResult, introTarget, hfieldDomains, ?_, ?_⟩
+  refine ⟨T, fieldDomains, fieldResult, introTarget, hfieldDomains, ?_, ?_,
+    HintroShape⟩
   · simpa [fieldDomains, liftedPrefix, added, List.reverse_append,
       List.append_assoc] using Hcontext
   · simpa [fieldDomains, liftedPrefix, added, hfields, List.reverse_append,
@@ -53462,7 +53490,7 @@ theorem
           (introTarget.liftN (T.motives ++ T.minors).length 0)
           (tailTarget.liftN (T.motives ++ T.minors).length 0) := by
   rcases A.finalCheckedConstructorApplication with
-    ⟨T, tailTarget, introTarget, Hintro, HintroType⟩
+    ⟨T, tailTarget, introTarget, Hintro, _HintroShape, HintroType⟩
   let added := (T.motives ++ T.minors).reverse
   have W0 : Ctx.LiftN added.length 0 T.params.reverse
       (added ++ T.params.reverse) := .zero added
@@ -53776,6 +53804,60 @@ theorem
   rw [hname]
   exact TrExprS.const hlookup hlevels hlength
 
+/-- The concrete constructor constant at the head of the generated major
+premise translates under recursor universes to the installed abstract
+constructor at the declaration-level universe instantiation. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalConstructorHeadTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (Delta : VLCtx) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let sourceCtor :=
+      (indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt
+    TrExprS H.outVEnv Us Delta
+      (.const sourceCtor.name stats.levels)
+      (.const sourceCtor.name
+        (recursorDeclarationAbstractLevels c.lparams
+          H.elimLevelAdmissible)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let sourceCtor :=
+    (indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt
+  let ctorVal :=
+    (decl.types[owner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt
+  have hctorMem : ctorVal ∈ decl.constructorConstants := by
+    simp only [VInductDecl.constructorConstants]
+    apply List.mem_flatMap.mpr
+    exact ⟨decl.types[owner], List.getElem_mem A.abstractOwner_lt,
+      List.getElem_mem A.abstractCtor_lt⟩
+  have hlookupBase : R.declared.venvCtors.constants ctorVal.name =
+      some ctorVal.toVConstant := by
+    apply VEnv.addConstVals_get R.declared.translation.ctorsAdded
+    exact hctorMem
+  have hlookup : H.outVEnv.constants ctorVal.name =
+      some ctorVal.toVConstant :=
+    H.installed.le.constants hlookupBase
+  have hlevels := R.materialized.recursorLevelTranslation
+    H.lparamsNodup H.elimLevelAdmissible
+  have hlength : stats.levels.length = ctorVal.uvars := by
+    calc
+      stats.levels.length = decl.uvars := R.materialized.levels
+      _ = c.lparams.length := R.materialized.uvars.symm
+      _ = ctorVal.uvars := A.ctorTranslation.uvars.symm
+  have hname : ctorVal.name = sourceCtor.name := by
+    simpa [ctorVal, sourceCtor] using A.ctorTranslation.name
+  rw [← hname]
+  exact TrExprS.const hlookup hlevels hlength
+
 /-- Typed canonical application of the common recursor prefix used by this
 rule.  The remaining function consumes precisely the owner's indices and
 major premise. -/
@@ -53864,11 +53946,18 @@ theorem
                 (T.params ++ T.motives ++ T.minors).length)).liftN
             fieldDomains.length 0)
           ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
-            fieldDomains.length 0) := by
+            fieldDomains.length 0) ∧
+        introTarget = VExpr.mkApps
+          (.const
+            ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+            (recursorDeclarationAbstractLevels c.lparams
+              H.elimLevelAdmissible))
+          (recursorCanonicalVars stats.params.size) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let recursor := H.entries[owner].2
   rcases A.finalCheckedConstructorEquationContext with
-    ⟨T, fieldDomains, fieldResult, introTarget, hfields, Hctx, Hmajor⟩
+    ⟨T, fieldDomains, fieldResult, introTarget, hfields, Hctx, Hmajor,
+      HintroShape⟩
   have hrec := A.recursorTyping
   have huvars := A.recursorUvars
   change Us.length = recursor.uvars at huvars
@@ -53879,7 +53968,8 @@ theorem
   have Hprefix' := Hprefix.weakN H.outVEnvWF.ordered
     (Ctx.LiftN.zero fieldDomains.reverse)
   exact ⟨T, fieldDomains, fieldResult, introTarget, hfields, Hctx, Hmajor, by
-    simpa [List.reverse_append, List.append_assoc] using Hprefix'⟩
+    simpa [List.reverse_append, List.append_assoc] using Hprefix',
+    HintroShape⟩
 
 /-- The residual of the selected translated recursor is literally the owner
 motive applied to its canonical index variables and major premise.  This
@@ -54796,6 +54886,91 @@ theorem
   simpa [Expr.mkAppN_eq_mkAppList, Expr.mkAppList_append,
     VExpr.liftN_mkApps, VExpr.liftN, domains,
     List.append_assoc] using Htr
+
+/-- Canonical equation frame with the source recursor prefix translated and
+the matching abstract prefix and constructor major already typed.  All
+components share the same telescope witnesses, which is the handoff point
+for consuming the target indices and major premise. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalRecursorPrefixFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let recursor := H.entries[owner].2
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type recursor.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
+        fieldDomains.length = A.rule.allArgs.size ∧
+        OnCtx
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          (H.outVEnv.IsType Us.length) ∧
+        H.outVEnv.HasType Us.length
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          ((VExpr.mkApps
+              (introTarget.liftN A.rule.allArgs.size 0)
+              (recursorCanonicalVars A.rule.allArgs.size)).liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size)
+          (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+        H.outVEnv.HasType Us.length
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          ((VExpr.mkApps
+              ((VExpr.const recursor.name
+                (VLevel.params Us.length)).liftN
+                (T.params ++ T.motives ++ T.minors).length 0)
+              (recursorCanonicalVars
+                (T.params ++ T.motives ++ T.minors).length)).liftN
+            fieldDomains.length 0)
+          ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
+            fieldDomains.length 0) ∧
+        introTarget = VExpr.mkApps
+          (.const
+            ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+            (recursorDeclarationAbstractLevels c.lparams
+              H.elimLevelAdmissible))
+          (recursorCanonicalVars stats.params.size) ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            ((T.params ++ T.motives ++ T.minors) ++ fieldDomains) [])
+          (mkAppN
+            (mkAppN
+              (mkAppN
+                (.const (Lean.mkRecName indTypes[owner]!.name)
+                  (AddInductive.getRecLevels H.elimLevel stats.levels))
+                (stats.params.map fun arg =>
+                  arg.abstractList A.rule.binders))
+              ((H.recInfos.map (·.motive)).map fun arg =>
+                arg.abstractList A.rule.binders))
+            ((H.recInfos.flatMap (·.minors)).map fun arg =>
+              arg.abstractList A.rule.binders))
+          ((VExpr.mkApps
+              ((VExpr.const recursor.name
+                (VLevel.params Us.length)).liftN
+                (T.params ++ T.motives ++ T.minors).length 0)
+              (recursorCanonicalVars
+                (T.params ++ T.motives ++ T.minors).length)).liftN
+            fieldDomains.length 0) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let recursor := H.entries[owner].2
+  rcases A.finalRecursorPrefixEquationContext with
+    ⟨T, fieldDomains, fieldResult, introTarget,
+      hfields, Hctx, Hmajor, Hprefix, HintroShape⟩
+  have Htr := A.canonicalRecursorPrefixResidualTranslation
+    T fieldDomains hfields Hctx Hprefix
+  exact ⟨T, fieldDomains, fieldResult, introTarget,
+    hfields, Hctx, Hmajor, Hprefix, HintroShape, Htr⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
