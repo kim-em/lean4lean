@@ -54680,6 +54680,230 @@ theorem
   rw [← htarget]
   exact Htr
 
+/-- The source constructor arguments close to the parameter variables shifted
+below motives, minors, and fields, followed by the innermost canonical field
+variables.  This is the exact spine of the independently checked constructor
+major in the canonical equation context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalConstructorArgsTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+    List.Forall₂
+      (TrExprS H.outVEnv Us (abstractForallContext domains []))
+      ((stats.params.map fun arg =>
+          arg.abstractList A.rule.binders).toList ++
+        (A.rule.allArgs.map fun arg =>
+          arg.abstractList A.rule.binders).toList)
+      ((recursorCanonicalVars T.params.length).map fun arg =>
+          arg.liftN
+            ((T.motives ++ T.minors).length + fieldDomains.length) 0) ++
+        recursorCanonicalVars fieldDomains.length) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+  dsimp only
+  rcases A.canonicalEquationBinderTranslations T fieldDomains hfields with
+    ⟨Hp, _Hm, _Hmi, _Ha⟩
+  have Ha := A.canonicalAllArgsTranslation T fieldDomains hfields
+  have Htr := List.Forall₂.append' Hp Ha
+  have hdomains := A.canonicalEquationDomains_length T fieldDomains hfields
+  have hparams : A.rule.params_bound.fvars.length = T.params.length := by
+    have h := congrArg Array.size A.rule.params_bound.expressions
+    rw [T.params_length]
+    simpa using h.symm
+  have htarget :
+      (List.ofFn fun i : Fin stats.params.size =>
+        VExpr.bvar (A.rule.binders.length - 1 - i)) =
+      (recursorCanonicalVars T.params.length).map fun arg =>
+        arg.liftN
+          ((T.motives ++ T.minors).length + fieldDomains.length) 0 := by
+    rw [recursorCanonicalVars_eq_ofFn]
+    apply List.ext_getElem
+    · simp [T.params_length]
+    · intro j hleft hright
+      simp only [List.getElem_ofFn, List.getElem_map, VExpr.liftN,
+        liftVar_base']
+      congr 1
+      simp only [List.length_append] at hdomains hparams ⊢
+      omega
+  rw [← htarget]
+  exact Htr
+
+/-- Normal form of the checked constructor major after inserting the
+motive/minor block.  Its apparent two-stage lifting is precisely the flat
+constructor spine produced by translating the source parameter and field
+arguments in the full equation context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalConstructorMajor_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr) (introTarget : VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (HintroShape : introTarget = VExpr.mkApps
+      (.const
+        ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+        (recursorDeclarationAbstractLevels c.lparams
+          H.elimLevelAdmissible))
+      (recursorCanonicalVars stats.params.size)) :
+    VExpr.mkApps
+        (.const
+          ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+          (recursorDeclarationAbstractLevels c.lparams
+            H.elimLevelAdmissible))
+        ((recursorCanonicalVars T.params.length).map fun arg =>
+            arg.liftN
+              ((T.motives ++ T.minors).length + fieldDomains.length) 0) ++
+          recursorCanonicalVars fieldDomains.length) =
+      ((VExpr.mkApps
+          (introTarget.liftN A.rule.allArgs.size 0)
+          (recursorCanonicalVars A.rule.allArgs.size)).liftN
+        (T.motives ++ T.minors).length A.rule.allArgs.size) := by
+  rw [HintroShape, ← hfields, ← T.params_length]
+  simp [VExpr.liftN_mkApps, VExpr.liftN, VExpr.mkApps,
+    List.foldl_append, recursorCanonicalVars, Nat.add_comm,
+    Nat.add_left_comm, Nat.add_assoc]
+
+/-- Translate the concrete constructor major in the generated equation to
+the exact checked abstract major retained by the constructor phase. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalConstructorMajorResidualTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr) (fieldResult introTarget : VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (Hctx : OnCtx
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+    (Hmajor : H.outVEnv.HasType
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      ((VExpr.mkApps
+          (introTarget.liftN A.rule.allArgs.size 0)
+          (recursorCanonicalVars A.rule.allArgs.size)).liftN
+        (T.motives ++ T.minors).length A.rule.allArgs.size)
+      (fieldResult.liftN
+        (T.motives ++ T.minors).length A.rule.allArgs.size))
+    (HintroShape : introTarget = VExpr.mkApps
+      (.const
+        ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+        (recursorDeclarationAbstractLevels c.lparams
+          H.elimLevelAdmissible))
+      (recursorCanonicalVars stats.params.size)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+    TrExprS H.outVEnv Us (abstractForallContext domains [])
+      (mkAppN
+        (mkAppN
+          (.const
+            ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+            stats.levels)
+          (stats.params.map fun arg =>
+            arg.abstractList A.rule.binders))
+        (A.rule.allArgs.map fun arg =>
+          arg.abstractList A.rule.binders))
+      ((VExpr.mkApps
+          (introTarget.liftN A.rule.allArgs.size 0)
+          (recursorCanonicalVars A.rule.allArgs.size)).liftN
+        (T.motives ++ T.minors).length A.rule.allArgs.size) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+  dsimp only
+  let directMajor := VExpr.mkApps
+    (.const
+      ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+      (recursorDeclarationAbstractLevels c.lparams
+        H.elimLevelAdmissible))
+    ((recursorCanonicalVars T.params.length).map fun arg =>
+        arg.liftN
+          ((T.motives ++ T.minors).length + fieldDomains.length) 0) ++
+      recursorCanonicalVars fieldDomains.length)
+  have hmajorShape : directMajor =
+      ((VExpr.mkApps
+          (introTarget.liftN A.rule.allArgs.size 0)
+          (recursorCanonicalVars A.rule.allArgs.size)).liftN
+        (T.motives ++ T.minors).length A.rule.allArgs.size) := by
+    exact A.canonicalConstructorMajor_eq T fieldDomains introTarget
+      hfields HintroShape
+  have Hhead := A.finalConstructorHeadTranslation
+    (abstractForallContext domains [])
+  have Hargs := A.canonicalConstructorArgsTranslation
+    T fieldDomains hfields
+  have htoCtx : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type => (none, .vlam type)) = types := by
+    intro types
+    induction types with
+    | nil => rfl
+    | cons type types ih => simp [VLCtx.toCtx, ih]
+  have htoCtxReverse : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type => (none, .vlam type)).reverse =
+        types.reverse := by
+    intro types
+    rw [← List.map_reverse]
+    exact htoCtx types.reverse
+  have Hctx' : OnCtx (abstractForallContext domains []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    simpa [abstractForallContext, htoCtx, htoCtxReverse, domains] using Hctx
+  have Hwf : VExpr.WF H.outVEnv Us.length
+      (abstractForallContext domains []).toCtx directMajor := by
+    rw [hmajorShape]
+    exact ⟨_, by
+      simpa [abstractForallContext, htoCtx, htoCtxReverse, domains]
+        using Hmajor⟩
+  have Htr := checkPositivityStep.TrExprS.mkAppList
+    H.outVEnvWF.ordered Hctx' Hhead Hargs Hwf
+  rw [hmajorShape] at Htr
+  simpa [Expr.mkAppN_eq_mkAppList, Expr.mkAppList_append, directMajor]
+    using Htr
+
 /-- The retained parameter, motive, and minor groups close to the canonical
 recursor-prefix variables, shifted below the genuine field telescope.  This
 is the exact argument list appearing in the weakened prefix typing theorem. -/
