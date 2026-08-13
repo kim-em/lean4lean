@@ -338,6 +338,39 @@ theorem VEnv.IsDefEqU.wrapForalls_next
         hctx' hlength ⟨_, hbody⟩
       simpa [List.reverse_cons, List.append_assoc] using hnext
 
+/-- Invert two equally long definitionally equal forall telescopes into a
+conversion between their completed binder contexts.  The outer contexts may
+already differ definitionally; each newly exposed domain extends that
+conversion before the residual telescope is inspected. -/
+theorem VEnv.IsDefEqU.wrapForalls_context
+    (henv : VEnv.WF env)
+    (hctx : VEnv.IsDefEqCtx env uvars [] leftCtx rightCtx)
+    (hlen : left.length = right.length)
+    (H : env.IsDefEqU uvars leftCtx
+      (VExpr.wrapForalls left leftBody)
+      (VExpr.wrapForalls right rightBody)) :
+    VEnv.IsDefEqCtx env uvars []
+      (left.reverse ++ leftCtx) (right.reverse ++ rightCtx) := by
+  induction left generalizing right leftCtx rightCtx leftBody rightBody with
+  | nil =>
+    have hright : right = [] := List.eq_nil_of_length_eq_zero hlen.symm
+    subst right
+    simpa using hctx
+  | cons leftHead leftTail ih =>
+    cases right with
+    | nil => simp at hlen
+    | cons rightHead rightTail =>
+      have hlength : leftTail.length = rightTail.length := by
+        simpa using Nat.succ.inj hlen
+      have hinv := VEnv.IsDefEqU.forallE_inv henv hctx.isType H
+      rcases hinv.1 with ⟨headLevel, hhead⟩
+      rcases hinv.2 with ⟨bodyLevel, hbody⟩
+      have hctx' : VEnv.IsDefEqCtx env uvars []
+          (leftHead :: leftCtx) (rightHead :: rightCtx) :=
+        .succ hctx hhead
+      have hrest := ih hctx' hlength ⟨bodyLevel, hbody⟩
+      simpa [List.reverse_cons, List.append_assoc] using hrest
+
 /-- Repeated application syntax retains a well-typed prefix. -/
 theorem VExpr.WF.mkApps_fn
     (henv : env.Ordered) (hctx : OnCtx ctx (env.IsType uvars))
@@ -45263,6 +45296,54 @@ theorem Expr.SameForallPrefix.target_isForall_of_pos
   cases H with
   | nil => simp at hpos
   | cons => rfl
+
+/-- Translating two concrete telescopes with an identical forall prefix
+produces definitionally equal abstract binder contexts.  Their residual
+bodies need not agree: only the shared concrete domain at each layer is
+compared, in the context conversion accumulated from the preceding layers. -/
+theorem Expr.SameForallPrefix.translatedContexts
+    (H : Expr.SameForallPrefix n left right)
+    (henv : VEnv.WF env)
+    (hctx : VLCtx.IsDefEq env Us.length leftCtx rightCtx)
+    (Hleft : TrExprS env Us leftCtx left leftTarget)
+    (Hright : TrExprS env Us rightCtx right rightTarget) :
+    ∃ leftDomains leftResidual rightDomains rightResidual,
+      leftDomains.length = n ∧
+      rightDomains.length = n ∧
+      leftTarget = VExpr.wrapForalls leftDomains leftResidual ∧
+      rightTarget = VExpr.wrapForalls rightDomains rightResidual ∧
+      VEnv.IsDefEqCtx env Us.length []
+        (leftDomains.reverse ++ leftCtx.toCtx)
+        (rightDomains.reverse ++ rightCtx.toCtx) := by
+  induction H generalizing leftCtx rightCtx leftTarget rightTarget with
+  | nil =>
+    exact ⟨[], leftTarget, [], rightTarget, rfl, rfl, rfl, rfl, by
+      simpa using hctx.defeqCtx⟩
+  | @cons n left right name dom bi H ih =>
+    cases Hleft with
+    | @forallE _ leftDom leftBody _ _ HleftDomType HleftBodyType
+        HleftDom HleftBody =>
+      cases Hright with
+      | @forallE _ rightDom rightBody _ _ HrightDomType HrightBodyType
+          HrightDom HrightBody =>
+        have hdomU := HleftDom.uniq henv hctx HrightDom
+        have hdom := hdomU.of_l henv hctx.wf.toCtx HleftDomType
+        have hctx' : VLCtx.IsDefEq env Us.length
+            ((none, .vlam leftDom) :: leftCtx)
+            ((none, .vlam rightDom) :: rightCtx) :=
+          .cons hctx nofun (.vlam hdom)
+        rcases ih hctx' HleftBody HrightBody with
+          ⟨leftTail, leftResidual, rightTail, rightResidual,
+            hleftLength, hrightLength, hleftTarget, hrightTarget,
+            hcontexts⟩
+        refine ⟨leftDom :: leftTail, leftResidual,
+          rightDom :: rightTail, rightResidual, ?_, ?_, ?_, ?_, ?_⟩
+        · simp [hleftLength]
+        · simp [hrightLength]
+        · simp [VExpr.wrapForalls, hleftTarget]
+        · simp [VExpr.wrapForalls, hrightTarget]
+        · simpa [List.reverse_cons, List.append_assoc,
+            VLCtx.toCtx] using hcontexts
 
 /-- Closing two residual bodies with the same ordinary declarations creates
 the same concrete forall prefix around both. -/
