@@ -235,6 +235,19 @@ theorem VExpr.takeForalls_split
   · rw [← hright]
     exact VExpr.takeForalls_wrapForalls right result
 
+/-- The first `n` domains of a wrapped telescope are syntactically unique.
+The residual bodies may differ, and the longer presentation may retain an
+arbitrary suffix after the compared prefix. -/
+theorem VExpr.wrapForalls_prefix_domains_eq
+    (hleft : left.length = n) (hright : right.length = n)
+    (H : VExpr.wrapForalls left leftBody =
+      VExpr.wrapForalls (right ++ suffix) rightBody) :
+    left = right := by
+  have htake := congrArg (fun type => type.takeForalls n) H
+  rw [← hleft, VExpr.takeForalls_wrapForalls,
+    ← hright, VExpr.takeForalls_wrapForalls_append] at htake
+  exact congrArg Prod.fst (Option.some.inj htake)
+
 theorem VEnv.IsType.wrapForalls_inv
     {env : VEnv} (henv : env.Ordered)
     (hctx : OnCtx ctx (env.IsType uvars))
@@ -368,7 +381,11 @@ theorem VEnv.IsDefEqU.wrapForalls_context
       have hctx' : VEnv.IsDefEqCtx env uvars []
           (leftHead :: leftCtx) (rightHead :: rightCtx) :=
         .succ hctx hhead
-      have hrest := ih hctx' hlength ⟨bodyLevel, hbody⟩
+      have hbodyU : env.IsDefEqU uvars (leftHead :: leftCtx)
+          (VExpr.wrapForalls leftTail leftBody)
+          (VExpr.wrapForalls rightTail rightBody) :=
+        ⟨.sort bodyLevel, hbody⟩
+      have hrest := ih hctx' hlength hbodyU
       simpa [List.reverse_cons, List.append_assoc] using hrest
 
 /-- Repeated application syntax retains a well-typed prefix. -/
@@ -2934,6 +2951,50 @@ theorem MLCtxOnlyLams.vlet_false
       (by simp [TypeChecker.MLCtx.decls]) with
     ⟨index, fv', name', type', bi, kind, h⟩
   cases h
+
+theorem MLCtxOnlyLams.dropN
+    (H : MLCtxOnlyLams m) (n : Nat) (hn : n ≤ m.length) :
+    MLCtxOnlyLams (m.dropN n hn) := by
+  induction n generalizing m with
+  | zero => simpa using H
+  | succ n ih =>
+    cases m with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      simpa only [TypeChecker.MLCtx.dropN] using
+        ih H.tail_vlam (Nat.le_of_succ_le_succ hn)
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
+/-- Dropping a recent all-lambda prefix does not change lookup of any free
+variable that remains in the older context. -/
+theorem MLCtxOnlyLams.dropN_find?_eq
+    (H : MLCtxOnlyLams m) (Hwf : m.WF env Us)
+    (n : Nat) (hn : n ≤ m.length)
+    (hfv : fv ∈ (m.dropN n hn).vlctx.fvars) :
+    m.lctx.find? fv = (m.dropN n hn).lctx.find? fv := by
+  induction n generalizing m with
+  | zero => rfl
+  | succ n ih =>
+    cases m with
+    | nil => simp at hn
+    | vlam current name type type' bi tail =>
+      have htailMem : fv ∈ tail.vlctx.fvars :=
+        TypeChecker.MLCtx.dropN_fvars_subset n
+          (Nat.le_of_succ_le_succ hn) hfv
+      have hcurrentFresh : current ∉ tail.vlctx.fvars :=
+        Hwf.1.tr.find?_eq_none.1 Hwf.2.1
+      have hne : current ≠ fv := by
+        intro heq
+        exact hcurrentFresh (heq ▸ htailMem)
+      simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+        LocalContext.find?]
+      rw [Hwf.1.tr.1.map_wf.find?_insert, if_neg]
+      · exact ih H.tail_vlam Hwf.1 (Nat.le_of_succ_le_succ hn) hfv
+      · intro heq
+        exact hne (LawfulBEq.eq_of_beq heq)
+    | vlet current name type value type' value' tail =>
+      exact H.vlet_false.elim
 
 /-- Abstract domains introduced by `MLCtx.mkForall'`, in outermost-to-
 innermost order. Local lets are discharged by `mkForall'` and contribute no
@@ -17725,6 +17786,28 @@ theorem RecursorParameterContextSuffix.parameterDecls_length
   have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.cached
   simpa using hlength.symm
 
+theorem RecursorParameterContextSuffix.depth_le
+    (H : RecursorParameterContextSuffix R stats depth) :
+    depth ≤ R.mlctx.length := by
+  rw [← TypeChecker.MLCtx.vlctx_length]
+  rw [H.context, List.length_append, H.prefixLength]
+  omega
+
+/-- Removing the recorded generated-local prefix leaves exactly the cached
+parameter scope, not merely a context of the same length. -/
+theorem RecursorParameterContextSuffix.dropAmbient_vlctx
+    (H : RecursorParameterContextSuffix R stats depth) :
+    (R.mlctx.dropN depth H.depth_le).vlctx = H.parameterDecls := by
+  have hdecomp := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+    R.mlctx depth H.depth_le
+  have htake : R.mlctx.vlctx.take depth = H.ambientDecls := by
+    have := congrArg (List.take depth) H.context
+    simpa [H.prefixLength] using this
+  exact List.append_cancel_left <| calc
+    H.ambientDecls ++ (R.mlctx.dropN depth H.depth_le).vlctx =
+        R.mlctx.vlctx := by rw [← htake, ← hdecomp]
+    _ = H.ambientDecls ++ H.parameterDecls := H.context
+
 theorem RecursorParameterContextSuffix.parameterAt
     (H : RecursorParameterContextSuffix R stats depth)
     (hi : i < stats.params.size)
@@ -21842,6 +21925,71 @@ theorem cachedParameterDecls_fvars
     rcases Hhead with ⟨fv, deps, type, rfl, rfl⟩
     rcases ih with ⟨fvars, hparams, hdecls⟩
     exact ⟨fv :: fvars, by simp [hparams], by simp [hdecls]⟩
+
+/-- A deliberately trivial body can be closed over the exact cached
+parameter declarations.  This supplies an independently translated source
+telescope whose prefix can be compared with any production telescope built
+from the same parameter selection. -/
+theorem RecursorParameterContextSuffix.closedSortTranslation
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    let parameterMLCtx := R.mlctx.dropN depth H.depth_le
+    TrExprS R.venv recLparams []
+      (R.mlctx.lctx.mkForall stats.params
+        (.sort (.zero : Level)))
+      (VExpr.wrapForalls H.parameterDecls.toCtx.reverse
+        (.sort (.zero : VLevel))) := by
+  let parameterMLCtx := R.mlctx.dropN depth H.depth_le
+  have hparameterWF : parameterMLCtx.WF R.venv recLparams := by
+    simpa [parameterMLCtx] using R.mlctx_wf.dropN depth H.depth_le
+  have hparameterOnly : MLCtxOnlyLams parameterMLCtx := by
+    simpa [parameterMLCtx] using R.onlyLams.dropN depth H.depth_le
+  have hparameterCtx : parameterMLCtx.vlctx = H.parameterDecls := by
+    simpa [parameterMLCtx] using H.dropAmbient_vlctx
+  have hparams : stats.params.toList.reverse =
+      (parameterMLCtx.fvarRevList parameterMLCtx.length
+        (Nat.le_refl _)).map Expr.fvar := by
+    rcases cachedParameterDecls_fvars H.cached with
+      ⟨fvars, hsource, hscope⟩
+    rw [TypeChecker.MLCtx.fvarRevList_all, hparameterCtx, hscope]
+    exact hsource
+  have hparamsArray : stats.params =
+      (parameterMLCtx.vlctx.fvars.reverse.map Expr.fvar).toArray := by
+    apply Array.toList_inj.mp
+    rw [TypeChecker.MLCtx.fvarRevList_all] at hparams
+    have hforward := congrArg List.reverse hparams
+    simpa [List.map_reverse] using hforward
+  have hlocalSource : R.mlctx.lctx.mkForall stats.params
+        (.sort (.zero : Level)) =
+      parameterMLCtx.lctx.mkForall stats.params
+        (.sort (.zero : Level)) := by
+    rw [hparamsArray, LocalContext.mkForall, LocalContext.mkForall,
+      LocalContext.mkBinding_eq, LocalContext.mkBinding_eq]
+    apply LocalContext.mkBindingList_congr
+    intro fv hfv
+    apply R.onlyLams.dropN_find?_eq R.mlctx_wf depth H.depth_le
+    exact List.mem_reverse.mp hfv
+  have hsource : parameterMLCtx.lctx.mkForall stats.params
+        (.sort (.zero : Level)) =
+      parameterMLCtx.mkForall parameterMLCtx.length (Nat.le_refl _)
+        (.sort (.zero : Level)) :=
+    hparameterWF.mkForall_eq parameterMLCtx.length (Nat.le_refl _) hparams
+  have hzero : VLevel.ofLevel recLparams (.zero : Level) =
+      some (.zero : VLevel) := rfl
+  have hsort : TrExprS R.venv recLparams parameterMLCtx.vlctx
+      (.sort (.zero : Level)) (.sort (.zero : VLevel)) := .sort hzero
+  have hsortType : R.venv.IsType recLparams.length
+      parameterMLCtx.vlctx.toCtx (.sort (.zero : VLevel)) :=
+    ⟨.succ .zero, VEnv.HasType.sort (.of_ofLevel hzero)⟩
+  have hclosed := hparameterWF.mkForall_trS R.checking.tr.wf
+    hsort hsortType parameterMLCtx.length (Nat.le_refl _)
+  have hdomains := hparameterOnly.forallDomains_eq_take_reverse
+    parameterMLCtx.length (Nat.le_refl _)
+  rw [TypeChecker.MLCtx.dropN_all, ← hsource] at hclosed
+  rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls, hdomains] at hclosed
+  rw [hlocalSource]
+  simpa [hparameterCtx] using hclosed.1
 
 /-- The exact cached-parameter suffix reconstructed by header checking is
 the bound, duplicate-free parameter array consumed by `mkRecInfos`. -/
@@ -45370,6 +45518,20 @@ theorem LocalContext.sameForallPrefix_fold
     exact Expr.SameForallPrefix.cons
       ((ih (fun other hother => hdecl other (by simp [hother]))).abstract1 fv)
 
+/-- Closing two bodies over the same duplicate-free local selection gives
+the same concrete forall prefix, independently of the bodies. -/
+theorem LocalForallSelection.sameForallPrefix
+    (H : LocalForallSelection lctx xs)
+    (hnodup : H.fvars.Nodup) (left right : Expr) :
+    Expr.SameForallPrefix xs.size
+      (lctx.mkForall xs left) (lctx.mkForall xs right) := by
+  rcases H with ⟨fvars, rfl, hdecl⟩
+  rw [LocalContext.mkForall, LocalContext.mkForall,
+    LocalContext.mkBinding_eq, LocalContext.mkBinding_eq,
+    LocalContext.mkBindingList_eq_fold hdecl hnodup,
+    LocalContext.mkBindingList_eq_fold hdecl hnodup]
+  simpa using LocalContext.sameForallPrefix_fold hdecl left right
+
 /-- A concrete restoration opening transfers across an identical forall
 prefix, retaining exactly the same generated context and parameter array. -/
 theorem Expr.SameForallPrefix.transferRestoreOpening
@@ -52331,6 +52493,115 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorTelescopeTransl
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner) := by
   exact H.finalRecursorTelescopeTranslationAt owner howner
+
+/-- The parameter domains recovered from the installed generated recursor
+are definitionally equal to the independently checked cached parameter
+scope.  This is the canonical equation-context bridge: it compares contexts,
+not syntax, and is derived from translation of the same concrete `mkForall`
+prefix on both sides. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorParameterContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        T.params.reverse parameterDecls.toCtx := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  let E := H.generated.entry owner howner
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    owner hrecInfo
+  have hselectionNoAlias : selections.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
+  let inner : Expr :=
+    H.localContext.lctx.mkForall (H.recInfos.map (·.motive)) <|
+    H.localContext.lctx.mkForall (H.recInfos.flatMap (·.minors)) <|
+    H.localContext.lctx.mkForall H.recInfos[owner]!.indices <|
+    H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+      (.app (mkAppN H.recInfos[owner]!.motive
+        H.recInfos[owner]!.indices) H.recInfos[owner]!.major)
+  have Hraw : TrExprS H.outVEnv Us []
+      (H.localContext.lctx.mkForall stats.params inner)
+      H.entries[owner].2.type := by
+    have Htranslated := T.typed.translation
+    rw [E.type] at Htranslated
+    simpa [E.levels, H.localExtends.lparams_eq, inner, Us] using
+      TrExprS.of_inferImplicit Htranslated
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have Hsort : TrExprS H.outVEnv Us []
+      (H.localContext.lctx.mkForall stats.params
+        (.sort (.zero : Level)))
+      (VExpr.wrapForalls H.parameterSuffix.parameterDecls.toCtx.reverse
+        (.sort (.zero : VLevel))) := by
+    have HsortBase := H.parameterSuffix.closedSortTranslation
+    rw [H.recursorWF.lctx_eq] at HsortBase
+    exact HsortBase.mono hbase
+  have Hsame : Expr.SameForallPrefix stats.params.size
+      (H.localContext.lctx.mkForall stats.params inner)
+      (H.localContext.lctx.mkForall stats.params
+        (.sort (.zero : Level))) := by
+    exact selections.params.sameForallPrefix
+      hselectionNoAlias.parts.params inner (.sort (.zero : Level))
+  have hnil : VLCtx.IsDefEq H.outVEnv Us.length ([] : VLCtx) [] :=
+    .refl H.outVEnvWF.ordered (by trivial)
+  rcases Hsame.translatedContexts H.outVEnvWF hnil Hraw Hsort with
+    ⟨leftDomains, leftResidual, rightDomains, rightResidual,
+      hleftLength, hrightLength, hleftTarget, hrightTarget, hcontexts⟩
+  have hleftEq : leftDomains = T.params := by
+    apply VExpr.wrapForalls_prefix_domains_eq hleftLength T.params_length
+    calc
+      VExpr.wrapForalls leftDomains leftResidual = H.entries[owner].2.type :=
+        hleftTarget.symm
+      _ = VExpr.wrapForalls
+          (T.params ++ (T.motives ++ T.minors ++ T.indices ++ T.major))
+          T.result := by
+        simpa [List.append_assoc] using T.target_eq
+  have hparameterCtxLength : H.parameterSuffix.parameterDecls.toCtx.length =
+      stats.params.size := by
+    calc
+      H.parameterSuffix.parameterDecls.toCtx.length =
+          H.parameterSuffix.parameterDecls.length :=
+        checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
+          H.parameterSuffix.cached
+      _ = stats.params.size := H.parameterSuffix.parameterDecls_length
+  have hrightEq : rightDomains =
+      H.parameterSuffix.parameterDecls.toCtx.reverse := by
+    apply VExpr.wrapForalls_prefix_domains_eq hrightLength
+      (by simpa using hparameterCtxLength)
+    calc
+      VExpr.wrapForalls rightDomains rightResidual =
+          VExpr.wrapForalls H.parameterSuffix.parameterDecls.toCtx.reverse
+            (.sort (.zero : VLevel)) := hrightTarget.symm
+      _ = VExpr.wrapForalls
+          (H.parameterSuffix.parameterDecls.toCtx.reverse ++ [])
+          (.sort (.zero : VLevel)) := by simp
+  refine ⟨T, ?_⟩
+  simpa [hleftEq, hrightEq, parameterDecls, ← H.parameterDecls] using
+    hcontexts
 
 /-- The original production constructor type has exactly the common
 parameter prefix replayed by `mkRecInfos`, followed by the genuine field
