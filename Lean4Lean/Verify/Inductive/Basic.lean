@@ -33777,6 +33777,78 @@ theorem BoundGeneratedRecursorRule.abstractedBindersTranslation
   exact TrExprS.canonicalBvars_of_abstractForallContext
     (env := env) (Us := Us) domains Δ H.binders.length (by omega)
 
+theorem BoundGeneratedRecursorRule.abstractedParamsTranslation
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (domains : List VExpr) (Δ : VLCtx)
+    (hdomains : domains.length = H.binders.length) :
+    List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      ((stats.params.map fun arg => arg.abstractList H.binders).toList)
+      (List.ofFn fun i : Fin stats.params.size =>
+        VExpr.bvar (H.binders.length - 1 - i)) := by
+  have Htr := H.params_bound.abstractedTranslationAt
+    (env := env) (Us := Us) H.binders []
+      (H.motives_bound.fvars ++ H.minors_bound.fvars ++
+        H.all_args_bound.fvars)
+      (by simp [BoundGeneratedRecursorRule.binders, List.append_assoc])
+      H.binders_nodup domains Δ hdomains
+  simpa using Htr
+
+theorem BoundGeneratedRecursorRule.abstractedMotivesTranslation
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (domains : List VExpr) (Δ : VLCtx)
+    (hdomains : domains.length = H.binders.length) :
+    List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      ((motives.map fun arg => arg.abstractList H.binders).toList)
+      (List.ofFn fun i : Fin motives.size =>
+        VExpr.bvar (H.binders.length - 1 -
+          (H.params_bound.fvars.length + i))) := by
+  exact H.motives_bound.abstractedTranslationAt
+    (env := env) (Us := Us) H.binders H.params_bound.fvars
+      (H.minors_bound.fvars ++ H.all_args_bound.fvars)
+      (by simp [BoundGeneratedRecursorRule.binders, List.append_assoc])
+      H.binders_nodup domains Δ hdomains
+
+theorem BoundGeneratedRecursorRule.abstractedMinorsTranslation
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (domains : List VExpr) (Δ : VLCtx)
+    (hdomains : domains.length = H.binders.length) :
+    List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      ((minors.map fun arg => arg.abstractList H.binders).toList)
+      (List.ofFn fun i : Fin minors.size =>
+        VExpr.bvar (H.binders.length - 1 -
+          ((H.params_bound.fvars ++ H.motives_bound.fvars).length + i))) := by
+  exact H.minors_bound.abstractedTranslationAt
+    (env := env) (Us := Us) H.binders
+      (H.params_bound.fvars ++ H.motives_bound.fvars)
+      H.all_args_bound.fvars
+      (by simp [BoundGeneratedRecursorRule.binders, List.append_assoc])
+      H.binders_nodup domains Δ hdomains
+
+theorem BoundGeneratedRecursorRule.abstractedAllArgsTranslation
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (domains : List VExpr) (Δ : VLCtx)
+    (hdomains : domains.length = H.binders.length) :
+    List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      ((H.allArgs.map fun arg => arg.abstractList H.binders).toList)
+      (List.ofFn fun i : Fin H.allArgs.size =>
+        VExpr.bvar (H.binders.length - 1 -
+          (((H.params_bound.fvars ++ H.motives_bound.fvars) ++
+            H.minors_bound.fvars).length + i))) := by
+  exact H.all_args_bound.abstractedTranslationAt
+    (env := env) (Us := Us) H.binders
+      ((H.params_bound.fvars ++ H.motives_bound.fvars) ++
+        H.minors_bound.fvars) []
+      (by simp [BoundGeneratedRecursorRule.binders])
+      H.binders_nodup domains Δ hdomains
+
 /-- The four nested production `mkLambda` calls are one exact, globally
 no-alias lambda telescope over the retained binder sequence. -/
 theorem BoundGeneratedRecursorRule.rhs_eq_bindingList
