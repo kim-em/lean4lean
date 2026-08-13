@@ -552,6 +552,14 @@ def recursorCanonicalVars (n : Nat) : List VExpr :=
 @[simp] theorem recursorCanonicalVars_zero : recursorCanonicalVars 0 = [] :=
   rfl
 
+theorem recursorCanonicalVars_eq_ofFn (n : Nat) :
+    recursorCanonicalVars n =
+      List.ofFn fun i : Fin n => VExpr.bvar (n - 1 - i) := by
+  apply List.ext_getElem
+  · simp [recursorCanonicalVars]
+  · intro i hleft hright
+    simp [recursorCanonicalVars]
+
 theorem recursorCanonicalVars_succ_cons (n : Nat) :
     recursorCanonicalVars (n + 1) =
       .bvar n :: recursorCanonicalVars n := by
@@ -54310,6 +54318,118 @@ def RecursorPhasesResult.GeneratedRuleAlignment.equationWitnessOfBodies
   uvars := rfl
   wf := VDefEq.wf_of_wrappedBodies hctx hlhs hrhs
 
+/-- The independently translated recursor prefix and the genuine constructor
+field suffix have exactly the binder count retained by the production rule.
+This is the shared context-length invariant for all canonical equation-body
+translations. -/
+theorem RecursorPhasesResult.GeneratedRuleAlignment.canonicalEquationDomains_length
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size) :
+    ((T.params ++ T.motives ++ T.minors) ++ fieldDomains).length =
+      A.rule.binders.length := by
+  have hparams : A.rule.params_bound.fvars.length = stats.params.size := by
+    have h := congrArg Array.size A.rule.params_bound.expressions
+    simpa using h.symm
+  have hmotives : A.rule.motives_bound.fvars.length =
+      (H.recInfos.map (·.motive)).size := by
+    have h := congrArg Array.size A.rule.motives_bound.expressions
+    simpa using h.symm
+  have hminors : A.rule.minors_bound.fvars.length =
+      (H.recInfos.flatMap (·.minors)).size := by
+    have h := congrArg Array.size A.rule.minors_bound.expressions
+    simpa using h.symm
+  have hallArgs : A.rule.all_args_bound.fvars.length =
+      A.rule.allArgs.size := by
+    have h := congrArg Array.size A.rule.all_args_bound.expressions
+    simpa using h.symm
+  unfold BoundGeneratedRecursorRule.binders
+  simp only [List.length_append]
+  rw [T.params_length, T.motives_length, T.minors_length,
+    hfields, hparams, hmotives, hminors, hallArgs]
+
+/-- Every retained source-binder group has its exact canonical de Bruijn
+translation in the independently typed equation context.  Keeping the four
+groups separate mirrors the two generated equation spines: the recursor uses
+parameters, motives, and minors, while the constructor uses parameters and
+fields. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalEquationBinderTranslations
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+    List.Forall₂
+        (TrExprS H.outVEnv Us (abstractForallContext domains []))
+        ((stats.params.map fun arg =>
+          arg.abstractList A.rule.binders).toList)
+        (List.ofFn fun i : Fin stats.params.size =>
+          VExpr.bvar (A.rule.binders.length - 1 - i)) ∧
+      List.Forall₂
+        (TrExprS H.outVEnv Us (abstractForallContext domains []))
+        (((H.recInfos.map (·.motive)).map fun arg =>
+          arg.abstractList A.rule.binders).toList)
+        (List.ofFn fun i : Fin (H.recInfos.map (·.motive)).size =>
+          VExpr.bvar (A.rule.binders.length - 1 -
+            (A.rule.params_bound.fvars.length + i))) ∧
+      List.Forall₂
+        (TrExprS H.outVEnv Us (abstractForallContext domains []))
+        (((H.recInfos.flatMap (·.minors)).map fun arg =>
+          arg.abstractList A.rule.binders).toList)
+        (List.ofFn fun i : Fin (H.recInfos.flatMap (·.minors)).size =>
+          VExpr.bvar (A.rule.binders.length - 1 -
+            ((A.rule.params_bound.fvars ++
+              A.rule.motives_bound.fvars).length + i))) ∧
+      List.Forall₂
+        (TrExprS H.outVEnv Us (abstractForallContext domains []))
+        ((A.rule.allArgs.map fun arg =>
+          arg.abstractList A.rule.binders).toList)
+        (List.ofFn fun i : Fin A.rule.allArgs.size =>
+          VExpr.bvar (A.rule.binders.length - 1 -
+            (((A.rule.params_bound.fvars ++
+              A.rule.motives_bound.fvars) ++
+              A.rule.minors_bound.fvars).length + i))) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+  have hdomains := A.canonicalEquationDomains_length T fieldDomains hfields
+  exact ⟨A.rule.abstractedParamsTranslation domains [] hdomains,
+    A.rule.abstractedMotivesTranslation domains [] hdomains,
+    A.rule.abstractedMinorsTranslation domains [] hdomains,
+    A.rule.abstractedAllArgsTranslation domains [] hdomains⟩
+
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
 only the constructor-field suffix remains local to the generated rule. -/
@@ -54358,28 +54478,7 @@ def RecursorPhasesResult.GeneratedRuleAlignment.equationWitnessOfCanonicalBodies
       (A.abstractEquation
         ((T.params ++ T.motives ++ T.minors) ++ fieldDomains)
         lhsBody rhsBody typeBody) := by
-  have hparams : A.rule.params_bound.fvars.length = stats.params.size := by
-    have h := congrArg Array.size A.rule.params_bound.expressions
-    simpa using h.symm
-  have hmotives : A.rule.motives_bound.fvars.length =
-      (H.recInfos.map (·.motive)).size := by
-    have h := congrArg Array.size A.rule.motives_bound.expressions
-    simpa using h.symm
-  have hminors : A.rule.minors_bound.fvars.length =
-      (H.recInfos.flatMap (·.minors)).size := by
-    have h := congrArg Array.size A.rule.minors_bound.expressions
-    simpa using h.symm
-  have hallArgs : A.rule.all_args_bound.fvars.length =
-      A.rule.allArgs.size := by
-    have h := congrArg Array.size A.rule.all_args_bound.expressions
-    simpa using h.symm
-  have hdomains :
-      ((T.params ++ T.motives ++ T.minors) ++ fieldDomains).length =
-        A.rule.binders.length := by
-    unfold BoundGeneratedRecursorRule.binders
-    simp only [List.length_append]
-    rw [T.params_length, T.motives_length, T.minors_length,
-      hfields, hparams, hmotives, hminors, hallArgs]
+  have hdomains := A.canonicalEquationDomains_length T fieldDomains hfields
   exact A.equationWitnessOfBodies
     ((T.params ++ T.motives ++ T.minors) ++ fieldDomains)
     lhsBody rhsBody typeBody hdomains hlhsResidual hrhsResidual hctx
