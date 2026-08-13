@@ -52738,6 +52738,59 @@ theorem
   · simpa using hctorMem
   · simpa [Us, parameterDecls] using Hsynthesis.mono H.installed.le
 
+/-- The independently checked constructor application transports into the
+actual generated recursor parameter context.  The translated term and its
+residual type are retained from constructor checking; only the ambient
+context changes, via `finalRecursorParameterContext`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedConstructorApplication
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ tailTarget introTarget,
+        TrExprS H.outVEnv Us parameterDecls
+          (mkAppN
+            (.const indTypes[owner].ctors[i].name stats.levels)
+            stats.params) introTarget ∧
+        H.outVEnv.HasType Us.length T.params.reverse
+          introTarget tailTarget := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalRecursorParameterContext with ⟨T, hparams⟩
+  rcases R.checkedConstructorPrefixSeedAt H.elimLevelAdmissible
+      H.lparamsNodup owner A.sourceOwner_lt i A.sourceCtor_lt with
+    ⟨_ctorVal, _tail, tailTarget, introTarget, _hctorMem, _hctorName,
+      _Hprefix, _Htail, _HtailType, Hintro, HintroType, _Hsynthesis⟩
+  have Hintro' : TrExprS H.outVEnv Us parameterDecls
+      (mkAppN (.const indTypes[owner].ctors[i].name stats.levels)
+        stats.params) introTarget := by
+    simpa [Us, parameterDecls] using Hintro.mono H.installed.le
+  have HintroType' : H.outVEnv.HasType Us.length parameterDecls.toCtx
+      introTarget tailTarget := by
+    simpa [Us, parameterDecls] using HintroType.mono H.installed.le
+  refine ⟨T, tailTarget, introTarget, Hintro', ?_⟩
+  exact HintroType'.defeqDFC H.outVEnvWF.ordered
+    (hparams.symm H.outVEnvWF.ordered)
+
 /-- The exact field telescope retained by rule generation remains available
 after the generated recursors are installed.  This is the stage-correct form
 used by equation typing: its source still refers to the production local
