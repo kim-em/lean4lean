@@ -19897,6 +19897,18 @@ theorem Expr.ForallTelescope.isForall_of_pos
   | nil => simp at hpos
   | cons => rfl
 
+/-- For a fixed source and exact arity, the residual of a forall telescope
+is unique.  Maximality is needed only when comparing different arities. -/
+theorem Expr.ForallTelescope.residual_eq
+    (Hleft : Expr.ForallTelescope source arity leftResidual)
+    (Hright : Expr.ForallTelescope source arity rightResidual) :
+    leftResidual = rightResidual := by
+  induction Hleft with
+  | nil => cases Hright; rfl
+  | cons Htail ih =>
+    cases Hright with
+    | cons HrightTail => exact ih HrightTail
+
 /-- A maximal forall decomposition is unique.  This is deliberately stated
 with a non-forall condition on both residuals: without maximality, the same
 source admits every shorter prefix as another `ForallTelescope`. -/
@@ -52971,6 +52983,10 @@ theorem
         TrExprS H.outVEnv Us parameterDecls
           A.semantics.parameterTail
           (VExpr.wrapForalls fieldDomains fieldResult) ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext fieldDomains parameterDecls)
+          (A.rule.target.abstractList A.semantics.fieldOpening.fvars)
+          fieldResult ∧
         H.outVEnv.IsType Us.length parameterDecls.toCtx
           (VExpr.wrapForalls fieldDomains fieldResult) ∧
         H.outVEnv.IsType Us.length T.params.reverse
@@ -53031,8 +53047,17 @@ theorem
   have Hfields := Expr.ForallTelescopeTypeTranslation.ofTrExprS
     A.semantics.fieldOpening.telescope Htail' HtailType'
   rcases Hfields.toWrapForalls with
-    ⟨fieldDomains, _sourceResidual, fieldResult, hfields,
-      _Htelescope, htarget, _Hresult, _HresultType⟩
+    ⟨fieldDomains, sourceResidual, fieldResult, hfields,
+      HsourceTelescope, htarget, Hresult, _HresultType⟩
+  have hsourceResidual :
+      sourceResidual = A.semantics.fieldOpening.residual :=
+    HsourceTelescope.residual_eq A.semantics.fieldOpening.telescope
+  have HfieldResidual : TrExprS H.outVEnv Us
+      (abstractForallContext fieldDomains parameterDecls)
+      (A.rule.target.abstractList A.semantics.fieldOpening.fvars)
+      fieldResult := by
+    rw [A.semantics.fieldOpening.closed, ← hsourceResidual]
+    exact Hresult
   subst tailTarget
   have HtailTypeT : H.outVEnv.IsType Us.length T.params.reverse
       (VExpr.wrapForalls fieldDomains fieldResult) :=
@@ -53044,7 +53069,8 @@ theorem
     (VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
       hparams.isType HtailTypeT).1
   exact ⟨T, fieldDomains, fieldResult, introTarget, hfields,
-    Htail', HtailType', HtailTypeT, HfieldContext, HintroType', Hintro'⟩
+    Htail', HfieldResidual, HtailType', HtailTypeT, HfieldContext,
+    HintroType', Hintro'⟩
 
 /-- Apply the checked constructor to the canonical variables of its genuine
 field telescope.  This is done before inserting motives and minors, avoiding
@@ -53077,7 +53103,7 @@ theorem
           fieldResult := by
   rcases A.finalCheckedConstructorFieldFrame with
     ⟨T, fieldDomains, fieldResult, introTarget, hfields,
-      _Htail, _HtailType, _HtailTypeT, _HfieldContext,
+      _Htail, _HfieldResidual, _HtailType, _HtailTypeT, _HfieldContext,
       HintroType, _Hintro⟩
   have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
     H.outVEnvWF.ordered HintroType
@@ -53122,7 +53148,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases A.finalCheckedConstructorFieldFrame with
     ⟨T, originalDomains, fieldResult, introTarget, hfields,
-      _Htail, _HtailType, HtailTypeT, _HfieldContext,
+      _Htail, _HfieldResidual, _HtailType, HtailTypeT, _HfieldContext,
       HintroType, _Hintro⟩
   have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
     H.outVEnvWF.ordered HintroType
