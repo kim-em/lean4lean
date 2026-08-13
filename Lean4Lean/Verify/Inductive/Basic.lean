@@ -54080,11 +54080,11 @@ theorem
     simpa [parameterDecls, inserted, fieldDomains, hfields,
       List.append_assoc] using Hweak⟩
 
-/-- Invert the fully abstracted constructor result at its validated family
-head.  This exposes the exact translated index suffix in the equation
-context, without imposing any syntactic restriction on index expressions. -/
+/-- Invert a cached constructor target belonging to a fixed recursor
+telescope.  Keeping `T` explicit is essential when the resulting index spine
+is consumed by the matching recursor suffix. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedConstructorIndexSpine
+    RecursorPhasesResult.GeneratedRuleAlignment.cachedConstructorIndexSpineOfTarget
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -54095,26 +54095,32 @@ theorem
     {H : RecursorPhasesResult R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr) (fieldResult : VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (Htarget :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      TrExprS H.outVEnv Us
+        (abstractForallContext
+          ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+            fieldDomains) [])
+        (A.rule.target.abstractList A.rule.binders)
+        (fieldResult.liftN
+          (T.motives ++ T.minors).length A.rule.allArgs.size)) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls :=
       (R.materialized.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
-        (H.generated.entry owner howner).info.type H.entries[owner].2.type
-        stats.params.size (H.recInfos.map (·.motive)).size
-        (H.recInfos.flatMap (·.minors)).size
-        H.recInfos[owner]!.indices.size owner,
-      ∃ (fieldDomains : List VExpr) (fieldResult : VExpr)
-          (levels : List VLevel) (parameterTargets indexTargets : List VExpr),
-        fieldDomains.length = A.rule.allArgs.size ∧
-        TrExprS H.outVEnv Us
-          (abstractForallContext
-            ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
-              fieldDomains) [])
-          (A.rule.target.abstractList A.rule.binders)
-          (fieldResult.liftN
-            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+    ∃ (levels : List VLevel) (parameterTargets indexTargets : List VExpr),
         (fieldResult.liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size).getAppFnArgs =
           (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
@@ -54132,8 +54138,7 @@ theorem
   let parameterDecls :=
     (R.materialized.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
-  rcases A.finalCachedConstructorEquationTarget with
-    ⟨T, fieldDomains, fieldResult, hfields, Htarget⟩
+  dsimp only at Htarget
   have hvalid : AddInductive.isValidIndAppIdx stats A.rule.target owner =
       true := by
     have h := (checkPositivityStep.isValidIndApp?_some
@@ -54197,10 +54202,71 @@ theorem
       simpa [H.generated.length] using howner)
     rw [T.indices_length, harity, ← hindicesLength]
     simpa [indices] using htranslated.symm
-  refine ⟨T, fieldDomains, fieldResult, levels, parameterTargets,
-    indexTargets, hfields, Htarget, ?_, hindexTargetsLength, ?_⟩
+  refine ⟨levels, parameterTargets, indexTargets, ?_,
+    hindexTargetsLength, ?_⟩
   · simpa [htranslatedArgs] using hspine
   · simpa [indices] using HindexTargets
+
+/-- Invert the fully abstracted constructor result at its validated family
+head.  This exposes the exact translated index suffix in the equation
+context, without imposing any syntactic restriction on index expressions. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedConstructorIndexSpine
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (fieldDomains : List VExpr) (fieldResult : VExpr)
+          (levels : List VLevel) (parameterTargets indexTargets : List VExpr),
+        fieldDomains.length = A.rule.allArgs.size ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+              fieldDomains) [])
+          (A.rule.target.abstractList A.rule.binders)
+          (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+        (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size).getAppFnArgs =
+          (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
+            parameterTargets ++ indexTargets) ∧
+        indexTargets.length = T.indices.length ∧
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext
+              ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+                fieldDomains) []))
+          (((AddInductive.getIIndices stats A.rule.target).2.map fun arg =>
+            arg.abstractList A.rule.binders).toList)
+          indexTargets := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalCachedConstructorEquationTarget with
+    ⟨T, fieldDomains, fieldResult, hfields, Htarget⟩
+  rcases A.cachedConstructorIndexSpineOfTarget
+      T fieldDomains fieldResult hfields Htarget with
+    ⟨levels, parameterTargets, indexTargets, hspine, hindexLength,
+      HindexTargets⟩
+  exact ⟨T, fieldDomains, fieldResult, levels, parameterTargets,
+    indexTargets, hfields, Htarget, hspine, hindexLength, HindexTargets⟩
 
 /-- Apply the checked constructor to the canonical variables of its genuine
 field telescope.  This is done before inserting motives and minors, avoiding
