@@ -21445,6 +21445,40 @@ theorem abstractForallContext.bvLift
         VLCtx.BVLift.skip (.vlam type) ih
   simpa [abstractForallContext] using hprefix domains.reverse
 
+/-- Insert a block between an outer telescope and an existing inner prefix.
+The dependent inner domains are lifted exactly as `Ctx.LiftN` requires, while
+the source and target binder counts expose the cutoff used on residuals. -/
+theorem abstractForallContext.bvInsertBeforeInner
+    (outer inserted inner : List VExpr) :
+    let liftedInner :=
+      (liftContextPrefix inserted.length inner.reverse).reverse
+    VLCtx.BVLift
+      (abstractForallContext (outer ++ inner) [])
+      (abstractForallContext (outer ++ inserted ++ liftedInner) [])
+      inserted.length inner.length inserted.length inner.length := by
+  let outerCtx := abstractForallContext outer []
+  have go : ∀ prefix : List VExpr,
+      VLCtx.BVLift
+        ((prefix.map fun domain =>
+            ((none, .vlam domain) :
+              Option (FVarId × List FVarId) × VLocalDecl)) ++ outerCtx)
+        (((liftContextPrefix inserted.length prefix).map fun domain =>
+            ((none, .vlam domain) :
+              Option (FVarId × List FVarId) × VLocalDecl)) ++
+          abstractForallContext inserted outerCtx)
+        inserted.length prefix.length inserted.length prefix.length := by
+    intro prefix
+    induction prefix with
+    | nil =>
+      simpa [liftContextPrefix, liftContextPrefixAt, outerCtx] using
+        abstractForallContext.bvLift inserted outerCtx
+    | cons domain prefix ih =>
+      simpa [liftContextPrefix, liftContextPrefixAt, VLocalDecl.depth,
+        Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using
+        VLCtx.BVLift.cons (.vlam domain) ih
+  simpa [abstractForallContext, outerCtx, List.reverse_append,
+    List.map_append, List.append_assoc] using go inner.reverse
+
 /-- Strengthened telescope inversion retaining the exact abstract context in
 which the concrete residual is translated. -/
 theorem TrExprS.forallTelescope_shape_with_context
@@ -53521,6 +53555,61 @@ theorem
   rw [hsource'] at Hclosed
   exact ⟨T, fieldDomains, fieldResult, hfields, by
     simpa [parameterDecls, List.reverse_reverse] using Hclosed⟩
+
+/-- Insert motives and minors beneath the closed constructor fields while
+retaining a strict translation of the constructor result.  The source lift
+is the precise de Bruijn effect of the otherwise unused generated binders. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedConstructorEquationTarget
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (fieldDomains : List VExpr) (fieldResult : VExpr),
+        fieldDomains.length = A.rule.allArgs.size ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+              fieldDomains) [])
+          ((A.rule.target.abstractList
+              (A.rule.params_bound.fvars ++
+                A.semantics.fieldOpening.fvars)).liftLooseBVars'
+            A.rule.allArgs.size (T.motives ++ T.minors).length)
+          (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalCachedConstructorTarget with
+    ⟨T, originalDomains, fieldResult, hfields, Htarget⟩
+  let inserted := T.motives ++ T.minors
+  let fieldDomains :=
+    (liftContextPrefix inserted.length originalDomains.reverse).reverse
+  have W := abstractForallContext.bvInsertBeforeInner
+    parameterDecls.toCtx.reverse inserted originalDomains
+  have Hweak := Htarget.weakBV H.outVEnvWF.ordered W
+  have hfieldDomains : fieldDomains.length = A.rule.allArgs.size := by
+    simp [fieldDomains, hfields]
+  exact ⟨T, fieldDomains, fieldResult, hfieldDomains, by
+    simpa [parameterDecls, inserted, fieldDomains, hfields,
+      List.append_assoc] using Hweak⟩
 
 /-- Apply the checked constructor to the canonical variables of its genuine
 field telescope.  This is done before inserting motives and minors, avoiding
