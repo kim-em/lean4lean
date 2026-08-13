@@ -256,6 +256,35 @@ theorem VExpr.wrapForalls_prefix_domains_eq
   rw [htakeLeft, htakeRight] at htake
   exact congrArg Prod.fst (Option.some.inj htake)
 
+/-- Lift a recent context prefix over a block inserted immediately beneath
+it.  The cutoff decreases as the prefix is traversed from newest to oldest,
+which is the binder-sensitive operation needed for dependent telescopes. -/
+def liftContextPrefix (n : Nat) : List VExpr → List VExpr
+  | [] => []
+  | domain :: domains =>
+    domain.liftN n domains.length :: liftContextPrefix n domains
+
+@[simp] theorem liftContextPrefix_length
+    (n : Nat) (domains : List VExpr) :
+    (liftContextPrefix n domains).length = domains.length := by
+  induction domains with
+  | nil => rfl
+  | cons domain domains ih => simp [liftContextPrefix, ih]
+
+/-- Insert `inserted` below `prefix` and above `suffix`, lifting each
+dependent prefix declaration at its exact de Bruijn cutoff. -/
+theorem Ctx.LiftN.insertAfterPrefix
+    (recent inserted suffix : List VExpr) :
+    Ctx.LiftN inserted.length recent.length (recent ++ suffix)
+      (liftContextPrefix inserted.length recent ++ inserted ++ suffix) := by
+  induction recent with
+  | nil =>
+    simpa [liftContextPrefix] using
+      (Ctx.LiftN.zero (Γ := suffix) inserted)
+  | cons domain recent ih =>
+    simpa [liftContextPrefix, List.append_assoc] using
+      (Ctx.LiftN.succ (A := domain) ih)
+
 theorem VEnv.IsType.wrapForalls_inv
     {env : VEnv} (henv : env.Ordered)
     (hctx : OnCtx ctx (env.IsType uvars))
@@ -53003,6 +53032,55 @@ theorem
     H.outVEnvWF.ordered HintroType
   exact ⟨T, fieldDomains, fieldResult, introTarget, hfields, by
     simpa [recursorCanonicalVars] using Happ⟩
+
+/-- Insert the generated motive/minor block beneath the genuine constructor
+fields.  `fieldDomains` is rebuilt from the lifted context prefix, so the
+resulting canonical equation context remains valid for dependent fields. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedConstructorEquationContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
+        fieldDomains.length = A.rule.allArgs.size ∧
+        H.outVEnv.HasType Us.length
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          ((VExpr.mkApps
+              (introTarget.liftN A.rule.allArgs.size 0)
+              (recursorCanonicalVars A.rule.allArgs.size)).liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size)
+          (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) := by
+  rcases A.finalCheckedConstructorFieldApplication with
+    ⟨T, originalDomains, fieldResult, introTarget, hfields, Happ⟩
+  let added := (T.motives ++ T.minors).reverse
+  let liftedPrefix := liftContextPrefix added.length originalDomains.reverse
+  let fieldDomains := liftedPrefix.reverse
+  have W : Ctx.LiftN added.length originalDomains.reverse.length
+      (originalDomains.reverse ++ T.params.reverse)
+      (liftedPrefix ++ added ++ T.params.reverse) := by
+    simpa [liftedPrefix] using
+      Ctx.LiftN.insertAfterPrefix originalDomains.reverse added T.params.reverse
+  have Hweak := Happ.weakN H.outVEnvWF.ordered W
+  have hfieldDomains : fieldDomains.length = A.rule.allArgs.size := by
+    simp [fieldDomains, liftedPrefix, hfields]
+  refine ⟨T, fieldDomains, fieldResult, introTarget, hfieldDomains, ?_⟩
+  simpa [fieldDomains, liftedPrefix, added, hfields, List.reverse_append,
+    List.append_assoc, Nat.add_comm] using Hweak
 
 /-- Weaken the checked constructor major below the generated motive/minor
 prefix.  The explicit lift is the de Bruijn shift later field and equation
