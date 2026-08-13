@@ -56323,7 +56323,8 @@ theorem
               (introTarget.liftN A.rule.allArgs.size 0)
               (recursorCanonicalVars A.rule.allArgs.size)).liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size
-        VEnv.IsDefEqCtx H.outVEnv Us.length []
+        ∃ (levels : List VLevel) (parameterTargets indexTargets : List VExpr),
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
             T.params.reverse parameterDecls.toCtx ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -56348,7 +56349,19 @@ theorem
           TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
             prefixSource prefixTarget ∧
           TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
-            majorSource majorTarget := by
+            majorSource majorTarget ∧
+          (fieldResult.liftN
+              (T.motives ++ T.minors).length
+              A.rule.allArgs.size).getAppFnArgs =
+            (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
+              parameterTargets ++ indexTargets) ∧
+          indexTargets.length = T.indices.length ∧
+          List.Forall₂
+            (TrExprS H.outVEnv Us
+              (abstractForallContext cachedDomains []))
+            (((AddInductive.getIIndices stats A.rule.target).2.map fun arg =>
+              arg.abstractList A.rule.binders).toList)
+            indexTargets := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let recursor := H.entries[owner].2
   let parameterDecls :=
@@ -56446,9 +56459,14 @@ theorem
   have hmajorTarget : majorTarget = majorTarget' :=
     TrExprS.unique' HuniqueCtx HmajorUnique HmajorTr HmajorTr'
   rw [← hmajorTarget] at HmajorTr'
-  exact ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields,
-    Hfull, HcachedCtx, HmajorCached, HprefixCached, Htarget, HintroShape,
-    HprefixTr', HmajorTr'⟩
+  rcases A.cachedConstructorIndexSpineOfTarget
+      T fieldDomains fieldResult hfields Htarget with
+    ⟨levels, parameterTargets, indexTargets, hspine, hindexLength,
+      HindexTargets⟩
+  exact ⟨T, fieldDomains, fieldResult, introTarget, levels,
+    parameterTargets, indexTargets, hparams, hfields, Hfull, HcachedCtx,
+    HmajorCached, HprefixCached, Htarget, HintroShape, HprefixTr',
+    HmajorTr', hspine, hindexLength, HindexTargets⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
