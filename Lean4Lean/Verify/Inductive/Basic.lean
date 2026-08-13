@@ -21295,6 +21295,93 @@ theorem TrExprS.forallTelescope_shape
 def abstractForallContext (domains : List VExpr) (Δ : VLCtx) : VLCtx :=
   (domains.reverse.map fun type => (none, .vlam type)) ++ Δ
 
+/-- Locate the first retained free-variable declaration below an anonymous
+forall prefix and replace it by the corresponding bound-variable declaration.
+The source and target contexts have definitionally identical typing lists;
+only the source-variable lookup changes. -/
+theorem abstractForallContext.abstractHead
+    (domains : List VExpr) (tail : VLCtx) (fv : FVarId)
+    (deps : List FVarId) (type : VExpr) :
+    VLCtx.Abstract tail fv (.vlam type) domains.length domains.length
+      (abstractForallContext domains
+        ((some (fv, deps), .vlam type) :: tail))
+      (abstractForallContext (type :: domains) tail) := by
+  have go : ∀ prefix : List VExpr,
+      VLCtx.Abstract tail fv (.vlam type) prefix.length prefix.length
+        ((prefix.map fun domain =>
+            ((none, .vlam domain) :
+              Option (FVarId × List FVarId) × VLocalDecl)) ++
+          (some (fv, deps), .vlam type) :: tail)
+        ((prefix.map fun domain =>
+            ((none, .vlam domain) :
+              Option (FVarId × List FVarId) × VLocalDecl)) ++
+          (none, .vlam type) :: tail) := by
+    intro prefix
+    induction prefix with
+    | nil => exact .zero
+    | cons domain prefix ih =>
+      simpa [VLocalDecl.depth, Nat.add_comm, Nat.add_left_comm,
+        Nat.add_assoc] using VLCtx.Abstract.succ
+          (d := .vlam domain) ih
+  simpa [abstractForallContext, List.reverse_cons, List.map_append,
+    List.append_assoc] using go domains.reverse
+
+/-- Abstract a reverse-ordered suffix of free-variable lambda declarations
+under an existing anonymous prefix.  The declaration order is newest first,
+so successive abstractions occur at increasing cutoffs; the resulting source
+is the ordinary simultaneous abstraction in oldest-first binder order. -/
+theorem TrExprS.abstractFVarLambdaSuffix
+    (Hdecls : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      fvsRev scope)
+    (hnodup : fvsRev.Nodup)
+    (Htr : TrExprS env Us (abstractForallContext domains scope) e e') :
+    TrExprS env Us
+      (abstractForallContext (scope.toCtx.reverse ++ domains) [])
+      (e.abstractList fvsRev.reverse domains.length) e' := by
+  induction Hdecls generalizing domains e with
+  | nil => simpa using Htr
+  | @cons fv entry fvsRev scope hentry Htail ih =>
+    rcases hentry with ⟨deps, type, rfl⟩
+    have W := abstractForallContext.abstractHead
+      domains scope fv deps type
+    have Hhead := Htr.abstract W
+    have hfv : fv ∉ fvsRev.reverse := by
+      simpa using hnodup.1
+    have Hrest := ih hnodup.2 Hhead
+    have hsource :
+        (e.abstract1 fv domains.length).abstractList fvsRev.reverse
+            (type :: domains).length =
+          e.abstractList (fv :: fvsRev).reverse domains.length := by
+      rw [List.reverse_cons, Expr.abstractList_append]
+      simp only [Expr.abstractList]
+      simpa using (Expr.abstract1_abstractList
+        (e := e) (a := fv) (as := fvsRev.reverse)
+        (k := domains.length) hfv).symm
+    rw [hsource] at Hrest
+    simpa [VLCtx.toCtx, List.reverse_cons, List.append_assoc] using Hrest
+
+/-- Abstracting an outer binder list after an already abstracted inner list
+at the inner-list cutoff is equivalent to their ordinary outer-to-inner
+simultaneous abstraction. -/
+theorem Expr.abstractList_after_inner
+    (hnodup : (outer ++ inner).Nodup) :
+    (e.abstractList inner k).abstractList outer (k + inner.length) =
+      e.abstractList (outer ++ inner) k := by
+  induction outer generalizing e with
+  | nil => simp
+  | cons fv outer ih =>
+    have hfvInner : fv ∉ inner := by
+      exact fun h => hnodup.1 (List.mem_append_right outer h)
+    have htail : (outer ++ inner).Nodup := by
+      simpa [List.cons_append] using hnodup.2
+    simp only [List.cons_append, Expr.abstractList]
+    rw [Expr.abstract1_abstractList'
+      (e := e) (a := fv) (as := inner) (k := k)
+      (by exact hnodup.1.2)]
+    exact ih htail
+
 @[simp] theorem abstractForallContext_append
     (outer inner : List VExpr) (Δ : VLCtx) :
     abstractForallContext inner (abstractForallContext outer Δ) =
@@ -53333,6 +53420,107 @@ theorem
   exact ⟨T, fieldDomains, fieldResult, introTarget, hfields,
     Htail', HfieldResidual, HtailType', HtailTypeT, HfieldContext,
     HintroType', Hintro', HintroShape⟩
+
+/-- Close the cached common parameters around the already closed constructor
+field target.  This preserves the exact strict target translation, including
+indices containing projections, while replacing every production free
+variable by its canonical de Bruijn binder. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedConstructorTarget
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (fieldDomains : List VExpr) (fieldResult : VExpr),
+        fieldDomains.length = A.rule.allArgs.size ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            (parameterDecls.toCtx.reverse ++ fieldDomains) [])
+          (A.rule.target.abstractList
+            (A.rule.params_bound.fvars ++
+              A.semantics.fieldOpening.fvars))
+          fieldResult := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalCheckedConstructorFieldFrame with
+    ⟨T, fieldDomains, fieldResult, _introTarget, hfields,
+      _Htail, HfieldResidual, _HtailType, _HtailTypeT, _HfieldContext,
+      _HintroType, _Hintro, _HintroShape⟩
+  have hparamExprs : stats.params.toList.reverse =
+      (A.rule.params_bound.fvars.reverse.map Expr.fvar) := by
+    have h := congrArg Array.toList A.rule.params_bound.expressions
+    simpa [List.map_reverse] using congrArg List.reverse h.symm
+  have Hcached : List.Forall₂ CachedParameterDecl
+      (A.rule.params_bound.fvars.reverse.map Expr.fvar) parameterDecls := by
+    have Hbase := H.parameterSuffix.cached
+    rw [hparamExprs] at Hbase
+    simpa [parameterDecls, H.parameterDecls] using Hbase
+  have Hdecls : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      A.rule.params_bound.fvars.reverse parameterDecls := by
+    induction A.rule.params_bound.fvars.reverse generalizing parameterDecls with
+    | nil =>
+      cases Hcached
+      exact .nil
+    | cons fv fvs ih =>
+      cases Hcached with
+      | cons hentry htail =>
+        rcases hentry with ⟨actual, deps, type, hparam, hentry⟩
+        cases Expr.fvar.inj hparam
+        exact .cons ⟨deps, type, hentry⟩ (ih htail)
+  have hparamsNodup : A.rule.params_bound.fvars.reverse.Nodup :=
+    (A.rule.outer_binders_nodup.of_append_left.of_append_left).reverse
+  have Hclosed := HfieldResidual.abstractFVarLambdaSuffix
+    Hdecls hparamsNodup
+  have hparamsFields :
+      (A.rule.params_bound.fvars ++
+        A.semantics.fieldOpening.fvars).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨hparamsNodup.reverse, A.semantics.fieldOpening.nodup, ?_⟩
+    intro param hparam field hfield heq
+    subst field
+    rw [A.semantics.fieldOpening.fvars_eq_bound
+      A.rule.all_args_bound] at hfield
+    exact A.rule.all_args_outer_fresh param hfield
+      (List.mem_append_left _ (List.mem_append_left _ hparam))
+  have hfieldLength : A.semantics.fieldOpening.fvars.length =
+      fieldDomains.length := by
+    rw [A.semantics.fieldOpening.fvars_eq_bound
+      A.rule.all_args_bound, hfields]
+    have h := congrArg Array.size A.rule.all_args_bound.expressions
+    simpa using h
+  have hsource := Expr.abstractList_after_inner
+    (e := A.rule.target) (outer := A.rule.params_bound.fvars)
+    (inner := A.semantics.fieldOpening.fvars) (k := 0) hparamsFields
+  have hsource' :
+      ((A.rule.target.abstractList A.semantics.fieldOpening.fvars).abstractList
+          A.rule.params_bound.fvars fieldDomains.length) =
+        A.rule.target.abstractList
+          (A.rule.params_bound.fvars ++
+            A.semantics.fieldOpening.fvars) := by
+    simpa [hfieldLength] using hsource
+  rw [hsource'] at Hclosed
+  exact ⟨T, fieldDomains, fieldResult, hfields, by
+    simpa [parameterDecls, List.reverse_reverse] using Hclosed⟩
 
 /-- Apply the checked constructor to the canonical variables of its genuine
 field telescope.  This is done before inserting motives and minors, avoiding
