@@ -53562,6 +53562,54 @@ theorem
   exact ⟨T, fieldDomains, fieldResult, introTarget, hfields, Hctx, Hmajor, by
     simpa [List.reverse_append, List.append_assoc] using Hprefix'⟩
 
+/-- The residual of the selected translated recursor is literally the owner
+motive applied to its canonical index variables and major premise.  This
+turns the otherwise opaque `T.result` field into the exact suffix shape that
+the generated equation must instantiate. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorResultShape
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      T.result = VExpr.mkApps
+        (.bvar
+          (1 + H.recInfos[owner]!.indices.size +
+            (H.recInfos.flatMap (·.minors)).size +
+            ((H.recInfos.map (·.motive)).size - 1 - owner)))
+        (((List.range H.recInfos[owner]!.indices.size).reverse.map
+            fun index => .bvar (index + 1)) ++ [.bvar 0]) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  have hownerRecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
+    simpa using hownerRecInfo
+  have htotal :
+      stats.params.size + (H.recInfos.map (·.motive)).size +
+          (H.recInfos.flatMap (·.minors)).size +
+          H.recInfos[owner]!.indices.size + 1 ≤
+        (T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major).length := by
+    simp only [List.length_append, T.params_length, T.motives_length,
+      T.minors_length, T.indices_length, T.major_length]
+    exact Nat.le_refl _
+  have hresult := TrExprS.concreteRecursorResult_eq
+    (numParams := stats.params.size) hownerMotive htotal T.residual
+  exact ⟨T, hresult⟩
+
 theorem RecursorPhasesResult.recursorNamesFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
