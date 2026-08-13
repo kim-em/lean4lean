@@ -244,8 +244,16 @@ theorem VExpr.wrapForalls_prefix_domains_eq
       VExpr.wrapForalls (right ++ suffix) rightBody) :
     left = right := by
   have htake := congrArg (fun type => type.takeForalls n) H
-  rw [← hleft, VExpr.takeForalls_wrapForalls,
-    ← hright, VExpr.takeForalls_wrapForalls_append] at htake
+  have htakeLeft :
+      (VExpr.wrapForalls left leftBody).takeForalls n = some (left, leftBody) := by
+    rw [← hleft]
+    exact VExpr.takeForalls_wrapForalls left leftBody
+  have htakeRight :
+      (VExpr.wrapForalls (right ++ suffix) rightBody).takeForalls n =
+        some (right, VExpr.wrapForalls suffix rightBody) := by
+    rw [← hright]
+    exact VExpr.takeForalls_wrapForalls_append right suffix rightBody
+  rw [htakeLeft, htakeRight] at htake
   exact congrArg Prod.fst (Option.some.inj htake)
 
 theorem VEnv.IsType.wrapForalls_inv
@@ -21986,10 +21994,23 @@ theorem RecursorParameterContextSuffix.closedSortTranslation
     hsort hsortType parameterMLCtx.length (Nat.le_refl _)
   have hdomains := hparameterOnly.forallDomains_eq_take_reverse
     parameterMLCtx.length (Nat.le_refl _)
+  have hparameterLength : parameterMLCtx.length =
+      H.parameterDecls.length := by
+    rw [← TypeChecker.MLCtx.vlctx_length, hparameterCtx]
+  have htake : H.parameterDecls.toCtx.take parameterMLCtx.length =
+      H.parameterDecls.toCtx := by
+    have htoCtxLength : H.parameterDecls.toCtx.length =
+        H.parameterDecls.length :=
+      checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
+        H.cached
+    apply List.take_of_length_le
+    rw [htoCtxLength, ← hparameterLength]
+    exact Nat.le_refl _
   rw [TypeChecker.MLCtx.dropN_all, ← hsource] at hclosed
   rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls, hdomains] at hclosed
+  rw [hparameterCtx, htake] at hclosed
   rw [hlocalSource]
-  simpa [hparameterCtx] using hclosed.1
+  exact hclosed.1
 
 /-- The exact cached-parameter suffix reconstructed by header checking is
 the bound, duplicate-free parameter array consumed by `mkRecInfos`. -/
@@ -40484,11 +40505,10 @@ theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
   refine ⟨ctorVal, tail, tailTarget,
     VExpr.mkApps (.const ctorVal.name levels)
       (recursorCanonicalVars Hsynthesis.params.length),
-    hctorMem, hctorName, Hprefix, Htail, HtailType, ?_, HintroType⟩
-  exact ⟨by
-    simpa [Expr.mkAppN_eq_mkAppList, hctorName, Rbase, Hbase,
-      Hmaterialized, Hsuffix] using Hintro,
+    hctorMem, hctorName, Hprefix, Htail, HtailType, ?_, HintroType,
     ⟨Hsynthesis⟩⟩
+  simpa [Expr.mkAppN_eq_mkAppList, hctorName, Rbase, Hbase,
+    Hmaterialized, Hsuffix] using Hintro
 
 /-- Reinterpret a checked constructor seed in any later recursor context
 whose parameter suffix is the one retained by the first pass. -/
@@ -42589,17 +42609,19 @@ theorem RecursorParamPrefix.toNestedParamOpening
           (stats.params.size - i) outLctx tail stats.params := by
     intro i source tail Hprefix
     induction Hprefix with
-    | done hi =>
+    | @done i tail hi =>
       intro lctx opened hopened
       have hopenedFull : opened = stats.params := by
         apply Array.toList_inj.mp
         rw [hopened, hi]
-        simp
+        change stats.params.toList.take stats.params.toList.length =
+          stats.params.toList
+        exact List.take_length
       subst opened
-      exact ⟨lctx, by simpa [hi] using
-        (NestedParamOpening.done (lctx := lctx) (params := stats.params)
-          (type := tail))⟩
-    | @step i param body tail dom name bi hparam Hnext ih =>
+      have hzero : stats.params.size - i = 0 := by omega
+      rw [hzero]
+      exact ⟨lctx, NestedParamOpening.done⟩
+    | @step i param tail name dom body bi hparam Hnext ih =>
       intro lctx opened hopened
       obtain ⟨hi, hparamGet⟩ := Array.getElem?_eq_some_iff.mp hparam
       rcases Hparams.getElem_eq_fvar i hi with ⟨_hiFvars, hparamFVar⟩
@@ -42611,15 +42633,18 @@ theorem RecursorParamPrefix.toNestedParamOpening
             stats.params.toList.take (i + 1) := by
         rw [Array.toList_push, hopened,
           List.take_succ_eq_append_getElem (by simpa using hi)]
-        simp only [List.getElem_toArray]
-        exact congrArg (fun e => stats.params.toList.take i ++ [e])
-          hparamFVar
+        simpa using congrArg
+          (fun e => stats.params.toList.take i ++ [e]) hparamFVar.symm
       rcases ih (lctx.mkLocalDecl Hparams.fvars[i] name dom bi)
           (opened.push (.fvar Hparams.fvars[i])) hopenedNext with
         ⟨outLctx, Hopening⟩
       refine ⟨outLctx, ?_⟩
+      rw [hparamFVar] at Hopening
       have Hstep := NestedParamOpening.step Hopening
-      simpa only [hparamEq, Nat.sub_eq_iff_eq_add (by omega)] using Hstep
+      have hcount : stats.params.size - (i + 1) + 1 =
+          stats.params.size - i := by omega
+      rw [hcount] at Hstep
+      exact Hstep
   simpa using go H {} #[] (by simp)
 
 private theorem nestedWithParamsLoop_refines {α : Type}
@@ -45469,12 +45494,13 @@ theorem Expr.SameForallPrefix.translatedContexts
       simpa using hctx.defeqCtx⟩
   | @cons n left right name dom bi H ih =>
     cases Hleft with
-    | @forallE _ leftDom leftBody _ _ HleftDomType HleftBodyType
+    | @forallE leftDom leftBody _ _ _ _ _ HleftDomType HleftBodyType
         HleftDom HleftBody =>
       cases Hright with
-      | @forallE _ rightDom rightBody _ _ HrightDomType HrightBodyType
-          HrightDom HrightBody =>
+      | @forallE rightDom rightBody _ _ _ _ _ HrightDomType
+          HrightBodyType HrightDom HrightBody =>
         have hdomU := HleftDom.uniq henv hctx HrightDom
+        rcases HleftDomType with ⟨_leftLevel, HleftDomType⟩
         have hdom := hdomU.of_l henv hctx.wf.toCtx HleftDomType
         have hctx' : VLCtx.IsDefEq env Us.length
             ((none, .vlam leftDom) :: leftCtx)
@@ -45526,10 +45552,14 @@ theorem LocalForallSelection.sameForallPrefix
     Expr.SameForallPrefix xs.size
       (lctx.mkForall xs left) (lctx.mkForall xs right) := by
   rcases H with ⟨fvars, rfl, hdecl⟩
+  have hfind : ∀ fv ∈ fvars, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    rcases hdecl fv hfv with ⟨index, name, type, bi, kind, hfound⟩
+    exact ⟨.cdecl index fv name type bi kind, hfound⟩
   rw [LocalContext.mkForall, LocalContext.mkForall,
     LocalContext.mkBinding_eq, LocalContext.mkBinding_eq,
-    LocalContext.mkBindingList_eq_fold hdecl hnodup,
-    LocalContext.mkBindingList_eq_fold hdecl hnodup]
+    LocalContext.mkBindingList_eq_fold hfind hnodup,
+    LocalContext.mkBindingList_eq_fold hfind hnodup]
   simpa using LocalContext.sameForallPrefix_fold hdecl left right
 
 /-- A concrete restoration opening transfers across an identical forall
@@ -45687,23 +45717,23 @@ theorem RestoreParamOpening.forallSuffix
 opening was already present below the opened prefix.  Substitution by the
 recorded free variables cannot manufacture a forall, so the two arities add
 without any closedness or freshness premise. -/
-theorem RestoreParamOpening.reflectForallTelescope
-    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
+theorem NestedParamOpening.reflectForallTelescope
+    (Hopen : NestedParamOpening lctx As outer n outLctx tail outAs)
     (Htail : Expr.ForallTelescope tail suffixArity residual) :
     ∃ sourceResidual,
       Expr.ForallTelescope outer (n + suffixArity) sourceResidual := by
   induction Hopen generalizing suffixArity residual with
   | done => exact ⟨residual, by simpa using Htail⟩
-  | forallE Hnext ih =>
-    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+  | step Hnext ih =>
+    rename_i n' outLctx' tail' outAs' lctx' As' id name dom body bi
     rcases ih Htail with ⟨openedResidual, Hopened⟩
     rw [Expr.instantiate1_eq] at Hopened
     rcases Hopened.reflect_instantiate1'_fvar with
       ⟨sourceResidual, Hsource⟩
     refine ⟨sourceResidual, ?_⟩
-    have Hcons := Expr.ForallTelescope.cons Hsource
+    have Hcons := Expr.ForallTelescope.cons
+      (name := name) (dom := dom) (bi := bi) Hsource
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hcons
-  | lam Hnext ih => cases Hnext
 
 /-- If the residual refers only to the unopened suffix, opening an outer
 prefix preserves that residual literally.  Generated recursor results have
@@ -52600,8 +52630,8 @@ theorem
           (H.parameterSuffix.parameterDecls.toCtx.reverse ++ [])
           (.sort (.zero : VLevel)) := by simp
   refine ⟨T, ?_⟩
-  simpa [hleftEq, hrightEq, parameterDecls, ← H.parameterDecls] using
-    hcontexts
+  simpa only [hleftEq, hrightEq, parameterDecls, ← H.parameterDecls,
+    VLCtx.toCtx, List.append_nil, List.reverse_reverse] using hcontexts
 
 /-- The original production constructor type has exactly the common
 parameter prefix replayed by `mkRecInfos`, followed by the genuine field
@@ -52622,13 +52652,14 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.GeneratedRuleAlignment owner howner i hctor) :
     ∃ residual,
-      Expr.ForallTelescope indTypes[owner].ctors[i].type
+      Expr.ForallTelescope
+        ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).type
         (stats.params.size + A.rule.allArgs.size) residual := by
   rcases A.semantics.parameterPrefix.toNestedParamOpening
       A.rule.params_bound with ⟨parameterLctx, Hparams⟩
-  have Hsource := Hparams.toRestoreParamOpening.reflectForallTelescope
+  have Hsource := Hparams.reflectForallTelescope
     A.semantics.fieldOpening.telescope
-  simpa using Hsource
+  simpa [Array.getElem!_eq_getD, Array.getD, A.sourceOwner_lt] using Hsource
 
 /-- Inverting the independently checked source-constant translation along
 the exact combined parameter/field telescope exposes a typed abstract
@@ -52648,18 +52679,19 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.GeneratedRuleAlignment owner howner i hctor) :
     ∃ residual,
-      Expr.ForallTelescope indTypes[owner].ctors[i].type
+      Expr.ForallTelescope
+        ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).type
         (stats.params.size + A.rule.allArgs.size) residual ∧
       Expr.ForallTelescopeTypeTranslation H.outVEnv c.lparams []
-        indTypes[owner].ctors[i].type
+        ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).type
         (stats.params.size + A.rule.allArgs.size)
-        decl.types[owner].ctors[i].type := by
+        ((decl.types[owner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt).type := by
   rcases A.sourceConstructorTelescope with ⟨residual, Htelescope⟩
   have henv : Hheaders.context.venv ≤ H.outVEnv :=
     R.declared.installed.le.trans H.installed.le
   have Htranslation := A.ctorTranslation.type.mono henv
   have Htype : H.outVEnv.IsType c.lparams.length []
-      decl.types[owner].ctors[i].type := by
+      ((decl.types[owner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt).type := by
     simpa [VConstant.WF, A.ctorTranslation.uvars] using
       A.ctorTranslation.wf.mono henv
   exact ⟨residual, Htelescope,
@@ -52685,9 +52717,10 @@ theorem
     (A : H.GeneratedRuleAlignment owner howner i hctor) :
     ∃ parameterDomains fieldSource fieldTarget,
       parameterDomains.length = stats.params.size ∧
-      Expr.ForallTelescope indTypes[owner].ctors[i].type
+      Expr.ForallTelescope
+        ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).type
         stats.params.size fieldSource ∧
-      decl.types[owner].ctors[i].type =
+      ((decl.types[owner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt).type =
         VExpr.wrapForalls parameterDomains fieldTarget ∧
       Expr.ForallTelescopeTypeTranslation H.outVEnv c.lparams
         (abstractForallContext parameterDomains []) fieldSource
@@ -52718,8 +52751,9 @@ theorem
       (R.materialized.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
     ∃ ctorVal tailTarget,
-      ctorVal ∈ decl.types[owner].ctors ∧
-      ctorVal.name = indTypes[owner].ctors[i].name ∧
+      ctorVal ∈ (decl.types[owner]'A.abstractOwner_lt).ctors ∧
+      ctorVal.name =
+        ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name ∧
       Nonempty
         (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
           H.outVEnv Us
@@ -52736,7 +52770,13 @@ theorem
       _Hprefix, _Htail, _HtailType, _Hintro, _HintroType, ⟨Hsynthesis⟩⟩
   refine ⟨ctorVal, tailTarget, ?_, hctorName, ⟨?_⟩⟩
   · simpa using hctorMem
-  · simpa [Us, parameterDecls] using Hsynthesis.mono H.installed.le
+  · have hbaseLE :
+        (R.declared.context.toAdmissibleRecursorContextWF
+          H.elimLevelAdmissible).venv ≤ H.outVEnv := by
+      rw [ContextWF.toAdmissibleRecursorContextWF_venv,
+        R.declared.contextVEnv]
+      exact H.installed.le
+    simpa [Us, parameterDecls] using Hsynthesis.mono hbaseLE
 
 /-- The independently checked constructor application transports into the
 actual generated recursor parameter context.  The translated term and its
@@ -52764,10 +52804,12 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ tailTarget introTarget,
+      ∃ (tailTarget introTarget : VExpr),
         TrExprS H.outVEnv Us parameterDecls
           (mkAppN
-            (.const indTypes[owner].ctors[i].name stats.levels)
+            (.const
+              ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+              stats.levels)
             stats.params) introTarget ∧
         H.outVEnv.HasType Us.length T.params.reverse
           introTarget tailTarget := by
@@ -52780,16 +52822,73 @@ theorem
       H.lparamsNodup owner A.sourceOwner_lt i A.sourceCtor_lt with
     ⟨_ctorVal, _tail, tailTarget, introTarget, _hctorMem, _hctorName,
       _Hprefix, _Htail, _HtailType, Hintro, HintroType, _Hsynthesis⟩
+  have hbaseLE :
+      (R.declared.context.toAdmissibleRecursorContextWF
+        H.elimLevelAdmissible).venv ≤ H.outVEnv := by
+    rw [ContextWF.toAdmissibleRecursorContextWF_venv,
+      R.declared.contextVEnv]
+    exact H.installed.le
   have Hintro' : TrExprS H.outVEnv Us parameterDecls
-      (mkAppN (.const indTypes[owner].ctors[i].name stats.levels)
+      (mkAppN (.const
+          ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+          stats.levels)
         stats.params) introTarget := by
-    simpa [Us, parameterDecls] using Hintro.mono H.installed.le
+    simpa [Us, parameterDecls] using Hintro.mono hbaseLE
   have HintroType' : H.outVEnv.HasType Us.length parameterDecls.toCtx
       introTarget tailTarget := by
-    simpa [Us, parameterDecls] using HintroType.mono H.installed.le
+    simpa [Us, parameterDecls] using HintroType.mono hbaseLE
   refine ⟨T, tailTarget, introTarget, Hintro', ?_⟩
   exact HintroType'.defeqDFC H.outVEnvWF.ordered
     (hparams.symm H.outVEnvWF.ordered)
+
+/-- Weaken the checked constructor major below the generated motive/minor
+prefix.  The explicit lift is the de Bruijn shift later field and equation
+terms must share; retaining it here prevents an implicit context-extension
+assumption from entering iota typing. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedConstructorPrefixApplication
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (tailTarget introTarget : VExpr),
+        TrExprS H.outVEnv Us parameterDecls
+          (mkAppN
+            (.const
+              ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+              stats.levels)
+            stats.params) introTarget ∧
+        H.outVEnv.HasType Us.length
+          (T.params ++ T.motives ++ T.minors).reverse
+          (introTarget.liftN (T.motives ++ T.minors).length 0)
+          (tailTarget.liftN (T.motives ++ T.minors).length 0) := by
+  rcases A.finalCheckedConstructorApplication with
+    ⟨T, tailTarget, introTarget, Hintro, HintroType⟩
+  let added := (T.motives ++ T.minors).reverse
+  have W0 : Ctx.LiftN added.length 0 T.params.reverse
+      (added ++ T.params.reverse) := .zero added
+  have W : Ctx.LiftN added.length 0 T.params.reverse
+      ((T.params ++ T.motives ++ T.minors).reverse) := by
+    simpa [added, List.reverse_append, List.append_assoc] using W0
+  refine ⟨T, tailTarget, introTarget, Hintro, ?_⟩
+  simpa [added, Nat.add_comm] using
+    HintroType.weakN H.outVEnvWF.ordered W
 
 /-- The exact field telescope retained by rule generation remains available
 after the generated recursors are installed.  This is the stage-correct form
