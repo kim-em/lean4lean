@@ -34621,6 +34621,9 @@ structure BoundGeneratedRecursorRule.Semantics
   fieldRootContext : RecursorContextWF fieldRoot recLparams
   fieldsRecent : RecursorRecentBoundFVarArray fieldRootContext context
     H.allArgs
+  parameterTail : Expr
+  parameterPrefix : RecursorParamPrefix stats 0 sourceCtor.type parameterTail
+  fieldOpening : ConstructorFieldOpening parameterTail H.target H.allArgs
   context_venv : context.venv = semanticEnv
   validStats : RecursorValidAppStatsWF context.venv recLparams
     context.mlctx.vlctx stats decl depth
@@ -35408,6 +35411,9 @@ theorem oneRuleSemantics
     fieldRoot := c
     fieldRootContext := R
     fieldsRecent := HfieldsRecent
+    parameterTail := tail
+    parameterPrefix := hprefix
+    fieldOpening := _Hopening
     context_venv := HfieldsRecent.venv_eq
     validStats := HstatsArgs
     ownerIdx := selectedOwner
@@ -42376,6 +42382,57 @@ theorem NestedParamOpening.initial_size
     (H : NestedParamOpening {} #[] type n outLctx tail outParams) :
     outParams.size = n := by simpa using H.params_size
 
+/-- A production recursor-parameter replay is the same syntactic opening as
+`NestedParamOpening`, with the already allocated cached parameter variables
+used in place of freshly generated ones.  This bridge lets later equation
+proofs reuse the alpha-invariant residual lemmas developed for nested
+restoration rather than reimplementing simultaneous closing. -/
+theorem RecursorParamPrefix.toNestedParamOpening
+    (H : RecursorParamPrefix stats 0 source tail)
+    (Hparams : BoundFVarArray c stats.params) :
+    ∃ outLctx, NestedParamOpening {} #[] source stats.params.size
+      outLctx tail stats.params := by
+  have go : ∀ {i source tail},
+      RecursorParamPrefix stats i source tail →
+      ∀ (lctx : LocalContext) (opened : Array Expr),
+        opened.toList = stats.params.toList.take i →
+        ∃ outLctx, NestedParamOpening lctx opened source
+          (stats.params.size - i) outLctx tail stats.params := by
+    intro i source tail Hprefix
+    induction Hprefix with
+    | done hi =>
+      intro lctx opened hopened
+      have hopenedFull : opened = stats.params := by
+        apply Array.toList_inj.mp
+        rw [hopened, hi]
+        simp
+      subst opened
+      exact ⟨lctx, by simpa [hi] using
+        (NestedParamOpening.done (lctx := lctx) (params := stats.params)
+          (type := tail))⟩
+    | @step i param body tail dom name bi hparam Hnext ih =>
+      intro lctx opened hopened
+      obtain ⟨hi, hparamGet⟩ := Array.getElem?_eq_some_iff.mp hparam
+      rcases Hparams.getElem_eq_fvar i hi with ⟨_hiFvars, hparamFVar⟩
+      have hparamEq : param = .fvar Hparams.fvars[i] := by
+        exact hparamGet.symm.trans hparamFVar
+      subst param
+      have hopenedNext :
+          (opened.push (.fvar Hparams.fvars[i])).toList =
+            stats.params.toList.take (i + 1) := by
+        rw [Array.toList_push, hopened,
+          List.take_succ_eq_append_getElem (by simpa using hi)]
+        simp only [List.getElem_toArray]
+        exact congrArg (fun e => stats.params.toList.take i ++ [e])
+          hparamFVar
+      rcases ih (lctx.mkLocalDecl Hparams.fvars[i] name dom bi)
+          (opened.push (.fvar Hparams.fvars[i])) hopenedNext with
+        ⟨outLctx, Hopening⟩
+      refine ⟨outLctx, ?_⟩
+      have Hstep := NestedParamOpening.step Hopening
+      simpa only [hparamEq, Nat.sub_eq_iff_eq_add (by omega)] using Hstep
+  simpa using go H {} #[] (by simp)
+
 private theorem nestedWithParamsLoop_refines {α : Type}
     (k : LocalContext → Expr → Array Expr →
       Lean4Lean.ElimNestedInductive.M α)
@@ -45374,6 +45431,28 @@ theorem RestoreParamOpening.forallSuffix
     rw [show (n' + 1) + suffixArity = (n' + suffixArity) + 1 by omega]
       at Htelescope
     cases Htelescope
+
+/-- Conversely, a forall telescope visible after an exact forall-only
+opening was already present below the opened prefix.  Substitution by the
+recorded free variables cannot manufacture a forall, so the two arities add
+without any closedness or freshness premise. -/
+theorem RestoreParamOpening.reflectForallTelescope
+    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
+    (Htail : Expr.ForallTelescope tail suffixArity residual) :
+    ∃ sourceResidual,
+      Expr.ForallTelescope outer (n + suffixArity) sourceResidual := by
+  induction Hopen generalizing suffixArity residual with
+  | done => exact ⟨residual, by simpa using Htail⟩
+  | forallE Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    rcases ih Htail with ⟨openedResidual, Hopened⟩
+    rw [Expr.instantiate1_eq] at Hopened
+    rcases Hopened.reflect_instantiate1'_fvar with
+      ⟨sourceResidual, Hsource⟩
+    refine ⟨sourceResidual, ?_⟩
+    have Hcons := Expr.ForallTelescope.cons Hsource
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hcons
+  | lam Hnext ih => cases Hnext
 
 /-- If the residual refers only to the unopened suffix, opening an outer
 prefix preserves that residual literally.  Generated recursor results have
@@ -52161,6 +52240,99 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorTelescopeTransl
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner) := by
   exact H.finalRecursorTelescopeTranslationAt owner howner
+
+/-- The original production constructor type has exactly the common
+parameter prefix replayed by `mkRecInfos`, followed by the genuine field
+suffix opened while generating this rule.  This is a source-syntax fact: it
+does not identify the rule's larger retained local context with the canonical
+equation context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.sourceConstructorTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    ∃ residual,
+      Expr.ForallTelescope indTypes[owner].ctors[i].type
+        (stats.params.size + A.rule.allArgs.size) residual := by
+  rcases A.semantics.parameterPrefix.toNestedParamOpening
+      A.rule.params_bound with ⟨parameterLctx, Hparams⟩
+  have Hsource := Hparams.toRestoreParamOpening.reflectForallTelescope
+    A.semantics.fieldOpening.telescope
+  simpa using Hsource
+
+/-- Inverting the independently checked source-constant translation along
+the exact combined parameter/field telescope exposes a typed abstract
+constructor telescope in the final environment.  Its universe names are
+still the declaration names; recursor-level reindexing is a separate step. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSourceConstructorTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    ∃ residual,
+      Expr.ForallTelescope indTypes[owner].ctors[i].type
+        (stats.params.size + A.rule.allArgs.size) residual ∧
+      Expr.ForallTelescopeTypeTranslation H.outVEnv c.lparams []
+        indTypes[owner].ctors[i].type
+        (stats.params.size + A.rule.allArgs.size)
+        decl.types[owner].ctors[i].type := by
+  rcases A.sourceConstructorTelescope with ⟨residual, Htelescope⟩
+  have henv : Hheaders.context.venv ≤ H.outVEnv :=
+    R.declared.installed.le.trans H.installed.le
+  have Htranslation := A.ctorTranslation.type.mono henv
+  have Htype : H.outVEnv.IsType c.lparams.length []
+      decl.types[owner].ctors[i].type := by
+    simpa [VConstant.WF, A.ctorTranslation.uvars] using
+      A.ctorTranslation.wf.mono henv
+  exact ⟨residual, Htelescope,
+    Expr.ForallTelescopeTypeTranslation.ofTrExprS Htelescope
+      Htranslation Htype⟩
+
+/-- Parameter/field decomposition of the original constructor telescope.
+The field certificate is now checked under precisely the abstract parameter
+prefix, with no motives, minors, mutual indices, or majors retained from the
+executable reader context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSourceConstructorFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    ∃ parameterDomains fieldSource fieldTarget,
+      parameterDomains.length = stats.params.size ∧
+      Expr.ForallTelescope indTypes[owner].ctors[i].type
+        stats.params.size fieldSource ∧
+      decl.types[owner].ctors[i].type =
+        VExpr.wrapForalls parameterDomains fieldTarget ∧
+      Expr.ForallTelescopeTypeTranslation H.outVEnv c.lparams
+        (abstractForallContext parameterDomains []) fieldSource
+        A.rule.allArgs.size fieldTarget := by
+  rcases A.finalSourceConstructorTelescope with
+    ⟨_residual, _Htelescope, Htyped⟩
+  exact Htyped.dropPrefix
 
 /-- The exact field telescope retained by rule generation remains available
 after the generated recursors are installed.  This is the stage-correct form
