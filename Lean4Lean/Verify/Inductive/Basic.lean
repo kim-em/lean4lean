@@ -31371,6 +31371,10 @@ structure SemanticBoundGeneratedRecursiveCall
     (mkAppN field generated.localArgs) appliedFieldTarget
   applied_field_typing : current_context.venv.HasType recLparams.length
     current_context.mlctx.vlctx.toCtx appliedFieldTarget terminalTarget
+  validated : RecursorValidatedIndAppAt current_context.venv recLparams
+    current_context.mlctx.vlctx stats decl
+    (depth + generated.localArgs.size) generated.exposedType exposedTarget
+    generated.ownerIdx
   fieldTarget : VExpr
   domain : VExpr
   field_translation : TrExprS R.venv recLparams R.mlctx.vlctx
@@ -31507,7 +31511,11 @@ theorem mkRecRules.boundGeneratedCallSemantic
                 TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
                   (mkAppN (.fvar fv) H.localArgs) appliedTarget ∧
                 Rcurrent.venv.HasType recLparams.length
-                  Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget)
+                  Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget ∧
+                RecursorValidatedIndAppAt Rcurrent.venv recLparams
+                  Rcurrent.mlctx.vlctx stats decl
+                  (depth + H.localArgs.size) H.exposedType syntaxTarget
+                  H.ownerIdx)
     (by
       intro current Rcurrent exposedType syntaxTarget terminalTarget
         appliedTarget args target hsyntax hdefeq htype Hrecent happlied
@@ -31548,14 +31556,27 @@ theorem mkRecRules.boundGeneratedCallSemantic
         current_extends := Hrecent.contextLE
         arguments_bound := Hrecent.toFreshBoundFVarArray
         value_eq := by simp [AddInductive.getIIndices, hvalid] }
+      let HstatsCurrent := Hstats.weakenRecent Hrecent
+      have htargetStats : target < stats.indConsts.size :=
+        (checkPositivityStep.isValidIndApp?_some hvalid).1
+      have htargetDecl : target < decl.types.length := by
+        rw [← HstatsCurrent.types_size]
+        exact htargetStats
+      have hctxCurrent : VLCtx.NoIndConsts
+          (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
+        Hrecent.noIndConsts (names := decl.types.map (·.name)) hctx
+      let Hvalidated := HstatsCurrent.validatedIndAppAt hsyntax hvalid
+        htargetDecl hlit hctxCurrent hproj
       exact Except.WF.pure
         ⟨Hgenerated, rfl, Rcurrent, Hrecent, syntaxTarget, terminalTarget,
-          appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType⟩)
+          appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType,
+          Hvalidated⟩)
   exact Hloop.mono fun value Hout => by
     rcases Hout with
       ⟨domain, hfieldTyping, target, htarget, hrecursive,
         Hgenerated, howner, Rcurrent, Hrecent, syntaxTarget, terminalTarget,
-        appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType⟩
+        appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType,
+        Hvalidated⟩
     subst target
     exact ⟨{
       generated := Hgenerated
@@ -31569,6 +31590,7 @@ theorem mkRecRules.boundGeneratedCallSemantic
       appliedFieldTarget := appliedTarget
       applied_field_translation := happlied
       applied_field_typing := happliedType
+      validated := Hvalidated
       fieldTarget := fieldTarget
       domain := domain
       field_translation := hfield
@@ -52052,6 +52074,54 @@ binder-typed telescope recovered from the production `.recInfo`.  This is
 the canonical source of the parameter, motive, and minor domains used when
 typing the corresponding equation; it does not reconstruct those domains
 from the rule RHS. -/
+theorem RecursorPhasesResult.recursorTelescopeTranslationAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
+    Nonempty (GeneratedRecursorTelescopeTranslation R.declared.venvCtors
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) := by
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  let E := H.generated.entry owner howner
+  rcases H.generatedTelescopeTranslations owner howner with
+    ⟨info, hinfo, ⟨T⟩⟩
+  have hinfoEq : info = E.info := by
+    have heq : ConstantInfo.recInfo info = .recInfo E.info :=
+      hinfo.symm.trans E.source_eq
+    injection heq
+  subst info
+  refine ⟨?_⟩
+  simpa [E.levels, H.localExtends.lparams_eq] using T
+
+theorem RecursorPhasesResult.finalRecursorTelescopeTranslationAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
+    Nonempty (GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) := by
+  rcases H.recursorTelescopeTranslationAt owner howner with ⟨T⟩
+  exact ⟨T.mono H.installed.le⟩
+
 theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTelescopeTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -52070,16 +52140,7 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTelescopeTranslation
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner) := by
-  let E := H.generated.entry owner howner
-  rcases H.generatedTelescopeTranslations owner howner with
-    ⟨info, hinfo, ⟨T⟩⟩
-  have hinfoEq : info = E.info := by
-    have heq : ConstantInfo.recInfo info = .recInfo E.info :=
-      hinfo.symm.trans E.source_eq
-    injection heq
-  subst info
-  refine ⟨?_⟩
-  simpa [E.levels, H.localExtends.lparams_eq] using T
+  exact H.recursorTelescopeTranslationAt owner howner
 
 theorem RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorTelescopeTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -52099,8 +52160,7 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorTelescopeTransl
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner) := by
-  rcases A.recursorTelescopeTranslation with ⟨T⟩
-  exact ⟨T.mono H.installed.le⟩
+  exact H.finalRecursorTelescopeTranslationAt owner howner
 
 /-- The exact field telescope retained by rule generation remains available
 after the generated recursors are installed.  This is the stage-correct form
@@ -52219,7 +52279,7 @@ theorem
 at its identity universe instantiation.  Rule typing can therefore consume
 the independently recovered telescope without appealing to the equation
 being constructed. -/
-theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTyping
+theorem RecursorPhasesResult.recursorTypingAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -52227,10 +52287,8 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTyping
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (_A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
     let recursor := H.entries[owner].2
     H.outVEnv.HasType recursor.uvars []
       (.const recursor.name (VLevel.params recursor.uvars)) recursor.type := by
@@ -52247,6 +52305,90 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTyping
   have hwf : recursor.toVConstant.WF H.outVEnv :=
     hwfBase.mono H.installed.le
   exact VEnv.HasType.const0 hlookup hwf
+
+theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (_A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let recursor := H.entries[owner].2
+    H.outVEnv.HasType recursor.uvars []
+      (.const recursor.name (VLevel.params recursor.uvars)) recursor.type := by
+  exact H.recursorTypingAt owner howner
+
+/-- Final-environment recursor package selected by one generated recursive
+call.  The validated terminal application fixes the mutual-family owner, so
+both the exact five-part telescope and the installed constant typing can be
+selected without trusting the recursor name embedded in the generated term.
+-/
+structure
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) where
+  semantic : SemanticBoundGeneratedRecursiveCall indTypes stats
+    (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
+    (AddInductive.getRecLevels H.elimLevel stats.levels)
+    A.semantics.context decl A.semantics.depth
+    A.rule.recursiveArgs[j] A.rule.recursiveResults[j]!
+  entry_lt : semantic.generated.ownerIdx < H.entries.length
+  telescope : GeneratedRecursorTelescopeTranslation H.outVEnv
+    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    (H.generated.entry semantic.generated.ownerIdx entry_lt).info.type
+    H.entries[semantic.generated.ownerIdx].2.type
+    stats.params.size (H.recInfos.map (·.motive)).size
+    (H.recInfos.flatMap (·.minors)).size
+    H.recInfos[semantic.generated.ownerIdx]!.indices.size
+    semantic.generated.ownerIdx
+  typing :
+    let recursor := H.entries[semantic.generated.ownerIdx].2
+    H.outVEnv.HasType recursor.uvars []
+      (.const recursor.name (VLevel.params recursor.uvars)) recursor.type
+
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.recursiveCallRecursorFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    Nonempty (A.RecursiveCallRecursorFrame j hj) := by
+  rcases A.semantics.calls.entries j hj hj with ⟨S⟩
+  have hrecInfo : S.generated.ownerIdx < H.recInfos.size := by
+    rw [H.cardinality.records]
+    exact S.validated.target_lt
+  have hentry : S.generated.ownerIdx < H.entries.length := by
+    simpa [H.generated.length] using hrecInfo
+  rcases H.finalRecursorTelescopeTranslationAt
+      S.generated.ownerIdx hentry with ⟨T⟩
+  exact ⟨{
+    semantic := S
+    entry_lt := hentry
+    telescope := T
+    typing := H.recursorTypingAt S.generated.ownerIdx hentry }⟩
 
 /-- The production recursor level-parameter list and the installed abstract
 constant have the same arity. -/
