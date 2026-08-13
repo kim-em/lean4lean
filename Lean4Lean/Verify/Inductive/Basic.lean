@@ -256,6 +256,20 @@ theorem VExpr.wrapForalls_prefix_domains_eq
   rw [htakeLeft, htakeRight] at htake
   exact congrArg Prod.fst (Option.some.inj htake)
 
+/-- Wrapping the same dependent domain list on both sides is injective in
+the residual body. -/
+theorem VExpr.wrapForalls_left_cancel
+    (domains : List VExpr)
+    (H : VExpr.wrapForalls domains left =
+      VExpr.wrapForalls domains right) :
+    left = right := by
+  induction domains with
+  | nil => simpa [VExpr.wrapForalls] using H
+  | cons domain domains ih =>
+    simp only [VExpr.wrapForalls] at H
+    injection H with _ hbody
+    exact ih hbody
+
 /-- Lift a recent context prefix over a block inserted immediately beneath
 it, starting at cutoff `k` below the whole prefix.  The cutoff decreases as
 the prefix is traversed from newest to oldest. -/
@@ -45506,6 +45520,56 @@ theorem GeneratedRecursorTelescopeTranslation.prefixContext
     simpa [VExpr.wrapForalls_append, List.append_assoc] using htype'
   simpa using
     (VEnv.IsType.wrapForalls_inv henv (by trivial) hgrouped).1
+
+/-- Remove the parameter/motive/minor prefix from the retained structural
+translation.  The resulting certificate keeps the concrete production
+suffix and identifies its abstract target with exactly `indices ++ major`,
+not merely with an existential telescope of the same arity. -/
+theorem GeneratedRecursorTelescopeTranslation.suffixTyped
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx) :
+    let outerDomains := T.params ++ T.motives ++ T.minors
+    ∃ sourceSuffix,
+      Expr.ForallTelescope source outerDomains.length sourceSuffix ∧
+      Expr.ForallTelescopeTypeTranslation env Us
+        (abstractForallContext outerDomains []) sourceSuffix
+        (T.indices ++ T.major).length
+        (VExpr.wrapForalls (T.indices ++ T.major) T.result) := by
+  let outerDomains := T.params ++ T.motives ++ T.minors
+  have harity :
+      numParams + numMotives + numMinors + numIndices + 1 =
+        outerDomains.length + (T.indices ++ T.major).length := by
+    simp only [outerDomains, List.length_append, T.params_length,
+      T.motives_length, T.minors_length, T.indices_length,
+      T.major_length]
+    omega
+  have Htyped : Expr.ForallTelescopeTypeTranslation env Us [] source
+      (outerDomains.length + (T.indices ++ T.major).length) target := by
+    rw [← harity]
+    exact T.typed
+  rcases Htyped.dropPrefix with
+    ⟨prefixDomains, sourceSuffix, suffixTarget, hprefixLength,
+      Hsource, htarget, Hsuffix⟩
+  have hprefixDomains : prefixDomains = outerDomains := by
+    apply VExpr.wrapForalls_prefix_domains_eq hprefixLength
+      (rfl : outerDomains.length = outerDomains.length)
+    calc
+      VExpr.wrapForalls prefixDomains suffixTarget = target := htarget.symm
+      _ = VExpr.wrapForalls
+          (outerDomains ++ (T.indices ++ T.major)) T.result := by
+        simpa [outerDomains, List.append_assoc] using T.target_eq
+  subst prefixDomains
+  have hsuffixTarget : suffixTarget =
+      VExpr.wrapForalls (T.indices ++ T.major) T.result := by
+    apply VExpr.wrapForalls_left_cancel outerDomains
+    calc
+      VExpr.wrapForalls outerDomains suffixTarget = target := htarget.symm
+      _ = VExpr.wrapForalls outerDomains
+          (VExpr.wrapForalls (T.indices ++ T.major) T.result) := by
+        simpa [outerDomains, VExpr.wrapForalls_append, List.append_assoc] using
+          T.target_eq
+  subst suffixTarget
+  exact ⟨sourceSuffix, Hsource, Hsuffix⟩
 
 def GeneratedRecursorTelescopeTranslation.mono
     (henv : env ≤ env')
