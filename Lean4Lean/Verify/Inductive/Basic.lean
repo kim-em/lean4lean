@@ -24286,6 +24286,49 @@ theorem BoundFVarArray.getElem_eq_fvar
   rcases H with ⟨fvars, rfl, members⟩
   refine ⟨by simpa using hi, by simp⟩
 
+/-- A selected free-variable array occupying a known slice of a larger
+binder list translates, after simultaneous abstraction, to the corresponding
+canonical de Bruijn slice. -/
+theorem BoundFVarArray.abstractedTranslationAt
+    (H : BoundFVarArray c xs)
+    (binders before after : List FVarId)
+    (hsplit : binders = before ++ H.fvars ++ after)
+    (hnodup : binders.Nodup)
+    (domains : List VExpr) (Δ : VLCtx)
+    (hdomains : domains.length = binders.length) :
+    List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      ((xs.map fun arg => arg.abstractList binders).toList)
+      (List.ofFn fun i : Fin xs.size =>
+        VExpr.bvar (binders.length - 1 - (before.length + i))) := by
+  subst binders
+  apply List.forall₂_of_getElem (by simp)
+  intro i hsource htarget
+  have hi : i < xs.size := by simpa using hsource
+  rcases H.getElem_eq_fvar i hi with ⟨hiFvars, harg⟩
+  have hposition : before.length + i <
+      (before ++ H.fvars ++ after).length := by
+    simp only [List.length_append]
+    omega
+  have hselected :
+      (before ++ H.fvars ++ after)[before.length + i] = H.fvars[i] := by
+    simp [hiFvars]
+  have habstract := Expr.abstractList_fvar_getElem hnodup
+    (before.length + i) hposition (k := 0)
+  rw [hselected] at habstract
+  simp only [Array.getElem_toList, Array.getElem_map,
+    List.getElem_ofFn]
+  rw [harg, habstract]
+  have hbound :
+      (before ++ H.fvars ++ after).length - 1 - (before.length + i) <
+        domains.length := by
+    rw [hdomains]
+    omega
+  simpa using TrExprS.bvar_of_abstractForallContext
+    (env := env) (Us := Us) domains Δ
+    ((before ++ H.fvars ++ after).length - 1 - (before.length + i))
+    hbound
+
 theorem BoundFVarArray.length_fvars
     (H : BoundFVarArray c xs) : H.fvars.length = xs.size := by
   have := congrArg Array.size H.expressions
