@@ -21583,6 +21583,21 @@ theorem TrExprS.bvars_of_abstractForallContext
         (hindices index (by simp))
     · exact ih fun other hother => hindices other (by simp [hother])
 
+/-- Canonically ordered binder variables translate pointwise in any larger
+abstract forall context. -/
+theorem TrExprS.canonicalBvars_of_abstractForallContext
+    (domains : List VExpr) (Δ : VLCtx) (n : Nat)
+    (hn : n ≤ domains.length) :
+    List.Forall₂ (TrExprS env Us (abstractForallContext domains Δ))
+      (List.ofFn fun i : Fin n => Expr.bvar (n - 1 - i))
+      (List.ofFn fun i : Fin n => VExpr.bvar (n - 1 - i)) := by
+  apply List.forall₂_of_getElem (by simp)
+  intro i hsource htarget
+  have hi : i < n := by simpa using hsource
+  simp only [List.getElem_ofFn]
+  apply TrExprS.bvar_of_abstractForallContext
+  omega
+
 theorem TrExprS.bvar_eq_of_abstractForallContext
     (H : TrExprS env Us (abstractForallContext domains Δ) (.bvar i) out)
     (hi : i < domains.length) : out = .bvar i := by
@@ -33681,6 +33696,43 @@ def BoundGeneratedRecursorRule.all_binders_bound
       (stats.params ++ motives ++ minors ++ H.allArgs) :=
   ((H.params_bound.append H.motives_bound).append H.minors_bound).append
     H.all_args_bound
+
+/-- Simultaneously closing the complete rule-binder payload produces the
+canonical de Bruijn variables in source-binder order. -/
+theorem BoundGeneratedRecursorRule.abstractedBinders_eq
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    (((stats.params ++ motives ++ minors ++ H.allArgs).map
+      fun arg => arg.abstractList H.binders).toList) =
+      List.ofFn (fun i : Fin H.binders.length =>
+        Expr.bvar (H.binders.length - 1 - i)) := by
+  have hexpressions := H.all_binders_bound.expressions
+  have hmapped := congrArg
+    (fun args : Array Expr => args.map fun arg =>
+      arg.abstractList H.binders) hexpressions
+  have hfvars : H.all_binders_bound.fvars = H.binders := by
+    rfl
+  have hcanonical := Expr.abstractList_fvarArray
+    H.binders 0 H.binders_nodup
+  rw [hfvars, hcanonical] at hmapped
+  simpa using congrArg Array.toList hmapped
+
+/-- The complete simultaneously abstracted binder payload translates
+pointwise to the equally ordered canonical abstract variables. -/
+theorem BoundGeneratedRecursorRule.abstractedBindersTranslation
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule)
+    (domains : List VExpr) (Δ : VLCtx)
+    (hdomains : domains.length = H.binders.length) :
+    List.Forall₂
+      (TrExprS env Us (abstractForallContext domains Δ))
+      (((stats.params ++ motives ++ minors ++ H.allArgs).map
+        fun arg => arg.abstractList H.binders).toList)
+      (List.ofFn (fun i : Fin H.binders.length =>
+        VExpr.bvar (H.binders.length - 1 - i))) := by
+  rw [H.abstractedBinders_eq]
+  exact TrExprS.canonicalBvars_of_abstractForallContext
+    (env := env) (Us := Us) domains Δ H.binders.length (by omega)
 
 /-- The four nested production `mkLambda` calls are one exact, globally
 no-alias lambda telescope over the retained binder sequence. -/
