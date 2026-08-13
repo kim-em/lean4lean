@@ -21348,6 +21348,38 @@ theorem Expr.ForallTelescopeTypeTranslation.telescope
     rcases ih with ⟨residual, Htel⟩
     exact ⟨residual, .cons Htel⟩
 
+/-- Expose the abstract domains and residual carried by a binder-by-binder
+translation.  The residual is typed in precisely the context obtained by
+opening those domains, so callers can apply a term to the canonical binder
+variables without reconstructing any domain syntax. -/
+theorem Expr.ForallTelescopeTypeTranslation.toWrapForalls
+    (H : Expr.ForallTelescopeTypeTranslation env Us Δ source n target) :
+    ∃ domains sourceResidual targetResidual,
+      domains.length = n ∧
+      Expr.ForallTelescope source n sourceResidual ∧
+      target = VExpr.wrapForalls domains targetResidual ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        sourceResidual targetResidual ∧
+      env.IsType Us.length (abstractForallContext domains Δ).toCtx
+        targetResidual := by
+  induction H with
+  | nil Htr Htype =>
+    exact ⟨[], _, _, rfl, .nil _, rfl, by
+      simpa [abstractForallContext] using Htr, by
+      simpa [abstractForallContext] using Htype⟩
+  | @cons Δ dom domTarget body n bodyTarget name bi
+      Hdom HdomType Hbody ih =>
+    rcases ih with
+      ⟨domains, sourceResidual, targetResidual, hlength, Htelescope,
+        htarget, Hresidual, HresidualType⟩
+    refine ⟨domTarget :: domains, sourceResidual, targetResidual,
+      by simp [hlength], .cons Htelescope, ?_, ?_, ?_⟩
+    · simp [VExpr.wrapForalls, htarget]
+    · simpa [abstractForallContext, List.map_append,
+        List.append_assoc] using Hresidual
+    · simpa [abstractForallContext, List.map_append,
+        List.append_assoc] using HresidualType
+
 /-- Split an exactly sized typed telescope after `prefixArity` binders,
 retaining both the translated prefix domains and the binder-by-binder typed
 suffix in their canonical abstract context. -/
@@ -52840,6 +52872,137 @@ theorem
   refine ⟨T, tailTarget, introTarget, Hintro', ?_⟩
   exact HintroType'.defeqDFC H.outVEnvWF.ordered
     (hparams.symm H.outVEnvWF.ordered)
+
+/-- Decompose the independently checked constructor tail along the genuine
+field telescope retained by rule generation.  This joins the constructor
+checker and recursor generator only through their common source tail; the
+abstract parameter contexts are related by conversion, not by syntactic
+equality. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedConstructorFieldFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
+        fieldDomains.length = A.rule.allArgs.size ∧
+        TrExprS H.outVEnv Us parameterDecls
+          A.semantics.parameterTail
+          (VExpr.wrapForalls fieldDomains fieldResult) ∧
+        H.outVEnv.IsType Us.length parameterDecls.toCtx
+          (VExpr.wrapForalls fieldDomains fieldResult) ∧
+        H.outVEnv.HasType Us.length T.params.reverse introTarget
+          (VExpr.wrapForalls fieldDomains fieldResult) ∧
+        TrExprS H.outVEnv Us parameterDecls
+          (mkAppN
+            (.const
+              ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+              stats.levels)
+            stats.params) introTarget := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalRecursorParameterContext with ⟨T, hparams⟩
+  rcases R.checkedConstructorPrefixSeedAt H.elimLevelAdmissible
+      H.lparamsNodup owner A.sourceOwner_lt i A.sourceCtor_lt with
+    ⟨_ctorVal, tail, tailTarget, introTarget, _hctorMem, _hctorName,
+      Hprefix, Htail, HtailType, Hintro, HintroType, _Hsynthesis⟩
+  have HsemanticPrefix : RecursorParamPrefix stats 0
+      ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).type
+      A.semantics.parameterTail := by
+    simpa [Array.getElem!_eq_getD, Array.getD, A.sourceOwner_lt] using
+      A.semantics.parameterPrefix
+  have htail : tail = A.semantics.parameterTail :=
+    Hprefix.tail_eq HsemanticPrefix
+  subst tail
+  have hbaseLE :
+      (R.declared.context.toAdmissibleRecursorContextWF
+        H.elimLevelAdmissible).venv ≤ H.outVEnv := by
+    rw [ContextWF.toAdmissibleRecursorContextWF_venv,
+      R.declared.contextVEnv]
+    exact H.installed.le
+  have Htail' : TrExprS H.outVEnv Us parameterDecls
+      A.semantics.parameterTail tailTarget := by
+    simpa [Us, parameterDecls] using Htail.mono hbaseLE
+  have HtailType' : H.outVEnv.IsType Us.length parameterDecls.toCtx
+      tailTarget := by
+    simpa [Us, parameterDecls] using HtailType.mono hbaseLE
+  have Hintro' : TrExprS H.outVEnv Us parameterDecls
+      (mkAppN
+        (.const
+          ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+          stats.levels)
+        stats.params) introTarget := by
+    simpa [Us, parameterDecls] using Hintro.mono hbaseLE
+  have HintroType' : H.outVEnv.HasType Us.length T.params.reverse
+      introTarget tailTarget := by
+    have Htyped : H.outVEnv.HasType Us.length parameterDecls.toCtx
+        introTarget tailTarget := by
+      simpa [Us, parameterDecls] using HintroType.mono hbaseLE
+    exact Htyped.defeqDFC H.outVEnvWF.ordered
+      (hparams.symm H.outVEnvWF.ordered)
+  have Hfields := Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    A.semantics.fieldOpening.telescope Htail' HtailType'
+  rcases Hfields.toWrapForalls with
+    ⟨fieldDomains, _sourceResidual, fieldResult, hfields,
+      _Htelescope, htarget, _Hresult, _HresultType⟩
+  subst tailTarget
+  exact ⟨T, fieldDomains, fieldResult, introTarget, hfields,
+    Htail', HtailType', HintroType', Hintro'⟩
+
+/-- Apply the checked constructor to the canonical variables of its genuine
+field telescope.  This is done before inserting motives and minors, avoiding
+any pointwise formula for lifting dependent field domains. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedConstructorFieldApplication
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
+        fieldDomains.length = A.rule.allArgs.size ∧
+        H.outVEnv.HasType Us.length
+          (fieldDomains.reverse ++ T.params.reverse)
+          (VExpr.mkApps (introTarget.liftN fieldDomains.length 0)
+            (recursorCanonicalVars fieldDomains.length))
+          fieldResult := by
+  rcases A.finalCheckedConstructorFieldFrame with
+    ⟨T, fieldDomains, fieldResult, introTarget, hfields,
+      _Htail, _HtailType, HintroType, _Hintro⟩
+  have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
+    H.outVEnvWF.ordered HintroType
+  exact ⟨T, fieldDomains, fieldResult, introTarget, hfields, by
+    simpa [recursorCanonicalVars] using Happ⟩
 
 /-- Weaken the checked constructor major below the generated motive/minor
 prefix.  The explicit lift is the de Bruijn shift later field and equation
