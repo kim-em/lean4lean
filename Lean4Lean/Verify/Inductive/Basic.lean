@@ -21384,6 +21384,42 @@ theorem abstractForallContext.isDefEq
   simpa [abstractForallContext] using
     VLCtx.IsDefEq.ofDefEqCtxAnonymous H
 
+/-- Anonymous lambda contexts of equal length have the same lookup shape.
+This is the structural premise needed to recover the exact target of a
+syntax-directed translation after context conversion. -/
+theorem TrExprS.IsUniqueCtx.anonymousLams
+    {left right : List VExpr}
+    (hlen : left.length = right.length) :
+    TrExprS.IsUniqueCtx
+      (left.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl))
+      (right.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) := by
+  induction left generalizing right with
+  | nil =>
+    have hright : right = [] := List.eq_nil_of_length_eq_zero hlen.symm
+    subst right
+    exact .base
+  | cons leftHead leftTail ih =>
+    cases right with
+    | nil => simp at hlen
+    | cons rightHead rightTail =>
+      exact .cons (ih (Nat.succ.inj hlen)) .vlam
+
+/-- Outermost-to-innermost anonymous forall contexts retain unique lookup
+shape whenever their telescope lengths agree. -/
+theorem abstractForallContext.isUniqueCtx
+    {left right : List VExpr}
+    (hlen : left.length = right.length) :
+    TrExprS.IsUniqueCtx
+      (abstractForallContext left [])
+      (abstractForallContext right []) := by
+  simpa [abstractForallContext] using
+    (TrExprS.IsUniqueCtx.anonymousLams
+      (left := left.reverse) (right := right.reverse) (by simp [hlen]))
+
 /-- Locate the first retained free-variable declaration below an anonymous
 forall prefix and replace it by the corresponding bound-variable declaration.
 The source and target contexts have definitionally identical typing lists;
@@ -56151,6 +56187,202 @@ theorem
   exact ⟨T, fieldDomains, fieldResult, introTarget,
     hparams, hfields, Hctx, Hmajor, Hprefix, Htarget, HintroShape, Htr,
     HmajorTr⟩
+
+/-- Move the canonical recursor/constructor frame to the independently
+cached parameter context.  Context conversion can in general choose a new
+translation target; uniqueness of the closed rule binders shows that both
+applications retain the exact abstract terms already typed by the recursor
+and constructor phases. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalRecursorPrefixFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let recursor := H.entries[owner].2
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type recursor.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
+        let canonicalDomains :=
+          (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+        let cachedDomains :=
+          (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+            fieldDomains
+        let prefixSource :=
+          mkAppN
+            (mkAppN
+              (mkAppN
+                (.const (Lean.mkRecName indTypes[owner]!.name)
+                  (AddInductive.getRecLevels H.elimLevel stats.levels))
+                (stats.params.map fun arg =>
+                  arg.abstractList A.rule.binders))
+              ((H.recInfos.map (·.motive)).map fun arg =>
+                arg.abstractList A.rule.binders))
+            ((H.recInfos.flatMap (·.minors)).map fun arg =>
+              arg.abstractList A.rule.binders)
+        let prefixTarget :=
+          (VExpr.mkApps
+              ((VExpr.const recursor.name
+                (VLevel.params Us.length)).liftN
+                (T.params ++ T.motives ++ T.minors).length 0)
+              (recursorCanonicalVars
+                (T.params ++ T.motives ++ T.minors).length)).liftN
+            fieldDomains.length 0
+        let majorSource :=
+          mkAppN
+            (mkAppN
+              (.const
+                ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+                stats.levels)
+              (stats.params.map fun arg =>
+                arg.abstractList A.rule.binders))
+            (A.rule.allArgs.map fun arg =>
+              arg.abstractList A.rule.binders)
+        let majorTarget :=
+          (VExpr.mkApps
+              (introTarget.liftN A.rule.allArgs.size 0)
+              (recursorCanonicalVars A.rule.allArgs.size)).liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse parameterDecls.toCtx ∧
+          fieldDomains.length = A.rule.allArgs.size ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+            canonicalDomains.reverse cachedDomains.reverse ∧
+          OnCtx cachedDomains.reverse (H.outVEnv.IsType Us.length) ∧
+          H.outVEnv.HasType Us.length cachedDomains.reverse majorTarget
+            (fieldResult.liftN
+              (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+          H.outVEnv.HasType Us.length cachedDomains.reverse prefixTarget
+            ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
+              fieldDomains.length 0) ∧
+          TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+            (A.rule.target.abstractList A.rule.binders)
+            (fieldResult.liftN
+              (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+          introTarget = VExpr.mkApps
+            (.const
+              ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+              (recursorDeclarationAbstractLevels c.lparams
+                H.elimLevelAdmissible))
+            (recursorCanonicalVars stats.params.size) ∧
+          TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+            prefixSource prefixTarget ∧
+          TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+            majorSource majorTarget := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let recursor := H.entries[owner].2
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalCanonicalRecursorPrefixFrame with
+    ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields, Hctx,
+      Hmajor, Hprefix, Htarget, HintroShape, HprefixTr, HmajorTr⟩
+  let canonicalDomains :=
+    (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+  let cachedDomains :=
+    (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+      fieldDomains
+  let commonPrefix :=
+    fieldDomains.reverse ++ T.minors.reverse ++ T.motives.reverse
+  have Hctx' : OnCtx (commonPrefix ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [canonicalDomains, commonPrefix, List.reverse_append,
+      List.append_assoc] using Hctx
+  have Hfull₀ :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      hparams Hctx'
+  have Hfull : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      canonicalDomains.reverse cachedDomains.reverse := by
+    simpa [canonicalDomains, cachedDomains, commonPrefix,
+      List.reverse_append, List.append_assoc] using Hfull₀
+  have HcachedCtx : OnCtx cachedDomains.reverse
+      (H.outVEnv.IsType Us.length) :=
+    (Hfull.symm H.outVEnvWF.ordered).isType
+  have HmajorCached := Hmajor.defeqDFC H.outVEnvWF.ordered Hfull
+  have HprefixCached := Hprefix.defeqDFC H.outVEnvWF.ordered Hfull
+  have Hvlctx := abstractForallContext.isDefEq Hfull
+  have hdomainLengths : canonicalDomains.length = cachedDomains.length := by
+    simpa using Hfull.length_eq
+  have HuniqueCtx := abstractForallContext.isUniqueCtx hdomainLengths
+  let prefixSource :=
+    mkAppN
+      (mkAppN
+        (mkAppN
+          (.const (Lean.mkRecName indTypes[owner]!.name)
+            (AddInductive.getRecLevels H.elimLevel stats.levels))
+          (stats.params.map fun arg =>
+            arg.abstractList A.rule.binders))
+        ((H.recInfos.map (·.motive)).map fun arg =>
+          arg.abstractList A.rule.binders))
+      ((H.recInfos.flatMap (·.minors)).map fun arg =>
+        arg.abstractList A.rule.binders)
+  let prefixTarget :=
+    (VExpr.mkApps
+        ((VExpr.const recursor.name
+          (VLevel.params Us.length)).liftN
+          (T.params ++ T.motives ++ T.minors).length 0)
+        (recursorCanonicalVars
+          (T.params ++ T.motives ++ T.minors).length)).liftN
+      fieldDomains.length 0
+  have HprefixUnique : TrExprS.IsUnique prefixSource := by
+    exact TrExprS.IsUnique.mkAppN
+      (TrExprS.IsUnique.mkAppN
+        (TrExprS.IsUnique.mkAppN (by trivial)
+          (fun arg harg => A.rule.abstractedParamsUnique arg
+            (Array.mem_toList_iff.mpr harg)))
+        (fun arg harg => A.rule.abstractedMotivesUnique arg
+          (Array.mem_toList_iff.mpr harg)))
+      (fun arg harg => A.rule.abstractedMinorsUnique arg
+        (Array.mem_toList_iff.mpr harg))
+  rcases HprefixTr.defeqDFC H.outVEnvWF Hvlctx with
+    ⟨prefixTarget', HprefixTr'⟩
+  have hprefixTarget : prefixTarget = prefixTarget' :=
+    TrExprS.unique' HuniqueCtx HprefixUnique HprefixTr HprefixTr'
+  rw [← hprefixTarget] at HprefixTr'
+  let majorSource :=
+    mkAppN
+      (mkAppN
+        (.const
+          ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+          stats.levels)
+        (stats.params.map fun arg =>
+          arg.abstractList A.rule.binders))
+      (A.rule.allArgs.map fun arg =>
+        arg.abstractList A.rule.binders)
+  let majorTarget :=
+    (VExpr.mkApps
+        (introTarget.liftN A.rule.allArgs.size 0)
+        (recursorCanonicalVars A.rule.allArgs.size)).liftN
+      (T.motives ++ T.minors).length A.rule.allArgs.size
+  have HmajorUnique : TrExprS.IsUnique majorSource := by
+    exact TrExprS.IsUnique.mkAppN
+      (TrExprS.IsUnique.mkAppN (by trivial)
+        (fun arg harg => A.rule.abstractedParamsUnique arg
+          (Array.mem_toList_iff.mpr harg)))
+      (fun arg harg => A.rule.abstractedAllArgsUnique arg
+        (Array.mem_toList_iff.mpr harg))
+  rcases HmajorTr.defeqDFC H.outVEnvWF Hvlctx with
+    ⟨majorTarget', HmajorTr'⟩
+  have hmajorTarget : majorTarget = majorTarget' :=
+    TrExprS.unique' HuniqueCtx HmajorUnique HmajorTr HmajorTr'
+  rw [← hmajorTarget] at HmajorTr'
+  exact ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields,
+    Hfull, HcachedCtx, HmajorCached, HprefixCached, Htarget, HintroShape,
+    HprefixTr', HmajorTr'⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
