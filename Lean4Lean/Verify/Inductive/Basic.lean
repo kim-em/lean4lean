@@ -2933,6 +2933,24 @@ theorem TypeChecker.MLCtx.mkForall'_eq_wrapForalls
       simp only [TypeChecker.MLCtx.mkForall', MLCtxForallDomains]
       exact ih c (Nat.le_of_succ_le_succ hn) body
 
+theorem TypeChecker.MLCtx.mkLambda'_eq_wrapLams
+    (c : TypeChecker.MLCtx) (n : Nat) (hn : n ≤ c.length) (body : VExpr) :
+    c.mkLambda' n hn body =
+      VExpr.wrapLams (MLCtxForallDomains c n hn) body := by
+  induction n generalizing c body with
+  | zero => simp [TypeChecker.MLCtx.mkLambda', MLCtxForallDomains,
+      VExpr.wrapLams]
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam fv name type type' bi c =>
+      simp only [TypeChecker.MLCtx.mkLambda', MLCtxForallDomains]
+      rw [ih, VExpr.wrapLams_append]
+      rfl
+    | vlet fv name type value type' value' c =>
+      simp only [TypeChecker.MLCtx.mkLambda', MLCtxForallDomains]
+      exact ih c (Nat.le_of_succ_le_succ hn) body
+
 theorem MLCtxOnlyLams.forallDomains_length
     (H : MLCtxOnlyLams c) (n : Nat) (hn : n ≤ c.length) :
     (MLCtxForallDomains c n hn).length = n := by
@@ -23328,6 +23346,58 @@ theorem RecursorRecentBoundFVarArray.mkForall
   · simpa only [H.venv_eq, H.drop_eq] using htr
   · simpa only [H.venv_eq, H.drop_eq] using htype
 
+/-- Exact-target form of `mkForall`, exposing the semantic domain list
+instead of hiding it behind an existential. -/
+theorem RecursorRecentBoundFVarArray.mkForallExact
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    {body : Expr} {bodyTarget : VExpr}
+    (hbody : TrExprS R.venv recLparams R.mlctx.vlctx body bodyTarget)
+    (hbodyType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx bodyTarget) :
+    let domains := MLCtxForallDomains R.mlctx xs.size H.size_le
+    TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
+        (c.lctx.mkForall xs body) (VExpr.wrapForalls domains bodyTarget) ∧
+      Rroot.venv.IsType recLparams.length Rroot.mlctx.vlctx.toCtx
+        (VExpr.wrapForalls domains bodyTarget) := by
+  rcases R.mkForallRecent hbody hbodyType xs.size H.size_le xs
+      H.reverse_eq with ⟨htr, htype⟩
+  simpa only [H.venv_eq, H.drop_eq,
+    TypeChecker.MLCtx.mkForall'_eq_wrapForalls] using And.intro htr htype
+
+/-- Close the exact higher-order suffix retained by `loopCtorArgs` around a
+well-typed term.  This is the term-level counterpart of `mkForall`: the
+abstract lambda and its forall type use the very same semantic domain list,
+so later equation typing cannot accidentally choose a different constructor
+field telescope. -/
+theorem RecursorRecentBoundFVarArray.mkLambda
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    {body : Expr} {bodyTarget typeTarget : VExpr}
+    (hbody : TrExprS R.venv recLparams R.mlctx.vlctx body bodyTarget)
+    (hbodyType : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      bodyTarget typeTarget) :
+    let domains := MLCtxForallDomains R.mlctx xs.size H.size_le
+    TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
+        (c.lctx.mkLambda xs body) (VExpr.wrapLams domains bodyTarget) ∧
+      Rroot.venv.HasType recLparams.length Rroot.mlctx.vlctx.toCtx
+        (VExpr.wrapLams domains bodyTarget)
+        (VExpr.wrapForalls domains typeTarget) := by
+  have Hclosed := R.mlctx_wf.mkLambda_trS R.checking.tr.wf hbody
+    hbodyType xs.size H.size_le
+  have hsource : c.lctx.mkLambda xs body =
+      R.mlctx.mkLambda xs.size H.size_le body := by
+    rw [← R.lctx_eq]
+    exact R.mlctx_wf.mkLambda_eq xs.size H.size_le H.reverse_eq
+  rw [hsource]
+  simpa only [H.venv_eq, H.drop_eq,
+    TypeChecker.MLCtx.mkForall'_eq_wrapForalls,
+    TypeChecker.MLCtx.mkLambda'_eq_wrapLams] using Hclosed
+
 /-- Declarative constructor-introduction certificate used by the recursor
 second pass.  It deliberately records the exact terminal source expression
 and exact generated constructor application: constructor checking must
@@ -34439,6 +34509,10 @@ structure BoundGeneratedRecursorRule.Semantics
     (expectedOwnerIdx : Nat) where
   depth : Nat
   context : RecursorContextWF H.root recLparams
+  fieldRoot : AddInductive.Context
+  fieldRootContext : RecursorContextWF fieldRoot recLparams
+  fieldsRecent : RecursorRecentBoundFVarArray fieldRootContext context
+    H.allArgs
   context_venv : context.venv = semanticEnv
   validStats : RecursorValidAppStatsWF context.venv recLparams
     context.mlctx.vlctx stats decl depth
@@ -34465,6 +34539,55 @@ structure BoundGeneratedRecursorRule.Semantics
   calls : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
     lvls context decl depth H.recursiveArgs H.recursiveResults
     H.recursiveArgs.size
+
+/-- The exact constructor-field suffix, closed back into the semantic context
+that preceded `loopCtorArgs`.  Both sides are deliberately retained: the
+forall telescope types the constructor target, while the lambda telescope
+types the constructor application used as the iota major premise. -/
+structure BoundGeneratedRecursorRule.Semantics.FieldTelescope
+    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule}
+    (S : H.Semantics recLparams semanticEnv decl expectedOwnerIdx) where
+  domains : List VExpr
+  domains_length : domains.length = H.allArgs.size
+  target_translation : TrExprS S.fieldRootContext.venv recLparams
+    S.fieldRootContext.mlctx.vlctx
+    (H.root.lctx.mkForall H.allArgs H.target)
+    (VExpr.wrapForalls domains S.targetTarget)
+  target_type : S.fieldRootContext.venv.IsType recLparams.length
+    S.fieldRootContext.mlctx.vlctx.toCtx
+    (VExpr.wrapForalls domains S.targetTarget)
+  major_translation : TrExprS S.fieldRootContext.venv recLparams
+    S.fieldRootContext.mlctx.vlctx
+    (H.root.lctx.mkLambda H.allArgs H.sourceConstructorMajor)
+    (VExpr.wrapLams domains S.constructorTarget)
+  major_typing : S.fieldRootContext.venv.HasType recLparams.length
+    S.fieldRootContext.mlctx.vlctx.toCtx
+    (VExpr.wrapLams domains S.constructorTarget)
+    (VExpr.wrapForalls domains S.targetTarget)
+
+/-- Recover the typed field telescope directly from the consecutive-suffix
+certificate retained by the production constructor traversal. -/
+def BoundGeneratedRecursorRule.Semantics.fieldTelescope
+    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule}
+    (S : H.Semantics recLparams semanticEnv decl expectedOwnerIdx) :
+    S.FieldTelescope := by
+  let domains := MLCtxForallDomains S.context.mlctx H.allArgs.size
+    S.fieldsRecent.size_le
+  have Htarget := S.fieldsRecent.mkForallExact S.target_translation
+    S.target_type
+  have Hmajor := S.fieldsRecent.mkLambda S.constructor_translation
+    S.constructor_typing
+  exact {
+    domains := domains
+    domains_length := by
+      exact S.context.onlyLams.forallDomains_length H.allArgs.size
+        S.fieldsRecent.size_le
+    target_translation := by simpa [domains] using Htarget.1
+    target_type := by simpa [domains] using Htarget.2
+    major_translation := by simpa [domains] using Hmajor.1
+    major_typing := by simpa [domains] using Hmajor.2 }
 
 /-- Duplicate-free declaration names identify the first family selected by
 `isValidIndApp?` with the constructor owner certified by the earlier checker
@@ -35174,6 +35297,9 @@ theorem oneRuleSemantics
   let Hsemantic : Hrule.Semantics recLparams R.venv decl ownerIdx := {
     depth := depth + allArgs.size
     context := Rargs
+    fieldRoot := c
+    fieldRootContext := R
+    fieldsRecent := HfieldsRecent
     context_venv := HfieldsRecent.venv_eq
     validStats := HstatsArgs
     ownerIdx := selectedOwner
@@ -51889,6 +52015,59 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorTelescopeTransl
       H.recInfos[owner]!.indices.size owner) := by
   rcases A.recursorTelescopeTranslation with ⟨T⟩
   exact ⟨T.mono H.installed.le⟩
+
+/-- The exact field telescope retained by rule generation remains available
+after the generated recursors are installed.  This is the stage-correct form
+used by equation typing: its source still refers to the production local
+context, while every abstract translation and typing judgment lives in the
+final environment. -/
+theorem RecursorPhasesResult.GeneratedRuleAlignment.finalFieldTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ domains : List VExpr,
+      domains.length = A.rule.allArgs.size ∧
+      TrExprS H.outVEnv Us
+        A.semantics.fieldRootContext.mlctx.vlctx
+        (A.rule.root.lctx.mkForall A.rule.allArgs A.rule.target)
+        (VExpr.wrapForalls domains A.semantics.targetTarget) ∧
+      H.outVEnv.IsType Us.length
+        A.semantics.fieldRootContext.mlctx.vlctx.toCtx
+        (VExpr.wrapForalls domains A.semantics.targetTarget) ∧
+      TrExprS H.outVEnv Us
+        A.semantics.fieldRootContext.mlctx.vlctx
+        (A.rule.root.lctx.mkLambda A.rule.allArgs
+          A.rule.sourceConstructorMajor)
+        (VExpr.wrapLams domains A.semantics.constructorTarget) ∧
+      H.outVEnv.HasType Us.length
+        A.semantics.fieldRootContext.mlctx.vlctx.toCtx
+        (VExpr.wrapLams domains A.semantics.constructorTarget)
+        (VExpr.wrapForalls domains A.semantics.targetTarget) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let F := A.semantics.fieldTelescope
+  have hsemantic : A.semantics.fieldRootContext.venv =
+      R.declared.venvCtors := by
+    calc
+      A.semantics.fieldRootContext.venv = A.semantics.context.venv :=
+        A.semantics.fieldsRecent.venv_eq.symm
+      _ = R.declared.venvCtors := A.semantics.context_venv
+  have Htarget := F.target_translation
+  have HtargetType := F.target_type
+  have Hmajor := F.major_translation
+  have HmajorType := F.major_typing
+  rw [hsemantic] at Htarget HtargetType Hmajor HmajorType
+  exact ⟨F.domains, F.domains_length, Htarget.mono H.installed.le,
+    HtargetType.mono H.installed.le, Hmajor.mono H.installed.le,
+    HmajorType.mono H.installed.le⟩
 
 /-- The aligned recursor is present and well typed in the final environment
 at its identity universe instantiation.  Rule typing can therefore consume
