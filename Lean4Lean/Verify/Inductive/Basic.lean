@@ -45571,6 +45571,56 @@ theorem GeneratedRecursorTelescopeTranslation.suffixTyped
   subst suffixTarget
   exact ⟨sourceSuffix, Hsource, Hsuffix⟩
 
+/-- Split the retained suffix at the exact index/major boundary.  Besides
+the structural concrete telescopes, this exposes the single-major
+binder-by-binder translation in the context of precisely `T.indices`. -/
+theorem GeneratedRecursorTelescopeTranslation.indexMajorSplit
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx) :
+    let outerDomains := T.params ++ T.motives ++ T.minors
+    ∃ sourceSuffix sourceMajorSuffix,
+      Expr.ForallTelescope source outerDomains.length sourceSuffix ∧
+      Expr.ForallTelescope sourceSuffix T.indices.length sourceMajorSuffix ∧
+      Expr.ForallTelescopeTypeTranslation env Us
+        (abstractForallContext outerDomains []) sourceSuffix
+        (T.indices ++ T.major).length
+        (VExpr.wrapForalls (T.indices ++ T.major) T.result) ∧
+      Expr.ForallTelescopeTypeTranslation env Us
+        (abstractForallContext T.indices
+          (abstractForallContext outerDomains []))
+        sourceMajorSuffix T.major.length
+        (VExpr.wrapForalls T.major T.result) := by
+  let outerDomains := T.params ++ T.motives ++ T.minors
+  rcases T.suffixTyped with ⟨sourceSuffix, HouterSource, Hsuffix⟩
+  have HsuffixFull := Hsuffix
+  have hsuffixArity : (T.indices ++ T.major).length =
+      T.indices.length + T.major.length := List.length_append
+  rw [hsuffixArity] at Hsuffix
+  rcases Hsuffix.dropPrefix with
+    ⟨indexDomains, sourceMajorSuffix, majorTarget, hindexLength,
+      HindexSource, hsuffixTarget, Hmajor⟩
+  have hindexDomains : indexDomains = T.indices := by
+    apply VExpr.wrapForalls_prefix_domains_eq hindexLength
+      (rfl : T.indices.length = T.indices.length)
+    calc
+      VExpr.wrapForalls indexDomains majorTarget =
+          VExpr.wrapForalls (T.indices ++ T.major) T.result :=
+        hsuffixTarget.symm
+      _ = VExpr.wrapForalls (T.indices ++ T.major) T.result := rfl
+  subst indexDomains
+  have hmajorTarget : majorTarget = VExpr.wrapForalls T.major T.result := by
+    apply VExpr.wrapForalls_left_cancel T.indices
+    calc
+      VExpr.wrapForalls T.indices majorTarget =
+          VExpr.wrapForalls (T.indices ++ T.major) T.result :=
+        hsuffixTarget.symm
+      _ = VExpr.wrapForalls T.indices
+          (VExpr.wrapForalls T.major T.result) := by
+        simp [VExpr.wrapForalls_append]
+  subst majorTarget
+  exact ⟨sourceSuffix, sourceMajorSuffix, HouterSource, HindexSource,
+    HsuffixFull, Hmajor⟩
+
 def GeneratedRecursorTelescopeTranslation.mono
     (henv : env ≤ env')
     (T : GeneratedRecursorTelescopeTranslation env Us source target
