@@ -21295,6 +21295,44 @@ theorem TrExprS.forallTelescope_shape
 def abstractForallContext (domains : List VExpr) (Δ : VLCtx) : VLCtx :=
   (domains.reverse.map fun type => (none, .vlam type)) ++ Δ
 
+/-- Extend a converted outer context by the same well-formed dependent inner
+prefix on both sides. -/
+theorem VEnv.IsDefEqCtx.extendSamePrefix
+    (H : VEnv.IsDefEqCtx env U [] left right)
+    (Hctx : OnCtx (types ++ left) (env.IsType U)) :
+    VEnv.IsDefEqCtx env U [] (types ++ left) (types ++ right) := by
+  induction types with
+  | nil => simpa using H
+  | cons type types ih =>
+    rcases Hctx with ⟨Htail, level, Htype⟩
+    exact .succ (ih Htail) Htype
+
+/-- A conversion between ordinary typing contexts induces a conversion
+between their completely anonymous verifier contexts. -/
+theorem VLCtx.IsDefEq.ofDefEqCtxAnonymous
+    (H : VEnv.IsDefEqCtx env U [] left right) :
+    VLCtx.IsDefEq env U
+      (left.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl))
+      (right.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) := by
+  induction H with
+  | zero => exact .nil
+  | succ H Htype ih =>
+    exact .cons ih (by simp) (.vlam (by
+      simpa [VLCtx.toCtx] using Htype))
+
+/-- Context-conversion wrapper in outermost-to-innermost domain order. -/
+theorem abstractForallContext.isDefEq
+    (H : VEnv.IsDefEqCtx env U [] left.reverse right.reverse) :
+    VLCtx.IsDefEq env U
+      (abstractForallContext left [])
+      (abstractForallContext right []) := by
+  simpa [abstractForallContext] using
+    VLCtx.IsDefEq.ofDefEqCtxAnonymous H
+
 /-- Locate the first retained free-variable declaration below an anonymous
 forall prefix and replace it by the corresponding bound-variable declaration.
 The source and target contexts have definitionally identical typing lists;
@@ -21306,20 +21344,20 @@ theorem abstractForallContext.abstractHead
       (abstractForallContext domains
         ((some (fv, deps), .vlam type) :: tail))
       (abstractForallContext (type :: domains) tail) := by
-  have go : ∀ prefix : List VExpr,
-      VLCtx.Abstract tail fv (.vlam type) prefix.length prefix.length
-        ((prefix.map fun domain =>
+  have go : ∀ pre : List VExpr,
+      VLCtx.Abstract tail fv (.vlam type) pre.length pre.length
+        ((pre.map fun domain =>
             ((none, .vlam domain) :
               Option (FVarId × List FVarId) × VLocalDecl)) ++
           (some (fv, deps), .vlam type) :: tail)
-        ((prefix.map fun domain =>
+        ((pre.map fun domain =>
             ((none, .vlam domain) :
               Option (FVarId × List FVarId) × VLocalDecl)) ++
           (none, .vlam type) :: tail) := by
-    intro prefix
-    induction prefix with
+    intro pre
+    induction pre with
     | nil => exact .zero
-    | cons domain prefix ih =>
+    | cons domain pre ih =>
       simpa [VLocalDecl.depth, Nat.add_comm, Nat.add_left_comm,
         Nat.add_assoc] using VLCtx.Abstract.succ
           (d := .vlam domain) ih
@@ -21381,6 +21419,48 @@ theorem Expr.abstractList_after_inner
       (e := e) (a := fv) (as := inner) (k := k)
       (by exact hnodup.1.2)]
     exact ih htail
+
+/-- If abstraction has no unexpected free variables, the original expression
+can only additionally mention the variable that was abstracted. -/
+theorem FVarsIn.of_abstract1
+    (H : (e.abstract1 fv k).FVarsIn P) :
+    e.FVarsIn fun other => other = fv ∨ P other := by
+  induction e generalizing k with
+  | bvar i => trivial
+  | fvar other =>
+    by_cases h : other = fv
+    · simp [h, FVarsIn]
+    · simpa [FVarsIn, Expr.abstract1, h, Ne.symm h] using H
+  | sort level => simpa [FVarsIn, Expr.abstract1] using H
+  | const name levels => simpa [FVarsIn, Expr.abstract1] using H
+  | mvar id => simpa [FVarsIn, Expr.abstract1] using H
+  | lit literal => trivial
+  | app fn arg ihFn ihArg =>
+    exact ⟨ihFn H.1, ihArg H.2⟩
+  | lam name type body bi ihType ihBody =>
+    exact ⟨ihType H.1, ihBody H.2⟩
+  | forallE name type body bi ihType ihBody =>
+    exact ⟨ihType H.1, ihBody H.2⟩
+  | letE name type value body bi ihType ihValue ihBody =>
+    exact ⟨ihType H.1, ihValue H.2.1, ihBody H.2.2⟩
+  | mdata data body ih => exact ih H
+  | proj name index body ih => exact ih H
+
+/-- List form of `FVarsIn.of_abstract1`. -/
+theorem FVarsIn.of_abstractList
+    (H : (e.abstractList fvars k).FVarsIn P) :
+    e.FVarsIn fun fv => fv ∈ fvars ∨ P fv := by
+  induction fvars generalizing e with
+  | nil => simpa using H
+  | cons fv fvars ih =>
+    have Htail := ih H
+    have Hhead := FVarsIn.of_abstract1 Htail
+    exact Hhead.mono fun other h => by
+      rcases h with h | h
+      · simp [h]
+      · rcases h with h | h
+        · exact Or.inl (by simp [h])
+        · exact Or.inr h
 
 @[simp] theorem abstractForallContext_append
     (outer inner : List VExpr) (Δ : VLCtx) :
@@ -34241,6 +34321,41 @@ structure BoundGeneratedRecursorRule.EquationTranslation
   rhs_residual : TrExprS trEnv Us (abstractForallContext domains Δ)
     (H.sourceRhsBody.abstractList H.binders) rhsBody
 
+/-- Any bound free-variable array selected by a duplicate-free closing list
+becomes pointwise unique de Bruijn syntax after simultaneous abstraction. -/
+theorem BoundFVarArray.abstractedUnique
+    (B : BoundFVarArray root args)
+    (hbinders : binders.Nodup)
+    (hselected : ∀ fv ∈ B.fvars, fv ∈ binders) :
+    ∀ e ∈ (args.map fun arg => arg.abstractList binders).toList,
+      TrExprS.IsUnique e := by
+  intro e he
+  rcases List.mem_iff_getElem.mp he with ⟨i, hi, heq⟩
+  have hiArray : i < args.size := by simpa using hi
+  rcases B.getElem_eq_fvar i hiArray with
+    ⟨hiFvars, hsource⟩
+  let fv := B.fvars[i]
+  have hsource' : args[i] = .fvar fv := hsource
+  have hmem : fv ∈ binders :=
+    hselected fv (List.getElem_mem hiFvars)
+  rcases List.mem_iff_getElem.mp hmem with ⟨j, hj, hget⟩
+  let variable := binders.length - 1 - j
+  have habstract := Expr.abstractList_fvar_getElem
+    hbinders j hj (k := 0)
+  rw [hget] at habstract
+  have habstract' : (Expr.fvar fv).abstractList binders =
+      .bvar variable := by
+    simpa [variable] using habstract
+  have hentry :
+      (args.map fun arg => arg.abstractList binders).toList[i] =
+        .bvar variable := by
+    calc
+      _ = args[i].abstractList binders := by simp
+      _ = (Expr.fvar fv).abstractList binders := by rw [hsource']
+      _ = .bvar variable := habstract'
+  rw [← heq, hentry]
+  trivial
+
 /-- Common recursor parameters become closed de Bruijn variables under the
 generated rule telescope, so their syntax translation is unique. -/
 theorem BoundGeneratedRecursorRule.abstractedParamsUnique
@@ -34279,6 +34394,27 @@ theorem BoundGeneratedRecursorRule.abstractedParamsUnique
       _ = .bvar paramVar := habstract'
   rw [← heq, hentry]
   trivial
+
+theorem BoundGeneratedRecursorRule.abstractedMotivesUnique
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    ∀ e ∈ (motives.map fun arg => arg.abstractList H.binders).toList,
+      TrExprS.IsUnique e := by
+  apply H.motives_bound.abstractedUnique H.binders_nodup
+  intro fv hfv
+  unfold BoundGeneratedRecursorRule.binders
+  exact List.mem_append_left _ <| List.mem_append_left _ <|
+    List.mem_append_right _ hfv
+
+theorem BoundGeneratedRecursorRule.abstractedMinorsUnique
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    ∀ e ∈ (minors.map fun arg => arg.abstractList H.binders).toList,
+      TrExprS.IsUnique e := by
+  apply H.minors_bound.abstractedUnique H.binders_nodup
+  intro fv hfv
+  unfold BoundGeneratedRecursorRule.binders
+  exact List.mem_append_left _ <| List.mem_append_right _ hfv
 
 /-- Equation shape together with the exact translated constructor-field
 suffix needed by the recursive-field and RHS certificates. -/
@@ -53556,6 +53692,151 @@ theorem
   exact ⟨T, fieldDomains, fieldResult, hfields, by
     simpa [parameterDecls, List.reverse_reverse] using Hclosed⟩
 
+/-- The lift introduced between parameters and fields is exactly simultaneous
+abstraction over the rule's complete parameter/motive/minor/field binder list.
+This follows from strict-translation scoping: the constructor result can only
+mention parameters and genuine fields, hence motives and minors merely shift
+the already abstracted parameter variables. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalTargetBinderLift_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr) (fieldResult : VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (Htarget : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        (((R.materialized.parameterSuffix.toRecursorContext
+            H.elimLevelAdmissible).parameterDecls.toCtx.reverse) ++
+          fieldDomains) [])
+      (A.rule.target.abstractList
+        (A.rule.params_bound.fvars ++
+          A.semantics.fieldOpening.fvars))
+      fieldResult) :
+    ((A.rule.target.abstractList
+        (A.rule.params_bound.fvars ++
+          A.semantics.fieldOpening.fvars)).liftLooseBVars'
+      A.rule.allArgs.size (T.motives ++ T.minors).length) =
+      A.rule.target.abstractList A.rule.binders := by
+  let params := A.rule.params_bound.fvars
+  let motives := A.rule.motives_bound.fvars
+  let minors := A.rule.minors_bound.fvars
+  let fields := A.semantics.fieldOpening.fvars
+  let middle := motives ++ minors
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  have hparamsLength : params.length = stats.params.size := by
+    have h := congrArg Array.size A.rule.params_bound.expressions
+    simpa [params] using h
+  have hfieldsLength : fields.length = A.rule.allArgs.size := by
+    rw [fields, A.semantics.fieldOpening.fvars_eq_bound
+      A.rule.all_args_bound]
+    have h := congrArg Array.size A.rule.all_args_bound.expressions
+    simpa using h
+  have hparameterDeclsLength : parameterDecls.toCtx.length =
+      stats.params.size := by
+    have hcached := H.parameterSuffix.cached
+    have h := CachedParameterDecl.forall₂_toCtx_length hcached
+    simpa [parameterDecls, H.parameterDecls] using h
+  have hparamsFields : (params ++ fields).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨(A.rule.outer_binders_nodup.of_append_left.of_append_left),
+      A.semantics.fieldOpening.nodup, ?_⟩
+    intro param hparam field hfield heq
+    subst field
+    rw [fields, A.semantics.fieldOpening.fvars_eq_bound
+      A.rule.all_args_bound] at hfield
+    exact A.rule.all_args_outer_fresh param hfield
+      (List.mem_append_left _ (List.mem_append_left _ hparam))
+  have hsourceClosed : Closed
+      (A.rule.target.abstractList (params ++ fields))
+      (params ++ fields).length := by
+    have hclosed := Htarget.closed
+    simpa [abstractForallContext, VLCtx.bvars, params, fields,
+      parameterDecls, hparamsLength, hfieldsLength, hfields,
+      hparameterDeclsLength] using hclosed
+  have htargetClosed : Closed A.rule.target 0 :=
+    Expr.closed_of_abstractList hsourceClosed
+  have hsourceFVars :
+      (A.rule.target.abstractList (params ++ fields)).FVarsIn
+        (fun _ => False) := by
+    have hfvars := Htarget.fvarsIn
+    simpa [abstractForallContext, VLCtx.fvars, params, fields,
+      parameterDecls] using hfvars
+  have htargetFVars : A.rule.target.FVarsIn
+      (fun fv => fv ∈ params ++ fields) := by
+    exact (FVarsIn.of_abstractList hsourceFVars).mono fun fv h => by
+      simpa using h
+  have houterSplit := List.nodup_append.mp A.rule.outer_binders_nodup
+  have hparamsMotivesSplit :=
+    List.nodup_append.mp houterSplit.1
+  have htargetAvoidsMiddle : A.rule.target.FVarsIn
+      (fun fv => fv ∉ middle) := by
+    apply htargetFVars.mono
+    intro fv hfv hmiddle
+    rcases List.mem_append.mp hfv with hparam | hfield
+    · rcases List.mem_append.mp hmiddle with hmotive | hminor
+      · exact hparamsMotivesSplit.2.2 fv hparam fv hmotive rfl
+      · exact houterSplit.2.2 fv
+          (List.mem_append_left _ hparam) fv hminor rfl
+    · have hfield' : fv ∈ A.rule.all_args_bound.fvars := by
+        simpa [fields, A.semantics.fieldOpening.fvars_eq_bound
+          A.rule.all_args_bound] using hfield
+      apply A.rule.all_args_outer_fresh fv hfield'
+      rcases List.mem_append.mp hmiddle with hmotive | hminor
+      · exact List.mem_append_left _
+          (List.mem_append_right _ hmotive)
+      · exact List.mem_append_right _ hminor
+  have hmiddleAbstract : A.rule.target.abstractList middle = A.rule.target :=
+    htargetAvoidsMiddle.abstractList_eq_self htargetClosed
+  let targetFields := A.rule.target.abstractList fields
+  have hparamsFieldsShape :
+      targetFields.abstractList params fields.length =
+        A.rule.target.abstractList (params ++ fields) := by
+    exact Expr.abstractList_after_inner hparamsFields
+  have htargetFieldsClosed : Closed targetFields fields.length := by
+    apply Expr.closed_of_abstractList
+    rw [hparamsFieldsShape]
+    simpa [List.length_append] using hsourceClosed
+  have hshift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := targetFields) (fvars := params) (depth := fields.length)
+    (extra := middle.length) htargetFieldsClosed
+    (A.rule.outer_binders_nodup.of_append_left.of_append_left)
+  have hfullShape := Expr.abstractList_after_inner
+    (e := A.rule.target) (outer := params)
+    (inner := middle ++ fields) (k := 0) (by
+      simpa [params, motives, minors, fields, middle,
+        BoundGeneratedRecursorRule.binders, List.append_assoc] using
+        A.rule.binders_nodup)
+  rw [Expr.abstractList_append, hmiddleAbstract] at hfullShape
+  unfold BoundGeneratedRecursorRule.binders
+  change
+    (A.rule.target.abstractList (params ++ fields)).liftLooseBVars'
+        A.rule.allArgs.size (T.motives ++ T.minors).length = _
+  rw [← hparamsFieldsShape]
+  rw [← hshift]
+  rw [← hfullShape]
+  simp only [targetFields, params, motives, minors, fields, middle]
+  rw [hfieldsLength]
+  congr 2
+  simp [T.motives_length, T.minors_length]
+
 /-- Insert motives and minors beneath the closed constructor fields while
 retaining a strict translation of the constructor result.  The source lift
 is the precise de Bruijn effect of the otherwise unused generated binders. -/
@@ -53587,10 +53868,7 @@ theorem
           (abstractForallContext
             ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
               fieldDomains) [])
-          ((A.rule.target.abstractList
-              (A.rule.params_bound.fvars ++
-                A.semantics.fieldOpening.fvars)).liftLooseBVars'
-            A.rule.allArgs.size (T.motives ++ T.minors).length)
+          (A.rule.target.abstractList A.rule.binders)
           (fieldResult.liftN
             (T.motives ++ T.minors).length A.rule.allArgs.size) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -53605,11 +53883,126 @@ theorem
   have W := abstractForallContext.bvInsertBeforeInner
     parameterDecls.toCtx.reverse inserted originalDomains
   have Hweak := Htarget.weakBV H.outVEnvWF.ordered W
+  have hsource := A.canonicalTargetBinderLift_eq
+    T originalDomains fieldResult hfields Htarget
+  rw [hsource] at Hweak
   have hfieldDomains : fieldDomains.length = A.rule.allArgs.size := by
     simp [fieldDomains, hfields]
   exact ⟨T, fieldDomains, fieldResult, hfieldDomains, by
     simpa [parameterDecls, inserted, fieldDomains, hfields,
       List.append_assoc] using Hweak⟩
+
+/-- Invert the fully abstracted constructor result at its validated family
+head.  This exposes the exact translated index suffix in the equation
+context, without imposing any syntactic restriction on index expressions. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedConstructorIndexSpine
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (fieldDomains : List VExpr) (fieldResult : VExpr)
+          (levels : List VLevel) (parameterTargets indexTargets : List VExpr),
+        fieldDomains.length = A.rule.allArgs.size ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+              fieldDomains) [])
+          (A.rule.target.abstractList A.rule.binders)
+          (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+        (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size).getAppFnArgs =
+          (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
+            parameterTargets ++ indexTargets) ∧
+        indexTargets.length = T.indices.length ∧
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext
+              ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+                fieldDomains) []))
+          (((AddInductive.getIIndices stats A.rule.target).2.map fun arg =>
+            arg.abstractList A.rule.binders).toList)
+          indexTargets := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalCachedConstructorEquationTarget with
+    ⟨T, fieldDomains, fieldResult, hfields, Htarget⟩
+  have hvalid : AddInductive.isValidIndAppIdx stats A.rule.target owner =
+      true := by
+    have h := (checkPositivityStep.isValidIndApp?_some
+      A.semantics.target_valid).2
+    simpa [A.semantic_owner] using h
+  have hconst := A.semantics.validStats.indConstAt A.abstractOwner_lt
+  have hhead : A.rule.target.getAppFn =
+      .const (decl.types[owner]'A.abstractOwner_lt).name stats.levels :=
+    checkPositivityStep.isValidIndAppIdx.constHead hvalid hconst
+  have hheadAbstract :
+      (A.rule.target.abstractList A.rule.binders).getAppFn =
+        .const (decl.types[owner]'A.abstractOwner_lt).name stats.levels := by
+    rw [Expr.getAppFn_abstractList, hhead]
+    induction A.rule.binders <;> simp_all [Expr.abstractList, Expr.abstract1]
+  rcases checkPositivityStep.TrExprS.constAppSpine Htarget hheadAbstract with
+    ⟨levels, translatedArgs, hspine, _hlevels, Hargs⟩
+  let indices := (AddInductive.getIIndices stats A.rule.target).2
+  have hsourcePrefix := A.semantics.validStats.sourceParameterPrefix hvalid
+  have hsourceArgs :
+      (A.rule.target.abstractList A.rule.binders).getAppArgsList =
+        (stats.params.map fun arg =>
+            arg.abstractList A.rule.binders).toList ++
+          (indices.map fun arg =>
+            arg.abstractList A.rule.binders).toList := by
+    rw [Expr.getAppArgsList_abstractList]
+    have hsplit : A.rule.target.getAppArgsList =
+        stats.params.toList ++ indices.toList := by
+      calc
+        A.rule.target.getAppArgsList =
+            A.rule.target.getAppArgsList.take stats.params.size ++
+              A.rule.target.getAppArgsList.drop stats.params.size :=
+          (List.take_append_drop _ _).symm
+        _ = stats.params.toList ++ indices.toList := by
+          rw [hsourcePrefix]
+          congr 1
+          simp [indices, AddInductive.getIIndices,
+            Expr.getAppArgs_toList, List.drop_eq_drop_min]
+    rw [hsourceArgs]
+    simp
+  rw [hsourceArgs] at Hargs
+  rcases checkPositivityStep.List.Forall₂.split_left Hargs with
+    ⟨parameterTargets, indexTargets, htranslatedArgs,
+      _HparameterTargets, HindexTargets⟩
+  have hindicesLength : indices.size = stats.nindices[owner]! := by
+    exact checkPositivityStep.getIIndices.index_arity
+      A.semantics.target_valid |>.trans (by simp [A.semantic_owner])
+  have hindexTargetsLength : indexTargets.length = T.indices.length := by
+    have htranslated :=
+      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HindexTargets
+    have harity := H.arities owner (by
+      simpa [H.generated.length] using howner)
+    rw [T.indices_length, harity, ← hindicesLength]
+    simpa [indices] using htranslated.symm
+  refine ⟨T, fieldDomains, fieldResult, levels, parameterTargets,
+    indexTargets, hfields, Htarget, ?_, hindexTargetsLength, ?_⟩
+  · simpa [htranslatedArgs] using hspine
+  · simpa [indices] using HindexTargets
 
 /-- Apply the checked constructor to the canonical variables of its genuine
 field telescope.  This is done before inserting motives and minors, avoiding
@@ -54990,9 +55383,9 @@ theorem
           arg.abstractList A.rule.binders).toList ++
         (A.rule.allArgs.map fun arg =>
           arg.abstractList A.rule.binders).toList)
-      ((recursorCanonicalVars T.params.length).map fun arg =>
+      ((recursorCanonicalVars T.params.length).map (fun arg =>
           arg.liftN
-            ((T.motives ++ T.minors).length + fieldDomains.length) 0) ++
+            ((T.motives ++ T.minors).length + fieldDomains.length) 0)) ++
         recursorCanonicalVars fieldDomains.length) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
@@ -55009,9 +55402,9 @@ theorem
   have htarget :
       (List.ofFn fun i : Fin stats.params.size =>
         VExpr.bvar (A.rule.binders.length - 1 - i)) =
-      (recursorCanonicalVars T.params.length).map fun arg =>
+      (recursorCanonicalVars T.params.length).map (fun arg =>
         arg.liftN
-          ((T.motives ++ T.minors).length + fieldDomains.length) 0 := by
+          ((T.motives ++ T.minors).length + fieldDomains.length) 0) := by
     rw [recursorCanonicalVars_eq_ofFn]
     apply List.ext_getElem
     · simp [T.params_length]
@@ -55060,9 +55453,9 @@ theorem
           ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
           (recursorDeclarationAbstractLevels c.lparams
             H.elimLevelAdmissible))
-        ((recursorCanonicalVars T.params.length).map fun arg =>
+        ((recursorCanonicalVars T.params.length).map (fun arg =>
             arg.liftN
-              ((T.motives ++ T.minors).length + fieldDomains.length) 0) ++
+              ((T.motives ++ T.minors).length + fieldDomains.length) 0)) ++
           recursorCanonicalVars fieldDomains.length) =
       ((VExpr.mkApps
           (introTarget.liftN A.rule.allArgs.size 0)
@@ -55139,9 +55532,9 @@ theorem
       ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
       (recursorDeclarationAbstractLevels c.lparams
         H.elimLevelAdmissible))
-    ((recursorCanonicalVars T.params.length).map fun arg =>
+    ((recursorCanonicalVars T.params.length).map (fun arg =>
         arg.liftN
-          ((T.motives ++ T.minors).length + fieldDomains.length) 0) ++
+          ((T.motives ++ T.minors).length + fieldDomains.length) 0)) ++
       recursorCanonicalVars fieldDomains.length)
   have hmajorShape : directMajor =
       ((VExpr.mkApps
@@ -55469,8 +55862,7 @@ theorem
           (mkAppN
             (mkAppN
               (.const
-                ((indTypes[owner]'A.sourceOwner_lt).ctors[i]
-                  'A.sourceCtor_lt).name
+                ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
                 stats.levels)
               (stats.params.map fun arg =>
                 arg.abstractList A.rule.binders))
