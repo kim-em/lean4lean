@@ -63201,7 +63201,8 @@ theorem
         ∃ scope,
           ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
-            ∃ fieldDomains localDomains narrowIndices narrowMajor,
+            ∃ fieldDomains localDomains narrowIndices narrowMajor
+                narrowExposed,
               Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
               fieldDomains.length = A.rule.allArgs.size ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
@@ -63225,6 +63226,16 @@ theorem
                   parameterDecls)
                 (F.semantic.generated.outerAbstractedMajor
                   A.rule.all_args_bound.fvars) narrowMajor ∧
+              TrExprS H.outVEnv Us
+                (abstractForallContext (fieldDomains ++ localDomains)
+                  parameterDecls)
+                ((F.semantic.generated.exposedType.abstractList
+                  F.semantic.generated.arguments_bound.fvars).abstractList
+                    A.rule.all_args_bound.fvars
+                    F.semantic.generated.localArgs.size) narrowExposed ∧
+              H.outVEnv.HasType Us.length
+                (abstractForallContext (fieldDomains ++ localDomains)
+                  parameterDecls).toCtx narrowMajor narrowExposed ∧
               List.Forall₂
                 (fun narrow full => H.outVEnv.IsDefEqU Us.length
                   F.semantic.current_context.mlctx.vlctx.toCtx
@@ -63244,6 +63255,9 @@ theorem
       narrowIndices, hlength, HnarrowIndices, HindexEq⟩
   rcases F.narrowSemanticAppliedMajor scope Hscope hscopeFVars with
     ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
+  rcases F.narrowSemanticAppliedMajorTypingFor scope Hscope hscopeFVars
+      HnarrowMajor with
+    ⟨narrowExposed, HnarrowExposed, HnarrowTyping⟩
   rcases F.narrowRuntimeFrontAlignment scope Hscope hscopeFVars hscopeBase with
     ⟨hfrontFVars, hfrontLength, HfrontCtx⟩
   have hprefixNodup :
@@ -63343,6 +63357,19 @@ theorem
         A.rule.all_args_bound.fvars) narrowMajor := by
     simpa [BoundGeneratedRecursiveCall.outerAbstractedMajor] using
       HclosedMajor
+  have HclosedExposed := Hscope.abstractFront
+    H.outVEnvWF hscopeBase HnarrowExposed
+  rw [hsourceShape F.semantic.generated.exposedType] at HclosedExposed
+  have HclosedTyping : H.outVEnv.HasType Us.length
+      (abstractForallContext Hscope.frontSourceDomains parameterDecls).toCtx
+      narrowMajor narrowExposed := by
+    have hcontext :
+        (abstractForallContext Hscope.frontSourceDomains parameterDecls).toCtx =
+          scope.toCtx := by
+      rw [Hscope.front.sourceContext, hscopeBase]
+      simp [parameterDecls]
+    rw [hcontext]
+    exact HnarrowTyping
   let fieldDomains := Hscope.frontSourceDomains.take A.rule.allArgs.size
   let localDomains := Hscope.frontSourceDomains.drop A.rule.allArgs.size
   have hfieldsLE : A.rule.allArgs.size ≤
@@ -63357,10 +63384,12 @@ theorem
     (List.take_append_drop A.rule.allArgs.size
       Hscope.frontSourceDomains).symm
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-    narrowIndices, narrowMajor, hfront, hfields, hlocal,
+    narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hlocal,
     by simpa [hfront] using HfrontCtx, hlength,
     by simpa [hfront] using HclosedIndices,
-    by simpa [hfront] using HclosedMajor', HindexEq, HmajorEq⟩
+    by simpa [hfront] using HclosedMajor',
+    by simpa [hfront] using HclosedExposed,
+    by simpa [hfront] using HclosedTyping, HindexEq, HmajorEq⟩
 
 /-- Close the replayed constructor-field and higher-order-argument front of
 every narrowed recursive index.  The resulting translations live directly
@@ -63858,8 +63887,9 @@ theorem
   let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
   rcases F.cachedSemanticCallArgumentFrame with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-      narrowIndices, narrowMajor, hfront, hfields, hlocal, Hctx,
-      hlength, Hindices, Hmajor, HindexEq, HmajorEq⟩
+      narrowIndices, narrowMajor, _narrowExposed, hfront, hfields, hlocal,
+      Hctx, hlength, Hindices, Hmajor, _Hexposed, _Htyping,
+      HindexEq, HmajorEq⟩
   have hparamsNodup : A.rule.params_bound.fvars.Nodup :=
     (List.nodup_append.mp
       (List.nodup_append.mp A.rule.outer_binders_nodup).1).1
@@ -67001,8 +67031,10 @@ theorem
   rcases F.cachedSemanticCallArgumentFrame with
     ⟨_binding, _evidence, _scope, _Hscope,
       cachedFields, cachedLocals, _narrowIndices, _narrowMajor,
+      _narrowExposed,
       _hfront, hcachedFields, hcachedLocals, _Hctx, _hlength,
-      _Hindices, HcachedMajor, _HindexEq, _HmajorEq⟩
+      _Hindices, HcachedMajor, _Hexposed, _Htyping,
+      _HindexEq, _HmajorEq⟩
   have hparameterNoBV : H.parameterSuffix.parameterDecls.bvars = 0 := by
     have h := H.recursorWF.mlctx.noBV
     rw [H.parameterSuffix.context] at h
