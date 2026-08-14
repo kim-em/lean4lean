@@ -62533,6 +62533,40 @@ theorem
   exact ⟨binding, evidence, localDomains, fieldDomains,
     hlocal, hfields, hlength, HclosedIndices, Hscoped⟩
 
+/-- Domain-witness-free form of the source-scope conclusion above.  Once
+call locals and constructor fields are abstracted, recursive indices mention
+only the common inductive parameters; in particular they avoid every motive
+and minor variable that will later be inserted into the equation context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.fieldAbstractedSemanticIndexSourcesScoped
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    ∀ source ∈ sourceIndices.map fun index =>
+        (index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size,
+      FVarsIn (· ∈ ExprArrayFVarIds stats.params) source := by
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  rcases F.finalFieldAbstractedSemanticIndices with
+    ⟨_binding, _evidence, localDomains, _fieldDomains,
+      hlocal, _hfields, _hlength, _Hindices, Hscoped⟩
+  simpa [hlocal] using Hscoped
+
 /-- Restrict every semantic recursive index to the replayed
 parameter/field/local scope while retaining its exact relationship to the
 target produced in the executable context.  This is the pointwise inverse
