@@ -63014,6 +63014,69 @@ theorem
     (HfullMajorType.mono H.installed.le)
   exact ⟨narrowMajor, narrowExposed, HnarrowMajor, HnarrowExposed, Htyped⟩
 
+/-- Type any particular narrow translation of the eta-expanded recursive
+major.  This parameterized form is the bridge used by the later cached
+equation frame: it retains that frame's exact target instead of choosing a
+second existential translation and subsequently appealing to uniqueness. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowSemanticAppliedMajorTypingFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (scope : VLCtx)
+    (Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+      H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      scope F.semantic.current_context.mlctx.vlctx)
+    (hscopeFVars : scope.fvars =
+      F.semantic.recent.fvars.reverse ++
+        A.semantics.fieldsRecent.fvars.reverse ++
+          H.parameterSuffix.parameterDecls.fvars)
+    {narrowMajor : VExpr}
+    (HnarrowMajor : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams) scope
+      (mkAppN A.rule.recursiveArgs[j]
+        F.semantic.generated.localArgs) narrowMajor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ narrowExposed,
+      TrExprS H.outVEnv Us scope F.semantic.generated.exposedType
+          narrowExposed ∧
+        H.outVEnv.HasType Us.length scope.toCtx narrowMajor narrowExposed := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases F.narrowSemanticExposedType scope Hscope hscopeFVars with
+    ⟨narrowExposed, _resultLevel, HnarrowExposed, _HexposedEq,
+      _HnarrowType⟩
+  have hsemantic : F.semantic.current_context.venv =
+      R.declared.venvCtors :=
+    F.semantic.recent.venv_eq.trans
+      (A.semantics.context_venv.trans
+        (H.recursorEnv.trans R.declared.contextVEnv))
+  have HfullMajor := F.semantic.applied_field_translation
+  have HfullExposed := F.semantic.exposed_translation
+  have HfullMajorType : F.semantic.current_context.venv.HasType Us.length
+      F.semantic.current_context.mlctx.vlctx.toCtx
+      F.semantic.appliedFieldTarget F.semantic.exposedTarget :=
+    F.semantic.applied_field_typing.defeqU_r
+      F.semantic.current_context.checking.tr.wf
+      F.semantic.current_context.mlctx_wf.tr.wf.toCtx
+      F.semantic.exposed_defeq.symm
+  rw [hsemantic] at HfullMajor HfullExposed HfullMajorType
+  have Htyped := Hscope.hasTypeOfFullPair H.outVEnvWF
+    HnarrowMajor HnarrowExposed
+    (HfullMajor.mono H.installed.le)
+    (HfullExposed.mono H.installed.le)
+    (HfullMajorType.mono H.installed.le)
+  exact ⟨narrowExposed, HnarrowExposed, Htyped⟩
+
 /-- The replayed narrow front is exactly the constructor fields followed by
 the higher-order call arguments, in source-binder order.  This packages the
 ordering, arity, and well-formedness facts shared by index and major closure. -/
