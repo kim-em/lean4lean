@@ -37218,6 +37218,41 @@ theorem BoundGeneratedRecursorRule.abstractedBinders_eq
   rw [hfvars, hcanonical] at hmapped
   simpa using congrArg Array.toList hmapped
 
+/-- The parameter prefix of the simultaneously abstracted rule binders is
+the corresponding prefix of canonical de Bruijn variables. -/
+theorem BoundGeneratedRecursorRule.abstractedParams_eq
+    (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      ctor minorIdx rule) :
+    ((stats.params.map fun arg => arg.abstractList H.binders).toList) =
+      List.ofFn (fun i : Fin stats.params.size =>
+        Expr.bvar (H.binders.length - 1 - i)) := by
+  have h := congrArg (List.take stats.params.size) H.abstractedBinders_eq
+  have hparams : H.params_bound.fvars.length = stats.params.size := by
+    have := congrArg Array.size H.params_bound.expressions
+    simpa using this.symm
+  have hle : stats.params.size ≤ H.binders.length := by
+    unfold BoundGeneratedRecursorRule.binders
+    simp only [List.length_append]
+    omega
+  have htake :
+      List.take stats.params.size
+          (List.ofFn fun i : Fin H.binders.length =>
+            Expr.bvar (H.binders.length - 1 - i)) =
+        List.ofFn (fun i : Fin stats.params.size =>
+          Expr.bvar (H.binders.length - 1 - i)) := by
+    apply List.ext_getElem
+    · simp [hle]
+    · intro j hj₁ hj₂
+      simp only [List.getElem_take, List.getElem_ofFn]
+  have hprefix :
+      ((stats.params.map fun arg => arg.abstractList H.binders).toList) =
+        List.take stats.params.size
+          (List.ofFn fun i : Fin H.binders.length =>
+            Expr.bvar (H.binders.length - 1 - i)) := by
+    simpa [Array.toList_append, List.take_append,
+      List.take_of_length_le] using h
+  exact hprefix.trans htake
+
 /-- The complete simultaneously abstracted binder payload translates
 pointwise to the equally ordered canonical abstract variables. -/
 theorem BoundGeneratedRecursorRule.abstractedBindersTranslation
