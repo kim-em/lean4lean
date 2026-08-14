@@ -59206,6 +59206,53 @@ theorem
     A.rule.abstractedMinorsTranslation domains [] hdomains,
     A.rule.abstractedAllArgsTranslation domains [] hdomains⟩
 
+/-- The owner motive selected from the globally abstracted motive array has
+the same de Bruijn index as the owner-motive witness obtained by weakening
+the generated telescope beneath minors and constructor fields. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalOwnerMotiveBvarIndex
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size) :
+    A.rule.binders.length - 1 -
+        (A.rule.params_bound.fvars.length + owner) =
+      fieldDomains.length +
+        (T.motives.drop (owner + 1) ++ T.minors).length := by
+  have hownerRecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hownerMotive : owner < T.motives.length := by
+    rw [T.motives_length]
+    simpa using hownerRecInfo
+  have hownerMotiveCount :
+      owner < (H.recInfos.map (·.motive)).size := by
+    simpa using hownerRecInfo
+  have hparams := A.rule.params_bound.length_fvars
+  have hmotives := A.rule.motives_bound.length_fvars
+  have hminors := A.rule.minors_bound.length_fvars
+  have hallArgs := A.rule.all_args_bound.length_fvars
+  unfold BoundGeneratedRecursorRule.binders
+  simp only [List.length_append, List.length_drop]
+  rw [hparams, hmotives, hminors, hallArgs, hfields,
+    T.motives_length, T.minors_length]
+  rw [Nat.sub_sub]
+  omega
+
 /-- In the canonical equation context, the retained constructor fields close
 to precisely the innermost canonical variables.  This identifies the direct
 source translation with the field application already typed by
@@ -59957,8 +60004,8 @@ theorem
             majorSource majorTarget ∧
           TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
             (H.recInfos[owner]!.motive.abstractList A.rule.binders)
-            (.bvar (A.rule.binders.length - 1 -
-              (A.rule.params_bound.fvars.length + owner))) ∧
+            (.bvar (fieldDomains.length +
+              (T.motives.drop (owner + 1) ++ T.minors).length)) ∧
           (fieldResult.liftN
               (T.motives ++ T.minors).length
               A.rule.allArgs.size).getAppFnArgs =
@@ -60131,11 +60178,12 @@ theorem
     TrExprS.unique' HuniqueCtx HownerMotiveUnique
       HownerMotiveCanonical HownerMotiveCached
   rw [← hownerMotiveTarget] at HownerMotiveCached
+  rw [A.canonicalOwnerMotiveBvarIndex T fieldDomains hfields] at HownerMotiveCached
   have HownerMotive' : TrExprS H.outVEnv Us
       (abstractForallContext cachedDomains [])
       (H.recInfos[owner]!.motive.abstractList A.rule.binders)
-      (.bvar (A.rule.binders.length - 1 -
-        (A.rule.params_bound.fvars.length + owner))) := by
+      (.bvar (fieldDomains.length +
+        (T.motives.drop (owner + 1) ++ T.minors).length)) := by
     exact HownerMotiveCached
   have hparameterTargets : parameterTargets =
       (List.ofFn fun i : Fin stats.params.size =>
