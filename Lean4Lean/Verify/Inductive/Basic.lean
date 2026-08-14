@@ -24743,6 +24743,25 @@ theorem BoundFVarArray.mkForall_mono
   intro fv hfv
   exact hle.declarations fv (members fv hfv)
 
+/-- Closing a bound free-variable array with `LocalContext.mkForall` exposes
+exactly that array as a concrete forall telescope. -/
+theorem BoundFVarArray.mkForall_forallTelescope
+    (H : BoundFVarArray c xs) (Hc : BindingContextWF c) (body : Expr) :
+    Expr.ForallTelescope (c.lctx.mkForall xs body) xs.size
+      (body.abstractList H.fvars) := by
+  have hsize : H.fvars.length = xs.size := by
+    have h := congrArg Array.size H.expressions
+    simpa using h.symm
+  have Htelescope := LocalContext.mkForall_fvars_forallTelescope
+    (lctx := c.lctx) (body := body) (fvs := H.fvars) (by
+      intro fv hfv
+      exact Hc.findCDecl fv (H.members fv hfv))
+  have houter : c.lctx.mkForall xs body =
+      c.lctx.mkForall (H.fvars.map Expr.fvar).toArray body :=
+    congrArg (fun fields => c.lctx.mkForall fields body) H.expressions
+  rw [houter]
+  simpa only [← hsize] using Htelescope
+
 /-- A retained array introduced strictly after `root`. Besides recording that
 its entries remain selectable, this packages the two facts needed to combine
 it with selections already present at `root`: its entries are distinct and
@@ -27020,6 +27039,7 @@ structure RecInfoMinorTypeShape where
   sourceContext : LocalContext
   sourceContext_eq : sourceFullContext.lctx = sourceContext
   fields : Array Expr
+  fields_bound : BoundFVarArray sourceFullContext fields
   recursiveFields : Array Expr
   hypotheses : Array Expr
   hypotheses_bound : BoundFVarArray sourceFullContext hypotheses
@@ -27063,6 +27083,38 @@ theorem RecInfoMinorTypeShape.hypothesisTelescope
         B.expressions
   rw [houter]
   simpa only [B, ← hsize] using Htelescope
+
+/-- The retained constructor fields likewise form the exact outer telescope
+of the minor source type around any chosen body. -/
+theorem RecInfoMinorTypeShape.fieldTelescope
+    (S : RecInfoMinorTypeShape) (body : Expr) :
+    Expr.ForallTelescope
+      (S.sourceContext.mkForall S.fields body)
+      S.fields.size (body.abstractList S.fields_bound.fvars) := by
+  have Htelescope := S.fields_bound.mkForall_forallTelescope
+    S.sourceFullWF body
+  have houter : S.sourceContext.mkForall S.fields body =
+      S.sourceFullContext.lctx.mkForall S.fields body :=
+    congrArg (fun lctx => lctx.mkForall S.fields body)
+      S.sourceContext_eq.symm
+  rw [houter]
+  exact Htelescope
+
+/-- Combining the two retained arrays exposes the complete field/hypothesis
+telescope of the unconsumed minor source type, including the precise
+abstraction cutoff beneath the inner hypothesis binders. -/
+theorem RecInfoMinorTypeShape.sourceTelescope
+    (S : RecInfoMinorTypeShape) :
+    Expr.ForallTelescope S.sourceType
+      (S.fields.size + S.hypotheses.size)
+      ((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+        S.fields_bound.fvars S.hypotheses.size) := by
+  rw [S.sourceType_eq]
+  have Hfields := S.fieldTelescope
+    (S.sourceContext.mkForall S.hypotheses S.motiveApp)
+  have Hhypotheses :=
+    S.hypothesisTelescope.abstractList S.fields_bound.fvars
+  simpa only [Nat.zero_add] using Hfields.trans Hhypotheses
 
 /-- Exact `withLocalDecl` origin types retained in the same row structure as
 production `RecInfo`s.  Per-owner rows avoid losing the insertion position of
@@ -41500,6 +41552,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         sourceContext := outCtx.lctx
         sourceContext_eq := rfl
         fields := allFields
+        fields_bound :=
+          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.mono
+            HhypothesesRecent.contextExtension.contextLE
         recursiveFields := recursiveFields
         hypotheses := hypotheses
         hypotheses_bound :=
@@ -41840,6 +41895,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           sourceContext := cIH.lctx
           sourceContext_eq := rfl
           fields := bu
+          fields_bound := Hbu.mono hIH
           recursiveFields := u
           hypotheses := v
           hypotheses_bound := Hv
