@@ -55141,19 +55141,26 @@ theorem
           owner H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
             T.params.reverse C.params.reverse ∧
-        ∃ suffixSource name sourceDomain sourceBody bi bodyTarget,
-          Expr.ForallTelescope
-            (H.generated.entry owner howner).info.type
-            (T.params.length + owner) suffixSource ∧
-          suffixSource = .forallE name sourceDomain sourceBody bi ∧
-          TrExprS H.outVEnv Us
-            (abstractForallContext
-              (T.params ++ T.motives.take owner) [])
-            sourceDomain T.motives[owner] ∧
-          H.outVEnv.IsType Us.length
-            (abstractForallContext
-              (T.params ++ T.motives.take owner) []).toCtx
-            T.motives[owner] := by
+        ∃ D : BoundFVarDeclarationAt H.localContext
+            (H.recInfos.map (·.motive)) owner,
+          D.type = H.origins.motiveTypes[owner]! ∧
+          D.type = H.localContext.lctx.mkForall
+            H.recInfos[owner]!.indices
+            (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+              (.sort H.elimLevel)) ∧
+          ∃ suffixSource name sourceDomain sourceBody bi bodyTarget,
+            Expr.ForallTelescope
+              (H.generated.entry owner howner).info.type
+              (T.params.length + owner) suffixSource ∧
+            suffixSource = .forallE name sourceDomain sourceBody bi ∧
+            TrExprS H.outVEnv Us
+              (abstractForallContext
+                (T.params ++ T.motives.take owner) [])
+              sourceDomain T.motives[owner] ∧
+            H.outVEnv.IsType Us.length
+              (abstractForallContext
+                (T.params ++ T.motives.take owner) []).toCtx
+              T.motives[owner] := by
   dsimp only
   rcases A.finalCanonicalParameterAlignment with
     ⟨T, C, hparameters⟩
@@ -55162,11 +55169,21 @@ theorem
   have hmotive : owner < T.motives.length := by
     rw [T.motives_length]
     simpa using hrecInfo
+  have hmotiveArray : owner < (H.recInfos.map (·.motive)).size := by
+    simpa using hrecInfo
+  rcases H.origins.motives.declaration owner hmotiveArray with
+    ⟨D, hdeclarationOrigin⟩
+  have hdeclarationShape : D.type = H.localContext.lctx.mkForall
+      H.recInfos[owner]!.indices
+      (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+        (.sort H.elimLevel)) :=
+    hdeclarationOrigin.trans (H.motiveShapes.shape owner hrecInfo)
   rcases T.ownerMotiveBinder hmotive with
     ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
       Hsource, hsource, Hdomain, HdomainType⟩
-  exact ⟨T, C, hparameters, suffixSource, name, sourceDomain, sourceBody,
-    bi, bodyTarget, Hsource, hsource, Hdomain, HdomainType⟩
+  exact ⟨T, C, hparameters, D, hdeclarationOrigin, hdeclarationShape,
+    suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
+    Hsource, hsource, Hdomain, HdomainType⟩
 
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
