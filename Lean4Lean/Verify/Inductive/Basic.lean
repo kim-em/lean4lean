@@ -26784,6 +26784,19 @@ structure RecInfoBindings (c : AddInductive.Context)
   minors : ∀ i (hi : i < recInfos.size),
     BoundFVarArray c recInfos[i]!.minors
 
+/-- Structural trace of the constructor traversal which produced one minor.
+The raw binding-only proof may omit this payload; the semantic second pass
+retains it and the final source-alignment invariant rules that omission out. -/
+structure RecInfoMinorTraversalShape where
+  constructor : Constructor
+  fields : Array Expr
+  stats : AddInductive.InductiveStats
+  parameterTail : Expr
+  parameterPrefix : RecursorParamPrefix stats 0 constructor.type parameterTail
+  fieldResidual : Expr
+  fieldTelescope : Expr.ForallTelescope parameterTail fields.size fieldResidual
+  fieldResidual_not_forall : fieldResidual.isForall = false
+
 /-- The exact source construction retained for one generated minor domain.
 The source local context is intentionally stored in the certificate: after
 `mkForall` closes the freshly introduced fields and recursive hypotheses, the
@@ -26799,6 +26812,7 @@ structure RecInfoMinorTypeShape where
   recursiveFields : Array Expr
   hypotheses : Array Expr
   hypotheses_size : hypotheses.size = recursiveFields.size
+  traversal : Option RecInfoMinorTraversalShape
   motiveApp : Expr
   sourceType : Expr
   sourceType_eq : sourceType =
@@ -29294,6 +29308,7 @@ owning source family.  This is the final cross-pass provenance invariant:
 the second `mkRecInfos` traversal and rule generation may allocate different
 locals, but they replay the same owner-indexed constructor arrays. -/
 def RecInfoMinorSourceAlignment
+    (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
     (H : RecInfoTypeOrigins c recInfos) : Prop :=
   ∀ owner (howner : owner < recInfos.size)
@@ -29302,12 +29317,15 @@ def RecInfoMinorSourceAlignment
     let S := H.minorShapes owner howner localIndex hlocal
     S.origin = H.minorTypes[owner]![localIndex]! ∧
       S.localIndex = localIndex ∧
-      S.sourceConstructors = indTypes[owner]!.ctors
+      S.sourceConstructors = indTypes[owner]!.ctors ∧
+      ∃ traversal, S.traversal = some traversal ∧
+        traversal.constructor = S.constructor ∧
+        traversal.fields = S.fields ∧ traversal.stats = stats
 
 theorem RecInfoMinorSourceAlignment.ofEmpty
     (H : RecInfoTypeOrigins c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos) :
-    RecInfoMinorSourceAlignment indTypes H := by
+    RecInfoMinorSourceAlignment stats indTypes H := by
   intro owner howner _ localIndex hlocal
   have hsize := (H.minors owner howner).size_eq
   rw [Hempty owner howner] at hsize
@@ -29317,16 +29335,16 @@ theorem RecInfoMinorSourceAlignment.mono
     {c c' : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
     {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceAlignment indTypes H)
+    (A : RecInfoMinorSourceAlignment stats indTypes H)
     (hle : BindingContextLE c c') :
-    RecInfoMinorSourceAlignment indTypes (H.mono hle) := by
+    RecInfoMinorSourceAlignment stats indTypes (H.mono hle) := by
   exact A
 
 theorem RecInfoMinorSourceAlignment.addMinor
     {c cMinorTy : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
     {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceAlignment indTypes H)
+    (A : RecInfoMinorSourceAlignment stats indTypes H)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (hsourceIdx : dIdx < indTypes.size)
     (hle : BindingContextLE c cMinorTy)
@@ -29336,8 +29354,12 @@ theorem RecInfoMinorSourceAlignment.addMinor
     (HshapePosition :
       Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
       Hshape.origin = minorTy)
-    (hsource : Hshape.sourceConstructors = indTypes[dIdx]!.ctors) :
-    RecInfoMinorSourceAlignment indTypes
+    (hsource : Hshape.sourceConstructors = indTypes[dIdx]!.ctors)
+    (htraversal : ∃ traversal,
+      Hshape.traversal = some traversal ∧
+      traversal.constructor = Hshape.constructor ∧
+      traversal.fields = Hshape.fields ∧ traversal.stats = stats) :
+    RecInfoMinorSourceAlignment stats indTypes
       (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
         Hshape HshapePosition) := by
   intro owner howner hsourceOwner localIndex hlocal
@@ -29360,7 +29382,7 @@ theorem RecInfoMinorSourceAlignment.addMinor
           (fun types => types.push minorTy) hiTypes,
         getElem!_pos (H.minorTypes[dIdx]!.push minorTy)
           H.minorTypes[dIdx]!.size (by simp)] using
-        ⟨HshapePosition.2, HshapePosition.1, hsource⟩
+        ⟨HshapePosition.2, HshapePosition.1, hsource, htraversal⟩
     · have hold : localIndex < H.minorTypes[dIdx]!.size := by
         simp only [Array.size_push] at hlocal
         omega
@@ -38948,6 +38970,7 @@ structure BoundGeneratedRecursorRule.Semantics
   expected_target_valid : AddInductive.isValidIndAppIdx stats H.target
     expectedOwnerIdx = true
   targetTarget : VExpr
+  target_not_forall : H.target.isForall = false
   target_translation : TrExprS context.venv recLparams context.mlctx.vlctx
     H.target targetTarget
   target_type : context.venv.IsType recLparams.length
@@ -39802,6 +39825,7 @@ theorem oneRuleSemantics
     expected_owner_lt := howner
     expected_target_valid := hvalidIdx
     targetTarget := terminalTarget
+    target_not_forall := hterminalNonforall
     target_translation := Hterminal
     target_type := HterminalType
     constructorTarget := appliedTarget
@@ -40655,7 +40679,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
-    (HminorSources : RecInfoMinorSourceAlignment indTypes Horigins)
+    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
       Horigins.majorTypes)
@@ -40682,6 +40706,10 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       HminorShape.origin = minorTy.consumeTypeAnnotations)
     (HminorSource : HminorShape.sourceConstructors =
       indTypes[dIdx]!.ctors)
+    (HminorTraversal : ∃ traversal,
+      HminorShape.traversal = some traversal ∧
+      traversal.constructor = HminorShape.constructor ∧
+      traversal.fields = HminorShape.fields ∧ traversal.stats = stats)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
@@ -40695,7 +40723,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
         (decl.types.map (·.name)) Rout.mlctx.vlctx)
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
-      RecInfoMinorSourceAlignment indTypes HoriginsOut →
+      RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
       out.size = recInfos.size →
       out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + 1 →
       (∀ i, i < recInfos.size → dIdx ≠ i →
@@ -40738,7 +40766,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
   let HminorSourcesMinor := HminorSources.addMinor dIdx hidx hsourceIdx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
     minorTy.consumeTypeAnnotations .default HminorShape
-    HminorShapePosition HminorSource
+    HminorShapePosition HminorSource HminorTraversal
   let HparamsMinor := Hparams.mono Hstep.contextLE
   refine Hk next Rminor rfl (Hsuffix.withAmbient Hminor HminorType) rfl
     (Hstats.withFVar Rminor.checking.tr.wf Rminor.mlctx_wf.tr.wf)
@@ -40810,7 +40838,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       R.mlctx.vlctx.toCtx introTarget tailTarget)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
-    (HminorSources : RecInfoMinorSourceAlignment indTypes Horigins)
+    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
       Horigins.majorTypes)
@@ -40843,7 +40871,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         (decl.types.map (·.name)) Rout.mlctx.vlctx)
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
-      RecInfoMinorSourceAlignment indTypes HoriginsOut →
+      RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
       out.size = recInfos.size →
       out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + 1 →
       (∀ i, i < recInfos.size → dIdx ≠ i →
@@ -41089,6 +41117,17 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         recursiveFields := recursiveFields
         hypotheses := hypotheses
         hypotheses_size := hhypothesesSize
+        traversal := some {
+          constructor := ctor
+          fields := allFields
+          stats := stats
+          parameterTail := tail
+          parameterPrefix := hprefix
+          fieldResidual := Hopening.residual
+          fieldTelescope := Hopening.telescope
+          fieldResidual_not_forall := by
+            rw [← Hopening.closed, Expr.abstractList_isForall]
+            exact HterminalNonforall }
         motiveApp := Expr.app
           (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
           (mkAppN
@@ -41104,7 +41143,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         sourceType_eq := rfl
         consumed_eq := rfl } ⟨rfl, rfl⟩ (by
           simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
-            hsourceFamily) ?_
+            hsourceFamily) ⟨_, rfl, rfl, rfl, rfl⟩ ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
     hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
     HminorSourcesNext hsizeNext hcountNext hotherNext HmajorTypesNext HmajorShapesNext
@@ -41145,7 +41184,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
-    (HminorSources : RecInfoMinorSourceAlignment indTypes Horigins)
+    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
       Horigins.majorTypes)
@@ -41194,7 +41233,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
       (HbindingsOut : RecInfoBindings outCtx out) →
       (HoriginsOut : RecInfoTypeOrigins outCtx out) →
-      RecInfoMinorSourceAlignment indTypes HoriginsOut →
+      RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
       out.size = recInfos.size →
       out[dIdx]!.minors.size =
         recInfos[dIdx]!.minors.size + ctors.length →
@@ -41396,6 +41435,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           recursiveFields := u
           hypotheses := v
           hypotheses_size := by simpa using hvSize
+          traversal := none
           motiveApp := motiveApp
           sourceType := minorTy
           sourceType_eq := rfl
@@ -41531,7 +41571,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
-    (HminorSources : RecInfoMinorSourceAlignment indTypes Horigins)
+    (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
       Horigins.majorTypes)
@@ -41584,7 +41624,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
       (HbindingsOut : RecInfoBindings outCtx out) →
       (HoriginsOut : RecInfoTypeOrigins outCtx out) →
-      RecInfoMinorSourceAlignment indTypes HoriginsOut →
+      RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
       out.size = indTypes.size →
       (∀ i, i < out.size →
         out[i]!.minors.size = indTypes[i]!.ctors.length) →
@@ -45599,7 +45639,7 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
       (Hbindings : RecInfoBindings cOut recInfos) →
       (Horigins : RecInfoTypeOrigins cOut recInfos) →
-      RecInfoMinorSourceAlignment indTypes Horigins →
+      RecInfoMinorSourceAlignment stats indTypes Horigins →
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
       RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
@@ -45712,7 +45752,7 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
       VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
       (Hbindings : RecInfoBindings cOut recInfos) →
       (Horigins : RecInfoTypeOrigins cOut recInfos) →
-      RecInfoMinorSourceAlignment indTypes Horigins →
+      RecInfoMinorSourceAlignment stats indTypes Horigins →
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
       RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
@@ -56911,7 +56951,7 @@ structure RecursorPhasesResult
     recursorWF.mlctx.vlctx
   bindings : RecInfoBindings localContext recInfos
   origins : RecInfoTypeOrigins localContext recInfos
-  minorSources : RecInfoMinorSourceAlignment indTypes origins
+  minorSources : RecInfoMinorSourceAlignment stats indTypes origins
   majorTypes : RecursorTranslatedOriginTypes recursorWF origins.majorTypes
   majorShapes : RecInfoMajorTypeShapes stats recInfos origins.majorTypes
   motiveTypes : RecursorTranslatedOriginTypes recursorWF origins.motiveTypes
@@ -60379,6 +60419,12 @@ theorem
             S.localIndex = i ∧
             S.sourceConstructors = indTypes[owner]!.ctors ∧
             S.constructor = indTypes[owner]!.ctors[i] ∧
+            S.fields.size = A.rule.allArgs.size ∧
+            ∃ traversal : RecInfoMinorTraversalShape,
+            S.traversal = some traversal ∧
+            traversal.constructor = S.constructor ∧
+            traversal.fields = S.fields ∧
+            traversal.stats = stats ∧
             let sourceBinders := H.params.fvars ++
               H.bindings.motives.fvars ++
                 H.bindings.flatMinors.fvars.take minorIdx
@@ -60405,7 +60451,10 @@ theorem
   have Hsource : S.origin =
         H.origins.minorTypes[O.owner]![O.localIndex]! ∧
       S.localIndex = O.localIndex ∧
-      S.sourceConstructors = indTypes[O.owner]!.ctors := by
+      S.sourceConstructors = indTypes[O.owner]!.ctors ∧
+      ∃ traversal, S.traversal = some traversal ∧
+        traversal.constructor = S.constructor ∧
+        traversal.fields = S.fields ∧ traversal.stats = stats := by
     simpa [S] using H.minorSources O.owner O.owner_lt hsourceOwner
       O.localIndex hshapeBound
   have horigin : S.origin = D.type :=
@@ -60413,12 +60462,32 @@ theorem
   have hlocal : S.localIndex = i := Hsource.2.1.trans hposition.2
   have hconstructors :
       S.sourceConstructors = indTypes[owner]!.ctors := by
-    simpa [hposition.1] using Hsource.2.2
+    simpa [hposition.1] using Hsource.2.2.1
+  rcases Hsource.2.2.2 with
+    ⟨traversal, htraversal, htraversalConstructor,
+      htraversalFields, hstats⟩
   have hconstructor : S.constructor = indTypes[owner]!.ctors[i] := by
     have hsourceConstructor := S.sourceConstructor
     rw [hconstructors, hlocal] at hsourceConstructor
     simpa [hctor] using hsourceConstructor.symm
+  have hprefixTraversal := traversal.parameterPrefix
+  rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
+  have hparameterTail :
+      traversal.parameterTail = A.semantics.parameterTail :=
+    hprefixTraversal.tail_eq A.semantics.parameterPrefix
+  have hsemanticResidual :
+      A.semantics.fieldOpening.residual.isForall = false := by
+    rw [← A.semantics.fieldOpening.closed, Expr.abstractList_isForall]
+    exact A.semantics.target_not_forall
+  have hfieldCount : S.fields.size = A.rule.allArgs.size := by
+    have HtraversalTelescope := traversal.fieldTelescope
+    rw [htraversalFields, hparameterTail] at HtraversalTelescope
+    exact (HtraversalTelescope.eq_of_residual_not_forall
+      A.semantics.fieldOpening.telescope
+      traversal.fieldResidual_not_forall hsemanticResidual).1
   exact ⟨T, D, O, S, horigin, hlocal, hconstructors, hconstructor,
+    hfieldCount, traversal, htraversal, htraversalConstructor,
+    htraversalFields, hstats,
     Hdomain, HdomainType⟩
 
 /-- The concrete owner-motive declaration mentions no interleaved executable
