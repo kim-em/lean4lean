@@ -1007,6 +1007,16 @@ inductive SameTelescopeDomains : Nat → VExpr → VExpr → Prop
       SameTelescopeDomains (arity + 1)
         (.forallE domain left) (.forallE domain right)
 
+theorem SameTelescopeDomains.wrapForalls
+    (domains : List VExpr) (left right : VExpr) :
+    SameTelescopeDomains domains.length
+      (VExpr.wrapForalls domains left)
+      (VExpr.wrapForalls domains right) := by
+  induction domains with
+  | nil => exact .zero _ _
+  | cons domain domains ih =>
+    exact .succ domain _ _ ih
+
 /-- Simultaneous substitution preserves a shared dependent-domain spine. -/
 theorem SameTelescopeDomains.instN
     (H : SameTelescopeDomains arity left right)
