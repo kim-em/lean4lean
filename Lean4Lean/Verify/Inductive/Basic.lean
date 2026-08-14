@@ -62981,6 +62981,56 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.canonicalEquationDomains_len
   rw [T.params_length, T.motives_length, T.minors_length,
     hfields, hparams, hmotives, hminors, hallArgs]
 
+/-- Replacing the executable parameter domains by the independently checked
+cached parameter declarations preserves the exact production binder count.
+This is the length invariant used by the final specification equation. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.cachedEquationDomains_length
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size) :
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+      fieldDomains).length = A.rule.binders.length := by
+  let parameterSuffix :=
+    R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible
+  let parameterDecls := parameterSuffix.parameterDecls
+  have hparameterDeclsLength : parameterDecls.toCtx.length =
+      stats.params.size := by
+    have hcached := parameterSuffix.cached
+    have htoCtx :=
+      checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
+        hcached
+    calc
+      parameterDecls.toCtx.length = parameterDecls.length := by
+        simpa [parameterDecls, parameterSuffix] using htoCtx
+      _ = stats.params.size := by
+        simpa [parameterDecls, parameterSuffix] using
+          parameterSuffix.parameterDecls_length
+  have hcanonical := A.canonicalEquationDomains_length T fieldDomains hfields
+  dsimp only [parameterDecls, parameterSuffix]
+  simpa only [List.length_append, List.length_reverse,
+    hparameterDeclsLength, T.params_length] using hcanonical
+
 /-- Every retained source-binder group has its exact canonical de Bruijn
 translation in the independently typed equation context.  Keeping the four
 groups separate mirrors the two generated equation spines: the recursor uses
@@ -65101,6 +65151,96 @@ def RecursorPhasesResult.GeneratedRuleAlignment.equationWitnessOfCanonicalBodies
     ((T.params ++ T.motives ++ T.minors) ++ fieldDomains)
     lhsBody rhsBody typeBody hdomains hlhsResidual hrhsResidual hctx
     hlhs hrhs
+
+/-- Cached-parameter specialization of `equationWitnessOfBodies`.  This is
+the final equation interface used by the independently checked constructor
+and recursor frames: executable parameter domains no longer occur in the
+abstract specification equation. -/
+def RecursorPhasesResult.GeneratedRuleAlignment.equationWitnessOfCachedBodies
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr) (lhsBody rhsBody typeBody : VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (hlhsResidual :
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      TrExprS H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        (abstractForallContext
+          ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+            fieldDomains) [])
+        (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody)
+    (hrhsResidual :
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      TrExprS H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        (abstractForallContext
+          ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+            fieldDomains) [])
+        (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody)
+    (hctx :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      OnCtx
+        (((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains).reverse) (H.outVEnv.IsType Us.length))
+    (hlhs :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      H.outVEnv.HasType Us.length
+        (((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains).reverse) lhsBody typeBody)
+    (hrhs :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      H.outVEnv.HasType Us.length
+        (((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains).reverse) rhsBody typeBody) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    H.GeneratedEquationWitness Us owner howner i hctor
+      (A.abstractEquation
+        ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains) lhsBody rhsBody typeBody) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  let domains :=
+    (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++ fieldDomains
+  have hdomains := A.cachedEquationDomains_length T fieldDomains hfields
+  have huvars := A.recursorUvars
+  apply A.equationWitnessOfBodies domains lhsBody rhsBody typeBody hdomains
+      hlhsResidual hrhsResidual
+  · simpa only [Us, domains, parameterDecls, huvars] using hctx
+  · simpa only [Us, domains, parameterDecls, huvars] using hlhs
+  · simpa only [Us, domains, parameterDecls, huvars] using hrhs
 
 /-- Owner-prefix accumulation of reconstructed equations and their typing
 proofs.  Keeping the equation traversal independent of the final block lets
