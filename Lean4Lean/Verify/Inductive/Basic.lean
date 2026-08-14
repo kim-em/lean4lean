@@ -38195,6 +38195,22 @@ structure BoundGeneratedRecursorRule.Semantics.FieldTelescope
     (VExpr.wrapLams domains S.constructorTarget)
     (VExpr.wrapForalls domains S.targetTarget)
 
+/-- The terminal constructor target mentions only the exact fields opened by
+the constructor traversal and the cached inductive parameters. -/
+theorem BoundGeneratedRecursorRule.Semantics.targetFVarsIn
+    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule}
+    {semanticRoot : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF semanticRoot recLparams}
+    (S : H.Semantics Rroot decl expectedOwnerIdx) :
+    H.target.FVarsIn (fun fv =>
+      fv ∈ S.fieldsRecent.fvars ∨
+      fv ∈ ExprArrayFVarIds stats.params) := by
+  have hscope := S.fieldOpening.currentFVarsIn S.parameterTail_fvars
+  rw [S.fieldOpening.fvars_eq_bound
+    S.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at hscope
+  exact hscope
+
 /-- Recover the typed field telescope directly from the consecutive-suffix
 certificate retained by the production constructor traversal. -/
 def BoundGeneratedRecursorRule.Semantics.fieldTelescope
