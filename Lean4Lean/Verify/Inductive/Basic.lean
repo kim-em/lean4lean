@@ -5607,6 +5607,13 @@ theorem FrontFVLift.sourceLengthLE
   | zero => simp
   | cons _ _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
 
+theorem FrontFVLift.sourceLengthLEScope
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    sourceDomains.length ≤ scope.length := by
+  induction H with
+  | zero => simp
+  | cons _ _ _ _ _ ih => simpa using Nat.succ_le_succ ih
+
 theorem FrontFVLift.sourceBaseBVars
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
     VLCtx.bvars (scope.drop sourceDomains.length) = VLCtx.bvars scope := by
@@ -5633,6 +5640,54 @@ theorem FrontFVLift.sourceContext
       indexType _ H ih =>
     simpa [VLCtx.toCtx, List.reverse_append, List.append_assoc] using
       congrArg (indexType :: ·) ih
+
+/-- The retained source front consists exactly of named lambda declarations.
+This is the declaration-shape premise needed to turn those free variables
+back into the anonymous binders of the canonical equation telescope. -/
+theorem FrontFVLift.sourceDeclarations
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      (VLCtx.fvars (scope.take sourceDomains.length))
+      (scope.take sourceDomains.length) := by
+  induction H with
+  | zero => exact .nil
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType hdeps H ih =>
+    simp only [List.length_append, List.length_singleton, Nat.add_one,
+      List.take_succ_cons, VLCtx.fvars_cons_some]
+    exact List.Forall₂.cons (by exact ⟨deps, indexType, rfl⟩) ih
+
+/-- `toCtx` sees every declaration in the retained source prefix because
+`withIndex` adds lambdas only. -/
+theorem FrontFVLift.sourceTakenContext
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    (VLCtx.toCtx (scope.take sourceDomains.length)).reverse =
+      sourceDomains := by
+  induction H with
+  | zero => rfl
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType hdeps H ih =>
+    simp [List.take_succ_cons, VLCtx.toCtx, ih, List.reverse_cons]
+
+/-- Taking a declaration prefix can only remove free-variable names. -/
+theorem _root_.Lean4Lean.VLCtx.fvars_take_sublist
+    (scope : VLCtx) (n : Nat) :
+    (VLCtx.fvars (scope.take n)).Sublist scope.fvars := by
+  induction n generalizing scope with
+  | zero => simp
+  | succ n ih =>
+    cases scope with
+    | nil => simp
+    | cons entry scope =>
+      rcases entry with ⟨ofv, decl⟩
+      cases ofv with
+      | none => simpa using ih scope
+      | some fv =>
+        change (fv.1 :: VLCtx.fvars (scope.take n)).Sublist
+          (fv.1 :: scope.fvars)
+        exact List.cons_sublist_cons.mpr (ih scope)
 
 theorem FrontFVLift.expandedContext
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
@@ -5777,6 +5832,25 @@ def NarrowRuntimeScope.mono {env env' : VEnv} (henv : env ≤ env')
   front := H.front
   context := H.context.mono henv
   upset := H.upset
+  noBV := H.noBV
+  noIndConsts := H.noIndConsts
+
+/-- Retarget only the executable context of a narrow scope along an exact
+context equality.  The semantic front is copied field-by-field so its data
+projections remain definitionally unchanged, rather than being hidden below
+a dependent cast. -/
+def NarrowRuntimeScope.retargetRuntime
+    (H : NarrowRuntimeScope env Us scope runtime)
+    (h : runtime = runtime') :
+    NarrowRuntimeScope env Us scope runtime' where
+  expanded := H.expanded
+  shift := H.shift
+  lift := H.lift
+  frontSourceDomains := H.frontSourceDomains
+  frontExpandedDomains := H.frontExpandedDomains
+  front := H.front
+  context := by cases h; exact H.context
+  upset := by cases h; exact H.upset
   noBV := H.noBV
   noIndConsts := H.noIndConsts
 
@@ -22473,6 +22547,56 @@ theorem TrExprS.abstractFVarLambdaPrefix
         (k := domains.length) hfv).symm
     rw [hsource] at Htail
     simpa [VLCtx.toCtx, List.reverse_cons, List.append_assoc] using Htail
+
+/-- Close the complete source front retained by a narrow runtime scope.  The
+executable target is unchanged; the concrete source is abstracted over the
+front's free variables in oldest-first order, and the resulting anonymous
+telescope sits directly above the identified base scope. -/
+theorem checkInductiveTypes.loopType.NarrowRuntimeScope.abstractFront
+    (H : checkInductiveTypes.loopType.NarrowRuntimeScope
+      env Us scope runtime)
+    (henv : env.WF)
+    (hbase : scope.drop H.frontSourceDomains.length = baseScope)
+    (Htr : TrExprS env Us scope source target) :
+    TrExprS env Us
+      (abstractForallContext H.frontSourceDomains baseScope)
+      (source.abstractList
+        (VLCtx.fvars (scope.take H.frontSourceDomains.length)).reverse)
+      target := by
+  let scopePrefix := scope.take H.frontSourceDomains.length
+  let tail := scope.drop H.frontSourceDomains.length
+  have hscope : scopePrefix ++ tail = scope := by
+    simpa [scopePrefix, tail] using
+      (List.take_append_drop H.frontSourceDomains.length scope).symm
+  have Htr' : TrExprS env Us
+      (abstractForallContext [] (scopePrefix ++ tail)) source target := by
+    simpa [abstractForallContext, hscope] using Htr
+  have hnodup : (VLCtx.fvars scopePrefix).Nodup := by
+    exact (VLCtx.fvars_take_sublist scope
+      H.frontSourceDomains.length).nodup (H.scopeWF henv).fvars_nodup
+  have Habstract := TrExprS.abstractFVarLambdaPrefix
+    (domains := []) H.front.sourceDeclarations hnodup Htr'
+  simpa [scopePrefix, tail, H.front.sourceTakenContext, hbase] using
+    Habstract
+
+/-- The names in a retained front are exactly the free-variable prefix of
+the full narrow scope; after the front, only the identified base remains. -/
+theorem checkInductiveTypes.loopType.NarrowRuntimeScope.frontFVars
+    (H : checkInductiveTypes.loopType.NarrowRuntimeScope
+      env Us scope runtime)
+    (hbase : scope.drop H.frontSourceDomains.length = baseScope) :
+    scope.fvars =
+      VLCtx.fvars (scope.take H.frontSourceDomains.length) ++
+        VLCtx.fvars baseScope := by
+  calc
+    scope.fvars = VLCtx.fvars
+        (scope.take H.frontSourceDomains.length ++
+          scope.drop H.frontSourceDomains.length) := by
+      rw [List.take_append_drop]
+    _ = VLCtx.fvars (scope.take H.frontSourceDomains.length) ++
+        VLCtx.fvars (scope.drop H.frontSourceDomains.length) := by
+      rw [VLCtx.fvars_append]
+    _ = _ := by rw [hbase]
 
 /-- Abstract a reverse-ordered suffix of free-variable lambda declarations
 under an existing anonymous prefix.  The declaration order is newest first,
@@ -42768,13 +42892,15 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
       (fun fv => fv ∈ runtime.fvarRevList n H.le ++ baseScope.fvars)
       runtime.vlctx) :
     ∃ scope,
-      Nonempty (checkInductiveTypes.loopType.NarrowRuntimeScope env Us
-        scope runtime.vlctx) ∧
-      scope.fvars = runtime.fvarRevList n H.le ++ baseScope.fvars := by
+      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope env Us
+          scope runtime.vlctx,
+        scope.fvars = runtime.fvarRevList n H.le ++ baseScope.fvars ∧
+        scope.drop Hscope.frontSourceDomains.length =
+          baseScope.drop Hbase.frontSourceDomains.length := by
   induction H with
   | nil runtime =>
-    exact ⟨baseScope, ⟨Hbase⟩,
-      by simp [TypeChecker.MLCtx.fvarRevList]⟩
+    exact ⟨baseScope, Hbase,
+      by simp [TypeChecker.MLCtx.fvarRevList], rfl⟩
   | @cons tail n domains fv name type type' bi Hprefix ih =>
     have HruntimeWF := Hwf.tr.wf
     rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
@@ -42793,7 +42919,7 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
         · exact h
       · exact List.mem_cons_of_mem _
     rcases ih HtailWF Hbase htailUp with
-      ⟨tailScope, ⟨HtailScope⟩, htailScopeFVars⟩
+      ⟨tailScope, HtailScope, htailScopeFVars, htailBase⟩
     have hdepsFull : ∀ dep ∈ type.fvarsList,
         dep ∈ fv :: tail.fvarRevList n Hprefix.le ++ baseScope.fvars := by
       exact hup.2 (by simp)
@@ -42830,8 +42956,11 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
     let Hnext := HtailScope.withIndex
       HruntimeWF
       hdeps Hdomain
-    refine ⟨_, ⟨Hnext⟩, ?_⟩
-    simp [Hnext, htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
+    refine ⟨_, Hnext, ?_, ?_⟩
+    · simp [Hnext, htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
+    · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
+      simpa only [List.length_append, List.length_singleton,
+        List.drop_succ_cons] using htailBase
 
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
@@ -61538,26 +61667,25 @@ theorem
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls := H.parameterSuffix.parameterDecls
     ∃ scope,
-      Nonempty
-        (checkInductiveTypes.loopType.NarrowRuntimeScope H.outVEnv Us
-          scope F.semantic.current_context.mlctx.vlctx) ∧
-      scope.fvars = F.semantic.recent.fvars.reverse ++
-        A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars := by
+      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+          H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+        scope.fvars = F.semantic.recent.fvars.reverse ++
+          A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
+        scope.drop Hscope.frontSourceDomains.length = parameterDecls := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls := H.parameterSuffix.parameterDecls
   let Hparameter := H.parameterSuffix.runtimeScope
   rcases A.semantics.context.onlyLams.lamPrefix
       A.rule.allArgs.size A.semantics.fieldsRecent.size_le with
     ⟨fieldDomains, HfieldPrefix⟩
-  have HfieldBase : checkInductiveTypes.loopType.NarrowRuntimeScope
-      H.recursorWF.venv Us parameterDecls
+  have hfieldRuntime :
       (A.semantics.context.mlctx.dropN A.rule.allArgs.size
-        HfieldPrefix.le).vlctx := by
+        HfieldPrefix.le).vlctx = H.recursorWF.mlctx.vlctx := by
     have hle : HfieldPrefix.le = A.semantics.fieldsRecent.size_le :=
       Subsingleton.elim _ _
     rw [hle, A.semantics.fieldsRecent.drop_eq,
       A.semantics.fieldRoot_vlctx]
-    exact Hparameter
+  let HfieldBase := Hparameter.retargetRuntime hfieldRuntime.symm
   have HfieldWF : A.semantics.context.mlctx.WF H.recursorWF.venv Us := by
     simpa only [Us, A.semantics.context_venv] using
       A.semantics.context.mlctx_wf
@@ -61579,18 +61707,18 @@ theorem
     simp [parameterDecls]
   rcases HfieldPrefix.extendNarrowRuntimeScope
       H.recursorWF.checking.tr.wf HfieldWF HfieldBase HfieldUp with
-    ⟨fieldScope, ⟨HfieldScope⟩, hfieldScopeFVars⟩
+    ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase⟩
   rcases F.semantic.current_context.onlyLams.lamPrefix
       F.semantic.generated.localArgs.size F.semantic.recent.size_le with
     ⟨localDomains, HlocalPrefix⟩
-  have HlocalBase : checkInductiveTypes.loopType.NarrowRuntimeScope
-      H.recursorWF.venv Us fieldScope
+  have hlocalRuntime :
       (F.semantic.current_context.mlctx.dropN
-        F.semantic.generated.localArgs.size HlocalPrefix.le).vlctx := by
+        F.semantic.generated.localArgs.size HlocalPrefix.le).vlctx =
+          A.semantics.context.mlctx.vlctx := by
     have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
       Subsingleton.elim _ _
     rw [hle, F.semantic.recent.drop_eq]
-    exact HfieldScope
+  let HlocalBase := HfieldScope.retargetRuntime hlocalRuntime.symm
   have HlocalWF : F.semantic.current_context.mlctx.WF
       H.recursorWF.venv Us := by
     have hvenv : F.semantic.current_context.venv = H.recursorWF.venv :=
@@ -61618,13 +61746,23 @@ theorem
     simp [parameterDecls]
   rcases HlocalPrefix.extendNarrowRuntimeScope
       H.recursorWF.checking.tr.wf HlocalWF HlocalBase HlocalUp with
-    ⟨scope, ⟨Hscope⟩, hscopeFVars⟩
+    ⟨scope, Hscope, hscopeFVars, hscopeBase⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
-  refine ⟨scope, ⟨Hscope.mono hbase⟩, ?_⟩
-  rw [hscopeFVars, hlocalRev, hfieldScopeFVars, hfieldRev]
-  simp [parameterDecls, List.append_assoc]
+  have hlocalBaseDrop :
+      fieldScope.drop HlocalBase.frontSourceDomains.length =
+        parameterDecls := by
+    simpa [HlocalBase, HfieldBase, Hparameter,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
+      RecursorParameterContextSuffix.runtimeScope,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix]
+      using hfieldBase
+  refine ⟨scope, Hscope.mono hbase, ?_, ?_⟩
+  · rw [hscopeFVars, hlocalRev, hfieldScopeFVars, hfieldRev]
+    simp [parameterDecls, List.append_assoc]
+  · change scope.drop Hscope.frontSourceDomains.length = parameterDecls
+    exact hscopeBase.trans hlocalBaseDrop
 /-- The validated terminal application of a recursive call consumes the
 same canonical motive telescope retained for the call-selected mutual
 family.  This is the semantic index/major alignment needed to consume the
@@ -62334,6 +62472,7 @@ theorem
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let parameterDecls := H.parameterSuffix.parameterDecls
     ∃ binding : RecursorMotiveBinding F.semantic.current_context
         H.recInfos[selectedOwner]! H.elimLevel,
       ∃ evidence : RecursorMotiveTelescopeEvidence
@@ -62342,6 +62481,10 @@ theorem
         ∃ scope,
           ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+            scope.fvars = F.semantic.recent.fvars.reverse ++
+              A.semantics.fieldsRecent.fvars.reverse ++
+                parameterDecls.fvars ∧
+            scope.drop Hscope.frontSourceDomains.length = parameterDecls ∧
             ∃ narrowIndices,
               evidence.indices.length = F.telescope.indices.length ∧
               List.Forall₂ (TrExprS H.outVEnv Us scope)
@@ -62355,9 +62498,11 @@ theorem
   let selectedOwner := F.semantic.generated.ownerIdx
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let parameterDecls := H.parameterSuffix.parameterDecls
   rcases F.finalSemanticMotiveApplication with
     ⟨binding, evidence, hlength, Hindices, _Happlication, _Htyping⟩
-  rcases F.narrowRuntimeScope with ⟨scope, ⟨Hscope⟩, hscopeFVars⟩
+  rcases F.narrowRuntimeScope with
+    ⟨scope, Hscope, hscopeFVars, hscopeBase⟩
   have HsourceScope : ∀ source ∈ sourceIndices,
       source.FVarsIn (fun fv =>
         fv ∈ F.semantic.recent.fvars ∨ F.semantic.rootScope fv) := by
@@ -62401,11 +62546,12 @@ theorem
           at hfv
         rw [hscopeFVars, H.parameterSuffix.parameterDecls_fvars]
         rcases hfv with hlocal | hfield | hparam
-        · exact List.mem_append_left _ (List.mem_reverse.mpr hlocal)
-        · exact List.mem_append_right _ <|
-            List.mem_append_left _ (List.mem_reverse.mpr hfield)
-        · exact List.mem_append_right _ <|
-            List.mem_append_right _ (List.mem_reverse.mpr hparam)
+        · simp only [List.mem_append]
+          exact Or.inl (Or.inl (List.mem_reverse.mpr hlocal))
+        · simp only [List.mem_append]
+          exact Or.inl (Or.inr (List.mem_reverse.mpr hfield))
+        · simp only [List.mem_append]
+          exact Or.inr (List.mem_reverse.mpr hparam)
       have hclosed : Closed source 0 := by
         have h := Hindex.closed
         rw [F.semantic.current_context.mlctx.noBV] at h
@@ -62420,8 +62566,186 @@ theorem
         .cons HnarrowTarget Hnarrow, .cons HtargetEq.symm Heq⟩
   rcases hnarrow Hindices (by intro source; exact id) with
     ⟨narrowIndices, HnarrowIndices, HindexEq⟩
+  exact ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
+    narrowIndices, hlength, HnarrowIndices, HindexEq⟩
+
+/-- Close the replayed constructor-field and higher-order-argument front of
+every narrowed recursive index.  The resulting translations live directly
+over the cached parameter declarations and use the same nested abstraction
+shape as the generated equation RHS. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.closedNarrowSemanticIndices
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+        ∃ scope,
+          ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+              H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+            ∃ narrowIndices,
+              Hscope.frontSourceDomains.length =
+                A.rule.allArgs.size +
+                  F.semantic.generated.localArgs.size ∧
+              evidence.indices.length = F.telescope.indices.length ∧
+              List.Forall₂
+                (TrExprS H.outVEnv Us
+                  (abstractForallContext Hscope.frontSourceDomains
+                    parameterDecls))
+                (sourceIndices.map fun index =>
+                  (index.abstractList
+                    F.semantic.generated.arguments_bound.fvars).abstractList
+                      A.rule.all_args_bound.fvars
+                      F.semantic.generated.localArgs.size)
+                narrowIndices ∧
+              List.Forall₂
+                (fun narrow full => H.outVEnv.IsDefEqU Us.length
+                  F.semantic.current_context.mlctx.vlctx.toCtx
+                  (narrow.lift' Hscope.shift) full)
+                narrowIndices evidence.indices := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  rcases F.narrowSemanticIndices with
+    ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
+      narrowIndices, hlength, HnarrowIndices, HindexEq⟩
+  have hfrontRev :
+      VLCtx.fvars (scope.take Hscope.frontSourceDomains.length) =
+        F.semantic.recent.fvars.reverse ++
+          A.semantics.fieldsRecent.fvars.reverse := by
+    have hsplit := Hscope.frontFVars hscopeBase
+    have happend :
+        VLCtx.fvars (scope.take Hscope.frontSourceDomains.length) ++
+            parameterDecls.fvars =
+          (F.semantic.recent.fvars.reverse ++
+            A.semantics.fieldsRecent.fvars.reverse) ++
+              parameterDecls.fvars := by
+      rw [← hsplit, hscopeFVars]
+    exact List.append_cancel_right happend
+  have hlocalFVars : F.semantic.recent.fvars =
+      F.semantic.generated.arguments_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+      F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+  have hfieldFVars : A.semantics.fieldsRecent.fvars =
+      A.rule.all_args_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl
+  have hfrontFVars :
+      (VLCtx.fvars
+        (scope.take Hscope.frontSourceDomains.length)).reverse =
+          A.rule.all_args_bound.fvars ++
+            F.semantic.generated.arguments_bound.fvars := by
+    rw [hfrontRev, List.reverse_append, List.reverse_reverse,
+      List.reverse_reverse, hlocalFVars, hfieldFVars]
+  have hprefixNodup :
+      (VLCtx.fvars
+        (scope.take Hscope.frontSourceDomains.length)).Nodup :=
+    (VLCtx.fvars_take_sublist scope
+      Hscope.frontSourceDomains.length).nodup
+        (Hscope.scopeWF H.outVEnvWF).fvars_nodup
+  have hclosedFVarsNodup :
+      (A.rule.all_args_bound.fvars ++
+        F.semantic.generated.arguments_bound.fvars).Nodup := by
+    rw [← hfrontFVars]
+    exact List.nodup_reverse.mpr hprefixNodup
+  have hsourceShape : ∀ source : Expr,
+      source.abstractList
+          (VLCtx.fvars
+            (scope.take Hscope.frontSourceDomains.length)).reverse =
+        (source.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size := by
+    intro source
+    have habstract := Expr.abstractList_after_inner
+      (e := source) (outer := A.rule.all_args_bound.fvars)
+      (inner := F.semantic.generated.arguments_bound.fvars) (k := 0)
+      hclosedFVarsNodup
+    have hlocalLength :
+        F.semantic.generated.arguments_bound.fvars.length =
+          F.semantic.generated.localArgs.size :=
+      F.semantic.generated.arguments_bound.length_fvars
+    rw [hlocalLength] at habstract
+    simpa [hfrontFVars] using habstract.symm
+  have Hclosed : List.Forall₂
+      (TrExprS H.outVEnv Us
+        (abstractForallContext Hscope.frontSourceDomains parameterDecls))
+      (sourceIndices.map fun index =>
+        (index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size)
+      narrowIndices := by
+    have close : ∀ {sources : List Expr} {narrows : List VExpr},
+        List.Forall₂ (TrExprS H.outVEnv Us scope) sources narrows →
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext Hscope.frontSourceDomains
+              parameterDecls))
+          (sources.map fun index =>
+            (index.abstractList
+              F.semantic.generated.arguments_bound.fvars).abstractList
+                A.rule.all_args_bound.fvars
+                F.semantic.generated.localArgs.size)
+          narrows := by
+      intro sources narrows Hsources
+      induction Hsources with
+      | nil => exact .nil
+      | @cons source narrow sources narrows Hsource _ ih =>
+        have HsourceClosed := Hscope.abstractFront
+          H.outVEnvWF hscopeBase Hsource
+        rw [hsourceShape source] at HsourceClosed
+        exact .cons HsourceClosed ih
+    exact close HnarrowIndices
+  have hfrontLength : Hscope.frontSourceDomains.length =
+      A.rule.allArgs.size + F.semantic.generated.localArgs.size := by
+    have hlengthNames := congrArg List.length hfrontFVars
+    have hlengthNames' :
+        (VLCtx.fvars
+          (scope.take Hscope.frontSourceDomains.length)).length =
+        (A.rule.all_args_bound.fvars ++
+          F.semantic.generated.arguments_bound.fvars).length := by
+      simpa using hlengthNames
+    calc
+      Hscope.frontSourceDomains.length =
+          (scope.take Hscope.frontSourceDomains.length).length :=
+        (List.length_take_of_le
+          Hscope.front.sourceLengthLEScope).symm
+      _ = (VLCtx.fvars
+          (scope.take Hscope.frontSourceDomains.length)).length :=
+        (Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+          Hscope.front.sourceDeclarations).symm
+      _ = (A.rule.all_args_bound.fvars ++
+          F.semantic.generated.arguments_bound.fvars).length :=
+        hlengthNames'
+      _ = A.rule.allArgs.size +
+          F.semantic.generated.localArgs.size := by
+        simp [A.rule.all_args_bound.length_fvars,
+          F.semantic.generated.arguments_bound.length_fvars]
   exact ⟨binding, evidence, scope, Hscope, narrowIndices,
-    hlength, HnarrowIndices, HindexEq⟩
+    hfrontLength, hlength, Hclosed, HindexEq⟩
 
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
