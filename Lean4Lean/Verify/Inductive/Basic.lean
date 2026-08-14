@@ -21472,6 +21472,23 @@ theorem abstractForallContext.isUniqueCtx
     (TrExprS.IsUniqueCtx.anonymousLams
       (left := left.reverse) (right := right.reverse) (by simp [hlen]))
 
+/-- Remove a free-variable-only context prefix when the translated source
+uses only variables from the retained suffix.  The target is intentionally
+existential: deleting locals changes de Bruijn positions, and syntax-directed
+translation computes the uniquely rebased target in the smaller scope. -/
+theorem TrExprS.dropFVarPrefix
+    (henv : env.WF)
+    (hscope : (added ++ suffix).WF env Us.length)
+    (hnoBV : (added ++ suffix).NoBV)
+    (H : TrExprS env Us (added ++ suffix) source target)
+    (hfvars : FVarsIn (· ∈ suffix.fvars) source) :
+    ∃ target', TrExprS env Us suffix source target' := by
+  have hadded : added.NoBV :=
+    VLCtx.NoBV.leftOfAppend added suffix hnoBV
+  let W := VLCtx.FVLift.to_append suffix hadded
+  have hclosed : Closed source := hnoBV ▸ H.closed
+  exact H.weakFV_inv henv W (.refl henv hscope) hclosed hfvars
+
 /-- Locate the first retained free-variable declaration below an anonymous
 forall prefix and replace it by the corresponding bound-variable declaration.
 The source and target contexts have definitionally identical typing lists;
@@ -55869,6 +55886,96 @@ theorem
       _Hsource, _hsource, hsourceDomain, Hdomain, HdomainType⟩
   rw [hsourceDomain, hdeclarationShape] at Hdomain
   exact ⟨T, S, hparameters, Hdomain, HdomainType⟩
+
+/-- The generated owner-motive domain is itself an exactly sized typed
+index/major telescope.  This follows from the retained production local
+declarations, not by inspecting the translated target: the source closes the
+owner indices and major, and abstraction over the preceding recursor binders
+preserves that telescope. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveTelescopeShape
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse S.canonical.params.reverse ∧
+        ∃ motiveDomains resultLevel,
+          motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
+          motiveDomains.length = (T.indices ++ T.major).length ∧
+          T.motives[owner]! =
+            VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+          resultLevel.WF Us.length := by
+  dsimp only
+  rcases A.finalOwnerMotiveFrame with
+    ⟨T, S, hparameters, D, _hdeclarationOrigin, hdeclarationShape,
+      suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
+      _Hsource, _hsource, hsourceDomain, Hdomain, HdomainType⟩
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    owner hrecInfo
+  have hsortAbstract (fvars : List FVarId) (k : Nat) :
+      (Expr.sort H.elimLevel).abstractList fvars k =
+        .sort H.elimLevel := by
+    exact Expr.abstractList_eq_self_of_abstract1 (.sort H.elimLevel)
+      (by intro fv depth; rfl) fvars k
+  have HmajorRaw : Expr.ForallTelescope
+      (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+        (.sort H.elimLevel)) 1 (.sort H.elimLevel) := by
+    simpa [hsortAbstract] using
+      selections.major.forallTelescope (.sort H.elimLevel)
+  have Hmajor : Expr.ForallTelescope
+      ((H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+        (.sort H.elimLevel)).abstractList selections.indices.fvars)
+      1 (.sort H.elimLevel) := by
+    have HmajorClosed := HmajorRaw.abstractList selections.indices.fvars 0
+    simpa only [hsortAbstract] using HmajorClosed
+  have Hindices : Expr.ForallTelescope
+      (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+        (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+          (.sort H.elimLevel)))
+      (H.recInfos[owner]!.indices.size + 1) (.sort H.elimLevel) := by
+    exact (selections.indices.forallTelescope
+      (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+        (.sort H.elimLevel))).trans Hmajor
+  have HsourceTelescope : Expr.ForallTelescope sourceDomain
+      (H.recInfos[owner]!.indices.size + 1) (.sort H.elimLevel) := by
+    rw [hsourceDomain, hdeclarationShape]
+    have Habstract := Hindices.abstractList
+      (H.params.fvars ++ H.bindings.motives.fvars.take owner) 0
+    simpa only [hsortAbstract] using Habstract
+  have Htyped := Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    HsourceTelescope Hdomain HdomainType
+  rcases Htyped.toWrapForalls with
+    ⟨motiveDomains, sourceResidual, motiveResult, hlength,
+      _HsourceResidual, htarget, Hresult, _HresultType⟩
+  have hsourceResidual : sourceResidual = .sort H.elimLevel :=
+    _HsourceResidual.residual_eq HsourceTelescope
+  subst sourceResidual
+  cases Hresult with
+  | sort hlevel =>
+    have hsuffixLength : motiveDomains.length =
+        (T.indices ++ T.major).length := by
+      simp only [List.length_append, T.indices_length, T.major_length,
+        hlength]
+    exact ⟨T, S, hparameters, motiveDomains, _, hlength, hsuffixLength,
+      htarget, VLevel.WF.of_ofLevel hlevel⟩
 
 /-- The generated owner-motive domain and the retained first-pass motive are
 the same concrete declaration viewed at the two contexts that still have to
