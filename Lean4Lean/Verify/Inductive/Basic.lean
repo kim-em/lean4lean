@@ -23462,6 +23462,31 @@ theorem TrExprS.lambdaTelescope_shape_with_context
       · simpa [abstractForallContext, List.map_append, List.append_assoc]
           using hresidual
 
+/-- Exact-target telescope inversion.  When the translated target is already
+presented with the right number of lambdas, syntax-directedness exposes the
+residual under precisely those domains, without introducing existentially
+chosen replacements. -/
+theorem TrExprS.lambdaTelescope_exact_residual
+    (Htel : Expr.LambdaTelescope e arity residual)
+    (hdomains : domains.length = arity)
+    (Htr : TrExprS env Us Δ e (VExpr.wrapLams domains target)) :
+    TrExprS env Us (abstractForallContext domains Δ) residual target := by
+  induction Htel generalizing domains Δ with
+  | nil =>
+    have : domains = [] := List.eq_nil_of_length_eq_zero hdomains
+    subst domains
+    simpa [abstractForallContext, VExpr.wrapLams] using Htr
+  | @cons body arity residual name dom bi Htel ih =>
+    cases domains with
+    | nil => simp at hdomains
+    | cons domain domains =>
+      cases Htr with
+      | @lam domain' body' =>
+        rename_i _ _ _ hbody
+        have htail : domains.length = arity := by simpa using hdomains
+        simpa [abstractForallContext, List.map_append, List.append_assoc]
+          using ih htail hbody
+
 /-- Post-installation telescope inversion driven by source-syntax absence.
 Only binder domains are shown recursor-free; the residual is allowed to
 contain the newly installed recursor constants. -/
@@ -34852,6 +34877,38 @@ def BoundGeneratedRecursiveCall.outerAbstractedMajor
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
       root field value) (binders : List FVarId) : Expr :=
   H.abstractedMajor.abstractList binders H.localArgs.size
+
+/-- The eta-expanded recursive field used as the generated recursor's major
+premise closes over the same exact fresh higher-order arguments as the call
+itself.  Its residual is `abstractedMajor`, rather than the complete call
+body retained by `lambdaTelescope`. -/
+theorem BoundGeneratedRecursiveCall.appliedFieldLambdaTelescope
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    Expr.LambdaTelescope
+      (H.current.lctx.mkLambda H.localArgs (mkAppN field H.localArgs))
+      H.localArgs.size H.abstractedMajor := by
+  let Hselection :=
+    H.arguments_bound.toBoundFVarArray.toLocalForallSelection H.current_wf
+  have Hdecl := Hselection.declarations
+  have HselectionFvars : Hselection.fvars =
+      H.arguments_bound.fvars := rfl
+  rw [HselectionFvars] at Hdecl
+  have Hexpressions := H.arguments_bound.expressions
+  rw [Hexpressions]
+  have Htel := LocalContext.mkLambda_fvars_lambdaTelescope
+    (body := mkAppN field
+      (H.arguments_bound.fvars.map Expr.fvar).toArray) Hdecl
+  have hlocal :
+      (H.arguments_bound.fvars.map Expr.fvar).toArray.map (fun e =>
+        e.abstractList H.arguments_bound.fvars) =
+      (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+        Expr.bvar
+          (H.arguments_bound.fvars.length - 1 - i))).toArray := by
+    simpa using Expr.abstractList_fvarArray
+      H.arguments_bound.fvars 0 H.arguments_bound.nodup
+  simpa [BoundGeneratedRecursiveCall.abstractedMajor,
+    Expr.abstractList_mkAppN, hlocal] using Htel
 
 /-- A root free variable is untouched by the fresh call-local binders.
 Abstracting it over the surrounding rule telescope below those locals is
@@ -60909,6 +60966,42 @@ theorem
   exact ⟨E.domains, E.domains_length,
     Hexposed.mono H.installed.le, HexposedType.mono H.installed.le,
     Happlied.mono H.installed.le, HappliedType.mono H.installed.le⟩
+
+/-- Residual form of `finalAppliedFieldTelescope`: after opening the retained
+higher-order domains, the exact generated major premise translates to the
+semantic eta-expanded field target.  This is the typed derivation that will
+be closed over the outer rule binders and identified with the canonical
+de Bruijn field application. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.finalAppliedMajorTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ localDomains : List VExpr,
+      localDomains.length = F.semantic.generated.localArgs.size ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext localDomains
+          A.semantics.context.mlctx.vlctx)
+        F.semantic.generated.abstractedMajor
+        F.semantic.appliedFieldTarget := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases F.finalAppliedFieldTelescope with
+    ⟨localDomains, hlocal, _Hexposed, _HexposedType,
+      Happlied, _HappliedType⟩
+  refine ⟨localDomains, hlocal, ?_⟩
+  exact TrExprS.lambdaTelescope_exact_residual
+    F.semantic.generated.appliedFieldLambdaTelescope hlocal Happlied
 
 /-- The validated recursive field determines the exact expected motive
 application in the final environment.  Its index targets and eta-expanded
