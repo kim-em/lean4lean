@@ -61285,11 +61285,9 @@ theorem
             let ownerTarget := .bvar
               (fieldDomains.length +
                 (T.motives.drop (owner + 1) ++ T.minors).length)
-            H.outVEnv.HasType Us.length cachedDomains.reverse ownerTarget
-                (C.motiveType.liftN added.length 0) →
-              H.outVEnv.HasType Us.length cachedDomains.reverse
-                (.app (VExpr.mkApps ownerTarget indexTargets) majorTarget)
-                (.sort C.resultLevel)) ∧
+            H.outVEnv.HasType Us.length cachedDomains.reverse
+              (.app (VExpr.mkApps ownerTarget indexTargets) majorTarget)
+              (.sort C.resultLevel)) ∧
           List.Forall₂
             (TrExprS H.outVEnv Us
               (abstractForallContext cachedDomains []))
@@ -61304,8 +61302,35 @@ theorem
   rcases A.finalCanonicalRecursorPrefixFrame with
     ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields, Hctx,
       Hmajor, Hprefix, Htarget, HintroShape, HprefixTr, HmajorTr⟩
-  rcases A.finalCanonicalMotiveTelescope with
-    ⟨C, hcanonicalParams⟩
+  rcases A.finalOwnerCanonicalMotiveDomain with
+    ⟨T₀, S, hgeneratedSource, HmotiveDomain₀⟩
+  rcases T₀.groupsResult_eq T with
+    ⟨hparams₀, hmotives₀, _hminors₀, _hindices₀, _hmajor₀, _hresult₀⟩
+  rw [hparams₀] at hgeneratedSource
+  rw [hparams₀, hmotives₀] at HmotiveDomain₀
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  let C := S.canonical.mono hbase
+  have hcanonicalSource : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      C.params.reverse S.motiveSourceScope.toCtx := by
+    simpa [C, RecursorCanonicalMotiveTelescope.mono] using
+      S.motiveSourceAlignment.mono hbase
+  have hcanonicalGenerated : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      C.params.reverse T.params.reverse :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+      hcanonicalSource
+      (hgeneratedSource.symm H.outVEnvWF.ordered)
+  have hcanonicalParams : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      C.params.reverse parameterDecls.toCtx :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+      hcanonicalGenerated hparams
+  have HmotiveDomain : H.outVEnv.IsDefEqU Us.length
+      (abstractForallContext
+        (T.params ++ T.motives.take owner) []).toCtx
+      T.motives[owner]!
+      (C.motiveType.liftN (T.motives.take owner).length 0) := by
+    simpa [C, RecursorCanonicalMotiveTelescope.mono] using HmotiveDomain₀
   let canonicalDomains :=
     (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   let cachedDomains :=
@@ -61508,12 +61533,111 @@ theorem
   let ownerTarget : VExpr := .bvar
     (fieldDomains.length +
       (T.motives.drop (owner + 1) ++ T.minors).length)
+  let newer := T.motives.drop owner ++ T.minors ++ fieldDomains
+  have hownerT : owner < T.motives.length := by
+    rw [T.motives_length]
+    simpa using hownerMotive
+  have htoCtx : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) = types := by
+    intro types
+    induction types with
+    | nil => rfl
+    | cons type types ih => simp [VLCtx.toCtx, ih]
+  have hearlierCtx :
+      (abstractForallContext
+        (T.params ++ T.motives.take owner) []).toCtx =
+        (T.params ++ T.motives.take owner).reverse := by
+    simpa [abstractForallContext] using
+      htoCtx ((T.params ++ T.motives.take owner).reverse)
+  have hcanonicalSplit : canonicalDomains.reverse =
+      newer.reverse ++
+        (T.params ++ T.motives.take owner).reverse := by
+    dsimp only [canonicalDomains, newer]
+    have hmotives : T.motives =
+        T.motives.take owner ++ T.motives.drop owner :=
+      (List.take_append_drop owner T.motives).symm
+    have hmotivesReverse : T.motives.reverse =
+        (T.motives.drop owner).reverse ++
+          (T.motives.take owner).reverse := by
+      calc
+        T.motives.reverse =
+            (T.motives.take owner ++ T.motives.drop owner).reverse :=
+          congrArg List.reverse hmotives
+        _ = (T.motives.drop owner).reverse ++
+            (T.motives.take owner).reverse :=
+          by simp only [List.reverse_append]
+    simp only [List.reverse_append]
+    rw [hmotivesReverse]
+    simp only [List.append_assoc]
+  have Wmotive : Ctx.LiftN newer.length 0
+      (abstractForallContext
+        (T.params ++ T.motives.take owner) []).toCtx
+      canonicalDomains.reverse := by
+    rw [hearlierCtx, hcanonicalSplit]
+    exact .zero newer.reverse (by simp)
+  have HmotiveDomainFull := HmotiveDomain.weakN
+    H.outVEnvWF.ordered Wmotive
+  have hcanonicalLift :
+      (T.motives.take owner).length + newer.length = added.length := by
+    simp only [newer, added, List.length_append, List.length_take,
+      List.length_drop]
+    omega
+  have HmotiveDomainCanonical : H.outVEnv.IsDefEqU Us.length
+      canonicalDomains.reverse
+      (T.motives[owner]!.liftN newer.length 0)
+      (C.motiveType.liftN added.length 0) := by
+    simpa only [VExpr.liftN_liftN, hcanonicalLift] using
+      HmotiveDomainFull
+  have HownerOuter := T.ownerMotiveOuterBvarTyping hownerT
+  have Wfields : Ctx.LiftN fieldDomains.length 0
+      (T.params ++ T.motives ++ T.minors).reverse
+      canonicalDomains.reverse := by
+    have hcanonicalFields : canonicalDomains.reverse =
+        fieldDomains.reverse ++
+          (T.params ++ T.motives ++ T.minors).reverse := by
+      simp [canonicalDomains, List.reverse_append, List.append_assoc]
+    rw [hcanonicalFields]
+    exact Ctx.LiftN.zero (n := fieldDomains.length)
+      (Γ := (T.params ++ T.motives ++ T.minors).reverse)
+      fieldDomains.reverse (by simp)
+  have HownerCanonical := HownerOuter.weakN H.outVEnvWF.ordered Wfields
+  have HownerCanonical' : H.outVEnv.HasType Us.length
+      canonicalDomains.reverse ownerTarget
+      (T.motives[owner]!.liftN newer.length 0) := by
+    let later := T.motives.drop (owner + 1) ++ T.minors
+    have hownerTargetEq :
+        (VExpr.bvar later.length).liftN fieldDomains.length 0 =
+          ownerTarget := by
+      simp only [ownerTarget, later, VExpr.liftN, liftVar_base,
+        List.length_append]
+    have hownerGet : T.motives[owner]'hownerT = T.motives[owner]! :=
+      (getElem!_pos T.motives owner hownerT).symm
+    have hownerTypeEq :
+        ((T.motives[owner]'hownerT).liftN (later.length + 1) 0).liftN
+            fieldDomains.length 0 =
+          T.motives[owner]!.liftN newer.length 0 := by
+      rw [hownerGet, VExpr.liftN_liftN]
+      have hlength : later.length + 1 + fieldDomains.length =
+          newer.length := by
+        dsimp only [later, newer]
+        simp only [List.length_append, List.length_drop]
+        omega
+      rw [hlength]
+    rw [hownerTargetEq, hownerTypeEq] at HownerCanonical
+    exact HownerCanonical
+  have HownerCached := HownerCanonical'.defeqDFC
+    H.outVEnvWF.ordered Hfull
+  have HmotiveDomainCached := HmotiveDomainCanonical.defeqDFC
+    H.outVEnvWF.ordered Hfull
+  have HmotiveCanonical : H.outVEnv.HasType Us.length
+      cachedDomains.reverse ownerTarget
+      (C.motiveType.liftN added.length 0) :=
+    HownerCached.defeqU_r H.outVEnvWF HcachedCtx HmotiveDomainCached
   have HapplyCanonical : H.outVEnv.HasType Us.length cachedDomains.reverse
-        ownerTarget (C.motiveType.liftN added.length 0) →
-      H.outVEnv.HasType Us.length cachedDomains.reverse
-        (.app (VExpr.mkApps ownerTarget indexTargets) majorTarget)
-        (.sort C.resultLevel) := by
-    intro HmotiveCanonical
+      (.app (VExpr.mkApps ownerTarget indexTargets) majorTarget)
+      (.sort C.resultLevel) := by
     have Happ := C.applyMajorTypedAfterDefEq H.outVEnvWF
       parameterDecls.toCtx added hcanonicalParams
       (by simpa [cachedDomains, added, List.reverse_append,
