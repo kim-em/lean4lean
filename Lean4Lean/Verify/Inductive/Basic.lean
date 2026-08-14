@@ -69454,6 +69454,11 @@ theorem
             F.semantic.generated.arguments_bound.fvars).abstractList
               A.rule.binders F.semantic.generated.localArgs.size)
           (VExpr.mkApps prefixTarget args) ∧
+        H.outVEnv.HasType Us.length
+          (abstractForallContext
+            (equationDomains ++ localDomains) []).toCtx
+          (VExpr.mkApps prefixTarget args)
+          (VExpr.mkApps ownerTarget args) ∧
         VExpr.WF H.outVEnv Us.length
           (abstractForallContext
             (equationDomains ++ localDomains) []).toCtx
@@ -69658,8 +69663,61 @@ theorem
         (F.telescope.result.liftN frontDomains.length suffix.length))
       (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
     simpa [hargsLength] using Hsame'
-  have HleftWF := VEnv.HasType.mkApps_sameTelescopeDomains
+  have Hleft := VEnv.HasType.mkApps_sameTelescopeDomains_exact
     H.outVEnvWF Hctx HsameArgs HprefixExpected' HownerExpected' HrightWF
+  have hselectedRecInfo : selectedOwner < H.recInfos.size := by
+    simpa [H.generated.length] using F.entry_lt
+  have hselectedMotive :
+      selectedOwner < (H.recInfos.map (·.motive)).size := by
+    simpa using hselectedRecInfo
+  have hsuffixLength : suffix.length = expectedDomains.length := by
+    simp only [suffix, expectedDomains, expected, List.length_append,
+      List.length_reverse, liftContextPrefix_length,
+      liftContextPrefixAt_length, F.telescope.indices_length,
+      F.telescope.major_length, hdomainLength]
+  have hexpectedArity :
+      expectedDomains.length =
+        H.recInfos[selectedOwner]!.indices.size + 1 := by
+    rw [← hsuffixLength]
+    simp [suffix, F.telescope.indices_length, F.telescope.major_length]
+  have hresultCanonical :
+      F.telescope.result.liftN frontDomains.length suffix.length =
+        VExpr.mkApps (ownerTarget.liftN expectedDomains.length 0)
+          (recursorCanonicalVars expectedDomains.length) := by
+    rw [F.telescope.resultShape hselectedMotive,
+      concreteRecursorResultArgs_eq_canonical]
+    rw [VExpr.liftN_mkApps]
+    rw [hsuffixLength]
+    congr 1
+    · rw [hownerTarget]
+      simp only [VExpr.liftN]
+      congr 1
+      have hcut : expectedDomains.length ≤
+          1 + H.recInfos[selectedOwner]!.indices.size +
+            (H.recInfos.flatMap (·.minors)).size +
+            ((H.recInfos.map (·.motive)).size - 1 - selectedOwner) := by
+        rw [← hsuffixLength]
+        simp only [suffix, List.length_append,
+          F.telescope.indices_length, F.telescope.major_length]
+        omega
+      rw [liftVar_le hcut]
+      rw [liftVar_base]
+      simp only [suffix, later,
+        List.length_append, List.length_drop,
+        F.telescope.indices_length, F.telescope.major_length,
+        F.telescope.minors_length, F.telescope.motives_length]
+      omega
+    · rw [hexpectedArity]
+      exact recursorCanonicalVars_liftN_at_length _ _
+  rw [hresultCanonical] at Hleft
+  have htypeResult := VExpr.applyForallType_wrapForalls_canonical
+    expectedDomains args ownerTarget hargsLength
+  rw [htypeResult] at Hleft
+  have HleftWF : VExpr.WF H.outVEnv Us.length
+      (abstractForallContext
+        (equationDomains ++ localDomains) []).toCtx
+      (VExpr.mkApps prefixTarget args) :=
+    ⟨VExpr.mkApps ownerTarget args, Hleft⟩
   have Hargs := Lean4Lean.VerifyInductive.List.Forall₂.append'
     Hindices (List.Forall₂.cons Hmajor List.Forall₂.nil)
   have Hcall := checkPositivityStep.TrExprS.mkAppList
@@ -69706,7 +69764,7 @@ theorem
     rw [← hsource]
     simpa only [args] using Hcall
   exact ⟨equationDomains, localDomains, prefixTarget, indexTargets,
-    majorTarget, ownerTarget, hlocal, Hctx, Hcall', HleftWF⟩
+    majorTarget, ownerTarget, hlocal, Hctx, Hcall', Hleft, HleftWF⟩
 
 /-- Weaken the canonical recursive-call prefix beneath the higher-order
 lambda domains and identify its source with the exact two-stage abstraction
