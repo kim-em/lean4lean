@@ -57960,6 +57960,120 @@ theorem
     by simpa [fieldDomains] using HclosedFinal.2,
     by rw [hctxEq]; exact HtypedOut⟩
 
+/-- Exact-spine strengthening of `finalConstructorMotiveFieldTelescope` for
+a fixed generated recursor telescope.  The field closure retains the literal
+semantic motive local, index targets, and constructor target, so later
+equation-context transport has no existential application target left to
+identify. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalConstructorMotiveExactFieldTelescopeFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ binding : RecursorMotiveBinding A.semantics.context
+        H.recInfos[owner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence A.semantics.context
+          stats H.recInfos[owner]! binding A.rule.target
+          A.semantics.targetTarget,
+        ∃ fieldDomains : List VExpr,
+          evidence.indices.length = T.indices.length ∧
+          List.Forall₂
+            (TrExprS H.outVEnv Us A.semantics.context.mlctx.vlctx)
+            (A.rule.target.getAppArgs[stats.params.size:]).toList
+            evidence.indices ∧
+          fieldDomains.length = A.rule.allArgs.size ∧
+          let motiveTarget := VExpr.app
+            (VExpr.mkApps binding.motiveTarget evidence.indices)
+            A.semantics.constructorTarget
+          TrExprS H.outVEnv Us
+            A.semantics.fieldRootContext.mlctx.vlctx
+            (A.rule.root.lctx.mkForall A.rule.allArgs
+              (Expr.app
+                (mkAppN H.recInfos[owner]!.motive
+                  A.rule.target.getAppArgs[stats.params.size:])
+                A.rule.sourceConstructorMajor))
+            (VExpr.wrapForalls fieldDomains motiveTarget) ∧
+          H.outVEnv.IsType Us.length
+            A.semantics.fieldRootContext.mlctx.vlctx.toCtx
+            (VExpr.wrapForalls fieldDomains motiveTarget) ∧
+          H.outVEnv.HasType Us.length
+            (fieldDomains.reverse ++
+              A.semantics.fieldRootContext.mlctx.vlctx.toCtx)
+            motiveTarget (.sort evidence.resultLevel) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.semanticConstructorMotiveExactFor T with
+    ⟨binding, evidence, hindexLength, Hindices, Htr, Htyped⟩
+  let fieldDomains := MLCtxForallDomains A.semantics.context.mlctx
+    A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have Hclosed := A.semantics.fieldsRecent.mkForallExact Htr
+    (⟨evidence.resultLevel, Htyped⟩ :
+      A.semantics.context.venv.IsType Us.length
+        A.semantics.context.mlctx.vlctx.toCtx
+        (VExpr.app
+          (VExpr.mkApps binding.motiveTarget evidence.indices)
+          A.semantics.constructorTarget))
+  have hsemanticRoot : A.semantics.fieldRootContext.venv =
+      R.declared.venvCtors := by
+    calc
+      A.semantics.fieldRootContext.venv = A.semantics.context.venv :=
+        A.semantics.fieldsRecent.venv_eq.symm
+      _ = R.declared.venvCtors :=
+        A.semantics.context_venv.trans
+          (H.recursorEnv.trans R.declared.contextVEnv)
+  rw [hsemanticRoot] at Hclosed
+  have HclosedFinal := And.intro
+    (Hclosed.1.mono H.installed.le)
+    (Hclosed.2.mono H.installed.le)
+  have hfieldLength : fieldDomains.length = A.rule.allArgs.size := by
+    exact A.semantics.context.onlyLams.forallDomains_length
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hfieldDomains :=
+    A.semantics.context.onlyLams.forallDomains_eq_take_reverse
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hvlctx := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+    A.semantics.context.mlctx A.rule.allArgs.size
+      A.semantics.fieldsRecent.size_le
+  rw [A.semantics.fieldsRecent.drop_eq] at hvlctx
+  have hctxEq : fieldDomains.reverse ++
+      A.semantics.fieldRootContext.mlctx.vlctx.toCtx =
+        A.semantics.context.mlctx.vlctx.toCtx := by
+    rw [show fieldDomains =
+        (A.semantics.context.mlctx.vlctx.toCtx.take
+          A.rule.allArgs.size).reverse by
+      exact hfieldDomains]
+    have hvlctxToCtx := congrArg VLCtx.toCtx hvlctx.symm
+    rw [VLCtx.toCtx_append] at hvlctxToCtx
+    rw [A.semantics.context.onlyLams.toCtx_take] at hvlctxToCtx
+    simpa [VLCtx.toCtx] using hvlctxToCtx
+  have hsemanticCurrent : A.semantics.context.venv =
+      R.declared.venvCtors :=
+    A.semantics.context_venv.trans
+      (H.recursorEnv.trans R.declared.contextVEnv)
+  rw [hsemanticCurrent] at Hindices Htyped
+  have HindicesFinal := Lean4Lean.List.Forall₂.imp
+    (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
+  have HtypedOut := Htyped.mono H.installed.le
+  exact ⟨binding, evidence, fieldDomains, hindexLength, HindicesFinal,
+    hfieldLength, by
+      simpa [fieldDomains] using HclosedFinal.1,
+    by simpa [fieldDomains] using HclosedFinal.2,
+    by rw [hctxEq]; exact HtypedOut⟩
+
 /-- The exact field telescope retained by rule generation remains available
 after the generated recursors are installed.  This is the stage-correct form
 used by equation typing: its source still refers to the production local
