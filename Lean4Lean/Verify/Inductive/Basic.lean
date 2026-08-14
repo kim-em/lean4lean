@@ -60589,6 +60589,57 @@ theorem
     F.semantic.current_context Hext binding F.semantic.exposed_translation
     HexposedType F.semantic.validated
 
+/-- Final-environment form of the exact higher-order field telescope fixed
+by this recursive-call frame.  Unlike the earlier rule-indexed existential,
+the source call, exposed family target, and eta-expanded major are all tied
+to `F.semantic`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.finalAppliedFieldTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ domains : List VExpr,
+      domains.length = F.semantic.generated.localArgs.size ∧
+      TrExprS H.outVEnv Us A.semantics.context.mlctx.vlctx
+        (F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs F.semantic.generated.exposedType)
+        (VExpr.wrapForalls domains F.semantic.exposedTarget) ∧
+      H.outVEnv.IsType Us.length A.semantics.context.mlctx.vlctx.toCtx
+        (VExpr.wrapForalls domains F.semantic.exposedTarget) ∧
+      TrExprS H.outVEnv Us A.semantics.context.mlctx.vlctx
+        (F.semantic.generated.current.lctx.mkLambda
+          F.semantic.generated.localArgs
+          (mkAppN A.rule.recursiveArgs[j]
+            F.semantic.generated.localArgs))
+        (VExpr.wrapLams domains F.semantic.appliedFieldTarget) ∧
+      H.outVEnv.HasType Us.length A.semantics.context.mlctx.vlctx.toCtx
+        (VExpr.wrapLams domains F.semantic.appliedFieldTarget)
+        (VExpr.wrapForalls domains F.semantic.exposedTarget) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let E := F.semantic.appliedFieldTelescope
+  have hsemantic : A.semantics.context.venv = R.declared.venvCtors :=
+    A.semantics.context_venv.trans
+      (H.recursorEnv.trans R.declared.contextVEnv)
+  have Hexposed := E.exposed_translation
+  have HexposedType := E.exposed_type
+  have Happlied := E.applied_translation
+  have HappliedType := E.applied_typing
+  rw [hsemantic] at Hexposed HexposedType Happlied HappliedType
+  exact ⟨E.domains, E.domains_length,
+    Hexposed.mono H.installed.le, HexposedType.mono H.installed.le,
+    Happlied.mono H.installed.le, HappliedType.mono H.installed.le⟩
+
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
 theorem RecursorPhasesResult.recursorUvarsAt
