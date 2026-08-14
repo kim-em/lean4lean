@@ -67065,6 +67065,124 @@ theorem
         A.rule.all_args_bound.length_fvars,
         List.append_assoc] using houter
 
+/-- The exposed recursive-field result type obeys the same parameter closure
+and motive/minor insertion equation as each of its index arguments.  Stating
+the whole application separately lets later spine inversion use production's
+clean two-stage abstraction directly. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.insertedSemanticExposedSource_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+    let inserted := T.motives ++ T.minors
+    (((((F.semantic.generated.exposedType.abstractList
+      F.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.all_args_bound.fvars
+        F.semantic.generated.localArgs.size).abstractList
+          A.rule.params_bound.fvars cutoff).liftLooseBVars'
+            cutoff inserted.length)) =
+      (F.semantic.generated.exposedType.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders F.semantic.generated.localArgs.size := by
+  let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+  let inserted := T.motives ++ T.minors
+  let insertedFVars :=
+    A.rule.motives_bound.fvars ++ A.rule.minors_bound.fvars
+  let source :=
+    (F.semantic.generated.exposedType.abstractList
+      F.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.all_args_bound.fvars
+        F.semantic.generated.localArgs.size
+  dsimp only
+  rcases F.cachedSemanticCallArgumentFrame with
+    ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, localDomains,
+      _narrowIndices, _narrowMajor, _narrowExposed, _hfront, hfields, hlocal,
+      _Hctx, _hlength, _Hindices, _Hmajor, Hexposed, _Htyping,
+      _HindexEq, _HmajorEq⟩
+  have houterNodup :
+      (A.rule.params_bound.fvars ++ insertedFVars).Nodup := by
+    simpa [insertedFVars, List.append_assoc] using
+      A.rule.outer_binders_nodup
+  have hparamsNodup : A.rule.params_bound.fvars.Nodup :=
+    (List.nodup_append.mp houterNodup).1
+  have hinsertedLength : inserted.length = insertedFVars.length := by
+    simp [inserted, insertedFVars,
+      T.motives_length, T.minors_length,
+      A.rule.motives_bound.length_fvars,
+      A.rule.minors_bound.length_fvars]
+  have hcutoff : (fieldDomains ++ localDomains).length = cutoff := by
+    simp [cutoff, hfields, hlocal, Nat.add_comm]
+  have hparameterNoBV : H.parameterSuffix.parameterDecls.bvars = 0 := by
+    have h := H.recursorWF.mlctx.noBV
+    rw [H.parameterSuffix.context] at h
+    change (H.parameterSuffix.ambientDecls ++
+      H.parameterSuffix.parameterDecls).bvars = 0 at h
+    rw [VLCtx.bvars_append] at h
+    omega
+  have hclosed : Closed source cutoff := by
+    have h := Hexposed.closed
+    rw [abstractForallContext_bvars, hparameterNoBV,
+      Nat.add_zero] at h
+    simpa [source, cutoff, hfields, hlocal, Nat.add_comm] using h
+  have hscope : source.FVarsIn (· ∈ A.rule.params_bound.fvars) := by
+    have hparams := F.fieldAbstractedExposedScope
+    simpa [source, A.rule.params_bound.exprArrayFVarIds] using hparams
+  have havoids : source.FVarsIn (· ∉ insertedFVars) := by
+    exact hscope.mono fun fv hparam hinserted => by
+      have hdisjoint := (List.nodup_append.mp houterNodup).2.2
+      exact hdisjoint fv hparam fv hinserted rfl
+  have hinsertedAbstract :
+      source.abstractList insertedFVars cutoff = source :=
+    havoids.abstractList_eq_self hclosed
+  have hshift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := source) (fvars := A.rule.params_bound.fvars)
+    (depth := cutoff) (extra := insertedFVars.length)
+    hclosed hparamsNodup
+  have happend := Expr.abstractList_after_inner
+    (e := source) (outer := A.rule.params_bound.fvars)
+      (inner := insertedFVars) (k := cutoff) houterNodup
+  rw [hinsertedAbstract] at happend
+  have hfirst :
+      (source.abstractList A.rule.params_bound.fvars cutoff).liftLooseBVars'
+          cutoff inserted.length =
+        source.abstractList
+          (A.rule.params_bound.fvars ++ insertedFVars) cutoff := by
+    rw [hinsertedLength]
+    exact hshift.symm.trans happend
+  have houter := Expr.abstractList_after_inner
+    (e := F.semantic.generated.exposedType.abstractList
+      F.semantic.generated.arguments_bound.fvars)
+    (outer := A.rule.params_bound.fvars ++ insertedFVars)
+    (inner := A.rule.all_args_bound.fvars)
+    (k := F.semantic.generated.localArgs.size)
+    (by simpa [insertedFVars, BoundGeneratedRecursorRule.binders,
+      List.append_assoc] using A.rule.binders_nodup)
+  calc
+    _ = source.abstractList
+        (A.rule.params_bound.fvars ++ insertedFVars) cutoff := hfirst
+    _ = _ := by
+      simpa [source, cutoff, insertedFVars,
+        BoundGeneratedRecursorRule.binders,
+        A.rule.all_args_bound.length_fvars,
+        List.append_assoc] using houter
+
 /-- Parameter closure and motive/minor insertion leave the recursive major's
 canonical field/local de Bruijn spine unchanged.  The result is exactly the
 complete rule-binder abstraction emitted by production. -/
@@ -67349,12 +67467,9 @@ theorem
               TrExprS H.outVEnv Us
                 (abstractForallContext
                   (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) [])
-                (((((F.semantic.generated.exposedType.abstractList
+                ((F.semantic.generated.exposedType.abstractList
                   F.semantic.generated.arguments_bound.fvars).abstractList
-                    A.rule.all_args_bound.fvars
-                    F.semantic.generated.localArgs.size).abstractList
-                      A.rule.params_bound.fvars cutoff).liftLooseBVars'
-                        cutoff inserted.length))
+                    A.rule.binders F.semantic.generated.localArgs.size)
                 (narrowExposed.liftN inserted.length cutoff) ∧
               H.outVEnv.HasType Us.length
                 (abstractForallContext
@@ -67383,6 +67498,9 @@ theorem
   have hmajor := F.insertedSemanticMajorSource_eq T
   dsimp only at hmajor
   rw [hmajor] at Hmajor
+  have hexposed := F.insertedSemanticExposedSource_eq T
+  dsimp only at hexposed
+  rw [hexposed] at Hexposed
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
     liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
     hliftedFront, hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
