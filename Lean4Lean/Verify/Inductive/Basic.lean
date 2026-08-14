@@ -16505,6 +16505,30 @@ theorem recursorMinorOffset_step
   simp [recursorMinorOffset, List.take_add_one, hidx,
     List.length_flatMap]
 
+theorem recursorMinorOffset_mono
+    (indTypes : Array InductiveType) (a b : Nat)
+    (hab : a ≤ b) (hb : b ≤ indTypes.size) :
+    recursorMinorOffset indTypes a ≤
+      recursorMinorOffset indTypes b := by
+  induction b generalizing a with
+  | zero =>
+      have ha : a = 0 := by omega
+      subst a
+      exact Nat.le_refl _
+  | succ b ih =>
+      by_cases heq : a = b + 1
+      · subst a
+        exact Nat.le_refl _
+      · have hab' : a ≤ b := by omega
+        have hb' : b ≤ indTypes.size := by omega
+        have hidx : b < indTypes.size := by omega
+        calc
+          recursorMinorOffset indTypes a ≤
+              recursorMinorOffset indTypes b := ih a hab' hb'
+          _ ≤ recursorMinorOffset indTypes (b + 1) := by
+            rw [recursorMinorOffset_step indTypes b hidx]
+            omega
+
 theorem recursorMinorOffset_le_total
     (indTypes : Array InductiveType) (dIdx : Nat) :
     recursorMinorOffset indTypes dIdx ≤
@@ -59983,6 +60007,138 @@ theorem
   exact ⟨T, D, O, S, by
     simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using Hdomain,
     by simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using HdomainType⟩
+
+/-- Invert the flattened minor lookup at this rule's canonical offset.  The
+row owner and row-local slot recovered from the retained declaration are the
+same owner/constructor coordinates used by the rule traversal. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.selectedMinorOriginPosition
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    {D : BoundFVarDeclarationAt H.localContext
+      (H.recInfos.flatMap (·.minors))
+      (recursorMinorOffset indTypes owner + i)}
+    (O : H.origins.FlatMinorOrigin D) :
+    O.owner = owner ∧ O.localIndex = i := by
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let originIdx := recursorMinorOffset indTypes O.owner + O.localIndex
+  have hsizes : H.recInfos.size = indTypes.size := by
+    calc
+      H.recInfos.size = decl.types.length := H.cardinality.records
+      _ = indTypes.toList.length :=
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
+      _ = indTypes.size := by simp
+  have horiginOwner : O.owner < indTypes.size := by
+    rw [← hsizes]
+    exact O.owner_lt
+  have horiginLocal : O.localIndex < indTypes[O.owner]!.ctors.length := by
+    rw [← H.minorCounts O.owner O.owner_lt]
+    simpa [getElem!_pos H.recInfos O.owner O.owner_lt] using O.local_lt
+  have horiginRoom := recursorMinorOffset_room indTypes O.owner horiginOwner
+  have hflatSize : (H.recInfos.flatMap (·.minors)).size =
+      (indTypes.flatMap fun type => type.ctors.toArray).size :=
+    mkRecInfos.flatMinors_size hsizes H.minorCounts
+  have horiginIdx : originIdx <
+      (H.recInfos.flatMap (·.minors)).size := by
+    have hconcrete : originIdx <
+        (indTypes.toList.flatMap (fun type => type.ctors)).length := by
+      dsimp only [originIdx]
+      omega
+    rw [hflatSize, ← ownedConstructors_length_eq_flattened_size]
+    simpa [ownedConstructors, List.length_flatMap] using hconcrete
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    owner hrecInfo
+  have hnoalias : selections.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
+  have hflatNodup :
+      (H.recInfos.flatMap (·.minors)).toList.Nodup := by
+    rw [H.bindings.flatMinors.expressions]
+    have mapFVarNodup : ∀ xs : List FVarId, xs.Nodup →
+        (xs.map Expr.fvar).Nodup := by
+      intro xs hxs
+      induction hxs with
+      | nil => exact .nil
+      | @cons fv xs hnotmem _ ih =>
+          exact .cons (by simpa using hnotmem) ih
+    have hminorNodup : H.bindings.flatMinors.fvars.Nodup := by
+      simpa [selections, RecInfoBindings.toRecursorLocalSelections,
+        BoundFVarArray.toLocalForallSelection] using hnoalias.parts.minors
+    exact mapFVarNodup _ hminorNodup
+  have htoListFlatMap :
+      (H.recInfos.flatMap (·.minors)).toList =
+        H.recInfos.toList.flatMap (fun info => info.minors.toList) := by
+    exact Array.toList_flatMap
+  have horiginIdxRows : originIdx <
+      (H.recInfos.toList.flatMap
+        (fun info => info.minors.toList)).length := by
+    rw [← htoListFlatMap, Array.length_toList]
+    exact horiginIdx
+  have horiginIdxList : originIdx <
+      (H.recInfos.flatMap (·.minors)).toList.length := by
+    rw [Array.length_toList]
+    exact horiginIdx
+  have hminorIdxList : minorIdx <
+      (H.recInfos.flatMap (·.minors)).toList.length := by
+    rw [Array.length_toList]
+    simpa [minorIdx] using D.inBounds
+  have horiginLocalList : O.localIndex <
+      H.recInfos[O.owner].minors.toList.length := by
+    simpa using O.local_lt
+  have HoriginGet := List.flatMap_getElem_prefix H.recInfos.toList
+    (fun info => info.minors.toList) O.owner O.localIndex
+    (by simpa using O.owner_lt)
+    (by simpa [getElem!_pos H.recInfos O.owner O.owner_lt] using O.local_lt)
+    (by
+      rw [H.minorPrefixLength_eq O.owner (Nat.le_of_lt O.owner_lt)]
+      simpa [originIdx] using horiginIdxRows)
+  have HoriginGet' :
+      (H.recInfos.flatMap (·.minors)).toList[originIdx]'horiginIdxList =
+        H.recInfos[O.owner].minors.toList[O.localIndex]'horiginLocalList := by
+    simpa [Array.toList_flatMap, originIdx,
+      H.minorPrefixLength_eq O.owner (Nat.le_of_lt O.owner_lt)] using
+      HoriginGet
+  have hvalue :
+      (H.recInfos.flatMap (·.minors)).toList[originIdx]'horiginIdxList =
+        (H.recInfos.flatMap (·.minors)).toList[minorIdx]'hminorIdxList := by
+    calc
+      _ = H.recInfos[O.owner].minors.toList[O.localIndex]'horiginLocalList :=
+        HoriginGet'
+      _ = (H.recInfos.flatMap (·.minors)).toList[minorIdx]'hminorIdxList := by
+        simpa only [Array.getElem_toList] using O.expression_eq
+  have hposition : originIdx = minorIdx :=
+    (List.getElem_inj (h₀ := horiginIdxList)
+      (h₁ := hminorIdxList) hflatNodup).mp hvalue
+  have hownerEq : O.owner = owner := by
+    by_contra hne
+    rcases Nat.lt_or_gt_of_ne hne with hlt | hgt
+    · have hmono := recursorMinorOffset_mono indTypes (O.owner + 1)
+          owner (by omega) (by omega)
+      have hstep := recursorMinorOffset_step indTypes O.owner horiginOwner
+      dsimp only [originIdx, minorIdx] at hposition
+      rw [hstep] at hmono
+      omega
+    · have hownerSource : owner < indTypes.size := by omega
+      have hmono := recursorMinorOffset_mono indTypes (owner + 1)
+          O.owner (by omega) (by omega)
+      have hstep := recursorMinorOffset_step indTypes owner hownerSource
+      dsimp only [originIdx, minorIdx] at hposition
+      rw [hstep] at hmono
+      omega
+  refine ⟨hownerEq, ?_⟩
+  dsimp only [originIdx, minorIdx] at hposition
+  rw [hownerEq] at hposition
+  omega
 
 /-- The concrete owner-motive declaration mentions no interleaved executable
 index or major locals.  Its only possible free variables are the common
