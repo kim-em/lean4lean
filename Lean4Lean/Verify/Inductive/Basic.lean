@@ -114,6 +114,20 @@ theorem OnCtx.append_right
   | nil => exact H
   | cons x xs ih => exact ih H.1
 
+/-- A declaration selected below a newer context prefix is looked up at the
+prefix length, with one lift for its own binder and one for every newer
+declaration. -/
+theorem Lookup.append_zero (newer : List VExpr) (domain : VExpr)
+    (older : List VExpr) :
+    Lookup (newer ++ domain :: older) newer.length
+      (domain.liftN (newer.length + 1) 0) := by
+  induction newer with
+  | nil => simpa [VExpr.liftN] using (Lookup.zero :
+      Lookup (domain :: older) 0 domain.lift)
+  | cons head newer ih =>
+    simpa [VExpr.liftN_succ, Nat.add_assoc] using
+      (Lookup.succ (A := head) ih)
+
 theorem VExpr.getAppFnArgs_mkApps
     (fn : VExpr) (args : List VExpr) :
     (VExpr.mkApps fn args).getAppFnArgs =
@@ -488,6 +502,26 @@ theorem VExpr.WF.mkApps_fn
     rcases Hprefix.app_inv henv hctx with ⟨domain, body, hfn, _harg⟩
     exact ⟨_, hfn⟩
 
+/-- The first argument of a well-typed application spine has the declared
+outer domain of the function.  Application inversion may initially recover
+a different convertible domain; uniqueness and forall injectivity transport
+the argument back to the stated telescope. -/
+theorem VEnv.HasType.mkApps_head
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (hfn : env.HasType uvars ctx fn (.forallE domain body))
+    (happs : VExpr.WF env uvars ctx
+      (VExpr.mkApps fn (arg :: args))) :
+    env.HasType uvars ctx arg domain := by
+  have hprefix := VExpr.WF.mkApps_fn henv.ordered hctx
+    (fn := .app fn arg) (args := args) happs
+  rcases hprefix.app_inv henv.ordered hctx with
+    ⟨actualDomain, actualBody, hfnActual, hargActual⟩
+  have hfunctionEq := hfn.uniqU henv hctx hfnActual
+  have hdomainEq :=
+    (VEnv.IsDefEqU.forallE_inv henv hctx hfunctionEq).1
+  rcases hdomainEq with ⟨domainLevel, hdomainEq⟩
+  exact hdomainEq.defeq' hargActual
+
 /-- Applying every binder of a well-typed forall telescope ending in a sort
 produces another type.  Argument typing is recovered from the independently
 known well-typed application and transported to the specified telescope by
@@ -578,6 +612,19 @@ theorem recursorCanonicalVars_succ_cons (n : Nat) :
     recursorCanonicalVars (n + 1) =
       .bvar n :: recursorCanonicalVars n := by
   simp [recursorCanonicalVars, List.range_succ]
+
+/-- The concrete owner-result spine numbers the index variables followed by
+the major exactly as the canonical variables of one combined telescope. -/
+theorem concreteRecursorResultArgs_eq_canonical (numIndices : Nat) :
+    ((List.range numIndices).reverse.map fun index =>
+        VExpr.bvar (index + 1)) ++ [.bvar 0] =
+      recursorCanonicalVars (numIndices + 1) := by
+  induction numIndices with
+  | zero => rfl
+  | succ numIndices ih =>
+    rw [List.range_succ, List.reverse_append, List.map_append]
+    simpa [recursorCanonicalVars_succ_cons, List.append_assoc] using
+      congrArg (VExpr.bvar (numIndices + 1) :: ·) ih
 
 @[simp] theorem recursorCanonicalVars_liftN_at_length
     (n shift : Nat) :
@@ -46494,6 +46541,216 @@ theorem GeneratedRecursorTelescopeTranslation.resultShape
     exact Nat.le_refl _
   exact TrExprS.concreteRecursorResult_eq howner htotal T.residual
 
+/-- In the complete generated recursor context, the owner motive is found
+beneath precisely the later motives, all minors, and the owner index/major
+suffix.  Its lookup type is therefore its declaration domain lifted once
+for itself and once for every one of those newer declarations. -/
+theorem GeneratedRecursorTelescopeTranslation.ownerMotiveBvarTyping
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (howner : ownerIdx < T.motives.length) :
+    let newer := T.motives.drop (ownerIdx + 1) ++ T.minors ++
+      T.indices ++ T.major
+    let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+    env.HasType Us.length domains.reverse (.bvar newer.length)
+      ((T.motives[ownerIdx]'howner).liftN (newer.length + 1) 0) := by
+  let newer := T.motives.drop (ownerIdx + 1) ++ T.minors ++
+    T.indices ++ T.major
+  let older := T.motives.take ownerIdx |>.reverse ++ T.params.reverse
+  let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+  have hsplit : T.motives = T.motives.take ownerIdx ++
+      T.motives[ownerIdx] :: T.motives.drop (ownerIdx + 1) := by
+    calc
+      T.motives = T.motives.take (ownerIdx + 1) ++
+          T.motives.drop (ownerIdx + 1) :=
+        (List.take_append_drop (ownerIdx + 1) T.motives).symm
+      _ = (T.motives.take ownerIdx ++ [T.motives[ownerIdx]]) ++
+          T.motives.drop (ownerIdx + 1) := by
+        rw [List.take_append_getElem howner]
+      _ = T.motives.take ownerIdx ++ T.motives[ownerIdx] ::
+          T.motives.drop (ownerIdx + 1) := by
+        simp [List.append_assoc]
+  have hlookup : Lookup
+      (newer.reverse ++ T.motives[ownerIdx] :: older)
+      newer.length
+      ((T.motives[ownerIdx]'howner).liftN (newer.length + 1) 0) := by
+    simpa [List.length_reverse] using
+      Lookup.append_zero newer.reverse (T.motives[ownerIdx]'howner) older
+  apply VEnv.HasType.bvar
+  simpa [domains, newer, older, hsplit, List.reverse_append,
+    List.append_assoc] using hlookup
+
+/-- Numerical specialization of `ownerMotiveBvarTyping` matching the bvar
+offset used by `concreteRecursorResult`. -/
+theorem GeneratedRecursorTelescopeTranslation.ownerMotiveBvarTypingAtOffset
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (howner : ownerIdx < numMotives) :
+    let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+    let offset := 1 + numIndices + numMinors +
+      (numMotives - 1 - ownerIdx)
+    env.HasType Us.length domains.reverse (.bvar offset)
+      (T.motives[ownerIdx]!.liftN (offset + 1) 0) := by
+  let newer := T.motives.drop (ownerIdx + 1) ++ T.minors ++
+    T.indices ++ T.major
+  let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+  let offset := 1 + numIndices + numMinors +
+    (numMotives - 1 - ownerIdx)
+  have howner' : ownerIdx < T.motives.length := by
+    rw [T.motives_length]
+    exact howner
+  have hnewer : newer.length = offset := by
+    simp only [newer, offset, List.length_append, List.length_drop,
+      T.motives_length, T.minors_length, T.indices_length, T.major_length]
+    omega
+  have Htyping := T.ownerMotiveBvarTyping howner'
+  simpa only [domains, newer, hnewer,
+    getElem!_pos T.motives ownerIdx howner'] using Htyping
+
+/-- The oldest variable in the generated index/major suffix has the first
+domain of the declared owner-motive telescope, weakened across all binders
+newer than that motive.  This is the first dependent-domain equation exposed
+by typing inversion of the literal generated result application. -/
+theorem GeneratedRecursorTelescopeTranslation.ownerMotiveFirstArgumentTyping
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (henv : env.WF)
+    (howner : ownerIdx < numMotives)
+    (motiveDomains : List VExpr) (resultLevel : VLevel)
+    (hmotive : T.motives[ownerIdx]! =
+      VExpr.wrapForalls motiveDomains (.sort resultLevel))
+    (hlength : motiveDomains.length = numIndices + 1) :
+    let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+    let offset := 1 + numIndices + numMinors +
+      (numMotives - 1 - ownerIdx)
+    ∃ first rest,
+      motiveDomains = first :: rest ∧
+      env.HasType Us.length domains.reverse (.bvar numIndices)
+        (first.liftN (offset + 1) 0) := by
+  let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+  let offset := 1 + numIndices + numMinors +
+    (numMotives - 1 - ownerIdx)
+  cases motiveDomains with
+  | nil => simp at hlength
+  | cons first rest =>
+    have Hfull := T.fullContextResultType henv.ordered
+    change OnCtx domains.reverse (env.IsType Us.length) ∧
+      env.IsType Us.length domains.reverse T.result at Hfull
+    rcases Hfull with ⟨Hctx, resultType⟩
+    rcases resultType with ⟨resultTypeLevel, Hresult⟩
+    have HresultWF : VExpr.WF env Us.length domains.reverse T.result :=
+      ⟨.sort resultTypeLevel, Hresult⟩
+    rw [T.resultShape howner,
+      concreteRecursorResultArgs_eq_canonical] at HresultWF
+    have Howner := T.ownerMotiveBvarTypingAtOffset howner
+    change env.HasType Us.length domains.reverse (.bvar offset)
+      (T.motives[ownerIdx]!.liftN (offset + 1) 0) at Howner
+    rw [hmotive] at Howner
+    let liftedBody :=
+      (VExpr.wrapForalls rest (.sort resultLevel)).liftN
+        (offset + 1) 1
+    have HownerForall : env.HasType Us.length domains.reverse
+        (.bvar offset)
+        (.forallE (first.liftN (offset + 1) 0) liftedBody) := by
+      simpa [VExpr.wrapForalls, VExpr.liftN, liftedBody] using Howner
+    have Hfirst := VEnv.HasType.mkApps_head henv Hctx
+      HownerForall HresultWF
+    refine ⟨first, rest, rfl, ?_⟩
+    simpa [recursorCanonicalVars_succ_cons] using Hfirst
+
+/-- The same oldest suffix variable also has the lookup type determined by
+the first generated index/major declaration.  Together with
+`ownerMotiveFirstArgumentTyping`, uniqueness compares the two domains. -/
+theorem GeneratedRecursorTelescopeTranslation.suffixFirstBvarTyping
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx) :
+    let outer := T.params ++ T.motives ++ T.minors
+    let suffix := T.indices ++ T.major
+    let domains := outer ++ suffix
+    ∃ first rest,
+      suffix = first :: rest ∧
+      env.HasType Us.length domains.reverse (.bvar numIndices)
+        (first.liftN (numIndices + 1) 0) := by
+  let outer := T.params ++ T.motives ++ T.minors
+  let suffix := T.indices ++ T.major
+  let domains := outer ++ suffix
+  have hsuffixLength : suffix.length = numIndices + 1 := by
+    simp [suffix, T.indices_length, T.major_length]
+  cases hsuffixEq : suffix with
+  | nil => simp [hsuffixEq] at hsuffixLength
+  | cons first rest =>
+    have hrestLength : rest.length = numIndices := by
+      simp [hsuffixEq] at hsuffixLength
+      omega
+    have Hlookup : Lookup (rest.reverse ++ first :: outer.reverse)
+        rest.length (first.liftN (rest.length + 1) 0) := by
+      simpa [List.length_reverse] using
+        Lookup.append_zero rest.reverse first outer.reverse
+    refine ⟨first, rest, hsuffixEq, ?_⟩
+    apply VEnv.HasType.bvar
+    simpa [domains, hsuffixEq, List.reverse_append, hrestLength] using Hlookup
+
+/-- First dependent-domain alignment between the generated recursor suffix
+and the owner motive.  The motive domain is weakened only across the later
+motives and all minors; the common index/major weakening is removed from the
+typing-uniqueness equation. -/
+theorem GeneratedRecursorTelescopeTranslation.ownerMotiveFirstDomainDefEq
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (henv : env.WF)
+    (howner : ownerIdx < numMotives)
+    (motiveDomains : List VExpr) (resultLevel : VLevel)
+    (hmotive : T.motives[ownerIdx]! =
+      VExpr.wrapForalls motiveDomains (.sort resultLevel))
+    (hlength : motiveDomains.length = numIndices + 1) :
+    let outer := T.params ++ T.motives ++ T.minors
+    let suffix := T.indices ++ T.major
+    let later := T.motives.drop (ownerIdx + 1) ++ T.minors
+    ∃ generatedFirst generatedRest motiveFirst motiveRest,
+      suffix = generatedFirst :: generatedRest ∧
+      motiveDomains = motiveFirst :: motiveRest ∧
+      env.IsDefEqU Us.length outer.reverse generatedFirst
+        (motiveFirst.liftN (later.length + 1) 0) := by
+  let outer := T.params ++ T.motives ++ T.minors
+  let suffix := T.indices ++ T.major
+  let later := T.motives.drop (ownerIdx + 1) ++ T.minors
+  let domains := outer ++ suffix
+  rcases T.suffixFirstBvarTyping with
+    ⟨generatedFirst, generatedRest, hsuffix, Hgenerated⟩
+  rcases T.ownerMotiveFirstArgumentTyping henv howner motiveDomains
+      resultLevel hmotive hlength with
+    ⟨motiveFirst, motiveRest, hmotiveDomains, Hmotive⟩
+  have Hfull := T.fullContextResultType henv.ordered
+  have Hctx : OnCtx domains.reverse (env.IsType Us.length) := by
+    simpa [domains, outer, suffix, List.append_assoc] using Hfull.1
+  have Htypes := Hgenerated.uniqU henv Hctx Hmotive
+  have hsuffixLength : suffix.length = numIndices + 1 := by
+    simp [suffix, T.indices_length, T.major_length]
+  have hlaterLength : later.length =
+      (numMotives - 1 - ownerIdx) + numMinors := by
+    simp only [later, List.length_append, List.length_drop,
+      T.motives_length, T.minors_length]
+    omega
+  have hshift :
+      (later.length + 1) + (numIndices + 1) =
+        (1 + numIndices + numMinors +
+          (numMotives - 1 - ownerIdx)) + 1 := by
+    omega
+  have Htypes' : env.IsDefEqU Us.length domains.reverse
+      (generatedFirst.liftN (numIndices + 1) 0)
+      ((motiveFirst.liftN (later.length + 1) 0).liftN
+        (numIndices + 1) 0) := by
+    rw [VExpr.liftN_liftN, hshift]
+    simpa [domains, outer, suffix] using Htypes
+  have W : Ctx.LiftN suffix.length 0 outer.reverse domains.reverse := by
+    simpa [domains, List.reverse_append] using
+      (Ctx.LiftN.zero suffix.reverse (Γ := outer.reverse))
+  have Htypes'' :=
+    (VEnv.IsDefEqU.weakN_iff henv Hctx W).mp (by
+      simpa [hsuffixLength] using Htypes')
+  exact ⟨generatedFirst, generatedRest, motiveFirst, motiveRest,
+    hsuffix, hmotiveDomains, Htypes''⟩
+
 /-- Remove the parameter/motive/minor prefix from the retained structural
 translation.  The resulting certificate keeps the concrete production
 suffix and identifies its abstract target with exactly `indices ++ major`,
@@ -56057,6 +56314,14 @@ theorem
               T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
             OnCtx domains.reverse (H.outVEnv.IsType Us.length) ∧
               H.outVEnv.IsType Us.length domains.reverse T.result) ∧
+          (let domains :=
+              T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+            let offset :=
+              1 + H.recInfos[owner]!.indices.size +
+                (H.recInfos.flatMap (·.minors)).size +
+                ((H.recInfos.map (·.motive)).size - 1 - owner)
+            H.outVEnv.HasType Us.length domains.reverse (.bvar offset)
+              (T.motives[owner]!.liftN (offset + 1) 0)) ∧
           T.result = VExpr.mkApps
             (.bvar
               (1 + H.recInfos[owner]!.indices.size +
@@ -56075,7 +56340,62 @@ theorem
   exact ⟨T, S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hsuffixLength, hmotive, hresultLevel,
     T.fullContextResultType H.outVEnvWF.ordered,
+    T.ownerMotiveBvarTypingAtOffset hownerMotive,
     T.resultShape hownerMotive⟩
+
+/-- End-to-end first-binder consequence of the owner-motive application
+frame.  This is the induction base for aligning the complete dependent
+index/major suffix: the first generated suffix declaration is convertible to
+the first motive domain after weakening across later motives and minors. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveFirstDomainAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse S.canonical.params.reverse ∧
+        ∃ motiveDomains resultLevel generatedFirst generatedRest
+            motiveFirst motiveRest,
+          motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
+          T.motives[owner]! =
+            VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+          T.indices ++ T.major = generatedFirst :: generatedRest ∧
+          motiveDomains = motiveFirst :: motiveRest ∧
+          H.outVEnv.IsDefEqU Us.length
+            (T.params ++ T.motives ++ T.minors).reverse generatedFirst
+            (motiveFirst.liftN
+              ((T.motives.drop (owner + 1) ++ T.minors).length + 1) 0) := by
+  dsimp only
+  rcases A.finalOwnerMotiveTelescopeShape with
+    ⟨T, S, hparameters, motiveDomains, resultLevel,
+      hdomainLength, _hsuffixLength, hmotive, _hresultLevel⟩
+  have hownerRecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
+    simpa using hownerRecInfo
+  rcases T.ownerMotiveFirstDomainDefEq H.outVEnvWF hownerMotive
+      motiveDomains resultLevel hmotive hdomainLength with
+    ⟨generatedFirst, generatedRest, motiveFirst, motiveRest,
+      hsuffix, hmotiveDomains, Hdomain⟩
+  exact ⟨T, S, hparameters, motiveDomains, resultLevel,
+    generatedFirst, generatedRest, motiveFirst, motiveRest,
+    hdomainLength, hmotive, hsuffix, hmotiveDomains, Hdomain⟩
 
 /-- The generated owner-motive domain and the retained first-pass motive are
 the same concrete declaration viewed at the two contexts that still have to
