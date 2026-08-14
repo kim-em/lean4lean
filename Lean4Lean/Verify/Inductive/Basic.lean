@@ -21863,6 +21863,107 @@ theorem Expr.ForallTelescopeTypeTranslation.dropPrefix
       · simpa [abstractForallContext, List.map_append,
           List.append_assoc] using Hsuffix
 
+/-- Select one binder from a typed translated telescope.  The returned
+source domain is translated and typed in the exact abstract context formed
+by the preceding target domains; the remaining body keeps its full
+binder-by-binder certificate. -/
+theorem Expr.ForallTelescopeTypeTranslation.binderAt
+    (H : Expr.ForallTelescopeTypeTranslation env Us Δ source n target)
+    (i : Nat) (hi : i < n) :
+    ∃ prefixDomains suffixSource name sourceDomain sourceBody bi
+        domainTarget bodyTarget,
+      prefixDomains.length = i ∧
+      Expr.ForallTelescope source i suffixSource ∧
+      suffixSource = .forallE name sourceDomain sourceBody bi ∧
+      target = VExpr.wrapForalls prefixDomains
+        (.forallE domainTarget bodyTarget) ∧
+      TrExprS env Us (abstractForallContext prefixDomains Δ)
+        sourceDomain domainTarget ∧
+      env.IsType Us.length
+        (abstractForallContext prefixDomains Δ).toCtx domainTarget ∧
+      Expr.ForallTelescopeTypeTranslation env Us
+        ((none, .vlam domainTarget) ::
+          abstractForallContext prefixDomains Δ)
+        sourceBody (n - i - 1) bodyTarget := by
+  have hn : n = i + (n - i) := by omega
+  rw [hn] at H
+  rcases H.dropPrefix with
+    ⟨prefixDomains, suffixSource, suffixTarget, hprefixLength,
+      Hsource, htarget, Hsuffix⟩
+  have hsuffixArity : n - i = (n - i - 1) + 1 := by omega
+  rw [hsuffixArity] at Hsuffix
+  cases Hsuffix with
+  | @cons _ sourceDomain domainTarget sourceBody arity bodyTarget name bi
+      Hdomain HdomainType Hbody =>
+    exact ⟨prefixDomains, suffixSource, name, sourceDomain, sourceBody, bi,
+      domainTarget, bodyTarget, hprefixLength, Hsource, rfl, htarget,
+      Hdomain, HdomainType, Hbody⟩
+
+/-- Select a binder when the complete abstract target telescope is already
+known.  This identifies the selected target domain itself, rather than only
+returning an existential domain from structural inversion. -/
+theorem Expr.ForallTelescopeTypeTranslation.binderAt_target
+    (H : Expr.ForallTelescopeTypeTranslation env Us Δ source n target)
+    (domains : List VExpr) (result : VExpr)
+    (htarget : target = VExpr.wrapForalls domains result)
+    (hlength : domains.length = n)
+    (i : Nat) (hi : i < n) :
+    ∃ suffixSource name sourceDomain sourceBody bi bodyTarget,
+      Expr.ForallTelescope source i suffixSource ∧
+      suffixSource = .forallE name sourceDomain sourceBody bi ∧
+      TrExprS env Us
+        (abstractForallContext (domains.take i) Δ)
+        sourceDomain domains[i] ∧
+      env.IsType Us.length
+        (abstractForallContext (domains.take i) Δ).toCtx domains[i] ∧
+      Expr.ForallTelescopeTypeTranslation env Us
+        ((none, .vlam domains[i]) ::
+          abstractForallContext (domains.take i) Δ)
+        sourceBody (n - i - 1) bodyTarget := by
+  rcases H.binderAt i hi with
+    ⟨prefixDomains, suffixSource, name, sourceDomain, sourceBody, bi,
+      domainTarget, bodyTarget, hprefixLength, Hsource, hsource,
+      htarget', Hdomain, HdomainType, Hbody⟩
+  have hidomains : i < domains.length := by omega
+  have hsplit : domains = domains.take i ++ domains[i] ::
+      domains.drop (i + 1) := by
+    calc
+      domains = domains.take (i + 1) ++ domains.drop (i + 1) :=
+        (List.take_append_drop (i + 1) domains).symm
+      _ = (domains.take i ++ [domains[i]]) ++ domains.drop (i + 1) := by
+        rw [List.take_append_getElem hidomains]
+      _ = domains.take i ++ domains[i] :: domains.drop (i + 1) := by
+        simp [List.append_assoc]
+  have hprefix : prefixDomains = domains.take i := by
+    apply VExpr.wrapForalls_prefix_domains_eq hprefixLength
+      (by simp [List.length_take, Nat.min_eq_left (Nat.le_of_lt hidomains)])
+    calc
+      VExpr.wrapForalls prefixDomains (.forallE domainTarget bodyTarget) =
+          target := htarget'.symm
+      _ = VExpr.wrapForalls domains result := htarget
+      _ = VExpr.wrapForalls
+          (domains.take i ++ domains[i] :: domains.drop (i + 1)) result := by
+        rw [← hsplit]
+  subst prefixDomains
+  have hsuffix : .forallE domainTarget bodyTarget =
+      VExpr.wrapForalls (domains[i] :: domains.drop (i + 1)) result := by
+    apply VExpr.wrapForalls_left_cancel (domains.take i)
+    calc
+      VExpr.wrapForalls (domains.take i) (.forallE domainTarget bodyTarget) =
+          target := htarget'.symm
+      _ = VExpr.wrapForalls domains result := htarget
+      _ = VExpr.wrapForalls
+          (domains.take i ++ domains[i] :: domains.drop (i + 1)) result := by
+        rw [← hsplit]
+      _ = VExpr.wrapForalls (domains.take i)
+          (VExpr.wrapForalls (domains[i] :: domains.drop (i + 1)) result) := by
+        exact VExpr.wrapForalls_append _ _ _
+  simp only [VExpr.wrapForalls] at hsuffix
+  injection hsuffix with hdomainTarget _hbodyTarget
+  subst domainTarget
+  exact ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
+    Hsource, hsource, Hdomain, HdomainType, Hbody⟩
+
 /-- A translated telescope known to be a type decomposes canonically into
 the binder-by-binder certificate. This establishes that the new interface
 loses no information while exposing exactly where restoration must act. -/
@@ -45723,6 +45824,63 @@ structure GeneratedRecursorTelescopeTranslation
       (params ++ motives ++ minors ++ indices ++ major) [])
     (concreteRecursorResult numMotives numMinors numIndices ownerIdx) result
 
+/-- Expose the source and abstract domains of the motive binder selected by
+the recursor owner.  In particular, the domain is checked before later
+motives, all minors, and the recursor's own index/major suffix have entered
+the context.  This is the structural side of the bridge to the independently
+replayed canonical motive telescope. -/
+theorem GeneratedRecursorTelescopeTranslation.ownerMotiveBinder
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (howner : ownerIdx < T.motives.length) :
+    ∃ suffixSource name sourceDomain sourceBody bi bodyTarget,
+      Expr.ForallTelescope source (T.params.length + ownerIdx) suffixSource ∧
+      suffixSource = .forallE name sourceDomain sourceBody bi ∧
+      TrExprS env Us
+        (abstractForallContext
+          (T.params ++ T.motives.take ownerIdx) [])
+        sourceDomain T.motives[ownerIdx] ∧
+      env.IsType Us.length
+        (abstractForallContext
+          (T.params ++ T.motives.take ownerIdx) []).toCtx
+        T.motives[ownerIdx] := by
+  let domains := T.params ++
+    (T.motives ++ (T.minors ++ (T.indices ++ T.major)))
+  have hlength : domains.length =
+      numParams + numMotives + numMinors + numIndices + 1 := by
+    simp only [domains, List.length_append, T.params_length,
+      T.motives_length, T.minors_length, T.indices_length,
+      T.major_length]
+    omega
+  have hposition : T.params.length + ownerIdx <
+      numParams + numMotives + numMinors + numIndices + 1 := by
+    rw [T.params_length, ← T.motives_length] at *
+    omega
+  have htarget : target = VExpr.wrapForalls domains T.result := by
+    simpa only [domains, List.append_assoc] using T.target_eq
+  rcases T.typed.binderAt_target domains T.result htarget hlength
+      (T.params.length + ownerIdx) hposition with
+    ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
+      Hsource, hsource, Hdomain, HdomainType, _Hbody⟩
+  have htake : domains.take (T.params.length + ownerIdx) =
+      T.params ++ T.motives.take ownerIdx := by
+    change (T.params ++
+      (T.motives ++ (T.minors ++ (T.indices ++ T.major)))).take
+        (T.params.length + ownerIdx) = _
+    rw [List.take_length_add_append]
+    rw [List.take_append_of_le_length (Nat.le_of_lt howner)]
+  have hselected : domains[T.params.length + ownerIdx] =
+      T.motives[ownerIdx] := by
+    change (T.params ++
+      (T.motives ++ (T.minors ++ (T.indices ++ T.major))))
+        [T.params.length + ownerIdx] = _
+    rw [List.getElem_append_right (by omega)]
+    simp only [Nat.add_sub_cancel_left]
+    rw [List.getElem_append_left howner]
+  rw [htake, hselected] at Hdomain HdomainType
+  exact ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
+    Hsource, hsource, Hdomain, HdomainType⟩
+
 /-- Applying the parameter, motive, and minor prefix of a translated
 recursor to its canonical variables leaves exactly the index/major suffix.
 This is the typed spine shared by every generated equation for the owner. -/
@@ -54953,6 +55111,62 @@ theorem
   refine ⟨T, C, ?_⟩
   exact hgenerated.transEmpty H.outVEnvWF.ordered
     (hcanonical.symm H.outVEnvWF.ordered)
+
+/-- Final executable/canonical owner-motive comparison frame.  This packages
+the independently replayed canonical motive with the exact source domain and
+abstract target selected from the installed generated recursor.  The target
+domain is checked under parameters and strictly earlier motives only; hence
+the remaining comparison with `C.motiveType` is a context-transport problem,
+not another inversion of the production telescope. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us.length stats decl
+          owner H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse C.params.reverse ∧
+        ∃ suffixSource name sourceDomain sourceBody bi bodyTarget,
+          Expr.ForallTelescope
+            (H.generated.entry owner howner).info.type
+            (T.params.length + owner) suffixSource ∧
+          suffixSource = .forallE name sourceDomain sourceBody bi ∧
+          TrExprS H.outVEnv Us
+            (abstractForallContext
+              (T.params ++ T.motives.take owner) [])
+            sourceDomain T.motives[owner] ∧
+          H.outVEnv.IsType Us.length
+            (abstractForallContext
+              (T.params ++ T.motives.take owner) []).toCtx
+            T.motives[owner] := by
+  dsimp only
+  rcases A.finalCanonicalParameterAlignment with
+    ⟨T, C, hparameters⟩
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hmotive : owner < T.motives.length := by
+    rw [T.motives_length]
+    simpa using hrecInfo
+  rcases T.ownerMotiveBinder hmotive with
+    ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
+      Hsource, hsource, Hdomain, HdomainType⟩
+  exact ⟨T, C, hparameters, suffixSource, name, sourceDomain, sourceBody,
+    bi, bodyTarget, Hsource, hsource, Hdomain, HdomainType⟩
 
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
