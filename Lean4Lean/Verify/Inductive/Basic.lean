@@ -25560,6 +25560,87 @@ structure RecursorMotiveTelescopeSeed
   telescope : RecursorMotiveTelescope resultLevel info.indices.size
     family familyType motiveType
 
+/-- A motive seed remains valid after later executable frames extend its
+root context.  The paired canonical telescope is unchanged, while every
+runtime target is weakened by the exact retained recursor-context lift. -/
+def RecursorMotiveTelescopeSeed.mono
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {Rcurrent : RecursorContextWF current recLparams}
+    (H : RecursorMotiveTelescopeSeed Rroot stats decl target info elimLevel)
+    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    RecursorMotiveTelescopeSeed Rcurrent stats decl target info elimLevel := by
+  have hmajorSource :
+      current.lctx.mkForall #[info.major] (.sort elimLevel) =
+        root.lctx.mkForall #[info.major] (.sort elimLevel) :=
+    H.majorBound.mkForall_mono Hext.contextLE _
+  have hmotiveSource :
+      current.lctx.mkForall info.indices
+          (current.lctx.mkForall #[info.major] (.sort elimLevel)) =
+        root.lctx.mkForall info.indices
+          (root.lctx.mkForall #[info.major] (.sort elimLevel)) := by
+    calc
+      current.lctx.mkForall info.indices
+          (current.lctx.mkForall #[info.major] (.sort elimLevel)) =
+          current.lctx.mkForall info.indices
+            (root.lctx.mkForall #[info.major] (.sort elimLevel)) :=
+        congrArg (fun body => current.lctx.mkForall info.indices body)
+          hmajorSource
+      _ = root.lctx.mkForall info.indices
+            (root.lctx.mkForall #[info.major] (.sort elimLevel)) :=
+        H.indicesBound.mkForall_mono Hext.contextLE _
+  have HmotiveTypeTr := Hext.weakTrExprS H.motiveTypeTr
+  rw [← hmotiveSource] at HmotiveTypeTr
+  exact {
+    canonical := H.canonical.mono (by
+      rw [Hext.venv_eq]
+      exact VEnv.LE.rfl)
+    target_lt := H.target_lt
+    indexCount := H.indexCount
+    family := H.family.lift' (Hext.shift.consN 0)
+    familyActualType := H.familyActualType.lift' (Hext.shift.consN 0)
+    familyType := H.familyType.lift' (Hext.shift.consN 0)
+    motiveActualType := H.motiveActualType.lift' (Hext.shift.consN 0)
+    motiveType := H.motiveType.lift' (Hext.shift.consN 0)
+    resultLevel := H.resultLevel
+    familyUnique := H.familyUnique
+    familyTr := Hext.weakTrExprS H.familyTr
+    familyTyping := Hext.weakHasType H.familyTyping
+    familyTypeDefEq := Hext.weakDefEqU H.familyTypeDefEq
+    indicesBound := H.indicesBound.mono Hext.contextLE
+    majorBound := H.majorBound.mono Hext.contextLE
+    motiveTypeTr := HmotiveTypeTr
+    motiveTypeDefEq := Hext.weakDefEqU H.motiveTypeDefEq
+    telescope := H.telescope.lift' (Hext.shift.consN 0) }
+
+/-- Changing only irrelevant `RecInfo` fields, such as the accumulated minor
+array, preserves the paired first-pass seed. -/
+def RecursorMotiveTelescopeSeed.congrInfo
+    (H : RecursorMotiveTelescopeSeed Rroot stats decl target info elimLevel)
+    (hindices : info'.indices = info.indices)
+    (hmajor : info'.major = info.major) :
+    RecursorMotiveTelescopeSeed Rroot stats decl target info' elimLevel where
+  canonical := {
+    H.canonical with
+    indices_length := by simpa [hindices] using H.canonical.indices_length }
+  target_lt := H.target_lt
+  indexCount := by simpa [hindices] using H.indexCount
+  family := H.family
+  familyActualType := H.familyActualType
+  familyType := H.familyType
+  motiveActualType := H.motiveActualType
+  motiveType := H.motiveType
+  resultLevel := H.resultLevel
+  familyUnique := H.familyUnique
+  familyTr := H.familyTr
+  familyTyping := H.familyTyping
+  familyTypeDefEq := H.familyTypeDefEq
+  indicesBound := by simpa [hindices] using H.indicesBound
+  majorBound := by simpa [hmajor] using H.majorBound
+  motiveTypeTr := by simpa [hindices, hmajor] using H.motiveTypeTr
+  motiveTypeDefEq := H.motiveTypeDefEq
+  telescope := by simpa [hindices] using H.telescope
+
 /-- A first-pass telescope seed supplies the context-polymorphic contract
 used by recursive constructor traversal.  Exact context extensions preserve
 the seed; unique translation identifies the validated family prefix, and
@@ -25681,6 +25762,11 @@ structure RecInfoMotiveTelescopes
   telescope : ∀ target (htarget : target < recInfos.size),
     RecursorMotiveTelescopeAt Rroot stats decl target recInfos[target]!
       elimLevel
+  seed : ∀ target (htarget : target < recInfos.size),
+    ∃ S : RecursorMotiveTelescopeSeed Rroot stats decl target
+        recInfos[target]! elimLevel,
+      VEnv.IsDefEqCtx Rroot.venv recLparams.length []
+        S.canonical.params.reverse parameterCtx
   canonical : ∀ target (htarget : target < recInfos.size),
     ∃ C : RecursorCanonicalMotiveTelescope Rroot.venv recLparams.length stats
         decl target recInfos[target]! elimLevel,
@@ -25694,6 +25780,7 @@ def RecInfoMotiveTelescopes.empty
     (elimLevel : Level) :
     RecInfoMotiveTelescopes Rroot stats decl parameterCtx #[] elimLevel where
   telescope target htarget := by simp at htarget
+  seed target htarget := by simp at htarget
   canonical target htarget := by simp at htarget
 
 def RecInfoMotiveTelescopes.mono
@@ -25704,6 +25791,11 @@ def RecInfoMotiveTelescopes.mono
       elimLevel where
   telescope target htarget := fun R Hlater =>
     H.telescope target htarget R (Hext.trans Hlater)
+  seed target htarget := by
+    rcases H.seed target htarget with ⟨S, hparams⟩
+    refine ⟨S.mono Hext, ?_⟩
+    simpa [RecursorMotiveTelescopeSeed.mono,
+      RecursorCanonicalMotiveTelescope.mono, Hext.venv_eq] using hparams
   canonical target htarget := by
     rw [Hext.venv_eq]
     exact H.canonical target htarget
@@ -25716,10 +25808,11 @@ def RecInfoMotiveTelescopes.push
     (next : AddInductive.RecInfo)
     (Hnext : RecursorMotiveTelescopeAt Rroot stats decl recInfos.size next
       elimLevel)
-    (Hcanonical : ∃ C : RecursorCanonicalMotiveTelescope Rroot.venv
-        recLparams.length stats decl recInfos.size next elimLevel,
+    (Hseed : RecursorMotiveTelescopeSeed Rroot stats decl recInfos.size next
+      elimLevel)
+    (Hparams :
       VEnv.IsDefEqCtx Rroot.venv recLparams.length []
-        C.params.reverse parameterCtx) :
+        Hseed.canonical.params.reverse parameterCtx) :
     RecInfoMotiveTelescopes Rroot stats decl parameterCtx (recInfos.push next)
       elimLevel where
   telescope target htarget := by
@@ -25738,12 +25831,28 @@ def RecInfoMotiveTelescopes.push
         exact Array.getElem_push_lt hold
       rw [hget]
       exact H.telescope target hold
+  seed target htarget := by
+    by_cases hlast : target = recInfos.size
+    · subst target
+      have hget : (recInfos.push next)[recInfos.size]! = next := by simp
+      rw [hget]
+      exact ⟨Hseed, Hparams⟩
+    · have hold : target < recInfos.size := by
+        simp only [Array.size_push] at htarget
+        omega
+      have hget : (recInfos.push next)[target]! = recInfos[target]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        rw [dif_pos htarget, dif_pos hold]
+        exact Array.getElem_push_lt hold
+      rw [hget]
+      exact H.seed target hold
   canonical target htarget := by
     by_cases hlast : target = recInfos.size
     · subst target
       have hget : (recInfos.push next)[recInfos.size]! = next := by simp
       rw [hget]
-      exact Hcanonical
+      exact ⟨Hseed.canonical, Hparams⟩
     · have hold : target < recInfos.size := by
         simp only [Array.size_push] at htarget
         omega
@@ -25775,6 +25884,17 @@ def RecInfoMotiveTelescopes.modifyMinors
         rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos owner _ hold]
       · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos owner target _
             hold howner]
+  seed target htarget := by
+    have hold : target < recInfos.size := by simpa using htarget
+    rcases H.seed target hold with ⟨S, hparams⟩
+    by_cases howner : owner = target
+    · subst target
+      rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos owner _ hold]
+      refine ⟨S.congrInfo rfl rfl, ?_⟩
+      simpa [RecursorMotiveTelescopeSeed.congrInfo] using hparams
+    · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos owner target _
+            hold howner]
+      exact ⟨S, hparams⟩
   canonical target htarget := by
     have hold : target < recInfos.size := by simpa using htarget
     rcases H.canonical target hold with ⟨C, hparams⟩
@@ -31711,19 +31831,11 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           telescope := (Hcanonical.telescope.lift'
             (HmajorExtension.shift.consN 0)).lift'
               (HmotiveExtension.shift.consN 0) }
-        have HseedAt : RecursorMotiveTelescopeAt Rmotive stats decl
-            recInfos.size nextInfo elimLevel := by
-          rw [hprogress]
-          exact Hseed.toTelescopeAt
-        have HseedCanonical :
-            ∃ C : RecursorCanonicalMotiveTelescope Rmotive.venv
+        have HseedParams0 :
+            VEnv.IsDefEqCtx Rmotive.venv
               (AddInductive.getRecLevelParams elimLevel base.lparams).length
-              stats decl recInfos.size nextInfo elimLevel,
-              VEnv.IsDefEqCtx Rmotive.venv
-                (AddInductive.getRecLevelParams elimLevel base.lparams).length
-                [] C.params.reverse Hsuffix.parameterDecls.toCtx := by
-          rw [hprogress]
-          refine ⟨Hseed.canonical, ?_⟩
+              [] Hseed.canonical.params.reverse
+                Hsuffix.parameterDecls.toCtx := by
           change VEnv.IsDefEqCtx Rindices.venv
             (AddInductive.getRecLevelParams elimLevel base.lparams).length []
             Hsynthesis.params.reverse Hsuffix.parameterDecls.toCtx
@@ -31731,9 +31843,21 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
             rw [← Hsynthesis.scopeCtx]
             exact Hsynthesis.scopeWF.toCtx))
+        have HseedPair :
+            ∃ S : RecursorMotiveTelescopeSeed Rmotive stats decl
+                recInfos.size nextInfo elimLevel,
+              VEnv.IsDefEqCtx Rmotive.venv
+                (AddInductive.getRecLevelParams elimLevel base.lparams).length
+                [] S.canonical.params.reverse
+                  Hsuffix.parameterDecls.toCtx := by
+          rw [hprogress]
+          exact ⟨Hseed, HseedParams0⟩
+        rcases HseedPair with ⟨Hseed', HseedParams⟩
+        have HseedAt : RecursorMotiveTelescopeAt Rmotive stats decl
+            recInfos.size nextInfo elimLevel := Hseed'.toTelescopeAt
         let Htelescopes' :=
           (Htelescopes.mono HrootExtension).push nextInfo
-            HseedAt HseedCanonical
+            HseedAt Hseed' HseedParams
         refine resultSemantics Hbase stats indTypes elimLevel Helim Hheaders
           hwhnf hconsume (dIdx + 1)
           (recInfos.push {
@@ -55324,6 +55448,32 @@ complete mutual and constructor passes and transported to the final constant
 environment.  Its only ambient binders are the common parameters, matching
 the grouped prefix of `GeneratedRecursorTelescopeTranslation`. -/
 theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalPairedMotiveSeed
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (_A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let parameterCtx :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls.toCtx
+    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+        H.recInfos[owner]! H.elimLevel,
+      VEnv.IsDefEqCtx H.recursorWF.venv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+        S.canonical.params.reverse parameterCtx := by
+  dsimp only
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  exact H.motiveTelescopes.seed owner hrecInfo
+
+theorem
     RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalMotiveTelescope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -55348,11 +55498,11 @@ theorem
   dsimp only
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  rcases H.motiveTelescopes.canonical owner hrecInfo with ⟨C, hparams⟩
+  rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
-  exact ⟨C.mono hbase, hparams.mono hbase⟩
+  exact ⟨S.canonical.mono hbase, hparams.mono hbase⟩
 
 /-- Compose two context conversions over the empty base.  The domain proof
 of the second conversion is transported back across the already composed
