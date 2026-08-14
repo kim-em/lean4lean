@@ -67599,14 +67599,18 @@ theorem
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
     let parameterDecls := H.parameterSuffix.parameterDecls
     let inserted := T.motives ++ T.minors
-    ∃ (equationDomains localDomains : List VExpr)
+    ∃ (equationDomains localDomains added : List VExpr)
         (exactIndexTargets : List VExpr) (majorTarget exposedTarget : VExpr),
-      OnCtx
+      equationDomains ++ localDomains =
+          parameterDecls.toCtx.reverse ++ added ∧
+        equationDomains.length = A.rule.binders.length ∧
+        OnCtx
           (abstractForallContext (equationDomains ++ localDomains) []).toCtx
           (H.outVEnv.IsType Us.length) ∧
         H.outVEnv.HasType Us.length
           (abstractForallContext (equationDomains ++ localDomains) []).toCtx
           majorTarget exposedTarget ∧
+        exactIndexTargets.length = F.telescope.indices.length ∧
         ∃ levels parameterTargets spineIndexTargets,
           exposedTarget.getAppFnArgs =
             (.const (decl.types[selectedOwner]'F.semantic.validated.target_lt).name
@@ -67640,7 +67644,7 @@ theorem
   rcases F.canonicalInsertedSemanticCallArgumentFrame T with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, narrowExposed, _hfront,
-      hliftedFront, hfields, hlocal, Hctx, _hlength, Hindices, _Hmajor,
+      hliftedFront, hfields, hlocal, Hctx, hlength, Hindices, _Hmajor,
       Hexposed, Htyping, _HindexEq, _HmajorEq⟩
   let liftedFields :=
     (liftContextPrefix inserted.length fieldDomains.reverse).reverse
@@ -67649,6 +67653,7 @@ theorem
       rawLocalDomains.reverse).reverse
   let equationDomains :=
     parameterDecls.toCtx.reverse ++ inserted ++ liftedFields
+  let added := inserted ++ liftedFields ++ liftedLocals
   let exactIndexTargets := narrowIndices.map fun target =>
     target.liftN inserted.length
       (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
@@ -67670,6 +67675,11 @@ theorem
       majorTarget exposedTarget := by
     simpa [equationDomains, parameterDecls, inserted, majorTarget,
       exposedTarget, hsplitFront, List.append_assoc] using Htyping
+  have hexactIndexLength : exactIndexTargets.length =
+      F.telescope.indices.length := by
+    simp only [exactIndexTargets, List.length_map]
+    exact (Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      _HindexEq).trans hlength
   have Hexposed' : TrExprS H.outVEnv Us
       (abstractForallContext (equationDomains ++ liftedLocals) [])
       ((F.semantic.generated.exposedType.abstractList
@@ -67918,11 +67928,169 @@ theorem
               (.refl H.outVEnvWF HvlctxWF) Hexact)
             (ih Htail)
     exact align HspineIndices Hindices'
-  refine ⟨equationDomains, liftedLocals, exactIndexTargets, majorTarget,
-    exposedTarget, Hctx', Htyping', levels, parameterTargets,
-    spineIndexTargets, ?_, hlevels, ?_, hparameterTargets, HindexDefEq⟩
+  refine ⟨equationDomains, liftedLocals, added, exactIndexTargets, majorTarget,
+    exposedTarget, ?_, hequationLength, Hctx', Htyping', hexactIndexLength, levels,
+    parameterTargets, spineIndexTargets, ?_, hlevels, ?_,
+    hparameterTargets, HindexDefEq⟩
+  · simp [equationDomains, added, parameterDecls, List.append_assoc]
   simpa [htranslatedArgs] using hspine
   simpa [parameterSources] using HparametersOriginal
+
+/-- The translated recursive major has the independently specified selected
+mutual family at the exact recursive-index targets.  The exposed production
+spine is first identified at canonical parameters, then its merely
+convertible index suffix is transported pointwise. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.canonicalInsertedSemanticMajorTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us stats decl
+          selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ (equationDomains localDomains added exactIndexTargets : List VExpr)
+          (majorTarget : VExpr),
+        equationDomains ++ localDomains =
+            parameterDecls.toCtx.reverse ++ added ∧
+          OnCtx
+            (abstractForallContext
+              (equationDomains ++ localDomains) []).toCtx
+            (H.outVEnv.IsType Us.length) ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+            C.params.reverse parameterDecls.toCtx ∧
+          exactIndexTargets.length = C.indices.length ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext
+              (equationDomains ++ localDomains) []).toCtx
+            majorTarget
+            (VExpr.mkApps (C.family.liftN added.length 0)
+              exactIndexTargets) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  rcases F.canonicalInsertedSemanticExposedSpine T with
+    ⟨equationDomains, localDomains, added, exactIndexTargets,
+      majorTarget, exposedTarget, hdecomposition, hequationLength,
+      Hctx, Htyping, hexactLength, levels, parameterTargets,
+      spineIndexTargets, hspine, hlevels, _HparameterTranslation,
+      hparameterTargets, HindexDefEq⟩
+  rcases F.canonicalParameterAlignment with
+    ⟨C, HselectedCanonical⟩
+  rcases H.finalRecursorParameterContextAt selectedOwner F.entry_lt with
+    ⟨Tselected, HselectedCached⟩
+  rcases Tselected.groupsResult_eq F.telescope with
+    ⟨hselectedParams, _hselectedMotives, _hselectedMinors,
+      _hselectedIndices, _hselectedMajor, _hselectedResult⟩
+  rw [hselectedParams] at HselectedCached
+  have HselectedCached' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      F.telescope.params.reverse parameterDecls.toCtx := by
+    simpa [parameterDecls, H.parameterDecls, Us] using HselectedCached
+  have HcanonicalCached : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      C.params.reverse parameterDecls.toCtx :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+      (HselectedCanonical.symm H.outVEnvWF.ordered) HselectedCached'
+  have hparameterLength : parameterDecls.toCtx.length = stats.params.size := by
+    calc
+      parameterDecls.toCtx.length = parameterDecls.length := by
+        simpa [parameterDecls] using
+          checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
+            H.parameterSuffix.cached
+      _ = stats.params.size := by
+        simpa [parameterDecls] using H.parameterSuffix.parameterDecls_length
+  have haddedLength : A.rule.binders.length + localDomains.length =
+      stats.params.size + added.length := by
+    have hlengths := congrArg List.length hdecomposition
+    simp only [List.length_append, List.length_reverse] at hlengths
+    rw [hequationLength, hparameterLength] at hlengths
+    exact hlengths
+  have hparameterBound : stats.params.size ≤ A.rule.binders.length := by
+    have hparams : A.rule.params_bound.fvars.length = stats.params.size := by
+      have h := congrArg Array.size A.rule.params_bound.expressions
+      simpa using h.symm
+    unfold BoundGeneratedRecursorRule.binders
+    simp only [List.length_append]
+    omega
+  have hparameterTargetsLifted : parameterTargets =
+      (recursorCanonicalVars stats.params.size).map
+        (fun target => target.liftN added.length 0) := by
+    rw [hparameterTargets,
+      recursorCanonicalVars_liftN_zero_eq_ofFn]
+    apply List.ext_getElem
+    · simp
+    · intro k hleft hright
+      have hk : k < stats.params.size := by simpa using hright
+      simp only [List.getElem_map, List.getElem_ofFn]
+      simp [VExpr.liftN, liftVar]
+      congr 1
+      omega
+  let familyTarget := VExpr.mkApps
+    (.const (decl.types[selectedOwner]'F.semantic.validated.target_lt).name
+      levels) parameterTargets
+  have hcanonicalLevels : C.levels = levels := by
+    exact Option.some.inj (C.levels_translation.symm.trans hlevels)
+  have hfamilyTargetCanonical :
+      familyTarget = C.family.liftN added.length 0 := by
+    dsimp only [familyTarget]
+    rw [C.family_eq]
+    simp only [C.params_length, VExpr.liftN_mkApps]
+    rw [hcanonicalLevels, hparameterTargetsLifted]
+    simp [selectedOwner, VExpr.liftN]
+  have hexposedApplication : exposedTarget =
+      VExpr.mkApps familyTarget spineIndexTargets := by
+    have hrebuild := VExpr.mkApps_getAppFnArgs exposedTarget
+    rw [hspine] at hrebuild
+    simpa [familyTarget, VExpr.mkApps_append] using hrebuild.symm
+  have HmajorSpine : H.outVEnv.HasType Us.length
+      (abstractForallContext
+        (equationDomains ++ localDomains) []).toCtx
+      majorTarget
+      (VExpr.mkApps (C.family.liftN added.length 0) spineIndexTargets) := by
+    rw [← hfamilyTargetCanonical, ← hexposedApplication]
+    exact Htyping
+  have HspineWF : VExpr.WF H.outVEnv Us.length
+      (abstractForallContext
+        (equationDomains ++ localDomains) []).toCtx
+      (VExpr.mkApps (C.family.liftN added.length 0)
+        spineIndexTargets) := by
+    rcases HmajorSpine.isType H.outVEnvWF Hctx with ⟨level, Htype⟩
+    exact ⟨.sort level, Htype⟩
+  have HfamilyWF := VExpr.WF.mkApps_fn H.outVEnvWF.ordered Hctx HspineWF
+  have HappDefEq := VEnv.IsDefEqU.mkApps H.outVEnvWF Hctx
+    (VEnv.IsDefEqU.refl HfamilyWF) HspineWF HindexDefEq
+  have HmajorExact : H.outVEnv.HasType Us.length
+      (abstractForallContext
+        (equationDomains ++ localDomains) []).toCtx
+      majorTarget
+      (VExpr.mkApps (C.family.liftN added.length 0)
+        exactIndexTargets) :=
+    HmajorSpine.defeqU_r H.outVEnvWF Hctx HappDefEq
+  have hindexCanonical : exactIndexTargets.length = C.indices.length := by
+    calc
+      exactIndexTargets.length = F.telescope.indices.length := hexactLength
+      _ = H.recInfos[selectedOwner]!.indices.size :=
+        F.telescope.indices_length
+      _ = C.indices.length := C.indices_length.symm
+  exact ⟨C, equationDomains, localDomains, added, exactIndexTargets,
+    majorTarget, hdecomposition, Hctx, HcanonicalCached,
+    hindexCanonical, HmajorExact⟩
 
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
