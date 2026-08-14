@@ -378,6 +378,8 @@ theorem Ctx.LiftN.insertAfterPrefix
 well-formed block is inserted beneath it and every recent declaration is
 lifted at its dependent cutoff. -/
 theorem _root_.Lean4Lean.OnCtx.insertAfterPrefix
+    {env : VEnv} {uvars : Nat}
+    {recent inserted outer : List VExpr}
     (henv : env.Ordered)
     (Hrecent : OnCtx (recent ++ outer) (env.IsType uvars))
     (Hinserted : OnCtx (inserted ++ outer) (env.IsType uvars)) :
@@ -5728,7 +5730,7 @@ theorem _root_.Lean4Lean.VLCtx.fvars_take_sublist
       | none => simpa using ih scope
       | some fv =>
         change (fv.1 :: VLCtx.fvars (scope.take n)).Sublist
-          (fv.1 :: scope.fvars)
+          (fv.1 :: VLCtx.fvars scope)
         exact List.cons_sublist_cons.mpr (ih scope)
 
 theorem FrontFVLift.expandedContext
@@ -63716,8 +63718,9 @@ theorem
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
     let parameterDecls := H.parameterSuffix.parameterDecls
     let inserted := T.motives ++ T.minors
-    ∃ fieldDomains localDomains liftedFront narrowIndices,
-      let closedSource := fun index =>
+    ∃ (fieldDomains localDomains liftedFront : List VExpr)
+        (narrowIndices : List VExpr),
+      let closedSource := fun index : Expr =>
         ((index.abstractList
           F.semantic.generated.arguments_bound.fvars).abstractList
             A.rule.all_args_bound.fvars
@@ -63787,30 +63790,41 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     simpa [liftedFront, List.reverse_append, List.append_assoc,
       VLCtx.toCtx] using HliftedCtx
-  have HliftedIndices : List.Forall₂
-      (TrExprS H.outVEnv Us
-        (abstractForallContext
-          (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
-      ((sourceIndices.map fun index =>
-        ((index.abstractList
-          F.semantic.generated.arguments_bound.fvars).abstractList
-            A.rule.all_args_bound.fvars
-            F.semantic.generated.localArgs.size).abstractList
-              A.rule.params_bound.fvars
-              (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
-        ).map fun source => source.liftLooseBVars'
-          (fieldDomains ++ localDomains).length inserted.length)
-      (narrowIndices.map fun target => target.liftN inserted.length
-        (fieldDomains ++ localDomains).length) := by
-    induction Hindices with
+  have liftSources : ∀ {sources targets : List _},
+      List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext
+              (parameterDecls.toCtx.reverse ++ fieldDomains ++
+                localDomains) []))
+          sources targets →
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext
+              (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
+          (sources.map fun source => source.liftLooseBVars'
+            (fieldDomains ++ localDomains).length inserted.length)
+          (targets.map fun target => target.liftN inserted.length
+            (fieldDomains ++ localDomains).length) := by
+    intro sources targets Hsources
+    induction Hsources with
     | nil => exact .nil
     | @cons source target sources targets Hsource _ ih =>
-      have Hlifted := Hsource.insertBeforeInner H.outVEnvWF.ordered inserted
+      have Hsource' : TrExprS H.outVEnv Us
+          (abstractForallContext
+            (parameterDecls.toCtx.reverse ++
+              (fieldDomains ++ localDomains)) []) source target := by
+        simpa only [List.append_assoc] using Hsource
+      have Hlifted :=
+        Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
+          (outer := parameterDecls.toCtx.reverse)
+          (inner := fieldDomains ++ localDomains)
+          H.outVEnvWF.ordered Hsource' inserted
       simpa [liftedFront, List.append_assoc] using
         List.Forall₂.cons Hlifted ih
+  have HliftedIndices := liftSources Hindices
   refine ⟨fieldDomains, localDomains, liftedFront, narrowIndices,
     rfl, hfields, hlocal, HequationCtx, ?_⟩
-  simpa [List.map_map, Function.comp_def] using HliftedIndices
+  simpa [inserted, List.map_map, Function.comp_def] using HliftedIndices
 
 /-- Insert motives and minors into the shared recursive-call argument frame.
 The narrowed indices and major are lifted at one common field/local cutoff,
@@ -63955,7 +63969,16 @@ theorem
         (source.liftLooseBVars' cutoff inserted.length)
         (target.liftN inserted.length cutoff) := by
     intro source target Hsource
-    have Hlifted := Hsource.insertBeforeInner H.outVEnvWF.ordered inserted
+    have Hsource' : TrExprS H.outVEnv Us
+        (abstractForallContext
+          (parameterDecls.toCtx.reverse ++
+            (fieldDomains ++ localDomains)) []) source target := by
+      simpa only [List.append_assoc] using Hsource
+    have Hlifted :=
+      Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
+        (outer := parameterDecls.toCtx.reverse)
+        (inner := fieldDomains ++ localDomains)
+        H.outVEnvWF.ordered Hsource' inserted
     simpa [liftedFront, hcutoff, List.append_assoc] using Hlifted
   have liftSources : ∀ {sources targets},
       List.Forall₂
@@ -64448,6 +64471,267 @@ theorem
     hownerMotive motiveDomains resultLevel hmotive hdomainLength
   exact ⟨S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hmotive, Hsuffix⟩
+
+/-- Insert an arbitrary well-formed inner front beneath the suffix alignment
+selected by a recursive call.  This is the mutual-recursion counterpart of
+`finalOwnerMotiveSuffixAlignmentUnderFields`: the owner is read from the
+validated call rather than from the equation currently being generated. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.ownerMotiveSuffixAlignmentUnderFront
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (frontDomains : List VExpr)
+    (hctx : OnCtx
+      (((F.telescope.params ++ F.telescope.motives ++
+          F.telescope.minors) ++ frontDomains).reverse)
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ motiveDomains resultLevel,
+      motiveDomains.length = H.recInfos[selectedOwner]!.indices.size + 1 ∧
+      F.telescope.motives[selectedOwner]! =
+        VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+      let outer := F.telescope.params ++ F.telescope.motives ++
+        F.telescope.minors
+      let suffix := F.telescope.indices ++ F.telescope.major
+      let later := F.telescope.motives.drop (selectedOwner + 1) ++
+        F.telescope.minors
+      let expected :=
+        (liftContextPrefixAt (later.length + 1) 0
+          motiveDomains.reverse).reverse
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        (liftContextPrefix frontDomains.length suffix.reverse ++
+          frontDomains.reverse ++ outer.reverse)
+        (liftContextPrefix frontDomains.length expected.reverse ++
+          frontDomains.reverse ++ outer.reverse) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases F.ownerMotiveSuffixContextAlignment with
+    ⟨_S, _hparameters, motiveDomains, resultLevel,
+      hdomainLength, hmotive, Hsuffix⟩
+  let outer := F.telescope.params ++ F.telescope.motives ++
+    F.telescope.minors
+  let suffix := F.telescope.indices ++ F.telescope.major
+  let later := F.telescope.motives.drop (selectedOwner + 1) ++
+    F.telescope.minors
+  let expected :=
+    (liftContextPrefixAt (later.length + 1) 0
+      motiveDomains.reverse).reverse
+  have hsuffixLength : suffix.reverse.length = expected.reverse.length := by
+    have htotal := Hsuffix.length_eq
+    simp [outer, suffix, later, expected] at htotal ⊢
+    omega
+  have hfrontCtx : OnCtx (frontDomains.reverse ++ outer.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [outer, List.reverse_append, List.append_assoc] using hctx
+  have Haligned := VEnv.IsDefEqCtx.insertSameMiddle
+    H.outVEnvWF.ordered suffix.reverse expected.reverse
+      frontDomains.reverse outer.reverse Hsuffix hsuffixLength hfrontCtx
+  refine ⟨motiveDomains, resultLevel, hdomainLength, hmotive, ?_⟩
+  simpa only [outer, suffix, later, expected, List.reverse_append,
+    List.append_assoc, List.length_reverse] using Haligned
+
+/-- The motive variable selected by a recursive call, weakened beneath an
+arbitrary inner front, exposes exactly the independently reconstructed
+index/major domains for that selected mutual-family owner. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.ownerMotiveFrontWitnessTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (frontDomains : List VExpr) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ motiveDomains resultLevel,
+      motiveDomains.length = H.recInfos[selectedOwner]!.indices.size + 1 ∧
+      F.telescope.motives[selectedOwner]! =
+        VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+      let outer := F.telescope.params ++ F.telescope.motives ++
+        F.telescope.minors
+      let later := F.telescope.motives.drop (selectedOwner + 1) ++
+        F.telescope.minors
+      let expected :=
+        (liftContextPrefixAt (later.length + 1) 0
+          motiveDomains.reverse).reverse
+      H.outVEnv.HasType Us.length
+        (frontDomains.reverse ++ outer.reverse)
+        (.bvar (frontDomains.length + later.length))
+        (VExpr.wrapForalls
+          ((liftContextPrefix frontDomains.length expected.reverse).reverse)
+          (.sort resultLevel)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases H.finalOwnerMotiveTelescopeShapeForAt selectedOwner F.entry_lt
+      F.telescope with
+    ⟨_S, _hparameters, motiveDomains, resultLevel,
+      hdomainLength, _hsuffixLength, hmotive, _hresultLevel⟩
+  have hownerRecInfo : selectedOwner < H.recInfos.size := by
+    simpa [H.generated.length] using F.entry_lt
+  have hownerMotive : selectedOwner < F.telescope.motives.length := by
+    rw [F.telescope.motives_length]
+    simpa using hownerRecInfo
+  let outer := F.telescope.params ++ F.telescope.motives ++
+    F.telescope.minors
+  let later := F.telescope.motives.drop (selectedOwner + 1) ++
+    F.telescope.minors
+  let expected :=
+    (liftContextPrefixAt (later.length + 1) 0
+      motiveDomains.reverse).reverse
+  have Hmotive := F.telescope.ownerMotiveOuterBvarTyping hownerMotive
+  have W : Ctx.LiftN frontDomains.length 0 outer.reverse
+      (frontDomains.reverse ++ outer.reverse) := by
+    exact .zero frontDomains.reverse (by simp)
+  have Hweak := Hmotive.weakN H.outVEnvWF.ordered W
+  rw [show F.telescope.motives[selectedOwner]'hownerMotive =
+      F.telescope.motives[selectedOwner]! by
+        exact (getElem!_pos F.telescope.motives selectedOwner
+          hownerMotive).symm,
+    hmotive] at Hweak
+  exact ⟨motiveDomains, resultLevel, hdomainLength, hmotive, by
+    simpa [outer, later, expected, VExpr.liftN_wrapForalls,
+      liftContextPrefix, VExpr.liftN_liftN, VExpr.liftN, liftVar_base,
+      Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using Hweak⟩
+
+/-- Re-close the call-selected suffix conversion as equality of function
+types.  The residual stays the selected recursor's generated result; only
+the dependent domains are replaced by those exposed by its owner motive. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.ownerMotiveSuffixTypeAlignmentUnderFront
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (frontDomains : List VExpr) (prefixTarget : VExpr)
+    (hctx : OnCtx
+      (((F.telescope.params ++ F.telescope.motives ++
+          F.telescope.minors) ++ frontDomains).reverse)
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+    (Hprefix : H.outVEnv.HasType
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (((F.telescope.params ++ F.telescope.motives ++
+          F.telescope.minors) ++ frontDomains).reverse)
+      prefixTarget
+      ((VExpr.wrapForalls
+        (F.telescope.indices ++ F.telescope.major)
+        F.telescope.result).liftN frontDomains.length 0)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ motiveDomains resultLevel,
+      motiveDomains.length = H.recInfos[selectedOwner]!.indices.size + 1 ∧
+      F.telescope.motives[selectedOwner]! =
+        VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+      let suffix := F.telescope.indices ++ F.telescope.major
+      let later := F.telescope.motives.drop (selectedOwner + 1) ++
+        F.telescope.minors
+      let expected :=
+        (liftContextPrefixAt (later.length + 1) 0
+          motiveDomains.reverse).reverse
+      let expectedDomains :=
+        (liftContextPrefix frontDomains.length expected.reverse).reverse
+      H.outVEnv.IsDefEqU Us.length
+        (frontDomains.reverse ++
+          (F.telescope.params ++ F.telescope.motives ++
+            F.telescope.minors).reverse)
+        ((VExpr.wrapForalls suffix F.telescope.result).liftN
+          frontDomains.length 0)
+        (VExpr.wrapForalls expectedDomains
+          (F.telescope.result.liftN frontDomains.length suffix.length)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases F.ownerMotiveSuffixAlignmentUnderFront frontDomains hctx with
+    ⟨motiveDomains, resultLevel, hdomainLength, hmotive, Haligned⟩
+  let outer := F.telescope.params ++ F.telescope.motives ++
+    F.telescope.minors
+  let suffix := F.telescope.indices ++ F.telescope.major
+  let later := F.telescope.motives.drop (selectedOwner + 1) ++
+    F.telescope.minors
+  let expected :=
+    (liftContextPrefixAt (later.length + 1) 0
+      motiveDomains.reverse).reverse
+  let actualRecent := liftContextPrefix frontDomains.length suffix.reverse
+  let expectedRecent :=
+    liftContextPrefix frontDomains.length expected.reverse
+  let base := frontDomains.reverse ++ outer.reverse
+  have Haligned' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (actualRecent ++ base) (expectedRecent ++ base) := by
+    simpa [Us, actualRecent, expectedRecent, base, outer, suffix, later,
+      expected] using Haligned
+  have HprefixType := Hprefix.isType H.outVEnvWF hctx
+  rw [VExpr.liftN_wrapForalls] at HprefixType
+  have Hopened := VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
+    (ctx := base) (domains := actualRecent.reverse)
+    (result := F.telescope.result.liftN frontDomains.length suffix.length)
+    (by simpa [base, outer] using hctx) (by
+      simpa [actualRecent, suffix, base, outer, liftContextPrefix,
+        Nat.add_comm] using HprefixType)
+  rcases Hopened.2 with ⟨bodyLevel, Hbody⟩
+  have Hbody' : H.outVEnv.HasType Us.length
+      (actualRecent ++ base)
+      (F.telescope.result.liftN frontDomains.length suffix.length)
+      (.sort bodyLevel) := by
+    simpa [actualRecent, base, outer, suffix] using Hbody
+  have hrecentLength : expectedRecent.length = actualRecent.length := by
+    have hlength := Haligned'.length_eq
+    simp only [List.length_append] at hlength
+    omega
+  have Hclosed := VEnv.IsDefEqCtx.closeHeads Haligned'
+    actualRecent.length (by simp [actualRecent, suffix]) Hbody'
+  rcases Hclosed with ⟨closedLevel, Hclosed⟩
+  have Hclosed' : H.outVEnv.IsDefEq Us.length base
+      (VExpr.wrapForalls actualRecent.reverse
+        (F.telescope.result.liftN frontDomains.length suffix.length))
+      (VExpr.wrapForalls expectedRecent.reverse
+        (F.telescope.result.liftN frontDomains.length suffix.length))
+      (.sort closedLevel) := by
+    have hrightTake : (expectedRecent ++ base).take actualRecent.length =
+        expectedRecent := by
+      rw [← hrecentLength]
+      simp
+    rw [List.drop_left, List.take_left, hrightTake] at Hclosed
+    exact Hclosed
+  refine ⟨motiveDomains, resultLevel, hdomainLength, hmotive, ?_⟩
+  refine ⟨.sort closedLevel, ?_⟩
+  change H.outVEnv.IsDefEq Us.length base
+    ((VExpr.wrapForalls suffix F.telescope.result).liftN
+      frontDomains.length 0)
+    (VExpr.wrapForalls expectedRecent.reverse
+      (F.telescope.result.liftN frontDomains.length suffix.length))
+    (.sort closedLevel)
+  rw [VExpr.liftN_wrapForalls]
+  simpa [actualRecent, base, outer, suffix,
+    liftContextPrefix, Nat.add_comm] using Hclosed'
 
 /-- The concrete constructor constant at the head of the generated major
 premise translates under recursor universes to the installed abstract
@@ -66363,7 +66647,8 @@ theorem
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
     let parameterDecls := H.parameterSuffix.parameterDecls
     let inserted := T.motives ++ T.minors
-    ∃ fieldDomains localDomains liftedFront narrowIndices,
+    ∃ (fieldDomains localDomains liftedFront : List VExpr)
+        (narrowIndices : List VExpr),
       liftedFront =
           (liftContextPrefix inserted.length
             (fieldDomains ++ localDomains).reverse).reverse ∧
@@ -66409,7 +66694,7 @@ theorem
       (narrowIndices.map fun target =>
         target.liftN inserted.length
           (fieldDomains ++ localDomains).length) := by
-    simpa [hfields, hlocal, Nat.add_comm] using Hindices
+    simpa [inserted, hfields, hlocal, Nat.add_comm] using Hindices
   have hsource := F.insertedSemanticIndexSources_eq T
   dsimp only at hsource
   rw [hsource] at Hindices'
