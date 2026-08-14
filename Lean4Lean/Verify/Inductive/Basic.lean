@@ -54663,6 +54663,58 @@ theorem
     Hext binding A.semantics.target_translation A.semantics.target_type
     Hvalidated
 
+/-- For any retained translation of this recursor, the semantic motive
+telescope consumes exactly as many arguments as its canonical index suffix,
+and those semantic arguments translate the same concrete index spine later
+abstracted into the equation context.  Thus the only remaining distinction
+between the two spines is context transport, not source selection or arity. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.semanticMotiveIndexSpineFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    ∃ binding : RecursorMotiveBinding A.semantics.context
+        H.recInfos[owner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence A.semantics.context
+          stats H.recInfos[owner]! binding A.rule.target
+          A.semantics.targetTarget,
+        evidence.indices.length = T.indices.length ∧
+        List.Forall₂
+          (TrExprS A.semantics.context.venv
+            (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+            A.semantics.context.mlctx.vlctx)
+          (A.rule.target.getAppArgs[stats.params.size:]).toList
+          evidence.indices := by
+  rcases A.semanticMotiveTelescopeEvidence with
+    ⟨binding, ⟨evidence⟩⟩
+  have htranslated :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      evidence.indices_translation
+  have hsourceArity := checkPositivityStep.getIIndices.index_arity
+    A.semantics.target_valid
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hrecArity := H.arities owner hrecInfo
+  have hlength : evidence.indices.length = T.indices.length := by
+    rw [T.indices_length, hrecArity]
+    rw [A.semantic_owner] at hsourceArity
+    simpa [AddInductive.getIIndices] using htranslated.symm.trans hsourceArity
+  exact ⟨binding, evidence, hlength, evidence.indices_translation⟩
+
 /-- Applying the retained motive telescope to the checked constructor major
 produces the exact semantic result sort of this generated equation. -/
 theorem
