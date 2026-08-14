@@ -364,7 +364,7 @@ theorem Ctx.LiftN.insertAfterPrefix
 /-- A well-formed recent context remains well formed when a separately
 well-formed block is inserted beneath it and every recent declaration is
 lifted at its dependent cutoff. -/
-theorem OnCtx.insertAfterPrefix
+theorem _root_.Lean4Lean.OnCtx.insertAfterPrefix
     (henv : env.Ordered)
     (Hrecent : OnCtx (recent ++ outer) (env.IsType uvars))
     (Hinserted : OnCtx (inserted ++ outer) (env.IsType uvars)) :
@@ -63150,6 +63150,132 @@ theorem
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
     narrowIndices, hfront, hfields, hlocal, HclosedCtx, hlength,
     Hclosed', HindexEq⟩
+
+/-- Insert the generated motive/minor block beneath the parameter-closed
+field/local telescope.  Both the dependent domains and recursive-index
+targets are lifted at the field/local cutoff, yielding the precise anonymous
+context in which the full recursive recursor application will be assembled. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.insertedSemanticIndexFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    let inserted := T.motives ++ T.minors
+    ∃ fieldDomains localDomains liftedFront narrowIndices,
+      let closedSource := fun index =>
+        ((index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size).abstractList
+              A.rule.params_bound.fvars
+              (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
+      liftedFront =
+          (liftContextPrefix inserted.length
+            (fieldDomains ++ localDomains).reverse).reverse ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        localDomains.length = F.semantic.generated.localArgs.size ∧
+        OnCtx
+          (abstractForallContext
+            (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []).toCtx
+          (H.outVEnv.IsType Us.length) ∧
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext
+              (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
+          (sourceIndices.map fun index =>
+            (closedSource index).liftLooseBVars'
+              (fieldDomains ++ localDomains).length inserted.length)
+          (narrowIndices.map fun target =>
+            target.liftN inserted.length
+              (fieldDomains ++ localDomains).length) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  let inserted := T.motives ++ T.minors
+  rcases F.parameterClosedSemanticIndexFrame with
+    ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, localDomains,
+      narrowIndices, _hfront, hfields, hlocal, HclosedCtx, _hlength,
+      Hindices, _HindexEq⟩
+  let liftedFront :=
+    (liftContextPrefix inserted.length
+      (fieldDomains ++ localDomains).reverse).reverse
+  rcases A.finalRecursorParameterContext with ⟨T₀, hparams⟩
+  rcases T₀.groupsResult_eq T with
+    ⟨hparamsT, _hmotives, _hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparamsT] at hparams
+  have HprefixCanonical := T.prefixContext H.outVEnvWF.ordered
+  have HprefixCanonical' : OnCtx
+      (inserted.reverse ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [inserted, Us, List.reverse_append, List.append_assoc] using
+      HprefixCanonical
+  have HprefixEq :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      hparams HprefixCanonical'
+  have Hinserted : OnCtx (inserted.reverse ++ parameterDecls.toCtx)
+      (H.outVEnv.IsType Us.length) := by
+    have := (HprefixEq.symm H.outVEnvWF.ordered).isType
+    simpa [inserted, parameterDecls, H.parameterDecls, Us,
+      List.reverse_append,
+      List.append_assoc] using this
+  have Hrecent : OnCtx
+      ((fieldDomains ++ localDomains).reverse ++ parameterDecls.toCtx)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [parameterDecls, Us, List.reverse_append,
+      List.append_assoc, VLCtx.toCtx] using HclosedCtx
+  have HliftedCtx := Lean4Lean.OnCtx.insertAfterPrefix
+    H.outVEnvWF.ordered Hrecent Hinserted
+  have HequationCtx : OnCtx
+      (abstractForallContext
+        (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    simpa [liftedFront, List.reverse_append, List.append_assoc,
+      VLCtx.toCtx] using HliftedCtx
+  have HliftedIndices : List.Forall₂
+      (TrExprS H.outVEnv Us
+        (abstractForallContext
+          (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
+      ((sourceIndices.map fun index =>
+        ((index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size).abstractList
+              A.rule.params_bound.fvars
+              (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
+        ).map fun source => source.liftLooseBVars'
+          (fieldDomains ++ localDomains).length inserted.length)
+      (narrowIndices.map fun target => target.liftN inserted.length
+        (fieldDomains ++ localDomains).length) := by
+    induction Hindices with
+    | nil => exact .nil
+    | @cons source target sources targets Hsource _ ih =>
+      have Hlifted := Hsource.insertBeforeInner H.outVEnvWF.ordered inserted
+      simpa [liftedFront, List.append_assoc] using
+        List.Forall₂.cons Hlifted ih
+  refine ⟨fieldDomains, localDomains, liftedFront, narrowIndices,
+    rfl, hfields, hlocal, HequationCtx, ?_⟩
+  simpa [List.map_map, Function.comp_def] using HliftedIndices
 
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
