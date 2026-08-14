@@ -5386,6 +5386,7 @@ inductive FrontFVLift : List VExpr → List VExpr →
   | zero (W : VLCtx.FVLift' scope expanded 0 shift 0) :
       FrontFVLift [] [] scope expanded shift
   | cons (fv deps indexType)
+      (hdeps : deps ⊆ scope.fvars)
       (H : FrontFVLift sourceDomains expandedDomains
         scope expanded shift) :
       FrontFVLift (sourceDomains ++ [indexType])
@@ -5399,7 +5400,7 @@ theorem FrontFVLift.sourcePrefix
     (scope.toCtx.take sourceDomains.length).reverse = sourceDomains := by
   induction H with
   | zero => rfl
-  | cons fv deps indexType H ih =>
+  | cons fv deps indexType _ H ih =>
     simp [VLCtx.toCtx, ih, List.take_succ_cons, List.reverse_cons]
 
 theorem FrontFVLift.expandedPrefix
@@ -5408,7 +5409,7 @@ theorem FrontFVLift.expandedPrefix
       expandedDomains := by
   induction H with
   | zero => rfl
-  | cons fv deps indexType H ih =>
+  | cons fv deps indexType _ H ih =>
     simp [VLCtx.toCtx, ih, List.take_succ_cons, List.reverse_cons]
 
 theorem FrontFVLift.length_eq
@@ -5416,21 +5417,21 @@ theorem FrontFVLift.length_eq
     sourceDomains.length = expandedDomains.length := by
   induction H with
   | zero => rfl
-  | cons _ _ _ _ ih => simpa using congrArg Nat.succ ih
+  | cons _ _ _ _ _ ih => simpa using congrArg Nat.succ ih
 
 theorem FrontFVLift.sourceLengthLE
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
     sourceDomains.length ≤ scope.toCtx.length := by
   induction H with
   | zero => simp
-  | cons _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
+  | cons _ _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
 
 theorem FrontFVLift.expandedLengthLE
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
     expandedDomains.length ≤ expanded.toCtx.length := by
   induction H with
   | zero => simp
-  | cons _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
+  | cons _ _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
 
 theorem FrontFVLift.sourceContext
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
@@ -5440,7 +5441,7 @@ theorem FrontFVLift.sourceContext
   induction H with
   | zero => simp
   | @cons sourceDomains expandedDomains scope expanded shift fv deps
-      indexType H ih =>
+      indexType _ H ih =>
     simpa [VLCtx.toCtx, List.reverse_append, List.append_assoc] using
       congrArg (indexType :: ·) ih
 
@@ -5452,7 +5453,7 @@ theorem FrontFVLift.expandedContext
   induction H with
   | zero => simp
   | @cons sourceDomains expandedDomains scope expanded shift fv deps
-      indexType H ih =>
+      indexType _ H ih =>
     simpa [VLCtx.toCtx, List.reverse_append, List.append_assoc] using
       congrArg (indexType.lift' shift :: ·) ih
 
@@ -5470,7 +5471,7 @@ theorem FrontFVLift.base
   | zero W =>
     exact ⟨_, _, _, rfl, rfl, by simp, W⟩
   | @cons sourceDomains expandedDomains scope expanded shift fv deps
-      indexType H ih =>
+      indexType _ H ih =>
     rcases ih with
       ⟨baseScope, baseExpanded, baseShift, hsource, hexpanded,
         hshift, Hbase⟩
@@ -5524,7 +5525,7 @@ theorem FrontFVLift.closeReopen
   induction H generalizing body with
   | zero => simp [VExpr.wrapForalls]
   | @cons sourceDomains expandedDomains scope expanded shift fv deps
-      indexType H ih =>
+      indexType _ H ih =>
     have h := congrArg (fun result => result.liftN 1 0)
       (ih (.forallE indexType body))
     simpa [VExpr.wrapForalls_append, VExpr.wrapForalls, VExpr.liftN,
@@ -5778,7 +5779,7 @@ def NarrowRuntimeScope.withIndex
   frontSourceDomains := H.frontSourceDomains ++ [indexType]
   frontExpandedDomains :=
     H.frontExpandedDomains ++ [indexType.lift' H.shift]
-  front := H.front.cons fv deps indexType
+  front := H.front.cons fv deps indexType hdeps
   context := .cons H.context (by
     have hfresh := hnewRuntime.2.1
     simpa [H.context.fvars] using hfresh) (.vlam hdomain)
@@ -16530,6 +16531,82 @@ theorem _root_.Lean4Lean.FVarsIn.abstractList_of
         · exact Or.inr (Or.inl hrest)
       · exact Or.inr (Or.inr hP)
 
+/-- Closing a recent all-lambda prefix removes every free variable introduced
+by that prefix.  The declaration typing stored in `MLCtx.WF` supplies the
+induction step for binder domains; abstracting the current free variable
+supplies it for the body. -/
+theorem MLCtxOnlyLams.mkForall_fvarsIn_dropN
+    (H : MLCtxOnlyLams m) (Hwf : m.WF env Us)
+    (n : Nat) (hn : n ≤ m.length) (body : Expr)
+    (Hbody : body.FVarsIn (· ∈ m.vlctx.fvars)) :
+    (m.mkForall n hn body).FVarsIn
+      (· ∈ (m.dropN n hn).vlctx.fvars) := by
+  induction n generalizing m body with
+  | zero => simpa using Hbody
+  | succ n ih =>
+    cases m with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      have htail := Nat.le_of_succ_le_succ hn
+      apply ih H.tail_vlam Hwf.1 htail
+      constructor
+      · exact Hwf.2.2.1.fvarsIn
+      · apply FVarsIn.abstract1_of
+        exact Hbody.mono fun current hcurrent => by
+          simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
+            List.mem_cons] at hcurrent
+          exact hcurrent
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
+/-- A front retained by narrow index synthesis closes back to its narrow
+base, even when the executable `MLCtx` contains an interleaved ambient
+prefix below that front.  `FrontFVLift` retains the decisive fact that each
+new concrete domain depends only on the preceding narrow scope, while the
+context equality identifies those dependency lists with the executable
+declarations selected by `MLCtx.mkForall`. -/
+theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopType.FrontFVLift.mkForall_fvarsIn_sourceBase
+    {sourceDomains expandedDomains : List VExpr}
+    {scope expanded : VLCtx} {shift : Lift}
+    {m : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
+    (H : Lean4Lean.VerifyInductive.checkInductiveTypes.loopType.FrontFVLift
+      sourceDomains expandedDomains scope expanded shift)
+    (Hm : MLCtxOnlyLams m) (Hmwf : m.WF env Us)
+    (Hctx : VLCtx.IsDefEq env Us.length expanded m.vlctx)
+    (hn : sourceDomains.length ≤ m.length) (body : Expr)
+    (Hbody : body.FVarsIn (· ∈ scope.fvars)) :
+    (m.mkForall sourceDomains.length hn body).FVarsIn
+      (· ∈ VLCtx.fvars (scope.drop sourceDomains.length)) := by
+  induction H generalizing m body with
+  | zero => simpa using Hbody
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType hdeps H ih =>
+    cases m with
+    | nil => cases Hctx
+    | vlam current name type type' bi tail =>
+      cases Hctx with
+      | cons Htail _ _ =>
+        have hnTail : sourceDomains.length ≤ tail.length := by
+          apply Nat.le_of_succ_le_succ
+          simpa using hn
+        have Hdomain : type.FVarsIn (· ∈ scope.fvars) := by
+          apply fvarsIn_iff.mpr
+          refine ⟨hdeps, ?_⟩
+          exact Hmwf.2.2.1.fvarsIn.mono fun _ _ => trivial
+        have Habstract : (body.abstract1 fv).FVarsIn
+            (· ∈ scope.fvars) := by
+          apply FVarsIn.abstract1_of
+          exact Hbody.mono fun current hcurrent => by
+            simpa only [VLCtx.fvars_cons_some, List.mem_cons] using hcurrent
+        simpa only [List.length_append, List.length_singleton,
+          Nat.add_one, TypeChecker.MLCtx.mkForall,
+          TypeChecker.MLCtx.dropN, List.drop_succ_cons] using
+          ih Hm.tail_vlam Hmwf.1 Htail hnTail
+            (.forallE name type (body.abstract1 fv) bi)
+            ⟨Hdomain, Habstract⟩
+    | vlet current name type value type' value' tail =>
+      exact Hm.vlet_false.elim
+
 theorem _root_.Lean4Lean.FVarsIn.abstract_fvarArray_of
     (fvars : List FVarId) (selected : Array Expr)
     (hselected : selected = (fvars.map Expr.fvar).toArray)
@@ -26260,6 +26337,9 @@ structure RecursorMotiveTelescopeSeed
     0 motiveSourceShift 0
   motiveSourceContext : VLCtx.IsDefEq Rroot.venv recLparams.length
     motiveSourceExpanded motiveClosedScope
+  motiveSourceFVars : FVarsIn (· ∈ motiveSourceScope.fvars)
+    (root.lctx.mkForall info.indices
+      (root.lctx.mkForall #[info.major] (.sort elimLevel)))
   motiveClosedTarget : VExpr
   motiveClosedTr : TrExprS Rroot.venv recLparams motiveClosedScope
     (root.lctx.mkForall info.indices
@@ -26353,6 +26433,9 @@ def RecursorMotiveTelescopeSeed.mono
     motiveSourceLift := H.motiveSourceLift
     motiveSourceContext := by
       simpa only [Hext.venv_eq] using H.motiveSourceContext
+    motiveSourceFVars := by
+      rw [hmotiveSource]
+      exact H.motiveSourceFVars
     motiveClosedTarget := H.motiveClosedTarget
     motiveClosedTr := by
       simpa only [Hext.venv_eq] using HmotiveClosedTr
@@ -26405,6 +26488,8 @@ def RecursorMotiveTelescopeSeed.congrInfo
   motiveSourceAlignment := H.motiveSourceAlignment
   motiveSourceLift := H.motiveSourceLift
   motiveSourceContext := H.motiveSourceContext
+  motiveSourceFVars := by
+    simpa [hindices, hmajor] using H.motiveSourceFVars
   motiveClosedTarget := H.motiveClosedTarget
   motiveClosedTr := by simpa [hindices, hmajor] using H.motiveClosedTr
   motiveClosedType := H.motiveClosedType
@@ -32568,6 +32653,92 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         rcases Hframe.motiveClosed with
           ⟨hclosedSize, motiveClosedTarget, HmotiveClosedTr,
             HmotiveClosedType, hmotiveClosedTarget⟩
+        let majorBody := cMajor.lctx.mkForall #[major] (.sort elimLevel)
+        have HnarrowFamily :=
+          (Hheader.recursorNarrowFamilyPrefixTranslation Helim Rindices
+            Hsynthesis HnarrowStats henvIndices).1
+        have HnarrowIndexFVars : ∀ arg ∈ indices.toList,
+            arg.FVarsIn (· ∈ scope.fvars) := by
+          have go : ∀ {sources targets : List _},
+              List.Forall₂ (TrExprS Rindices.venv
+                (AddInductive.getRecLevelParams elimLevel base.lparams)
+                scope) sources targets →
+              ∀ arg ∈ sources, arg.FVarsIn (· ∈ scope.fvars) := by
+            intro sources targets Htranslated arg harg
+            induction Htranslated with
+            | nil => simp at harg
+            | cons Hhead Htail ih =>
+              simp only [List.mem_cons] at harg
+              rcases harg with rfl | harg
+              · exact Hhead.fvarsIn
+              · exact ih harg
+          exact go HnarrowIndices
+        have HmajorRawFVars :
+            (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+              indices).FVarsIn (· ∈ scope.fvars) := by
+          rw [Expr.mkAppN_eq_mkAppList]
+          apply FVarsIn.mkAppList.mpr
+          refine ⟨HnarrowFamily.fvarsIn, ?_⟩
+          exact HnarrowIndexFVars
+        have HmajorTyFVars : majorTy.FVarsIn (· ∈ scope.fvars) := by
+          exact Expr.consumeTypeAnnotations_fvarsIn HmajorRawFVars
+        rcases Helim.sortType (env := Rindices.venv) (Δ := scope) with
+          ⟨narrowSortLevel, HsortNarrow, _HsortNarrowType⟩
+        have hone : 1 ≤ Rmajor.mlctx.length := by
+          dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+          simp
+        have hmajorRecent : #[major].toList.reverse =
+            (Rmajor.mlctx.fvarRevList 1 hone).map Expr.fvar := by
+          dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl]
+          simp
+        have hmajorConcrete : majorBody =
+            Rmajor.mlctx.mkForall 1 hone (.sort elimLevel) := by
+          dsimp only [majorBody]
+          rw [← Rmajor.lctx_eq]
+          exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent
+        have HmajorBodyFVars : majorBody.FVarsIn
+            (· ∈ scope.fvars) := by
+          rw [hmajorConcrete]
+          have HsortAbstract :
+              (Expr.abstract1 ⟨cIndices.ngen.curr⟩
+                (.sort elimLevel)).FVarsIn (· ∈ scope.fvars) := by
+            apply FVarsIn.abstract1_of
+            exact HsortNarrow.fvarsIn.mono fun _ h => Or.inr h
+          simpa only [Rmajor, RecursorContextWF.withLocalDecl,
+            TypeChecker.MLCtx.mkForall] using
+            (show (Expr.forallE `t majorTy
+                (Expr.abstract1 ⟨cIndices.ngen.curr⟩ (.sort elimLevel))
+                .default).FVarsIn
+                (· ∈ scope.fvars) from
+              ⟨HmajorTyFVars, HsortAbstract⟩)
+        let hmajorLE := BindingContextLE.withLocalDecl cIndices
+          Rindices.toBindingContextWF `t majorTy .default
+        have hmotiveConcrete : motiveTy =
+            cIndices.lctx.mkForall indices majorBody := by
+          dsimp [motiveTy, majorBody]
+          exact Hrecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+            hmajorLE _
+        have hmotiveMkForall : motiveTy =
+            Rindices.mlctx.mkForall indices.size Hrecent.size_le
+              majorBody := by
+          rw [hmotiveConcrete, ← Rindices.lctx_eq]
+          exact Rindices.mlctx_wf.mkForall_eq indices.size Hrecent.size_le
+            Hrecent.reverse_eq
+        have hfrontLength : Hruntime.frontSourceDomains.length =
+            indices.size := by
+          rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
+        have hfrontLE : Hruntime.frontSourceDomains.length ≤
+            Rindices.mlctx.length := by
+          rw [hfrontLength]
+          exact Hrecent.size_le
+        have HmotiveSourceFVarsAtBase : motiveTy.FVarsIn
+            (· ∈ VLCtx.fvars
+              (scope.drop Hruntime.frontSourceDomains.length)) := by
+          rw [hmotiveMkForall]
+          simpa only [hfrontLength] using
+            Hruntime.front.mkForall_fvarsIn_sourceBase
+              Rindices.onlyLams Rindices.mlctx_wf Hruntime.context
+              hfrontLE majorBody HmajorBodyFVars
         have HmotiveClosedTrSeed : TrExprS Rmotive.venv
             (AddInductive.getRecLevelParams elimLevel base.lparams)
             (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
@@ -32620,6 +32791,10 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         have hmotiveSourceScope' :
             scope.drop Hsynthesis.indices.length = motiveSourceScope := by
           simpa [hfront] using hmotiveSourceScope
+        have HmotiveSourceFVarsNarrow : motiveTy.FVarsIn
+            (· ∈ VLCtx.fvars motiveSourceScope) := by
+          rw [← hmotiveSourceScope']
+          simpa [hfront] using HmotiveSourceFVarsAtBase
         have hmotiveSourceScopeCtx : VLCtx.toCtx motiveSourceScope =
             Hsynthesis.params.reverse := by
           have hdecomposition := Hruntime.front.sourceContext
@@ -32740,6 +32915,9 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               exact Hsynthesis.scopeWF.toCtx))
           motiveSourceLift := HmotiveSourceLift
           motiveSourceContext := HmotiveSourceContext
+          motiveSourceFVars := by
+            rw [← hnewMotiveShape', Hframe.motiveSourceEq]
+            exact HmotiveSourceFVarsNarrow
           motiveClosedTarget := motiveClosedTarget
           motiveClosedTr := HmotiveClosedTrSeed
           motiveClosedType := HmotiveClosedTypeSeed
