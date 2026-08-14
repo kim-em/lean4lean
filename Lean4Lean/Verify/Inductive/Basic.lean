@@ -70006,10 +70006,91 @@ theorem
     Hclosed',
     HleftWF⟩
 
-/-- Rule-indexed package for one complete recursive result.  It ties the
-array position used by the generated RHS to the exact source lambda
-telescope, the canonical translated residual, and its closed dependent
-typing in a full equation context. -/
+/-- Fixed-frame package for one complete recursive result.  The generated
+recursor telescope and rule-wide field narrowing are parameters, so every
+array position is closed and typed in the same literal `equationDomains`;
+only its higher-order local telescope varies with the recursive field. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalRecursiveResultTypingFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    ∃ F : A.RecursiveCallRecursorFrame j hj,
+      ∃ (localDomains : List VExpr) (resultBody resultType : VExpr),
+        equationDomains.length = A.rule.binders.length ∧
+        localDomains.length = F.semantic.generated.localArgs.size ∧
+        Expr.LambdaTelescope
+          (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+          localDomains.length
+          ((F.semantic.generated.body.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+              A.rule.binders F.semantic.generated.localArgs.size) ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext (equationDomains ++ localDomains) [])
+          ((F.semantic.generated.body.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+              A.rule.binders F.semantic.generated.localArgs.size)
+          resultBody ∧
+        H.outVEnv.HasType Us.length
+          (abstractForallContext equationDomains []).toCtx
+          (VExpr.wrapLams localDomains resultBody)
+          (VExpr.wrapForalls localDomains resultType) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++
+      T.motives ++ T.minors ++
+        (liftContextPrefix (T.motives ++ T.minors).length
+          B.fieldDomains.reverse).reverse
+  rcases A.recursiveCallRecursorFrame j hj with ⟨F⟩
+  rcases F.canonicalRecursiveCallBodyWF T (B := B) with
+    ⟨actualDomains, localDomains, prefixTarget, indexTargets,
+      majorTarget, ownerTarget, hlocal, hdomains, hequation, _Hctx, Hbody,
+      _HbodyType, Hclosed, _HbodyWF⟩
+  have hactual : actualDomains = equationDomains := by
+    exact hdomains
+  subst actualDomains
+  let args := indexTargets ++ [majorTarget]
+  let resultBody := VExpr.mkApps prefixTarget args
+  let resultType := VExpr.mkApps ownerTarget args
+  have Htelescope :=
+    F.semantic.generated.outerAbstractedLambdaTelescope A.rule.binders
+  have Htelescope' : Expr.LambdaTelescope
+      (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+      localDomains.length
+      ((F.semantic.generated.body.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders F.semantic.generated.localArgs.size) := by
+    simpa [hlocal] using Htelescope
+  exact ⟨F, localDomains, resultBody, resultType,
+    hequation, hlocal, Htelescope',
+    by simpa [resultBody, args] using Hbody,
+    by simpa [resultBody, resultType, args] using Hclosed⟩
+
+/-- Rule-indexed existential specialization of
+`canonicalRecursiveResultTypingFor`.  It remains convenient for pointwise
+consumers that do not need to retain a common equation frame. -/
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.canonicalRecursiveResultTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
