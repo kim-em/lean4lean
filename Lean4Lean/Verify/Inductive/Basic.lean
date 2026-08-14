@@ -24389,6 +24389,25 @@ theorem RecursorRecentBoundFVarArray.abstractRecent_toCtx
   simpa [abstractForallContext, VLCtx.toCtx_append, htoCtx,
     htoCtxReverse, domains] using hctx
 
+/-- `abstractRecent_toCtx` under an already opened anonymous prefix.  This is
+the context identity used when constructor fields are closed outside a
+higher-order recursive call's local arguments. -/
+theorem RecursorRecentBoundFVarArray.abstractRecent_toCtx_withPrefix
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (domains : List VExpr) :
+    (abstractForallContext
+      (MLCtxForallDomains R.mlctx xs.size H.size_le ++ domains)
+      Rroot.mlctx.vlctx).toCtx =
+    (abstractForallContext domains R.mlctx.vlctx).toCtx := by
+  have hbase := H.abstractRecent_toCtx
+  let localPrefix : VLCtx := domains.reverse.map fun type => (none, .vlam type)
+  have hprefixed := congrArg (fun tail => localPrefix.toCtx ++ tail) hbase
+  simpa [localPrefix, abstractForallContext, List.reverse_append,
+    List.map_append, VLCtx.toCtx_append, List.append_assoc] using hprefixed
+
 /-- Close the exact recent local suffix in a strict translation while
 preserving the older recursor context.  The newly anonymous domain list is
 the same `MLCtxForallDomains` used by `mkForallRecent` and `mkLambda`. -/
@@ -61296,6 +61315,78 @@ theorem
       F.semantic.generated.arguments_bound.toBoundFVarArray rfl
   refine ⟨binding, evidence, localDomains, hlocalDomains, ?_, ?_⟩
   · simpa [localDomains, hfvars] using Hclosed
+  · rw [hctx]
+    exact Htyped
+
+/-- Close both local higher-order arguments and constructor fields around the
+semantic motive application expected from one recursive call.  This packages
+the source indices, exact eta-expanded major, and their common result type in
+the same field-closed context used by `finalAppliedMajorTarget`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.finalFieldAbstractedSemanticMotiveApplication
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+        ∃ (localDomains fieldDomains : List VExpr),
+          localDomains.length = F.semantic.generated.localArgs.size ∧
+          fieldDomains.length = A.rule.allArgs.size ∧
+          let sourceIndices :=
+            F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
+          let sourceMajor := mkAppN A.rule.recursiveArgs[j]
+            F.semantic.generated.localArgs
+          let sourceType := Expr.app
+            (mkAppN H.recInfos[selectedOwner]!.motive sourceIndices)
+            sourceMajor
+          let target := VExpr.app
+            (VExpr.mkApps binding.motiveTarget evidence.indices)
+            F.semantic.appliedFieldTarget
+          TrExprS H.outVEnv Us
+              (abstractForallContext (fieldDomains ++ localDomains)
+                A.semantics.fieldRootContext.mlctx.vlctx)
+              ((sourceType.abstractList
+                F.semantic.generated.arguments_bound.fvars).abstractList
+                  A.rule.all_args_bound.fvars localDomains.length) target ∧
+            H.outVEnv.HasType Us.length
+              (abstractForallContext (fieldDomains ++ localDomains)
+                A.semantics.fieldRootContext.mlctx.vlctx).toCtx
+              target (.sort evidence.resultLevel) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases F.finalAbstractedSemanticMotiveApplication with
+    ⟨binding, evidence, localDomains, hlocal, Htr, Htyped⟩
+  let fieldDomains := MLCtxForallDomains A.semantics.context.mlctx
+    A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have Hclosed := A.semantics.fieldsRecent.abstractRecent localDomains Htr
+  have hfields : fieldDomains.length = A.rule.allArgs.size :=
+    A.semantics.context.onlyLams.forallDomains_length
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hfvars : A.semantics.fieldsRecent.fvars =
+      A.rule.all_args_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl
+  have hctx :=
+    A.semantics.fieldsRecent.abstractRecent_toCtx_withPrefix localDomains
+  refine ⟨binding, evidence, localDomains, fieldDomains,
+    hlocal, hfields, ?_, ?_⟩
+  · simpa [fieldDomains, hfvars] using Hclosed
   · rw [hctx]
     exact Htyped
 
