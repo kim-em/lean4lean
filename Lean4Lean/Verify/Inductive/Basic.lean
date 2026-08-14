@@ -58779,8 +58779,6 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us stats decl
-          owner H.recInfos[owner]! H.elimLevel,
       ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse parameterDecls.toCtx ∧
@@ -60209,12 +60207,15 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
+      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us stats decl
+          owner H.recInfos[owner]! H.elimLevel,
       ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
         let canonicalDomains :=
           (T.params ++ T.motives ++ T.minors) ++ fieldDomains
         let cachedDomains :=
           (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
             fieldDomains
+        let added := T.motives ++ T.minors ++ fieldDomains
         let prefixSource :=
           mkAppN
             (mkAppN
@@ -60262,6 +60263,8 @@ theorem
           H.outVEnv.HasType Us.length cachedDomains.reverse majorTarget
             (fieldResult.liftN
               (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+          H.outVEnv.HasType Us.length cachedDomains.reverse majorTarget
+            (VExpr.mkApps (C.family.liftN added.length 0) indexTargets) ∧
           H.outVEnv.HasType Us.length cachedDomains.reverse prefixTarget
             ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
               fieldDomains.length 0) ∧
@@ -60521,6 +60524,11 @@ theorem
         (T.motives ++ T.minors).length A.rule.allArgs.size)
     rw [hspine] at hrebuild
     simpa [familyTarget, VExpr.mkApps_append] using hrebuild.symm
+  have HmajorCanonical : H.outVEnv.HasType Us.length cachedDomains.reverse
+      majorTarget
+      (VExpr.mkApps (C.family.liftN added.length 0) indexTargets) := by
+    rw [← hfamilyTargetCanonical, ← hfamilyApplication]
+    exact HmajorCached
   have HfieldResultType := HmajorCached.isType H.outVEnvWF HcachedCtx
   have HfieldResultWF : VExpr.WF H.outVEnv Us.length cachedDomains.reverse
       (fieldResult.liftN
@@ -60533,7 +60541,8 @@ theorem
   exact ⟨T, C, fieldDomains, fieldResult, introTarget, levels,
     parameterTargets, indexTargets, hparams, hcanonicalParams, hfields,
     Hfull, HcachedCtx,
-    HmajorCached, HprefixCached, Htarget, HintroShape, HprefixTr',
+    HmajorCached, HmajorCanonical, HprefixCached, Htarget, HintroShape,
+    HprefixTr',
     HmajorTr', HownerMotive', hspine, hlevels, hlevelsCanonical,
     HparameterTargets, hparameterTargets,
     (by exact ⟨familyType, hfamilyTargetCanonical,
