@@ -61884,12 +61884,12 @@ theorem
     A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
   simpa [hlocalFvars, hfieldFvars] using Hfields
 
-/-- Replay the exact constructor-field and higher-order call suffixes above
-the cached parameter scope.  The resulting narrow runtime frame contains no
-generated motive or minor declarations, but retains every free variable that
-will become a field or call-local binder when the recursive call is closed. -/
+/-- Replay the constructor fields once above the cached parameter scope.
+This rule-wide frame is independent of any particular recursive call; later
+call-local replay extends its retained front without changing the field
+prefix. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowRuntimeScope
+    RecursorPhasesResult.GeneratedRuleAlignment.narrowFieldRuntimeScope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -61900,23 +61900,25 @@ theorem
     {H : RecursorPhasesResult R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls := H.parameterSuffix.parameterDecls
-    ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
-          H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
-        scope.fvars = F.semantic.recent.fvars.reverse ++
-          A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
-        scope.drop Hscope.frontSourceDomains.length = parameterDecls := by
+    ∃ fieldScope,
+      ∃ HfieldScope : checkInductiveTypes.loopType.NarrowRuntimeScope
+          H.recursorWF.venv Us fieldScope A.semantics.context.mlctx.vlctx,
+        fieldScope.fvars =
+            A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
+        fieldScope.drop HfieldScope.frontSourceDomains.length =
+            parameterDecls ∧
+        ∃ fieldDomains,
+          fieldDomains.length = A.rule.allArgs.size ∧
+          HfieldScope.frontSourceDomains = fieldDomains := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls := H.parameterSuffix.parameterDecls
   let Hparameter := H.parameterSuffix.runtimeScope
   rcases A.semantics.context.onlyLams.lamPrefix
       A.rule.allArgs.size A.semantics.fieldsRecent.size_le with
-    ⟨fieldDomains, HfieldPrefix⟩
+    ⟨_runtimeFieldDomains, HfieldPrefix⟩
   have hfieldRuntime :
       (A.semantics.context.mlctx.dropN A.rule.allArgs.size
         HfieldPrefix.le).vlctx = H.recursorWF.mlctx.vlctx := by
@@ -61947,7 +61949,59 @@ theorem
   rcases HfieldPrefix.extendNarrowRuntimeScope
       H.recursorWF.checking.tr.wf HfieldWF HfieldBase HfieldUp with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
-      _fieldDomains, _hfieldDomains, _hfieldFront⟩
+      fieldDomains, hfieldDomains, hfieldFront⟩
+  have hbase : fieldScope.drop HfieldScope.frontSourceDomains.length =
+      parameterDecls := by
+    simpa [HfieldBase, Hparameter,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
+      RecursorParameterContextSuffix.runtimeScope,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix]
+      using hfieldBase
+  have hfront : HfieldScope.frontSourceDomains = fieldDomains := by
+    simpa [HfieldBase, Hparameter,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
+      RecursorParameterContextSuffix.runtimeScope,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix]
+      using hfieldFront
+  exact ⟨fieldScope, HfieldScope, by simpa [hfieldRev] using
+    hfieldScopeFVars, hbase, fieldDomains, hfieldDomains, hfront⟩
+
+/-- Replay the exact higher-order call suffix above the rule-wide field and
+cached-parameter scope.  The resulting narrow runtime frame contains no
+generated motive or minor declarations, but retains every free variable that
+will become a field or call-local binder when the recursive call is closed. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowRuntimeScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+          H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+        scope.fvars = F.semantic.recent.fvars.reverse ++
+          A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
+        scope.drop Hscope.frontSourceDomains.length = parameterDecls ∧
+        ∃ fieldDomains localDomains,
+          fieldDomains.length = A.rule.allArgs.size ∧
+          localDomains.length = F.semantic.generated.localArgs.size ∧
+          Hscope.frontSourceDomains = fieldDomains ++ localDomains := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  rcases A.narrowFieldRuntimeScope with
+    ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
+      fieldDomains, hfieldDomains, hfieldFront⟩
   rcases F.semantic.current_context.onlyLams.lamPrefix
       F.semantic.generated.localArgs.size F.semantic.recent.size_le with
     ⟨localDomains, HlocalPrefix⟩
@@ -61979,7 +62033,7 @@ theorem
     apply (IsFVarUpSet.congr HlocalWF.tr.wf.fvwf ?_).mp
       F.semantic.current_scope_up
     intro fv _
-    rw [F.root_scope, hlocalRev, hfieldScopeFVars, hfieldRev,
+    rw [F.root_scope, hlocalRev, hfieldScopeFVars,
       H.parameterSuffix.parameterDecls_fvars]
     rw [A.semantics.fieldOpening.fvars_eq_bound
       A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
@@ -61987,23 +62041,27 @@ theorem
   rcases HlocalPrefix.extendNarrowRuntimeScope
       H.recursorWF.checking.tr.wf HlocalWF HlocalBase HlocalUp with
     ⟨scope, Hscope, hscopeFVars, hscopeBase,
-      _localDomains, _hlocalDomains, _hlocalFront⟩
+      localDomains, hlocalDomains, hlocalFront⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
   have hlocalBaseDrop :
       fieldScope.drop HlocalBase.frontSourceDomains.length =
         parameterDecls := by
-    simpa [HlocalBase, HfieldBase, Hparameter,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
-      RecursorParameterContextSuffix.runtimeScope,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix]
+    simpa [HlocalBase,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime]
       using hfieldBase
-  refine ⟨scope, Hscope.mono hbase, ?_, ?_⟩
-  · rw [hscopeFVars, hlocalRev, hfieldScopeFVars, hfieldRev]
+  refine ⟨scope, Hscope.mono hbase, ?_, ?_, fieldDomains, localDomains,
+    hfieldDomains, hlocalDomains, ?_⟩
+  · rw [hscopeFVars, hlocalRev, hfieldScopeFVars]
     simp [parameterDecls, List.append_assoc]
   · change scope.drop Hscope.frontSourceDomains.length = parameterDecls
     exact hscopeBase.trans hlocalBaseDrop
+  · change Hscope.frontSourceDomains = fieldDomains ++ localDomains
+    rw [hlocalFront]
+    change HfieldScope.frontSourceDomains ++ localDomains =
+      fieldDomains ++ localDomains
+    rw [hfieldFront]
 /-- The validated terminal application of a recursive call consumes the
 same canonical motive telescope retained for the call-selected mutual
 family.  This is the semantic index/major alignment needed to consume the
@@ -62777,7 +62835,8 @@ theorem
   rcases F.finalSemanticMotiveApplication with
     ⟨binding, evidence, hlength, Hindices, _Happlication, _Htyping⟩
   rcases F.narrowRuntimeScope with
-    ⟨scope, Hscope, hscopeFVars, hscopeBase⟩
+    ⟨scope, Hscope, hscopeFVars, hscopeBase,
+      _fieldDomains, _localDomains, _hfields, _hlocals, _hfront⟩
   have HsourceScope : ∀ source ∈ sourceIndices,
       source.FVarsIn (fun fv =>
         fv ∈ F.semantic.recent.fvars ∨ F.semantic.rootScope fv) := by
