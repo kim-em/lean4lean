@@ -60666,6 +60666,11 @@ theorem
       ∃ evidence : RecursorMotiveTelescopeEvidence
           F.semantic.current_context stats H.recInfos[selectedOwner]!
           binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+        evidence.indices.length = F.telescope.indices.length ∧
+        List.Forall₂
+          (TrExprS H.outVEnv Us F.semantic.current_context.mlctx.vlctx)
+          (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+          evidence.indices ∧
         let sourceIndices :=
           F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
         let sourceMajor := mkAppN A.rule.recursiveArgs[j]
@@ -60684,6 +60689,18 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.semanticMotiveTelescopeEvidence with ⟨binding, ⟨evidence⟩⟩
+  have hrecInfo : selectedOwner < H.recInfos.size := by
+    simpa [H.generated.length] using F.entry_lt
+  have htranslated :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      evidence.indices_translation
+  have hsourceArity := checkPositivityStep.getIIndices.index_arity
+    F.semantic.generated.owner_valid
+  have hrecArity := H.arities selectedOwner hrecInfo
+  have hlength : evidence.indices.length = F.telescope.indices.length := by
+    rw [F.telescope.indices_length, hrecArity]
+    simpa [AddInductive.getIIndices] using
+      htranslated.symm.trans hsourceArity
   have HmajorType : F.semantic.current_context.venv.HasType Us.length
       F.semantic.current_context.mlctx.vlctx.toCtx
       F.semantic.appliedFieldTarget F.semantic.exposedTarget :=
@@ -60699,8 +60716,13 @@ theorem
     F.semantic.recent.venv_eq.trans
       (A.semantics.context_venv.trans
         (H.recursorEnv.trans R.declared.contextVEnv))
+  have Hindices := evidence.indices_translation
+  rw [hsemantic] at Hindices
+  have HindicesFinal := Lean4Lean.List.Forall₂.imp
+    (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
   rw [hsemantic] at Htr Htyped
-  exact ⟨binding, evidence, Htr.mono H.installed.le,
+  exact ⟨binding, evidence, hlength, HindicesFinal,
+    Htr.mono H.installed.le,
     Htyped.mono H.installed.le⟩
 
 /-- The production recursor level-parameter list and any installed abstract
