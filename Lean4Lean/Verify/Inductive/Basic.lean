@@ -26764,7 +26764,7 @@ structure RecInfoBindings (c : AddInductive.Context)
 The source local context is intentionally stored in the certificate: after
 `mkForall` closes the freshly introduced fields and recursive hypotheses, the
 resulting expression is stable under every later ambient-context extension. -/
-structure RecInfoMinorTypeShape (origin : Expr) where
+structure RecInfoMinorTypeShape (owner localIndex : Nat) (origin : Expr) where
   constructor : Constructor
   sourceContext : LocalContext
   fields : Array Expr
@@ -26795,7 +26795,7 @@ structure RecInfoTypeOrigins (c : AddInductive.Context)
     BoundFVarTypeOrigins c recInfos[i]!.minors minorTypes[i]!
   minorShapes : ∀ i (hi : i < recInfos.size) j
     (hj : j < minorTypes[i]!.size),
-    RecInfoMinorTypeShape minorTypes[i]![j]!
+    RecInfoMinorTypeShape i j minorTypes[i]![j]!
 
 /-- Exact production shape of every generated major-premise declaration.
 This positional certificate is independent of translation: it records that
@@ -29133,7 +29133,7 @@ def RecInfoTypeOrigins.addMinor
     (hle : BindingContextLE c cMinorTy)
     (HcMinorTy : BindingContextWF cMinorTy)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
-    (Hshape : RecInfoMinorTypeShape minorTy) :
+    (Hshape : RecInfoMinorTypeShape dIdx H.minorTypes[dIdx]!.size minorTy) :
     let cMinor : AddInductive.Context := { cMinorTy with
       ngen := cMinorTy.ngen.next
       lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
@@ -40519,7 +40519,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       minorTy.consumeTypeAnnotations minorTarget)
     (HminorType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx minorTarget)
-    (HminorShape : RecInfoMinorTypeShape
+    (HminorShape : RecInfoMinorTypeShape dIdx
+      Horigins.minorTypes[dIdx]!.size
       minorTy.consumeTypeAnnotations)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
@@ -59873,7 +59874,7 @@ theorem
       ∃ D : BoundFVarDeclarationAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
         ∃ O : H.origins.FlatMinorOrigin D,
-          ∃ S : RecInfoMinorTypeShape D.type,
+          ∃ S : RecInfoMinorTypeShape O.owner O.localIndex D.type,
           let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -59901,7 +59902,7 @@ theorem
       H.origins.minorTypes[O.owner]!.size := by
     rw [(H.origins.minors O.owner O.owner_lt).size_eq]
     simpa [getElem!_pos H.recInfos O.owner O.owner_lt] using O.local_lt
-  have S : RecInfoMinorTypeShape D.type := by
+  have S : RecInfoMinorTypeShape O.owner O.localIndex D.type := by
     rw [O.originType_eq]
     exact H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound
   have hrecInfo : owner < H.recInfos.size := by
