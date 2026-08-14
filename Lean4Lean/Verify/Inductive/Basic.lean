@@ -62016,6 +62016,120 @@ theorem
     VExpr.liftN_mkApps, VExpr.liftN, domains,
     List.append_assoc] using Htr
 
+/-- Assemble the call-selected recursor head with the rule's common
+parameter/motive/minor variables in an arbitrary canonical equation
+telescope.  The sole non-structural premise is the selected prefix typing in
+that context; all concrete argument translations are forced by the retained
+rule binders. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.selectedPrefixResidualTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (Hctx : OnCtx
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+    (Hprefix :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let selectedOwner := F.semantic.generated.ownerIdx
+      let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+      H.outVEnv.HasType Us.length
+        (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+        ((VExpr.mkApps
+            ((VExpr.const recursor.name
+              (VLevel.params Us.length)).liftN
+              (T.params ++ T.motives ++ T.minors).length 0)
+            (recursorCanonicalVars
+              (T.params ++ T.motives ++ T.minors).length)).liftN
+          fieldDomains.length 0)
+        prefixType) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+    let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+    TrExprS H.outVEnv Us (abstractForallContext domains [])
+      (mkAppN
+        (mkAppN
+          (mkAppN
+            (.const F.semantic.generated.recursorName
+              (AddInductive.getRecLevels H.elimLevel stats.levels))
+            (stats.params.map fun arg =>
+              arg.abstractList A.rule.binders))
+          ((H.recInfos.map (·.motive)).map fun arg =>
+            arg.abstractList A.rule.binders))
+        ((H.recInfos.flatMap (·.minors)).map fun arg =>
+          arg.abstractList A.rule.binders))
+      ((VExpr.mkApps
+          ((VExpr.const recursor.name
+            (VLevel.params Us.length)).liftN
+            (T.params ++ T.motives ++ T.minors).length 0)
+          (recursorCanonicalVars
+            (T.params ++ T.motives ++ T.minors).length)).liftN
+        fieldDomains.length 0) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+  let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+  dsimp only
+  have Hhead := F.headTranslation (abstractForallContext domains [])
+  have Hargs := A.canonicalRecursorPrefixTranslation T fieldDomains hfields
+  have htoCtx : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type => (none, .vlam type)) = types := by
+    intro types
+    induction types with
+    | nil => rfl
+    | cons type types ih => simp [VLCtx.toCtx, ih]
+  have htoCtxReverse : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type => (none, .vlam type)).reverse =
+        types.reverse := by
+    intro types
+    rw [← List.map_reverse]
+    exact htoCtx types.reverse
+  have Hctx' : OnCtx (abstractForallContext domains []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    simpa [abstractForallContext, htoCtx, htoCtxReverse, domains] using Hctx
+  have Hwf : VExpr.WF H.outVEnv Us.length
+      (abstractForallContext domains []).toCtx
+      (VExpr.mkApps
+        (.const recursor.name (VLevel.params Us.length))
+        ((recursorCanonicalVars
+          (T.params ++ T.motives ++ T.minors).length).map fun arg =>
+            arg.liftN fieldDomains.length 0)) := by
+    exact ⟨prefixType, by
+      change H.outVEnv.HasType Us.length
+        (abstractForallContext domains []).toCtx
+        (VExpr.mkApps
+          (.const recursor.name (VLevel.params Us.length))
+          ((recursorCanonicalVars
+            (T.params ++ T.motives ++ T.minors).length).map fun arg =>
+              arg.liftN fieldDomains.length 0)) prefixType
+      simpa [abstractForallContext, htoCtx, htoCtxReverse, domains,
+        VExpr.liftN_mkApps, VExpr.liftN] using Hprefix⟩
+  have Htr := checkPositivityStep.TrExprS.mkAppList
+    H.outVEnvWF.ordered Hctx' Hhead Hargs Hwf
+  simpa [Expr.mkAppN_eq_mkAppList, Expr.mkAppList_append,
+    VExpr.liftN_mkApps, VExpr.liftN, domains,
+    List.append_assoc] using Htr
+
 /-- Canonical equation frame with the source recursor prefix translated and
 the matching abstract prefix and constructor major already typed.  All
 components share the same telescope witnesses, which is the handoff point
