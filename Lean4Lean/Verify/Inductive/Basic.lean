@@ -20344,7 +20344,9 @@ structure RecursorMotiveFrameWF
           (Rindices.mlctx.dropN indices.size hsize).vlctx
           motiveTy.consumeTypeAnnotations closedTarget ∧
         Rindices.venv.IsType recLparams.length
-          (Rindices.mlctx.dropN indices.size hsize).vlctx.toCtx closedTarget
+          (Rindices.mlctx.dropN indices.size hsize).vlctx.toCtx closedTarget ∧
+        closedTarget = VExpr.wrapForalls indexDomains
+          (.forallE majorTarget (.sort resultLevel))
   motiveTr :
     let majorTy :=
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
@@ -26160,6 +26162,9 @@ structure RecursorMotiveTelescopeSeed
     motiveClosedTarget
   motiveClosedType : Rroot.venv.IsType recLparams.length
     motiveClosedScope.toCtx motiveClosedTarget
+  motiveClosedCanonicalTarget : VExpr
+  motiveClosedCanonicalDefEq : Rroot.venv.IsDefEqU recLparams.length
+    motiveClosedScope.toCtx motiveClosedTarget motiveClosedCanonicalTarget
   familyUnique : TrExprS.IsUnique
     (mkAppN stats.indConsts[target]! stats.params)
   familyTr : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
@@ -26236,6 +26241,9 @@ def RecursorMotiveTelescopeSeed.mono
       simpa only [Hext.venv_eq] using HmotiveClosedTr
     motiveClosedType := by
       simpa only [Hext.venv_eq] using H.motiveClosedType
+    motiveClosedCanonicalTarget := H.motiveClosedCanonicalTarget
+    motiveClosedCanonicalDefEq := by
+      simpa only [Hext.venv_eq] using H.motiveClosedCanonicalDefEq
     familyUnique := H.familyUnique
     familyTr := Hext.weakTrExprS H.familyTr
     familyTyping := Hext.weakHasType H.familyTyping
@@ -26272,6 +26280,8 @@ def RecursorMotiveTelescopeSeed.congrInfo
   motiveClosedTarget := H.motiveClosedTarget
   motiveClosedTr := by simpa [hindices, hmajor] using H.motiveClosedTr
   motiveClosedType := H.motiveClosedType
+  motiveClosedCanonicalTarget := H.motiveClosedCanonicalTarget
+  motiveClosedCanonicalDefEq := H.motiveClosedCanonicalDefEq
   familyUnique := H.familyUnique
   familyTr := H.familyTr
   familyTyping := H.familyTyping
@@ -29954,10 +29964,18 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
     exact Hdom'.isType
   · refine ⟨hindicesSize,
       Rindices.mlctx.mkForall' indices.size hindicesSize
-        (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)), ?_, ?_⟩
+        (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)), ?_, ?_, ?_⟩
     · rw [hconsumeMotive]
       exact hmotiveClosed.1
     · exact hmotiveClosed.2
+    · rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls,
+        TypeChecker.MLCtx.mkForall'_eq_wrapForalls]
+      have hmajorDomains : MLCtxForallDomains Rmajor.mlctx 1 hone =
+          [majorTarget] := by
+        dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+        simp only [MLCtxForallDomains, List.nil_append]
+      rw [hmajorDomains]
+      rfl
   · change TrExprS Rmajor.venv
       (AddInductive.getRecLevelParams elimLevel c'.lparams)
       Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotations _
@@ -30144,10 +30162,18 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
     motiveSourceEq := ?_ }⟩
   · refine ⟨hindicesSize,
       Rindices.mlctx.mkForall' indices.size hindicesSize
-        (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)), ?_, ?_⟩
+        (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)), ?_, ?_, ?_⟩
     · rw [hconsumeMotive]
       exact hmotiveClosed.1
     · exact hmotiveClosed.2
+    · rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls,
+        TypeChecker.MLCtx.mkForall'_eq_wrapForalls]
+      have hmajorDomains : MLCtxForallDomains Rmajor.mlctx 1 hone =
+          [majorTarget] := by
+        dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+        simp only [MLCtxForallDomains, List.nil_append]
+      rw [hmajorDomains]
+      rfl
   · change TrExprS Rmajor.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotations _
@@ -32405,7 +32431,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           HmajorAtMajor.mono hMotiveFrame
         rcases Hframe.motiveClosed with
           ⟨hclosedSize, motiveClosedTarget, HmotiveClosedTr,
-            HmotiveClosedType⟩
+            HmotiveClosedType, hmotiveClosedTarget⟩
         have HmotiveClosedTrSeed : TrExprS Rmotive.venv
             (AddInductive.getRecLevelParams elimLevel base.lparams)
             (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
@@ -32535,6 +32561,21 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           motiveClosedTarget := motiveClosedTarget
           motiveClosedTr := HmotiveClosedTrSeed
           motiveClosedType := HmotiveClosedTypeSeed
+          motiveClosedCanonicalTarget :=
+            VExpr.wrapForalls Hruntime.frontExpandedDomains
+              (.forallE Hframe.majorSourceTarget
+                (.sort Hframe.resultLevel))
+          motiveClosedCanonicalDefEq := by
+            change Rindices.venv.IsDefEqU
+              (AddInductive.getRecLevelParams elimLevel base.lparams).length
+              (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
+              motiveClosedTarget
+              (VExpr.wrapForalls Hruntime.frontExpandedDomains
+                (.forallE Hframe.majorSourceTarget
+                  (.sort Hframe.resultLevel)))
+            rw [Rindices.onlyLams.toCtx_dropN indices.size hclosedSize]
+            rw [hmotiveClosedTarget]
+            exact HmotiveCanonicalClosed
           familyUnique := HnarrowStats.familyPrefixUnique dIdx htargetLt
           familyTr := HfamilyTrSeed
           familyTyping := HfamilyTypingSeed
