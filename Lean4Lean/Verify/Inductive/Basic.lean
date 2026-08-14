@@ -57147,6 +57147,85 @@ theorem
   exact ⟨S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hmotive, Haligned'⟩
 
+/-- Consume the field-lifted suffix conversion in a typing derivation.  The
+canonical recursor prefix is opened through all generated index/major
+binders, then transported to the corresponding independently shaped motive
+context.  The term and residual result type are unchanged by that context
+transport. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveOpenedSuffixTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr) (prefixTarget : VExpr)
+    (hctx : OnCtx
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+    (Hprefix : H.outVEnv.HasType
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      prefixTarget
+      ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
+        fieldDomains.length 0)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ motiveDomains resultLevel,
+      motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
+      T.motives[owner]! =
+        VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+      let outer := T.params ++ T.motives ++ T.minors
+      let suffix := T.indices ++ T.major
+      let later := T.motives.drop (owner + 1) ++ T.minors
+      let expected :=
+        (liftContextPrefixAt (later.length + 1) 0
+          motiveDomains.reverse).reverse
+      H.outVEnv.HasType Us.length
+        (liftContextPrefix fieldDomains.length expected.reverse ++
+          fieldDomains.reverse ++ outer.reverse)
+        (VExpr.mkApps (prefixTarget.liftN suffix.length 0)
+          (recursorCanonicalVars suffix.length))
+        (T.result.liftN fieldDomains.length suffix.length) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalOwnerMotiveSuffixAlignmentUnderFields T fieldDomains hctx with
+    ⟨_S, _hparameters, motiveDomains, resultLevel,
+      hdomainLength, hmotive, Haligned⟩
+  let outer := T.params ++ T.motives ++ T.minors
+  let suffix := T.indices ++ T.major
+  let later := T.motives.drop (owner + 1) ++ T.minors
+  let expected :=
+    (liftContextPrefixAt (later.length + 1) 0
+      motiveDomains.reverse).reverse
+  have Hprefix' := Hprefix
+  rw [VExpr.liftN_wrapForalls] at Hprefix'
+  have Hopened := VEnv.HasType.mkApps_wrapForalls_canonical
+    H.outVEnvWF.ordered Hprefix'
+  have Hopened' : H.outVEnv.HasType Us.length
+      (liftContextPrefix fieldDomains.length suffix.reverse ++
+        fieldDomains.reverse ++ outer.reverse)
+      (VExpr.mkApps (prefixTarget.liftN suffix.length 0)
+        (recursorCanonicalVars suffix.length))
+      (T.result.liftN fieldDomains.length suffix.length) := by
+    simpa [outer, suffix, liftContextPrefix, recursorCanonicalVars,
+      List.reverse_append,
+      List.append_assoc, Nat.add_comm] using Hopened
+  have Htransported := Hopened'.defeqDFC H.outVEnvWF.ordered Haligned
+  exact ⟨motiveDomains, resultLevel, hdomainLength, hmotive,
+    Htransported⟩
+
 /-- The generated owner-motive domain and the retained first-pass motive are
 the same concrete declaration viewed at the two contexts that still have to
 be related.  The retained closed scope is now decomposed explicitly into its
