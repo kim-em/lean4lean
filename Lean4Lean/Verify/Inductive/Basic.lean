@@ -60030,6 +60030,58 @@ theorem
     telescope := T
     typing := H.recursorTypingAt S.generated.ownerIdx hentry }⟩
 
+/-- The validated terminal application of a recursive call consumes the
+same canonical motive telescope retained for the call-selected mutual
+family.  This is the semantic index/major alignment needed to consume the
+selected recursor's owner-specific suffix after its common prefix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.semanticMotiveTelescopeEvidence
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      Nonempty (RecursorMotiveTelescopeEvidence
+        F.semantic.current_context stats H.recInfos[selectedOwner]!
+        binding F.semantic.generated.exposedType F.semantic.exposedTarget) := by
+  let selectedOwner := F.semantic.generated.ownerIdx
+  have hrecInfo : selectedOwner < H.recInfos.size := by
+    simpa [H.generated.length] using F.entry_lt
+  let HextRule : RecursorContextExtension H.recursorWF
+      A.semantics.context :=
+    A.semantics.fieldRootExtension.trans
+      A.semantics.fieldsRecent.contextExtension
+  let Hext : RecursorContextExtension H.recursorWF
+      F.semantic.current_context :=
+    HextRule.trans F.semantic.recent.contextExtension
+  rcases H.motiveShapes.motiveBindingAtMono
+      (Rcurrent := F.semantic.current_context) H.bindings H.origins
+      Hext.contextLE selectedOwner hrecInfo with ⟨Hbinding⟩
+  let binding : RecursorMotiveBinding F.semantic.current_context
+      H.recInfos[selectedOwner]! H.elimLevel := Hbinding.toBinding
+  have HexposedType : F.semantic.current_context.venv.IsType
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      F.semantic.current_context.mlctx.vlctx.toCtx
+      F.semantic.exposedTarget :=
+    VEnv.IsType.defeqU_l F.semantic.current_context.checking.tr.wf
+      F.semantic.current_context.mlctx_wf.tr.wf.toCtx
+      F.semantic.exposed_defeq.symm F.semantic.terminal_type
+  refine ⟨binding, ?_⟩
+  exact H.motiveTelescopes.telescope selectedOwner hrecInfo
+    F.semantic.current_context Hext binding F.semantic.exposed_translation
+    HexposedType F.semantic.validated
+
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
 theorem RecursorPhasesResult.recursorUvarsAt
