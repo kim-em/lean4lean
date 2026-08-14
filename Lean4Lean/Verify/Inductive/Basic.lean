@@ -26165,6 +26165,8 @@ structure RecursorMotiveTelescopeSeed
   motiveClosedCanonicalTarget : VExpr
   motiveClosedCanonicalDefEq : Rroot.venv.IsDefEqU recLparams.length
     motiveClosedScope.toCtx motiveClosedTarget motiveClosedCanonicalTarget
+  motiveReopenedCanonicalTarget : VExpr
+  motiveTypeCanonicalEq : motiveType = motiveReopenedCanonicalTarget
   familyUnique : TrExprS.IsUnique
     (mkAppN stats.indConsts[target]! stats.params)
   familyTr : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
@@ -26244,6 +26246,11 @@ def RecursorMotiveTelescopeSeed.mono
     motiveClosedCanonicalTarget := H.motiveClosedCanonicalTarget
     motiveClosedCanonicalDefEq := by
       simpa only [Hext.venv_eq] using H.motiveClosedCanonicalDefEq
+    motiveReopenedCanonicalTarget := H.motiveReopenedCanonicalTarget.lift'
+      (Hext.shift.consN 0)
+    motiveTypeCanonicalEq := congrArg
+      (fun target => target.lift' (Hext.shift.consN 0))
+      H.motiveTypeCanonicalEq
     familyUnique := H.familyUnique
     familyTr := Hext.weakTrExprS H.familyTr
     familyTyping := Hext.weakHasType H.familyTyping
@@ -26282,6 +26289,8 @@ def RecursorMotiveTelescopeSeed.congrInfo
   motiveClosedType := H.motiveClosedType
   motiveClosedCanonicalTarget := H.motiveClosedCanonicalTarget
   motiveClosedCanonicalDefEq := H.motiveClosedCanonicalDefEq
+  motiveReopenedCanonicalTarget := H.motiveReopenedCanonicalTarget
+  motiveTypeCanonicalEq := H.motiveTypeCanonicalEq
   familyUnique := H.familyUnique
   familyTr := H.familyTr
   familyTyping := H.familyTyping
@@ -29482,7 +29491,11 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
               (.sort Hframe.resultLevel)))
           (VExpr.wrapForalls Hruntime.frontExpandedDomains
             (.forallE Hframe.majorSourceTarget
-              (.sort Hframe.resultLevel))) := by
+              (.sort Hframe.resultLevel))) ∧
+        Hcanonical.motiveType =
+          (VExpr.wrapForalls Hruntime.frontExpandedDomains
+            (.forallE Hframe.majorSourceTarget
+              (.sort Hframe.resultLevel))).liftN indices.size 0 := by
   rcases H.completedRecursorCanonicalMotiveFrame Helim R Hsynthesis Hstats
       Hruntime henv hindices Hframe with
     ⟨Hcanonical, _hfamilyType, hmotiveType⟩
@@ -29600,7 +29613,8 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
       hmotiveType
   have hresult := hreopened'.symm
   rw [← hnatural', ← hmotiveType'] at hresult
-  exact ⟨Hcanonical, ⟨_, hresult⟩, ⟨_, hclosedRuntime.symm⟩⟩
+  exact ⟨Hcanonical, ⟨_, hresult⟩, ⟨_, hclosedRuntime.symm⟩,
+    hmotiveType'.trans hnatural'⟩
 
 theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyApplication
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -32165,7 +32179,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         rcases Hheader.completedRecursorMotiveTypeDefEq Helim Rindices
             Hsynthesis HnarrowStats Hruntime HnarrowIndices hcanonical
             HindexOrigins.bound henvIndices hindicesSize hfront Hframe with
-          ⟨Hcanonical, HmotiveCanonical, HmotiveCanonicalClosed⟩
+          ⟨Hcanonical, HmotiveCanonical, HmotiveCanonicalClosed,
+            hcanonicalMotiveReopen⟩
         let majorTy :=
           (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
             indices).consumeTypeAnnotations
@@ -32576,6 +32591,14 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             rw [Rindices.onlyLams.toCtx_dropN indices.size hclosedSize]
             rw [hmotiveClosedTarget]
             exact HmotiveCanonicalClosed
+          motiveReopenedCanonicalTarget :=
+            (((VExpr.wrapForalls Hruntime.frontExpandedDomains
+              (.forallE Hframe.majorSourceTarget
+                (.sort Hframe.resultLevel))).liftN indices.size 0).lift'
+                  (HmajorExtension.shift.consN 0)).lift'
+                    (HmotiveExtension.shift.consN 0)
+          motiveTypeCanonicalEq := by
+            rw [hcanonicalMotiveReopen]
           familyUnique := HnarrowStats.familyPrefixUnique dIdx htargetLt
           familyTr := HfamilyTrSeed
           familyTyping := HfamilyTypingSeed
