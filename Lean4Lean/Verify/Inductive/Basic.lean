@@ -65253,6 +65253,60 @@ theorem
   · exact HprefixExpected.defeqDFC H.outVEnvWF.ordered Hfull
   · exact HownerExpected.defeqDFC H.outVEnvWF.ordered Hfull
 
+/-- Any concrete mutual-family constant retained in the executable statistics
+translates under recursor universes to its installed abstract header at the
+declaration-level universe instantiation. -/
+theorem RecursorPhasesResult.finalInductiveHeadTranslationAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (target : Nat) (htarget : target < decl.types.length)
+    (Delta : VLCtx) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    TrExprS H.outVEnv Us Delta stats.indConsts[target]!
+      (.const decl.types[target].name
+        (recursorDeclarationAbstractLevels c.lparams
+          H.elimLevelAdmissible)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let targetVal := decl.types[target]
+  have hlookupHeader : Hheaders.context.venv.constants targetVal.name =
+      some targetVal.toVConstant := by
+    apply VEnv.addConstVals_get Hheaders.installed.abstract
+    rw [Hheaders.values]
+    exact List.mem_map.mpr
+      ⟨targetVal, List.getElem_mem htarget, rfl⟩
+  have hlookupCtor : R.declared.venvCtors.constants targetVal.name =
+      some targetVal.toVConstant :=
+    R.declared.installed.le.constants hlookupHeader
+  have hlookup : H.outVEnv.constants targetVal.name =
+      some targetVal.toVConstant :=
+    H.installed.le.constants hlookupCtor
+  have hsource : stats.indConsts[target]! =
+      .const targetVal.name stats.levels := by
+    rw [R.materialized.consts]
+    simp [targetVal, htarget]
+  have hlevels := R.materialized.recursorLevelTranslation
+    H.lparamsNodup H.elimLevelAdmissible
+  have htypesLength : indTypes.size = decl.types.length := by
+    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      Hheaders.translation.types
+  have hsourceTarget : target < indTypes.toList.length := by
+    simpa [htypesLength] using htarget
+  have Htarget := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    Hheaders.translation.types target hsourceTarget htarget
+  have htargetUvars : targetVal.uvars = decl.uvars := by
+    exact Htarget.header.uvars.trans R.materialized.uvars
+  have hlength : stats.levels.length = targetVal.uvars := by
+    exact R.materialized.levels.trans htargetUvars.symm
+  dsimp only [Us, targetVal]
+  rw [hsource]
+  exact TrExprS.const hlookup hlevels hlength
+
 /-- The concrete constructor constant at the head of the generated major
 premise translates under recursor universes to the installed abstract
 constructor at the declaration-level universe instantiation. -/
