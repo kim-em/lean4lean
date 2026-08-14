@@ -67507,6 +67507,245 @@ theorem
     Hexposed, Htyping,
     HindexEq, HmajorEq⟩
 
+/-- Invert the normalized exposed recursive-field type at its selected mutual
+family head.  The suffix extracted from the complete application is related
+pointwise to the exact recursive-index targets retained by the call frame;
+the relation is definitional equality, which is the strongest conclusion
+available for arbitrary translated index expressions. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.canonicalInsertedSemanticExposedSpine
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    let inserted := T.motives ++ T.minors
+    ∃ (equationDomains localDomains : List VExpr)
+        (exactIndexTargets : List VExpr) (majorTarget exposedTarget : VExpr),
+      OnCtx
+          (abstractForallContext (equationDomains ++ localDomains) []).toCtx
+          (H.outVEnv.IsType Us.length) ∧
+        H.outVEnv.HasType Us.length
+          (abstractForallContext (equationDomains ++ localDomains) []).toCtx
+          majorTarget exposedTarget ∧
+        ∃ levels parameterTargets spineIndexTargets,
+          exposedTarget.getAppFnArgs =
+            (.const (decl.types[selectedOwner]'F.semantic.validated.target_lt).name
+              levels, parameterTargets ++ spineIndexTargets) ∧
+          stats.levels.mapM (VLevel.ofLevel Us) = some levels ∧
+          List.Forall₂
+            (fun spine exact => H.outVEnv.IsDefEqU Us.length
+              (abstractForallContext
+                (equationDomains ++ localDomains) []).toCtx spine exact)
+            spineIndexTargets exactIndexTargets := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  let inserted := T.motives ++ T.minors
+  rcases F.canonicalInsertedSemanticCallArgumentFrame T with
+    ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
+      liftedFront, narrowIndices, narrowMajor, narrowExposed, _hfront,
+      hliftedFront, hfields, hlocal, Hctx, _hlength, Hindices, _Hmajor,
+      Hexposed, Htyping, _HindexEq, _HmajorEq⟩
+  let liftedFields :=
+    (liftContextPrefix inserted.length fieldDomains.reverse).reverse
+  let liftedLocals :=
+    (liftContextPrefixAt inserted.length fieldDomains.length
+      rawLocalDomains.reverse).reverse
+  let equationDomains :=
+    parameterDecls.toCtx.reverse ++ inserted ++ liftedFields
+  let exactIndexTargets := narrowIndices.map fun target =>
+    target.liftN inserted.length
+      (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
+  let majorTarget := narrowMajor.liftN inserted.length
+    (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
+  let exposedTarget := narrowExposed.liftN inserted.length
+    (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
+  have hsplitFront : liftedFront = liftedFields ++ liftedLocals := by
+    rw [hliftedFront]
+    exact liftContextPrefix_reverse_append inserted.length
+      fieldDomains rawLocalDomains
+  have Hctx' : OnCtx
+      (abstractForallContext (equationDomains ++ liftedLocals) []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    simpa [equationDomains, parameterDecls, inserted, hsplitFront,
+      List.append_assoc] using Hctx
+  have Htyping' : H.outVEnv.HasType Us.length
+      (abstractForallContext (equationDomains ++ liftedLocals) []).toCtx
+      majorTarget exposedTarget := by
+    simpa [equationDomains, parameterDecls, inserted, majorTarget,
+      exposedTarget, hsplitFront, List.append_assoc] using Htyping
+  have Hexposed' : TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ liftedLocals) [])
+      ((F.semantic.generated.exposedType.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders F.semantic.generated.localArgs.size)
+      exposedTarget := by
+    simpa [equationDomains, parameterDecls, inserted, exposedTarget,
+      hsplitFront, List.append_assoc] using Hexposed
+  have hvalid := (checkPositivityStep.isValidIndApp?_some
+    F.semantic.generated.owner_valid).2
+  have hconst := H.validStats.indConstAt F.semantic.validated.target_lt
+  have hhead : F.semantic.generated.exposedType.getAppFn =
+      .const (decl.types[selectedOwner]'F.semantic.validated.target_lt).name
+        stats.levels :=
+    checkPositivityStep.isValidIndAppIdx.constHead hvalid hconst
+  have hheadClosed :
+      ((F.semantic.generated.exposedType.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders F.semantic.generated.localArgs.size).getAppFn =
+      .const (decl.types[selectedOwner]'F.semantic.validated.target_lt).name
+        stats.levels := by
+    rw [Expr.getAppFn_abstractList
+      (F.semantic.generated.exposedType.abstractList
+        F.semantic.generated.arguments_bound.fvars)
+      A.rule.binders F.semantic.generated.localArgs.size]
+    rw [Expr.getAppFn_abstractList F.semantic.generated.exposedType
+      F.semantic.generated.arguments_bound.fvars 0, hhead]
+    simp [Expr.abstractList_const]
+  rcases checkPositivityStep.TrExprS.constAppSpine Hexposed' hheadClosed with
+    ⟨levels, translatedArgs, hspine, hlevels, Hargs⟩
+  have hsourcePrefix := H.validStats.sourceParameterPrefix hvalid
+  have hrawArgs : F.semantic.generated.exposedType.getAppArgsList =
+      stats.params.toList ++ sourceIndices := by
+    calc
+      F.semantic.generated.exposedType.getAppArgsList =
+          F.semantic.generated.exposedType.getAppArgsList.take
+              stats.params.size ++
+            F.semantic.generated.exposedType.getAppArgsList.drop
+              stats.params.size :=
+        (List.take_append_drop _ _).symm
+      _ = stats.params.toList ++ sourceIndices := by
+        rw [hsourcePrefix]
+        congr 1
+        have hsuffix :
+            (F.semantic.generated.exposedType.getAppArgs[
+              stats.params.size:]).toList =
+            F.semantic.generated.exposedType.getAppArgs.toList.drop
+              stats.params.size := by
+          rw [List.drop_eq_drop_min]
+          simp only [Subarray.toList_eq, Array.array_toSubarray,
+            Array.start_toSubarray, Array.stop_toSubarray, Nat.min_self,
+            Array.toList_extract, List.extract_eq_take_drop,
+            Array.length_toList]
+          apply List.take_of_length_le
+          simp
+        simpa [sourceIndices, Expr.getAppArgs_toList] using hsuffix.symm
+  let parameterSources := stats.params.toList.map fun param =>
+    (param.abstractList
+      F.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.binders F.semantic.generated.localArgs.size
+  let indexSources := sourceIndices.map fun index =>
+    (index.abstractList
+      F.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.binders F.semantic.generated.localArgs.size
+  have hsourceArgs :
+      ((F.semantic.generated.exposedType.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders
+          F.semantic.generated.localArgs.size).getAppArgsList =
+        parameterSources ++ indexSources := by
+    rw [Expr.getAppArgsList_abstractList
+      (F.semantic.generated.exposedType.abstractList
+        F.semantic.generated.arguments_bound.fvars)
+      A.rule.binders F.semantic.generated.localArgs.size]
+    rw [Expr.getAppArgsList_abstractList F.semantic.generated.exposedType
+      F.semantic.generated.arguments_bound.fvars 0, hrawArgs]
+    simp [parameterSources, indexSources, List.map_map,
+      Function.comp_def]
+  rw [hsourceArgs] at Hargs
+  rcases checkPositivityStep.List.Forall₂.split_left Hargs with
+    ⟨parameterTargets, spineIndexTargets, htranslatedArgs,
+      _Hparameters, HspineIndices⟩
+  have Hindices' : List.Forall₂
+      (TrExprS H.outVEnv Us
+        (abstractForallContext (equationDomains ++ liftedLocals) []))
+      indexSources exactIndexTargets := by
+    simpa [equationDomains, parameterDecls, inserted, indexSources,
+      exactIndexTargets, hsplitFront, List.append_assoc] using Hindices
+  have anonymousWF : ∀ types : List VExpr,
+      OnCtx types (H.outVEnv.IsType Us.length) →
+      VLCtx.WF H.outVEnv Us.length
+        (types.map fun type =>
+          ((none, .vlam type) :
+            Option (FVarId × List FVarId) × VLocalDecl)) := by
+    intro types Htypes
+    induction types with
+    | nil => trivial
+    | cons type types ih =>
+      have Htype : H.outVEnv.IsType Us.length
+          (VLCtx.toCtx (types.map fun type =>
+            ((none, .vlam type) :
+              Option (FVarId × List FVarId) × VLocalDecl))) type := by
+        rw [VLCtx.toCtx_map_anonymousLams]
+        exact Htypes.2
+      exact ⟨ih Htypes.1, nofun, Htype⟩
+  have HvlctxWF : VLCtx.WF H.outVEnv Us.length
+      (abstractForallContext (equationDomains ++ liftedLocals) []) := by
+    have Hwf := anonymousWF
+      (equationDomains ++ liftedLocals).reverse (by
+        simpa [VLCtx.toCtx, List.append_assoc] using Hctx')
+    simpa [abstractForallContext] using Hwf
+  have HindexDefEq : List.Forall₂
+      (fun spine exact => H.outVEnv.IsDefEqU Us.length
+        (abstractForallContext
+          (equationDomains ++ liftedLocals) []).toCtx spine exact)
+      spineIndexTargets exactIndexTargets := by
+    have align : ∀ {sources spines exacts : List _},
+        List.Forall₂
+            (TrExprS H.outVEnv Us
+              (abstractForallContext
+                (equationDomains ++ liftedLocals) []))
+            sources spines →
+          List.Forall₂
+            (TrExprS H.outVEnv Us
+              (abstractForallContext
+                (equationDomains ++ liftedLocals) []))
+            sources exacts →
+          List.Forall₂
+            (fun spine exact => H.outVEnv.IsDefEqU Us.length
+              (abstractForallContext
+                (equationDomains ++ liftedLocals) []).toCtx spine exact)
+            spines exacts := by
+      intro sources spines exacts Hleft Hright
+      induction Hleft generalizing exacts with
+      | nil =>
+        cases Hright
+        exact .nil
+      | @cons source spine sources spines Hspine _ ih =>
+        cases Hright with
+        | cons Hexact Htail =>
+          exact .cons
+            (Hspine.uniq H.outVEnvWF
+              (.refl H.outVEnvWF HvlctxWF) Hexact)
+            (ih Htail)
+    exact align HspineIndices Hindices'
+  refine ⟨equationDomains, liftedLocals, exactIndexTargets, majorTarget,
+    exposedTarget, Hctx', Htyping', levels, parameterTargets,
+    spineIndexTargets, ?_, hlevels, HindexDefEq⟩
+  simpa [htranslatedArgs] using hspine
+
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
 telescope.  The sole non-structural premise is the selected prefix typing in
