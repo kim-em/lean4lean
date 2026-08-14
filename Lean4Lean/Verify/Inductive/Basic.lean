@@ -706,8 +706,10 @@ theorem RecursorMotiveTelescope.consume
 /-- Apply a family and a parallel motive to the same argument spine, then
 apply the resulting motive to a major premise of the family application.
 Typing of the shared arguments is recovered from the independently typed
-family application and transported to the declared telescope by uniqueness. -/
-theorem RecursorMotiveTelescope.applyMajor
+family application and transported to the declared telescope by uniqueness.
+The exact result sort is retained for consumers that must type an equation
+body rather than merely prove that it is a type. -/
+theorem RecursorMotiveTelescope.applyMajorTyped
     {args : List VExpr} {env : VEnv} {uvars : Nat} {ctx : List VExpr}
     {motive major : VExpr}
     (H : RecursorMotiveTelescope resultLevel args.length family
@@ -716,15 +718,14 @@ theorem RecursorMotiveTelescope.applyMajor
     (Hfamily : env.HasType uvars ctx family familyType)
     (Hmotive : env.HasType uvars ctx motive motiveType)
     (Hmajor : env.HasType uvars ctx major (VExpr.mkApps family args)) :
-    env.IsType uvars ctx
-      (.app (VExpr.mkApps motive args) major) := by
+    env.HasType uvars ctx
+      (.app (VExpr.mkApps motive args) major) (.sort resultLevel) := by
   induction args generalizing family familyType motive motiveType with
   | nil =>
       cases H with
       | zero =>
-          exact ⟨resultLevel, by
-            simpa [VExpr.mkApps, VExpr.inst] using
-              VEnv.HasType.app Hmotive Hmajor⟩
+          simpa [VExpr.mkApps, VExpr.inst] using
+            VEnv.HasType.app Hmotive Hmajor
   | cons arg args ih =>
       cases H with
       | @succ _ domain familyBody motiveBody _ Htail =>
@@ -753,6 +754,20 @@ theorem RecursorMotiveTelescope.applyMajor
             (motiveBody.inst arg) := by
           simpa [VExpr.inst, VExpr.instN_bvar0, VExpr.inst_liftN] using Htail'
         exact ih Htail'' Hfamily' Hmotive' Hmajor
+
+/-- Typehood wrapper around `applyMajorTyped`. -/
+theorem RecursorMotiveTelescope.applyMajor
+    {args : List VExpr} {env : VEnv} {uvars : Nat} {ctx : List VExpr}
+    {motive major : VExpr}
+    (H : RecursorMotiveTelescope resultLevel args.length family
+      familyType motiveType)
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (Hfamily : env.HasType uvars ctx family familyType)
+    (Hmotive : env.HasType uvars ctx motive motiveType)
+    (Hmajor : env.HasType uvars ctx major (VExpr.mkApps family args)) :
+    env.IsType uvars ctx
+      (.app (VExpr.mkApps motive args) major) :=
+  ⟨resultLevel, H.applyMajorTyped henv hctx Hfamily Hmotive Hmajor⟩
 
 @[simp] theorem VExpr.getAppFnArgs_mkApps_bvar
     (index : Nat) (args : List VExpr) :
@@ -35535,18 +35550,20 @@ recursive-domain evidence that the operational `RecursorRule` omits. -/
 structure BoundGeneratedRecursorRule.Semantics
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
-    (recLparams : List Name) (semanticEnv : VEnv) (decl : VInductDecl)
+    {semanticRoot : AddInductive.Context} {recLparams : List Name}
+    (Rroot : RecursorContextWF semanticRoot recLparams) (decl : VInductDecl)
     (expectedOwnerIdx : Nat) where
   depth : Nat
   context : RecursorContextWF H.root recLparams
   fieldRoot : AddInductive.Context
   fieldRootContext : RecursorContextWF fieldRoot recLparams
+  fieldRootExtension : RecursorContextExtension Rroot fieldRootContext
   fieldsRecent : RecursorRecentBoundFVarArray fieldRootContext context
     H.allArgs
   parameterTail : Expr
   parameterPrefix : RecursorParamPrefix stats 0 sourceCtor.type parameterTail
   fieldOpening : ConstructorFieldOpening parameterTail H.target H.allArgs
-  context_venv : context.venv = semanticEnv
+  context_venv : context.venv = Rroot.venv
   validStats : RecursorValidAppStatsWF context.venv recLparams
     context.mlctx.vlctx stats decl depth
   ownerIdx : Nat
@@ -35580,7 +35597,9 @@ types the constructor application used as the iota major premise. -/
 structure BoundGeneratedRecursorRule.Semantics.FieldTelescope
     {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
-    (S : H.Semantics recLparams semanticEnv decl expectedOwnerIdx) where
+    {semanticRoot : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF semanticRoot recLparams}
+    (S : H.Semantics Rroot decl expectedOwnerIdx) where
   domains : List VExpr
   domains_length : domains.length = H.allArgs.size
   target_translation : TrExprS S.fieldRootContext.venv recLparams
@@ -35604,7 +35623,9 @@ certificate retained by the production constructor traversal. -/
 def BoundGeneratedRecursorRule.Semantics.fieldTelescope
     {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
-    (S : H.Semantics recLparams semanticEnv decl expectedOwnerIdx) :
+    {semanticRoot : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF semanticRoot recLparams}
+    (S : H.Semantics Rroot decl expectedOwnerIdx) :
     S.FieldTelescope := by
   let domains := MLCtxForallDomains S.context.mlctx H.allArgs.size
     S.fieldsRecent.size_le
@@ -35629,7 +35650,7 @@ and the outer mutual-family traversal. -/
 theorem BoundGeneratedRecursorRule.Semantics.owner_eq
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
-    (Hsemantic : H.Semantics recLparams semanticEnv decl expectedOwnerIdx)
+    (Hsemantic : H.Semantics Rroot decl expectedOwnerIdx)
     (hnames : (decl.types.map (·.name)).Nodup) :
     Hsemantic.ownerIdx = expectedOwnerIdx := by
   have hselectedValid : AddInductive.isValidIndAppIdx stats H.target
@@ -35689,11 +35710,11 @@ theorem BoundGeneratedRecursorRule.iotaRuleTranslation_ofSemanticCalls
 theorem BoundGeneratedRecursorRule.iotaRuleTranslation_ofSemantics
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
-    (Hsemantic : H.Semantics recLparams semanticEnv decl expectedOwnerIdx)
+    (Hsemantic : H.Semantics Rroot decl expectedOwnerIdx)
     (Hequation : H.IotaEquationTranslationCertificate trEnv Us Δ decl block
       owner ctor rule)
     (hctx : VLCtx.NoIndConsts (block.recursors.map (·.name)) Δ) :
-    Nonempty (H.IotaRuleTranslation trEnv Us Δ semanticEnv decl block owner
+    Nonempty (H.IotaRuleTranslation trEnv Us Δ Rroot.venv decl block owner
       ctor rule) := by
   rw [← Hsemantic.context_venv]
   exact H.iotaRuleTranslation_ofSemanticCalls Hsemantic.calls
@@ -35706,11 +35727,11 @@ retained pre-installation semantic calls. -/
 theorem BoundGeneratedRecursorRule.stagedIotaRuleTranslation_ofSemantics
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
-    (Hsemantic : H.Semantics recLparams semanticEnv decl expectedOwnerIdx)
+    (Hsemantic : H.Semantics Rroot decl expectedOwnerIdx)
     (Hequation : H.IotaEquationTranslationCertificate trEnv Us Delta decl
       block owner ctor rule)
     (hfresh : ∀ name ∈ block.recursors.map (·.name),
-      semanticEnv.constants name = none)
+      Rroot.venv.constants name = none)
     (hctx : VLCtx.NoIndConsts (block.recursors.map (·.name)) Delta)
     (hproj : ∀ {Delta : VLCtx} {s i e' e''},
       TrProj Delta.toCtx s i e' e'' →
@@ -35719,7 +35740,7 @@ theorem BoundGeneratedRecursorRule.stagedIotaRuleTranslation_ofSemantics
     (hrecursor : Hsemantic.calls.bound.RecursorsPresent
       (block.recursors.map (·.name))) :
     Nonempty (H.StagedIotaRuleTranslation trEnv Us Delta
-      semanticEnv decl block owner ctor rule) := by
+      Rroot.venv decl block owner ctor rule) := by
   rw [← Hsemantic.context_venv] at hfresh ⊢
   rcases Hsemantic.calls.sourceSelection Hsemantic.selection with
     ⟨selections, HsourceSelection⟩
@@ -35765,26 +35786,27 @@ ordinal in lockstep. -/
 inductive SemanticBoundGeneratedRecursorRules
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
-    (recLparams : List Name) (semanticEnv : VEnv) (decl : VInductDecl)
+    {semanticRoot : AddInductive.Context} {recLparams : List Name}
+    (Rroot : RecursorContextWF semanticRoot recLparams) (decl : VInductDecl)
     (ownerIdx : Nat) :
     List Constructor → Nat → List RecursorRule → Prop
   | nil : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams semanticEnv decl ownerIdx [] start []
+      lvls Rroot decl ownerIdx [] start []
   | cons
       (Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
         ctor start rule)
       (Hsemantic : Nonempty
-        (Hrule.Semantics recLparams semanticEnv decl ownerIdx))
+        (Hrule.Semantics Rroot decl ownerIdx))
       (Htail : SemanticBoundGeneratedRecursorRules indTypes stats motives
-        minors lvls recLparams semanticEnv decl ownerIdx ctors (start + 1)
+        minors lvls Rroot decl ownerIdx ctors (start + 1)
           rules) :
       SemanticBoundGeneratedRecursorRules indTypes stats motives minors lvls
-        recLparams semanticEnv decl ownerIdx (ctor :: ctors) start
+        Rroot decl ownerIdx (ctor :: ctors) start
           (rule :: rules)
 
 theorem SemanticBoundGeneratedRecursorRules.bound
     (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams semanticEnv decl ownerIdx ctors start rules) :
+      lvls Rroot decl ownerIdx ctors start rules) :
     BoundGeneratedRecursorRules indTypes stats motives minors lvls ctors
       start rules := by
   induction H with
@@ -35793,7 +35815,7 @@ theorem SemanticBoundGeneratedRecursorRules.bound
 
 theorem SemanticBoundGeneratedRecursorRules.length
     (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams semanticEnv decl ownerIdx ctors start rules) :
+      lvls Rroot decl ownerIdx ctors start rules) :
     rules.length = ctors.length := by
   induction H with
   | nil => rfl
@@ -35801,11 +35823,11 @@ theorem SemanticBoundGeneratedRecursorRules.length
 
 theorem SemanticBoundGeneratedRecursorRules.entry
     (H : SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-      lvls recLparams semanticEnv decl ownerIdx ctors start rules) :
+      lvls Rroot decl ownerIdx ctors start rules) :
     ∀ i (hctor : i < ctors.length) (hrule : i < rules.length),
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors lvls
           ctors[i] (start + i) rules[i],
-        Nonempty (Hrule.Semantics recLparams semanticEnv decl ownerIdx) := by
+        Nonempty (Hrule.Semantics Rroot decl ownerIdx) := by
   induction H with
   | nil =>
       intro i hctor
@@ -36190,7 +36212,7 @@ theorem oneRuleSemantics
             return (rule, minorIdx + 1)) c).WF fun out =>
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors
           lvls ctor minorIdx out.1,
-        Nonempty (Hrule.Semantics recLparams R.venv decl ownerIdx) ∧
+        Nonempty (Hrule.Semantics R decl ownerIdx) ∧
         out.2 = minorIdx + 1 := by
   let process : Expr → Array Expr → Array Expr →
       AddInductive.M (RecursorRule × Nat) := fun _ allArgs recursiveArgs =>
@@ -36210,7 +36232,7 @@ theorem oneRuleSemantics
     (Q := fun out =>
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors
           lvls ctor minorIdx out.1,
-        Nonempty (Hrule.Semantics recLparams R.venv decl ownerIdx) ∧
+        Nonempty (Hrule.Semantics R decl ownerIdx) ∧
         out.2 = minorIdx + 1)
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
@@ -36253,7 +36275,7 @@ theorem oneRuleSemantics
     (Q := fun out =>
       ∃ Hrule : BoundGeneratedRecursorRule indTypes stats motives minors
           lvls ctor minorIdx out.1,
-        Nonempty (Hrule.Semantics recLparams R.venv decl ownerIdx) ∧
+        Nonempty (Hrule.Semantics R decl ownerIdx) ∧
         out.2 = minorIdx + 1)
     (indTypes := indTypes) (stats := stats) (motives := motives)
     (minors := minors) (lvls := lvls) (u := recursiveArgs)
@@ -36327,11 +36349,12 @@ theorem oneRuleSemantics
     ctor_eq := rfl
     fields_eq := rfl
     rhs_eq := rfl }
-  let Hsemantic : Hrule.Semantics recLparams R.venv decl ownerIdx := {
+  let Hsemantic : Hrule.Semantics R decl ownerIdx := {
     depth := depth + allArgs.size
     context := Rargs
     fieldRoot := c
     fieldRootContext := R
+    fieldRootExtension := .refl R
     fieldsRecent := HfieldsRecent
     parameterTail := tail
     parameterPrefix := hprefix
@@ -36400,7 +36423,7 @@ theorem semanticGeneratedRules
         ∃ generated,
           out.1 = acc.toList ++ generated ∧
           SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-            lvls recLparams R.venv decl ownerIdx ctors start generated ∧
+            lvls R decl ownerIdx ctors start generated ∧
           out.2 = start + ctors.length := by
   induction ctors generalizing acc start with
   | nil =>
@@ -36652,8 +36675,8 @@ theorem mkRecRules.semanticGeneratedRules
     (AddInductive.mkRecRules indTypes elimLevel stats dIdx motives minors
       start c).WF fun out =>
         SemanticBoundGeneratedRecursorRules indTypes stats motives minors
-          (AddInductive.getRecLevels elimLevel stats.levels) recLparams R.venv
-          decl dIdx indTypes[dIdx]!.ctors start out.1 ∧
+          (AddInductive.getRecLevels elimLevel stats.levels) R decl dIdx
+          indTypes[dIdx]!.ctors start out.1 ∧
         out.2 = start + indTypes[dIdx]!.ctors.length := by
   unfold AddInductive.mkRecRules
   have H := mkRecRules.loopCtors.semanticGeneratedRules indTypes stats
@@ -36745,8 +36768,8 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
       (recursorMinorOffset indTypes dIdx) c).WF fun out =>
         SemanticBoundGeneratedRecursorRules indTypes stats
           (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-          (AddInductive.getRecLevels elimLevel stats.levels) recLparams R.venv
-          decl dIdx indTypes[dIdx]!.ctors
+          (AddInductive.getRecLevels elimLevel stats.levels) R decl dIdx
+          indTypes[dIdx]!.ctors
           (recursorMinorOffset indTypes dIdx) out.1 ∧
         out.2 = recursorMinorOffset indTypes (dIdx + 1) := by
   have htotal :
@@ -38858,7 +38881,8 @@ this certificate retains, for the same owner slice, the exact field
 classification and recursive-call evidence produced while constructing each
 rule.  It deliberately does not duplicate the translated recursor value. -/
 structure GeneratedRecursorRuleSemanticsRange
-    (recLparams : List Name) (semanticEnv : VEnv) (decl : VInductDecl)
+    {semanticRoot : AddInductive.Context} {recLparams : List Name}
+    (Rroot : RecursorContextWF semanticRoot recLparams) (decl : VInductDecl)
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
     (recInfos : Array AddInductive.RecInfo)
@@ -38870,8 +38894,8 @@ structure GeneratedRecursorRuleSemanticsRange
       entries[i].1 = .recInfo info ∧
       SemanticBoundGeneratedRecursorRules indTypes stats
         (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-        (AddInductive.getRecLevels elimLevel stats.levels) recLparams
-        semanticEnv decl (start + i) indTypes[start + i]!.ctors
+        (AddInductive.getRecLevels elimLevel stats.levels) Rroot decl
+        (start + i) indTypes[start + i]!.ctors
         (recursorMinorOffset indTypes (start + i)) info.rules
 
 def GeneratedRecursorsRange.atZero
@@ -40323,8 +40347,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
           out.2 = recursorMinorOffset indTypes indTypes.size ∧
           Nonempty (GeneratedRecursorsRange c.safety sourceVEnv lparams
             elimLevel c stats indTypes recInfos dIdx entries) ∧
-          Nonempty (GeneratedRecursorRuleSemanticsRange recLparams R.venv
-            decl stats indTypes recInfos elimLevel dIdx entries) ∧
+          Nonempty (GeneratedRecursorRuleSemanticsRange R decl stats
+            indTypes recInfos elimLevel dIdx entries) ∧
           AddConstants c.safety env currentVEnv entries out.1 outVEnv := by
   rw [AddInductive.declareRecursors.loop]
   by_cases hidx : dIdx < indTypes.size
@@ -40412,8 +40436,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
               | succ i =>
                 have hi' : i < entries.length := by simpa using hi
                 simpa [Nat.add_assoc, Nat.add_comm 1 i] using Hrange.entry i hi'
-            have HsemRange' : GeneratedRecursorRuleSemanticsRange recLparams
-                R.venv decl stats indTypes recInfos elimLevel dIdx
+            have HsemRange' : GeneratedRecursorRuleSemanticsRange R decl
+                stats indTypes recInfos elimLevel dIdx
                 (entry :: entries) := by
               refine {
                 covered := by
@@ -40574,8 +40598,8 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
         ∃ entries : List (ConstantInfo × VConstVal),
           Nonempty (GeneratedRecursors c.safety currentVEnv c.lparams
             elimLevel c stats indTypes recInfos entries) ∧
-          Nonempty (GeneratedRecursorRuleSemanticsRange recLparams R.venv
-            decl stats indTypes recInfos elimLevel 0 entries) ∧
+          Nonempty (GeneratedRecursorRuleSemanticsRange R decl stats
+            indTypes recInfos elimLevel 0 entries) ∧
           AddConstants c.safety c.env currentVEnv entries outEnv
             outVEnv := by
   unfold AddInductive.declareRecursors
@@ -52108,8 +52132,7 @@ structure RecursorPhasesResult
   generated : GeneratedRecursors localContext.safety R.declared.venvCtors
     localContext.lparams elimLevel localContext stats indTypes recInfos entries
   ruleSemantics : GeneratedRecursorRuleSemanticsRange
-    (AddInductive.getRecLevelParams elimLevel c.lparams)
-    R.declared.venvCtors decl stats indTypes recInfos elimLevel 0 entries
+    recursorWF decl stats indTypes recInfos elimLevel 0 entries
   installed : AddConstants localContext.safety localContext.env
     R.declared.venvCtors
     entries outEnv outVEnv
@@ -52207,9 +52230,6 @@ theorem ConstructorPhasesResult.recursorPhasesWF
   exact Hrecursors.mono fun outEnv Hout => by
     rcases Hout with
       ⟨outVEnv, entries, ⟨Hgenerated⟩, ⟨HruleSemantics⟩, Hinstalled⟩
-    have hsemanticEnv : Rlocal.venv = R.declared.venvCtors :=
-      henvLocal.trans R.declared.contextVEnv
-    rw [hsemanticEnv] at HruleSemantics
     exact ⟨{
       elimLevel := elimLevel
       elimLevelAdmissible := hElim
@@ -53091,8 +53111,7 @@ theorem RecursorPhasesResult.generatedRuleSemantics
     SemanticBoundGeneratedRecursorRules indTypes stats
       (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
       (AddInductive.getRecLevels H.elimLevel stats.levels)
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      R.declared.venvCtors decl owner indTypes[owner]!.ctors
+      H.recursorWF decl owner indTypes[owner]!.ctors
       (recursorMinorOffset indTypes owner)
       (H.generated.entry owner howner).info.rules := by
   rcases H.ruleSemantics.entry owner howner with
@@ -53127,8 +53146,7 @@ theorem RecursorPhasesResult.generatedRuleSemantic
         (recursorMinorOffset indTypes owner + i)
         (H.generated.entry owner howner).info.rules[i],
       Nonempty (Hrule.Semantics
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-        R.declared.venvCtors decl owner) :=
+        H.recursorWF decl owner) :=
   (H.generatedRuleSemantics owner howner).entry i hctor hrule
 
 /-- The family selected from the generated residual is exactly the outer
@@ -53152,8 +53170,7 @@ theorem RecursorPhasesResult.generatedRuleSemanticOwner
         (recursorMinorOffset indTypes owner + i)
         (H.generated.entry owner howner).info.rules[i],
       ∃ Hsemantic : Hrule.Semantics
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-          R.declared.venvCtors decl owner,
+          H.recursorWF decl owner,
         Hsemantic.ownerIdx = owner := by
   rcases H.generatedRuleSemantic owner howner i hctor hrule with
     ⟨Hrule, ⟨Hsemantic⟩⟩
@@ -53200,8 +53217,7 @@ structure RecursorPhasesResult.GeneratedRuleAlignment
     (recursorMinorOffset indTypes owner + i)
     (H.generated.entry owner howner).info.rules[i]
   semantics : rule.Semantics
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-    R.declared.venvCtors decl owner
+    H.recursorWF decl owner
   semantic_owner : semantics.ownerIdx = owner
 
 /-- Select the fully aligned pointwise rule package directly from the
@@ -54626,7 +54642,9 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.finalFieldTelescope
     calc
       A.semantics.fieldRootContext.venv = A.semantics.context.venv :=
         A.semantics.fieldsRecent.venv_eq.symm
-      _ = R.declared.venvCtors := A.semantics.context_venv
+      _ = H.recursorWF.venv := A.semantics.context_venv
+      _ = R.declared.context.venv := H.recursorEnv
+      _ = R.declared.venvCtors := R.declared.contextVEnv
   have Htarget := F.target_translation
   have HtargetType := F.target_type
   have Hmajor := F.major_translation
@@ -54686,7 +54704,7 @@ theorem
   rcases A.semantics.calls.entries j hj hj with ⟨S⟩
   let F := S.appliedFieldTelescope
   have hsemantic : A.semantics.context.venv = R.declared.venvCtors :=
-    A.semantics.context_venv
+    A.semantics.context_venv.trans (H.recursorEnv.trans R.declared.contextVEnv)
   have Hexposed := F.exposed_translation
   have HexposedType := F.exposed_type
   have Happlied := F.applied_translation
@@ -55277,8 +55295,16 @@ theorem RecursorPhasesResult.stagedIotaRuleTranslation
   have hpresent := H.generatedCertificate.recursorsPresent
     (H.blockCertificate rules hrules).block H.cardinality R.core rfl
     A.semantics.calls.bound
-  exact A.rule.stagedIotaRuleTranslation_ofSemantics A.semantics Hequation
-    (H.recursorNamesFresh rules hrules) hctx hproj hpresent
+  have hfreshRoot : ∀ name ∈
+      (H.blockCertificate rules hrules).block.recursors.map (·.name),
+      H.recursorWF.venv.constants name = none := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.recursorNamesFresh rules hrules
+  have hrootVEnv : H.recursorWF.venv = R.declared.venvCtors :=
+    H.recursorEnv.trans R.declared.contextVEnv
+  have hstaged := A.rule.stagedIotaRuleTranslation_ofSemantics A.semantics
+    Hequation hfreshRoot hctx hproj hpresent
+  simpa only [hrootVEnv] using hstaged
 
 /-- Equation-only payload for the generated rule batches of a completed
 recursor phase.  Unlike `GeneratedIotaTranslations`, this boundary does not
