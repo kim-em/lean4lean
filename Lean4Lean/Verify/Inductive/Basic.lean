@@ -18844,30 +18844,6 @@ theorem RecursorParameterContextSuffix.parameterDecls_length
   have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.cached
   simpa using hlength.symm
 
-/-- The cached parameter identifiers form a dependency-closed subset of the
-whole recursor context.  Generated motives and minors are newer ambient
-declarations, so excluding them cannot hide a dependency of a parameter. -/
-theorem RecursorParameterContextSuffix.parameterFVarsUp
-    (H : RecursorParameterContextSuffix R stats depth) :
-    IsFVarUpSet (fun fv => fv ∈ ExprArrayFVarIds stats.params)
-      R.mlctx.vlctx := by
-  have hwf : VLCtx.WF R.venv recLparams.length
-      (H.ambientDecls ++ H.parameterDecls) := by
-    rw [← H.context]
-    exact R.mlctx_wf.tr.wf
-  have hcached := IsFVarUpSet.suffixFVars H.parameterDecls
-    H.ambientDecls hwf
-  have hcongr : ∀ fv ∈
-      (H.ambientDecls ++ H.parameterDecls).fvars,
-      fv ∈ H.parameterDecls.fvars ↔
-        fv ∈ ExprArrayFVarIds stats.params := by
-    intro fv _
-    rw [H.parameterDecls_fvars]
-    simp
-  have hconverted :=
-    (IsFVarUpSet.congr hwf.fvwf hcongr).mp hcached
-  simpa [H.context] using hconverted
-
 theorem RecursorParameterContextSuffix.depth_le
     (H : RecursorParameterContextSuffix R stats depth) :
     depth ≤ R.mlctx.length := by
@@ -23818,6 +23794,30 @@ theorem RecursorParameterContextSuffix.parameterDecls_fvars
   simpa [ExprArrayFVarIds, List.map_reverse, Function.comp_def,
     recursorFVarId] using hids.symm
 
+/-- The cached parameter identifiers form a dependency-closed subset of the
+whole recursor context.  Generated motives and minors are newer ambient
+declarations, so excluding them cannot hide a dependency of a parameter. -/
+theorem RecursorParameterContextSuffix.parameterFVarsUp
+    (H : RecursorParameterContextSuffix R stats depth) :
+    IsFVarUpSet (fun fv => fv ∈ ExprArrayFVarIds stats.params)
+      R.mlctx.vlctx := by
+  have hwf : VLCtx.WF R.venv recLparams.length
+      (H.ambientDecls ++ H.parameterDecls) := by
+    rw [← H.context]
+    exact R.mlctx_wf.tr.wf
+  have hcached := IsFVarUpSet.suffixFVars H.parameterDecls
+    H.ambientDecls hwf
+  have hcongr : ∀ fv ∈
+      (H.ambientDecls ++ H.parameterDecls).fvars,
+      fv ∈ H.parameterDecls.fvars ↔
+        fv ∈ ExprArrayFVarIds stats.params := by
+    intro fv _
+    rw [H.parameterDecls_fvars]
+    simp
+  have hconverted :=
+    (IsFVarUpSet.congr hwf.fvwf hcongr).mp hcached
+  simpa [H.context] using hconverted
+
 /-- A deliberately trivial body can be closed over the exact cached
 parameter declarations.  This supplies an independently translated source
 telescope whose prefix can be compared with any production telescope built
@@ -25520,7 +25520,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       have hcurrentUp' : IsFVarUpSet
           (fun fv => fv ∈ Hopening'.fvars ∨ P fv)
           R.mlctx.vlctx := by
-        apply (IsFVarUpSet.congr R.mlctx_wf.tr.fvwf ?_).mp hcurrentUp
+        apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hcurrentUp
         intro fv hfv
         constructor
         · intro h
@@ -25546,8 +25546,9 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
               dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
             R.mlctx.vlctx)
         refine ⟨hcurrentUp', fun _ dep hdep => ?_⟩
-        have hdep' : dep ∈ dom.fvarsList := by simpa using hdep
-        have hselected := hdomScope dep hdep'
+        have hselected : dep ∈ Hopening.fvars ∨ P dep :=
+          (fvarsIn_iff.mp
+            (Expr.consumeTypeAnnotations_fvarsIn hdomScope)).1 dep hdep
         rcases hselected with hfield | hparam
         · exact Or.inl (by
             change dep ∈ Hopening.fvars ++ [⟨c.ngen.curr⟩]
@@ -25558,7 +25559,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       | none =>
         exact ih R' Hstats' (by omega) hctx' hopened
           hconsumedBodyType (.nonrecursive hfields) hargsWeak Hrecent'
-          Hopening' hsourceScope hnextUp happlied' happliedType'
+          Hopening' hnextUp happlied' happliedType'
       | some target =>
         rcases hselected target rfl with ⟨howner, hrecursive⟩
         let cert : RecursorRecursiveDomainAt
@@ -25579,7 +25580,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         exact ih R' Hstats' (by omega) hctx' hopened
           hconsumedBodyType
           (.recursive hfields (cert := cert) rfl) hargs' Hrecent'
-          Hopening' hsourceScope hnextUp happlied' happliedType'
+          Hopening' hnextUp happlied' happliedType'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
       exact Hk R rfl htype htypeType hfields hargs Hrecent
@@ -25665,7 +25666,10 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       stats head k R R Hstats (Nat.le_refl _) hwhnf hconsume hlit hctx hproj
       htail htailType .nil .nil (RecursorRecentBoundFVarArray.empty R)
       (ConstructorFieldOpening.empty tail)
-      htailScope (by simpa using hrootUp)
+      htailScope (by
+        apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hrootUp
+        intro fv _
+        simp [ConstructorFieldOpening.empty])
       (by simpa [mkAppN] using happlied) happliedType Hk
   exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
     inputContext.fuel.inductiveFuel
@@ -34044,6 +34048,11 @@ theorem resultRecursiveDomain {alpha : Type}
     (htypeType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx typeTarget)
     (Hxs : RecursorRecentBoundFVarArray Rroot R xs)
+    {P : FVarId → Prop}
+    (htypeScope : uiTy.FVarsIn
+      (fun fv => fv ∈ Hxs.fvars ∨ P fv))
+    (hcurrentUp : IsFVarUpSet
+      (fun fv => fv ∈ Hxs.fvars ∨ P fv) R.mlctx.vlctx)
     {appliedTarget : VExpr}
     (happlied : TrExprS R.venv recLparams R.mlctx.vlctx
       (mkAppN head xs) appliedTarget)
@@ -34065,6 +34074,10 @@ theorem resultRecursiveDomain {alpha : Type}
       Rcurrent.venv.HasType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
       AddInductive.isValidIndApp? stats exposedType = some target →
+      exposedType.FVarsIn
+        (fun fv => fv ∈ Hrecent.fvars ∨ P fv) →
+      IsFVarUpSet (fun fv => fv ∈ Hrecent.fvars ∨ P fv)
+        Rcurrent.mlctx.vlctx →
       (k exposedType args target current).WF (Q target)) :
     (AddInductive.mkRecInfos.loopUArgs.loop
       (fun exposedType args => do
@@ -34156,6 +34169,65 @@ theorem resultRecursiveDomain {alpha : Type}
             hbodyEq'
       have hopened := R.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbodyConsumed
+      let Hxs' := Hxs.pushCurrent name dom.consumeTypeAnnotations
+        consumedDom bi Hdom.consumed Hdom.isType
+      have hbodyScope : (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)).FVarsIn
+          (fun fv => fv ∈ Hxs'.fvars ∨ P fv) := by
+        have hbodyScopeBase : body.FVarsIn
+            (fun fv => fv ∈ Hxs'.fvars ∨ P fv) := by
+          apply htypeScope.2.mono
+          intro fv h
+          rcases h with hlocal | hroot
+          · exact Or.inl (by
+              change fv ∈ Hxs.fvars ++ [⟨c.ngen.curr⟩]
+              exact List.mem_append_left _ hlocal)
+          · exact Or.inr hroot
+        simpa only [Expr.instantiate1_eq] using
+          hbodyScopeBase.instantiate1 (by
+            simp only [FVarsIn]
+            exact Or.inl (by
+              change (⟨c.ngen.curr⟩ : FVarId) ∈
+                Hxs.fvars ++ [⟨c.ngen.curr⟩]
+              simp))
+      have hnewNotCurrent : (⟨c.ngen.curr⟩ : FVarId) ∉
+          R.mlctx.vlctx.fvars := by
+        intro hmem
+        rw [← R.mlctx_wf.tr.fvars_eq, R.lctx_eq] at hmem
+        exact R.toBindingContextWF.current_not_mem hmem
+      have hcurrentUp' : IsFVarUpSet
+          (fun fv => fv ∈ Hxs'.fvars ∨ P fv) R.mlctx.vlctx := by
+        apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hcurrentUp
+        intro fv hfv
+        constructor
+        · intro h
+          rcases h with h | h
+          · exact Or.inl (by
+              change fv ∈ Hxs.fvars ++ [⟨c.ngen.curr⟩]
+              exact List.mem_append_left _ h)
+          · exact Or.inr h
+        · intro h
+          rcases h with h | h
+          · change fv ∈ Hxs.fvars ++ [⟨c.ngen.curr⟩] at h
+            rcases List.mem_append.mp h with h | h
+            · exact Or.inl h
+            · simp only [List.mem_singleton] at h
+              subst fv
+              exact False.elim (hnewNotCurrent hfv)
+          · exact Or.inr h
+      have hnextUp : IsFVarUpSet
+          (fun fv => fv ∈ Hxs'.fvars ∨ P fv) R'.mlctx.vlctx := by
+        change IsFVarUpSet _
+          ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+            R.mlctx.vlctx)
+        refine ⟨hcurrentUp', fun _ dep hdep => ?_⟩
+        have hselected := (fvarsIn_iff.mp
+          (Expr.consumeTypeAnnotations_fvarsIn htypeScope.1)).1 dep hdep
+        rcases hselected with hlocal | hroot
+        · exact Or.inl (by
+            change dep ∈ Hxs.fvars ++ [⟨c.ngen.curr⟩]
+            exact List.mem_append_left _ hlocal)
+        · exact Or.inr hroot
       have hsourceBodyType : R'.venv.IsType recLparams.length
           R'.mlctx.vlctx.toCtx sourceBody := by
         let hctxEq : VLCtx.IsDefEq R.venv recLparams.length
@@ -34181,10 +34253,10 @@ theorem resultRecursiveDomain {alpha : Type}
           (decl.types.map (·.name)) R'.mlctx.vlctx := by
         apply VLCtx.NoIndConsts.cons hctx
         rfl
+      have hnormalizedScope := hnormalized.1 _ hnextUp hbodyScope
       have Hrec := ih R' Hstats' hctx' hnormalized.2
         hconsumedBodyType
-        (Hxs.pushCurrent name dom.consumeTypeAnnotations consumedDom bi
-          Hdom.consumed Hdom.isType)
+        Hxs' hnormalizedScope hnextUp
         happlied' happliedType'
       exact Hrec.mono fun out Hout => by
         rcases Hout with ⟨target, htarget, hrecursive, hout⟩
@@ -34215,7 +34287,7 @@ theorem resultRecursiveDomain {alpha : Type}
         let Hvalid := Hstats.validatedIndAppAt hsyntax hvalid htarget
           hlit hctx hproj
         have Hterminal := Hk (target := target) R hsyntax hdefeq htypeType
-          Hxs happlied happliedType hvalid
+          Hxs happlied happliedType hvalid htypeScope hcurrentUp
         exact Hterminal.mono fun out hout => by
           rcases hdefeq.symm with ⟨exprType, hterminal⟩
           exact ⟨target, htarget,
@@ -34275,7 +34347,7 @@ theorem mkRecInfos.loopUArgs.resultSemantics {alpha : Type}
         exposedType exposedTarget →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx exposedTarget →
-      RecursorRecentBoundFVarArray R Rcurrent args →
+      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent args) →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN (.fvar fv) args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
@@ -34326,6 +34398,9 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
     {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
+    {P : FVarId → Prop}
+    (hfieldScope : P fv)
+    (hrootUp : IsFVarUpSet P R.mlctx.vlctx)
     {Q : Nat → alpha → Prop}
     (Hk : ∀ {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
@@ -34337,12 +34412,16 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx terminalTarget →
-      RecursorRecentBoundFVarArray R Rcurrent args →
+      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent args) →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN (.fvar fv) args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
       AddInductive.isValidIndApp? stats exposedType = some target →
+      exposedType.FVarsIn
+        (fun fv => fv ∈ Hrecent.fvars ∨ P fv) →
+      IsFVarUpSet (fun fv => fv ∈ Hrecent.fvars ∨ P fv)
+        Rcurrent.mlctx.vlctx →
       (k exposedType args target current).WF (Q target)) :
     (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
       (fun exposedType args => do
@@ -34362,11 +34441,17 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
   refine hinfer.bind fun inferred hinferred => ?_
   rcases hinferred with
     ⟨inferredTarget, _hbelow, hfieldAgain, hinferredTr, hfieldTyping⟩
+  have hfieldSourceScope : (Expr.fvar fv).FVarsIn P := by
+    simpa only [FVarsIn] using hfieldScope
+  have hinferredScope : inferred.FVarsIn P :=
+    _hbelow P hrootUp hfieldSourceScope
   have hinferredType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx inferredTarget :=
     hfieldTyping.isType R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
   have hnormalize := whnfInRecursorContext.scopeWF hwhnf R hinferredTr
   refine hnormalize.bind fun normalized hnormalized => ?_
+  have hnormalizedScope : normalized.FVarsIn P :=
+    hnormalized.1 P hrootUp hinferredScope
   change (AddInductive.mkRecInfos.loopUArgs.loop
     (fun exposedType args => do
       let some target := AddInductive.isValidIndApp? stats exposedType
@@ -34377,7 +34462,13 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
   have Hloop := mkRecInfos.loopUArgs.loop.resultRecursiveDomain
     (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k R
     hwhnf hconsume hlit hproj R Hstats hctx hnormalized.2 hinferredType
-    (RecursorRecentBoundFVarArray.empty R) (by
+    (RecursorRecentBoundFVarArray.empty R)
+    (hnormalizedScope.mono fun _ h => Or.inr h)
+    (by
+      apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hrootUp
+      intro fv _
+      simp [RecursorRecentBoundFVarArray.empty])
+    (by
       change TrExprS R.venv recLparams R.mlctx.vlctx
         (.fvar fv) fieldTarget
       exact hfieldAgain)
@@ -34454,8 +34545,11 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisType
         (mkAppN recInfos[target]!.motive itIndices)
         (mkAppN (.fvar fv) args)
       return (← getLCtx).mkForall args motiveApp
+  have hfvScope : fv ∈ R.mlctx.vlctx.fvars := by
+    simpa only [FVarsIn] using hfield.fvarsIn
   have Hrun := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats build c R
-    Hstats hwhnf hconsume hlit hctx hproj hfield
+    Hstats hwhnf hconsume hlit hctx hproj hfield hfvScope
+      (IsFVarUpSet.fvars (R.mlctx_wf.tr.wf).fvwf)
     (Q := fun _ viTy => ∃ viTarget,
       TrExprS R.venv recLparams R.mlctx.vlctx
         viTy.consumeTypeAnnotations viTarget ∧
@@ -34466,7 +34560,7 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisType
       exact Hvi)
   · intro current Rcurrent exposedType syntaxTarget terminalTarget
       appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
-      HappliedType hvalid
+      HappliedType hvalid _hexposedScope _hup
     rcases Happ Rcurrent Hexposed Hdefeq Hterminal Hargs Happlied
         HappliedType hvalid with ⟨motiveTarget, Hmotive, HmotiveType⟩
     rcases Hargs.mkForall Hmotive HmotiveType with
@@ -34596,6 +34690,12 @@ structure SemanticBoundGeneratedRecursiveCall
   current_context : RecursorContextWF generated.current recLparams
   recent : RecursorRecentBoundFVarArray R current_context
     generated.localArgs
+  rootScope : FVarId → Prop
+  exposed_scope : generated.exposedType.FVarsIn
+    (fun fv => fv ∈ recent.fvars ∨ rootScope fv)
+  current_scope_up : IsFVarUpSet
+    (fun fv => fv ∈ recent.fvars ∨ rootScope fv)
+    current_context.mlctx.vlctx
   exposedTarget : VExpr
   exposed_translation : TrExprS current_context.venv recLparams
     current_context.mlctx.vlctx generated.exposedType exposedTarget
@@ -34706,7 +34806,10 @@ theorem mkRecRules.boundGeneratedCallSemantic
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (fv : FVarId) {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
-      (.fvar fv) fieldTarget) :
+      (.fvar fv) fieldTarget)
+    {P : FVarId → Prop}
+    (hfieldScope : P fv)
+    (hrootUp : IsFVarUpSet P R.mlctx.vlctx) :
     (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
       (fun exposedType args => do
         let some target := AddInductive.isValidIndApp? stats exposedType
@@ -34734,6 +34837,7 @@ theorem mkRecRules.boundGeneratedCallSemantic
         recursor.app (mkAppN (.fvar fv) args)
   have Hloop := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats
     buildCallAt root R Hstats hwhnf hconsume hlit hctx hproj hfield
+    hfieldScope hrootUp
     (Q := fun target value =>
       ∃ H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
           root (.fvar fv) value,
@@ -34751,6 +34855,10 @@ theorem mkRecRules.boundGeneratedCallSemantic
                   (mkAppN (.fvar fv) H.localArgs) appliedTarget ∧
                 Rcurrent.venv.HasType recLparams.length
                   Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget ∧
+                H.exposedType.FVarsIn
+                  (fun fv => fv ∈ Hrecent.fvars ∨ P fv) ∧
+                IsFVarUpSet (fun fv => fv ∈ Hrecent.fvars ∨ P fv)
+                  Rcurrent.mlctx.vlctx ∧
                 RecursorValidatedIndAppAt Rcurrent.venv recLparams
                   Rcurrent.mlctx.vlctx stats decl
                   (depth + H.localArgs.size) H.exposedType syntaxTarget
@@ -34758,7 +34866,7 @@ theorem mkRecRules.boundGeneratedCallSemantic
     (by
       intro current Rcurrent exposedType syntaxTarget terminalTarget
         appliedTarget args target hsyntax hdefeq htype Hrecent happlied
-        happliedType hvalid
+        happliedType hvalid hexposedScope hcurrentUp
       change (Except.ok
         (current.lctx.mkLambda args <|
           (mkAppN
@@ -34809,18 +34917,21 @@ theorem mkRecRules.boundGeneratedCallSemantic
       exact Except.WF.pure
         ⟨Hgenerated, rfl, Rcurrent, Hrecent, syntaxTarget, terminalTarget,
           appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType,
-          Hvalidated⟩)
+          hexposedScope, hcurrentUp, Hvalidated⟩)
   exact Hloop.mono fun value Hout => by
     rcases Hout with
       ⟨domain, hfieldTyping, target, htarget, hrecursive,
         Hgenerated, howner, Rcurrent, Hrecent, syntaxTarget, terminalTarget,
         appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType,
-        Hvalidated⟩
+        hexposedScope, hcurrentUp, Hvalidated⟩
     subst target
     exact ⟨{
       generated := Hgenerated
       current_context := Rcurrent
       recent := Hrecent
+      rootScope := P
+      exposed_scope := hexposedScope
+      current_scope_up := hcurrentUp
       exposedTarget := syntaxTarget
       exposed_translation := hsyntax
       terminalTarget := terminalTarget
@@ -38636,6 +38747,10 @@ theorem semanticBoundGeneratedCalls
         u[i] = .fvar fv ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
           (.fvar fv) fieldTarget)
+    {P : FVarId → Prop}
+    (HfieldScope : ∀ i (hi : i < u.size) {fv},
+      u[i] = .fvar fv → P fv)
+    (hrootUp : IsFVarUpSet P R.mlctx.vlctx)
     {k : Array Expr → AddInductive.M alpha}
     (Hprefix : SemanticBoundGeneratedRecursiveCalls indTypes stats motives
       minors lvls R decl depth u v i)
@@ -38671,10 +38786,11 @@ theorem semanticBoundGeneratedCalls
       simpa only [buildCall, hfield] using
         mkRecRules.boundGeneratedCallSemantic indTypes stats motives minors
           lvls R Hstats hwhnf hconsume hlit hctx hproj fv Hfield
+          (HfieldScope i hnext hfield) hrootUp
     exact hval.bind fun value Hvalue => by
       rcases Hvalue with ⟨Hvalue⟩
       exact semanticBoundGeneratedCalls R Hstats hwhnf hconsume hlit hctx
-        hproj Hfields (Hprefix.push hnext Hvalue) Hk
+        hproj Hfields HfieldScope hrootUp (Hprefix.push hnext Hvalue) Hk
   · rw [dif_neg hnext]
     apply Hk
     have hcovered := Hprefix.covered
@@ -38718,6 +38834,10 @@ theorem mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty
         u[i] = .fvar fv ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
           (.fvar fv) fieldTarget)
+    {P : FVarId → Prop}
+    (HfieldScope : ∀ i (hi : i < u.size) {fv},
+      u[i] = .fvar fv → P fv)
+    (hrootUp : IsFVarUpSet P R.mlctx.vlctx)
     {k : Array Expr → AddInductive.M alpha}
     (Hk : ∀ v,
       SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
@@ -38726,7 +38846,7 @@ theorem mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
       u 0 #[] k c).WF Q :=
   mkRecRules.loopU.semanticBoundGeneratedCalls R Hstats hwhnf hconsume hlit
-    hctx hproj Hfields
+    hctx hproj Hfields HfieldScope hrootUp
     (SemanticBoundGeneratedRecursiveCalls.empty indTypes stats motives minors
       lvls R decl depth u) Hk
 
@@ -38965,6 +39085,25 @@ theorem oneRuleSemantics
     HstatsArgs hwhnf hconsume hlit hctxArgs hproj
     (Hselection.selectedFVars
       HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray Hrecursive)
+    (P := fun fv => fv ∈ _Hopening.fvars ∨
+      fv ∈ ExprArrayFVarIds stats.params)
+    (by
+      intro i hi fv hfv
+      have hselectedExpr : Expr.fvar fv ∈ recursiveArgs.toList := by
+        rw [← hfv]
+        exact Array.getElem_mem recursiveArgs i hi
+      have hallExpr : Expr.fvar fv ∈ allArgs.toList :=
+        Hselection.toSource.selectedSublist.subset hselectedExpr
+      have hallFv : fv ∈
+          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.fvars := by
+        rw [HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.expressions]
+          at hallExpr
+        simpa using hallExpr
+      exact Or.inl (by
+        rw [_Hopening.fvars_eq_bound
+          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+        exact hallFv))
+    _HfieldParameterUp
   intro recursiveResults Hcalls
   simp only [buildRule, getLCtx, readThe, read, ReaderT.read]
   let Hparams' := Hparams.mono HfieldsRecent.contextLE
@@ -39045,8 +39184,7 @@ theorem oneRuleSemantics
     fieldOpening := _Hopening
     fieldParameterUp := by
       rw [_Hopening.fvars_eq_bound
-        HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at
-          _HfieldParameterUp
+        HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
       exact _HfieldParameterUp
     context_venv := HfieldsRecent.venv_eq
     validStats := HstatsArgs
