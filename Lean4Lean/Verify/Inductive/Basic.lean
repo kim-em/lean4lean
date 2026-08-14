@@ -57633,6 +57633,91 @@ theorem
       Nat.add_comm,
       Nat.add_left_comm, Nat.add_assoc] using Hweak⟩
 
+/-- Transport the field-weakened owner-motive witness from the generated
+parameter domains to the cached constructor-checking parameter context.  The
+owner variable and its complete dependent function type are unchanged; only
+the outer parameter domains are converted. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedOwnerMotiveWitnessTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr)
+    (Hctx :
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      let canonicalDomains :=
+        (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+      let cachedDomains :=
+        (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains
+      VEnv.IsDefEqCtx H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+        canonicalDomains.reverse cachedDomains.reverse) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    let cachedDomains :=
+      (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+        fieldDomains
+    ∃ motiveDomains resultLevel,
+      motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
+      T.motives[owner]! =
+        VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+      let later := T.motives.drop (owner + 1) ++ T.minors
+      let expected :=
+        (liftContextPrefixAt (later.length + 1) 0
+          motiveDomains.reverse).reverse
+      H.outVEnv.HasType Us.length cachedDomains.reverse
+        (.bvar (fieldDomains.length + later.length))
+        (VExpr.wrapForalls
+          ((liftContextPrefix fieldDomains.length expected.reverse).reverse)
+          (.sort resultLevel)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  let canonicalDomains :=
+    (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+  let cachedDomains :=
+    (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+      fieldDomains
+  rcases A.finalOwnerMotiveFieldWitnessTyping T fieldDomains with
+    ⟨motiveDomains, resultLevel, hdomainLength, hmotive, Hmotive⟩
+  have HmotiveCanonical : H.outVEnv.HasType Us.length
+      canonicalDomains.reverse
+      (.bvar
+        (fieldDomains.length +
+          (T.motives.drop (owner + 1) ++ T.minors).length))
+      (VExpr.wrapForalls
+        ((liftContextPrefix fieldDomains.length
+          ((liftContextPrefixAt
+            ((T.motives.drop (owner + 1) ++ T.minors).length + 1) 0
+            motiveDomains.reverse).reverse).reverse).reverse)
+        (.sort resultLevel)) := by
+    simpa [canonicalDomains, List.reverse_append, List.append_assoc] using
+      Hmotive
+  have HmotiveCached :=
+    HmotiveCanonical.defeqDFC H.outVEnvWF.ordered Hctx
+  exact ⟨motiveDomains, resultLevel, hdomainLength, hmotive, by
+    simpa [cachedDomains] using HmotiveCached⟩
+
 /-- The generated owner-motive domain and the retained first-pass motive are
 the same concrete declaration viewed at the two contexts that still have to
 be related.  The retained closed scope is now decomposed explicitly into its
