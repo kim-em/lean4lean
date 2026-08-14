@@ -25835,11 +25835,10 @@ theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
     motive_type_defeq := HmotiveType
     telescope := Htelescope }⟩
 
-/-- A shared family/motive telescope supplies the complete independently
-typed motive application.  The exact result sort is retained for equation
-typing; the abstract spine is assembled without invoking executable
-inference. -/
-theorem RecursorMotiveTelescopeEvidence.applyMajorTyped
+/-- Exact-target form of motive application.  Besides typing the result, it
+records that the strict translation target is literally the retained motive
+local applied to the evidence's index spine and the checked major premise. -/
+theorem RecursorMotiveTelescopeEvidence.applyMajorTypedExact
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {elimLevel : Level}
@@ -25853,10 +25852,11 @@ theorem RecursorMotiveTelescopeEvidence.applyMajorTyped
       majorTarget syntaxTarget) :
     let itIndices := exposedType.getAppArgs[stats.params.size:]
     let motiveApp := Expr.app (mkAppN info.motive itIndices) major
-    ∃ motiveTarget,
-      TrExprS R.venv recLparams R.mlctx.vlctx motiveApp motiveTarget ∧
-      R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx motiveTarget
-        (.sort H.resultLevel) := by
+    let motiveTarget :=
+      VExpr.app (VExpr.mkApps binding.motiveTarget H.indices) majorTarget
+    TrExprS R.venv recLparams R.mlctx.vlctx motiveApp motiveTarget ∧
+      R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+        motiveTarget (.sort H.resultLevel) := by
   have HmajorType' : R.venv.HasType recLparams.length
       R.mlctx.vlctx.toCtx majorTarget (VExpr.mkApps H.family H.indices) := by
     rwa [← H.syntax_eq]
@@ -25883,9 +25883,35 @@ theorem RecursorMotiveTelescopeEvidence.applyMajorTyped
     R.checking.tr.wf.ordered
     R.mlctx_wf.tr.wf.toCtx binding.motive Hargs (by
       simpa [motiveTarget, VExpr.mkApps, List.foldl_append] using HtargetWF)
-  refine ⟨motiveTarget, ?_, Hresult'⟩
-  simpa [motiveTarget, Expr.mkAppN_eq_mkAppList,
-    Expr.mkAppList_append, VExpr.mkApps, List.foldl_append] using Htranslated
+  exact ⟨by
+    simpa [motiveTarget, Expr.mkAppN_eq_mkAppList,
+      Expr.mkAppList_append, VExpr.mkApps, List.foldl_append] using Htranslated,
+    Hresult'⟩
+
+/-- A shared family/motive telescope supplies the complete independently
+typed motive application.  The exact result sort is retained for equation
+typing; the abstract spine is assembled without invoking executable
+inference. -/
+theorem RecursorMotiveTelescopeEvidence.applyMajorTyped
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {elimLevel : Level}
+    {info : AddInductive.RecInfo}
+    {binding : RecursorMotiveBinding R info elimLevel}
+    (H : RecursorMotiveTelescopeEvidence R stats info binding
+      exposedType syntaxTarget)
+    {major : Expr} {majorTarget : VExpr}
+    (Hmajor : TrExprS R.venv recLparams R.mlctx.vlctx major majorTarget)
+    (HmajorType : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      majorTarget syntaxTarget) :
+    let itIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app (mkAppN info.motive itIndices) major
+    ∃ motiveTarget,
+      TrExprS R.venv recLparams R.mlctx.vlctx motiveApp motiveTarget ∧
+      R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx motiveTarget
+        (.sort H.resultLevel) := by
+  rcases H.applyMajorTypedExact Hmajor HmajorType with ⟨Htr, Htyped⟩
+  exact ⟨_, Htr, Htyped⟩
 
 /-- Typehood wrapper around `applyMajorTyped`. -/
 theorem RecursorMotiveTelescopeEvidence.applyMajor
@@ -57718,6 +57744,61 @@ theorem
     rw [A.semantic_owner] at hsourceArity
     simpa [AddInductive.getIIndices] using htranslated.symm.trans hsourceArity
   exact ⟨binding, evidence, hlength, evidence.indices_translation⟩
+
+/-- Exact semantic comparison application for a fixed generated recursor
+telescope.  The independently checked target indices and constructor major
+are retained separately, while the resulting target is exposed literally as
+the motive local applied to that same spine. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.semanticConstructorMotiveExactFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ binding : RecursorMotiveBinding A.semantics.context
+        H.recInfos[owner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence A.semantics.context
+          stats H.recInfos[owner]! binding A.rule.target
+          A.semantics.targetTarget,
+        evidence.indices.length = T.indices.length ∧
+        List.Forall₂
+          (TrExprS A.semantics.context.venv Us
+            A.semantics.context.mlctx.vlctx)
+          (A.rule.target.getAppArgs[stats.params.size:]).toList
+          evidence.indices ∧
+        let motiveTarget := VExpr.app
+          (VExpr.mkApps binding.motiveTarget evidence.indices)
+          A.semantics.constructorTarget
+        TrExprS A.semantics.context.venv Us
+          A.semantics.context.mlctx.vlctx
+          (Expr.app
+            (mkAppN H.recInfos[owner]!.motive
+              A.rule.target.getAppArgs[stats.params.size:])
+            A.rule.sourceConstructorMajor)
+          motiveTarget ∧
+        A.semantics.context.venv.HasType Us.length
+          A.semantics.context.mlctx.vlctx.toCtx motiveTarget
+          (.sort evidence.resultLevel) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.semanticMotiveIndexSpineFor T with
+    ⟨binding, evidence, hlength, Hindices⟩
+  have Hresult := evidence.applyMajorTypedExact
+    A.semantics.constructor_translation A.semantics.constructor_typing
+  exact ⟨binding, evidence, hlength, Hindices, Hresult⟩
 
 /-- Applying the retained motive telescope to the checked constructor major
 produces the exact semantic result sort of this generated equation. -/
