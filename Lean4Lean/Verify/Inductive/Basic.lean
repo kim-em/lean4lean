@@ -15360,6 +15360,22 @@ theorem RecursorParamPrefix.tail_eq
       subst_vars
       exact ih Hright
 
+/-- Consuming the executable common-parameter prefix cannot introduce a
+free variable outside the source declaration and the concrete parameters
+used for instantiation. -/
+theorem RecursorParamPrefix.tailFVarsIn
+    (H : RecursorParamPrefix stats i source tail)
+    (hsource : source.FVarsIn P)
+    (hparams : ∀ (j : Nat) (param : Expr),
+      stats.params[j]? = some param → Expr.FVarsIn P param) :
+    tail.FVarsIn P := by
+  induction H with
+  | done => exact hsource
+  | step hparam _ ih =>
+    exact ih (by
+      simpa [Expr.instantiate1] using
+        hsource.2.instantiate1 (hparams _ _ hparam))
+
 /-- A partially consumed common-parameter prefix.  Constructor checking
 builds this left-to-right; when `stop = stats.params.size`, it is exactly the
 complete prefix replay required by recursor generation. -/
@@ -24660,6 +24676,24 @@ theorem ConstructorFieldOpening.fvars_eq_bound
   have hlists : H.fvars.map Expr.fvar = B.fvars.map Expr.fvar := by
     simpa using congrArg Array.toList harrays
   exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlists
+
+/-- Reopening a constructor telescope adds only the explicitly selected
+field identifiers to the free-variable scope of the original source. -/
+theorem ConstructorFieldOpening.currentFVarsIn
+    (H : ConstructorFieldOpening source current fields)
+    (hsource : source.FVarsIn P) :
+    current.FVarsIn (fun fv => fv ∈ H.fvars ∨ P fv) := by
+  have resultScope : ∀ {outer arity result},
+      Expr.ForallTelescope outer arity result →
+      outer.FVarsIn P → result.FVarsIn P := by
+    intro outer arity result Htel houter
+    induction Htel with
+    | nil => exact houter
+    | cons _ ih => exact ih houter.2
+  have hresidual : H.residual.FVarsIn P := by
+    exact resultScope H.telescope hsource
+  rw [← H.closed] at hresidual
+  exact FVarsIn.of_abstractList hresidual
 
 /-- Alpha-independent result of the checker constructor traversal.  The
 terminal application itself contains checker-chosen free variables, so the
