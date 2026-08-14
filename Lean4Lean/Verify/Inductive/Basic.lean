@@ -70763,6 +70763,207 @@ theorem
     by simpa [resultBody, args] using Hbody,
     by simpa [resultBody, resultType, args] using Hclosed⟩
 
+/-- One recursive result in the fixed rule-wide equation context.  The
+higher-order local telescope remains entry-specific, while its closed lambda
+and forall type both live in the single context shared by the whole RHS. -/
+structure
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) where
+  frame : A.RecursiveCallRecursorFrame j hj
+  localDomains : List VExpr
+  resultBody : VExpr
+  resultType : VExpr
+  equation_length :
+    (H.parameterSuffix.parameterDecls.toCtx.reverse ++
+      T.motives ++ T.minors ++
+        (liftContextPrefix (T.motives ++ T.minors).length
+          B.fieldDomains.reverse).reverse).length = A.rule.binders.length
+  local_length : localDomains.length = frame.semantic.generated.localArgs.size
+  source_telescope : Expr.LambdaTelescope
+    (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+    localDomains.length
+    ((frame.semantic.generated.body.abstractList
+      frame.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.binders frame.semantic.generated.localArgs.size)
+  residual_translation :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ localDomains) [])
+      ((frame.semantic.generated.body.abstractList
+        frame.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders frame.semantic.generated.localArgs.size)
+      resultBody
+  closed_typing :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    H.outVEnv.HasType Us.length
+      (abstractForallContext equationDomains []).toCtx
+      (VExpr.wrapLams localDomains resultBody)
+      (VExpr.wrapForalls localDomains resultType)
+
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalRecursiveResultAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    Nonempty (A.CanonicalRecursiveResultAt T B j hj) := by
+  rcases A.canonicalRecursiveResultTypingFor T B j hj with
+    ⟨F, localDomains, resultBody, resultType, hequation,
+      hlocal, Htelescope, Htranslation, Htyping⟩
+  exact ⟨{
+    frame := F
+    localDomains := localDomains
+    resultBody := resultBody
+    resultType := resultType
+    equation_length := hequation
+    local_length := hlocal
+    source_telescope := Htelescope
+    residual_translation := Htranslation
+    closed_typing := Htyping }⟩
+
+/-- All recursive results of one generated rule, chosen in their production
+array order and fixed to one recursor telescope and one narrowed field frame. -/
+structure
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame) where
+  resultAt : ∀ j (hj : j < A.rule.recursiveArgs.size),
+    A.CanonicalRecursiveResultAt T B j hj
+
+def
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodies
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B) : List VExpr :=
+  List.ofFn fun j : Fin A.rule.recursiveArgs.size =>
+    let E := C.resultAt j j.isLt
+    VExpr.wrapLams E.localDomains E.resultBody
+
+@[simp] theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodies_length
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B) :
+    C.bodies.length = A.rule.recursiveArgs.size := by
+  simp [CanonicalRecursiveResults.bodies]
+
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalRecursiveResults
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame) :
+    Nonempty (A.CanonicalRecursiveResults T B) := by
+  classical
+  exact ⟨{
+    resultAt := fun j hj => Classical.choice
+      (A.canonicalRecursiveResultAt T B j hj) }⟩
+
 /-- Rule-indexed existential specialization of
 `canonicalRecursiveResultTypingFor`.  It remains convenient for pointwise
 consumers that do not need to retain a common equation frame. -/
