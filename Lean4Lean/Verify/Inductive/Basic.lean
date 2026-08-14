@@ -5426,6 +5426,14 @@ theorem FrontFVLift.sourceLengthLE
   | zero => simp
   | cons _ _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
 
+theorem FrontFVLift.sourceBaseBVars
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    VLCtx.bvars (scope.drop sourceDomains.length) = VLCtx.bvars scope := by
+  induction H with
+  | zero => rfl
+  | cons fv deps indexType hdeps H ih =>
+    simpa [VLCtx.bvars] using ih
+
 theorem FrontFVLift.expandedLengthLE
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
     expandedDomains.length ≤ expanded.toCtx.length := by
@@ -5490,6 +5498,14 @@ theorem _root_.Lean4Lean.VLCtx.IsDefEq.drop
     cases H with
     | nil => exact .nil
     | cons H _ _ => exact ih H
+
+theorem _root_.Lean4Lean.VLCtx.IsDefEq.bvars
+    (H : VLCtx.IsDefEq env U left right) :
+    VLCtx.bvars left = VLCtx.bvars right :=
+  match H with
+  | .nil => rfl
+  | .cons (ofv := none) H _ _ => congrArg Nat.succ H.bvars
+  | .cons (ofv := some _) H _ _ => H.bvars
 
 theorem Lift.closeReopen_cons (shift : Lift) (n : Nat) :
     Lift.comp (Lift.comp (Lift.skipN .refl n) shift) (.skip .refl) =
@@ -26337,6 +26353,7 @@ structure RecursorMotiveTelescopeSeed
     0 motiveSourceShift 0
   motiveSourceContext : VLCtx.IsDefEq Rroot.venv recLparams.length
     motiveSourceExpanded motiveClosedScope
+  motiveSourceNoBV : VLCtx.NoBV motiveSourceScope
   motiveSourceFVars : FVarsIn (· ∈ motiveSourceScope.fvars)
     (root.lctx.mkForall info.indices
       (root.lctx.mkForall #[info.major] (.sort elimLevel)))
@@ -26433,6 +26450,7 @@ def RecursorMotiveTelescopeSeed.mono
     motiveSourceLift := H.motiveSourceLift
     motiveSourceContext := by
       simpa only [Hext.venv_eq] using H.motiveSourceContext
+    motiveSourceNoBV := H.motiveSourceNoBV
     motiveSourceFVars := by
       rw [hmotiveSource]
       exact H.motiveSourceFVars
@@ -26488,6 +26506,7 @@ def RecursorMotiveTelescopeSeed.congrInfo
   motiveSourceAlignment := H.motiveSourceAlignment
   motiveSourceLift := H.motiveSourceLift
   motiveSourceContext := H.motiveSourceContext
+  motiveSourceNoBV := H.motiveSourceNoBV
   motiveSourceFVars := by
     simpa [hindices, hmajor] using H.motiveSourceFVars
   motiveClosedTarget := H.motiveClosedTarget
@@ -32795,6 +32814,11 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             (· ∈ VLCtx.fvars motiveSourceScope) := by
           rw [← hmotiveSourceScope']
           simpa [hfront] using HmotiveSourceFVarsAtBase
+        have HmotiveSourceNoBV : VLCtx.NoBV motiveSourceScope := by
+          change VLCtx.bvars motiveSourceScope = 0
+          rw [← hmotiveSourceScope', ← hfront]
+          rw [Hruntime.front.sourceBaseBVars]
+          exact Hruntime.noBV
         have hmotiveSourceScopeCtx : VLCtx.toCtx motiveSourceScope =
             Hsynthesis.params.reverse := by
           have hdecomposition := Hruntime.front.sourceContext
@@ -32915,6 +32939,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               exact Hsynthesis.scopeWF.toCtx))
           motiveSourceLift := HmotiveSourceLift
           motiveSourceContext := HmotiveSourceContext
+          motiveSourceNoBV := HmotiveSourceNoBV
           motiveSourceFVars := by
             rw [← hnewMotiveShape', Hframe.motiveSourceEq]
             exact HmotiveSourceFVarsNarrow
@@ -58463,6 +58488,57 @@ theorem
     S.motiveClosedTr.mono hbase, S.motiveClosedType.mono hbase,
     S.motiveClosedCanonicalDefEq.mono hbase, S.motiveTypeCanonicalEq,
     Hgenerated⟩
+
+/-- Restrict the retained production motive translation all the way back to
+the canonical parameter scope.  This is the first point where the ambient
+frames from earlier mutual families are genuinely removed, rather than only
+described by a context decomposition. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerNarrowMotiveTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        ∃ narrowTarget,
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+              T.params.reverse S.motiveSourceScope.toCtx ∧
+          TrExprS H.outVEnv Us S.motiveSourceScope
+            (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+              (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+                (.sort H.elimLevel)))
+            narrowTarget := by
+  dsimp only
+  rcases A.finalOwnerClosedMotiveFrame with
+    ⟨T, S, _hparameters, hsource, W, Hcontext, _hdecomposition,
+      HclosedTr, _HclosedType, _HclosedCanonical, _hmotiveType,
+      _Hgenerated⟩
+  have hbvars : VLCtx.bvars S.motiveClosedScope = 0 := by
+    calc
+      VLCtx.bvars S.motiveClosedScope =
+          VLCtx.bvars S.motiveSourceExpanded := Hcontext.bvars.symm
+      _ = VLCtx.bvars S.motiveSourceScope := W.bvars_eq
+      _ = 0 := S.motiveSourceNoBV
+  have hclosed := HclosedTr.closed
+  rw [hbvars] at hclosed
+  rcases HclosedTr.weakFV'_inv H.outVEnvWF W
+      (Hcontext.symm H.outVEnvWF.ordered) hclosed
+      S.motiveSourceFVars with ⟨narrowTarget, Hnarrow⟩
+  exact ⟨T, S, narrowTarget, hsource, Hnarrow⟩
 
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
