@@ -23780,6 +23780,20 @@ theorem cachedParameterDecls_fvars
     rcases ih with ⟨fvars, hparams, hdecls⟩
     exact ⟨fv :: fvars, by simp [hparams], by simp [hdecls]⟩
 
+/-- The declaration order of the retained parameter suffix is the reverse of
+the executable parameter array's free-variable order. -/
+theorem RecursorParameterContextSuffix.parameterDecls_fvars
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    H.parameterDecls.fvars = (ExprArrayFVarIds stats.params).reverse := by
+  rcases cachedParameterDecls_fvars H.cached with
+    ⟨fvars, hparams, hdecls⟩
+  rw [hdecls]
+  have hids := congrArg (List.map recursorFVarId) hparams
+  simpa [ExprArrayFVarIds, List.map_reverse, Function.comp_def,
+    recursorFVarId] using hids.symm
+
 /-- A deliberately trivial body can be closed over the exact cached
 parameter declarations.  This supplies an independently translated source
 telescope whose prefix can be compared with any production telescope built
@@ -38121,6 +38135,8 @@ structure BoundGeneratedRecursorRule.Semantics
     H.allArgs
   parameterTail : Expr
   parameterPrefix : RecursorParamPrefix stats 0 sourceCtor.type parameterTail
+  parameterTail_fvars :
+    parameterTail.FVarsIn (· ∈ ExprArrayFVarIds stats.params)
   fieldOpening : ConstructorFieldOpening parameterTail H.target H.allArgs
   context_venv : context.venv = Rroot.venv
   validStats : RecursorValidAppStatsWF context.venv recLparams
@@ -38734,6 +38750,7 @@ theorem oneRuleSemantics
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hprefix : RecursorParamPrefix stats 0 ctor.type tail)
+    (htailFVars : tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params))
     (howner : ownerIdx < decl.types.length)
     (Hnormal : CheckedConstructorOwnerNormalForm stats ownerIdx tail)
     (hwhnf : WhnfLParamsCompat)
@@ -38920,6 +38937,7 @@ theorem oneRuleSemantics
     fieldsRecent := HfieldsRecent
     parameterTail := tail
     parameterPrefix := hprefix
+    parameterTail_fvars := htailFVars
     fieldOpening := _Hopening
     context_venv := HfieldsRecent.venv_eq
     validStats := HstatsArgs
@@ -38976,6 +38994,7 @@ theorem semanticGeneratedRules
       ∃ tail tailTarget introTarget,
         RecursorParamPrefix stats 0 ctor.type tail ∧
         Nonempty (CheckedConstructorOwnerNormalForm stats ownerIdx tail) ∧
+        tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
         TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
         R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
@@ -38997,12 +39016,12 @@ theorem semanticGeneratedRules
       exact ⟨[], by simp, .nil, by simp⟩
   | cons ctor ctors ih =>
       rcases Hseed ctor (by simp) with
-        ⟨tail, tailTarget, introTarget, Hprefix, ⟨Hnormal⟩, Htail, HtailType,
-          Hintro, HintroType⟩
+        ⟨tail, tailTarget, introTarget, Hprefix, ⟨Hnormal⟩, HtailFVars,
+          Htail, HtailType, Hintro, HintroType⟩
       rw [AddInductive.mkRecRules.loopCtors]
       have Hone := oneRuleSemantics indTypes stats motives minors lvls ctor
-        start ownerIdx R Hstats Hprefix howner Hnormal hwhnf hconsume hlit
-        hctx hproj Htail
+        start ownerIdx R Hstats Hprefix HtailFVars howner Hnormal hwhnf
+        hconsume hlit hctx hproj Htail
         HtailType Hintro HintroType Hparams Hmotives Hminors HouterNodup
         (by simp at hminorsRoom; omega)
       exact Hone.bind fun out Hout => by
@@ -39012,6 +39031,7 @@ theorem semanticGeneratedRules
               RecursorParamPrefix stats 0 nextCtor.type tail ∧
               Nonempty
                 (CheckedConstructorOwnerNormalForm stats ownerIdx tail) ∧
+              tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
               TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
               R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
                 tailTarget ∧
@@ -39230,6 +39250,7 @@ theorem mkRecRules.semanticGeneratedRules
       ∃ tail tailTarget introTarget,
         RecursorParamPrefix stats 0 ctor.type tail ∧
         Nonempty (CheckedConstructorOwnerNormalForm stats dIdx tail) ∧
+        tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
         TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
         R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
@@ -39321,6 +39342,7 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
       ∃ tail tailTarget introTarget,
         RecursorParamPrefix stats 0 ctor.type tail ∧
         Nonempty (CheckedConstructorOwnerNormalForm stats dIdx tail) ∧
+        tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
         TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
         R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
@@ -43234,6 +43256,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
           RecursorParamPrefix stats 0 ctor.type tail ∧
           Nonempty
             (CheckedConstructorOwnerNormalForm stats owner tail) ∧
+          tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
           TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
           TrExprS R.venv recLparams R.mlctx.vlctx
@@ -43501,6 +43524,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
           RecursorParamPrefix stats 0 ctor.type tail ∧
           Nonempty
             (CheckedConstructorOwnerNormalForm stats owner tail) ∧
+          tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
           TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx tailTarget ∧
           TrExprS R.venv recLparams R.mlctx.vlctx
@@ -44208,6 +44232,7 @@ theorem ConstructorPhasesResult.checkedConstructorRuntimeSeedAt
       RecursorParamPrefix stats 0
         indTypes[familyIdx].ctors[ctorIdx].type tail ∧
       Nonempty (CheckedConstructorOwnerNormalForm stats familyIdx tail) ∧
+      tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
       TrExprS Rcurrent.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
         Rcurrent.mlctx.vlctx tail tailTarget ∧
@@ -44246,6 +44271,11 @@ theorem ConstructorPhasesResult.checkedConstructorRuntimeSeedAt
       HsuffixCurrent.parameterDecls.toCtx tailNarrow := by
     rw [henvCurrent, hparameterDecls]
     simpa [Rbase, Hbase, HsuffixBase] using HtailType
+  have HtailParams : tail.FVarsIn
+      (· ∈ ExprArrayFVarIds stats.params) := by
+    exact HtailCurrent.fvarsIn.mono fun fv hfv => by
+      rw [HsuffixCurrent.parameterDecls_fvars] at hfv
+      simpa using hfv
   have HintroCurrent : TrExprS Rcurrent.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       HsuffixCurrent.parameterDecls
@@ -44264,7 +44294,7 @@ theorem ConstructorPhasesResult.checkedConstructorRuntimeSeedAt
       HintroTypeCurrent HtailTypeCurrent with
     ⟨introTarget, tailTarget, HintroRuntime, HtailRuntime,
       HintroTypeRuntime, HtailTypeRuntime⟩
-  exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal,
+  exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailParams,
     HtailRuntime, HtailTypeRuntime, HintroRuntime, HintroTypeRuntime⟩
 
 /-- Select one mutual-family header for recursor replay after transporting
@@ -44505,10 +44535,14 @@ theorem ConstructorPhasesResult.mkRecInfosWF
   · intro current currentDepth Rcurrent henvCurrent HsuffixCurrent
       hparameterDeclsCurrent familyIdx hfamily ctor hctor
     rcases List.mem_iff_getElem.mp hctor with ⟨ctorIdx, hctorIdx, rfl⟩
-    exact R.checkedConstructorRuntimeSeedAt elimLevel Helim hlparams Rcurrent
-      (henvCurrent.trans henvFrames) HsuffixCurrent
-      (hparameterDeclsCurrent.trans hparameterDeclsFrames) familyIdx
-      hfamily ctorIdx hctorIdx
+    rcases R.checkedConstructorRuntimeSeedAt elimLevel Helim hlparams
+        Rcurrent (henvCurrent.trans henvFrames) HsuffixCurrent
+        (hparameterDeclsCurrent.trans hparameterDeclsFrames) familyIdx
+        hfamily ctorIdx hctorIdx with
+      ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, _HtailFVars,
+        Htail, HtailType, Hintro, HintroType⟩
+    exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, Htail,
+      HtailType, Hintro, HintroType⟩
   · intro cOut outDepth out Rout henvOut HsuffixOut hparameterDeclsOut
       HstatsOut hctxOut HbindingsOut HoriginsOut houtSize houtCounts
       HmajorTypesOut HmajorShapesOut HmotiveTypesOut HmotiveShapesOut
@@ -55835,6 +55869,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
           RecursorParamPrefix stats 0 ctor.type tail ∧
           Nonempty
             (CheckedConstructorOwnerNormalForm stats owner tail) ∧
+          tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
           TrExprS Rlocal.venv
             (AddInductive.getRecLevelParams elimLevel c.lparams)
             Rlocal.mlctx.vlctx tail tailTarget ∧
@@ -55857,10 +55892,10 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     rcases R.checkedConstructorRuntimeSeedAt elimLevel hElim hlparams Rlocal
         henvLocal HsuffixLocal hparameterDeclsLocal owner howner ctorIdx
         hctorIdx with
-      ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, Htail, HtailType,
-        Hintro, HintroType⟩
-    exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, Htail, HtailType,
-      Hintro, HintroType⟩
+      ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars, Htail,
+        HtailType, Hintro, HintroType⟩
+    exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars,
+      Htail, HtailType, Hintro, HintroType⟩
   have Hrecursors := AddInductive.declareRecursors.bindingSemanticWF
     (elimLevel := elimLevel) Hvalid Rlocal.toBindingContextWF Rlocal
     HstatsLocal hwhnf hconsume hlit hctxLocal hproj Hcard Hcore Hbindings
