@@ -66402,6 +66402,99 @@ theorem
   exact ⟨fieldDomains, localDomains, liftedFront, narrowIndices,
     hfront, hfields, hlocal, Hctx, Hindices'⟩
 
+/-- Canonical-source form of the shared inserted call-argument frame.  This
+is the application-ready handoff: production's exact recursive index spine
+and major translate together in one typed equation context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.canonicalInsertedSemanticCallArgumentFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+    let inserted := T.motives ++ T.minors
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+        ∃ scope,
+          ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+              H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+            ∃ fieldDomains localDomains liftedFront narrowIndices narrowMajor,
+              Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
+              liftedFront =
+                (liftContextPrefix inserted.length
+                  (fieldDomains ++ localDomains).reverse).reverse ∧
+              fieldDomains.length = A.rule.allArgs.size ∧
+              localDomains.length = F.semantic.generated.localArgs.size ∧
+              OnCtx
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront)
+                  []).toCtx
+                (H.outVEnv.IsType Us.length) ∧
+              evidence.indices.length = F.telescope.indices.length ∧
+              List.Forall₂
+                (TrExprS H.outVEnv Us
+                  (abstractForallContext
+                    (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront)
+                    []))
+                (sourceIndices.map fun index =>
+                  (index.abstractList
+                    F.semantic.generated.arguments_bound.fvars).abstractList
+                      A.rule.binders F.semantic.generated.localArgs.size)
+                (narrowIndices.map fun target =>
+                  target.liftN inserted.length cutoff) ∧
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) [])
+                (F.semantic.generated.outerAbstractedMajor A.rule.binders)
+                (narrowMajor.liftN inserted.length cutoff) ∧
+              List.Forall₂
+                (fun narrow full => H.outVEnv.IsDefEqU Us.length
+                  F.semantic.current_context.mlctx.vlctx.toCtx
+                  (narrow.lift' Hscope.shift) full)
+                narrowIndices evidence.indices ∧
+              H.outVEnv.IsDefEqU Us.length
+                F.semantic.current_context.mlctx.vlctx.toCtx
+                F.semantic.appliedFieldTarget
+                (narrowMajor.lift' Hscope.shift) := by
+  rcases F.insertedSemanticCallArgumentFrame T with
+    ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
+      liftedFront, narrowIndices, narrowMajor, hfront, hliftedFront,
+      hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+      HindexEq, HmajorEq⟩
+  have hindices := F.insertedSemanticIndexSources_eq T
+  dsimp only at hindices
+  rw [hindices] at Hindices
+  have hmajor := F.insertedSemanticMajorSource_eq T
+  dsimp only at hmajor
+  rw [hmajor] at Hmajor
+  exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
+    liftedFront, narrowIndices, narrowMajor, hfront, hliftedFront,
+    hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+    HindexEq, HmajorEq⟩
+
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
 telescope.  The sole non-structural premise is the selected prefix typing in
