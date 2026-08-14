@@ -24476,6 +24476,60 @@ theorem RecursorRecentBoundFVarArray.abstractRecent
   simp only [List.reverse_reverse] at Hclosed
   simpa only [htoCtx, ← hdomains] using Hclosed
 
+/-- Abstracting an exact recent suffix removes all of its free variables.
+Consequently, a source expression scoped by the current metacontext is
+scoped by the older root after simultaneous abstraction, at any surrounding
+de Bruijn cutoff. -/
+theorem RecursorRecentBoundFVarArray.abstractRecentFVars
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (hscope : FVarsIn (· ∈ R.mlctx.vlctx.fvars) e) (k : Nat) :
+    FVarsIn (· ∈ Rroot.mlctx.vlctx.fvars)
+      (e.abstractList H.fvars k) := by
+  have hvlctx := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+    R.mlctx xs.size H.size_le
+  rw [H.drop_eq] at hvlctx
+  have hrecent : VLCtx.fvars (R.mlctx.vlctx.take xs.size) =
+      H.fvars.reverse := by
+    have hexpressions := congrArg Array.toList H.expressions
+    have hmapped : xs.toList = H.fvars.map Expr.fvar := by
+      simpa using hexpressions
+    have hmaps : H.fvars.reverse.map Expr.fvar =
+        (R.mlctx.fvarRevList xs.size H.size_le).map Expr.fvar := by
+      calc
+        H.fvars.reverse.map Expr.fvar =
+            (H.fvars.map Expr.fvar).reverse := by simp
+        _ = xs.toList.reverse := by rw [← hmapped]
+        _ = _ := H.reverse_eq
+    have hfvars : H.fvars.reverse =
+        R.mlctx.fvarRevList xs.size H.size_le :=
+      (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hmaps
+    have Hdecls := R.onlyLams.fvarRevList_declarations
+      xs.size H.size_le
+    rw [← hfvars] at Hdecls
+    have hdeclFvars : ∀ {fvs : List FVarId} {entries : VLCtx},
+        List.Forall₂
+          (fun fv entry => ∃ deps type,
+            entry = (some (fv, deps), .vlam type))
+          fvs entries → VLCtx.fvars entries = fvs := by
+      intro fvs entries hdecls
+      induction hdecls with
+      | nil => rfl
+      | cons hdecl _ ih =>
+        rcases hdecl with ⟨deps, type, rfl⟩
+        simpa [VLCtx.fvars] using ih
+    exact hdeclFvars Hdecls
+  apply FVarsIn.abstractList_of
+  exact hscope.mono fun fv hfv => by
+    rw [hvlctx, VLCtx.fvars_append] at hfv
+    rcases List.mem_append.mp hfv with hrecentFv | hrootFv
+    · left
+      rw [hrecent] at hrecentFv
+      exact List.mem_reverse.mp hrecentFv
+    · exact Or.inr hrootFv
+
 /-- Opening an exact consecutive suffix preserves the independently checked
 parameter context.  The fresh locals become additional ambient declarations;
 the cached parameter declarations and their source translations are unchanged. -/
