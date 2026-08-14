@@ -57237,6 +57237,7 @@ structure RecursorPhasesResult
     recursorWF.mlctx.vlctx stats decl recursorDepth
   noIndConsts : VLCtx.NoIndConsts (decl.types.map (·.name))
     recursorWF.mlctx.vlctx
+  fieldReplay : RecursorFieldDecisionReplayCompat
   bindings : RecInfoBindings localContext recInfos
   origins : RecInfoTypeOrigins localContext recInfos
   minorSources : RecInfoMinorSourceAlignment stats indTypes origins
@@ -57281,6 +57282,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (hclosed : MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
     (hwhnf : WhnfLParamsCompat)
+    (hfieldReplay : RecursorFieldDecisionReplayCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
@@ -57374,6 +57376,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       parameterDecls := hparameterDeclsLocal
       validStats := HstatsLocal
       noIndConsts := hctxLocal
+      fieldReplay := hfieldReplay
       bindings := Hbindings
       origins := Horigins
       minorSources := HminorSources
@@ -60803,8 +60806,7 @@ theorem
     {H : RecursorPhasesResult R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
-    (hreplay : RecursorFieldDecisionReplayCompat) :
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
     ∃ S : RecInfoMinorTypeShape,
       ∃ traversal : RecInfoMinorTraversalShape,
         S.localIndex = i ∧
@@ -60837,7 +60839,7 @@ theorem
     simpa [hstats] using traversal.decisions
   have hpositions : traversal.recursivePositions =
       A.semantics.recursivePositions :=
-    hreplay stats traversal.rootContext A.semantics.fieldRoot
+    H.fieldReplay stats traversal.rootContext A.semantics.fieldRoot
       traversal.terminalContext A.rule.root traversal.parameterTail
       traversal.terminal A.rule.target traversal.fields
       traversal.recursiveFields A.rule.allArgs A.rule.recursiveArgs
@@ -72959,6 +72961,7 @@ theorem AddInductive.runWithStats.WF
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
     (hwhnf : WhnfLParamsCompat)
+    (hfieldReplay : RecursorFieldDecisionReplayCompat)
     (hrecConsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
@@ -72978,7 +72981,7 @@ theorem AddInductive.runWithStats.WF
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
       rcases Hresult with ⟨headerEnv, Hheaders, R, hclosed⟩
-      exact (R.recursorPhasesWF hclosed hlparams hwhnf hrecConsume hlit
+      exact (R.recursorPhasesWF hclosed hlparams hwhnf hfieldReplay hrecConsume hlit
         hproj hnotPartial hnprim).mono
           fun outEnv Hrecursors =>
             show ∃ headerEnv ctorEnv,
@@ -73015,6 +73018,7 @@ theorem AddInductive.runWithStats.closedWF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlparams : c.lparams.Nodup)
     (hwhnf : WhnfLParamsCompat)
+    (hfieldReplay : RecursorFieldDecisionReplayCompat)
     (hrecConsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -73046,6 +73050,7 @@ theorem AddInductive.runWithStats.closedWF
       hvisible hnprimTypes Hfresh hconsume hlit hproj hunsafe hbound hnprimCtors
   · exact hlparams
   · exact hwhnf
+  · exact hfieldReplay
   · exact hrecConsume
   · exact hlit
   · exact hproj
@@ -73136,6 +73141,7 @@ structure RunWithStatsVerificationInputs
     found.contains indTypes[targetIdx].ctors[i].name = false
   consume : ConsumeTypeAnnotationsCompat
   whnfLParams : WhnfLParamsCompat
+  recursiveFieldReplay : RecursorFieldDecisionReplayCompat
   recursorConsume : RecursorConsumeTypeAnnotationsCompat
   literalDisjoint : checkPositivityStep.LiteralDisjoint stats.indConsts
   projections : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -73169,7 +73175,8 @@ theorem RunWithStatsVerificationInputs.verify
           Nonempty (RecursorPhasesResult R outEnv) :=
   fun hlparams => AddInductive.runWithStats.closedWF Hc H.closed Hdecl
     Hmaterialized H.visible H.freshTypes H.freshConstructors H.consume
-    hlparams H.whnfLParams H.recursorConsume H.literalDisjoint H.projections
+    hlparams H.whnfLParams H.recursiveFieldReplay H.recursorConsume
+    H.literalDisjoint H.projections
     H.unsafeDecl H.universeBound H.freshConstructorConstants H.notPartial
     H.freshRecursors
 
