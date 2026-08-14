@@ -60640,6 +60640,69 @@ theorem
     Hexposed.mono H.installed.le, HexposedType.mono H.installed.le,
     Happlied.mono H.installed.le, HappliedType.mono H.installed.le⟩
 
+/-- The validated recursive field determines the exact expected motive
+application in the final environment.  Its index targets and eta-expanded
+major are the same semantic witnesses that must next be consumed by the
+generated recursor's owner-specific suffix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.finalSemanticMotiveApplication
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+        let sourceIndices :=
+          F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
+        let sourceMajor := mkAppN A.rule.recursiveArgs[j]
+          F.semantic.generated.localArgs
+        let target := VExpr.app
+          (VExpr.mkApps binding.motiveTarget evidence.indices)
+          F.semantic.appliedFieldTarget
+        TrExprS H.outVEnv Us F.semantic.current_context.mlctx.vlctx
+          (Expr.app
+            (mkAppN H.recInfos[selectedOwner]!.motive sourceIndices)
+            sourceMajor)
+          target ∧
+        H.outVEnv.HasType Us.length
+          F.semantic.current_context.mlctx.vlctx.toCtx target
+          (.sort evidence.resultLevel) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases F.semanticMotiveTelescopeEvidence with ⟨binding, ⟨evidence⟩⟩
+  have HmajorType : F.semantic.current_context.venv.HasType Us.length
+      F.semantic.current_context.mlctx.vlctx.toCtx
+      F.semantic.appliedFieldTarget F.semantic.exposedTarget :=
+    F.semantic.applied_field_typing.defeqU_r
+      F.semantic.current_context.checking.tr.wf
+      F.semantic.current_context.mlctx_wf.tr.wf.toCtx
+      F.semantic.exposed_defeq.symm
+  have Happ := evidence.applyMajorTypedExact
+    F.semantic.applied_field_translation HmajorType
+  rcases Happ with ⟨Htr, Htyped⟩
+  have hsemantic : F.semantic.current_context.venv =
+      R.declared.venvCtors :=
+    F.semantic.recent.venv_eq.trans
+      (A.semantics.context_venv.trans
+        (H.recursorEnv.trans R.declared.contextVEnv))
+  rw [hsemantic] at Htr Htyped
+  exact ⟨binding, evidence, Htr.mono H.installed.le,
+    Htyped.mono H.installed.le⟩
+
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
 theorem RecursorPhasesResult.recursorUvarsAt
