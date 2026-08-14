@@ -350,6 +350,44 @@ theorem Ctx.LiftN.insertAfterPrefix
     simpa [liftContextPrefix, liftContextPrefixAt, List.append_assoc] using
       (Ctx.LiftN.succ (A := domain) ih)
 
+/-- Insert the same well-formed context block beneath two definitionally
+equal recent prefixes.  Each dependent prefix declaration is lifted at the
+cutoff determined by the older declarations, exactly as in
+`Ctx.LiftN.insertAfterPrefix`. -/
+theorem VEnv.IsDefEqCtx.insertSameMiddle
+    {env : VEnv} {uvars : Nat}
+    (henv : env.Ordered)
+    (recent₁ recent₂ inserted outer : List VExpr)
+    (H : VEnv.IsDefEqCtx env uvars []
+      (recent₁ ++ outer) (recent₂ ++ outer))
+    (hlength : recent₁.length = recent₂.length)
+    (hctx : OnCtx (inserted ++ outer) (env.IsType uvars)) :
+    VEnv.IsDefEqCtx env uvars []
+      (liftContextPrefix inserted.length recent₁ ++ inserted ++ outer)
+      (liftContextPrefix inserted.length recent₂ ++ inserted ++ outer) := by
+  induction recent₁ generalizing recent₂ with
+  | nil =>
+    have hrefl := VEnv.IsDefEqCtx.refl hctx
+    have hrecent₂ : recent₂ = [] :=
+      List.eq_nil_of_length_eq_zero hlength.symm
+    simpa [hrecent₂, liftContextPrefix, liftContextPrefixAt] using hrefl
+  | cons domain₁ recent₁ ih =>
+    cases recent₂ with
+    | nil => simp at hlength
+    | cons domain₂ recent₂ =>
+      simp only [List.cons_append] at H
+      cases H with
+      | succ Hprior Hdomain =>
+        have htailLength : recent₁.length = recent₂.length := by
+          simpa using Nat.succ.inj hlength
+        have Hprior' := ih recent₂ Hprior htailLength
+        have W := Ctx.LiftN.insertAfterPrefix recent₁ inserted outer
+        have Hdomain' := Hdomain.weakN henv W
+        exact .succ Hprior' (by
+          rw [← htailLength]
+          simpa [liftContextPrefix, liftContextPrefixAt, VExpr.liftN] using
+            Hdomain')
+
 theorem VEnv.IsType.wrapForalls_inv
     {env : VEnv} (henv : env.Ordered)
     (hctx : OnCtx ctx (env.IsType uvars))
@@ -522,206 +560,120 @@ theorem VEnv.HasType.mkApps_head
   rcases hdomainEq with ⟨domainLevel, hdomainEq⟩
   exact hdomainEq.defeq' hargActual
 
+/-- Canonical variables for a telescope, in source binder order. -/
+def recursorCanonicalVars (n : Nat) : List VExpr :=
+  (List.range n).reverse.map .bvar
+
+@[simp] theorem recursorCanonicalVars_zero : recursorCanonicalVars 0 = [] :=
+  rfl
+
+theorem recursorCanonicalVars_eq_ofFn (n : Nat) :
+    recursorCanonicalVars n =
+      List.ofFn fun i : Fin n => VExpr.bvar (n - 1 - i) := by
+  apply List.ext_getElem
+  · simp [recursorCanonicalVars]
+  · intro i hleft hright
+    simp [recursorCanonicalVars]
+
+theorem recursorCanonicalVars_succ_cons (n : Nat) :
+    recursorCanonicalVars (n + 1) =
+      .bvar n :: recursorCanonicalVars n := by
+  simp [recursorCanonicalVars, List.range_succ]
+
+/-- Split canonical telescope variables into an older applied initial block,
+weakened below the still-open suffix, followed by the suffix variables. -/
+theorem recursorCanonicalVars_add (initialCount suffixCount : Nat) :
+    recursorCanonicalVars (initialCount + suffixCount) =
+      (recursorCanonicalVars initialCount).map
+          (fun arg => arg.liftN suffixCount 0) ++
+        recursorCanonicalVars suffixCount := by
+  induction initialCount with
+  | zero => simp
+  | succ initialCount ih =>
+    rw [show (initialCount + 1) + suffixCount =
+        (initialCount + suffixCount) + 1 by omega,
+      recursorCanonicalVars_succ_cons,
+      recursorCanonicalVars_succ_cons, List.map_cons, ih]
+    simp [VExpr.liftN, liftVar_base, List.append_assoc]
+
+theorem VExpr.liftN_mkApps
+    (fn : VExpr) (args : List VExpr) (n k : Nat) :
+    (VExpr.mkApps fn args).liftN n k =
+      VExpr.mkApps (fn.liftN n k) (args.map fun arg => arg.liftN n k) := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih =>
+    simpa [VExpr.mkApps, VExpr.liftN] using ih (.app fn arg)
+
+theorem VExpr.mkApps_append (fn : VExpr) (initial suffix : List VExpr) :
+    VExpr.mkApps fn (initial ++ suffix) =
+      VExpr.mkApps (VExpr.mkApps fn initial) suffix := by
+  simp [VExpr.mkApps, List.foldl_append]
+
+/-- Applying all canonical variables factors through the canonical
+application of any older initial block, weakened below the remaining suffix. -/
+theorem VExpr.mkApps_canonical_add
+    (fn : VExpr) (initialCount suffixCount : Nat) :
+    VExpr.mkApps (fn.liftN (initialCount + suffixCount) 0)
+        (recursorCanonicalVars (initialCount + suffixCount)) =
+      VExpr.mkApps
+        ((VExpr.mkApps (fn.liftN initialCount 0)
+          (recursorCanonicalVars initialCount)).liftN suffixCount 0)
+        (recursorCanonicalVars suffixCount) := by
+  have hinitialApp :
+      VExpr.mkApps (fn.liftN (initialCount + suffixCount) 0)
+          ((recursorCanonicalVars initialCount).map
+            (fun arg => arg.liftN suffixCount 0)) =
+        (VExpr.mkApps (fn.liftN initialCount 0)
+          (recursorCanonicalVars initialCount)).liftN suffixCount 0 := by
+    rw [VExpr.liftN_mkApps]
+    simp [VExpr.liftN_liftN]
+  rw [recursorCanonicalVars_add]
+  rw [VExpr.mkApps_append, hinitialApp]
+
 /-- A well-typed complete canonical application retains every older partial
 application after the unapplied dependent suffix is removed from the local
 context. -/
 theorem VExpr.WF.mkApps_canonical_prefix
+    {fn : VExpr}
     (henv : env.WF)
     (actual : List VExpr) (outer : List VExpr)
     (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
     (H : VExpr.WF env uvars (actual.reverse ++ outer)
       (VExpr.mkApps (fn.liftN actual.length 0)
         (recursorCanonicalVars actual.length)))
-    (prefix : Nat) (hprefix : prefix ≤ actual.length) :
-    VExpr.WF env uvars (actual.take prefix |>.reverse ++ outer)
-      (VExpr.mkApps (fn.liftN prefix 0)
-        (recursorCanonicalVars prefix)) := by
-  let remaining := actual.drop prefix
-  have hsplit : actual = actual.take prefix ++ remaining := by
-    exact (List.take_append_drop prefix actual).symm
-  have hlength : actual.length = prefix + remaining.length := by
-    simp [remaining, hprefix]
+    (initialCount : Nat) (hinitial : initialCount ≤ actual.length) :
+    VExpr.WF env uvars ((actual.take initialCount).reverse ++ outer)
+      (VExpr.mkApps (fn.liftN initialCount 0)
+        (recursorCanonicalVars initialCount)) := by
+  let remaining := actual.drop initialCount
+  have hsplit : actual = actual.take initialCount ++ remaining := by
+    exact (List.take_append_drop initialCount actual).symm
+  have hlength : actual.length = initialCount + remaining.length := by
+    simp [remaining, hinitial]
+  have Hsplit := H
+  rw [hsplit] at Hsplit
   have H' : VExpr.WF env uvars
-      (remaining.reverse ++ actual.take prefix |>.reverse ++ outer)
-      (VExpr.mkApps (fn.liftN (prefix + remaining.length) 0)
-        (recursorCanonicalVars (prefix + remaining.length))) := by
-    simpa [hsplit, hlength, List.reverse_append, List.append_assoc] using H
+      (remaining.reverse ++ (actual.take initialCount).reverse ++ outer)
+      (VExpr.mkApps (fn.liftN (initialCount + remaining.length) 0)
+        (recursorCanonicalVars (initialCount + remaining.length))) := by
+    simpa [hlength, List.reverse_append, List.append_assoc] using Hsplit
   rw [VExpr.mkApps_canonical_add] at H'
+  have hctxSplit := hctx
+  rw [hsplit] at hctxSplit
   have Hpartial := VExpr.WF.mkApps_fn henv.ordered (by
-    simpa [hsplit, List.reverse_append, List.append_assoc] using hctx)
+    simpa [List.reverse_append, List.append_assoc] using hctxSplit)
     H'
   have W : Ctx.LiftN remaining.length 0
-      (actual.take prefix |>.reverse ++ outer)
-      (remaining.reverse ++ actual.take prefix |>.reverse ++ outer) := by
+      ((actual.take initialCount).reverse ++ outer)
+      (remaining.reverse ++ (actual.take initialCount).reverse ++ outer) := by
     simpa [List.length_reverse] using
       (Ctx.LiftN.zero remaining.reverse
-        (Γ := actual.take prefix |>.reverse ++ outer))
+        (h := by simp)
+        (Γ := (actual.take initialCount).reverse ++ outer))
   exact (VExpr.WF.weakN_iff henv (by
-    simpa [hsplit, List.reverse_append, List.append_assoc] using hctx) W).mp
+    simpa [List.reverse_append, List.append_assoc] using hctxSplit) W).mp
       (by simpa using Hpartial)
-
-/-- Invert a well-typed canonical application of a declared forall
-telescope into a conversion between the actual dependent argument context
-and the declared domain context.  The proof grows the conversion from the
-oldest binder outward, using partial-application typing at each step. -/
-theorem VEnv.HasType.canonicalApplicationContext
-    (henv : env.WF)
-    (actual expected : List VExpr) (outer : List VExpr)
-    (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
-    (hfn : env.HasType uvars outer fn
-      (VExpr.wrapForalls expected (.sort resultLevel)))
-    (hlength : actual.length = expected.length)
-    (happs : VExpr.WF env uvars (actual.reverse ++ outer)
-      (VExpr.mkApps (fn.liftN actual.length 0)
-        (recursorCanonicalVars actual.length))) :
-    VEnv.IsDefEqCtx env uvars []
-      (actual.reverse ++ outer) (expected.reverse ++ outer) := by
-  have houter : OnCtx outer (env.IsType uvars) :=
-    OnCtx.append_right hctx
-  have go : ∀ prefix, prefix ≤ actual.length →
-      VEnv.IsDefEqCtx env uvars []
-        ((actual.take prefix).reverse ++ outer)
-        ((expected.take prefix).reverse ++ outer) := by
-    intro prefix hprefix
-    induction prefix with
-    | zero =>
-      simpa using VEnv.IsDefEqCtx.refl houter
-    | succ prefix ih =>
-      have hprefixLt : prefix < actual.length := by omega
-      have hexpectedLt : prefix < expected.length := by omega
-      have Hprior := ih (by omega)
-      let actualDomain := actual[prefix]
-      let expectedDomain := expected[prefix]
-      let actualCtx := (actual.take prefix).reverse ++ outer
-      let expectedCtx := (expected.take prefix).reverse ++ outer
-      let partial := VExpr.mkApps (fn.liftN prefix 0)
-        (recursorCanonicalVars prefix)
-      have hexpectedSplit : expected = expected.take prefix ++
-          expected.drop prefix := (List.take_append_drop prefix expected).symm
-      have HpartialExpected : env.HasType uvars expectedCtx partial
-          (VExpr.wrapForalls (expected.drop prefix) (.sort resultLevel)) := by
-        have H := VEnv.HasType.mkApps_wrapForalls_prefix_canonical
-          henv.ordered (initial := expected.take prefix)
-          (suffix := expected.drop prefix) (by
-            simpa [hexpectedSplit] using hfn)
-        simpa [expectedCtx, partial] using H
-      have Hpartial : env.HasType uvars actualCtx partial
-          (VExpr.wrapForalls (expected.drop prefix) (.sort resultLevel)) :=
-        HpartialExpected.defeqDFC henv.ordered
-          (Hprior.symm henv.ordered)
-      have hdrop : expected.drop prefix = expectedDomain ::
-          expected.drop (prefix + 1) := by
-        simpa [expectedDomain] using
-          List.drop_eq_getElem_cons hexpectedLt
-      rw [hdrop] at Hpartial
-      have HpartialWeak := Hpartial.weakN henv.ordered
-        (Ctx.LiftN.one (A := actualDomain))
-      let expectedBody :=
-        (VExpr.wrapForalls (expected.drop (prefix + 1))
-          (.sort resultLevel)).liftN 1 1
-      have HpartialForall : env.HasType uvars (actualDomain :: actualCtx)
-          (partial.liftN 1 0)
-          (.forallE expectedDomain.lift expectedBody) := by
-        simpa [VExpr.wrapForalls, VExpr.lift, VExpr.liftN,
-          expectedBody] using HpartialWeak
-      have HnextWF₀ := VExpr.WF.mkApps_canonical_prefix henv actual outer
-        hctx happs (prefix + 1) (by omega)
-      have HnextWF : VExpr.WF env uvars (actualDomain :: actualCtx)
-          (VExpr.mkApps (partial.liftN 1 0)
-            (recursorCanonicalVars 1)) := by
-        have htake : actual.take (prefix + 1) =
-            actual.take prefix ++ [actualDomain] := by
-          simpa [actualDomain] using
-            List.take_succ_eq_append_getElem hprefixLt
-        simpa [actualCtx, partial, htake, List.reverse_append,
-          VExpr.mkApps_canonical_add] using HnextWF₀
-      have HexpectedArg := VEnv.HasType.mkApps_head henv (by
-        have hactualPrefix : OnCtx (actualDomain :: actualCtx)
-            (env.IsType uvars) := by
-          have hactualSplit : actual = actual.take (prefix + 1) ++
-              actual.drop (prefix + 1) :=
-            (List.take_append_drop (prefix + 1) actual).symm
-          have Hopened := OnCtx.append_right (xs :=
-            (actual.drop (prefix + 1)).reverse) (by
-              simpa [hactualSplit, List.reverse_append,
-                List.append_assoc] using hctx)
-          have htake : actual.take (prefix + 1) =
-              actual.take prefix ++ [actualDomain] := by
-            simpa [actualDomain] using
-              List.take_succ_eq_append_getElem hprefixLt
-          simpa [actualCtx, htake, List.reverse_append,
-            List.append_assoc] using Hopened
-        exact hactualPrefix)
-        HpartialForall HnextWF
-      have hactualCtx : OnCtx (actualDomain :: actualCtx)
-          (env.IsType uvars) := by
-        have hactualSplit : actual = actual.take (prefix + 1) ++
-            actual.drop (prefix + 1) :=
-          (List.take_append_drop (prefix + 1) actual).symm
-        have Hopened := OnCtx.append_right (xs :=
-          (actual.drop (prefix + 1)).reverse) (by
-            simpa [hactualSplit, List.reverse_append,
-              List.append_assoc] using hctx)
-        have htake : actual.take (prefix + 1) =
-            actual.take prefix ++ [actualDomain] := by
-          simpa [actualDomain] using
-            List.take_succ_eq_append_getElem hprefixLt
-        simpa [actualCtx, htake, List.reverse_append,
-          List.append_assoc] using Hopened
-      have HactualArg : env.HasType uvars (actualDomain :: actualCtx)
-          (.bvar 0) actualDomain.lift :=
-        VEnv.HasType.bvar Lookup.zero
-      have HdomainWeak := HactualArg.uniqU henv hactualCtx HexpectedArg
-      have HdomainU := (VEnv.IsDefEqU.weakN_iff henv hactualCtx
-        (Ctx.LiftN.one (A := actualDomain))).mp (by
-          simpa [VExpr.lift] using HdomainWeak)
-      rcases (hactualCtx.2) with ⟨domainLevel, HactualType⟩
-      have Hdomain : env.IsDefEq uvars actualCtx
-          actualDomain expectedDomain (.sort domainLevel) :=
-        HdomainU.of_l henv Hprior.isType HactualType
-      have Hnext := VEnv.IsDefEqCtx.succ Hprior Hdomain
-      have hactualTake : actual.take (prefix + 1) =
-          actual.take prefix ++ [actualDomain] := by
-        simpa [actualDomain] using
-          List.take_succ_eq_append_getElem hprefixLt
-      have hexpectedTake : expected.take (prefix + 1) =
-          expected.take prefix ++ [expectedDomain] := by
-        simpa [expectedDomain] using
-          List.take_succ_eq_append_getElem hexpectedLt
-      simpa [actualCtx, expectedCtx, hactualTake, hexpectedTake,
-        List.reverse_append, List.append_assoc] using Hnext
-  have H := go actual.length (Nat.le_refl _)
-  simpa [hlength] using H
-
-/-- Applying every binder of a well-typed forall telescope ending in a sort
-produces another type.  Argument typing is recovered from the independently
-known well-typed application and transported to the specified telescope by
-uniqueness and forall injectivity. -/
-theorem VEnv.HasType.mkApps_isType
-    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
-    (hfn : env.HasType uvars ctx fn fnType)
-    (hshape : VExpr.ForallAritySort args.length fnType)
-    (happs : VExpr.WF env uvars ctx (VExpr.mkApps fn args)) :
-    env.IsType uvars ctx (VExpr.mkApps fn args) := by
-  induction args generalizing fn fnType with
-  | nil =>
-    cases hshape with
-    | zero level => exact ⟨level, by simpa [VExpr.mkApps] using hfn⟩
-  | cons arg args ih =>
-    cases hshape with
-    | @succ arity body domain hbody =>
-      have hprefix := VExpr.WF.mkApps_fn henv.ordered hctx
-        (fn := .app fn arg) (args := args) happs
-      rcases hprefix.app_inv henv.ordered hctx with
-        ⟨actualDomain, actualBody, hfnActual, hargActual⟩
-      have hfunctionEq := hfn.uniqU henv hctx hfnActual
-      have hdomainEq :=
-        (VEnv.IsDefEqU.forallE_inv henv hctx hfunctionEq).1
-      rcases hdomainEq with ⟨domainLevel, hdomainEq⟩
-      have harg : env.HasType uvars ctx arg domain :=
-        hdomainEq.defeq' hargActual
-      exact ih (fn := .app fn arg) (fnType := body.inst arg)
-        (hfn.app harg) (hbody.inst arg) happs
 
 /-- A term whose type is a dependent forall telescope can be weakened beneath
 that telescope and applied to the canonical variables for all of its binders.
@@ -764,25 +716,190 @@ theorem VEnv.HasType.mkApps_wrapForalls_prefix_canonical
   rw [VExpr.wrapForalls_append] at H
   exact VEnv.HasType.mkApps_wrapForalls_canonical henv H
 
-/-- Canonical variables for a telescope, in source binder order. -/
-def recursorCanonicalVars (n : Nat) : List VExpr :=
-  (List.range n).reverse.map .bvar
+/-- Invert a well-typed canonical application of a declared forall
+telescope into a conversion between the actual dependent argument context
+and the declared domain context.  The proof grows the conversion from the
+oldest binder outward, using partial-application typing at each step. -/
+theorem VEnv.HasType.canonicalApplicationContext
+    {fn : VExpr}
+    (henv : env.WF)
+    (actual expected : List VExpr) (outer : List VExpr)
+    (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
+    (hfn : env.HasType uvars outer fn
+      (VExpr.wrapForalls expected (.sort resultLevel)))
+    (hlength : actual.length = expected.length)
+    (happs : VExpr.WF env uvars (actual.reverse ++ outer)
+      (VExpr.mkApps (fn.liftN actual.length 0)
+        (recursorCanonicalVars actual.length))) :
+    VEnv.IsDefEqCtx env uvars []
+      (actual.reverse ++ outer) (expected.reverse ++ outer) := by
+  have houter : OnCtx outer (env.IsType uvars) :=
+    OnCtx.append_right hctx
+  have go : ∀ initialCount, initialCount ≤ actual.length →
+      VEnv.IsDefEqCtx env uvars []
+        ((actual.take initialCount).reverse ++ outer)
+        ((expected.take initialCount).reverse ++ outer) := by
+    intro initialCount hinitial
+    induction initialCount with
+    | zero =>
+      simpa using VEnv.IsDefEqCtx.refl houter
+    | succ initialCount ih =>
+      have hinitialLt : initialCount < actual.length := by omega
+      have hexpectedLt : initialCount < expected.length := by omega
+      have Hprior := ih (by omega)
+      let actualDomain := actual[initialCount]
+      let expectedDomain := expected[initialCount]
+      let actualCtx := (actual.take initialCount).reverse ++ outer
+      let expectedCtx := (expected.take initialCount).reverse ++ outer
+      let partialApp := VExpr.mkApps (fn.liftN initialCount 0)
+        (recursorCanonicalVars initialCount)
+      have hexpectedSplit : expected = expected.take initialCount ++
+          expected.drop initialCount :=
+        (List.take_append_drop initialCount expected).symm
+      have HpartialExpected : env.HasType uvars expectedCtx partialApp
+          (VExpr.wrapForalls (expected.drop initialCount)
+            (.sort resultLevel)) := by
+        have hfnSplit := hfn
+        rw [hexpectedSplit] at hfnSplit
+        have H := VEnv.HasType.mkApps_wrapForalls_prefix_canonical
+          henv.ordered (initial := expected.take initialCount)
+          (suffix := expected.drop initialCount) (by
+            exact hfnSplit)
+        simpa [expectedCtx, partialApp, recursorCanonicalVars,
+          Nat.min_eq_left (Nat.le_of_lt hexpectedLt)] using H
+      have Hpartial : env.HasType uvars actualCtx partialApp
+          (VExpr.wrapForalls (expected.drop initialCount)
+            (.sort resultLevel)) :=
+        HpartialExpected.defeqDFC henv.ordered
+          (Hprior.symm henv.ordered)
+      have hdrop : expected.drop initialCount = expectedDomain ::
+          expected.drop (initialCount + 1) := by
+        simpa [expectedDomain] using
+          List.drop_eq_getElem_cons hexpectedLt
+      rw [hdrop] at Hpartial
+      have HpartialWeak := Hpartial.weakN henv.ordered
+        (Ctx.LiftN.one (A := actualDomain))
+      let expectedBody :=
+        (VExpr.wrapForalls (expected.drop (initialCount + 1))
+          (.sort resultLevel)).liftN 1 1
+      have HpartialForall : env.HasType uvars (actualDomain :: actualCtx)
+          (partialApp.liftN 1 0)
+          (.forallE expectedDomain.lift expectedBody) := by
+        simpa [VExpr.wrapForalls, VExpr.lift, VExpr.liftN,
+          expectedBody] using HpartialWeak
+      have HnextWF₀ := VExpr.WF.mkApps_canonical_prefix henv actual outer
+        hctx happs (initialCount + 1) (by omega)
+      have HnextWF : VExpr.WF env uvars (actualDomain :: actualCtx)
+          (VExpr.mkApps (partialApp.liftN 1 0)
+            (recursorCanonicalVars 1)) := by
+        have htake : actual.take (initialCount + 1) =
+            actual.take initialCount ++ [actualDomain] := by
+          simpa [actualDomain] using
+            List.take_succ_eq_append_getElem hinitialLt
+        simpa [actualCtx, partialApp, htake, List.reverse_append,
+          VExpr.mkApps_canonical_add] using HnextWF₀
+      have HexpectedArg := VEnv.HasType.mkApps_head henv (by
+        have hactualPrefix : OnCtx (actualDomain :: actualCtx)
+            (env.IsType uvars) := by
+          have hactualSplit : actual = actual.take (initialCount + 1) ++
+              actual.drop (initialCount + 1) :=
+            (List.take_append_drop (initialCount + 1) actual).symm
+          have hactualReverse : actual.reverse =
+              (actual.drop (initialCount + 1)).reverse ++
+                (actual.take (initialCount + 1)).reverse := by
+            simpa [List.reverse_append] using
+              congrArg List.reverse hactualSplit
+          have hctxSplit := hctx
+          rw [hactualReverse] at hctxSplit
+          have Hopened := OnCtx.append_right (xs :=
+            (actual.drop (initialCount + 1)).reverse) (by
+              simpa [List.reverse_append, List.append_assoc] using hctxSplit)
+          have htake : actual.take (initialCount + 1) =
+              actual.take initialCount ++ [actualDomain] := by
+            simpa [actualDomain] using
+              List.take_succ_eq_append_getElem hinitialLt
+          simpa [actualCtx, htake, List.reverse_append,
+            List.append_assoc] using Hopened
+        exact hactualPrefix)
+        HpartialForall HnextWF
+      have hactualCtx : OnCtx (actualDomain :: actualCtx)
+          (env.IsType uvars) := by
+        have hactualSplit : actual = actual.take (initialCount + 1) ++
+            actual.drop (initialCount + 1) :=
+          (List.take_append_drop (initialCount + 1) actual).symm
+        have hactualReverse : actual.reverse =
+            (actual.drop (initialCount + 1)).reverse ++
+              (actual.take (initialCount + 1)).reverse := by
+          simpa [List.reverse_append] using
+            congrArg List.reverse hactualSplit
+        have hctxSplit := hctx
+        rw [hactualReverse] at hctxSplit
+        have Hopened := OnCtx.append_right (xs :=
+          (actual.drop (initialCount + 1)).reverse) (by
+            simpa [List.reverse_append, List.append_assoc] using hctxSplit)
+        have htake : actual.take (initialCount + 1) =
+            actual.take initialCount ++ [actualDomain] := by
+          simpa [actualDomain] using
+            List.take_succ_eq_append_getElem hinitialLt
+        simpa [actualCtx, htake, List.reverse_append,
+          List.append_assoc] using Hopened
+      have HactualArg : env.HasType uvars (actualDomain :: actualCtx)
+          (.bvar 0) actualDomain.lift :=
+        VEnv.HasType.bvar Lookup.zero
+      have HdomainWeak := HactualArg.uniqU henv hactualCtx HexpectedArg
+      have HdomainU := (VEnv.IsDefEqU.weakN_iff henv hactualCtx
+        (Ctx.LiftN.one (A := actualDomain))).mp (by
+          simpa [VExpr.lift] using HdomainWeak)
+      rcases (hactualCtx.2) with ⟨domainLevel, HactualType⟩
+      have Hdomain : env.IsDefEq uvars actualCtx
+          actualDomain expectedDomain (.sort domainLevel) :=
+        HdomainU.of_l henv Hprior.isType HactualType
+      have Hnext := VEnv.IsDefEqCtx.succ Hprior Hdomain
+      have hactualTake : actual.take (initialCount + 1) =
+          actual.take initialCount ++ [actualDomain] := by
+        simpa [actualDomain] using
+          List.take_succ_eq_append_getElem hinitialLt
+      have hexpectedTake : expected.take (initialCount + 1) =
+          expected.take initialCount ++ [expectedDomain] := by
+        simpa [expectedDomain] using
+          List.take_succ_eq_append_getElem hexpectedLt
+      simpa [actualCtx, expectedCtx, hactualTake, hexpectedTake,
+        List.reverse_append, List.append_assoc] using Hnext
+  have H := go actual.length (Nat.le_refl _)
+  have hexpectedTakeAll : expected.take actual.length = expected := by
+    rw [hlength, List.take_length]
+  rw [List.take_length, hexpectedTakeAll] at H
+  exact H
 
-@[simp] theorem recursorCanonicalVars_zero : recursorCanonicalVars 0 = [] :=
-  rfl
-
-theorem recursorCanonicalVars_eq_ofFn (n : Nat) :
-    recursorCanonicalVars n =
-      List.ofFn fun i : Fin n => VExpr.bvar (n - 1 - i) := by
-  apply List.ext_getElem
-  · simp [recursorCanonicalVars]
-  · intro i hleft hright
-    simp [recursorCanonicalVars]
-
-theorem recursorCanonicalVars_succ_cons (n : Nat) :
-    recursorCanonicalVars (n + 1) =
-      .bvar n :: recursorCanonicalVars n := by
-  simp [recursorCanonicalVars, List.range_succ]
+/-- Applying every binder of a well-typed forall telescope ending in a sort
+produces another type.  Argument typing is recovered from the independently
+known well-typed application and transported to the specified telescope by
+uniqueness and forall injectivity. -/
+theorem VEnv.HasType.mkApps_isType
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (hfn : env.HasType uvars ctx fn fnType)
+    (hshape : VExpr.ForallAritySort args.length fnType)
+    (happs : VExpr.WF env uvars ctx (VExpr.mkApps fn args)) :
+    env.IsType uvars ctx (VExpr.mkApps fn args) := by
+  induction args generalizing fn fnType with
+  | nil =>
+    cases hshape with
+    | zero level => exact ⟨level, by simpa [VExpr.mkApps] using hfn⟩
+  | cons arg args ih =>
+    cases hshape with
+    | @succ arity body domain hbody =>
+      have hprefix := VExpr.WF.mkApps_fn henv.ordered hctx
+        (fn := .app fn arg) (args := args) happs
+      rcases hprefix.app_inv henv.ordered hctx with
+        ⟨actualDomain, actualBody, hfnActual, hargActual⟩
+      have hfunctionEq := hfn.uniqU henv hctx hfnActual
+      have hdomainEq :=
+        (VEnv.IsDefEqU.forallE_inv henv hctx hfunctionEq).1
+      rcases hdomainEq with ⟨domainLevel, hdomainEq⟩
+      have harg : env.HasType uvars ctx arg domain :=
+        hdomainEq.defeq' hargActual
+      exact ih (fn := .app fn arg) (fnType := body.inst arg)
+        (hfn.app harg) (hbody.inst arg) happs
 
 /-- The concrete owner-result spine numbers the index variables followed by
 the major exactly as the canonical variables of one combined telescope. -/
@@ -796,35 +913,6 @@ theorem concreteRecursorResultArgs_eq_canonical (numIndices : Nat) :
     rw [List.range_succ, List.reverse_append, List.map_append]
     simpa [recursorCanonicalVars_succ_cons, List.append_assoc] using
       congrArg (VExpr.bvar (numIndices + 1) :: ·) ih
-
-/-- Split canonical telescope variables into an older applied prefix,
-weakened below the still-open suffix, followed by the suffix variables. -/
-theorem recursorCanonicalVars_add (prefix suffix : Nat) :
-    recursorCanonicalVars (prefix + suffix) =
-      (recursorCanonicalVars prefix).map
-          (fun arg => arg.liftN suffix 0) ++
-        recursorCanonicalVars suffix := by
-  induction prefix with
-  | zero => simp
-  | succ prefix ih =>
-    rw [show (prefix + 1) + suffix = (prefix + suffix) + 1 by omega,
-      recursorCanonicalVars_succ_cons,
-      recursorCanonicalVars_succ_cons, List.map_cons, ih]
-    simp [VExpr.liftN, liftVar_base, List.append_assoc]
-
-/-- Applying all canonical variables factors through the canonical
-application of any older prefix, weakened below the remaining suffix. -/
-theorem VExpr.mkApps_canonical_add
-    (fn : VExpr) (prefix suffix : Nat) :
-    VExpr.mkApps (fn.liftN (prefix + suffix) 0)
-        (recursorCanonicalVars (prefix + suffix)) =
-      VExpr.mkApps
-        ((VExpr.mkApps (fn.liftN prefix 0)
-          (recursorCanonicalVars prefix)).liftN suffix 0)
-        (recursorCanonicalVars suffix) := by
-  rw [recursorCanonicalVars_add]
-  simp [VExpr.mkApps, List.foldl_append, VExpr.liftN_mkApps,
-    VExpr.liftN_liftN]
 
 @[simp] theorem recursorCanonicalVars_liftN_at_length
     (n shift : Nat) :
@@ -1026,15 +1114,6 @@ theorem VExpr.IsFieldApp.mkApps
     (hfield : field ∈ fieldVars) (args : List VExpr) :
     (VExpr.mkApps (.bvar (field + depth)) args).IsFieldApp fieldVars depth := by
   exact ⟨field, hfield, args, VExpr.getAppFnArgs_mkApps_bvar _ _⟩
-
-theorem VExpr.liftN_mkApps
-    (fn : VExpr) (args : List VExpr) (n k : Nat) :
-    (VExpr.mkApps fn args).liftN n k =
-      VExpr.mkApps (fn.liftN n k) (args.map fun arg => arg.liftN n k) := by
-  induction args generalizing fn with
-  | nil => rfl
-  | cons arg args ih =>
-    simpa [VExpr.mkApps, VExpr.liftN] using ih (.app fn arg)
 
 theorem VExpr.lift'_mkApps
     (fn : VExpr) (args : List VExpr) (shift : Lift) :
@@ -3458,6 +3537,21 @@ theorem MLCtxOnlyLams.forallDomains_eq_take_reverse
       simp only [MLCtxForallDomains, TypeChecker.MLCtx.vlctx,
         VLCtx.toCtx, List.take_succ_cons, List.reverse_cons]
       rw [ih H.tail_vlam (Nat.le_of_succ_le_succ hn)]
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
+theorem MLCtxOnlyLams.toCtx_take
+    (H : MLCtxOnlyLams c) (n : Nat) :
+    VLCtx.toCtx (c.vlctx.take n) = c.vlctx.toCtx.take n := by
+  induction n generalizing c with
+  | zero => simp [VLCtx.toCtx]
+  | succ n ih =>
+    cases c with
+    | nil => simp [TypeChecker.MLCtx.vlctx, VLCtx.toCtx]
+    | vlam fv name type type' bi tail =>
+      simp only [TypeChecker.MLCtx.vlctx, List.take_succ_cons,
+        VLCtx.toCtx]
+      rw [ih H.tail_vlam]
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
@@ -46611,21 +46705,23 @@ theorem GeneratedRecursorTelescopeTranslation.domainsResult_eq
     T₂.params ++ T₂.motives ++ T₂.minors ++ T₂.indices ++ T₂.major
   have hlength₁ : domains₁.length =
       numParams + numMotives + numMinors + numIndices + 1 := by
-    simp [domains₁, T₁.params_length, T₁.motives_length,
-      T₁.minors_length, T₁.indices_length, T₁.major_length]
+    simp only [domains₁, List.length_append, T₁.params_length,
+      T₁.motives_length, T₁.minors_length, T₁.indices_length,
+      T₁.major_length]
   have hlength₂ : domains₂.length =
       numParams + numMotives + numMinors + numIndices + 1 := by
-    simp [domains₂, T₂.params_length, T₂.motives_length,
-      T₂.minors_length, T₂.indices_length, T₂.major_length]
+    simp only [domains₂, List.length_append, T₂.params_length,
+      T₂.motives_length, T₂.minors_length, T₂.indices_length,
+      T₂.major_length]
   have hwrapped : VExpr.wrapForalls domains₁ T₁.result =
       VExpr.wrapForalls domains₂ T₂.result := by
     rw [← T₁.target_eq, ← T₂.target_eq]
   have hdomains : domains₁ = domains₂ := by
-    apply VExpr.wrapForalls_prefix_domains_eq hlength₁ hlength₂
-    simpa using hwrapped
+    exact VExpr.wrapForalls_prefix_domains_eq (suffix := [])
+      hlength₁ hlength₂ (by simpa using hwrapped)
   refine ⟨by simpa [domains₁, domains₂] using hdomains, ?_⟩
-  apply VExpr.wrapForalls_left_cancel domains₁
-  rw [hdomains]
+  apply VExpr.wrapForalls_left_cancel domains₂
+  rw [hdomains] at hwrapped
   exact hwrapped
 
 /-- Groupwise form of `domainsResult_eq`, using the five fixed production
@@ -46637,24 +46733,27 @@ theorem GeneratedRecursorTelescopeTranslation.groupsResult_eq
       T₁.minors = T₂.minors ∧ T₁.indices = T₂.indices ∧
       T₁.major = T₂.major ∧ T₁.result = T₂.result := by
   have H := T₁.domainsResult_eq T₂
-  have hparams := congrArg (List.take numParams) H.1
-  have hmotives := congrArg
-    (fun domains => (domains.drop numParams).take numMotives) H.1
-  have hminors := congrArg
-    (fun domains =>
-      (domains.drop (numParams + numMotives)).take numMinors) H.1
-  have hindices := congrArg
-    (fun domains =>
-      (domains.drop (numParams + numMotives + numMinors)).take numIndices) H.1
-  have hmajor := congrArg
-    (List.drop (numParams + numMotives + numMinors + numIndices)) H.1
-  simp only [T₁.params_length, T₂.params_length,
-    T₁.motives_length, T₂.motives_length,
-    T₁.minors_length, T₂.minors_length,
-    T₁.indices_length, T₂.indices_length,
-    T₁.major_length, T₂.major_length] at hparams hmotives hminors
-      hindices hmajor
-  simp at hparams hmotives hminors hindices hmajor
+  have H₀ : T₁.params ++
+        (T₁.motives ++ (T₁.minors ++ (T₁.indices ++ T₁.major))) =
+      T₂.params ++
+        (T₂.motives ++ (T₂.minors ++ (T₂.indices ++ T₂.major))) := by
+    simpa [List.append_assoc] using H.1
+  have hparamsLength : T₁.params.length = T₂.params.length := by
+    rw [T₁.params_length, T₂.params_length]
+  have hparams := List.append_inj_left H₀ hparamsLength
+  have H₁ := List.append_inj_right H₀ hparamsLength
+  have hmotivesLength : T₁.motives.length = T₂.motives.length := by
+    rw [T₁.motives_length, T₂.motives_length]
+  have hmotives := List.append_inj_left H₁ hmotivesLength
+  have H₂ := List.append_inj_right H₁ hmotivesLength
+  have hminorsLength : T₁.minors.length = T₂.minors.length := by
+    rw [T₁.minors_length, T₂.minors_length]
+  have hminors := List.append_inj_left H₂ hminorsLength
+  have H₃ := List.append_inj_right H₂ hminorsLength
+  have hindicesLength : T₁.indices.length = T₂.indices.length := by
+    rw [T₁.indices_length, T₂.indices_length]
+  have hindices := List.append_inj_left H₃ hindicesLength
+  have hmajor := List.append_inj_right H₃ hindicesLength
   exact ⟨hparams, hmotives, hminors, hindices, hmajor, H.2⟩
 
 /-- Expose the source and abstract domains of the motive binder selected by
@@ -46779,7 +46878,10 @@ theorem GeneratedRecursorTelescopeTranslation.fullContextResultType
   have htype' : env.IsType Us.length []
       (VExpr.wrapForalls domains T.result) := by
     simpa [domains] using htype
-  exact VEnv.IsType.wrapForalls_inv henv (by trivial) htype'
+  have Hopened := VEnv.IsType.wrapForalls_inv henv (by trivial) htype'
+  change OnCtx domains.reverse (env.IsType Us.length) ∧
+    env.IsType Us.length domains.reverse T.result
+  simpa only [List.append_nil] using Hopened
 
 /-- The residual of any retained recursor-telescope translation is literally
 the owner motive applied to the canonical variables for the translated index
@@ -46818,7 +46920,7 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveBvarTyping
       ((T.motives[ownerIdx]'howner).liftN (newer.length + 1) 0) := by
   let newer := T.motives.drop (ownerIdx + 1) ++ T.minors ++
     T.indices ++ T.major
-  let older := T.motives.take ownerIdx |>.reverse ++ T.params.reverse
+  let older := (T.motives.take ownerIdx).reverse ++ T.params.reverse
   let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
   have hsplit : T.motives = T.motives.take ownerIdx ++
       T.motives[ownerIdx] :: T.motives.drop (ownerIdx + 1) := by
@@ -46838,9 +46940,20 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveBvarTyping
       ((T.motives[ownerIdx]'howner).liftN (newer.length + 1) 0) := by
     simpa [List.length_reverse] using
       Lookup.append_zero newer.reverse (T.motives[ownerIdx]'howner) older
+  have hmotivesReverse : T.motives.reverse =
+      (T.motives.drop (ownerIdx + 1)).reverse ++
+        T.motives[ownerIdx] :: (T.motives.take ownerIdx).reverse := by
+    simpa [List.reverse_append, List.append_assoc] using
+      congrArg List.reverse hsplit
+  have hcontext : domains.reverse =
+      newer.reverse ++ T.motives[ownerIdx] :: older := by
+    dsimp [domains, newer, older]
+    rw [List.reverse_append, List.reverse_append, List.reverse_append,
+      List.reverse_append, hmotivesReverse]
+    simp [List.append_assoc]
   apply VEnv.HasType.bvar
-  simpa [domains, newer, older, hsplit, List.reverse_append,
-    List.append_assoc] using hlookup
+  rw [hcontext]
+  exact hlookup
 
 /-- Numerical specialization of `ownerMotiveBvarTyping` matching the bvar
 offset used by `concreteRecursorResult`. -/
@@ -46881,7 +46994,7 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveOuterBvarTyping
     env.HasType Us.length outer.reverse (.bvar later.length)
       ((T.motives[ownerIdx]'howner).liftN (later.length + 1) 0) := by
   let later := T.motives.drop (ownerIdx + 1) ++ T.minors
-  let older := T.motives.take ownerIdx |>.reverse ++ T.params.reverse
+  let older := (T.motives.take ownerIdx).reverse ++ T.params.reverse
   let outer := T.params ++ T.motives ++ T.minors
   have hsplit : T.motives = T.motives.take ownerIdx ++
       T.motives[ownerIdx] :: T.motives.drop (ownerIdx + 1) := by
@@ -46901,9 +47014,19 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveOuterBvarTyping
       ((T.motives[ownerIdx]'howner).liftN (later.length + 1) 0) := by
     simpa [List.length_reverse] using
       Lookup.append_zero later.reverse (T.motives[ownerIdx]'howner) older
+  have hmotivesReverse : T.motives.reverse =
+      (T.motives.drop (ownerIdx + 1)).reverse ++
+        T.motives[ownerIdx] :: (T.motives.take ownerIdx).reverse := by
+    simpa [List.reverse_append, List.append_assoc] using
+      congrArg List.reverse hsplit
+  have hcontext : outer.reverse =
+      later.reverse ++ T.motives[ownerIdx] :: older := by
+    dsimp [outer, later, older]
+    rw [List.reverse_append, List.reverse_append, hmotivesReverse]
+    simp [List.append_assoc]
   apply VEnv.HasType.bvar
-  simpa [outer, later, older, hsplit, List.reverse_append,
-    List.append_assoc] using hlookup
+  rw [hcontext]
+  exact hlookup
 
 /-- The oldest variable in the generated index/major suffix has the first
 domain of the declared owner-motive telescope, weakened across all binders
@@ -46951,10 +47074,16 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveFirstArgumentTyping
         (.bvar offset)
         (.forallE (first.liftN (offset + 1) 0) liftedBody) := by
       simpa [VExpr.wrapForalls, VExpr.liftN, liftedBody] using Howner
+    have HresultWF' : VExpr.WF env Us.length domains.reverse
+        (VExpr.mkApps (.bvar offset)
+          (.bvar numIndices :: recursorCanonicalVars numIndices)) := by
+      simpa [offset, recursorCanonicalVars_succ_cons] using HresultWF
     have Hfirst := VEnv.HasType.mkApps_head henv Hctx
-      HownerForall HresultWF
+      HownerForall HresultWF'
     refine ⟨first, rest, rfl, ?_⟩
-    simpa [recursorCanonicalVars_succ_cons] using Hfirst
+    change env.HasType Us.length domains.reverse (.bvar numIndices)
+      (first.liftN (offset + 1) 0)
+    exact Hfirst
 
 /-- The same oldest suffix variable also has the lookup type determined by
 the first generated index/major declaration.  Together with
@@ -46985,8 +47114,15 @@ theorem GeneratedRecursorTelescopeTranslation.suffixFirstBvarTyping
       simpa [List.length_reverse] using
         Lookup.append_zero rest.reverse first outer.reverse
     refine ⟨first, rest, hsuffixEq, ?_⟩
+    have hcontext : domains.reverse =
+        rest.reverse ++ first :: outer.reverse := by
+      change (outer ++ suffix).reverse =
+        rest.reverse ++ first :: outer.reverse
+      rw [hsuffixEq, List.reverse_append, List.reverse_cons]
+      simp [List.append_assoc]
     apply VEnv.HasType.bvar
-    simpa [domains, hsuffixEq, List.reverse_append, hrestLength] using Hlookup
+    rw [hcontext]
+    simpa [hrestLength] using Hlookup
 
 /-- First dependent-domain alignment between the generated recursor suffix
 and the owner motive.  The motive domain is weakened only across the later
@@ -47021,7 +47157,16 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveFirstDomainDefEq
   have Hfull := T.fullContextResultType henv.ordered
   have Hctx : OnCtx domains.reverse (env.IsType Us.length) := by
     simpa [domains, outer, suffix, List.append_assoc] using Hfull.1
-  have Htypes := Hgenerated.uniqU henv Hctx Hmotive
+  have Hgenerated' : env.HasType Us.length domains.reverse
+      (.bvar numIndices) (generatedFirst.liftN (numIndices + 1) 0) := by
+    simpa [domains, outer, suffix, List.append_assoc] using Hgenerated
+  have Hmotive' : env.HasType Us.length domains.reverse
+      (.bvar numIndices)
+      (motiveFirst.liftN
+        (1 + numIndices + numMinors +
+          (numMotives - 1 - ownerIdx) + 1) 0) := by
+    simpa [domains, outer, suffix, List.append_assoc] using Hmotive
+  have Htypes := VEnv.IsDefEq.uniqU henv Hctx Hgenerated' Hmotive'
   have hsuffixLength : suffix.length = numIndices + 1 := by
     simp [suffix, T.indices_length, T.major_length]
   have hlaterLength : later.length =
@@ -47042,7 +47187,7 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveFirstDomainDefEq
     simpa [domains, outer, suffix] using Htypes
   have W : Ctx.LiftN suffix.length 0 outer.reverse domains.reverse := by
     simpa [domains, List.reverse_append] using
-      (Ctx.LiftN.zero suffix.reverse (Γ := outer.reverse))
+      (Ctx.LiftN.zero suffix.reverse (h := by simp) (Γ := outer.reverse))
   have Htypes'' :=
     (VEnv.IsDefEqU.weakN_iff henv Hctx W).mp (by
       simpa [hsuffixLength] using Htypes')
@@ -47087,7 +47232,7 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveSuffixContext
   rw [hmotive'] at Howner
   have Hfn : env.HasType Us.length outer.reverse (.bvar later.length)
       (VExpr.wrapForalls expected (.sort resultLevel)) := by
-    simpa [expected, VExpr.liftN_wrapForalls] using Howner
+    simpa [expected, VExpr.liftN_wrapForalls, VExpr.liftN] using Howner
   have Hfull := T.fullContextResultType henv.ordered
   have Hctx : OnCtx (suffix.reverse ++ outer.reverse)
       (env.IsType Us.length) := by
@@ -47097,6 +47242,8 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveSuffixContext
   have HresultWF : VExpr.WF env Us.length
       (suffix.reverse ++ outer.reverse) T.result :=
     ⟨.sort typeLevel, by
+      change env.HasType Us.length
+        (suffix.reverse ++ outer.reverse) T.result (.sort typeLevel)
       simpa [outer, suffix, List.reverse_append,
         List.append_assoc] using Hresult⟩
   rw [T.resultShape howner,
@@ -47112,15 +47259,20 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveSuffixContext
       1 + numIndices + numMinors +
         (numMotives - 1 - ownerIdx) := by
     omega
+  have hoffset' : later.length + (numIndices + 1) =
+      1 + numIndices + numMinors +
+        (numMotives - 1 - ownerIdx) := by
+    omega
   have Happs : VExpr.WF env Us.length
       (suffix.reverse ++ outer.reverse)
       (VExpr.mkApps ((.bvar later.length : VExpr).liftN suffix.length 0)
         (recursorCanonicalVars suffix.length)) := by
-    simpa [hsuffixLength, VExpr.liftN, liftVar_base, hoffset] using HresultWF
+    simpa [hsuffixLength, VExpr.liftN, liftVar_base, hoffset,
+      hoffset'] using HresultWF
   have hexpectedLength : suffix.length = expected.length := by
     simp [expected, hsuffixLength, hlength]
   exact VEnv.HasType.canonicalApplicationContext henv suffix expected
-    outer Hctx Hfn hexpectedLength Happs
+    outer.reverse Hctx Hfn hexpectedLength Happs
 
 /-- Remove the parameter/motive/minor prefix from the retained structural
 translation.  The resulting certificate keeps the concrete production
@@ -56727,15 +56879,15 @@ theorem
             VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
           resultLevel.WF Us.length ∧
           (let domains :=
-              T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+              T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major;
             OnCtx domains.reverse (H.outVEnv.IsType Us.length) ∧
               H.outVEnv.IsType Us.length domains.reverse T.result) ∧
           (let domains :=
-              T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+              T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major;
             let offset :=
               1 + H.recInfos[owner]!.indices.size +
                 (H.recInfos.flatMap (·.minors)).size +
-                ((H.recInfos.map (·.motive)).size - 1 - owner)
+                ((H.recInfos.map (·.motive)).size - 1 - owner);
             H.outVEnv.HasType Us.length domains.reverse (.bvar offset)
               (T.motives[owner]!.liftN (offset + 1) 0)) ∧
           T.result = VExpr.mkApps
@@ -57138,23 +57290,57 @@ theorem
           A.semantics.fieldRootContext.mlctx.vlctx.toCtx)
         motiveTarget (.sort resultLevel) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalConstructorMotiveTyped with
+  rcases A.semanticConstructorMotiveTyped with
     ⟨motiveTarget, resultLevel, Htr, Htyped⟩
   let fieldDomains := MLCtxForallDomains A.semantics.context.mlctx
     A.rule.allArgs.size A.semantics.fieldsRecent.size_le
   have Hclosed := A.semantics.fieldsRecent.mkForallExact Htr
-    (⟨resultLevel, Htyped⟩ : H.outVEnv.IsType Us.length
+    (⟨resultLevel, Htyped⟩ : A.semantics.context.venv.IsType Us.length
       A.semantics.context.mlctx.vlctx.toCtx motiveTarget)
+  have hsemantic : A.semantics.fieldRootContext.venv =
+      R.declared.venvCtors := by
+    calc
+      A.semantics.fieldRootContext.venv = A.semantics.context.venv :=
+        A.semantics.fieldsRecent.venv_eq.symm
+      _ = R.declared.venvCtors :=
+        A.semantics.context_venv.trans
+          (H.recursorEnv.trans R.declared.contextVEnv)
+  rw [hsemantic] at Hclosed
+  have HclosedFinal := And.intro
+    (Hclosed.1.mono H.installed.le)
+    (Hclosed.2.mono H.installed.le)
   have hlength : fieldDomains.length = A.rule.allArgs.size := by
     exact A.semantics.context.onlyLams.forallDomains_length
       A.rule.allArgs.size A.semantics.fieldsRecent.size_le
-  have Hopened := VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
-    A.semantics.fieldRootContext.mlctx_wf.tr.wf.toCtx (by
-      simpa [fieldDomains] using Hclosed.2)
+  have hfieldDomains :=
+    A.semantics.context.onlyLams.forallDomains_eq_take_reverse
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hvlctx := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+    A.semantics.context.mlctx A.rule.allArgs.size
+      A.semantics.fieldsRecent.size_le
+  rw [A.semantics.fieldsRecent.drop_eq] at hvlctx
+  have hctxEq : fieldDomains.reverse ++
+      A.semantics.fieldRootContext.mlctx.vlctx.toCtx =
+        A.semantics.context.mlctx.vlctx.toCtx := by
+    rw [show fieldDomains =
+        (A.semantics.context.mlctx.vlctx.toCtx.take
+          A.rule.allArgs.size).reverse by
+      exact hfieldDomains]
+    have hvlctxToCtx := congrArg VLCtx.toCtx hvlctx.symm
+    rw [VLCtx.toCtx_append] at hvlctxToCtx
+    rw [A.semantics.context.onlyLams.toCtx_take] at hvlctxToCtx
+    simpa [VLCtx.toCtx] using hvlctxToCtx
+  have hcurrentSemantic : A.semantics.context.venv =
+      R.declared.venvCtors :=
+    A.semantics.context_venv.trans
+      (H.recursorEnv.trans R.declared.contextVEnv)
+  have HtypedFinal := Htyped
+  rw [hcurrentSemantic] at HtypedFinal
+  have HtypedOut := HtypedFinal.mono H.installed.le
   exact ⟨fieldDomains, motiveTarget, resultLevel, hlength,
-    by simpa [fieldDomains] using Hclosed.1,
-    by simpa [fieldDomains] using Hclosed.2,
-    by simpa [fieldDomains] using Hopened.2⟩
+    by simpa [fieldDomains] using HclosedFinal.1,
+    by simpa [fieldDomains] using HclosedFinal.2,
+    by rw [hctxEq]; exact HtypedOut⟩
 
 /-- The exact field telescope retained by rule generation remains available
 after the generated recursors are installed.  This is the stage-correct form
