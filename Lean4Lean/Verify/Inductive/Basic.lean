@@ -3852,6 +3852,25 @@ theorem MLCtxOnlyLams.toCtx_take
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
+/-- The newest free-variable identifiers and verifier declarations of an
+all-lambda metacontext are paired pointwise. -/
+theorem MLCtxOnlyLams.fvarRevList_declarations
+    (H : MLCtxOnlyLams c) (n : Nat) (hn : n ≤ c.length) :
+    List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      (c.fvarRevList n hn) (c.vlctx.take n) := by
+  induction n generalizing c with
+  | zero => exact .nil
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam fv name type target bi tail =>
+      exact .cons ⟨type.fvarsList, target, rfl⟩
+        (ih H.tail_vlam (Nat.le_of_succ_le_succ hn))
+    | vlet fv name type value target valueTarget tail =>
+      exact H.vlet_false.elim
+
 /-- For a verifier context containing only local declarations, dropping the
 newest `n` entries before or after erasing local metadata gives the same
 ordinary typing context. -/
@@ -24286,6 +24305,51 @@ def RecursorRecentBoundFVarArray.contextExtension
   lift := by
     have W := (R.onlyLams.dropN_fvlift xs.size H.size_le).toFVLift'
     simpa only [H.drop_eq] using W
+
+/-- Close the exact recent local suffix in a strict translation while
+preserving the older recursor context.  The newly anonymous domain list is
+the same `MLCtxForallDomains` used by `mkForallRecent` and `mkLambda`. -/
+theorem RecursorRecentBoundFVarArray.abstractRecent
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (domains : List VExpr)
+    (Htr : TrExprS env Us
+      (abstractForallContext domains R.mlctx.vlctx) e e') :
+    TrExprS env Us
+      (abstractForallContext
+        (MLCtxForallDomains R.mlctx xs.size H.size_le ++ domains)
+        Rroot.mlctx.vlctx)
+      (e.abstractList H.fvars domains.length) e' := by
+  have hvlctx := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+    R.mlctx xs.size H.size_le
+  rw [H.drop_eq] at hvlctx
+  rw [hvlctx] at Htr
+  have hexpressions := congrArg Array.toList H.expressions
+  have hmapped : xs.toList = H.fvars.map Expr.fvar := by
+    simpa using hexpressions
+  have hmaps : H.fvars.reverse.map Expr.fvar =
+      (R.mlctx.fvarRevList xs.size H.size_le).map Expr.fvar := by
+    calc
+      H.fvars.reverse.map Expr.fvar =
+          (H.fvars.map Expr.fvar).reverse := by simp
+      _ = xs.toList.reverse := by rw [← hmapped]
+      _ = _ := H.reverse_eq
+  have hfvars : H.fvars.reverse =
+      R.mlctx.fvarRevList xs.size H.size_le :=
+    (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hmaps
+  have Hdecls := R.onlyLams.fvarRevList_declarations xs.size H.size_le
+  rw [← hfvars] at Hdecls
+  have Hclosed :=
+    Lean4Lean.VerifyInductive.TrExprS.abstractFVarLambdaPrefix
+      (domains := domains) (tail := Rroot.mlctx.vlctx)
+      Hdecls (List.nodup_reverse.mpr H.nodup) Htr
+  have hdomains := R.onlyLams.forallDomains_eq_take_reverse
+    xs.size H.size_le
+  have htoCtx := R.onlyLams.toCtx_take xs.size
+  simp only [List.reverse_reverse] at Hclosed
+  simpa only [htoCtx, ← hdomains] using Hclosed
 
 /-- Opening an exact consecutive suffix preserves the independently checked
 parameter context.  The fresh locals become additional ambient declarations;
