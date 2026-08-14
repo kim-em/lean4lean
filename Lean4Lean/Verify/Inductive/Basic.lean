@@ -35314,6 +35314,32 @@ theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedMajor_eq
   · omega
   · simpa [hlocalDomains] using hmajorEq'
 
+/-- Equality-parametric wrapper for array-selected fields.  Keeping the
+generated-call witness at its original dependent array index avoids rewriting
+the semantic payload merely to expose that the selected expression is a free
+variable. -/
+theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedMajor_eq_of_field_eq
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (hfieldEq : field = .fvar fv)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup)
+    (hfield : fv ∈ binders)
+    (hruleDomains : ruleDomains.length = binders.length)
+    (hlocalDomains : localDomains.length = H.localArgs.size)
+    (Hmajor : TrExprS env Us
+      (abstractForallContext localDomains
+        (abstractForallContext ruleDomains Δ))
+      (H.outerAbstractedMajor binders) major) :
+    ∃ fieldVar,
+      fieldVar < ruleDomains.length ∧
+      (Expr.fvar fv).abstractList binders = .bvar fieldVar ∧
+      major = VExpr.mkApps (.bvar (localDomains.length + fieldVar))
+        (H.localIndices.map VExpr.bvar) := by
+  subst field
+  exact H.translatedOuterAbstractedMajor_eq hfieldRoot hbinders hfield
+    hruleDomains hlocalDomains Hmajor
+
 /-- The major premise in a closed rule is a designated outer field shifted
 beneath exactly the generated call's local lambda domains. -/
 theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedMajor_isField
@@ -61050,6 +61076,73 @@ theorem
       A.rule.all_args_bound rfl
   refine ⟨localDomains, fieldDomains, hlocal, hfields, ?_⟩
   simpa [fieldDomains, hfvars] using Hclosed
+
+/-- The semantic eta-expanded major target is exactly one canonical
+constructor-field variable applied to the generated call-local spine.  By
+closing the fields before identifying the target, all older recursor-local
+declarations disappear from the expression; only their eventual context
+conversion remains. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.finalAppliedMajorTarget
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ (localDomains fieldDomains : List VExpr) (fieldVar : Nat),
+      localDomains.length = F.semantic.generated.localArgs.size ∧
+      fieldDomains.length = A.rule.allArgs.size ∧
+      fieldVar < fieldDomains.length ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext (fieldDomains ++ localDomains)
+          A.semantics.fieldRootContext.mlctx.vlctx)
+        (F.semantic.generated.abstractedMajor.abstractList
+          A.rule.all_args_bound.fvars localDomains.length)
+        F.semantic.appliedFieldTarget ∧
+      F.semantic.appliedFieldTarget =
+        VExpr.mkApps (.bvar (localDomains.length + fieldVar))
+          (F.semantic.generated.localIndices.map VExpr.bvar) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases F.finalFieldAbstractedAppliedMajorTranslation with
+    ⟨localDomains, fieldDomains, hlocal, hfields, Hmajor⟩
+  rcases A.rule.recursive_args_bound.getElem_eq_fvar j hj with
+    ⟨hjFvars, hsource⟩
+  let fv := A.rule.recursive_args_bound.fvars[j]
+  have hsource' : A.rule.recursiveArgs[j] = .fvar fv := hsource
+  have hfieldRoot : fv ∈ A.rule.root.lctx.fvars :=
+    A.rule.recursive_args_bound.members fv (List.getElem_mem hjFvars)
+  have hfield : fv ∈ A.rule.all_args_bound.fvars :=
+    A.rule.recursive_args_bound.fvars_subset_of_sublist
+      A.rule.all_args_bound A.rule.recursive_args_sublist
+      (List.getElem_mem hjFvars)
+  have hruleDomains : fieldDomains.length =
+      A.rule.all_args_bound.fvars.length :=
+    hfields.trans A.rule.all_args_bound.length_fvars.symm
+  have Hmajor' : TrExprS H.outVEnv Us
+      (abstractForallContext localDomains
+        (abstractForallContext fieldDomains
+          A.semantics.fieldRootContext.mlctx.vlctx))
+      (F.semantic.generated.outerAbstractedMajor
+        A.rule.all_args_bound.fvars)
+      F.semantic.appliedFieldTarget := by
+    unfold BoundGeneratedRecursiveCall.outerAbstractedMajor
+    rw [← hlocal]
+    simpa using Hmajor
+  rcases F.semantic.generated.translatedOuterAbstractedMajor_eq_of_field_eq
+      hsource' hfieldRoot A.rule.all_args_nodup hfield
+      hruleDomains hlocal Hmajor' with
+    ⟨fieldVar, hfieldVar, _hfieldSource, htarget⟩
+  exact ⟨localDomains, fieldDomains, fieldVar,
+    hlocal, hfields, hfieldVar, Hmajor, htarget⟩
 
 /-- The validated recursive field determines the exact expected motive
 application in the final environment.  Its index targets and eta-expanded
