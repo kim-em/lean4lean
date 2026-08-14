@@ -67599,10 +67599,11 @@ theorem
       (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
     let parameterDecls := H.parameterSuffix.parameterDecls
     let inserted := T.motives ++ T.minors
-    ∃ (equationDomains localDomains added : List VExpr)
+    ∃ (equationDomains localDomains added frontDomains : List VExpr)
         (exactIndexTargets : List VExpr) (majorTarget exposedTarget : VExpr),
       equationDomains ++ localDomains =
           parameterDecls.toCtx.reverse ++ added ∧
+        added = inserted ++ frontDomains ∧
         equationDomains.length = A.rule.binders.length ∧
         OnCtx
           (abstractForallContext (equationDomains ++ localDomains) []).toCtx
@@ -67654,6 +67655,7 @@ theorem
   let equationDomains :=
     parameterDecls.toCtx.reverse ++ inserted ++ liftedFields
   let added := inserted ++ liftedFields ++ liftedLocals
+  let frontDomains := liftedFields ++ liftedLocals
   let exactIndexTargets := narrowIndices.map fun target =>
     target.liftN inserted.length
       (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
@@ -67928,11 +67930,13 @@ theorem
               (.refl H.outVEnvWF HvlctxWF) Hexact)
             (ih Htail)
     exact align HspineIndices Hindices'
-  refine ⟨equationDomains, liftedLocals, added, exactIndexTargets, majorTarget,
-    exposedTarget, ?_, hequationLength, Hctx', Htyping', hexactIndexLength, levels,
-    parameterTargets, spineIndexTargets, ?_, hlevels, ?_,
-    hparameterTargets, HindexDefEq⟩
+  refine ⟨equationDomains, liftedLocals, added, frontDomains,
+    exactIndexTargets, majorTarget, exposedTarget, ?_, ?_,
+    hequationLength, Hctx', Htyping', hexactIndexLength, levels,
+    parameterTargets, spineIndexTargets, ?_, hlevels, ?_, hparameterTargets,
+    HindexDefEq⟩
   · simp [equationDomains, added, parameterDecls, List.append_assoc]
+  · simp [added, frontDomains, inserted, List.append_assoc]
   simpa [htranslatedArgs] using hspine
   simpa [parameterSources] using HparametersOriginal
 
@@ -67966,10 +67970,12 @@ theorem
     let parameterDecls := H.parameterSuffix.parameterDecls
     ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us stats decl
           selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
-      ∃ (equationDomains localDomains added exactIndexTargets : List VExpr)
+      ∃ (equationDomains localDomains added frontDomains
+          exactIndexTargets : List VExpr)
           (majorTarget : VExpr),
         equationDomains ++ localDomains =
             parameterDecls.toCtx.reverse ++ added ∧
+          added = T.motives ++ T.minors ++ frontDomains ∧
           OnCtx
             (abstractForallContext
               (equationDomains ++ localDomains) []).toCtx
@@ -67987,9 +67993,9 @@ theorem
   let selectedOwner := F.semantic.generated.ownerIdx
   let parameterDecls := H.parameterSuffix.parameterDecls
   rcases F.canonicalInsertedSemanticExposedSpine T with
-    ⟨equationDomains, localDomains, added, exactIndexTargets,
-      majorTarget, exposedTarget, hdecomposition, hequationLength,
-      Hctx, Htyping, hexactLength, levels, parameterTargets,
+    ⟨equationDomains, localDomains, added, frontDomains, exactIndexTargets,
+      majorTarget, exposedTarget, hdecomposition, hadded,
+      hequationLength, Hctx, Htyping, hexactLength, levels, parameterTargets,
       spineIndexTargets, hspine, hlevels, _HparameterTranslation,
       hparameterTargets, HindexDefEq⟩
   rcases F.canonicalParameterAlignment with
@@ -68088,8 +68094,9 @@ theorem
       _ = H.recInfos[selectedOwner]!.indices.size :=
         F.telescope.indices_length
       _ = C.indices.length := C.indices_length.symm
-  exact ⟨C, equationDomains, localDomains, added, exactIndexTargets,
-    majorTarget, hdecomposition, Hctx, HcanonicalCached,
+  exact ⟨C, equationDomains, localDomains, added, frontDomains,
+    exactIndexTargets, majorTarget, hdecomposition, hadded, Hctx,
+    HcanonicalCached,
     hindexCanonical, HmajorExact⟩
 
 /-- Assemble the call-selected recursor head with the rule's common
