@@ -62733,6 +62733,106 @@ theorem
   exact ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
     narrowIndices, hlength, HnarrowIndices, HindexEq⟩
 
+/-- Replay the eta-expanded recursive field in the same narrow runtime scope
+used for its semantic indices.  The source contains only the selected
+constructor field and the freshly introduced higher-order arguments, so the
+ambient declarations discarded by `NarrowRuntimeScope` are irrelevant. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowSemanticAppliedMajor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (scope : VLCtx)
+    (Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+      H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      scope F.semantic.current_context.mlctx.vlctx)
+    (hscopeFVars : scope.fvars =
+      F.semantic.recent.fvars.reverse ++
+        A.semantics.fieldsRecent.fvars.reverse ++
+          H.parameterSuffix.parameterDecls.fvars) :
+    ∃ narrowMajor,
+      TrExprS H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams) scope
+        (mkAppN A.rule.recursiveArgs[j]
+          F.semantic.generated.localArgs) narrowMajor ∧
+      H.outVEnv.IsDefEqU
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        F.semantic.current_context.mlctx.vlctx.toCtx
+        F.semantic.appliedFieldTarget (narrowMajor.lift' Hscope.shift) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.rule.recursive_args_bound.getElem_eq_fvar j hj with
+    ⟨hjFVars, hfieldSource⟩
+  let fv := A.rule.recursive_args_bound.fvars[j]
+  have hfieldAll : fv ∈ A.rule.all_args_bound.fvars :=
+    A.rule.recursive_args_bound.fvars_subset_of_sublist
+      A.rule.all_args_bound A.rule.recursive_args_sublist
+      (List.getElem_mem hjFVars)
+  have hfieldRecent : fv ∈ A.semantics.fieldsRecent.fvars := by
+    have hfvars : A.semantics.fieldsRecent.fvars =
+        A.rule.all_args_bound.fvars :=
+      BoundFVarArray.fvars_eq
+        A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+        A.rule.all_args_bound rfl
+    rw [hfvars]
+    exact hfieldAll
+  have hlocalFVars : F.semantic.recent.fvars =
+      F.semantic.generated.arguments_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+      F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+  have hsourceScope :
+      (mkAppN A.rule.recursiveArgs[j]
+        F.semantic.generated.localArgs).FVarsIn
+          (· ∈ scope.fvars) := by
+    rw [Expr.mkAppN_eq_mkAppList]
+    apply FVarsIn.mkAppList.mpr
+    constructor
+    · rw [hfieldSource]
+      change fv ∈ scope.fvars
+      rw [hscopeFVars]
+      exact List.mem_append_left _
+        (List.mem_append_right _ (List.mem_reverse.mpr hfieldRecent))
+    · intro arg harg
+      have harg' : arg ∈
+          F.semantic.generated.arguments_bound.fvars.map Expr.fvar := by
+        simpa [F.semantic.generated.arguments_bound.expressions] using harg
+      rcases List.mem_map.mp harg' with ⟨localFv, hlocal, rfl⟩
+      have hlocalRecent : localFv ∈ F.semantic.recent.fvars := by
+        rw [hlocalFVars]
+        exact hlocal
+      change localFv ∈ scope.fvars
+      rw [hscopeFVars]
+      exact List.mem_append_left _
+        (List.mem_append_left _
+          (List.mem_reverse.mpr hlocalRecent))
+  have hsemantic : F.semantic.current_context.venv =
+      R.declared.venvCtors :=
+    F.semantic.recent.venv_eq.trans
+      (A.semantics.context_venv.trans
+        (H.recursorEnv.trans R.declared.contextVEnv))
+  have Hmajor := F.semantic.applied_field_translation
+  rw [hsemantic] at Hmajor
+  have HmajorFinal := Hmajor.mono H.installed.le
+  have hclosed : Closed
+      (mkAppN A.rule.recursiveArgs[j]
+        F.semantic.generated.localArgs) 0 := by
+    have h := HmajorFinal.closed
+    rw [F.semantic.current_context.mlctx.noBV] at h
+    exact h
+  rcases Hscope.restrictEq H.outVEnvWF HmajorFinal hclosed hsourceScope with
+    ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
+  exact ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
+
 /-- Close the replayed constructor-field and higher-order-argument front of
 every narrowed recursive index.  The resulting translations live directly
 over the cached parameter declarations and use the same nested abstraction
