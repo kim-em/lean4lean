@@ -24306,6 +24306,49 @@ def RecursorRecentBoundFVarArray.contextExtension
     have W := (R.onlyLams.dropN_fvlift xs.size H.size_le).toFVLift'
     simpa only [H.drop_eq] using W
 
+/-- Replacing an exact recent free-variable suffix by anonymous binders with
+the retained translated domains does not change the verifier typing context. -/
+theorem RecursorRecentBoundFVarArray.abstractRecent_toCtx
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs) :
+    (abstractForallContext
+      (MLCtxForallDomains R.mlctx xs.size H.size_le)
+      Rroot.mlctx.vlctx).toCtx = R.mlctx.vlctx.toCtx := by
+  let domains := MLCtxForallDomains R.mlctx xs.size H.size_le
+  have hdomains := R.onlyLams.forallDomains_eq_take_reverse
+    xs.size H.size_le
+  have hvlctx := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+    R.mlctx xs.size H.size_le
+  rw [H.drop_eq] at hvlctx
+  have hvlctxToCtx := congrArg VLCtx.toCtx hvlctx.symm
+  rw [VLCtx.toCtx_append] at hvlctxToCtx
+  rw [R.onlyLams.toCtx_take] at hvlctxToCtx
+  have hctx : domains.reverse ++ Rroot.mlctx.vlctx.toCtx =
+      R.mlctx.vlctx.toCtx := by
+    rw [show domains =
+        (R.mlctx.vlctx.toCtx.take xs.size).reverse by exact hdomains]
+    simpa [VLCtx.toCtx] using hvlctxToCtx
+  have htoCtx : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) = types := by
+    intro types
+    induction types with
+    | nil => rfl
+    | cons type types ih => simp [VLCtx.toCtx, ih]
+  have htoCtxReverse : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)).reverse =
+        types.reverse := by
+    intro types
+    rw [← List.map_reverse]
+    exact htoCtx types.reverse
+  simpa [abstractForallContext, VLCtx.toCtx_append, htoCtx,
+    htoCtxReverse, domains] using hctx
+
 /-- Close the exact recent local suffix in a strict translation while
 preserving the older recursor context.  The newly anonymous domain list is
 the same `MLCtxForallDomains` used by `mkForallRecent` and `mkLambda`. -/
@@ -60827,6 +60870,76 @@ theorem
   exact ⟨binding, evidence, hlength, HindicesFinal,
     Htr.mono H.installed.le,
     Htyped.mono H.installed.le⟩
+
+/-- Close the higher-order arguments introduced while inspecting one
+recursive field.  The exact expected motive application and its typing now
+live over the rule context, extended only by anonymous domains; no semantic
+free variable from the call-local suffix remains in the source expression. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.finalAbstractedSemanticMotiveApplication
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+        ∃ localDomains : List VExpr,
+          localDomains.length = F.semantic.generated.localArgs.size ∧
+          let sourceIndices :=
+            F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
+          let sourceMajor := mkAppN A.rule.recursiveArgs[j]
+            F.semantic.generated.localArgs
+          let sourceType := Expr.app
+            (mkAppN H.recInfos[selectedOwner]!.motive sourceIndices)
+            sourceMajor
+          let target := VExpr.app
+            (VExpr.mkApps binding.motiveTarget evidence.indices)
+            F.semantic.appliedFieldTarget
+          TrExprS H.outVEnv Us
+              (abstractForallContext localDomains
+                A.semantics.context.mlctx.vlctx)
+              (sourceType.abstractList
+                F.semantic.generated.arguments_bound.fvars) target ∧
+            H.outVEnv.HasType Us.length
+              (abstractForallContext localDomains
+                A.semantics.context.mlctx.vlctx).toCtx
+              target (.sort evidence.resultLevel) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases F.finalSemanticMotiveApplication with
+    ⟨binding, evidence, _hlength, _Hindices, Htr, Htyped⟩
+  let localDomains := MLCtxForallDomains F.semantic.current_context.mlctx
+    F.semantic.generated.localArgs.size F.semantic.recent.size_le
+  have Hclosed := F.semantic.recent.abstractRecent [] (by
+    simpa [abstractForallContext] using Htr)
+  have hlocalDomains : localDomains.length =
+      F.semantic.generated.localArgs.size :=
+    F.semantic.current_context.onlyLams.forallDomains_length
+      F.semantic.generated.localArgs.size F.semantic.recent.size_le
+  have hctx := F.semantic.recent.abstractRecent_toCtx
+  have hfvars : F.semantic.recent.fvars =
+      F.semantic.generated.arguments_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+      F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+  refine ⟨binding, evidence, localDomains, hlocalDomains, ?_, ?_⟩
+  · simpa [localDomains, hfvars] using Hclosed
+  · rw [hctx]
+    exact Htyped
 
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
