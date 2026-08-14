@@ -67597,6 +67597,10 @@ theorem
                   A.rule.binders
                   F.semantic.generated.localArgs.size).toList)
             parameterTargets ∧
+          parameterTargets =
+            (List.ofFn fun i : Fin stats.params.size =>
+              VExpr.bvar (A.rule.binders.length - 1 - i)).map
+                (fun target => target.liftN localDomains.length 0) ∧
           List.Forall₂
             (fun spine exact => H.outVEnv.IsDefEqU Us.length
               (abstractForallContext
@@ -67723,6 +67727,109 @@ theorem
   rcases checkPositivityStep.List.Forall₂.split_left Hargs with
     ⟨parameterTargets, spineIndexTargets, htranslatedArgs,
       Hparameters, HspineIndices⟩
+  have HparametersOriginal := Hparameters
+  have HouterParameters :=
+    F.semantic.generated.outerAbstractedBoundArray_eq_lift
+      A.rule.params_bound A.rule.binders_nodup (by
+        intro fv hfv
+        simp [BoundGeneratedRecursorRule.binders, hfv])
+  have hparameterSources :
+      ((stats.params.map fun param =>
+        (param.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.binders F.semantic.generated.localArgs.size).toList) =
+        (List.ofFn fun i : Fin stats.params.size =>
+          Expr.bvar (A.rule.binders.length - 1 - i)).map
+            (fun source => source.liftLooseBVars' 0
+              F.semantic.generated.localArgs.size) := by
+    have HouterParameters' := congrArg Array.toList HouterParameters
+    simp only [Array.toList_map] at HouterParameters'
+    have HouterParameters'' :
+        ((stats.params.map fun param =>
+          (param.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+              A.rule.binders F.semantic.generated.localArgs.size).toList) =
+          ((stats.params.map fun param =>
+            param.abstractList A.rule.binders).toList).map
+              (fun source => source.liftLooseBVars' 0
+                F.semantic.generated.localArgs.size) := by
+      simpa [BoundGeneratedRecursorRule.binders] using HouterParameters'
+    exact HouterParameters''.trans (congrArg
+      (List.map fun source => source.liftLooseBVars' 0
+        F.semantic.generated.localArgs.size)
+      A.rule.abstractedParams_eq)
+  dsimp only [parameterSources] at Hparameters
+  have hparameterSources' :
+      (stats.params.toList.map fun param =>
+        (param.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.binders F.semantic.generated.localArgs.size) =
+        (List.ofFn fun i : Fin stats.params.size =>
+          Expr.bvar (A.rule.binders.length - 1 - i)).map
+            (fun source => source.liftLooseBVars' 0
+              F.semantic.generated.localArgs.size) := by
+    simpa only [Array.toList_map] using hparameterSources
+  rw [hparameterSources'] at Hparameters
+  have hfieldsLifted : liftedFields.length = A.rule.allArgs.size := by
+    simp [liftedFields, hfields]
+  have hlocalsLifted : liftedLocals.length =
+      F.semantic.generated.localArgs.size := by
+    simp [liftedLocals, hlocal]
+  have hequationLength : equationDomains.length = A.rule.binders.length := by
+    have hparameterLength : parameterDecls.toCtx.length = stats.params.size := by
+      calc
+        parameterDecls.toCtx.length = parameterDecls.length := by
+          simpa [parameterDecls] using
+            checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
+              H.parameterSuffix.cached
+        _ = stats.params.size := by
+          simpa [parameterDecls] using H.parameterSuffix.parameterDecls_length
+    have hcanonical :=
+      A.canonicalEquationDomains_length T liftedFields hfieldsLifted
+    simp only [equationDomains, inserted, List.length_append]
+    simp only [List.length_reverse]
+    simp only [List.length_append] at hcanonical
+    rw [hparameterLength]
+    rw [T.params_length] at hcanonical
+    omega
+  have hparameterBound : stats.params.size ≤ A.rule.binders.length := by
+    have hparams : A.rule.params_bound.fvars.length = stats.params.size := by
+      have h := congrArg Array.size A.rule.params_bound.expressions
+      simpa using h.symm
+    unfold BoundGeneratedRecursorRule.binders
+    simp only [List.length_append]
+    omega
+  have hparameterTargets : parameterTargets =
+      (List.ofFn fun i : Fin stats.params.size =>
+        VExpr.bvar (A.rule.binders.length - 1 - i)).map
+          (fun target => target.liftN liftedLocals.length 0) := by
+    apply List.ext_getElem
+    · simpa using
+        (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hparameters).symm
+    · intro k htarget hcanonical
+      have hsource : k <
+          ((List.ofFn fun i : Fin stats.params.size =>
+            Expr.bvar (A.rule.binders.length - 1 - i)).map
+              (fun source => source.liftLooseBVars' 0
+                F.semantic.generated.localArgs.size)).length := by
+        simpa using hcanonical
+      have Hparameter :=
+        Lean4Lean.VerifyInductive.List.Forall₂.getElem Hparameters k
+          hsource htarget
+      have Hparameter' : TrExprS H.outVEnv Us
+          (abstractForallContext
+            (equationDomains ++ liftedLocals) [])
+          (.bvar (A.rule.binders.length - 1 - k + liftedLocals.length))
+          parameterTargets[k] := by
+        simpa [Expr.liftLooseBVars', hlocalsLifted] using Hparameter
+      have hbound : A.rule.binders.length - 1 - k + liftedLocals.length <
+          (equationDomains ++ liftedLocals).length := by
+        have hk : k < stats.params.size := by simpa using hcanonical
+        simp only [List.length_append, hequationLength]
+        omega
+      have htargetEq :=
+        TrExprS.bvar_eq_of_abstractForallContext Hparameter' hbound
+      simpa [VExpr.liftN, liftVar, Nat.add_comm] using htargetEq
   have Hindices' : List.Forall₂
       (TrExprS H.outVEnv Us
         (abstractForallContext (equationDomains ++ liftedLocals) []))
@@ -67788,9 +67895,9 @@ theorem
     exact align HspineIndices Hindices'
   refine ⟨equationDomains, liftedLocals, exactIndexTargets, majorTarget,
     exposedTarget, Hctx', Htyping', levels, parameterTargets,
-    spineIndexTargets, ?_, hlevels, ?_, HindexDefEq⟩
+    spineIndexTargets, ?_, hlevels, ?_, hparameterTargets, HindexDefEq⟩
   simpa [htranslatedArgs] using hspine
-  simpa [parameterSources] using Hparameters
+  simpa [parameterSources] using HparametersOriginal
 
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
