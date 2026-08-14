@@ -62873,6 +62873,147 @@ theorem
     ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
   exact ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
 
+/-- Restrict the recursive field's exposed inductive type to the same replayed
+scope used for its indices and eta-expanded major.  The resulting narrow
+target remains a type and is definitionally related to the semantic target
+in the full executable context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowSemanticExposedType
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (scope : VLCtx)
+    (Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+      H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      scope F.semantic.current_context.mlctx.vlctx)
+    (hscopeFVars : scope.fvars =
+      F.semantic.recent.fvars.reverse ++
+        A.semantics.fieldsRecent.fvars.reverse ++
+          H.parameterSuffix.parameterDecls.fvars) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ narrowExposed resultLevel,
+      TrExprS H.outVEnv Us scope F.semantic.generated.exposedType
+        narrowExposed ∧
+      H.outVEnv.IsDefEqU Us.length
+        F.semantic.current_context.mlctx.vlctx.toCtx
+        (narrowExposed.lift' Hscope.shift) F.semantic.exposedTarget ∧
+      H.outVEnv.HasType Us.length scope.toCtx narrowExposed
+        (.sort resultLevel) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  have hsourceScope : F.semantic.generated.exposedType.FVarsIn
+      (· ∈ scope.fvars) := by
+    apply F.semantic.exposed_scope.mono
+    intro fv hfv
+    rw [F.root_scope,
+      A.semantics.fieldOpening.fvars_eq_bound
+        A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+      at hfv
+    rw [hscopeFVars, H.parameterSuffix.parameterDecls_fvars]
+    rcases hfv with hlocal | hfield | hparam
+    · exact List.mem_append_left _
+        (List.mem_append_left _ (List.mem_reverse.mpr hlocal))
+    · exact List.mem_append_left _
+        (List.mem_append_right _ (List.mem_reverse.mpr hfield))
+    · exact List.mem_append_right _ (List.mem_reverse.mpr hparam)
+  have hsemantic : F.semantic.current_context.venv =
+      R.declared.venvCtors :=
+    F.semantic.recent.venv_eq.trans
+      (A.semantics.context_venv.trans
+        (H.recursorEnv.trans R.declared.contextVEnv))
+  have Hfull := F.semantic.exposed_translation
+  have HfullType : F.semantic.current_context.venv.IsType Us.length
+      F.semantic.current_context.mlctx.vlctx.toCtx
+      F.semantic.exposedTarget :=
+    VEnv.IsType.defeqU_l F.semantic.current_context.checking.tr.wf
+      F.semantic.current_context.mlctx_wf.tr.wf.toCtx
+      F.semantic.exposed_defeq.symm F.semantic.terminal_type
+  rw [hsemantic] at Hfull HfullType
+  have HfullFinal := Hfull.mono H.installed.le
+  have HfullTypeFinal := HfullType.mono H.installed.le
+  have hclosed : Closed F.semantic.generated.exposedType 0 := by
+    have h := HfullFinal.closed
+    rw [F.semantic.current_context.mlctx.noBV] at h
+    exact h
+  rcases Hscope.restrictEq H.outVEnvWF HfullFinal hclosed hsourceScope with
+    ⟨narrowExposed, HnarrowExposed, HexposedEq⟩
+  rcases HfullTypeFinal with ⟨resultLevel, Htyped⟩
+  have HnarrowTyped := Hscope.hasTypeOfFull H.outVEnvWF
+    HnarrowExposed HfullFinal Htyped
+  exact ⟨narrowExposed, resultLevel, HnarrowExposed,
+    HexposedEq.symm, HnarrowTyped⟩
+
+/-- The narrowed eta-expanded major has the narrowed exposed inductive type.
+Both translations are restricted through the same runtime-scope witness, so
+the dependent term/type relation survives inverse weakening exactly. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowSemanticAppliedMajorTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (scope : VLCtx)
+    (Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+      H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      scope F.semantic.current_context.mlctx.vlctx)
+    (hscopeFVars : scope.fvars =
+      F.semantic.recent.fvars.reverse ++
+        A.semantics.fieldsRecent.fvars.reverse ++
+          H.parameterSuffix.parameterDecls.fvars) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ narrowMajor narrowExposed,
+      TrExprS H.outVEnv Us scope
+          (mkAppN A.rule.recursiveArgs[j]
+            F.semantic.generated.localArgs) narrowMajor ∧
+        TrExprS H.outVEnv Us scope F.semantic.generated.exposedType
+          narrowExposed ∧
+        H.outVEnv.HasType Us.length scope.toCtx narrowMajor narrowExposed := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases F.narrowSemanticAppliedMajor scope Hscope hscopeFVars with
+    ⟨narrowMajor, HnarrowMajor, _HmajorEq⟩
+  rcases F.narrowSemanticExposedType scope Hscope hscopeFVars with
+    ⟨narrowExposed, _resultLevel, HnarrowExposed, _HexposedEq,
+      _HnarrowType⟩
+  have hsemantic : F.semantic.current_context.venv =
+      R.declared.venvCtors :=
+    F.semantic.recent.venv_eq.trans
+      (A.semantics.context_venv.trans
+        (H.recursorEnv.trans R.declared.contextVEnv))
+  have HfullMajor := F.semantic.applied_field_translation
+  have HfullExposed := F.semantic.exposed_translation
+  have HfullMajorType : F.semantic.current_context.venv.HasType Us.length
+      F.semantic.current_context.mlctx.vlctx.toCtx
+      F.semantic.appliedFieldTarget F.semantic.exposedTarget :=
+    F.semantic.applied_field_typing.defeqU_r
+      F.semantic.current_context.checking.tr.wf
+      F.semantic.current_context.mlctx_wf.tr.wf.toCtx
+      F.semantic.exposed_defeq.symm
+  rw [hsemantic] at HfullMajor HfullExposed HfullMajorType
+  have Htyped := Hscope.hasTypeOfFullPair H.outVEnvWF
+    HnarrowMajor HnarrowExposed
+    (HfullMajor.mono H.installed.le)
+    (HfullExposed.mono H.installed.le)
+    (HfullMajorType.mono H.installed.le)
+  exact ⟨narrowMajor, narrowExposed, HnarrowMajor, HnarrowExposed, Htyped⟩
+
 /-- The replayed narrow front is exactly the constructor fields followed by
 the higher-order call arguments, in source-binder order.  This packages the
 ordering, arity, and well-formedness facts shared by index and major closure. -/
