@@ -20527,6 +20527,75 @@ theorem RecursorFieldDecisions.positions_lt
     · simp only [Array.size_push]
       omega
 
+/-- The decision mask is not merely cardinality metadata: its `j`th ordinal
+selects the exact `j`th member of the recursive-field array from the complete
+field array.  This formulation is independent of the fresh identifiers used
+by a particular traversal and is therefore the pointwise companion to replay
+compatibility. -/
+theorem RecursorFieldDecisions.selected_at
+    (H : RecursorFieldDecisions stats root source c t bu u positions)
+    (j : Nat) (hj : j < u.size) :
+    positions[j]! < bu.size ∧ u[j]! = bu[positions[j]!]! := by
+  induction H generalizing j with
+  | nil => simp at hj
+  | @nonrecursive c name dom body bi bu u positions Hdecision _ ih =>
+      rcases ih j hj with ⟨hposition, hselected⟩
+      have hposition' : positions[j]! < (bu.push
+          (.fvar ⟨c.ngen.curr⟩)).size := by
+        simp only [Array.size_push]
+        omega
+      refine ⟨hposition', ?_⟩
+      rw [getElem!_pos u j hj] at hselected ⊢
+      rw [getElem!_pos bu positions[j]! hposition] at hselected
+      rw [getElem!_pos (bu.push (.fvar ⟨c.ngen.curr⟩))
+        positions[j]! hposition']
+      simpa only [Array.getElem_push_lt hposition] using hselected
+  | @recursive c name dom body bi bu u positions target Hdecision _ ih =>
+      by_cases hold : j < u.size
+      · rcases ih j hold with ⟨hposition, hselected⟩
+        have hpositionBound : j < positions.length := by
+          rw [Hdecision.positions_length]
+          exact hold
+        have hpositionAppendBound : j <
+            (positions ++ [bu.size]).length := by
+          simp only [List.length_append, List.length_singleton]
+          omega
+        have hpositionValue : (positions ++ [bu.size])[j]! =
+            positions[j]! := by
+          rw [getElem!_pos (positions ++ [bu.size]) j
+            hpositionAppendBound, getElem!_pos positions j hpositionBound]
+          exact List.getElem_append_left hpositionBound
+        have hposition' : (positions ++ [bu.size])[j]! <
+            (bu.push (.fvar ⟨c.ngen.curr⟩)).size := by
+          rw [hpositionValue]
+          simp only [Array.size_push]
+          omega
+        refine ⟨hposition', ?_⟩
+        rw [hpositionValue]
+        rw [getElem!_pos (u.push (.fvar ⟨c.ngen.curr⟩)) j (by
+          simp only [Array.size_push]
+          omega)]
+        rw [Array.getElem_push_lt hold]
+        rw [getElem!_pos u j hold] at hselected
+        rw [getElem!_pos bu positions[j]! hposition] at hselected
+        rw [getElem!_pos (bu.push (.fvar ⟨c.ngen.curr⟩))
+          positions[j]! (by simp only [Array.size_push]; omega)]
+        simpa only [Array.getElem_push_lt hposition] using hselected
+      · have hjEq : j = u.size := by
+          simp only [Array.size_push] at hj
+          omega
+        subst j
+        have hpositionBound : u.size <
+            (positions ++ [bu.size]).length := by
+          simp [Hdecision.positions_length]
+        have hpositionValue : (positions ++ [bu.size])[u.size]! =
+            bu.size := by
+          have hlast : (positions ++ [bu.size])[positions.length]! =
+              bu.size := by simp
+          simpa [Hdecision.positions_length] using hlast
+        rw [hpositionValue]
+        simp
+
 theorem RecursorFieldDecisions.positions_ordered
     (H : RecursorFieldDecisions stats root source c t bu u positions) :
     positions.Pairwise (· < ·) := by
@@ -60850,6 +60919,50 @@ theorem
     S.hypotheses_size_eq_rule traversal A.semantics
       htraversalRecursiveFields hpositions
   exact ⟨S, traversal, hlocal, htraversal, hpositions, hhypotheses⟩
+
+/-- Pointwise strengthening of mask alignment.  At every recursive-result
+ordinal, both executable passes selected the field at the same constructor
+ordinal.  The expressions themselves may use different fresh identifiers;
+the common ordinal is the alpha-independent datum used by the subsequent
+hypothesis-domain comparison. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPositionAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ traversal : RecInfoMinorTraversalShape,
+        S.localIndex = i ∧
+        S.traversal = some traversal ∧
+        traversal.recursivePositions = A.semantics.recursivePositions ∧
+        S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        ∀ j (hj : j < A.rule.recursiveArgs.size),
+          traversal.recursiveFields[j]! =
+              traversal.fields[A.semantics.recursivePositions[j]!]! ∧
+            A.rule.recursiveArgs[j]! =
+              A.rule.allArgs[A.semantics.recursivePositions[j]!]! := by
+  rcases A.finalSelectedMinorMaskAlignment with
+    ⟨S, traversal, hlocal, htraversal, hpositions, hhypotheses⟩
+  have hrecursive : traversal.recursiveFields.size =
+      A.rule.recursiveArgs.size :=
+    traversal.recursiveFields_size_eq_rule A.semantics hpositions
+  refine ⟨S, traversal, hlocal, htraversal, hpositions, hhypotheses, ?_⟩
+  intro j hj
+  have hjTraversal : j < traversal.recursiveFields.size := by
+    rw [hrecursive]
+    exact hj
+  have Hminor := traversal.decisions.selected_at j hjTraversal
+  have Hrule := A.semantics.decisions.selected_at j hj
+  rw [hpositions] at Hminor
+  exact ⟨Hminor.2, Hrule.2⟩
 
 /-- The concrete owner-motive declaration mentions no interleaved executable
 index or major locals.  Its only possible free variables are the common
