@@ -21061,6 +21061,21 @@ theorem Expr.abstractList_mkAppN :
     rw [ih]
     simp
 
+theorem Expr.liftLooseBVars'_mkAppN :
+    (mkAppN fn args).liftLooseBVars' start amount =
+      mkAppN (fn.liftLooseBVars' start amount)
+        (args.map fun arg => arg.liftLooseBVars' start amount) := by
+  unfold mkAppN
+  rw [← Array.foldl_toList, ← Array.foldl_toList]
+  simp only [Array.toList_map]
+  generalize args.toList = list
+  induction list generalizing fn with
+  | nil => simp
+  | cons arg args ih =>
+    simp only [List.foldl_cons, List.map_cons]
+    rw [ih]
+    simp [Expr.liftLooseBVars']
+
 theorem Expr.mkAppRange_to_end
     (fn : Expr) (args : Array Expr) (start : Nat)
     (hstart : start ≤ args.size) :
@@ -34837,6 +34852,51 @@ def BoundGeneratedRecursiveCall.outerAbstractedMajor
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
       root field value) (binders : List FVarId) : Expr :=
   H.abstractedMajor.abstractList binders H.localArgs.size
+
+/-- A root free variable is untouched by the fresh call-local binders.
+Abstracting it over the surrounding rule telescope below those locals is
+therefore exactly weakening its ordinary rule abstraction. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedRootFVar_eq_lift
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (hroot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup) (hfv : fv ∈ binders) :
+    ((Expr.fvar fv).abstractList H.arguments_bound.fvars).abstractList
+        binders H.localArgs.size =
+      ((Expr.fvar fv).abstractList binders).liftLooseBVars'
+        0 H.localArgs.size := by
+  have hfresh : fv ∉ H.arguments_bound.fvars := by
+    intro hmem
+    exact H.arguments_bound.fresh fv hmem hroot
+  rw [Expr.abstractList_fvar_of_not_mem hfresh]
+  simpa using Expr.abstractList_add_eq_liftLooseBVars
+    (e := .fvar fv) (fvars := binders) (depth := 0)
+    (extra := H.localArgs.size) (by trivial) hbinders
+
+/-- Pointwise array form of `outerAbstractedRootFVar_eq_lift`.  It applies
+to the retained parameter, motive, and minor arrays used by generated
+recursive calls. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedBoundArray_eq_lift
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (B : BoundFVarArray root xs)
+    (hbinders : binders.Nodup)
+    (hselected : ∀ fv ∈ B.fvars, fv ∈ binders) :
+    xs.map (fun arg =>
+        (arg.abstractList H.arguments_bound.fvars).abstractList
+          binders H.localArgs.size) =
+      xs.map (fun arg =>
+        (arg.abstractList binders).liftLooseBVars' 0 H.localArgs.size) := by
+  apply Array.ext
+  · simp
+  · intro j hleft hright
+    have hj : j < xs.size := by simpa using hleft
+    rcases B.getElem_eq_fvar j hj with ⟨hjFvars, harg⟩
+    simp only [Array.getElem_map]
+    rw [harg]
+    exact H.outerAbstractedRootFVar_eq_lift
+      (B.members B.fvars[j] (List.getElem_mem hjFvars)) hbinders
+      (hselected B.fvars[j] (List.getElem_mem hjFvars))
 
 def BoundGeneratedRecursiveCall.localIndices
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
@@ -62800,6 +62860,109 @@ theorem
   simpa [Expr.mkAppN_eq_mkAppList, Expr.mkAppList_append,
     VExpr.liftN_mkApps, VExpr.liftN, domains,
     List.append_assoc] using Htr
+
+/-- The common parameter/motive/minor part of a generated recursive call,
+after closing its call-local arguments and then the surrounding rule binders,
+is exactly the canonical equation prefix weakened below the local lambdas. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedCommonPrefix_eq_lift
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let localPrefix :=
+      mkAppN
+        (mkAppN
+          (mkAppN
+            (.const F.semantic.generated.recursorName
+              (AddInductive.getRecLevels H.elimLevel stats.levels))
+            (stats.params.map fun arg => arg.abstractList
+              F.semantic.generated.arguments_bound.fvars))
+          ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
+            F.semantic.generated.arguments_bound.fvars))
+        ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
+          F.semantic.generated.arguments_bound.fvars)
+    let canonicalPrefix :=
+      mkAppN
+        (mkAppN
+          (mkAppN
+            (.const F.semantic.generated.recursorName
+              (AddInductive.getRecLevels H.elimLevel stats.levels))
+            (stats.params.map fun arg =>
+              arg.abstractList A.rule.binders))
+          ((H.recInfos.map (·.motive)).map fun arg =>
+            arg.abstractList A.rule.binders))
+        ((H.recInfos.flatMap (·.minors)).map fun arg =>
+          arg.abstractList A.rule.binders)
+    localPrefix.abstractList A.rule.binders
+        F.semantic.generated.localArgs.size =
+      canonicalPrefix.liftLooseBVars' 0
+        F.semantic.generated.localArgs.size := by
+  dsimp only
+  have Hp := F.semantic.generated.outerAbstractedBoundArray_eq_lift
+    A.rule.params_bound A.rule.binders_nodup (by
+      intro fv hfv
+      simp [BoundGeneratedRecursorRule.binders, hfv])
+  have Hm := F.semantic.generated.outerAbstractedBoundArray_eq_lift
+    A.rule.motives_bound A.rule.binders_nodup (by
+      intro fv hfv
+      simp [BoundGeneratedRecursorRule.binders, hfv])
+  have Hmi := F.semantic.generated.outerAbstractedBoundArray_eq_lift
+    A.rule.minors_bound A.rule.binders_nodup (by
+      intro fv hfv
+      simp [BoundGeneratedRecursorRule.binders, hfv])
+  have Hp' :
+      (stats.params.map fun arg => arg.abstractList
+        F.semantic.generated.arguments_bound.fvars).map
+          (fun arg => arg.abstractList A.rule.binders
+            F.semantic.generated.localArgs.size) =
+        stats.params.map (fun arg =>
+          (arg.abstractList A.rule.binders).liftLooseBVars' 0
+            F.semantic.generated.localArgs.size) := by
+    rw [Array.map_map]
+    change stats.params.map (fun arg =>
+      (arg.abstractList F.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.binders F.semantic.generated.localArgs.size) = _
+    exact Hp
+  have Hm' :
+      ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
+        F.semantic.generated.arguments_bound.fvars).map
+          (fun arg => arg.abstractList A.rule.binders
+            F.semantic.generated.localArgs.size) =
+        (H.recInfos.map (·.motive)).map (fun arg =>
+          (arg.abstractList A.rule.binders).liftLooseBVars' 0
+            F.semantic.generated.localArgs.size) := by
+    rw [Array.map_map]
+    change (H.recInfos.map (·.motive)).map (fun arg =>
+      (arg.abstractList F.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.binders F.semantic.generated.localArgs.size) = _
+    exact Hm
+  have Hmi' :
+      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
+        F.semantic.generated.arguments_bound.fvars).map
+          (fun arg => arg.abstractList A.rule.binders
+            F.semantic.generated.localArgs.size) =
+        (H.recInfos.flatMap (·.minors)).map (fun arg =>
+          (arg.abstractList A.rule.binders).liftLooseBVars' 0
+            F.semantic.generated.localArgs.size) := by
+    rw [Array.map_map]
+    change (H.recInfos.flatMap (·.minors)).map (fun arg =>
+      (arg.abstractList F.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.binders F.semantic.generated.localArgs.size) = _
+    exact Hmi
+  simp only [Expr.abstractList_mkAppN, Expr.abstractList_const]
+  rw [Hp', Hm', Hmi']
+  simp [Expr.liftLooseBVars'_mkAppN, Array.map_map,
+    Function.comp_def, Expr.liftLooseBVars']
 
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
