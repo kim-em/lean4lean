@@ -318,6 +318,17 @@ theorem liftContextPrefixAt_append_singleton
     simp [liftContextPrefixAt, ih, Nat.add_assoc, Nat.add_comm,
       Nat.add_left_comm]
 
+theorem liftContextPrefixAt_append
+    (n k : Nat) (left right : List VExpr) :
+    liftContextPrefixAt n k (left ++ right) =
+      liftContextPrefixAt n (k + right.length) left ++
+        liftContextPrefixAt n k right := by
+  induction left with
+  | nil => simp [liftContextPrefixAt]
+  | cons domain left ih =>
+    simp [liftContextPrefixAt, ih, Nat.add_assoc, Nat.add_comm,
+      Nat.add_left_comm]
+
 /-- Lifting a dependent forall telescope is dual to lifting its reversed
 context prefix. -/
 theorem VExpr.liftN_wrapForalls
@@ -349,6 +360,24 @@ theorem Ctx.LiftN.insertAfterPrefix
   | cons domain recent ih =>
     simpa [liftContextPrefix, liftContextPrefixAt, List.append_assoc] using
       (Ctx.LiftN.succ (A := domain) ih)
+
+/-- A well-formed recent context remains well formed when a separately
+well-formed block is inserted beneath it and every recent declaration is
+lifted at its dependent cutoff. -/
+theorem OnCtx.insertAfterPrefix
+    (henv : env.Ordered)
+    (Hrecent : OnCtx (recent ++ outer) (env.IsType uvars))
+    (Hinserted : OnCtx (inserted ++ outer) (env.IsType uvars)) :
+    OnCtx
+      (liftContextPrefix inserted.length recent ++ inserted ++ outer)
+      (env.IsType uvars) := by
+  induction recent with
+  | nil => simpa [liftContextPrefix, liftContextPrefixAt] using Hinserted
+  | cons domain recent ih =>
+    have Hdomain := Hrecent.2.weakN henv
+      (Ctx.LiftN.insertAfterPrefix recent inserted outer)
+    exact ⟨ih Hrecent.1, by
+      simpa [liftContextPrefix, liftContextPrefixAt] using Hdomain⟩
 
 /-- Insert the same well-formed context block beneath two definitionally
 equal recent prefixes.  Each dependent prefix declaration is lifted at the
@@ -22843,6 +22872,23 @@ theorem abstractForallContext.bvInsertBeforeInner
         VLCtx.BVLift.cons (.vlam domain) ih
   simpa [abstractForallContext, outerCtx, List.reverse_append,
     List.map_append, List.append_assoc] using go inner.reverse
+
+/-- Translation-level form of `bvInsertBeforeInner`: insert a telescope
+between already closed outer and inner binders, lifting both residuals at
+the inner-binder cutoff. -/
+theorem TrExprS.insertBeforeInner
+    (henv : env.Ordered)
+    (Htr : TrExprS env Us
+      (abstractForallContext (outer ++ inner) []) source target)
+    (inserted : List VExpr) :
+    let liftedInner :=
+      (liftContextPrefix inserted.length inner.reverse).reverse
+    TrExprS env Us
+      (abstractForallContext (outer ++ inserted ++ liftedInner) [])
+      (source.liftLooseBVars' inner.length inserted.length)
+      (target.liftN inserted.length inner.length) := by
+  let W := abstractForallContext.bvInsertBeforeInner outer inserted inner
+  simpa using Htr.weakBV henv W
 
 /-- Strengthened telescope inversion retaining the exact abstract context in
 which the concrete residual is translated. -/
