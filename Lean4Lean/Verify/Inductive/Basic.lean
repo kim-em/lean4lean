@@ -35043,6 +35043,24 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar
       List.getElem_ofFn]
     omega
 
+/-- Dependent array-selection wrapper for
+`outerAbstractedMajor_eq_bvar`. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar_of_field_eq
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (hfieldEq : field = .fvar fv)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup)
+    (hfield : fv ∈ binders) :
+    ∃ fieldVar,
+      fieldVar < binders.length ∧
+      (Expr.fvar fv).abstractList binders = .bvar fieldVar ∧
+      H.outerAbstractedMajor binders =
+        mkAppN (.bvar (H.localArgs.size + fieldVar))
+          (H.localIndices.map Expr.bvar).toArray := by
+  subst field
+  exact H.outerAbstractedMajor_eq_bvar hfieldRoot hbinders hfield
+
 theorem BoundGeneratedRecursiveCall.outerAbstractedMajorAvoids
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
       root (.fvar fv) value)
@@ -61117,10 +61135,15 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallRecursorFrame j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ (localDomains fieldDomains : List VExpr) (fieldVar : Nat),
+    ∃ (localDomains fieldDomains : List VExpr) (fv : FVarId)
+        (fieldVar : Nat),
       localDomains.length = F.semantic.generated.localArgs.size ∧
       fieldDomains.length = A.rule.allArgs.size ∧
       fieldVar < fieldDomains.length ∧
+      A.rule.recursiveArgs[j] = .fvar fv ∧
+      fv ∈ A.rule.all_args_bound.fvars ∧
+      (Expr.fvar fv).abstractList
+          A.rule.all_args_bound.fvars = .bvar fieldVar ∧
       TrExprS H.outVEnv Us
         (abstractForallContext (fieldDomains ++ localDomains)
           A.semantics.fieldRootContext.mlctx.vlctx)
@@ -61159,9 +61182,75 @@ theorem
   rcases F.semantic.generated.translatedOuterAbstractedMajor_eq_of_field_eq
       hsource' hfieldRoot A.rule.all_args_nodup hfield
       hruleDomains hlocal Hmajor' with
-    ⟨fieldVar, hfieldVar, _hfieldSource, htarget⟩
-  exact ⟨localDomains, fieldDomains, fieldVar,
-    hlocal, hfields, hfieldVar, Hmajor, htarget⟩
+    ⟨fieldVar, hfieldVar, hfieldSource, htarget⟩
+  exact ⟨localDomains, fieldDomains, fv, fieldVar,
+    hlocal, hfields, hfieldVar, hsource', hfield,
+    hfieldSource, Hmajor, htarget⟩
+
+/-- Full-rule source alignment for the recursive major.  Adding the outer
+parameter/motive/minor binders does not change the de Bruijn number of a
+constructor field, because the fields are the innermost rule group.  Thus the
+production two-stage abstraction and the semantic applied-field target use
+literally the same application spine. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedAppliedMajorAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    ∃ (localDomains fieldDomains : List VExpr) (fv : FVarId)
+        (fieldVar : Nat),
+      localDomains.length = F.semantic.generated.localArgs.size ∧
+      fieldDomains.length = A.rule.allArgs.size ∧
+      fieldVar < fieldDomains.length ∧
+      A.rule.recursiveArgs[j] = .fvar fv ∧
+      (Expr.fvar fv).abstractList A.rule.binders = .bvar fieldVar ∧
+      F.semantic.generated.outerAbstractedMajor A.rule.binders =
+        mkAppN (.bvar (localDomains.length + fieldVar))
+          (F.semantic.generated.localIndices.map Expr.bvar).toArray ∧
+      F.semantic.appliedFieldTarget =
+        VExpr.mkApps (.bvar (localDomains.length + fieldVar))
+          (F.semantic.generated.localIndices.map VExpr.bvar) := by
+  rcases F.finalAppliedMajorTarget with
+    ⟨localDomains, fieldDomains, fv, fieldVar,
+      hlocal, hfields, hfieldVar, hsource, hfield,
+      hfieldSource, _Hmajor, htarget⟩
+  have hfieldFull : fv ∈ A.rule.binders := by
+    unfold BoundGeneratedRecursorRule.binders
+    exact List.mem_append_right _ hfield
+  have hfieldRoot : fv ∈ A.rule.root.lctx.fvars :=
+    A.rule.all_args_bound.members fv hfield
+  have hnotOuter : fv ∉
+      (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
+        A.rule.minors_bound.fvars :=
+    A.rule.all_args_outer_fresh fv hfield
+  have hfullSource : (Expr.fvar fv).abstractList A.rule.binders =
+      .bvar fieldVar := by
+    unfold BoundGeneratedRecursorRule.binders
+    rw [Expr.abstractList_append,
+      Expr.abstractList_fvar_of_not_mem hnotOuter, hfieldSource]
+  rcases F.semantic.generated.outerAbstractedMajor_eq_bvar_of_field_eq
+      hsource hfieldRoot A.rule.binders_nodup hfieldFull with
+    ⟨otherFieldVar, _hotherBound, hotherSource, hmajorShape⟩
+  have hotherSource' : (Expr.fvar fv).abstractList A.rule.binders =
+      .bvar otherFieldVar := by
+    simpa [BoundGeneratedRecursorRule.binders, List.append_assoc] using
+      hotherSource
+  rw [hfullSource] at hotherSource'
+  cases hotherSource'
+  refine ⟨localDomains, fieldDomains, fv, fieldVar,
+    hlocal, hfields, hfieldVar, hsource, hfullSource, ?_, htarget⟩
+  simpa [hlocal, BoundGeneratedRecursorRule.binders,
+    List.append_assoc] using hmajorShape
 
 /-- The validated recursive field determines the exact expected motive
 application in the final environment.  Its index targets and eta-expanded
