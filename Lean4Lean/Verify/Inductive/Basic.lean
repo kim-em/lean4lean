@@ -67972,7 +67972,7 @@ theorem
           selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
       ∃ (equationDomains localDomains added frontDomains
           exactIndexTargets : List VExpr)
-          (majorTarget : VExpr),
+          (majorTarget ownerTarget : VExpr),
         equationDomains ++ localDomains =
             parameterDecls.toCtx.reverse ++ added ∧
           added = T.motives ++ T.minors ++ frontDomains ∧
@@ -67988,7 +67988,12 @@ theorem
               (equationDomains ++ localDomains) []).toCtx
             majorTarget
             (VExpr.mkApps (C.family.liftN added.length 0)
-              exactIndexTargets) := by
+              exactIndexTargets) ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext
+              (equationDomains ++ localDomains) []).toCtx
+            (.app (VExpr.mkApps ownerTarget exactIndexTargets) majorTarget)
+            (.sort C.resultLevel) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let parameterDecls := H.parameterSuffix.parameterDecls
@@ -67998,8 +68003,20 @@ theorem
       hequationLength, Hctx, Htyping, hexactLength, levels, parameterTargets,
       spineIndexTargets, hspine, hlevels, _HparameterTranslation,
       hparameterTargets, HindexDefEq⟩
-  rcases F.canonicalParameterAlignment with
-    ⟨C, HselectedCanonical⟩
+  rcases F.canonicalOwnerMotiveDomain with
+    ⟨S, HselectedSource, HmotiveDomain₀⟩
+  have henvLe : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  let C := S.canonical.mono henvLe
+  have HcanonicalSource : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      C.params.reverse S.motiveSourceScope.toCtx := by
+    simpa [C, RecursorCanonicalMotiveTelescope.mono] using
+      S.motiveSourceAlignment.mono henvLe
+  have HselectedCanonical : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      F.telescope.params.reverse C.params.reverse :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+      HselectedSource (HcanonicalSource.symm H.outVEnvWF.ordered)
   rcases H.finalRecursorParameterContextAt selectedOwner F.entry_lt with
     ⟨Tselected, HselectedCached⟩
   rcases Tselected.groupsResult_eq F.telescope with
@@ -68094,10 +68111,226 @@ theorem
       _ = H.recInfos[selectedOwner]!.indices.size :=
         F.telescope.indices_length
       _ = C.indices.length := C.indices_length.symm
+  let inserted := T.motives ++ T.minors
+  let cachedFull := frontDomains.reverse ++ inserted.reverse ++
+    parameterDecls.toCtx
+  let Touter := T.params ++ T.motives ++ T.minors
+  let selectedOuter := F.telescope.params ++ F.telescope.motives ++
+    F.telescope.minors
+  have htoCtx : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) = types := by
+    intro types
+    induction types with
+    | nil => rfl
+    | cons type types ih => simp [VLCtx.toCtx, ih]
+  have hcallCtx :
+      (abstractForallContext
+        (equationDomains ++ localDomains) []).toCtx =
+        (equationDomains ++ localDomains).reverse := by
+    simpa [abstractForallContext] using
+      htoCtx (equationDomains ++ localDomains).reverse
+  have HctxPlain : OnCtx (equationDomains ++ localDomains).reverse
+      (H.outVEnv.IsType Us.length) := by
+    simpa only [hcallCtx] using Hctx
+  have HcachedFull : OnCtx cachedFull (H.outVEnv.IsType Us.length) := by
+    rw [hdecomposition, hadded] at HctxPlain
+    simpa [cachedFull, inserted, List.reverse_append,
+      List.append_assoc] using HctxPlain
+  rcases A.finalRecursorParameterContext with ⟨T₀, HparamsT⟩
+  rcases T₀.groupsResult_eq T with
+    ⟨hparamsT, _hmotivesT, _hminorsT, _hindicesT,
+      _hmajorT, _hresultT⟩
+  rw [hparamsT] at HparamsT
+  have HparamsT' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      T.params.reverse parameterDecls.toCtx := by
+    simpa [parameterDecls, H.parameterDecls, Us] using HparamsT
+  have HcachedToT₀ :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      (HparamsT'.symm H.outVEnvWF.ordered) HcachedFull
+  have HcachedToT : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      cachedFull (frontDomains.reverse ++ Touter.reverse) := by
+    simpa [cachedFull, inserted, Touter, List.reverse_append,
+      List.append_assoc] using HcachedToT₀
+  have HTFull : OnCtx (frontDomains.reverse ++ Touter.reverse)
+      (H.outVEnv.IsType Us.length) :=
+    (HcachedToT.symm H.outVEnvWF.ordered).isType
+  have Hcommon := H.finalRecursorCommonPrefixContextAt
+    owner howner selectedOwner F.entry_lt T F.telescope
+  have HTToSelected :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      Hcommon HTFull
+  have HselectedToCached : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (frontDomains.reverse ++ selectedOuter.reverse) cachedFull :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+      (by simpa [Touter, selectedOuter] using
+        HTToSelected.symm H.outVEnvWF.ordered)
+      (HcachedToT.symm H.outVEnvWF.ordered)
+  have hownerRecInfo : selectedOwner < H.recInfos.size := by
+    simpa [H.generated.length] using F.entry_lt
+  have hownerMotive : selectedOwner < F.telescope.motives.length := by
+    rw [F.telescope.motives_length]
+    simpa using hownerRecInfo
+  let later := F.telescope.motives.drop (selectedOwner + 1) ++
+    F.telescope.minors
+  let newer := F.telescope.motives.drop selectedOwner ++
+    F.telescope.minors ++ frontDomains
+  let ownerTarget : VExpr := .bvar (frontDomains.length + later.length)
+  have HownerOuter := F.telescope.ownerMotiveOuterBvarTyping hownerMotive
+  have Wfront : Ctx.LiftN frontDomains.length 0 selectedOuter.reverse
+      (frontDomains.reverse ++ selectedOuter.reverse) := by
+    exact .zero frontDomains.reverse (by simp)
+  have HownerSelected₀ := HownerOuter.weakN H.outVEnvWF.ordered Wfront
+  have HownerSelected : H.outVEnv.HasType Us.length
+      (frontDomains.reverse ++ selectedOuter.reverse) ownerTarget
+      (F.telescope.motives[selectedOwner]!.liftN newer.length 0) := by
+    have hownerTargetEq :
+        (VExpr.bvar later.length).liftN frontDomains.length 0 =
+          ownerTarget := by
+      simp [ownerTarget, VExpr.liftN, liftVar_base, Nat.add_comm]
+    have hownerGet :
+        F.telescope.motives[selectedOwner]'hownerMotive =
+          F.telescope.motives[selectedOwner]! :=
+      (getElem!_pos F.telescope.motives selectedOwner hownerMotive).symm
+    have hownerTypeEq :
+        ((F.telescope.motives[selectedOwner]'hownerMotive).liftN
+            (later.length + 1) 0).liftN frontDomains.length 0 =
+          F.telescope.motives[selectedOwner]!.liftN newer.length 0 := by
+      rw [hownerGet, VExpr.liftN_liftN]
+      have hlength : later.length + 1 + frontDomains.length =
+          newer.length := by
+        dsimp only [later, newer]
+        simp only [List.length_append, List.length_drop]
+        omega
+      rw [hlength]
+    rw [hownerTargetEq, hownerTypeEq] at HownerSelected₀
+    exact HownerSelected₀
+  have HmotiveDomain : H.outVEnv.IsDefEqU Us.length
+      (abstractForallContext
+        (F.telescope.params ++
+          F.telescope.motives.take selectedOwner) []).toCtx
+      F.telescope.motives[selectedOwner]!
+      (C.motiveType.liftN
+        (F.telescope.motives.take selectedOwner).length 0) := by
+    simpa [C, RecursorCanonicalMotiveTelescope.mono] using HmotiveDomain₀
+  have hearlierCtx :
+      (abstractForallContext
+        (F.telescope.params ++
+          F.telescope.motives.take selectedOwner) []).toCtx =
+        (F.telescope.params ++
+          F.telescope.motives.take selectedOwner).reverse := by
+    simpa [abstractForallContext] using htoCtx
+      ((F.telescope.params ++
+        F.telescope.motives.take selectedOwner).reverse)
+  have hselectedSplit : selectedOuter.reverse =
+      (F.telescope.motives.drop selectedOwner ++
+        F.telescope.minors).reverse ++
+        (F.telescope.params ++
+          F.telescope.motives.take selectedOwner).reverse := by
+    dsimp only [selectedOuter]
+    have hmotives : F.telescope.motives =
+        F.telescope.motives.take selectedOwner ++
+          F.telescope.motives.drop selectedOwner :=
+      (List.take_append_drop selectedOwner F.telescope.motives).symm
+    have hmotivesReverse : F.telescope.motives.reverse =
+        (F.telescope.motives.drop selectedOwner).reverse ++
+          (F.telescope.motives.take selectedOwner).reverse := by
+      calc
+        F.telescope.motives.reverse =
+            (F.telescope.motives.take selectedOwner ++
+              F.telescope.motives.drop selectedOwner).reverse :=
+          congrArg List.reverse hmotives
+        _ = (F.telescope.motives.drop selectedOwner).reverse ++
+            (F.telescope.motives.take selectedOwner).reverse := by
+          simp only [List.reverse_append]
+    simp only [List.reverse_append]
+    rw [hmotivesReverse]
+    simp only [List.append_assoc]
+  have Wmotive : Ctx.LiftN newer.length 0
+      (abstractForallContext
+        (F.telescope.params ++
+          F.telescope.motives.take selectedOwner) []).toCtx
+      (frontDomains.reverse ++ selectedOuter.reverse) := by
+    rw [hearlierCtx]
+    have hfullSplit : frontDomains.reverse ++ selectedOuter.reverse =
+        newer.reverse ++
+          (F.telescope.params ++
+            F.telescope.motives.take selectedOwner).reverse := by
+      rw [hselectedSplit]
+      simp [newer, List.reverse_append, List.append_assoc]
+    rw [hfullSplit]
+    exact .zero newer.reverse (by simp)
+  have HmotiveDomainFull := HmotiveDomain.weakN
+    H.outVEnvWF.ordered Wmotive
+  have hcanonicalLift :
+      (F.telescope.motives.take selectedOwner).length + newer.length =
+        added.length := by
+    have haddedLength' := congrArg List.length hadded
+    simp only [List.length_append] at haddedLength'
+    have htakeDrop := congrArg List.length
+      (List.take_append_drop selectedOwner F.telescope.motives)
+    simp only [List.length_append] at htakeDrop
+    calc
+      (F.telescope.motives.take selectedOwner).length + newer.length =
+          F.telescope.motives.length + F.telescope.minors.length +
+            frontDomains.length := by
+        dsimp only [newer]
+        simp only [List.length_append]
+        omega
+      _ = T.motives.length + T.minors.length + frontDomains.length := by
+        rw [F.telescope.motives_length, T.motives_length,
+          F.telescope.minors_length, T.minors_length]
+      _ = added.length := by omega
+  have HmotiveDomainSelected : H.outVEnv.IsDefEqU Us.length
+      (frontDomains.reverse ++ selectedOuter.reverse)
+      (F.telescope.motives[selectedOwner]!.liftN newer.length 0)
+      (C.motiveType.liftN added.length 0) := by
+    simpa only [VExpr.liftN_liftN, hcanonicalLift] using HmotiveDomainFull
+  have HownerCached := HownerSelected.defeqDFC
+    H.outVEnvWF.ordered HselectedToCached
+  have HmotiveDomainCached := HmotiveDomainSelected.defeqDFC
+    H.outVEnvWF.ordered HselectedToCached
+  have HmotiveCanonical : H.outVEnv.HasType Us.length cachedFull
+      ownerTarget (C.motiveType.liftN added.length 0) :=
+    HownerCached.defeqU_r H.outVEnvWF HcachedFull HmotiveDomainCached
+  have HctxApply : OnCtx (added.reverse ++ parameterDecls.toCtx)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [cachedFull, inserted, hadded, List.reverse_append,
+      List.append_assoc] using HcachedFull
+  have HmajorApply : H.outVEnv.HasType Us.length
+      (added.reverse ++ parameterDecls.toCtx) majorTarget
+      (VExpr.mkApps (C.family.liftN added.length 0)
+        exactIndexTargets) := by
+    have HmajorPlain : H.outVEnv.HasType Us.length
+        (equationDomains ++ localDomains).reverse majorTarget
+        (VExpr.mkApps (C.family.liftN added.length 0)
+          exactIndexTargets) := by
+      simpa only [hcallCtx] using HmajorExact
+    rw [hdecomposition] at HmajorPlain
+    simpa [parameterDecls, List.reverse_append,
+      List.append_assoc] using HmajorPlain
+  have HmotiveApply : H.outVEnv.HasType Us.length
+      (added.reverse ++ parameterDecls.toCtx) ownerTarget
+      (C.motiveType.liftN added.length 0) := by
+    simpa [cachedFull, inserted, hadded, List.reverse_append,
+      List.append_assoc] using HmotiveCanonical
+  have Happly := C.applyMajorTypedAfterDefEq H.outVEnvWF
+    parameterDecls.toCtx added HcanonicalCached HctxApply
+    exactIndexTargets hindexCanonical ownerTarget majorTarget
+    HmotiveApply HmajorApply
+  have Happly' : H.outVEnv.HasType Us.length
+      (abstractForallContext
+        (equationDomains ++ localDomains) []).toCtx
+      (.app (VExpr.mkApps ownerTarget exactIndexTargets) majorTarget)
+      (.sort C.resultLevel) := by
+    rw [hcallCtx, hdecomposition]
+    simpa [parameterDecls, List.reverse_append,
+      List.append_assoc] using Happly
   exact ⟨C, equationDomains, localDomains, added, frontDomains,
-    exactIndexTargets, majorTarget, hdecomposition, hadded, Hctx,
+    exactIndexTargets, majorTarget, ownerTarget, hdecomposition, hadded, Hctx,
     HcanonicalCached,
-    hindexCanonical, HmajorExact⟩
+    hindexCanonical, HmajorExact, Happly'⟩
 
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
