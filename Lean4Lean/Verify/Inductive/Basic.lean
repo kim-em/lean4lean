@@ -25542,6 +25542,25 @@ structure RecursorMotiveTelescopeSeed
   motiveActualType : VExpr
   motiveType : VExpr
   resultLevel : VLevel
+  /-- The exact production motive telescope before it is weakened through
+  this family's opened indices, major, and motive declarations.  Keeping
+  the closed scope explicit is what permits later inverse weakening to
+  discard the interleaved executable frames and return to the cached
+  parameter context. -/
+  motiveClosedScope : VLCtx
+  motiveClosedAmbient : VLCtx
+  motiveParameterScope : VLCtx
+  motiveClosedContext : motiveClosedScope =
+    motiveClosedAmbient ++ motiveParameterScope
+  motiveParameterAlignment : VEnv.IsDefEqCtx Rroot.venv
+    recLparams.length [] canonical.params.reverse motiveParameterScope.toCtx
+  motiveClosedTarget : VExpr
+  motiveClosedTr : TrExprS Rroot.venv recLparams motiveClosedScope
+    (root.lctx.mkForall info.indices
+      (root.lctx.mkForall #[info.major] (.sort elimLevel)))
+    motiveClosedTarget
+  motiveClosedType : Rroot.venv.IsType recLparams.length
+    motiveClosedScope.toCtx motiveClosedTarget
   familyUnique : TrExprS.IsUnique
     (mkAppN stats.indConsts[target]! stats.params)
   familyTr : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
@@ -25591,6 +25610,8 @@ def RecursorMotiveTelescopeSeed.mono
         H.indicesBound.mkForall_mono Hext.contextLE _
   have HmotiveTypeTr := Hext.weakTrExprS H.motiveTypeTr
   rw [← hmotiveSource] at HmotiveTypeTr
+  have HmotiveClosedTr := H.motiveClosedTr
+  rw [← hmotiveSource] at HmotiveClosedTr
   exact {
     canonical := H.canonical.mono (by
       rw [Hext.venv_eq]
@@ -25603,6 +25624,19 @@ def RecursorMotiveTelescopeSeed.mono
     motiveActualType := H.motiveActualType.lift' (Hext.shift.consN 0)
     motiveType := H.motiveType.lift' (Hext.shift.consN 0)
     resultLevel := H.resultLevel
+    motiveClosedScope := H.motiveClosedScope
+    motiveClosedAmbient := H.motiveClosedAmbient
+    motiveParameterScope := H.motiveParameterScope
+    motiveClosedContext := H.motiveClosedContext
+    motiveParameterAlignment := by
+      change Rcurrent.venv.IsDefEqCtx recLparams.length []
+        H.canonical.params.reverse H.motiveParameterScope.toCtx
+      simpa only [Hext.venv_eq] using H.motiveParameterAlignment
+    motiveClosedTarget := H.motiveClosedTarget
+    motiveClosedTr := by
+      simpa only [Hext.venv_eq] using HmotiveClosedTr
+    motiveClosedType := by
+      simpa only [Hext.venv_eq] using H.motiveClosedType
     familyUnique := H.familyUnique
     familyTr := Hext.weakTrExprS H.familyTr
     familyTyping := Hext.weakHasType H.familyTyping
@@ -25631,6 +25665,14 @@ def RecursorMotiveTelescopeSeed.congrInfo
   motiveActualType := H.motiveActualType
   motiveType := H.motiveType
   resultLevel := H.resultLevel
+  motiveClosedScope := H.motiveClosedScope
+  motiveClosedAmbient := H.motiveClosedAmbient
+  motiveParameterScope := H.motiveParameterScope
+  motiveClosedContext := H.motiveClosedContext
+  motiveParameterAlignment := H.motiveParameterAlignment
+  motiveClosedTarget := H.motiveClosedTarget
+  motiveClosedTr := by simpa [hindices, hmajor] using H.motiveClosedTr
+  motiveClosedType := H.motiveClosedType
   familyUnique := H.familyUnique
   familyTr := H.familyTr
   familyTyping := H.familyTyping
@@ -31753,6 +31795,30 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           HindexOrigins.bound.mono (hMajorFrame.trans hMotiveFrame)
         let HmajorAtMotiveBound : BoundFVarArray cMotive #[major] :=
           HmajorAtMajor.mono hMotiveFrame
+        rcases Hframe.motiveClosed with
+          ⟨hclosedSize, motiveClosedTarget, HmotiveClosedTr,
+            HmotiveClosedType⟩
+        have HmotiveClosedTrSeed : TrExprS Rmotive.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams)
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
+            (cMotive.lctx.mkForall nextInfo.indices
+              (cMotive.lctx.mkForall #[nextInfo.major]
+                (.sort elimLevel))) motiveClosedTarget := by
+          rw [← hnewMotiveShape']
+          change TrExprS Rindices.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams)
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
+            motiveTy.consumeTypeAnnotations motiveClosedTarget
+          simpa only [motiveTy, cMajor] using HmotiveClosedTr
+        have HmotiveClosedTypeSeed : Rmotive.venv.IsType
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
+            motiveClosedTarget := by
+          change Rindices.venv.IsType
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
+            motiveClosedTarget
+          exact HmotiveClosedType
         let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx
             nextInfo elimLevel := {
           canonical := {
@@ -31820,6 +31886,27 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               (HmajorExtension.shift.consN 0)).lift'
                 (HmotiveExtension.shift.consN 0)
           resultLevel := Hframe.resultLevel
+          motiveClosedScope :=
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
+          motiveClosedAmbient := Hsuffix.ambientDecls
+          motiveParameterScope := Hsuffix.parameterDecls
+          motiveClosedContext := by
+            change (Rindices.mlctx.dropN indices.size hclosedSize).vlctx =
+              Hsuffix.ambientDecls ++ Hsuffix.parameterDecls
+            rw [show hclosedSize = Hrecent.size_le from rfl,
+              Hrecent.drop_eq]
+            exact Hsuffix.context
+          motiveParameterAlignment := by
+            change VEnv.IsDefEqCtx Rindices.venv
+              (AddInductive.getRecLevelParams elimLevel base.lparams).length
+              [] Hsynthesis.params.reverse Hsuffix.parameterDecls.toCtx
+            rw [← hcanonicalParams]
+            exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
+              rw [← Hsynthesis.scopeCtx]
+              exact Hsynthesis.scopeWF.toCtx))
+          motiveClosedTarget := motiveClosedTarget
+          motiveClosedTr := HmotiveClosedTrSeed
+          motiveClosedType := HmotiveClosedTypeSeed
           familyUnique := HnarrowStats.familyPrefixUnique dIdx htargetLt
           familyTr := HfamilyTrSeed
           familyTyping := HfamilyTypingSeed
@@ -55782,6 +55869,66 @@ theorem
       _Hsource, _hsource, hsourceDomain, Hdomain, HdomainType⟩
   rw [hsourceDomain, hdeclarationShape] at Hdomain
   exact ⟨T, S, hparameters, Hdomain, HdomainType⟩
+
+/-- The generated owner-motive domain and the retained first-pass motive are
+the same concrete declaration viewed at the two contexts that still have to
+be related.  The retained closed scope is now decomposed explicitly into its
+interleaved executable ambient prefix and the very parameter scope aligned
+with the generated telescope.  No index, major, or current-motive weakening
+remains hidden in this frame. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerClosedMotiveFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse S.motiveParameterScope.toCtx ∧
+        S.motiveClosedScope =
+            S.motiveClosedAmbient ++ S.motiveParameterScope ∧
+        TrExprS H.outVEnv Us S.motiveClosedScope
+          (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+            (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+              (.sort H.elimLevel)))
+          S.motiveClosedTarget ∧
+        H.outVEnv.IsType Us.length S.motiveClosedScope.toCtx
+          S.motiveClosedTarget ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            (T.params ++ T.motives.take owner) [])
+          ((H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+            (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+              (.sort H.elimLevel))).abstractList
+                (H.params.fvars ++ H.bindings.motives.fvars.take owner))
+          T.motives[owner]! := by
+  dsimp only
+  rcases A.finalOwnerMotiveDomainTranslation with
+    ⟨T, S, hparameters, Hgenerated, _HgeneratedType⟩
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have hparameterScope := S.motiveParameterAlignment.mono hbase
+  have hparameters' :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+      hparameters hparameterScope
+  exact ⟨T, S, hparameters', S.motiveClosedContext,
+    S.motiveClosedTr.mono hbase, S.motiveClosedType.mono hbase,
+    Hgenerated⟩
 
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
