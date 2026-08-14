@@ -3690,6 +3690,24 @@ theorem MLCtxOnlyLams.toCtx_take
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
+/-- For a verifier context containing only local declarations, dropping the
+newest `n` entries before or after erasing local metadata gives the same
+ordinary typing context. -/
+theorem MLCtxOnlyLams.toCtx_dropN
+    (H : MLCtxOnlyLams c) (n : Nat) (hn : n ≤ c.length) :
+    (c.dropN n hn).vlctx.toCtx = c.vlctx.toCtx.drop n := by
+  induction n generalizing c with
+  | zero => rfl
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      simpa only [TypeChecker.MLCtx.dropN, TypeChecker.MLCtx.vlctx,
+        VLCtx.toCtx, List.drop_succ_cons] using
+          ih H.tail_vlam (Nat.le_of_succ_le_succ hn)
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
 /-- Dropping an ordinary-local suffix and then restoring it is precisely a
 free-variable weakening.  The generated inductive contexts contain no local
 lets, so the lift amount agrees with the number of dropped declarations. -/
