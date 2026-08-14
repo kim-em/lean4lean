@@ -20463,6 +20463,62 @@ inductive RecursorFieldSelectionsAt
       RecursorFieldSelectionsAt env decl uvars (bu.push arg) (u.push arg)
         (fields ++ [cert])
 
+/-- Exact successful classifier decisions made while traversing constructor
+fields.  Unlike `RecursorFieldSelectionsAt`, this trace retains the `none`
+branches as well as the selected ordinals, so independently replayed passes
+can later be compared by an operational alpha-invariance theorem. -/
+inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats) :
+    Array Expr → Array Expr → List Nat → Prop
+  | nil : RecursorFieldDecisions stats #[] #[] []
+  | nonrecursive : RecursorFieldDecisions stats bu u positions →
+      AddInductive.isRecArg stats dom c = .ok none →
+      RecursorFieldDecisions stats (bu.push arg) u positions
+  | recursive : RecursorFieldDecisions stats bu u positions →
+      AddInductive.isRecArg stats dom c = .ok (some target) →
+      RecursorFieldDecisions stats (bu.push arg) (u.push arg)
+        (positions ++ [bu.size])
+
+theorem RecursorFieldDecisions.positions_length
+    (H : RecursorFieldDecisions stats bu u positions) :
+    positions.length = u.size := by
+  induction H with
+  | nil => rfl
+  | nonrecursive _ _ ih => exact ih
+  | recursive _ _ ih => simp [ih]
+
+theorem RecursorFieldDecisions.positions_lt
+    (H : RecursorFieldDecisions stats bu u positions) :
+    ∀ position ∈ positions, position < bu.size := by
+  intro position hposition
+  induction H with
+  | nil => simp at hposition
+  | nonrecursive _ _ ih =>
+    have := ih hposition
+    simp only [Array.size_push]
+    omega
+  | recursive _ _ ih =>
+    simp only [List.mem_append, List.mem_singleton] at hposition
+    rcases hposition with hposition | rfl
+    · have := ih hposition
+      simp only [Array.size_push]
+      omega
+    · simp only [Array.size_push]
+      omega
+
+theorem RecursorFieldDecisions.positions_ordered
+    (H : RecursorFieldDecisions stats bu u positions) :
+    positions.Pairwise (· < ·) := by
+  induction H with
+  | nil => simp
+  | nonrecursive _ _ ih => exact ih
+  | @recursive bu u positions arg dom c target H _ ih =>
+    rw [List.pairwise_append]
+    refine ⟨ih, by simp, ?_⟩
+    intro old hold _ hnew
+    simp only [List.mem_singleton] at hnew
+    subst hnew
+    exact H.positions_lt old hold
+
 theorem RecursorFieldSelectionsAt.fields_length
     (H : RecursorFieldSelectionsAt env decl uvars bu u fields) :
     fields.length = u.size := by
@@ -20677,8 +20733,13 @@ theorem recursiveDomainsRecursor {alpha : Type}
         ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
       refine withLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
         R Hdom.consumed Hdom.isType ?_
-      let R' := R.withLocalDecl (name := name) (bi := bi)
-        Hdom.consumed Hdom.isType
+      let c' : AddInductive.Context := { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotations bi }
+      let R' : RecursorContextWF c' recLparams :=
+        R.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType
       have Hstats' := Hstats.withFVar R'.checking.tr.wf
         R'.mlctx_wf.tr.wf
       have hctx' : checkPositivityStep.VLCtx.NoIndConsts
@@ -25678,6 +25739,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (R : RecursorContextWF c recLparams)
     {fields : List (RecursorRecursiveDomainAt
       R.venv decl recLparams.length)}
+    {positions : List Nat}
     {args : List VExpr}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
@@ -25696,6 +25758,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       R.mlctx.vlctx.toCtx typeTarget)
     (hfields : RecursorFieldSelectionsAt R.venv decl recLparams.length
       bu u fields)
+    (hdecisions : RecursorFieldDecisions stats bu u positions)
     (hargs : List.Forall₂
       (TrExprS R.venv recLparams R.mlctx.vlctx) u.toList args)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R bu)
@@ -25714,7 +25777,8 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       {t' : Expr} {typeTarget' appliedTarget' : VExpr}
       {bu' u' : Array Expr}
       {fields' : List (RecursorRecursiveDomainAt
-        Rcurrent.venv decl recLparams.length)} {args' : List VExpr},
+        Rcurrent.venv decl recLparams.length)} {positions' : List Nat}
+      {args' : List VExpr},
       t'.isForall = false →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         t' typeTarget' →
@@ -25722,6 +25786,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx typeTarget' →
       RecursorFieldSelectionsAt Rcurrent.venv decl recLparams.length
         bu' u' fields' →
+      RecursorFieldDecisions stats bu' u' positions' →
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
@@ -25737,7 +25802,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       (k t' bu' u' current).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs.loop stats k
       t i bu u fuel c).WF Q := by
-  induction fuel generalizing c t i bu u depth typeTarget fields args
+  induction fuel generalizing c t i bu u depth typeTarget fields positions args
       appliedTarget with
   | zero =>
     intro _ h
@@ -25760,8 +25825,13 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
       refine withLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
         R Hdom.consumed Hdom.isType ?_
-      let R' := R.withLocalDecl (name := name) (bi := bi)
-        Hdom.consumed Hdom.isType
+      let c' : AddInductive.Context := { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotations bi }
+      let R' : RecursorContextWF c' recLparams :=
+        R.withLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType
       have Hstats' := Hstats.withFVar R'.checking.tr.wf
         R'.mlctx_wf.tr.wf
       have hctx' : VLCtx.NoIndConsts
@@ -25917,14 +25987,26 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
             change dep ∈ Hopening.fvars ++ [⟨c.ngen.curr⟩]
             exact List.mem_append_left _ hfield)
         · exact Or.inr hparam
-      refine Hclass.bind fun selected hselected => ?_
+      have HclassExact : (AddInductive.isRecArg stats dom c').WF
+          (fun selected =>
+            AddInductive.isRecArg stats dom c' = .ok selected ∧
+              ∀ target, selected = some target →
+                ∃ htarget : target < decl.types.length,
+                decl.RecursiveArgAtTarget R'.venv recLparams.length
+                  (decl.types[target]'htarget).name
+                  R'.mlctx.vlctx.toCtx (depth + 1)
+                  (sourceDom.liftN 1 0)) := by
+        intro selected hrun
+        exact ⟨hrun, Hclass selected hrun⟩
+      refine HclassExact.bind fun selected hselected => ?_
       cases selected with
       | none =>
         exact ih R' Hstats' (by omega) hctx' hopened
-          hconsumedBodyType (.nonrecursive hfields) hargsWeak Hrecent'
+          hconsumedBodyType (.nonrecursive hfields)
+          (.nonrecursive hdecisions hselected.1) hargsWeak Hrecent'
           Hopening' hnextUp happlied' happliedType'
       | some target =>
-        rcases hselected target rfl with ⟨howner, hrecursive⟩
+        rcases hselected.2 target rfl with ⟨howner, hrecursive⟩
         let cert : RecursorRecursiveDomainAt
             R'.venv decl recLparams.length := {
           fieldIndex := bu.size
@@ -25942,11 +26024,12 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
             hargsWeak (.cons harg .nil)
         exact ih R' Hstats' (by omega) hctx' hopened
           hconsumedBodyType
-          (.recursive hfields (cert := cert) rfl) hargs' Hrecent'
+          (.recursive hfields (cert := cert) rfl)
+          (.recursive hdecisions hselected.1) hargs' Hrecent'
           Hopening' hnextUp happlied' happliedType'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
-      exact Hk R rfl htype htypeType hfields hargs Hrecent
+      exact Hk R rfl htype htypeType hfields hdecisions hargs Hrecent
         Hopening (Hopening.currentFVarsIn hsourceScope) hcurrentUp
         happlied happliedType
 
@@ -25990,7 +26073,8 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       {t' : Expr} {typeTarget' appliedTarget' : VExpr}
       {bu' u' : Array Expr}
       {fields' : List (RecursorRecursiveDomainAt
-        Rcurrent.venv decl recLparams.length)} {args' : List VExpr},
+        Rcurrent.venv decl recLparams.length)} {positions' : List Nat}
+      {args' : List VExpr},
       t'.isForall = false →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         t' typeTarget' →
@@ -25998,6 +26082,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx typeTarget' →
       RecursorFieldSelectionsAt Rcurrent.venv decl recLparams.length
         bu' u' fields' →
+      RecursorFieldDecisions stats bu' u' positions' →
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
@@ -26027,7 +26112,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     intro fuel
     exact mkRecInfos.loopCtorArgs.loop.recursiveDomainsRecursorRecent
       stats head k R R Hstats (Nat.le_refl _) hwhnf hconsume hlit hctx hproj
-      htail htailType .nil .nil (RecursorRecentBoundFVarArray.empty R)
+      htail htailType .nil .nil .nil (RecursorRecentBoundFVarArray.empty R)
       (ConstructorFieldOpening.empty tail)
       htailScope (by
         apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hrootUp
@@ -26793,6 +26878,8 @@ structure RecInfoMinorTraversalShape where
   recursiveFields : Array Expr
   stats : AddInductive.InductiveStats
   recursivePositions : List Nat
+  decisions : RecursorFieldDecisions stats fields recursiveFields
+    recursivePositions
   recursivePositions_ordered : recursivePositions.Pairwise (· < ·)
   recursivePositions_lt : ∀ position ∈ recursivePositions,
     position < fields.size
@@ -38997,6 +39084,9 @@ structure BoundGeneratedRecursorRule.Semantics
     (RecursorRecursiveDomainAt context.venv decl recLparams.length)
   selection : RecursorFieldSelectionsAt context.venv decl recLparams.length
     H.allArgs H.recursiveArgs fields
+  decisionPositions : List Nat
+  decisions : RecursorFieldDecisions stats H.allArgs H.recursiveArgs
+    decisionPositions
   calls : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
     lvls context decl depth
     (fun fv => fv ∈ fieldOpening.fvars ∨
@@ -39011,7 +39101,7 @@ def BoundGeneratedRecursorRule.Semantics.recursivePositions
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}
     (S : H.Semantics Rroot decl expectedOwnerIdx) : List Nat :=
-  S.fields.map (·.fieldIndex)
+  S.decisionPositions
 
 theorem BoundGeneratedRecursorRule.Semantics.recursivePositions_ordered
     {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
@@ -39020,7 +39110,7 @@ theorem BoundGeneratedRecursorRule.Semantics.recursivePositions_ordered
     {Rroot : RecursorContextWF semanticRoot recLparams}
     (S : H.Semantics Rroot decl expectedOwnerIdx) :
     S.recursivePositions.Pairwise (· < ·) := by
-  exact S.selection.positions_ordered
+  exact S.decisions.positions_ordered
 
 theorem BoundGeneratedRecursorRule.Semantics.recursivePositions_lt
     {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
@@ -39029,9 +39119,7 @@ theorem BoundGeneratedRecursorRule.Semantics.recursivePositions_lt
     {Rroot : RecursorContextWF semanticRoot recLparams}
     (S : H.Semantics Rroot decl expectedOwnerIdx) :
     ∀ position ∈ S.recursivePositions, position < H.allArgs.size := by
-  intro position hposition
-  rcases List.mem_map.mp hposition with ⟨field, hfield, rfl⟩
-  exact S.selection.positions_lt field hfield
+  exact S.decisions.positions_lt
 
 @[simp] theorem
     BoundGeneratedRecursorRule.Semantics.recursivePositions_length
@@ -39041,7 +39129,7 @@ theorem BoundGeneratedRecursorRule.Semantics.recursivePositions_lt
     {Rroot : RecursorContextWF semanticRoot recLparams}
     (S : H.Semantics Rroot decl expectedOwnerIdx) :
     S.recursivePositions.length = H.recursiveArgs.size := by
-  rw [recursivePositions, List.length_map, S.selection.fields_length]
+  exact S.decisions.positions_length
 
 /-- Once the two alpha-independent masks agree, their executable recursive
 arrays have the same cardinality.  This isolates the sole cross-pass fact
@@ -39754,8 +39842,8 @@ theorem oneRuleSemantics
       process c R Hstats hprefix hwhnf hconsume hlit hctx hproj Htail
       HtailType htailFVars hparameterUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allArgs
-    recursiveArgs fields args hterminalNonforall Hterminal HterminalType
-    Hselection Hrecursive HfieldsRecent _Hopening _HterminalScope
+    recursiveArgs fields positions args hterminalNonforall Hterminal HterminalType
+    Hselection Hdecisions Hrecursive HfieldsRecent _Hopening _HterminalScope
     _HfieldParameterUp _HintroApplied _HintroAppliedType
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
   have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
@@ -39919,6 +40007,8 @@ theorem oneRuleSemantics
       hselectedOwnerLt hlit hctxArgs hproj
     fields := fields
     selection := Hselection
+    decisionPositions := positions
+    decisions := Hdecisions
     calls := Hcalls }
   apply Except.WF.pure
   refine Exists.intro Hrule ?_
@@ -41013,8 +41103,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       process c R Hstats hprefix hwhnf hconsume hlit hctx hproj htail
       htailType htailScope Hsuffix.parameterFVarsUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allFields
-    recursiveFields fields args HterminalNonforall Hterminal HterminalType Hselections
-    Hrecursive HfieldsRecent Hopening _HterminalScope _HfieldParameterUp
+    recursiveFields fields positions args HterminalNonforall Hterminal
+    HterminalType Hselections Hdecisions Hrecursive HfieldsRecent Hopening
+    _HterminalScope _HfieldParameterUp
     HintroApplied HintroAppliedType
   let HextArgs := HfieldsRecent.contextExtension
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
@@ -41205,14 +41296,11 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           fields := allFields
           recursiveFields := recursiveFields
           stats := stats
-          recursivePositions := fields.map (·.fieldIndex)
-          recursivePositions_ordered := Hselections.positions_ordered
-          recursivePositions_lt := by
-            intro position hposition
-            rcases List.mem_map.mp hposition with ⟨field, hfield, rfl⟩
-            exact Hselections.positions_lt field hfield
-          recursivePositions_length := by
-            rw [List.length_map, Hselections.fields_length]
+          recursivePositions := positions
+          decisions := Hdecisions
+          recursivePositions_ordered := Hdecisions.positions_ordered
+          recursivePositions_lt := Hdecisions.positions_lt
+          recursivePositions_length := Hdecisions.positions_length
           parameterTail := tail
           parameterPrefix := hprefix
           fieldResidual := Hopening.residual
