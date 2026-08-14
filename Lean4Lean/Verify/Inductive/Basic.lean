@@ -57062,6 +57062,48 @@ theorem
   rw [hsourceDomain, hdeclarationShape] at Hdomain
   exact ⟨T, S, hparameters, Hdomain, HdomainType⟩
 
+/-- The concrete owner-motive declaration mentions no interleaved executable
+index or major locals.  Its only possible free variables are the common
+parameters and strictly earlier motives, exactly the locals abstracted by the
+generated recursor binder. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveSourceScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let source := H.localContext.lctx.mkForall
+      H.recInfos[owner]!.indices
+      (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+        (.sort H.elimLevel))
+    source.FVarsIn fun fv =>
+      fv ∈ H.params.fvars ++ H.bindings.motives.fvars.take owner := by
+  dsimp only
+  rcases A.finalOwnerMotiveDomainTranslation with
+    ⟨T, _S, _hparameters, Hgenerated, _HgeneratedType⟩
+  let source := H.localContext.lctx.mkForall
+    H.recInfos[owner]!.indices
+    (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+      (.sort H.elimLevel))
+  let binders := H.params.fvars ++ H.bindings.motives.fvars.take owner
+  have Habstraction : (source.abstractList binders).FVarsIn
+      (fun _ => False) := by
+    have Hscope := Hgenerated.fvarsIn
+    exact Hscope.mono fun fv hfv => by
+      simpa [abstractForallContext, VLCtx.fvars] using hfv
+  have Hsource := FVarsIn.of_abstractList Habstraction
+  exact Hsource.mono fun fv hfv => by
+    rcases hfv with hfv | hfalse
+    · exact hfv
+    · exact False.elim hfalse
+
 /-- The generated owner-motive domain is itself an exactly sized typed
 index/major telescope.  This follows from the retained production local
 declarations, not by inspecting the translated target: the source closes the
