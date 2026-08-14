@@ -55569,6 +55569,39 @@ five-group executable telescope to the permutation-free semantic telescope;
 subsequent index alignment can therefore work under either parameter list
 without reusing an executable `isDefEq` success as an assumption. -/
 theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalPairedParameterAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          T.params.reverse S.canonical.params.reverse := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalRecursorParameterContext with ⟨T, hgenerated⟩
+  rcases A.finalPairedMotiveSeed with ⟨S, hcanonical⟩
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  refine ⟨T, S, ?_⟩
+  exact Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    hgenerated ((hcanonical.mono hbase).symm H.outVEnvWF.ordered)
+
+theorem
     RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalParameterAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -55592,11 +55625,12 @@ theorem
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse C.params.reverse := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalRecursorParameterContext with ⟨T, hgenerated⟩
-  rcases A.finalCanonicalMotiveTelescope with ⟨C, hcanonical⟩
-  refine ⟨T, C, ?_⟩
-  exact Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    hgenerated (hcanonical.symm H.outVEnvWF.ordered)
+  rcases A.finalPairedParameterAlignment with ⟨T, S, hparameters⟩
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  exact ⟨T, S.canonical.mono hbase, by
+    simpa [RecursorCanonicalMotiveTelescope.mono] using hparameters⟩
 
 /-- Final executable/canonical owner-motive comparison frame.  This packages
 the independently replayed canonical motive with the exact source domain and
