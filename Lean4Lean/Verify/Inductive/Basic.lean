@@ -23833,6 +23833,22 @@ theorem Expr.ForallTelescope.consumeTypeAnnotations_eq_self
   | cons H =>
     apply Expr.consumeTypeAnnotations_eq_self <;> rfl
 
+/-- Removing a possible top-level binder annotation preserves the number of
+leading forall binders.  In the zero-binder case the residual may itself be
+the annotation payload, so it is retained existentially. -/
+theorem Expr.ForallTelescope.consumeTypeAnnotations_arity
+    (H : Expr.ForallTelescope outer arity body) :
+    ∃ residual, Expr.ForallTelescope outer.consumeTypeAnnotations
+      arity residual := by
+  cases H with
+  | nil => exact ⟨_, .nil _⟩
+  | @cons body arity result name dom bi Htail =>
+      have houter :
+          (Expr.forallE name dom body bi).consumeTypeAnnotations =
+            Expr.forallE name dom body bi := by
+        apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+      exact ⟨_, houter ▸ Expr.ForallTelescope.cons Htail⟩
+
 theorem Expr.LambdaTelescope.abstract1
     (H : Expr.LambdaTelescope outer arity result)
     (fv : FVarId) (k : Nat := 0) :
@@ -27115,6 +27131,17 @@ theorem RecInfoMinorTypeShape.sourceTelescope
   have Hhypotheses :=
     S.hypothesisTelescope.abstractList S.fields_bound.fvars
   simpa only [Nat.zero_add] using Hfields.trans Hhypotheses
+
+/-- The annotation-consumed origin installed as the minor declaration keeps
+the complete field/hypothesis arity of its unconsumed production source. -/
+theorem RecInfoMinorTypeShape.originTelescope
+    (S : RecInfoMinorTypeShape) :
+    ∃ residual, Expr.ForallTelescope S.origin
+      (S.fields.size + S.hypotheses.size) residual := by
+  rcases S.sourceTelescope.consumeTypeAnnotations_arity with
+    ⟨residual, Htelescope⟩
+  rw [S.consumed_eq] at Htelescope
+  exact ⟨residual, Htelescope⟩
 
 /-- Exact `withLocalDecl` origin types retained in the same row structure as
 production `RecInfo`s.  Per-owner rows avoid losing the insertion position of
