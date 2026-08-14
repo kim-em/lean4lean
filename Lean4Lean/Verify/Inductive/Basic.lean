@@ -21871,6 +21871,25 @@ theorem TrExprS.forallTelescope_shape
 def abstractForallContext (domains : List VExpr) (Δ : VLCtx) : VLCtx :=
   (domains.reverse.map fun type => (none, .vlam type)) ++ Δ
 
+@[simp] theorem abstractForallContext_fvars
+    (domains : List VExpr) (Δ : VLCtx) :
+    (abstractForallContext domains Δ).fvars = Δ.fvars := by
+  rw [abstractForallContext, VLCtx.fvars_append]
+  have hnone : VLCtx.fvars
+      (domains.reverse.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) = [] := by
+    let types := domains.reverse
+    change VLCtx.fvars
+      (types.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) = []
+    induction types with
+    | nil => rfl
+    | cons type types ih =>
+      simp only [List.map_cons, VLCtx.fvars_cons_none, ih]
+  rw [hnone, List.nil_append]
+
 @[simp] theorem VLCtx.toCtx_map_anonymousLams (types : List VExpr) :
     VLCtx.toCtx (types.map fun type =>
       ((none, .vlam type) :
@@ -32474,18 +32493,17 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             some (Hheader.recursorAbstractLevels Helim) := by
           cases elimLevel with
           | zero =>
-            simpa [CheckedRecursorHeaderAt.recursorAbstractLevels,
-              CheckedRecursorHeaderAt.abstractLevels,
+            simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
+              mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
               AddInductive.getRecLevelParams] using
               Hheader.materialized.levelTranslation
           | param fresh =>
             have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim
               Hheader.materialized.levelTranslation
-            simpa [CheckedRecursorHeaderAt.recursorAbstractLevels,
-              CheckedRecursorHeaderAt.abstractLevels,
+            simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
+              mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
               AddInductive.getRecLevelParams] using hshifted
-          | succ level | max level₁ level₂ | imax level₁ level₂ |
-              mvar id =>
+          | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
             simp [AddInductive.AdmissibleElimLevel] at Helim
         let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx
             nextInfo elimLevel := {
@@ -57096,8 +57114,7 @@ theorem
   have Habstraction : (source.abstractList binders).FVarsIn
       (fun _ => False) := by
     have Hscope := Hgenerated.fvarsIn
-    exact Hscope.mono fun fv hfv => by
-      simpa [abstractForallContext, VLCtx.fvars] using hfv
+    exact Hscope.mono fun fv hfv => by simpa using hfv
   have Hsource := FVarsIn.of_abstractList Habstraction
   exact Hsource.mono fun fv hfv => by
     rcases hfv with hfv | hfalse
@@ -57993,7 +58010,7 @@ theorem
       fieldDomains
   have HcanonicalCtx : OnCtx canonicalDomains.reverse
       (H.outVEnv.IsType Us.length) :=
-    (Hfull.symm H.outVEnvWF.ordered).isType
+    Hfull.isType
   have HprefixCanonical : H.outVEnv.HasType Us.length
       canonicalDomains.reverse prefixTarget
       ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
@@ -58025,14 +58042,20 @@ theorem
       motiveDomains.reverse).reverse
   let expectedDomains :=
     (liftContextPrefix fieldDomains.length expected.reverse).reverse
-  have HalignedCached := Haligned.defeqDFC H.outVEnvWF.ordered Hfull
-  rcases HalignedCached with ⟨typeLevel, HalignedCached⟩
+  have HalignedCanonical : H.outVEnv.IsDefEqU Us.length
+      canonicalDomains.reverse
+      ((VExpr.wrapForalls suffix T.result).liftN fieldDomains.length 0)
+      (VExpr.wrapForalls expectedDomains
+        (T.result.liftN fieldDomains.length suffix.length)) := by
+    simpa [canonicalDomains, suffix, later, expected, expectedDomains,
+      List.reverse_append] using Haligned
+  have HalignedCached :=
+    HalignedCanonical.defeqDFC H.outVEnvWF.ordered Hfull
   have HprefixExpected : H.outVEnv.HasType Us.length cachedDomains.reverse
       prefixTarget
       (VExpr.wrapForalls expectedDomains
         (T.result.liftN fieldDomains.length suffix.length)) := by
-    apply HalignedCached.defeq
-    simpa [cachedDomains] using HprefixCached
+    exact HprefixCached.defeqU_r H.outVEnvWF HcachedCtx HalignedCached
   refine ⟨motiveDomains, resultLevel, hdomainLength, hmotive,
     HprefixExpected, ?_, ?_⟩
   · simpa [cachedDomains, suffix, later, expected, expectedDomains] using
@@ -60455,7 +60478,8 @@ theorem
                 familyTarget familyType) ∧
           indexTargets.length = T.indices.length ∧
           indexTargets.length = C.indices.length ∧
-          (let ownerTarget := .bvar
+          (let added := T.motives ++ T.minors ++ fieldDomains
+            let ownerTarget := .bvar
               (fieldDomains.length +
                 (T.motives.drop (owner + 1) ++ T.minors).length)
             H.outVEnv.HasType Us.length cachedDomains.reverse ownerTarget
@@ -60657,6 +60681,7 @@ theorem
       omega
   have hfamilyTargetCanonical :
       familyTarget = C.family.liftN added.length 0 := by
+    dsimp only [familyTarget]
     rw [C.family_eq]
     simp only [C.params_length, VExpr.liftN_mkApps]
     rw [hcanonicalFamilyLevels, hparameterTargetsLifted]
@@ -60677,7 +60702,7 @@ theorem
     exact HmajorCached
   have hindexCanonical : indexTargets.length = C.indices.length := by
     rw [hindexLength, T.indices_length, C.indices_length]
-  let ownerTarget := .bvar
+  let ownerTarget : VExpr := .bvar
     (fieldDomains.length +
       (T.motives.drop (owner + 1) ++ T.minors).length)
   have HapplyCanonical : H.outVEnv.HasType Us.length cachedDomains.reverse
