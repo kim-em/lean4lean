@@ -66193,6 +66193,132 @@ theorem
         A.rule.all_args_bound.length_fvars,
         List.append_assoc] using houter
 
+/-- Parameter closure and motive/minor insertion leave the recursive major's
+canonical field/local de Bruijn spine unchanged.  The result is exactly the
+complete rule-binder abstraction emitted by production. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.insertedSemanticMajorSource_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+    let inserted := T.motives ++ T.minors
+    (((F.semantic.generated.outerAbstractedMajor
+      A.rule.all_args_bound.fvars).abstractList
+        A.rule.params_bound.fvars cutoff).liftLooseBVars'
+          cutoff inserted.length) =
+      F.semantic.generated.outerAbstractedMajor A.rule.binders := by
+  let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+  let inserted := T.motives ++ T.minors
+  rcases F.finalAppliedMajorTarget with
+    ⟨localDomains, fieldDomains, fv, fieldVar,
+      hlocal, hfields, _hfieldVar, hfieldEq, hfield,
+      hfieldSource, _Hmajor, _htarget⟩
+  have hfieldRoot : fv ∈ A.rule.root.lctx.fvars :=
+    A.rule.all_args_bound.members fv hfield
+  rcases F.semantic.generated.outerAbstractedMajor_eq_bvar_of_field_eq
+      hfieldEq hfieldRoot A.rule.all_args_nodup hfield with
+    ⟨allFieldVar, _hallBound, hallSource, hallShape⟩
+  rw [hfieldSource] at hallSource
+  cases hallSource
+  have hfieldFull : fv ∈ A.rule.binders := by
+    unfold BoundGeneratedRecursorRule.binders
+    exact List.mem_append_right _ hfield
+  have hnotOuter : fv ∉
+      (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
+        A.rule.minors_bound.fvars :=
+    A.rule.all_args_outer_fresh fv hfield
+  have hfullSource : (Expr.fvar fv).abstractList A.rule.binders =
+      .bvar fieldVar := by
+    unfold BoundGeneratedRecursorRule.binders
+    rw [Expr.abstractList_append,
+      Expr.abstractList_fvar_of_not_mem hnotOuter, hfieldSource]
+  rcases F.semantic.generated.outerAbstractedMajor_eq_bvar_of_field_eq
+      hfieldEq hfieldRoot A.rule.binders_nodup hfieldFull with
+    ⟨fullFieldVar, _hfullBound, hfullSource', hfullShape⟩
+  have hfullSource'' : (Expr.fvar fv).abstractList A.rule.binders =
+      .bvar fullFieldVar := by
+    simpa [BoundGeneratedRecursorRule.binders,
+      List.append_assoc] using hfullSource'
+  rw [hfullSource] at hfullSource''
+  cases hfullSource''
+  have hfullShape' :
+      F.semantic.generated.outerAbstractedMajor A.rule.binders =
+        mkAppN (.bvar (F.semantic.generated.localArgs.size + fieldVar))
+          (F.semantic.generated.localIndices.map Expr.bvar).toArray := by
+    simpa [BoundGeneratedRecursorRule.binders,
+      List.append_assoc] using hfullShape
+  have hbaseFull :
+      F.semantic.generated.outerAbstractedMajor
+          A.rule.all_args_bound.fvars =
+        F.semantic.generated.outerAbstractedMajor A.rule.binders := by
+    rw [hallShape, hfullShape']
+  rcases F.cachedSemanticCallArgumentFrame with
+    ⟨_binding, _evidence, _scope, _Hscope,
+      cachedFields, cachedLocals, _narrowIndices, _narrowMajor,
+      _hfront, hcachedFields, hcachedLocals, _Hctx, _hlength,
+      _Hindices, HcachedMajor, _HindexEq, _HmajorEq⟩
+  have hparameterNoBV : H.parameterSuffix.parameterDecls.bvars = 0 := by
+    have h := H.recursorWF.mlctx.noBV
+    rw [H.parameterSuffix.context] at h
+    change (H.parameterSuffix.ambientDecls ++
+      H.parameterSuffix.parameterDecls).bvars = 0 at h
+    rw [VLCtx.bvars_append] at h
+    omega
+  have hclosed : Closed
+      (F.semantic.generated.outerAbstractedMajor
+        A.rule.all_args_bound.fvars) cutoff := by
+    have h := HcachedMajor.closed
+    rw [abstractForallContext_bvars, hparameterNoBV,
+      Nat.add_zero] at h
+    simpa [cutoff, hcachedFields, hcachedLocals,
+      Nat.add_comm] using h
+  have hnoFVars :
+      (F.semantic.generated.outerAbstractedMajor
+        A.rule.all_args_bound.fvars).FVarsIn (fun _ => False) := by
+    rw [hallShape, Expr.mkAppN_eq_mkAppList]
+    apply FVarsIn.mkAppList.mpr
+    constructor
+    · trivial
+    · intro arg harg
+      have harg' : arg ∈
+          F.semantic.generated.localIndices.map Expr.bvar := by
+        simpa using harg
+      rcases List.mem_map.mp harg' with ⟨index, _hindex, rfl⟩
+      trivial
+  have havoidsParams :
+      (F.semantic.generated.outerAbstractedMajor
+        A.rule.all_args_bound.fvars).FVarsIn
+          (· ∉ A.rule.params_bound.fvars) :=
+    hnoFVars.mono fun _ h => False.elim h
+  have hparamAbstract :
+      (F.semantic.generated.outerAbstractedMajor
+        A.rule.all_args_bound.fvars).abstractList
+          A.rule.params_bound.fvars cutoff =
+      F.semantic.generated.outerAbstractedMajor
+        A.rule.all_args_bound.fvars := by
+    exact havoidsParams.abstractList_eq_self hclosed
+  dsimp only
+  rw [hparamAbstract,
+    Expr.liftLooseBVars_eq_self hclosed.looseBVarRange_le,
+    hbaseFull]
+
 /-- Canonical-source form of `insertedSemanticIndexFrame`.  The transported
 recursive indices now have exactly the source expressions emitted in the
 production equation, while retaining the narrowed semantic targets and the
