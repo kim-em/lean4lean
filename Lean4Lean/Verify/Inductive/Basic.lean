@@ -63841,7 +63841,8 @@ theorem
         ∃ scope,
           ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
-            ∃ fieldDomains localDomains narrowIndices narrowMajor,
+            ∃ fieldDomains localDomains narrowIndices narrowMajor
+                narrowExposed,
               Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
               fieldDomains.length = A.rule.allArgs.size ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
@@ -63870,6 +63871,19 @@ theorem
                 ((F.semantic.generated.outerAbstractedMajor
                   A.rule.all_args_bound.fvars).abstractList
                     A.rule.params_bound.fvars cutoff) narrowMajor ∧
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ fieldDomains ++
+                    localDomains) [])
+                (((F.semantic.generated.exposedType.abstractList
+                  F.semantic.generated.arguments_bound.fvars).abstractList
+                    A.rule.all_args_bound.fvars
+                    F.semantic.generated.localArgs.size).abstractList
+                      A.rule.params_bound.fvars cutoff) narrowExposed ∧
+              H.outVEnv.HasType Us.length
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ fieldDomains ++
+                    localDomains) []).toCtx narrowMajor narrowExposed ∧
               List.Forall₂
                 (fun narrow full => H.outVEnv.IsDefEqU Us.length
                   F.semantic.current_context.mlctx.vlctx.toCtx
@@ -63887,8 +63901,8 @@ theorem
   let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
   rcases F.cachedSemanticCallArgumentFrame with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-      narrowIndices, narrowMajor, _narrowExposed, hfront, hfields, hlocal,
-      Hctx, hlength, Hindices, Hmajor, _Hexposed, _Htyping,
+      narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hlocal,
+      Hctx, hlength, Hindices, Hmajor, Hexposed, Htyping,
       HindexEq, HmajorEq⟩
   have hparamsNodup : A.rule.params_bound.fvars.Nodup :=
     (List.nodup_append.mp
@@ -63937,15 +63951,30 @@ theorem
       narrowIndices := by
     simpa [List.map_map, Function.comp_def] using HclosedIndices
   have HclosedMajor := closeSource Hmajor
+  have HclosedExposed := closeSource Hexposed
   have HclosedCtx : OnCtx
       (abstractForallContext
         (parameterDecls.toCtx.reverse ++ fieldDomains ++ localDomains) []).toCtx
       (H.outVEnv.IsType Us.length) := by
     simpa [parameterDecls, Us, List.reverse_append, List.append_assoc,
       VLCtx.toCtx] using Hctx
+  have HclosedTyping : H.outVEnv.HasType Us.length
+      (abstractForallContext
+        (parameterDecls.toCtx.reverse ++ fieldDomains ++ localDomains) []).toCtx
+      narrowMajor narrowExposed := by
+    have hcontext :
+        (abstractForallContext
+          (parameterDecls.toCtx.reverse ++ fieldDomains ++ localDomains) []).toCtx =
+        (abstractForallContext (fieldDomains ++ localDomains)
+          parameterDecls).toCtx := by
+      simp [parameterDecls, List.reverse_append, List.append_assoc,
+        VLCtx.toCtx]
+    rw [hcontext]
+    exact Htyping
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-    narrowIndices, narrowMajor, hfront, hfields, hlocal, HclosedCtx,
-    hlength, HclosedIndices', HclosedMajor, HindexEq, HmajorEq⟩
+    narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hlocal,
+    HclosedCtx, hlength, HclosedIndices', HclosedMajor, HclosedExposed,
+    HclosedTyping, HindexEq, HmajorEq⟩
 
 /-- Insert the generated motive/minor block beneath the parameter-closed
 field/local telescope.  Both the dependent domains and recursive-index
@@ -64125,7 +64154,7 @@ theorem
           ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
             ∃ (fieldDomains localDomains liftedFront : List VExpr)
-                (narrowIndices : List VExpr) (narrowMajor : VExpr),
+                (narrowIndices : List VExpr) (narrowMajor narrowExposed : VExpr),
               Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
               liftedFront =
                 (liftContextPrefix inserted.length
@@ -64160,6 +64189,22 @@ theorem
                     A.rule.params_bound.fvars cutoff).liftLooseBVars'
                       cutoff inserted.length)
                 (narrowMajor.liftN inserted.length cutoff) ∧
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) [])
+                (((((F.semantic.generated.exposedType.abstractList
+                  F.semantic.generated.arguments_bound.fvars).abstractList
+                    A.rule.all_args_bound.fvars
+                    F.semantic.generated.localArgs.size).abstractList
+                      A.rule.params_bound.fvars cutoff).liftLooseBVars'
+                        cutoff inserted.length))
+                (narrowExposed.liftN inserted.length cutoff) ∧
+              H.outVEnv.HasType Us.length
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront)
+                  []).toCtx
+                (narrowMajor.liftN inserted.length cutoff)
+                (narrowExposed.liftN inserted.length cutoff) ∧
               List.Forall₂
                 (fun narrow full => H.outVEnv.IsDefEqU Us.length
                   F.semantic.current_context.mlctx.vlctx.toCtx
@@ -64178,8 +64223,9 @@ theorem
   let inserted := T.motives ++ T.minors
   rcases F.parameterClosedSemanticCallArgumentFrame with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-      narrowIndices, narrowMajor, hfront, hfields, hlocal, HclosedCtx,
-      hlength, Hindices, Hmajor, HindexEq, HmajorEq⟩
+      narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hlocal,
+      HclosedCtx, hlength, Hindices, Hmajor, Hexposed, Htyping,
+      HindexEq, HmajorEq⟩
   let liftedFront :=
     (liftContextPrefix inserted.length
       (fieldDomains ++ localDomains).reverse).reverse
@@ -64257,6 +64303,7 @@ theorem
     | nil => exact .nil
     | cons Hsource _ ih => exact .cons (liftSource Hsource) ih
   have HliftedIndices := liftSources Hindices
+  have HliftedExposed := liftSource Hexposed
   have HliftedIndices' : List.Forall₂
       (TrExprS H.outVEnv Us
         (abstractForallContext
@@ -64271,10 +64318,22 @@ theorem
       (narrowIndices.map fun target =>
         target.liftN inserted.length cutoff) := by
     simpa [List.map_map, Function.comp_def] using HliftedIndices
+  have W : Ctx.LiftN inserted.length cutoff
+      (abstractForallContext
+        (parameterDecls.toCtx.reverse ++ fieldDomains ++ localDomains) []).toCtx
+      (abstractForallContext
+        (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []).toCtx := by
+    rw [← hcutoff]
+    have W' := Ctx.LiftN.insertAfterPrefix
+      (fieldDomains ++ localDomains).reverse inserted.reverse
+      parameterDecls.toCtx
+    simpa [liftedFront, Nat.add_comm, List.reverse_append, List.append_assoc,
+      VLCtx.toCtx] using W'
+  have HliftedTyping := Htyping.weakN H.outVEnvWF.ordered W
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-    liftedFront, narrowIndices, narrowMajor, hfront, rfl, hfields, hlocal,
-    HequationCtx, hlength, HliftedIndices', liftSource Hmajor,
-    HindexEq, HmajorEq⟩
+    liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront, rfl,
+    hfields, hlocal, HequationCtx, hlength, HliftedIndices', liftSource Hmajor,
+    HliftedExposed, HliftedTyping, HindexEq, HmajorEq⟩
 
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
@@ -67204,7 +67263,7 @@ theorem
           ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
             ∃ (fieldDomains localDomains liftedFront : List VExpr)
-                (narrowIndices : List VExpr) (narrowMajor : VExpr),
+                (narrowIndices : List VExpr) (narrowMajor narrowExposed : VExpr),
               Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
               liftedFront =
                 (liftContextPrefix inserted.length
@@ -67233,6 +67292,22 @@ theorem
                   (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) [])
                 (F.semantic.generated.outerAbstractedMajor A.rule.binders)
                 (narrowMajor.liftN inserted.length cutoff) ∧
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) [])
+                (((((F.semantic.generated.exposedType.abstractList
+                  F.semantic.generated.arguments_bound.fvars).abstractList
+                    A.rule.all_args_bound.fvars
+                    F.semantic.generated.localArgs.size).abstractList
+                      A.rule.params_bound.fvars cutoff).liftLooseBVars'
+                        cutoff inserted.length))
+                (narrowExposed.liftN inserted.length cutoff) ∧
+              H.outVEnv.HasType Us.length
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront)
+                  []).toCtx
+                (narrowMajor.liftN inserted.length cutoff)
+                (narrowExposed.liftN inserted.length cutoff) ∧
               List.Forall₂
                 (fun narrow full => H.outVEnv.IsDefEqU Us.length
                   F.semantic.current_context.mlctx.vlctx.toCtx
@@ -67244,8 +67319,9 @@ theorem
                 (narrowMajor.lift' Hscope.shift) := by
   rcases F.insertedSemanticCallArgumentFrame T with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-      liftedFront, narrowIndices, narrowMajor, hfront, hliftedFront,
-      hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+      liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
+      hliftedFront, hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+      Hexposed, Htyping,
       HindexEq, HmajorEq⟩
   have hindices := F.insertedSemanticIndexSources_eq T
   dsimp only at hindices
@@ -67254,8 +67330,9 @@ theorem
   dsimp only at hmajor
   rw [hmajor] at Hmajor
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-    liftedFront, narrowIndices, narrowMajor, hfront, hliftedFront,
-    hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+    liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
+    hliftedFront, hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+    Hexposed, Htyping,
     HindexEq, HmajorEq⟩
 
 /-- Assemble the call-selected recursor head with the rule's common
@@ -67793,8 +67870,10 @@ theorem
         F.semantic.generated.arguments_bound.fvars)
   rcases F.canonicalInsertedSemanticCallArgumentFrame T with
     ⟨_binding, evidence, _scope, Hscope, fieldDomains, rawLocalDomains,
-      liftedFront, narrowIndices, narrowMajor, _hfront, hliftedFront,
+      liftedFront, narrowIndices, narrowMajor, _narrowExposed, _hfront,
+      hliftedFront,
       hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+      _Hexposed, _Htyping,
       HindexEq, _HmajorEq⟩
   let parameterDecls := H.parameterSuffix.parameterDecls
   let inserted := T.motives ++ T.minors
@@ -67970,8 +68049,10 @@ theorem
         F.semantic.generated.arguments_bound.fvars)
   rcases F.canonicalInsertedSemanticCallArgumentFrame T with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
-      liftedFront, narrowIndices, narrowMajor, _hfront, hliftedFront,
+      liftedFront, narrowIndices, narrowMajor, _narrowExposed, _hfront,
+      hliftedFront,
       hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+      _Hexposed, _Htyping,
       HindexEq, _HmajorEq⟩
   let parameterDecls := H.parameterSuffix.parameterDecls
   let inserted := T.motives ++ T.minors
