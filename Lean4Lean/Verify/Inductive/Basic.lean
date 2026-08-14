@@ -29440,12 +29440,21 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
     ∃ Hcanonical : RecursorMotiveCanonicalFrameWF R stats familyIdx
         indices elimLevel Hframe,
       R.venv.IsDefEqU
-        (AddInductive.getRecLevelParams elimLevel c.lparams).length
-        R.mlctx.vlctx.toCtx
-        ((VExpr.wrapForalls Hframe.indexDomains
-          (.forallE Hframe.majorTarget
-            (.sort Hframe.resultLevel))).liftN indices.size 0)
-        Hcanonical.motiveType := by
+          (AddInductive.getRecLevelParams elimLevel c.lparams).length
+          R.mlctx.vlctx.toCtx
+          ((VExpr.wrapForalls Hframe.indexDomains
+            (.forallE Hframe.majorTarget
+              (.sort Hframe.resultLevel))).liftN indices.size 0)
+          Hcanonical.motiveType ∧
+        R.venv.IsDefEqU
+          (AddInductive.getRecLevelParams elimLevel c.lparams).length
+          (R.mlctx.vlctx.toCtx.drop indices.size)
+          (VExpr.wrapForalls Hframe.indexDomains
+            (.forallE Hframe.majorTarget
+              (.sort Hframe.resultLevel)))
+          (VExpr.wrapForalls Hruntime.frontExpandedDomains
+            (.forallE Hframe.majorSourceTarget
+              (.sort Hframe.resultLevel))) := by
   rcases H.completedRecursorCanonicalMotiveFrame Helim R Hsynthesis Hstats
       Hruntime henv hindices Hframe with
     ⟨Hcanonical, _hfamilyType, hmotiveType⟩
@@ -29563,7 +29572,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
       hmotiveType
   have hresult := hreopened'.symm
   rw [← hnatural', ← hmotiveType'] at hresult
-  exact ⟨Hcanonical, ⟨_, hresult⟩⟩
+  exact ⟨Hcanonical, ⟨_, hresult⟩, ⟨_, hclosedRuntime.symm⟩⟩
 
 theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyApplication
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -32112,7 +32121,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         rcases Hheader.completedRecursorMotiveTypeDefEq Helim Rindices
             Hsynthesis HnarrowStats Hruntime HnarrowIndices hcanonical
             HindexOrigins.bound henvIndices hindicesSize hfront Hframe with
-          ⟨Hcanonical, HmotiveCanonical⟩
+          ⟨Hcanonical, HmotiveCanonical, HmotiveCanonicalClosed⟩
         let majorTy :=
           (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
             indices).consumeTypeAnnotations
