@@ -55657,10 +55657,10 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us.length stats decl
-          owner H.recInfos[owner]! H.elimLevel,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
-            T.params.reverse C.params.reverse ∧
+            T.params.reverse S.canonical.params.reverse ∧
         ∃ D : BoundFVarDeclarationAt H.localContext
             (H.recInfos.map (·.motive)) owner,
           D.type = H.origins.motiveTypes[owner]! ∧
@@ -55686,8 +55686,8 @@ theorem
                 (T.params ++ T.motives.take owner) []).toCtx
               T.motives[owner]! := by
   dsimp only
-  rcases A.finalCanonicalParameterAlignment with
-    ⟨T, C, hparameters⟩
+  rcases A.finalPairedParameterAlignment with
+    ⟨T, S, hparameters⟩
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
   have hmotive : owner < T.motives.length := by
@@ -55730,7 +55730,7 @@ theorem
       (H.params.fvars ++ H.bindings.motives.fvars.take owner) := by
     have heq := HsourceBinder.unique HoriginBinder'
     simpa [selections, RecInfoBindings.toRecursorLocalSelections] using heq
-  exact ⟨T, C, hparameters, D, hdeclarationOrigin, hdeclarationShape,
+  exact ⟨T, S, hparameters, D, hdeclarationOrigin, hdeclarationShape,
     suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
     Hsource, hsource, hsourceDomain,
     by simpa [getElem!_pos T.motives owner hmotive] using Hdomain,
@@ -55759,10 +55759,10 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us.length stats decl
-          owner H.recInfos[owner]! H.elimLevel,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
-            T.params.reverse C.params.reverse ∧
+            T.params.reverse S.canonical.params.reverse ∧
         TrExprS H.outVEnv Us
           (abstractForallContext
             (T.params ++ T.motives.take owner) [])
@@ -55777,11 +55777,11 @@ theorem
           T.motives[owner]! := by
   dsimp only
   rcases A.finalOwnerMotiveFrame with
-    ⟨T, C, hparameters, D, _hdeclarationOrigin, hdeclarationShape,
+    ⟨T, S, hparameters, D, _hdeclarationOrigin, hdeclarationShape,
       suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
       _Hsource, _hsource, hsourceDomain, Hdomain, HdomainType⟩
   rw [hsourceDomain, hdeclarationShape] at Hdomain
-  exact ⟨T, C, hparameters, Hdomain, HdomainType⟩
+  exact ⟨T, S, hparameters, Hdomain, HdomainType⟩
 
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
