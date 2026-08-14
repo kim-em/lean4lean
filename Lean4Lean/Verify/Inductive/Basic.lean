@@ -60317,6 +60317,15 @@ theorem
               H.outVEnv.HasType Us.length cachedDomains.reverse
                 familyTarget familyType) ∧
           indexTargets.length = T.indices.length ∧
+          indexTargets.length = C.indices.length ∧
+          (let ownerTarget := .bvar
+              (fieldDomains.length +
+                (T.motives.drop (owner + 1) ++ T.minors).length)
+            H.outVEnv.HasType Us.length cachedDomains.reverse ownerTarget
+                (C.motiveType.liftN added.length 0) →
+              H.outVEnv.HasType Us.length cachedDomains.reverse
+                (.app (VExpr.mkApps ownerTarget indexTargets) majorTarget)
+                (.sort C.resultLevel)) ∧
           List.Forall₂
             (TrExprS H.outVEnv Us
               (abstractForallContext cachedDomains []))
@@ -60529,6 +60538,28 @@ theorem
       (VExpr.mkApps (C.family.liftN added.length 0) indexTargets) := by
     rw [← hfamilyTargetCanonical, ← hfamilyApplication]
     exact HmajorCached
+  have hindexCanonical : indexTargets.length = C.indices.length := by
+    rw [hindexLength, T.indices_length, C.indices_length]
+  let ownerTarget := .bvar
+    (fieldDomains.length +
+      (T.motives.drop (owner + 1) ++ T.minors).length)
+  have HapplyCanonical : H.outVEnv.HasType Us.length cachedDomains.reverse
+        ownerTarget (C.motiveType.liftN added.length 0) →
+      H.outVEnv.HasType Us.length cachedDomains.reverse
+        (.app (VExpr.mkApps ownerTarget indexTargets) majorTarget)
+        (.sort C.resultLevel) := by
+    intro HmotiveCanonical
+    have Happ := C.applyMajorTypedAfterDefEq H.outVEnvWF
+      parameterDecls.toCtx added hcanonicalParams
+      (by simpa [cachedDomains, added, List.reverse_append,
+        List.append_assoc] using HcachedCtx)
+      indexTargets hindexCanonical ownerTarget majorTarget
+      (by simpa [cachedDomains, added, List.reverse_append,
+        List.append_assoc] using HmotiveCanonical)
+      (by simpa [cachedDomains, added, List.reverse_append,
+        List.append_assoc] using HmajorCanonical)
+    simpa [cachedDomains, added, List.reverse_append,
+      List.append_assoc] using Happ
   have HfieldResultType := HmajorCached.isType H.outVEnvWF HcachedCtx
   have HfieldResultWF : VExpr.WF H.outVEnv Us.length cachedDomains.reverse
       (fieldResult.liftN
@@ -60547,7 +60578,7 @@ theorem
     HparameterTargets, hparameterTargets,
     (by exact ⟨familyType, hfamilyTargetCanonical,
       hfamilyApplication, Hfamily⟩),
-    hindexLength, HindexTargets⟩
+    hindexLength, hindexCanonical, HapplyCanonical, HindexTargets⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
