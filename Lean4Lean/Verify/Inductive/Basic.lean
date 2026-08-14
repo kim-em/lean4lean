@@ -40679,8 +40679,8 @@ theorem RecursorLocalSelections.minorBinderAt
           (H.motives.fvars ++ H.minors.fvars.take minorIdx)).abstractList
           H.params.fvars (H.motives.fvars.length + minorIdx) =
         D.type.abstractList
-          (H.params.fvars ++ H.motives.fvars ++
-            H.minors.fvars.take minorIdx) := by
+          (H.params.fvars ++ (H.motives.fvars ++
+            H.minors.fvars.take minorIdx)) := by
     have Hclose := Expr.abstractList_after_inner
       (e := D.type) (outer := H.params.fvars)
       (inner := H.motives.fvars ++ H.minors.fvars.take minorIdx)
@@ -40689,13 +40689,33 @@ theorem RecursorLocalSelections.minorBinderAt
       Nat.min_eq_left (Nat.le_of_lt hminorFVars), List.append_assoc]
       using Hclose
   have Hparams := H.params.forallTelescope motiveSource
-  have Hraw := Hparams.prependBinderAt (by
-    simpa [Nat.zero_add, hdomainParams, Nat.add_assoc] using HthroughParams)
   have hparamsLength : H.params.fvars.length = stats.params.size := by
     rw [← H.params.size]
   have hmotivesLength : H.motives.fvars.length =
       (recInfos.map (·.motive)).size := by
     rw [← H.motives.size]
+  have hmotivesLength' : H.motives.fvars.length = recInfos.size := by
+    simpa using hmotivesLength
+  have HrawBase := Hparams.prependBinderAt (by
+    simpa [Nat.zero_add, Nat.add_assoc] using HthroughParams)
+  have hdomainParamsStats :
+      (D.type.abstractList
+          (H.motives.fvars ++ H.minors.fvars.take minorIdx)).abstractList
+          H.params.fvars (recInfos.size + minorIdx) =
+        D.type.abstractList
+          (H.params.fvars ++ (H.motives.fvars ++
+            H.minors.fvars.take minorIdx)) := by
+    rw [← hmotivesLength']
+    exact hdomainParams
+  rw [hdomainParamsStats] at HrawBase
+  have Hraw : Expr.ForallBinderAt
+      (c.lctx.mkForall stats.params motiveSource)
+      (H.params.fvars.length + (H.motives.fvars.length + minorIdx))
+      (D.type.abstractList
+        (H.params.fvars ++ (H.motives.fvars ++
+          H.minors.fvars.take minorIdx))) := by
+    simpa [hparamsLength, hmotivesLength, Nat.add_assoc] using
+      HrawBase
   simpa [motiveSource, minorSource, minorBody, hparamsLength,
     hmotivesLength, Nat.add_assoc] using Hraw.inferImplicit 1000 false
 
@@ -47898,18 +47918,27 @@ theorem GeneratedRecursorTelescopeTranslation.minorBinder
     change (T.params ++
       (T.motives ++ (T.minors ++ (T.indices ++ T.major)))).take
         (T.params.length + T.motives.length + minorIdx) = _
-    rw [List.take_length_add_append]
+    rw [show T.params ++
+        (T.motives ++ (T.minors ++ (T.indices ++ T.major))) =
+      (T.params ++ T.motives) ++
+        (T.minors ++ (T.indices ++ T.major)) by simp]
+    rw [show T.params.length + T.motives.length + minorIdx =
+      (T.params ++ T.motives).length + minorIdx by simp]
     rw [List.take_length_add_append]
     rw [List.take_append_of_le_length (Nat.le_of_lt hminor)]
-    simp [List.append_assoc]
   have hselected :
       domains[T.params.length + T.motives.length + minorIdx] =
         T.minors[minorIdx] := by
     simp only [domains]
     rw [List.getElem_append_right (by omega)]
-    simp only [Nat.add_sub_cancel_left]
+    have hoffParams :
+        T.params.length + T.motives.length + minorIdx - T.params.length =
+          T.motives.length + minorIdx := by omega
+    simp only [hoffParams]
     rw [List.getElem_append_right (by omega)]
-    simp only [Nat.add_sub_cancel_left]
+    have hoffMotives :
+        T.motives.length + minorIdx - T.motives.length = minorIdx := by omega
+    simp only [hoffMotives]
     rw [List.getElem_append_left hminor]
   rw [htake, hselected] at Hdomain HdomainType
   exact ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
@@ -57935,17 +57964,25 @@ theorem
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
   have HoriginBinder := selections.minorBinderAt hselectionNoAlias D
+  have HoriginBinderStats : Expr.ForallBinderAt
+      (H.generated.entry owner howner).info.type
+      (stats.params.size + (H.recInfos.map (·.motive)).size + minorIdx)
+      (D.type.abstractList
+        (H.params.fvars ++ H.bindings.motives.fvars ++
+          H.bindings.flatMinors.fvars.take minorIdx)) := by
+    rw [(H.generated.entry owner howner).type]
+    simpa [selections,
+      RecInfoBindings.toRecursorLocalSelections,
+      BoundFVarArray.toLocalForallSelection, List.append_assoc] using
+      HoriginBinder
   have HoriginBinder' : Expr.ForallBinderAt
       (H.generated.entry owner howner).info.type
       (T.params.length + T.motives.length + minorIdx)
       (D.type.abstractList
         (H.params.fvars ++ H.bindings.motives.fvars ++
           H.bindings.flatMinors.fvars.take minorIdx)) := by
-    rw [(H.generated.entry owner howner).type]
-    simpa [T.params_length, T.motives_length, selections,
-      RecInfoBindings.toRecursorLocalSelections,
-      BoundFVarArray.toLocalForallSelection, List.append_assoc] using
-      HoriginBinder
+    simpa [T.params_length, T.motives_length, Nat.add_assoc] using
+      HoriginBinderStats
   rcases T.minorBinder minorIdx hminor with
     ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
       Hsource, hsource, Hdomain, HdomainType⟩
@@ -57956,8 +57993,8 @@ theorem
     exact HsourceBinder.unique HoriginBinder'
   rw [hsourceDomain] at Hdomain
   exact ⟨T, D, O, by
-    simpa [getElem!_pos T.minors minorIdx hminor] using Hdomain,
-    by simpa [getElem!_pos T.minors minorIdx hminor] using HdomainType⟩
+    simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using Hdomain,
+    by simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using HdomainType⟩
 
 /-- The concrete owner-motive declaration mentions no interleaved executable
 index or major locals.  Its only possible free variables are the common
@@ -59993,8 +60030,28 @@ theorem
     telescope := T
     typing := H.recursorTypingAt S.generated.ownerIdx hentry }⟩
 
-/-- The production recursor level-parameter list and the installed abstract
-constant have the same arity. -/
+/-- The production recursor level-parameter list and any installed abstract
+recursor selected from the completed mutual batch have the same arity. -/
+theorem RecursorPhasesResult.recursorUvarsAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
+    (AddInductive.getRecLevelParams H.elimLevel c.lparams).length =
+      H.entries[owner].2.uvars := by
+  let E := H.generated.entry owner howner
+  have htranslated : E.info.levelParams.length =
+      H.entries[owner].2.uvars := by
+    simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal, E] using
+      E.translated.1.2.1
+  simpa [E.levels, H.localExtends.lparams_eq] using htranslated
+
+/-- Rule-local specialization of `recursorUvarsAt`. -/
 theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorUvars
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -60009,19 +60066,12 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorUvars
     (_A : H.GeneratedRuleAlignment owner howner i hctor) :
     (AddInductive.getRecLevelParams H.elimLevel c.lparams).length =
       H.entries[owner].2.uvars := by
-  let E := H.generated.entry owner howner
-  have htranslated : E.info.levelParams.length =
-      H.entries[owner].2.uvars := by
-    simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal, E] using
-      E.translated.1.2.1
-  simpa [E.levels, H.localExtends.lparams_eq] using htranslated
+  exact H.recursorUvarsAt owner howner
 
-/-- The concrete recursor constant at the head of the generated equation
-translates directly to the installed owner recursor at its identity universe
-instantiation.  This is context-polymorphic because constants do not inspect
-the local telescope. -/
-theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorHeadTranslation
+/-- Context-polymorphic translation of any installed mutual recursor head at
+its identity universe instantiation.  The owner index is supplied directly,
+so recursive calls may select a family different from the equation owner. -/
+theorem RecursorPhasesResult.finalRecursorHeadTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -60029,16 +60079,11 @@ theorem
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length)
     (Delta : VLCtx) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let recursor := H.entries[owner].2
-    let parameterDecls :=
-      (R.materialized.parameterSuffix.toRecursorContext
-        H.elimLevelAdmissible).parameterDecls
     TrExprS H.outVEnv Us Delta
       (.const (Lean.mkRecName indTypes[owner]!.name)
         (AddInductive.getRecLevels H.elimLevel stats.levels))
@@ -60067,9 +60112,38 @@ theorem
       _ = (VLevel.params Us.length).length :=
         checkPositivityStep.List.mapM_some_length hlevels
       _ = Us.length := VLevel.params_length
-      _ = recursor.uvars := A.recursorUvars
+      _ = recursor.uvars := H.recursorUvarsAt owner howner
   rw [hname]
   exact TrExprS.const hlookup hlevels hlength
+
+/-- The concrete recursor constant at the head of the generated equation
+translates directly to the installed owner recursor at its identity universe
+instantiation.  This is context-polymorphic because constants do not inspect
+the local telescope. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorHeadTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (Delta : VLCtx) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let recursor := H.entries[owner].2
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    TrExprS H.outVEnv Us Delta
+      (.const (Lean.mkRecName indTypes[owner]!.name)
+        (AddInductive.getRecLevels H.elimLevel stats.levels))
+      (.const recursor.name (VLevel.params Us.length)) := by
+  exact H.finalRecursorHeadTranslationAt owner howner Delta
 
 /-- The concrete constructor constant at the head of the generated major
 premise translates under recursor universes to the installed abstract
@@ -62356,7 +62430,9 @@ theorem
     rw [htarget] at hsourceShape HlhsTr
     rw [hsourceShape]
     simpa [prefixSource, majorSource, lhsBody, args,
-      VExpr.mkApps_append] using HlhsTr
+      prefixTarget, majorTarget,
+      Expr.mkAppN_eq_mkAppList, VExpr.mkApps_append,
+      getElem!_pos indTypes owner A.sourceOwner_lt] using HlhsTr
   exact ⟨T, fieldDomains, lhsBody, typeBody, hfields, HcachedCtx,
     HlhsResidual, Hlhs', HtypeBody⟩
 
@@ -62453,7 +62529,7 @@ theorem
       (T.minors[minorIdx]!.liftN
         (later.length + 1 + fieldDomains.length) 0) := by
     have hselected : T.minors[minorIdx] = T.minors[minorIdx]! := by
-      exact getElem!_pos T.minors minorIdx hminor
+      exact (getElem!_pos T.minors minorIdx hminor).symm
     rw [← hselected]
     have Hlookup := Lookup.append_zero
       (fieldDomains.reverse ++ later.reverse)
