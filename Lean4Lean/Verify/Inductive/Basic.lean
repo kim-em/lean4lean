@@ -388,6 +388,60 @@ theorem VEnv.IsDefEqCtx.insertSameMiddle
           simpa [liftContextPrefix, liftContextPrefixAt, VExpr.liftN] using
             Hdomain')
 
+/-- A nonempty extension of the fixed base context must end in `succ`, so its
+outermost declaration and prior conversion can be recovered without treating
+the base context itself as a newly added declaration. -/
+theorem VEnv.IsDefEqCtx.extensionConsInv
+    {env : VEnv} {uvars : Nat} {outer Γ₁ Γ₂ : List VExpr}
+    {domain₁ domain₂ : VExpr}
+    (H : VEnv.IsDefEqCtx env uvars outer
+      (domain₁ :: Γ₁) (domain₂ :: Γ₂))
+    (hlength : outer.length < (domain₁ :: Γ₁).length) :
+    ∃ level,
+      VEnv.IsDefEqCtx env uvars outer Γ₁ Γ₂ ∧
+      env.IsDefEq uvars Γ₁ domain₁ domain₂ (.sort level) := by
+  cases H with
+  | zero => simp at hlength
+  | succ Hprior Hdomain => exact ⟨_, Hprior, Hdomain⟩
+
+/-- Close a dependent context conversion back into a definitional equality
+of forall telescopes.  `recent₁` and `recent₂` are stored in local-context
+order, so reversing them restores source binder order for `wrapForalls`. -/
+theorem VEnv.IsDefEqCtx.closeWrapForalls
+    {env : VEnv} {uvars : Nat}
+    (outer recent₁ recent₂ : List VExpr)
+    (H : VEnv.IsDefEqCtx env uvars outer
+      (recent₁ ++ outer) (recent₂ ++ outer))
+    (Hbody : env.IsDefEq uvars (recent₁ ++ outer)
+      body₁ body₂ (.sort bodyLevel)) :
+    env.IsDefEqU uvars outer
+      (VExpr.wrapForalls recent₁.reverse body₁)
+      (VExpr.wrapForalls recent₂.reverse body₂) := by
+  induction recent₁ generalizing recent₂ body₁ body₂ bodyLevel with
+  | nil =>
+    have hrecent₂ : recent₂ = [] := by
+      have hlength := H.length_eq
+      simp at hlength
+      exact hlength
+    subst recent₂
+    exact ⟨_, by simpa [VExpr.wrapForalls] using Hbody⟩
+  | cons domain₁ recent₁ ih =>
+    cases recent₂ with
+    | nil =>
+      have hlength := H.length_eq
+      simp at hlength
+      omega
+    | cons domain₂ recent₂ =>
+      rcases
+          Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extensionConsInv H (by
+            simp
+            omega) with
+        ⟨domainLevel, Hprior, Hdomain⟩
+      have Hclosed := VEnv.IsDefEq.forallEDF Hdomain Hbody
+      have Hrest := ih recent₂ Hprior Hclosed
+      simpa [List.reverse_cons, VExpr.wrapForalls_append,
+        VExpr.wrapForalls] using Hrest
+
 theorem VEnv.IsType.wrapForalls_inv
     {env : VEnv} (henv : env.Ordered)
     (hctx : OnCtx ctx (env.IsType uvars))
