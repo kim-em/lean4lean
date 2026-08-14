@@ -638,6 +638,31 @@ theorem VExpr.WF.mkApps_fn
     rcases Hprefix.app_inv henv hctx with ⟨domain, body, hfn, _harg⟩
     exact ⟨_, hfn⟩
 
+/-- Pointwise convertible arguments preserve a well-formed application
+spine.  The function heads may themselves merely be definitionally equal;
+typing for each successive application is recovered by inversion from the
+well-formed left spine. -/
+theorem VEnv.IsDefEqU.mkApps
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (Hfn : env.IsDefEqU uvars ctx fn₁ fn₂)
+    (Hleft : VExpr.WF env uvars ctx (VExpr.mkApps fn₁ args₁))
+    (Hargs : List.Forall₂
+      (env.IsDefEqU uvars ctx) args₁ args₂) :
+    env.IsDefEqU uvars ctx
+      (VExpr.mkApps fn₁ args₁) (VExpr.mkApps fn₂ args₂) := by
+  induction Hargs generalizing fn₁ fn₂ with
+  | nil => simpa [VExpr.mkApps] using Hfn
+  | @cons arg₁ arg₂ args₁ args₂ Harg Hargs ih =>
+    have Hprefix := VExpr.WF.mkApps_fn henv.ordered hctx
+      (fn := .app fn₁ arg₁) (args := args₁) Hleft
+    rcases Hprefix.app_inv henv.ordered hctx with
+      ⟨domain, body, HfnType, HargType⟩
+    have HprefixEq : env.IsDefEqU uvars ctx
+        (.app fn₁ arg₁) (.app fn₂ arg₂) :=
+      (VEnv.IsDefEq.appDF (Hfn.of_l henv hctx HfnType)
+        (Harg.of_l henv hctx HargType)).toU
+    exact ih HprefixEq Hleft
+
 /-- The first argument of a well-typed application spine has the declared
 outer domain of the function.  Application inversion may initially recover
 a different convertible domain; uniqueness and forall injectivity transport
