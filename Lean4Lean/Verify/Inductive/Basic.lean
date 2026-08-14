@@ -63541,6 +63541,60 @@ theorem
   simp [Expr.liftLooseBVars'_mkAppN, Array.map_map,
     Function.comp_def, Expr.liftLooseBVars']
 
+/-- Closing semantic recursive indices first over constructor fields and then
+over the outer parameter/motive/minor groups is exactly production's single
+rule-binder abstraction at the call-local cutoff.  This removes all remaining
+order arithmetic from the later context-transport proof. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedSemanticIndexSources
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let outer := (A.rule.params_bound.fvars ++
+      A.rule.motives_bound.fvars) ++ A.rule.minors_bound.fvars
+    let sourceIndices :=
+      F.semantic.generated.exposedType.getAppArgs[stats.params.size:].toList
+    ((sourceIndices.map fun index =>
+        (index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size).map fun index =>
+      index.abstractList outer
+        (F.semantic.generated.localArgs.size +
+          A.rule.all_args_bound.fvars.length)) =
+    sourceIndices.map fun index =>
+      (index.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders F.semantic.generated.localArgs.size := by
+  let outer := (A.rule.params_bound.fvars ++
+    A.rule.motives_bound.fvars) ++ A.rule.minors_bound.fvars
+  let sourceIndices :=
+    F.semantic.generated.exposedType.getAppArgs[stats.params.size:].toList
+  dsimp only
+  rw [List.map_map]
+  apply List.map_congr_left
+  intro index hindex
+  have Habstract := Expr.abstractList_after_inner
+    (e := index.abstractList
+      F.semantic.generated.arguments_bound.fvars)
+    (outer := outer) (inner := A.rule.all_args_bound.fvars)
+    (k := F.semantic.generated.localArgs.size)
+    (by
+      simpa [outer, BoundGeneratedRecursorRule.binders,
+        List.append_assoc] using A.rule.binders_nodup)
+  simpa [outer, BoundGeneratedRecursorRule.binders,
+    List.append_assoc] using Habstract
+
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
 telescope.  The sole non-structural premise is the selected prefix typing in
