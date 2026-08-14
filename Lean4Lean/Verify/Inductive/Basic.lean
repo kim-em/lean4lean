@@ -45383,6 +45383,8 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
       RecInfoArities stats recInfos →
+      (∀ i, i < recInfos.size →
+        recInfos[i]!.minors.size = indTypes[i]!.ctors.length) →
       RecursorCardinalityCertificate stats recInfos decl →
       BindingContextLE { c with env := outEnv } cOut →
       (k recInfos cOut).WF Q) :
@@ -45437,7 +45439,7 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       (hparameterDeclsOut.trans hparameterDeclsFrames) HstatsOut
       hctxOut HbindingsOut HoriginsOut HmajorTypesOut HmajorShapesOut
       HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
-      HparamsOut HnoAliasOut HaritiesOut
+      HparamsOut HnoAliasOut HaritiesOut houtCounts
       (RecursorCardinalityCertificate.ofResult R.core H.materialized
         houtSize houtCounts HaritiesOut)
       HrootOut
@@ -45491,6 +45493,8 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
       RecInfoArities stats recInfos →
+      (∀ i, i < recInfos.size →
+        recInfos[i]!.minors.size = indTypes[i]!.ctors.length) →
       RecursorCardinalityCertificate stats recInfos decl →
       BindingContextLE { c with env := outEnv } cOut →
       (k elimLevel recInfos cOut).WF Q) :
@@ -56688,6 +56692,8 @@ structure RecursorPhasesResult
   params : BoundFVarArray localContext stats.params
   noAlias : bindings.NoAlias params
   arities : RecInfoArities stats recInfos
+  minorCounts : ∀ i, i < recInfos.size →
+    recInfos[i]!.minors.size = indTypes[i]!.ctors.length
   cardinality : RecursorCardinalityCertificate stats recInfos decl
   outVEnv : VEnv
   entries : List (ConstantInfo × VConstVal)
@@ -56737,7 +56743,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
   intro elimLevel hElim localContext localDepth recInfos Rlocal henvLocal
     HsuffixLocal hparameterDeclsLocal HstatsLocal hctxLocal Hbindings
     Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
-    Htelescopes HindexRows Hparams hnoalias Harities Hcard Hle
+    Htelescopes HindexRows Hparams hnoalias Harities HminorCounts Hcard Hle
   have Hvalid : CheckingEnv.Valid localContext.safety localContext.env
       R.declared.venvCtors := by
     rw [Hle.safety_eq, Hle.env_eq]
@@ -56819,6 +56825,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       params := Hparams
       noAlias := hnoalias
       arities := Harities
+      minorCounts := HminorCounts
       cardinality := Hcard
       outVEnv := outVEnv
       entries := entries
