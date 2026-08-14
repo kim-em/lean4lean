@@ -46452,6 +46452,48 @@ theorem GeneratedRecursorTelescopeTranslation.prefixContext
   simpa using
     (VEnv.IsType.wrapForalls_inv henv (by trivial) hgrouped).1
 
+/-- Opening the complete translated recursor telescope leaves a well-typed
+residual in the exact five-group context.  This is the inversion premise
+used to recover the dependency of the owner motive application on the
+generated index/major suffix. -/
+theorem GeneratedRecursorTelescopeTranslation.fullContextResultType
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (henv : env.Ordered) :
+    let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+    OnCtx domains.reverse (env.IsType Us.length) ∧
+      env.IsType Us.length domains.reverse T.result := by
+  let domains := T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+  have htype := T.typed.isType
+  change env.IsType Us.length [] target at htype
+  rw [T.target_eq] at htype
+  have htype' : env.IsType Us.length []
+      (VExpr.wrapForalls domains T.result) := by
+    simpa [domains] using htype
+  exact VEnv.IsType.wrapForalls_inv henv (by trivial) htype'
+
+/-- The residual of any retained recursor-telescope translation is literally
+the owner motive applied to the canonical variables for the translated index
+and major suffix.  Keeping this theorem on `T` avoids choosing a second,
+potentially unrelated existential translation when the result shape is used
+together with the owner-motive telescope. -/
+theorem GeneratedRecursorTelescopeTranslation.resultShape
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (howner : ownerIdx < numMotives) :
+    T.result = VExpr.mkApps
+      (.bvar (1 + numIndices + numMinors +
+        (numMotives - 1 - ownerIdx)))
+      (((List.range numIndices).reverse.map fun index =>
+          .bvar (index + 1)) ++ [.bvar 0]) := by
+  have htotal :
+      numParams + numMotives + numMinors + numIndices + 1 ≤
+        (T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major).length := by
+    simp only [List.length_append, T.params_length, T.motives_length,
+      T.minors_length, T.indices_length, T.major_length]
+    exact Nat.le_refl _
+  exact TrExprS.concreteRecursorResult_eq howner htotal T.residual
+
 /-- Remove the parameter/motive/minor prefix from the retained structural
 translation.  The resulting certificate keeps the concrete production
 suffix and identifies its abstract target with exactly `indices ++ major`,
@@ -55977,6 +56019,64 @@ theorem
     exact ⟨T, S, hparameters, motiveDomains, _, hlength, hsuffixLength,
       htarget, VLevel.WF.of_ofLevel hlevel⟩
 
+/-- Single-witness frame for the final dependent-suffix comparison.  The
+owner motive's forall shape, the literal canonical application residual, and
+the residual's typehood all refer to the same retained generated telescope.
+This is the complete premise needed to invert the application spine and
+align the generated index/major context with the motive domains. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveApplicationFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse S.canonical.params.reverse ∧
+        ∃ motiveDomains resultLevel,
+          motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
+          motiveDomains.length = (T.indices ++ T.major).length ∧
+          T.motives[owner]! =
+            VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+          resultLevel.WF Us.length ∧
+          (let domains :=
+              T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major
+            OnCtx domains.reverse (H.outVEnv.IsType Us.length) ∧
+              H.outVEnv.IsType Us.length domains.reverse T.result) ∧
+          T.result = VExpr.mkApps
+            (.bvar
+              (1 + H.recInfos[owner]!.indices.size +
+                (H.recInfos.flatMap (·.minors)).size +
+                ((H.recInfos.map (·.motive)).size - 1 - owner)))
+            (((List.range H.recInfos[owner]!.indices.size).reverse.map
+                fun index => .bvar (index + 1)) ++ [.bvar 0]) := by
+  dsimp only
+  rcases A.finalOwnerMotiveTelescopeShape with
+    ⟨T, S, hparameters, motiveDomains, resultLevel,
+      hdomainLength, hsuffixLength, hmotive, hresultLevel⟩
+  have hownerRecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
+    simpa using hownerRecInfo
+  exact ⟨T, S, hparameters, motiveDomains, resultLevel,
+    hdomainLength, hsuffixLength, hmotive, hresultLevel,
+    T.fullContextResultType H.outVEnvWF.ordered,
+    T.resultShape hownerMotive⟩
+
 /-- The generated owner-motive domain and the retained first-pass motive are
 the same concrete declaration viewed at the two contexts that still have to
 be related.  The retained closed scope is now decomposed explicitly into its
@@ -56690,17 +56790,7 @@ theorem
     simpa [H.generated.length] using howner
   have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
-  have htotal :
-      stats.params.size + (H.recInfos.map (·.motive)).size +
-          (H.recInfos.flatMap (·.minors)).size +
-          H.recInfos[owner]!.indices.size + 1 ≤
-        (T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major).length := by
-    simp only [List.length_append, T.params_length, T.motives_length,
-      T.minors_length, T.indices_length, T.major_length]
-    exact Nat.le_refl _
-  have hresult := TrExprS.concreteRecursorResult_eq
-    (numParams := stats.params.size) hownerMotive htotal T.residual
-  exact ⟨T, hresult⟩
+  exact ⟨T, T.resultShape hownerMotive⟩
 
 theorem RecursorPhasesResult.recursorNamesFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
