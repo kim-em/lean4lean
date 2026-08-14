@@ -3708,6 +3708,21 @@ theorem MLCtxOnlyLams.toCtx_dropN
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
+theorem MLCtxOnlyLams.vlctx_dropN
+    (H : MLCtxOnlyLams c) (n : Nat) (hn : n ≤ c.length) :
+    (c.dropN n hn).vlctx = c.vlctx.drop n := by
+  induction n generalizing c with
+  | zero => rfl
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      simpa only [TypeChecker.MLCtx.dropN, TypeChecker.MLCtx.vlctx,
+        List.drop_succ_cons] using
+          ih H.tail_vlam (Nat.le_of_succ_le_succ hn)
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
 /-- Dropping an ordinary-local suffix and then restoring it is precisely a
 free-variable weakening.  The generated inductive contexts contain no local
 lets, so the lift amount agrees with the number of dropped declarations. -/
@@ -5416,6 +5431,64 @@ theorem FrontFVLift.expandedLengthLE
   induction H with
   | zero => simp
   | cons _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
+
+theorem FrontFVLift.sourceContext
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    VLCtx.toCtx scope =
+      sourceDomains.reverse ++
+        VLCtx.toCtx (scope.drop sourceDomains.length) := by
+  induction H with
+  | zero => simp
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType H ih =>
+    simpa [VLCtx.toCtx, List.reverse_append, List.append_assoc] using
+      congrArg (indexType :: ·) ih
+
+theorem FrontFVLift.expandedContext
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    VLCtx.toCtx expanded =
+      expandedDomains.reverse ++
+        VLCtx.toCtx (expanded.drop expandedDomains.length) := by
+  induction H with
+  | zero => simp
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType H ih =>
+    simpa [VLCtx.toCtx, List.reverse_append, List.append_assoc] using
+      congrArg (indexType.lift' shift :: ·) ih
+
+/-- Recover the fixed free-variable weakening below a front accumulated by
+`withIndex`.  Removing the leading source and expanded declarations exposes
+the same base weakening from which the front was built. -/
+theorem FrontFVLift.base
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    ∃ baseScope baseExpanded baseShift,
+      scope.drop sourceDomains.length = baseScope ∧
+      expanded.drop expandedDomains.length = baseExpanded ∧
+      shift = baseShift.consN sourceDomains.length ∧
+      VLCtx.FVLift' baseScope baseExpanded 0 baseShift 0 := by
+  induction H with
+  | zero W =>
+    exact ⟨_, _, _, rfl, rfl, by simp, W⟩
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType H ih =>
+    rcases ih with
+      ⟨baseScope, baseExpanded, baseShift, hsource, hexpanded,
+        hshift, Hbase⟩
+    refine ⟨baseScope, baseExpanded, baseShift, ?_, ?_, ?_, Hbase⟩
+    · simpa using hsource
+    · simpa using hexpanded
+    · rw [hshift]
+      simp [Lift.consN]
+
+theorem _root_.Lean4Lean.VLCtx.IsDefEq.drop
+    (H : VLCtx.IsDefEq env U left right) (n : Nat) :
+    VLCtx.IsDefEq env U (left.drop n) (right.drop n) := by
+  induction n generalizing left right with
+  | zero => exact H
+  | succ n ih =>
+    cases H with
+    | nil => exact .nil
+    | cons H _ _ => exact ih H
 
 theorem Lift.closeReopen_cons (shift : Lift) (n : Nat) :
     Lift.comp (Lift.comp (Lift.skipN .refl n) shift) (.skip .refl) =
@@ -26174,6 +26247,19 @@ structure RecursorMotiveTelescopeSeed
     motiveClosedAmbient ++ motiveParameterScope
   motiveParameterAlignment : VEnv.IsDefEqCtx Rroot.venv
     recLparams.length [] canonical.params.reverse motiveParameterScope.toCtx
+  /-- The genuine-index front also exposes the narrow scope below those
+  indices, together with its literal weakening into the closed executable
+  context.  This is the context in which the canonical motive is originally
+  synthesized. -/
+  motiveSourceScope : VLCtx
+  motiveSourceExpanded : VLCtx
+  motiveSourceShift : Lift
+  motiveSourceAlignment : VEnv.IsDefEqCtx Rroot.venv recLparams.length []
+    canonical.params.reverse motiveSourceScope.toCtx
+  motiveSourceLift : VLCtx.FVLift' motiveSourceScope motiveSourceExpanded
+    0 motiveSourceShift 0
+  motiveSourceContext : VLCtx.IsDefEq Rroot.venv recLparams.length
+    motiveSourceExpanded motiveClosedScope
   motiveClosedTarget : VExpr
   motiveClosedTr : TrExprS Rroot.venv recLparams motiveClosedScope
     (root.lctx.mkForall info.indices
@@ -26257,6 +26343,16 @@ def RecursorMotiveTelescopeSeed.mono
       change Rcurrent.venv.IsDefEqCtx recLparams.length []
         H.canonical.params.reverse H.motiveParameterScope.toCtx
       simpa only [Hext.venv_eq] using H.motiveParameterAlignment
+    motiveSourceScope := H.motiveSourceScope
+    motiveSourceExpanded := H.motiveSourceExpanded
+    motiveSourceShift := H.motiveSourceShift
+    motiveSourceAlignment := by
+      change Rcurrent.venv.IsDefEqCtx recLparams.length []
+        H.canonical.params.reverse H.motiveSourceScope.toCtx
+      simpa only [Hext.venv_eq] using H.motiveSourceAlignment
+    motiveSourceLift := H.motiveSourceLift
+    motiveSourceContext := by
+      simpa only [Hext.venv_eq] using H.motiveSourceContext
     motiveClosedTarget := H.motiveClosedTarget
     motiveClosedTr := by
       simpa only [Hext.venv_eq] using HmotiveClosedTr
@@ -26303,6 +26399,12 @@ def RecursorMotiveTelescopeSeed.congrInfo
   motiveParameterScope := H.motiveParameterScope
   motiveClosedContext := H.motiveClosedContext
   motiveParameterAlignment := H.motiveParameterAlignment
+  motiveSourceScope := H.motiveSourceScope
+  motiveSourceExpanded := H.motiveSourceExpanded
+  motiveSourceShift := H.motiveSourceShift
+  motiveSourceAlignment := H.motiveSourceAlignment
+  motiveSourceLift := H.motiveSourceLift
+  motiveSourceContext := H.motiveSourceContext
   motiveClosedTarget := H.motiveClosedTarget
   motiveClosedTr := by simpa [hindices, hmajor] using H.motiveClosedTr
   motiveClosedType := H.motiveClosedType
@@ -32505,6 +32607,40 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               AddInductive.getRecLevelParams] using hshifted
           | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
             simp [AddInductive.AdmissibleElimLevel] at Helim
+        rcases Hruntime.front.base with
+          ⟨motiveSourceScope, motiveSourceExpanded, motiveSourceShift,
+            hmotiveSourceScope, hmotiveSourceExpanded, hmotiveSourceShift,
+            HmotiveSourceLift⟩
+        have hfrontSourceLength : Hruntime.frontSourceDomains.length =
+            indices.size := by
+          rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
+        have hfrontExpandedLength : Hruntime.frontExpandedDomains.length =
+            indices.size := by
+          rw [← Hruntime.front.length_eq, hfrontSourceLength]
+        have hmotiveSourceScope' :
+            scope.drop Hsynthesis.indices.length = motiveSourceScope := by
+          simpa [hfront] using hmotiveSourceScope
+        have hmotiveSourceScopeCtx : VLCtx.toCtx motiveSourceScope =
+            Hsynthesis.params.reverse := by
+          have hdecomposition := Hruntime.front.sourceContext
+          rw [hfront, Hsynthesis.scopeCtx, hmotiveSourceScope'] at hdecomposition
+          exact List.append_inj_right hdecomposition.symm rfl
+        have HmotiveSourceContext : VLCtx.IsDefEq Rindices.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            motiveSourceExpanded
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx := by
+          have Hdrop := Hruntime.context.drop indices.size
+          rw [← Rindices.onlyLams.vlctx_dropN indices.size hclosedSize]
+            at Hdrop
+          have hexpandedDrop : Hruntime.expanded.drop indices.size =
+              motiveSourceExpanded := by
+            simpa [hfrontExpandedLength] using hmotiveSourceExpanded
+          change VLCtx.IsDefEq Rindices.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            (Hruntime.expanded.drop indices.size)
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx at Hdrop
+          rw [hexpandedDrop] at Hdrop
+          exact Hdrop
         let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx
             nextInfo elimLevel := {
           canonical := {
@@ -32591,6 +32727,19 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
               rw [← Hsynthesis.scopeCtx]
               exact Hsynthesis.scopeWF.toCtx))
+          motiveSourceScope := motiveSourceScope
+          motiveSourceExpanded := motiveSourceExpanded
+          motiveSourceShift := motiveSourceShift
+          motiveSourceAlignment := by
+            change VEnv.IsDefEqCtx Rindices.venv
+              (AddInductive.getRecLevelParams elimLevel base.lparams).length
+              [] Hsynthesis.params.reverse (VLCtx.toCtx motiveSourceScope)
+            rw [hmotiveSourceScopeCtx]
+            exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
+              rw [← Hsynthesis.scopeCtx]
+              exact Hsynthesis.scopeWF.toCtx))
+          motiveSourceLift := HmotiveSourceLift
+          motiveSourceContext := HmotiveSourceContext
           motiveClosedTarget := motiveClosedTarget
           motiveClosedTr := HmotiveClosedTrSeed
           motiveClosedType := HmotiveClosedTypeSeed
@@ -58091,6 +58240,12 @@ theorem
           H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
             T.params.reverse S.motiveParameterScope.toCtx ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse S.motiveSourceScope.toCtx ∧
+        VLCtx.FVLift' S.motiveSourceScope S.motiveSourceExpanded
+            0 S.motiveSourceShift 0 ∧
+        VLCtx.IsDefEq H.outVEnv Us.length S.motiveSourceExpanded
+            S.motiveClosedScope ∧
         S.motiveClosedScope =
             S.motiveClosedAmbient ++ S.motiveParameterScope ∧
         TrExprS H.outVEnv Us S.motiveClosedScope
@@ -58121,7 +58276,12 @@ theorem
   have hparameters' :=
     Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
       hparameters hparameterScope
-  exact ⟨T, S, hparameters', S.motiveClosedContext,
+  have hsourceScope := S.motiveSourceAlignment.mono hbase
+  have hsource :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+      hparameters hsourceScope
+  exact ⟨T, S, hparameters', hsource, S.motiveSourceLift,
+    S.motiveSourceContext.mono hbase, S.motiveClosedContext,
     S.motiveClosedTr.mono hbase, S.motiveClosedType.mono hbase,
     S.motiveClosedCanonicalDefEq.mono hbase, S.motiveTypeCanonicalEq,
     Hgenerated⟩
