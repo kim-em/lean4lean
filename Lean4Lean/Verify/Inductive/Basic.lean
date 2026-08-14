@@ -57747,6 +57747,39 @@ share the same parameter context.  This is the first direct bridge from the
 five-group executable telescope to the permutation-free semantic telescope;
 subsequent index alignment can therefore work under either parameter list
 without reusing an executable `isDefEq` success as an assumption. -/
+theorem RecursorPhasesResult.finalPairedParameterAlignmentAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          T.params.reverse S.canonical.params.reverse := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases H.finalRecursorParameterContextAt owner howner with
+    ⟨T, hgenerated⟩
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hcanonical⟩
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  refine ⟨T, S, ?_⟩
+  exact Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    hgenerated ((hcanonical.mono hbase).symm H.outVEnvWF.ordered)
+
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.finalPairedParameterAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -57770,15 +57803,7 @@ theorem
           H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse S.canonical.params.reverse := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalRecursorParameterContext with ⟨T, hgenerated⟩
-  rcases A.finalPairedMotiveSeed with ⟨S, hcanonical⟩
-  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
-  refine ⟨T, S, ?_⟩
-  exact Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    hgenerated ((hcanonical.mono hbase).symm H.outVEnvWF.ordered)
+  exact H.finalPairedParameterAlignmentAt owner howner
 
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalParameterAlignment
@@ -57818,7 +57843,7 @@ domain is checked under parameters and strictly earlier motives only; hence
 the remaining comparison with `C.motiveType` is a context-transport problem,
 not another inversion of the production telescope. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveFrame
+    RecursorPhasesResult.finalOwnerMotiveFrameAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -57826,10 +57851,8 @@ theorem
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -57865,7 +57888,7 @@ theorem
                 (T.params ++ T.motives.take owner) []).toCtx
               T.motives[owner]! := by
   dsimp only
-  rcases A.finalPairedParameterAlignment with
+  rcases H.finalPairedParameterAlignmentAt owner howner with
     ⟨T, S, hparameters⟩
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
@@ -57915,12 +57938,9 @@ theorem
     by simpa [getElem!_pos T.motives owner hmotive] using Hdomain,
     by simpa [getElem!_pos T.motives owner hmotive] using HdomainType⟩
 
-/-- Reduced owner-motive bridge with all positional witnesses rewritten
-away.  The left side is now the exact production declaration shape closed
-over the source binders corresponding to the target context on the right.
-This is the form needed for the final comparison with `C.motiveType`. -/
+/-- Rule-local specialization of `finalOwnerMotiveFrameAt`. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveDomainTranslation
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -57931,7 +57951,58 @@ theorem
     {H : RecursorPhasesResult R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (_A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse S.canonical.params.reverse ∧
+        ∃ D : BoundFVarDeclarationAt H.localContext
+            (H.recInfos.map (·.motive)) owner,
+          D.type = H.origins.motiveTypes[owner]! ∧
+          D.type = H.localContext.lctx.mkForall
+            H.recInfos[owner]!.indices
+            (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+              (.sort H.elimLevel)) ∧
+          ∃ (suffixSource : Expr) (name : Name)
+            (sourceDomain sourceBody : Expr) (bi : BinderInfo)
+            (bodyTarget : VExpr),
+            Expr.ForallTelescope
+              (H.generated.entry owner howner).info.type
+              (T.params.length + owner) suffixSource ∧
+            suffixSource = .forallE name sourceDomain sourceBody bi ∧
+            sourceDomain = D.type.abstractList
+              (H.params.fvars ++ H.bindings.motives.fvars.take owner) ∧
+            TrExprS H.outVEnv Us
+              (abstractForallContext
+                (T.params ++ T.motives.take owner) [])
+              sourceDomain T.motives[owner]! ∧
+            H.outVEnv.IsType Us.length
+              (abstractForallContext
+                (T.params ++ T.motives.take owner) []).toCtx
+              T.motives[owner]! := by
+  exact H.finalOwnerMotiveFrameAt owner howner
+
+/-- Reduced owner-motive bridge with all positional witnesses rewritten
+away.  The left side is now the exact production declaration shape closed
+over the source binders corresponding to the target context on the right.
+This is the form needed for the final comparison with `C.motiveType`. -/
+theorem
+    RecursorPhasesResult.finalOwnerMotiveDomainTranslationAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -57955,12 +58026,50 @@ theorem
             (T.params ++ T.motives.take owner) []).toCtx
           T.motives[owner]! := by
   dsimp only
-  rcases A.finalOwnerMotiveFrame with
+  rcases H.finalOwnerMotiveFrameAt owner howner with
     ⟨T, S, hparameters, D, _hdeclarationOrigin, hdeclarationShape,
       suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
       _Hsource, _hsource, hsourceDomain, Hdomain, HdomainType⟩
   rw [hsourceDomain, hdeclarationShape] at Hdomain
   exact ⟨T, S, hparameters, Hdomain, HdomainType⟩
+
+/-- Rule-local specialization of `finalOwnerMotiveDomainTranslationAt`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveDomainTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (_A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse S.canonical.params.reverse ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            (T.params ++ T.motives.take owner) [])
+          ((H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+            (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+              (.sort H.elimLevel))).abstractList
+                (H.params.fvars ++ H.bindings.motives.fvars.take owner))
+          T.motives[owner]! ∧
+        H.outVEnv.IsType Us.length
+          (abstractForallContext
+            (T.params ++ T.motives.take owner) []).toCtx
+          T.motives[owner]! := by
+  exact H.finalOwnerMotiveDomainTranslationAt owner howner
 
 /-- Final-environment identification of the generated recursor domain at
 this rule's flattened minor slot.  The source selected structurally from the
@@ -60362,6 +60471,56 @@ theorem
   exact ⟨C,
     Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
       hgenerated (hcanonical.symm H.outVEnvWF.ordered)⟩
+
+/-- Exact generated owner-motive domain for the recursive call's selected
+family, stated against the particular telescope retained in this frame. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.ownerMotiveDomainTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl
+        selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+          F.telescope.params.reverse S.canonical.params.reverse ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext
+          (F.telescope.params ++
+            F.telescope.motives.take selectedOwner) [])
+        ((H.localContext.lctx.mkForall
+          H.recInfos[selectedOwner]!.indices
+          (H.localContext.lctx.mkForall
+            #[H.recInfos[selectedOwner]!.major]
+            (.sort H.elimLevel))).abstractList
+              (H.params.fvars ++
+                H.bindings.motives.fvars.take selectedOwner))
+        F.telescope.motives[selectedOwner]! ∧
+      H.outVEnv.IsType Us.length
+        (abstractForallContext
+          (F.telescope.params ++
+            F.telescope.motives.take selectedOwner) []).toCtx
+        F.telescope.motives[selectedOwner]! := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases H.finalOwnerMotiveDomainTranslationAt selectedOwner F.entry_lt with
+    ⟨T, S, hparameters, Hdomain, HdomainType⟩
+  rcases T.groupsResult_eq F.telescope with
+    ⟨hparams, hmotives, _hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams] at hparameters
+  rw [hparams, hmotives] at Hdomain HdomainType
+  exact ⟨S, hparameters, Hdomain, HdomainType⟩
 
 /-- The concrete constructor constant at the head of the generated major
 premise translates under recursor universes to the installed abstract
