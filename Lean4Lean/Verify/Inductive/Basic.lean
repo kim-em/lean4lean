@@ -69802,6 +69802,69 @@ theorem
     Hclosed',
     HleftWF⟩
 
+/-- Rule-indexed package for one complete recursive result.  It ties the
+array position used by the generated RHS to the exact source lambda
+telescope, the canonical translated residual, and its closed dependent
+typing in a full equation context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.canonicalRecursiveResultTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ F : A.RecursiveCallRecursorFrame j hj,
+      ∃ (equationDomains localDomains : List VExpr)
+          (resultBody resultType : VExpr),
+        equationDomains.length = A.rule.binders.length ∧
+        localDomains.length = F.semantic.generated.localArgs.size ∧
+        Expr.LambdaTelescope
+          (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+          localDomains.length
+          ((F.semantic.generated.body.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+              A.rule.binders F.semantic.generated.localArgs.size) ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext (equationDomains ++ localDomains) [])
+          ((F.semantic.generated.body.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+              A.rule.binders F.semantic.generated.localArgs.size)
+          resultBody ∧
+        H.outVEnv.HasType Us.length
+          (abstractForallContext equationDomains []).toCtx
+          (VExpr.wrapLams localDomains resultBody)
+          (VExpr.wrapForalls localDomains resultType) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.recursiveCallRecursorFrame j hj with ⟨F⟩
+  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  rcases F.canonicalRecursiveCallBodyWF T with
+    ⟨equationDomains, localDomains, prefixTarget, indexTargets,
+      majorTarget, ownerTarget, hlocal, hequation, _Hctx, Hbody,
+      _HbodyType, Hclosed, _HbodyWF⟩
+  let args := indexTargets ++ [majorTarget]
+  let resultBody := VExpr.mkApps prefixTarget args
+  let resultType := VExpr.mkApps ownerTarget args
+  have Htelescope :=
+    F.semantic.generated.outerAbstractedLambdaTelescope A.rule.binders
+  have Htelescope' : Expr.LambdaTelescope
+      (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+      localDomains.length
+      ((F.semantic.generated.body.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders F.semantic.generated.localArgs.size) := by
+    simpa [hlocal] using Htelescope
+  exact ⟨F, equationDomains, localDomains, resultBody, resultType,
+    hequation, hlocal, Htelescope', by simpa [resultBody, args] using Hbody,
+    by simpa [resultBody, resultType, args] using Hclosed⟩
+
 /-- Weaken the canonical recursive-call prefix beneath the higher-order
 lambda domains and identify its source with the exact two-stage abstraction
 performed by production. -/
