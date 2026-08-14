@@ -62833,6 +62833,98 @@ theorem
     ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
   exact ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
 
+/-- The replayed narrow front is exactly the constructor fields followed by
+the higher-order call arguments, in source-binder order.  This packages the
+ordering, arity, and well-formedness facts shared by index and major closure. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowRuntimeFrontAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (scope : VLCtx)
+    (Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+      H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      scope F.semantic.current_context.mlctx.vlctx)
+    (hscopeFVars : scope.fvars =
+      F.semantic.recent.fvars.reverse ++
+        A.semantics.fieldsRecent.fvars.reverse ++
+          H.parameterSuffix.parameterDecls.fvars)
+    (hscopeBase : scope.drop Hscope.frontSourceDomains.length =
+      H.parameterSuffix.parameterDecls) :
+    (VLCtx.fvars
+        (scope.take Hscope.frontSourceDomains.length)).reverse =
+      A.rule.all_args_bound.fvars ++
+        F.semantic.generated.arguments_bound.fvars ∧
+    Hscope.frontSourceDomains.length =
+      A.rule.allArgs.size + F.semantic.generated.localArgs.size ∧
+    OnCtx
+      (abstractForallContext Hscope.frontSourceDomains
+        H.parameterSuffix.parameterDecls).toCtx
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  have hfrontRev :
+      VLCtx.fvars (scope.take Hscope.frontSourceDomains.length) =
+        F.semantic.recent.fvars.reverse ++
+          A.semantics.fieldsRecent.fvars.reverse := by
+    have hsplit := Hscope.frontFVars hscopeBase
+    have happend :
+        VLCtx.fvars (scope.take Hscope.frontSourceDomains.length) ++
+            parameterDecls.fvars =
+          (F.semantic.recent.fvars.reverse ++
+            A.semantics.fieldsRecent.fvars.reverse) ++
+              parameterDecls.fvars := by
+      rw [← hsplit, hscopeFVars]
+    exact List.append_cancel_right happend
+  have hlocalFVars : F.semantic.recent.fvars =
+      F.semantic.generated.arguments_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+      F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+  have hfieldFVars : A.semantics.fieldsRecent.fvars =
+      A.rule.all_args_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl
+  have hfrontFVars :
+      (VLCtx.fvars
+        (scope.take Hscope.frontSourceDomains.length)).reverse =
+          A.rule.all_args_bound.fvars ++
+            F.semantic.generated.arguments_bound.fvars := by
+    rw [hfrontRev, List.reverse_append, List.reverse_reverse,
+      List.reverse_reverse, hlocalFVars, hfieldFVars]
+  have hlengthNames := congrArg List.length hfrontFVars
+  have hfrontLength : Hscope.frontSourceDomains.length =
+      A.rule.allArgs.size + F.semantic.generated.localArgs.size := by
+    calc
+      Hscope.frontSourceDomains.length =
+          (scope.take Hscope.frontSourceDomains.length).length :=
+        (List.length_take_of_le
+          Hscope.front.sourceLengthLEScope).symm
+      _ = (VLCtx.fvars
+          (scope.take Hscope.frontSourceDomains.length)).length :=
+        (Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+          Hscope.front.sourceDeclarations).symm
+      _ = (A.rule.all_args_bound.fvars ++
+          F.semantic.generated.arguments_bound.fvars).length := by
+        simpa using hlengthNames
+      _ = A.rule.allArgs.size +
+          F.semantic.generated.localArgs.size := by
+        simp [A.rule.all_args_bound.length_fvars,
+          F.semantic.generated.arguments_bound.length_fvars]
+  exact ⟨hfrontFVars, hfrontLength,
+    Hscope.abstractFrontWF H.outVEnvWF hscopeBase⟩
+
 /-- Close the replayed constructor-field and higher-order-argument front of
 every narrowed recursive index.  The resulting translations live directly
 over the cached parameter declarations and use the same nested abstraction
