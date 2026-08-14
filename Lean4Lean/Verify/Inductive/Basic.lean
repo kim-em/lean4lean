@@ -40625,6 +40625,90 @@ theorem RecursorLocalSelections.forallTelescope
   have hParams := H.params.prependTelescope hMotives
   simpa [RecursorLocalSelections.residual, Nat.add_assoc] using hParams
 
+/-- Every retained parameter slot has the same concrete domain in every
+generated recursor.  The owner-specific suffix only supplies the body below
+the common parameter prefix. -/
+theorem RecursorLocalSelections.parameterBinderAt
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias)
+    (D : BoundFVarDeclarationAt c stats.params paramIdx) :
+    let raw :=
+      c.lctx.mkForall stats.params <|
+      c.lctx.mkForall (recInfos.map (·.motive)) <|
+      c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+      c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+      c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+        (.app (mkAppN recInfos[ownerIdx]!.motive
+          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+    Expr.ForallBinderAt (raw.inferImplicit 1000 false) paramIdx
+      (D.type.abstractList (H.params.fvars.take paramIdx)) := by
+  dsimp only
+  exact (H.params.forallBinderAt hnoalias.parts.params D).inferImplicit
+    1000 false
+
+/-- Every retained motive slot has a source domain independent of the
+recursor owner.  It is closed over the common parameters and the strictly
+earlier motives; the owner's indices and major occur only below this slot. -/
+theorem RecursorLocalSelections.motiveBinderAt
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias)
+    (D : BoundFVarDeclarationAt c
+      (recInfos.map (·.motive)) motiveIdx) :
+    let raw :=
+      c.lctx.mkForall stats.params <|
+      c.lctx.mkForall (recInfos.map (·.motive)) <|
+      c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+      c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+      c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+        (.app (mkAppN recInfos[ownerIdx]!.motive
+          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+    Expr.ForallBinderAt (raw.inferImplicit 1000 false)
+      (stats.params.size + motiveIdx)
+      (D.type.abstractList
+        (H.params.fvars ++ H.motives.fvars.take motiveIdx)) := by
+  dsimp only
+  let motiveBody :=
+    c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+    c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+    c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+      (.app (mkAppN recInfos[ownerIdx]!.motive
+        recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+  let motiveSource :=
+    c.lctx.mkForall (recInfos.map (·.motive)) motiveBody
+  let parts := hnoalias.parts
+  have hmotiveFVars : motiveIdx < H.motives.fvars.length := by
+    rw [← H.motives.size]
+    exact D.inBounds
+  have Hmotive : Expr.ForallBinderAt motiveSource motiveIdx
+      (D.type.abstractList (H.motives.fvars.take motiveIdx)) := by
+    exact H.motives.forallBinderAt parts.motives D
+      (body := motiveBody)
+  have HmotiveClosed := Hmotive.abstractList H.params.fvars 0
+  have hprefixNodup :
+      (H.params.fvars ++ H.motives.fvars.take motiveIdx).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨parts.params, parts.motives.take, ?_⟩
+    intro param hparam motive hmotive heq
+    exact parts.params_later param hparam motive
+      (List.mem_append.mpr (Or.inl (List.mem_of_mem_take hmotive))) heq
+  have hdomain :
+      (D.type.abstractList (H.motives.fvars.take motiveIdx)).abstractList
+          H.params.fvars motiveIdx =
+        D.type.abstractList
+          (H.params.fvars ++ H.motives.fvars.take motiveIdx) := by
+    have Hclose := Expr.abstractList_after_inner
+      (e := D.type) (outer := H.params.fvars)
+      (inner := H.motives.fvars.take motiveIdx) (k := 0) hprefixNodup
+    simpa [List.length_take,
+      Nat.min_eq_left (Nat.le_of_lt hmotiveFVars)] using Hclose
+  have Hparams := H.params.forallTelescope motiveSource
+  have Hraw := Hparams.prependBinderAt (by
+    simpa [Nat.zero_add, hdomain] using HmotiveClosed)
+  have hparamsLength : H.params.fvars.length = stats.params.size := by
+    rw [← H.params.size]
+  simpa [motiveSource, motiveBody, hparamsLength] using
+    Hraw.inferImplicit 1000 false
+
 /-- The owner motive slot of the concrete production recursor closes the
 exact retained motive declaration over precisely the common parameters and
 strictly earlier motives.  The subsequent `inferImplicit` pass preserves
@@ -55382,6 +55466,90 @@ theorem RecursorPhasesResult.generatedTelescopeTranslations
   refine ⟨E.info, E.source_eq, ?_⟩
   exact E.telescopeTranslation selections hrecInfo hnoalias
 
+/-- The concrete parameter/motive/minor binder domains are identical for
+any two recursors generated from the same mutual block.  This is a
+source-syntax fact about the three shared `mkForall` selections; neither
+owner's index/major suffix participates. -/
+theorem RecursorPhasesResult.generatedRecursorCommonPrefixBinderDomainAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner₁ : Nat) (howner₁ : owner₁ < H.entries.length)
+    (owner₂ : Nat) (howner₂ : owner₂ < H.entries.length)
+    (i : Nat)
+    (hi : i < stats.params.size +
+      (H.recInfos.map (·.motive)).size +
+      (H.recInfos.flatMap (·.minors)).size)
+    {domain₁ domain₂ : Expr}
+    (Hbinder₁ : Expr.ForallBinderAt
+      (H.generated.entry owner₁ howner₁).info.type i domain₁)
+    (Hbinder₂ : Expr.ForallBinderAt
+      (H.generated.entry owner₂ howner₂).info.type i domain₂) :
+    domain₁ = domain₂ := by
+  have hrecInfo₁ : owner₁ < H.recInfos.size := by
+    simpa [H.generated.length] using howner₁
+  have hrecInfo₂ : owner₂ < H.recInfos.size := by
+    simpa [H.generated.length] using howner₂
+  let E₁ := H.generated.entry owner₁ howner₁
+  let E₂ := H.generated.entry owner₂ howner₂
+  let S₁ := H.bindings.toRecursorLocalSelections H.localWF H.params
+    owner₁ hrecInfo₁
+  let S₂ := H.bindings.toRecursorLocalSelections H.localWF H.params
+    owner₂ hrecInfo₂
+  have hnoalias₁ : S₁.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias
+      owner₁ hrecInfo₁
+  have hnoalias₂ : S₂.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias
+      owner₂ hrecInfo₂
+  by_cases hparam : i < stats.params.size
+  · rcases H.params.declarationAt H.localWF i hparam with ⟨D⟩
+    have Hcanonical₁ := S₁.parameterBinderAt hnoalias₁ D
+    have Hcanonical₂ := S₂.parameterBinderAt hnoalias₂ D
+    dsimp only at Hcanonical₁ Hcanonical₂
+    rw [← E₁.type] at Hcanonical₁
+    rw [← E₂.type] at Hcanonical₂
+    exact (Hbinder₁.unique Hcanonical₁).trans
+      (Hbinder₂.unique Hcanonical₂).symm
+  · let motiveIdx := i - stats.params.size
+    by_cases hmotive : motiveIdx < (H.recInfos.map (·.motive)).size
+    · rcases H.bindings.motives.declarationAt H.localWF motiveIdx hmotive with
+        ⟨D⟩
+      have Hcanonical₁ := S₁.motiveBinderAt hnoalias₁ D
+      have Hcanonical₂ := S₂.motiveBinderAt hnoalias₂ D
+      dsimp only at Hcanonical₁ Hcanonical₂
+      have hiEq : stats.params.size + motiveIdx = i := by
+        dsimp [motiveIdx]
+        omega
+      rw [hiEq, ← E₁.type] at Hcanonical₁
+      rw [hiEq, ← E₂.type] at Hcanonical₂
+      exact (Hbinder₁.unique Hcanonical₁).trans
+        (Hbinder₂.unique Hcanonical₂).symm
+    · let minorIdx := i - stats.params.size -
+        (H.recInfos.map (·.motive)).size
+      have hminor : minorIdx <
+          (H.recInfos.flatMap (·.minors)).size := by
+        dsimp [motiveIdx, minorIdx] at hmotive ⊢
+        omega
+      rcases H.bindings.flatMinors.declarationAt H.localWF minorIdx hminor with
+        ⟨D⟩
+      have Hcanonical₁ := S₁.minorBinderAt hnoalias₁ D
+      have Hcanonical₂ := S₂.minorBinderAt hnoalias₂ D
+      dsimp only at Hcanonical₁ Hcanonical₂
+      have hiEq : stats.params.size +
+          (H.recInfos.map (·.motive)).size + minorIdx = i := by
+        dsimp [minorIdx]
+        omega
+      rw [hiEq, ← E₁.type] at Hcanonical₁
+      rw [hiEq, ← E₂.type] at Hcanonical₂
+      exact (Hbinder₁.unique Hcanonical₁).trans
+        (Hbinder₂.unique Hcanonical₂).symm
+
 /-- Header metadata installed at the start of the verified pipeline remains
 retrievable, unchanged, after constructors and recursors are installed. -/
 theorem RecursorPhasesResult.findHeaderOfMem
@@ -56381,6 +56549,44 @@ theorem RecursorPhasesResult.finalRecursorTelescopeTranslationAt
       H.recInfos[owner]!.indices.size owner) := by
   rcases H.recursorTelescopeTranslationAt owner howner with ⟨T⟩
   exact ⟨T.mono H.installed.le⟩
+
+/-- The translated common prefixes of any two installed mutual recursors
+are definitionally equal.  The proof is deliberately factored through the
+concrete generated source binders, so it does not assume that independently
+translated abstract domain lists are syntactically identical. -/
+theorem RecursorPhasesResult.finalRecursorCommonPrefixContextAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner₁ : Nat) (howner₁ : owner₁ < H.entries.length)
+    (owner₂ : Nat) (howner₂ : owner₂ < H.entries.length)
+    (T₁ : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner₁ howner₁).info.type
+      H.entries[owner₁].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner₁]!.indices.size owner₁)
+    (T₂ : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner₂ howner₂).info.type
+      H.entries[owner₂].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner₂]!.indices.size owner₂) :
+    VEnv.IsDefEqCtx H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      (T₁.params ++ T₁.motives ++ T₁.minors).reverse
+      (T₂.params ++ T₂.motives ++ T₂.minors).reverse := by
+  apply T₁.commonPrefixDefEqCtx H.outVEnvWF T₂
+  intro i hi _hi₁ _hi₂ domain₁ domain₂ Hbinder₁ Hbinder₂
+  exact H.generatedRecursorCommonPrefixBinderDomainAt
+    owner₁ howner₁ owner₂ howner₂ i hi Hbinder₁ Hbinder₂
 
 theorem RecursorPhasesResult.GeneratedRuleAlignment.recursorTelescopeTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
