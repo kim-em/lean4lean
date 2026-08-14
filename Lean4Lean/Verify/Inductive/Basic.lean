@@ -5548,6 +5548,28 @@ theorem FrontFVLift.closeReopen
       VExpr.liftN_liftN, Nat.add_comm, Nat.add_left_comm,
       Nat.add_assoc, VExpr.liftN_lift'_liftN_one] using h
 
+/-- Closing the retained front turns the full front-preserving shift into
+the base shift below that front.  This is the non-reopened naturality law
+needed when inverse weakening returns the production motive to its canonical
+parameter scope. -/
+theorem FrontFVLift.closeAtBase
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift)
+    (baseShift : Lift)
+    (hshift : shift = baseShift.consN sourceDomains.length)
+    (body : VExpr) :
+    (VExpr.wrapForalls sourceDomains body).lift' baseShift =
+      VExpr.wrapForalls expandedDomains (body.lift' shift) := by
+  induction H generalizing body baseShift with
+  | zero =>
+    simpa [VExpr.wrapForalls] using (congrArg (body.lift' ·) hshift).symm
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType hdeps H ih =>
+    have hprevious : shift = baseShift.consN sourceDomains.length := by
+      simpa [Lift.consN] using hshift
+    have h := ih baseShift hprevious (.forallE indexType body)
+    simpa [VExpr.wrapForalls_append, VExpr.wrapForalls,
+      VExpr.lift', Lift.consN] using h
+
 structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
     (scope runtime : VLCtx) : Type where
   expanded : VLCtx
@@ -26365,6 +26387,9 @@ structure RecursorMotiveTelescopeSeed
   motiveClosedType : Rroot.venv.IsType recLparams.length
     motiveClosedScope.toCtx motiveClosedTarget
   motiveClosedCanonicalTarget : VExpr
+  motiveClosedCanonicalEq :
+    canonical.motiveType.lift' motiveSourceShift =
+      motiveClosedCanonicalTarget
   motiveClosedCanonicalDefEq : Rroot.venv.IsDefEqU recLparams.length
     motiveClosedScope.toCtx motiveClosedTarget motiveClosedCanonicalTarget
   motiveReopenedCanonicalTarget : VExpr
@@ -26460,6 +26485,7 @@ def RecursorMotiveTelescopeSeed.mono
     motiveClosedType := by
       simpa only [Hext.venv_eq] using H.motiveClosedType
     motiveClosedCanonicalTarget := H.motiveClosedCanonicalTarget
+    motiveClosedCanonicalEq := H.motiveClosedCanonicalEq
     motiveClosedCanonicalDefEq := by
       simpa only [Hext.venv_eq] using H.motiveClosedCanonicalDefEq
     motiveReopenedCanonicalTarget := H.motiveReopenedCanonicalTarget.lift'
@@ -26513,6 +26539,7 @@ def RecursorMotiveTelescopeSeed.congrInfo
   motiveClosedTr := by simpa [hindices, hmajor] using H.motiveClosedTr
   motiveClosedType := H.motiveClosedType
   motiveClosedCanonicalTarget := H.motiveClosedCanonicalTarget
+  motiveClosedCanonicalEq := H.motiveClosedCanonicalEq
   motiveClosedCanonicalDefEq := H.motiveClosedCanonicalDefEq
   motiveReopenedCanonicalTarget := H.motiveReopenedCanonicalTarget
   motiveTypeCanonicalEq := H.motiveTypeCanonicalEq
@@ -29720,7 +29747,18 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
         Hcanonical.motiveType =
           (VExpr.wrapForalls Hruntime.frontExpandedDomains
             (.forallE Hframe.majorSourceTarget
-              (.sort Hframe.resultLevel))).liftN indices.size 0 := by
+              (.sort Hframe.resultLevel))).liftN indices.size 0 ∧
+        (let familyBase := VExpr.mkApps
+            (.const H.target.name (H.recursorAbstractLevels Helim))
+            (recursorCanonicalVars Hsynthesis.params.length)
+         let canonicalMajor := VExpr.mkApps
+            (familyBase.liftN Hsynthesis.indices.length 0)
+            (recursorCanonicalVars Hsynthesis.indices.length)
+         let canonicalBody :=
+            VExpr.forallE canonicalMajor (.sort Hframe.resultLevel)
+         canonicalBody.lift' Hruntime.shift =
+            .forallE Hframe.majorSourceTarget
+              (.sort Hframe.resultLevel)) := by
   rcases H.completedRecursorCanonicalMotiveFrame Helim R Hsynthesis Hstats
       Hruntime henv hindices Hframe with
     ⟨Hcanonical, _hfamilyType, hmotiveType⟩
@@ -29839,7 +29877,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorMotiveTypeDefEq
   have hresult := hreopened'.symm
   rw [← hnatural', ← hmotiveType'] at hresult
   exact ⟨Hcanonical, ⟨_, hresult⟩, ⟨_, hclosedRuntime.symm⟩,
-    hmotiveType'.trans hnatural'⟩
+    hmotiveType'.trans hnatural', hcanonicalBody⟩
 
 theorem CheckedRecursorHeaderAt.recursorCanonicalFamilyApplication
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -32405,7 +32443,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             Hsynthesis HnarrowStats Hruntime HnarrowIndices hcanonical
             HindexOrigins.bound henvIndices hindicesSize hfront Hframe with
           ⟨Hcanonical, HmotiveCanonical, HmotiveCanonicalClosed,
-            hcanonicalMotiveReopen⟩
+            hcanonicalMotiveReopen, hcanonicalMotiveBody⟩
         let majorTy :=
           (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
             indices).consumeTypeAnnotations
@@ -32950,6 +32988,22 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             VExpr.wrapForalls Hruntime.frontExpandedDomains
               (.forallE Hframe.majorSourceTarget
                 (.sort Hframe.resultLevel))
+          motiveClosedCanonicalEq := by
+            let canonicalBody := VExpr.forallE
+              (VExpr.mkApps
+                ((VExpr.mkApps
+                  (.const Hheader.target.name
+                    (Hheader.recursorAbstractLevels Helim))
+                  (recursorCanonicalVars Hsynthesis.params.length)).liftN
+                    Hsynthesis.indices.length 0)
+                (recursorCanonicalVars Hsynthesis.indices.length))
+              (.sort Hframe.resultLevel)
+            have Hclose := Hruntime.front.closeAtBase motiveSourceShift
+              hmotiveSourceShift canonicalBody
+            have hbody := hcanonicalMotiveBody
+            dsimp only at hbody
+            rw [hfront, hbody] at Hclose
+            simpa [canonicalBody, VExpr.liftN] using Hclose
           motiveClosedCanonicalDefEq := by
             change Rindices.venv.IsDefEqU
               (AddInductive.getRecLevelParams elimLevel base.lparams).length
@@ -58521,11 +58575,13 @@ theorem
             (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
               (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
                 (.sort H.elimLevel)))
-            narrowTarget := by
+            narrowTarget ∧
+          H.outVEnv.IsDefEqU Us.length S.motiveSourceScope.toCtx
+            narrowTarget S.canonical.motiveType := by
   dsimp only
   rcases A.finalOwnerClosedMotiveFrame with
     ⟨T, S, _hparameters, hsource, W, Hcontext, _hdecomposition,
-      HclosedTr, _HclosedType, _HclosedCanonical, _hmotiveType,
+      HclosedTr, _HclosedType, HclosedCanonical, _hmotiveType,
       _Hgenerated⟩
   have hbvars : VLCtx.bvars S.motiveClosedScope = 0 := by
     calc
@@ -58538,7 +58594,25 @@ theorem
   rcases HclosedTr.weakFV'_inv H.outVEnvWF W
       (Hcontext.symm H.outVEnvWF.ordered) hclosed
       S.motiveSourceFVars with ⟨narrowTarget, Hnarrow⟩
-  exact ⟨T, S, narrowTarget, hsource, Hnarrow⟩
+  have HnarrowWeak : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      S.motiveSourceExpanded
+      (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+        (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+          (.sort H.elimLevel)))
+      (narrowTarget.lift' S.motiveSourceShift) := by
+    exact Hnarrow.weakFV' H.outVEnvWF.ordered W Hcontext.wf
+  have HweakTarget := HnarrowWeak.uniq H.outVEnvWF Hcontext HclosedTr
+  have HcanonicalExpanded := HclosedCanonical.defeqDFC
+    H.outVEnvWF.ordered
+    (Hcontext.defeqCtx.symm H.outVEnvWF.ordered)
+  have HweakCanonical := HweakTarget.trans H.outVEnvWF
+    Hcontext.wf.toCtx HcanonicalExpanded
+  rw [← S.motiveClosedCanonicalEq] at HweakCanonical
+  have Hcanonical :=
+    (VEnv.IsDefEqU.weak'_iff H.outVEnvWF Hcontext.wf.toCtx W.toCtx).1
+      HweakCanonical
+  exact ⟨T, S, narrowTarget, hsource, Hnarrow, Hcanonical⟩
 
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
