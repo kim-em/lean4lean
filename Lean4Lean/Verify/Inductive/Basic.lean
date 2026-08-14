@@ -59771,6 +59771,9 @@ theorem
             ((stats.params.map fun arg =>
               arg.abstractList A.rule.binders).toList)
             parameterTargets ∧
+          parameterTargets =
+            (List.ofFn fun i : Fin stats.params.size =>
+              VExpr.bvar (A.rule.binders.length - 1 - i)) ∧
           indexTargets.length = T.indices.length ∧
           List.Forall₂
             (TrExprS H.outVEnv Us
@@ -59879,10 +59882,20 @@ theorem
       T fieldDomains fieldResult hfields Htarget with
     ⟨levels, parameterTargets, indexTargets, hspine, HparameterTargets,
       hindexLength, HindexTargets⟩
+  rcases A.canonicalEquationBinderTranslations T fieldDomains hfields with
+    ⟨HcanonicalParameters, _HcanonicalMotives, _HcanonicalMinors,
+      _HcanonicalFields⟩
+  have hparameterTargets : parameterTargets =
+      (List.ofFn fun i : Fin stats.params.size =>
+        VExpr.bvar (A.rule.binders.length - 1 - i)) := by
+    exact (Lean4Lean.VerifyInductive.TrExprS.forall₂_unique HuniqueCtx
+      A.rule.abstractedParamsUnique HcanonicalParameters
+      HparameterTargets).symm
   exact ⟨T, fieldDomains, fieldResult, introTarget, levels,
     parameterTargets, indexTargets, hparams, hfields, Hfull, HcachedCtx,
     HmajorCached, HprefixCached, Htarget, HintroShape, HprefixTr',
-    HmajorTr', hspine, HparameterTargets, hindexLength, HindexTargets⟩
+    HmajorTr', hspine, HparameterTargets, hparameterTargets,
+    hindexLength, HindexTargets⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
