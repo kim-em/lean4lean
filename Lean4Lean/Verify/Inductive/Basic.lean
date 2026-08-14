@@ -22999,7 +22999,8 @@ theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtx
     (hlength₂ : domains₂.length = arity₂)
     (prefixLen : Nat) (hprefix₁ : prefixLen ≤ arity₁)
     (hprefix₂ : prefixLen ≤ arity₂)
-    (Hdomains : ∀ i (hi₁ : i < arity₁) (hi₂ : i < arity₂)
+    (Hdomains : ∀ i (hiprefix : i < prefixLen)
+      (hi₁ : i < arity₁) (hi₂ : i < arity₂)
       {domain₁ domain₂ : Expr},
       Expr.ForallBinderAt source₁ i domain₁ →
       Expr.ForallBinderAt source₂ i domain₂ →
@@ -23027,7 +23028,9 @@ theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtx
     have hi₂ : prefixLen < arity₂ := by omega
     have hdom₁ : prefixLen < domains₁.length := by omega
     have hdom₂ : prefixLen < domains₂.length := by omega
-    have Hprior := ih (by omega) (by omega)
+    have Hprior := ih (by omega) (by omega) (by
+      intro i hiprefix hi₁ hi₂ domain₁ domain₂ Hbinder₁ Hbinder₂
+      exact Hdomains i (by omega) hi₁ hi₂ Hbinder₁ Hbinder₂)
     rcases H₁.binderAt_target domains₁ result₁ htarget₁ hlength₁
         prefixLen hi₁ with
       ⟨suffix₁, name₁, sourceDomain₁, sourceBody₁, bi₁, bodyTarget₁,
@@ -23037,7 +23040,7 @@ theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtx
       ⟨suffix₂, name₂, sourceDomain₂, sourceBody₂, bi₂, bodyTarget₂,
         Hsource₂, hsuffix₂, Hdomain₂, _HdomainType₂, _Hbody₂⟩
     have hsourceDomain : sourceDomain₁ = sourceDomain₂ :=
-      Hdomains prefixLen hi₁ hi₂
+      Hdomains prefixLen (Nat.lt_succ_self _) hi₁ hi₂
         (Hsource₁.binderAt hsuffix₁) (Hsource₂.binderAt hsuffix₂)
     rw [← hsourceDomain] at Hdomain₂
     have Hvlctx := abstractForallContext.isDefEq Hprior
@@ -47902,6 +47905,63 @@ theorem GeneratedRecursorTelescopeTranslation.groupsResult_eq
   have hindices := List.append_inj_left H₃ hindicesLength
   have hmajor := List.append_inj_right H₃ hindicesLength
   exact ⟨hparams, hmotives, hminors, hindices, hmajor, H.2⟩
+
+/-- The common parameter/motive/minor portions of two possibly different
+mutual recursors are definitionally equal once their concrete source binder
+domains are known to agree at those positions.  Owner-specific index/major
+arities and residuals are deliberately allowed to differ. -/
+theorem GeneratedRecursorTelescopeTranslation.commonPrefixDefEqCtx
+    (Henv : env.WF)
+    (T₁ : GeneratedRecursorTelescopeTranslation env Us source₁ target₁
+      numParams numMotives numMinors numIndices₁ owner₁)
+    (T₂ : GeneratedRecursorTelescopeTranslation env Us source₂ target₂
+      numParams numMotives numMinors numIndices₂ owner₂)
+    (Hdomains : ∀ i,
+      i < numParams + numMotives + numMinors →
+      (hi₁ : i < numParams + numMotives + numMinors + numIndices₁ + 1) →
+      (hi₂ : i < numParams + numMotives + numMinors + numIndices₂ + 1) →
+      ∀ {domain₁ domain₂ : Expr},
+        Expr.ForallBinderAt source₁ i domain₁ →
+        Expr.ForallBinderAt source₂ i domain₂ →
+        domain₁ = domain₂) :
+    VEnv.IsDefEqCtx env Us.length []
+      (T₁.params ++ T₁.motives ++ T₁.minors).reverse
+      (T₂.params ++ T₂.motives ++ T₂.minors).reverse := by
+  let common := numParams + numMotives + numMinors
+  let outer₁ := T₁.params ++ T₁.motives ++ T₁.minors
+  let outer₂ := T₂.params ++ T₂.motives ++ T₂.minors
+  let full₁ := outer₁ ++ T₁.indices ++ T₁.major
+  let full₂ := outer₂ ++ T₂.indices ++ T₂.major
+  have houter₁ : outer₁.length = common := by
+    simp [outer₁, common, T₁.params_length, T₁.motives_length,
+      T₁.minors_length] <;> omega
+  have houter₂ : outer₂.length = common := by
+    simp [outer₂, common, T₂.params_length, T₂.motives_length,
+      T₂.minors_length] <;> omega
+  have hfull₁ : full₁.length =
+      numParams + numMotives + numMinors + numIndices₁ + 1 := by
+    simp [full₁, outer₁, T₁.params_length, T₁.motives_length,
+      T₁.minors_length, T₁.indices_length, T₁.major_length] <;> omega
+  have hfull₂ : full₂.length =
+      numParams + numMotives + numMinors + numIndices₂ + 1 := by
+    simp [full₂, outer₂, T₂.params_length, T₂.motives_length,
+      T₂.minors_length, T₂.indices_length, T₂.major_length] <;> omega
+  have Hprefix := T₁.typed.commonPrefixDefEqCtx Henv T₂.typed
+    full₁ full₂ T₁.result T₂.result
+    (by simpa [full₁, outer₁, List.append_assoc] using T₁.target_eq)
+    (by simpa [full₂, outer₂, List.append_assoc] using T₂.target_eq)
+    hfull₁ hfull₂ common (by omega) (by omega) (by
+      intro i hiprefix hi₁ hi₂ domain₁ domain₂ Hbinder₁ Hbinder₂
+      exact Hdomains i (by simpa [common] using hiprefix)
+        hi₁ hi₂ Hbinder₁ Hbinder₂)
+  have htake₁ : full₁.take common = outer₁ := by
+    rw [← houter₁]
+    simp [full₁]
+  have htake₂ : full₂.take common = outer₂ := by
+    rw [← houter₂]
+    simp [full₂]
+  rw [htake₁, htake₂] at Hprefix
+  simpa [outer₁, outer₂] using Hprefix
 
 /-- Expose the source and abstract domains of the motive binder selected by
 the recursor owner.  In particular, the domain is checked before later
