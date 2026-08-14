@@ -25996,6 +25996,64 @@ def RecursorCanonicalMotiveTelescope.mono
   family_typing := H.family_typing.mono henv
   telescope := H.telescope
 
+/-- A canonical motive telescope remains directly applicable after adding an
+arbitrary well-formed inner context.  The family prefix and the parallel
+motive type are weakened by the same amount, so a major premise at any
+concrete translated index spine yields the exact motive application type. -/
+theorem RecursorCanonicalMotiveTelescope.applyMajorTypedAfter
+    (C : RecursorCanonicalMotiveTelescope env uvars stats decl target info
+      elimLevel)
+    (henv : env.WF) (added : List VExpr)
+    (hctx : OnCtx (added.reverse ++ C.params.reverse)
+      (env.IsType uvars))
+    (indexTargets : List VExpr)
+    (hindices : indexTargets.length = C.indices.length)
+    (motive major : VExpr)
+    (Hmotive : env.HasType uvars
+      (added.reverse ++ C.params.reverse) motive
+      (C.motiveType.liftN added.length 0))
+    (Hmajor : env.HasType uvars
+      (added.reverse ++ C.params.reverse) major
+      (VExpr.mkApps (C.family.liftN added.length 0) indexTargets)) :
+    env.HasType uvars (added.reverse ++ C.params.reverse)
+      (.app (VExpr.mkApps motive indexTargets) major)
+      (.sort C.resultLevel) := by
+  have W : Ctx.LiftN added.length 0 C.params.reverse
+      (added.reverse ++ C.params.reverse) := by
+    exact .zero added.reverse (by simp)
+  have Hfamily := C.family_typing.weakN henv.ordered W
+  have Htelescope := C.telescope.liftN added.length 0
+  rw [← hindices] at Htelescope
+  exact Htelescope.applyMajorTyped henv hctx Hfamily Hmotive Hmajor
+
+/-- Context-converted form of `applyMajorTypedAfter`.  This is the equation
+typing interface: the canonical first-pass parameter scope may be replaced
+by the cached or generated parameter scope before the common inner binder
+block is introduced. -/
+theorem RecursorCanonicalMotiveTelescope.applyMajorTypedAfterDefEq
+    (C : RecursorCanonicalMotiveTelescope env uvars stats decl target info
+      elimLevel)
+    (henv : env.WF) (base added : List VExpr)
+    (Hbase : VEnv.IsDefEqCtx env uvars [] C.params.reverse base)
+    (hctx : OnCtx (added.reverse ++ base) (env.IsType uvars))
+    (indexTargets : List VExpr)
+    (hindices : indexTargets.length = C.indices.length)
+    (motive major : VExpr)
+    (Hmotive : env.HasType uvars (added.reverse ++ base) motive
+      (C.motiveType.liftN added.length 0))
+    (Hmajor : env.HasType uvars (added.reverse ++ base) major
+      (VExpr.mkApps (C.family.liftN added.length 0) indexTargets)) :
+    env.HasType uvars (added.reverse ++ base)
+      (.app (VExpr.mkApps motive indexTargets) major)
+      (.sort C.resultLevel) := by
+  have HfamilyBase := C.family_typing.defeqDFC henv.ordered Hbase
+  have W : Ctx.LiftN added.length 0 base (added.reverse ++ base) := by
+    exact .zero added.reverse (by simp)
+  have Hfamily := HfamilyBase.weakN henv.ordered W
+  have Htelescope := C.telescope.liftN added.length 0
+  rw [← hindices] at Htelescope
+  exact Htelescope.applyMajorTyped henv hctx Hfamily Hmotive Hmajor
+
 /-- Context-rooted semantic seed for one generated motive.  The first
 `mkRecInfos` pass establishes this package at the point where the motive is
 introduced.  Its family prefix has unique concrete translation, while the
