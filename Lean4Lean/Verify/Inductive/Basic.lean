@@ -61140,6 +61140,52 @@ theorem
     ⟨domains, residual, htake, hlength⟩
   exact ⟨T, domains, residual, htake, hlength⟩
 
+/-- Split the translated minor telescope at the constructor-field boundary.
+The suffix has exactly one domain for every recursive result selected by the
+rule, so later pointwise arguments can index the two pieces independently. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorTranslatedSplit
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ fieldDomains hypothesisDomains residual,
+        T.minors[minorIdx]!.takeForalls
+            (A.rule.allArgs.size + A.rule.recursiveArgs.size) =
+          some (fieldDomains ++ hypothesisDomains, residual) ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size := by
+  dsimp only
+  rcases A.finalSelectedMinorTranslatedArity with
+    ⟨T, domains, residual, htake, hlength⟩
+  let fieldDomains := domains.take A.rule.allArgs.size
+  let hypothesisDomains := domains.drop A.rule.allArgs.size
+  have hfieldsLE : A.rule.allArgs.size ≤ domains.length := by omega
+  have hfields : fieldDomains.length = A.rule.allArgs.size := by
+    simp [fieldDomains, List.length_take, Nat.min_eq_left hfieldsLE]
+  have hhypotheses : hypothesisDomains.length =
+      A.rule.recursiveArgs.size := by
+    simp [hypothesisDomains, List.length_drop, hlength]
+  have hdomains : domains = fieldDomains ++ hypothesisDomains := by
+    exact (List.take_append_drop A.rule.allArgs.size domains).symm
+  rw [hdomains] at htake
+  exact ⟨T, fieldDomains, hypothesisDomains, residual, htake,
+    hfields, hhypotheses⟩
+
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
 ordinal.  The expressions themselves may use different fresh identifiers;
