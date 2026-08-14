@@ -43126,11 +43126,15 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
           scope runtime.vlctx,
         scope.fvars = runtime.fvarRevList n H.le ++ baseScope.fvars ∧
         scope.drop Hscope.frontSourceDomains.length =
-          baseScope.drop Hbase.frontSourceDomains.length := by
+          baseScope.drop Hbase.frontSourceDomains.length ∧
+        ∃ newDomains,
+          newDomains.length = n ∧
+          Hscope.frontSourceDomains =
+            Hbase.frontSourceDomains ++ newDomains := by
   induction H with
   | nil runtime =>
     exact ⟨baseScope, Hbase,
-      by simp [TypeChecker.MLCtx.fvarRevList], rfl⟩
+      by simp [TypeChecker.MLCtx.fvarRevList], rfl, [], rfl, by simp⟩
   | @cons tail n domains fv name type type' bi Hprefix ih =>
     have HruntimeWF := Hwf.tr.wf
     rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
@@ -43149,7 +43153,8 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
         · exact h
       · exact List.mem_cons_of_mem _
     rcases ih HtailWF Hbase htailUp with
-      ⟨tailScope, HtailScope, htailScopeFVars, htailBase⟩
+      ⟨tailScope, HtailScope, htailScopeFVars, htailBase,
+        tailDomains, htailDomains, htailFront⟩
     have hdepsFull : ∀ dep ∈ type.fvarsList,
         dep ∈ fv :: tail.fvarRevList n Hprefix.le ++ baseScope.fvars := by
       exact hup.2 (by simp)
@@ -43186,11 +43191,15 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
     let Hnext := HtailScope.withIndex
       HruntimeWF
       hdeps Hdomain
-    refine ⟨_, Hnext, ?_, ?_⟩
+    refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_⟩
     · simp [Hnext, htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
     · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
       simpa only [List.length_append, List.length_singleton,
         List.drop_succ_cons] using htailBase
+    · simp [htailDomains]
+    · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
+      rw [htailFront]
+      simp [List.append_assoc]
 
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
@@ -61937,7 +61946,8 @@ theorem
     simp [parameterDecls]
   rcases HfieldPrefix.extendNarrowRuntimeScope
       H.recursorWF.checking.tr.wf HfieldWF HfieldBase HfieldUp with
-    ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase⟩
+    ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
+      _fieldDomains, _hfieldDomains, _hfieldFront⟩
   rcases F.semantic.current_context.onlyLams.lamPrefix
       F.semantic.generated.localArgs.size F.semantic.recent.size_le with
     ⟨localDomains, HlocalPrefix⟩
@@ -61976,7 +61986,8 @@ theorem
     simp [parameterDecls]
   rcases HlocalPrefix.extendNarrowRuntimeScope
       H.recursorWF.checking.tr.wf HlocalWF HlocalBase HlocalUp with
-    ⟨scope, Hscope, hscopeFVars, hscopeBase⟩
+    ⟨scope, Hscope, hscopeFVars, hscopeBase,
+      _localDomains, _hlocalDomains, _hlocalFront⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
