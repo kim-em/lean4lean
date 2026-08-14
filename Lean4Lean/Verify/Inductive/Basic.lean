@@ -26760,6 +26760,22 @@ structure RecInfoBindings (c : AddInductive.Context)
   minors : ∀ i (hi : i < recInfos.size),
     BoundFVarArray c recInfos[i]!.minors
 
+/-- The exact source construction retained for one generated minor domain.
+The source local context is intentionally stored in the certificate: after
+`mkForall` closes the freshly introduced fields and recursive hypotheses, the
+resulting expression is stable under every later ambient-context extension. -/
+structure RecInfoMinorTypeShape (origin : Expr) where
+  constructor : Constructor
+  sourceContext : LocalContext
+  fields : Array Expr
+  hypotheses : Array Expr
+  motiveApp : Expr
+  sourceType : Expr
+  sourceType_eq : sourceType =
+    sourceContext.mkForall fields
+      (sourceContext.mkForall hypotheses motiveApp)
+  consumed_eq : sourceType.consumeTypeAnnotations = origin
+
 /-- Exact `withLocalDecl` origin types retained in the same row structure as
 production `RecInfo`s.  Per-owner rows avoid losing the insertion position of
 minor premises during the second mutual pass. -/
@@ -26777,6 +26793,9 @@ structure RecInfoTypeOrigins (c : AddInductive.Context)
     BoundFVarTypeOrigins c recInfos[i]!.indices indexTypes[i]!
   minors : ∀ i (hi : i < recInfos.size),
     BoundFVarTypeOrigins c recInfos[i]!.minors minorTypes[i]!
+  minorShapes : ∀ i (hi : i < recInfos.size) j
+    (hj : j < minorTypes[i]!.size),
+    RecInfoMinorTypeShape minorTypes[i]![j]!
 
 /-- Exact production shape of every generated major-premise declaration.
 This positional certificate is independent of translation: it records that
@@ -26850,6 +26869,7 @@ def RecInfoTypeOrigins.empty (c : AddInductive.Context) :
   majors := by simpa using BoundFVarTypeOrigins.empty c
   indices i hi := by simp at hi
   minors i hi := by simp at hi
+  minorShapes i hi := by simp at hi
 
 def RecInfoTypeOrigins.mono
     (H : RecInfoTypeOrigins c recInfos) (hle : BindingContextLE c c') :
@@ -26864,6 +26884,7 @@ def RecInfoTypeOrigins.mono
   majors := H.majors.mono hle
   indices i hi := (H.indices i hi).mono hle
   minors i hi := (H.minors i hi).mono hle
+  minorShapes i hi j hj := H.minorShapes i hi j hj
 
 /-- Exact production shape of every motive declaration domain.  This is
 kept separately from `RecursorTranslatedOriginTypes`: the latter certifies
@@ -28792,7 +28813,8 @@ def RecInfoTypeOrigins.pushFrame
     motives := ?_
     majors := ?_
     indices := ?_
-    minors := ?_ }
+    minors := ?_
+    minorShapes := ?_ }
   · simpa [cMajor, cMotive] using
       (H.motives.mono (hle.trans hMajor)).pushCurrent HcMajor
         motiveName motiveTy motiveBi
@@ -28871,6 +28893,31 @@ def RecInfoTypeOrigins.pushFrame
         exact Array.getElem_push_lt hiTypes
       rw [horigin]
       exact (H.minors i hiOld).mono hall
+  · intro i hi j hj
+    by_cases hilast : i = recInfos.size
+    · subst i
+      have horigin : (H.minorTypes.push #[])[recInfos.size]! = #[] := by
+        rw [show recInfos.size = H.minorTypes.size from
+          H.minorTypes_size.symm]
+        simp
+      rw [horigin] at hj
+      simp at hj
+    · have hiOld : i < recInfos.size := by
+        have : i < recInfos.size + 1 := by simpa using hi
+        omega
+      have hiTypes : i < H.minorTypes.size := by
+        rw [H.minorTypes_size]
+        exact hiOld
+      have horigin : (H.minorTypes.push #[])[i]! = H.minorTypes[i]! := by
+        simp only [Array.getElem!_eq_getD]
+        unfold Array.getD
+        have hiPush : i < (H.minorTypes.push #[]).size := by
+          simp only [Array.size_push]
+          omega
+        rw [dif_pos hiPush, dif_pos hiTypes]
+        exact Array.getElem_push_lt hiTypes
+      rw [horigin] at hj ⊢
+      exact H.minorShapes i hiOld j hj
 
 theorem RecInfoBindings.pushFrame_allFvars_perm
     {stats : AddInductive.InductiveStats} {indices : Array Expr}
@@ -29085,7 +29132,8 @@ def RecInfoTypeOrigins.addMinor
     (hidx : dIdx < recInfos.size)
     (hle : BindingContextLE c cMinorTy)
     (HcMinorTy : BindingContextWF cMinorTy)
-    (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo) :
+    (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
+    (Hshape : RecInfoMinorTypeShape minorTy) :
     let cMinor : AddInductive.Context := { cMinorTy with
       ngen := cMinorTy.ngen.next
       lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
@@ -29112,7 +29160,8 @@ def RecInfoTypeOrigins.addMinor
     motives := ?_
     majors := ?_
     indices := ?_
-    minors := ?_ }
+    minors := ?_
+    minorShapes := ?_ }
   · have heq : (recInfos.modify dIdx fun info =>
         { info with
           minors := info.minors.push (.fvar ⟨cMinorTy.ngen.curr⟩) }).map
@@ -29167,6 +29216,49 @@ def RecInfoTypeOrigins.addMinor
           hiTypes hdi]
       rw [horigin]
       exact (H.minors i hiOld).mono hall
+  · intro i hi j hj
+    have hiOld : i < recInfos.size := by simpa using hi
+    have hiTypes : i < H.minorTypes.size := by
+      rw [H.minorTypes_size]
+      exact hiOld
+    by_cases hdi : dIdx = i
+    · subst i
+      have horigin : nextMinorTypes[dIdx]! =
+          (H.minorTypes[dIdx]!).push minorTy := by
+        dsimp [nextMinorTypes]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx _
+          hiTypes]
+      rw [horigin] at hj ⊢
+      by_cases hjlast : j = H.minorTypes[dIdx]!.size
+      · subst j
+        have hlast : ((H.minorTypes[dIdx]!).push minorTy)[
+            H.minorTypes[dIdx]!.size]! = minorTy := by
+          have hpush : H.minorTypes[dIdx]!.size <
+              (H.minorTypes[dIdx]!.push minorTy).size := by simp
+          rw [getElem!_pos (H.minorTypes[dIdx]!.push minorTy)
+            H.minorTypes[dIdx]!.size hpush]
+          exact Array.getElem_push_eq
+        rw [hlast]
+        exact Hshape
+      · have hjOld : j < H.minorTypes[dIdx]!.size := by
+          simp only [Array.size_push] at hj
+          omega
+        have hget : ((H.minorTypes[dIdx]!).push minorTy)[j]! =
+            H.minorTypes[dIdx]![j]! := by
+          have hjPush : j < (H.minorTypes[dIdx]!.push minorTy).size := by
+            simp only [Array.size_push]
+            omega
+          rw [getElem!_pos (H.minorTypes[dIdx]!.push minorTy) j hjPush,
+            getElem!_pos H.minorTypes[dIdx]! j hjOld]
+          exact Array.getElem_push_lt hjOld
+        rw [hget]
+        exact H.minorShapes dIdx hidx j hjOld
+    · have horigin : nextMinorTypes[i]! = H.minorTypes[i]! := by
+        dsimp [nextMinorTypes]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx i _
+          hiTypes hdi]
+      rw [horigin] at hj ⊢
+      exact H.minorShapes i hiOld j hj
 
 private def recInfoMinorIds (info : AddInductive.RecInfo) : List FVarId :=
   ExprArrayFVarIds info.minors
@@ -40427,6 +40519,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       minorTy.consumeTypeAnnotations minorTarget)
     (HminorType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx minorTarget)
+    (HminorShape : RecInfoMinorTypeShape
+      minorTy.consumeTypeAnnotations)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
@@ -40477,7 +40571,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       minorTy.consumeTypeAnnotations .default
   let HoriginsMinor := Horigins.addMinor dIdx hidx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
-      minorTy.consumeTypeAnnotations .default
+      minorTy.consumeTypeAnnotations .default HminorShape
   let HparamsMinor := Hparams.mono Hstep.contextLE
   refine Hk next Rminor rfl (Hsuffix.withAmbient Hminor HminorType) rfl
     (Hstats.withFVar Rminor.checking.tr.wf Rminor.mlctx_wf.tr.wf)
@@ -40800,7 +40894,25 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       HparamsOut
       (Hbindings.mono_noAlias Hparams HextAll.contextLE HnoAlias)
       (Hroot.trans HextAll.contextLE) hidx Harities Hconsumed.consumed
-      Hconsumed.isType ?_
+      Hconsumed.isType {
+        constructor := ctor
+        sourceContext := outCtx.lctx
+        fields := allFields
+        hypotheses := hypotheses
+        motiveApp := Expr.app
+          (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
+          (mkAppN
+            (mkAppN (.const ctor.name stats.levels) stats.params)
+            allFields)
+        sourceType := outCtx.lctx.mkForall allFields
+          (outCtx.lctx.mkForall hypotheses
+            (Expr.app
+              (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
+              (mkAppN
+                (mkAppN (.const ctor.name stats.levels) stats.params)
+                allFields)))
+        sourceType_eq := rfl
+        consumed_eq := rfl } ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
     hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
     hsizeNext hcountNext hotherNext HmajorTypesNext HmajorShapesNext
@@ -41060,7 +41172,15 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       let HbindingsMinor := Hbindings.addMinor dIdx hidx (hArgs.trans hIH)
         HcIH minorName minorTy.consumeTypeAnnotations .default
       let HoriginsMinor := Horigins.addMinor dIdx hidx (hArgs.trans hIH)
-        HcIH minorName minorTy.consumeTypeAnnotations .default
+        HcIH minorName minorTy.consumeTypeAnnotations .default {
+          constructor := ctor
+          sourceContext := cIH.lctx
+          fields := bu
+          hypotheses := v
+          motiveApp := motiveApp
+          sourceType := minorTy
+          sourceType_eq := rfl
+          consumed_eq := rfl }
       let HparamsMinor := Hparams.mono <| (hArgs.trans hIH).trans <|
           BindingContextLE.withLocalDecl cIH HcIH minorName
             minorTy.consumeTypeAnnotations .default
