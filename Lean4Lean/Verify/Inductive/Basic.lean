@@ -56943,6 +56943,60 @@ theorem
   exact ⟨motiveTarget, resultLevel, Htr.mono H.installed.le,
     Htyped.mono H.installed.le⟩
 
+/-- Close the independently typed constructor motive application over the
+exact production field telescope.  This is the expected-side application
+certificate used when transporting the equation LHS through the generated
+owner-suffix context conversion. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalConstructorMotiveFieldTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ fieldDomains motiveTarget resultLevel,
+      fieldDomains.length = A.rule.allArgs.size ∧
+      TrExprS H.outVEnv Us
+        A.semantics.fieldRootContext.mlctx.vlctx
+        (A.rule.root.lctx.mkForall A.rule.allArgs
+          (Expr.app
+            (mkAppN H.recInfos[owner]!.motive
+              A.rule.target.getAppArgs[stats.params.size:])
+            A.rule.sourceConstructorMajor))
+        (VExpr.wrapForalls fieldDomains motiveTarget) ∧
+      H.outVEnv.IsType Us.length
+        A.semantics.fieldRootContext.mlctx.vlctx.toCtx
+        (VExpr.wrapForalls fieldDomains motiveTarget) ∧
+      H.outVEnv.HasType Us.length
+        (fieldDomains.reverse ++
+          A.semantics.fieldRootContext.mlctx.vlctx.toCtx)
+        motiveTarget (.sort resultLevel) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalConstructorMotiveTyped with
+    ⟨motiveTarget, resultLevel, Htr, Htyped⟩
+  let fieldDomains := MLCtxForallDomains A.semantics.context.mlctx
+    A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have Hclosed := A.semantics.fieldsRecent.mkForallExact Htr
+    (⟨resultLevel, Htyped⟩ : H.outVEnv.IsType Us.length
+      A.semantics.context.mlctx.vlctx.toCtx motiveTarget)
+  have hlength : fieldDomains.length = A.rule.allArgs.size := by
+    exact A.semantics.context.onlyLams.forallDomains_length
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have Hopened := VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
+    A.semantics.fieldRootContext.mlctx_wf.tr.wf.toCtx (by
+      simpa [fieldDomains] using Hclosed.2)
+  exact ⟨fieldDomains, motiveTarget, resultLevel, hlength,
+    by simpa [fieldDomains] using Hclosed.1,
+    by simpa [fieldDomains] using Hclosed.2,
+    by simpa [fieldDomains] using Hopened.2⟩
+
 /-- The exact field telescope retained by rule generation remains available
 after the generated recursors are installed.  This is the stage-correct form
 used by equation typing: its source still refers to the production local
