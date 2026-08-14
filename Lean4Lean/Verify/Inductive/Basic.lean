@@ -26362,6 +26362,9 @@ structure RecursorMotiveTelescopeSeed
     motiveClosedAmbient ++ motiveParameterScope
   motiveParameterAlignment : VEnv.IsDefEqCtx Rroot.venv
     recLparams.length [] canonical.params.reverse motiveParameterScope.toCtx
+  motiveParameterDecls : List.Forall₂
+    checkInductiveTypes.loopType.CachedParameterDecl
+    stats.params.toList.reverse motiveParameterScope
   /-- The genuine-index front also exposes the narrow scope below those
   indices, together with its literal weakening into the closed executable
   context.  This is the context in which the canonical motive is originally
@@ -26371,6 +26374,7 @@ structure RecursorMotiveTelescopeSeed
   motiveSourceShift : Lift
   motiveSourceAlignment : VEnv.IsDefEqCtx Rroot.venv recLparams.length []
     canonical.params.reverse motiveSourceScope.toCtx
+  motiveSourceParameterScope : motiveSourceScope = motiveParameterScope
   motiveSourceLift : VLCtx.FVLift' motiveSourceScope motiveSourceExpanded
     0 motiveSourceShift 0
   motiveSourceContext : VLCtx.IsDefEq Rroot.venv recLparams.length
@@ -26465,6 +26469,7 @@ def RecursorMotiveTelescopeSeed.mono
       change Rcurrent.venv.IsDefEqCtx recLparams.length []
         H.canonical.params.reverse H.motiveParameterScope.toCtx
       simpa only [Hext.venv_eq] using H.motiveParameterAlignment
+    motiveParameterDecls := H.motiveParameterDecls
     motiveSourceScope := H.motiveSourceScope
     motiveSourceExpanded := H.motiveSourceExpanded
     motiveSourceShift := H.motiveSourceShift
@@ -26472,6 +26477,7 @@ def RecursorMotiveTelescopeSeed.mono
       change Rcurrent.venv.IsDefEqCtx recLparams.length []
         H.canonical.params.reverse H.motiveSourceScope.toCtx
       simpa only [Hext.venv_eq] using H.motiveSourceAlignment
+    motiveSourceParameterScope := H.motiveSourceParameterScope
     motiveSourceLift := H.motiveSourceLift
     motiveSourceContext := by
       simpa only [Hext.venv_eq] using H.motiveSourceContext
@@ -26526,10 +26532,12 @@ def RecursorMotiveTelescopeSeed.congrInfo
   motiveParameterScope := H.motiveParameterScope
   motiveClosedContext := H.motiveClosedContext
   motiveParameterAlignment := H.motiveParameterAlignment
+  motiveParameterDecls := H.motiveParameterDecls
   motiveSourceScope := H.motiveSourceScope
   motiveSourceExpanded := H.motiveSourceExpanded
   motiveSourceShift := H.motiveSourceShift
   motiveSourceAlignment := H.motiveSourceAlignment
+  motiveSourceParameterScope := H.motiveSourceParameterScope
   motiveSourceLift := H.motiveSourceLift
   motiveSourceContext := H.motiveSourceContext
   motiveSourceNoBV := H.motiveSourceNoBV
@@ -31322,6 +31330,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           (H.recursorTargetSkeleton Helim) scope narrowTarget
           stats.params.size nindices) →
       Hsynthesis.params.reverse = rootParameterDecls.toCtx →
+      scope.drop nindices = rootParameterDecls →
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope stats decl nindices →
@@ -31368,6 +31377,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           (H.recursorTargetSkeleton Helim) scope narrowTarget
           stats.params.size nindices) →
       Hsynthesis.params.reverse = rootParameterDecls.toCtx →
+      scope.drop nindices = rootParameterDecls →
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope stats decl nindices →
@@ -31401,13 +31411,13 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       RecursorRecentBoundFVarArray Rroot R indices →
       (AddInductive.mkRecInfos.loopArgs1 stats type stats.params.size
         indices fuel k current).WF Q
-  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | current, runtimeDepth, R, henv, Hsuffix, hparameterDecls, type,
       fullTarget, narrowTarget,
       scope, nindices, indices, originTypes, indexTargets, fuel + 1, Hsynthesis,
-      hcanonicalParams, HnarrowStats, Hstats, Hruntime, hfront, htypeNarrow,
+      hcanonicalParams, hscopeBase, HnarrowStats, Hstats, Hruntime, hfront, htypeNarrow,
       htypeFVars, htypeFull,
       htypeFullType, Hindices, HnarrowIndices, hindexCount, hcanonical,
       Horigins, HoriginTypes, Hrecent => by
@@ -31644,6 +31654,9 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 [.bvar 0]) fuel Hsynthesis' (by
                   rw [hparams]
                   exact hcanonicalParams)
+              (by
+                change scope.drop nindices = rootParameterDecls
+                exact hscopeBase)
               (HnarrowStats.withFVar R'.checking.tr.wf hscopeWF)
               (Hstats.withFVar R'.checking.tr.wf R'.mlctx_wf.tr.wf)
               Hruntime' (by
@@ -31666,7 +31679,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
         | proj =>
           simpa [AddInductive.mkRecInfos.loopArgs1] using
             Hk R henv Hsuffix hparameterDecls Hsynthesis hcanonicalParams
-              HnarrowStats Hstats Hruntime
+              hscopeBase HnarrowStats Hstats Hruntime
               hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
               HnarrowIndices hindexCount hcanonical Horigins HoriginTypes Hrecent
 termination_by
@@ -32073,6 +32086,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
           (H.recursorTargetSkeleton Helim) scope narrowTarget
           stats.params.size nindices) →
       Hsynthesis.params.reverse = Hsuffix.parameterDecls.toCtx →
+      scope.drop nindices = Hsuffix.parameterDecls →
       RecursorValidAppStatsWF Rnext.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope stats decl nindices →
@@ -32124,7 +32138,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
   exact continueRecursorIndexSynthesisSemantics stats k H Helim R hwhnf
     hconsume Hk R henv Hsuffix rfl type fullTarget narrowTarget
     Hsuffix.parameterDecls 0 #[] #[] [] remaining Hsynthesis
-    hcanonicalParams HnarrowStats
+    hcanonicalParams rfl HnarrowStats
     Hstats Hruntime hfront htypeNarrow htypeFVars htypeFull htypeFullType .nil .nil
     rfl rfl (BoundFVarTypeOrigins.empty current)
     (RecursorTranslatedOriginTypes.empty R)
@@ -32425,7 +32439,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     · intro cIndices nextDepth Rindices henvIndices HsuffixIndices
         hparameterDecls type
         fullTarget narrowTarget scope nindices indices indexOrigins
-        indexTargets Hsynthesis hcanonicalParams HnarrowStats HstatsIndices Hruntime
+        indexTargets Hsynthesis hcanonicalParams hscopeBase HnarrowStats HstatsIndices Hruntime
         hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
         HnarrowIndices hindexCount hcanonical HindexOrigins HindexTypes
         Hrecent
@@ -32848,6 +32862,10 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         have hmotiveSourceScope' :
             scope.drop Hsynthesis.indices.length = motiveSourceScope := by
           simpa [hfront] using hmotiveSourceScope
+        have hmotiveSourceParameterScope :
+          motiveSourceScope = Hsuffix.parameterDecls := by
+          rw [← hmotiveSourceScope', Hsynthesis.indexCount]
+          exact hscopeBase
         have HmotiveSourceFVarsNarrow : motiveTy.FVarsIn
             (· ∈ VLCtx.fvars motiveSourceScope) := by
           rw [← hmotiveSourceScope']
@@ -32964,6 +32982,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
               rw [← Hsynthesis.scopeCtx]
               exact Hsynthesis.scopeWF.toCtx))
+          motiveParameterDecls := Hsuffix.cached
           motiveSourceScope := motiveSourceScope
           motiveSourceExpanded := motiveSourceExpanded
           motiveSourceShift := motiveSourceShift
@@ -32975,6 +32994,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
               rw [← Hsynthesis.scopeCtx]
               exact Hsynthesis.scopeWF.toCtx))
+          motiveSourceParameterScope := hmotiveSourceParameterScope
           motiveSourceLift := HmotiveSourceLift
           motiveSourceContext := HmotiveSourceContext
           motiveSourceNoBV := HmotiveSourceNoBV
