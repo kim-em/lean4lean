@@ -58597,12 +58597,20 @@ theorem
                 (.sort H.elimLevel)))
             narrowTarget ∧
           H.outVEnv.IsDefEqU Us.length S.motiveSourceScope.toCtx
-            narrowTarget S.canonical.motiveType := by
+            narrowTarget S.canonical.motiveType ∧
+          TrExprS H.outVEnv Us
+            (abstractForallContext
+              (T.params ++ T.motives.take owner) [])
+            ((H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+              (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+                (.sort H.elimLevel))).abstractList
+                  (H.params.fvars ++ H.bindings.motives.fvars.take owner))
+            T.motives[owner]! := by
   dsimp only
   rcases A.finalOwnerClosedMotiveFrame with
     ⟨T, S, _hparameters, hsource, W, Hcontext, _hdecomposition,
       HclosedTr, _HclosedType, HclosedCanonical, _hmotiveType,
-      _Hgenerated⟩
+      Hgenerated⟩
   have hbvars : VLCtx.bvars S.motiveClosedScope = 0 := by
     calc
       VLCtx.bvars S.motiveClosedScope =
@@ -58632,7 +58640,294 @@ theorem
   have Hcanonical :=
     (VEnv.IsDefEqU.weak'_iff H.outVEnvWF Hcontext.wf.toCtx W.toCtx).1
       HweakCanonical
-  exact ⟨T, S, narrowTarget, hsource, Hnarrow, Hcanonical⟩
+  exact ⟨T, S, narrowTarget, hsource, Hnarrow, Hcanonical, Hgenerated⟩
+
+/-- Abstract the exact cached parameter suffix of the narrowed production
+motive, then transport it to the generated parameter telescope.  Earlier
+mutual motives are absent from the concrete source, so adding their abstract
+binders is precisely ordinary bound-variable weakening. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerCanonicalMotiveDomain
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+          H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse S.motiveSourceScope.toCtx ∧
+        H.outVEnv.IsDefEqU Us.length
+          (abstractForallContext
+            (T.params ++ T.motives.take owner) []).toCtx
+          T.motives[owner]!
+          (S.canonical.motiveType.liftN
+            (T.motives.take owner).length 0) := by
+  dsimp only
+  rcases A.finalOwnerNarrowMotiveTranslation with
+    ⟨T, S, narrowTarget, hparams, Hnarrow, Hcanonical, Hgenerated⟩
+  let source := H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+    (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+      (.sort H.elimLevel))
+  have HnarrowParameters : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      S.motiveParameterScope source narrowTarget := by
+    simpa [source, S.motiveSourceParameterScope] using Hnarrow
+  rcases cachedParameterDecls_fvars S.motiveParameterDecls with
+    ⟨parameterFVars, hparameterExprs, hparameterScopeFVars⟩
+  have hstatsParams : stats.params.toList.reverse =
+      H.params.fvars.reverse.map Expr.fvar := by
+    have h := congrArg Array.toList H.params.expressions
+    simpa [List.map_reverse] using congrArg List.reverse h
+  have hparameterFVars : parameterFVars = H.params.fvars.reverse := by
+    apply (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp
+    exact hparameterExprs.symm.trans hstatsParams
+  have Hdecls : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      H.params.fvars.reverse S.motiveParameterScope := by
+    have Hcached := S.motiveParameterDecls
+    rw [hparameterExprs] at Hcached
+    rw [List.forall₂_map_left_iff] at Hcached
+    have Hdecls' : List.Forall₂
+        (fun fv entry => ∃ deps type,
+          entry = (some (fv, deps), .vlam type))
+        parameterFVars S.motiveParameterScope :=
+      Lean4Lean.List.Forall₂.imp
+      (fun fv entry hentry => by
+        rcases hentry with ⟨actual, deps, type, hparam, hentry⟩
+        cases Expr.fvar.inj hparam
+        exact ⟨deps, type, hentry⟩) Hcached
+    simpa [hparameterFVars] using Hdecls'
+  have houterNodup := H.bindings.outerNodup H.params H.noAlias
+  have hparamsMotivesNodup :
+      (H.params.fvars ++ H.bindings.motives.fvars).Nodup :=
+    (List.nodup_append.mp houterNodup).1
+  have hparamsNodup : H.params.fvars.reverse.Nodup :=
+    List.nodup_reverse.mpr
+      (List.nodup_append.mp hparamsMotivesNodup).1
+  have HparameterAbstract :=
+    Lean4Lean.VerifyInductive.TrExprS.abstractFVarLambdaSuffix
+      (domains := []) Hdecls hparamsNodup (by
+        simpa [abstractForallContext] using HnarrowParameters)
+  simp only [List.reverse_reverse] at HparameterAbstract
+  have HparameterAbstract' : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext S.motiveParameterScope.toCtx.reverse [])
+      (source.abstractList H.params.fvars) narrowTarget := by
+    simpa using HparameterAbstract
+  have HparameterContext : VLCtx.IsDefEq H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (abstractForallContext T.params [])
+      (abstractForallContext
+        S.motiveParameterScope.toCtx.reverse []) := by
+    have hparams' := hparams
+    rw [S.motiveSourceParameterScope] at hparams'
+    exact abstractForallContext.isDefEq (by simpa using hparams')
+  rcases HparameterAbstract'.defeqDFC H.outVEnvWF
+      (HparameterContext.symm H.outVEnvWF.ordered) with
+    ⟨parameterTarget, HparameterTarget⟩
+  have HparameterTargets := HparameterAbstract'.uniq H.outVEnvWF
+    (HparameterContext.symm H.outVEnvWF.ordered) HparameterTarget
+  have HcanonicalParameters : H.outVEnv.IsDefEqU
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (abstractForallContext
+        S.motiveParameterScope.toCtx.reverse []).toCtx
+      narrowTarget S.canonical.motiveType := by
+    have hctx :
+        (abstractForallContext
+          S.motiveParameterScope.toCtx.reverse []).toCtx =
+          S.motiveParameterScope.toCtx := by
+      simp [abstractForallContext]
+    rw [hctx, ← S.motiveSourceParameterScope]
+    exact Hcanonical
+  have HparameterCanonicalAtSource : H.outVEnv.IsDefEqU
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (abstractForallContext
+        S.motiveParameterScope.toCtx.reverse []).toCtx
+      parameterTarget S.canonical.motiveType :=
+    HparameterTargets.symm.trans H.outVEnvWF
+      (HparameterContext.symm H.outVEnvWF.ordered).wf.toCtx
+      HcanonicalParameters
+  have HparameterCanonical := HparameterCanonicalAtSource.defeqDFC
+    H.outVEnvWF.ordered
+    (HparameterContext.symm H.outVEnvWF.ordered).defeqCtx
+  let earlierFVars := H.bindings.motives.fvars.take owner
+  have hsourceParameters : source.FVarsIn
+      (· ∈ H.params.fvars) := by
+    have Hfv := Hnarrow.fvarsIn
+    rw [S.motiveSourceParameterScope, hparameterScopeFVars,
+      hparameterFVars] at Hfv
+    exact Hfv.mono fun fv hfv => by simpa using hfv
+  have hsourceClosed : Closed source 0 := by
+    have hclosed := Hnarrow.closed
+    rw [S.motiveSourceNoBV] at hclosed
+    exact hclosed
+  have hsourceAvoidsEarlier : source.FVarsIn (· ∉ earlierFVars) := by
+    exact hsourceParameters.mono fun fv hfv hearlier => by
+      have hdisjoint := (List.nodup_append.mp hparamsMotivesNodup).2.2
+      exact hdisjoint fv hfv fv (List.mem_of_mem_take hearlier) rfl
+  have hearlierAbstract : source.abstractList earlierFVars = source :=
+    hsourceAvoidsEarlier.abstractList_eq_self hsourceClosed
+  have hearlierNodup : earlierFVars.Nodup := by
+    exact (List.nodup_append.mp hparamsMotivesNodup).2.1.sublist
+      (List.take_sublist owner H.bindings.motives.fvars)
+  have hparamsNodup' : H.params.fvars.Nodup :=
+    List.nodup_reverse.mp hparamsNodup
+  have hparamsEarlierNodup :
+      (H.params.fvars ++ earlierFVars).Nodup := by
+    exact hparamsMotivesNodup.sublist
+      ((List.Sublist.refl H.params.fvars).append
+        (List.take_sublist owner H.bindings.motives.fvars))
+  have habstractShape :
+      (source.abstractList H.params.fvars).liftLooseBVars'
+          0 earlierFVars.length =
+        source.abstractList (H.params.fvars ++ earlierFVars) := by
+    have hshift := Expr.abstractList_add_eq_liftLooseBVars
+      (e := source) (fvars := H.params.fvars) (depth := 0)
+      (extra := earlierFVars.length) hsourceClosed hparamsNodup'
+    have happend := Expr.abstractList_after_inner
+      (e := source) (outer := H.params.fvars)
+      (inner := earlierFVars) (k := 0) hparamsEarlierNodup
+    rw [hearlierAbstract] at happend
+    exact hshift.symm.trans happend
+  have W := abstractForallContext.bvLift (T.motives.take owner)
+    (abstractForallContext T.params [])
+  have HparameterWeak := HparameterTarget.weakBV
+    H.outVEnvWF.ordered W
+  have HparameterWeak' : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        (T.params ++ T.motives.take owner) [])
+      (source.abstractList
+        (H.params.fvars ++ H.bindings.motives.fvars.take owner))
+      (parameterTarget.liftN (T.motives.take owner).length 0) := by
+    have hrecInfo : owner < H.recInfos.size := by
+      simpa [H.generated.length] using howner
+    have hownerMotive : owner < T.motives.length := by
+      rw [T.motives_length]
+      simpa using hrecInfo
+    have hownerBinding : owner < H.bindings.motives.fvars.length := by
+      have hlength : H.bindings.motives.fvars.length = H.recInfos.size := by
+        have h := congrArg Array.size H.bindings.motives.expressions
+        simpa using h.symm
+      rw [hlength]
+      exact hrecInfo
+    have htakeT : (T.motives.take owner).length = owner := by
+      simp [List.length_take, Nat.min_eq_left (Nat.le_of_lt hownerMotive)]
+    have htakeSource : earlierFVars.length = owner := by
+      simp [earlierFVars, List.length_take,
+        Nat.min_eq_left (Nat.le_of_lt hownerBinding)]
+    have hweakContext :
+        abstractForallContext (T.motives.take owner)
+            (abstractForallContext T.params []) =
+          abstractForallContext
+            (T.params ++ T.motives.take owner) [] := by
+      simp [abstractForallContext, List.reverse_append, List.map_append,
+        List.map_take, List.append_assoc]
+    rw [htakeT] at HparameterWeak
+    rw [← habstractShape, htakeT, htakeSource, ← hweakContext]
+    exact HparameterWeak
+  have htoCtx : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) = types := by
+    intro types
+    induction types with
+    | nil => rfl
+    | cons type types ih => simp [VLCtx.toCtx, ih]
+  have anonymousWF : ∀ types : List VExpr,
+      OnCtx types (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) →
+      VLCtx.WF H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        (types.map fun type =>
+          ((none, .vlam type) :
+            Option (FVarId × List FVarId) × VLocalDecl)) := by
+    intro types Htypes
+    induction types with
+    | nil => trivial
+    | cons type types ih =>
+      have Htype : H.outVEnv.IsType
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+          (VLCtx.toCtx (types.map fun type =>
+            ((none, .vlam type) :
+              Option (FVarId × List FVarId) × VLocalDecl))) type := by
+        rw [htoCtx]
+        exact Htypes.2
+      exact ⟨ih Htypes.1, nofun, Htype⟩
+  have HearlierCtx : OnCtx
+      (abstractForallContext
+        (T.params ++ T.motives.take owner) []).toCtx
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
+    have HprefixCtx := T.prefixContext H.outVEnvWF.ordered
+    have hmotivesReverse : T.motives.reverse =
+        (T.motives.drop owner).reverse ++
+          (T.motives.take owner).reverse := by
+      simpa [List.reverse_append] using
+        congrArg List.reverse (List.take_append_drop owner T.motives).symm
+    have hsplit : (T.params ++ T.motives ++ T.minors).reverse =
+        (T.minors.reverse ++ (T.motives.drop owner).reverse) ++
+          (T.params ++ T.motives.take owner).reverse := by
+      rw [List.reverse_append, List.reverse_append, hmotivesReverse,
+        List.reverse_append]
+      simp [List.reverse_append, List.append_assoc]
+    rw [hsplit] at HprefixCtx
+    have Hsuffix := OnCtx.append_right HprefixCtx
+    have hearlierToCtx :
+        (abstractForallContext
+          (T.params ++ T.motives.take owner) []).toCtx =
+          (T.params ++ T.motives.take owner).reverse := by
+      simpa [abstractForallContext] using
+        htoCtx ((T.params ++ T.motives.take owner).reverse)
+    rw [hearlierToCtx]
+    exact Hsuffix
+  have HearlierVLCtx : VLCtx.WF H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (abstractForallContext
+        (T.params ++ T.motives.take owner) []) := by
+    have Hwf := anonymousWF
+      ((T.params ++ T.motives.take owner).reverse)
+      (by
+        have hearlierToCtx :
+            (abstractForallContext
+              (T.params ++ T.motives.take owner) []).toCtx =
+              (T.params ++ T.motives.take owner).reverse := by
+          simpa [abstractForallContext] using
+            htoCtx ((T.params ++ T.motives.take owner).reverse)
+        rwa [hearlierToCtx] at HearlierCtx)
+    simpa [abstractForallContext] using Hwf
+  have Htargets := Hgenerated.uniq H.outVEnvWF
+    (.refl H.outVEnvWF HearlierVLCtx)
+    HparameterWeak'
+  have HcanonicalWeak := HparameterCanonical.weakN
+    H.outVEnvWF.ordered W.toCtx
+  have HcanonicalWeak' : H.outVEnv.IsDefEqU
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (abstractForallContext
+        (T.params ++ T.motives.take owner) []).toCtx
+      (parameterTarget.liftN (T.motives.take owner).length 0)
+      (S.canonical.motiveType.liftN
+        (T.motives.take owner).length 0) := by
+    simpa [abstractForallContext, List.reverse_append, List.map_append,
+      List.map_take, List.append_assoc] using HcanonicalWeak
+  have Hresult := Htargets.trans H.outVEnvWF
+    HearlierCtx
+    HcanonicalWeak'
+  exact ⟨T, S, hparams, by simpa [source] using Hresult⟩
 
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
