@@ -67553,6 +67553,16 @@ theorem
               levels, parameterTargets ++ spineIndexTargets) ∧
           stats.levels.mapM (VLevel.ofLevel Us) = some levels ∧
           List.Forall₂
+            (TrExprS H.outVEnv Us
+              (abstractForallContext
+                (equationDomains ++ localDomains) []))
+            ((stats.params.map fun param =>
+              (param.abstractList
+                F.semantic.generated.arguments_bound.fvars).abstractList
+                  A.rule.binders
+                  F.semantic.generated.localArgs.size).toList)
+            parameterTargets ∧
+          List.Forall₂
             (fun spine exact => H.outVEnv.IsDefEqU Us.length
               (abstractForallContext
                 (equationDomains ++ localDomains) []).toCtx spine exact)
@@ -67677,7 +67687,7 @@ theorem
   rw [hsourceArgs] at Hargs
   rcases checkPositivityStep.List.Forall₂.split_left Hargs with
     ⟨parameterTargets, spineIndexTargets, htranslatedArgs,
-      _Hparameters, HspineIndices⟩
+      Hparameters, HspineIndices⟩
   have Hindices' : List.Forall₂
       (TrExprS H.outVEnv Us
         (abstractForallContext (equationDomains ++ liftedLocals) []))
@@ -67743,8 +67753,9 @@ theorem
     exact align HspineIndices Hindices'
   refine ⟨equationDomains, liftedLocals, exactIndexTargets, majorTarget,
     exposedTarget, Hctx', Htyping', levels, parameterTargets,
-    spineIndexTargets, ?_, hlevels, HindexDefEq⟩
+    spineIndexTargets, ?_, hlevels, ?_, HindexDefEq⟩
   simpa [htranslatedArgs] using hspine
+  simpa [parameterSources] using Hparameters
 
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
