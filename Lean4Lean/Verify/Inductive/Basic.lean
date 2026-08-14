@@ -47968,6 +47968,54 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveOuterBvarTyping
   rw [hcontext]
   exact hlookup
 
+/-- A selected minor premise in the generated recursor prefix is found
+beneath precisely the later flattened minors.  This is the minor analogue of
+`ownerMotiveOuterBvarTyping`; constructor fields can subsequently weaken this
+lookup into the complete equation context. -/
+theorem GeneratedRecursorTelescopeTranslation.minorOuterBvarTyping
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (minorIdx : Nat) (hminor : minorIdx < T.minors.length) :
+    let later := T.minors.drop (minorIdx + 1)
+    let outer := T.params ++ T.motives ++ T.minors
+    env.HasType Us.length outer.reverse (.bvar later.length)
+      ((T.minors[minorIdx]'hminor).liftN (later.length + 1) 0) := by
+  let later := T.minors.drop (minorIdx + 1)
+  let older := (T.minors.take minorIdx).reverse ++
+    T.motives.reverse ++ T.params.reverse
+  let outer := T.params ++ T.motives ++ T.minors
+  have hsplit : T.minors = T.minors.take minorIdx ++
+      T.minors[minorIdx] :: T.minors.drop (minorIdx + 1) := by
+    calc
+      T.minors = T.minors.take (minorIdx + 1) ++
+          T.minors.drop (minorIdx + 1) :=
+        (List.take_append_drop (minorIdx + 1) T.minors).symm
+      _ = (T.minors.take minorIdx ++ [T.minors[minorIdx]]) ++
+          T.minors.drop (minorIdx + 1) := by
+        rw [List.take_append_getElem hminor]
+      _ = T.minors.take minorIdx ++ T.minors[minorIdx] ::
+          T.minors.drop (minorIdx + 1) := by
+        simp [List.append_assoc]
+  have hlookup : Lookup
+      (later.reverse ++ T.minors[minorIdx] :: older)
+      later.length
+      ((T.minors[minorIdx]'hminor).liftN (later.length + 1) 0) := by
+    simpa [List.length_reverse] using
+      Lookup.append_zero later.reverse (T.minors[minorIdx]'hminor) older
+  have hminorsReverse : T.minors.reverse =
+      (T.minors.drop (minorIdx + 1)).reverse ++
+        T.minors[minorIdx] :: (T.minors.take minorIdx).reverse := by
+    simpa [List.reverse_append, List.append_assoc] using
+      congrArg List.reverse hsplit
+  have hcontext : outer.reverse =
+      later.reverse ++ T.minors[minorIdx] :: older := by
+    dsimp [outer, later, older]
+    rw [List.reverse_append, List.reverse_append, hminorsReverse]
+    simp [List.append_assoc]
+  apply VEnv.HasType.bvar
+  rw [hcontext]
+  exact hlookup
+
 /-- The oldest variable in the generated index/major suffix has the first
 domain of the declared owner-motive telescope, weakened across all binders
 newer than that motive.  This is the first dependent-domain equation exposed
@@ -62068,6 +62116,116 @@ theorem
       VExpr.mkApps_append] using HlhsTr
   exact ⟨T, fieldDomains, lhsBody, typeBody, hfields, HcachedCtx,
     HlhsResidual, Hlhs', HtypeBody⟩
+
+/-- Extend the completed cached left-hand-side frame with the exact minor
+variable selected by this constructor.  Its de Bruijn offset is the number
+of constructor fields plus the number of later flattened minors, exactly as
+in `abstractedSourceRhsAtMinorArray`; its lookup type is the corresponding
+generated minor domain weakened below itself, those later minors, and the
+constructor fields. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalMinorFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ fieldDomains lhsBody typeBody,
+        let cachedDomains :=
+          (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+            fieldDomains
+        let later := T.minors.drop (minorIdx + 1)
+        let minorVar := fieldDomains.length + later.length
+        fieldDomains.length = A.rule.allArgs.size ∧
+        OnCtx cachedDomains.reverse (H.outVEnv.IsType Us.length) ∧
+        TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+          (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody ∧
+        H.outVEnv.HasType Us.length cachedDomains.reverse lhsBody typeBody ∧
+        H.outVEnv.IsType Us.length cachedDomains.reverse typeBody ∧
+        minorIdx < T.minors.length ∧
+        H.outVEnv.HasType Us.length cachedDomains.reverse (.bvar minorVar)
+          (T.minors[minorIdx]!.liftN
+            (later.length + 1 + fieldDomains.length) 0) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalCachedCanonicalLhsBody with
+    ⟨T, fieldDomains, lhsBody, typeBody, hfields, HcachedCtx,
+      HlhsResidual, Hlhs, HtypeBody⟩
+  let cachedDomains :=
+    (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+      fieldDomains
+  let later := T.minors.drop (minorIdx + 1)
+  let minorVar := fieldDomains.length + later.length
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  let older := (T.minors.take minorIdx).reverse ++
+    T.motives.reverse ++ parameterDecls.toCtx
+  have hsplit : T.minors = T.minors.take minorIdx ++
+      T.minors[minorIdx] :: T.minors.drop (minorIdx + 1) := by
+    calc
+      T.minors = T.minors.take (minorIdx + 1) ++
+          T.minors.drop (minorIdx + 1) :=
+        (List.take_append_drop (minorIdx + 1) T.minors).symm
+      _ = (T.minors.take minorIdx ++ [T.minors[minorIdx]]) ++
+          T.minors.drop (minorIdx + 1) := by
+        rw [List.take_append_getElem hminor]
+      _ = T.minors.take minorIdx ++ T.minors[minorIdx] ::
+          T.minors.drop (minorIdx + 1) := by
+        simp [List.append_assoc]
+  have hminorsReverse : T.minors.reverse = later.reverse ++
+      T.minors[minorIdx] :: (T.minors.take minorIdx).reverse := by
+    simpa [later, List.reverse_append, List.append_assoc] using
+      congrArg List.reverse hsplit
+  have hcontext : cachedDomains.reverse =
+      (fieldDomains.reverse ++ later.reverse) ++
+        T.minors[minorIdx] :: older := by
+    dsimp only [cachedDomains, older]
+    rw [List.reverse_append, List.reverse_append, List.reverse_append,
+      hminorsReverse]
+    simp [List.append_assoc]
+  have hlookup : Lookup
+      ((fieldDomains.reverse ++ later.reverse) ++
+        T.minors[minorIdx] :: older)
+      minorVar
+      (T.minors[minorIdx]!.liftN
+        (later.length + 1 + fieldDomains.length) 0) := by
+    have hselected : T.minors[minorIdx] = T.minors[minorIdx]! := by
+      exact getElem!_pos T.minors minorIdx hminor
+    rw [← hselected]
+    have Hlookup := Lookup.append_zero
+      (fieldDomains.reverse ++ later.reverse)
+      (T.minors[minorIdx]'hminor) older
+    simpa only [minorVar, List.length_append, List.length_reverse,
+      Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hlookup
+  have Hminor : H.outVEnv.HasType Us.length cachedDomains.reverse
+      (.bvar minorVar)
+      (T.minors[minorIdx]!.liftN
+        (later.length + 1 + fieldDomains.length) 0) := by
+    apply VEnv.HasType.bvar
+    rw [hcontext]
+    exact hlookup
+  exact ⟨T, fieldDomains, lhsBody, typeBody, hfields, HcachedCtx,
+    HlhsResidual, Hlhs, HtypeBody, hminor, Hminor⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
