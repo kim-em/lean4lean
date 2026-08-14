@@ -29441,7 +29441,8 @@ def RecInfoMinorSourceAlignment
         traversal.constructor = S.constructor ∧
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
-        traversal.stats = stats
+        traversal.stats = stats ∧
+        BindingContextLE traversal.rootContext c
 
 theorem RecInfoMinorSourceAlignment.ofEmpty
     (H : RecInfoTypeOrigins c recInfos)
@@ -29459,7 +29460,12 @@ theorem RecInfoMinorSourceAlignment.mono
     (A : RecInfoMinorSourceAlignment stats indTypes H)
     (hle : BindingContextLE c c') :
     RecInfoMinorSourceAlignment stats indTypes (H.mono hle) := by
-  exact A
+  intro owner howner hsourceOwner localIndex hlocal
+  rcases A owner howner hsourceOwner localIndex hlocal with
+    ⟨horigin, hindex, hsource, traversal, htraversal, hconstructor,
+      hfields, hrecursive, hstats, hroot⟩
+  exact ⟨horigin, hindex, hsource, traversal, htraversal, hconstructor,
+    hfields, hrecursive, hstats, hroot.trans hle⟩
 
 theorem RecInfoMinorSourceAlignment.addMinor
     {c cMinorTy : AddInductive.Context}
@@ -29481,10 +29487,48 @@ theorem RecInfoMinorSourceAlignment.addMinor
       traversal.constructor = Hshape.constructor ∧
       traversal.fields = Hshape.fields ∧
       traversal.recursiveFields = Hshape.recursiveFields ∧
-      traversal.stats = stats) :
+      traversal.stats = stats ∧
+      BindingContextLE traversal.rootContext cMinorTy) :
     RecInfoMinorSourceAlignment stats indTypes
       (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
         Hshape HshapePosition) := by
+  let cMinor : AddInductive.Context := { cMinorTy with
+    ngen := cMinorTy.ngen.next
+    lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
+      minorName minorTy minorBi }
+  let hstep := BindingContextLE.withLocalDecl cMinorTy HcMinorTy
+    minorName minorTy minorBi
+  let hfinal := hle.trans hstep
+  have htraversalFinal : ∃ traversal,
+      Hshape.traversal = some traversal ∧
+      traversal.constructor = Hshape.constructor ∧
+      traversal.fields = Hshape.fields ∧
+      traversal.recursiveFields = Hshape.recursiveFields ∧
+      traversal.stats = stats ∧
+      BindingContextLE traversal.rootContext cMinor := by
+    rcases htraversal with
+      ⟨traversal, hsome, hconstructor, hfields, hrecursive, hstats, hroot⟩
+    exact ⟨traversal, hsome, hconstructor, hfields, hrecursive, hstats,
+      hroot.trans hstep⟩
+  have Aextended : ∀ owner (howner : owner < recInfos.size)
+      (hsourceOwner : owner < indTypes.size)
+      localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
+      let S := H.minorShapes owner howner localIndex hlocal
+      S.origin = H.minorTypes[owner]![localIndex]! ∧
+        S.localIndex = localIndex ∧
+        S.sourceConstructors = indTypes[owner]!.ctors ∧
+        ∃ traversal, S.traversal = some traversal ∧
+          traversal.constructor = S.constructor ∧
+          traversal.fields = S.fields ∧
+          traversal.recursiveFields = S.recursiveFields ∧
+          traversal.stats = stats ∧
+          BindingContextLE traversal.rootContext cMinor := by
+    intro owner howner hsourceOwner localIndex hlocal
+    rcases A owner howner hsourceOwner localIndex hlocal with
+      ⟨horigin, hindex, hsource, traversal, hsome, hconstructor,
+        hfields, hrecursive, hstats, hroot⟩
+    exact ⟨horigin, hindex, hsource, traversal, hsome, hconstructor,
+      hfields, hrecursive, hstats, hroot.trans hfinal⟩
   intro owner howner hsourceOwner localIndex hlocal
   by_cases hdi : dIdx = owner
   · subst owner
@@ -29505,7 +29549,7 @@ theorem RecInfoMinorSourceAlignment.addMinor
           (fun types => types.push minorTy) hiTypes,
         getElem!_pos (H.minorTypes[dIdx]!.push minorTy)
           H.minorTypes[dIdx]!.size (by simp)] using
-        ⟨HshapePosition.2, HshapePosition.1, hsource, htraversal⟩
+        ⟨HshapePosition.2, HshapePosition.1, hsource, htraversalFinal⟩
     · have hold : localIndex < H.minorTypes[dIdx]!.size := by
         simp only [Array.size_push] at hlocal
         omega
@@ -29519,7 +29563,7 @@ theorem RecInfoMinorSourceAlignment.addMinor
       simpa [RecInfoTypeOrigins.addMinor, hlast,
         mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
           (fun types => types.push minorTy) hiTypes, hget] using
-        A dIdx hidx hsourceIdx localIndex hold
+        Aextended dIdx hidx hsourceIdx localIndex hold
   · have hownerOld : owner < recInfos.size := by simpa using howner
     have hownerTypes : owner < H.minorTypes.size := by
       rw [H.minorTypes_size]
@@ -29536,7 +29580,7 @@ theorem RecInfoMinorSourceAlignment.addMinor
     simpa [RecInfoTypeOrigins.addMinor, hdi,
       mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner
         (fun types => types.push minorTy) hownerTypes hdi] using
-      A owner hownerOld hsourceOwner localIndex hlocalOld
+      Aextended owner hownerOld hsourceOwner localIndex hlocalOld
 
 private def recInfoMinorIds (info : AddInductive.RecInfo) : List FVarId :=
   ExprArrayFVarIds info.minors
@@ -40908,7 +40952,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       traversal.constructor = HminorShape.constructor ∧
       traversal.fields = HminorShape.fields ∧
       traversal.recursiveFields = HminorShape.recursiveFields ∧
-      traversal.stats = stats)
+      traversal.stats = stats ∧
+      BindingContextLE traversal.rootContext c)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
@@ -41352,7 +41397,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         sourceType_eq := rfl
         consumed_eq := rfl } ⟨rfl, rfl⟩ (by
           simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
-            hsourceFamily) ⟨_, rfl, rfl, rfl, rfl, rfl⟩ ?_
+            hsourceFamily)
+      ⟨_, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE⟩ ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
     hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
     HminorSourcesNext hsizeNext hcountNext hotherNext HmajorTypesNext HmajorShapesNext
@@ -60635,6 +60681,7 @@ theorem
             traversal.fields = S.fields ∧
             traversal.recursiveFields = S.recursiveFields ∧
             traversal.stats = stats ∧
+            BindingContextLE traversal.rootContext H.localContext ∧
             let sourceBinders := H.params.fvars ++
               H.bindings.motives.fvars ++
                 H.bindings.flatMinors.fvars.take minorIdx
@@ -60666,7 +60713,8 @@ theorem
         traversal.constructor = S.constructor ∧
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
-        traversal.stats = stats := by
+        traversal.stats = stats ∧
+        BindingContextLE traversal.rootContext H.localContext := by
     simpa [S] using H.minorSources O.owner O.owner_lt hsourceOwner
       O.localIndex hshapeBound
   have horigin : S.origin = D.type :=
@@ -60677,7 +60725,7 @@ theorem
     simpa [hposition.1] using Hsource.2.2.1
   rcases Hsource.2.2.2 with
     ⟨traversal, htraversal, htraversalConstructor,
-      htraversalFields, htraversalRecursiveFields, hstats⟩
+      htraversalFields, htraversalRecursiveFields, hstats, hrootContext⟩
   have hconstructor : S.constructor = indTypes[owner]!.ctors[i] := by
     have hsourceConstructor := S.sourceConstructor
     rw [hconstructors, hlocal] at hsourceConstructor
@@ -60699,7 +60747,7 @@ theorem
       traversal.fieldResidual_not_forall hsemanticResidual).1
   exact ⟨T, D, O, S, horigin, hlocal, hconstructors, hconstructor,
     hfieldCount, traversal, htraversal, htraversalConstructor,
-    htraversalFields, htraversalRecursiveFields, hstats,
+    htraversalFields, htraversalRecursiveFields, hstats, hrootContext,
     Hdomain, HdomainType⟩
 
 /-- The concrete owner-motive declaration mentions no interleaved executable
