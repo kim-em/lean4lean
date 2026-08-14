@@ -25969,7 +25969,7 @@ under the common parameter domains: later first-pass index/major frames have
 not yet been interleaved with sibling motives.  It is therefore the stable
 form that can be compared with the grouped generated-recursor telescope. -/
 structure RecursorCanonicalMotiveTelescope
-    (env : VEnv) (uvars : Nat)
+    (env : VEnv) (levelParams : List Name)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : Nat) (info : AddInductive.RecInfo)
     (elimLevel : Level) : Type where
@@ -25984,7 +25984,9 @@ structure RecursorCanonicalMotiveTelescope
   params_length : params.length = stats.params.size
   indices_length : indices.length = info.indices.size
   levels_length : levels.length = (decl.types[target]'target_lt).uvars
-  levels_wf : ∀ level ∈ levels, level.WF uvars
+  levels_wf : ∀ level ∈ levels, level.WF levelParams.length
+  levels_translation : stats.levels.mapM (VLevel.ofLevel levelParams) =
+    some levels
   family_eq : family = VExpr.mkApps
     ((VExpr.const (decl.types[target]'target_lt).name
       levels).liftN params.length 0)
@@ -25994,16 +25996,16 @@ structure RecursorCanonicalMotiveTelescope
       (VExpr.mkApps (family.liftN indices.length 0)
         (recursorCanonicalVars indices.length))
       (.sort resultLevel))
-  family_typing : env.HasType uvars params.reverse family
+  family_typing : env.HasType levelParams.length params.reverse family
     (VExpr.wrapForalls indices familyResult)
   telescope : RecursorMotiveTelescope resultLevel indices.length family
     (VExpr.wrapForalls indices familyResult) motiveType
 
 def RecursorCanonicalMotiveTelescope.mono
-    (H : RecursorCanonicalMotiveTelescope env uvars stats decl target info
+    (H : RecursorCanonicalMotiveTelescope env levelParams stats decl target info
       elimLevel)
     (henv : env ≤ env') :
-    RecursorCanonicalMotiveTelescope env' uvars stats decl target info
+    RecursorCanonicalMotiveTelescope env' levelParams stats decl target info
       elimLevel where
   target_lt := H.target_lt
   params := H.params
@@ -26017,6 +26019,7 @@ def RecursorCanonicalMotiveTelescope.mono
   indices_length := H.indices_length
   levels_length := H.levels_length
   levels_wf := H.levels_wf
+  levels_translation := H.levels_translation
   family_eq := H.family_eq
   motiveType_eq := H.motiveType_eq
   family_typing := H.family_typing.mono henv
@@ -26027,21 +26030,21 @@ arbitrary well-formed inner context.  The family prefix and the parallel
 motive type are weakened by the same amount, so a major premise at any
 concrete translated index spine yields the exact motive application type. -/
 theorem RecursorCanonicalMotiveTelescope.applyMajorTypedAfter
-    (C : RecursorCanonicalMotiveTelescope env uvars stats decl target info
+    (C : RecursorCanonicalMotiveTelescope env levelParams stats decl target info
       elimLevel)
     (henv : env.WF) (added : List VExpr)
     (hctx : OnCtx (added.reverse ++ C.params.reverse)
-      (env.IsType uvars))
+      (env.IsType levelParams.length))
     (indexTargets : List VExpr)
     (hindices : indexTargets.length = C.indices.length)
     (motive major : VExpr)
-    (Hmotive : env.HasType uvars
+    (Hmotive : env.HasType levelParams.length
       (added.reverse ++ C.params.reverse) motive
       (C.motiveType.liftN added.length 0))
-    (Hmajor : env.HasType uvars
+    (Hmajor : env.HasType levelParams.length
       (added.reverse ++ C.params.reverse) major
       (VExpr.mkApps (C.family.liftN added.length 0) indexTargets)) :
-    env.HasType uvars (added.reverse ++ C.params.reverse)
+    env.HasType levelParams.length (added.reverse ++ C.params.reverse)
       (.app (VExpr.mkApps motive indexTargets) major)
       (.sort C.resultLevel) := by
   have W : Ctx.LiftN added.length 0 C.params.reverse
@@ -26057,19 +26060,20 @@ typing interface: the canonical first-pass parameter scope may be replaced
 by the cached or generated parameter scope before the common inner binder
 block is introduced. -/
 theorem RecursorCanonicalMotiveTelescope.applyMajorTypedAfterDefEq
-    (C : RecursorCanonicalMotiveTelescope env uvars stats decl target info
+    (C : RecursorCanonicalMotiveTelescope env levelParams stats decl target info
       elimLevel)
     (henv : env.WF) (base added : List VExpr)
-    (Hbase : VEnv.IsDefEqCtx env uvars [] C.params.reverse base)
-    (hctx : OnCtx (added.reverse ++ base) (env.IsType uvars))
+    (Hbase : VEnv.IsDefEqCtx env levelParams.length [] C.params.reverse base)
+    (hctx : OnCtx (added.reverse ++ base)
+      (env.IsType levelParams.length))
     (indexTargets : List VExpr)
     (hindices : indexTargets.length = C.indices.length)
     (motive major : VExpr)
-    (Hmotive : env.HasType uvars (added.reverse ++ base) motive
+    (Hmotive : env.HasType levelParams.length (added.reverse ++ base) motive
       (C.motiveType.liftN added.length 0))
-    (Hmajor : env.HasType uvars (added.reverse ++ base) major
+    (Hmajor : env.HasType levelParams.length (added.reverse ++ base) major
       (VExpr.mkApps (C.family.liftN added.length 0) indexTargets)) :
-    env.HasType uvars (added.reverse ++ base)
+    env.HasType levelParams.length (added.reverse ++ base)
       (.app (VExpr.mkApps motive indexTargets) major)
       (.sort C.resultLevel) := by
   have HfamilyBase := C.family_typing.defeqDFC henv.ordered Hbase
@@ -26090,7 +26094,7 @@ structure RecursorMotiveTelescopeSeed
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : Nat) (info : AddInductive.RecInfo)
     (elimLevel : Level) : Type where
-  canonical : RecursorCanonicalMotiveTelescope Rroot.venv recLparams.length stats
+  canonical : RecursorCanonicalMotiveTelescope Rroot.venv recLparams stats
     decl target info elimLevel
   target_lt : target < decl.types.length
   indexCount : info.indices.size =
@@ -26369,7 +26373,7 @@ structure RecInfoMotiveTelescopes
       VEnv.IsDefEqCtx Rroot.venv recLparams.length []
         S.canonical.params.reverse parameterCtx
   canonical : ∀ target (htarget : target < recInfos.size),
-    ∃ C : RecursorCanonicalMotiveTelescope Rroot.venv recLparams.length stats
+    ∃ C : RecursorCanonicalMotiveTelescope Rroot.venv recLparams stats
         decl target recInfos[target]! elimLevel,
       VEnv.IsDefEqCtx Rroot.venv recLparams.length []
         C.params.reverse parameterCtx
@@ -32378,6 +32382,25 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
             motiveClosedTarget
           exact HmotiveClosedType
+        have hcanonicalLevelTranslation : stats.levels.mapM
+            (VLevel.ofLevel
+              (AddInductive.getRecLevelParams elimLevel base.lparams)) =
+            some (Hheader.recursorAbstractLevels Helim) := by
+          cases elimLevel with
+          | zero =>
+            simpa [CheckedRecursorHeaderAt.recursorAbstractLevels,
+              CheckedRecursorHeaderAt.abstractLevels,
+              AddInductive.getRecLevelParams] using
+              Hheader.materialized.levelTranslation
+          | param fresh =>
+            have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim
+              Hheader.materialized.levelTranslation
+            simpa [CheckedRecursorHeaderAt.recursorAbstractLevels,
+              CheckedRecursorHeaderAt.abstractLevels,
+              AddInductive.getRecLevelParams] using hshifted
+          | succ level | max level₁ level₂ | imax level₁ level₂ |
+              mvar id =>
+            simp [AddInductive.AdmissibleElimLevel] at Helim
         let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx
             nextInfo elimLevel := {
           canonical := {
@@ -32411,6 +32434,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               rw [htargetEq]
               exact Hheader.recursorAbstractLevels_length Helim
             levels_wf := Hheader.recursorAbstractLevels_wf Helim
+            levels_translation := hcanonicalLevelTranslation
             family_eq := by rw [htargetEq]
             motiveType_eq := rfl
             family_typing := by
@@ -56676,7 +56700,7 @@ theorem
       (R.materialized.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls.toCtx
     ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length stats
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams) stats
         decl owner H.recInfos[owner]! H.elimLevel,
       VEnv.IsDefEqCtx H.outVEnv
         (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
@@ -56766,7 +56790,7 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us.length stats decl
+      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us stats decl
           owner H.recInfos[owner]! H.elimLevel,
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse C.params.reverse := by
