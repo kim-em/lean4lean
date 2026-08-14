@@ -60320,6 +60320,80 @@ theorem
   rw [hownerEq] at hposition
   omega
 
+/-- Recover the exact source construction behind this rule's flattened minor
+domain.  In particular, the retained second-pass shape names the same source
+family and constructor slot as rule generation, rather than merely occupying
+the same flattened minor position. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorShape
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ D : BoundFVarDeclarationAt H.localContext
+          (H.recInfos.flatMap (·.minors)) minorIdx,
+        ∃ O : H.origins.FlatMinorOrigin D,
+          ∃ S : RecInfoMinorTypeShape,
+            S.origin = D.type ∧
+            S.localIndex = i ∧
+            S.sourceConstructors = indTypes[owner]!.ctors ∧
+            S.constructor = indTypes[owner]!.ctors[i] ∧
+            let sourceBinders := H.params.fvars ++
+              H.bindings.motives.fvars ++
+                H.bindings.flatMinors.fvars.take minorIdx
+            TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (T.params ++ T.motives ++ T.minors.take minorIdx) [])
+                (D.type.abstractList sourceBinders) T.minors[minorIdx]! ∧
+              H.outVEnv.IsType Us.length
+                (abstractForallContext
+                  (T.params ++ T.motives ++ T.minors.take minorIdx) []).toCtx
+                T.minors[minorIdx]! := by
+  dsimp only
+  rcases A.finalSelectedMinorDomain with
+    ⟨T, D, O, _discardedShape, Hdomain, HdomainType⟩
+  have hposition := A.selectedMinorOriginPosition O
+  have hsourceOwner : O.owner < indTypes.size := by
+    rw [hposition.1]
+    exact A.sourceOwner_lt
+  have hshapeBound : O.localIndex <
+      H.origins.minorTypes[O.owner]!.size := by
+    rw [(H.origins.minors O.owner O.owner_lt).size_eq]
+    simpa [getElem!_pos H.recInfos O.owner O.owner_lt] using O.local_lt
+  let S := H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound
+  have Hsource : S.origin =
+        H.origins.minorTypes[O.owner]![O.localIndex]! ∧
+      S.localIndex = O.localIndex ∧
+      S.sourceConstructors = indTypes[O.owner]!.ctors := by
+    simpa [S] using H.minorSources O.owner O.owner_lt hsourceOwner
+      O.localIndex hshapeBound
+  have horigin : S.origin = D.type :=
+    Hsource.1.trans O.originType_eq.symm
+  have hlocal : S.localIndex = i := Hsource.2.1.trans hposition.2
+  have hconstructors :
+      S.sourceConstructors = indTypes[owner]!.ctors := by
+    simpa [hposition.1] using Hsource.2.2
+  have hconstructor : S.constructor = indTypes[owner]!.ctors[i] := by
+    have hsourceConstructor := S.sourceConstructor
+    rw [hconstructors, hlocal] at hsourceConstructor
+    simpa [hctor] using hsourceConstructor.symm
+  exact ⟨T, D, O, S, horigin, hlocal, hconstructors, hconstructor,
+    Hdomain, HdomainType⟩
+
 /-- The concrete owner-motive declaration mentions no interleaved executable
 index or major locals.  Its only possible free variables are the common
 parameters and strictly earlier motives, exactly the locals abstracted by the
