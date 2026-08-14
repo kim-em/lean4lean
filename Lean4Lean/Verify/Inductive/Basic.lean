@@ -22981,6 +22981,93 @@ theorem Expr.ForallTelescopeTypeTranslation.binderAt_target
   exact ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
     Hsource, hsource, Hdomain, HdomainType, Hbody⟩
 
+/-- Two translated forall telescopes have definitionally equal abstract
+prefix contexts whenever their concrete binder domains agree pointwise.
+The bodies and the remaining telescope arities may differ; dependency is
+handled by extending the context conversion one translated binder at a
+time. -/
+theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtx
+    (Henv : env.WF)
+    (H₁ : Expr.ForallTelescopeTypeTranslation env Us []
+      source₁ arity₁ target₁)
+    (H₂ : Expr.ForallTelescopeTypeTranslation env Us []
+      source₂ arity₂ target₂)
+    (domains₁ domains₂ : List VExpr) (result₁ result₂ : VExpr)
+    (htarget₁ : target₁ = VExpr.wrapForalls domains₁ result₁)
+    (htarget₂ : target₂ = VExpr.wrapForalls domains₂ result₂)
+    (hlength₁ : domains₁.length = arity₁)
+    (hlength₂ : domains₂.length = arity₂)
+    (prefixLen : Nat) (hprefix₁ : prefixLen ≤ arity₁)
+    (hprefix₂ : prefixLen ≤ arity₂)
+    (Hdomains : ∀ i (hi₁ : i < arity₁) (hi₂ : i < arity₂)
+      {domain₁ domain₂ : Expr},
+      Expr.ForallBinderAt source₁ i domain₁ →
+      Expr.ForallBinderAt source₂ i domain₂ →
+      domain₁ = domain₂) :
+    VEnv.IsDefEqCtx env Us.length []
+      (domains₁.take prefixLen).reverse
+      (domains₂.take prefixLen).reverse := by
+  have htoCtx : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) = types := by
+    intro types
+    induction types with
+    | nil => rfl
+    | cons type types ih => simp [VLCtx.toCtx, ih]
+  have habstractToCtx : ∀ types : List VExpr,
+      (abstractForallContext types []).toCtx = types.reverse := by
+    intro types
+    simpa [abstractForallContext, ← List.map_reverse] using
+      htoCtx types.reverse
+  induction prefixLen with
+  | zero => exact .zero
+  | succ prefixLen ih =>
+    have hi₁ : prefixLen < arity₁ := by omega
+    have hi₂ : prefixLen < arity₂ := by omega
+    have hdom₁ : prefixLen < domains₁.length := by omega
+    have hdom₂ : prefixLen < domains₂.length := by omega
+    have Hprior := ih (by omega) (by omega)
+    rcases H₁.binderAt_target domains₁ result₁ htarget₁ hlength₁
+        prefixLen hi₁ with
+      ⟨suffix₁, name₁, sourceDomain₁, sourceBody₁, bi₁, bodyTarget₁,
+        Hsource₁, hsuffix₁, Hdomain₁, _HdomainType₁, _Hbody₁⟩
+    rcases H₂.binderAt_target domains₂ result₂ htarget₂ hlength₂
+        prefixLen hi₂ with
+      ⟨suffix₂, name₂, sourceDomain₂, sourceBody₂, bi₂, bodyTarget₂,
+        Hsource₂, hsuffix₂, Hdomain₂, _HdomainType₂, _Hbody₂⟩
+    have hsourceDomain : sourceDomain₁ = sourceDomain₂ :=
+      Hdomains prefixLen hi₁ hi₂
+        (Hsource₁.binderAt hsuffix₁) (Hsource₂.binderAt hsuffix₂)
+    rw [← hsourceDomain] at Hdomain₂
+    have Hvlctx := abstractForallContext.isDefEq Hprior
+    have HdomainU := Hdomain₁.uniq Henv Hvlctx Hdomain₂
+    rcases _HdomainType₁ with ⟨level, HdomainType₁⟩
+    have HdomainU' : env.IsDefEqU Us.length
+        (domains₁.take prefixLen).reverse
+        domains₁[prefixLen] domains₂[prefixLen] := by
+      rw [habstractToCtx] at HdomainU
+      exact HdomainU
+    have HdomainType₁' : env.HasType Us.length
+        (domains₁.take prefixLen).reverse domains₁[prefixLen]
+        (.sort level) := by
+      rw [habstractToCtx] at HdomainType₁
+      exact HdomainType₁
+    have Hdomain' := HdomainU'.of_l Henv Hprior.isType HdomainType₁'
+    have Hnext : VEnv.IsDefEqCtx env Us.length []
+        (domains₁[prefixLen] :: (domains₁.take prefixLen).reverse)
+        (domains₂[prefixLen] :: (domains₂.take prefixLen).reverse) :=
+      .succ Hprior Hdomain'
+    have htake₁ : domains₁.take (prefixLen + 1) =
+        domains₁.take prefixLen ++ [domains₁[prefixLen]] := by
+      exact (List.take_append_getElem hdom₁).symm
+    have htake₂ : domains₂.take (prefixLen + 1) =
+        domains₂.take prefixLen ++ [domains₂[prefixLen]] := by
+      exact (List.take_append_getElem hdom₂).symm
+    rw [htake₁, htake₂]
+    simpa only [List.reverse_append, List.reverse_singleton,
+      List.singleton_append] using Hnext
+
 /-- A translated telescope known to be a type decomposes canonically into
 the binder-by-binder certificate. This establishes that the new interface
 loses no information while exposing exactly where restoration must act. -/
