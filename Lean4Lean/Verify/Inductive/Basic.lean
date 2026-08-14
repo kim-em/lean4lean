@@ -61003,6 +61003,54 @@ theorem
   exact TrExprS.lambdaTelescope_exact_residual
     F.semantic.generated.appliedFieldLambdaTelescope hlocal Happlied
 
+/-- Close the constructor-field suffix around the exact applied-major
+translation.  The call-local domains remain innermost, while the production
+field-opening domains are inserted immediately outside them; the source is
+simultaneously abstracted over the rule's retained field variables at the
+matching cutoff. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.finalFieldAbstractedAppliedMajorTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ (localDomains fieldDomains : List VExpr),
+      localDomains.length = F.semantic.generated.localArgs.size ∧
+      fieldDomains.length = A.rule.allArgs.size ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext (fieldDomains ++ localDomains)
+          A.semantics.fieldRootContext.mlctx.vlctx)
+        (F.semantic.generated.abstractedMajor.abstractList
+          A.rule.all_args_bound.fvars localDomains.length)
+        F.semantic.appliedFieldTarget := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases F.finalAppliedMajorTranslation with
+    ⟨localDomains, hlocal, Hmajor⟩
+  let fieldDomains := MLCtxForallDomains A.semantics.context.mlctx
+    A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have Hclosed := A.semantics.fieldsRecent.abstractRecent
+    localDomains Hmajor
+  have hfields : fieldDomains.length = A.rule.allArgs.size :=
+    A.semantics.context.onlyLams.forallDomains_length
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hfvars : A.semantics.fieldsRecent.fvars =
+      A.rule.all_args_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl
+  refine ⟨localDomains, fieldDomains, hlocal, hfields, ?_⟩
+  simpa [fieldDomains, hfvars] using Hclosed
+
 /-- The validated recursive field determines the exact expected motive
 application in the final environment.  Its index targets and eta-expanded
 major are the same semantic witnesses that must next be consumed by the
