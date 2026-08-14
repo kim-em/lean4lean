@@ -20467,19 +20467,41 @@ inductive RecursorFieldSelectionsAt
 fields.  Unlike `RecursorFieldSelectionsAt`, this trace retains the `none`
 branches as well as the selected ordinals, so independently replayed passes
 can later be compared by an operational alpha-invariance theorem. -/
-inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats) :
-    Array Expr → Array Expr → List Nat → Prop
-  | nil : RecursorFieldDecisions stats #[] #[] []
-  | nonrecursive : RecursorFieldDecisions stats bu u positions →
-      AddInductive.isRecArg stats dom c = .ok none →
-      RecursorFieldDecisions stats (bu.push arg) u positions
-  | recursive : RecursorFieldDecisions stats bu u positions →
-      AddInductive.isRecArg stats dom c = .ok (some target) →
-      RecursorFieldDecisions stats (bu.push arg) (u.push arg)
-        (positions ++ [bu.size])
+inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats)
+    (root : AddInductive.Context) (source : Expr) :
+    AddInductive.Context → Expr → Array Expr → Array Expr →
+      List Nat → Prop
+  | nil : RecursorFieldDecisions stats root source root source #[] #[] []
+  | nonrecursive :
+      RecursorFieldDecisions stats root source c
+        (.forallE name dom body bi) bu u positions →
+      AddInductive.isRecArg stats dom { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi } = .ok none →
+      RecursorFieldDecisions stats root source { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi }
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
+        (bu.push (.fvar ⟨c.ngen.curr⟩)) u positions
+  | recursive :
+      RecursorFieldDecisions stats root source c
+        (.forallE name dom body bi) bu u positions →
+      AddInductive.isRecArg stats dom { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi } = .ok (some target) →
+      RecursorFieldDecisions stats root source { c with
+          ngen := c.ngen.next
+          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotations bi }
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
+        (bu.push (.fvar ⟨c.ngen.curr⟩))
+        (u.push (.fvar ⟨c.ngen.curr⟩)) (positions ++ [bu.size])
 
 theorem RecursorFieldDecisions.positions_length
-    (H : RecursorFieldDecisions stats bu u positions) :
+    (H : RecursorFieldDecisions stats root source c t bu u positions) :
     positions.length = u.size := by
   induction H with
   | nil => rfl
@@ -20487,7 +20509,7 @@ theorem RecursorFieldDecisions.positions_length
   | recursive _ _ ih => simp [ih]
 
 theorem RecursorFieldDecisions.positions_lt
-    (H : RecursorFieldDecisions stats bu u positions) :
+    (H : RecursorFieldDecisions stats root source c t bu u positions) :
     ∀ position ∈ positions, position < bu.size := by
   intro position hposition
   induction H with
@@ -20506,12 +20528,12 @@ theorem RecursorFieldDecisions.positions_lt
       omega
 
 theorem RecursorFieldDecisions.positions_ordered
-    (H : RecursorFieldDecisions stats bu u positions) :
+    (H : RecursorFieldDecisions stats root source c t bu u positions) :
     positions.Pairwise (· < ·) := by
   induction H with
   | nil => simp
   | nonrecursive _ _ ih => exact ih
-  | @recursive bu u positions arg dom c target H _ ih =>
+  | recursive H _ ih =>
     rw [List.pairwise_append]
     refine ⟨ih, by simp, ?_⟩
     intro old hold _ hnew
@@ -25758,7 +25780,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       R.mlctx.vlctx.toCtx typeTarget)
     (hfields : RecursorFieldSelectionsAt R.venv decl recLparams.length
       bu u fields)
-    (hdecisions : RecursorFieldDecisions stats bu u positions)
+    (hdecisions : RecursorFieldDecisions stats root source c t bu u positions)
     (hargs : List.Forall₂
       (TrExprS R.venv recLparams R.mlctx.vlctx) u.toList args)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R bu)
@@ -25786,7 +25808,8 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx typeTarget' →
       RecursorFieldSelectionsAt Rcurrent.venv decl recLparams.length
         bu' u' fields' →
-      RecursorFieldDecisions stats bu' u' positions' →
+      RecursorFieldDecisions stats root source current t'
+        bu' u' positions' →
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
@@ -26082,7 +26105,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx typeTarget' →
       RecursorFieldSelectionsAt Rcurrent.venv decl recLparams.length
         bu' u' fields' →
-      RecursorFieldDecisions stats bu' u' positions' →
+      RecursorFieldDecisions stats c tail current t' bu' u' positions' →
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
@@ -26874,17 +26897,20 @@ The raw binding-only proof may omit this payload; the semantic second pass
 retains it and the final source-alignment invariant rules that omission out. -/
 structure RecInfoMinorTraversalShape where
   constructor : Constructor
+  rootContext : AddInductive.Context
+  terminalContext : AddInductive.Context
+  terminal : Expr
   fields : Array Expr
   recursiveFields : Array Expr
   stats : AddInductive.InductiveStats
   recursivePositions : List Nat
-  decisions : RecursorFieldDecisions stats fields recursiveFields
-    recursivePositions
   recursivePositions_ordered : recursivePositions.Pairwise (· < ·)
   recursivePositions_lt : ∀ position ∈ recursivePositions,
     position < fields.size
   recursivePositions_length : recursivePositions.length = recursiveFields.size
   parameterTail : Expr
+  decisions : RecursorFieldDecisions stats rootContext parameterTail
+    terminalContext terminal fields recursiveFields recursivePositions
   parameterPrefix : RecursorParamPrefix stats 0 constructor.type parameterTail
   fieldResidual : Expr
   fieldTelescope : Expr.ForallTelescope parameterTail fields.size fieldResidual
@@ -39085,8 +39111,8 @@ structure BoundGeneratedRecursorRule.Semantics
   selection : RecursorFieldSelectionsAt context.venv decl recLparams.length
     H.allArgs H.recursiveArgs fields
   decisionPositions : List Nat
-  decisions : RecursorFieldDecisions stats H.allArgs H.recursiveArgs
-    decisionPositions
+  decisions : RecursorFieldDecisions stats fieldRoot parameterTail H.root
+    H.target H.allArgs H.recursiveArgs decisionPositions
   calls : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
     lvls context decl depth
     (fun fv => fv ∈ fieldOpening.fvars ∨
@@ -41293,6 +41319,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         hypotheses_size := hhypothesesSize
         traversal := some {
           constructor := ctor
+          rootContext := c
+          terminalContext := current
+          terminal := terminal
           fields := allFields
           recursiveFields := recursiveFields
           stats := stats
