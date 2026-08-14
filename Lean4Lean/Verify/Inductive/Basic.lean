@@ -26788,7 +26788,9 @@ structure RecInfoBindings (c : AddInductive.Context)
 The source local context is intentionally stored in the certificate: after
 `mkForall` closes the freshly introduced fields and recursive hypotheses, the
 resulting expression is stable under every later ambient-context extension. -/
-structure RecInfoMinorTypeShape (owner localIndex : Nat) (origin : Expr) where
+structure RecInfoMinorTypeShape where
+  localIndex : Nat
+  origin : Expr
   constructor : Constructor
   sourceConstructors : List Constructor
   sourceConstructor : sourceConstructors[localIndex]? = some constructor
@@ -26821,7 +26823,7 @@ structure RecInfoTypeOrigins (c : AddInductive.Context)
     BoundFVarTypeOrigins c recInfos[i]!.minors minorTypes[i]!
   minorShapes : ∀ i (hi : i < recInfos.size) j
     (hj : j < minorTypes[i]!.size),
-    RecInfoMinorTypeShape i j minorTypes[i]![j]!
+    RecInfoMinorTypeShape
 
 /-- Exact production shape of every generated major-premise declaration.
 This positional certificate is independent of translation: it records that
@@ -28942,9 +28944,8 @@ def RecInfoTypeOrigins.pushFrame
           omega
         rw [dif_pos hiPush, dif_pos hiTypes]
         exact Array.getElem_push_lt hiTypes
-      rw [horigin] at hj ⊢
+      rw [horigin] at hj
       exact H.minorShapes i hiOld j hj
-
 theorem RecInfoBindings.pushFrame_allFvars_perm
     {stats : AddInductive.InductiveStats} {indices : Array Expr}
     (H : RecInfoBindings c recInfos)
@@ -29159,7 +29160,10 @@ def RecInfoTypeOrigins.addMinor
     (hle : BindingContextLE c cMinorTy)
     (HcMinorTy : BindingContextWF cMinorTy)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
-    (Hshape : RecInfoMinorTypeShape dIdx H.minorTypes[dIdx]!.size minorTy) :
+    (Hshape : RecInfoMinorTypeShape)
+    (HshapePosition :
+      Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
+      Hshape.origin = minorTy) :
     let cMinor : AddInductive.Context := { cMinorTy with
       ngen := cMinorTy.ngen.next
       lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩
@@ -29254,7 +29258,7 @@ def RecInfoTypeOrigins.addMinor
         dsimp [nextMinorTypes]
         rw [mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx _
           hiTypes]
-      rw [horigin] at hj ⊢
+      rw [horigin] at hj
       by_cases hjlast : j = H.minorTypes[dIdx]!.size
       · subst j
         have hlast : ((H.minorTypes[dIdx]!).push minorTy)[
@@ -29264,7 +29268,6 @@ def RecInfoTypeOrigins.addMinor
           rw [getElem!_pos (H.minorTypes[dIdx]!.push minorTy)
             H.minorTypes[dIdx]!.size hpush]
           exact Array.getElem_push_eq
-        rw [hlast]
         exact Hshape
       · have hjOld : j < H.minorTypes[dIdx]!.size := by
           simp only [Array.size_push] at hj
@@ -29277,14 +29280,116 @@ def RecInfoTypeOrigins.addMinor
           rw [getElem!_pos (H.minorTypes[dIdx]!.push minorTy) j hjPush,
             getElem!_pos H.minorTypes[dIdx]! j hjOld]
           exact Array.getElem_push_lt hjOld
-        rw [hget]
         exact H.minorShapes dIdx hidx j hjOld
     · have horigin : nextMinorTypes[i]! = H.minorTypes[i]! := by
         dsimp [nextMinorTypes]
         rw [mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx i _
           hiTypes hdi]
-      rw [horigin] at hj ⊢
+      rw [horigin] at hj
       exact H.minorShapes i hiOld j hj
+/-- Every retained minor shape names the concrete constructor list of its
+owning source family.  This is the final cross-pass provenance invariant:
+the second `mkRecInfos` traversal and rule generation may allocate different
+locals, but they replay the same owner-indexed constructor arrays. -/
+def RecInfoMinorSourceAlignment
+    (indTypes : Array InductiveType)
+    (H : RecInfoTypeOrigins c recInfos) : Prop :=
+  ∀ owner (howner : owner < recInfos.size)
+    (hsourceOwner : owner < indTypes.size)
+    localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
+    let S := H.minorShapes owner howner localIndex hlocal
+    S.origin = H.minorTypes[owner]![localIndex]! ∧
+      S.localIndex = localIndex ∧
+      S.sourceConstructors = indTypes[owner]!.ctors
+
+theorem RecInfoMinorSourceAlignment.ofEmpty
+    (H : RecInfoTypeOrigins c recInfos)
+    (Hempty : RecInfoMinorsEmpty recInfos) :
+    RecInfoMinorSourceAlignment indTypes H := by
+  intro owner howner _ localIndex hlocal
+  have hsize := (H.minors owner howner).size_eq
+  rw [Hempty owner howner] at hsize
+  omega
+
+theorem RecInfoMinorSourceAlignment.mono
+    {c c' : AddInductive.Context}
+    {recInfos : Array AddInductive.RecInfo}
+    {H : RecInfoTypeOrigins c recInfos}
+    (A : RecInfoMinorSourceAlignment indTypes H)
+    (hle : BindingContextLE c c') :
+    RecInfoMinorSourceAlignment indTypes (H.mono hle) := by
+  exact A
+
+theorem RecInfoMinorSourceAlignment.addMinor
+    {c cMinorTy : AddInductive.Context}
+    {recInfos : Array AddInductive.RecInfo}
+    {H : RecInfoTypeOrigins c recInfos}
+    (A : RecInfoMinorSourceAlignment indTypes H)
+    (dIdx : Nat) (hidx : dIdx < recInfos.size)
+    (hsourceIdx : dIdx < indTypes.size)
+    (hle : BindingContextLE c cMinorTy)
+    (HcMinorTy : BindingContextWF cMinorTy)
+    (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
+    (Hshape : RecInfoMinorTypeShape)
+    (HshapePosition :
+      Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
+      Hshape.origin = minorTy)
+    (hsource : Hshape.sourceConstructors = indTypes[dIdx]!.ctors) :
+    RecInfoMinorSourceAlignment indTypes
+      (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
+        Hshape HshapePosition) := by
+  intro owner howner hsourceOwner localIndex hlocal
+  by_cases hdi : dIdx = owner
+  · subst owner
+    have hiTypes : dIdx < H.minorTypes.size := by
+      rw [H.minorTypes_size]
+      exact hidx
+    have horigin : (H.minorTypes.modify dIdx fun types =>
+        types.push minorTy)[dIdx]! = H.minorTypes[dIdx]!.push minorTy := by
+      rw [mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx _
+        hiTypes]
+    change localIndex < (H.minorTypes.modify dIdx fun types =>
+      types.push minorTy)[dIdx]!.size at hlocal
+    rw [horigin] at hlocal
+    by_cases hlast : localIndex = H.minorTypes[dIdx]!.size
+    · subst localIndex
+      simpa [RecInfoTypeOrigins.addMinor,
+        mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
+          (fun types => types.push minorTy) hiTypes,
+        getElem!_pos (H.minorTypes[dIdx]!.push minorTy)
+          H.minorTypes[dIdx]!.size (by simp)] using
+        ⟨HshapePosition.2, HshapePosition.1, hsource⟩
+    · have hold : localIndex < H.minorTypes[dIdx]!.size := by
+        simp only [Array.size_push] at hlocal
+        omega
+      have hget : (H.minorTypes[dIdx]!.push minorTy)[localIndex]! =
+          H.minorTypes[dIdx]![localIndex]! := by
+        have hpush : localIndex <
+            (H.minorTypes[dIdx]!.push minorTy).size := by simp; omega
+        rw [getElem!_pos (H.minorTypes[dIdx]!.push minorTy) localIndex hpush,
+          getElem!_pos H.minorTypes[dIdx]! localIndex hold]
+        exact Array.getElem_push_lt hold
+      simpa [RecInfoTypeOrigins.addMinor, hlast,
+        mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
+          (fun types => types.push minorTy) hiTypes, hget] using
+        A dIdx hidx hsourceIdx localIndex hold
+  · have hownerOld : owner < recInfos.size := by simpa using howner
+    have hownerTypes : owner < H.minorTypes.size := by
+      rw [H.minorTypes_size]
+      exact hownerOld
+    have horigin : (H.minorTypes.modify dIdx fun types =>
+        types.push minorTy)[owner]! = H.minorTypes[owner]! := by
+      rw [mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner _
+        hownerTypes hdi]
+    change localIndex < (H.minorTypes.modify dIdx fun types =>
+      types.push minorTy)[owner]!.size at hlocal
+    rw [horigin] at hlocal
+    have hlocalOld : localIndex < H.minorTypes[owner]!.size := by
+      exact hlocal
+    simpa [RecInfoTypeOrigins.addMinor, hdi,
+      mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner
+        (fun types => types.push minorTy) hownerTypes hdi] using
+      A owner hownerOld hsourceOwner localIndex hlocalOld
 
 private def recInfoMinorIds (info : AddInductive.RecInfo) : List FVarId :=
   ExprArrayFVarIds info.minors
@@ -40545,9 +40650,10 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       minorTy.consumeTypeAnnotations minorTarget)
     (HminorType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx minorTarget)
-    (HminorShape : RecInfoMinorTypeShape dIdx
-      Horigins.minorTypes[dIdx]!.size
-      minorTy.consumeTypeAnnotations)
+    (HminorShape : RecInfoMinorTypeShape)
+    (HminorShapePosition :
+      HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
+      HminorShape.origin = minorTy.consumeTypeAnnotations)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
@@ -40599,6 +40705,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
   let HoriginsMinor := Horigins.addMinor dIdx hidx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
       minorTy.consumeTypeAnnotations .default HminorShape
+      HminorShapePosition
   let HparamsMinor := Hparams.mono Hstep.contextLE
   refine Hk next Rminor rfl (Hsuffix.withAmbient Hminor HminorType) rfl
     (Hstats.withFVar Rminor.checking.tr.wf Rminor.mlctx_wf.tr.wf)
@@ -40925,6 +41032,14 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       (Hbindings.mono_noAlias Hparams HextAll.contextLE HnoAlias)
       (Hroot.trans HextAll.contextLE) hidx Harities Hconsumed.consumed
       Hconsumed.isType {
+        localIndex := HoriginsOut.minorTypes[dIdx]!.size
+        origin := (outCtx.lctx.mkForall allFields
+          (outCtx.lctx.mkForall hypotheses
+            (Expr.app
+              (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
+              (mkAppN
+                (mkAppN (.const ctor.name stats.levels) stats.params)
+                allFields)))).consumeTypeAnnotations
         constructor := ctor
         sourceConstructors := sourceConstructors
         sourceConstructor := by
@@ -40946,7 +41061,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
                 (mkAppN (.const ctor.name stats.levels) stats.params)
                 allFields)))
         sourceType_eq := rfl
-        consumed_eq := rfl } ?_
+        consumed_eq := rfl } ⟨rfl, rfl⟩ ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
     hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
     hsizeNext hcountNext hotherNext HmajorTypesNext HmajorShapesNext
@@ -41222,6 +41337,8 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
         HcIH minorName minorTy.consumeTypeAnnotations .default
       let HoriginsMinor := Horigins.addMinor dIdx hidx (hArgs.trans hIH)
         HcIH minorName minorTy.consumeTypeAnnotations .default {
+          localIndex := Horigins.minorTypes[dIdx]!.size
+          origin := minorTy.consumeTypeAnnotations
           constructor := ctor
           sourceConstructors :=
             List.replicate Horigins.minorTypes[dIdx]!.size ctor ++ [ctor]
@@ -41232,7 +41349,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           motiveApp := motiveApp
           sourceType := minorTy
           sourceType_eq := rfl
-          consumed_eq := rfl }
+          consumed_eq := rfl } ⟨rfl, rfl⟩
       let HparamsMinor := Hparams.mono <| (hArgs.trans hIH).trans <|
           BindingContextLE.withLocalDecl cIH HcIH minorName
             minorTy.consumeTypeAnnotations .default
@@ -59970,7 +60087,7 @@ theorem
       ∃ D : BoundFVarDeclarationAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
         ∃ O : H.origins.FlatMinorOrigin D,
-          ∃ S : RecInfoMinorTypeShape O.owner O.localIndex D.type,
+          ∃ S : RecInfoMinorTypeShape,
           let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -59998,9 +60115,7 @@ theorem
       H.origins.minorTypes[O.owner]!.size := by
     rw [(H.origins.minors O.owner O.owner_lt).size_eq]
     simpa [getElem!_pos H.recInfos O.owner O.owner_lt] using O.local_lt
-  have S : RecInfoMinorTypeShape O.owner O.localIndex D.type := by
-    rw [O.originType_eq]
-    exact H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound
+  let S := H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
   let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
