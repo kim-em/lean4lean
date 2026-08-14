@@ -22385,6 +22385,45 @@ theorem abstractForallContext.abstractHead
   simpa [abstractForallContext, List.reverse_cons, List.map_append,
     List.append_assoc] using go domains.reverse
 
+/-- Abstract a reverse-ordered prefix of free-variable lambda declarations
+while retaining an arbitrary older context tail.  The closed declarations
+become anonymous domains outside the already present `domains`; the tail is
+left untouched. -/
+theorem TrExprS.abstractFVarLambdaPrefix
+    (Hdecls : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      fvsRev scopePrefix)
+    (hnodup : fvsRev.Nodup)
+    (Htr : TrExprS env Us
+      (abstractForallContext domains (scopePrefix ++ tail)) e e') :
+    TrExprS env Us
+      (abstractForallContext
+        ((VLCtx.toCtx scopePrefix).reverse ++ domains) tail)
+      (e.abstractList fvsRev.reverse domains.length) e' := by
+  induction Hdecls generalizing domains e with
+  | nil => simpa [VLCtx.toCtx] using Htr
+  | @cons fv entry fvsRev scopePrefix hentry Hrest ih =>
+    rcases hentry with ⟨deps, type, rfl⟩
+    have hnodup' := List.nodup_cons.mp hnodup
+    have W := abstractForallContext.abstractHead
+      domains (scopePrefix ++ tail) fv deps type
+    have Hhead := Htr.abstract W
+    have hfv : fv ∉ fvsRev.reverse := by
+      simpa using hnodup'.1
+    have Htail := ih hnodup'.2 Hhead
+    have hsource :
+        (e.abstract1 fv domains.length).abstractList fvsRev.reverse
+            (type :: domains).length =
+          e.abstractList (fv :: fvsRev).reverse domains.length := by
+      rw [List.reverse_cons, Expr.abstractList_append]
+      simp only [Expr.abstractList]
+      simpa using (Expr.abstract1_abstractList
+        (e := e) (a := fv) (as := fvsRev.reverse)
+        (k := domains.length) hfv).symm
+    rw [hsource] at Htail
+    simpa [VLCtx.toCtx, List.reverse_cons, List.append_assoc] using Htail
+
 /-- Abstract a reverse-ordered suffix of free-variable lambda declarations
 under an existing anonymous prefix.  The declaration order is newest first,
 so successive abstractions occur at increasing cutoffs; the resulting source
