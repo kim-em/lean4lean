@@ -56835,6 +56835,39 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       closed := Hgenerated.closesMutuals Hinstalled Hvalid.tr.map_wf
         hclosedLocal }⟩
 
+/-- The prefix length of the concrete minor rows is the constructor-prefix
+offset used by rule generation.  Retaining this equality avoids treating the
+flattened `RecInfo` array and the mutual constructor traversal as an informal
+shared convention. -/
+theorem RecursorPhasesResult.minorPrefixLength_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) (owner : Nat)
+    (howner : owner ≤ H.recInfos.size) :
+    ((H.recInfos.toList.take owner).flatMap
+      (fun info => info.minors.toList)).length =
+      recursorMinorOffset indTypes owner := by
+  have hsizes : H.recInfos.size = indTypes.size := by
+    calc
+      H.recInfos.size = decl.types.length := H.cardinality.records
+      _ = indTypes.toList.length :=
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
+      _ = indTypes.size := by simp
+  induction owner with
+  | zero => simp [recursorMinorOffset]
+  | succ owner ih =>
+      have hrec : owner < H.recInfos.size := by omega
+      have hind : owner < indTypes.size := by omega
+      rw [recursorMinorOffset_step indTypes owner hind]
+      simp [List.take_add_one, hrec, ih (by omega)]
+      simpa [getElem!_pos H.recInfos owner hrec,
+        getElem!_pos indTypes owner hind] using H.minorCounts owner hrec
+
 def RecursorPhasesResult.staged
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
