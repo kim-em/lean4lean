@@ -26790,6 +26790,8 @@ The source local context is intentionally stored in the certificate: after
 resulting expression is stable under every later ambient-context extension. -/
 structure RecInfoMinorTypeShape (owner localIndex : Nat) (origin : Expr) where
   constructor : Constructor
+  sourceConstructors : List Constructor
+  sourceConstructor : sourceConstructors[localIndex]? = some constructor
   sourceContext : LocalContext
   fields : Array Expr
   hypotheses : Array Expr
@@ -40635,6 +40637,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (indTypeName : Name)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (ctor : Constructor) (tail : Expr)
+    (sourceConstructors : List Constructor) (sourceIndex : Nat)
+    (hsourceConstructor : sourceConstructors[sourceIndex]? = some ctor)
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
     {recLparams : List Name} {depth : Nat}
     {root c : AddInductive.Context}
@@ -40677,6 +40681,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (HnoAlias : Hbindings.NoAlias Hparams)
     (Hroot : BindingContextLE root c)
     (hidx : dIdx < recInfos.size)
+    (horiginIndex : Horigins.minorTypes[dIdx]!.size = sourceIndex)
     (Harities : RecInfoArities stats recInfos)
     (hrecords : recInfos.size = stats.indConsts.size)
     (Hnormal : Nonempty
@@ -40921,6 +40926,10 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       (Hroot.trans HextAll.contextLE) hidx Harities Hconsumed.consumed
       Hconsumed.isType {
         constructor := ctor
+        sourceConstructors := sourceConstructors
+        sourceConstructor := by
+          simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
+            hsourceConstructor
         sourceContext := outCtx.lctx
         fields := allFields
         hypotheses := hypotheses
@@ -40956,7 +40965,8 @@ constructor and adds exactly one verified minor to the owning recursor row. -/
 theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (stats : AddInductive.InductiveStats) (indTypeName : Name)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
-    (ctors : List Constructor)
+    (ctors sourceConstructors : List Constructor) (sourceIndex : Nat)
+    (hconstructors : ctors = sourceConstructors.drop sourceIndex)
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
     {recLparams : List Name} {depth : Nat}
     {root c : AddInductive.Context}
@@ -40988,6 +40998,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (HnoAlias : Hbindings.NoAlias Hparams)
     (Hroot : BindingContextLE root c)
     (hidx : dIdx < recInfos.size)
+    (hminorIndex : recInfos[dIdx]!.minors.size = sourceIndex)
     (Harities : RecInfoArities stats recInfos)
     (hrecords : recInfos.size = stats.indConsts.size)
     (Hseed : ∀ {current : AddInductive.Context} {currentDepth : Nat}
@@ -41039,35 +41050,48 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (k out outCtx).WF Q) :
     (AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
       ctors k c).WF Q := by
-  induction ctors generalizing recInfos c depth with
+  induction ctors generalizing recInfos c depth sourceIndex with
   | nil =>
       exact Hk recInfos R rfl Hsuffix rfl Hstats hctx Hbindings Horigins
         rfl (by simp) (by intros; rfl) HmajorTypes HmajorShapes
         HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams HnoAlias
         Harities Hroot
   | cons ctor ctors ih =>
+      have hsourceConstructor :
+          sourceConstructors[sourceIndex]? = some ctor := by
+        have hhead := congrArg (fun xs => xs[0]?) hconstructors
+        simpa using hhead.symm
+      have htailConstructors :
+          ctors = sourceConstructors.drop (sourceIndex + 1) := by
+        have htail := congrArg List.tail hconstructors
+        simpa [List.tail_drop] using htail
+      have horiginIndex : Horigins.minorTypes[dIdx]!.size = sourceIndex := by
+        rw [(Horigins.minors dIdx hidx).size_eq]
+        exact hminorIndex
       rcases Hseed R rfl Hsuffix rfl ctor (by simp) with
         ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailScope, Htail,
           HtailType, Hintro, HintroType⟩
       rw [AddInductive.mkRecInfos.loopCtors]
       refine oneConstructorSemantics (Q := Q) stats indTypeName dIdx recInfos
-        ctor tail
+        ctor tail sourceConstructors sourceIndex hsourceConstructor
         (fun next => AddInductive.mkRecInfos.loopCtors stats indTypeName
           dIdx next ctors k)
         R Hsuffix Hstats Hprefix HtailScope hwhnf hconsume hlit hctx hproj Htail
         HtailType Hintro HintroType Hbindings Horigins HmajorTypes
         HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows
-        Hparams HnoAlias Hroot hidx Harities hrecords Hnormal ?_
+        Hparams HnoAlias Hroot hidx horiginIndex Harities hrecords Hnormal ?_
       intro nextCtx nextDepth next Rnext henvNext HsuffixNext
         hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
         hsizeNext hcountNext hotherNext HmajorTypesNext HmajorShapesNext
         HmotiveTypesNext HmotiveShapesNext HtelescopesNext HindexRowsNext
         HparamsNext HnoAliasNext HaritiesNext HrootNext
-      refine ih next Rnext HsuffixNext HstatsNext hctxNext HbindingsNext
+      refine ih next (sourceIndex + 1) htailConstructors Rnext HsuffixNext
+        HstatsNext hctxNext HbindingsNext
         HoriginsNext HmajorTypesNext HmajorShapesNext HmotiveTypesNext
         HmotiveShapesNext HtelescopesNext HindexRowsNext HparamsNext
-        HnoAliasNext HrootNext ?_ HaritiesNext ?_ ?_ ?_
+        HnoAliasNext HrootNext ?_ ?_ HaritiesNext ?_ ?_ ?_
       · simpa [hsizeNext] using hidx
+      · rw [hcountNext, hminorIndex]
       · exact hsizeNext.trans hrecords
       · intro current currentDepth Rcurrent henvCurrent HsuffixCurrent
           hparameterDeclsCurrent nextCtor hnextCtor
@@ -41199,6 +41223,9 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       let HoriginsMinor := Horigins.addMinor dIdx hidx (hArgs.trans hIH)
         HcIH minorName minorTy.consumeTypeAnnotations .default {
           constructor := ctor
+          sourceConstructors :=
+            List.replicate Horigins.minorTypes[dIdx]!.size ctor ++ [ctor]
+          sourceConstructor := by simp
           sourceContext := cIH.lctx
           fields := bu
           hypotheses := v
@@ -41409,12 +41436,17 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
   · rw [dif_pos hfamily]
     refine mkRecInfos.loopCtors.resultSemantics (Q := Q) stats
       indTypes[dIdx].name dIdx recInfos indTypes[dIdx].ctors
+      indTypes[dIdx].ctors 0 rfl
       (fun out => AddInductive.mkRecInfos.loopInd2 stats indTypes
         (dIdx + 1) out k)
       R HsuffixCtx Hstats hwhnf hconsume hlit hctx hproj Hbindings
       Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
       Htelescopes HindexRows Hparams HnoAlias Hroot
-      (by simpa [hsize] using hfamily) Harities hrecords ?_ ?_
+      (by simpa [hsize] using hfamily)
+      (by
+        exact HemptySuffix dIdx (Nat.le_refl _) (by
+          simpa [hsize] using hfamily))
+      Harities hrecords ?_ ?_
     · intro current currentDepth Rcurrent henvCurrent HsuffixCurrent
         hparameterDeclsCurrent ctor hctor
       exact Hseed Rcurrent henvCurrent HsuffixCurrent
