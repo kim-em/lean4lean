@@ -58035,6 +58035,9 @@ theorem
           S.motiveClosedTarget ∧
         H.outVEnv.IsType Us.length S.motiveClosedScope.toCtx
           S.motiveClosedTarget ∧
+        H.outVEnv.IsDefEqU Us.length S.motiveClosedScope.toCtx
+          S.motiveClosedTarget S.motiveClosedCanonicalTarget ∧
+        S.motiveType = S.motiveReopenedCanonicalTarget ∧
         TrExprS H.outVEnv Us
           (abstractForallContext
             (T.params ++ T.motives.take owner) [])
@@ -58055,6 +58058,7 @@ theorem
       hparameters hparameterScope
   exact ⟨T, S, hparameters', S.motiveClosedContext,
     S.motiveClosedTr.mono hbase, S.motiveClosedType.mono hbase,
+    S.motiveClosedCanonicalDefEq.mono hbase, S.motiveTypeCanonicalEq,
     Hgenerated⟩
 
 /-- For any retained translation of this recursor, the semantic motive
