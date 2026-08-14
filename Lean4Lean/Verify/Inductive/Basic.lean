@@ -67603,6 +67603,290 @@ theorem
     majorTarget, hlocalLifted, Hctx', Hprefix', Hindices', Hmajor',
     hindexTargets⟩
 
+/-- Complete application telescope for one canonical recursive-call frame.
+The translated common prefix and the exact motive variable selected by the
+call are transported together to the cached equation context and exposed
+with literally identical dependent domains. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.canonicalRecursiveCallApplicationTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let localPrefix :=
+      mkAppN
+        (mkAppN
+          (mkAppN
+            (.const F.semantic.generated.recursorName
+              (AddInductive.getRecLevels H.elimLevel stats.levels))
+            (stats.params.map fun arg => arg.abstractList
+              F.semantic.generated.arguments_bound.fvars))
+          ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
+            F.semantic.generated.arguments_bound.fvars))
+        ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
+          F.semantic.generated.arguments_bound.fvars)
+    ∃ (equationDomains localDomains : List VExpr)
+        (prefixTarget : VExpr) (indexTargets : List VExpr)
+        (majorTarget ownerTarget : VExpr),
+      localDomains.length = F.semantic.generated.localArgs.size ∧
+      OnCtx
+        (abstractForallContext (equationDomains ++ localDomains) []).toCtx
+        (H.outVEnv.IsType Us.length) ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext (equationDomains ++ localDomains) [])
+        (localPrefix.abstractList A.rule.binders
+          F.semantic.generated.localArgs.size) prefixTarget ∧
+      List.Forall₂
+        (TrExprS H.outVEnv Us
+          (abstractForallContext (equationDomains ++ localDomains) []))
+        (sourceIndices.map fun index =>
+          (index.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+              A.rule.binders F.semantic.generated.localArgs.size)
+        indexTargets ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext (equationDomains ++ localDomains) [])
+        (F.semantic.generated.outerAbstractedMajor A.rule.binders)
+        majorTarget ∧
+      indexTargets.length = F.telescope.indices.length ∧
+      let frontCount := A.rule.allArgs.size +
+        F.semantic.generated.localArgs.size
+      let suffix := F.telescope.indices ++ F.telescope.major
+      let later := F.telescope.motives.drop (selectedOwner + 1) ++
+        F.telescope.minors
+      ownerTarget = .bvar (frontCount + later.length) ∧
+      ∃ expectedDomains resultLevel,
+        expectedDomains.length = indexTargets.length + 1 ∧
+        H.outVEnv.HasType Us.length
+            (abstractForallContext
+              (equationDomains ++ localDomains) []).toCtx
+            prefixTarget
+            (VExpr.wrapForalls expectedDomains
+              (F.telescope.result.liftN frontCount suffix.length)) ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext
+              (equationDomains ++ localDomains) []).toCtx
+            ownerTarget
+            (VExpr.wrapForalls expectedDomains (.sort resultLevel)) ∧
+          SameTelescopeDomains expectedDomains.length
+            (VExpr.wrapForalls expectedDomains
+              (F.telescope.result.liftN frontCount suffix.length))
+            (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let localPrefix :=
+    mkAppN
+      (mkAppN
+        (mkAppN
+          (.const F.semantic.generated.recursorName
+            (AddInductive.getRecLevels H.elimLevel stats.levels))
+          (stats.params.map fun arg => arg.abstractList
+            F.semantic.generated.arguments_bound.fvars))
+        ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
+          F.semantic.generated.arguments_bound.fvars))
+      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
+        F.semantic.generated.arguments_bound.fvars)
+  rcases F.canonicalInsertedSemanticCallArgumentFrame T with
+    ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
+      liftedFront, narrowIndices, narrowMajor, _hfront, hliftedFront,
+      hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+      HindexEq, _HmajorEq⟩
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  let inserted := T.motives ++ T.minors
+  let liftedFields :=
+    (liftContextPrefix inserted.length fieldDomains.reverse).reverse
+  let liftedLocals :=
+    (liftContextPrefixAt inserted.length fieldDomains.length
+      rawLocalDomains.reverse).reverse
+  let equationDomains :=
+    parameterDecls.toCtx.reverse ++ inserted ++ liftedFields
+  let prefixTarget :=
+    ((VExpr.mkApps
+        ((VExpr.const (H.entries[selectedOwner]'F.entry_lt).2.name
+          (VLevel.params Us.length)).liftN
+          (T.params ++ T.motives ++ T.minors).length 0)
+        (recursorCanonicalVars
+          (T.params ++ T.motives ++ T.minors).length)).liftN
+      liftedFields.length 0).liftN liftedLocals.length 0
+  let indexTargets := narrowIndices.map fun target =>
+    target.liftN inserted.length
+      (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
+  let majorTarget := narrowMajor.liftN inserted.length
+    (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
+  let frontCount := A.rule.allArgs.size +
+    F.semantic.generated.localArgs.size
+  let suffix := F.telescope.indices ++ F.telescope.major
+  let later := F.telescope.motives.drop (selectedOwner + 1) ++
+    F.telescope.minors
+  let ownerTarget : VExpr := .bvar (frontCount + later.length)
+  have hsplit : liftedFront = liftedFields ++ liftedLocals := by
+    rw [hliftedFront]
+    exact liftContextPrefix_reverse_append inserted.length
+      fieldDomains rawLocalDomains
+  have hfrontLength : liftedFront.length = frontCount := by
+    simp [hliftedFront, frontCount, hfields, hlocal, Nat.add_comm]
+  have hpartsLength : liftedFields.length + liftedLocals.length =
+      frontCount := by
+    rw [← List.length_append, ← hsplit]
+    exact hfrontLength
+  have hlocalLifted : liftedLocals.length =
+      F.semantic.generated.localArgs.size := by
+    simp [liftedLocals, hlocal]
+  have Hctx' : OnCtx
+      (abstractForallContext (equationDomains ++ liftedLocals) []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    simpa [equationDomains, parameterDecls, inserted, hsplit,
+      List.append_assoc] using Hctx
+  have HprefixTr := F.cachedInsertedCommonPrefixTranslation T
+    fieldDomains rawLocalDomains liftedFront hliftedFront hfields hlocal (by
+      simpa [inserted, List.append_assoc] using Hctx)
+  have HprefixTr' : TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ liftedLocals) [])
+      (localPrefix.abstractList A.rule.binders
+        F.semantic.generated.localArgs.size) prefixTarget := by
+    simpa [equationDomains, parameterDecls, inserted, liftedFields,
+      liftedLocals, localPrefix, prefixTarget, List.append_assoc] using
+      HprefixTr
+  have Hindices' : List.Forall₂
+      (TrExprS H.outVEnv Us
+        (abstractForallContext (equationDomains ++ liftedLocals) []))
+      (sourceIndices.map fun index =>
+        (index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.binders F.semantic.generated.localArgs.size)
+      indexTargets := by
+    simpa [equationDomains, parameterDecls, inserted, indexTargets,
+      hsplit, List.append_assoc] using Hindices
+  have Hmajor' : TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ liftedLocals) [])
+      (F.semantic.generated.outerAbstractedMajor A.rule.binders)
+      majorTarget := by
+    simpa [equationDomains, parameterDecls, inserted, majorTarget,
+      hsplit, List.append_assoc] using Hmajor
+  have hindexTargets : indexTargets.length = F.telescope.indices.length := by
+    simp only [indexTargets, List.length_map]
+    exact (Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      HindexEq).trans hlength
+  rcases A.finalRecursorParameterContext with ⟨T₀, hparams⟩
+  rcases T₀.groupsResult_eq T with
+    ⟨hparamsT, _hmotives, _hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparamsT] at hparams
+  have hparams' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      T.params.reverse parameterDecls.toCtx := by
+    simpa [parameterDecls, H.parameterDecls, Us] using hparams
+  let cachedBase := inserted.reverse ++ parameterDecls.toCtx
+  have HcachedFull : OnCtx (liftedFront.reverse ++ cachedBase)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [cachedBase, inserted, parameterDecls, List.reverse_append,
+      List.append_assoc, VLCtx.toCtx] using Hctx
+  have HcachedOuter : OnCtx cachedBase
+      (H.outVEnv.IsType Us.length) := by
+    have Hdropped := HcachedFull.drop liftedFront.length
+    simpa [cachedBase, List.drop_append, List.length_reverse] using Hdropped
+  have HcachedToTOuter :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      (hparams'.symm H.outVEnvWF.ordered) HcachedOuter
+  have HcachedToTFull :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      HcachedToTOuter HcachedFull
+  have HcachedToTFull' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (liftedFront.reverse ++ cachedBase)
+      (liftedFront.reverse ++
+        (T.params ++ T.motives ++ T.minors).reverse) := by
+    simpa [cachedBase, inserted, List.reverse_append,
+      List.append_assoc] using HcachedToTFull
+  have HTFullCtx : OnCtx
+      (liftedFront.reverse ++
+        (T.params ++ T.motives ++ T.minors).reverse)
+      (H.outVEnv.IsType Us.length) := by
+    have := (HcachedToTFull'.symm H.outVEnvWF.ordered).isType
+    simpa [cachedBase, inserted, List.reverse_append,
+      List.append_assoc] using this
+  have Hcommon := H.finalRecursorCommonPrefixContextAt
+    owner howner selectedOwner F.entry_lt T F.telescope
+  have HTToSelectedFull :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      Hcommon HTFullCtx
+  have HselectedToCached :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+      (HTToSelectedFull.symm H.outVEnvWF.ordered)
+      (HcachedToTFull'.symm H.outVEnvWF.ordered)
+  have HprefixT := F.prefixTypingInEquationContext T liftedFront (by
+    simpa [List.reverse_append, List.append_assoc] using HTFullCtx)
+  have HprefixT' : H.outVEnv.HasType Us.length
+      (liftedFront.reverse ++
+        (T.params ++ T.motives ++ T.minors).reverse)
+      prefixTarget
+      ((VExpr.wrapForalls suffix F.telescope.result).liftN
+        liftedFront.length 0) := by
+    simpa [prefixTarget, suffix, hsplit, VExpr.liftN_liftN,
+      List.length_append, Nat.add_comm, List.reverse_append,
+      List.append_assoc] using HprefixT
+  have HprefixSelected := HprefixT'.defeqDFC H.outVEnvWF.ordered
+    HTToSelectedFull
+  rcases F.cachedPrefixOwnerTelescopeUnderFront
+      liftedFront cachedBase prefixTarget HselectedToCached HcachedFull
+      (by simpa [suffix] using HprefixSelected) with
+    ⟨motiveDomains, resultLevel, hdomainLength, _hmotive,
+      HprefixExpected, HownerExpected, Hsame⟩
+  let expected :=
+    (liftContextPrefixAt (later.length + 1) 0
+      motiveDomains.reverse).reverse
+  let expectedDomains :=
+    (liftContextPrefix liftedFront.length expected.reverse).reverse
+  have hexpectedLength : expectedDomains.length = indexTargets.length + 1 := by
+    simp only [expectedDomains, List.length_reverse, liftContextPrefix_length,
+      expected, liftContextPrefixAt_length, hdomainLength,
+      hindexTargets, F.telescope.indices_length]
+  have HprefixExpected' : H.outVEnv.HasType Us.length
+      (abstractForallContext (equationDomains ++ liftedLocals) []).toCtx
+      prefixTarget
+      (VExpr.wrapForalls expectedDomains
+        (F.telescope.result.liftN frontCount suffix.length)) := by
+    simpa [equationDomains, parameterDecls, inserted, cachedBase, hsplit,
+      hfrontLength, hpartsLength, suffix, later, expected, expectedDomains,
+      List.reverse_append,
+      List.append_assoc, VLCtx.toCtx] using HprefixExpected
+  have HownerExpected' : H.outVEnv.HasType Us.length
+      (abstractForallContext (equationDomains ++ liftedLocals) []).toCtx
+      ownerTarget
+      (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
+    simpa [equationDomains, parameterDecls, inserted, cachedBase, ownerTarget,
+      frontCount, hsplit, hfrontLength, hpartsLength, expectedDomains,
+      suffix, later, expected,
+      List.reverse_append, List.append_assoc, VLCtx.toCtx] using
+      HownerExpected
+  have Hsame' : SameTelescopeDomains expectedDomains.length
+      (VExpr.wrapForalls expectedDomains
+        (F.telescope.result.liftN frontCount suffix.length))
+      (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
+    simpa [suffix, later, expected, expectedDomains, hfrontLength] using Hsame
+  exact ⟨equationDomains, liftedLocals, prefixTarget, indexTargets,
+    majorTarget, ownerTarget, hlocalLifted, Hctx', HprefixTr', Hindices',
+    Hmajor', hindexTargets, rfl, expectedDomains, resultLevel,
+    hexpectedLength, HprefixExpected', HownerExpected', Hsame'⟩
+
 /-- Weaken the canonical recursive-call prefix beneath the higher-order
 lambda domains and identify its source with the exact two-stage abstraction
 performed by production. -/
