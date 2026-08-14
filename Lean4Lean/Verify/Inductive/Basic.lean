@@ -65350,6 +65350,146 @@ theorem
   simpa [outer, BoundGeneratedRecursorRule.binders,
     List.append_assoc] using Habstract
 
+/-- The source produced by closing cached parameters and then inserting the
+motive/minor block is not merely equivalent to production's source: it is
+literally the same complete rule-binder abstraction. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.insertedSemanticIndexSources_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+    let inserted := T.motives ++ T.minors
+    (sourceIndices.map fun index =>
+      (((index.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.all_args_bound.fvars
+          F.semantic.generated.localArgs.size).abstractList
+            A.rule.params_bound.fvars cutoff).liftLooseBVars'
+              cutoff inserted.length) =
+    sourceIndices.map fun index =>
+      (index.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders F.semantic.generated.localArgs.size := by
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+  let inserted := T.motives ++ T.minors
+  let insertedFVars :=
+    A.rule.motives_bound.fvars ++ A.rule.minors_bound.fvars
+  let closedSources := sourceIndices.map fun index =>
+    (index.abstractList
+      F.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.all_args_bound.fvars
+        F.semantic.generated.localArgs.size
+  rcases F.finalFieldAbstractedSemanticIndices with
+    ⟨_binding, _evidence, localDomains, fieldDomains,
+      hlocal, hfields, _hlength, Htranslated, _Hscoped⟩
+  have Htranslated' : List.Forall₂
+      (TrExprS H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        (abstractForallContext (fieldDomains ++ localDomains)
+          H.recursorWF.mlctx.vlctx))
+      closedSources _evidence.indices := by
+    simpa [closedSources, hlocal] using Htranslated
+  have Hscoped := F.fieldAbstractedSemanticIndexSourcesScoped
+  have houterNodup :
+      (A.rule.params_bound.fvars ++ insertedFVars).Nodup := by
+    simpa [insertedFVars, List.append_assoc] using
+      A.rule.outer_binders_nodup
+  have hparamsNodup : A.rule.params_bound.fvars.Nodup :=
+    (List.nodup_append.mp houterNodup).1
+  have hinsertedLength : inserted.length = insertedFVars.length := by
+    simp [inserted, insertedFVars,
+      T.motives_length, T.minors_length,
+      A.rule.motives_bound.length_fvars,
+      A.rule.minors_bound.length_fvars]
+  have hcutoff : (fieldDomains ++ localDomains).length = cutoff := by
+    simp [cutoff, hfields, hlocal, Nat.add_comm]
+  have hsourceShape : ∀ source ∈ closedSources,
+      (source.abstractList A.rule.params_bound.fvars cutoff).liftLooseBVars'
+          cutoff inserted.length =
+        source.abstractList
+          (A.rule.params_bound.fvars ++ insertedFVars) cutoff := by
+    intro source hsource
+    rcases Lean4Lean.List.Forall₂.forall_exists_l Htranslated'
+        source hsource with
+      ⟨target, _htarget, Hsource⟩
+    have hclosed : Closed source cutoff := by
+      have h := Hsource.closed
+      rw [abstractForallContext_bvars,
+        H.recursorWF.mlctx.noBV, Nat.add_zero, hcutoff] at h
+      exact h
+    have hscope : source.FVarsIn
+        (· ∈ A.rule.params_bound.fvars) := by
+      have hsourceOriginal : source ∈
+          sourceIndices.map fun index =>
+            (index.abstractList
+              F.semantic.generated.arguments_bound.fvars).abstractList
+                A.rule.all_args_bound.fvars
+                F.semantic.generated.localArgs.size := by
+        simpa [closedSources] using hsource
+      have hparams := Hscoped source hsourceOriginal
+      simpa [A.rule.params_bound.exprArrayFVarIds] using hparams
+    have havoids : source.FVarsIn (· ∉ insertedFVars) := by
+      exact hscope.mono fun fv hparam hinserted => by
+        have hdisjoint := (List.nodup_append.mp houterNodup).2.2
+        exact hdisjoint fv hparam fv hinserted rfl
+    have hinsertedAbstract :
+        source.abstractList insertedFVars cutoff = source :=
+      havoids.abstractList_eq_self hclosed
+    have hshift := Expr.abstractList_add_eq_liftLooseBVars
+      (e := source) (fvars := A.rule.params_bound.fvars)
+      (depth := cutoff) (extra := insertedFVars.length)
+      hclosed hparamsNodup
+    have happend := Expr.abstractList_after_inner
+      (e := source) (outer := A.rule.params_bound.fvars)
+      (inner := insertedFVars) (k := cutoff) houterNodup
+    rw [hinsertedAbstract] at happend
+    rw [hinsertedLength]
+    exact hshift.symm.trans happend
+  have hfirst :
+      (closedSources.map fun source =>
+        (source.abstractList A.rule.params_bound.fvars cutoff).liftLooseBVars'
+          cutoff inserted.length) =
+      closedSources.map fun source => source.abstractList
+        (A.rule.params_bound.fvars ++ insertedFVars) cutoff := by
+    apply List.map_congr_left
+    exact hsourceShape
+  have houter := F.outerAbstractedSemanticIndexSources
+  dsimp only at houter
+  calc
+    _ = closedSources.map fun source =>
+        (source.abstractList A.rule.params_bound.fvars cutoff).liftLooseBVars'
+          cutoff inserted.length := by
+      simp [closedSources, sourceIndices, cutoff, inserted,
+        List.map_map, Function.comp_def]
+    _ = closedSources.map fun source => source.abstractList
+        (A.rule.params_bound.fvars ++ insertedFVars) cutoff := hfirst
+    _ = _ := by
+      simpa [closedSources, sourceIndices, cutoff, insertedFVars,
+        BoundGeneratedRecursorRule.binders,
+        A.rule.all_args_bound.length_fvars,
+        List.append_assoc] using houter
+
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
 telescope.  The sole non-structural premise is the selected prefix typing in
