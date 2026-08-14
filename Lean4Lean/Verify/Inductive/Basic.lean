@@ -61987,7 +61987,7 @@ theorem
                 F.semantic.generated.arguments_bound.fvars).abstractList
                   A.rule.all_args_bound.fvars localDomains.length),
             FVarsIn
-              (· ∈ H.recursorWF.mlctx.vlctx.fvars)
+              (· ∈ ExprArrayFVarIds stats.params)
               source := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
@@ -62026,17 +62026,10 @@ theorem
               (index.abstractList
                 F.semantic.generated.arguments_bound.fvars).abstractList
                   A.rule.all_args_bound.fvars localDomains.length)
-            targets ∧
-          ∀ source ∈ (sources.map fun index =>
-              (index.abstractList
-                F.semantic.generated.arguments_bound.fvars).abstractList
-                  A.rule.all_args_bound.fvars localDomains.length),
-            FVarsIn
-              (· ∈ H.recursorWF.mlctx.vlctx.fvars)
-              source := by
+            targets := by
     intro sources targets Hsource
     induction Hsource with
-    | nil => exact ⟨.nil, by simp⟩
+    | nil => exact .nil
     | @cons source target sources targets Hindex _ ih =>
       have Hlocal := F.semantic.recent.abstractRecent [] (by
         simpa [abstractForallContext] using Hindex)
@@ -62048,22 +62041,49 @@ theorem
         simpa [localDomains, hlocalFvars] using Hlocal
       have Hfield := A.semantics.fieldsRecent.abstractRecent
         localDomains Hlocal'
-      have hlocalScope := F.semantic.recent.abstractRecentFVars
-        Hindex.fvarsIn 0
-      have hfieldScope :=
-        A.semantics.fieldsRecent.abstractRecentFVars
-          hlocalScope localDomains.length
-      refine ⟨List.Forall₂.cons ?_ ih.1, ?_⟩
-      · simpa [localDomains, fieldDomains, hlocalFvars,
-          hfieldFvars, A.semantics.fieldRoot_vlctx] using Hfield
-      · intro closedSource hclosedSource
-        simp only [List.map_cons, List.mem_cons] at hclosedSource
-        rcases hclosedSource with rfl | hclosedSource
-        · simpa [hlocalFvars, hfieldFvars,
-            A.semantics.fieldRoot_vlctx] using hfieldScope
-        · exact ih.2 closedSource hclosedSource
+      exact List.Forall₂.cons (by
+        simpa [localDomains, fieldDomains, hlocalFvars,
+          hfieldFvars, A.semantics.fieldRoot_vlctx] using Hfield) ih
+  have HclosedIndices := closeIndices Hindices
+  have Hscoped : ∀ source ∈
+      ((F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
+          ).toList.map fun index =>
+        (index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars localDomains.length),
+      FVarsIn (· ∈ ExprArrayFVarIds stats.params) source := by
+    intro closedSource hclosedSource
+    rcases List.mem_map.mp hclosedSource with ⟨source, hsource, rfl⟩
+    have hsourceFull : source ∈
+        F.semantic.generated.exposedType.getAppArgsList := by
+      rw [← Expr.getAppArgs_toList]
+      let sub := F.semantic.generated.exposedType.getAppArgs.toSubarray
+        stats.params.size
+      have hsourceSubArray : source ∈ sub.toArray := by
+        simpa [sub] using Array.mem_toList_iff.mpr hsource
+      have hsourceArrayList : source ∈ sub.toArray.toList :=
+        Array.mem_toList_iff.mpr hsourceSubArray
+      have hsub : source ∈
+          (F.semantic.generated.exposedType.getAppArgs.toSubarray
+            stats.params.size).toList := by
+        rw [← Subarray.toList_toArray]
+        simpa [sub] using hsourceArrayList
+      rw [Subarray.toList_eq_drop_take,
+        Array.array_toSubarray] at hsub
+      exact List.mem_of_mem_take (List.mem_of_mem_drop hsub)
+    have Hsource := F.semantic.exposed_scope.getAppArgsList hsourceFull
+    have Hlocal := FVarsIn.abstractList_of
+      (selected := F.semantic.recent.fvars) (k := 0) Hsource
+    rw [F.root_scope] at Hlocal
+    have Hfield := FVarsIn.abstractList_of
+      (selected := A.semantics.fieldOpening.fvars)
+      (k := localDomains.length) Hlocal
+    have hopenFvars : A.semantics.fieldOpening.fvars =
+        A.rule.all_args_bound.fvars :=
+      A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
+    simpa [hlocalFvars, hopenFvars] using Hfield
   exact ⟨binding, evidence, localDomains, fieldDomains,
-    hlocal, hfields, hlength, closeIndices Hindices⟩
+    hlocal, hfields, hlength, HclosedIndices, Hscoped⟩
 
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
