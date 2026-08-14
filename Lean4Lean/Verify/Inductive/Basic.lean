@@ -65490,6 +65490,89 @@ theorem
         A.rule.all_args_bound.length_fvars,
         List.append_assoc] using houter
 
+/-- Canonical-source form of `insertedSemanticIndexFrame`.  The transported
+recursive indices now have exactly the source expressions emitted in the
+production equation, while retaining the narrowed semantic targets and the
+typed equation context used to assemble the recursive recursor call. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.canonicalInsertedSemanticIndexFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    let inserted := T.motives ++ T.minors
+    ∃ fieldDomains localDomains liftedFront narrowIndices,
+      liftedFront =
+          (liftContextPrefix inserted.length
+            (fieldDomains ++ localDomains).reverse).reverse ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        localDomains.length = F.semantic.generated.localArgs.size ∧
+        OnCtx
+          (abstractForallContext
+            (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []).toCtx
+          (H.outVEnv.IsType Us.length) ∧
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext
+              (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
+          (sourceIndices.map fun index =>
+            (index.abstractList
+              F.semantic.generated.arguments_bound.fvars).abstractList
+                A.rule.binders F.semantic.generated.localArgs.size)
+          (narrowIndices.map fun target =>
+            target.liftN inserted.length
+              (fieldDomains ++ localDomains).length) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  let inserted := T.motives ++ T.minors
+  rcases F.insertedSemanticIndexFrame T with
+    ⟨fieldDomains, localDomains, liftedFront, narrowIndices,
+      hfront, hfields, hlocal, Hctx, Hindices⟩
+  have Hindices' : List.Forall₂
+      (TrExprS H.outVEnv Us
+        (abstractForallContext
+          (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
+      (sourceIndices.map fun index =>
+        (((index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size).abstractList
+              A.rule.params_bound.fvars
+              (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
+          ).liftLooseBVars'
+            (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
+            inserted.length)
+      (narrowIndices.map fun target =>
+        target.liftN inserted.length
+          (fieldDomains ++ localDomains).length) := by
+    simpa [hfields, hlocal, Nat.add_comm] using Hindices
+  have hsource := F.insertedSemanticIndexSources_eq T
+  dsimp only at hsource
+  rw [hsource] at Hindices'
+  exact ⟨fieldDomains, localDomains, liftedFront, narrowIndices,
+    hfront, hfields, hlocal, Hctx, Hindices'⟩
+
 /-- Assemble the call-selected recursor head with the rule's common
 parameter/motive/minor variables in an arbitrary canonical equation
 telescope.  The sole non-structural premise is the selected prefix typing in
