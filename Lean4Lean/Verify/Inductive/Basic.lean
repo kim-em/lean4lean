@@ -27016,6 +27016,7 @@ structure RecInfoMinorTypeShape where
   sourceConstructors : List Constructor
   sourceConstructor : sourceConstructors[localIndex]? = some constructor
   sourceFullContext : AddInductive.Context
+  sourceFullWF : BindingContextWF sourceFullContext
   sourceContext : LocalContext
   sourceContext_eq : sourceFullContext.lctx = sourceContext
   fields : Array Expr
@@ -27030,6 +27031,38 @@ structure RecInfoMinorTypeShape where
     sourceContext.mkForall fields
       (sourceContext.mkForall hypotheses motiveApp)
   consumed_eq : sourceType.consumeTypeAnnotations = origin
+
+/-- The retained first-pass hypothesis array is the exact inner forall
+telescope of the generated minor source type.  Its residual is expressed
+after simultaneous abstraction by the corresponding retained hypothesis
+identifiers, matching the representation used for generated rule bodies. -/
+theorem RecInfoMinorTypeShape.hypothesisTelescope
+    (S : RecInfoMinorTypeShape) :
+    Expr.ForallTelescope
+      (S.sourceContext.mkForall S.hypotheses S.motiveApp)
+      S.hypotheses.size
+      (S.motiveApp.abstractList S.hypotheses_bound.fvars) := by
+  let B := S.hypotheses_bound
+  have hsize : B.fvars.length = S.hypotheses.size := by
+    have h := congrArg Array.size B.expressions
+    simpa using h.symm
+  have Htelescope := LocalContext.mkForall_fvars_forallTelescope
+    (lctx := S.sourceFullContext.lctx) (body := S.motiveApp)
+    (fvs := B.fvars) (by
+      intro fv hfv
+      exact S.sourceFullWF.findCDecl fv (B.members fv hfv))
+  have houter : S.sourceContext.mkForall S.hypotheses S.motiveApp =
+      S.sourceFullContext.lctx.mkForall
+        (B.fvars.map Expr.fvar).toArray S.motiveApp := by
+    calc
+      _ = S.sourceFullContext.lctx.mkForall S.hypotheses S.motiveApp :=
+        congrArg (fun lctx => lctx.mkForall S.hypotheses S.motiveApp)
+          S.sourceContext_eq.symm
+      _ = _ := congrArg
+        (fun fields => S.sourceFullContext.lctx.mkForall fields S.motiveApp)
+        B.expressions
+  rw [houter]
+  simpa only [B, ← hsize] using Htelescope
 
 /-- Exact `withLocalDecl` origin types retained in the same row structure as
 production `RecInfo`s.  Per-owner rows avoid losing the insertion position of
@@ -41463,6 +41496,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
             hsourceConstructor
         sourceFullContext := outCtx
+        sourceFullWF := Rout.toBindingContextWF
         sourceContext := outCtx.lctx
         sourceContext_eq := rfl
         fields := allFields
@@ -41802,6 +41836,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
             List.replicate Horigins.minorTypes[dIdx]!.size ctor ++ [ctor]
           sourceConstructor := by simp
           sourceFullContext := cIH
+          sourceFullWF := HcIH
           sourceContext := cIH.lctx
           sourceContext_eq := rfl
           fields := bu
