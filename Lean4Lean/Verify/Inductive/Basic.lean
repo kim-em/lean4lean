@@ -69459,6 +69459,12 @@ theorem
             (equationDomains ++ localDomains) []).toCtx
           (VExpr.mkApps prefixTarget args)
           (VExpr.mkApps ownerTarget args) ∧
+        H.outVEnv.HasType Us.length
+          (abstractForallContext equationDomains []).toCtx
+          (VExpr.wrapLams localDomains
+            (VExpr.mkApps prefixTarget args))
+          (VExpr.wrapForalls localDomains
+            (VExpr.mkApps ownerTarget args)) ∧
         VExpr.WF H.outVEnv Us.length
           (abstractForallContext
             (equationDomains ++ localDomains) []).toCtx
@@ -69679,7 +69685,8 @@ theorem
       expectedDomains.length =
         H.recInfos[selectedOwner]!.indices.size + 1 := by
     rw [← hsuffixLength]
-    simp [suffix, F.telescope.indices_length, F.telescope.major_length]
+    simp [selectedOwner, suffix, F.telescope.indices_length,
+      F.telescope.major_length]
   have hresultCanonical :
       F.telescope.result.liftN frontDomains.length suffix.length =
         VExpr.mkApps (ownerTarget.liftN expectedDomains.length 0)
@@ -69699,6 +69706,7 @@ theorem
         rw [← hsuffixLength]
         simp only [suffix, List.length_append,
           F.telescope.indices_length, F.telescope.major_length]
+        dsimp only [selectedOwner]
         omega
       rw [liftVar_le hcut]
       rw [liftVar_base]
@@ -69718,6 +69726,27 @@ theorem
         (equationDomains ++ localDomains) []).toCtx
       (VExpr.mkApps prefixTarget args) :=
     ⟨VExpr.mkApps ownerTarget args, Hleft⟩
+  have Hclosed : H.outVEnv.HasType Us.length equationDomains.reverse
+      (VExpr.wrapLams localDomains
+        (VExpr.mkApps prefixTarget args))
+      (VExpr.wrapForalls localDomains
+        (VExpr.mkApps ownerTarget args)) := by
+    apply VEnv.HasType.wrapLams
+    · simpa [List.reverse_append] using HctxPlain
+    · simpa [hcallCtx, List.reverse_append] using Hleft
+  have Hclosed' : H.outVEnv.HasType Us.length
+      (abstractForallContext equationDomains []).toCtx
+      (VExpr.wrapLams localDomains
+        (VExpr.mkApps prefixTarget args))
+      (VExpr.wrapForalls localDomains
+        (VExpr.mkApps ownerTarget args)) := by
+    have hequationCtx :
+        (abstractForallContext equationDomains []).toCtx =
+          equationDomains.reverse := by
+      simpa [abstractForallContext] using
+        VLCtx.toCtx_map_anonymousLams equationDomains.reverse
+    rw [hequationCtx]
+    exact Hclosed
   have Hargs := Lean4Lean.VerifyInductive.List.Forall₂.append'
     Hindices (List.Forall₂.cons Hmajor List.Forall₂.nil)
   have Hcall := checkPositivityStep.TrExprS.mkAppList
@@ -69764,7 +69793,8 @@ theorem
     rw [← hsource]
     simpa only [args] using Hcall
   exact ⟨equationDomains, localDomains, prefixTarget, indexTargets,
-    majorTarget, ownerTarget, hlocal, Hctx, Hcall', Hleft, HleftWF⟩
+    majorTarget, ownerTarget, hlocal, Hctx, Hcall', Hleft, Hclosed',
+    HleftWF⟩
 
 /-- Weaken the canonical recursive-call prefix beneath the higher-order
 lambda domains and identify its source with the exact two-stage abstraction
