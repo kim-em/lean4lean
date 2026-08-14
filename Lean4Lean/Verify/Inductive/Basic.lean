@@ -1046,6 +1046,139 @@ theorem SameTelescopeDomains.instN
     apply SameTelescopeDomains.succ
     simpa [VExpr.inst] using ih (k + 1)
 
+/-- Consume a syntactic forall telescope with the supplied arguments and
+return its instantiated residual type.  The fallback branch is irrelevant
+for typed uses but keeps the operation total. -/
+def VExpr.applyForallType : VExpr → List VExpr → VExpr
+  | type, [] => type
+  | .forallE _ body, arg :: args => applyForallType (body.inst arg) args
+  | type, _ :: _ => type
+
+def VExpr.instForallDomains : List VExpr → VExpr → Nat → List VExpr
+  | [], _, _ => []
+  | domain :: domains, arg, k =>
+      domain.inst arg k :: instForallDomains domains arg (k + 1)
+
+@[simp] theorem VExpr.instForallDomains_length :
+    (VExpr.instForallDomains domains arg k).length = domains.length := by
+  induction domains generalizing k with
+  | nil => rfl
+  | cons domain domains ih =>
+    simp [VExpr.instForallDomains, ih]
+
+theorem VExpr.inst_wrapForalls
+    (domains : List VExpr) (body arg : VExpr) (k : Nat) :
+    (VExpr.wrapForalls domains body).inst arg k =
+      VExpr.wrapForalls (VExpr.instForallDomains domains arg k)
+        (body.inst arg (k + domains.length)) := by
+  induction domains generalizing k with
+  | nil => simp [VExpr.wrapForalls, VExpr.instForallDomains]
+  | cons domain domains ih =>
+    simp only [VExpr.wrapForalls, List.foldr_cons,
+      VExpr.instForallDomains, VExpr.inst]
+    congr 1
+    change (VExpr.wrapForalls domains body).inst arg (k + 1) =
+      VExpr.wrapForalls (VExpr.instForallDomains domains arg (k + 1))
+        (body.inst arg (k + (domains.length + 1)))
+    rw [show k + (domains.length + 1) = k + 1 + domains.length by omega]
+    exact ih (k + 1)
+
+theorem VExpr.inst_mkApps
+    (fn arg : VExpr) (args : List VExpr) (k : Nat) :
+    (VExpr.mkApps fn args).inst arg k =
+      VExpr.mkApps (fn.inst arg k) (args.map fun e => e.inst arg k) := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons head tail ih =>
+    simpa [VExpr.mkApps, VExpr.inst] using ih (.app fn head)
+
+theorem VExpr.liftN_succ_inst_at_length
+    (fn arg : VExpr) (n : Nat) :
+    (fn.liftN (n + 1) 0).inst arg n = fn.liftN n 0 := by
+  rw [show fn.liftN (n + 1) 0 =
+      (fn.liftN n 0).liftN 1 n by
+    simpa [Nat.add_comm] using
+      (VExpr.liftN'_liftN_lo fn 1 n).symm]
+  exact VExpr.inst_liftN (fn.liftN n 0) arg
+
+@[simp] theorem recursorCanonicalVars_inst_at_length
+    (n : Nat) (arg : VExpr) :
+    (recursorCanonicalVars n).map (fun e => e.inst arg n) =
+      recursorCanonicalVars n := by
+  rw [recursorCanonicalVars_eq_ofFn]
+  apply List.ext_getElem
+  · simp
+  · intro i hleft hright
+    have hi : i < n := by simpa using hright
+    simp only [List.getElem_map, List.getElem_ofFn, VExpr.inst,
+      VExpr.instVar]
+    rw [if_pos (by omega)]
+
+theorem VExpr.inst_canonicalResult
+    (fn arg : VExpr) (n : Nat) :
+    (VExpr.mkApps (fn.liftN (n + 1) 0)
+        (recursorCanonicalVars (n + 1))).inst arg n =
+      VExpr.mkApps ((VExpr.app fn arg).liftN n 0)
+        (recursorCanonicalVars n) := by
+  rw [VExpr.inst_mkApps, recursorCanonicalVars_succ_cons,
+    List.map_cons, recursorCanonicalVars_inst_at_length,
+    VExpr.liftN_succ_inst_at_length]
+  simp [VExpr.mkApps, VExpr.inst, VExpr.instVar, VExpr.liftN]
+
+/-- Opening a canonical result spine and substituting one argument for each
+telescope binder produces the same application with those concrete
+arguments. -/
+theorem VExpr.applyForallType_wrapForalls_canonical
+    (domains args : List VExpr) (fn : VExpr)
+    (hlength : args.length = domains.length) :
+    VExpr.applyForallType
+        (VExpr.wrapForalls domains
+          (VExpr.mkApps (fn.liftN domains.length 0)
+            (recursorCanonicalVars domains.length))) args =
+      VExpr.mkApps fn args := by
+  have go : ∀ n (domains args : List VExpr) (fn : VExpr),
+      domains.length = n → args.length = n →
+      VExpr.applyForallType
+          (VExpr.wrapForalls domains
+            (VExpr.mkApps (fn.liftN n 0)
+              (recursorCanonicalVars n))) args =
+        VExpr.mkApps fn args := by
+    intro n
+    induction n with
+    | zero =>
+      intro domains args fn hdomains hargs
+      have hdomains' : domains = [] :=
+        List.eq_nil_of_length_eq_zero hdomains
+      have hargs' : args = [] :=
+        List.eq_nil_of_length_eq_zero hargs
+      subst domains
+      subst args
+      simp [VExpr.applyForallType, VExpr.wrapForalls, VExpr.mkApps]
+    | succ n ih =>
+      intro domains args fn hdomains hargs
+      cases domains with
+      | nil => simp at hdomains
+      | cons domain domains =>
+        cases args with
+        | nil => simp at hargs
+        | cons arg args =>
+          have hdomainsTail : domains.length = n := by
+            simpa using Nat.succ.inj hdomains
+          have hargsTail : args.length = n := by
+            simpa using Nat.succ.inj hargs
+          change VExpr.applyForallType
+            ((VExpr.wrapForalls domains
+              (VExpr.mkApps (fn.liftN (n + 1) 0)
+                (recursorCanonicalVars (n + 1)))).inst arg) args =
+            VExpr.mkApps fn (arg :: args)
+          rw [VExpr.inst_wrapForalls]
+          simp only [Nat.zero_add]
+          rw [hdomainsTail]
+          rw [VExpr.inst_canonicalResult]
+          exact ih (VExpr.instForallDomains domains arg 0) args
+            (VExpr.app fn arg) (by simpa using hdomainsTail) hargsTail
+  exact go domains.length domains args fn rfl hlength
+
 /-- A well-typed complete application of the right-hand function supplies
 all dependent argument premises for the left-hand function when their types
 have the same telescope domains.  No equality between the two residual
@@ -1075,6 +1208,35 @@ theorem VEnv.HasType.mkApps_sameTelescopeDomains
           (VExpr.mkApps (.app right arg) args) := by
         simpa [VExpr.mkApps] using HrightApps
       simpa [VExpr.mkApps] using
+        ih Htail' HleftApp HrightApp HrightRest
+
+/-- Exact-result strengthening of `mkApps_sameTelescopeDomains`.  Besides
+recovering each argument from the independently typed right application, it
+records the residual type obtained by instantiating the left forall
+telescope. -/
+theorem VEnv.HasType.mkApps_sameTelescopeDomains_exact
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (Hdomains : SameTelescopeDomains args.length leftType rightType)
+    (Hleft : env.HasType uvars ctx left leftType)
+    (Hright : env.HasType uvars ctx right rightType)
+    (HrightApps : VExpr.WF env uvars ctx (VExpr.mkApps right args)) :
+    env.HasType uvars ctx (VExpr.mkApps left args)
+      (VExpr.applyForallType leftType args) := by
+  induction args generalizing left right leftType rightType with
+  | nil =>
+    cases Hdomains with
+    | zero => simpa [VExpr.mkApps, VExpr.applyForallType] using Hleft
+  | cons arg args ih =>
+    cases Hdomains with
+    | @succ domain leftBody rightBody arity Htail =>
+      have Harg := VEnv.HasType.mkApps_head henv hctx Hright HrightApps
+      have HleftApp := Hleft.app Harg
+      have HrightApp := Hright.app Harg
+      have Htail' := Htail.instN arg 0
+      have HrightRest : VExpr.WF env uvars ctx
+          (VExpr.mkApps (.app right arg) args) := by
+        simpa [VExpr.mkApps] using HrightApps
+      simpa [VExpr.mkApps, VExpr.applyForallType] using
         ih Htail' HleftApp HrightApp HrightRest
 
 /-- Parallel telescope relation between an inductive family and its motive.
@@ -61668,6 +61830,244 @@ theorem
     (by exact ⟨familyType, hfamilyTargetCanonical,
       hfamilyApplication, Hfamily⟩),
     hindexLength, hindexCanonical, HapplyCanonical, HindexTargets⟩
+
+/-- Complete cached equation left-hand side.  The translated recursor prefix
+is applied to the independently recovered constructor indices and major;
+canonical-result instantiation identifies its exact type with the parallel
+owner-motive application. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalLhsBody
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ fieldDomains lhsBody typeBody,
+        let cachedDomains :=
+          (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+            fieldDomains
+        fieldDomains.length = A.rule.allArgs.size ∧
+        OnCtx cachedDomains.reverse (H.outVEnv.IsType Us.length) ∧
+        TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+          (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody ∧
+        H.outVEnv.HasType Us.length cachedDomains.reverse lhsBody typeBody ∧
+        H.outVEnv.IsType Us.length cachedDomains.reverse typeBody := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalCachedCanonicalRecursorPrefixFrame with
+    ⟨T, C, fieldDomains, fieldResult, introTarget, levels,
+      parameterTargets, indexTargets, hparams, hcanonicalParams, hfields,
+      Hfull, HcachedCtx, HmajorCached, HmajorCanonical, HprefixCached,
+      Htarget, HintroShape, HprefixTr, HmajorTr, HownerMotiveTr, hspine,
+      hlevels, hlevelsCanonical, HparameterTargets, hparameterTargets,
+      Hfamily, hindexLength, hindexCanonical, HapplyCanonical,
+      HindexTargets⟩
+  let cachedDomains :=
+    (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+      fieldDomains
+  let prefixSource :=
+    mkAppN
+      (mkAppN
+        (mkAppN
+          (.const (Lean.mkRecName indTypes[owner]!.name)
+            (AddInductive.getRecLevels H.elimLevel stats.levels))
+          (stats.params.map fun arg =>
+            arg.abstractList A.rule.binders))
+        ((H.recInfos.map (·.motive)).map fun arg =>
+          arg.abstractList A.rule.binders))
+      ((H.recInfos.flatMap (·.minors)).map fun arg =>
+        arg.abstractList A.rule.binders)
+  let prefixTarget :=
+    (VExpr.mkApps
+        ((VExpr.const H.entries[owner].2.name
+          (VLevel.params Us.length)).liftN
+          (T.params ++ T.motives ++ T.minors).length 0)
+        (recursorCanonicalVars
+          (T.params ++ T.motives ++ T.minors).length)).liftN
+      fieldDomains.length 0
+  let majorSource :=
+    mkAppN
+      (mkAppN
+        (.const
+          ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+          stats.levels)
+        (stats.params.map fun arg =>
+          arg.abstractList A.rule.binders))
+      (A.rule.allArgs.map fun arg =>
+        arg.abstractList A.rule.binders)
+  let majorTarget :=
+    (VExpr.mkApps
+        (introTarget.liftN A.rule.allArgs.size 0)
+        (recursorCanonicalVars A.rule.allArgs.size)).liftN
+      (T.motives ++ T.minors).length A.rule.allArgs.size
+  let ownerTarget : VExpr := .bvar
+    (fieldDomains.length +
+      (T.motives.drop (owner + 1) ++ T.minors).length)
+  let args := indexTargets ++ [majorTarget]
+  let lhsBody := VExpr.mkApps prefixTarget args
+  let typeBody := VExpr.mkApps ownerTarget args
+  rcases A.finalCachedPrefixOwnerTelescope T fieldDomains prefixTarget
+      Hfull HcachedCtx HprefixCached with
+    ⟨motiveDomains, resultLevel, hdomainLength, hmotive,
+      HprefixExpected, HownerExpected, Hsame⟩
+  let suffix := T.indices ++ T.major
+  let later := T.motives.drop (owner + 1) ++ T.minors
+  let expected :=
+    (liftContextPrefixAt (later.length + 1) 0
+      motiveDomains.reverse).reverse
+  let expectedDomains :=
+    (liftContextPrefix fieldDomains.length expected.reverse).reverse
+  have hargsLength : args.length = expectedDomains.length := by
+    simp only [args, expectedDomains, expected, List.length_append,
+      List.length_singleton, List.length_reverse, liftContextPrefix_length,
+      liftContextPrefixAt_length, hindexLength, T.indices_length,
+      hdomainLength]
+  have Hsame' : SameTelescopeDomains args.length
+      (VExpr.wrapForalls expectedDomains
+        (T.result.liftN fieldDomains.length suffix.length))
+      (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
+    simpa [suffix, later, expected, expectedDomains, hargsLength] using Hsame
+  have HrightWF : VExpr.WF H.outVEnv Us.length cachedDomains.reverse
+      (VExpr.mkApps ownerTarget args) := by
+    refine ⟨.sort C.resultLevel, ?_⟩
+    change H.outVEnv.HasType Us.length cachedDomains.reverse
+      (VExpr.mkApps ownerTarget args) (.sort C.resultLevel)
+    have hshape : VExpr.mkApps ownerTarget args =
+        .app (VExpr.mkApps ownerTarget indexTargets) majorTarget := by
+      simp [args, VExpr.mkApps_append, VExpr.mkApps]
+    rw [hshape]
+    simpa only [Us, cachedDomains, parameterDecls, ownerTarget,
+      majorTarget, List.reverse_append, List.reverse_reverse,
+      List.append_assoc] using HapplyCanonical
+  have Hlhs := VEnv.HasType.mkApps_sameTelescopeDomains_exact
+    H.outVEnvWF HcachedCtx Hsame' HprefixExpected HownerExpected HrightWF
+  have hownerRecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
+    simpa using hownerRecInfo
+  have hsuffixLength : suffix.length = expectedDomains.length := by
+    simp only [suffix, expectedDomains, expected, List.length_append,
+      List.length_reverse, liftContextPrefix_length,
+      liftContextPrefixAt_length, T.indices_length, T.major_length,
+      hdomainLength]
+  have hexpectedArity :
+      expectedDomains.length = H.recInfos[owner]!.indices.size + 1 := by
+    rw [← hsuffixLength]
+    simp [suffix, T.indices_length, T.major_length]
+  have hresultCanonical : T.result.liftN fieldDomains.length suffix.length =
+      VExpr.mkApps (ownerTarget.liftN expectedDomains.length 0)
+        (recursorCanonicalVars expectedDomains.length) := by
+    rw [T.resultShape hownerMotive,
+      concreteRecursorResultArgs_eq_canonical]
+    rw [VExpr.liftN_mkApps]
+    rw [hsuffixLength]
+    congr 1
+    · simp only [ownerTarget, VExpr.liftN]
+      congr 1
+      have hcut : expectedDomains.length ≤
+          1 + H.recInfos[owner]!.indices.size +
+            (H.recInfos.flatMap (·.minors)).size +
+            ((H.recInfos.map (·.motive)).size - 1 - owner) := by
+        rw [← hsuffixLength]
+        simp only [suffix, List.length_append, T.indices_length,
+          T.major_length]
+        omega
+      rw [liftVar_le hcut]
+      rw [liftVar_base]
+      simp only [suffix, later,
+        List.length_append, List.length_drop, T.indices_length, T.major_length,
+        T.minors_length, T.motives_length]
+      omega
+    · rw [hexpectedArity]
+      exact recursorCanonicalVars_liftN_at_length _ _
+  rw [hresultCanonical] at Hlhs
+  have htypeResult := VExpr.applyForallType_wrapForalls_canonical
+    expectedDomains args ownerTarget hargsLength
+  rw [htypeResult] at Hlhs
+  have Hlhs' : H.outVEnv.HasType Us.length cachedDomains.reverse
+      lhsBody typeBody := by
+    simpa only [Us, cachedDomains, parameterDecls, lhsBody, typeBody,
+      List.reverse_append, List.append_assoc] using Hlhs
+  have HtypeBody : H.outVEnv.IsType Us.length cachedDomains.reverse
+      typeBody := by
+    refine ⟨C.resultLevel, ?_⟩
+    change H.outVEnv.HasType Us.length cachedDomains.reverse
+      typeBody (.sort C.resultLevel)
+    have hshape : typeBody =
+        .app (VExpr.mkApps ownerTarget indexTargets) majorTarget := by
+      simp [typeBody, args, VExpr.mkApps_append, VExpr.mkApps]
+    rw [hshape]
+    simpa only [Us, cachedDomains, parameterDecls, ownerTarget,
+      majorTarget, List.reverse_append, List.reverse_reverse,
+      List.append_assoc] using HapplyCanonical
+  have HargsTr := Lean4Lean.VerifyInductive.List.Forall₂.append'
+    HindexTargets (List.Forall₂.cons HmajorTr List.Forall₂.nil)
+  have HlhsWF : VExpr.WF H.outVEnv Us.length cachedDomains.reverse
+      lhsBody := ⟨typeBody, Hlhs'⟩
+  have htoCtx : ∀ types : List VExpr,
+      VLCtx.toCtx (types.map fun type =>
+        ((none, .vlam type) :
+          Option (FVarId × List FVarId) × VLocalDecl)) = types := by
+    intro types
+    induction types with
+    | nil => rfl
+    | cons type types ih => simp [VLCtx.toCtx, ih]
+  have HabstractCtx : OnCtx
+      (abstractForallContext cachedDomains []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    have habstractToCtx :
+        (abstractForallContext cachedDomains []).toCtx =
+          cachedDomains.reverse := by
+      simpa [abstractForallContext] using htoCtx cachedDomains.reverse
+    rw [habstractToCtx]
+    exact HcachedCtx
+  have HlhsWF' : VExpr.WF H.outVEnv Us.length
+      (abstractForallContext cachedDomains []).toCtx lhsBody := by
+    have habstractToCtx :
+        (abstractForallContext cachedDomains []).toCtx =
+          cachedDomains.reverse := by
+      simpa [abstractForallContext] using htoCtx cachedDomains.reverse
+    rw [habstractToCtx]
+    exact HlhsWF
+  have HlhsTr := checkPositivityStep.TrExprS.mkAppList
+    H.outVEnvWF.ordered HabstractCtx HprefixTr HargsTr (by
+      simpa only [lhsBody, args, prefixTarget, majorTarget,
+        List.length_append] using HlhsWF')
+  have HlhsResidual : TrExprS H.outVEnv Us
+      (abstractForallContext cachedDomains [])
+      (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody := by
+    have hsourceShape := A.rule.abstractedSourceLhs
+    rcases htarget : AddInductive.getIIndices stats A.rule.target with
+      ⟨selectedOwner, sourceIndices⟩
+    have hselectedOwner : selectedOwner = owner := by
+      have hfirst := checkPositivityStep.getIIndices.fst_eq_of_valid
+        A.semantics.target_valid
+      rw [htarget] at hfirst
+      exact hfirst.trans A.semantic_owner
+    subst selectedOwner
+    rw [htarget] at hsourceShape HlhsTr
+    rw [hsourceShape]
+    simpa [prefixSource, majorSource, lhsBody, args,
+      VExpr.mkApps_append] using HlhsTr
+  exact ⟨T, fieldDomains, lhsBody, typeBody, hfields, HcachedCtx,
+    HlhsResidual, Hlhs', HtypeBody⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
