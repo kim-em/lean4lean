@@ -25440,26 +25440,32 @@ structure RecInfoMotiveTelescopes
     {root : AddInductive.Context} {recLparams : List Name}
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (parameterCtx : List VExpr)
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
   telescope : ∀ target (htarget : target < recInfos.size),
     RecursorMotiveTelescopeAt Rroot stats decl target recInfos[target]!
       elimLevel
   canonical : ∀ target (htarget : target < recInfos.size),
-    Nonempty (RecursorCanonicalMotiveTelescope Rroot.venv recLparams.length stats
-      decl target recInfos[target]! elimLevel)
+    ∃ C : RecursorCanonicalMotiveTelescope Rroot.venv recLparams.length stats
+        decl target recInfos[target]! elimLevel,
+      VEnv.IsDefEqCtx Rroot.venv recLparams.length []
+        C.params.reverse parameterCtx
 
 def RecInfoMotiveTelescopes.empty
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (parameterCtx : List VExpr)
     (elimLevel : Level) :
-    RecInfoMotiveTelescopes Rroot stats decl #[] elimLevel where
+    RecInfoMotiveTelescopes Rroot stats decl parameterCtx #[] elimLevel where
   telescope target htarget := by simp at htarget
   canonical target htarget := by simp at htarget
 
 def RecInfoMotiveTelescopes.mono
-    (H : RecInfoMotiveTelescopes Rroot stats decl recInfos elimLevel)
+    (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
+      elimLevel)
     (Hext : RecursorContextExtension Rroot Rcurrent) :
-    RecInfoMotiveTelescopes Rcurrent stats decl recInfos elimLevel where
+    RecInfoMotiveTelescopes Rcurrent stats decl parameterCtx recInfos
+      elimLevel where
   telescope target htarget := fun R Hlater =>
     H.telescope target htarget R (Hext.trans Hlater)
   canonical target htarget := by
@@ -25469,13 +25475,16 @@ def RecInfoMotiveTelescopes.mono
 def RecInfoMotiveTelescopes.push
     {root : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
-    (H : RecInfoMotiveTelescopes Rroot stats decl recInfos elimLevel)
+    (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
+      elimLevel)
     (next : AddInductive.RecInfo)
     (Hnext : RecursorMotiveTelescopeAt Rroot stats decl recInfos.size next
       elimLevel)
-    (Hcanonical : Nonempty (RecursorCanonicalMotiveTelescope Rroot.venv
-      recLparams.length stats decl recInfos.size next elimLevel)) :
-    RecInfoMotiveTelescopes Rroot stats decl (recInfos.push next)
+    (Hcanonical : ∃ C : RecursorCanonicalMotiveTelescope Rroot.venv
+        recLparams.length stats decl recInfos.size next elimLevel,
+      VEnv.IsDefEqCtx Rroot.venv recLparams.length []
+        C.params.reverse parameterCtx) :
+    RecInfoMotiveTelescopes Rroot stats decl parameterCtx (recInfos.push next)
       elimLevel where
   telescope target htarget := by
     by_cases hlast : target = recInfos.size
@@ -25515,9 +25524,10 @@ The executable second pass updates `RecInfo.minors` in place; making this
 transport explicit keeps the first-pass semantic contract available after
 every constructor. -/
 def RecInfoMotiveTelescopes.modifyMinors
-    (H : RecInfoMotiveTelescopes Rroot stats decl recInfos elimLevel)
+    (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
+      elimLevel)
     (owner : Nat) (f : Array Expr → Array Expr) :
-    RecInfoMotiveTelescopes Rroot stats decl
+    RecInfoMotiveTelescopes Rroot stats decl parameterCtx
       (recInfos.modify owner fun info =>
         { info with minors := f info.minors }) elimLevel where
   telescope target htarget := by
@@ -25531,14 +25541,15 @@ def RecInfoMotiveTelescopes.modifyMinors
             hold howner]
   canonical target htarget := by
     have hold : target < recInfos.size := by simpa using htarget
-    rcases H.canonical target hold with ⟨C⟩
+    rcases H.canonical target hold with ⟨C, hparams⟩
     by_cases howner : owner = target
     · subst target
       rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos owner _ hold]
-      exact ⟨{ C with indices_length := by simpa using C.indices_length }⟩
+      exact ⟨{ C with indices_length := by simpa using C.indices_length },
+        hparams⟩
     · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos owner target _
           hold howner]
-      exact ⟨C⟩
+      exact ⟨C, hparams⟩
 
 /-- Pointwise motive-application contracts for the complete mutual `RecInfo`
 array.  Array indexing, rather than family names, is intentional: production
@@ -25599,7 +25610,8 @@ def RecInfoMotiveApplications.push
       exact H.application target hold
 
 def RecInfoMotiveTelescopes.applications
-    (H : RecInfoMotiveTelescopes Rroot stats decl recInfos elimLevel) :
+    (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
+      elimLevel) :
     RecInfoMotiveApplications Rroot stats decl recInfos elimLevel where
   application target htarget :=
     RecursorMotiveTelescopeAt.toApplication (H.telescope target htarget)
@@ -29986,6 +29998,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
           (H.recursorTargetSkeleton Helim) scope narrowTarget
           stats.params.size nindices) →
+      Hsynthesis.params.reverse = rootParameterDecls.toCtx →
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope stats decl nindices →
@@ -30031,6 +30044,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           R.venv (AddInductive.getRecLevelParams elimLevel base.lparams)
           (H.recursorTargetSkeleton Helim) scope narrowTarget
           stats.params.size nindices) →
+      Hsynthesis.params.reverse = rootParameterDecls.toCtx →
       RecursorValidAppStatsWF R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope stats decl nindices →
@@ -30064,13 +30078,14 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       RecursorRecentBoundFVarArray Rroot R indices →
       (AddInductive.mkRecInfos.loopArgs1 stats type stats.params.size
         indices fuel k current).WF Q
-  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | current, runtimeDepth, R, henv, Hsuffix, hparameterDecls, type,
       fullTarget, narrowTarget,
       scope, nindices, indices, originTypes, indexTargets, fuel + 1, Hsynthesis,
-      HnarrowStats, Hstats, Hruntime, hfront, htypeNarrow, htypeFVars, htypeFull,
+      hcanonicalParams, HnarrowStats, Hstats, Hruntime, hfront, htypeNarrow,
+      htypeFVars, htypeFull,
       htypeFullType, Hindices, HnarrowIndices, hindexCount, hcanonical,
       Horigins, HoriginTypes, Hrecent => by
       cases type with
@@ -30289,7 +30304,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 (.forallE hdomType _hbodyType hdomNarrow hbodyNarrow)
                 hscopeWF hdomainNarrow htransition with
               ⟨nextNarrow, hnextNarrow, Hsynthesis',
-                ⟨_hparams, hfrontIndices⟩⟩
+                ⟨hparams, hfrontIndices⟩⟩
             exact continueRecursorIndexSynthesisSemantics stats k H Helim
               Rroot hwhnf hconsume Hk R' (by simpa [R'] using henv)
               Hsuffix' (by
@@ -30303,7 +30318,9 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               (indices.push (.fvar ⟨current.ngen.curr⟩))
               (originTypes.push dom.consumeTypeAnnotations)
               ((indexTargets.map fun result => result.liftN 1 0) ++
-                [.bvar 0]) fuel Hsynthesis'
+                [.bvar 0]) fuel Hsynthesis' (by
+                  rw [hparams]
+                  exact hcanonicalParams)
               (HnarrowStats.withFVar R'.checking.tr.wf hscopeWF)
               (Hstats.withFVar R'.checking.tr.wf R'.mlctx_wf.tr.wf)
               Hruntime' (by
@@ -30325,7 +30342,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
           simpa [AddInductive.mkRecInfos.loopArgs1] using
-            Hk R henv Hsuffix hparameterDecls Hsynthesis HnarrowStats Hstats Hruntime
+            Hk R henv Hsuffix hparameterDecls Hsynthesis hcanonicalParams
+              HnarrowStats Hstats Hruntime
               hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
               HnarrowIndices hindexCount hcanonical Horigins HoriginTypes Hrecent
 termination_by
@@ -30731,6 +30749,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
           (AddInductive.getRecLevelParams elimLevel base.lparams)
           (H.recursorTargetSkeleton Helim) scope narrowTarget
           stats.params.size nindices) →
+      Hsynthesis.params.reverse = Hsuffix.parameterDecls.toCtx →
       RecursorValidAppStatsWF Rnext.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope stats decl nindices →
@@ -30774,9 +30793,15 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
     htypeNarrow htypeFVars htypeFull htypeFullType indices remaining
     hindicesEmpty
   subst indices
+  have hcanonicalParams : Hsynthesis.params.reverse =
+      Hsuffix.parameterDecls.toCtx := by
+    have hindices : Hsynthesis.indices = [] :=
+      List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
+    simpa [hindices] using Hsynthesis.scopeCtx.symm
   exact continueRecursorIndexSynthesisSemantics stats k H Helim R hwhnf
     hconsume Hk R henv Hsuffix rfl type fullTarget narrowTarget
-    Hsuffix.parameterDecls 0 #[] #[] [] remaining Hsynthesis HnarrowStats
+    Hsuffix.parameterDecls 0 #[] #[] [] remaining Hsynthesis
+    hcanonicalParams HnarrowStats
     Hstats Hruntime hfront htypeNarrow htypeFVars htypeFull htypeFullType .nil .nil
     rfl rfl (BoundFVarTypeOrigins.empty current)
     (RecursorTranslatedOriginTypes.empty R)
@@ -31001,7 +31026,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes current recInfos
       Horigins.motiveTypes elimLevel)
-    (Htelescopes : RecInfoMotiveTelescopes R stats decl recInfos elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl
+      Hsuffix.parameterDecls.toCtx recInfos elimLevel)
     (HindexTypeRows :
       RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
     (Hparams : BoundFVarArray current stats.params)
@@ -31027,7 +31053,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl out elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl
+        HsuffixOut.parameterDecls.toCtx out elimLevel →
       RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
@@ -31075,7 +31102,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     · intro cIndices nextDepth Rindices henvIndices HsuffixIndices
         hparameterDecls type
         fullTarget narrowTarget scope nindices indices indexOrigins
-        indexTargets Hsynthesis HnarrowStats HstatsIndices Hruntime
+        indexTargets Hsynthesis hcanonicalParams HnarrowStats HstatsIndices Hruntime
         hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
         HnarrowIndices hindexCount hcanonical HindexOrigins HindexTypes
         Hrecent
@@ -31438,12 +31465,22 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             recInfos.size nextInfo elimLevel := by
           rw [hprogress]
           exact Hseed.toTelescopeAt
-        have HseedCanonical : Nonempty
-            (RecursorCanonicalMotiveTelescope Rmotive.venv
+        have HseedCanonical :
+            ∃ C : RecursorCanonicalMotiveTelescope Rmotive.venv
               (AddInductive.getRecLevelParams elimLevel base.lparams).length
-              stats decl recInfos.size nextInfo elimLevel) := by
+              stats decl recInfos.size nextInfo elimLevel,
+              VEnv.IsDefEqCtx Rmotive.venv
+                (AddInductive.getRecLevelParams elimLevel base.lparams).length
+                [] C.params.reverse Hsuffix.parameterDecls.toCtx := by
           rw [hprogress]
-          exact ⟨Hseed.canonical⟩
+          refine ⟨Hseed.canonical, ?_⟩
+          change VEnv.IsDefEqCtx Rindices.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length []
+            Hsynthesis.params.reverse Hsuffix.parameterDecls.toCtx
+          rw [← hcanonicalParams]
+          exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
+            rw [← Hsynthesis.scopeCtx]
+            exact Hsynthesis.scopeWF.toCtx))
         let Htelescopes' :=
           (Htelescopes.mono HrootExtension).push nextInfo
             HseedAt HseedCanonical
@@ -31455,7 +31492,9 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             indices
             major }) k Rmotive (by simpa [Rmotive, Rmajor] using henvIndices)
           HsuffixMotive HparamsCtx' HstatsMotive Hbindings' Horigins'
-          ?_ ?_ ?_ ?_ Htelescopes' ?_ Hparams' HnoAlias'
+          ?_ ?_ ?_ ?_ (by
+            simpa [hparameterDeclsMotive] using Htelescopes') ?_ Hparams'
+          HnoAlias'
           (Hroot.trans <| hIndices.trans <|
             (BindingContextLE.withLocalDecl cIndices
               Rindices.toBindingContextWF `t majorTy .default).trans <|
@@ -37314,7 +37353,8 @@ theorem resultSemanticsOfMotiveTelescopes
         u[j] = .fvar fv ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
           (.fvar fv) fieldTarget)
-    (Htelescopes : RecInfoMotiveTelescopes R stats decl recInfos elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
+      elimLevel)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (Hshape : RecInfoMotiveTypeShapes c recInfos
@@ -37359,7 +37399,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
       Horigins.motiveTypes elimLevel)
-    (Htelescopes : RecInfoMotiveTelescopes R stats decl recInfos elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
+      elimLevel)
     (HindexRows : RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
     (Hparams : BoundFVarArray c stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
@@ -37392,7 +37433,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl out elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
       RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
@@ -37493,7 +37534,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
       Horigins.motiveTypes elimLevel)
-    (Htelescopes : RecInfoMotiveTelescopes R stats decl recInfos elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
+      elimLevel)
     (HindexRows : RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
     (Hparams : BoundFVarArray c stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
@@ -37524,7 +37566,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl out elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
       RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
@@ -37784,7 +37826,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
       Horigins.motiveTypes elimLevel)
-    (Htelescopes : RecInfoMotiveTelescopes R stats decl recInfos elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
+      elimLevel)
     (HindexRows : RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
     (Hparams : BoundFVarArray c stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
@@ -37831,7 +37874,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl out elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
       RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
@@ -38136,7 +38179,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
     (HmotiveShapes : RecInfoMotiveTypeShapes c recInfos
       Horigins.motiveTypes elimLevel)
-    (Htelescopes : RecInfoMotiveTelescopes R stats decl recInfos elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
+      elimLevel)
     (HindexRows : RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
     (Hparams : BoundFVarArray c stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
@@ -38187,7 +38231,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
       RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
       RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl out elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl parameterCtx out elimLevel →
       RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
@@ -41600,7 +41644,9 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
       RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl recInfos elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl
+        (R.materialized.parameterSuffix.toRecursorContext
+          Helim).parameterDecls.toCtx recInfos elimLevel →
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
@@ -41653,7 +41699,8 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     (RecInfoMajorTypeShapes.empty stats)
     (RecursorTranslatedOriginTypes.empty Rbase)
     (RecInfoMotiveTypeShapes.empty _ elimLevel)
-    (RecInfoMotiveTelescopes.empty Rbase stats decl elimLevel)
+    (RecInfoMotiveTelescopes.empty Rbase stats decl
+      Hsuffix.parameterDecls.toCtx elimLevel)
     (RecursorTranslatedOriginTypeRows.empty Rbase) Hparams
     (RecInfoBindings.empty_noAlias _ Hparams hparamsNodup)
     (BindingContextLE.refl _) rfl (RecInfoArities.empty stats)
@@ -41664,7 +41711,8 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     Htelescopes HindexRows HparamsOut HnoAlias Harities Hempty Hroot hsize
   apply Hk recInfos Rout henvOut HsuffixOut hparameterDeclsOut HstatsOut
     Hbindings Horigins
-    HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows HparamsOut
+    HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes (by
+      simpa [hparameterDeclsOut] using Htelescopes) HindexRows HparamsOut
     HnoAlias Harities Hempty Hroot
   simpa using hsize
 
@@ -41710,7 +41758,9 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl recInfos elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl
+        (R.materialized.parameterSuffix.toRecursorContext
+          Helim).parameterDecls.toCtx recInfos elimLevel →
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
@@ -41812,7 +41862,9 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
       RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl recInfos elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl
+        (R.materialized.parameterSuffix.toRecursorContext
+          Helim).parameterDecls.toCtx recInfos elimLevel →
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
@@ -52293,8 +52345,9 @@ structure RecursorPhasesResult
   motiveTypes : RecursorTranslatedOriginTypes recursorWF origins.motiveTypes
   motiveShapes : RecInfoMotiveTypeShapes localContext recInfos
     origins.motiveTypes elimLevel
-  motiveTelescopes : RecInfoMotiveTelescopes recursorWF stats decl recInfos
-    elimLevel
+  motiveTelescopes : RecInfoMotiveTelescopes recursorWF stats decl
+    (R.materialized.parameterSuffix.toRecursorContext
+      elimLevelAdmissible).parameterDecls.toCtx recInfos elimLevel
   indexRows : RecursorTranslatedOriginTypeRows recursorWF origins.indexTypes
   params : BoundFVarArray localContext stats.params
   noAlias : bindings.NoAlias params
@@ -54829,16 +54882,77 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (_A : H.GeneratedRuleAlignment owner howner i hctor) :
-    Nonempty (RecursorCanonicalMotiveTelescope H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length stats
-      decl owner H.recInfos[owner]! H.elimLevel) := by
+    let parameterCtx :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls.toCtx
+    ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length stats
+        decl owner H.recInfos[owner]! H.elimLevel,
+      VEnv.IsDefEqCtx H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+        C.params.reverse parameterCtx := by
+  dsimp only
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  rcases H.motiveTelescopes.canonical owner hrecInfo with ⟨C⟩
+  rcases H.motiveTelescopes.canonical owner hrecInfo with ⟨C, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
-  exact ⟨C.mono hbase⟩
+  exact ⟨C.mono hbase, hparams.mono hbase⟩
+
+/-- Compose two context conversions over the empty base.  The domain proof
+of the second conversion is transported back across the already composed
+prefix before transitivity is applied, so dependent domains remain in the
+correct context. -/
+theorem VEnv.IsDefEqCtx.transEmpty
+    (henv : env.Ordered)
+    (H₁ : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂)
+    (H₂ : VEnv.IsDefEqCtx env U [] Γ₂ Γ₃) :
+    VEnv.IsDefEqCtx env U [] Γ₁ Γ₃ := by
+  induction H₁ generalizing Γ₃ with
+  | zero => exact H₂
+  | @succ Γ₁ Γ₂ A₁ A₂ u H₁ hdom ih =>
+    cases H₂ with
+    | succ H₂ hdom₂ =>
+      have Hprefix := ih H₂
+      have hdom₂' := hdom₂.defeqDFC henv (H₁.symm henv)
+      exact .succ Hprefix
+        (hdom.trans_r henv H₁.isType hdom₂')
+
+/-- The generated recursor and the independently replayed canonical motive
+share the same parameter context.  This is the first direct bridge from the
+five-group executable telescope to the permutation-free semantic telescope;
+subsequent index alignment can therefore work under either parameter list
+without reusing an executable `isDefEq` success as an assumption. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalParameterAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us.length stats decl
+          owner H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          T.params.reverse C.params.reverse := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalRecursorParameterContext with ⟨T, hgenerated⟩
+  rcases A.finalCanonicalMotiveTelescope with ⟨C, hcanonical⟩
+  refine ⟨T, C, ?_⟩
+  exact hgenerated.transEmpty H.outVEnvWF.ordered
+    (hcanonical.symm H.outVEnvWF.ordered)
 
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
