@@ -38082,6 +38082,7 @@ structure BoundGeneratedRecursorRule.Semantics
   fieldRoot : AddInductive.Context
   fieldRootContext : RecursorContextWF fieldRoot recLparams
   fieldRootExtension : RecursorContextExtension Rroot fieldRootContext
+  fieldRoot_vlctx : fieldRootContext.mlctx.vlctx = Rroot.mlctx.vlctx
   fieldsRecent : RecursorRecentBoundFVarArray fieldRootContext context
     H.allArgs
   parameterTail : Expr
@@ -38881,6 +38882,7 @@ theorem oneRuleSemantics
     fieldRoot := c
     fieldRootContext := R
     fieldRootExtension := .refl R
+    fieldRoot_vlctx := rfl
     fieldsRecent := HfieldsRecent
     parameterTail := tail
     parameterPrefix := hprefix
@@ -61603,7 +61605,7 @@ theorem
                 F.semantic.generated.arguments_bound.fvars).abstractList
                   A.rule.all_args_bound.fvars localDomains.length),
             FVarsIn
-              (· ∈ A.semantics.fieldRootContext.mlctx.vlctx.fvars)
+              (· ∈ H.recursorWF.mlctx.vlctx.fvars)
               source := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
@@ -61648,7 +61650,7 @@ theorem
                 F.semantic.generated.arguments_bound.fvars).abstractList
                   A.rule.all_args_bound.fvars localDomains.length),
             FVarsIn
-              (· ∈ A.semantics.fieldRootContext.mlctx.vlctx.fvars)
+              (· ∈ H.recursorWF.mlctx.vlctx.fvars)
               source := by
     intro sources targets Hsource
     induction Hsource with
@@ -61675,7 +61677,8 @@ theorem
       · intro closedSource hclosedSource
         simp only [List.map_cons, List.mem_cons] at hclosedSource
         rcases hclosedSource with rfl | hclosedSource
-        · simpa [hlocalFvars, hfieldFvars] using hfieldScope
+        · simpa [hlocalFvars, hfieldFvars,
+            A.semantics.fieldRoot_vlctx] using hfieldScope
         · exact ih.2 closedSource hclosedSource
   exact ⟨binding, evidence, localDomains, fieldDomains,
     hlocal, hfields, hlength, closeIndices Hindices⟩
