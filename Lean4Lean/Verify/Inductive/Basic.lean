@@ -21863,6 +21863,116 @@ theorem Expr.ForallTelescopeTypeTranslation.dropPrefix
       · simpa [abstractForallContext, List.map_append,
           List.append_assoc] using Hsuffix
 
+/-- The domain at one exact position of a concrete forall telescope.  This
+small source-only relation avoids carrying an arbitrary residual body when a
+semantic proof needs to identify which local declaration production closed
+at a generated-recursors slot. -/
+inductive Expr.ForallBinderAt : Expr → Nat → Expr → Prop
+  | here : Expr.ForallBinderAt (.forallE name domain body bi) 0 domain
+  | there : Expr.ForallBinderAt body i domain →
+      Expr.ForallBinderAt (.forallE name outerDomain body bi) (i + 1) domain
+
+theorem Expr.ForallBinderAt.unique
+    (H₁ : Expr.ForallBinderAt source i domain₁)
+    (H₂ : Expr.ForallBinderAt source i domain₂) : domain₁ = domain₂ := by
+  induction H₁ with
+  | here =>
+      cases H₂
+      rfl
+  | there _ ih =>
+      cases H₂ with
+      | there H₂ => exact ih H₂
+
+/-- Abstraction of a free variable through a forall prefix reaches the
+selected domain below exactly the number of preceding binders. -/
+theorem Expr.ForallBinderAt.abstract1
+    (H : Expr.ForallBinderAt source i domain) (fv : FVarId) (k : Nat := 0) :
+    Expr.ForallBinderAt (source.abstract1 fv k) i
+      (domain.abstract1 fv (k + i)) := by
+  induction H generalizing k with
+  | here =>
+      simpa [Expr.abstract1] using
+        (Expr.ForallBinderAt.here (name := name) (body := body.abstract1 fv 1)
+          (bi := bi) (domain := domain.abstract1 fv k))
+  | @there body i domain name outerDomain bi H ih =>
+      have Htail := ih (k + 1)
+      have Hresult := Expr.ForallBinderAt.there
+        (name := name) (outerDomain := outerDomain.abstract1 fv k)
+        (bi := bi) Htail
+      simpa [Expr.abstract1, Nat.add_assoc, Nat.add_comm,
+        Nat.add_left_comm] using Hresult
+
+theorem Expr.ForallBinderAt.abstractList
+    (H : Expr.ForallBinderAt source i domain)
+    (fvars : List FVarId) (k : Nat := 0) :
+    Expr.ForallBinderAt (source.abstractList fvars k) i
+      (domain.abstractList fvars (k + i)) := by
+  induction fvars generalizing source domain with
+  | nil => simpa using H
+  | cons fv fvars ih =>
+      simpa only [Expr.abstractList] using
+        ih (H.abstract1 fv k)
+
+/-- Prepending a concrete forall telescope shifts the position of a selected
+binder by exactly the prefix arity. -/
+theorem Expr.ForallTelescope.prependBinderAt
+    (Hprefix : Expr.ForallTelescope outer prefixArity middle)
+    (Hbinder : Expr.ForallBinderAt middle i domain) :
+    Expr.ForallBinderAt outer (prefixArity + i) domain := by
+  induction Hprefix with
+  | nil => simpa using Hbinder
+  | cons _ ih =>
+      have Hresult := Expr.ForallBinderAt.there (ih Hbinder)
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hresult
+
+/-- `inferImplicit` changes binder annotations but preserves every concrete
+forall domain at its original position. -/
+theorem Expr.ForallBinderAt.inferImplicit
+    (H : Expr.ForallBinderAt source i domain)
+    (max : Nat) (inferBinderTypes : Bool) :
+    Expr.ForallBinderAt (source.inferImplicit max inferBinderTypes) i domain := by
+  induction H generalizing max with
+  | here =>
+      cases max with
+      | zero => simpa [Expr.inferImplicit] using
+          (Expr.ForallBinderAt.here (name := name) (body := body)
+            (bi := bi) (domain := domain))
+      | succ max =>
+          simpa [Expr.inferImplicit] using
+            (Expr.ForallBinderAt.here (name := name)
+              (body := body.inferImplicit max inferBinderTypes)
+              (bi := if bi.isExplicit &&
+                (body.inferImplicit max inferBinderTypes).hasLooseBVarInExplicitDomain
+                  0 inferBinderTypes then .implicit else bi)
+              (domain := domain))
+  | @there body i domain name outerDomain bi H ih =>
+      cases max with
+      | zero => simpa [Expr.inferImplicit] using
+          (Expr.ForallBinderAt.there (name := name)
+            (outerDomain := outerDomain) (bi := bi) H)
+      | succ max =>
+          have Htail := ih max
+          simpa [Expr.inferImplicit] using
+            (Expr.ForallBinderAt.there (name := name)
+              (outerDomain := outerDomain)
+              (bi := if bi.isExplicit &&
+                (body.inferImplicit max inferBinderTypes).hasLooseBVarInExplicitDomain
+                  0 inferBinderTypes then .implicit else bi)
+              Htail)
+
+/-- A prefix decomposition followed by one explicit forall identifies the
+domain at that prefix position. -/
+theorem Expr.ForallTelescope.binderAt
+    (H : Expr.ForallTelescope source i suffix)
+    (hsuffix : suffix = .forallE name domain body bi) :
+    Expr.ForallBinderAt source i domain := by
+  induction H with
+  | nil =>
+      subst suffix
+      exact .here
+  | cons _ ih =>
+      exact .there (ih hsuffix)
+
 /-- Select one binder from a typed translated telescope.  The returned
 source domain is translated and typed in the exact abstract context formed
 by the preceding target domains; the remaining body keeps its full
@@ -38516,6 +38626,85 @@ theorem LocalForallSelection.fvar_mem
   cases heq
   exact hother
 
+/-- The binder domain selected by `LocalContext.mkForall` is the exact local
+declaration type, simultaneously closed over the strictly earlier selected
+free variables.  This is the source-syntax provenance needed to compare a
+generated recursor domain with its independently recorded origin type. -/
+theorem LocalContext.mkBindingList_forallBinderAt
+    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (hnodup : fvars.Nodup)
+    (i : Nat) (hi : i < fvars.length)
+    (index : Nat) (name : Name) (type : Expr) (bi : BinderInfo)
+    (kind : LocalDeclKind)
+    (hselected : lctx.find? fvars[i] =
+      some (.cdecl index fvars[i] name type bi kind)) :
+    Expr.ForallBinderAt
+      (LocalContext.mkBindingList false lctx fvars body) i
+      (type.abstractList (fvars.take i)) := by
+  induction fvars generalizing i body with
+  | nil => simp at hi
+  | cons fv fvars ih =>
+    have htailDecl : ∀ other ∈ fvars, ∃ index name type bi kind,
+        lctx.find? other = some (.cdecl index other name type bi kind) := by
+      intro other hother
+      exact hdecl other (by simp [hother])
+    have hnodupParts := List.nodup_cons.mp hnodup
+    rw [LocalContext.mkBindingList_cons
+      (fun other hother => by
+        rcases htailDecl other hother with
+          ⟨index, name, type, bi, kind, hlookup⟩
+        exact ⟨.cdecl index other name type bi kind, hlookup⟩)
+      hnodup]
+    cases i with
+    | zero =>
+      have hhead := hselected
+      simp only [List.getElem_cons_zero] at hhead
+      simp only [LocalContext.mkBindingList1, hhead,
+        List.take_zero, Expr.abstractList]
+      exact .here
+    | succ i =>
+      have hiTail : i < fvars.length := by simp at hi; omega
+      have htailSelected : lctx.find? fvars[i] =
+          some (.cdecl index fvars[i] name type bi kind) := by
+        simpa using hselected
+      have Htail := ih htailDecl hnodupParts.2 i hiTail index name type bi
+        kind htailSelected (body := body)
+      have Habstract := Htail.abstract1 fv 0
+      have hprefixNodup : (fv :: fvars.take i).Nodup := by
+        apply List.nodup_cons.mpr
+        exact ⟨fun hmem => hnodupParts.1
+          (List.mem_of_mem_take hmem),
+          (hnodupParts.2.take i)⟩
+      have hdomain :
+          (type.abstractList (fvars.take i)).abstract1 fv i =
+            type.abstractList (fv :: fvars.take i) := by
+        have Hclose := Expr.abstractList_after_inner
+          (e := type) (outer := [fv]) (inner := fvars.take i)
+          (k := 0) (by simpa using hprefixNodup)
+        simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hiTail)] using
+          Hclose
+      rw [hdomain] at Habstract
+      simpa using Expr.ForallBinderAt.there Habstract
+
+/-- `LocalForallSelection` form of the positional source-domain theorem. -/
+theorem LocalForallSelection.forallBinderAt
+    (H : LocalForallSelection lctx xs) (hnodup : H.fvars.Nodup)
+    (D : BoundFVarDeclarationAt c xs i) :
+    Expr.ForallBinderAt (lctx.mkForall xs body) i
+      (D.type.abstractList (H.fvars.take i)) := by
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
+  have hifvars : i < H.fvars.length := by
+    rw [← H.size]
+    exact D.inBounds
+  have hselectedFVar : H.fvars[i] = D.fvar := by
+    have hget := congrArg (fun values => values[i]'D.inBounds) H.expressions
+    simpa [hifvars] using Expr.fvar.inj (hget.symm.trans D.expression)
+  apply LocalContext.mkBindingList_forallBinderAt H.declarations hnodup i
+    hifvars D.index D.userName D.type D.binderInfo D.kind
+  rw [hselectedFVar]
+  exact D.declaration
+
 theorem LocalForallSelection.forallTelescope
     (H : LocalForallSelection lctx xs) (body : Expr) :
     Expr.ForallTelescope (lctx.mkForall xs body) xs.size
@@ -38793,6 +38982,74 @@ theorem RecursorLocalSelections.forallTelescope
   have hMotives := H.motives.prependTelescope hMinors
   have hParams := H.params.prependTelescope hMotives
   simpa [RecursorLocalSelections.residual, Nat.add_assoc] using hParams
+
+/-- The owner motive slot of the concrete production recursor closes the
+exact retained motive declaration over precisely the common parameters and
+strictly earlier motives.  The subsequent `inferImplicit` pass preserves
+that domain and changes only binder annotations. -/
+theorem RecursorLocalSelections.ownerMotiveBinderAt
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias)
+    (D : BoundFVarDeclarationAt c
+      (recInfos.map (·.motive)) ownerIdx) :
+    let raw :=
+      c.lctx.mkForall stats.params <|
+      c.lctx.mkForall (recInfos.map (·.motive)) <|
+      c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+      c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+      c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+        (.app (mkAppN recInfos[ownerIdx]!.motive
+          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+    Expr.ForallBinderAt (raw.inferImplicit 1000 false)
+      (stats.params.size + ownerIdx)
+      (D.type.abstractList
+        (H.params.fvars ++ H.motives.fvars.take ownerIdx)) := by
+  dsimp only
+  let motiveBody :=
+    c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+    c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+    c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+      (.app (mkAppN recInfos[ownerIdx]!.motive
+        recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+  let motiveSource :=
+    c.lctx.mkForall (recInfos.map (·.motive)) motiveBody
+  let parts := hnoalias.parts
+  have hownerFVars : ownerIdx < H.motives.fvars.length := by
+    rw [← H.motives.size]
+    exact D.inBounds
+  have Hmotive : Expr.ForallBinderAt motiveSource ownerIdx
+      (D.type.abstractList (H.motives.fvars.take ownerIdx)) := by
+    exact H.motives.forallBinderAt parts.motives D
+      (body := motiveBody)
+  have HmotiveClosed := Hmotive.abstractList H.params.fvars 0
+  have hprefixNodup :
+      (H.params.fvars ++ H.motives.fvars.take ownerIdx).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨parts.params, parts.motives.take ownerIdx, ?_⟩
+    intro param hparam motive hmotive heq
+    exact parts.params_later param hparam motive
+      (by
+        apply List.mem_append_left
+        exact List.mem_append_left
+          (List.mem_append_left _ (List.mem_of_mem_take hmotive)))
+      heq
+  have hdomain :
+      (D.type.abstractList (H.motives.fvars.take ownerIdx)).abstractList
+          H.params.fvars ownerIdx =
+        D.type.abstractList
+          (H.params.fvars ++ H.motives.fvars.take ownerIdx) := by
+    have Hclose := Expr.abstractList_after_inner
+      (e := D.type) (outer := H.params.fvars)
+      (inner := H.motives.fvars.take ownerIdx) (k := 0) hprefixNodup
+    simpa [List.length_take,
+      Nat.min_eq_left (Nat.le_of_lt hownerFVars)] using Hclose
+  rw [hdomain] at HmotiveClosed
+  have Hparams := H.params.forallTelescope motiveSource
+  have Hraw := Hparams.prependBinderAt HmotiveClosed
+  have hparamsLength : H.params.fvars.length = stats.params.size := by
+    rw [← H.params.size]
+  simpa [motiveSource, motiveBody, hparamsLength] using
+    Hraw.inferImplicit 1000 false
 
 /-- The retained executable binder selections, their global no-alias
 invariant, and the independent cardinality certificate determine the exact
@@ -55153,6 +55410,8 @@ theorem
               (H.generated.entry owner howner).info.type
               (T.params.length + owner) suffixSource ∧
             suffixSource = .forallE name sourceDomain sourceBody bi ∧
+            sourceDomain = D.type.abstractList
+              (H.params.fvars ++ H.bindings.motives.fvars.take owner) ∧
             TrExprS H.outVEnv Us
               (abstractForallContext
                 (T.params ++ T.motives.take owner) [])
@@ -55178,12 +55437,25 @@ theorem
       (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
         (.sort H.elimLevel)) :=
     hdeclarationOrigin.trans (H.motiveShapes.shape owner hrecInfo)
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    owner hrecInfo
+  have hselectionNoAlias : selections.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
+  have HoriginBinder :=
+    selections.ownerMotiveBinderAt hselectionNoAlias D
+  let E := H.generated.entry owner howner
+  rw [← E.type] at HoriginBinder
   rcases T.ownerMotiveBinder hmotive with
     ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
       Hsource, hsource, Hdomain, HdomainType⟩
+  have HsourceBinder := Hsource.binderAt hsource
+  have hsourceDomain : sourceDomain = D.type.abstractList
+      (H.params.fvars ++ H.bindings.motives.fvars.take owner) := by
+    have heq := HsourceBinder.unique HoriginBinder
+    simpa [selections, RecInfoBindings.toRecursorLocalSelections] using heq
   exact ⟨T, C, hparameters, D, hdeclarationOrigin, hdeclarationShape,
     suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
-    Hsource, hsource, Hdomain, HdomainType⟩
+    Hsource, hsource, hsourceDomain, Hdomain, HdomainType⟩
 
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
