@@ -36278,34 +36278,37 @@ structure SemanticBoundGeneratedRecursiveCalls
     (motives minors : Array Expr) (lvls : List Level)
     {root : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF root recLparams)
-    (decl : VInductDecl) (depth : Nat)
+    (decl : VInductDecl) (depth : Nat) (P : FVarId → Prop)
     (u v : Array Expr) (done : Nat) : Prop where
   covered : done ≤ u.size
   size : v.size = done
   entries : ∀ i, i < done → (hi : i < u.size) →
-    Nonempty (SemanticBoundGeneratedRecursiveCall indTypes stats motives
-      minors lvls R decl depth u[i] v[i]!)
+    ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats motives
+        minors lvls R decl depth u[i] v[i]!,
+      S.rootScope = P
 
 def SemanticBoundGeneratedRecursiveCalls.empty
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
     {root : AddInductive.Context} {recLparams : List Name}
     (R : RecursorContextWF root recLparams)
-    (decl : VInductDecl) (depth : Nat) (u : Array Expr) :
+    (decl : VInductDecl) (depth : Nat) (P : FVarId → Prop)
+    (u : Array Expr) :
     SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors lvls
-      R decl depth u #[] 0 where
+      R decl depth P u #[] 0 where
   covered := Nat.zero_le _
   size := rfl
   entries _ h := by omega
 
 def SemanticBoundGeneratedRecursiveCalls.push
     (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
-      lvls R decl depth u v done)
+      lvls R decl depth P u v done)
     (hdone : done < u.size)
     (Hentry : SemanticBoundGeneratedRecursiveCall indTypes stats motives
-      minors lvls R decl depth u[done] value) :
+      minors lvls R decl depth u[done] value)
+    (hscope : Hentry.rootScope = P) :
     SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors lvls
-      R decl depth u (v.push value) (done + 1) where
+      R decl depth P u (v.push value) (done + 1) where
   covered := by omega
   size := by simp [H.size]
   entries i hi hiu := by
@@ -36318,7 +36321,7 @@ def SemanticBoundGeneratedRecursiveCalls.push
         rw [dif_pos hpush]
         simpa [H.size] using (@Array.getElem_push_eq Expr v value)
       rw [hbang]
-      exact ⟨Hentry⟩
+      exact ⟨Hentry, hscope⟩
     · have hold : i < done := by omega
       have hv : i < v.size := by simpa [H.size] using hold
       have hpush : i < (v.push value).size := by
@@ -36335,13 +36338,13 @@ theorem SemanticBoundGeneratedRecursiveCalls.bound
     {root : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF root recLparams}
     (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
-      lvls R decl depth u v done) :
+      lvls R decl depth P u v done) :
     BoundGeneratedRecursiveCalls indTypes stats motives minors lvls
       root u v done where
   covered := H.covered
   size := H.size
   entries i hi hiu := by
-    rcases H.entries i hi hiu with ⟨Hentry⟩
+    rcases H.entries i hi hiu with ⟨Hentry, _⟩
     exact ⟨Hentry.generated⟩
 
 /-- Repackage the array-aligned semantic calls as replacement certificates
@@ -36355,7 +36358,7 @@ theorem SemanticBoundGeneratedRecursiveCalls.replacements
     {fields : List
       (RecursorRecursiveDomainAt R.venv decl recLparams.length)}
     (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
-      lvls R decl depth u v u.size)
+      lvls R decl depth P u v u.size)
     (hlength : fields.length = u.size) :
     ∃ replacements : List
         (RecursorRecursiveDomainAt R.venv decl recLparams.length),
@@ -36379,7 +36382,7 @@ theorem SemanticBoundGeneratedRecursiveCalls.replacements
     | nil => exact ⟨[], .nil⟩
     | cons old remaining ih =>
       have hoffset : offset < u.size := by simp at hroom; omega
-      let E := Classical.choice (H.entries offset hoffset hoffset)
+      let E := Classical.choose (H.entries offset hoffset hoffset)
       let replacement : RecursorRecursiveDomainAt
           R.venv decl recLparams.length := {
         fieldIndex := old.fieldIndex
@@ -36405,7 +36408,7 @@ theorem SemanticBoundGeneratedRecursiveCalls.sourceSelection
     {fields : List
       (RecursorRecursiveDomainAt R.venv decl recLparams.length)}
     (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
-      lvls R decl depth u v u.size)
+      lvls R decl depth P u v u.size)
     (Hselection : RecursorFieldSelectionsAt R.venv decl recLparams.length
       bu u fields) :
     ∃ selections : List (RecursorRecursiveDomain R.venv decl),
@@ -36642,7 +36645,7 @@ theorem SemanticBoundGeneratedRecursiveCalls.abstractedIotaResults
     {root : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF root recLparams}
     (H : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
-      lvls R decl depth u v u.size)
+      lvls R decl depth P u v u.size)
     (Hbound : BoundFVarArray root u)
     (Hargs : List.Forall₂
       (TrExprS env Us (abstractForallContext ruleDomains Delta))
@@ -36670,7 +36673,7 @@ theorem SemanticBoundGeneratedRecursiveCalls.abstractedIotaResults
       recursiveArgs recursiveResults := by
   refine H.bound.abstractedIotaResults Hargs Hresults ?_
   intro i hi hiarg hiresult _Hentry Harg Hresult
-  rcases H.entries i hi hi with ⟨E⟩
+  rcases H.entries i hi hi with ⟨E, _⟩
   have hargTr := Lean4Lean.VerifyInductive.List.Forall₂.getElem
     Hargs i (by simpa using hi) hiarg
   have hresultTr := Lean4Lean.VerifyInductive.List.Forall₂.getElem
@@ -38361,7 +38364,10 @@ structure BoundGeneratedRecursorRule.Semantics
   selection : RecursorFieldSelectionsAt context.venv decl recLparams.length
     H.allArgs H.recursiveArgs fields
   calls : SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
-    lvls context decl depth H.recursiveArgs H.recursiveResults
+    lvls context decl depth
+    (fun fv => fv ∈ fieldOpening.fvars ∨
+      fv ∈ ExprArrayFVarIds stats.params)
+    H.recursiveArgs H.recursiveResults
     H.recursiveArgs.size
 
 /-- The exact constructor-field suffix, closed back into the semantic context
@@ -38481,7 +38487,7 @@ theorem BoundGeneratedRecursorRule.iotaRuleTranslation_ofSemanticCalls
     {root : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF root recLparams}
     (Hcalls : SemanticBoundGeneratedRecursiveCalls indTypes stats motives
-      minors lvls R decl depth H.recursiveArgs H.recursiveResults
+      minors lvls R decl depth P H.recursiveArgs H.recursiveResults
       H.recursiveArgs.size)
     {fields : List
       (RecursorRecursiveDomainAt R.venv decl recLparams.length)}
@@ -38753,10 +38759,10 @@ theorem semanticBoundGeneratedCalls
     (hrootUp : IsFVarUpSet P R.mlctx.vlctx)
     {k : Array Expr → AddInductive.M alpha}
     (Hprefix : SemanticBoundGeneratedRecursiveCalls indTypes stats motives
-      minors lvls R decl depth u v i)
+      minors lvls R decl depth P u v i)
     (Hk : ∀ v,
       SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
-        lvls R decl depth u v u.size →
+        lvls R decl depth P u v u.size →
       (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
       u i v k c).WF Q := by
@@ -38790,7 +38796,8 @@ theorem semanticBoundGeneratedCalls
     exact hval.bind fun value Hvalue => by
       rcases Hvalue with ⟨Hvalue⟩
       exact semanticBoundGeneratedCalls R Hstats hwhnf hconsume hlit hctx
-        hproj Hfields HfieldScope hrootUp (Hprefix.push hnext Hvalue) Hk
+        hproj Hfields HfieldScope hrootUp
+          (Hprefix.push hnext Hvalue rfl) Hk
   · rw [dif_neg hnext]
     apply Hk
     have hcovered := Hprefix.covered
@@ -38841,14 +38848,14 @@ theorem mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty
     {k : Array Expr → AddInductive.M alpha}
     (Hk : ∀ v,
       SemanticBoundGeneratedRecursiveCalls indTypes stats motives minors
-        lvls R decl depth u v u.size →
+        lvls R decl depth P u v u.size →
       (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
       u 0 #[] k c).WF Q :=
   mkRecRules.loopU.semanticBoundGeneratedCalls R Hstats hwhnf hconsume hlit
     hctx hproj Hfields HfieldScope hrootUp
     (SemanticBoundGeneratedRecursiveCalls.empty indTypes stats motives minors
-      lvls R decl depth u) Hk
+      lvls R decl depth P u) Hk
 
 namespace mkRecInfos.loopCtorArgs.loop
 
@@ -61208,7 +61215,7 @@ theorem
           A.semantics.context.mlctx.vlctx.toCtx
           (VExpr.wrapLams domains S.appliedFieldTarget)
           (VExpr.wrapForalls domains S.exposedTarget) := by
-  rcases A.semantics.calls.entries j hj hj with ⟨S⟩
+  rcases A.semantics.calls.entries j hj hj with ⟨S, _⟩
   let F := S.appliedFieldTelescope
   have hsemantic : A.semantics.context.venv = R.declared.venvCtors :=
     A.semantics.context_venv.trans (H.recursorEnv.trans R.declared.contextVEnv)
@@ -61293,6 +61300,9 @@ structure
     (AddInductive.getRecLevels H.elimLevel stats.levels)
     A.semantics.context decl A.semantics.depth
     A.rule.recursiveArgs[j] A.rule.recursiveResults[j]!
+  root_scope : semantic.rootScope =
+    (fun fv => fv ∈ A.semantics.fieldOpening.fvars ∨
+      fv ∈ ExprArrayFVarIds stats.params)
   entry_lt : semantic.generated.ownerIdx < H.entries.length
   telescope : GeneratedRecursorTelescopeTranslation H.outVEnv
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -61322,7 +61332,7 @@ theorem
     (A : H.GeneratedRuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
     Nonempty (A.RecursiveCallRecursorFrame j hj) := by
-  rcases A.semantics.calls.entries j hj hj with ⟨S⟩
+  rcases A.semantics.calls.entries j hj hj with ⟨S, hscope⟩
   have hrecInfo : S.generated.ownerIdx < H.recInfos.size := by
     rw [H.cardinality.records]
     exact S.validated.target_lt
@@ -61332,9 +61342,51 @@ theorem
       S.generated.ownerIdx hentry with ⟨T⟩
   exact ⟨{
     semantic := S
+    root_scope := hscope
     entry_lt := hentry
     telescope := T
     typing := H.recursorTypingAt S.generated.ownerIdx hentry }⟩
+
+/-- Closing first the call-local higher-order arguments and then the complete
+constructor-field suffix removes every dependency except the cached inductive
+parameters.  This is the narrow source-scope fact needed to replay a generated
+recursive call in the cached equation context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.fieldAbstractedExposedScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    ((F.semantic.generated.exposedType.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+      A.rule.all_args_bound.fvars
+      F.semantic.generated.localArgs.size).FVarsIn
+        (fun fv => fv ∈ ExprArrayFVarIds stats.params) := by
+  have hlocalFvars : F.semantic.recent.fvars =
+      F.semantic.generated.arguments_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+      F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+  have Hlocal := FVarsIn.abstractList_of
+    (selected := F.semantic.recent.fvars)
+    (k := 0) F.semantic.exposed_scope
+  rw [F.root_scope] at Hlocal
+  have Hfields := FVarsIn.abstractList_of
+    (selected := A.semantics.fieldOpening.fvars)
+    (k := F.semantic.generated.localArgs.size) Hlocal
+  have hfieldFvars : A.semantics.fieldOpening.fvars =
+      A.rule.all_args_bound.fvars :=
+    A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
+  simpa [hlocalFvars, hfieldFvars] using Hfields
 
 /-- The validated terminal application of a recursive call consumes the
 same canonical motive telescope retained for the call-selected mutual
