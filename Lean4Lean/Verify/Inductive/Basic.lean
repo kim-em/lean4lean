@@ -61479,6 +61479,105 @@ theorem
   · rw [hctx]
     exact Htyped
 
+/-- Pointwise field-closed form of the semantic recursive index spine.  Each
+index is first closed over the call-local higher-order arguments and then
+over the constructor fields, preserving the exact target list selected by
+the validated motive telescope. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.finalFieldAbstractedSemanticIndices
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+        ∃ (localDomains fieldDomains : List VExpr),
+          localDomains.length = F.semantic.generated.localArgs.size ∧
+          fieldDomains.length = A.rule.allArgs.size ∧
+          evidence.indices.length = F.telescope.indices.length ∧
+          List.Forall₂
+            (TrExprS H.outVEnv Us
+              (abstractForallContext (fieldDomains ++ localDomains)
+                A.semantics.fieldRootContext.mlctx.vlctx))
+            ((F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
+                ).toList.map fun index =>
+              (index.abstractList
+                F.semantic.generated.arguments_bound.fvars).abstractList
+                  A.rule.all_args_bound.fvars localDomains.length)
+            evidence.indices := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases F.finalSemanticMotiveApplication with
+    ⟨binding, evidence, hlength, Hindices, _Htr, _Htyped⟩
+  let localDomains := MLCtxForallDomains F.semantic.current_context.mlctx
+    F.semantic.generated.localArgs.size F.semantic.recent.size_le
+  let fieldDomains := MLCtxForallDomains A.semantics.context.mlctx
+    A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hlocal : localDomains.length =
+      F.semantic.generated.localArgs.size :=
+    F.semantic.current_context.onlyLams.forallDomains_length
+      F.semantic.generated.localArgs.size F.semantic.recent.size_le
+  have hfields : fieldDomains.length = A.rule.allArgs.size :=
+    A.semantics.context.onlyLams.forallDomains_length
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hlocalFvars : F.semantic.recent.fvars =
+      F.semantic.generated.arguments_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+      F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+  have hfieldFvars : A.semantics.fieldsRecent.fvars =
+      A.rule.all_args_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl
+  have closeIndices : ∀ {sources targets : List _},
+      List.Forall₂
+          (TrExprS H.outVEnv Us F.semantic.current_context.mlctx.vlctx)
+          sources targets →
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext (fieldDomains ++ localDomains)
+              A.semantics.fieldRootContext.mlctx.vlctx))
+          (sources.map fun index =>
+            (index.abstractList
+              F.semantic.generated.arguments_bound.fvars).abstractList
+                A.rule.all_args_bound.fvars localDomains.length)
+          targets := by
+    intro sources targets Hsource
+    induction Hsource with
+    | nil => exact .nil
+    | @cons source target sources targets Hindex _ ih =>
+      have Hlocal := F.semantic.recent.abstractRecent [] (by
+        simpa [abstractForallContext] using Hindex)
+      have Hlocal' : TrExprS H.outVEnv Us
+          (abstractForallContext localDomains
+            A.semantics.context.mlctx.vlctx)
+          (source.abstractList
+            F.semantic.generated.arguments_bound.fvars) target := by
+        simpa [localDomains, hlocalFvars] using Hlocal
+      have Hfield := A.semantics.fieldsRecent.abstractRecent
+        localDomains Hlocal'
+      apply List.Forall₂.cons
+      · simpa [localDomains, fieldDomains, hlocalFvars,
+          hfieldFvars] using Hfield
+      · exact ih
+  exact ⟨binding, evidence, localDomains, fieldDomains,
+    hlocal, hfields, hlength, closeIndices Hindices⟩
+
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
 theorem RecursorPhasesResult.recursorUvarsAt
