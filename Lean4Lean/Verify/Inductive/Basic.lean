@@ -57718,6 +57718,150 @@ theorem
   exact ⟨motiveDomains, resultLevel, hdomainLength, hmotive, by
     simpa [cachedDomains] using HmotiveCached⟩
 
+/-- In the cached equation context, the recursor prefix and the owner motive
+are typed by forall telescopes with literally the same dependent domains.
+Their residuals deliberately differ: the prefix returns the generated
+recursor result, while the motive application returns an elimination sort.
+This is the exact interface consumed by `mkApps_sameTelescopeDomains`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedPrefixOwnerTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr) (prefixTarget : VExpr)
+    (Hfull :
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      let canonicalDomains :=
+        (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+      let cachedDomains :=
+        (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains
+      VEnv.IsDefEqCtx H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+        canonicalDomains.reverse cachedDomains.reverse)
+    (HcachedCtx :
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      let cachedDomains :=
+        (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains
+      OnCtx cachedDomains.reverse
+        (H.outVEnv.IsType
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+    (HprefixCached :
+      let parameterDecls :=
+        (R.materialized.parameterSuffix.toRecursorContext
+          H.elimLevelAdmissible).parameterDecls
+      let cachedDomains :=
+        (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains
+      H.outVEnv.HasType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        cachedDomains.reverse prefixTarget
+        ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
+          fieldDomains.length 0)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    let cachedDomains :=
+      (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+        fieldDomains
+    ∃ motiveDomains resultLevel,
+      motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
+      T.motives[owner]! =
+        VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+      let suffix := T.indices ++ T.major
+      let later := T.motives.drop (owner + 1) ++ T.minors
+      let expected :=
+        (liftContextPrefixAt (later.length + 1) 0
+          motiveDomains.reverse).reverse
+      let expectedDomains :=
+        (liftContextPrefix fieldDomains.length expected.reverse).reverse
+      H.outVEnv.HasType Us.length cachedDomains.reverse prefixTarget
+          (VExpr.wrapForalls expectedDomains
+            (T.result.liftN fieldDomains.length suffix.length)) ∧
+        H.outVEnv.HasType Us.length cachedDomains.reverse
+          (.bvar (fieldDomains.length + later.length))
+          (VExpr.wrapForalls expectedDomains (.sort resultLevel)) ∧
+        SameTelescopeDomains expectedDomains.length
+          (VExpr.wrapForalls expectedDomains
+            (T.result.liftN fieldDomains.length suffix.length))
+          (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  let canonicalDomains :=
+    (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+  let cachedDomains :=
+    (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+      fieldDomains
+  have HcanonicalCtx : OnCtx canonicalDomains.reverse
+      (H.outVEnv.IsType Us.length) :=
+    (Hfull.symm H.outVEnvWF.ordered).isType
+  have HprefixCanonical : H.outVEnv.HasType Us.length
+      canonicalDomains.reverse prefixTarget
+      ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
+        fieldDomains.length 0) :=
+    HprefixCached.defeqDFC H.outVEnvWF.ordered
+      (Hfull.symm H.outVEnvWF.ordered)
+  rcases A.finalOwnerMotiveSuffixTypeAlignment T fieldDomains prefixTarget
+      (by simpa [canonicalDomains] using HcanonicalCtx)
+      (by simpa [canonicalDomains] using HprefixCanonical) with
+    ⟨alignedDomains, alignedLevel, halignedLength, halignedMotive,
+      Haligned⟩
+  rcases A.finalCachedOwnerMotiveWitnessTyping T fieldDomains Hfull with
+    ⟨motiveDomains, resultLevel, hdomainLength, hmotive, Hmotive⟩
+  have hdomains : motiveDomains = alignedDomains := by
+    apply VExpr.wrapForalls_prefix_domains_eq hdomainLength halignedLength
+      (suffix := [])
+    simpa using hmotive.symm.trans halignedMotive
+  subst alignedDomains
+  have hresultLevel : resultLevel = alignedLevel := by
+    have hsort : VExpr.sort resultLevel = VExpr.sort alignedLevel := by
+      apply VExpr.wrapForalls_left_cancel motiveDomains
+      exact hmotive.symm.trans halignedMotive
+    exact VExpr.sort.inj hsort
+  subst alignedLevel
+  let suffix := T.indices ++ T.major
+  let later := T.motives.drop (owner + 1) ++ T.minors
+  let expected :=
+    (liftContextPrefixAt (later.length + 1) 0
+      motiveDomains.reverse).reverse
+  let expectedDomains :=
+    (liftContextPrefix fieldDomains.length expected.reverse).reverse
+  have HalignedCached := Haligned.defeqDFC H.outVEnvWF.ordered Hfull
+  rcases HalignedCached with ⟨typeLevel, HalignedCached⟩
+  have HprefixExpected : H.outVEnv.HasType Us.length cachedDomains.reverse
+      prefixTarget
+      (VExpr.wrapForalls expectedDomains
+        (T.result.liftN fieldDomains.length suffix.length)) := by
+    apply HalignedCached.defeq
+    simpa [cachedDomains] using HprefixCached
+  refine ⟨motiveDomains, resultLevel, hdomainLength, hmotive,
+    HprefixExpected, ?_, ?_⟩
+  · simpa [cachedDomains, suffix, later, expected, expectedDomains] using
+      Hmotive
+  · exact SameTelescopeDomains.wrapForalls expectedDomains _ _
+
 /-- The generated owner-motive domain and the retained first-pass motive are
 the same concrete declaration viewed at the two contexts that still have to
 be related.  The retained closed scope is now decomposed explicitly into its
