@@ -68193,6 +68193,9 @@ theorem
           added = T.motives ++ T.minors ++ frontDomains ∧
           frontDomains = fieldDomains ++ localDomains ∧
           fieldDomains.length = A.rule.allArgs.size ∧
+          fieldDomains =
+            (liftContextPrefix (T.motives ++ T.minors).length
+              B.fieldDomains.reverse).reverse ∧
           localDomains.length = F.semantic.generated.localArgs.size ∧
           ownerTarget = .bvar
             (frontDomains.length +
@@ -68238,7 +68241,7 @@ theorem
   rcases F.canonicalInsertedSemanticExposedSpine T (B := B) with
     ⟨equationDomains, fieldDomains, localDomains, added, frontDomains,
       exactIndexTargets, majorTarget, exposedTarget, hdecomposition,
-      hequation, hadded, hfront, hfields, _hfixedFields, hlocal,
+      hequation, hadded, hfront, hfields, hfixedFields, hlocal,
       hequationLength, Hctx,
       Htyping, Hindices, Hmajor, hexactLength, levels, parameterTargets,
       spineIndexTargets, hspine, hlevels, _HparameterTranslation,
@@ -68570,7 +68573,7 @@ theorem
   exact ⟨C, equationDomains, fieldDomains, localDomains, added, frontDomains,
     exactIndexTargets, majorTarget, ownerTarget, hdecomposition,
     (by simpa [List.append_assoc] using hequation),
-    hadded, hfront, hfields, hlocal, rfl, Hctx, HcanonicalCached,
+    hadded, hfront, hfields, hfixedFields, hlocal, rfl, Hctx, HcanonicalCached,
     hindexCanonical, Hindices, Hmajor, HmajorExact, Happly'⟩
 
 /-- Assemble the call-selected recursor head with the rule's common
@@ -69633,6 +69636,11 @@ theorem
         (prefixTarget : VExpr) (indexTargets : List VExpr)
         (majorTarget ownerTarget : VExpr),
       localDomains.length = F.semantic.generated.localArgs.size ∧
+      equationDomains =
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++
+          T.motives ++ T.minors ++
+            (liftContextPrefix (T.motives ++ T.minors).length
+              B.fieldDomains.reverse).reverse ∧
       equationDomains.length = A.rule.binders.length ∧
       OnCtx
         (abstractForallContext (equationDomains ++ localDomains) []).toCtx
@@ -69679,7 +69687,7 @@ theorem
   rcases F.canonicalInsertedSemanticMajorTyping T (B := B) with
     ⟨C, equationDomains, fieldDomains, localDomains, added, frontDomains,
       indexTargets, majorTarget, ownerTarget, hdecomposition, hequation,
-      hadded, hfront, hfields, hlocal, hownerTarget, Hctx,
+      hadded, hfront, hfields, hfixedFields, hlocal, hownerTarget, Hctx,
       _HcanonicalCached, hindexCanonical, Hindices, Hmajor,
       _HmajorTyping, Hright⟩
   let recursor := (H.entries[selectedOwner]'F.entry_lt).2
@@ -69704,6 +69712,12 @@ theorem
     have hcached := A.cachedEquationDomains_length T fieldDomains hfields
     simpa [hequation, H.parameterDecls, parameterDecls,
       List.append_assoc] using hcached
+  have hequationFixed : equationDomains =
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse := by
+    rw [hequation, hfixedFields]
   have HfieldCtx₀ := HctxPlain.drop localDomains.length
   have HfieldCtx : OnCtx
       (((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
@@ -69987,7 +70001,8 @@ theorem
     rw [← hsource]
     simpa only [args] using Hcall
   exact ⟨equationDomains, localDomains, prefixTarget, indexTargets,
-    majorTarget, ownerTarget, hlocal, hequationLength, Hctx, Hcall', Hleft,
+    majorTarget, ownerTarget, hlocal, hequationFixed, hequationLength,
+    Hctx, Hcall', Hleft,
     Hclosed',
     HleftWF⟩
 
@@ -70038,7 +70053,7 @@ theorem
   rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
   rcases F.canonicalRecursiveCallBodyWF T (B := B) with
     ⟨equationDomains, localDomains, prefixTarget, indexTargets,
-      majorTarget, ownerTarget, hlocal, hequation, _Hctx, Hbody,
+      majorTarget, ownerTarget, hlocal, _hequationFixed, hequation, _Hctx, Hbody,
       _HbodyType, Hclosed, _HbodyWF⟩
   let args := indexTargets ++ [majorTarget]
   let resultBody := VExpr.mkApps prefixTarget args
