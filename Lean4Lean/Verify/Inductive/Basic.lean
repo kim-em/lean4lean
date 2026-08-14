@@ -24021,6 +24021,29 @@ theorem RecursorContextExtension.weakTrExprS
     hcurrentWF
   simpa only [H.venv_eq] using hweak
 
+/-- Recover a syntax translation in the root of an exact recursor-context
+extension.  The source-side premises state the precise ownership boundary:
+the expression has no loose bound variables and mentions only free variables
+already present before the extension. -/
+theorem RecursorContextExtension.restrictTrExprS
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {Rcurrent : RecursorContextWF current recLparams}
+    (H : RecursorContextExtension Rroot Rcurrent)
+    (htr : TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+      source target)
+    (hclosed : Closed source 0)
+    (hfvars : FVarsIn (· ∈ Rroot.mlctx.vlctx.fvars) source) :
+    ∃ target', TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
+      source target' := by
+  have htr' : TrExprS Rroot.venv recLparams Rcurrent.mlctx.vlctx
+      source target := by
+    simpa only [H.venv_eq] using htr
+  exact htr'.weakFV'_inv Rroot.checking.tr.wf H.lift
+    (.refl Rroot.checking.tr.wf (by
+      simpa only [H.venv_eq] using Rcurrent.mlctx_wf.tr.wf))
+    hclosed hfvars
+
 /-- Transport a typing derivation along the context lift carried by an exact
 recursor extension. -/
 theorem RecursorContextExtension.weakHasType
