@@ -59873,6 +59873,7 @@ theorem
       ∃ D : BoundFVarDeclarationAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
         ∃ O : H.origins.FlatMinorOrigin D,
+          ∃ S : RecInfoMinorTypeShape D.type,
           let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -59896,6 +59897,13 @@ theorem
   rcases H.bindings.flatMinors.declarationAt H.localWF minorIdx
       hminorArray with ⟨D⟩
   rcases H.origins.flatMinorOrigin D with ⟨O⟩
+  have hshapeBound : O.localIndex <
+      H.origins.minorTypes[O.owner]!.size := by
+    rw [(H.origins.minors O.owner O.owner_lt).size_eq]
+    simpa [getElem!_pos H.recInfos O.owner O.owner_lt] using O.local_lt
+  have S : RecInfoMinorTypeShape D.type := by
+    rw [O.originType_eq]
+    exact H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
   let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
@@ -59931,7 +59939,7 @@ theorem
         H.bindings.flatMinors.fvars.take minorIdx) := by
     exact HsourceBinder.unique HoriginBinder'
   rw [hsourceDomain] at Hdomain
-  exact ⟨T, D, O, by
+  exact ⟨T, D, O, S, by
     simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using Hdomain,
     by simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using HdomainType⟩
 
