@@ -59149,7 +59149,7 @@ interleaved executable ambient prefix and the very parameter scope aligned
 with the generated telescope.  No index, major, or current-motive weakening
 remains hidden in this frame. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerClosedMotiveFrame
+    RecursorPhasesResult.finalOwnerClosedMotiveFrameAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -59157,10 +59157,8 @@ theorem
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -59198,7 +59196,7 @@ theorem
                 (H.params.fvars ++ H.bindings.motives.fvars.take owner))
           T.motives[owner]! := by
   dsimp only
-  rcases A.finalOwnerMotiveDomainTranslation with
+  rcases H.finalOwnerMotiveDomainTranslationAt owner howner with
     ⟨T, S, hparameters, Hgenerated, _HgeneratedType⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
@@ -59222,7 +59220,7 @@ the canonical parameter scope.  This is the first point where the ambient
 frames from earlier mutual families are genuinely removed, rather than only
 described by a context decomposition. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerNarrowMotiveTranslation
+    RecursorPhasesResult.finalOwnerNarrowMotiveTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -59230,10 +59228,8 @@ theorem
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -59261,7 +59257,7 @@ theorem
                   (H.params.fvars ++ H.bindings.motives.fvars.take owner))
             T.motives[owner]! := by
   dsimp only
-  rcases A.finalOwnerClosedMotiveFrame with
+  rcases H.finalOwnerClosedMotiveFrameAt owner howner with
     ⟨T, S, _hparameters, hsource, W, Hcontext, _hdecomposition,
       HclosedTr, _HclosedType, HclosedCanonical, _hmotiveType,
       Hgenerated⟩
@@ -59301,7 +59297,7 @@ motive, then transport it to the generated parameter telescope.  Earlier
 mutual motives are absent from the concrete source, so adding their abstract
 binders is precisely ordinary bound-variable weakening. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerCanonicalMotiveDomain
+    RecursorPhasesResult.finalOwnerCanonicalMotiveDomainAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -59309,10 +59305,8 @@ theorem
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -59330,7 +59324,7 @@ theorem
           (S.canonical.motiveType.liftN
             (T.motives.take owner).length 0) := by
   dsimp only
-  rcases A.finalOwnerNarrowMotiveTranslation with
+  rcases H.finalOwnerNarrowMotiveTranslationAt owner howner with
     ⟨T, S, narrowTarget, hparams, Hnarrow, Hcanonical, Hgenerated⟩
   let source := H.localContext.lctx.mkForall H.recInfos[owner]!.indices
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
@@ -60521,6 +60515,49 @@ theorem
   rw [hparams] at hparameters
   rw [hparams, hmotives] at Hdomain HdomainType
   exact ⟨S, hparameters, Hdomain, HdomainType⟩
+
+/-- The motive binder selected by a recursive call is definitionally equal
+to the independently reconstructed canonical motive type for that call's
+mutual-family owner.  This is stated against the frame's fixed generated
+telescope, so the subsequent index/major application cannot silently switch
+to another structural decomposition of the recursor type. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.canonicalOwnerMotiveDomain
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl
+        selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+          F.telescope.params.reverse S.motiveSourceScope.toCtx ∧
+      H.outVEnv.IsDefEqU Us.length
+        (abstractForallContext
+          (F.telescope.params ++
+            F.telescope.motives.take selectedOwner) []).toCtx
+        F.telescope.motives[selectedOwner]!
+        (S.canonical.motiveType.liftN
+          (F.telescope.motives.take selectedOwner).length 0) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases H.finalOwnerCanonicalMotiveDomainAt selectedOwner F.entry_lt with
+    ⟨T, S, hparameters, Hdomain⟩
+  rcases T.groupsResult_eq F.telescope with
+    ⟨hparams, hmotives, _hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams] at hparameters
+  rw [hparams, hmotives] at Hdomain
+  exact ⟨S, hparameters, Hdomain⟩
 
 /-- The concrete constructor constant at the head of the generated major
 premise translates under recursor universes to the installed abstract
@@ -62206,7 +62243,7 @@ theorem
   rcases A.finalCanonicalRecursorPrefixFrame with
     ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields, Hctx,
       Hmajor, Hprefix, Htarget, HintroShape, HprefixTr, HmajorTr⟩
-  rcases A.finalOwnerCanonicalMotiveDomain with
+  rcases H.finalOwnerCanonicalMotiveDomainAt owner howner with
     ⟨T₀, S, hgeneratedSource, HmotiveDomain₀⟩
   rcases T₀.groupsResult_eq T with
     ⟨hparams₀, hmotives₀, _hminors₀, _hindices₀, _hmajor₀, _hresult₀⟩
