@@ -56186,6 +56186,7 @@ theorem
             (T.motives ++ T.minors).length A.rule.allArgs.size).getAppFnArgs =
           (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
             parameterTargets ++ indexTargets) ∧
+        stats.levels.mapM (VLevel.ofLevel Us) = some levels ∧
         List.Forall₂
           (TrExprS H.outVEnv Us
             (abstractForallContext
@@ -56223,7 +56224,7 @@ theorem
     rw [Expr.getAppFn_abstractList, hhead]
     induction A.rule.binders <;> simp_all [Expr.abstractList, Expr.abstract1]
   rcases checkPositivityStep.TrExprS.constAppSpine Htarget hheadAbstract with
-    ⟨levels, translatedArgs, hspine, _hlevels, Hargs⟩
+    ⟨levels, translatedArgs, hspine, hlevels, Hargs⟩
   let indices := (AddInductive.getIIndices stats A.rule.target).2
   have hsourcePrefix := A.semantics.validStats.sourceParameterPrefix hvalid
   have hsourceArgs :
@@ -56271,7 +56272,7 @@ theorem
       simpa [H.generated.length] using howner)
     rw [T.indices_length, harity, ← hindicesLength]
     simpa [indices] using htranslated.symm
-  refine ⟨levels, parameterTargets, indexTargets, ?_,
+  refine ⟨levels, parameterTargets, indexTargets, ?_, hlevels,
     HparameterTargets, hindexTargetsLength, ?_⟩
   · simpa [htranslatedArgs] using hspine
   · simpa [indices] using HindexTargets
@@ -56315,6 +56316,7 @@ theorem
             (T.motives ++ T.minors).length A.rule.allArgs.size).getAppFnArgs =
           (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
             parameterTargets ++ indexTargets) ∧
+        stats.levels.mapM (VLevel.ofLevel Us) = some levels ∧
         List.Forall₂
           (TrExprS H.outVEnv Us
             (abstractForallContext
@@ -56340,10 +56342,10 @@ theorem
     ⟨T, fieldDomains, fieldResult, hfields, Htarget⟩
   rcases A.cachedConstructorIndexSpineOfTarget
       T fieldDomains fieldResult hfields Htarget with
-    ⟨levels, parameterTargets, indexTargets, hspine, HparameterTargets,
-      hindexLength, HindexTargets⟩
+    ⟨levels, parameterTargets, indexTargets, hspine, hlevels,
+      HparameterTargets, hindexLength, HindexTargets⟩
   exact ⟨T, fieldDomains, fieldResult, levels, parameterTargets,
-    indexTargets, hfields, Htarget, hspine, HparameterTargets,
+    indexTargets, hfields, Htarget, hspine, hlevels, HparameterTargets,
     hindexLength, HindexTargets⟩
 
 /-- Apply the checked constructor to the canonical variables of its genuine
@@ -60240,6 +60242,9 @@ theorem
               A.rule.allArgs.size).getAppFnArgs =
             (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
               parameterTargets ++ indexTargets) ∧
+          stats.levels.mapM (VLevel.ofLevel Us) = some levels ∧
+          levels = recursorDeclarationAbstractLevels c.lparams
+            H.elimLevelAdmissible ∧
           List.Forall₂
             (TrExprS H.outVEnv Us
               (abstractForallContext cachedDomains []))
@@ -60366,8 +60371,14 @@ theorem
   rw [← hmajorTarget] at HmajorTr'
   rcases A.cachedConstructorIndexSpineOfTarget
       T fieldDomains fieldResult hfields Htarget with
-    ⟨levels, parameterTargets, indexTargets, hspine, HparameterTargets,
-      hindexLength, HindexTargets⟩
+    ⟨levels, parameterTargets, indexTargets, hspine, hlevels,
+      HparameterTargets, hindexLength, HindexTargets⟩
+  have hcanonicalLevels := R.materialized.recursorLevelTranslation
+    H.lparamsNodup H.elimLevelAdmissible
+  have hlevelsCanonical : levels =
+      recursorDeclarationAbstractLevels c.lparams
+        H.elimLevelAdmissible := by
+    exact Option.some.inj (hlevels.symm.trans hcanonicalLevels)
   rcases A.canonicalEquationBinderTranslations T fieldDomains hfields with
     ⟨HcanonicalParameters, HcanonicalMotives, _HcanonicalMinors,
       _HcanonicalFields⟩
@@ -60444,7 +60455,8 @@ theorem
   exact ⟨T, fieldDomains, fieldResult, introTarget, levels,
     parameterTargets, indexTargets, hparams, hfields, Hfull, HcachedCtx,
     HmajorCached, HprefixCached, Htarget, HintroShape, HprefixTr',
-    HmajorTr', HownerMotive', hspine, HparameterTargets, hparameterTargets,
+    HmajorTr', HownerMotive', hspine, hlevels, hlevelsCanonical,
+    HparameterTargets, hparameterTargets,
     (by exact ⟨familyType, hfamilyApplication, Hfamily⟩),
     hindexLength, HindexTargets⟩
 
