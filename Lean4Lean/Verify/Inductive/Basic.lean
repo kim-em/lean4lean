@@ -996,6 +996,59 @@ theorem recursorCanonicalVars_liftN_comp
     congr 1
     omega
 
+/-- Two function types expose the same dependent domains while permitting
+different residual result types.  This is the exact relation needed to use
+a fully typed motive application as the argument certificate for a recursor
+prefix whose result inhabits that motive application. -/
+inductive SameTelescopeDomains : Nat → VExpr → VExpr → Prop
+  | zero (left right : VExpr) : SameTelescopeDomains 0 left right
+  | succ (domain left right : VExpr) {arity : Nat} :
+      SameTelescopeDomains arity left right →
+      SameTelescopeDomains (arity + 1)
+        (.forallE domain left) (.forallE domain right)
+
+/-- Simultaneous substitution preserves a shared dependent-domain spine. -/
+theorem SameTelescopeDomains.instN
+    (H : SameTelescopeDomains arity left right)
+    (value : VExpr) (k : Nat) :
+    SameTelescopeDomains arity (left.inst value k) (right.inst value k) := by
+  induction H generalizing k with
+  | zero => exact .zero _ _
+  | @succ domain left right arity H ih =>
+    apply SameTelescopeDomains.succ
+    simpa [VExpr.inst] using ih (k + 1)
+
+/-- A well-typed complete application of the right-hand function supplies
+all dependent argument premises for the left-hand function when their types
+have the same telescope domains.  No equality between the two residual
+result types is required. -/
+theorem VEnv.HasType.mkApps_sameTelescopeDomains
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (Hdomains : SameTelescopeDomains args.length leftType rightType)
+    (Hleft : env.HasType uvars ctx left leftType)
+    (Hright : env.HasType uvars ctx right rightType)
+    (HrightApps : VExpr.WF env uvars ctx (VExpr.mkApps right args)) :
+    VExpr.WF env uvars ctx (VExpr.mkApps left args) := by
+  induction args generalizing left right leftType rightType with
+  | nil =>
+    cases Hdomains with
+    | zero =>
+      refine ⟨leftType, ?_⟩
+      change env.IsDefEq uvars ctx left left leftType
+      exact Hleft
+  | cons arg args ih =>
+    cases Hdomains with
+    | @succ domain leftBody rightBody arity Htail =>
+      have Harg := VEnv.HasType.mkApps_head henv hctx Hright HrightApps
+      have HleftApp := Hleft.app Harg
+      have HrightApp := Hright.app Harg
+      have Htail' := Htail.instN arg 0
+      have HrightRest : VExpr.WF env uvars ctx
+          (VExpr.mkApps (.app right arg) args) := by
+        simpa [VExpr.mkApps] using HrightApps
+      simpa [VExpr.mkApps] using
+        ih Htail' HleftApp HrightApp HrightRest
+
 /-- Parallel telescope relation between an inductive family and its motive.
 Both functions consume the same dependent domains.  Once all domains have
 been consumed, the motive expects an inhabitant of the corresponding family
