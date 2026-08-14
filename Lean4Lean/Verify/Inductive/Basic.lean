@@ -55457,6 +55457,53 @@ theorem
     suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
     Hsource, hsource, hsourceDomain, Hdomain, HdomainType⟩
 
+/-- Reduced owner-motive bridge with all positional witnesses rewritten
+away.  The left side is now the exact production declaration shape closed
+over the source binders corresponding to the target context on the right.
+This is the form needed for the final comparison with `C.motiveType`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveDomainTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us.length stats decl
+          owner H.recInfos[owner]! H.elimLevel,
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            T.params.reverse C.params.reverse ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            (T.params ++ T.motives.take owner) [])
+          ((H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+            (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+              (.sort H.elimLevel))).abstractList
+                (H.params.fvars ++ H.bindings.motives.fvars.take owner))
+          T.motives[owner] ∧
+        H.outVEnv.IsType Us.length
+          (abstractForallContext
+            (T.params ++ T.motives.take owner) []).toCtx
+          T.motives[owner] := by
+  dsimp only
+  rcases A.finalOwnerMotiveFrame with
+    ⟨T, C, hparameters, D, _hdeclarationOrigin, hdeclarationShape,
+      suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
+      _Hsource, _hsource, hsourceDomain, Hdomain, HdomainType⟩
+  rw [hsourceDomain, hdeclarationShape] at Hdomain
+  exact ⟨T, C, hparameters, Hdomain, HdomainType⟩
+
 /-- For any retained translation of this recursor, the semantic motive
 telescope consumes exactly as many arguments as its canonical index suffix,
 and those semantic arguments translate the same concrete index spine later
