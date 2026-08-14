@@ -60145,6 +60145,80 @@ theorem
       (.const recursor.name (VLevel.params Us.length)) := by
   exact H.finalRecursorHeadTranslationAt owner howner Delta
 
+/-- The recursor head selected by a validated recursive call translates to
+the installed recursor for that call's target family.  In a mutual block this
+family need not be the owner of the equation currently being generated. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.headTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) (Delta : VLCtx) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+    TrExprS H.outVEnv Us Delta
+      (.const F.semantic.generated.recursorName
+        (AddInductive.getRecLevels H.elimLevel stats.levels))
+      (.const recursor.name (VLevel.params Us.length)) := by
+  rw [F.semantic.generated.recursorName_eq_owner]
+  exact H.finalRecursorHeadTranslationAt
+    F.semantic.generated.ownerIdx F.entry_lt Delta
+
+/-- The selected recursive recursor, canonically applied to the common
+parameter/motive/minor prefix of its retained telescope, is well typed and
+leaves precisely its target-family index/major suffix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.prefixTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+    H.outVEnv.HasType Us.length
+      (F.telescope.params ++ F.telescope.motives ++
+        F.telescope.minors).reverse
+      (VExpr.mkApps
+        ((VExpr.const recursor.name (VLevel.params Us.length)).liftN
+          (F.telescope.params ++ F.telescope.motives ++
+            F.telescope.minors).length 0)
+        (recursorCanonicalVars
+          (F.telescope.params ++ F.telescope.motives ++
+            F.telescope.minors).length))
+      (VExpr.wrapForalls
+        (F.telescope.indices ++ F.telescope.major)
+        F.telescope.result) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+  have huvars := H.recursorUvarsAt selectedOwner F.entry_lt
+  change Us.length = recursor.uvars at huvars
+  have hrec := F.typing
+  change H.outVEnv.HasType recursor.uvars []
+    (.const recursor.name (VLevel.params recursor.uvars)) recursor.type at hrec
+  rw [← huvars] at hrec
+  exact F.telescope.prefixTyping H.outVEnvWF.ordered hrec
+
 /-- The concrete constructor constant at the head of the generated major
 premise translates under recursor universes to the installed abstract
 constructor at the declaration-level universe instantiation. -/
