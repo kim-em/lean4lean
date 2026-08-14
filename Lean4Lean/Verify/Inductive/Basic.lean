@@ -39043,6 +39043,38 @@ theorem BoundGeneratedRecursorRule.Semantics.recursivePositions_lt
     S.recursivePositions.length = H.recursiveArgs.size := by
   rw [recursivePositions, List.length_map, S.selection.fields_length]
 
+/-- Once the two alpha-independent masks agree, their executable recursive
+arrays have the same cardinality.  This isolates the sole cross-pass fact
+needed by recursive minor application from either pass's fresh identifiers. -/
+theorem RecInfoMinorTraversalShape.recursiveFields_size_eq_rule
+    {stats : AddInductive.InductiveStats}
+    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule}
+    {semanticRoot : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF semanticRoot recLparams}
+    (T : RecInfoMinorTraversalShape)
+    (S : H.Semantics Rroot decl expectedOwnerIdx)
+    (hpositions : T.recursivePositions = S.recursivePositions) :
+    T.recursiveFields.size = H.recursiveArgs.size := by
+  rw [← T.recursivePositions_length, hpositions,
+    S.recursivePositions_length]
+
+/-- The generated minor introduces exactly one hypothesis per rule recursive
+result as soon as its retained traversal mask is aligned with the rule mask. -/
+theorem RecInfoMinorTypeShape.hypotheses_size_eq_rule
+    {stats : AddInductive.InductiveStats}
+    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule}
+    {semanticRoot : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF semanticRoot recLparams}
+    (M : RecInfoMinorTypeShape) (T : RecInfoMinorTraversalShape)
+    (S : H.Semantics Rroot decl expectedOwnerIdx)
+    (hrecursive : T.recursiveFields = M.recursiveFields)
+    (hpositions : T.recursivePositions = S.recursivePositions) :
+    M.hypotheses.size = H.recursiveArgs.size := by
+  rw [M.hypotheses_size, ← hrecursive]
+  exact T.recursiveFields_size_eq_rule S hpositions
+
 /-- The exact constructor-field suffix, closed back into the semantic context
 that preceded `loopCtorArgs`.  Both sides are deliberately retained: the
 forall telescope types the constructor target, while the lambda telescope
