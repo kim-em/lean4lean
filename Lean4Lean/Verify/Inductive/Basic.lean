@@ -61595,7 +61595,16 @@ theorem
               (index.abstractList
                 F.semantic.generated.arguments_bound.fvars).abstractList
                   A.rule.all_args_bound.fvars localDomains.length)
-            evidence.indices := by
+            evidence.indices ∧
+          ∀ source ∈
+            ((F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
+                ).toList.map fun index =>
+              (index.abstractList
+                F.semantic.generated.arguments_bound.fvars).abstractList
+                  A.rule.all_args_bound.fvars localDomains.length),
+            FVarsIn
+              (· ∈ A.semantics.fieldRootContext.mlctx.vlctx.fvars)
+              source := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.finalSemanticMotiveApplication with
@@ -61626,17 +61635,24 @@ theorem
           (TrExprS H.outVEnv Us F.semantic.current_context.mlctx.vlctx)
           sources targets →
         List.Forall₂
-          (TrExprS H.outVEnv Us
-            (abstractForallContext (fieldDomains ++ localDomains)
-              A.semantics.fieldRootContext.mlctx.vlctx))
-          (sources.map fun index =>
-            (index.abstractList
-              F.semantic.generated.arguments_bound.fvars).abstractList
-                A.rule.all_args_bound.fvars localDomains.length)
-          targets := by
+            (TrExprS H.outVEnv Us
+              (abstractForallContext (fieldDomains ++ localDomains)
+                A.semantics.fieldRootContext.mlctx.vlctx))
+            (sources.map fun index =>
+              (index.abstractList
+                F.semantic.generated.arguments_bound.fvars).abstractList
+                  A.rule.all_args_bound.fvars localDomains.length)
+            targets ∧
+          ∀ source ∈ (sources.map fun index =>
+              (index.abstractList
+                F.semantic.generated.arguments_bound.fvars).abstractList
+                  A.rule.all_args_bound.fvars localDomains.length),
+            FVarsIn
+              (· ∈ A.semantics.fieldRootContext.mlctx.vlctx.fvars)
+              source := by
     intro sources targets Hsource
     induction Hsource with
-    | nil => exact .nil
+    | nil => exact ⟨.nil, by simp⟩
     | @cons source target sources targets Hindex _ ih =>
       have Hlocal := F.semantic.recent.abstractRecent [] (by
         simpa [abstractForallContext] using Hindex)
@@ -61648,10 +61664,19 @@ theorem
         simpa [localDomains, hlocalFvars] using Hlocal
       have Hfield := A.semantics.fieldsRecent.abstractRecent
         localDomains Hlocal'
-      apply List.Forall₂.cons
+      have hlocalScope := F.semantic.recent.abstractRecentFVars
+        Hindex.fvarsIn 0
+      have hfieldScope :=
+        A.semantics.fieldsRecent.abstractRecentFVars
+          hlocalScope localDomains.length
+      refine ⟨List.Forall₂.cons ?_ ih.1, ?_⟩
       · simpa [localDomains, fieldDomains, hlocalFvars,
           hfieldFvars] using Hfield
-      · exact ih
+      · intro closedSource hclosedSource
+        simp only [List.map_cons, List.mem_cons] at hclosedSource
+        rcases hclosedSource with rfl | hclosedSource
+        · simpa [hlocalFvars, hfieldFvars] using hfieldScope
+        · exact ih.2 closedSource hclosedSource
   exact ⟨binding, evidence, localDomains, fieldDomains,
     hlocal, hfields, hlength, closeIndices Hindices⟩
 
