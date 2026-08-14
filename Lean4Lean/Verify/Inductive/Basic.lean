@@ -55473,6 +55473,46 @@ theorem
     simpa [H.generated.length] using howner
   exact H.motiveTelescopes.seed owner hrecInfo
 
+/-- Final-environment form of the retained paired motive seed.  The concrete
+source is exactly the production index/major telescope, while the two target
+expressions remain linked by the independently proved first-pass
+definitional equality. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalPairedMotiveTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterCtx :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls.toCtx
+    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
+        H.recInfos[owner]! H.elimLevel,
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+          S.canonical.params.reverse parameterCtx ∧
+      TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
+        (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+          (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+            (.sort H.elimLevel)))
+        S.motiveActualType ∧
+      H.outVEnv.IsDefEqU Us.length H.recursorWF.mlctx.vlctx.toCtx
+        S.motiveActualType S.motiveType := by
+  dsimp only
+  rcases A.finalPairedMotiveSeed with ⟨S, hparams⟩
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  exact ⟨S, hparams.mono hbase, S.motiveTypeTr.mono hbase,
+    S.motiveTypeDefEq.mono hbase⟩
+
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalMotiveTelescope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
