@@ -56160,6 +56160,14 @@ theorem
             (T.motives ++ T.minors).length A.rule.allArgs.size).getAppFnArgs =
           (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
             parameterTargets ++ indexTargets) ∧
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext
+              ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+                fieldDomains) []))
+          ((stats.params.map fun arg =>
+            arg.abstractList A.rule.binders).toList)
+          parameterTargets ∧
         indexTargets.length = T.indices.length ∧
         List.Forall₂
           (TrExprS H.outVEnv Us
@@ -56226,7 +56234,7 @@ theorem
   rw [hsourceArgs] at Hargs
   rcases checkPositivityStep.List.Forall₂.split_left Hargs with
     ⟨parameterTargets, indexTargets, htranslatedArgs,
-      _HparameterTargets, HindexTargets⟩
+      HparameterTargets, HindexTargets⟩
   have hindicesLength : indices.size = stats.nindices[owner]! := by
     exact checkPositivityStep.getIIndices.index_arity
       A.semantics.target_valid |>.trans (by simp [A.semantic_owner])
@@ -56238,7 +56246,7 @@ theorem
     rw [T.indices_length, harity, ← hindicesLength]
     simpa [indices] using htranslated.symm
   refine ⟨levels, parameterTargets, indexTargets, ?_,
-    hindexTargetsLength, ?_⟩
+    HparameterTargets, hindexTargetsLength, ?_⟩
   · simpa [htranslatedArgs] using hspine
   · simpa [indices] using HindexTargets
 
@@ -56281,6 +56289,14 @@ theorem
             (T.motives ++ T.minors).length A.rule.allArgs.size).getAppFnArgs =
           (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
             parameterTargets ++ indexTargets) ∧
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext
+              ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+                fieldDomains) []))
+          ((stats.params.map fun arg =>
+            arg.abstractList A.rule.binders).toList)
+          parameterTargets ∧
         indexTargets.length = T.indices.length ∧
         List.Forall₂
           (TrExprS H.outVEnv Us
@@ -56298,10 +56314,11 @@ theorem
     ⟨T, fieldDomains, fieldResult, hfields, Htarget⟩
   rcases A.cachedConstructorIndexSpineOfTarget
       T fieldDomains fieldResult hfields Htarget with
-    ⟨levels, parameterTargets, indexTargets, hspine, hindexLength,
-      HindexTargets⟩
+    ⟨levels, parameterTargets, indexTargets, hspine, HparameterTargets,
+      hindexLength, HindexTargets⟩
   exact ⟨T, fieldDomains, fieldResult, levels, parameterTargets,
-    indexTargets, hfields, Htarget, hspine, hindexLength, HindexTargets⟩
+    indexTargets, hfields, Htarget, hspine, HparameterTargets,
+    hindexLength, HindexTargets⟩
 
 /-- Apply the checked constructor to the canonical variables of its genuine
 field telescope.  This is done before inserting motives and minors, avoiding
@@ -59748,6 +59765,12 @@ theorem
               A.rule.allArgs.size).getAppFnArgs =
             (.const (decl.types[owner]'A.abstractOwner_lt).name levels,
               parameterTargets ++ indexTargets) ∧
+          List.Forall₂
+            (TrExprS H.outVEnv Us
+              (abstractForallContext cachedDomains []))
+            ((stats.params.map fun arg =>
+              arg.abstractList A.rule.binders).toList)
+            parameterTargets ∧
           indexTargets.length = T.indices.length ∧
           List.Forall₂
             (TrExprS H.outVEnv Us
@@ -59854,12 +59877,12 @@ theorem
   rw [← hmajorTarget] at HmajorTr'
   rcases A.cachedConstructorIndexSpineOfTarget
       T fieldDomains fieldResult hfields Htarget with
-    ⟨levels, parameterTargets, indexTargets, hspine, hindexLength,
-      HindexTargets⟩
+    ⟨levels, parameterTargets, indexTargets, hspine, HparameterTargets,
+      hindexLength, HindexTargets⟩
   exact ⟨T, fieldDomains, fieldResult, introTarget, levels,
     parameterTargets, indexTargets, hparams, hfields, Hfull, HcachedCtx,
     HmajorCached, HprefixCached, Htarget, HintroShape, HprefixTr',
-    HmajorTr', hspine, hindexLength, HindexTargets⟩
+    HmajorTr', hspine, HparameterTargets, hindexLength, HindexTargets⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
 common prefix is taken from the independently typed recursor telescope and
