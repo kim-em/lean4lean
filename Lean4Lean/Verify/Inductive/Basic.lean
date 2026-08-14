@@ -69444,6 +69444,7 @@ theorem
         (prefixTarget : VExpr) (indexTargets : List VExpr)
         (majorTarget ownerTarget : VExpr),
       localDomains.length = F.semantic.generated.localArgs.size ∧
+      equationDomains.length = A.rule.binders.length ∧
       OnCtx
         (abstractForallContext (equationDomains ++ localDomains) []).toCtx
         (H.outVEnv.IsType Us.length) ∧
@@ -69510,6 +69511,10 @@ theorem
   have HctxPlain : OnCtx (equationDomains ++ localDomains).reverse
       (H.outVEnv.IsType Us.length) := by
     simpa only [hcallCtx] using Hctx
+  have hequationLength : equationDomains.length = A.rule.binders.length := by
+    have hcached := A.cachedEquationDomains_length T fieldDomains hfields
+    simpa [hequation, H.parameterDecls, parameterDecls,
+      List.append_assoc] using hcached
   have HfieldCtx₀ := HctxPlain.drop localDomains.length
   have HfieldCtx : OnCtx
       (((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
@@ -69793,7 +69798,8 @@ theorem
     rw [← hsource]
     simpa only [args] using Hcall
   exact ⟨equationDomains, localDomains, prefixTarget, indexTargets,
-    majorTarget, ownerTarget, hlocal, Hctx, Hcall', Hleft, Hclosed',
+    majorTarget, ownerTarget, hlocal, hequationLength, Hctx, Hcall', Hleft,
+    Hclosed',
     HleftWF⟩
 
 /-- Weaken the canonical recursive-call prefix beneath the higher-order
