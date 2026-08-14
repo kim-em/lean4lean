@@ -24424,7 +24424,7 @@ def RecursorFieldDecisionReplayCompat : Prop :=
     (source terminal₁ terminal₂ : Expr)
     (all₁ recursive₁ all₂ recursive₂ : Array Expr)
     (positions₁ positions₂ : List Nat),
-    BindingContextLE root₁ root₂ →
+    BindingContextLE current₁ root₂ →
     source.FVarsIn (· ∈ root₁.lctx.fvars) →
     RecursorFieldDecisions stats root₁ source current₁ terminal₁
       all₁ recursive₁ positions₁ →
@@ -29462,7 +29462,8 @@ def RecInfoMinorSourceAlignment
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
         traversal.stats = stats ∧
-        BindingContextLE traversal.rootContext c
+        BindingContextLE traversal.rootContext c ∧
+        BindingContextLE traversal.terminalContext c
 
 theorem RecInfoMinorSourceAlignment.ofEmpty
     (H : RecInfoTypeOrigins c recInfos)
@@ -29483,9 +29484,9 @@ theorem RecInfoMinorSourceAlignment.mono
   intro owner howner hsourceOwner localIndex hlocal
   rcases A owner howner hsourceOwner localIndex hlocal with
     ⟨horigin, hindex, hsource, traversal, htraversal, hconstructor,
-      hfields, hrecursive, hstats, hroot⟩
+      hfields, hrecursive, hstats, hroot, hterminal⟩
   exact ⟨horigin, hindex, hsource, traversal, htraversal, hconstructor,
-    hfields, hrecursive, hstats, hroot.trans hle⟩
+    hfields, hrecursive, hstats, hroot.trans hle, hterminal.trans hle⟩
 
 theorem RecInfoMinorSourceAlignment.addMinor
     {c cMinorTy : AddInductive.Context}
@@ -29508,7 +29509,8 @@ theorem RecInfoMinorSourceAlignment.addMinor
       traversal.fields = Hshape.fields ∧
       traversal.recursiveFields = Hshape.recursiveFields ∧
       traversal.stats = stats ∧
-      BindingContextLE traversal.rootContext cMinorTy) :
+      BindingContextLE traversal.rootContext cMinorTy ∧
+      BindingContextLE traversal.terminalContext cMinorTy) :
     RecInfoMinorSourceAlignment stats indTypes
       (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
         Hshape HshapePosition) := by
@@ -29525,11 +29527,13 @@ theorem RecInfoMinorSourceAlignment.addMinor
       traversal.fields = Hshape.fields ∧
       traversal.recursiveFields = Hshape.recursiveFields ∧
       traversal.stats = stats ∧
-      BindingContextLE traversal.rootContext cMinor := by
+      BindingContextLE traversal.rootContext cMinor ∧
+      BindingContextLE traversal.terminalContext cMinor := by
     rcases htraversal with
-      ⟨traversal, hsome, hconstructor, hfields, hrecursive, hstats, hroot⟩
+      ⟨traversal, hsome, hconstructor, hfields, hrecursive, hstats, hroot,
+        hterminal⟩
     exact ⟨traversal, hsome, hconstructor, hfields, hrecursive, hstats,
-      hroot.trans hstep⟩
+      hroot.trans hstep, hterminal.trans hstep⟩
   have Aextended : ∀ owner (howner : owner < recInfos.size)
       (hsourceOwner : owner < indTypes.size)
       localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
@@ -29542,13 +29546,15 @@ theorem RecInfoMinorSourceAlignment.addMinor
           traversal.fields = S.fields ∧
           traversal.recursiveFields = S.recursiveFields ∧
           traversal.stats = stats ∧
-          BindingContextLE traversal.rootContext cMinor := by
+          BindingContextLE traversal.rootContext cMinor ∧
+          BindingContextLE traversal.terminalContext cMinor := by
     intro owner howner hsourceOwner localIndex hlocal
     rcases A owner howner hsourceOwner localIndex hlocal with
       ⟨horigin, hindex, hsource, traversal, hsome, hconstructor,
-        hfields, hrecursive, hstats, hroot⟩
+        hfields, hrecursive, hstats, hroot, hterminal⟩
     exact ⟨horigin, hindex, hsource, traversal, hsome, hconstructor,
-      hfields, hrecursive, hstats, hroot.trans hfinal⟩
+      hfields, hrecursive, hstats, hroot.trans hfinal,
+      hterminal.trans hfinal⟩
   intro owner howner hsourceOwner localIndex hlocal
   by_cases hdi : dIdx = owner
   · subst owner
@@ -40973,7 +40979,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       traversal.fields = HminorShape.fields ∧
       traversal.recursiveFields = HminorShape.recursiveFields ∧
       traversal.stats = stats ∧
-      BindingContextLE traversal.rootContext c)
+      BindingContextLE traversal.rootContext c ∧
+      BindingContextLE traversal.terminalContext c)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
@@ -41423,7 +41430,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         consumed_eq := rfl } ⟨rfl, rfl⟩ (by
           simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
             hsourceFamily)
-      ⟨_, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE⟩ ?_
+      ⟨_, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE,
+        HhypothesesRecent.contextExtension.contextLE⟩ ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
     hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
     HminorSourcesNext hsizeNext hcountNext hotherNext HmajorTypesNext HmajorShapesNext
@@ -60707,6 +60715,7 @@ theorem
             traversal.recursiveFields = S.recursiveFields ∧
             traversal.stats = stats ∧
             BindingContextLE traversal.rootContext H.localContext ∧
+            BindingContextLE traversal.terminalContext H.localContext ∧
             let sourceBinders := H.params.fvars ++
               H.bindings.motives.fvars ++
                 H.bindings.flatMinors.fvars.take minorIdx
@@ -60739,7 +60748,8 @@ theorem
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
         traversal.stats = stats ∧
-        BindingContextLE traversal.rootContext H.localContext := by
+        BindingContextLE traversal.rootContext H.localContext ∧
+        BindingContextLE traversal.terminalContext H.localContext := by
     simpa [S] using H.minorSources O.owner O.owner_lt hsourceOwner
       O.localIndex hshapeBound
   have horigin : S.origin = D.type :=
@@ -60750,7 +60760,8 @@ theorem
     simpa [hposition.1] using Hsource.2.2.1
   rcases Hsource.2.2.2 with
     ⟨traversal, htraversal, htraversalConstructor,
-      htraversalFields, htraversalRecursiveFields, hstats, hrootContext⟩
+      htraversalFields, htraversalRecursiveFields, hstats, hrootContext,
+      hterminalContext⟩
   have hconstructor : S.constructor = indTypes[owner]!.ctors[i] := by
     have hsourceConstructor := S.sourceConstructor
     rw [hconstructors, hlocal] at hsourceConstructor
@@ -60773,6 +60784,7 @@ theorem
   exact ⟨T, D, O, S, horigin, hlocal, hconstructors, hconstructor,
     hfieldCount, traversal, htraversal, htraversalConstructor,
     htraversalFields, htraversalRecursiveFields, hstats, hrootContext,
+    hterminalContext,
     Hdomain, HdomainType⟩
 
 /-- Replaying the selected constructor telescope in the later rule context
@@ -60802,8 +60814,8 @@ theorem
   rcases A.finalSelectedMinorShape with
     ⟨_T, _D, _O, S, _horigin, hlocal, _hconstructors, hconstructor,
       _hfieldCount, traversal, htraversal, htraversalConstructor,
-      _htraversalFields, htraversalRecursiveFields, hstats, hrootContext,
-      _Hdomain, _HdomainType⟩
+      _htraversalFields, htraversalRecursiveFields, hstats, _hrootContext,
+      hterminalContext, _Hdomain, _HdomainType⟩
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
@@ -60815,9 +60827,9 @@ theorem
       A.semantics.recursivePositions := by
     rw [hparameterTail]
     exact A.semantics.decisions
-  have hrootToRule : BindingContextLE traversal.rootContext
+  have hterminalToRule : BindingContextLE traversal.terminalContext
       A.semantics.fieldRoot :=
-    hrootContext.trans A.semantics.fieldRootExtension.contextLE
+    hterminalContext.trans A.semantics.fieldRootExtension.contextLE
   have HminorDecisions : RecursorFieldDecisions stats
       traversal.rootContext traversal.parameterTail traversal.terminalContext
       traversal.terminal traversal.fields traversal.recursiveFields
@@ -60830,7 +60842,7 @@ theorem
       traversal.terminal A.rule.target traversal.fields
       traversal.recursiveFields A.rule.allArgs A.rule.recursiveArgs
       traversal.recursivePositions A.semantics.recursivePositions
-      hrootToRule traversal.parameterTail_fvars HminorDecisions
+      hterminalToRule traversal.parameterTail_fvars HminorDecisions
       HruleDecisions
   have hhypotheses : S.hypotheses.size = A.rule.recursiveArgs.size :=
     S.hypotheses_size_eq_rule traversal A.semantics
