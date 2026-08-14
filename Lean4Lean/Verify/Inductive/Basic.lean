@@ -63838,7 +63838,8 @@ theorem
         ∃ scope,
           ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
-            ∃ fieldDomains localDomains liftedFront narrowIndices narrowMajor,
+            ∃ (fieldDomains localDomains liftedFront : List VExpr)
+                (narrowIndices : List VExpr) (narrowMajor : VExpr),
               Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
               liftedFront =
                 (liftContextPrefix inserted.length
@@ -66664,6 +66665,131 @@ theorem
         fieldDomains.length 0) := by
   exact F.selectedPrefixResidualTranslation T fieldDomains hfields Hctx
     (F.prefixTypingInEquationContext T fieldDomains Hctx)
+
+/-- Cached-parameter form of the call-selected mutual recursor prefix.
+Translation uniqueness preserves the exact canonical target while the
+dependent context conversion replaces executable parameter domains by the
+independently cached parameter suffix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.cachedPrefixResidualTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (Hctx :
+      let parameterDecls := H.parameterSuffix.parameterDecls
+      OnCtx
+        (((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains).reverse)
+        (H.outVEnv.IsType
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    let cachedDomains :=
+      (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++ fieldDomains
+    TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+      (mkAppN
+        (mkAppN
+          (mkAppN
+            (.const F.semantic.generated.recursorName
+              (AddInductive.getRecLevels H.elimLevel stats.levels))
+            (stats.params.map fun arg => arg.abstractList A.rule.binders))
+          ((H.recInfos.map (·.motive)).map fun arg =>
+            arg.abstractList A.rule.binders))
+        ((H.recInfos.flatMap (·.minors)).map fun arg =>
+          arg.abstractList A.rule.binders))
+      ((VExpr.mkApps
+          ((VExpr.const recursor.name
+            (VLevel.params Us.length)).liftN
+            (T.params ++ T.motives ++ T.minors).length 0)
+          (recursorCanonicalVars
+            (T.params ++ T.motives ++ T.minors).length)).liftN
+        fieldDomains.length 0) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  let canonicalDomains :=
+    (T.params ++ T.motives ++ T.minors) ++ fieldDomains
+  let cachedDomains :=
+    (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++ fieldDomains
+  rcases A.finalRecursorParameterContext with ⟨T₀, hparams₀⟩
+  rcases T₀.groupsResult_eq T with
+    ⟨hparamsT, _hmotives, _hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparamsT] at hparams₀
+  have hparams : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      T.params.reverse parameterDecls.toCtx := by
+    simpa [parameterDecls, H.parameterDecls, Us] using hparams₀
+  let commonPrefix :=
+    fieldDomains.reverse ++ T.minors.reverse ++ T.motives.reverse
+  have Hctx' : OnCtx (commonPrefix ++ parameterDecls.toCtx)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [cachedDomains, commonPrefix, List.reverse_append,
+      List.append_assoc] using Hctx
+  have HcachedCanonical :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      (hparams.symm H.outVEnvWF.ordered) Hctx'
+  have Hfull : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      canonicalDomains.reverse cachedDomains.reverse := by
+    have := HcachedCanonical.symm H.outVEnvWF.ordered
+    simpa [canonicalDomains, cachedDomains, commonPrefix,
+      List.reverse_append, List.append_assoc] using this
+  have HcanonicalCtx : OnCtx canonicalDomains.reverse
+      (H.outVEnv.IsType Us.length) := Hfull.isType
+  have Hcanonical := F.canonicalPrefixResidualTranslation
+    T fieldDomains hfields (by
+      simpa [canonicalDomains] using HcanonicalCtx)
+  have Hvlctx := abstractForallContext.isDefEq Hfull
+  rcases Hcanonical.defeqDFC H.outVEnvWF Hvlctx with
+    ⟨target', Hcached⟩
+  let source :=
+    mkAppN
+      (mkAppN
+        (mkAppN
+          (.const F.semantic.generated.recursorName
+            (AddInductive.getRecLevels H.elimLevel stats.levels))
+          (stats.params.map fun arg => arg.abstractList A.rule.binders))
+        ((H.recInfos.map (·.motive)).map fun arg =>
+          arg.abstractList A.rule.binders))
+      ((H.recInfos.flatMap (·.minors)).map fun arg =>
+        arg.abstractList A.rule.binders)
+  have HsourceUnique : TrExprS.IsUnique source := by
+    exact TrExprS.IsUnique.mkAppN
+      (TrExprS.IsUnique.mkAppN
+        (TrExprS.IsUnique.mkAppN (by trivial)
+          (fun arg harg => A.rule.abstractedParamsUnique arg
+            (Array.mem_toList_iff.mpr harg)))
+        (fun arg harg => A.rule.abstractedMotivesUnique arg
+          (Array.mem_toList_iff.mpr harg)))
+      (fun arg harg => A.rule.abstractedMinorsUnique arg
+        (Array.mem_toList_iff.mpr harg))
+  have hlength : canonicalDomains.length = cachedDomains.length := by
+    simpa using Hfull.length_eq
+  have HuniqueCtx := abstractForallContext.isUniqueCtx hlength
+  have htarget := TrExprS.unique' HuniqueCtx HsourceUnique
+    (by simpa [source, canonicalDomains] using Hcanonical)
+    (by simpa [source, cachedDomains] using Hcached)
+  rw [← htarget] at Hcached
+  simpa [source, cachedDomains] using Hcached
 
 /-- Weaken the canonical recursive-call prefix beneath the higher-order
 lambda domains and identify its source with the exact two-stage abstraction
