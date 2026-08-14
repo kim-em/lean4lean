@@ -35193,6 +35193,70 @@ theorem BoundGeneratedRecursiveCall.translatedMajor_isField
     (VExpr.IsFieldApp.lift hfield domains.length)
       (H.localIndices.map VExpr.bvar)
 
+/-- A translated major premise in a closed rule has a completely forced
+target: the selected outer field variable, shifted beneath the generated
+higher-order arguments, applied to their canonical de Bruijn spine.  This is
+the exact-target strengthening of `translatedOuterAbstractedMajor_isField`;
+it needs no typing reconstruction because that information is already
+contained in the supplied strict translation. -/
+theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedMajor_eq
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root (.fvar fv) value)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup)
+    (hfield : fv ∈ binders)
+    (hruleDomains : ruleDomains.length = binders.length)
+    (hlocalDomains : localDomains.length = H.localArgs.size)
+    (Hmajor : TrExprS env Us
+      (abstractForallContext localDomains
+        (abstractForallContext ruleDomains Δ))
+      (H.outerAbstractedMajor binders) major) :
+    ∃ fieldVar,
+      fieldVar < ruleDomains.length ∧
+      (Expr.fvar fv).abstractList binders = .bvar fieldVar ∧
+      major = VExpr.mkApps (.bvar (localDomains.length + fieldVar))
+        (H.localIndices.map VExpr.bvar) := by
+  rcases H.outerAbstractedMajor_eq_bvar hfieldRoot hbinders hfield with
+    ⟨fieldVar, hfieldVar, hfieldSource, hsource⟩
+  rw [hsource] at Hmajor
+  have Hmajor' : TrExprS env Us
+      (abstractForallContext (ruleDomains ++ localDomains) Δ)
+      (mkAppN (.bvar (H.localArgs.size + fieldVar))
+        (H.localIndices.map Expr.bvar).toArray) major := by
+    simpa using Hmajor
+  unfold mkAppN at Hmajor'
+  rw [← Array.foldl_toList, List.toList_toArray,
+    List.foldl_map] at Hmajor'
+  have htotal : H.localArgs.size + fieldVar <
+      (ruleDomains ++ localDomains).length := by
+    simp only [List.length_append]
+    omega
+  have hindices : ∀ index ∈ H.localIndices,
+      index < (ruleDomains ++ localDomains).length := by
+    intro index hindex
+    simp only [BoundGeneratedRecursiveCall.localIndices,
+      List.mem_ofFn] at hindex
+    rcases hindex with ⟨j, rfl⟩
+    simp only [List.length_append]
+    have hlocalSize : H.localArgs.size =
+        H.arguments_bound.fvars.length := by
+      have := congrArg Array.size H.arguments_bound.expressions
+      simpa using this
+    omega
+  have hmajorEq := TrExprS.foldl_bvars_eq
+    (ruleDomains ++ localDomains) Δ H.localIndices hindices
+    (.bvar (H.localArgs.size + fieldVar))
+    (.bvar (H.localArgs.size + fieldVar))
+    (fun out Hout => TrExprS.bvar_eq_of_abstractForallContext
+      Hout htotal) Hmajor'
+  have hmajorEq' : major =
+      VExpr.mkApps (.bvar (H.localArgs.size + fieldVar))
+        (H.localIndices.map VExpr.bvar) := by
+    simpa [VExpr.mkApps, List.foldl_map] using hmajorEq
+  refine ⟨fieldVar, ?_, hfieldSource, ?_⟩
+  · omega
+  · simpa [hlocalDomains] using hmajorEq'
+
 /-- The major premise in a closed rule is a designated outer field shifted
 beneath exactly the generated call's local lambda domains. -/
 theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedMajor_isField
