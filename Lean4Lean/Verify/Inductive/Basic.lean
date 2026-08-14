@@ -61966,12 +61966,67 @@ theorem
   exact ⟨fieldScope, HfieldScope, by simpa [hfieldRev] using
     hfieldScopeFVars, hbase, fieldDomains, hfieldDomains, hfront⟩
 
-/-- Replay the exact higher-order call suffix above the rule-wide field and
-cached-parameter scope.  The resulting narrow runtime frame contains no
-generated motive or minor declarations, but retains every free variable that
-will become a field or call-local binder when the recursive call is closed. -/
+/-- First-class rule-wide field narrowing witness.  Recursive-result folds
+retain one value of this structure and replay every call-local suffix above
+its exact `fieldDomains`. -/
+structure
+    RecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) where
+  fieldScope : VLCtx
+  runtime : checkInductiveTypes.loopType.NarrowRuntimeScope
+    H.recursorWF.venv
+    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+    fieldScope A.semantics.context.mlctx.vlctx
+  scope_fvars : fieldScope.fvars =
+    A.semantics.fieldsRecent.fvars.reverse ++
+      H.parameterSuffix.parameterDecls.fvars
+  scope_base : fieldScope.drop runtime.frontSourceDomains.length =
+    H.parameterSuffix.parameterDecls
+  fieldDomains : List VExpr
+  fieldDomains_length : fieldDomains.length = A.rule.allArgs.size
+  front : runtime.frontSourceDomains = fieldDomains
+
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowRuntimeScope
+    RecursorPhasesResult.GeneratedRuleAlignment.narrowFieldRuntimeFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    Nonempty A.NarrowFieldRuntimeFrame := by
+  rcases A.narrowFieldRuntimeScope with
+    ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
+      fieldDomains, hfieldDomains, hfieldFront⟩
+  exact ⟨{
+    fieldScope := fieldScope
+    runtime := HfieldScope
+    scope_fvars := hfieldScopeFVars
+    scope_base := hfieldBase
+    fieldDomains := fieldDomains
+    fieldDomains_length := hfieldDomains
+    front := hfieldFront }⟩
+
+/-- Replay one exact higher-order call suffix above a fixed rule-wide field
+and cached-parameter frame.  The fixed-frame argument is the common-context
+anchor needed by the recursive-result list fold. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowRuntimeScopeFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -61984,7 +62039,8 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {A : H.GeneratedRuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls := H.parameterSuffix.parameterDecls
     ∃ scope,
@@ -61999,7 +62055,7 @@ theorem
           Hscope.frontSourceDomains = fieldDomains ++ localDomains := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls := H.parameterSuffix.parameterDecls
-  rcases A.narrowFieldRuntimeScope with
+  rcases B with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
       fieldDomains, hfieldDomains, hfieldFront⟩
   rcases F.semantic.current_context.onlyLams.lamPrefix
@@ -62062,6 +62118,39 @@ theorem
     change HfieldScope.frontSourceDomains ++ localDomains =
       fieldDomains ++ localDomains
     rw [hfieldFront]
+
+/-- Existential specialization of `narrowRuntimeScopeFor` used by the
+earlier pointwise call lemmas.  List-level reconstruction instead retains
+the `NarrowFieldRuntimeFrame` witness and calls the parameterized theorem. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowRuntimeScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+          H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+        scope.fvars = F.semantic.recent.fvars.reverse ++
+          A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
+        scope.drop Hscope.frontSourceDomains.length = parameterDecls ∧
+        ∃ fieldDomains localDomains,
+          fieldDomains.length = A.rule.allArgs.size ∧
+          localDomains.length = F.semantic.generated.localArgs.size ∧
+          Hscope.frontSourceDomains = fieldDomains ++ localDomains := by
+  rcases A.narrowFieldRuntimeFrame with ⟨B⟩
+  exact F.narrowRuntimeScopeFor B
 /-- The validated terminal application of a recursive call consumes the
 same canonical motive telescope retained for the call-selected mutual
 family.  This is the semantic index/major alignment needed to consume the
