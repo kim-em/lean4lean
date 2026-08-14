@@ -21876,7 +21876,7 @@ theorem Expr.ForallBinderAt.unique
     (H₁ : Expr.ForallBinderAt source i domain₁)
     (H₂ : Expr.ForallBinderAt source i domain₂) : domain₁ = domain₂ := by
   induction H₁ with
-  | here =>
+  | @here name domain body bi =>
       cases H₂
       rfl
   | there _ ih =>
@@ -21890,9 +21890,10 @@ theorem Expr.ForallBinderAt.abstract1
     Expr.ForallBinderAt (source.abstract1 fv k) i
       (domain.abstract1 fv (k + i)) := by
   induction H generalizing k with
-  | here =>
+  | @here name domain body bi =>
       simpa [Expr.abstract1] using
-        (Expr.ForallBinderAt.here (name := name) (body := body.abstract1 fv 1)
+        (Expr.ForallBinderAt.here (name := name)
+          (body := body.abstract1 fv (k + 1))
           (bi := bi) (domain := domain.abstract1 fv k))
   | @there body i domain name outerDomain bi H ih =>
       have Htail := ih (k + 1)
@@ -21921,8 +21922,9 @@ theorem Expr.ForallTelescope.prependBinderAt
     Expr.ForallBinderAt outer (prefixArity + i) domain := by
   induction Hprefix with
   | nil => simpa using Hbinder
-  | cons _ ih =>
-      have Hresult := Expr.ForallBinderAt.there (ih Hbinder)
+  | @cons body arity result name outerDomain bi Hprefix ih =>
+      have Hresult := Expr.ForallBinderAt.there
+        (name := name) (outerDomain := outerDomain) (bi := bi) (ih Hbinder)
       simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hresult
 
 /-- `inferImplicit` changes binder annotations but preserves every concrete
@@ -21932,7 +21934,7 @@ theorem Expr.ForallBinderAt.inferImplicit
     (max : Nat) (inferBinderTypes : Bool) :
     Expr.ForallBinderAt (source.inferImplicit max inferBinderTypes) i domain := by
   induction H generalizing max with
-  | here =>
+  | @here name domain body bi =>
       cases max with
       | zero => simpa [Expr.inferImplicit] using
           (Expr.ForallBinderAt.here (name := name) (body := body)
@@ -21968,7 +21970,7 @@ theorem Expr.ForallTelescope.binderAt
     Expr.ForallBinderAt source i domain := by
   induction H with
   | nil =>
-      subst suffix
+      rw [hsuffix]
       exact .here
   | cons _ ih =>
       exact .there (ih hsuffix)
@@ -22005,7 +22007,7 @@ theorem Expr.ForallTelescopeTypeTranslation.binderAt
   cases Hsuffix with
   | @cons _ sourceDomain domainTarget sourceBody arity bodyTarget name bi
       Hdomain HdomainType Hbody =>
-    exact ⟨prefixDomains, suffixSource, name, sourceDomain, sourceBody, bi,
+    exact ⟨prefixDomains, _, name, sourceDomain, sourceBody, bi,
       domainTarget, bodyTarget, hprefixLength, Hsource, rfl, htarget,
       Hdomain, HdomainType, Hbody⟩
 
@@ -38665,17 +38667,19 @@ theorem LocalContext.mkBindingList_forallBinderAt
       exact .here
     | succ i =>
       have hiTail : i < fvars.length := by simp at hi; omega
+      rcases hdecl fv (by simp) with
+        ⟨headIndex, headName, headType, headBi, headKind, hheadDecl⟩
       have htailSelected : lctx.find? fvars[i] =
           some (.cdecl index fvars[i] name type bi kind) := by
         simpa using hselected
-      have Htail := ih htailDecl hnodupParts.2 i hiTail index name type bi
-        kind htailSelected (body := body)
+      have Htail := ih htailDecl hnodupParts.2 i hiTail htailSelected
+        (body := body)
       have Habstract := Htail.abstract1 fv 0
       have hprefixNodup : (fv :: fvars.take i).Nodup := by
         apply List.nodup_cons.mpr
         exact ⟨fun hmem => hnodupParts.1
           (List.mem_of_mem_take hmem),
-          (hnodupParts.2.take i)⟩
+          hnodupParts.2.take⟩
       have hdomain :
           (type.abstractList (fvars.take i)).abstract1 fv i =
             type.abstractList (fv :: fvars.take i) := by
@@ -38684,23 +38688,25 @@ theorem LocalContext.mkBindingList_forallBinderAt
           (k := 0) (by simpa using hprefixNodup)
         simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hiTail)] using
           Hclose
+      simp only [Nat.zero_add] at Habstract
       rw [hdomain] at Habstract
-      simpa using Expr.ForallBinderAt.there Habstract
+      simpa [LocalContext.mkBindingList1, hheadDecl] using
+        Expr.ForallBinderAt.there Habstract
 
 /-- `LocalForallSelection` form of the positional source-domain theorem. -/
 theorem LocalForallSelection.forallBinderAt
-    (H : LocalForallSelection lctx xs) (hnodup : H.fvars.Nodup)
+    (H : LocalForallSelection c.lctx xs) (hnodup : H.fvars.Nodup)
     (D : BoundFVarDeclarationAt c xs i) :
-    Expr.ForallBinderAt (lctx.mkForall xs body) i
+    Expr.ForallBinderAt (c.lctx.mkForall xs body) i
       (D.type.abstractList (H.fvars.take i)) := by
+  rcases H with ⟨fvars, rfl, declarations⟩
   rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
-  have hifvars : i < H.fvars.length := by
-    rw [← H.size]
-    exact D.inBounds
-  have hselectedFVar : H.fvars[i] = D.fvar := by
-    have hget := congrArg (fun values => values[i]'D.inBounds) H.expressions
-    simpa [hifvars] using Expr.fvar.inj (hget.symm.trans D.expression)
-  apply LocalContext.mkBindingList_forallBinderAt H.declarations hnodup i
+  have hifvars : i < fvars.length := by simpa using D.inBounds
+  have hselectedFVar : fvars[i] = D.fvar := by
+    have hexpression : Expr.fvar fvars[i] = Expr.fvar D.fvar := by
+      simpa [hifvars] using D.expression
+    exact Expr.fvar.inj hexpression
+  apply LocalContext.mkBindingList_forallBinderAt declarations hnodup i
     hifvars D.index D.userName D.type D.binderInfo D.kind
   rw [hselectedFVar]
   exact D.declaration
@@ -39025,14 +39031,10 @@ theorem RecursorLocalSelections.ownerMotiveBinderAt
   have hprefixNodup :
       (H.params.fvars ++ H.motives.fvars.take ownerIdx).Nodup := by
     apply List.nodup_append.mpr
-    refine ⟨parts.params, parts.motives.take ownerIdx, ?_⟩
+    refine ⟨parts.params, parts.motives.take, ?_⟩
     intro param hparam motive hmotive heq
     exact parts.params_later param hparam motive
-      (by
-        apply List.mem_append_left
-        exact List.mem_append_left
-          (List.mem_append_left _ (List.mem_of_mem_take hmotive)))
-      heq
+      (List.mem_append.mpr (Or.inl (List.mem_of_mem_take hmotive))) heq
   have hdomain :
       (D.type.abstractList (H.motives.fvars.take ownerIdx)).abstractList
           H.params.fvars ownerIdx =
@@ -39043,9 +39045,9 @@ theorem RecursorLocalSelections.ownerMotiveBinderAt
       (inner := H.motives.fvars.take ownerIdx) (k := 0) hprefixNodup
     simpa [List.length_take,
       Nat.min_eq_left (Nat.le_of_lt hownerFVars)] using Hclose
-  rw [hdomain] at HmotiveClosed
   have Hparams := H.params.forallTelescope motiveSource
-  have Hraw := Hparams.prependBinderAt HmotiveClosed
+  have Hraw := Hparams.prependBinderAt (by
+    simpa [Nat.zero_add, hdomain] using HmotiveClosed)
   have hparamsLength : H.params.fvars.length = stats.params.size := by
     rw [← H.params.size]
   simpa [motiveSource, motiveBody, hparamsLength] using
@@ -46090,17 +46092,19 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveBinder
     (T : GeneratedRecursorTelescopeTranslation env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
     (howner : ownerIdx < T.motives.length) :
-    ∃ suffixSource name sourceDomain sourceBody bi bodyTarget,
+    ∃ (suffixSource : Expr) (name : Name)
+      (sourceDomain sourceBody : Expr) (bi : BinderInfo)
+      (bodyTarget : VExpr),
       Expr.ForallTelescope source (T.params.length + ownerIdx) suffixSource ∧
       suffixSource = .forallE name sourceDomain sourceBody bi ∧
       TrExprS env Us
         (abstractForallContext
           (T.params ++ T.motives.take ownerIdx) [])
-        sourceDomain T.motives[ownerIdx] ∧
+        sourceDomain (T.motives[ownerIdx]'howner) ∧
       env.IsType Us.length
         (abstractForallContext
           (T.params ++ T.motives.take ownerIdx) []).toCtx
-        T.motives[ownerIdx] := by
+        (T.motives[ownerIdx]'howner) := by
   let domains := T.params ++
     (T.motives ++ (T.minors ++ (T.indices ++ T.major)))
   have hlength : domains.length =
@@ -46127,10 +46131,8 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveBinder
     rw [List.take_length_add_append]
     rw [List.take_append_of_le_length (Nat.le_of_lt howner)]
   have hselected : domains[T.params.length + ownerIdx] =
-      T.motives[ownerIdx] := by
-    change (T.params ++
-      (T.motives ++ (T.minors ++ (T.indices ++ T.major))))
-        [T.params.length + ownerIdx] = _
+      (T.motives[ownerIdx]'howner) := by
+    simp only [domains]
     rw [List.getElem_append_right (by omega)]
     simp only [Nat.add_sub_cancel_left]
     rw [List.getElem_append_left howner]
@@ -55320,7 +55322,7 @@ of the second conversion is transported back across the already composed
 prefix before transitivity is applied, so dependent domains remain in the
 correct context. -/
 theorem VEnv.IsDefEqCtx.transEmpty
-    (henv : env.Ordered)
+    (henv : env.WF)
     (H₁ : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂)
     (H₂ : VEnv.IsDefEqCtx env U [] Γ₂ Γ₃) :
     VEnv.IsDefEqCtx env U [] Γ₁ Γ₃ := by
@@ -55330,7 +55332,7 @@ theorem VEnv.IsDefEqCtx.transEmpty
     cases H₂ with
     | succ H₂ hdom₂ =>
       have Hprefix := ih H₂
-      have hdom₂' := hdom₂.defeqDFC henv (H₁.symm henv)
+      have hdom₂' := hdom₂.defeqDFC henv.ordered (H₁.symm henv.ordered)
       exact .succ Hprefix
         (hdom.trans_r henv H₁.isType hdom₂')
 
@@ -55366,8 +55368,8 @@ theorem
   rcases A.finalRecursorParameterContext with ⟨T, hgenerated⟩
   rcases A.finalCanonicalMotiveTelescope with ⟨C, hcanonical⟩
   refine ⟨T, C, ?_⟩
-  exact hgenerated.transEmpty H.outVEnvWF.ordered
-    (hcanonical.symm H.outVEnvWF.ordered)
+  exact Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    hgenerated (hcanonical.symm H.outVEnvWF.ordered)
 
 /-- Final executable/canonical owner-motive comparison frame.  This packages
 the independently replayed canonical motive with the exact source domain and
@@ -55405,7 +55407,9 @@ theorem
             H.recInfos[owner]!.indices
             (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
               (.sort H.elimLevel)) ∧
-          ∃ suffixSource name sourceDomain sourceBody bi bodyTarget,
+          ∃ (suffixSource : Expr) (name : Name)
+            (sourceDomain sourceBody : Expr) (bi : BinderInfo)
+            (bodyTarget : VExpr),
             Expr.ForallTelescope
               (H.generated.entry owner howner).info.type
               (T.params.length + owner) suffixSource ∧
@@ -55415,11 +55419,11 @@ theorem
             TrExprS H.outVEnv Us
               (abstractForallContext
                 (T.params ++ T.motives.take owner) [])
-              sourceDomain T.motives[owner] ∧
+              sourceDomain T.motives[owner]! ∧
             H.outVEnv.IsType Us.length
               (abstractForallContext
                 (T.params ++ T.motives.take owner) []).toCtx
-              T.motives[owner] := by
+              T.motives[owner]! := by
   dsimp only
   rcases A.finalCanonicalParameterAlignment with
     ⟨T, C, hparameters⟩
@@ -55443,19 +55447,33 @@ theorem
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
   have HoriginBinder :=
     selections.ownerMotiveBinderAt hselectionNoAlias D
-  let E := H.generated.entry owner howner
-  rw [← E.type] at HoriginBinder
+  have HoriginBinderStats : Expr.ForallBinderAt
+      (H.generated.entry owner howner).info.type
+      (stats.params.size + owner)
+      (D.type.abstractList
+        (H.params.fvars ++ H.bindings.motives.fvars.take owner)) := by
+    rw [(H.generated.entry owner howner).type]
+    simpa [selections, RecInfoBindings.toRecursorLocalSelections,
+      BoundFVarArray.toLocalForallSelection] using HoriginBinder
+  have HoriginBinder' : Expr.ForallBinderAt
+      (H.generated.entry owner howner).info.type
+      (T.params.length + owner)
+      (D.type.abstractList
+        (H.params.fvars ++ H.bindings.motives.fvars.take owner)) := by
+    simpa [T.params_length] using HoriginBinderStats
   rcases T.ownerMotiveBinder hmotive with
     ⟨suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
       Hsource, hsource, Hdomain, HdomainType⟩
   have HsourceBinder := Hsource.binderAt hsource
   have hsourceDomain : sourceDomain = D.type.abstractList
       (H.params.fvars ++ H.bindings.motives.fvars.take owner) := by
-    have heq := HsourceBinder.unique HoriginBinder
+    have heq := HsourceBinder.unique HoriginBinder'
     simpa [selections, RecInfoBindings.toRecursorLocalSelections] using heq
   exact ⟨T, C, hparameters, D, hdeclarationOrigin, hdeclarationShape,
     suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
-    Hsource, hsource, hsourceDomain, Hdomain, HdomainType⟩
+    Hsource, hsource, hsourceDomain,
+    by simpa [getElem!_pos T.motives owner hmotive] using Hdomain,
+    by simpa [getElem!_pos T.motives owner hmotive] using HdomainType⟩
 
 /-- Reduced owner-motive bridge with all positional witnesses rewritten
 away.  The left side is now the exact production declaration shape closed
@@ -55491,11 +55509,11 @@ theorem
             (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
               (.sort H.elimLevel))).abstractList
                 (H.params.fvars ++ H.bindings.motives.fvars.take owner))
-          T.motives[owner] ∧
+          T.motives[owner]! ∧
         H.outVEnv.IsType Us.length
           (abstractForallContext
             (T.params ++ T.motives.take owner) []).toCtx
-          T.motives[owner] := by
+          T.motives[owner]! := by
   dsimp only
   rcases A.finalOwnerMotiveFrame with
     ⟨T, C, hparameters, D, _hdeclarationOrigin, hdeclarationShape,
