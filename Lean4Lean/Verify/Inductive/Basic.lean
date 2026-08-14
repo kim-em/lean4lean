@@ -19828,6 +19828,29 @@ structure RecursorMotiveFrameWF
       ((VExpr.wrapForalls indexDomains
         (.forallE majorTarget (.sort resultLevel))).liftN
           indices.size 0).liftN 1 0
+  /-- Exact generated motive telescope before it is weakened back through
+  the freshly opened indices and major.  Retaining this checked form makes
+  the production motive comparable with the independently replayed
+  canonical telescope in their common outer context. -/
+  motiveClosed :
+    let majorTy :=
+      (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+        indices).consumeTypeAnnotations
+    let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
+      majorTr majorType
+    let cMajor : AddInductive.Context := { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ `t majorTy .default }
+    let major := Expr.fvar ⟨c.ngen.curr⟩
+    let motiveTy := cMajor.lctx.mkForall indices <|
+      cMajor.lctx.mkForall #[major] <| .sort elimLevel
+    ∃ hsize : indices.size ≤ Rindices.mlctx.length,
+      ∃ closedTarget,
+        TrExprS Rindices.venv recLparams
+          (Rindices.mlctx.dropN indices.size hsize).vlctx
+          motiveTy.consumeTypeAnnotations closedTarget ∧
+        Rindices.venv.IsType recLparams.length
+          (Rindices.mlctx.dropN indices.size hsize).vlctx.toCtx closedTarget
   motiveTr :
     let majorTy :=
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
@@ -29147,6 +29170,7 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
         simp only [MLCtxForallDomains, List.nil_append]
       rw [hmajorDomains]
       rfl
+    motiveClosed := ?_
     motiveTr := ?_
     motiveType := ?_
     motiveSourceEq := ?_ }⟩
@@ -29158,6 +29182,12 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
       (AddInductive.getRecLevelParams elimLevel c'.lparams).length
       Rindices.mlctx.vlctx.toCtx majorTarget
     exact Hdom'.isType
+  · refine ⟨hindicesSize,
+      Rindices.mlctx.mkForall' indices.size hindicesSize
+        (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)), ?_, ?_⟩
+    · rw [hconsumeMotive]
+      exact hmotiveClosed.1
+    · exact hmotiveClosed.2
   · change TrExprS Rmajor.venv
       (AddInductive.getRecLevelParams elimLevel c'.lparams)
       Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotations _
@@ -29338,9 +29368,16 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
         simp only [MLCtxForallDomains, List.nil_append]
       rw [hmajorDomains]
       rfl
+    motiveClosed := ?_
     motiveTr := ?_
     motiveType := ?_
     motiveSourceEq := ?_ }⟩
+  · refine ⟨hindicesSize,
+      Rindices.mlctx.mkForall' indices.size hindicesSize
+        (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)), ?_, ?_⟩
+    · rw [hconsumeMotive]
+      exact hmotiveClosed.1
+    · exact hmotiveClosed.2
   · change TrExprS Rmajor.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams)
       Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotations _
