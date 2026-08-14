@@ -59774,6 +59774,17 @@ theorem
           parameterTargets =
             (List.ofFn fun i : Fin stats.params.size =>
               VExpr.bvar (A.rule.binders.length - 1 - i)) ∧
+          (let familyTarget :=
+              VExpr.mkApps
+                (.const (decl.types[owner]'A.abstractOwner_lt).name levels)
+                parameterTargets
+            ∃ familyType,
+              (fieldResult.liftN
+                  (T.motives ++ T.minors).length
+                  A.rule.allArgs.size) =
+                VExpr.mkApps familyTarget indexTargets ∧
+              H.outVEnv.HasType Us.length cachedDomains.reverse
+                familyTarget familyType) ∧
           indexTargets.length = T.indices.length ∧
           List.Forall₂
             (TrExprS H.outVEnv Us
@@ -59891,10 +59902,32 @@ theorem
     exact (Lean4Lean.VerifyInductive.TrExprS.forall₂_unique HuniqueCtx
       A.rule.abstractedParamsUnique HcanonicalParameters
       HparameterTargets).symm
+  let familyTarget := VExpr.mkApps
+    (.const (decl.types[owner]'A.abstractOwner_lt).name levels)
+    parameterTargets
+  have hfamilyApplication :
+      (fieldResult.liftN
+          (T.motives ++ T.minors).length A.rule.allArgs.size) =
+        VExpr.mkApps familyTarget indexTargets := by
+    have hrebuild := VExpr.mkApps_getAppFnArgs
+      (fieldResult.liftN
+        (T.motives ++ T.minors).length A.rule.allArgs.size)
+    rw [hspine] at hrebuild
+    simpa [familyTarget, VExpr.mkApps_append] using hrebuild.symm
+  have HfieldResultType := HmajorCached.isType H.outVEnvWF HcachedCtx
+  have HfieldResultWF : VExpr.WF H.outVEnv Us.length cachedDomains.reverse
+      (fieldResult.liftN
+        (T.motives ++ T.minors).length A.rule.allArgs.size) := by
+    rcases HfieldResultType with ⟨fieldLevel, HfieldResultType⟩
+    exact ⟨.sort fieldLevel, HfieldResultType⟩
+  rw [hfamilyApplication] at HfieldResultWF
+  rcases VExpr.WF.mkApps_fn H.outVEnvWF.ordered HcachedCtx
+      HfieldResultWF with ⟨familyType, Hfamily⟩
   exact ⟨T, fieldDomains, fieldResult, introTarget, levels,
     parameterTargets, indexTargets, hparams, hfields, Hfull, HcachedCtx,
     HmajorCached, HprefixCached, Htarget, HintroShape, HprefixTr',
     HmajorTr', hspine, HparameterTargets, hparameterTargets,
+    (by exact ⟨familyType, hfamilyApplication, Hfamily⟩),
     hindexLength, HindexTargets⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
