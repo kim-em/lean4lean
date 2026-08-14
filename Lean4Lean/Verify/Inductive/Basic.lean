@@ -18844,6 +18844,30 @@ theorem RecursorParameterContextSuffix.parameterDecls_length
   have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.cached
   simpa using hlength.symm
 
+/-- The cached parameter identifiers form a dependency-closed subset of the
+whole recursor context.  Generated motives and minors are newer ambient
+declarations, so excluding them cannot hide a dependency of a parameter. -/
+theorem RecursorParameterContextSuffix.parameterFVarsUp
+    (H : RecursorParameterContextSuffix R stats depth) :
+    IsFVarUpSet (fun fv => fv ∈ ExprArrayFVarIds stats.params)
+      R.mlctx.vlctx := by
+  have hwf : VLCtx.WF R.venv recLparams.length
+      (H.ambientDecls ++ H.parameterDecls) := by
+    rw [← H.context]
+    exact R.mlctx_wf.tr.wf
+  have hcached := IsFVarUpSet.suffixFVars H.parameterDecls
+    H.ambientDecls hwf
+  have hcongr : ∀ fv ∈
+      (H.ambientDecls ++ H.parameterDecls).fvars,
+      fv ∈ H.parameterDecls.fvars ↔
+        fv ∈ ExprArrayFVarIds stats.params := by
+    intro fv _
+    rw [H.parameterDecls_fvars]
+    simp
+  have hconverted :=
+    (IsFVarUpSet.congr hwf.fvwf hcongr).mp hcached
+  simpa [H.context] using hconverted
+
 theorem RecursorParameterContextSuffix.depth_le
     (H : RecursorParameterContextSuffix R stats depth) :
     depth ≤ R.mlctx.length := by
@@ -25313,6 +25337,10 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       (TrExprS R.venv recLparams R.mlctx.vlctx) u.toList args)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R bu)
     (Hopening : ConstructorFieldOpening source t bu)
+    {P : FVarId → Prop}
+    (hsourceScope : source.FVarsIn P)
+    (hcurrentUp : IsFVarUpSet
+      (fun fv => fv ∈ Hopening.fvars ∨ P fv) R.mlctx.vlctx)
     {appliedTarget : VExpr}
     (happlied : TrExprS R.venv recLparams R.mlctx.vlctx
       (mkAppN head bu) appliedTarget)
@@ -25335,7 +25363,10 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
       RecursorRecentBoundFVarArray Rroot Rcurrent bu' →
-      ConstructorFieldOpening source t' bu' →
+      (Hopening' : ConstructorFieldOpening source t' bu') →
+      t'.FVarsIn (fun fv => fv ∈ Hopening'.fvars ∨ P fv) →
+      IsFVarUpSet (fun fv => fv ∈ Hopening'.fvars ∨ P fv)
+        Rcurrent.mlctx.vlctx →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN head bu') appliedTarget' →
       Rcurrent.venv.HasType recLparams.length
@@ -25478,12 +25509,56 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         rw [← R.mlctx_wf.tr.fvars_eq, R.lctx_eq] at hbase
         exact R.toBindingContextWF.current_not_mem hbase
       let Hopening' := Hopening.push hcurrentFresh hbodyFresh
+      have hcurrentScope := Hopening.currentFVarsIn hsourceScope
+      have hdomScope : dom.FVarsIn
+          (fun fv => fv ∈ Hopening.fvars ∨ P fv) := hcurrentScope.1
+      have hnewNotCurrent : (⟨c.ngen.curr⟩ : FVarId) ∉
+          R.mlctx.vlctx.fvars := by
+        intro hmem
+        rw [← R.mlctx_wf.tr.fvars_eq, R.lctx_eq] at hmem
+        exact R.toBindingContextWF.current_not_mem hmem
+      have hcurrentUp' : IsFVarUpSet
+          (fun fv => fv ∈ Hopening'.fvars ∨ P fv)
+          R.mlctx.vlctx := by
+        apply (IsFVarUpSet.congr R.mlctx_wf.tr.fvwf ?_).mp hcurrentUp
+        intro fv hfv
+        constructor
+        · intro h
+          rcases h with h | h
+          · exact Or.inl (by
+              change fv ∈ Hopening.fvars ++ [⟨c.ngen.curr⟩]
+              exact List.mem_append_left _ h)
+          · exact Or.inr h
+        · intro h
+          rcases h with h | h
+          · change fv ∈ Hopening.fvars ++ [⟨c.ngen.curr⟩] at h
+            rcases List.mem_append.mp h with h | h
+            · exact Or.inl h
+            · simp only [List.mem_singleton] at h
+              subst fv
+              exact False.elim (hnewNotCurrent hfv)
+          · exact Or.inr h
+      have hnextUp : IsFVarUpSet
+          (fun fv => fv ∈ Hopening'.fvars ∨ P fv)
+          R'.mlctx.vlctx := by
+        change IsFVarUpSet _
+          ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+            R.mlctx.vlctx)
+        refine ⟨hcurrentUp', fun _ dep hdep => ?_⟩
+        have hdep' : dep ∈ dom.fvarsList := by simpa using hdep
+        have hselected := hdomScope dep hdep'
+        rcases hselected with hfield | hparam
+        · exact Or.inl (by
+            change dep ∈ Hopening.fvars ++ [⟨c.ngen.curr⟩]
+            exact List.mem_append_left _ hfield)
+        · exact Or.inr hparam
       refine Hclass.bind fun selected hselected => ?_
       cases selected with
       | none =>
         exact ih R' Hstats' (by omega) hctx' hopened
           hconsumedBodyType (.nonrecursive hfields) hargsWeak Hrecent'
-          Hopening' happlied' happliedType'
+          Hopening' hsourceScope hnextUp happlied' happliedType'
       | some target =>
         rcases hselected target rfl with ⟨howner, hrecursive⟩
         let cert : RecursorRecursiveDomainAt
@@ -25504,11 +25579,12 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         exact ih R' Hstats' (by omega) hctx' hopened
           hconsumedBodyType
           (.recursive hfields (cert := cert) rfl) hargs' Hrecent'
-          Hopening' happlied' happliedType'
+          Hopening' hsourceScope hnextUp happlied' happliedType'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
       exact Hk R rfl htype htypeType hfields hargs Hrecent
-        Hopening happlied happliedType
+        Hopening (Hopening.currentFVarsIn hsourceScope) hcurrentUp
+        happlied happliedType
 
 end mkRecInfos.loopCtorArgs.loop
 
@@ -25537,6 +25613,9 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
     (htailType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx tailTarget)
+    {P : FVarId → Prop}
+    (htailScope : tail.FVarsIn P)
+    (hrootUp : IsFVarUpSet P R.mlctx.vlctx)
     {appliedTarget : VExpr}
     (happlied : TrExprS R.venv recLparams R.mlctx.vlctx
       head appliedTarget)
@@ -25559,7 +25638,10 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
       RecursorRecentBoundFVarArray R Rcurrent bu' →
-      ConstructorFieldOpening tail t' bu' →
+      (Hopening : ConstructorFieldOpening tail t' bu') →
+      t'.FVarsIn (fun fv => fv ∈ Hopening.fvars ∨ P fv) →
+      IsFVarUpSet (fun fv => fv ∈ Hopening.fvars ∨ P fv)
+        Rcurrent.mlctx.vlctx →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN head bu') appliedTarget' →
       Rcurrent.venv.HasType recLparams.length
@@ -25583,6 +25665,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       stats head k R R Hstats (Nat.le_refl _) hwhnf hconsume hlit hctx hproj
       htail htailType .nil .nil (RecursorRecentBoundFVarArray.empty R)
       (ConstructorFieldOpening.empty tail)
+      htailScope (by simpa using hrootUp)
       (by simpa [mkAppN] using happlied) happliedType Hk
   exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
     inputContext.fuel.inductiveFuel
@@ -38138,6 +38221,9 @@ structure BoundGeneratedRecursorRule.Semantics
   parameterTail_fvars :
     parameterTail.FVarsIn (· ∈ ExprArrayFVarIds stats.params)
   fieldOpening : ConstructorFieldOpening parameterTail H.target H.allArgs
+  fieldParameterUp : IsFVarUpSet (fun fv =>
+    fv ∈ fieldsRecent.fvars ∨
+      fv ∈ ExprArrayFVarIds stats.params) context.mlctx.vlctx
   context_venv : context.venv = Rroot.venv
   validStats : RecursorValidAppStatsWF context.venv recLparams
     context.mlctx.vlctx stats decl depth
@@ -38767,6 +38853,8 @@ theorem oneRuleSemantics
       R.mlctx.vlctx stats decl depth)
     (hprefix : RecursorParamPrefix stats 0 ctor.type tail)
     (htailFVars : tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params))
+    (hparameterUp : IsFVarUpSet
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params) R.mlctx.vlctx)
     (howner : ownerIdx < decl.types.length)
     (Hnormal : CheckedConstructorOwnerNormalForm stats ownerIdx tail)
     (hwhnf : WhnfLParamsCompat)
@@ -38831,11 +38919,11 @@ theorem oneRuleSemantics
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
       process c R Hstats hprefix hwhnf hconsume hlit hctx hproj Htail
-      HtailType Hintro HintroType
+      HtailType htailFVars hparameterUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allArgs
     recursiveArgs fields args hterminalNonforall Hterminal HterminalType
-    Hselection Hrecursive HfieldsRecent _Hopening _HintroApplied
-    _HintroAppliedType
+    Hselection Hrecursive HfieldsRecent _Hopening _HterminalScope
+    _HfieldParameterUp _HintroApplied _HintroAppliedType
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
   have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
       Rargs.mlctx.vlctx :=
@@ -38955,6 +39043,11 @@ theorem oneRuleSemantics
     parameterPrefix := hprefix
     parameterTail_fvars := htailFVars
     fieldOpening := _Hopening
+    fieldParameterUp := by
+      rw [_Hopening.fvars_eq_bound
+        HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at
+          _HfieldParameterUp
+      exact _HfieldParameterUp
     context_venv := HfieldsRecent.venv_eq
     validStats := HstatsArgs
     ownerIdx := selectedOwner
@@ -39005,6 +39098,8 @@ theorem semanticGeneratedRules
     (Hminors : BoundFVarArray c minors)
     (HouterNodup : ((Hparams.fvars ++ Hmotives.fvars) ++
       Hminors.fvars).Nodup)
+    (hparameterUp : IsFVarUpSet
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params) R.mlctx.vlctx)
     (hminorsRoom : start + ctors.length ≤ minors.size)
     (Hseed : ∀ ctor, ctor ∈ ctors →
       ∃ tail tailTarget introTarget,
@@ -39036,7 +39131,7 @@ theorem semanticGeneratedRules
           Htail, HtailType, Hintro, HintroType⟩
       rw [AddInductive.mkRecRules.loopCtors]
       have Hone := oneRuleSemantics indTypes stats motives minors lvls ctor
-        start ownerIdx R Hstats Hprefix HtailFVars howner Hnormal hwhnf
+        start ownerIdx R Hstats Hprefix HtailFVars hparameterUp howner Hnormal hwhnf
         hconsume hlit hctx hproj Htail
         HtailType Hintro HintroType Hparams Hmotives Hminors HouterNodup
         (by simp at hminorsRoom; omega)
@@ -39059,7 +39154,7 @@ theorem semanticGeneratedRules
           intro nextCtor hmem
           exact Hseed nextCtor (by simp [hmem])
         have Htail := ih (acc := acc.push out.1) (start := out.2)
-          (by simp at hminorsRoom ⊢; omega) HtailSeed
+          hparameterUp (by simp at hminorsRoom ⊢; omega) HtailSeed
         exact Htail.mono fun result Hresult => by
           rcases Hresult with ⟨generated, hout, Hgenerated, hend⟩
           refine ⟨out.1 :: generated, ?_, ?_, ?_⟩
@@ -39261,6 +39356,8 @@ theorem mkRecRules.semanticGeneratedRules
     (Hminors : BoundFVarArray c minors)
     (HouterNodup : ((Hparams.fvars ++ Hmotives.fvars) ++
       Hminors.fvars).Nodup)
+    (hparameterUp : IsFVarUpSet
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params) R.mlctx.vlctx)
     (hminorsRoom : start + indTypes[dIdx]!.ctors.length ≤ minors.size)
     (Hseed : ∀ ctor, ctor ∈ indTypes[dIdx]!.ctors →
       ∃ tail tailTarget introTarget,
@@ -39283,7 +39380,7 @@ theorem mkRecRules.semanticGeneratedRules
   have H := mkRecRules.loopCtors.semanticGeneratedRules indTypes stats
     motives minors (AddInductive.getRecLevels elimLevel stats.levels)
     indTypes[dIdx]!.ctors #[] start dIdx R Hstats howner hwhnf hconsume hlit hctx
-    hproj Hparams Hmotives Hminors HouterNodup hminorsRoom Hseed
+    hproj Hparams Hmotives Hminors HouterNodup hparameterUp hminorsRoom Hseed
   exact H.mono fun out Hout => by
     rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
     simpa using ⟨hout ▸ Hgenerated, hend⟩
@@ -39354,6 +39451,8 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
+    (hparameterUp : IsFVarUpSet
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params) R.mlctx.vlctx)
     (Hseed : ∀ ctor, ctor ∈ indTypes[dIdx]!.ctors →
       ∃ tail tailTarget introTarget,
         RecursorParamPrefix stats 0 ctor.type tail ∧
@@ -39394,7 +39493,7 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
     (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
     (recursorMinorOffset indTypes dIdx) R Hstats howner hwhnf hconsume hlit hctx
     hproj Hparams Hbindings.motives Hbindings.flatMinors
-    (Hbindings.outerNodup Hparams hnoalias) hroom Hseed
+    (Hbindings.outerNodup Hparams hnoalias) hparameterUp hroom Hseed
   exact H.mono fun out Hout => by
     refine ⟨Hout.1, ?_⟩
     rw [Hout.2, recursorMinorOffset_step indTypes dIdx hidx]
@@ -39900,6 +39999,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hprefix : RecursorParamPrefix stats 0 ctor.type tail)
+    (htailScope : tail.FVarsIn
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params))
     (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
@@ -40004,10 +40105,11 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
       process c R Hstats hprefix hwhnf hconsume hlit hctx hproj htail
-      htailType Hintro HintroType
+      htailType htailScope Hsuffix.parameterFVarsUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allFields
     recursiveFields fields args HterminalNonforall Hterminal HterminalType Hselections
-    Hrecursive HfieldsRecent Hopening HintroApplied HintroAppliedType
+    Hrecursive HfieldsRecent Hopening _HterminalScope _HfieldParameterUp
+    HintroApplied HintroAppliedType
   let HextArgs := HfieldsRecent.contextExtension
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
   have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
@@ -40235,6 +40337,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       ∃ tail tailTarget introTarget,
         RecursorParamPrefix stats 0 ctor.type tail ∧
         Nonempty (CheckedConstructorOwnerNormalForm stats dIdx tail) ∧
+        tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
         TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
           tail tailTarget ∧
         Rcurrent.venv.IsType recLparams.length
@@ -40281,14 +40384,14 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         Harities Hroot
   | cons ctor ctors ih =>
       rcases Hseed R rfl Hsuffix rfl ctor (by simp) with
-        ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, Htail,
+        ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailScope, Htail,
           HtailType, Hintro, HintroType⟩
       rw [AddInductive.mkRecInfos.loopCtors]
       refine oneConstructorSemantics (Q := Q) stats indTypeName dIdx recInfos
         ctor tail
         (fun next => AddInductive.mkRecInfos.loopCtors stats indTypeName
           dIdx next ctors k)
-        R Hsuffix Hstats Hprefix hwhnf hconsume hlit hctx hproj Htail
+        R Hsuffix Hstats Hprefix HtailScope hwhnf hconsume hlit hctx hproj Htail
         HtailType Hintro HintroType Hbindings Horigins HmajorTypes
         HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows
         Hparams HnoAlias Hroot hidx Harities hrecords Hnormal ?_
@@ -43266,6 +43369,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
+    (hparameterUp : IsFVarUpSet
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params) R.mlctx.vlctx)
     (Hseed : ∀ owner (howner : owner < indTypes.size),
       ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
         ∃ tail tailTarget introTarget,
@@ -43314,7 +43419,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
   · rw [dif_pos hidx]
     have Hrules := Hcard.mkRecRulesAtOffsetSemanticWF Hdecl elimLevel dIdx
       hidx R Hstats hwhnf hconsume hlit hctx hproj Hbindings Hparams
-      hnoalias (Hseed dIdx hidx)
+      hnoalias hparameterUp (Hseed dIdx hidx)
     exact Hrules.bind fun generated Hgenerated => by
       let info := AddInductive.declareRecursors.recursorInfo stats indTypes
         elimLevel recInfos numMinors numMotives all c.lctx k isUnsafe
@@ -43366,7 +43471,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
             hle.trans (VEnv.addConst_le haddInfo)
           have Htail := AddInductive.declareRecursors.loop.semanticWF Hcard
             Hdecl c R Hstats hwhnf hconsume hlit hctx hproj Hbindings
-            Hparams hnoalias Hseed numMinors numMotives all k isUnsafe
+            Hparams hnoalias hparameterUp Hseed numMinors numMotives all k isUnsafe
             allowPrimitive (dIdx + 1) (by omega)
             (env.add (.recInfo info)) HnextValid hnextLe Htranslate hnprim
           rw [Hgenerated.2]
@@ -43534,6 +43639,8 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
+    (hparameterUp : IsFVarUpSet
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params) R.mlctx.vlctx)
     (Hseed : ∀ owner (howner : owner < indTypes.size),
       ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
         ∃ tail tailTarget introTarget,
@@ -43585,7 +43692,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
     refine Hcheck.bind fun _ Htypes => ?_
     have Hloop := AddInductive.declareRecursors.loop.semanticWF
       (elimLevel := elimLevel) Hcard Hdecl c R Hstats hwhnf hconsume hlit
-      hctx hproj Hbindings Hparams hnoalias Hseed
+      hctx hproj Hbindings Hparams hnoalias hparameterUp Hseed
       (recInfos.flatMap (·.minors)).size
       (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList k
       (c.safety != .safe) c.allowPrimitive 0 (by omega) c.env
@@ -55915,7 +56022,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
   have Hrecursors := AddInductive.declareRecursors.bindingSemanticWF
     (elimLevel := elimLevel) Hvalid Rlocal.toBindingContextWF Rlocal
     HstatsLocal hwhnf hconsume hlit hctxLocal hproj Hcard Hcore Hbindings
-    Hparams hnoalias Hseed (by
+    Hparams hnoalias HsuffixLocal.parameterFVarsUp Hseed (by
       rw [Hle.safety_eq]
       exact hnotPartial) hnprim
   have hclosedLocal : MutualInductivesClosed localContext.env := by
