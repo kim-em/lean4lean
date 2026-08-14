@@ -60778,6 +60778,86 @@ theorem
   rw [← huvars] at hrec
   exact F.telescope.prefixTyping H.outVEnvWF.ordered hrec
 
+/-- Transport the selected mutual recursor's common-prefix application into
+the current equation owner's canonical common prefix, then weaken it under
+the constructor fields.  This is the typing premise required to translate a
+cross-family recursive-call prefix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.prefixTypingInEquationContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr)
+    (Hctx : OnCtx
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+    H.outVEnv.HasType Us.length
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      ((VExpr.mkApps
+          ((VExpr.const recursor.name
+            (VLevel.params Us.length)).liftN
+            (T.params ++ T.motives ++ T.minors).length 0)
+          (recursorCanonicalVars
+            (T.params ++ T.motives ++ T.minors).length)).liftN
+        fieldDomains.length 0)
+      ((VExpr.wrapForalls
+        (F.telescope.indices ++ F.telescope.major)
+        F.telescope.result).liftN fieldDomains.length 0) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+  let ownerOuter := T.params ++ T.motives ++ T.minors
+  let selectedOuter := F.telescope.params ++ F.telescope.motives ++
+    F.telescope.minors
+  have Hcommon := H.finalRecursorCommonPrefixContextAt
+    owner howner selectedOwner F.entry_lt T F.telescope
+  have HownerCtx : OnCtx (fieldDomains.reverse ++ ownerOuter.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [ownerOuter, List.reverse_append, List.append_assoc] using Hctx
+  have Hfull :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      Hcommon HownerCtx
+  have Hselected := F.prefixTyping
+  have HselectedWeak := Hselected.weakN H.outVEnvWF.ordered
+    (Ctx.LiftN.zero fieldDomains.reverse)
+  have Htransported := HselectedWeak.defeqDFC H.outVEnvWF.ordered
+    (Hfull.symm H.outVEnvWF.ordered)
+  have hparamsLength : F.telescope.params.length = T.params.length := by
+    rw [F.telescope.params_length, T.params_length]
+  have hmotivesLength : F.telescope.motives.length = T.motives.length := by
+    rw [F.telescope.motives_length, T.motives_length]
+  have hminorsLength : F.telescope.minors.length = T.minors.length := by
+    rw [F.telescope.minors_length, T.minors_length]
+  have houterLength :
+      (F.telescope.params ++ F.telescope.motives ++
+        F.telescope.minors).length =
+      (T.params ++ T.motives ++ T.minors).length := by
+    simp only [List.length_append, hparamsLength, hmotivesLength,
+      hminorsLength]
+  rw [houterLength] at Htransported
+  simpa [selectedOuter, ownerOuter, List.reverse_append,
+    List.append_assoc] using Htransported
+
 /-- The parameter group of the call-selected generated recursor is
 definitionally equal to the independently replayed canonical parameter
 group for that same mutual family. -/
