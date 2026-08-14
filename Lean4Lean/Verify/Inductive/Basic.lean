@@ -63799,6 +63799,187 @@ theorem
     rfl, hfields, hlocal, HequationCtx, ?_⟩
   simpa [List.map_map, Function.comp_def] using HliftedIndices
 
+/-- Insert motives and minors into the shared recursive-call argument frame.
+The narrowed indices and major are lifted at one common field/local cutoff,
+ready to be consumed as a single generated-recursor suffix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.insertedSemanticCallArgumentFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+    let inserted := T.motives ++ T.minors
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+        ∃ scope,
+          ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+              H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+            ∃ fieldDomains localDomains liftedFront narrowIndices narrowMajor,
+              Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
+              liftedFront =
+                (liftContextPrefix inserted.length
+                  (fieldDomains ++ localDomains).reverse).reverse ∧
+              fieldDomains.length = A.rule.allArgs.size ∧
+              localDomains.length = F.semantic.generated.localArgs.size ∧
+              OnCtx
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront)
+                  []).toCtx
+                (H.outVEnv.IsType Us.length) ∧
+              evidence.indices.length = F.telescope.indices.length ∧
+              List.Forall₂
+                (TrExprS H.outVEnv Us
+                  (abstractForallContext
+                    (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront)
+                    []))
+                (sourceIndices.map fun index =>
+                  ((((index.abstractList
+                    F.semantic.generated.arguments_bound.fvars).abstractList
+                      A.rule.all_args_bound.fvars
+                      F.semantic.generated.localArgs.size).abstractList
+                        A.rule.params_bound.fvars cutoff).liftLooseBVars'
+                          cutoff inserted.length))
+                (narrowIndices.map fun target =>
+                  target.liftN inserted.length cutoff) ∧
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) [])
+                (((F.semantic.generated.outerAbstractedMajor
+                  A.rule.all_args_bound.fvars).abstractList
+                    A.rule.params_bound.fvars cutoff).liftLooseBVars'
+                      cutoff inserted.length)
+                (narrowMajor.liftN inserted.length cutoff) ∧
+              List.Forall₂
+                (fun narrow full => H.outVEnv.IsDefEqU Us.length
+                  F.semantic.current_context.mlctx.vlctx.toCtx
+                  (narrow.lift' Hscope.shift) full)
+                narrowIndices evidence.indices ∧
+              H.outVEnv.IsDefEqU Us.length
+                F.semantic.current_context.mlctx.vlctx.toCtx
+                F.semantic.appliedFieldTarget
+                (narrowMajor.lift' Hscope.shift) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+  let inserted := T.motives ++ T.minors
+  rcases F.parameterClosedSemanticCallArgumentFrame with
+    ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
+      narrowIndices, narrowMajor, hfront, hfields, hlocal, HclosedCtx,
+      hlength, Hindices, Hmajor, HindexEq, HmajorEq⟩
+  let liftedFront :=
+    (liftContextPrefix inserted.length
+      (fieldDomains ++ localDomains).reverse).reverse
+  rcases A.finalRecursorParameterContext with ⟨T₀, hparams⟩
+  rcases T₀.groupsResult_eq T with
+    ⟨hparamsT, _hmotives, _hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparamsT] at hparams
+  have HprefixCanonical := T.prefixContext H.outVEnvWF.ordered
+  have HprefixCanonical' : OnCtx
+      (inserted.reverse ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [inserted, Us, List.reverse_append, List.append_assoc] using
+      HprefixCanonical
+  have HprefixEq :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      hparams HprefixCanonical'
+  have Hinserted : OnCtx
+      (inserted.reverse ++ parameterDecls.toCtx)
+      (H.outVEnv.IsType Us.length) := by
+    have := (HprefixEq.symm H.outVEnvWF.ordered).isType
+    simpa [inserted, parameterDecls, H.parameterDecls, Us,
+      List.reverse_append, List.append_assoc] using this
+  have Hrecent : OnCtx
+      ((fieldDomains ++ localDomains).reverse ++ parameterDecls.toCtx)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [parameterDecls, Us, List.reverse_append,
+      List.append_assoc, VLCtx.toCtx] using HclosedCtx
+  have HliftedCtx := Lean4Lean.OnCtx.insertAfterPrefix
+    H.outVEnvWF.ordered Hrecent Hinserted
+  have HequationCtx : OnCtx
+      (abstractForallContext
+        (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    simpa [liftedFront, List.reverse_append, List.append_assoc,
+      VLCtx.toCtx] using HliftedCtx
+  have hcutoff : (fieldDomains ++ localDomains).length = cutoff := by
+    simp [cutoff, hfields, hlocal, Nat.add_comm]
+  have liftSource : ∀ {source target},
+      TrExprS H.outVEnv Us
+        (abstractForallContext
+          (parameterDecls.toCtx.reverse ++ fieldDomains ++ localDomains) [])
+        source target →
+      TrExprS H.outVEnv Us
+        (abstractForallContext
+          (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) [])
+        (source.liftLooseBVars' cutoff inserted.length)
+        (target.liftN inserted.length cutoff) := by
+    intro source target Hsource
+    have Hlifted := Hsource.insertBeforeInner H.outVEnvWF.ordered inserted
+    simpa [liftedFront, hcutoff, List.append_assoc] using Hlifted
+  have liftSources : ∀ {sources targets},
+      List.Forall₂
+        (TrExprS H.outVEnv Us
+          (abstractForallContext
+            (parameterDecls.toCtx.reverse ++ fieldDomains ++ localDomains) []))
+        sources targets →
+      List.Forall₂
+        (TrExprS H.outVEnv Us
+          (abstractForallContext
+            (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
+        (sources.map fun source =>
+          source.liftLooseBVars' cutoff inserted.length)
+        (targets.map fun target => target.liftN inserted.length cutoff) := by
+    intro sources targets Hsources
+    induction Hsources with
+    | nil => exact .nil
+    | cons Hsource _ ih => exact .cons (liftSource Hsource) ih
+  have HliftedIndices := liftSources Hindices
+  have HliftedIndices' : List.Forall₂
+      (TrExprS H.outVEnv Us
+        (abstractForallContext
+          (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
+      (sourceIndices.map fun index =>
+        ((((index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size).abstractList
+              A.rule.params_bound.fvars cutoff).liftLooseBVars'
+                cutoff inserted.length))
+      (narrowIndices.map fun target =>
+        target.liftN inserted.length cutoff) := by
+    simpa [List.map_map, Function.comp_def] using HliftedIndices
+  exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
+    liftedFront, narrowIndices, narrowMajor, hfront, rfl, hfields, hlocal,
+    HequationCtx, hlength, HliftedIndices', liftSource Hmajor,
+    HindexEq, HmajorEq⟩
+
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
 theorem RecursorPhasesResult.recursorUvarsAt
