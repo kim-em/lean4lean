@@ -61591,7 +61591,7 @@ theorem
           List.Forall₂
             (TrExprS H.outVEnv Us
               (abstractForallContext (fieldDomains ++ localDomains)
-                A.semantics.fieldRootContext.mlctx.vlctx))
+                H.recursorWF.mlctx.vlctx))
             ((F.semantic.generated.exposedType.getAppArgs[stats.params.size:]
                 ).toList.map fun index =>
               (index.abstractList
@@ -61639,7 +61639,7 @@ theorem
         List.Forall₂
             (TrExprS H.outVEnv Us
               (abstractForallContext (fieldDomains ++ localDomains)
-                A.semantics.fieldRootContext.mlctx.vlctx))
+                H.recursorWF.mlctx.vlctx))
             (sources.map fun index =>
               (index.abstractList
                 F.semantic.generated.arguments_bound.fvars).abstractList
@@ -61673,7 +61673,7 @@ theorem
           hlocalScope localDomains.length
       refine ⟨List.Forall₂.cons ?_ ih.1, ?_⟩
       · simpa [localDomains, fieldDomains, hlocalFvars,
-          hfieldFvars] using Hfield
+          hfieldFvars, A.semantics.fieldRoot_vlctx] using Hfield
       · intro closedSource hclosedSource
         simp only [List.map_cons, List.mem_cons] at hclosedSource
         rcases hclosedSource with rfl | hclosedSource
