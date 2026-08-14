@@ -329,6 +329,19 @@ theorem liftContextPrefixAt_append
     simp [liftContextPrefixAt, ih, Nat.add_assoc, Nat.add_comm,
       Nat.add_left_comm]
 
+/-- In outermost-to-innermost telescope order, inserting beneath a combined
+outer/inner prefix splits into the lifted outer domains followed by the
+inner domains lifted at the outer cutoff. -/
+theorem liftContextPrefix_reverse_append
+    (n : Nat) (outer inner : List VExpr) :
+    (liftContextPrefix n (outer ++ inner).reverse).reverse =
+      (liftContextPrefix n outer.reverse).reverse ++
+        (liftContextPrefixAt n outer.length inner.reverse).reverse := by
+  unfold liftContextPrefix
+  rw [List.reverse_append, liftContextPrefixAt_append,
+    List.reverse_append]
+  simp
+
 /-- Lifting a dependent forall telescope is dual to lifting its reversed
 context prefix. -/
 theorem VExpr.liftN_wrapForalls
@@ -66442,7 +66455,8 @@ theorem
         ∃ scope,
           ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
               H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
-            ∃ fieldDomains localDomains liftedFront narrowIndices narrowMajor,
+            ∃ (fieldDomains localDomains liftedFront : List VExpr)
+                (narrowIndices : List VExpr) (narrowMajor : VExpr),
               Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
               liftedFront =
                 (liftContextPrefix inserted.length
@@ -66790,6 +66804,165 @@ theorem
     (by simpa [source, cachedDomains] using Hcached)
   rw [← htarget] at Hcached
   simpa [source, cachedDomains] using Hcached
+
+/-- Weaken the cached selected-recursion prefix beneath the exact lifted
+higher-order domains produced by motive/minor insertion.  Splitting the
+lifted front preserves the constructor-field cutoff used by production's
+two-stage abstraction. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.cachedInsertedCommonPrefixTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains localDomains liftedFront : List VExpr)
+    (hliftedFront : liftedFront =
+      (liftContextPrefix (T.motives ++ T.minors).length
+        (fieldDomains ++ localDomains).reverse).reverse)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (hlocal : localDomains.length = F.semantic.generated.localArgs.size)
+    (Hctx :
+      let parameterDecls := H.parameterSuffix.parameterDecls
+      OnCtx
+        (abstractForallContext
+          (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors ++
+            liftedFront) []).toCtx
+        (H.outVEnv.IsType
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    let inserted := T.motives ++ T.minors
+    let outerDomains :=
+      parameterDecls.toCtx.reverse ++ inserted
+    let liftedFields :=
+      (liftContextPrefix inserted.length fieldDomains.reverse).reverse
+    let liftedLocals :=
+      (liftContextPrefixAt inserted.length fieldDomains.length
+        localDomains.reverse).reverse
+    let localPrefix :=
+      mkAppN
+        (mkAppN
+          (mkAppN
+            (.const F.semantic.generated.recursorName
+              (AddInductive.getRecLevels H.elimLevel stats.levels))
+            (stats.params.map fun arg => arg.abstractList
+              F.semantic.generated.arguments_bound.fvars))
+          ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
+            F.semantic.generated.arguments_bound.fvars))
+        ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
+          F.semantic.generated.arguments_bound.fvars)
+    let target :=
+      ((VExpr.mkApps
+          ((VExpr.const recursor.name (VLevel.params Us.length)).liftN
+            (T.params ++ T.motives ++ T.minors).length 0)
+          (recursorCanonicalVars
+            (T.params ++ T.motives ++ T.minors).length)).liftN
+        liftedFields.length 0).liftN liftedLocals.length 0
+    TrExprS H.outVEnv Us
+      (abstractForallContext
+        (outerDomains ++ liftedFields ++ liftedLocals) [])
+      (localPrefix.abstractList A.rule.binders
+        F.semantic.generated.localArgs.size) target := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let recursor := (H.entries[selectedOwner]'F.entry_lt).2
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  let inserted := T.motives ++ T.minors
+  let outerDomains := parameterDecls.toCtx.reverse ++ inserted
+  let liftedFields :=
+    (liftContextPrefix inserted.length fieldDomains.reverse).reverse
+  let liftedLocals :=
+    (liftContextPrefixAt inserted.length fieldDomains.length
+      localDomains.reverse).reverse
+  let localPrefix :=
+    mkAppN
+      (mkAppN
+        (mkAppN
+          (.const F.semantic.generated.recursorName
+            (AddInductive.getRecLevels H.elimLevel stats.levels))
+          (stats.params.map fun arg => arg.abstractList
+            F.semantic.generated.arguments_bound.fvars))
+        ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
+          F.semantic.generated.arguments_bound.fvars))
+      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
+        F.semantic.generated.arguments_bound.fvars)
+  let target :=
+    ((VExpr.mkApps
+        ((VExpr.const recursor.name (VLevel.params Us.length)).liftN
+          (T.params ++ T.motives ++ T.minors).length 0)
+        (recursorCanonicalVars
+          (T.params ++ T.motives ++ T.minors).length)).liftN
+      liftedFields.length 0).liftN liftedLocals.length 0
+  have hsplit : liftedFront = liftedFields ++ liftedLocals := by
+    rw [hliftedFront]
+    exact liftContextPrefix_reverse_append inserted.length
+      fieldDomains localDomains
+  have hfieldsLifted : liftedFields.length = A.rule.allArgs.size := by
+    simp [liftedFields, hfields]
+  have hlocalsLifted : liftedLocals.length =
+      F.semantic.generated.localArgs.size := by
+    simp [liftedLocals, hlocal]
+  have Hctx' : OnCtx
+      (outerDomains ++ liftedFields ++ liftedLocals).reverse
+      (H.outVEnv.IsType Us.length) := by
+    simpa [outerDomains, inserted, parameterDecls, Us, hsplit,
+      List.append_assoc, VLCtx.toCtx] using Hctx
+  have Hdropped := Hctx'.drop liftedLocals.length
+  have Houter : OnCtx (outerDomains ++ liftedFields).reverse
+      (H.outVEnv.IsType Us.length) := by
+    simpa [List.reverse_append, List.drop_append,
+      List.length_reverse] using Hdropped
+  have Hbase := F.cachedPrefixResidualTranslation
+    T liftedFields hfieldsLifted (by
+      simpa [outerDomains, inserted, parameterDecls, Us,
+        List.append_assoc] using Houter)
+  have Hbase' : TrExprS H.outVEnv Us
+      (abstractForallContext (outerDomains ++ liftedFields) [])
+      (mkAppN
+        (mkAppN
+          (mkAppN
+            (.const F.semantic.generated.recursorName
+              (AddInductive.getRecLevels H.elimLevel stats.levels))
+            (stats.params.map fun arg => arg.abstractList A.rule.binders))
+          ((H.recInfos.map (·.motive)).map fun arg =>
+            arg.abstractList A.rule.binders))
+        ((H.recInfos.flatMap (·.minors)).map fun arg =>
+          arg.abstractList A.rule.binders))
+      ((VExpr.mkApps
+          ((VExpr.const recursor.name
+            (VLevel.params Us.length)).liftN
+            (T.params ++ T.motives ++ T.minors).length 0)
+          (recursorCanonicalVars
+            (T.params ++ T.motives ++ T.minors).length)).liftN
+        liftedFields.length 0) := by
+    simpa [outerDomains, inserted, parameterDecls, Us, recursor,
+      selectedOwner, List.append_assoc] using Hbase
+  have Hweak := Hbase'.weakBV H.outVEnvWF.ordered
+    (abstractForallContext.bvLift liftedLocals
+      (abstractForallContext (outerDomains ++ liftedFields) []))
+  have hsource := F.outerAbstractedCommonPrefix_eq_lift
+  dsimp only at hsource
+  dsimp only [Us, selectedOwner, recursor, parameterDecls, inserted,
+    outerDomains, liftedFields, liftedLocals, localPrefix, target] at Hweak ⊢
+  rw [hsource]
+  simpa [hfields, hlocal, List.append_assoc] using Hweak
 
 /-- Weaken the canonical recursive-call prefix beneath the higher-order
 lambda domains and identify its source with the exact two-stage abstraction
