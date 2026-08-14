@@ -62049,10 +62049,10 @@ theorem
         scope.fvars = F.semantic.recent.fvars.reverse ++
           A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
         scope.drop Hscope.frontSourceDomains.length = parameterDecls ∧
-        ∃ fieldDomains localDomains,
-          fieldDomains.length = A.rule.allArgs.size ∧
+        ∃ localDomains,
+          B.fieldDomains.length = A.rule.allArgs.size ∧
           localDomains.length = F.semantic.generated.localArgs.size ∧
-          Hscope.frontSourceDomains = fieldDomains ++ localDomains := by
+          Hscope.frontSourceDomains = B.fieldDomains ++ localDomains := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls := H.parameterSuffix.parameterDecls
   rcases B with
@@ -62107,7 +62107,7 @@ theorem
     simpa [HlocalBase,
       checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime]
       using hfieldBase
-  refine ⟨scope, Hscope.mono hbase, ?_, ?_, fieldDomains, localDomains,
+  refine ⟨scope, Hscope.mono hbase, ?_, ?_, localDomains,
     hfieldDomains, hlocalDomains, ?_⟩
   · rw [hscopeFVars, hlocalRev, hfieldScopeFVars]
     simp [parameterDecls, List.append_assoc]
@@ -62150,7 +62150,11 @@ theorem
           localDomains.length = F.semantic.generated.localArgs.size ∧
           Hscope.frontSourceDomains = fieldDomains ++ localDomains := by
   rcases A.narrowFieldRuntimeFrame with ⟨B⟩
-  exact F.narrowRuntimeScopeFor B
+  rcases F.narrowRuntimeScopeFor B with
+    ⟨scope, Hscope, hscopeFVars, hscopeBase, localDomains,
+      hfields, hlocal, hfront⟩
+  exact ⟨scope, Hscope, hscopeFVars, hscopeBase,
+    B.fieldDomains, localDomains, hfields, hlocal, hfront⟩
 /-- The validated terminal application of a recursive call consumes the
 same canonical motive telescope retained for the call-selected mutual
 family.  This is the semantic index/major alignment needed to consume the
@@ -62889,7 +62893,9 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {A : H.GeneratedRuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
@@ -62907,6 +62913,9 @@ theorem
               A.semantics.fieldsRecent.fvars.reverse ++
                 parameterDecls.fvars ∧
             scope.drop Hscope.frontSourceDomains.length = parameterDecls ∧
+            ∃ localDomains,
+              localDomains.length = F.semantic.generated.localArgs.size ∧
+              Hscope.frontSourceDomains = B.fieldDomains ++ localDomains ∧
             ∃ narrowIndices,
               evidence.indices.length = F.telescope.indices.length ∧
               List.Forall₂ (TrExprS H.outVEnv Us scope)
@@ -62923,9 +62932,9 @@ theorem
   let parameterDecls := H.parameterSuffix.parameterDecls
   rcases F.finalSemanticMotiveApplication with
     ⟨binding, evidence, hlength, Hindices, _Happlication, _Htyping⟩
-  rcases F.narrowRuntimeScope with
+  rcases F.narrowRuntimeScopeFor B with
     ⟨scope, Hscope, hscopeFVars, hscopeBase,
-      _fieldDomains, _localDomains, _hfields, _hlocals, _hfront⟩
+      localDomains, _hfields, hlocal, hfront⟩
   have HsourceScope : ∀ source ∈ sourceIndices,
       source.FVarsIn (fun fv =>
         fv ∈ F.semantic.recent.fvars ∨ F.semantic.rootScope fv) := by
@@ -62990,6 +62999,7 @@ theorem
   rcases hnarrow Hindices (by intro source; exact id) with
     ⟨narrowIndices, HnarrowIndices, HindexEq⟩
   exact ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
+    localDomains, hlocal, hfront,
     narrowIndices, hlength, HnarrowIndices, HindexEq⟩
 
 /-- Replay the eta-expanded recursive field in the same narrow runtime scope
@@ -63406,7 +63416,9 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {A : H.GeneratedRuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
@@ -63424,6 +63436,7 @@ theorem
                 narrowExposed,
               Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
               fieldDomains.length = A.rule.allArgs.size ∧
+              fieldDomains = B.fieldDomains ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
               OnCtx
                 (abstractForallContext (fieldDomains ++ localDomains)
@@ -63469,8 +63482,9 @@ theorem
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
   let parameterDecls := H.parameterSuffix.parameterDecls
-  rcases F.narrowSemanticIndices with
+  rcases F.narrowSemanticIndices (B := B) with
     ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
+      localDomains, hlocal, hfront,
       narrowIndices, hlength, HnarrowIndices, HindexEq⟩
   rcases F.narrowSemanticAppliedMajor scope Hscope hscopeFVars with
     ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
@@ -63478,7 +63492,7 @@ theorem
       HnarrowMajor with
     ⟨narrowExposed, HnarrowExposed, HnarrowTyping⟩
   rcases F.narrowRuntimeFrontAlignment scope Hscope hscopeFVars hscopeBase with
-    ⟨hfrontFVars, hfrontLength, HfrontCtx⟩
+    ⟨hfrontFVars, _hfrontLength, HfrontCtx⟩
   have hprefixNodup :
       (VLCtx.fvars
         (scope.take Hscope.frontSourceDomains.length)).Nodup :=
@@ -63589,21 +63603,11 @@ theorem
       simp [parameterDecls]
     rw [hcontext]
     exact HnarrowTyping
-  let fieldDomains := Hscope.frontSourceDomains.take A.rule.allArgs.size
-  let localDomains := Hscope.frontSourceDomains.drop A.rule.allArgs.size
-  have hfieldsLE : A.rule.allArgs.size ≤
-      Hscope.frontSourceDomains.length := by omega
+  let fieldDomains := B.fieldDomains
   have hfields : fieldDomains.length = A.rule.allArgs.size := by
-    simp [fieldDomains, List.length_take, Nat.min_eq_left hfieldsLE]
-  have hlocal : localDomains.length =
-      F.semantic.generated.localArgs.size := by
-    simp [localDomains, List.length_drop, hfrontLength]
-  have hfront : Hscope.frontSourceDomains =
-      fieldDomains ++ localDomains :=
-    (List.take_append_drop A.rule.allArgs.size
-      Hscope.frontSourceDomains).symm
+    exact B.fieldDomains_length
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-    narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hlocal,
+    narrowIndices, narrowMajor, narrowExposed, hfront, hfields, rfl, hlocal,
     by simpa [hfront] using HfrontCtx, hlength,
     by simpa [hfront] using HclosedIndices,
     by simpa [hfront] using HclosedMajor',
@@ -63673,6 +63677,7 @@ theorem
   let parameterDecls := H.parameterSuffix.parameterDecls
   rcases F.narrowSemanticIndices with
     ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
+      _localDomains, _hlocal, _hfront,
       narrowIndices, hlength, HnarrowIndices, HindexEq⟩
   have hfrontRev :
       VLCtx.fvars (scope.take Hscope.frontSourceDomains.length) =
@@ -64045,7 +64050,9 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     {A : H.GeneratedRuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
@@ -64064,6 +64071,7 @@ theorem
                 narrowExposed,
               Hscope.frontSourceDomains = fieldDomains ++ localDomains ∧
               fieldDomains.length = A.rule.allArgs.size ∧
+              fieldDomains = B.fieldDomains ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
               OnCtx
                 (abstractForallContext
@@ -64118,9 +64126,10 @@ theorem
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
   let parameterDecls := H.parameterSuffix.parameterDecls
   let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
-  rcases F.cachedSemanticCallArgumentFrame with
+  rcases F.cachedSemanticCallArgumentFrame (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-      narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hlocal,
+      narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hfieldEq,
+      hlocal,
       Hctx, hlength, Hindices, Hmajor, Hexposed, Htyping,
       HindexEq, HmajorEq⟩
   have hparamsNodup : A.rule.params_bound.fvars.Nodup :=
@@ -64191,7 +64200,8 @@ theorem
     rw [hcontext]
     exact Htyping
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-    narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hlocal,
+    narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hfieldEq,
+    hlocal,
     HclosedCtx, hlength, HclosedIndices', HclosedMajor, HclosedExposed,
     HclosedTyping, HindexEq, HmajorEq⟩
 
@@ -64356,7 +64366,9 @@ theorem
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
@@ -64379,6 +64391,7 @@ theorem
                 (liftContextPrefix inserted.length
                   (fieldDomains ++ localDomains).reverse).reverse ∧
               fieldDomains.length = A.rule.allArgs.size ∧
+              fieldDomains = B.fieldDomains ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
               OnCtx
                 (abstractForallContext
@@ -64440,9 +64453,10 @@ theorem
   let parameterDecls := H.parameterSuffix.parameterDecls
   let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
   let inserted := T.motives ++ T.minors
-  rcases F.parameterClosedSemanticCallArgumentFrame with
+  rcases F.parameterClosedSemanticCallArgumentFrame (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
-      narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hlocal,
+      narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hfieldEq,
+      hlocal,
       HclosedCtx, hlength, Hindices, Hmajor, Hexposed, Htyping,
       HindexEq, HmajorEq⟩
   let liftedFront :=
@@ -64551,7 +64565,8 @@ theorem
   have HliftedTyping := Htyping.weakN H.outVEnvWF.ordered W
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
     liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront, rfl,
-    hfields, hlocal, HequationCtx, hlength, HliftedIndices', liftSource Hmajor,
+    hfields, hfieldEq, hlocal, HequationCtx, hlength, HliftedIndices',
+    liftSource Hmajor,
     HliftedExposed, HliftedTyping, HindexEq, HmajorEq⟩
 
 /-- The production recursor level-parameter list and any installed abstract
@@ -67332,7 +67347,8 @@ theorem
   dsimp only
   rcases F.cachedSemanticCallArgumentFrame with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, localDomains,
-      _narrowIndices, _narrowMajor, _narrowExposed, _hfront, hfields, hlocal,
+      _narrowIndices, _narrowMajor, _narrowExposed, _hfront, hfields,
+      _hfieldEq, hlocal,
       _Hctx, _hlength, _Hindices, _Hmajor, Hexposed, _Htyping,
       _HindexEq, _HmajorEq⟩
   have houterNodup :
@@ -67482,7 +67498,7 @@ theorem
     ⟨_binding, _evidence, _scope, _Hscope,
       cachedFields, cachedLocals, _narrowIndices, _narrowMajor,
       _narrowExposed,
-      _hfront, hcachedFields, hcachedLocals, _Hctx, _hlength,
+      _hfront, hcachedFields, _hfieldEq, hcachedLocals, _Hctx, _hlength,
       _Hindices, HcachedMajor, _Hexposed, _Htyping,
       _HindexEq, _HmajorEq⟩
   have hparameterNoBV : H.parameterSuffix.parameterDecls.bvars = 0 := by
@@ -67637,7 +67653,9 @@ theorem
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
@@ -67660,6 +67678,7 @@ theorem
                 (liftContextPrefix inserted.length
                   (fieldDomains ++ localDomains).reverse).reverse ∧
               fieldDomains.length = A.rule.allArgs.size ∧
+              fieldDomains = B.fieldDomains ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
               OnCtx
                 (abstractForallContext
@@ -67705,10 +67724,10 @@ theorem
                 F.semantic.current_context.mlctx.vlctx.toCtx
                 F.semantic.appliedFieldTarget
                 (narrowMajor.lift' Hscope.shift) := by
-  rcases F.insertedSemanticCallArgumentFrame T with
+  rcases F.insertedSemanticCallArgumentFrame T (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
       liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
-      hliftedFront, hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+      hliftedFront, hfields, hfieldEq, hlocal, Hctx, hlength, Hindices, Hmajor,
       Hexposed, Htyping,
       HindexEq, HmajorEq⟩
   have hindices := F.insertedSemanticIndexSources_eq T
@@ -67722,7 +67741,7 @@ theorem
   rw [hexposed] at Hexposed
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
     liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
-    hliftedFront, hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+    hliftedFront, hfields, hfieldEq, hlocal, Hctx, hlength, Hindices, Hmajor,
     Hexposed, Htyping,
     HindexEq, HmajorEq⟩
 
@@ -67751,7 +67770,9 @@ theorem
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let sourceIndices :=
@@ -67768,6 +67789,8 @@ theorem
         added = inserted ++ frontDomains ∧
         frontDomains = fieldDomains ++ localDomains ∧
         fieldDomains.length = A.rule.allArgs.size ∧
+        fieldDomains =
+          (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse ∧
         localDomains.length = F.semantic.generated.localArgs.size ∧
         equationDomains.length = A.rule.binders.length ∧
         OnCtx
@@ -67820,10 +67843,10 @@ theorem
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
   let parameterDecls := H.parameterSuffix.parameterDecls
   let inserted := T.motives ++ T.minors
-  rcases F.canonicalInsertedSemanticCallArgumentFrame T with
+  rcases F.canonicalInsertedSemanticCallArgumentFrame T (B := B) with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, narrowExposed, _hfront,
-      hliftedFront, hfields, hlocal, Hctx, hlength, Hindices, _Hmajor,
+      hliftedFront, hfields, hfieldEq, hlocal, Hctx, hlength, Hindices, _Hmajor,
       Hexposed, Htyping, _HindexEq, _HmajorEq⟩
   let liftedFields :=
     (liftContextPrefix inserted.length fieldDomains.reverse).reverse
@@ -68116,12 +68139,14 @@ theorem
     exact align HspineIndices Hindices'
   refine ⟨equationDomains, liftedFields, liftedLocals, added, frontDomains,
     exactIndexTargets, majorTarget, exposedTarget, ?_, rfl, ?_, rfl,
-    hfieldsLifted, hlocalsLifted, hequationLength, Hctx', Htyping', Hindices',
+    hfieldsLifted, ?_, hlocalsLifted, hequationLength, Hctx', Htyping', Hindices',
     Hmajor', hexactIndexLength, levels,
     parameterTargets, spineIndexTargets, ?_, hlevels, ?_, hparameterTargets,
     HindexDefEq⟩
   · simp [equationDomains, added, parameterDecls, List.append_assoc]
   · simp [added, frontDomains, inserted, List.append_assoc]
+  · dsimp only [liftedFields]
+    rw [hfieldEq]
   simpa [htranslatedArgs] using hspine
   simpa [parameterSources] using HparametersOriginal
 
@@ -68149,7 +68174,9 @@ theorem
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let parameterDecls := H.parameterSuffix.parameterDecls
@@ -68208,10 +68235,11 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let parameterDecls := H.parameterSuffix.parameterDecls
-  rcases F.canonicalInsertedSemanticExposedSpine T with
+  rcases F.canonicalInsertedSemanticExposedSpine T (B := B) with
     ⟨equationDomains, fieldDomains, localDomains, added, frontDomains,
       exactIndexTargets, majorTarget, exposedTarget, hdecomposition,
-      hequation, hadded, hfront, hfields, hlocal, hequationLength, Hctx,
+      hequation, hadded, hfront, hfields, _hfixedFields, hlocal,
+      hequationLength, Hctx,
       Htyping, Hindices, Hmajor, hexactLength, levels, parameterTargets,
       spineIndexTargets, hspine, hlevels, _HparameterTranslation,
       hparameterTargets, HindexDefEq⟩
@@ -69082,7 +69110,7 @@ theorem
     ⟨_binding, evidence, _scope, Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, _narrowExposed, _hfront,
       hliftedFront,
-      hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+      hfields, _hfieldEq, hlocal, Hctx, hlength, Hindices, Hmajor,
       _Hexposed, _Htyping,
       HindexEq, _HmajorEq⟩
   let parameterDecls := H.parameterSuffix.parameterDecls
@@ -69261,7 +69289,7 @@ theorem
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, _narrowExposed, _hfront,
       hliftedFront,
-      hfields, hlocal, Hctx, hlength, Hindices, Hmajor,
+      hfields, _hfieldEq, hlocal, Hctx, hlength, Hindices, Hmajor,
       _Hexposed, _Htyping,
       HindexEq, _HmajorEq⟩
   let parameterDecls := H.parameterSuffix.parameterDecls
@@ -69597,7 +69625,9 @@ theorem
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ (equationDomains localDomains : List VExpr)
         (prefixTarget : VExpr) (indexTargets : List VExpr)
@@ -69646,7 +69676,7 @@ theorem
           F.semantic.generated.arguments_bound.fvars))
       ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
         F.semantic.generated.arguments_bound.fvars)
-  rcases F.canonicalInsertedSemanticMajorTyping T with
+  rcases F.canonicalInsertedSemanticMajorTyping T (B := B) with
     ⟨C, equationDomains, fieldDomains, localDomains, added, frontDomains,
       indexTargets, majorTarget, ownerTarget, hdecomposition, hequation,
       hadded, hfront, hfields, hlocal, hownerTarget, Hctx,
@@ -69978,7 +70008,9 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.GeneratedRuleAlignment owner howner i hctor)
-    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ F : A.RecursiveCallRecursorFrame j hj,
       ∃ (equationDomains localDomains : List VExpr)
@@ -70004,7 +70036,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases A.recursiveCallRecursorFrame j hj with ⟨F⟩
   rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
-  rcases F.canonicalRecursiveCallBodyWF T with
+  rcases F.canonicalRecursiveCallBodyWF T (B := B) with
     ⟨equationDomains, localDomains, prefixTarget, indexTargets,
       majorTarget, ownerTarget, hlocal, hequation, _Hctx, Hbody,
       _HbodyType, Hclosed, _HbodyWF⟩
