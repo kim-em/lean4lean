@@ -57463,6 +57463,75 @@ theorem
   simpa [actualRecent, base, outer, suffix,
     liftContextPrefix, Nat.add_comm] using Hclosed'
 
+/-- The owner-motive local itself is the comparison function for concrete
+suffix application.  After weakening beneath constructor fields, its type
+has exactly the independent domains appearing on the right side of
+`finalOwnerMotiveSuffixTypeAlignment`, but ends in the elimination sort
+rather than the generated recursor result. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveFieldWitnessTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains : List VExpr) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ motiveDomains resultLevel,
+      motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
+      T.motives[owner]! =
+        VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+      let outer := T.params ++ T.motives ++ T.minors
+      let later := T.motives.drop (owner + 1) ++ T.minors
+      let expected :=
+        (liftContextPrefixAt (later.length + 1) 0
+          motiveDomains.reverse).reverse
+      H.outVEnv.HasType Us.length
+        (fieldDomains.reverse ++ outer.reverse)
+        (.bvar (fieldDomains.length + later.length))
+        (VExpr.wrapForalls
+          ((liftContextPrefix fieldDomains.length expected.reverse).reverse)
+          (.sort resultLevel)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalOwnerMotiveTelescopeShapeFor T with
+    ⟨_S, _hparameters, motiveDomains, resultLevel,
+      hdomainLength, _hsuffixLength, hmotive, _hresultLevel⟩
+  have hownerRecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hownerMotive : owner < T.motives.length := by
+    rw [T.motives_length]
+    simpa using hownerRecInfo
+  let outer := T.params ++ T.motives ++ T.minors
+  let later := T.motives.drop (owner + 1) ++ T.minors
+  let expected :=
+    (liftContextPrefixAt (later.length + 1) 0
+      motiveDomains.reverse).reverse
+  have Hmotive := T.ownerMotiveOuterBvarTyping hownerMotive
+  have W : Ctx.LiftN fieldDomains.length 0 outer.reverse
+      (fieldDomains.reverse ++ outer.reverse) := by
+    exact .zero fieldDomains.reverse (by simp)
+  have Hweak := Hmotive.weakN H.outVEnvWF.ordered W
+  rw [show T.motives[owner]'hownerMotive = T.motives[owner]! by
+    exact (getElem!_pos T.motives owner hownerMotive).symm,
+    hmotive] at Hweak
+  exact ⟨motiveDomains, resultLevel, hdomainLength, hmotive, by
+    simpa [outer, later, expected, VExpr.liftN_wrapForalls,
+      liftContextPrefix, VExpr.liftN_liftN, VExpr.liftN, liftVar_base,
+      Nat.add_comm,
+      Nat.add_left_comm, Nat.add_assoc] using Hweak⟩
+
 /-- The generated owner-motive domain and the retained first-pass motive are
 the same concrete declaration viewed at the two contexts that still have to
 be related.  The retained closed scope is now decomposed explicitly into its
