@@ -25124,10 +25124,59 @@ theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
     motive_type_defeq := HmotiveType
     telescope := Htelescope }⟩
 
-/-- A shared family/motive telescope supplies the complete independent
-motive-application contract.  The proof applies the abstract parallel
-telescope, then uses its resulting well-typed spine to assemble the concrete
-`TrExprS` application without invoking executable inference. -/
+/-- A shared family/motive telescope supplies the complete independently
+typed motive application.  The exact result sort is retained for equation
+typing; the abstract spine is assembled without invoking executable
+inference. -/
+theorem RecursorMotiveTelescopeEvidence.applyMajorTyped
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {elimLevel : Level}
+    {info : AddInductive.RecInfo}
+    {binding : RecursorMotiveBinding R info elimLevel}
+    (H : RecursorMotiveTelescopeEvidence R stats info binding
+      exposedType syntaxTarget)
+    {major : Expr} {majorTarget : VExpr}
+    (Hmajor : TrExprS R.venv recLparams R.mlctx.vlctx major majorTarget)
+    (HmajorType : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      majorTarget syntaxTarget) :
+    let itIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app (mkAppN info.motive itIndices) major
+    ∃ motiveTarget,
+      TrExprS R.venv recLparams R.mlctx.vlctx motiveApp motiveTarget ∧
+      R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx motiveTarget
+        (.sort H.resultLevel) := by
+  have HmajorType' : R.venv.HasType recLparams.length
+      R.mlctx.vlctx.toCtx majorTarget (VExpr.mkApps H.family H.indices) := by
+    rwa [← H.syntax_eq]
+  have Hfamily : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      H.family H.familyType :=
+    H.family_typing.defeqU_r R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
+      H.family_type_defeq
+  have Hmotive : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      binding.motiveTarget H.motiveType :=
+    binding.typing.defeqU_r R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
+      H.motive_type_defeq
+  have Hresult := H.telescope.applyMajorTyped R.checking.tr.wf
+    R.mlctx_wf.tr.wf.toCtx Hfamily Hmotive HmajorType'
+  let motiveTarget :=
+    VExpr.app (VExpr.mkApps binding.motiveTarget H.indices) majorTarget
+  have Hresult' : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+      motiveTarget (.sort H.resultLevel) := by
+    simpa [motiveTarget, VExpr.mkApps, List.foldl_append] using Hresult
+  have HtargetWF : VExpr.WF R.venv recLparams.length
+      R.mlctx.vlctx.toCtx motiveTarget := ⟨.sort H.resultLevel, Hresult'⟩
+  have Hargs := List.Forall₂.append' H.indices_translation
+    (.cons Hmajor .nil)
+  have Htranslated := checkPositivityStep.TrExprS.mkAppList
+    R.checking.tr.wf.ordered
+    R.mlctx_wf.tr.wf.toCtx binding.motive Hargs (by
+      simpa [motiveTarget, VExpr.mkApps, List.foldl_append] using HtargetWF)
+  refine ⟨motiveTarget, ?_, Hresult'⟩
+  simpa [motiveTarget, Expr.mkAppN_eq_mkAppList,
+    Expr.mkAppList_append, VExpr.mkApps, List.foldl_append] using Htranslated
+
+/-- Typehood wrapper around `applyMajorTyped`. -/
 theorem RecursorMotiveTelescopeEvidence.applyMajor
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
@@ -25145,37 +25194,8 @@ theorem RecursorMotiveTelescopeEvidence.applyMajor
     ∃ motiveTarget,
       TrExprS R.venv recLparams R.mlctx.vlctx motiveApp motiveTarget ∧
       R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx motiveTarget := by
-  have HmajorType' : R.venv.HasType recLparams.length
-      R.mlctx.vlctx.toCtx majorTarget (VExpr.mkApps H.family H.indices) := by
-    rwa [← H.syntax_eq]
-  have Hfamily : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
-      H.family H.familyType :=
-    H.family_typing.defeqU_r R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
-      H.family_type_defeq
-  have Hmotive : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
-      binding.motiveTarget H.motiveType :=
-    binding.typing.defeqU_r R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
-      H.motive_type_defeq
-  have Hresult := H.telescope.applyMajor R.checking.tr.wf
-    R.mlctx_wf.tr.wf.toCtx Hfamily Hmotive HmajorType'
-  let motiveTarget :=
-    VExpr.app (VExpr.mkApps binding.motiveTarget H.indices) majorTarget
-  have Hresult' : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
-      motiveTarget := by
-    simpa [motiveTarget, VExpr.mkApps, List.foldl_append] using Hresult
-  have HtargetWF : VExpr.WF R.venv recLparams.length
-      R.mlctx.vlctx.toCtx motiveTarget := by
-    rcases Hresult' with ⟨level, Htyped⟩
-    exact ⟨.sort level, Htyped⟩
-  have Hargs := List.Forall₂.append' H.indices_translation
-    (.cons Hmajor .nil)
-  have Htranslated := checkPositivityStep.TrExprS.mkAppList
-    R.checking.tr.wf.ordered
-    R.mlctx_wf.tr.wf.toCtx binding.motive Hargs (by
-      simpa [motiveTarget, VExpr.mkApps, List.foldl_append] using HtargetWF)
-  refine ⟨motiveTarget, ?_, Hresult'⟩
-  simpa [motiveTarget, Expr.mkAppN_eq_mkAppList,
-    Expr.mkAppList_append, VExpr.mkApps, List.foldl_append] using Htranslated
+  rcases H.applyMajorTyped Hmajor HmajorType with ⟨target, Htr, Htyped⟩
+  exact ⟨target, Htr, H.resultLevel, Htyped⟩
 
 /-- Rooted, context-polymorphic form of the shared telescope evidence.  This
 is the invariant established by the first `mkRecInfos` pass; later recursive
@@ -35582,6 +35602,8 @@ structure BoundGeneratedRecursorRule.Semantics
   constructor_typing : context.venv.HasType recLparams.length
     context.mlctx.vlctx.toCtx constructorTarget targetTarget
   target_valid : AddInductive.isValidIndApp? stats H.target = some ownerIdx
+  validated : RecursorValidatedIndAppAt context.venv recLparams
+    context.mlctx.vlctx stats decl depth H.target targetTarget ownerIdx
   fields : List
     (RecursorRecursiveDomainAt context.venv decl recLparams.length)
   selection : RecursorFieldSelectionsAt context.venv decl recLparams.length
@@ -36374,6 +36396,8 @@ theorem oneRuleSemantics
         _HintroApplied
     constructor_typing := _HintroAppliedType
     target_valid := hselectedOwner
+    validated := HstatsArgs.validatedIndAppAt Hterminal hselectedOwner
+      hselectedOwnerLt hlit hctxArgs hproj
     fields := fields
     selection := Hselection
     calls := Hcalls }
@@ -54598,6 +54622,118 @@ theorem
   refine ⟨T, tailTarget, introTarget, Hintro, ?_⟩
   simpa [added, Nat.add_comm] using
     HintroType.weakN H.outVEnvWF.ordered W
+
+/-- The terminal inductive application retained by rule generation consumes
+the same index telescope as the motive introduced by the first recursor
+pass.  The exact root-to-constructor context extension is retained in the
+semantic rule package, so this statement does not reconstruct motive
+bindings or rerun positivity validation. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.semanticMotiveTelescopeEvidence
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    ∃ binding : RecursorMotiveBinding A.semantics.context
+        H.recInfos[owner]! H.elimLevel,
+      Nonempty (RecursorMotiveTelescopeEvidence A.semantics.context stats
+        H.recInfos[owner]! binding A.rule.target
+        A.semantics.targetTarget) := by
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  let Hext : RecursorContextExtension H.recursorWF A.semantics.context :=
+    A.semantics.fieldRootExtension.trans
+      A.semantics.fieldsRecent.contextExtension
+  rcases H.motiveShapes.motiveBindingAtMono
+      (Rcurrent := A.semantics.context) H.bindings H.origins
+      Hext.contextLE owner hrecInfo with ⟨Hbinding⟩
+  let binding : RecursorMotiveBinding A.semantics.context
+      H.recInfos[owner]! H.elimLevel := Hbinding.toBinding
+  have Hvalidated := A.semantics.validated
+  rw [A.semantic_owner] at Hvalidated
+  refine ⟨binding, ?_⟩
+  exact H.motiveTelescopes.telescope owner hrecInfo A.semantics.context
+    Hext binding A.semantics.target_translation A.semantics.target_type
+    Hvalidated
+
+/-- Applying the retained motive telescope to the checked constructor major
+produces the exact semantic result sort of this generated equation. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.semanticConstructorMotiveTyped
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    ∃ motiveTarget resultLevel,
+      TrExprS A.semantics.context.venv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        A.semantics.context.mlctx.vlctx
+        (Expr.app
+          (mkAppN H.recInfos[owner]!.motive
+            A.rule.target.getAppArgs[stats.params.size:])
+          A.rule.sourceConstructorMajor)
+        motiveTarget ∧
+      A.semantics.context.venv.HasType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        A.semantics.context.mlctx.vlctx.toCtx motiveTarget
+        (.sort resultLevel) := by
+  rcases A.semanticMotiveTelescopeEvidence with
+    ⟨binding, ⟨Hevidence⟩⟩
+  rcases Hevidence.applyMajorTyped A.semantics.constructor_translation
+      A.semantics.constructor_typing with ⟨motiveTarget, Htr, Htyped⟩
+  exact ⟨motiveTarget, Hevidence.resultLevel, Htr, Htyped⟩
+
+/-- Final-environment form of `semanticConstructorMotiveTyped`.  Recursor
+installation only extends the constant environment, so the exact result
+sort and constructor-context translation are preserved. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalConstructorMotiveTyped
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    ∃ motiveTarget resultLevel,
+      TrExprS H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        A.semantics.context.mlctx.vlctx
+        (Expr.app
+          (mkAppN H.recInfos[owner]!.motive
+            A.rule.target.getAppArgs[stats.params.size:])
+          A.rule.sourceConstructorMajor)
+        motiveTarget ∧
+      H.outVEnv.HasType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        A.semantics.context.mlctx.vlctx.toCtx motiveTarget
+        (.sort resultLevel) := by
+  rcases A.semanticConstructorMotiveTyped with
+    ⟨motiveTarget, resultLevel, Htr, Htyped⟩
+  have hsemantic : A.semantics.context.venv = R.declared.venvCtors :=
+    A.semantics.context_venv.trans
+      (H.recursorEnv.trans R.declared.contextVEnv)
+  rw [hsemantic] at Htr Htyped
+  exact ⟨motiveTarget, resultLevel, Htr.mono H.installed.le,
+    Htyped.mono H.installed.le⟩
 
 /-- The exact field telescope retained by rule generation remains available
 after the generated recursors are installed.  This is the stage-correct form
