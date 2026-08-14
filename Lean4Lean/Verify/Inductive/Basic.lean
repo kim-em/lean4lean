@@ -64846,6 +64846,95 @@ theorem
       List.reverse_append, List.append_assoc] using Hmotive
   · exact SameTelescopeDomains.wrapForalls expectedDomains _ _
 
+/-- Transport the call-selected prefix/motive telescope to an independently
+cached outer context.  Context conversion preserves the exact prefix term,
+selected motive de Bruijn variable, and shared dependent domains. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.cachedPrefixOwnerTelescopeUnderFront
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (frontDomains cachedBase : List VExpr) (prefixTarget : VExpr)
+    (Hfull :
+      let selectedOuter := F.telescope.params ++ F.telescope.motives ++
+        F.telescope.minors
+      VEnv.IsDefEqCtx H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+        (frontDomains.reverse ++ selectedOuter.reverse)
+        (frontDomains.reverse ++ cachedBase))
+    (HcachedCtx : OnCtx (frontDomains.reverse ++ cachedBase)
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+    (HprefixSelected :
+      let selectedOuter := F.telescope.params ++ F.telescope.motives ++
+        F.telescope.minors
+      H.outVEnv.HasType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        (frontDomains.reverse ++ selectedOuter.reverse) prefixTarget
+        ((VExpr.wrapForalls
+          (F.telescope.indices ++ F.telescope.major)
+          F.telescope.result).liftN frontDomains.length 0)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ motiveDomains resultLevel,
+      motiveDomains.length = H.recInfos[selectedOwner]!.indices.size + 1 ∧
+      F.telescope.motives[selectedOwner]! =
+        VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
+      let suffix := F.telescope.indices ++ F.telescope.major
+      let later := F.telescope.motives.drop (selectedOwner + 1) ++
+        F.telescope.minors
+      let expected :=
+        (liftContextPrefixAt (later.length + 1) 0
+          motiveDomains.reverse).reverse
+      let expectedDomains :=
+        (liftContextPrefix frontDomains.length expected.reverse).reverse
+      H.outVEnv.HasType Us.length
+          (frontDomains.reverse ++ cachedBase) prefixTarget
+          (VExpr.wrapForalls expectedDomains
+            (F.telescope.result.liftN frontDomains.length suffix.length)) ∧
+        H.outVEnv.HasType Us.length
+          (frontDomains.reverse ++ cachedBase)
+          (.bvar (frontDomains.length + later.length))
+          (VExpr.wrapForalls expectedDomains (.sort resultLevel)) ∧
+        SameTelescopeDomains expectedDomains.length
+          (VExpr.wrapForalls expectedDomains
+            (F.telescope.result.liftN frontDomains.length suffix.length))
+          (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let selectedOuter := F.telescope.params ++ F.telescope.motives ++
+    F.telescope.minors
+  have HselectedCtx : OnCtx
+      (frontDomains.reverse ++ selectedOuter.reverse)
+      (H.outVEnv.IsType Us.length) := Hfull.isType
+  rcases F.prefixOwnerTelescopeUnderFront frontDomains prefixTarget
+      (by simpa [selectedOuter, List.reverse_append,
+        List.append_assoc] using HselectedCtx)
+      (by simpa [selectedOuter] using HprefixSelected) with
+    ⟨motiveDomains, resultLevel, hdomainLength, hmotive,
+      HprefixExpected, HownerExpected, Hsame⟩
+  let suffix := F.telescope.indices ++ F.telescope.major
+  let later := F.telescope.motives.drop (selectedOwner + 1) ++
+    F.telescope.minors
+  let expected :=
+    (liftContextPrefixAt (later.length + 1) 0
+      motiveDomains.reverse).reverse
+  let expectedDomains :=
+    (liftContextPrefix frontDomains.length expected.reverse).reverse
+  refine ⟨motiveDomains, resultLevel, hdomainLength, hmotive, ?_, ?_, Hsame⟩
+  · exact HprefixExpected.defeqDFC H.outVEnvWF.ordered Hfull
+  · exact HownerExpected.defeqDFC H.outVEnvWF.ordered Hfull
+
 /-- The concrete constructor constant at the head of the generated major
 premise translates under recursor universes to the installed abstract
 constructor at the declaration-level universe instantiation. -/
