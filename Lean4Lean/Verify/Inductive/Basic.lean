@@ -996,6 +996,24 @@ theorem recursorCanonicalVars_liftN_comp
     congr 1
     omega
 
+/-- Weakening the canonical variables for an outer telescope below an inner
+block gives the direct de Bruijn numbering in the combined context. -/
+theorem recursorCanonicalVars_liftN_zero_eq_ofFn
+    (outer inner : Nat) :
+    (recursorCanonicalVars outer).map
+        (fun arg => arg.liftN inner 0) =
+      List.ofFn fun i : Fin outer =>
+        VExpr.bvar (outer + inner - 1 - i) := by
+  rw [recursorCanonicalVars_eq_ofFn]
+  apply List.ext_getElem
+  · simp
+  · intro i hleft hright
+    have hi : i < outer := by simpa using hright
+    simp only [List.getElem_map, List.getElem_ofFn, VExpr.liftN]
+    rw [liftVar_base]
+    congr 1
+    omega
+
 /-- Two function types expose the same dependent domains while permitting
 different residual result types.  This is the exact relation needed to use
 a fully typed motive application as the argument certificate for a recursor
@@ -58761,6 +58779,8 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
+      ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us stats decl
+          owner H.recInfos[owner]! H.elimLevel,
       ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse parameterDecls.toCtx ∧
@@ -60233,6 +60253,8 @@ theorem
         ∃ (levels : List VLevel) (parameterTargets indexTargets : List VExpr),
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             T.params.reverse parameterDecls.toCtx ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+            C.params.reverse parameterDecls.toCtx ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             canonicalDomains.reverse cachedDomains.reverse ∧
@@ -60282,7 +60304,9 @@ theorem
               VExpr.mkApps
                 (.const (decl.types[owner]'A.abstractOwner_lt).name levels)
                 parameterTargets
+            let added := T.motives ++ T.minors ++ fieldDomains
             ∃ familyType,
+              familyTarget = C.family.liftN added.length 0 ∧
               (fieldResult.liftN
                   (T.motives ++ T.minors).length
                   A.rule.allArgs.size) =
@@ -60304,6 +60328,8 @@ theorem
   rcases A.finalCanonicalRecursorPrefixFrame with
     ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields, Hctx,
       Hmajor, Hprefix, Htarget, HintroShape, HprefixTr, HmajorTr⟩
+  rcases A.finalCanonicalMotiveTelescope with
+    ⟨C, hcanonicalParams⟩
   let canonicalDomains :=
     (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   let cachedDomains :=
@@ -60458,6 +60484,34 @@ theorem
   let familyTarget := VExpr.mkApps
     (.const (decl.types[owner]'A.abstractOwner_lt).name levels)
     parameterTargets
+  let added := T.motives ++ T.minors ++ fieldDomains
+  have hcanonicalFamilyLevels : C.levels = levels := by
+    exact Option.some.inj (C.levels_translation.symm.trans hlevels)
+  have hbindersLength : A.rule.binders.length =
+      stats.params.size + added.length := by
+    have hdomains := A.canonicalEquationDomains_length
+      T fieldDomains hfields
+    simp only [canonicalDomains, added, List.length_append,
+      T.params_length] at hdomains ⊢
+    omega
+  have hparameterTargetsLifted : parameterTargets =
+      (recursorCanonicalVars stats.params.size).map
+        (fun arg => arg.liftN added.length 0) := by
+    rw [hparameterTargets,
+      recursorCanonicalVars_liftN_zero_eq_ofFn]
+    apply List.ext_getElem
+    · simp
+    · intro j hleft hright
+      have hj : j < stats.params.size := by simpa using hright
+      simp only [List.getElem_ofFn]
+      congr 1
+      omega
+  have hfamilyTargetCanonical :
+      familyTarget = C.family.liftN added.length 0 := by
+    rw [C.family_eq]
+    simp only [C.params_length, VExpr.liftN_mkApps]
+    rw [hcanonicalFamilyLevels, hparameterTargetsLifted]
+    simp [familyTarget, VExpr.liftN, VExpr.liftN_liftN]
   have hfamilyApplication :
       (fieldResult.liftN
           (T.motives ++ T.minors).length A.rule.allArgs.size) =
@@ -60476,12 +60530,14 @@ theorem
   rw [hfamilyApplication] at HfieldResultWF
   rcases VExpr.WF.mkApps_fn H.outVEnvWF.ordered HcachedCtx
       HfieldResultWF with ⟨familyType, Hfamily⟩
-  exact ⟨T, fieldDomains, fieldResult, introTarget, levels,
-    parameterTargets, indexTargets, hparams, hfields, Hfull, HcachedCtx,
+  exact ⟨T, C, fieldDomains, fieldResult, introTarget, levels,
+    parameterTargets, indexTargets, hparams, hcanonicalParams, hfields,
+    Hfull, HcachedCtx,
     HmajorCached, HprefixCached, Htarget, HintroShape, HprefixTr',
     HmajorTr', HownerMotive', hspine, hlevels, hlevelsCanonical,
     HparameterTargets, hparameterTargets,
-    (by exact ⟨familyType, hfamilyApplication, Hfamily⟩),
+    (by exact ⟨familyType, hfamilyTargetCanonical,
+      hfamilyApplication, Hfamily⟩),
     hindexLength, HindexTargets⟩
 
 /-- Canonical-domain specialization of `equationWitnessOfBodies`.  The
