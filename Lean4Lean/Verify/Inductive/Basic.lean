@@ -26111,7 +26111,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (stats : AddInductive.InductiveStats)
     (head : Expr)
     (k : Expr → Array Expr → Array Expr → AddInductive.M alpha)
-    {decl : VInductDecl} {depth : Nat} {typeTarget : VExpr}
+    {decl : VInductDecl} {depth : Nat} {typeTarget rootTypeTarget : VExpr}
     {recLparams : List Name}
     {source t : Expr} {i : Nat} {bu u : Array Expr} {fuel : Nat}
     {root c : AddInductive.Context} {Q : alpha → Prop}
@@ -26143,6 +26143,9 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       (TrExprS R.venv recLparams R.mlctx.vlctx) u.toList args)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R bu)
     (Hopening : ConstructorFieldOpening source t bu)
+    (hrootType : Rroot.venv.IsDefEqU recLparams.length
+      Rroot.mlctx.vlctx.toCtx rootTypeTarget
+        (R.mlctx.mkForall' bu.size Hrecent.size_le typeTarget))
     {P : FVarId → Prop}
     (hsourceScope : source.FVarsIn P)
     (hcurrentUp : IsFVarUpSet
@@ -26171,8 +26174,12 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
-      RecursorRecentBoundFVarArray Rroot Rcurrent bu' →
+      (Hrecent' : RecursorRecentBoundFVarArray Rroot Rcurrent bu') →
       (Hopening' : ConstructorFieldOpening source t' bu') →
+      Rroot.venv.IsDefEqU recLparams.length Rroot.mlctx.vlctx.toCtx
+        rootTypeTarget
+          (Rcurrent.mlctx.mkForall' bu'.size
+            Hrecent'.size_le typeTarget') →
       t'.FVarsIn (fun fv => fv ∈ Hopening'.fvars ∨ P fv) →
       IsFVarUpSet (fun fv => fv ∈ Hopening'.fvars ∨ P fv)
         Rcurrent.mlctx.vlctx →
@@ -26299,6 +26306,61 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           R'.mlctx_wf.tr.wf.toCtx
         simpa only [R', RecursorContextWF.withLocalDecl_venv,
           RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
+      let HdomainCtx : VLCtx.IsDefEq R.venv recLparams.length
+          ((none, .vlam sourceDom) :: R.mlctx.vlctx)
+          ((none, .vlam consumedDom) :: R.mlctx.vlctx) :=
+        .cons (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) nofun
+          (.vlam Hdom.source_defeq.choose_spec)
+      have HbodyAtSourceU : R.venv.IsDefEqU recLparams.length
+          (sourceDom :: R.mlctx.vlctx.toCtx) sourceBody consumedBody := by
+        exact hbodyEq'.defeqDFC R.checking.tr.wf
+          ((HdomainCtx.symm R.checking.tr.wf.ordered).defeqCtx)
+      rcases hbodyType with ⟨bodyLevel, HbodyType⟩
+      have HbodyAtSource : R.venv.IsDefEq recLparams.length
+          (sourceDom :: R.mlctx.vlctx.toCtx) sourceBody consumedBody
+          (.sort bodyLevel) :=
+        HbodyAtSourceU.of_l R.checking.tr.wf
+          ⟨R.mlctx_wf.tr.wf.toCtx, hdomType⟩ HbodyType
+      have HforallConsumed : R.venv.IsDefEqU recLparams.length
+          R.mlctx.vlctx.toCtx
+          (.forallE sourceDom sourceBody)
+          (.forallE consumedDom consumedBody) := by
+        exact ⟨_, VEnv.IsDefEq.forallEDF
+          Hdom.source_defeq.choose_spec HbodyAtSource⟩
+      have HtypeConsumed : R.venv.IsDefEqU recLparams.length
+          R.mlctx.vlctx.toCtx typeTarget
+          (.forallE consumedDom consumedBody) :=
+        hforallEq.symm.trans R.checking.tr.wf
+          R.mlctx_wf.tr.wf.toCtx HforallConsumed
+      rcases htypeType with ⟨typeLevel, HtypeType⟩
+      have HtypeConsumedAtSort : R.venv.IsDefEq recLparams.length
+          R.mlctx.vlctx.toCtx typeTarget
+          (.forallE consumedDom consumedBody) (.sort typeLevel) :=
+        HtypeConsumed.of_l R.checking.tr.wf
+          R.mlctx_wf.tr.wf.toCtx HtypeType
+      rcases R.mlctx_wf.mkForall'_congr HtypeConsumedAtSort bu.size
+          Hrecent.size_le with
+        ⟨closedLevel, HclosedConsumed⟩
+      have HclosedConsumedU : R.venv.IsDefEqU recLparams.length
+          (R.mlctx.dropN bu.size Hrecent.size_le).vlctx.toCtx
+          (R.mlctx.mkForall' bu.size Hrecent.size_le typeTarget)
+          (R.mlctx.mkForall' bu.size Hrecent.size_le
+            (.forallE consumedDom consumedBody)) :=
+        ⟨.sort closedLevel, HclosedConsumed⟩
+      have HclosedConsumedRoot : Rroot.venv.IsDefEqU recLparams.length
+          Rroot.mlctx.vlctx.toCtx
+          (R.mlctx.mkForall' bu.size Hrecent.size_le typeTarget)
+          (R'.mlctx.mkForall' (bu.push (.fvar ⟨c.ngen.curr⟩)).size
+            Hrecent'.size_le consumedBody) := by
+        simpa only [Hrecent.venv_eq, Hrecent.drop_eq, R',
+          RecursorContextWF.withLocalDecl_mlctx, Array.size_push,
+          TypeChecker.MLCtx.mkForall'] using HclosedConsumedU
+      have hrootType' : Rroot.venv.IsDefEqU recLparams.length
+          Rroot.mlctx.vlctx.toCtx rootTypeTarget
+          (R'.mlctx.mkForall' (bu.push (.fvar ⟨c.ngen.curr⟩)).size
+            Hrecent'.size_le consumedBody) :=
+        hrootType.trans Rroot.checking.tr.wf
+          Rroot.mlctx_wf.tr.wf.toCtx HclosedConsumedRoot
       have Hclass := isRecArg.refinesRecursor R' Hstats' hwhnf hconsume
         hlit hctx' hproj
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
@@ -26385,7 +26447,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         exact ih R' Hstats' (by omega) hctx' hopened
           hconsumedBodyType (.nonrecursive hfields)
           (.nonrecursive hdecisions hselected.1) hargsWeak Hrecent'
-          Hopening' hnextUp happlied' happliedType'
+          Hopening' hrootType' hnextUp happlied' happliedType'
       | some target =>
         rcases hselected.2 target rfl with ⟨howner, hrecursive⟩
         let cert : RecursorRecursiveDomainAt
@@ -26407,11 +26469,11 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           hconsumedBodyType
           (.recursive hfields (cert := cert) rfl)
           (.recursive hdecisions hselected.1) hargs' Hrecent'
-          Hopening' hnextUp happlied' happliedType'
+          Hopening' hrootType' hnextUp happlied' happliedType'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
       exact Hk R rfl htype htypeType hfields hdecisions hargs Hrecent
-        Hopening (Hopening.currentFVarsIn hsourceScope) hcurrentUp
+        Hopening hrootType (Hopening.currentFVarsIn hsourceScope) hcurrentUp
         happlied happliedType
 
 end mkRecInfos.loopCtorArgs.loop
@@ -26467,8 +26529,10 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
-      RecursorRecentBoundFVarArray R Rcurrent bu' →
+      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent bu') →
       (Hopening : ConstructorFieldOpening tail t' bu') →
+      R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx tailTarget
+        (Rcurrent.mlctx.mkForall' bu'.size Hrecent.size_le typeTarget') →
       t'.FVarsIn (fun fv => fv ∈ Hopening.fvars ∨ P fv) →
       IsFVarUpSet (fun fv => fv ∈ Hopening.fvars ∨ P fv)
         Rcurrent.mlctx.vlctx →
@@ -26491,10 +26555,19 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       (AddInductive.mkRecInfos.loopCtorArgs.loop stats k tail
         stats.params.size #[] #[] fuel inputContext).WF Q := by
     intro fuel
+    have hrootType : R.venv.IsDefEqU recLparams.length
+        R.mlctx.vlctx.toCtx tailTarget
+          (R.mlctx.mkForall' (#[] : Array Expr).size
+            (by simp) tailTarget) := by
+      rcases htailType with ⟨level, Htype⟩
+      change R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx
+        tailTarget tailTarget
+      exact ⟨.sort level, Htype⟩
     exact mkRecInfos.loopCtorArgs.loop.recursiveDomainsRecursorRecent
       stats head k R R Hstats (Nat.le_refl _) hwhnf hconsume hlit hctx hproj
       htail htailType .nil .nil .nil (RecursorRecentBoundFVarArray.empty R)
       (ConstructorFieldOpening.empty tail)
+      hrootType
       htailScope (by
         apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hrootUp
         intro fv _
@@ -30303,6 +30376,10 @@ structure RecInfoMinorSemanticSource
     terminalWF.mlctx.vlctx traversal.terminal terminalTarget
   terminalType : terminalWF.venv.IsType recLparams.length
     terminalWF.mlctx.vlctx.toCtx terminalTarget
+  fieldTargetDefEq : rootWF.venv.IsDefEqU recLparams.length
+    rootWF.mlctx.vlctx.toCtx parameterTarget
+      (terminalWF.mlctx.mkForall' S.fields.size fieldsRecent.size_le
+        terminalTarget)
   motiveTarget : VExpr
   motiveTranslation : TrExprS sourceWF.venv recLparams
     sourceWF.mlctx.vlctx S.motiveApp motiveTarget
@@ -30338,6 +30415,7 @@ def RecInfoMinorSemanticSource.mono
   terminalTarget := HS.terminalTarget
   terminalTranslation := HS.terminalTranslation
   terminalType := HS.terminalType
+  fieldTargetDefEq := HS.fieldTargetDefEq
   motiveTarget := HS.motiveTarget
   motiveTranslation := HS.motiveTranslation
   motiveType := HS.motiveType
@@ -40622,6 +40700,11 @@ structure BoundGeneratedRecursorRule.Semantics
   parameterPrefix : RecursorParamPrefix stats 0 sourceCtor.type parameterTail
   parameterTail_fvars :
     parameterTail.FVarsIn (· ∈ ExprArrayFVarIds stats.params)
+  parameterTarget : VExpr
+  parameterTranslation : TrExprS fieldRootContext.venv recLparams
+    fieldRootContext.mlctx.vlctx parameterTail parameterTarget
+  parameterType : fieldRootContext.venv.IsType recLparams.length
+    fieldRootContext.mlctx.vlctx.toCtx parameterTarget
   fieldOpening : ConstructorFieldOpening parameterTail H.target H.allArgs
   fieldParameterUp : IsFVarUpSet (fun fv =>
     fv ∈ fieldsRecent.fvars ∨
@@ -40640,6 +40723,10 @@ structure BoundGeneratedRecursorRule.Semantics
     H.target targetTarget
   target_type : context.venv.IsType recLparams.length
     context.mlctx.vlctx.toCtx targetTarget
+  fieldTargetDefEq : fieldRootContext.venv.IsDefEqU recLparams.length
+    fieldRootContext.mlctx.vlctx.toCtx parameterTarget
+      (context.mlctx.mkForall' H.allArgs.size fieldsRecent.size_le
+        targetTarget)
   constructorTarget : VExpr
   constructor_translation : TrExprS context.venv recLparams
     context.mlctx.vlctx H.sourceConstructorMajor constructorTarget
@@ -41411,7 +41498,8 @@ theorem oneRuleSemantics
       HtailType htailFVars hparameterUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allArgs
     recursiveArgs fields positions args hterminalNonforall Hterminal HterminalType
-    Hselection Hdecisions Hrecursive HfieldsRecent _Hopening _HterminalScope
+    Hselection Hdecisions Hrecursive HfieldsRecent _Hopening HfieldTargetDefEq
+    _HterminalScope
     _HfieldParameterUp _HintroApplied _HintroAppliedType
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
   have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
@@ -41550,6 +41638,9 @@ theorem oneRuleSemantics
     parameterTail := tail
     parameterPrefix := hprefix
     parameterTail_fvars := htailFVars
+    parameterTarget := tailTarget
+    parameterTranslation := Htail
+    parameterType := HtailType
     fieldOpening := _Hopening
     fieldParameterUp := by
       rw [_Hopening.fvars_eq_bound
@@ -41565,6 +41656,7 @@ theorem oneRuleSemantics
     target_not_forall := hterminalNonforall
     target_translation := Hterminal
     target_type := HterminalType
+    fieldTargetDefEq := HfieldTargetDefEq
     constructorTarget := appliedTarget
     constructor_translation := by
       simpa [BoundGeneratedRecursorRule.sourceConstructorMajor, mkAppN] using
@@ -42719,7 +42811,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
   intro current Rargs terminal terminalTarget appliedTarget allFields
     recursiveFields fields positions args HterminalNonforall Hterminal
     HterminalType Hselections Hdecisions Hrecursive HfieldsRecent Hopening
-    _HterminalScope _HfieldParameterUp
+    HfieldTargetDefEq _HterminalScope _HfieldParameterUp
     HintroApplied HintroAppliedType
   let HextArgs := HfieldsRecent.contextExtension
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
@@ -43022,6 +43114,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           terminalTarget := terminalTarget
           terminalTranslation := Hterminal
           terminalType := HterminalType
+          fieldTargetDefEq := HfieldTargetDefEq
           motiveTarget := motiveTarget.lift'
             (HhypothesesRecent.contextExtension.shift.consN 0)
           motiveTranslation := HmotiveAt
