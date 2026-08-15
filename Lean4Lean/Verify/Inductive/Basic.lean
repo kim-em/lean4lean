@@ -66941,7 +66941,18 @@ theorem
   have HsourceType₀ := A.semantics.parameterType
   rw [hsemanticRoot, A.semantics.fieldRoot_vlctx] at HsourceType₀
   have HsourceType := HsourceType₀.mono hrecBase
-  have HsourceTypeAtBase := HsourceType.defeqDFC H.outVEnvWF.ordered
+  have HrootWF : VLCtx.WF H.outVEnv Us.length
+      H.recursorWF.mlctx.vlctx :=
+    (H.recursorWF.mlctx_wf.mono hrecBase).tr.wf
+  have HparameterTranslation₀ := A.semantics.parameterTranslation
+  rw [hsemanticRoot, A.semantics.fieldRoot_vlctx] at HparameterTranslation₀
+  have HparameterTranslation := HparameterTranslation₀.mono hrecBase
+  have HparameterSource := HparameterTranslation.uniq H.outVEnvWF
+    (.refl H.outVEnvWF HrootWF) Hsource
+  have HsourceWrappedType := VEnv.IsType.defeqU_l H.outVEnvWF
+    HrootWF.toCtx HparameterSource HsourceType
+  have HsourceTypeAtBase := HsourceWrappedType.defeqDFC
+    H.outVEnvWF.ordered
     (HbaseContext.defeqCtx.symm H.outVEnvWF.ordered)
   have HwholeType : H.outVEnv.IsType Us.length
       (VLCtx.toCtx baseExpanded)
@@ -66982,7 +66993,7 @@ theorem
       rw [← hfrontLength]
       simp
     rw [hleftDrop, hleftTake, hrightTake] at Hclosed
-    exact Hclosed
+    simpa using Hclosed
   have hfrontSourceLength : B.runtime.frontSourceDomains.length =
       narrowDomains.length := by
     rw [B.front, B.fieldDomains_length, hnarrowLength]
@@ -67005,7 +67016,8 @@ theorem
   have HparameterBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
       H.parameterSuffix.parameterDecls.toCtx
       H.parameterSuffix.parameterDecls.toCtx :=
-    .refl Wbase.wf.toCtx
+    VEnv.IsDefEqCtx.refl
+      (Wbase.wf H.outVEnvWF HbaseContext.wf).toCtx
   have Hfields := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
     HparameterBase (hnarrowLength.trans B.fieldDomains_length.symm)
       HnarrowFields
@@ -67050,26 +67062,159 @@ theorem
   rcases A.finalSelectedMinorNarrowFieldAlignment B with
     ⟨_S₂, _HS₂, narrowDomains, narrowResidual,
       hnarrow, Hnarrow, HnarrowFields⟩
+  have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
   have HparameterCtx : OnCtx H.parameterSuffix.parameterDecls.toCtx
       (H.outVEnv.IsType Us.length) := by
     have HfieldCtx := B.fieldContextWF
     rw [abstractForallContext_toCtx] at HfieldCtx
     simpa [Us] using HfieldCtx.drop B.fieldDomains.length
-  have HminorNarrowTarget := Hminor.uniq H.outVEnvWF
-    (.refl H.outVEnvWF HparameterCtx) Hnarrow
+  have Hminor' : TrExprS H.outVEnv Us
+      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      (VExpr.wrapForalls minorDomains minorResidual) := by
+    simpa only [← H.parameterDecls] using Hminor
+  have Hchecked' : TrExprS H.outVEnv Us
+      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      (VExpr.wrapForalls checkedDomains checkedResidual) := by
+    simpa only [← H.parameterDecls] using Hchecked
+  have HminorChecked' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (minorDomains.reverse ++ H.parameterSuffix.parameterDecls.toCtx)
+      (checkedDomains.reverse ++ H.parameterSuffix.parameterDecls.toCtx) := by
+    simpa only [← H.parameterDecls] using HminorChecked
+  have HminorNarrowTarget := Hminor'.uniq H.outVEnvWF
+    (VLCtx.IsDefEq.refl H.outVEnvWF
+      (H.parameterSuffix.parameterWF.mono hrecBase)) Hnarrow
   have HparameterBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
       H.parameterSuffix.parameterDecls.toCtx
       H.parameterSuffix.parameterDecls.toCtx :=
-    .refl HparameterCtx
+    VEnv.IsDefEqCtx.refl HparameterCtx
   have HminorNarrow := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
     HparameterBase (hminor.trans hnarrow.symm) HminorNarrowTarget
-  have HcheckedMinor := HminorChecked.symm H.outVEnvWF.ordered
+  have HcheckedMinor := HminorChecked'.symm H.outVEnvWF.ordered
   have HcheckedNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HcheckedMinor HminorNarrow
   have HcheckedFields := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HcheckedNarrow HnarrowFields
-  exact ⟨checkedDomains, checkedResidual, hchecked, Hchecked,
+  exact ⟨checkedDomains, checkedResidual, hchecked, Hchecked',
     HcheckedFields⟩
+
+/-- Insert the generated motive/minor block beneath the checked-to-narrow
+field conversion and transport the older generated parameter context to the
+cached parameter suffix.  The right side is exactly the fixed equation
+context used by `CanonicalRecursiveResultAt`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedNarrowEquationContextAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ checkedDomains equationFieldDomains,
+        checkedDomains.length = A.rule.allArgs.size ∧
+        equationFieldDomains =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            checkedDomains.reverse).reverse ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          (equationFieldDomains.reverse ++
+            (T.params ++ T.motives ++ T.minors).reverse)
+          ((liftContextPrefix (T.motives ++ T.minors).length
+              B.fieldDomains.reverse) ++
+            (T.motives ++ T.minors).reverse ++
+              H.parameterSuffix.parameterDecls.toCtx) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalCheckedConstructorFieldFrame with
+    ⟨T, checkedDomains, checkedResidual, _introTarget, hparams,
+      hchecked, Hchecked, _HfieldResidual, _HtailType,
+      _HtailTypeT, HcheckedContext, _HintroType, _Hintro,
+      _HintroShape⟩
+  rcases A.finalCheckedNarrowFieldAlignment B with
+    ⟨otherCheckedDomains, otherCheckedResidual, hotherChecked,
+      HotherChecked, HotherNarrow⟩
+  have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have Hchecked' : TrExprS H.outVEnv Us
+      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      (VExpr.wrapForalls checkedDomains checkedResidual) := by
+    simpa only [← H.parameterDecls] using Hchecked
+  have HparameterCtx : OnCtx H.parameterSuffix.parameterDecls.toCtx
+      (H.outVEnv.IsType Us.length) := by
+    have HfieldCtx := B.fieldContextWF
+    rw [abstractForallContext_toCtx] at HfieldCtx
+    simpa [Us] using HfieldCtx.drop B.fieldDomains.length
+  have HcheckedTarget := Hchecked'.uniq H.outVEnvWF
+    (VLCtx.IsDefEq.refl H.outVEnvWF
+      (H.parameterSuffix.parameterWF.mono hrecBase)) HotherChecked
+  have HparameterBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      H.parameterSuffix.parameterDecls.toCtx
+      H.parameterSuffix.parameterDecls.toCtx :=
+    VEnv.IsDefEqCtx.refl HparameterCtx
+  have HcheckedOther := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
+    HparameterBase (hchecked.trans hotherChecked.symm) HcheckedTarget
+  have HcheckedNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HcheckedOther HotherNarrow
+  let inserted := T.motives ++ T.minors
+  let checkedRecent := checkedDomains.reverse
+  let narrowRecent := B.fieldDomains.reverse
+  let insertedCtx := inserted.reverse
+  have HprefixCanonical : OnCtx (insertedCtx ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [inserted, insertedCtx, Us, List.reverse_append,
+      List.append_assoc] using T.prefixContext H.outVEnvWF.ordered
+  have HprefixEq : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (insertedCtx ++ T.params.reverse)
+      (insertedCtx ++ H.parameterSuffix.parameterDecls.toCtx) := by
+    have Hextended :=
+      Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+        hparams HprefixCanonical
+    simpa [insertedCtx, ← H.parameterDecls] using Hextended
+  have HinsertedCtx : OnCtx
+      (insertedCtx ++ H.parameterSuffix.parameterDecls.toCtx)
+      (H.outVEnv.IsType Us.length) :=
+    (HprefixEq.symm H.outVEnvWF.ordered).isType
+  have HfieldsInserted := VEnv.IsDefEqCtx.insertSameMiddle
+    H.outVEnvWF.ordered checkedRecent narrowRecent insertedCtx
+      H.parameterSuffix.parameterDecls.toCtx HcheckedNarrow
+      (by simp [checkedRecent, narrowRecent, hchecked,
+        B.fieldDomains_length]) HinsertedCtx
+  have HcheckedRecent : OnCtx
+      (checkedRecent ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [checkedRecent, Us] using HcheckedContext
+  have HcanonicalEquation := Lean4Lean.OnCtx.insertAfterPrefix
+    H.outVEnvWF.ordered HcheckedRecent HprefixCanonical
+  have HcanonicalToCached :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      HprefixEq (by
+        simpa [List.append_assoc] using HcanonicalEquation)
+  have HfieldsInserted' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (liftContextPrefix insertedCtx.length checkedRecent ++
+        (insertedCtx ++ H.parameterSuffix.parameterDecls.toCtx))
+      (liftContextPrefix insertedCtx.length narrowRecent ++
+        (insertedCtx ++ H.parameterSuffix.parameterDecls.toCtx)) := by
+    simpa [List.append_assoc] using HfieldsInserted
+  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HcanonicalToCached HfieldsInserted'
+  let equationFieldDomains :=
+    (liftContextPrefix inserted.length checkedDomains.reverse).reverse
+  exact ⟨T, checkedDomains, equationFieldDomains, hchecked, rfl, by
+    simpa [equationFieldDomains, inserted, checkedRecent, narrowRecent,
+      insertedCtx, List.reverse_append, List.append_assoc,
+      Nat.add_comm] using Haligned⟩
 
 /-- Restrict the terminal constructor target to the retained rule-wide
 field scope and close those named fields.  The resulting target is typed in
