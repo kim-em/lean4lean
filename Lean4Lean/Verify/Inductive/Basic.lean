@@ -72983,6 +72983,16 @@ theorem
         O.ownerIdx < H.recInfos.size ∧
         hypothesisOrigins.recInfos[O.ownerIdx]!.motive =
           H.recInfos[O.ownerIdx]!.motive ∧
+        (let sourceBinders := H.params.fvars ++
+            H.bindings.motives.fvars ++
+              H.bindings.flatMinors.fvars.take minorIdx
+          let position := A.rule.allArgs.size + j
+          let motivePosition := H.params.fvars.length + O.ownerIdx
+          ∃ motiveFVar,
+            H.recInfos[O.ownerIdx]!.motive = .fvar motiveFVar ∧
+            (Expr.fvar motiveFVar).abstractList sourceBinders position =
+              .bvar (position +
+                (sourceBinders.length - 1 - motivePosition))) ∧
         S.traversal = some traversal ∧
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
@@ -73076,6 +73086,60 @@ theorem
     rw [getElem!_pos hypothesisOrigins.recInfos O.ownerIdx hownerOrigin,
       getElem!_pos H.recInfos O.ownerIdx hownerRecInfos]
     simpa only [Array.getElem_map] using hget
+  rcases O.motive_is_fvar with ⟨motiveFVar, hmotiveOrigin⟩
+  have hmotiveFinal : H.recInfos[O.ownerIdx]!.motive =
+      .fvar motiveFVar := hmotiveSnapshot.symm.trans hmotiveOrigin
+  have hownerMotiveArray : O.ownerIdx <
+      (H.recInfos.map (·.motive)).size := by simpa using hownerRecInfos
+  have hownerMotiveFVars : O.ownerIdx <
+      H.bindings.motives.fvars.length := by
+    rw [H.bindings.motives.length_fvars]
+    exact hownerMotiveArray
+  rcases H.bindings.motives.getElem_eq_fvar O.ownerIdx
+      hownerMotiveArray with ⟨_hownerMotiveFVars, hmotiveAt⟩
+  have hmotiveAt' : H.recInfos[O.ownerIdx]!.motive =
+      .fvar H.bindings.motives.fvars[O.ownerIdx] := by
+    rw [getElem!_pos H.recInfos O.ownerIdx hownerRecInfos]
+    simpa only [Array.getElem_map] using hmotiveAt
+  have hmotiveFVarExact : motiveFVar =
+      H.bindings.motives.fvars[O.ownerIdx] :=
+    Expr.fvar.inj (hmotiveFinal.symm.trans hmotiveAt')
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take
+      (recursorMinorOffset indTypes owner + i)
+  let position := A.rule.allArgs.size + j
+  let motivePosition := H.params.fvars.length + O.ownerIdx
+  have hsourceBindersNodup : sourceBinders.Nodup := by
+    have houter := H.bindings.outerNodup H.params H.noAlias
+    have hsub :
+        (H.params.fvars ++ H.bindings.motives.fvars) ++
+            H.bindings.flatMinors.fvars.take
+              (recursorMinorOffset indTypes owner + i) <+
+          (H.params.fvars ++ H.bindings.motives.fvars) ++
+            H.bindings.flatMinors.fvars :=
+      (List.Sublist.refl
+        (H.params.fvars ++ H.bindings.motives.fvars)).append
+          (List.take_sublist _ H.bindings.flatMinors.fvars)
+    simpa [sourceBinders, List.append_assoc] using houter.sublist hsub
+  have hmotivePositionBound : motivePosition < sourceBinders.length := by
+    simp only [sourceBinders, motivePosition, List.length_append,
+      List.length_take]
+    omega
+  have hmotivePositionGet : sourceBinders[motivePosition] = motiveFVar := by
+    dsimp only [sourceBinders, motivePosition]
+    have hwithin : H.params.fvars.length + O.ownerIdx <
+        (H.params.fvars ++ H.bindings.motives.fvars).length := by
+      simp only [List.length_append]
+      omega
+    rw [List.getElem_append_left hwithin]
+    simpa [hownerMotiveFVars] using hmotiveFVarExact.symm
+  have hmotiveAbstract := Expr.abstractList_fvar_getElem
+    hsourceBindersNodup motivePosition hmotivePositionBound (k := position)
+  rw [hmotivePositionGet] at hmotiveAbstract
+  have hmotiveNormal : (Expr.fvar motiveFVar).abstractList
+      sourceBinders position =
+      .bvar (position + (sourceBinders.length - 1 - motivePosition)) := by
+    exact hmotiveAbstract
   let fieldPosition := A.semantics.recursivePositions[j]!
   have hfieldPositionRule : fieldPosition < A.rule.allArgs.size :=
     (A.semantics.decisions.selected_at j hj).1
@@ -73134,7 +73198,9 @@ theorem
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, sourceType, O, B, E,
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
-    hownerRecInfos, hmotiveSnapshot, htraversal, htraversalFields,
+    hownerRecInfos, hmotiveSnapshot,
+    ⟨motiveFVar, hmotiveFinal, hmotiveNormal⟩,
+    htraversal, htraversalFields,
     htraversalRecursiveFields, hpositions,
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
