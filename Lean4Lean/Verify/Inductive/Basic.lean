@@ -65043,6 +65043,124 @@ theorem
   exact ⟨T, scope, independentFields, installedFields,
     hindependentFields, hinstalledFields, Hfields⟩
 
+/-- Rebase the independent/installed field conversion onto the literal
+generated parameter/motive/earlier-minor prefix.  After this step both field
+telescopes have the same outer suffix, so later generated declarations can be
+inserted beneath them with `insertSameMiddle`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorInstalledFieldAlignmentAtGeneratedPrefix
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ independentFields installedFields,
+        independentFields.length = A.rule.allArgs.size ∧
+        installedFields.length = A.rule.allArgs.size ∧
+        let base := T.params ++ T.motives ++ T.minors.take minorIdx
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          (independentFields.reverse ++ base.reverse)
+          (installedFields.reverse ++ base.reverse) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalSelectedMinorIndependentInstalledFieldAlignment
+      hpositive with
+    ⟨T, scope, independentFields, installedFields,
+      hindependentFields, hinstalledFields, Hfields⟩
+  let base := T.params ++ T.motives ++ T.minors.take minorIdx
+  have Hprefix₀ := Hfields.dropHeads A.rule.allArgs.size
+  have hleftDrop :
+      (independentFields.reverse ++ scope.toCtx).drop
+          A.rule.allArgs.size = scope.toCtx := by
+    simpa [hindependentFields] using
+      List.drop_left' independentFields.reverse scope.toCtx
+  have hrightDrop :
+      (installedFields.reverse ++ base.reverse).drop
+          A.rule.allArgs.size = base.reverse := by
+    simpa [hinstalledFields] using
+      List.drop_left' installedFields.reverse base.reverse
+  rw [hleftDrop, hrightDrop] at Hprefix₀
+  have HsameIndependent :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      Hprefix₀ Hfields.isType
+  have HsameBase := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    (HsameIndependent.symm H.outVEnvWF.ordered) Hfields
+  exact ⟨T, independentFields, installedFields,
+    hindependentFields, hinstalledFields, by
+      simpa [base] using HsameBase⟩
+
+/-- Insert the selected minor and every later minor beneath the rebased field
+conversion.  The resulting contexts are exactly the natural contexts in
+which the selected minor is applied to canonical constructor variables. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorInstalledFieldAlignmentInFullPrefix
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ independentFields installedFields,
+        independentFields.length = A.rule.allArgs.size ∧
+        installedFields.length = A.rule.allArgs.size ∧
+        let base := T.params ++ T.motives ++ T.minors.take minorIdx
+        let remaining := (T.minors.drop minorIdx).reverse
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          (liftContextPrefix remaining.length independentFields.reverse ++
+            remaining ++ base.reverse)
+          (liftContextPrefix remaining.length installedFields.reverse ++
+            remaining ++ base.reverse) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalSelectedMinorInstalledFieldAlignmentAtGeneratedPrefix
+      hpositive with
+    ⟨T, independentFields, installedFields,
+      hindependentFields, hinstalledFields, Hfields⟩
+  let base := T.params ++ T.motives ++ T.minors.take minorIdx
+  let remaining := (T.minors.drop minorIdx).reverse
+  have Hremaining : OnCtx (remaining ++ base.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    have Hprefix := T.prefixContext H.outVEnvWF.ordered
+    have hminors := List.take_append_drop minorIdx T.minors
+    simpa [base, remaining, List.reverse_append, List.append_assoc,
+      hminors] using Hprefix
+  have Hfull := VEnv.IsDefEqCtx.insertSameMiddle
+    H.outVEnvWF.ordered independentFields.reverse installedFields.reverse
+      remaining base.reverse Hfields
+      (by simp [hindependentFields, hinstalledFields]) Hremaining
+  exact ⟨T, independentFields, installedFields,
+    hindependentFields, hinstalledFields, by
+      simpa [base, remaining] using Hfull⟩
+
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
 same owner/constructor coordinates used by the rule traversal. -/
