@@ -70718,6 +70718,74 @@ theorem
         hinstalledFields, hnarrowFields] using Htransported,
     HweakenedNarrow⟩
 
+/-- Witness-stable specialization of
+`finalSelectedMinorFieldApplicationWithNarrowFrame`.  A recursive-result
+fold already carries one generated recursor telescope, so the field-applied
+minor must be transported to that exact witness before any dependent
+hypothesis domains are compared. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorFieldApplicationWithNarrowFrameFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ scope : VLCtx,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+      ∃ narrowFields weakenedFields hypothesisDomains : List VExpr,
+      ∃ targetResidual : VExpr,
+        narrowFields.length = A.rule.allArgs.size ∧
+        weakenedFields.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        weakenedFields = liftForallDomains narrowFields Hscope.shift ∧
+        let later := T.minors.drop (minorIdx + 1)
+        let shift := later.length + 1
+        let liftedFields :=
+          (liftContextPrefix shift narrowFields.reverse).reverse
+        let liftedHypotheses :=
+          (liftContextPrefixAt shift narrowFields.length
+            hypothesisDomains.reverse).reverse
+        H.outVEnv.HasType Us.length
+            (liftedFields.reverse ++
+              (T.params ++ T.motives ++ T.minors).reverse)
+            (VExpr.mkApps
+              ((.bvar later.length : VExpr).liftN liftedFields.length 0)
+              (recursorCanonicalVars liftedFields.length))
+            (VExpr.wrapForalls liftedHypotheses
+              (targetResidual.liftN shift
+                (narrowFields.length + hypothesisDomains.length))) ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+            (weakenedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+            B.runtime.expanded.toCtx := by
+  dsimp only
+  rcases A.finalSelectedMinorFieldApplicationWithNarrowFrame B hpositive with
+    ⟨T₁, scope, Hscope, narrowFields, weakenedFields,
+      hypothesisDomains, targetResidual, hnarrowFields, hweakenedFields,
+      hhypotheses, hweakenedExact, Happlication, HweakenedNarrow⟩
+  rcases T₁.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams, hmotives, hminors] at Happlication
+  exact ⟨scope, Hscope, narrowFields, weakenedFields,
+    hypothesisDomains, targetResidual, hnarrowFields, hweakenedFields,
+    hhypotheses, hweakenedExact, Happlication, HweakenedNarrow⟩
+
 /-- Compose the selected minor's transported consumed fields with the
 rule-wide narrowing conversion.  The result relates the literal first-pass
 field suffix to the expanded narrow context used by the canonical recursive
