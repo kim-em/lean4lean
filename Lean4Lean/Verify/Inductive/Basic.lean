@@ -73118,6 +73118,18 @@ theorem
         O.replayTrace S.fields_bound.fvars =
           E.frame.semantic.generated.replayTrace
             A.rule.all_args_bound.fvars ∧
+        (((O.exposedType.getAppArgs[
+              hypothesisOrigins.stats.params.size:] : Array Expr).map
+            fun index =>
+              (index.abstractList O.arguments_bound.fvars).abstractList
+                S.fields_bound.fvars O.args.size) =
+          ((E.frame.semantic.generated.exposedType.getAppArgs[
+                stats.params.size:] : Array Expr).map
+            fun index =>
+              (index.abstractList
+                E.frame.semantic.generated.arguments_bound.fvars).abstractList
+                  A.rule.all_args_bound.fvars
+                  E.frame.semantic.generated.localArgs.size)) ∧
         O.ownerIdx = E.frame.semantic.generated.ownerIdx ∧
         O.args.size = E.frame.semantic.generated.localArgs.size ∧
         O.outerAbstractedField S.fields_bound.fvars =
@@ -73270,6 +73282,20 @@ theorem
   have hownerReplay : O.ownerIdx =
       E.frame.semantic.generated.ownerIdx :=
     congrArg RecursorLoopUArgsTrace.ownerIdx Hreplay
+  have hindicesReplay :
+      (((O.exposedType.getAppArgs[
+            hypothesisOrigins.stats.params.size:] : Array Expr).map
+          fun index =>
+            (index.abstractList O.arguments_bound.fvars).abstractList
+              S.fields_bound.fvars O.args.size) =
+        ((E.frame.semantic.generated.exposedType.getAppArgs[
+              hypothesisOrigins.stats.params.size:] : Array Expr).map
+          fun index =>
+            (index.abstractList
+              E.frame.semantic.generated.arguments_bound.fvars).abstractList
+                A.rule.all_args_bound.fvars
+                E.frame.semantic.generated.localArgs.size)) := by
+    exact congrArg RecursorLoopUArgsTrace.indices Hreplay
   have hlocalArity : O.args.size =
       E.frame.semantic.generated.localArgs.size :=
     congrArg RecursorLoopUArgsTrace.localArity Hreplay
@@ -73466,7 +73492,7 @@ theorem
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
     rfl, by simpa [fieldPosition] using houterField,
-    hrecursiveMajor.1, hrecursiveMajor.2, Hreplay, hownerReplay,
+    hrecursiveMajor.1, hrecursiveMajor.2, Hreplay, hindicesReplay, hownerReplay,
     hlocalArity, hmajorAlignment,
     Hdomain,
     ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
