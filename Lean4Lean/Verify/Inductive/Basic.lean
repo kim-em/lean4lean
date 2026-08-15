@@ -55289,6 +55289,27 @@ theorem Expr.SameForallPrefix.abstract1
     simp only [Expr.abstract1]
     exact .cons (ih (k + 1))
 
+/-- Closing the same dependency-selected named context around two bodies
+preserves their common forall prefix, adding one shared outer binder for
+each retained declaration.  This is the source-side bridge from narrowing
+closures to anonymous dependent-telescope comparison. -/
+theorem
+    checkInductiveTypes.loopType.FVarNarrowSources.closeSource_sameForallPrefix
+    (S : checkInductiveTypes.loopType.FVarNarrowSources env Us scope)
+    (H : Expr.SameForallPrefix n left right) :
+    Expr.SameForallPrefix (scope.length + n)
+      (S.closeSource left) (S.closeSource right) := by
+  induction S generalizing n left right with
+  | nil => simpa using H
+  | @cons scope domainTarget fv deps tail name binderInfo domain Hdomain ih =>
+      have Hinner : Expr.SameForallPrefix (n + 1)
+          (.forallE name domain (left.abstract1 fv) binderInfo)
+          (.forallE name domain (right.abstract1 fv) binderInfo) :=
+        .cons (H.abstract1 fv)
+      have Hclosed := ih Hinner
+      simpa [FVarNarrowSources.closeSource, Nat.add_assoc,
+        Nat.add_comm, Nat.add_left_comm] using Hclosed
+
 theorem Expr.SameForallPrefix.abstractList
     (H : Expr.SameForallPrefix n left right)
     (fvars : List FVarId) (k : Nat := 0) :
