@@ -65458,6 +65458,8 @@ theorem
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ narrowTarget,
         scope.fvars = sourceBinders.reverse ∧
+        Hscope.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
+          (· ∈ sourceBinders) ∧
         (∀ body,
           Hscope.sources.closeSource body =
             H.localContext.lctx.mkForall
@@ -65487,7 +65489,7 @@ theorem
       H.recursorWF.onlyLams
       H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
       (fun fv => fv ∈ sourceBinders) A.finalSelectedMinorPrefixUp with
-    ⟨scope, Hscope, hscopeFiltered, _hscopeShift,
+    ⟨scope, Hscope, hscopeFiltered, hscopeShift,
       _hscopeDecls, hscopeSource⟩
   have hscope : scope.fvars = sourceBinders.reverse :=
     hscopeFiltered.trans A.finalSelectedMinorFilteredFVars
@@ -65530,8 +65532,8 @@ theorem
   have Hclosed := HscopeOut.abstractAll H.outVEnvWF Hnarrow
   rw [hscope, List.reverse_reverse] at Hclosed
   exact ⟨T, D, O, S, scope, HscopeOut, narrowTarget, hscope,
-    hscopeSourceOut, Hnarrow, Hclosed, HscopeOut.abstractAllWF H.outVEnvWF,
-    Hdomain, HdomainType⟩
+    hscopeShift, hscopeSourceOut, Hnarrow, Hclosed,
+    HscopeOut.abstractAllWF H.outVEnvWF, Hdomain, HdomainType⟩
 
 /-- Reconstruct the complete source telescope of the exact selected prefix.
 Its abstract domains are precisely the non-contiguous narrowed context and
@@ -65565,6 +65567,8 @@ theorem
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ prefixSource,
         scope.fvars = sourceBinders.reverse ∧
+        Hscope.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
+          (· ∈ sourceBinders) ∧
         (∀ body,
           Hscope.sources.closeSource body =
             H.localContext.lctx.mkForall
@@ -65593,7 +65597,8 @@ theorem
     H.bindings.flatMinors.fvars.take minorIdx
   rcases A.finalSelectedMinorExactClosedDomain with
     ⟨T, _D, _O, _S, scope, Hscope, _narrowTarget, hscope,
-      hscopeSource, _Hnarrow, _Hclosed, _HscopeWF, _Hdomain, _HdomainType⟩
+      hscopeShift, hscopeSource, _Hnarrow, _Hclosed, _HscopeWF,
+      _Hdomain, _HdomainType⟩
   rcases Hscope.closedSortTranslation H.outVEnvWF with
     ⟨Hprefix, HprefixType⟩
   have HprefixTelescope := Hscope.closedSortTelescope H.outVEnvWF
@@ -65615,7 +65620,7 @@ theorem
           T.params_length, T.motives_length, T.minors_length]
   exact ⟨T, scope, Hscope,
     Hscope.sources.closeSource (.sort (.zero : Level)), hscope,
-    hscopeSource, rfl,
+    hscopeShift, hscopeSource, rfl,
     hscopeSource (.sort (.zero : Level)),
     Hprefix, HprefixType, HprefixTelescope, hprefixLength⟩
 
@@ -65921,6 +65926,8 @@ theorem
       ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
         scope.fvars = sourceBinders.reverse ∧
+        Hscope.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
+          (· ∈ sourceBinders) ∧
         (∀ body,
           Hscope.sources.closeSource body =
             H.localContext.lctx.mkForall
@@ -65933,8 +65940,8 @@ theorem
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
   rcases A.finalSelectedMinorExactPrefixSource with
-    ⟨T, scope, Hscope, prefixSource, hscope, hscopeSource, hprefixSource,
-      hprefixLocal, _HprefixTr, _HprefixType, HprefixTelescope,
+    ⟨T, scope, Hscope, prefixSource, hscope, hscopeShift, hscopeSource,
+      hprefixSource, hprefixLocal, _HprefixTr, _HprefixType, HprefixTelescope,
       hselectedLength⟩
   let fullDomains := T.params ++ T.motives ++ T.minors ++
     T.indices ++ T.major
@@ -65999,7 +66006,7 @@ theorem
           T.params ++ T.motives ++ minors ++ T.indices ++ T.major) hsplit]
     exact List.take_append_length
   rw [htakeScope, htakeFull] at Hctx
-  exact ⟨T, scope, Hscope, hscope, hscopeSource, by
+  exact ⟨T, scope, Hscope, hscope, hscopeShift, hscopeSource, by
     simpa [selectedDomains, List.reverse_append, List.append_assoc] using
       Hctx⟩
 
@@ -67546,6 +67553,8 @@ theorem
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         HS.semantic.traversal.parameterTail = A.semantics.parameterTail ∧
         scope.fvars = sourceBinders.reverse ∧
+        Hscope.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
+          (· ∈ sourceBinders) ∧
         TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
           S.origin fullTarget ∧
         H.outVEnv.IsDefEqU Us.length H.recursorWF.mlctx.vlctx.toCtx
@@ -67590,7 +67599,7 @@ theorem
     (congrArg RecInfoMinorTraversalShape.parameterTail
       hsemanticTraversal).trans hparameterTail
   rcases A.finalSelectedMinorPrefixDefEqCtx with
-    ⟨T₀, scope, Hscope, hscope, hscopeSource, Hprefix₀⟩
+    ⟨T₀, scope, Hscope, hscope, hscopeShift, hscopeSource, Hprefix₀⟩
   rcases T₀.groupsResult_eq T with
     ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
   rw [hparams, hmotives, hminors] at Hprefix₀
@@ -67654,8 +67663,9 @@ theorem
     Hnarrow HnarrowType
   rw [hscopeSourceOut] at HclosedTyped
   exact ⟨T, S, HS, scope, Hscope, narrowTarget, fullTarget,
-    rfl, hfields, hhypotheses, hsemanticParameterTail, hscope, Hfull, HfullEq,
-    hscopeSourceOut, Hprefix, HabstractTyped, HclosedTyped, Hinstalled⟩
+    rfl, hfields, hhypotheses, hsemanticParameterTail, hscope, hscopeShift,
+    Hfull, HfullEq, hscopeSourceOut, Hprefix, HabstractTyped,
+    HclosedTyped, Hinstalled⟩
 
 /-- Turn the inverse-weakening equality retained by
 `finalSelectedMinorExactClosedTelescope` into a conversion of the complete
@@ -67722,7 +67732,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.finalSelectedMinorExactClosedTelescope hpositive with
     ⟨T, S, HS, scope, Hscope, narrowTarget, fullTarget, hfullTargetEq, hfields,
-      hhypotheses, hparameterTail, _hscope, Hfull, HfullEq,
+      hhypotheses, hparameterTail, _hscope, _hscopeShift, Hfull, HfullEq,
       _hscopeSource, Hprefix, Hnarrow, _Hclosed, Hinstalled⟩
   rcases Hnarrow.toWrapForalls with
     ⟨narrowDomains, narrowSourceResidual, narrowResidual,
@@ -67848,7 +67858,7 @@ theorem
   rcases A.finalSelectedMinorExactClosedTelescope hpositive with
     ⟨T, S, _HS, scope, _Hscope, narrowTarget, _fullTarget,
       _hfullTargetEq, _hfields,
-      _hhypotheses, _hparameterTail, _hscope, _Hfull, _HfullEq,
+      _hhypotheses, _hparameterTail, _hscope, _hscopeShift, _Hfull, _HfullEq,
       _hscopeSource, Hprefix, Hnarrow, _Hclosed, Hinstalled⟩
   rcases Hnarrow.toWrapForalls with
     ⟨narrowDomains, narrowSourceResidual, narrowResidual,
