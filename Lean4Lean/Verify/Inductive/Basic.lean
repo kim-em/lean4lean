@@ -53364,6 +53364,49 @@ theorem Expr.SameForallPrefix.trans
     cases H₂ with
     | cons H₂ => exact .cons (ih H₂)
 
+/-- Identical concrete forall prefixes are complete once their residual
+bodies are identified.  Keeping both telescope witnesses explicit avoids
+relying on a syntactic `isForall` loop when the prefix was produced by two
+independent executable passes. -/
+theorem Expr.SameForallPrefix.eq_of_residual_eq
+    (H : Expr.SameForallPrefix n left right)
+    (Hleft : Expr.ForallTelescope left n leftResidual)
+    (Hright : Expr.ForallTelescope right n rightResidual)
+    (hresidual : leftResidual = rightResidual) :
+    left = right := by
+  induction H generalizing leftResidual rightResidual with
+  | nil =>
+    cases Hleft
+    cases Hright
+    exact hresidual
+  | cons _ ih =>
+    cases Hleft with
+    | cons Hleft =>
+      cases Hright with
+      | cons Hright =>
+        exact congrArg
+          (fun body => Expr.forallE _ _ body _)
+          (ih Hleft Hright hresidual)
+
+/-- Translation uniqueness for sources whose complete equality is obtained
+from a shared forall prefix and equal residuals.  This is the whole-domain
+comparison used when extending the recursive-hypothesis context by one
+canonical recursive result. -/
+theorem Expr.SameForallPrefix.translatedTargets
+    (H : Expr.SameForallPrefix n left right)
+    (henv : VEnv.WF env)
+    (hctx : VLCtx.IsDefEq env Us.length leftCtx rightCtx)
+    (HleftTelescope : Expr.ForallTelescope left n leftResidual)
+    (HrightTelescope : Expr.ForallTelescope right n rightResidual)
+    (hresidual : leftResidual = rightResidual)
+    (Hleft : TrExprS env Us leftCtx left leftTarget)
+    (Hright : TrExprS env Us rightCtx right rightTarget) :
+    env.IsDefEqU Us.length leftCtx.toCtx leftTarget rightTarget := by
+  have hsource := H.eq_of_residual_eq HleftTelescope HrightTelescope
+    hresidual
+  subst right
+  exact Hleft.uniq henv hctx Hright
+
 theorem Expr.SameForallPrefix.instantiate1'
     (H : Expr.SameForallPrefix n left right) (arg : Expr) (k : Nat := 0) :
     Expr.SameForallPrefix n
