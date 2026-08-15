@@ -83371,12 +83371,17 @@ theorem
           S.fields_bound.fvars j).abstractList sourceBinders position
       let prior := (fieldDomains ++ hypothesisDomains).take position
       let remaining := T.minors.drop minorIdx
+      let previous := hypothesisDomains.take j
       let liftedPrior :=
         (liftContextPrefix remaining.length prior.reverse).reverse
+      let liftedFields :=
+        (liftContextPrefix remaining.length fieldDomains.reverse).reverse
+      let liftedPrevious :=
+        (liftContextPrefixAt remaining.length fieldDomains.length
+          previous.reverse).reverse
       let liftedHypothesisLocals :=
         (liftContextPrefixAt remaining.length position
           hypothesisLocalDomains.reverse).reverse
-      let previous := hypothesisDomains.take j
       let equationDomains :=
         H.parameterSuffix.parameterDecls.toCtx.reverse ++
           T.motives ++ T.minors ++
@@ -83389,9 +83394,11 @@ theorem
         (mkAppN A.rule.recursiveArgs[j]
           E.frame.semantic.generated.localArgs)
       let liftedCanonicalLocals :=
-        (liftContextPrefix previous.length E.localDomains.reverse).reverse
+        (liftContextPrefix liftedPrevious.length
+          E.localDomains.reverse).reverse
       fieldDomains.length = A.rule.allArgs.size ∧
       hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+      liftedPrior = liftedFields ++ liftedPrevious ∧
       hypothesisLocalDomains.length = E.localDomains.length ∧
       hypothesisDomains[j]! =
         VExpr.wrapForalls hypothesisLocalDomains hypothesisResidual ∧
@@ -83403,12 +83410,13 @@ theorem
           (hypothesisResidual.liftN remaining.length
             (position + hypothesisLocalDomains.length))) ∧
       TrExprS H.outVEnv Us
-        (abstractForallContext (equationDomains ++ previous) [])
+        (abstractForallContext (equationDomains ++ liftedPrevious) [])
         (((E.frame.semantic.generated.current.lctx.mkForall
           E.frame.semantic.generated.localArgs motiveApp).abstractList
-            A.rule.binders).liftLooseBVars' 0 previous.length)
+            A.rule.binders).liftLooseBVars' 0 liftedPrevious.length)
         (VExpr.wrapForalls liftedCanonicalLocals
-          (E.resultType.liftN previous.length E.localDomains.length)) := by
+          (E.resultType.liftN liftedPrevious.length
+            E.localDomains.length)) := by
   dsimp only
   rcases A.finalSelectedMinorHypothesisCanonicalResultFrame j hj B T E with
     ⟨S, hypothesisOrigins, _traversal, fieldDomains,
@@ -83444,12 +83452,17 @@ theorem
       S.fields_bound.fvars j).abstractList sourceBinders position
   let prior := (fieldDomains ++ hypothesisDomains).take position
   let remaining := T.minors.drop minorIdx
+  let previous := hypothesisDomains.take j
   let liftedPrior :=
     (liftContextPrefix remaining.length prior.reverse).reverse
+  let liftedFields :=
+    (liftContextPrefix remaining.length fieldDomains.reverse).reverse
+  let liftedPrevious :=
+    (liftContextPrefixAt remaining.length fieldDomains.length
+      previous.reverse).reverse
   let liftedHypothesisLocals :=
     (liftContextPrefixAt remaining.length position
       hypothesisLocalDomains.reverse).reverse
-  let previous := hypothesisDomains.take j
   have hpositionLE : position ≤
       (fieldDomains ++ hypothesisDomains).length := by
     simp only [position, List.length_append]
@@ -83457,6 +83470,12 @@ theorem
     omega
   have hprior : prior.length = position := by
     simp [prior, List.length_take_of_le hpositionLE]
+  have hpriorSplit : prior = fieldDomains ++ previous := by
+    unfold prior position previous
+    rw [← hfields, List.take_length_add_append]
+  have hliftedPriorSplit : liftedPrior = liftedFields ++ liftedPrevious := by
+    simpa [liftedPrior, liftedFields, liftedPrevious, hpriorSplit] using
+      liftContextPrefix_reverse_append remaining.length fieldDomains previous
   have HdomainFlat : TrExprS H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext
@@ -83480,14 +83499,14 @@ theorem
           (position + hypothesisLocalDomains.length))) := by
     simpa [remaining, liftedPrior, liftedHypothesisLocals, hprior,
       VExpr.liftN_wrapForalls, List.append_assoc] using Hinstalled₀
-  have Hcanonical := E.fullForallTranslationAfter previous
+  have Hcanonical := E.fullForallTranslationAfter liftedPrevious
   have hlocalLength : hypothesisLocalDomains.length = E.localDomains.length :=
     hhypothesisLocalDomains.trans (hlocalArity.trans E.local_length.symm)
   exact ⟨S, hypothesisOrigins, fieldDomains, hypothesisDomains,
     targetResidual, D, originRoot, sourceType, O,
     hypothesisLocalDomains, hypothesisResidual, hfields, hhypotheses,
-    hlocalLength, hhypothesisDomain, Hinstalled, by
-      simpa [previous] using Hcanonical⟩
+    hliftedPriorSplit, hlocalLength, hhypothesisDomain, Hinstalled, by
+      simpa [liftedPrevious, remaining, previous] using Hcanonical⟩
 
 /-- All recursive results of one generated rule, chosen in their production
 array order and fixed to one recursor telescope and one narrowed field frame. -/
