@@ -23733,6 +23733,28 @@ theorem VEnv.IsDefEqCtx.extendSamePrefix
     rcases Hctx with ⟨Htail, level, Htype⟩
     exact .succ (ih Htail) Htype
 
+/-- Rebase a conversion between two dependent prefixes along a conversion
+of their common suffix.  Both prefix contexts are known well formed from the
+original conversion, so changing the suffix on each side is admissible even
+when the two dependent prefixes use different representatives. -/
+theorem VEnv.IsDefEqCtx.rebaseCommonSuffix
+    (henv : env.WF)
+    (Hsuffix : VEnv.IsDefEqCtx env U [] outer inner)
+    (Hprefix : VEnv.IsDefEqCtx env U []
+      (left ++ inner) (right ++ inner)) :
+    VEnv.IsDefEqCtx env U []
+      (left ++ outer) (right ++ outer) := by
+  have HleftToOuter :=
+    VEnv.IsDefEqCtx.extendSamePrefix
+      (Hsuffix.symm henv.ordered) Hprefix.isType
+  have HrightInner := (Hprefix.symm henv.ordered).isType
+  have HrightToOuter :=
+    VEnv.IsDefEqCtx.extendSamePrefix
+      (Hsuffix.symm henv.ordered) HrightInner
+  exact VEnv.IsDefEqCtx.transEmpty henv
+    (HleftToOuter.symm henv.ordered) <|
+      VEnv.IsDefEqCtx.transEmpty henv Hprefix HrightToOuter
+
 /-- A conversion between ordinary typing contexts induces a conversion
 between their completely anonymous verifier contexts. -/
 theorem VLCtx.IsDefEq.ofDefEqCtxAnonymous
@@ -68646,6 +68668,104 @@ theorem
   rw [hparams, hmotives, hminors] at HapplicationCtx Happlication
   exact ⟨independentFields, hypothesisDomains, targetResidual,
     hindependentFields, hhypotheses, HapplicationCtx, Happlication⟩
+
+/-- Rebase the independently replayed/installed field conversion onto an
+arbitrary fixed semantic outer scope representing the complete generated
+parameter/motive/minor prefix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorInstalledFieldAlignmentInOuterScopeFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (outerScope : VLCtx)
+    (HouterPrefix : VEnv.IsDefEqCtx H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      outerScope.toCtx (T.params ++ T.motives ++ T.minors).reverse)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ independentFields installedFields installedHypotheses : List VExpr,
+    ∃ installedResidual : VExpr,
+      independentFields.length = A.rule.allArgs.size ∧
+      installedFields.length = A.rule.allArgs.size ∧
+      installedHypotheses.length = A.rule.recursiveArgs.size ∧
+      T.minors[minorIdx]! = VExpr.wrapForalls
+        (installedFields ++ installedHypotheses) installedResidual ∧
+      let later := T.minors.drop (minorIdx + 1)
+      let shift := later.length + 1
+      let liftedIndependent :=
+        (liftContextPrefix shift independentFields.reverse).reverse
+      let liftedInstalled :=
+        (liftContextPrefix shift installedFields.reverse).reverse
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        (liftedIndependent.reverse ++ outerScope.toCtx)
+        (liftedInstalled.reverse ++ outerScope.toCtx) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalSelectedMinorInstalledFieldAlignmentInFullPrefix
+      hpositive with
+    ⟨T₁, independentFields, installedFields, installedHypotheses,
+      installedResidual, hindependentFields, hinstalledFields,
+      hinstalledHypotheses, hinstalledTarget, Hfields⟩
+  rcases T₁.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hminors] at hinstalledTarget
+  rw [hparams, hmotives, hminors] at Hfields
+  let later := T.minors.drop (minorIdx + 1)
+  let shift := later.length + 1
+  let liftedIndependent :=
+    (liftContextPrefix shift independentFields.reverse).reverse
+  let liftedInstalled :=
+    (liftContextPrefix shift installedFields.reverse).reverse
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hdrop : T.minors.drop minorIdx =
+      T.minors[minorIdx] :: later := by
+    simpa [later] using List.drop_eq_getElem_cons hminor
+  have hremainingLength :
+      (T.minors.drop minorIdx).reverse.length = shift := by
+    simp [hdrop, shift]
+  have hfullContext : (T.minors.drop minorIdx).reverse ++
+      (T.params ++ T.motives ++ T.minors.take minorIdx).reverse =
+        (T.params ++ T.motives ++ T.minors).reverse := by
+    have hminorPrefix : (T.minors.drop minorIdx).reverse ++
+        (T.minors.take minorIdx).reverse = T.minors.reverse := by
+      simpa only [List.reverse_append] using congrArg List.reverse
+        (List.take_append_drop minorIdx T.minors)
+    simp only [List.reverse_append]
+    rw [← List.append_assoc, hminorPrefix]
+  have HfieldsFull : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (liftedIndependent.reverse ++
+        (T.params ++ T.motives ++ T.minors).reverse)
+      (liftedInstalled.reverse ++
+        (T.params ++ T.motives ++ T.minors).reverse) := by
+    rw [hremainingLength] at Hfields
+    simp only [List.append_assoc] at Hfields
+    rw [hfullContext] at Hfields
+    simpa [liftedIndependent, liftedInstalled] using Hfields
+  have HouterFields := VEnv.IsDefEqCtx.rebaseCommonSuffix
+    H.outVEnvWF HouterPrefix HfieldsFull
+  exact ⟨independentFields, installedFields, installedHypotheses,
+    installedResidual, hindependentFields, hinstalledFields,
+    hinstalledHypotheses, hinstalledTarget, by
+      simpa [later, shift, liftedIndependent, liftedInstalled] using
+        HouterFields⟩
 
 /-- Transport the independently replayed canonical field application from
 the generated parameter/motive/minor prefix into any fixed semantic outer
