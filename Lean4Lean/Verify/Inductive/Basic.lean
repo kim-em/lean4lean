@@ -4115,6 +4115,27 @@ theorem TypeChecker.MLCtx.vlctx_eq_take_append_dropN
       congr 1
       exact ih tail (Nat.le_of_succ_le_succ hn)
 
+/-- The free-variable identifiers in the newest `n` verifier declarations
+are exactly `fvarRevList`. -/
+theorem TypeChecker.MLCtx.vlctx_take_fvars
+    (m : TypeChecker.MLCtx) (n : Nat) (hn : n ≤ m.length) :
+    VLCtx.fvars (m.vlctx.take n) = m.fvarRevList n hn := by
+  induction n generalizing m with
+  | zero => simp
+  | succ n ih =>
+    cases m with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      simp only [TypeChecker.MLCtx.vlctx, List.take_succ_cons,
+        VLCtx.fvars_cons_some, TypeChecker.MLCtx.fvarRevList,
+        List.cons.injEq]
+      exact ⟨trivial, ih tail (Nat.le_of_succ_le_succ hn)⟩
+    | vlet fv name type value type' value' tail =>
+      simp only [TypeChecker.MLCtx.vlctx, List.take_succ_cons,
+        VLCtx.fvars_cons_some, TypeChecker.MLCtx.fvarRevList,
+        List.cons.injEq]
+      exact ⟨trivial, ih tail (Nat.le_of_succ_le_succ hn)⟩
+
 structure ContextWF (c : AddInductive.Context) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
@@ -25477,6 +25498,23 @@ theorem RecursorRecentBoundFVarArray.fvarRevList_eq
     _ = (H.fvars.map Expr.fvar).reverse := by rw [hmapped]
     _ = H.fvars.reverse.map Expr.fvar := by simp
 
+/-- The current recursor context is the exact recent binder prefix followed
+by its retained root.  This is the identifier-level counterpart of
+`abstractRecent_toCtx`; unlike `BindingContextLE`, it preserves order. -/
+theorem RecursorRecentBoundFVarArray.contextFVars
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs) :
+    R.mlctx.vlctx.fvars = H.fvars.reverse ++ Rroot.mlctx.vlctx.fvars := by
+  have hsplit := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+    R.mlctx xs.size H.size_le
+  rw [H.drop_eq] at hsplit
+  have hprefix : (R.mlctx.vlctx.take xs.size).fvars = H.fvars.reverse := by
+    rw [TypeChecker.MLCtx.vlctx_take_fvars]
+    exact H.fvarRevList_eq
+  rw [hsplit, VLCtx.fvars_append, hprefix]
+
 /-- Replacing an exact recent free-variable suffix by anonymous binders with
 the retained translated domains does not change the verifier typing context. -/
 theorem RecursorRecentBoundFVarArray.abstractRecent_toCtx
@@ -29509,6 +29547,19 @@ theorem RecInfoBindings.outerNodup
             (List.nil_sublist _))))
   exact hnoalias.sublist hsub
 
+/-- The outer binders selected by the generated recursor telescope occur in
+their category order inside the executable local context.  Local contexts
+store newest declarations first, hence the reversal.  This operational fact
+is deliberately separate from `NoAlias`: membership and distinctness alone
+do not determine binder order when indices and majors are interleaved. -/
+def RecInfoOuterOrder
+    {stats : AddInductive.InductiveStats}
+    (R : RecursorContextWF c recLparams)
+    (Hparams : BoundFVarArray c stats.params)
+    (Hbindings : RecInfoBindings c recInfos) : Prop :=
+  (Hparams.fvars ++ Hbindings.motives.fvars ++
+    Hbindings.flatMinors.fvars).reverse <+ R.mlctx.vlctx.fvars
+
 def RecInfoBindings.major
     (H : RecInfoBindings c recInfos) (i : Nat) (hi : i < recInfos.size) :
     BoundFVarArray c #[recInfos[i]!.major] := by
@@ -29759,6 +29810,29 @@ theorem RecInfoMinorsEmpty.push
     rw [hget]
     exact H i hiOld
 
+/-- If every recursor-info minor row is empty, the retained flattened minor
+selection contains no identifiers either. -/
+theorem RecInfoMinorsEmpty.flatMinors_fvars
+    (Hempty : RecInfoMinorsEmpty recInfos)
+    (Hbindings : RecInfoBindings c recInfos) :
+    Hbindings.flatMinors.fvars = [] := by
+  change (List.ofFn fun i : Fin recInfos.size =>
+    (Hbindings.minors i i.isLt).fvars).flatten = []
+  have hrows : (List.ofFn fun i : Fin recInfos.size =>
+      (Hbindings.minors i i.isLt).fvars) =
+      List.replicate recInfos.size [] := by
+    apply List.ext_get
+    · simp
+    · intro n hleft hright
+      have hn : n < recInfos.size := by simpa using hleft
+      have hrow : (Hbindings.minors n hn).fvars = [] := by
+        apply List.eq_nil_of_length_eq_zero
+        rw [(Hbindings.minors n hn).length_fvars]
+        exact Hempty n hn
+      simpa using hrow
+  rw [hrows]
+  simp
+
 theorem RecInfoArities.modifyMinors
     (H : RecInfoArities stats recInfos) (dIdx : Nat)
     (f : Array Expr → Array Expr) :
@@ -29818,6 +29892,63 @@ def RecInfoBindings.empty (c : AddInductive.Context) :
   majors := by simpa using BoundFVarArray.empty c
   indices i hi := by simp at hi
   minors i hi := by simp at hi
+
+theorem RecInfoOuterOrder.empty
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    (Hsuffix : RecursorParameterContextSuffix R stats depth)
+    (Hparams : BoundFVarArray c stats.params) :
+    RecInfoOuterOrder R Hparams (RecInfoBindings.empty c) := by
+  have hmotives : (RecInfoBindings.empty c).motives.fvars = [] :=
+    BoundFVarArray.fvars_eq (RecInfoBindings.empty c).motives
+      (BoundFVarArray.empty c) (by simp)
+  have hminors : (RecInfoBindings.empty c).flatMinors.fvars = [] :=
+    BoundFVarArray.fvars_eq (RecInfoBindings.empty c).flatMinors
+      (BoundFVarArray.empty c) (by simp)
+  have hcontext := congrArg VLCtx.fvars Hsuffix.context
+  rw [VLCtx.fvars_append, Hsuffix.parameterDecls_fvars,
+    Hparams.exprArrayFVarIds] at hcontext
+  unfold RecInfoOuterOrder
+  rw [hmotives, hminors]
+  simp only [List.append_nil, List.reverse_append, List.reverse_nil,
+    List.nil_append]
+  rw [hcontext]
+  exact (List.nil_sublist Hsuffix.ambientDecls.fvars).append
+    (List.Sublist.refl Hparams.fvars.reverse)
+
+/-- Adding one first-pass motive preserves the selected outer-binder order.
+The declarations opened for its indices and major may be interleaved in the
+runtime context, but they are deliberately not part of the outer recursor
+prefix. -/
+theorem RecInfoOuterOrder.pushMotive
+    {stats : AddInductive.InductiveStats}
+    {Rold : RecursorContextWF old recLparams}
+    {Rnew : RecursorContextWF new recLparams}
+    {oldInfos newInfos : Array AddInductive.RecInfo}
+    {oldParams : BoundFVarArray old stats.params}
+    {newParams : BoundFVarArray new stats.params}
+    {oldBindings : RecInfoBindings old oldInfos}
+    {newBindings : RecInfoBindings new newInfos}
+    {motive : FVarId} {interleaved : List FVarId}
+    (Horder : RecInfoOuterOrder Rold oldParams oldBindings)
+    (holdMinors : oldBindings.flatMinors.fvars = [])
+    (hparams : newParams.fvars = oldParams.fvars)
+    (hmotives : newBindings.motives.fvars =
+      oldBindings.motives.fvars ++ [motive])
+    (hnewMinors : newBindings.flatMinors.fvars = [])
+    (hcontext : Rnew.mlctx.vlctx.fvars =
+      motive :: interleaved ++ Rold.mlctx.vlctx.fvars) :
+    RecInfoOuterOrder Rnew newParams newBindings := by
+  unfold RecInfoOuterOrder at Horder ⊢
+  rw [holdMinors] at Horder
+  simp only [List.append_nil] at Horder
+  have Horder' : oldBindings.motives.fvars.reverse ++
+      oldParams.fvars.reverse <+ Rold.mlctx.vlctx.fvars := by
+    simpa only [List.reverse_append] using Horder
+  rw [hparams, hmotives, hnewMinors, hcontext]
+  simp only [List.append_nil, List.reverse_append, List.reverse_singleton,
+    List.singleton_append]
+  exact ((List.nil_sublist interleaved).append Horder').cons_cons motive
 
 def RecInfoBindings.mono
     (H : RecInfoBindings c recInfos) (hle : BindingContextLE c c') :
@@ -35383,6 +35514,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
     (Hparams : BoundFVarArray current stats.params)
     (HnoAlias : Hbindings.NoAlias Hparams)
+    (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE base current)
     (hprogress : recInfos.size = dIdx)
     (Harities : RecInfoArities stats recInfos)
@@ -35409,6 +35541,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
       (HparamsOut : BoundFVarArray outCtx stats.params) →
       HbindingsOut.NoAlias HparamsOut →
+      RecInfoOuterOrder Rout HparamsOut HbindingsOut →
       RecInfoArities stats out →
       RecInfoMinorsEmpty out →
       BindingContextLE base outCtx →
@@ -35560,6 +35693,28 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             Hrecent.toFreshBoundFVarArray
             `t majorTy .default motiveName
             motiveTy.consumeTypeAnnotations .default
+        have holdMinors : Hbindings.flatMinors.fvars = [] :=
+          Hempty.flatMinors_fvars Hbindings
+        have hnewMinors : Hbindings'.flatMinors.fvars = [] :=
+          Hempty.push.flatMinors_fvars Hbindings'
+        have hparamsFVars : Hparams'.fvars = Hparams.fvars := rfl
+        have hmotiveFVars : Hbindings'.motives.fvars =
+            Hbindings.motives.fvars ++
+              [(⟨cMajor.ngen.curr⟩ : FVarId)] := by
+          rw [← Hbindings'.motives.exprArrayFVarIds,
+            ← Hbindings.motives.exprArrayFVarIds]
+          simp [Hbindings', ExprArrayFVarIds, cMajor, recursorFVarId]
+        have hcontextFVars : Rmotive.mlctx.vlctx.fvars =
+            (⟨cMajor.ngen.curr⟩ : FVarId) ::
+              ((⟨cIndices.ngen.curr⟩ : FVarId) ::
+                Hrecent.fvars.reverse) ++ R.mlctx.vlctx.fvars := by
+          dsimp only [Rmotive, Rmajor, RecursorContextWF.withLocalDecl,
+            TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some]
+          rw [Hrecent.contextFVars]
+          rfl
+        have Horder' : RecInfoOuterOrder Rmotive Hparams' Hbindings' :=
+          RecInfoOuterOrder.pushMotive Horder holdMinors hparamsFVars
+            hmotiveFVars hnewMinors hcontextFVars
         have hparameterDeclsMotive :
             HsuffixMotive.parameterDecls = Hsuffix.parameterDecls := by
           calc
@@ -36105,7 +36260,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           HsuffixMotive HparamsCtx' HstatsMotive Hbindings' Horigins'
           ?_ ?_ ?_ ?_ (by
             simpa [hparameterDeclsMotive] using Htelescopes') ?_ Hparams'
-          HnoAlias'
+          HnoAlias' Horder'
           (Hroot.trans <| hIndices.trans <|
             (BindingContextLE.withLocalDecl cIndices
               Rindices.toBindingContextWF `t majorTy .default).trans <|
@@ -36150,12 +36305,14 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             hparameterDeclsOut HstatsOut HbindingsOut
             HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
             HtelescopesOut HindexRowsOut
-            HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut houtSize
+            HparamsOut HnoAliasOut HorderOut HaritiesOut HemptyOut HrootOut
+            houtSize
           apply Hk out Rout henvOut HsuffixOut
             (hparameterDeclsOut.trans hparameterDeclsMotive)
             HstatsOut HbindingsOut
             HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
-            HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HaritiesOut HemptyOut HrootOut
+            HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HorderOut
+            HaritiesOut HemptyOut HrootOut
           simp only [Array.size_push] at houtSize
           omega
       · simp only [loopK]
@@ -36164,7 +36321,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
   · rw [dif_neg hidx]
     exact Hk recInfos R henv Hsuffix rfl Hstats Hbindings Horigins HmajorTypes
       HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexTypeRows Hparams HnoAlias
-      Harities Hempty Hroot (by omega)
+      Horder Harities Hempty Hroot (by omega)
 termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd1
@@ -47970,6 +48127,7 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
+      RecInfoOuterOrder Rout Hparams Hbindings →
       RecInfoArities stats recInfos →
       RecInfoMinorsEmpty recInfos →
       BindingContextLE { c with env := outEnv } cOut →
@@ -48023,17 +48181,19 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
       Hsuffix.parameterDecls.toCtx elimLevel)
     (RecursorTranslatedOriginTypeRows.empty Rbase) Hparams
     (RecInfoBindings.empty_noAlias _ Hparams hparamsNodup)
+    (RecInfoOuterOrder.empty Hsuffix Hparams)
     (BindingContextLE.refl _) rfl (RecInfoArities.empty stats)
     RecInfoMinorsEmpty.empty ?_
   intro cOut outDepth recInfos Rout henvOut HsuffixOut hparameterDeclsOut
     HstatsOut
     Hbindings Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
-    Htelescopes HindexRows HparamsOut HnoAlias Harities Hempty Hroot hsize
+    Htelescopes HindexRows HparamsOut HnoAlias Horder Harities Hempty Hroot
+    hsize
   apply Hk recInfos Rout henvOut HsuffixOut hparameterDeclsOut HstatsOut
     Hbindings Horigins
     HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes (by
       simpa [hparameterDeclsOut] using Htelescopes) HindexRows HparamsOut
-    HnoAlias Harities Hempty Hroot
+    HnoAlias Horder Harities Hempty Hroot
   simpa using hsize
 
 /-- The verified header cache supplies the exact retained parameter binders
@@ -48103,7 +48263,8 @@ theorem ConstructorPhasesResult.mkRecInfosWF
     hparameterDeclsFrames HstatsFrames HbindingsFrames HoriginsFrames
     HmajorTypesFrames HmajorShapesFrames HmotiveTypesFrames
     HmotiveShapesFrames HtelescopesFrames HindexRowsFrames HparamsFrames
-    HnoAliasFrames HaritiesFrames HemptyFrames HrootFrames hsizeFrames
+    HnoAliasFrames HorderFrames HaritiesFrames HemptyFrames HrootFrames
+    hsizeFrames
   have hrecordsFrames : recInfos.size = stats.indConsts.size := by
     calc
       recInfos.size = indTypes.size := hsizeFrames
