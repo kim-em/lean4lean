@@ -30411,6 +30411,25 @@ theorem RecInfoMinorSemanticSource.replayedSourceDefEqConsumed
   exact Hsource.trans HS.sourceWF.checking.tr.wf
     HS.sourceWF.mlctx_wf.tr.wf.toCtx ⟨.sort level, Hconsumed⟩
 
+structure RecInfoMinorSemanticSourceAt
+    {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams) (S : RecInfoMinorTypeShape)
+    (parameterDecls : VLCtx) where
+  semantic : RecInfoMinorSemanticSource R S
+  parameterDecls_eq : semantic.parameterSuffix.parameterDecls =
+    parameterDecls
+
+def RecInfoMinorSemanticSourceAt.mono
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {Rcurrent : RecursorContextWF current recLparams}
+    {S : RecInfoMinorTypeShape} {parameterDecls : VLCtx}
+    (HS : RecInfoMinorSemanticSourceAt Rroot S parameterDecls)
+    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    RecInfoMinorSemanticSourceAt Rcurrent S parameterDecls where
+  semantic := HS.semantic.mono Hext
+  parameterDecls_eq := HS.parameterDecls_eq
+
 /-- Every retained minor source carries its exact semantic extension into the
 current recursor context.  Unlike `BindingContextLE`, this invariant is strong
 enough to transport or restrict translated declaration types without guessing
@@ -30419,17 +30438,17 @@ def RecInfoMinorSemanticAlignment
     {c : AddInductive.Context} {recInfos : Array AddInductive.RecInfo}
     {recLparams : List Name}
     (R : RecursorContextWF c recLparams)
-    (H : RecInfoTypeOrigins c recInfos) : Prop :=
+    (H : RecInfoTypeOrigins c recInfos) (parameterDecls : VLCtx) : Prop :=
   ∀ owner (howner : owner < recInfos.size)
     localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
-    Nonempty (RecInfoMinorSemanticSource R
-      (H.minorShapes owner howner localIndex hlocal))
+    Nonempty (RecInfoMinorSemanticSourceAt R
+      (H.minorShapes owner howner localIndex hlocal) parameterDecls)
 
 theorem RecInfoMinorSemanticAlignment.ofEmpty
     (R : RecursorContextWF c recLparams)
     (H : RecInfoTypeOrigins c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos) :
-    RecInfoMinorSemanticAlignment R H := by
+    RecInfoMinorSemanticAlignment R H parameterDecls := by
   intro owner howner localIndex hlocal
   have hsize := (H.minors owner howner).size_eq
   rw [Hempty owner howner] at hsize
@@ -30441,9 +30460,10 @@ theorem RecInfoMinorSemanticAlignment.mono
     {Rroot : RecursorContextWF root recLparams}
     {Rcurrent : RecursorContextWF current recLparams}
     {H : RecInfoTypeOrigins root recInfos}
-    (A : RecInfoMinorSemanticAlignment Rroot H)
+    (A : RecInfoMinorSemanticAlignment Rroot H parameterDecls)
     (Hext : RecursorContextExtension Rroot Rcurrent) :
-    RecInfoMinorSemanticAlignment Rcurrent (H.mono Hext.contextLE) := by
+    RecInfoMinorSemanticAlignment Rcurrent (H.mono Hext.contextLE)
+      parameterDecls := by
   intro owner howner localIndex hlocal
   rcases A owner howner localIndex hlocal with ⟨HS⟩
   exact ⟨HS.mono Hext⟩
@@ -30454,7 +30474,7 @@ theorem RecInfoMinorSemanticAlignment.addMinor
     {Rroot : RecursorContextWF root recLparams}
     {Rcurrent : RecursorContextWF current recLparams}
     {H : RecInfoTypeOrigins root recInfos}
-    (A : RecInfoMinorSemanticAlignment Rroot H)
+    (A : RecInfoMinorSemanticAlignment Rroot H parameterDecls)
     (Hext : RecursorContextExtension Rroot Rcurrent)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
@@ -30467,12 +30487,13 @@ theorem RecInfoMinorSemanticAlignment.addMinor
     (HshapePosition :
       Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
       Hshape.origin = minorTy)
-    (HshapeSemantic : Nonempty (RecInfoMinorSemanticSource Rcurrent Hshape)) :
+    (HshapeSemantic : Nonempty
+      (RecInfoMinorSemanticSourceAt Rcurrent Hshape parameterDecls)) :
     RecInfoMinorSemanticAlignment
       (Rcurrent.withLocalDecl (name := minorName) (bi := minorBi)
         Hminor HminorType)
       (H.addMinor dIdx hidx Hext.contextLE Rcurrent.toBindingContextWF
-        minorName minorTy minorBi Hshape HshapePosition) := by
+        minorName minorTy minorBi Hshape HshapePosition) parameterDecls := by
   let Rnext := Rcurrent.withLocalDecl (name := minorName) (bi := minorBi)
     Hminor HminorType
   let Hstep := RecursorContextExtension.withLocalDecl
@@ -30499,7 +30520,8 @@ theorem RecInfoMinorSemanticAlignment.addMinor
       simpa [RecInfoTypeOrigins.addMinor, nextMinorTypes,
         mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
           (fun types => types.push minorTy) hownerTypes] using
-        (show Nonempty (RecInfoMinorSemanticSource Rnext Hshape) from
+        (show Nonempty
+            (RecInfoMinorSemanticSourceAt Rnext Hshape parameterDecls) from
           ⟨HS.mono Hstep⟩)
     · have hold : localIndex < H.minorTypes[dIdx]!.size := by
         simp only [Array.size_push] at hlocal
@@ -30515,8 +30537,8 @@ theorem RecInfoMinorSemanticAlignment.addMinor
       simpa [RecInfoTypeOrigins.addMinor, hlast,
         mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
           (fun types => types.push minorTy) hownerTypes, hget] using
-        (show Nonempty (RecInfoMinorSemanticSource Rnext
-            (H.minorShapes dIdx hidx localIndex hold)) from
+        (show Nonempty (RecInfoMinorSemanticSourceAt Rnext
+            (H.minorShapes dIdx hidx localIndex hold) parameterDecls) from
           ⟨HS.mono (Hext.trans Hstep)⟩)
   · have horigin : nextMinorTypes[owner]! = H.minorTypes[owner]! := by
       dsimp [nextMinorTypes]
@@ -30528,8 +30550,9 @@ theorem RecInfoMinorSemanticAlignment.addMinor
     simpa [RecInfoTypeOrigins.addMinor, hdi,
       mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner
         (fun types => types.push minorTy) hownerTypes hdi] using
-      (show Nonempty (RecInfoMinorSemanticSource Rnext
-          (H.minorShapes owner hownerOld localIndex hlocal)) from
+      (show Nonempty (RecInfoMinorSemanticSourceAt Rnext
+          (H.minorShapes owner hownerOld localIndex hlocal)
+            parameterDecls) from
         ⟨HS.mono (Hext.trans Hstep)⟩)
 
 theorem RecInfoMinorSourceAlignment.ofEmpty
@@ -42400,7 +42423,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins)
+    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+      Hsuffix.parameterDecls)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
       Horigins.majorTypes)
@@ -42430,7 +42454,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (HminorHypothesisOrigins :
       HminorShape.HasHypothesisTypeOrigins stats recInfos)
     (HminorSemantic :
-      Nonempty (RecInfoMinorSemanticSource R HminorShape))
+      Nonempty (RecInfoMinorSemanticSourceAt R HminorShape
+        Hsuffix.parameterDecls))
     (HminorTraversal : ∃ traversal,
       HminorShape.traversal = some traversal ∧
       traversal.constructor = HminorShape.constructor ∧
@@ -42454,7 +42479,8 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
       RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
-      RecInfoMinorSemanticAlignment Rout HoriginsOut →
+      RecInfoMinorSemanticAlignment Rout HoriginsOut
+        HsuffixOut.parameterDecls →
       out.size = recInfos.size →
       out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + 1 →
       (∀ i, i < recInfos.size → dIdx ≠ i →
@@ -42575,7 +42601,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins)
+    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+      Hsuffix.parameterDecls)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
       Horigins.majorTypes)
@@ -42609,7 +42636,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
       RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
-      RecInfoMinorSemanticAlignment Rout HoriginsOut →
+      RecInfoMinorSemanticAlignment Rout HoriginsOut
+        HsuffixOut.parameterDecls →
       out.size = recInfos.size →
       out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + 1 →
       (∀ i, i < recInfos.size → dIdx ≠ i →
@@ -42951,34 +42979,36 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
             hsourceFamily)
       (by simp [RecInfoMinorTypeShape.HasHypothesisTypeOrigins])
       ⟨{
-        sourceWF := Rout
-        extension := RecursorContextExtension.refl Rout
-        traversal := traversal
-        traversal_eq := rfl
-        rootWF := R
-        terminalWF := Rargs
-        parameterDepth := depth
-        parameterSuffix := Hsuffix
-        parameterScope := by
-          apply htailScope.mono
-          intro fv hfv
-          rw [Hsuffix.parameterDecls_fvars]
-          simpa using hfv
-        parameterTarget := tailTarget
-        parameterTranslation := htail
-        parameterType := htailType
-        fieldsRecent := HfieldsRecent
-        hypothesesRecent := HhypothesesRecent
-        terminalTarget := terminalTarget
-        terminalTranslation := Hterminal
-        terminalType := HterminalType
-        motiveTarget := motiveTarget.lift'
-          (HhypothesesRecent.contextExtension.shift.consN 0)
-        motiveTranslation := HmotiveAt
-        motiveType := HmotiveTypeAt
-        sourceTarget := minorTarget.lift' (HextAll.shift.consN 0)
-        consumedTarget := consumedTarget
-        consumption := Hconsumed }⟩
+        semantic := {
+          sourceWF := Rout
+          extension := RecursorContextExtension.refl Rout
+          traversal := traversal
+          traversal_eq := rfl
+          rootWF := R
+          terminalWF := Rargs
+          parameterDepth := depth
+          parameterSuffix := Hsuffix
+          parameterScope := by
+            apply htailScope.mono
+            intro fv hfv
+            rw [Hsuffix.parameterDecls_fvars]
+            simpa using hfv
+          parameterTarget := tailTarget
+          parameterTranslation := htail
+          parameterType := htailType
+          fieldsRecent := HfieldsRecent
+          hypothesesRecent := HhypothesesRecent
+          terminalTarget := terminalTarget
+          terminalTranslation := Hterminal
+          terminalType := HterminalType
+          motiveTarget := motiveTarget.lift'
+            (HhypothesesRecent.contextExtension.shift.consN 0)
+          motiveTranslation := HmotiveAt
+          motiveType := HmotiveTypeAt
+          sourceTarget := minorTarget.lift' (HextAll.shift.consN 0)
+          consumedTarget := consumedTarget
+          consumption := Hconsumed }
+        parameterDecls_eq := rfl }⟩
       ⟨traversal, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE,
         HhypothesesRecent.contextExtension.contextLE,
         BindingContextLE.refl outCtx⟩ ?_
@@ -43025,7 +43055,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins)
+    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+      Hsuffix.parameterDecls)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
       Horigins.majorTypes)
@@ -43075,7 +43106,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (HbindingsOut : RecInfoBindings outCtx out) →
       (HoriginsOut : RecInfoTypeOrigins outCtx out) →
       RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
-      RecInfoMinorSemanticAlignment Rout HoriginsOut →
+      RecInfoMinorSemanticAlignment Rout HoriginsOut
+        HsuffixOut.parameterDecls →
       out.size = recInfos.size →
       out[dIdx]!.minors.size =
         recInfos[dIdx]!.minors.size + ctors.length →
@@ -43432,7 +43464,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
-    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins)
+    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+      Hsuffix.parameterDecls)
     (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
     (HmajorShapes : RecInfoMajorTypeShapes stats recInfos
       Horigins.majorTypes)
@@ -43486,7 +43519,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (HbindingsOut : RecInfoBindings outCtx out) →
       (HoriginsOut : RecInfoTypeOrigins outCtx out) →
       RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
-      RecInfoMinorSemanticAlignment Rout HoriginsOut →
+      RecInfoMinorSemanticAlignment Rout HoriginsOut
+        HsuffixOut.parameterDecls →
       out.size = indTypes.size →
       (∀ i, i < out.size →
         out[i]!.minors.size = indTypes[i]!.ctors.length) →
@@ -47540,7 +47574,8 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       (Hbindings : RecInfoBindings cOut recInfos) →
       (Horigins : RecInfoTypeOrigins cOut recInfos) →
       RecInfoMinorSourceAlignment stats indTypes Horigins →
-      RecInfoMinorSemanticAlignment Rout Horigins →
+      RecInfoMinorSemanticAlignment Rout Horigins
+        HsuffixOut.parameterDecls →
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
       RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
@@ -47582,7 +47617,9 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       Rframes.onlyLams) hproj
     HbindingsFrames HoriginsFrames
     (RecInfoMinorSourceAlignment.ofEmpty HoriginsFrames HemptyFrames)
-    (RecInfoMinorSemanticAlignment.ofEmpty Rframes HoriginsFrames HemptyFrames)
+    (RecInfoMinorSemanticAlignment.ofEmpty
+      (parameterDecls := HsuffixFrames.parameterDecls)
+      Rframes HoriginsFrames HemptyFrames)
     HmajorTypesFrames HmajorShapesFrames
     HmotiveTypesFrames HmotiveShapesFrames HtelescopesFrames
     HindexRowsFrames HparamsFrames HnoAliasFrames HrootFrames hsizeFrames
@@ -47657,7 +47694,8 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
       (Hbindings : RecInfoBindings cOut recInfos) →
       (Horigins : RecInfoTypeOrigins cOut recInfos) →
       RecInfoMinorSourceAlignment stats indTypes Horigins →
-      RecInfoMinorSemanticAlignment Rout Horigins →
+      RecInfoMinorSemanticAlignment Rout Horigins
+        HsuffixOut.parameterDecls →
       RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
       RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
@@ -58899,6 +58937,7 @@ structure RecursorPhasesResult
   origins : RecInfoTypeOrigins localContext recInfos
   minorSources : RecInfoMinorSourceAlignment stats indTypes origins
   minorSemantics : RecInfoMinorSemanticAlignment recursorWF origins
+    parameterSuffix.parameterDecls
   majorTypes : RecursorTranslatedOriginTypes recursorWF origins.majorTypes
   majorShapes : RecInfoMajorTypeShapes stats recInfos origins.majorTypes
   motiveTypes : RecursorTranslatedOriginTypes recursorWF origins.motiveTypes
@@ -62462,8 +62501,9 @@ theorem
       traversal.fieldResidual_not_forall hsemanticResidual).1
   have Hsemantic :
       Nonempty (RecInfoMinorSemanticSource H.recursorWF S) := by
-    simpa [S] using
-      H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound
+    rcases H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound with
+      ⟨Hsemantic⟩
+    exact ⟨Hsemantic.semantic⟩
   exact ⟨T, D, O, S, horigin, hlocal, hconstructors, hconstructor,
     hfieldCount, Hsemantic, hypothesisOrigins, hhypothesisOrigins,
     hhypothesisStats,
@@ -62492,7 +62532,8 @@ theorem
     (A : H.GeneratedRuleAlignment owner howner i hctor) :
     ∃ S : RecInfoMinorTypeShape,
       S.localIndex = i ∧
-      Nonempty (RecInfoMinorSemanticSource H.recursorWF S) := by
+      Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+        H.parameterSuffix.parameterDecls) := by
   rcases A.finalSelectedMinorDomain with
     ⟨_T, _D, O, _discardedShape, _Hdomain, _HdomainType⟩
   have hposition := A.selectedMinorOriginPosition O
