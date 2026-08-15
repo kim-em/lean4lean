@@ -80846,6 +80846,81 @@ theorem
     result_type_translation := HtypeTranslation
     closed_typing := Htyping }⟩
 
+/-- The retained eta-template residual has a completely forced abstract
+shape.  In particular, its target is the selected constructor-field variable
+shifted under exactly the call-local telescope and applied to the canonical
+local de Bruijn spine.  Keeping the selected source free variable in the
+result lets later field-position alignment identify the same dependent minor
+domain without choosing another narrowing witness. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.templateTargetShape
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    ∃ fv fieldVar,
+      A.rule.recursiveArgs[j] = .fvar fv ∧
+      fv ∈ A.rule.binders ∧
+      fieldVar < equationDomains.length ∧
+      (Expr.fvar fv).abstractList A.rule.binders = .bvar fieldVar ∧
+      E.templateTarget =
+        VExpr.mkApps (.bvar (E.localDomains.length + fieldVar))
+          (E.frame.semantic.generated.localIndices.map VExpr.bvar) := by
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++
+      T.motives ++ T.minors ++
+        (liftContextPrefix (T.motives ++ T.minors).length
+          B.fieldDomains.reverse).reverse
+  rcases A.rule.recursive_args_bound.getElem_eq_fvar j hj with
+    ⟨hjFVars, hsource⟩
+  let fv := A.rule.recursive_args_bound.fvars[j]
+  have hfieldRoot : fv ∈ A.rule.root.lctx.fvars :=
+    A.rule.recursive_args_bound.members fv
+      (List.getElem_mem hjFVars)
+  have hfieldAll : fv ∈ A.rule.all_args_bound.fvars :=
+    A.rule.recursive_args_bound.fvars_subset_of_sublist
+      A.rule.all_args_bound A.rule.recursive_args_sublist
+      (List.getElem_mem hjFVars)
+  have hfieldBinders : fv ∈ A.rule.binders := by
+    unfold BoundGeneratedRecursorRule.binders
+    exact List.mem_append_right _ hfieldAll
+  have Hmajor : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext E.localDomains
+        (abstractForallContext equationDomains []))
+      (E.frame.semantic.generated.outerAbstractedMajor A.rule.binders)
+      E.templateTarget := by
+    simpa [equationDomains, abstractForallContext_append] using
+      E.template_residual_translation
+  rcases
+      E.frame.semantic.generated.translatedOuterAbstractedMajor_eq_of_field_eq
+        hsource hfieldRoot A.rule.binders_nodup hfieldBinders
+        E.equation_length E.local_length Hmajor with
+    ⟨fieldVar, hfieldVar, hfieldSource, htarget⟩
+  exact ⟨fv, fieldVar, hsource, hfieldBinders,
+    hfieldVar, hfieldSource, htarget⟩
+
 /-- Reconstruct the strict translation of the complete generated recursive
 result from any translation of its eta-expanded field template in the fixed
 equation context.  The template contributes only the shared lambda-domain
