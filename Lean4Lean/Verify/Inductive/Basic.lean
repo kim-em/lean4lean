@@ -62433,7 +62433,8 @@ theorem
             S.sourceConstructors = indTypes[owner]!.ctors ∧
             S.constructor = indTypes[owner]!.ctors[i] ∧
             S.fields.size = A.rule.allArgs.size ∧
-            Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
+            Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+              H.parameterSuffix.parameterDecls) ∧
             ∃ hypothesisOrigins,
               S.hypothesis_type_origins = some hypothesisOrigins ∧
               hypothesisOrigins.stats = stats ∧
@@ -62524,10 +62525,10 @@ theorem
       A.semantics.fieldOpening.telescope
       traversal.fieldResidual_not_forall hsemanticResidual).1
   have Hsemantic :
-      Nonempty (RecInfoMinorSemanticSource H.recursorWF S) := by
-    rcases H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound with
-      ⟨Hsemantic⟩
-    exact ⟨Hsemantic.semantic⟩
+      Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+        H.parameterSuffix.parameterDecls) := by
+    simpa [S] using
+      H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound
   exact ⟨T, D, O, S, horigin, hlocal, hconstructors, hconstructor,
     hfieldCount, Hsemantic, hypothesisOrigins, hhypothesisOrigins,
     hhypothesisStats,
@@ -62951,7 +62952,8 @@ theorem
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         BindingContextLE S.sourceFullContext H.localContext ∧
-        Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
+        Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls) ∧
         let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
           H.bindings.flatMinors.fvars.take minorIdx
         Expr.ForallTelescopeTypeTranslation H.outVEnv Us
@@ -63064,7 +63066,8 @@ theorem
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
           BindingContextLE S.sourceFullContext H.localContext ∧
-          Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
+          Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+            H.parameterSuffix.parameterDecls) ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -63310,7 +63313,8 @@ theorem
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
           BindingContextLE S.sourceFullContext H.localContext ∧
-          Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
+          Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+            H.parameterSuffix.parameterDecls) ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -63430,7 +63434,8 @@ theorem
             S.fields.size = A.rule.allArgs.size ∧
             S.hypotheses.size = A.rule.recursiveArgs.size ∧
             BindingContextLE S.sourceFullContext H.localContext ∧
-            Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
+            Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+              H.parameterSuffix.parameterDecls) ∧
             fieldDomains.length = A.rule.allArgs.size ∧
             hypothesisDomains.length = A.rule.recursiveArgs.size ∧
             T.minors[minorIdx]! = VExpr.wrapForalls
@@ -63580,7 +63585,8 @@ theorem
       hsourceContext, HminorSemantic, _hfieldDomains, _hhypothesisDomains, _htarget,
       _Hbinder, _Hdomain, _HdomainType, originRoot, sourceType, ⟨O⟩,
       _hconsumed, htype⟩
-  rcases HminorSemantic with ⟨HS⟩
+  rcases HminorSemantic with ⟨HSAt⟩
+  let HS := HSAt.semantic
   rcases HS.sourceWF.translatedDeclarationType D with
     ⟨sourceTarget, HsourceTarget⟩
   have henv : H.recursorWF.venv ≤ H.outVEnv := by
@@ -75009,6 +75015,8 @@ theorem
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         BindingContextLE S.sourceFullContext H.localContext ∧
+        Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls) ∧
         fieldDomains.length = A.rule.allArgs.size ∧
         hypothesisDomains.length = A.rule.recursiveArgs.size ∧
         T.minors[minorIdx]! = VExpr.wrapForalls
@@ -75263,7 +75271,7 @@ theorem
       hsourceSelected,
       hruleSelected, hlocal, hsourceFields, hsourceHypotheses,
       hsourceContext,
-      _HminorSemantic,
+      HminorSemantic,
       hfields, hhypotheses, htarget, _Hbinder, Hdomain, HdomainType,
       originRoot, sourceType, ⟨O⟩, _hdeclarationConsumed,
       hdeclarationExact⟩
@@ -75956,7 +75964,8 @@ theorem
     htraversal, htraversalFields,
     htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
-    hsourceHypotheses, hsourceContext, hfields, hhypotheses, htarget,
+    hsourceHypotheses, hsourceContext, HminorSemantic, hfields, hhypotheses,
+    htarget,
     rfl, by simpa [fieldPosition] using houterField,
     hrecursiveMajor.1, hrecursiveMajor.2, Hreplay,
     HlocalTelescopeReplay, HlocalForallReplay, hmotiveReplay,
