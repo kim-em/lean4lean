@@ -27114,6 +27114,64 @@ structure RecInfoMinorHypothesisTypeOrigin
       (mkAppN field args)
     type = current.lctx.mkForall args motiveApp
 
+/-- The exact higher-order telescope retained by a minor hypothesis before
+the installed declaration consumes top-level annotations. -/
+theorem RecInfoMinorHypothesisTypeOrigin.sourceTelescope
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
+    let indices : Array Expr :=
+      O.exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[O.ownerIdx]!.motive indices)
+      (mkAppN field O.args)
+    Expr.ForallTelescope type O.args.size
+      (motiveApp.abstractList O.arguments_bound.fvars) := by
+  cases O with
+  | mk current current_wf _current_extends exposedType args
+      arguments_bound ownerIdx _owner_valid _motive_is_fvar type_eq =>
+    dsimp only at type_eq ⊢
+    rw [type_eq]
+    exact arguments_bound.toBoundFVarArray.mkForall_forallTelescope
+      current_wf _
+
+/-- Closing the fresh higher-order arguments turns the selected field
+application into its canonical de Bruijn spine.  This is the first-pass
+counterpart of `BoundGeneratedRecursiveCall.abstractedMajor`. -/
+theorem RecInfoMinorHypothesisTypeOrigin.abstractedMotiveApp_eq
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
+    let indices : Array Expr :=
+      O.exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[O.ownerIdx]!.motive indices)
+      (mkAppN field O.args)
+    motiveApp.abstractList O.arguments_bound.fvars =
+      Expr.app
+        (mkAppN
+          (recInfos[O.ownerIdx]!.motive.abstractList
+            O.arguments_bound.fvars)
+          (indices.map fun e =>
+            e.abstractList O.arguments_bound.fvars))
+        (mkAppN (field.abstractList O.arguments_bound.fvars)
+          (List.ofFn (fun i : Fin O.arguments_bound.fvars.length =>
+            Expr.bvar (O.arguments_bound.fvars.length - 1 - i))).toArray) := by
+  dsimp only
+  have hlocal :
+      O.args.map (fun e => e.abstractList O.arguments_bound.fvars) =
+        (List.ofFn (fun i : Fin O.arguments_bound.fvars.length =>
+          Expr.bvar
+            (O.arguments_bound.fvars.length - 1 - i))).toArray := by
+    calc
+      O.args.map (fun e => e.abstractList O.arguments_bound.fvars) =
+          ((O.arguments_bound.fvars.map Expr.fvar).toArray.map fun e =>
+            e.abstractList O.arguments_bound.fvars) := by
+        exact congrArg (Array.map fun e =>
+          e.abstractList O.arguments_bound.fvars)
+            O.arguments_bound.expressions
+      _ = _ := by
+        simpa using Expr.abstractList_fvarArray
+          O.arguments_bound.fvars 0 O.arguments_bound.nodup
+  simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
+  rw [hlocal]
+
 /-- The constructed hypothesis origin cannot itself be a top-level parameter
 annotation: a nonempty local suffix produces a forall, while the empty case
 is the explicit motive application. -/
