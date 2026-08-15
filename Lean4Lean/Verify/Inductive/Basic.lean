@@ -72498,6 +72498,106 @@ theorem
     residual_translation := Htranslation
     closed_typing := Htyping }⟩
 
+/-- Pointwise handoff between the selected first-pass minor hypothesis and
+the canonical recursive result produced by the second pass.  Both sides are
+kept in one existential package: the source declaration is the exact
+unconsumed production type and is translated to the selected minor domain,
+while the corresponding recursive result is already closed and typed in the
+fixed equation context.  The remaining RHS argument proof can therefore
+focus solely on relating these two displayed types. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorHypothesisCanonicalResultFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
+      ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+          S.sourceFullContext S.recursiveFields S.hypotheses,
+      ∃ traversal : RecInfoMinorTraversalShape,
+      ∃ fieldDomains hypothesisDomains targetResidual,
+      ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+      ∃ originRoot sourceType,
+      ∃ O : RecInfoMinorHypothesisTypeOrigin
+          hypothesisOrigins.stats hypothesisOrigins.recInfos
+          originRoot S.recursiveFields[j]! sourceType,
+      ∃ B : A.NarrowFieldRuntimeFrame,
+      ∃ E : A.CanonicalRecursiveResultAt T B j hj,
+        S.hypothesis_type_origins = some hypothesisOrigins ∧
+        hypothesisOrigins.stats = stats ∧
+        S.traversal = some traversal ∧
+        traversal.fields = S.fields ∧
+        traversal.recursiveFields = S.recursiveFields ∧
+        traversal.recursivePositions = A.semantics.recursivePositions ∧
+        S.recursiveFields[j]! =
+          S.fields[A.semantics.recursivePositions[j]!]! ∧
+        A.rule.recursiveArgs[j]! =
+          A.rule.allArgs[A.semantics.recursivePositions[j]!]! ∧
+        S.localIndex = i ∧
+        S.fields.size = A.rule.allArgs.size ∧
+        S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (fieldDomains ++ hypothesisDomains) targetResidual ∧
+        D.type = sourceType ∧
+        (let sourceBinders := H.params.fvars ++
+            H.bindings.motives.fvars ++
+              H.bindings.flatMinors.fvars.take minorIdx
+          let position := A.rule.allArgs.size + j
+          let declarationDomain :=
+            ((D.type.abstractList
+                (S.hypotheses_bound.fvars.take j)).abstractList
+              S.fields_bound.fvars j).abstractList sourceBinders position
+          TrExprS H.outVEnv Us
+            (abstractForallContext
+              ((fieldDomains ++ hypothesisDomains).take position)
+              (abstractForallContext
+                (T.params ++ T.motives ++ T.minors.take minorIdx) []))
+            declarationDomain hypothesisDomains[j]!) ∧
+        H.outVEnv.HasType Us.length
+          (abstractForallContext
+            (H.parameterSuffix.parameterDecls.toCtx.reverse ++
+              T.motives ++ T.minors ++
+                (liftContextPrefix (T.motives ++ T.minors).length
+                  B.fieldDomains.reverse).reverse) []).toCtx
+          (VExpr.wrapLams E.localDomains E.resultBody)
+          (VExpr.wrapForalls E.localDomains E.resultType) := by
+  dsimp only
+  rcases A.finalSelectedMinorHypothesisDeclarationDomainAt j hj with
+    ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
+      hypothesisDomains, targetResidual, D, hhypothesisOrigins,
+      hhypothesisStats, htraversal, htraversalFields,
+      htraversalRecursiveFields, hpositions, hsourceSelected,
+      hruleSelected, hlocal, hsourceFields, hsourceHypotheses,
+      hfields, hhypotheses, htarget, _Hbinder, Hdomain, _HdomainType,
+      originRoot, sourceType, ⟨O⟩, _hdeclarationConsumed,
+      hdeclarationExact⟩
+  rcases A.narrowFieldRuntimeFrame with ⟨B⟩
+  rcases A.canonicalRecursiveResultAt T B j hj with ⟨E⟩
+  exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
+    hypothesisDomains, targetResidual, D, originRoot, sourceType, O, B, E,
+    hhypothesisOrigins, hhypothesisStats, htraversal,
+    htraversalFields, htraversalRecursiveFields, hpositions,
+    hsourceSelected, hruleSelected, hlocal, hsourceFields,
+    hsourceHypotheses, hfields, hhypotheses, htarget,
+    hdeclarationExact, Hdomain, E.closed_typing⟩
+
 /-- All recursive results of one generated rule, chosen in their production
 array order and fixed to one recursor telescope and one narrowed field frame. -/
 structure
