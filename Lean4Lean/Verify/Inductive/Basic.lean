@@ -62469,9 +62469,12 @@ theorem
   have horigin : S.origin = D.type :=
     Hsource.1.trans O.originType_eq.symm
   have hlocal : S.localIndex = i := Hsource.2.1.trans hposition.2
+  have hconstructorsAtOrigin :
+      S.sourceConstructors = indTypes[O.owner]!.ctors := by
+    simpa [S] using Hsource.2.2.1
   have hconstructors :
       S.sourceConstructors = indTypes[owner]!.ctors := by
-    simpa [hposition.1] using Hsource.2.2.1
+    simpa [hposition.1] using hconstructorsAtOrigin
   rcases Hsource.2.2.2 with
     ⟨HhypothesisOrigins, traversal, htraversal, htraversalConstructor,
       htraversalFields, htraversalRecursiveFields, hstats, hrootContext,
@@ -62531,9 +62534,11 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.GeneratedRuleAlignment owner howner i hctor) :
     ∃ S : RecInfoMinorTypeShape,
-      S.localIndex = i ∧
-      Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
-        H.parameterSuffix.parameterDecls) := by
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
+        S.localIndex = i ∧
+        HS.semantic.traversal.parameterTail =
+          A.semantics.parameterTail := by
   rcases A.finalSelectedMinorDomain with
     ⟨_T, _D, O, _discardedShape, _Hdomain, _HdomainType⟩
   have hposition := A.selectedMinorOriginPosition O
@@ -62545,12 +62550,33 @@ theorem
     rw [(H.origins.minors O.owner O.owner_lt).size_eq]
     simpa [getElem!_pos H.recInfos O.owner O.owner_lt] using O.local_lt
   let S := H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound
-  have hlocal : S.localIndex = i := by
-    have Hsource := H.minorSources O.owner O.owner_lt hsourceOwner
-      O.localIndex hshapeBound
-    exact Hsource.2.1.trans hposition.2
-  exact ⟨S, hlocal,
-    H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound⟩
+  have Hsource := H.minorSources O.owner O.owner_lt hsourceOwner
+    O.localIndex hshapeBound
+  have hlocal : S.localIndex = i := Hsource.2.1.trans hposition.2
+  have hconstructorsAtOrigin :
+      S.sourceConstructors = indTypes[O.owner]!.ctors := by
+    simpa [S] using Hsource.2.2.1
+  have hconstructors :
+      S.sourceConstructors = indTypes[owner]!.ctors := by
+    simpa [hposition.1] using hconstructorsAtOrigin
+  have hconstructor : S.constructor = indTypes[owner]!.ctors[i] := by
+    have hsourceConstructor := S.sourceConstructor
+    rw [hconstructors, hlocal] at hsourceConstructor
+    simpa [hctor] using hsourceConstructor.symm
+  rcases Hsource.2.2.2.2 with
+    ⟨traversal, htraversal, htraversalConstructor, _htraversalFields,
+      _htraversalRecursiveFields, hstats, _hrootContext,
+      _hterminalContext, _hsourceContext⟩
+  rcases H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound with
+    ⟨HS⟩
+  have hsemanticTraversal : HS.semantic.traversal = traversal :=
+    Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
+  have hprefixTraversal := traversal.parameterPrefix
+  rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
+  have hparameterTail :
+      traversal.parameterTail = A.semantics.parameterTail :=
+    hprefixTraversal.tail_eq A.semantics.parameterPrefix
+  exact ⟨S, HS, hlocal, hsemanticTraversal.symm ▸ hparameterTail⟩
 
 /-- Replaying the selected constructor telescope in the later rule context
 preserves its alpha-independent recursive-field mask.  Consequently the
