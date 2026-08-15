@@ -81062,6 +81062,50 @@ theorem
     Expr.bvar.inj (hfieldSource.symm.trans hfieldFullExact)
   simpa [fieldPosition, hfieldVarExact] using htarget
 
+/-- Strict, witness-free residual translation of the eta-expanded recursive
+field template.  This packages the retained derivation with its forced
+position-indexed target, so downstream telescope reconstruction no longer
+mentions the intermediate `templateTarget` witness. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.templateResidualTranslationCanonical
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    let fieldPosition := A.semantics.recursivePositions[j]!
+    TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ E.localDomains) [])
+      (E.frame.semantic.generated.outerAbstractedMajor A.rule.binders)
+      (VExpr.mkApps
+        (.bvar (E.localDomains.length +
+          (A.rule.allArgs.size - 1 - fieldPosition)))
+        (E.frame.semantic.generated.localIndices.map VExpr.bvar)) := by
+  dsimp only
+  rw [← E.templateTarget_eq_canonical]
+  exact E.template_residual_translation
+
 /-- Reconstruct the strict translation of the complete generated recursive
 result from any translation of its eta-expanded field template in the fixed
 equation context.  The template contributes only the shared lambda-domain
