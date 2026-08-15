@@ -61480,6 +61480,98 @@ theorem
     sourceDomain, hlocal, hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
 
+/-- Identify the source side of the selected recursive-hypothesis translation
+with the exact declaration type introduced by `mkRecInfos.loopU`.  Thus the
+pointwise target-domain certificate is no longer mediated by an arbitrary
+existential source expression. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorHypothesisDeclarationDomainAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
+        ∃ fieldDomains hypothesisDomains targetResidual,
+          ∃ D : BoundFVarDeclarationAt
+              S.sourceFullContext S.hypotheses j,
+            S.localIndex = i ∧
+            S.fields.size = A.rule.allArgs.size ∧
+            S.hypotheses.size = A.rule.recursiveArgs.size ∧
+            fieldDomains.length = A.rule.allArgs.size ∧
+            hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+            T.minors[minorIdx]! = VExpr.wrapForalls
+              (fieldDomains ++ hypothesisDomains) targetResidual ∧
+            let sourceBinders := H.params.fvars ++
+              H.bindings.motives.fvars ++
+                H.bindings.flatMinors.fvars.take minorIdx
+            let position := A.rule.allArgs.size + j
+            let declarationDomain :=
+              ((D.type.abstractList
+                  (S.hypotheses_bound.fvars.take j)).abstractList
+                S.fields_bound.fvars j).abstractList
+                  sourceBinders position
+            Expr.ForallBinderAt
+              (S.origin.abstractList sourceBinders) position
+              declarationDomain ∧
+            TrExprS H.outVEnv Us
+              (abstractForallContext
+                ((fieldDomains ++ hypothesisDomains).take position)
+                (abstractForallContext
+                  (T.params ++ T.motives ++ T.minors.take minorIdx) []))
+              declarationDomain hypothesisDomains[j]! ∧
+            H.outVEnv.IsType Us.length
+              (abstractForallContext
+                ((fieldDomains ++ hypothesisDomains).take position)
+                (abstractForallContext
+                  (T.params ++ T.motives ++ T.minors.take minorIdx) [])).toCtx
+              hypothesisDomains[j]! := by
+  dsimp only
+  rcases A.finalSelectedMinorHypothesisDomainAt j hj with
+    ⟨T, S, fieldDomains, hypothesisDomains, targetResidual, sourceDomain,
+      hlocal, hsourceFields, hsourceHypotheses, hfields, hhypotheses,
+      htarget, Hbinder, Hdomain, HdomainType⟩
+  have hjSource : j < S.hypotheses.size := by
+    rw [hsourceHypotheses]
+    exact hj
+  rcases S.hypotheses_bound.declarationAt S.sourceFullWF j hjSource with
+    ⟨D⟩
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take
+      (recursorMinorOffset indTypes owner + i)
+  let position := A.rule.allArgs.size + j
+  let declarationDomain :=
+    ((D.type.abstractList
+        (S.hypotheses_bound.fvars.take j)).abstractList
+      S.fields_bound.fvars j).abstractList sourceBinders position
+  have HdeclarationBinder :=
+    (S.hypothesisBinderAt D).abstractList sourceBinders
+  simp only [Nat.zero_add] at HdeclarationBinder
+  rw [hsourceFields] at HdeclarationBinder
+  have HdeclarationBinder' : Expr.ForallBinderAt
+      (S.origin.abstractList sourceBinders) position declarationDomain := by
+    exact HdeclarationBinder
+  have hsourceDomain : sourceDomain = declarationDomain :=
+    Hbinder.unique HdeclarationBinder'
+  rw [hsourceDomain] at Hdomain
+  exact ⟨T, S, fieldDomains, hypothesisDomains, targetResidual, D,
+    hlocal, hsourceFields, hsourceHypotheses, hfields, hhypotheses,
+    htarget, HdeclarationBinder', Hdomain, HdomainType⟩
+
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
 ordinal.  The expressions themselves may use different fresh identifiers;
