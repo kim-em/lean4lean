@@ -73350,6 +73350,33 @@ theorem
         O.outerAbstractedMotiveApp S.fields_bound.fvars =
           E.frame.semantic.generated.outerAbstractedMotiveApp
             A.rule.all_args_bound.fvars ∧
+        (∃ binding : RecursorMotiveBinding
+              E.frame.semantic.current_context
+              H.recInfos[E.frame.semantic.generated.ownerIdx]!
+              H.elimLevel,
+          ∃ evidence : RecursorMotiveTelescopeEvidence
+              E.frame.semantic.current_context stats
+              H.recInfos[E.frame.semantic.generated.ownerIdx]!
+              binding E.frame.semantic.generated.exposedType
+              E.frame.semantic.exposedTarget,
+            ∃ (semanticLocalDomains semanticFieldDomains : List VExpr),
+              semanticLocalDomains.length =
+                  E.frame.semantic.generated.localArgs.size ∧
+              semanticFieldDomains.length = A.rule.allArgs.size ∧
+              let semanticTarget := VExpr.app
+                (VExpr.mkApps binding.motiveTarget evidence.indices)
+                E.frame.semantic.appliedFieldTarget
+              TrExprS H.outVEnv Us
+                  (abstractForallContext
+                    (semanticFieldDomains ++ semanticLocalDomains)
+                    A.semantics.fieldRootContext.mlctx.vlctx)
+                  (O.outerAbstractedMotiveApp S.fields_bound.fvars)
+                  semanticTarget ∧
+                H.outVEnv.HasType Us.length
+                  (abstractForallContext
+                    (semanticFieldDomains ++ semanticLocalDomains)
+                    A.semantics.fieldRootContext.mlctx.vlctx).toCtx
+                  semanticTarget (.sort evidence.resultLevel)) ∧
         (let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -73692,6 +73719,22 @@ theorem
     unfold RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp
       BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
     rw [Hreplay, hmajorFieldAlignment]
+  rcases E.frame.finalFieldAbstractedNormalizedMotiveApplication with
+    ⟨semanticBinding, semanticEvidence, semanticLocalDomains,
+      semanticFieldDomains, hsemanticLocal, hsemanticFields,
+      HsemanticGenerated, HsemanticType⟩
+  let semanticTarget := VExpr.app
+    (VExpr.mkApps semanticBinding.motiveTarget semanticEvidence.indices)
+    E.frame.semantic.appliedFieldTarget
+  have HsemanticOrigin : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        (semanticFieldDomains ++ semanticLocalDomains)
+        A.semantics.fieldRootContext.mlctx.vlctx)
+      (O.outerAbstractedMotiveApp S.fields_bound.fvars)
+      semanticTarget := by
+    rw [hmotiveAppAlignment]
+    exact HsemanticGenerated
   subst sourceType
   have HsourceTelescope := O.sourceTelescope
   have HpreviousHypotheses := HsourceTelescope.abstractList
@@ -73759,7 +73802,11 @@ theorem
     rfl, by simpa [fieldPosition] using houterField,
     hrecursiveMajor.1, hrecursiveMajor.2, Hreplay, hmotiveReplay,
     hindicesReplay, hownerReplay, hlocalArity, hmajorAlignment,
-    hmotiveAppAlignment, Hdomain,
+    hmotiveAppAlignment,
+    ⟨semanticBinding, semanticEvidence, semanticLocalDomains,
+      semanticFieldDomains, hsemanticLocal, hsemanticFields,
+      HsemanticOrigin, HsemanticType⟩,
+    Hdomain,
     ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
       hhypothesisLocalDomains, _HsourceResidual, by
         simpa [sourceBinders, position, Nat.add_comm, Nat.add_left_comm,
