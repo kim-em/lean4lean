@@ -61186,6 +61186,99 @@ theorem
   exact ⟨T, fieldDomains, hypothesisDomains, residual, htake,
     hfields, hhypotheses⟩
 
+/-- Binder-by-binder strengthening of the selected minor arity result.  The
+complete consumed source telescope is retained together with the translation
+and typehood of every abstract domain, so later applications can compare a
+particular field or recursive-hypothesis domain rather than only their
+cardinalities. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorTypedTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
+        S.localIndex = i ∧
+        S.fields.size = A.rule.allArgs.size ∧
+        S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+          H.bindings.flatMinors.fvars.take minorIdx
+        Expr.ForallTelescopeTypeTranslation H.outVEnv Us
+          (abstractForallContext
+            (T.params ++ T.motives ++ T.minors.take minorIdx) [])
+          (S.origin.abstractList sourceBinders)
+          (A.rule.allArgs.size + A.rule.recursiveArgs.size)
+          T.minors[minorIdx]! := by
+  dsimp only
+  rcases A.finalSelectedMinorShape with
+    ⟨T, D, _O, S, horigin, hlocal, _hconstructors, hconstructor,
+      hfieldCount, traversal, _htraversal, htraversalConstructor,
+      _htraversalFields, htraversalRecursiveFields, hstats, _hrootContext,
+      hterminalContext, _hsourceContext, Hdomain, HdomainType⟩
+  have hprefixTraversal := traversal.parameterPrefix
+  rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
+  have hparameterTail :
+      traversal.parameterTail = A.semantics.parameterTail :=
+    hprefixTraversal.tail_eq A.semantics.parameterPrefix
+  have HruleDecisions : RecursorFieldDecisions stats
+      A.semantics.fieldRoot traversal.parameterTail A.rule.root
+      A.rule.target A.rule.allArgs A.rule.recursiveArgs
+      A.semantics.recursivePositions := by
+    rw [hparameterTail]
+    exact A.semantics.decisions
+  have hterminalToRule : BindingContextLE traversal.terminalContext
+      A.semantics.fieldRoot :=
+    hterminalContext.trans A.semantics.fieldRootExtension.contextLE
+  have HminorDecisions : RecursorFieldDecisions stats
+      traversal.rootContext traversal.parameterTail traversal.terminalContext
+      traversal.terminal traversal.fields traversal.recursiveFields
+      traversal.recursivePositions := by
+    simpa [hstats] using traversal.decisions
+  have hpositions : traversal.recursivePositions =
+      A.semantics.recursivePositions :=
+    H.fieldReplay stats traversal.rootContext A.semantics.fieldRoot
+      traversal.terminalContext A.rule.root traversal.parameterTail
+      traversal.terminal A.rule.target traversal.fields
+      traversal.recursiveFields A.rule.allArgs A.rule.recursiveArgs
+      traversal.recursivePositions A.semantics.recursivePositions
+      hterminalToRule traversal.parameterTail_fvars HminorDecisions
+      HruleDecisions
+  have hhypotheses : S.hypotheses.size = A.rule.recursiveArgs.size :=
+    S.hypotheses_size_eq_rule traversal A.semantics
+      htraversalRecursiveFields hpositions
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take
+      (recursorMinorOffset indTypes owner + i)
+  rcases S.originTelescope with ⟨sourceResidual, Hsource⟩
+  have Habstract := Hsource.abstractList sourceBinders
+  rw [hfieldCount, hhypotheses] at Habstract
+  have Hdomain' : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        (T.params ++ T.motives ++
+          T.minors.take (recursorMinorOffset indTypes owner + i)) [])
+      (S.origin.abstractList sourceBinders)
+      T.minors[recursorMinorOffset indTypes owner + i]! := by
+    rw [horigin]
+    exact Hdomain
+  exact ⟨T, S, hlocal, hfieldCount, hhypotheses,
+    Expr.ForallTelescopeTypeTranslation.ofTrExprS
+      Habstract Hdomain' HdomainType⟩
+
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
 ordinal.  The expressions themselves may use different fresh identifiers;
