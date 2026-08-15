@@ -47623,6 +47623,96 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
       rw [htailFront]
       simp [List.append_assoc]
 
+/-- Replay an exact recent all-lambda prefix above a dependency-selected,
+possibly non-contiguous free-variable scope.  Unlike
+`extendNarrowRuntimeScope`, the base has no distinguished contiguous front;
+the result therefore records the newly translated domains directly and
+retains the literal named semantic declarations introduced by the source
+checker. -/
+theorem MLCtxLamPrefix.extendFVarNarrowScope
+    (H : MLCtxLamPrefix runtime n domains)
+    (henv : env.WF)
+    (Hwf : runtime.WF env Us)
+    (Hbase : checkInductiveTypes.loopType.FVarNarrowScope env Us
+      baseScope (runtime.dropN n H.le).vlctx)
+    (hup : IsFVarUpSet
+      (fun fv => fv ∈ runtime.fvarRevList n H.le ++ baseScope.fvars)
+      runtime.vlctx) :
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope env Us
+          scope runtime.vlctx,
+        scope.fvars = runtime.fvarRevList n H.le ++ baseScope.fvars ∧
+        scope.drop n = baseScope ∧
+        ∃ newDomains : List VExpr,
+          newDomains.length = n ∧
+          scope.toCtx = newDomains.reverse ++ baseScope.toCtx := by
+  induction H with
+  | nil runtime =>
+    exact ⟨baseScope, Hbase,
+      by simp [TypeChecker.MLCtx.fvarRevList], rfl, [], rfl, by simp⟩
+  | @cons tail n domains fv name type type' bi Hprefix ih =>
+    have HruntimeWF := Hwf.tr.wf
+    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
+    have hcurrentFresh : fv ∉ tail.vlctx.fvars :=
+      HtailWF.tr.find?_eq_none.1 hfresh
+    have htailUp : IsFVarUpSet
+        (fun fv' =>
+          fv' ∈ tail.fvarRevList n Hprefix.le ++ baseScope.fvars)
+        tail.vlctx := by
+      apply (IsFVarUpSet.congr HtailWF.tr.wf.fvwf ?_).mp hup.1
+      intro fv' hfv'
+      constructor
+      · intro h
+        rcases List.mem_cons.mp h with hcurrent | h
+        · exact False.elim (hcurrentFresh (hcurrent ▸ hfv'))
+        · exact h
+      · exact List.mem_cons_of_mem _
+    rcases ih HtailWF Hbase htailUp with
+      ⟨tailScope, HtailScope, htailScopeFVars, htailBase,
+        tailDomains, htailDomains, htailContext⟩
+    have hdepsFull : ∀ dep ∈ type.fvarsList,
+        dep ∈ fv :: tail.fvarRevList n Hprefix.le ++ baseScope.fvars := by
+      exact hup.2 (by simp)
+    have hdeps : type.fvarsList ⊆ tailScope.fvars := by
+      intro dep hdep
+      rw [htailScopeFVars]
+      have hselected := hdepsFull dep hdep
+      rcases List.mem_cons.mp hselected with hcurrent | hselected
+      · exact False.elim (hcurrentFresh (hcurrent ▸ Htype.fvarsList hdep))
+      · exact hselected
+    have hclosed : Closed type 0 := by
+      have h := Htype.closed
+      rw [tail.noBV] at h
+      exact h
+    have htypeFVars : FVarsIn (· ∈ tailScope.fvars) type := by
+      apply fvarsIn_iff.mpr
+      refine ⟨hdeps, ?_⟩
+      exact Htype.fvarsIn.mono fun _ _ => trivial
+    rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+      ⟨narrowType, HnarrowType⟩
+    have Hweak : TrExprS env Us HtailScope.expanded type
+        (narrowType.lift' HtailScope.shift) := by
+      simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
+        HtailScope.context.wf
+    have HtargetEq := Hweak.uniq henv HtailScope.context Htype
+    have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
+        type' :=
+      HtypeType.defeqDFC henv.ordered
+        (HtailScope.context.symm henv.ordered).defeqCtx
+    rcases HtargetType with ⟨u, HtargetType⟩
+    have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
+        (narrowType.lift' HtailScope.shift) type' (.sort u) :=
+      HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+    let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
+      HnarrowType Hdomain
+    refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_⟩
+    · simp [htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
+    · simpa using htailBase
+    · simp [htailDomains]
+    · change narrowType :: tailScope.toCtx = _
+      rw [htailContext]
+      simp [List.reverse_append, List.append_assoc]
+
 /-- Strengthening of `extendNarrowRuntimeScope` which retains the strict
 translation used for every narrowed binder domain.  The ordinary runtime
 scope only remembers the resulting verifier domains and their weakening;
