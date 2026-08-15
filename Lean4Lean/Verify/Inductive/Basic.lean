@@ -62600,6 +62600,64 @@ theorem
     hprefixTraversal.tail_eq A.semantics.parameterPrefix
   exact ⟨S, HS, hlocal, hsemanticTraversal.symm ▸ hparameterTail⟩
 
+/-- Expose the whole selected minor source before abstraction over the common
+recursor binders.  Annotation consumption translates the installed origin,
+and the exact two-stage field/hypothesis replay is definitionally equal to
+that consumed target in the retained source context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorReplayedSource
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
+        S.localIndex = i ∧
+        HS.semantic.traversal.parameterTail =
+          A.semantics.parameterTail ∧
+        TrExprS H.recursorWF.venv Us HS.semantic.sourceWF.mlctx.vlctx
+          S.origin HS.semantic.consumedTarget ∧
+        H.recursorWF.venv.IsDefEqU Us.length
+          HS.semantic.sourceWF.mlctx.vlctx.toCtx
+          ((VExpr.wrapForalls HS.semantic.fieldDomains
+            (VExpr.wrapForalls HS.semantic.hypothesisDomains
+              HS.semantic.motiveTarget)).lift'
+                ((HS.semantic.fieldsRecent.contextExtension.trans
+                  HS.semantic.hypothesesRecent.contextExtension).shift.consN
+                    0))
+          HS.semantic.consumedTarget := by
+  dsimp only
+  rcases A.finalSelectedMinorSemanticSource with
+    ⟨S, HS, hlocal, htail⟩
+  have Hconsumed : TrExprS H.recursorWF.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      HS.semantic.sourceWF.mlctx.vlctx S.origin
+      HS.semantic.consumedTarget := by
+    rw [← S.consumed_eq]
+    simpa only [HS.semantic.extension.venv_eq] using
+      HS.semantic.consumption.consumed
+  have Hreplayed : H.recursorWF.venv.IsDefEqU
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      HS.semantic.sourceWF.mlctx.vlctx.toCtx
+      ((VExpr.wrapForalls HS.semantic.fieldDomains
+        (VExpr.wrapForalls HS.semantic.hypothesisDomains
+          HS.semantic.motiveTarget)).lift'
+            ((HS.semantic.fieldsRecent.contextExtension.trans
+              HS.semantic.hypothesesRecent.contextExtension).shift.consN 0))
+      HS.semantic.consumedTarget := by
+    simpa only [HS.semantic.extension.venv_eq] using
+      HS.semantic.replayedSourceDefEqConsumed
+  exact ⟨S, HS, hlocal, htail, Hconsumed, Hreplayed⟩
+
 /-- Transport the shared constructor tail retained by the first minor pass
 into the exact parameter context and environment used by final rule
 generation.  This is the first semantic join between the two executable
