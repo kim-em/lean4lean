@@ -64775,13 +64775,12 @@ theorem
     simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using Hdomain,
     by simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using HdomainType⟩
 
-/-- The parameters, motives, and strictly earlier minors selected by one
-generated minor form a dependency-closed subset of the interleaved recursor
-context.  The proof reads each declaration's domain from the fully closed
-generated recursor telescope, so skipped indices and majors cannot enter the
-retained dependency set. -/
+/-- The parameters, motives, and an arbitrary initial minor segment form a
+dependency-closed subset of the interleaved recursor context.  The proof
+reads each declaration's domain from the fully closed generated recursor
+telescope, so skipped indices and majors cannot enter the retained set. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPrefixUp
+    RecursorPhasesResult.GeneratedRuleAlignment.finalMinorPrefixUp
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -64792,16 +64791,16 @@ theorem
     {H : RecursorPhasesResult R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    let minorIdx := recursorMinorOffset indTypes owner + i
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (minorLimit : Nat)
+    (hminorLimit : minorLimit ≤ H.bindings.flatMinors.fvars.length) :
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-      H.bindings.flatMinors.fvars.take minorIdx
+      H.bindings.flatMinors.fvars.take minorLimit
     IsFVarUpSet (fun fv => fv ∈ sourceBinders)
       H.recursorWF.mlctx.vlctx := by
   dsimp only
-  let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-    H.bindings.flatMinors.fvars.take minorIdx
+    H.bindings.flatMinors.fvars.take minorLimit
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
   let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
@@ -64884,17 +64883,14 @@ theorem
       rw [hdEq] at hdep
       exact (fvarsIn_iff.mp HtypeScope).1 dep hdep
   · rcases List.mem_iff_getElem.mp hminor with ⟨idx, hidxTake, hgetTake⟩
-    have hminorIdx : minorIdx < H.bindings.flatMinors.fvars.length := by
-      rw [H.bindings.flatMinors.length_fvars]
-      exact A.rule.minor_valid
     have htakeLength :
-        (H.bindings.flatMinors.fvars.take minorIdx).length = minorIdx := by
-      simp [Nat.min_eq_left (Nat.le_of_lt hminorIdx)]
-    have hidxMinor : idx < minorIdx := by
+        (H.bindings.flatMinors.fvars.take minorLimit).length = minorLimit := by
+      simp [Nat.min_eq_left hminorLimit]
+    have hidxMinor : idx < minorLimit := by
       rw [htakeLength] at hidxTake
       exact hidxTake
     have hidx : idx < H.bindings.flatMinors.fvars.length :=
-      Nat.lt_trans hidxMinor hminorIdx
+      Nat.lt_of_lt_of_le hidxMinor hminorLimit
     have hget : H.bindings.flatMinors.fvars[idx] = d.fvarId := by
       simpa using hgetTake
     have hi : idx < (H.recInfos.flatMap (·.minors)).size := by
@@ -64933,6 +64929,150 @@ theorem
         · exact False.elim hfalse
     rw [hdEq] at hdep
     exact (fvarsIn_iff.mp HtypeScope).1 dep hdep
+
+/-- The parameters, motives, and strictly earlier minors selected by one
+generated minor form a dependency-closed subset of the interleaved recursor
+context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPrefixUp
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    IsFVarUpSet (fun fv => fv ∈ sourceBinders)
+      H.recursorWF.mlctx.vlctx := by
+  dsimp only
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  apply A.finalMinorPrefixUp minorIdx
+  rw [H.bindings.flatMinors.length_fvars]
+  exact Nat.le_of_lt A.rule.minor_valid
+
+/-- Every generated parameter, motive, and minor local is dependency-closed
+as a group inside the interleaved executable recursor context.  Indices and
+majors may occur between these declarations operationally, but no retained
+outer declaration depends on them. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOuterPrefixUp
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
+    IsFVarUpSet (fun fv => fv ∈ outerBinders)
+      H.recursorWF.mlctx.vlctx := by
+  dsimp only
+  simpa using A.finalMinorPrefixUp
+    H.bindings.flatMinors.fvars.length (Nat.le_refl _)
+
+/-- Filtering the interleaved executable context by all generated outer
+locals recovers exactly their canonical newest-first order. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOuterFilteredFVars
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
+    H.recursorWF.mlctx.vlctx.fvars.filter (· ∈ outerBinders) =
+      outerBinders.reverse := by
+  dsimp only
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
+  have hfiltered :=
+    checkInductiveTypes.loopType.List.filter_mem_eq_of_sublist_nodup
+      H.outerOrder H.recursorWF.mlctx_wf.fvars_nodup
+  calc
+    H.recursorWF.mlctx.vlctx.fvars.filter (· ∈ outerBinders) =
+        H.recursorWF.mlctx.vlctx.fvars.filter
+          (· ∈ outerBinders.reverse) := by
+      apply List.filter_congr
+      intro fv _
+      simp
+    _ = outerBinders.reverse := hfiltered
+
+/-- Narrow the interleaved executable context to the complete generated
+parameter/motive/minor scope, retaining both its exact operational lift and
+its concrete source closure.  This is the semantic counterpart of the full
+anonymous recursor prefix used by equation checking. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOuterNarrowScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+        scope.fvars = outerBinders.reverse ∧
+        Hscope.shift = fvarSelectionLift
+          H.recursorWF.mlctx.vlctx.fvars (· ∈ outerBinders) ∧
+        ∀ body,
+          Hscope.sources.closeSource body =
+            H.localContext.lctx.mkForall
+              (outerBinders.map Expr.fvar).toArray body := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
+  rcases MLCtxOnlyLams.narrowFVarsSource
+      H.recursorWF.onlyLams
+      H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
+      (fun fv => fv ∈ outerBinders) A.finalOuterPrefixUp with
+    ⟨scope, Hscope, hscopeFiltered, hscopeShift,
+      _hscopeDecls, hscopeSource⟩
+  have hscope : scope.fvars = outerBinders.reverse :=
+    hscopeFiltered.trans A.finalOuterFilteredFVars
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  let HscopeOut := Hscope.mono hbase
+  have hscopeSourceOut : ∀ body,
+      HscopeOut.sources.closeSource body =
+        H.localContext.lctx.mkForall
+          (outerBinders.map Expr.fvar).toArray body := by
+    intro body
+    have hsource := hscopeSource body
+    rw [hscope, List.reverse_reverse] at hsource
+    change (Hscope.sources.mono hbase).closeSource body = _
+    rw [checkInductiveTypes.loopType.FVarNarrowSources.closeSource_mono]
+    simpa [H.recursorWF.lctx_eq] using hsource
+  exact ⟨scope, HscopeOut, hscope, hscopeShift, hscopeSourceOut⟩
 
 /-- Chronological strengthening of `finalSelectedMinorPrefixUp`: the exact
 selected prefix occurs, newest first, inside the executable recursor
