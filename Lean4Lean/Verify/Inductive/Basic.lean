@@ -409,6 +409,28 @@ theorem liftForallDomains_append_take_left
   | cons domain left ih =>
     simp [liftForallDomains, ih]
 
+/-- Free-variable lifting of dependent domains distributes over telescope
+concatenation, with the right block translated below every binder in the
+left block. -/
+theorem liftForallDomains_append
+    (left right : List VExpr) (shift : Lift) :
+    liftForallDomains (left ++ right) shift =
+      liftForallDomains left shift ++
+        liftForallDomains right (shift.consN left.length) := by
+  induction left generalizing shift with
+  | nil => rfl
+  | cons domain left ih =>
+    simp only [List.cons_append, liftForallDomains, ih, List.cons.injEq,
+      true_and]
+    have hconsN : shift.cons.consN left.length =
+        (shift.consN left.length).cons := by
+      generalize left.length = n
+      induction n with
+      | zero => rfl
+      | succ n ihN => simpa [Lift.consN] using congrArg Lift.cons ihN
+    rw [hconsN]
+    simp [Lift.consN]
+
 /-- Exact form of `VExpr.lift'_wrapForalls_shape`, with a domain transform
 independent of the residual.  This independence is what permits a context
 conversion extracted from one translated residual to be closed around a
@@ -6810,6 +6832,21 @@ def FVarNarrowScope.mono {env env' : VEnv} (henv : env ≤ env')
   noBV := H.noBV
   declarations := H.declarations
   sources := H.sources.mono henv
+
+/-- Retarget only the executable context while preserving every data
+projection of a dependency-selected scope definitionally. -/
+def FVarNarrowScope.retargetRuntime
+    (H : FVarNarrowScope env Us scope runtime)
+    (h : runtime = runtime') :
+    FVarNarrowScope env Us scope runtime' where
+  expanded := H.expanded
+  shift := H.shift
+  lift := H.lift
+  context := by cases h; exact H.context
+  upset := by cases h; exact H.upset
+  noBV := H.noBV
+  declarations := H.declarations
+  sources := H.sources
 
 theorem FVarNarrowScope.scopeWF
     (H : FVarNarrowScope env Us scope runtime)
@@ -47669,11 +47706,16 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
         scope.drop n = baseScope ∧
         ∃ newDomains : List VExpr,
           newDomains.length = n ∧
-          scope.toCtx = newDomains.reverse ++ baseScope.toCtx := by
+          scope.toCtx = newDomains.reverse ++ baseScope.toCtx ∧
+          Hscope.shift = Hbase.shift.consN n ∧
+          Hscope.expanded.toCtx =
+            (liftForallDomains newDomains Hbase.shift).reverse ++
+              Hbase.expanded.toCtx := by
   induction H with
   | nil runtime =>
     exact ⟨baseScope, Hbase,
-      by simp [TypeChecker.MLCtx.fvarRevList], rfl, [], rfl, by simp⟩
+      by simp [TypeChecker.MLCtx.fvarRevList], rfl, [], rfl, by simp,
+      by simp [Lift.consN], by simp [liftForallDomains]⟩
   | @cons tail n domains fv name type type' bi Hprefix ih =>
     have HruntimeWF := Hwf.tr.wf
     rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
@@ -47693,7 +47735,8 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
       · exact List.mem_cons_of_mem _
     rcases ih HtailWF Hbase htailUp with
       ⟨tailScope, HtailScope, htailScopeFVars, htailBase,
-        tailDomains, htailDomains, htailContext⟩
+        tailDomains, htailDomains, htailContext, htailShift,
+        htailExpanded⟩
     have hdepsFull : ∀ dep ∈ type.fvarsList,
         dep ∈ fv :: tail.fvarRevList n Hprefix.le ++ baseScope.fvars := by
       exact hup.2 (by simp)
@@ -47729,13 +47772,22 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
       HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
     let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
       HnarrowType Hdomain
-    refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_⟩
+    refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_,
+      ?_, ?_⟩
     · simp [htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
     · simpa using htailBase
     · simp [htailDomains]
     · change narrowType :: tailScope.toCtx = _
       rw [htailContext]
       simp [List.reverse_append, List.append_assoc]
+    · change HtailScope.shift.consN 1 = Hbase.shift.consN (n + 1)
+      rw [htailShift]
+      simp [Lift.consN]
+    · change narrowType.lift' HtailScope.shift ::
+        HtailScope.expanded.toCtx = _
+      rw [htailExpanded, liftForallDomains_append, htailShift]
+      simp [liftForallDomains, htailDomains, List.reverse_append,
+        List.append_assoc]
 
 /-- Strengthening of `extendNarrowRuntimeScope` which retains the strict
 translation used for every narrowed binder domain.  The ordinary runtime
@@ -66017,6 +66069,10 @@ theorem
         fieldScope.drop A.rule.allArgs.size = outerScope ∧
         fieldDomains.length = A.rule.allArgs.size ∧
         fieldScope.toCtx = fieldDomains.reverse ++ outerScope.toCtx ∧
+        Hfield.shift = Houter.shift.consN A.rule.allArgs.size ∧
+        Hfield.expanded.toCtx =
+          (liftForallDomains fieldDomains Houter.shift).reverse ++
+            Houter.expanded.toCtx ∧
         VEnv.IsDefEqCtx H.outVEnv Us.length [] outerScope.toCtx
           (T.params ++ T.motives ++ T.minors).reverse := by
   dsimp only
@@ -66036,12 +66092,7 @@ theorem
       Subsingleton.elim _ _
     rw [hle, A.semantics.fieldsRecent.drop_eq,
       A.semantics.fieldRoot_vlctx]
-  have HfieldBase : checkInductiveTypes.loopType.FVarNarrowScope
-      H.outVEnv Us outerScope
-        (A.semantics.context.mlctx.dropN A.rule.allArgs.size
-          HfieldPrefix.le).vlctx := by
-    rw [hfieldRoot]
-    exact Houter
+  let HfieldBase := Houter.retargetRuntime hfieldRoot.symm
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
@@ -66117,10 +66168,12 @@ theorem
   rcases HfieldPrefix.extendFVarNarrowScope H.outVEnvWF HfieldWF
       HfieldBase HfieldUp with
     ⟨fieldScope, Hfield, hfieldFVars, hfieldBase,
-      fieldDomains, hfieldDomains, hfieldContext⟩
+      fieldDomains, hfieldDomains, hfieldContext, hfieldShift,
+      hfieldExpanded⟩
   exact ⟨T, outerScope, Houter, fieldScope, Hfield, fieldDomains,
     houterFVars, by simpa [hfieldRev] using hfieldFVars,
-    hfieldBase, hfieldDomains, hfieldContext, HouterPrefix⟩
+    hfieldBase, hfieldDomains, hfieldContext, hfieldShift,
+    hfieldExpanded, HouterPrefix⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
