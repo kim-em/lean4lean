@@ -81282,6 +81282,8 @@ theorem
           (resultBody resultType templateTarget : VExpr),
         equationDomains.length = A.rule.binders.length ∧
         localDomains.length = F.semantic.generated.localArgs.size ∧
+        OnCtx (abstractForallContext equationDomains []).toCtx
+          (H.outVEnv.IsType Us.length) ∧
         TrExprS H.outVEnv Us
           (abstractForallContext equationDomains [])
           ((F.semantic.generated.current.lctx.mkForall
@@ -81308,6 +81310,9 @@ theorem
           (abstractForallContext (equationDomains ++ localDomains) [])
           (F.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
           resultType ∧
+        H.outVEnv.IsType Us.length
+          (abstractForallContext
+            (equationDomains ++ localDomains) []).toCtx resultType ∧
         H.outVEnv.HasType Us.length
           (abstractForallContext equationDomains []).toCtx
           (VExpr.wrapLams localDomains resultBody)
@@ -81323,7 +81328,7 @@ theorem
     ⟨actualDomains, localDomains, prefixTarget, indexTargets,
       majorTarget, ownerTarget, hlocal, hdomains, hequation, _Hctx,
       HlocalTemplate, Hbody, HtemplateResidual, HmotiveApplication,
-      _HbodyType, Hclosed, _HbodyWF⟩
+      HbodyType, Hclosed, _HbodyWF⟩
   have hactual : actualDomains = equationDomains := by
     exact hdomains
   subst actualDomains
@@ -81339,11 +81344,25 @@ theorem
         F.semantic.generated.arguments_bound.fvars).abstractList
           A.rule.binders F.semantic.generated.localArgs.size) := by
     simpa [hlocal] using Htelescope
+  have HequationCtx : OnCtx
+      (abstractForallContext equationDomains []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    have Hbase := _Hctx.drop localDomains.length
+    simpa [equationDomains, Us, abstractForallContext_toCtx,
+      List.reverse_append, List.drop_append, List.length_reverse,
+      List.append_assoc] using Hbase
+  have HresultType : H.outVEnv.IsType Us.length
+      (abstractForallContext (equationDomains ++ localDomains) []).toCtx
+      resultType := by
+    simpa [equationDomains, Us, resultType, args,
+      abstractForallContext_toCtx, List.reverse_append,
+      List.append_assoc] using HbodyType.isType H.outVEnvWF _Hctx
   exact ⟨F, localDomains, resultBody, resultType, majorTarget,
-    hequation, hlocal, HlocalTemplate, Htelescope',
+    hequation, hlocal, HequationCtx, HlocalTemplate, Htelescope',
     by simpa [resultBody, args] using Hbody,
     HtemplateResidual,
     by simpa [resultType, args] using HmotiveApplication,
+    HresultType,
     by simpa [resultBody, resultType, args] using Hclosed⟩
 
 /-- One recursive result in the fixed rule-wide equation context.  The
@@ -81381,6 +81400,15 @@ structure
         (liftContextPrefix (T.motives ++ T.minors).length
           B.fieldDomains.reverse).reverse).length = A.rule.binders.length
   local_length : localDomains.length = frame.semantic.generated.localArgs.size
+  equation_context :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    OnCtx (abstractForallContext equationDomains []).toCtx
+      (H.outVEnv.IsType Us.length)
   local_forall_translation :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let equationDomains :=
@@ -81447,6 +81475,16 @@ structure
     TrExprS H.outVEnv Us
       (abstractForallContext (equationDomains ++ localDomains) [])
       (frame.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
+      resultType
+  result_type_isType :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    H.outVEnv.IsType Us.length
+      (abstractForallContext (equationDomains ++ localDomains) []).toCtx
       resultType
   closed_typing :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -81538,8 +81576,8 @@ theorem
     Nonempty (A.CanonicalRecursiveResultAt T B j hj) := by
   rcases A.canonicalRecursiveResultTypingFor T B j hj with
     ⟨F, localDomains, resultBody, resultType, templateTarget, hequation,
-      hlocal, HlocalForall, Htelescope, Htranslation, HtemplateResidual,
-      HtypeTranslation, Htyping⟩
+      hlocal, HequationCtx, HlocalForall, Htelescope, Htranslation,
+      HtemplateResidual, HtypeTranslation, HresultType, Htyping⟩
   have HtemplateTelescope : Expr.LambdaTelescope
       ((F.semantic.generated.current.lctx.mkLambda
           F.semantic.generated.localArgs
@@ -81566,6 +81604,7 @@ theorem
     templateTarget := templateTarget
     equation_length := hequation
     local_length := hlocal
+    equation_context := HequationCtx
     local_forall_translation := HlocalForall
     source_telescope := Htelescope
     template_telescope := HtemplateTelescope
@@ -81573,7 +81612,130 @@ theorem
     residual_translation := Htranslation
     template_residual_translation := HtemplateResidual
     result_type_translation := HtypeTranslation
+    result_type_isType := HresultType
     closed_typing := Htyping }⟩
+
+/-- Replace the neutral codomain in the retained local-forall template by
+the independently checked selected-motive application.  The source is the
+exact complete higher-order domain produced by the recursive-call replay,
+closed over production's full rule binder list. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.fullForallTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    let motiveApp := Expr.app
+      (mkAppN
+        (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]!
+        E.frame.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+      (mkAppN A.rule.recursiveArgs[j]
+        E.frame.semantic.generated.localArgs)
+    TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs motiveApp).abstractList
+          A.rule.binders)
+      (VExpr.wrapForalls E.localDomains E.resultType) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++
+      T.motives ++ T.minors ++
+        (liftContextPrefix (T.motives ++ T.minors).length
+          B.fieldDomains.reverse).reverse
+  let motiveApp := Expr.app
+    (mkAppN
+      (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]!
+      E.frame.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+    (mkAppN A.rule.recursiveArgs[j]
+      E.frame.semantic.generated.localArgs)
+  let selection :=
+    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+      E.frame.semantic.generated.current_wf
+  have Hsame := (selection.sameForallPrefix
+    E.frame.semantic.generated.arguments_bound.nodup
+    (.sort (.zero : Level)) motiveApp).abstractList A.rule.binders
+  have Htemplate₀ := (selection.forallTelescope
+    (.sort (.zero : Level))).abstractList A.rule.binders
+  have Hreplacement₀ :=
+    (selection.forallTelescope motiveApp).abstractList A.rule.binders
+  have hselectionFVars : selection.fvars =
+      E.frame.semantic.generated.arguments_bound.fvars := rfl
+  rw [hselectionFVars] at Htemplate₀ Hreplacement₀
+  have hsortLocal : (Expr.sort (.zero : Level)).abstractList
+      E.frame.semantic.generated.arguments_bound.fvars = .sort .zero := by
+    induction E.frame.semantic.generated.arguments_bound.fvars <;>
+      simp_all [Expr.abstractList, Expr.abstract1]
+  rw [hsortLocal] at Htemplate₀
+  simp only [Nat.zero_add] at Htemplate₀
+  have hsortOuter : (Expr.sort (.zero : Level)).abstractList
+      A.rule.binders E.frame.semantic.generated.localArgs.size = .sort .zero := by
+    induction A.rule.binders <;>
+      simp_all [Expr.abstractList, Expr.abstract1]
+  rw [hsortOuter] at Htemplate₀
+  have Htemplate : Expr.ForallTelescope
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.binders)
+      E.frame.semantic.generated.localArgs.size (.sort .zero) := by
+    exact Htemplate₀
+  have hresidual := E.frame.semantic.generated.outerAbstractedMotiveApp_eq
+    A.rule.binders
+  have HreplacementRaw : Expr.ForallTelescope
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs motiveApp).abstractList
+          A.rule.binders)
+      E.frame.semantic.generated.localArgs.size
+      ((motiveApp.abstractList
+        E.frame.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.binders E.frame.semantic.generated.localArgs.size) := by
+    simpa using Hreplacement₀
+  have Hreplacement : Expr.ForallTelescope
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs motiveApp).abstractList
+          A.rule.binders)
+      E.frame.semantic.generated.localArgs.size
+      (E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.binders) := by
+    rw [← hresidual]
+    exact HreplacementRaw
+  have HresultTranslation : TrExprS H.outVEnv Us
+      (abstractForallContext E.localDomains
+        (abstractForallContext equationDomains []))
+      (E.frame.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
+      E.resultType := by
+    simpa [equationDomains, Us, abstractForallContext_append,
+      List.append_assoc] using E.result_type_translation
+  have HresultType : H.outVEnv.IsType Us.length
+      (abstractForallContext E.localDomains
+        (abstractForallContext equationDomains [])).toCtx E.resultType := by
+    simpa [equationDomains, Us, abstractForallContext_append,
+      List.append_assoc] using E.result_type_isType
+  exact Hsame.replaceTranslatedResidual Htemplate Hreplacement
+    H.outVEnvWF E.equation_context E.local_length
+    E.local_forall_translation HresultTranslation HresultType
 
 /-- The retained eta-template residual has a completely forced abstract
 shape.  In particular, its target is the selected constructor-field variable
