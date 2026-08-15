@@ -52614,6 +52614,17 @@ theorem Expr.SameForallPrefix.abstractList
     simp only [Expr.abstractList]
     exact ih (H.abstract1 fv k) k
 
+theorem Expr.SameForallPrefix.liftLooseBVars'
+    (H : Expr.SameForallPrefix n left right)
+    (s amount : Nat) :
+    Expr.SameForallPrefix n
+      (left.liftLooseBVars' s amount) (right.liftLooseBVars' s amount) := by
+  induction H generalizing s with
+  | nil => exact .nil
+  | cons H ih =>
+    simp only [Expr.liftLooseBVars']
+    exact .cons (ih (s + 1))
+
 theorem Expr.SameForallPrefix.target_isForall_of_pos
     (H : Expr.SameForallPrefix n source target) (hpos : 0 < n) :
     target.isForall = true := by
