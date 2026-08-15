@@ -27112,7 +27112,8 @@ structure RecInfoMinorHypothesisTypeOrigin
   field_fvar : ∃ fv, field = .fvar fv ∧ fv ∈ root.lctx.fvars
   ownerIdx : Nat
   owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
-  motive_is_fvar : ∃ fv, recInfos[ownerIdx]!.motive = .fvar fv
+  motive_is_fvar : ∃ fv,
+    recInfos[ownerIdx]!.motive = .fvar fv ∧ fv ∈ root.lctx.fvars
   type_eq :
     let itIndices := exposedType.getAppArgs[stats.params.size:]
     let motiveApp := Expr.app
@@ -27318,7 +27319,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.consumeTypeAnnotations_eq_self
     have hargs : O.args = #[] := Array.eq_empty_of_size_eq_zero hsize
     rw [hargs]
     rw [LocalContext.mkForall_empty]
-    rcases O.motive_is_fvar with ⟨motiveFVar, hmotive⟩
+    rcases O.motive_is_fvar with ⟨motiveFVar, hmotive, _hmotiveRoot⟩
     have hhead :
         (Expr.app
           (mkAppN recInfos[O.ownerIdx]!.motive itIndices)
@@ -35822,6 +35823,8 @@ structure RecInfoHypothesisTypeOrigin
   field_fvar : ∃ fv, field = .fvar fv ∧ fv ∈ root.lctx.fvars
   ownerIdx : Nat
   owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
+  motive_is_fvar : ∃ fv,
+    recInfos[ownerIdx]!.motive = .fvar fv ∧ fv ∈ root.lctx.fvars
   type_eq :
     let itIndices := exposedType.getAppArgs[stats.params.size:]
     let motiveApp := Expr.app
@@ -35927,6 +35930,8 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin
     {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
+    (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
+    (hrecords : recInfos.size = stats.indConsts.size)
     (Happ : ∀ {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
       {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
@@ -35997,6 +36002,14 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin
       HappliedType hvalid _hexposedScope _hup
     rcases Happ Rcurrent Hexposed Hdefeq Hterminal Hargs Happlied
         HappliedType hvalid with ⟨motiveTarget, Hmotive, HmotiveType⟩
+    have htargetStats : target < stats.indConsts.size :=
+      (checkPositivityStep.isValidIndApp?_some hvalid).1
+    have htarget : target < recInfos.size := by
+      rw [hrecords]
+      exact htargetStats
+    rcases Hmotives.get_eq_fvar target
+        (by simpa using htarget) with
+      ⟨motiveFVar, hmotiveFVar, hmotiveMember⟩
     rcases Hargs.mkForall Hmotive HmotiveType with
       ⟨viTarget, Hvi, HviType⟩
     let itIndices := exposedType.getAppArgs[stats.params.size:]
@@ -36017,6 +36030,10 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin
         field_fvar := ⟨fv, rfl, hfvRoot⟩
         ownerIdx := target
         owner_valid := hvalid
+        motive_is_fvar := ⟨motiveFVar, by
+          rw [getElem!_pos recInfos target htarget]
+          simpa only [Array.getElem_map] using hmotiveFVar,
+          hmotiveMember⟩
         type_eq := rfl }⟩⟩
 
 /-- Compatibility projection of `inductionHypothesisTypeOrigin` for callers
@@ -36040,6 +36057,8 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisType
     {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
+    (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
+    (hrecords : recInfos.size = stats.indConsts.size)
     (Happ : ∀ {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
       {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
@@ -36079,7 +36098,8 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisType
             viTy.consumeTypeAnnotations viTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget := by
   exact (mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats
-    recInfos c R Hstats hwhnf hconsume hlit hctx hproj hfield Happ).mono
+    recInfos c R Hstats hwhnf hconsume hlit hctx hproj hfield
+      Hmotives hrecords Happ).mono
       fun _ Hout => ⟨Hout.choose, Hout.choose_spec.1,
         Hout.choose_spec.2.1⟩
 
@@ -41514,6 +41534,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         u[j] = .fvar fv ∧
         TrExprS R.venv recLparams R.mlctx.vlctx
           (.fvar fv) fieldTarget)
+    (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
+    (hrecords : recInfos.size = stats.indConsts.size)
     (Happ : ∀ {base current : AddInductive.Context}
       (Rbase : RecursorContextWF base recLparams)
       (Rcurrent : RecursorContextWF current recLparams)
@@ -41576,6 +41598,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
   rw [hfieldEq, hfieldBang]
   apply mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats recInfos next
     Rnext HstatsAt hwhnf hconsume hlit hctxAt hproj HfieldAt
+      (Hmotives.mono Hprior.contextExtension.contextLE) hrecords
   intro current Rcurrent exposedType syntaxTarget terminalTarget
     appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
     HappliedType hvalid
@@ -41653,6 +41676,7 @@ theorem resultSemanticsOfMotiveApplications
   rw [hfieldEq, hfieldBang]
   apply mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats recInfos next
     Rnext HstatsNext hwhnf hconsume hlit hctxNext hproj HfieldAt
+      (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
   intro current Rcurrent exposedType syntaxTarget terminalTarget
     appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
     HappliedType hvalid
@@ -42209,14 +42233,6 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
             intro j hj
             rcases HhypothesisOrigins.entry j hj with
               ⟨originRoot, sourceType, ⟨O⟩, D, htype⟩
-            have hownerStats : O.ownerIdx < stats.indConsts.size :=
-              (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
-            have hownerRecInfos : O.ownerIdx < recInfos.size := by
-              rw [hrecords]
-              exact hownerStats
-            rcases Hbindings.motives.get_eq_fvar O.ownerIdx (by
-                simpa using hownerRecInfos) with
-              ⟨motiveFVar, hmotive, _hmotiveMember⟩
             exact ⟨originRoot, sourceType, ⟨{
               current := O.current
               current_wf := O.current_wf
@@ -42227,9 +42243,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
               field_fvar := O.field_fvar
               ownerIdx := O.ownerIdx
               owner_valid := O.owner_valid
-              motive_is_fvar := ⟨motiveFVar, by
-                rw [getElem!_pos recInfos O.ownerIdx hownerRecInfos]
-                simpa only [Array.getElem_map] using hmotive⟩
+              motive_is_fvar := O.motive_is_fvar
               type_eq := O.type_eq }⟩, D, htype⟩ }
         hypotheses_size := hhypothesesSize
         traversal := some {
@@ -73320,7 +73334,8 @@ theorem
     rw [getElem!_pos hypothesisOrigins.recInfos O.ownerIdx hownerOrigin,
       getElem!_pos H.recInfos O.ownerIdx hownerRecInfos]
     simpa only [Array.getElem_map] using hget
-  rcases O.motive_is_fvar with ⟨motiveFVar, hmotiveOrigin⟩
+  rcases O.motive_is_fvar with
+    ⟨motiveFVar, hmotiveOrigin, hmotiveOriginRoot⟩
   have hmotiveFinal : H.recInfos[O.ownerIdx]!.motive =
       .fvar motiveFVar := hmotiveSnapshot.symm.trans hmotiveOrigin
   have hownerMotiveArray : O.ownerIdx <
