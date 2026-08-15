@@ -73765,6 +73765,11 @@ theorem
         O.replayTrace S.fields_bound.fvars =
           E.frame.semantic.generated.replayTrace
             A.rule.all_args_bound.fvars ∧
+        (O.current.lctx.mkForall O.args (.sort .zero)).abstractList
+            S.fields_bound.fvars =
+          (E.frame.semantic.generated.current.lctx.mkForall
+              E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+            A.rule.all_args_bound.fvars ∧
         ((hypothesisOrigins.recInfos[O.ownerIdx]!.motive.abstractList
               O.arguments_bound.fvars).abstractList
             S.fields_bound.fvars O.args.size) =
@@ -74026,6 +74031,13 @@ theorem
       traversal.parameterTail_fvars HminorDecisions HruleDecisions
       S.fields_bound.expressions
       A.rule.all_args_bound.expressions hpositions
+  have HlocalTelescopeReplay :
+      (O.current.lctx.mkForall O.args (.sort .zero)).abstractList
+          S.fields_bound.fvars =
+        (E.frame.semantic.generated.current.lctx.mkForall
+            E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.all_args_bound.fvars := by
+    exact congrArg RecursorLoopUArgsTrace.localTelescope Hreplay
   have hownerReplay : O.ownerIdx =
       E.frame.semantic.generated.ownerIdx :=
     congrArg RecursorLoopUArgsTrace.ownerIdx Hreplay
@@ -74626,7 +74638,8 @@ theorem
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
     rfl, by simpa [fieldPosition] using houterField,
-    hrecursiveMajor.1, hrecursiveMajor.2, Hreplay, hmotiveReplay,
+    hrecursiveMajor.1, hrecursiveMajor.2, Hreplay,
+    HlocalTelescopeReplay, hmotiveReplay,
     hindicesReplay, hownerReplay, hlocalArity, hmajorAlignment,
     hmotiveAppAlignment,
     ⟨semanticBinding, semanticEvidence, semanticLocalDomains,
