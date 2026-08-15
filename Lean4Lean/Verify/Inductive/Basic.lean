@@ -30264,8 +30264,9 @@ structure RecInfoMinorSemanticSource
   traversal_eq : S.traversal = some traversal
   rootWF : RecursorContextWF traversal.rootContext recLparams
   terminalWF : RecursorContextWF traversal.terminalContext recLparams
-  fieldsExtension : RecursorContextExtension rootWF terminalWF
-  hypothesesExtension : RecursorContextExtension terminalWF sourceWF
+  fieldsRecent : RecursorRecentBoundFVarArray rootWF terminalWF S.fields
+  hypothesesRecent : RecursorRecentBoundFVarArray terminalWF sourceWF
+    S.hypotheses
 
 def RecInfoMinorSemanticSource.mono
     {root current : AddInductive.Context} {recLparams : List Name}
@@ -30281,8 +30282,8 @@ def RecInfoMinorSemanticSource.mono
   traversal_eq := HS.traversal_eq
   rootWF := HS.rootWF
   terminalWF := HS.terminalWF
-  fieldsExtension := HS.fieldsExtension
-  hypothesesExtension := HS.hypothesesExtension
+  fieldsRecent := HS.fieldsRecent
+  hypothesesRecent := HS.hypothesesRecent
 
 /-- Every retained minor source carries its exact semantic extension into the
 current recursor context.  Unlike `BindingContextLE`, this invariant is strong
@@ -42825,7 +42826,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
             hsourceFamily)
       (by simp [RecInfoMinorTypeShape.HasHypothesisTypeOrigins])
       ⟨⟨Rout, RecursorContextExtension.refl Rout, traversal, rfl,
-        R, Rargs, HextArgs, HhypothesesRecent.contextExtension⟩⟩
+        R, Rargs, HfieldsRecent, HhypothesesRecent⟩⟩
       ⟨traversal, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE,
         HhypothesesRecent.contextExtension.contextLE,
         BindingContextLE.refl outCtx⟩ ?_
