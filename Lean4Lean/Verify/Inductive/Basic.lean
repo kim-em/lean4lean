@@ -73798,6 +73798,13 @@ theorem
           (E.frame.semantic.generated.current.lctx.mkForall
               E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
             A.rule.all_args_bound.fvars ∧
+        (∀ left right,
+          Expr.SameForallPrefix O.args.size
+            ((O.current.lctx.mkForall O.args left).abstractList
+              S.fields_bound.fvars)
+            ((E.frame.semantic.generated.current.lctx.mkForall
+                E.frame.semantic.generated.localArgs right).abstractList
+              A.rule.all_args_bound.fvars)) ∧
         ((hypothesisOrigins.recInfos[O.ownerIdx]!.motive.abstractList
               O.arguments_bound.fvars).abstractList
             S.fields_bound.fvars O.args.size) =
@@ -74097,6 +74104,27 @@ theorem
   have hlocalArity : O.args.size =
       E.frame.semantic.generated.localArgs.size :=
     congrArg RecursorLoopUArgsTrace.localArity Hreplay
+  have HlocalForallReplay : ∀ left right,
+      Expr.SameForallPrefix O.args.size
+        ((O.current.lctx.mkForall O.args left).abstractList
+          S.fields_bound.fvars)
+        ((E.frame.semantic.generated.current.lctx.mkForall
+            E.frame.semantic.generated.localArgs right).abstractList
+          A.rule.all_args_bound.fvars) := by
+    intro left right
+    let Oselection :=
+      O.arguments_bound.toBoundFVarArray.toLocalForallSelection O.current_wf
+    let Gselection :=
+      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+        E.frame.semantic.generated.current_wf
+    have Hleft := (Oselection.sameForallPrefix
+      O.arguments_bound.nodup left (.sort .zero)).abstractList
+        S.fields_bound.fvars
+    have Hright := ((Gselection.sameForallPrefix
+      E.frame.semantic.generated.arguments_bound.nodup right
+        (.sort .zero)).symm).abstractList A.rule.all_args_bound.fvars
+    rw [HlocalTelescopeReplay] at Hleft
+    exact Hleft.trans (by simpa [hlocalArity] using Hright)
   have hownerStats : O.ownerIdx < hypothesisOrigins.stats.indConsts.size :=
     (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
   have hownerRecInfos : O.ownerIdx < H.recInfos.size := by
@@ -74667,7 +74695,7 @@ theorem
     hsourceHypotheses, hfields, hhypotheses, htarget,
     rfl, by simpa [fieldPosition] using houterField,
     hrecursiveMajor.1, hrecursiveMajor.2, Hreplay,
-    HlocalTelescopeReplay, hmotiveReplay,
+    HlocalTelescopeReplay, HlocalForallReplay, hmotiveReplay,
     hindicesReplay, hownerReplay, hlocalArity, hmajorAlignment,
     hmotiveAppAlignment,
     ⟨semanticBinding, semanticEvidence, semanticLocalDomains,
