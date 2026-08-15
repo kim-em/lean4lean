@@ -83985,6 +83985,148 @@ theorem
     simpa only [Us, equationDomains, inserted, equationFieldDomains,
       List.append_assoc] using C.bodyWF j hj
 
+/-- A well-formed canonical application of the selected minor to the fixed
+equation fields forces those fields to agree with the installed field
+telescope.  The selected minor is stored outside the equation fields, so its
+lookup typing is first recognized as a common weakening of the still-open
+installed telescope; `canonicalApplicationContext_of_weakened` then performs
+the dependent binder-by-binder inversion. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalMinorFieldContextOfApplication
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (fieldDomains hypothesisDomains : List VExpr)
+    (targetResidual : VExpr)
+    (hfields : fieldDomains.length = A.rule.allArgs.size)
+    (Hctx :
+      let inserted := T.motives ++ T.minors
+      let equationFieldDomains :=
+        (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+      let equationDomains :=
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+          equationFieldDomains
+      OnCtx (abstractForallContext equationDomains []).toCtx
+        (H.outVEnv.IsType
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
+    (Hminor :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let minorIdx := recursorMinorOffset indTypes owner + i
+      let inserted := T.motives ++ T.minors
+      let equationFieldDomains :=
+        (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+      let equationDomains :=
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+          equationFieldDomains
+      let later := T.minors.drop (minorIdx + 1)
+      let minorVar := equationFieldDomains.length + later.length
+      H.outVEnv.HasType Us.length
+        (abstractForallContext equationDomains []).toCtx
+        (.bvar minorVar)
+        ((VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
+          targetResidual).liftN
+            (later.length + 1 + equationFieldDomains.length) 0))
+    (Happlication :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let minorIdx := recursorMinorOffset indTypes owner + i
+      let inserted := T.motives ++ T.minors
+      let equationFieldDomains :=
+        (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+      let equationDomains :=
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+          equationFieldDomains
+      let later := T.minors.drop (minorIdx + 1)
+      let minorVar := equationFieldDomains.length + later.length
+      VExpr.WF H.outVEnv Us.length
+        (abstractForallContext equationDomains []).toCtx
+        (VExpr.mkApps (.bvar minorVar)
+          (recursorCanonicalVars equationFieldDomains.length))) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let inserted := T.motives ++ T.minors
+    let equationFieldDomains :=
+      (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+    let outer := inserted.reverse ++
+      H.parameterSuffix.parameterDecls.toCtx
+    let later := T.minors.drop (minorIdx + 1)
+    let shift := later.length + 1
+    let installedEquationFields :=
+      (liftContextPrefix shift fieldDomains.reverse).reverse
+    VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (equationFieldDomains.reverse ++ outer)
+      (installedEquationFields.reverse ++ outer) := by
+  dsimp only at Hctx Hminor Happlication ⊢
+  let inserted := T.motives ++ T.minors
+  let equationFieldDomains :=
+    (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+  let outer := inserted.reverse ++
+    H.parameterSuffix.parameterDecls.toCtx
+  let later := T.minors.drop (recursorMinorOffset indTypes owner + i + 1)
+  let shift := later.length + 1
+  let installedEquationFields :=
+    (liftContextPrefix shift fieldDomains.reverse).reverse
+  let installedEquationHypotheses :=
+    (liftContextPrefixAt shift fieldDomains.length
+      hypothesisDomains.reverse).reverse
+  let installedEquationResidual := targetResidual.liftN shift
+    (fieldDomains.length + hypothesisDomains.length)
+  have hequationLength : equationFieldDomains.length =
+      fieldDomains.length := by
+    simp [equationFieldDomains, hfields, B.fieldDomains_length]
+  have hctxShape :
+      (abstractForallContext
+        (H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+          equationFieldDomains) []).toCtx =
+        equationFieldDomains.reverse ++ outer := by
+    simp [abstractForallContext_toCtx, equationFieldDomains, outer,
+      List.reverse_append, List.append_assoc, VLCtx.toCtx]
+  rw [hctxShape] at Hctx Hminor Happlication
+  have htypeShape :
+      ((VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
+          targetResidual).liftN
+        (later.length + 1 + equationFieldDomains.length) 0) =
+      ((VExpr.wrapForalls installedEquationFields
+          (VExpr.wrapForalls installedEquationHypotheses
+            installedEquationResidual)).liftN
+        equationFieldDomains.length 0) := by
+    rw [← VExpr.liftN_liftN]
+    rw [VExpr.liftN_wrapForalls]
+    simp only [Nat.zero_add]
+    have hprefix : liftContextPrefixAt (later.length + 1) 0
+        (fieldDomains ++ hypothesisDomains).reverse =
+        liftContextPrefix (later.length + 1)
+          (fieldDomains ++ hypothesisDomains).reverse := rfl
+    rw [hprefix]
+    rw [liftContextPrefix_reverse_append]
+    simp [shift, installedEquationFields, installedEquationHypotheses,
+      installedEquationResidual, VExpr.wrapForalls_append,
+      equationFieldDomains, Nat.add_assoc]
+  rw [htypeShape] at Hminor
+  have htermShape :
+      (VExpr.bvar later.length).liftN equationFieldDomains.length 0 =
+        .bvar (equationFieldDomains.length + later.length) := by
+    simp [VExpr.liftN, Nat.add_comm]
+  rw [← htermShape] at Hminor Happlication
+  exact VEnv.HasType.canonicalApplicationContext_of_weakened
+    H.outVEnvWF equationFieldDomains installedEquationFields outer Hctx
+      Hminor (by simpa [installedEquationFields] using hequationLength)
+      Happlication
+
 /-- Degenerate generated rules need no application fold: when the selected
 constructor has neither fields nor recursive hypotheses, the selected minor
 variable itself is the complete RHS and is already typed in the fixed
