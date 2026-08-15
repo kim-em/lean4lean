@@ -65378,12 +65378,12 @@ theorem
     hscopeSource (.sort (.zero : Level)),
     Hprefix, HprefixType, HprefixTelescope, hprefixLength⟩
 
-/-- The independently narrowed source prefix and the production recursor have
-the same domain at every retained parameter, motive, and earlier-minor slot.
-The proof selects the exact local declaration on both sides, rather than
-appealing to whole-expression equality. -/
+/-- A concrete parameter/motive/minor prefix and the production recursor have
+the same source domain at every retained slot.  The proof selects the exact
+local declaration on both sides, rather than appealing to whole-expression
+equality. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPrefixBinderEq
+    RecursorPhasesResult.GeneratedRuleAlignment.finalMinorPrefixBinderEq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -65394,10 +65394,11 @@ theorem
     {H : RecursorPhasesResult R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    let minorIdx := recursorMinorOffset indTypes owner + i
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (minorLimit : Nat)
+    (hminorLimit : minorLimit ≤ H.bindings.flatMinors.fvars.length) :
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-      H.bindings.flatMinors.fvars.take minorIdx
+      H.bindings.flatMinors.fvars.take minorLimit
     ∀ position (hposition : position < sourceBinders.length)
       {prefixDomain recursorDomain : Expr},
       Expr.ForallBinderAt
@@ -65408,9 +65409,8 @@ theorem
         (H.generated.entry owner howner).info.type position recursorDomain →
       prefixDomain = recursorDomain := by
   dsimp only
-  let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-    H.bindings.flatMinors.fvars.take minorIdx
+    H.bindings.flatMinors.fvars.take minorLimit
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
   let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
@@ -65421,7 +65421,7 @@ theorem
     have houter := H.bindings.outerNodup H.params H.noAlias
     have hsub :
         (H.params.fvars ++ H.bindings.motives.fvars) ++
-            H.bindings.flatMinors.fvars.take minorIdx <+
+            H.bindings.flatMinors.fvars.take minorLimit <+
           (H.params.fvars ++ H.bindings.motives.fvars) ++
             H.bindings.flatMinors.fvars :=
       (List.Sublist.refl
@@ -65543,18 +65543,15 @@ theorem
         (Hrecursor.unique HrecursorCanonical).symm
     · let priorPos := position -
         (H.params.fvars.length + H.bindings.motives.fvars.length)
-      have hminorIdx : minorIdx < H.bindings.flatMinors.fvars.length := by
-        rw [H.bindings.flatMinors.length_fvars]
-        exact A.rule.minor_valid
-      have hpriorPos : priorPos < minorIdx := by
+      have hpriorPos : priorPos < minorLimit := by
         dsimp only [priorPos, sourceBinders] at hposition ⊢
         simp only [List.length_append, List.length_take,
-          Nat.min_eq_left (Nat.le_of_lt hminorIdx)] at hposition
+          Nat.min_eq_left hminorLimit] at hposition
         omega
       have hpriorArray : priorPos <
           (H.recInfos.flatMap (·.minors)).size := by
         rw [← H.bindings.flatMinors.length_fvars]
-        omega
+        exact Nat.lt_of_lt_of_le hpriorPos hminorLimit
       rcases H.bindings.flatMinors.declarationAt H.localWF priorPos
           hpriorArray with ⟨D⟩
       rcases H.bindings.flatMinors.getElem_eq_fvar priorPos hpriorArray with
@@ -65618,6 +65615,40 @@ theorem
         exact Hprefix.unique HprefixCanonical
       exact hprefixDomain.trans
         (Hrecursor.unique HrecursorCanonical).symm
+
+/-- The independently narrowed selected-minor source prefix and the
+production recursor have the same domain at every retained parameter,
+motive, and earlier-minor slot. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPrefixBinderEq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∀ position (hposition : position < sourceBinders.length)
+      {prefixDomain recursorDomain : Expr},
+      Expr.ForallBinderAt
+        (H.localContext.lctx.mkForall
+          (sourceBinders.map Expr.fvar).toArray
+          (.sort (.zero : Level))) position prefixDomain →
+      Expr.ForallBinderAt
+        (H.generated.entry owner howner).info.type position recursorDomain →
+      prefixDomain = recursorDomain := by
+  dsimp only
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  apply A.finalMinorPrefixBinderEq minorIdx
+  rw [H.bindings.flatMinors.length_fvars]
+  exact Nat.le_of_lt A.rule.minor_valid
 
 /-- The exact semantic context retained by non-contiguous narrowing is
 definitionally equal to the generated recursor's parameter/motive/earlier-
@@ -79032,6 +79063,7 @@ theorem
                 F.semantic.current_context.mlctx.vlctx.toCtx
                 F.semantic.appliedFieldTarget
                 (narrowMajor.lift' Hscope.shift) := by
+  let inserted := T.motives ++ T.minors
   rcases F.insertedSemanticCallArgumentFrame T (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
       liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
