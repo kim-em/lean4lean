@@ -72980,6 +72980,9 @@ theorem
         hypothesisOrigins.stats = stats ∧
         hypothesisOrigins.recInfos.map (·.motive) =
           H.recInfos.map (·.motive) ∧
+        O.ownerIdx < H.recInfos.size ∧
+        hypothesisOrigins.recInfos[O.ownerIdx]!.motive =
+          H.recInfos[O.ownerIdx]!.motive ∧
         S.traversal = some traversal ∧
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
@@ -73051,6 +73054,28 @@ theorem
       hdeclarationExact⟩
   rcases A.narrowFieldRuntimeFrame with ⟨B⟩
   rcases A.canonicalRecursiveResultAt T B j hj with ⟨E⟩
+  have hownerStats : O.ownerIdx < hypothesisOrigins.stats.indConsts.size :=
+    (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
+  have hownerRecInfos : O.ownerIdx < H.recInfos.size := by
+    rw [H.cardinality.records, ← H.cardinality.families,
+      ← hhypothesisStats]
+    exact hownerStats
+  have hownerOrigin : O.ownerIdx < hypothesisOrigins.recInfos.size := by
+    have hsizes := congrArg Array.size hhypothesisRecInfos
+    simp only [Array.size_map] at hsizes
+    omega
+  have hmotiveSnapshot :
+      hypothesisOrigins.recInfos[O.ownerIdx]!.motive =
+        H.recInfos[O.ownerIdx]!.motive := by
+    have hget := congrArg (fun motives => motives[O.ownerIdx]!)
+      hhypothesisRecInfos
+    rw [getElem!_pos (hypothesisOrigins.recInfos.map (·.motive))
+      O.ownerIdx (by simpa using hownerOrigin)] at hget
+    rw [getElem!_pos (H.recInfos.map (·.motive)) O.ownerIdx
+      (by simpa using hownerRecInfos)] at hget
+    rw [getElem!_pos hypothesisOrigins.recInfos O.ownerIdx hownerOrigin,
+      getElem!_pos H.recInfos O.ownerIdx hownerRecInfos]
+    simpa only [Array.getElem_map] using hget
   let fieldPosition := A.semantics.recursivePositions[j]!
   have hfieldPositionRule : fieldPosition < A.rule.allArgs.size :=
     (A.semantics.decisions.selected_at j hj).1
@@ -73108,8 +73133,9 @@ theorem
     rw [hrecursiveMajor.1, hfieldBinderLength, hlocalArity, hlocalIndices]
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, sourceType, O, B, E,
-    hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
-    htraversalFields, htraversalRecursiveFields, hpositions,
+    hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
+    hownerRecInfos, hmotiveSnapshot, htraversal, htraversalFields,
+    htraversalRecursiveFields, hpositions,
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
     hdeclarationExact, by simpa [fieldPosition] using houterField,
