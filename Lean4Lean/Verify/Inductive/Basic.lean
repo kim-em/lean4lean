@@ -63177,13 +63177,16 @@ theorem
       ∃ O : RecInfoMinorHypothesisTypeOrigin
           hypothesisOrigins.stats hypothesisOrigins.recInfos
           originRoot S.recursiveFields[j]! sourceType,
-      ∃ target,
+      ∃ HS : RecInfoMinorSemanticSource H.recursorWF S,
+      ∃ sourceTarget target,
         S.localIndex = i ∧
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         BindingContextLE S.sourceFullContext H.localContext ∧
-        Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
         D.type = sourceType ∧
+        TrExprS H.outVEnv Us HS.sourceWF.mlctx.vlctx
+          D.type sourceTarget ∧
+        target = sourceTarget.lift' (HS.extension.shift.consN 0) ∧
         TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx D.type target := by
   dsimp only
   rcases A.finalSelectedMinorHypothesisDeclarationDomainAt j hj with
@@ -63196,14 +63199,21 @@ theorem
       hsourceContext, HminorSemantic, _hfieldDomains, _hhypothesisDomains, _htarget,
       _Hbinder, _Hdomain, _HdomainType, originRoot, sourceType, ⟨O⟩,
       _hconsumed, htype⟩
-  rcases H.recursorWF.translatedDeclarationType
-      (D.mono hsourceContext) with ⟨target, Htarget⟩
+  rcases HminorSemantic with ⟨HS⟩
+  rcases HS.sourceWF.translatedDeclarationType D with
+    ⟨sourceTarget, HsourceTarget⟩
   have henv : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
-  exact ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, target,
-    hlocal, hfields, hhypotheses, hsourceContext, HminorSemantic, htype,
-    Htarget.mono henv⟩
+  have hsourceEnv : HS.sourceWF.venv ≤ H.outVEnv := by
+    rw [← HS.extension.venv_eq]
+    exact henv
+  have HsourceTargetOut := HsourceTarget.mono hsourceEnv
+  have Htarget := HS.extension.weakTrExprS HsourceTarget
+  exact ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, HS,
+    sourceTarget, sourceTarget.lift' (HS.extension.shift.consN 0),
+    hlocal, hfields, hhypotheses, hsourceContext, htype,
+    HsourceTargetOut, rfl, Htarget.mono henv⟩
 
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
@@ -66731,9 +66741,9 @@ theorem
           H.recursorWF.mlctx.vlctx := by
   dsimp only
   rcases A.finalSelectedMinorRawHypothesisTypeAt j hj with
-    ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, rawTarget,
-      _hlocal, _hfields, _hhypotheses, _hsourceContext, _HminorSemantic,
-      htype, Hraw⟩
+    ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, _HS,
+      _sourceTarget, rawTarget, _hlocal, _hfields, _hhypotheses,
+      _hsourceContext, htype, _HsourceTarget, _hrawTarget, Hraw⟩
   rcases A.recursiveCallRecursorFrame j hj with ⟨F⟩
   rcases A.narrowFieldRuntimeFrame with ⟨B⟩
   rcases F.expandedFieldAbstractedSemanticMotiveTelescopeFor B with
