@@ -64941,7 +64941,13 @@ theorem
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
-    ∃ S : RecInfoMinorTypeShape,
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
       ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
       ∃ scope,
@@ -64952,6 +64958,8 @@ theorem
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         HS.semantic.traversal.parameterTail = A.semantics.parameterTail ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
+          (T.params ++ T.motives ++ T.minors.take minorIdx).reverse ∧
         narrowDomains.length = arity ∧
         fullDomains.length = arity ∧
         weakenedDomains.length = arity ∧
@@ -64966,10 +64974,11 @@ theorem
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
+  let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.finalSelectedMinorExactClosedTelescope hpositive with
-    ⟨_T, S, HS, scope, Hscope, narrowTarget, fullTarget, hfields,
+    ⟨T, S, HS, scope, Hscope, narrowTarget, fullTarget, hfields,
       hhypotheses, hparameterTail, _hscope, Hfull, HfullEq,
-      _hscopeSource, _Hprefix, Hnarrow, _Hclosed, _Hinstalled⟩
+      _hscopeSource, Hprefix, Hnarrow, _Hclosed, _Hinstalled⟩
   rcases Hnarrow.toWrapForalls with
     ⟨narrowDomains, narrowSourceResidual, narrowResidual,
       hnarrowLength, _HnarrowSource, hnarrowTarget,
@@ -65026,9 +65035,9 @@ theorem
     .refl HruntimeWF
   have Hcontexts := VEnv.IsDefEqU.wrapForalls_context
     H.outVEnvWF Hbase (hfullLength.trans hweakenedLength'.symm) Hwhole
-  exact ⟨S, HS, scope, Hscope, narrowDomains, fullDomains,
+  exact ⟨T, S, HS, scope, Hscope, narrowDomains, fullDomains,
     weakenedDomains, narrowResidual, fullResidual, weakenedResidual,
-    hfields, hhypotheses, hparameterTail, hnarrowLength, hfullLength,
+    hfields, hhypotheses, hparameterTail, Hprefix, hnarrowLength, hfullLength,
     hweakenedLength', by simpa [fullTarget] using hfullTarget,
     hweakenedTarget, Hcontexts⟩
 
@@ -69641,7 +69650,13 @@ theorem
     (B : A.NarrowFieldRuntimeFrame)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ scope,
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ scope,
       ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ narrowFields weakenedFields fullFields,
@@ -69649,16 +69664,19 @@ theorem
       weakenedFields.length = A.rule.allArgs.size ∧
       fullFields.length = A.rule.allArgs.size ∧
       weakenedFields = liftForallDomains narrowFields Hscope.shift ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
+        (T.params ++ T.motives ++ T.minors.take minorIdx).reverse ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         (weakenedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
         B.runtime.expanded.toCtx := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
+  let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.finalSelectedMinorNarrowFullContextAlignment hpositive with
-    ⟨S, HS, scope, Hscope, narrowDomains, fullDomains,
+    ⟨T, S, HS, scope, Hscope, narrowDomains, fullDomains,
       weakenedDomains, narrowResidual, fullResidual,
       weakenedResidual, hfields, hhypotheses, htail,
-      hnarrowLength, hfullLength, hweakenedLength, hfullTarget,
+      Hprefix, hnarrowLength, hfullLength, hweakenedLength, hfullTarget,
       hweakenedTarget, HnarrowFull⟩
   rcases A.finalSelectedMinorExpandedFieldAlignmentFor
       B S HS htail hfields with
@@ -69805,9 +69823,9 @@ theorem
     rw [List.take_append_drop]
   have HweakenedNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     (HfullWeakened.symm H.outVEnvWF.ordered) HfullNarrow
-  exact ⟨scope, Hscope, narrowFields, weakenedFields, fullFields,
+  exact ⟨T, scope, Hscope, narrowFields, weakenedFields, fullFields,
     hnarrowFields, hweakenedFields, hfullFields,
-    hweakenedFieldsExact, HweakenedNarrow⟩
+    hweakenedFieldsExact, Hprefix, HweakenedNarrow⟩
 
 /-- Compose the selected minor's transported consumed fields with the
 rule-wide narrowing conversion.  The result relates the literal first-pass
