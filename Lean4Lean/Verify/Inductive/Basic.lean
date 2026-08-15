@@ -30301,6 +30301,45 @@ def RecInfoMinorSemanticSource.mono
   motiveTranslation := HS.motiveTranslation
   motiveType := HS.motiveType
 
+def RecInfoMinorSemanticSource.fieldDomains
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource R S) : List VExpr :=
+  MLCtxForallDomains HS.terminalWF.mlctx S.fields.size
+    HS.fieldsRecent.size_le
+
+def RecInfoMinorSemanticSource.hypothesisDomains
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource R S) : List VExpr :=
+  MLCtxForallDomains HS.sourceWF.mlctx S.hypotheses.size
+    HS.hypothesesRecent.size_le
+
+/-- Replay the exact two-stage `mkForall` closure used to construct a minor,
+without passing through its later installed declaration.  The field and
+hypothesis domain lists are therefore the literal targets introduced by the
+first executable pass. -/
+theorem RecInfoMinorSemanticSource.sourceTypeTranslation
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource R S) :
+    TrExprS HS.rootWF.venv recLparams HS.rootWF.mlctx.vlctx S.sourceType
+        (VExpr.wrapForalls HS.fieldDomains
+          (VExpr.wrapForalls HS.hypothesisDomains HS.motiveTarget)) ∧
+      HS.rootWF.venv.IsType recLparams.length HS.rootWF.mlctx.vlctx.toCtx
+        (VExpr.wrapForalls HS.fieldDomains
+          (VExpr.wrapForalls HS.hypothesisDomains HS.motiveTarget)) := by
+  have Hhypotheses := HS.hypothesesRecent.mkForallExact
+    HS.motiveTranslation HS.motiveType
+  have Hfields := HS.fieldsRecent.mkForallExact
+    Hhypotheses.1 Hhypotheses.2
+  have hfields := HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+    |>.mkForall_mono HS.hypothesesRecent.contextLE
+      (S.sourceFullContext.lctx.mkForall S.hypotheses S.motiveApp)
+  rw [S.sourceType_eq, ← S.sourceContext_eq, hfields]
+  simpa [RecInfoMinorSemanticSource.fieldDomains,
+    RecInfoMinorSemanticSource.hypothesisDomains] using Hfields
+
 /-- Every retained minor source carries its exact semantic extension into the
 current recursor context.  Unlike `BindingContextLE`, this invariant is strong
 enough to transport or restrict translated declaration types without guessing
