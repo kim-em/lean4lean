@@ -431,6 +431,24 @@ theorem liftForallDomains_append
     rw [hconsN]
     simp [Lift.consN]
 
+/-- Successive free-variable weakenings of a dependent telescope are the
+single composite weakening.  The lift beneath each forall binder must be
+composed at the same binder depth; `Lift.consN_comp` supplies precisely that
+alignment. -/
+theorem liftForallDomains_comp
+    (domains : List VExpr) (first second : Lift) :
+    liftForallDomains (liftForallDomains domains first) second =
+      liftForallDomains domains (.comp first second) := by
+  induction domains generalizing first second with
+  | nil => rfl
+  | cons domain domains ih =>
+    simp only [liftForallDomains, VExpr.lift'_comp, ih]
+    have hcomp : Lift.comp first.cons second.cons =
+        (Lift.comp first second).cons := by
+      simpa [Lift.consN] using
+        (Lift.consN_comp (l₁ := first) (l₂ := second) (n := 1)).symm
+    rw [hcomp]
+
 /-- Exact form of `VExpr.lift'_wrapForalls_shape`, with a domain transform
 independent of the residual.  This independence is what permits a context
 conversion extracted from one translated residual to be closed around a
@@ -64675,6 +64693,51 @@ theorem VEnv.IsDefEqCtx.rebaseCommonSuffix
     (HleftToOuter.symm henv.ordered) <|
       VEnv.IsDefEqCtx.transEmpty henv Hprefix HrightToOuter
 
+/-- Cancel a common free-variable weakening from two dependent telescope
+prefixes.  Closing the context conversion around a harmless sort exposes a
+definitional equality of forall telescopes; inverse weakening then applies
+to the whole telescope at once, avoiding binder-by-binder bookkeeping. -/
+theorem VEnv.IsDefEqCtx.cancelLiftForallDomains
+    (henv : env.WF)
+    (W : Ctx.Lift' shift outer expanded)
+    (Hprefix : VEnv.IsDefEqCtx env U []
+      ((liftForallDomains left shift).reverse ++ expanded)
+      ((liftForallDomains right shift).reverse ++ expanded)) :
+    VEnv.IsDefEqCtx env U []
+      (left.reverse ++ outer) (right.reverse ++ outer) := by
+  have hexpanded : OnCtx expanded (env.IsType U) :=
+    OnCtx.append_right Hprefix.isType
+  have houter : OnCtx outer (env.IsType U) :=
+    hexpanded.weak'_inv henv W
+  have hlength : left.length = right.length := by
+    have h := Hprefix.length_eq
+    simp only [List.length_append, List.length_reverse,
+      liftForallDomains_length] at h
+    omega
+  have Hsort : env.IsDefEq U
+      ((liftForallDomains left shift).reverse ++ expanded)
+      (.sort .zero) (.sort .zero) (.sort (.succ .zero)) :=
+    VEnv.HasType.sort (by trivial)
+  rcases VEnv.IsDefEqCtx.closeHeads Hprefix
+      (liftForallDomains left shift).length (by simp) Hsort with
+    ⟨closedLevel, Hclosed⟩
+  have HclosedU : env.IsDefEqU U expanded
+      (VExpr.wrapForalls (liftForallDomains left shift) (.sort .zero))
+      (VExpr.wrapForalls (liftForallDomains right shift) (.sort .zero)) := by
+    refine ⟨.sort closedLevel, ?_⟩
+    simpa [hlength] using Hclosed
+  have Hweakened : env.IsDefEqU U expanded
+      ((VExpr.wrapForalls left (.sort .zero)).lift' shift)
+      ((VExpr.wrapForalls right (.sort .zero)).lift' shift) := by
+    simpa [VExpr.lift'_wrapForalls_exact] using HclosedU
+  have Hnarrow : env.IsDefEqU U outer
+      (VExpr.wrapForalls left (.sort .zero))
+      (VExpr.wrapForalls right (.sort .zero)) :=
+    (VEnv.IsDefEqU.weak'_iff henv hexpanded W).1 Hweakened
+  have Hbase : VEnv.IsDefEqCtx env U [] outer outer :=
+    VEnv.IsDefEqCtx.refl houter
+  exact VEnv.IsDefEqU.wrapForalls_context henv Hbase hlength Hnarrow
+
 /-- The generated recursor and the independently replayed canonical motive
 share the same parameter context.  This is the first direct bridge from the
 five-group executable telescope to the permutation-free semantic telescope;
@@ -72411,7 +72474,8 @@ theorem
     ∃ outerScope,
     ∃ Houter : checkInductiveTypes.loopType.FVarNarrowScope
         H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
-    ∃ selectedFields outerFields : List VExpr,
+    ∃ selectedFields outerFields hypothesisDomains : List VExpr,
+    ∃ targetResidual : VExpr,
       selectedScope.fvars = sourceBinders.reverse ∧
       Hselected.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
         (· ∈ sourceBinders) ∧
@@ -72429,10 +72493,32 @@ theorem
           remainingBinders.length ∧
       selectedFields.length = A.rule.allArgs.size ∧
       outerFields.length = A.rule.allArgs.size ∧
+      hypothesisDomains.length = A.rule.recursiveArgs.size ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length [] selectedScope.toCtx
         (T.params ++ T.motives ++ T.minors.take minorIdx).reverse ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length [] outerScope.toCtx
         (T.params ++ T.motives ++ T.minors).reverse ∧
+      (let later := T.minors.drop (minorIdx + 1)
+       let shift := later.length + 1
+       let liftedFields :=
+         (liftContextPrefix shift selectedFields.reverse).reverse
+       let liftedHypotheses :=
+         (liftContextPrefixAt shift selectedFields.length
+           hypothesisDomains.reverse).reverse
+       H.outVEnv.HasType Us.length
+         (liftedFields.reverse ++
+           (T.params ++ T.motives ++ T.minors).reverse)
+         (VExpr.mkApps
+           ((.bvar later.length : VExpr).liftN liftedFields.length 0)
+           (recursorCanonicalVars liftedFields.length))
+         (VExpr.wrapForalls liftedHypotheses
+           (targetResidual.liftN shift
+             (selectedFields.length + hypothesisDomains.length)))) ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        ((liftForallDomains selectedFields
+          (fvarSelectionLift outerScope.fvars
+            (· ∈ selectedScope.fvars))).reverse ++ outerScope.toCtx)
+        (outerFields.reverse ++ outerScope.toCtx) ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         ((liftForallDomains selectedFields Hselected.shift).reverse ++
           H.recursorWF.mlctx.vlctx.toCtx)
@@ -72449,10 +72535,10 @@ theorem
   rcases A.finalSelectedMinorFieldApplicationWithNarrowFrameFor
       B T hpositive with
     ⟨selectedScope, Hselected, selectedFields, weakenedFields,
-      _hypothesisDomains, _targetResidual, hselectedScope,
+      hypothesisDomains, targetResidual, hselectedScope,
       hselectedShift, hselectedFields, _hweakenedFields,
-      _hhypotheses, hweakenedExact,
-      HselectedPrefix, _Happlication, HselectedNarrow⟩
+      hhypotheses, hweakenedExact,
+      HselectedPrefix, Happlication, HselectedNarrow⟩
   rcases A.finalOuterConstructorFieldRuntimeAlignmentFor T with
     ⟨outerScope, Houter, outerFields, _outerResidual, houterScope,
       houterShift, houterFields, _HouterTail, _HouterType,
@@ -72509,11 +72595,26 @@ theorem
           fv hremaining fv hselected rfl)
   rw [← hscopeSplit] at hrelative
   simp only [List.length_reverse] at hrelative
+  have hselectedComposed :
+      liftForallDomains selectedFields Hselected.shift =
+        liftForallDomains
+          (liftForallDomains selectedFields
+            (fvarSelectionLift outerScope.fvars
+              (· ∈ selectedScope.fvars))) Houter.shift := by
+    rw [← hfactor', ← liftForallDomains_comp]
+  have HselectedOuterExpanded := VEnv.IsDefEqCtx.rebaseCommonSuffix
+    H.outVEnvWF Houter.context.defeqCtx HselectedOuter
+  rw [hselectedComposed] at HselectedOuterExpanded
+  have HselectedOuterNatural :=
+    VEnv.IsDefEqCtx.cancelLiftForallDomains H.outVEnvWF
+      Houter.lift.toCtx HselectedOuterExpanded
   exact ⟨selectedScope, Hselected, outerScope, Houter,
-    selectedFields, outerFields, hselectedScope, hselectedShift,
+    selectedFields, outerFields, hypothesisDomains, targetResidual,
+    hselectedScope, hselectedShift,
     houterScope, houterShift, hscopeSplit, hfactor', hrelative,
-    hselectedFields, houterFields,
-    HselectedPrefix, HouterPrefix, HselectedOuter⟩
+    hselectedFields, houterFields, hhypotheses,
+    HselectedPrefix, HouterPrefix, Happlication,
+    HselectedOuterNatural, HselectedOuter⟩
 
 /-- Compose the selected minor's transported consumed fields with the
 rule-wide narrowing conversion.  The result relates the literal first-pass
