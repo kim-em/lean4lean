@@ -24799,6 +24799,131 @@ inductive Expr.LambdaTelescope : Expr → Nat → Expr → Prop
   | cons : LambdaTelescope body arity result →
       LambdaTelescope (.lam name dom body bi) (arity + 1) result
 
+/-- Two expressions have the same concrete leading lambda binders, while
+their residual bodies may differ.  Generated recursive calls and the
+eta-expanded fields used as their major premises are related in exactly this
+way: production closes both over one shared local-context selection. -/
+inductive Expr.SameLambdaPrefix : Nat → Expr → Expr → Prop
+  | nil : Expr.SameLambdaPrefix 0 left right
+  | cons : Expr.SameLambdaPrefix n left right →
+      Expr.SameLambdaPrefix (n + 1)
+        (.lam name dom left bi) (.lam name dom right bi)
+
+theorem Expr.SameLambdaPrefix.symm
+    (H : Expr.SameLambdaPrefix n left right) :
+    Expr.SameLambdaPrefix n right left := by
+  induction H with
+  | nil => exact .nil
+  | cons _ ih => exact .cons ih
+
+theorem Expr.SameLambdaPrefix.abstract1
+    (H : Expr.SameLambdaPrefix n left right) (fv : FVarId) (k : Nat := 0) :
+    Expr.SameLambdaPrefix n
+      (left.abstract1 fv k) (right.abstract1 fv k) := by
+  induction H generalizing k with
+  | nil => exact .nil
+  | cons H ih =>
+    simp only [Expr.abstract1]
+    exact .cons (ih (k + 1))
+
+theorem Expr.SameLambdaPrefix.abstractList
+    (H : Expr.SameLambdaPrefix n left right)
+    (fvars : List FVarId) (k : Nat := 0) :
+    Expr.SameLambdaPrefix n
+      (left.abstractList fvars k) (right.abstractList fvars k) := by
+  induction fvars generalizing left right k with
+  | nil => simpa using H
+  | cons fv fvars ih =>
+    simp only [Expr.abstractList]
+    exact ih (H.abstract1 fv k) k
+
+/-- Reuse the binder-domain part of one lambda translation with a different
+residual body.  The two source telescopes share their concrete prefix, so the
+template derivation supplies the exact translated domains and their type
+proofs; only the independently translated residual is replaced. -/
+theorem Expr.SameLambdaPrefix.replaceTranslatedResidual
+    (Hsame : Expr.SameLambdaPrefix n template replacement)
+    (HtemplateTelescope : Expr.LambdaTelescope template n templateResidual)
+    (HreplacementTelescope :
+      Expr.LambdaTelescope replacement n replacementResidual)
+    (hdomains : domains.length = n)
+    (Htemplate :
+      TrExprS env Us Delta template (VExpr.wrapLams domains templateTarget))
+    (HreplacementResidual :
+      TrExprS env Us (abstractForallContext domains Delta)
+        replacementResidual replacementTarget) :
+    TrExprS env Us Delta replacement
+      (VExpr.wrapLams domains replacementTarget) := by
+  induction Hsame generalizing domains Delta templateResidual
+      replacementResidual templateTarget replacementTarget with
+  | nil =>
+    cases HtemplateTelescope
+    cases HreplacementTelescope
+    have hnil : domains = [] := List.eq_nil_of_length_eq_zero hdomains
+    subst domains
+    simpa [abstractForallContext, VExpr.wrapLams] using HreplacementResidual
+  | @cons n left right name dom bi Hsame ih =>
+    cases HtemplateTelescope with
+    | cons HtemplateTail =>
+      cases HreplacementTelescope with
+      | cons HreplacementTail =>
+        cases domains with
+        | nil => simp at hdomains
+        | cons domain domains =>
+          cases Htemplate with
+          | @lam domain' templateBody _ _ _ HdomainType HdomainTr
+              HtemplateBody =>
+            have htail : domains.length = n := by simpa using hdomains
+            apply TrExprS.lam HdomainType HdomainTr
+            simpa [abstractForallContext, List.map_append,
+              List.append_assoc] using
+              ih HtemplateTail HreplacementTail htail HtemplateBody
+                (by simpa [abstractForallContext, List.map_append,
+                    List.append_assoc] using HreplacementResidual)
+
+/-- Closing two bodies over the same list of ordinary local declarations
+creates the same concrete lambda prefix. -/
+theorem LocalContext.sameLambdaPrefix_fold
+    {lctx : LocalContext} {fvars : List FVarId}
+    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (left right : Expr) :
+    Expr.SameLambdaPrefix fvars.length
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1 true lctx [] fv
+            (result.abstract1 fv)) left)
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1 true lctx [] fv
+            (result.abstract1 fv)) right) := by
+  induction fvars with
+  | nil => exact .nil
+  | cons fv fvars ih =>
+    rcases hdecl fv (by simp) with ⟨index, name, type, bi, kind, hfind⟩
+    simp only [List.foldr_cons, List.length_cons]
+    simp only [LocalContext.mkBindingList1, hfind]
+    exact Expr.SameLambdaPrefix.cons
+      ((ih (fun other hother => hdecl other (by simp [hother]))).abstract1 fv)
+
+/-- `LocalContext.mkLambda` uses one literal binder prefix for any two
+residual bodies when it closes the same duplicate-free local selection. -/
+theorem LocalForallSelection.sameLambdaPrefix
+    (H : LocalForallSelection lctx xs)
+    (hnodup : H.fvars.Nodup) (left right : Expr) :
+    Expr.SameLambdaPrefix xs.size
+      (lctx.mkLambda xs left) (lctx.mkLambda xs right) := by
+  rcases H with ⟨fvars, rfl, hdecl⟩
+  have hfind : ∀ fv ∈ fvars, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    rcases hdecl fv hfv with ⟨index, name, type, bi, kind, hfound⟩
+    exact ⟨.cdecl index fv name type bi kind, hfound⟩
+  rw [LocalContext.mkLambda, LocalContext.mkLambda,
+    LocalContext.mkBinding_eq, LocalContext.mkBinding_eq,
+    LocalContext.mkBindingList_eq_fold hfind hnodup,
+    LocalContext.mkBindingList_eq_fold hfind hnodup]
+  simpa using LocalContext.sameLambdaPrefix_fold hdecl left right
+
 theorem Expr.LambdaTelescope.trans
     (Houter : Expr.LambdaTelescope outer outerArity middle)
     (Hinner : Expr.LambdaTelescope middle innerArity result) :
@@ -38837,6 +38962,34 @@ theorem BoundGeneratedRecursiveCall.appliedFieldLambdaTelescope
       H.arguments_bound.fvars 0 H.arguments_bound.nodup
   simpa [BoundGeneratedRecursiveCall.abstractedMajor,
     Expr.abstractList_mkAppN, hlocal] using Htel
+
+/-- The generated recursive call and its eta-expanded recursive field close
+over the same concrete higher-order lambda prefix.  Their residuals differ,
+but every binder name, domain, and binder annotation is literally shared. -/
+theorem BoundGeneratedRecursiveCall.sameAppliedFieldLambdaPrefix
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    Expr.SameLambdaPrefix H.localArgs.size value
+      (H.current.lctx.mkLambda H.localArgs (mkAppN field H.localArgs)) := by
+  rw [H.value_eq_body]
+  let Hselection :=
+    H.arguments_bound.toBoundFVarArray.toLocalForallSelection H.current_wf
+  have Hexpressions := H.arguments_bound.expressions
+  have Hsame := Hselection.sameLambdaPrefix H.arguments_bound.nodup
+    H.body (mkAppN field H.localArgs)
+  rw [Hexpressions]
+  simpa using Hsame
+
+/-- Closing the shared higher-order prefix over the surrounding rule binders
+preserves its literal equality. -/
+theorem BoundGeneratedRecursiveCall.sameOuterAppliedFieldLambdaPrefix
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) (binders : List FVarId) :
+    Expr.SameLambdaPrefix H.localArgs.size
+      (value.abstractList binders)
+      ((H.current.lctx.mkLambda H.localArgs
+        (mkAppN field H.localArgs)).abstractList binders) := by
+  exact H.sameAppliedFieldLambdaPrefix.abstractList binders
 
 /-- A root free variable is untouched by the fresh call-local binders.
 Abstracting it over the surrounding rule telescope below those locals is
