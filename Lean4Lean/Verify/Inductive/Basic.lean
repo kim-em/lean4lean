@@ -745,6 +745,52 @@ theorem VEnv.HasType.mkApps_head
   rcases hdomainEq with ⟨domainLevel, hdomainEq⟩
   exact hdomainEq.defeq' hargActual
 
+/-- A dependently typed application spine.  Each argument is checked against
+the current outer forall domain, and the residual type is instantiated before
+the rest of the spine is consumed.  This is the induction principle used for
+the generated minor's fields followed by its recursive-result arguments. -/
+inductive VEnv.TypedApplicationSpine
+    (env : VEnv) (uvars : Nat) (ctx : List VExpr) :
+    VExpr → VExpr → List VExpr → VExpr → Prop
+  | nil (Hfn : env.HasType uvars ctx fn fnType) :
+      TypedApplicationSpine env uvars ctx fn fnType [] fnType
+  | cons
+      (Hfn : env.HasType uvars ctx fn (.forallE domain body))
+      (Harg : env.HasType uvars ctx arg domain)
+      (Htail : TypedApplicationSpine env uvars ctx
+        (.app fn arg) (body.inst arg) args resultType) :
+      TypedApplicationSpine env uvars ctx fn (.forallE domain body)
+        (arg :: args) resultType
+
+theorem VEnv.TypedApplicationSpine.hasType
+    (H : VEnv.TypedApplicationSpine env uvars ctx fn fnType args resultType) :
+    env.HasType uvars ctx (VExpr.mkApps fn args) resultType := by
+  induction H with
+  | nil Hfn => simpa [VExpr.mkApps] using Hfn
+  | cons Hfn Harg _ ih =>
+      simpa [VExpr.mkApps] using ih
+
+theorem VEnv.TypedApplicationSpine.wf
+    (H : VEnv.TypedApplicationSpine env uvars ctx fn fnType args resultType) :
+    VExpr.WF env uvars ctx (VExpr.mkApps fn args) :=
+  ⟨resultType, H.hasType⟩
+
+/-- Concatenate two dependent application phases.  The second phase starts at
+the exact residual term and type produced by the first. -/
+theorem VEnv.TypedApplicationSpine.append
+    (Hinitial : VEnv.TypedApplicationSpine env uvars ctx
+      fn fnType initial middleType)
+    (Hsuffix : VEnv.TypedApplicationSpine env uvars ctx
+      (VExpr.mkApps fn initial) middleType suffix resultType) :
+    VEnv.TypedApplicationSpine env uvars ctx
+      fn fnType (initial ++ suffix) resultType := by
+  induction Hinitial with
+  | nil Hfn => simpa [VExpr.mkApps] using Hsuffix
+  | @cons fn domain body arg args resultType Hfn Harg Htail ih =>
+      apply VEnv.TypedApplicationSpine.cons Hfn Harg
+      apply ih
+      simpa [VExpr.mkApps] using Hsuffix
+
 /-- Canonical variables for a telescope, in source binder order. -/
 def recursorCanonicalVars (n : Nat) : List VExpr :=
   (List.range n).reverse.map .bvar
@@ -79603,6 +79649,55 @@ def
     (C : A.CanonicalRecursiveResults T B) :
     C.bodies.length = A.rule.recursiveArgs.size := by
   simp [CanonicalRecursiveResults.bodies]
+
+/-- Every selected recursive-result body is already well formed in the one
+fixed equation context shared by the entire rule.  This is the list-level
+typing invariant consumed by the minor-application fold. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodyWF
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B)
+    (j : Nat) (hj : j < C.bodies.length) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    VExpr.WF H.outVEnv Us.length
+      (abstractForallContext equationDomains []).toCtx C.bodies[j] := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++
+      T.motives ++ T.minors ++
+        (liftContextPrefix (T.motives ++ T.minors).length
+          B.fieldDomains.reverse).reverse
+  have hj' : j < A.rule.recursiveArgs.size := by
+    simpa using hj
+  let E := C.resultAt j hj'
+  have hbody : C.bodies[j] =
+      VExpr.wrapLams E.localDomains E.resultBody := by
+    simp [CanonicalRecursiveResults.bodies, E]
+  rw [hbody]
+  exact ⟨VExpr.wrapForalls E.localDomains E.resultType, by
+    simpa only [Us, equationDomains] using E.closed_typing⟩
 
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.canonicalRecursiveResults
