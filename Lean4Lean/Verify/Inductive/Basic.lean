@@ -1070,6 +1070,26 @@ theorem VEnv.HasType.mkApps_wrapForalls_prefix_canonical
   rw [VExpr.wrapForalls_append] at H
   exact VEnv.HasType.mkApps_wrapForalls_canonical henv H
 
+/-- Apply an initial forall prefix canonically and immediately transport the
+result across the caller's ambient context conversion.  This is the exact
+handoff used by generated minor applications: telescope inversion naturally
+types the application in the installed field context, while the equation is
+assembled in an independently checked field context. -/
+theorem VEnv.HasType.mkApps_wrapForalls_prefix_canonical_defeqCtx
+    {env : VEnv} {uvars : Nat} {outer actual : List VExpr} {fn : VExpr}
+    {initial suffix : List VExpr} {body : VExpr}
+    (henv : VEnv.Ordered env)
+    (H : VEnv.HasType env uvars outer fn
+      (VExpr.wrapForalls (initial ++ suffix) body))
+    (Hctx : VEnv.IsDefEqCtx env uvars []
+      (initial.reverse ++ outer) actual) :
+    VEnv.HasType env uvars actual
+      (VExpr.mkApps (fn.liftN initial.length 0)
+        (recursorCanonicalVars initial.length))
+      (VExpr.wrapForalls suffix body) := by
+  exact (VEnv.HasType.mkApps_wrapForalls_prefix_canonical henv H).defeqDFC
+    henv Hctx
+
 /-- Invert a well-typed canonical application of a declared forall
 telescope into a conversion between the actual dependent argument context
 and the declared domain context.  The proof grows the conversion from the
