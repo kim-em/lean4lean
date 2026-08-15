@@ -30264,6 +30264,11 @@ structure RecInfoMinorSemanticSource
   traversal_eq : S.traversal = some traversal
   rootWF : RecursorContextWF traversal.rootContext recLparams
   terminalWF : RecursorContextWF traversal.terminalContext recLparams
+  parameterDepth : Nat
+  parameterSuffix : RecursorParameterContextSuffix rootWF traversal.stats
+    parameterDepth
+  parameterScope : traversal.parameterTail.FVarsIn
+    (fun fv => fv ∈ parameterSuffix.parameterDecls.fvars)
   parameterTarget : VExpr
   parameterTranslation : TrExprS rootWF.venv recLparams
     rootWF.mlctx.vlctx traversal.parameterTail parameterTarget
@@ -30301,6 +30306,9 @@ def RecInfoMinorSemanticSource.mono
   traversal_eq := HS.traversal_eq
   rootWF := HS.rootWF
   terminalWF := HS.terminalWF
+  parameterDepth := HS.parameterDepth
+  parameterSuffix := HS.parameterSuffix
+  parameterScope := HS.parameterScope
   parameterTarget := HS.parameterTarget
   parameterTranslation := HS.parameterTranslation
   parameterType := HS.parameterType
@@ -30354,6 +30362,29 @@ theorem RecInfoMinorSemanticSource.sourceTypeTranslation
   rw [S.sourceType_eq, ← S.sourceContext_eq, hfields]
   simpa [RecInfoMinorSemanticSource.fieldDomains,
     RecInfoMinorSemanticSource.hypothesisDomains] using Hfields
+
+/-- Restrict the shared constructor-tail translation to the cached parameter
+suffix.  The ambient motives and previously generated minors cannot occur in
+that source by the retained field-traversal scope invariant. -/
+theorem RecInfoMinorSemanticSource.parameterTranslationAtSuffix
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource R S) :
+    ∃ target, TrExprS HS.rootWF.venv recLparams
+      HS.parameterSuffix.parameterDecls HS.traversal.parameterTail target := by
+  have Htr := HS.parameterTranslation
+  rw [HS.parameterSuffix.context] at Htr
+  have Hwf : (HS.parameterSuffix.ambientDecls ++
+      HS.parameterSuffix.parameterDecls).WF HS.rootWF.venv
+        recLparams.length := by
+    rw [← HS.parameterSuffix.context]
+    exact HS.rootWF.mlctx_wf.tr.wf
+  have HnoBV : (HS.parameterSuffix.ambientDecls ++
+      HS.parameterSuffix.parameterDecls).NoBV := by
+    rw [← HS.parameterSuffix.context]
+    exact HS.rootWF.mlctx.noBV
+  exact TrExprS.dropFVarPrefix HS.rootWF.checking.tr.wf
+    Hwf HnoBV Htr HS.parameterScope
 
 /-- Compare the replayed unconsumed telescope with the exact consumed target
 installed by production, in the original full source context. -/
@@ -30414,8 +30445,7 @@ theorem RecInfoMinorSemanticAlignment.mono
     (Hext : RecursorContextExtension Rroot Rcurrent) :
     RecInfoMinorSemanticAlignment Rcurrent (H.mono Hext.contextLE) := by
   intro owner howner localIndex hlocal
-  rcases A owner howner localIndex hlocal with
-    ⟨⟨HS⟩⟩
+  rcases A owner howner localIndex hlocal with ⟨HS⟩
   exact ⟨HS.mono Hext⟩
 
 theorem RecInfoMinorSemanticAlignment.addMinor
@@ -30465,7 +30495,7 @@ theorem RecInfoMinorSemanticAlignment.addMinor
     rw [horigin] at hlocal
     by_cases hlast : localIndex = H.minorTypes[dIdx]!.size
     · subst localIndex
-      rcases HshapeSemantic with ⟨⟨HS⟩⟩
+      rcases HshapeSemantic with ⟨HS⟩
       simpa [RecInfoTypeOrigins.addMinor, nextMinorTypes,
         mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
           (fun types => types.push minorTy) hownerTypes] using
@@ -30474,7 +30504,7 @@ theorem RecInfoMinorSemanticAlignment.addMinor
     · have hold : localIndex < H.minorTypes[dIdx]!.size := by
         simp only [Array.size_push] at hlocal
         omega
-      rcases A dIdx hidx localIndex hold with ⟨⟨HS⟩⟩
+      rcases A dIdx hidx localIndex hold with ⟨HS⟩
       have hget : (H.minorTypes[dIdx]!.push minorTy)[localIndex]! =
           H.minorTypes[dIdx]![localIndex]! := by
         have hpush : localIndex <
@@ -30494,7 +30524,7 @@ theorem RecInfoMinorSemanticAlignment.addMinor
         hownerTypes hdi]
     change localIndex < nextMinorTypes[owner]!.size at hlocal
     rw [horigin] at hlocal
-    rcases A owner hownerOld localIndex hlocal with ⟨⟨HS⟩⟩
+    rcases A owner hownerOld localIndex hlocal with ⟨HS⟩
     simpa [RecInfoTypeOrigins.addMinor, hdi,
       mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner
         (fun types => types.push minorTy) hownerTypes hdi] using
@@ -42927,6 +42957,13 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         traversal_eq := rfl
         rootWF := R
         terminalWF := Rargs
+        parameterDepth := depth
+        parameterSuffix := Hsuffix
+        parameterScope := by
+          apply htailScope.mono
+          intro fv hfv
+          rw [Hsuffix.parameterDecls_fvars]
+          simpa using hfv
         parameterTarget := tailTarget
         parameterTranslation := htail
         parameterType := htailType
