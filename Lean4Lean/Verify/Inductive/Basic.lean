@@ -61863,7 +61863,12 @@ theorem
                 ((fieldDomains ++ hypothesisDomains).take position)
                 (abstractForallContext
                   (T.params ++ T.motives ++ T.minors.take minorIdx) [])).toCtx
-              hypothesisDomains[j]! := by
+              hypothesisDomains[j]! ∧
+            ∃ originRoot sourceType,
+              Nonempty (RecInfoMinorHypothesisTypeOrigin
+                hypothesisOrigins.stats hypothesisOrigins.recInfos
+                originRoot S.recursiveFields[j]! sourceType) ∧
+              D.type = sourceType.consumeTypeAnnotations := by
   dsimp only
   rcases A.finalSelectedMinorHypothesisDomainAt j hj with
     ⟨T, S, hypothesisOrigins, fieldDomains, hypothesisDomains,
@@ -61875,6 +61880,10 @@ theorem
     exact hj
   rcases S.hypotheses_bound.declarationAt S.sourceFullWF j hjSource with
     ⟨D⟩
+  rcases hypothesisOrigins.entry j hjSource with
+    ⟨originRoot, sourceType, HtypeOrigin, Dorigin, htypeOrigin⟩
+  have hdeclarationType : D.type = sourceType.consumeTypeAnnotations :=
+    (D.type_unique Dorigin).trans htypeOrigin
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take
       (recursorMinorOffset indTypes owner + i)
@@ -61896,7 +61905,8 @@ theorem
   exact ⟨T, S, hypothesisOrigins, fieldDomains, hypothesisDomains,
     targetResidual, D, hhypothesisOrigins, hhypothesisStats,
     hlocal, hsourceFields, hsourceHypotheses, hfields, hhypotheses,
-    htarget, HdeclarationBinder', Hdomain, HdomainType⟩
+    htarget, HdeclarationBinder', Hdomain, HdomainType,
+    originRoot, sourceType, HtypeOrigin, hdeclarationType⟩
 
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
