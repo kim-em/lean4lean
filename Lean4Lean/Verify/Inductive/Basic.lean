@@ -82368,6 +82368,15 @@ theorem
         let minorVar := equationFieldDomains.length + later.length
         OnCtx (abstractForallContext equationDomains []).toCtx
             (H.outVEnv.IsType Us.length) ∧
+          (∃ checkedDomains checkedEquationFieldDomains : List VExpr,
+            checkedDomains.length = A.rule.allArgs.size ∧
+            checkedEquationFieldDomains =
+              (liftContextPrefix inserted.length
+                checkedDomains.reverse).reverse ∧
+            VEnv.IsDefEqCtx H.outVEnv Us.length []
+              (checkedEquationFieldDomains.reverse ++
+                (T.params ++ inserted).reverse)
+              (abstractForallContext equationDomains []).toCtx) ∧
           H.outVEnv.HasType Us.length
           (abstractForallContext equationDomains []).toCtx
             (.bvar minorVar)
@@ -82420,9 +82429,21 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     rw [hequationContext]
     simpa only [inserted] using HfixedContext
+  rcases A.finalCheckedNarrowEquationContextAlignmentFor B T with
+    ⟨checkedDomains, checkedEquationFieldDomains, hchecked,
+      hcheckedEquationFields, HcheckedEquation⟩
+  have HcheckedEquation' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (checkedEquationFieldDomains.reverse ++
+        (T.params ++ inserted).reverse)
+      (abstractForallContext equationDomains []).toCtx := by
+    rw [hequationContext]
+    simpa only [inserted, List.append_assoc] using HcheckedEquation
   refine ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
-    hfields, hhypotheses, hminorType, ?_, ?_, ?_, ?_, ?_⟩
+    hfields, hhypotheses, hminorType, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · exact HfixedEquationContext
+  · exact ⟨checkedDomains, checkedEquationFieldDomains, hchecked,
+      by simpa only [inserted] using hcheckedEquationFields,
+      HcheckedEquation'⟩
   · rw [hequationContext]
     simpa only [inserted, equationFieldDomains, later, minorVar,
       List.length_reverse] using Hminor
@@ -82488,7 +82509,7 @@ theorem
   have hhypothesesZero : A.rule.recursiveArgs.size = 0 := by omega
   rcases A.finalCanonicalMinorApplicationFrame with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
-      hfields, hhypotheses, _hminorType, _Hctx, Hminor,
+      hfields, hhypotheses, _hminorType, _Hctx, _HcheckedEquation, Hminor,
       _HbodyTyping, _HopenBodyTyping, _HbodyWF⟩
   have hfieldDomains : fieldDomains = [] :=
     List.eq_nil_of_length_eq_zero (hfields.trans hfieldsZero)
