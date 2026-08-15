@@ -27316,6 +27316,7 @@ structure RecInfoMinorTypeShape where
   sourceContext_eq : sourceFullContext.lctx = sourceContext
   fields : Array Expr
   fields_bound : BoundFVarArray sourceFullContext fields
+  fields_nodup : fields_bound.fvars.Nodup
   recursiveFields : Array Expr
   hypotheses : Array Expr
   hypotheses_bound : BoundFVarArray sourceFullContext hypotheses
@@ -42075,6 +42076,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         fields_bound :=
           HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.mono
             HhypothesesRecent.contextExtension.contextLE
+        fields_nodup := HfieldsRecent.toFreshBoundFVarArray.nodup
         recursiveFields := recursiveFields
         hypotheses := hypotheses
         hypotheses_bound :=
@@ -42448,6 +42450,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           sourceContext_eq := rfl
           fields := bu
           fields_bound := Hbu.mono hIH
+          fields_nodup := Hbu.nodup
           recursiveFields := u
           hypotheses := v
           hypotheses_bound := Hv.toBoundFVarArray
