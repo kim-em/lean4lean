@@ -27216,6 +27216,40 @@ def RecInfoMinorHypothesisTypeOrigin.replayTrace
         (index.abstractList O.arguments_bound.fvars).abstractList
           fieldBinders O.args.size)
 
+/-- The first-pass hypothesis result after closing its higher-order arguments
+and all constructor fields.  This is the exact motive application payload;
+the surrounding forall telescope is handled separately. -/
+def RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (fieldBinders : List FVarId) : Expr :=
+  Expr.app
+    (mkAppN (O.replayTrace fieldBinders).motive
+      (O.replayTrace fieldBinders).indices)
+    (O.outerAbstractedField fieldBinders)
+
+theorem RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp_eq
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (fieldBinders : List FVarId) :
+    let indices : Array Expr :=
+      O.exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[O.ownerIdx]!.motive indices)
+      (mkAppN field O.args)
+    (motiveApp.abstractList O.arguments_bound.fvars).abstractList
+        fieldBinders O.args.size =
+      O.outerAbstractedMotiveApp fieldBinders := by
+  dsimp only
+  rw [O.abstractedMotiveApp_eq]
+  simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
+  simp [RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp,
+    RecInfoMinorHypothesisTypeOrigin.replayTrace,
+    RecInfoMinorHypothesisTypeOrigin.outerAbstractedField,
+    Array.map_map, Function.comp_def]
+  unfold RecInfoMinorHypothesisTypeOrigin.abstractedField
+    RecInfoMinorHypothesisTypeOrigin.localIndices
+  rw [Expr.abstractList_mkAppN]
+  simp [List.map_ofFn, Function.comp_def]
+
 /-- After also closing an outer binder list, the selected first-pass field
 is the canonical outer de Bruijn variable shifted beneath its higher-order
 arguments and applied to their canonical local spine. -/
@@ -36850,6 +36884,17 @@ def BoundGeneratedRecursiveCall.replayTrace
         (index.abstractList H.arguments_bound.fvars).abstractList
           fieldBinders H.localArgs.size)
 
+/-- The second-pass counterpart of
+`RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp`. -/
+def BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (fieldBinders : List FVarId) : Expr :=
+  Expr.app
+    (mkAppN (H.replayTrace fieldBinders).motive
+      (H.replayTrace fieldBinders).indices)
+    (H.outerAbstractedMajor fieldBinders)
+
 /-- Operational alpha/locality boundary for the higher-order field replay.
 The constructor decision traces ensure that both `loopUArgs` runs inspect the
 same selected ordinal of the same source telescope; simultaneous abstraction
@@ -36965,6 +37010,32 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar_of_field_eq
           (H.localIndices.map Expr.bvar).toArray := by
   subst field
   exact H.outerAbstractedMajor_eq_bvar hfieldRoot hbinders hfield
+
+/-- Positional form of `outerAbstractedMajor_eq_bvar_of_field_eq`. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar_at
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (hfieldEq : field = .fvar fv)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup) (hi : i < binders.length)
+    (hget : binders[i] = fv) :
+    H.outerAbstractedMajor binders =
+      mkAppN (.bvar (H.localArgs.size + (binders.length - 1 - i)))
+        (H.localIndices.map Expr.bvar).toArray := by
+  have hmem : fv ∈ binders := by
+    rw [← hget]
+    exact List.getElem_mem hi
+  rcases H.outerAbstractedMajor_eq_bvar_of_field_eq hfieldEq hfieldRoot
+      hbinders hmem with
+    ⟨fieldVar, _hfieldVar, habstract, houter⟩
+  have hexact := Expr.abstractList_fvar_getElem hbinders i hi (k := 0)
+  rw [hget] at hexact
+  have hfieldVarExact : fieldVar = binders.length - 1 - i := by
+    have hexact' : (Expr.fvar fv).abstractList binders =
+        .bvar (binders.length - 1 - i) := by
+      simpa only [Nat.zero_add] using hexact
+    exact Expr.bvar.inj (habstract.symm.trans hexact')
+  simpa [hfieldVarExact] using houter
 
 theorem BoundGeneratedRecursiveCall.outerAbstractedMajorAvoids
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
@@ -73164,6 +73235,9 @@ theorem
         O.args.size = E.frame.semantic.generated.localArgs.size ∧
         O.outerAbstractedField S.fields_bound.fvars =
           E.frame.semantic.generated.outerAbstractedMajor A.rule.binders ∧
+        O.outerAbstractedMotiveApp S.fields_bound.fvars =
+          E.frame.semantic.generated.outerAbstractedMotiveApp
+            A.rule.all_args_bound.fvars ∧
         (let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -73443,25 +73517,25 @@ theorem
   have hfieldBinderLength : S.fields_bound.fvars.length =
       A.rule.allArgs.size :=
     S.fields_bound.length_fvars.trans hsourceFields
+  have horiginLocal : O.arguments_bound.fvars.length = O.args.size :=
+    O.arguments_bound.toBoundFVarArray.length_fvars
+  have hgeneratedLocal :
+      E.frame.semantic.generated.arguments_bound.fvars.length =
+        E.frame.semantic.generated.localArgs.size :=
+    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.length_fvars
+  have hlocalIndices : O.localIndices =
+      E.frame.semantic.generated.localIndices := by
+    apply List.ext_getElem
+    · simp [RecInfoMinorHypothesisTypeOrigin.localIndices,
+        BoundGeneratedRecursiveCall.localIndices, horiginLocal,
+        hgeneratedLocal, hlocalArity]
+    · intro k hkOrigin hkGenerated
+      simp [RecInfoMinorHypothesisTypeOrigin.localIndices,
+        BoundGeneratedRecursiveCall.localIndices, horiginLocal,
+        hgeneratedLocal, hlocalArity]
   have hmajorAlignment :
       O.outerAbstractedField S.fields_bound.fvars =
         E.frame.semantic.generated.outerAbstractedMajor A.rule.binders := by
-    have horiginLocal : O.arguments_bound.fvars.length = O.args.size :=
-      O.arguments_bound.toBoundFVarArray.length_fvars
-    have hgeneratedLocal :
-        E.frame.semantic.generated.arguments_bound.fvars.length =
-          E.frame.semantic.generated.localArgs.size :=
-      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.length_fvars
-    have hlocalIndices : O.localIndices =
-        E.frame.semantic.generated.localIndices := by
-      apply List.ext_getElem
-      · simp [RecInfoMinorHypothesisTypeOrigin.localIndices,
-          BoundGeneratedRecursiveCall.localIndices, horiginLocal,
-          hgeneratedLocal, hlocalArity]
-      · intro k hkOrigin hkGenerated
-        simp [RecInfoMinorHypothesisTypeOrigin.localIndices,
-          BoundGeneratedRecursiveCall.localIndices, horiginLocal,
-          hgeneratedLocal, hlocalArity]
     rw [show O.outerAbstractedField S.fields_bound.fvars =
         mkAppN
           (.bvar (O.args.size +
@@ -73469,6 +73543,43 @@ theorem
           (O.localIndices.map Expr.bvar).toArray by
         simpa [fieldPosition] using houterField]
     rw [hrecursiveMajor.1, hfieldBinderLength, hlocalArity, hlocalIndices]
+  have hfieldPositionRuleFVars : fieldPosition <
+      A.rule.all_args_bound.fvars.length := by
+    rw [A.rule.all_args_bound.length_fvars]
+    exact hfieldPositionRule
+  rcases A.rule.all_args_bound.getElem_eq_fvar fieldPosition
+      hfieldPositionRule with ⟨_hfieldPositionRuleFVars, hruleFieldAt⟩
+  have hruleFieldExact : A.rule.recursiveArgs[j] =
+      .fvar A.rule.all_args_bound.fvars[fieldPosition] := by
+    rw [← getElem!_pos A.rule.recursiveArgs j hj]
+    exact hruleSelected.trans <| (getElem!_pos A.rule.allArgs fieldPosition
+      hfieldPositionRule).trans hruleFieldAt
+  have hgeneratedMajorFields :=
+    E.frame.semantic.generated.outerAbstractedMajor_eq_bvar_at
+      hruleFieldExact
+      (A.rule.all_args_bound.members
+        A.rule.all_args_bound.fvars[fieldPosition]
+        (List.getElem_mem hfieldPositionRuleFVars))
+      A.rule.all_args_nodup hfieldPositionRuleFVars rfl
+  have hmajorFieldAlignment :
+      O.outerAbstractedField S.fields_bound.fvars =
+        E.frame.semantic.generated.outerAbstractedMajor
+          A.rule.all_args_bound.fvars := by
+    rw [show O.outerAbstractedField S.fields_bound.fvars =
+        mkAppN
+          (.bvar (O.args.size +
+            (S.fields_bound.fvars.length - 1 - fieldPosition)))
+          (O.localIndices.map Expr.bvar).toArray by
+        simpa [fieldPosition] using houterField]
+    rw [hgeneratedMajorFields, hfieldBinderLength,
+      A.rule.all_args_bound.length_fvars, hlocalArity, hlocalIndices]
+  have hmotiveAppAlignment :
+      O.outerAbstractedMotiveApp S.fields_bound.fvars =
+        E.frame.semantic.generated.outerAbstractedMotiveApp
+          A.rule.all_args_bound.fvars := by
+    unfold RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp
+      BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
+    rw [Hreplay, hmajorFieldAlignment]
   subst sourceType
   have HsourceTelescope := O.sourceTelescope
   have HpreviousHypotheses := HsourceTelescope.abstractList
@@ -73536,7 +73647,7 @@ theorem
     rfl, by simpa [fieldPosition] using houterField,
     hrecursiveMajor.1, hrecursiveMajor.2, Hreplay, hmotiveReplay,
     hindicesReplay, hownerReplay, hlocalArity, hmajorAlignment,
-    Hdomain,
+    hmotiveAppAlignment, Hdomain,
     ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
       hhypothesisLocalDomains, _HsourceResidual, by
         simpa [sourceBinders, position, Nat.add_comm, Nat.add_left_comm,
