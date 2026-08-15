@@ -67012,6 +67012,65 @@ theorem
   exact ⟨S, HS, narrowDomains, narrowResidual, hnarrowLength,
     Hnarrow, Hfields⟩
 
+/-- The independently checked constructor-field telescope and the narrow
+rule-wide field telescope are definitionally equal over the cached parameter
+scope.  The selected minor is the bridge: both parameter-scoped translations
+come from its retained constructor tail, while `finalSelectedMinorSharedFieldContext`
+connects that tail to the constructor checker. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedNarrowFieldAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ checkedDomains checkedResidual,
+      checkedDomains.length = A.rule.allArgs.size ∧
+      TrExprS H.outVEnv Us H.parameterSuffix.parameterDecls
+        A.semantics.parameterTail
+        (VExpr.wrapForalls checkedDomains checkedResidual) ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        (checkedDomains.reverse ++
+          H.parameterSuffix.parameterDecls.toCtx)
+        (B.fieldDomains.reverse ++
+          H.parameterSuffix.parameterDecls.toCtx) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalSelectedMinorSharedFieldContext with
+    ⟨_S₁, _HS₁, minorDomains, minorResidual,
+      checkedDomains, checkedResidual, _hlocal₁, _htail₁,
+      hminor, hchecked, Hminor, Hchecked, HminorChecked⟩
+  rcases A.finalSelectedMinorNarrowFieldAlignment B with
+    ⟨_S₂, _HS₂, narrowDomains, narrowResidual,
+      hnarrow, Hnarrow, HnarrowFields⟩
+  have HparameterCtx : OnCtx H.parameterSuffix.parameterDecls.toCtx
+      (H.outVEnv.IsType Us.length) := by
+    have HfieldCtx := B.fieldContextWF
+    rw [abstractForallContext_toCtx] at HfieldCtx
+    simpa [Us] using HfieldCtx.drop B.fieldDomains.length
+  have HminorNarrowTarget := Hminor.uniq H.outVEnvWF
+    (.refl H.outVEnvWF HparameterCtx) Hnarrow
+  have HparameterBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      H.parameterSuffix.parameterDecls.toCtx
+      H.parameterSuffix.parameterDecls.toCtx :=
+    .refl HparameterCtx
+  have HminorNarrow := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
+    HparameterBase (hminor.trans hnarrow.symm) HminorNarrowTarget
+  have HcheckedMinor := HminorChecked.symm H.outVEnvWF.ordered
+  have HcheckedNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HcheckedMinor HminorNarrow
+  have HcheckedFields := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HcheckedNarrow HnarrowFields
+  exact ⟨checkedDomains, checkedResidual, hchecked, Hchecked,
+    HcheckedFields⟩
+
 /-- Restrict the terminal constructor target to the retained rule-wide
 field scope and close those named fields.  The resulting target is typed in
 the exact anonymous field/parameter context used by canonical recursive
