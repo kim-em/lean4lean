@@ -71215,6 +71215,55 @@ theorem
       insertedCtx, List.reverse_append, List.append_assoc,
       Nat.add_comm] using Haligned⟩
 
+/-- Witness-stable form of
+`finalCheckedNarrowEquationContextAlignment`.  Consumers of canonical
+recursive results already carry a particular recursor telescope translation;
+this specialization transports the equation-context conversion to that exact
+witness instead of forcing a second existential choice. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedNarrowEquationContextAlignmentFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ checkedDomains equationFieldDomains : List VExpr,
+      checkedDomains.length = A.rule.allArgs.size ∧
+      equationFieldDomains =
+        (liftContextPrefix (T.motives ++ T.minors).length
+          checkedDomains.reverse).reverse ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        (equationFieldDomains.reverse ++
+          (T.params ++ T.motives ++ T.minors).reverse)
+        ((liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse) ++
+          (T.motives ++ T.minors).reverse ++
+            H.parameterSuffix.parameterDecls.toCtx) := by
+  dsimp only
+  rcases A.finalCheckedNarrowEquationContextAlignment B with
+    ⟨T₁, checkedDomains, equationFieldDomains, hchecked,
+      hequationFields, Hcontext⟩
+  rcases T₁.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hmotives, hminors] at hequationFields
+  rw [hparams, hmotives, hminors] at Hcontext
+  exact ⟨checkedDomains, equationFieldDomains, hchecked,
+    hequationFields, Hcontext⟩
+
 /-- The selected minor variable is available in the same fixed narrowed
 equation context used by every canonical recursive result.  Besides the
 lookup itself, retain the conversion from the independently checked field
