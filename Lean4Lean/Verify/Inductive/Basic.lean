@@ -27104,6 +27104,7 @@ structure RecInfoMinorHypothesisTypeOrigin
   exposedType : Expr
   args : Array Expr
   arguments_bound : FreshBoundFVarArray root current args
+  field_fvar : ∃ fv, field = .fvar fv ∧ fv ∈ root.lctx.fvars
   ownerIdx : Nat
   owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
   motive_is_fvar : ∃ fv, recInfos[ownerIdx]!.motive = .fvar fv
@@ -27127,7 +27128,8 @@ theorem RecInfoMinorHypothesisTypeOrigin.sourceTelescope
       (motiveApp.abstractList O.arguments_bound.fvars) := by
   cases O with
   | mk current current_wf _current_extends exposedType args
-      arguments_bound ownerIdx _owner_valid _motive_is_fvar type_eq =>
+      arguments_bound _field_fvar ownerIdx _owner_valid _motive_is_fvar
+      type_eq =>
     dsimp only at type_eq ⊢
     rw [type_eq]
     exact arguments_bound.toBoundFVarArray.mkForall_forallTelescope
@@ -35747,6 +35749,7 @@ structure RecInfoHypothesisTypeOrigin
   exposedType : Expr
   args : Array Expr
   arguments_bound : FreshBoundFVarArray root current args
+  field_fvar : ∃ fv, field = .fvar fv ∧ fv ∈ root.lctx.fvars
   ownerIdx : Nat
   owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
   type_eq :
@@ -35903,6 +35906,9 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin
       return (← getLCtx).mkForall args motiveApp
   have hfvScope : fv ∈ R.mlctx.vlctx.fvars := by
     simpa only [FVarsIn] using hfield.fvarsIn
+  have hfvRoot : fv ∈ c.lctx.fvars := by
+    rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
+    exact hfvScope
   have Hrun := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats build c R
     Hstats hwhnf hconsume hlit hctx hproj hfield hfvScope
       (IsFVarUpSet.fvars (R.mlctx_wf.tr.wf).fvwf)
@@ -35938,6 +35944,7 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin
         exposedType := exposedType
         args := args
         arguments_bound := Hargs.toFreshBoundFVarArray
+        field_fvar := ⟨fv, rfl, hfvRoot⟩
         ownerIdx := target
         owner_valid := hvalid
         type_eq := rfl }⟩⟩
@@ -42096,6 +42103,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
               exposedType := O.exposedType
               args := O.args
               arguments_bound := O.arguments_bound
+              field_fvar := O.field_fvar
               ownerIdx := O.ownerIdx
               owner_valid := O.owner_valid
               motive_is_fvar := ⟨motiveFVar, by
