@@ -73904,6 +73904,24 @@ theorem
                     E.frame.semantic.generated.localArgs.size j)
                 (hypothesisResidual.liftN remainingMinorDomains.length
                   hypothesisInner.length)) ∧
+            (let equationDomains :=
+                H.parameterSuffix.parameterDecls.toCtx.reverse ++
+                  T.motives ++ T.minors ++
+                    (liftContextPrefix (T.motives ++ T.minors).length
+                      B.fieldDomains.reverse).reverse
+              let previousHypothesisDomains := hypothesisDomains.take j
+              let liftedCanonicalLocals :=
+                (liftContextPrefix previousHypothesisDomains.length
+                  E.localDomains.reverse).reverse
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (equationDomains ++ previousHypothesisDomains ++
+                    liftedCanonicalLocals) [])
+                ((E.frame.semantic.generated.outerAbstractedMotiveApp
+                  A.rule.binders).liftLooseBVars'
+                    E.frame.semantic.generated.localArgs.size j)
+                (E.resultType.liftN previousHypothesisDomains.length
+                  E.localDomains.length)) ∧
             hypothesisDomains[j]! = VExpr.wrapForalls
               hypothesisLocalDomains hypothesisResidual ∧
             TrExprS H.outVEnv Us
@@ -74557,6 +74575,40 @@ theorem
       ← hremainingMinorDomainsLength, ← hhypothesisInnerLength]
     simpa [remainingMinorDomains, liftedHypothesisInner,
       List.append_assoc] using HhypothesisResidualInserted
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++
+      T.motives ++ T.minors ++
+        (liftContextPrefix (T.motives ++ T.minors).length
+          B.fieldDomains.reverse).reverse
+  let previousHypothesisDomains := hypothesisDomains.take j
+  let liftedCanonicalLocals :=
+    (liftContextPrefix previousHypothesisDomains.length
+      E.localDomains.reverse).reverse
+  have hpreviousHypothesisDomainsLength :
+      previousHypothesisDomains.length = j := by
+    simp only [previousHypothesisDomains, List.length_take]
+    rw [hhypotheses]
+    omega
+  have HcanonicalResultType : TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ E.localDomains) [])
+      (E.frame.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
+      E.resultType := by
+    simpa only [equationDomains] using E.result_type_translation
+  have HcanonicalResultTypeInserted :=
+    Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
+      (outer := equationDomains) (inner := E.localDomains)
+      H.outVEnvWF.ordered HcanonicalResultType previousHypothesisDomains
+  have HcanonicalResultTypeFull : TrExprS H.outVEnv Us
+      (abstractForallContext
+        (equationDomains ++ previousHypothesisDomains ++
+          liftedCanonicalLocals) [])
+      ((E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.binders).liftLooseBVars'
+          E.frame.semantic.generated.localArgs.size j)
+      (E.resultType.liftN previousHypothesisDomains.length
+        E.localDomains.length) := by
+    simpa [liftedCanonicalLocals, hpreviousHypothesisDomainsLength,
+      E.local_length] using HcanonicalResultTypeInserted
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, D.type, O, B, E,
     hhypothesisOrigins, rfl, hhypothesisRecInfos,
@@ -74592,6 +74644,9 @@ theorem
       by
         simpa [hypothesisInner, remainingMinorDomains,
           liftedHypothesisInner] using HhypothesisResidualFull,
+      by
+        simpa [equationDomains, previousHypothesisDomains,
+          liftedCanonicalLocals] using HcanonicalResultTypeFull,
       hhypothesisDomain,
       HhypothesisResidual, HhypothesisResidualType⟩,
     E.closed_typing⟩
