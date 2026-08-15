@@ -65113,6 +65113,80 @@ theorem
   simpa [hlocal, BoundGeneratedRecursorRule.binders,
     List.append_assoc] using hmajorShape
 
+/-- Ordinal form of `outerAbstractedAppliedMajorAlignment`.  Replay of the
+recursive-field mask identifies the existential field variable with the
+reverse de Bruijn ordinal of the selected constructor-field position. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedAppliedMajorOrdinal
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let fieldPosition := A.semantics.recursivePositions[j]!
+    F.semantic.generated.outerAbstractedMajor A.rule.binders =
+        mkAppN
+          (.bvar (F.semantic.generated.localArgs.size +
+            (A.rule.allArgs.size - 1 - fieldPosition)))
+          (F.semantic.generated.localIndices.map Expr.bvar).toArray ∧
+      F.semantic.appliedFieldTarget =
+        VExpr.mkApps
+          (.bvar (F.semantic.generated.localArgs.size +
+            (A.rule.allArgs.size - 1 - fieldPosition)))
+          (F.semantic.generated.localIndices.map VExpr.bvar) := by
+  dsimp only
+  rcases F.outerAbstractedAppliedMajorAlignment with
+    ⟨localDomains, fieldDomains, fv, fieldVar,
+      hlocal, hfields, _hfieldVar, hsource, hfieldSource,
+      hmajor, htarget⟩
+  let fieldPosition := A.semantics.recursivePositions[j]!
+  have hfieldPosition : fieldPosition < A.rule.allArgs.size :=
+    (A.semantics.decisions.selected_at j hj).1
+  have hfieldPositionFVars : fieldPosition <
+      A.rule.all_args_bound.fvars.length := by
+    rw [A.rule.all_args_bound.length_fvars]
+    exact hfieldPosition
+  rcases A.rule.all_args_bound.getElem_eq_fvar fieldPosition
+      hfieldPosition with ⟨_hpositionFVars, hfieldAt⟩
+  have hrecursiveBang : A.rule.recursiveArgs[j]! = .fvar fv := by
+    rw [getElem!_pos A.rule.recursiveArgs j hj]
+    exact hsource
+  have hfieldBang : A.rule.allArgs[fieldPosition]! =
+      .fvar A.rule.all_args_bound.fvars[fieldPosition] :=
+    (getElem!_pos A.rule.allArgs fieldPosition hfieldPosition).trans hfieldAt
+  have hselected := (A.semantics.decisions.selected_at j hj).2
+  have hfvExact : fv = A.rule.all_args_bound.fvars[fieldPosition] :=
+    Expr.fvar.inj (hrecursiveBang.symm.trans (hselected.trans hfieldBang))
+  have hfieldExact := Expr.abstractList_fvar_getElem
+    A.rule.all_args_nodup fieldPosition hfieldPositionFVars (k := 0)
+  rw [← hfvExact] at hfieldExact
+  have hnotOuter : fv ∉
+      (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
+        A.rule.minors_bound.fvars :=
+    A.rule.all_args_outer_fresh fv <| by
+      rw [hfvExact]
+      exact List.getElem_mem hfieldPositionFVars
+  have hfieldFullExact : (Expr.fvar fv).abstractList A.rule.binders =
+      .bvar (A.rule.allArgs.size - 1 - fieldPosition) := by
+    unfold BoundGeneratedRecursorRule.binders
+    rw [Expr.abstractList_append,
+      Expr.abstractList_fvar_of_not_mem hnotOuter]
+    simpa [A.rule.all_args_bound.length_fvars] using hfieldExact
+  have hfieldVarExact : fieldVar =
+      A.rule.allArgs.size - 1 - fieldPosition :=
+    Expr.bvar.inj (hfieldSource.symm.trans hfieldFullExact)
+  constructor
+  · simpa [fieldPosition, hfieldVarExact, hlocal] using hmajor
+  · simpa [fieldPosition, hfieldVarExact, hlocal] using htarget
+
 /-- The validated recursive field determines the exact expected motive
 application in the final environment.  Its index targets and eta-expanded
 major are the same semantic witnesses that must next be consumed by the
@@ -72886,6 +72960,18 @@ theorem
               (S.fields_bound.fvars.length - 1 -
                 A.semantics.recursivePositions[j]!)))
             (O.localIndices.map Expr.bvar).toArray ∧
+        E.frame.semantic.generated.outerAbstractedMajor A.rule.binders =
+          mkAppN
+            (.bvar (E.frame.semantic.generated.localArgs.size +
+              (A.rule.allArgs.size - 1 -
+                A.semantics.recursivePositions[j]!)))
+            (E.frame.semantic.generated.localIndices.map Expr.bvar).toArray ∧
+        E.frame.semantic.appliedFieldTarget =
+          VExpr.mkApps
+            (.bvar (E.frame.semantic.generated.localArgs.size +
+              (A.rule.allArgs.size - 1 -
+                A.semantics.recursivePositions[j]!)))
+            (E.frame.semantic.generated.localIndices.map VExpr.bvar) ∧
         (let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -72943,6 +73029,7 @@ theorem
   have houterField := O.outerAbstractedField_eq_bvar_at hsourceFVar
     hsourceFVarRoot S.fields_nodup hfieldPositionFVars
       hsourceFVarExact.symm
+  have hrecursiveMajor := E.frame.outerAbstractedAppliedMajorOrdinal
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, sourceType, O, B, E,
     hhypothesisOrigins, hhypothesisStats, htraversal,
@@ -72950,7 +73037,7 @@ theorem
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
     hdeclarationExact, by simpa [fieldPosition] using houterField,
-    Hdomain, E.closed_typing⟩
+    hrecursiveMajor.1, hrecursiveMajor.2, Hdomain, E.closed_typing⟩
 
 /-- All recursive results of one generated rule, chosen in their production
 array order and fixed to one recursor telescope and one narrowed field frame. -/
