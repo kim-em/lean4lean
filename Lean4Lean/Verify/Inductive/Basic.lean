@@ -360,6 +360,30 @@ theorem VExpr.liftN_wrapForalls
     simp [VExpr.wrapForalls, Nat.add_assoc, Nat.add_comm,
       Nat.add_left_comm]
 
+/-- An arbitrary free-variable lift preserves the number of leading forall
+binders.  Unlike `liftN_wrapForalls`, the transformed dependent domains do
+not have a useful closed formula for a general `Lift`, so this shape lemma
+retains them existentially. -/
+theorem VExpr.lift'_wrapForalls_shape
+    (domains : List VExpr) (body : VExpr) (shift : Lift) :
+    ∃ liftedDomains liftedBody,
+      liftedDomains.length = domains.length ∧
+      (VExpr.wrapForalls domains body).lift' shift =
+        VExpr.wrapForalls liftedDomains liftedBody := by
+  induction domains generalizing shift with
+  | nil =>
+      exact ⟨[], body.lift' shift, rfl, by simp [VExpr.wrapForalls]⟩
+  | cons domain domains ih =>
+      rcases ih shift.cons with
+        ⟨liftedDomains, liftedBody, hlength, hshape⟩
+      exact ⟨domain.lift' shift :: liftedDomains, liftedBody,
+        by simp [hlength], by
+          change VExpr.forallE (domain.lift' shift)
+              ((VExpr.wrapForalls domains body).lift' shift.cons) =
+            VExpr.forallE (domain.lift' shift)
+              (VExpr.wrapForalls liftedDomains liftedBody)
+          rw [hshape]⟩
+
 /-- Insert `inserted` below `prefix` and above `suffix`, lifting each
 dependent prefix declaration at its exact de Bruijn cutoff. -/
 theorem Ctx.LiftN.insertAfterPrefix
@@ -30477,6 +30501,62 @@ theorem RecInfoMinorSemanticSource.fieldContextDefEq
   exact ⟨sourceDomains, sourceResidual, hsourceLength', hparameterTarget,
     VEnv.IsDefEqU.wrapForalls_context HS.rootWF.checking.tr.wf Hbase
       (hsourceLength'.trans hfieldLength.symm) Htarget⟩
+
+/-- Transport the field-context conversion to any later recursor context.
+The consumed domains are exposed after the exact free-variable lift carried
+by the executable context extension; this is the form needed when the minor
+is finally installed among motives and preceding minors. -/
+theorem RecInfoMinorSemanticSource.fieldContextDefEqMono
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {Rcurrent : RecursorContextWF current recLparams}
+    {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource Rroot S)
+    (Hext : RecursorContextExtension HS.rootWF Rcurrent) :
+    ∃ sourceDomains sourceResidual consumedDomains consumedResidual,
+      sourceDomains.length = S.fields.size ∧
+      consumedDomains.length = S.fields.size ∧
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        HS.traversal.parameterTail
+        (VExpr.wrapForalls sourceDomains sourceResidual) ∧
+      (VExpr.wrapForalls HS.fieldDomains HS.terminalTarget).lift'
+          (Hext.shift.consN 0) =
+        VExpr.wrapForalls consumedDomains consumedResidual ∧
+      VEnv.IsDefEqCtx Rcurrent.venv recLparams.length []
+        (sourceDomains.reverse ++ Rcurrent.mlctx.vlctx.toCtx)
+        (consumedDomains.reverse ++ Rcurrent.mlctx.vlctx.toCtx) := by
+  have Hparameter := Hext.weakTrExprS HS.parameterTranslation
+  rcases TrExprS.forallTelescope_shape HS.traversal.fieldTelescope
+      Hparameter with
+    ⟨sourceDomains, sourceResidual, hsourceLength, hsourceTarget⟩
+  have hsourceLength' : sourceDomains.length = S.fields.size :=
+    hsourceLength.trans (congrArg Array.size HS.traversal_fields)
+  rcases VExpr.lift'_wrapForalls_shape HS.fieldDomains HS.terminalTarget
+      (Hext.shift.consN 0) with
+    ⟨consumedDomains, consumedResidual, hconsumedLength, hconsumedTarget⟩
+  have hfieldLength : HS.fieldDomains.length = S.fields.size := by
+    exact HS.terminalWF.onlyLams.forallDomains_length S.fields.size
+      HS.fieldsRecent.size_le
+  have hconsumedLength' : consumedDomains.length = S.fields.size :=
+    hconsumedLength.trans hfieldLength
+  have HfieldTarget : HS.rootWF.venv.IsDefEqU recLparams.length
+      HS.rootWF.mlctx.vlctx.toCtx HS.parameterTarget
+      (VExpr.wrapForalls HS.fieldDomains HS.terminalTarget) := by
+    simpa [RecInfoMinorSemanticSource.fieldDomains,
+      TypeChecker.MLCtx.mkForall'_eq_wrapForalls] using
+        HS.fieldTargetDefEq
+  have Htarget := Hext.weakDefEqU HfieldTarget
+  rw [hsourceTarget, hconsumedTarget] at Htarget
+  have Hbase : VEnv.IsDefEqCtx Rcurrent.venv recLparams.length []
+      Rcurrent.mlctx.vlctx.toCtx Rcurrent.mlctx.vlctx.toCtx :=
+    .refl Rcurrent.mlctx_wf.tr.wf.toCtx
+  exact ⟨sourceDomains, sourceResidual, consumedDomains, consumedResidual,
+    hsourceLength', hconsumedLength', by
+      rw [← hsourceTarget]
+      exact Hparameter,
+    hconsumedTarget,
+    VEnv.IsDefEqU.wrapForalls_context Rcurrent.checking.tr.wf Hbase
+      (hsourceLength'.trans hconsumedLength'.symm) Htarget⟩
 
 /-- Replay the exact two-stage `mkForall` closure used to construct a minor,
 without passing through its later installed declaration.  The field and
