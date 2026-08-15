@@ -66008,6 +66008,99 @@ theorem
   rw [← B.fieldScope_eq]
   exact Hscope.toCtx
 
+/-- Restrict the terminal constructor target to the retained rule-wide
+field scope and close those named fields.  The resulting target is typed in
+the exact anonymous field/parameter context used by canonical recursive
+results. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame.closedTargetTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ target,
+      TrExprS H.outVEnv Us
+        (abstractForallContext B.fieldDomains
+          H.parameterSuffix.parameterDecls)
+        (A.rule.target.abstractList A.rule.all_args_bound.fvars) target ∧
+      H.outVEnv.IsType Us.length
+        (abstractForallContext B.fieldDomains
+          H.parameterSuffix.parameterDecls).toCtx target := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  let Hruntime := B.runtime.mono hbase
+  have Hfull : TrExprS H.outVEnv Us A.semantics.context.mlctx.vlctx
+      A.rule.target A.semantics.targetTarget := by
+    have Htr := A.semantics.target_translation
+    rw [A.semantics.context_venv] at Htr
+    exact Htr.mono hbase
+  have HfullType : H.outVEnv.IsType Us.length
+      A.semantics.context.mlctx.vlctx.toCtx A.semantics.targetTarget := by
+    have Htype := A.semantics.target_type
+    rw [A.semantics.context_venv] at Htype
+    exact Htype.mono hbase
+  have hclosed : Closed A.rule.target 0 := by
+    have h := Hfull.closed
+    rw [A.semantics.context.mlctx.noBV] at h
+    exact h
+  have hscope : A.rule.target.FVarsIn (· ∈ B.fieldScope.fvars) := by
+    apply A.semantics.targetFVarsIn.mono
+    intro fv hfv
+    rw [B.scope_fvars, H.parameterSuffix.parameterDecls_fvars]
+    rcases hfv with hfield | hparam
+    · exact List.mem_append_left _ (List.mem_reverse.mpr hfield)
+    · exact List.mem_append_right _ (List.mem_reverse.mpr hparam)
+  rcases Hruntime.restrictEq H.outVEnvWF Hfull hclosed hscope with
+    ⟨target, Htarget, _HtargetEq⟩
+  rcases HfullType with ⟨level, HfullTyping⟩
+  have HtargetType : H.outVEnv.IsType Us.length B.fieldScope.toCtx target :=
+    ⟨level, Hruntime.hasTypeOfFull H.outVEnvWF Htarget Hfull
+      HfullTyping⟩
+  have Hclosed := Hruntime.abstractFront H.outVEnvWF B.scope_base Htarget
+  have hfrontRev :
+      VLCtx.fvars
+          (B.fieldScope.take Hruntime.frontSourceDomains.length) =
+        A.semantics.fieldsRecent.fvars.reverse := by
+    have hsplit := Hruntime.frontFVars B.scope_base
+    have happend :
+        VLCtx.fvars
+            (B.fieldScope.take Hruntime.frontSourceDomains.length) ++
+              H.parameterSuffix.parameterDecls.fvars =
+          A.semantics.fieldsRecent.fvars.reverse ++
+              H.parameterSuffix.parameterDecls.fvars := by
+      rw [← hsplit, B.scope_fvars]
+    exact List.append_cancel_right happend
+  have hfieldFVars : A.semantics.fieldsRecent.fvars =
+      A.rule.all_args_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl
+  have hfront :
+      (VLCtx.fvars
+        (B.fieldScope.take Hruntime.frontSourceDomains.length)).reverse =
+          A.rule.all_args_bound.fvars := by
+    rw [hfrontRev, List.reverse_reverse, hfieldFVars]
+  dsimp only [Hruntime,
+    checkInductiveTypes.loopType.NarrowRuntimeScope.mono] at hfront Hclosed
+  rw [hfront, B.front] at Hclosed
+  have HtargetType' : H.outVEnv.IsType Us.length
+      (abstractForallContext B.fieldDomains
+        H.parameterSuffix.parameterDecls).toCtx target := by
+    rw [← B.fieldScope_eq]
+    exact HtargetType
+  exact ⟨target, Hclosed, HtargetType'⟩
+
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.narrowFieldRuntimeFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
