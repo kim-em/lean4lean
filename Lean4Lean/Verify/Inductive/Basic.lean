@@ -47550,6 +47550,144 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
       rw [htailFront]
       simp [List.append_assoc]
 
+/-- Strengthening of `extendNarrowRuntimeScope` which retains the strict
+translation used for every narrowed binder domain.  The ordinary runtime
+scope only remembers the resulting verifier domains and their weakening;
+that is sufficient for executable checking, but a later comparison with an
+independently generated dependent telescope needs the complete source
+translation.  Replaying an arbitrary translated residual packages exactly
+that missing evidence as a translated forall telescope. -/
+theorem MLCtxLamPrefix.extendNarrowRuntimeScopeForallReplay
+    (H : MLCtxLamPrefix runtime n domains)
+    (henv : env.WF)
+    (Hwf : runtime.WF env Us)
+    (Hbase : checkInductiveTypes.loopType.NarrowRuntimeScope env Us
+      baseScope (runtime.dropN n H.le).vlctx)
+    (hup : IsFVarUpSet
+      (fun fv => fv ∈ runtime.fvarRevList n H.le ++ baseScope.fvars)
+      runtime.vlctx) :
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope env Us
+          scope runtime.vlctx,
+        scope.fvars = runtime.fvarRevList n H.le ++ baseScope.fvars ∧
+        scope.drop Hscope.frontSourceDomains.length =
+          baseScope.drop Hbase.frontSourceDomains.length ∧
+        ∃ newDomains,
+          newDomains.length = n ∧
+          Hscope.frontSourceDomains =
+            Hbase.frontSourceDomains ++ newDomains ∧
+          ∀ {body target},
+            TrExprS env Us scope body target →
+            env.IsType Us.length scope.toCtx target →
+            TrExprS env Us baseScope
+                (runtime.mkForall n H.le body)
+                (VExpr.wrapForalls newDomains target) ∧
+              env.IsType Us.length baseScope.toCtx
+                (VExpr.wrapForalls newDomains target) := by
+  induction H with
+  | nil runtime =>
+    refine ⟨baseScope, Hbase,
+      by simp [TypeChecker.MLCtx.fvarRevList], rfl, [], rfl, by simp, ?_⟩
+    intro body target Hbody HbodyType
+    simpa [TypeChecker.MLCtx.mkForall, VExpr.wrapForalls] using
+      And.intro Hbody HbodyType
+  | @cons tail n domains fv name type type' bi Hprefix ih =>
+    have HruntimeWF := Hwf.tr.wf
+    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
+    have hcurrentFresh : fv ∉ tail.vlctx.fvars :=
+      HtailWF.tr.find?_eq_none.1 hfresh
+    have htailUp : IsFVarUpSet
+        (fun fv' =>
+          fv' ∈ tail.fvarRevList n Hprefix.le ++ baseScope.fvars)
+        tail.vlctx := by
+      apply (IsFVarUpSet.congr HtailWF.tr.wf.fvwf ?_).mp hup.1
+      intro fv' hfv'
+      constructor
+      · intro h
+        rcases List.mem_cons.mp h with hcurrent | h
+        · exact False.elim (hcurrentFresh (hcurrent ▸ hfv'))
+        · exact h
+      · exact List.mem_cons_of_mem _
+    rcases ih HtailWF Hbase htailUp with
+      ⟨tailScope, HtailScope, htailScopeFVars, htailBase,
+        tailDomains, htailDomains, htailFront, HtailReplay⟩
+    have hdepsFull : ∀ dep ∈ type.fvarsList,
+        dep ∈ fv :: tail.fvarRevList n Hprefix.le ++ baseScope.fvars := by
+      exact hup.2 (by simp)
+    have hdeps : type.fvarsList ⊆ tailScope.fvars := by
+      intro dep hdep
+      rw [htailScopeFVars]
+      have hselected := hdepsFull dep hdep
+      rcases List.mem_cons.mp hselected with hcurrent | hselected
+      · exact False.elim (hcurrentFresh (hcurrent ▸ Htype.fvarsList hdep))
+      · exact hselected
+    have hclosed : Closed type 0 := by
+      have h := Htype.closed
+      rw [tail.noBV] at h
+      exact h
+    have htypeFVars : FVarsIn (· ∈ tailScope.fvars) type := by
+      apply fvarsIn_iff.mpr
+      refine ⟨hdeps, ?_⟩
+      exact Htype.fvarsIn.mono fun _ _ => trivial
+    rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+      ⟨narrowType, HnarrowType⟩
+    have Hweak : TrExprS env Us HtailScope.expanded type
+        (narrowType.lift' HtailScope.shift) := by
+      simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
+        HtailScope.context.wf
+    have HtargetEq := Hweak.uniq henv HtailScope.context Htype
+    have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
+        type' :=
+      HtypeType.defeqDFC henv.ordered
+        (HtailScope.context.symm henv.ordered).defeqCtx
+    rcases HtargetType with ⟨u, HtargetType⟩
+    have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
+        (narrowType.lift' HtailScope.shift) type' (.sort u) :=
+      HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+    let Hnext := HtailScope.withIndex HruntimeWF hdeps Hdomain
+    refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_, ?_⟩
+    · simp [Hnext, htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
+    · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
+      simpa only [List.length_append, List.length_singleton,
+        List.drop_succ_cons] using htailBase
+    · simp [htailDomains]
+    · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
+      rw [htailFront]
+      simp [List.append_assoc]
+    · intro body target Hbody HbodyType
+      have HnextWF := Hnext.scopeWF henv
+      have HdomainType : env.IsType Us.length tailScope.toCtx narrowType := by
+        simpa [Hnext,
+          checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex,
+          VLocalDecl.WF] using
+          HnextWF.2.2
+      have W : VLCtx.Abstract tailScope fv (.vlam narrowType) 0 0
+          ((some (fv, type.fvarsList), .vlam narrowType) :: tailScope)
+          ((none, .vlam narrowType) :: tailScope) := .zero
+      have Hbody' : TrExprS env Us
+          ((none, .vlam narrowType) :: tailScope)
+          (body.abstract1 fv) target := by
+        apply TrExprS.abstract W
+        simpa [Hnext,
+          checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex] using
+          Hbody
+      have HbodyType' : env.IsType Us.length
+          (narrowType :: tailScope.toCtx) target := by
+        simpa [Hnext,
+          checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex,
+          VLCtx.toCtx] using
+          HbodyType
+      have Hone : TrExprS env Us tailScope
+          (.forallE name type (body.abstract1 fv) bi)
+          (.forallE narrowType target) :=
+        .forallE HdomainType HbodyType' HnarrowType Hbody'
+      have HoneType : env.IsType Us.length tailScope.toCtx
+          (.forallE narrowType target) :=
+        VEnv.IsType.forallE HdomainType HbodyType'
+      have Hclosed := HtailReplay Hone HoneType
+      simpa [TypeChecker.MLCtx.mkForall, VExpr.wrapForalls_append,
+        VExpr.wrapForalls] using Hclosed
+
 /-- Production-side installation of a list of kernel constants. This small
 reference function is used only to state the staging invariant; the executable
 inductive checker continues to build the same environments directly. -/
@@ -71742,6 +71880,120 @@ theorem
     change HfieldScope.frontSourceDomains ++ localDomains =
       fieldDomains ++ localDomains
     rw [hfieldFront]
+
+/-- Replay the exact higher-order call-local forall telescope while extending
+the fixed narrowed field frame.  Unlike `narrowRuntimeScopeFor`, this retains
+the strict translations of the narrowed local domains, so a later
+first-pass/second-pass comparison can use `SameForallPrefix` without
+reconstructing those binder translations from a context conversion. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowLocalForallReplayFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+          H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+        ∃ localDomains,
+          localDomains.length = F.semantic.generated.localArgs.size ∧
+          Hscope.frontSourceDomains = B.fieldDomains ++ localDomains ∧
+          ∀ {body target},
+            TrExprS H.outVEnv Us scope body target →
+            H.outVEnv.IsType Us.length scope.toCtx target →
+            TrExprS H.outVEnv Us B.fieldScope
+                (F.semantic.generated.current.lctx.mkForall
+                  F.semantic.generated.localArgs body)
+                (VExpr.wrapForalls localDomains target) ∧
+              H.outVEnv.IsType Us.length B.fieldScope.toCtx
+                (VExpr.wrapForalls localDomains target) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases B with
+    ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
+      fieldDomains, _hfieldDomains, hfieldFront⟩
+  rcases F.semantic.current_context.onlyLams.lamPrefix
+      F.semantic.generated.localArgs.size F.semantic.recent.size_le with
+    ⟨semanticLocalDomains, HlocalPrefix⟩
+  have hlocalRuntime :
+      (F.semantic.current_context.mlctx.dropN
+        F.semantic.generated.localArgs.size HlocalPrefix.le).vlctx =
+          A.semantics.context.mlctx.vlctx := by
+    have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle, F.semantic.recent.drop_eq]
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  let HfieldScopeOut := HfieldScope.mono hbase
+  let HlocalBase := HfieldScopeOut.retargetRuntime hlocalRuntime.symm
+  have HlocalWF : F.semantic.current_context.mlctx.WF H.outVEnv Us := by
+    have hvenv : F.semantic.current_context.venv = H.recursorWF.venv :=
+      F.semantic.recent.venv_eq.trans A.semantics.context_venv
+    have Hwf : F.semantic.current_context.mlctx.WF
+        H.recursorWF.venv Us := by
+      simpa only [Us, hvenv] using F.semantic.current_context.mlctx_wf
+    exact Hwf.mono hbase
+  have hlocalRev : F.semantic.current_context.mlctx.fvarRevList
+      F.semantic.generated.localArgs.size HlocalPrefix.le =
+        F.semantic.recent.fvars.reverse := by
+    have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle]
+    exact F.semantic.recent.fvarRevList_eq
+  have HlocalUp : IsFVarUpSet
+      (fun fv => fv ∈ F.semantic.current_context.mlctx.fvarRevList
+          F.semantic.generated.localArgs.size HlocalPrefix.le ++
+            fieldScope.fvars)
+      F.semantic.current_context.mlctx.vlctx := by
+    apply (IsFVarUpSet.congr HlocalWF.tr.wf.fvwf ?_).mp
+      F.semantic.current_scope_up
+    intro fv _
+    rw [F.root_scope, hlocalRev, hfieldScopeFVars,
+      H.parameterSuffix.parameterDecls_fvars]
+    rw [A.semantics.fieldOpening.fvars_eq_bound
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+    simp [List.append_assoc]
+  rcases HlocalPrefix.extendNarrowRuntimeScopeForallReplay
+      H.outVEnvWF HlocalWF HlocalBase HlocalUp with
+    ⟨scope, Hscope, _hscopeFVars, _hscopeBase,
+      localDomains, hlocalDomains, hlocalFront, Hreplay⟩
+  have hsource : ∀ body,
+      F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs body =
+        F.semantic.current_context.mlctx.mkForall
+          F.semantic.generated.localArgs.size HlocalPrefix.le body := by
+    intro body
+    rw [← F.semantic.current_context.lctx_eq]
+    apply F.semantic.current_context.mlctx_wf.mkForall_eq
+    have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle]
+    exact F.semantic.recent.reverse_eq
+  refine ⟨scope, Hscope, localDomains, hlocalDomains, ?_, ?_⟩
+  · change Hscope.frontSourceDomains = fieldDomains ++ localDomains
+    rw [hlocalFront]
+    change HfieldScopeOut.frontSourceDomains ++ localDomains =
+      fieldDomains ++ localDomains
+    simpa [HfieldScopeOut,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using
+      congrArg (· ++ localDomains) hfieldFront
+  · intro body target Hbody HbodyType
+    rw [hsource]
+    simpa [HlocalBase, HfieldScopeOut,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using
+      Hreplay Hbody HbodyType
 
 /-- Existential specialization of `narrowRuntimeScopeFor` used by the
 earlier pointwise call lemmas.  List-level reconstruction instead retains
