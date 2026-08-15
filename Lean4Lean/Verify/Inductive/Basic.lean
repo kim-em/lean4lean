@@ -23320,6 +23320,15 @@ inductive Expr.ForallBinderAt : Expr → Nat → Expr → Prop
   | there : Expr.ForallBinderAt body i domain →
       Expr.ForallBinderAt (.forallE name outerDomain body bi) (i + 1) domain
 
+/-- Selecting any forall binder proves that consuming a possible annotation
+at the top level leaves the enclosing expression unchanged. -/
+theorem Expr.ForallBinderAt.consumeTypeAnnotations_eq_self
+    (H : Expr.ForallBinderAt source i domain) :
+    source.consumeTypeAnnotations = source := by
+  cases H with
+  | here => apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+  | there _ => apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+
 theorem Expr.ForallBinderAt.unique
     (H₁ : Expr.ForallBinderAt source i domain₁)
     (H₂ : Expr.ForallBinderAt source i domain₂) : domain₁ = domain₂ := by
@@ -42401,6 +42410,38 @@ theorem LocalForallSelection.forallBinderAt
     hifvars D.index D.userName D.type D.binderInfo D.kind
   rw [hselectedFVar]
   exact D.declaration
+
+/-- The hypothesis binder at position `j` in a generated minor is the exact
+local declaration type used by the first pass, closed first over preceding
+hypotheses and then over the outer constructor fields. -/
+theorem RecInfoMinorTypeShape.hypothesisBinderAt
+    (S : RecInfoMinorTypeShape)
+    (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j) :
+    Expr.ForallBinderAt S.origin (S.fields.size + j)
+      ((D.type.abstractList (S.hypotheses_bound.fvars.take j)).abstractList
+        S.fields_bound.fvars j) := by
+  let Hselection := S.hypotheses_bound.toLocalForallSelection S.sourceFullWF
+  have HinnerFull := Hselection.forallBinderAt S.hypotheses_nodup D
+    (body := S.motiveApp)
+  have Hinner : Expr.ForallBinderAt
+      (S.sourceContext.mkForall S.hypotheses S.motiveApp) j
+      (D.type.abstractList (S.hypotheses_bound.fvars.take j)) := by
+    rw [← S.sourceContext_eq]
+    exact HinnerFull
+  have HinnerClosed := Hinner.abstractList S.fields_bound.fvars 0
+  have Hfields := S.fieldTelescope
+    (S.sourceContext.mkForall S.hypotheses S.motiveApp)
+  have Hsource : Expr.ForallBinderAt S.sourceType (S.fields.size + j)
+      ((D.type.abstractList (S.hypotheses_bound.fvars.take j)).abstractList
+        S.fields_bound.fvars j) := by
+    rw [S.sourceType_eq]
+    simpa only [Nat.zero_add] using Hfields.prependBinderAt HinnerClosed
+  have hconsumed : S.sourceType.consumeTypeAnnotations = S.sourceType :=
+    Hsource.consumeTypeAnnotations_eq_self
+  have horigin : S.origin = S.sourceType :=
+    S.consumed_eq.symm.trans hconsumed
+  rw [horigin]
+  exact Hsource
 
 theorem LocalForallSelection.forallTelescope
     (H : LocalForallSelection lctx xs) (body : Expr) :
