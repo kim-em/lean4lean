@@ -65955,6 +65955,59 @@ structure
   fieldDomains_length : fieldDomains.length = A.rule.allArgs.size
   front : runtime.frontSourceDomains = fieldDomains
 
+/-- The rule-wide narrowing frame is literally the constructor-field
+telescope abstracted over the cached parameter declarations.  This exposes
+the context hidden behind `NarrowRuntimeScope` in the form used by the
+selected-minor translation. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame.fieldScope_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    (B : A.NarrowFieldRuntimeFrame) :
+    B.fieldScope.toCtx =
+      (abstractForallContext B.fieldDomains
+        H.parameterSuffix.parameterDecls).toCtx := by
+  rw [abstractForallContext_toCtx, B.runtime.front.sourceContext,
+    B.scope_base, B.front]
+
+/-- The narrowed constructor-field telescope is well formed in the final
+recursor environment, over the exact cached parameter suffix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame.fieldContextWF
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    (B : A.NarrowFieldRuntimeFrame) :
+    OnCtx
+      (abstractForallContext B.fieldDomains
+        H.parameterSuffix.parameterDecls).toCtx
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have Hruntime := B.runtime.mono hbase
+  have Hscope := Hruntime.scopeWF H.outVEnvWF
+  rw [← B.fieldScope_eq]
+  exact Hscope.toCtx
+
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.narrowFieldRuntimeFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
