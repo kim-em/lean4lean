@@ -27097,6 +27097,7 @@ operational `loopU` accumulator itself has gone out of scope. -/
 structure RecursorLoopUArgsTrace where
   ownerIdx : Nat
   localArity : Nat
+  motive : Expr
   indices : Array Expr
 
 structure RecInfoMinorHypothesisTypeOrigin
@@ -27206,6 +27207,9 @@ def RecInfoMinorHypothesisTypeOrigin.replayTrace
     (fieldBinders : List FVarId) : RecursorLoopUArgsTrace where
   ownerIdx := O.ownerIdx
   localArity := O.args.size
+  motive :=
+    (recInfos[O.ownerIdx]!.motive.abstractList
+      O.arguments_bound.fvars).abstractList fieldBinders O.args.size
   indices :=
     ((O.exposedType.getAppArgs[stats.params.size:] : Array Expr).map
       fun index =>
@@ -36837,6 +36841,9 @@ def BoundGeneratedRecursiveCall.replayTrace
     (fieldBinders : List FVarId) : RecursorLoopUArgsTrace where
   ownerIdx := H.ownerIdx
   localArity := H.localArgs.size
+  motive :=
+    (motives[H.ownerIdx]!.abstractList
+      H.arguments_bound.fvars).abstractList fieldBinders H.localArgs.size
   indices :=
     ((H.exposedType.getAppArgs[stats.params.size:] : Array Expr).map
       fun index =>
@@ -36848,8 +36855,8 @@ The constructor decision traces ensure that both `loopUArgs` runs inspect the
 same selected ordinal of the same source telescope; simultaneous abstraction
 then removes the unrelated fresh identifiers allocated by the two passes.
 The resulting single equality retains exactly the owner, higher-order arity,
-and exposed index spine needed to compare an installed induction hypothesis
-with its generated recursive result. -/
+abstracted motive head, and exposed index spine needed to compare an
+installed induction hypothesis with its generated recursive result. -/
 def RecursorLoopUArgsReplayCompat : Prop :=
   ∀ (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
@@ -73132,6 +73139,15 @@ theorem
         O.replayTrace S.fields_bound.fvars =
           E.frame.semantic.generated.replayTrace
             A.rule.all_args_bound.fvars ∧
+        ((hypothesisOrigins.recInfos[O.ownerIdx]!.motive.abstractList
+              O.arguments_bound.fvars).abstractList
+            S.fields_bound.fvars O.args.size) =
+          ((((H.recInfos.map
+                (fun info : AddInductive.RecInfo => info.motive))[
+                E.frame.semantic.generated.ownerIdx]!).abstractList
+              E.frame.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+              E.frame.semantic.generated.localArgs.size) ∧
         (((O.exposedType.getAppArgs[
               hypothesisOrigins.stats.params.size:] : Array Expr).map
             fun index =>
@@ -73296,6 +73312,17 @@ theorem
   have hownerReplay : O.ownerIdx =
       E.frame.semantic.generated.ownerIdx :=
     congrArg RecursorLoopUArgsTrace.ownerIdx Hreplay
+  have hmotiveReplay :
+      ((hypothesisOrigins.recInfos[O.ownerIdx]!.motive.abstractList
+            O.arguments_bound.fvars).abstractList
+          S.fields_bound.fvars O.args.size) =
+        ((((H.recInfos.map
+              (fun info : AddInductive.RecInfo => info.motive))[
+              E.frame.semantic.generated.ownerIdx]!).abstractList
+            E.frame.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.all_args_bound.fvars
+            E.frame.semantic.generated.localArgs.size) := by
+    exact congrArg RecursorLoopUArgsTrace.motive Hreplay
   have hindicesReplay :
       (((O.exposedType.getAppArgs[
             hypothesisOrigins.stats.params.size:] : Array Expr).map
@@ -73507,8 +73534,8 @@ theorem
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
     rfl, by simpa [fieldPosition] using houterField,
-    hrecursiveMajor.1, hrecursiveMajor.2, Hreplay, hindicesReplay, hownerReplay,
-    hlocalArity, hmajorAlignment,
+    hrecursiveMajor.1, hrecursiveMajor.2, Hreplay, hmotiveReplay,
+    hindicesReplay, hownerReplay, hlocalArity, hmajorAlignment,
     Hdomain,
     ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
       hhypothesisLocalDomains, _HsourceResidual, by
