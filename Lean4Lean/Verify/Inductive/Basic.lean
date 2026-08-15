@@ -45179,6 +45179,24 @@ theorem LocalContext.mkBindingList_forallBinderAt
       simpa [LocalContext.mkBindingList1, hheadDecl] using
         Expr.ForallBinderAt.there Habstract
 
+/-- `mkForall` specialization of the positional declaration theorem for an
+explicit list of selected free variables. -/
+theorem LocalContext.mkForall_fvars_forallBinderAt
+    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (hnodup : fvars.Nodup)
+    (i : Nat) (hi : i < fvars.length)
+    (index : Nat) (name : Name) (type : Expr) (bi : BinderInfo)
+    (kind : LocalDeclKind)
+    (hselected : lctx.find? fvars[i] =
+      some (.cdecl index fvars[i] name type bi kind)) :
+    Expr.ForallBinderAt
+      (lctx.mkForall (fvars.map Expr.fvar).toArray body) i
+      (type.abstractList (fvars.take i)) := by
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
+  exact LocalContext.mkBindingList_forallBinderAt hdecl hnodup i hi
+    index name type bi kind hselected
+
 /-- `LocalForallSelection` form of the positional source-domain theorem. -/
 theorem LocalForallSelection.forallBinderAt
     (H : LocalForallSelection c.lctx xs) (hnodup : H.fvars.Nodup)
@@ -64059,6 +64077,10 @@ theorem
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ narrowTarget,
         scope.fvars = sourceBinders.reverse ∧
+        (∀ body,
+          Hscope.sources.closeSource body =
+            H.localContext.lctx.mkForall
+              (sourceBinders.map Expr.fvar).toArray body) ∧
         TrExprS H.outVEnv Us scope D.type narrowTarget ∧
         TrExprS H.outVEnv Us
           (abstractForallContext scope.toCtx.reverse [])
@@ -64080,12 +64102,23 @@ theorem
     H.bindings.flatMinors.fvars.take minorIdx
   rcases A.finalSelectedMinorDomain with
     ⟨T, D, O, S, Hdomain, HdomainType⟩
-  rcases A.finalSelectedMinorNarrowScope with
-    ⟨scope, Hscope, hscope⟩
+  rcases checkInductiveTypes.loopType.MLCtxOnlyLams.narrowFVarsSource
+      H.recursorWF.onlyLams
+      H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
+      (fun fv => fv ∈ sourceBinders) A.finalSelectedMinorPrefixUp with
+    ⟨scope, Hscope, hscopeFiltered, _hscopeDecls, hscopeSource⟩
+  have hscope : scope.fvars = sourceBinders.reverse :=
+    hscopeFiltered.trans A.finalSelectedMinorFilteredFVars
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
   let HscopeOut := Hscope.mono hbase
+  have hscopeSourceOut : ∀ body,
+      HscopeOut.sources.closeSource body =
+        H.localContext.lctx.mkForall
+          (sourceBinders.map Expr.fvar).toArray body := by
+    intro body
+    simpa [HscopeOut, H.recursorWF.lctx_eq] using hscopeSource body
   rcases H.recursorWF.translatedDeclarationType D with
     ⟨runtimeTarget, Hruntime⟩
   have HruntimeOut := Hruntime.mono hbase
@@ -64111,7 +64144,7 @@ theorem
   have Hclosed := HscopeOut.abstractAll H.outVEnvWF Hnarrow
   rw [hscope, List.reverse_reverse] at Hclosed
   exact ⟨T, D, O, S, scope, HscopeOut, narrowTarget, hscope,
-    Hnarrow, Hclosed, HscopeOut.abstractAllWF H.outVEnvWF,
+    hscopeSourceOut, Hnarrow, Hclosed, HscopeOut.abstractAllWF H.outVEnvWF,
     Hdomain, HdomainType⟩
 
 /-- Reconstruct the complete source telescope of the exact selected prefix.
@@ -64148,6 +64181,9 @@ theorem
         scope.fvars = sourceBinders.reverse ∧
         prefixSource = Hscope.sources.closeSource
           (.sort (.zero : Level)) ∧
+        prefixSource = H.localContext.lctx.mkForall
+          (sourceBinders.map Expr.fvar).toArray
+          (.sort (.zero : Level)) ∧
         TrExprS H.outVEnv Us [] prefixSource
           (VExpr.wrapForalls scope.toCtx.reverse
             (.sort (.zero : VLevel))) ∧
@@ -64167,7 +64203,7 @@ theorem
     H.bindings.flatMinors.fvars.take minorIdx
   rcases A.finalSelectedMinorExactClosedDomain with
     ⟨T, _D, _O, _S, scope, Hscope, _narrowTarget, hscope,
-      _Hnarrow, _Hclosed, _HscopeWF, _Hdomain, _HdomainType⟩
+      hscopeSource, _Hnarrow, _Hclosed, _HscopeWF, _Hdomain, _HdomainType⟩
   rcases Hscope.closedSortTranslation H.outVEnvWF with
     ⟨Hprefix, HprefixType⟩
   have HprefixTelescope := Hscope.closedSortTelescope H.outVEnvWF
@@ -64189,7 +64225,346 @@ theorem
           T.params_length, T.motives_length, T.minors_length]
   exact ⟨T, scope, Hscope,
     Hscope.sources.closeSource (.sort (.zero : Level)), hscope, rfl,
+    hscopeSource (.sort (.zero : Level)),
     Hprefix, HprefixType, HprefixTelescope, hprefixLength⟩
+
+/-- The independently narrowed source prefix and the production recursor have
+the same domain at every retained parameter, motive, and earlier-minor slot.
+The proof selects the exact local declaration on both sides, rather than
+appealing to whole-expression equality. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPrefixBinderEq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∀ position (hposition : position < sourceBinders.length)
+      {prefixDomain recursorDomain : Expr},
+      Expr.ForallBinderAt
+        (H.localContext.lctx.mkForall
+          (sourceBinders.map Expr.fvar).toArray
+          (.sort (.zero : Level))) position prefixDomain →
+      Expr.ForallBinderAt
+        (H.generated.entry owner howner).info.type position recursorDomain →
+      prefixDomain = recursorDomain := by
+  dsimp only
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    owner hrecInfo
+  have hselectionNoAlias : selections.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
+  have hsourceNodup : sourceBinders.Nodup := by
+    have houter := H.bindings.outerNodup H.params H.noAlias
+    have hsub :
+        (H.params.fvars ++ H.bindings.motives.fvars) ++
+            H.bindings.flatMinors.fvars.take minorIdx <+
+          (H.params.fvars ++ H.bindings.motives.fvars) ++
+            H.bindings.flatMinors.fvars :=
+      (List.Sublist.refl
+        (H.params.fvars ++ H.bindings.motives.fvars)).append
+          (List.take_sublist _ H.bindings.flatMinors.fvars)
+    simpa [sourceBinders, List.append_assoc] using houter.sublist hsub
+  have hsourceMembers : ∀ fv ∈ sourceBinders,
+      fv ∈ H.localContext.lctx.fvars := by
+    intro fv hfv
+    rcases List.mem_append.mp hfv with hprefix | hminor
+    · rcases List.mem_append.mp hprefix with hparam | hmotive
+      · exact H.params.members fv hparam
+      · exact H.bindings.motives.members fv hmotive
+    · exact H.bindings.flatMinors.members fv
+        (List.mem_of_mem_take hminor)
+  have hsourceDecls : ∀ fv ∈ sourceBinders,
+      ∃ index name type bi kind,
+        H.localContext.lctx.find? fv =
+          some (.cdecl index fv name type bi kind) := by
+    intro fv hfv
+    exact H.localWF.findCDecl fv (hsourceMembers fv hfv)
+  intro position hposition prefixDomain recursorDomain Hprefix Hrecursor
+  by_cases hparam : position < H.params.fvars.length
+  · have hparamArray : position < stats.params.size := by
+      rw [← H.params.length_fvars]
+      exact hparam
+    rcases H.params.declarationAt H.localWF position hparamArray with ⟨D⟩
+    rcases H.params.getElem_eq_fvar position hparamArray with
+      ⟨_hparamFVars, hparamExpr⟩
+    have hparamFVar : H.params.fvars[position] = D.fvar :=
+      Expr.fvar.inj (hparamExpr.symm.trans D.expression)
+    have hsourceAt : sourceBinders[position] = D.fvar := by
+      rw [List.getElem_append_left]
+      · rw [List.getElem_append_left hparam]
+        exact hparamFVar
+      · simp only [List.length_append]
+        omega
+    have htake : sourceBinders.take position =
+        H.params.fvars.take position := by
+      dsimp only [sourceBinders]
+      rw [List.take_append, List.take_append]
+      rw [Nat.sub_eq_zero_of_le (Nat.le_of_lt hparam)]
+      rw [Nat.sub_eq_zero_of_le (by simp; omega :
+        position ≤ (H.params.fvars ++ H.bindings.motives.fvars).length)]
+      simp
+    have HprefixCanonical :=
+      LocalContext.mkForall_fvars_forallBinderAt hsourceDecls hsourceNodup
+        position hposition D.index D.userName D.type D.binderInfo D.kind (by
+          rw [hsourceAt]
+          exact D.declaration)
+        (body := (.sort (.zero : Level)))
+    have HrecursorCanonical :=
+      selections.parameterBinderAt hselectionNoAlias D
+    dsimp only at HrecursorCanonical
+    rw [← (H.generated.entry owner howner).type] at HrecursorCanonical
+    have hprefixDomain : prefixDomain =
+        D.type.abstractList (H.params.fvars.take position) := by
+      rw [← htake]
+      exact Hprefix.unique HprefixCanonical
+    exact hprefixDomain.trans
+      (Hrecursor.unique HrecursorCanonical).symm
+  · by_cases hmotive : position <
+        H.params.fvars.length + H.bindings.motives.fvars.length
+    · let motivePos := position - H.params.fvars.length
+      have hmotivePos : motivePos < H.bindings.motives.fvars.length := by
+        dsimp only [motivePos]
+        omega
+      have hmotiveArray : motivePos <
+          (H.recInfos.map (·.motive)).size := by
+        rw [← H.bindings.motives.length_fvars]
+        exact hmotivePos
+      rcases H.bindings.motives.declarationAt H.localWF motivePos
+          hmotiveArray with ⟨D⟩
+      rcases H.bindings.motives.getElem_eq_fvar motivePos hmotiveArray with
+        ⟨_hmotiveFVars, hmotiveExpr⟩
+      have hmotiveFVar : H.bindings.motives.fvars[motivePos] = D.fvar :=
+        Expr.fvar.inj (hmotiveExpr.symm.trans D.expression)
+      have hpositionEq : H.params.fvars.length + motivePos = position := by
+        dsimp only [motivePos]
+        omega
+      have hsourceAt : sourceBinders[position] = D.fvar := by
+        rw [List.getElem_append_left]
+        · rw [List.getElem_append_right (Nat.le_of_not_gt hparam)]
+          simpa [motivePos] using hmotiveFVar
+        · simp only [List.length_append]
+          omega
+      have htake : sourceBinders.take position =
+          H.params.fvars ++
+            H.bindings.motives.fvars.take motivePos := by
+        rw [← hpositionEq]
+        dsimp only [sourceBinders]
+        rw [List.take_append, List.take_append]
+        rw [List.take_of_length_le (by omega :
+          H.params.fvars.length ≤ H.params.fvars.length + motivePos)]
+        rw [Nat.sub_eq_zero_of_le (by simp; omega :
+          H.params.fvars.length + motivePos ≤
+            (H.params.fvars ++ H.bindings.motives.fvars).length)]
+        simp
+      have HprefixCanonical :=
+        LocalContext.mkForall_fvars_forallBinderAt hsourceDecls hsourceNodup
+          position hposition D.index D.userName D.type D.binderInfo D.kind (by
+            rw [hsourceAt]
+            exact D.declaration)
+          (body := (.sort (.zero : Level)))
+      have HrecursorCanonical :=
+        selections.motiveBinderAt hselectionNoAlias D
+      dsimp only at HrecursorCanonical
+      rw [← (H.generated.entry owner howner).type] at HrecursorCanonical
+      have hstatsPosition : stats.params.size + motivePos = position := by
+        rw [← H.params.length_fvars]
+        exact hpositionEq
+      rw [hstatsPosition] at HrecursorCanonical
+      have hprefixDomain : prefixDomain = D.type.abstractList
+          (H.params.fvars ++
+            H.bindings.motives.fvars.take motivePos) := by
+        rw [← htake]
+        exact Hprefix.unique HprefixCanonical
+      exact hprefixDomain.trans
+        (Hrecursor.unique HrecursorCanonical).symm
+    · let priorPos := position -
+        (H.params.fvars.length + H.bindings.motives.fvars.length)
+      have hminorIdx : minorIdx < H.bindings.flatMinors.fvars.length := by
+        rw [H.bindings.flatMinors.length_fvars]
+        exact A.rule.minor_valid
+      have hpriorPos : priorPos < minorIdx := by
+        dsimp only [priorPos, sourceBinders] at hposition ⊢
+        simp only [List.length_append, List.length_take,
+          Nat.min_eq_left (Nat.le_of_lt hminorIdx)] at hposition
+        omega
+      have hpriorArray : priorPos <
+          (H.recInfos.flatMap (·.minors)).size := by
+        rw [← H.bindings.flatMinors.length_fvars]
+        omega
+      rcases H.bindings.flatMinors.declarationAt H.localWF priorPos
+          hpriorArray with ⟨D⟩
+      rcases H.bindings.flatMinors.getElem_eq_fvar priorPos hpriorArray with
+        ⟨_hpriorFVars, hpriorExpr⟩
+      have hpriorFVar : H.bindings.flatMinors.fvars[priorPos] = D.fvar :=
+        Expr.fvar.inj (hpriorExpr.symm.trans D.expression)
+      have hpositionEq : H.params.fvars.length +
+          H.bindings.motives.fvars.length + priorPos = position := by
+        dsimp only [priorPos]
+        omega
+      have hsourceAt : sourceBinders[position] = D.fvar := by
+        rw [List.getElem_append_right (by
+          simp only [List.length_append]
+          omega : (H.params.fvars ++ H.bindings.motives.fvars).length ≤
+            position)]
+        have hindex : position -
+            (H.params.fvars ++ H.bindings.motives.fvars).length = priorPos := by
+          simp only [List.length_append]
+          dsimp only [priorPos]
+        rw [hindex, List.getElem_take]
+        exact hpriorFVar
+      have htake : sourceBinders.take position =
+          H.params.fvars ++ H.bindings.motives.fvars ++
+            H.bindings.flatMinors.fvars.take priorPos := by
+        rw [← hpositionEq]
+        dsimp only [sourceBinders]
+        rw [List.take_append, List.take_append]
+        rw [List.take_of_length_le (by
+          simp only [List.length_append]
+          omega : (H.params.fvars ++ H.bindings.motives.fvars).length ≤
+            H.params.fvars.length +
+              H.bindings.motives.fvars.length + priorPos)]
+        rw [List.take_of_length_le (by omega :
+          H.params.fvars.length ≤ H.params.fvars.length +
+            H.bindings.motives.fvars.length + priorPos)]
+        simp only [List.length_append, Nat.add_sub_cancel_left,
+          List.take_take]
+        rw [Nat.min_eq_left (Nat.le_of_lt hpriorPos)]
+      have HprefixCanonical :=
+        LocalContext.mkForall_fvars_forallBinderAt hsourceDecls hsourceNodup
+          position hposition D.index D.userName D.type D.binderInfo D.kind (by
+            rw [hsourceAt]
+            exact D.declaration)
+          (body := (.sort (.zero : Level)))
+      have HrecursorCanonical :=
+        selections.minorBinderAt hselectionNoAlias D
+      dsimp only at HrecursorCanonical
+      rw [← (H.generated.entry owner howner).type] at HrecursorCanonical
+      have hstatsPosition : stats.params.size +
+          (H.recInfos.map (·.motive)).size + priorPos = position := by
+        rw [← H.params.length_fvars,
+          ← H.bindings.motives.length_fvars]
+        exact hpositionEq
+      rw [hstatsPosition] at HrecursorCanonical
+      have hprefixDomain : prefixDomain = D.type.abstractList
+          (H.params.fvars ++ H.bindings.motives.fvars ++
+            H.bindings.flatMinors.fvars.take priorPos) := by
+        rw [← htake]
+        exact Hprefix.unique HprefixCanonical
+      exact hprefixDomain.trans
+        (Hrecursor.unique HrecursorCanonical).symm
+
+/-- The exact semantic context retained by non-contiguous narrowing is
+definitionally equal to the generated recursor's parameter/motive/earlier-
+minor prefix.  This closes the dependent outer-context conversion needed to
+type the canonical rule right-hand side. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPrefixDefEqCtx
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+        scope.fvars = sourceBinders.reverse ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
+          (T.params ++ T.motives ++ T.minors.take minorIdx).reverse := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  rcases A.finalSelectedMinorExactPrefixSource with
+    ⟨T, scope, Hscope, prefixSource, hscope, hprefixSource,
+      hprefixLocal, _HprefixTr, _HprefixType, HprefixTelescope,
+      hselectedLength⟩
+  let fullDomains := T.params ++ T.motives ++ T.minors ++
+    T.indices ++ T.major
+  let selectedDomains := T.params ++ T.motives ++ T.minors.take minorIdx
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hscopeDomainsLength : scope.toCtx.reverse.length = scope.length := by
+    simpa using Hscope.toCtx_length
+  have hfullLength : fullDomains.length =
+      stats.params.size + (H.recInfos.map (·.motive)).size +
+        (H.recInfos.flatMap (·.minors)).size +
+          H.recInfos[owner]!.indices.size + 1 := by
+    simp only [fullDomains, List.length_append, T.params_length,
+      T.motives_length, T.minors_length, T.indices_length, T.major_length]
+  have hselectedArity : selectedDomains.length = sourceBinders.length := by
+    simp only [selectedDomains, sourceBinders, List.length_append,
+      List.length_take]
+    rw [H.params.length_fvars, H.bindings.motives.length_fvars,
+      H.bindings.flatMinors.length_fvars,
+      T.params_length, T.motives_length, T.minors_length]
+  have hscopeArity : sourceBinders.length = scope.length := by
+    calc
+      sourceBinders.length = sourceBinders.reverse.length := by simp
+      _ = scope.fvars.length := congrArg List.length hscope.symm
+      _ = scope.length := Hscope.fvars_length.symm
+  have Hctx := HprefixTelescope.commonPrefixDefEqCtx H.outVEnvWF T.typed
+    scope.toCtx.reverse fullDomains (.sort (.zero : VLevel)) T.result
+    rfl
+    (by simpa [fullDomains, List.append_assoc] using T.target_eq)
+    hscopeDomainsLength hfullLength sourceBinders.length
+    (by omega) (by
+      simp only [T.params_length, T.motives_length, T.minors_length,
+        T.indices_length]
+      omega) (by
+        intro position hposition _hiPrefix _hiRecursor
+          prefixDomain recursorDomain HprefixBinder HrecursorBinder
+        apply A.finalSelectedMinorPrefixBinderEq position hposition
+        · rw [← hprefixLocal]
+          exact HprefixBinder
+        · exact HrecursorBinder)
+  have htakeScope : (scope.toCtx.reverse).take sourceBinders.length =
+      scope.toCtx.reverse := by
+    rw [hscopeArity, ← hscopeDomainsLength]
+    exact List.take_length
+  have htakeFull : fullDomains.take sourceBinders.length =
+      selectedDomains := by
+    rw [← hselectedArity]
+    dsimp only [fullDomains, selectedDomains]
+    rw [show T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major =
+        selectedDomains ++
+          (T.minors.drop minorIdx ++ T.indices ++ T.major) by
+      dsimp only [selectedDomains]
+      rw [← List.take_append_drop minorIdx T.minors]
+      simp [List.append_assoc]]
+    exact List.take_append_length
+  rw [htakeScope, htakeFull] at Hctx
+  exact ⟨T, scope, Hscope, hscope, by simpa using Hctx⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
