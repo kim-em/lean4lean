@@ -67216,6 +67216,118 @@ theorem
       insertedCtx, List.reverse_append, List.append_assoc,
       Nat.add_comm] using Haligned⟩
 
+/-- The selected minor variable is available in the same fixed narrowed
+equation context used by every canonical recursive result.  Besides the
+lookup itself, retain the conversion from the independently checked field
+context: subsequent applications can transport typed terms without silently
+changing their constructor-field telescope. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalNarrowSelectedMinorFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ checkedDomains equationFieldDomains,
+        checkedDomains.length = A.rule.allArgs.size ∧
+        equationFieldDomains =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            checkedDomains.reverse).reverse ∧
+        let inserted := T.motives ++ T.minors
+        let fixedFieldRecent :=
+          liftContextPrefix inserted.length B.fieldDomains.reverse
+        let fixedContext := fixedFieldRecent ++ inserted.reverse ++
+          H.parameterSuffix.parameterDecls.toCtx
+        let later := T.minors.drop (minorIdx + 1)
+        let minorVar := fixedFieldRecent.length + later.length
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+            (equationFieldDomains.reverse ++ inserted.reverse ++
+              T.params.reverse)
+            fixedContext ∧
+          minorIdx < T.minors.length ∧
+          H.outVEnv.HasType Us.length fixedContext (.bvar minorVar)
+            (T.minors[minorIdx]!.liftN
+              (later.length + 1 + fixedFieldRecent.length) 0) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalCheckedNarrowEquationContextAlignment B with
+    ⟨T, checkedDomains, equationFieldDomains, hchecked,
+      hequationFields, Hcontext⟩
+  let inserted := T.motives ++ T.minors
+  let fixedFieldRecent :=
+    liftContextPrefix inserted.length B.fieldDomains.reverse
+  let fixedContext := fixedFieldRecent ++ inserted.reverse ++
+    H.parameterSuffix.parameterDecls.toCtx
+  let later := T.minors.drop (minorIdx + 1)
+  let minorVar := fixedFieldRecent.length + later.length
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  let older := (T.minors.take minorIdx).reverse ++
+    T.motives.reverse ++ H.parameterSuffix.parameterDecls.toCtx
+  have hsplit : T.minors = T.minors.take minorIdx ++
+      T.minors[minorIdx] :: T.minors.drop (minorIdx + 1) := by
+    calc
+      T.minors = T.minors.take (minorIdx + 1) ++
+          T.minors.drop (minorIdx + 1) :=
+        (List.take_append_drop (minorIdx + 1) T.minors).symm
+      _ = (T.minors.take minorIdx ++ [T.minors[minorIdx]]) ++
+          T.minors.drop (minorIdx + 1) := by
+        rw [List.take_append_getElem hminor]
+      _ = T.minors.take minorIdx ++ T.minors[minorIdx] ::
+          T.minors.drop (minorIdx + 1) := by
+        simp [List.append_assoc]
+  have hminorsReverse : T.minors.reverse = later.reverse ++
+      T.minors[minorIdx] :: (T.minors.take minorIdx).reverse := by
+    simpa [later, List.reverse_append, List.append_assoc] using
+      congrArg List.reverse hsplit
+  have hfixedContext : fixedContext =
+      (fixedFieldRecent ++ later.reverse) ++
+        T.minors[minorIdx] :: older := by
+    dsimp only [fixedContext, inserted, older]
+    rw [List.reverse_append, hminorsReverse]
+    simp [List.append_assoc]
+  have hlookup : Lookup
+      ((fixedFieldRecent ++ later.reverse) ++
+        T.minors[minorIdx] :: older)
+      minorVar
+      (T.minors[minorIdx]!.liftN
+        (later.length + 1 + fixedFieldRecent.length) 0) := by
+    have hselected : T.minors[minorIdx] = T.minors[minorIdx]! :=
+      (getElem!_pos T.minors minorIdx hminor).symm
+    rw [← hselected]
+    have Hlookup := Lookup.append_zero
+      (fixedFieldRecent ++ later.reverse)
+      (T.minors[minorIdx]'hminor) older
+    simpa only [minorVar, List.length_append, List.length_reverse,
+      Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hlookup
+  have Hminor : H.outVEnv.HasType Us.length fixedContext
+      (.bvar minorVar)
+      (T.minors[minorIdx]!.liftN
+        (later.length + 1 + fixedFieldRecent.length) 0) := by
+    apply VEnv.HasType.bvar
+    rw [hfixedContext]
+    exact hlookup
+  exact ⟨T, checkedDomains, equationFieldDomains, hchecked,
+    hequationFields, by
+      simpa [inserted, fixedFieldRecent, fixedContext,
+        List.append_assoc] using Hcontext,
+    hminor, Hminor⟩
+
 /-- Restrict the terminal constructor target to the retained rule-wide
 field scope and close those named fields.  The resulting target is typed in
 the exact anonymous field/parameter context used by canonical recursive
