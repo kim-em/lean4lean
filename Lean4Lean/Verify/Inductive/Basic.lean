@@ -5866,6 +5866,48 @@ theorem _root_.Lean4Lean.VLCtx.IsDefEq.drop
     | nil => exact .nil
     | cons H _ _ => exact ih H
 
+/-- A verifier-context conversion preserves the named-lambda shape of every
+selected leading declaration.  Domain expressions may differ, but the free
+variable identifier and dependency metadata are shared by `VLCtx.IsDefEq`.
+-/
+theorem _root_.Lean4Lean.VLCtx.IsDefEq.leftLambdaDeclarations
+    (H : VLCtx.IsDefEq env U left right)
+    (Hright : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      fvars (right.take n)) :
+    List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      fvars (left.take n) := by
+  induction n generalizing left right fvars with
+  | zero =>
+    have hfvars : fvars = [] :=
+      List.eq_nil_of_length_eq_zero
+        (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hright)
+    subst fvars
+    exact .nil
+  | succ n ih =>
+    cases H with
+    | nil =>
+      have hfvars : fvars = [] :=
+        List.eq_nil_of_length_eq_zero
+          (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hright)
+      subst fvars
+      exact .nil
+    | @cons leftTail rightTail ofv leftDecl rightDecl Hctx _ Hdecl =>
+      cases fvars with
+      | nil => cases Hright
+      | cons fv fvars =>
+        simp only [List.take_succ_cons] at Hright ⊢
+        cases Hright with
+        | cons hentry Htail =>
+          rcases hentry with ⟨deps, type, hentry⟩
+          cases hentry
+          cases Hdecl with
+          | vlam Htype =>
+            exact .cons ⟨deps, _, rfl⟩ (ih Hctx Htail)
+
 theorem _root_.Lean4Lean.VLCtx.IsDefEq.bvars
     (H : VLCtx.IsDefEq env U left right) :
     VLCtx.bvars left = VLCtx.bvars right :=
