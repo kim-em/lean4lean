@@ -5762,12 +5762,40 @@ theorem FrontFVLift.sourceDeclarations
       List.take_succ_cons, VLCtx.fvars_cons_some]
     exact List.Forall₂.cons (by exact ⟨deps, indexType, rfl⟩) ih
 
+/-- The expanded side of a retained front consists of the same named lambda
+declarations, with each domain weakened by the accumulated embedding. -/
+theorem FrontFVLift.expandedDeclarations
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      (VLCtx.fvars (expanded.take expandedDomains.length))
+      (expanded.take expandedDomains.length) := by
+  induction H with
+  | zero => exact .nil
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType hdeps H ih =>
+    simp only [List.length_append, List.length_singleton, Nat.add_one,
+      List.take_succ_cons, VLCtx.fvars_cons_some]
+    exact List.Forall₂.cons
+      (by exact ⟨deps, indexType.lift' shift, rfl⟩) ih
+
 /-- `toCtx` sees every declaration in the retained source prefix because
 `withIndex` adds lambdas only. -/
 theorem FrontFVLift.sourceTakenContext
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
     (VLCtx.toCtx (scope.take sourceDomains.length)).reverse =
       sourceDomains := by
+  induction H with
+  | zero => rfl
+  | @cons sourceDomains expandedDomains scope expanded shift fv deps
+      indexType hdeps H ih =>
+    simp [List.take_succ_cons, VLCtx.toCtx, ih, List.reverse_cons]
+
+theorem FrontFVLift.expandedTakenContext
+    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
+    (VLCtx.toCtx (expanded.take expandedDomains.length)).reverse =
+      expandedDomains := by
   induction H with
   | zero => rfl
   | @cons sourceDomains expandedDomains scope expanded shift fv deps
