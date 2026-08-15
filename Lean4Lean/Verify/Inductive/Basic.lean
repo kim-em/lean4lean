@@ -69911,6 +69911,123 @@ theorem
     by simpa [hinstalledSplit] using hinstalledTarget, Hprefix,
     HnarrowInstalledFields, HweakenedNarrow⟩
 
+/-- Apply the selected installed minor to the canonical constructor-field
+variables in the independently replayed field context, while retaining the
+same replay witness's comparison with the fixed narrow runtime frame.  This
+is the synchronized starting point for the recursive-result application
+fold: neither the recursor telescope nor the field representatives can drift
+between the typed application and the runtime alignment. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorFieldApplicationWithNarrowFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+      ∃ narrowFields weakenedFields hypothesisDomains targetResidual,
+        narrowFields.length = A.rule.allArgs.size ∧
+        weakenedFields.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        weakenedFields = liftForallDomains narrowFields Hscope.shift ∧
+        let later := T.minors.drop (minorIdx + 1)
+        let shift := later.length + 1
+        let liftedFields :=
+          (liftContextPrefix shift narrowFields.reverse).reverse
+        let liftedHypotheses :=
+          (liftContextPrefixAt shift narrowFields.length
+            hypothesisDomains.reverse).reverse
+        H.outVEnv.HasType Us.length
+            (liftedFields.reverse ++
+              (T.params ++ T.motives ++ T.minors).reverse)
+            (VExpr.mkApps
+              ((.bvar later.length : VExpr).liftN liftedFields.length 0)
+              (recursorCanonicalVars liftedFields.length))
+            (VExpr.wrapForalls liftedHypotheses
+              (targetResidual.liftN shift
+                (narrowFields.length + hypothesisDomains.length))) ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+            (weakenedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+            B.runtime.expanded.toCtx := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalSelectedMinorFullFieldAlignmentWithNarrowFrame
+      B hpositive with
+    ⟨T, scope, Hscope, narrowFields, weakenedFields, _fullFields,
+      installedFields, installedHypotheses, installedResidual,
+      hnarrowFields, hweakenedFields, _hfullFields, hinstalledFields,
+      hinstalledHypotheses, hweakenedExact, hinstalledTarget, _Hprefix,
+      HnarrowInstalled, HweakenedNarrow⟩
+  rcases A.finalSelectedMinorFieldApplication with
+    ⟨T₁, fieldDomains, hypothesisDomains, targetResidual,
+      hfields, hhypotheses, htarget, Happlication⟩
+  rcases T₁.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams, hmotives, hminors] at htarget Happlication
+  have hfieldDomains : fieldDomains = installedFields := by
+    apply VExpr.wrapForalls_prefix_domains_eq hfields hinstalledFields
+    have hwhole := htarget.symm.trans hinstalledTarget
+    simpa [VExpr.wrapForalls_append] using hwhole
+  subst fieldDomains
+  let base := T.params ++ T.motives ++ T.minors.take minorIdx
+  let remaining := (T.minors.drop minorIdx).reverse
+  have Hremaining : OnCtx (remaining ++ base.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    have Hprefix := T.prefixContext H.outVEnvWF.ordered
+    have hminors := List.take_append_drop minorIdx T.minors
+    simpa [base, remaining, List.reverse_append, List.append_assoc,
+      hminors] using Hprefix
+  have Hfull := VEnv.IsDefEqCtx.insertSameMiddle
+    H.outVEnvWF.ordered narrowFields.reverse installedFields.reverse
+      remaining base.reverse HnarrowInstalled
+      (by simp [hnarrowFields, hinstalledFields]) Hremaining
+  let later := T.minors.drop (minorIdx + 1)
+  let shift := later.length + 1
+  let liftedFields :=
+    (liftContextPrefix shift narrowFields.reverse).reverse
+  let liftedHypotheses :=
+    (liftContextPrefixAt shift narrowFields.length
+      hypothesisDomains.reverse).reverse
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hdrop : T.minors.drop minorIdx =
+      T.minors[minorIdx] :: later := by
+    simpa [later] using List.drop_eq_getElem_cons hminor
+  have Hcontext : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (liftedFields.reverse ++
+        (T.params ++ T.motives ++ T.minors).reverse)
+      (liftContextPrefix shift installedFields.reverse ++
+        (T.params ++ T.motives ++ T.minors).reverse) := by
+    simpa [liftedFields, shift, hdrop, List.reverse_append,
+      List.append_assoc] using Hfull
+  have Htransported := Happlication.defeqDFC H.outVEnvWF.ordered
+    (Hcontext.symm H.outVEnvWF.ordered)
+  exact ⟨T, scope, Hscope, narrowFields, weakenedFields,
+    hypothesisDomains, targetResidual, hnarrowFields, hweakenedFields,
+    hhypotheses, hweakenedExact, by
+      simpa [later, shift, liftedFields, liftedHypotheses,
+        hinstalledFields, hnarrowFields] using Htransported,
+    HweakenedNarrow⟩
+
 /-- Compose the selected minor's transported consumed fields with the
 rule-wide narrowing conversion.  The result relates the literal first-pass
 field suffix to the expanded narrow context used by the canonical recursive
