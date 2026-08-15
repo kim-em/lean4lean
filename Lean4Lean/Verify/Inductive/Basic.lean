@@ -63621,16 +63621,18 @@ theorem
       ∃ O : RecInfoMinorHypothesisTypeOrigin
           hypothesisOrigins.stats hypothesisOrigins.recInfos
           originRoot S.recursiveFields[j]! sourceType,
-      ∃ HS : RecInfoMinorSemanticSource H.recursorWF S,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
       ∃ sourceTarget target,
         S.localIndex = i ∧
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         BindingContextLE S.sourceFullContext H.localContext ∧
         D.type = sourceType ∧
-        TrExprS H.outVEnv Us HS.sourceWF.mlctx.vlctx
+        TrExprS H.outVEnv Us HS.semantic.sourceWF.mlctx.vlctx
           D.type sourceTarget ∧
-        target = sourceTarget.lift' (HS.extension.shift.consN 0) ∧
+        target = sourceTarget.lift'
+          (HS.semantic.extension.shift.consN 0) ∧
         TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx D.type target := by
   dsimp only
   rcases A.finalSelectedMinorHypothesisDeclarationDomainAt j hj with
@@ -63643,20 +63645,20 @@ theorem
       hsourceContext, HminorSemantic, _hfieldDomains, _hhypothesisDomains, _htarget,
       _Hbinder, _Hdomain, _HdomainType, originRoot, sourceType, ⟨O⟩,
       _hconsumed, htype⟩
-  rcases HminorSemantic with ⟨HSAt⟩
-  let HS := HSAt.semantic
-  rcases HS.sourceWF.translatedDeclarationType D with
+  rcases HminorSemantic with ⟨HS⟩
+  rcases HS.semantic.sourceWF.translatedDeclarationType D with
     ⟨sourceTarget, HsourceTarget⟩
   have henv : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
-  have hsourceEnv : HS.sourceWF.venv ≤ H.outVEnv := by
-    rw [← HS.extension.venv_eq]
+  have hsourceEnv : HS.semantic.sourceWF.venv ≤ H.outVEnv := by
+    rw [← HS.semantic.extension.venv_eq]
     exact henv
   have HsourceTargetOut := HsourceTarget.mono hsourceEnv
-  have Htarget := HS.extension.weakTrExprS HsourceTarget
+  have Htarget := HS.semantic.extension.weakTrExprS HsourceTarget
   exact ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, HS,
-    sourceTarget, sourceTarget.lift' (HS.extension.shift.consN 0),
+    sourceTarget,
+    sourceTarget.lift' (HS.semantic.extension.shift.consN 0),
     hlocal, hfields, hhypotheses, hsourceContext, htype,
     HsourceTargetOut, rfl, Htarget.mono henv⟩
 
