@@ -6931,6 +6931,39 @@ theorem FVarNarrowScope.restrictEq
   exact ⟨narrow', hnarrow,
     htr.uniq henv (H.context.symm henv.ordered) hweak⟩
 
+theorem FVarNarrowScope.fullTargetEq
+    (H : FVarNarrowScope env Us scope runtime)
+    (henv : env.WF)
+    (hnarrow : TrExprS env Us scope e narrow')
+    (hfull : TrExpr env Us runtime e full') :
+    env.IsDefEqU Us.length runtime.toCtx
+      (narrow'.lift' H.shift) full' := by
+  rcases hfull with ⟨source', hsource, hsourceEq⟩
+  have hweak : TrExprS env Us H.expanded e
+      (narrow'.lift' H.shift) := by
+    simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
+  have hsourceEq' := hweak.uniq henv H.context hsource
+  exact (hsourceEq'.defeqDFC henv.ordered H.context.defeqCtx).trans
+    henv (H.context.symm henv.ordered).wf.toCtx hsourceEq
+
+/-- Transfer runtime typehood to a translation reconstructed in a
+dependency-selected free-variable scope. -/
+theorem FVarNarrowScope.hasTypeOfFull
+    (H : FVarNarrowScope env Us scope runtime)
+    (henv : env.WF)
+    (hnarrow : TrExprS env Us scope e narrow')
+    (hfull : TrExprS env Us runtime e full')
+    (htype : env.HasType Us.length runtime.toCtx full' (.sort u)) :
+    env.HasType Us.length scope.toCtx narrow' (.sort u) := by
+  have htarget := H.fullTargetEq henv hnarrow
+    (hfull.trExpr henv (H.context.symm henv.ordered).wf)
+  have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
+  have hliftTyped := htype.defeqU_l henv hruntimeWF htarget.symm
+  have hexpanded := hliftTyped.defeqDFC henv.ordered
+    (H.context.defeqCtx.symm henv.ordered)
+  exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+    hexpanded
+
 /-- Retain one newly introduced named lambda.  Its semantic domain is
 obtained by inverse weakening; the executable domain need only be
 definitionally equal after weakening back into the expanded context. -/
@@ -66228,6 +66261,96 @@ theorem
       intro body target Hbody HbodyType
       simpa using HfieldReplay Hbody HbodyType,
     HouterPrefix⟩
+
+/-- Translate the original constructor tail directly in the complete outer
+scope.  This gives a source-stable field telescope over the same generated
+parameter/motive/minor prefix used by the installed selected minor. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOuterConstructorFieldTelescopeFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ outerScope,
+    ∃ Houter : checkInductiveTypes.loopType.FVarNarrowScope
+        H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
+    ∃ outerFields : List VExpr,
+    ∃ outerResidual : VExpr,
+      outerFields.length = A.rule.allArgs.size ∧
+      TrExprS H.outVEnv Us outerScope A.semantics.parameterTail
+        (VExpr.wrapForalls outerFields outerResidual) ∧
+      H.outVEnv.IsType Us.length outerScope.toCtx
+        (VExpr.wrapForalls outerFields outerResidual) ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length [] outerScope.toCtx
+        (T.params ++ T.motives ++ T.minors).reverse := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalOuterPrefixDefEqCtx with
+    ⟨T₁, outerScope, Houter, houterFVars, _houterShift,
+      _houterSource, HouterPrefix⟩
+  rcases T₁.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams, hmotives, hminors] at HouterPrefix
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have hfieldRootEnv : A.semantics.fieldRootContext.venv =
+      H.recursorWF.venv :=
+    A.semantics.fieldsRecent.venv_eq.symm.trans
+      A.semantics.context_venv
+  have Hruntime : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
+      A.semantics.parameterTail A.semantics.parameterTarget := by
+    have Htr := A.semantics.parameterTranslation
+    rw [hfieldRootEnv, A.semantics.fieldRoot_vlctx] at Htr
+    exact Htr.mono hbase
+  have HruntimeType : H.outVEnv.IsType Us.length
+      H.recursorWF.mlctx.vlctx.toCtx A.semantics.parameterTarget := by
+    have Htype := A.semantics.parameterType
+    rw [hfieldRootEnv, A.semantics.fieldRoot_vlctx] at Htype
+    exact Htype.mono hbase
+  have hclosed : Closed A.semantics.parameterTail 0 := by
+    have h := Hruntime.closed
+    rw [H.recursorWF.mlctx.noBV] at h
+    exact h
+  have HtailFVars : A.semantics.parameterTail.FVarsIn
+      (· ∈ outerScope.fvars) := by
+    apply A.semantics.parameterTail_fvars.mono
+    intro fv hfv
+    rw [houterFVars]
+    simp only [List.mem_reverse]
+    exact List.mem_append_left _ (List.mem_append_left _ (by
+      rw [← H.params.exprArrayFVarIds]
+      exact hfv))
+  rcases Houter.restrict H.outVEnvWF Hruntime hclosed HtailFVars with
+    ⟨outerTarget, HouterTail⟩
+  rcases HruntimeType with ⟨u, HruntimeType⟩
+  have HouterType : H.outVEnv.HasType Us.length outerScope.toCtx
+      outerTarget (.sort u) :=
+    Houter.hasTypeOfFull H.outVEnvWF HouterTail Hruntime HruntimeType
+  have Htyped := Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    A.semantics.fieldOpening.telescope HouterTail
+      (⟨u, HouterType⟩ : H.outVEnv.IsType Us.length
+        outerScope.toCtx outerTarget)
+  rcases Htyped.toWrapForalls with
+    ⟨outerFields, _sourceResidual, outerResidual, houterFields,
+      _Hsource, houterTarget, _Hresidual, _HresidualType⟩
+  rw [houterTarget] at HouterTail HouterType
+  exact ⟨outerScope, Houter, outerFields, outerResidual,
+    houterFields, HouterTail, ⟨u, HouterType⟩, HouterPrefix⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
