@@ -67686,6 +67686,64 @@ theorem
       simpa [later, shift, liftedFields, liftedHypotheses,
         hinstalledFields, hindependentFields] using Htransported⟩
 
+/-- Witness-stable specialization of
+`finalSelectedMinorFieldApplicationInIndependentContext`.  The fixed
+equation frame already carries one translated recursor telescope, so the
+independently replayed application must be transported to that exact
+telescope before their field contexts can be compared. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorFieldApplicationInIndependentContextFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ independentFields hypothesisDomains : List VExpr,
+    ∃ targetResidual : VExpr,
+      independentFields.length = A.rule.allArgs.size ∧
+      hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+      let later := T.minors.drop (minorIdx + 1)
+      let shift := later.length + 1
+      let liftedFields :=
+        (liftContextPrefix shift independentFields.reverse).reverse
+      let liftedHypotheses :=
+        (liftContextPrefixAt shift independentFields.length
+          hypothesisDomains.reverse).reverse
+      H.outVEnv.HasType Us.length
+        (liftedFields.reverse ++
+          (T.params ++ T.motives ++ T.minors).reverse)
+        (VExpr.mkApps
+          ((.bvar later.length : VExpr).liftN liftedFields.length 0)
+          (recursorCanonicalVars liftedFields.length))
+        (VExpr.wrapForalls liftedHypotheses
+          (targetResidual.liftN shift
+            (independentFields.length + hypothesisDomains.length))) := by
+  dsimp only
+  rcases A.finalSelectedMinorFieldApplicationInIndependentContext
+      hpositive with
+    ⟨T₁, independentFields, hypothesisDomains, targetResidual,
+      hindependentFields, hhypotheses, Happlication⟩
+  rcases T₁.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams, hmotives, hminors] at Happlication
+  exact ⟨independentFields, hypothesisDomains, targetResidual,
+    hindependentFields, hhypotheses, Happlication⟩
+
 /-- Select the translated minor domain corresponding to recursive-result
 ordinal `j`.  The source binder is retained explicitly, and its abstract
 target is literally the `j`th member of the hypothesis suffix. -/
