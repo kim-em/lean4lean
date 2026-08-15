@@ -1247,6 +1247,34 @@ theorem VEnv.HasType.canonicalApplicationContext
   rw [List.take_length, hexpectedTakeAll] at H
   exact H
 
+/-- Transport a canonical application from an independently reconstructed
+argument context before inverting its declared forall telescope.  Keeping
+the transport separate is useful when the application and the equation
+frame come from different executable passes: only their ambient dependent
+contexts must be related; the canonical application term is unchanged. -/
+theorem VEnv.HasType.canonicalApplicationContext_of_defeqCtx
+    {fn body : VExpr}
+    (henv : env.WF)
+    (actual expected : List VExpr) (outer applicationCtx : List VExpr)
+    (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
+    (hfn : env.HasType uvars outer fn
+      (VExpr.wrapForalls expected body))
+    (hlength : actual.length = expected.length)
+    (happlicationCtx : VEnv.IsDefEqCtx env uvars [] applicationCtx
+      (actual.reverse ++ outer))
+    (happs : VExpr.WF env uvars applicationCtx
+      (VExpr.mkApps (fn.liftN actual.length 0)
+        (recursorCanonicalVars actual.length))) :
+    VEnv.IsDefEqCtx env uvars []
+      (actual.reverse ++ outer) (expected.reverse ++ outer) := by
+  rcases happs with ⟨applicationType, Happlication⟩
+  have Htransported : env.HasType uvars (actual.reverse ++ outer)
+      (VExpr.mkApps (fn.liftN actual.length 0)
+        (recursorCanonicalVars actual.length)) applicationType :=
+    Happlication.defeqDFC henv.ordered happlicationCtx
+  exact VEnv.HasType.canonicalApplicationContext henv actual expected outer
+    hctx hfn hlength ⟨applicationType, Htransported⟩
+
 /-- Version of `canonicalApplicationContext` for a function already weakened
 beneath the actual argument declarations.  This is the form exposed by a
 bound selected minor in the completed equation context: removing the common
