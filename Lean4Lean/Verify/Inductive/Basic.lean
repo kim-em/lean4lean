@@ -36895,6 +36895,46 @@ def BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
       (H.replayTrace fieldBinders).indices)
     (H.outerAbstractedMajor fieldBinders)
 
+theorem BoundGeneratedRecursiveCall.outerAbstractedMotiveApp_eq
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (fieldBinders : List FVarId) :
+    let indices : Array Expr :=
+      H.exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN motives[H.ownerIdx]! indices)
+      (mkAppN field H.localArgs)
+    (motiveApp.abstractList H.arguments_bound.fvars).abstractList
+        fieldBinders H.localArgs.size =
+      H.outerAbstractedMotiveApp fieldBinders := by
+  dsimp only
+  have hlocal :
+      H.localArgs.map (fun e =>
+        e.abstractList H.arguments_bound.fvars) =
+        (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+          Expr.bvar
+            (H.arguments_bound.fvars.length - 1 - i))).toArray := by
+    calc
+      H.localArgs.map (fun e =>
+          e.abstractList H.arguments_bound.fvars) =
+          ((H.arguments_bound.fvars.map Expr.fvar).toArray.map fun e =>
+            e.abstractList H.arguments_bound.fvars) := by
+        exact congrArg (Array.map fun e =>
+          e.abstractList H.arguments_bound.fvars)
+            H.arguments_bound.expressions
+      _ = _ := by
+        simpa using Expr.abstractList_fvarArray
+          H.arguments_bound.fvars 0 H.arguments_bound.nodup
+  simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
+  rw [hlocal]
+  simp [BoundGeneratedRecursiveCall.outerAbstractedMotiveApp,
+    BoundGeneratedRecursiveCall.replayTrace,
+    BoundGeneratedRecursiveCall.outerAbstractedMajor,
+    Array.map_map, Function.comp_def]
+  unfold BoundGeneratedRecursiveCall.abstractedMajor
+  rw [Expr.abstractList_mkAppN]
+  simp [List.map_ofFn, Function.comp_def]
+
 /-- Operational alpha/locality boundary for the higher-order field replay.
 The constructor decision traces ensure that both `loopUArgs` runs inspect the
 same selected ordinal of the same source telescope; simultaneous abstraction
@@ -65631,6 +65671,78 @@ theorem
   · simpa [fieldDomains, hfvars] using Hclosed
   · rw [hctx]
     exact Htyped
+
+/-- Normalized source form of
+`finalFieldAbstractedSemanticMotiveApplication`.  The source now exposes the
+same replay trace consumed by the first/second-pass alignment theorem. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.finalFieldAbstractedNormalizedMotiveApplication
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+        ∃ (localDomains fieldDomains : List VExpr),
+          localDomains.length = F.semantic.generated.localArgs.size ∧
+          fieldDomains.length = A.rule.allArgs.size ∧
+          let target := VExpr.app
+            (VExpr.mkApps binding.motiveTarget evidence.indices)
+            F.semantic.appliedFieldTarget
+          TrExprS H.outVEnv Us
+              (abstractForallContext (fieldDomains ++ localDomains)
+                A.semantics.fieldRootContext.mlctx.vlctx)
+              (F.semantic.generated.outerAbstractedMotiveApp
+                A.rule.all_args_bound.fvars) target ∧
+            H.outVEnv.HasType Us.length
+              (abstractForallContext (fieldDomains ++ localDomains)
+                A.semantics.fieldRootContext.mlctx.vlctx).toCtx
+              target (.sort evidence.resultLevel) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  rcases F.finalFieldAbstractedSemanticMotiveApplication with
+    ⟨binding, evidence, localDomains, fieldDomains,
+      hlocal, hfields, Hsource, Htyped⟩
+  have howner : selectedOwner < H.recInfos.size := by
+    simpa [selectedOwner, H.generated.length] using F.entry_lt
+  have hsource := F.semantic.generated.outerAbstractedMotiveApp_eq
+    A.rule.all_args_bound.fvars
+  have hselectedMotive :
+      (H.recInfos.map (·.motive))[selectedOwner]! =
+        H.recInfos[selectedOwner]!.motive := by
+    rw [getElem!_pos (H.recInfos.map (·.motive)) selectedOwner
+      (by simpa using howner),
+      getElem!_pos H.recInfos selectedOwner howner]
+    simp
+  rw [hselectedMotive] at hsource
+  have hsource' :
+      ((Expr.app
+        (mkAppN H.recInfos[selectedOwner]!.motive
+          F.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+        (mkAppN A.rule.recursiveArgs[j]
+          F.semantic.generated.localArgs)).abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.all_args_bound.fvars localDomains.length =
+        F.semantic.generated.outerAbstractedMotiveApp
+          A.rule.all_args_bound.fvars := by
+    simpa [selectedOwner, hlocal] using hsource
+  rw [hsource'] at Hsource
+  exact ⟨binding, evidence, localDomains, fieldDomains,
+    hlocal, hfields, Hsource, Htyped⟩
 
 /-- Pointwise field-closed form of the semantic recursive index spine.  Each
 index is first closed over the call-local higher-order arguments and then
