@@ -6378,6 +6378,46 @@ def NarrowRuntimeScope.withIndex
     checkPositivityStep.VLCtx.NoIndConsts.cons
       (H.noIndConsts names) rfl
 
+/-- Source-domain provenance for a dependency-closed narrowed context.
+The context is newest first.  At each retained declaration, its original
+Lean domain is translated in the already retained older tail; this is the
+datum needed to reconstruct an independent closed forall telescope rather
+than merely closing a later expression over anonymous target domains. -/
+inductive FVarNarrowSources (env : VEnv) (Us : List Name) :
+    VLCtx → Type
+  | nil : FVarNarrowSources env Us []
+  | cons
+      (tail : FVarNarrowSources env Us scope)
+      (name : Name) (binderInfo : BinderInfo)
+      (domain : Expr)
+      (translation : TrExprS env Us scope domain target) :
+      FVarNarrowSources env Us
+        ((some (fv, deps), .vlam target) :: scope)
+
+def FVarNarrowSources.mono {env env' : VEnv} (henv : env ≤ env') :
+    FVarNarrowSources env Us scope → FVarNarrowSources env' Us scope
+  | .nil => .nil
+  | .cons tail name binderInfo domain translation =>
+    .cons (tail.mono henv) name binderInfo domain
+      (translation.mono henv)
+
+/-- Close a body through all retained source declarations.  Each newest
+free variable is abstracted into the body before its forall is formed; the
+recursive call then abstracts the older variables through both that domain
+and body. -/
+def FVarNarrowSources.closeSource
+    (H : FVarNarrowSources env Us scope) (body : Expr) : Expr :=
+  match H with
+  | .nil => body
+  | .cons (fv := fv) tail name binderInfo domain _ =>
+    tail.closeSource (.forallE name domain
+      (body.abstract1 fv) binderInfo)
+
+@[simp] theorem FVarNarrowSources.closeSource_nil
+    (body : Expr) :
+    (FVarNarrowSources.nil : FVarNarrowSources env Us []).closeSource body =
+      body := rfl
+
 /-- A dependency-closed semantic subcontext of an executable all-lambda
 context.  Unlike `NarrowRuntimeScope`, this deliberately has no contiguous
 `front`: callers may retain one named local, skip the next, and retain a
@@ -6396,6 +6436,7 @@ structure FVarNarrowScope (env : VEnv) (Us : List Name)
     (fun fv entry => ∃ deps type,
       entry = (some (fv, deps), .vlam type))
     scope.fvars scope
+  sources : FVarNarrowSources env Us scope
 
 def FVarNarrowScope.mono {env env' : VEnv} (henv : env ≤ env')
     (H : FVarNarrowScope env Us scope runtime) :
@@ -6407,11 +6448,34 @@ def FVarNarrowScope.mono {env env' : VEnv} (henv : env ≤ env')
   upset := H.upset
   noBV := H.noBV
   declarations := H.declarations
+  sources := H.sources.mono henv
 
 theorem FVarNarrowScope.scopeWF
     (H : FVarNarrowScope env Us scope runtime)
     (henv : env.WF) : scope.WF env Us.length :=
   H.lift.wf henv H.context.wf
+
+theorem FVarNarrowScope.fvars_length
+    (H : FVarNarrowScope env Us scope runtime) :
+    scope.fvars.length = scope.length :=
+  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.declarations
+
+private theorem fvarNarrowDeclarations_toCtx_length
+    {fvars : List FVarId} {scope : VLCtx}
+    (H : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type)) fvars scope) :
+    scope.toCtx.length = scope.length := by
+  induction H with
+  | nil => rfl
+  | cons h _ ih =>
+    rcases h with ⟨deps, type, rfl⟩
+    simp [VLCtx.toCtx, ih]
+
+theorem FVarNarrowScope.toCtx_length
+    (H : FVarNarrowScope env Us scope runtime) :
+    scope.toCtx.length = scope.length :=
+  fvarNarrowDeclarations_toCtx_length H.declarations
 
 def FVarNarrowScope.nil : FVarNarrowScope env Us [] [] where
   expanded := []
@@ -6421,6 +6485,7 @@ def FVarNarrowScope.nil : FVarNarrowScope env Us [] [] where
   upset := trivial
   noBV := rfl
   declarations := .nil
+  sources := .nil
 
 /-- A translated local context is dependency-closed for `P` whenever every
 selected concrete declaration records only dependencies satisfying `P`. -/
@@ -6456,6 +6521,9 @@ def FVarNarrowScope.withIndex
     (hnewRuntime : VLCtx.WF env Us.length
       ((some (fv, deps), .vlam runtimeType) :: runtime))
     (hdeps : deps ⊆ scope.fvars)
+    (sourceName : Name) (sourceBinderInfo : BinderInfo)
+    (sourceType : Expr)
+    (hsource : TrExprS env Us scope sourceType indexType)
     (hdomain : env.IsDefEq Us.length H.expanded.toCtx
       (indexType.lift' H.shift) runtimeType (.sort u)) :
     FVarNarrowScope env Us
@@ -6484,6 +6552,7 @@ def FVarNarrowScope.withIndex
       exact List.mem_cons_of_mem _ (hdeps hdep)
   noBV := H.noBV
   declarations := .cons ⟨deps, indexType, rfl⟩ H.declarations
+  sources := .cons H.sources sourceName sourceBinderInfo sourceType hsource
 
 /-- Skip one newly introduced named lambda while preserving a previously
 selected, possibly non-contiguous semantic scope. -/
@@ -6514,6 +6583,7 @@ def FVarNarrowScope.skipIndex
     exact False.elim (hskip hmem)
   noBV := H.noBV
   declarations := H.declarations
+  sources := H.sources
 
 /-- Narrow an executable all-lambda context to exactly the free variables
 selected by a dependency-closed predicate.  Retained source domains are
@@ -6563,7 +6633,8 @@ theorem MLCtxOnlyLams.narrowFVars
       have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
           (narrowType.lift' HtailScope.shift) type' (.sort u) :=
         HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
-      let Hnext := HtailScope.withIndex HruntimeWF hdeps Hdomain
+      let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
+        HnarrowType Hdomain
       exact ⟨_, Hnext, by
         simp [Hnext, htailScopeFVars, hP]⟩
     · have hskip : fv ∉ tailScope.fvars := by
@@ -24193,6 +24264,73 @@ theorem Expr.ForallTelescopeTypeTranslation.ofTrExprS
     cases Htr with
     | forallE HdomType HbodyType Hdom Hbody =>
       exact .cons Hdom HdomType (ih Hbody HbodyType)
+
+/-- Translate a source body while closing every retained named declaration.
+The target is the ordinary anonymous forall telescope over the narrowed
+semantic domains, in oldest-first order. -/
+theorem checkInductiveTypes.loopType.FVarNarrowSources.closeTranslation
+    (H : checkInductiveTypes.loopType.FVarNarrowSources env Us scope)
+    (henv : env.WF) (Hscope : scope.WF env Us.length)
+    (Hbody : TrExprS env Us scope body target)
+    (HbodyType : env.IsType Us.length scope.toCtx target) :
+    TrExprS env Us [] (H.closeSource body)
+      (VExpr.wrapForalls scope.toCtx.reverse target) := by
+  induction H generalizing body target with
+  | nil =>
+    change TrExprS env Us [] body target
+    exact Hbody
+  | @cons scope domainTarget fv deps tail name binderInfo domain Hdomain ih =>
+    have HtailWF : scope.WF env Us.length := Hscope.1
+    have HdomainType : env.IsType Us.length scope.toCtx domainTarget := by
+      exact Hscope.2.2
+    have W := abstractForallContext.abstractHead
+      ([] : List VExpr) scope fv deps domainTarget
+    have HbodyAbstract : TrExprS env Us
+        ((none, .vlam domainTarget) :: scope)
+        (body.abstract1 fv) target := by
+      simpa [abstractForallContext] using Hbody.abstract W
+    have Hforall : TrExprS env Us scope
+        (.forallE name domain (body.abstract1 fv) binderInfo)
+        (.forallE domainTarget target) :=
+      .forallE HdomainType HbodyType Hdomain HbodyAbstract
+    have HforallType : env.IsType Us.length scope.toCtx
+        (.forallE domainTarget target) :=
+      VEnv.IsType.forallE HdomainType HbodyType
+    have Hclosed := ih HtailWF Hforall HforallType
+    simpa [FVarNarrowSources.closeSource, VLCtx.toCtx,
+      List.reverse_cons, VExpr.wrapForalls] using Hclosed
+
+/-- Close the retained source declarations around a trivial sort.  This is
+an independent translation of the complete narrowed prefix, rather than a
+translation of only a later expression under that prefix. -/
+theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTranslation
+    (H : checkInductiveTypes.loopType.FVarNarrowScope
+      env Us scope runtime)
+    (henv : env.WF) :
+    TrExprS env Us []
+      (H.sources.closeSource (.sort (.zero : Level)))
+      (VExpr.wrapForalls scope.toCtx.reverse
+        (.sort (.zero : VLevel))) ∧
+    env.IsType Us.length []
+      (VExpr.wrapForalls scope.toCtx.reverse
+        (.sort (.zero : VLevel))) := by
+  have HscopeWF := H.scopeWF henv
+  have hzero : VLevel.ofLevel Us (.zero : Level) =
+      some (.zero : VLevel) := rfl
+  have Hsort : TrExprS env Us scope (.sort (.zero : Level))
+      (.sort (.zero : VLevel)) := .sort hzero
+  have HsortType : env.IsType Us.length scope.toCtx
+      (.sort (.zero : VLevel)) :=
+    ⟨.succ .zero, VEnv.HasType.sort (.of_ofLevel hzero)⟩
+  have Hclosed := H.sources.closeTranslation henv HscopeWF
+    Hsort HsortType
+  have HtargetType : env.IsType Us.length []
+      (VExpr.wrapForalls scope.toCtx.reverse
+        (.sort (.zero : VLevel))) := by
+    apply VEnv.IsType.wrapForalls
+    · simpa using HscopeWF.toCtx
+    · simpa using HsortType
+  exact ⟨Hclosed, HtargetType⟩
 
 private theorem List.exists_append_five_of_length_eq
     (xs : List α) (a b c d e : Nat)
@@ -63668,6 +63806,79 @@ theorem
   exact ⟨T, D, O, S, scope, HscopeOut, narrowTarget, hscope,
     Hnarrow, Hclosed, HscopeOut.abstractAllWF H.outVEnvWF,
     Hdomain, HdomainType⟩
+
+/-- Reconstruct the complete source telescope of the exact selected prefix.
+Its abstract domains are precisely the non-contiguous narrowed context and
+its arity is precisely the generated parameter/motive/earlier-minor prefix.
+This is the binder-by-binder comparison input missing from the earlier
+whole-domain closing theorem. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorExactPrefixSource
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+      ∃ prefixSource,
+        scope.fvars = sourceBinders.reverse ∧
+        prefixSource = Hscope.sources.closeSource
+          (.sort (.zero : Level)) ∧
+        TrExprS H.outVEnv Us [] prefixSource
+          (VExpr.wrapForalls scope.toCtx.reverse
+            (.sort (.zero : VLevel))) ∧
+        H.outVEnv.IsType Us.length []
+          (VExpr.wrapForalls scope.toCtx.reverse
+            (.sort (.zero : VLevel))) ∧
+        scope.toCtx.reverse.length =
+          (T.params ++ T.motives ++ T.minors.take minorIdx).length := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  rcases A.finalSelectedMinorExactClosedDomain with
+    ⟨T, _D, _O, _S, scope, Hscope, _narrowTarget, hscope,
+      _Hnarrow, _Hclosed, _HscopeWF, _Hdomain, _HdomainType⟩
+  rcases Hscope.closedSortTranslation H.outVEnvWF with
+    ⟨Hprefix, HprefixType⟩
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hprefixLength : scope.toCtx.reverse.length =
+      (T.params ++ T.motives ++ T.minors.take minorIdx).length := by
+    calc
+      scope.toCtx.reverse.length = scope.length := by
+        simpa using Hscope.toCtx_length
+      _ = scope.fvars.length := Hscope.fvars_length.symm
+      _ = sourceBinders.reverse.length := congrArg List.length hscope
+      _ = sourceBinders.length := by simp
+      _ = (T.params ++ T.motives ++ T.minors.take minorIdx).length := by
+        simp only [sourceBinders, List.length_append, List.length_take]
+        rw [H.params.length_fvars, H.bindings.motives.length_fvars,
+          H.bindings.flatMinors.length_fvars,
+          T.params_length, T.motives_length, T.minors_length]
+        simp [Nat.min_eq_left (Nat.le_of_lt hminor)]
+  exact ⟨T, scope, Hscope,
+    Hscope.sources.closeSource (.sort (.zero : Level)), hscope, rfl,
+    Hprefix, HprefixType, hprefixLength⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
