@@ -30267,6 +30267,16 @@ structure RecInfoMinorSemanticSource
   fieldsRecent : RecursorRecentBoundFVarArray rootWF terminalWF S.fields
   hypothesesRecent : RecursorRecentBoundFVarArray terminalWF sourceWF
     S.hypotheses
+  terminalTarget : VExpr
+  terminalTranslation : TrExprS terminalWF.venv recLparams
+    terminalWF.mlctx.vlctx traversal.terminal terminalTarget
+  terminalType : terminalWF.venv.IsType recLparams.length
+    terminalWF.mlctx.vlctx.toCtx terminalTarget
+  motiveTarget : VExpr
+  motiveTranslation : TrExprS sourceWF.venv recLparams
+    sourceWF.mlctx.vlctx S.motiveApp motiveTarget
+  motiveType : sourceWF.venv.IsType recLparams.length
+    sourceWF.mlctx.vlctx.toCtx motiveTarget
 
 def RecInfoMinorSemanticSource.mono
     {root current : AddInductive.Context} {recLparams : List Name}
@@ -30284,6 +30294,12 @@ def RecInfoMinorSemanticSource.mono
   terminalWF := HS.terminalWF
   fieldsRecent := HS.fieldsRecent
   hypothesesRecent := HS.hypothesesRecent
+  terminalTarget := HS.terminalTarget
+  terminalTranslation := HS.terminalTranslation
+  terminalType := HS.terminalType
+  motiveTarget := HS.motiveTarget
+  motiveTranslation := HS.motiveTranslation
+  motiveType := HS.motiveType
 
 /-- Every retained minor source carries its exact semantic extension into the
 current recursor context.  Unlike `BindingContextLE`, this invariant is strong
@@ -42825,8 +42841,22 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
             hsourceFamily)
       (by simp [RecInfoMinorTypeShape.HasHypothesisTypeOrigins])
-      ⟨⟨Rout, RecursorContextExtension.refl Rout, traversal, rfl,
-        R, Rargs, HfieldsRecent, HhypothesesRecent⟩⟩
+      ⟨{
+        sourceWF := Rout
+        extension := RecursorContextExtension.refl Rout
+        traversal := traversal
+        traversal_eq := rfl
+        rootWF := R
+        terminalWF := Rargs
+        fieldsRecent := HfieldsRecent
+        hypothesesRecent := HhypothesesRecent
+        terminalTarget := terminalTarget
+        terminalTranslation := Hterminal
+        terminalType := HterminalType
+        motiveTarget := motiveTarget.lift'
+          (HhypothesesRecent.contextExtension.shift.consN 0)
+        motiveTranslation := HmotiveAt
+        motiveType := HmotiveTypeAt }⟩
       ⟨traversal, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE,
         HhypothesesRecent.contextExtension.contextLE,
         BindingContextLE.refl outCtx⟩ ?_
