@@ -61941,6 +61941,10 @@ theorem
             traversal.fields = S.fields ∧
             traversal.recursiveFields = S.recursiveFields ∧
             traversal.recursivePositions = A.semantics.recursivePositions ∧
+            S.recursiveFields[j]! =
+              S.fields[A.semantics.recursivePositions[j]!]! ∧
+            A.rule.recursiveArgs[j]! =
+              A.rule.allArgs[A.semantics.recursivePositions[j]!]! ∧
             S.localIndex = i ∧
             S.fields.size = A.rule.allArgs.size ∧
             S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -61998,6 +62002,20 @@ theorem
   rcases HtypeOrigin with ⟨O⟩
   have hdeclarationTypeExact : D.type = sourceType :=
     hdeclarationType.trans O.consumeTypeAnnotations_eq_self
+  have hjRecursiveFields : j < S.recursiveFields.size := by
+    rw [← S.hypotheses_size, hsourceHypotheses]
+    exact hj
+  have hjTraversal : j < traversal.recursiveFields.size := by
+    rw [htraversalRecursiveFields]
+    exact hjRecursiveFields
+  have hsourceSelected : S.recursiveFields[j]! =
+      S.fields[A.semantics.recursivePositions[j]!]! := by
+    have Hselected := traversal.decisions.selected_at j hjTraversal
+    rw [htraversalRecursiveFields, htraversalFields, hpositions] at Hselected
+    exact Hselected.2
+  have hruleSelected : A.rule.recursiveArgs[j]! =
+      A.rule.allArgs[A.semantics.recursivePositions[j]!]! :=
+    (A.semantics.decisions.selected_at j hj).2
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take
       (recursorMinorOffset indTypes owner + i)
@@ -62020,6 +62038,7 @@ theorem
     hypothesisDomains, targetResidual, D,
     hhypothesisOrigins, hhypothesisStats, htraversal,
     htraversalFields, htraversalRecursiveFields, hpositions,
+    hsourceSelected, hruleSelected,
     hlocal, hsourceFields, hsourceHypotheses, hfields, hhypotheses,
     htarget, HdeclarationBinder', Hdomain, HdomainType,
     originRoot, sourceType, ⟨O⟩, hdeclarationType,
