@@ -35477,6 +35477,78 @@ structure RecInfoHypothesisTypeOrigin
       (mkAppN field args)
     type = current.lctx.mkForall args motiveApp
 
+/-- Pointwise source origins for the prefix of recursive fields already
+processed by `loopU`.  Each installed declaration is tied to the unconsumed
+type returned by the corresponding `loopUArgs` run. -/
+structure RecInfoHypothesisTypeOrigins
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (c : AddInductive.Context) (fields hypotheses : Array Expr) where
+  size_le : hypotheses.size ≤ fields.size
+  entry : ∀ j (hj : j < hypotheses.size),
+    ∃ root sourceType,
+      Nonempty (RecInfoHypothesisTypeOrigin
+        stats recInfos root fields[j]! sourceType) ∧
+      ∃ D : BoundFVarDeclarationAt c hypotheses j,
+        D.type = sourceType.consumeTypeAnnotations
+
+def RecInfoHypothesisTypeOrigins.empty
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (c : AddInductive.Context) (fields : Array Expr) :
+    RecInfoHypothesisTypeOrigins stats recInfos c fields #[] where
+  size_le := by simp
+  entry := by intro j hj; simp at hj
+
+def RecInfoHypothesisTypeOrigins.pushCurrent
+    (H : RecInfoHypothesisTypeOrigins stats recInfos c fields hypotheses)
+    (Hc : BindingContextWF c)
+    (name : Name) (sourceType : Expr) (bi : BinderInfo)
+    (hnext : hypotheses.size < fields.size)
+    (Horigin : Nonempty (RecInfoHypothesisTypeOrigin stats recInfos root
+      fields[hypotheses.size]! sourceType)) :
+    RecInfoHypothesisTypeOrigins stats recInfos
+      { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          sourceType.consumeTypeAnnotations bi }
+      fields (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) := by
+  let ty := sourceType.consumeTypeAnnotations
+  let c' : AddInductive.Context := { c with
+    ngen := c.ngen.next
+    lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+  let hstep := BindingContextLE.withLocalDecl c Hc name ty bi
+  refine {
+    size_le := by simpa using Nat.succ_le_of_lt hnext
+    entry := ?_ }
+  intro j hj
+  by_cases hilast : j = hypotheses.size
+  · subst j
+    let D : BoundFVarDeclarationAt c'
+        (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) hypotheses.size := {
+      inBounds := by simp
+      fvar := ⟨c.ngen.curr⟩
+      expression := by simp
+      member := by
+        simp only [c', LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+          List.map_cons, LocalDecl.fvarId, List.mem_cons]
+        exact Or.inl trivial
+      index := c.lctx.decls.size
+      userName := name
+      type := ty
+      binderInfo := bi
+      kind := .default
+      declaration := by
+        simp [c', LocalContext.mkLocalDecl, LocalContext.find?,
+          Hc.wf.map_wf.find?_insert] }
+    exact ⟨root, sourceType, Horigin, D, rfl⟩
+  · have hjOld : j < hypotheses.size := by
+      have : j < hypotheses.size + 1 := by simpa using hj
+      omega
+    rcases H.entry j hjOld with ⟨oldRoot, oldType, Hold, D, htype⟩
+    exact ⟨oldRoot, oldType, Hold,
+      (D.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep, htype⟩
+
 /-- Close a semantically typed motive application over the exact
 higher-order suffix traversed by `loopUArgs`.  This is the pointwise bridge
 needed by the second `mkRecInfos` pass: the caller supplies only the typing of
