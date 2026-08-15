@@ -61639,8 +61639,13 @@ theorem
       ∃ S : RecInfoMinorTypeShape,
         ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
             S.sourceFullContext S.recursiveFields S.hypotheses,
+        ∃ traversal : RecInfoMinorTraversalShape,
         S.hypothesis_type_origins = some hypothesisOrigins ∧
         hypothesisOrigins.stats = stats ∧
+        S.traversal = some traversal ∧
+        traversal.fields = S.fields ∧
+        traversal.recursiveFields = S.recursiveFields ∧
+        traversal.recursivePositions = A.semantics.recursivePositions ∧
         S.localIndex = i ∧
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -61656,8 +61661,8 @@ theorem
   rcases A.finalSelectedMinorShape with
     ⟨T, D, _O, S, horigin, hlocal, _hconstructors, hconstructor,
       hfieldCount, hypothesisOrigins, hhypothesisOrigins,
-      hhypothesisStats, traversal, _htraversal, htraversalConstructor,
-      _htraversalFields, htraversalRecursiveFields, hstats, _hrootContext,
+      hhypothesisStats, traversal, htraversal, htraversalConstructor,
+      htraversalFields, htraversalRecursiveFields, hstats, _hrootContext,
       hterminalContext, _hsourceContext, Hdomain, HdomainType⟩
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
@@ -61705,7 +61710,9 @@ theorem
       T.minors[recursorMinorOffset indTypes owner + i]! := by
     rw [horigin]
     exact Hdomain
-  exact ⟨T, S, hypothesisOrigins, hhypothesisOrigins, hhypothesisStats,
+  exact ⟨T, S, hypothesisOrigins, traversal, hhypothesisOrigins,
+    hhypothesisStats, htraversal, htraversalFields,
+    htraversalRecursiveFields, hpositions,
     hlocal, hfieldCount, hhypotheses,
     Expr.ForallTelescopeTypeTranslation.ofTrExprS
       Habstract Hdomain' HdomainType⟩
@@ -61737,9 +61744,14 @@ theorem
       ∃ S : RecInfoMinorTypeShape,
         ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
             S.sourceFullContext S.recursiveFields S.hypotheses,
+        ∃ traversal : RecInfoMinorTraversalShape,
         ∃ fieldDomains hypothesisDomains sourceResidual targetResidual,
           S.hypothesis_type_origins = some hypothesisOrigins ∧
           hypothesisOrigins.stats = stats ∧
+          S.traversal = some traversal ∧
+          traversal.fields = S.fields ∧
+          traversal.recursiveFields = S.recursiveFields ∧
+          traversal.recursivePositions = A.semantics.recursivePositions ∧
           S.localIndex = i ∧
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -61762,7 +61774,9 @@ theorem
             T.minors[minorIdx]! := by
   dsimp only
   rcases A.finalSelectedMinorTypedTelescope with
-    ⟨T, S, hypothesisOrigins, hhypothesisOrigins, hhypothesisStats,
+    ⟨T, S, hypothesisOrigins, traversal,
+      hhypothesisOrigins, hhypothesisStats, htraversal,
+      htraversalFields, htraversalRecursiveFields, hpositions,
       hlocal, hsourceFields, hsourceHypotheses, Htyped⟩
   rcases Htyped.toWrapForalls with
     ⟨domains, sourceResidual, targetResidual, hlength,
@@ -61778,8 +61792,10 @@ theorem
   have hdomains : domains = fieldDomains ++ hypothesisDomains := by
     exact (List.take_append_drop A.rule.allArgs.size domains).symm
   rw [hdomains] at htarget
-  exact ⟨T, S, hypothesisOrigins, fieldDomains, hypothesisDomains, sourceResidual,
-    targetResidual, hhypothesisOrigins, hhypothesisStats,
+  exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
+    hypothesisDomains, sourceResidual, targetResidual,
+    hhypothesisOrigins, hhypothesisStats, htraversal,
+    htraversalFields, htraversalRecursiveFields, hpositions,
     hlocal, hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hsource, Htyped⟩
 
@@ -61810,9 +61826,14 @@ theorem
       ∃ S : RecInfoMinorTypeShape,
         ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
             S.sourceFullContext S.recursiveFields S.hypotheses,
+        ∃ traversal : RecInfoMinorTraversalShape,
         ∃ fieldDomains hypothesisDomains targetResidual sourceDomain,
           S.hypothesis_type_origins = some hypothesisOrigins ∧
           hypothesisOrigins.stats = stats ∧
+          S.traversal = some traversal ∧
+          traversal.fields = S.fields ∧
+          traversal.recursiveFields = S.recursiveFields ∧
+          traversal.recursivePositions = A.semantics.recursivePositions ∧
           S.localIndex = i ∧
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -61840,9 +61861,11 @@ theorem
             hypothesisDomains[j]! := by
   dsimp only
   rcases A.finalSelectedMinorTypedSplit with
-    ⟨T, S, hypothesisOrigins, fieldDomains, hypothesisDomains,
+    ⟨T, S, hypothesisOrigins, traversal, fieldDomains, hypothesisDomains,
       _sourceResidual, targetResidual, hhypothesisOrigins,
-      hhypothesisStats, hlocal, hsourceFields, hsourceHypotheses,
+      hhypothesisStats, htraversal, htraversalFields,
+      htraversalRecursiveFields, hpositions,
+      hlocal, hsourceFields, hsourceHypotheses,
       hfields, hhypotheses, htarget, _Hsource, Htyped⟩
   let position := A.rule.allArgs.size + j
   have hposition : position <
@@ -61873,8 +61896,10 @@ theorem
     simpa [hfields] using
       List.getElem_append_right fieldDomains hypothesisDomains j hjHypothesis
   rw [hselected] at Hdomain HdomainType
-  exact ⟨T, S, hypothesisOrigins, fieldDomains, hypothesisDomains, targetResidual,
-    sourceDomain, hhypothesisOrigins, hhypothesisStats,
+  exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
+    hypothesisDomains, targetResidual, sourceDomain,
+    hhypothesisOrigins, hhypothesisStats, htraversal,
+    htraversalFields, htraversalRecursiveFields, hpositions,
     hlocal, hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
 
@@ -61906,11 +61931,16 @@ theorem
       ∃ S : RecInfoMinorTypeShape,
         ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
             S.sourceFullContext S.recursiveFields S.hypotheses,
+        ∃ traversal : RecInfoMinorTraversalShape,
         ∃ fieldDomains hypothesisDomains targetResidual,
           ∃ D : BoundFVarDeclarationAt
               S.sourceFullContext S.hypotheses j,
             S.hypothesis_type_origins = some hypothesisOrigins ∧
             hypothesisOrigins.stats = stats ∧
+            S.traversal = some traversal ∧
+            traversal.fields = S.fields ∧
+            traversal.recursiveFields = S.recursiveFields ∧
+            traversal.recursivePositions = A.semantics.recursivePositions ∧
             S.localIndex = i ∧
             S.fields.size = A.rule.allArgs.size ∧
             S.hypotheses.size = A.rule.recursiveArgs.size ∧
@@ -61950,9 +61980,11 @@ theorem
               D.type = sourceType := by
   dsimp only
   rcases A.finalSelectedMinorHypothesisDomainAt j hj with
-    ⟨T, S, hypothesisOrigins, fieldDomains, hypothesisDomains,
+    ⟨T, S, hypothesisOrigins, traversal, fieldDomains, hypothesisDomains,
       targetResidual, sourceDomain, hhypothesisOrigins,
-      hhypothesisStats, hlocal, hsourceFields, hsourceHypotheses,
+      hhypothesisStats, htraversal, htraversalFields,
+      htraversalRecursiveFields, hpositions,
+      hlocal, hsourceFields, hsourceHypotheses,
       hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
   have hjSource : j < S.hypotheses.size := by
     rw [hsourceHypotheses]
@@ -61984,8 +62016,10 @@ theorem
   have hsourceDomain : sourceDomain = declarationDomain :=
     Hbinder.unique HdeclarationBinder'
   rw [hsourceDomain] at Hdomain
-  exact ⟨T, S, hypothesisOrigins, fieldDomains, hypothesisDomains,
-    targetResidual, D, hhypothesisOrigins, hhypothesisStats,
+  exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
+    hypothesisDomains, targetResidual, D,
+    hhypothesisOrigins, hhypothesisStats, htraversal,
+    htraversalFields, htraversalRecursiveFields, hpositions,
     hlocal, hsourceFields, hsourceHypotheses, hfields, hhypotheses,
     htarget, HdeclarationBinder', Hdomain, HdomainType,
     originRoot, sourceType, ⟨O⟩, hdeclarationType,
