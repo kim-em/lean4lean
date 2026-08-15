@@ -65650,7 +65650,18 @@ theorem
           target ∧
         H.outVEnv.HasType Us.length
           F.semantic.current_context.mlctx.vlctx.toCtx target
-          (.sort evidence.resultLevel) := by
+          (.sort evidence.resultLevel) ∧
+        TrExprS H.outVEnv Us A.semantics.context.mlctx.vlctx
+          (F.semantic.generated.current.lctx.mkForall
+            F.semantic.generated.localArgs
+            (Expr.app
+              (mkAppN H.recInfos[selectedOwner]!.motive sourceIndices)
+              sourceMajor))
+          (VExpr.wrapForalls
+            (MLCtxForallDomains F.semantic.current_context.mlctx
+              F.semantic.generated.localArgs.size
+              F.semantic.recent.size_le)
+            target) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.semanticMotiveTelescopeEvidence with ⟨binding, ⟨evidence⟩⟩
@@ -65676,19 +65687,29 @@ theorem
   have Happ := evidence.applyMajorTypedExact
     F.semantic.applied_field_translation HmajorType
   rcases Happ with ⟨Htr, Htyped⟩
+  have Hforall := F.semantic.recent.mkForallExact Htr
+    (⟨evidence.resultLevel, Htyped⟩ :
+      F.semantic.current_context.venv.IsType Us.length
+        F.semantic.current_context.mlctx.vlctx.toCtx _)
   have hsemantic : F.semantic.current_context.venv =
       R.declared.venvCtors :=
     F.semantic.recent.venv_eq.trans
       (A.semantics.context_venv.trans
         (H.recursorEnv.trans R.declared.contextVEnv))
+  have hsemanticRoot : A.semantics.context.venv =
+      R.declared.venvCtors :=
+    A.semantics.context_venv.trans
+      (H.recursorEnv.trans R.declared.contextVEnv)
   have Hindices := evidence.indices_translation
   rw [hsemantic] at Hindices
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
     (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
   rw [hsemantic] at Htr Htyped
+  rw [hsemanticRoot] at Hforall
   exact ⟨binding, evidence, hlength, HindicesFinal,
     Htr.mono H.installed.le,
-    Htyped.mono H.installed.le⟩
+    Htyped.mono H.installed.le,
+    Hforall.1.mono H.installed.le⟩
 
 /-- Close the higher-order arguments introduced while inspecting one
 recursive field.  The exact expected motive application and its typing now
@@ -65740,7 +65761,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.finalSemanticMotiveApplication with
-    ⟨binding, evidence, _hlength, _Hindices, Htr, Htyped⟩
+    ⟨binding, evidence, _hlength, _Hindices, Htr, Htyped, _Hforall⟩
   let localDomains := MLCtxForallDomains F.semantic.current_context.mlctx
     F.semantic.generated.localArgs.size F.semantic.recent.size_le
   have Hclosed := F.semantic.recent.abstractRecent [] (by
@@ -65956,7 +65977,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.finalSemanticMotiveApplication with
-    ⟨binding, evidence, hlength, Hindices, _Htr, _Htyped⟩
+    ⟨binding, evidence, hlength, Hindices, _Htr, _Htyped, _Hforall⟩
   let localDomains := MLCtxForallDomains F.semantic.current_context.mlctx
     F.semantic.generated.localArgs.size F.semantic.recent.size_le
   let fieldDomains := MLCtxForallDomains A.semantics.context.mlctx
@@ -66297,7 +66318,8 @@ theorem
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
   let parameterDecls := H.parameterSuffix.parameterDecls
   rcases F.finalSemanticMotiveApplication with
-    ⟨binding, evidence, hlength, Hindices, _Happlication, _Htyping⟩
+    ⟨binding, evidence, hlength, Hindices, _Happlication, _Htyping,
+      _Hforall⟩
   rcases F.narrowRuntimeScopeFor B with
     ⟨scope, Hscope, hscopeFVars, hscopeBase,
       localDomains, _hfields, hlocal, hfront⟩
