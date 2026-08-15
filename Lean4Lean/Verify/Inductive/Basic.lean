@@ -62350,6 +62350,7 @@ theorem
         S.localIndex = i ∧
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        BindingContextLE S.sourceFullContext H.localContext ∧
         let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
           H.bindings.flatMinors.fvars.take minorIdx
         Expr.ForallTelescopeTypeTranslation H.outVEnv Us
@@ -62365,7 +62366,7 @@ theorem
       hhypothesisStats, hhypothesisRecInfos, traversal, htraversal,
       htraversalConstructor,
       htraversalFields, htraversalRecursiveFields, hstats, _hrootContext,
-      hterminalContext, _hsourceContext, Hdomain, HdomainType⟩
+      hterminalContext, hsourceContext, Hdomain, HdomainType⟩
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
@@ -62415,7 +62416,7 @@ theorem
   exact ⟨T, S, hypothesisOrigins, traversal, hhypothesisOrigins,
     hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
     htraversalRecursiveFields, hstats, hparameterTail, hpositions,
-    hlocal, hfieldCount, hhypotheses,
+    hlocal, hfieldCount, hhypotheses, hsourceContext,
     Expr.ForallTelescopeTypeTranslation.ofTrExprS
       Habstract Hdomain' HdomainType⟩
 
@@ -62461,6 +62462,7 @@ theorem
           S.localIndex = i ∧
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
+          BindingContextLE S.sourceFullContext H.localContext ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -62484,7 +62486,7 @@ theorem
       hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
       htraversalFields, htraversalRecursiveFields, htraversalStats,
       hparameterTail, hpositions,
-      hlocal, hsourceFields, hsourceHypotheses, Htyped⟩
+      hlocal, hsourceFields, hsourceHypotheses, hsourceContext, Htyped⟩
   rcases Htyped.toWrapForalls with
     ⟨domains, sourceResidual, targetResidual, hlength,
       Hsource, htarget, _Hresidual, _HresidualType⟩
@@ -62504,7 +62506,7 @@ theorem
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
     htraversalFields, htraversalRecursiveFields, htraversalStats,
     hparameterTail, hpositions,
-    hlocal, hsourceFields, hsourceHypotheses,
+    hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
     hfields, hhypotheses, htarget, Hsource, Htyped⟩
 
 /-- Opening the selected minor's translated telescope yields a genuine
@@ -62554,6 +62556,7 @@ theorem
       _htraversalFields, _htraversalRecursiveFields, _htraversalStats,
       _hparameterTail, _hpositions,
       _hlocal, _hsourceFields, _hsourceHypotheses,
+      _hsourceContext,
       hfields, hhypotheses, htarget, _Hsource, Htyped⟩
   let minorIdx := recursorMinorOffset indTypes owner + i
   let base := T.params ++ T.motives ++ T.minors.take minorIdx
@@ -62702,6 +62705,7 @@ theorem
           S.localIndex = i ∧
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
+          BindingContextLE S.sourceFullContext H.localContext ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -62730,7 +62734,7 @@ theorem
       _sourceResidual, targetResidual, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
       htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
-      hlocal, hsourceFields, hsourceHypotheses,
+      hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
       hfields, hhypotheses, htarget, _Hsource, Htyped⟩
   let position := A.rule.allArgs.size + j
   have hposition : position <
@@ -62766,7 +62770,7 @@ theorem
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
     htraversalFields, htraversalRecursiveFields, htraversalStats,
     hparameterTail, hpositions,
-    hlocal, hsourceFields, hsourceHypotheses,
+    hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
     hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
 
 /-- Identify the source side of the selected recursive-hypothesis translation
@@ -62818,6 +62822,7 @@ theorem
             S.localIndex = i ∧
             S.fields.size = A.rule.allArgs.size ∧
             S.hypotheses.size = A.rule.recursiveArgs.size ∧
+            BindingContextLE S.sourceFullContext H.localContext ∧
             fieldDomains.length = A.rule.allArgs.size ∧
             hypothesisDomains.length = A.rule.recursiveArgs.size ∧
             T.minors[minorIdx]! = VExpr.wrapForalls
@@ -62858,7 +62863,7 @@ theorem
       targetResidual, sourceDomain, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
       htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
-      hlocal, hsourceFields, hsourceHypotheses,
+      hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
       hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
   have hjSource : j < S.hypotheses.size := by
     rw [hsourceHypotheses]
@@ -62910,7 +62915,8 @@ theorem
     htraversalFields, htraversalRecursiveFields, htraversalStats,
     hparameterTail, hpositions,
     hsourceSelected, hruleSelected,
-    hlocal, hsourceFields, hsourceHypotheses, hfields, hhypotheses,
+    hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
+    hfields, hhypotheses,
     htarget, HdeclarationBinder', Hdomain, HdomainType,
     originRoot, sourceType, ⟨O⟩, hdeclarationType,
     hdeclarationTypeExact⟩
@@ -74244,6 +74250,7 @@ theorem
         S.localIndex = i ∧
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        BindingContextLE S.sourceFullContext H.localContext ∧
         fieldDomains.length = A.rule.allArgs.size ∧
         hypothesisDomains.length = A.rule.recursiveArgs.size ∧
         T.minors[minorIdx]! = VExpr.wrapForalls
@@ -74497,6 +74504,7 @@ theorem
       htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
       hsourceSelected,
       hruleSelected, hlocal, hsourceFields, hsourceHypotheses,
+      hsourceContext,
       hfields, hhypotheses, htarget, _Hbinder, Hdomain, HdomainType,
       originRoot, sourceType, ⟨O⟩, _hdeclarationConsumed,
       hdeclarationExact⟩
@@ -75189,7 +75197,7 @@ theorem
     htraversal, htraversalFields,
     htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
-    hsourceHypotheses, hfields, hhypotheses, htarget,
+    hsourceHypotheses, hsourceContext, hfields, hhypotheses, htarget,
     rfl, by simpa [fieldPosition] using houterField,
     hrecursiveMajor.1, hrecursiveMajor.2, Hreplay,
     HlocalTelescopeReplay, HlocalForallReplay, hmotiveReplay,
