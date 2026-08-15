@@ -81737,6 +81737,77 @@ theorem
     H.outVEnvWF E.equation_context E.local_length
     E.local_forall_translation HresultTranslation HresultType
 
+/-- Insert an already consumed prefix of recursive hypotheses beneath the
+fixed equation context while retaining the complete canonical higher-order
+domain.  Both its dependent local domains and its real residual are lifted
+at their exact respective cutoffs. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.fullForallTranslationAfter
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (E : A.CanonicalRecursiveResultAt T B j hj)
+    (previous : List VExpr) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    let motiveApp := Expr.app
+      (mkAppN
+        (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]!
+        E.frame.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+      (mkAppN A.rule.recursiveArgs[j]
+        E.frame.semantic.generated.localArgs)
+    let liftedLocals :=
+      (liftContextPrefix previous.length E.localDomains.reverse).reverse
+    TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ previous) [])
+      (((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs motiveApp).abstractList
+          A.rule.binders).liftLooseBVars' 0 previous.length)
+      (VExpr.wrapForalls liftedLocals
+        (E.resultType.liftN previous.length E.localDomains.length)) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++
+      T.motives ++ T.minors ++
+        (liftContextPrefix (T.motives ++ T.minors).length
+          B.fieldDomains.reverse).reverse
+  let motiveApp := Expr.app
+    (mkAppN
+      (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]!
+      E.frame.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+    (mkAppN A.rule.recursiveArgs[j]
+      E.frame.semantic.generated.localArgs)
+  let liftedLocals :=
+    (liftContextPrefix previous.length E.localDomains.reverse).reverse
+  have Hbase := E.fullForallTranslation
+  have Hinserted :=
+    Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
+      (outer := equationDomains) (inner := []) H.outVEnvWF.ordered
+      (by simpa [equationDomains, motiveApp] using Hbase) previous
+  simpa [equationDomains, liftedLocals, VExpr.liftN_wrapForalls,
+    VExpr.liftN, liftContextPrefix, liftContextPrefixAt,
+    List.append_assoc] using Hinserted
+
 /-- The retained eta-template residual has a completely forced abstract
 shape.  In particular, its target is the selected constructor-field variable
 shifted under exactly the call-local telescope and applied to the canonical
@@ -83249,6 +83320,174 @@ theorem
     targetResidual, D, originRoot, sourceType, O, hfields, hhypotheses,
     htarget, hdeclarationType,
     hlocalArity.trans E.local_length.symm, HlocalForallReplay⟩
+
+/-- Whole-domain form of the synchronized first-pass/second-pass comparison.
+The selected installed hypothesis is transported past the remaining minors;
+the canonical recursive-result domain is transported past the already
+consumed hypotheses.  Both targets expose their exact dependent local
+domain lists, ready for `SameForallPrefix.translatedContextsExact`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorHypothesisCanonicalWholeDomains
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ S : RecInfoMinorTypeShape,
+    ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+        S.sourceFullContext S.recursiveFields S.hypotheses,
+    ∃ fieldDomains hypothesisDomains : List VExpr,
+    ∃ targetResidual : VExpr,
+    ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+    ∃ originRoot sourceType,
+    ∃ O : RecInfoMinorHypothesisTypeOrigin
+        hypothesisOrigins.stats hypothesisOrigins.recInfos
+        originRoot S.recursiveFields[j]! sourceType,
+    ∃ hypothesisLocalDomains : List VExpr,
+    ∃ hypothesisResidual : VExpr,
+      let position := A.rule.allArgs.size + j
+      let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+        H.bindings.flatMinors.fvars.take minorIdx
+      let declarationDomain :=
+        ((D.type.abstractList
+            (S.hypotheses_bound.fvars.take j)).abstractList
+          S.fields_bound.fvars j).abstractList sourceBinders position
+      let prior := (fieldDomains ++ hypothesisDomains).take position
+      let remaining := T.minors.drop minorIdx
+      let liftedPrior :=
+        (liftContextPrefix remaining.length prior.reverse).reverse
+      let liftedHypothesisLocals :=
+        (liftContextPrefixAt remaining.length position
+          hypothesisLocalDomains.reverse).reverse
+      let previous := hypothesisDomains.take j
+      let equationDomains :=
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++
+          T.motives ++ T.minors ++
+            (liftContextPrefix (T.motives ++ T.minors).length
+              B.fieldDomains.reverse).reverse
+      let motiveApp := Expr.app
+        (mkAppN
+          (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]!
+          E.frame.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+        (mkAppN A.rule.recursiveArgs[j]
+          E.frame.semantic.generated.localArgs)
+      let liftedCanonicalLocals :=
+        (liftContextPrefix previous.length E.localDomains.reverse).reverse
+      fieldDomains.length = A.rule.allArgs.size ∧
+      hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+      hypothesisLocalDomains.length = E.localDomains.length ∧
+      hypothesisDomains[j]! =
+        VExpr.wrapForalls hypothesisLocalDomains hypothesisResidual ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext
+          (T.params ++ T.motives ++ T.minors ++ liftedPrior) [])
+        (declarationDomain.liftLooseBVars' position remaining.length)
+        (VExpr.wrapForalls liftedHypothesisLocals
+          (hypothesisResidual.liftN remaining.length
+            (position + hypothesisLocalDomains.length))) ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext (equationDomains ++ previous) [])
+        (((E.frame.semantic.generated.current.lctx.mkForall
+          E.frame.semantic.generated.localArgs motiveApp).abstractList
+            A.rule.binders).liftLooseBVars' 0 previous.length)
+        (VExpr.wrapForalls liftedCanonicalLocals
+          (E.resultType.liftN previous.length E.localDomains.length)) := by
+  dsimp only
+  rcases A.finalSelectedMinorHypothesisCanonicalResultFrame j hj B T E with
+    ⟨S, hypothesisOrigins, _traversal, fieldDomains,
+      hypothesisDomains, targetResidual, D, originRoot, sourceType, O,
+      _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
+      _hownerRecInfos, _hmotiveSnapshot, _hmotivePosition,
+      _htraversal, _htraversalFields, _htraversalRecursiveFields,
+      _htraversalStats, _hparameterTail, _hpositions,
+      _hsourceSelected, _hruleSelected, _hlocal, _hsourceFields,
+      _hsourceHypotheses, _hsourceContext, _HminorSemantic,
+      hfields, hhypotheses, _htarget, _hdeclarationType,
+      _houterField, _hmajorOuter, _hmajorApplied, _Hreplay,
+      _HlocalTelescopeReplay, _HlocalLambdaReplay, _HlocalForallReplay,
+      _hmotiveReplay, _hindicesReplay, _hownerReplay, hlocalArity,
+      _hmajorAlignment, _hmotiveAppAlignment, _Hsemantic,
+      Hdomain, Hresiduals, _Htyping⟩
+  rcases Hresiduals with
+    ⟨hypothesisLocalDomains, _sourceResidual, hypothesisResidual,
+      hhypothesisLocalDomains, _HsourceTelescope,
+      _hsourceResidual, _hsourceResidualStructured,
+      _hsourceResidualNormalized, _hsourceResidualOuter,
+      _hsourceResidualGenerated, _hsourceResidualFull,
+      _HhypothesisResidualFull, _HcanonicalResultTypeFull,
+      hhypothesisDomain, _HhypothesisResidual,
+      _HhypothesisResidualType⟩
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let position := A.rule.allArgs.size + j
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  let declarationDomain :=
+    ((D.type.abstractList
+        (S.hypotheses_bound.fvars.take j)).abstractList
+      S.fields_bound.fvars j).abstractList sourceBinders position
+  let prior := (fieldDomains ++ hypothesisDomains).take position
+  let remaining := T.minors.drop minorIdx
+  let liftedPrior :=
+    (liftContextPrefix remaining.length prior.reverse).reverse
+  let liftedHypothesisLocals :=
+    (liftContextPrefixAt remaining.length position
+      hypothesisLocalDomains.reverse).reverse
+  let previous := hypothesisDomains.take j
+  have hpositionLE : position ≤
+      (fieldDomains ++ hypothesisDomains).length := by
+    simp only [position, List.length_append]
+    rw [hfields, hhypotheses]
+    omega
+  have hprior : prior.length = position := by
+    simp [prior, List.length_take_of_le hpositionLE]
+  have HdomainFlat : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        ((T.params ++ T.motives ++ T.minors.take minorIdx) ++ prior) [])
+      declarationDomain (VExpr.wrapForalls
+        hypothesisLocalDomains hypothesisResidual) := by
+    rw [hhypothesisDomain] at Hdomain
+    simpa [minorIdx, position, sourceBinders, declarationDomain, prior,
+      abstractForallContext_append, List.append_assoc] using Hdomain
+  have Hinstalled₀ :=
+    Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
+      (outer := T.params ++ T.motives ++ T.minors.take minorIdx)
+      (inner := prior) H.outVEnvWF.ordered HdomainFlat remaining
+  have Hinstalled : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        (T.params ++ T.motives ++ T.minors ++ liftedPrior) [])
+      (declarationDomain.liftLooseBVars' position remaining.length)
+      (VExpr.wrapForalls liftedHypothesisLocals
+        (hypothesisResidual.liftN remaining.length
+          (position + hypothesisLocalDomains.length))) := by
+    simpa [remaining, liftedPrior, liftedHypothesisLocals, hprior,
+      VExpr.liftN_wrapForalls, List.append_assoc] using Hinstalled₀
+  have Hcanonical := E.fullForallTranslationAfter previous
+  have hlocalLength : hypothesisLocalDomains.length = E.localDomains.length :=
+    hhypothesisLocalDomains.trans (hlocalArity.trans E.local_length.symm)
+  exact ⟨S, hypothesisOrigins, fieldDomains, hypothesisDomains,
+    targetResidual, D, originRoot, sourceType, O,
+    hypothesisLocalDomains, hypothesisResidual, hfields, hhypotheses,
+    hlocalLength, hhypothesisDomain, Hinstalled, by
+      simpa [previous] using Hcanonical⟩
 
 /-- All recursive results of one generated rule, chosen in their production
 array order and fixed to one recursor telescope and one narrowed field frame. -/
