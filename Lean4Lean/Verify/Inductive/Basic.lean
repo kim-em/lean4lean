@@ -65757,11 +65757,15 @@ theorem
             H.outVEnv.HasType Us.length
               (abstractForallContext localDomains
                 A.semantics.context.mlctx.vlctx).toCtx
-              target (.sort evidence.resultLevel) := by
+              target (.sort evidence.resultLevel) ∧
+            TrExprS H.outVEnv Us A.semantics.context.mlctx.vlctx
+              (F.semantic.generated.current.lctx.mkForall
+                F.semantic.generated.localArgs sourceType)
+              (VExpr.wrapForalls localDomains target) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.finalSemanticMotiveApplication with
-    ⟨binding, evidence, _hlength, _Hindices, Htr, Htyped, _Hforall⟩
+    ⟨binding, evidence, _hlength, _Hindices, Htr, Htyped, Hforall⟩
   let localDomains := MLCtxForallDomains F.semantic.current_context.mlctx
     F.semantic.generated.localArgs.size F.semantic.recent.size_le
   have Hclosed := F.semantic.recent.abstractRecent [] (by
@@ -65776,10 +65780,11 @@ theorem
     BoundFVarArray.fvars_eq
       F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
       F.semantic.generated.arguments_bound.toBoundFVarArray rfl
-  refine ⟨binding, evidence, localDomains, hlocalDomains, ?_, ?_⟩
+  refine ⟨binding, evidence, localDomains, hlocalDomains, ?_, ?_, ?_⟩
   · simpa [localDomains, hfvars] using Hclosed
   · rw [hctx]
     exact Htyped
+  · simpa [localDomains] using Hforall
 
 /-- Close both local higher-order arguments and constructor fields around the
 semantic motive application expected from one recursive call.  This packages
@@ -65829,14 +65834,23 @@ theorem
             H.outVEnv.HasType Us.length
               (abstractForallContext (fieldDomains ++ localDomains)
                 A.semantics.fieldRootContext.mlctx.vlctx).toCtx
-              target (.sort evidence.resultLevel) := by
+              target (.sort evidence.resultLevel) ∧
+            TrExprS H.outVEnv Us
+              (abstractForallContext fieldDomains
+                A.semantics.fieldRootContext.mlctx.vlctx)
+              ((F.semantic.generated.current.lctx.mkForall
+                F.semantic.generated.localArgs sourceType).abstractList
+                  A.rule.all_args_bound.fvars)
+              (VExpr.wrapForalls localDomains target) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.finalAbstractedSemanticMotiveApplication with
-    ⟨binding, evidence, localDomains, hlocal, Htr, Htyped⟩
+    ⟨binding, evidence, localDomains, hlocal, Htr, Htyped, Hforall⟩
   let fieldDomains := MLCtxForallDomains A.semantics.context.mlctx
     A.rule.allArgs.size A.semantics.fieldsRecent.size_le
   have Hclosed := A.semantics.fieldsRecent.abstractRecent localDomains Htr
+  have HforallClosed := A.semantics.fieldsRecent.abstractRecent [] (by
+    simpa [abstractForallContext] using Hforall)
   have hfields : fieldDomains.length = A.rule.allArgs.size :=
     A.semantics.context.onlyLams.forallDomains_length
       A.rule.allArgs.size A.semantics.fieldsRecent.size_le
@@ -65848,10 +65862,11 @@ theorem
   have hctx :=
     A.semantics.fieldsRecent.abstractRecent_toCtx_withPrefix localDomains
   refine ⟨binding, evidence, localDomains, fieldDomains,
-    hlocal, hfields, ?_, ?_⟩
+    hlocal, hfields, ?_, ?_, ?_⟩
   · simpa [fieldDomains, hfvars] using Hclosed
   · rw [hctx]
     exact Htyped
+  · simpa [fieldDomains, hfvars] using HforallClosed
 
 /-- Normalized source form of
 `finalFieldAbstractedSemanticMotiveApplication`.  The source now exposes the
@@ -65892,12 +65907,25 @@ theorem
             H.outVEnv.HasType Us.length
               (abstractForallContext (fieldDomains ++ localDomains)
                 A.semantics.fieldRootContext.mlctx.vlctx).toCtx
-              target (.sort evidence.resultLevel) := by
+              target (.sort evidence.resultLevel) ∧
+            TrExprS H.outVEnv Us
+              (abstractForallContext fieldDomains
+                A.semantics.fieldRootContext.mlctx.vlctx)
+              ((F.semantic.generated.current.lctx.mkForall
+                F.semantic.generated.localArgs
+                (Expr.app
+                  (mkAppN H.recInfos[selectedOwner]!.motive
+                    F.semantic.generated.exposedType.getAppArgs[
+                      stats.params.size:])
+                  (mkAppN A.rule.recursiveArgs[j]
+                    F.semantic.generated.localArgs))).abstractList
+                A.rule.all_args_bound.fvars)
+              (VExpr.wrapForalls localDomains target) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   rcases F.finalFieldAbstractedSemanticMotiveApplication with
     ⟨binding, evidence, localDomains, fieldDomains,
-      hlocal, hfields, Hsource, Htyped⟩
+      hlocal, hfields, Hsource, Htyped, Hforall⟩
   have howner : selectedOwner < H.recInfos.size := by
     simpa [selectedOwner, H.generated.length] using F.entry_lt
   have hsource := F.semantic.generated.outerAbstractedMotiveApp_eq
@@ -65923,7 +65951,7 @@ theorem
     simpa [selectedOwner, hlocal] using hsource
   rw [hsource'] at Hsource
   exact ⟨binding, evidence, localDomains, fieldDomains,
-    hlocal, hfields, Hsource, Htyped⟩
+    hlocal, hfields, Hsource, Htyped, Hforall⟩
 
 /-- Pointwise field-closed form of the semantic recursive index spine.  Each
 index is first closed over the call-local higher-order arguments and then
@@ -73881,7 +73909,22 @@ theorem
                   (abstractForallContext
                     (semanticFieldDomains ++ semanticLocalDomains)
                     A.semantics.fieldRootContext.mlctx.vlctx).toCtx
-                  semanticTarget (.sort evidence.resultLevel)) ∧
+                  semanticTarget (.sort evidence.resultLevel) ∧
+                TrExprS H.outVEnv Us
+                  (abstractForallContext semanticFieldDomains
+                    A.semantics.fieldRootContext.mlctx.vlctx)
+                  ((E.frame.semantic.generated.current.lctx.mkForall
+                    E.frame.semantic.generated.localArgs
+                    (Expr.app
+                      (mkAppN
+                        H.recInfos[
+                          E.frame.semantic.generated.ownerIdx]!.motive
+                        E.frame.semantic.generated.exposedType.getAppArgs[
+                          stats.params.size:])
+                      (mkAppN A.rule.recursiveArgs[j]
+                        E.frame.semantic.generated.localArgs))).abstractList
+                    A.rule.all_args_bound.fvars)
+                  (VExpr.wrapForalls semanticLocalDomains semanticTarget)) ∧
         (let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -74316,7 +74359,7 @@ theorem
   rcases E.frame.finalFieldAbstractedNormalizedMotiveApplication with
     ⟨semanticBinding, semanticEvidence, semanticLocalDomains,
       semanticFieldDomains, hsemanticLocal, hsemanticFields,
-      HsemanticGenerated, HsemanticType⟩
+      HsemanticGenerated, HsemanticType, HsemanticForall⟩
   let semanticTarget := VExpr.app
     (VExpr.mkApps semanticBinding.motiveTarget semanticEvidence.indices)
     E.frame.semantic.appliedFieldTarget
@@ -74722,7 +74765,7 @@ theorem
     hmotiveAppAlignment,
     ⟨semanticBinding, semanticEvidence, semanticLocalDomains,
       semanticFieldDomains, hsemanticLocal, hsemanticFields,
-      HsemanticOrigin, HsemanticType⟩,
+      HsemanticOrigin, HsemanticType, HsemanticForall⟩,
     Hdomain,
     ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
       hhypothesisLocalDomains, _HsourceResidual, by
