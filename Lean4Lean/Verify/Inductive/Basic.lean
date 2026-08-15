@@ -65762,6 +65762,109 @@ theorem
     simpa [selectedDomains, List.reverse_append, List.append_assoc] using
       Hctx⟩
 
+/-- The complete dependency-selected outer semantic scope is definitionally
+equal to the generated recursor's full parameter/motive/minor prefix.  This
+is the all-minors analogue of `finalSelectedMinorPrefixDefEqCtx`; indices and
+majors are excluded even when their executable declarations are interleaved
+with the retained outer locals. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOuterPrefixDefEqCtx
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+        scope.fvars = outerBinders.reverse ∧
+        Hscope.shift = fvarSelectionLift
+          H.recursorWF.mlctx.vlctx.fvars (· ∈ outerBinders) ∧
+        (∀ body,
+          Hscope.sources.closeSource body =
+            H.localContext.lctx.mkForall
+              (outerBinders.map Expr.fvar).toArray body) ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
+          (T.params ++ T.motives ++ T.minors).reverse := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
+  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  rcases A.finalOuterNarrowScope with
+    ⟨scope, Hscope, hscope, hscopeShift, hscopeSource⟩
+  rcases Hscope.closedSortTranslation H.outVEnvWF with
+    ⟨Hprefix, _HprefixType⟩
+  have HprefixTelescope := Hscope.closedSortTelescope H.outVEnvWF
+  let fullDomains := T.params ++ T.motives ++ T.minors ++
+    T.indices ++ T.major
+  let outerDomains := T.params ++ T.motives ++ T.minors
+  have hscopeDomainsLength : scope.toCtx.reverse.length = scope.length := by
+    simpa using Hscope.toCtx_length
+  have houterArity : outerBinders.length = scope.length := by
+    calc
+      outerBinders.length = outerBinders.reverse.length := by simp
+      _ = scope.fvars.length := congrArg List.length hscope.symm
+      _ = scope.length := Hscope.fvars_length
+  have houterDomains : outerDomains.length = outerBinders.length := by
+    simp only [outerDomains, outerBinders, List.length_append]
+    rw [H.params.length_fvars, H.bindings.motives.length_fvars,
+      H.bindings.flatMinors.length_fvars,
+      T.params_length, T.motives_length, T.minors_length]
+  have hfullLength : fullDomains.length =
+      stats.params.size + (H.recInfos.map (·.motive)).size +
+        (H.recInfos.flatMap (·.minors)).size +
+          H.recInfos[owner]!.indices.size + 1 := by
+    simp only [fullDomains, List.length_append, T.params_length,
+      T.motives_length, T.minors_length, T.indices_length, T.major_length]
+  have Hctx := HprefixTelescope.commonPrefixDefEqCtx H.outVEnvWF T.typed
+    scope.toCtx.reverse fullDomains (.sort (.zero : VLevel)) T.result
+    rfl
+    (by simpa [fullDomains, List.append_assoc] using T.target_eq)
+    hscopeDomainsLength hfullLength outerBinders.length
+    (Nat.le_of_eq houterArity) (by
+      calc
+        outerBinders.length = outerDomains.length := houterDomains.symm
+        _ ≤ fullDomains.length := by
+          simp [outerDomains, fullDomains]
+        _ = stats.params.size + (H.recInfos.map (·.motive)).size +
+            (H.recInfos.flatMap (·.minors)).size +
+              H.recInfos[owner]!.indices.size + 1 := hfullLength) (by
+        have HbinderEq := A.finalMinorPrefixBinderEq
+          H.bindings.flatMinors.fvars.length (Nat.le_refl _)
+        simp only [List.take_length] at HbinderEq
+        intro position hposition _hiPrefix _hiRecursor
+          prefixDomain recursorDomain HprefixBinder HrecursorBinder
+        apply HbinderEq position hposition
+        · rw [← hscopeSource (.sort (.zero : Level))]
+          exact HprefixBinder
+        · exact HrecursorBinder)
+  have htakeScope : (scope.toCtx.reverse).take outerBinders.length =
+      scope.toCtx.reverse := by
+    rw [houterArity, ← hscopeDomainsLength]
+    exact List.take_length
+  have htakeFull : fullDomains.take outerBinders.length = outerDomains := by
+    rw [← houterDomains]
+    change (outerDomains ++ T.indices ++ T.major).take outerDomains.length = _
+    simp
+  rw [htakeScope, htakeFull] at Hctx
+  exact ⟨T, scope, Hscope, hscope, hscopeShift, hscopeSource, by
+    simpa [outerDomains, List.reverse_append, List.append_assoc] using Hctx⟩
+
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
 same owner/constructor coordinates used by the rule traversal. -/
