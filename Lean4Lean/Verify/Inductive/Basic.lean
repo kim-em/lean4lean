@@ -66143,6 +66143,69 @@ theorem
       exact hindicesScope index (Array.mem_toList_iff.mp hindex)
   · exact hmajorScope
 
+/-- Closing the remaining outer rule binders around the field-normalized
+motive application is exactly the one-shot full rule abstraction. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedNormalizedMotiveSource
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let outer := (A.rule.params_bound.fvars ++
+      A.rule.motives_bound.fvars) ++ A.rule.minors_bound.fvars
+    (F.semantic.generated.outerAbstractedMotiveApp
+        A.rule.all_args_bound.fvars).abstractList outer
+          (F.semantic.generated.localArgs.size +
+            A.rule.all_args_bound.fvars.length) =
+      F.semantic.generated.outerAbstractedMotiveApp A.rule.binders := by
+  let outer := (A.rule.params_bound.fvars ++
+    A.rule.motives_bound.fvars) ++ A.rule.minors_bound.fvars
+  let motiveApp := Expr.app
+    (mkAppN
+      (H.recInfos.map (·.motive))[F.semantic.generated.ownerIdx]!
+      F.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+    (mkAppN A.rule.recursiveArgs[j]
+      F.semantic.generated.localArgs)
+  have hfields := F.semantic.generated.outerAbstractedMotiveApp_eq
+    A.rule.all_args_bound.fvars
+  have hfull := F.semantic.generated.outerAbstractedMotiveApp_eq
+    A.rule.binders
+  dsimp only at hfields hfull
+  have happend := Expr.abstractList_after_inner
+    (e := motiveApp.abstractList
+      F.semantic.generated.arguments_bound.fvars)
+    (outer := outer) (inner := A.rule.all_args_bound.fvars)
+    (k := F.semantic.generated.localArgs.size) (by
+      simpa [outer, BoundGeneratedRecursorRule.binders,
+        List.append_assoc] using A.rule.binders_nodup)
+  have hfields' :
+      (motiveApp.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size =
+        F.semantic.generated.outerAbstractedMotiveApp
+          A.rule.all_args_bound.fvars := by
+    simpa [motiveApp] using hfields
+  have hfull' :
+      (motiveApp.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          (outer ++ A.rule.all_args_bound.fvars)
+            F.semantic.generated.localArgs.size =
+        F.semantic.generated.outerAbstractedMotiveApp A.rule.binders := by
+    simpa [motiveApp, outer, BoundGeneratedRecursorRule.binders,
+      List.append_assoc] using hfull
+  rw [hfields'] at happend
+  exact happend.trans hfull'
+
 /-- Restrict every semantic recursive index to the replayed
 parameter/field/local scope while retaining its exact relationship to the
 target produced in the executable context.  This is the pointwise inverse
