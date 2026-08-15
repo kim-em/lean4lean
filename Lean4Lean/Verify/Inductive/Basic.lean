@@ -64982,9 +64982,13 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ scope independentFields installedFields,
+      ∃ scope independentFields installedFields installedHypotheses
+          installedResidual,
         independentFields.length = A.rule.allArgs.size ∧
         installedFields.length = A.rule.allArgs.size ∧
+        installedHypotheses.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (installedFields ++ installedHypotheses) installedResidual ∧
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           (independentFields.reverse ++ scope.toCtx)
           (installedFields.reverse ++
@@ -65041,7 +65045,9 @@ theorem
           (T.params ++ T.motives ++ T.minors.take minorIdx).reverse)
   rw [hnarrowDrop, hinstalledDrop] at Hfields
   exact ⟨T, scope, independentFields, installedFields,
-    hindependentFields, hinstalledFields, Hfields⟩
+    installedHypotheses, installedResidual,
+    hindependentFields, hinstalledFields, hinstalledHypotheses,
+    by simpa [hinstalledSplit] using hinstalledTarget, Hfields⟩
 
 /-- Rebase the independent/installed field conversion onto the literal
 generated parameter/motive/earlier-minor prefix.  After this step both field
@@ -65068,9 +65074,13 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ independentFields installedFields,
+      ∃ independentFields installedFields installedHypotheses
+          installedResidual,
         independentFields.length = A.rule.allArgs.size ∧
         installedFields.length = A.rule.allArgs.size ∧
+        installedHypotheses.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (installedFields ++ installedHypotheses) installedResidual ∧
         let base := T.params ++ T.motives ++ T.minors.take minorIdx
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           (independentFields.reverse ++ base.reverse)
@@ -65080,8 +65090,9 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.finalSelectedMinorIndependentInstalledFieldAlignment
       hpositive with
-    ⟨T, scope, independentFields, installedFields,
-      hindependentFields, hinstalledFields, Hfields⟩
+    ⟨T, scope, independentFields, installedFields, installedHypotheses,
+      installedResidual, hindependentFields, hinstalledFields,
+      hinstalledHypotheses, hinstalledTarget, Hfields⟩
   let base := T.params ++ T.motives ++ T.minors.take minorIdx
   have Hprefix₀ := Hfields.dropHeads A.rule.allArgs.size
   have hleftDrop :
@@ -65100,8 +65111,9 @@ theorem
       Hprefix₀ Hfields.isType
   have HsameBase := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     (HsameIndependent.symm H.outVEnvWF.ordered) Hfields
-  exact ⟨T, independentFields, installedFields,
-    hindependentFields, hinstalledFields, by
+  exact ⟨T, independentFields, installedFields, installedHypotheses,
+    installedResidual, hindependentFields, hinstalledFields,
+    hinstalledHypotheses, hinstalledTarget, by
       simpa [base] using HsameBase⟩
 
 /-- Insert the selected minor and every later minor beneath the rebased field
@@ -65128,9 +65140,13 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ independentFields installedFields,
+      ∃ independentFields installedFields installedHypotheses
+          installedResidual,
         independentFields.length = A.rule.allArgs.size ∧
         installedFields.length = A.rule.allArgs.size ∧
+        installedHypotheses.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (installedFields ++ installedHypotheses) installedResidual ∧
         let base := T.params ++ T.motives ++ T.minors.take minorIdx
         let remaining := (T.minors.drop minorIdx).reverse
         VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -65143,8 +65159,9 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.finalSelectedMinorInstalledFieldAlignmentAtGeneratedPrefix
       hpositive with
-    ⟨T, independentFields, installedFields,
-      hindependentFields, hinstalledFields, Hfields⟩
+    ⟨T, independentFields, installedFields, installedHypotheses,
+      installedResidual, hindependentFields, hinstalledFields,
+      hinstalledHypotheses, hinstalledTarget, Hfields⟩
   let base := T.params ++ T.motives ++ T.minors.take minorIdx
   let remaining := (T.minors.drop minorIdx).reverse
   have Hremaining : OnCtx (remaining ++ base.reverse)
@@ -65157,8 +65174,9 @@ theorem
     H.outVEnvWF.ordered independentFields.reverse installedFields.reverse
       remaining base.reverse Hfields
       (by simp [hindependentFields, hinstalledFields]) Hremaining
-  exact ⟨T, independentFields, installedFields,
-    hindependentFields, hinstalledFields, by
+  exact ⟨T, independentFields, installedFields, installedHypotheses,
+    installedResidual, hindependentFields, hinstalledFields,
+    hinstalledHypotheses, hinstalledTarget, by
       simpa [base, remaining] using Hfull⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
@@ -66458,6 +66476,96 @@ theorem
     hfields, hhypotheses, htarget, by
       simpa [minorIdx, later, shift, liftedFields, liftedHypotheses,
         recursorCanonicalVars, Nat.add_assoc] using Hpartial⟩
+
+/-- Transport the canonical field application from the installed minor's
+field representatives to the independently replayed field context.  The
+application term is unchanged; only the dependent field declarations in its
+ambient context are converted. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorFieldApplicationInIndependentContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ independentFields hypothesisDomains targetResidual,
+        independentFields.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        let later := T.minors.drop (minorIdx + 1)
+        let shift := later.length + 1
+        let liftedFields :=
+          (liftContextPrefix shift independentFields.reverse).reverse
+        let liftedHypotheses :=
+          (liftContextPrefixAt shift independentFields.length
+            hypothesisDomains.reverse).reverse
+        H.outVEnv.HasType Us.length
+          (liftedFields.reverse ++
+            (T.params ++ T.motives ++ T.minors).reverse)
+          (VExpr.mkApps
+            ((.bvar later.length : VExpr).liftN liftedFields.length 0)
+            (recursorCanonicalVars liftedFields.length))
+          (VExpr.wrapForalls liftedHypotheses
+            (targetResidual.liftN shift
+              (independentFields.length + hypothesisDomains.length))) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalSelectedMinorInstalledFieldAlignmentInFullPrefix
+      hpositive with
+    ⟨T, independentFields, installedFields, installedHypotheses,
+      installedResidual, hindependentFields, hinstalledFields,
+      hinstalledHypotheses, hinstalledTarget, Hcontext⟩
+  rcases A.finalSelectedMinorFieldApplication with
+    ⟨T₁, fieldDomains, hypothesisDomains, targetResidual,
+      hfields, hhypotheses, htarget, Happlication⟩
+  rcases T₁.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams, hmotives, hminors] at htarget Happlication
+  have hfieldDomains : fieldDomains = installedFields := by
+    apply VExpr.wrapForalls_prefix_domains_eq hfields hinstalledFields
+    have hwhole := htarget.symm.trans hinstalledTarget
+    simpa [VExpr.wrapForalls_append] using hwhole
+  subst fieldDomains
+  let later := T.minors.drop (minorIdx + 1)
+  let shift := later.length + 1
+  let liftedFields :=
+    (liftContextPrefix shift independentFields.reverse).reverse
+  let liftedHypotheses :=
+    (liftContextPrefixAt shift independentFields.length
+      hypothesisDomains.reverse).reverse
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hdrop : T.minors.drop minorIdx =
+      T.minors[minorIdx] :: later := by
+    simpa [later] using List.drop_eq_getElem_cons hminor
+  have Hcontext' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (liftedFields.reverse ++
+        (T.params ++ T.motives ++ T.minors).reverse)
+      (liftContextPrefix shift installedFields.reverse ++
+        (T.params ++ T.motives ++ T.minors).reverse) := by
+    simpa [liftedFields, shift, hdrop, List.reverse_append,
+      List.append_assoc] using Hcontext
+  have Htransported := Happlication.defeqDFC H.outVEnvWF.ordered
+    (Hcontext'.symm H.outVEnvWF.ordered)
+  exact ⟨T, independentFields, hypothesisDomains, targetResidual,
+    hindependentFields, hhypotheses, by
+      simpa [later, shift, liftedFields, liftedHypotheses,
+        hinstalledFields, hindependentFields] using Htransported⟩
 
 /-- Select the translated minor domain corresponding to recursive-result
 ordinal `j`.  The source binder is retained explicitly, and its abstract
