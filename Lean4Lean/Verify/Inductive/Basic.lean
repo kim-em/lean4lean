@@ -773,6 +773,21 @@ inductive VEnv.TypedApplicationSpine
       TypedApplicationSpine env uvars ctx fn (.forallE domain body)
         (arg :: args) resultType
 
+/-- Add one dependent application when the argument's retained type is only
+definitionally equal to the current forall domain.  Canonical recursive
+results are built independently from the installed minor telescope, so this
+is the application constructor used after their pointwise type alignment. -/
+theorem VEnv.TypedApplicationSpine.cons_defeq
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (Hfn : env.HasType uvars ctx fn (.forallE domain body))
+    (Harg : env.HasType uvars ctx arg actualDomain)
+    (Hdomain : env.IsDefEqU uvars ctx actualDomain domain)
+    (Htail : VEnv.TypedApplicationSpine env uvars ctx
+      (.app fn arg) (body.inst arg) args resultType) :
+    VEnv.TypedApplicationSpine env uvars ctx fn (.forallE domain body)
+      (arg :: args) resultType := by
+  exact .cons Hfn (Harg.defeqU_r henv hctx Hdomain) Htail
+
 theorem VEnv.TypedApplicationSpine.hasType
     (H : VEnv.TypedApplicationSpine env uvars ctx fn fnType args resultType) :
     env.HasType uvars ctx (VExpr.mkApps fn args) resultType := by
@@ -801,6 +816,48 @@ theorem VEnv.TypedApplicationSpine.append
       apply VEnv.TypedApplicationSpine.cons Hfn Harg
       apply ih
       simpa [VExpr.mkApps] using Hsuffix
+
+/-- Lift a conversion of plain verifier contexts to the corresponding
+all-anonymous lambda `VLCtx`s.  Equation translations use
+`abstractForallContext`, while the dependent replay infrastructure naturally
+states conversions on `List VExpr`; this lemma is the lossless bridge between
+the two representations. -/
+theorem VEnv.IsDefEqCtx.anonymousVLCtx
+    (H : VEnv.IsDefEqCtx env uvars [] left right) :
+    VLCtx.IsDefEq env uvars
+      (left.map fun type => (none, .vlam type))
+      (right.map fun type => (none, .vlam type)) := by
+  induction H with
+  | zero => exact .nil
+  | @succ leftTail rightTail leftType rightType level Htail Htype ih =>
+    exact .cons ih nofun (.vlam (by
+      simpa [VLCtx.toCtx] using Htype))
+
+/-- Anonymous equation contexts are definitionally equal whenever their
+plain typing lists are. -/
+theorem VEnv.IsDefEqCtx.abstractForallContext
+    (H : VEnv.IsDefEqCtx env uvars [] domainsLeft.reverse
+      domainsRight.reverse) :
+    VLCtx.IsDefEq env uvars
+      (abstractForallContext domainsLeft [])
+      (abstractForallContext domainsRight []) := by
+  simpa [abstractForallContext] using H.anonymousVLCtx
+
+/-- Translation uniqueness over two independently assembled anonymous
+dependent contexts, stated directly in the plain-context conversion form
+produced by telescope replay. -/
+theorem TrExprS.uniqAbstractForallContext
+    (Hleft : TrExprS env Us (abstractForallContext domainsLeft []) source
+      leftTarget)
+    (Hright : TrExprS env Us (abstractForallContext domainsRight []) source
+      rightTarget)
+    (henv : VEnv.WF env)
+    (Hctx : VEnv.IsDefEqCtx env Us.length [] domainsLeft.reverse
+      domainsRight.reverse) :
+    env.IsDefEqU Us.length domainsLeft.reverse leftTarget rightTarget := by
+  have Hvlctx := Hctx.abstractForallContext
+  have Huniq := Hleft.uniq henv Hvlctx Hright
+  simpa [abstractForallContext_toCtx] using Huniq
 
 /-- Canonical variables for a telescope, in source binder order. -/
 def recursorCanonicalVars (n : Nat) : List VExpr :=
