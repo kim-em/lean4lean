@@ -70823,7 +70823,9 @@ theorem
         let liftedHypotheses :=
           (liftContextPrefixAt shift narrowFields.length
             hypothesisDomains.reverse).reverse
-        H.outVEnv.HasType Us.length
+        VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
+            (T.params ++ T.motives ++ T.minors.take minorIdx).reverse ∧
+          H.outVEnv.HasType Us.length
             (liftedFields.reverse ++
               (T.params ++ T.motives ++ T.minors).reverse)
             (VExpr.mkApps
@@ -70919,6 +70921,8 @@ theorem
   exact ⟨T, scope, Hscope, narrowFields, weakenedFields,
     hypothesisDomains, targetResidual, hnarrowFields, hweakenedFields,
     hhypotheses, hweakenedExact, by
+      exact Hprefix,
+    by
       simpa [later, shift, liftedFields, liftedHypotheses,
         hinstalledFields, hnarrowFields] using Htransported,
     HweakenedNarrow⟩
@@ -70967,7 +70971,9 @@ theorem
         let liftedHypotheses :=
           (liftContextPrefixAt shift narrowFields.length
             hypothesisDomains.reverse).reverse
-        H.outVEnv.HasType Us.length
+        VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
+            (T.params ++ T.motives ++ T.minors.take minorIdx).reverse ∧
+          H.outVEnv.HasType Us.length
             (liftedFields.reverse ++
               (T.params ++ T.motives ++ T.minors).reverse)
             (VExpr.mkApps
@@ -70983,13 +70989,16 @@ theorem
   rcases A.finalSelectedMinorFieldApplicationWithNarrowFrame B hpositive with
     ⟨T₁, scope, Hscope, narrowFields, weakenedFields,
       hypothesisDomains, targetResidual, hnarrowFields, hweakenedFields,
-      hhypotheses, hweakenedExact, Happlication, HweakenedNarrow⟩
+      hhypotheses, hweakenedExact, Hprefix, Happlication,
+      HweakenedNarrow⟩
   rcases T₁.groupsResult_eq T with
     ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams, hmotives, hminors] at Hprefix
   rw [hparams, hmotives, hminors] at Happlication
   exact ⟨scope, Hscope, narrowFields, weakenedFields,
     hypothesisDomains, targetResidual, hnarrowFields, hweakenedFields,
-    hhypotheses, hweakenedExact, Happlication, HweakenedNarrow⟩
+    hhypotheses, hweakenedExact, Hprefix, Happlication,
+    HweakenedNarrow⟩
 
 /-- Compose the selected minor's transported consumed fields with the
 rule-wide narrowing conversion.  The result relates the literal first-pass
