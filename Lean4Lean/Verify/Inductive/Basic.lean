@@ -27252,6 +27252,32 @@ theorem RecInfoMinorHypothesisTypeOrigin.outerAbstractedField_eq_bvar
       simpa [RecInfoMinorHypothesisTypeOrigin.localIndices] using hjRight
     omega
 
+/-- Positional form of `outerAbstractedField_eq_bvar`.  When the retained
+field is known to occupy binder position `i`, its de Bruijn index is no
+longer existential: it is exactly the reverse ordinal of that position. -/
+theorem RecInfoMinorHypothesisTypeOrigin.outerAbstractedField_eq_bvar_at
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (hfieldEq : field = .fvar fv)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup) (hi : i < binders.length)
+    (hget : binders[i] = fv) :
+    O.outerAbstractedField binders =
+      mkAppN (.bvar (O.args.size + (binders.length - 1 - i)))
+        (O.localIndices.map Expr.bvar).toArray := by
+  have hmem : fv ∈ binders := by
+    rw [← hget]
+    exact List.getElem_mem hi
+  rcases O.outerAbstractedField_eq_bvar hfieldEq hfieldRoot hbinders hmem with
+    ⟨fieldVar, _hfieldVar, habstract, houter⟩
+  have hexact := Expr.abstractList_fvar_getElem hbinders i hi (k := 0)
+  rw [hget] at hexact
+  have hfieldVarExact : fieldVar = binders.length - 1 - i := by
+    have hexact' : (Expr.fvar fv).abstractList binders =
+        .bvar (binders.length - 1 - i) := by
+      simpa only [Nat.zero_add] using hexact
+    exact Expr.bvar.inj (habstract.symm.trans hexact')
+  simpa [hfieldVarExact] using houter
+
 /-- The constructed hypothesis origin cannot itself be a top-level parameter
 annotation: a nonempty local suffix produces a forall, while the empty case
 is the explicit motive application. -/
@@ -72854,6 +72880,12 @@ theorem
         T.minors[minorIdx]! = VExpr.wrapForalls
           (fieldDomains ++ hypothesisDomains) targetResidual ∧
         D.type = sourceType ∧
+        O.outerAbstractedField S.fields_bound.fvars =
+          mkAppN
+            (.bvar (O.args.size +
+              (S.fields_bound.fvars.length - 1 -
+                A.semantics.recursivePositions[j]!)))
+            (O.localIndices.map Expr.bvar).toArray ∧
         (let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -72888,13 +72920,37 @@ theorem
       hdeclarationExact⟩
   rcases A.narrowFieldRuntimeFrame with ⟨B⟩
   rcases A.canonicalRecursiveResultAt T B j hj with ⟨E⟩
+  let fieldPosition := A.semantics.recursivePositions[j]!
+  have hfieldPositionRule : fieldPosition < A.rule.allArgs.size :=
+    (A.semantics.decisions.selected_at j hj).1
+  have hfieldPositionSource : fieldPosition < S.fields.size := by
+    rw [hsourceFields]
+    exact hfieldPositionRule
+  have hfieldPositionFVars : fieldPosition <
+      S.fields_bound.fvars.length := by
+    rw [S.fields_bound.length_fvars]
+    exact hfieldPositionSource
+  rcases S.fields_bound.getElem_eq_fvar fieldPosition
+      hfieldPositionSource with ⟨_hfieldPositionFVars, hfieldAt⟩
+  have hsourceFieldExact : S.recursiveFields[j]! =
+      .fvar S.fields_bound.fvars[fieldPosition] :=
+    hsourceSelected.trans <| (getElem!_pos S.fields fieldPosition
+      hfieldPositionSource).trans hfieldAt
+  rcases O.field_fvar with ⟨sourceFVar, hsourceFVar, hsourceFVarRoot⟩
+  have hsourceFVarExact : sourceFVar =
+      S.fields_bound.fvars[fieldPosition] :=
+    Expr.fvar.inj (hsourceFVar.symm.trans hsourceFieldExact)
+  have houterField := O.outerAbstractedField_eq_bvar_at hsourceFVar
+    hsourceFVarRoot S.fields_nodup hfieldPositionFVars
+      hsourceFVarExact.symm
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, sourceType, O, B, E,
     hhypothesisOrigins, hhypothesisStats, htraversal,
     htraversalFields, htraversalRecursiveFields, hpositions,
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
-    hdeclarationExact, Hdomain, E.closed_typing⟩
+    hdeclarationExact, by simpa [fieldPosition] using houterField,
+    Hdomain, E.closed_typing⟩
 
 /-- All recursive results of one generated rule, chosen in their production
 array order and fixed to one recursor telescope and one narrowed field frame. -/
