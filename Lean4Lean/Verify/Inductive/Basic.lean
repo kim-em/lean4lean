@@ -18587,6 +18587,27 @@ structure RecursorParameterContextSuffix
     stats.params.toList
     (checkInductiveTypes.loopType.cachedParamVars stats.params.size 0)
 
+/-- The cached parameter suffix is independently well formed after dropping
+the ambient declarations that precede it in the recursor context. -/
+theorem RecursorParameterContextSuffix.parameterWF
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    VLCtx.WF R.venv recLparams.length H.parameterDecls := by
+  have dropPrefix : ∀ (added suffix : VLCtx),
+      VLCtx.WF R.venv recLparams.length (added ++ suffix) →
+        VLCtx.WF R.venv recLparams.length suffix := by
+    intro added
+    induction added with
+    | nil => intro suffix Hwf; simpa using Hwf
+    | cons decl tail ih =>
+      intro suffix Hwf
+      exact ih suffix Hwf.1
+  have Hwf := R.mlctx_wf.tr.wf
+  rw [H.context] at Hwf
+  exact dropPrefix H.ambientDecls H.parameterDecls Hwf
+
 theorem VEnv.IsDefEqCtx.instL
     (hls : ∀ level ∈ levels, level.WF U') :
     ∀ {base left right},
@@ -62632,6 +62653,66 @@ theorem
       A.semantics.parameterTail target := by
     simpa only [← H.parameterDecls] using HtargetAtParameters
   exact ⟨S, HS, target, hlocal, htail, HtargetFinal⟩
+
+/-- The target retained from first-pass minor construction and the field
+telescope reconstructed during final rule generation are definitionally
+equal, because they translate the same constructor tail in the same exact
+parameter context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorSharedTailDefEq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
+        ∃ target fieldDomains fieldResult,
+          S.localIndex = i ∧
+          HS.semantic.traversal.parameterTail =
+            A.semantics.parameterTail ∧
+          fieldDomains.length = A.rule.allArgs.size ∧
+          TrExprS H.outVEnv Us parameterDecls
+            A.semantics.parameterTail target ∧
+          TrExprS H.outVEnv Us parameterDecls
+            A.semantics.parameterTail
+            (VExpr.wrapForalls fieldDomains fieldResult) ∧
+          H.outVEnv.IsDefEqU Us.length parameterDecls.toCtx target
+            (VExpr.wrapForalls fieldDomains fieldResult) := by
+  dsimp only
+  rcases A.finalSelectedMinorSharedTail with
+    ⟨S, HS, target, hlocal, htail, Htarget⟩
+  rcases A.finalCheckedConstructorFieldFrame with
+    ⟨_T, fieldDomains, fieldResult, _introTarget, _hparams, hfields,
+      Hfields, _HfieldResidual, _HtailType, _HtailTypeT,
+      _HfieldContext, _HintroType, _Hintro, _HintroShape⟩
+  have hbaseLE :
+      (R.declared.context.toAdmissibleRecursorContextWF
+        H.elimLevelAdmissible).venv ≤ H.outVEnv := by
+    rw [ContextWF.toAdmissibleRecursorContextWF_venv,
+      R.declared.contextVEnv]
+    exact H.installed.le
+  have HparameterWF : VLCtx.WF H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterWF.mono hbaseLE
+  have Hsame := Htarget.uniq H.outVEnvWF
+    (.refl H.outVEnvWF HparameterWF) Hfields
+  exact ⟨S, HS, target, fieldDomains, fieldResult, hlocal, htail,
+    hfields, Htarget, Hfields, Hsame⟩
 
 /-- Replaying the selected constructor telescope in the later rule context
 preserves its alpha-independent recursive-field mask.  Consequently the
