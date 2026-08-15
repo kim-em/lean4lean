@@ -73560,6 +73560,11 @@ theorem
                 (S.hypotheses_bound.fvars.take j) O.args.size).abstractList
               S.fields_bound.fvars (O.args.size + j)).abstractList
               sourceBinders (O.args.size + position)) ∧
+            sourceResidual =
+              ((O.outerAbstractedMotiveApp
+                  S.fields_bound.fvars).liftLooseBVars'
+                O.args.size j).abstractList sourceBinders
+                  (O.args.size + position) ∧
             hypothesisDomains[j]! = VExpr.wrapForalls
               hypothesisLocalDomains hypothesisResidual ∧
             TrExprS H.outVEnv Us
@@ -73869,6 +73874,89 @@ theorem
       semanticTarget := by
     rw [hmotiveAppAlignment]
     exact HsemanticGenerated
+  let localMotiveApp :=
+    (Expr.app
+      (mkAppN hypothesisOrigins.recInfos[O.ownerIdx]!.motive
+        O.exposedType.getAppArgs[hypothesisOrigins.stats.params.size:])
+      (mkAppN S.recursiveFields[j]! O.args)).abstractList
+        O.arguments_bound.fvars
+  have hfieldClosedMotiveApp :
+      localMotiveApp.abstractList S.fields_bound.fvars O.args.size =
+        O.outerAbstractedMotiveApp S.fields_bound.fvars := by
+    simpa [localMotiveApp] using
+      O.outerAbstractedMotiveApp_eq S.fields_bound.fvars
+  have HgeneratedMotiveScope :=
+    E.frame.fieldAbstractedNormalizedMotiveSourceScope
+  have HoriginMotiveScope :
+      (O.outerAbstractedMotiveApp S.fields_bound.fvars).FVarsIn fun fv =>
+        fv ∈ ExprArrayFVarIds hypothesisOrigins.stats.params ++
+          ExprArrayFVarIds (H.recInfos.map (·.motive)) := by
+    rw [hmotiveAppAlignment]
+    exact HgeneratedMotiveScope
+  have HoriginMotiveAvoidsHypotheses :
+      (O.outerAbstractedMotiveApp S.fields_bound.fvars).FVarsIn
+        (fun fv => fv ∉ S.hypotheses_bound.fvars) := by
+    apply HoriginMotiveScope.mono
+    intro fv houter hhypothesis
+    apply hypothesisOrigins.hypotheses_outer_fresh fv
+    · simpa [hhypothesisRecInfos] using houter
+    · rw [S.hypotheses_bound.exprArrayFVarIds]
+      exact hhypothesis
+  have HoriginMotiveClosed : Closed
+      (O.outerAbstractedMotiveApp S.fields_bound.fvars)
+      (O.args.size + S.fields.size) := by
+    have hclosed := HsemanticOrigin.closed
+    rw [abstractForallContext_bvars,
+      A.semantics.fieldRootContext.mlctx.noBV, Nat.add_zero] at hclosed
+    simpa [hsemanticLocal, hsemanticFields, hlocalArity,
+      hsourceFields, Nat.add_comm] using hclosed
+  have HlocalMotiveClosed : Closed localMotiveApp O.args.size := by
+    apply Expr.closed_of_abstractList
+    rw [hfieldClosedMotiveApp]
+    simpa [S.fields_bound.length_fvars] using HoriginMotiveClosed
+  have HlocalMotiveScope : localMotiveApp.FVarsIn fun fv =>
+      fv ∈ S.fields_bound.fvars ∨
+        fv ∉ S.hypotheses_bound.fvars := by
+    apply FVarsIn.of_abstractList
+    rw [hfieldClosedMotiveApp]
+    exact HoriginMotiveAvoidsHypotheses
+  have HlocalMotiveAvoidsHypotheses :
+      localMotiveApp.FVarsIn
+        (fun fv => fv ∉ S.hypotheses_bound.fvars) := by
+    apply HlocalMotiveScope.mono
+    intro fv hfv hhypothesis
+    rcases hfv with hfield | hnotHypothesis
+    · exact S.hypotheses_fields_fresh fv hhypothesis hfield
+    · exact hnotHypothesis hhypothesis
+  let previousHypothesisFVars := S.hypotheses_bound.fvars.take j
+  have hpreviousHypothesisFVarsLength :
+      previousHypothesisFVars.length = j := by
+    simp only [previousHypothesisFVars, List.length_take]
+    have hjHypothesisFVars : j < S.hypotheses_bound.fvars.length := by
+      rw [S.hypotheses_bound.length_fvars, hsourceHypotheses]
+      exact hj
+    omega
+  have HlocalMotiveAvoidsPrevious : localMotiveApp.FVarsIn
+      (fun fv => fv ∉ previousHypothesisFVars) := by
+    apply HlocalMotiveAvoidsHypotheses.mono
+    intro fv hnotAll hprevious
+    exact hnotAll (List.mem_of_mem_take hprevious)
+  have hpreviousMotiveAbstract :
+      localMotiveApp.abstractList previousHypothesisFVars O.args.size =
+        localMotiveApp :=
+    HlocalMotiveAvoidsPrevious.abstractList_eq_self HlocalMotiveClosed
+  have hfieldMotiveShift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := localMotiveApp) (fvars := S.fields_bound.fvars)
+    (depth := O.args.size) (extra := j)
+    HlocalMotiveClosed S.fields_nodup
+  have hpreviousFieldMotiveNormalization :
+      (localMotiveApp.abstractList previousHypothesisFVars
+          O.args.size).abstractList
+        S.fields_bound.fvars (O.args.size + j) =
+      (O.outerAbstractedMotiveApp S.fields_bound.fvars).liftLooseBVars'
+        O.args.size j := by
+    rw [hpreviousMotiveAbstract, hfieldMotiveShift,
+      hfieldClosedMotiveApp]
   subst sourceType
   have HsourceTelescope := O.sourceTelescope
   have HpreviousHypotheses := HsourceTelescope.abstractList
@@ -73924,6 +74012,19 @@ theorem
     rw [← hlocalMotiveApp']
     simpa [Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using
       hsourceResidual
+  have hsourceResidualNormalized : sourceResidual =
+      ((O.outerAbstractedMotiveApp
+          S.fields_bound.fvars).liftLooseBVars'
+        O.args.size j).abstractList sourceBinders
+          (O.args.size + position) := by
+    have hsourceResidualLocal : sourceResidual =
+        ((localMotiveApp.abstractList previousHypothesisFVars
+            O.args.size).abstractList S.fields_bound.fvars
+          (O.args.size + j)).abstractList sourceBinders
+            (O.args.size + position) := by
+      simpa [localMotiveApp, previousHypothesisFVars, Nat.add_comm,
+        Nat.add_left_comm, Nat.add_assoc] using hsourceResidual
+    rw [hsourceResidualLocal, hpreviousFieldMotiveNormalization]
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, D.type, O, B, E,
     hhypothesisOrigins, rfl, hhypothesisRecInfos,
@@ -73948,6 +74049,8 @@ theorem
       by
         simpa [sourceBinders, position, Nat.add_comm, Nat.add_left_comm,
           Nat.add_assoc] using hsourceResidualStructured,
+      by
+        simpa [sourceBinders, position] using hsourceResidualNormalized,
       hhypothesisDomain,
       HhypothesisResidual, HhypothesisResidualType⟩,
     E.closed_typing⟩
