@@ -69641,19 +69641,25 @@ theorem
     (B : A.NarrowFieldRuntimeFrame)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ fullFields,
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+      ∃ narrowFields weakenedFields fullFields,
+      narrowFields.length = A.rule.allArgs.size ∧
+      weakenedFields.length = A.rule.allArgs.size ∧
       fullFields.length = A.rule.allArgs.size ∧
+      weakenedFields = liftForallDomains narrowFields Hscope.shift ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length []
-        (fullFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+        (weakenedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
         B.runtime.expanded.toCtx := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
   rcases A.finalSelectedMinorNarrowFullContextAlignment hpositive with
-    ⟨S, HS, _scope, _Hscope, _narrowDomains, fullDomains,
-      _weakenedDomains, _narrowResidual, fullResidual,
-      _weakenedResidual, hfields, hhypotheses, htail,
-      _hnarrowLength, hfullLength, _hweakenedLength, hfullTarget,
-      _hweakenedTarget, _HnarrowFull⟩
+    ⟨S, HS, scope, Hscope, narrowDomains, fullDomains,
+      weakenedDomains, narrowResidual, fullResidual,
+      weakenedResidual, hfields, hhypotheses, htail,
+      hnarrowLength, hfullLength, hweakenedLength, hfullTarget,
+      hweakenedTarget, HnarrowFull⟩
   rcases A.finalSelectedMinorExpandedFieldAlignmentFor
       B S HS htail hfields with
     ⟨minorConsumedDomains, minorConsumedResidual, hminorConsumed,
@@ -69714,11 +69720,17 @@ theorem
   have Hcontexts := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF Hbase
     (hreplayedLength.trans hfullLength.symm) Hwhole
   let replayedFields := replayedDomains.take A.rule.allArgs.size
+  let narrowFields := narrowDomains.take A.rule.allArgs.size
+  let weakenedFields := weakenedDomains.take A.rule.allArgs.size
   let fullFields := fullDomains.take A.rule.allArgs.size
   have hreplayedFields : replayedFields.length = A.rule.allArgs.size := by
     simp [replayedFields, hreplayedLength]
   have hfullFields : fullFields.length = A.rule.allArgs.size := by
     simp [fullFields, hfullLength]
+  have hnarrowFields : narrowFields.length = A.rule.allArgs.size := by
+    simp [narrowFields, hnarrowLength]
+  have hweakenedFields : weakenedFields.length = A.rule.allArgs.size := by
+    simp [weakenedFields, hweakenedLength]
   have HfieldContexts := Hcontexts.dropHeads A.rule.recursiveArgs.size
   have hreplayedDrop :
       (replayedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx).drop
@@ -69747,6 +69759,21 @@ theorem
       List.drop_left' (fullDomains.drop A.rule.allArgs.size).reverse
         (fullFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
   rw [hreplayedDrop, hfullDrop] at HfieldContexts
+  have hweakenedDrop :
+      (weakenedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx).drop
+          A.rule.recursiveArgs.size =
+        weakenedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx := by
+    have hsplit := (List.take_append_drop A.rule.allArgs.size
+      weakenedDomains).symm
+    rw [hsplit, List.reverse_append]
+    have hsuffix : (weakenedDomains.drop A.rule.allArgs.size).length =
+        A.rule.recursiveArgs.size := by
+      simp [hweakenedLength]
+    simpa [weakenedFields, List.append_assoc, hsuffix] using
+      List.drop_left' (weakenedDomains.drop A.rule.allArgs.size).reverse
+        (weakenedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+  have HfullWeakened := HnarrowFull.dropHeads A.rule.recursiveArgs.size
+  rw [hfullDrop, hweakenedDrop] at HfullWeakened
   have hreplayedFieldsExact : replayedFields =
       liftForallDomains HS.semantic.fieldDomains (Hext.shift.consN 0) := by
     dsimp only [replayedFields, replayedDomains, semanticDomains]
@@ -69762,7 +69789,25 @@ theorem
   have HfullConsumed := HfieldContexts.symm H.outVEnvWF.ordered
   have HfullNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HfullConsumed HminorNarrow
-  exact ⟨fullFields, hfullFields, HfullNarrow⟩
+  have hallWeakened : liftForallDomains narrowDomains Hscope.shift =
+      weakenedDomains := by
+    apply VExpr.wrapForalls_prefix_domains_eq
+      (liftForallDomains_length _ _) hweakenedLength
+    rw [← hweakenedTarget]
+    exact VExpr.lift'_wrapForalls_exact _ _ _
+  have hweakenedFieldsExact : weakenedFields =
+      liftForallDomains narrowFields Hscope.shift := by
+    rw [← hallWeakened]
+    dsimp only [weakenedFields, narrowFields]
+    rw [← liftForallDomains_append_take_left
+      (narrowDomains.take A.rule.allArgs.size)
+      (narrowDomains.drop A.rule.allArgs.size) Hscope.shift]
+    rw [List.take_append_drop]
+  have HweakenedNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    (HfullWeakened.symm H.outVEnvWF.ordered) HfullNarrow
+  exact ⟨scope, Hscope, narrowFields, weakenedFields, fullFields,
+    hnarrowFields, hweakenedFields, hfullFields,
+    hweakenedFieldsExact, HweakenedNarrow⟩
 
 /-- Compose the selected minor's transported consumed fields with the
 rule-wide narrowing conversion.  The result relates the literal first-pass
