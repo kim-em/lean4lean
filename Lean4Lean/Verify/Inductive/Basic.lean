@@ -66409,6 +66409,84 @@ theorem
   rw [← B.fieldScope_eq]
   exact Hscope.toCtx
 
+/-- Expose the rule-wide narrowing conversion before any call-local
+higher-order arguments are added.  The expanded narrow context is related to
+the literal field suffix of the executable semantic context, and dropping
+that suffix reaches the common recursor root on both sides. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame.semanticFieldContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ semanticFieldDomains : List VExpr,
+      semanticFieldDomains.length = A.rule.allArgs.size ∧
+      A.semantics.context.mlctx.vlctx.toCtx =
+        semanticFieldDomains.reverse ++
+          A.semantics.fieldRootContext.mlctx.vlctx.toCtx ∧
+      B.runtime.frontExpandedDomains.length = A.rule.allArgs.size ∧
+      B.runtime.expanded.toCtx =
+        B.runtime.frontExpandedDomains.reverse ++
+          VLCtx.toCtx (B.runtime.expanded.drop
+            B.runtime.frontExpandedDomains.length) ∧
+      VLCtx.IsDefEq H.outVEnv Us.length
+        (B.runtime.expanded.drop A.rule.allArgs.size)
+        A.semantics.fieldRootContext.mlctx.vlctx ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        B.runtime.expanded.toCtx
+        (semanticFieldDomains.reverse ++
+          A.semantics.fieldRootContext.mlctx.vlctx.toCtx) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let semanticFieldDomains := MLCtxForallDomains A.semantics.context.mlctx
+    A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hsemanticFields : semanticFieldDomains.length =
+      A.rule.allArgs.size :=
+    A.semantics.context.onlyLams.forallDomains_length
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hsemanticContext :=
+    MLCtxOnlyLams.toCtx_eq_forallDomains_reverse_append_dropN
+      A.semantics.context.onlyLams A.rule.allArgs.size
+      A.semantics.fieldsRecent.size_le
+  rw [A.semantics.fieldsRecent.drop_eq] at hsemanticContext
+  have hsemanticContext' : A.semantics.context.mlctx.vlctx.toCtx =
+      semanticFieldDomains.reverse ++
+        A.semantics.fieldRootContext.mlctx.vlctx.toCtx := by
+    simpa [semanticFieldDomains] using hsemanticContext
+  have hfrontExpanded : B.runtime.frontExpandedDomains.length =
+      A.rule.allArgs.size := by
+    rw [← B.runtime.front.length_eq, B.front, B.fieldDomains_length]
+  have hexpanded := B.runtime.front.expandedContext
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  let Hruntime := B.runtime.mono hbase
+  have hfieldDrop :
+      A.semantics.context.mlctx.vlctx.drop A.rule.allArgs.size =
+        A.semantics.fieldRootContext.mlctx.vlctx := by
+    rw [← A.semantics.context.onlyLams.vlctx_dropN
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le,
+      A.semantics.fieldsRecent.drop_eq]
+  have HfieldBase := Hruntime.context.drop A.rule.allArgs.size
+  rw [hfieldDrop] at HfieldBase
+  have Hcontexts : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      B.runtime.expanded.toCtx
+      (semanticFieldDomains.reverse ++
+        A.semantics.fieldRootContext.mlctx.vlctx.toCtx) := by
+    have Hcontexts' := Hruntime.context.defeqCtx
+    rw [hsemanticContext'] at Hcontexts'
+    exact Hcontexts'
+  exact ⟨semanticFieldDomains, hsemanticFields, hsemanticContext',
+    hfrontExpanded, hexpanded, HfieldBase, Hcontexts⟩
+
 /-- Restrict the terminal constructor target to the retained rule-wide
 field scope and close those named fields.  The resulting target is typed in
 the exact anonymous field/parameter context used by canonical recursive
