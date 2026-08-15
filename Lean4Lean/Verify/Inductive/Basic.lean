@@ -82309,6 +82309,16 @@ theorem
             H.outVEnv.HasType Us.length
               (abstractForallContext equationDomains []).toCtx C.bodies[j]
               (C.bodyTypes)[j]) ∧
+          (∀ j (hj : j < A.rule.recursiveArgs.size),
+            let E := C.resultAt j hj
+            OnCtx
+                (E.localDomains.reverse ++
+                  (abstractForallContext equationDomains []).toCtx)
+                (H.outVEnv.IsType Us.length) ∧
+              H.outVEnv.HasType Us.length
+                (E.localDomains.reverse ++
+                  (abstractForallContext equationDomains []).toCtx)
+                E.resultBody E.resultType) ∧
           ∀ j (hj : j < C.bodies.length),
             VExpr.WF H.outVEnv Us.length
               (abstractForallContext equationDomains []).toCtx C.bodies[j] := by
@@ -82335,16 +82345,32 @@ theorem
     rw [abstractForallContext_toCtx]
     simp [equationDomains, equationFieldDomains, List.reverse_append,
       List.append_assoc, VLCtx.toCtx]
-  refine ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
-    hfields, hhypotheses, hminorType, ?_, ?_, ?_, ?_⟩
-  · rw [hequationContext]
+  have HfixedEquationContext : OnCtx
+      (abstractForallContext equationDomains []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    rw [hequationContext]
     simpa only [inserted] using HfixedContext
+  refine ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
+    hfields, hhypotheses, hminorType, ?_, ?_, ?_, ?_, ?_⟩
+  · exact HfixedEquationContext
   · rw [hequationContext]
     simpa only [inserted, equationFieldDomains, later, minorVar,
       List.length_reverse] using Hminor
   · intro j hj
     simpa only [Us, equationDomains, inserted, equationFieldDomains,
       List.append_assoc] using C.bodyTyping j hj
+  · intro j hj
+    let E := C.resultAt j hj
+    have Hclosed : H.outVEnv.HasType Us.length
+        (abstractForallContext equationDomains []).toCtx
+        (VExpr.wrapLams E.localDomains E.resultBody)
+        (VExpr.wrapForalls E.localDomains E.resultType) := by
+      simpa only [equationDomains, inserted, equationFieldDomains,
+        List.append_assoc] using E.closed_typing
+    have Hopen := VEnv.HasType.wrapLams_inv H.outVEnvWF
+      HfixedEquationContext Hclosed
+    simpa only [Us, equationDomains, inserted, equationFieldDomains,
+      List.append_assoc] using Hopen
   · intro j hj
     simpa only [Us, equationDomains, inserted, equationFieldDomains,
       List.append_assoc] using C.bodyWF j hj
@@ -82393,7 +82419,7 @@ theorem
   rcases A.finalCanonicalMinorApplicationFrame with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
       hfields, hhypotheses, _hminorType, _Hctx, Hminor,
-      _HbodyTyping, _HbodyWF⟩
+      _HbodyTyping, _HopenBodyTyping, _HbodyWF⟩
   have hfieldDomains : fieldDomains = [] :=
     List.eq_nil_of_length_eq_zero (hfields.trans hfieldsZero)
   have hhypothesisDomains : hypothesisDomains = [] :=
