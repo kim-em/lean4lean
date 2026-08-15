@@ -25010,6 +25010,237 @@ theorem LocalContext.mkBindingList_append_four
     LocalContext.mkBindingList_eq_fold hdsDecl habcd.2.1]
   simp only [List.foldr_append]
 
+/-- Closing an older selected list after extending the local context by one
+fresh selected declaration is the same as closing the new declaration first
+and then using the old context. -/
+theorem LocalContext.mkForall_append_fresh
+    {lctx : LocalContext} {selected : List FVarId} {fv : FVarId}
+    {name : Name} {type body : Expr} {bi : BinderInfo}
+    (hwf : lctx.WF) (hfind : lctx.find? fv = none)
+    (hdecl : ∀ other ∈ selected, ∃ decl,
+      lctx.find? other = some decl)
+    (hnodup : selected.Nodup) :
+    let next := lctx.mkLocalDecl fv name type bi
+    next.mkForall
+        ((selected ++ [fv]).map Expr.fvar).toArray body =
+      lctx.mkForall (selected.map Expr.fvar).toArray
+        (.forallE name type (body.abstract1 fv) bi) := by
+  dsimp only
+  let next := lctx.mkLocalDecl fv name type bi
+  have hfresh : fv ∉ selected := by
+    intro hmem
+    rcases hdecl fv hmem with ⟨decl, hsome⟩
+    rw [hfind] at hsome
+    contradiction
+  have hselectedNext : ∀ other ∈ selected, ∃ decl,
+      next.find? other = some decl := by
+    intro other hother
+    rcases hdecl other hother with ⟨decl, hlookup⟩
+    refine ⟨decl, ?_⟩
+    simp only [next, LocalContext.mkLocalDecl, LocalContext.find?,
+      hwf.map_wf.find?_insert]
+    rw [if_neg]
+    · exact hlookup
+    · intro heq
+      have : fv = other := beq_iff_eq.mp heq
+      exact hfresh (this.symm ▸ hother)
+  have hnewNext : next.find? fv = some
+      (.cdecl lctx.decls.size fv name type bi .default) := by
+    simp [next, LocalContext.mkLocalDecl, LocalContext.find?,
+      hwf.map_wf.find?_insert]
+  have hallNext : ∀ other ∈ selected ++ [fv], ∃ decl,
+      next.find? other = some decl := by
+    intro other hother
+    rcases List.mem_append.mp hother with hother | hother
+    · exact hselectedNext other hother
+    · simp only [List.mem_singleton] at hother
+      subst other
+      exact ⟨_, hnewNext⟩
+  have hallNodup : (selected ++ [fv]).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨hnodup, by simp, ?_⟩
+    intro a ha b hb hab
+    have hb' : b = fv := by simpa using hb
+    apply hfresh
+    rw [← hb', ← hab]
+    exact ha
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
+    LocalContext.mkForall, LocalContext.mkBinding_eq]
+  rw [LocalContext.mkBindingList_append hallNext hallNodup]
+  have hsingle : LocalContext.mkBindingList false next [fv] body =
+      .forallE name type (body.abstract1 fv) bi := by
+    simp [LocalContext.mkBindingList_eq_fold, hnewNext,
+      LocalContext.mkBindingList1]
+  rw [hsingle]
+  exact LocalContext.mkBindingList_congr (by
+    intro other hother
+    simp only [next, LocalContext.mkLocalDecl, LocalContext.find?,
+      hwf.map_wf.find?_insert]
+    rw [if_neg]
+    intro heq
+    have : fv = other := beq_iff_eq.mp heq
+    exact hfresh (this.symm ▸ hother))
+
+/-- Extending a local context by a fresh declaration not selected for
+closure leaves the selected forall expression unchanged. -/
+theorem LocalContext.mkForall_skip_fresh
+    {lctx : LocalContext} {selected : List FVarId} {fv : FVarId}
+    {name : Name} {type body : Expr} {bi : BinderInfo}
+    (hwf : lctx.WF) (hfind : lctx.find? fv = none)
+    (hselected : fv ∉ selected) :
+    let next := lctx.mkLocalDecl fv name type bi
+    next.mkForall (selected.map Expr.fvar).toArray body =
+      lctx.mkForall (selected.map Expr.fvar).toArray body := by
+  dsimp only
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
+    LocalContext.mkForall, LocalContext.mkBinding_eq]
+  apply LocalContext.mkBindingList_congr
+  intro other hother
+  simp only [LocalContext.mkLocalDecl, LocalContext.find?,
+    hwf.map_wf.find?_insert]
+  rw [if_neg]
+  intro heq
+  have : fv = other := beq_iff_eq.mp heq
+  exact hselected (this.symm ▸ hother)
+
+/-- Strengthen non-contiguous narrowing with its exact concrete source
+closure.  The retained source provenance closes to `LocalContext.mkForall`
+over precisely the selected identifiers, so its positional binder domains
+can be compared directly with production recursor binders. -/
+theorem MLCtxOnlyLams.narrowFVarsSource
+    {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
+    (H : MLCtxOnlyLams c)
+    (henv : env.WF)
+    (Hwf : c.WF env Us)
+    (P : FVarId → Prop) [DecidablePred P]
+    (hup : IsFVarUpSet P c.vlctx) :
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          env Us scope c.vlctx,
+        scope.fvars = c.vlctx.fvars.filter P ∧
+        (∀ fv ∈ scope.fvars, ∃ decl,
+          c.lctx.find? fv = some decl) ∧
+        ∀ body,
+          Hscope.sources.closeSource body =
+            c.lctx.mkForall
+              (scope.fvars.reverse.map Expr.fvar).toArray body := by
+  induction c with
+  | nil =>
+    refine ⟨[], .nil, rfl, ?_, ?_⟩
+    · intro fv hfv
+      simp at hfv
+    · intro body
+      change body = ({} : LocalContext).mkForall #[] body
+      exact (LocalContext.mkForall_empty {} body).symm
+  | @vlam fv name type type' bi tail ih =>
+    have HruntimeWF := Hwf.tr.wf
+    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
+    rcases ih H.tail_vlam HtailWF hup.1 with
+      ⟨tailScope, HtailScope, htailScopeFVars,
+        htailDecls, htailClose⟩
+    by_cases hP : P fv
+    · have hdeps : type.fvarsList ⊆ tailScope.fvars := by
+        intro dep hdep
+        rw [htailScopeFVars]
+        exact List.mem_filter.mpr ⟨Htype.fvarsList hdep, by
+          simpa using hup.2 hP dep hdep⟩
+      have hclosed : Closed type 0 := by
+        have h := Htype.closed
+        rw [tail.noBV] at h
+        exact h
+      have htypeFVars : FVarsIn (· ∈ tailScope.fvars) type := by
+        apply fvarsIn_iff.mpr
+        refine ⟨hdeps, ?_⟩
+        exact Htype.fvarsIn.mono fun _ _ => trivial
+      rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+        ⟨narrowType, HnarrowType⟩
+      have Hweak : TrExprS env Us HtailScope.expanded type
+          (narrowType.lift' HtailScope.shift) := by
+        simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
+          HtailScope.context.wf
+      have HtargetEq := Hweak.uniq henv HtailScope.context Htype
+      have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
+          type' :=
+        HtypeType.defeqDFC henv.ordered
+          (HtailScope.context.symm henv.ordered).defeqCtx
+      rcases HtargetType with ⟨u, HtargetType⟩
+      have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
+          (narrowType.lift' HtailScope.shift) type' (.sort u) :=
+        HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+      let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
+        HnarrowType Hdomain
+      have hnextFVars : ∀ body,
+          Hnext.sources.closeSource body =
+            HtailScope.sources.closeSource
+              (.forallE name type (body.abstract1 fv) bi) := by
+        intro body
+        rfl
+      have holdDecls : ∀ other ∈ tailScope.fvars.reverse,
+          ∃ decl, tail.lctx.find? other = some decl := by
+        intro other hother
+        exact htailDecls other (List.mem_reverse.mp hother)
+      have holdNodup : tailScope.fvars.reverse.Nodup :=
+        List.nodup_reverse.mpr (HtailScope.scopeWF henv).fvars_nodup
+      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_⟩
+      · intro other hother
+        change other ∈ fv :: tailScope.fvars at hother
+        simp only [List.mem_cons] at hother
+        rcases hother with rfl | hother
+        · refine ⟨.cdecl tail.lctx.decls.size other name type bi .default,
+            ?_⟩
+          simp [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+        · rcases htailDecls other hother with ⟨decl, hlookup⟩
+          refine ⟨decl, ?_⟩
+          simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+          rw [if_neg]
+          · exact hlookup
+          · intro heq
+            have heq' : fv = other := beq_iff_eq.mp heq
+            rw [heq'] at hfresh
+            rw [hlookup] at hfresh
+            contradiction
+      · intro body
+        have Happ := LocalContext.mkForall_append_fresh
+          HtailWF.tr.1 hfresh holdDecls holdNodup
+          (body := body) (name := name) (type := type) (bi := bi)
+        rw [hnextFVars body, htailClose]
+        simpa [Hnext, TypeChecker.MLCtx.lctx, List.reverse_cons]
+          using Happ.symm
+    · have hskip : fv ∉ tailScope.fvars := by
+        rw [htailScopeFVars]
+        simp [hP]
+      let Hnext := HtailScope.skipIndex henv HruntimeWF hskip
+      have hnextFVars : ∀ body,
+          Hnext.sources.closeSource body =
+            HtailScope.sources.closeSource body := by
+        intro body
+        rfl
+      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_⟩
+      · intro other hother
+        change other ∈ tailScope.fvars at hother
+        rcases htailDecls other hother with ⟨decl, hlookup⟩
+        refine ⟨decl, ?_⟩
+        simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+          LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+        rw [if_neg]
+        · exact hlookup
+        · intro heq
+          have heq' : fv = other := beq_iff_eq.mp heq
+          exact hskip (heq' ▸ hother)
+      · intro body
+        have Hskip := LocalContext.mkForall_skip_fresh
+          HtailWF.tr.1 hfresh
+          (selected := tailScope.fvars.reverse) (body := body)
+          (name := name) (type := type) (bi := bi)
+          (by simpa using hskip)
+        rw [hnextFVars body, htailClose]
+        simpa [Hnext, TypeChecker.MLCtx.lctx] using
+          Hskip.symm
+  | @vlet fv name type value type' value' tail ih =>
+    exact H.vlet_false.elim
+
 /-- A selected executable array consists solely of ordinary free-variable
 declarations in the retained local context. -/
 structure LocalForallSelection (lctx : LocalContext) (xs : Array Expr) where
