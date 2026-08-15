@@ -2225,6 +2225,20 @@ theorem Expr.getAppFn_mkAppN (fn : Expr) (args : Array Expr) :
     simp only [List.foldl_cons]
     simpa [Expr.getAppFn] using ih (.app fn arg)
 
+/-- An application spine headed by a local variable cannot be one of Lean's
+distinguished parameter-annotation applications. -/
+theorem Expr.isAppOfArity_eq_false_of_getAppFn_fvar
+    {e : Expr} (h : e.getAppFn = .fvar fv) (name : Name) (arity : Nat) :
+    e.isAppOfArity name arity = false := by
+  induction e generalizing arity with
+  | app fn arg ihFn _ =>
+    cases arity with
+    | zero => rfl
+    | succ arity =>
+      apply ihFn
+      simpa only [Expr.getAppFn] using h
+  | _ => cases arity <;> simp_all [Expr.getAppFn, Expr.isAppOfArity]
+
 theorem Expr.getAppArgsList_mkAppN (fn : Expr) (args : Array Expr) :
     (mkAppN fn args).getAppArgsList = fn.getAppArgsList ++ args.toList := by
   unfold mkAppN
@@ -23802,6 +23816,15 @@ theorem LocalContext.mkBindingList_forallTelescope
     go fvs.reverse (body.abstractList fvs) (fun fv hfv =>
       hdecl fv (by simpa using hfv))
 
+/-- Closing no free variables leaves the body unchanged. -/
+theorem LocalContext.mkForall_empty (lctx : LocalContext) (body : Expr) :
+    lctx.mkForall #[] body = body := by
+  rw [LocalContext.mkForall]
+  change LocalContext.mkBinding false lctx
+    (([] : List FVarId).map Expr.fvar).toArray body = body
+  rw [LocalContext.mkBinding_eq]
+  rfl
+
 /-- The production `LocalContext.mkForall` interface specialized to an
 explicit list of free variables known to denote ordinary declarations. -/
 theorem LocalContext.mkForall_fvars_forallTelescope
@@ -23841,6 +23864,13 @@ theorem Expr.ForallTelescope.consumeTypeAnnotations_eq_self
   | nil => exact hbody
   | cons H =>
     apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+
+theorem Expr.ForallTelescope.consumeTypeAnnotations_eq_self_of_pos
+    (H : Expr.ForallTelescope outer arity body) (hpos : 0 < arity) :
+    outer.consumeTypeAnnotations = outer := by
+  cases H with
+  | nil => simp at hpos
+  | cons _ => apply Expr.consumeTypeAnnotations_eq_self <;> rfl
 
 /-- Removing a possible top-level binder annotation preserves the number of
 leading forall binders.  In the zero-binder case the residual may itself be
@@ -27076,12 +27106,49 @@ structure RecInfoMinorHypothesisTypeOrigin
   arguments_bound : FreshBoundFVarArray root current args
   ownerIdx : Nat
   owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
+  motive_is_fvar : ∃ fv, recInfos[ownerIdx]!.motive = .fvar fv
   type_eq :
     let itIndices := exposedType.getAppArgs[stats.params.size:]
     let motiveApp := Expr.app
       (mkAppN recInfos[ownerIdx]!.motive itIndices)
       (mkAppN field args)
     type = current.lctx.mkForall args motiveApp
+
+/-- The constructed hypothesis origin cannot itself be a top-level parameter
+annotation: a nonempty local suffix produces a forall, while the empty case
+is the explicit motive application. -/
+theorem RecInfoMinorHypothesisTypeOrigin.consumeTypeAnnotations_eq_self
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
+    type.consumeTypeAnnotations = type := by
+  let itIndices := O.exposedType.getAppArgs[stats.params.size:]
+  let motiveApp := Expr.app
+    (mkAppN recInfos[O.ownerIdx]!.motive itIndices)
+    (mkAppN field O.args)
+  rw [O.type_eq]
+  by_cases hpos : 0 < O.args.size
+  · have Htelescope :=
+      O.arguments_bound.toBoundFVarArray.mkForall_forallTelescope
+        O.current_wf motiveApp
+    exact Htelescope.consumeTypeAnnotations_eq_self_of_pos hpos
+  · have hsize : O.args.size = 0 := by omega
+    have hargs : O.args = #[] := Array.eq_empty_of_size_eq_zero hsize
+    rw [hargs]
+    rw [LocalContext.mkForall_empty]
+    rcases O.motive_is_fvar with ⟨motiveFVar, hmotive⟩
+    have hhead :
+        (Expr.app
+          (mkAppN recInfos[O.ownerIdx]!.motive itIndices)
+          (mkAppN field #[])).getAppFn = .fvar motiveFVar := by
+      simp only [Expr.getAppFn, Expr.getAppFn_mkAppN, hmotive]
+    apply Expr.consumeTypeAnnotations_eq_self
+    · change (Expr.app _ _).isAppOfArity `optParam 2 = false
+      exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
+    · change (Expr.app _ _).isAppOfArity `autoParam 2 = false
+      exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
+    · change (Expr.app _ _).isAppOfArity `outParam 1 = false
+      exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
+    · change (Expr.app _ _).isAppOfArity `semiOutParam 1 = false
+      exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
 
 /-- Completed pointwise origin data retained by one generated minor. -/
 structure RecInfoMinorHypothesisTypeOrigins
@@ -41878,6 +41945,14 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
             intro j hj
             rcases HhypothesisOrigins.entry j hj with
               ⟨originRoot, sourceType, ⟨O⟩, D, htype⟩
+            have hownerStats : O.ownerIdx < stats.indConsts.size :=
+              (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
+            have hownerRecInfos : O.ownerIdx < recInfos.size := by
+              rw [hrecords]
+              exact hownerStats
+            rcases Hbindings.motives.get_eq_fvar O.ownerIdx (by
+                simpa using hownerRecInfos) with
+              ⟨motiveFVar, hmotive, _hmotiveMember⟩
             exact ⟨originRoot, sourceType, ⟨{
               current := O.current
               current_wf := O.current_wf
@@ -41887,6 +41962,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
               arguments_bound := O.arguments_bound
               ownerIdx := O.ownerIdx
               owner_valid := O.owner_valid
+              motive_is_fvar := ⟨motiveFVar, by
+                rw [getElem!_pos recInfos O.ownerIdx hownerRecInfos]
+                simpa only [Array.getElem_map] using hmotive⟩
               type_eq := O.type_eq }⟩, D, htype⟩ }
         hypotheses_size := hhypothesesSize
         traversal := some {
@@ -61868,7 +61946,8 @@ theorem
               Nonempty (RecInfoMinorHypothesisTypeOrigin
                 hypothesisOrigins.stats hypothesisOrigins.recInfos
                 originRoot S.recursiveFields[j]! sourceType) ∧
-              D.type = sourceType.consumeTypeAnnotations := by
+              D.type = sourceType.consumeTypeAnnotations ∧
+              D.type = sourceType := by
   dsimp only
   rcases A.finalSelectedMinorHypothesisDomainAt j hj with
     ⟨T, S, hypothesisOrigins, fieldDomains, hypothesisDomains,
@@ -61884,6 +61963,9 @@ theorem
     ⟨originRoot, sourceType, HtypeOrigin, Dorigin, htypeOrigin⟩
   have hdeclarationType : D.type = sourceType.consumeTypeAnnotations :=
     (D.type_unique Dorigin).trans htypeOrigin
+  rcases HtypeOrigin with ⟨O⟩
+  have hdeclarationTypeExact : D.type = sourceType :=
+    hdeclarationType.trans O.consumeTypeAnnotations_eq_self
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take
       (recursorMinorOffset indTypes owner + i)
@@ -61906,7 +61988,8 @@ theorem
     targetResidual, D, hhypothesisOrigins, hhypothesisStats,
     hlocal, hsourceFields, hsourceHypotheses, hfields, hhypotheses,
     htarget, HdeclarationBinder', Hdomain, HdomainType,
-    originRoot, sourceType, HtypeOrigin, hdeclarationType⟩
+    originRoot, sourceType, ⟨O⟩, hdeclarationType,
+    hdeclarationTypeExact⟩
 
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
