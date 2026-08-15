@@ -65346,6 +65346,13 @@ theorem
             Hscope.frontExpandedDomains.reverse ++
               VLCtx.toCtx (Hscope.expanded.drop
                 Hscope.frontExpandedDomains.length) ∧
+          List.Forall₂
+            (fun fv entry => ∃ deps type,
+              entry = (some (fv, deps), .vlam type))
+            A.semantics.fieldsRecent.fvars.reverse
+            ((Hscope.expanded.drop
+              F.semantic.generated.localArgs.size).take
+                A.rule.allArgs.size) ∧
           VLCtx.IsDefEq H.outVEnv Us.length
             (Hscope.expanded.drop
               F.semantic.generated.localArgs.size)
@@ -65402,6 +65409,12 @@ theorem
   have HlocalBase := Hscope.context.drop
     F.semantic.generated.localArgs.size
   rw [hlocalDrop] at HlocalBase
+  have HsemanticFieldDecls :=
+    A.semantics.context.onlyLams.fvarRevList_declarations
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  rw [A.semantics.fieldsRecent.fvarRevList_eq] at HsemanticFieldDecls
+  have HexpandedFieldDecls :=
+    HlocalBase.leftLambdaDeclarations HsemanticFieldDecls
   have hfieldDrop :
       A.semantics.context.mlctx.vlctx.drop A.rule.allArgs.size =
         A.semantics.fieldRootContext.mlctx.vlctx := by
@@ -65419,7 +65432,7 @@ theorem
     simpa [semanticLocalDomains, semanticFieldDomains] using hcontexts'
   exact ⟨scope, Hscope, localDomains, semanticLocalDomains,
     semanticFieldDomains, hfront, hlocal, hsemanticLocal, hsemanticFields,
-    hsemanticContext', hexpanded, HlocalBase, by
+    hsemanticContext', hexpanded, HexpandedFieldDecls, HlocalBase, by
       simpa [Nat.add_comm] using HfieldBase, hcontexts⟩
 /-- The validated terminal application of a recursive call consumes the
 same canonical motive telescope retained for the call-selected mutual
