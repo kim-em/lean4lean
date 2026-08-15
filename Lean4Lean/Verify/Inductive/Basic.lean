@@ -25707,6 +25707,14 @@ theorem LocalContext.mkForall_skip_fresh
 closure.  The retained source provenance closes to `LocalContext.mkForall`
 over precisely the selected identifiers, so its positional binder domains
 can be compared directly with production recursor binders. -/
+def fvarSelectionLift (fvars : List FVarId) (P : FVarId → Prop)
+    [DecidablePred P] : Lift :=
+  match fvars with
+  | [] => .refl
+  | fv :: fvars =>
+    if P fv then .cons (fvarSelectionLift fvars P)
+    else .skip (fvarSelectionLift fvars P)
+
 theorem MLCtxOnlyLams.narrowFVarsSource
     {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
     (H : MLCtxOnlyLams c)
@@ -25718,6 +25726,7 @@ theorem MLCtxOnlyLams.narrowFVarsSource
       ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
           env Us scope c.vlctx,
         scope.fvars = c.vlctx.fvars.filter P ∧
+        Hscope.shift = fvarSelectionLift c.vlctx.fvars P ∧
         (∀ fv ∈ scope.fvars, ∃ decl,
           c.lctx.find? fv = some decl) ∧
         ∀ body,
@@ -25726,7 +25735,7 @@ theorem MLCtxOnlyLams.narrowFVarsSource
               (scope.fvars.reverse.map Expr.fvar).toArray body := by
   induction c with
   | nil =>
-    refine ⟨[], .nil, rfl, ?_, ?_⟩
+    refine ⟨[], .nil, rfl, rfl, ?_, ?_⟩
     · intro fv hfv
       simp at hfv
     · intro body
@@ -25737,7 +25746,7 @@ theorem MLCtxOnlyLams.narrowFVarsSource
     rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
     rcases ih H.tail_vlam HtailWF hup.1 with
       ⟨tailScope, HtailScope, htailScopeFVars,
-        htailDecls, htailClose⟩
+        htailShift, htailDecls, htailClose⟩
     by_cases hP : P fv
     · have hdeps : type.fvarsList ⊆ tailScope.fvars := by
         intro dep hdep
@@ -25781,7 +25790,10 @@ theorem MLCtxOnlyLams.narrowFVarsSource
         exact htailDecls other (List.mem_reverse.mp hother)
       have holdNodup : tailScope.fvars.reverse.Nodup :=
         List.nodup_reverse.mpr (HtailScope.scopeWF henv).fvars_nodup
-      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_⟩
+      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_⟩
+      · change HtailScope.shift.cons = _
+        rw [htailShift]
+        simp [fvarSelectionLift, hP]
       · intro other hother
         change other ∈ fv :: tailScope.fvars at hother
         simp only [List.mem_cons] at hother
@@ -25817,7 +25829,10 @@ theorem MLCtxOnlyLams.narrowFVarsSource
             HtailScope.sources.closeSource body := by
         intro body
         rfl
-      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_⟩
+      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_⟩
+      · change HtailScope.shift.skip = _
+        rw [htailShift]
+        simp [fvarSelectionLift, hP]
       · intro other hother
         change other ∈ tailScope.fvars at hother
         rcases htailDecls other hother with ⟨decl, hlookup⟩
@@ -65063,7 +65078,8 @@ theorem
       H.recursorWF.onlyLams
       H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
       (fun fv => fv ∈ sourceBinders) A.finalSelectedMinorPrefixUp with
-    ⟨scope, Hscope, hscopeFiltered, _hscopeDecls, hscopeSource⟩
+    ⟨scope, Hscope, hscopeFiltered, _hscopeShift,
+      _hscopeDecls, hscopeSource⟩
   have hscope : scope.fvars = sourceBinders.reverse :=
     hscopeFiltered.trans A.finalSelectedMinorFilteredFVars
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
