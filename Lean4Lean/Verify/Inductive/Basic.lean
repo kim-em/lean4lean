@@ -78839,6 +78839,12 @@ theorem
         OnCtx
           (abstractForallContext (equationDomains ++ localDomains) []).toCtx
           (H.outVEnv.IsType Us.length) ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext equationDomains [])
+          ((F.semantic.generated.current.lctx.mkForall
+            F.semantic.generated.localArgs (.sort .zero)).abstractList
+              A.rule.binders)
+          (VExpr.wrapForalls localDomains (.sort .zero)) ∧
         H.outVEnv.HasType Us.length
           (abstractForallContext (equationDomains ++ localDomains) []).toCtx
           majorTarget exposedTarget ∧
@@ -78889,7 +78895,7 @@ theorem
   rcases F.canonicalInsertedSemanticCallArgumentFrame T (B := B) with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, narrowExposed, _hfront,
-      hliftedFront, hfields, hfieldEq, hlocal, _HlocalTemplate,
+      hliftedFront, hfields, hfieldEq, hlocal, HlocalTemplate,
       Hctx, hlength, Hindices, _Hmajor,
       Hexposed, Htyping, _HindexEq, _HmajorEq⟩
   let liftedFields :=
@@ -78917,6 +78923,14 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     simpa [equationDomains, parameterDecls, inserted, hsplitFront,
       List.append_assoc] using Hctx
+  have HlocalTemplate' : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      ((F.semantic.generated.current.lctx.mkForall
+        F.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.binders)
+      (VExpr.wrapForalls liftedLocals (.sort .zero)) := by
+    simpa [equationDomains, parameterDecls, inserted, liftedFields,
+      liftedLocals, List.append_assoc] using HlocalTemplate
   have Htyping' : H.outVEnv.HasType Us.length
       (abstractForallContext (equationDomains ++ liftedLocals) []).toCtx
       majorTarget exposedTarget := by
@@ -79183,8 +79197,8 @@ theorem
     exact align HspineIndices Hindices'
   refine ⟨equationDomains, liftedFields, liftedLocals, added, frontDomains,
     exactIndexTargets, majorTarget, exposedTarget, ?_, rfl, ?_, rfl,
-    hfieldsLifted, ?_, hlocalsLifted, hequationLength, Hctx', Htyping', Hindices',
-    Hmajor', hexactIndexLength, levels,
+    hfieldsLifted, ?_, hlocalsLifted, hequationLength, Hctx',
+    HlocalTemplate', Htyping', Hindices', Hmajor', hexactIndexLength, levels,
     parameterTargets, spineIndexTargets, ?_, hlevels, ?_, hparameterTargets,
     HindexDefEq⟩
   · simp [equationDomains, added, parameterDecls, List.append_assoc]
@@ -79249,6 +79263,12 @@ theorem
             (abstractForallContext
               (equationDomains ++ localDomains) []).toCtx
             (H.outVEnv.IsType Us.length) ∧
+          TrExprS H.outVEnv Us
+            (abstractForallContext equationDomains [])
+            ((F.semantic.generated.current.lctx.mkForall
+              F.semantic.generated.localArgs (.sort .zero)).abstractList
+                A.rule.binders)
+            (VExpr.wrapForalls localDomains (.sort .zero)) ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             C.params.reverse parameterDecls.toCtx ∧
           exactIndexTargets.length = C.indices.length ∧
@@ -79287,7 +79307,8 @@ theorem
       exactIndexTargets, majorTarget, exposedTarget, hdecomposition,
       hequation, hadded, hfront, hfields, hfixedFields, hlocal,
       hequationLength, Hctx,
-      Htyping, Hindices, Hmajor, hexactLength, levels, parameterTargets,
+      HlocalTemplate, Htyping, Hindices, Hmajor, hexactLength,
+      levels, parameterTargets,
       spineIndexTargets, hspine, hlevels, _HparameterTranslation,
       hparameterTargets, HindexDefEq⟩
   rcases F.canonicalOwnerMotiveDomain with
@@ -79617,7 +79638,8 @@ theorem
   exact ⟨C, equationDomains, fieldDomains, localDomains, added, frontDomains,
     exactIndexTargets, majorTarget, ownerTarget, hdecomposition,
     (by simpa [List.append_assoc] using hequation),
-    hadded, hfront, hfields, hfixedFields, hlocal, rfl, Hctx, HcanonicalCached,
+    hadded, hfront, hfields, hfixedFields, hlocal, rfl, Hctx,
+    HlocalTemplate, HcanonicalCached,
     hindexCanonical, Hindices, Hmajor, HmajorExact, Happly'⟩
 
 /-- Assemble the call-selected recursor head with the rule's common
@@ -80580,6 +80602,12 @@ theorem
       OnCtx
         (abstractForallContext (equationDomains ++ localDomains) []).toCtx
         (H.outVEnv.IsType Us.length) ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext equationDomains [])
+        ((F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+            A.rule.binders)
+        (VExpr.wrapForalls localDomains (.sort .zero)) ∧
       let args := indexTargets ++ [majorTarget]
       VExpr.WF H.outVEnv Us.length
           (abstractForallContext
@@ -80613,13 +80641,13 @@ theorem
         F.semantic.generated.arguments_bound.fvars)
   rcases F.canonicalRecursiveCallApplicationTelescope T with
     ⟨equationDomains, localDomains, prefixTarget, indexTargets,
-      majorTarget, ownerTarget, hlocal, Hctx, _HlocalTemplate,
+      majorTarget, ownerTarget, hlocal, Hctx, HlocalTemplate,
       Hprefix, Hindices, Hmajor,
       _hindexLength, _hownerTarget, expectedDomains, resultLevel,
       hexpectedLength, HprefixType, HownerType, Hsame⟩
   let args := indexTargets ++ [majorTarget]
   refine ⟨equationDomains, localDomains, prefixTarget, indexTargets,
-    majorTarget, ownerTarget, hlocal, Hctx, ?_⟩
+    majorTarget, ownerTarget, hlocal, Hctx, HlocalTemplate, ?_⟩
   dsimp only
   intro HrightWF
   have hargsLength : args.length = expectedDomains.length := by
@@ -80722,6 +80750,12 @@ theorem
       OnCtx
         (abstractForallContext (equationDomains ++ localDomains) []).toCtx
         (H.outVEnv.IsType Us.length) ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext equationDomains [])
+        ((F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+            A.rule.binders)
+        (VExpr.wrapForalls localDomains (.sort .zero)) ∧
       let args := indexTargets ++ [majorTarget]
       TrExprS H.outVEnv Us
           (abstractForallContext (equationDomains ++ localDomains) [])
@@ -80773,7 +80807,7 @@ theorem
     ⟨C, equationDomains, fieldDomains, localDomains, added, frontDomains,
       indexTargets, majorTarget, ownerTarget, hdecomposition, hequation,
       hadded, hfront, hfields, hfixedFields, hlocal, hownerTarget, Hctx,
-      _HcanonicalCached, hindexCanonical, Hindices, Hmajor,
+      HlocalTemplate, _HcanonicalCached, hindexCanonical, Hindices, Hmajor,
       _HmajorTyping, Hright⟩
   let recursor := (H.entries[selectedOwner]'F.entry_lt).2
   let outer := T.params ++ T.motives ++ T.minors
@@ -81208,7 +81242,7 @@ theorem
     simpa only [args] using Hcall
   exact ⟨equationDomains, localDomains, prefixTarget, indexTargets,
     majorTarget, ownerTarget, hlocal, hequationFixed, hequationLength,
-    Hctx, Hcall', Hmajor, HmotiveApplication, Hleft,
+    Hctx, HlocalTemplate, Hcall', Hmajor, HmotiveApplication, Hleft,
     Hclosed',
     HleftWF⟩
 
@@ -81248,6 +81282,12 @@ theorem
           (resultBody resultType templateTarget : VExpr),
         equationDomains.length = A.rule.binders.length ∧
         localDomains.length = F.semantic.generated.localArgs.size ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext equationDomains [])
+          ((F.semantic.generated.current.lctx.mkForall
+            F.semantic.generated.localArgs (.sort .zero)).abstractList
+              A.rule.binders)
+          (VExpr.wrapForalls localDomains (.sort .zero)) ∧
         Expr.LambdaTelescope
           (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
           localDomains.length
@@ -81281,8 +81321,9 @@ theorem
   rcases A.recursiveCallRecursorFrame j hj with ⟨F⟩
   rcases F.canonicalRecursiveCallBodyWF T (B := B) with
     ⟨actualDomains, localDomains, prefixTarget, indexTargets,
-      majorTarget, ownerTarget, hlocal, hdomains, hequation, _Hctx, Hbody,
-      HtemplateResidual, HmotiveApplication, _HbodyType, Hclosed, _HbodyWF⟩
+      majorTarget, ownerTarget, hlocal, hdomains, hequation, _Hctx,
+      HlocalTemplate, Hbody, HtemplateResidual, HmotiveApplication,
+      _HbodyType, Hclosed, _HbodyWF⟩
   have hactual : actualDomains = equationDomains := by
     exact hdomains
   subst actualDomains
@@ -81299,7 +81340,7 @@ theorem
           A.rule.binders F.semantic.generated.localArgs.size) := by
     simpa [hlocal] using Htelescope
   exact ⟨F, localDomains, resultBody, resultType, majorTarget,
-    hequation, hlocal, Htelescope',
+    hequation, hlocal, HlocalTemplate, Htelescope',
     by simpa [resultBody, args] using Hbody,
     HtemplateResidual,
     by simpa [resultType, args] using HmotiveApplication,
@@ -81340,6 +81381,19 @@ structure
         (liftContextPrefix (T.motives ++ T.minors).length
           B.fieldDomains.reverse).reverse).length = A.rule.binders.length
   local_length : localDomains.length = frame.semantic.generated.localArgs.size
+  local_forall_translation :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      ((frame.semantic.generated.current.lctx.mkForall
+        frame.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.binders)
+      (VExpr.wrapForalls localDomains (.sort .zero))
   source_telescope : Expr.LambdaTelescope
     (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
     localDomains.length
@@ -81484,7 +81538,7 @@ theorem
     Nonempty (A.CanonicalRecursiveResultAt T B j hj) := by
   rcases A.canonicalRecursiveResultTypingFor T B j hj with
     ⟨F, localDomains, resultBody, resultType, templateTarget, hequation,
-      hlocal, Htelescope, Htranslation, HtemplateResidual,
+      hlocal, HlocalForall, Htelescope, Htranslation, HtemplateResidual,
       HtypeTranslation, Htyping⟩
   have HtemplateTelescope : Expr.LambdaTelescope
       ((F.semantic.generated.current.lctx.mkLambda
@@ -81512,6 +81566,7 @@ theorem
     templateTarget := templateTarget
     equation_length := hequation
     local_length := hlocal
+    local_forall_translation := HlocalForall
     source_telescope := Htelescope
     template_telescope := HtemplateTelescope
     source_template_prefix := HsamePrefix
@@ -83588,7 +83643,8 @@ theorem
   rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
   rcases F.canonicalRecursiveCallBodyWF T (B := B) with
     ⟨equationDomains, localDomains, prefixTarget, indexTargets,
-      majorTarget, ownerTarget, hlocal, _hequationFixed, hequation, _Hctx, Hbody,
+      majorTarget, ownerTarget, hlocal, _hequationFixed, hequation, _Hctx,
+      _HlocalTemplate, Hbody,
       _HtemplateResidual, _HmotiveApplication, _HbodyType, Hclosed, _HbodyWF⟩
   let args := indexTargets ++ [majorTarget]
   let resultBody := VExpr.mkApps prefixTarget args
