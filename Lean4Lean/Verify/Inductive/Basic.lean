@@ -30248,6 +30248,141 @@ def RecInfoMinorSourceAlignment
           BindingContextLE traversal.terminalContext c ∧
           BindingContextLE S.sourceFullContext c
 
+/-- Semantic counterpart of `RecInfoMinorSourceAlignment` for one retained
+minor.  The structural alignment remembers that the source context embeds in
+the final local context; this certificate additionally remembers the exact
+translation-side lift produced by that executable extension.  Keeping the
+source `RecursorContextWF` existential avoids baking a particular sequence of
+intermediate field and hypothesis binders into the stable minor shape. -/
+structure RecInfoMinorSemanticSource
+    {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    (S : RecInfoMinorTypeShape) where
+  sourceWF : RecursorContextWF S.sourceFullContext recLparams
+  extension : RecursorContextExtension sourceWF R
+
+/-- Every retained minor source carries its exact semantic extension into the
+current recursor context.  Unlike `BindingContextLE`, this invariant is strong
+enough to transport or restrict translated declaration types without guessing
+how later named locals shift their de Bruijn targets. -/
+def RecInfoMinorSemanticAlignment
+    {c : AddInductive.Context} {recInfos : Array AddInductive.RecInfo}
+    {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    (H : RecInfoTypeOrigins c recInfos) : Prop :=
+  ∀ owner (howner : owner < recInfos.size)
+    localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
+    Nonempty (RecInfoMinorSemanticSource R
+      (H.minorShapes owner howner localIndex hlocal))
+
+theorem RecInfoMinorSemanticAlignment.ofEmpty
+    (R : RecursorContextWF c recLparams)
+    (H : RecInfoTypeOrigins c recInfos)
+    (Hempty : RecInfoMinorsEmpty recInfos) :
+    RecInfoMinorSemanticAlignment R H := by
+  intro owner howner localIndex hlocal
+  have hsize := (H.minors owner howner).size_eq
+  rw [Hempty owner howner] at hsize
+  omega
+
+theorem RecInfoMinorSemanticAlignment.mono
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {recInfos : Array AddInductive.RecInfo}
+    {Rroot : RecursorContextWF root recLparams}
+    {Rcurrent : RecursorContextWF current recLparams}
+    {H : RecInfoTypeOrigins root recInfos}
+    (A : RecInfoMinorSemanticAlignment Rroot H)
+    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    RecInfoMinorSemanticAlignment Rcurrent (H.mono Hext.contextLE) := by
+  intro owner howner localIndex hlocal
+  rcases A owner howner localIndex hlocal with
+    ⟨⟨Rsource, Hsource⟩⟩
+  exact ⟨⟨Rsource, Hsource.trans Hext⟩⟩
+
+theorem RecInfoMinorSemanticAlignment.addMinor
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {recInfos : Array AddInductive.RecInfo}
+    {Rroot : RecursorContextWF root recLparams}
+    {Rcurrent : RecursorContextWF current recLparams}
+    {H : RecInfoTypeOrigins root recInfos}
+    (A : RecInfoMinorSemanticAlignment Rroot H)
+    (Hext : RecursorContextExtension Rroot Rcurrent)
+    (dIdx : Nat) (hidx : dIdx < recInfos.size)
+    (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
+    {minorTarget : VExpr}
+    (Hminor : TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+      minorTy minorTarget)
+    (HminorType : Rcurrent.venv.IsType recLparams.length
+      Rcurrent.mlctx.vlctx.toCtx minorTarget)
+    (Hshape : RecInfoMinorTypeShape)
+    (HshapePosition :
+      Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
+      Hshape.origin = minorTy)
+    (HshapeSemantic : Nonempty (RecInfoMinorSemanticSource Rcurrent Hshape)) :
+    RecInfoMinorSemanticAlignment
+      (Rcurrent.withLocalDecl (name := minorName) (bi := minorBi)
+        Hminor HminorType)
+      (H.addMinor dIdx hidx Hext.contextLE Rcurrent.toBindingContextWF
+        minorName minorTy minorBi Hshape HshapePosition) := by
+  let Rnext := Rcurrent.withLocalDecl (name := minorName) (bi := minorBi)
+    Hminor HminorType
+  let Hstep := RecursorContextExtension.withLocalDecl
+    (name := minorName) (bi := minorBi) Rcurrent Hminor HminorType
+  let nextMinorTypes := H.minorTypes.modify dIdx fun types =>
+    types.push minorTy
+  intro owner howner localIndex hlocal
+  have hownerOld : owner < recInfos.size := by simpa using howner
+  have hownerTypes : owner < H.minorTypes.size := by
+    rw [H.minorTypes_size]
+    exact hownerOld
+  by_cases hdi : dIdx = owner
+  · subst owner
+    have horigin : nextMinorTypes[dIdx]! =
+        H.minorTypes[dIdx]!.push minorTy := by
+      dsimp [nextMinorTypes]
+      rw [mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx _
+        hownerTypes]
+    change localIndex < nextMinorTypes[dIdx]!.size at hlocal
+    rw [horigin] at hlocal
+    by_cases hlast : localIndex = H.minorTypes[dIdx]!.size
+    · subst localIndex
+      rcases HshapeSemantic with ⟨⟨Rsource, Hsource⟩⟩
+      simpa [RecInfoTypeOrigins.addMinor, nextMinorTypes,
+        mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
+          (fun types => types.push minorTy) hownerTypes] using
+        (show Nonempty (RecInfoMinorSemanticSource Rnext Hshape) from
+          ⟨⟨Rsource, Hsource.trans Hstep⟩⟩)
+    · have hold : localIndex < H.minorTypes[dIdx]!.size := by
+        simp only [Array.size_push] at hlocal
+        omega
+      rcases A dIdx hidx localIndex hold with ⟨⟨Rsource, Hsource⟩⟩
+      have hget : (H.minorTypes[dIdx]!.push minorTy)[localIndex]! =
+          H.minorTypes[dIdx]![localIndex]! := by
+        have hpush : localIndex <
+            (H.minorTypes[dIdx]!.push minorTy).size := by simp; omega
+        rw [getElem!_pos (H.minorTypes[dIdx]!.push minorTy) localIndex hpush,
+          getElem!_pos H.minorTypes[dIdx]! localIndex hold]
+        exact Array.getElem_push_lt hold
+      simpa [RecInfoTypeOrigins.addMinor, hlast,
+        mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
+          (fun types => types.push minorTy) hownerTypes, hget] using
+        (show Nonempty (RecInfoMinorSemanticSource Rnext
+            (H.minorShapes dIdx hidx localIndex hold)) from
+          ⟨⟨Rsource, Hsource.trans (Hext.trans Hstep)⟩⟩)
+  · have horigin : nextMinorTypes[owner]! = H.minorTypes[owner]! := by
+      dsimp [nextMinorTypes]
+      rw [mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner _
+        hownerTypes hdi]
+    change localIndex < nextMinorTypes[owner]!.size at hlocal
+    rw [horigin] at hlocal
+    rcases A owner hownerOld localIndex hlocal with ⟨⟨Rsource, Hsource⟩⟩
+    simpa [RecInfoTypeOrigins.addMinor, hdi,
+      mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner
+        (fun types => types.push minorTy) hownerTypes hdi] using
+      (show Nonempty (RecInfoMinorSemanticSource Rnext
+          (H.minorShapes owner hownerOld localIndex hlocal)) from
+        ⟨⟨Rsource, Hsource.trans (Hext.trans Hstep)⟩⟩)
+
 theorem RecInfoMinorSourceAlignment.ofEmpty
     (H : RecInfoTypeOrigins c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos) :
