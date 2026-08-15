@@ -72526,7 +72526,9 @@ theorem
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.GeneratedRuleAlignment owner howner i hctor)
-    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size)
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ S : RecInfoMinorTypeShape,
       ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
@@ -72536,8 +72538,6 @@ theorem
       ∃ O : RecInfoMinorHypothesisTypeOrigin
           hypothesisOrigins.stats hypothesisOrigins.recInfos
           originRoot S.recursiveFields[j]! sourceType,
-      ∃ F : A.RecursiveCallRecursorFrame j hj,
-      ∃ B : A.NarrowFieldRuntimeFrame,
       ∃ scope,
       ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
           H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
@@ -72572,8 +72572,6 @@ theorem
     ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, _HS,
       _sourceTarget, rawTarget, _hlocal, _hfields, _hhypotheses,
       _hsourceContext, htype, _HsourceTarget, _hrawTarget, Hraw⟩
-  rcases A.recursiveCallRecursorFrame j hj with ⟨F⟩
-  rcases A.narrowFieldRuntimeFrame with ⟨B⟩
   rcases F.expandedFieldAbstractedSemanticMotiveTelescopeFor B with
     ⟨scope, Hscope, expandedFieldDomains, semanticTarget,
       hfieldDomains, Hsemantic, HfieldBase⟩
@@ -72586,7 +72584,7 @@ theorem
   rcases Hraw.defeqDFC H.outVEnvWF
       (HfieldBase'.symm H.outVEnvWF.ordered) with
     ⟨expandedRawTarget, HexpandedRaw⟩
-  exact ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, F, B,
+  exact ⟨S, hypothesisOrigins, D, originRoot, sourceType, O,
     scope, Hscope, expandedRawTarget, expandedFieldDomains,
     semanticTarget, htype, hfieldDomains, HexpandedRaw, Hsemantic,
     HfieldBase'⟩
