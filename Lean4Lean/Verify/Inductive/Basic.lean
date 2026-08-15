@@ -72983,6 +72983,10 @@ theorem
             F.semantic.generated.arguments_bound.fvars).abstractList
               A.rule.binders F.semantic.generated.localArgs.size)
           (VExpr.mkApps prefixTarget args) ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext (equationDomains ++ localDomains) [])
+          (F.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
+          (VExpr.mkApps ownerTarget args) ∧
         H.outVEnv.HasType Us.length
           (abstractForallContext
             (equationDomains ++ localDomains) []).toCtx
@@ -73203,6 +73207,127 @@ theorem
         (equationDomains ++ localDomains) []).toCtx
       (VExpr.mkApps ownerTarget args) (.sort C.resultLevel)
     simpa [args, VExpr.mkApps_append, VExpr.mkApps] using Hright
+  have hselectedMotiveBound :
+      selectedOwner < (H.recInfos.map (·.motive)).size := by
+    simpa [H.generated.length] using F.entry_lt
+  have hselectedRecInfoBound : selectedOwner < H.recInfos.size := by
+    simpa using hselectedMotiveBound
+  have HcanonicalMotives := A.rule.abstractedMotivesTranslation
+    (env := H.outVEnv) (Us := Us) equationDomains [] hequationLength
+  have HmotiveBase :=
+    Lean4Lean.VerifyInductive.List.Forall₂.getElem HcanonicalMotives
+      selectedOwner (by simpa using hselectedMotiveBound)
+        (by simpa using hselectedMotiveBound)
+  have HmotiveBase' : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (((H.recInfos.map
+        (fun info : AddInductive.RecInfo => info.motive))[selectedOwner]!
+          ).abstractList A.rule.binders)
+      (.bvar (A.rule.binders.length - 1 -
+        (A.rule.params_bound.fvars.length + selectedOwner))) := by
+    have hmapMotive :
+        (H.recInfos.map
+          (fun info : AddInductive.RecInfo => info.motive))[selectedOwner]! =
+          H.recInfos[selectedOwner].motive := by
+      rw [getElem!_pos
+        (H.recInfos.map
+          (fun info : AddInductive.RecInfo => info.motive))
+        selectedOwner hselectedMotiveBound]
+      simp
+    rw [hmapMotive]
+    simpa using HmotiveBase
+  have HmotiveWeak := HmotiveBase'.weakBV H.outVEnvWF.ordered
+    (abstractForallContext.bvLift localDomains
+      (abstractForallContext equationDomains []))
+  rcases A.rule.motives_bound.getElem_eq_fvar
+      selectedOwner hselectedMotiveBound with
+    ⟨hselectedMotiveFVars, hselectedMotiveExpr⟩
+  let motiveFVar := A.rule.motives_bound.fvars[selectedOwner]
+  have hselectedRecInfo : selectedOwner < H.recInfos.size := by
+    simpa using hselectedMotiveBound
+  have hselectedMotiveValue :
+      H.recInfos[selectedOwner].motive = .fvar motiveFVar := by
+    simpa [motiveFVar] using hselectedMotiveExpr
+  have hselectedMappedMotive :
+      (H.recInfos.map (fun info : AddInductive.RecInfo => info.motive))[
+        selectedOwner]! = .fvar motiveFVar := by
+    rw [getElem!_pos
+      (H.recInfos.map (fun info : AddInductive.RecInfo => info.motive))
+      selectedOwner hselectedMotiveBound]
+    simpa using hselectedMotiveValue
+  have hselectedMotiveRoot : motiveFVar ∈ A.rule.root.lctx.fvars :=
+    A.rule.motives_bound.members motiveFVar
+      (List.getElem_mem hselectedMotiveFVars)
+  have hselectedMotiveBinder : motiveFVar ∈ A.rule.binders := by
+    simp [BoundGeneratedRecursorRule.binders, motiveFVar,
+      List.getElem_mem hselectedMotiveFVars]
+  have hsourceMotiveHead :=
+    F.semantic.generated.outerAbstractedRootFVar_eq_lift
+      hselectedMotiveRoot A.rule.binders_nodup hselectedMotiveBinder
+  have hsourceMotiveHead' :
+      (F.semantic.generated.replayTrace A.rule.binders).motive =
+        (((H.recInfos.map
+          (fun info : AddInductive.RecInfo => info.motive))[selectedOwner]!
+            ).abstractList A.rule.binders).liftLooseBVars' 0
+            F.semantic.generated.localArgs.size := by
+    simpa [BoundGeneratedRecursiveCall.replayTrace,
+      selectedOwner, hselectedMappedMotive,
+      BoundGeneratedRecursorRule.binders,
+      List.append_assoc] using hsourceMotiveHead
+  have hfrontLength : frontDomains.length =
+      fieldDomains.length + localDomains.length := by
+    rw [hfront]
+    simp
+  have hownerIndex :
+      A.rule.binders.length - 1 -
+          (A.rule.params_bound.fvars.length + selectedOwner) +
+            localDomains.length =
+        frontDomains.length +
+          (F.telescope.motives.drop (selectedOwner + 1) ++
+            F.telescope.minors).length := by
+    have hparamsLength := A.rule.params_bound.length_fvars
+    have hmotivesLength := A.rule.motives_bound.length_fvars
+    have hminorsLength := A.rule.minors_bound.length_fvars
+    have hfieldsLength := A.rule.all_args_bound.length_fvars
+    unfold BoundGeneratedRecursorRule.binders
+    simp only [List.length_append, List.length_drop]
+    rw [hmotivesLength, hminorsLength, hfieldsLength, hfrontLength, hfields,
+      F.telescope.motives_length, F.telescope.minors_length]
+    omega
+  have htargetMotiveHead :
+      (VExpr.bvar (A.rule.binders.length - 1 -
+        (A.rule.params_bound.fvars.length + selectedOwner))).liftN
+          localDomains.length 0 = ownerTarget := by
+    rw [hownerTarget]
+    simp only [VExpr.liftN, liftVar_base]
+    congr 1
+    simpa [Nat.add_comm] using hownerIndex
+  have HmotiveHead : TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ localDomains) [])
+      (F.semantic.generated.replayTrace A.rule.binders).motive
+      ownerTarget := by
+    rw [hsourceMotiveHead', ← htargetMotiveHead]
+    simpa [hlocal, abstractForallContext, List.reverse_append,
+      List.append_assoc] using HmotiveWeak
+  have HmotiveArgs := Lean4Lean.VerifyInductive.List.Forall₂.append'
+    Hindices (List.Forall₂.cons Hmajor List.Forall₂.nil)
+  have HmotiveApplication₀ := checkPositivityStep.TrExprS.mkAppList
+    H.outVEnvWF.ordered Hctx HmotiveHead HmotiveArgs HrightWF
+  have HmotiveApplication : TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ localDomains) [])
+      (F.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
+      (VExpr.mkApps ownerTarget args) := by
+    have hreplayIndices :
+        (F.semantic.generated.replayTrace A.rule.binders).indices.toList =
+          sourceIndices.map fun index =>
+            (index.abstractList
+              F.semantic.generated.arguments_bound.fvars).abstractList
+                A.rule.binders F.semantic.generated.localArgs.size := by
+      simp [BoundGeneratedRecursiveCall.replayTrace, sourceIndices]
+    unfold BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
+    rw [Expr.mkAppN_eq_mkAppList, hreplayIndices]
+    simpa [Expr.mkAppList_append, args,
+      VExpr.mkApps_append, VExpr.mkApps] using HmotiveApplication₀
   have HsameArgs : SameTelescopeDomains args.length
       (VExpr.wrapForalls expectedDomains
         (F.telescope.result.liftN frontDomains.length suffix.length))
@@ -73333,7 +73458,7 @@ theorem
     simpa only [args] using Hcall
   exact ⟨equationDomains, localDomains, prefixTarget, indexTargets,
     majorTarget, ownerTarget, hlocal, hequationFixed, hequationLength,
-    Hctx, Hcall', Hleft,
+    Hctx, Hcall', HmotiveApplication, Hleft,
     Hclosed',
     HleftWF⟩
 
@@ -73384,6 +73509,10 @@ theorem
             F.semantic.generated.arguments_bound.fvars).abstractList
               A.rule.binders F.semantic.generated.localArgs.size)
           resultBody ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext (equationDomains ++ localDomains) [])
+          (F.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
+          resultType ∧
         H.outVEnv.HasType Us.length
           (abstractForallContext equationDomains []).toCtx
           (VExpr.wrapLams localDomains resultBody)
@@ -73398,7 +73527,7 @@ theorem
   rcases F.canonicalRecursiveCallBodyWF T (B := B) with
     ⟨actualDomains, localDomains, prefixTarget, indexTargets,
       majorTarget, ownerTarget, hlocal, hdomains, hequation, _Hctx, Hbody,
-      _HbodyType, Hclosed, _HbodyWF⟩
+      HmotiveApplication, _HbodyType, Hclosed, _HbodyWF⟩
   have hactual : actualDomains = equationDomains := by
     exact hdomains
   subst actualDomains
@@ -73417,6 +73546,7 @@ theorem
   exact ⟨F, localDomains, resultBody, resultType,
     hequation, hlocal, Htelescope',
     by simpa [resultBody, args] using Hbody,
+    by simpa [resultType, args] using HmotiveApplication,
     by simpa [resultBody, resultType, args] using Hclosed⟩
 
 /-- One recursive result in the fixed rule-wide equation context.  The
@@ -73472,6 +73602,17 @@ structure
         frame.semantic.generated.arguments_bound.fvars).abstractList
           A.rule.binders frame.semantic.generated.localArgs.size)
       resultBody
+  result_type_translation :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    TrExprS H.outVEnv Us
+      (abstractForallContext (equationDomains ++ localDomains) [])
+      (frame.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
+      resultType
   closed_typing :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let equationDomains :=
@@ -73508,7 +73649,7 @@ theorem
     Nonempty (A.CanonicalRecursiveResultAt T B j hj) := by
   rcases A.canonicalRecursiveResultTypingFor T B j hj with
     ⟨F, localDomains, resultBody, resultType, hequation,
-      hlocal, Htelescope, Htranslation, Htyping⟩
+      hlocal, Htelescope, Htranslation, HtypeTranslation, Htyping⟩
   exact ⟨{
     frame := F
     localDomains := localDomains
@@ -73518,6 +73659,7 @@ theorem
     local_length := hlocal
     source_telescope := Htelescope
     residual_translation := Htranslation
+    result_type_translation := HtypeTranslation
     closed_typing := Htyping }⟩
 
 /-- Pointwise handoff between the selected first-pass minor hypothesis and
@@ -74528,7 +74670,7 @@ theorem
   rcases F.canonicalRecursiveCallBodyWF T (B := B) with
     ⟨equationDomains, localDomains, prefixTarget, indexTargets,
       majorTarget, ownerTarget, hlocal, _hequationFixed, hequation, _Hctx, Hbody,
-      _HbodyType, Hclosed, _HbodyWF⟩
+      _HmotiveApplication, _HbodyType, Hclosed, _HbodyWF⟩
   let args := indexTargets ++ [majorTarget]
   let resultBody := VExpr.mkApps prefixTarget args
   let resultType := VExpr.mkApps ownerTarget args
