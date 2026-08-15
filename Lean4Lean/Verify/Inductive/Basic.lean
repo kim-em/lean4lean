@@ -611,6 +611,48 @@ theorem VEnv.HasType.wrapLams
     rcases (OnCtx.append_right hctx').2 with ⟨level, hdomain⟩
     simpa [VExpr.wrapLams, VExpr.wrapForalls] using hdomain.lam hrest
 
+/-- Invert a lambda telescope whose type is the corresponding literal forall
+telescope.  Strong lambda inversion initially recovers an arbitrary type for
+the open body; uniqueness of typing and forall injectivity transport that
+body back to the stated dependent residual before the induction continues.
+
+This is the application-facing inverse of `VEnv.HasType.wrapLams`: canonical
+recursive results are stored closed, while a dependent minor application
+needs their exact open typing under the retained local domains. -/
+theorem VEnv.HasType.wrapLams_inv
+    {env : VEnv} (henv : env.WF)
+    (hctx : OnCtx ctx (env.IsType uvars))
+    (H : env.HasType uvars ctx (VExpr.wrapLams domains body)
+      (VExpr.wrapForalls domains typeBody)) :
+    OnCtx (domains.reverse ++ ctx) (env.IsType uvars) ∧
+      env.HasType uvars (domains.reverse ++ ctx) body typeBody := by
+  induction domains generalizing ctx with
+  | nil =>
+    simpa [VExpr.wrapLams, VExpr.wrapForalls] using And.intro hctx H
+  | cons domain domains ih =>
+    have Hlambda : env.HasType uvars ctx
+        (.lam domain (VExpr.wrapLams domains body))
+        (.forallE domain (VExpr.wrapForalls domains typeBody)) := by
+      simpa [VExpr.wrapLams, VExpr.wrapForalls] using H
+    rcases Hlambda.lam_inv henv.ordered hctx with
+      ⟨HdomainType, actualBodyType, HactualBody⟩
+    rcases HdomainType with ⟨domainLevel, Hdomain⟩
+    have hctx' : OnCtx (domain :: ctx) (env.IsType uvars) :=
+      ⟨hctx, ⟨domainLevel, Hdomain⟩⟩
+    have HactualLambda : env.HasType uvars ctx
+        (.lam domain (VExpr.wrapLams domains body))
+        (.forallE domain actualBodyType) :=
+      Hdomain.lam HactualBody
+    have HfunctionType := Hlambda.uniqU henv hctx HactualLambda
+    rcases (VEnv.IsDefEqU.forallE_inv henv hctx HfunctionType).2 with
+      ⟨_bodyLevel, HbodyType⟩
+    have HstatedBody : env.HasType uvars (domain :: ctx)
+        (VExpr.wrapLams domains body)
+        (VExpr.wrapForalls domains typeBody) :=
+      HbodyType.defeq' HactualBody
+    have Hrest := ih hctx' HstatedBody
+    simpa [List.reverse_cons, List.append_assoc] using Hrest
+
 /-- Package two equally typed residual bodies as one closed, well-formed
 definitional equation.  This is the common specification-side endpoint for
 ordinary and restored nested iota equations. -/
@@ -80359,6 +80401,60 @@ structure
       (VExpr.wrapLams localDomains resultBody)
       (VExpr.wrapForalls localDomains resultType)
 
+/-- Open a canonical recursive result under its retained higher-order local
+telescope.  The caller supplies well-formedness of the shared equation
+context; lambda-telescope inversion then returns both the extended dependent
+context and the result body's exact (not merely definitionally equal) type.
+
+This is the form consumed by a left-to-right dependent application spine. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.openTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (E : A.CanonicalRecursiveResultAt T B j hj)
+    (Hctx :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let equationDomains :=
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++
+          T.motives ++ T.minors ++
+            (liftContextPrefix (T.motives ++ T.minors).length
+              B.fieldDomains.reverse).reverse
+      OnCtx (abstractForallContext equationDomains []).toCtx
+        (H.outVEnv.IsType Us.length)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    OnCtx
+        (E.localDomains.reverse ++
+          (abstractForallContext equationDomains []).toCtx)
+        (H.outVEnv.IsType Us.length) ∧
+      H.outVEnv.HasType Us.length
+        (E.localDomains.reverse ++
+          (abstractForallContext equationDomains []).toCtx)
+        E.resultBody E.resultType := by
+  dsimp only at Hctx ⊢
+  exact VEnv.HasType.wrapLams_inv H.outVEnvWF Hctx E.closed_typing
+
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.canonicalRecursiveResultAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -81645,7 +81741,7 @@ theorem
       hfields, hhypotheses, htarget, _hdeclarationType,
       _houterField, _hmajorOuter, _hmajorApplied, _Hreplay,
       _HlocalTelescopeReplay, _HlocalLambdaReplay, _HlocalForallReplay,
-      _hmotiveReplay, _hindicesReplay, _hownerReplay, _hlocalArity,
+      _hmotiveReplay, _hindicesReplay, _hownerReplay, hlocalArity,
       _hmajorAlignment, _hmotiveAppAlignment, _Hsemantic,
       _Hdomain, Hresiduals, Htyping⟩
   rcases Hresiduals with
@@ -81658,7 +81754,8 @@ theorem
       hhypothesisDomain, _HhypothesisResidual,
       _HhypothesisResidualType⟩
   have hlocal : hypothesisLocalDomains.length = E.localDomains.length := by
-    exact hhypothesisLocalDomains.trans E.local_length.symm
+    exact hhypothesisLocalDomains.trans <|
+      hlocalArity.trans E.local_length.symm
   exact ⟨fieldDomains, hypothesisDomains, targetResidual,
     hypothesisLocalDomains, hypothesisResidual, hfields, hhypotheses,
     htarget, hlocal, hhypothesisDomain, HhypothesisResidualFull,
