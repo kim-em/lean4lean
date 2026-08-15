@@ -65273,8 +65273,6 @@ theorem
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
-    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-      H.bindings.flatMinors.fvars
     IsFVarUpSet (fun fv => fv ∈ sourceBinders)
       H.recursorWF.mlctx.vlctx := by
   dsimp only
@@ -72406,6 +72404,7 @@ theorem
       H.bindings.flatMinors.fvars.take minorIdx
     let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars
+    let remainingBinders := H.bindings.flatMinors.fvars.drop minorIdx
     ∃ selectedScope,
     ∃ Hselected : checkInductiveTypes.loopType.FVarNarrowScope
         H.outVEnv Us selectedScope H.recursorWF.mlctx.vlctx,
@@ -72419,6 +72418,15 @@ theorem
       outerScope.fvars = outerBinders.reverse ∧
       Houter.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
         (· ∈ outerBinders) ∧
+      outerScope.fvars =
+        remainingBinders.reverse ++ selectedScope.fvars ∧
+      Lift.comp
+          (fvarSelectionLift outerScope.fvars
+            (· ∈ selectedScope.fvars)) Houter.shift =
+        Hselected.shift ∧
+      fvarSelectionLift outerScope.fvars (· ∈ selectedScope.fvars) =
+        .skipN (.consN .refl selectedScope.fvars.length)
+          remainingBinders.length ∧
       selectedFields.length = A.rule.allArgs.size ∧
       outerFields.length = A.rule.allArgs.size ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length [] selectedScope.toCtx
@@ -72432,6 +72440,12 @@ theorem
           H.recursorWF.mlctx.vlctx.toCtx) := by
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
+  let remainingBinders := H.bindings.flatMinors.fvars.drop minorIdx
   rcases A.finalSelectedMinorFieldApplicationWithNarrowFrameFor
       B T hpositive with
     ⟨selectedScope, Hselected, selectedFields, weakenedFields,
@@ -72456,9 +72470,49 @@ theorem
   have HselectedOuter := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HselectedSemantic (HouterSemantic.symm H.outVEnvWF.ordered)
   rw [hweakenedExact] at HselectedOuter
+  have houterSplit : outerBinders = sourceBinders ++ remainingBinders := by
+    simp only [outerBinders, sourceBinders, remainingBinders,
+      List.append_assoc, List.take_append_drop]
+  have hscopeSplit : outerScope.fvars =
+      remainingBinders.reverse ++ selectedScope.fvars := by
+    calc
+      outerScope.fvars = outerBinders.reverse := houterScope
+      _ = (sourceBinders ++ remainingBinders).reverse :=
+        congrArg List.reverse houterSplit
+      _ = remainingBinders.reverse ++ sourceBinders.reverse := by
+        rw [List.reverse_append]
+      _ = remainingBinders.reverse ++ selectedScope.fvars := by
+        rw [hselectedScope]
+  have hselectionSub : ∀ fv,
+      fv ∈ sourceBinders → fv ∈ outerBinders := by
+    intro fv hfv
+    rw [houterSplit]
+    exact List.mem_append_left _ hfv
+  have hfactor := fvarSelectionLift_mono_comp
+    H.recursorWF.mlctx.vlctx.fvars
+      (· ∈ sourceBinders) (· ∈ outerBinders) hselectionSub
+  rw [A.finalOuterFilteredFVars] at hfactor
+  rw [← houterScope, ← hselectedShift, ← houterShift] at hfactor
+  have hfactor' : Lift.comp
+      (fvarSelectionLift outerScope.fvars
+        (· ∈ selectedScope.fvars)) Houter.shift = Hselected.shift := by
+    simpa only [hselectedScope, List.mem_reverse] using hfactor
+  have hscopeNodup :
+      (remainingBinders.reverse ++ selectedScope.fvars).Nodup := by
+    rw [← hscopeSplit]
+    exact (Houter.scopeWF H.outVEnvWF).fvars_nodup
+  have hrelative := fvarSelectionLift_append_selected
+    remainingBinders.reverse selectedScope.fvars
+      (by
+        intro fv hremaining hselected
+        exact (List.nodup_append.mp hscopeNodup).2.2
+          fv hremaining fv hselected rfl)
+  rw [← hscopeSplit] at hrelative
+  simp only [List.length_reverse] at hrelative
   exact ⟨selectedScope, Hselected, outerScope, Houter,
     selectedFields, outerFields, hselectedScope, hselectedShift,
-    houterScope, houterShift, hselectedFields, houterFields,
+    houterScope, houterShift, hscopeSplit, hfactor', hrelative,
+    hselectedFields, houterFields,
     HselectedPrefix, HouterPrefix, HselectedOuter⟩
 
 /-- Compose the selected minor's transported consumed fields with the
