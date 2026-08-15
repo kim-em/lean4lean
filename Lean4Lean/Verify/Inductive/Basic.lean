@@ -6385,6 +6385,22 @@ def FVarNarrowScope.nil : FVarNarrowScope env Us [] [] where
   upset := trivial
   noBV := rfl
 
+/-- A translated local context is dependency-closed for `P` whenever every
+selected concrete declaration records only dependencies satisfying `P`. -/
+theorem TrLCtx'.isFVarUpSet
+    (H : TrLCtx' env Us declarations runtime)
+    (hdeps : ∀ declaration ∈ declarations,
+      P declaration.fvarId → ∀ fv ∈ declaration.deps, P fv) :
+    IsFVarUpSet P runtime := by
+  induction H with
+  | nil => trivial
+  | @cons declarations runtime declaration target Htail Hdecl ih =>
+    refine ⟨ih (by
+      intro other hother
+      exact hdeps other (by simp [hother])), ?_⟩
+    intro hselected fv hfv
+    exact hdeps declaration (by simp) hselected fv hfv
+
 theorem FVarNarrowScope.restrict
     (H : FVarNarrowScope env Us scope runtime)
     (henv : env.WF)
@@ -23774,6 +23790,15 @@ theorem Expr.ForallBinderAt.unique
   | there _ ih =>
       cases H₂ with
       | there H₂ => exact ih H₂
+
+/-- A selected forall domain inherits every free-variable restriction of
+the enclosing telescope. -/
+theorem Expr.ForallBinderAt.domainFVarsIn
+    (H : Expr.ForallBinderAt source i domain)
+    (Hsource : source.FVarsIn P) : domain.FVarsIn P := by
+  induction H with
+  | here => exact Hsource.1
+  | there _ ih => exact ih Hsource.2
 
 /-- Abstraction of a free variable through a forall prefix reaches the
 selected domain below exactly the number of preceding binders. -/
@@ -53195,6 +53220,19 @@ theorem LocalContextWF_find?_eq_some_of_mem
         simp [hne, ih d hnodup.2 hmem]
   exact find_of_nodup lctx.toList d H.nodup hd
 
+/-- A positional bound-variable witness and a declaration occurring at the
+same free-variable identifier in a well-formed context are the same local
+declaration. -/
+theorem BoundFVarDeclarationAt.declaration_eq_of_mem
+    (D : BoundFVarDeclarationAt c xs i)
+    (Hc : BindingContextWF c)
+    (d : LocalDecl) (hd : d ∈ c.lctx.toList)
+    (hfv : d.fvarId = D.fvar) :
+    d = .cdecl D.index D.fvar D.userName D.type D.binderInfo D.kind := by
+  have hfind := LocalContextWF_find?_eq_some_of_mem Hc.wf hd
+  rw [hfv] at hfind
+  exact Option.some.inj (hfind.symm.trans D.declaration)
+
 /-- Every declaration recorded in restoration's extension certificate is
 the exact declaration visible to the final local-context lookup. -/
 theorem RestoreParamOpening.context_extension_find
@@ -62820,6 +62858,165 @@ theorem
   exact ⟨T, D, O, S, by
     simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using Hdomain,
     by simpa [minorIdx, getElem!_pos T.minors minorIdx hminor] using HdomainType⟩
+
+/-- The parameters, motives, and strictly earlier minors selected by one
+generated minor form a dependency-closed subset of the interleaved recursor
+context.  The proof reads each declaration's domain from the fully closed
+generated recursor telescope, so skipped indices and majors cannot enter the
+retained dependency set. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPrefixUp
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    IsFVarUpSet (fun fv => fv ∈ sourceBinders)
+      H.recursorWF.mlctx.vlctx := by
+  dsimp only
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    owner hrecInfo
+  have hselectionParams : selections.params.fvars = H.params.fvars := rfl
+  have hselectionMotives :
+      selections.motives.fvars = H.bindings.motives.fvars := rfl
+  have hselectionMinors :
+      selections.minors.fvars = H.bindings.flatMinors.fvars := rfl
+  have hselectionNoAlias : selections.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
+  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  have HsourceClosed :
+      (H.generated.entry owner howner).info.type.FVarsIn
+        (fun _ => False) := by
+    have Hscope := T.typed.translation.fvarsIn
+    exact Hscope.mono fun fv hfv => by simpa using hfv
+  have Hcontext := H.recursorWF.mlctx_wf.tr
+  rw [H.recursorWF.lctx_eq] at Hcontext
+  apply checkInductiveTypes.loopType.TrLCtx'.isFVarUpSet Hcontext.2
+  intro d hd hselected dep hdep
+  change d.fvarId ∈ sourceBinders at hselected
+  rcases List.mem_append.mp hselected with hprefix | hminor
+  · rcases List.mem_append.mp hprefix with hparam | hmotive
+    · rcases List.mem_iff_getElem.mp hparam with ⟨idx, hidx, hget⟩
+      have hi : idx < stats.params.size := by
+        rw [← H.params.length_fvars]
+        exact hidx
+      rcases H.params.declarationAt H.localWF idx hi with ⟨D⟩
+      rcases H.params.getElem_eq_fvar idx hi with ⟨_hidxFVars, hexpr⟩
+      have hDfv : D.fvar = d.fvarId := by
+        apply Expr.fvar.inj
+        calc
+          .fvar D.fvar = stats.params[idx] := D.expression.symm
+          _ = .fvar H.params.fvars[idx] := hexpr
+          _ = .fvar d.fvarId := congrArg Expr.fvar hget
+      have hdEq := D.declaration_eq_of_mem H.localWF d hd hDfv.symm
+      have Hbinder := selections.parameterBinderAt hselectionNoAlias D
+      dsimp only at Hbinder
+      rw [← (H.generated.entry owner howner).type] at Hbinder
+      have Hclosed := Hbinder.domainFVarsIn HsourceClosed
+      have Htype := FVarsIn.of_abstractList Hclosed
+      have HtypeScope : D.type.FVarsIn (fun fv => fv ∈ sourceBinders) :=
+        Htype.mono fun fv hfv => by
+          rcases hfv with hfv | hfalse
+          · exact List.mem_append_left _
+              (List.mem_append_left _ (List.mem_of_mem_take hfv))
+          · exact False.elim hfalse
+      rw [hdEq] at hdep
+      exact (fvarsIn_iff.mp HtypeScope).1 dep hdep
+    · rcases List.mem_iff_getElem.mp hmotive with ⟨idx, hidx, hget⟩
+      have hi : idx < (H.recInfos.map (·.motive)).size := by
+        rw [← H.bindings.motives.length_fvars]
+        exact hidx
+      rcases H.bindings.motives.declarationAt H.localWF idx hi with ⟨D⟩
+      rcases H.bindings.motives.getElem_eq_fvar idx hi with
+        ⟨_hidxFVars, hexpr⟩
+      have hDfv : D.fvar = d.fvarId := by
+        apply Expr.fvar.inj
+        calc
+          .fvar D.fvar = (H.recInfos.map (·.motive))[idx] :=
+            D.expression.symm
+          _ = .fvar H.bindings.motives.fvars[idx] := hexpr
+          _ = .fvar d.fvarId := congrArg Expr.fvar hget
+      have hdEq := D.declaration_eq_of_mem H.localWF d hd hDfv.symm
+      have Hbinder := selections.motiveBinderAt hselectionNoAlias D
+      dsimp only at Hbinder
+      rw [← (H.generated.entry owner howner).type] at Hbinder
+      have Hclosed := Hbinder.domainFVarsIn HsourceClosed
+      have Htype := FVarsIn.of_abstractList Hclosed
+      have HtypeScope : D.type.FVarsIn
+          (fun fv => fv ∈ sourceBinders) :=
+        Htype.mono fun fv hfv => by
+          rcases hfv with hfv | hfalse
+          · rcases List.mem_append.mp hfv with hparam | hmotive
+            · exact List.mem_append_left _ (List.mem_append_left _ hparam)
+            · exact List.mem_append_left _
+                (List.mem_append_right _ (List.mem_of_mem_take hmotive))
+          · exact False.elim hfalse
+      rw [hdEq] at hdep
+      exact (fvarsIn_iff.mp HtypeScope).1 dep hdep
+  · rcases List.mem_iff_getElem.mp hminor with ⟨idx, hidxTake, hgetTake⟩
+    have hminorIdx : minorIdx < H.bindings.flatMinors.fvars.length := by
+      rw [H.bindings.flatMinors.length_fvars]
+      exact A.rule.minor_valid
+    have htakeLength :
+        (H.bindings.flatMinors.fvars.take minorIdx).length = minorIdx := by
+      simp [Nat.min_eq_left (Nat.le_of_lt hminorIdx)]
+    have hidxMinor : idx < minorIdx := by
+      rw [htakeLength] at hidxTake
+      exact hidxTake
+    have hidx : idx < H.bindings.flatMinors.fvars.length :=
+      Nat.lt_trans hidxMinor hminorIdx
+    have hget : H.bindings.flatMinors.fvars[idx] = d.fvarId := by
+      simpa using hgetTake
+    have hi : idx < (H.recInfos.flatMap (·.minors)).size := by
+      rw [← H.bindings.flatMinors.length_fvars]
+      exact hidx
+    rcases H.bindings.flatMinors.declarationAt H.localWF idx hi with ⟨D⟩
+    rcases H.bindings.flatMinors.getElem_eq_fvar idx hi with
+      ⟨_hidxFVars, hexpr⟩
+    have hDfv : D.fvar = d.fvarId := by
+      apply Expr.fvar.inj
+      calc
+        .fvar D.fvar = (H.recInfos.flatMap (·.minors))[idx] :=
+          D.expression.symm
+        _ = .fvar H.bindings.flatMinors.fvars[idx] := hexpr
+        _ = .fvar d.fvarId := congrArg Expr.fvar hget
+    have hdEq := D.declaration_eq_of_mem H.localWF d hd hDfv.symm
+    have Hbinder := selections.minorBinderAt hselectionNoAlias D
+    dsimp only at Hbinder
+    rw [← (H.generated.entry owner howner).type] at Hbinder
+    have Hclosed := Hbinder.domainFVarsIn HsourceClosed
+    have Htype := FVarsIn.of_abstractList Hclosed
+    have HtypeScope : D.type.FVarsIn
+        (fun fv => fv ∈ sourceBinders) :=
+      Htype.mono fun fv hfv => by
+        rcases hfv with hfv | hfalse
+        · rw [hselectionParams, hselectionMotives,
+              hselectionMinors] at hfv
+          rcases List.mem_append.mp hfv with hprefix | hprior
+          · rcases List.mem_append.mp hprefix with hparam | hmotive
+            · exact List.mem_append_left _ (List.mem_append_left _ hparam)
+            · exact List.mem_append_left _
+                (List.mem_append_right _ hmotive)
+          · exact List.mem_append_right _
+              (List.mem_of_mem_take
+                (List.mem_take_of_mem hidxMinor hprior))
+        · exact False.elim hfalse
+    rw [hdEq] at hdep
+    exact (fvarsIn_iff.mp HtypeScope).1 dep hdep
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
