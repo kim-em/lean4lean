@@ -27059,6 +27059,7 @@ structure RecInfoMinorTypeShape where
   recursiveFields : Array Expr
   hypotheses : Array Expr
   hypotheses_bound : BoundFVarArray sourceFullContext hypotheses
+  hypotheses_nodup : hypotheses_bound.fvars.Nodup
   hypotheses_size : hypotheses.size = recursiveFields.size
   traversal : Option RecInfoMinorTraversalShape
   motiveApp : Expr
@@ -40766,10 +40767,10 @@ theorem resultBindings {alpha : Type}
     (recInfos : Array AddInductive.RecInfo)
     (k : Array Expr → AddInductive.M alpha) {Q : alpha → Prop}
     (i : Nat) (v : Array Expr) (c : AddInductive.Context)
-    (Hc : BindingContextWF c) (Hv : BoundFVarArray c v)
+    (Hc : BindingContextWF c) (Hv : FreshBoundFVarArray root c v)
     (Hroot : BindingContextLE root c)
     (Hk : ∀ outValues c, BindingContextWF c →
-      BoundFVarArray c outValues →
+      FreshBoundFVarArray root c outValues →
       BindingContextLE root c →
       outValues.size = v.size + (u.size - i) →
       (k outValues c).WF Q) :
@@ -40803,7 +40804,7 @@ theorem resultBindings {alpha : Type}
     refine resultBindings stats u recInfos k (i + 1)
       (v.push (.fvar ⟨c.ngen.curr⟩)) _
       (Hc.withLocalDecl vName viTy.consumeTypeAnnotations .default)
-      (Hv.pushCurrent vName viTy.consumeTypeAnnotations .default)
+      (Hv.pushCurrent Hc Hroot vName viTy.consumeTypeAnnotations .default)
       (Hroot.trans <| BindingContextLE.withLocalDecl c Hc vName
         viTy.consumeTypeAnnotations .default) ?_
     intro outValues out Hout Hvalues HrootOut hsize
@@ -41586,6 +41587,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         hypotheses := hypotheses
         hypotheses_bound :=
           HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
+        hypotheses_nodup :=
+          HhypothesesRecent.toFreshBoundFVarArray.nodup
         hypotheses_size := hhypothesesSize
         traversal := some {
           constructor := ctor
@@ -41885,7 +41888,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
               { s with minors := s.minors.push minor }
             AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
               ctors k)
-        0 #[] cArgs HcArgs (BoundFVarArray.empty cArgs)
+        0 #[] cArgs HcArgs (FreshBoundFVarArray.empty cArgs)
           (BindingContextLE.refl cArgs)
       intro v cIH HcIH Hv hIH hvSize
       have hget : ((getLCtx : AddInductive.M LocalContext) cIH).WF
@@ -41925,7 +41928,8 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           fields_bound := Hbu.mono hIH
           recursiveFields := u
           hypotheses := v
-          hypotheses_bound := Hv
+          hypotheses_bound := Hv.toBoundFVarArray
+          hypotheses_nodup := Hv.nodup
           hypotheses_size := by simpa using hvSize
           traversal := none
           motiveApp := motiveApp
