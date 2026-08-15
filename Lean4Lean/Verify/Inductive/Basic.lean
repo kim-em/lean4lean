@@ -76836,6 +76836,109 @@ theorem
   rw [← htarget]
   exact Htr
 
+/-- Transport the canonical constructor-field translations through the exact
+checked-to-narrow equation-context conversion.  The targets remain the
+literal innermost de Bruijn variables: syntax-directed uniqueness rules out
+the otherwise existential targets produced by context transport. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalNarrowEquationFieldTranslationsFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let inserted := T.motives ++ T.minors
+    let equationFieldDomains :=
+      (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+        equationFieldDomains
+    List.Forall₂
+      (TrExprS H.outVEnv Us (abstractForallContext equationDomains []))
+      ((A.rule.allArgs.map fun arg =>
+        arg.abstractList A.rule.binders).toList)
+      (recursorCanonicalVars equationFieldDomains.length) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let inserted := T.motives ++ T.minors
+  let equationFieldDomains :=
+    (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+      equationFieldDomains
+  rcases A.finalCheckedNarrowEquationContextAlignmentFor B T with
+    ⟨checkedDomains, checkedEquationFieldDomains, hchecked,
+      hcheckedEquationFields, Hcontext⟩
+  have hcheckedEquationLength : checkedEquationFieldDomains.length =
+      A.rule.allArgs.size := by
+    simp [hcheckedEquationFields, hchecked]
+  have hfieldLength : checkedEquationFieldDomains.length =
+      equationFieldDomains.length := by
+    simp [equationFieldDomains, hcheckedEquationFields, hchecked,
+      B.fieldDomains_length]
+  have Hcanonical := A.canonicalAllArgsTranslation T
+    checkedEquationFieldDomains hcheckedEquationLength
+  let checkedEquationDomains :=
+    (T.params ++ inserted) ++ checkedEquationFieldDomains
+  have Hcanonical' : List.Forall₂
+      (TrExprS H.outVEnv Us
+        (abstractForallContext checkedEquationDomains []))
+      ((A.rule.allArgs.map fun arg =>
+        arg.abstractList A.rule.binders).toList)
+      (recursorCanonicalVars checkedEquationFieldDomains.length) := by
+    simpa [checkedEquationDomains, inserted, List.append_assoc] using
+      Hcanonical
+  have HdomainContext : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      checkedEquationDomains.reverse equationDomains.reverse := by
+    simpa [checkedEquationDomains, equationDomains, equationFieldDomains,
+      inserted, List.reverse_append, List.append_assoc] using
+        Hcontext
+  have Hvlctx := abstractForallContext.isDefEq HdomainContext
+  have HuniqueCtx := abstractForallContext.isUniqueCtx
+    (by simpa using HdomainContext.length_eq)
+  have transport : ∀ {sources targets},
+      List.Forall₂
+        (TrExprS H.outVEnv Us
+          (abstractForallContext checkedEquationDomains []))
+        sources targets →
+      ∃ transported,
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext equationDomains []))
+          sources transported := by
+    intro sources targets Htranslations
+    induction Htranslations with
+    | nil => exact ⟨[], .nil⟩
+    | cons Hhead Htail ih =>
+      rcases Hhead.defeqDFC H.outVEnvWF Hvlctx with
+        ⟨target, Htarget⟩
+      rcases ih with ⟨targets, Htargets⟩
+      exact ⟨target :: targets, .cons Htarget Htargets⟩
+  have Htransported := transport Hcanonical'
+  rcases Htransported with ⟨targets, Htargets⟩
+  have htargets : recursorCanonicalVars checkedEquationFieldDomains.length =
+      targets :=
+    Lean4Lean.VerifyInductive.TrExprS.forall₂_unique HuniqueCtx
+      (fun source hsource => A.rule.abstractedAllArgsUnique source
+        hsource) Hcanonical' Htargets
+  rw [hfieldLength] at htargets
+  rw [← htargets] at Htargets
+  simpa only [Us, inserted, equationFieldDomains, equationDomains] using
+    Htargets
+
 /-- The source constructor arguments close to the parameter variables shifted
 below motives, minors, and fields, followed by the innermost canonical field
 variables.  This is the exact spine of the independently checked constructor
