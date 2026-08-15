@@ -73056,6 +73056,16 @@ theorem
             hypothesisLocalDomains.length = O.args.size ∧
             Expr.ForallTelescope declarationDomain O.args.size
               sourceResidual ∧
+            sourceResidual =
+              (((((Expr.app
+                  (mkAppN hypothesisOrigins.recInfos[O.ownerIdx]!.motive
+                    O.exposedType.getAppArgs[
+                      hypothesisOrigins.stats.params.size:])
+                  (mkAppN S.recursiveFields[j]! O.args)).abstractList
+                    O.arguments_bound.fvars).abstractList
+                  (S.hypotheses_bound.fvars.take j) O.args.size).abstractList
+                S.fields_bound.fvars (O.args.size + j)).abstractList
+              sourceBinders (O.args.size + position)) ∧
             hypothesisDomains[j]! = VExpr.wrapForalls
               hypothesisLocalDomains hypothesisResidual ∧
             TrExprS H.outVEnv Us
@@ -73242,6 +73252,7 @@ theorem
     ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
       hhypothesisLocalDomains, _HsourceResidual, hhypothesisDomain,
       HhypothesisResidual, HhypothesisResidualType⟩
+  have hsourceResidual := _HsourceResidual.residual_eq HsourceOuter
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, D.type, O, B, E,
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
@@ -73255,7 +73266,10 @@ theorem
     hrecursiveMajor.1, hrecursiveMajor.2, hmajorAlignment,
     Hdomain,
     ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
-      hhypothesisLocalDomains, _HsourceResidual, hhypothesisDomain,
+      hhypothesisLocalDomains, _HsourceResidual, by
+        simpa [sourceBinders, position, Nat.add_comm, Nat.add_left_comm,
+          Nat.add_assoc] using hsourceResidual,
+      hhypothesisDomain,
       HhypothesisResidual, HhypothesisResidualType⟩,
     E.closed_typing⟩
 
