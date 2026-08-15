@@ -61351,6 +61351,8 @@ theorem
       ∃ S : RecInfoMinorTypeShape,
         ∃ fieldDomains hypothesisDomains sourceResidual targetResidual,
           S.localIndex = i ∧
+          S.fields.size = A.rule.allArgs.size ∧
+          S.hypotheses.size = A.rule.recursiveArgs.size ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -61370,7 +61372,7 @@ theorem
             T.minors[minorIdx]! := by
   dsimp only
   rcases A.finalSelectedMinorTypedTelescope with
-    ⟨T, S, hlocal, _hfields, _hhypotheses, Htyped⟩
+    ⟨T, S, hlocal, hsourceFields, hsourceHypotheses, Htyped⟩
   rcases Htyped.toWrapForalls with
     ⟨domains, sourceResidual, targetResidual, hlength,
       Hsource, htarget, _Hresidual, _HresidualType⟩
@@ -61386,7 +61388,8 @@ theorem
     exact (List.take_append_drop A.rule.allArgs.size domains).symm
   rw [hdomains] at htarget
   exact ⟨T, S, fieldDomains, hypothesisDomains, sourceResidual,
-    targetResidual, hlocal, hfields, hhypotheses, htarget, Hsource, Htyped⟩
+    targetResidual, hlocal, hsourceFields, hsourceHypotheses,
+    hfields, hhypotheses, htarget, Hsource, Htyped⟩
 
 /-- Select the translated minor domain corresponding to recursive-result
 ordinal `j`.  The source binder is retained explicitly, and its abstract
@@ -61415,6 +61418,8 @@ theorem
       ∃ S : RecInfoMinorTypeShape,
         ∃ fieldDomains hypothesisDomains targetResidual sourceDomain,
           S.localIndex = i ∧
+          S.fields.size = A.rule.allArgs.size ∧
+          S.hypotheses.size = A.rule.recursiveArgs.size ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -61440,8 +61445,8 @@ theorem
   dsimp only
   rcases A.finalSelectedMinorTypedSplit with
     ⟨T, S, fieldDomains, hypothesisDomains, _sourceResidual,
-      targetResidual, hlocal, hfields, hhypotheses, htarget,
-      _Hsource, Htyped⟩
+      targetResidual, hlocal, hsourceFields, hsourceHypotheses,
+      hfields, hhypotheses, htarget, _Hsource, Htyped⟩
   let position := A.rule.allArgs.size + j
   have hposition : position <
       A.rule.allArgs.size + A.rule.recursiveArgs.size := by
@@ -61472,8 +61477,8 @@ theorem
       List.getElem_append_right fieldDomains hypothesisDomains j hjHypothesis
   rw [hselected] at Hdomain HdomainType
   exact ⟨T, S, fieldDomains, hypothesisDomains, targetResidual,
-    sourceDomain, hlocal, hfields, hhypotheses, htarget, Hbinder,
-    Hdomain, HdomainType⟩
+    sourceDomain, hlocal, hsourceFields, hsourceHypotheses,
+    hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
 
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
