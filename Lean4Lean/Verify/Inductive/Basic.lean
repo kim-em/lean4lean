@@ -70259,6 +70259,43 @@ theorem
   rw [abstractForallContext_toCtx, B.runtime.front.sourceContext,
     B.scope_base, B.front]
 
+/-- The source identifiers closed by the fixed field narrowing frame are
+literally the generated rule's constructor-field identifiers, in source
+binder order. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame.frontFVars
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    (B : A.NarrowFieldRuntimeFrame) :
+    (VLCtx.fvars
+      (B.fieldScope.take B.runtime.frontSourceDomains.length)).reverse =
+        A.rule.all_args_bound.fvars := by
+  have hsplit := B.runtime.frontFVars B.scope_base
+  have happend :
+      VLCtx.fvars
+          (B.fieldScope.take B.runtime.frontSourceDomains.length) ++
+          H.parameterSuffix.parameterDecls.fvars =
+        A.semantics.fieldsRecent.fvars.reverse ++
+          H.parameterSuffix.parameterDecls.fvars := by
+    rw [← hsplit, B.scope_fvars]
+  have hfields : VLCtx.fvars
+      (B.fieldScope.take B.runtime.frontSourceDomains.length) =
+        A.semantics.fieldsRecent.fvars.reverse :=
+    List.append_cancel_right happend
+  rw [hfields, List.reverse_reverse]
+  exact BoundFVarArray.fvars_eq
+    A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+    A.rule.all_args_bound rfl
+
 /-- The narrowed constructor-field telescope is well formed in the final
 recursor environment, over the exact cached parameter suffix. -/
 theorem
@@ -71906,6 +71943,11 @@ theorem
     ∃ scope,
       ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
           H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+        scope.fvars = F.semantic.recent.fvars.reverse ++
+          A.semantics.fieldsRecent.fvars.reverse ++
+            H.parameterSuffix.parameterDecls.fvars ∧
+        scope.drop Hscope.frontSourceDomains.length =
+          H.parameterSuffix.parameterDecls ∧
         ∃ localDomains,
           localDomains.length = F.semantic.generated.localArgs.size ∧
           Hscope.frontSourceDomains = B.fieldDomains ++ localDomains ∧
@@ -71966,7 +72008,7 @@ theorem
     simp [List.append_assoc]
   rcases HlocalPrefix.extendNarrowRuntimeScopeForallReplay
       H.outVEnvWF HlocalWF HlocalBase HlocalUp with
-    ⟨scope, Hscope, _hscopeFVars, _hscopeBase,
+    ⟨scope, Hscope, hscopeFVars, hscopeBase,
       localDomains, hlocalDomains, hlocalFront, Hreplay⟩
   have hsource : ∀ body,
       F.semantic.generated.current.lctx.mkForall
@@ -71980,7 +72022,16 @@ theorem
       Subsingleton.elim _ _
     rw [hle]
     exact F.semantic.recent.reverse_eq
-  refine ⟨scope, Hscope, localDomains, hlocalDomains, ?_, ?_⟩
+  have hlocalBaseDrop :
+      fieldScope.drop HlocalBase.frontSourceDomains.length =
+        H.parameterSuffix.parameterDecls := by
+    simpa [HlocalBase, HfieldScopeOut,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using hfieldBase
+  refine ⟨scope, Hscope, ?_, hscopeBase.trans hlocalBaseDrop,
+    localDomains, hlocalDomains, ?_, ?_⟩
+  · rw [hscopeFVars, hlocalRev, hfieldScopeFVars]
+    simp [List.append_assoc]
   · change Hscope.frontSourceDomains = fieldDomains ++ localDomains
     rw [hlocalFront]
     change HfieldScopeOut.frontSourceDomains ++ localDomains =
@@ -73535,6 +73586,15 @@ theorem
             ∃ localDomains,
               localDomains.length = F.semantic.generated.localArgs.size ∧
               Hscope.frontSourceDomains = B.fieldDomains ++ localDomains ∧
+              (∀ {body target},
+                TrExprS H.outVEnv Us scope body target →
+                H.outVEnv.IsType Us.length scope.toCtx target →
+                TrExprS H.outVEnv Us B.fieldScope
+                    (F.semantic.generated.current.lctx.mkForall
+                      F.semantic.generated.localArgs body)
+                    (VExpr.wrapForalls localDomains target) ∧
+                  H.outVEnv.IsType Us.length B.fieldScope.toCtx
+                    (VExpr.wrapForalls localDomains target)) ∧
             ∃ narrowIndices,
               evidence.indices.length = F.telescope.indices.length ∧
               List.Forall₂ (TrExprS H.outVEnv Us scope)
@@ -73552,9 +73612,9 @@ theorem
   rcases F.finalSemanticMotiveApplication with
     ⟨binding, evidence, hlength, Hindices, _Happlication, _Htyping,
       _Hforall⟩
-  rcases F.narrowRuntimeScopeFor B with
+  rcases F.narrowLocalForallReplayFor B with
     ⟨scope, Hscope, hscopeFVars, hscopeBase,
-      localDomains, _hfields, hlocal, hfront⟩
+      localDomains, hlocal, hfront, HforallReplay⟩
   have HsourceScope : ∀ source ∈ sourceIndices,
       source.FVarsIn (fun fv =>
         fv ∈ F.semantic.recent.fvars ∨ F.semantic.rootScope fv) := by
@@ -73619,7 +73679,7 @@ theorem
   rcases hnarrow Hindices (by intro source; exact id) with
     ⟨narrowIndices, HnarrowIndices, HindexEq⟩
   exact ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
-    localDomains, hlocal, hfront,
+    localDomains, hlocal, hfront, HforallReplay,
     narrowIndices, hlength, HnarrowIndices, HindexEq⟩
 
 /-- Replay the eta-expanded recursive field in the same narrow runtime scope
@@ -74058,6 +74118,12 @@ theorem
               fieldDomains.length = A.rule.allArgs.size ∧
               fieldDomains = B.fieldDomains ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
+              TrExprS H.outVEnv Us B.fieldScope
+                (F.semantic.generated.current.lctx.mkForall
+                  F.semantic.generated.localArgs (.sort .zero))
+                (VExpr.wrapForalls localDomains (.sort .zero)) ∧
+              H.outVEnv.IsType Us.length B.fieldScope.toCtx
+                (VExpr.wrapForalls localDomains (.sort .zero)) ∧
               OnCtx
                 (abstractForallContext (fieldDomains ++ localDomains)
                   parameterDecls).toCtx
@@ -74104,7 +74170,7 @@ theorem
   let parameterDecls := H.parameterSuffix.parameterDecls
   rcases F.narrowSemanticIndices (B := B) with
     ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
-      localDomains, hlocal, hfront,
+      localDomains, hlocal, hfront, HforallReplay,
       narrowIndices, hlength, HnarrowIndices, HindexEq⟩
   rcases F.narrowSemanticAppliedMajor scope Hscope hscopeFVars with
     ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
@@ -74113,6 +74179,15 @@ theorem
     ⟨narrowExposed, HnarrowExposed, HnarrowTyping⟩
   rcases F.narrowRuntimeFrontAlignment scope Hscope hscopeFVars hscopeBase with
     ⟨hfrontFVars, _hfrontLength, HfrontCtx⟩
+  have hzero : VLevel.ofLevel Us (.zero : Level) =
+      some (.zero : VLevel) := rfl
+  have Hzero : TrExprS H.outVEnv Us scope
+      (.sort (.zero : Level)) (.sort (.zero : VLevel)) := .sort hzero
+  have HzeroType : H.outVEnv.IsType Us.length scope.toCtx
+      (.sort (.zero : VLevel)) :=
+    ⟨.succ .zero, VEnv.HasType.sort (.of_ofLevel hzero)⟩
+  rcases HforallReplay Hzero HzeroType with
+    ⟨HlocalTemplate, HlocalTemplateType⟩
   have hprefixNodup :
       (VLCtx.fvars
         (scope.take Hscope.frontSourceDomains.length)).Nodup :=
@@ -74228,6 +74303,7 @@ theorem
     exact B.fieldDomains_length
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
     narrowIndices, narrowMajor, narrowExposed, hfront, hfields, rfl, hlocal,
+    HlocalTemplate, HlocalTemplateType,
     by simpa [hfront] using HfrontCtx, hlength,
     by simpa [hfront] using HclosedIndices,
     by simpa [hfront] using HclosedMajor',
@@ -74297,7 +74373,7 @@ theorem
   let parameterDecls := H.parameterSuffix.parameterDecls
   rcases F.narrowSemanticIndices with
     ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
-      _localDomains, _hlocal, _hfront,
+      _localDomains, _hlocal, _hfront, _HforallReplay,
       narrowIndices, hlength, HnarrowIndices, HindexEq⟩
   have hfrontRev :
       VLCtx.fvars (scope.take Hscope.frontSourceDomains.length) =
@@ -74693,6 +74769,18 @@ theorem
               fieldDomains.length = A.rule.allArgs.size ∧
               fieldDomains = B.fieldDomains ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ fieldDomains) [])
+                (((F.semantic.generated.current.lctx.mkForall
+                    F.semantic.generated.localArgs (.sort .zero)).abstractList
+                  A.rule.all_args_bound.fvars).abstractList
+                    A.rule.params_bound.fvars A.rule.allArgs.size)
+                (VExpr.wrapForalls localDomains (.sort .zero)) ∧
+              H.outVEnv.IsType Us.length
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ fieldDomains) []).toCtx
+                (VExpr.wrapForalls localDomains (.sort .zero)) ∧
               OnCtx
                 (abstractForallContext
                   (parameterDecls.toCtx.reverse ++ fieldDomains ++
@@ -74749,7 +74837,7 @@ theorem
   rcases F.cachedSemanticCallArgumentFrame (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
       narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hfieldEq,
-      hlocal,
+      hlocal, HlocalTemplate, HlocalTemplateType,
       Hctx, hlength, Hindices, Hmajor, Hexposed, Htyping,
       HindexEq, HmajorEq⟩
   have hparamsNodup : A.rule.params_bound.fvars.Nodup :=
@@ -74800,6 +74888,45 @@ theorem
     simpa [List.map_map, Function.comp_def] using HclosedIndices
   have HclosedMajor := closeSource Hmajor
   have HclosedExposed := closeSource Hexposed
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  let HfieldRuntime := B.runtime.mono hbase
+  have HfieldTemplate := HfieldRuntime.abstractFront
+    H.outVEnvWF B.scope_base HlocalTemplate
+  have hfieldFVars :
+      (VLCtx.fvars
+        (B.fieldScope.take HfieldRuntime.frontSourceDomains.length)).reverse =
+          A.rule.all_args_bound.fvars := by
+    simpa [HfieldRuntime,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using
+      B.frontFVars
+  rw [hfieldFVars] at HfieldTemplate
+  have hfieldFront : HfieldRuntime.frontSourceDomains = B.fieldDomains := by
+    simpa [HfieldRuntime,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using B.front
+  have HparameterTemplate := H.parameterSuffix.abstractParameters
+    A.rule.params_bound hparamsNodup HfieldTemplate
+  rw [hfieldFront] at HparameterTemplate
+  have HparameterTemplate' : TrExprS H.outVEnv Us
+      (abstractForallContext
+        (parameterDecls.toCtx.reverse ++ fieldDomains) [])
+      (((F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+        A.rule.all_args_bound.fvars).abstractList
+          A.rule.params_bound.fvars A.rule.allArgs.size)
+      (VExpr.wrapForalls localDomains (.sort .zero)) := by
+    rw [hfieldEq]
+    simpa [parameterDecls, B.fieldDomains_length] using HparameterTemplate
+  have HparameterTemplateType : H.outVEnv.IsType Us.length
+      (abstractForallContext
+        (parameterDecls.toCtx.reverse ++ fieldDomains) []).toCtx
+      (VExpr.wrapForalls localDomains (.sort .zero)) := by
+    have Htype := HlocalTemplateType
+    rw [B.fieldScope_eq] at Htype
+    rw [hfieldEq]
+    simpa [parameterDecls, List.reverse_append, List.append_assoc,
+      VLCtx.toCtx] using Htype
   have HclosedCtx : OnCtx
       (abstractForallContext
         (parameterDecls.toCtx.reverse ++ fieldDomains ++ localDomains) []).toCtx
@@ -74821,7 +74948,7 @@ theorem
     exact Htyping
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
     narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hfieldEq,
-    hlocal,
+    hlocal, HparameterTemplate', HparameterTemplateType,
     HclosedCtx, hlength, HclosedIndices', HclosedMajor, HclosedExposed,
     HclosedTyping, HindexEq, HmajorEq⟩
 
@@ -75076,7 +75203,7 @@ theorem
   rcases F.parameterClosedSemanticCallArgumentFrame (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
       narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hfieldEq,
-      hlocal,
+      hlocal, _HparameterTemplate, _HparameterTemplateType,
       HclosedCtx, hlength, Hindices, Hmajor, Hexposed, Htyping,
       HindexEq, HmajorEq⟩
   let liftedFront :=
@@ -78071,7 +78198,7 @@ theorem
   rcases F.cachedSemanticCallArgumentFrame with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, localDomains,
       _narrowIndices, _narrowMajor, _narrowExposed, _hfront, hfields,
-      _hfieldEq, hlocal,
+      _hfieldEq, hlocal, _HlocalTemplate, _HlocalTemplateType,
       _Hctx, _hlength, _Hindices, _Hmajor, Hexposed, _Htyping,
       _HindexEq, _HmajorEq⟩
   have houterNodup :
@@ -78221,7 +78348,8 @@ theorem
     ⟨_binding, _evidence, _scope, _Hscope,
       cachedFields, cachedLocals, _narrowIndices, _narrowMajor,
       _narrowExposed,
-      _hfront, hcachedFields, _hfieldEq, hcachedLocals, _Hctx, _hlength,
+      _hfront, hcachedFields, _hfieldEq, hcachedLocals,
+      _HlocalTemplate, _HlocalTemplateType, _Hctx, _hlength,
       _Hindices, HcachedMajor, _Hexposed, _Htyping,
       _HindexEq, _HmajorEq⟩
   have hparameterNoBV : H.parameterSuffix.parameterDecls.bvars = 0 := by
