@@ -3920,6 +3920,26 @@ theorem MLCtxOnlyLams.forallDomains_eq_take_reverse
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
+/-- Splitting an all-lambda checker context after a recent prefix exposes
+exactly the reversed `MLCtxForallDomains` followed by the older context. -/
+theorem MLCtxOnlyLams.toCtx_eq_forallDomains_reverse_append_dropN
+    (H : MLCtxOnlyLams c) (n : Nat) (hn : n ≤ c.length) :
+    c.vlctx.toCtx =
+      (MLCtxForallDomains c n hn).reverse ++ (c.dropN n hn).vlctx.toCtx := by
+  induction n generalizing c with
+  | zero => simp [MLCtxForallDomains]
+  | succ n ih =>
+    cases c with
+    | nil => simp at hn
+    | vlam fv name type type' bi tail =>
+      simp only [TypeChecker.MLCtx.vlctx, VLCtx.toCtx,
+        MLCtxForallDomains, List.reverse_append, List.reverse_singleton,
+        List.singleton_append, TypeChecker.MLCtx.dropN]
+      simpa [List.append_assoc] using congrArg (type' :: ·)
+        (ih H.tail_vlam (Nat.le_of_succ_le_succ hn))
+    | vlet fv name type value type' value' tail =>
+      exact H.vlet_false.elim
+
 theorem MLCtxOnlyLams.toCtx_take
     (H : MLCtxOnlyLams c) (n : Nat) :
     VLCtx.toCtx (c.vlctx.take n) = c.vlctx.toCtx.take n := by
