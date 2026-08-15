@@ -62921,6 +62921,61 @@ theorem
     originRoot, sourceType, ⟨O⟩, hdeclarationType,
     hdeclarationTypeExact⟩
 
+/-- Interpret the exact first-pass recursive-hypothesis declaration in the
+completed verified recursor context.  The declaration is first transported
+along its retained source-context extension and only then translated; this
+keeps the original `loopUArgs` telescope available for comparison with the
+second-pass semantic telescope. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorRawHypothesisTypeAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+          S.sourceFullContext S.recursiveFields S.hypotheses,
+      ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+      ∃ originRoot sourceType,
+      ∃ O : RecInfoMinorHypothesisTypeOrigin
+          hypothesisOrigins.stats hypothesisOrigins.recInfos
+          originRoot S.recursiveFields[j]! sourceType,
+      ∃ target,
+        S.localIndex = i ∧
+        S.fields.size = A.rule.allArgs.size ∧
+        S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        BindingContextLE S.sourceFullContext H.localContext ∧
+        D.type = sourceType ∧
+        TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx D.type target := by
+  dsimp only
+  rcases A.finalSelectedMinorHypothesisDeclarationDomainAt j hj with
+    ⟨_T, S, hypothesisOrigins, _traversal, _fieldDomains,
+      _hypothesisDomains, _targetResidual, D,
+      _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
+      _htraversal, _htraversalFields, _htraversalRecursiveFields,
+      _htraversalStats, _hparameterTail, _hpositions,
+      _hsourceSelected, _hruleSelected, hlocal, hfields, hhypotheses,
+      hsourceContext, _hfieldDomains, _hhypothesisDomains, _htarget,
+      _Hbinder, _Hdomain, _HdomainType, originRoot, sourceType, ⟨O⟩,
+      _hconsumed, htype⟩
+  rcases H.recursorWF.translatedDeclarationType
+      (D.mono hsourceContext) with ⟨target, Htarget⟩
+  have henv : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  exact ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, target,
+    hlocal, hfields, hhypotheses, hsourceContext, htype,
+    Htarget.mono henv⟩
+
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
 ordinal.  The expressions themselves may use different fresh identifiers;
