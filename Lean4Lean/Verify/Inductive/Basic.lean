@@ -73739,6 +73739,13 @@ theorem
                 (E.frame.semantic.generated.localArgs.size +
                   A.rule.allArgs.size)).liftLooseBVars'
                     E.frame.semantic.generated.localArgs.size j ∧
+            sourceResidual.liftLooseBVars'
+                (E.frame.semantic.generated.localArgs.size +
+                  A.rule.allArgs.size + j)
+                (A.rule.minors_bound.fvars.drop minorIdx).length =
+              (E.frame.semantic.generated.outerAbstractedMotiveApp
+                A.rule.binders).liftLooseBVars'
+                  E.frame.semantic.generated.localArgs.size j ∧
             hypothesisDomains[j]! = VExpr.wrapForalls
               hypothesisLocalDomains hypothesisResidual ∧
             TrExprS H.outVEnv Us
@@ -74241,6 +74248,103 @@ theorem
             E.frame.semantic.generated.localArgs.size j := by
     rw [hsourceResidualOuterTransport, hmotiveAppAlignment,
       hsourceBindersRule, hlocalArity, hsourceFields]
+  let generatedBase :=
+    E.frame.semantic.generated.outerAbstractedMotiveApp
+      A.rule.all_args_bound.fvars
+  let generatedPrefix :=
+    (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
+      A.rule.minors_bound.fvars.take
+        (recursorMinorOffset indTypes owner + i)
+  let remainingMinorFVars := A.rule.minors_bound.fvars.drop
+    (recursorMinorOffset indTypes owner + i)
+  let generatedCutoff :=
+    E.frame.semantic.generated.localArgs.size + A.rule.allArgs.size
+  have HgeneratedBaseClosed : Closed generatedBase generatedCutoff := by
+    dsimp only [generatedBase, generatedCutoff]
+    rw [← hmotiveAppAlignment, ← hlocalArity, ← hsourceFields]
+    exact HoriginMotiveClosed
+  have HgeneratedBaseAvoidsRemaining : generatedBase.FVarsIn
+      (fun fv => fv ∉ remainingMinorFVars) := by
+    apply HgeneratedMotiveScope.mono
+    intro fv houter hremaining
+    have houter' : fv ∈ A.rule.params_bound.fvars ++
+        A.rule.motives_bound.fvars := by
+      simpa [A.rule.params_bound.exprArrayFVarIds,
+        A.rule.motives_bound.exprArrayFVarIds] using houter
+    have hminor : fv ∈ A.rule.minors_bound.fvars :=
+      List.mem_of_mem_drop hremaining
+    have hdisjoint :=
+      (List.nodup_append.mp A.rule.outer_binders_nodup).2.2
+    exact hdisjoint fv houter' fv hminor rfl
+  have hremainingAbstract : generatedBase.abstractList
+      remainingMinorFVars generatedCutoff = generatedBase :=
+    HgeneratedBaseAvoidsRemaining.abstractList_eq_self
+      HgeneratedBaseClosed
+  have hgeneratedPrefixNodup : generatedPrefix.Nodup := by
+    have hsub : generatedPrefix <+
+        (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
+          A.rule.minors_bound.fvars :=
+      (List.Sublist.refl
+        (A.rule.params_bound.fvars ++
+          A.rule.motives_bound.fvars)).append
+            (List.take_sublist _ A.rule.minors_bound.fvars)
+    exact A.rule.outer_binders_nodup.sublist hsub
+  have hgeneratedOuterSplit : generatedPrefix ++ remainingMinorFVars =
+      (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
+        A.rule.minors_bound.fvars := by
+    simp [generatedPrefix, remainingMinorFVars, List.append_assoc]
+  have hgeneratedOuterNodup :
+      (generatedPrefix ++ remainingMinorFVars).Nodup := by
+    rw [hgeneratedOuterSplit]
+    exact A.rule.outer_binders_nodup
+  have hprefixShift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := generatedBase) (fvars := generatedPrefix)
+    (depth := generatedCutoff) (extra := remainingMinorFVars.length)
+    HgeneratedBaseClosed hgeneratedPrefixNodup
+  have hprefixAppend := Expr.abstractList_after_inner
+    (e := generatedBase) (outer := generatedPrefix)
+    (inner := remainingMinorFVars) (k := generatedCutoff)
+    hgeneratedOuterNodup
+  rw [hremainingAbstract] at hprefixAppend
+  have hprefixToFull :
+      (generatedBase.abstractList generatedPrefix generatedCutoff
+        ).liftLooseBVars' generatedCutoff remainingMinorFVars.length =
+      E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.binders := by
+    have hcombined :
+        (generatedBase.abstractList generatedPrefix generatedCutoff
+          ).liftLooseBVars' generatedCutoff remainingMinorFVars.length =
+        generatedBase.abstractList
+          (generatedPrefix ++ remainingMinorFVars) generatedCutoff :=
+      hprefixShift.symm.trans hprefixAppend
+    rw [hgeneratedOuterSplit] at hcombined
+    have hfullSource :=
+      E.frame.outerAbstractedNormalizedMotiveSource
+    rw [A.rule.all_args_bound.length_fvars] at hfullSource
+    exact hcombined.trans <| by
+      simpa [generatedBase, generatedCutoff] using hfullSource
+  have hsourceResidualFullTransport :
+      sourceResidual.liftLooseBVars'
+          (E.frame.semantic.generated.localArgs.size +
+            A.rule.allArgs.size + j) remainingMinorFVars.length =
+        (E.frame.semantic.generated.outerAbstractedMotiveApp
+          A.rule.binders).liftLooseBVars'
+            E.frame.semantic.generated.localArgs.size j := by
+    have hsourcePrefix : sourceResidual =
+        (generatedBase.abstractList generatedPrefix generatedCutoff
+          ).liftLooseBVars'
+            E.frame.semantic.generated.localArgs.size j := by
+      simpa [generatedBase, generatedPrefix, generatedCutoff,
+        List.append_assoc] using hsourceResidualGeneratedPrefix
+    rw [hsourcePrefix]
+    have hcommute := Expr.liftLooseBVars_comm
+      (generatedBase.abstractList generatedPrefix generatedCutoff)
+      remainingMinorFVars.length j generatedCutoff
+      E.frame.semantic.generated.localArgs.size (by
+        simp [generatedCutoff])
+    rw [← hprefixToFull]
+    simpa [generatedCutoff, Nat.add_comm, Nat.add_left_comm,
+      Nat.add_assoc] using hcommute.symm
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, D.type, O, B, E,
     hhypothesisOrigins, rfl, hhypothesisRecInfos,
@@ -74271,6 +74375,8 @@ theorem
         simpa [sourceBinders] using hsourceResidualOuterTransport,
       by
         simpa using hsourceResidualGeneratedPrefix,
+      by
+        simpa [remainingMinorFVars] using hsourceResidualFullTransport,
       hhypothesisDomain,
       HhypothesisResidual, HhypothesisResidualType⟩,
     E.closed_typing⟩
