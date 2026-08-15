@@ -81240,6 +81240,10 @@ theorem
             ((VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
               targetResidual).liftN
                 (later.length + 1 + equationFieldDomains.length) 0) ∧
+          (∀ j (hj : j < C.bodies.length),
+            H.outVEnv.HasType Us.length
+              (abstractForallContext equationDomains []).toCtx C.bodies[j]
+              C.bodyTypes[j]'(by simpa using hj)) ∧
           ∀ j (hj : j < C.bodies.length),
             VExpr.WF H.outVEnv Us.length
               (abstractForallContext equationDomains []).toCtx C.bodies[j] := by
@@ -81267,14 +81271,79 @@ theorem
     simp [equationDomains, equationFieldDomains, List.reverse_append,
       List.append_assoc]
   refine ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
-    hfields, hhypotheses, hminorType, ?_, ?_, ?_⟩
+    hfields, hhypotheses, hminorType, ?_, ?_, ?_, ?_⟩
   · rw [hequationContext]
     simpa only [inserted] using HfixedContext
   · rw [hequationContext]
     simpa only [inserted, equationFieldDomains, later, minorVar] using Hminor
   · intro j hj
     simpa only [Us, equationDomains, inserted, equationFieldDomains] using
+      C.bodyTyping j hj
+  · intro j hj
+    simpa only [Us, equationDomains, inserted, equationFieldDomains] using
       C.bodyWF j hj
+
+/-- Degenerate generated rules need no application fold: when the selected
+constructor has neither fields nor recursive hypotheses, the selected minor
+variable itself is the complete RHS and is already typed in the fixed
+equation context.  Isolating this case lets the positive-arity replay theorem
+remain honest about the nonempty telescope premise it uses. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalMinorApplicationZeroArity
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ B : A.NarrowFieldRuntimeFrame,
+      ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+          (H.generated.entry owner howner).info.type H.entries[owner].2.type
+          stats.params.size (H.recInfos.map (·.motive)).size
+          (H.recInfos.flatMap (·.minors)).size
+          H.recInfos[owner]!.indices.size owner,
+      ∃ C : A.CanonicalRecursiveResults T B,
+      ∃ targetResidual,
+        C.bodies = [] ∧
+        let inserted := T.motives ++ T.minors
+        let equationDomains :=
+          H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted
+        let later := T.minors.drop (minorIdx + 1)
+        H.outVEnv.HasType Us.length
+          (abstractForallContext equationDomains []).toCtx
+          (.bvar later.length)
+          (targetResidual.liftN (later.length + 1) 0) := by
+  dsimp only
+  have hfieldsZero : A.rule.allArgs.size = 0 := by omega
+  have hhypothesesZero : A.rule.recursiveArgs.size = 0 := by omega
+  rcases A.finalCanonicalMinorApplicationFrame with
+    ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
+      hfields, hhypotheses, _hminorType, _Hctx, Hminor,
+      _HbodyTyping, _HbodyWF⟩
+  have hfieldDomains : fieldDomains = [] :=
+    List.eq_nil_of_length_eq_zero (hfields.trans hfieldsZero)
+  have hhypothesisDomains : hypothesisDomains = [] :=
+    List.eq_nil_of_length_eq_zero
+      (hhypotheses.trans hhypothesesZero)
+  have hframeFields : B.fieldDomains = [] :=
+    List.eq_nil_of_length_eq_zero
+      (B.fieldDomains_length.trans hfieldsZero)
+  have hbodies : C.bodies = [] :=
+    List.eq_nil_of_length_eq_zero (by
+      rw [C.bodies_length, hhypothesesZero])
+  subst fieldDomains
+  subst hypothesisDomains
+  subst B.fieldDomains
+  exact ⟨B, T, C, targetResidual, hbodies, by
+    simpa [List.append_assoc] using Hminor⟩
 
 /-- Rule-indexed existential specialization of
 `canonicalRecursiveResultTypingFor`.  It remains convenient for pointwise
