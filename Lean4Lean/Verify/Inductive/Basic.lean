@@ -55312,6 +55312,67 @@ theorem Expr.SameForallPrefix.translatedContexts
         · simpa [List.reverse_cons, List.append_assoc,
             VLCtx.toCtx] using hcontexts
 
+/-- Exact-domain form of `translatedContexts`.  When the two translated
+targets have already been decomposed into caller-selected forall domains,
+the anonymous context conversion can be returned over those very lists
+rather than over fresh existential decompositions of the same targets. -/
+theorem Expr.SameForallPrefix.translatedContextsExact
+    (H : Expr.SameForallPrefix n left right)
+    (henv : VEnv.WF env)
+    (hctx : VLCtx.IsDefEq env Us.length leftCtx rightCtx)
+    (Hleft : TrExprS env Us leftCtx left
+      (VExpr.wrapForalls leftDomains leftResidual))
+    (Hright : TrExprS env Us rightCtx right
+      (VExpr.wrapForalls rightDomains rightResidual))
+    (hleftLength : leftDomains.length = n)
+    (hrightLength : rightDomains.length = n) :
+    VEnv.IsDefEqCtx env Us.length []
+      (leftDomains.reverse ++ leftCtx.toCtx)
+      (rightDomains.reverse ++ rightCtx.toCtx) := by
+  rcases H.translatedContexts henv hctx Hleft Hright with
+    ⟨actualLeftDomains, actualLeftResidual,
+      actualRightDomains, actualRightResidual,
+      hactualLeftLength, hactualRightLength,
+      hleftTarget, hrightTarget, Hcontexts⟩
+  have hleftDomains : leftDomains = actualLeftDomains :=
+    VExpr.wrapForalls_prefix_domains_eq (suffix := [])
+      hleftLength hactualLeftLength (by simpa using hleftTarget)
+  have hrightDomains : rightDomains = actualRightDomains :=
+    VExpr.wrapForalls_prefix_domains_eq (suffix := [])
+      hrightLength hactualRightLength (by simpa using hrightTarget)
+  subst actualLeftDomains
+  subst actualRightDomains
+  exact Hcontexts
+
+/-- A complete dependent-telescope alignment step.  The shared concrete
+forall prefix aligns the exact translated binder contexts, while equality of
+the concrete residuals makes the two complete translated domain types
+definitionally equal in the prior context.  These are the two invariants
+advanced together when consuming one recursive hypothesis. -/
+theorem Expr.SameForallPrefix.translatedTelescopeAlignment
+    (H : Expr.SameForallPrefix n left right)
+    (henv : VEnv.WF env)
+    (hctx : VLCtx.IsDefEq env Us.length leftCtx rightCtx)
+    (HleftTelescope : Expr.ForallTelescope left n leftResidual)
+    (HrightTelescope : Expr.ForallTelescope right n rightResidual)
+    (hresidual : leftResidual = rightResidual)
+    (Hleft : TrExprS env Us leftCtx left
+      (VExpr.wrapForalls leftDomains leftTarget))
+    (Hright : TrExprS env Us rightCtx right
+      (VExpr.wrapForalls rightDomains rightTarget))
+    (hleftLength : leftDomains.length = n)
+    (hrightLength : rightDomains.length = n) :
+    VEnv.IsDefEqCtx env Us.length []
+        (leftDomains.reverse ++ leftCtx.toCtx)
+        (rightDomains.reverse ++ rightCtx.toCtx) ∧
+      env.IsDefEqU Us.length leftCtx.toCtx
+        (VExpr.wrapForalls leftDomains leftTarget)
+        (VExpr.wrapForalls rightDomains rightTarget) := by
+  exact ⟨H.translatedContextsExact henv hctx Hleft Hright
+      hleftLength hrightLength,
+    H.translatedTargets henv hctx HleftTelescope HrightTelescope
+      hresidual Hleft Hright⟩
+
 /-- Closing two residual bodies with the same ordinary declarations creates
 the same concrete forall prefix around both. -/
 theorem LocalContext.sameForallPrefix_fold
