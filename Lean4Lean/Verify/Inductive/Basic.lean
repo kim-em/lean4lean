@@ -65276,6 +65276,15 @@ theorem
             Hscope.frontExpandedDomains.reverse ++
               VLCtx.toCtx (Hscope.expanded.drop
                 Hscope.frontExpandedDomains.length) ∧
+          VLCtx.IsDefEq H.outVEnv Us.length
+            (Hscope.expanded.drop
+              F.semantic.generated.localArgs.size)
+            A.semantics.context.mlctx.vlctx ∧
+          VLCtx.IsDefEq H.outVEnv Us.length
+            (Hscope.expanded.drop
+              (F.semantic.generated.localArgs.size +
+                A.rule.allArgs.size))
+            A.semantics.fieldRootContext.mlctx.vlctx ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             Hscope.expanded.toCtx
             (semanticLocalDomains.reverse ++ semanticFieldDomains.reverse ++
@@ -65313,6 +65322,24 @@ theorem
           A.semantics.fieldRootContext.mlctx.vlctx.toCtx := by
     simpa [semanticLocalDomains, semanticFieldDomains] using hsemanticContext
   have hexpanded := Hscope.front.expandedContext
+  have hlocalDrop :
+      F.semantic.current_context.mlctx.vlctx.drop
+          F.semantic.generated.localArgs.size =
+        A.semantics.context.mlctx.vlctx := by
+    rw [← F.semantic.current_context.onlyLams.vlctx_dropN
+      F.semantic.generated.localArgs.size F.semantic.recent.size_le,
+      F.semantic.recent.drop_eq]
+  have HlocalBase := Hscope.context.drop
+    F.semantic.generated.localArgs.size
+  rw [hlocalDrop] at HlocalBase
+  have hfieldDrop :
+      A.semantics.context.mlctx.vlctx.drop A.rule.allArgs.size =
+        A.semantics.fieldRootContext.mlctx.vlctx := by
+    rw [← A.semantics.context.onlyLams.vlctx_dropN
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le,
+      A.semantics.fieldsRecent.drop_eq]
+  have HfieldBase := HlocalBase.drop A.rule.allArgs.size
+  rw [List.drop_drop, hfieldDrop] at HfieldBase
   have hcontexts : VEnv.IsDefEqCtx H.outVEnv Us.length []
       Hscope.expanded.toCtx
       (semanticLocalDomains.reverse ++ semanticFieldDomains.reverse ++
@@ -65322,7 +65349,8 @@ theorem
     simpa [semanticLocalDomains, semanticFieldDomains] using hcontexts'
   exact ⟨scope, Hscope, localDomains, semanticLocalDomains,
     semanticFieldDomains, hfront, hlocal, hsemanticLocal, hsemanticFields,
-    hsemanticContext', hexpanded, hcontexts⟩
+    hsemanticContext', hexpanded, HlocalBase, by
+      simpa [Nat.add_comm] using HfieldBase, hcontexts⟩
 /-- The validated terminal application of a recursive call consumes the
 same canonical motive telescope retained for the call-selected mutual
 family.  This is the semantic index/major alignment needed to consume the
