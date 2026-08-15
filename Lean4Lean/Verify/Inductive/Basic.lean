@@ -27194,6 +27194,7 @@ operational `loopU` accumulator itself has gone out of scope. -/
 structure RecursorLoopUArgsTrace where
   ownerIdx : Nat
   localArity : Nat
+  localTelescope : Expr
   motive : Expr
   indices : Array Expr
 
@@ -27304,6 +27305,8 @@ def RecInfoMinorHypothesisTypeOrigin.replayTrace
     (fieldBinders : List FVarId) : RecursorLoopUArgsTrace where
   ownerIdx := O.ownerIdx
   localArity := O.args.size
+  localTelescope :=
+    (O.current.lctx.mkForall O.args (.sort .zero)).abstractList fieldBinders
   motive :=
     (recInfos[O.ownerIdx]!.motive.abstractList
       O.arguments_bound.fvars).abstractList fieldBinders O.args.size
@@ -36978,6 +36981,9 @@ def BoundGeneratedRecursiveCall.replayTrace
     (fieldBinders : List FVarId) : RecursorLoopUArgsTrace where
   ownerIdx := H.ownerIdx
   localArity := H.localArgs.size
+  localTelescope :=
+    (H.current.lctx.mkForall H.localArgs (.sort .zero)).abstractList
+      fieldBinders
   motive :=
     (motives[H.ownerIdx]!.abstractList
       H.arguments_bound.fvars).abstractList fieldBinders H.localArgs.size
@@ -37042,9 +37048,10 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMotiveApp_eq
 The constructor decision traces ensure that both `loopUArgs` runs inspect the
 same selected ordinal of the same source telescope; simultaneous abstraction
 then removes the unrelated fresh identifiers allocated by the two passes.
-The resulting single equality retains exactly the owner, higher-order arity,
-abstracted motive head, and exposed index spine needed to compare an
-installed induction hypothesis with its generated recursive result. -/
+The resulting single equality retains the owner, higher-order arity and
+normalized local telescope, abstracted motive head, and exposed index spine
+needed to compare an installed induction hypothesis with its generated
+recursive result. -/
 def RecursorLoopUArgsReplayCompat : Prop :=
   ∀ (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
