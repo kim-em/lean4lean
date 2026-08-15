@@ -63096,13 +63096,14 @@ theorem
     ∃ S : RecInfoMinorTypeShape,
       ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
-        ∃ minorConsumedDomains ruleSemanticDomains,
+        ∃ minorConsumedDomains,
           minorConsumedDomains.length = A.rule.allArgs.size ∧
-          ruleSemanticDomains.length = A.rule.allArgs.size ∧
+          A.semantics.fieldTelescope.domains.length =
+            A.rule.allArgs.size ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             (minorConsumedDomains.reverse ++
               H.recursorWF.mlctx.vlctx.toCtx)
-            (ruleSemanticDomains.reverse ++
+            (A.semantics.fieldTelescope.domains.reverse ++
               H.recursorWF.mlctx.vlctx.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases A.finalSelectedMinorTransportedFieldContext with
@@ -63153,7 +63154,7 @@ theorem
     HminorToSource HsourceContexts
   have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HminorToRuleSource HruleContexts'
-  exact ⟨S, HS, minorConsumedDomains, ruleSemanticDomains,
+  exact ⟨S, HS, minorConsumedDomains,
     hminorConsumed, hruleSemantic, Haligned⟩
 
 /-- Transport the shared constructor tail retained by the first minor pass
@@ -66574,10 +66575,9 @@ theorem
     {A : H.GeneratedRuleAlignment owner howner i hctor}
     (B : A.NarrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ semanticFieldDomains : List VExpr,
-      semanticFieldDomains.length = A.rule.allArgs.size ∧
+    A.semantics.fieldTelescope.domains.length = A.rule.allArgs.size ∧
       A.semantics.context.mlctx.vlctx.toCtx =
-        semanticFieldDomains.reverse ++
+        A.semantics.fieldTelescope.domains.reverse ++
           A.semantics.fieldRootContext.mlctx.vlctx.toCtx ∧
       B.runtime.frontExpandedDomains.length = A.rule.allArgs.size ∧
       B.runtime.expanded.toCtx =
@@ -66589,7 +66589,7 @@ theorem
         A.semantics.fieldRootContext.mlctx.vlctx ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         B.runtime.expanded.toCtx
-        (semanticFieldDomains.reverse ++
+        (A.semantics.fieldTelescope.domains.reverse ++
           A.semantics.fieldRootContext.mlctx.vlctx.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let semanticFieldDomains := MLCtxForallDomains A.semantics.context.mlctx
@@ -66630,8 +66630,64 @@ theorem
     have Hcontexts' := Hruntime.context.defeqCtx
     rw [hsemanticContext'] at Hcontexts'
     exact Hcontexts'
-  exact ⟨semanticFieldDomains, hsemanticFields, hsemanticContext',
-    hfrontExpanded, hexpanded, HfieldBase, Hcontexts⟩
+  simpa [semanticFieldDomains,
+    BoundGeneratedRecursorRule.Semantics.fieldTelescope] using
+      (show semanticFieldDomains.length = A.rule.allArgs.size ∧
+          A.semantics.context.mlctx.vlctx.toCtx =
+            semanticFieldDomains.reverse ++
+              A.semantics.fieldRootContext.mlctx.vlctx.toCtx ∧
+          B.runtime.frontExpandedDomains.length = A.rule.allArgs.size ∧
+          B.runtime.expanded.toCtx =
+            B.runtime.frontExpandedDomains.reverse ++
+              VLCtx.toCtx (B.runtime.expanded.drop
+                B.runtime.frontExpandedDomains.length) ∧
+          VLCtx.IsDefEq H.outVEnv Us.length
+            (B.runtime.expanded.drop A.rule.allArgs.size)
+            A.semantics.fieldRootContext.mlctx.vlctx ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+            B.runtime.expanded.toCtx
+            (semanticFieldDomains.reverse ++
+              A.semantics.fieldRootContext.mlctx.vlctx.toCtx) from
+        ⟨hsemanticFields, hsemanticContext', hfrontExpanded, hexpanded,
+          HfieldBase, Hcontexts⟩)
+
+/-- Compose the selected minor's transported consumed fields with the
+rule-wide narrowing conversion.  The result relates the literal first-pass
+field suffix to the expanded narrow context used by the canonical recursive
+results, with no call-local declarations present. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorExpandedFieldAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
+        ∃ minorConsumedDomains,
+          minorConsumedDomains.length = A.rule.allArgs.size ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+            (minorConsumedDomains.reverse ++
+              H.recursorWF.mlctx.vlctx.toCtx)
+            B.runtime.expanded.toCtx := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalSelectedMinorSemanticFieldAlignment with
+    ⟨S, HS, minorConsumedDomains, hminor, _hrule, Hminor⟩
+  rcases B.semanticFieldContext with
+    ⟨_hrule', _hsemanticContext, _hexpandedLength,
+      _hexpandedContext, _HfieldBase, Hexpanded⟩
+  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF Hminor
+    (Hexpanded.symm H.outVEnvWF.ordered)
+  exact ⟨S, HS, minorConsumedDomains, hminor, Haligned⟩
 
 /-- Restrict the terminal constructor target to the retained rule-wide
 field scope and close those named fields.  The resulting target is typed in
