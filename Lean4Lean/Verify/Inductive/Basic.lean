@@ -25813,6 +25813,67 @@ def fvarSelectionLift (fvars : List FVarId) (P : FVarId → Prop)
     if P fv then .cons (fvarSelectionLift fvars P)
     else .skip (fvarSelectionLift fvars P)
 
+/-- Selecting a smaller predicate and then embedding its selected context
+through a larger selection factors the direct runtime selection exactly. -/
+theorem fvarSelectionLift_mono_comp
+    (fvars : List FVarId) (P Q : FVarId → Prop)
+    [DecidablePred P] [DecidablePred Q]
+    (hsub : ∀ fv, P fv → Q fv) :
+    Lift.comp (fvarSelectionLift (fvars.filter Q) P)
+        (fvarSelectionLift fvars Q) =
+      fvarSelectionLift fvars P := by
+  induction fvars with
+  | nil => rfl
+  | cons fv fvars ih =>
+    by_cases hQ : Q fv
+    · by_cases hP : P fv
+      · simp [fvarSelectionLift, hQ, hP, ih]
+      · simp [fvarSelectionLift, hQ, hP, ih]
+    · have hP : ¬ P fv := fun hp => hQ (hsub fv hp)
+      simp [fvarSelectionLift, hQ, hP, ih]
+
+/-- Selecting every member of a list retains a pure `cons` lift. -/
+theorem fvarSelectionLift_all
+    (fvars : List FVarId) (P : FVarId → Prop) [DecidablePred P]
+    (hall : ∀ fv ∈ fvars, P fv) :
+    fvarSelectionLift fvars P = .consN .refl fvars.length := by
+  induction fvars with
+  | nil => rfl
+  | cons fv fvars ih =>
+    have hhead := hall fv (by simp)
+    have htail : ∀ other ∈ fvars, P other := by
+      intro other hother
+      exact hall other (by simp [hother])
+    simp [fvarSelectionLift, hhead, ih htail]
+
+/-- A prefix containing no selected identifiers contributes only skips. -/
+theorem fvarSelectionLift_append_none
+    (extra tail : List FVarId) (P : FVarId → Prop) [DecidablePred P]
+    (hnone : ∀ fv ∈ extra, ¬ P fv) :
+    fvarSelectionLift (extra ++ tail) P =
+      .skipN (fvarSelectionLift tail P) extra.length := by
+  induction extra with
+  | nil => rfl
+  | cons fv extra ih =>
+    have hhead := hnone fv (by simp)
+    have htail : ∀ other ∈ extra, ¬ P other := by
+      intro other hother
+      exact hnone other (by simp [hother])
+    simp [fvarSelectionLift, hhead, ih htail]
+
+/-- Selecting the second half of a disjoint concatenation is the ordinary
+uniform insertion of the first half in front of the retained context. -/
+theorem fvarSelectionLift_append_selected
+    (extra selected : List FVarId) (hdisjoint : extra.Disjoint selected) :
+    fvarSelectionLift (extra ++ selected) (· ∈ selected) =
+      .skipN (.consN .refl selected.length) extra.length := by
+  rw [fvarSelectionLift_append_none]
+  · rw [fvarSelectionLift_all]
+    intro fv hfv
+    exact hfv
+  · intro fv hfv hselected
+    exact hdisjoint hfv hselected
+
 theorem MLCtxOnlyLams.narrowFVarsSource
     {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
     (H : MLCtxOnlyLams c)
