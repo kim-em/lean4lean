@@ -80041,6 +80041,19 @@ structure
     ((frame.semantic.generated.body.abstractList
       frame.semantic.generated.arguments_bound.fvars).abstractList
         A.rule.binders frame.semantic.generated.localArgs.size)
+  template_telescope : Expr.LambdaTelescope
+    ((frame.semantic.generated.current.lctx.mkLambda
+        frame.semantic.generated.localArgs
+        (mkAppN A.rule.recursiveArgs[j]
+          frame.semantic.generated.localArgs)).abstractList A.rule.binders)
+    localDomains.length
+    (frame.semantic.generated.outerAbstractedMajor A.rule.binders)
+  source_template_prefix : Expr.SameLambdaPrefix localDomains.length
+    (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+    ((frame.semantic.generated.current.lctx.mkLambda
+        frame.semantic.generated.localArgs
+        (mkAppN A.rule.recursiveArgs[j]
+          frame.semantic.generated.localArgs)).abstractList A.rule.binders)
   residual_translation :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let equationDomains :=
@@ -80102,6 +80115,24 @@ theorem
   rcases A.canonicalRecursiveResultTypingFor T B j hj with
     ⟨F, localDomains, resultBody, resultType, hequation,
       hlocal, Htelescope, Htranslation, HtypeTranslation, Htyping⟩
+  have HtemplateTelescope : Expr.LambdaTelescope
+      ((F.semantic.generated.current.lctx.mkLambda
+          F.semantic.generated.localArgs
+          (mkAppN A.rule.recursiveArgs[j]
+            F.semantic.generated.localArgs)).abstractList A.rule.binders)
+      localDomains.length
+      (F.semantic.generated.outerAbstractedMajor A.rule.binders) := by
+    simpa [hlocal, BoundGeneratedRecursiveCall.outerAbstractedMajor] using
+      (F.semantic.generated.appliedFieldLambdaTelescope.abstractList
+        A.rule.binders)
+  have HsamePrefix : Expr.SameLambdaPrefix localDomains.length
+      (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+      ((F.semantic.generated.current.lctx.mkLambda
+          F.semantic.generated.localArgs
+          (mkAppN A.rule.recursiveArgs[j]
+            F.semantic.generated.localArgs)).abstractList A.rule.binders) := by
+    simpa [hlocal] using
+      F.semantic.generated.sameOuterAppliedFieldLambdaPrefix A.rule.binders
   exact ⟨{
     frame := F
     localDomains := localDomains
@@ -80110,9 +80141,69 @@ theorem
     equation_length := hequation
     local_length := hlocal
     source_telescope := Htelescope
+    template_telescope := HtemplateTelescope
+    source_template_prefix := HsamePrefix
     residual_translation := Htranslation
     result_type_translation := HtypeTranslation
     closed_typing := Htyping }⟩
+
+/-- Reconstruct the strict translation of the complete generated recursive
+result from any translation of its eta-expanded field template in the fixed
+equation context.  The template contributes only the shared lambda-domain
+derivations; the actual recursive-call residual is the independently checked
+one retained by `CanonicalRecursiveResultAt`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.fullTranslationOfTemplate
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (E : A.CanonicalRecursiveResultAt T B j hj)
+    (templateTarget : VExpr)
+    (Htemplate :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let equationDomains :=
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++
+          T.motives ++ T.minors ++
+            (liftContextPrefix (T.motives ++ T.minors).length
+              B.fieldDomains.reverse).reverse
+      TrExprS H.outVEnv Us
+        (abstractForallContext equationDomains [])
+        ((E.frame.semantic.generated.current.lctx.mkLambda
+            E.frame.semantic.generated.localArgs
+            (mkAppN A.rule.recursiveArgs[j]
+              E.frame.semantic.generated.localArgs)).abstractList
+          A.rule.binders)
+        (VExpr.wrapLams E.localDomains templateTarget)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+      (VExpr.wrapLams E.localDomains E.resultBody) := by
+  dsimp only at Htemplate ⊢
+  exact E.source_template_prefix.symm.replaceTranslatedResidual
+    E.template_telescope E.source_telescope rfl Htemplate
+    (by simpa [abstractForallContext_append] using E.residual_translation)
 
 /-- Pointwise handoff between the selected first-pass minor hypothesis and
 the canonical recursive result produced by the second pass.  Both sides are
@@ -80580,9 +80671,7 @@ theorem
           (mkAppN A.rule.recursiveArgs[j]
             E.frame.semantic.generated.localArgs)).abstractList
         A.rule.binders) := by
-    simpa [E.local_length] using
-      E.frame.semantic.generated.sameOuterAppliedFieldLambdaPrefix
-        A.rule.binders
+    exact E.source_template_prefix
   have hownerStats : O.ownerIdx < hypothesisOrigins.stats.indConsts.size :=
     (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
   have hownerRecInfos : O.ownerIdx < H.recInfos.size := by
