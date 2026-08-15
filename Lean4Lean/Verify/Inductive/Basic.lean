@@ -27094,6 +27094,11 @@ structure RecInfoMinorTraversalShape where
 /-- Stable source construction for one installed recursive-hypothesis
 declaration.  This compact form is stored with the generated minor after the
 operational `loopU` accumulator itself has gone out of scope. -/
+structure RecursorLoopUArgsTrace where
+  ownerIdx : Nat
+  localArity : Nat
+  indices : Array Expr
+
 structure RecInfoMinorHypothesisTypeOrigin
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
@@ -27190,6 +27195,21 @@ def RecInfoMinorHypothesisTypeOrigin.outerAbstractedField
     (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
     (binders : List FVarId) : Expr :=
   O.abstractedField.abstractList binders O.args.size
+
+/-- Alpha-normalized payload of the first-pass `loopUArgs` run.  Closing the
+fresh higher-order suffix and then the constructor fields removes allocation
+identities while retaining exactly the owner, local arity, and index spine
+which determine the generated induction-hypothesis type. -/
+def RecInfoMinorHypothesisTypeOrigin.replayTrace
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (fieldBinders : List FVarId) : RecursorLoopUArgsTrace where
+  ownerIdx := O.ownerIdx
+  localArity := O.args.size
+  indices :=
+    ((O.exposedType.getAppArgs[stats.params.size:] : Array Expr).map
+      fun index =>
+        (index.abstractList O.arguments_bound.fvars).abstractList
+          fieldBinders O.args.size)
 
 /-- After also closing an outer binder list, the selected first-pass field
 is the canonical outer de Bruijn variable shifted beneath its higher-order
@@ -36787,6 +36807,21 @@ def BoundGeneratedRecursiveCall.localIndices
       root field value) : List Nat :=
   List.ofFn fun i : Fin H.arguments_bound.fvars.length =>
     H.arguments_bound.fvars.length - 1 - i
+
+/-- Alpha-normalized payload of the recursive-result `loopUArgs` run.  It is
+the second-pass counterpart of
+`RecInfoMinorHypothesisTypeOrigin.replayTrace`. -/
+def BoundGeneratedRecursiveCall.replayTrace
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (fieldBinders : List FVarId) : RecursorLoopUArgsTrace where
+  ownerIdx := H.ownerIdx
+  localArity := H.localArgs.size
+  indices :=
+    ((H.exposedType.getAppArgs[stats.params.size:] : Array Expr).map
+      fun index =>
+        (index.abstractList H.arguments_bound.fvars).abstractList
+          fieldBinders H.localArgs.size)
 
 /-- Rule-level abstraction turns the selected field free variable into its
 outer de Bruijn index beneath the generated call's local lambda binders. -/
