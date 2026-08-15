@@ -60511,6 +60511,38 @@ theorem
         T.params.reverse parameterDecls.toCtx := by
   exact H.finalRecursorParameterContextAt owner howner
 
+/-- Every retained translation of the installed generated recursor has the
+same canonical parameter context.  The existential witness selected by
+`finalRecursorParameterContextAt` is immaterial because the five retained
+telescope groups are uniquely determined by the common source and target. -/
+theorem
+    RecursorPhasesResult.finalRecursorParameterContextFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    {owner : Nat} (howner : owner < H.entries.length)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    VEnv.IsDefEqCtx H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      T.params.reverse
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls.toCtx := by
+  rcases H.finalRecursorParameterContextAt owner howner with
+    ⟨T₀, Hparams⟩
+  have hparams : T.params = T₀.params :=
+    (T.groupsResult_eq T₀).1
+  simpa only [hparams] using Hparams
+
 /-- The original production constructor type has exactly the common
 parameter prefix replayed by `mkRecInfos`, followed by the genuine field
 suffix opened while generating this rule.  This is a source-syntax fact: it
