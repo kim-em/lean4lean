@@ -72972,6 +72972,9 @@ theorem
               (A.rule.allArgs.size - 1 -
                 A.semantics.recursivePositions[j]!)))
             (E.frame.semantic.generated.localIndices.map VExpr.bvar) ∧
+        (O.args.size = E.frame.semantic.generated.localArgs.size →
+          O.outerAbstractedField S.fields_bound.fvars =
+            E.frame.semantic.generated.outerAbstractedMajor A.rule.binders) ∧
         (let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -73030,6 +73033,37 @@ theorem
     hsourceFVarRoot S.fields_nodup hfieldPositionFVars
       hsourceFVarExact.symm
   have hrecursiveMajor := E.frame.outerAbstractedAppliedMajorOrdinal
+  have hfieldBinderLength : S.fields_bound.fvars.length =
+      A.rule.allArgs.size :=
+    S.fields_bound.length_fvars.trans hsourceFields
+  have hmajorAlignment : O.args.size =
+      E.frame.semantic.generated.localArgs.size →
+      O.outerAbstractedField S.fields_bound.fvars =
+        E.frame.semantic.generated.outerAbstractedMajor A.rule.binders := by
+    intro hlocalArity
+    have horiginLocal : O.arguments_bound.fvars.length = O.args.size :=
+      O.arguments_bound.toBoundFVarArray.length_fvars
+    have hgeneratedLocal :
+        E.frame.semantic.generated.arguments_bound.fvars.length =
+          E.frame.semantic.generated.localArgs.size :=
+      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.length_fvars
+    have hlocalIndices : O.localIndices =
+        E.frame.semantic.generated.localIndices := by
+      apply List.ext_getElem
+      · simp [RecInfoMinorHypothesisTypeOrigin.localIndices,
+          BoundGeneratedRecursiveCall.localIndices, horiginLocal,
+          hgeneratedLocal, hlocalArity]
+      · intro k hkOrigin hkGenerated
+        simp [RecInfoMinorHypothesisTypeOrigin.localIndices,
+          BoundGeneratedRecursiveCall.localIndices, horiginLocal,
+          hgeneratedLocal, hlocalArity]
+    rw [show O.outerAbstractedField S.fields_bound.fvars =
+        mkAppN
+          (.bvar (O.args.size +
+            (S.fields_bound.fvars.length - 1 - fieldPosition)))
+          (O.localIndices.map Expr.bvar).toArray by
+        simpa [fieldPosition] using houterField]
+    rw [hrecursiveMajor.1, hfieldBinderLength, hlocalArity, hlocalIndices]
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, sourceType, O, B, E,
     hhypothesisOrigins, hhypothesisStats, htraversal,
@@ -73037,7 +73071,8 @@ theorem
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
     hdeclarationExact, by simpa [fieldPosition] using houterField,
-    hrecursiveMajor.1, hrecursiveMajor.2, Hdomain, E.closed_typing⟩
+    hrecursiveMajor.1, hrecursiveMajor.2, hmajorAlignment,
+    Hdomain, E.closed_typing⟩
 
 /-- All recursive results of one generated rule, chosen in their production
 array order and fixed to one recursor telescope and one narrowed field frame. -/
