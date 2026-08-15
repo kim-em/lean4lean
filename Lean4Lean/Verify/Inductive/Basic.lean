@@ -24296,6 +24296,102 @@ theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtx
     simpa only [List.reverse_append, List.reverse_singleton,
       List.singleton_append] using Hnext
 
+/-- Base-context form of `commonPrefixDefEqCtx`.  The two translations may
+start over independently produced anonymous telescopes, provided those base
+telescopes are already definitionally equal.  Each selected binder extends
+that conversion, so dependency in all later domains is preserved. -/
+theorem Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtxOver
+    (Henv : env.WF)
+    (Hbase : VEnv.IsDefEqCtx env Us.length []
+      base₁.reverse base₂.reverse)
+    (H₁ : Expr.ForallTelescopeTypeTranslation env Us
+      (abstractForallContext base₁ []) source₁ arity₁ target₁)
+    (H₂ : Expr.ForallTelescopeTypeTranslation env Us
+      (abstractForallContext base₂ []) source₂ arity₂ target₂)
+    (domains₁ domains₂ : List VExpr) (result₁ result₂ : VExpr)
+    (htarget₁ : target₁ = VExpr.wrapForalls domains₁ result₁)
+    (htarget₂ : target₂ = VExpr.wrapForalls domains₂ result₂)
+    (hlength₁ : domains₁.length = arity₁)
+    (hlength₂ : domains₂.length = arity₂)
+    (prefixLen : Nat) (hprefix₁ : prefixLen ≤ arity₁)
+    (hprefix₂ : prefixLen ≤ arity₂)
+    (Hdomains : ∀ i (hiprefix : i < prefixLen)
+      (hi₁ : i < arity₁) (hi₂ : i < arity₂)
+      {domain₁ domain₂ : Expr},
+      Expr.ForallBinderAt source₁ i domain₁ →
+      Expr.ForallBinderAt source₂ i domain₂ →
+      domain₁ = domain₂) :
+    VEnv.IsDefEqCtx env Us.length []
+      ((domains₁.take prefixLen).reverse ++ base₁.reverse)
+      ((domains₂.take prefixLen).reverse ++ base₂.reverse) := by
+  have habstractToCtx : ∀ (base types : List VExpr),
+      (abstractForallContext types
+        (abstractForallContext base [])).toCtx =
+        types.reverse ++ base.reverse := by
+    intro base types
+    simp [abstractForallContext_toCtx]
+  induction prefixLen with
+  | zero => simpa using Hbase
+  | succ prefixLen ih =>
+    have hi₁ : prefixLen < arity₁ := by omega
+    have hi₂ : prefixLen < arity₂ := by omega
+    have hdom₁ : prefixLen < domains₁.length := by omega
+    have hdom₂ : prefixLen < domains₂.length := by omega
+    have Hprior := ih (by omega) (by omega) (by
+      intro i hiprefix hi₁ hi₂ domain₁ domain₂ Hbinder₁ Hbinder₂
+      exact Hdomains i (by omega) hi₁ hi₂ Hbinder₁ Hbinder₂)
+    rcases H₁.binderAt_target domains₁ result₁ htarget₁ hlength₁
+        prefixLen hi₁ with
+      ⟨suffix₁, name₁, sourceDomain₁, sourceBody₁, bi₁, bodyTarget₁,
+        Hsource₁, hsuffix₁, Hdomain₁, HdomainType₁, _Hbody₁⟩
+    rcases H₂.binderAt_target domains₂ result₂ htarget₂ hlength₂
+        prefixLen hi₂ with
+      ⟨suffix₂, name₂, sourceDomain₂, sourceBody₂, bi₂, bodyTarget₂,
+        Hsource₂, hsuffix₂, Hdomain₂, _HdomainType₂, _Hbody₂⟩
+    have hsourceDomain : sourceDomain₁ = sourceDomain₂ :=
+      Hdomains prefixLen (Nat.lt_succ_self _) hi₁ hi₂
+        (Hsource₁.binderAt hsuffix₁) (Hsource₂.binderAt hsuffix₂)
+    rw [← hsourceDomain] at Hdomain₂
+    have Hvlctx : VLCtx.IsDefEq env Us.length
+        (abstractForallContext (domains₁.take prefixLen)
+          (abstractForallContext base₁ []))
+        (abstractForallContext (domains₂.take prefixLen)
+          (abstractForallContext base₂ [])) := by
+      have Hanonymous := abstractForallContext.isDefEq
+        (left := base₁ ++ domains₁.take prefixLen)
+        (right := base₂ ++ domains₂.take prefixLen) (by
+          simpa [List.reverse_append, List.append_assoc] using Hprior)
+      simpa [abstractForallContext, List.reverse_append,
+        List.map_append, List.append_assoc] using Hanonymous
+    have HdomainU := Hdomain₁.uniq Henv Hvlctx Hdomain₂
+    rcases HdomainType₁ with ⟨level, HdomainType₁⟩
+    have HdomainU' : env.IsDefEqU Us.length
+        ((domains₁.take prefixLen).reverse ++ base₁.reverse)
+        domains₁[prefixLen] domains₂[prefixLen] := by
+      rw [habstractToCtx] at HdomainU
+      exact HdomainU
+    have HdomainType₁' : env.HasType Us.length
+        ((domains₁.take prefixLen).reverse ++ base₁.reverse)
+        domains₁[prefixLen] (.sort level) := by
+      rw [habstractToCtx] at HdomainType₁
+      exact HdomainType₁
+    have Hdomain' := HdomainU'.of_l Henv Hprior.isType HdomainType₁'
+    have Hnext : VEnv.IsDefEqCtx env Us.length []
+        (domains₁[prefixLen] ::
+          (domains₁.take prefixLen).reverse ++ base₁.reverse)
+        (domains₂[prefixLen] ::
+          (domains₂.take prefixLen).reverse ++ base₂.reverse) :=
+      .succ Hprior Hdomain'
+    have htake₁ : domains₁.take (prefixLen + 1) =
+        domains₁.take prefixLen ++ [domains₁[prefixLen]] := by
+      exact (List.take_append_getElem hdom₁).symm
+    have htake₂ : domains₂.take (prefixLen + 1) =
+        domains₂.take prefixLen ++ [domains₂[prefixLen]] := by
+      exact (List.take_append_getElem hdom₂).symm
+    rw [htake₁, htake₂]
+    simpa only [List.reverse_append, List.reverse_singleton,
+      List.singleton_append, List.append_assoc] using Hnext
+
 /-- A translated telescope known to be a type decomposes canonically into
 the binder-by-binder certificate. This establishes that the new interface
 loses no information while exposing exactly where restoration must act. -/
@@ -24388,6 +24484,32 @@ theorem checkInductiveTypes.loopType.FVarNarrowSources.closeTranslation
     have Hclosed := ih HtailWF Hforall HforallType
     simpa [FVarNarrowSources.closeSource, VLCtx.toCtx,
       List.reverse_cons, VExpr.wrapForalls] using Hclosed
+
+/-- Typed telescope form of `closeTranslation` for an arbitrary body.  This
+is the reusable boundary between a named, non-contiguously narrowed scope and
+the completely closed source declaration used by an independent
+specification: the body may itself be a dependent telescope. -/
+theorem checkInductiveTypes.loopType.FVarNarrowScope.closeTypedTelescope
+    (H : checkInductiveTypes.loopType.FVarNarrowScope
+      env Us scope runtime)
+    (henv : env.WF)
+    (Hbody : TrExprS env Us scope body target)
+    (HbodyType : env.IsType Us.length scope.toCtx target) :
+    Expr.ForallTelescopeTypeTranslation env Us []
+      (H.sources.closeSource body) scope.length
+      (VExpr.wrapForalls scope.toCtx.reverse target) := by
+  have HscopeWF := H.scopeWF henv
+  have Htranslation := H.sources.closeTranslation henv HscopeWF
+    Hbody HbodyType
+  have Htelescope := H.sources.closeSource_telescope
+    HscopeWF.fvars_nodup body
+  have HtargetType : env.IsType Us.length []
+      (VExpr.wrapForalls scope.toCtx.reverse target) := by
+    apply VEnv.IsType.wrapForalls
+    · simpa using HscopeWF.toCtx
+    · simpa using HbodyType
+  exact Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    Htelescope Htranslation HtargetType
 
 /-- Close the retained source declarations around a trivial sort.  This is
 an independent translation of the complete narrowed prefix, rather than a
@@ -64225,6 +64347,10 @@ theorem
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ prefixSource,
         scope.fvars = sourceBinders.reverse ∧
+        (∀ body,
+          Hscope.sources.closeSource body =
+            H.localContext.lctx.mkForall
+              (sourceBinders.map Expr.fvar).toArray body) ∧
         prefixSource = Hscope.sources.closeSource
           (.sort (.zero : Level)) ∧
         prefixSource = H.localContext.lctx.mkForall
@@ -64270,7 +64396,8 @@ theorem
           H.bindings.flatMinors.length_fvars,
           T.params_length, T.motives_length, T.minors_length]
   exact ⟨T, scope, Hscope,
-    Hscope.sources.closeSource (.sort (.zero : Level)), hscope, rfl,
+    Hscope.sources.closeSource (.sort (.zero : Level)), hscope,
+    hscopeSource, rfl,
     hscopeSource (.sort (.zero : Level)),
     Hprefix, HprefixType, HprefixTelescope, hprefixLength⟩
 
@@ -64543,6 +64670,10 @@ theorem
       ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
         scope.fvars = sourceBinders.reverse ∧
+        (∀ body,
+          Hscope.sources.closeSource body =
+            H.localContext.lctx.mkForall
+              (sourceBinders.map Expr.fvar).toArray body) ∧
         VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
           (T.params ++ T.motives ++ T.minors.take minorIdx).reverse := by
   dsimp only
@@ -64551,7 +64682,7 @@ theorem
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
   rcases A.finalSelectedMinorExactPrefixSource with
-    ⟨T, scope, Hscope, prefixSource, hscope, hprefixSource,
+    ⟨T, scope, Hscope, prefixSource, hscope, hscopeSource, hprefixSource,
       hprefixLocal, _HprefixTr, _HprefixType, HprefixTelescope,
       hselectedLength⟩
   let fullDomains := T.params ++ T.motives ++ T.minors ++
@@ -64610,7 +64741,307 @@ theorem
       simp [List.append_assoc]]
     exact List.take_append_length
   rw [htakeScope, htakeFull] at Hctx
-  exact ⟨T, scope, Hscope, hscope, by simpa using Hctx⟩
+  exact ⟨T, scope, Hscope, hscope, hscopeSource, by simpa using Hctx⟩
+
+/-- Independently replay the complete selected-minor telescope in the exact
+non-contiguous source scope, and close that scope around the original source
+declaration.  The two certificates expose the same narrowed target both as a
+body below the selected outer prefix and as a completely closed telescope.
+This is the comparison frame used to relate the installed minor domains to
+the semantic field and recursive-result domains. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorExactClosedTelescope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+      ∃ narrowTarget,
+        scope.fvars = sourceBinders.reverse ∧
+        Hscope.sources.closeSource S.origin =
+          H.localContext.lctx.mkForall
+            (sourceBinders.map Expr.fvar).toArray S.origin ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
+          (T.params ++ T.motives ++ T.minors.take minorIdx).reverse ∧
+        Expr.ForallTelescopeTypeTranslation H.outVEnv Us
+          (abstractForallContext scope.toCtx.reverse [])
+          (S.origin.abstractList sourceBinders)
+          (A.rule.allArgs.size + A.rule.recursiveArgs.size)
+          narrowTarget ∧
+        Expr.ForallTelescopeTypeTranslation H.outVEnv Us []
+          (H.localContext.lctx.mkForall
+            (sourceBinders.map Expr.fvar).toArray S.origin)
+          scope.length
+          (VExpr.wrapForalls scope.toCtx.reverse narrowTarget) ∧
+        Expr.ForallTelescopeTypeTranslation H.outVEnv Us
+          (abstractForallContext
+            (T.params ++ T.motives ++ T.minors.take minorIdx) [])
+          (S.origin.abstractList sourceBinders)
+          (A.rule.allArgs.size + A.rule.recursiveArgs.size)
+          T.minors[minorIdx]! := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  rcases A.finalSelectedMinorTypedTelescope with
+    ⟨T, S, _hypothesisOrigins, _traversal,
+      _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
+      _htraversal, _htraversalFields, _htraversalRecursiveFields,
+      _htraversalStats, _hparameterTail, _hpositions, _hlocal,
+      hfields, hhypotheses, _hsourceContext, Hsemantic, Hinstalled⟩
+  rcases Hsemantic with ⟨HS⟩
+  rcases A.finalSelectedMinorPrefixDefEqCtx with
+    ⟨T₀, scope, Hscope, hscope, hscopeSource, Hprefix₀⟩
+  rcases T₀.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams, hmotives, hminors] at Hprefix₀
+  have Hprefix : VEnv.IsDefEqCtx H.outVEnv Us.length [] scope.toCtx
+      (T.params ++ T.motives ++ T.minors.take minorIdx).reverse := by
+    simpa using Hprefix₀
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have hscopeSourceOut : Hscope.sources.closeSource S.origin =
+      H.localContext.lctx.mkForall
+        (sourceBinders.map Expr.fvar).toArray S.origin := by
+    exact hscopeSource S.origin
+  have HsourceOrigin : TrExprS HS.semantic.sourceWF.venv Us
+      HS.semantic.sourceWF.mlctx.vlctx S.origin
+      HS.semantic.consumedTarget := by
+    rw [← S.consumed_eq]
+    simpa only [HS.semantic.extension.venv_eq] using
+      HS.semantic.consumption.consumed
+  have Hfull₀ := HS.semantic.extension.weakTrExprS HsourceOrigin
+  have Hfull : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx S.origin
+      (HS.semantic.consumedTarget.lift'
+        (HS.semantic.extension.shift.consN 0)) :=
+    Hfull₀.mono hbase
+  have hclosed : Closed S.origin 0 := by
+    have h := Hfull.closed
+    rw [H.recursorWF.mlctx.noBV] at h
+    exact h
+  have HabstractClosed :
+      (S.origin.abstractList sourceBinders).FVarsIn (fun _ => False) := by
+    have Hfvars := Hinstalled.translation.fvarsIn
+    exact Hfvars.mono fun fv hfv => by simpa using hfv
+  have HsourceScope : S.origin.FVarsIn (· ∈ scope.fvars) := by
+    have Hraw := FVarsIn.of_abstractList HabstractClosed
+    apply Hraw.mono
+    intro fv hfv
+    rcases hfv with hfv | hfalse
+    · rw [hscope]
+      exact List.mem_reverse.mpr hfv
+    · exact False.elim hfalse
+  rcases Hscope.restrict H.outVEnvWF Hfull hclosed HsourceScope with
+    ⟨narrowTarget, Hnarrow⟩
+  rcases S.originTelescope with ⟨sourceResidual, HsourceTelescope⟩
+  have HsourceTelescope' : Expr.ForallTelescope S.origin
+      (A.rule.allArgs.size + A.rule.recursiveArgs.size) sourceResidual := by
+    simpa [hfields, hhypotheses] using HsourceTelescope
+  have HnarrowType : H.outVEnv.IsType Us.length scope.toCtx narrowTarget :=
+    TrExprS.isType_of_forallTelescope HsourceTelescope' hpositive Hnarrow
+  have HabstractTelescope :=
+    HsourceTelescope'.abstractList sourceBinders
+  have HabstractTranslation := Hscope.abstractAll H.outVEnvWF Hnarrow
+  have HabstractType : H.outVEnv.IsType Us.length
+      (abstractForallContext scope.toCtx.reverse []).toCtx narrowTarget := by
+    simpa [abstractForallContext_toCtx] using HnarrowType
+  have HabstractTyped :=
+    Expr.ForallTelescopeTypeTranslation.ofTrExprS
+      HabstractTelescope HabstractTranslation HabstractType
+  have HclosedTyped := Hscope.closeTypedTelescope H.outVEnvWF
+    Hnarrow HnarrowType
+  rw [hscopeSourceOut] at HclosedTyped
+  exact ⟨T, S, scope, Hscope, narrowTarget, hscope,
+    hscopeSourceOut, Hprefix, HabstractTyped, HclosedTyped, Hinstalled⟩
+
+/-- Compare every field and recursive-hypothesis domain of the independently
+replayed minor with the corresponding domain stored in the generated
+recursor.  The source telescope is literally shared; only its independently
+constructed outer contexts differ, and `finalSelectedMinorPrefixDefEqCtx`
+supplies their conversion. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorIndependentInstalledContextAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
+      ∃ scope narrowTarget,
+      ∃ narrowDomains installedDomains narrowResidual installedResidual,
+        narrowDomains.length =
+          A.rule.allArgs.size + A.rule.recursiveArgs.size ∧
+        installedDomains.length =
+          A.rule.allArgs.size + A.rule.recursiveArgs.size ∧
+        narrowTarget = VExpr.wrapForalls narrowDomains narrowResidual ∧
+        T.minors[minorIdx]! =
+          VExpr.wrapForalls installedDomains installedResidual ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          (narrowDomains.reverse ++ scope.toCtx)
+          (installedDomains.reverse ++
+            (T.params ++ T.motives ++ T.minors.take minorIdx).reverse) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  rcases A.finalSelectedMinorExactClosedTelescope hpositive with
+    ⟨T, S, scope, _Hscope, narrowTarget, _hscope, _hscopeSource,
+      Hprefix, Hnarrow, _Hclosed, Hinstalled⟩
+  rcases Hnarrow.toWrapForalls with
+    ⟨narrowDomains, narrowSourceResidual, narrowResidual,
+      hnarrowLength, _HnarrowSource, hnarrowTarget,
+      _HnarrowResidual, _HnarrowResidualType⟩
+  rcases Hinstalled.toWrapForalls with
+    ⟨installedDomains, installedSourceResidual, installedResidual,
+      hinstalledLength, _HinstalledSource, hinstalledTarget,
+      _HinstalledResidual, _HinstalledResidualType⟩
+  let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
+  have Hbase : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (scope.toCtx.reverse).reverse
+      (T.params ++ T.motives ++ T.minors.take minorIdx).reverse := by
+    simpa using Hprefix
+  have Haligned :=
+    Expr.ForallTelescopeTypeTranslation.commonPrefixDefEqCtxOver
+      H.outVEnvWF Hbase Hnarrow Hinstalled
+      narrowDomains installedDomains narrowResidual installedResidual
+      hnarrowTarget hinstalledTarget hnarrowLength hinstalledLength
+      arity (by simp [arity]) (by simp [arity]) (by
+        intro position hposition _hiNarrow _hiInstalled
+          domainNarrow domainInstalled HbinderNarrow HbinderInstalled
+        exact HbinderNarrow.unique HbinderInstalled)
+  have hnarrowTake : narrowDomains.take arity = narrowDomains := by
+    rw [← hnarrowLength]
+    exact List.take_length
+  have hinstalledTake : installedDomains.take arity = installedDomains := by
+    rw [← hinstalledLength]
+    exact List.take_length
+  rw [hnarrowTake, hinstalledTake] at Haligned
+  exact ⟨T, S, scope, narrowTarget, narrowDomains, installedDomains,
+    narrowResidual, installedResidual, hnarrowLength, hinstalledLength,
+    hnarrowTarget, hinstalledTarget, by
+      simpa [List.append_assoc] using Haligned⟩
+
+/-- Field-prefix consequence of the complete independent/installed minor
+alignment.  Dropping the newest recursive-hypothesis declarations leaves
+exactly the constructor-field contexts on both sides. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorIndependentInstalledFieldAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ scope independentFields installedFields,
+        independentFields.length = A.rule.allArgs.size ∧
+        installedFields.length = A.rule.allArgs.size ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          (independentFields.reverse ++ scope.toCtx)
+          (installedFields.reverse ++
+            (T.params ++ T.motives ++ T.minors.take minorIdx).reverse) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalSelectedMinorIndependentInstalledContextAlignment
+      hpositive with
+    ⟨T, _S, scope, _narrowTarget, narrowDomains, installedDomains,
+      _narrowResidual, _installedResidual, hnarrowLength,
+      hinstalledLength, _hnarrowTarget, _hinstalledTarget, Haligned⟩
+  let independentFields := narrowDomains.take A.rule.allArgs.size
+  let independentHypotheses := narrowDomains.drop A.rule.allArgs.size
+  let installedFields := installedDomains.take A.rule.allArgs.size
+  let installedHypotheses := installedDomains.drop A.rule.allArgs.size
+  have hindependentFields : independentFields.length =
+      A.rule.allArgs.size := by
+    simp [independentFields, hnarrowLength]
+  have hinstalledFields : installedFields.length =
+      A.rule.allArgs.size := by
+    simp [installedFields, hinstalledLength]
+  have hindependentHypotheses : independentHypotheses.length =
+      A.rule.recursiveArgs.size := by
+    simp [independentHypotheses, hnarrowLength]
+  have hinstalledHypotheses : installedHypotheses.length =
+      A.rule.recursiveArgs.size := by
+    simp [installedHypotheses, hinstalledLength]
+  have hnarrowSplit : narrowDomains =
+      independentFields ++ independentHypotheses := by
+    exact (List.take_append_drop A.rule.allArgs.size narrowDomains).symm
+  have hinstalledSplit : installedDomains =
+      installedFields ++ installedHypotheses := by
+    exact (List.take_append_drop A.rule.allArgs.size installedDomains).symm
+  have Hfields := Haligned.dropHeads A.rule.recursiveArgs.size
+  have hnarrowDrop :
+      (narrowDomains.reverse ++ scope.toCtx).drop
+          A.rule.recursiveArgs.size =
+        independentFields.reverse ++ scope.toCtx := by
+    rw [hnarrowSplit, List.reverse_append]
+    simpa [List.append_assoc, hindependentHypotheses] using
+      List.drop_left' independentHypotheses.reverse
+        (independentFields.reverse ++ scope.toCtx)
+  have hinstalledDrop :
+      (installedDomains.reverse ++
+          (T.params ++ T.motives ++ T.minors.take minorIdx).reverse).drop
+          A.rule.recursiveArgs.size =
+        installedFields.reverse ++
+          (T.params ++ T.motives ++ T.minors.take minorIdx).reverse := by
+    rw [hinstalledSplit, List.reverse_append]
+    simpa [List.append_assoc, hinstalledHypotheses] using
+      List.drop_left' installedHypotheses.reverse
+        (installedFields.reverse ++
+          (T.params ++ T.motives ++ T.minors.take minorIdx).reverse)
+  rw [hnarrowDrop, hinstalledDrop] at Hfields
+  exact ⟨T, scope, independentFields, installedFields,
+    hindependentFields, hinstalledFields, Hfields⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
