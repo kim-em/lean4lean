@@ -61924,6 +61924,8 @@ theorem
         S.traversal = some traversal ∧
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
+        traversal.stats = stats ∧
+        traversal.parameterTail = A.semantics.parameterTail ∧
         traversal.recursivePositions = A.semantics.recursivePositions ∧
         S.localIndex = i ∧
         S.fields.size = A.rule.allArgs.size ∧
@@ -61992,7 +61994,7 @@ theorem
     exact Hdomain
   exact ⟨T, S, hypothesisOrigins, traversal, hhypothesisOrigins,
     hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
-    htraversalRecursiveFields, hpositions,
+    htraversalRecursiveFields, hstats, hparameterTail, hpositions,
     hlocal, hfieldCount, hhypotheses,
     Expr.ForallTelescopeTypeTranslation.ofTrExprS
       Habstract Hdomain' HdomainType⟩
@@ -62033,6 +62035,8 @@ theorem
           S.traversal = some traversal ∧
           traversal.fields = S.fields ∧
           traversal.recursiveFields = S.recursiveFields ∧
+          traversal.stats = stats ∧
+          traversal.parameterTail = A.semantics.parameterTail ∧
           traversal.recursivePositions = A.semantics.recursivePositions ∧
           S.localIndex = i ∧
           S.fields.size = A.rule.allArgs.size ∧
@@ -62058,7 +62062,8 @@ theorem
   rcases A.finalSelectedMinorTypedTelescope with
     ⟨T, S, hypothesisOrigins, traversal,
       hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
-      htraversalFields, htraversalRecursiveFields, hpositions,
+      htraversalFields, htraversalRecursiveFields, htraversalStats,
+      hparameterTail, hpositions,
       hlocal, hsourceFields, hsourceHypotheses, Htyped⟩
   rcases Htyped.toWrapForalls with
     ⟨domains, sourceResidual, targetResidual, hlength,
@@ -62077,7 +62082,8 @@ theorem
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, sourceResidual, targetResidual,
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
-    htraversalFields, htraversalRecursiveFields, hpositions,
+    htraversalFields, htraversalRecursiveFields, htraversalStats,
+    hparameterTail, hpositions,
     hlocal, hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hsource, Htyped⟩
 
@@ -62125,7 +62131,8 @@ theorem
       hypothesisDomains, _sourceResidual, targetResidual,
       _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
       _htraversal,
-      _htraversalFields, _htraversalRecursiveFields, _hpositions,
+      _htraversalFields, _htraversalRecursiveFields, _htraversalStats,
+      _hparameterTail, _hpositions,
       _hlocal, _hsourceFields, _hsourceHypotheses,
       hfields, hhypotheses, htarget, _Hsource, Htyped⟩
   let minorIdx := recursorMinorOffset indTypes owner + i
@@ -62269,6 +62276,8 @@ theorem
           S.traversal = some traversal ∧
           traversal.fields = S.fields ∧
           traversal.recursiveFields = S.recursiveFields ∧
+          traversal.stats = stats ∧
+          traversal.parameterTail = A.semantics.parameterTail ∧
           traversal.recursivePositions = A.semantics.recursivePositions ∧
           S.localIndex = i ∧
           S.fields.size = A.rule.allArgs.size ∧
@@ -62300,7 +62309,7 @@ theorem
     ⟨T, S, hypothesisOrigins, traversal, fieldDomains, hypothesisDomains,
       _sourceResidual, targetResidual, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
-      htraversalRecursiveFields, hpositions,
+      htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
       hlocal, hsourceFields, hsourceHypotheses,
       hfields, hhypotheses, htarget, _Hsource, Htyped⟩
   let position := A.rule.allArgs.size + j
@@ -62335,7 +62344,8 @@ theorem
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, sourceDomain,
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
-    htraversalFields, htraversalRecursiveFields, hpositions,
+    htraversalFields, htraversalRecursiveFields, htraversalStats,
+    hparameterTail, hpositions,
     hlocal, hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
 
@@ -62378,6 +62388,8 @@ theorem
             S.traversal = some traversal ∧
             traversal.fields = S.fields ∧
             traversal.recursiveFields = S.recursiveFields ∧
+            traversal.stats = stats ∧
+            traversal.parameterTail = A.semantics.parameterTail ∧
             traversal.recursivePositions = A.semantics.recursivePositions ∧
             S.recursiveFields[j]! =
               S.fields[A.semantics.recursivePositions[j]!]! ∧
@@ -62425,7 +62437,7 @@ theorem
     ⟨T, S, hypothesisOrigins, traversal, fieldDomains, hypothesisDomains,
       targetResidual, sourceDomain, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
-      htraversalRecursiveFields, hpositions,
+      htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
       hlocal, hsourceFields, hsourceHypotheses,
       hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
   have hjSource : j < S.hypotheses.size := by
@@ -62475,7 +62487,8 @@ theorem
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D,
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
-    htraversalFields, htraversalRecursiveFields, hpositions,
+    htraversalFields, htraversalRecursiveFields, htraversalStats,
+    hparameterTail, hpositions,
     hsourceSelected, hruleSelected,
     hlocal, hsourceFields, hsourceHypotheses, hfields, hhypotheses,
     htarget, HdeclarationBinder', Hdomain, HdomainType,
@@ -73070,6 +73083,8 @@ theorem
         S.traversal = some traversal ∧
         traversal.fields = S.fields ∧
         traversal.recursiveFields = S.recursiveFields ∧
+        traversal.stats = stats ∧
+        traversal.parameterTail = A.semantics.parameterTail ∧
         traversal.recursivePositions = A.semantics.recursivePositions ∧
         S.recursiveFields[j]! =
           S.fields[A.semantics.recursivePositions[j]!]! ∧
@@ -73182,7 +73197,8 @@ theorem
     ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
       hypothesisDomains, targetResidual, D, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
-      htraversalRecursiveFields, hpositions, hsourceSelected,
+      htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
+      hsourceSelected,
       hruleSelected, hlocal, hsourceFields, hsourceHypotheses,
       hfields, hhypotheses, htarget, _Hbinder, Hdomain, HdomainType,
       originRoot, sourceType, ⟨O⟩, _hdeclarationConsumed,
@@ -73381,7 +73397,7 @@ theorem
     hownerRecInfos, hmotiveSnapshot,
     ⟨motiveFVar, hmotiveFinal, hmotiveNormal⟩,
     htraversal, htraversalFields,
-    htraversalRecursiveFields, hpositions,
+    htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
     rfl, by simpa [fieldPosition] using houterField,
