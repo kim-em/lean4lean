@@ -24265,6 +24265,49 @@ theorem Expr.ForallTelescopeTypeTranslation.ofTrExprS
     | forallE HdomType HbodyType Hdom Hbody =>
       exact .cons Hdom HdomType (ih Hbody HbodyType)
 
+/-- The source closure retained by non-contiguous narrowing has exactly one
+forall per selected free variable, and its residual is ordinary simultaneous
+abstraction in oldest-first order. -/
+theorem checkInductiveTypes.loopType.FVarNarrowSources.closeSource_telescope
+    (H : checkInductiveTypes.loopType.FVarNarrowSources env Us scope)
+    (hnodup : scope.fvars.Nodup) (body : Expr) :
+    Expr.ForallTelescope (H.closeSource body) scope.length
+      (body.abstractList scope.fvars.reverse) := by
+  induction H generalizing body with
+  | nil => exact .nil body
+  | @cons scope domainTarget fv deps tail name binderInfo domain Hdomain ih =>
+    change (fv :: scope.fvars).Nodup at hnodup
+    have hnodupParts := List.nodup_cons.mp hnodup
+    let innerBody := body.abstract1 fv
+    have Houter := ih hnodupParts.2
+      (.forallE name domain innerBody binderInfo)
+    have Houter' : Expr.ForallTelescope
+        (tail.closeSource (.forallE name domain innerBody binderInfo))
+        scope.length
+        (.forallE name (domain.abstractList scope.fvars.reverse)
+          (innerBody.abstractList scope.fvars.reverse 1) binderInfo) := by
+      simpa [innerBody] using Houter
+    have Hinner : Expr.ForallTelescope
+        (.forallE name (domain.abstractList scope.fvars.reverse)
+          (innerBody.abstractList scope.fvars.reverse 1) binderInfo)
+        1 (innerBody.abstractList scope.fvars.reverse 1) := by
+      simpa using Expr.ForallTelescope.cons
+        (Expr.ForallTelescope.nil
+          (innerBody.abstractList scope.fvars.reverse 1))
+    have Hcombined := Houter'.trans Hinner
+    have hfv : fv ∉ scope.fvars.reverse := by
+      simpa using hnodupParts.1
+    have hresidual :
+        (body.abstract1 fv).abstractList scope.fvars.reverse 1 =
+          body.abstractList (fv :: scope.fvars).reverse := by
+      rw [List.reverse_cons, Expr.abstractList_append]
+      simp only [Expr.abstractList]
+      simpa using (Expr.abstract1_abstractList
+        (e := body) (a := fv) (as := scope.fvars.reverse)
+        (k := 0) hfv).symm
+    rw [hresidual] at Hcombined
+    simpa [FVarNarrowSources.closeSource] using Hcombined
+
 /-- Translate a source body while closing every retained named declaration.
 The target is the ordinary anonymous forall telescope over the narrowed
 semantic domains, in oldest-first order. -/
@@ -24331,6 +24374,39 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTranslation
     · simpa using HscopeWF.toCtx
     · simpa using HsortType
   exact ⟨Hclosed, HtargetType⟩
+
+/-- Binder-by-binder form of `closedSortTranslation`.  The retained concrete
+source expression and narrowed abstract target constitute a complete typed
+forall telescope, not merely a whole-expression translation. -/
+theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTelescope
+    (H : checkInductiveTypes.loopType.FVarNarrowScope
+      env Us scope runtime)
+    (henv : env.WF) :
+    Expr.ForallTelescopeTypeTranslation env Us []
+      (H.sources.closeSource (.sort (.zero : Level))) scope.length
+      (VExpr.wrapForalls scope.toCtx.reverse
+        (.sort (.zero : VLevel))) := by
+  rcases H.closedSortTranslation henv with ⟨Htranslation, Htype⟩
+  have Htelescope := H.sources.closeSource_telescope
+    (H.scopeWF henv).fvars_nodup (.sort (.zero : Level))
+  have Htelescope' : Expr.ForallTelescope
+      (H.sources.closeSource (.sort (.zero : Level))) scope.length
+      (.sort (.zero : Level)) := by
+    have hsort : ∀ fvars : List FVarId,
+        (Expr.sort (.zero : Level)).abstractList fvars =
+          .sort (.zero : Level) := by
+      intro fvars
+      induction fvars with
+      | nil => rfl
+      | cons fv fvars ih =>
+        simp only [Expr.abstractList]
+        rw [show (Expr.sort (.zero : Level)).abstract1 fv =
+          .sort (.zero : Level) by rfl]
+        exact ih
+    rw [hsort] at Htelescope
+    exact Htelescope
+  exact Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    Htelescope' Htranslation Htype
 
 private theorem List.exists_append_five_of_length_eq
     (xs : List α) (a b c d e : Nat)
@@ -63847,6 +63923,10 @@ theorem
         H.outVEnv.IsType Us.length []
           (VExpr.wrapForalls scope.toCtx.reverse
             (.sort (.zero : VLevel))) ∧
+        Expr.ForallTelescopeTypeTranslation H.outVEnv Us [] prefixSource
+          scope.length
+          (VExpr.wrapForalls scope.toCtx.reverse
+            (.sort (.zero : VLevel))) ∧
         scope.toCtx.reverse.length =
           (T.params ++ T.motives ++ T.minors.take minorIdx).length := by
   dsimp only
@@ -63859,6 +63939,7 @@ theorem
       _Hnarrow, _Hclosed, _HscopeWF, _Hdomain, _HdomainType⟩
   rcases Hscope.closedSortTranslation H.outVEnvWF with
     ⟨Hprefix, HprefixType⟩
+  have HprefixTelescope := Hscope.closedSortTelescope H.outVEnvWF
   have hminor : minorIdx < T.minors.length := by
     rw [T.minors_length]
     exact A.rule.minor_valid
@@ -63875,10 +63956,9 @@ theorem
         rw [H.params.length_fvars, H.bindings.motives.length_fvars,
           H.bindings.flatMinors.length_fvars,
           T.params_length, T.motives_length, T.minors_length]
-        simp [Nat.min_eq_left (Nat.le_of_lt hminor)]
   exact ⟨T, scope, Hscope,
     Hscope.sources.closeSource (.sort (.zero : Level)), hscope, rfl,
-    Hprefix, HprefixType, hprefixLength⟩
+    Hprefix, HprefixType, HprefixTelescope, hprefixLength⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
