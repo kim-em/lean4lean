@@ -449,6 +449,47 @@ theorem liftForallDomains_comp
         (Lift.consN_comp (l₁ := first) (l₂ := second) (n := 1)).symm
     rw [hcomp]
 
+/-- Retaining any finite source context and then inserting `inserted` newer
+declarations acts on expressions exactly like ordinary de Bruijn weakening
+at the corresponding cutoff.  The retained `cons` prefix has depth zero and
+therefore contributes no numerical shift. -/
+theorem VExpr.lift'_consN_skipN_consN_refl
+    (e : VExpr) (retained inserted cutoff : Nat) :
+    e.lift' ((Lift.skipN (Lift.consN .refl retained) inserted).consN cutoff) =
+      e.liftN inserted cutoff := by
+  have hshift : Lift.skipN (.consN .refl retained) inserted =
+      Lift.comp (.consN .refl retained) (.skipN .refl inserted) := by
+    simp [Lift.comp_skipN]
+  rw [hshift, Lift.consN_comp, VExpr.lift'_comp]
+  have hretained : e.lift' ((Lift.consN .refl retained).consN cutoff) =
+      e := VExpr.lift'_depth_zero (by simp)
+  rw [hretained]
+  exact VExpr.lift'_consN_skipN
+
+/-- Inserting a contiguous newer free-variable block into the scope of a
+dependent telescope is the same transform as lifting its recent context
+prefix over that block. -/
+theorem liftForallDomains_skipN_consN_refl
+    (domains : List VExpr) (retained inserted : Nat) :
+    liftForallDomains domains
+        (Lift.skipN (Lift.consN .refl retained) inserted) =
+      (liftContextPrefix inserted domains.reverse).reverse := by
+  have go : ∀ (domains : List VExpr) (cutoff : Nat),
+      liftForallDomains domains
+          ((Lift.skipN (Lift.consN .refl retained) inserted).consN cutoff) =
+        (liftContextPrefixAt inserted cutoff domains.reverse).reverse := by
+    intro telescope
+    induction telescope with
+    | nil => intro cutoff; rfl
+    | cons domain telescope ih =>
+      intro cutoff
+      simp only [liftForallDomains, List.reverse_cons,
+        liftContextPrefixAt_append_singleton, List.reverse_append,
+        List.reverse_singleton, List.singleton_append]
+      rw [VExpr.lift'_consN_skipN_consN_refl]
+      simpa [Lift.consN] using ih (cutoff + 1)
+  simpa [liftContextPrefix] using go domains 0
+
 /-- Exact form of `VExpr.lift'_wrapForalls_shape`, with a domain transform
 independent of the residual.  This independence is what permits a context
 conversion extracted from one translated residual to be closed around a
@@ -72615,6 +72656,106 @@ theorem
     hselectedFields, houterFields, hhypotheses,
     HselectedPrefix, HouterPrefix, Happlication,
     HselectedOuterNatural, HselectedOuter⟩
+
+/-- Rewrite the selected-within-outer free-variable embedding as the ordinary
+generated-prefix weakening and transport the canonical field application to
+the complete outer constructor-field telescope.  All witnesses come from
+`finalSelectedOuterRuntimeFieldAlignmentFor`, so the typed application and
+the cancelled field conversion cannot choose different translations. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorFieldApplicationInCompleteOuterContextFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ outerFields hypothesisDomains : List VExpr,
+    ∃ targetResidual : VExpr,
+      outerFields.length = A.rule.allArgs.size ∧
+      hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+      let later := T.minors.drop (minorIdx + 1)
+      let shift := later.length + 1
+      let liftedHypotheses :=
+        (liftContextPrefixAt shift outerFields.length
+          hypothesisDomains.reverse).reverse
+      H.outVEnv.HasType Us.length
+        (outerFields.reverse ++
+          (T.params ++ T.motives ++ T.minors).reverse)
+        (VExpr.mkApps
+          ((.bvar later.length : VExpr).liftN outerFields.length 0)
+          (recursorCanonicalVars outerFields.length))
+        (VExpr.wrapForalls liftedHypotheses
+          (targetResidual.liftN shift
+            (outerFields.length + hypothesisDomains.length))) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let remainingBinders := H.bindings.flatMinors.fvars.drop minorIdx
+  rcases A.finalSelectedOuterRuntimeFieldAlignmentFor B T hpositive with
+    ⟨selectedScope, Hselected, outerScope, Houter,
+      selectedFields, outerFields, hypothesisDomains, targetResidual,
+      _hselectedScope, _hselectedShift, _houterScope, _houterShift,
+      hscopeSplit, _hfactor, hrelative, hselectedFields, houterFields,
+      hhypotheses, HselectedPrefix, HouterPrefix, Happlication,
+      Hnatural, _Hruntime⟩
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hscopeLengths := congrArg List.length hscopeSplit
+  have houterPrefixLengths := HouterPrefix.length_eq
+  have hselectedPrefixLengths := HselectedPrefix.length_eq
+  have hremainingLength : remainingBinders.length =
+      (T.minors.drop minorIdx).length := by
+    have houterScopeLength : outerScope.fvars.length =
+        outerScope.toCtx.length :=
+      Houter.fvars_length.trans Houter.toCtx_length.symm
+    have hselectedScopeLength : selectedScope.fvars.length =
+        selectedScope.toCtx.length :=
+      Hselected.fvars_length.trans Hselected.toCtx_length.symm
+    have houterPrefixLength : outerScope.toCtx.length =
+        T.minors.length + (T.motives.length + T.params.length) := by
+      simpa using houterPrefixLengths
+    have hselectedPrefixLength : selectedScope.toCtx.length =
+        minorIdx + (T.motives.length + T.params.length) := by
+      simpa [minorIdx, List.length_take,
+        Nat.min_eq_left (Nat.le_of_lt hminor)] using hselectedPrefixLengths
+    have hscopeLength : outerScope.fvars.length =
+        remainingBinders.length + selectedScope.fvars.length := by
+      simpa [remainingBinders] using hscopeLengths
+    simp only [List.length_drop]
+    omega
+  let later := T.minors.drop (minorIdx + 1)
+  let shift := later.length + 1
+  have hdrop : T.minors.drop minorIdx = T.minors[minorIdx] :: later := by
+    simpa [later] using List.drop_eq_getElem_cons hminor
+  have hgeneratedRemaining : (T.minors.drop minorIdx).length = shift := by
+    simp [hdrop, shift]
+  have Hnatural' := Hnatural
+  rw [hrelative, liftForallDomains_skipN_consN_refl,
+    hremainingLength, hgeneratedRemaining] at Hnatural'
+  have HfieldsFull := VEnv.IsDefEqCtx.rebaseCommonSuffix H.outVEnvWF
+    (HouterPrefix.symm H.outVEnvWF.ordered) Hnatural'
+  have Htransported := Happlication.defeqDFC H.outVEnvWF.ordered
+    HfieldsFull
+  exact ⟨outerFields, hypothesisDomains, targetResidual,
+    houterFields, hhypotheses, by
+      simpa [later, shift, hselectedFields, houterFields] using Htransported⟩
 
 /-- Compose the selected minor's transported consumed fields with the
 rule-wide narrowing conversion.  The result relates the literal first-pass
