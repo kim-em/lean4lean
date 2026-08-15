@@ -73650,6 +73650,11 @@ theorem
                   S.fields_bound.fvars).liftLooseBVars'
                 O.args.size j).abstractList sourceBinders
                   (O.args.size + position) ∧
+            sourceResidual =
+              ((O.outerAbstractedMotiveApp
+                  S.fields_bound.fvars).abstractList sourceBinders
+                (O.args.size + S.fields.size)).liftLooseBVars'
+                  O.args.size j ∧
             hypothesisDomains[j]! = VExpr.wrapForalls
               hypothesisLocalDomains hypothesisResidual ∧
             TrExprS H.outVEnv Us
@@ -74110,6 +74115,19 @@ theorem
       simpa [localMotiveApp, previousHypothesisFVars, Nat.add_comm,
         Nat.add_left_comm, Nat.add_assoc] using hsourceResidual
     rw [hsourceResidualLocal, hpreviousFieldMotiveNormalization]
+  have hsourceResidualOuterTransport : sourceResidual =
+      ((O.outerAbstractedMotiveApp
+          S.fields_bound.fvars).abstractList sourceBinders
+        (O.args.size + S.fields.size)).liftLooseBVars'
+          O.args.size j := by
+    rw [hsourceResidualNormalized]
+    have hcommute := Expr.liftLooseBVars'_abstractList_add
+      (e := O.outerAbstractedMotiveApp S.fields_bound.fvars)
+      (fvars := sourceBinders) (start := O.args.size)
+      (cutoff := O.args.size + S.fields.size) (amount := j)
+      (by omega) hsourceBindersNodup
+    simpa [position, hsourceFields, Nat.add_comm,
+      Nat.add_left_comm, Nat.add_assoc] using hcommute
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, D.type, O, B, E,
     hhypothesisOrigins, rfl, hhypothesisRecInfos,
@@ -74136,6 +74154,8 @@ theorem
           Nat.add_assoc] using hsourceResidualStructured,
       by
         simpa [sourceBinders, position] using hsourceResidualNormalized,
+      by
+        simpa [sourceBinders] using hsourceResidualOuterTransport,
       hhypothesisDomain,
       HhypothesisResidual, HhypothesisResidualType⟩,
     E.closed_typing⟩
