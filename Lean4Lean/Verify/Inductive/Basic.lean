@@ -36846,9 +36846,8 @@ def RecursorLoopUArgsReplayCompat : Prop :=
     (O : RecInfoMinorHypothesisTypeOrigin stats recInfos originRoot
       recursive₁[j]! sourceType)
     (G : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
-      current₂ recursive₂[j]! value)
+      current₂ recursive₂[j] value)
     (fieldBinders₁ fieldBinders₂ : List FVarId),
-    BindingContextLE current₁ root₂ →
     source.FVarsIn (· ∈ root₁.lctx.fvars) →
     RecursorFieldDecisions stats root₁ source current₁ terminal₁
       all₁ recursive₁ positions₁ →
@@ -73116,9 +73115,13 @@ theorem
               (A.rule.allArgs.size - 1 -
                 A.semantics.recursivePositions[j]!)))
             (E.frame.semantic.generated.localIndices.map VExpr.bvar) ∧
-        (O.args.size = E.frame.semantic.generated.localArgs.size →
-          O.outerAbstractedField S.fields_bound.fvars =
-            E.frame.semantic.generated.outerAbstractedMajor A.rule.binders) ∧
+        O.replayTrace S.fields_bound.fvars =
+          E.frame.semantic.generated.replayTrace
+            A.rule.all_args_bound.fvars ∧
+        O.ownerIdx = E.frame.semantic.generated.ownerIdx ∧
+        O.args.size = E.frame.semantic.generated.localArgs.size ∧
+        O.outerAbstractedField S.fields_bound.fvars =
+          E.frame.semantic.generated.outerAbstractedMajor A.rule.binders ∧
         (let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -73203,13 +73206,77 @@ theorem
       hfields, hhypotheses, htarget, _Hbinder, Hdomain, HdomainType,
       originRoot, sourceType, ⟨O⟩, _hdeclarationConsumed,
       hdeclarationExact⟩
+  subst stats
   rcases A.narrowFieldRuntimeFrame with ⟨B⟩
   rcases A.canonicalRecursiveResultAt T B j hj with ⟨E⟩
+  have hjTraversal : j < traversal.recursiveFields.size := by
+    rw [htraversalRecursiveFields, ← S.hypotheses_size,
+      hsourceHypotheses]
+    exact hj
+  have hjSourceRecursive : j < S.recursiveFields.size := by
+    rw [← S.hypotheses_size, hsourceHypotheses]
+    exact hj
+  have HminorDecisions : RecursorFieldDecisions hypothesisOrigins.stats
+      traversal.rootContext traversal.parameterTail traversal.terminalContext
+      traversal.terminal S.fields S.recursiveFields
+      traversal.recursivePositions := by
+    simpa [htraversalStats, htraversalFields,
+      htraversalRecursiveFields] using traversal.decisions
+  have HruleDecisions : RecursorFieldDecisions hypothesisOrigins.stats
+      A.semantics.fieldRoot traversal.parameterTail A.rule.root
+      A.rule.target A.rule.allArgs A.rule.recursiveArgs
+      A.semantics.recursivePositions := by
+    rw [hparameterTail]
+    exact A.semantics.decisions
+  have HloopReplay : RecursorLoopUArgsReplayCompat := H.loopUArgsReplay
+  unfold RecursorLoopUArgsReplayCompat at HloopReplay
+  have Hreplay :
+      O.replayTrace S.fields_bound.fvars =
+        E.frame.semantic.generated.replayTrace
+          A.rule.all_args_bound.fvars := by
+    simpa only [getElem!_pos A.rule.recursiveArgs j hj] using HloopReplay
+      (stats := hypothesisOrigins.stats)
+      (recInfos := hypothesisOrigins.recInfos)
+      (indTypes := indTypes)
+      (motives := H.recInfos.map
+        (fun info : AddInductive.RecInfo => info.motive))
+      (minors := H.recInfos.flatMap
+        (fun info : AddInductive.RecInfo => info.minors))
+      (lvls := AddInductive.getRecLevels H.elimLevel
+        hypothesisOrigins.stats.levels)
+      (root₁ := traversal.rootContext)
+      (root₂ := A.semantics.fieldRoot)
+      (current₁ := traversal.terminalContext)
+      (current₂ := A.rule.root)
+      (originRoot := originRoot)
+      (source := traversal.parameterTail)
+      (terminal₁ := traversal.terminal)
+      (terminal₂ := A.rule.target)
+      (all₁ := S.fields)
+      (recursive₁ := S.recursiveFields)
+      (all₂ := A.rule.allArgs)
+      (recursive₂ := A.rule.recursiveArgs)
+      (positions₁ := traversal.recursivePositions)
+      (positions₂ := A.semantics.recursivePositions)
+      (j := j) (hj₁ := hjSourceRecursive) (hj₂ := hj)
+      (sourceType := sourceType)
+      (value := A.rule.recursiveResults[j]!)
+      (O := O) (G := E.frame.semantic.generated)
+      (fieldBinders₁ := S.fields_bound.fvars)
+      (fieldBinders₂ := A.rule.all_args_bound.fvars)
+      traversal.parameterTail_fvars HminorDecisions HruleDecisions
+      S.fields_bound.expressions
+      A.rule.all_args_bound.expressions hpositions
+  have hownerReplay : O.ownerIdx =
+      E.frame.semantic.generated.ownerIdx :=
+    congrArg RecursorLoopUArgsTrace.ownerIdx Hreplay
+  have hlocalArity : O.args.size =
+      E.frame.semantic.generated.localArgs.size :=
+    congrArg RecursorLoopUArgsTrace.localArity Hreplay
   have hownerStats : O.ownerIdx < hypothesisOrigins.stats.indConsts.size :=
     (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
   have hownerRecInfos : O.ownerIdx < H.recInfos.size := by
-    rw [H.cardinality.records, ← H.cardinality.families,
-      ← hhypothesisStats]
+    rw [H.cardinality.records, ← H.cardinality.families]
     exact hownerStats
   have hownerOrigin : O.ownerIdx < hypothesisOrigins.recInfos.size := by
     have hsizes := congrArg Array.size hhypothesisRecInfos
@@ -73308,11 +73375,9 @@ theorem
   have hfieldBinderLength : S.fields_bound.fvars.length =
       A.rule.allArgs.size :=
     S.fields_bound.length_fvars.trans hsourceFields
-  have hmajorAlignment : O.args.size =
-      E.frame.semantic.generated.localArgs.size →
+  have hmajorAlignment :
       O.outerAbstractedField S.fields_bound.fvars =
         E.frame.semantic.generated.outerAbstractedMajor A.rule.binders := by
-    intro hlocalArity
     have horiginLocal : O.arguments_bound.fvars.length = O.args.size :=
       O.arguments_bound.toBoundFVarArray.length_fvars
     have hgeneratedLocal :
@@ -73393,7 +73458,7 @@ theorem
       hsourceResidual
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, D.type, O, B, E,
-    hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
+    hhypothesisOrigins, rfl, hhypothesisRecInfos,
     hownerRecInfos, hmotiveSnapshot,
     ⟨motiveFVar, hmotiveFinal, hmotiveNormal⟩,
     htraversal, htraversalFields,
@@ -73401,7 +73466,8 @@ theorem
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
     rfl, by simpa [fieldPosition] using houterField,
-    hrecursiveMajor.1, hrecursiveMajor.2, hmajorAlignment,
+    hrecursiveMajor.1, hrecursiveMajor.2, Hreplay, hownerReplay,
+    hlocalArity, hmajorAlignment,
     Hdomain,
     ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
       hhypothesisLocalDomains, _HsourceResidual, by
