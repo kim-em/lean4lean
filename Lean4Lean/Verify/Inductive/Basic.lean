@@ -81664,6 +81664,78 @@ theorem
     htarget, hlocal, hhypothesisDomain, HhypothesisResidualFull,
     HcanonicalResultTypeFull, Htyping⟩
 
+/-- The exact first-pass and second-pass higher-order local telescopes share
+one concrete forall prefix.  This is the source-side half of the dependent
+context induction; `finalSelectedMinorHypothesisCanonicalTranslationPair`
+supplies the corresponding strict target translations.  Both interfaces are
+indexed by the same caller-selected `T`, `B`, and `E`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorHypothesisCanonicalLocalPrefix
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ S : RecInfoMinorTypeShape,
+    ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+        S.sourceFullContext S.recursiveFields S.hypotheses,
+    ∃ fieldDomains hypothesisDomains : List VExpr,
+    ∃ targetResidual : VExpr,
+    ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+    ∃ originRoot sourceType,
+    ∃ O : RecInfoMinorHypothesisTypeOrigin
+        hypothesisOrigins.stats hypothesisOrigins.recInfos
+        originRoot S.recursiveFields[j]! sourceType,
+      fieldDomains.length = A.rule.allArgs.size ∧
+      hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+      T.minors[minorIdx]! = VExpr.wrapForalls
+        (fieldDomains ++ hypothesisDomains) targetResidual ∧
+      D.type = sourceType ∧
+      O.args.size = E.localDomains.length ∧
+      ∀ left right,
+        Expr.SameForallPrefix O.args.size
+          ((O.current.lctx.mkForall O.args left).abstractList
+            S.fields_bound.fvars)
+          ((E.frame.semantic.generated.current.lctx.mkForall
+              E.frame.semantic.generated.localArgs right).abstractList
+            A.rule.all_args_bound.fvars) := by
+  dsimp only
+  rcases A.finalSelectedMinorHypothesisCanonicalResultFrame j hj B T E with
+    ⟨S, hypothesisOrigins, _traversal, fieldDomains,
+      hypothesisDomains, targetResidual, D, originRoot, sourceType, O,
+      _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
+      _hownerRecInfos, _hmotiveSnapshot, _hmotivePosition,
+      _htraversal, _htraversalFields, _htraversalRecursiveFields,
+      _htraversalStats, _hparameterTail, _hpositions,
+      _hsourceSelected, _hruleSelected, _hlocal, _hsourceFields,
+      _hsourceHypotheses, _hsourceContext, _HminorSemantic,
+      hfields, hhypotheses, htarget, hdeclarationType,
+      _houterField, _hmajorOuter, _hmajorApplied, _Hreplay,
+      _HlocalTelescopeReplay, _HlocalLambdaReplay, HlocalForallReplay,
+      _hmotiveReplay, _hindicesReplay, _hownerReplay, hlocalArity,
+      _hmajorAlignment, _hmotiveAppAlignment, _Hsemantic,
+      _Hdomain, _Hresiduals, _Htyping⟩
+  exact ⟨S, hypothesisOrigins, fieldDomains, hypothesisDomains,
+    targetResidual, D, originRoot, sourceType, O, hfields, hhypotheses,
+    htarget, hdeclarationType,
+    hlocalArity.trans E.local_length.symm, HlocalForallReplay⟩
+
 /-- All recursive results of one generated rule, chosen in their production
 array order and fixed to one recursor telescope and one narrowed field frame. -/
 structure
