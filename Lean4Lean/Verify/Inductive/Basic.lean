@@ -52566,6 +52566,23 @@ inductive Expr.SameForallPrefix : Nat → Expr → Expr → Prop
       Expr.SameForallPrefix (n + 1)
         (.forallE name dom left bi) (.forallE name dom right bi)
 
+theorem Expr.SameForallPrefix.symm
+    (H : Expr.SameForallPrefix n left right) :
+    Expr.SameForallPrefix n right left := by
+  induction H with
+  | nil => exact .nil
+  | cons _ ih => exact .cons ih
+
+theorem Expr.SameForallPrefix.trans
+    (H₁ : Expr.SameForallPrefix n left middle)
+    (H₂ : Expr.SameForallPrefix n middle right) :
+    Expr.SameForallPrefix n left right := by
+  induction H₁ generalizing right with
+  | nil => cases H₂; exact .nil
+  | cons _ ih =>
+    cases H₂ with
+    | cons H₂ => exact .cons (ih H₂)
+
 theorem Expr.SameForallPrefix.instantiate1'
     (H : Expr.SameForallPrefix n left right) (arg : Expr) (k : Nat := 0) :
     Expr.SameForallPrefix n
@@ -52585,6 +52602,17 @@ theorem Expr.SameForallPrefix.abstract1
   | cons H ih =>
     simp only [Expr.abstract1]
     exact .cons (ih (k + 1))
+
+theorem Expr.SameForallPrefix.abstractList
+    (H : Expr.SameForallPrefix n left right)
+    (fvars : List FVarId) (k : Nat := 0) :
+    Expr.SameForallPrefix n
+      (left.abstractList fvars k) (right.abstractList fvars k) := by
+  induction fvars generalizing left right k with
+  | nil => simpa using H
+  | cons fv fvars ih =>
+    simp only [Expr.abstractList]
+    exact ih (H.abstract1 fv k) k
 
 theorem Expr.SameForallPrefix.target_isForall_of_pos
     (H : Expr.SameForallPrefix n source target) (hpos : 0 < n) :
