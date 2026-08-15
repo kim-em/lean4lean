@@ -61279,6 +61279,70 @@ theorem
     Expr.ForallTelescopeTypeTranslation.ofTrExprS
       Habstract Hdomain' HdomainType⟩
 
+/-- Expose the typed selected-minor telescope in the two semantic blocks used
+by its eventual application: genuine constructor fields followed by recursive
+hypotheses.  Unlike `finalSelectedMinorTranslatedSplit`, this retains the
+binder-by-binder source/target translation certificate. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorTypedSplit
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
+        ∃ fieldDomains hypothesisDomains sourceResidual targetResidual,
+          S.localIndex = i ∧
+          fieldDomains.length = A.rule.allArgs.size ∧
+          hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+          T.minors[minorIdx]! = VExpr.wrapForalls
+            (fieldDomains ++ hypothesisDomains) targetResidual ∧
+          let sourceBinders := H.params.fvars ++
+            H.bindings.motives.fvars ++
+              H.bindings.flatMinors.fvars.take minorIdx
+          Expr.ForallTelescope
+            (S.origin.abstractList sourceBinders)
+            (A.rule.allArgs.size + A.rule.recursiveArgs.size)
+            sourceResidual ∧
+          Expr.ForallTelescopeTypeTranslation H.outVEnv Us
+            (abstractForallContext
+              (T.params ++ T.motives ++ T.minors.take minorIdx) [])
+            (S.origin.abstractList sourceBinders)
+            (A.rule.allArgs.size + A.rule.recursiveArgs.size)
+            T.minors[minorIdx]! := by
+  dsimp only
+  rcases A.finalSelectedMinorTypedTelescope with
+    ⟨T, S, hlocal, _hfields, _hhypotheses, Htyped⟩
+  rcases Htyped.toWrapForalls with
+    ⟨domains, sourceResidual, targetResidual, hlength,
+      Hsource, htarget, _Hresidual, _HresidualType⟩
+  let fieldDomains := domains.take A.rule.allArgs.size
+  let hypothesisDomains := domains.drop A.rule.allArgs.size
+  have hfieldsLE : A.rule.allArgs.size ≤ domains.length := by omega
+  have hfields : fieldDomains.length = A.rule.allArgs.size := by
+    simp [fieldDomains, List.length_take, Nat.min_eq_left hfieldsLE]
+  have hhypotheses : hypothesisDomains.length =
+      A.rule.recursiveArgs.size := by
+    simp [hypothesisDomains, List.length_drop, hlength]
+  have hdomains : domains = fieldDomains ++ hypothesisDomains := by
+    exact (List.take_append_drop A.rule.allArgs.size domains).symm
+  rw [hdomains] at htarget
+  exact ⟨T, S, fieldDomains, hypothesisDomains, sourceResidual,
+    targetResidual, hlocal, hfields, hhypotheses, htarget, Hsource, Htyped⟩
+
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
 ordinal.  The expressions themselves may use different fresh identifiers;
