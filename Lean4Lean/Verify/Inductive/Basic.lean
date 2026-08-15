@@ -63010,6 +63010,70 @@ theorem
       HS.semantic.replayedSourceDefEqConsumed
   exact ⟨S, HS, hlocal, htail, Hconsumed, Hreplayed⟩
 
+/-- Transport the selected first-pass field-context conversion through the
+complete executable extension to the final recursor context.  This packages
+the exact composition through fields, recursive hypotheses, and the
+remaining recursor declarations, so the installed-minor base comparison no
+longer has to reconstruct that shift locally. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorTransportedFieldContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
+        ∃ sourceDomains sourceResidual consumedDomains consumedResidual,
+          S.localIndex = i ∧
+          HS.semantic.traversal.parameterTail =
+            A.semantics.parameterTail ∧
+          sourceDomains.length = A.rule.allArgs.size ∧
+          consumedDomains.length = A.rule.allArgs.size ∧
+          TrExprS H.recursorWF.venv Us H.recursorWF.mlctx.vlctx
+            A.semantics.parameterTail
+            (VExpr.wrapForalls sourceDomains sourceResidual) ∧
+          (VExpr.wrapForalls HS.semantic.fieldDomains
+            HS.semantic.terminalTarget).lift'
+              ((((HS.semantic.fieldsRecent.contextExtension.trans
+                HS.semantic.hypothesesRecent.contextExtension).trans
+                  HS.semantic.extension).shift.consN 0)) =
+            VExpr.wrapForalls consumedDomains consumedResidual ∧
+          VEnv.IsDefEqCtx H.recursorWF.venv Us.length []
+            (sourceDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+            (consumedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalSelectedMinorSemanticSource with
+    ⟨S, HS, hlocal, htail⟩
+  let Hext : RecursorContextExtension HS.semantic.rootWF H.recursorWF :=
+    (HS.semantic.fieldsRecent.contextExtension.trans
+      HS.semantic.hypothesesRecent.contextExtension).trans
+        HS.semantic.extension
+  rcases HS.semantic.fieldContextDefEqMono Hext with
+    ⟨sourceDomains, sourceResidual, consumedDomains, consumedResidual,
+      hsource, hconsumed, Hsource, hconsumedTarget, Hcontexts⟩
+  have hfields : S.fields.size = A.rule.allArgs.size := by
+    have htraversalFields := HS.semantic.traversal_fields
+    have hsemanticFields := congrArg Array.size htraversalFields
+    have hterminal := HS.semantic.traversal.fieldTelescope
+    have hrule := A.semantics.fieldOpening.telescope
+    rw [htail] at hterminal
+    exact (hterminal.eq_of_residual_not_forall hrule
+      HS.semantic.traversal.fieldResidual_not_forall
+      A.semantics.target_not_forall).1
+  exact ⟨S, HS, sourceDomains, sourceResidual, consumedDomains,
+    consumedResidual, hlocal, htail, hsource.trans hfields,
+    hconsumed.trans hfields, by simpa [Us, htail] using Hsource,
+    by simpa [Hext] using hconsumedTarget, Hcontexts⟩
+
 /-- Transport the shared constructor tail retained by the first minor pass
 into the exact parameter context and environment used by final rule
 generation.  This is the first semantic join between the two executable
