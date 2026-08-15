@@ -65273,6 +65273,8 @@ theorem
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
     IsFVarUpSet (fun fv => fv ∈ sourceBinders)
       H.recursorWF.mlctx.vlctx := by
   dsimp only
@@ -66375,11 +66377,16 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
     ∃ outerScope,
     ∃ Houter : checkInductiveTypes.loopType.FVarNarrowScope
         H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
     ∃ outerFields : List VExpr,
     ∃ outerResidual : VExpr,
+      outerScope.fvars = outerBinders.reverse ∧
+      Houter.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
+        (· ∈ outerBinders) ∧
       outerFields.length = A.rule.allArgs.size ∧
       TrExprS H.outVEnv Us outerScope A.semantics.parameterTail
         (VExpr.wrapForalls outerFields outerResidual) ∧
@@ -66389,8 +66396,10 @@ theorem
         (T.params ++ T.motives ++ T.minors).reverse := by
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
   rcases A.finalOuterPrefixDefEqCtx with
-    ⟨T₁, outerScope, Houter, houterFVars, _houterShift,
+    ⟨T₁, outerScope, Houter, houterFVars, houterShift,
       _houterSource, HouterPrefix⟩
   rcases T₁.groupsResult_eq T with
     ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
@@ -66440,7 +66449,8 @@ theorem
       _Hsource, houterTarget, _Hresidual, _HresidualType⟩
   rw [houterTarget] at HouterTail HouterType
   exact ⟨outerScope, Houter, outerFields, outerResidual,
-    houterFields, HouterTail, ⟨u, HouterType⟩, HouterPrefix⟩
+    houterFVars, houterShift, houterFields, HouterTail,
+    ⟨u, HouterType⟩, HouterPrefix⟩
 
 /-- The selected outer scope becomes the complete outer scope after the
 selected minor and every later minor are restored as an anonymous dependent
@@ -68941,11 +68951,16 @@ theorem
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
     ∃ outerScope,
     ∃ Houter : checkInductiveTypes.loopType.FVarNarrowScope
         H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
     ∃ outerFields : List VExpr,
     ∃ outerResidual : VExpr,
+      outerScope.fvars = outerBinders.reverse ∧
+      Houter.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
+        (· ∈ outerBinders) ∧
       outerFields.length = A.rule.allArgs.size ∧
       TrExprS H.outVEnv Us outerScope A.semantics.parameterTail
         (VExpr.wrapForalls outerFields outerResidual) ∧
@@ -68960,9 +68975,11 @@ theorem
           H.recursorWF.mlctx.vlctx.toCtx) := by
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
   rcases A.finalOuterConstructorFieldTelescopeFor T with
-    ⟨outerScope, Houter, outerFields, outerResidual, houterFields,
-      HouterTail, HouterType, HouterPrefix⟩
+    ⟨outerScope, Houter, outerFields, outerResidual, houterScope,
+      houterShift, houterFields, HouterTail, HouterType, HouterPrefix⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
@@ -68999,8 +69016,9 @@ theorem
     exact HsourceSemantic₀.mono hbase
   have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HouterSource HsourceSemantic
-  exact ⟨outerScope, Houter, outerFields, outerResidual, houterFields,
-    HouterTail, HouterType, HouterPrefix, Haligned⟩
+  exact ⟨outerScope, Houter, outerFields, outerResidual, houterScope,
+    houterShift, houterFields, HouterTail, HouterType, HouterPrefix,
+    Haligned⟩
 
 /-- Select the translated minor domain corresponding to recursive-result
 ordinal `j`.  The source binder is retained explicitly, and its abstract
@@ -72386,6 +72404,8 @@ theorem
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars.take minorIdx
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
     ∃ selectedScope,
     ∃ Hselected : checkInductiveTypes.loopType.FVarNarrowScope
         H.outVEnv Us selectedScope H.recursorWF.mlctx.vlctx,
@@ -72396,6 +72416,9 @@ theorem
       selectedScope.fvars = sourceBinders.reverse ∧
       Hselected.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
         (· ∈ sourceBinders) ∧
+      outerScope.fvars = outerBinders.reverse ∧
+      Houter.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
+        (· ∈ outerBinders) ∧
       selectedFields.length = A.rule.allArgs.size ∧
       outerFields.length = A.rule.allArgs.size ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length [] selectedScope.toCtx
@@ -72417,8 +72440,9 @@ theorem
       _hhypotheses, hweakenedExact,
       HselectedPrefix, _Happlication, HselectedNarrow⟩
   rcases A.finalOuterConstructorFieldRuntimeAlignmentFor T with
-    ⟨outerScope, Houter, outerFields, _outerResidual, houterFields,
-      _HouterTail, _HouterType, HouterPrefix, HouterSemantic⟩
+    ⟨outerScope, Houter, outerFields, _outerResidual, houterScope,
+      houterShift, houterFields, _HouterTail, _HouterType,
+      HouterPrefix, HouterSemantic⟩
   rcases B.semanticFieldContext with
     ⟨_hsemanticFields, _hsemanticContext, _hexpandedLength,
       _hexpandedContext, _HfieldBase, HexpandedSemantic⟩
@@ -72434,7 +72458,7 @@ theorem
   rw [hweakenedExact] at HselectedOuter
   exact ⟨selectedScope, Hselected, outerScope, Houter,
     selectedFields, outerFields, hselectedScope, hselectedShift,
-    hselectedFields, houterFields,
+    houterScope, houterShift, hselectedFields, houterFields,
     HselectedPrefix, HouterPrefix, HselectedOuter⟩
 
 /-- Compose the selected minor's transported consumed fields with the
