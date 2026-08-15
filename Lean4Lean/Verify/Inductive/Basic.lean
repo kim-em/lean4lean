@@ -67328,6 +67328,69 @@ theorem
         List.append_assoc] using Hcontext,
     hminor, Hminor⟩
 
+/-- Fix the narrow selected-minor lookup to the same telescope witness that
+exposes its installed field/hypothesis split.  This isolates the remaining
+application obligation exactly: the surrounding equation context contains
+the narrow rule-wide fields, while the displayed minor type begins with the
+installed `fieldDomains`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalNarrowSelectedMinorTypeFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ fieldDomains hypothesisDomains targetResidual,
+        fieldDomains.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (fieldDomains ++ hypothesisDomains) targetResidual ∧
+        let inserted := T.motives ++ T.minors
+        let fixedFieldRecent :=
+          liftContextPrefix inserted.length B.fieldDomains.reverse
+        let fixedContext := fixedFieldRecent ++ inserted.reverse ++
+          H.parameterSuffix.parameterDecls.toCtx
+        let later := T.minors.drop (minorIdx + 1)
+        let minorVar := fixedFieldRecent.length + later.length
+        OnCtx fixedContext (H.outVEnv.IsType Us.length) ∧
+          H.outVEnv.HasType Us.length fixedContext (.bvar minorVar)
+            ((VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
+              targetResidual).liftN
+                (later.length + 1 + fixedFieldRecent.length) 0) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalSelectedMinorTargetContext with
+    ⟨T, fieldDomains, hypothesisDomains, targetResidual,
+      hfields, hhypotheses, htarget, _HtargetContext,
+      _HtargetResidual⟩
+  rcases A.finalNarrowSelectedMinorFrame B with
+    ⟨T₁, _checkedDomains, _equationFieldDomains, _hchecked,
+      _hequationFields, Hcontext, hminor, Hminor⟩
+  rcases T₁.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams, hmotives, hminors] at Hcontext
+  rw [hmotives, hminors] at Hminor
+  rw [hminors] at hminor
+  have HfixedContext :=
+    (Hcontext.symm H.outVEnvWF.ordered).isType
+  rw [htarget] at Hminor
+  exact ⟨T, fieldDomains, hypothesisDomains, targetResidual,
+    hfields, hhypotheses, htarget, HfixedContext, Hminor⟩
+
 /-- Restrict the terminal constructor target to the retained rule-wide
 field scope and close those named fields.  The resulting target is typed in
 the exact anonymous field/parameter context used by canonical recursive
