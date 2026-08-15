@@ -61926,6 +61926,88 @@ theorem
   exact ⟨T, fieldDomains, hypothesisDomains, targetResidual,
     hfields, hhypotheses, htarget, Hopened.1, Hopened.2⟩
 
+/-- In the natural context induced by the selected minor type, apply its
+bound variable to all canonical constructor-field variables.  The remaining
+type is exactly the lifted recursive-hypothesis suffix; this is the first
+actual application step of the generated rule RHS. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorFieldApplication
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ fieldDomains hypothesisDomains targetResidual,
+        fieldDomains.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (fieldDomains ++ hypothesisDomains) targetResidual ∧
+        let later := T.minors.drop (minorIdx + 1)
+        let shift := later.length + 1
+        let liftedFields :=
+          (liftContextPrefix shift fieldDomains.reverse).reverse
+        let liftedHypotheses :=
+          (liftContextPrefixAt shift fieldDomains.length
+            hypothesisDomains.reverse).reverse
+        H.outVEnv.HasType Us.length
+          (liftedFields.reverse ++
+            (T.params ++ T.motives ++ T.minors).reverse)
+          (VExpr.mkApps
+            ((.bvar later.length : VExpr).liftN liftedFields.length 0)
+            (recursorCanonicalVars liftedFields.length))
+          (VExpr.wrapForalls liftedHypotheses
+            (targetResidual.liftN shift
+              (fieldDomains.length + hypothesisDomains.length))) := by
+  dsimp only
+  rcases A.finalSelectedMinorTargetContext with
+    ⟨T, fieldDomains, hypothesisDomains, targetResidual,
+      hfields, hhypotheses, htarget, _Hctx, _Hresidual⟩
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  let later := T.minors.drop (minorIdx + 1)
+  let shift := later.length + 1
+  let liftedFields :=
+    (liftContextPrefix shift fieldDomains.reverse).reverse
+  let liftedHypotheses :=
+    (liftContextPrefixAt shift fieldDomains.length
+      hypothesisDomains.reverse).reverse
+  have Hminor := T.minorOuterBvarTyping minorIdx hminor
+  have hselected : T.minors[minorIdx]'hminor = T.minors[minorIdx]! :=
+    (getElem!_pos T.minors minorIdx hminor).symm
+  have hliftedDomains :
+      (liftContextPrefixAt shift 0
+        (fieldDomains ++ hypothesisDomains).reverse).reverse =
+        liftedFields ++ liftedHypotheses := by
+    simpa [shift, liftedFields, liftedHypotheses, liftContextPrefix] using
+      liftContextPrefix_reverse_append shift fieldDomains hypothesisDomains
+  rw [hselected, htarget] at Hminor
+  dsimp only at Hminor
+  change H.outVEnv.HasType _ _ _
+    ((VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
+      targetResidual).liftN shift 0) at Hminor
+  rw [VExpr.liftN_wrapForalls, hliftedDomains] at Hminor
+  have Hpartial := VEnv.HasType.mkApps_wrapForalls_prefix_canonical
+    H.outVEnvWF.ordered Hminor
+  exact ⟨T, fieldDomains, hypothesisDomains, targetResidual,
+    hfields, hhypotheses, htarget, by
+      simpa [minorIdx, later, shift, liftedFields, liftedHypotheses,
+        recursorCanonicalVars, Nat.add_assoc] using Hpartial⟩
+
 /-- Select the translated minor domain corresponding to recursive-result
 ordinal `j`.  The source binder is retained explicitly, and its abstract
 target is literally the `j`th member of the hypothesis suffix. -/
