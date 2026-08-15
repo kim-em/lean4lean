@@ -36823,6 +36823,42 @@ def BoundGeneratedRecursiveCall.replayTrace
         (index.abstractList H.arguments_bound.fvars).abstractList
           fieldBinders H.localArgs.size)
 
+/-- Operational alpha/locality boundary for the higher-order field replay.
+The constructor decision traces ensure that both `loopUArgs` runs inspect the
+same selected ordinal of the same source telescope; simultaneous abstraction
+then removes the unrelated fresh identifiers allocated by the two passes.
+The resulting single equality retains exactly the owner, higher-order arity,
+and exposed index spine needed to compare an installed induction hypothesis
+with its generated recursive result. -/
+def RecursorLoopUArgsReplayCompat : Prop :=
+  ∀ (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (indTypes : Array InductiveType) (motives minors : Array Expr)
+    (lvls : List Level)
+    (root₁ root₂ current₁ current₂ originRoot :
+      AddInductive.Context)
+    (source terminal₁ terminal₂ : Expr)
+    (all₁ recursive₁ all₂ recursive₂ : Array Expr)
+    (positions₁ positions₂ : List Nat)
+    (j : Nat) (hj₁ : j < recursive₁.size)
+    (hj₂ : j < recursive₂.size)
+    (sourceType value : Expr)
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos originRoot
+      recursive₁[j]! sourceType)
+    (G : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      current₂ recursive₂[j]! value)
+    (fieldBinders₁ fieldBinders₂ : List FVarId),
+    BindingContextLE current₁ root₂ →
+    source.FVarsIn (· ∈ root₁.lctx.fvars) →
+    RecursorFieldDecisions stats root₁ source current₁ terminal₁
+      all₁ recursive₁ positions₁ →
+    RecursorFieldDecisions stats root₂ source current₂ terminal₂
+      all₂ recursive₂ positions₂ →
+    all₁ = (fieldBinders₁.map Expr.fvar).toArray →
+    all₂ = (fieldBinders₂.map Expr.fvar).toArray →
+    positions₁ = positions₂ →
+    O.replayTrace fieldBinders₁ = G.replayTrace fieldBinders₂
+
 /-- Rule-level abstraction turns the selected field free variable into its
 outer de Bruijn index beneath the generated call's local lambda binders. -/
 theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar
@@ -58088,6 +58124,7 @@ structure RecursorPhasesResult
   noIndConsts : VLCtx.NoIndConsts (decl.types.map (·.name))
     recursorWF.mlctx.vlctx
   fieldReplay : RecursorFieldDecisionReplayCompat
+  loopUArgsReplay : RecursorLoopUArgsReplayCompat
   bindings : RecInfoBindings localContext recInfos
   origins : RecInfoTypeOrigins localContext recInfos
   minorSources : RecInfoMinorSourceAlignment stats indTypes origins
@@ -58133,6 +58170,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (hlparams : c.lparams.Nodup)
     (hwhnf : WhnfLParamsCompat)
     (hfieldReplay : RecursorFieldDecisionReplayCompat)
+    (hloopUArgsReplay : RecursorLoopUArgsReplayCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
@@ -58227,6 +58265,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       validStats := HstatsLocal
       noIndConsts := hctxLocal
       fieldReplay := hfieldReplay
+      loopUArgsReplay := hloopUArgsReplay
       bindings := Hbindings
       origins := Horigins
       minorSources := HminorSources
@@ -75096,6 +75135,7 @@ theorem AddInductive.runWithStats.WF
     (hlparams : c.lparams.Nodup)
     (hwhnf : WhnfLParamsCompat)
     (hfieldReplay : RecursorFieldDecisionReplayCompat)
+    (hloopUArgsReplay : RecursorLoopUArgsReplayCompat)
     (hrecConsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
@@ -75115,8 +75155,8 @@ theorem AddInductive.runWithStats.WF
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
       rcases Hresult with ⟨headerEnv, Hheaders, R, hclosed⟩
-      exact (R.recursorPhasesWF hclosed hlparams hwhnf hfieldReplay hrecConsume hlit
-        hproj hnotPartial hnprim).mono
+      exact (R.recursorPhasesWF hclosed hlparams hwhnf hfieldReplay
+        hloopUArgsReplay hrecConsume hlit hproj hnotPartial hnprim).mono
           fun outEnv Hrecursors =>
             show ∃ headerEnv ctorEnv,
               ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
@@ -75153,6 +75193,7 @@ theorem AddInductive.runWithStats.closedWF
     (hlparams : c.lparams.Nodup)
     (hwhnf : WhnfLParamsCompat)
     (hfieldReplay : RecursorFieldDecisionReplayCompat)
+    (hloopUArgsReplay : RecursorLoopUArgsReplayCompat)
     (hrecConsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -75185,6 +75226,7 @@ theorem AddInductive.runWithStats.closedWF
   · exact hlparams
   · exact hwhnf
   · exact hfieldReplay
+  · exact hloopUArgsReplay
   · exact hrecConsume
   · exact hlit
   · exact hproj
@@ -75276,6 +75318,7 @@ structure RunWithStatsVerificationInputs
   consume : ConsumeTypeAnnotationsCompat
   whnfLParams : WhnfLParamsCompat
   recursiveFieldReplay : RecursorFieldDecisionReplayCompat
+  loopUArgsReplay : RecursorLoopUArgsReplayCompat
   recursorConsume : RecursorConsumeTypeAnnotationsCompat
   literalDisjoint : checkPositivityStep.LiteralDisjoint stats.indConsts
   projections : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -75309,7 +75352,8 @@ theorem RunWithStatsVerificationInputs.verify
           Nonempty (RecursorPhasesResult R outEnv) :=
   fun hlparams => AddInductive.runWithStats.closedWF Hc H.closed Hdecl
     Hmaterialized H.visible H.freshTypes H.freshConstructors H.consume
-    hlparams H.whnfLParams H.recursiveFieldReplay H.recursorConsume
+    hlparams H.whnfLParams H.recursiveFieldReplay H.loopUArgsReplay
+    H.recursorConsume
     H.literalDisjoint H.projections
     H.unsafeDecl H.universeBound H.freshConstructorConstants H.notPartial
     H.freshRecursors
