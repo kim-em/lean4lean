@@ -30356,6 +30356,7 @@ structure RecInfoMinorSemanticSource
   extension : RecursorContextExtension sourceWF R
   traversal : RecInfoMinorTraversalShape
   traversal_eq : S.traversal = some traversal
+  traversal_fields : traversal.fields = S.fields
   rootWF : RecursorContextWF traversal.rootContext recLparams
   terminalWF : RecursorContextWF traversal.terminalContext recLparams
   parameterDepth : Nat
@@ -30402,6 +30403,7 @@ def RecInfoMinorSemanticSource.mono
   extension := HS.extension.trans Hext
   traversal := HS.traversal
   traversal_eq := HS.traversal_eq
+  traversal_fields := HS.traversal_fields
   rootWF := HS.rootWF
   terminalWF := HS.terminalWF
   parameterDepth := HS.parameterDepth
@@ -30436,6 +30438,45 @@ def RecInfoMinorSemanticSource.hypothesisDomains
     (HS : RecInfoMinorSemanticSource R S) : List VExpr :=
   MLCtxForallDomains HS.sourceWF.mlctx S.hypotheses.size
     HS.hypothesesRecent.size_le
+
+/-- The domains replayed from consumed field declarations are not expected
+to be syntactically identical to the domains obtained by translating the
+original constructor telescope.  The retained whole-target equality implies
+the correct invariant: their completed dependent contexts are definitionally
+equal over the common root context. -/
+theorem RecInfoMinorSemanticSource.fieldContextDefEq
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource R S) :
+    ∃ sourceDomains sourceResidual,
+      sourceDomains.length = S.fields.size ∧
+      HS.parameterTarget =
+        VExpr.wrapForalls sourceDomains sourceResidual ∧
+      VEnv.IsDefEqCtx HS.rootWF.venv recLparams.length []
+        (sourceDomains.reverse ++ HS.rootWF.mlctx.vlctx.toCtx)
+        (HS.fieldDomains.reverse ++ HS.rootWF.mlctx.vlctx.toCtx) := by
+  rcases TrExprS.forallTelescope_shape HS.traversal.fieldTelescope
+      HS.parameterTranslation with
+    ⟨sourceDomains, sourceResidual, hsourceLength, hparameterTarget⟩
+  have hsourceLength' : sourceDomains.length = S.fields.size :=
+    hsourceLength.trans (congrArg Array.size HS.traversal_fields)
+  have hfieldLength : HS.fieldDomains.length = S.fields.size := by
+    exact HS.terminalWF.onlyLams.forallDomains_length S.fields.size
+      HS.fieldsRecent.size_le
+  have Htarget : HS.rootWF.venv.IsDefEqU recLparams.length
+      HS.rootWF.mlctx.vlctx.toCtx
+      (VExpr.wrapForalls sourceDomains sourceResidual)
+      (VExpr.wrapForalls HS.fieldDomains HS.terminalTarget) := by
+    rw [← hparameterTarget]
+    simpa [RecInfoMinorSemanticSource.fieldDomains,
+      TypeChecker.MLCtx.mkForall'_eq_wrapForalls] using
+        HS.fieldTargetDefEq
+  have Hbase : VEnv.IsDefEqCtx HS.rootWF.venv recLparams.length []
+      HS.rootWF.mlctx.vlctx.toCtx HS.rootWF.mlctx.vlctx.toCtx :=
+    .refl HS.rootWF.mlctx_wf.tr.wf.toCtx
+  exact ⟨sourceDomains, sourceResidual, hsourceLength', hparameterTarget,
+    VEnv.IsDefEqU.wrapForalls_context HS.rootWF.checking.tr.wf Hbase
+      (hsourceLength'.trans hfieldLength.symm) Htarget⟩
 
 /-- Replay the exact two-stage `mkForall` closure used to construct a minor,
 without passing through its later installed declaration.  The field and
@@ -40887,6 +40928,45 @@ def BoundGeneratedRecursorRule.Semantics.fieldTelescope
     major_translation := by simpa [domains] using Hmajor.1
     major_typing := by simpa [domains] using Hmajor.2 }
 
+/-- Translating the original constructor telescope and replaying the
+consumed field declarations may choose different representatives for binder
+domains.  Their dependent contexts nevertheless agree definitionally, as
+forced by the retained reconstruction of the whole constructor target. -/
+theorem BoundGeneratedRecursorRule.Semantics.fieldContextDefEq
+    {H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
+      sourceCtor minorIdx sourceRule}
+    {semanticRoot : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF semanticRoot recLparams}
+    (S : H.Semantics Rroot decl expectedOwnerIdx) :
+    ∃ sourceDomains sourceResidual,
+      sourceDomains.length = H.allArgs.size ∧
+      S.parameterTarget =
+        VExpr.wrapForalls sourceDomains sourceResidual ∧
+      VEnv.IsDefEqCtx S.fieldRootContext.venv recLparams.length []
+        (sourceDomains.reverse ++
+          S.fieldRootContext.mlctx.vlctx.toCtx)
+        (S.fieldTelescope.domains.reverse ++
+          S.fieldRootContext.mlctx.vlctx.toCtx) := by
+  rcases TrExprS.forallTelescope_shape S.fieldOpening.telescope
+      S.parameterTranslation with
+    ⟨sourceDomains, sourceResidual, hsourceLength, hparameterTarget⟩
+  let F := S.fieldTelescope
+  have Htarget : S.fieldRootContext.venv.IsDefEqU recLparams.length
+      S.fieldRootContext.mlctx.vlctx.toCtx
+      (VExpr.wrapForalls sourceDomains sourceResidual)
+      (VExpr.wrapForalls F.domains S.targetTarget) := by
+    rw [← hparameterTarget]
+    simpa [F, BoundGeneratedRecursorRule.Semantics.fieldTelescope,
+      TypeChecker.MLCtx.mkForall'_eq_wrapForalls] using
+        S.fieldTargetDefEq
+  have Hbase : VEnv.IsDefEqCtx S.fieldRootContext.venv
+      recLparams.length [] S.fieldRootContext.mlctx.vlctx.toCtx
+      S.fieldRootContext.mlctx.vlctx.toCtx :=
+    .refl S.fieldRootContext.mlctx_wf.tr.wf.toCtx
+  exact ⟨sourceDomains, sourceResidual, hsourceLength, hparameterTarget,
+    VEnv.IsDefEqU.wrapForalls_context S.fieldRootContext.checking.tr.wf
+      Hbase (hsourceLength.trans F.domains_length.symm) Htarget⟩
+
 /-- Duplicate-free declaration names identify the first family selected by
 `isValidIndApp?` with the constructor owner certified by the earlier checker
 pass.  This is the explicit bridge between the scan used by rule generation
@@ -43097,6 +43177,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           extension := RecursorContextExtension.refl Rout
           traversal := traversal
           traversal_eq := rfl
+          traversal_fields := rfl
           rootWF := R
           terminalWF := Rargs
           parameterDepth := depth
