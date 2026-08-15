@@ -79725,6 +79725,89 @@ theorem
     resultAt := fun j hj => Classical.choice
       (A.canonicalRecursiveResultAt T B j hj) }⟩
 
+/-- Synchronize the selected minor and every canonical recursive result on one
+recursor telescope, one narrowed field frame, and one literal anonymous
+equation context.  No existential witness chosen by a pointwise theorem may
+drift after this boundary. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalMinorApplicationFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ B : A.NarrowFieldRuntimeFrame,
+      ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+          (H.generated.entry owner howner).info.type H.entries[owner].2.type
+          stats.params.size (H.recInfos.map (·.motive)).size
+          (H.recInfos.flatMap (·.minors)).size
+          H.recInfos[owner]!.indices.size owner,
+      ∃ C : A.CanonicalRecursiveResults T B,
+      ∃ fieldDomains hypothesisDomains targetResidual,
+        fieldDomains.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (fieldDomains ++ hypothesisDomains) targetResidual ∧
+        let inserted := T.motives ++ T.minors
+        let equationFieldDomains :=
+          (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+        let equationDomains :=
+          H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+            equationFieldDomains
+        let later := T.minors.drop (minorIdx + 1)
+        let minorVar := equationFieldDomains.length + later.length
+        OnCtx (abstractForallContext equationDomains []).toCtx
+            (H.outVEnv.IsType Us.length) ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext equationDomains []).toCtx
+            (.bvar minorVar)
+            ((VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
+              targetResidual).liftN
+                (later.length + 1 + equationFieldDomains.length) 0) ∧
+          ∀ j (hj : j < C.bodies.length),
+            VExpr.WF H.outVEnv Us.length
+              (abstractForallContext equationDomains []).toCtx C.bodies[j] := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.narrowFieldRuntimeFrame with ⟨B⟩
+  rcases A.finalNarrowSelectedMinorTypeFrame B with
+    ⟨T, fieldDomains, hypothesisDomains, targetResidual,
+      hfields, hhypotheses, hminorType, HfixedContext, Hminor⟩
+  rcases A.canonicalRecursiveResults T B with ⟨C⟩
+  let inserted := T.motives ++ T.minors
+  let equationFieldDomains :=
+    (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+      equationFieldDomains
+  let later := T.minors.drop (minorIdx + 1)
+  let minorVar := equationFieldDomains.length + later.length
+  have hequationContext :
+      (abstractForallContext equationDomains []).toCtx =
+        (liftContextPrefix inserted.length B.fieldDomains.reverse) ++
+          inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx := by
+    rw [abstractForallContext_toCtx]
+    simp [equationDomains, equationFieldDomains, List.reverse_append,
+      List.append_assoc]
+  refine ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
+    hfields, hhypotheses, hminorType, ?_, ?_, ?_⟩
+  · rw [hequationContext]
+    simpa only [inserted] using HfixedContext
+  · rw [hequationContext]
+    simpa only [inserted, equationFieldDomains, later, minorVar] using Hminor
+  · intro j hj
+    simpa only [Us, equationDomains, inserted, equationFieldDomains] using
+      C.bodyWF j hj
+
 /-- Rule-indexed existential specialization of
 `canonicalRecursiveResultTypingFor`.  It remains convenient for pointwise
 consumers that do not need to retain a common equation frame. -/
