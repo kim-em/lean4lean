@@ -47710,12 +47710,23 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
           Hscope.shift = Hbase.shift.consN n ∧
           Hscope.expanded.toCtx =
             (liftForallDomains newDomains Hbase.shift).reverse ++
-              Hbase.expanded.toCtx := by
+              Hbase.expanded.toCtx ∧
+          ∀ {body target},
+            TrExprS env Us scope body target →
+            env.IsType Us.length scope.toCtx target →
+            TrExprS env Us baseScope
+                (runtime.mkForall n H.le body)
+                (VExpr.wrapForalls newDomains target) ∧
+              env.IsType Us.length baseScope.toCtx
+                (VExpr.wrapForalls newDomains target) := by
   induction H with
   | nil runtime =>
     exact ⟨baseScope, Hbase,
       by simp [TypeChecker.MLCtx.fvarRevList], rfl, [], rfl, by simp,
-      by simp [Lift.consN], by simp [liftForallDomains]⟩
+      by simp [Lift.consN], by simp [liftForallDomains], by
+        intro body target Hbody HbodyType
+        simpa [TypeChecker.MLCtx.mkForall, VExpr.wrapForalls] using
+          And.intro Hbody HbodyType⟩
   | @cons tail n domains fv name type type' bi Hprefix ih =>
     have HruntimeWF := Hwf.tr.wf
     rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
@@ -47736,7 +47747,7 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
     rcases ih HtailWF Hbase htailUp with
       ⟨tailScope, HtailScope, htailScopeFVars, htailBase,
         tailDomains, htailDomains, htailContext, htailShift,
-        htailExpanded⟩
+        htailExpanded, HtailReplay⟩
     have hdepsFull : ∀ dep ∈ type.fvarsList,
         dep ∈ fv :: tail.fvarRevList n Hprefix.le ++ baseScope.fvars := by
       exact hup.2 (by simp)
@@ -47773,7 +47784,7 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
     let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
       HnarrowType Hdomain
     refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_,
-      ?_, ?_⟩
+      ?_, ?_, ?_⟩
     · simp [htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
     · simpa using htailBase
     · simp [htailDomains]
@@ -47788,6 +47799,37 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
       rw [htailExpanded, liftForallDomains_append, htailShift]
       simp [liftForallDomains, htailDomains, List.reverse_append,
         List.append_assoc]
+    · intro body target Hbody HbodyType
+      have HnextWF := Hnext.scopeWF henv
+      have HdomainType : env.IsType Us.length tailScope.toCtx narrowType := by
+        simpa [Hnext,
+          checkInductiveTypes.loopType.FVarNarrowScope.withIndex,
+          VLocalDecl.WF] using HnextWF.2.2
+      have W : VLCtx.Abstract tailScope fv (.vlam narrowType) 0 0
+          ((some (fv, type.fvarsList), .vlam narrowType) :: tailScope)
+          ((none, .vlam narrowType) :: tailScope) := .zero
+      have Hbody' : TrExprS env Us
+          ((none, .vlam narrowType) :: tailScope)
+          (body.abstract1 fv) target := by
+        apply TrExprS.abstract W
+        simpa [Hnext,
+          checkInductiveTypes.loopType.FVarNarrowScope.withIndex] using
+          Hbody
+      have HbodyType' : env.IsType Us.length
+          (narrowType :: tailScope.toCtx) target := by
+        simpa [Hnext,
+          checkInductiveTypes.loopType.FVarNarrowScope.withIndex,
+          VLCtx.toCtx] using HbodyType
+      have Hone : TrExprS env Us tailScope
+          (.forallE name type (body.abstract1 fv) bi)
+          (.forallE narrowType target) :=
+        .forallE HdomainType HbodyType' HnarrowType Hbody'
+      have HoneType : env.IsType Us.length tailScope.toCtx
+          (.forallE narrowType target) :=
+        VEnv.IsType.forallE HdomainType HbodyType'
+      have Hclosed := HtailReplay Hone HoneType
+      simpa [TypeChecker.MLCtx.mkForall, VExpr.wrapForalls_append,
+        VExpr.wrapForalls] using Hclosed
 
 /-- Strengthening of `extendNarrowRuntimeScope` which retains the strict
 translation used for every narrowed binder domain.  The ordinary runtime
@@ -66073,6 +66115,15 @@ theorem
         Hfield.expanded.toCtx =
           (liftForallDomains fieldDomains Houter.shift).reverse ++
             Houter.expanded.toCtx ∧
+        (∀ {body target},
+          TrExprS H.outVEnv Us fieldScope body target →
+          H.outVEnv.IsType Us.length fieldScope.toCtx target →
+          TrExprS H.outVEnv Us outerScope
+              (A.semantics.context.mlctx.mkForall A.rule.allArgs.size
+                A.semantics.fieldsRecent.size_le body)
+              (VExpr.wrapForalls fieldDomains target) ∧
+            H.outVEnv.IsType Us.length outerScope.toCtx
+              (VExpr.wrapForalls fieldDomains target)) ∧
         VEnv.IsDefEqCtx H.outVEnv Us.length [] outerScope.toCtx
           (T.params ++ T.motives ++ T.minors).reverse := by
   dsimp only
@@ -66169,11 +66220,14 @@ theorem
       HfieldBase HfieldUp with
     ⟨fieldScope, Hfield, hfieldFVars, hfieldBase,
       fieldDomains, hfieldDomains, hfieldContext, hfieldShift,
-      hfieldExpanded⟩
+      hfieldExpanded, HfieldReplay⟩
   exact ⟨T, outerScope, Houter, fieldScope, Hfield, fieldDomains,
     houterFVars, by simpa [hfieldRev] using hfieldFVars,
     hfieldBase, hfieldDomains, hfieldContext, hfieldShift,
-    hfieldExpanded, HouterPrefix⟩
+    hfieldExpanded, by
+      intro body target Hbody HbodyType
+      simpa using HfieldReplay Hbody HbodyType,
+    HouterPrefix⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
