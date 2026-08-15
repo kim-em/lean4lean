@@ -73888,6 +73888,22 @@ theorem
               (E.frame.semantic.generated.outerAbstractedMotiveApp
                 A.rule.binders).liftLooseBVars'
                   E.frame.semantic.generated.localArgs.size j ∧
+            (let hypothesisInner :=
+                ((fieldDomains ++ hypothesisDomains).take position) ++
+                  hypothesisLocalDomains
+              let remainingMinorDomains := T.minors.drop minorIdx
+              let liftedHypothesisInner :=
+                (liftContextPrefix remainingMinorDomains.length
+                  hypothesisInner.reverse).reverse
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (T.params ++ T.motives ++ T.minors ++
+                    liftedHypothesisInner) [])
+                ((E.frame.semantic.generated.outerAbstractedMotiveApp
+                  A.rule.binders).liftLooseBVars'
+                    E.frame.semantic.generated.localArgs.size j)
+                (hypothesisResidual.liftN remainingMinorDomains.length
+                  hypothesisInner.length)) ∧
             hypothesisDomains[j]! = VExpr.wrapForalls
               hypothesisLocalDomains hypothesisResidual ∧
             TrExprS H.outVEnv Us
@@ -73924,6 +73940,7 @@ theorem
       originRoot, sourceType, ⟨O⟩, _hdeclarationConsumed,
       hdeclarationExact⟩
   subst stats
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases A.narrowFieldRuntimeFrame with ⟨B⟩
   rcases A.canonicalRecursiveResultAt T B j hj with ⟨E⟩
   have hjTraversal : j < traversal.recursiveFields.size := by
@@ -74487,6 +74504,59 @@ theorem
     rw [← hprefixToFull]
     simpa [generatedCutoff, Nat.add_comm, Nat.add_left_comm,
       Nat.add_assoc] using hcommute.symm
+  let hypothesisInner :=
+    ((fieldDomains ++ hypothesisDomains).take position) ++
+      hypothesisLocalDomains
+  let remainingMinorDomains := T.minors.drop
+    (recursorMinorOffset indTypes owner + i)
+  let liftedHypothesisInner :=
+    (liftContextPrefix remainingMinorDomains.length
+      hypothesisInner.reverse).reverse
+  have hpositionLE : position ≤
+      (fieldDomains ++ hypothesisDomains).length := by
+    simp only [position, List.length_append]
+    rw [hfields, hhypotheses]
+    omega
+  have hhypothesisInnerLength : hypothesisInner.length =
+      E.frame.semantic.generated.localArgs.size +
+        A.rule.allArgs.size + j := by
+    simp only [hypothesisInner, List.length_append]
+    rw [List.length_take_of_le hpositionLE, hhypothesisLocalDomains,
+      hlocalArity]
+    simp only [position]
+    omega
+  have hremainingMinorDomainsLength : remainingMinorDomains.length =
+      remainingMinorFVars.length := by
+    simp only [remainingMinorDomains, remainingMinorFVars,
+      List.length_drop]
+    rw [T.minors_length, A.rule.minors_bound.length_fvars]
+  have HhypothesisResidualFlat : TrExprS H.outVEnv Us
+      (abstractForallContext
+        ((T.params ++ T.motives ++ T.minors.take
+            (recursorMinorOffset indTypes owner + i)) ++
+          hypothesisInner) [])
+      sourceResidual hypothesisResidual := by
+    simpa only [hypothesisInner, abstractForallContext_append,
+      List.append_assoc] using HhypothesisResidual
+  have HhypothesisResidualInserted :=
+    Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
+      (outer := T.params ++ T.motives ++ T.minors.take
+        (recursorMinorOffset indTypes owner + i))
+      (inner := hypothesisInner) H.outVEnvWF.ordered
+      HhypothesisResidualFlat remainingMinorDomains
+  have HhypothesisResidualFull : TrExprS H.outVEnv Us
+      (abstractForallContext
+        (T.params ++ T.motives ++ T.minors ++
+          liftedHypothesisInner) [])
+      ((E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.binders).liftLooseBVars'
+          E.frame.semantic.generated.localArgs.size j)
+      (hypothesisResidual.liftN remainingMinorDomains.length
+        hypothesisInner.length) := by
+    rw [← hsourceResidualFullTransport,
+      ← hremainingMinorDomainsLength, ← hhypothesisInnerLength]
+    simpa [remainingMinorDomains, liftedHypothesisInner,
+      List.append_assoc] using HhypothesisResidualInserted
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, D.type, O, B, E,
     hhypothesisOrigins, rfl, hhypothesisRecInfos,
@@ -74519,6 +74589,9 @@ theorem
         simpa using hsourceResidualGeneratedPrefix,
       by
         simpa [remainingMinorFVars] using hsourceResidualFullTransport,
+      by
+        simpa [hypothesisInner, remainingMinorDomains,
+          liftedHypothesisInner] using HhypothesisResidualFull,
       hhypothesisDomain,
       HhypothesisResidual, HhypothesisResidualType⟩,
     E.closed_typing⟩
