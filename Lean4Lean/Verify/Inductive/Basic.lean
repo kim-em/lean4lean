@@ -61343,6 +61343,93 @@ theorem
   exact ⟨T, S, fieldDomains, hypothesisDomains, sourceResidual,
     targetResidual, hlocal, hfields, hhypotheses, htarget, Hsource, Htyped⟩
 
+/-- Select the translated minor domain corresponding to recursive-result
+ordinal `j`.  The source binder is retained explicitly, and its abstract
+target is literally the `j`th member of the hypothesis suffix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorHypothesisDomainAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
+        ∃ fieldDomains hypothesisDomains targetResidual sourceDomain,
+          S.localIndex = i ∧
+          fieldDomains.length = A.rule.allArgs.size ∧
+          hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+          T.minors[minorIdx]! = VExpr.wrapForalls
+            (fieldDomains ++ hypothesisDomains) targetResidual ∧
+          let sourceBinders := H.params.fvars ++
+            H.bindings.motives.fvars ++
+              H.bindings.flatMinors.fvars.take minorIdx
+          let position := A.rule.allArgs.size + j
+          Expr.ForallBinderAt
+            (S.origin.abstractList sourceBinders) position sourceDomain ∧
+          TrExprS H.outVEnv Us
+            (abstractForallContext
+              ((fieldDomains ++ hypothesisDomains).take position)
+              (abstractForallContext
+                (T.params ++ T.motives ++ T.minors.take minorIdx) []))
+            sourceDomain hypothesisDomains[j]! ∧
+          H.outVEnv.IsType Us.length
+            (abstractForallContext
+              ((fieldDomains ++ hypothesisDomains).take position)
+              (abstractForallContext
+                (T.params ++ T.motives ++ T.minors.take minorIdx) [])).toCtx
+            hypothesisDomains[j]! := by
+  dsimp only
+  rcases A.finalSelectedMinorTypedSplit with
+    ⟨T, S, fieldDomains, hypothesisDomains, _sourceResidual,
+      targetResidual, hlocal, hfields, hhypotheses, htarget,
+      _Hsource, Htyped⟩
+  let position := A.rule.allArgs.size + j
+  have hposition : position <
+      A.rule.allArgs.size + A.rule.recursiveArgs.size := by
+    dsimp only [position]
+    omega
+  have hdomains : (fieldDomains ++ hypothesisDomains).length =
+      A.rule.allArgs.size + A.rule.recursiveArgs.size := by
+    simp [hfields, hhypotheses]
+  have hjHypothesis : j < hypothesisDomains.length := by
+    rw [hhypotheses]
+    exact hj
+  rcases Htyped.binderAt_target
+      (fieldDomains ++ hypothesisDomains) targetResidual htarget
+      hdomains position hposition with
+    ⟨suffixSource, _name, sourceDomain, _sourceBody, _bi, _bodyTarget,
+      Hprefix, hsuffix, Hdomain, HdomainType, _Hbody⟩
+  have Hbinder : Expr.ForallBinderAt
+      (S.origin.abstractList
+        (H.params.fvars ++ H.bindings.motives.fvars ++
+          H.bindings.flatMinors.fvars.take
+            (recursorMinorOffset indTypes owner + i)))
+      position sourceDomain := Hprefix.binderAt hsuffix
+  have hselected :
+      (fieldDomains ++ hypothesisDomains)[position] = hypothesisDomains[j]! := by
+    dsimp only [position]
+    rw [getElem!_pos hypothesisDomains j hjHypothesis]
+    simpa [hfields] using
+      List.getElem_append_right fieldDomains hypothesisDomains j hjHypothesis
+  rw [hselected] at Hdomain HdomainType
+  exact ⟨T, S, fieldDomains, hypothesisDomains, targetResidual,
+    sourceDomain, hlocal, hfields, hhypotheses, htarget, Hbinder,
+    Hdomain, HdomainType⟩
+
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
 ordinal, both executable passes selected the field at the same constructor
 ordinal.  The expressions themselves may use different fresh identifiers;
