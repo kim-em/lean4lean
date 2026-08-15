@@ -68841,6 +68841,166 @@ theorem
       simpa [later, shift, liftedFields] using HouterCtx, by
       simpa [later, shift, liftedFields] using HapplicationOuter⟩
 
+/-- Weakening the source-stable constructor fields selected in the complete
+outer scope back into the executable recursor context yields the same
+dependent field context as the literal semantic field telescope.  This is
+the full-runtime comparison point shared with the selected-minor replay. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOuterConstructorFieldRuntimeAlignmentFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ outerScope,
+    ∃ Houter : checkInductiveTypes.loopType.FVarNarrowScope
+        H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
+    ∃ outerFields : List VExpr,
+    ∃ outerResidual : VExpr,
+      outerFields.length = A.rule.allArgs.size ∧
+      TrExprS H.outVEnv Us outerScope A.semantics.parameterTail
+        (VExpr.wrapForalls outerFields outerResidual) ∧
+      H.outVEnv.IsType Us.length outerScope.toCtx
+        (VExpr.wrapForalls outerFields outerResidual) ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length [] outerScope.toCtx
+        (T.params ++ T.motives ++ T.minors).reverse ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        ((liftForallDomains outerFields Houter.shift).reverse ++
+          H.recursorWF.mlctx.vlctx.toCtx)
+        (A.semantics.fieldTelescope.domains.reverse ++
+          H.recursorWF.mlctx.vlctx.toCtx) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalOuterConstructorFieldTelescopeFor T with
+    ⟨outerScope, Houter, outerFields, outerResidual, houterFields,
+      HouterTail, HouterType, HouterPrefix⟩
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have hfieldRootEnv : A.semantics.fieldRootContext.venv =
+      H.recursorWF.venv :=
+    A.semantics.fieldsRecent.venv_eq.symm.trans
+      A.semantics.context_venv
+  have Hruntime : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
+      A.semantics.parameterTail A.semantics.parameterTarget := by
+    have Htr := A.semantics.parameterTranslation
+    rw [hfieldRootEnv, A.semantics.fieldRoot_vlctx] at Htr
+    exact Htr.mono hbase
+  have HruntimeWF : VLCtx.WF H.outVEnv Us.length
+      H.recursorWF.mlctx.vlctx :=
+    (H.recursorWF.mlctx_wf.mono hbase).tr.wf
+  have Hwhole := Houter.fullTargetEq H.outVEnvWF HouterTail
+    (Hruntime.trExpr H.outVEnvWF HruntimeWF)
+  rcases A.semantics.fieldContextDefEq with
+    ⟨sourceDomains, sourceResidual, hsourceDomains,
+      hparameterTarget, HsourceSemantic₀⟩
+  rw [VExpr.lift'_wrapForalls_exact, hparameterTarget] at Hwhole
+  have HruntimeBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      H.recursorWF.mlctx.vlctx.toCtx H.recursorWF.mlctx.vlctx.toCtx :=
+    .refl HruntimeWF.toCtx
+  have HouterSource := VEnv.IsDefEqU.wrapForalls_context
+    H.outVEnvWF HruntimeBase
+      ((liftForallDomains_length outerFields Houter.shift).trans
+        hsourceDomains.symm) Hwhole
+  have HsourceSemantic : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (sourceDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+      (A.semantics.fieldTelescope.domains.reverse ++
+        H.recursorWF.mlctx.vlctx.toCtx) := by
+    have Hcontexts := HsourceSemantic₀.mono hbase
+    rw [hfieldRootEnv, A.semantics.fieldRoot_vlctx] at Hcontexts
+    exact Hcontexts
+  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HouterSource HsourceSemantic
+  exact ⟨outerScope, Houter, outerFields, outerResidual, houterFields,
+    HouterTail, HouterType, HouterPrefix, Haligned⟩
+
+/-- The independently replayed selected-minor fields and the source-stable
+complete-outer fields agree after each is weakened back into the executable
+recursor context.  Both comparisons pass through the literal semantic field
+telescope, so no syntactic identity of translated dependent domains is
+assumed. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedOuterRuntimeFieldAlignmentFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ selectedScope,
+    ∃ Hselected : checkInductiveTypes.loopType.FVarNarrowScope
+        H.outVEnv Us selectedScope H.recursorWF.mlctx.vlctx,
+    ∃ outerScope,
+    ∃ Houter : checkInductiveTypes.loopType.FVarNarrowScope
+        H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
+    ∃ selectedFields outerFields : List VExpr,
+      selectedFields.length = A.rule.allArgs.size ∧
+      outerFields.length = A.rule.allArgs.size ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length [] selectedScope.toCtx
+        (T.params ++ T.motives ++ T.minors.take minorIdx).reverse ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length [] outerScope.toCtx
+        (T.params ++ T.motives ++ T.minors).reverse ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        ((liftForallDomains selectedFields Hselected.shift).reverse ++
+          H.recursorWF.mlctx.vlctx.toCtx)
+        ((liftForallDomains outerFields Houter.shift).reverse ++
+          H.recursorWF.mlctx.vlctx.toCtx) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalSelectedMinorFieldApplicationWithNarrowFrameFor
+      B T hpositive with
+    ⟨selectedScope, Hselected, selectedFields, weakenedFields,
+      _hypothesisDomains, _targetResidual, hselectedFields,
+      _hweakenedFields, _hhypotheses, hweakenedExact,
+      HselectedPrefix, _Happlication, HselectedNarrow⟩
+  rcases A.finalOuterConstructorFieldRuntimeAlignmentFor T with
+    ⟨outerScope, Houter, outerFields, _outerResidual, houterFields,
+      _HouterTail, _HouterType, HouterPrefix, HouterSemantic⟩
+  rcases B.semanticFieldContext with
+    ⟨_hsemanticFields, _hsemanticContext, _hexpandedLength,
+      _hexpandedContext, _HfieldBase, HexpandedSemantic⟩
+  have HexpandedSemantic' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      B.runtime.expanded.toCtx
+      (A.semantics.fieldTelescope.domains.reverse ++
+        H.recursorWF.mlctx.vlctx.toCtx) := by
+    simpa [A.semantics.fieldRoot_vlctx] using HexpandedSemantic
+  have HselectedSemantic := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HselectedNarrow HexpandedSemantic'
+  have HselectedOuter := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HselectedSemantic (HouterSemantic.symm H.outVEnvWF.ordered)
+  rw [hweakenedExact] at HselectedOuter
+  exact ⟨selectedScope, Hselected, outerScope, Houter,
+    selectedFields, outerFields, hselectedFields, houterFields,
+    HselectedPrefix, HouterPrefix, HselectedOuter⟩
+
 /-- Select the translated minor domain corresponding to recursive-result
 ordinal `j`.  The source binder is retained explicitly, and its abstract
 target is literally the `j`th member of the hypothesis suffix. -/
