@@ -61857,6 +61857,75 @@ theorem
     hlocal, hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hsource, Htyped⟩
 
+/-- Opening the selected minor's translated telescope yields a genuine
+abstract context for every constructor field and recursive hypothesis.  The
+older parameter/motive/minor prefix is recovered from the complete generated
+recursor context, so no local-context well-formedness premise remains hidden
+in the eventual minor application. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorTargetContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ fieldDomains hypothesisDomains targetResidual,
+        fieldDomains.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (fieldDomains ++ hypothesisDomains) targetResidual ∧
+        let base := T.params ++ T.motives ++ T.minors.take minorIdx
+        OnCtx ((fieldDomains ++ hypothesisDomains).reverse ++
+            (abstractForallContext base []).toCtx)
+          (H.outVEnv.IsType Us.length) ∧
+        H.outVEnv.IsType Us.length
+          ((fieldDomains ++ hypothesisDomains).reverse ++
+            (abstractForallContext base []).toCtx)
+          targetResidual := by
+  dsimp only
+  rcases A.finalSelectedMinorTypedSplit with
+    ⟨T, _S, _hypothesisOrigins, _traversal, fieldDomains,
+      hypothesisDomains, _sourceResidual, targetResidual,
+      _hhypothesisOrigins, _hhypothesisStats, _htraversal,
+      _htraversalFields, _htraversalRecursiveFields, _hpositions,
+      _hlocal, _hsourceFields, _hsourceHypotheses,
+      hfields, hhypotheses, htarget, _Hsource, Htyped⟩
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let base := T.params ++ T.motives ++ T.minors.take minorIdx
+  have Hprefix := T.prefixContext H.outVEnvWF.ordered
+  have hminorDecomp : T.minors = T.minors.take minorIdx ++
+      T.minors.drop minorIdx :=
+    (List.take_append_drop minorIdx T.minors).symm
+  rw [hminorDecomp, List.reverse_append, List.reverse_append,
+    List.reverse_append, List.append_assoc] at Hprefix
+  have HbaseRaw := OnCtx.append_right
+    (xs := (T.minors.drop minorIdx).reverse) Hprefix
+  have Hbase : OnCtx (abstractForallContext base []).toCtx
+      (H.outVEnv.IsType
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
+    rw [abstractForallContext_toCtx]
+    rw [show VLCtx.toCtx ([] : VLCtx) = [] by rfl]
+    simpa [base, List.reverse_append, List.append_assoc] using HbaseRaw
+  have HminorType := Htyped.isType
+  rw [htarget] at HminorType
+  have Hopened := VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
+    Hbase HminorType
+  exact ⟨T, fieldDomains, hypothesisDomains, targetResidual,
+    hfields, hhypotheses, htarget, Hopened.1, Hopened.2⟩
+
 /-- Select the translated minor domain corresponding to recursive-result
 ordinal `j`.  The source binder is retained explicitly, and its abstract
 target is literally the `j`th member of the hypothesis suffix. -/
