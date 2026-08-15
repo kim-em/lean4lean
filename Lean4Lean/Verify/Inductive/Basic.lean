@@ -30277,6 +30277,10 @@ structure RecInfoMinorSemanticSource
     sourceWF.mlctx.vlctx S.motiveApp motiveTarget
   motiveType : sourceWF.venv.IsType recLparams.length
     sourceWF.mlctx.vlctx.toCtx motiveTarget
+  sourceTarget : VExpr
+  consumedTarget : VExpr
+  consumption : sourceWF.ConsumedDomain S.sourceType sourceTarget
+    consumedTarget
 
 def RecInfoMinorSemanticSource.mono
     {root current : AddInductive.Context} {recLparams : List Name}
@@ -30300,6 +30304,9 @@ def RecInfoMinorSemanticSource.mono
   motiveTarget := HS.motiveTarget
   motiveTranslation := HS.motiveTranslation
   motiveType := HS.motiveType
+  sourceTarget := HS.sourceTarget
+  consumedTarget := HS.consumedTarget
+  consumption := HS.consumption
 
 def RecInfoMinorSemanticSource.fieldDomains
     {c : AddInductive.Context} {recLparams : List Name}
@@ -30339,6 +30346,31 @@ theorem RecInfoMinorSemanticSource.sourceTypeTranslation
   rw [S.sourceType_eq, ← S.sourceContext_eq, hfields]
   simpa [RecInfoMinorSemanticSource.fieldDomains,
     RecInfoMinorSemanticSource.hypothesisDomains] using Hfields
+
+/-- Compare the replayed unconsumed telescope with the exact consumed target
+installed by production, in the original full source context. -/
+theorem RecInfoMinorSemanticSource.replayedSourceDefEqConsumed
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource R S) :
+    let replayed :=
+      (VExpr.wrapForalls HS.fieldDomains
+        (VExpr.wrapForalls HS.hypothesisDomains HS.motiveTarget)).lift'
+          ((HS.fieldsRecent.contextExtension.trans
+            HS.hypothesesRecent.contextExtension).shift.consN 0)
+    HS.sourceWF.venv.IsDefEqU recLparams.length
+      HS.sourceWF.mlctx.vlctx.toCtx replayed HS.consumedTarget := by
+  dsimp only
+  have Hreplayed :=
+    (HS.fieldsRecent.contextExtension.trans
+      HS.hypothesesRecent.contextExtension).weakTrExprS
+        HS.sourceTypeTranslation.1
+  have Hsource := Hreplayed.uniq HS.sourceWF.checking.tr.wf
+    (.refl HS.sourceWF.checking.tr.wf HS.sourceWF.mlctx_wf.tr.wf)
+    HS.consumption.source
+  rcases HS.consumption.source_defeq with ⟨level, Hconsumed⟩
+  exact Hsource.trans HS.sourceWF.checking.tr.wf
+    HS.sourceWF.mlctx_wf.tr.wf.toCtx ⟨.sort level, Hconsumed⟩
 
 /-- Every retained minor source carries its exact semantic extension into the
 current recursor context.  Unlike `BindingContextLE`, this invariant is strong
@@ -42895,7 +42927,10 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         motiveTarget := motiveTarget.lift'
           (HhypothesesRecent.contextExtension.shift.consN 0)
         motiveTranslation := HmotiveAt
-        motiveType := HmotiveTypeAt }⟩
+        motiveType := HmotiveTypeAt
+        sourceTarget := minorTarget.lift' (HextAll.shift.consN 0)
+        consumedTarget := consumedTarget
+        consumption := Hconsumed }⟩
       ⟨traversal, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE,
         HhypothesesRecent.contextExtension.contextLE,
         BindingContextLE.refl outCtx⟩ ?_
