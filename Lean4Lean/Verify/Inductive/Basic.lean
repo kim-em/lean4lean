@@ -859,6 +859,61 @@ theorem VEnv.TypedApplicationSpine.append
       apply ih
       simpa [VExpr.mkApps] using Hsuffix
 
+/-- Extend an already checked dependent application prefix by one argument.
+This is the left-to-right constructor used by executable argument folds. -/
+theorem VEnv.TypedApplicationSpine.snoc
+    (Hprefix : VEnv.TypedApplicationSpine env uvars ctx
+      fn fnType args (.forallE domain body))
+    (Harg : env.HasType uvars ctx arg domain) :
+    VEnv.TypedApplicationSpine env uvars ctx fn fnType
+      (args ++ [arg]) (body.inst arg) := by
+  have Happ : env.HasType uvars ctx
+      (.app (VExpr.mkApps fn args) arg) (body.inst arg) :=
+    Hprefix.hasType.app Harg
+  exact Hprefix.append <|
+    .cons Hprefix.hasType Harg (.nil Happ)
+
+/-- Left-to-right extension when the retained argument type is convertible
+to the current dependent domain. -/
+theorem VEnv.TypedApplicationSpine.snoc_defeq
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (Hprefix : VEnv.TypedApplicationSpine env uvars ctx
+      fn fnType args (.forallE domain body))
+    (Harg : env.HasType uvars ctx arg actualDomain)
+    (Hdomain : env.IsDefEqU uvars ctx actualDomain domain) :
+    VEnv.TypedApplicationSpine env uvars ctx fn fnType
+      (args ++ [arg]) (body.inst arg) := by
+  exact Hprefix.snoc (Harg.defeqU_r henv hctx Hdomain)
+
+/-- Transport an entire dependent application spine across a definitionally
+equal ambient context.  Every term and every successive instantiated type is
+preserved literally; only the context in each typing derivation changes. -/
+theorem VEnv.TypedApplicationSpine.defeqDFC
+    (henv : env.Ordered)
+    (Hctx : VEnv.IsDefEqCtx env uvars [] leftCtx rightCtx)
+    (H : VEnv.TypedApplicationSpine env uvars leftCtx
+      fn fnType args resultType) :
+    VEnv.TypedApplicationSpine env uvars rightCtx
+      fn fnType args resultType := by
+  induction H with
+  | nil Hfn =>
+      exact .nil (Hfn.defeqDFC henv Hctx)
+  | cons Hfn Harg _ ih =>
+      exact .cons (Hfn.defeqDFC henv Hctx)
+        (Harg.defeqDFC henv Hctx) ih
+
+/-- Context conversion is reversible for dependent application spines. -/
+theorem VEnv.TypedApplicationSpine.defeqDFC_iff
+    (henv : env.Ordered)
+    (Hctx : VEnv.IsDefEqCtx env uvars [] leftCtx rightCtx) :
+    VEnv.TypedApplicationSpine env uvars leftCtx
+        fn fnType args resultType ↔
+      VEnv.TypedApplicationSpine env uvars rightCtx
+        fn fnType args resultType := by
+  constructor
+  · exact VEnv.TypedApplicationSpine.defeqDFC henv Hctx
+  · exact VEnv.TypedApplicationSpine.defeqDFC henv (Hctx.symm henv)
+
 /-- Canonical variables for a telescope, in source binder order. -/
 def recursorCanonicalVars (n : Nat) : List VExpr :=
   (List.range n).reverse.map .bvar
