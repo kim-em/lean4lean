@@ -6559,6 +6559,26 @@ theorem FVarNarrowScope.restrict
   exact htr.weakFV'_inv henv H.lift
     (H.context.symm henv.ordered) hclosed hfvars
 
+/-- Restrict a translation to a non-contiguous dependency-closed scope and
+retain the equality obtained by weakening the narrowed target back into the
+executable context.  This is the non-contiguous counterpart of
+`NarrowRuntimeScope.restrictEq`. -/
+theorem FVarNarrowScope.restrictEq
+    (H : FVarNarrowScope env Us scope runtime)
+    (henv : env.WF)
+    (htr : TrExprS env Us runtime e e')
+    (hclosed : Closed e 0)
+    (hfvars : FVarsIn (· ∈ scope.fvars) e) :
+    ∃ narrow', TrExprS env Us scope e narrow' ∧
+      env.IsDefEqU Us.length runtime.toCtx e'
+        (narrow'.lift' H.shift) := by
+  rcases H.restrict henv htr hclosed hfvars with ⟨narrow', hnarrow⟩
+  have hweak : TrExprS env Us H.expanded e
+      (narrow'.lift' H.shift) := by
+    simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
+  exact ⟨narrow', hnarrow,
+    htr.uniq henv (H.context.symm henv.ordered) hweak⟩
+
 /-- Retain one newly introduced named lambda.  Its semantic domain is
 obtained by inverse weakening; the executable domain need only be
 definitionally equal after weakening back into the expanded context. -/
@@ -64777,7 +64797,12 @@ theorem
       ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ narrowTarget,
+      ∃ fullTarget,
         scope.fvars = sourceBinders.reverse ∧
+        TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
+          S.origin fullTarget ∧
+        H.outVEnv.IsDefEqU Us.length H.recursorWF.mlctx.vlctx.toCtx
+          fullTarget (narrowTarget.lift' Hscope.shift) ∧
         Hscope.sources.closeSource S.origin =
           H.localContext.lctx.mkForall
             (sourceBinders.map Expr.fvar).toArray S.origin ∧
@@ -64833,9 +64858,10 @@ theorem
     simpa only [HS.semantic.extension.venv_eq] using
       HS.semantic.consumption.consumed
   have Hfull₀ := HS.semantic.extension.weakTrExprS HsourceOrigin
+  let fullTarget := HS.semantic.consumedTarget.lift'
+    (HS.semantic.extension.shift.consN 0)
   have Hfull : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx S.origin
-      (HS.semantic.consumedTarget.lift'
-        (HS.semantic.extension.shift.consN 0)) :=
+      fullTarget :=
     Hfull₀.mono hbase
   have hclosed : Closed S.origin 0 := by
     have h := Hfull.closed
@@ -64853,8 +64879,8 @@ theorem
     · rw [hscope]
       exact List.mem_reverse.mpr hfv
     · exact False.elim hfalse
-  rcases Hscope.restrict H.outVEnvWF Hfull hclosed HsourceScope with
-    ⟨narrowTarget, Hnarrow⟩
+  rcases Hscope.restrictEq H.outVEnvWF Hfull hclosed HsourceScope with
+    ⟨narrowTarget, Hnarrow, HfullEq⟩
   rcases S.originTelescope with ⟨sourceResidual, HsourceTelescope⟩
   have HsourceTelescope' : Expr.ForallTelescope S.origin
       (A.rule.allArgs.size + A.rule.recursiveArgs.size) sourceResidual := by
@@ -64873,8 +64899,111 @@ theorem
   have HclosedTyped := Hscope.closeTypedTelescope H.outVEnvWF
     Hnarrow HnarrowType
   rw [hscopeSourceOut] at HclosedTyped
-  exact ⟨T, S, scope, Hscope, narrowTarget, hscope,
-    hscopeSourceOut, Hprefix, HabstractTyped, HclosedTyped, Hinstalled⟩
+  exact ⟨T, S, scope, Hscope, narrowTarget, fullTarget, hscope,
+    Hfull, HfullEq, hscopeSourceOut, Hprefix, HabstractTyped,
+    HclosedTyped, Hinstalled⟩
+
+/-- Turn the inverse-weakening equality retained by
+`finalSelectedMinorExactClosedTelescope` into a conversion of the complete
+dependent minor contexts.  The right-hand domains are the literal
+free-variable weakening of the independent narrow target; the left-hand
+domains are obtained by translating the same original minor in the full
+executable recursor context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorNarrowFullContextAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+      ∃ narrowDomains fullDomains weakenedDomains,
+      ∃ narrowResidual fullResidual weakenedResidual,
+        narrowDomains.length = arity ∧
+        fullDomains.length = arity ∧
+        weakenedDomains.length = arity ∧
+        (VExpr.wrapForalls narrowDomains narrowResidual).lift' Hscope.shift =
+          VExpr.wrapForalls weakenedDomains weakenedResidual ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          (fullDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+          (weakenedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
+  rcases A.finalSelectedMinorExactClosedTelescope hpositive with
+    ⟨_T, S, scope, Hscope, narrowTarget, fullTarget, _hscope,
+      Hfull, HfullEq, _hscopeSource, _Hprefix, Hnarrow, _Hclosed,
+      _Hinstalled⟩
+  rcases Hnarrow.toWrapForalls with
+    ⟨narrowDomains, narrowSourceResidual, narrowResidual,
+      hnarrowLength, _HnarrowSource, hnarrowTarget,
+      _HnarrowResidual, _HnarrowResidualType⟩
+  rcases S.originTelescope with ⟨sourceResidual, HsourceTelescope⟩
+  have HsourceTelescope' : Expr.ForallTelescope S.origin arity
+      sourceResidual := by
+    have hsizes := congrArg (fun n => S.fields.size + n)
+      (show S.hypotheses.size = A.rule.recursiveArgs.size by
+        have h := Hnarrow.telescope
+        rcases h with ⟨residual, Htel⟩
+        have harity := Htel.arity_eq HsourceTelescope
+        omega)
+    have hfields : S.fields.size = A.rule.allArgs.size := by
+      have h := Hnarrow.telescope
+      rcases h with ⟨residual, Htel⟩
+      have harity := Htel.arity_eq
+        (HsourceTelescope.abstractList
+          (H.params.fvars ++ H.bindings.motives.fvars ++
+            H.bindings.flatMinors.fvars.take
+              (recursorMinorOffset indTypes owner + i)))
+      omega
+    simpa [arity, hfields] using HsourceTelescope
+  have HfullType : H.outVEnv.IsType Us.length
+      H.recursorWF.mlctx.vlctx.toCtx fullTarget :=
+    TrExprS.isType_of_forallTelescope HsourceTelescope'
+      (by simpa [arity] using hpositive) Hfull
+  have HfullTyped := Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    HsourceTelescope' Hfull HfullType
+  rcases HfullTyped.toWrapForalls with
+    ⟨fullDomains, fullSourceResidual, fullResidual,
+      hfullLength, _HfullSource, hfullTarget,
+      _HfullResidual, _HfullResidualType⟩
+  rcases VExpr.lift'_wrapForalls_shape narrowDomains narrowResidual
+      Hscope.shift with
+    ⟨weakenedDomains, weakenedResidual, hweakenedLength,
+      hweakenedTarget⟩
+  have hweakenedLength' : weakenedDomains.length = arity :=
+    hweakenedLength.trans hnarrowLength
+  have Hwhole : H.outVEnv.IsDefEqU Us.length
+      H.recursorWF.mlctx.vlctx.toCtx
+      (VExpr.wrapForalls fullDomains fullResidual)
+      (VExpr.wrapForalls weakenedDomains weakenedResidual) := by
+    rw [← hfullTarget, ← hweakenedTarget, ← hnarrowTarget]
+    exact HfullEq
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have HruntimeWF : OnCtx H.recursorWF.mlctx.vlctx.toCtx
+      (H.outVEnv.IsType Us.length) :=
+    (H.recursorWF.mlctx_wf.mono hbase).tr.wf.toCtx
+  have Hbase : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      H.recursorWF.mlctx.vlctx.toCtx H.recursorWF.mlctx.vlctx.toCtx :=
+    .refl HruntimeWF
+  have Hcontexts := VEnv.IsDefEqU.wrapForalls_context
+    H.outVEnvWF Hbase (hfullLength.trans hweakenedLength'.symm) Hwhole
+  exact ⟨scope, Hscope, narrowDomains, fullDomains, weakenedDomains,
+    narrowResidual, fullResidual, weakenedResidual, hnarrowLength,
+    hfullLength, hweakenedLength', hweakenedTarget, Hcontexts⟩
 
 /-- Compare every field and recursive-hypothesis domain of the independently
 replayed minor with the corresponding domain stored in the generated
@@ -64922,8 +65051,9 @@ theorem
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
   rcases A.finalSelectedMinorExactClosedTelescope hpositive with
-    ⟨T, S, scope, _Hscope, narrowTarget, _hscope, _hscopeSource,
-      Hprefix, Hnarrow, _Hclosed, Hinstalled⟩
+    ⟨T, S, scope, _Hscope, narrowTarget, _fullTarget, _hscope,
+      _Hfull, _HfullEq, _hscopeSource, Hprefix, Hnarrow, _Hclosed,
+      Hinstalled⟩
   rcases Hnarrow.toWrapForalls with
     ⟨narrowDomains, narrowSourceResidual, narrowResidual,
       hnarrowLength, _HnarrowSource, hnarrowTarget,
