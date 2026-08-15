@@ -65237,6 +65237,92 @@ theorem
       hfields, hlocal, hfront⟩
   exact ⟨scope, Hscope, hscopeFVars, hscopeBase,
     B.fieldDomains, localDomains, hfields, hlocal, hfront⟩
+
+/-- The retained narrowing witness exposes the exact semantic context on its
+expanded side.  In particular, the independently narrowed field/local front
+is related to the literal local-then-field suffix of the executable semantic
+context without identifying either list syntactically. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.narrowRuntimeSemanticContextFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+          H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+        ∃ (localDomains semanticLocalDomains semanticFieldDomains :
+            List VExpr),
+          Hscope.frontSourceDomains = B.fieldDomains ++ localDomains ∧
+          localDomains.length = F.semantic.generated.localArgs.size ∧
+          semanticLocalDomains.length =
+            F.semantic.generated.localArgs.size ∧
+          semanticFieldDomains.length = A.rule.allArgs.size ∧
+          F.semantic.current_context.mlctx.vlctx.toCtx =
+            semanticLocalDomains.reverse ++ semanticFieldDomains.reverse ++
+              A.semantics.fieldRootContext.mlctx.vlctx.toCtx ∧
+          Hscope.expanded.toCtx =
+            Hscope.frontExpandedDomains.reverse ++
+              VLCtx.toCtx (Hscope.expanded.drop
+                Hscope.frontExpandedDomains.length) ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+            Hscope.expanded.toCtx
+            (semanticLocalDomains.reverse ++ semanticFieldDomains.reverse ++
+              A.semantics.fieldRootContext.mlctx.vlctx.toCtx) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases F.narrowRuntimeScopeFor B with
+    ⟨scope, Hscope, _hscopeFVars, _hscopeBase, localDomains,
+      _hfields, hlocal, hfront⟩
+  let semanticLocalDomains := MLCtxForallDomains
+    F.semantic.current_context.mlctx
+    F.semantic.generated.localArgs.size F.semantic.recent.size_le
+  let semanticFieldDomains := MLCtxForallDomains A.semantics.context.mlctx
+    A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hsemanticLocal : semanticLocalDomains.length =
+      F.semantic.generated.localArgs.size :=
+    F.semantic.current_context.onlyLams.forallDomains_length
+      F.semantic.generated.localArgs.size F.semantic.recent.size_le
+  have hsemanticFields : semanticFieldDomains.length = A.rule.allArgs.size :=
+    A.semantics.context.onlyLams.forallDomains_length
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le
+  have hsemanticContext :=
+    MLCtxOnlyLams.toCtx_eq_forallDomains_reverse_append_dropN
+      F.semantic.current_context.onlyLams
+      F.semantic.generated.localArgs.size F.semantic.recent.size_le
+  rw [F.semantic.recent.drop_eq] at hsemanticContext
+  have hfieldContext :=
+    MLCtxOnlyLams.toCtx_eq_forallDomains_reverse_append_dropN
+      A.semantics.context.onlyLams A.rule.allArgs.size
+      A.semantics.fieldsRecent.size_le
+  rw [A.semantics.fieldsRecent.drop_eq] at hfieldContext
+  rw [hfieldContext] at hsemanticContext
+  have hsemanticContext' :
+      F.semantic.current_context.mlctx.vlctx.toCtx =
+        semanticLocalDomains.reverse ++ semanticFieldDomains.reverse ++
+          A.semantics.fieldRootContext.mlctx.vlctx.toCtx := by
+    simpa [semanticLocalDomains, semanticFieldDomains] using hsemanticContext
+  have hexpanded := Hscope.front.expandedContext
+  have hcontexts : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      Hscope.expanded.toCtx
+      (semanticLocalDomains.reverse ++ semanticFieldDomains.reverse ++
+        A.semantics.fieldRootContext.mlctx.vlctx.toCtx) := by
+    have hcontexts' := Hscope.context.defeqCtx
+    rw [hsemanticContext'] at hcontexts'
+    simpa [semanticLocalDomains, semanticFieldDomains] using hcontexts'
+  exact ⟨scope, Hscope, localDomains, semanticLocalDomains,
+    semanticFieldDomains, hfront, hlocal, hsemanticLocal, hsemanticFields,
+    hsemanticContext', hexpanded, hcontexts⟩
 /-- The validated terminal application of a recursive call consumes the
 same canonical motive telescope retained for the call-selected mutual
 family.  This is the semantic index/major alignment needed to consume the
