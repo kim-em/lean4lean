@@ -81502,6 +81502,64 @@ theorem
   simpa [CanonicalRecursiveResults.bodies,
     CanonicalRecursiveResults.bodyTypes, E] using E.closed_typing
 
+/-- Pointwise strict source translation for the canonical result list, once
+the shared lambda-domain template has been translated in the fixed equation
+context.  The same `resultAt` witness determines the source array position,
+the target body, and the retained typing used by `bodyTyping`. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodyTranslationOfTemplate
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B)
+    (j : Nat) (hj : j < C.bodies.length)
+    (templateTarget : VExpr)
+    (Htemplate :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let equationDomains :=
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++
+          T.motives ++ T.minors ++
+            (liftContextPrefix (T.motives ++ T.minors).length
+              B.fieldDomains.reverse).reverse
+      let E := C.resultAt j (by simpa using hj)
+      TrExprS H.outVEnv Us
+        (abstractForallContext equationDomains [])
+        ((E.frame.semantic.generated.current.lctx.mkLambda
+            E.frame.semantic.generated.localArgs
+            (mkAppN A.rule.recursiveArgs[j]
+              E.frame.semantic.generated.localArgs)).abstractList
+          A.rule.binders)
+        (VExpr.wrapLams E.localDomains templateTarget)) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+      C.bodies[j] := by
+  let E := C.resultAt j (by simpa using hj)
+  have Hfull := E.fullTranslationOfTemplate templateTarget (by
+    simpa only [E] using Htemplate)
+  simpa [CanonicalRecursiveResults.bodies, E] using Hfull
+
 /-- Every selected recursive-result body is already well formed in the one
 fixed equation context shared by the entire rule.  This is the list-level
 typing invariant consumed by the minor-application fold. -/
