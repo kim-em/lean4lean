@@ -21596,6 +21596,91 @@ theorem Expr.abstractList_add_eq_liftLooseBVars
   | proj name idx body ih =>
     simpa [Expr.liftLooseBVars'] using ih Hclosed
 
+/-- Weakening below an abstraction cutoff commutes with closing free
+variables, provided the abstraction is moved past the inserted binders. -/
+theorem Expr.liftLooseBVars'_abstractList_add
+    (e : Expr) (fvars : List FVarId) (start cutoff amount : Nat)
+    (Hcutoff : start ≤ cutoff) (Hnodup : fvars.Nodup) :
+    (e.liftLooseBVars' start amount).abstractList fvars (cutoff + amount) =
+      (e.abstractList fvars cutoff).liftLooseBVars' start amount := by
+  induction e generalizing start cutoff amount with
+  | bvar i =>
+    by_cases hstart : i < start
+    · rw [show (Expr.bvar i).liftLooseBVars' start amount = .bvar i by
+          simp [Expr.liftLooseBVars', hstart],
+        Expr.abstractList_bvar_lt fvars (by omega),
+        Expr.abstractList_bvar_lt fvars (by omega)]
+      simp [Expr.liftLooseBVars', hstart]
+    · by_cases hcut : i < cutoff
+      · rw [show (Expr.bvar i).liftLooseBVars' start amount =
+              .bvar (i + amount) by
+            simp [Expr.liftLooseBVars', hstart],
+          Expr.abstractList_bvar_lt fvars (by omega),
+          Expr.abstractList_bvar_lt fvars hcut]
+        simp [Expr.liftLooseBVars', hstart]
+      · obtain ⟨n, rfl⟩ : ∃ n, i = cutoff + n :=
+          ⟨i - cutoff, by omega⟩
+        have hge : ¬ cutoff + n < start := by omega
+        have hgeAbstract :
+            ¬ cutoff + n + fvars.length < start := by omega
+        rw [show (Expr.bvar (cutoff + n)).liftLooseBVars' start amount =
+              .bvar ((cutoff + amount) + n) by
+            simp [Expr.liftLooseBVars', hge]; omega,
+          Expr.abstractList_bvar_ge,
+          Expr.abstractList_bvar_ge]
+        simp [Expr.liftLooseBVars', hgeAbstract]
+        omega
+  | fvar fv =>
+    simp only [Expr.liftLooseBVars']
+    by_cases hmem : fv ∈ fvars
+    · rcases List.getElem_of_mem hmem with ⟨i, hi, hget⟩
+      subst fv
+      rw [Expr.abstractList_fvar_getElem Hnodup i hi,
+        Expr.abstractList_fvar_getElem Hnodup i hi]
+      simp only [Expr.liftLooseBVars']
+      rw [if_neg (by omega)]
+      congr 1
+      omega
+    · rw [Expr.abstractList_fvar_of_not_mem hmem,
+        Expr.abstractList_fvar_of_not_mem hmem]
+      rfl
+  | sort =>
+    induction fvars <;> simp_all [Expr.abstractList, Expr.abstract1,
+      Expr.liftLooseBVars']
+  | const =>
+    simp [Expr.liftLooseBVars']
+  | mvar =>
+    induction fvars <;> simp_all [Expr.abstractList, Expr.abstract1,
+      Expr.liftLooseBVars']
+  | lit =>
+    induction fvars <;> simp_all [Expr.abstractList, Expr.abstract1,
+      Expr.liftLooseBVars']
+  | app fn arg ihFn ihArg =>
+    simp [Expr.liftLooseBVars', ihFn start cutoff amount Hcutoff,
+      ihArg start cutoff amount Hcutoff]
+  | lam name dom body bi ihDom ihBody =>
+    simp only [Expr.liftLooseBVars', Expr.abstractList_lam]
+    rw [ihDom start cutoff amount Hcutoff]
+    rw [show cutoff + amount + 1 = (cutoff + 1) + amount by omega]
+    rw [ihBody (start + 1) (cutoff + 1) amount (by omega)]
+  | forallE name dom body bi ihDom ihBody =>
+    simp only [Expr.liftLooseBVars', Expr.abstractList_forallE]
+    rw [ihDom start cutoff amount Hcutoff]
+    rw [show cutoff + amount + 1 = (cutoff + 1) + amount by omega]
+    rw [ihBody (start + 1) (cutoff + 1) amount (by omega)]
+  | letE name ty value body nondep ihTy ihValue ihBody =>
+    simp only [Expr.liftLooseBVars', Expr.abstractList_letE]
+    rw [ihTy start cutoff amount Hcutoff,
+      ihValue start cutoff amount Hcutoff]
+    rw [show cutoff + amount + 1 = (cutoff + 1) + amount by omega]
+    rw [ihBody (start + 1) (cutoff + 1) amount (by omega)]
+  | mdata md body ih =>
+    simpa [Expr.liftLooseBVars'] using
+      ih start cutoff amount Hcutoff
+  | proj name idx body ih =>
+    simpa [Expr.liftLooseBVars'] using
+      ih start cutoff amount Hcutoff
+
 /-- If closing a list of free variables yields a term scoped by exactly the
 new de Bruijn prefix, the original term had no loose variables at the
 abstraction cut. -/
