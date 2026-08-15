@@ -81001,6 +81001,35 @@ def
     let E := C.resultAt j j.isLt
     VExpr.wrapLams E.localDomains E.resultBody
 
+/-- The closed dependent types corresponding pointwise to `bodies`.  Keeping
+this as a parallel list makes the later minor-application fold explicit:
+each recursive-result term is consumed at exactly the same ordinal as the
+installed minor hypothesis it discharges. -/
+def
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodyTypes
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B) : List VExpr :=
+  List.ofFn fun j : Fin A.rule.recursiveArgs.size =>
+    let E := C.resultAt j j.isLt
+    VExpr.wrapForalls E.localDomains E.resultType
+
 @[simp] theorem
     RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodies_length
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -81024,6 +81053,70 @@ def
     (C : A.CanonicalRecursiveResults T B) :
     C.bodies.length = A.rule.recursiveArgs.size := by
   simp [CanonicalRecursiveResults.bodies]
+
+@[simp] theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodyTypes_length
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B) :
+    C.bodyTypes.length = A.rule.recursiveArgs.size := by
+  simp [CanonicalRecursiveResults.bodyTypes]
+
+/-- Exact pointwise typing of the two parallel recursive-result lists in the
+fixed equation context.  This is stronger than `bodyWF`: the latter is useful
+for translation constructors, while this theorem retains the dependent type
+required by the application spine. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodyTyping
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B)
+    (j : Nat) (hj : j < C.bodies.length) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    H.outVEnv.HasType Us.length
+      (abstractForallContext equationDomains []).toCtx
+      C.bodies[j]
+      C.bodyTypes[j]'(by simpa using hj) := by
+  let E := C.resultAt j (by simpa using hj)
+  simpa [CanonicalRecursiveResults.bodies,
+    CanonicalRecursiveResults.bodyTypes, E] using E.closed_typing
 
 /-- Every selected recursive-result body is already well formed in the one
 fixed equation context shared by the entire rule.  This is the list-level
