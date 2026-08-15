@@ -27078,6 +27078,18 @@ theorem BoundFVarArray.fvars_eq
     simpa using congrArg Array.toList harr
   exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
 
+/-- Binder identity is determined by the represented expression array, even
+when the two retained certificates are indexed by different contexts. -/
+theorem BoundFVarArray.fvars_eq_of_array_eq
+    (H₁ : BoundFVarArray c₁ xs) (H₂ : BoundFVarArray c₂ ys)
+    (hxy : xs = ys) : H₁.fvars = H₂.fvars := by
+  have harr : (H₁.fvars.map Expr.fvar).toArray =
+      (H₂.fvars.map Expr.fvar).toArray := by
+    rw [← H₁.expressions, ← H₂.expressions, hxy]
+  have hlist : H₁.fvars.map Expr.fvar = H₂.fvars.map Expr.fvar := by
+    simpa using congrArg Array.toList harr
+  exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
+
 /-- Ordered selection of one bound-fvar array from another implies the
 corresponding inclusion of retained free-variable identifiers. -/
 theorem BoundFVarArray.fvars_subset_of_sublist
@@ -73655,6 +73667,15 @@ theorem
                   S.fields_bound.fvars).abstractList sourceBinders
                 (O.args.size + S.fields.size)).liftLooseBVars'
                   O.args.size j ∧
+            sourceResidual =
+              ((E.frame.semantic.generated.outerAbstractedMotiveApp
+                  A.rule.all_args_bound.fvars).abstractList
+                (A.rule.params_bound.fvars ++
+                  A.rule.motives_bound.fvars ++
+                    A.rule.minors_bound.fvars.take minorIdx)
+                (E.frame.semantic.generated.localArgs.size +
+                  A.rule.allArgs.size)).liftLooseBVars'
+                    E.frame.semantic.generated.localArgs.size j ∧
             hypothesisDomains[j]! = VExpr.wrapForalls
               hypothesisLocalDomains hypothesisResidual ∧
             TrExprS H.outVEnv Us
@@ -74128,6 +74149,35 @@ theorem
       (by omega) hsourceBindersNodup
     simpa [position, hsourceFields, Nat.add_comm,
       Nat.add_left_comm, Nat.add_assoc] using hcommute
+  have hsourceParamsRule : H.params.fvars =
+      A.rule.params_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq H.params
+      A.rule.params_bound rfl
+  have hsourceMotivesRule : H.bindings.motives.fvars =
+      A.rule.motives_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq H.bindings.motives
+      A.rule.motives_bound rfl
+  have hsourceMinorsRule : H.bindings.flatMinors.fvars =
+      A.rule.minors_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq H.bindings.flatMinors
+      A.rule.minors_bound rfl
+  have hsourceBindersRule : sourceBinders =
+      A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars ++
+        A.rule.minors_bound.fvars.take
+          (recursorMinorOffset indTypes owner + i) := by
+    dsimp only [sourceBinders]
+    rw [hsourceParamsRule, hsourceMotivesRule, hsourceMinorsRule]
+  have hsourceResidualGeneratedPrefix : sourceResidual =
+      ((E.frame.semantic.generated.outerAbstractedMotiveApp
+          A.rule.all_args_bound.fvars).abstractList
+        (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars ++
+          A.rule.minors_bound.fvars.take
+            (recursorMinorOffset indTypes owner + i))
+        (E.frame.semantic.generated.localArgs.size +
+          A.rule.allArgs.size)).liftLooseBVars'
+            E.frame.semantic.generated.localArgs.size j := by
+    rw [hsourceResidualOuterTransport, hmotiveAppAlignment,
+      hsourceBindersRule, hlocalArity, hsourceFields]
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D, originRoot, D.type, O, B, E,
     hhypothesisOrigins, rfl, hhypothesisRecInfos,
@@ -74156,6 +74206,8 @@ theorem
         simpa [sourceBinders, position] using hsourceResidualNormalized,
       by
         simpa [sourceBinders] using hsourceResidualOuterTransport,
+      by
+        simpa using hsourceResidualGeneratedPrefix,
       hhypothesisDomain,
       HhypothesisResidual, HhypothesisResidualType⟩,
     E.closed_typing⟩
