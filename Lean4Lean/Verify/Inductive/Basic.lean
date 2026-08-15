@@ -63074,6 +63074,88 @@ theorem
     hconsumed.trans hfields, by simpa [Us, htail] using Hsource,
     by simpa [Hext] using hconsumedTarget, Hcontexts⟩
 
+/-- Join the two executable passes at their consumed constructor-field
+contexts.  Each pass first translates the same original constructor tail in
+the final recursor root; translation uniqueness aligns those source-domain
+contexts, after which the retained whole-target conversions reach the
+literal consumed domains on each side. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorSemanticFieldAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
+        ∃ minorConsumedDomains ruleSemanticDomains,
+          minorConsumedDomains.length = A.rule.allArgs.size ∧
+          ruleSemanticDomains.length = A.rule.allArgs.size ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
+            (minorConsumedDomains.reverse ++
+              H.recursorWF.mlctx.vlctx.toCtx)
+            (ruleSemanticDomains.reverse ++
+              H.recursorWF.mlctx.vlctx.toCtx) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalSelectedMinorTransportedFieldContext with
+    ⟨S, HS, minorSourceDomains, minorSourceResidual,
+      minorConsumedDomains, _minorConsumedResidual, _hlocal, _htail,
+      hminorSource, hminorConsumed, HminorSource, _hminorTarget,
+      HminorContexts⟩
+  rcases A.semantics.fieldContextDefEq with
+    ⟨ruleSourceDomains, ruleSourceResidual, hruleSource,
+      hparameterTarget, HruleContexts⟩
+  let ruleSemanticDomains := A.semantics.fieldTelescope.domains
+  have hruleSemantic : ruleSemanticDomains.length =
+      A.rule.allArgs.size := by
+    exact A.semantics.fieldTelescope.domains_length
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have HruleSource₀ : TrExprS A.semantics.fieldRootContext.venv Us
+      A.semantics.fieldRootContext.mlctx.vlctx
+      A.semantics.parameterTail
+      (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
+    rw [← hparameterTarget]
+    exact A.semantics.parameterTranslation
+  have HruleSource : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
+      A.semantics.parameterTail
+      (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
+    have Hsource := HruleSource₀.mono hbase
+    simpa [A.semantics.fieldRoot_vlctx] using Hsource
+  have HminorSource' := HminorSource.mono hbase
+  have HrootWF : VLCtx.WF H.outVEnv Us.length
+      H.recursorWF.mlctx.vlctx :=
+    H.recursorWF.mlctx_wf.mono hbase
+  have HsourceTarget := HminorSource'.uniq H.outVEnvWF
+    (.refl H.outVEnvWF HrootWF) HruleSource
+  have Hbase : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      H.recursorWF.mlctx.vlctx.toCtx H.recursorWF.mlctx.vlctx.toCtx :=
+    .refl HrootWF.toCtx
+  have HsourceContexts := VEnv.IsDefEqU.wrapForalls_context
+    H.outVEnvWF Hbase (hminorSource.trans hruleSource.symm) HsourceTarget
+  have HminorContexts' := HminorContexts.mono hbase
+  have HruleContexts' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (ruleSourceDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+      (ruleSemanticDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
+    have Hcontexts := HruleContexts.mono hbase
+    simpa [ruleSemanticDomains, A.semantics.fieldRoot_vlctx] using Hcontexts
+  have HminorToSource := HminorContexts'.symm H.outVEnvWF.ordered
+  have HminorToRuleSource := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HminorToSource HsourceContexts
+  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HminorToRuleSource HruleContexts'
+  exact ⟨S, HS, minorConsumedDomains, ruleSemanticDomains,
+    hminorConsumed, hruleSemantic, Haligned⟩
+
 /-- Transport the shared constructor tail retained by the first minor pass
 into the exact parameter context and environment used by final rule
 generation.  This is the first semantic join between the two executable
