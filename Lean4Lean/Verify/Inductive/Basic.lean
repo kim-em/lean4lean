@@ -27378,6 +27378,10 @@ structure RecInfoMinorHypothesisTypeOrigins
     (c : AddInductive.Context) (fields hypotheses : Array Expr) where
   stats : AddInductive.InductiveStats
   recInfos : Array AddInductive.RecInfo
+  hypotheses_outer_fresh : ∀ fv,
+    fv ∈ ExprArrayFVarIds stats.params ++
+        ExprArrayFVarIds (recInfos.map (·.motive)) →
+      fv ∉ ExprArrayFVarIds hypotheses
   entry : ∀ j (hj : j < hypotheses.size),
     ∃ root sourceType,
       Nonempty (RecInfoMinorHypothesisTypeOrigin
@@ -42347,6 +42351,18 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         hypothesis_type_origins := some {
           stats := stats
           recInfos := recInfos
+          hypotheses_outer_fresh := by
+            intro fv houter hhypothesis
+            rw [Hparams.exprArrayFVarIds,
+              Hbindings.motives.exprArrayFVarIds] at houter
+            rw [(HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
+              ).exprArrayFVarIds] at hhypothesis
+            apply HhypothesesRecent.toFreshBoundFVarArray.fresh fv
+              hhypothesis
+            apply HextArgs.contextLE.fvars
+            rcases List.mem_append.mp houter with hparam | hmotive
+            · exact Hparams.members fv hparam
+            · exact Hbindings.motives.members fv hmotive
           entry := by
             intro j hj
             rcases HhypothesisOrigins.entry j hj with
