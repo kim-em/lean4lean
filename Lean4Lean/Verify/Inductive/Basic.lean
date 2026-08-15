@@ -30264,6 +30264,11 @@ structure RecInfoMinorSemanticSource
   traversal_eq : S.traversal = some traversal
   rootWF : RecursorContextWF traversal.rootContext recLparams
   terminalWF : RecursorContextWF traversal.terminalContext recLparams
+  parameterTarget : VExpr
+  parameterTranslation : TrExprS rootWF.venv recLparams
+    rootWF.mlctx.vlctx traversal.parameterTail parameterTarget
+  parameterType : rootWF.venv.IsType recLparams.length
+    rootWF.mlctx.vlctx.toCtx parameterTarget
   fieldsRecent : RecursorRecentBoundFVarArray rootWF terminalWF S.fields
   hypothesesRecent : RecursorRecentBoundFVarArray terminalWF sourceWF
     S.hypotheses
@@ -30296,6 +30301,9 @@ def RecInfoMinorSemanticSource.mono
   traversal_eq := HS.traversal_eq
   rootWF := HS.rootWF
   terminalWF := HS.terminalWF
+  parameterTarget := HS.parameterTarget
+  parameterTranslation := HS.parameterTranslation
+  parameterType := HS.parameterType
   fieldsRecent := HS.fieldsRecent
   hypothesesRecent := HS.hypothesesRecent
   terminalTarget := HS.terminalTarget
@@ -42919,6 +42927,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         traversal_eq := rfl
         rootWF := R
         terminalWF := Rargs
+        parameterTarget := tailTarget
+        parameterTranslation := htail
+        parameterType := htailType
         fieldsRecent := HfieldsRecent
         hypothesesRecent := HhypothesesRecent
         terminalTarget := terminalTarget
