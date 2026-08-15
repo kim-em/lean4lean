@@ -6557,6 +6557,33 @@ theorem MLCtxOnlyLams.narrowFVars
   | @vlet fv name type value type' value' tail ih =>
     exact H.vlet_false.elim
 
+/-- In a duplicate-free ambient list, filtering for the members of an
+ordered sublist recovers that sublist exactly. -/
+theorem List.filter_mem_eq_of_sublist_nodup
+    {selected ambient : List FVarId}
+    (hsub : selected <+ ambient) (hnodup : ambient.Nodup) :
+    ambient.filter (· ∈ selected) = selected := by
+  induction hsub with
+  | slnil => simp
+  | @cons selected' ambient' a hsub ih =>
+    have ha : a ∉ ambient' := (List.nodup_cons.mp hnodup).1
+    have haselected : a ∉ selected' := fun hmem => ha (hsub.subset hmem)
+    simp [haselected, ih (List.nodup_cons.mp hnodup).2]
+  | @cons_cons selected' ambient' a hsub ih =>
+    have ha : a ∉ ambient' := (List.nodup_cons.mp hnodup).1
+    have htail : ambient'.filter (· ∈ a :: selected') =
+        ambient'.filter (· ∈ selected') := by
+      apply List.filter_congr
+      intro x hx
+      have hxa : x ≠ a := by
+        intro heq
+        subst x
+        exact ha hx
+      simp [hxa]
+    simp only [List.filter_cons, List.mem_cons, true_or, decide_true,
+      Bool.true_eq, ↓reduceIte, htail]
+    rw [ih (List.nodup_cons.mp hnodup).2]
+
 /-- At the parameter/index boundary, discard the ambient prefix retained
 from previously checked mutual headers and keep the exact cached-parameter
 suffix as the semantic scope. -/
@@ -25510,7 +25537,8 @@ theorem RecursorRecentBoundFVarArray.contextFVars
   have hsplit := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
     R.mlctx xs.size H.size_le
   rw [H.drop_eq] at hsplit
-  have hprefix : (R.mlctx.vlctx.take xs.size).fvars = H.fvars.reverse := by
+  have hprefix : VLCtx.fvars (R.mlctx.vlctx.take xs.size) =
+      H.fvars.reverse := by
     rw [TypeChecker.MLCtx.vlctx_take_fvars]
     exact H.fvarRevList_eq
   rw [hsplit, VLCtx.fvars_append, hprefix]
@@ -26635,13 +26663,15 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           (R.mlctx.mkForall' bu.size Hrecent.size_le
             (.forallE consumedDom consumedBody)) :=
         ⟨.sort closedLevel, HclosedConsumed⟩
+      let Hrecent' := Hrecent.pushCurrent name dom.consumeTypeAnnotations
+        consumedDom bi Hdom.consumed Hdom.isType
       have HclosedConsumedRoot : Rroot.venv.IsDefEqU recLparams.length
           Rroot.mlctx.vlctx.toCtx
           (R.mlctx.mkForall' bu.size Hrecent.size_le typeTarget)
           (R'.mlctx.mkForall' (bu.push (.fvar ⟨c.ngen.curr⟩)).size
             Hrecent'.size_le consumedBody) := by
         simpa only [Hrecent.venv_eq, Hrecent.drop_eq, R',
-          RecursorContextWF.withLocalDecl_mlctx, Array.size_push,
+          RecursorContextWF.withLocalDecl, Array.size_push,
           TypeChecker.MLCtx.mkForall'] using HclosedConsumedU
       have hrootType' : Rroot.venv.IsDefEqU recLparams.length
           Rroot.mlctx.vlctx.toCtx rootTypeTarget
@@ -26652,8 +26682,6 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       have Hclass := isRecArg.refinesRecursor R' Hstats' hwhnf hconsume
         hlit hctx' hproj
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
-      let Hrecent' := Hrecent.pushCurrent name dom.consumeTypeAnnotations
-        consumedDom bi Hdom.consumed Hdom.isType
       have hopenFvars : Hopening.fvars =
           Hrecent.toBoundFVarArray.fvars :=
         Hopening.fvars_eq_bound Hrecent.toBoundFVarArray
@@ -48580,6 +48608,7 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
       (Hparams : BoundFVarArray cOut stats.params) →
       Hbindings.NoAlias Hparams →
+      RecInfoOuterOrder Rout Hparams Hbindings →
       RecInfoArities stats recInfos →
       (∀ i, i < recInfos.size →
         recInfos[i]!.minors.size = indTypes[i]!.ctors.length) →
@@ -63388,11 +63417,118 @@ theorem
             · exact List.mem_append_left _
                 (List.mem_append_right _ hmotive)
           · exact List.mem_append_right _
-              (List.mem_of_mem_take
-                (List.mem_take_of_mem hidxMinor hprior))
+              ((List.take_sublist_take_left
+                (Nat.le_of_lt hidxMinor)).subset hprior)
         · exact False.elim hfalse
     rw [hdEq] at hdep
     exact (fvarsIn_iff.mp HtypeScope).1 dep hdep
+
+/-- Chronological strengthening of `finalSelectedMinorPrefixUp`: the exact
+selected prefix occurs, newest first, inside the executable recursor
+context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPrefixOrder
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    sourceBinders.reverse <+ H.recursorWF.mlctx.vlctx.fvars := by
+  dsimp only
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  have hforward : sourceBinders <+
+      H.params.fvars ++ H.bindings.motives.fvars ++
+        H.bindings.flatMinors.fvars := by
+    dsimp only [sourceBinders]
+    exact (List.Sublist.refl
+      (H.params.fvars ++ H.bindings.motives.fvars)).append
+        (List.take_sublist minorIdx H.bindings.flatMinors.fvars)
+  exact hforward.reverse.trans H.outerOrder
+
+/-- Filtering the executable context by the selected-prefix predicate has
+no hidden reordering or extra binders. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorFilteredFVars
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    H.recursorWF.mlctx.vlctx.fvars.filter (· ∈ sourceBinders) =
+      sourceBinders.reverse := by
+  dsimp only
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  have horder : sourceBinders.reverse <+
+      H.recursorWF.mlctx.vlctx.fvars :=
+    A.finalSelectedMinorPrefixOrder
+  have hfiltered :=
+    checkInductiveTypes.loopType.List.filter_mem_eq_of_sublist_nodup horder
+    H.recursorWF.mlctx_wf.fvars_nodup
+  calc
+    H.recursorWF.mlctx.vlctx.fvars.filter (· ∈ sourceBinders) =
+        H.recursorWF.mlctx.vlctx.fvars.filter
+          (· ∈ sourceBinders.reverse) := by
+      apply List.filter_congr
+      intro fv _
+      simp
+    _ = sourceBinders.reverse := hfiltered
+
+/-- The dependency and ordering certificates together construct the exact
+non-contiguous semantic scope used to close the selected minor type. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorNarrowScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.recursorWF.venv Us scope H.recursorWF.mlctx.vlctx,
+        scope.fvars = sourceBinders.reverse := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  rcases checkInductiveTypes.loopType.MLCtxOnlyLams.narrowFVars
+      H.recursorWF.onlyLams
+      H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
+      (fun fv => fv ∈ sourceBinders) A.finalSelectedMinorPrefixUp with
+    ⟨scope, Hscope, hscope⟩
+  exact ⟨scope, Hscope, hscope.trans A.finalSelectedMinorFilteredFVars⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
@@ -63875,7 +64011,7 @@ theorem
     ∃ S : RecInfoMinorTypeShape,
       ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
-        ∃ minorConsumedDomains,
+        ∃ minorConsumedDomains : List VExpr,
           minorConsumedDomains.length = A.rule.allArgs.size ∧
           A.semantics.fieldTelescope.domains.length =
             A.rule.allArgs.size ∧
@@ -67457,7 +67593,7 @@ theorem
     ∃ S : RecInfoMinorTypeShape,
       ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
-        ∃ minorConsumedDomains,
+        ∃ minorConsumedDomains : List VExpr,
           minorConsumedDomains.length = A.rule.allArgs.size ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             (minorConsumedDomains.reverse ++
@@ -67859,7 +67995,7 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ checkedDomains equationFieldDomains,
+      ∃ checkedDomains equationFieldDomains : List VExpr,
         checkedDomains.length = A.rule.allArgs.size ∧
         equationFieldDomains =
           (liftContextPrefix (T.motives ++ T.minors).length
@@ -67978,7 +68114,7 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ checkedDomains equationFieldDomains,
+      ∃ checkedDomains equationFieldDomains : List VExpr,
         checkedDomains.length = A.rule.allArgs.size ∧
         equationFieldDomains =
           (liftContextPrefix (T.motives ++ T.minors).length
