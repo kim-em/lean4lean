@@ -27172,6 +27172,84 @@ theorem RecInfoMinorHypothesisTypeOrigin.abstractedMotiveApp_eq
   simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
   rw [hlocal]
 
+def RecInfoMinorHypothesisTypeOrigin.localIndices
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
+    List Nat :=
+  List.ofFn fun i : Fin O.arguments_bound.fvars.length =>
+    O.arguments_bound.fvars.length - 1 - i
+
+def RecInfoMinorHypothesisTypeOrigin.abstractedField
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
+    Expr :=
+  mkAppN (field.abstractList O.arguments_bound.fvars)
+    (O.localIndices.map Expr.bvar).toArray
+
+def RecInfoMinorHypothesisTypeOrigin.outerAbstractedField
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (binders : List FVarId) : Expr :=
+  O.abstractedField.abstractList binders O.args.size
+
+/-- After also closing an outer binder list, the selected first-pass field
+is the canonical outer de Bruijn variable shifted beneath its higher-order
+arguments and applied to their canonical local spine. -/
+theorem RecInfoMinorHypothesisTypeOrigin.outerAbstractedField_eq_bvar
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (hfieldEq : field = .fvar fv)
+    (hfieldRoot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup) (hfield : fv ∈ binders) :
+    ∃ fieldVar,
+      fieldVar < binders.length ∧
+      (Expr.fvar fv).abstractList binders = .bvar fieldVar ∧
+      O.outerAbstractedField binders =
+        mkAppN (.bvar (O.args.size + fieldVar))
+          (O.localIndices.map Expr.bvar).toArray := by
+  subst field
+  rcases List.mem_iff_getElem.mp hfield with ⟨i, hi, hget⟩
+  let fieldVar := binders.length - 1 - i
+  have hfresh : fv ∉ O.arguments_bound.fvars := by
+    intro hmem
+    exact O.arguments_bound.fresh fv hmem hfieldRoot
+  have hfieldLocal :
+      (Expr.fvar fv).abstractList O.arguments_bound.fvars = .fvar fv :=
+    Expr.abstractList_fvar_of_not_mem hfresh
+  have hlocalSize : O.args.size = O.arguments_bound.fvars.length := by
+    have h := congrArg Array.size O.arguments_bound.expressions
+    simpa using h
+  have hfieldOuter := Expr.abstractList_fvar_getElem
+    hbinders i hi (k := O.args.size)
+  rw [hget] at hfieldOuter
+  have hfieldOuter' :
+      (Expr.fvar fv).abstractList binders O.args.size =
+        .bvar (O.args.size + fieldVar) := by
+    simpa [fieldVar] using hfieldOuter
+  have hfieldBase := Expr.abstractList_fvar_getElem
+    hbinders i hi (k := 0)
+  rw [hget] at hfieldBase
+  have hfieldBase' : (Expr.fvar fv).abstractList binders =
+      .bvar fieldVar := by
+    simpa [fieldVar] using hfieldBase
+  have hsourceArgs :
+      (List.ofFn fun i : Fin O.arguments_bound.fvars.length =>
+        Expr.bvar (O.arguments_bound.fvars.length - 1 - i)) =
+      O.localIndices.map Expr.bvar := by
+    simp [RecInfoMinorHypothesisTypeOrigin.localIndices,
+      List.map_ofFn, Function.comp_def]
+  refine ⟨fieldVar, by omega, hfieldBase', ?_⟩
+  unfold RecInfoMinorHypothesisTypeOrigin.outerAbstractedField
+    RecInfoMinorHypothesisTypeOrigin.abstractedField
+  rw [Expr.abstractList_mkAppN, hfieldLocal, hfieldOuter']
+  apply congrArg (mkAppN (.bvar (O.args.size + fieldVar)))
+  rw [← hsourceArgs]
+  apply Array.ext
+  · simp
+  · intro j hjLeft hjRight
+    simp only [Array.getElem_map, List.getElem_toArray,
+      List.getElem_map, List.getElem_ofFn]
+    apply Expr.abstractList_bvar_lt
+    have hj : j < O.arguments_bound.fvars.length := by
+      simpa [RecInfoMinorHypothesisTypeOrigin.localIndices] using hjRight
+    omega
+
 /-- The constructed hypothesis origin cannot itself be a top-level parameter
 annotation: a nonempty local suffix produces a forall, while the empty case
 is the explicit motive application. -/
