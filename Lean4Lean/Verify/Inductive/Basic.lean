@@ -66359,6 +66359,102 @@ theorem
   exact ⟨outerScope, Houter, outerFields, outerResidual,
     houterFields, HouterTail, ⟨u, HouterType⟩, HouterPrefix⟩
 
+/-- The selected outer scope becomes the complete outer scope after the
+selected minor and every later minor are restored as an anonymous dependent
+prefix.  This is the base-context conversion underlying the natural
+full-prefix field application. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedToOuterPrefixDefEqCtx
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let selectedBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ selectedScope,
+      ∃ Hselected : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us selectedScope H.recursorWF.mlctx.vlctx,
+      ∃ outerScope,
+      ∃ Houter : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
+        selectedScope.fvars = selectedBinders.reverse ∧
+        Hselected.shift = fvarSelectionLift
+          H.recursorWF.mlctx.vlctx.fvars (· ∈ selectedBinders) ∧
+        outerScope.fvars = outerBinders.reverse ∧
+        Houter.shift = fvarSelectionLift
+          H.recursorWF.mlctx.vlctx.fvars (· ∈ outerBinders) ∧
+        let remaining := (T.minors.drop minorIdx).reverse
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          (remaining ++ selectedScope.toCtx) outerScope.toCtx := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let selectedBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
+  rcases A.finalSelectedMinorPrefixDefEqCtx with
+    ⟨T, selectedScope, Hselected, hselectedFVars, hselectedShift,
+      _hselectedSource, HselectedPrefix⟩
+  rcases A.finalOuterPrefixDefEqCtx with
+    ⟨T₁, outerScope, Houter, houterFVars, houterShift,
+      _houterSource, HouterPrefix⟩
+  rcases T₁.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams, hmotives, hminors] at HouterPrefix
+  let selectedBase := T.params ++ T.motives ++ T.minors.take minorIdx
+  let remaining := (T.minors.drop minorIdx).reverse
+  have hfullContext : remaining ++ selectedBase.reverse =
+      (T.params ++ T.motives ++ T.minors).reverse := by
+    have hsplit := List.take_append_drop minorIdx T.minors
+    have hminors : T.minors.reverse = remaining ++
+        (T.minors.take minorIdx).reverse := by
+      simpa only [remaining, List.reverse_append] using
+        congrArg List.reverse hsplit.symm
+    simp only [selectedBase, List.reverse_append]
+    rw [← List.append_assoc, hminors]
+  have HouterPrefix' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      outerScope.toCtx (remaining ++ selectedBase.reverse) := by
+    rw [hfullContext]
+    exact HouterPrefix
+  have Hremaining : OnCtx (remaining ++ selectedBase.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    have Hprefix := T.prefixContext H.outVEnvWF.ordered
+    have hsplit := List.take_append_drop minorIdx T.minors
+    have hminors : T.minors.reverse = remaining ++
+        (T.minors.take minorIdx).reverse := by
+      simpa only [remaining, List.reverse_append] using
+        congrArg List.reverse hsplit.symm
+    simp only [List.reverse_append] at Hprefix
+    rw [hminors] at Hprefix
+    simpa [selectedBase, remaining, List.reverse_append,
+      List.append_assoc] using Hprefix
+  have HselectedExtended :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
+      (HselectedPrefix.symm H.outVEnvWF.ordered) Hremaining
+  have HselectedExtended' := HselectedExtended.symm H.outVEnvWF.ordered
+  have Hbridge := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HselectedExtended' (HouterPrefix'.symm H.outVEnvWF.ordered)
+  exact ⟨T, selectedScope, Hselected, outerScope, Houter,
+    hselectedFVars, hselectedShift, houterFVars, houterShift, by
+      simpa [selectedBase, remaining, List.append_assoc] using Hbridge⟩
+
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
 same owner/constructor coordinates used by the rule traversal. -/
