@@ -27049,6 +27049,40 @@ structure RecInfoMinorTraversalShape where
   fieldTelescope : Expr.ForallTelescope parameterTail fields.size fieldResidual
   fieldResidual_not_forall : fieldResidual.isForall = false
 
+/-- Stable source construction for one installed recursive-hypothesis
+declaration.  This compact form is stored with the generated minor after the
+operational `loopU` accumulator itself has gone out of scope. -/
+structure RecInfoMinorHypothesisTypeOrigin
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (root : AddInductive.Context) (field type : Expr) where
+  current : AddInductive.Context
+  current_wf : BindingContextWF current
+  current_extends : BindingContextLE root current
+  exposedType : Expr
+  args : Array Expr
+  arguments_bound : FreshBoundFVarArray root current args
+  ownerIdx : Nat
+  owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
+  type_eq :
+    let itIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[ownerIdx]!.motive itIndices)
+      (mkAppN field args)
+    type = current.lctx.mkForall args motiveApp
+
+/-- Completed pointwise origin data retained by one generated minor. -/
+structure RecInfoMinorHypothesisTypeOrigins
+    (c : AddInductive.Context) (fields hypotheses : Array Expr) where
+  stats : AddInductive.InductiveStats
+  recInfos : Array AddInductive.RecInfo
+  entry : ∀ j (hj : j < hypotheses.size),
+    ∃ root sourceType,
+      Nonempty (RecInfoMinorHypothesisTypeOrigin
+        stats recInfos root fields[j]! sourceType) ∧
+      ∃ D : BoundFVarDeclarationAt c hypotheses j,
+        D.type = sourceType.consumeTypeAnnotations
+
 /-- The exact source construction retained for one generated minor domain.
 The source local context is intentionally stored in the certificate: after
 `mkForall` closes the freshly introduced fields and recursive hypotheses, the
@@ -27069,6 +27103,9 @@ structure RecInfoMinorTypeShape where
   hypotheses : Array Expr
   hypotheses_bound : BoundFVarArray sourceFullContext hypotheses
   hypotheses_nodup : hypotheses_bound.fvars.Nodup
+  hypothesis_type_origins : Option
+    (RecInfoMinorHypothesisTypeOrigins
+      sourceFullContext recursiveFields hypotheses)
   hypotheses_size : hypotheses.size = recursiveFields.size
   traversal : Option RecInfoMinorTraversalShape
   motiveApp : Expr
@@ -41142,6 +41179,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr),
       RecursorRecentBoundFVarArray R Rout values →
+      RecInfoHypothesisTypeOrigins stats recInfos out u values →
       values.size = u.size →
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q := by
@@ -41174,8 +41212,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     HappliedType hvalid
   exact Happ Rnext Rcurrent HfieldAt Hexposed Hdefeq Hterminal Hargs
     Happlied HappliedType hvalid
-  · intro out Rout values Hvalues _HvalueOrigins hsize
-    apply Hk Rout values Hvalues
+  · intro out Rout values Hvalues HvalueOrigins hsize
+    apply Hk Rout values Hvalues HvalueOrigins
     simpa using hsize
 
 /-- Close the semantic induction-hypothesis loop from the retained
@@ -41218,6 +41256,7 @@ theorem resultSemanticsOfMotiveApplications
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr),
       RecursorRecentBoundFVarArray R Rout values →
+      RecInfoHypothesisTypeOrigins stats recInfos out u values →
       values.size = u.size →
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q := by
@@ -41266,8 +41305,8 @@ theorem resultSemanticsOfMotiveApplications
     (Hprior.contextExtension.trans Hargs.contextExtension)
     target htarget Hexposed Hdefeq
     Hterminal Happlied HappliedType Hvalidated
-  · intro out Rout values Hvalues _HvalueOrigins hsize
-    apply Hk Rout values Hvalues
+  · intro out Rout values Hvalues HvalueOrigins hsize
+    apply Hk Rout values Hvalues HvalueOrigins
     simpa using hsize
 
 /-- Shared-telescope form used by the strengthened first pass. -/
@@ -41305,6 +41344,7 @@ theorem resultSemanticsOfMotiveTelescopes
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr),
       RecursorRecentBoundFVarArray R Rout values →
+      RecInfoHypothesisTypeOrigins stats recInfos out u values →
       values.size = u.size →
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q :=
@@ -41672,7 +41712,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       (Hselections.selectedFVars
         HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray Hrecursive)
       HtelescopesArgs HbindingsArgs HoriginsArgs HmotiveShapesArgs hrecords
-  intro outCtx Rout hypotheses HhypothesesRecent hhypothesesSize
+  intro outCtx Rout hypotheses HhypothesesRecent HhypothesisOrigins
+    hhypothesesSize
   let HextAll := HextArgs.trans HhypothesesRecent.contextExtension
   have HmotiveAt : TrExprS Rout.venv recLparams Rout.mlctx.vlctx
       (Expr.app
@@ -41789,6 +41830,23 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
         hypotheses_nodup :=
           HhypothesesRecent.toFreshBoundFVarArray.nodup
+        hypothesis_type_origins := some {
+          stats := stats
+          recInfos := recInfos
+          entry := by
+            intro j hj
+            rcases HhypothesisOrigins.entry j hj with
+              ⟨originRoot, sourceType, ⟨O⟩, D, htype⟩
+            exact ⟨originRoot, sourceType, ⟨{
+              current := O.current
+              current_wf := O.current_wf
+              current_extends := O.current_extends
+              exposedType := O.exposedType
+              args := O.args
+              arguments_bound := O.arguments_bound
+              ownerIdx := O.ownerIdx
+              owner_valid := O.owner_valid
+              type_eq := O.type_eq }⟩, D, htype⟩ }
         hypotheses_size := hhypothesesSize
         traversal := some {
           constructor := ctor
@@ -42130,6 +42188,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           hypotheses := v
           hypotheses_bound := Hv.toBoundFVarArray
           hypotheses_nodup := Hv.nodup
+          hypothesis_type_origins := none
           hypotheses_size := by simpa using hvSize
           traversal := none
           motiveApp := motiveApp
