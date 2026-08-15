@@ -6357,6 +6357,169 @@ def NarrowRuntimeScope.withIndex
     checkPositivityStep.VLCtx.NoIndConsts.cons
       (H.noIndConsts names) rfl
 
+/-- A dependency-closed semantic subcontext of an executable all-lambda
+context.  Unlike `NarrowRuntimeScope`, this deliberately has no contiguous
+`front`: callers may retain one named local, skip the next, and retain a
+later one.  That is the shape of the recursor context, where indices and
+majors are interleaved with the motives selected by the generated telescope.
+-/
+structure FVarNarrowScope (env : VEnv) (Us : List Name)
+    (scope runtime : VLCtx) : Type where
+  expanded : VLCtx
+  shift : Lift
+  lift : VLCtx.FVLift' scope expanded 0 shift 0
+  context : VLCtx.IsDefEq env Us.length expanded runtime
+  upset : IsFVarUpSet (· ∈ scope.fvars) runtime
+  noBV : scope.NoBV
+
+theorem FVarNarrowScope.scopeWF
+    (H : FVarNarrowScope env Us scope runtime)
+    (henv : env.WF) : scope.WF env Us.length :=
+  H.lift.wf henv H.context.wf
+
+def FVarNarrowScope.nil : FVarNarrowScope env Us [] [] where
+  expanded := []
+  shift := .refl
+  lift := .refl
+  context := .nil
+  upset := trivial
+  noBV := rfl
+
+theorem FVarNarrowScope.restrict
+    (H : FVarNarrowScope env Us scope runtime)
+    (henv : env.WF)
+    (htr : TrExprS env Us runtime source target)
+    (hclosed : Closed source 0)
+    (hfvars : FVarsIn (· ∈ scope.fvars) source) :
+    ∃ target', TrExprS env Us scope source target' := by
+  exact htr.weakFV'_inv henv H.lift
+    (H.context.symm henv.ordered) hclosed hfvars
+
+/-- Retain one newly introduced named lambda.  Its semantic domain is
+obtained by inverse weakening; the executable domain need only be
+definitionally equal after weakening back into the expanded context. -/
+def FVarNarrowScope.withIndex
+    (H : FVarNarrowScope env Us scope runtime)
+    (hnewRuntime : VLCtx.WF env Us.length
+      ((some (fv, deps), .vlam runtimeType) :: runtime))
+    (hdeps : deps ⊆ scope.fvars)
+    (hdomain : env.IsDefEq Us.length H.expanded.toCtx
+      (indexType.lift' H.shift) runtimeType (.sort u)) :
+    FVarNarrowScope env Us
+      ((some (fv, deps), .vlam indexType) :: scope)
+      ((some (fv, deps), .vlam runtimeType) :: runtime) where
+  expanded :=
+    (some (fv, deps), .vlam (indexType.lift' H.shift)) :: H.expanded
+  shift := H.shift.consN 1
+  lift := H.lift.cons_fvar (fv, deps) (.vlam indexType) hdeps
+  context := .cons H.context (by
+    have hfresh := hnewRuntime.2.1
+    simpa [H.context.fvars] using hfresh) (.vlam hdomain)
+  upset := by
+    have hfresh := hnewRuntime.2.1
+    refine ⟨?_, ?_⟩
+    · apply (IsFVarUpSet.congr hnewRuntime.1.fvwf ?_).2 H.upset
+      intro fv' hmem
+      simp only [VLCtx.fvars_cons_some, List.mem_cons]
+      constructor
+      · intro h
+        rcases h with rfl | h
+        · exact False.elim (hfresh _ _ rfl |>.1 hmem)
+        · exact h
+      · exact Or.inr
+    · intro _ dep hdep
+      exact List.mem_cons_of_mem _ (hdeps hdep)
+  noBV := H.noBV
+
+/-- Skip one newly introduced named lambda while preserving a previously
+selected, possibly non-contiguous semantic scope. -/
+def FVarNarrowScope.skipIndex
+    (H : FVarNarrowScope env Us scope runtime)
+    (henv : env.WF)
+    (hnewRuntime : VLCtx.WF env Us.length
+      ((some (fv, deps), .vlam runtimeType) :: runtime))
+    (hskip : fv ∉ scope.fvars) :
+    FVarNarrowScope env Us scope
+      ((some (fv, deps), .vlam runtimeType) :: runtime) where
+  expanded := (some (fv, deps), .vlam runtimeType) :: H.expanded
+  shift := H.shift.skipN 1
+  lift := H.lift.skip_fvar (fv, deps) (.vlam runtimeType)
+  context := by
+    have Htype : env.IsType Us.length H.expanded.toCtx runtimeType :=
+      hnewRuntime.2.2.defeqDFC henv.ordered
+        (H.context.defeqCtx.symm henv.ordered)
+    rcases Htype with ⟨level, Htype⟩
+    exact .cons H.context (by
+      have hfresh := hnewRuntime.2.1
+      simpa [H.context.fvars] using hfresh)
+      (VLocalDecl.IsDefEq.refl henv H.context.wf.toCtx
+        ⟨level, Htype⟩)
+  upset := by
+    refine ⟨H.upset, ?_⟩
+    intro hmem
+    exact False.elim (hskip hmem)
+  noBV := H.noBV
+
+/-- Narrow an executable all-lambda context to exactly the free variables
+selected by a dependency-closed predicate.  Retained source domains are
+translated in the already narrowed tail; skipped declarations remain only
+in the comparison context. -/
+theorem MLCtxOnlyLams.narrowFVars
+    (H : MLCtxOnlyLams c)
+    (henv : env.WF)
+    (Hwf : c.WF env Us)
+    (P : FVarId → Prop) [DecidablePred P]
+    (hup : IsFVarUpSet P c.vlctx) :
+    ∃ scope, ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
+      scope.fvars = c.vlctx.fvars.filter P := by
+  induction c with
+  | nil => exact ⟨[], .nil, rfl⟩
+  | @vlam fv name type type' bi tail ih =>
+    have HruntimeWF := Hwf.tr.wf
+    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
+    rcases ih H.tail_vlam HtailWF hup.1 with
+      ⟨tailScope, HtailScope, htailScopeFVars⟩
+    by_cases hP : P fv
+    · have hdeps : type.fvarsList ⊆ tailScope.fvars := by
+        intro dep hdep
+        rw [htailScopeFVars]
+        exact List.mem_filter.mpr ⟨Htype.fvarsList hdep, by
+          simpa using hup.2 hP dep hdep⟩
+      have hclosed : Closed type 0 := by
+        have h := Htype.closed
+        rw [tail.noBV] at h
+        exact h
+      have htypeFVars : FVarsIn (· ∈ tailScope.fvars) type := by
+        apply fvarsIn_iff.mpr
+        refine ⟨hdeps, ?_⟩
+        exact Htype.fvarsIn.mono fun _ _ => trivial
+      rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+        ⟨narrowType, HnarrowType⟩
+      have Hweak : TrExprS env Us HtailScope.expanded type
+          (narrowType.lift' HtailScope.shift) := by
+        simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
+          HtailScope.context.wf
+      have HtargetEq := Hweak.uniq henv HtailScope.context Htype
+      have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
+          type' :=
+        HtypeType.defeqDFC henv.ordered
+          (HtailScope.context.symm henv.ordered).defeqCtx
+      rcases HtargetType with ⟨u, HtargetType⟩
+      have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
+          (narrowType.lift' HtailScope.shift) type' (.sort u) :=
+        HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+      let Hnext := HtailScope.withIndex HruntimeWF hdeps Hdomain
+      exact ⟨_, Hnext, by
+        simp [Hnext, htailScopeFVars, hP]⟩
+    · have hskip : fv ∉ tailScope.fvars := by
+        rw [htailScopeFVars]
+        simp [hP]
+      let Hnext := HtailScope.skipIndex henv HruntimeWF hskip
+      exact ⟨_, Hnext, by
+        simp [Hnext, htailScopeFVars, hP]⟩
+  | @vlet fv name type value type' value' tail ih =>
+    exact H.vlet_false.elim
+
 /-- At the parameter/index boundary, discard the ambient prefix retained
 from previously checked mutual headers and keep the exact cached-parameter
 suffix as the semantic scope. -/
