@@ -53407,6 +53407,29 @@ theorem Expr.SameForallPrefix.translatedTargets
   subst right
   exact Hleft.uniq henv hctx Hright
 
+/-- One dependent-context induction step for two independently translated
+forall domains.  A converted prior context, the alpha-independent common
+prefix, and equality of the normalized residual sources suffice to extend
+the conversion by the complete translated domain. -/
+theorem Expr.SameForallPrefix.extendTranslatedContext
+    (H : Expr.SameForallPrefix n left right)
+    (henv : VEnv.WF env)
+    (hctx : VLCtx.IsDefEq env Us.length leftCtx rightCtx)
+    (HleftTelescope : Expr.ForallTelescope left n leftResidual)
+    (HrightTelescope : Expr.ForallTelescope right n rightResidual)
+    (hresidual : leftResidual = rightResidual)
+    (Hleft : TrExprS env Us leftCtx left leftTarget)
+    (Hright : TrExprS env Us rightCtx right rightTarget)
+    (HleftType : env.IsType Us.length leftCtx.toCtx leftTarget) :
+    VLCtx.IsDefEq env Us.length
+      ((none, .vlam leftTarget) :: leftCtx)
+      ((none, .vlam rightTarget) :: rightCtx) := by
+  have Htarget := H.translatedTargets henv hctx HleftTelescope
+    HrightTelescope hresidual Hleft Hright
+  rcases HleftType with ⟨level, HleftTyping⟩
+  have Hdomain := Htarget.of_l henv hctx.wf.toCtx HleftTyping
+  exact .cons hctx nofun (.vlam Hdomain)
+
 theorem Expr.SameForallPrefix.instantiate1'
     (H : Expr.SameForallPrefix n left right) (arg : Expr) (k : Nat := 0) :
     Expr.SameForallPrefix n
