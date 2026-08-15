@@ -27410,6 +27410,8 @@ structure RecInfoMinorTypeShape where
   hypotheses : Array Expr
   hypotheses_bound : BoundFVarArray sourceFullContext hypotheses
   hypotheses_nodup : hypotheses_bound.fvars.Nodup
+  hypotheses_fields_fresh : ∀ fv ∈ hypotheses_bound.fvars,
+    fv ∉ fields_bound.fvars
   hypothesis_type_origins : Option
     (RecInfoMinorHypothesisTypeOrigins
       sourceFullContext recursiveFields hypotheses)
@@ -42348,6 +42350,12 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
         hypotheses_nodup :=
           HhypothesesRecent.toFreshBoundFVarArray.nodup
+        hypotheses_fields_fresh := by
+          intro fv hhypothesis hfield
+          apply HhypothesesRecent.toFreshBoundFVarArray.fresh fv
+            hhypothesis
+          exact HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.members
+            fv hfield
         hypothesis_type_origins := some {
           stats := stats
           recInfos := recInfos
@@ -42722,6 +42730,10 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           hypotheses := v
           hypotheses_bound := Hv.toBoundFVarArray
           hypotheses_nodup := Hv.nodup
+          hypotheses_fields_fresh := by
+            intro fv hhypothesis hfield
+            exact Hv.fresh fv hhypothesis
+              (Hbu.toBoundFVarArray.members fv hfield)
           hypothesis_type_origins := none
           hypotheses_size := by simpa using hvSize
           traversal := none
