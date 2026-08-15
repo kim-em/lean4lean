@@ -398,6 +398,17 @@ def liftForallDomains : List VExpr → Lift → List VExpr
   | nil => rfl
   | cons _ domains ih => simp [liftForallDomains, ih]
 
+/-- Lifting a dependent forall telescope is prefix-stable: later domains do
+not affect the translated representatives of an earlier prefix. -/
+theorem liftForallDomains_append_take_left
+    (left right : List VExpr) (shift : Lift) :
+    (liftForallDomains (left ++ right) shift).take left.length =
+      liftForallDomains left shift := by
+  induction left generalizing shift with
+  | nil => rfl
+  | cons domain left ih =>
+    simp [liftForallDomains, ih]
+
 /-- Exact form of `VExpr.lift'_wrapForalls_shape`, with a domain transform
 independent of the residual.  This independence is what permits a context
 conversion extracted from one translated residual to be closed around a
@@ -64260,6 +64271,8 @@ theorem
           (H.recInfos.flatMap (·.minors)) minorIdx,
       ∃ O : H.origins.FlatMinorOrigin D,
       ∃ S : RecInfoMinorTypeShape,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
       ∃ scope,
       ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
@@ -64798,6 +64811,9 @@ theorem
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ narrowTarget,
       ∃ fullTarget,
+        S.fields.size = A.rule.allArgs.size ∧
+        S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        HS.semantic.traversal.parameterTail = A.semantics.parameterTail ∧
         scope.fvars = sourceBinders.reverse ∧
         TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
           S.origin fullTarget ∧
@@ -64833,7 +64849,7 @@ theorem
     ⟨T, S, _hypothesisOrigins, _traversal,
       _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
       _htraversal, _htraversalFields, _htraversalRecursiveFields,
-      _htraversalStats, _hparameterTail, _hpositions, _hlocal,
+      _htraversalStats, hparameterTail, _hpositions, _hlocal,
       hfields, hhypotheses, _hsourceContext, Hsemantic, Hinstalled⟩
   rcases Hsemantic with ⟨HS⟩
   rcases A.finalSelectedMinorPrefixDefEqCtx with
@@ -64899,9 +64915,9 @@ theorem
   have HclosedTyped := Hscope.closeTypedTelescope H.outVEnvWF
     Hnarrow HnarrowType
   rw [hscopeSourceOut] at HclosedTyped
-  exact ⟨T, S, scope, Hscope, narrowTarget, fullTarget, hscope,
-    Hfull, HfullEq, hscopeSourceOut, Hprefix, HabstractTyped,
-    HclosedTyped, Hinstalled⟩
+  exact ⟨T, S, HS, scope, Hscope, narrowTarget, fullTarget,
+    hfields, hhypotheses, hparameterTail, hscope, Hfull, HfullEq,
+    hscopeSourceOut, Hprefix, HabstractTyped, HclosedTyped, Hinstalled⟩
 
 /-- Turn the inverse-weakening equality retained by
 `finalSelectedMinorExactClosedTelescope` into a conversion of the complete
@@ -64925,14 +64941,23 @@ theorem
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
-    ∃ scope,
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
+      ∃ scope,
       ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
           H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
       ∃ narrowDomains fullDomains weakenedDomains,
       ∃ narrowResidual fullResidual weakenedResidual,
+        S.fields.size = A.rule.allArgs.size ∧
+        S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        HS.semantic.traversal.parameterTail = A.semantics.parameterTail ∧
         narrowDomains.length = arity ∧
         fullDomains.length = arity ∧
         weakenedDomains.length = arity ∧
+        HS.semantic.consumedTarget.lift'
+            (HS.semantic.extension.shift.consN 0) =
+          VExpr.wrapForalls fullDomains fullResidual ∧
         (VExpr.wrapForalls narrowDomains narrowResidual).lift' Hscope.shift =
           VExpr.wrapForalls weakenedDomains weakenedResidual ∧
         VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -64942,9 +64967,9 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
   rcases A.finalSelectedMinorExactClosedTelescope hpositive with
-    ⟨_T, S, scope, Hscope, narrowTarget, fullTarget, _hscope,
-      Hfull, HfullEq, _hscopeSource, _Hprefix, Hnarrow, _Hclosed,
-      _Hinstalled⟩
+    ⟨_T, S, HS, scope, Hscope, narrowTarget, fullTarget, hfields,
+      hhypotheses, hparameterTail, _hscope, Hfull, HfullEq,
+      _hscopeSource, _Hprefix, Hnarrow, _Hclosed, _Hinstalled⟩
   rcases Hnarrow.toWrapForalls with
     ⟨narrowDomains, narrowSourceResidual, narrowResidual,
       hnarrowLength, _HnarrowSource, hnarrowTarget,
@@ -65001,9 +65026,11 @@ theorem
     .refl HruntimeWF
   have Hcontexts := VEnv.IsDefEqU.wrapForalls_context
     H.outVEnvWF Hbase (hfullLength.trans hweakenedLength'.symm) Hwhole
-  exact ⟨scope, Hscope, narrowDomains, fullDomains, weakenedDomains,
-    narrowResidual, fullResidual, weakenedResidual, hnarrowLength,
-    hfullLength, hweakenedLength', hweakenedTarget, Hcontexts⟩
+  exact ⟨S, HS, scope, Hscope, narrowDomains, fullDomains,
+    weakenedDomains, narrowResidual, fullResidual, weakenedResidual,
+    hfields, hhypotheses, hparameterTail, hnarrowLength, hfullLength,
+    hweakenedLength', by simpa [fullTarget] using hfullTarget,
+    hweakenedTarget, Hcontexts⟩
 
 /-- Compare every field and recursive-hypothesis domain of the independently
 replayed minor with the corresponding domain stored in the generated
@@ -65051,9 +65078,9 @@ theorem
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
   rcases A.finalSelectedMinorExactClosedTelescope hpositive with
-    ⟨T, S, scope, _Hscope, narrowTarget, _fullTarget, _hscope,
-      _Hfull, _HfullEq, _hscopeSource, Hprefix, Hnarrow, _Hclosed,
-      Hinstalled⟩
+    ⟨T, S, _HS, scope, _Hscope, narrowTarget, _fullTarget, _hfields,
+      _hhypotheses, _hparameterTail, _hscope, _Hfull, _HfullEq,
+      _hscopeSource, Hprefix, Hnarrow, _Hclosed, Hinstalled⟩
   rcases Hnarrow.toWrapForalls with
     ⟨narrowDomains, narrowSourceResidual, narrowResidual,
       hnarrowLength, _HnarrowSource, hnarrowTarget,
@@ -65767,6 +65794,107 @@ theorem
     consumedResidual, hlocal, htail, hsource.trans hfields,
     hconsumed.trans hfields, by simpa [Us, htail] using Hsource,
     by simpa [Hext] using hconsumedTarget, Hcontexts⟩
+
+/-- Witness-stable form of `finalSelectedMinorSemanticFieldAlignment`.
+Callers that already retain the selected first-pass semantic source can join
+it to the rule-generation field telescope without selecting a second shape
+or semantic extension. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorSemanticFieldAlignmentFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (S : RecInfoMinorTypeShape)
+    (HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+      H.parameterSuffix.parameterDecls)
+    (htail : HS.semantic.traversal.parameterTail =
+      A.semantics.parameterTail)
+    (hfields : S.fields.size = A.rule.allArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ minorConsumedDomains : List VExpr,
+      ∃ minorConsumedResidual,
+      minorConsumedDomains.length = A.rule.allArgs.size ∧
+      (VExpr.wrapForalls HS.semantic.fieldDomains
+        HS.semantic.terminalTarget).lift'
+          ((((HS.semantic.fieldsRecent.contextExtension.trans
+            HS.semantic.hypothesesRecent.contextExtension).trans
+              HS.semantic.extension).shift.consN 0)) =
+          VExpr.wrapForalls minorConsumedDomains minorConsumedResidual ∧
+      A.semantics.fieldTelescope.domains.length = A.rule.allArgs.size ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        (minorConsumedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+        (A.semantics.fieldTelescope.domains.reverse ++
+          H.recursorWF.mlctx.vlctx.toCtx) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Hext : RecursorContextExtension HS.semantic.rootWF H.recursorWF :=
+    (HS.semantic.fieldsRecent.contextExtension.trans
+      HS.semantic.hypothesesRecent.contextExtension).trans
+        HS.semantic.extension
+  rcases HS.semantic.fieldContextDefEqMono Hext with
+    ⟨minorSourceDomains, minorSourceResidual, minorConsumedDomains,
+      minorConsumedResidual, hminorSource, hminorConsumed,
+      HminorSource, hminorTarget, HminorContexts⟩
+  rcases A.semantics.fieldContextDefEq with
+    ⟨ruleSourceDomains, ruleSourceResidual, hruleSource,
+      hparameterTarget, HruleContexts⟩
+  let ruleSemanticDomains := A.semantics.fieldTelescope.domains
+  have hruleSemantic : ruleSemanticDomains.length =
+      A.rule.allArgs.size := A.semantics.fieldTelescope.domains_length
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have HruleSource₀ : TrExprS A.semantics.fieldRootContext.venv Us
+      A.semantics.fieldRootContext.mlctx.vlctx
+      A.semantics.parameterTail
+      (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
+    rw [← hparameterTarget]
+    exact A.semantics.parameterTranslation
+  have hsemanticRoot : A.semantics.fieldRootContext.venv =
+      H.recursorWF.venv :=
+    A.semantics.fieldsRecent.venv_eq.symm.trans A.semantics.context_venv
+  rw [hsemanticRoot] at HruleSource₀ HruleContexts
+  have HruleSource : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
+      A.semantics.parameterTail
+      (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
+    have Hsource := HruleSource₀.mono hbase
+    simpa [A.semantics.fieldRoot_vlctx] using Hsource
+  have HminorSource' : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
+      A.semantics.parameterTail
+      (VExpr.wrapForalls minorSourceDomains minorSourceResidual) := by
+    have Hsource := HminorSource.mono hbase
+    simpa only [htail] using Hsource
+  have HrootWF : VLCtx.WF H.outVEnv Us.length
+      H.recursorWF.mlctx.vlctx :=
+    (H.recursorWF.mlctx_wf.mono hbase).tr.wf
+  have HsourceTarget := HminorSource'.uniq H.outVEnvWF
+    (.refl H.outVEnvWF HrootWF) HruleSource
+  have Hbase : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      H.recursorWF.mlctx.vlctx.toCtx H.recursorWF.mlctx.vlctx.toCtx :=
+    .refl HrootWF.toCtx
+  have HsourceContexts := VEnv.IsDefEqU.wrapForalls_context
+    H.outVEnvWF Hbase
+      ((hminorSource.trans hfields).trans hruleSource.symm) HsourceTarget
+  have HminorContexts' := HminorContexts.mono hbase
+  have HruleContexts' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (ruleSourceDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+      (ruleSemanticDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
+    have Hcontexts := HruleContexts.mono hbase
+    simpa [ruleSemanticDomains, A.semantics.fieldRoot_vlctx] using Hcontexts
+  have HminorToSource := HminorContexts'.symm H.outVEnvWF.ordered
+  have HminorToRuleSource := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HminorToSource HsourceContexts
+  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HminorToRuleSource HruleContexts'
+  exact ⟨minorConsumedDomains, minorConsumedResidual,
+    hminorConsumed.trans hfields, hminorTarget, hruleSemantic, Haligned⟩
 
 /-- Join the two executable passes at their consumed constructor-field
 contexts.  Each pass first translates the same original constructor tail in
@@ -69439,6 +69567,202 @@ theorem
               A.semantics.fieldRootContext.mlctx.vlctx.toCtx) from
         ⟨hsemanticFields, hsemanticContext', hfrontExpanded, hexpanded,
           HfieldBase, Hcontexts⟩)
+
+/-- Witness-stable composition of a retained first-pass consumed field
+context with the fixed rule-wide narrow frame. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorExpandedFieldAlignmentFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (S : RecInfoMinorTypeShape)
+    (HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+      H.parameterSuffix.parameterDecls)
+    (htail : HS.semantic.traversal.parameterTail =
+      A.semantics.parameterTail)
+    (hfields : S.fields.size = A.rule.allArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ minorConsumedDomains : List VExpr,
+      ∃ minorConsumedResidual,
+      minorConsumedDomains.length = A.rule.allArgs.size ∧
+      (VExpr.wrapForalls HS.semantic.fieldDomains
+        HS.semantic.terminalTarget).lift'
+          ((((HS.semantic.fieldsRecent.contextExtension.trans
+            HS.semantic.hypothesesRecent.contextExtension).trans
+              HS.semantic.extension).shift.consN 0)) =
+        VExpr.wrapForalls minorConsumedDomains minorConsumedResidual ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        (minorConsumedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+        B.runtime.expanded.toCtx := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases A.finalSelectedMinorSemanticFieldAlignmentFor S HS htail hfields with
+    ⟨minorConsumedDomains, minorConsumedResidual, hminor,
+      hminorTarget, _hrule, Hminor⟩
+  rcases B.semanticFieldContext with
+    ⟨_hrule', _hsemanticContext, _hexpandedLength,
+      _hexpandedContext, _HfieldBase, Hexpanded⟩
+  have Hexpanded' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      B.runtime.expanded.toCtx
+      (A.semantics.fieldTelescope.domains.reverse ++
+        H.recursorWF.mlctx.vlctx.toCtx) := by
+    simpa [A.semantics.fieldRoot_vlctx] using Hexpanded
+  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF Hminor
+    (Hexpanded'.symm H.outVEnvWF.ordered)
+  exact ⟨minorConsumedDomains, minorConsumedResidual, hminor,
+    by simpa using hminorTarget, Haligned⟩
+
+/-- The field prefix obtained by translating the complete original minor in
+the full recursor context is definitionally equal to the fixed narrow-field
+runtime frame.  The proof passes through the exact first-pass replay target,
+whose lifted field-domain prefix is independent of its hypothesis/motive
+residual. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorFullFieldAlignmentWithNarrowFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ fullFields,
+      fullFields.length = A.rule.allArgs.size ∧
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        (fullFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+        B.runtime.expanded.toCtx := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
+  rcases A.finalSelectedMinorNarrowFullContextAlignment hpositive with
+    ⟨S, HS, _scope, _Hscope, _narrowDomains, fullDomains,
+      _weakenedDomains, _narrowResidual, fullResidual,
+      _weakenedResidual, hfields, hhypotheses, htail,
+      _hnarrowLength, hfullLength, _hweakenedLength, hfullTarget,
+      _hweakenedTarget, _HnarrowFull⟩
+  rcases A.finalSelectedMinorExpandedFieldAlignmentFor
+      B S HS htail hfields with
+    ⟨minorConsumedDomains, minorConsumedResidual, hminorConsumed,
+      hminorTarget, HminorNarrow⟩
+  let Hext : RecursorContextExtension HS.semantic.rootWF H.recursorWF :=
+    (HS.semantic.fieldsRecent.contextExtension.trans
+      HS.semantic.hypothesesRecent.contextExtension).trans
+        HS.semantic.extension
+  let semanticDomains :=
+    HS.semantic.fieldDomains ++ HS.semantic.hypothesisDomains
+  have hsemanticFields : HS.semantic.fieldDomains.length =
+      S.fields.size :=
+    HS.semantic.terminalWF.onlyLams.forallDomains_length S.fields.size
+      HS.semantic.fieldsRecent.size_le
+  have hsemanticHypotheses : HS.semantic.hypothesisDomains.length =
+      S.hypotheses.size :=
+    HS.semantic.sourceWF.onlyLams.forallDomains_length S.hypotheses.size
+      HS.semantic.hypothesesRecent.size_le
+  have hsemanticLength : semanticDomains.length = arity := by
+    simp [semanticDomains, hsemanticFields, hsemanticHypotheses,
+      hfields, hhypotheses, arity]
+  have Hreplayed₀ := HS.semantic.replayedSourceDefEqConsumed
+  have Hreplayed₁ := HS.semantic.extension.weakDefEqU Hreplayed₀
+  have Hreplayed : H.outVEnv.IsDefEqU Us.length
+      H.recursorWF.mlctx.vlctx.toCtx
+      ((VExpr.wrapForalls semanticDomains HS.semantic.motiveTarget).lift'
+        (Hext.shift.consN 0))
+      (HS.semantic.consumedTarget.lift'
+        (HS.semantic.extension.shift.consN 0)) := by
+    have Hmono := Hreplayed₁.mono H.installed.le
+    simpa [Hext, semanticDomains, VExpr.wrapForalls_append] using Hmono
+  let replayedDomains := liftForallDomains semanticDomains
+    (Hext.shift.consN 0)
+  let replayedResidual := HS.semantic.motiveTarget.lift'
+    ((Hext.shift.consN 0).consN semanticDomains.length)
+  have hreplayedTarget :
+      (VExpr.wrapForalls semanticDomains HS.semantic.motiveTarget).lift'
+          (Hext.shift.consN 0) =
+        VExpr.wrapForalls replayedDomains replayedResidual := by
+    exact VExpr.lift'_wrapForalls_exact _ _ _
+  have Hwhole : H.outVEnv.IsDefEqU Us.length
+      H.recursorWF.mlctx.vlctx.toCtx
+      (VExpr.wrapForalls replayedDomains replayedResidual)
+      (VExpr.wrapForalls fullDomains fullResidual) := by
+    rw [← hreplayedTarget, ← hfullTarget]
+    exact Hreplayed
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have HruntimeWF : OnCtx H.recursorWF.mlctx.vlctx.toCtx
+      (H.outVEnv.IsType Us.length) :=
+    (H.recursorWF.mlctx_wf.mono hbase).tr.wf.toCtx
+  have Hbase : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      H.recursorWF.mlctx.vlctx.toCtx H.recursorWF.mlctx.vlctx.toCtx :=
+    .refl HruntimeWF
+  have hreplayedLength : replayedDomains.length = arity := by
+    simp [replayedDomains, hsemanticLength]
+  have Hcontexts := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF Hbase
+    (hreplayedLength.trans hfullLength.symm) Hwhole
+  let replayedFields := replayedDomains.take A.rule.allArgs.size
+  let fullFields := fullDomains.take A.rule.allArgs.size
+  have hreplayedFields : replayedFields.length = A.rule.allArgs.size := by
+    simp [replayedFields, hreplayedLength]
+  have hfullFields : fullFields.length = A.rule.allArgs.size := by
+    simp [fullFields, hfullLength]
+  have HfieldContexts := Hcontexts.dropHeads A.rule.recursiveArgs.size
+  have hreplayedDrop :
+      (replayedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx).drop
+          A.rule.recursiveArgs.size =
+        replayedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx := by
+    have hsplit := (List.take_append_drop A.rule.allArgs.size
+      replayedDomains).symm
+    rw [hsplit, List.reverse_append]
+    have hsuffix : (replayedDomains.drop A.rule.allArgs.size).length =
+        A.rule.recursiveArgs.size := by
+      simp [hreplayedLength]
+    simpa [replayedFields, List.append_assoc, hsuffix] using
+      List.drop_left' (replayedDomains.drop A.rule.allArgs.size).reverse
+        (replayedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+  have hfullDrop :
+      (fullDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx).drop
+          A.rule.recursiveArgs.size =
+        fullFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx := by
+    have hsplit := (List.take_append_drop A.rule.allArgs.size
+      fullDomains).symm
+    rw [hsplit, List.reverse_append]
+    have hsuffix : (fullDomains.drop A.rule.allArgs.size).length =
+        A.rule.recursiveArgs.size := by
+      simp [hfullLength]
+    simpa [fullFields, List.append_assoc, hsuffix] using
+      List.drop_left' (fullDomains.drop A.rule.allArgs.size).reverse
+        (fullFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
+  rw [hreplayedDrop, hfullDrop] at HfieldContexts
+  have hreplayedFieldsExact : replayedFields =
+      liftForallDomains HS.semantic.fieldDomains (Hext.shift.consN 0) := by
+    dsimp only [replayedFields, replayedDomains, semanticDomains]
+    rw [liftForallDomains_append_take_left]
+  have hminorConsumedExact :
+      liftForallDomains HS.semantic.fieldDomains (Hext.shift.consN 0) =
+        minorConsumedDomains := by
+    apply VExpr.wrapForalls_prefix_domains_eq
+      (liftForallDomains_length _ _) hminorConsumed
+    rw [← hminorTarget]
+    exact VExpr.lift'_wrapForalls_exact _ _ _
+  rw [hreplayedFieldsExact, hminorConsumedExact] at HfieldContexts
+  have HfullConsumed := HfieldContexts.symm H.outVEnvWF.ordered
+  have HfullNarrow := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HfullConsumed HminorNarrow
+  exact ⟨fullFields, hfullFields, HfullNarrow⟩
 
 /-- Compose the selected minor's transported consumed fields with the
 rule-wide narrowing conversion.  The result relates the literal first-pass
