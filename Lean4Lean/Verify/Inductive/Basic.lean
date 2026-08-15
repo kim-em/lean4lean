@@ -80921,6 +80921,79 @@ theorem
   exact ⟨fv, fieldVar, hsource, hfieldBinders,
     hfieldVar, hfieldSource, htarget⟩
 
+/-- Position-indexed form of `templateTargetShape`.  The semantic recursive
+mask and the rule's bound field array identify the existential field ordinal
+with the reverse de Bruijn ordinal of the selected production field. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.templateTarget_eq_canonical
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    let fieldPosition := A.semantics.recursivePositions[j]!
+    E.templateTarget =
+      VExpr.mkApps
+        (.bvar (E.localDomains.length +
+          (A.rule.allArgs.size - 1 - fieldPosition)))
+        (E.frame.semantic.generated.localIndices.map VExpr.bvar) := by
+  dsimp only
+  rcases E.templateTargetShape with
+    ⟨fv, fieldVar, hsource, _hfieldBinders, _hfieldVar,
+      hfieldSource, htarget⟩
+  let fieldPosition := A.semantics.recursivePositions[j]!
+  have hfieldPosition : fieldPosition < A.rule.allArgs.size :=
+    (A.semantics.decisions.selected_at j hj).1
+  have hfieldPositionFVars : fieldPosition <
+      A.rule.all_args_bound.fvars.length := by
+    rw [A.rule.all_args_bound.length_fvars]
+    exact hfieldPosition
+  rcases A.rule.all_args_bound.getElem_eq_fvar fieldPosition
+      hfieldPosition with ⟨_hpositionFVars, hfieldAt⟩
+  have hrecursiveBang : A.rule.recursiveArgs[j]! = .fvar fv := by
+    rw [getElem!_pos A.rule.recursiveArgs j hj]
+    exact hsource
+  have hfieldBang : A.rule.allArgs[fieldPosition]! =
+      .fvar A.rule.all_args_bound.fvars[fieldPosition] :=
+    (getElem!_pos A.rule.allArgs fieldPosition hfieldPosition).trans hfieldAt
+  have hselected := (A.semantics.decisions.selected_at j hj).2
+  have hfvExact : fv = A.rule.all_args_bound.fvars[fieldPosition] :=
+    Expr.fvar.inj (hrecursiveBang.symm.trans (hselected.trans hfieldBang))
+  have hfieldExact := Expr.abstractList_fvar_getElem
+    A.rule.all_args_nodup fieldPosition hfieldPositionFVars (k := 0)
+  rw [← hfvExact] at hfieldExact
+  have hnotOuter : fv ∉
+      (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
+        A.rule.minors_bound.fvars :=
+    A.rule.all_args_outer_fresh fv <| by
+      rw [hfvExact]
+      exact List.getElem_mem hfieldPositionFVars
+  have hfieldFullExact : (Expr.fvar fv).abstractList A.rule.binders =
+      .bvar (A.rule.allArgs.size - 1 - fieldPosition) := by
+    unfold BoundGeneratedRecursorRule.binders
+    rw [Expr.abstractList_append,
+      Expr.abstractList_fvar_of_not_mem hnotOuter]
+    simpa [A.rule.all_args_bound.length_fvars] using hfieldExact
+  have hfieldVarExact : fieldVar =
+      A.rule.allArgs.size - 1 - fieldPosition :=
+    Expr.bvar.inj (hfieldSource.symm.trans hfieldFullExact)
+  simpa [fieldPosition, hfieldVarExact] using htarget
+
 /-- Reconstruct the strict translation of the complete generated recursive
 result from any translation of its eta-expanded field template in the fixed
 equation context.  The template contributes only the shared lambda-domain
