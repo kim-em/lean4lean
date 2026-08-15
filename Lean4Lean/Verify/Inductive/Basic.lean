@@ -41013,6 +41013,8 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     (R : RecursorContextWF current recLparams)
     (i : Nat) (v : Array Expr)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R v)
+    (Horigins : RecInfoHypothesisTypeOrigins stats recInfos current u v)
+    (hprocessed : v.size = i)
     (Hvi : ∀ {next : AddInductive.Context}
       (Rnext : RecursorContextWF next recLparams)
       {prior : Array Expr}
@@ -41030,11 +41032,14 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
             TrExprS Rnext.venv recLparams Rnext.mlctx.vlctx
               viTy.consumeTypeAnnotations viTarget ∧
             Rnext.venv.IsType recLparams.length
-              Rnext.mlctx.vlctx.toCtx viTarget)
+              Rnext.mlctx.vlctx.toCtx viTarget ∧
+            Nonempty (RecInfoHypothesisTypeOrigin
+              stats recInfos next u[j]! viTy))
     (Hk : ∀ {out : AddInductive.Context}
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr),
       RecursorRecentBoundFVarArray Rroot Rout values →
+      RecInfoHypothesisTypeOrigins stats recInfos out u values →
       values.size = v.size + (u.size - i) →
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos i v k current).WF Q := by
@@ -41042,7 +41047,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
   by_cases hnext : i < u.size
   · rw [dif_pos hnext]
     refine (Hvi R Hrecent i hnext).bind fun viTy HviTy => ?_
-    rcases HviTy with ⟨viTarget, HviTr, HviType⟩
+    rcases HviTy with ⟨viTarget, HviTr, HviType, HviOrigin⟩
     have hget : ((getLCtx : AddInductive.M LocalContext) current).WF
         (fun lctx => lctx = current.lctx) := by
       intro lctx h
@@ -41057,17 +41062,22 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
       R HviTr HviType ?_
     let R' := R.withLocalDecl (name := vName) (bi := .default)
       HviTr HviType
+    have HviOrigin' := HviOrigin
+    rw [← hprocessed] at HviOrigin'
     refine resultSemanticBindings stats u recInfos k Rroot R' (i + 1)
       (v.push (.fvar ⟨current.ngen.curr⟩))
       (Hrecent.pushCurrent vName viTy.consumeTypeAnnotations viTarget
         .default HviTr HviType)
+      (Horigins.pushCurrent R.toBindingContextWF vName viTy .default
+        (by rw [hprocessed]; exact hnext) HviOrigin')
+      (by simp [hprocessed])
       Hvi ?_
-    intro out Rout values Hvalues hsize
-    apply Hk Rout values Hvalues
+    intro out Rout values Hvalues HvalueOrigins hsize
+    apply Hk Rout values Hvalues HvalueOrigins
     simp only [Array.size_push] at hsize
     omega
   · rw [dif_neg hnext]
-    exact Hk R v Hrecent (by omega)
+    exact Hk R v Hrecent Horigins (by omega)
 termination_by u.size - i
 
 /-- Semantic refinement of the actual induction-hypothesis loop, factored
@@ -41136,7 +41146,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q := by
   refine resultSemanticBindings stats u recInfos k R R 0 #[]
-    (RecursorRecentBoundFVarArray.empty R) ?_ ?_
+    (RecursorRecentBoundFVarArray.empty R)
+    (RecInfoHypothesisTypeOrigins.empty stats recInfos c u) rfl ?_ ?_
   intro next Rnext prior Hprior j hj
   rcases Hfields j hj with ⟨fv, fieldTarget, hfieldEq, Hfield⟩
   let W := Rnext.onlyLams.dropN_fvlift prior.size Hprior.size_le
@@ -41152,15 +41163,18 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
   have hctxAt : VLCtx.NoIndConsts (decl.types.map (·.name))
       Rnext.mlctx.vlctx :=
     Hprior.noIndConsts (names := decl.types.map (·.name)) hctx
-  rw [hfieldEq]
-  apply mkRecInfos.loopUArgs.inductionHypothesisType fv stats recInfos next
+  have hfieldBang : u[j]! = .fvar fv := by
+    rw [getElem!_pos u j hj]
+    exact hfieldEq
+  rw [hfieldEq, hfieldBang]
+  apply mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats recInfos next
     Rnext HstatsAt hwhnf hconsume hlit hctxAt hproj HfieldAt
   intro current Rcurrent exposedType syntaxTarget terminalTarget
     appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
     HappliedType hvalid
   exact Happ Rnext Rcurrent HfieldAt Hexposed Hdefeq Hterminal Hargs
     Happlied HappliedType hvalid
-  · intro out Rout values Hvalues hsize
+  · intro out Rout values Hvalues _HvalueOrigins hsize
     apply Hk Rout values Hvalues
     simpa using hsize
 
@@ -41208,7 +41222,8 @@ theorem resultSemanticsOfMotiveApplications
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q := by
   refine resultSemanticBindings stats u recInfos k R R 0 #[]
-    (RecursorRecentBoundFVarArray.empty R) ?_ ?_
+    (RecursorRecentBoundFVarArray.empty R)
+    (RecInfoHypothesisTypeOrigins.empty stats recInfos c u) rfl ?_ ?_
   intro next Rnext prior Hprior j hj
   rcases Hfields j hj with ⟨fv, fieldTarget, hfieldEq, Hfield⟩
   let W := Rnext.onlyLams.dropN_fvlift prior.size Hprior.size_le
@@ -41224,8 +41239,11 @@ theorem resultSemanticsOfMotiveApplications
   have hctxNext : VLCtx.NoIndConsts (decl.types.map (·.name))
       Rnext.mlctx.vlctx :=
     Hprior.noIndConsts (names := decl.types.map (·.name)) hctx
-  rw [hfieldEq]
-  apply mkRecInfos.loopUArgs.inductionHypothesisType fv stats recInfos next
+  have hfieldBang : u[j]! = .fvar fv := by
+    rw [getElem!_pos u j hj]
+    exact hfieldEq
+  rw [hfieldEq, hfieldBang]
+  apply mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats recInfos next
     Rnext HstatsNext hwhnf hconsume hlit hctxNext hproj HfieldAt
   intro current Rcurrent exposedType syntaxTarget terminalTarget
     appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
@@ -41248,7 +41266,7 @@ theorem resultSemanticsOfMotiveApplications
     (Hprior.contextExtension.trans Hargs.contextExtension)
     target htarget Hexposed Hdefeq
     Hterminal Happlied HappliedType Hvalidated
-  · intro out Rout values Hvalues hsize
+  · intro out Rout values Hvalues _HvalueOrigins hsize
     apply Hk Rout values Hvalues
     simpa using hsize
 
