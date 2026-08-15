@@ -26889,6 +26889,34 @@ theorem BoundFVarDeclarationAt.type_unique
     (D₁.declaration.symm.trans (hfind.trans D₂.declaration))
   exact congrArg LocalDecl.type hdeclaration
 
+/-- Recover the semantic translation of a retained concrete declaration
+type from the verified recursor local context containing it.  This is the
+direct bridge from first-pass declaration provenance to the abstract local
+context; no re-analysis of the declaration expression is involved. -/
+theorem RecursorContextWF.translatedDeclarationType
+    {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    (D : BoundFVarDeclarationAt c xs i) :
+    ∃ target,
+      TrExprS R.venv recLparams R.mlctx.vlctx D.type target := by
+  let decl : LocalDecl := .cdecl D.index D.fvar D.userName D.type
+    D.binderInfo D.kind
+  have hfind : c.lctx.find? D.fvar = some decl := by
+    simpa [decl] using D.declaration
+  have hfind' : R.mlctx.lctx.find? D.fvar = some decl := by
+    rw [R.lctx_eq]
+    exact hfind
+  have hlist := hfind'
+  rw [R.mlctx_wf.tr.1.find?_eq_find?_toList] at hlist
+  have hmem : decl ∈ R.mlctx.lctx.toList :=
+    List.mem_of_find?_eq_some hlist
+  rcases R.mlctx_wf.tr.find?_of_mem R.checking.tr.wf hmem with
+    ⟨_value, target, _hlookup, _hvalueBelow, _htypeBelow,
+      _hvalue, Htype⟩
+  refine ⟨target, ?_⟩
+  change TrExprS R.venv recLparams R.mlctx.vlctx D.type target at Htype
+  exact Htype
+
 /-- Exact declaration provenance survives a verified binding-context
 extension.  In particular the declaration type cannot silently change while
 the retained free variable is threaded through later `mkRecInfos` passes. -/
