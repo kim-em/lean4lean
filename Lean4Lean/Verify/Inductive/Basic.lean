@@ -66441,6 +66441,88 @@ theorem
   · simpa [expandedFieldDomains, expandedFieldRoot, hfieldFVars] using Hclosed
   · simpa [expandedFieldRoot] using HfieldBase
 
+/-- Place the retained first-pass hypothesis declaration and the
+field-abstracted second-pass semantic telescope over the same expanded
+field-root base.  Their sources are deliberately not identified here: that
+is the subsequent alpha/replay step.  This theorem isolates the context
+transport that was previously missing from that comparison. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.expandedRawHypothesisAndSemanticTelescopeAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+          S.sourceFullContext S.recursiveFields S.hypotheses,
+      ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+      ∃ originRoot sourceType,
+      ∃ O : RecInfoMinorHypothesisTypeOrigin
+          hypothesisOrigins.stats hypothesisOrigins.recInfos
+          originRoot S.recursiveFields[j]! sourceType,
+      ∃ F : A.RecursiveCallRecursorFrame j hj,
+      ∃ B : A.NarrowFieldRuntimeFrame,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+          H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+      ∃ rawTarget expandedFieldDomains semanticTarget,
+        D.type = sourceType ∧
+        expandedFieldDomains.length = A.rule.allArgs.size ∧
+        TrExprS H.outVEnv Us
+          (Hscope.expanded.drop
+            (F.semantic.generated.localArgs.size + A.rule.allArgs.size))
+          D.type rawTarget ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext expandedFieldDomains
+            (Hscope.expanded.drop
+              (F.semantic.generated.localArgs.size + A.rule.allArgs.size)))
+          ((F.semantic.generated.current.lctx.mkForall
+            F.semantic.generated.localArgs
+            (Expr.app
+              (mkAppN
+                H.recInfos[F.semantic.generated.ownerIdx]!.motive
+                F.semantic.generated.exposedType.getAppArgs[
+                  stats.params.size:])
+              (mkAppN A.rule.recursiveArgs[j]
+                F.semantic.generated.localArgs))).abstractList
+            A.rule.all_args_bound.fvars)
+          semanticTarget ∧
+        VLCtx.IsDefEq H.outVEnv Us.length
+          (Hscope.expanded.drop
+            (F.semantic.generated.localArgs.size + A.rule.allArgs.size))
+          H.recursorWF.mlctx.vlctx := by
+  dsimp only
+  rcases A.finalSelectedMinorRawHypothesisTypeAt j hj with
+    ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, rawTarget,
+      _hlocal, _hfields, _hhypotheses, _hsourceContext, htype, Hraw⟩
+  rcases A.recursiveCallRecursorFrame j hj with ⟨F⟩
+  rcases A.narrowFieldRuntimeFrame with ⟨B⟩
+  rcases F.expandedFieldAbstractedSemanticMotiveTelescopeFor B with
+    ⟨scope, Hscope, expandedFieldDomains, semanticTarget,
+      hfieldDomains, Hsemantic, HfieldBase⟩
+  have HfieldBase' : VLCtx.IsDefEq H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (Hscope.expanded.drop
+        (F.semantic.generated.localArgs.size + A.rule.allArgs.size))
+      H.recursorWF.mlctx.vlctx := by
+    simpa [A.semantics.fieldRoot_vlctx] using HfieldBase
+  rcases Hraw.defeqDFC H.outVEnvWF
+      (HfieldBase'.symm H.outVEnvWF.ordered) with
+    ⟨expandedRawTarget, HexpandedRaw⟩
+  exact ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, F, B,
+    scope, Hscope, expandedRawTarget, expandedFieldDomains,
+    semanticTarget, htype, hfieldDomains, HexpandedRaw, Hsemantic,
+    HfieldBase'⟩
+
 /-- Pointwise field-closed form of the semantic recursive index spine.  Each
 index is first closed over the call-local higher-order arguments and then
 over the constructor fields, preserving the exact target list selected by
