@@ -65928,6 +65928,112 @@ theorem
       hlocal, _hfields, _hlength, _Hindices, Hscoped⟩
   simpa [hlocal] using Hscoped
 
+/-- After closing call locals and constructor fields, the complete semantic
+motive application mentions only the common parameters and motive binders.
+In particular it is independent of every generated induction-hypothesis
+identifier from the first pass. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.fieldAbstractedNormalizedMotiveSourceScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F.semantic.generated.outerAbstractedMotiveApp
+      A.rule.all_args_bound.fvars).FVarsIn fun fv =>
+        fv ∈ ExprArrayFVarIds stats.params ++
+          ExprArrayFVarIds (H.recInfos.map (·.motive)) := by
+  let P := fun fv => fv ∈ ExprArrayFVarIds stats.params ++
+    ExprArrayFVarIds (H.recInfos.map (·.motive))
+  have hselectedOwner : F.semantic.generated.ownerIdx < H.recInfos.size := by
+    simpa [H.generated.length] using F.entry_lt
+  have hselectedMotive : F.semantic.generated.ownerIdx <
+      (H.recInfos.map (·.motive)).size := by
+    simpa using hselectedOwner
+  rcases A.rule.motives_bound.getElem_eq_fvar
+      F.semantic.generated.ownerIdx hselectedMotive with
+    ⟨hselectedMotiveFVars, hmot⟩
+  let motiveFVar :=
+    A.rule.motives_bound.fvars[F.semantic.generated.ownerIdx]
+  have hmotBang : (H.recInfos.map (·.motive))[
+      F.semantic.generated.ownerIdx]! = .fvar motiveFVar := by
+    rw [getElem!_pos (H.recInfos.map (·.motive))
+      F.semantic.generated.ownerIdx hselectedMotive]
+    simpa [motiveFVar] using hmot
+  have hmotiveScope : (Expr.fvar motiveFVar).FVarsIn P := by
+    change P motiveFVar
+    apply List.mem_append_right
+    rw [A.rule.motives_bound.exprArrayFVarIds]
+    exact List.getElem_mem hselectedMotiveFVars
+  have hmotiveLocal :
+      ((Expr.fvar motiveFVar).abstractList
+        F.semantic.generated.arguments_bound.fvars).FVarsIn P := by
+    apply FVarsIn.abstractList_of
+    exact hmotiveScope.mono fun fv hfv => Or.inr hfv
+  have hmotiveFields :
+      (((Expr.fvar motiveFVar).abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+        A.rule.all_args_bound.fvars
+          F.semantic.generated.localArgs.size).FVarsIn P := by
+    apply FVarsIn.abstractList_of
+    exact hmotiveLocal.mono fun fv hfv => Or.inr hfv
+  have Hindices := F.fieldAbstractedSemanticIndexSourcesScoped
+  have hindicesScope : ∀ index ∈
+      (F.semantic.generated.replayTrace
+        A.rule.all_args_bound.fvars).indices,
+      index.FVarsIn P := by
+    intro index hindex
+    simp only [BoundGeneratedRecursiveCall.replayTrace] at hindex
+    rcases Array.mem_map.mp hindex with ⟨source, hsource, rfl⟩
+    apply (Hindices _ ?_).mono
+    · intro fv hparam
+      exact List.mem_append_left _ hparam
+    · apply List.mem_map.mpr
+      refine ⟨source, ?_, rfl⟩
+      rw [← Subarray.toList_toArray]
+      exact Array.mem_toList_iff.mpr hsource
+  rcases F.finalAppliedMajorTarget with
+    ⟨_localDomains, _fieldDomains, fieldFVar, _fieldVar,
+      _hlocal, _hfields, _hfieldVar, hfieldEq, hfield,
+      _hfieldSource, _Hmajor, _htarget⟩
+  have hfieldRoot : fieldFVar ∈ A.rule.root.lctx.fvars :=
+    A.rule.all_args_bound.members fieldFVar hfield
+  rcases F.semantic.generated.outerAbstractedMajor_eq_bvar_of_field_eq
+      hfieldEq hfieldRoot A.rule.all_args_nodup hfield with
+    ⟨fieldVar, _hfieldVarBound, _hfieldAbstract, hmajorShape⟩
+  have hmajorScope :
+      (F.semantic.generated.outerAbstractedMajor
+        A.rule.all_args_bound.fvars).FVarsIn P := by
+    rw [hmajorShape, Expr.mkAppN_eq_mkAppList]
+    apply FVarsIn.mkAppList.mpr
+    constructor
+    · trivial
+    · intro arg harg
+      have harg' : arg ∈
+          F.semantic.generated.localIndices.map Expr.bvar := by
+        simpa using harg
+      rcases List.mem_map.mp harg' with ⟨index, _hindex, rfl⟩
+      trivial
+  unfold BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
+  change FVarsIn P (Expr.app _ _)
+  constructor
+  · rw [Expr.mkAppN_eq_mkAppList]
+    apply FVarsIn.mkAppList.mpr
+    constructor
+    · simpa [BoundGeneratedRecursiveCall.replayTrace, hmotBang]
+        using hmotiveFields
+    · intro index hindex
+      exact hindicesScope index (Array.mem_toList_iff.mp hindex)
+  · exact hmajorScope
+
 /-- Restrict every semantic recursive index to the replayed
 parameter/field/local scope while retaining its exact relationship to the
 target produced in the executable context.  This is the pointwise inverse
