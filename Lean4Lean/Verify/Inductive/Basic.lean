@@ -1092,15 +1092,17 @@ theorem VEnv.HasType.mkApps_wrapForalls_prefix_canonical_defeqCtx
 
 /-- Invert a well-typed canonical application of a declared forall
 telescope into a conversion between the actual dependent argument context
-and the declared domain context.  The proof grows the conversion from the
+and the declared domain context.  The residual body is arbitrary: in
+particular, an initial field prefix may leave a recursive-hypothesis
+telescope rather than a sort.  The proof grows the conversion from the
 oldest binder outward, using partial-application typing at each step. -/
 theorem VEnv.HasType.canonicalApplicationContext
-    {fn : VExpr}
+    {fn body : VExpr}
     (henv : env.WF)
     (actual expected : List VExpr) (outer : List VExpr)
     (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
     (hfn : env.HasType uvars outer fn
-      (VExpr.wrapForalls expected (.sort resultLevel)))
+      (VExpr.wrapForalls expected body))
     (hlength : actual.length = expected.length)
     (happs : VExpr.WF env uvars (actual.reverse ++ outer)
       (VExpr.mkApps (fn.liftN actual.length 0)
@@ -1132,7 +1134,7 @@ theorem VEnv.HasType.canonicalApplicationContext
         (List.take_append_drop initialCount expected).symm
       have HpartialExpected : env.HasType uvars expectedCtx partialApp
           (VExpr.wrapForalls (expected.drop initialCount)
-            (.sort resultLevel)) := by
+            body) := by
         have hfnSplit := hfn
         rw [hexpectedSplit] at hfnSplit
         have H := VEnv.HasType.mkApps_wrapForalls_prefix_canonical
@@ -1143,7 +1145,7 @@ theorem VEnv.HasType.canonicalApplicationContext
           Nat.min_eq_left (Nat.le_of_lt hexpectedLt)] using H
       have Hpartial : env.HasType uvars actualCtx partialApp
           (VExpr.wrapForalls (expected.drop initialCount)
-            (.sort resultLevel)) :=
+            body) :=
         HpartialExpected.defeqDFC henv.ordered
           (Hprior.symm henv.ordered)
       have hdrop : expected.drop initialCount = expectedDomain ::
@@ -1155,7 +1157,7 @@ theorem VEnv.HasType.canonicalApplicationContext
         (Ctx.LiftN.one (A := actualDomain))
       let expectedBody :=
         (VExpr.wrapForalls (expected.drop (initialCount + 1))
-          (.sort resultLevel)).liftN 1 1
+          body).liftN 1 1
       have HpartialForall : env.HasType uvars (actualDomain :: actualCtx)
           (partialApp.liftN 1 0)
           (.forallE expectedDomain.lift expectedBody) := by
@@ -1244,6 +1246,34 @@ theorem VEnv.HasType.canonicalApplicationContext
     rw [hlength, List.take_length]
   rw [List.take_length, hexpectedTakeAll] at H
   exact H
+
+/-- Version of `canonicalApplicationContext` for a function already weakened
+beneath the actual argument declarations.  This is the form exposed by a
+bound selected minor in the completed equation context: removing the common
+weakening recovers its declared telescope, after which canonical-application
+inversion compares the actual equation fields with the installed fields. -/
+theorem VEnv.HasType.canonicalApplicationContext_of_weakened
+    {fn body : VExpr}
+    (henv : env.WF)
+    (actual expected : List VExpr) (outer : List VExpr)
+    (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
+    (hfn : env.HasType uvars (actual.reverse ++ outer)
+      (fn.liftN actual.length 0)
+      ((VExpr.wrapForalls expected body).liftN actual.length 0))
+    (hlength : actual.length = expected.length)
+    (happs : VExpr.WF env uvars (actual.reverse ++ outer)
+      (VExpr.mkApps (fn.liftN actual.length 0)
+        (recursorCanonicalVars actual.length))) :
+    VEnv.IsDefEqCtx env uvars []
+      (actual.reverse ++ outer) (expected.reverse ++ outer) := by
+  have W : Ctx.LiftN actual.length 0 outer
+      (actual.reverse ++ outer) := by
+    exact Ctx.LiftN.zero actual.reverse (by simp)
+  have hfnBase : env.HasType uvars outer fn
+      (VExpr.wrapForalls expected body) :=
+    (VEnv.HasType.weakN_iff henv hctx W).mp hfn
+  exact VEnv.HasType.canonicalApplicationContext henv actual expected outer
+    hctx hfnBase hlength happs
 
 /-- Applying every binder of a well-typed forall telescope ending in a sort
 produces another type.  Argument typing is recovered from the independently
