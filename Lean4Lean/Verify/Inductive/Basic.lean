@@ -30260,6 +30260,29 @@ structure RecInfoMinorSemanticSource
     (S : RecInfoMinorTypeShape) where
   sourceWF : RecursorContextWF S.sourceFullContext recLparams
   extension : RecursorContextExtension sourceWF R
+  traversal : RecInfoMinorTraversalShape
+  traversal_eq : S.traversal = some traversal
+  rootWF : RecursorContextWF traversal.rootContext recLparams
+  terminalWF : RecursorContextWF traversal.terminalContext recLparams
+  fieldsExtension : RecursorContextExtension rootWF terminalWF
+  hypothesesExtension : RecursorContextExtension terminalWF sourceWF
+
+def RecInfoMinorSemanticSource.mono
+    {root current : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {Rcurrent : RecursorContextWF current recLparams}
+    {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource Rroot S)
+    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    RecInfoMinorSemanticSource Rcurrent S where
+  sourceWF := HS.sourceWF
+  extension := HS.extension.trans Hext
+  traversal := HS.traversal
+  traversal_eq := HS.traversal_eq
+  rootWF := HS.rootWF
+  terminalWF := HS.terminalWF
+  fieldsExtension := HS.fieldsExtension
+  hypothesesExtension := HS.hypothesesExtension
 
 /-- Every retained minor source carries its exact semantic extension into the
 current recursor context.  Unlike `BindingContextLE`, this invariant is strong
@@ -30296,8 +30319,8 @@ theorem RecInfoMinorSemanticAlignment.mono
     RecInfoMinorSemanticAlignment Rcurrent (H.mono Hext.contextLE) := by
   intro owner howner localIndex hlocal
   rcases A owner howner localIndex hlocal with
-    ⟨⟨Rsource, Hsource⟩⟩
-  exact ⟨⟨Rsource, Hsource.trans Hext⟩⟩
+    ⟨⟨HS⟩⟩
+  exact ⟨HS.mono Hext⟩
 
 theorem RecInfoMinorSemanticAlignment.addMinor
     {root current : AddInductive.Context} {recLparams : List Name}
@@ -30346,16 +30369,16 @@ theorem RecInfoMinorSemanticAlignment.addMinor
     rw [horigin] at hlocal
     by_cases hlast : localIndex = H.minorTypes[dIdx]!.size
     · subst localIndex
-      rcases HshapeSemantic with ⟨⟨Rsource, Hsource⟩⟩
+      rcases HshapeSemantic with ⟨⟨HS⟩⟩
       simpa [RecInfoTypeOrigins.addMinor, nextMinorTypes,
         mkRecInfos.loopCtors.getElemBang_modify_self H.minorTypes dIdx
           (fun types => types.push minorTy) hownerTypes] using
         (show Nonempty (RecInfoMinorSemanticSource Rnext Hshape) from
-          ⟨⟨Rsource, Hsource.trans Hstep⟩⟩)
+          ⟨HS.mono Hstep⟩)
     · have hold : localIndex < H.minorTypes[dIdx]!.size := by
         simp only [Array.size_push] at hlocal
         omega
-      rcases A dIdx hidx localIndex hold with ⟨⟨Rsource, Hsource⟩⟩
+      rcases A dIdx hidx localIndex hold with ⟨⟨HS⟩⟩
       have hget : (H.minorTypes[dIdx]!.push minorTy)[localIndex]! =
           H.minorTypes[dIdx]![localIndex]! := by
         have hpush : localIndex <
@@ -30368,20 +30391,20 @@ theorem RecInfoMinorSemanticAlignment.addMinor
           (fun types => types.push minorTy) hownerTypes, hget] using
         (show Nonempty (RecInfoMinorSemanticSource Rnext
             (H.minorShapes dIdx hidx localIndex hold)) from
-          ⟨⟨Rsource, Hsource.trans (Hext.trans Hstep)⟩⟩)
+          ⟨HS.mono (Hext.trans Hstep)⟩)
   · have horigin : nextMinorTypes[owner]! = H.minorTypes[owner]! := by
       dsimp [nextMinorTypes]
       rw [mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner _
         hownerTypes hdi]
     change localIndex < nextMinorTypes[owner]!.size at hlocal
     rw [horigin] at hlocal
-    rcases A owner hownerOld localIndex hlocal with ⟨⟨Rsource, Hsource⟩⟩
+    rcases A owner hownerOld localIndex hlocal with ⟨⟨HS⟩⟩
     simpa [RecInfoTypeOrigins.addMinor, hdi,
       mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner
         (fun types => types.push minorTy) hownerTypes hdi] using
       (show Nonempty (RecInfoMinorSemanticSource Rnext
           (H.minorShapes owner hownerOld localIndex hlocal)) from
-        ⟨⟨Rsource, Hsource.trans (Hext.trans Hstep)⟩⟩)
+        ⟨HS.mono (Hext.trans Hstep)⟩)
 
 theorem RecInfoMinorSourceAlignment.ofEmpty
     (H : RecInfoTypeOrigins c recInfos)
@@ -42667,6 +42690,31 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       Rout.mlctx.vlctx :=
     HhypothesesRecent.noIndConsts
       (names := decl.types.map (·.name)) hctxArgs
+  let traversal : RecInfoMinorTraversalShape := {
+    constructor := ctor
+    rootContext := c
+    terminalContext := current
+    terminal := terminal
+    fields := allFields
+    recursiveFields := recursiveFields
+    stats := stats
+    recursivePositions := positions
+    decisions := Hdecisions
+    recursivePositions_ordered := Hdecisions.positions_ordered
+    recursivePositions_lt := Hdecisions.positions_lt
+    recursivePositions_length := Hdecisions.positions_length
+    parameterTail := tail
+    parameterTail_fvars := by
+      apply htailScope.mono
+      intro fv hfv
+      rw [Hparams.exprArrayFVarIds] at hfv
+      exact Hparams.members fv hfv
+    parameterPrefix := hprefix
+    fieldResidual := Hopening.residual
+    fieldTelescope := Hopening.telescope
+    fieldResidual_not_forall := by
+      rw [← Hopening.closed, Expr.abstractList_isForall]
+      exact HterminalNonforall }
   let HbindingsOut := Hbindings.mono HextAll.contextLE
   let HoriginsOut := Horigins.mono HextAll.contextLE
   let HparamsOut := Hparams.mono HextAll.contextLE
@@ -42758,31 +42806,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
               motive_is_fvar := O.motive_is_fvar
               type_eq := O.type_eq }⟩, D, htype⟩ }
         hypotheses_size := hhypothesesSize
-        traversal := some {
-          constructor := ctor
-          rootContext := c
-          terminalContext := current
-          terminal := terminal
-          fields := allFields
-          recursiveFields := recursiveFields
-          stats := stats
-          recursivePositions := positions
-          decisions := Hdecisions
-          recursivePositions_ordered := Hdecisions.positions_ordered
-          recursivePositions_lt := Hdecisions.positions_lt
-          recursivePositions_length := Hdecisions.positions_length
-          parameterTail := tail
-          parameterTail_fvars := by
-            apply htailScope.mono
-            intro fv hfv
-            rw [Hparams.exprArrayFVarIds] at hfv
-            exact Hparams.members fv hfv
-          parameterPrefix := hprefix
-          fieldResidual := Hopening.residual
-          fieldTelescope := Hopening.telescope
-          fieldResidual_not_forall := by
-            rw [← Hopening.closed, Expr.abstractList_isForall]
-            exact HterminalNonforall }
+        traversal := some traversal
         motiveApp := Expr.app
           (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
           (mkAppN
@@ -42800,8 +42824,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
             hsourceFamily)
       (by simp [RecInfoMinorTypeShape.HasHypothesisTypeOrigins])
-      ⟨⟨Rout, RecursorContextExtension.refl Rout⟩⟩
-      ⟨_, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE,
+      ⟨⟨Rout, RecursorContextExtension.refl Rout, traversal, rfl,
+        R, Rargs, HextArgs, HhypothesesRecent.contextExtension⟩⟩
+      ⟨traversal, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE,
         HhypothesesRecent.contextExtension.contextLE,
         BindingContextLE.refl outCtx⟩ ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
