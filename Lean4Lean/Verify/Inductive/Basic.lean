@@ -54911,6 +54911,73 @@ theorem Expr.SameForallPrefix.translatedTargets
   subst right
   exact Hleft.uniq henv hctx Hright
 
+/-- Reuse the binder-domain part of one translated forall telescope with a
+different residual.  This is the dependent-type counterpart of
+`SameLambdaPrefix.replaceTranslatedResidual`: the template supplies the
+exact translated domains, while an independently translated and well-formed
+residual supplies the new codomain. -/
+theorem Expr.SameForallPrefix.replaceTranslatedResidual
+    (Hsame : Expr.SameForallPrefix n template replacement)
+    (HtemplateTelescope : Expr.ForallTelescope template n templateResidual)
+    (HreplacementTelescope :
+      Expr.ForallTelescope replacement n replacementResidual)
+    (henv : VEnv.WF env)
+    (Hctx : OnCtx Delta.toCtx (env.IsType Us.length))
+    (hdomains : domains.length = n)
+    (Htemplate : TrExprS env Us Delta template
+      (VExpr.wrapForalls domains templateTarget))
+    (HreplacementResidual :
+      TrExprS env Us (abstractForallContext domains Delta)
+        replacementResidual replacementTarget)
+    (HreplacementResidualType : env.IsType Us.length
+      (abstractForallContext domains Delta).toCtx replacementTarget) :
+    TrExprS env Us Delta replacement
+      (VExpr.wrapForalls domains replacementTarget) := by
+  induction Hsame generalizing domains Delta templateResidual
+      replacementResidual templateTarget replacementTarget with
+  | nil =>
+    cases HtemplateTelescope
+    cases HreplacementTelescope
+    have hnil : domains = [] := List.eq_nil_of_length_eq_zero hdomains
+    subst domains
+    simpa [abstractForallContext, VExpr.wrapForalls] using
+      HreplacementResidual
+  | @cons n left right name dom bi Hsame ih =>
+    cases HtemplateTelescope with
+    | cons HtemplateTail =>
+      cases HreplacementTelescope with
+      | cons HreplacementTail =>
+        cases domains with
+        | nil => simp at hdomains
+        | cons domain domains =>
+          cases Htemplate with
+          | @forallE domain' templateBody _ _ _ _ _ HdomainType
+              HtemplateBodyType HdomainTr HtemplateBody =>
+            have htail : domains.length = n := by simpa using hdomains
+            have Hctx' : OnCtx (domain :: Delta.toCtx)
+                (env.IsType Us.length) := ⟨Hctx, HdomainType⟩
+            have Hopened := VEnv.IsType.wrapForalls_inv henv.ordered Hctx'
+              HtemplateBodyType
+            have HreplacementResidualType' : env.IsType Us.length
+                (domains.reverse ++ domain :: Delta.toCtx)
+                replacementTarget := by
+              simpa [abstractForallContext, List.reverse_cons,
+                List.append_assoc] using HreplacementResidualType
+            have HreplacementBodyType : env.IsType Us.length
+                (domain :: Delta.toCtx)
+                (VExpr.wrapForalls domains replacementTarget) :=
+              VEnv.IsType.wrapForalls Hopened.1
+                HreplacementResidualType'
+            apply TrExprS.forallE HdomainType HreplacementBodyType HdomainTr
+            simpa [abstractForallContext, List.map_append,
+              List.append_assoc] using
+              ih HtemplateTail HreplacementTail henv
+                (by simpa [VLCtx.toCtx] using Hctx') htail HtemplateBody
+                (by simpa [abstractForallContext, List.map_append,
+                    List.append_assoc] using HreplacementResidual)
+                (by simpa [abstractForallContext, List.map_append,
+                    List.append_assoc] using HreplacementResidualType)
+
 /-- One dependent-context induction step for two independently translated
 forall domains.  A converted prior context, the alpha-independent common
 prefix, and equality of the normalized residual sources suffice to extend
@@ -80151,6 +80218,13 @@ theorem
           (E.frame.semantic.generated.current.lctx.mkForall
               E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
             A.rule.all_args_bound.fvars ∧
+        Expr.SameLambdaPrefix E.localDomains.length
+          (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+          ((E.frame.semantic.generated.current.lctx.mkLambda
+              E.frame.semantic.generated.localArgs
+              (mkAppN A.rule.recursiveArgs[j]
+                E.frame.semantic.generated.localArgs)).abstractList
+            A.rule.binders) ∧
         (∀ left right,
           Expr.SameForallPrefix O.args.size
             ((O.current.lctx.mkForall O.args left).abstractList
@@ -80499,6 +80573,16 @@ theorem
         (.sort .zero)).symm).abstractList A.rule.all_args_bound.fvars
     rw [HlocalTelescopeReplay] at Hleft
     exact Hleft.trans (by simpa [hlocalArity] using Hright)
+  have HlocalLambdaReplay : Expr.SameLambdaPrefix E.localDomains.length
+      (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+      ((E.frame.semantic.generated.current.lctx.mkLambda
+          E.frame.semantic.generated.localArgs
+          (mkAppN A.rule.recursiveArgs[j]
+            E.frame.semantic.generated.localArgs)).abstractList
+        A.rule.binders) := by
+    simpa [E.local_length] using
+      E.frame.semantic.generated.sameOuterAppliedFieldLambdaPrefix
+        A.rule.binders
   have hownerStats : O.ownerIdx < hypothesisOrigins.stats.indConsts.size :=
     (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
   have hownerRecInfos : O.ownerIdx < H.recInfos.size := by
@@ -81071,7 +81155,8 @@ theorem
     htarget,
     rfl, by simpa [fieldPosition] using houterField,
     hrecursiveMajor.1, hrecursiveMajor.2, Hreplay,
-    HlocalTelescopeReplay, HlocalForallReplay, hmotiveReplay,
+    HlocalTelescopeReplay, HlocalLambdaReplay, HlocalForallReplay,
+    hmotiveReplay,
     hindicesReplay, hownerReplay, hlocalArity, hmajorAlignment,
     hmotiveAppAlignment,
     ⟨semanticBinding, semanticEvidence, semanticLocalDomains,
