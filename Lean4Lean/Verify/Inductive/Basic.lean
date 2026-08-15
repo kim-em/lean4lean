@@ -47528,6 +47528,30 @@ theorem MLCtxOnlyLams.lamPrefix
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
+/-- Replace the selected base of an up-set beneath an exact recent lambda
+prefix.  Every recent declaration is already selected by `Q`; if `Q` is
+contained in the enlarged predicate `P`, the dependency obligations for the
+recent prefix can be reused while the dropped suffix is discharged by an
+independent `P` up-set. -/
+theorem MLCtxLamPrefix.isFVarUpSet_of_base
+    (H : MLCtxLamPrefix runtime n domains)
+    (Hfull : IsFVarUpSet Q runtime.vlctx)
+    (Hbase : IsFVarUpSet P (runtime.dropN n H.le).vlctx)
+    (hrecent : ∀ fv ∈ runtime.fvarRevList n H.le, Q fv)
+    (hmono : ∀ fv, Q fv → P fv) :
+    IsFVarUpSet P runtime.vlctx := by
+  induction H with
+  | nil runtime => simpa using Hbase
+  | @cons tail n domains fv name type type' bi Hprefix ih =>
+    refine ⟨ih Hfull.1 Hbase ?_, ?_⟩
+    · intro other hother
+      apply hrecent other
+      exact List.mem_cons_of_mem _ hother
+    · intro _ dep hdep
+      apply hmono dep
+      exact Hfull.2 (hrecent fv (by simp
+        [TypeChecker.MLCtx.fvarRevList])) dep hdep
+
 /-- Replay an exact recent all-lambda prefix on top of an already narrowed
 base scope.  The up-set premise says precisely that every retained recent
 declaration depends only on older retained declarations or the base scope.
@@ -65954,6 +65978,149 @@ theorem
   rw [htakeScope, htakeFull] at Hctx
   exact ⟨T, scope, Hscope, hscope, hscopeShift, hscopeSource, by
     simpa [outerDomains, List.reverse_append, List.append_assoc] using Hctx⟩
+
+/-- Replay the constructor fields over the complete dependency-selected
+outer scope.  The resulting context contains the literal semantic field
+free variables above parameters, motives, and every minor, while its target
+domains are based at the exact generated anonymous outer prefix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalOuterFieldNarrowScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ outerScope,
+      ∃ Houter : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
+      ∃ fieldScope,
+      ∃ Hfield : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us fieldScope A.semantics.context.mlctx.vlctx,
+      ∃ fieldDomains : List VExpr,
+        outerScope.fvars = outerBinders.reverse ∧
+        fieldScope.fvars = A.semantics.fieldsRecent.fvars.reverse ++
+          outerScope.fvars ∧
+        fieldScope.drop A.rule.allArgs.size = outerScope ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        fieldScope.toCtx = fieldDomains.reverse ++ outerScope.toCtx ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length [] outerScope.toCtx
+          (T.params ++ T.motives ++ T.minors).reverse := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
+  rcases A.finalOuterPrefixDefEqCtx with
+    ⟨T, outerScope, Houter, houterFVars, _houterShift,
+      _houterSource, HouterPrefix⟩
+  rcases A.semantics.context.onlyLams.lamPrefix
+      A.rule.allArgs.size A.semantics.fieldsRecent.size_le with
+    ⟨_runtimeFieldDomains, HfieldPrefix⟩
+  have hfieldRoot :
+      (A.semantics.context.mlctx.dropN A.rule.allArgs.size
+        HfieldPrefix.le).vlctx = H.recursorWF.mlctx.vlctx := by
+    have hle : HfieldPrefix.le = A.semantics.fieldsRecent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle, A.semantics.fieldsRecent.drop_eq,
+      A.semantics.fieldRoot_vlctx]
+  have HfieldBase : checkInductiveTypes.loopType.FVarNarrowScope
+      H.outVEnv Us outerScope
+        (A.semantics.context.mlctx.dropN A.rule.allArgs.size
+          HfieldPrefix.le).vlctx := by
+    rw [hfieldRoot]
+    exact Houter
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv, R.declared.contextVEnv]
+    exact H.installed.le
+  have HfieldWF : A.semantics.context.mlctx.WF H.outVEnv Us := by
+    have Hwf := A.semantics.context.mlctx_wf
+    rw [A.semantics.context_venv] at Hwf
+    exact Hwf.mono hbase
+  have hfieldRev : A.semantics.context.mlctx.fvarRevList
+      A.rule.allArgs.size HfieldPrefix.le =
+        A.semantics.fieldsRecent.fvars.reverse := by
+    have hle : HfieldPrefix.le = A.semantics.fieldsRecent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle]
+    exact A.semantics.fieldsRecent.fvarRevList_eq
+  have hcontextFVars : A.semantics.context.mlctx.vlctx.fvars =
+      A.semantics.fieldsRecent.fvars.reverse ++
+        H.recursorWF.mlctx.vlctx.fvars := by
+    simpa [A.semantics.fieldRoot_vlctx] using
+      A.semantics.fieldsRecent.contextFVars
+  have hcontextNodup :
+      (A.semantics.fieldsRecent.fvars.reverse ++
+        H.recursorWF.mlctx.vlctx.fvars).Nodup := by
+    rw [← hcontextFVars]
+    exact A.semantics.context.mlctx_wf.fvars_nodup
+  have hfieldRootDisjoint := (List.nodup_append.mp hcontextNodup).2.2
+  have HouterAtBase : IsFVarUpSet
+      (fun fv => fv ∈
+        A.semantics.context.mlctx.fvarRevList A.rule.allArgs.size
+            HfieldPrefix.le ++ outerScope.fvars)
+      H.recursorWF.mlctx.vlctx := by
+    apply (IsFVarUpSet.congr
+      H.recursorWF.mlctx_wf.tr.wf.fvwf ?_).mp Houter.upset
+    intro fv hfv
+    constructor
+    · intro houter
+      exact List.mem_append_right _ houter
+    · intro hselected
+      rcases List.mem_append.mp hselected with hfield | houter
+      · exfalso
+        rw [hfieldRev] at hfield
+        exact hfieldRootDisjoint fv hfield fv hfv rfl
+      · exact houter
+  have HouterAtDropped : IsFVarUpSet
+      (fun fv => fv ∈
+        A.semantics.context.mlctx.fvarRevList A.rule.allArgs.size
+            HfieldPrefix.le ++ outerScope.fvars)
+      (A.semantics.context.mlctx.dropN A.rule.allArgs.size
+        HfieldPrefix.le).vlctx := by
+    rw [hfieldRoot]
+    exact HouterAtBase
+  have HfieldUp : IsFVarUpSet
+      (fun fv => fv ∈
+        A.semantics.context.mlctx.fvarRevList A.rule.allArgs.size
+            HfieldPrefix.le ++ outerScope.fvars)
+      A.semantics.context.mlctx.vlctx := by
+    apply HfieldPrefix.isFVarUpSet_of_base
+      A.semantics.fieldParameterUp HouterAtDropped
+    · intro fv hfv
+      left
+      rw [hfieldRev] at hfv
+      simpa using hfv
+    · intro fv hfv
+      rcases hfv with hfield | hparam
+      · exact List.mem_append_left _ (by
+          rw [hfieldRev]
+          simpa using hfield)
+      · apply List.mem_append_right
+        rw [houterFVars]
+        simp only [List.mem_reverse, outerBinders]
+        exact List.mem_append_left _ (List.mem_append_left _ (by
+          rw [← H.params.exprArrayFVarIds]
+          exact hparam))
+  rcases HfieldPrefix.extendFVarNarrowScope H.outVEnvWF HfieldWF
+      HfieldBase HfieldUp with
+    ⟨fieldScope, Hfield, hfieldFVars, hfieldBase,
+      fieldDomains, hfieldDomains, hfieldContext⟩
+  exact ⟨T, outerScope, Houter, fieldScope, Hfield, fieldDomains,
+    houterFVars, by simpa [hfieldRev] using hfieldFVars,
+    hfieldBase, hfieldDomains, hfieldContext, HouterPrefix⟩
 
 /-- Invert the flattened minor lookup at this rule's canonical offset.  The
 row owner and row-local slot recovered from the retained declaration are the
