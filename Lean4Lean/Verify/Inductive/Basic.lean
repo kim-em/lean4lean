@@ -62195,6 +62195,7 @@ theorem
             S.sourceConstructors = indTypes[owner]!.ctors ∧
             S.constructor = indTypes[owner]!.ctors[i] ∧
             S.fields.size = A.rule.allArgs.size ∧
+            Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
             ∃ hypothesisOrigins,
               S.hypothesis_type_origins = some hypothesisOrigins ∧
               hypothesisOrigins.stats = stats ∧
@@ -62281,8 +62282,13 @@ theorem
     exact (HtraversalTelescope.eq_of_residual_not_forall
       A.semantics.fieldOpening.telescope
       traversal.fieldResidual_not_forall hsemanticResidual).1
+  have Hsemantic :
+      Nonempty (RecInfoMinorSemanticSource H.recursorWF S) := by
+    simpa [S] using
+      H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound
   exact ⟨T, D, O, S, horigin, hlocal, hconstructors, hconstructor,
-    hfieldCount, hypothesisOrigins, hhypothesisOrigins, hhypothesisStats,
+    hfieldCount, Hsemantic, hypothesisOrigins, hhypothesisOrigins,
+    hhypothesisStats,
     hhypothesisRecInfos,
     traversal, htraversal, htraversalConstructor,
     htraversalFields, htraversalRecursiveFields, hstats, hrootContext,
@@ -62353,7 +62359,7 @@ theorem
         BindingContextLE S.sourceFullContext H.localContext := by
   rcases A.finalSelectedMinorShape with
     ⟨_T, _D, _O, S, _horigin, hlocal, _hconstructors, hconstructor,
-      _hfieldCount, _hypothesisOrigins, _hhypothesisOrigins,
+      _hfieldCount, _Hsemantic, _hypothesisOrigins, _hhypothesisOrigins,
       _hhypothesisStats, _hhypothesisRecInfos, traversal, htraversal,
       htraversalConstructor,
       _htraversalFields, htraversalRecursiveFields, hstats, _hrootContext,
@@ -62425,7 +62431,7 @@ theorem
   dsimp only
   rcases A.finalSelectedMinorShape with
     ⟨T, D, _O, S, horigin, _hlocal, _hconstructors, hconstructor,
-      hfieldCount, _hypothesisOrigins, _hhypothesisOrigins,
+      hfieldCount, _Hsemantic, _hypothesisOrigins, _hhypothesisOrigins,
       _hhypothesisStats, _hhypothesisRecInfos, traversal, _htraversal,
       htraversalConstructor,
       _htraversalFields, htraversalRecursiveFields, hstats, _hrootContext,
@@ -62564,6 +62570,7 @@ theorem
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         BindingContextLE S.sourceFullContext H.localContext ∧
+        Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
         let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
           H.bindings.flatMinors.fvars.take minorIdx
         Expr.ForallTelescopeTypeTranslation H.outVEnv Us
@@ -62575,7 +62582,7 @@ theorem
   dsimp only
   rcases A.finalSelectedMinorShape with
     ⟨T, D, _O, S, horigin, hlocal, _hconstructors, hconstructor,
-      hfieldCount, hypothesisOrigins, hhypothesisOrigins,
+      hfieldCount, Hsemantic, hypothesisOrigins, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, traversal, htraversal,
       htraversalConstructor,
       htraversalFields, htraversalRecursiveFields, hstats, _hrootContext,
@@ -62629,7 +62636,7 @@ theorem
   exact ⟨T, S, hypothesisOrigins, traversal, hhypothesisOrigins,
     hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
     htraversalRecursiveFields, hstats, hparameterTail, hpositions,
-    hlocal, hfieldCount, hhypotheses, hsourceContext,
+    hlocal, hfieldCount, hhypotheses, hsourceContext, Hsemantic,
     Expr.ForallTelescopeTypeTranslation.ofTrExprS
       Habstract Hdomain' HdomainType⟩
 
@@ -62676,6 +62683,7 @@ theorem
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
           BindingContextLE S.sourceFullContext H.localContext ∧
+          Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -62699,7 +62707,8 @@ theorem
       hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
       htraversalFields, htraversalRecursiveFields, htraversalStats,
       hparameterTail, hpositions,
-      hlocal, hsourceFields, hsourceHypotheses, hsourceContext, Htyped⟩
+      hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
+      HminorSemantic, Htyped⟩
   rcases Htyped.toWrapForalls with
     ⟨domains, sourceResidual, targetResidual, hlength,
       Hsource, htarget, _Hresidual, _HresidualType⟩
@@ -62719,7 +62728,7 @@ theorem
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
     htraversalFields, htraversalRecursiveFields, htraversalStats,
     hparameterTail, hpositions,
-    hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
+    hlocal, hsourceFields, hsourceHypotheses, hsourceContext, HminorSemantic,
     hfields, hhypotheses, htarget, Hsource, Htyped⟩
 
 /-- Opening the selected minor's translated telescope yields a genuine
@@ -62770,6 +62779,7 @@ theorem
       _hparameterTail, _hpositions,
       _hlocal, _hsourceFields, _hsourceHypotheses,
       _hsourceContext,
+      _HminorSemantic,
       hfields, hhypotheses, htarget, _Hsource, Htyped⟩
   let minorIdx := recursorMinorOffset indTypes owner + i
   let base := T.params ++ T.motives ++ T.minors.take minorIdx
@@ -62919,6 +62929,7 @@ theorem
           S.fields.size = A.rule.allArgs.size ∧
           S.hypotheses.size = A.rule.recursiveArgs.size ∧
           BindingContextLE S.sourceFullContext H.localContext ∧
+          Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -62948,6 +62959,7 @@ theorem
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
       htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
       hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
+      HminorSemantic,
       hfields, hhypotheses, htarget, _Hsource, Htyped⟩
   let position := A.rule.allArgs.size + j
   have hposition : position <
@@ -62984,7 +62996,8 @@ theorem
     htraversalFields, htraversalRecursiveFields, htraversalStats,
     hparameterTail, hpositions,
     hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
-    hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
+    HminorSemantic, hfields, hhypotheses, htarget, Hbinder, Hdomain,
+    HdomainType⟩
 
 /-- Identify the source side of the selected recursive-hypothesis translation
 with the exact declaration type introduced by `mkRecInfos.loopU`.  Thus the
@@ -63036,6 +63049,7 @@ theorem
             S.fields.size = A.rule.allArgs.size ∧
             S.hypotheses.size = A.rule.recursiveArgs.size ∧
             BindingContextLE S.sourceFullContext H.localContext ∧
+            Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
             fieldDomains.length = A.rule.allArgs.size ∧
             hypothesisDomains.length = A.rule.recursiveArgs.size ∧
             T.minors[minorIdx]! = VExpr.wrapForalls
@@ -63077,6 +63091,7 @@ theorem
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
       htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
       hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
+      HminorSemantic,
       hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
   have hjSource : j < S.hypotheses.size := by
     rw [hsourceHypotheses]
@@ -63129,7 +63144,7 @@ theorem
     hparameterTail, hpositions,
     hsourceSelected, hruleSelected,
     hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
-    hfields, hhypotheses,
+    HminorSemantic, hfields, hhypotheses,
     htarget, HdeclarationBinder', Hdomain, HdomainType,
     originRoot, sourceType, ⟨O⟩, hdeclarationType,
     hdeclarationTypeExact⟩
@@ -63167,6 +63182,7 @@ theorem
         S.fields.size = A.rule.allArgs.size ∧
         S.hypotheses.size = A.rule.recursiveArgs.size ∧
         BindingContextLE S.sourceFullContext H.localContext ∧
+        Nonempty (RecInfoMinorSemanticSource H.recursorWF S) ∧
         D.type = sourceType ∧
         TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx D.type target := by
   dsimp only
@@ -63177,7 +63193,7 @@ theorem
       _htraversal, _htraversalFields, _htraversalRecursiveFields,
       _htraversalStats, _hparameterTail, _hpositions,
       _hsourceSelected, _hruleSelected, hlocal, hfields, hhypotheses,
-      hsourceContext, _hfieldDomains, _hhypothesisDomains, _htarget,
+      hsourceContext, HminorSemantic, _hfieldDomains, _hhypothesisDomains, _htarget,
       _Hbinder, _Hdomain, _HdomainType, originRoot, sourceType, ⟨O⟩,
       _hconsumed, htype⟩
   rcases H.recursorWF.translatedDeclarationType
@@ -63186,7 +63202,7 @@ theorem
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
   exact ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, target,
-    hlocal, hfields, hhypotheses, hsourceContext, htype,
+    hlocal, hfields, hhypotheses, hsourceContext, HminorSemantic, htype,
     Htarget.mono henv⟩
 
 /-- Pointwise strengthening of mask alignment.  At every recursive-result
@@ -66716,7 +66732,8 @@ theorem
   dsimp only
   rcases A.finalSelectedMinorRawHypothesisTypeAt j hj with
     ⟨S, hypothesisOrigins, D, originRoot, sourceType, O, rawTarget,
-      _hlocal, _hfields, _hhypotheses, _hsourceContext, htype, Hraw⟩
+      _hlocal, _hfields, _hhypotheses, _hsourceContext, _HminorSemantic,
+      htype, Hraw⟩
   rcases A.recursiveCallRecursorFrame j hj with ⟨F⟩
   rcases A.narrowFieldRuntimeFrame with ⟨B⟩
   rcases F.expandedFieldAbstractedSemanticMotiveTelescopeFor B with
@@ -74855,6 +74872,7 @@ theorem
       hsourceSelected,
       hruleSelected, hlocal, hsourceFields, hsourceHypotheses,
       hsourceContext,
+      _HminorSemantic,
       hfields, hhypotheses, htarget, _Hbinder, Hdomain, HdomainType,
       originRoot, sourceType, ⟨O⟩, _hdeclarationConsumed,
       hdeclarationExact⟩
