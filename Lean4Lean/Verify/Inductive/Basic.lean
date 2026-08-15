@@ -73044,6 +73044,34 @@ theorem
               (abstractForallContext
                 (T.params ++ T.motives ++ T.minors.take minorIdx) []))
             declarationDomain hypothesisDomains[j]!) ∧
+        (let sourceBinders := H.params.fvars ++
+            H.bindings.motives.fvars ++
+              H.bindings.flatMinors.fvars.take minorIdx
+          let position := A.rule.allArgs.size + j
+          let declarationDomain :=
+            ((D.type.abstractList
+                (S.hypotheses_bound.fvars.take j)).abstractList
+              S.fields_bound.fvars j).abstractList sourceBinders position
+          ∃ hypothesisLocalDomains sourceResidual hypothesisResidual,
+            hypothesisLocalDomains.length = O.args.size ∧
+            Expr.ForallTelescope declarationDomain O.args.size
+              sourceResidual ∧
+            hypothesisDomains[j]! = VExpr.wrapForalls
+              hypothesisLocalDomains hypothesisResidual ∧
+            TrExprS H.outVEnv Us
+              (abstractForallContext hypothesisLocalDomains
+                (abstractForallContext
+                  ((fieldDomains ++ hypothesisDomains).take position)
+                  (abstractForallContext
+                    (T.params ++ T.motives ++ T.minors.take minorIdx) [])))
+              sourceResidual hypothesisResidual ∧
+            H.outVEnv.IsType Us.length
+              (abstractForallContext hypothesisLocalDomains
+                (abstractForallContext
+                  ((fieldDomains ++ hypothesisDomains).take position)
+                  (abstractForallContext
+                    (T.params ++ T.motives ++ T.minors.take minorIdx) []))).toCtx
+              hypothesisResidual) ∧
         H.outVEnv.HasType Us.length
           (abstractForallContext
             (H.parameterSuffix.parameterDecls.toCtx.reverse ++
@@ -73059,7 +73087,7 @@ theorem
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
       htraversalRecursiveFields, hpositions, hsourceSelected,
       hruleSelected, hlocal, hsourceFields, hsourceHypotheses,
-      hfields, hhypotheses, htarget, _Hbinder, Hdomain, _HdomainType,
+      hfields, hhypotheses, htarget, _Hbinder, Hdomain, HdomainType,
       originRoot, sourceType, ⟨O⟩, _hdeclarationConsumed,
       hdeclarationExact⟩
   rcases A.narrowFieldRuntimeFrame with ⟨B⟩
@@ -73195,8 +73223,27 @@ theorem
           (O.localIndices.map Expr.bvar).toArray by
         simpa [fieldPosition] using houterField]
     rw [hrecursiveMajor.1, hfieldBinderLength, hlocalArity, hlocalIndices]
+  subst sourceType
+  have HsourceTelescope := O.sourceTelescope
+  have HpreviousHypotheses := HsourceTelescope.abstractList
+    (S.hypotheses_bound.fvars.take j) 0
+  have HsourceFields := HpreviousHypotheses.abstractList
+    S.fields_bound.fvars j
+  have HsourceOuter := HsourceFields.abstractList sourceBinders position
+  let declarationDomain :=
+    ((D.type.abstractList
+        (S.hypotheses_bound.fvars.take j)).abstractList
+      S.fields_bound.fvars j).abstractList sourceBinders position
+  change Expr.ForallTelescope declarationDomain O.args.size _ at HsourceOuter
+  have HtypedDeclaration :=
+    Expr.ForallTelescopeTypeTranslation.ofTrExprS
+      HsourceOuter Hdomain HdomainType
+  rcases HtypedDeclaration.toWrapForalls with
+    ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
+      hhypothesisLocalDomains, _HsourceResidual, hhypothesisDomain,
+      HhypothesisResidual, HhypothesisResidualType⟩
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
-    hypothesisDomains, targetResidual, D, originRoot, sourceType, O, B, E,
+    hypothesisDomains, targetResidual, D, originRoot, D.type, O, B, E,
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
     hownerRecInfos, hmotiveSnapshot,
     ⟨motiveFVar, hmotiveFinal, hmotiveNormal⟩,
@@ -73204,9 +73251,13 @@ theorem
     htraversalRecursiveFields, hpositions,
     hsourceSelected, hruleSelected, hlocal, hsourceFields,
     hsourceHypotheses, hfields, hhypotheses, htarget,
-    hdeclarationExact, by simpa [fieldPosition] using houterField,
+    rfl, by simpa [fieldPosition] using houterField,
     hrecursiveMajor.1, hrecursiveMajor.2, hmajorAlignment,
-    Hdomain, E.closed_typing⟩
+    Hdomain,
+    ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
+      hhypothesisLocalDomains, _HsourceResidual, hhypothesisDomain,
+      HhypothesisResidual, HhypothesisResidualType⟩,
+    E.closed_typing⟩
 
 /-- All recursive results of one generated rule, chosen in their production
 array order and fixed to one recursor telescope and one narrowed field frame. -/
