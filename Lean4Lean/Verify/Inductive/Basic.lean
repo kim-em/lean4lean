@@ -75140,6 +75140,19 @@ theorem
               fieldDomains.length = A.rule.allArgs.size ∧
               fieldDomains = B.fieldDomains ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++
+                    (liftContextPrefix inserted.length
+                      fieldDomains.reverse).reverse) [])
+                (((((F.semantic.generated.current.lctx.mkForall
+                    F.semantic.generated.localArgs (.sort .zero)).abstractList
+                  A.rule.all_args_bound.fvars).abstractList
+                    A.rule.params_bound.fvars A.rule.allArgs.size
+                  ).liftLooseBVars' fieldDomains.length inserted.length))
+                (VExpr.wrapForalls
+                  ((liftContextPrefixAt inserted.length fieldDomains.length
+                    localDomains.reverse).reverse) (.sort .zero)) ∧
               OnCtx
                 (abstractForallContext
                   (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront)
@@ -75203,7 +75216,7 @@ theorem
   rcases F.parameterClosedSemanticCallArgumentFrame (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
       narrowIndices, narrowMajor, narrowExposed, hfront, hfields, hfieldEq,
-      hlocal, _HparameterTemplate, _HparameterTemplateType,
+      hlocal, HparameterTemplate, _HparameterTemplateType,
       HclosedCtx, hlength, Hindices, Hmajor, Hexposed, Htyping,
       HindexEq, HmajorEq⟩
   let liftedFront :=
@@ -75243,6 +75256,25 @@ theorem
       VLCtx.toCtx] using HliftedCtx
   have hcutoff : (fieldDomains ++ localDomains).length = cutoff := by
     simp [cutoff, hfields, hlocal, Nat.add_comm]
+  have HinsertedTemplate₀ :=
+    Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
+      (outer := parameterDecls.toCtx.reverse)
+      (inner := fieldDomains)
+      H.outVEnvWF.ordered HparameterTemplate inserted
+  have HinsertedTemplate : TrExprS H.outVEnv Us
+      (abstractForallContext
+        (parameterDecls.toCtx.reverse ++ inserted ++
+          (liftContextPrefix inserted.length fieldDomains.reverse).reverse) [])
+      (((((F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+        A.rule.all_args_bound.fvars).abstractList
+          A.rule.params_bound.fvars A.rule.allArgs.size
+        ).liftLooseBVars' fieldDomains.length inserted.length))
+      (VExpr.wrapForalls
+        ((liftContextPrefixAt inserted.length fieldDomains.length
+          localDomains.reverse).reverse) (.sort .zero)) := by
+    simpa [VExpr.liftN_wrapForalls, VExpr.liftN,
+      List.append_assoc] using HinsertedTemplate₀
   have liftSource : ∀ {source target},
       TrExprS H.outVEnv Us
         (abstractForallContext
@@ -75312,7 +75344,8 @@ theorem
   have HliftedTyping := Htyping.weakN H.outVEnvWF.ordered W
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
     liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront, rfl,
-    hfields, hfieldEq, hlocal, HequationCtx, hlength, HliftedIndices',
+    hfields, hfieldEq, hlocal, HinsertedTemplate, HequationCtx,
+    hlength, HliftedIndices',
     liftSource Hmajor,
     HliftedExposed, HliftedTyping, HindexEq, HmajorEq⟩
 
@@ -78531,6 +78564,19 @@ theorem
               fieldDomains.length = A.rule.allArgs.size ∧
               fieldDomains = B.fieldDomains ∧
               localDomains.length = F.semantic.generated.localArgs.size ∧
+              TrExprS H.outVEnv Us
+                (abstractForallContext
+                  (parameterDecls.toCtx.reverse ++ inserted ++
+                    (liftContextPrefix inserted.length
+                      fieldDomains.reverse).reverse) [])
+                (((((F.semantic.generated.current.lctx.mkForall
+                    F.semantic.generated.localArgs (.sort .zero)).abstractList
+                  A.rule.all_args_bound.fvars).abstractList
+                    A.rule.params_bound.fvars A.rule.allArgs.size
+                  ).liftLooseBVars' fieldDomains.length inserted.length))
+                (VExpr.wrapForalls
+                  ((liftContextPrefixAt inserted.length fieldDomains.length
+                    localDomains.reverse).reverse) (.sort .zero)) ∧
               OnCtx
                 (abstractForallContext
                   (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront)
@@ -78578,7 +78624,8 @@ theorem
   rcases F.insertedSemanticCallArgumentFrame T (B := B) with
     ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
       liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
-      hliftedFront, hfields, hfieldEq, hlocal, Hctx, hlength, Hindices, Hmajor,
+      hliftedFront, hfields, hfieldEq, hlocal, HlocalTemplate,
+      Hctx, hlength, Hindices, Hmajor,
       Hexposed, Htyping,
       HindexEq, HmajorEq⟩
   have hindices := F.insertedSemanticIndexSources_eq T
@@ -78592,7 +78639,8 @@ theorem
   rw [hexposed] at Hexposed
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
     liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
-    hliftedFront, hfields, hfieldEq, hlocal, Hctx, hlength, Hindices, Hmajor,
+    hliftedFront, hfields, hfieldEq, hlocal, HlocalTemplate,
+    Hctx, hlength, Hindices, Hmajor,
     Hexposed, Htyping,
     HindexEq, HmajorEq⟩
 
@@ -78697,7 +78745,8 @@ theorem
   rcases F.canonicalInsertedSemanticCallArgumentFrame T (B := B) with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, narrowExposed, _hfront,
-      hliftedFront, hfields, hfieldEq, hlocal, Hctx, hlength, Hindices, _Hmajor,
+      hliftedFront, hfields, hfieldEq, hlocal, _HlocalTemplate,
+      Hctx, hlength, Hindices, _Hmajor,
       Hexposed, Htyping, _HindexEq, _HmajorEq⟩
   let liftedFields :=
     (liftContextPrefix inserted.length fieldDomains.reverse).reverse
@@ -79929,6 +79978,15 @@ theorem
         (abstractForallContext (equationDomains ++ localDomains) []).toCtx
         (H.outVEnv.IsType Us.length) ∧
       TrExprS H.outVEnv Us
+        (abstractForallContext equationDomains [])
+        (((((F.semantic.generated.current.lctx.mkForall
+            F.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.all_args_bound.fvars).abstractList
+            A.rule.params_bound.fvars A.rule.allArgs.size
+          ).liftLooseBVars' A.rule.allArgs.size
+            (T.motives ++ T.minors).length))
+        (VExpr.wrapForalls localDomains (.sort .zero)) ∧
+      TrExprS H.outVEnv Us
         (abstractForallContext (equationDomains ++ localDomains) [])
         (localPrefix.abstractList A.rule.binders
           F.semantic.generated.localArgs.size) prefixTarget ∧
@@ -79964,7 +80022,8 @@ theorem
     ⟨_binding, evidence, _scope, Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, _narrowExposed, _hfront,
       hliftedFront,
-      hfields, _hfieldEq, hlocal, Hctx, hlength, Hindices, Hmajor,
+      hfields, _hfieldEq, hlocal, HlocalTemplate,
+      Hctx, hlength, Hindices, Hmajor,
       _Hexposed, _Htyping,
       HindexEq, _HmajorEq⟩
   let parameterDecls := H.parameterSuffix.parameterDecls
@@ -80004,6 +80063,16 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     simpa [equationDomains, parameterDecls, inserted, hsplit,
       List.append_assoc] using Hctx
+  have HlocalTemplate' : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (((((F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+        A.rule.all_args_bound.fvars).abstractList
+          A.rule.params_bound.fvars A.rule.allArgs.size
+        ).liftLooseBVars' A.rule.allArgs.size inserted.length))
+      (VExpr.wrapForalls liftedLocals (.sort .zero)) := by
+    simpa [equationDomains, parameterDecls, inserted, liftedFields,
+      liftedLocals, hfields, List.append_assoc] using HlocalTemplate
   have Hprefix' : TrExprS H.outVEnv Us
       (abstractForallContext (equationDomains ++ liftedLocals) [])
       (localPrefix.abstractList A.rule.binders
@@ -80032,7 +80101,8 @@ theorem
     exact (Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
       HindexEq).trans hlength
   exact ⟨equationDomains, liftedLocals, prefixTarget, indexTargets,
-    majorTarget, hlocalLifted, Hctx', Hprefix', Hindices', Hmajor',
+    majorTarget, hlocalLifted, Hctx', HlocalTemplate',
+    Hprefix', Hindices', Hmajor',
     hindexTargets⟩
 
 /-- Complete application telescope for one canonical recursive-call frame.
@@ -80083,6 +80153,15 @@ theorem
       OnCtx
         (abstractForallContext (equationDomains ++ localDomains) []).toCtx
         (H.outVEnv.IsType Us.length) ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext equationDomains [])
+        (((((F.semantic.generated.current.lctx.mkForall
+            F.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.all_args_bound.fvars).abstractList
+            A.rule.params_bound.fvars A.rule.allArgs.size
+          ).liftLooseBVars' A.rule.allArgs.size
+            (T.motives ++ T.minors).length))
+        (VExpr.wrapForalls localDomains (.sort .zero)) ∧
       TrExprS H.outVEnv Us
         (abstractForallContext (equationDomains ++ localDomains) [])
         (localPrefix.abstractList A.rule.binders
@@ -80143,7 +80222,8 @@ theorem
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, _narrowExposed, _hfront,
       hliftedFront,
-      hfields, _hfieldEq, hlocal, Hctx, hlength, Hindices, Hmajor,
+      hfields, _hfieldEq, hlocal, HlocalTemplate,
+      Hctx, hlength, Hindices, Hmajor,
       _Hexposed, _Htyping,
       HindexEq, _HmajorEq⟩
   let parameterDecls := H.parameterSuffix.parameterDecls
@@ -80192,6 +80272,16 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     simpa [equationDomains, parameterDecls, inserted, hsplit,
       List.append_assoc] using Hctx
+  have HlocalTemplate' : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (((((F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+        A.rule.all_args_bound.fvars).abstractList
+          A.rule.params_bound.fvars A.rule.allArgs.size
+        ).liftLooseBVars' A.rule.allArgs.size inserted.length))
+      (VExpr.wrapForalls liftedLocals (.sort .zero)) := by
+    simpa [equationDomains, parameterDecls, inserted, liftedFields,
+      liftedLocals, hfields, List.append_assoc] using HlocalTemplate
   have HprefixTr := F.cachedInsertedCommonPrefixTranslation T
     fieldDomains rawLocalDomains liftedFront hliftedFront hfields hlocal (by
       simpa [inserted, List.append_assoc] using Hctx)
@@ -80317,7 +80407,8 @@ theorem
       (VExpr.wrapForalls expectedDomains (.sort resultLevel)) := by
     simpa [suffix, later, expected, expectedDomains, hfrontLength] using Hsame
   exact ⟨equationDomains, liftedLocals, prefixTarget, indexTargets,
-    majorTarget, ownerTarget, hlocalLifted, Hctx', HprefixTr', Hindices',
+    majorTarget, ownerTarget, hlocalLifted, Hctx', HlocalTemplate',
+    HprefixTr', Hindices',
     Hmajor', hindexTargets, rfl, expectedDomains, resultLevel,
     hexpectedLength, HprefixExpected', HownerExpected', Hsame'⟩
 
@@ -80388,7 +80479,8 @@ theorem
         F.semantic.generated.arguments_bound.fvars)
   rcases F.canonicalRecursiveCallApplicationTelescope T with
     ⟨equationDomains, localDomains, prefixTarget, indexTargets,
-      majorTarget, ownerTarget, hlocal, Hctx, Hprefix, Hindices, Hmajor,
+      majorTarget, ownerTarget, hlocal, Hctx, _HlocalTemplate,
+      Hprefix, Hindices, Hmajor,
       _hindexLength, _hownerTarget, expectedDomains, resultLevel,
       hexpectedLength, HprefixType, HownerType, Hsame⟩
   let args := indexTargets ++ [majorTarget]
