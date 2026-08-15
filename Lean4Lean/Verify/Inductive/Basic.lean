@@ -78430,6 +78430,138 @@ theorem
     Expr.liftLooseBVars_eq_self hclosed.looseBVarRange_le,
     hbaseFull]
 
+/-- The neutral local-forall template carried through field closure,
+parameter closure, and motive/minor insertion has exactly production's
+single rule-binder abstraction as its source.  This is the source-side
+counterpart of the lifted-domain identity retained by the inserted call
+frame. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.insertedSemanticLocalForallSource_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (B : A.NarrowFieldRuntimeFrame :=
+      Classical.choice A.narrowFieldRuntimeFrame) :
+    let inserted := T.motives ++ T.minors
+    (((((F.semantic.generated.current.lctx.mkForall
+        F.semantic.generated.localArgs (.sort .zero)).abstractList
+      A.rule.all_args_bound.fvars).abstractList
+        A.rule.params_bound.fvars A.rule.allArgs.size
+      ).liftLooseBVars' A.rule.allArgs.size inserted.length)) =
+      (F.semantic.generated.current.lctx.mkForall
+        F.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.binders := by
+  let inserted := T.motives ++ T.minors
+  let insertedFVars :=
+    A.rule.motives_bound.fvars ++ A.rule.minors_bound.fvars
+  let raw := F.semantic.generated.current.lctx.mkForall
+    F.semantic.generated.localArgs (.sort .zero)
+  let source := raw.abstractList A.rule.all_args_bound.fvars
+  rcases F.parameterClosedSemanticCallArgumentFrame (B := B) with
+    ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, _localDomains,
+      _narrowIndices, _narrowMajor, _narrowExposed, _hfront, hfields,
+      _hfieldEq, _hlocal, HparameterTemplate, _HparameterTemplateType,
+      _Hctx, _hlength, _Hindices, _Hmajor, _Hexposed, _Htyping,
+      _HindexEq, _HmajorEq⟩
+  have houterNodup :
+      (A.rule.params_bound.fvars ++ insertedFVars).Nodup := by
+    simpa [insertedFVars, List.append_assoc] using
+      A.rule.outer_binders_nodup
+  have hparamsNodup : A.rule.params_bound.fvars.Nodup :=
+    (List.nodup_append.mp houterNodup).1
+  have hinsertedLength : inserted.length = insertedFVars.length := by
+    simp [inserted, insertedFVars,
+      T.motives_length, T.minors_length,
+      A.rule.motives_bound.length_fvars,
+      A.rule.minors_bound.length_fvars]
+  have hparameterLength :
+      H.parameterSuffix.parameterDecls.toCtx.length =
+        A.rule.params_bound.fvars.length := by
+    calc
+      _ = H.parameterSuffix.parameterDecls.length := by
+        exact
+          checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
+            H.parameterSuffix.cached
+      _ = stats.params.size := H.parameterSuffix.parameterDecls_length
+      _ = A.rule.params_bound.fvars.length := by
+        simpa using A.rule.params_bound.length_fvars.symm
+  have hclosedClosed := HparameterTemplate.closed
+  rw [abstractForallContext_bvars] at hclosedClosed
+  have hclosedAfterParams : Closed
+      (source.abstractList A.rule.params_bound.fvars A.rule.allArgs.size)
+      (A.rule.allArgs.size + A.rule.params_bound.fvars.length) := by
+    simpa [source, raw, hfields, hparameterLength, Nat.add_comm,
+      List.append_assoc, VLCtx.bvars] using hclosedClosed
+  have hclosed : Closed source A.rule.allArgs.size :=
+    Expr.closed_of_abstractList hclosedAfterParams
+  have hclosedFVars :
+      (source.abstractList A.rule.params_bound.fvars A.rule.allArgs.size
+        ).FVarsIn (fun _ => False) := by
+    have h := HparameterTemplate.fvarsIn
+    simpa [source, raw, VLCtx.fvars, abstractForallContext,
+      List.append_assoc] using h
+  have hscope : source.FVarsIn
+      (fun fv => fv ∈ A.rule.params_bound.fvars) := by
+    exact (FVarsIn.of_abstractList hclosedFVars).mono fun fv h => by
+      rcases h with h | h
+      · exact h
+      · exact False.elim h
+  have havoids : source.FVarsIn (· ∉ insertedFVars) := by
+    exact hscope.mono fun fv hparam hinserted => by
+      have hdisjoint := (List.nodup_append.mp houterNodup).2.2
+      exact hdisjoint fv hparam fv hinserted rfl
+  have hinsertedAbstract :
+      source.abstractList insertedFVars A.rule.allArgs.size = source :=
+    havoids.abstractList_eq_self hclosed
+  have hshift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := source) (fvars := A.rule.params_bound.fvars)
+    (depth := A.rule.allArgs.size) (extra := insertedFVars.length)
+    hclosed hparamsNodup
+  have happend := Expr.abstractList_after_inner
+    (e := source) (outer := A.rule.params_bound.fvars)
+    (inner := insertedFVars) (k := A.rule.allArgs.size) houterNodup
+  rw [hinsertedAbstract] at happend
+  have hfirst :
+      (source.abstractList A.rule.params_bound.fvars A.rule.allArgs.size
+        ).liftLooseBVars' A.rule.allArgs.size inserted.length =
+      source.abstractList
+        (A.rule.params_bound.fvars ++ insertedFVars) A.rule.allArgs.size := by
+    rw [hinsertedLength]
+    exact hshift.symm.trans happend
+  have houter := Expr.abstractList_after_inner
+    (e := raw)
+    (outer := A.rule.params_bound.fvars ++ insertedFVars)
+    (inner := A.rule.all_args_bound.fvars) (k := 0)
+    (by simpa [insertedFVars, BoundGeneratedRecursorRule.binders,
+      List.append_assoc] using A.rule.binders_nodup)
+  dsimp only
+  calc
+    _ = source.abstractList
+        (A.rule.params_bound.fvars ++ insertedFVars)
+          A.rule.allArgs.size := by
+      simpa [source, raw, inserted] using hfirst
+    _ = _ := by
+      simpa [source, raw, insertedFVars,
+        BoundGeneratedRecursorRule.binders,
+        A.rule.all_args_bound.length_fvars,
+        List.append_assoc] using houter
+
 /-- Canonical-source form of `insertedSemanticIndexFrame`.  The transported
 recursive indices now have exactly the source expressions emitted in the
 production equation, while retaining the narrowed semantic targets and the
@@ -78569,11 +78701,9 @@ theorem
                   (parameterDecls.toCtx.reverse ++ inserted ++
                     (liftContextPrefix inserted.length
                       fieldDomains.reverse).reverse) [])
-                (((((F.semantic.generated.current.lctx.mkForall
-                    F.semantic.generated.localArgs (.sort .zero)).abstractList
-                  A.rule.all_args_bound.fvars).abstractList
-                    A.rule.params_bound.fvars A.rule.allArgs.size
-                  ).liftLooseBVars' fieldDomains.length inserted.length))
+                ((F.semantic.generated.current.lctx.mkForall
+                  F.semantic.generated.localArgs (.sort .zero)).abstractList
+                    A.rule.binders)
                 (VExpr.wrapForalls
                   ((liftContextPrefixAt inserted.length fieldDomains.length
                     localDomains.reverse).reverse) (.sort .zero)) ∧
@@ -78637,6 +78767,20 @@ theorem
   have hexposed := F.insertedSemanticExposedSource_eq T
   dsimp only at hexposed
   rw [hexposed] at Hexposed
+  have hlocalSource := F.insertedSemanticLocalForallSource_eq T (B := B)
+  dsimp only at hlocalSource
+  have hlocalSource' :
+      (((((F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+        A.rule.all_args_bound.fvars).abstractList
+          A.rule.params_bound.fvars A.rule.allArgs.size
+        ).liftLooseBVars' fieldDomains.length inserted.length)) =
+        (F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+            A.rule.binders := by
+    rw [hfields]
+    exact hlocalSource
+  rw [hlocalSource'] at HlocalTemplate
   exact ⟨binding, evidence, scope, Hscope, fieldDomains, localDomains,
     liftedFront, narrowIndices, narrowMajor, narrowExposed, hfront,
     hliftedFront, hfields, hfieldEq, hlocal, HlocalTemplate,
@@ -79979,12 +80123,9 @@ theorem
         (H.outVEnv.IsType Us.length) ∧
       TrExprS H.outVEnv Us
         (abstractForallContext equationDomains [])
-        (((((F.semantic.generated.current.lctx.mkForall
-            F.semantic.generated.localArgs (.sort .zero)).abstractList
-          A.rule.all_args_bound.fvars).abstractList
-            A.rule.params_bound.fvars A.rule.allArgs.size
-          ).liftLooseBVars' A.rule.allArgs.size
-            (T.motives ++ T.minors).length))
+        ((F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+            A.rule.binders)
         (VExpr.wrapForalls localDomains (.sort .zero)) ∧
       TrExprS H.outVEnv Us
         (abstractForallContext (equationDomains ++ localDomains) [])
@@ -80065,14 +80206,12 @@ theorem
       List.append_assoc] using Hctx
   have HlocalTemplate' : TrExprS H.outVEnv Us
       (abstractForallContext equationDomains [])
-      (((((F.semantic.generated.current.lctx.mkForall
-          F.semantic.generated.localArgs (.sort .zero)).abstractList
-        A.rule.all_args_bound.fvars).abstractList
-          A.rule.params_bound.fvars A.rule.allArgs.size
-        ).liftLooseBVars' A.rule.allArgs.size inserted.length))
+      ((F.semantic.generated.current.lctx.mkForall
+        F.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.binders)
       (VExpr.wrapForalls liftedLocals (.sort .zero)) := by
     simpa [equationDomains, parameterDecls, inserted, liftedFields,
-      liftedLocals, hfields, List.append_assoc] using HlocalTemplate
+      liftedLocals, List.append_assoc] using HlocalTemplate
   have Hprefix' : TrExprS H.outVEnv Us
       (abstractForallContext (equationDomains ++ liftedLocals) [])
       (localPrefix.abstractList A.rule.binders
@@ -80155,12 +80294,9 @@ theorem
         (H.outVEnv.IsType Us.length) ∧
       TrExprS H.outVEnv Us
         (abstractForallContext equationDomains [])
-        (((((F.semantic.generated.current.lctx.mkForall
-            F.semantic.generated.localArgs (.sort .zero)).abstractList
-          A.rule.all_args_bound.fvars).abstractList
-            A.rule.params_bound.fvars A.rule.allArgs.size
-          ).liftLooseBVars' A.rule.allArgs.size
-            (T.motives ++ T.minors).length))
+        ((F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs (.sort .zero)).abstractList
+            A.rule.binders)
         (VExpr.wrapForalls localDomains (.sort .zero)) ∧
       TrExprS H.outVEnv Us
         (abstractForallContext (equationDomains ++ localDomains) [])
@@ -80274,14 +80410,12 @@ theorem
       List.append_assoc] using Hctx
   have HlocalTemplate' : TrExprS H.outVEnv Us
       (abstractForallContext equationDomains [])
-      (((((F.semantic.generated.current.lctx.mkForall
-          F.semantic.generated.localArgs (.sort .zero)).abstractList
-        A.rule.all_args_bound.fvars).abstractList
-          A.rule.params_bound.fvars A.rule.allArgs.size
-        ).liftLooseBVars' A.rule.allArgs.size inserted.length))
+      ((F.semantic.generated.current.lctx.mkForall
+        F.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.binders)
       (VExpr.wrapForalls liftedLocals (.sort .zero)) := by
     simpa [equationDomains, parameterDecls, inserted, liftedFields,
-      liftedLocals, hfields, List.append_assoc] using HlocalTemplate
+      liftedLocals, List.append_assoc] using HlocalTemplate
   have HprefixTr := F.cachedInsertedCommonPrefixTranslation T
     fieldDomains rawLocalDomains liftedFront hliftedFront hfields hlocal (by
       simpa [inserted, List.append_assoc] using Hctx)
