@@ -86318,10 +86318,23 @@ theorem
     let shift := later.length + 1
     let installedEquationFields :=
       (liftContextPrefix shift fieldDomains.reverse).reverse
+    let installedEquationHypotheses :=
+      (liftContextPrefixAt shift fieldDomains.length
+        hypothesisDomains.reverse).reverse
+    let installedEquationResidual := targetResidual.liftN shift
+      (fieldDomains.length + hypothesisDomains.length)
     VEnv.IsDefEqCtx H.outVEnv Us.length []
-      (equationFieldDomains.reverse ++ outer)
-      (installedEquationFields.reverse ++ outer) := by
+        (equationFieldDomains.reverse ++ outer)
+        (installedEquationFields.reverse ++ outer) ∧
+      H.outVEnv.HasType Us.length
+        (equationFieldDomains.reverse ++ outer)
+        (VExpr.mkApps (.bvar
+          (equationFieldDomains.length + later.length))
+          (recursorCanonicalVars equationFieldDomains.length))
+        (VExpr.wrapForalls installedEquationHypotheses
+          installedEquationResidual) := by
   dsimp only at Hctx Hminor Happlication ⊢
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let inserted := T.motives ++ T.minors
   let equationFieldDomains :=
     (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
@@ -86373,10 +86386,41 @@ theorem
         .bvar (equationFieldDomains.length + later.length) := by
     simp [VExpr.liftN, Nat.add_comm]
   rw [← htermShape] at Hminor Happlication
-  exact VEnv.HasType.canonicalApplicationContext_of_weakened
+  have HfieldContext :=
+    VEnv.HasType.canonicalApplicationContext_of_weakened
     H.outVEnvWF equationFieldDomains installedEquationFields outer Hctx
       Hminor (by simpa [installedEquationFields] using hequationLength)
       Happlication
+  have W : Ctx.LiftN equationFieldDomains.length 0 outer
+      (equationFieldDomains.reverse ++ outer) := by
+    exact Ctx.LiftN.zero equationFieldDomains.reverse (by simp)
+  have HminorBase : H.outVEnv.HasType Us.length outer
+      (.bvar later.length)
+      (VExpr.wrapForalls installedEquationFields
+        (VExpr.wrapForalls installedEquationHypotheses
+          installedEquationResidual)) :=
+    (VEnv.HasType.weakN_iff H.outVEnvWF Hctx W).mp Hminor
+  have HminorBase' : H.outVEnv.HasType Us.length outer
+      (.bvar later.length)
+      (VExpr.wrapForalls
+        (installedEquationFields ++ installedEquationHypotheses)
+        installedEquationResidual) := by
+    rw [VExpr.wrapForalls_append]
+    exact HminorBase
+  have HpartialInstalled :=
+    VEnv.HasType.mkApps_wrapForalls_prefix_canonical
+      H.outVEnvWF.ordered
+      (initial := installedEquationFields)
+      (suffix := installedEquationHypotheses) HminorBase'
+  have HpartialFixed := HpartialInstalled.defeqDFC
+    H.outVEnvWF.ordered (HfieldContext.symm H.outVEnvWF.ordered)
+  exact ⟨HfieldContext, by
+    simpa [Us, inserted, equationFieldDomains, outer, later, shift,
+      installedEquationFields, installedEquationHypotheses,
+      installedEquationResidual, hequationLength, hfields,
+      B.fieldDomains_length, VExpr.liftN, recursorCanonicalVars,
+      List.length_drop, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using
+      HpartialFixed⟩
 
 /-- Positive-arity selected minors admit their canonical field application
 in the one fixed equation context shared by all recursive results.  The
@@ -86438,9 +86482,20 @@ theorem
           let shift := later.length + 1
           let installedEquationFields :=
             (liftContextPrefix shift fieldDomains.reverse).reverse
+          let installedEquationHypotheses :=
+            (liftContextPrefixAt shift fieldDomains.length
+              hypothesisDomains.reverse).reverse
+          let installedEquationResidual := targetResidual.liftN shift
+            (fieldDomains.length + hypothesisDomains.length)
           VEnv.IsDefEqCtx H.outVEnv Us.length []
-            (equationFieldDomains.reverse ++ outer)
-            (installedEquationFields.reverse ++ outer) := by
+              (equationFieldDomains.reverse ++ outer)
+              (installedEquationFields.reverse ++ outer) ∧
+            H.outVEnv.HasType Us.length
+              (abstractForallContext equationDomains []).toCtx
+              (VExpr.mkApps (.bvar minorVar)
+                (recursorCanonicalVars equationFieldDomains.length))
+              (VExpr.wrapForalls installedEquationHypotheses
+                installedEquationResidual) := by
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
@@ -86547,9 +86602,21 @@ theorem
     A.finalCanonicalMinorFieldContextOfApplication B T fieldDomains
       hypothesisDomains targetResidual hfields HfixedContext Hminor
       HapplicationWF
+  have HinstalledTyping : H.outVEnv.HasType Us.length
+      (abstractForallContext equationDomains []).toCtx
+      (VExpr.mkApps (.bvar minorVar)
+        (recursorCanonicalVars equationFieldDomains.length))
+      (VExpr.wrapForalls
+        (liftContextPrefixAt (later.length + 1) fieldDomains.length
+          hypothesisDomains.reverse).reverse
+        (targetResidual.liftN (later.length + 1)
+          (fieldDomains.length + hypothesisDomains.length))) := by
+    rw [hequationContext]
+    simpa only [Us, minorIdx, equationFieldDomains, inserted, later,
+      minorVar, List.append_assoc] using HinstalledFields.2
   exact ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
     hfields, hhypotheses, hminorType, HfixedContext, Hminor,
-    HapplicationWF, HinstalledFields⟩
+    HapplicationWF, HinstalledFields.1, HinstalledTyping⟩
 
 /-- Degenerate generated rules need no application fold: when the selected
 constructor has neither fields nor recursive hypotheses, the selected minor
