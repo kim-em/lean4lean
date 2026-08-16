@@ -56241,6 +56241,62 @@ theorem Expr.SameForallPrefix.translatedTelescopeAlignment
     H.translatedTargets henv hctx HleftTelescope HrightTelescope
       hresidual Hleft Hright⟩
 
+/-- Close a translated common forall prefix after comparing its residuals
+through one shared source expression.  This is the target-side shape of one
+recursive-hypothesis alignment step: prefix translation aligns dependent
+local domains, residual translation aligns the selected motive application,
+and `closeHeads` packages both into equality of the complete domain types. -/
+theorem Expr.SameForallPrefix.translatedWholeTargetsOfResidual
+    (H : Expr.SameForallPrefix n leftSource rightSource)
+    (henv : VEnv.WF env)
+    (Hbase : VEnv.IsDefEqCtx env Us.length []
+      baseLeft.reverse baseRight.reverse)
+    (Hleft : TrExprS env Us
+      (abstractForallContext baseLeft []) leftSource
+      (VExpr.wrapForalls leftDomains leftTarget))
+    (Hright : TrExprS env Us
+      (abstractForallContext baseRight []) rightSource
+      (VExpr.wrapForalls rightDomains rightTarget))
+    (hleftLength : leftDomains.length = n)
+    (hrightLength : rightDomains.length = n)
+    (HleftResidual : TrExprS env Us
+      (abstractForallContext (baseLeft ++ leftDomains) []) residualSource
+      leftTarget)
+    (HrightResidual : TrExprS env Us
+      (abstractForallContext (baseRight ++ rightDomains) []) residualSource
+      rightTarget)
+    (HleftResidualType : env.IsType Us.length
+      (abstractForallContext (baseLeft ++ leftDomains) []).toCtx
+      leftTarget) :
+    env.IsDefEqU Us.length baseLeft.reverse
+      (VExpr.wrapForalls leftDomains leftTarget)
+      (VExpr.wrapForalls rightDomains rightTarget) := by
+  have HbaseV := abstractForallContext.isDefEq Hbase
+  have Hlocals := H.translatedContextsExact henv HbaseV Hleft Hright
+    hleftLength hrightLength
+  have Hlocals' : VEnv.IsDefEqCtx env Us.length []
+      (baseLeft ++ leftDomains).reverse
+      (baseRight ++ rightDomains).reverse := by
+    simpa [List.reverse_append, VLCtx.toCtx] using Hlocals
+  have HresidualU := TrExprS.uniqAbstractForallContext
+    HleftResidual HrightResidual henv Hlocals'
+  rcases HleftResidualType with ⟨residualLevel, HleftResidualType⟩
+  have HleftResidualType' : env.HasType Us.length
+      (baseLeft ++ leftDomains).reverse leftTarget
+      (.sort residualLevel) := by
+    simpa [abstractForallContext_toCtx, VLCtx.toCtx] using
+      HleftResidualType
+  have Hresidual : env.IsDefEq Us.length
+      (baseLeft ++ leftDomains).reverse leftTarget rightTarget
+      (.sort residualLevel) :=
+    HresidualU.of_l henv Hlocals'.isType HleftResidualType'
+  have Hclosed :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.closeHeads Hlocals'
+      n (by simp [hleftLength]) Hresidual
+  rcases Hclosed with ⟨closedLevel, Hclosed⟩
+  refine ⟨.sort closedLevel, ?_⟩
+  simpa [hleftLength, hrightLength] using Hclosed
+
 /-- Closing two residual bodies with the same ordinary declarations creates
 the same concrete forall prefix around both. -/
 theorem LocalContext.sameForallPrefix_fold
