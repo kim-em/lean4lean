@@ -1565,6 +1565,33 @@ def VExpr.liftClosedDomains : List VExpr → Nat → List VExpr
   | cons domain domains ih =>
     simp [VExpr.liftClosedDomains, ih]
 
+theorem VExpr.liftClosedDomains_getElem
+    (domains : List VExpr) (depth i : Nat)
+    (hi : i < domains.length) :
+    (VExpr.liftClosedDomains domains depth)[i]'(by simpa using hi) =
+      domains[i].liftN (depth + i) 0 := by
+  induction domains generalizing depth i with
+  | nil => simp at hi
+  | cons domain domains ih =>
+    cases i with
+    | zero => simp [VExpr.liftClosedDomains]
+    | succ i =>
+      have hi' : i < domains.length := by simpa using hi
+      simpa [VExpr.liftClosedDomains, Nat.add_assoc, Nat.add_comm,
+        Nat.add_left_comm] using ih (depth + 1) i hi'
+
+theorem VExpr.liftClosedDomains_take
+    (domains : List VExpr) (depth count : Nat) :
+    (VExpr.liftClosedDomains domains depth).take count =
+      VExpr.liftClosedDomains (domains.take count) depth := by
+  induction domains generalizing depth count with
+  | nil => simp [VExpr.liftClosedDomains]
+  | cons domain domains ih =>
+    cases count with
+    | zero => simp [VExpr.liftClosedDomains]
+    | succ count =>
+      simp [VExpr.liftClosedDomains, ih]
+
 /-- Instantiating the next binder cancels one layer of the systematic
 weakening in every later independent domain. -/
 theorem VExpr.instForallDomains_liftClosedDomains_succ
