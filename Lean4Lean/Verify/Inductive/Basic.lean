@@ -1550,6 +1550,84 @@ theorem VExpr.inst_wrapForalls
     rw [show k + (domains.length + 1) = k + 1 + domains.length by omega]
     exact ih (k + 1)
 
+/-- Place independently typed closed domains into one dependent telescope.
+The domain at chronological position `i` is weakened below the `i` earlier
+binders, so substituting those binders recovers its original closed type. -/
+def VExpr.liftClosedDomains : List VExpr → Nat → List VExpr
+  | [], _ => []
+  | domain :: domains, depth =>
+      domain.liftN depth 0 :: liftClosedDomains domains (depth + 1)
+
+@[simp] theorem VExpr.liftClosedDomains_length :
+    (VExpr.liftClosedDomains domains depth).length = domains.length := by
+  induction domains generalizing depth with
+  | nil => rfl
+  | cons domain domains ih =>
+    simp [VExpr.liftClosedDomains, ih]
+
+/-- Instantiating the next binder cancels one layer of the systematic
+weakening in every later independent domain. -/
+theorem VExpr.instForallDomains_liftClosedDomains_succ
+    (domains : List VExpr) (arg : VExpr) (k : Nat) :
+    VExpr.instForallDomains
+        (VExpr.liftClosedDomains domains (k + 1)) arg k =
+      VExpr.liftClosedDomains domains k := by
+  induction domains generalizing k with
+  | nil => rfl
+  | cons domain domains ih =>
+    simp only [VExpr.liftClosedDomains, VExpr.instForallDomains]
+    have hhead : (domain.liftN (k + 1) 0).inst arg k =
+        domain.liftN k 0 := by
+      rw [show domain.liftN (k + 1) 0 =
+          (domain.liftN k 0).liftN 1 k by
+        simpa [Nat.add_comm] using
+          (VExpr.liftN'_liftN_lo domain 1 k).symm]
+      exact VExpr.inst_liftN (domain.liftN k 0) arg
+    rw [hhead]
+    congr 1
+    simpa [Nat.add_assoc] using ih (k + 1)
+
+/-- Consume a dependent telescope assembled from independently typed closed
+arguments.  This packages the substitution bookkeeping needed by generated
+minor hypotheses: after each application, `liftClosedDomains` and
+`instForallDomains` reduce the remaining domains back to the same invariant. -/
+theorem VEnv.TypedApplicationSpine.liftClosedDomains
+    (henv : env.Ordered)
+    (Hfn : env.HasType uvars ctx fn
+      (VExpr.wrapForalls (VExpr.liftClosedDomains types 0) resultType))
+    (Hargs : List.Forall₂
+      (env.HasType uvars ctx) args types) :
+    ∃ finalType, VEnv.TypedApplicationSpine env uvars ctx fn
+      (VExpr.wrapForalls (VExpr.liftClosedDomains types 0) resultType)
+      args finalType := by
+  induction Hargs generalizing fn resultType with
+  | nil =>
+    exact ⟨resultType, by
+      simpa [VExpr.liftClosedDomains, VExpr.wrapForalls] using
+        (VEnv.TypedApplicationSpine.nil Hfn)⟩
+  | @cons arg domain args types Harg Hargs ih =>
+    have Hfn' : env.HasType uvars ctx fn
+        (.forallE domain
+          (VExpr.wrapForalls (VExpr.liftClosedDomains types 1)
+            resultType)) := by
+      simpa [VExpr.liftClosedDomains, VExpr.wrapForalls] using Hfn
+    have Happ := Hfn'.app Harg
+    have Happ' : env.HasType uvars ctx (.app fn arg)
+        (VExpr.wrapForalls (VExpr.liftClosedDomains types 0)
+          (resultType.inst arg types.length)) := by
+      rw [VExpr.inst_wrapForalls] at Happ
+      simpa [VExpr.instForallDomains_liftClosedDomains_succ] using Happ
+    rcases ih Happ' with ⟨finalType, Htail⟩
+    have Htail' : VEnv.TypedApplicationSpine env uvars ctx (.app fn arg)
+        ((VExpr.wrapForalls (VExpr.liftClosedDomains types 1)
+          resultType).inst arg) args finalType := by
+      rw [VExpr.inst_wrapForalls,
+        VExpr.instForallDomains_liftClosedDomains_succ]
+      simpa using Htail
+    refine ⟨finalType, ?_⟩
+    simpa [VExpr.liftClosedDomains, VExpr.wrapForalls] using
+      (VEnv.TypedApplicationSpine.cons Hfn' Harg Htail')
+
 theorem VExpr.inst_mkApps
     (fn arg : VExpr) (args : List VExpr) (k : Nat) :
     (VExpr.mkApps fn args).inst arg k =
