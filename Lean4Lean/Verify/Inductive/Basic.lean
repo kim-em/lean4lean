@@ -55929,6 +55929,47 @@ theorem Expr.SameForallPrefix.trans
     cases H₂ with
     | cons H₂ => exact .cons (ih H₂)
 
+/-- The common concrete binder domains of two forall telescopes transfer a
+free-variable bound from the right telescope to the left once the left
+residual satisfies that same bound.  This is useful when replay identifies
+the binder prefix but the two passes deliberately build different result
+expressions. -/
+theorem Expr.SameForallPrefix.leftFVarsIn
+    (H : Expr.SameForallPrefix n left right)
+    (Hleft : Expr.ForallTelescope left n leftResidual)
+    (HrightScope : right.FVarsIn P)
+    (HleftResidualScope : leftResidual.FVarsIn P) :
+    left.FVarsIn P := by
+  induction H generalizing leftResidual with
+  | nil =>
+    cases Hleft
+    exact HleftResidualScope
+  | cons _ ih =>
+    cases Hleft with
+    | cons Hleft =>
+      exact ⟨HrightScope.1,
+        ih Hleft HrightScope.2 HleftResidualScope⟩
+
+/-- Closedness obeys the same prefix transfer principle.  The residual is
+checked beneath the complete prefix, while every shared binder domain is
+read from the closed right telescope. -/
+theorem Expr.SameForallPrefix.leftClosed
+    (H : Expr.SameForallPrefix n left right)
+    (Hleft : Expr.ForallTelescope left n leftResidual)
+    (HrightClosed : Closed right k)
+    (HleftResidualClosed : Closed leftResidual (k + n)) :
+    Closed left k := by
+  induction H generalizing leftResidual k with
+  | nil =>
+    cases Hleft
+    simpa using HleftResidualClosed
+  | @cons n left right name dom bi H ih =>
+    cases Hleft with
+    | cons Hleft =>
+      refine ⟨HrightClosed.1, ih Hleft HrightClosed.2 ?_⟩
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+        HleftResidualClosed
+
 /-- Identical concrete forall prefixes are complete once their residual
 bodies are identified.  Keeping both telescope witnesses explicit avoids
 relying on a syntactic `isForall` loop when the prefix was produced by two
@@ -56290,6 +56331,66 @@ theorem Expr.SameForallPrefix.translatedWholeTargetsOfResidual
       (baseLeft ++ leftDomains).reverse leftTarget rightTarget
       (.sort residualLevel) :=
     HresidualU.of_l henv Hlocals'.isType HleftResidualType'
+  have Hclosed :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.closeHeads Hlocals'
+      n (by simp [hleftLength]) Hresidual
+  rcases Hclosed with ⟨closedLevel, Hclosed⟩
+  refine ⟨.sort closedLevel, ?_⟩
+  simpa [hleftLength, hrightLength] using Hclosed
+
+/-- Right-typed variant of `translatedWholeTargetsOfResidual`.  The two
+residual translations still have one common source; this formulation is
+convenient when the canonical (right-hand) telescope already carries its
+type derivation. -/
+theorem Expr.SameForallPrefix.translatedWholeTargetsOfResidualRight
+    (H : Expr.SameForallPrefix n leftSource rightSource)
+    (henv : VEnv.WF env)
+    (Hbase : VEnv.IsDefEqCtx env Us.length []
+      baseLeft.reverse baseRight.reverse)
+    (Hleft : TrExprS env Us
+      (abstractForallContext baseLeft []) leftSource
+      (VExpr.wrapForalls leftDomains leftTarget))
+    (Hright : TrExprS env Us
+      (abstractForallContext baseRight []) rightSource
+      (VExpr.wrapForalls rightDomains rightTarget))
+    (hleftLength : leftDomains.length = n)
+    (hrightLength : rightDomains.length = n)
+    (HleftResidual : TrExprS env Us
+      (abstractForallContext (baseLeft ++ leftDomains) []) residualSource
+      leftTarget)
+    (HrightResidual : TrExprS env Us
+      (abstractForallContext (baseRight ++ rightDomains) []) residualSource
+      rightTarget)
+    (HrightResidualType : env.IsType Us.length
+      (abstractForallContext (baseRight ++ rightDomains) []).toCtx
+      rightTarget) :
+    env.IsDefEqU Us.length baseLeft.reverse
+      (VExpr.wrapForalls leftDomains leftTarget)
+      (VExpr.wrapForalls rightDomains rightTarget) := by
+  have HbaseV := abstractForallContext.isDefEq Hbase
+  have Hlocals := H.translatedContextsExact henv HbaseV Hleft Hright
+    hleftLength hrightLength
+  have Hlocals' : VEnv.IsDefEqCtx env Us.length []
+      (baseLeft ++ leftDomains).reverse
+      (baseRight ++ rightDomains).reverse := by
+    simpa [List.reverse_append, VLCtx.toCtx] using Hlocals
+  have HresidualU := TrExprS.uniqAbstractForallContext
+    HleftResidual HrightResidual henv Hlocals'
+  rcases HrightResidualType with ⟨residualLevel, HrightResidualType⟩
+  have HrightResidualType' : env.HasType Us.length
+      (baseRight ++ rightDomains).reverse rightTarget
+      (.sort residualLevel) := by
+    simpa [abstractForallContext_toCtx, VLCtx.toCtx] using
+      HrightResidualType
+  have HrightResidualTypeLeft : env.HasType Us.length
+      (baseLeft ++ leftDomains).reverse rightTarget
+      (.sort residualLevel) :=
+    HrightResidualType'.defeqDFC henv.ordered
+      (Hlocals'.symm henv.ordered)
+  have Hresidual : env.IsDefEq Us.length
+      (baseLeft ++ leftDomains).reverse leftTarget rightTarget
+      (.sort residualLevel) :=
+    HresidualU.of_r henv Hlocals'.isType HrightResidualTypeLeft
   have Hclosed :=
     Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.closeHeads Hlocals'
       n (by simp [hleftLength]) Hresidual
@@ -74470,6 +74571,64 @@ theorem
       checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using
       Hreplay Hbody HbodyType
 
+/-- The higher-order local binder domains generated for a recursive call do
+not depend on motives, minors, or induction hypotheses.  Closing the exact
+local suffix in the narrowed field scope and then abstracting the constructor
+fields leaves only the original inductive parameters free. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.fieldAbstractedNeutralLocalForallSourceScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame) :
+    ((F.semantic.generated.current.lctx.mkForall
+        F.semantic.generated.localArgs (.sort .zero)).abstractList
+      A.rule.all_args_bound.fvars).FVarsIn
+        (fun fv => fv ∈ ExprArrayFVarIds stats.params) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases F.narrowLocalForallReplayFor B with
+    ⟨scope, _Hscope, _hscopeFVars, _hscopeBase,
+      _localDomains, _hlocal, _hfront, Hreplay⟩
+  have hzero : VLevel.ofLevel Us (.zero : Level) =
+      some (.zero : VLevel) := rfl
+  have Hzero : TrExprS H.outVEnv Us scope
+      (.sort (.zero : Level)) (.sort (.zero : VLevel)) := .sort hzero
+  have HzeroType : H.outVEnv.IsType Us.length scope.toCtx
+      (.sort (.zero : VLevel)) :=
+    ⟨.succ .zero, VEnv.HasType.sort (.of_ofLevel hzero)⟩
+  have Hneutral := (Hreplay Hzero HzeroType).1
+  have HneutralScope :
+      (F.semantic.generated.current.lctx.mkForall
+        F.semantic.generated.localArgs (.sort .zero)).FVarsIn
+          (fun fv => fv ∈ A.rule.all_args_bound.fvars ∨
+            fv ∈ ExprArrayFVarIds stats.params) := by
+    apply Hneutral.fvarsIn.mono
+    intro fv hfv
+    rw [B.scope_fvars] at hfv
+    rcases List.mem_append.mp hfv with hfield | hparam
+    · left
+      have hfield' : fv ∈ A.semantics.fieldsRecent.fvars :=
+        List.mem_reverse.mp hfield
+      have hfvars : A.semantics.fieldsRecent.fvars =
+          A.rule.all_args_bound.fvars :=
+        BoundFVarArray.fvars_eq
+          A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+          A.rule.all_args_bound rfl
+      simpa [hfvars] using hfield'
+    · right
+      simpa [H.parameterSuffix.parameterDecls_fvars] using hparam
+  exact FVarsIn.abstractList_of HneutralScope
+
 /-- Existential specialization of `narrowRuntimeScopeFor` used by the
 earlier pointwise call lemmas.  List-level reconstruction instead retains
 the `NarrowFieldRuntimeFrame` witness and calls the parameterized theorem. -/
@@ -85715,15 +85874,15 @@ theorem
     ⟨_S, _hypothesisOrigins, _traversal, fieldDomains,
       hypothesisDomains, targetResidual, _D, _originRoot, _sourceType, _O,
       _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
-      _hownerRecInfos, _hmotiveSnapshot, _hmotivePosition,
+      hownerRecInfos, _hmotiveSnapshot, _hmotivePosition,
       _htraversal, _htraversalFields, _htraversalRecursiveFields,
       _htraversalStats, _hparameterTail, _hpositions,
-      _hsourceSelected, _hruleSelected, _hlocal, _hsourceFields,
-      _hsourceHypotheses, _hsourceContext, _HminorSemantic,
+      _hsourceSelected, _hruleSelected, _hlocal, hsourceFields,
+      hsourceHypotheses, _hsourceContext, _HminorSemantic,
       hfields, hhypotheses, htarget, _hdeclarationType,
       _houterField, _hmajorOuter, _hmajorApplied, _Hreplay,
       _HlocalTelescopeReplay, _HlocalLambdaReplay, _HlocalForallReplay,
-      _hmotiveReplay, _hindicesReplay, _hownerReplay, hlocalArity,
+      _hmotiveReplay, _hindicesReplay, hownerReplay, hlocalArity,
       _hmajorAlignment, _hmotiveAppAlignment, _Hsemantic,
       _Hdomain, Hresiduals, Htyping⟩
   rcases Hresiduals with
@@ -85802,12 +85961,12 @@ theorem
       _hownerRecInfos, _hmotiveSnapshot, _hmotivePosition,
       _htraversal, _htraversalFields, _htraversalRecursiveFields,
       _htraversalStats, _hparameterTail, _hpositions,
-      _hsourceSelected, _hruleSelected, _hlocal, _hsourceFields,
-      _hsourceHypotheses, _hsourceContext, _HminorSemantic,
+      _hsourceSelected, _hruleSelected, _hlocal, hsourceFields,
+      hsourceHypotheses, _hsourceContext, _HminorSemantic,
       hfields, hhypotheses, htarget, hdeclarationType,
       _houterField, _hmajorOuter, _hmajorApplied, _Hreplay,
       _HlocalTelescopeReplay, _HlocalLambdaReplay, HlocalForallReplay,
-      _hmotiveReplay, _hindicesReplay, _hownerReplay, hlocalArity,
+      _hmotiveReplay, _hindicesReplay, hownerReplay, hlocalArity,
       _hmajorAlignment, _hmotiveAppAlignment, _Hsemantic,
       _Hdomain, _Hresiduals, _Htyping⟩
   exact ⟨S, hypothesisOrigins, fieldDomains, hypothesisDomains,
@@ -85890,8 +86049,14 @@ theorem
       let liftedCanonicalLocals :=
         (liftContextPrefix liftedPrevious.length
           E.localDomains.reverse).reverse
+      let residualSource :=
+        (E.frame.semantic.generated.outerAbstractedMotiveApp
+          A.rule.binders).liftLooseBVars'
+            E.frame.semantic.generated.localArgs.size j
       fieldDomains.length = A.rule.allArgs.size ∧
       hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+      T.minors[minorIdx]! = VExpr.wrapForalls
+        (fieldDomains ++ hypothesisDomains) targetResidual ∧
       liftedPrior = liftedFields ++ liftedPrevious ∧
       hypothesisLocalDomains.length = E.localDomains.length ∧
       hypothesisDomains[j]! =
@@ -85910,22 +86075,43 @@ theorem
             A.rule.binders).liftLooseBVars' 0 liftedPrevious.length)
         (VExpr.wrapForalls liftedCanonicalLocals
           (E.resultType.liftN liftedPrevious.length
-            E.localDomains.length)) := by
+            E.localDomains.length)) ∧
+      Expr.SameForallPrefix E.localDomains.length
+        (declarationDomain.liftLooseBVars' position remaining.length)
+        (((E.frame.semantic.generated.current.lctx.mkForall
+          E.frame.semantic.generated.localArgs motiveApp).abstractList
+            A.rule.binders).liftLooseBVars' 0 liftedPrevious.length) ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext
+          (T.params ++ T.motives ++ T.minors ++ liftedPrior ++
+            liftedHypothesisLocals) [])
+        residualSource
+        (hypothesisResidual.liftN remaining.length
+          (position + hypothesisLocalDomains.length)) ∧
+      TrExprS H.outVEnv Us
+        (abstractForallContext
+          (equationDomains ++ liftedPrevious ++ liftedCanonicalLocals) [])
+        residualSource
+        (E.resultType.liftN liftedPrevious.length E.localDomains.length) ∧
+      H.outVEnv.IsType Us.length
+        (abstractForallContext
+          (equationDomains ++ liftedPrevious ++ liftedCanonicalLocals) []).toCtx
+        (E.resultType.liftN liftedPrevious.length E.localDomains.length) := by
   dsimp only
   rcases A.finalSelectedMinorHypothesisCanonicalResultFrame j hj B T E with
     ⟨S, hypothesisOrigins, _traversal, fieldDomains,
       hypothesisDomains, targetResidual, D, originRoot, sourceType, O,
-      _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
-      _hownerRecInfos, _hmotiveSnapshot, _hmotivePosition,
+      _hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
+      hownerRecInfos, _hmotiveSnapshot, _hmotivePosition,
       _htraversal, _htraversalFields, _htraversalRecursiveFields,
       _htraversalStats, _hparameterTail, _hpositions,
-      _hsourceSelected, _hruleSelected, _hlocal, _hsourceFields,
-      _hsourceHypotheses, _hsourceContext, _HminorSemantic,
-      hfields, hhypotheses, _htarget, _hdeclarationType,
+      _hsourceSelected, _hruleSelected, _hlocal, hsourceFields,
+      hsourceHypotheses, _hsourceContext, _HminorSemantic,
+      hfields, hhypotheses, htarget, hdeclarationType,
       _houterField, _hmajorOuter, _hmajorApplied, _Hreplay,
-      _HlocalTelescopeReplay, _HlocalLambdaReplay, _HlocalForallReplay,
+      _HlocalTelescopeReplay, _HlocalLambdaReplay, HlocalForallReplay,
       _hmotiveReplay, _hindicesReplay, _hownerReplay, hlocalArity,
-      _hmajorAlignment, _hmotiveAppAlignment, _Hsemantic,
+      _hmajorAlignment, hmotiveAppAlignment, Hsemantic,
       Hdomain, Hresiduals, _Htyping⟩
   rcases Hresiduals with
     ⟨hypothesisLocalDomains, _sourceResidual, hypothesisResidual,
@@ -85933,7 +86119,7 @@ theorem
       _hsourceResidual, _hsourceResidualStructured,
       _hsourceResidualNormalized, _hsourceResidualOuter,
       _hsourceResidualGenerated, _hsourceResidualFull,
-      _HhypothesisResidualFull, _HcanonicalResultTypeFull,
+      HhypothesisResidualFull, _HcanonicalResultTypeFull,
       hhypothesisDomain, _HhypothesisResidual,
       _HhypothesisResidualType⟩
   let minorIdx := recursorMinorOffset indTypes owner + i
@@ -85957,6 +86143,14 @@ theorem
   let liftedHypothesisLocals :=
     (liftContextPrefixAt remaining.length position
       hypothesisLocalDomains.reverse).reverse
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++
+      T.motives ++ T.minors ++
+        (liftContextPrefix (T.motives ++ T.minors).length
+          B.fieldDomains.reverse).reverse
+  let liftedCanonicalLocals :=
+    (liftContextPrefix liftedPrevious.length
+      E.localDomains.reverse).reverse
   have hpositionLE : position ≤
       (fieldDomains ++ hypothesisDomains).length := by
     simp only [position, List.length_append]
@@ -85967,6 +86161,12 @@ theorem
   have hpriorSplit : prior = fieldDomains ++ previous := by
     unfold prior position previous
     rw [← hfields, List.take_length_add_append]
+  have hpreviousLength₀ : previous.length = j := by
+    simp only [previous, List.length_take]
+    rw [hhypotheses]
+    omega
+  have hliftedPreviousLength₀ : liftedPrevious.length = j := by
+    simp [liftedPrevious, hpreviousLength₀]
   have hliftedPriorSplit : liftedPrior = liftedFields ++ liftedPrevious := by
     simpa [liftedPrior, liftedFields, liftedPrevious, hpriorSplit] using
       liftContextPrefix_reverse_append remaining.length fieldDomains previous
@@ -85996,11 +86196,596 @@ theorem
   have Hcanonical := E.fullForallTranslationAfter liftedPrevious
   have hlocalLength : hypothesisLocalDomains.length = E.localDomains.length :=
     hhypothesisLocalDomains.trans (hlocalArity.trans E.local_length.symm)
+  have hliftedHypothesisInner :
+      (liftContextPrefix remaining.length
+        (prior ++ hypothesisLocalDomains).reverse).reverse =
+        liftedPrior ++ liftedHypothesisLocals := by
+    simpa [liftedPrior, liftedHypothesisLocals, hprior] using
+      liftContextPrefix_reverse_append remaining.length prior
+        hypothesisLocalDomains
+  have HinstalledResidual : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        (T.params ++ T.motives ++ T.minors ++ liftedPrior ++
+          liftedHypothesisLocals) [])
+      ((E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.binders).liftLooseBVars'
+          E.frame.semantic.generated.localArgs.size j)
+      (hypothesisResidual.liftN remaining.length
+        (position + hypothesisLocalDomains.length)) := by
+    have HinstalledResidual₀ : TrExprS H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        (abstractForallContext
+          (T.params ++ T.motives ++ T.minors ++
+            (liftContextPrefix remaining.length
+              (prior ++ hypothesisLocalDomains).reverse).reverse) [])
+        ((E.frame.semantic.generated.outerAbstractedMotiveApp
+          A.rule.binders).liftLooseBVars'
+            E.frame.semantic.generated.localArgs.size j)
+        (hypothesisResidual.liftN remaining.length
+          (prior ++ hypothesisLocalDomains).length) := by
+      simpa only [minorIdx, position, prior, remaining] using
+        HhypothesisResidualFull
+    rw [hliftedHypothesisInner, List.length_append, hprior] at HinstalledResidual₀
+    simpa [List.append_assoc] using HinstalledResidual₀
+  have HcanonicalResidual₀ : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext (equationDomains ++ E.localDomains) [])
+      (E.frame.semantic.generated.outerAbstractedMotiveApp A.rule.binders)
+      E.resultType := by
+    simpa [equationDomains] using E.result_type_translation
+  have HcanonicalResidualInserted :=
+    Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
+      (outer := equationDomains) (inner := E.localDomains)
+      H.outVEnvWF.ordered HcanonicalResidual₀ liftedPrevious
+  have HcanonicalResidual : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        (equationDomains ++ liftedPrevious ++ liftedCanonicalLocals) [])
+      ((E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.binders).liftLooseBVars'
+          E.frame.semantic.generated.localArgs.size liftedPrevious.length)
+      (E.resultType.liftN liftedPrevious.length E.localDomains.length) := by
+    simpa [liftedCanonicalLocals, E.local_length, List.append_assoc] using
+      HcanonicalResidualInserted
+  have Wcanonical : Ctx.LiftN liftedPrevious.length E.localDomains.length
+      (abstractForallContext
+        (equationDomains ++ E.localDomains) []).toCtx
+      (abstractForallContext
+        (equationDomains ++ liftedPrevious ++ liftedCanonicalLocals) []).toCtx := by
+    have W := Ctx.LiftN.insertAfterPrefix E.localDomains.reverse
+      liftedPrevious.reverse equationDomains.reverse
+    simpa [liftedCanonicalLocals, List.reverse_append,
+      abstractForallContext_toCtx, VLCtx.toCtx, List.append_assoc] using W
+  have HcanonicalResidualType : H.outVEnv.IsType
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      (abstractForallContext
+        (equationDomains ++ liftedPrevious ++ liftedCanonicalLocals) []).toCtx
+      (E.resultType.liftN liftedPrevious.length E.localDomains.length) := by
+    exact E.result_type_isType.weakN H.outVEnvWF.ordered Wcanonical
+  let originMotiveApp := Expr.app
+    (mkAppN hypothesisOrigins.recInfos[O.ownerIdx]!.motive
+      O.exposedType.getAppArgs[hypothesisOrigins.stats.params.size:])
+    (mkAppN S.recursiveFields[j]! O.args)
+  let generatedMotiveApp := Expr.app
+    (mkAppN
+      H.recInfos[E.frame.semantic.generated.ownerIdx]!.motive
+      E.frame.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+    (mkAppN A.rule.recursiveArgs[j]
+      E.frame.semantic.generated.localArgs)
+  let originFieldSource :=
+    D.type.abstractList S.fields_bound.fvars
+  let generatedFieldSource :=
+    (E.frame.semantic.generated.current.lctx.mkForall
+      E.frame.semantic.generated.localArgs generatedMotiveApp).abstractList
+        A.rule.all_args_bound.fvars
+  have horiginSourceShape : D.type =
+      O.current.lctx.mkForall O.args originMotiveApp := by
+    exact hdeclarationType.trans (by simpa [originMotiveApp] using O.type_eq)
+  have HfieldPrefix : Expr.SameForallPrefix O.args.size
+      originFieldSource generatedFieldSource := by
+    have Hprefix := HlocalForallReplay originMotiveApp generatedMotiveApp
+    dsimp only [originFieldSource, generatedFieldSource]
+    rw [horiginSourceShape]
+    simpa [originMotiveApp, generatedMotiveApp] using Hprefix
+  have HoriginTelescope : Expr.ForallTelescope originFieldSource O.args.size
+      (O.outerAbstractedMotiveApp S.fields_bound.fvars) := by
+    have Hsource := O.sourceTelescope.abstractList
+      S.fields_bound.fvars 0
+    have hresidual :
+        (originMotiveApp.abstractList
+          O.arguments_bound.fvars).abstractList
+            S.fields_bound.fvars O.args.size =
+          O.outerAbstractedMotiveApp S.fields_bound.fvars := by
+      simpa [originMotiveApp] using
+        O.outerAbstractedMotiveApp_eq S.fields_bound.fvars
+    have Hsource' : Expr.ForallTelescope
+        (sourceType.abstractList S.fields_bound.fvars) O.args.size
+        ((originMotiveApp.abstractList
+          O.arguments_bound.fvars).abstractList
+            S.fields_bound.fvars O.args.size) := by
+      simpa [originMotiveApp] using Hsource
+    rw [hresidual] at Hsource'
+    simpa [originFieldSource, hdeclarationType] using Hsource'
+  have HgeneratedNeutralScope :=
+    E.frame.fieldAbstractedNeutralLocalForallSourceScope B
+  have HgeneratedNeutralAvoidsHypotheses :
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.all_args_bound.fvars).FVarsIn
+            (fun fv => fv ∉ S.hypotheses_bound.fvars) := by
+    apply HgeneratedNeutralScope.mono
+    intro fv hparam hhypothesis
+    apply hypothesisOrigins.hypotheses_outer_fresh fv
+    · apply List.mem_append_left
+      simpa [hhypothesisStats] using hparam
+    · rw [S.hypotheses_bound.exprArrayFVarIds]
+      exact hhypothesis
+  have HgeneratedMotiveScope :=
+    E.frame.fieldAbstractedNormalizedMotiveSourceScope
+  have HoriginMotiveScope :
+      (O.outerAbstractedMotiveApp S.fields_bound.fvars).FVarsIn fun fv =>
+        fv ∈ ExprArrayFVarIds stats.params ++
+          ExprArrayFVarIds (H.recInfos.map (·.motive)) := by
+    rw [hmotiveAppAlignment]
+    exact HgeneratedMotiveScope
+  have HoriginMotiveAvoidsHypotheses :
+      (O.outerAbstractedMotiveApp S.fields_bound.fvars).FVarsIn
+        (fun fv => fv ∉ S.hypotheses_bound.fvars) := by
+    apply HoriginMotiveScope.mono
+    intro fv houter hhypothesis
+    apply hypothesisOrigins.hypotheses_outer_fresh fv
+    · simpa [hhypothesisStats, hhypothesisRecInfos] using houter
+    · rw [S.hypotheses_bound.exprArrayFVarIds]
+      exact hhypothesis
+  have HneutralPrefix : Expr.SameForallPrefix O.args.size
+      originFieldSource
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.all_args_bound.fvars) := by
+    have Hprefix := HlocalForallReplay originMotiveApp (.sort .zero)
+    dsimp only [originFieldSource]
+    rw [horiginSourceShape]
+    simpa [originMotiveApp] using Hprefix
+  have HoriginFieldAvoidsHypotheses : originFieldSource.FVarsIn
+      (fun fv => fv ∉ S.hypotheses_bound.fvars) :=
+    HneutralPrefix.leftFVarsIn HoriginTelescope
+      HgeneratedNeutralAvoidsHypotheses HoriginMotiveAvoidsHypotheses
+  have HDomainAvoidsHypotheses : D.type.FVarsIn
+      (fun fv => fv ∉ S.hypotheses_bound.fvars) := by
+    have Hraw := FVarsIn.of_abstractList HoriginFieldAvoidsHypotheses
+    apply Hraw.mono
+    intro fv hfv hhypothesis
+    rcases hfv with hfield | hnotHypothesis
+    · exact S.hypotheses_fields_fresh fv hhypothesis hfield
+    · exact hnotHypothesis hhypothesis
+  rcases Hsemantic with
+    ⟨_semanticBinding, _semanticEvidence, semanticLocalDomains,
+      semanticFieldDomains, hsemanticLocal, hsemanticFields,
+      _hsemanticContext, HsemanticOrigin, _HsemanticType,
+      HsemanticForall⟩
+  have HgeneratedFieldClosed : Closed generatedFieldSource
+      A.rule.allArgs.size := by
+    have hclosed := HsemanticForall.closed
+    rw [abstractForallContext_bvars,
+      A.semantics.fieldRootContext.mlctx.noBV, Nat.add_zero] at hclosed
+    simpa [generatedFieldSource, generatedMotiveApp, hsemanticFields] using
+      hclosed
+  have HoriginMotiveClosed : Closed
+      (O.outerAbstractedMotiveApp S.fields_bound.fvars)
+      (A.rule.allArgs.size + O.args.size) := by
+    have hclosed := HsemanticOrigin.closed
+    rw [abstractForallContext_bvars,
+      A.semantics.fieldRootContext.mlctx.noBV, Nat.add_zero] at hclosed
+    simpa [hsemanticLocal, hsemanticFields, hlocalArity,
+      Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using hclosed
+  have HoriginFieldClosed : Closed originFieldSource
+      A.rule.allArgs.size := by
+    exact HfieldPrefix.leftClosed HoriginTelescope HgeneratedFieldClosed
+      (by simpa [Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using
+        HoriginMotiveClosed)
+  have HDomainClosed : Closed D.type 0 := by
+    apply Expr.closed_of_abstractList
+      (e := D.type) (fvars := S.fields_bound.fvars) (depth := 0)
+    simpa [originFieldSource, S.fields_bound.length_fvars,
+      hsourceFields] using HoriginFieldClosed
+  let previousHypothesisFVars := S.hypotheses_bound.fvars.take j
+  have hpreviousHypothesisFVarsLength : previousHypothesisFVars.length = j := by
+    simp only [previousHypothesisFVars, List.length_take]
+    have hjHypothesisFVars : j < S.hypotheses_bound.fvars.length := by
+      rw [S.hypotheses_bound.length_fvars, hsourceHypotheses]
+      exact hj
+    omega
+  have HDomainAvoidsPrevious : D.type.FVarsIn
+      (fun fv => fv ∉ previousHypothesisFVars) := by
+    apply HDomainAvoidsHypotheses.mono
+    intro fv hnotAll hprevious
+    exact hnotAll (List.mem_of_mem_take hprevious)
+  have hpreviousDomainAbstract :
+      D.type.abstractList previousHypothesisFVars = D.type :=
+    HDomainAvoidsPrevious.abstractList_eq_self HDomainClosed
+  have hfieldDomainShift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := D.type) (fvars := S.fields_bound.fvars)
+    (depth := 0) (extra := j) HDomainClosed S.fields_nodup
+  have hleftFieldNormalization :
+      (D.type.abstractList previousHypothesisFVars).abstractList
+          S.fields_bound.fvars j =
+        originFieldSource.liftLooseBVars' 0 j := by
+    rw [hpreviousDomainAbstract]
+    simpa [originFieldSource] using hfieldDomainShift
+  let generatedNeutralSource :=
+    (E.frame.semantic.generated.current.lctx.mkForall
+      E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+        A.rule.all_args_bound.fvars
+  let Gselection :=
+    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+      E.frame.semantic.generated.current_wf
+  have HgeneratedActualNeutral : Expr.SameForallPrefix
+      E.frame.semantic.generated.localArgs.size
+      generatedFieldSource generatedNeutralSource := by
+    have Hprefix := (Gselection.sameForallPrefix
+      E.frame.semantic.generated.arguments_bound.nodup
+      generatedMotiveApp (.sort .zero)).abstractList
+        A.rule.all_args_bound.fvars
+    simpa [generatedFieldSource, generatedNeutralSource,
+      generatedMotiveApp, Gselection] using Hprefix
+  have HgeneratedTelescope : Expr.ForallTelescope generatedFieldSource
+      E.frame.semantic.generated.localArgs.size
+      (E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.all_args_bound.fvars) := by
+    have Hsource :=
+      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.mkForall_forallTelescope
+        E.frame.semantic.generated.current_wf generatedMotiveApp
+    have Hsource' := Hsource.abstractList
+      A.rule.all_args_bound.fvars 0
+    have hresidual :=
+      E.frame.semantic.generated.outerAbstractedMotiveApp_eq
+        A.rule.all_args_bound.fvars
+    have hgeneratedOwnerRecInfos :
+        E.frame.semantic.generated.ownerIdx < H.recInfos.size := by
+      simpa [H.generated.length] using E.frame.entry_lt
+    have hselectedMotive :
+        (H.recInfos.map (·.motive))[
+            E.frame.semantic.generated.ownerIdx]! =
+          H.recInfos[E.frame.semantic.generated.ownerIdx]!.motive := by
+      rw [getElem!_pos (H.recInfos.map (·.motive))
+          E.frame.semantic.generated.ownerIdx
+            (by simpa using hgeneratedOwnerRecInfos),
+        getElem!_pos H.recInfos E.frame.semantic.generated.ownerIdx
+          hgeneratedOwnerRecInfos]
+      simp
+    rw [hselectedMotive] at hresidual
+    have hresidual' :
+        (generatedMotiveApp.abstractList
+          E.frame.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+              E.frame.semantic.generated.localArgs.size =
+          E.frame.semantic.generated.outerAbstractedMotiveApp
+            A.rule.all_args_bound.fvars := by
+      simpa [generatedMotiveApp] using hresidual
+    simpa [generatedFieldSource, Nat.zero_add, hresidual'] using Hsource'
+  have HgeneratedNeutralScope' : generatedNeutralSource.FVarsIn
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params) := by
+    simpa [generatedNeutralSource] using HgeneratedNeutralScope
+  have HgeneratedNeutralOuterScope : generatedNeutralSource.FVarsIn
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params ++
+        ExprArrayFVarIds (H.recInfos.map (·.motive))) := by
+    exact HgeneratedNeutralScope'.mono fun fv hfv =>
+      List.mem_append_left _ hfv
+  have HgeneratedFieldOuterScope : generatedFieldSource.FVarsIn
+      (fun fv => fv ∈ ExprArrayFVarIds stats.params ++
+        ExprArrayFVarIds (H.recInfos.map (·.motive))) :=
+    HgeneratedActualNeutral.leftFVarsIn HgeneratedTelescope
+      HgeneratedNeutralOuterScope HgeneratedMotiveScope
+  let generatedOuter :=
+    A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars
+  let generatedPrefix := generatedOuter ++
+    A.rule.minors_bound.fvars.take minorIdx
+  let remainingMinorFVars := A.rule.minors_bound.fvars.drop minorIdx
+  have HgeneratedFieldScope : generatedFieldSource.FVarsIn
+      (fun fv => fv ∈ generatedOuter) := by
+    simpa [generatedOuter, A.rule.params_bound.exprArrayFVarIds,
+      A.rule.motives_bound.exprArrayFVarIds] using HgeneratedFieldOuterScope
+  have HgeneratedFieldAvoidsRemaining : generatedFieldSource.FVarsIn
+      (fun fv => fv ∉ remainingMinorFVars) := by
+    apply HgeneratedFieldScope.mono
+    intro fv houter hremaining
+    have hminor : fv ∈ A.rule.minors_bound.fvars :=
+      List.mem_of_mem_drop hremaining
+    have hdisjoint :=
+      (List.nodup_append.mp A.rule.outer_binders_nodup).2.2
+    exact hdisjoint fv houter fv hminor rfl
+  have hsourceParamsRule : H.params.fvars =
+      A.rule.params_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq H.params
+      A.rule.params_bound rfl
+  have hsourceMotivesRule : H.bindings.motives.fvars =
+      A.rule.motives_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq H.bindings.motives
+      A.rule.motives_bound rfl
+  have hsourceMinorsRule : H.bindings.flatMinors.fvars =
+      A.rule.minors_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq H.bindings.flatMinors
+      A.rule.minors_bound rfl
+  have hsourceBindersRule : sourceBinders = generatedPrefix := by
+    dsimp only [sourceBinders, generatedPrefix, generatedOuter]
+    rw [hsourceParamsRule, hsourceMotivesRule, hsourceMinorsRule]
+  have hremainingLength : remaining.length = remainingMinorFVars.length := by
+    simp only [remaining, remainingMinorFVars, List.length_drop]
+    rw [T.minors_length, A.rule.minors_bound.length_fvars]
+  have hgeneratedPrefixNodup : generatedPrefix.Nodup := by
+    have hsub : generatedPrefix <+
+        generatedOuter ++ A.rule.minors_bound.fvars :=
+      (List.Sublist.refl generatedOuter).append
+        (List.take_sublist _ A.rule.minors_bound.fvars)
+    exact A.rule.outer_binders_nodup.sublist <| by
+      simpa [generatedPrefix, generatedOuter, List.append_assoc] using hsub
+  have hgeneratedOuterSplit : generatedPrefix ++ remainingMinorFVars =
+      generatedOuter ++ A.rule.minors_bound.fvars := by
+    simp [generatedPrefix, generatedOuter, remainingMinorFVars,
+      List.append_assoc]
+  have hgeneratedOuterNodup :
+      (generatedPrefix ++ remainingMinorFVars).Nodup := by
+    rw [hgeneratedOuterSplit]
+    simpa [generatedOuter, List.append_assoc] using
+      A.rule.outer_binders_nodup
+  have hremainingAbstract : generatedFieldSource.abstractList
+      remainingMinorFVars A.rule.allArgs.size = generatedFieldSource :=
+    HgeneratedFieldAvoidsRemaining.abstractList_eq_self
+      HgeneratedFieldClosed
+  have hprefixShift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := generatedFieldSource) (fvars := generatedPrefix)
+    (depth := A.rule.allArgs.size) (extra := remainingMinorFVars.length)
+    HgeneratedFieldClosed hgeneratedPrefixNodup
+  have hprefixAppend := Expr.abstractList_after_inner
+    (e := generatedFieldSource) (outer := generatedPrefix)
+    (inner := remainingMinorFVars) (k := A.rule.allArgs.size)
+    hgeneratedOuterNodup
+  rw [hremainingAbstract] at hprefixAppend
+  have hgeneratedOuterFull :
+      (generatedFieldSource.abstractList generatedPrefix
+        A.rule.allArgs.size).liftLooseBVars'
+          A.rule.allArgs.size remainingMinorFVars.length =
+        (E.frame.semantic.generated.current.lctx.mkForall
+          E.frame.semantic.generated.localArgs generatedMotiveApp).abstractList
+            A.rule.binders := by
+    have hcombined :
+        (generatedFieldSource.abstractList generatedPrefix
+          A.rule.allArgs.size).liftLooseBVars'
+            A.rule.allArgs.size remainingMinorFVars.length =
+          generatedFieldSource.abstractList
+            (generatedPrefix ++ remainingMinorFVars)
+              A.rule.allArgs.size :=
+      hprefixShift.symm.trans hprefixAppend
+    rw [hgeneratedOuterSplit] at hcombined
+    have hclose := Expr.abstractList_after_inner
+      (e := E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs generatedMotiveApp)
+      (outer := generatedOuter ++ A.rule.minors_bound.fvars)
+      (inner := A.rule.all_args_bound.fvars) (k := 0)
+      (by simpa [generatedOuter, BoundGeneratedRecursorRule.binders,
+        List.append_assoc] using A.rule.binders_nodup)
+    exact hcombined.trans <| by
+      simpa [generatedFieldSource, generatedOuter,
+        BoundGeneratedRecursorRule.binders,
+        A.rule.all_args_bound.length_fvars, List.append_assoc] using hclose
+  have Htransformed := ((HfieldPrefix.liftLooseBVars' 0 j).abstractList
+    sourceBinders position).liftLooseBVars' position remaining.length
+  have hleftTransformed :
+      ((originFieldSource.liftLooseBVars' 0 j).abstractList
+        sourceBinders position).liftLooseBVars'
+          position remaining.length =
+        declarationDomain.liftLooseBVars' position remaining.length := by
+    rw [← hleftFieldNormalization]
+  have hrightAbstract :
+      (generatedFieldSource.liftLooseBVars' 0 j).abstractList
+          sourceBinders position =
+        (generatedFieldSource.abstractList generatedPrefix
+          A.rule.allArgs.size).liftLooseBVars' 0 j := by
+    rw [hsourceBindersRule]
+    have hcommute := Expr.liftLooseBVars'_abstractList_add
+      (e := generatedFieldSource) (fvars := generatedPrefix)
+      (start := 0) (cutoff := A.rule.allArgs.size) (amount := j)
+      (by omega) hgeneratedPrefixNodup
+    simpa [position, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using
+      hcommute
+  have hrightTransformed :
+      ((generatedFieldSource.liftLooseBVars' 0 j).abstractList
+        sourceBinders position).liftLooseBVars'
+          position remaining.length =
+        ((E.frame.semantic.generated.current.lctx.mkForall
+          E.frame.semantic.generated.localArgs generatedMotiveApp).abstractList
+            A.rule.binders).liftLooseBVars' 0 j := by
+    rw [hrightAbstract, hremainingLength]
+    have hcommute := Expr.liftLooseBVars_comm
+      (generatedFieldSource.abstractList generatedPrefix
+        A.rule.allArgs.size)
+      remainingMinorFVars.length j A.rule.allArgs.size 0 (by omega)
+    rw [← hgeneratedOuterFull]
+    simpa [position, Nat.add_comm, Nat.add_left_comm,
+      Nat.add_assoc] using hcommute.symm
+  have HwholePrefixJ : Expr.SameForallPrefix O.args.size
+      (declarationDomain.liftLooseBVars' position remaining.length)
+      (((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs generatedMotiveApp).abstractList
+          A.rule.binders).liftLooseBVars' 0 j) := by
+    rw [← hleftTransformed, ← hrightTransformed]
+    exact Htransformed
+  have hpreviousLength : previous.length = j := by
+    simp only [previous, List.length_take]
+    rw [hhypotheses]
+    omega
+  have hliftedPreviousLength : liftedPrevious.length = j := by
+    simp [liftedPrevious, hpreviousLength]
+  have hselectedMotive :
+      (H.recInfos.map (·.motive))[
+          E.frame.semantic.generated.ownerIdx]! =
+        H.recInfos[E.frame.semantic.generated.ownerIdx]!.motive := by
+    have hgeneratedOwnerRecInfos :
+        E.frame.semantic.generated.ownerIdx < H.recInfos.size := by
+      simpa [H.generated.length] using E.frame.entry_lt
+    rw [getElem!_pos (H.recInfos.map (·.motive))
+        E.frame.semantic.generated.ownerIdx
+          (by simpa using hgeneratedOwnerRecInfos),
+      getElem!_pos H.recInfos E.frame.semantic.generated.ownerIdx
+        hgeneratedOwnerRecInfos]
+    simp
+  have HwholePrefix : Expr.SameForallPrefix E.localDomains.length
+      (declarationDomain.liftLooseBVars' position remaining.length)
+      (((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs
+          (Expr.app
+            (mkAppN
+              (H.recInfos.map (·.motive))[
+                E.frame.semantic.generated.ownerIdx]!
+              E.frame.semantic.generated.exposedType.getAppArgs[
+                stats.params.size:])
+            (mkAppN A.rule.recursiveArgs[j]
+              E.frame.semantic.generated.localArgs))).abstractList
+          A.rule.binders).liftLooseBVars' 0 liftedPrevious.length) := by
+    simpa [generatedMotiveApp, hselectedMotive, hliftedPreviousLength,
+      hlocalArity, E.local_length] using HwholePrefixJ
   exact ⟨S, hypothesisOrigins, fieldDomains, hypothesisDomains,
     targetResidual, D, originRoot, sourceType, O,
     hypothesisLocalDomains, hypothesisResidual, hfields, hhypotheses,
-    hliftedPriorSplit, hlocalLength, hhypothesisDomain, Hinstalled, by
-      simpa [liftedPrevious, remaining, previous] using Hcanonical⟩
+    htarget, hliftedPriorSplit, hlocalLength, hhypothesisDomain, Hinstalled,
+    ⟨by simpa [liftedPrevious, remaining, previous] using Hcanonical,
+      HwholePrefix, HinstalledResidual,
+      by simpa [equationDomains, liftedCanonicalLocals,
+        liftedPrevious, hliftedPreviousLength₀, hpreviousLength₀,
+        hhypotheses, remaining, previous] using
+          HcanonicalResidual,
+      by simpa [equationDomains, liftedCanonicalLocals,
+        liftedPrevious, hliftedPreviousLength₀, hpreviousLength₀,
+        hhypotheses, remaining, previous] using
+          HcanonicalResidualType⟩⟩
+
+/-- One dependent recursive-hypothesis step, after the already-consumed
+hypotheses have been aligned.  Syntactic uniqueness of the selected minor
+telescope identifies the caller's installed domains with the domains used by
+the source replay; the common residual translation then closes the complete
+higher-order domain on both sides. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorHypothesisCanonicalWholeDomainDefEq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (installedFieldDomains installedHypothesisDomains : List VExpr)
+    (installedResidual : VExpr)
+    (hinstalledFields : installedFieldDomains.length = A.rule.allArgs.size)
+    (hinstalledHypotheses :
+      installedHypothesisDomains.length = A.rule.recursiveArgs.size)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (htarget :
+      T.minors[recursorMinorOffset indTypes owner + i]! =
+        VExpr.wrapForalls
+          (installedFieldDomains ++ installedHypothesisDomains)
+          installedResidual)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size)
+    (E : A.CanonicalRecursiveResultAt T B j hj)
+    (Hbase :
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let minorIdx := recursorMinorOffset indTypes owner + i
+      let position := A.rule.allArgs.size + j
+      let prior :=
+        (installedFieldDomains ++ installedHypothesisDomains).take position
+      let remaining := T.minors.drop minorIdx
+      let previous := installedHypothesisDomains.take j
+      let liftedPrior :=
+        (liftContextPrefix remaining.length prior.reverse).reverse
+      let liftedPrevious :=
+        (liftContextPrefixAt remaining.length installedFieldDomains.length
+          previous.reverse).reverse
+      let equationDomains :=
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++
+          T.motives ++ T.minors ++
+            (liftContextPrefix (T.motives ++ T.minors).length
+              B.fieldDomains.reverse).reverse
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        (T.params ++ T.motives ++ T.minors ++ liftedPrior).reverse
+        (equationDomains ++ liftedPrevious).reverse) :
+    ∃ hypothesisLocalDomains : List VExpr,
+    ∃ hypothesisResidual : VExpr,
+      installedHypothesisDomains[j]! =
+        VExpr.wrapForalls hypothesisLocalDomains hypothesisResidual ∧
+      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+      let minorIdx := recursorMinorOffset indTypes owner + i
+      let position := A.rule.allArgs.size + j
+      let prior :=
+        (installedFieldDomains ++ installedHypothesisDomains).take position
+      let remaining := T.minors.drop minorIdx
+      let previous := installedHypothesisDomains.take j
+      let liftedPrior :=
+        (liftContextPrefix remaining.length prior.reverse).reverse
+      let liftedPrevious :=
+        (liftContextPrefixAt remaining.length installedFieldDomains.length
+          previous.reverse).reverse
+      let liftedHypothesisLocals :=
+        (liftContextPrefixAt remaining.length position
+          hypothesisLocalDomains.reverse).reverse
+      let equationDomains :=
+        H.parameterSuffix.parameterDecls.toCtx.reverse ++
+          T.motives ++ T.minors ++
+            (liftContextPrefix (T.motives ++ T.minors).length
+              B.fieldDomains.reverse).reverse
+      let liftedCanonicalLocals :=
+        (liftContextPrefix liftedPrevious.length
+          E.localDomains.reverse).reverse
+      H.outVEnv.IsDefEqU Us.length
+        (T.params ++ T.motives ++ T.minors ++ liftedPrior).reverse
+        (VExpr.wrapForalls liftedHypothesisLocals
+          (hypothesisResidual.liftN remaining.length
+            (position + hypothesisLocalDomains.length)))
+        (VExpr.wrapForalls liftedCanonicalLocals
+          (E.resultType.liftN liftedPrevious.length
+            E.localDomains.length)) := by
+  dsimp only at Hbase ⊢
+  rcases A.finalSelectedMinorHypothesisCanonicalWholeDomains j hj B T E with
+    ⟨S, hypothesisOrigins, fieldDomains, hypothesisDomains,
+      targetResidual, D, originRoot, sourceType, O,
+      hypothesisLocalDomains, hypothesisResidual,
+      hfields, hhypotheses, htarget', hliftedPrior,
+      hlocal, hhypothesisDomain, Hinstalled, Hcanonical,
+      Hprefix, HinstalledResidual, HcanonicalResidual,
+      HcanonicalResidualType⟩
+  have hdomains : fieldDomains ++ hypothesisDomains =
+      installedFieldDomains ++ installedHypothesisDomains := by
+    apply VExpr.wrapForalls_prefix_domains_eq
+      (n := A.rule.allArgs.size + A.rule.recursiveArgs.size)
+      (suffix := [])
+    · simp [hfields, hhypotheses]
+    · simp [hinstalledFields, hinstalledHypotheses]
+    · simpa [VExpr.wrapForalls_append] using htarget'.symm.trans htarget
+  have hfieldDomains : fieldDomains = installedFieldDomains := by
+    have Htake := congrArg
+      (List.take A.rule.allArgs.size) hdomains
+    simpa [hfields, hinstalledFields] using Htake
+  subst fieldDomains
+  have hhypothesisDomains :
+      hypothesisDomains = installedHypothesisDomains := by
+    have Hdrop := congrArg
+      (List.drop A.rule.allArgs.size) hdomains
+    simpa [hfields, hinstalledFields] using Hdrop
+  subst hypothesisDomains
+  refine ⟨hypothesisLocalDomains, hypothesisResidual,
+    hhypothesisDomain, ?_⟩
+  exact Hprefix.translatedWholeTargetsOfResidualRight
+    H.outVEnvWF Hbase Hinstalled Hcanonical (by simpa using hlocal) (by simp)
+      HinstalledResidual HcanonicalResidual HcanonicalResidualType
 
 /-- All recursive results of one generated rule, chosen in their production
 array order and fixed to one recursor telescope and one narrowed field frame. -/
