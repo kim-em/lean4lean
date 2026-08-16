@@ -86153,6 +86153,45 @@ theorem
   · intro j hjBodies hjTypes
     simpa using C.bodyTyping j hjBodies
 
+/-- The chronological `j`th closed-domain entry is exactly the canonical
+higher-order result type weakened below the `j` earlier hypotheses. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.liftClosedBodyType_getElem
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B)
+    (j : Nat) (hj : j < C.bodyTypes.length) :
+    let E := C.resultAt j (by simpa using hj)
+    (VExpr.liftClosedDomains C.bodyTypes 0)[j]'(by simpa using hj) =
+      VExpr.wrapForalls
+        (liftContextPrefix j E.localDomains.reverse).reverse
+        (E.resultType.liftN j E.localDomains.length) := by
+  dsimp only
+  let E := C.resultAt j (by simpa using hj)
+  rw [VExpr.liftClosedDomains_getElem C.bodyTypes 0 j hj]
+  have hbodyType : C.bodyTypes[j] =
+      VExpr.wrapForalls E.localDomains E.resultType := by
+    simp [CanonicalRecursiveResults.bodyTypes, E]
+  rw [hbodyType, VExpr.liftN_wrapForalls]
+  simp [E, liftContextPrefix, liftContextPrefixAt, Nat.add_comm,
+    Nat.add_left_comm, Nat.add_assoc]
+
 /-- Pointwise strict source translation for the canonical result list, once
 the shared lambda-domain template has been translated in the fixed equation
 context.  The same `resultAt` witness determines the source array position,
