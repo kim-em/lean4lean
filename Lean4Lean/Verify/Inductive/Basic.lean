@@ -25497,6 +25497,80 @@ inductive Expr.SameLambdaPrefix : Nat → Expr → Expr → Prop
       Expr.SameLambdaPrefix (n + 1)
         (.lam name dom left bi) (.lam name dom right bi)
 
+/-- A concrete forall telescope and lambda telescope use the same literal
+binder prefix.  This is the source-syntax bridge used when a checked local
+forall supplies the binder-domain translations for the eta-expanded lambda
+over the same selected local declarations. -/
+inductive Expr.SameForallLambdaPrefix : Nat → Expr → Expr → Prop
+  | nil : Expr.SameForallLambdaPrefix 0 forallBody lambdaBody
+  | cons : Expr.SameForallLambdaPrefix n forallBody lambdaBody →
+      Expr.SameForallLambdaPrefix (n + 1)
+        (.forallE name dom forallBody bi) (.lam name dom lambdaBody bi)
+
+theorem Expr.SameForallLambdaPrefix.abstract1
+    (H : Expr.SameForallLambdaPrefix n forallBody lambdaBody)
+    (fv : FVarId) (k : Nat := 0) :
+    Expr.SameForallLambdaPrefix n
+      (forallBody.abstract1 fv k) (lambdaBody.abstract1 fv k) := by
+  induction H generalizing k with
+  | nil => exact .nil
+  | cons H ih =>
+    simp only [Expr.abstract1]
+    exact .cons (ih (k + 1))
+
+theorem Expr.SameForallLambdaPrefix.abstractList
+    (H : Expr.SameForallLambdaPrefix n forallBody lambdaBody)
+    (fvars : List FVarId) (k : Nat := 0) :
+    Expr.SameForallLambdaPrefix n
+      (forallBody.abstractList fvars k) (lambdaBody.abstractList fvars k) := by
+  induction fvars generalizing forallBody lambdaBody k with
+  | nil => simpa using H
+  | cons fv fvars ih =>
+    simp only [Expr.abstractList]
+    exact ih (H.abstract1 fv k) k
+
+/-- Reuse the checked domain translations of a forall telescope to
+translate a lambda telescope with the same literal source binder prefix.
+Only the lambda residual is supplied independently. -/
+theorem Expr.SameForallLambdaPrefix.translateLambda
+    (Hsame : Expr.SameForallLambdaPrefix n forallSource lambdaSource)
+    (HforallTelescope : Expr.ForallTelescope
+      forallSource n forallResidual)
+    (HlambdaTelescope : Expr.LambdaTelescope
+      lambdaSource n lambdaResidual)
+    (hdomains : domains.length = n)
+    (Hforall : TrExprS env Us Delta forallSource
+      (VExpr.wrapForalls domains forallTarget))
+    (HlambdaResidual : TrExprS env Us
+      (abstractForallContext domains Delta) lambdaResidual lambdaTarget) :
+    TrExprS env Us Delta lambdaSource
+      (VExpr.wrapLams domains lambdaTarget) := by
+  induction Hsame generalizing domains Delta forallResidual lambdaResidual
+      forallTarget lambdaTarget with
+  | nil =>
+    cases HforallTelescope
+    cases HlambdaTelescope
+    have hnil : domains = [] := List.eq_nil_of_length_eq_zero hdomains
+    subst domains
+    simpa [abstractForallContext, VExpr.wrapLams] using HlambdaResidual
+  | @cons n forallBody lambdaBody name dom bi Hsame ih =>
+    cases HforallTelescope with
+    | cons HforallTail =>
+      cases HlambdaTelescope with
+      | cons HlambdaTail =>
+        cases domains with
+        | nil => simp at hdomains
+        | cons domain domains =>
+          cases Hforall with
+          | forallE HdomainType _ HdomainTr HforallBody =>
+            apply TrExprS.lam HdomainType HdomainTr
+            have htail : domains.length = n := by simpa using hdomains
+            simpa [VExpr.wrapLams, abstractForallContext, List.map_append,
+              List.append_assoc] using
+              ih HforallTail HlambdaTail htail HforallBody
+                (by simpa [abstractForallContext, List.map_append,
+                    List.append_assoc] using HlambdaResidual)
+
 theorem Expr.SameLambdaPrefix.symm
     (H : Expr.SameLambdaPrefix n left right) :
     Expr.SameLambdaPrefix n right left := by
@@ -25593,6 +25667,31 @@ theorem LocalContext.sameLambdaPrefix_fold
     simp only [List.foldr_cons, List.length_cons]
     simp only [LocalContext.mkBindingList1, hfind]
     exact Expr.SameLambdaPrefix.cons
+      ((ih (fun other hother => hdecl other (by simp [hother]))).abstract1 fv)
+
+/-- Closing one residual with foralls and another with lambdas over the same
+ordinary declarations creates one literal cross-kind binder prefix. -/
+theorem LocalContext.sameForallLambdaPrefix_fold
+    {lctx : LocalContext} {fvars : List FVarId}
+    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (forallBody lambdaBody : Expr) :
+    Expr.SameForallLambdaPrefix fvars.length
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1 false lctx [] fv
+            (result.abstract1 fv)) forallBody)
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1 true lctx [] fv
+            (result.abstract1 fv)) lambdaBody) := by
+  induction fvars with
+  | nil => exact .nil
+  | cons fv fvars ih =>
+    rcases hdecl fv (by simp) with ⟨index, name, type, bi, kind, hfind⟩
+    simp only [List.foldr_cons, List.length_cons]
+    simp only [LocalContext.mkBindingList1, hfind]
+    exact Expr.SameForallLambdaPrefix.cons
       ((ih (fun other hother => hdecl other (by simp [hother]))).abstract1 fv)
 
 theorem Expr.LambdaTelescope.trans
@@ -26337,6 +26436,26 @@ theorem LocalForallSelection.sameLambdaPrefix
     LocalContext.mkBindingList_eq_fold hfind hnodup,
     LocalContext.mkBindingList_eq_fold hfind hnodup]
   simpa using LocalContext.sameLambdaPrefix_fold hdecl left right
+
+/-- `mkForall` and `mkLambda` close two residuals with the same literal
+ordinary-declaration prefix when they use the same duplicate-free local
+selection. -/
+theorem LocalForallSelection.sameForallLambdaPrefix
+    (H : LocalForallSelection lctx xs)
+    (hnodup : H.fvars.Nodup) (forallBody lambdaBody : Expr) :
+    Expr.SameForallLambdaPrefix xs.size
+      (lctx.mkForall xs forallBody) (lctx.mkLambda xs lambdaBody) := by
+  rcases H with ⟨fvars, rfl, hdecl⟩
+  have hfind : ∀ fv ∈ fvars, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    rcases hdecl fv hfv with ⟨index, name, type, bi, kind, hfound⟩
+    exact ⟨.cdecl index fv name type bi kind, hfound⟩
+  rw [LocalContext.mkForall, LocalContext.mkLambda,
+    LocalContext.mkBinding_eq, LocalContext.mkBinding_eq,
+    LocalContext.mkBindingList_eq_fold hfind hnodup,
+    LocalContext.mkBindingList_eq_fold hfind hnodup]
+  simpa using LocalContext.sameForallLambdaPrefix_fold hdecl
+    forallBody lambdaBody
 
 /-- Operational form of a local selection, convenient to preserve while the
 reader context is extended by generated binders. -/
@@ -84749,6 +84868,101 @@ theorem
   rw [← E.templateTarget_eq_canonical]
   exact E.template_residual_translation
 
+/-- The checked local forall telescope supplies the strict domain
+translations for the eta-expanded recursive-field lambda over the same local
+selection. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.templateTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      ((E.frame.semantic.generated.current.lctx.mkLambda
+          E.frame.semantic.generated.localArgs
+          (mkAppN A.rule.recursiveArgs[j]
+            E.frame.semantic.generated.localArgs)).abstractList
+        A.rule.binders)
+      (VExpr.wrapLams E.localDomains E.templateTarget) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++
+      T.motives ++ T.minors ++
+        (liftContextPrefix (T.motives ++ T.minors).length
+          B.fieldDomains.reverse).reverse
+  let selection :=
+    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+      E.frame.semantic.generated.current_wf
+  have Hsame := (selection.sameForallLambdaPrefix
+    E.frame.semantic.generated.arguments_bound.nodup
+    (.sort (.zero : Level))
+    (mkAppN A.rule.recursiveArgs[j]
+      E.frame.semantic.generated.localArgs)).abstractList A.rule.binders
+  have Hforall₀ := (selection.forallTelescope
+    (.sort (.zero : Level))).abstractList A.rule.binders
+  have hselectionFVars : selection.fvars =
+      E.frame.semantic.generated.arguments_bound.fvars := rfl
+  rw [hselectionFVars] at Hforall₀
+  have hsortLocal : (Expr.sort (.zero : Level)).abstractList
+      E.frame.semantic.generated.arguments_bound.fvars = .sort .zero := by
+    induction E.frame.semantic.generated.arguments_bound.fvars <;>
+      simp_all [Expr.abstractList, Expr.abstract1]
+  rw [hsortLocal] at Hforall₀
+  simp only [Nat.zero_add] at Hforall₀
+  have hsortOuter : (Expr.sort (.zero : Level)).abstractList
+      A.rule.binders E.frame.semantic.generated.localArgs.size = .sort .zero := by
+    induction A.rule.binders <;>
+      simp_all [Expr.abstractList, Expr.abstract1]
+  rw [hsortOuter] at Hforall₀
+  have HforallTelescope : Expr.ForallTelescope
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.binders)
+      E.frame.semantic.generated.localArgs.size (.sort .zero) := Hforall₀
+  have Hsame' : Expr.SameForallLambdaPrefix E.localDomains.length
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.binders)
+      ((E.frame.semantic.generated.current.lctx.mkLambda
+        E.frame.semantic.generated.localArgs
+        (mkAppN A.rule.recursiveArgs[j]
+          E.frame.semantic.generated.localArgs)).abstractList
+            A.rule.binders) := by
+    simpa [E.local_length] using Hsame
+  have HforallTelescope' : Expr.ForallTelescope
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.binders)
+      E.localDomains.length (.sort .zero) := by
+    simpa [E.local_length] using HforallTelescope
+  exact Hsame'.translateLambda HforallTelescope' E.template_telescope
+    rfl E.local_forall_translation (by
+      simpa [equationDomains, Us, abstractForallContext_append,
+        List.append_assoc] using E.template_residual_translation)
+
 /-- Reconstruct the strict translation of the complete generated recursive
 result from any translation of its eta-expanded field template in the fixed
 equation context.  The template contributes only the shared lambda-domain
@@ -87441,6 +87655,90 @@ theorem
     simpa only [E] using Htemplate)
   simpa [CanonicalRecursiveResults.bodies, E] using Hfull
 
+/-- Pointwise strict translation of a generated recursive result to its
+canonical closed body in the fixed equation context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodyTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B)
+    (j : Nat) (hj : j < C.bodies.length) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
+      C.bodies[j] := by
+  let hjArg : j < A.rule.recursiveArgs.size := by simpa using hj
+  let E := C.resultAt j hjArg
+  apply C.bodyTranslationOfTemplate j hj E.templateTarget
+  simpa only [E] using E.templateTranslation
+
+/-- List-level strict translation for the complete generated recursive-result
+spine. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodyTranslations
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    List.Forall₂
+      (TrExprS H.outVEnv Us (abstractForallContext equationDomains []))
+      (A.rule.recursiveResults.toList.map
+        (fun result => result.abstractList A.rule.binders))
+      C.bodies := by
+  apply List.forall₂_of_getElem
+  · simp [C.bodies_length, A.rule.recursive_calls.size]
+  · intro j hsource htarget
+    have hj : j < C.bodies.length := htarget
+    have hresult : j < A.rule.recursiveResults.size := by
+      rw [A.rule.recursive_calls.size]
+      simpa [C.bodies_length] using hj
+    have Htranslation := C.bodyTranslation j hj
+    rw [getElem!_pos A.rule.recursiveResults j hresult] at Htranslation
+    simpa using Htranslation
+
 /-- Every selected recursive-result body is already well formed in the one
 fixed equation context shared by the entire rule.  This is the list-level
 typing invariant consumed by the minor-application fold. -/
@@ -88245,16 +88543,18 @@ theorem
         let equationDomains :=
           H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted
         let later := T.minors.drop (minorIdx + 1)
-        H.outVEnv.HasType Us.length
-          (abstractForallContext equationDomains []).toCtx
-          (.bvar later.length)
-          (targetResidual.liftN (later.length + 1) 0) := by
+        OnCtx (abstractForallContext equationDomains []).toCtx
+            (H.outVEnv.IsType Us.length) ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext equationDomains []).toCtx
+            (.bvar later.length)
+            (targetResidual.liftN (later.length + 1) 0) := by
   dsimp only
   have hfieldsZero : A.rule.allArgs.size = 0 := by omega
   have hhypothesesZero : A.rule.recursiveArgs.size = 0 := by omega
   rcases A.finalCanonicalMinorApplicationFrame with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
-      hfields, hhypotheses, _hminorType, _Hctx, _HcheckedEquation, Hminor,
+      hfields, hhypotheses, _hminorType, Hctx, _HcheckedEquation, Hminor,
       _HbodyTyping, _HopenBodyTyping, _HbodyWF⟩
   have hfieldDomains : fieldDomains = [] :=
     List.eq_nil_of_length_eq_zero (hfields.trans hfieldsZero)
@@ -88269,9 +88569,229 @@ theorem
       rw [C.bodies_length, hhypothesesZero])
   subst fieldDomains
   subst hypothesisDomains
-  exact ⟨B, T, C, targetResidual, hbodies, by
-    simpa [hframeFields, liftContextPrefix, liftContextPrefixAt,
+  exact ⟨B, T, C, targetResidual, hbodies,
+    by simpa [hframeFields, liftContextPrefix, liftContextPrefixAt,
+      List.append_assoc] using Hctx,
+    by simpa [hframeFields, liftContextPrefix, liftContextPrefixAt,
       VExpr.wrapForalls, VLCtx.toCtx, List.append_assoc] using Hminor⟩
+
+/-- Positive-arity generated RHS in its fixed narrowed equation context.
+The selected minor, constructor fields, and generated recursive results are
+all translated strictly to the same application spine that is independently
+typed by the canonical minor fold. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalRhsPositiveArity
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ B : A.NarrowFieldRuntimeFrame,
+      ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+          (H.generated.entry owner howner).info.type H.entries[owner].2.type
+          stats.params.size (H.recInfos.map (·.motive)).size
+          (H.recInfos.flatMap (·.minors)).size
+          H.recInfos[owner]!.indices.size owner,
+      ∃ C : A.CanonicalRecursiveResults T B,
+      ∃ equationFields : List VExpr,
+      ∃ rhsBody typeBody : VExpr,
+        equationFields.length = A.rule.allArgs.size ∧
+        let inserted := T.motives ++ T.minors
+        let equationDomains :=
+          H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+            equationFields
+        OnCtx (abstractForallContext equationDomains []).toCtx
+            (H.outVEnv.IsType Us.length) ∧
+          TrExprS H.outVEnv Us
+            (abstractForallContext equationDomains [])
+            (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext equationDomains []).toCtx
+            rhsBody typeBody := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  rcases A.finalCanonicalMinorApplicationPositiveArity hpositive with
+    ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
+      hfields, hhypotheses, hminorType, Hctx, _Hminor, HpartialWF,
+      Hfield, Hpartial⟩
+  let inserted := T.motives ++ T.minors
+  let equationFields :=
+    (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+      equationFields
+  let later := T.minors.drop (minorIdx + 1)
+  let minorVar := equationFields.length + later.length
+  let fn := VExpr.mkApps (.bvar minorVar)
+    (recursorCanonicalVars equationFields.length)
+  rcases A.finalCanonicalMinorRecursiveApplicationOfContext B T C
+      fieldDomains hypothesisDomains targetResidual hfields hhypotheses
+      hminorType Hctx Hfield Hpartial with ⟨finalType, Hrhs⟩
+  let rhsBody := VExpr.mkApps fn C.bodies
+  have HrhsTyped : H.outVEnv.HasType Us.length
+      (abstractForallContext equationDomains []).toCtx rhsBody finalType := by
+    simpa only [Us, minorIdx, inserted, equationFields, equationDomains,
+      later, minorVar, fn, rhsBody, List.append_assoc] using Hrhs
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hminorVar : minorVar < equationDomains.length := by
+    dsimp only [minorVar, equationDomains, equationFields, inserted, later]
+    simp only [List.length_append, List.length_reverse,
+      liftContextPrefix_length, List.length_drop]
+    omega
+  have HminorTr : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (.bvar minorVar) (.bvar minorVar) :=
+    TrExprS.bvar_of_abstractForallContext equationDomains [] minorVar hminorVar
+  have HfieldsTr := A.finalNarrowEquationFieldTranslationsFor B T
+  have HpartialTr := checkPositivityStep.TrExprS.mkAppList
+    H.outVEnvWF.ordered Hctx HminorTr HfieldsTr HpartialWF
+  have HresultsTr : List.Forall₂
+      (TrExprS H.outVEnv Us
+        (abstractForallContext equationDomains []))
+      ((A.rule.recursiveResults.map fun result =>
+        result.abstractList A.rule.binders).toList) C.bodies := by
+    simpa only [Us, equationDomains, inserted, equationFields,
+      Array.toList_map, List.append_assoc] using C.bodyTranslations
+  have HrhsTr₀ := checkPositivityStep.TrExprS.mkAppList
+    H.outVEnvWF.ordered Hctx HpartialTr HresultsTr
+      (show VExpr.WF H.outVEnv Us.length
+        (abstractForallContext equationDomains []).toCtx rhsBody from
+          ⟨finalType, HrhsTyped⟩)
+  have hsourceMinor :
+      A.rule.allArgs.size +
+          ((H.recInfos.flatMap (·.minors)).size - 1 - minorIdx) =
+        minorVar := by
+    dsimp only [minorVar, equationFields, inserted, later]
+    simp only [List.length_reverse, liftContextPrefix_length,
+      List.length_drop, B.fieldDomains_length, T.minors_length]
+    omega
+  have hsourceShape := A.rule.abstractedSourceRhsAtMinorArray
+  rw [hsourceMinor] at hsourceShape
+  have HrhsTr : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody := by
+    rw [hsourceShape]
+    simpa [rhsBody, fn, Expr.mkAppN_eq_mkAppList, equationFields,
+      equationDomains, inserted, B.fieldDomains_length,
+      List.append_assoc] using HrhsTr₀
+  exact ⟨B, T, C, equationFields, rhsBody, finalType,
+    by simp [equationFields, B.fieldDomains_length], Hctx, HrhsTr,
+    HrhsTyped⟩
+
+/-- Zero-arity counterpart of `finalCanonicalRhsPositiveArity`.  Both
+application arrays are empty, so the complete source RHS and canonical RHS
+are the selected minor variable itself. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalRhsZeroArity
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ B : A.NarrowFieldRuntimeFrame,
+      ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+          (H.generated.entry owner howner).info.type H.entries[owner].2.type
+          stats.params.size (H.recInfos.map (·.motive)).size
+          (H.recInfos.flatMap (·.minors)).size
+          H.recInfos[owner]!.indices.size owner,
+      ∃ C : A.CanonicalRecursiveResults T B,
+      ∃ equationFields : List VExpr,
+      ∃ rhsBody typeBody : VExpr,
+        equationFields.length = A.rule.allArgs.size ∧
+        let inserted := T.motives ++ T.minors
+        let equationDomains :=
+          H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+            equationFields
+        OnCtx (abstractForallContext equationDomains []).toCtx
+            (H.outVEnv.IsType Us.length) ∧
+          TrExprS H.outVEnv Us
+            (abstractForallContext equationDomains [])
+            (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext equationDomains []).toCtx
+            rhsBody typeBody := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  have hfieldsZero : A.rule.allArgs.size = 0 := by omega
+  have hresultsZero : A.rule.recursiveArgs.size = 0 := by omega
+  rcases A.finalCanonicalMinorApplicationZeroArity hzero with
+    ⟨B, T, C, targetResidual, hbodies, Hctx, Hminor⟩
+  let inserted := T.motives ++ T.minors
+  let equationFields : List VExpr := []
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+      equationFields
+  let later := T.minors.drop (minorIdx + 1)
+  let rhsBody : VExpr := .bvar later.length
+  let typeBody := targetResidual.liftN (later.length + 1) 0
+  have Hctx' : OnCtx (abstractForallContext equationDomains []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    simpa only [Us, inserted, equationFields, equationDomains,
+      List.append_nil] using Hctx
+  have HrhsTyped : H.outVEnv.HasType Us.length
+      (abstractForallContext equationDomains []).toCtx rhsBody typeBody := by
+    simpa only [Us, minorIdx, inserted, equationFields, equationDomains,
+      later, rhsBody, typeBody, List.append_nil] using Hminor
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hminorVar : later.length < equationDomains.length := by
+    dsimp only [later, equationDomains, equationFields, inserted]
+    simp only [List.length_append, List.length_drop, List.length_nil,
+      Nat.add_zero]
+    omega
+  have HvarTr : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (.bvar later.length) rhsBody := by
+    exact TrExprS.bvar_of_abstractForallContext equationDomains []
+      later.length hminorVar
+  have hallArgs : A.rule.allArgs = #[] :=
+    Array.eq_empty_of_size_eq_zero hfieldsZero
+  have hrecursiveResultsSize : A.rule.recursiveResults.size = 0 := by
+    rw [A.rule.recursive_calls.size]
+    exact hresultsZero
+  have hrecursiveResults : A.rule.recursiveResults = #[] :=
+    Array.eq_empty_of_size_eq_zero hrecursiveResultsSize
+  have hsourceMinor :
+      A.rule.allArgs.size +
+          ((H.recInfos.flatMap (·.minors)).size - 1 - minorIdx) =
+        later.length := by
+    dsimp only [later]
+    simp only [List.length_drop, T.minors_length]
+    omega
+  have hsourceShape := A.rule.abstractedSourceRhsAtMinorArray
+  rw [hsourceMinor] at hsourceShape
+  have hsource : A.rule.sourceRhsBody.abstractList A.rule.binders =
+      .bvar later.length := by
+    simpa [hallArgs, hrecursiveResults, Expr.mkAppN_eq_mkAppList,
+      Expr.mkAppList] using hsourceShape
+  have HrhsTr : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody := by
+    rw [hsource]
+    exact HvarTr
+  exact ⟨B, T, C, equationFields, rhsBody, typeBody,
+    by simp [equationFields, hfieldsZero], Hctx', HrhsTr, HrhsTyped⟩
 
 /-- Rule-indexed existential specialization of
 `canonicalRecursiveResultTypingFor`.  It remains convenient for pointwise
