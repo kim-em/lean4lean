@@ -69056,6 +69056,16 @@ theorem
             (S.origin.abstractList sourceBinders)
             (A.rule.allArgs.size + A.rule.recursiveArgs.size)
             sourceResidual ∧
+          TrExprS H.outVEnv Us
+            (abstractForallContext (fieldDomains ++ hypothesisDomains)
+              (abstractForallContext
+                (T.params ++ T.motives ++ T.minors.take minorIdx) []))
+            sourceResidual targetResidual ∧
+          H.outVEnv.IsType Us.length
+            (abstractForallContext (fieldDomains ++ hypothesisDomains)
+              (abstractForallContext
+                (T.params ++ T.motives ++ T.minors.take minorIdx) [])).toCtx
+            targetResidual ∧
           Expr.ForallTelescopeTypeTranslation H.outVEnv Us
             (abstractForallContext
               (T.params ++ T.motives ++ T.minors.take minorIdx) [])
@@ -69072,7 +69082,7 @@ theorem
       HminorSemantic, Htyped⟩
   rcases Htyped.toWrapForalls with
     ⟨domains, sourceResidual, targetResidual, hlength,
-      Hsource, htarget, _Hresidual, _HresidualType⟩
+      Hsource, htarget, Hresidual, HresidualType⟩
   let fieldDomains := domains.take A.rule.allArgs.size
   let hypothesisDomains := domains.drop A.rule.allArgs.size
   have hfieldsLE : A.rule.allArgs.size ≤ domains.length := by omega
@@ -69083,14 +69093,105 @@ theorem
     simp [hypothesisDomains, List.length_drop, hlength]
   have hdomains : domains = fieldDomains ++ hypothesisDomains := by
     exact (List.take_append_drop A.rule.allArgs.size domains).symm
-  rw [hdomains] at htarget
+  rw [hdomains] at htarget Hresidual HresidualType
   exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, sourceResidual, targetResidual,
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
     htraversalFields, htraversalRecursiveFields, htraversalStats,
     hparameterTail, hpositions,
     hlocal, hsourceFields, hsourceHypotheses, hsourceContext, HminorSemantic,
-    hfields, hhypotheses, htarget, Hsource, Htyped⟩
+    hfields, hhypotheses, htarget, Hsource, Hresidual,
+    HresidualType, Htyped⟩
+
+/-- In the positive-arity case annotation consumption cannot change the
+minor source's leading forall telescope.  Consequently the residual source
+retained by `finalSelectedMinorTypedSplit` is exactly the constructor's
+independent motive application after abstraction over hypotheses, fields,
+and the common recursor prefix. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPositiveResidualTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
+      ∃ fieldDomains hypothesisDomains targetResidual,
+        S.localIndex = i ∧
+        S.fields.size = A.rule.allArgs.size ∧
+        S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        HS.semantic.traversal.parameterTail =
+          A.semantics.parameterTail ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (fieldDomains ++ hypothesisDomains) targetResidual ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext (fieldDomains ++ hypothesisDomains)
+            (abstractForallContext
+              (T.params ++ T.motives ++ T.minors.take minorIdx) []))
+          (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+            S.fields_bound.fvars S.hypotheses.size).abstractList
+              sourceBinders
+              (A.rule.allArgs.size + A.rule.recursiveArgs.size))
+          targetResidual ∧
+        H.outVEnv.IsType Us.length
+          (abstractForallContext (fieldDomains ++ hypothesisDomains)
+            (abstractForallContext
+              (T.params ++ T.motives ++ T.minors.take minorIdx) [])).toCtx
+          targetResidual := by
+  dsimp only
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  rcases A.finalSelectedMinorTypedSplit with
+    ⟨T, S, _hypothesisOrigins, traversal, fieldDomains,
+      hypothesisDomains, sourceResidual, targetResidual,
+      _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
+      htraversal, _htraversalFields, _htraversalRecursiveFields,
+      _htraversalStats, hparameterTail, _hpositions, hlocal,
+      hsourceFields, hsourceHypotheses, _hsourceContext,
+      ⟨HS⟩, hfields, hhypotheses, htarget, Hsource, Hresidual,
+      HresidualType, _Htyped⟩
+  have hconsume := S.sourceTelescope.consumeTypeAnnotations_eq_self_of_pos
+    (by simpa [hsourceFields, hsourceHypotheses] using hpositive)
+  have horigin : S.origin = S.sourceType :=
+    S.consumed_eq.symm.trans hconsume
+  have Hexpected := S.sourceTelescope.abstractList sourceBinders
+  rw [← horigin] at Hexpected
+  have hresidual : sourceResidual =
+      (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+        S.fields_bound.fvars S.hypotheses.size).abstractList
+          sourceBinders
+          (A.rule.allArgs.size + A.rule.recursiveArgs.size)) := by
+    apply Hsource.residual_eq
+    simpa [sourceBinders, hsourceFields, hsourceHypotheses,
+      List.append_assoc] using Hexpected
+  rw [hresidual] at Hresidual
+  have hsemanticTraversal : HS.semantic.traversal = traversal :=
+    Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
+  exact ⟨T, S, HS, fieldDomains, hypothesisDomains, targetResidual,
+    hlocal, hsourceFields, hsourceHypotheses,
+    by simpa [hsemanticTraversal] using hparameterTail,
+    hfields, hhypotheses, htarget, Hresidual, HresidualType⟩
 
 /-- Opening the selected minor's translated telescope yields a genuine
 abstract context for every constructor field and recursive hypothesis.  The
@@ -69141,7 +69242,8 @@ theorem
       _hlocal, _hsourceFields, _hsourceHypotheses,
       _hsourceContext,
       _HminorSemantic,
-      hfields, hhypotheses, htarget, _Hsource, Htyped⟩
+      hfields, hhypotheses, htarget, _Hsource, _Hresidual,
+      _HresidualType, Htyped⟩
   let minorIdx := recursorMinorOffset indTypes owner + i
   let base := T.params ++ T.motives ++ T.minors.take minorIdx
   have Hprefix := T.prefixContext H.outVEnvWF.ordered
@@ -69769,7 +69871,8 @@ theorem
       htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
       hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
       HminorSemantic,
-      hfields, hhypotheses, htarget, _Hsource, Htyped⟩
+      hfields, hhypotheses, htarget, _Hsource, _Hresidual,
+      _HresidualType, Htyped⟩
   let position := A.rule.allArgs.size + j
   have hposition : position <
       A.rule.allArgs.size + A.rule.recursiveArgs.size := by
