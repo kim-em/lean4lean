@@ -2827,6 +2827,53 @@ theorem VEnv.IsDefEqCtx.closeHeads
       simpa [VExpr.wrapForalls, List.take_succ_cons,
         List.reverse_cons, VExpr.wrapForalls_append] using Hclosed
 
+/-- A converted installed telescope can be consumed by independently typed
+closed arguments once its context is identified with `liftClosedDomains`.
+Closing the context conversion around the retained residual turns it into a
+whole-type equality; the generic closed-domain spine then performs every
+dependent substitution. -/
+theorem VEnv.HasType.mkApps_of_defeqLiftClosedDomains
+    (henv : env.WF) (Hctx : OnCtx ctx (env.IsType uvars))
+    (Hfn : env.HasType uvars ctx fn
+      (VExpr.wrapForalls installedDomains resultType))
+    (Hdomains : VEnv.IsDefEqCtx env uvars []
+      (installedDomains.reverse ++ ctx)
+      ((VExpr.liftClosedDomains types 0).reverse ++ ctx))
+    (Hargs : List.Forall₂
+      (env.HasType uvars ctx) args types) :
+    ∃ finalType, env.HasType uvars ctx
+      (VExpr.mkApps fn args) finalType := by
+  have hlength : installedDomains.length = types.length := by
+    have hcontexts := Hdomains.length_eq
+    simp only [List.length_append, List.length_reverse,
+      VExpr.liftClosedDomains_length] at hcontexts
+    omega
+  have HtelescopeType : env.IsType uvars ctx
+      (VExpr.wrapForalls installedDomains resultType) :=
+    Hfn.isType henv Hctx
+  have Hopened := VEnv.IsType.wrapForalls_inv henv.ordered Hctx
+    HtelescopeType
+  have HresultType : env.IsType uvars
+      (installedDomains.reverse ++ ctx) resultType := Hopened.2
+  rcases HresultType with ⟨resultLevel, HresultType⟩
+  have Hclosed :=
+    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.closeHeads Hdomains
+      installedDomains.length (by simp) HresultType
+  rcases Hclosed with ⟨closedLevel, Hclosed⟩
+  have Hwhole : env.IsDefEqU uvars ctx
+      (VExpr.wrapForalls installedDomains resultType)
+      (VExpr.wrapForalls (VExpr.liftClosedDomains types 0)
+        resultType) := by
+    refine ⟨.sort closedLevel, ?_⟩
+    simpa [hlength] using Hclosed
+  have HfnCanonical : env.HasType uvars ctx fn
+      (VExpr.wrapForalls (VExpr.liftClosedDomains types 0)
+        resultType) :=
+    Hfn.defeqU_r henv Hctx Hwhole
+  rcases VEnv.TypedApplicationSpine.liftClosedDomains
+      henv.ordered HfnCanonical Hargs with ⟨finalType, Hspine⟩
+  exact ⟨finalType, Hspine.hasType⟩
+
 /-- Select one corresponding declaration from a complete context
 conversion.  The selected types are compared in the older left-hand suffix,
 which is the context in which that declaration was originally formed. -/
