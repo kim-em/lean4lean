@@ -86004,6 +86004,45 @@ theorem
   simpa [CanonicalRecursiveResults.bodies,
     CanonicalRecursiveResults.bodyTypes, E] using E.closed_typing
 
+/-- Ordered list-level form of `bodyTyping`, ready for the generic closed
+domain application fold. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResults.bodyTypings
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    (C : A.CanonicalRecursiveResults T B) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let equationDomains :=
+      H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        T.motives ++ T.minors ++
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse
+    List.Forall₂
+      (H.outVEnv.HasType Us.length
+        (abstractForallContext equationDomains []).toCtx)
+      C.bodies C.bodyTypes := by
+  dsimp only
+  apply Lean4Lean.VerifyInductive.List.forall₂_of_getElem
+  · simp
+  · intro j hjBodies hjTypes
+    simpa using C.bodyTyping j hjBodies
+
 /-- Pointwise strict source translation for the canonical result list, once
 the shared lambda-domain template has been translated in the fixed equation
 context.  The same `resultAt` witness determines the source array position,
