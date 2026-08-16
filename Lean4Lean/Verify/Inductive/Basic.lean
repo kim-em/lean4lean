@@ -22415,6 +22415,20 @@ theorem Expr.ForallTelescope.instantiate1'
     apply Expr.ForallTelescope.cons
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
 
+/-- Inserting loose bound variables below a forall telescope preserves its
+arity; the insertion cutoff advances once beneath each retained binder. -/
+theorem Expr.ForallTelescope.liftLooseBVars'
+    (H : Expr.ForallTelescope outer arity result)
+    (k amount : Nat) :
+    Expr.ForallTelescope (outer.liftLooseBVars' k amount) arity
+      (result.liftLooseBVars' (k + arity) amount) := by
+  induction H generalizing k with
+  | nil => exact .nil _
+  | cons H ih =>
+    simp only [Expr.liftLooseBVars']
+    apply Expr.ForallTelescope.cons
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
+
 theorem Expr.ForallTelescope.isForall_of_pos
     (H : Expr.ForallTelescope outer arity residual) (hpos : 0 < arity) :
     outer.isForall = true := by
@@ -84135,6 +84149,75 @@ theorem
   simpa [equationDomains, liftedLocals, VExpr.liftN_wrapForalls,
     VExpr.liftN, liftContextPrefix, liftContextPrefixAt,
     List.append_assoc] using Hinserted
+
+/-- Source-side counterpart of `fullForallTranslationAfter`.  It retains the
+exact residual selected-motive application after inserting the already
+consumed recursive hypotheses, so first-pass and second-pass telescopes can
+use `SameForallPrefix.translatedTelescopeAlignment` directly. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.fullForallSourceTelescopeAfter
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner}
+    {B : A.NarrowFieldRuntimeFrame}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (E : A.CanonicalRecursiveResultAt T B j hj)
+    (previous : List VExpr) :
+    let motiveApp := Expr.app
+      (mkAppN
+        (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]!
+        E.frame.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+      (mkAppN A.rule.recursiveArgs[j]
+        E.frame.semantic.generated.localArgs)
+    Expr.ForallTelescope
+      (((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs motiveApp).abstractList
+          A.rule.binders).liftLooseBVars' 0 previous.length)
+      E.frame.semantic.generated.localArgs.size
+      ((E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.binders).liftLooseBVars'
+          E.frame.semantic.generated.localArgs.size previous.length) := by
+  dsimp only
+  let motiveApp := Expr.app
+    (mkAppN
+      (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]!
+      E.frame.semantic.generated.exposedType.getAppArgs[stats.params.size:])
+    (mkAppN A.rule.recursiveArgs[j]
+      E.frame.semantic.generated.localArgs)
+  let selection :=
+    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+      E.frame.semantic.generated.current_wf
+  have Hraw := (selection.forallTelescope motiveApp).abstractList
+    A.rule.binders
+  have hselectionFVars : selection.fvars =
+      E.frame.semantic.generated.arguments_bound.fvars := rfl
+  rw [hselectionFVars] at Hraw
+  have hresidual := E.frame.semantic.generated.outerAbstractedMotiveApp_eq
+    A.rule.binders
+  have Hbase : Expr.ForallTelescope
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs motiveApp).abstractList
+          A.rule.binders)
+      E.frame.semantic.generated.localArgs.size
+      (E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.binders) := by
+    rw [← hresidual]
+    simpa [motiveApp] using Hraw
+  simpa [motiveApp] using Hbase.liftLooseBVars' 0 previous.length
 
 /-- The retained eta-template residual has a completely forced abstract
 shape.  In particular, its target is the selected constructor-field variable
