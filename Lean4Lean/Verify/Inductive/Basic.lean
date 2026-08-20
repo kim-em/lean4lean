@@ -32498,6 +32498,15 @@ def RecInfoMinorSourceAlignment
           traversal.fields = S.fields ∧
           traversal.recursiveFields = S.recursiveFields ∧
           traversal.stats = stats ∧
+          S.motiveApp = (
+            let (motiveOwner, indices) :=
+              AddInductive.getIIndices stats traversal.terminal
+            Expr.app
+              (mkAppN recInfos[motiveOwner]!.motive indices)
+              (mkAppN
+                (mkAppN (.const S.constructor.name stats.levels)
+                  stats.params)
+                S.fields)) ∧
           BindingContextLE traversal.rootContext c ∧
           BindingContextLE traversal.terminalContext c ∧
           BindingContextLE S.sourceFullContext c
@@ -32931,11 +32940,12 @@ theorem RecInfoMinorSourceAlignment.mono
   rcases A owner howner hsourceOwner localIndex hlocal with
     ⟨horigin, hindex, hsource, hhypothesisOrigins,
       traversal, htraversal, hconstructor,
-      hfields, hrecursive, hstats, hroot, hterminal, hsourceContext⟩
+      hfields, hrecursive, hstats, hmotiveApp, hroot, hterminal,
+      hsourceContext⟩
   exact ⟨horigin, hindex, hsource, hhypothesisOrigins,
     traversal, htraversal, hconstructor,
-    hfields, hrecursive, hstats, hroot.trans hle, hterminal.trans hle,
-    hsourceContext.trans hle⟩
+    hfields, hrecursive, hstats, hmotiveApp, hroot.trans hle,
+    hterminal.trans hle, hsourceContext.trans hle⟩
 
 theorem RecInfoMinorSourceAlignment.addMinor
     {c cMinorTy : AddInductive.Context}
@@ -32959,6 +32969,15 @@ theorem RecInfoMinorSourceAlignment.addMinor
       traversal.fields = Hshape.fields ∧
       traversal.recursiveFields = Hshape.recursiveFields ∧
       traversal.stats = stats ∧
+      Hshape.motiveApp = (
+        let (motiveOwner, indices) :=
+          AddInductive.getIIndices stats traversal.terminal
+        Expr.app
+          (mkAppN recInfos[motiveOwner]!.motive indices)
+          (mkAppN
+            (mkAppN (.const Hshape.constructor.name stats.levels)
+              stats.params)
+            Hshape.fields)) ∧
       BindingContextLE traversal.rootContext cMinorTy ∧
       BindingContextLE traversal.terminalContext cMinorTy ∧
       BindingContextLE Hshape.sourceFullContext cMinorTy) :
@@ -32981,6 +33000,38 @@ theorem RecInfoMinorSourceAlignment.addMinor
     · intro owner hleft hright
       by_cases howner : dIdx = owner <;>
         simp [nextRecInfos, Array.getElem_modify, howner]
+  have motiveAppNext (S : RecInfoMinorTypeShape)
+      (traversal : RecInfoMinorTraversalShape)
+      (Happ : S.motiveApp = (
+        let (motiveOwner, indices) :=
+          AddInductive.getIIndices stats traversal.terminal
+        Expr.app
+          (mkAppN recInfos[motiveOwner]!.motive indices)
+          (mkAppN
+            (mkAppN (.const S.constructor.name stats.levels) stats.params)
+            S.fields))) :
+      S.motiveApp = (
+        let (motiveOwner, indices) :=
+          AddInductive.getIIndices stats traversal.terminal
+        Expr.app
+          (mkAppN nextRecInfos[motiveOwner]!.motive indices)
+          (mkAppN
+            (mkAppN (.const S.constructor.name stats.levels) stats.params)
+            S.fields)) := by
+    rw [Happ]
+    have hmotiveGet : ∀ motiveOwner : Nat,
+        AddInductive.RecInfo.motive nextRecInfos[motiveOwner]! =
+          AddInductive.RecInfo.motive recInfos[motiveOwner]! := by
+      intro motiveOwner
+      by_cases hi : motiveOwner < recInfos.size
+      · by_cases hdi : dIdx = motiveOwner <;>
+          simp [nextRecInfos, Array.getElem!_eq_getD, Array.getD, hi,
+            Array.getElem_modify, hdi]
+      · simp [nextRecInfos, Array.getElem!_eq_getD, Array.getD, hi]
+    rcases AddInductive.getIIndices stats traversal.terminal with
+      ⟨motiveOwner, indices⟩
+    simp only
+    rw [hmotiveGet]
   have hypothesisOriginsNext (S : RecInfoMinorTypeShape)
       (HS : S.HasHypothesisTypeOrigins stats recInfos) :
       S.HasHypothesisTypeOrigins stats nextRecInfos := by
@@ -32996,14 +33047,25 @@ theorem RecInfoMinorSourceAlignment.addMinor
       traversal.fields = Hshape.fields ∧
       traversal.recursiveFields = Hshape.recursiveFields ∧
       traversal.stats = stats ∧
+      Hshape.motiveApp = (
+        let (motiveOwner, indices) :=
+          AddInductive.getIIndices stats traversal.terminal
+        Expr.app
+          (mkAppN nextRecInfos[motiveOwner]!.motive indices)
+          (mkAppN
+            (mkAppN (.const Hshape.constructor.name stats.levels)
+              stats.params)
+            Hshape.fields)) ∧
       BindingContextLE traversal.rootContext cMinor ∧
       BindingContextLE traversal.terminalContext cMinor ∧
       BindingContextLE Hshape.sourceFullContext cMinor := by
     rcases htraversal with
-      ⟨traversal, hsome, hconstructor, hfields, hrecursive, hstats, hroot,
-        hterminal, hsourceContext⟩
+      ⟨traversal, hsome, hconstructor, hfields, hrecursive, hstats,
+        hmotiveApp, hroot, hterminal, hsourceContext⟩
     exact ⟨traversal, hsome, hconstructor, hfields, hrecursive, hstats,
-      hroot.trans hstep, hterminal.trans hstep, hsourceContext.trans hstep⟩
+      motiveAppNext Hshape traversal hmotiveApp, hroot.trans hstep,
+      hterminal.trans hstep,
+      hsourceContext.trans hstep⟩
   have Aextended : ∀ owner (howner : owner < recInfos.size)
       (hsourceOwner : owner < indTypes.size)
       localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
@@ -33017,6 +33079,15 @@ theorem RecInfoMinorSourceAlignment.addMinor
             traversal.fields = S.fields ∧
             traversal.recursiveFields = S.recursiveFields ∧
             traversal.stats = stats ∧
+            S.motiveApp = (
+              let (motiveOwner, indices) :=
+                AddInductive.getIIndices stats traversal.terminal
+              Expr.app
+                (mkAppN nextRecInfos[motiveOwner]!.motive indices)
+                (mkAppN
+                  (mkAppN (.const S.constructor.name stats.levels)
+                    stats.params)
+                  S.fields)) ∧
             BindingContextLE traversal.rootContext cMinor ∧
             BindingContextLE traversal.terminalContext cMinor ∧
             BindingContextLE S.sourceFullContext cMinor := by
@@ -33024,11 +33095,13 @@ theorem RecInfoMinorSourceAlignment.addMinor
     rcases A owner howner hsourceOwner localIndex hlocal with
       ⟨horigin, hindex, hsource, hhypothesisOrigins,
         traversal, hsome, hconstructor,
-        hfields, hrecursive, hstats, hroot, hterminal, hsourceContext⟩
+        hfields, hrecursive, hstats, hmotiveApp, hroot, hterminal,
+        hsourceContext⟩
     exact ⟨horigin, hindex, hsource,
       hypothesisOriginsNext _ hhypothesisOrigins,
       traversal, hsome, hconstructor,
-      hfields, hrecursive, hstats, hroot.trans hfinal,
+      hfields, hrecursive, hstats, motiveAppNext _ traversal hmotiveApp,
+      hroot.trans hfinal,
       hterminal.trans hfinal, hsourceContext.trans hfinal⟩
   intro owner howner hsourceOwner localIndex hlocal
   by_cases hdi : dIdx = owner
@@ -45050,6 +45123,15 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       traversal.fields = HminorShape.fields ∧
       traversal.recursiveFields = HminorShape.recursiveFields ∧
       traversal.stats = stats ∧
+      HminorShape.motiveApp = (
+        let (motiveOwner, indices) :=
+          AddInductive.getIIndices stats traversal.terminal
+        Expr.app
+          (mkAppN recInfos[motiveOwner]!.motive indices)
+          (mkAppN
+            (mkAppN (.const HminorShape.constructor.name stats.levels)
+              stats.params)
+            HminorShape.fields)) ∧
       BindingContextLE traversal.rootContext c ∧
       BindingContextLE traversal.terminalContext c ∧
       BindingContextLE HminorShape.sourceFullContext c)
@@ -45625,7 +45707,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           consumedTarget := consumedTarget
           consumption := Hconsumed }
         parameterDecls_eq := rfl }⟩
-      ⟨traversal, rfl, rfl, rfl, rfl, rfl, HextAll.contextLE,
+      ⟨traversal, rfl, rfl, rfl, rfl, rfl, by rw [howner],
+        HextAll.contextLE,
         HhypothesesRecent.contextExtension.contextLE,
         BindingContextLE.refl outCtx⟩ ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
@@ -67437,6 +67520,15 @@ theorem
           traversal.fields = S.fields ∧
           traversal.recursiveFields = S.recursiveFields ∧
           traversal.stats = stats ∧
+          S.motiveApp = (
+            let (motiveOwner, indices) :=
+              AddInductive.getIIndices stats traversal.terminal
+            Expr.app
+              (mkAppN H.recInfos[motiveOwner]!.motive indices)
+              (mkAppN
+                (mkAppN (.const S.constructor.name stats.levels)
+                  stats.params)
+                S.fields)) ∧
           BindingContextLE traversal.rootContext H.localContext ∧
           BindingContextLE traversal.terminalContext H.localContext ∧
           BindingContextLE S.sourceFullContext H.localContext := by
@@ -67453,8 +67545,8 @@ theorem
     simpa [hposition.1] using hconstructorsAtOrigin
   rcases Hsource.2.2.2 with
     ⟨HhypothesisOrigins, traversal, htraversal, htraversalConstructor,
-      htraversalFields, htraversalRecursiveFields, hstats, hrootContext,
-      hterminalContext, hsourceContext⟩
+      htraversalFields, htraversalRecursiveFields, hstats, _hmotiveApp,
+      hrootContext, hterminalContext, hsourceContext⟩
   rcases S.hypothesisTypeOrigins_exists stats H.recInfos
       HhypothesisOrigins with
     ⟨hypothesisOrigins, hhypothesisOrigins, hhypothesisStats,
