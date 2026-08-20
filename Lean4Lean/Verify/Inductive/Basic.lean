@@ -67649,6 +67649,149 @@ theorem
     hterminalContext, hsourceContext,
     Hdomain, HdomainType⟩
 
+/-- The constructor target retained by the earlier minor-generation pass and
+the target independently replayed while generating the rule have the same
+alpha-closed normal form.  Consequently the executable classifier selects
+the rule's canonical mutual-family owner, and the retained minor result is
+literally the corresponding motive application. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorTargetAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ traversal : RecInfoMinorTraversalShape,
+        S.localIndex = i ∧
+        S.traversal = some traversal ∧
+        traversal.fields = S.fields ∧
+        traversal.fieldFVars = S.fields_bound.fvars ∧
+        traversal.terminal.abstractList S.fields_bound.fvars =
+          A.rule.target.abstractList A.semantics.fieldOpening.fvars ∧
+        (AddInductive.getIIndices stats traversal.terminal).1 = owner ∧
+        S.motiveApp =
+          Expr.app
+            (mkAppN H.recInfos[owner]!.motive
+              (AddInductive.getIIndices stats traversal.terminal).2)
+            (mkAppN
+              (mkAppN (.const S.constructor.name stats.levels) stats.params)
+              S.fields) := by
+  rcases A.finalSelectedMinorShape with
+    ⟨_T, _D, _O, S, _horigin, hlocal, _hconstructors, hconstructor,
+      _hfieldCount, _Hsemantic, _hypothesisOrigins, _hhypothesisOrigins,
+      _hhypothesisStats, _hhypothesisRecInfos, traversal, htraversal,
+      htraversalConstructor, htraversalFields,
+      _htraversalRecursiveFields, hstats, hvalid, hmotiveApp,
+      _hrootContext, _hterminalContext, _hsourceContext,
+      _Hdomain, _HdomainType⟩
+  have hprefixTraversal := traversal.parameterPrefix
+  rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
+  have hparameterTail :
+      traversal.parameterTail = A.semantics.parameterTail :=
+    hprefixTraversal.tail_eq A.semantics.parameterPrefix
+  have HtraversalTelescope := traversal.fieldTelescope
+  rw [htraversalFields, hparameterTail] at HtraversalTelescope
+  have hsemanticResidual :
+      A.semantics.fieldOpening.residual.isForall = false := by
+    rw [← A.semantics.fieldOpening.closed, Expr.abstractList_isForall]
+    exact A.semantics.target_not_forall
+  have hfieldResidual : traversal.fieldResidual =
+      A.semantics.fieldOpening.residual :=
+    (HtraversalTelescope.eq_of_residual_not_forall
+      A.semantics.fieldOpening.telescope
+      traversal.fieldResidual_not_forall hsemanticResidual).2
+  have hfieldFVars : traversal.fieldFVars = S.fields_bound.fvars := by
+    have harrays : (traversal.fieldFVars.map Expr.fvar).toArray =
+        (S.fields_bound.fvars.map Expr.fvar).toArray :=
+      traversal.fields_eq.symm.trans <|
+        htraversalFields.trans S.fields_bound.expressions
+    have hlists : traversal.fieldFVars.map Expr.fvar =
+        S.fields_bound.fvars.map Expr.fvar := by
+      simpa using congrArg Array.toList harrays
+    exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlists
+  have hterminalClosed :
+      traversal.terminal.abstractList S.fields_bound.fvars =
+        traversal.fieldResidual := by
+    rw [← hfieldFVars]
+    exact traversal.fieldClosed
+  have hclosedTargets :
+      traversal.terminal.abstractList S.fields_bound.fvars =
+        A.rule.target.abstractList A.semantics.fieldOpening.fvars := by
+    rw [hterminalClosed, A.semantics.fieldOpening.closed, hfieldResidual]
+  let selectedOwner :=
+    (AddInductive.getIIndices stats traversal.terminal).1
+  have hselectedValid : AddInductive.isValidIndApp? stats traversal.terminal =
+      some selectedOwner := by
+    simpa [selectedOwner] using hvalid
+  have hselectedDecl : selectedOwner < decl.types.length := by
+    have hselectedStats :=
+      (checkPositivityStep.isValidIndApp?_some hselectedValid).1
+    rw [A.semantics.validStats.types_size] at hselectedStats
+    exact hselectedStats
+  have hselectedHead : traversal.terminal.getAppFn =
+      .const (decl.types[selectedOwner]'hselectedDecl).name stats.levels :=
+    checkPositivityStep.isValidIndAppIdx.constHead
+      (checkPositivityStep.isValidIndApp?_some hselectedValid).2
+      (A.semantics.validStats.indConstAt hselectedDecl)
+  have htargetValid : AddInductive.isValidIndAppIdx stats A.rule.target
+      owner = true := by
+    have h := (checkPositivityStep.isValidIndApp?_some
+      A.semantics.target_valid).2
+    simpa [A.semantic_owner] using h
+  have htargetHead : A.rule.target.getAppFn =
+      .const (decl.types[owner]'A.abstractOwner_lt).name stats.levels :=
+    checkPositivityStep.isValidIndAppIdx.constHead htargetValid
+      (A.semantics.validStats.indConstAt A.abstractOwner_lt)
+  have hname : (decl.types[selectedOwner]'hselectedDecl).name =
+      (decl.types[owner]'A.abstractOwner_lt).name := by
+    have heq := congrArg Expr.getAppFn hclosedTargets
+    rw [Expr.getAppFn_abstractList, hselectedHead,
+      Expr.getAppFn_abstractList, htargetHead] at heq
+    simp [Expr.abstractList, Expr.abstract1] at heq
+    exact heq
+  have htypeNames : (decl.types.map (fun type => type.name)).Nodup := by
+    have hprefix := (List.nodup_append.mp
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup
+        R.core)).1
+    simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
+      VInductiveType.toVConstVal, Function.comp_def] using hprefix
+  have hselectedOwner : selectedOwner = owner := by
+    have hleft : selectedOwner <
+        (decl.types.map (fun type => type.name)).length := by
+      simpa using hselectedDecl
+    have hright : owner <
+        (decl.types.map (fun type => type.name)).length := by
+      simpa using A.abstractOwner_lt
+    apply (List.getElem_inj (h₀ := hleft) (h₁ := hright)
+      htypeNames).mp
+    simpa only [List.getElem_map] using hname
+  have hselectedOwner' :
+      (AddInductive.getIIndices stats traversal.terminal).1 = owner := by
+    simpa [selectedOwner] using hselectedOwner
+  have hmotiveApp' : S.motiveApp =
+      Expr.app
+        (mkAppN H.recInfos[owner]!.motive
+          (AddInductive.getIIndices stats traversal.terminal).2)
+        (mkAppN
+          (mkAppN (.const S.constructor.name stats.levels) stats.params)
+          S.fields) := by
+    rw [hmotiveApp]
+    rcases hindices : AddInductive.getIIndices stats traversal.terminal with
+      ⟨motiveOwner, indices⟩
+    have : motiveOwner = owner := by
+      simpa [hindices] using hselectedOwner'
+    subst motiveOwner
+    rfl
+  exact ⟨S, traversal, hlocal, htraversal, htraversalFields,
+    hfieldFVars, hclosedTargets, hselectedOwner', hmotiveApp'⟩
+
 /-- Recover the exact translation-side context in which the selected minor
 source was completed, together with its executable extension into the final
 recursor context.  This is the semantic strengthening of the structural
