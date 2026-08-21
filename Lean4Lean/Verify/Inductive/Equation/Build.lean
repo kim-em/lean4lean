@@ -481,6 +481,7 @@ theorem AddInductive.run.materialize
       {depth : Nat},
       (Hc' : ContextWF c') →
       c'.env = c.env →
+      c'.safety = c.safety →
       TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
         types.toArray.toList (c.safety != .safe) decl envTypes →
       checkInductiveTypes.loopInd.MaterializedHeaderResult
@@ -498,8 +499,8 @@ theorem AddInductive.run.materialize
       (fun stats => AddInductive.runWithStats stats skeleton.nparams
         types.toArray numNested (c.safety != .safe)) Q Hc Hdecl hctx hnonempty
       hconsume
-    intro c' stats decl depth Hc' henvEq hlparamsEq Hdecl' Hmaterialized
-    apply Hfinish Hc' henvEq Hdecl' Hmaterialized
+    intro c' stats decl depth Hc' henvEq hsafetyEq hlparamsEq Hdecl' Hmaterialized
+    apply Hfinish Hc' henvEq hsafetyEq Hdecl' Hmaterialized
     simpa [hlparamsEq] using hnodup
   simpa [AddInductive.run] using Hcombined
 
@@ -516,8 +517,6 @@ structure RunWithStatsVerificationInputs
       indTypes.toList isUnsafe decl envTypes)
     (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
       Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth) : Prop where
-  visible : c.safety ≤
-    (if isUnsafe then DefinitionSafety.unsafe else .safe)
   freshTypes : ∀ info ∈
     (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
       isUnsafe c.lparams).toList,
@@ -535,7 +534,6 @@ structure RunWithStatsVerificationInputs
   projections : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
     e'.containsAnyConst (decl.types.map (·.name)) = false →
     e''.containsAnyConst (decl.types.map (·.name)) = false
-  unsafeDecl : isUnsafe = true → decl.isUnsafe = true
   universeBound : ∀ targetIdx (hi : targetIdx < decl.types.length)
     fieldLevel fieldLevel',
     VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
@@ -546,7 +544,6 @@ structure RunWithStatsVerificationInputs
   freshConstructorConstants : ∀ owner ∈ indTypes.toList,
     ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name
-  notPartial : c.safety ≠ .partial
   freshRecursors : ∀ owner (howner : owner < indTypes.size),
     ¬ Kernel.Environment.primitives.contains
       (Lean.mkRecName indTypes[owner]!.name)
@@ -554,7 +551,10 @@ structure RunWithStatsVerificationInputs
 theorem RunWithStatsVerificationInputs.verify
     (H : RunWithStatsVerificationInputs c stats decl numParams depth
       numNested indTypes isUnsafe Hc Hdecl Hmaterialized)
-    (Hclosed : MutualInductivesClosed c.env) :
+    (Hclosed : MutualInductivesClosed c.env)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnotPartial : c.safety ≠ .partial) :
     c.lparams.Nodup →
     (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe
       c).WF fun outEnv => ∃ headerEnv ctorEnv,
@@ -563,11 +563,12 @@ theorem RunWithStatsVerificationInputs.verify
         ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
           Nonempty (RecursorPhasesResult R outEnv) :=
   fun hlparams => AddInductive.runWithStats.closedWF Hc Hclosed Hdecl
-    Hmaterialized H.visible H.freshTypes H.freshConstructors H.consume
+    Hmaterialized hvisible H.freshTypes H.freshConstructors H.consume
     hlparams H.whnfLParams H.recursiveFieldReplay H.loopUArgsReplay
     H.recursorConsume
     H.literalDisjoint H.projections
-    H.unsafeDecl H.universeBound H.freshConstructorConstants H.notPartial
+    (fun h => Hdecl.isUnsafe.trans h) H.universeBound
+    H.freshConstructorConstants hnotPartial
     H.freshRecursors
 
 /-- Declaration-facing successful result of the complete ordinary executable
@@ -598,6 +599,7 @@ theorem AddInductive.run.closedWF
       types.toArray.toList (c.safety != .safe) skeleton envTypes)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
+    (HnotPartial : c.safety ≠ .partial)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (Hinputs : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -615,11 +617,18 @@ theorem AddInductive.run.closedWF
   apply AddInductive.run.materialize numNested
     (VerifiedInductiveRunResult c skeleton envTypes types numNested)
     Hc Hdecl hctx hnonempty hconsume
-  intro c' stats decl depth Hc' henvEq Hdecl' Hmaterialized hlparamsNodup
+  intro c' stats decl depth Hc' henvEq hsafetyEq Hdecl' Hmaterialized
+    hlparamsNodup
   have Hclosed' : MutualInductivesClosed c'.env := by
     simpa [henvEq] using Hclosed
-  exact ((Hinputs Hc' Hdecl' Hmaterialized).verify Hclosed'
-    hlparamsNodup).mono
+  have HnotPartial' : c'.safety ≠ .partial := by
+    simpa [hsafetyEq] using HnotPartial
+  have hvisible : c'.safety ≤
+      (if c.safety != .safe then DefinitionSafety.unsafe else .safe) := by
+    rw [hsafetyEq]
+    cases hsafety : c.safety <;> simp_all
+  exact ((Hinputs Hc' Hdecl' Hmaterialized).verify Hclosed' hvisible
+    HnotPartial' hlparamsNodup).mono
     fun outEnv Hout => by
       rcases Hout with ⟨headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
       exact ⟨c', stats, decl, depth, Hc', Hdecl', Hmaterialized,

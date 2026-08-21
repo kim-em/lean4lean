@@ -1175,6 +1175,7 @@ theorem firstStep.initializesPrefix
       {resultSort : Level} {resultLevel : VLevel} {params : List VExpr},
       (Hc' : ContextWF c') →
       c'.env = c.env →
+      c'.safety = c.safety →
       c'.lparams = c.lparams →
       stats'.levels = stats.levels →
       stats'.nindices = stats.nindices →
@@ -1238,7 +1239,7 @@ theorem firstStep.initializesPrefix
         stats k)
     (Q := Q) (hconsume := hconsume)
     (Hresult := by
-      intro c' stats' type'' current'' i' nindices' Hc' henv' hlparams'
+      intro c' stats' type'' current'' i' nindices' Hc' henv' hsafety' hlparams'
         hempty' hlevels' hnindices' hconsts' Hdecl' hforall iEq Hcache'
         Hsuffix' Hsynthesis' htype'
       cases iEq
@@ -1246,11 +1247,12 @@ theorem firstStep.initializesPrefix
         Hsynthesis' htype'
       · rw [hlparams', ← Hdecl.uvars]
       · intro resultSort resultLevel hofLevel Hprefix Hambient
-        apply Hrec Hc' henv' hlparams' hlevels' hnindices' hconsts'
+        apply Hrec Hc' henv' hsafety' hlparams' hlevels' hnindices' hconsts'
           (by simpa [hlparams'] using Hdecl') hofLevel Hcache' Hsuffix'
           Hprefix
         simpa [Hsynthesis'.indexCount] using Hambient)
-    (Hc := Hc) (henv := rfl) (hlparams := rfl) (hempty := hempty)
+    (Hc := Hc) (henv := rfl) (hsafety := rfl) (hlparams := rfl)
+    (hempty := hempty)
     (hlevelsStable := rfl) (hnindicesStable := rfl)
     (hconstsStable := rfl)
     (R := fun env => TrInductDeclSkeletonHeaders env c.lparams
@@ -1294,6 +1296,7 @@ theorem laterStep.extendsPrefix
       {resultSort : Level} {resultLevel : VLevel},
       (Hc' : ContextWF c') →
       c'.env = c.env →
+      c'.safety = c.safety →
       c'.lparams = c.lparams →
       TrInductDeclSkeletonHeaders Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe skeleton envTypes →
@@ -1408,7 +1411,7 @@ theorem laterStep.extendsPrefix
             (dIdx + 1) stats k)
         (Q := Q)
         (Hresult := by
-          intro c' Hc' henv' hlparams' type''' narrow''' full''' scope'''
+          intro c' Hc' henv' hsafety' hlparams' type''' narrow''' full''' scope'''
             nindices''' fuel''' hforall''' Hsynthesis''' Hruntime'''
             htypeNarrow''' _htypeFVars''' htypeFull''' Hcache'''
             Hsuffix''' Hambient''' HR''' hparams'''
@@ -1425,13 +1428,13 @@ theorem laterStep.extendsPrefix
           · simpa [hlparams', ← Hdecl.uvars] using hparams'''
           · simpa [hlparams'] using hcommon
           · intro resultSort resultLevel hguard hofLevel Hprefix'
-            apply Hrec Hc' henv' hlparams'
+            apply Hrec Hc' henv' hsafety' hlparams'
             · simpa [hlparams'] using Hdecl'''
             · exact Hcache'''.reindex (by simp [updatedStats])
             · exact Hsuffix'''.reindex (by simp [updatedStats])
             · exact Hprefix'
             · exact Hambient''')
-        hconsume Hc rfl (by simpa using Hcache) (by simpa using Hsuffix)
+        hconsume Hc rfl rfl (by simpa using Hcache) (by simpa using Hsuffix)
         (by simpa using Hambient) ⟨Hprefix, Hdecl⟩ Hsynthesis''
         hparamsBoundary
         Hruntime
@@ -1581,6 +1584,7 @@ theorem laterSteps.materialize
       {depth' : Nat},
       (Hc' : ContextWF c') →
       c'.env = c.env →
+      c'.safety = c.safety →
       c'.lparams = c.lparams →
       TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe decl envTypes →
@@ -1605,7 +1609,7 @@ theorem laterSteps.materialize
       simpa using hname
     apply laterStep.extendsPrefix k Q Hc Hdecl hidx hpositive hnonempty
       hparams Hcache Hsuffix Hprefix Hambient hcommon hconsume
-    intro c' nindices resultSort resultLevel Hc' henv' hlparams' Hdecl'
+    intro c' nindices resultSort resultLevel Hc' henv' hsafety' hlparams' Hdecl'
       Hcache' Hsuffix' Hprefix' Hambient'
     apply laterSteps.materialize k Q Hc' Hdecl'
       (dIdx := dIdx + 1) (depth := depth + nindices)
@@ -1631,9 +1635,9 @@ theorem laterSteps.materialize
     · exact Hambient'
     · simpa [updatedStats, hlparams'] using hcommon
     · exact hconsume
-    · intro c'' stats'' decl depth'' Hc'' henv'' hlparams'' Hdecl'' Hresult
+    · intro c'' stats'' decl depth'' Hc'' henv'' hsafety'' hlparams'' Hdecl'' Hresult
       exact Hfinish Hc'' (henv''.trans henv')
-        (hlparams''.trans hlparams') Hdecl'' Hresult
+        (hsafety''.trans hsafety') (hlparams''.trans hlparams') Hdecl'' Hresult
   · have heq : dIdx = indTypes.size := by omega
     have htypes : skeleton.types.length = indTypes.size := by
       rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.types_length Hdecl]
@@ -1655,7 +1659,7 @@ theorem laterSteps.materialize
     · simpa [heq] using hindices
     · simpa [heq] using hconsts
     · exact hparams
-    · apply Hfinish (depth' := depth) Hc rfl rfl Hdecl'
+    · apply Hfinish (depth' := depth) Hc rfl rfl rfl Hdecl'
       refine {
         headers := Hheaders
         levels := ?_
@@ -1846,6 +1850,7 @@ theorem firstStep.materialize
       {depth' : Nat},
       (Hc' : ContextWF c') →
       c'.env = c.env →
+      c'.safety = c.safety →
       c'.lparams = c.lparams →
       TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe decl envTypes →
@@ -1856,7 +1861,7 @@ theorem firstStep.materialize
       stats k c).WF Q := by
   apply firstStep.initializesPrefix k Q Hc Hdecl hctx hidx hempty hparams
     hconsume
-  intro c' stats' nindices resultSort resultLevel params Hc' henv' hlparams'
+  intro c' stats' nindices resultSort resultLevel params Hc' henv' hsafety' hlparams'
     hlevels' hnindices' hconsts' Hdecl' hofLevel Hcache' Hsuffix'
     Hprefix' Hambient'
   let statsNext := updatedStats stats' c'.lctx resultSort true nindices
@@ -1893,9 +1898,9 @@ theorem firstStep.materialize
   · exact Hambient'
   · simpa [statsNext, updatedStats] using hofLevel
   · exact hconsume
-  · intro c'' stats'' decl depth'' Hc'' henv'' hlparams'' Hdecl'' Hresult
+  · intro c'' stats'' decl depth'' Hc'' henv'' hsafety'' hlparams'' Hdecl'' Hresult
     exact Hfinish Hc'' (henv''.trans henv')
-      (hlparams''.trans hlparams') Hdecl'' Hresult
+      (hsafety''.trans hsafety') (hlparams''.trans hlparams') Hdecl'' Hresult
 
 /-- Public verifier for the executable mutual-header checker.  Successful
 checking returns a materialized abstract declaration, its source translation,
@@ -1916,6 +1921,7 @@ theorem checkInductiveTypes.materialize
       {depth : Nat},
       (Hc' : ContextWF c') →
       c'.env = c.env →
+      c'.safety = c.safety →
       c'.lparams = c.lparams →
       TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
         indTypes.toList isUnsafe decl envTypes →

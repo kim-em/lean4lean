@@ -3646,6 +3646,7 @@ theorem index.cacheSynthesisWF
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
       (_henv : c'.env = c.env)
+      (_hsafety : c'.safety = c.safety)
       (_hvenv : Hc'.venv = Hc.venv)
       (_hlparams : c'.lparams = c.lparams)
       (normalized : Expr) (next : VExpr),
@@ -3672,7 +3673,7 @@ theorem index.cacheSynthesisWF
   rcases hnormalized with ⟨next, hnext, hnextEq⟩
   have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
-  exact Hrec Hc' rfl rfl rfl normalized next hnext Hcache'
+  exact Hrec Hc' rfl rfl rfl rfl normalized next hnext Hcache'
     (Hsuffix.withIndex Hc Hdom.consumed Hdom.isType)
     ((Hsynthesis.withIndex Hdom).normalize hsourceNext)
 
@@ -3900,6 +3901,7 @@ theorem firstParameter.cacheSynthesisWF
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
       (_henv : c'.env = c.env)
+      (_hsafety : c'.safety = c.safety)
       (_hvenv : Hc'.venv = Hc.venv)
       (_hlparams : c'.lparams = c.lparams)
       (normalized : Expr) (next : VExpr),
@@ -3934,7 +3936,7 @@ theorem firstParameter.cacheSynthesisWF
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
   let Hsynthesis' :=
     (Hsynthesis.withParameter hindices Hdom).normalize hsourceNext
-  exact Hrec Hc' rfl rfl rfl normalized next hnext Hcache'
+  exact Hrec Hc' rfl rfl rfl rfl normalized next hnext Hcache'
     (Hsuffix.push Hc hprefix Hdom.consumed Hdom.isType)
     Hsynthesis' (by rfl)
 
@@ -4191,6 +4193,7 @@ abstract telescope to the terminal continuation. -/
 theorem firstHeaderSynthesisWF
     {target : VInductiveTypeSkeleton}
     {sourceEnv : Environment}
+    {sourceSafety : DefinitionSafety}
     {baseLevels : List Level} {baseNindices : Array Nat}
     {baseConsts : Array Expr}
     {R : VEnv → Prop}
@@ -4202,6 +4205,7 @@ theorem firstHeaderSynthesisWF
       {current' : VExpr} {i' nindices' : Nat}
       (Hc' : ContextWF c'),
       c'.env = sourceEnv →
+      c'.safety = sourceSafety →
       c'.lparams = Us →
       stats'.indConsts.isEmpty = true →
       stats'.levels = baseLevels →
@@ -4218,6 +4222,7 @@ theorem firstHeaderSynthesisWF
       (k type' stats' nindices' c').WF Q)
     (Hc : ContextWF c)
     (henv : c.env = sourceEnv)
+    (hsafety : c.safety = sourceSafety)
     (hlparams : c.lparams = Us)
     (hempty : stats.indConsts.isEmpty = true)
     (hlevelsStable : stats.levels = baseLevels)
@@ -4251,9 +4256,10 @@ theorem firstHeaderSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi hempty (by simpa using Hcache) Hsuffix hambient
             Hsynthesis hindices Hdom hbody
-          intro c' Hc' henv' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
+          intro c' Hc' henv' hsafety' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
             Hsynthesis' hindices'
-          apply ih Hc' (henv'.trans henv) (hlparams'.trans hlparams)
+          apply ih Hc' (henv'.trans henv) (hsafety'.trans hsafety)
+            (hlparams'.trans hlparams)
             (by simpa using hempty)
             (by simpa using hlevelsStable)
             (by simpa using hnindicesStable)
@@ -4266,9 +4272,10 @@ theorem firstHeaderSynthesisWF
         · apply index.cacheSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi Hcache Hsuffix Hsynthesis Hdom hbody
-          intro c' Hc' henv' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
+          intro c' Hc' henv' hsafety' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
             Hsynthesis'
-          apply ih Hc' (henv'.trans henv) (hlparams'.trans hlparams)
+          apply ih Hc' (henv'.trans henv) (hsafety'.trans hsafety)
+            (hlparams'.trans hlparams)
             hempty hlevelsStable
             hnindicesStable hconstsStable
             (by rw [hvenv']; exact HR)
@@ -4278,7 +4285,7 @@ theorem firstHeaderSynthesisWF
           · exact hnext
     · by_cases hi : i = nparams
       · exact result.WF hforall hi
-          (Hresult Hc henv hlparams hempty hlevelsStable hnindicesStable
+          (Hresult Hc henv hsafety hlparams hempty hlevelsStable hnindicesStable
             hconstsStable HR hforall hi Hcache Hsuffix Hsynthesis htype)
       · exact parameterMismatch.WF hforall hi
 
@@ -4424,11 +4431,13 @@ theorem laterIndexSynthesisWF
     {commonParams : List VExpr}
     {paramU : Nat}
     {sourceEnv : Environment}
+    {sourceSafety : DefinitionSafety}
     {R : VEnv → Prop}
     (k : Expr → AddInductive.InductiveStats → Nat →
       AddInductive.M alpha) (Q : alpha → Prop)
     (Hresult : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
       (_henv : c'.env = sourceEnv)
+      (_hsafety : c'.safety = sourceSafety)
       (_hlparams : c'.lparams = c.lparams)
       {type' narrowCurrent fullCurrent scope' nindices' fuel'},
       (¬ ∃ name dom body bi, type' = .forallE name dom body bi) →
@@ -4450,6 +4459,7 @@ theorem laterIndexSynthesisWF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (Hc : ContextWF c)
     (henv : c.env = sourceEnv)
+    (hsafety : c.safety = sourceSafety)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats nparams (depth + nindices))
     (Hsuffix : ParameterContextSuffix Hc stats (depth + nindices))
@@ -4590,9 +4600,9 @@ theorem laterIndexSynthesisWF
             hscopeWF hdomainNarrow htransition with
           ⟨nextNarrow, hnextNarrow, Hsynthesis',
             ⟨hparamsPreserved, _hindicesPreserved⟩⟩
-        exact ih (fun Hc'' henv'' hlparams'' =>
-            Hresult Hc'' henv'' (by simpa using hlparams'')) Hc'
-          (by simpa using henv)
+        exact ih (fun Hc'' henv'' hsafety'' hlparams'' =>
+            Hresult Hc'' henv'' hsafety'' (by simpa using hlparams'')) Hc'
+          (by simpa using henv) (by simpa using hsafety)
           (by simpa [Nat.add_assoc] using
             Hcache.withIndex Hc Hdom.consumed Hdom.isType)
           (by simpa [Nat.add_assoc] using
@@ -4608,7 +4618,8 @@ theorem laterIndexSynthesisWF
             exact Hparams) Hruntime' hnextNarrow
           hnormalizedFVars
           ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
-    · exact Hresult Hc henv rfl hforall Hsynthesis Hruntime htypeNarrow
+    · exact Hresult Hc henv hsafety rfl hforall Hsynthesis Hruntime
+        htypeNarrow
         htypeFVars htypeFull Hcache Hsuffix Hambient HR Hparams
 
 end checkInductiveTypes.loopType
