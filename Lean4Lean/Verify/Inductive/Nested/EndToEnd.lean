@@ -1415,8 +1415,8 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtTypes
   exact hbase
 
 /-- Assemble the complete canonical type of one restored primary recursor
-from independently translated source parameters and source-facing semantics
-for its restored motive/minor/index/major suffix. -/
+from independently translated source parameters and a stateful source-facing
+semantic invariant for its restored motive/minor/index/major suffix. -/
 theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1442,8 +1442,10 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
         Hstep.restored.recursor.restored.newInfo
         (Hprod.generated.entry familyIdx hentry),
-      GeneratedRecursorRestoredSuffixTranslations A Hprod.origins
-        envCtors []) :
+      GeneratedRecursorRestoredSuffixTranslationsInvariant A Hprod.origins
+        envCtors []
+        ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+          Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse)) :
     exists targetType, Expr.ForallTelescopeTypeTranslation envCtors
       Hstep.restored.recursor.oldInfo.levelParams []
       Hstep.restored.recursor.restored.newInfo.type
@@ -1541,9 +1543,13 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
     simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Hopened.1
   have hrecInfo : familyIdx < Hprod.recInfos.size := by
     simpa [Hprod.generated.length] using hentry
-  rcases A.transportSuffixOfSemantics envCtors [] parameterDomains
+  have HsuffixSemantics :
+      GeneratedRecursorRestoredSuffixTranslationsInvariant A Hprod.origins
+        envCtors [] parameterDomains := by
+    simpa [parameterDomains, sourceSuffix] using Hsemantics A
+  rcases A.transportSuffixOfInvariantSemantics envCtors [] parameterDomains
       HparameterContext Hprod.localWF Hprod.bindings Hprod.origins hrecInfo
-      (Hsemantics A) with ⟨suffixTarget, Hsuffix⟩
+      HsuffixSemantics with ⟨suffixTarget, Hsuffix⟩
   refine ⟨VExpr.wrapForalls parameterDomains suffixTarget, ?_⟩
   have Hclosed := A.closeTransportedSuffix hctorsOrdered HtemplatePrefix'
     HtemplateTelescope' Htemplate' hparameterDomains Hsuffix
@@ -1608,10 +1614,9 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledTelescopes
     Hsource Hmetadata Hfamilies Hconstructors hempty Hrestored HtelescopeTypes
 
 /-- Whole-mutual nested source semantics with the opaque restored-telescope
-premise eliminated.  The remaining premise is the source-facing semantic
-interpretation of each restored suffix slot and residual; parameter
-translation, operational alignment, dependent transport, and reclosing are
-all derived here. -/
+premise eliminated.  The remaining premise is a stateful source-facing
+interpretation of the exact restored suffix prefix; parameter translation,
+operational alignment, dependent transport, and reclosing are derived here. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledSuffixes
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1645,8 +1650,10 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledSuffixes
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
         Hstep.restored.recursor.restored.newInfo
         (Hprod.generated.entry familyIdx hentry)),
-      GeneratedRecursorRestoredSuffixTranslations A Hprod.origins
-        envCtors []) :
+      GeneratedRecursorRestoredSuffixTranslationsInvariant A Hprod.origins
+        envCtors []
+        ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+          Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse)) :
     exists owners recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
         sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by

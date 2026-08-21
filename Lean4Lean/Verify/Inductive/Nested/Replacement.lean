@@ -487,6 +487,108 @@ theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedAtFrom
         (Expr.ForallTelescopeTypeTranslation.cons
           (name := name) (bi := bi) HnewDomain HnewDomainType HnewBody')
 
+/-- Stateful form of `transportAbstractedAtFrom`.  `State` records the
+semantic meaning of the exact translated prefix accumulated by the fold;
+each domain callback must extend that state, and the residual callback may
+use the completed state.  This avoids quantifying semantic callbacks over
+arbitrary well-formed contexts that do not have the required recursor-slot
+shape. -/
+theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedAtFromInvariant
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual)
+    (Hold : Expr.ForallTelescopeTypeTranslation oldEnv Us oldDelta
+      (input.abstractList oldParams depth) arity oldTarget)
+    (limit position : Nat) (hspan : position + arity = limit)
+    (State : Nat -> List VExpr -> Prop)
+    (Hstate : State position newPrefix)
+    (HnewCtx : OnCtx (abstractForallContext newPrefix newBase).toCtx
+      (newEnv.IsType Us.length))
+    (Hdomains : forall {oldDelta oldDomain newDomain oldDomainTarget}
+        (position binderDepth : Nat) (newPrefix : List VExpr),
+      position < limit ->
+      State position newPrefix ->
+      OnCtx (abstractForallContext newPrefix newBase).toCtx
+        (newEnv.IsType Us.length) ->
+      ExprReplacement replaceNode oldDomain newDomain ->
+      TrExprS oldEnv Us oldDelta
+        (oldDomain.abstractList oldParams binderDepth) oldDomainTarget ->
+      oldEnv.IsType Us.length oldDelta.toCtx oldDomainTarget ->
+      exists newDomainTarget,
+        TrExprS newEnv Us (abstractForallContext newPrefix newBase)
+          (newDomain.abstractList newParams binderDepth) newDomainTarget /\
+        newEnv.IsType Us.length
+          (abstractForallContext newPrefix newBase).toCtx newDomainTarget /\
+        State (position + 1) (newPrefix ++ [newDomainTarget]))
+    (Hresidual : forall {oldDelta oldResidualTarget}
+        (newPrefix : List VExpr),
+      State limit newPrefix ->
+      OnCtx (abstractForallContext newPrefix newBase).toCtx
+        (newEnv.IsType Us.length) ->
+      ExprReplacement replaceNode oldResidual newResidual ->
+      TrExprS oldEnv Us oldDelta
+        (oldResidual.abstractList oldParams (depth + arity))
+        oldResidualTarget ->
+      oldEnv.IsType Us.length oldDelta.toCtx oldResidualTarget ->
+      Expr.AbstractTypeTranslation newEnv Us
+        (abstractForallContext newPrefix newBase)
+        (newResidual.abstractList newParams (depth + arity))) :
+    exists newTarget,
+      Expr.ForallTelescopeTypeTranslation newEnv Us
+        (abstractForallContext newPrefix newBase)
+        (output.abstractList newParams depth) arity newTarget := by
+  induction H generalizing oldDelta oldTarget depth position newPrefix with
+  | nil Hbody =>
+    have hposition : position = limit := by omega
+    subst position
+    rcases Hresidual newPrefix Hstate HnewCtx Hbody Hold.translation
+        Hold.isType with
+      ⟨target, Htr, Htype⟩
+    exact ⟨target, .nil Htr Htype⟩
+  | @cons name oldDom oldBody bi newDom newBody arity oldResidual newResidual
+      Hnone Hdom Hbody ih =>
+    rw [Expr.abstractList_forallE] at Hold
+    cases Hold with
+    | cons HoldDom HoldDomType HoldBody =>
+      rcases Hdomains position depth newPrefix (by omega) Hstate HnewCtx Hdom
+          HoldDom HoldDomType with
+        ⟨newDomainTarget, HnewDomain, HnewDomainType, Hstate'⟩
+      have HnewCtx' : OnCtx
+          (abstractForallContext (newPrefix ++ [newDomainTarget])
+            newBase).toCtx (newEnv.IsType Us.length) := by
+        rw [abstractForallContext_toCtx, List.reverse_append]
+        simp only [List.reverse_singleton, List.singleton_append]
+        change OnCtx (newPrefix.reverse ++ newBase.toCtx)
+            (newEnv.IsType Us.length) /\
+          newEnv.IsType Us.length (newPrefix.reverse ++ newBase.toCtx)
+            newDomainTarget
+        exact ⟨by
+          simpa [abstractForallContext_toCtx] using HnewCtx, by
+          simpa [abstractForallContext_toCtx] using HnewDomainType⟩
+      rcases ih HoldBody (Hresidual := by
+          intro oldDelta oldResidualTarget extendedPrefix HextendedState
+              HextendedCtx Hreplacement Htr Htype
+          have Htransported := Hresidual extendedPrefix HextendedState
+            HextendedCtx Hreplacement (by
+              simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Htr)
+            Htype
+          simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
+            Htransported)
+          (depth := depth + 1) (position := position + 1)
+          (hspan := by omega) (newPrefix := newPrefix ++ [newDomainTarget])
+          Hstate' HnewCtx' with
+        ⟨newBodyTarget, HnewBody⟩
+      have HnewBody' : Expr.ForallTelescopeTypeTranslation newEnv Us
+          ((none, .vlam newDomainTarget) ::
+            abstractForallContext newPrefix newBase)
+          (newBody.abstractList newParams (depth + 1)) arity
+          newBodyTarget := by
+        simpa [abstractForallContext, List.reverse_append,
+          List.map_append, List.append_assoc] using HnewBody
+      refine ⟨.forallE newDomainTarget newBodyTarget, ?_⟩
+      simpa [Expr.updateForallE!, Expr.abstractList_forallE] using
+        (Expr.ForallTelescopeTypeTranslation.cons
+          (name := name) (bi := bi) HnewDomain HnewDomainType HnewBody')
+
 theorem ExprReplacement.ofReplace
     (replaceNode : Expr → Option Expr) :
     ∀ input, ExprReplacement replaceNode input (input.replace replaceNode) := by
