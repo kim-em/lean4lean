@@ -2429,6 +2429,416 @@ theorem
     Expr.abstractList_const]
   rw [hindices, hparams, hsourceFields]
 
+/-- Once the selected constructor fields are closed, the aligned motive
+application can mention only the common parameter and motive binders.  In
+particular it is independent of every minor binder which is inserted after
+the selected minor type has been generated. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.alignedMotiveAppFieldClosureScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (S : RecInfoMinorTypeShape)
+    (hfieldClosure :
+      S.motiveApp.abstractList S.fields_bound.fvars =
+        Expr.app
+          (mkAppN
+            (H.recInfos[owner]!.motive.abstractList S.fields_bound.fvars)
+            ((AddInductive.getIIndices stats A.rule.target).2.map fun index =>
+              index.abstractList A.rule.all_args_bound.fvars))
+          (A.rule.sourceConstructorMajor.abstractList
+            A.rule.all_args_bound.fvars)) :
+    (S.motiveApp.abstractList S.fields_bound.fvars).FVarsIn fun fv =>
+      fv ∈ A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars := by
+  let outer := A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars
+  let fieldFVars := A.rule.all_args_bound.fvars
+  let P := fun fv => fv ∈ outer
+  have hownerRecInfos : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
+    simpa using hownerRecInfos
+  rcases A.rule.motives_bound.getElem_eq_fvar owner hownerMotive with
+    ⟨hownerMotiveFVars, hownerMotiveSource⟩
+  let motiveFVar := A.rule.motives_bound.fvars[owner]
+  have hmotive : H.recInfos[owner]!.motive = .fvar motiveFVar := by
+    rw [getElem!_pos H.recInfos owner hownerRecInfos]
+    simpa [motiveFVar] using hownerMotiveSource
+  have Hmotive :
+      (H.recInfos[owner]!.motive.abstractList
+        S.fields_bound.fvars).FVarsIn P := by
+    apply FVarsIn.abstractList_of
+    rw [hmotive]
+    change motiveFVar ∈ S.fields_bound.fvars ∨ P motiveFVar
+    exact Or.inr <| List.mem_append_right _
+      (List.getElem_mem hownerMotiveFVars)
+  have hsemanticFields : A.semantics.fieldsRecent.fvars = fieldFVars :=
+    BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl
+  have hparameterFVars : ExprArrayFVarIds stats.params =
+      A.rule.params_bound.fvars := by
+    exact A.rule.params_bound.exprArrayFVarIds
+  have Htarget : A.rule.target.FVarsIn fun fv =>
+      fv ∈ fieldFVars ∨ P fv := by
+    apply A.semantics.targetFVarsIn.mono
+    intro fv hfv
+    rcases hfv with hfield | hparam
+    · rw [hsemanticFields] at hfield
+      exact Or.inl hfield
+    · rw [hparameterFVars] at hparam
+      exact Or.inr <| List.mem_append_left _ hparam
+  have Hindices : ∀ index ∈
+      (AddInductive.getIIndices stats A.rule.target).2,
+      (index.abstractList fieldFVars).FVarsIn P := by
+    intro index hindex
+    have hindexArgs : index ∈ A.rule.target.getAppArgsList := by
+      have hsuffix :
+          (AddInductive.getIIndices stats A.rule.target).2.toList =
+            A.rule.target.getAppArgs.toList.drop stats.params.size := by
+        change (A.rule.target.getAppArgs[stats.params.size:]).toList = _
+        rw [List.drop_eq_drop_min]
+        simp only [Subarray.toList_eq, Array.array_toSubarray,
+          Array.start_toSubarray, Array.stop_toSubarray, Nat.min_self,
+          Array.toList_extract, List.extract_eq_take_drop,
+          Array.length_toList]
+        apply List.take_of_length_le
+        simp
+      have hdrop : index ∈
+          A.rule.target.getAppArgs.toList.drop stats.params.size := by
+        rw [← hsuffix]
+        exact Array.mem_toList_iff.mpr hindex
+      simpa [Expr.getAppArgs_toList] using List.mem_of_mem_drop hdrop
+    apply FVarsIn.abstractList_of
+    exact (Htarget.getAppArgsList hindexArgs).mono fun fv hfv =>
+      hfv
+  have Hmajor :
+      (A.rule.sourceConstructorMajor.abstractList fieldFVars).FVarsIn P := by
+    have HconstructorScope := A.semantics.constructor_translation.fvarsIn
+    unfold BoundGeneratedRecursorRule.sourceConstructorMajor at HconstructorScope
+    rw [Expr.mkAppN_eq_mkAppList, Expr.mkAppN_eq_mkAppList] at HconstructorScope
+    have HconstContext :=
+      (FVarsIn.mkAppList.mp (FVarsIn.mkAppList.mp HconstructorScope).1).1
+    have Hconst : (Expr.const indTypes[owner]!.ctors[i].name stats.levels).FVarsIn
+        (fun fv => fv ∈ fieldFVars ∨ P fv) := by
+      change ∀ level ∈ stats.levels, level.hasMVar' = false
+      change ∀ level ∈ stats.levels, level.hasMVar' = false at HconstContext
+      exact HconstContext
+    apply FVarsIn.abstractList_of
+    unfold BoundGeneratedRecursorRule.sourceConstructorMajor
+    rw [Expr.mkAppN_eq_mkAppList, Expr.mkAppN_eq_mkAppList]
+    apply FVarsIn.mkAppList.mpr
+    constructor
+    · apply FVarsIn.mkAppList.mpr
+      constructor
+      · exact Hconst
+      · intro param hparam
+        have hparam' : param ∈
+            A.rule.params_bound.fvars.map Expr.fvar := by
+          simpa [A.rule.params_bound.expressions] using hparam
+        rcases List.mem_map.mp hparam' with ⟨fv, hfv, rfl⟩
+        exact Or.inr <| List.mem_append_left _ hfv
+    · intro field hfield
+      have hfield' : field ∈ fieldFVars.map Expr.fvar := by
+        simpa [fieldFVars, A.rule.all_args_bound.expressions] using hfield
+      rcases List.mem_map.mp hfield' with ⟨fv, hfv, rfl⟩
+      exact Or.inl hfv
+  rw [hfieldClosure]
+  change FVarsIn P (Expr.app _ _)
+  constructor
+  · rw [Expr.mkAppN_eq_mkAppList]
+    apply FVarsIn.mkAppList.mpr
+    constructor
+    · exact Hmotive
+    · intro index hindex
+      rw [Array.toList_map] at hindex
+      rcases List.mem_map.mp hindex with ⟨source, hsource, rfl⟩
+      exact Hindices source (Array.mem_toList_iff.mp hsource)
+  · simpa [fieldFVars] using Hmajor
+
+/-- The selected motive is an outer binder and therefore is unaffected by
+closing the fresh constructor fields used to assemble its application. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.alignedOwnerMotiveFieldClosure
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (S : RecInfoMinorTypeShape)
+    (HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+      H.parameterSuffix.parameterDecls)
+    (indices : Array Expr) (major : Expr)
+    (hmotiveApp : S.motiveApp =
+      Expr.app (mkAppN H.recInfos[owner]!.motive indices) major) :
+    H.recInfos[owner]!.motive.abstractList S.fields_bound.fvars =
+      H.recInfos[owner]!.motive := by
+  have hownerRecInfos : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
+    simpa using hownerRecInfos
+  rcases A.rule.motives_bound.getElem_eq_fvar owner hownerMotive with
+    ⟨hownerMotiveFVars, hownerMotiveSource⟩
+  let motiveFVar := A.rule.motives_bound.fvars[owner]
+  have hmotive : H.recInfos[owner]!.motive = .fvar motiveFVar := by
+    rw [getElem!_pos H.recInfos owner hownerRecInfos]
+    simpa [motiveFVar] using hownerMotiveSource
+  rcases HS.semantic.motiveHeadRoot with ⟨headFVar, hhead, hheadRoot⟩
+  have hheadEq := congrArg Expr.getAppFn hmotiveApp
+  rw [hhead] at hheadEq
+  have hheadFVar : headFVar = motiveFVar := by
+    simpa [Expr.getAppFn, Expr.getAppFn_mkAppN, hmotive] using hheadEq
+  subst headFVar
+  have hheadRoot' : motiveFVar ∈
+      HS.semantic.traversal.rootContext.lctx.fvars := by
+    rw [← HS.semantic.rootWF.lctx_eq,
+      HS.semantic.rootWF.mlctx_wf.tr.fvars_eq]
+    exact hheadRoot
+  have hfieldFVars : HS.semantic.fieldsRecent.fvars =
+      S.fields_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq
+      HS.semantic.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      S.fields_bound rfl
+  have hnotField : motiveFVar ∉ S.fields_bound.fvars := by
+    intro hfield
+    rw [← hfieldFVars] at hfield
+    exact HS.semantic.fieldsRecent.fresh motiveFVar hfield hheadRoot'
+  rw [hmotive, Expr.abstractList_fvar_of_not_mem hnotField]
+
+/-- Insert the selected and later minor binders into the positive-arity
+residual source.  After the recursive-hypothesis holes are left open, the
+result is exactly the independently reconstructed constructor-motive type
+under the complete production rule binder list. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.alignedPositiveResidualSource
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (S : RecInfoMinorTypeShape)
+    (HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+      H.parameterSuffix.parameterDecls)
+    (traversal : RecInfoMinorTraversalShape)
+    (hmotiveApp : S.motiveApp =
+      Expr.app
+        (mkAppN H.recInfos[owner]!.motive
+          (AddInductive.getIIndices stats traversal.terminal).2)
+        (mkAppN
+          (mkAppN (.const S.constructor.name stats.levels) stats.params)
+          S.fields))
+    (hfieldClosure :
+      S.motiveApp.abstractList S.fields_bound.fvars =
+        Expr.app
+          (mkAppN
+            (H.recInfos[owner]!.motive.abstractList S.fields_bound.fvars)
+            ((AddInductive.getIIndices stats A.rule.target).2.map fun index =>
+              index.abstractList A.rule.all_args_bound.fvars))
+          (A.rule.sourceConstructorMajor.abstractList
+            A.rule.all_args_bound.fvars))
+    (hfields : S.fields.size = A.rule.allArgs.size)
+    (hhypotheses : S.hypotheses.size = A.rule.recursiveArgs.size) :
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    let remainingMinorFVars := A.rule.minors_bound.fvars.drop minorIdx
+    let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
+    let expected := Expr.app
+      (mkAppN H.recInfos[owner]!.motive
+        (AddInductive.getIIndices stats A.rule.target).2)
+      A.rule.sourceConstructorMajor
+    (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+      S.fields_bound.fvars S.hypotheses.size).abstractList
+        sourceBinders arity).liftLooseBVars'
+          arity remainingMinorFVars.length =
+      (expected.abstractList A.rule.binders).liftLooseBVars' 0
+        A.rule.recursiveArgs.size := by
+  dsimp only
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  let outer := A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars
+  let generatedPrefix := outer ++ A.rule.minors_bound.fvars.take minorIdx
+  let remainingMinorFVars := A.rule.minors_bound.fvars.drop minorIdx
+  let fieldClosed := S.motiveApp.abstractList S.fields_bound.fvars
+  let expected := Expr.app
+    (mkAppN H.recInfos[owner]!.motive
+      (AddInductive.getIIndices stats A.rule.target).2)
+    A.rule.sourceConstructorMajor
+  have hsourceParams : H.params.fvars = A.rule.params_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq H.params A.rule.params_bound rfl
+  have hsourceMotives : H.bindings.motives.fvars =
+      A.rule.motives_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq H.bindings.motives
+      A.rule.motives_bound rfl
+  have hsourceMinors : H.bindings.flatMinors.fvars =
+      A.rule.minors_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq H.bindings.flatMinors
+      A.rule.minors_bound rfl
+  have hsourceBinders : sourceBinders = generatedPrefix := by
+    simp only [sourceBinders, generatedPrefix, outer]
+    rw [hsourceParams, hsourceMotives, hsourceMinors]
+  have hfieldsLength : S.fields_bound.fvars.length =
+      A.rule.allArgs.size :=
+    S.fields_bound.length_fvars.trans hfields
+  have hhypothesesLength : S.hypotheses_bound.fvars.length =
+      A.rule.recursiveArgs.size :=
+    S.hypotheses_bound.length_fvars.trans hhypotheses
+  have HmotiveClosed : Closed S.motiveApp 0 := by
+    have Hclosed := HS.semantic.motivePreTranslation.closed
+    rw [HS.semantic.terminalWF.mlctx.noBV] at Hclosed
+    simpa using Hclosed
+  have HfieldClosed : Closed fieldClosed A.rule.allArgs.size := by
+    have Hclosed := Closed.abstractList_at
+      (e := S.motiveApp) (fvars := S.fields_bound.fvars)
+      (depth := 0) (outer := 0) HmotiveClosed
+    simpa [fieldClosed, hfieldsLength] using Hclosed
+  have hcloseHypotheses := HS.semantic.abstractHypotheses_motiveApp
+  have hfieldShift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := S.motiveApp) (fvars := S.fields_bound.fvars)
+    (depth := 0) (extra := S.hypotheses.size)
+    HmotiveClosed S.fields_nodup
+  have hfieldShift' :
+      S.motiveApp.abstractList S.fields_bound.fvars
+          A.rule.recursiveArgs.size =
+        fieldClosed.liftLooseBVars' 0 A.rule.recursiveArgs.size := by
+    simpa [fieldClosed, hhypotheses] using hfieldShift
+  have hfieldScope := A.alignedMotiveAppFieldClosureScope S hfieldClosure
+  have hfieldAvoidsRemaining : fieldClosed.FVarsIn
+      (fun fv => fv ∉ remainingMinorFVars) := by
+    apply hfieldScope.mono
+    intro fv houter hremaining
+    have hminor : fv ∈ A.rule.minors_bound.fvars :=
+      List.mem_of_mem_drop hremaining
+    have hdisjoint := (List.nodup_append.mp
+      A.rule.outer_binders_nodup).2.2
+    exact hdisjoint fv houter fv hminor rfl
+  have hremainingAbstract : fieldClosed.abstractList
+      remainingMinorFVars A.rule.allArgs.size = fieldClosed :=
+    hfieldAvoidsRemaining.abstractList_eq_self HfieldClosed
+  have hprefixNodup : generatedPrefix.Nodup := by
+    have hsub : generatedPrefix <+ outer ++ A.rule.minors_bound.fvars :=
+      (List.Sublist.refl outer).append
+        (List.take_sublist _ A.rule.minors_bound.fvars)
+    exact A.rule.outer_binders_nodup.sublist <| by
+      simpa [generatedPrefix, outer, List.append_assoc] using hsub
+  have houterSplit : generatedPrefix ++ remainingMinorFVars =
+      outer ++ A.rule.minors_bound.fvars := by
+    simp [generatedPrefix, remainingMinorFVars, outer,
+      List.append_assoc]
+  have hfullOuterNodup :
+      (generatedPrefix ++ remainingMinorFVars).Nodup := by
+    rw [houterSplit]
+    simpa [outer, List.append_assoc] using A.rule.outer_binders_nodup
+  have hprefixShift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := fieldClosed) (fvars := generatedPrefix)
+    (depth := A.rule.allArgs.size) (extra := remainingMinorFVars.length)
+    HfieldClosed hprefixNodup
+  have hprefixAppend := Expr.abstractList_after_inner
+    (e := fieldClosed) (outer := generatedPrefix)
+    (inner := remainingMinorFVars) (k := A.rule.allArgs.size)
+    hfullOuterNodup
+  rw [hremainingAbstract] at hprefixAppend
+  have hprefixToFull :
+      (fieldClosed.abstractList generatedPrefix A.rule.allArgs.size
+        ).liftLooseBVars' A.rule.allArgs.size remainingMinorFVars.length =
+      fieldClosed.abstractList (outer ++ A.rule.minors_bound.fvars)
+        A.rule.allArgs.size := by
+    have hcombined := hprefixShift.symm.trans hprefixAppend
+    rw [houterSplit] at hcombined
+    exact hcombined
+  have hownerRecInfos : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
+    simpa using hownerRecInfos
+  rcases A.rule.motives_bound.getElem_eq_fvar owner hownerMotive with
+    ⟨hownerMotiveFVars, hownerMotiveSource⟩
+  let motiveFVar := A.rule.motives_bound.fvars[owner]
+  have hmotive : H.recInfos[owner]!.motive = .fvar motiveFVar := by
+    rw [getElem!_pos H.recInfos owner hownerRecInfos]
+    simpa [motiveFVar] using hownerMotiveSource
+  have hnotRuleField : motiveFVar ∉ A.rule.all_args_bound.fvars := by
+    intro hfield
+    apply A.rule.all_args_outer_fresh motiveFVar hfield
+    exact List.mem_append_left _ <|
+      List.mem_append_right _ (List.getElem_mem hownerMotiveFVars)
+  have hmotiveRuleFields : H.recInfos[owner]!.motive.abstractList
+      A.rule.all_args_bound.fvars = H.recInfos[owner]!.motive := by
+    rw [hmotive, Expr.abstractList_fvar_of_not_mem hnotRuleField]
+  have hmotiveSourceFields := A.alignedOwnerMotiveFieldClosure S HS
+    (AddInductive.getIIndices stats traversal.terminal).2
+    (mkAppN
+      (mkAppN (.const S.constructor.name stats.levels) stats.params)
+      S.fields) hmotiveApp
+  have hfieldExpected : fieldClosed =
+      expected.abstractList A.rule.all_args_bound.fvars := by
+    dsimp only [fieldClosed, expected]
+    rw [hfieldClosure]
+    simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
+    rw [hmotiveSourceFields, hmotiveRuleFields]
+  have hfullExpected :
+      fieldClosed.abstractList (outer ++ A.rule.minors_bound.fvars)
+          A.rule.allArgs.size =
+        expected.abstractList A.rule.binders := by
+    rw [hfieldExpected]
+    have Hclose := Expr.abstractList_after_inner
+      (e := expected) (outer := outer ++ A.rule.minors_bound.fvars)
+      (inner := A.rule.all_args_bound.fvars) (k := 0) (by
+        simpa [outer, BoundGeneratedRecursorRule.binders,
+          List.append_assoc] using A.rule.binders_nodup)
+    simpa [outer, BoundGeneratedRecursorRule.binders,
+      A.rule.all_args_bound.length_fvars, List.append_assoc] using Hclose
+  have hsourcePrefix :
+      (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+        S.fields_bound.fvars S.hypotheses.size).abstractList
+          sourceBinders
+          (A.rule.allArgs.size + A.rule.recursiveArgs.size)) =
+        (fieldClosed.abstractList generatedPrefix A.rule.allArgs.size
+          ).liftLooseBVars' 0 A.rule.recursiveArgs.size := by
+    rw [hcloseHypotheses, hsourceBinders]
+    rw [show S.hypotheses.size = A.rule.recursiveArgs.size from hhypotheses]
+    rw [hfieldShift']
+    have hcommute := Expr.liftLooseBVars'_abstractList_add
+      (e := fieldClosed) (fvars := generatedPrefix)
+      (start := 0) (cutoff := A.rule.allArgs.size)
+      (amount := A.rule.recursiveArgs.size) (by omega) hprefixNodup
+    simpa [fieldClosed, Nat.add_comm, Nat.add_left_comm,
+      Nat.add_assoc] using hcommute
+  rw [hsourcePrefix]
+  have hcommute := Expr.liftLooseBVars_comm
+    (fieldClosed.abstractList generatedPrefix A.rule.allArgs.size)
+    remainingMinorFVars.length A.rule.recursiveArgs.size
+    A.rule.allArgs.size 0 (by omega)
+  calc
+    _ = ((fieldClosed.abstractList generatedPrefix
+            A.rule.allArgs.size).liftLooseBVars'
+          A.rule.allArgs.size remainingMinorFVars.length
+        ).liftLooseBVars' 0 A.rule.recursiveArgs.size := by
+      have hcutoff : A.rule.recursiveArgs.size + A.rule.allArgs.size =
+          A.rule.allArgs.size + A.rule.recursiveArgs.size := by omega
+      rw [hcutoff] at hcommute
+      exact hcommute.symm
+    _ = _ := by rw [hprefixToFull, hfullExpected]
+
 /-- Opening the selected minor's translated telescope yields a genuine
 abstract context for every constructor field and recursive hypothesis.  The
 older parameter/motive/minor prefix is recovered from the complete generated

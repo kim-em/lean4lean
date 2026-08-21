@@ -3930,6 +3930,11 @@ structure RecInfoMinorSemanticSource
     terminalWF.mlctx.vlctx S.motiveApp motivePreTarget
   motivePreType : terminalWF.venv.IsType recLparams.length
     terminalWF.mlctx.vlctx.toCtx motivePreTarget
+  /-- The application head is an outer motive binder, introduced before the
+  fresh constructor fields. -/
+  motiveHeadRoot : ∃ fv,
+    S.motiveApp.getAppFn = .fvar fv ∧
+      fv ∈ rootWF.mlctx.vlctx.fvars
   motiveTarget : VExpr
   motiveTranslation : TrExprS sourceWF.venv recLparams
     sourceWF.mlctx.vlctx S.motiveApp motiveTarget
@@ -3970,6 +3975,7 @@ def RecInfoMinorSemanticSource.mono
   motivePreTarget := HS.motivePreTarget
   motivePreTranslation := HS.motivePreTranslation
   motivePreType := HS.motivePreType
+  motiveHeadRoot := HS.motiveHeadRoot
   motiveTarget := HS.motiveTarget
   motiveTranslation := HS.motiveTranslation
   motiveType := HS.motiveType

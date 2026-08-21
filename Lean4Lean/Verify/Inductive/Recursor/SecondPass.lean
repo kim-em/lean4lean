@@ -2050,6 +2050,24 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           motivePreTarget := motiveTarget
           motivePreTranslation := Hmotive
           motivePreType := HmotiveType
+          motiveHeadRoot := by
+            have hownerMotive : Happlication.ownerIdx <
+                (recInfos.map (·.motive)).size := by
+              simpa using htarget
+            rcases Hbindings.motives.getElem_eq_fvar
+                Happlication.ownerIdx hownerMotive with
+              ⟨hmotiveFVars, hmotiveSource⟩
+            let motiveFVar :=
+              Hbindings.motives.fvars[Happlication.ownerIdx]
+            have hmotiveBang : recInfos[Happlication.ownerIdx]!.motive =
+                .fvar motiveFVar := by
+              rw [getElem!_pos recInfos Happlication.ownerIdx htarget]
+              simpa [motiveFVar] using hmotiveSource
+            refine ⟨motiveFVar, ?_, ?_⟩
+            · simp [Expr.getAppFn, Expr.getAppFn_mkAppN, hmotiveBang]
+            · apply Horder.subset
+              apply List.mem_reverse.mpr
+              simp [motiveFVar, List.getElem_mem hmotiveFVars]
           motiveTarget := motiveTarget.lift'
             (HhypothesesRecent.contextExtension.shift.consN 0)
           motiveTranslation := HmotiveAt

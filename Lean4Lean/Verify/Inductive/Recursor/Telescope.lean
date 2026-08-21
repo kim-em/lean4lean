@@ -788,6 +788,44 @@ theorem Expr.abstractList_fvar_getElem
       simp only [List.length_cons]
       omega
 
+/-- Abstraction at an inner cutoff preserves every already-valid outer bound
+variable and adds one new valid slot. -/
+theorem Closed.abstract1_at
+    (H : Closed e (depth + outer)) :
+    Closed (Expr.abstract1 fv e depth) (depth + outer + 1) := by
+  induction e generalizing depth outer <;>
+    simp_all [Closed, Expr.abstract1, Nat.add_assoc]
+  case bvar i =>
+    split <;> omega
+  case fvar =>
+    split <;> simp [Closed]
+  case lam body_ih =>
+    have Hbody := body_ih (depth := depth + 1) (outer := outer) (by
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using H.2)
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hbody
+  case forallE body_ih =>
+    have Hbody := body_ih (depth := depth + 1) (outer := outer) (by
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using H.2)
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hbody
+  case letE body_ih =>
+    have Hbody := body_ih (depth := depth + 1) (outer := outer) (by
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using H.2.2)
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hbody
+
+/-- List abstraction at an inner cutoff preserves an existing outer de
+Bruijn prefix and extends it by exactly the number of selected variables. -/
+theorem Closed.abstractList_at
+    (H : Closed e (depth + outer)) :
+    Closed (e.abstractList fvars depth)
+      (depth + outer + fvars.length) := by
+  induction fvars generalizing e outer with
+  | nil => simpa using H
+  | cons fv fvars ih =>
+    simp only [Expr.abstractList, List.length_cons]
+    have Hhead := Closed.abstract1_at (fv := fv) H
+    have Htail := ih (outer := outer + 1) Hhead
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Htail
+
 /-- Abstracting free variables below `extra` freshly introduced binders is
 the same operation as abstracting at the original depth and weakening the
 result.  Closedness rules out pre-existing loose variables at the insertion
