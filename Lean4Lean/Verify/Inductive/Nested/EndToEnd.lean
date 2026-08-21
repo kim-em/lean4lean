@@ -103,6 +103,80 @@ theorem NestedLoweringResultClosed.selectionNodup
   rw [heq]
   exact hnodup
 
+/-- Rebase a validated auxiliary residual onto any independently translated
+copy of the same concrete parameter telescope.  Validation obtains its
+`domains` by inverting a closed witness, while restored recursors obtain their
+parameter domains from the source-header telescope.  Those lists need not be
+syntactically equal: translation may choose definitionally equal dependent
+domains.  The common concrete `mkForall` prefix nevertheless induces an exact
+context conversion, which transports both residual translation and typehood
+into the canonical parameter context. -/
+theorem ClosedNestedAuxiliaryTranslation.residualAtParameterDomains
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (henv : venv.WF) (hselectionNodup : selection.fvars.Nodup)
+    (dummy : Expr) (parameterDomains : List VExpr) (dummyTarget : VExpr)
+    (hparameterDomains : parameterDomains.length = res.params.size)
+    (Hdummy : TrExprS venv lparams []
+      (res.lctx.mkForall res.params dummy)
+      (VExpr.wrapForalls parameterDomains dummyTarget)) :
+    Expr.AbstractTypeTranslation venv lparams
+      (abstractForallContext parameterDomains [])
+      (e.abstractList selection.fvars) := by
+  have Hsame := selection.sameForallPrefix hselectionNodup dummy e
+  have Hclosed : TrExprS venv lparams []
+      (res.lctx.mkForall res.params e)
+      (VExpr.wrapForalls H.domains H.residualTarget) := by
+    rw [← H.target]
+    exact H.closed
+  have Hcontexts : VEnv.IsDefEqCtx venv lparams.length []
+      parameterDomains.reverse H.domains.reverse := by
+    have Hconverted := Hsame.translatedContextsExact henv
+      (.refl henv (by trivial)) Hdummy Hclosed
+      hparameterDomains H.arity
+    simpa [VLCtx.toCtx] using Hconverted
+  have Hvlctx := abstractForallContext.isDefEq Hcontexts
+  rcases H.residual.defeqDFC henv (Hvlctx.symm henv.ordered) with
+    ⟨target, Hresidual⟩
+  refine ⟨target, Hresidual, ?_⟩
+  have HctxSymm := Hvlctx.symm henv.ordered
+  have HresidualType := H.residualType.defeqDFC henv.ordered
+    HctxSymm.defeqCtx
+  have HtargetEq := H.residual.uniq henv HctxSymm Hresidual
+  have HtargetEq' := HtargetEq.defeqDFC henv.ordered HctxSymm.defeqCtx
+  exact VEnv.IsType.defeqU_l henv Hvlctx.wf.toCtx HtargetEq'
+    HresidualType
+
+/-- Depth-general canonical-parameter form of
+`residualAtParameterDomains`.  This is the form consumed by restored
+recursor domains: `suffixDomains` are precisely the motive/minor/index/major
+binders already opened after the common source parameters. -/
+theorem ClosedNestedAuxiliaryTranslation.residualAtParameterDomainsUnder
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (henv : venv.WF) (hselectionNodup : selection.fvars.Nodup)
+    (dummy : Expr) (parameterDomains suffixDomains : List VExpr)
+    (dummyTarget : VExpr)
+    (hparameterDomains : parameterDomains.length = res.params.size)
+    (Hdummy : TrExprS venv lparams []
+      (res.lctx.mkForall res.params dummy)
+      (VExpr.wrapForalls parameterDomains dummyTarget)) :
+    Expr.AbstractTypeTranslation venv lparams
+      (abstractForallContext (parameterDomains ++ suffixDomains) [])
+      (e.abstractList selection.fvars suffixDomains.length) := by
+  rcases H.residualAtParameterDomains henv hselectionNodup dummy
+      parameterDomains dummyTarget hparameterDomains Hdummy with
+    ⟨target, Hresidual, HresidualType⟩
+  have Hweak := Hresidual.weakBV henv.ordered
+    (abstractForallContext.bvLift suffixDomains
+      (abstractForallContext parameterDomains []))
+  rw [← Expr.abstractList_add_eq_liftLooseBVars H.sourceClosed
+    hselectionNodup] at Hweak
+  have HweakType := HresidualType.weakN henv.ordered
+    (abstractForallContext.bvLift suffixDomains
+      (abstractForallContext parameterDomains [])).toCtx
+  refine ⟨target.liftN suffixDomains.length 0, ?_, ?_⟩
+  · simpa only [abstractForallContext_append, Nat.zero_add] using Hweak
+  · simpa only [abstractForallContext_append] using HweakType
+
 theorem NestedLoweringResultClosed.resultParamsSize
     (H : NestedLoweringResultClosed env fuel nparams types initialState result) :
     result.params.size = result.nparams := by
@@ -296,6 +370,50 @@ theorem NestedRestorationOpening.exactFamilyHitOfTranslationsAtPrefix
     Hopen.exactFamilyHitAbstractTypeTranslationAtPrefix Hlower selection Haux
       henv family levels hfind hrec t restored hhead hargs Hhit
       suffixDomains⟩
+
+/-- Canonical-parameter specialization of the lookup-driven family-hit
+interpreter.  Unlike `exactFamilyHitOfTranslationsAtPrefix`, this theorem
+does not expose the validation-derived parameter domains existentially: it
+rebases the selected auxiliary witness onto the independently translated
+source parameter telescope used by the restored recursor fold. -/
+theorem
+    NestedRestorationOpening.exactFamilyHitOfTranslationsAtCanonicalPrefix
+    (Hopen : NestedRestorationOpening result prodEnv auxRec input output)
+    (Hlower : NestedLoweringResultClosed env fuel nparams types initialState
+      result)
+    (selection : LocalForallSelection result.lctx result.params)
+    (Htranslations : ClosedNestedAuxiliaryTranslations venv lparams result
+      selection)
+    (henv : venv.WF)
+    (dummy : Expr) (parameterDomains : List VExpr) (dummyTarget : VExpr)
+    (hparameterDomains : parameterDomains.length = result.params.size)
+    (Hdummy : TrExprS venv lparams []
+      (result.lctx.mkForall result.params dummy)
+      (VExpr.wrapForalls parameterDomains dummyTarget))
+    (family : Name) (levels : List Level) (e : Expr)
+    (hfind : result.aux2nested.find? family = some e)
+    (hrec : auxRec.find? family = none)
+    (t restored : Expr)
+    (hhead : t.getAppFn = .const family levels)
+    (hargs : t.getAppArgs.size = result.nparams)
+    (Hhit : result.restoreNestedNode prodEnv Hopen.params auxRec t =
+      some restored)
+    (suffixDomains : List VExpr) :
+    Expr.AbstractTypeTranslation venv lparams
+      (abstractForallContext (parameterDomains ++ suffixDomains) [])
+      (restored.abstractList Hopen.selection.fvars suffixDomains.length) := by
+  rcases Htranslations family e hfind with ⟨Haux⟩
+  have Hexact := restoreNestedNode_family_exactParams result prodEnv
+    Hopen.params auxRec t e family levels hhead hrec hfind hargs
+  have hrestored : restored =
+      (e.abstract result.params).instantiateRev Hopen.params :=
+    Option.some.inj (Hhit.symm.trans Hexact)
+  subst restored
+  rw [Hopen.auxiliaryAlphaAt Hlower selection Haux family hfind
+    suffixDomains.length]
+  exact Haux.residualAtParameterDomainsUnder henv
+    (Hlower.selectionNodup selection) dummy parameterDomains suffixDomains
+    dummyTarget hparameterDomains Hdummy
 
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
