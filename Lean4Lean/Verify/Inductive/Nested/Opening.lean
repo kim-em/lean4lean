@@ -784,7 +784,7 @@ theorem Expr.SameForallDomains.replaceTranslatedResidual
     (HtemplateTelescope : Expr.ForallTelescope template n templateResidual)
     (HreplacementTelescope :
       Expr.ForallTelescope replacement n replacementResidual)
-    (henv : VEnv.WF env)
+    (henv : VEnv.Ordered env)
     (Hctx : OnCtx Delta.toCtx (env.IsType Us.length))
     (hdomains : domains.length = n)
     (Htemplate : TrExprS env Us Delta template
@@ -818,7 +818,7 @@ theorem Expr.SameForallDomains.replaceTranslatedResidual
             have htail : domains.length = n := by simpa using hdomains
             have Hctx' : OnCtx (domain :: Delta.toCtx)
                 (env.IsType Us.length) := ⟨Hctx, HdomainType⟩
-            have Hopened := VEnv.IsType.wrapForalls_inv henv.ordered Hctx'
+            have Hopened := VEnv.IsType.wrapForalls_inv henv Hctx'
               HtemplateBodyType
             have HreplacementResidualType' : env.IsType Us.length
                 (domains.reverse ++ domain :: Delta.toCtx)

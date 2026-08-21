@@ -599,6 +599,61 @@ structure GeneratedRecursorRestoredDomainTranslations
         (recInfos.flatMap (·.minors)).size +
         recInfos[ownerIdx]!.indices.size) binderDepth accumulated
 
+/-- Semantic provenance for the restored result left after every generated
+recursor domain has been opened. -/
+def GeneratedRecursorRestoredResidualTranslation
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (newEnv : VEnv) (newBase : VLCtx) : Prop :=
+  ∀ {oldDelta oldResidualTarget} (accumulated : List VExpr),
+    OnCtx (abstractForallContext accumulated newBase).toCtx
+      (newEnv.IsType Hentry.info.levelParams.length) →
+    ExprReplacement
+      (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
+      (concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx)
+      (concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx) →
+    TrExprS venv Hentry.info.levelParams oldDelta
+      ((concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+        H.trace.opening.selection.fvars
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1))
+      oldResidualTarget →
+    venv.IsType Hentry.info.levelParams.length oldDelta.toCtx
+      oldResidualTarget →
+    Expr.AbstractTypeTranslation newEnv Hentry.info.levelParams
+      (abstractForallContext accumulated newBase)
+      ((concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+        H.trace.opening.selection.fvars
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1))
+
+/-- Complete source-facing semantic input for transporting one restored
+generated recursor suffix. -/
+structure GeneratedRecursorRestoredSuffixTranslations
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (newEnv : VEnv) (newBase : VLCtx) : Prop where
+  domains : GeneratedRecursorRestoredDomainTranslations H Horigins
+    newEnv newBase
+  residual : GeneratedRecursorRestoredResidualTranslation H newEnv newBase
+
 theorem RecursorRestoration.generatedTelescopeAlignment
     (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
       indTypes recInfos ownerIdx entry)
@@ -767,7 +822,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.closeTransportedSuffix
       indTypes recInfos ownerIdx entry}
     (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
       newInfo Hentry)
-    (Henv : newEnv.WF)
+    (Henv : newEnv.Ordered)
     (HtemplatePrefix : Expr.SameForallDomains result.nparams
       template Hentry.info.type)
     (HtemplateTelescope : Expr.ForallTelescope template result.nparams
@@ -936,6 +991,34 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
         exact Hdomains.major Hdeclaration (htypeEq.trans horiginType)
           binderDepth accumulated Hctx Hreplacement Htr Htype
   · exact Hresidual
+
+/-- Transport a restored suffix from the packaged source-facing semantic
+certificate. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfSemantics
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (newEnv : VEnv) (newBase : VLCtx) (newPrefix : List VExpr)
+    (HnewCtx : OnCtx (abstractForallContext newPrefix newBase).toCtx
+      (newEnv.IsType Hentry.info.levelParams.length))
+    (Hc : BindingContextWF c) (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (howner : ownerIdx < recInfos.size)
+    (Hsemantics : GeneratedRecursorRestoredSuffixTranslations H Horigins
+      newEnv newBase) :
+    ∃ target,
+      Expr.ForallTelescopeTypeTranslation newEnv Hentry.info.levelParams
+        (abstractForallContext newPrefix newBase)
+        (H.trace.opening.restoredBody.abstractList
+          H.trace.opening.selection.fvars)
+        ((recInfos.map (·.motive)).size +
+          (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size + 1)
+        target :=
+  H.transportSuffixOfDomains newEnv newBase newPrefix HnewCtx Hc Hbindings
+    Horigins howner Hsemantics.domains Hsemantics.residual
 
 /-- A canonical translation of the restored recursor telescope is already a
 well-formed abstract type.  The final major-premise binder makes the telescope

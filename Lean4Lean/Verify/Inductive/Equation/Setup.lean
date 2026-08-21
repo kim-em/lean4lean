@@ -824,6 +824,41 @@ theorem RecursorPhasesResult.restorationSources
     rw [hbang] at hrecursor
     exact hrecursor
 
+/-- The operational primary-restoration lookup identifies its old universe
+parameter list with the exact generated recursor entry. -/
+theorem RecursorPhasesResult.restoredPrimaryRecursorLevelParams
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
+    (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv)
+    (holdRecName : oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name) :
+    Hstep.oldInfo.levelParams =
+      (H.generated.entry ownerIdx hentry).info.levelParams := by
+  let E := H.generated.entry ownerIdx hentry
+  have hlookup := H.findRecursorOfMem (List.getElem_mem hentry)
+  have hlookupE : outEnv.find? (Lean.mkRecName indTypes[ownerIdx]!.name) =
+      some (.recInfo E.info) := by
+    change outEnv.find? H.entries[ownerIdx].1.name =
+      some H.entries[ownerIdx].1 at hlookup
+    rw [E.source_eq] at hlookup
+    change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
+    rwa [E.name] at hlookup
+  have holdInfo : Hstep.oldInfo = E.info := by
+    have hstepLookup : outEnv.find?
+        (Lean.mkRecName indTypes[ownerIdx]!.name) =
+          some (.recInfo Hstep.oldInfo) := by
+      simpa [holdRecName] using Hstep.lookup
+    exact ConstantInfo.recInfo.inj (Option.some.inj
+      (hstepLookup.symm.trans hlookupE))
+  exact congrArg (fun info : RecursorVal => info.levelParams) holdInfo
+
 /-- The installed generated entry fixes the universe arity of the old
 recursor metadata read by primary restoration. -/
 theorem RecursorPhasesResult.restoredPrimaryRecursorMetadata
