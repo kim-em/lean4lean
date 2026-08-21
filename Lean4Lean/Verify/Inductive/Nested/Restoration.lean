@@ -517,7 +517,11 @@ structure GeneratedRecursorRestorationTelescopeAlignment
     newInfo Hentry
   oldParamDomains : List VExpr
   oldSuffixTarget : VExpr
+  owner_lt : ownerIdx < recInfos.size
   oldParamDomains_length : oldParamDomains.length = result.nparams
+  oldPrefix : Expr.ForallTelescope Hentry.info.type result.nparams
+    (trace.opening.body.abstractList trace.opening.selection.fvars)
+  oldClosed : Hentry.info.type.FVarIdsIn fun _ => False
   oldSuffix : Expr.ForallTelescopeTypeTranslation venv Hentry.info.levelParams
     (abstractForallContext oldParamDomains [])
     (trace.opening.body.abstractList trace.opening.selection.fvars)
@@ -629,8 +633,10 @@ theorem RecursorRestoration.generatedTelescopeAlignment
   have hbody : Htrace.opening.body.abstractList
       Htrace.opening.selection.fvars = suffixSource :=
     Htrace.opening.abstractBody_eq_suffix HsourcePrefix' Hinput
-  refine ⟨⟨Htrace, paramDomains, suffixTarget, ?_, ?_⟩⟩
+  refine ⟨⟨Htrace, paramDomains, suffixTarget, howner, ?_, ?_, ?_, ?_⟩⟩
   · exact hparamDomains.trans hparams.symm
+  · simpa only [hbody] using HsourcePrefix'
+  · exact FVarsIn_to_FVarIdsIn Hinput
   · rw [hbody]
     simpa [suffixArity] using Hsuffix
 
@@ -740,6 +746,89 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
       oldResidualTarget := by
     simpa using Htr
   simpa using Hresidual accumulated Hreplacement Htr' Htype
+
+/-- Reclose an independently transported restored suffix under a translated
+copy of the unchanged concrete parameter prefix.  The template contributes
+only those common domains; all motive, minor, index, major, and result
+semantics come from `Hsuffix`, so no translation of the auxiliary-bearing
+old recursor type is reused in the canonical environment. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.closeTransportedSuffix
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (Henv : newEnv.WF)
+    (HtemplatePrefix : Expr.SameForallPrefix result.nparams
+      template Hentry.info.type)
+    (HtemplateTelescope : Expr.ForallTelescope template result.nparams
+      templateResidual)
+    (Htemplate : TrExprS newEnv Hentry.info.levelParams [] template
+      (VExpr.wrapForalls parameterDomains templateTarget))
+    (hparameterDomains : parameterDomains.length = result.nparams)
+    (Hsuffix : Expr.ForallTelescopeTypeTranslation newEnv
+      Hentry.info.levelParams (abstractForallContext parameterDomains [])
+      (H.trace.opening.restoredBody.abstractList
+        H.trace.opening.selection.fvars)
+      ((recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size + 1)
+      suffixTarget) :
+    Expr.ForallTelescopeTypeTranslation newEnv Hentry.info.levelParams []
+      newInfo.type
+      (result.nparams + ((recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size + 1))
+      (VExpr.wrapForalls parameterDomains suffixTarget) := by
+  let suffixArity := (recInfos.map (·.motive)).size +
+    (recInfos.flatMap (·.minors)).size +
+    recInfos[ownerIdx]!.indices.size + 1
+  have HoldNew : Expr.SameForallPrefix result.nparams Hentry.info.type
+      newInfo.type :=
+    H.trace.opening.sameForallPrefix H.oldPrefix H.oldClosed
+  have HtemplateNew : Expr.SameForallPrefix result.nparams template
+      newInfo.type := HtemplatePrefix.trans HoldNew
+  have HnewPrefix :=
+    H.trace.opening.outputPrefixTelescope H.oldPrefix
+  have Hwhole : TrExprS newEnv Hentry.info.levelParams [] newInfo.type
+      (VExpr.wrapForalls parameterDomains suffixTarget) :=
+    HtemplateNew.replaceTranslatedResidual HtemplateTelescope HnewPrefix
+      Henv (by trivial) hparameterDomains Htemplate Hsuffix.translation
+        Hsuffix.isType
+  have HnewSuffix := H.trace.suffix.newTelescope.abstractList
+    H.trace.opening.selection.fvars
+  have hresidual :
+      (concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+          H.trace.opening.selection.fvars suffixArity =
+      concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx := by
+    apply (concreteRecursorResult_noFVars.mono fun fv hfalse =>
+      False.elim hfalse).abstractList_eq_self
+    have howner : ownerIdx < (recInfos.map (·.motive)).size := by
+      simpa using H.owner_lt
+    exact concreteRecursorResult_closed howner
+  have HnewSuffix' : Expr.ForallTelescope
+      (H.trace.opening.restoredBody.abstractList
+        H.trace.opening.selection.fvars)
+      suffixArity
+      (concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx) := by
+    dsimp [suffixArity] at hresidual ⊢
+    simp only [Nat.zero_add] at HnewSuffix
+    rw [hresidual] at HnewSuffix
+    exact HnewSuffix
+  have Htotal := HnewPrefix.trans HnewSuffix'
+  have HwholeType : newEnv.IsType Hentry.info.levelParams.length []
+      (VExpr.wrapForalls parameterDomains suffixTarget) :=
+    TrExprS.isType_of_forallTelescope Htotal (by
+      dsimp [suffixArity]
+      omega) Hwhole
+  simpa [suffixArity] using
+    Expr.ForallTelescopeTypeTranslation.ofTrExprS Htotal Hwhole HwholeType
 
 /-- Transport the restored suffix from category-indexed provenance.  All
 lookup inversion is discharged here, leaving callers with four source-facing

@@ -1513,6 +1513,42 @@ theorem NestedRestorationOpening.sameForallPrefix
         Hopen.restoredBody
   simpa only [hinput, ← houtput] using Hsame
 
+/-- The operationally rebuilt output exposes the exact residual obtained by
+abstracting restoration's fresh parameter variables.  This is stronger than
+mere arity preservation: subsequent semantic transport can type that very
+residual and then close it under the unchanged concrete parameter prefix. -/
+theorem NestedRestorationOpening.outputPrefixTelescope
+    (Hopen : NestedRestorationOpening result env auxRec input output)
+    (Htelescope : Expr.ForallTelescope input result.nparams suffix) :
+    Expr.ForallTelescope output result.nparams
+      (Hopen.restoredBody.abstractList Hopen.selection.fvars) := by
+  rcases Hopen with ⟨lctx, params, body, restoredBody, Hopening, _HlctxWF,
+    Hselection, _Hnodup, _HselectionLength, _Hreplacement, houtput⟩
+  have Hrebuilt := Hselection.forallTelescope restoredBody
+  rw [Hopening.initial_size] at Hrebuilt
+  have houtputForall : output =
+      lctx.mkForall params restoredBody := by
+    cases hparams : result.nparams with
+    | zero =>
+        have hsize : params.size = 0 := by
+          simpa [hparams] using Hopening.initial_size
+        have hnil : params = #[] := Array.size_eq_zero_iff.mp hsize
+        have hlambda : lctx.mkLambda #[] restoredBody = restoredBody := by
+          rw [LocalContext.mkLambda]
+          change LocalContext.mkBinding true lctx
+            (([] : List FVarId).map Expr.fvar).toArray restoredBody =
+              restoredBody
+          rw [LocalContext.mkBinding_eq]
+          rfl
+        simpa [hnil, LocalContext.mkForall_empty, hlambda] using houtput
+    | succ n =>
+        have hfor : input.isForall = true :=
+          Htelescope.isForall_of_pos (by omega)
+        simpa [hfor] using houtput
+  change Expr.ForallTelescope output result.nparams
+    (restoredBody.abstractList Hselection.fvars)
+  simpa only [houtputForall] using Hrebuilt
+
 /-- Closing the fresh parameter variables exposed by an operational root
 opening recovers the original de Bruijn suffix of a closed forall telescope. -/
 theorem NestedRestorationOpening.abstractBody_eq_suffix
