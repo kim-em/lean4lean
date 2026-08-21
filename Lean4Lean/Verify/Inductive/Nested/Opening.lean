@@ -562,6 +562,51 @@ inductive Expr.SameForallPrefix : Nat → Expr → Expr → Prop
       Expr.SameForallPrefix (n + 1)
         (.forallE name dom left bi) (.forallE name dom right bi)
 
+/-- Two expressions have the same leading forall names and domains, while
+their binder annotations and residual bodies may differ.  This is the right
+relation for comparing a production telescope after `inferImplicit` with an
+independently translated dummy telescope: binder annotations are absent from
+`VExpr`, but the concrete domains must still agree exactly. -/
+inductive Expr.SameForallDomains : Nat → Expr → Expr → Prop
+  | nil : Expr.SameForallDomains 0 left right
+  | cons : Expr.SameForallDomains n left right →
+      Expr.SameForallDomains (n + 1)
+        (.forallE name dom left leftBi) (.forallE name dom right rightBi)
+
+theorem Expr.SameForallPrefix.sameForallDomains
+    (H : Expr.SameForallPrefix n left right) :
+    Expr.SameForallDomains n left right := by
+  induction H with
+  | nil => exact .nil
+  | cons _ ih => exact .cons ih
+
+theorem Expr.SameForallDomains.trans
+    (H₁ : Expr.SameForallDomains n left middle)
+    (H₂ : Expr.SameForallDomains n middle right) :
+    Expr.SameForallDomains n left right := by
+  induction H₁ generalizing right with
+  | nil => cases H₂; exact .nil
+  | cons _ ih =>
+    cases H₂ with
+    | cons H₂ => exact .cons (ih H₂)
+
+/-- `inferImplicit` may choose different annotations for two different
+residuals, but it preserves a common concrete domain prefix. -/
+theorem Expr.SameForallDomains.inferImplicit
+    (H : Expr.SameForallDomains n left right)
+    (max : Nat) (inferBinderTypes : Bool) :
+    Expr.SameForallDomains n
+      (left.inferImplicit max inferBinderTypes)
+      (right.inferImplicit max inferBinderTypes) := by
+  induction max generalizing n left right with
+  | zero => simpa [Expr.inferImplicit] using H
+  | succ max ih =>
+    cases H with
+    | nil => exact .nil
+    | cons Htail =>
+      simp only [Expr.inferImplicit]
+      exact .cons (ih Htail)
+
 theorem Expr.SameForallPrefix.symm
     (H : Expr.SameForallPrefix n left right) :
     Expr.SameForallPrefix n right left := by
@@ -695,6 +740,72 @@ theorem Expr.SameForallPrefix.replaceTranslatedResidual
     simpa [abstractForallContext, VExpr.wrapForalls] using
       HreplacementResidual
   | @cons n left right name dom bi Hsame ih =>
+    cases HtemplateTelescope with
+    | cons HtemplateTail =>
+      cases HreplacementTelescope with
+      | cons HreplacementTail =>
+        cases domains with
+        | nil => simp at hdomains
+        | cons domain domains =>
+          cases Htemplate with
+          | forallE HdomainType HtemplateBodyType HdomainTr HtemplateBody =>
+            have htail : domains.length = n := by simpa using hdomains
+            have Hctx' : OnCtx (domain :: Delta.toCtx)
+                (env.IsType Us.length) := ⟨Hctx, HdomainType⟩
+            have Hopened := VEnv.IsType.wrapForalls_inv henv.ordered Hctx'
+              HtemplateBodyType
+            have HreplacementResidualType' : env.IsType Us.length
+                (domains.reverse ++ domain :: Delta.toCtx)
+                replacementTarget := by
+              rw [abstractForallContext_toCtx] at HreplacementResidualType
+              simpa [VLCtx.toCtx] using HreplacementResidualType
+            have HreplacementBodyType : env.IsType Us.length
+                (domain :: Delta.toCtx)
+                (VExpr.wrapForalls domains replacementTarget) :=
+              VEnv.IsType.wrapForalls Hopened.1
+                HreplacementResidualType'
+            apply TrExprS.forallE HdomainType HreplacementBodyType HdomainTr
+            simpa [abstractForallContext, List.map_append,
+              List.append_assoc] using
+              ih HtemplateTail HreplacementTail
+                (by simpa [VLCtx.toCtx] using Hctx') htail HtemplateBody
+                (by simpa [abstractForallContext, List.map_append,
+                    List.append_assoc] using HreplacementResidual)
+                (by simpa [abstractForallContext, List.map_append,
+                    List.append_assoc] using HreplacementResidualType)
+
+/-- Binder-annotation-insensitive form of `replaceTranslatedResidual`.
+Production's `inferImplicit` is allowed to inspect the residual when choosing
+annotations, so an independent dummy residual need not produce literally the
+same prefix.  Since annotations are erased by `TrExprS`, equality of the
+concrete names and domains is sufficient to reuse the translated telescope. -/
+theorem Expr.SameForallDomains.replaceTranslatedResidual
+    (Hsame : Expr.SameForallDomains n template replacement)
+    (HtemplateTelescope : Expr.ForallTelescope template n templateResidual)
+    (HreplacementTelescope :
+      Expr.ForallTelescope replacement n replacementResidual)
+    (henv : VEnv.WF env)
+    (Hctx : OnCtx Delta.toCtx (env.IsType Us.length))
+    (hdomains : domains.length = n)
+    (Htemplate : TrExprS env Us Delta template
+      (VExpr.wrapForalls domains templateTarget))
+    (HreplacementResidual :
+      TrExprS env Us (abstractForallContext domains Delta)
+        replacementResidual replacementTarget)
+    (HreplacementResidualType : env.IsType Us.length
+      (abstractForallContext domains Delta).toCtx replacementTarget) :
+    TrExprS env Us Delta replacement
+      (VExpr.wrapForalls domains replacementTarget) := by
+  induction Hsame generalizing domains Delta templateResidual
+      replacementResidual templateTarget replacementTarget with
+  | nil =>
+    cases HtemplateTelescope
+    cases HreplacementTelescope
+    have hnil : domains = [] := List.eq_nil_of_length_eq_zero hdomains
+    subst domains
+    simpa [abstractForallContext, VExpr.wrapForalls] using
+      HreplacementResidual
+  | @cons n left right name dom leftBi rightBi Hsame ih =>
     cases HtemplateTelescope with
     | cons HtemplateTail =>
       cases HreplacementTelescope with

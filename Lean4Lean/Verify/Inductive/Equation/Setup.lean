@@ -1637,6 +1637,124 @@ theorem
   simpa only [hleftEq, hrightEq, parameterDecls, ← H.parameterDecls,
     VLCtx.toCtx, List.append_nil, List.reverse_reverse] using hcontexts
 
+/-- Translate the common parameter prefix of a generated recursor without
+using the generated recursor translation itself.  The dummy sort telescope
+comes from the pre-installation header certificate, so it can be weakened
+into an independently compiled source environment even when the production
+recursor suffix mentions lowered nested auxiliaries.  `SameForallDomains`
+records the exact concrete-domain agreement after `inferImplicit`, while
+deliberately forgetting the residual-dependent binder annotations. -/
+theorem RecursorPhasesResult.sourceRecursorParameterTemplateAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length)
+    {newEnv : VEnv} (hsourceLE : sourceEnv ≤ newEnv) :
+    let E := H.generated.entry owner howner
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let sourceSuffix :=
+      Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible
+    let template :=
+      (c.lctx.mkForall stats.params
+        (.sort (.zero : Level))).inferImplicit 1000 false
+    Expr.ForallTelescope template stats.params.size
+        (.sort (.zero : Level)) ∧
+      Expr.SameForallDomains stats.params.size template E.info.type ∧
+      TrExprS newEnv Us [] template
+        (VExpr.wrapForalls sourceSuffix.parameterDecls.toCtx.reverse
+          (.sort (.zero : VLevel))) := by
+  let E := H.generated.entry owner howner
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let sourceSuffix :=
+    Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible
+  let template :=
+    (c.lctx.mkForall stats.params
+      (.sort (.zero : Level))).inferImplicit 1000 false
+  let sourceParams :=
+    Hheaders.sourceMaterialized.parameterSuffix.paramsBound
+  let sourceSelection := sourceParams.toLocalForallSelection
+    Hheaders.sourceContext.toBindingContextWF
+  have HtemplateRaw := sourceSelection.forallTelescope
+    (.sort (.zero : Level))
+  have htemplateResidual :
+      (Expr.sort (.zero : Level)).abstractList sourceSelection.fvars =
+        .sort (.zero : Level) := by
+    induction sourceSelection.fvars with
+    | nil => rfl
+    | cons fv fvars ih =>
+      simp only [Expr.abstractList]
+      rw [show (Expr.sort (.zero : Level)).abstract1 fv =
+        .sort (.zero : Level) by rfl]
+      exact ih
+  rw [htemplateResidual] at HtemplateRaw
+  have HtemplateTelescope : Expr.ForallTelescope template stats.params.size
+      (.sort (.zero : Level)) := by
+    simpa [template] using
+      HtemplateRaw.inferImplicit_sameResidual (by rfl) 1000 false
+  have hrecInfo : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    owner hrecInfo
+  have hselectionNoAlias : selections.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
+  let inner : Expr :=
+    H.localContext.lctx.mkForall (H.recInfos.map (·.motive)) <|
+    H.localContext.lctx.mkForall (H.recInfos.flatMap (·.minors)) <|
+    H.localContext.lctx.mkForall H.recInfos[owner]!.indices <|
+    H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+      (.app (mkAppN H.recInfos[owner]!.motive
+        H.recInfos[owner]!.indices) H.recInfos[owner]!.major)
+  have HrawPrefix : Expr.SameForallPrefix stats.params.size
+      (H.localContext.lctx.mkForall stats.params
+        (.sort (.zero : Level)))
+      (H.localContext.lctx.mkForall stats.params inner) :=
+    selections.params.sameForallPrefix
+      hselectionNoAlias.parts.params (.sort (.zero : Level)) inner
+  have hsourceMkForall :
+      H.localContext.lctx.mkForall stats.params
+          (.sort (.zero : Level)) =
+        c.lctx.mkForall stats.params (.sort (.zero : Level)) := by
+    let sourceParamsAtCtor : BoundFVarArray { c with env := ctorEnv }
+        stats.params := sourceParams.monoFVars (by
+          intro fv hfv
+          exact hfv)
+    exact sourceParamsAtCtor.mkForall_mono H.localExtends
+      (.sort (.zero : Level))
+  have Hdomains : Expr.SameForallDomains stats.params.size template
+      E.info.type := by
+    have Himplicit := HrawPrefix.sameForallDomains.inferImplicit 1000 false
+    rw [hsourceMkForall] at Himplicit
+    rw [E.type]
+    simpa [template, inner] using Himplicit
+  have HsourceTranslation : TrExprS sourceEnv Us []
+      (c.lctx.mkForall stats.params (.sort (.zero : Level)))
+      (VExpr.wrapForalls sourceSuffix.parameterDecls.toCtx.reverse
+        (.sort (.zero : VLevel))) := by
+    have Hbase := sourceSuffix.closedSortTranslation
+    let sourceRecContext :=
+      Hheaders.sourceContext.toAdmissibleRecursorContextWF
+        H.elimLevelAdmissible
+    have hlctx : sourceRecContext.mlctx.lctx = c.lctx :=
+      sourceRecContext.lctx_eq
+    have hvenv : sourceRecContext.venv = sourceEnv :=
+      (ContextWF.toAdmissibleRecursorContextWF_venv
+        Hheaders.sourceContext H.elimLevelAdmissible).trans
+          Hheaders.sourceContextVEnv
+    rw [hlctx, hvenv] at Hbase
+    simpa [Us, sourceSuffix] using Hbase
+  have HtemplateTranslation : TrExprS newEnv Us [] template
+      (VExpr.wrapForalls sourceSuffix.parameterDecls.toCtx.reverse
+        (.sort (.zero : VLevel))) := by
+    exact TrExprS.inferImplicit (HsourceTranslation.mono hsourceLE) 1000 false
+  exact ⟨HtemplateTelescope, Hdomains, HtemplateTranslation⟩
+
 /-- Rule-local specialization of `finalRecursorParameterContextAt`. -/
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorParameterContext

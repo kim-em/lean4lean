@@ -759,7 +759,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.closeTransportedSuffix
     (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
       newInfo Hentry)
     (Henv : newEnv.WF)
-    (HtemplatePrefix : Expr.SameForallPrefix result.nparams
+    (HtemplatePrefix : Expr.SameForallDomains result.nparams
       template Hentry.info.type)
     (HtemplateTelescope : Expr.ForallTelescope template result.nparams
       templateResidual)
@@ -786,8 +786,10 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.closeTransportedSuffix
   have HoldNew : Expr.SameForallPrefix result.nparams Hentry.info.type
       newInfo.type :=
     H.trace.opening.sameForallPrefix H.oldPrefix H.oldClosed
-  have HtemplateNew : Expr.SameForallPrefix result.nparams template
-      newInfo.type := HtemplatePrefix.trans HoldNew
+  have HtemplateNew : Expr.SameForallDomains result.nparams template
+      newInfo.type := by
+    have HoldNewDomains := HoldNew.sameForallDomains
+    exact HtemplatePrefix.trans HoldNewDomains
   have HnewPrefix :=
     H.trace.opening.outputPrefixTelescope H.oldPrefix
   have Hwhole : TrExprS newEnv Hentry.info.levelParams [] newInfo.type

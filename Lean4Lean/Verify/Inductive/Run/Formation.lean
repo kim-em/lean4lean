@@ -33,6 +33,10 @@ structure DeclaredHeadersResult (c : AddInductive.Context)
   translation : TrInductDeclHeaders sourceEnv c.lparams nparams
     indTypes.toList isUnsafe decl context.venv
   installed : AddConstants c.safety c.env sourceEnv entries outEnv context.venv
+  sourceContext : ContextWF c
+  sourceContextVEnv : sourceContext.venv = sourceEnv
+  sourceMaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+    sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
   materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
     context.venv c.lparams context.mlctx.vlctx stats decl depth
   headerParams : materialized.headers.params = headers.params
@@ -109,6 +113,9 @@ theorem AddInductive.declareInductiveTypes.headersWF
       headers := Hmaterialized.headers
       translation := ?_
       installed := Hinstalled
+      sourceContext := Hc
+      sourceContextVEnv := rfl
+      sourceMaterialized := Hmaterialized
       materialized := Hmaterialized.mono Hinstalled.le
       headerParams := rfl }, trivial⟩
     exact {
