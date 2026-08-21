@@ -15,6 +15,7 @@ structure VEnvs.WF (env : Environment) (ves : VEnvs) where
   hasPrimitives : VEnv.HasPrimitives (ves.venv safety)
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
+  inductivesClosed : VerifyInductive.MutualInductivesClosed env
   mono : safety ≤ safety' → ves.venv safety' ≤ ves.venv safety
 
 /-- Assemble a `VEnvs` from a pointwise existential. `DefinitionSafety` has three elements, so

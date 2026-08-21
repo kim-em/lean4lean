@@ -6,6 +6,105 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
 
+open private Lean.Kernel.Environment.add from Lean.Environment
+
+namespace VerifyInductive
+
+private theorem find?_add_of_ne
+    {env : Environment} (hwf : env.constants.WF)
+    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
+    (hne : ci.name ≠ name) :
+    (env.add ci).find? name = env.find? name := by
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
+  change SMap.find?' (env.constants.insert ci.name ci) name = env.find? name
+  rw [(hwf.insert ci.name ci hfresh).find?'_eq_find?,
+    hwf.find?_insert, if_neg (by simpa using hne)]
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
+
+private theorem find?_add_cases
+    {env : Environment} (hwf : env.constants.WF)
+    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
+    (hfind : (env.add ci).find? name = some found) :
+    (name = ci.name ∧ found = ci) ∨ env.find? name = some found := by
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
+  change SMap.find?' (env.constants.insert ci.name ci) name = some found at hfind
+  rw [(hwf.insert ci.name ci hfresh).find?'_eq_find?,
+    hwf.find?_insert] at hfind
+  split at hfind
+  · left
+    exact ⟨(LawfulBEq.eq_of_beq (by assumption)).symm,
+      (Option.some.inj hfind).symm⟩
+  · right
+    rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
+    exact hfind
+
+theorem InductiveMemberInfos.addConstant
+    {ci : ConstantInfo}
+    (H : InductiveMemberInfos env names)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none) :
+    InductiveMemberInfos (env.add ci) names := by
+  induction H with
+  | nil => exact .nil
+  | @cons name value names hlookup Htail ih =>
+    have hne : ci.name ≠ name := by
+      intro heq
+      subst name
+      rw [hlookup] at hfresh
+      contradiction
+    exact .cons ((find?_add_of_ne hwf ci hfresh hne).trans hlookup) ih
+
+theorem MutualInductiveClosure.addConstant
+    {ci : ConstantInfo}
+    (H : MutualInductiveClosure env targetName value)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none) :
+    MutualInductiveClosure (env.add ci) targetName value :=
+  ⟨H.members.addConstant hwf hfresh, H.target, H.names⟩
+
+/-- A fresh non-inductive production constant preserves complete mutual-block
+metadata. -/
+theorem MutualInductivesClosed.addNonInductive
+    {ci : ConstantInfo}
+    (H : MutualInductivesClosed env)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hnind : ∀ value, ci ≠ .inductInfo value) :
+    MutualInductivesClosed (env.add ci) := by
+  intro targetName value hfind
+  rcases find?_add_cases hwf ci hfresh hfind with
+    ⟨_, hvalue⟩ | hold
+  · exact False.elim (hnind value hvalue.symm)
+  · exact (H targetName value hold).addConstant hwf hfresh
+
+/-- A fresh mutual-definition fold contains no inductive metadata and hence
+preserves mutual-family closure. -/
+theorem MutualInductivesClosed.addDefinitions
+    (H : MutualInductivesClosed env) (hwf : env.constants.WF) :
+    ∀ (vs : List DefinitionVal),
+      (∀ v ∈ vs, env.find? v.name = none) →
+      (vs.map (·.name)).Nodup →
+      MutualInductivesClosed
+        (vs.foldl (fun env v => env.add (.defnInfo v)) env)
+  | [], _, _ => H
+  | v :: vs, hfresh, hnodup => by
+      simp only [List.map_cons, List.nodup_cons] at hnodup
+      have hvfresh := hfresh v (by simp)
+      have hvfreshMap : env.constants.find? v.name = none := by
+        rwa [← hwf.find?'_eq_find?]
+      have hwf' : (env.add (.defnInfo v)).constants.WF := by
+        change (env.constants.insert v.name (.defnInfo v)).WF
+        exact hwf.insert v.name (.defnInfo v) hvfreshMap
+      have H' : MutualInductivesClosed (env.add (.defnInfo v)) :=
+        H.addNonInductive hwf hvfresh (by intro _ h; cases h)
+      apply H'.addDefinitions hwf' vs
+      · intro w hw
+        have hne : v.name ≠ w.name := by
+          intro heq
+          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
+        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
+        exact hfresh w (by simp [hw])
+      · exact hnodup.2
+
+end VerifyInductive
+
 theorem TrConstant.sf_mono (hsf : safety ≤ safety')
     (H : TrConstant safety' env ci ci') : TrConstant safety env ci ci' :=
   ⟨safety.le_trans hsf H.1, H.2⟩

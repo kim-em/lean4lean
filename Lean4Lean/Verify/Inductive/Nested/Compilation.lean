@@ -2266,14 +2266,6 @@ theorem nestedBind.WF
     ((x >>= f) env state).WF Q := by
   exact Hx.bind fun result hresult => Hf result.1 result.2 hresult
 
-/-- Environment evidence for the mutually generated source families, kept in
-the same order as `InductiveVal.all`. -/
-inductive InductiveMemberInfos (env : Environment) : List Name → Prop
-  | nil : InductiveMemberInfos env []
-  | cons : env.find? name = some (.inductInfo info) →
-      InductiveMemberInfos env names →
-      InductiveMemberInfos env (name :: names)
-
 /-- A reviewable trace of the mutual-family generation loop.  Each list member
 has one certified fresh-generation step, and the accumulator passed to the
 tail is exactly the executable `Option.or` update. -/
@@ -2407,15 +2399,6 @@ theorem generateAuxiliaries_refines
   unfold Lean4Lean.ElimNestedInductive.generateAuxiliaries
   exact generateAuxiliariesLoop_refines env lctx params As targetName levels
     nparams args hsize value.all infos none state (Or.inr htarget)
-
-/-- The environment closure needed when a recognized family expands to its
-whole mutual block.  This is an abstract environment invariant, rather than a
-fact silently assumed by the executable traversal. -/
-structure MutualInductiveClosure
-    (env : Environment) (targetName : Name) (value : InductiveVal) : Prop where
-  members : InductiveMemberInfos env value.all
-  target : targetName ∈ value.all
-  names : value.all.Nodup
 
 theorem addConstant_find_self
     (env : Environment) (info : ConstantInfo)
@@ -2582,27 +2565,6 @@ theorem AddConstants.findOfMem
       simpa [hi] using hinstalled
     · exact ih hnextWF htail
 
-theorem InductiveMemberInfos.addConstant
-    (H : InductiveMemberInfos env names)
-    (hwf : env.constants.WF) (hfresh : env.find? info.name = none) :
-    InductiveMemberInfos (Lean4Lean.AddInductive.addConstant env info) names := by
-  induction H with
-  | nil => exact .nil
-  | @cons name value names hlookup Htail ih =>
-    have hne : info.name ≠ name := by
-      intro heq
-      subst name
-      rw [hlookup] at hfresh
-      contradiction
-    exact .cons (addConstant_find_of_ne env info name hwf hfresh hne hlookup) ih
-
-theorem MutualInductiveClosure.addConstant
-    (H : MutualInductiveClosure env targetName value)
-    (hwf : env.constants.WF) (hfresh : env.find? info.name = none) :
-    MutualInductiveClosure (Lean4Lean.AddInductive.addConstant env info)
-      targetName value :=
-  ⟨H.members.addConstant hwf hfresh, H.target, H.names⟩
-
 /-- Exact lookup effect of the executable mutual-header installation fold. -/
 structure DeclaredInductiveInfos
     (source : Environment) (infos : List InductiveVal)
@@ -2731,26 +2693,6 @@ theorem DeclaredInductiveInfos.newMembers
     (H : DeclaredInductiveInfos source infos target) :
     InductiveMemberInfos target (infos.map (fun info => info.name)) :=
   inductiveMemberInfos_of_forall infos H.installed
-
-/-- Global form of mutual-block closure used while recursively scanning an
-expression, where the particular nested family is not known in advance. -/
-def MutualInductivesClosed (env : Environment) : Prop :=
-  ∀ targetName value, env.find? targetName = some (.inductInfo value) →
-    MutualInductiveClosure env targetName value
-
-/-- Adding a fresh non-inductive constant cannot create a new mutual block,
-and transports every existing block through the environment extension. -/
-theorem MutualInductivesClosed.addNonInductive
-    (H : MutualInductivesClosed env)
-    (hwf : env.constants.WF) (hfresh : env.find? info.name = none)
-    (hnind : ∀ value, info ≠ .inductInfo value) :
-    MutualInductivesClosed
-      (Lean4Lean.AddInductive.addConstant env info) := by
-  intro targetName value hfind
-  rcases addConstant_find_cases env info targetName hwf hfresh hfind with
-    ⟨_, hvalue⟩ | hold
-  · exact False.elim (hnind value hvalue.symm)
-  · exact (H targetName value hold).addConstant hwf hfresh
 
 /-- A lockstep installation consisting only of constructors, recursors, or
 other non-inductive constants preserves closure of all mutual blocks. -/

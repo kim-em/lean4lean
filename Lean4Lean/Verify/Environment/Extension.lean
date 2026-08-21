@@ -437,6 +437,8 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
         exact heq ▸ ((wf.hasPrimitives (safety := sf)).addConsts hnonprimCis hb).addDefEqs
       · rw [hsame sf hv]; exact wf.hasPrimitives
     safePrimitives := wf.safePrimitives_addDefs hfresh hnd hnonprim
+    inductivesClosed := wf.inductivesClosed.addDefinitions
+      (wf.tr (safety := .safe)).map_wf vs hfresh hnd
     mono {sf sf'} hle := by
       by_cases hv' : sf' ≤ bs
       · have hv : sf ≤ bs := DefinitionSafety.le_trans hle hv'
@@ -467,6 +469,7 @@ theorem VEnvs.WF.extendUnsafe
     (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
+    (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
     (hleUnsafe : ves.venv .unsafe ≤ unsafeEnv) :
     ∃ ves' : VEnvs, ves'.WF env' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
@@ -480,6 +483,7 @@ theorem VEnvs.WF.extendUnsafe
       tr := ?_
       hasPrimitives := ?_
       safePrimitives := hsafePrimitives
+      inductivesClosed := hinductivesClosed
       mono := ?_ }
     · intro safety
       cases safety with
@@ -527,6 +531,7 @@ theorem VEnvs.WF.extendInduct
     (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
+    (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
     (hmono : ∀ {safety safety'}, safety ≤ safety' →
       next safety' ≤ next safety) :
     ∃ ves' : VEnvs, ves'.WF env' ∧
@@ -544,6 +549,7 @@ theorem VEnvs.WF.extendInduct
         intro safety
         exact hprimitives safety
       safePrimitives := hsafePrimitives
+      inductivesClosed := hinductivesClosed
       mono := by
         intro _ _ hle
         exact hmono hle }
@@ -556,6 +562,7 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (htr : TrConstVal checkSafety (ves.venv checkSafety) ci ci')
     (hci : ci'.toVConstant.WF (ves.venv checkSafety))
     (hn : env.find? ci.name = none)
+    (hnind : ∀ value, ci ≠ .inductInfo value)
     (hprim : Environment.primitives.contains ci.name →
       ci.safety = .safe ∧ ci.levelParams = [])
     (preserves : ∀ safety venv', safety ≤ ci.safety →
@@ -601,6 +608,8 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       · exact preserves safety _ hvisible (hadd safety hvisible) (wf.hasPrimitives (safety := safety))
       · rw [hsame safety hvisible]; exact wf.hasPrimitives (safety := safety)
     safePrimitives := wf.safePrimitives_add ci hn hprim
+    inductivesClosed := wf.inductivesClosed.addNonInductive
+      (wf.tr (safety := .safe)).map_wf hn hnind
     mono {safety safety'} hle := by
       by_cases hvisible' : safety' ≤ ci.safety
       · have hvisible := DefinitionSafety.le_trans hle hvisible'
@@ -616,6 +625,7 @@ theorem addConst.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (htr : TrConstVal checkSafety (ves.venv checkSafety) ci ci')
     (hci : ci'.toVConstant.WF (ves.venv checkSafety))
     (hn : env.find? ci.name = none)
+    (hnind : ∀ value, ci ≠ .inductInfo value)
     (hnonprim : Environment.primitives.contains ci.name = false)
     (step : ∀ safety venv',
       TrConstant safety (ves.venv safety) ci ci'.toVConstant →
@@ -625,7 +635,7 @@ theorem addConst.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       TrEnv' safety (env.constants.insert ci.name ci) env.quotInit venv') :
     ∃ ves' : VEnvs, ves'.WF (env.add ci) ∧
       ∀ safety, (ves.venv safety).AddConst safety ci ci'.toVConstant (ves'.venv safety) :=
-  addConstCore.WF wf ci ci' checkSafety visible_le htr hci hn (by simp_all)
+  addConstCore.WF wf ci ci' checkSafety visible_le htr hci hn hnind (by simp_all)
     (fun _ _ _ hadd hp => hp.addConst hnonprim hadd) step
 
 theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
@@ -681,6 +691,8 @@ theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
         rw [heq]; exact preserves safety base hvisible hadd
       · rw [hsame safety hvisible]; exact wf.hasPrimitives (safety := safety)
     safePrimitives := wf.safePrimitives_add (.defnInfo v) hn hprim
+    inductivesClosed := wf.inductivesClosed.addNonInductive
+      (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
     mono {safety safety'} hle := by
       by_cases hvisible' : safety' ≤ (ConstantInfo.defnInfo v).safety
       · have hvisible := DefinitionSafety.le_trans hle hvisible'
@@ -741,6 +753,8 @@ theorem addUnsafeDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       | .safe | .partial => wf.hasPrimitives
     safePrimitives := wf.safePrimitives_add (.defnInfo v) hn
       (by simp [ConstantInfo.name, ConstantInfo.toConstantVal, hnonprim])
+    inductivesClosed := wf.inductivesClosed.addNonInductive
+      (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
     mono {safety safety'} hsf :=
       match safety, safety' with
       | .unsafe, .unsafe => .rfl

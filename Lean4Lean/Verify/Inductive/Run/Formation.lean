@@ -1792,13 +1792,15 @@ theorem BlockCertificate.extendUnsafe
       (ves.venv .safe))
     (hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
       Kernel.Environment.primitives.contains n →
-      ci.safety = .safe ∧ ci.levelParams = []) :
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (hclosed : MutualInductivesClosed outEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   apply Lean4Lean.VEnvs.WF.extendUnsafe wf (outVEnv.addDefEqRules rules)
     htrUnsafe htrPartial htrSafe
   · exact H.hasPrimitives wf.hasPrimitives
   · exact hsafePrimitives
+  · exact hclosed
   · exact VInductBlock.install_le H.install
 
 /-- Semantic endpoint of the executable block certificates. Once source
@@ -1938,7 +1940,8 @@ theorem BlockCertificate.extendSafe
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (heq : ∀ info,
       outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outBase.addDefEqRules rules).constants ``Eq = some eqConst) :
+      (outBase.addDefEqRules rules).constants ``Eq = some eqConst)
+    (hclosed : MutualInductivesClosed outEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   have valid (safety : DefinitionSafety) :
@@ -1976,6 +1979,7 @@ theorem BlockCertificate.extendSafe
     exact (cert safety).hasPrimitives
       (wf.hasPrimitives (safety := safety))
   · exact (Hsafe.staged.valid (valid .safe)).safePrimitives
+  · exact hclosed
   · intro safety safety' hle
     exact VInductBlock.install_mono (wf.mono hle)
       (cert safety').install (cert safety).install
@@ -2023,7 +2027,8 @@ theorem BlockCertificate.extendUnsafeOfHidden
     (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
       entry.1.safety = .unsafe)
     (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
+      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst)
+    (hclosed : MutualInductivesClosed outEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   have validUnsafe : CheckingEnv.Valid .unsafe prodEnv
@@ -2067,7 +2072,7 @@ theorem BlockCertificate.extendUnsafeOfHidden
       exact hiddenSafe entry (by simp [hentry])
     · exact wf.tr (safety := .safe)
   exact H.extendUnsafe wf htrUnsafe htrPartial htrSafe
-    (H.staged.valid validUnsafe).safePrimitives
+    (H.staged.valid validUnsafe).safePrimitives hclosed
 
 theorem BlockCertificate.trEnvOfOrdinaryCompilation
     (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors

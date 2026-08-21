@@ -6,6 +6,35 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
 
+namespace VerifyInductive
+
+/-- Environment evidence for the members named by `InductiveVal.all`, kept
+in the same order as the production metadata.  This lives at the generic
+environment layer because nested-inductive recognition needs it before the
+inductive checker itself starts. -/
+inductive InductiveMemberInfos (env : Environment) : List Name → Prop
+  | nil : InductiveMemberInfos env []
+  | cons : env.find? name = some (.inductInfo info) →
+      InductiveMemberInfos env names →
+      InductiveMemberInfos env (name :: names)
+
+/-- One production inductive header has a complete, duplicate-free mutual
+family, including the header through which it was discovered. -/
+structure MutualInductiveClosure
+    (env : Environment) (targetName : Name) (value : InductiveVal) : Prop where
+  members : InductiveMemberInfos env value.all
+  target : targetName ∈ value.all
+  names : value.all.Nodup
+
+/-- Every production inductive header has complete mutual-family metadata.
+Nested lowering follows `InductiveVal.all`, so this is part of the persistent
+production-environment contract rather than a per-declaration callback. -/
+def MutualInductivesClosed (env : Environment) : Prop :=
+  ∀ targetName value, env.find? targetName = some (.inductInfo value) →
+    MutualInductiveClosure env targetName value
+
+end VerifyInductive
+
 theorem ConstantInfo.hasValue_eq (ci : ConstantInfo) : ci.hasValue = ci.value?.isSome := by
   cases ci <;> rfl
 
