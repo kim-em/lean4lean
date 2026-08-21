@@ -160,6 +160,28 @@ theorem RecursorPhasesResult.existsGeneratedEquationBuild
         Hwitness⟩⟩
   exact go H.entries.length (Nat.le_refl _)
 
+/-- Reconstruct the complete flattened equation batch directly from the
+completed recursor phase.  Unlike `existsGeneratedEquationBuild`, this
+endpoint has no pointwise premise: each equation is obtained from the
+independently aligned constructor rule. -/
+theorem RecursorPhasesResult.existsCanonicalGeneratedEquationBuild
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ rules : List VDefEq,
+      Nonempty (H.GeneratedEquationBuild Us H.entries.length rules) := by
+  dsimp only
+  apply H.existsGeneratedEquationBuild
+  intro owner howner i hctor
+  rcases H.generatedRuleAlignment owner howner i hctor with ⟨A⟩
+  exact A.finalCanonicalEquationWitness
+
 /-- Declaration-facing package for the remaining concrete equation
 translations of an ordinary recursor run.  Field selection, recursive-call
 semantics, recursor presence, and pre-installation freshness are all derived
