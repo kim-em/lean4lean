@@ -1847,6 +1847,53 @@ theorem
   exact ⟨B, T, C, equationFields, rhsBody, typeBody,
     by simp [equationFields, hfieldsZero], Hctx', HrhsTr, HrhsTyped⟩
 
+/-- Arity-independent endpoint for the generated right-hand side.  The
+positive and degenerate production paths expose the same semantic payload:
+an exact recursor telescope, the canonical constructor-field suffix, a
+strict translation of the retained source RHS, and its typing derivation.
+Keeping the arithmetic split internal is important for the final equation
+builder, which traverses rules uniformly. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalRhs
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ B : A.NarrowFieldRuntimeFrame,
+      ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+          (H.generated.entry owner howner).info.type H.entries[owner].2.type
+          stats.params.size (H.recInfos.map (·.motive)).size
+          (H.recInfos.flatMap (·.minors)).size
+          H.recInfos[owner]!.indices.size owner,
+      ∃ C : A.CanonicalRecursiveResults T B,
+      ∃ equationFields : List VExpr,
+      ∃ rhsBody typeBody : VExpr,
+        equationFields.length = A.rule.allArgs.size ∧
+        let inserted := T.motives ++ T.minors
+        let equationDomains :=
+          H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+            equationFields
+        OnCtx (abstractForallContext equationDomains []).toCtx
+            (H.outVEnv.IsType Us.length) ∧
+          TrExprS H.outVEnv Us
+            (abstractForallContext equationDomains [])
+            (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext equationDomains []).toCtx
+            rhsBody typeBody := by
+  dsimp only
+  by_cases hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0
+  · exact A.finalCanonicalRhsZeroArity hzero
+  · exact A.finalCanonicalRhsPositiveArity (Nat.pos_of_ne_zero hzero)
+
 /-- Rule-indexed existential specialization of
 `canonicalRecursiveResultTypingFor`.  It remains convenient for pointwise
 consumers that do not need to retain a common equation frame. -/
