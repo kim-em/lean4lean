@@ -90185,7 +90185,13 @@ theorem
         TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
           (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody ∧
         H.outVEnv.HasType Us.length cachedDomains.reverse lhsBody typeBody ∧
-        H.outVEnv.IsType Us.length cachedDomains.reverse typeBody := by
+        H.outVEnv.IsType Us.length cachedDomains.reverse typeBody ∧
+        TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+          ((Expr.app
+            (mkAppN H.recInfos[owner]!.motive
+              (AddInductive.getIIndices stats A.rule.target).2)
+            A.rule.sourceConstructorMajor).abstractList A.rule.binders)
+          typeBody := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls :=
     (R.materialized.parameterSuffix.toRecursorContext
@@ -90365,6 +90371,15 @@ theorem
       simpa [abstractForallContext] using htoCtx cachedDomains.reverse
     rw [habstractToCtx]
     exact HlhsWF
+  have HrightWF' : VExpr.WF H.outVEnv Us.length
+      (abstractForallContext cachedDomains []).toCtx
+      (VExpr.mkApps ownerTarget args) := by
+    have habstractToCtx :
+        (abstractForallContext cachedDomains []).toCtx =
+          cachedDomains.reverse := by
+      simpa [abstractForallContext] using htoCtx cachedDomains.reverse
+    rw [habstractToCtx]
+    exact HrightWF
   have HlhsTr := checkPositivityStep.TrExprS.mkAppList
     H.outVEnvWF.ordered HabstractCtx HprefixTr HargsTr (by
       simpa only [lhsBody, args, prefixTarget, majorTarget,
@@ -90387,8 +90402,24 @@ theorem
       prefixTarget, majorTarget,
       Expr.mkAppN_eq_mkAppList, VExpr.mkApps_append,
       getElem!_pos indTypes owner A.sourceOwner_lt] using HlhsTr
+  have HtypeTranslation₀ := checkPositivityStep.TrExprS.mkAppList
+    H.outVEnvWF.ordered HabstractCtx HownerMotiveTr HargsTr HrightWF'
+  have HtypeTranslation : TrExprS H.outVEnv Us
+      (abstractForallContext cachedDomains [])
+      ((Expr.app
+        (mkAppN H.recInfos[owner]!.motive
+          (AddInductive.getIIndices stats A.rule.target).2)
+        A.rule.sourceConstructorMajor).abstractList A.rule.binders)
+      typeBody := by
+    unfold BoundGeneratedRecursorRule.sourceConstructorMajor
+    simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
+    simpa [typeBody, ownerTarget, args, majorSource, majorTarget,
+      Expr.abstractList_app, Expr.abstractList_mkAppN,
+      Expr.mkAppN_eq_mkAppList, VExpr.mkApps_append, VExpr.mkApps,
+      getElem!_pos indTypes owner A.sourceOwner_lt] using
+      HtypeTranslation₀
   exact ⟨T, fieldDomains, lhsBody, typeBody, hfields, HcachedCtx,
-    HlhsResidual, Hlhs', HtypeBody⟩
+    HlhsResidual, Hlhs', HtypeBody, HtypeTranslation⟩
 
 /-- Witness-stable form of `finalCachedCanonicalLhsBody`.  A final equation
 already carries the telescope selected by its RHS construction, so transport
@@ -90425,16 +90456,22 @@ theorem
         TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
           (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody ∧
         H.outVEnv.HasType Us.length cachedDomains.reverse lhsBody typeBody ∧
-        H.outVEnv.IsType Us.length cachedDomains.reverse typeBody := by
+        H.outVEnv.IsType Us.length cachedDomains.reverse typeBody ∧
+        TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+          ((Expr.app
+            (mkAppN H.recInfos[owner]!.motive
+              (AddInductive.getIIndices stats A.rule.target).2)
+            A.rule.sourceConstructorMajor).abstractList A.rule.binders)
+          typeBody := by
   dsimp only
   rcases A.finalCachedCanonicalLhsBody with
     ⟨T₀, fieldDomains, lhsBody, typeBody, hfields, Hctx,
-      Htranslation, Htyping, Htype⟩
+      Htranslation, Htyping, Htype, HtypeTranslation⟩
   rcases T₀.groupsResult_eq T with
     ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
-  rw [hmotives, hminors] at Hctx Htranslation Htyping Htype
+  rw [hmotives, hminors] at Hctx Htranslation Htyping Htype HtypeTranslation
   exact ⟨fieldDomains, lhsBody, typeBody, hfields, Hctx,
-    Htranslation, Htyping, Htype⟩
+    Htranslation, Htyping, Htype, HtypeTranslation⟩
 
 /-- Extend the completed cached left-hand-side frame with the exact minor
 variable selected by this constructor.  Its de Bruijn offset is the number
@@ -90488,7 +90525,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.finalCachedCanonicalLhsBody with
     ⟨T, fieldDomains, lhsBody, typeBody, hfields, HcachedCtx,
-      HlhsResidual, Hlhs, HtypeBody⟩
+      HlhsResidual, Hlhs, HtypeBody, _HtypeTranslation⟩
   let cachedDomains :=
     (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
       fieldDomains
