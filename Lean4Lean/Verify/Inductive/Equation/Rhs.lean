@@ -1629,7 +1629,7 @@ The selected minor, constructor fields, and generated recursive results are
 all translated strictly to the same application spine that is independently
 typed by the canonical minor fold. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalRhsPositiveArity
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalRhsPositiveArityDetailed
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1643,6 +1643,7 @@ theorem
     (A : H.GeneratedRuleAlignment owner howner i hctor)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ B : A.NarrowFieldRuntimeFrame,
       ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
           (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -1650,12 +1651,24 @@ theorem
           (H.recInfos.flatMap (·.minors)).size
           H.recInfos[owner]!.indices.size owner,
       ∃ C : A.CanonicalRecursiveResults T B,
+      ∃ fieldDomains hypothesisDomains : List VExpr,
+      ∃ targetResidual : VExpr,
       ∃ equationFields : List VExpr,
       ∃ rhsBody typeBody : VExpr,
+        fieldDomains.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (fieldDomains ++ hypothesisDomains) targetResidual ∧
         equationFields.length = A.rule.allArgs.size ∧
         equationFields =
           (liftContextPrefix (T.motives ++ T.minors).length
             B.fieldDomains.reverse).reverse ∧
+        typeBody = VExpr.applyForallType
+          (VExpr.wrapForalls (VExpr.liftClosedDomains C.bodyTypes 0)
+            (targetResidual.liftN
+              ((T.minors.drop (minorIdx + 1)).length + 1)
+              (fieldDomains.length + hypothesisDomains.length)))
+          C.bodies ∧
         let inserted := T.motives ++ T.minors
         let equationDomains :=
           H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
@@ -1742,9 +1755,62 @@ theorem
     simpa [rhsBody, fn, Expr.mkAppN_eq_mkAppList, equationFields,
       equationDomains, inserted, B.fieldDomains_length,
       List.append_assoc] using HrhsTr₀
-  exact ⟨B, T, C, equationFields, rhsBody, finalType,
-    by simp [equationFields, B.fieldDomains_length], rfl, Hctx, HrhsTr,
-    HrhsTyped⟩
+  exact ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
+    equationFields, rhsBody, finalType, hfields, hhypotheses, hminorType,
+    by simp [equationFields, B.fieldDomains_length], rfl, rfl, Hctx,
+    HrhsTr, HrhsTyped⟩
+
+/-- Public compact form of `finalCanonicalRhsPositiveArityDetailed`, hiding
+the installed minor telescope once its exact application type has been
+constructed. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalRhsPositiveArity
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ B : A.NarrowFieldRuntimeFrame,
+      ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+          (H.generated.entry owner howner).info.type H.entries[owner].2.type
+          stats.params.size (H.recInfos.map (·.motive)).size
+          (H.recInfos.flatMap (·.minors)).size
+          H.recInfos[owner]!.indices.size owner,
+      ∃ C : A.CanonicalRecursiveResults T B,
+      ∃ equationFields : List VExpr,
+      ∃ rhsBody typeBody : VExpr,
+        equationFields.length = A.rule.allArgs.size ∧
+        equationFields =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse ∧
+        let inserted := T.motives ++ T.minors
+        let equationDomains :=
+          H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
+            equationFields
+        OnCtx (abstractForallContext equationDomains []).toCtx
+            (H.outVEnv.IsType Us.length) ∧
+          TrExprS H.outVEnv Us
+            (abstractForallContext equationDomains [])
+            (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext equationDomains []).toCtx
+            rhsBody typeBody := by
+  dsimp only
+  rcases A.finalCanonicalRhsPositiveArityDetailed hpositive with
+    ⟨B, T, C, _fieldDomains, _hypothesisDomains, _targetResidual,
+      equationFields, rhsBody, typeBody, _hfields, _hhypotheses,
+      _hminorType, hequationFieldsLength, hequationFields, _htypeBody,
+      Hctx, HrhsTr, HrhsTyped⟩
+  exact ⟨B, T, C, equationFields, rhsBody, typeBody,
+    hequationFieldsLength, hequationFields, Hctx, HrhsTr, HrhsTyped⟩
 
 /-- Zero-arity counterpart of `finalCanonicalRhsPositiveArity`.  Both
 application arrays are empty, so the complete source RHS and canonical RHS
