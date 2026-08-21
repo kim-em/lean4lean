@@ -2355,6 +2355,104 @@ fields.  This packages it with the exact dependent equation context and the
 checked constructor major already living there, so consuming the remaining
 index/major suffix cannot accidentally choose a different telescope witness. -/
 theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorPrefixEquationContextWithFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let recursor := H.entries[owner].2
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type recursor.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (originalDomains fieldDomains : List VExpr)
+          (fieldResult introTarget : VExpr),
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          T.params.reverse parameterDecls.toCtx ∧
+        originalDomains.length = A.rule.allArgs.size ∧
+        fieldDomains =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            originalDomains.reverse).reverse ∧
+        TrExprS H.outVEnv Us parameterDecls
+          A.semantics.parameterTail
+          (VExpr.wrapForalls originalDomains fieldResult) ∧
+        OnCtx (originalDomains.reverse ++ T.params.reverse)
+          (H.outVEnv.IsType Us.length) ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        OnCtx
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          (H.outVEnv.IsType Us.length) ∧
+        H.outVEnv.HasType Us.length
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          ((VExpr.mkApps
+              (introTarget.liftN A.rule.allArgs.size 0)
+              (recursorCanonicalVars A.rule.allArgs.size)).liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size)
+          (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+        H.outVEnv.HasType Us.length
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          ((VExpr.mkApps
+              ((VExpr.const recursor.name
+                (VLevel.params Us.length)).liftN
+                (T.params ++ T.motives ++ T.minors).length 0)
+              (recursorCanonicalVars
+                (T.params ++ T.motives ++ T.minors).length)).liftN
+            fieldDomains.length 0)
+          ((VExpr.wrapForalls (T.indices ++ T.major) T.result).liftN
+            fieldDomains.length 0) ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+              fieldDomains) [])
+          (A.rule.target.abstractList A.rule.binders)
+          (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+        introTarget = VExpr.mkApps
+          (.const
+            ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+            (recursorDeclarationAbstractLevels c.lparams
+              H.elimLevelAdmissible))
+          (recursorCanonicalVars stats.params.size) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let recursor := H.entries[owner].2
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalCheckedConstructorEquationContextWithFrame with
+    ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
+      hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx,
+      Hmajor, Htarget, HintroShape⟩
+  have hrec := A.recursorTyping
+  have huvars := A.recursorUvars
+  change Us.length = recursor.uvars at huvars
+  change H.outVEnv.HasType recursor.uvars []
+    (.const recursor.name (VLevel.params recursor.uvars)) recursor.type at hrec
+  rw [← huvars] at hrec
+  have Hprefix := T.prefixTyping H.outVEnvWF.ordered hrec
+  have Hprefix' := Hprefix.weakN H.outVEnvWF.ordered
+    (Ctx.LiftN.zero fieldDomains.reverse)
+  exact ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
+    hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx, Hmajor, by
+    simpa [List.reverse_append, List.append_assoc] using Hprefix',
+    Htarget, HintroShape⟩
+
+/-- Compatibility projection of
+`finalRecursorPrefixEquationContextWithFrame` for clients that only need the
+installed equation context. -/
+theorem
     RecursorPhasesResult.GeneratedRuleAlignment.finalRecursorPrefixEquationContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -2416,27 +2514,12 @@ theorem
             (recursorDeclarationAbstractLevels c.lparams
               H.elimLevelAdmissible))
           (recursorCanonicalVars stats.params.size) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let recursor := H.entries[owner].2
-  let parameterDecls :=
-    (R.materialized.parameterSuffix.toRecursorContext
-      H.elimLevelAdmissible).parameterDecls
-  rcases A.finalCheckedConstructorEquationContext with
-    ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields, Hctx,
-      Hmajor, Htarget, HintroShape⟩
-  have hrec := A.recursorTyping
-  have huvars := A.recursorUvars
-  change Us.length = recursor.uvars at huvars
-  change H.outVEnv.HasType recursor.uvars []
-    (.const recursor.name (VLevel.params recursor.uvars)) recursor.type at hrec
-  rw [← huvars] at hrec
-  have Hprefix := T.prefixTyping H.outVEnvWF.ordered hrec
-  have Hprefix' := Hprefix.weakN H.outVEnvWF.ordered
-    (Ctx.LiftN.zero fieldDomains.reverse)
+  rcases A.finalRecursorPrefixEquationContextWithFrame with
+    ⟨T, _originalDomains, fieldDomains, fieldResult, introTarget,
+      hparams, _horiginal, _hlifted, _Htail, _HoriginalCtx, hfields, Hctx, Hmajor,
+      Hprefix, Htarget, HintroShape⟩
   exact ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields,
-    Hctx, Hmajor, by
-    simpa [List.reverse_append, List.append_assoc] using Hprefix',
-    Htarget, HintroShape⟩
+    Hctx, Hmajor, Hprefix, Htarget, HintroShape⟩
 
 /-- The residual of the selected translated recursor is literally the owner
 motive applied to its canonical index variables and major premise.  This

@@ -37,9 +37,19 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
+      ∃ (originalDomains fieldDomains : List VExpr)
+          (fieldResult introTarget : VExpr),
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse parameterDecls.toCtx ∧
+        originalDomains.length = A.rule.allArgs.size ∧
+        fieldDomains =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            originalDomains.reverse).reverse ∧
+        TrExprS H.outVEnv Us parameterDecls
+          A.semantics.parameterTail
+          (VExpr.wrapForalls originalDomains fieldResult) ∧
+        OnCtx (originalDomains.reverse ++ T.params.reverse)
+          (H.outVEnv.IsType Us.length) ∧
         fieldDomains.length = A.rule.allArgs.size ∧
         OnCtx
           (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
@@ -118,16 +128,17 @@ theorem
   let parameterDecls :=
     (R.materialized.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
-  rcases A.finalRecursorPrefixEquationContext with
-    ⟨T, fieldDomains, fieldResult, introTarget,
-      hparams, hfields, Hctx, Hmajor, Hprefix, Htarget, HintroShape⟩
+  rcases A.finalRecursorPrefixEquationContextWithFrame with
+    ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
+      hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx, Hmajor, Hprefix,
+      Htarget, HintroShape⟩
   have Htr := A.canonicalRecursorPrefixResidualTranslation
     T fieldDomains hfields Hctx Hprefix
   have HmajorTr := A.canonicalConstructorMajorResidualTranslation
     T fieldDomains fieldResult introTarget hfields Hctx Hmajor HintroShape
-  exact ⟨T, fieldDomains, fieldResult, introTarget,
-    hparams, hfields, Hctx, Hmajor, Hprefix, Htarget, HintroShape, Htr,
-    HmajorTr⟩
+  exact ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
+    hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx, Hmajor, Hprefix,
+    Htarget, HintroShape, Htr, HmajorTr⟩
 
 /-- Move the canonical recursor/constructor frame to the independently
 cached parameter context.  Context conversion can in general choose a new
@@ -159,7 +170,8 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us stats decl
           owner H.recInfos[owner]! H.elimLevel,
-      ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
+      ∃ (originalDomains fieldDomains : List VExpr)
+          (fieldResult introTarget : VExpr),
         let canonicalDomains :=
           (T.params ++ T.motives ++ T.minors) ++ fieldDomains
         let cachedDomains :=
@@ -206,6 +218,15 @@ theorem
             T.params.reverse parameterDecls.toCtx ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             C.params.reverse parameterDecls.toCtx ∧
+          originalDomains.length = A.rule.allArgs.size ∧
+          fieldDomains =
+            (liftContextPrefix (T.motives ++ T.minors).length
+              originalDomains.reverse).reverse ∧
+          TrExprS H.outVEnv Us parameterDecls
+            A.semantics.parameterTail
+            (VExpr.wrapForalls originalDomains fieldResult) ∧
+          OnCtx (originalDomains.reverse ++ T.params.reverse)
+            (H.outVEnv.IsType Us.length) ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             canonicalDomains.reverse cachedDomains.reverse ∧
@@ -287,8 +308,9 @@ theorem
     (R.materialized.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
   rcases A.finalCanonicalRecursorPrefixFrame with
-    ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields, Hctx,
-      Hmajor, Hprefix, Htarget, HintroShape, HprefixTr, HmajorTr⟩
+    ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
+      hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx, Hmajor, Hprefix,
+      Htarget, HintroShape, HprefixTr, HmajorTr⟩
   rcases H.finalOwnerCanonicalMotiveDomainAt owner howner with
     ⟨T₀, S, hgeneratedSource, HmotiveDomain₀⟩
   rcases T₀.groupsResult_eq T with
@@ -645,8 +667,9 @@ theorem
   rw [hfamilyApplication] at HfieldResultWF
   rcases VExpr.WF.mkApps_fn H.outVEnvWF.ordered HcachedCtx
       HfieldResultWF with ⟨familyType, Hfamily⟩
-  exact ⟨T, C, fieldDomains, fieldResult, introTarget, levels,
-    parameterTargets, indexTargets, hparams, hcanonicalParams, hfields,
+  exact ⟨T, C, originalDomains, fieldDomains, fieldResult, introTarget,
+    levels, parameterTargets, indexTargets, hparams, hcanonicalParams,
+    horiginal, hlifted, Htail, HoriginalCtx, hfields,
     Hfull, HcachedCtx,
     HmajorCached, HmajorCanonical, HprefixCached, Htarget, HintroShape,
     HprefixTr',
@@ -661,7 +684,7 @@ is applied to the independently recovered constructor indices and major;
 canonical-result instantiation identifies its exact type with the parallel
 owner-motive application. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalLhsBody
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalLhsBodyWithFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -682,11 +705,25 @@ theorem
         stats.params.size (H.recInfos.map (·.motive)).size
         (H.recInfos.flatMap (·.minors)).size
         H.recInfos[owner]!.indices.size owner,
-      ∃ fieldDomains lhsBody typeBody,
+      ∃ originalDomains fieldDomains fieldResult lhsBody typeBody,
         let cachedDomains :=
           (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
             fieldDomains
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          T.params.reverse parameterDecls.toCtx ∧
+        originalDomains.length = A.rule.allArgs.size ∧
+        fieldDomains =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            originalDomains.reverse).reverse ∧
+        TrExprS H.outVEnv Us parameterDecls
+          A.semantics.parameterTail
+          (VExpr.wrapForalls originalDomains fieldResult) ∧
+        OnCtx (originalDomains.reverse ++ T.params.reverse)
+          (H.outVEnv.IsType Us.length) ∧
         fieldDomains.length = A.rule.allArgs.size ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          cachedDomains.reverse ∧
         OnCtx cachedDomains.reverse (H.outVEnv.IsType Us.length) ∧
         TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
           (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody ∧
@@ -703,9 +740,10 @@ theorem
     (R.materialized.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
   rcases A.finalCachedCanonicalRecursorPrefixFrame with
-    ⟨T, C, fieldDomains, fieldResult, introTarget, levels,
-      parameterTargets, indexTargets, hparams, hcanonicalParams, hfields,
-      Hfull, HcachedCtx, HmajorCached, HmajorCanonical, HprefixCached,
+    ⟨T, C, originalDomains, fieldDomains, fieldResult, introTarget,
+      levels, parameterTargets, indexTargets, hparams, hcanonicalParams,
+      horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull, HcachedCtx,
+      HmajorCached, HmajorCanonical, HprefixCached,
       Htarget, HintroShape, HprefixTr, HmajorTr, HownerMotiveTr, hspine,
       hlevels, hlevelsCanonical, HparameterTargets, hparameterTargets,
       Hfamily, hindexLength, hindexCanonical, HapplyCanonical,
@@ -924,8 +962,127 @@ theorem
       Expr.mkAppN_eq_mkAppList, VExpr.mkApps_append, VExpr.mkApps,
       getElem!_pos indTypes owner A.sourceOwner_lt] using
       HtypeTranslation₀
-  exact ⟨T, fieldDomains, lhsBody, typeBody, hfields, HcachedCtx,
-    HlhsResidual, Hlhs', HtypeBody, HtypeTranslation⟩
+  exact ⟨T, originalDomains, fieldDomains, fieldResult, lhsBody, typeBody,
+    hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull,
+    HcachedCtx, HlhsResidual, Hlhs', HtypeBody, HtypeTranslation⟩
+
+/-- Compatibility projection of `finalCachedCanonicalLhsBodyWithFrame` for
+clients that do not need to relate the retained LHS field telescope to an
+independently narrowed RHS frame. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalLhsBody
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ fieldDomains lhsBody typeBody,
+        let cachedDomains :=
+          (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+            fieldDomains
+        fieldDomains.length = A.rule.allArgs.size ∧
+        OnCtx cachedDomains.reverse (H.outVEnv.IsType Us.length) ∧
+        TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+          (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody ∧
+        H.outVEnv.HasType Us.length cachedDomains.reverse lhsBody typeBody ∧
+        H.outVEnv.IsType Us.length cachedDomains.reverse typeBody ∧
+        TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+          ((Expr.app
+            (mkAppN H.recInfos[owner]!.motive
+              (AddInductive.getIIndices stats A.rule.target).2)
+            A.rule.sourceConstructorMajor).abstractList A.rule.binders)
+          typeBody := by
+  rcases A.finalCachedCanonicalLhsBodyWithFrame with
+    ⟨T, _originalDomains, fieldDomains, _fieldResult, lhsBody, typeBody,
+      _hparams, _horiginal, _hlifted, _Htail, _HoriginalCtx, hfields,
+      _Hfull, Hctx, Htranslation, Htyping, Htype, HtypeTranslation⟩
+  exact ⟨T, fieldDomains, lhsBody, typeBody, hfields, Hctx,
+    Htranslation, Htyping, Htype, HtypeTranslation⟩
+
+/-- Witness-stable framed form of `finalCachedCanonicalLhsBodyWithFrame`.
+Besides fixing the recursor telescope, this retains the checked constructor
+tail needed to compare the LHS context with the independently narrowed RHS
+context. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalLhsBodyWithFrameFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ originalDomains fieldDomains fieldResult lhsBody typeBody,
+      let cachedDomains :=
+        (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+          T.params.reverse parameterDecls.toCtx ∧
+        originalDomains.length = A.rule.allArgs.size ∧
+        fieldDomains =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            originalDomains.reverse).reverse ∧
+        TrExprS H.outVEnv Us parameterDecls
+          A.semantics.parameterTail
+          (VExpr.wrapForalls originalDomains fieldResult) ∧
+        OnCtx (originalDomains.reverse ++ T.params.reverse)
+          (H.outVEnv.IsType Us.length) ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          cachedDomains.reverse ∧
+        OnCtx cachedDomains.reverse (H.outVEnv.IsType Us.length) ∧
+        TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+          (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody ∧
+        H.outVEnv.HasType Us.length cachedDomains.reverse lhsBody typeBody ∧
+        H.outVEnv.IsType Us.length cachedDomains.reverse typeBody ∧
+        TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+          ((Expr.app
+            (mkAppN H.recInfos[owner]!.motive
+              (AddInductive.getIIndices stats A.rule.target).2)
+            A.rule.sourceConstructorMajor).abstractList A.rule.binders)
+          typeBody := by
+  dsimp only
+  rcases A.finalCachedCanonicalLhsBodyWithFrame with
+    ⟨T₀, originalDomains, fieldDomains, fieldResult, lhsBody, typeBody,
+      Hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull,
+      Hctx, Htranslation, Htyping, Htype, HtypeTranslation⟩
+  rcases T₀.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hparams] at Hparams HoriginalCtx Hfull
+  rw [hmotives, hminors] at hlifted Hfull Hctx Htranslation Htyping Htype HtypeTranslation
+  exact ⟨originalDomains, fieldDomains, fieldResult, lhsBody, typeBody,
+    Hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull, Hctx,
+    Htranslation, Htyping, Htype, HtypeTranslation⟩
 
 /-- Witness-stable form of `finalCachedCanonicalLhsBody`.  A final equation
 already carries the telescope selected by its RHS construction, so transport
@@ -978,6 +1135,131 @@ theorem
   rw [hmotives, hminors] at Hctx Htranslation Htyping Htype HtypeTranslation
   exact ⟨fieldDomains, lhsBody, typeBody, hfields, Hctx,
     Htranslation, Htyping, Htype, HtypeTranslation⟩
+
+/-- Transport the independently reconstructed LHS into the exact narrowed
+equation context used by the canonical RHS.  Projection translation need not
+be syntactically unique, so the transported strict targets are retained and
+their typing is recovered through semantic translation uniqueness. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalFixedCanonicalLhsBodyFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (B : A.NarrowFieldRuntimeFrame)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    let inserted := T.motives ++ T.minors
+    let equationFields :=
+      (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+    let equationDomains :=
+      parameterDecls.toCtx.reverse ++ inserted ++ equationFields
+    ∃ lhsBody typeBody,
+      OnCtx equationDomains.reverse (H.outVEnv.IsType Us.length) ∧
+      TrExprS H.outVEnv Us (abstractForallContext equationDomains [])
+        (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody ∧
+      H.outVEnv.HasType Us.length equationDomains.reverse lhsBody typeBody ∧
+      H.outVEnv.IsType Us.length equationDomains.reverse typeBody ∧
+      TrExprS H.outVEnv Us (abstractForallContext equationDomains [])
+        ((Expr.app
+          (mkAppN H.recInfos[owner]!.motive
+            (AddInductive.getIIndices stats A.rule.target).2)
+          A.rule.sourceConstructorMajor).abstractList A.rule.binders)
+        typeBody := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  let inserted := T.motives ++ T.minors
+  let equationFields :=
+    (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
+  let equationDomains :=
+    parameterDecls.toCtx.reverse ++ inserted ++ equationFields
+  rcases A.finalCachedCanonicalLhsBodyWithFrameFor T with
+    ⟨originalDomains, fieldDomains, fieldResult, cachedLhs, cachedType,
+      Hparams, horiginal, hlifted, Htail, HoriginalCtx, _hfields, Hfull,
+      HcachedCtx, HlhsTranslation, HlhsTyping, HcachedType,
+      HtypeTranslation⟩
+  have Hparams' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      T.params.reverse H.parameterSuffix.parameterDecls.toCtx := by
+    simpa only [← H.parameterDecls] using Hparams
+  have Htail' : TrExprS H.outVEnv Us
+      H.parameterSuffix.parameterDecls A.semantics.parameterTail
+      (VExpr.wrapForalls originalDomains fieldResult) := by
+    simpa only [← H.parameterDecls] using Htail
+  rcases A.finalCheckedNarrowEquationContextAlignmentFromFrameFor B T
+      originalDomains fieldResult Hparams' horiginal Htail' HoriginalCtx with
+    ⟨alignedFields, halignedFields, Haligned⟩
+  have hfields : alignedFields = fieldDomains :=
+    halignedFields.trans hlifted.symm
+  rw [hfields] at Haligned
+  have HcanonicalFixed : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+      equationDomains.reverse := by
+    simpa [equationDomains, equationFields, inserted, parameterDecls,
+      ← H.parameterDecls, List.reverse_append, List.append_assoc] using
+      Haligned
+  have HcachedFixed : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors ++
+        fieldDomains).reverse) equationDomains.reverse :=
+    VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+      (Hfull.symm H.outVEnvWF.ordered) HcanonicalFixed
+  have HfixedCtx : OnCtx equationDomains.reverse
+      (H.outVEnv.IsType Us.length) :=
+    (HcachedFixed.symm H.outVEnvWF.ordered).isType
+  have Hvlctx : VLCtx.IsDefEq H.outVEnv Us.length
+      (abstractForallContext
+        (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors ++
+          fieldDomains) [])
+      (abstractForallContext equationDomains []) :=
+    abstractForallContext.isDefEq HcachedFixed
+  rcases HlhsTranslation.defeqDFC H.outVEnvWF Hvlctx with
+    ⟨lhsBody, HlhsTranslation'⟩
+  rcases HtypeTranslation.defeqDFC H.outVEnvWF Hvlctx with
+    ⟨typeBody, HtypeTranslation'⟩
+  have HlhsTypingFixed := HlhsTyping.defeqDFC
+    H.outVEnvWF.ordered HcachedFixed
+  have HcachedTypeFixed := HcachedType.defeqDFC
+    H.outVEnvWF.ordered HcachedFixed
+  have HlhsEq₀ := HlhsTranslation'.uniq H.outVEnvWF
+    (Hvlctx.symm H.outVEnvWF) HlhsTranslation
+  have HlhsEq : H.outVEnv.IsDefEqU Us.length equationDomains.reverse
+      lhsBody cachedLhs := by
+    simpa [abstractForallContext_toCtx, VLCtx.toCtx] using HlhsEq₀
+  have HtypeEq₀ := HtypeTranslation'.uniq H.outVEnvWF
+    (Hvlctx.symm H.outVEnvWF) HtypeTranslation
+  have HtypeEq : H.outVEnv.IsDefEqU Us.length equationDomains.reverse
+      typeBody cachedType := by
+    simpa [abstractForallContext_toCtx, VLCtx.toCtx] using HtypeEq₀
+  have HlhsTypingOld : H.outVEnv.HasType Us.length equationDomains.reverse
+      lhsBody cachedType :=
+    VEnv.HasType.defeqU_l H.outVEnvWF HfixedCtx HlhsEq.symm
+      HlhsTypingFixed
+  have HlhsTyping' : H.outVEnv.HasType Us.length equationDomains.reverse
+      lhsBody typeBody :=
+    HlhsTypingOld.defeqU_r H.outVEnvWF HfixedCtx HtypeEq.symm
+  have HtypeBody : H.outVEnv.IsType Us.length equationDomains.reverse
+      typeBody :=
+    VEnv.IsType.defeqU_l H.outVEnvWF HfixedCtx HtypeEq.symm
+      HcachedTypeFixed
+  exact ⟨lhsBody, typeBody, HfixedCtx, HlhsTranslation', HlhsTyping',
+    HtypeBody, HtypeTranslation'⟩
 
 /-- Extend the completed cached left-hand-side frame with the exact minor
 variable selected by this constructor.  Its de Bruijn offset is the number

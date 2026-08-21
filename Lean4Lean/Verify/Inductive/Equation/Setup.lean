@@ -2626,6 +2626,132 @@ theorem
 fields.  `fieldDomains` is rebuilt from the lifted context prefix, so the
 resulting canonical equation context remains valid for dependent fields. -/
 theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedConstructorEquationContextWithFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ (originalDomains fieldDomains : List VExpr)
+          (fieldResult introTarget : VExpr),
+        VEnv.IsDefEqCtx H.outVEnv Us.length []
+          T.params.reverse parameterDecls.toCtx ∧
+        originalDomains.length = A.rule.allArgs.size ∧
+        fieldDomains =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            originalDomains.reverse).reverse ∧
+        TrExprS H.outVEnv Us parameterDecls
+          A.semantics.parameterTail
+          (VExpr.wrapForalls originalDomains fieldResult) ∧
+        OnCtx (originalDomains.reverse ++ T.params.reverse)
+          (H.outVEnv.IsType Us.length) ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        OnCtx
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          (H.outVEnv.IsType Us.length) ∧
+        H.outVEnv.HasType Us.length
+          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
+          ((VExpr.mkApps
+              (introTarget.liftN A.rule.allArgs.size 0)
+              (recursorCanonicalVars A.rule.allArgs.size)).liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size)
+          (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+              fieldDomains) [])
+          (A.rule.target.abstractList A.rule.binders)
+          (fieldResult.liftN
+            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
+        introTarget = VExpr.mkApps
+          (.const
+            ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
+            (recursorDeclarationAbstractLevels c.lparams
+              H.elimLevelAdmissible))
+          (recursorCanonicalVars stats.params.size) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let parameterDecls :=
+    (R.materialized.parameterSuffix.toRecursorContext
+      H.elimLevelAdmissible).parameterDecls
+  rcases A.finalCheckedConstructorFieldFrame with
+    ⟨T, originalDomains, fieldResult, introTarget, hparams, hfields,
+      Htail, HfieldResidual, _HtailType, HtailTypeT, HfieldContext,
+      HintroType, _Hintro, HintroShape⟩
+  have HcachedTarget := A.cachedConstructorTargetOfFieldFrame
+    originalDomains fieldResult hfields HfieldResidual
+  let inserted := T.motives ++ T.minors
+  have Wtarget := abstractForallContext.bvInsertBeforeInner
+    parameterDecls.toCtx.reverse inserted originalDomains
+  have HtargetWeak := HcachedTarget.weakBV H.outVEnvWF.ordered Wtarget
+  have hsource := A.canonicalTargetBinderLift_eq
+    T originalDomains fieldResult hfields HcachedTarget
+  have hsource' :
+      ((A.rule.target.abstractList
+          (A.rule.params_bound.fvars ++
+            A.semantics.fieldOpening.fvars)).liftLooseBVars'
+        originalDomains.length inserted.length) =
+        A.rule.target.abstractList A.rule.binders := by
+    simpa [inserted, hfields] using hsource
+  rw [hsource'] at HtargetWeak
+  have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
+    H.outVEnvWF.ordered HintroType
+  let added := inserted.reverse
+  let liftedPrefix := liftContextPrefix inserted.length originalDomains.reverse
+  let fieldDomains := liftedPrefix.reverse
+  have W : Ctx.LiftN inserted.length originalDomains.reverse.length
+      (originalDomains.reverse ++ T.params.reverse)
+      (liftedPrefix ++ added ++ T.params.reverse) := by
+    simpa [liftedPrefix, added] using
+      Ctx.LiftN.insertAfterPrefix originalDomains.reverse added T.params.reverse
+  have Hweak := Happ.weakN H.outVEnvWF.ordered W
+  have W0 : Ctx.LiftN inserted.length 0 T.params.reverse
+      (added ++ T.params.reverse) := by
+    exact .zero added (by simp [added])
+  have HliftedType := HtailTypeT.weakN H.outVEnvWF.ordered W0
+  rw [VExpr.liftN_wrapForalls] at HliftedType
+  have hbase : OnCtx (added ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [added, inserted, List.reverse_append, List.append_assoc] using
+      T.prefixContext H.outVEnvWF.ordered
+  have Hcontext : OnCtx
+      (liftedPrefix ++ added ++ T.params.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    have Hopened := VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
+      hbase HliftedType
+    simpa [liftedPrefix, liftContextPrefix] using Hopened.1
+  have hfieldDomains : fieldDomains.length = A.rule.allArgs.size := by
+    simp [fieldDomains, liftedPrefix, hfields]
+  refine ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
+    hparams, hfields, ?_, Htail, HfieldContext, hfieldDomains, ?_, ?_, ?_,
+    HintroShape⟩
+  · simp [fieldDomains, liftedPrefix, inserted]
+  · simpa [fieldDomains, liftedPrefix, added, inserted, List.reverse_append,
+      List.append_assoc] using Hcontext
+  · simpa [fieldDomains, liftedPrefix, added, inserted, hfields, List.reverse_append,
+      List.append_assoc, Nat.add_comm, recursorCanonicalVars] using Hweak
+  · simpa [parameterDecls, inserted, fieldDomains, liftedPrefix, added,
+      hfields, List.append_assoc] using HtargetWeak
+
+/-- Compatibility projection of
+`finalCheckedConstructorEquationContextWithFrame` for clients that only need
+the installed equation context. -/
+theorem
     RecursorPhasesResult.GeneratedRuleAlignment.finalCheckedConstructorEquationContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -2675,66 +2801,12 @@ theorem
             (recursorDeclarationAbstractLevels c.lparams
               H.elimLevelAdmissible))
           (recursorCanonicalVars stats.params.size) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let parameterDecls :=
-    (R.materialized.parameterSuffix.toRecursorContext
-      H.elimLevelAdmissible).parameterDecls
-  rcases A.finalCheckedConstructorFieldFrame with
-    ⟨T, originalDomains, fieldResult, introTarget, hparams, hfields,
-      _Htail, HfieldResidual, _HtailType, HtailTypeT, _HfieldContext,
-      HintroType, _Hintro, HintroShape⟩
-  have HcachedTarget := A.cachedConstructorTargetOfFieldFrame
-    originalDomains fieldResult hfields HfieldResidual
-  let inserted := T.motives ++ T.minors
-  have Wtarget := abstractForallContext.bvInsertBeforeInner
-    parameterDecls.toCtx.reverse inserted originalDomains
-  have HtargetWeak := HcachedTarget.weakBV H.outVEnvWF.ordered Wtarget
-  have hsource := A.canonicalTargetBinderLift_eq
-    T originalDomains fieldResult hfields HcachedTarget
-  have hsource' :
-      ((A.rule.target.abstractList
-          (A.rule.params_bound.fvars ++
-            A.semantics.fieldOpening.fvars)).liftLooseBVars'
-        originalDomains.length inserted.length) =
-        A.rule.target.abstractList A.rule.binders := by
-    simpa [inserted, hfields] using hsource
-  rw [hsource'] at HtargetWeak
-  have Happ := VEnv.HasType.mkApps_wrapForalls_canonical
-    H.outVEnvWF.ordered HintroType
-  let added := inserted.reverse
-  let liftedPrefix := liftContextPrefix inserted.length originalDomains.reverse
-  let fieldDomains := liftedPrefix.reverse
-  have W : Ctx.LiftN inserted.length originalDomains.reverse.length
-      (originalDomains.reverse ++ T.params.reverse)
-      (liftedPrefix ++ added ++ T.params.reverse) := by
-    simpa [liftedPrefix, added] using
-      Ctx.LiftN.insertAfterPrefix originalDomains.reverse added T.params.reverse
-  have Hweak := Happ.weakN H.outVEnvWF.ordered W
-  have W0 : Ctx.LiftN inserted.length 0 T.params.reverse
-      (added ++ T.params.reverse) := by
-    exact .zero added (by simp [added])
-  have HliftedType := HtailTypeT.weakN H.outVEnvWF.ordered W0
-  rw [VExpr.liftN_wrapForalls] at HliftedType
-  have hbase : OnCtx (added ++ T.params.reverse)
-      (H.outVEnv.IsType Us.length) := by
-    simpa [added, inserted, List.reverse_append, List.append_assoc] using
-      T.prefixContext H.outVEnvWF.ordered
-  have Hcontext : OnCtx
-      (liftedPrefix ++ added ++ T.params.reverse)
-      (H.outVEnv.IsType Us.length) := by
-    have Hopened := VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
-      hbase HliftedType
-    simpa [liftedPrefix, liftContextPrefix] using Hopened.1
-  have hfieldDomains : fieldDomains.length = A.rule.allArgs.size := by
-    simp [fieldDomains, liftedPrefix, hfields]
-  refine ⟨T, fieldDomains, fieldResult, introTarget, hparams,
-    hfieldDomains, ?_, ?_, ?_, HintroShape⟩
-  · simpa [fieldDomains, liftedPrefix, added, inserted, List.reverse_append,
-      List.append_assoc] using Hcontext
-  · simpa [fieldDomains, liftedPrefix, added, inserted, hfields, List.reverse_append,
-      List.append_assoc, Nat.add_comm, recursorCanonicalVars] using Hweak
-  · simpa [parameterDecls, inserted, fieldDomains, liftedPrefix, added,
-      hfields, List.append_assoc] using HtargetWeak
+  rcases A.finalCheckedConstructorEquationContextWithFrame with
+    ⟨T, _originalDomains, fieldDomains, fieldResult, introTarget,
+      hparams, _horiginal, _hlifted, _Htail, _HoriginalCtx, hfields, Hctx, Hmajor,
+      Htarget, HintroShape⟩
+  exact ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields,
+    Hctx, Hmajor, Htarget, HintroShape⟩
 
 /-- Weaken the checked constructor major below the generated motive/minor
 prefix.  The explicit lift is the de Bruijn shift later field and equation
