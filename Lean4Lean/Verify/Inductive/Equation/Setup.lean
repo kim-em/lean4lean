@@ -865,6 +865,60 @@ theorem RecursorPhasesResult.restoredPrimaryRecursorMetadata
     simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
       E.translated.1.2.1
 
+/-- Identify an operational primary-restoration step with its exact generated
+recursor entry and expose the complete old/restored telescope alignment.  In
+particular, callers do not choose an unrelated generated entry or reconstruct
+the local binder selection: installation, the restoration lookup, and the
+retained `mkRecInfos` state determine all of them. -/
+theorem RecursorPhasesResult.restoredPrimaryTelescopeAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
+    (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv)
+    (holdRecName : oldRecName =
+      Lean.mkRecName indTypes[ownerIdx]!.name)
+    (hresultNparams : result.nparams = nparams)
+    (hresultParams : result.params.size = result.nparams) :
+    Nonempty (GeneratedRecursorRestorationTelescopeAlignment result outEnv
+      auxRec Hstep.restored.newInfo (H.generated.entry ownerIdx hentry)) := by
+  have hrecInfo : ownerIdx < H.recInfos.size := by
+    simpa [H.generated.length] using hentry
+  let E := H.generated.entry ownerIdx hentry
+  have hlookup := H.findRecursorOfMem (List.getElem_mem hentry)
+  have hlookupE : outEnv.find? (Lean.mkRecName indTypes[ownerIdx]!.name) =
+      some (.recInfo E.info) := by
+    change outEnv.find? H.entries[ownerIdx].1.name =
+      some H.entries[ownerIdx].1 at hlookup
+    rw [E.source_eq] at hlookup
+    change outEnv.find? E.info.name = some (.recInfo E.info) at hlookup
+    rwa [E.name] at hlookup
+  have holdInfo : Hstep.oldInfo = E.info := by
+    have hstepLookup : outEnv.find?
+        (Lean.mkRecName indTypes[ownerIdx]!.name) =
+          some (.recInfo Hstep.oldInfo) := by
+      simpa [holdRecName] using Hstep.lookup
+    exact ConstantInfo.recInfo.inj (Option.some.inj
+      (hstepLookup.symm.trans hlookupE))
+  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
+    ownerIdx hrecInfo
+  have hselectionNoAlias : selections.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias ownerIdx hrecInfo
+  have hrestoration : RecursorRestoration result outEnv auxRec allIndNames
+      oldRecName Hstep.restored.newRecName E.info Hstep.restored.newInfo := by
+    simpa [holdInfo] using Hstep.restored.restoration
+  have hparams : result.nparams = stats.params.size :=
+    hresultNparams.trans <| R.core.nparams.symm.trans
+      H.cardinality.params.symm
+  exact hrestoration.generatedTelescopeAlignment E selections hrecInfo
+    hselectionNoAlias hparams hresultParams
+
 /-- A primary restoration step inherits one of the two source-declaration
 universe arities admitted for generated recursors.  This packages the lookup
 argument identifying the step's old metadata with the exact generated entry,
