@@ -1559,6 +1559,14 @@ def VExpr.applyForallType : VExpr → List VExpr → VExpr
   | .forallE _ body, arg :: args => applyForallType (body.inst arg) args
   | type, _ :: _ => type
 
+/-- Source-side residual substitution matching complete application of a
+forall telescope.  At each step the outer binder lies beneath all still-inner
+binders in the already-open body, hence the decreasing `args.length` cutoff. -/
+def Expr.instantiateForallBody : Expr → List Expr → Expr
+  | body, [] => body
+  | body, arg :: args =>
+      instantiateForallBody (body.instantiate1' arg args.length) args
+
 /-- The residual recorded by a typed application spine is the literal
 result of consuming its initial forall type with the same arguments.  This
 keeps later dependent application proofs from having to existentially forget

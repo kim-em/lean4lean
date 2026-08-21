@@ -2028,6 +2028,72 @@ theorem VLCtx.InstN.abstractForallContext_outer
           Nat.add_assoc] using W
   simpa using go domains.reverse
 
+/-- Consume a translated source residual and its target residual in lockstep
+with independently translated, closed arguments.  `liftClosedDomains` is the
+invariant making every later dependent domain return to the same shape after
+the outer argument is substituted. -/
+theorem TrExprS.instantiateLiftClosedDomains
+    (henv : env.Ordered)
+    (Hresidual : TrExprS env Us
+      (abstractForallContext (VExpr.liftClosedDomains types 0) Δ)
+      source target)
+    (Hargs : List.Forall₂ (TrExprS env Us Δ) sourceArgs targetArgs)
+    (Htypes : List.Forall₂
+      (env.HasType Us.length Δ.toCtx) targetArgs types) :
+    TrExprS env Us Δ
+      (Expr.instantiateForallBody source sourceArgs)
+      (VExpr.applyForallType
+        (VExpr.wrapForalls (VExpr.liftClosedDomains types 0) target)
+        targetArgs) := by
+  induction Hargs generalizing types source target with
+  | nil =>
+      cases Htypes
+      simpa [Expr.instantiateForallBody, VExpr.applyForallType,
+        VExpr.liftClosedDomains, VExpr.wrapForalls,
+        abstractForallContext] using Hresidual
+  | @cons sourceArg targetArg sourceArgs targetArgs Harg Hargs ih =>
+      cases Htypes with
+      | @cons _ domain _ types Htarget Htypes =>
+        have hlength : sourceArgs.length = types.length :=
+          (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hargs).trans
+            (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes)
+        let innerDomains := VExpr.liftClosedDomains types 1
+        have W := VLCtx.InstN.abstractForallContext_outer innerDomains
+          domain targetArg Δ
+        have Hresidual' : TrExprS env Us
+            (abstractForallContext (domain :: innerDomains) Δ)
+            source target := by
+          simpa [innerDomains, VExpr.liftClosedDomains] using Hresidual
+        have Hstep := Harg.instN henv Htarget W Hresidual'
+        have Hstep' : TrExprS env Us
+            (abstractForallContext
+              (VExpr.liftClosedDomains types 0) Δ)
+            (source.instantiate1' sourceArg sourceArgs.length)
+            (target.inst targetArg types.length) := by
+          simpa [innerDomains,
+            VExpr.instForallDomains_liftClosedDomains_succ,
+            hlength] using Hstep
+        have Htail := ih Hstep' Htypes
+        have htarget :
+            VExpr.applyForallType
+                (VExpr.wrapForalls
+                  (VExpr.liftClosedDomains (domain :: types) 0) target)
+                (targetArg :: targetArgs) =
+              VExpr.applyForallType
+                (VExpr.wrapForalls
+                  (VExpr.liftClosedDomains types 0)
+                  (target.inst targetArg types.length)) targetArgs := by
+          change VExpr.applyForallType
+              ((VExpr.wrapForalls
+                (VExpr.liftClosedDomains types 1) target).inst targetArg 0)
+              targetArgs = _
+          rw [VExpr.inst_wrapForalls]
+          simp only [Nat.zero_add, VExpr.liftClosedDomains_length]
+          rw [VExpr.instForallDomains_liftClosedDomains_succ]
+        simp only [Expr.instantiateForallBody]
+        rw [htarget]
+        exact Htail
+
 @[simp] theorem abstractForallContext_toCtx
     (domains : List VExpr) (Δ : VLCtx) :
     (abstractForallContext domains Δ).toCtx =
