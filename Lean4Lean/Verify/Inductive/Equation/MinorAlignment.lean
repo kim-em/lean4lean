@@ -2095,6 +2095,7 @@ theorem
         traversal.terminal.abstractList S.fields_bound.fvars =
           A.rule.target.abstractList A.semantics.fieldOpening.fvars ∧
         (AddInductive.getIIndices stats traversal.terminal).1 = owner ∧
+        AddInductive.isValidIndApp? stats traversal.terminal = some owner ∧
         S.motiveApp =
           Expr.app
             (mkAppN H.recInfos[owner]!.motive
@@ -2302,8 +2303,122 @@ theorem
     rfl
   exact ⟨T, S, traversal, fieldDomains, hypothesisDomains, targetResidual,
     hconstructor, htraversalFields, hfieldFVars, hclosedTargets,
-    hselectedOwner', hmotiveApp', hsourceFields, hsourceHypotheses,
+    hselectedOwner', by simpa [hselectedOwner'] using hvalid,
+    hmotiveApp', hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hresidual, HresidualType⟩
+
+/-- After each constructor pass closes its own fresh field identifiers, the
+minor result retained by `mkRecType` is literally the constructor-motive
+application reconstructed for the generated iota rule.  The proof compares
+parameter and index spines through the alpha-closed inductive targets and
+normalizes both field arrays to the same de Bruijn sequence. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.alignedMotiveAppFieldClosure
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (S : RecInfoMinorTypeShape) (traversal : RecInfoMinorTraversalShape)
+    (hconstructor : S.constructor = indTypes[owner]!.ctors[i])
+    (htraversalFields : traversal.fields = S.fields)
+    (hfieldFVars : traversal.fieldFVars = S.fields_bound.fvars)
+    (hclosedTargets :
+      traversal.terminal.abstractList S.fields_bound.fvars =
+        A.rule.target.abstractList A.semantics.fieldOpening.fvars)
+    (hvalid : AddInductive.isValidIndApp? stats traversal.terminal =
+      some owner)
+    (hmotiveApp : S.motiveApp =
+      Expr.app
+        (mkAppN H.recInfos[owner]!.motive
+          (AddInductive.getIIndices stats traversal.terminal).2)
+        (mkAppN
+          (mkAppN (.const S.constructor.name stats.levels) stats.params)
+          S.fields))
+    (hfields : S.fields.size = A.rule.allArgs.size) :
+    S.motiveApp.abstractList S.fields_bound.fvars =
+      Expr.app
+        (mkAppN
+          (H.recInfos[owner]!.motive.abstractList S.fields_bound.fvars)
+          ((AddInductive.getIIndices stats A.rule.target).2.map fun index =>
+            index.abstractList A.rule.all_args_bound.fvars))
+        (A.rule.sourceConstructorMajor.abstractList
+          A.rule.all_args_bound.fvars) := by
+  have hruleFieldFVars : A.semantics.fieldOpening.fvars =
+      A.rule.all_args_bound.fvars :=
+    A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
+  have hindices := congrArg
+    (fun target => (AddInductive.getIIndices stats target).2)
+    hclosedTargets
+  rw [checkPositivityStep.getIIndices.snd_abstractList,
+    checkPositivityStep.getIIndices.snd_abstractList,
+    hruleFieldFVars] at hindices
+  have htraversalValid : AddInductive.isValidIndAppIdx stats
+      traversal.terminal owner = true :=
+    (checkPositivityStep.isValidIndApp?_some hvalid).2
+  have hruleValid : AddInductive.isValidIndAppIdx stats A.rule.target
+      owner = true := by
+    have h := (checkPositivityStep.isValidIndApp?_some
+      A.semantics.target_valid).2
+    simpa [A.semantic_owner] using h
+  have htraversalPrefix :=
+    A.semantics.validStats.sourceParameterPrefix htraversalValid
+  have hrulePrefix := A.semantics.validStats.sourceParameterPrefix hruleValid
+  have hargs := congrArg Expr.getAppArgs hclosedTargets
+  rw [Expr.getAppArgs_abstractList, Expr.getAppArgs_abstractList] at hargs
+  have hparams :
+      stats.params.map (fun arg =>
+        arg.abstractList S.fields_bound.fvars) =
+      stats.params.map (fun arg =>
+        arg.abstractList A.rule.all_args_bound.fvars) := by
+    apply Array.toList_inj.mp
+    have htake := congrArg (List.take stats.params.size)
+      (congrArg Array.toList hargs)
+    simp only [Array.toList_map] at htake
+    have htake' :
+        List.map (fun arg => arg.abstractList S.fields_bound.fvars)
+            (List.take stats.params.size
+              traversal.terminal.getAppArgsList) =
+          List.map (fun arg =>
+            arg.abstractList A.semantics.fieldOpening.fvars)
+            (List.take stats.params.size A.rule.target.getAppArgsList) := by
+      simpa only [List.map_take, Expr.getAppArgs_toList] using htake
+    rw [htraversalPrefix, hrulePrefix, hruleFieldFVars] at htake'
+    simpa only [Array.toList_map] using htake'
+  have hsourceFields :
+      S.fields.map (fun arg => arg.abstractList S.fields_bound.fvars) =
+      A.rule.allArgs.map (fun arg =>
+        arg.abstractList A.rule.all_args_bound.fvars) := by
+    have hleft := congrArg
+      (Array.map fun arg => arg.abstractList S.fields_bound.fvars)
+      S.fields_bound.expressions
+    have hright := congrArg
+      (Array.map fun arg =>
+        arg.abstractList A.rule.all_args_bound.fvars)
+      A.rule.all_args_bound.expressions
+    have hleftCanonical := Expr.abstractList_fvarArray
+      S.fields_bound.fvars 0 S.fields_nodup
+    have hrightCanonical := Expr.abstractList_fvarArray
+      A.rule.all_args_bound.fvars 0 A.rule.all_args_nodup
+    rw [hleftCanonical] at hleft
+    rw [hrightCanonical] at hright
+    have hlength : S.fields_bound.fvars.length =
+        A.rule.all_args_bound.fvars.length :=
+      S.fields_bound.length_fvars.trans <|
+        hfields.trans A.rule.all_args_bound.length_fvars.symm
+    rw [hlength] at hleft
+    exact hleft.trans hright.symm
+  rw [hmotiveApp, hconstructor]
+  unfold BoundGeneratedRecursorRule.sourceConstructorMajor
+  simp only [Expr.abstractList_app, Expr.abstractList_mkAppN,
+    Expr.abstractList_const]
+  rw [hindices, hparams, hsourceFields]
 
 /-- Opening the selected minor's translated telescope yields a genuine
 abstract context for every constructor field and recursive hypothesis.  The
