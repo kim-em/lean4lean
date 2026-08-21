@@ -3922,6 +3922,14 @@ structure RecInfoMinorSemanticSource
     rootWF.mlctx.vlctx.toCtx parameterTarget
       (terminalWF.mlctx.mkForall' S.fields.size fieldsRecent.size_le
         terminalTarget)
+  /-- The source motive application is assembled before recursive-hypothesis
+  locals are opened.  Retaining this pre-weakening derivation makes the later
+  hypothesis closure visibly alpha-invariant. -/
+  motivePreTarget : VExpr
+  motivePreTranslation : TrExprS terminalWF.venv recLparams
+    terminalWF.mlctx.vlctx S.motiveApp motivePreTarget
+  motivePreType : terminalWF.venv.IsType recLparams.length
+    terminalWF.mlctx.vlctx.toCtx motivePreTarget
   motiveTarget : VExpr
   motiveTranslation : TrExprS sourceWF.venv recLparams
     sourceWF.mlctx.vlctx S.motiveApp motiveTarget
@@ -3959,12 +3967,44 @@ def RecInfoMinorSemanticSource.mono
   terminalTranslation := HS.terminalTranslation
   terminalType := HS.terminalType
   fieldTargetDefEq := HS.fieldTargetDefEq
+  motivePreTarget := HS.motivePreTarget
+  motivePreTranslation := HS.motivePreTranslation
+  motivePreType := HS.motivePreType
   motiveTarget := HS.motiveTarget
   motiveTranslation := HS.motiveTranslation
   motiveType := HS.motiveType
   sourceTarget := HS.sourceTarget
   consumedTarget := HS.consumedTarget
   consumption := HS.consumption
+
+/-- Recursive hypotheses are introduced only after the selected-motive
+application has been assembled.  Closing their fresh identifiers therefore
+leaves that source application unchanged. -/
+theorem RecInfoMinorSemanticSource.abstractHypotheses_motiveApp
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource R S) :
+    S.motiveApp.abstractList S.hypotheses_bound.fvars = S.motiveApp := by
+  have hclosed : Closed S.motiveApp 0 := by
+    have h := HS.motivePreTranslation.closed
+    rw [HS.terminalWF.mlctx.noBV] at h
+    simpa using h
+  have hscope := HS.motivePreTranslation.fvarsIn
+  have havoids : S.motiveApp.FVarsIn
+      (fun fv => fv ∉ S.hypotheses_bound.fvars) := by
+    apply hscope.mono
+    intro fv hterminal hhypothesis
+    have hhypothesisFVars : HS.hypothesesRecent.fvars =
+        S.hypotheses_bound.fvars :=
+      BoundFVarArray.fvars_eq_of_array_eq
+        HS.hypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
+        S.hypotheses_bound rfl
+    rw [← hhypothesisFVars] at hhypothesis
+    apply HS.hypothesesRecent.fresh fv hhypothesis
+    rw [← HS.terminalWF.lctx_eq,
+      HS.terminalWF.mlctx_wf.tr.fvars_eq]
+    exact hterminal
+  exact havoids.abstractList_eq_self hclosed
 
 def RecInfoMinorSemanticSource.fieldDomains
     {c : AddInductive.Context} {recLparams : List Name}

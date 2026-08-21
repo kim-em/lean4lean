@@ -2088,7 +2088,14 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ S : RecInfoMinorTypeShape,
       ∃ traversal : RecInfoMinorTraversalShape,
+      ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
+          H.parameterSuffix.parameterDecls,
+      ∃ hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+          S.sourceFullContext S.recursiveFields S.hypotheses,
       ∃ fieldDomains hypothesisDomains targetResidual,
+        hypothesisOrigins.stats = stats ∧
+        hypothesisOrigins.recInfos.map (·.motive) =
+          H.recInfos.map (·.motive) ∧
         S.constructor = indTypes[owner]!.ctors[i] ∧
         traversal.fields = S.fields ∧
         traversal.fieldFVars = S.fields_bound.fvars ∧
@@ -2129,8 +2136,8 @@ theorem
     H.bindings.flatMinors.fvars.take minorIdx
   rcases A.finalSelectedMinorShape with
     ⟨T, D, _O, S, horigin, _hlocal, _hconstructors, hconstructor,
-      hsourceFields, _Hsemantic, _hypothesisOrigins,
-      _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
+      hsourceFields, ⟨HS⟩, hypothesisOrigins,
+      _hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
       traversal, htraversal, htraversalConstructor, htraversalFields,
       htraversalRecursiveFields, htraversalStats, hvalid, hmotiveApp,
       _hrootContext, hterminalContext, _hsourceContext, Hdomain,
@@ -2301,7 +2308,9 @@ theorem
       simpa [hindices] using hselectedOwner'
     subst motiveOwner
     rfl
-  exact ⟨T, S, traversal, fieldDomains, hypothesisDomains, targetResidual,
+  exact ⟨T, S, traversal, HS, hypothesisOrigins,
+    fieldDomains, hypothesisDomains, targetResidual,
+    hhypothesisStats, hhypothesisRecInfos,
     hconstructor, htraversalFields, hfieldFVars, hclosedTargets,
     hselectedOwner', by simpa [hselectedOwner'] using hvalid,
     hmotiveApp', hsourceFields, hsourceHypotheses,

@@ -2047,6 +2047,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           terminalTranslation := Hterminal
           terminalType := HterminalType
           fieldTargetDefEq := HfieldTargetDefEq
+          motivePreTarget := motiveTarget
+          motivePreTranslation := Hmotive
+          motivePreType := HmotiveType
           motiveTarget := motiveTarget.lift'
             (HhypothesesRecent.contextExtension.shift.consN 0)
           motiveTranslation := HmotiveAt
