@@ -1583,6 +1583,17 @@ def VExpr.instForallDomains : List VExpr → VExpr → Nat → List VExpr
   | cons domain domains ih =>
     simp [VExpr.instForallDomains, ih]
 
+theorem VExpr.instForallDomains_append
+    (left right : List VExpr) (arg : VExpr) (k : Nat) :
+    VExpr.instForallDomains (left ++ right) arg k =
+      VExpr.instForallDomains left arg k ++
+        VExpr.instForallDomains right arg (k + left.length) := by
+  induction left generalizing k with
+  | nil => rfl
+  | cons domain left ih =>
+    simp [VExpr.instForallDomains, ih, Nat.add_assoc, Nat.add_comm,
+      Nat.add_left_comm]
+
 theorem VExpr.inst_wrapForalls
     (domains : List VExpr) (body arg : VExpr) (k : Nat) :
     (VExpr.wrapForalls domains body).inst arg k =
@@ -24041,6 +24052,34 @@ theorem TrExprS.forallTelescope_shape
 
 def abstractForallContext (domains : List VExpr) (Δ : VLCtx) : VLCtx :=
   (domains.reverse.map fun type => (none, .vlam type)) ++ Δ
+
+/-- Remove the outermost declaration of an anonymous forall context while
+instantiating every dependent declaration nested beneath it.  The witness is
+the context-side counterpart of `VExpr.inst_wrapForalls`; its bound-variable
+cutoff is exactly the number of still-inner domains. -/
+theorem VLCtx.InstN.abstractForallContext_outer
+    (domains : List VExpr) (domain arg : VExpr) (Δ : VLCtx) :
+    VLCtx.InstN Δ arg domain domains.length domains.length
+      (abstractForallContext (domain :: domains) Δ)
+      (abstractForallContext
+        (VExpr.instForallDomains domains arg 0) Δ) := by
+  have go : ∀ reversed : List VExpr,
+      VLCtx.InstN Δ arg domain reversed.length reversed.length
+        (abstractForallContext (domain :: reversed.reverse) Δ)
+        (abstractForallContext
+          (VExpr.instForallDomains reversed.reverse arg 0) Δ) := by
+    intro reversed
+    induction reversed with
+    | nil =>
+        simpa [abstractForallContext, VExpr.instForallDomains] using
+          (VLCtx.InstN.zero (Δ₀ := Δ) (e₀ := arg) (A₀ := domain))
+    | cons inner reversed ih =>
+      have W := VLCtx.InstN.succ
+        (d := VLocalDecl.vlam inner) ih
+      simpa [abstractForallContext, VExpr.instForallDomains_append,
+          VExpr.instForallDomains, VLocalDecl.depth, VLocalDecl.inst,
+          Nat.add_assoc] using W
+  simpa using go domains.reverse
 
 @[simp] theorem abstractForallContext_toCtx
     (domains : List VExpr) (Δ : VLCtx) :
