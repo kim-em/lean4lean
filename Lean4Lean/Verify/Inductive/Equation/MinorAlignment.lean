@@ -2064,7 +2064,7 @@ the first-pass constructor shape; the final equation type comparison needs
 that shape to identify the residual motive application with the independently
 reconstructed constructor motive on the LHS. -/
 theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPositiveAlignedResidual
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorAlignedResidual
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2075,8 +2075,7 @@ theorem
     {H : RecursorPhasesResult R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
-    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -2200,8 +2199,7 @@ theorem
   have hdomains : domains = fieldDomains ++ hypothesisDomains :=
     (List.take_append_drop A.rule.allArgs.size domains).symm
   rw [hdomains] at htarget Hresidual HresidualType
-  have hconsume := S.sourceTelescope.consumeTypeAnnotations_eq_self_of_pos
-    (by simpa [hsourceFields, hsourceHypotheses] using hpositive)
+  have hconsume := HS.semantic.sourceType_consumeTypeAnnotations_eq_self
   have hsourceType : S.origin = S.sourceType :=
     S.consumed_eq.symm.trans hconsume
   have Hexpected := S.sourceTelescope.abstractList sourceBinders
@@ -2315,6 +2313,24 @@ theorem
     hselectedOwner', by simpa [hselectedOwner'] using hvalid,
     hmotiveApp', hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hresidual, HresidualType⟩
+
+/-- Compatibility specialization of `finalSelectedMinorAlignedResidual` for
+callers that have already split off the positive-arity case. -/
+def
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPositiveAlignedResidual
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (_hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :=
+  A.finalSelectedMinorAlignedResidual
 
 /-- After each constructor pass closes its own fresh field identifiers, the
 minor result retained by `mkRecType` is literally the constructor-motive

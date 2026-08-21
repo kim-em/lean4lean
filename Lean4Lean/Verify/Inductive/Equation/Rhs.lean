@@ -1588,6 +1588,7 @@ theorem
       ∃ C : A.CanonicalRecursiveResults T B,
       ∃ targetResidual : VExpr,
         C.bodies = [] ∧
+        T.minors[minorIdx]! = targetResidual ∧
         let inserted := T.motives ++ T.minors
         let equationDomains :=
           H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted
@@ -1603,7 +1604,7 @@ theorem
   have hhypothesesZero : A.rule.recursiveArgs.size = 0 := by omega
   rcases A.finalCanonicalMinorApplicationFrame with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
-      hfields, hhypotheses, _hminorType, Hctx, _HcheckedEquation, Hminor,
+      hfields, hhypotheses, hminorType, Hctx, _HcheckedEquation, Hminor,
       _HbodyTyping, _HopenBodyTyping, _HbodyWF⟩
   have hfieldDomains : fieldDomains = [] :=
     List.eq_nil_of_length_eq_zero (hfields.trans hfieldsZero)
@@ -1619,6 +1620,7 @@ theorem
   subst fieldDomains
   subst hypothesisDomains
   exact ⟨B, T, C, targetResidual, hbodies,
+    by simpa [VExpr.wrapForalls] using hminorType,
     by simpa [hframeFields, liftContextPrefix, liftContextPrefixAt,
       List.append_assoc] using Hctx,
     by simpa [hframeFields, liftContextPrefix, liftContextPrefixAt,
@@ -1886,7 +1888,7 @@ theorem
   have hfieldsZero : A.rule.allArgs.size = 0 := by omega
   have hresultsZero : A.rule.recursiveArgs.size = 0 := by omega
   rcases A.finalCanonicalMinorApplicationZeroArity hzero with
-    ⟨B, T, C, targetResidual, hbodies, Hctx, Hminor⟩
+    ⟨B, T, C, targetResidual, hbodies, _hminorType, Hctx, Hminor⟩
   let inserted := T.motives ++ T.minors
   let equationFields : List VExpr := []
   let equationDomains :=

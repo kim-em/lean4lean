@@ -472,5 +472,259 @@ theorem
   · simpa only [Us, huvars] using HlhsTyping'
   · simpa only [Us, huvars] using HrhsAtLhs
 
+/-- Degenerate generated rules have no constructor fields or recursive
+results.  Their selected minor is already the complete RHS, but its consumed
+source still has to be identified with the independently reconstructed
+constructor-motive type. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalZeroEquationWitness
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ rule : VDefEq,
+      Nonempty (H.GeneratedEquationWitness Us owner howner i hctor rule) := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  have hfieldsZero : A.rule.allArgs.size = 0 := by omega
+  have hhypothesesZero : A.rule.recursiveArgs.size = 0 := by omega
+  rcases A.finalCanonicalMinorApplicationZeroArity hzero with
+    ⟨B, T, C, targetResidual, hbodies, hminorType, Hctx, Hminor⟩
+  have hframeFields : B.fieldDomains = [] :=
+    List.eq_nil_of_length_eq_zero
+      (B.fieldDomains_length.trans hfieldsZero)
+  let inserted := T.motives ++ T.minors
+  let equationDomains :=
+    H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted
+  let later := T.minors.drop (minorIdx + 1)
+  let remaining := T.minors.drop minorIdx
+  let rhsBody : VExpr := .bvar later.length
+  let installedResidual := targetResidual.liftN remaining.length 0
+  let expected := Expr.app
+    (mkAppN H.recInfos[owner]!.motive
+      (AddInductive.getIIndices stats A.rule.target).2)
+    A.rule.sourceConstructorMajor
+  have Hctx' : OnCtx equationDomains.reverse
+      (H.outVEnv.IsType Us.length) := by
+    simpa [equationDomains, inserted, hframeFields, liftContextPrefix,
+      liftContextPrefixAt, abstractForallContext_toCtx, VLCtx.toCtx,
+      List.append_assoc] using Hctx
+  rcases A.finalFixedCanonicalLhsBodyFor B T with
+    ⟨lhsBody, lhsType, HlhsCtx, HlhsTranslation, HlhsTyping,
+      HlhsType, HexpectedTranslation⟩
+  have HlhsTranslation' : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody := by
+    simpa [equationDomains, inserted, hframeFields, liftContextPrefix,
+      liftContextPrefixAt, H.parameterDecls] using HlhsTranslation
+  have HlhsTyping' : H.outVEnv.HasType Us.length equationDomains.reverse
+      lhsBody lhsType := by
+    simpa [equationDomains, inserted, hframeFields, liftContextPrefix,
+      liftContextPrefixAt, H.parameterDecls] using HlhsTyping
+  have HlhsType' : H.outVEnv.IsType Us.length equationDomains.reverse
+      lhsType := by
+    simpa [equationDomains, inserted, hframeFields, liftContextPrefix,
+      liftContextPrefixAt, H.parameterDecls] using HlhsType
+  have HexpectedTranslation' : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (expected.abstractList A.rule.binders) lhsType := by
+    simpa [equationDomains, inserted, hframeFields, liftContextPrefix,
+      liftContextPrefixAt, H.parameterDecls, expected]
+      using HexpectedTranslation
+  rcases A.finalSelectedMinorAlignedResidual with
+    ⟨Tsource, S, traversal, HS, _hypothesisOrigins,
+      sourceFieldDomains, sourceHypothesisDomains, sourceResidual,
+      _hhypothesisStats, _hhypothesisRecInfos, hconstructor,
+      htraversalFields, hfieldFVars, hclosedTargets, _hselectedOwner,
+      hvalid, hmotiveApp, hsourceFields, hsourceHypotheses,
+      hsourceFieldDomains, hsourceHypothesisDomains, hsourceMinorType,
+      HsourceResidual, _HsourceResidualType⟩
+  have hTsource : Tsource = T := Tsource.eq T
+  subst Tsource
+  have hsourceFieldDomainsZero : sourceFieldDomains = [] :=
+    List.eq_nil_of_length_eq_zero
+      (hsourceFieldDomains.trans hfieldsZero)
+  have hsourceHypothesisDomainsZero : sourceHypothesisDomains = [] :=
+    List.eq_nil_of_length_eq_zero
+      (hsourceHypothesisDomains.trans hhypothesesZero)
+  subst sourceFieldDomains
+  subst sourceHypothesisDomains
+  have hsourceResidual : sourceResidual = targetResidual := by
+    simpa [VExpr.wrapForalls] using
+      hsourceMinorType.symm.trans hminorType
+  subst sourceResidual
+  have hfieldClosure := A.alignedMotiveAppFieldClosure S traversal
+    hconstructor htraversalFields hfieldFVars hclosedTargets hvalid
+      hmotiveApp hsourceFields
+  have hsourceAligned := A.alignedPositiveResidualSource S HS traversal
+    hmotiveApp hfieldClosure hsourceFields hsourceHypotheses
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hremaining : remaining = T.minors[minorIdx] :: later := by
+    simpa [remaining, later] using List.drop_eq_getElem_cons hminor
+  have hremainingLength : remaining.length = later.length + 1 := by
+    simp [hremaining]
+  have hremainingSourceLength :
+      (A.rule.minors_bound.fvars.drop minorIdx).length = remaining.length := by
+    simp [remaining, A.rule.minors_bound.length_fvars, T.minors_length]
+  let sourceOuter := T.params ++ T.motives ++ T.minors.take minorIdx
+  have HsourceResidual' : TrExprS H.outVEnv Us
+      (abstractForallContext (sourceOuter ++ []) [])
+      (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+        S.fields_bound.fvars S.hypotheses.size).abstractList
+          (H.params.fvars ++ H.bindings.motives.fvars ++
+            H.bindings.flatMinors.fvars.take minorIdx) 0)
+      targetResidual := by
+    simpa [sourceOuter, hzero, abstractForallContext,
+      List.reverse_append, List.map_append, List.append_assoc]
+      using HsourceResidual
+  have Hinserted₀ := Lean4Lean.VerifyInductive.TrExprS.insertBeforeInner
+    (outer := sourceOuter) (inner := []) H.outVEnvWF.ordered
+      HsourceResidual' remaining
+  have houterRemaining : sourceOuter ++ remaining =
+      T.params ++ T.motives ++ T.minors := by
+    simp [sourceOuter, remaining, List.append_assoc]
+  have Hinserted : TrExprS H.outVEnv Us
+      (abstractForallContext (T.params ++ T.motives ++ T.minors) [])
+      (expected.abstractList A.rule.binders) installedResidual := by
+    have hsourceAligned' := hsourceAligned
+    simp [minorIdx, hfieldsZero, hhypothesesZero,
+      hremainingSourceLength] at hsourceAligned'
+    rw [← List.append_assoc] at hsourceAligned'
+    dsimp only [minorIdx] at Hinserted₀
+    simp only [List.length_nil] at Hinserted₀
+    rw [hsourceAligned'] at Hinserted₀
+    simp [liftContextPrefix, liftContextPrefixAt] at Hinserted₀
+    rw [houterRemaining] at Hinserted₀
+    simpa [installedResidual, expected, Expr.abstractList_app,
+      List.append_assoc] using Hinserted₀
+  have Hparams := H.finalRecursorParameterContextFor howner T
+  have Hparams' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      T.params.reverse H.parameterSuffix.parameterDecls.toCtx := by
+    simpa only [Us, ← H.parameterDecls] using Hparams
+  have HctxPlain : OnCtx
+      (inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx)
+      (H.outVEnv.IsType Us.length) := by
+    simpa [equationDomains, inserted, List.reverse_append,
+      List.append_assoc] using Hctx'
+  have HequationToGenerated := VEnv.IsDefEqCtx.extendSamePrefix
+    (Hparams'.symm H.outVEnvWF.ordered) HctxPlain
+  have Hbase : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (T.params ++ T.motives ++ T.minors).reverse
+      equationDomains.reverse := by
+    have Hbase' := HequationToGenerated.symm H.outVEnvWF.ordered
+    simpa [equationDomains, inserted, List.reverse_append,
+      List.append_assoc] using Hbase'
+  have HinsertedExact : TrExpr H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (expected.abstractList A.rule.binders) installedResidual :=
+    Hinserted.defeqDFC' H.outVEnvWF
+      (abstractForallContext.isDefEq Hbase)
+  have Hrefl : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      equationDomains.reverse equationDomains.reverse :=
+    VEnv.IsDefEqCtx.refl Hctx'
+  have HreflV := abstractForallContext.isDefEq Hrefl
+  have Hexpected' := HexpectedTranslation'.trExpr
+    H.outVEnvWF.ordered HreflV.wf
+  have HtypeU₀ := HinsertedExact.uniq H.outVEnvWF HreflV Hexpected'
+  have HtypeU : H.outVEnv.IsDefEqU Us.length equationDomains.reverse
+      installedResidual lhsType := by
+    simpa [abstractForallContext_toCtx, VLCtx.toCtx] using HtypeU₀
+  rcases HlhsType' with ⟨lhsLevel, HlhsSort⟩
+  have Htype : H.outVEnv.IsDefEq Us.length equationDomains.reverse
+      installedResidual lhsType (.sort lhsLevel) :=
+    HtypeU.of_r H.outVEnvWF Hctx' HlhsSort
+  have Hminor' : H.outVEnv.HasType Us.length equationDomains.reverse
+      rhsBody installedResidual := by
+    simpa [rhsBody, installedResidual, equationDomains, inserted,
+      remaining, later, hremainingLength, hframeFields,
+      liftContextPrefix, liftContextPrefixAt,
+      abstractForallContext_toCtx, VLCtx.toCtx, List.append_assoc]
+      using Hminor
+  have HrhsAtLhs : H.outVEnv.HasType Us.length equationDomains.reverse
+      rhsBody lhsType :=
+    Hminor'.defeqU_r H.outVEnvWF Hctx' ⟨.sort lhsLevel, Htype⟩
+  have hminorVar : later.length < equationDomains.length := by
+    dsimp only [later, equationDomains, inserted]
+    simp only [List.length_append, List.length_drop]
+    omega
+  have HvarTranslation : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (.bvar later.length) rhsBody :=
+    TrExprS.bvar_of_abstractForallContext equationDomains []
+      later.length hminorVar
+  have hallArgs : A.rule.allArgs = #[] :=
+    Array.eq_empty_of_size_eq_zero hfieldsZero
+  have hrecursiveResultsSize : A.rule.recursiveResults.size = 0 := by
+    rw [A.rule.recursive_calls.size]
+    exact hhypothesesZero
+  have hrecursiveResults : A.rule.recursiveResults = #[] :=
+    Array.eq_empty_of_size_eq_zero hrecursiveResultsSize
+  have hsourceMinor :
+      A.rule.allArgs.size +
+          ((H.recInfos.flatMap (·.minors)).size - 1 - minorIdx) =
+        later.length := by
+    dsimp only [later]
+    simp only [List.length_drop, T.minors_length]
+    omega
+  have hsourceShape := A.rule.abstractedSourceRhsAtMinorArray
+  rw [hsourceMinor] at hsourceShape
+  have hsourceRhs : A.rule.sourceRhsBody.abstractList A.rule.binders =
+      .bvar later.length := by
+    simpa [hallArgs, hrecursiveResults, Expr.mkAppN_eq_mkAppList,
+      Expr.mkAppList] using hsourceShape
+  have HrhsTranslation : TrExprS H.outVEnv Us
+      (abstractForallContext equationDomains [])
+      (A.rule.sourceRhsBody.abstractList A.rule.binders) rhsBody := by
+    rw [hsourceRhs]
+    exact HvarTranslation
+  have hdomains := A.cachedEquationDomains_length T [] (by simp [hfieldsZero])
+  have huvars := A.recursorUvars
+  let rule := A.abstractEquation equationDomains lhsBody rhsBody lhsType
+  refine ⟨rule, ⟨?_⟩⟩
+  apply A.equationWitnessOfBodies equationDomains lhsBody rhsBody lhsType
+      (by simpa [equationDomains, inserted, hframeFields,
+        liftContextPrefix, liftContextPrefixAt, H.parameterDecls]
+        using hdomains)
+      HlhsTranslation' HrhsTranslation
+  · simpa only [Us, huvars] using Hctx'
+  · simpa only [Us, huvars] using HlhsTyping'
+  · simpa only [Us, huvars] using HrhsAtLhs
+
+/-- Every generated constructor rule now has an independently reconstructed,
+well-formed abstract equation, regardless of constructor arity. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalEquationWitness
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ rule : VDefEq,
+      Nonempty (H.GeneratedEquationWitness Us owner howner i hctor rule) := by
+  dsimp only
+  by_cases hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0
+  · exact A.finalCanonicalZeroEquationWitness hzero
+  · exact A.finalCanonicalPositiveEquationWitness
+      (Nat.pos_of_ne_zero hzero)
+
 end VerifyInductive
 end Lean4Lean

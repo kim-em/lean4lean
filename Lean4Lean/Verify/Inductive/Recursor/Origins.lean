@@ -4012,6 +4012,39 @@ theorem RecInfoMinorSemanticSource.abstractHypotheses_motiveApp
     exact hterminal
   exact havoids.abstractList_eq_self hclosed
 
+/-- Consuming binder annotations cannot change a generated minor type.  A
+nonempty field/hypothesis telescope starts with a genuine forall binder.  In
+the degenerate empty-telescope case the residual is an application headed by
+the freshly bound motive variable, so it cannot be any of Lean's four
+top-level parameter-annotation encodings either. -/
+theorem RecInfoMinorSemanticSource.sourceType_consumeTypeAnnotations_eq_self
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
+    (HS : RecInfoMinorSemanticSource R S) :
+    S.sourceType.consumeTypeAnnotations = S.sourceType := by
+  by_cases hpositive : 0 < S.fields.size + S.hypotheses.size
+  · exact S.sourceTelescope.consumeTypeAnnotations_eq_self_of_pos hpositive
+  · have hfields : S.fields.size = 0 := by omega
+    have hhypotheses : S.hypotheses.size = 0 := by omega
+    have hfieldsEmpty : S.fields = #[] :=
+      Array.eq_empty_of_size_eq_zero hfields
+    have hhypothesesEmpty : S.hypotheses = #[] :=
+      Array.eq_empty_of_size_eq_zero hhypotheses
+    have hsource : S.sourceType = S.motiveApp := by
+      rw [S.sourceType_eq, hfieldsEmpty, hhypothesesEmpty,
+        LocalContext.mkForall_empty, LocalContext.mkForall_empty]
+    rw [hsource]
+    rcases HS.motiveHeadRoot with ⟨motiveFVar, hhead, _hmotiveRoot⟩
+    apply Expr.consumeTypeAnnotations_eq_self
+    · change S.motiveApp.isAppOfArity `optParam 2 = false
+      exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
+    · change S.motiveApp.isAppOfArity `autoParam 2 = false
+      exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
+    · change S.motiveApp.isAppOfArity `outParam 1 = false
+      exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
+    · change S.motiveApp.isAppOfArity `semiOutParam 1 = false
+      exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
+
 def RecInfoMinorSemanticSource.fieldDomains
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
