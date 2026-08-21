@@ -90316,6 +90316,52 @@ theorem
   exact ⟨T, fieldDomains, lhsBody, typeBody, hfields, HcachedCtx,
     HlhsResidual, Hlhs', HtypeBody⟩
 
+/-- Witness-stable form of `finalCachedCanonicalLhsBody`.  A final equation
+already carries the telescope selected by its RHS construction, so transport
+the independently reconstructed LHS frame to that exact decomposition. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalLhsBodyFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let parameterDecls :=
+      (R.materialized.parameterSuffix.toRecursorContext
+        H.elimLevelAdmissible).parameterDecls
+    ∃ fieldDomains lhsBody typeBody,
+      let cachedDomains :=
+        (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
+          fieldDomains
+      fieldDomains.length = A.rule.allArgs.size ∧
+        OnCtx cachedDomains.reverse (H.outVEnv.IsType Us.length) ∧
+        TrExprS H.outVEnv Us (abstractForallContext cachedDomains [])
+          (A.rule.sourceLhsBody.abstractList A.rule.binders) lhsBody ∧
+        H.outVEnv.HasType Us.length cachedDomains.reverse lhsBody typeBody ∧
+        H.outVEnv.IsType Us.length cachedDomains.reverse typeBody := by
+  dsimp only
+  rcases A.finalCachedCanonicalLhsBody with
+    ⟨T₀, fieldDomains, lhsBody, typeBody, hfields, Hctx,
+      Htranslation, Htyping, Htype⟩
+  rcases T₀.groupsResult_eq T with
+    ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
+  rw [hmotives, hminors] at Hctx Htranslation Htyping Htype
+  exact ⟨fieldDomains, lhsBody, typeBody, hfields, Hctx,
+    Htranslation, Htyping, Htype⟩
+
 /-- Extend the completed cached left-hand-side frame with the exact minor
 variable selected by this constructor.  Its de Bruijn offset is the number
 of constructor fields plus the number of later flattened minors, exactly as
