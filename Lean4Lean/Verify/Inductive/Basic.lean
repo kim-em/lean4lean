@@ -88959,7 +88959,12 @@ theorem
     let fn := VExpr.mkApps
       (.bvar (equationFields.length + later.length))
       (recursorCanonicalVars equationFields.length)
-    ∃ finalType, H.outVEnv.HasType Us.length
+    let finalType := VExpr.applyForallType
+      (VExpr.wrapForalls (VExpr.liftClosedDomains C.bodyTypes 0)
+        (targetResidual.liftN (later.length + 1)
+          (fieldDomains.length + hypothesisDomains.length)))
+      C.bodies
+    H.outVEnv.HasType Us.length
       (abstractForallContext equationDomains []).toCtx
       (VExpr.mkApps fn C.bodies) finalType := by
   dsimp only at Hctx Hfield Hpartial ⊢
@@ -89039,10 +89044,14 @@ theorem
       hremainingLength, equationDomains, equationFields, inserted,
       later, fn] using Hpartial
   have HbodyTypings := C.bodyTypings
-  exact VEnv.HasType.mkApps_of_defeqLiftClosedDomains H.outVEnvWF Hctx
-    Hpartial' Hhypotheses' (by
+  have Hexact := VEnv.HasType.mkApps_of_defeqLiftClosedDomains_exact
+    (installedDomains := installedHypotheses)
+    (resultType := installedResidual) (types := C.bodyTypes)
+    (args := C.bodies) H.outVEnvWF Hctx Hpartial' Hhypotheses' (by
       simpa only [Us, equationDomains, inserted, equationFields,
         List.append_assoc] using HbodyTypings)
+  simpa [installedResidual, hremainingLength, fn, later, equationFields,
+    inserted, B.fieldDomains_length] using Hexact
 
 /-- Degenerate generated rules need no application fold: when the selected
 constructor has neither fields nor recursive hypotheses, the selected minor
@@ -89168,9 +89177,14 @@ theorem
   let minorVar := equationFields.length + later.length
   let fn := VExpr.mkApps (.bvar minorVar)
     (recursorCanonicalVars equationFields.length)
-  rcases A.finalCanonicalMinorRecursiveApplicationOfContext B T C
+  have Hrhs := A.finalCanonicalMinorRecursiveApplicationOfContext B T C
       fieldDomains hypothesisDomains targetResidual hfields hhypotheses
-      hminorType Hctx Hfield Hpartial with ⟨finalType, Hrhs⟩
+      hminorType Hctx Hfield Hpartial
+  let finalType := VExpr.applyForallType
+    (VExpr.wrapForalls (VExpr.liftClosedDomains C.bodyTypes 0)
+      (targetResidual.liftN (later.length + 1)
+        (fieldDomains.length + hypothesisDomains.length)))
+    C.bodies
   let rhsBody := VExpr.mkApps fn C.bodies
   have HrhsTyped : H.outVEnv.HasType Us.length
       (abstractForallContext equationDomains []).toCtx rhsBody finalType := by
