@@ -243,7 +243,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
+      decl.types[targetIdx].resultLevel ≈ .zero ∨
         fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0 c).WF
       (fun _ => CheckedConstructorsResult sourceEnv decl Hc.venv

@@ -1995,7 +1995,7 @@ theorem checkConstructors.loopCtor.tailRefinesFull
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type') :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       type i fuel c).WF
@@ -2534,7 +2534,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
     (htrNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htrFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
@@ -2738,7 +2738,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefines
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
     (hctor : Hc.venv.IsDefEq decl.uvars [] ctorVal.type normalized exprType)
     (htake : normalized.takeForalls decl.nparams = some (ownParams, tail))
     (hparams : decl.ParamsDefEq Hc.venv params ownParams)
@@ -2792,7 +2792,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesNarrow
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
     (hctor : Hc.venv.IsDefEq decl.uvars [] ctorVal.type normalized exprType)
     (htake : normalized.takeForalls decl.nparams = some (ownParams, tail))
     (hparams : decl.ParamsDefEq Hc.venv params ownParams)
@@ -2860,7 +2860,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
     (hparams : decl.ParamsDefEq Hc.venv params Hsynthesis.params)
     (htrNarrow : TrExprS Hc.venv c.lparams scope source current)
     (htrFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx source fullType) :
@@ -2933,7 +2933,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel) :
+      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source 0 fuel c).WF
       (fun _ => ∃ tail tailTarget,

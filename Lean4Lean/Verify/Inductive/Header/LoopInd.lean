@@ -1457,6 +1457,8 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
     (Δ : VLCtx) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (depth : Nat) where
   headers : HeaderCertificate env decl
+  commonLevel : VLevel.ofLevel Us stats.resultLevel =
+    some headers.resultLevel
   levels : stats.levels.length = decl.uvars
   levelParams : stats.levels = Us.map .param
   uvars : Us.length = decl.uvars
@@ -1506,6 +1508,30 @@ theorem MaterializedHeaderResult.levelTranslation
   rw [H.levelParams]
   exact VLevel.mapM_ofLevel_paramNames Us
 
+/-- The production field-universe guard implies the independent constructor
+bound.  The zero branch is semantic level equivalence, matching Lean's
+`isAlwaysZero`; the comparison branch is soundness of `geq'`, transported
+from the common mutual level to the selected family member. -/
+theorem MaterializedHeaderResult.universeBound
+    (H : MaterializedHeaderResult env Us Δ stats decl depth) :
+    ∀ targetIdx (hi : targetIdx < decl.types.length)
+      fieldLevel fieldLevel',
+      VLevel.ofLevel Us fieldLevel = some fieldLevel' →
+      (stats.resultLevel.isAlwaysZero ||
+        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
+      decl.types[targetIdx].resultLevel ≈ .zero ∨
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel := by
+  intro targetIdx hi fieldLevel fieldLevel' hfield hguard
+  have htarget := H.headers.commonLevels decl.types[targetIdx]
+    (List.getElem_mem hi)
+  simp only [Bool.or_eq_true] at hguard
+  rcases hguard with hzero | hgeq
+  · exact .inl (htarget.trans (ofLevel_isAlwaysZero H.commonLevel hzero))
+  · have hle : fieldLevel' ≤ H.headers.resultLevel :=
+      Level.geq'_wf H.commonLevel
+        (by simpa [Expr.sortLevel!] using hfield) hgeq
+    exact .inr (VLevel.le_trans hle (VLevel.le_antisymm_iff.mp htarget).2)
+
 def _root_.Lean4Lean.TrSourceConst.mono {env env' : VEnv} (henv : env ≤ env')
     (H : TrSourceConst env Us name type value) :
     TrSourceConst env' Us name type value where
@@ -1528,6 +1554,7 @@ def MaterializedHeaderResult.mono {env env' : VEnv}
     (H : MaterializedHeaderResult env Us Δ stats decl depth) :
     MaterializedHeaderResult env' Us Δ stats decl depth where
   headers := H.headers.mono henv
+  commonLevel := H.commonLevel
   levels := H.levels
   levelParams := H.levelParams
   uvars := H.uvars
@@ -1662,6 +1689,7 @@ theorem laterSteps.materialize
     · apply Hfinish (depth' := depth) Hc rfl rfl rfl Hdecl'
       refine {
         headers := Hheaders
+        commonLevel := hcommon
         levels := ?_
         levelParams := hlevelParams
         uvars := ?_
@@ -1796,6 +1824,7 @@ def MaterializedHeaderResult.withAmbient
   have hparams := weakenParams H.params
   refine {
     headers := H.headers
+    commonLevel := H.commonLevel
     levels := H.levels
     levelParams := H.levelParams
     uvars := H.uvars

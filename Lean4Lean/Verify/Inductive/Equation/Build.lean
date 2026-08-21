@@ -407,13 +407,6 @@ theorem AddInductive.runWithStats.closedWF
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-      fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
     (hnotPartial : c.safety ≠ .partial)
@@ -429,7 +422,7 @@ theorem AddInductive.runWithStats.closedWF
   apply AddInductive.runWithStats.WF stats numParams indTypes numNested
     isUnsafe c
   · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
-      hvisible hnprimTypes hconsume hlit hproj hunsafe hbound hnprimCtors
+      hvisible hnprimTypes hconsume hlit hproj hunsafe hnprimCtors
   · exact hlparams
   · exact hwhnf
   · exact hfieldReplay
@@ -526,13 +519,6 @@ structure RunWithStatsVerificationInputs
   projections : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
     e'.containsAnyConst (decl.types.map (·.name)) = false →
     e''.containsAnyConst (decl.types.map (·.name)) = false
-  universeBound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-    fieldLevel fieldLevel',
-    VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-    (stats.resultLevel.isAlwaysZero ||
-      stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-    decl.types[targetIdx].resultLevel = .zero ∨
-      fieldLevel' ≤ decl.types[targetIdx].resultLevel
   freshConstructorConstants : ∀ owner ∈ indTypes.toList,
     ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name
@@ -559,7 +545,7 @@ theorem RunWithStatsVerificationInputs.verify
     hlparams H.whnfLParams H.recursiveFieldReplay H.loopUArgsReplay
     H.recursorConsume
     H.literalDisjoint H.projections
-    (fun h => Hdecl.isUnsafe.trans h) H.universeBound
+    (fun h => Hdecl.isUnsafe.trans h)
     H.freshConstructorConstants hnotPartial
     H.freshRecursors
 

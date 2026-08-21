@@ -420,7 +420,7 @@ inductive VInductDecl.CtorTailWF (env : VEnv) (decl : VInductDecl)
     decl.CtorTailWF env target ctx depth result
   | field :
     env.HasType decl.uvars ctx dom (.sort fieldLevel) →
-    (target.resultLevel = .zero ∨ fieldLevel ≤ target.resultLevel) →
+    (target.resultLevel ≈ .zero ∨ fieldLevel ≤ target.resultLevel) →
     (decl.isUnsafe = true ∨ decl.Positive env ctx depth dom) →
     env.IsDefEq decl.uvars ctx dom checkedDom (.sort checkedLevel) →
     env.IsDefEq decl.uvars (dom :: ctx) body checkedBody bodyType →

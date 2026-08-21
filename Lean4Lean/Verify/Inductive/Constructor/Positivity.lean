@@ -2701,7 +2701,7 @@ theorem safeField.refines
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
     (Hrec : ∀ fieldType' fieldLevel fieldLevel',
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
@@ -2767,7 +2767,7 @@ theorem unsafeField.refines
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
     (Hrec : ∀ fieldType' fieldLevel fieldLevel',
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
@@ -2841,7 +2841,7 @@ theorem tailRefines
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel = .zero ∨ fieldLevel' ≤ target.resultLevel)
+      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
     (hpositivity : ∀ {c : AddInductive.Context} {depth posIdx : Nat}
       {type : Expr} {type' : VExpr} (Hc : ContextWF c),
       checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams

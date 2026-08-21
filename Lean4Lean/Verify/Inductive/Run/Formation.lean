@@ -161,14 +161,7 @@ theorem AddInductive.checkConstructors.checkedWF
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-      fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         CheckedConstructorsResult sourceEnv decl H.context.venv
@@ -176,7 +169,7 @@ theorem AddInductive.checkConstructors.checkedWF
           H.materialized.parameterScope := by
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
     H.context H.translation.types H.translation.typesAdded H.materialized
-    H.headerParams hconsume hlit hproj hunsafe hbound
+    H.headerParams hconsume hlit hproj hunsafe H.materialized.universeBound
   rw [AddInductive.checkConstructors]
   change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
     AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
@@ -236,20 +229,13 @@ theorem AddInductive.checkConstructors.headersWF
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-      fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         ConstructorCertificate sourceEnv decl H.context.venv
           H.headers.params :=
   (AddInductive.checkConstructors.checkedWF H hconsume hlit hproj
-    hunsafe hbound).mono fun _ Hchecked => Hchecked.checked.formation
+    hunsafe).mono fun _ Hchecked => Hchecked.checked.formation
 
 /-- Verified boundary after the concrete constructor-info fold.  It retains
 the exact abstract constructor environment and the now-typed pointwise source
@@ -370,6 +356,7 @@ def ConstructorPhasesResult.materialized
   let M := H.materialized.mono henv
   exact {
     headers := M.headers
+    commonLevel := M.commonLevel
     levels := M.levels
     levelParams := M.levelParams
     uvars := M.uvars
@@ -1041,13 +1028,6 @@ theorem AddInductive.constructorPhases.WF
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-      fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hnprim : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
@@ -1057,7 +1037,7 @@ theorem AddInductive.constructorPhases.WF
       { c with env := headerEnv }).WF fun outEnv =>
         ∃ _ : ConstructorPhasesResult H outEnv, True := by
   have Hcheck := AddInductive.checkConstructors.checkedWF H hconsume
-    hlit hproj hunsafe hbound
+    hlit hproj hunsafe
   have Howners := AddInductive.checkConstructors.ownerNormalFormsWF H
     hconsume hlit hproj
   have HcheckBoth :
@@ -1109,13 +1089,6 @@ theorem AddInductive.formationCore.headersWF
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-      fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
@@ -1132,7 +1105,7 @@ theorem AddInductive.formationCore.headersWF
   exact Htypes.bind fun headerEnv Hresult => by
     rcases Hresult with ⟨Hheaders, _⟩
     have Hphases := AddInductive.constructorPhases.WF Hheaders
-      hconsume hlit hproj hunsafe hbound hvisible hnprimCtors
+      hconsume hlit hproj hunsafe hvisible hnprimCtors
     exact Hphases.mono fun outEnv Hresult => by
       rcases Hresult with ⟨Hphases, _⟩
       exact ⟨headerEnv, Hheaders, Hphases, trivial⟩
@@ -1159,14 +1132,7 @@ theorem AddInductive.formationPrefix.headersWF
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-      fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun outEnv =>
         AddInductive.withEnv outEnv
@@ -1177,7 +1143,7 @@ theorem AddInductive.formationPrefix.headersWF
   exact Htypes.bind fun outEnv hresult => by
     rcases hresult with ⟨Hstaged, _⟩
     have Hconstructors := AddInductive.checkConstructors.headersWF Hstaged
-      hconsume hlit hproj hunsafe hbound
+      hconsume hlit hproj hunsafe
     exact Hconstructors.mono fun _ Hctors =>
       ⟨Hstaged.formation Hctors⟩
 
@@ -1253,14 +1219,7 @@ theorem AddInductive.checkConstructors.WF
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-      fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         ConstructorCertificate sourceEnv decl H.context.venv H.headers.params := by
@@ -1272,7 +1231,7 @@ theorem AddInductive.checkConstructors.WF
       H.sourceTypes
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
     H.context Hheaders H.typesInstalled H.materialized H.headerParams
-    hconsume hlit hproj hunsafe hbound
+    hconsume hlit hproj hunsafe H.materialized.universeBound
   rw [AddInductive.checkConstructors]
   change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
     AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
@@ -1306,14 +1265,7 @@ theorem AddInductive.formationPrefix.WF
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-      fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun outEnv =>
         AddInductive.withEnv outEnv
@@ -1321,7 +1273,7 @@ theorem AddInductive.formationPrefix.WF
       fun _ => Nonempty (FormationCertificate Hc.venv decl) := by
   exact AddInductive.formationPrefix.headersWF Hc
     (Lean4Lean.VerifyInductive.TrInductDeclCore.headers Hdecl)
-    Hmaterialized hvisible hnprim hconsume hlit hproj hunsafe hbound
+    Hmaterialized hvisible hnprim hconsume hlit hproj hunsafe
 
 /-- Three-stage installation certificate matching the executable order:
 mutual headers, constructors, then recursors. Reduction equations are not

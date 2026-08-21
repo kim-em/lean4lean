@@ -3016,13 +3016,6 @@ theorem AddInductive.formationCore.closedWF
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
-      fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.types[targetIdx].resultLevel = .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel)
     (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
@@ -3050,7 +3043,7 @@ theorem AddInductive.formationCore.closedWF
     HheadersClosed
   intro headerEnv Hheader
   exact AddInductive.constructorPhases.WF Hheader hconsume hlit hproj
-    hunsafe hbound hvisible hnprimCtors
+    hunsafe hvisible hnprimCtors
 
 
 end VerifyInductive
