@@ -718,6 +718,55 @@ theorem LoweredConstructorMapping.restoredType_translation
   apply Hsource.eqv
   simpa [beq_comm] using Hinverse.restoredType_eqv_source
 
+/-- Recover the independently specified source-constructor translation from
+the translation of the exact restored production constructor.  This is the
+direction needed by the outer nested verifier: the executable checker sees
+the restored type, while the abstract declaration is stated using the
+original pre-lowering source type. -/
+theorem LoweredConstructorMapping.sourceType_translationOfRestored
+    (H : LoweredConstructorMapping env params nparams result source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (restoreEnv : Environment)
+    (HsourceDisjoint : RestoreSourceDisjoint result restoreEnv source.type)
+    (hresultNParams : result.nparams = nparams)
+    (Hrestored : ConstructorRestoration result restoreEnv oldInfo newInfo)
+    (htype : oldInfo.type = out.1.type)
+    (Htranslation : TrExprS venv oldInfo.levelParams []
+      newInfo.type targetType) :
+    TrExprS venv oldInfo.levelParams [] source.type targetType := by
+  rcases H.constructorRestoration_inverse hresultParams paramFvars hparams
+      hnodup HsourceClosed restoreEnv HsourceDisjoint hresultNParams Hrestored
+      htype with
+    ⟨Hinverse⟩
+  exact Htranslation.eqv Hinverse.restoredType_eqv_source
+
+/-- Syntax-specialized reverse transport.  Source closedness and
+restoration-name disjointness follow from the independently checked source
+syntax and the reserved auxiliary namespace. -/
+theorem LoweredConstructorMapping.sourceType_translationOfRestoredSyntax
+    (H : LoweredConstructorMapping env params nparams result source state out)
+    (hresultParams : result.params = params)
+    (paramFvars : List FVarId)
+    (hparams : params = (paramFvars.map Expr.fvar).toArray)
+    (hnodup : paramFvars.Nodup)
+    (Hsyntax : SourceConstructorSyntax source)
+    (restoreEnv : Environment)
+    (Hreserved : RestoreNamesReserved result restoreEnv)
+    (hresultNParams : result.nparams = nparams)
+    (Hrestored : ConstructorRestoration result restoreEnv oldInfo newInfo)
+    (htype : oldInfo.type = out.1.type)
+    (Htranslation : TrExprS venv oldInfo.levelParams []
+      newInfo.type targetType) :
+    TrExprS venv oldInfo.levelParams [] source.type targetType := by
+  exact H.sourceType_translationOfRestored hresultParams paramFvars hparams
+    hnodup Hsyntax.closed restoreEnv
+    (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams
+    Hrestored htype Htranslation
+
 /-- Transport a source constructor's abstract translation across lowering and
 restoration.  This is the semantic premise needed by constructor installation;
 unlike translation of the lowered constructor, it is obtained from the
