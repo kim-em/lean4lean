@@ -192,6 +192,31 @@ theorem LocalForallSelection.prependTelescope
   exact (Hsel.forallTelescope inner).trans <| by
     simpa using Hinner.abstractList Hsel.fvars
 
+/-- Prepend one retained binder group to an exact inner binder while
+simultaneously closing its declaration type over the outer group.  The
+explicit inner-prefix list makes this reusable for each successive group of
+the generated recursor telescope. -/
+theorem LocalForallSelection.prependBinderAtClosed
+    {type : Expr}
+    (Houter : LocalForallSelection lctx outer)
+    (Hinner : Expr.ForallBinderAt inner i
+      (type.abstractList innerPrefix))
+    (hinnerLength : innerPrefix.length = i)
+    (hnodup : (Houter.fvars ++ innerPrefix).Nodup) :
+    Expr.ForallBinderAt (lctx.mkForall outer inner) (outer.size + i)
+      (type.abstractList (Houter.fvars ++ innerPrefix)) := by
+  have Hclosed := Hinner.abstractList Houter.fvars 0
+  have hdomain :
+      (type.abstractList innerPrefix).abstractList Houter.fvars i =
+        type.abstractList (Houter.fvars ++ innerPrefix) := by
+    have Hclose := Expr.abstractList_after_inner
+      (e := type) (outer := Houter.fvars) (inner := innerPrefix)
+      (k := 0) hnodup
+    simpa [hinnerLength] using Hclose
+  have Hprefix := Houter.forallTelescope inner
+  have Hresult := Hprefix.prependBinderAt Hclosed
+  simpa only [Nat.zero_add, hdomain] using Hresult
+
 def RecursorLocalSelections.residual
     (H : RecursorLocalSelections c stats recInfos ownerIdx)
     (body : Expr) : Expr :=
@@ -719,6 +744,208 @@ theorem RecursorLocalSelections.minorBinderAt
       HrawBase
   simpa [motiveSource, minorSource, minorBody, hparamsLength,
     hmotivesLength, Nat.add_assoc] using Hraw.inferImplicit 1000 false
+
+/-- The owner-index slot of the concrete production recursor is the exact
+retained index declaration closed over parameters, motives, minors, and the
+strictly earlier owner indices. -/
+theorem RecursorLocalSelections.indexBinderAt
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias)
+    (D : BoundFVarDeclarationAt c recInfos[ownerIdx]!.indices indexIdx) :
+    let raw :=
+      c.lctx.mkForall stats.params <|
+      c.lctx.mkForall (recInfos.map (·.motive)) <|
+      c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+      c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+      c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+        (.app (mkAppN recInfos[ownerIdx]!.motive
+          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+    Expr.ForallBinderAt (raw.inferImplicit 1000 false)
+      (stats.params.size + (recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size + indexIdx)
+      (D.type.abstractList
+        (H.params.fvars ++ (H.motives.fvars ++
+          (H.minors.fvars ++ H.indices.fvars.take indexIdx)))) := by
+  dsimp only
+  let resultBody : Expr :=
+    .app (mkAppN recInfos[ownerIdx]!.motive
+      recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major
+  let majorSource :=
+    c.lctx.mkForall #[recInfos[ownerIdx]!.major] resultBody
+  let indexSource :=
+    c.lctx.mkForall recInfos[ownerIdx]!.indices majorSource
+  let minorSource :=
+    c.lctx.mkForall (recInfos.flatMap (·.minors)) indexSource
+  let motiveSource :=
+    c.lctx.mkForall (recInfos.map (·.motive)) minorSource
+  let parts := hnoalias.parts
+  have hindexFVars : indexIdx < H.indices.fvars.length := by
+    rw [← H.indices.size]
+    exact D.inBounds
+  have hindexTake : (H.indices.fvars.take indexIdx).length = indexIdx := by
+    simp [List.length_take, Nat.min_eq_left (Nat.le_of_lt hindexFVars)]
+  have Hindex : Expr.ForallBinderAt indexSource indexIdx
+      (D.type.abstractList (H.indices.fvars.take indexIdx)) := by
+    exact H.indices.forallBinderAt parts.indices D (body := majorSource)
+  have hminorIndex :
+      (H.minors.fvars ++ H.indices.fvars.take indexIdx).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨parts.minors, parts.indices.take, ?_⟩
+    intro minor hminor index hindex heq
+    exact parts.minors_later minor hminor index
+      (List.mem_append.mpr
+        (Or.inl (List.mem_of_mem_take hindex))) heq
+  have HthroughMinors := H.minors.prependBinderAtClosed Hindex
+    hindexTake hminorIndex
+  have hminorIndexLength :
+      (H.minors.fvars ++ H.indices.fvars.take indexIdx).length =
+        (recInfos.flatMap (·.minors)).size + indexIdx := by
+    rw [List.length_append, hindexTake, ← H.minors.size]
+  have hmotiveMinorIndex :
+      (H.motives.fvars ++
+        (H.minors.fvars ++ H.indices.fvars.take indexIdx)).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨parts.motives, hminorIndex, ?_⟩
+    intro motive hmotive later hlater heq
+    rcases List.mem_append.mp hlater with hminor | hindex
+    · exact parts.motives_later motive hmotive later
+        (List.mem_append.mpr (Or.inl hminor)) heq
+    · exact parts.motives_later motive hmotive later
+        (List.mem_append.mpr (Or.inr
+          (List.mem_append.mpr
+            (Or.inl (List.mem_of_mem_take hindex))))) heq
+  have HthroughMotives := H.motives.prependBinderAtClosed HthroughMinors
+    hminorIndexLength hmotiveMinorIndex
+  have hmotiveMinorIndexLength :
+      (H.motives.fvars ++
+        (H.minors.fvars ++ H.indices.fvars.take indexIdx)).length =
+        (recInfos.map (·.motive)).size +
+          ((recInfos.flatMap (·.minors)).size + indexIdx) := by
+    rw [List.length_append, hminorIndexLength, ← H.motives.size]
+  have hparamMotiveMinorIndex :
+      (H.params.fvars ++ (H.motives.fvars ++
+        (H.minors.fvars ++ H.indices.fvars.take indexIdx))).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨parts.params, hmotiveMinorIndex, ?_⟩
+    intro param hparam later hlater heq
+    rcases List.mem_append.mp hlater with hmotive | hlater
+    · exact parts.params_later param hparam later
+        (List.mem_append.mpr (Or.inl hmotive)) heq
+    · rcases List.mem_append.mp hlater with hminor | hindex
+      · exact parts.params_later param hparam later
+          (List.mem_append.mpr (Or.inr
+            (List.mem_append.mpr (Or.inl hminor)))) heq
+      · exact parts.params_later param hparam later
+          (List.mem_append.mpr (Or.inr
+            (List.mem_append.mpr (Or.inr
+              (List.mem_append.mpr
+                (Or.inl (List.mem_of_mem_take hindex))))))) heq
+  have Hraw := H.params.prependBinderAtClosed HthroughMotives
+    hmotiveMinorIndexLength hparamMotiveMinorIndex
+  simpa [motiveSource, minorSource, indexSource, majorSource, resultBody,
+    Nat.add_assoc] using Hraw.inferImplicit 1000 false
+
+/-- The final major-premise slot is the exact retained major declaration
+closed over all four preceding generated recursor groups. -/
+theorem RecursorLocalSelections.majorBinderAt
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias)
+    (D : BoundFVarDeclarationAt c #[recInfos[ownerIdx]!.major] 0) :
+    let raw :=
+      c.lctx.mkForall stats.params <|
+      c.lctx.mkForall (recInfos.map (·.motive)) <|
+      c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+      c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+      c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+        (.app (mkAppN recInfos[ownerIdx]!.motive
+          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+    Expr.ForallBinderAt (raw.inferImplicit 1000 false)
+      (stats.params.size + (recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size)
+      (D.type.abstractList
+        (H.params.fvars ++ (H.motives.fvars ++
+          (H.minors.fvars ++ H.indices.fvars)))) := by
+  dsimp only
+  let resultBody : Expr :=
+    .app (mkAppN recInfos[ownerIdx]!.motive
+      recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major
+  let majorSource :=
+    c.lctx.mkForall #[recInfos[ownerIdx]!.major] resultBody
+  let indexSource :=
+    c.lctx.mkForall recInfos[ownerIdx]!.indices majorSource
+  let minorSource :=
+    c.lctx.mkForall (recInfos.flatMap (·.minors)) indexSource
+  let motiveSource :=
+    c.lctx.mkForall (recInfos.map (·.motive)) minorSource
+  let parts := hnoalias.parts
+  have HmajorBase : Expr.ForallBinderAt majorSource 0
+      (D.type.abstractList (H.major.fvars.take 0)) := by
+    exact H.major.forallBinderAt parts.major D (body := resultBody)
+  have Hmajor : Expr.ForallBinderAt majorSource 0 D.type := by
+    simpa using HmajorBase
+  have HthroughIndicesBase := H.indices.prependBinderAtClosed Hmajor
+    (innerPrefix := []) (by simp) (by simpa using parts.indices)
+  have HthroughIndices : Expr.ForallBinderAt indexSource
+      recInfos[ownerIdx]!.indices.size
+      (D.type.abstractList H.indices.fvars) := by
+    simpa [indexSource] using HthroughIndicesBase
+  have hminorIndices :
+      (H.minors.fvars ++ H.indices.fvars).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨parts.minors, parts.indices, ?_⟩
+    intro minor hminor index hindex heq
+    exact parts.minors_later minor hminor index
+      (List.mem_append.mpr (Or.inl hindex)) heq
+  have HthroughMinors := H.minors.prependBinderAtClosed HthroughIndices
+    H.indices.size.symm hminorIndices
+  have hminorIndicesLength :
+      (H.minors.fvars ++ H.indices.fvars).length =
+        (recInfos.flatMap (·.minors)).size +
+          recInfos[ownerIdx]!.indices.size := by
+    rw [List.length_append, ← H.minors.size, ← H.indices.size]
+  have hmotiveMinorIndices :
+      (H.motives.fvars ++
+        (H.minors.fvars ++ H.indices.fvars)).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨parts.motives, hminorIndices, ?_⟩
+    intro motive hmotive later hlater heq
+    rcases List.mem_append.mp hlater with hminor | hindex
+    · exact parts.motives_later motive hmotive later
+        (List.mem_append.mpr (Or.inl hminor)) heq
+    · exact parts.motives_later motive hmotive later
+        (List.mem_append.mpr (Or.inr
+          (List.mem_append.mpr (Or.inl hindex)))) heq
+  have HthroughMotives := H.motives.prependBinderAtClosed HthroughMinors
+    hminorIndicesLength hmotiveMinorIndices
+  have hmotiveMinorIndicesLength :
+      (H.motives.fvars ++
+        (H.minors.fvars ++ H.indices.fvars)).length =
+        (recInfos.map (·.motive)).size +
+          ((recInfos.flatMap (·.minors)).size +
+            recInfos[ownerIdx]!.indices.size) := by
+    rw [List.length_append, hminorIndicesLength, ← H.motives.size]
+  have hparamMotiveMinorIndices :
+      (H.params.fvars ++ (H.motives.fvars ++
+        (H.minors.fvars ++ H.indices.fvars))).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨parts.params, hmotiveMinorIndices, ?_⟩
+    intro param hparam later hlater heq
+    rcases List.mem_append.mp hlater with hmotive | hlater
+    · exact parts.params_later param hparam later
+        (List.mem_append.mpr (Or.inl hmotive)) heq
+    · rcases List.mem_append.mp hlater with hminor | hindex
+      · exact parts.params_later param hparam later
+          (List.mem_append.mpr (Or.inr
+            (List.mem_append.mpr (Or.inl hminor)))) heq
+      · exact parts.params_later param hparam later
+          (List.mem_append.mpr (Or.inr
+            (List.mem_append.mpr (Or.inr
+              (List.mem_append.mpr (Or.inl hindex)))))) heq
+  have Hraw := H.params.prependBinderAtClosed HthroughMotives
+    hmotiveMinorIndicesLength hparamMotiveMinorIndices
+  simpa [motiveSource, minorSource, indexSource, majorSource, resultBody,
+    Nat.add_assoc] using Hraw.inferImplicit 1000 false
 
 /-- The retained executable binder selections, their global no-alias
 invariant, and the independent cardinality certificate determine the exact

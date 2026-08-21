@@ -515,6 +515,9 @@ structure GeneratedRecursorRestorationTelescopeAlignment
       indTypes recInfos ownerIdx entry) where
   trace : GeneratedRecursorRestorationTelescopeTrace result prodEnv auxRec
     newInfo Hentry
+  selections : RecursorLocalSelections c stats recInfos ownerIdx
+  noAlias : selections.NoAlias
+  nparams_eq : result.nparams = stats.params.size
   oldParamDomains : List VExpr
   oldSuffixTarget : VExpr
   owner_lt : ownerIdx < recInfos.size
@@ -667,9 +670,14 @@ def GeneratedRecursorRestoredDomainTranslationInvariant
     (State : Nat -> List VExpr -> Prop)
     (position binderDepth : Nat) (accumulated : List VExpr) : Prop :=
   State position accumulated ->
-  OnCtx (abstractForallContext accumulated newBase).toCtx
+    OnCtx (abstractForallContext accumulated newBase).toCtx
       (newEnv.IsType Hentry.info.levelParams.length) ->
     forall {oldDelta oldDomain newDomain oldDomainTarget},
+    Expr.ForallBinderAt
+      (H.trace.opening.body.abstractList
+        H.trace.opening.selection.fvars)
+      position
+      (oldDomain.abstractList H.trace.opening.selection.fvars binderDepth) ->
     ExprReplacement
         (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
         oldDomain newDomain ->
@@ -814,12 +822,114 @@ theorem RecursorRestoration.generatedTelescopeAlignment
   have hbody : Htrace.opening.body.abstractList
       Htrace.opening.selection.fvars = suffixSource :=
     Htrace.opening.abstractBody_eq_suffix HsourcePrefix' Hinput
-  refine ⟨⟨Htrace, paramDomains, suffixTarget, howner, ?_, ?_, ?_, ?_⟩⟩
+  refine ⟨⟨Htrace, Hselections, hnoalias, hparams, paramDomains,
+    suffixTarget, howner, ?_, ?_, ?_, ?_⟩⟩
   · exact hparamDomains.trans hparams.symm
   · simpa only [hbody] using HsourcePrefix'
   · exact FVarsIn_to_FVarIdsIn Hinput
   · rw [hbody]
     simpa [suffixArity] using Hsuffix
+
+/-- Lift an exact binder of the parameter-closed restoration suffix back to
+its global position in the generated source recursor.  This is the common
+source identity used to compare an operational replacement domain with the
+independently retained local declaration for its classified slot. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.fullDomainAt
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (Hdomain : Expr.ForallBinderAt
+      (H.trace.opening.body.abstractList
+        H.trace.opening.selection.fvars)
+      position domain) :
+    Expr.ForallBinderAt Hentry.info.type
+      (result.nparams + position) domain :=
+  H.oldPrefix.prependBinderAt Hdomain
+
+/-- The operational domain consumed at a motive slot is definitionally the
+source declaration closed over the generated parameter and earlier-motive
+prefix. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.motiveDomain_eq
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (D : BoundFVarDeclarationAt c (recInfos.map (·.motive)) motiveIdx)
+    (Hdomain : Expr.ForallBinderAt
+      (H.trace.opening.body.abstractList
+        H.trace.opening.selection.fvars)
+      motiveIdx domain) :
+    domain = D.type.abstractList
+      (H.selections.params.fvars ++
+        H.selections.motives.fvars.take motiveIdx) := by
+  apply (H.fullDomainAt Hdomain).unique
+  have Hexpected := H.selections.motiveBinderAt H.noAlias D
+  simpa only [Hentry.type, H.nparams_eq] using Hexpected
+
+/-- The operational domain consumed at a flattened minor slot is the exact
+minor declaration closed over parameters, motives, and preceding minors. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.minorDomain_eq
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (D : BoundFVarDeclarationAt c
+      (recInfos.flatMap (·.minors)) minorIdx)
+    (Hdomain : Expr.ForallBinderAt
+      (H.trace.opening.body.abstractList
+        H.trace.opening.selection.fvars)
+      ((recInfos.map (·.motive)).size + minorIdx) domain) :
+    domain = D.type.abstractList
+      (H.selections.params.fvars ++
+        (H.selections.motives.fvars ++
+          H.selections.minors.fvars.take minorIdx)) := by
+  apply (H.fullDomainAt Hdomain).unique
+  have Hexpected := H.selections.minorBinderAt H.noAlias D
+  simpa only [Hentry.type, H.nparams_eq, Nat.add_assoc, List.append_assoc]
+    using Hexpected
+
+/-- The operational owner-index domain is the retained index declaration
+closed over every earlier generated recursor group. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.indexDomain_eq
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (D : BoundFVarDeclarationAt c recInfos[ownerIdx]!.indices indexIdx)
+    (Hdomain : Expr.ForallBinderAt
+      (H.trace.opening.body.abstractList
+        H.trace.opening.selection.fvars)
+      ((recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size + indexIdx) domain) :
+    domain = D.type.abstractList
+      (H.selections.params.fvars ++ (H.selections.motives.fvars ++
+        (H.selections.minors.fvars ++
+          H.selections.indices.fvars.take indexIdx))) := by
+  apply (H.fullDomainAt Hdomain).unique
+  have Hexpected := H.selections.indexBinderAt H.noAlias D
+  simpa only [Hentry.type, H.nparams_eq, Nat.add_assoc] using Hexpected
+
+/-- The operational major-premise domain is the retained major declaration
+closed over the complete parameter/motive/minor/index prefix. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.majorDomain_eq
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry)
+    (D : BoundFVarDeclarationAt c #[recInfos[ownerIdx]!.major] 0)
+    (Hdomain : Expr.ForallBinderAt
+      (H.trace.opening.body.abstractList
+        H.trace.opening.selection.fvars)
+      ((recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size) domain) :
+    domain = D.type.abstractList
+      (H.selections.params.fvars ++ (H.selections.motives.fvars ++
+        (H.selections.minors.fvars ++ H.selections.indices.fvars))) := by
+  apply (H.fullDomainAt Hdomain).unique
+  have Hexpected := H.selections.majorBinderAt H.noAlias D
+  simpa only [Hentry.type, H.nparams_eq, Nat.add_assoc] using Hexpected
 
 /-- Run the accumulator-aware semantic replacement fold over the exact
 generated/restored suffix alignment.  This packages the bookkeeping that is
@@ -1171,15 +1281,18 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfInvarian
   apply H.trace.suffix.transportAbstractedAtFromInvariant
     (oldParams := H.trace.opening.selection.fvars)
     (newParams := H.trace.opening.selection.fvars)
+    (rootInput := H.trace.opening.body)
     (depth := 0)
     (limit := (recInfos.map (·.motive)).size +
       (recInfos.flatMap (·.minors)).size +
       recInfos[ownerIdx]!.indices.size + 1)
     (position := 0) (hspan := by omega)
+    (hdepth := rfl)
+    (Hprefix := .nil H.trace.opening.body)
     (newPrefix := newPrefix) (newBase := newBase)
     H.oldSuffix Hsemantics.State Hsemantics.initial HnewCtx
   · intro oldDelta oldDomain newDomain oldDomainTarget position binderDepth
-      accumulated hposition Hstate Hctx Hreplacement Htr Htype
+      accumulated hposition Hstate Hctx HdomainAt Hreplacement Htr Htype
     have hslot : position <
         (generatedRecursorDomainSlots recInfos ownerIdx).length := by
       simpa using hposition
@@ -1197,19 +1310,19 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfInvarian
           ⟨Hdeclaration⟩
         exact Hsemantics.domains.motive _ (by omega) Hdeclaration
           (Horigins.motives.type_eq Hdeclaration) binderDepth accumulated
-          Hstate Hctx Hreplacement Htr Htype
+          Hstate Hctx HdomainAt Hreplacement Htr Htype
     | minor =>
         rcases Hbindings.flatMinors.declarationAt Hc _ (by omega) with
           ⟨Hdeclaration⟩
         rcases Horigins.flatMinorOrigin Hdeclaration with ⟨Horigin⟩
         exact Hsemantics.domains.minor _ (by omega) Hdeclaration Horigin
-          binderDepth accumulated Hstate Hctx Hreplacement Htr Htype
+          binderDepth accumulated Hstate Hctx HdomainAt Hreplacement Htr Htype
     | index =>
         rcases (Hbindings.indices ownerIdx howner).declarationAt Hc _
             (by omega) with ⟨Hdeclaration⟩
         exact Hsemantics.domains.index _ (by omega) Hdeclaration
           ((Horigins.indices ownerIdx howner).type_eq Hdeclaration)
-          binderDepth accumulated Hstate Hctx Hreplacement Htr Htype
+          binderDepth accumulated Hstate Hctx HdomainAt Hreplacement Htr Htype
     | major =>
         rcases (Hbindings.major ownerIdx howner).declarationAt Hc 0
             (by simp) with ⟨Hdeclaration⟩
@@ -1224,7 +1337,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfInvarian
         have htypeEq := Hdeclaration.type_eq_of_expression Horigin hexpression
         exact Hsemantics.domains.major Hdeclaration
           (htypeEq.trans horiginType) binderDepth accumulated Hstate Hctx
-          Hreplacement Htr Htype
+          HdomainAt Hreplacement Htr Htype
   · intro oldDelta oldResidualTarget accumulated Hstate Hctx Hreplacement
       Htr Htype
     simpa using Hsemantics.residual accumulated Hstate Hctx Hreplacement
