@@ -3010,10 +3010,6 @@ theorem AddInductive.formationCore.closedWF
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -3053,7 +3049,7 @@ theorem AddInductive.formationCore.closedWF
   apply formationCoreAndClosure stats numParams indTypes numNested isUnsafe c
     HheadersClosed
   intro headerEnv Hheader
-  exact AddInductive.constructorPhases.WF Hheader Hfresh hconsume hlit hproj
+  exact AddInductive.constructorPhases.WF Hheader hconsume hlit hproj
     hunsafe hbound hvisible hnprimCtors
 
 

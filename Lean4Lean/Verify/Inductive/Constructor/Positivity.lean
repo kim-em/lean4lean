@@ -56,6 +56,29 @@ theorem stepPrefix.WF
     subst c'
     exact (Hloop _ type' checkedType' hchecked).bind fun _ hnext => hnext
 
+/-- One constructor-loop iteration, including the production duplicate-name
+guard.  A duplicate takes the executable error branch; only the successful
+branch reaches the semantic constructor checker. -/
+theorem stepPrefix.checkedWF
+    (Hc : ContextWF c) (hidx : ctorIdx < ctors.length)
+    (Hloop : ∀ checkedType type' checkedType',
+      TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
+        ctors[ctorIdx].type checkedType type' checkedType' →
+      (AddInductive.checkConstructors.loopCtor stats isUnsafe
+        ctors[ctorIdx].name targetIdx ctors[ctorIdx].type 0
+        c.fuel.inductiveFuel c).WF fun _ =>
+      (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+        ctors (ctorIdx + 1)
+        (foundCtors.insert ctors[ctorIdx].name) c).WF Q) :
+    (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
+      ctors ctorIdx foundCtors c).WF Q := by
+  cases hfresh : foundCtors.contains ctors[ctorIdx].name with
+  | false => exact stepPrefix.WF Hc hidx hfresh Hloop
+  | true =>
+      rw [AddInductive.checkConstructors.loopCtors, dif_pos hidx]
+      simp only [hfresh, ↓reduceIte]
+      exact Except.WF.throw
+
 /-- Shape-producing constructor step. This is the interface used by the
 flattened constructor-prefix accumulator; all telescope details remain local
 to `Hshape`. -/
@@ -126,11 +149,7 @@ theorem refinesType
     (Q : Unit → Prop)
     (Hc : ContextWF c)
     (Htarget : TrInductiveTypeHeaders sourceEnv envTypes c.lparams source target)
-    (Hnames : ConstructorNameState source.ctors ctorIdx foundCtors)
     (Hprefix : ConstructorTypePrefix envTypes decl params target ctorIdx)
-    (Hfresh : ∀ {i found}, ConstructorNameState source.ctors i found →
-      (hi : i < source.ctors.length) →
-      found.contains source.ctors[i].name = false)
     (Hshape : ∀ i (hsource : i < source.ctors.length)
       (htarget : i < target.ctors.length),
       TrSourceConstRaw envTypes c.lparams source.ctors[i].name
@@ -154,15 +173,15 @@ theorem refinesType
       exact hidx
     have Hctor := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctorAt
       Htarget ctorIdx hidx htarget
-    apply stepPrefix.WF (stats := stats) (isUnsafe := isUnsafe)
-      (targetIdx := targetIdx) (Q := Q) Hc hidx (Hfresh Hnames hidx)
+    apply stepPrefix.checkedWF (stats := stats) (isUnsafe := isUnsafe)
+      (targetIdx := targetIdx) (Q := Q) Hc hidx
     intro checkedType type' checkedType' hchecked
     have Hchecked := Hshape ctorIdx hidx htarget Hctor checkedType type'
       checkedType' hchecked
     exact Hchecked.mono fun _ hcheckedCtor =>
-      refinesType Q Hc Htarget (.succ Hnames hidx)
+      refinesType Q Hc Htarget
         (Hprefix.push htarget hcheckedCtor.1 hcheckedCtor.2)
-        Hfresh Hshape Hfinish
+        Hshape Hfinish
   · have heq : ctorIdx = source.ctors.length := by
       have := Hprefix.covered
       rw [← Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget]
@@ -211,10 +230,6 @@ theorem refinesBlock
       (TrInductiveTypeHeaders sourceEnv envTypes c.lparams)
       indTypes.toList decl.types)
     (Hprefix : ConstructorTypesPrefix envTypes decl params targetIdx)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (Hshape : ∀ targetIdx (hsource : targetIdx < indTypes.size)
       (htarget : targetIdx < decl.types.length)
       i (hctorSource : i < indTypes[targetIdx].ctors.length)
@@ -250,15 +265,14 @@ theorem refinesBlock
       (Q := fun _ =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
           (targetIdx + 1) c).WF Q)
-      Hc Htarget .zero
+      Hc Htarget
       (ConstructorTypePrefix.empty envTypes decl params decl.types[targetIdx])
-      (Hfresh targetIdx hidx)
     · intro i hsource htarget' Hctor checkedType type' checkedType' hchecked
       exact Hshape targetIdx hidx htarget i hsource htarget' Hctor
         checkedType type' checkedType' hchecked
     · intro Htype
       exact refinesBlock Q Hc Htypes
-        (Hprefix.push htarget Htype) Hfresh Hshape Hfinish
+        (Hprefix.push htarget Htype) Hshape Hfinish
   · have heq : targetIdx = indTypes.size := by
       have hlength : indTypes.size = decl.types.length := by
         simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes

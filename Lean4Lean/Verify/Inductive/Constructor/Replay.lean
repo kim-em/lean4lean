@@ -22,15 +22,11 @@ theorem refinesTypeWithReplay
     (Q : Unit → Prop)
     (Hc : ContextWF c)
     (Htarget : TrInductiveTypeHeaders sourceEnv envTypes c.lparams source target)
-    (Hnames : ConstructorNameState source.ctors ctorIdx foundCtors)
     (Hprefix : ConstructorTypePrefix envTypes decl params target ctorIdx)
     (Hreplay : ConstructorParamPrefixRow stats source.ctors ctorIdx)
     {tailScope : VLCtx}
     (Htails : ConstructorTailReplayRow Hc.venv c.lparams tailScope stats
       decl target source.ctors ctorIdx)
-    (Hfresh : ∀ {i found}, ConstructorNameState source.ctors i found →
-      (hi : i < source.ctors.length) →
-      found.contains source.ctors[i].name = false)
     (Hshape : ∀ i (hsource : i < source.ctors.length)
       (htarget : i < target.ctors.length),
       TrSourceConstRaw envTypes c.lparams source.ctors[i].name
@@ -68,8 +64,8 @@ theorem refinesTypeWithReplay
       exact hidx
     have Hctor := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctorAt
       Htarget ctorIdx hidx htarget
-    apply stepPrefix.WF (stats := stats) (isUnsafe := isUnsafe)
-      (targetIdx := targetIdx) (Q := Q) Hc hidx (Hfresh Hnames hidx)
+    apply stepPrefix.checkedWF (stats := stats) (isUnsafe := isUnsafe)
+      (targetIdx := targetIdx) (Q := Q) Hc hidx
     intro checkedType type' checkedType' hchecked
     have Hchecked := Hshape ctorIdx hidx htarget Hctor checkedType type'
       checkedType' hchecked
@@ -82,10 +78,10 @@ theorem refinesTypeWithReplay
         ⟨target.ctors[ctorIdx], tail, tailTarget,
           List.getElem_mem htarget, HctorNarrow, Hparam, Htranslated, Htail,
           Hsynthesis⟩
-      exact refinesTypeWithReplay Q Hc Htarget (.succ Hnames hidx)
+      exact refinesTypeWithReplay Q Hc Htarget
         (Hprefix.push htarget HctorShape HctorType)
         (Hreplay.push hidx Hparam) (Htails.push hidx HtailReplay)
-        Hfresh Hshape Hfinish
+        Hshape Hfinish
   · have heq : ctorIdx = source.ctors.length := by
       have := Hprefix.covered
       rw [← Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Htarget]
@@ -123,10 +119,6 @@ theorem refinesBlockWithReplay
     {tailScope : VLCtx}
     (Htails : ConstructorTailReplayRows Hc.venv c.lparams tailScope stats
       decl indTypes targetIdx)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (Hshape : ∀ targetIdx (hsource : targetIdx < indTypes.size)
       (htarget : targetIdx < decl.types.length)
       i (hctorSource : i < indTypes[targetIdx].ctors.length)
@@ -181,12 +173,11 @@ theorem refinesBlockWithReplay
       (Q := fun _ =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
           (targetIdx + 1) c).WF Q)
-      Hc Htarget .zero
+      Hc Htarget
       (ConstructorTypePrefix.empty envTypes decl params decl.types[targetIdx])
       (ConstructorParamPrefixRow.empty stats indTypes[targetIdx].ctors)
       (ConstructorTailReplayRow.empty Hc.venv c.lparams tailScope stats decl
         decl.types[targetIdx] indTypes[targetIdx].ctors)
-      (Hfresh targetIdx hidx)
     · intro i hsource htarget' Hctor checkedType type' checkedType' hchecked
       exact Hshape targetIdx hidx htarget i hsource htarget' Hctor
         checkedType type' checkedType' hchecked
@@ -194,7 +185,7 @@ theorem refinesBlockWithReplay
       exact refinesBlockWithReplay Q Hc Htypes
         (Hprefix.push htarget Htype) (Hreplays.push hidx Hrow)
         (Htails.push hidx HtailRow)
-        Hfresh Hshape Hfinish
+        Hshape Hfinish
   · have heq : targetIdx = indTypes.size := by
       have hlength : indTypes.size = decl.types.length := by
         simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
@@ -241,10 +232,6 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
     (hparams : Hmaterialized.headers.params = params)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -280,7 +267,6 @@ theorem checkConstructors.loopTypes.refinesMaterialized
     (ConstructorParamPrefixRows.empty stats indTypes)
     (ConstructorTailReplayRows.empty Hc.venv c.lparams
       Hmaterialized.parameterScope stats decl indTypes hindTypesSize)
-    Hfresh
   · intro targetIdx hsource htarget ctorIdx hctorSource hctorTarget
       Hctor checkedType fullType checkedType' hchecked
     have Htarget : TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams

@@ -156,10 +156,6 @@ constructor constants are already well-formed. -/
 theorem AddInductive.checkConstructors.checkedWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -180,7 +176,7 @@ theorem AddInductive.checkConstructors.checkedWF
           H.materialized.parameterScope := by
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
     H.context H.translation.types H.translation.typesAdded H.materialized
-    H.headerParams Hfresh hconsume hlit hproj hunsafe hbound
+    H.headerParams hconsume hlit hproj hunsafe hbound
   rw [AddInductive.checkConstructors]
   change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
     AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
@@ -200,10 +196,6 @@ later recursor implementation. -/
 theorem AddInductive.checkConstructors.ownerNormalFormsWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
@@ -222,7 +214,7 @@ theorem AddInductive.checkConstructors.ownerNormalFormsWF
     (isUnsafe := isUnsafe)
     H.context H.translation.types
     (ConstructorOwnerNormalFormRows.empty stats indTypes)
-    Hfresh Hsuffix Hstats hconsume hlit hproj
+    Hsuffix Hstats hconsume hlit hproj
     (fun Hrows => Hrows.complete)
   rw [AddInductive.checkConstructors]
   change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
@@ -239,10 +231,6 @@ theorem AddInductive.checkConstructors.ownerNormalFormsWF
 theorem AddInductive.checkConstructors.headersWF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -260,7 +248,7 @@ theorem AddInductive.checkConstructors.headersWF
       { c with env := outEnv }).WF fun _ =>
         ConstructorCertificate sourceEnv decl H.context.venv
           H.headers.params :=
-  (AddInductive.checkConstructors.checkedWF H Hfresh hconsume hlit hproj
+  (AddInductive.checkConstructors.checkedWF H hconsume hlit hproj
     hunsafe hbound).mono fun _ Hchecked => Hchecked.checked.formation
 
 /-- Verified boundary after the concrete constructor-info fold.  It retains
@@ -1047,10 +1035,6 @@ translation. -/
 theorem AddInductive.constructorPhases.WF
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -1072,9 +1056,9 @@ theorem AddInductive.constructorPhases.WF
       AddInductive.declareConstructors stats indTypes isUnsafe)
       { c with env := headerEnv }).WF fun outEnv =>
         ∃ _ : ConstructorPhasesResult H outEnv, True := by
-  have Hcheck := AddInductive.checkConstructors.checkedWF H Hfresh hconsume
+  have Hcheck := AddInductive.checkConstructors.checkedWF H hconsume
     hlit hproj hunsafe hbound
-  have Howners := AddInductive.checkConstructors.ownerNormalFormsWF H Hfresh
+  have Howners := AddInductive.checkConstructors.ownerNormalFormsWF H
     hconsume hlit hproj
   have HcheckBoth :
       (AddInductive.checkConstructors indTypes stats isUnsafe
@@ -1119,10 +1103,6 @@ theorem AddInductive.formationCore.headersWF
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -1151,7 +1131,7 @@ theorem AddInductive.formationCore.headersWF
     Hmaterialized hvisible hnprimTypes
   exact Htypes.bind fun headerEnv Hresult => by
     rcases Hresult with ⟨Hheaders, _⟩
-    have Hphases := AddInductive.constructorPhases.WF Hheaders Hfresh
+    have Hphases := AddInductive.constructorPhases.WF Hheaders
       hconsume hlit hproj hunsafe hbound hvisible hnprimCtors
     exact Hphases.mono fun outEnv Hresult => by
       rcases Hresult with ⟨Hphases, _⟩
@@ -1174,10 +1154,6 @@ theorem AddInductive.formationPrefix.headersWF
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -1201,7 +1177,7 @@ theorem AddInductive.formationPrefix.headersWF
   exact Htypes.bind fun outEnv hresult => by
     rcases hresult with ⟨Hstaged, _⟩
     have Hconstructors := AddInductive.checkConstructors.headersWF Hstaged
-      Hfresh hconsume hlit hproj hunsafe hbound
+      hconsume hlit hproj hunsafe hbound
     exact Hconstructors.mono fun _ Hctors =>
       ⟨Hstaged.formation Hctors⟩
 
@@ -1272,10 +1248,6 @@ def DeclaredTypesResult.formation
 
 theorem AddInductive.checkConstructors.WF
     (H : DeclaredTypesResult c stats decl depth sourceEnv indTypes outEnv)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -1299,7 +1271,7 @@ theorem AddInductive.checkConstructors.WF
       (fun _ _ h => Lean4Lean.VerifyInductive.TrInductiveType.headers h)
       H.sourceTypes
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
-    H.context Hheaders H.typesInstalled H.materialized H.headerParams Hfresh
+    H.context Hheaders H.typesInstalled H.materialized H.headerParams
     hconsume hlit hproj hunsafe hbound
   rw [AddInductive.checkConstructors]
   change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
@@ -1329,10 +1301,6 @@ theorem AddInductive.formationPrefix.WF
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -1353,7 +1321,7 @@ theorem AddInductive.formationPrefix.WF
       fun _ => Nonempty (FormationCertificate Hc.venv decl) := by
   exact AddInductive.formationPrefix.headersWF Hc
     (Lean4Lean.VerifyInductive.TrInductDeclCore.headers Hdecl)
-    Hmaterialized hvisible hnprim Hfresh hconsume hlit hproj hunsafe hbound
+    Hmaterialized hvisible hnprim hconsume hlit hproj hunsafe hbound
 
 /-- Three-stage installation certificate matching the executable order:
 mutual headers, constructors, then recursors. Reduction equations are not

@@ -307,14 +307,6 @@ theorem ConstructorTypesPrefix.checkedComplete
     rcases List.mem_iff_getElem.1 hctor with ⟨j, hj, rfl⟩
     exact H.types i hi hi j hj
 
-/-- Exact name-set state reached by the production inner constructor loop. -/
-inductive ConstructorNameState (ctors : List Constructor) :
-    Nat → NameSet → Prop
-  | zero : ConstructorNameState ctors 0 {}
-  | succ (H : ConstructorNameState ctors i found)
-      (hi : i < ctors.length) :
-      ConstructorNameState ctors (i + 1) (found.insert ctors[i].name)
-
 /-- Fielded aggregation target for the executable header and constructor
 traversals. The public specification remains `VInductDecl.FormationWF`; this
 certificate gives the refinement proof stable, named obligations instead of

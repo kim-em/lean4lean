@@ -1287,12 +1287,8 @@ theorem ownerNormalFormsWF
     (Hc : ContextWF c)
     (Htarget : TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams
       source target)
-    (Hnames : ConstructorNameState source.ctors ctorIdx foundCtors)
     (Hrow : ConstructorOwnerNormalFormRow stats targetIdx
       source.ctors ctorIdx)
-    (Hfresh : ∀ {i found}, ConstructorNameState source.ctors i found →
-      (hi : i < source.ctors.length) →
-      found.contains source.ctors[i].name = false)
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
@@ -1315,8 +1311,8 @@ theorem ownerNormalFormsWF
       exact hidx
     have Hctor := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctorAt
       Htarget ctorIdx hidx htarget
-    apply stepPrefix.WF (stats := stats) (isUnsafe := isUnsafe)
-      (targetIdx := targetIdx) (Q := Q) Hc hidx (Hfresh Hnames hidx)
+    apply stepPrefix.checkedWF (stats := stats) (isUnsafe := isUnsafe)
+      (targetIdx := targetIdx) (Q := Q) Hc hidx
     intro checkedType type' checkedType' hchecked
     have Hnormal :=
       checkConstructors.loopCtor.ownerNormalFormFromStartWF
@@ -1324,8 +1320,8 @@ theorem ownerNormalFormsWF
         Hc Hsuffix Hstats Hctor hchecked
         htargetIdx hconsume hlit hproj
     exact Hnormal.mono fun _ Hentry =>
-      ownerNormalFormsWF Hc Htarget (.succ Hnames hidx)
-        (Hrow.push hidx Hentry) Hfresh Hsuffix Hstats htargetIdx
+      ownerNormalFormsWF Hc Htarget
+        (Hrow.push hidx Hentry) Hsuffix Hstats htargetIdx
         hconsume hlit hproj Hfinish
   · have heq : ctorIdx = source.ctors.length := by
       have := Hrow.covered
@@ -1346,10 +1342,6 @@ theorem ownerNormalFormsWF
       (TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams)
       indTypes.toList decl.types)
     (Hrows : ConstructorOwnerNormalFormRows stats indTypes targetIdx)
-    (Hfresh : ∀ familyIdx (hfamily : familyIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[familyIdx].ctors i found →
-      (hi : i < indTypes[familyIdx].ctors.length) →
-      found.contains indTypes[familyIdx].ctors[i].name = false)
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
@@ -1380,12 +1372,12 @@ theorem ownerNormalFormsWF
       (Q := fun _ =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
           (targetIdx + 1) c).WF Q)
-      Hc Htarget .zero
+      Hc Htarget
       (ConstructorOwnerNormalFormRow.empty stats targetIdx
         indTypes[targetIdx].ctors)
-      (Hfresh targetIdx hidx) Hsuffix Hstats htarget hconsume hlit hproj
+      Hsuffix Hstats htarget hconsume hlit hproj
     intro Hrow
-    exact ownerNormalFormsWF Hc Htypes (Hrows.push hidx Hrow) Hfresh
+    exact ownerNormalFormsWF Hc Htypes (Hrows.push hidx Hrow)
       Hsuffix Hstats hconsume hlit hproj Hfinish
   · have heq : targetIdx = indTypes.size := by
       have := Hrows.covered

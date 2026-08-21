@@ -396,10 +396,6 @@ theorem AddInductive.runWithStats.closedWF
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
-    (Hfresh : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-      {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-      (hi : i < indTypes[targetIdx].ctors.length) →
-      found.contains indTypes[targetIdx].ctors[i].name = false)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlparams : c.lparams.Nodup)
     (hwhnf : WhnfLParamsCompat)
@@ -433,7 +429,7 @@ theorem AddInductive.runWithStats.closedWF
   apply AddInductive.runWithStats.WF stats numParams indTypes numNested
     isUnsafe c
   · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
-      hvisible hnprimTypes Hfresh hconsume hlit hproj hunsafe hbound hnprimCtors
+      hvisible hnprimTypes hconsume hlit hproj hunsafe hbound hnprimCtors
   · exact hlparams
   · exact hwhnf
   · exact hfieldReplay
@@ -521,10 +517,6 @@ structure RunWithStatsVerificationInputs
     (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
       isUnsafe c.lparams).toList,
     ¬ Kernel.Environment.primitives.contains info.name
-  freshConstructors : ∀ targetIdx (htarget : targetIdx < indTypes.size)
-    {i found}, ConstructorNameState indTypes[targetIdx].ctors i found →
-    (hi : i < indTypes[targetIdx].ctors.length) →
-    found.contains indTypes[targetIdx].ctors[i].name = false
   consume : ConsumeTypeAnnotationsCompat
   whnfLParams : WhnfLParamsCompat
   recursiveFieldReplay : RecursorFieldDecisionReplayCompat
@@ -563,7 +555,7 @@ theorem RunWithStatsVerificationInputs.verify
         ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
           Nonempty (RecursorPhasesResult R outEnv) :=
   fun hlparams => AddInductive.runWithStats.closedWF Hc Hclosed Hdecl
-    Hmaterialized hvisible H.freshTypes H.freshConstructors H.consume
+    Hmaterialized hvisible H.freshTypes H.consume
     hlparams H.whnfLParams H.recursiveFieldReplay H.loopUArgsReplay
     H.recursorConsume
     H.literalDisjoint H.projections
