@@ -637,6 +637,29 @@ theorem NestedLoweringResultClosed.sourceHeaderTranslationAtFresh
   rw [← Hmapping.name, ← Hmapping.type]
   simpa [htargetEq] using Hheader
 
+/-- Constructor freshness required by source-expression restoration is not a
+family-wise semantic input.  When lowering and ordinary installation start
+from the same production environment, it follows from generated-family
+freshness, the complete staged installation trace, and the persistent kernel
+metadata invariant for pre-existing constructors. -/
+theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtBase
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Howners : ConstructorOwnersPresent c.env)
+    (hempty : initialState.nestedAux = #[]) :
+    RestoreAuxConstructorsFresh result loweredEnv sourceVEnv := by
+  rcases H with ⟨finalState, Hrun, _Hcache, _Hparams⟩
+  exact Hrun.restoreAuxConstructorsFreshOfInstallation
+    Hprod.staged.combined Hc.checking.tr.map_wf Howners hempty
+
 /-- End-to-end positional constructor mapping for an original source family.
 This is the alignment consumed by restoration: it identifies the exact
 lowered constructor at the same family and constructor indices while retaining
@@ -1341,6 +1364,110 @@ theorem NestedLoweringResult.sourceTypeName
   rcases H with ⟨finalState, Hrun⟩
   apply Hrun.preservesInitialTypeName
   exact ⟨source, by simpa using hsource, rfl⟩
+
+/-- Lift automatically derived auxiliary-constructor freshness through the
+source mutual-header environment used to translate original constructors.
+An auxiliary constructor cannot share a name with a source header: lowering
+preserves every source header in the installed block, where the two names
+would otherwise resolve to incompatible kernel metadata. -/
+theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtTypes
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Howners : ConstructorOwnersPresent c.env)
+    (hempty : initialState.nestedAux = #[]) :
+    RestoreAuxConstructorsFresh result loweredEnv envTypes := by
+  intro name nested auxFamily hrecognized
+  have Hbase := H.restoreAuxConstructorsFreshAtBase Hc Hprod Howners hempty
+  have hbase : sourceVEnv.constants name = none :=
+    Hbase name nested auxFamily hrecognized
+  have hnames : ∀ ci ∈ sourceDecl.typeConstants, ci.name ≠ name := by
+    intro ci hci
+    simp only [VInductDecl.typeConstants] at hci
+    rcases List.mem_map.mp hci with ⟨targetType, htargetType, rfl⟩
+    rcases Lean4Lean.List.Forall₂.forall_exists_r Hsource.types targetType
+        htargetType with ⟨sourceType, hsourceType, Htype⟩
+    rcases H.toResult.sourceTypeName hsourceType with
+      ⟨loweredType, hloweredType, hloweredName⟩
+    rcases Hprod.findSourceHeader Hc (by simpa using hloweredType) with
+      ⟨info, hheader, _hctors, _hall⟩
+    intro htargetName
+    have hsourceName : sourceType.name = name :=
+      Htype.header.name.symm.trans (by simpa using htargetName)
+    have hloweredName' : loweredType.name = name :=
+      hloweredName.trans hsourceName
+    rw [hloweredName'] at hheader
+    rcases getNestedIfAuxCtor_refines result loweredEnv name nested auxFamily
+        hrecognized with ⟨⟨ctorInfo, hconstructor, _hfamily, _hmap⟩⟩
+    rw [hheader] at hconstructor
+    cases hconstructor
+  rw [VEnv.addConstVals_constants_of_forall_ne Hsource.typesAdded hnames]
+  exact hbase
+
+/-- Preferred whole-mutual nested source-semantics boundary after executable
+installation.  Both generated-family namespace reservation and auxiliary
+constructor freshness are consequences of lowering and the staged lowered
+block; callers provide only the persistent source-environment owner invariant
+and the still-semantic restored recursor telescope translations. -/
+theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledTelescopes
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Howners : ConstructorOwnersPresent c.env)
+    (hempty : initialState.nestedAux = #[])
+    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+      (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+      allIndNames sourceTypes auxRecNames out)
+    (HtelescopeTypes : ∀ familyIdx
+      (hfamily : familyIdx < sourceTypes.length)
+      (hdecl : familyIdx < sourceDecl.types.length)
+      (hentry : familyIdx < Hprod.entries.length)
+      (stepSource stepTarget : Environment)
+      (Hstep : RestoredInductiveStep result loweredEnv
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
+        sourceTypes[familyIdx] stepSource stepTarget),
+      ∃ targetType, Expr.ForallTelescopeTypeTranslation envCtors
+        Hstep.restored.recursor.oldInfo.levelParams []
+        Hstep.restored.recursor.restored.newInfo.type
+        (result.nparams + (Hprod.recInfos.map (·.motive)).size +
+          (Hprod.recInfos.flatMap (·.minors)).size +
+          Hprod.recInfos[familyIdx]!.indices.size + 1)
+        targetType) :
+    ∃ owners recursors,
+      RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
+        sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
+  have Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true := by
+    rcases H with ⟨finalState, Hrun, _Hcache, _Hparams⟩
+    exact Hrun.resultFamilyNamesReservedFresh hempty
+  have Hconstructors :
+      RestoreAuxConstructorsFresh result loweredEnv envTypes :=
+    H.restoreAuxConstructorsFreshAtTypes Hc Hprod Hsource Howners hempty
+  exact H.sourceSemanticTraceAtFreshOfTelescopeTranslations Hc Hprod Hsources
+    Hsource Hmetadata Hfamilies Hconstructors hempty Hrestored HtelescopeTypes
 
 /-- Specialize `restorationSources` from the installed lowered family list
 back to each original source family, using the lowering trace for name

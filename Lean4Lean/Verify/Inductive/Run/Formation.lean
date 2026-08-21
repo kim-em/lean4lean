@@ -1384,6 +1384,19 @@ theorem StagedBlock.abstract_recursors
     H.venvCtors.addConstVals (recursors.map Prod.snd) = some outVEnv :=
   H.recursorsAdded.abstract
 
+/-- Collapse the executable header/constructor/recursor staging into the
+single lockstep installation trace needed by facts that concern the complete
+lowered production environment.  The staged form remains canonical for
+typing, because each family of constants has a different abstract source
+environment. -/
+theorem StagedBlock.combined
+    (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv) :
+    AddConstants safety env venv (types ++ ctors ++ recursors)
+      outEnv outVEnv :=
+  by
+    simpa [List.append_assoc] using
+      H.typesAdded.append (H.ctorsAdded.append H.recursorsAdded)
+
 theorem StagedBlock.aligned
     (H : StagedBlock checkSafety env venv types ctors recursors
       outEnv outVEnv)

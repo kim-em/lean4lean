@@ -1180,6 +1180,28 @@ theorem VEnv.addConstVals_names_fresh
         rw [VEnv.addConst_constants_of_ne hadd hne] at habsent
         exact habsent
 
+/-- Installing constants whose names all differ from an observed name leaves
+that lookup unchanged.  This is the absence-preservation counterpart of
+`addConstVals_le`, which only transports successful lookups. -/
+theorem VEnv.addConstVals_constants_of_forall_ne
+    {env out : VEnv} {constants : List VConstVal}
+    (H : env.addConstVals constants = some out)
+    (hne : ∀ ci ∈ constants, ci.name ≠ name) :
+    out.constants name = env.constants name := by
+  induction constants generalizing env with
+  | nil =>
+    simp [VEnv.addConstVals] at H
+    subst out
+    rfl
+  | cons ci constants ih =>
+    simp only [VEnv.addConstVals] at H
+    cases hadd : env.addConst ci.name ci.toVConstant with
+    | none => simp [hadd] at H
+    | some next =>
+      rw [hadd] at H
+      rw [ih H (fun later hlater => hne later (by simp [hlater]))]
+      exact VEnv.addConst_constants_of_ne hadd (hne ci (by simp))
+
 theorem VEnv.addConstVals_names_nodup
     {env out : VEnv} {constants : List VConstVal}
     (H : env.addConstVals constants = some out) :
