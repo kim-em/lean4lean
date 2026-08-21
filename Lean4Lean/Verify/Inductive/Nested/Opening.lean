@@ -1457,6 +1457,7 @@ structure NestedRestorationOpening
   body : Expr
   restoredBody : Expr
   opening : RestoreParamOpening {} #[] input result.nparams lctx params body
+  lctxWF : lctx.WF
   selection : LocalForallSelection lctx params
   selectionNodup : selection.fvars.Nodup
   selectionLength : selection.fvars.length = result.params.size
@@ -1470,7 +1471,7 @@ theorem NestedRestoration.opening
     (hparams : result.params.size = result.nparams) :
     Nonempty (NestedRestorationOpening result env auxRec input output) := by
   rcases H with ⟨lctx, params, body, restoredBody,
-    ⟨Hopening, _Hlctx, Hselection, Hnodup⟩, Hreplacement, houtput⟩
+    ⟨Hopening, Hlctx, Hselection, Hnodup⟩, Hreplacement, houtput⟩
   have hselectionSize : Hselection.fvars.length = result.params.size := by
     rw [← Hselection.size, Hopening.initial_size, ← hparams]
   exact ⟨{
@@ -1479,11 +1480,38 @@ theorem NestedRestoration.opening
     body := body
     restoredBody := restoredBody
     opening := Hopening
+    lctxWF := Hlctx
     selection := Hselection
     selectionNodup := Hnodup
     selectionLength := hselectionSize
     replacement := Hreplacement
     output_eq := houtput }⟩
+
+/-- Nested restoration changes only the body below the common parameter
+prefix.  The rebuilt output therefore has literally the same leading forall
+domains as the generated input. -/
+theorem NestedRestorationOpening.sameForallPrefix
+    (Hopen : NestedRestorationOpening result env auxRec input output)
+    (Htelescope : Expr.ForallTelescope input result.nparams suffix)
+    (Hinput : input.FVarIdsIn fun _ => False) :
+    Expr.SameForallPrefix result.nparams input output := by
+  by_cases hzero : result.nparams = 0
+  · simpa [hzero] using (Expr.SameForallPrefix.nil (left := input)
+      (right := output))
+  have hinput : Hopen.lctx.mkForall Hopen.params Hopen.body = input :=
+    Hopen.opening.root_mkForall_tail Hopen.lctxWF Htelescope Hinput
+  have hfor : input.isForall = true :=
+    Htelescope.isForall_of_pos (Nat.zero_lt_of_ne_zero hzero)
+  have houtput : output =
+      Hopen.lctx.mkForall Hopen.params Hopen.restoredBody := by
+    simpa [hfor] using Hopen.output_eq
+  have Hsame : Expr.SameForallPrefix result.nparams
+      (Hopen.lctx.mkForall Hopen.params Hopen.body)
+      (Hopen.lctx.mkForall Hopen.params Hopen.restoredBody) := by
+    simpa only [Hopen.opening.initial_size] using
+      Hopen.selection.sameForallPrefix Hopen.selectionNodup Hopen.body
+        Hopen.restoredBody
+  simpa only [hinput, ← houtput] using Hsame
 
 /-- Closing the fresh parameter variables exposed by an operational root
 opening recovers the original de Bruijn suffix of a closed forall telescope. -/
