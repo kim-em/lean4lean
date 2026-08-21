@@ -49734,6 +49734,7 @@ certificate and lockstep production/abstract installation. -/
 theorem AddInductive.declareRecursors.bindingWF
     {envTypes envCtors : VEnv} {decl : VInductDecl}
     {currentVEnv : VEnv}
+    (k : Bool)
     (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
     (Hcontext : BindingContextWF c)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
@@ -49746,7 +49747,7 @@ theorem AddInductive.declareRecursors.bindingWF
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
-    (AddInductive.declareRecursors stats indTypes elimLevel recInfos c).WF
+    (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF
       fun outEnv =>
         ∃ outVEnv : VEnv,
         ∃ entries : List (ConstantInfo × VConstVal),
@@ -49756,44 +49757,41 @@ theorem AddInductive.declareRecursors.bindingWF
             outVEnv := by
   unfold AddInductive.declareRecursors
   simp only [getLCtx, readThe, read, ReaderT.read]
-  have Hk : (AddInductive.isKTarget stats indTypes c).WF fun _ => True :=
-    fun _ _ => trivial
-  exact Hk.bind fun k _ => by
-    simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
-    have Hcheck :
-        (AddInductive.declareRecursors.checkRecursorTypes stats indTypes
-          elimLevel recInfos (recInfos.flatMap (·.minors)).size
-          (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
-          c.lctx k (c.safety != .safe) c.lparams 0 c).WF fun _ =>
-            RecursorTypeTranslations currentVEnv c.lparams elimLevel c
-              stats indTypes recInfos := by
-      simpa using
-        (AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF
-          Hvalid hnotPartial stats indTypes elimLevel recInfos
-          (recInfos.flatMap (·.minors)).size
-          (recInfos.map (·.motive)).size
-          (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)
-          c.lparams)
-    refine Hcheck.bind fun _ Htypes => ?_
-    have Hloop := AddInductive.declareRecursors.loop.WF (elimLevel := elimLevel)
-      Hcard Hdecl c
-      Hcontext Hbindings Hparams hnoalias
-      (recInfos.flatMap (·.minors)).size
-      (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList k
-      (c.safety != .safe) c.allowPrimitive 0 (by omega) c.env
-      Hvalid VEnv.LE.rfl
-      (Htypes.recursorInfoTranslation k) hnprim
-    change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
-      elimLevel recInfos (recInfos.map (·.motive))
-      (recInfos.flatMap (·.minors)) (recInfos.flatMap (·.minors)).size
-      (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList c.lctx
-      k (c.safety != .safe) c.lparams c.allowPrimitive 0 c.env 0 c).WF _)
-    exact Hloop.map fun out Hout => by
-      rcases Hout with
-        ⟨outVEnv, entries, _hstate, ⟨Hrange⟩, Hinstalled⟩
-      have hsize : entries.length = recInfos.size := by
-        simpa using Hrange.covered
-      exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, Hinstalled⟩
+  simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
+  have Hcheck :
+      (AddInductive.declareRecursors.checkRecursorTypes stats indTypes
+        elimLevel recInfos (recInfos.flatMap (·.minors)).size
+        (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
+        c.lctx k (c.safety != .safe) c.lparams 0 c).WF fun _ =>
+          RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+            stats indTypes recInfos := by
+    simpa using
+      (AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF
+        Hvalid hnotPartial stats indTypes elimLevel recInfos
+        (recInfos.flatMap (·.minors)).size
+        (recInfos.map (·.motive)).size
+        (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)
+        c.lparams)
+  refine Hcheck.bind fun _ Htypes => ?_
+  have Hloop := AddInductive.declareRecursors.loop.WF (elimLevel := elimLevel)
+    Hcard Hdecl c
+    Hcontext Hbindings Hparams hnoalias
+    (recInfos.flatMap (·.minors)).size
+    (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList k
+    (c.safety != .safe) c.allowPrimitive 0 (by omega) c.env
+    Hvalid VEnv.LE.rfl
+    (Htypes.recursorInfoTranslation k) hnprim
+  change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
+    elimLevel recInfos (recInfos.map (·.motive))
+    (recInfos.flatMap (·.minors)) (recInfos.flatMap (·.minors)).size
+    (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList c.lctx
+    k (c.safety != .safe) c.lparams c.allowPrimitive 0 c.env 0 c).WF _)
+  exact Hloop.map fun out Hout => by
+    rcases Hout with
+      ⟨outVEnv, entries, _hstate, ⟨Hrange⟩, Hinstalled⟩
+    have hsize : entries.length = recInfos.size := by
+      simpa using Hrange.covered
+    exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, Hinstalled⟩
 
 /-- Public semantic recursor-declaration boundary.  This is the same
 executable declaration pass as `bindingWF`, with the constructor-rule
@@ -49801,6 +49799,7 @@ semantics retained alongside the ordinary generated-recursors certificate. -/
 theorem AddInductive.declareRecursors.bindingSemanticWF
     {envTypes envCtors : VEnv} {decl : VInductDecl}
     {currentVEnv : VEnv} {recLparams : List Name} {depth : Nat}
+    (k : Bool)
     (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
     (Hcontext : BindingContextWF c)
     (R : RecursorContextWF c recLparams)
@@ -49840,7 +49839,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
-    (AddInductive.declareRecursors stats indTypes elimLevel recInfos c).WF
+    (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF
       fun outEnv =>
         ∃ outVEnv : VEnv,
         ∃ entries : List (ConstantInfo × VConstVal),
@@ -49852,11 +49851,8 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
             outVEnv := by
   unfold AddInductive.declareRecursors
   simp only [getLCtx, readThe, read, ReaderT.read]
-  have Hk : (AddInductive.isKTarget stats indTypes c).WF fun _ => True :=
-    fun _ _ => trivial
-  exact Hk.bind fun k _ => by
-    simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
-    have Hcheck :
+  simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
+  have Hcheck :
         (AddInductive.declareRecursors.checkRecursorTypes stats indTypes
           elimLevel recInfos (recInfos.flatMap (·.minors)).size
           (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
@@ -49870,8 +49866,8 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
           (recInfos.map (·.motive)).size
           (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)
           c.lparams)
-    refine Hcheck.bind fun _ Htypes => ?_
-    have Hloop := AddInductive.declareRecursors.loop.semanticWF
+  refine Hcheck.bind fun _ Htypes => ?_
+  have Hloop := AddInductive.declareRecursors.loop.semanticWF
       (elimLevel := elimLevel) Hcard Hdecl c R Hstats hwhnf hconsume hlit
       hctx hproj Hbindings Hparams hnoalias hparameterUp Hseed
       (recInfos.flatMap (·.minors)).size
@@ -49879,24 +49875,25 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
       (c.safety != .safe) c.allowPrimitive 0 (by omega) c.env
       Hvalid VEnv.LE.rfl
       (Htypes.recursorInfoTranslation k) hnprim
-    change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
+  change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
       elimLevel recInfos (recInfos.map (·.motive))
       (recInfos.flatMap (·.minors)) (recInfos.flatMap (·.minors)).size
       (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList c.lctx
       k (c.safety != .safe) c.lparams c.allowPrimitive 0 c.env 0 c).WF _)
-    exact Hloop.map fun out Hout => by
-      rcases Hout with
-        ⟨outVEnv, entries, _hstate, ⟨Hrange⟩, ⟨HsemRange⟩,
-          Hinstalled⟩
-      have hsize : entries.length = recInfos.size := by
-        simpa using Hrange.covered
-      exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, ⟨HsemRange⟩,
+  exact Hloop.map fun out Hout => by
+    rcases Hout with
+      ⟨outVEnv, entries, _hstate, ⟨Hrange⟩, ⟨HsemRange⟩,
         Hinstalled⟩
+    have hsize : entries.length = recInfos.size := by
+      simpa using Hrange.covered
+    exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, ⟨HsemRange⟩,
+      Hinstalled⟩
 
 /-- Full-context wrapper for callers that have semantic local-context typing,
 retaining the original public interface. -/
 theorem AddInductive.declareRecursors.WF
     {envTypes envCtors : VEnv} {decl : VInductDecl}
+    (k : Bool)
     (Hcontext : ContextWF c)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
     (Hdecl : TrInductDeclCore sourceEnv c.lparams nparams
@@ -49908,7 +49905,7 @@ theorem AddInductive.declareRecursors.WF
     (hnprim : ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
-    (AddInductive.declareRecursors stats indTypes elimLevel recInfos c).WF
+    (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF
       fun outEnv =>
         ∃ outVEnv : VEnv,
         ∃ entries : List (ConstantInfo × VConstVal),
@@ -49916,7 +49913,7 @@ theorem AddInductive.declareRecursors.WF
             elimLevel c stats indTypes recInfos entries) ∧
           AddConstants c.safety c.env Hcontext.venv entries outEnv
             outVEnv :=
-  AddInductive.declareRecursors.bindingWF Hcontext.checking
+  AddInductive.declareRecursors.bindingWF k Hcontext.checking
     Hcontext.toBindingContextWF Hcard Hdecl Hbindings Hparams hnoalias
     hnotPartial
     hnprim
@@ -50899,9 +50896,10 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
       TrProj Delta.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
-    (k : Level → Array AddInductive.RecInfo → AddInductive.M alpha)
+    (k : Level → Bool → Array AddInductive.RecInfo → AddInductive.M alpha)
     (Hk : ∀ elimLevel,
       (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) →
+      ∀ kTarget,
       ∀ {cOut : AddInductive.Context} {outDepth : Nat}
       (recInfos : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF cOut
@@ -50936,16 +50934,20 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
         recInfos[i]!.minors.size = indTypes[i]!.ctors.length) →
       RecursorCardinalityCertificate stats recInfos decl →
       BindingContextLE { c with env := outEnv } cOut →
-      (k elimLevel recInfos cOut).WF Q) :
+      (k elimLevel kTarget recInfos cOut).WF Q) :
     ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
+      AddInductive.isKTarget stats indTypes >>= fun kTarget =>
       AddInductive.mkRecInfos stats indTypes elimLevel
-        (k elimLevel)) { c with env := outEnv }).WF Q := by
+        (k elimLevel kTarget)) { c with env := outEnv }).WF Q := by
   have Helim := AddInductive.getElimLevel.WF stats indTypes
     { c with env := outEnv }
   exact Helim.bind fun elimLevel hElim =>
-    R.mkRecInfosWF elimLevel hElim hlparams hwhnf hconsume hlit hproj
-      (k elimLevel)
-      (Hk elimLevel hElim)
+    (show (AddInductive.isKTarget stats indTypes
+      { c with env := outEnv }).WF fun _ => True from
+        fun _ _ => trivial).bind fun kTarget _ =>
+      R.mkRecInfosWF elimLevel hElim hlparams hwhnf hconsume hlit hproj
+        (k elimLevel kTarget)
+        (Hk elimLevel hElim kTarget)
 
 /-- The executable constructor check and declaration folds jointly establish
 the independent formation judgment and the complete pointwise source/core
@@ -62302,8 +62304,9 @@ theorem constructorPhasesAndClosure
 The generated-recursors certificate supplies the required non-inductive
 shape of every installed production entry. -/
 theorem declareRecursorsAndClosure
+    (k : Bool)
     (Hrecursors :
-      (AddInductive.declareRecursors stats indTypes elimLevel recInfos c).WF
+      (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF
         fun outEnv =>
           ∃ outVEnv : VEnv,
           ∃ entries : List (ConstantInfo × VConstVal),
@@ -62312,7 +62315,7 @@ theorem declareRecursorsAndClosure
             AddConstants c.safety c.env venv entries outEnv outVEnv)
     (hwf : c.env.constants.WF)
     (hclosed : MutualInductivesClosed c.env) :
-    (AddInductive.declareRecursors stats indTypes elimLevel recInfos c).WF
+    (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF
       fun outEnv =>
         ∃ outVEnv : VEnv,
         ∃ entries : List (ConstantInfo × VConstVal),
@@ -62681,15 +62684,17 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
+      AddInductive.isKTarget stats indTypes >>= fun kTarget =>
       AddInductive.mkRecInfos stats indTypes elimLevel fun recInfos =>
-        AddInductive.declareRecursors stats indTypes elimLevel recInfos)
+        AddInductive.declareRecursors stats indTypes elimLevel recInfos
+          kTarget)
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (RecursorPhasesResult R outEnv) := by
   apply R.getElimLevelMkRecInfosWF hlparams hwhnf hconsume hlit hproj
     (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
-    (k := fun elimLevel recInfos =>
-      AddInductive.declareRecursors stats indTypes elimLevel recInfos)
-  intro elimLevel hElim localContext localDepth recInfos Rlocal henvLocal
+    (k := fun elimLevel kTarget recInfos =>
+      AddInductive.declareRecursors stats indTypes elimLevel recInfos kTarget)
+  intro elimLevel hElim kTarget localContext localDepth recInfos Rlocal henvLocal
     HsuffixLocal hparameterDeclsLocal HstatsLocal hctxLocal Hbindings
     Horigins HminorSources HminorSemantics HmajorTypes HmajorShapes
     HmotiveTypes HmotiveShapes
@@ -62739,7 +62744,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars,
       Htail, HtailType, Hintro, HintroType⟩
   have Hrecursors := AddInductive.declareRecursors.bindingSemanticWF
-    (elimLevel := elimLevel) Hvalid Rlocal.toBindingContextWF Rlocal
+    (elimLevel := elimLevel) kTarget Hvalid Rlocal.toBindingContextWF Rlocal
     HstatsLocal hwhnf hconsume hlit hctxLocal hproj Hcard Hcore Hbindings
     Hparams hnoalias HsuffixLocal.parameterFVarsUp Hseed (by
       rw [Hle.safety_eq]

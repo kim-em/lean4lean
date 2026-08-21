@@ -639,14 +639,13 @@ end declareRecursors
 
 def declareRecursors (stats : InductiveStats)
     (indTypes : Array InductiveType) (elimLevel : Level)
-    (recInfos : Array RecInfo) : M Environment := do
+    (recInfos : Array RecInfo) (k : Bool) : M Environment := do
   let motives := recInfos.map (·.motive)
   let minors := recInfos.flatMap (·.minors)
   let numMinors := minors.size
   let numMotives := motives.size
   let all := indTypes.map (·.name) |>.toList
   let lctx ← getLCtx
-  let k ← isKTarget stats indTypes
   let {lparams, safety, ..} ← read
   let isUnsafe := safety != .safe
   AddInductive.declareRecursors.checkRecursorTypes stats indTypes elimLevel
@@ -667,8 +666,9 @@ def runWithStats (stats : InductiveStats) (nparams : Nat)
         declareConstructors stats indTypes isUnsafe
   fun c =>
     (getElimLevel stats indTypes >>= fun elimLevel =>
+      isKTarget stats indTypes >>= fun k =>
       mkRecInfos stats indTypes elimLevel fun recInfos =>
-        declareRecursors stats indTypes elimLevel recInfos) { c with env := ctorEnv }
+        declareRecursors stats indTypes elimLevel recInfos k) { c with env := ctorEnv }
 
 def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) :
     M Environment := fun c => do
