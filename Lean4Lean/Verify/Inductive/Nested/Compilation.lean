@@ -3006,7 +3006,7 @@ theorem AddInductive.formationCore.closedWF
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
-    (hnprimTypes : ∀ info ∈
+    (hnprimTypes : c.allowPrimitive = true → ∀ info ∈
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
@@ -3016,7 +3016,8 @@ theorem AddInductive.formationCore.closedWF
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
+    (hnprimCtors : c.allowPrimitive = true →
+      ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun headerEnv =>

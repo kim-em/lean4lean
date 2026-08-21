@@ -711,7 +711,7 @@ theorem AddConstants.ofDeclareInductiveTypeInfos
       infos values)
     (hle : sourceEnv ≤ venv)
     (hadd : venv.addConstVals values = some outVEnv)
-    (hnprim : ∀ info ∈ infos,
+    (hnprim : allowPrimitive = true → ∀ info ∈ infos,
       ¬ Kernel.Environment.primitives.contains info.name) :
     (AddInductive.declareInductiveTypeInfos allowPrimitive infos env).WF
       fun outEnv =>
@@ -730,14 +730,18 @@ theorem AddConstants.ofDeclareInductiveTypeInfos
     | some nextVEnv =>
       have hrest : nextVEnv.addConstVals values = some outVEnv := by
         simpa [VEnv.addConstVals, hnext] using hadd
-      have hnprimHead := hnprim info (by simp)
-      have hnprimTail : ∀ info ∈ infos,
-          ¬ Kernel.Environment.primitives.contains info.name := by
-        intro info hinfo
-        exact hnprim info (by simp [hinfo])
       rw [AddInductive.declareInductiveTypeInfos]
       exact (checkName.WF Hvalid.tr.map_wf info.name allowPrimitive).bind
         fun _ hchecked => by
+          have hnprimHead :
+              ¬ Kernel.Environment.primitives.contains info.name := by
+            cases hallow : allowPrimitive with
+            | false => simpa using hchecked.2 hallow
+            | true => exact hnprim hallow info (by simp)
+          have hnprimTail : allowPrimitive = true → ∀ info ∈ infos,
+              ¬ Kernel.Environment.primitives.contains info.name := by
+            intro hallow info hinfo
+            exact hnprim hallow info (by simp [hinfo])
           have hn : env.find? info.name = none := hchecked.1
           have htr : TrConstVal safety venv (.inductInfo info) ci' :=
             Hentry.1.mono hle
@@ -837,7 +841,7 @@ theorem AddConstants.ofConstructorList
     (htype : ∀ i ctor, (mkInfo i ctor).type = ctor.type)
     (hvisible : ∀ i ctor, safety ≤
       (if (mkInfo i ctor).isUnsafe then DefinitionSafety.unsafe else .safe))
-    (hnprim : ∀ ctor ∈ ctors,
+    (hnprim : allowPrimitive = true → ∀ ctor ∈ ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name) :
     (ctors.foldlM (init := (start, env)) fun
         (state : Nat × Environment) (ctor : Constructor) => do
@@ -859,14 +863,18 @@ theorem AddConstants.ofConstructorList
   | nil =>
     exact Except.WF.pure ⟨venv, [], rfl, .nil, .nil, by simp, by simp⟩
   | @cons ctor ci' ctors values Hentry _ ih =>
-    have hnprimHead := hnprim ctor (by simp)
-    have hnprimTail : ∀ ctor ∈ ctors,
-        ¬ Kernel.Environment.primitives.contains ctor.name := by
-      intro ctor hctor
-      exact hnprim ctor (by simp [hctor])
     rw [List.foldlM_cons]
     simpa using (checkName.WF Hvalid.tr.map_wf ctor.name allowPrimitive).bind
       fun _ hchecked => by
+          have hnprimHead :
+              ¬ Kernel.Environment.primitives.contains ctor.name := by
+            cases hallow : allowPrimitive with
+            | false => simpa using hchecked.2 hallow
+            | true => exact hnprim hallow ctor (by simp)
+          have hnprimTail : allowPrimitive = true → ∀ ctor ∈ ctors,
+              ¬ Kernel.Environment.primitives.contains ctor.name := by
+            intro hallow ctor hctor
+            exact hnprim hallow ctor (by simp [hctor])
           rcases Lean4Lean.VerifyInductive.CheckingEnv.exists_addConst
               Hvalid.tr hchecked.1 ci'.toVConstant with
             ⟨nextVEnv, hnext⟩
@@ -941,7 +949,8 @@ theorem AddConstants.ofConstructorTypes
     (hvisible : ∀ owner i ctor, safety ≤
       (if (mkInfo owner i ctor).isUnsafe then
         DefinitionSafety.unsafe else .safe))
-    (hnprim : ∀ owner ∈ types, ∀ ctor ∈ owner.ctors,
+    (hnprim : allowPrimitive = true → ∀ owner ∈ types,
+      ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name) :
     (types.foldlM (init := env) fun
         (env : Environment) (owner : InductiveType) => do
@@ -967,14 +976,15 @@ theorem AddConstants.ofConstructorTypes
   | nil =>
     exact Except.WF.pure ⟨venv, [], rfl, .nil, .nil, by simp, by simp⟩
   | @cons owner target types targets Hhead _ ih =>
-    have hnprimHead : ∀ ctor ∈ owner.ctors,
+    have hnprimHead : allowPrimitive = true → ∀ ctor ∈ owner.ctors,
         ¬ Kernel.Environment.primitives.contains ctor.name := by
-      intro ctor hctor
-      exact hnprim owner (by simp) ctor hctor
-    have hnprimTail : ∀ owner ∈ types, ∀ ctor ∈ owner.ctors,
+      intro hallow ctor hctor
+      exact hnprim hallow owner (by simp) ctor hctor
+    have hnprimTail : allowPrimitive = true → ∀ owner ∈ types,
+        ∀ ctor ∈ owner.ctors,
         ¬ Kernel.Environment.primitives.contains ctor.name := by
-      intro owner howner ctor hctor
-      exact hnprim owner (by simp [howner]) ctor hctor
+      intro hallow owner howner ctor hctor
+      exact hnprim hallow owner (by simp [howner]) ctor hctor
     rw [List.foldlM_cons]
     let Hinner := AddConstants.ofConstructorList
       (start := 0) (allowPrimitive := allowPrimitive)
@@ -1132,7 +1142,8 @@ theorem AddInductive.declareRecursors.loop.WF
             indTypes elimLevel recInfos numMinors numMotives all c.lctx k
             isUnsafe lparams owner rules)) recursor ∧
         recursor.toVConstant.WF sourceVEnv)
-    (hnprim : ∀ owner (howner : owner < indTypes.size),
+    (hnprim : allowPrimitive = true →
+      ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.declareRecursors.loop stats indTypes elimLevel recInfos
@@ -1192,8 +1203,13 @@ theorem AddInductive.declareRecursors.loop.WF
           have hnprimInfo :
               ¬ Kernel.Environment.primitives.contains
                 (ConstantInfo.recInfo info).name := by
-            simpa [ConstantInfo.name, ConstantInfo.toConstantVal, info,
-              AddInductive.declareRecursors.recursorInfo] using hnprim dIdx hidx
+            change ¬ Kernel.Environment.primitives.contains info.name
+            cases hallow : allowPrimitive with
+            | false => simpa using Hchecked.2 hallow
+            | true =>
+              simpa [ConstantInfo.name, ConstantInfo.toConstantVal, info,
+                AddInductive.declareRecursors.recursorInfo] using
+                hnprim hallow dIdx hidx
           have HnextValid : CheckingEnv.Valid c.safety
               (env.add (.recInfo info)) nextVEnv :=
             Hvalid.add Hchecked.1 hnprimInfo Htr.1 Hwf haddInfo rfl
@@ -1302,7 +1318,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
             indTypes elimLevel recInfos numMinors numMotives all c.lctx k
             isUnsafe lparams owner rules)) recursor ∧
         recursor.toVConstant.WF sourceVEnv)
-    (hnprim : ∀ owner (howner : owner < indTypes.size),
+    (hnprim : allowPrimitive = true →
+      ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.declareRecursors.loop stats indTypes elimLevel recInfos
@@ -1365,8 +1382,13 @@ theorem AddInductive.declareRecursors.loop.semanticWF
           have hnprimInfo :
               ¬ Kernel.Environment.primitives.contains
                 (ConstantInfo.recInfo info).name := by
-            simpa [ConstantInfo.name, ConstantInfo.toConstantVal, info,
-              AddInductive.declareRecursors.recursorInfo] using hnprim dIdx hidx
+            change ¬ Kernel.Environment.primitives.contains info.name
+            cases hallow : allowPrimitive with
+            | false => simpa using Hchecked.2 hallow
+            | true =>
+              simpa [ConstantInfo.name, ConstantInfo.toConstantVal, info,
+                AddInductive.declareRecursors.recursorInfo] using
+                hnprim hallow dIdx hidx
           have HnextValid : CheckingEnv.Valid c.safety
               (env.add (.recInfo info)) nextVEnv :=
             Hvalid.add Hchecked.1 hnprimInfo Htr.1 Hwf haddInfo rfl
@@ -1466,7 +1488,8 @@ theorem AddInductive.declareRecursors.bindingWF
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
     (hnotPartial : c.safety ≠ .partial)
-    (hnprim : ∀ owner (howner : owner < indTypes.size),
+    (hnprim : c.allowPrimitive = true →
+      ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF
@@ -1558,7 +1581,8 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
           R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx introTarget
             tailTarget)
     (hnotPartial : c.safety ≠ .partial)
-    (hnprim : ∀ owner (howner : owner < indTypes.size),
+    (hnprim : c.allowPrimitive = true →
+      ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF
@@ -1624,7 +1648,8 @@ theorem AddInductive.declareRecursors.WF
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
     (hnotPartial : c.safety ≠ .partial)
-    (hnprim : ∀ owner (howner : owner < indTypes.size),
+    (hnprim : c.allowPrimitive = true →
+      ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF

@@ -354,7 +354,8 @@ theorem AddInductive.runWithStats.WF
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
-    (hnprim : ∀ owner (howner : owner < indTypes.size),
+    (hnprim : c.allowPrimitive = true →
+      ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
@@ -392,7 +393,7 @@ theorem AddInductive.runWithStats.closedWF
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
-    (hnprimTypes : ∀ info ∈
+    (hnprimTypes : c.allowPrimitive = true → ∀ info ∈
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
@@ -407,10 +408,12 @@ theorem AddInductive.runWithStats.closedWF
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hnprimCtors : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
+    (hnprimCtors : c.allowPrimitive = true →
+      ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
     (hnotPartial : c.safety ≠ .partial)
-    (hnprimRecursors : ∀ owner (howner : owner < indTypes.size),
+    (hnprimRecursors : c.allowPrimitive = true →
+      ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe c).WF
@@ -506,7 +509,7 @@ structure RunWithStatsVerificationInputs
       indTypes.toList isUnsafe decl envTypes)
     (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
       Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth) : Prop where
-  freshTypes : ∀ info ∈
+  freshTypes : c.allowPrimitive = true → ∀ info ∈
     (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
       isUnsafe c.lparams).toList,
     ¬ Kernel.Environment.primitives.contains info.name
@@ -519,10 +522,12 @@ structure RunWithStatsVerificationInputs
   projections : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
     e'.containsAnyConst (decl.types.map (·.name)) = false →
     e''.containsAnyConst (decl.types.map (·.name)) = false
-  freshConstructorConstants : ∀ owner ∈ indTypes.toList,
+  freshConstructorConstants : c.allowPrimitive = true →
+    ∀ owner ∈ indTypes.toList,
     ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name
-  freshRecursors : ∀ owner (howner : owner < indTypes.size),
+  freshRecursors : c.allowPrimitive = true →
+    ∀ owner (howner : owner < indTypes.size),
     ¬ Kernel.Environment.primitives.contains
       (Lean.mkRecName indTypes[owner]!.name)
 

@@ -101,7 +101,8 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
-    (hnprim : ∀ owner (howner : owner < indTypes.size),
+    (hnprim : c.allowPrimitive = true →
+      ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
@@ -169,7 +170,9 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     HstatsLocal hwhnf hconsume hlit hctxLocal hproj Hcard Hcore Hbindings
     Hparams hnoalias HsuffixLocal.parameterFVarsUp Hseed (by
       rw [Hle.safety_eq]
-      exact hnotPartial) hnprim
+      exact hnotPartial) (by
+        intro hallow
+        exact hnprim (Hle.allowPrimitive_eq ▸ hallow))
   have hclosedLocal : MutualInductivesClosed localContext.env := by
     rw [Hle.env_eq]
     exact hclosed
