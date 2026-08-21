@@ -706,6 +706,39 @@ theorem VerifiedInductiveRunResult.addInductCanonical
     Hheaders R Hrecursors
   exact Hrecursors.canonicalOrdinaryRuleTranslation hproj
 
+/-- End-to-end refinement theorem for the executable ordinary installer.
+The postcondition exposes the independently materialized declaration and an
+abstract `VEnv.AddInduct` derivation; generated rules are not an input. -/
+theorem AddInductive.run.closedAddInductWF
+    (numNested : Nat)
+    (Hc : ContextWF c)
+    (Hclosed : MutualInductivesClosed c.env)
+    (Hdecl : TrInductDeclSkeletonHeaders Hc.venv c.lparams skeleton.nparams
+      types.toArray.toList (c.safety != .safe) skeleton envTypes)
+    (hctx : Hc.mlctx.vlctx = [])
+    (hnonempty : 0 < types.toArray.size)
+    (HnotPartial : c.safety ≠ .partial)
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hproj : ProjectionConstPreservation)
+    (Hinputs : ∀ {c' : AddInductive.Context}
+      {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+      {depth : Nat}
+      (Hc' : ContextWF c')
+      (Hdecl' : TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
+        types.toArray.toList (c.safety != .safe) decl envTypes)
+      (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
+        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth),
+      RunWithStatsVerificationInputs c' stats decl skeleton.nparams depth
+        numNested types.toArray (c.safety != .safe) Hc' Hdecl'
+        Hmaterialized) :
+    (AddInductive.run skeleton.nparams types numNested c).WF fun outEnv =>
+      ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
+        ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
+          VEnv.AddInduct Hc'.venv decl finalVEnv := by
+  exact (AddInductive.run.closedWF numNested Hc Hclosed Hdecl hctx hnonempty
+    HnotPartial hconsume Hinputs).mono fun _ Hrun =>
+      Hrun.addInductCanonical hproj
+
 /-- Close a verified ordinary executable run against the independent
 `VEnv.AddInduct` specification once the generated rule batch and compilation
 certificate are supplied. -/
