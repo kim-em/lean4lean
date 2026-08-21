@@ -407,9 +407,13 @@ theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedAtFrom
     (Hold : Expr.ForallTelescopeTypeTranslation oldEnv Us oldΔ
       (input.abstractList oldParams depth) arity oldTarget)
     (limit position : Nat) (hspan : position + arity = limit)
+    (HnewCtx : OnCtx (abstractForallContext newPrefix newBase).toCtx
+      (newEnv.IsType Us.length))
     (Hdomains : ∀ {oldΔ oldDomain newDomain oldDomainTarget}
         (position binderDepth : Nat) (newPrefix : List VExpr),
       position < limit →
+      OnCtx (abstractForallContext newPrefix newBase).toCtx
+        (newEnv.IsType Us.length) →
       ExprReplacement replaceNode oldDomain newDomain →
       TrExprS oldEnv Us oldΔ
         (oldDomain.abstractList oldParams binderDepth) oldDomainTarget →
@@ -419,6 +423,8 @@ theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedAtFrom
         (newDomain.abstractList newParams binderDepth))
     (Hresidual : ∀ {oldΔ oldResidualTarget}
         (newPrefix : List VExpr),
+      OnCtx (abstractForallContext newPrefix newBase).toCtx
+        (newEnv.IsType Us.length) →
       ExprReplacement replaceNode oldResidual newResidual →
       TrExprS oldEnv Us oldΔ
         (oldResidual.abstractList oldParams (depth + arity))
@@ -433,7 +439,7 @@ theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedAtFrom
         (output.abstractList newParams depth) arity newTarget := by
   induction H generalizing oldΔ oldTarget depth position newPrefix with
   | nil Hbody =>
-    rcases Hresidual newPrefix Hbody Hold.translation Hold.isType with
+    rcases Hresidual newPrefix HnewCtx Hbody Hold.translation Hold.isType with
       ⟨target, Htr, Htype⟩
     exact ⟨target, .nil Htr Htype⟩
   | @cons name oldDom oldBody bi newDom newBody arity oldResidual newResidual
@@ -441,19 +447,33 @@ theorem ExprReplacement.ForallTelescopeReplacement.transportAbstractedAtFrom
     rw [Expr.abstractList_forallE] at Hold
     cases Hold with
     | cons HoldDom HoldDomType HoldBody =>
-      rcases Hdomains position depth newPrefix (by omega) Hdom HoldDom
+      rcases Hdomains position depth newPrefix (by omega) HnewCtx Hdom HoldDom
           HoldDomType with
         ⟨newDomainTarget, HnewDomain, HnewDomainType⟩
+      have HnewCtx' : OnCtx
+          (abstractForallContext (newPrefix ++ [newDomainTarget])
+            newBase).toCtx (newEnv.IsType Us.length) := by
+        rw [abstractForallContext_toCtx, List.reverse_append]
+        simp only [List.reverse_singleton, List.singleton_append]
+        change OnCtx (newPrefix.reverse ++ newBase.toCtx)
+            (newEnv.IsType Us.length) ∧
+          newEnv.IsType Us.length (newPrefix.reverse ++ newBase.toCtx)
+            newDomainTarget
+        exact ⟨by
+          simpa [abstractForallContext_toCtx] using HnewCtx, by
+          simpa [abstractForallContext_toCtx] using HnewDomainType⟩
       rcases ih HoldBody (Hresidual := by
-          intro oldΔ oldResidualTarget extendedPrefix Hreplacement Htr Htype
-          have Htransported := Hresidual extendedPrefix Hreplacement (by
+          intro oldΔ oldResidualTarget extendedPrefix HextendedCtx
+              Hreplacement Htr Htype
+          have Htransported := Hresidual extendedPrefix HextendedCtx
+            Hreplacement (by
             simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Htr)
             Htype
           simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
             Htransported)
           (depth := depth + 1) (position := position + 1)
           (hspan := by omega)
-          (newPrefix := newPrefix ++ [newDomainTarget]) with
+          (newPrefix := newPrefix ++ [newDomainTarget]) HnewCtx' with
         ⟨newBodyTarget, HnewBody⟩
       have HnewBody' : Expr.ForallTelescopeTypeTranslation newEnv Us
           ((none, .vlam newDomainTarget) ::

@@ -542,7 +542,9 @@ def GeneratedRecursorRestoredDomainTranslation
       newInfo Hentry)
     (newEnv : VEnv) (newBase : VLCtx)
     (position binderDepth : Nat) (accumulated : List VExpr) : Prop :=
-  ∀ {oldΔ oldDomain newDomain oldDomainTarget},
+  OnCtx (abstractForallContext accumulated newBase).toCtx
+      (newEnv.IsType Hentry.info.levelParams.length) →
+    ∀ {oldΔ oldDomain newDomain oldDomainTarget},
     ExprReplacement
         (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
         oldDomain newDomain →
@@ -657,11 +659,15 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
     (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
       newInfo Hentry)
     (newEnv : VEnv) (newBase : VLCtx) (newPrefix : List VExpr)
+    (HnewCtx : OnCtx (abstractForallContext newPrefix newBase).toCtx
+      (newEnv.IsType Hentry.info.levelParams.length))
     (Hdomains : ∀ {oldΔ oldDomain newDomain oldDomainTarget}
         (position binderDepth : Nat) (accumulated : List VExpr)
         (slot : GeneratedRecursorDomainSlot),
       (generatedRecursorDomainSlots recInfos ownerIdx)[position]? =
         some slot →
+      OnCtx (abstractForallContext accumulated newBase).toCtx
+        (newEnv.IsType Hentry.info.levelParams.length) →
       ExprReplacement
           (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
           oldDomain newDomain →
@@ -675,6 +681,8 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
         (newDomain.abstractList H.trace.opening.selection.fvars binderDepth))
     (Hresidual : ∀ {oldΔ oldResidualTarget}
         (accumulated : List VExpr),
+      OnCtx (abstractForallContext accumulated newBase).toCtx
+        (newEnv.IsType Hentry.info.levelParams.length) →
       ExprReplacement
           (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
           (concreteRecursorResult (recInfos.map (·.motive)).size
@@ -721,9 +729,9 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
       recInfos[ownerIdx]!.indices.size + 1)
     (position := 0) (hspan := by omega)
     (newPrefix := newPrefix) (newBase := newBase)
-    H.oldSuffix
+    H.oldSuffix HnewCtx
   · intro oldΔ oldDomain newDomain oldDomainTarget position binderDepth
-      accumulated hposition Hreplacement Htr Htype
+      accumulated hposition Hctx Hreplacement Htr Htype
     have hslot : position <
         (generatedRecursorDomainSlots recInfos ownerIdx).length := by
       simpa using hposition
@@ -731,10 +739,11 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
       (generatedRecursorDomainSlots recInfos ownerIdx)[position]'hslot
     apply Hdomains position binderDepth accumulated slot
     · exact List.getElem?_eq_getElem hslot
+    · exact Hctx
     · exact Hreplacement
     · exact Htr
     · exact Htype
-  intro oldΔ oldResidualTarget accumulated Hreplacement Htr Htype
+  intro oldΔ oldResidualTarget accumulated Hctx Hreplacement Htr Htype
   have Htr' : TrExprS venv Hentry.info.levelParams oldΔ
       ((concreteRecursorResult (recInfos.map (·.motive)).size
         (recInfos.flatMap (·.minors)).size
@@ -745,7 +754,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffix
           recInfos[ownerIdx]!.indices.size + 1))
       oldResidualTarget := by
     simpa using Htr
-  simpa using Hresidual accumulated Hreplacement Htr' Htype
+  simpa using Hresidual accumulated Hctx Hreplacement Htr' Htype
 
 /-- Reclose an independently transported restored suffix under a translated
 copy of the unchanged concrete parameter prefix.  The template contributes
@@ -842,6 +851,8 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
     (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
       newInfo Hentry)
     (newEnv : VEnv) (newBase : VLCtx) (newPrefix : List VExpr)
+    (HnewCtx : OnCtx (abstractForallContext newPrefix newBase).toCtx
+      (newEnv.IsType Hentry.info.levelParams.length))
     (Hc : BindingContextWF c) (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (howner : ownerIdx < recInfos.size)
@@ -849,6 +860,8 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
       newEnv newBase)
     (Hresidual : ∀ {oldΔ oldResidualTarget}
         (accumulated : List VExpr),
+      OnCtx (abstractForallContext accumulated newBase).toCtx
+        (newEnv.IsType Hentry.info.levelParams.length) →
       ExprReplacement
           (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
           (concreteRecursorResult (recInfos.map (·.motive)).size
@@ -886,28 +899,28 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
           (recInfos.flatMap (·.minors)).size +
           recInfos[ownerIdx]!.indices.size + 1)
         target := by
-  apply H.transportSuffix newEnv newBase newPrefix
+  apply H.transportSuffix newEnv newBase newPrefix HnewCtx
   · intro oldΔ oldDomain newDomain oldDomainTarget position binderDepth
-      accumulated slot hlookup Hreplacement Htr Htype
+      accumulated slot hlookup Hctx Hreplacement Htr Htype
     cases GeneratedRecursorDomainPosition.of_lookup hlookup with
     | motive =>
         rcases Hbindings.motives.declarationAt Hc _ (by omega) with
           ⟨Hdeclaration⟩
         exact Hdomains.motive _ (by omega) Hdeclaration
           (Horigins.motives.type_eq Hdeclaration) binderDepth
-          accumulated Hreplacement Htr Htype
+          accumulated Hctx Hreplacement Htr Htype
     | minor =>
         rcases Hbindings.flatMinors.declarationAt Hc _ (by omega) with
           ⟨Hdeclaration⟩
         rcases Horigins.flatMinorOrigin Hdeclaration with ⟨Horigin⟩
         exact Hdomains.minor _ (by omega) Hdeclaration Horigin
-          binderDepth accumulated Hreplacement Htr Htype
+          binderDepth accumulated Hctx Hreplacement Htr Htype
     | index =>
         rcases (Hbindings.indices ownerIdx howner).declarationAt Hc _
             (by omega) with ⟨Hdeclaration⟩
         exact Hdomains.index _ (by omega) Hdeclaration
           ((Horigins.indices ownerIdx howner).type_eq Hdeclaration)
-          binderDepth accumulated Hreplacement Htr Htype
+          binderDepth accumulated Hctx Hreplacement Htr Htype
     | major =>
         rcases (Hbindings.major ownerIdx howner).declarationAt Hc 0
             (by simp) with ⟨Hdeclaration⟩
@@ -921,7 +934,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.transportSuffixOfDomains
           simp [Array.getElem!_eq_getD, Array.getD, howner]
         have htypeEq := Hdeclaration.type_eq_of_expression Horigin hexpression
         exact Hdomains.major Hdeclaration (htypeEq.trans horiginType)
-          binderDepth accumulated Hreplacement Htr Htype
+          binderDepth accumulated Hctx Hreplacement Htr Htype
   · exact Hresidual
 
 /-- A canonical translation of the restored recursor telescope is already a
