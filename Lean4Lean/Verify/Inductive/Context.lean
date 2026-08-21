@@ -1277,6 +1277,17 @@ def WhnfLParamsCompat : Prop :=
       TypeChecker.M.run env safety lctx lparams' fuel
         (TypeChecker.whnf e)
 
+/-- Structural preservation of constant-name absence by translated
+projections.  `TrProj` is currently an opaque relation in the shared typing
+specification, so inductive verification records this one generic property
+instead of repeating it for each freshly generated name set. -/
+def ProjectionConstPreservation : Prop :=
+  ∀ (names : List Name) {Delta : VLCtx} {s : Name} {i : Nat}
+    {e' e'' : VExpr},
+    TrProj Delta.toCtx s i e' e'' →
+    e'.containsAnyConst names = false →
+    e''.containsAnyConst names = false
+
 set_option linter.unusedSimpArgs false in
 /-- Inferring the type of a free variable only consults its local declaration.
 In particular it is independent of the universe-parameter names installed in

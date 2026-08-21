@@ -247,6 +247,27 @@ def RecursorPhasesResult.GeneratedEquationBuild.ordinaryResult
   projections := hproj
   complete := hcomplete
 
+/-- The completed recursor phase determines the full ordinary compilation
+payload.  The only shared-typing premise is the generic structural property
+of the opaque `TrProj` relation; no rule, telescope, or equation witness is
+chosen by the caller. -/
+theorem RecursorPhasesResult.canonicalOrdinaryRuleTranslation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (hproj : ProjectionConstPreservation) :
+    Nonempty (OrdinaryRuleTranslationResult H) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases H.existsCanonicalGeneratedEquationBuild with ⟨rules, ⟨T⟩⟩
+  refine ⟨T.ordinaryResult rfl ?_⟩
+  intro Delta s j e' e'' Hprojection hfree
+  exact hproj _ Hprojection hfree
+
 theorem OrdinaryRuleTranslationResult.compilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -541,9 +562,7 @@ structure RunWithStatsVerificationInputs
   loopUArgsReplay : RecursorLoopUArgsReplayCompat
   recursorConsume : RecursorConsumeTypeAnnotationsCompat
   literalDisjoint : checkPositivityStep.LiteralDisjoint stats.indConsts
-  projections : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
-    e'.containsAnyConst (decl.types.map (·.name)) = false →
-    e''.containsAnyConst (decl.types.map (·.name)) = false
+  projections : ProjectionConstPreservation
   freshConstructorConstants : c.allowPrimitive = true →
     ∀ owner ∈ indTypes.toList,
     ∀ ctor ∈ owner.ctors,
@@ -571,7 +590,8 @@ theorem RunWithStatsVerificationInputs.verify
     Hmaterialized hvisible H.freshTypes H.consume
     hlparams H.whnfLParams H.recursiveFieldReplay H.loopUArgsReplay
     H.recursorConsume
-    H.literalDisjoint H.projections
+    H.literalDisjoint (fun Htr hfree =>
+      H.projections (decl.types.map (·.name)) Htr hfree)
     (fun h => Hdecl.isUnsafe.trans h)
     H.freshConstructorConstants hnotPartial
     H.freshRecursors
@@ -669,6 +689,22 @@ theorem VerifiedInductiveRunResult.addInductOfRuleTranslations
   exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules T.rules,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
       T.compilation⟩
+
+/-- Ordinary executable runs refine the independent inductive specification
+without a caller-supplied equation batch.  All generated equations,
+including mutual and dependent recursive cases, are reconstructed from the
+completed recursor phase. -/
+theorem VerifiedInductiveRunResult.addInductCanonical
+    (Hrun : VerifiedInductiveRunResult source skeleton envTypes types
+      numNested outEnv)
+    (hproj : ProjectionConstPreservation) :
+    ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
+      ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
+        VEnv.AddInduct Hc'.venv decl finalVEnv := by
+  apply Hrun.addInductOfRuleTranslations
+  intro c' stats decl depth Hc' Hdecl Hmaterialized headerEnv ctorEnv
+    Hheaders R Hrecursors
+  exact Hrecursors.canonicalOrdinaryRuleTranslation hproj
 
 /-- Close a verified ordinary executable run against the independent
 `VEnv.AddInduct` specification once the generated rule batch and compilation
