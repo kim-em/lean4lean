@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Equation.Lhs
+import Lean4Lean.Verify.Inductive.Equation.Final
 
 namespace Lean4Lean
 
