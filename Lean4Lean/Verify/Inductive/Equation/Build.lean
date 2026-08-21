@@ -480,6 +480,7 @@ theorem AddInductive.run.materialize
       {stats : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth : Nat},
       (Hc' : ContextWF c') →
+      c'.env = c.env →
       TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
         types.toArray.toList (c.safety != .safe) decl envTypes →
       checkInductiveTypes.loopInd.MaterializedHeaderResult
@@ -497,8 +498,8 @@ theorem AddInductive.run.materialize
       (fun stats => AddInductive.runWithStats stats skeleton.nparams
         types.toArray numNested (c.safety != .safe)) Q Hc Hdecl hctx hnonempty
       hconsume
-    intro c' stats decl depth Hc' hlparamsEq Hdecl' Hmaterialized
-    apply Hfinish Hc' Hdecl' Hmaterialized
+    intro c' stats decl depth Hc' henvEq hlparamsEq Hdecl' Hmaterialized
+    apply Hfinish Hc' henvEq Hdecl' Hmaterialized
     simpa [hlparamsEq] using hnodup
   simpa [AddInductive.run] using Hcombined
 
@@ -515,7 +516,6 @@ structure RunWithStatsVerificationInputs
       indTypes.toList isUnsafe decl envTypes)
     (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
       Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth) : Prop where
-  closed : MutualInductivesClosed c.env
   visible : c.safety ≤
     (if isUnsafe then DefinitionSafety.unsafe else .safe)
   freshTypes : ∀ info ∈
@@ -553,7 +553,8 @@ structure RunWithStatsVerificationInputs
 
 theorem RunWithStatsVerificationInputs.verify
     (H : RunWithStatsVerificationInputs c stats decl numParams depth
-      numNested indTypes isUnsafe Hc Hdecl Hmaterialized) :
+      numNested indTypes isUnsafe Hc Hdecl Hmaterialized)
+    (Hclosed : MutualInductivesClosed c.env) :
     c.lparams.Nodup →
     (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe
       c).WF fun outEnv => ∃ headerEnv ctorEnv,
@@ -561,7 +562,7 @@ theorem RunWithStatsVerificationInputs.verify
           depth Hc.venv indTypes headerEnv,
         ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
           Nonempty (RecursorPhasesResult R outEnv) :=
-  fun hlparams => AddInductive.runWithStats.closedWF Hc H.closed Hdecl
+  fun hlparams => AddInductive.runWithStats.closedWF Hc Hclosed Hdecl
     Hmaterialized H.visible H.freshTypes H.freshConstructors H.consume
     hlparams H.whnfLParams H.recursiveFieldReplay H.loopUArgsReplay
     H.recursorConsume
@@ -592,6 +593,7 @@ def VerifiedInductiveRunResult
 theorem AddInductive.run.closedWF
     (numNested : Nat)
     (Hc : ContextWF c)
+    (Hclosed : MutualInductivesClosed c.env)
     (Hdecl : TrInductDeclSkeletonHeaders Hc.venv c.lparams skeleton.nparams
       types.toArray.toList (c.safety != .safe) skeleton envTypes)
     (hctx : Hc.mlctx.vlctx = [])
@@ -613,8 +615,11 @@ theorem AddInductive.run.closedWF
   apply AddInductive.run.materialize numNested
     (VerifiedInductiveRunResult c skeleton envTypes types numNested)
     Hc Hdecl hctx hnonempty hconsume
-  intro c' stats decl depth Hc' Hdecl' Hmaterialized hlparamsNodup
-  exact ((Hinputs Hc' Hdecl' Hmaterialized).verify hlparamsNodup).mono
+  intro c' stats decl depth Hc' henvEq Hdecl' Hmaterialized hlparamsNodup
+  have Hclosed' : MutualInductivesClosed c'.env := by
+    simpa [henvEq] using Hclosed
+  exact ((Hinputs Hc' Hdecl' Hmaterialized).verify Hclosed'
+    hlparamsNodup).mono
     fun outEnv Hout => by
       rcases Hout with ⟨headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
       exact ⟨c', stats, decl, depth, Hc', Hdecl', Hmaterialized,

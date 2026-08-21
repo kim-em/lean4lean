@@ -3645,6 +3645,7 @@ theorem index.cacheSynthesisWF
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (_henv : c'.env = c.env)
       (_hvenv : Hc'.venv = Hc.venv)
       (_hlparams : c'.lparams = c.lparams)
       (normalized : Expr) (next : VExpr),
@@ -3671,7 +3672,7 @@ theorem index.cacheSynthesisWF
   rcases hnormalized with ⟨next, hnext, hnextEq⟩
   have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
-  exact Hrec Hc' rfl rfl normalized next hnext Hcache'
+  exact Hrec Hc' rfl rfl rfl normalized next hnext Hcache'
     (Hsuffix.withIndex Hc Hdom.consumed Hdom.isType)
     ((Hsynthesis.withIndex Hdom).normalize hsourceNext)
 
@@ -3898,6 +3899,7 @@ theorem firstParameter.cacheSynthesisWF
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
     (Hrec : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (_henv : c'.env = c.env)
       (_hvenv : Hc'.venv = Hc.venv)
       (_hlparams : c'.lparams = c.lparams)
       (normalized : Expr) (next : VExpr),
@@ -3932,7 +3934,7 @@ theorem firstParameter.cacheSynthesisWF
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
   let Hsynthesis' :=
     (Hsynthesis.withParameter hindices Hdom).normalize hsourceNext
-  exact Hrec Hc' rfl rfl normalized next hnext Hcache'
+  exact Hrec Hc' rfl rfl rfl normalized next hnext Hcache'
     (Hsuffix.push Hc hprefix Hdom.consumed Hdom.isType)
     Hsynthesis' (by rfl)
 
@@ -4188,6 +4190,7 @@ fuel recursion and carries both the parameter cache and the synthesized
 abstract telescope to the terminal continuation. -/
 theorem firstHeaderSynthesisWF
     {target : VInductiveTypeSkeleton}
+    {sourceEnv : Environment}
     {baseLevels : List Level} {baseNindices : Array Nat}
     {baseConsts : Array Expr}
     {R : VEnv → Prop}
@@ -4198,6 +4201,7 @@ theorem firstHeaderSynthesisWF
       {stats' : AddInductive.InductiveStats} {type' : Expr}
       {current' : VExpr} {i' nindices' : Nat}
       (Hc' : ContextWF c'),
+      c'.env = sourceEnv →
       c'.lparams = Us →
       stats'.indConsts.isEmpty = true →
       stats'.levels = baseLevels →
@@ -4213,6 +4217,7 @@ theorem firstHeaderSynthesisWF
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx type' current' →
       (k type' stats' nindices' c').WF Q)
     (Hc : ContextWF c)
+    (henv : c.env = sourceEnv)
     (hlparams : c.lparams = Us)
     (hempty : stats.indConsts.isEmpty = true)
     (hlevelsStable : stats.levels = baseLevels)
@@ -4246,9 +4251,10 @@ theorem firstHeaderSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi hempty (by simpa using Hcache) Hsuffix hambient
             Hsynthesis hindices Hdom hbody
-          intro c' Hc' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
+          intro c' Hc' henv' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
             Hsynthesis' hindices'
-          apply ih Hc' (hlparams'.trans hlparams) (by simpa using hempty)
+          apply ih Hc' (henv'.trans henv) (hlparams'.trans hlparams)
+            (by simpa using hempty)
             (by simpa using hlevelsStable)
             (by simpa using hnindicesStable)
             (by simpa using hconstsStable)
@@ -4260,9 +4266,10 @@ theorem firstHeaderSynthesisWF
         · apply index.cacheSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi Hcache Hsuffix Hsynthesis Hdom hbody
-          intro c' Hc' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
+          intro c' Hc' henv' hvenv' hlparams' normalized next hnext Hcache' Hsuffix'
             Hsynthesis'
-          apply ih Hc' (hlparams'.trans hlparams) hempty hlevelsStable
+          apply ih Hc' (henv'.trans henv) (hlparams'.trans hlparams)
+            hempty hlevelsStable
             hnindicesStable hconstsStable
             (by rw [hvenv']; exact HR)
             Hcache' Hsuffix' Hsynthesis'
@@ -4271,7 +4278,7 @@ theorem firstHeaderSynthesisWF
           · exact hnext
     · by_cases hi : i = nparams
       · exact result.WF hforall hi
-          (Hresult Hc hlparams hempty hlevelsStable hnindicesStable
+          (Hresult Hc henv hlparams hempty hlevelsStable hnindicesStable
             hconstsStable HR hforall hi Hcache Hsuffix Hsynthesis htype)
       · exact parameterMismatch.WF hforall hi
 
@@ -4416,10 +4423,12 @@ theorem laterIndexSynthesisWF
     {alpha : Type} {target : VInductiveTypeSkeleton}
     {commonParams : List VExpr}
     {paramU : Nat}
+    {sourceEnv : Environment}
     {R : VEnv → Prop}
     (k : Expr → AddInductive.InductiveStats → Nat →
       AddInductive.M alpha) (Q : alpha → Prop)
     (Hresult : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c')
+      (_henv : c'.env = sourceEnv)
       (_hlparams : c'.lparams = c.lparams)
       {type' narrowCurrent fullCurrent scope' nindices' fuel'},
       (¬ ∃ name dom body bi, type' = .forallE name dom body bi) →
@@ -4440,6 +4449,7 @@ theorem laterIndexSynthesisWF
         nparams nindices' (fuel' + 1) k c').WF Q)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (Hc : ContextWF c)
+    (henv : c.env = sourceEnv)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats nparams (depth + nindices))
     (Hsuffix : ParameterContextSuffix Hc stats (depth + nindices))
@@ -4580,8 +4590,9 @@ theorem laterIndexSynthesisWF
             hscopeWF hdomainNarrow htransition with
           ⟨nextNarrow, hnextNarrow, Hsynthesis',
             ⟨hparamsPreserved, _hindicesPreserved⟩⟩
-        exact ih (fun Hc'' hlparams'' =>
-            Hresult Hc'' (by simpa using hlparams'')) Hc'
+        exact ih (fun Hc'' henv'' hlparams'' =>
+            Hresult Hc'' henv'' (by simpa using hlparams'')) Hc'
+          (by simpa using henv)
           (by simpa [Nat.add_assoc] using
             Hcache.withIndex Hc Hdom.consumed Hdom.isType)
           (by simpa [Nat.add_assoc] using
@@ -4597,7 +4608,7 @@ theorem laterIndexSynthesisWF
             exact Hparams) Hruntime' hnextNarrow
           hnormalizedFVars
           ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
-    · exact Hresult Hc rfl hforall Hsynthesis Hruntime htypeNarrow
+    · exact Hresult Hc henv rfl hforall Hsynthesis Hruntime htypeNarrow
         htypeFVars htypeFull Hcache Hsuffix Hambient HR Hparams
 
 end checkInductiveTypes.loopType
