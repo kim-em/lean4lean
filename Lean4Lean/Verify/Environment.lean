@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Environment.Extension
-import Lean4Lean.Verify.Inductive.Run
+import Lean4Lean.Verify.Inductive
 
 namespace Lean4Lean
 open Lean4Lean
