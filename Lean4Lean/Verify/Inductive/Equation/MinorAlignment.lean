@@ -2058,6 +2058,253 @@ theorem
     by simpa [hsemanticTraversal] using hparameterTail,
     hfields, hhypotheses, htarget, Hresidual, HresidualType⟩
 
+/-- Positive-arity selected-minor residual with all source-shape evidence
+retained on one witness.  The ordinary residual endpoint intentionally hides
+the first-pass constructor shape; the final equation type comparison needs
+that shape to identify the residual motive application with the independently
+reconstructed constructor motive on the LHS. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPositiveAlignedResidual
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let minorIdx := recursorMinorOffset indTypes owner + i
+    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
+        (H.generated.entry owner howner).info.type H.entries[owner].2.type
+        stats.params.size (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size
+        H.recInfos[owner]!.indices.size owner,
+      ∃ S : RecInfoMinorTypeShape,
+      ∃ traversal : RecInfoMinorTraversalShape,
+      ∃ fieldDomains hypothesisDomains targetResidual,
+        S.constructor = indTypes[owner]!.ctors[i] ∧
+        traversal.fields = S.fields ∧
+        traversal.fieldFVars = S.fields_bound.fvars ∧
+        traversal.terminal.abstractList S.fields_bound.fvars =
+          A.rule.target.abstractList A.semantics.fieldOpening.fvars ∧
+        (AddInductive.getIIndices stats traversal.terminal).1 = owner ∧
+        S.motiveApp =
+          Expr.app
+            (mkAppN H.recInfos[owner]!.motive
+              (AddInductive.getIIndices stats traversal.terminal).2)
+            (mkAppN
+              (mkAppN (.const S.constructor.name stats.levels) stats.params)
+              S.fields) ∧
+        S.fields.size = A.rule.allArgs.size ∧
+        S.hypotheses.size = A.rule.recursiveArgs.size ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        hypothesisDomains.length = A.rule.recursiveArgs.size ∧
+        T.minors[minorIdx]! = VExpr.wrapForalls
+          (fieldDomains ++ hypothesisDomains) targetResidual ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext (fieldDomains ++ hypothesisDomains)
+            (abstractForallContext
+              (T.params ++ T.motives ++ T.minors.take minorIdx) []))
+          (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+            S.fields_bound.fvars S.hypotheses.size).abstractList
+              sourceBinders
+              (A.rule.allArgs.size + A.rule.recursiveArgs.size))
+          targetResidual ∧
+        H.outVEnv.IsType Us.length
+          (abstractForallContext (fieldDomains ++ hypothesisDomains)
+            (abstractForallContext
+              (T.params ++ T.motives ++ T.minors.take minorIdx) [])).toCtx
+          targetResidual := by
+  dsimp only
+  let minorIdx := recursorMinorOffset indTypes owner + i
+  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars.take minorIdx
+  rcases A.finalSelectedMinorShape with
+    ⟨T, D, _O, S, horigin, _hlocal, _hconstructors, hconstructor,
+      hsourceFields, _Hsemantic, _hypothesisOrigins,
+      _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
+      traversal, htraversal, htraversalConstructor, htraversalFields,
+      htraversalRecursiveFields, htraversalStats, hvalid, hmotiveApp,
+      _hrootContext, hterminalContext, _hsourceContext, Hdomain,
+      HdomainType⟩
+  have hprefixTraversal := traversal.parameterPrefix
+  rw [htraversalStats, htraversalConstructor, hconstructor] at hprefixTraversal
+  have hparameterTail :
+      traversal.parameterTail = A.semantics.parameterTail :=
+    hprefixTraversal.tail_eq A.semantics.parameterPrefix
+  have HruleDecisions : RecursorFieldDecisions stats
+      A.semantics.fieldRoot traversal.parameterTail A.rule.root
+      A.rule.target A.rule.allArgs A.rule.recursiveArgs
+      A.semantics.recursivePositions := by
+    rw [hparameterTail]
+    exact A.semantics.decisions
+  have hterminalToRule : BindingContextLE traversal.terminalContext
+      A.semantics.fieldRoot :=
+    hterminalContext.trans A.semantics.fieldRootExtension.contextLE
+  have HminorDecisions : RecursorFieldDecisions stats
+      traversal.rootContext traversal.parameterTail traversal.terminalContext
+      traversal.terminal traversal.fields traversal.recursiveFields
+      traversal.recursivePositions := by
+    simpa [htraversalStats] using traversal.decisions
+  have hpositions : traversal.recursivePositions =
+      A.semantics.recursivePositions :=
+    H.fieldReplay stats traversal.rootContext A.semantics.fieldRoot
+      traversal.terminalContext A.rule.root traversal.parameterTail
+      traversal.terminal A.rule.target traversal.fields
+      traversal.recursiveFields A.rule.allArgs A.rule.recursiveArgs
+      traversal.recursivePositions A.semantics.recursivePositions
+      hterminalToRule traversal.parameterTail_fvars HminorDecisions
+      HruleDecisions
+  have hsourceHypotheses : S.hypotheses.size =
+      A.rule.recursiveArgs.size :=
+    S.hypotheses_size_eq_rule traversal A.semantics
+      htraversalRecursiveFields hpositions
+  rcases S.originTelescope with ⟨sourceResidual, Hsource⟩
+  have Habstract := Hsource.abstractList sourceBinders
+  rw [hsourceFields, hsourceHypotheses] at Habstract
+  have Hdomain' : TrExprS H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext
+        (T.params ++ T.motives ++ T.minors.take minorIdx) [])
+      (S.origin.abstractList sourceBinders) T.minors[minorIdx]! := by
+    rw [horigin]
+    exact Hdomain
+  have Htyped := Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    Habstract Hdomain' HdomainType
+  rcases Htyped.toWrapForalls with
+    ⟨domains, splitResidual, targetResidual, hdomainsLength,
+      HsplitSource, htarget, Hresidual, HresidualType⟩
+  let fieldDomains := domains.take A.rule.allArgs.size
+  let hypothesisDomains := domains.drop A.rule.allArgs.size
+  have hfieldsLE : A.rule.allArgs.size ≤ domains.length := by omega
+  have hfields : fieldDomains.length = A.rule.allArgs.size := by
+    simp [fieldDomains, List.length_take, Nat.min_eq_left hfieldsLE]
+  have hhypotheses : hypothesisDomains.length =
+      A.rule.recursiveArgs.size := by
+    simp [hypothesisDomains, List.length_drop, hdomainsLength]
+  have hdomains : domains = fieldDomains ++ hypothesisDomains :=
+    (List.take_append_drop A.rule.allArgs.size domains).symm
+  rw [hdomains] at htarget Hresidual HresidualType
+  have hconsume := S.sourceTelescope.consumeTypeAnnotations_eq_self_of_pos
+    (by simpa [hsourceFields, hsourceHypotheses] using hpositive)
+  have hsourceType : S.origin = S.sourceType :=
+    S.consumed_eq.symm.trans hconsume
+  have Hexpected := S.sourceTelescope.abstractList sourceBinders
+  rw [← hsourceType] at Hexpected
+  have hresidualShape : splitResidual =
+      (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+        S.fields_bound.fvars S.hypotheses.size).abstractList
+          sourceBinders
+          (A.rule.allArgs.size + A.rule.recursiveArgs.size)) := by
+    apply HsplitSource.residual_eq
+    simpa [sourceBinders, hsourceFields, hsourceHypotheses,
+      List.append_assoc] using Hexpected
+  rw [hresidualShape] at Hresidual
+  have hfieldFVars : traversal.fieldFVars =
+      S.fields_bound.fvars := by
+    have harrays : (traversal.fieldFVars.map Expr.fvar).toArray =
+        (S.fields_bound.fvars.map Expr.fvar).toArray :=
+      traversal.fields_eq.symm.trans <|
+        htraversalFields.trans S.fields_bound.expressions
+    have hlists : traversal.fieldFVars.map Expr.fvar =
+        S.fields_bound.fvars.map Expr.fvar := by
+      simpa using congrArg Array.toList harrays
+    exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlists
+  have hterminalClosed :
+      traversal.terminal.abstractList S.fields_bound.fvars =
+        traversal.fieldResidual := by
+    rw [← hfieldFVars]
+    exact traversal.fieldClosed
+  have HtraversalTelescope := traversal.fieldTelescope
+  rw [htraversalFields, hparameterTail] at HtraversalTelescope
+  have hsemanticResidual :
+      A.semantics.fieldOpening.residual.isForall = false := by
+    rw [← A.semantics.fieldOpening.closed, Expr.abstractList_isForall]
+    exact A.semantics.target_not_forall
+  have hfieldResidual : traversal.fieldResidual =
+      A.semantics.fieldOpening.residual :=
+    (HtraversalTelescope.eq_of_residual_not_forall
+      A.semantics.fieldOpening.telescope
+      traversal.fieldResidual_not_forall hsemanticResidual).2
+  have hclosedTargets :
+      traversal.terminal.abstractList S.fields_bound.fvars =
+        A.rule.target.abstractList A.semantics.fieldOpening.fvars := by
+    rw [hterminalClosed, A.semantics.fieldOpening.closed, hfieldResidual]
+  let selectedOwner :=
+    (AddInductive.getIIndices stats traversal.terminal).1
+  have hselectedValid : AddInductive.isValidIndApp? stats
+      traversal.terminal = some selectedOwner := by
+    simpa [selectedOwner] using hvalid
+  have hselectedDecl : selectedOwner < decl.types.length := by
+    have hselectedStats :=
+      (checkPositivityStep.isValidIndApp?_some hselectedValid).1
+    rw [A.semantics.validStats.types_size] at hselectedStats
+    exact hselectedStats
+  have hselectedHead : traversal.terminal.getAppFn =
+      .const (decl.types[selectedOwner]'hselectedDecl).name stats.levels :=
+    checkPositivityStep.isValidIndAppIdx.constHead
+      (checkPositivityStep.isValidIndApp?_some hselectedValid).2
+      (A.semantics.validStats.indConstAt hselectedDecl)
+  have htargetValid : AddInductive.isValidIndAppIdx stats A.rule.target
+      owner = true := by
+    have h := (checkPositivityStep.isValidIndApp?_some
+      A.semantics.target_valid).2
+    simpa [A.semantic_owner] using h
+  have htargetHead : A.rule.target.getAppFn =
+      .const (decl.types[owner]'A.abstractOwner_lt).name stats.levels :=
+    checkPositivityStep.isValidIndAppIdx.constHead htargetValid
+      (A.semantics.validStats.indConstAt A.abstractOwner_lt)
+  have hname : (decl.types[selectedOwner]'hselectedDecl).name =
+      (decl.types[owner]'A.abstractOwner_lt).name := by
+    have heq := congrArg Expr.getAppFn hclosedTargets
+    rw [Expr.getAppFn_abstractList, hselectedHead,
+      Expr.getAppFn_abstractList, htargetHead] at heq
+    simp [Expr.abstractList, Expr.abstract1] at heq
+    exact heq
+  have htypeNames : (decl.types.map (fun type => type.name)).Nodup := by
+    have hprefix := (List.nodup_append.mp
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup
+        R.core)).1
+    simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
+      VInductiveType.toVConstVal, Function.comp_def] using hprefix
+  have hselectedOwner : selectedOwner = owner := by
+    have hleft : selectedOwner <
+        (decl.types.map (fun type => type.name)).length := by simpa
+    have hright : owner <
+        (decl.types.map (fun type => type.name)).length := by
+      simpa using A.abstractOwner_lt
+    apply (List.getElem_inj (h₀ := hleft) (h₁ := hright)
+      htypeNames).mp
+    simpa only [List.getElem_map] using hname
+  have hselectedOwner' :
+      (AddInductive.getIIndices stats traversal.terminal).1 = owner := by
+    simpa [selectedOwner] using hselectedOwner
+  have hmotiveApp' : S.motiveApp =
+      Expr.app
+        (mkAppN H.recInfos[owner]!.motive
+          (AddInductive.getIIndices stats traversal.terminal).2)
+        (mkAppN
+          (mkAppN (.const S.constructor.name stats.levels) stats.params)
+          S.fields) := by
+    rw [hmotiveApp]
+    rcases hindices : AddInductive.getIIndices stats traversal.terminal with
+      ⟨motiveOwner, indices⟩
+    have : motiveOwner = owner := by
+      simpa [hindices] using hselectedOwner'
+    subst motiveOwner
+    rfl
+  exact ⟨T, S, traversal, fieldDomains, hypothesisDomains, targetResidual,
+    hconstructor, htraversalFields, hfieldFVars, hclosedTargets,
+    hselectedOwner', hmotiveApp', hsourceFields, hsourceHypotheses,
+    hfields, hhypotheses, htarget, Hresidual, HresidualType⟩
+
 /-- Opening the selected minor's translated telescope yields a genuine
 abstract context for every constructor field and recursive hypothesis.  The
 older parameter/motive/minor prefix is recovered from the complete generated
