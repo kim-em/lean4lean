@@ -2094,6 +2094,24 @@ theorem TrExprS.instantiateLiftClosedDomains
         rw [htarget]
         exact Htail
 
+/-- Consuming a source forall residual that was weakened beneath exactly the
+supplied argument block restores the original residual, independently of the
+arguments.  This is the source-side normalization used after applying all
+generated recursive-result arguments to a minor. -/
+@[simp] theorem Expr.instantiateForallBody_liftLooseBVars
+    (body : Expr) (args : List Expr) :
+    Expr.instantiateForallBody
+        (body.liftLooseBVars' 0 args.length) args = body := by
+  induction args generalizing body with
+  | nil => simp [Expr.instantiateForallBody]
+  | cons arg args ih =>
+      simp only [Expr.instantiateForallBody, List.length_cons]
+      have hstep := Expr.instantiate1'_liftLooseBVars
+        (e := body) (a := arg) (s := 0) (d := args.length)
+      simp only [Nat.zero_add] at hstep
+      rw [hstep]
+      simpa using ih (body := body)
+
 @[simp] theorem abstractForallContext_toCtx
     (domains : List VExpr) (Δ : VLCtx) :
     (abstractForallContext domains Δ).toCtx =

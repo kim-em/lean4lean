@@ -1653,6 +1653,9 @@ theorem
       ∃ equationFields : List VExpr,
       ∃ rhsBody typeBody : VExpr,
         equationFields.length = A.rule.allArgs.size ∧
+        equationFields =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse ∧
         let inserted := T.motives ++ T.minors
         let equationDomains :=
           H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
@@ -1740,7 +1743,7 @@ theorem
       equationDomains, inserted, B.fieldDomains_length,
       List.append_assoc] using HrhsTr₀
   exact ⟨B, T, C, equationFields, rhsBody, finalType,
-    by simp [equationFields, B.fieldDomains_length], Hctx, HrhsTr,
+    by simp [equationFields, B.fieldDomains_length], rfl, Hctx, HrhsTr,
     HrhsTyped⟩
 
 /-- Zero-arity counterpart of `finalCanonicalRhsPositiveArity`.  Both
@@ -1771,6 +1774,9 @@ theorem
       ∃ equationFields : List VExpr,
       ∃ rhsBody typeBody : VExpr,
         equationFields.length = A.rule.allArgs.size ∧
+        equationFields =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse ∧
         let inserted := T.motives ++ T.minors
         let equationDomains :=
           H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
@@ -1826,6 +1832,9 @@ theorem
     exact hresultsZero
   have hrecursiveResults : A.rule.recursiveResults = #[] :=
     Array.eq_empty_of_size_eq_zero hrecursiveResultsSize
+  have hframeFields : B.fieldDomains = [] :=
+    List.eq_nil_of_length_eq_zero
+      (B.fieldDomains_length.trans hfieldsZero)
   have hsourceMinor :
       A.rule.allArgs.size +
           ((H.recInfos.flatMap (·.minors)).size - 1 - minorIdx) =
@@ -1845,7 +1854,10 @@ theorem
     rw [hsource]
     exact HvarTr
   exact ⟨B, T, C, equationFields, rhsBody, typeBody,
-    by simp [equationFields, hfieldsZero], Hctx', HrhsTr, HrhsTyped⟩
+    by simp [equationFields, hfieldsZero], by
+      simp [equationFields, hframeFields, liftContextPrefix,
+        liftContextPrefixAt],
+    Hctx', HrhsTr, HrhsTyped⟩
 
 /-- Arity-independent endpoint for the generated right-hand side.  The
 positive and degenerate production paths expose the same semantic payload:
@@ -1877,6 +1889,9 @@ theorem
       ∃ equationFields : List VExpr,
       ∃ rhsBody typeBody : VExpr,
         equationFields.length = A.rule.allArgs.size ∧
+        equationFields =
+          (liftContextPrefix (T.motives ++ T.minors).length
+            B.fieldDomains.reverse).reverse ∧
         let inserted := T.motives ++ T.minors
         let equationDomains :=
           H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
