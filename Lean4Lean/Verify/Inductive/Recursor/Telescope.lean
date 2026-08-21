@@ -4764,20 +4764,22 @@ theorem RecursorParameterContextSuffix.parameterFVarsUp
     (IsFVarUpSet.congr hwf.fvwf hcongr).mp hcached
   simpa [H.context] using hconverted
 
-/-- A deliberately trivial body can be closed over the exact cached
-parameter declarations.  This supplies an independently translated source
-telescope whose prefix can be compared with any production telescope built
-from the same parameter selection. -/
-theorem RecursorParameterContextSuffix.closedSortTranslation
+/-- Typed form of `closedSortTranslation`.  Besides translating the cached
+parameter telescope, it retains the abstract typehood needed to open those
+domains as the base context of a later dependent telescope transport. -/
+theorem RecursorParameterContextSuffix.closedSortTyped
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     (H : RecursorParameterContextSuffix R stats depth) :
     let parameterMLCtx := R.mlctx.dropN depth H.depth_le
     TrExprS R.venv recLparams []
-      (R.mlctx.lctx.mkForall stats.params
-        (.sort (.zero : Level)))
-      (VExpr.wrapForalls H.parameterDecls.toCtx.reverse
-        (.sort (.zero : VLevel))) := by
+        (R.mlctx.lctx.mkForall stats.params
+          (.sort (.zero : Level)))
+        (VExpr.wrapForalls H.parameterDecls.toCtx.reverse
+          (.sort (.zero : VLevel))) ∧
+      R.venv.IsType recLparams.length []
+        (VExpr.wrapForalls H.parameterDecls.toCtx.reverse
+          (.sort (.zero : VLevel))) := by
   let parameterMLCtx := R.mlctx.dropN depth H.depth_le
   have hparameterWF : parameterMLCtx.WF R.venv recLparams := by
     simpa [parameterMLCtx] using R.mlctx_wf.dropN depth H.depth_le
@@ -4840,7 +4842,23 @@ theorem RecursorParameterContextSuffix.closedSortTranslation
   rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls, hdomains] at hclosed
   rw [hparameterCtx, htake] at hclosed
   rw [hlocalSource]
-  exact hclosed.1
+  exact hclosed
+
+/-- A deliberately trivial body can be closed over the exact cached
+parameter declarations.  This supplies an independently translated source
+telescope whose prefix can be compared with any production telescope built
+from the same parameter selection. -/
+theorem RecursorParameterContextSuffix.closedSortTranslation
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    let parameterMLCtx := R.mlctx.dropN depth H.depth_le
+    TrExprS R.venv recLparams []
+      (R.mlctx.lctx.mkForall stats.params
+        (.sort (.zero : Level)))
+      (VExpr.wrapForalls H.parameterDecls.toCtx.reverse
+        (.sort (.zero : VLevel))) :=
+  H.closedSortTyped.1
 
 /-- The exact cached-parameter suffix reconstructed by header checking is
 the bound, duplicate-free parameter array consumed by `mkRecInfos`. -/

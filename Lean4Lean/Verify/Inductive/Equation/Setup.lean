@@ -1668,6 +1668,9 @@ theorem RecursorPhasesResult.sourceRecursorParameterTemplateAt
       Expr.SameForallDomains stats.params.size template E.info.type ∧
       TrExprS newEnv Us [] template
         (VExpr.wrapForalls sourceSuffix.parameterDecls.toCtx.reverse
+          (.sort (.zero : VLevel))) ∧
+      newEnv.IsType Us.length []
+        (VExpr.wrapForalls sourceSuffix.parameterDecls.toCtx.reverse
           (.sort (.zero : VLevel))) := by
   let E := H.generated.entry owner howner
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -1749,11 +1752,25 @@ theorem RecursorPhasesResult.sourceRecursorParameterTemplateAt
           Hheaders.sourceContextVEnv
     rw [hlctx, hvenv] at Hbase
     simpa [Us, sourceSuffix] using Hbase
+  have HsourceType : sourceEnv.IsType Us.length []
+      (VExpr.wrapForalls sourceSuffix.parameterDecls.toCtx.reverse
+        (.sort (.zero : VLevel))) := by
+    have Hbase := sourceSuffix.closedSortTyped.2
+    let sourceRecContext :=
+      Hheaders.sourceContext.toAdmissibleRecursorContextWF
+        H.elimLevelAdmissible
+    have hvenv : sourceRecContext.venv = sourceEnv :=
+      (ContextWF.toAdmissibleRecursorContextWF_venv
+        Hheaders.sourceContext H.elimLevelAdmissible).trans
+          Hheaders.sourceContextVEnv
+    rw [hvenv] at Hbase
+    simpa [Us, sourceSuffix] using Hbase
   have HtemplateTranslation : TrExprS newEnv Us [] template
       (VExpr.wrapForalls sourceSuffix.parameterDecls.toCtx.reverse
         (.sort (.zero : VLevel))) := by
     exact TrExprS.inferImplicit (HsourceTranslation.mono hsourceLE) 1000 false
-  exact ⟨HtemplateTelescope, Hdomains, HtemplateTranslation⟩
+  exact ⟨HtemplateTelescope, Hdomains, HtemplateTranslation,
+    HsourceType.mono hsourceLE⟩
 
 /-- Rule-local specialization of `finalRecursorParameterContextAt`. -/
 theorem
