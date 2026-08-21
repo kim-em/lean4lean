@@ -1,0 +1,2795 @@
+import Lean4Lean.Verify.Inductive.Recursor.FirstPass
+
+namespace Lean4Lean
+
+open Lean hiding Environment Exception
+open Kernel
+open scoped _root_.List
+
+open private Lean.Kernel.Environment.add from Lean.Environment
+
+namespace VerifyInductive
+
+namespace mkRecInfos.loopInd1
+
+/-- The first mutual pass retains selectable motive, index, and major binders
+for every appended `RecInfo`. -/
+theorem resultBindings {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    (c : AddInductive.Context)
+    (Hc : BindingContextWF c)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (HnoAlias : Hbindings.NoAlias Hparams)
+    (Hroot : BindingContextLE root c)
+    (hprogress : recInfos.size = dIdx)
+    (Harities : RecInfoArities stats recInfos)
+    (Hempty : RecInfoMinorsEmpty recInfos)
+    (Hk : ∀ out c,
+      out.size = recInfos.size + (indTypes.size - dIdx) →
+      BindingContextWF c → (Hbindings : RecInfoBindings c out) →
+      (Horigins : RecInfoTypeOrigins c out) →
+      (Hparams : BoundFVarArray c stats.params) →
+      Hbindings.NoAlias Hparams →
+      RecInfoArities stats out →
+      RecInfoMinorsEmpty out →
+      BindingContextLE root c → (k out c).WF Q) :
+    (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel dIdx
+      recInfos k c).WF Q := by
+  rw [AddInductive.mkRecInfos.loopInd1]
+  by_cases hidx : dIdx < indTypes.size
+  · rw [dif_pos hidx]
+    have hread : ((readThe AddInductive.Context :
+        AddInductive.M AddInductive.Context) c).WF
+        (fun c' => c' = c) := by
+      intro c' h
+      cases h
+      rfl
+    refine readerBind.WF (x := readThe AddInductive.Context)
+      hread fun ctx hctx => ?_
+    subst ctx
+    have hwhnf :
+        ((monadLift (TypeChecker.whnf indTypes[dIdx].type) :
+          AddInductive.M Expr) c).WF (fun _ => True) := by
+      intro _ _
+      trivial
+    refine hwhnf.bind fun type _ => ?_
+    apply mkRecInfos.loopArgs1.continueWithBindings
+      (root := c) stats
+    · intro indices originTypes cIndices HcIndices Hindices HindexOrigins hIndices
+      by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
+      · rw [if_pos harity]
+        let majorTy :=
+          (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+            indices).consumeTypeAnnotations
+        apply withLocalDecl.continueRaw
+        let cMajor : AddInductive.Context := { cIndices with
+          ngen := cIndices.ngen.next
+          lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
+            majorTy .default }
+        have hget : ((getLCtx : AddInductive.M LocalContext) cMajor).WF
+            (fun lctx => lctx = cMajor.lctx) := by
+          intro lctx h
+          cases h
+          rfl
+        refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+          hget fun lctx hlctx => ?_
+        subst lctx
+        let major := Expr.fvar ⟨cIndices.ngen.curr⟩
+        let motiveTy := cMajor.lctx.mkForall indices <|
+          cMajor.lctx.mkForall #[major] <| .sort elimLevel
+        let motiveName := if indTypes.size > 1 then
+          (`motive).appendIndexAfter (dIdx + 1) else `motive
+        apply withLocalDecl.continueRaw
+        let cMotive : AddInductive.Context := { cMajor with
+          ngen := cMajor.ngen.next
+          lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩ motiveName
+            motiveTy.consumeTypeAnnotations .default }
+        refine mkRecInfos.loopInd1.resultBindings (root := root) (Q := Q)
+          stats indTypes elimLevel
+          (dIdx + 1) (recInfos.push {
+            motive := .fvar ⟨cMajor.ngen.curr⟩
+            minors := #[]
+            indices
+            major }) k cMotive ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
+        · exact (HcIndices.withLocalDecl `t majorTy .default).withLocalDecl
+            motiveName motiveTy.consumeTypeAnnotations .default
+        · exact Hbindings.pushFrame hIndices HcIndices
+            Hindices.toBoundFVarArray
+            `t majorTy .default
+            motiveName motiveTy.consumeTypeAnnotations .default
+        · exact Horigins.pushFrame hIndices HcIndices HindexOrigins
+            `t majorTy .default motiveName
+              motiveTy.consumeTypeAnnotations .default
+        · exact Hparams.mono <| hIndices.trans <|
+            (BindingContextLE.withLocalDecl cIndices HcIndices
+              `t majorTy .default).trans <|
+              BindingContextLE.withLocalDecl cMajor
+                (HcIndices.withLocalDecl `t majorTy .default) motiveName
+                motiveTy.consumeTypeAnnotations .default
+        · exact Hbindings.pushFrame_noAlias Hparams HnoAlias hIndices
+            HcIndices Hindices `t majorTy .default motiveName
+              motiveTy.consumeTypeAnnotations .default
+        · exact Hroot.trans <| hIndices.trans <|
+            (BindingContextLE.withLocalDecl cIndices HcIndices
+              `t majorTy .default).trans <|
+              BindingContextLE.withLocalDecl cMajor
+                (HcIndices.withLocalDecl `t majorTy .default) motiveName
+                motiveTy.consumeTypeAnnotations .default
+        · simp [hprogress]
+        · apply Harities.push
+          have hnew : indices.size = stats.nindices[dIdx]! := by
+            simpa using harity
+          simpa [hprogress] using hnew
+        · exact Hempty.push
+        · intro out cOut houtSize HcOut HbindingsOut HoriginsOut HparamsOut
+            HnoAliasOut HaritiesOut HemptyOut HrootOut
+          have houtSize' : out.size = recInfos.size +
+              (indTypes.size - dIdx) := by
+            simp only [Array.size_push] at houtSize
+            omega
+          exact Hk out cOut houtSize' HcOut HbindingsOut HoriginsOut HparamsOut
+            HnoAliasOut HaritiesOut HemptyOut HrootOut
+      · rw [if_neg harity]
+        exact Except.WF.throw
+    · exact Hc
+    · exact FreshBoundFVarArray.empty c
+    · exact BoundFVarTypeOrigins.empty c
+    · exact BindingContextLE.refl c
+  · rw [dif_neg hidx]
+    exact Hk recInfos c (by omega) Hc Hbindings Horigins Hparams HnoAlias
+      Harities Hempty Hroot
+termination_by indTypes.size - dIdx
+
+/-- Semantic strengthening of the first mutual recursor pass.  In addition
+to the operational binder certificates retained by `resultBindings`, every
+family is replayed against its independently checked header under the common
+recursor universe list, and the exact index/major/motive origin-type rows
+remain translated and typed after all later mutual frames. -/
+theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
+    {base current : AddInductive.Context} (Hbase : ContextWF base)
+    {decl : VInductDecl} {baseDepth runtimeDepth : Nat}
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (elimLevel : Level)
+    (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
+    (Hheaders : ∀ i (hi : i < indTypes.size),
+      mkRecInfos.loopArgs1.CheckedRecursorHeaderAt Hbase stats decl
+        baseDepth indTypes[i] i)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
+    (R : RecursorContextWF current
+      (AddInductive.getRecLevelParams elimLevel base.lparams))
+    (henv : R.venv = Hbase.venv)
+    (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+    (HparamsCtx : ∀ i (hi : i < indTypes.size),
+      VEnv.IsDefEqCtx R.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length []
+        ((Hheaders i hi).recursorParams Helim).reverse
+        Hsuffix.parameterDecls.toCtx)
+    (Hstats : RecursorValidAppStatsWF R.venv
+      (AddInductive.getRecLevelParams elimLevel base.lparams)
+      R.mlctx.vlctx stats decl runtimeDepth)
+    (Hbindings : RecInfoBindings current recInfos)
+    (Horigins : RecInfoTypeOrigins current recInfos)
+    (HmajorTypes : RecursorTranslatedOriginTypes R Horigins.majorTypes)
+    (HmajorShapes : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes)
+    (HmotiveTypes : RecursorTranslatedOriginTypes R Horigins.motiveTypes)
+    (HmotiveShapes : RecInfoMotiveTypeShapes current recInfos
+      Horigins.motiveTypes elimLevel)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl
+      Hsuffix.parameterDecls.toCtx recInfos elimLevel)
+    (HindexTypeRows :
+      RecursorTranslatedOriginTypeRows R Horigins.indexTypes)
+    (Hparams : BoundFVarArray current stats.params)
+    (HnoAlias : Hbindings.NoAlias Hparams)
+    (Horder : RecInfoOuterOrder R Hparams Hbindings)
+    (Hroot : BindingContextLE base current)
+    (hprogress : recInfos.size = dIdx)
+    (Harities : RecInfoArities stats recInfos)
+    (Hempty : RecInfoMinorsEmpty recInfos)
+    (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
+      (out : Array AddInductive.RecInfo)
+      (Rout : RecursorContextWF outCtx
+        (AddInductive.getRecLevelParams elimLevel base.lparams))
+      (henvOut : Rout.venv = Hbase.venv)
+      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (hparameterDeclsOut :
+        HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
+      (HstatsOut : RecursorValidAppStatsWF Rout.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams)
+        Rout.mlctx.vlctx stats decl outDepth)
+      (HbindingsOut : RecInfoBindings outCtx out)
+      (HoriginsOut : RecInfoTypeOrigins outCtx out),
+      RecursorTranslatedOriginTypes Rout HoriginsOut.majorTypes →
+      RecInfoMajorTypeShapes stats out HoriginsOut.majorTypes →
+      RecursorTranslatedOriginTypes Rout HoriginsOut.motiveTypes →
+      RecInfoMotiveTypeShapes outCtx out HoriginsOut.motiveTypes elimLevel →
+      RecInfoMotiveTelescopes Rout stats decl
+        HsuffixOut.parameterDecls.toCtx out elimLevel →
+      RecursorTranslatedOriginTypeRows Rout HoriginsOut.indexTypes →
+      (HparamsOut : BoundFVarArray outCtx stats.params) →
+      HbindingsOut.NoAlias HparamsOut →
+      RecInfoOuterOrder Rout HparamsOut HbindingsOut →
+      RecInfoArities stats out →
+      RecInfoMinorsEmpty out →
+      BindingContextLE base outCtx →
+      out.size = recInfos.size + (indTypes.size - dIdx) →
+      (k out outCtx).WF Q) :
+    (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel dIdx
+      recInfos k current).WF Q := by
+  rw [AddInductive.mkRecInfos.loopInd1]
+  by_cases hidx : dIdx < indTypes.size
+  · rw [dif_pos hidx]
+    have hread : ((readThe AddInductive.Context :
+        AddInductive.M AddInductive.Context) current).WF
+        (fun c' => c' = current) := by
+      intro c' h
+      cases h
+      rfl
+    refine readerBind.WF (x := readThe AddInductive.Context)
+      hread fun ctx hctx => ?_
+    subst ctx
+    let Hheader := Hheaders dIdx hidx
+    let loopK : Array Expr → AddInductive.M alpha := fun indices => do
+      unless indices.size == stats.nindices[dIdx]! do
+        throw <| .other
+          "recursor index arity does not match checked inductive header"
+      let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
+      withLocalDecl `t .default tTy.consumeTypeAnnotations fun major => do
+      let lctx ← getLCtx
+      let motiveTy := lctx.mkForall indices <|
+        lctx.mkForall #[major] <| .sort elimLevel
+      let name := if indTypes.size > 1 then
+        (`motive).appendIndexAfter (dIdx + 1) else `motive
+      withLocalDecl name .default motiveTy.consumeTypeAnnotations fun motive =>
+      AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel (dIdx + 1)
+        (recInfos.push { motive, minors := #[], indices, major }) k
+    change ((monadLift (TypeChecker.whnf indTypes[dIdx].type) :
+        AddInductive.M Expr) current >>= fun normalized =>
+      AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[]
+        current.fuel.inductiveFuel loopK current).WF Q
+    refine Hheader.startRecursorSemantics Helim R hwhnf hconsume henv
+      Hsuffix (HparamsCtx dIdx hidx) Hstats
+      loopK ?_ current.fuel.inductiveFuel
+    · intro cIndices nextDepth Rindices henvIndices HsuffixIndices
+        hparameterDecls type
+        fullTarget narrowTarget scope nindices indices indexOrigins
+        indexTargets Hsynthesis hcanonicalParams hscopeBase HnarrowStats HstatsIndices Hruntime
+        hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
+        HnarrowIndices hindexCount hcanonical HindexOrigins HindexTypes
+        Hrecent
+      by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
+      · simp only [loopK]
+        rw [if_pos harity]
+        rcases Hheader.completedRecursorFrame Helim R Rindices Hsynthesis
+            HnarrowStats Hruntime HnarrowIndices hindexCount hcanonical
+            harity henvIndices hconsume Hrecent with ⟨Hframe⟩
+        have hindicesSize : indices.size = nindices := by
+          have hlength :=
+            Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HnarrowIndices
+          simpa [hindexCount] using hlength
+        rcases Hheader.completedRecursorMotiveTypeDefEq Helim Rindices
+            Hsynthesis HnarrowStats Hruntime HnarrowIndices hcanonical
+            HindexOrigins.bound henvIndices hindicesSize hfront Hframe with
+          ⟨Hcanonical, HmotiveCanonical, HmotiveCanonicalClosed,
+            hcanonicalMotiveReopen, hcanonicalMotiveBody⟩
+        let majorTy :=
+          (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+            indices).consumeTypeAnnotations
+        refine withLocalDecl.recursorWF (name := `t) (bi := .default)
+          Rindices Hframe.majorTr Hframe.majorType ?_
+        let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
+          Hframe.majorTr Hframe.majorType
+        let HsuffixMajor := HsuffixIndices.withAmbient
+          (name := `t) (bi := .default) Hframe.majorTr Hframe.majorType
+        let HstatsMajor := HstatsIndices.withFVar Rmajor.checking.tr.wf
+          Rmajor.mlctx_wf.tr.wf
+        let cMajor : AddInductive.Context := { cIndices with
+          ngen := cIndices.ngen.next
+          lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
+            majorTy .default }
+        have hget : ((getLCtx : AddInductive.M LocalContext) cMajor).WF
+            (fun lctx => lctx = cMajor.lctx) := by
+          intro lctx h
+          cases h
+          rfl
+        refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+          hget fun lctx hlctx => ?_
+        subst lctx
+        let major := Expr.fvar ⟨cIndices.ngen.curr⟩
+        let motiveTy := cMajor.lctx.mkForall indices <|
+          cMajor.lctx.mkForall #[major] <| .sort elimLevel
+        let motiveName := if indTypes.size > 1 then
+          (`motive).appendIndexAfter (dIdx + 1) else `motive
+        refine withLocalDecl.recursorWF (name := motiveName) (bi := .default)
+          Rmajor Hframe.motiveTr Hframe.motiveType ?_
+        let Rmotive := Rmajor.withLocalDecl (name := motiveName)
+          (bi := .default) Hframe.motiveTr Hframe.motiveType
+        let HsuffixMotive := HsuffixMajor.withAmbient
+          (name := motiveName) (bi := .default)
+          Hframe.motiveTr Hframe.motiveType
+        let HstatsMotive := HstatsMajor.withFVar Rmotive.checking.tr.wf
+          Rmotive.mlctx_wf.tr.wf
+        have HmajorAtIndices := HmajorTypes.weakenRecent Hrecent
+        have HmotiveAtIndices := HmotiveTypes.weakenRecent Hrecent
+        have HindexRowsAtIndices := HindexTypeRows.weakenRecent Hrecent
+        let HmajorAtMotive :=
+          (HmajorAtIndices.push (name := `t) (bi := .default)
+            Hframe.majorTr Hframe.majorType).withLocalDecl
+              (name := motiveName) (bi := .default)
+              Hframe.motiveTr Hframe.motiveType
+        let HmotiveAtMotive :=
+          (HmotiveAtIndices.withLocalDecl (name := `t) (bi := .default)
+            Hframe.majorTr Hframe.majorType).push
+              (name := motiveName) (bi := .default)
+              Hframe.motiveTr Hframe.motiveType
+        let HindexRowsAtMotive :=
+          (HindexRowsAtIndices.withLocalDecl (name := `t) (bi := .default)
+            Hframe.majorTr Hframe.majorType).withLocalDecl
+              (name := motiveName) (bi := .default)
+              Hframe.motiveTr Hframe.motiveType
+        let HindexTypesAtMotive :=
+          (HindexTypes.withLocalDecl (name := `t) (bi := .default)
+            Hframe.majorTr Hframe.majorType).withLocalDecl
+              (name := motiveName) (bi := .default)
+              Hframe.motiveTr Hframe.motiveType
+        let HindexRows' := HindexRowsAtMotive.push HindexTypesAtMotive
+        let cMotive : AddInductive.Context := { cMajor with
+          ngen := cMajor.ngen.next
+          lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩ motiveName
+            motiveTy.consumeTypeAnnotations .default }
+        let hIndices := Hrecent.contextLE
+        let Hbindings' := Hbindings.pushFrame hIndices
+          Rindices.toBindingContextWF
+          Hrecent.toFreshBoundFVarArray.toBoundFVarArray
+          `t majorTy .default motiveName
+          motiveTy.consumeTypeAnnotations .default
+        let Horigins' := Horigins.pushFrame hIndices
+          Rindices.toBindingContextWF HindexOrigins
+          `t majorTy .default motiveName
+          motiveTy.consumeTypeAnnotations .default
+        let Hparams' := Hparams.mono <| hIndices.trans <|
+          (BindingContextLE.withLocalDecl cIndices
+            Rindices.toBindingContextWF `t majorTy .default).trans <|
+            BindingContextLE.withLocalDecl cMajor
+              (Rindices.toBindingContextWF.withLocalDecl
+                `t majorTy .default)
+              motiveName motiveTy.consumeTypeAnnotations .default
+        have HnoAlias' : Hbindings'.NoAlias Hparams' := by
+          exact Hbindings.pushFrame_noAlias Hparams HnoAlias hIndices
+            Rindices.toBindingContextWF
+            Hrecent.toFreshBoundFVarArray
+            `t majorTy .default motiveName
+            motiveTy.consumeTypeAnnotations .default
+        have holdMinors : Hbindings.flatMinors.fvars = [] :=
+          Hempty.flatMinors_fvars Hbindings
+        have hnewMinors : Hbindings'.flatMinors.fvars = [] :=
+          Hempty.push.flatMinors_fvars Hbindings'
+        have hparamsFVars : Hparams'.fvars = Hparams.fvars := rfl
+        have hmotiveFVars : Hbindings'.motives.fvars =
+            Hbindings.motives.fvars ++
+              [(⟨cMajor.ngen.curr⟩ : FVarId)] := by
+          rw [← Hbindings'.motives.exprArrayFVarIds,
+            ← Hbindings.motives.exprArrayFVarIds]
+          simp [Hbindings', ExprArrayFVarIds, cMajor, recursorFVarId]
+        have hcontextFVars : Rmotive.mlctx.vlctx.fvars =
+            (⟨cMajor.ngen.curr⟩ : FVarId) ::
+              ((⟨cIndices.ngen.curr⟩ : FVarId) ::
+                Hrecent.fvars.reverse) ++ R.mlctx.vlctx.fvars := by
+          dsimp only [Rmotive, Rmajor, RecursorContextWF.withLocalDecl,
+            TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some]
+          rw [Hrecent.contextFVars]
+          rfl
+        have Horder' : RecInfoOuterOrder Rmotive Hparams' Hbindings' :=
+          RecInfoOuterOrder.pushMotive Horder holdMinors hparamsFVars
+            hmotiveFVars hnewMinors hcontextFVars
+        have hparameterDeclsMotive :
+            HsuffixMotive.parameterDecls = Hsuffix.parameterDecls := by
+          calc
+            HsuffixMotive.parameterDecls =
+                HsuffixIndices.parameterDecls := by rfl
+            _ = Hsuffix.parameterDecls := hparameterDecls
+        have HparamsCtx' : ∀ i (hi : i < indTypes.size),
+            VEnv.IsDefEqCtx Rmotive.venv
+              (AddInductive.getRecLevelParams elimLevel base.lparams).length []
+              ((Hheaders i hi).recursorParams Helim).reverse
+              HsuffixMotive.parameterDecls.toCtx := by
+          intro i hi
+          have hvenvMotive : Rmotive.venv = R.venv := by
+            change Rindices.venv = R.venv
+            exact henvIndices.trans henv.symm
+          rw [hvenvMotive, hparameterDeclsMotive]
+          exact HparamsCtx i hi
+        let hMajorFrame := BindingContextLE.withLocalDecl cIndices
+          Rindices.toBindingContextWF `t majorTy .default
+        let hMotiveFrame := BindingContextLE.withLocalDecl cMajor
+          (Rindices.toBindingContextWF.withLocalDecl
+            `t majorTy .default)
+          motiveName motiveTy.consumeTypeAnnotations .default
+        let hAllFrames : BindingContextLE current cMotive :=
+          hIndices.trans (hMajorFrame.trans hMotiveFrame)
+        let HindicesAtMajor : BoundFVarArray cMajor indices :=
+          HindexOrigins.bound.mono hMajorFrame
+        let HmajorAtMajor : BoundFVarArray cMajor #[major] := by
+          simpa [cMajor, major] using
+            (BoundFVarArray.empty cIndices).pushCurrent
+              `t majorTy .default
+        have hsourceShape : motiveTy.consumeTypeAnnotations =
+            cMajor.lctx.mkForall indices
+              (cMajor.lctx.mkForall #[major] (.sort elimLevel)) := by
+          change motiveTy.consumeTypeAnnotations = motiveTy
+          exact Hframe.motiveSourceEq
+        have hnewMotiveShape : motiveTy.consumeTypeAnnotations =
+            cMotive.lctx.mkForall indices
+              (cMotive.lctx.mkForall #[major] (.sort elimLevel)) := by
+          calc
+            motiveTy.consumeTypeAnnotations =
+                cMajor.lctx.mkForall indices
+                  (cMajor.lctx.mkForall #[major] (.sort elimLevel)) :=
+              hsourceShape
+            _ = cMotive.lctx.mkForall indices
+                  (cMajor.lctx.mkForall #[major] (.sort elimLevel)) :=
+              (HindicesAtMajor.mkForall_mono hMotiveFrame _).symm
+            _ = cMotive.lctx.mkForall indices
+                  (cMotive.lctx.mkForall #[major] (.sort elimLevel)) :=
+              congrArg (fun body => cMotive.lctx.mkForall indices body)
+                (HmajorAtMajor.mkForall_mono hMotiveFrame _).symm
+        let nextInfo : AddInductive.RecInfo := {
+          motive := .fvar ⟨cMajor.ngen.curr⟩
+          minors := #[]
+          indices
+          major }
+        have hnewMotiveShape' : motiveTy.consumeTypeAnnotations =
+            cMotive.lctx.mkForall nextInfo.indices
+              (cMotive.lctx.mkForall #[nextInfo.major]
+                (.sort elimLevel)) := by
+          change motiveTy.consumeTypeAnnotations =
+            cMotive.lctx.mkForall indices
+              (cMotive.lctx.mkForall #[major] (.sort elimLevel))
+          exact hnewMotiveShape
+        let HmotiveShapes' := HmotiveShapes.push Hbindings hAllFrames
+          nextInfo motiveTy.consumeTypeAnnotations hnewMotiveShape'
+        have hnewMajorShape : majorTy =
+            (mkAppN (mkAppN stats.indConsts[recInfos.size]! stats.params)
+              nextInfo.indices).consumeTypeAnnotations := by
+          simp only [majorTy, nextInfo]
+          rw [hprogress]
+        let HmajorShapes' := HmajorShapes.push nextInfo majorTy hnewMajorShape
+        let HmajorExtension :=
+          RecursorContextExtension.withLocalDecl (name := `t)
+            (bi := .default) Rindices
+            Hframe.majorTr Hframe.majorType
+        let HmotiveExtension :=
+          RecursorContextExtension.withLocalDecl (name := motiveName)
+            (bi := .default) Rmajor
+            Hframe.motiveTr Hframe.motiveType
+        let HframeExtension : RecursorContextExtension Rindices Rmotive :=
+          HmajorExtension.trans HmotiveExtension
+        let HrootExtension : RecursorContextExtension R Rmotive :=
+          Hrecent.contextExtension.trans HframeExtension
+        have HfamilyTrMajor := HmajorExtension.weakTrExprS Hframe.familyTr
+        have HfamilyTrMotive :=
+          HmotiveExtension.weakTrExprS HfamilyTrMajor
+        have HfamilyTypingMajor :=
+          HmajorExtension.weakHasType Hcanonical.familyTyping
+        have HfamilyTypingMotive :=
+          HmotiveExtension.weakHasType HfamilyTypingMajor
+        have HmotiveTypeTrMotive :=
+          HmotiveExtension.weakTrExprS Hframe.motiveTr
+        have HfamilyTrSeed : TrExprS Rmotive.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams)
+            Rmotive.mlctx.vlctx
+            (mkAppN stats.indConsts[dIdx]! stats.params)
+            ((Hframe.familyTarget.lift' (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)) := by
+          simpa only [Rmotive] using HfamilyTrMotive
+        have HfamilyTypingSeed : Rmotive.venv.HasType
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            Rmotive.mlctx.vlctx.toCtx
+            ((Hframe.familyTarget.lift' (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0))
+            ((Hcanonical.familyType.lift'
+                (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)) := by
+          simpa only [Rmotive] using HfamilyTypingMotive
+        have HfamilyTypeIsType := HfamilyTypingSeed.isType
+          Rmotive.checking.tr.wf Rmotive.mlctx_wf.tr.wf.toCtx
+        have HfamilyTypeDefEq : Rmotive.venv.IsDefEqU
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            Rmotive.mlctx.vlctx.toCtx
+            ((Hcanonical.familyType.lift'
+                (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0))
+            ((Hcanonical.familyType.lift'
+                (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)) :=
+          ⟨_, Classical.choose_spec HfamilyTypeIsType⟩
+        have HmotiveTypeTrSeed : TrExprS Rmotive.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams)
+            Rmotive.mlctx.vlctx
+            (cMotive.lctx.mkForall nextInfo.indices
+              (cMotive.lctx.mkForall #[nextInfo.major]
+                (.sort elimLevel)))
+            (Hframe.motiveTarget.lift'
+              (HmotiveExtension.shift.consN 0)) := by
+          rw [← hnewMotiveShape']
+          simpa only [Rmotive] using HmotiveTypeTrMotive
+        have HmotiveTypeDefEqMajor :=
+          HmajorExtension.weakDefEqU HmotiveCanonical
+        have hmajorLift (expression : VExpr) :
+            expression.liftN 1 0 =
+              expression.lift' (HmajorExtension.shift.consN 0) := by
+          change expression.liftN 1 0 =
+            expression.lift' ((Lift.skip .refl).consN 0)
+          rw [← Lift.skipN_one, VExpr.lift'_consN_skipN]
+        have HmotiveTypeDefEqMajor' : Rmajor.venv.IsDefEqU
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            Rmajor.mlctx.vlctx.toCtx Hframe.motiveTarget
+            (Hcanonical.motiveType.lift'
+              (HmajorExtension.shift.consN 0)) := by
+          rw [Hframe.motiveTarget_eq]
+          rw [hmajorLift]
+          exact HmotiveTypeDefEqMajor
+        have HmotiveTypeDefEqWeak :=
+          HmotiveExtension.weakDefEqU HmotiveTypeDefEqMajor'
+        have HmotiveTypeDefEqSeed : Rmotive.venv.IsDefEqU
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            Rmotive.mlctx.vlctx.toCtx
+            (Hframe.motiveTarget.lift'
+              (HmotiveExtension.shift.consN 0))
+            ((Hcanonical.motiveType.lift'
+                (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)) := by
+          simpa only [Rmotive] using HmotiveTypeDefEqWeak
+        have htargetLt : dIdx < decl.types.length :=
+          (List.getElem?_eq_some_iff.mp Hheader.targetAt).1
+        have htargetEq : decl.types[dIdx] = Hheader.target := by
+          have htargetAt := Hheader.targetAt
+          rw [List.getElem?_eq_getElem htargetLt] at htargetAt
+          exact Option.some.inj htargetAt
+        have hseedIndexCount : indices.size =
+            (decl.types[dIdx]'htargetLt).numIndices := by
+          rw [htargetEq]
+          have hguard : indices.size = stats.nindices[dIdx]! := by
+            simpa using harity
+          exact hguard.trans (by
+            simp [Array.getElem!_eq_getD, Hheader.indexCount])
+        let HindicesAtMotive : BoundFVarArray cMotive indices :=
+          HindexOrigins.bound.mono (hMajorFrame.trans hMotiveFrame)
+        let HmajorAtMotiveBound : BoundFVarArray cMotive #[major] :=
+          HmajorAtMajor.mono hMotiveFrame
+        rcases Hframe.motiveClosed with
+          ⟨hclosedSize, motiveClosedTarget, HmotiveClosedTr,
+            HmotiveClosedType, hmotiveClosedTarget⟩
+        let majorBody := cMajor.lctx.mkForall #[major] (.sort elimLevel)
+        have HnarrowFamily :=
+          (Hheader.recursorNarrowFamilyPrefixTranslation Helim Rindices
+            Hsynthesis HnarrowStats henvIndices).1
+        have HnarrowIndexFVars : ∀ arg ∈ indices.toList,
+            arg.FVarsIn (· ∈ scope.fvars) := by
+          have go : ∀ {sources targets : List _},
+              List.Forall₂ (TrExprS Rindices.venv
+                (AddInductive.getRecLevelParams elimLevel base.lparams)
+                scope) sources targets →
+              ∀ arg ∈ sources, arg.FVarsIn (· ∈ scope.fvars) := by
+            intro sources targets Htranslated arg harg
+            induction Htranslated with
+            | nil => simp at harg
+            | cons Hhead Htail ih =>
+              simp only [List.mem_cons] at harg
+              rcases harg with rfl | harg
+              · exact Hhead.fvarsIn
+              · exact ih harg
+          exact go HnarrowIndices
+        have HmajorRawFVars :
+            (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
+              indices).FVarsIn (· ∈ scope.fvars) := by
+          rw [Expr.mkAppN_eq_mkAppList]
+          apply FVarsIn.mkAppList.mpr
+          refine ⟨HnarrowFamily.fvarsIn, ?_⟩
+          exact HnarrowIndexFVars
+        have HmajorTyFVars : majorTy.FVarsIn (· ∈ scope.fvars) := by
+          exact Expr.consumeTypeAnnotations_fvarsIn HmajorRawFVars
+        rcases Helim.sortType (env := Rindices.venv) (Δ := scope) with
+          ⟨narrowSortLevel, HsortNarrow, _HsortNarrowType⟩
+        have hone : 1 ≤ Rmajor.mlctx.length := by
+          dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+          simp
+        have hmajorRecent : #[major].toList.reverse =
+            (Rmajor.mlctx.fvarRevList 1 hone).map Expr.fvar := by
+          dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl]
+          simp
+        have hmajorConcrete : majorBody =
+            Rmajor.mlctx.mkForall 1 hone (.sort elimLevel) := by
+          dsimp only [majorBody]
+          rw [← Rmajor.lctx_eq]
+          exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent
+        have HmajorBodyFVars : majorBody.FVarsIn
+            (· ∈ scope.fvars) := by
+          rw [hmajorConcrete]
+          have HsortAbstract :
+              (Expr.abstract1 ⟨cIndices.ngen.curr⟩
+                (.sort elimLevel)).FVarsIn (· ∈ scope.fvars) := by
+            apply FVarsIn.abstract1_of
+            exact HsortNarrow.fvarsIn.mono fun _ h => Or.inr h
+          simpa only [Rmajor, RecursorContextWF.withLocalDecl,
+            TypeChecker.MLCtx.mkForall] using
+            (show (Expr.forallE `t majorTy
+                (Expr.abstract1 ⟨cIndices.ngen.curr⟩ (.sort elimLevel))
+                .default).FVarsIn
+                (· ∈ scope.fvars) from
+              ⟨HmajorTyFVars, HsortAbstract⟩)
+        let hmajorLE := BindingContextLE.withLocalDecl cIndices
+          Rindices.toBindingContextWF `t majorTy .default
+        have hmotiveConcrete : motiveTy =
+            cIndices.lctx.mkForall indices majorBody := by
+          dsimp [motiveTy, majorBody]
+          exact Hrecent.toFreshBoundFVarArray.toBoundFVarArray.mkForall_mono
+            hmajorLE _
+        have hmotiveMkForall : motiveTy =
+            Rindices.mlctx.mkForall indices.size Hrecent.size_le
+              majorBody := by
+          rw [hmotiveConcrete, ← Rindices.lctx_eq]
+          exact Rindices.mlctx_wf.mkForall_eq indices.size Hrecent.size_le
+            Hrecent.reverse_eq
+        have hfrontLength : Hruntime.frontSourceDomains.length =
+            indices.size := by
+          rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
+        have hfrontLE : Hruntime.frontSourceDomains.length ≤
+            Rindices.mlctx.length := by
+          rw [hfrontLength]
+          exact Hrecent.size_le
+        have HmotiveSourceFVarsAtBase : motiveTy.FVarsIn
+            (· ∈ VLCtx.fvars
+              (scope.drop Hruntime.frontSourceDomains.length)) := by
+          rw [hmotiveMkForall]
+          simpa only [hfrontLength] using
+            Hruntime.front.mkForall_fvarsIn_sourceBase
+              Rindices.onlyLams Rindices.mlctx_wf Hruntime.context
+              hfrontLE majorBody HmajorBodyFVars
+        have HmotiveClosedTrSeed : TrExprS Rmotive.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams)
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
+            (cMotive.lctx.mkForall nextInfo.indices
+              (cMotive.lctx.mkForall #[nextInfo.major]
+                (.sort elimLevel))) motiveClosedTarget := by
+          rw [← hnewMotiveShape']
+          change TrExprS Rindices.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams)
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
+            motiveTy.consumeTypeAnnotations motiveClosedTarget
+          simpa only [motiveTy, cMajor] using HmotiveClosedTr
+        have HmotiveClosedTypeSeed : Rmotive.venv.IsType
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
+            motiveClosedTarget := by
+          change Rindices.venv.IsType
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
+            motiveClosedTarget
+          exact HmotiveClosedType
+        have hcanonicalLevelTranslation : stats.levels.mapM
+            (VLevel.ofLevel
+              (AddInductive.getRecLevelParams elimLevel base.lparams)) =
+            some (Hheader.recursorAbstractLevels Helim) := by
+          cases elimLevel with
+          | zero =>
+            simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
+              mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
+              AddInductive.getRecLevelParams] using
+              Hheader.materialized.levelTranslation
+          | param fresh =>
+            have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim
+              Hheader.materialized.levelTranslation
+            simpa [mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.recursorAbstractLevels,
+              mkRecInfos.loopArgs1.CheckedRecursorHeaderAt.abstractLevels,
+              AddInductive.getRecLevelParams] using hshifted
+          | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+            simp [AddInductive.AdmissibleElimLevel] at Helim
+        rcases Hruntime.front.base with
+          ⟨motiveSourceScope, motiveSourceExpanded, motiveSourceShift,
+            hmotiveSourceScope, hmotiveSourceExpanded, hmotiveSourceShift,
+            HmotiveSourceLift⟩
+        have hfrontSourceLength : Hruntime.frontSourceDomains.length =
+            indices.size := by
+          rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
+        have hfrontExpandedLength : Hruntime.frontExpandedDomains.length =
+            indices.size := by
+          rw [← Hruntime.front.length_eq, hfrontSourceLength]
+        have hmotiveSourceScope' :
+            scope.drop Hsynthesis.indices.length = motiveSourceScope := by
+          simpa [hfront] using hmotiveSourceScope
+        have hmotiveSourceParameterScope :
+          motiveSourceScope = Hsuffix.parameterDecls := by
+          rw [← hmotiveSourceScope', Hsynthesis.indexCount]
+          exact hscopeBase
+        have HmotiveSourceFVarsNarrow : motiveTy.FVarsIn
+            (· ∈ VLCtx.fvars motiveSourceScope) := by
+          rw [← hmotiveSourceScope']
+          simpa [hfront] using HmotiveSourceFVarsAtBase
+        have HmotiveSourceNoBV : VLCtx.NoBV motiveSourceScope := by
+          change VLCtx.bvars motiveSourceScope = 0
+          rw [← hmotiveSourceScope', ← hfront]
+          rw [Hruntime.front.sourceBaseBVars]
+          exact Hruntime.noBV
+        have hmotiveSourceScopeCtx : VLCtx.toCtx motiveSourceScope =
+            Hsynthesis.params.reverse := by
+          have hdecomposition := Hruntime.front.sourceContext
+          rw [hfront, Hsynthesis.scopeCtx, hmotiveSourceScope'] at hdecomposition
+          exact List.append_inj_right hdecomposition.symm rfl
+        have HmotiveSourceContext : VLCtx.IsDefEq Rindices.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            motiveSourceExpanded
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx := by
+          have Hdrop := Hruntime.context.drop indices.size
+          rw [← Rindices.onlyLams.vlctx_dropN indices.size hclosedSize]
+            at Hdrop
+          have hexpandedDrop : Hruntime.expanded.drop indices.size =
+              motiveSourceExpanded := by
+            simpa [hfrontExpandedLength] using hmotiveSourceExpanded
+          change VLCtx.IsDefEq Rindices.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length
+            (Hruntime.expanded.drop indices.size)
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx at Hdrop
+          rw [hexpandedDrop] at Hdrop
+          exact Hdrop
+        let Hseed : RecursorMotiveTelescopeSeed Rmotive stats decl dIdx
+            nextInfo elimLevel := {
+          canonical := {
+            target_lt := htargetLt
+            params := Hsynthesis.params
+            indices := Hsynthesis.indices
+            levels := Hheader.recursorAbstractLevels Helim
+            family := VExpr.mkApps
+              ((VExpr.const Hheader.target.name
+                (Hheader.recursorAbstractLevels Helim)).liftN
+                  Hsynthesis.params.length 0)
+              (recursorCanonicalVars Hsynthesis.params.length)
+            familyResult := narrowTarget
+            motiveType := VExpr.wrapForalls Hsynthesis.indices
+              (.forallE
+                (VExpr.mkApps
+                  ((VExpr.mkApps
+                    ((VExpr.const Hheader.target.name
+                      (Hheader.recursorAbstractLevels Helim)).liftN
+                        Hsynthesis.params.length 0)
+                    (recursorCanonicalVars Hsynthesis.params.length)).liftN
+                      Hsynthesis.indices.length 0)
+                  (recursorCanonicalVars Hsynthesis.indices.length))
+                (.sort Hframe.resultLevel))
+            resultLevel := Hframe.resultLevel
+            params_length := Hsynthesis.parameterCount
+            indices_length := by
+              simpa [nextInfo] using Hsynthesis.indexCount.trans
+                hindicesSize.symm
+            levels_length := by
+              rw [htargetEq]
+              exact Hheader.recursorAbstractLevels_length Helim
+            levels_wf := Hheader.recursorAbstractLevels_wf Helim
+            levels_translation := hcanonicalLevelTranslation
+            family_eq := by rw [htargetEq]
+            motiveType_eq := rfl
+            family_typing := by
+              simpa [Rmotive, Rmajor] using
+                Hheader.recursorCanonicalFamilyPrefix Helim Rindices
+                  Hsynthesis henvIndices
+            telescope := by
+              exact RecursorMotiveTelescope.wrapForalls Hsynthesis.indices
+                (VExpr.mkApps
+                  ((VExpr.const Hheader.target.name
+                    (Hheader.recursorAbstractLevels Helim)).liftN
+                      Hsynthesis.params.length 0)
+                  (recursorCanonicalVars Hsynthesis.params.length))
+                narrowTarget Hframe.resultLevel }
+          target_lt := htargetLt
+          indexCount := hseedIndexCount
+          family := (Hframe.familyTarget.lift'
+            (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0)
+          familyActualType :=
+            (Hcanonical.familyType.lift'
+              (HmajorExtension.shift.consN 0)).lift'
+                (HmotiveExtension.shift.consN 0)
+          familyType :=
+            (Hcanonical.familyType.lift'
+              (HmajorExtension.shift.consN 0)).lift'
+                (HmotiveExtension.shift.consN 0)
+          motiveActualType :=
+            Hframe.motiveTarget.lift' (HmotiveExtension.shift.consN 0)
+          motiveType :=
+            (Hcanonical.motiveType.lift'
+              (HmajorExtension.shift.consN 0)).lift'
+                (HmotiveExtension.shift.consN 0)
+          resultLevel := Hframe.resultLevel
+          motiveClosedScope :=
+            (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
+          motiveClosedAmbient := Hsuffix.ambientDecls
+          motiveParameterScope := Hsuffix.parameterDecls
+          motiveClosedContext := by
+            change (Rindices.mlctx.dropN indices.size hclosedSize).vlctx =
+              Hsuffix.ambientDecls ++ Hsuffix.parameterDecls
+            rw [show hclosedSize = Hrecent.size_le from rfl,
+              Hrecent.drop_eq]
+            exact Hsuffix.context
+          motiveParameterAlignment := by
+            change VEnv.IsDefEqCtx Rindices.venv
+              (AddInductive.getRecLevelParams elimLevel base.lparams).length
+              [] Hsynthesis.params.reverse Hsuffix.parameterDecls.toCtx
+            rw [← hcanonicalParams]
+            exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
+              rw [← Hsynthesis.scopeCtx]
+              exact Hsynthesis.scopeWF.toCtx))
+          motiveParameterDecls := Hsuffix.cached
+          motiveSourceScope := motiveSourceScope
+          motiveSourceExpanded := motiveSourceExpanded
+          motiveSourceShift := motiveSourceShift
+          motiveSourceAlignment := by
+            change VEnv.IsDefEqCtx Rindices.venv
+              (AddInductive.getRecLevelParams elimLevel base.lparams).length
+              [] Hsynthesis.params.reverse (VLCtx.toCtx motiveSourceScope)
+            rw [hmotiveSourceScopeCtx]
+            exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
+              rw [← Hsynthesis.scopeCtx]
+              exact Hsynthesis.scopeWF.toCtx))
+          motiveSourceParameterScope := hmotiveSourceParameterScope
+          motiveSourceLift := HmotiveSourceLift
+          motiveSourceContext := HmotiveSourceContext
+          motiveSourceNoBV := HmotiveSourceNoBV
+          motiveSourceFVars := by
+            rw [← hnewMotiveShape', Hframe.motiveSourceEq]
+            exact HmotiveSourceFVarsNarrow
+          motiveClosedTarget := motiveClosedTarget
+          motiveClosedTr := HmotiveClosedTrSeed
+          motiveClosedType := HmotiveClosedTypeSeed
+          motiveClosedCanonicalTarget :=
+            VExpr.wrapForalls Hruntime.frontExpandedDomains
+              (.forallE Hframe.majorSourceTarget
+                (.sort Hframe.resultLevel))
+          motiveClosedCanonicalEq := by
+            let canonicalBody := VExpr.forallE
+              (VExpr.mkApps
+                ((VExpr.mkApps
+                  (.const Hheader.target.name
+                    (Hheader.recursorAbstractLevels Helim))
+                  (recursorCanonicalVars Hsynthesis.params.length)).liftN
+                    Hsynthesis.indices.length 0)
+                (recursorCanonicalVars Hsynthesis.indices.length))
+              (.sort Hframe.resultLevel)
+            have Hclose := Hruntime.front.closeAtBase motiveSourceShift
+              hmotiveSourceShift canonicalBody
+            have hbody := hcanonicalMotiveBody
+            dsimp only at hbody
+            rw [hfront, hbody] at Hclose
+            simpa [canonicalBody, VExpr.liftN] using Hclose
+          motiveClosedCanonicalDefEq := by
+            change Rindices.venv.IsDefEqU
+              (AddInductive.getRecLevelParams elimLevel base.lparams).length
+              (Rindices.mlctx.dropN indices.size hclosedSize).vlctx.toCtx
+              motiveClosedTarget
+              (VExpr.wrapForalls Hruntime.frontExpandedDomains
+                (.forallE Hframe.majorSourceTarget
+                  (.sort Hframe.resultLevel)))
+            rw [Rindices.onlyLams.toCtx_dropN indices.size hclosedSize]
+            rw [hmotiveClosedTarget]
+            exact HmotiveCanonicalClosed
+          motiveReopenedCanonicalTarget :=
+            (((VExpr.wrapForalls Hruntime.frontExpandedDomains
+              (.forallE Hframe.majorSourceTarget
+                (.sort Hframe.resultLevel))).liftN indices.size 0).lift'
+                  (HmajorExtension.shift.consN 0)).lift'
+                    (HmotiveExtension.shift.consN 0)
+          motiveTypeCanonicalEq := by
+            rw [hcanonicalMotiveReopen]
+          familyUnique := HnarrowStats.familyPrefixUnique dIdx htargetLt
+          familyTr := HfamilyTrSeed
+          familyTyping := HfamilyTypingSeed
+          familyTypeDefEq := HfamilyTypeDefEq
+          indicesBound := HindicesAtMotive
+          majorBound := HmajorAtMotiveBound
+          motiveTypeTr := HmotiveTypeTrSeed
+          motiveTypeDefEq := HmotiveTypeDefEqSeed
+          telescope := (Hcanonical.telescope.lift'
+            (HmajorExtension.shift.consN 0)).lift'
+              (HmotiveExtension.shift.consN 0) }
+        have HseedParams0 :
+            VEnv.IsDefEqCtx Rmotive.venv
+              (AddInductive.getRecLevelParams elimLevel base.lparams).length
+              [] Hseed.canonical.params.reverse
+                Hsuffix.parameterDecls.toCtx := by
+          change VEnv.IsDefEqCtx Rindices.venv
+            (AddInductive.getRecLevelParams elimLevel base.lparams).length []
+            Hsynthesis.params.reverse Hsuffix.parameterDecls.toCtx
+          rw [← hcanonicalParams]
+          exact VEnv.IsDefEqCtx.refl (OnCtx.append_right (by
+            rw [← Hsynthesis.scopeCtx]
+            exact Hsynthesis.scopeWF.toCtx))
+        have HseedPair :
+            ∃ S : RecursorMotiveTelescopeSeed Rmotive stats decl
+                recInfos.size nextInfo elimLevel,
+              VEnv.IsDefEqCtx Rmotive.venv
+                (AddInductive.getRecLevelParams elimLevel base.lparams).length
+                [] S.canonical.params.reverse
+                  Hsuffix.parameterDecls.toCtx := by
+          rw [hprogress]
+          exact ⟨Hseed, HseedParams0⟩
+        rcases HseedPair with ⟨Hseed', HseedParams⟩
+        have HseedAt : RecursorMotiveTelescopeAt Rmotive stats decl
+            recInfos.size nextInfo elimLevel := Hseed'.toTelescopeAt
+        let Htelescopes' :=
+          (Htelescopes.mono HrootExtension).push nextInfo
+            HseedAt Hseed' HseedParams
+        refine resultSemantics Hbase stats indTypes elimLevel Helim Hheaders
+          hwhnf hconsume (dIdx + 1)
+          (recInfos.push {
+            motive := .fvar ⟨cMajor.ngen.curr⟩
+            minors := #[]
+            indices
+            major }) k Rmotive (by simpa [Rmotive, Rmajor] using henvIndices)
+          HsuffixMotive HparamsCtx' HstatsMotive Hbindings' Horigins'
+          ?_ ?_ ?_ ?_ (by
+            simpa [hparameterDeclsMotive] using Htelescopes') ?_ Hparams'
+          HnoAlias' Horder'
+          (Hroot.trans <| hIndices.trans <|
+            (BindingContextLE.withLocalDecl cIndices
+              Rindices.toBindingContextWF `t majorTy .default).trans <|
+              BindingContextLE.withLocalDecl cMajor
+                (Rindices.toBindingContextWF.withLocalDecl
+                  `t majorTy .default)
+                motiveName motiveTy.consumeTypeAnnotations .default)
+          (by simp [hprogress])
+          (by
+            apply Harities.push
+            have hnew : indices.size = stats.nindices[dIdx]! := by
+              simpa using harity
+            simpa [hprogress] using hnew)
+          Hempty.push ?_
+        · change RecursorTranslatedOriginTypes Rmotive
+            (Horigins.majorTypes.push majorTy)
+          exact HmajorAtMotive
+        · change RecInfoMajorTypeShapes stats
+            (recInfos.push {
+              motive := .fvar ⟨cMajor.ngen.curr⟩
+              minors := #[]
+              indices
+              major })
+            (Horigins.majorTypes.push majorTy)
+          exact HmajorShapes'
+        · change RecursorTranslatedOriginTypes Rmotive
+            (Horigins.motiveTypes.push motiveTy.consumeTypeAnnotations)
+          exact HmotiveAtMotive
+        · change RecInfoMotiveTypeShapes cMotive
+            (recInfos.push {
+              motive := .fvar ⟨cMajor.ngen.curr⟩
+              minors := #[]
+              indices
+              major })
+            (Horigins.motiveTypes.push motiveTy.consumeTypeAnnotations)
+            elimLevel
+          exact HmotiveShapes'
+        · change RecursorTranslatedOriginTypeRows Rmotive
+            (Horigins.indexTypes.push indexOrigins)
+          exact HindexRows'
+        · intro cOut outDepth out Rout henvOut HsuffixOut
+            hparameterDeclsOut HstatsOut HbindingsOut
+            HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
+            HtelescopesOut HindexRowsOut
+            HparamsOut HnoAliasOut HorderOut HaritiesOut HemptyOut HrootOut
+            houtSize
+          apply Hk out Rout henvOut HsuffixOut
+            (hparameterDeclsOut.trans hparameterDeclsMotive)
+            HstatsOut HbindingsOut
+            HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
+            HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HorderOut
+            HaritiesOut HemptyOut HrootOut
+          simp only [Array.size_push] at houtSize
+          omega
+      · simp only [loopK]
+        rw [if_neg harity]
+        exact Except.WF.throw
+  · rw [dif_neg hidx]
+    exact Hk recInfos R henv Hsuffix rfl Hstats Hbindings Horigins HmajorTypes
+      HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexTypeRows Hparams HnoAlias
+      Horder Harities Hempty Hroot (by omega)
+termination_by indTypes.size - dIdx
+
+end mkRecInfos.loopInd1
+
+namespace mkRecInfos.loopUArgs.loop
+
+/-- Every higher-order argument opened while exposing a recursive field is a
+fresh ordinary local declaration, retained in the exact array later passed to
+`LocalContext.mkLambda`. -/
+theorem resultBindings {alpha : Type}
+    (k : Expr → Array Expr → AddInductive.M alpha)
+    {uiTy : Expr} {xs : Array Expr} {fuel : Nat}
+    {c : AddInductive.Context} {Q : alpha → Prop}
+    (Hc : BindingContextWF c)
+    (Hxs : FreshBoundFVarArray root c xs)
+    (Hroot : BindingContextLE root c)
+    (Hk : ∀ uiTy xs c, BindingContextWF c →
+      FreshBoundFVarArray root c xs → BindingContextLE root c →
+      (k uiTy xs c).WF Q) :
+    (AddInductive.mkRecInfos.loopUArgs.loop k uiTy xs fuel c).WF Q := by
+  induction fuel generalizing c uiTy xs with
+  | zero =>
+    intro _ h
+    simp [AddInductive.mkRecInfos.loopUArgs.loop] at h
+  | succ fuel ih =>
+    cases uiTy with
+    | forallE name dom body bi =>
+      rw [AddInductive.mkRecInfos.loopUArgs.loop]
+      let c' : AddInductive.Context := { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotations bi }
+      unfold Lean4Lean.withLocalDecl MonadLocalNameGenerator.withFreshId
+        AddInductive.instMonadLocalNameGeneratorM
+        AddInductive.instMonadWithReaderOfLocalContextM
+      change ((monadLift (TypeChecker.whnf
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+          AddInductive.M Expr) c' >>= fun normalized =>
+        AddInductive.mkRecInfos.loopUArgs.loop k normalized
+          (xs.push (.fvar ⟨c.ngen.curr⟩)) fuel c').WF Q
+      have hwhnf :
+          ((monadLift (TypeChecker.whnf
+            (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
+              AddInductive.M Expr) c').WF (fun _ => True) := by
+        intro _ _
+        trivial
+      exact hwhnf.bind fun normalized _ =>
+        ih (Hc.withLocalDecl name dom.consumeTypeAnnotations bi)
+          (Hxs.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
+          (Hroot.trans <| BindingContextLE.withLocalDecl c Hc name
+            dom.consumeTypeAnnotations bi)
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+        | proj =>
+      change (k _ xs c).WF Q
+      exact Hk _ _ _ Hc Hxs Hroot
+
+/-- Semantic refinement of the higher-order recursive-argument telescope.
+Every executable binder opened by `loopUArgs.loop` is checked under the
+recursor universe list, and the exact consecutive suffix is retained for the
+`LocalContext.mkForall` which constructs the induction-hypothesis type. -/
+theorem resultSemantics {alpha : Type}
+    (head : Expr) (k : Expr → Array Expr → AddInductive.M alpha)
+    {recLparams : List Name}
+    {root : AddInductive.Context}
+    (Rroot : RecursorContextWF root recLparams)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    {uiTy : Expr} {xs : Array Expr} {fuel : Nat}
+    {c : AddInductive.Context} {Q : alpha → Prop}
+    (R : RecursorContextWF c recLparams)
+    {typeTarget : VExpr}
+    (htype : TrExpr R.venv recLparams R.mlctx.vlctx uiTy typeTarget)
+    (htypeType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx typeTarget)
+    (Hxs : RecursorRecentBoundFVarArray Rroot R xs)
+    {appliedTarget : VExpr}
+    (happlied : TrExprS R.venv recLparams R.mlctx.vlctx
+      (mkAppN head xs) appliedTarget)
+    (happliedType : R.venv.HasType recLparams.length
+      R.mlctx.vlctx.toCtx appliedTarget typeTarget)
+    (Hk : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {exposedTarget appliedTarget : VExpr}
+      {args : Array Expr},
+      TrExpr Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType exposedTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx exposedTarget →
+      RecursorRecentBoundFVarArray Rroot Rcurrent args →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN head args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget exposedTarget →
+      (k exposedType args current).WF Q) :
+    (AddInductive.mkRecInfos.loopUArgs.loop k uiTy xs fuel c).WF Q := by
+  induction fuel generalizing c uiTy xs typeTarget appliedTarget with
+  | zero =>
+    intro _ h
+    simp [AddInductive.mkRecInfos.loopUArgs.loop] at h
+  | succ fuel ih =>
+    cases uiTy with
+    | forallE name dom body bi =>
+      rw [AddInductive.mkRecInfos.loopUArgs.loop]
+      rcases TrExpr.forallE_source htype with
+        ⟨sourceDom, sourceBody, hdom, hbody, hdomType,
+          hbodyType, hforallEq⟩
+      rcases hconsume c recLparams R hdom hdomType with
+        ⟨consumedDom, Hdom⟩
+      rcases Hdom.body R hbody with
+        ⟨consumedBody, hbodyConsumed, hbodyEq⟩
+      refine withLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
+        R Hdom.consumed Hdom.isType ?_
+      let R' := R.withLocalDecl (name := name) (bi := bi)
+        Hdom.consumed Hdom.isType
+      let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
+        .skip_fvar _ _ .refl
+      have happliedFn := happlied.weakFV R.checking.tr.wf.ordered W
+        R'.mlctx_wf.tr.wf
+      have happliedFnType : R'.venv.HasType recLparams.length
+          R'.mlctx.vlctx.toCtx (appliedTarget.liftN 1 0)
+          ((VExpr.forallE sourceDom sourceBody).liftN 1 0) := by
+        exact (happliedType.defeqU_r R.checking.tr.wf
+          R.mlctx_wf.tr.wf.toCtx hforallEq.symm).weakN
+            R.checking.tr.wf.ordered W.toCtx
+      have harg : TrExprS R'.venv recLparams R'.mlctx.vlctx
+          (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
+        apply TrExprS.fvar
+        change VLCtx.find?
+          ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+            R.mlctx.vlctx)
+          (.inr ⟨c.ngen.curr⟩) =
+            some ((.bvar 0), consumedDom.liftN 1 0)
+        simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+          VLocalDecl.value, VLocalDecl.type, VExpr.lift]
+      have hargType : R'.venv.HasType recLparams.length
+          R'.mlctx.vlctx.toCtx (.bvar 0) (sourceDom.liftN 1 0) := by
+        have hlookup : R'.mlctx.vlctx.find? (.inr ⟨c.ngen.curr⟩) =
+            some ((.bvar 0), consumedDom.liftN 1 0) := by
+          change VLCtx.find?
+            ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+              R.mlctx.vlctx)
+            (.inr ⟨c.ngen.curr⟩) =
+              some ((.bvar 0), consumedDom.liftN 1 0)
+          simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+            VLocalDecl.value, VLocalDecl.type, VExpr.lift]
+        have hconsumed := R'.mlctx_wf.tr.wf.find?_wf
+          R'.checking.tr.wf.ordered hlookup
+        have hdomainEq := Hdom.source_defeq.choose_spec.weakN
+          R.checking.tr.wf.ordered W.toCtx
+        exact hconsumed.defeqU_r R'.checking.tr.wf
+          R'.mlctx_wf.tr.wf.toCtx hdomainEq.symm.toU
+      have happlied' : TrExprS R'.venv recLparams R'.mlctx.vlctx
+          (mkAppN head (xs.push (.fvar ⟨c.ngen.curr⟩)))
+          (.app (appliedTarget.liftN 1 0) (.bvar 0)) := by
+        simpa [mkAppN] using
+          TrExprS.app happliedFnType hargType happliedFn harg
+      have happliedType' : R'.venv.HasType recLparams.length
+          R'.mlctx.vlctx.toCtx
+          (.app (appliedTarget.liftN 1 0) (.bvar 0)) consumedBody := by
+        have happ := VEnv.HasType.app happliedFnType hargType
+        have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
+        apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
+        simpa only [R', RecursorContextWF.withLocalDecl_venv,
+          RecursorContextWF.withLocalDecl_toCtx, VExpr.instN_bvar0] using
+            hbodyEq'
+      have hopened := R.instantiateFresh (name := name) (bi := bi)
+        Hdom.consumed Hdom.isType hbodyConsumed
+      have hctx : VLCtx.IsDefEq R.venv recLparams.length
+          ((none, .vlam sourceDom) :: R.mlctx.vlctx)
+          ((none, .vlam consumedDom) :: R.mlctx.vlctx) :=
+        VLCtx.IsDefEq.cons
+          (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) nofun
+          (.vlam Hdom.source_defeq.choose_spec)
+      have hsourceBodyType : R'.venv.IsType recLparams.length
+          R'.mlctx.vlctx.toCtx sourceBody := by
+        simpa only [R', RecursorContextWF.withLocalDecl_venv,
+          RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+          hbodyType.defeqDFC R.checking.tr.wf.ordered hctx.defeqCtx
+      have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
+      have hconsumedBodyType : R'.venv.IsType recLparams.length
+          R'.mlctx.vlctx.toCtx consumedBody := by
+        apply hsourceBodyType.defeqU_l R'.checking.tr.wf
+          R'.mlctx_wf.tr.wf.toCtx
+        simpa only [R', RecursorContextWF.withLocalDecl_venv,
+          RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
+      have hnormalize := whnfInRecursorContext.scopeWF hwhnf R' hopened
+      exact hnormalize.bind fun normalized hnormalized =>
+        ih R' hnormalized.2 hconsumedBodyType
+          (Hxs.pushCurrent name dom.consumeTypeAnnotations consumedDom bi
+            Hdom.consumed Hdom.isType) happlied' happliedType'
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+        | proj =>
+      change (k _ xs c).WF Q
+      exact Hk R htype htypeType Hxs happlied happliedType
+
+/-- Semantic refinement of `loopUArgs.loop` which reconstructs the complete
+higher-order recursive-domain judgment on the way back out of the forall
+telescope.  The terminal executable check supplies the direct family
+application; each traversed binder contributes one `RecursiveArgAtTarget`
+`forallE` constructor. -/
+theorem resultRecursiveDomain {alpha : Type}
+    (head : Expr)
+    (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Nat → AddInductive.M alpha)
+    {decl : VInductDecl} {recLparams : List Name}
+    {root : AddInductive.Context}
+    (Rroot : RecursorContextWF root recLparams)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    {uiTy : Expr} {xs : Array Expr} {fuel : Nat}
+    {c : AddInductive.Context} {Q : Nat → alpha → Prop}
+    (R : RecursorContextWF c recLparams)
+    {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    {typeTarget : VExpr}
+    (htype : TrExpr R.venv recLparams R.mlctx.vlctx uiTy typeTarget)
+    (htypeType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx typeTarget)
+    (Hxs : RecursorRecentBoundFVarArray Rroot R xs)
+    {P : FVarId → Prop}
+    (htypeScope : uiTy.FVarsIn
+      (fun fv => fv ∈ Hxs.fvars ∨ P fv))
+    (hcurrentUp : IsFVarUpSet
+      (fun fv => fv ∈ Hxs.fvars ∨ P fv) R.mlctx.vlctx)
+    {appliedTarget : VExpr}
+    (happlied : TrExprS R.venv recLparams R.mlctx.vlctx
+      (mkAppN head xs) appliedTarget)
+    (happliedType : R.venv.HasType recLparams.length
+      R.mlctx.vlctx.toCtx appliedTarget typeTarget)
+    (Hk : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
+      {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+      Rcurrent.venv.IsDefEqU recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx terminalTarget →
+      (Hrecent : RecursorRecentBoundFVarArray Rroot Rcurrent args) →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN head args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
+      AddInductive.isValidIndApp? stats exposedType = some target →
+      exposedType.FVarsIn
+        (fun fv => fv ∈ Hrecent.fvars ∨ P fv) →
+      IsFVarUpSet (fun fv => fv ∈ Hrecent.fvars ∨ P fv)
+        Rcurrent.mlctx.vlctx →
+      (k exposedType args target current).WF (Q target)) :
+    (AddInductive.mkRecInfos.loopUArgs.loop
+      (fun exposedType args => do
+        let some target := AddInductive.isValidIndApp? stats exposedType
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        k exposedType args target)
+      uiTy xs fuel c).WF fun out =>
+        ∃ target, ∃ htarget : target < decl.types.length,
+            decl.RecursiveArgAtTarget R.venv recLparams.length
+              (decl.types[target]'htarget).name
+              R.mlctx.vlctx.toCtx depth typeTarget ∧ Q target out := by
+  induction fuel generalizing c uiTy xs typeTarget appliedTarget depth with
+  | zero =>
+    intro _ h
+    simp [AddInductive.mkRecInfos.loopUArgs.loop] at h
+  | succ fuel ih =>
+    cases uiTy with
+    | forallE name dom body bi =>
+      rw [AddInductive.mkRecInfos.loopUArgs.loop]
+      rcases TrExpr.forallE_source htype with
+        ⟨sourceDom, sourceBody, hdom, hbody, hdomType,
+          hbodyType, hforallEq⟩
+      rcases hconsume c recLparams R hdom hdomType with
+        ⟨consumedDom, Hdom⟩
+      rcases Hdom.body R hbody with
+        ⟨consumedBody, hbodyConsumed, hbodyEq⟩
+      refine withLocalDecl.recursorWF (name := name) (bi := bi)
+        (Q := fun out =>
+          ∃ target, ∃ htarget : target < decl.types.length,
+            decl.RecursiveArgAtTarget R.venv recLparams.length
+              (decl.types[target]'htarget).name
+              R.mlctx.vlctx.toCtx depth typeTarget ∧ Q target out)
+        R Hdom.consumed Hdom.isType ?_
+      let R' := R.withLocalDecl (name := name) (bi := bi)
+        Hdom.consumed Hdom.isType
+      let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
+        .skip_fvar _ _ .refl
+      have happliedFn := happlied.weakFV R.checking.tr.wf.ordered W
+        R'.mlctx_wf.tr.wf
+      have happliedFnType : R'.venv.HasType recLparams.length
+          R'.mlctx.vlctx.toCtx (appliedTarget.liftN 1 0)
+          ((VExpr.forallE sourceDom sourceBody).liftN 1 0) := by
+        exact (happliedType.defeqU_r R.checking.tr.wf
+          R.mlctx_wf.tr.wf.toCtx hforallEq.symm).weakN
+            R.checking.tr.wf.ordered W.toCtx
+      have harg : TrExprS R'.venv recLparams R'.mlctx.vlctx
+          (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
+        apply TrExprS.fvar
+        change VLCtx.find?
+          ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+            R.mlctx.vlctx)
+          (.inr ⟨c.ngen.curr⟩) =
+            some ((.bvar 0), consumedDom.liftN 1 0)
+        simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+          VLocalDecl.value, VLocalDecl.type, VExpr.lift]
+      have hargType : R'.venv.HasType recLparams.length
+          R'.mlctx.vlctx.toCtx (.bvar 0) (sourceDom.liftN 1 0) := by
+        have hlookup : R'.mlctx.vlctx.find? (.inr ⟨c.ngen.curr⟩) =
+            some ((.bvar 0), consumedDom.liftN 1 0) := by
+          change VLCtx.find?
+            ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+              R.mlctx.vlctx)
+            (.inr ⟨c.ngen.curr⟩) =
+              some ((.bvar 0), consumedDom.liftN 1 0)
+          simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+            VLocalDecl.value, VLocalDecl.type, VExpr.lift]
+        have hconsumed := R'.mlctx_wf.tr.wf.find?_wf
+          R'.checking.tr.wf.ordered hlookup
+        have hdomainEq := Hdom.source_defeq.choose_spec.weakN
+          R.checking.tr.wf.ordered W.toCtx
+        exact hconsumed.defeqU_r R'.checking.tr.wf
+          R'.mlctx_wf.tr.wf.toCtx hdomainEq.symm.toU
+      have happlied' : TrExprS R'.venv recLparams R'.mlctx.vlctx
+          (mkAppN head (xs.push (.fvar ⟨c.ngen.curr⟩)))
+          (.app (appliedTarget.liftN 1 0) (.bvar 0)) := by
+        simpa [mkAppN] using
+          TrExprS.app happliedFnType hargType happliedFn harg
+      have happliedType' : R'.venv.HasType recLparams.length
+          R'.mlctx.vlctx.toCtx
+          (.app (appliedTarget.liftN 1 0) (.bvar 0)) consumedBody := by
+        have happ := VEnv.HasType.app happliedFnType hargType
+        have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
+        apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
+        simpa only [R', RecursorContextWF.withLocalDecl_venv,
+          RecursorContextWF.withLocalDecl_toCtx, VExpr.instN_bvar0] using
+            hbodyEq'
+      have hopened := R.instantiateFresh (name := name) (bi := bi)
+        Hdom.consumed Hdom.isType hbodyConsumed
+      let Hxs' := Hxs.pushCurrent name dom.consumeTypeAnnotations
+        consumedDom bi Hdom.consumed Hdom.isType
+      have hbodyScope : (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)).FVarsIn
+          (fun fv => fv ∈ Hxs'.fvars ∨ P fv) := by
+        have hbodyScopeBase : body.FVarsIn
+            (fun fv => fv ∈ Hxs'.fvars ∨ P fv) := by
+          apply htypeScope.2.mono
+          intro fv h
+          rcases h with hlocal | hroot
+          · exact Or.inl (by
+              change fv ∈ Hxs.fvars ++ [⟨c.ngen.curr⟩]
+              exact List.mem_append_left _ hlocal)
+          · exact Or.inr hroot
+        simpa only [Expr.instantiate1_eq] using
+          hbodyScopeBase.instantiate1 (by
+            simp only [FVarsIn]
+            exact Or.inl (by
+              change (⟨c.ngen.curr⟩ : FVarId) ∈
+                Hxs.fvars ++ [⟨c.ngen.curr⟩]
+              simp))
+      have hnewNotCurrent : (⟨c.ngen.curr⟩ : FVarId) ∉
+          R.mlctx.vlctx.fvars := by
+        intro hmem
+        rw [← R.mlctx_wf.tr.fvars_eq, R.lctx_eq] at hmem
+        exact R.toBindingContextWF.current_not_mem hmem
+      have hcurrentUp' : IsFVarUpSet
+          (fun fv => fv ∈ Hxs'.fvars ∨ P fv) R.mlctx.vlctx := by
+        apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hcurrentUp
+        intro fv hfv
+        constructor
+        · intro h
+          rcases h with h | h
+          · exact Or.inl (by
+              change fv ∈ Hxs.fvars ++ [⟨c.ngen.curr⟩]
+              exact List.mem_append_left _ h)
+          · exact Or.inr h
+        · intro h
+          rcases h with h | h
+          · change fv ∈ Hxs.fvars ++ [⟨c.ngen.curr⟩] at h
+            rcases List.mem_append.mp h with h | h
+            · exact Or.inl h
+            · simp only [List.mem_singleton] at h
+              subst fv
+              exact False.elim (hnewNotCurrent hfv)
+          · exact Or.inr h
+      have hnextUp : IsFVarUpSet
+          (fun fv => fv ∈ Hxs'.fvars ∨ P fv) R'.mlctx.vlctx := by
+        change IsFVarUpSet _
+          ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+            R.mlctx.vlctx)
+        refine ⟨hcurrentUp', fun _ dep hdep => ?_⟩
+        have hselected := (fvarsIn_iff.mp
+          (Expr.consumeTypeAnnotations_fvarsIn htypeScope.1)).1 dep hdep
+        rcases hselected with hlocal | hroot
+        · exact Or.inl (by
+            change dep ∈ Hxs.fvars ++ [⟨c.ngen.curr⟩]
+            exact List.mem_append_left _ hlocal)
+        · exact Or.inr hroot
+      have hsourceBodyType : R'.venv.IsType recLparams.length
+          R'.mlctx.vlctx.toCtx sourceBody := by
+        let hctxEq : VLCtx.IsDefEq R.venv recLparams.length
+            ((none, .vlam sourceDom) :: R.mlctx.vlctx)
+            ((none, .vlam consumedDom) :: R.mlctx.vlctx) :=
+          VLCtx.IsDefEq.cons
+            (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) nofun
+            (.vlam Hdom.source_defeq.choose_spec)
+        simpa only [R', RecursorContextWF.withLocalDecl_venv,
+          RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+          hbodyType.defeqDFC R.checking.tr.wf.ordered hctxEq.defeqCtx
+      have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
+      have hconsumedBodyType : R'.venv.IsType recLparams.length
+          R'.mlctx.vlctx.toCtx consumedBody := by
+        apply hsourceBodyType.defeqU_l R'.checking.tr.wf
+          R'.mlctx_wf.tr.wf.toCtx
+        simpa only [R', RecursorContextWF.withLocalDecl_venv,
+          RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
+      have hnormalize := whnfInRecursorContext.scopeWF hwhnf R' hopened
+      refine hnormalize.bind fun normalized hnormalized => ?_
+      have Hstats' := Hstats.withFVar R'.checking.tr.wf R'.mlctx_wf.tr.wf
+      have hctx' : VLCtx.NoIndConsts
+          (decl.types.map (·.name)) R'.mlctx.vlctx := by
+        apply VLCtx.NoIndConsts.cons hctx
+        rfl
+      have hnormalizedScope := hnormalized.1 _ hnextUp hbodyScope
+      have Hrec := ih R' Hstats' hctx' hnormalized.2
+        hconsumedBodyType
+        Hxs' hnormalizedScope hnextUp
+        happlied' happliedType'
+      exact Hrec.mono fun out Hout => by
+        rcases Hout with ⟨target, htarget, hrecursive, hout⟩
+        rcases hforallEq.symm with ⟨forallType, hforall⟩
+        rcases Hdom.source_defeq with ⟨domLevel, hdomEq⟩
+        rcases hbodyEq with ⟨bodyType, hbodyEq⟩
+        exact ⟨target, htarget, .forallE hforall hdomEq hbodyEq
+          hrecursive, hout⟩
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+        | proj =>
+      change ((do
+        let some target := AddInductive.isValidIndApp? stats _
+          | throw (Lean.Kernel.Exception.other
+            "recursive constructor field lost its inductive result type")
+        k _ xs target) c).WF _
+      rcases htype with ⟨syntaxTarget, hsyntax, hdefeq⟩
+      cases hvalid : AddInductive.isValidIndApp? stats _ with
+      | none =>
+        simp only [hvalid, bind, Except.bind]
+        exact Except.WF.throw
+      | some target =>
+        simp only [hvalid, bind, Except.bind]
+        have htargetStats : target < stats.indConsts.size :=
+          (checkPositivityStep.isValidIndApp?_some hvalid).1
+        have htarget : target < decl.types.length := by
+          rw [← Hstats.types_size]
+          exact htargetStats
+        let Hvalid := Hstats.validatedIndAppAt hsyntax hvalid htarget
+          hlit hctx hproj
+        have Hterminal := Hk (target := target) R hsyntax hdefeq htypeType
+          Hxs happlied happliedType hvalid htypeScope hcurrentUp
+        exact Hterminal.mono fun out hout => by
+          rcases hdefeq.symm with ⟨exprType, hterminal⟩
+          exact ⟨target, htarget,
+            VInductDecl.RecursiveArgAtTarget.direct hterminal
+              Hvalid.application,
+            hout⟩
+
+end mkRecInfos.loopUArgs.loop
+
+/-- Public binder-aware interface for `loopUArgs`, starting from its empty
+local-argument accumulator. -/
+theorem mkRecInfos.loopUArgs.resultBindings {alpha : Type}
+    (ui : Expr) (k : Expr → Array Expr → AddInductive.M alpha)
+    (c : AddInductive.Context) {Q : alpha → Prop}
+    (Hc : BindingContextWF c)
+    (Hk : ∀ uiTy xs c', BindingContextWF c' →
+      FreshBoundFVarArray c c' xs → BindingContextLE c c' →
+      (k uiTy xs c').WF Q) :
+    (AddInductive.mkRecInfos.loopUArgs ui k c).WF Q := by
+  unfold AddInductive.mkRecInfos.loopUArgs
+  have hinfer :
+      ((monadLift (TypeChecker.inferType ui) : AddInductive.M Expr) c).WF
+        (fun _ => True) := by
+    intro _ _
+    trivial
+  refine hinfer.bind fun inferred _ => ?_
+  have hwhnf :
+      ((monadLift (TypeChecker.whnf inferred) : AddInductive.M Expr) c).WF
+        (fun _ => True) := by
+    intro _ _
+    trivial
+  refine hwhnf.bind fun normalized _ => ?_
+  change (AddInductive.mkRecInfos.loopUArgs.loop k normalized #[]
+    c.fuel.inductiveFuel c).WF Q
+  exact mkRecInfos.loopUArgs.loop.resultBindings k Hc
+    (FreshBoundFVarArray.empty c) (BindingContextLE.refl c) Hk
+
+/-- Public semantic interface for `loopUArgs` on the retained recursive-field
+free variables supplied by `loopCtorArgs`.  Type inference is verified by the
+free-variable computation lemma, then normalization and every higher-order
+binder remain wholly inside the recursor universe interpretation. -/
+theorem mkRecInfos.loopUArgs.resultSemantics {alpha : Type}
+    (fv : FVarId) (k : Expr → Array Expr → AddInductive.M alpha)
+    (c : AddInductive.Context) {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    {Q : alpha → Prop}
+    (Hk : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {exposedTarget appliedTarget : VExpr}
+      {args : Array Expr},
+      TrExpr Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType exposedTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx exposedTarget →
+      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent args) →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN (.fvar fv) args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget exposedTarget →
+      (k exposedType args current).WF Q) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv) k c).WF Q := by
+  unfold AddInductive.mkRecInfos.loopUArgs
+  have hinfer := inferTypeFVarInRecursorContext.WF R hfield
+  refine hinfer.bind fun inferred hinferred => ?_
+  rcases hinferred with
+    ⟨inferredTarget, _hbelow, hfieldAgain, hinferredTr, hfieldTyping⟩
+  have hinferredType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx inferredTarget :=
+    hfieldTyping.isType R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
+  have hnormalize := whnfInRecursorContext.scopeWF hwhnf R hinferredTr
+  refine hnormalize.bind fun normalized hnormalized => ?_
+  change (AddInductive.mkRecInfos.loopUArgs.loop k normalized #[]
+    c.fuel.inductiveFuel c).WF Q
+  exact mkRecInfos.loopUArgs.loop.resultSemantics (.fvar fv) k R hwhnf
+    hconsume R hnormalized.2 hinferredType
+    (RecursorRecentBoundFVarArray.empty R) (by
+      change TrExprS R.venv recLparams R.mlctx.vlctx
+        (.fvar fv) fieldTarget
+      exact hfieldAgain)
+    hfieldTyping Hk
+
+/-- The public recursive-field interface retains the complete source domain,
+not merely the validated family application exposed after traversing its
+higher-order binders.  This is the semantic certificate needed to align the
+implementation's selected recursive calls with `VInductDecl.RecursiveField`.
+-/
+theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
+    (fv : FVarId) (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Nat → AddInductive.M alpha)
+    (c : AddInductive.Context) {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    {P : FVarId → Prop}
+    (hfieldScope : P fv)
+    (hrootUp : IsFVarUpSet P R.mlctx.vlctx)
+    {Q : Nat → alpha → Prop}
+    (Hk : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
+      {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+      Rcurrent.venv.IsDefEqU recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx terminalTarget →
+      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent args) →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN (.fvar fv) args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
+      AddInductive.isValidIndApp? stats exposedType = some target →
+      exposedType.FVarsIn
+        (fun fv => fv ∈ Hrecent.fvars ∨ P fv) →
+      IsFVarUpSet (fun fv => fv ∈ Hrecent.fvars ∨ P fv)
+        Rcurrent.mlctx.vlctx →
+      (k exposedType args target current).WF (Q target)) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
+      (fun exposedType args => do
+        let some target := AddInductive.isValidIndApp? stats exposedType
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        k exposedType args target) c).WF fun out =>
+          ∃ domain,
+            R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+              fieldTarget domain ∧
+            ∃ target, ∃ htarget : target < decl.types.length,
+              decl.RecursiveArgAtTarget R.venv recLparams.length
+                (decl.types[target]'htarget).name
+                R.mlctx.vlctx.toCtx depth domain ∧ Q target out := by
+  unfold AddInductive.mkRecInfos.loopUArgs
+  have hinfer := inferTypeFVarInRecursorContext.WF R hfield
+  refine hinfer.bind fun inferred hinferred => ?_
+  rcases hinferred with
+    ⟨inferredTarget, _hbelow, hfieldAgain, hinferredTr, hfieldTyping⟩
+  have hfieldSourceScope : (Expr.fvar fv).FVarsIn P := by
+    simpa only [FVarsIn] using hfieldScope
+  have hinferredScope : inferred.FVarsIn P :=
+    _hbelow P hrootUp hfieldSourceScope
+  have hinferredType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx inferredTarget :=
+    hfieldTyping.isType R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
+  have hnormalize := whnfInRecursorContext.scopeWF hwhnf R hinferredTr
+  refine hnormalize.bind fun normalized hnormalized => ?_
+  have hnormalizedScope : normalized.FVarsIn P :=
+    hnormalized.1 P hrootUp hinferredScope
+  change (AddInductive.mkRecInfos.loopUArgs.loop
+    (fun exposedType args => do
+      let some target := AddInductive.isValidIndApp? stats exposedType
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      k exposedType args target)
+    normalized #[] c.fuel.inductiveFuel c).WF _
+  have Hloop := mkRecInfos.loopUArgs.loop.resultRecursiveDomain
+    (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k R
+    hwhnf hconsume hlit hproj R Hstats hctx hnormalized.2 hinferredType
+    (RecursorRecentBoundFVarArray.empty R)
+    (hnormalizedScope.mono fun _ h => Or.inr h)
+    (by
+      apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hrootUp
+      intro fv _
+      change P fv ↔ fv ∈ ([] : List FVarId) ∨ P fv
+      simp)
+    (by
+      change TrExprS R.venv recLparams R.mlctx.vlctx
+        (.fvar fv) fieldTarget
+      exact hfieldAgain)
+    hfieldTyping Hk
+  exact Hloop.mono fun out hout => ⟨inferredTarget, hfieldTyping, hout⟩
+
+/-- Source-level construction retained for one induction-hypothesis type.
+It records the terminal family application and exact higher-order telescope
+selected by `loopUArgs`, before the resulting type is installed as a local
+declaration by `loopU`. -/
+structure RecInfoHypothesisTypeOrigin
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (root : AddInductive.Context) (field type : Expr) where
+  current : AddInductive.Context
+  current_wf : BindingContextWF current
+  current_extends : BindingContextLE root current
+  exposedType : Expr
+  args : Array Expr
+  arguments_bound : FreshBoundFVarArray root current args
+  field_fvar : ∃ fv, field = .fvar fv ∧ fv ∈ root.lctx.fvars
+  ownerIdx : Nat
+  owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
+  motive_is_fvar : ∃ fv,
+    recInfos[ownerIdx]!.motive = .fvar fv ∧ fv ∈ root.lctx.fvars
+  type_eq :
+    let itIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[ownerIdx]!.motive itIndices)
+      (mkAppN field args)
+    type = current.lctx.mkForall args motiveApp
+
+/-- Pointwise source origins for the prefix of recursive fields already
+processed by `loopU`.  Each installed declaration is tied to the unconsumed
+type returned by the corresponding `loopUArgs` run. -/
+structure RecInfoHypothesisTypeOrigins
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (c : AddInductive.Context) (fields hypotheses : Array Expr) where
+  size_le : hypotheses.size ≤ fields.size
+  entry : ∀ j (hj : j < hypotheses.size),
+    ∃ root sourceType,
+      Nonempty (RecInfoHypothesisTypeOrigin
+        stats recInfos root fields[j]! sourceType) ∧
+      ∃ D : BoundFVarDeclarationAt c hypotheses j,
+        D.type = sourceType.consumeTypeAnnotations
+
+def RecInfoHypothesisTypeOrigins.empty
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (c : AddInductive.Context) (fields : Array Expr) :
+    RecInfoHypothesisTypeOrigins stats recInfos c fields #[] where
+  size_le := by simp
+  entry := by intro j hj; simp at hj
+
+def RecInfoHypothesisTypeOrigins.pushCurrent
+    (H : RecInfoHypothesisTypeOrigins stats recInfos c fields hypotheses)
+    (Hc : BindingContextWF c)
+    (name : Name) (sourceType : Expr) (bi : BinderInfo)
+    (hnext : hypotheses.size < fields.size)
+    (Horigin : Nonempty (RecInfoHypothesisTypeOrigin stats recInfos root
+      fields[hypotheses.size]! sourceType)) :
+    RecInfoHypothesisTypeOrigins stats recInfos
+      { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          sourceType.consumeTypeAnnotations bi }
+      fields (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) := by
+  let ty := sourceType.consumeTypeAnnotations
+  let c' : AddInductive.Context := { c with
+    ngen := c.ngen.next
+    lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+  let hstep := BindingContextLE.withLocalDecl c Hc name ty bi
+  refine {
+    size_le := by simpa using Nat.succ_le_of_lt hnext
+    entry := ?_ }
+  intro j hj
+  by_cases hilast : j = hypotheses.size
+  · subst j
+    let D : BoundFVarDeclarationAt c'
+        (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) hypotheses.size := {
+      inBounds := by simp
+      fvar := ⟨c.ngen.curr⟩
+      expression := by simp
+      member := by
+        simp only [c', LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+          List.map_cons, LocalDecl.fvarId, List.mem_cons]
+        exact Or.inl trivial
+      index := c.lctx.decls.size
+      userName := name
+      type := ty
+      binderInfo := bi
+      kind := .default
+      declaration := by
+        simp [c', LocalContext.mkLocalDecl, LocalContext.find?,
+          Hc.wf.map_wf.find?_insert] }
+    exact ⟨root, sourceType, Horigin, D, rfl⟩
+  · have hjOld : j < hypotheses.size := by
+      have : j < hypotheses.size + 1 := by simpa using hj
+      omega
+    rcases H.entry j hjOld with ⟨oldRoot, oldType, Hold, D, htype⟩
+    exact ⟨oldRoot, oldType, Hold,
+      (D.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep, htype⟩
+
+/-- Close a semantically typed motive application over the exact
+higher-order suffix traversed by `loopUArgs`.  This is the pointwise bridge
+needed by the second `mkRecInfos` pass: the caller supplies only the typing of
+the terminal motive application, while this theorem reconstructs and checks
+the complete induction-hypothesis declaration domain returned by production,
+while retaining its exact source construction.
+-/
+theorem mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin
+    (fv : FVarId) (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (c : AddInductive.Context) {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Happ : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
+      {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+      Rcurrent.venv.IsDefEqU recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx terminalTarget →
+      (Hargs : RecursorRecentBoundFVarArray R Rcurrent args) →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN (.fvar fv) args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
+      (hvalid : AddInductive.isValidIndApp? stats exposedType =
+        some target) →
+      let itIndices := exposedType.getAppArgs[stats.params.size:]
+      let motiveApp := Expr.app
+        (mkAppN recInfos[target]!.motive itIndices)
+        (mkAppN (.fvar fv) args)
+      ∃ motiveTarget,
+        TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+          motiveApp motiveTarget ∧
+        Rcurrent.venv.IsType recLparams.length
+          Rcurrent.mlctx.vlctx.toCtx motiveTarget) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv) (fun uiTy xs => do
+      let some itIdx := AddInductive.isValidIndApp? stats uiTy
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      let itIndices := uiTy.getAppArgs[stats.params.size:]
+      let motiveApp := Expr.app
+        (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN (.fvar fv) xs)
+      return (← getLCtx).mkForall xs motiveApp) c).WF fun viTy =>
+        ∃ viTarget,
+          TrExprS R.venv recLparams R.mlctx.vlctx
+            viTy.consumeTypeAnnotations viTarget ∧
+          R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
+          Nonempty (RecInfoHypothesisTypeOrigin
+            stats recInfos c (.fvar fv) viTy) := by
+  let build : Expr → Array Expr → Nat → AddInductive.M Expr :=
+    fun exposedType args target => do
+      let itIndices := exposedType.getAppArgs[stats.params.size:]
+      let motiveApp := Expr.app
+        (mkAppN recInfos[target]!.motive itIndices)
+        (mkAppN (.fvar fv) args)
+      return (← getLCtx).mkForall args motiveApp
+  have hfvScope : fv ∈ R.mlctx.vlctx.fvars := by
+    simpa only [FVarsIn] using hfield.fvarsIn
+  have hfvRoot : fv ∈ c.lctx.fvars := by
+    rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
+    exact hfvScope
+  have Hrun := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats build c R
+    Hstats hwhnf hconsume hlit hctx hproj hfield hfvScope
+      (IsFVarUpSet.fvars (R.mlctx_wf.tr.wf).fvwf)
+    (Q := fun _ viTy => ∃ viTarget,
+      TrExprS R.venv recLparams R.mlctx.vlctx
+        viTy.consumeTypeAnnotations viTarget ∧
+      R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
+      Nonempty (RecInfoHypothesisTypeOrigin
+        stats recInfos c (.fvar fv) viTy)) ?_
+  · simpa only [build] using Hrun.mono (fun viTy Hout => by
+      rcases Hout with ⟨_domain, _hfieldType, _target, _htarget,
+        _hrecursive, Hvi⟩
+      exact Hvi)
+  · intro current Rcurrent exposedType syntaxTarget terminalTarget
+      appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
+      HappliedType hvalid _hexposedScope _hup
+    rcases Happ Rcurrent Hexposed Hdefeq Hterminal Hargs Happlied
+        HappliedType hvalid with ⟨motiveTarget, Hmotive, HmotiveType⟩
+    have htargetStats : target < stats.indConsts.size :=
+      (checkPositivityStep.isValidIndApp?_some hvalid).1
+    have htarget : target < recInfos.size := by
+      rw [hrecords]
+      exact htargetStats
+    rcases Hmotives.get_eq_fvar target
+        (by simpa using htarget) with
+      ⟨motiveFVar, hmotiveFVar, hmotiveMember⟩
+    rcases Hargs.mkForall Hmotive HmotiveType with
+      ⟨viTarget, Hvi, HviType⟩
+    let itIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[target]!.motive itIndices)
+      (mkAppN (.fvar fv) args)
+    rcases hconsume c recLparams R Hvi HviType with
+      ⟨consumedTarget, Hconsumed⟩
+    change (Except.ok (current.lctx.mkForall args motiveApp)).WF _
+    exact Except.WF.pure
+      ⟨consumedTarget, Hconsumed.consumed, Hconsumed.isType, ⟨{
+        current := current
+        current_wf := Rcurrent.toBindingContextWF
+        current_extends := Hargs.contextLE
+        exposedType := exposedType
+        args := args
+        arguments_bound := Hargs.toFreshBoundFVarArray
+        field_fvar := ⟨fv, rfl, hfvRoot⟩
+        ownerIdx := target
+        owner_valid := hvalid
+        motive_is_fvar := ⟨motiveFVar, by
+          rw [getElem!_pos recInfos target htarget]
+          simpa only [Array.getElem_map] using hmotiveFVar,
+          hmotiveMember⟩
+        type_eq := rfl }⟩⟩
+
+/-- Compatibility projection of `inductionHypothesisTypeOrigin` for callers
+which need only semantic well-formedness of the installed declaration type. -/
+theorem mkRecInfos.loopUArgs.inductionHypothesisType
+    (fv : FVarId) (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (c : AddInductive.Context) {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Happ : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
+      {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+      Rcurrent.venv.IsDefEqU recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx terminalTarget →
+      (Hargs : RecursorRecentBoundFVarArray R Rcurrent args) →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN (.fvar fv) args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
+      (hvalid : AddInductive.isValidIndApp? stats exposedType =
+        some target) →
+      let itIndices := exposedType.getAppArgs[stats.params.size:]
+      let motiveApp := Expr.app
+        (mkAppN recInfos[target]!.motive itIndices)
+        (mkAppN (.fvar fv) args)
+      ∃ motiveTarget,
+        TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+          motiveApp motiveTarget ∧
+        Rcurrent.venv.IsType recLparams.length
+          Rcurrent.mlctx.vlctx.toCtx motiveTarget) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv) (fun uiTy xs => do
+      let some itIdx := AddInductive.isValidIndApp? stats uiTy
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      let itIndices := uiTy.getAppArgs[stats.params.size:]
+      let motiveApp := Expr.app
+        (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN (.fvar fv) xs)
+      return (← getLCtx).mkForall xs motiveApp) c).WF fun viTy =>
+        ∃ viTarget,
+          TrExprS R.venv recLparams R.mlctx.vlctx
+            viTy.consumeTypeAnnotations viTarget ∧
+          R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget := by
+  exact (mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats
+    recInfos c R Hstats hwhnf hconsume hlit hctx hproj hfield
+      Hmotives hrecords Happ).mono
+      fun _ Hout => ⟨Hout.choose, Hout.choose_spec.1,
+        Hout.choose_spec.2.1⟩
+
+/-- Semantic interface for the strengthened recursive-field terminal check.
+The executable callback now validates the exposed result before projecting a
+mutual-family index; this theorem turns that branch into the corresponding
+targeted abstract application and retains the exact higher-order suffix. -/
+theorem mkRecInfos.loopUArgs.resultValidatedIndApp {alpha : Type}
+    (fv : FVarId) (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Nat → AddInductive.M alpha)
+    (c : AddInductive.Context) {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Δ : VLCtx} {s j e' e''},
+      TrProj Δ.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    {Q : alpha → Prop}
+    (Hk : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {syntaxTarget typeTarget : VExpr}
+      {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+      Rcurrent.venv.IsDefEqU recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget typeTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx typeTarget →
+      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent args) →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN (.fvar fv) args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget typeTarget →
+      RecursorValidatedIndAppAt Rcurrent.venv recLparams
+        Rcurrent.mlctx.vlctx stats decl (depth + args.size)
+        exposedType syntaxTarget target →
+      (k exposedType args target current).WF Q) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv) (fun exposedType args => do
+      let some target := AddInductive.isValidIndApp? stats exposedType
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      k exposedType args target) c).WF Q := by
+  refine mkRecInfos.loopUArgs.resultSemantics fv
+    (fun exposedType args => do
+      let some target := AddInductive.isValidIndApp? stats exposedType
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      k exposedType args target)
+    c R hwhnf hconsume hfield ?_
+  intro current Rcurrent exposedType typeTarget appliedTarget args htype
+    htypeType Hrecent happlied happliedType
+  rcases htype with ⟨syntaxTarget, hsyntax, hdefeq⟩
+  cases hvalid : AddInductive.isValidIndApp? stats exposedType with
+  | none =>
+      simp only [hvalid, bind, Except.bind]
+      exact Except.WF.throw
+  | some target =>
+      simp only [hvalid, bind, Except.bind]
+      let HstatsCurrent := Hstats.weakenRecent Hrecent
+      have htargetStats : target < stats.indConsts.size :=
+        (checkPositivityStep.isValidIndApp?_some hvalid).1
+      have htarget : target < decl.types.length := by
+        rw [← HstatsCurrent.types_size]
+        exact htargetStats
+      have hctxCurrent : VLCtx.NoIndConsts
+          (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
+        Hrecent.noIndConsts hctx
+      exact Hk Rcurrent hsyntax hdefeq htypeType Hrecent happlied happliedType
+        (HstatsCurrent.validatedIndAppAt hsyntax hvalid htarget
+          hlit hctxCurrent hproj)
+
+/-- Exact recursive-call syntax together with the inner binding context used
+to close its higher-order arguments. -/
+structure BoundGeneratedRecursiveCall
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (root : AddInductive.Context) (field value : Expr) where
+  exposedType : Expr
+  ownerIdx : Nat
+  owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
+  localArgs : Array Expr
+  current : AddInductive.Context
+  current_wf : BindingContextWF current
+  current_extends : BindingContextLE root current
+  arguments_bound : FreshBoundFVarArray root current localArgs
+  value_eq :
+    let (typeIdx, indices) := AddInductive.getIIndices stats exposedType
+    let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
+    let recursor := mkAppN
+      (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+      indices
+    value = (current.lctx.mkLambda localArgs <|
+      recursor.app (mkAppN field localArgs))
+
+/-- A generated recursive call paired with the independent recursive-domain
+judgment for the exact selected field.  The retained executable owner is the
+owner appearing in the semantic judgment; this is the pointwise payload from
+which a rule-level `RecursorFieldSelections` certificate can be rebuilt. -/
+structure SemanticBoundGeneratedRecursiveCall
+    (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    {root : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF root recLparams)
+    (decl : VInductDecl) (depth : Nat) (field value : Expr) where
+  generated : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+    root field value
+  current_context : RecursorContextWF generated.current recLparams
+  recent : RecursorRecentBoundFVarArray R current_context
+    generated.localArgs
+  rootScope : FVarId → Prop
+  exposed_scope : generated.exposedType.FVarsIn
+    (fun fv => fv ∈ recent.fvars ∨ rootScope fv)
+  current_scope_up : IsFVarUpSet
+    (fun fv => fv ∈ recent.fvars ∨ rootScope fv)
+    current_context.mlctx.vlctx
+  exposedTarget : VExpr
+  exposed_translation : TrExprS current_context.venv recLparams
+    current_context.mlctx.vlctx generated.exposedType exposedTarget
+  terminalTarget : VExpr
+  exposed_defeq : current_context.venv.IsDefEqU recLparams.length
+    current_context.mlctx.vlctx.toCtx exposedTarget terminalTarget
+  terminal_type : current_context.venv.IsType recLparams.length
+    current_context.mlctx.vlctx.toCtx terminalTarget
+  appliedFieldTarget : VExpr
+  applied_field_translation : TrExprS current_context.venv recLparams
+    current_context.mlctx.vlctx
+    (mkAppN field generated.localArgs) appliedFieldTarget
+  applied_field_typing : current_context.venv.HasType recLparams.length
+    current_context.mlctx.vlctx.toCtx appliedFieldTarget terminalTarget
+  validated : RecursorValidatedIndAppAt current_context.venv recLparams
+    current_context.mlctx.vlctx stats decl
+    (depth + generated.localArgs.size) generated.exposedType exposedTarget
+    generated.ownerIdx
+  fieldTarget : VExpr
+  domain : VExpr
+  field_translation : TrExprS R.venv recLparams R.mlctx.vlctx
+    field fieldTarget
+  field_typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+    fieldTarget domain
+  owner_lt : generated.ownerIdx < decl.types.length
+  recursive : decl.RecursiveArgAtTarget R.venv recLparams.length
+    (decl.types[generated.ownerIdx]'owner_lt).name
+    R.mlctx.vlctx.toCtx depth domain
+
+/-- The exact higher-order argument suffix of a recursive constructor field,
+closed back to the rule's field context.  The exposed result type and the
+eta-expanded field use one shared domain list; this is the typed major premise
+later supplied to the recursively selected generated recursor. -/
+structure SemanticBoundGeneratedRecursiveCall.AppliedFieldTelescope
+    {R : RecursorContextWF root recLparams}
+    (S : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value) where
+  domains : List VExpr
+  domains_length : domains.length = S.generated.localArgs.size
+  exposed_translation : TrExprS R.venv recLparams R.mlctx.vlctx
+    (S.generated.current.lctx.mkForall S.generated.localArgs
+      S.generated.exposedType)
+    (VExpr.wrapForalls domains S.exposedTarget)
+  exposed_type : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
+    (VExpr.wrapForalls domains S.exposedTarget)
+  applied_translation : TrExprS R.venv recLparams R.mlctx.vlctx
+    (S.generated.current.lctx.mkLambda S.generated.localArgs
+      (mkAppN field S.generated.localArgs))
+    (VExpr.wrapLams domains S.appliedFieldTarget)
+  applied_typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+    (VExpr.wrapLams domains S.appliedFieldTarget)
+    (VExpr.wrapForalls domains S.exposedTarget)
+
+/-- Recover the shared higher-order field telescope from the semantic facts
+already established by `loopUArgs`.  The executable normalizer may expose a
+definitionally equal terminal type, so it is transported back to the exact
+syntax translation before the suffix is closed. -/
+def SemanticBoundGeneratedRecursiveCall.appliedFieldTelescope
+    {R : RecursorContextWF root recLparams}
+    (S : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value) :
+    S.AppliedFieldTelescope := by
+  have HexposedType : S.current_context.venv.IsType recLparams.length
+      S.current_context.mlctx.vlctx.toCtx S.exposedTarget :=
+    VEnv.IsType.defeqU_l S.current_context.checking.tr.wf
+      S.current_context.mlctx_wf.tr.wf.toCtx S.exposed_defeq.symm
+      S.terminal_type
+  have HappliedType : S.current_context.venv.HasType recLparams.length
+      S.current_context.mlctx.vlctx.toCtx S.appliedFieldTarget
+      S.exposedTarget :=
+    S.applied_field_typing.defeqU_r S.current_context.checking.tr.wf
+      S.current_context.mlctx_wf.tr.wf.toCtx S.exposed_defeq.symm
+  let domains := MLCtxForallDomains S.current_context.mlctx
+    S.generated.localArgs.size S.recent.size_le
+  have Hexposed := S.recent.mkForallExact S.exposed_translation
+    HexposedType
+  have Happlied := S.recent.mkLambda S.applied_field_translation
+    HappliedType
+  exact {
+    domains := domains
+    domains_length :=
+      S.current_context.onlyLams.forallDomains_length
+        S.generated.localArgs.size S.recent.size_le
+    exposed_translation := by simpa [domains] using Hexposed.1
+    exposed_type := by simpa [domains] using Hexposed.2
+    applied_translation := by simpa [domains] using Happlied.1
+    applied_typing := by simpa [domains] using Happlied.2 }
+
+/-- The recursive-call callback shared by the executable rule loop and its
+pointwise semantic interface.  Naming it prevents the match compiler from
+leaking module-local matcher constants into the refinement theorem's public
+type. -/
+def mkRecRules.buildRecursiveCall
+    (indTypes : Array InductiveType)
+    (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level) (field : Expr) :
+    Expr → Array Expr → AddInductive.M Expr :=
+  fun exposedType args => do
+    let some target := AddInductive.isValidIndApp? stats exposedType
+      | throw (.other
+        "recursive constructor field lost its inductive result type")
+    let indices := exposedType.getAppArgs[stats.params.size:]
+    let recursor :=
+      Expr.const (Lean.mkRecName indTypes[target]!.name) lvls
+    let recursor := mkAppN
+      (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+      indices
+    return (← getLCtx).mkLambda args <|
+      recursor.app (mkAppN field args)
+
+/-- Pointwise semantic refinement of the exact recursive-call builder used
+by `mkRecRules.loopU`.  It couples the implementation's validated owner with
+the complete higher-order recursive domain reconstructed by `loopUArgs`. -/
+theorem mkRecRules.boundGeneratedCallSemantic
+    (indTypes : Array InductiveType)
+    (stats : AddInductive.InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    {root : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF root recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hwhnf : WhnfLParamsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (fv : FVarId) {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    {P : FVarId → Prop}
+    (hfieldScope : P fv)
+    (hrootUp : IsFVarUpSet P R.mlctx.vlctx) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
+      (mkRecRules.buildRecursiveCall indTypes stats motives minors lvls
+        (.fvar fv)) root).WF fun value =>
+        ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats motives
+            minors lvls R decl depth (.fvar fv) value,
+          S.rootScope = P := by
+  unfold mkRecRules.buildRecursiveCall
+  let buildCallAt : Expr → Array Expr → Nat → AddInductive.M Expr :=
+    fun exposedType args target => do
+      let indices := exposedType.getAppArgs[stats.params.size:]
+      let recursor := Expr.const
+        (Lean.mkRecName indTypes[target]!.name) lvls
+      let recursor := mkAppN
+        (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+        indices
+      return (← getLCtx).mkLambda args <|
+        recursor.app (mkAppN (.fvar fv) args)
+  have Hloop := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats
+    buildCallAt root R Hstats hwhnf hconsume hlit hctx hproj hfield
+    hfieldScope hrootUp
+    (Q := fun target value =>
+      ∃ H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+          root (.fvar fv) value,
+        H.ownerIdx = target ∧
+        ∃ Rcurrent : RecursorContextWF H.current recLparams,
+          ∃ Hrecent : RecursorRecentBoundFVarArray R Rcurrent H.localArgs,
+            ∃ syntaxTarget terminalTarget appliedTarget,
+              TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+                  H.exposedType syntaxTarget ∧
+                Rcurrent.venv.IsDefEqU recLparams.length
+                  Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget ∧
+                Rcurrent.venv.IsType recLparams.length
+                  Rcurrent.mlctx.vlctx.toCtx terminalTarget ∧
+                TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+                  (mkAppN (.fvar fv) H.localArgs) appliedTarget ∧
+                Rcurrent.venv.HasType recLparams.length
+                  Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget ∧
+                H.exposedType.FVarsIn
+                  (fun fv => fv ∈ Hrecent.fvars ∨ P fv) ∧
+                IsFVarUpSet (fun fv => fv ∈ Hrecent.fvars ∨ P fv)
+                  Rcurrent.mlctx.vlctx ∧
+                RecursorValidatedIndAppAt Rcurrent.venv recLparams
+                  Rcurrent.mlctx.vlctx stats decl
+                  (depth + H.localArgs.size) H.exposedType syntaxTarget
+                  H.ownerIdx)
+    (by
+      intro current Rcurrent exposedType syntaxTarget terminalTarget
+        appliedTarget args target hsyntax hdefeq htype Hrecent happlied
+        happliedType hvalid hexposedScope hcurrentUp
+      change (Except.ok
+        (current.lctx.mkLambda args <|
+          (mkAppN
+            (mkAppN
+              (mkAppN
+                (mkAppN
+                  (Expr.const
+                    (Lean.mkRecName indTypes[target]!.name) lvls)
+                  stats.params)
+                motives)
+              minors)
+            exposedType.getAppArgs[stats.params.size:]).app
+              (mkAppN (.fvar fv) args))).WF _
+      let Hgenerated : BoundGeneratedRecursiveCall indTypes stats motives
+          minors lvls root (.fvar fv)
+          (current.lctx.mkLambda args <|
+            (mkAppN
+              (mkAppN
+                (mkAppN
+                  (mkAppN
+                    (Expr.const
+                      (Lean.mkRecName indTypes[target]!.name) lvls)
+                    stats.params)
+                  motives)
+                minors)
+              exposedType.getAppArgs[stats.params.size:]).app
+                (mkAppN (.fvar fv) args)) := {
+        exposedType := exposedType
+        ownerIdx := target
+        owner_valid := hvalid
+        localArgs := args
+        current := current
+        current_wf := Rcurrent.toBindingContextWF
+        current_extends := Hrecent.contextLE
+        arguments_bound := Hrecent.toFreshBoundFVarArray
+        value_eq := by simp [AddInductive.getIIndices, hvalid] }
+      let HstatsCurrent := Hstats.weakenRecent Hrecent
+      have htargetStats : target < stats.indConsts.size :=
+        (checkPositivityStep.isValidIndApp?_some hvalid).1
+      have htargetDecl : target < decl.types.length := by
+        rw [← HstatsCurrent.types_size]
+        exact htargetStats
+      have hctxCurrent : VLCtx.NoIndConsts
+          (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
+        Hrecent.noIndConsts (names := decl.types.map (·.name)) hctx
+      let Hvalidated := HstatsCurrent.validatedIndAppAt hsyntax hvalid
+        htargetDecl hlit hctxCurrent hproj
+      exact Except.WF.pure
+        ⟨Hgenerated, rfl, Rcurrent, Hrecent, syntaxTarget, terminalTarget,
+          appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType,
+          hexposedScope, hcurrentUp, Hvalidated⟩)
+  exact Hloop.mono fun value Hout => by
+    rcases Hout with
+      ⟨domain, hfieldTyping, target, htarget, hrecursive,
+        Hgenerated, howner, Rcurrent, Hrecent, syntaxTarget, terminalTarget,
+        appliedTarget, hsyntax, hdefeq, htype, happlied, happliedType,
+        hexposedScope, hcurrentUp, Hvalidated⟩
+    subst target
+    exact ⟨{
+      generated := Hgenerated
+      current_context := Rcurrent
+      recent := Hrecent
+      rootScope := P
+      exposed_scope := hexposedScope
+      current_scope_up := hcurrentUp
+      exposedTarget := syntaxTarget
+      exposed_translation := hsyntax
+      terminalTarget := terminalTarget
+      exposed_defeq := hdefeq
+      terminal_type := htype
+      appliedFieldTarget := appliedTarget
+      applied_field_translation := happlied
+      applied_field_typing := happliedType
+      validated := Hvalidated
+      fieldTarget := fieldTarget
+      domain := domain
+      field_translation := hfield
+      field_typing := hfieldTyping
+      owner_lt := htarget
+      recursive := hrecursive }, rfl⟩
+
+theorem BoundGeneratedRecursiveCall.generated
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    checkPositivityStep.GeneratedRecursiveCall
+      indTypes stats motives minors lvls field value := by
+  exact ⟨H.exposedType, H.localArgs, H.current.lctx, H.value_eq⟩
+
+def BoundGeneratedRecursiveCall.body
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : Expr :=
+  let (typeIdx, indices) := AddInductive.getIIndices stats H.exposedType
+  let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
+  let recursor := mkAppN
+    (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+    indices
+  recursor.app (mkAppN field H.localArgs)
+
+theorem BoundGeneratedRecursiveCall.value_eq_body
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    value = H.current.lctx.mkLambda H.localArgs H.body := by
+  simpa [BoundGeneratedRecursiveCall.body] using H.value_eq
+
+/-- The exact lambda telescope closed by one generated recursive call. -/
+theorem BoundGeneratedRecursiveCall.lambdaTelescope
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    Expr.LambdaTelescope value H.localArgs.size
+      (H.body.abstractList H.arguments_bound.fvars) := by
+  rcases H with
+    ⟨exposedType, ownerIdx, howner, localArgs, current, Hwf, Hle, Hargs,
+      Hvalue⟩
+  let callBody : Expr :=
+    let (typeIdx, indices) := AddInductive.getIIndices stats exposedType
+    let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
+    let recursor := mkAppN
+      (mkAppN (mkAppN (mkAppN recursor stats.params) motives) minors)
+      indices
+    recursor.app (mkAppN field localArgs)
+  have Hvalue' : value = current.lctx.mkLambda localArgs callBody := by
+    simpa [callBody] using Hvalue
+  change Expr.LambdaTelescope value localArgs.size
+    (callBody.abstractList Hargs.fvars)
+  rw [Hvalue']
+  let Hselection :=
+    Hargs.toBoundFVarArray.toLocalForallSelection Hwf
+  have Hfvars : Hselection.fvars = Hargs.fvars := rfl
+  rcases Hselection with ⟨fvars, rfl, Hdecl⟩
+  rw [← Hfvars]
+  simpa using
+    (LocalContext.mkLambda_fvars_lambdaTelescope
+      (body := callBody) Hdecl)
+
+/-- The higher-order lambda domains of a semantically retained generated
+call predate the generated recursors.  Closing the surrounding rule binders
+therefore yields a source telescope whose domains avoid every fresh recursor
+name, while imposing no such condition on the call body. -/
+theorem SemanticBoundGeneratedRecursiveCall.outerAvoidingLambdaTelescope
+    (H : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value)
+    (hfresh : ∀ name ∈ names, R.venv.constants name = none)
+    (binders : List FVarId) :
+    Expr.AvoidingLambdaTelescope names
+      (value.abstractList binders) H.generated.localArgs.size
+      ((H.generated.body.abstractList H.generated.arguments_bound.fvars).abstractList
+        binders H.generated.localArgs.size) := by
+  have hcurrentFresh : ∀ name ∈ names,
+      H.current_context.venv.constants name = none := by
+    intro name hname
+    rw [H.recent.venv_eq]
+    exact hfresh name hname
+  let Hselection :=
+    H.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+      H.generated.current_wf
+  have hdecl : ∀ fv ∈ H.generated.arguments_bound.fvars,
+      ∃ index name type bi kind,
+        H.generated.current.lctx.find? fv =
+          some (.cdecl index fv name type bi kind) := by
+    intro fv hfv
+    exact Hselection.declarations fv hfv
+  have Htel : Expr.AvoidingLambdaTelescope names
+      (H.generated.current.lctx.mkLambda
+        (H.generated.arguments_bound.fvars.map Expr.fvar).toArray
+        H.generated.body)
+      H.generated.arguments_bound.fvars.length
+      (H.generated.body.abstractList
+        H.generated.arguments_bound.fvars) :=
+    LocalContext.mkLambda_fvars_avoidingLambdaTelescope hdecl
+      (fun fv index userName type bi kind hfv hfind =>
+        checkPositivityStep.RecursorContextWF.cdeclTypeAvoids
+          H.current_context hcurrentFresh hfind)
+  have hlocalSize : H.generated.localArgs.size =
+      H.generated.arguments_bound.fvars.length := by
+    have := congrArg Array.size H.generated.arguments_bound.expressions
+    simpa using this
+  have Htel' : Expr.AvoidingLambdaTelescope names value
+      H.generated.localArgs.size
+      (H.generated.body.abstractList
+        H.generated.arguments_bound.fvars) := by
+    let n := H.generated.localArgs.size
+    let residual := H.generated.body.abstractList
+      H.generated.arguments_bound.fvars
+    change Expr.AvoidingLambdaTelescope names value n residual
+    rw [H.generated.value_eq_body]
+    simpa only [n, residual, H.generated.arguments_bound.expressions,
+      hlocalSize] using Htel
+  simpa using Htel'.abstractList binders
+
+/-- Translating a bound generated call exposes the exact abstract lambda
+domains and the translation of its simultaneously abstracted call body. -/
+theorem BoundGeneratedRecursiveCall.translatedLambdaShape
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ value result) :
+    ∃ domains residual, domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains residual ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        (H.body.abstractList H.arguments_bound.fvars) residual := by
+  exact TrExprS.lambdaTelescope_shape_with_context H.lambdaTelescope Htr
+
+/-- Closing a generated call over an additional rule-level binder list
+preserves its higher-order lambda arity. The residual records the necessary
+binder-depth shift explicitly, avoiding any assumption that translation and
+simultaneous abstraction commute definitionally. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedLambdaTelescope
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) (binders : List FVarId) :
+    Expr.LambdaTelescope (value.abstractList binders)
+      H.localArgs.size
+      ((H.body.abstractList H.arguments_bound.fvars).abstractList
+        binders H.localArgs.size) := by
+  simpa using H.lambdaTelescope.abstractList binders
+
+theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedLambdaShape
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ (value.abstractList binders) result) :
+    ∃ domains residual, domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains residual ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        ((H.body.abstractList H.arguments_bound.fvars).abstractList
+          binders H.localArgs.size) residual := by
+  exact TrExprS.lambdaTelescope_shape_with_context
+    (H.outerAbstractedLambdaTelescope binders) Htr
+
+theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedLambdaShape_noFresh
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (Htr : TrExprS env Us Δ (value.abstractList binders) result)
+    (hfresh : ∀ name ∈ recursors, env.constants name = none)
+    (hctx : VLCtx.NoIndConsts recursors Δ)
+    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
+      e'.containsAnyConst recursors = false →
+      e''.containsAnyConst recursors = false) :
+    ∃ domains residual, domains.length = H.localArgs.size ∧
+      result = VExpr.wrapLams domains residual ∧
+      TrExprS env Us (abstractForallContext domains Δ)
+        ((H.body.abstractList H.arguments_bound.fvars).abstractList
+          binders H.localArgs.size) residual ∧
+      ∀ dom ∈ domains, dom.containsAnyConst recursors = false := by
+  exact TrExprS.lambdaTelescope_shape_with_context_noFresh
+    hfresh hctx hproj (H.outerAbstractedLambdaTelescope binders) Htr
+
+/-- Simultaneous abstraction preserves the generated recursor spine and
+turns the freshly opened local arguments into the canonical de Bruijn spine
+on the recursive field. -/
+theorem BoundGeneratedRecursiveCall.abstractedBody_eq
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    let (typeIdx, indices) :=
+      AddInductive.getIIndices stats H.exposedType
+    H.body.abstractList H.arguments_bound.fvars =
+      (mkAppN
+        (mkAppN
+          (mkAppN
+            (mkAppN
+              (.const (Lean.mkRecName indTypes[typeIdx]!.name) lvls)
+              (stats.params.map fun e =>
+                e.abstractList H.arguments_bound.fvars))
+            (motives.map fun e =>
+              e.abstractList H.arguments_bound.fvars))
+          (minors.map fun e =>
+            e.abstractList H.arguments_bound.fvars))
+        (indices.map fun e =>
+          e.abstractList H.arguments_bound.fvars)).app
+        (mkAppN (field.abstractList H.arguments_bound.fvars)
+          (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+            Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray) := by
+  rcases hindices : AddInductive.getIIndices stats H.exposedType with
+    ⟨typeIdx, indices⟩
+  have hlocal :
+      H.localArgs.map (fun e =>
+        e.abstractList H.arguments_bound.fvars) =
+      (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+        Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray := by
+    calc
+      H.localArgs.map (fun e =>
+          e.abstractList H.arguments_bound.fvars) =
+          ((H.arguments_bound.fvars.map Expr.fvar).toArray.map fun e =>
+            e.abstractList H.arguments_bound.fvars) := by
+        exact congrArg (Array.map fun e =>
+          e.abstractList H.arguments_bound.fvars)
+            H.arguments_bound.expressions
+      _ = _ := by
+        simpa using Expr.abstractList_fvarArray
+          H.arguments_bound.fvars 0 H.arguments_bound.nodup
+  simp only [BoundGeneratedRecursiveCall.body, hindices,
+    Expr.abstractList_app, Expr.abstractList_mkAppN]
+  rw [hlocal]
+  have hconst :
+      (Expr.const (Lean.mkRecName indTypes[typeIdx]!.name) lvls).abstractList
+        H.arguments_bound.fvars =
+      .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls := by
+    induction H.arguments_bound.fvars with
+    | nil => simp
+    | cons fv fvs ih =>
+      simp only [Expr.abstractList]
+      simpa [Expr.abstract1] using ih
+  rw [hconst]
+
+def BoundGeneratedRecursiveCall.recursorName
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : Name :=
+  Lean.mkRecName indTypes[(AddInductive.getIIndices stats H.exposedType).1]!.name
+
+/-- The owner retained at the successful validation branch is exactly the
+family index consumed by the partial production helper. -/
+theorem BoundGeneratedRecursiveCall.recursorName_eq_owner
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    H.recursorName = Lean.mkRecName indTypes[H.ownerIdx]!.name := by
+  simp only [BoundGeneratedRecursiveCall.recursorName,
+    checkPositivityStep.getIIndices.fst_eq_of_valid H.owner_valid]
+
+def BoundGeneratedRecursiveCall.abstractedRecursor
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : Expr :=
+  let indices := (AddInductive.getIIndices stats H.exposedType).2
+  mkAppN
+    (mkAppN
+      (mkAppN
+        (mkAppN (.const H.recursorName lvls)
+          (stats.params.map fun e =>
+            e.abstractList H.arguments_bound.fvars))
+        (motives.map fun e =>
+          e.abstractList H.arguments_bound.fvars))
+      (minors.map fun e =>
+        e.abstractList H.arguments_bound.fvars))
+    (indices.map fun e =>
+      e.abstractList H.arguments_bound.fvars)
+
+def BoundGeneratedRecursiveCall.abstractedMajor
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : Expr :=
+  mkAppN (field.abstractList H.arguments_bound.fvars)
+    (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+      Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray
+
+def BoundGeneratedRecursiveCall.outerAbstractedRecursor
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) (binders : List FVarId) : Expr :=
+  H.abstractedRecursor.abstractList binders H.localArgs.size
+
+def BoundGeneratedRecursiveCall.outerAbstractedMajor
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) (binders : List FVarId) : Expr :=
+  H.abstractedMajor.abstractList binders H.localArgs.size
+
+/-- The eta-expanded recursive field used as the generated recursor's major
+premise closes over the same exact fresh higher-order arguments as the call
+itself.  Its residual is `abstractedMajor`, rather than the complete call
+body retained by `lambdaTelescope`. -/
+theorem BoundGeneratedRecursiveCall.appliedFieldLambdaTelescope
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    Expr.LambdaTelescope
+      (H.current.lctx.mkLambda H.localArgs (mkAppN field H.localArgs))
+      H.localArgs.size H.abstractedMajor := by
+  let Hselection :=
+    H.arguments_bound.toBoundFVarArray.toLocalForallSelection H.current_wf
+  have Hdecl := Hselection.declarations
+  have HselectionFvars : Hselection.fvars =
+      H.arguments_bound.fvars := rfl
+  rw [HselectionFvars] at Hdecl
+  have Hexpressions := H.arguments_bound.expressions
+  rw [Hexpressions]
+  have Htel := LocalContext.mkLambda_fvars_lambdaTelescope
+    (body := mkAppN field
+      (H.arguments_bound.fvars.map Expr.fvar).toArray) Hdecl
+  have hlocal :
+      (H.arguments_bound.fvars.map Expr.fvar).toArray.map (fun e =>
+        e.abstractList H.arguments_bound.fvars) =
+      (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+        Expr.bvar
+          (H.arguments_bound.fvars.length - 1 - i))).toArray := by
+    simpa using Expr.abstractList_fvarArray
+      H.arguments_bound.fvars 0 H.arguments_bound.nodup
+  simpa [BoundGeneratedRecursiveCall.abstractedMajor,
+    Expr.abstractList_mkAppN, hlocal] using Htel
+
+/-- The generated recursive call and its eta-expanded recursive field close
+over the same concrete higher-order lambda prefix.  Their residuals differ,
+but every binder name, domain, and binder annotation is literally shared. -/
+theorem BoundGeneratedRecursiveCall.sameAppliedFieldLambdaPrefix
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) :
+    Expr.SameLambdaPrefix H.localArgs.size value
+      (H.current.lctx.mkLambda H.localArgs (mkAppN field H.localArgs)) := by
+  let Hselection :=
+    H.arguments_bound.toBoundFVarArray.toLocalForallSelection H.current_wf
+  have Hsame' : Expr.SameLambdaPrefix H.localArgs.size
+      (H.current.lctx.mkLambda H.localArgs H.body)
+      (H.current.lctx.mkLambda H.localArgs (mkAppN field H.localArgs)) := by
+    exact Hselection.sameLambdaPrefix H.arguments_bound.nodup
+      H.body (mkAppN field H.localArgs)
+  exact Eq.mp (congrArg
+    (fun source => Expr.SameLambdaPrefix H.localArgs.size source
+      (H.current.lctx.mkLambda H.localArgs (mkAppN field H.localArgs)))
+    H.value_eq_body).symm Hsame'
+
+/-- Closing the shared higher-order prefix over the surrounding rule binders
+preserves its literal equality. -/
+theorem BoundGeneratedRecursiveCall.sameOuterAppliedFieldLambdaPrefix
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) (binders : List FVarId) :
+    Expr.SameLambdaPrefix H.localArgs.size
+      (value.abstractList binders)
+      ((H.current.lctx.mkLambda H.localArgs
+        (mkAppN field H.localArgs)).abstractList binders) := by
+  exact H.sameAppliedFieldLambdaPrefix.abstractList binders
+
+/-- A root free variable is untouched by the fresh call-local binders.
+Abstracting it over the surrounding rule telescope below those locals is
+therefore exactly weakening its ordinary rule abstraction. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedRootFVar_eq_lift
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (hroot : fv ∈ root.lctx.fvars)
+    (hbinders : binders.Nodup) (hfv : fv ∈ binders) :
+    ((Expr.fvar fv).abstractList H.arguments_bound.fvars).abstractList
+        binders H.localArgs.size =
+      ((Expr.fvar fv).abstractList binders).liftLooseBVars'
+        0 H.localArgs.size := by
+  have hfresh : fv ∉ H.arguments_bound.fvars := by
+    intro hmem
+    exact H.arguments_bound.fresh fv hmem hroot
+  rw [Expr.abstractList_fvar_of_not_mem hfresh]
+  simpa using Expr.abstractList_add_eq_liftLooseBVars
+    (e := .fvar fv) (fvars := binders) (depth := 0)
+    (extra := H.localArgs.size) (by trivial) hbinders
+
+/-- Pointwise array form of `outerAbstractedRootFVar_eq_lift`.  It applies
+to the retained parameter, motive, and minor arrays used by generated
+recursive calls. -/
+theorem BoundGeneratedRecursiveCall.outerAbstractedBoundArray_eq_lift
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (B : BoundFVarArray root xs)
+    (hbinders : binders.Nodup)
+    (hselected : ∀ fv ∈ B.fvars, fv ∈ binders) :
+    xs.map (fun arg =>
+        (arg.abstractList H.arguments_bound.fvars).abstractList
+          binders H.localArgs.size) =
+      xs.map (fun arg =>
+        (arg.abstractList binders).liftLooseBVars' 0 H.localArgs.size) := by
+  apply Array.ext
+  · simp
+  · intro j hleft hright
+    have hj : j < xs.size := by simpa using hleft
+    rcases B.getElem_eq_fvar j hj with ⟨hjFvars, harg⟩
+    simp only [Array.getElem_map]
+    rw [harg]
+    exact H.outerAbstractedRootFVar_eq_lift
+      (B.members B.fvars[j] (List.getElem_mem hjFvars)) hbinders
+      (hselected B.fvars[j] (List.getElem_mem hjFvars))
+
+def BoundGeneratedRecursiveCall.localIndices
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value) : List Nat :=
+  List.ofFn fun i : Fin H.arguments_bound.fvars.length =>
+    H.arguments_bound.fvars.length - 1 - i
+
+/-- Alpha-normalized payload of the recursive-result `loopUArgs` run.  It is
+the second-pass counterpart of
+`RecInfoMinorHypothesisTypeOrigin.replayTrace`. -/
+def BoundGeneratedRecursiveCall.replayTrace
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (fieldBinders : List FVarId) : RecursorLoopUArgsTrace where
+  ownerIdx := H.ownerIdx
+  localArity := H.localArgs.size
+  localTelescope :=
+    (H.current.lctx.mkForall H.localArgs (.sort .zero)).abstractList
+      fieldBinders
+  motive :=
+    (motives[H.ownerIdx]!.abstractList
+      H.arguments_bound.fvars).abstractList fieldBinders H.localArgs.size
+  indices :=
+    ((H.exposedType.getAppArgs[stats.params.size:] : Array Expr).map
+      fun index =>
+        (index.abstractList H.arguments_bound.fvars).abstractList
+          fieldBinders H.localArgs.size)
+
+/-- The second-pass counterpart of
+`RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp`. -/
+def BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (fieldBinders : List FVarId) : Expr :=
+  Expr.app
+    (mkAppN (H.replayTrace fieldBinders).motive
+      (H.replayTrace fieldBinders).indices)
+    (H.outerAbstractedMajor fieldBinders)
+
+theorem BoundGeneratedRecursiveCall.outerAbstractedMotiveApp_eq
+    (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
+      root field value)
+    (fieldBinders : List FVarId) :
+    let indices : Array Expr :=
+      H.exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN motives[H.ownerIdx]! indices)
+      (mkAppN field H.localArgs)
+    (motiveApp.abstractList H.arguments_bound.fvars).abstractList
+        fieldBinders H.localArgs.size =
+      H.outerAbstractedMotiveApp fieldBinders := by
+  dsimp only
+  have hlocal :
+      H.localArgs.map (fun e =>
+        e.abstractList H.arguments_bound.fvars) =
+        (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
+          Expr.bvar
+            (H.arguments_bound.fvars.length - 1 - i))).toArray := by
+    calc
+      H.localArgs.map (fun e =>
+          e.abstractList H.arguments_bound.fvars) =
+          ((H.arguments_bound.fvars.map Expr.fvar).toArray.map fun e =>
+            e.abstractList H.arguments_bound.fvars) := by
+        exact congrArg (Array.map fun e =>
+          e.abstractList H.arguments_bound.fvars)
+            H.arguments_bound.expressions
+      _ = _ := by
+        simpa using Expr.abstractList_fvarArray
+          H.arguments_bound.fvars 0 H.arguments_bound.nodup
+  simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
+  rw [hlocal]
+  simp [BoundGeneratedRecursiveCall.outerAbstractedMotiveApp,
+    BoundGeneratedRecursiveCall.replayTrace,
+    BoundGeneratedRecursiveCall.outerAbstractedMajor,
+    Array.map_map, Function.comp_def]
+  unfold BoundGeneratedRecursiveCall.abstractedMajor
+  rw [Expr.abstractList_mkAppN]
+  simp [List.map_ofFn, Function.comp_def]
+
+
+end VerifyInductive
+end Lean4Lean
