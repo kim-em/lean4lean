@@ -1674,12 +1674,28 @@ theorem
           H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
             equationFields
         let later := T.minors.drop (minorIdx + 1)
+        let minorVar := equationFields.length + later.length
         let outer := inserted.reverse ++
           H.parameterSuffix.parameterDecls.toCtx
         let installedEquationFields :=
           (liftContextPrefix (later.length + 1)
             fieldDomains.reverse).reverse
-        VEnv.IsDefEqCtx H.outVEnv Us.length []
+        let installedEquationHypotheses :=
+          (liftContextPrefixAt (later.length + 1) fieldDomains.length
+            hypothesisDomains.reverse).reverse
+        let installedEquationResidual := targetResidual.liftN
+          (later.length + 1)
+          (fieldDomains.length + hypothesisDomains.length)
+        rhsBody = VExpr.mkApps
+            (VExpr.mkApps (.bvar minorVar)
+              (recursorCanonicalVars equationFields.length)) C.bodies ∧
+          H.outVEnv.HasType Us.length
+            (abstractForallContext equationDomains []).toCtx
+            (VExpr.mkApps (.bvar minorVar)
+              (recursorCanonicalVars equationFields.length))
+            (VExpr.wrapForalls installedEquationHypotheses
+              installedEquationResidual) ∧
+          VEnv.IsDefEqCtx H.outVEnv Us.length []
             (equationFields.reverse ++ outer)
             (installedEquationFields.reverse ++ outer) ∧
           OnCtx (abstractForallContext equationDomains []).toCtx
@@ -1766,8 +1782,8 @@ theorem
       List.append_assoc] using HrhsTr₀
   exact ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
     equationFields, rhsBody, finalType, hfields, hhypotheses, hminorType,
-    by simp [equationFields, B.fieldDomains_length], rfl, rfl, Hfield,
-    Hctx, HrhsTr, HrhsTyped⟩
+    by simp [equationFields, B.fieldDomains_length], rfl, rfl, rfl,
+    Hpartial, Hfield, Hctx, HrhsTr, HrhsTyped⟩
 
 /-- Public compact form of `finalCanonicalRhsPositiveArityDetailed`, hiding
 the installed minor telescope once its exact application type has been
@@ -1817,7 +1833,7 @@ theorem
     ⟨B, T, C, _fieldDomains, _hypothesisDomains, _targetResidual,
       equationFields, rhsBody, typeBody, _hfields, _hhypotheses,
       _hminorType, hequationFieldsLength, hequationFields, _htypeBody,
-      _Hfield, Hctx, HrhsTr, HrhsTyped⟩
+      _hrhsBody, _Hpartial, _Hfield, Hctx, HrhsTr, HrhsTyped⟩
   exact ⟨B, T, C, equationFields, rhsBody, typeBody,
     hequationFieldsLength, hequationFields, Hctx, HrhsTr, HrhsTyped⟩
 
