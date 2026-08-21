@@ -23530,6 +23530,37 @@ theorem Expr.getAppArgs_abstractList (e : Expr) (fvars : List FVarId)
   simp only [Expr.getAppArgs_toList, Expr.getAppArgsList_abstractList,
     Array.toList_map]
 
+/-- Closing free variables acts pointwise on the index suffix returned by
+`getIIndices`; the classifier component is irrelevant to this projection. -/
+theorem checkPositivityStep.getIIndices.snd_abstractList
+    (stats : AddInductive.InductiveStats) (type : Expr)
+    (fvars : List FVarId) (k : Nat := 0) :
+    (AddInductive.getIIndices stats (type.abstractList fvars k)).2 =
+      (AddInductive.getIIndices stats type).2.map
+        (fun index => index.abstractList fvars k) := by
+  apply Array.toList_inj.mp
+  simp only [Array.toList_map]
+  have suffixToList (e : Expr) :
+      (AddInductive.getIIndices stats e).2.toList =
+        e.getAppArgs.toList.drop stats.params.size := by
+    simp only [AddInductive.getIIndices]
+    let suffix := e.getAppArgs.toSubarray stats.params.size
+    calc
+      (Std.Slice.toArray suffix).toList = suffix.toList := by
+        exact (congrArg Array.toList
+          (Subarray.toArray_eq_sliceToArray (s := suffix)).symm).trans
+            Subarray.toList_toArray
+      _ = e.getAppArgs.toList.drop stats.params.size := by
+        rw [List.drop_eq_drop_min]
+        simp only [suffix, Subarray.toList_eq, Array.array_toSubarray,
+          Array.start_toSubarray, Array.stop_toSubarray, Nat.min_self,
+          Array.toList_extract, List.extract_eq_take_drop,
+          Array.length_toList]
+        apply List.take_of_length_le
+        simp
+  rw [suffixToList, suffixToList]
+  simp [Expr.getAppArgs_toList, Expr.getAppArgsList_abstractList]
+
 /-- The concrete inductive-occurrence scan observes only constants, so
 closing a free variable cannot affect its result. -/
 theorem checkPositivityStep.hasIndOcc_abstract1
@@ -67791,6 +67822,41 @@ theorem
     rfl
   exact ⟨S, traversal, hlocal, htraversal, htraversalFields,
     hfieldFVars, hclosedTargets, hselectedOwner', hmotiveApp'⟩
+
+/-- The earlier minor target and the independently generated rule carry the
+same index spine after each pass closes its own fresh constructor fields.
+This is the alpha-stable index payload used by the final motive comparison. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorIndexAlignment
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    ∃ S : RecInfoMinorTypeShape,
+      ∃ traversal : RecInfoMinorTraversalShape,
+        S.localIndex = i ∧
+        S.traversal = some traversal ∧
+        (AddInductive.getIIndices stats traversal.terminal).2.map
+            (fun index => index.abstractList S.fields_bound.fvars) =
+          (AddInductive.getIIndices stats A.rule.target).2.map
+            (fun index => index.abstractList
+              A.semantics.fieldOpening.fvars) := by
+  rcases A.finalSelectedMinorTargetAlignment with
+    ⟨S, traversal, hlocal, htraversal, _hfields, _hfieldFVars,
+      hclosedTargets, _howner, _hmotiveApp⟩
+  have hindices := congrArg
+    (fun target => (AddInductive.getIIndices stats target).2)
+    hclosedTargets
+  rw [checkPositivityStep.getIIndices.snd_abstractList,
+    checkPositivityStep.getIIndices.snd_abstractList] at hindices
+  exact ⟨S, traversal, hlocal, htraversal, hindices⟩
 
 /-- Recover the exact translation-side context in which the selected minor
 source was completed, together with its executable extension into the final
