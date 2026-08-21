@@ -1559,6 +1559,18 @@ def VExpr.applyForallType : VExpr → List VExpr → VExpr
   | .forallE _ body, arg :: args => applyForallType (body.inst arg) args
   | type, _ :: _ => type
 
+/-- The residual recorded by a typed application spine is the literal
+result of consuming its initial forall type with the same arguments.  This
+keeps later dependent application proofs from having to existentially forget
+the result type they have already computed. -/
+theorem VEnv.TypedApplicationSpine.result_eq_applyForallType
+    (H : VEnv.TypedApplicationSpine env uvars ctx fn fnType args resultType) :
+    resultType = VExpr.applyForallType fnType args := by
+  induction H with
+  | nil _ => rfl
+  | cons _ _ _ ih =>
+      simpa [VExpr.applyForallType] using ih
+
 def VExpr.instForallDomains : List VExpr → VExpr → Nat → List VExpr
   | [], _, _ => []
   | domain :: domains, arg, k =>
@@ -2938,6 +2950,54 @@ theorem VEnv.HasType.mkApps_of_defeqLiftClosedDomains
   rcases VEnv.TypedApplicationSpine.liftClosedDomains
       henv.ordered HfnCanonical Hargs with ⟨finalType, Hspine⟩
   exact ⟨finalType, Hspine.hasType⟩
+
+/-- Exact-result form of `mkApps_of_defeqLiftClosedDomains`.  Context
+conversion changes the telescope domains but retains the installed residual;
+the resulting application therefore has the explicit type obtained by
+consuming that converted telescope with the supplied closed arguments. -/
+theorem VEnv.HasType.mkApps_of_defeqLiftClosedDomains_exact
+    (henv : env.WF) (Hctx : OnCtx ctx (env.IsType uvars))
+    (Hfn : env.HasType uvars ctx fn
+      (VExpr.wrapForalls installedDomains resultType))
+    (Hdomains : VEnv.IsDefEqCtx env uvars []
+      (installedDomains.reverse ++ ctx)
+      ((VExpr.liftClosedDomains types 0).reverse ++ ctx))
+    (Hargs : List.Forall₂
+      (env.HasType uvars ctx) args types) :
+    env.HasType uvars ctx (VExpr.mkApps fn args)
+      (VExpr.applyForallType
+        (VExpr.wrapForalls (VExpr.liftClosedDomains types 0) resultType)
+        args) := by
+  have hlength : installedDomains.length = types.length := by
+    have hcontexts := Hdomains.length_eq
+    simp only [List.length_append, List.length_reverse,
+      VExpr.liftClosedDomains_length] at hcontexts
+    omega
+  have HtelescopeType : env.IsType uvars ctx
+      (VExpr.wrapForalls installedDomains resultType) :=
+    Hfn.isType henv Hctx
+  have Hopened := VEnv.IsType.wrapForalls_inv henv.ordered Hctx
+    HtelescopeType
+  have HresultType : env.IsType uvars
+      (installedDomains.reverse ++ ctx) resultType := Hopened.2
+  rcases HresultType with ⟨resultLevel, HresultType⟩
+  rcases Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.closeHeads Hdomains
+      installedDomains.length (by simp) HresultType with
+    ⟨closedLevel, Hclosed⟩
+  have Hwhole : env.IsDefEqU uvars ctx
+      (VExpr.wrapForalls installedDomains resultType)
+      (VExpr.wrapForalls (VExpr.liftClosedDomains types 0)
+        resultType) := by
+    refine ⟨.sort closedLevel, ?_⟩
+    simpa [hlength] using Hclosed
+  have HfnCanonical : env.HasType uvars ctx fn
+      (VExpr.wrapForalls (VExpr.liftClosedDomains types 0)
+        resultType) :=
+    Hfn.defeqU_r henv Hctx Hwhole
+  rcases VEnv.TypedApplicationSpine.liftClosedDomains
+      henv.ordered HfnCanonical Hargs with ⟨finalType, Hspine⟩
+  rw [← Hspine.result_eq_applyForallType]
+  exact Hspine.hasType
 
 /-- Select one corresponding declaration from a complete context
 conversion.  The selected types are compared in the older left-hand suffix,
