@@ -122,6 +122,7 @@ theorem GeneratedFamilyWitness.installedContainer
   · exact (wf.tr (safety := .unsafe)).find?_uniq H.built.lookup
       habstractLookup |>.2
 
+
 /-- Recover the installed container in the exact abstract observer that
 translated the recognized family.  Visibility is derived from the concrete
 lookup and the supplied abstract lookup through environment alignment; it is

@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Recognition
+import Lean4Lean.Verify.Inductive.Nested.Compilation
 import Lean4Lean.Verify.Inductive.Nested.RestorationValidation
 
 namespace Lean4Lean

@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Mapping
 import Lean4Lean.Verify.Inductive.Nested.ConstructorInstallation
+import Lean4Lean.Verify.Inductive.Nested.ConstructorInstallation
 
 namespace Lean4Lean
 

@@ -273,8 +273,8 @@ theorem RestoredSourceConstructorTrace.preservesSourceFind
   induction H with
   | nil => exact hfind
   | cons Hstep Hsemantic Hrest ih =>
-      rename_i result loweredEnv ctorName sourceProdEnv middleProdEnv source
-        names targetProdEnv sources constructors
+      rename_i ctorName sourceProdEnv middleProdEnv source names targetProdEnv
+        sources constructors
       let ci : ConstantInfo := .ctorInfo Hstep.restored.newInfo
       have hfresh : sourceProdEnv.find? ci.name = none :=
         find?_none_of_contains_false hsourceWF Hstep.restored.fresh

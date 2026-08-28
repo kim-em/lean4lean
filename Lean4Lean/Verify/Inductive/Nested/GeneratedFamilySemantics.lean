@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.EndToEnd
 import Lean4Lean.Verify.Inductive.Nested.FamilyRealization
+import Lean4Lean.Verify.Inductive.Nested.FamilyRealization
 
 namespace Lean4Lean
 
