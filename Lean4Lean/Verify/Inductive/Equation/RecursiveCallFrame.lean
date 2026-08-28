@@ -42,6 +42,9 @@ structure
     (AddInductive.getRecLevels H.elimLevel stats.levels)
     originContext decl callDepth
     A.rule.recursiveArgs[j] A.rule.recursiveResults[j]!
+  motiveApplication : Nonempty semantic.ProducerMotiveApplication
+  motiveLookup : RecInfoMotiveTelescopeLookup A.semantics.context stats decl
+    H.recInfos H.elimLevel
   root_scope : semantic.rootScope = fun fv =>
     fv ∈ A.semantics.fieldOpening.fvars ∨
       fv ∈ ExprArrayFVarIds stats.params
@@ -96,7 +99,7 @@ theorem
   rcases A.motiveEvidence with ⟨Hproducer⟩
   rcases Hproducer.calls.entries j hj hj with
     ⟨originRoot, Rorigin, priorHypotheses, Hrecent,
-      hpriorSize, callDepth, S, hscope⟩
+      hpriorSize, callDepth, S, hscope, Hmotive⟩
   have hrecInfo : S.generated.ownerIdx < H.recInfos.size := by
     rw [H.cardinality.records]
     exact S.validated.target_lt
@@ -112,6 +115,8 @@ theorem
     priorHypotheses_size := hpriorSize
     callDepth := callDepth
     semantic := S
+    motiveApplication := Hmotive
+    motiveLookup := Hproducer.motiveLookup
     root_scope := hscope
     entry_lt := hentry
     telescope := T

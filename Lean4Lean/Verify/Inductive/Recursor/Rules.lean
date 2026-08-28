@@ -1294,6 +1294,29 @@ structure StagedSemanticBoundGeneratedRecursiveCalls
               motives minors lvls Rorigin decl callDepth u[i] v[i]!,
               S.rootScope = P
 
+/-- The exact motive application proved while the blueprint-producing first
+pass checks one recursive field.  This evidence belongs to the call producer:
+later completed recursor contexts are siblings of the producer context and
+cannot soundly reconstruct it by weakening. -/
+structure SemanticBoundGeneratedRecursiveCall.ProducerMotiveApplication
+    {indTypes : Array InductiveType}
+    {stats : AddInductive.InductiveStats}
+    {motives minors : Array Expr} {lvls : List Level}
+    {root : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF root recLparams}
+    {decl : VInductDecl} {depth : Nat} {field value : Expr}
+    (S : SemanticBoundGeneratedRecursiveCall indTypes stats motives minors
+      lvls R decl depth field value) : Type where
+  target : VExpr
+  translation : TrExprS S.current_context.venv recLparams
+    S.current_context.mlctx.vlctx
+    (Expr.app
+      (mkAppN motives[S.generated.ownerIdx]!
+        S.generated.exposedType.getAppArgs[stats.params.size:])
+      (mkAppN field S.generated.localArgs)) target
+  typing : S.current_context.venv.IsType recLparams.length
+    S.current_context.mlctx.vlctx.toCtx target
+
 /-- Producer-staged recursive calls with the exact earlier-hypothesis suffix
 retained at every call origin.  Unlike the compatibility staging above, this
 is populated only by `loopUBlueprints`, whose accumulator supplies the
@@ -1317,7 +1340,8 @@ structure ProducerStagedSemanticBoundGeneratedRecursiveCalls
               ∃ callDepth,
                 ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats
                   motives minors lvls Rorigin decl callDepth u[i] v[i]!,
-                  S.rootScope = P
+                  S.rootScope = P ∧
+                    Nonempty S.ProducerMotiveApplication
 
 theorem ProducerStagedSemanticBoundGeneratedRecursiveCalls.toStaged
     (H : ProducerStagedSemanticBoundGeneratedRecursiveCalls indTypes stats
@@ -1328,7 +1352,8 @@ theorem ProducerStagedSemanticBoundGeneratedRecursiveCalls.toStaged
   size := H.size
   entries i hi hiu := by
     rcases H.entries i hi hiu with
-      ⟨originRoot, Rorigin, prior, Hrecent, _hsize, callDepth, S, hscope⟩
+      ⟨originRoot, Rorigin, prior, Hrecent, _hsize, callDepth, S,
+        hscope, _Hmotive⟩
     exact ⟨originRoot, Rorigin, Hrecent.contextExtension,
       callDepth, S, hscope⟩
 

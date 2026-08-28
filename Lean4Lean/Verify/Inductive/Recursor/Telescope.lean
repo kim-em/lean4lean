@@ -2528,6 +2528,58 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractAllWF
   have Hscope := (H.scopeWF henv).toCtx
   simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Hscope
 
+private theorem forall₂_takeBoth
+    {R : α → β → Prop} (H : List.Forall₂ R xs ys) (n : Nat) :
+    List.Forall₂ R (xs.take n) (ys.take n) := by
+  induction n generalizing xs ys with
+  | zero => exact .nil
+  | succ n ih =>
+    cases H with
+    | nil => exact .nil
+    | cons h Htail => exact .cons h (ih Htail)
+
+private theorem namedLambdaDeclarations_fvars
+    (H : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type)) xs ys) :
+    VLCtx.fvars ys = xs := by
+  induction H with
+  | nil => rfl
+  | @cons fv entry fvs entries hentry _ ih =>
+    rcases hentry with ⟨deps, type, rfl⟩
+    change List.filterMap
+      (fun x => Option.map (fun x => x.fst) x.fst) entries = fvs at ih
+    simpa [VLCtx.fvars] using ih
+
+/-- Close an initial segment of a non-contiguous selected scope while
+retaining its exact older suffix.  Non-contiguity concerns the executable
+runtime only; inside the selected scope, call locals and constructor fields
+form an ordinary named prefix above the cached parameters. -/
+theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractPrefix
+    (H : checkInductiveTypes.loopType.FVarNarrowScope
+      env Us scope runtime)
+    (henv : env.WF) (n : Nat)
+    (hbase : scope.drop n = baseScope)
+    (Htr : TrExprS env Us scope source target) :
+    TrExprS env Us
+      (abstractForallContext (VLCtx.toCtx (scope.take n)).reverse baseScope)
+      (source.abstractList (scope.fvars.take n).reverse) target := by
+  let scopePrefix := scope.take n
+  let tail := scope.drop n
+  have hscope : scopePrefix ++ tail = scope := by
+    simpa [scopePrefix, tail] using (List.take_append_drop n scope).symm
+  have Hprefix := forall₂_takeBoth H.declarations n
+  have hprefixFVars : VLCtx.fvars scopePrefix = scope.fvars.take n := by
+    exact namedLambdaDeclarations_fvars Hprefix
+  have Htr' : TrExprS env Us
+      (abstractForallContext [] (scopePrefix ++ tail)) source target := by
+    simpa [abstractForallContext, hscope] using Htr
+  have hnodup : (scope.fvars.take n).Nodup :=
+    (H.scopeWF henv).fvars_nodup.sublist (List.take_sublist n scope.fvars)
+  have Habstract := TrExprS.abstractFVarLambdaPrefix
+    (domains := []) Hprefix hnodup Htr'
+  simpa [scopePrefix, tail, hprefixFVars, hbase] using Habstract
+
 /-- Abstracting an outer binder list after an already abstracted inner list
 at the inner-list cutoff is equivalent to their ordinary outer-to-inner
 simultaneous abstraction. -/

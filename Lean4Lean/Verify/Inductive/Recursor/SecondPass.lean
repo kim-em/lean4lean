@@ -27,7 +27,8 @@ structure RecInfoCallBlueprintSemanticOrigin
     ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats
         motives minors lvls R decl depth field
         (call.build indTypes stats motives minors lvls),
-      S.rootScope = rootScope
+      S.rootScope = rootScope ∧
+        Nonempty S.ProducerMotiveApplication
 
 /-- Array alignment for the semantic call certificates emitted by
 `loopUBlueprints`.  Entry `j` is rooted after exactly the `j` earlier
@@ -148,6 +149,49 @@ def RecInfoRuleFieldSemanticSource.mono
     RecInfoRuleFieldSemanticSource R' stats S :=
   { F with terminalExtension := F.terminalExtension.trans E }
 
+/-- Producer-rooted lookup of the motive binder and its canonical telescope
+for every member of a completed mutual block.  This package is constructed
+from first-pass bindings, origins, shapes, and telescopes; consumers supply
+only the later context and the inductive application already validated by the
+checker. -/
+structure RecInfoMotiveTelescopeLookup
+    {root : AddInductive.Context} {recLparams : List Name}
+    (Rroot : RecursorContextWF root recLparams)
+    (stats : AddInductive.InductiveStats) (decl : VInductDecl)
+    (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
+  evidence : ∀ target (htarget : target < recInfos.size)
+      {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      (Hext : RecursorContextExtension Rroot Rcurrent)
+      {depth : Nat} {exposedType : Expr} {syntaxTarget : VExpr},
+    TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+    Rcurrent.venv.IsType recLparams.length Rcurrent.mlctx.vlctx.toCtx
+        syntaxTarget →
+    RecursorValidatedIndAppAt Rcurrent.venv recLparams
+        Rcurrent.mlctx.vlctx stats decl depth exposedType syntaxTarget target →
+    ∃ binding : RecursorMotiveBinding Rcurrent recInfos[target]! elimLevel,
+      Nonempty (RecursorMotiveTelescopeEvidence Rcurrent stats
+        recInfos[target]! binding exposedType syntaxTarget)
+
+def RecInfoMotiveTelescopeLookup.of
+    {root : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    (T : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
+      elimLevel)
+    (Hbindings : RecInfoBindings root recInfos)
+    (Horigins : RecInfoTypeOrigins root recInfos)
+    (Hshapes : RecInfoMotiveTypeShapes root recInfos Horigins.motiveTypes
+      elimLevel) :
+    RecInfoMotiveTelescopeLookup Rroot stats decl recInfos elimLevel where
+  evidence target htarget _current Rcurrent Hext _depth _exposedType
+      _syntaxTarget Hexposed HsyntaxType Hvalidated := by
+    rcases Hshapes.motiveBindingAtMono (Rcurrent := Rcurrent)
+        Hbindings Horigins Hext.contextLE target htarget with ⟨Hbinding⟩
+    let binding := Hbinding.toBinding
+    exact ⟨binding, T.telescope target htarget Rcurrent Hext binding
+      Hexposed HsyntaxType Hvalidated⟩
+
 /-- Stable rule-row form of the producer semantic origins.  It is indexed by
 the exact retained minor shape and blueprint, so later installation cannot
 pair a semantic call row with an unrelated executable rule. -/
@@ -187,6 +231,8 @@ def RecInfoRuleBlueprintSemanticOriginAt
           Nonempty (RecursorMotiveTelescopeEvidence F.terminalWF stats
             recInfos[ownerIdx]! binding F.traversal.terminal
             F.terminalTarget) ∧
+        Nonempty (RecInfoMotiveTelescopeLookup F.terminalWF stats decl recInfos
+          elimLevel) ∧
         Nonempty (RecInfoHypothesisCallSemanticOrigins F.terminalWF decl depth
           stats (recInfos.map (·.motive))
           (fun fv => fv ∈ F.fieldsRecent.fvars ∨
@@ -208,10 +254,11 @@ theorem RecInfoRuleBlueprintSemanticOriginAt.mono
   rcases H with
     ⟨origins, hshape, hstats, hmotives, F, hparams, depth, HvalidStats,
       fields, Hselection, hexpectedValid, hexpectedLt,
-      ownerIdx, htargetValid, Hvalidated, binding, Hevidence, Hcalls⟩
+      ownerIdx, htargetValid, Hvalidated, binding, Hevidence,
+      Hlookup, Hcalls⟩
   exact ⟨origins, hshape, hstats, hmotives, F.mono E, hparams, depth,
     HvalidStats, fields, Hselection, hexpectedValid, hexpectedLt,
-    ownerIdx, htargetValid, Hvalidated, binding, Hevidence, Hcalls⟩
+    ownerIdx, htargetValid, Hvalidated, binding, Hevidence, Hlookup, Hcalls⟩
 
 /-- Owner/minor-indexed persistence of the semantic blueprint rows through
 the complete mutual second pass. -/
@@ -2141,7 +2188,9 @@ theorem inductionHypothesisTypeOrigin
       args.size Hargs.size_le
     have HexposedClosed := Hargs.mkForallExact Hexposed HexposedType
     have HappliedClosed := Hargs.mkLambda Happlied HappliedType'
-    refine ⟨{
+    let S : SemanticBoundGeneratedRecursiveCall indTypes stats
+        (recInfos.map (·.motive)) minors lvls R decl depth (.fvar fv)
+        value := {
       generated := Hgenerated
       current_context := Rcurrent
       recent := Hargs
@@ -2173,7 +2222,14 @@ theorem inductionHypothesisTypeOrigin
       field_translation := hfield
       field_typing := hfieldTyping
       owner_lt := htargetDecl
-      recursive := hrecursive }, rfl⟩
+      recursive := hrecursive }
+    refine ⟨S, rfl, ⟨?_⟩⟩
+    refine {
+      target := motiveTarget
+      translation := ?_
+      typing := HmotiveType }
+    simpa [S, Hgenerated, targetIndices, Array.getElem!_eq_getD,
+      Array.getD, htarget] using Hmotive
 
 /-- Close the retained-blueprint hypothesis loop from the independently
 verified motive applications.  The additional output is produced by the same
@@ -2471,6 +2527,56 @@ structure RecInfoMotiveCoreEq
   indices_eq : ∀ (i : Nat), left[i]!.indices = right[i]!.indices
   major_eq : ∀ (i : Nat), left[i]!.major = right[i]!.major
 
+theorem RecInfoMotiveCoreEq.size_eq
+    (H : RecInfoMotiveCoreEq left right) : left.size = right.size := by
+  have h := congrArg Array.size H.map_motive
+  simpa using h
+
+theorem RecInfoMotiveTelescopes.rebaseMotiveCore
+    (T : RecInfoMotiveTelescopes R stats decl parameterCtx left elimLevel)
+    (H : RecInfoMotiveCoreEq left right) :
+    RecInfoMotiveTelescopes R stats decl parameterCtx right elimLevel := by
+  refine ⟨?_, ?_, ?_⟩
+  · intro target htarget
+    have htarget' : target < left.size := by
+      simpa [H.size_eq] using htarget
+    apply RecursorMotiveTelescopeAt.congrInfo (T.telescope target htarget')
+    · exact (H.motive_eq target).symm
+    · exact (H.indices_eq target).symm
+    · exact (H.major_eq target).symm
+  · intro target htarget
+    have htarget' : target < left.size := by
+      simpa [H.size_eq] using htarget
+    rcases T.seed target htarget' with ⟨S, hparams⟩
+    let S' := S.congrInfo (H.indices_eq target).symm
+      (H.major_eq target).symm
+    exact ⟨S', by
+      simpa [S', RecursorMotiveTelescopeSeed.congrInfo] using hparams⟩
+  · intro target htarget
+    have htarget' : target < left.size := by
+      simpa [H.size_eq] using htarget
+    rcases T.seed target htarget' with ⟨S, hparams⟩
+    let S' := S.congrInfo (H.indices_eq target).symm
+      (H.major_eq target).symm
+    exact ⟨S'.canonical, by
+      simpa [S', RecursorMotiveTelescopeSeed.congrInfo] using hparams⟩
+
+theorem RecInfoMotiveTelescopeLookup.rebaseMotiveCore
+    (K : RecInfoMotiveTelescopeLookup R stats decl left elimLevel)
+    (H : RecInfoMotiveCoreEq left right) :
+    RecInfoMotiveTelescopeLookup R stats decl right elimLevel where
+  evidence target htarget _current Rcurrent Hext _depth _exposedType
+      _syntaxTarget Hexposed HsyntaxType Hvalidated := by
+    have htarget' : target < left.size := by
+      simpa [H.size_eq] using htarget
+    rcases K.evidence target htarget' Rcurrent Hext Hexposed HsyntaxType
+        Hvalidated with ⟨binding, ⟨evidence⟩⟩
+    let binding' := binding.congrInfo (H.motive_eq target)
+      (H.indices_eq target) (H.major_eq target)
+    let evidence' := evidence.congrInfo (H.motive_eq target)
+      (H.indices_eq target) (H.major_eq target)
+    exact ⟨binding', ⟨evidence'⟩⟩
+
 theorem RecInfoRuleBlueprintSemanticOriginAt.rebaseMotiveCore
     (Horigin : RecInfoRuleBlueprintSemanticOriginAt R decl stats left
       elimLevel parameterDecls expectedOwnerIdx S B)
@@ -2481,7 +2587,8 @@ theorem RecInfoRuleBlueprintSemanticOriginAt.rebaseMotiveCore
   rcases Horigin with
     ⟨origins, hshape, hstats, hmotives, F, hparams, depth, HvalidStats,
       fields, Hselection, hexpectedValid, hexpectedLt, ownerIdx,
-      htargetValid, Hvalidated, binding, ⟨Hevidence⟩, Hcalls⟩
+      htargetValid, Hvalidated, binding, ⟨Hevidence⟩,
+      ⟨Hlookup⟩, Hcalls⟩
   let binding' := binding.congrInfo (H.motive_eq ownerIdx)
     (H.indices_eq ownerIdx) (H.major_eq ownerIdx)
   let evidence' := Hevidence.congrInfo (H.motive_eq ownerIdx)
@@ -2491,7 +2598,8 @@ theorem RecInfoRuleBlueprintSemanticOriginAt.rebaseMotiveCore
   exact ⟨origins, hshape, hstats, hmotives.trans H.map_motive,
     F, hparams, depth, HvalidStats, fields, Hselection, hexpectedValid,
     hexpectedLt, ownerIdx, htargetValid, Hvalidated,
-    binding', ⟨evidence'⟩, Hcalls'⟩
+    binding', ⟨evidence'⟩,
+    ⟨Hlookup.rebaseMotiveCore H⟩, Hcalls'⟩
 
 theorem RecInfoCoreEq.flatMap_minors
     (H : RecInfoCoreEq left right) :
@@ -4156,7 +4264,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           hdidxValid, hdidxDecl,
           Happlication.ownerIdx,
           Happlication.owner_valid, ⟨Hvalidated⟩,
-          Hbinding, HmotiveEvidence, ⟨?_⟩⟩
+          Hbinding, HmotiveEvidence,
+          ⟨RecInfoMotiveTelescopeLookup.of HtelescopesArgs HbindingsArgs
+            HoriginsArgs HmotiveShapesArgs⟩, ⟨?_⟩⟩
         · simpa using HhypothesisCallSemantics) ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
     hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext

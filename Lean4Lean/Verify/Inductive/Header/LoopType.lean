@@ -1118,6 +1118,29 @@ theorem FVarNarrowScope.hasTypeOfFull
   exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
     hexpanded
 
+/-- Transfer a dependent runtime typing judgment when both the term and its
+type were reconstructed in the same non-contiguous selected scope. -/
+theorem FVarNarrowScope.hasTypeOfFullPair
+    (H : FVarNarrowScope env Us scope runtime)
+    (henv : env.WF)
+    (hnarrowTerm : TrExprS env Us scope term termNarrow)
+    (hnarrowType : TrExprS env Us scope type typeNarrow)
+    (hfullTerm : TrExprS env Us runtime term termFull)
+    (hfullType : TrExprS env Us runtime type typeFull)
+    (htype : env.HasType Us.length runtime.toCtx termFull typeFull) :
+    env.HasType Us.length scope.toCtx termNarrow typeNarrow := by
+  have htermTarget := H.fullTargetEq henv hnarrowTerm
+    (hfullTerm.trExpr henv (H.context.symm henv.ordered).wf)
+  have htypeTarget := H.fullTargetEq henv hnarrowType
+    (hfullType.trExpr henv (H.context.symm henv.ordered).wf)
+  have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
+  have hliftTyped := htype.defeqU_l henv hruntimeWF htermTarget.symm
+  have hliftTyped' := hliftTyped.defeqU_r henv hruntimeWF htypeTarget.symm
+  have hexpanded := hliftTyped'.defeqDFC henv.ordered
+    (H.context.defeqCtx.symm henv.ordered)
+  exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+    hexpanded
+
 /-- Retain one newly introduced named lambda.  Its semantic domain is
 obtained by inverse weakening; the executable domain need only be
 definitionally equal after weakening back into the expanded context. -/

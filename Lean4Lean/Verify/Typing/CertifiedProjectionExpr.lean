@@ -164,9 +164,122 @@ theorem resultTyping
       exact ⟨selected, resultTranslation,
         candidateTyping.defeqU_r henv hDelta.toCtx resultTypeDefEq⟩
 
+theorem targetWF
+    (H : CertifiedTrProj env Us Delta structName index concreteMajor major
+      concreteType target)
+    (henv : VEnv.WF env) (hDelta : VLCtx.WF env Us.length Delta) :
+    VExpr.WF env Us.length Delta.toCtx target := by
+  rcases H.resultTyping henv hDelta with ⟨selected, _, Htarget⟩
+  exact ⟨selected, Htarget⟩
+
+/-- Exact fresh-name preservation for a certified projection is a theorem of
+ordinary target typing.  It is not stored in the projection node and does
+not quantify a compatibility provider. -/
+theorem noFreshConsts
+    (H : CertifiedTrProj env Us Delta structName index concreteMajor major
+      concreteType target)
+    (henv : VEnv.WF env) (hDelta : VLCtx.WF env Us.length Delta)
+    (Hfresh : ∀ name ∈ names, env.constants name = none) :
+    target.containsAnyConst names = false :=
+  VExpr.WF.noFreshConsts henv.ordered Hfresh hDelta.toCtx
+    (H.targetWF henv hDelta)
+
 end CertifiedTrProj
 
 namespace CertifiedTrExprS
+
+/-- Certified translation evidence preserves the concrete binder discipline.
+The projection node introduces no binder-sensitive syntax beyond its major. -/
+theorem closed
+    (H : CertifiedTrExprS env Us Delta expression target) :
+    Closed expression Delta.bvars := by
+  exact CertifiedTrExprS.rec
+    (motive_1 := fun Delta expression _ _ => Closed expression Delta.bvars)
+    (motive_2 := fun _ _ _ _ _ _ _ _ => True)
+    (motive_3 := fun _ _ _ _ _ _ _ _ _ => True)
+    (bvar := by
+      intro target type Delta index hfind
+      simp [Closed]
+      induction Delta generalizing index target type with
+      | nil => cases hfind
+      | cons declaration Delta ih =>
+          match declaration, index with
+          | (none, _), 0 => exact Nat.succ_pos _
+          | (none, _), _ + 1 =>
+              simp [VLCtx.find?, VLCtx.next, bind] at hfind
+              obtain ⟨_, _, hfind, rfl, rfl⟩ := hfind
+              exact Nat.succ_lt_succ (ih hfind)
+          | (some _, _), _ =>
+              simp [VLCtx.find?, VLCtx.next, bind] at hfind
+              obtain ⟨_, _, hfind, rfl, rfl⟩ := hfind
+              exact ih hfind)
+    (fvar := by intros; trivial)
+    (sort := by intros; trivial)
+    (const := by intros; trivial)
+    (app := by
+      intros
+      constructor <;> assumption)
+    (lam := by
+      intros
+      constructor <;> assumption)
+    (forallE := by
+      intros
+      constructor <;> assumption)
+    (letE := by
+      intros
+      exact ⟨by assumption, by assumption, by assumption⟩)
+    (lit := by intros; trivial)
+    (mdata := by intros; assumption)
+    (proj := by intros; assumption)
+    (canonical := by intros; trivial)
+    (nil := by intros; trivial)
+    (cons := by intros; trivial)
+    H
+
+/-- Certified translation evidence retains the checker-local free-variable
+coverage required by `inferType` and its caches.  Projection certification
+adds no concrete free variables beyond its major premise. -/
+theorem fvarsIn
+    (H : CertifiedTrExprS env Us Delta expression target) :
+    FVarsIn (· ∈ Delta.fvars) expression := by
+  exact CertifiedTrExprS.rec
+    (motive_1 := fun Delta expression _ _ =>
+      FVarsIn (· ∈ Delta.fvars) expression)
+    (motive_2 := fun _ _ _ _ _ _ _ _ => True)
+    (motive_3 := fun _ _ _ _ _ _ _ _ _ => True)
+    (bvar := by intros; trivial)
+    (fvar := by
+      intro target type Delta fvarId hfind
+      exact VLCtx.find?_eq_some.1 ⟨_, hfind⟩)
+    (sort := by
+      intro level targetLevel Delta hlevel
+      exact ofLevel_hasMVar hlevel)
+    (const := by
+      intro name constant targetLevels Delta levels hlookup hlevels hlength
+      rw [List.mapM_eq_some] at hlevels
+      intro current hcurrent
+      have ⟨_, _, Hcurrent⟩ :=
+        Lean4Lean.List.Forall₂.forall_exists_l hlevels current hcurrent
+      exact ofLevel_hasMVar Hcurrent)
+    (app := by
+      intros
+      constructor <;> assumption)
+    (lam := by
+      intros
+      constructor <;> assumption)
+    (forallE := by
+      intros
+      constructor <;> assumption)
+    (letE := by
+      intros
+      exact ⟨by assumption, by assumption, by assumption⟩)
+    (lit := by intros; trivial)
+    (mdata := by intros; assumption)
+    (proj := by intros; assumption)
+    (canonical := by intros; trivial)
+    (nil := by intros; trivial)
+    (cons := by intros; trivial)
+    H
 
 /-- Mutual well-formedness: projection targets are typed by the recursively
 checked accepted candidate, never by a `targetWF` field. -/

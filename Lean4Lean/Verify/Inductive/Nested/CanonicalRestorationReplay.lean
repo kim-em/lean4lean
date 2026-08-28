@@ -279,7 +279,7 @@ theorem RestoredSourceConstructorTrace.existsEntries
         entry.2.toVConstant.WF canonicalEnv := by
   induction H with
   | nil => exact ⟨[], rfl, by simp⟩
-  | @cons result loweredEnv ctorName stepSource middleSource source tailNames
+  | @cons ctorName stepSource middleSource source tailNames
       stepTarget tailSources tailConstructors Hstep Hsemantic Hrest ih =>
     rcases ih with ⟨entries, hvalues, Hentries⟩
     let head : ConstantInfo × VConstVal :=
@@ -305,7 +305,7 @@ theorem RestoredSourceConstructorTrace.existsEntriesFresh
         entry.2.toVConstant.WF canonicalEnv := by
   induction H with
   | nil => exact ⟨[], .nil, rfl, by simp⟩
-  | @cons result loweredEnv ctorName stepSource middleSource source tailNames
+  | @cons ctorName stepSource middleSource source tailNames
       stepTarget tailSources tailConstructors Hstep Hsemantic Hrest ih =>
     let head : ConstantInfo × VConstVal :=
       (.ctorInfo Hstep.restored.newInfo, Hsemantic.constructor)

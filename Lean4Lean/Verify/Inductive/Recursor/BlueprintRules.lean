@@ -48,7 +48,8 @@ theorem RecInfoHypothesisCallSemanticOrigins.retainedGeneratedCalls
   rcases H.entry i hiHypotheses with
     ⟨originRoot, Rorigin, priorHypotheses, Hrecent,
       hpriorSize, ⟨Horigin⟩⟩
-  rcases Horigin.semantic indTypes minors lvls with ⟨S, hscope⟩
+  rcases Horigin.semantic indTypes minors lvls with
+    ⟨S, hscope, Hmotive⟩
   have hiCalls : i < calls.size := by rw [H.size_eq, hsize]; exact hi
   have hbuilt :
       (calls.map fun call =>
@@ -59,7 +60,7 @@ theorem RecInfoHypothesisCallSemanticOrigins.retainedGeneratedCalls
   rw [show fields[i] = fields[i]! from
     (getElem!_pos fields i hi).symm]
   exact ⟨originRoot, Rorigin, priorHypotheses, Hrecent,
-    hpriorSize, depth + i, S, hscope⟩
+    hpriorSize, depth + i, S, hscope, Hmotive⟩
 
 theorem RecInfoCallBlueprintOrigins.boundGeneratedCalls
     {sourceFullContext fieldRoot : AddInductive.Context}
@@ -536,12 +537,15 @@ theorem RetainedGeneratedRuleSemantics.toSemantics
       recInfos[C.ownerIdx]! elimLevel)
     (HmotiveTelescope : Nonempty
       (RecursorMotiveTelescopeEvidence C.context stats
-        recInfos[C.ownerIdx]! binding target C.targetTarget)) :
+        recInfos[C.ownerIdx]! binding target C.targetTarget))
+    (Hlookup : RecInfoMotiveTelescopeLookup C.context stats decl recInfos
+      elimLevel) :
     ∃ S : H.Semantics Rroot decl expectedOwnerIdx,
       ∃ binding' : RecursorMotiveBinding S.context
           recInfos[S.ownerIdx]! elimLevel,
         Nonempty (RecursorMotiveTelescopeEvidence S.context stats
           recInfos[S.ownerIdx]! binding' H.target S.targetTarget) ∧
+        RecInfoMotiveTelescopeLookup S.context stats decl recInfos elimLevel ∧
         S.recursivePositions = C.decisionPositions ∧
         S.parameterDecls = C.parameterDecls ∧
         Nonempty (ProducerStagedSemanticBoundGeneratedRecursiveCalls
@@ -596,7 +600,7 @@ theorem RetainedGeneratedRuleSemantics.toSemantics
     decisionPositions := C.decisionPositions
     decisions := C.decisions
     calls := C.calls.toStaged }
-  exact ⟨S, binding, HmotiveTelescope, rfl, rfl, ⟨C.calls⟩⟩
+  exact ⟨S, binding, HmotiveTelescope, Hlookup, rfl, rfl, ⟨C.calls⟩⟩
 
 /-- The motive binder and telescope retained at the exact context in which
 the rule target was validated.  This is producer evidence, not a replay of
@@ -621,6 +625,8 @@ structure BoundGeneratedRecursorRule.ProducerMotiveEvidence
   binding : RecursorMotiveBinding S.context recInfos[S.ownerIdx]! elimLevel
   telescope : Nonempty (RecursorMotiveTelescopeEvidence S.context stats
     recInfos[S.ownerIdx]! binding H.target S.targetTarget)
+  motiveLookup : RecInfoMotiveTelescopeLookup S.context stats decl recInfos
+    elimLevel
 
 /-- Row-wise producer motive evidence, indexed by the exact semantic batch
 stored for installation.  Indexing by the batch prevents a later consumer
@@ -770,7 +776,14 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
     ⟨_origins, _horigins, _hstats, _hmotives, F, hparameterDecls, depth,
       HvalidStats, fields, Hselection,
       hexpectedValid, hexpectedLt, ownerIdx,
-      htargetValid, ⟨Hvalidated⟩, binding, HmotiveTelescope, ⟨Hcalls⟩⟩
+      htargetValid, HvalidatedNonempty, binding, Htail⟩
+  rcases HvalidatedNonempty with ⟨Hvalidated⟩
+  let HmotiveTelescope := Htail.1
+  let Htail' := Htail.2
+  let HlookupNonempty := Htail'.1
+  let HcallsNonempty := Htail'.2
+  rcases HlookupNonempty with ⟨Hlookup⟩
+  let Hcalls := Classical.choice HcallsNonempty
   have htraversalEq : HS.traversal = F.traversal :=
     Option.some.inj (HS.traversal_eq.symm.trans F.traversal_eq)
   have hroot : H.certificate.root = F.traversal.terminalContext :=
@@ -844,8 +857,9 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
         F.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
       exact Hstaged }
   rcases C.toSemantics H.certificate hroot htarget H.allArgs_eq
-      H.recursiveArgs_eq H.recursiveResults_eq binding HmotiveTelescope with
-    ⟨Ssemantic, binding', HmotiveTelescope', hdecisionPositions,
+      H.recursiveArgs_eq H.recursiveResults_eq binding HmotiveTelescope
+      Hlookup with
+    ⟨Ssemantic, binding', HmotiveTelescope', Hlookup', hdecisionPositions,
       hsemanticParameterDecls, ⟨HproducerCalls⟩⟩
   let producer : H.certificate.ProducerMotiveEvidence Ssemantic recInfos
       elimLevel := {
@@ -855,7 +869,8 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
     decisionPositions_eq := hdecisionPositions.symm
     calls := HproducerCalls
     binding := binding'
-    telescope := HmotiveTelescope' }
+    telescope := HmotiveTelescope'
+    motiveLookup := Hlookup' }
   exact ⟨Ssemantic, producer, rfl, hsemanticParameterDecls⟩
 
 /-- Pointwise retained-blueprint certificates assemble into the ordered rule
