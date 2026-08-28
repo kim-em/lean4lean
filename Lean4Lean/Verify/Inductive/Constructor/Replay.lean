@@ -38,6 +38,10 @@ theorem refinesTypeWithReplay
         source.ctors[i].name targetIdx source.ctors[i].type 0
         c.fuel.inductiveFuel c).WF fun _ => ∃ tail tailTarget,
           RecursorParamPrefix stats 0 source.ctors[i].type tail ∧
+          ∃ sourceDomains,
+          CheckedConstructorParameterPrefix Hc.venv c.lparams stats
+            source.ctors[i].type stats.params.size tail tailScope
+            sourceDomains ∧
           TrExprS Hc.venv c.lparams tailScope tail tailTarget ∧
           ConstructorTailCertificate Hc.venv decl target
             tailScope.toCtx 0 tailTarget ∧
@@ -71,13 +75,14 @@ theorem refinesTypeWithReplay
       checkedType' hchecked
     exact Hchecked.mono fun _ HcheckedCtor => by
       rcases HcheckedCtor with
-        ⟨tail, tailTarget, Hparam, Htranslated, Htail, HctorNarrow,
+        ⟨tail, tailTarget, Hparam, sourceDomains, Hcomparisons,
+          Htranslated, Htail, HctorNarrow,
           Hsynthesis, HctorShape, HctorType⟩
       have HtailReplay : CheckedConstructorTailReplayAt Hc.venv c.lparams
           tailScope stats decl target source.ctors[ctorIdx] :=
-        ⟨target.ctors[ctorIdx], tail, tailTarget,
-          List.getElem_mem htarget, HctorNarrow, Hparam, Htranslated, Htail,
-          Hsynthesis⟩
+        ⟨target.ctors[ctorIdx], tail, tailTarget, sourceDomains,
+          List.getElem_mem htarget, HctorNarrow, Hparam, Hcomparisons,
+          Htranslated, Htail, Hsynthesis⟩
       exact refinesTypeWithReplay Q Hc Htarget
         (Hprefix.push htarget HctorShape HctorType)
         (Hreplay.push hidx Hparam) (Htails.push hidx HtailReplay)
@@ -133,6 +138,10 @@ theorem refinesBlockWithReplay
         indTypes[targetIdx].ctors[i].type 0 c.fuel.inductiveFuel c).WF
         fun _ => ∃ tail tailTarget,
           RecursorParamPrefix stats 0 indTypes[targetIdx].ctors[i].type tail ∧
+          ∃ sourceDomains,
+          CheckedConstructorParameterPrefix Hc.venv c.lparams stats
+            indTypes[targetIdx].ctors[i].type stats.params.size tail
+            tailScope sourceDomains ∧
           TrExprS Hc.venv c.lparams tailScope tail tailTarget ∧
           ConstructorTailCertificate Hc.venv decl decl.types[targetIdx]
             tailScope.toCtx 0 tailTarget ∧
@@ -233,7 +242,8 @@ theorem checkConstructors.loopTypes.refinesMaterialized
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
     (hparams : Hmaterialized.headers.params = params)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint
+      Hc.venv stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
@@ -294,10 +304,19 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       htargetShape hconsume hlit hproj hunsafe (hbound targetIdx htarget)
     exact Hchecked.mono fun _ Hresult => by
       rcases Hresult with
-        ⟨tail, tailTarget, Hprefix, Htranslated, HtailCertificate,
+        ⟨tail, tailTarget, Hprefix, sourceDomains, Hcomparisons,
+          Htranslated, HtailCertificate,
           Hsynthesis, Hshape, Htype⟩
-      exact ⟨tail, tailTarget, Hprefix, Htranslated, HtailCertificate,
-        Hctor, Hsynthesis, Hshape, Htype⟩
+      have Hcomparisons' : CheckedConstructorParameterPrefix Hc.venv
+          c.lparams stats indTypes[targetIdx].ctors[ctorIdx].type
+          stats.params.size tail Hmaterialized.parameterScope
+          sourceDomains := by
+        change CheckedConstructorParameterPrefix Hc.venv c.lparams stats
+          indTypes[targetIdx].ctors[ctorIdx].type stats.params.size tail
+          Hsuffix.parameterDecls sourceDomains
+        simpa [Hstats.params_size] using Hcomparisons
+      exact ⟨tail, tailTarget, Hprefix, sourceDomains, Hcomparisons',
+        Htranslated, HtailCertificate, Hctor, Hsynthesis, Hshape, Htype⟩
   · intro Hcomplete Hreplays Htails
     exact {
       checked := Hcomplete.checkedComplete (env := sourceEnv)
@@ -455,7 +474,9 @@ produced by `getElimLevel`. -/
 def ContextWF.toAdmissibleRecursorContextWF
     (H : ContextWF c)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
-    RecursorContextWF c
+    RecursorContextWF
+      ({ c with typeCheckerLParams :=
+          some <| AddInductive.getRecLevelParams elimLevel c.lparams })
       (AddInductive.getRecLevelParams elimLevel c.lparams) := by
   cases elimLevel with
   | zero =>
@@ -569,6 +590,7 @@ def checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.mono
   indices := H.indices
   parameterCount := H.parameterCount
   indexCount := H.indexCount
+  scopeLength := H.scopeLength
   scopeCtx := H.scopeCtx
   scopeWF := H.scopeWF.mono henv
   currentType := H.currentType.mono henv
@@ -593,6 +615,17 @@ noncomputable def
   indices := H.indices.map (VExpr.instL levels)
   parameterCount := by simp [H.parameterCount]
   indexCount := by simp [H.indexCount]
+  scopeLength := by
+    have length_instL : ∀ scope : VLCtx,
+        (scope.instL levels).length = scope.length := by
+      intro scope
+      induction scope with
+      | nil => rfl
+      | cons entry scope ih =>
+        rcases entry with ⟨ofv, decl⟩
+        simp [VLCtx.instL, ih]
+    have hlength := length_instL scope
+    exact hlength.trans H.scopeLength
   scopeCtx := by
     simpa [VLCtx.instL_toCtx, List.map_append, List.map_reverse,
       Function.comp_def] using
@@ -925,8 +958,8 @@ theorem CheckedConstructorTailReplayAt.toRecursorContext
           (recursorConstructorTelescopeTarget ctorVal Helim)
           Hsuffix.parameterDecls tailTarget stats.params.size 0) := by
   rcases H with
-    ⟨ctorVal, tail, tailTarget, hmem, Hraw, Hprefix, Htranslated,
-      Htail, Hsynthesis⟩
+    ⟨ctorVal, tail, tailTarget, sourceDomains, hmem, Hraw, Hprefix,
+      Hcomparisons, Htranslated, Htail, Hsynthesis⟩
   rcases Hsynthesis with ⟨Hsynthesis⟩
   dsimp only
   cases elimLevel with
@@ -2061,7 +2094,7 @@ theorem RecursorValidAppStatsWF.translatedIndexNoOccurrence
     (hvalid : AddInductive.isValidIndAppIdx stats type typeIdx = true)
     (hargs : List.Forall₂ (TrExprS env recLparams scope)
       type.getAppArgsList args')
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) scope)
     (hproj : ∀ {Delta : VLCtx} {s i e' e''},
@@ -2086,7 +2119,7 @@ theorem RecursorValidAppStatsWF.translatedIndexNoOccurrence
     hargs hsource htarget
   have hno := checkPositivityStep.isValidIndAppIdx.indexNoOccurrence
     hvalid hlower hjArgs
-  exact checkPositivityStep.TrExprS.noIndOcc H.consts.names hlit hctx hproj
+  exact checkPositivityStep.TrExprS.noIndOccAvailable H.consts.names hlit hctx hproj
     harg hno
 
 /-- Recursor-universe form of application validation.  The executable
@@ -2097,7 +2130,7 @@ theorem RecursorValidAppStatsWF.validIndAppAtTarget
     (htr : TrExprS env recLparams scope type type')
     (hvalid : AddInductive.isValidIndApp? stats type = some typeIdx)
     (hi : typeIdx < decl.types.length)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) scope)
     (hproj : ∀ {Delta : VLCtx} {s i e' e''},
@@ -2152,7 +2185,7 @@ theorem RecursorValidAppStatsWF.validIndAppAt
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth)
     (htr : TrExprS env recLparams scope type type')
     (hvalid : AddInductive.isValidIndApp? stats type = some typeIdx)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) scope)
     (hproj : ∀ {Delta : VLCtx} {s i e' e''},
@@ -2332,7 +2365,7 @@ def RecursorValidAppStatsWF.validatedIndAppAt
     (htr : TrExprS env recLparams scope type type')
     (hvalid : AddInductive.isValidIndApp? stats type = some target)
     (htarget : target < decl.types.length)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) scope)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''},
       TrProj Δ.toCtx s j e' e'' →
@@ -2356,9 +2389,8 @@ theorem refinesRecursor
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s i e' e''},
@@ -2379,7 +2411,7 @@ theorem refinesRecursor
   | succ fuel ih =>
     rcases htype with ⟨sourceSyntax, hsource, hsourceEq⟩
     rw [AddInductive.isRecArg.loop]
-    refine (whnfInRecursorContext.scopeWF hwhnf R hsource).bind
+    refine (whnfInRecursorContext.scopeWF R hsource).bind
       fun normalized hnormalized => ?_
     rcases hnormalized.2 with ⟨exposed, hexposed, hexposedEq⟩
     have hsourceExposed :=
@@ -2411,7 +2443,7 @@ theorem refinesRecursor
             (decl.types.map (·.name)) R'.mlctx.vlctx := by
           apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
           rfl
-        have Hrec := ih R' Hstats' hctx'
+        have Hrec := ih R' Hstats' hlit hctx'
           (hopened.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
         exact Hrec.mono fun result hrec target htarget => by
           rcases hrec target htarget with ⟨htarget, hrecursive⟩
@@ -2444,9 +2476,8 @@ theorem isRecArg.refinesRecursor
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s i e' e''},
@@ -2468,7 +2499,7 @@ theorem isRecArg.refinesRecursor
     rfl
   refine hread.bind fun _ h => ?_
   subst h
-  exact isRecArg.loop.refinesRecursor R Hstats hwhnf hconsume hlit hctx
+  exact isRecArg.loop.refinesRecursor R Hstats hconsume hlit hctx
     hproj htype
 
 /-- Recursive-domain metadata interpreted at an explicit universe arity.
@@ -2514,11 +2545,11 @@ inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats)
       AddInductive.isRecArg stats dom { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotations bi } = .ok none →
+            dom.consumeTypeAnnotationsVerified bi } = .ok none →
       RecursorFieldDecisions stats root source { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotations bi }
+            dom.consumeTypeAnnotationsVerified bi }
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         (bu.push (.fvar ⟨c.ngen.curr⟩)) u positions
   | recursive :
@@ -2527,11 +2558,11 @@ inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats)
       AddInductive.isRecArg stats dom { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotations bi } = .ok (some target) →
+            dom.consumeTypeAnnotationsVerified bi } = .ok (some target) →
       RecursorFieldDecisions stats root source { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotations bi }
+            dom.consumeTypeAnnotationsVerified bi }
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         (bu.push (.fvar ⟨c.ngen.curr⟩))
         (u.push (.fvar ⟨c.ngen.curr⟩)) (positions ++ [bu.size])

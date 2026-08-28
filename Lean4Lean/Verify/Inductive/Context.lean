@@ -351,6 +351,7 @@ structure ContextWF (c : AddInductive.Context) where
   checking : CheckingEnv.Valid c.safety c.env venv
   mlctx : TypeChecker.MLCtx
   mlctx_wf : mlctx.WF venv c.lparams
+  typeCheckerLParams_eq : c.typeCheckerLParams = none
   onlyLams : MLCtxOnlyLams mlctx
   lctx_eq : mlctx.lctx = c.lctx
   ngen_prefix : c.ngen.namePrefix = `_ind_fresh
@@ -370,8 +371,10 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
     (wf.hasPrimitives (safety := safety)) wf.safePrimitives
+    wf.typeAnnotationWrappers
   mlctx := .nil
   mlctx_wf := trivial
+  typeCheckerLParams_eq := rfl
   onlyLams := MLCtxOnlyLams.nil
   lctx_eq := rfl
   ngen_prefix := rfl
@@ -388,6 +391,7 @@ def ContextWF.withEnv (H : ContextWF c)
   checking := hchecking
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf.mono hle
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
   onlyLams := H.onlyLams
   lctx_eq := H.lctx_eq
   ngen_prefix := H.ngen_prefix
@@ -414,6 +418,7 @@ def ContextWF.withLocalDecl (H : ContextWF c)
   mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
   mlctx_wf := ⟨H.mlctx_wf,
     H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
   onlyLams := H.onlyLams.vlam
   lctx_eq := by
     change H.mlctx.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi =
@@ -448,17 +453,26 @@ theorem ContextWF.withLocalDecl_toCtx (H : ContextWF c)
     (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx.toCtx =
       ty' :: H.mlctx.vlctx.toCtx := rfl
 
-/-- Semantic local-context invariant for generated recursor frames.  Its
-universe parameter list is deliberately independent of `c.lparams`: during
-large elimination, `mkRecInfos` builds raw locals in the original reader
-context, while their types are interpreted under the recursor's fresh
-universe parameter. -/
+/-- The only universe rebasing performed for generated recursors: small
+elimination keeps the declaration parameters, while large elimination
+prepends its one fresh result-level parameter. -/
+inductive RecursorLParams : List Name → List Name → Prop
+  | same (lparams) : RecursorLParams lparams lparams
+  | prepend (fresh lparams) (fresh_not_mem : fresh ∉ lparams) :
+      RecursorLParams lparams (fresh :: lparams)
+
+/-- Semantic local-context invariant for generated recursor frames.  The
+embedded typechecker runs under exactly `recLparams`; the declaration's own
+universe parameters remain separately available as `c.lparams` for the
+installed recursor metadata. -/
 structure RecursorContextWF (c : AddInductive.Context)
     (recLparams : List Name) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
   mlctx : TypeChecker.MLCtx
   mlctx_wf : mlctx.WF venv recLparams
+  typeCheckerLParams_eq : c.typeCheckerLParams = some recLparams
+  lparams_origin : RecursorLParams c.lparams recLparams
   onlyLams : MLCtxOnlyLams mlctx
   lctx_eq : mlctx.lctx = c.lctx
   ngen_prefix : c.ngen.namePrefix = `_ind_fresh
@@ -469,11 +483,14 @@ structure RecursorContextWF (c : AddInductive.Context)
 /-- An ordinary verified context is already a recursor context when no
 universe rebasing is required. -/
 def ContextWF.toRecursorContextWF (H : ContextWF c) :
-    RecursorContextWF c c.lparams where
+    RecursorContextWF
+      { c with typeCheckerLParams := some c.lparams } c.lparams where
   venv := H.venv
   checking := H.checking
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
+  typeCheckerLParams_eq := rfl
+  lparams_origin := .same _
   onlyLams := H.onlyLams
   lctx_eq := H.lctx_eq
   ngen_prefix := H.ngen_prefix
@@ -485,7 +502,9 @@ one fresh recursor universe parameter.  Concrete declarations and free-variable
 names are unchanged; only their stored abstract universe indices move. -/
 def ContextWF.prependRecursorLevelParam
     (H : ContextWF c) (hfresh : fresh ∉ c.lparams) :
-    RecursorContextWF c (fresh :: c.lparams) := by
+    RecursorContextWF
+      { c with typeCheckerLParams := some (fresh :: c.lparams) }
+      (fresh :: c.lparams) := by
   let mlctx := H.mlctx.prependLevelParam c.lparams.length
   have hfv : mlctx.vlctx.fvars = H.mlctx.vlctx.fvars := by
     dsimp [mlctx]
@@ -496,6 +515,8 @@ def ContextWF.prependRecursorLevelParam
     checking := H.checking
     mlctx := mlctx
     mlctx_wf := H.mlctx_wf.prependLevelParam H.checking.tr.wf hfresh
+    typeCheckerLParams_eq := rfl
+    lparams_origin := .prepend fresh c.lparams hfresh
     onlyLams := by
       intro d hd
       apply H.onlyLams d
@@ -543,6 +564,8 @@ def RecursorContextWF.withLocalDecl
   mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
   mlctx_wf := ⟨H.mlctx_wf,
     H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
+  lparams_origin := H.lparams_origin
   onlyLams := H.onlyLams.vlam
   lctx_eq := by
     change H.mlctx.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi =
@@ -1073,21 +1096,23 @@ structure ContextWF.ConsumedDomain (Hc : ContextWF c)
     (dom : Expr) (source' consumed' : VExpr) : Prop where
   source : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source'
   consumed : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-    dom.consumeTypeAnnotations consumed'
+    dom.consumeTypeAnnotationsVerified consumed'
   isType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx consumed'
   source_defeq : ∃ u, Hc.venv.IsDefEq c.lparams.length Hc.mlctx.vlctx.toCtx
     source' consumed' (.sort u)
 
-theorem Expr.consumeTypeAnnotations_eq_self {dom : Expr}
+theorem Expr.consumeTypeAnnotationsVerified_eq_self {dom : Expr}
     (hopt : dom.isOptParam = false) (hauto : dom.isAutoParam = false)
     (hout : dom.isOutParam = false) (hsemi : dom.isSemiOutParam = false) :
-    dom.consumeTypeAnnotations = dom := by
-  simp [hopt, hauto, hout, hsemi]
+    dom.consumeTypeAnnotationsVerified = dom := by
+  fun_induction Expr.consumeTypeAnnotationsVerified dom
+  all_goals simp_all [Expr.isOptParam, Expr.isAutoParam,
+    Expr.isOutParam, Expr.isSemiOutParam, Expr.isAppOfArity]
 
 theorem MLCtxOnlyLams.mkForall_consumeTypeAnnotations_eq_self
     (H : MLCtxOnlyLams m) (n : Nat) (hn : n ≤ m.length)
-    (hbody : body.consumeTypeAnnotations = body) :
-    (m.mkForall n hn body).consumeTypeAnnotations = m.mkForall n hn body := by
+    (hbody : body.consumeTypeAnnotationsVerified = body) :
+    (m.mkForall n hn body).consumeTypeAnnotationsVerified = m.mkForall n hn body := by
   induction n generalizing m body with
   | zero => exact hbody
   | succ n ih =>
@@ -1095,37 +1120,24 @@ theorem MLCtxOnlyLams.mkForall_consumeTypeAnnotations_eq_self
     | nil => simp at hn
     | vlam fv name type type' bi tail =>
       apply ih H.tail_vlam (Nat.le_of_succ_le_succ hn)
-      apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+      apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
     | vlet fv name type value type' value' tail =>
       exact H.vlet_false.elim
 
 /-- Removing binder annotations only selects subexpressions of the original
 domain, so it cannot introduce a new free-variable dependency. -/
-theorem Expr.consumeTypeAnnotations_fvarsIn
-    (H : FVarsIn P e) : FVarsIn P e.consumeTypeAnnotations := by
-  rw (occs := .pos [1]) [Expr.consumeTypeAnnotations_eq]
-  split
-  · rename_i hannotation
-    cases e <;> simp_all [Expr.isOptParam, Expr.isAutoParam,
-      Expr.isAppOfArity, Expr.appFn!, Expr.appArg!, FVarsIn,
-      -Expr.consumeTypeAnnotations_eq]
-    case app fn arg =>
-      cases fn <;> simp_all [Expr.isAppOfArity, FVarsIn,
-        -Expr.consumeTypeAnnotations_eq]
-      case app fn' arg' =>
-        exact Expr.consumeTypeAnnotations_fvarsIn H.1.2
-  · split
-    · cases e <;> simp_all [Expr.isOutParam, Expr.isSemiOutParam,
-        Expr.isAppOfArity, Expr.appArg!, FVarsIn,
-        -Expr.consumeTypeAnnotations_eq]
-      case app fn arg =>
-        exact Expr.consumeTypeAnnotations_fvarsIn H.2
-    · exact H
-termination_by e
+theorem Expr.consumeTypeAnnotationsVerified_fvarsIn
+    (H : FVarsIn P e) : FVarsIn P e.consumeTypeAnnotationsVerified := by
+  fun_induction Expr.consumeTypeAnnotationsVerified e
+  case case1 ih => exact ih H.1.2
+  case case2 => exact H
+  case case3 ih => exact ih H.2
+  case case4 => exact H
+  case case5 => exact H
 
 /-- Domains without a leading type annotation need no semantic transport. -/
 theorem ContextWF.ConsumedDomain.unchanged (Hc : ContextWF c)
-    (heq : dom.consumeTypeAnnotations = dom)
+    (heq : dom.consumeTypeAnnotationsVerified = dom)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom') :
     Hc.ConsumedDomain dom dom' dom' := by
@@ -1142,7 +1154,7 @@ theorem ContextWF.ConsumedDomain.unannotated (Hc : ContextWF c)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom') :
     Hc.ConsumedDomain dom dom' dom' :=
-  .unchanged Hc (Expr.consumeTypeAnnotations_eq_self hopt hauto hout hsemi) htr hty
+  .unchanged Hc (Expr.consumeTypeAnnotationsVerified_eq_self hopt hauto hout hsemi) htr hty
 
 /-- Transport the source body translation to the annotation-consumed binder
 type.  This is the bridge needed before opening the binder with the production
@@ -1190,14 +1202,14 @@ structure RecursorContextWF.ConsumedDomain
     (dom : Expr) (source' consumed' : VExpr) : Prop where
   source : TrExprS R.venv recLparams R.mlctx.vlctx dom source'
   consumed : TrExprS R.venv recLparams R.mlctx.vlctx
-    dom.consumeTypeAnnotations consumed'
+    dom.consumeTypeAnnotationsVerified consumed'
   isType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx consumed'
   source_defeq : ∃ u, R.venv.IsDefEq recLparams.length R.mlctx.vlctx.toCtx
     source' consumed' (.sort u)
 
 theorem RecursorContextWF.ConsumedDomain.unchanged
     (R : RecursorContextWF c recLparams)
-    (heq : dom.consumeTypeAnnotations = dom)
+    (heq : dom.consumeTypeAnnotationsVerified = dom)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx dom dom')
     (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx dom') :
     R.ConsumedDomain dom dom' dom' := by
@@ -1262,21 +1274,6 @@ def RecursorConsumeTypeAnnotationsCompat : Prop :=
     R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx source' →
     ∃ consumed', R.ConsumedDomain dom source' consumed'
 
-/-- Executable locality boundary for weak-head normalization.  `whnf` only
-uses type inference in `inferOnly` mode, so changing the reader's admitted
-universe-parameter names does not affect reduction.  Keeping this statement
-separate makes the remaining implementation proof (by inspection of the
-mutually recursive reduction functions) explicit, instead of baking it into
-the recursor invariant. -/
-def WhnfLParamsCompat : Prop :=
-  ∀ (env : Environment) (safety : DefinitionSafety)
-    (lctx : LocalContext) (lparams lparams' : List Name)
-    (fuel : FuelConfig) (e : Expr),
-    TypeChecker.M.run env safety lctx lparams fuel
-        (TypeChecker.whnf e) =
-      TypeChecker.M.run env safety lctx lparams' fuel
-        (TypeChecker.whnf e)
-
 /-- Structural preservation of constant-name absence by translated
 projections.  `TrProj` is currently an opaque relation in the shared typing
 specification, so inductive verification records this one generic property
@@ -1291,8 +1288,8 @@ def ProjectionConstPreservation : Prop :=
 set_option linter.unusedSimpArgs false in
 /-- Inferring the type of a free variable only consults its local declaration.
 In particular it is independent of the universe-parameter names installed in
-the typechecker reader.  Unlike `WhnfLParamsCompat`, this narrow fact follows
-directly by reducing the executable free-variable branch. -/
+the typechecker reader.  This follows directly by reducing the executable
+free-variable branch. -/
 theorem inferTypeFVar_lparams_compat
     (env : Environment) (safety : DefinitionSafety)
     (lctx : LocalContext) (lparams lparams' : List Name)
@@ -1360,7 +1357,10 @@ def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
 theorem liftTypeChecker.WF {x : TypeChecker.M α} (Hc : ContextWF c)
     (Hx : TypeChecker.M.WF Hc.typeChecker {} x fun a _ => Q a) :
     ((monadLift x : AddInductive.M α) c).WF Q := by
-  change (TypeChecker.M.run c.env c.safety c.lctx c.lparams c.fuel x).WF Q
+  change (TypeChecker.M.run c.env c.safety c.lctx
+    (c.typeCheckerLParams.getD c.lparams) c.fuel x).WF Q
+  rw [Hc.typeCheckerLParams_eq]
+  simp only [Option.getD_none]
   rw [← Hc.lctx_eq]
   exact TypeChecker.M.WF.runCheckingValidMLC Hc.kernelFresh Hx
 
@@ -1404,19 +1404,18 @@ def RecursorContextWF.typeChecker
     TypeChecker.VContext.mkCheckingValidMLC, H.lctx_eq]
 
 /-- Run verified weak-head normalization in a universe-rebased recursor
-context.  Production still executes with `c.lparams`; the locality boundary
-rewrites that run to the `recLparams` under which the semantic local context
-is well formed. -/
+context.  The executable context records the same active `recLparams` under
+which its semantic local context is well formed. -/
 theorem whnfInRecursorContext.scopeWF
-    (hwhnf : WhnfLParamsCompat)
     (Hc : RecursorContextWF c recLparams)
     (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx e e') :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       FVarsBelow Hc.mlctx.vlctx e e₁ ∧
       TrExpr Hc.venv recLparams Hc.mlctx.vlctx e₁ e' := by
-  change (TypeChecker.M.run c.env c.safety c.lctx c.lparams c.fuel
+  change (TypeChecker.M.run c.env c.safety c.lctx
+    (c.typeCheckerLParams.getD c.lparams) c.fuel
     (TypeChecker.whnf e)).WF _
-  rw [hwhnf c.env c.safety c.lctx c.lparams recLparams c.fuel e]
+  rw [Hc.typeCheckerLParams_eq]
   rw [← Hc.lctx_eq]
   have Hx : TypeChecker.M.WF Hc.typeChecker {}
       (TypeChecker.whnf e) (fun e₁ _ =>
@@ -1437,10 +1436,11 @@ theorem inferTypeFVarInRecursorContext.WF
         AddInductive.M Expr) c).WF fun ty =>
       ∃ ty', TrTyping Hc.venv recLparams Hc.mlctx.vlctx
         (.fvar fv) ty e' ty' := by
-  change (TypeChecker.M.run c.env c.safety c.lctx c.lparams c.fuel
+  change (TypeChecker.M.run c.env c.safety c.lctx
+    (c.typeCheckerLParams.getD c.lparams) c.fuel
     (TypeChecker.inferType (.fvar fv))).WF _
   rw [inferTypeFVar_lparams_compat c.env c.safety c.lctx
-    c.lparams recLparams c.fuel fv]
+    (c.typeCheckerLParams.getD c.lparams) recLparams c.fuel fv]
   rw [← Hc.lctx_eq]
   have Hx : TypeChecker.M.WF Hc.typeChecker {}
       (TypeChecker.inferType (.fvar fv)) (fun ty _ =>
@@ -1599,7 +1599,8 @@ theorem checkClosedType.WF (Hc : ContextWF c) :
         TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
           type checkedType type' checkedType' := by
   change (c.env.checkNoMVarNoFVar name type >>= fun _ =>
-    TypeChecker.M.run c.env c.safety c.lctx c.lparams c.fuel
+    TypeChecker.M.run c.env c.safety c.lctx
+      (c.typeCheckerLParams.getD c.lparams) c.fuel
       (TypeChecker.checkType type)).WF _
   have hno : (c.env.checkNoMVarNoFVar name type).WF
       (fun _ => type.FVarsIn fun _ => False) := by

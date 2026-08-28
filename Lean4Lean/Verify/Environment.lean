@@ -19,7 +19,8 @@ theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : Axi
   refine (checkConstantVal.WF wf (.axiomInfo v) false hsafety).run wf |>.bind fun _ h => ?_
   obtain ⟨ci', htr, hci, hn, hnonprim⟩ := h
   have ⟨ves', hwf, hstep⟩ := addConst.WF wf (.axiomInfo v) ci' checkSafety ?_ htr hci hn
-    (by intro _ h; cases h) (hnonprim rfl) fun _ _ htr hci hadd old => ?_
+    (by intro _ h; cases h) (by intro _ h; cases h) (hnonprim rfl)
+    fun _ _ htr hci hadd old => ?_
   · exact .pure ⟨ves', hwf, ci', hstep⟩
   · intro safety _
     cases v.isUnsafe <;> cases safety <;> trivial
@@ -37,7 +38,8 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     refine (checkNoMVarNoFVar.WF _ _ _).bind fun _ h => ?_
     have ⟨vesA, wfA, hstepA⟩ := addConst.WF wf (.axiomInfo { v with isUnsafe := true }) ci0
       .unsafe (fun _ => id) ⟨⟨DefinitionSafety.unsafe_le, htr.1.2.1, htr.1.2.2⟩, htr.2⟩
-      hwfc hn (by intro _ h; cases h) (hnonprim rfl) fun _ _ htr' hci' hadd' old =>
+      hwfc hn (by intro _ h; cases h) (by intro _ h; cases h) (hnonprim rfl)
+      fun _ _ htr' hci' hadd' old =>
         .axiom htr' (by rwa [← old.map_wf.find?'_eq_find?]) hci' hadd' old
     have hadd := (hstepA .unsafe).2.2
     refine checkBodyCore.WF (wfA.toVEnvAt .unsafe) (.defnDecl v)
@@ -81,7 +83,7 @@ theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : T
   obtain ⟨ci', htr, hbody, hprop, hn, hnonprim⟩ := h
   have ⟨ves', hwf, hstep⟩ := addConst.WF wf (.thmInfo v) ci'.toVConstVal .safe
     (fun _ _ => DefinitionSafety.le_safe) htr.1 ⟨_, hprop⟩ hn
-    (by intro _ h; cases h) hnonprim
+    (by intro _ h; cases h) (by intro _ h; cases h) hnonprim
     fun safety _ hheader _ hadd old => ?_
   · exact .pure ⟨ves', hwf, ci'.toVConstVal, hstep⟩
   have hle := wf.mono hheader.1
@@ -104,7 +106,7 @@ theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : Op
   have htr : TrConstVal checkSafety (ves.venv checkSafety) (.opaqueInfo v) ci'.toVConstVal :=
     ⟨⟨hsafety.symm ▸ DefinitionSafety.le_rfl, hu, ht.mono hmono⟩, hname⟩
   have ⟨ves', hwf, hstep⟩ := addConst.WF wf (.opaqueInfo v) ci'.toVConstVal checkSafety ?_ htr
-    (hciC.mono hmono) hfresh (by intro _ h; cases h) hnonprim
+    (hciC.mono hmono) hfresh (by intro _ h; cases h) (by intro _ h; cases h) hnonprim
     fun safety _ htr hciW hadd old => ?_
   · exact .pure ⟨ves', hwf, ci'.toVConstVal, hstep⟩
   · intro safety hvisible
@@ -113,6 +115,53 @@ theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : Op
     have hto := hmono.trans (wf.mono hvis)
     exact .opaque (ci' := ci') ⟨⟨htr, hname⟩, hvalue.mono hto⟩
       (by rwa [← old.map_wf.find?'_eq_find?]) (hci.mono hto) hadd old
+
+private theorem vconstant_eq_of_fields {a b : VConstant}
+    (huvars : a.uvars = b.uvars) (htype : a.type = b.type) : a = b := by
+  cases a
+  cases b
+  simp_all
+
+/-- The exact family arity accepted by `checkEqType` translates to the
+canonical abstract equality constant.  This statement is independent of the
+surrounding environment because the arity contains only a universe parameter,
+sorts, and bound variables. -/
+theorem expectedEqType_translation (env : VEnv) (u : Name) :
+    TrExprS env [u] [] (expectedEqType u) eqConst.type := by
+  unfold expectedEqType eqConst
+  change TrExprS env [u] []
+    (.forallE `α (.sort (.param u))
+      (.forallE .anonymous (.bvar 0)
+        (.forallE .anonymous (.bvar 1) (.sort .zero) .default) .default)
+      .implicit)
+    (.forallE (.sort (.param 0))
+      (.forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))))
+  apply TrExprS.forallE
+  · refine ⟨_, VEnv.HasType.sort ?_⟩
+    change VLevel.WF 1 (.param 0)
+    trivial
+  · apply VEnv.IsType.forallE
+    · refine ⟨.param 0, ?_⟩
+      type_tac
+    · apply VEnv.IsType.forallE
+      · refine ⟨.param 0, ?_⟩
+        type_tac
+      · exact ⟨_, VEnv.HasType.sort (by trivial)⟩
+  · exact .sort (by simp [VLevel.ofLevel])
+  · apply TrExprS.forallE
+    · refine ⟨.param 0, ?_⟩
+      type_tac
+    · apply VEnv.IsType.forallE
+      · refine ⟨.param 0, ?_⟩
+        type_tac
+      · exact ⟨_, VEnv.HasType.sort (by trivial)⟩
+    · exact .bvar rfl
+    · apply TrExprS.forallE
+      · refine ⟨.param 0, ?_⟩
+        type_tac
+      · exact ⟨_, VEnv.HasType.sort (by trivial)⟩
+      · exact .bvar rfl
+      · exact .sort rfl
 
 theorem checkEqType.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
     (checkEqType env).WF fun _ => (ves.venv .unsafe).QuotReady := by
@@ -123,10 +172,41 @@ theorem checkEqType.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
   rename_i ci hfind
   cases ci with
   | inductInfo info =>
-    have hfind' : env.constants.find? ``Eq = some (.inductInfo info) := by
-      rw [← (wf.tr (safety := .unsafe)).map_wf.find?'_eq_find?]
-      exact hfind
-    exact (wf.tr (safety := .unsafe)).eq_quotReady hfind'
+    cases hlevels : info.levelParams with
+    | nil => simp_all [bind, Except.bind, pure, Pure.pure, Except.pure]
+    | cons u us =>
+      cases us with
+      | cons _ _ => simp_all [bind, Except.bind, pure, Pure.pure, Except.pure]
+      | nil =>
+        cases hctors : info.ctors with
+        | nil => simp_all [bind, Except.bind, pure, Pure.pure, Except.pure]
+        | cons eqRefl ctors =>
+          cases ctors with
+          | cons _ _ => simp_all [bind, Except.bind, pure, Pure.pure, Except.pure]
+          | nil =>
+            simp [ExprBuildT.run, bind, Except.bind, pure, Pure.pure,
+              Except.pure, hlevels, hctors] at h
+            split at h
+            · contradiction
+            · rename_i htype
+              have heqv : (info.type == expectedEqType u) = true := by
+                simpa [bne] using htype
+              obtain ⟨ci', hci', htr⟩ :=
+                (wf.tr (safety := .unsafe)).find? hfind DefinitionSafety.unsafe_le
+              have huvars : ci'.uvars = eqConst.uvars := by
+                rw [← htr.2.1]
+                simp [ConstantInfo.levelParams, ConstantInfo.toConstantVal,
+                  hlevels, eqConst]
+              have htrExpected : TrExprS (ves.venv .unsafe) [u] []
+                  (expectedEqType u) ci'.type := by
+                simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal,
+                  hlevels] using htr.2.2.eqv heqv
+              have htypeV : ci'.type = eqConst.type := by
+                apply TrExprS.unique (by trivial) htrExpected
+                exact expectedEqType_translation (ves.venv .unsafe) u
+              have hciEq : ci' = eqConst :=
+                vconstant_eq_of_fields huvars htypeV
+              simpa [VEnv.QuotReady, hciEq] using hci'
   | _ => simp_all [( · >>= · ), Except.bind, pure, Pure.pure, Except.pure]
 
 /-- Exact declaration-dispatch bridge for inductives.  The primitive-family
@@ -208,6 +288,68 @@ theorem addInductiveDeclaration.preservesWF
     types isUnsafe fuel wf.inductivesClosed
       (VerifyInductive.VEnvs.WF.environmentTypesClosed wf) _ Hfinish
 
+/-- Complete checked declaration dispatch across the primitive, ordinary,
+and nested execution paths.  The executable primitive precheck selects the
+primitive branch; otherwise the verified lowering result selects ordinary
+versus the exact nested continuation.  Inductive soundness does not depend on
+the presence or interpretation of the separately bootstrapped `Eq` constant. -/
+theorem addInductiveDeclaration.finalResultWF
+    {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (lparams : List Name) (nparams : Nat) (types : List InductiveType)
+    (isUnsafe : Bool) (fuel : FuelConfig)
+    (A : VerifyInductive.InductiveVerificationAssumptions)
+    (HnestedAssembly : ∀ res,
+      VerifyInductive.SourceSyntaxChecks types →
+      VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
+        nparams types
+          { lvls := lparams.map .param, newTypes := types.toArray } res →
+      res.aux2nested.size ≠ 0 →
+      VerifyInductive.NestedFinalAssemblyProvider env lparams nparams types
+        isUnsafe fuel res) :
+    (addDecl env (.inductDecl lparams nparams types isUnsafe)
+      (check := true) (fuel := fuel)).WF fun outEnv =>
+        Nonempty (VerifyInductive.InductiveFinalResult outEnv ves lparams
+          nparams types isUnsafe) := by
+  apply addInductiveDeclaration.WF env lparams nparams types isUnsafe fuel
+    (fun outEnv => Nonempty (VerifyInductive.InductiveFinalResult outEnv ves
+      lparams nparams types isUnsafe))
+  intro allowPrimitive hallow
+  cases allowPrimitive with
+  | false =>
+    exact VerifyInductive.Environment.addInductive.inductiveFinalResultWF
+      env lparams nparams types isUnsafe fuel ves wf A HnestedAssembly
+  | true =>
+    have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
+        nparams types isUnsafe :=
+      (VerifyInductive.checkPrimitiveInductive_eq_true_iff env lparams
+        nparams types isUnsafe).mp hallow
+    exact
+      VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
+        env lparams nparams types isUnsafe fuel ves wf Hprimitive A
+
+/-- Traditional environment-preservation projection of the complete
+inductive declaration result. -/
+theorem addInductiveDeclaration.finalPreservesWF
+    {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (lparams : List Name) (nparams : Nat) (types : List InductiveType)
+    (isUnsafe : Bool) (fuel : FuelConfig)
+    (A : VerifyInductive.InductiveVerificationAssumptions)
+    (HnestedAssembly : ∀ res,
+      VerifyInductive.SourceSyntaxChecks types →
+      VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
+        nparams types
+          { lvls := lparams.map .param, newTypes := types.toArray } res →
+      res.aux2nested.size ≠ 0 →
+      VerifyInductive.NestedFinalAssemblyProvider env lparams nparams types
+        isUnsafe fuel res) :
+    (addDecl env (.inductDecl lparams nparams types isUnsafe)
+      (check := true) (fuel := fuel)).WF fun outEnv =>
+        ∃ ves' : VEnvs, ves'.WF outEnv ∧
+          ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  (addInductiveDeclaration.finalResultWF wf lparams nparams types
+    isUnsafe fuel A HnestedAssembly).mono
+      fun _ ⟨H⟩ => H.modelExtension
+
 private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except ε α).WF Q :=
   fun _ h => nomatch h
 
@@ -288,19 +430,42 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   · obtain ⟨v, -, h⟩ := this.forall_exists_r ci hc; exact h.2.1
   · obtain ⟨v, -, h⟩ := hbody.forall_exists_r ci hc; exact h.2
 
-/-- Declaration forms whose environment extension is currently modeled end to
-end. Quotient initialization used to be discharged from the absence of
-inductives; once `AddInduct` is constructive, it instead needs a proof that the
-validated `Eq` declaration is present canonically at every safety. Inductives
-remain the main open installation/restoration obligation. -/
-def _root_.Lean.Declaration.IsModelled : Declaration → Prop
-  | .quotDecl | .inductDecl .. => False
+namespace VerifyInductive
+
+/-- Exact declaration-boundary proof debts for an inductive submitted through
+the generic `addDecl` entry point.  Each field is temporary: completion of the
+inductive verification removes this structure entirely by deriving all of its
+contents from the successful checked run. -/
+structure InductiveDeclarationVerificationInputs
+    (env : Environment) (lparams : List Name) (nparams : Nat)
+    (types : List InductiveType) (isUnsafe : Bool) : Prop where
+  assumptions : InductiveVerificationAssumptions
+  nestedAssembly : ∀ res,
+    SourceSyntaxChecks types →
+    NestedLoweringResultClosed env ({} : FuelConfig).inductiveFuel
+      nparams types
+        { lvls := lparams.map .param, newTypes := types.toArray } res →
+    res.aux2nested.size ≠ 0 →
+    NestedFinalAssemblyProvider env lparams nparams types isUnsafe {} res
+
+end VerifyInductive
+
+/-- Declaration forms currently admitted to the generic environment theorem.
+Inductives still carry explicit compatibility and exact nested-trace proof
+debts; completion removes that qualification and the corresponding input
+structure. Quotient initialization remains separate. -/
+def _root_.Lean.Declaration.IsModelled
+    (env : Environment) (ves : VEnvs) : Declaration → Prop
+  | .quotDecl => False
+  | .inductDecl lparams nparams types isUnsafe =>
+    VerifyInductive.InductiveDeclarationVerificationInputs env lparams
+      nparams types isUnsafe
   | _ => True
 
 /-- Successful checked addition of a currently modeled declaration preserves
 well-formedness and extends every safety-indexed abstract environment. -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (decl : Declaration) (hdecl : decl.IsModelled) :
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   cases decl with
@@ -311,4 +476,19 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     exact (addOpaque.WF wf v).mono fun _ ⟨ves', hwf, _, h⟩ => ⟨ves', hwf, (h · |>.le)⟩
   | quotDecl => simp [Declaration.IsModelled] at hdecl
   | mutualDefnDecl vs => exact addMutual.WF wf vs
-  | inductDecl _ _ _ _ => simp [Declaration.IsModelled] at hdecl
+  | inductDecl lparams nparams types isUnsafe =>
+    exact addInductiveDeclaration.finalPreservesWF wf
+      lparams nparams types isUnsafe {} hdecl.assumptions hdecl.nestedAssembly
+
+/-- Every already-modeled declaration form preserves the canonical `Eq`
+invariant needed by the subsequent quotient and inductive boundaries. -/
+theorem addDecl.WFCanonicalEq
+    {env : Environment} {ves : VEnvs}
+    (wf : ves.WF env) (hEq : VerifyInductive.CanonicalEqEnvs ves)
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧
+        VerifyInductive.CanonicalEqEnvs ves' ∧
+        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  (addDecl.WF wf decl hdecl).mono fun _ ⟨ves', wf', hle⟩ =>
+    ⟨ves', wf', hEq.mono hle, hle⟩

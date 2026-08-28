@@ -1,6 +1,8 @@
 import Lean4Lean.Verify.LocalContext
 import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Declaration
+import Lean4Lean.Inductive.Add
+import Lean4Lean.Std.SMap
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -33,6 +35,128 @@ def MutualInductivesClosed (env : Environment) : Prop :=
   ∀ targetName value, env.find? targetName = some (.inductInfo value) →
     MutualInductiveClosure env targetName value
 
+/-- Production environments do not contain dangling constructor metadata:
+every constructor's recorded inductive owner is itself present.  This is a
+persistent production-environment invariant, not a nested-lowering premise. -/
+def ConstructorOwnersPresent (env : Environment) : Prop :=
+  ∀ name info, env.find? name = some (.ctorInfo info) →
+    ∃ owner, env.find? info.induct = some (.inductInfo owner)
+
+/-- Constructor-owner presence depends only on production constant lookup. -/
+theorem ConstructorOwnersPresent.mapEnvironmentEq
+    {source target : Environment}
+    (H : ConstructorOwnersPresent source)
+    (heq : ∀ name, source.find? name = target.find? name) :
+    ConstructorOwnersPresent target := by
+  intro name info hctor
+  have hsource : source.find? name = some (.ctorInfo info) := by
+    rw [heq name]
+    exact hctor
+  rcases H name info hsource with ⟨owner, howner⟩
+  exact ⟨owner, by rw [← heq info.induct]; exact howner⟩
+
+/-- Mutual-member evidence depends only on production constant lookup. -/
+theorem InductiveMemberInfos.mapEnvironmentEq
+    {source targetEnv : Environment}
+    (H : InductiveMemberInfos source names)
+    (heq : ∀ name, source.find? name = targetEnv.find? name) :
+    InductiveMemberInfos targetEnv names := by
+  induction H with
+  | nil => exact .nil
+  | @cons name info names hfind _ ih =>
+    exact .cons (by rw [← heq name]; exact hfind) ih
+
+/-- One closed mutual family transports across extensionally equal production
+constant maps. -/
+theorem MutualInductiveClosure.mapEnvironmentEq
+    {source targetEnv : Environment}
+    (H : MutualInductiveClosure source targetName value)
+    (heq : ∀ name, source.find? name = targetEnv.find? name) :
+    MutualInductiveClosure targetEnv targetName value where
+  members := H.members.mapEnvironmentEq heq
+  target := H.target
+  names := H.names
+
+/-- Closure of every mutual family is invariant under extensional equality of
+production constant lookup. -/
+theorem MutualInductivesClosed.mapEnvironmentEq
+    {source targetEnv : Environment}
+    (H : MutualInductivesClosed source)
+    (heq : ∀ name, source.find? name = targetEnv.find? name) :
+    MutualInductivesClosed targetEnv := by
+  intro targetName value htarget
+  have hsource : source.find? targetName = some (.inductInfo value) := by
+    rw [heq targetName]
+    exact htarget
+  exact (H targetName value hsource).mapEnvironmentEq heq
+
+/-- The production metadata for one constructor listed by an inductive
+header agrees with that header at every field needed to specialize the
+constructor at the family's common parameters. -/
+structure InductiveConstructorCoherenceAt
+    (env : Environment) (familyName : Name) (familyInfo : InductiveVal)
+    (i : Nat) (hi : i < familyInfo.ctors.length) where
+  info : ConstructorVal
+  lookup : env.find? familyInfo.ctors[i] = some (.ctorInfo info)
+  induct : info.induct = familyName
+  cidx : info.cidx = i
+  numParams : info.numParams = familyInfo.numParams
+  levelParams : info.levelParams = familyInfo.levelParams
+  isUnsafe : info.isUnsafe = familyInfo.isUnsafe
+
+/-- Every constructor name listed by a production inductive header resolves
+to coherent constructor metadata. -/
+def InductiveConstructorsCoherent (env : Environment) : Prop :=
+  ∀ familyName familyInfo,
+    env.find? familyName = some (.inductInfo familyInfo) →
+    ∀ i (hi : i < familyInfo.ctors.length),
+      Nonempty (InductiveConstructorCoherenceAt env familyName familyInfo i hi)
+
+/-- Semantic common-parameter coherence for one visible production
+constructor.  Concrete parameter domains need only be definitionally equal;
+the independently translated family and constructor types are normalized in
+the shared abstract environment before their parameter contexts are compared. -/
+structure InductiveConstructorSemanticCoherenceAt
+    (env : Environment) (venv : VEnv)
+    (familyName : Name) (familyInfo : InductiveVal)
+    (i : Nat) (hi : i < familyInfo.ctors.length)
+    extends InductiveConstructorCoherenceAt env familyName familyInfo i hi where
+  familyTarget : VConstant
+  constructorTarget : VConstant
+  familyLookup : venv.constants familyName = some familyTarget
+  constructorLookup : venv.constants familyInfo.ctors[i] = some constructorTarget
+  familyUvars : familyTarget.uvars = familyInfo.levelParams.length
+  constructorUvars : constructorTarget.uvars = familyInfo.levelParams.length
+  familyNormalized : VExpr
+  constructorNormalized : VExpr
+  familyDomains : List VExpr
+  constructorDomains : List VExpr
+  familyTail : VExpr
+  constructorTail : VExpr
+  familyType : VExpr
+  constructorType : VExpr
+  familyDefEq : venv.IsDefEq familyInfo.levelParams.length []
+    familyTarget.type familyNormalized familyType
+  constructorDefEq : venv.IsDefEq familyInfo.levelParams.length []
+    constructorTarget.type constructorNormalized constructorType
+  familyParams : familyNormalized.takeForalls familyInfo.numParams =
+    some (familyDomains, familyTail)
+  constructorParams : constructorNormalized.takeForalls familyInfo.numParams =
+    some (constructorDomains, constructorTail)
+  parameterDomains : venv.IsDefEqCtx familyInfo.levelParams.length []
+    familyDomains.reverse constructorDomains.reverse
+
+/-- Every constructor visible in one safety-indexed abstract environment has
+production metadata and definitionally equal translated common parameters. -/
+def InductiveConstructorsSemanticallyCoherent
+    (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop :=
+  ∀ familyName familyInfo,
+    env.find? familyName = some (.inductInfo familyInfo) →
+    safety ≤ (if familyInfo.isUnsafe then .unsafe else .safe) →
+    ∀ i (hi : i < familyInfo.ctors.length),
+      Nonempty (InductiveConstructorSemanticCoherenceAt
+        env venv familyName familyInfo i hi)
+
 end VerifyInductive
 
 theorem ConstantInfo.hasValue_eq (ci : ConstantInfo) : ci.hasValue = ci.value?.isSome := by
@@ -43,6 +167,69 @@ theorem ConstantInfo.value!_eq (ci : ConstantInfo) : ci.value! = ci.value?.get! 
 
 def _root_.Lean.ConstantInfo.safety (ci : ConstantInfo) : DefinitionSafety :=
   if ci.isUnsafe then .unsafe else if ci.isPartial then .partial else .safe
+
+/-- Operational production-side contract for a unary type-annotation wrapper.
+
+The executable `Expr.consumeTypeAnnotations` recognizes these wrappers by
+name alone.  Recording the actual environment lookup and delta body prevents a
+hostile declaration at the reserved name from being silently treated as an
+identity wrapper. -/
+structure UnaryTypeAnnotationWrapper (env : Environment) (name : Name) : Prop where
+  operational : ∃ info value,
+    env.find? name = some info ∧
+    info.safety = .safe ∧
+    info.deltaValue? = some value ∧
+    ∀ (levels : List Level) {arg : Expr}, arg.Closed →
+      BetaReduce
+        (.app (value.instantiateLevelParams info.levelParams levels) arg) arg
+
+/-- Operational production-side contract for a binary type-annotation
+wrapper whose result is its first argument. -/
+structure BinaryTypeAnnotationWrapper (env : Environment) (name : Name) : Prop where
+  operational : ∃ info value,
+    env.find? name = some info ∧
+    info.safety = .safe ∧
+    info.deltaValue? = some value ∧
+    ∀ (levels : List Level) {first second : Expr},
+      first.Closed → second.Closed →
+      BetaReduce
+        (.app (.app (value.instantiateLevelParams info.levelParams levels)
+          first) second) first
+
+/-- The four Prelude declarations whose names receive special operational
+treatment from `Expr.consumeTypeAnnotations` have their real, identity-like
+delta bodies in the production environment. -/
+structure TypeAnnotationWrappers (env : Environment) : Prop where
+  optParam : BinaryTypeAnnotationWrapper env ``optParam
+  autoParam : BinaryTypeAnnotationWrapper env ``autoParam
+  outParam : UnaryTypeAnnotationWrapper env ``outParam
+  semiOutParam : UnaryTypeAnnotationWrapper env ``semiOutParam
+
+theorem UnaryTypeAnnotationWrapper.rebase
+    (H : UnaryTypeAnnotationWrapper source name)
+    (hpreserves : ∀ {n ci}, source.find? n = some ci →
+      target.find? n = some ci) :
+    UnaryTypeAnnotationWrapper target name := by
+  rcases H.operational with ⟨info, value, hlookup, hsafe, hdelta, hreduces⟩
+  exact ⟨⟨info, value, hpreserves hlookup, hsafe, hdelta, hreduces⟩⟩
+
+theorem BinaryTypeAnnotationWrapper.rebase
+    (H : BinaryTypeAnnotationWrapper source name)
+    (hpreserves : ∀ {n ci}, source.find? n = some ci →
+      target.find? n = some ci) :
+    BinaryTypeAnnotationWrapper target name := by
+  rcases H.operational with ⟨info, value, hlookup, hsafe, hdelta, hreduces⟩
+  exact ⟨⟨info, value, hpreserves hlookup, hsafe, hdelta, hreduces⟩⟩
+
+theorem TypeAnnotationWrappers.rebase
+    (H : TypeAnnotationWrappers source)
+    (hpreserves : ∀ {n ci}, source.find? n = some ci →
+      target.find? n = some ci) :
+    TypeAnnotationWrappers target where
+  optParam := H.optParam.rebase hpreserves
+  autoParam := H.autoParam.rebase hpreserves
+  outParam := H.outParam.rebase hpreserves
+  semiOutParam := H.semiOutParam.rebase hpreserves
 
 variable (safety : DefinitionSafety) (env : VEnv) in
 def TrConstant (ci : ConstantInfo) (ci' : VConstant) : Prop :=
@@ -531,6 +718,59 @@ theorem VInductBlock.install_le
           (VEnv.addConstVals_le hctors).trans <|
             (VEnv.addConstVals_le hrecursors).trans VEnv.addDefEqRules_le
 
+/-- Exact production metadata for one constructor in an abstract inductive
+family installed by the current declaration.  This prevents a flat constant
+lookup from being mistaken for inductive-declaration provenance. -/
+structure ProductionConstructorAlignment
+    (C : ConstMap) (decl : VInductDecl) (familyIdx ctorIdx : Nat)
+    (familyInfo : InductiveVal) where
+  familyIdx_lt : familyIdx < decl.types.length
+  ctorIdx_lt : ctorIdx < decl.types[familyIdx].ctors.length
+  familyInfo_ctorIdx_lt : ctorIdx < familyInfo.ctors.length
+  info : ConstructorVal
+  name : familyInfo.ctors[ctorIdx] =
+    decl.types[familyIdx].ctors[ctorIdx].name
+  lookup : C.find? familyInfo.ctors[ctorIdx] = some (.ctorInfo info)
+  induct : info.induct = familyInfo.name
+  cidx : info.cidx = ctorIdx
+  numParams : info.numParams = decl.nparams
+  /-- The projection field count is the exact executable telescope arity
+  after removing the independently aligned common parameters. -/
+  numFields : info.numFields =
+    AddInductive.constructorArity info.type - decl.nparams
+  levelParamsExact : info.levelParams = familyInfo.levelParams
+  levelParams : info.levelParams.length = decl.uvars
+  isUnsafe : info.isUnsafe = decl.isUnsafe
+
+/-- Exact mutual-family metadata installed by one abstract declaration. -/
+structure ProductionFamilyAlignment
+    (C : ConstMap) (decl : VInductDecl) (familyIdx : Nat)
+    (familyInfo : InductiveVal) : Prop where
+  familyIdx_lt : familyIdx < decl.types.length
+  name : familyInfo.name = decl.types[familyIdx].name
+  lookup : C.find? familyInfo.name = some (.inductInfo familyInfo)
+  all : familyInfo.all = decl.types.map (fun family => family.name)
+  levelParams : familyInfo.levelParams.length = decl.uvars
+  numParams : familyInfo.numParams = decl.nparams
+  numIndices : familyInfo.numIndices = decl.types[familyIdx].numIndices
+  constructors : familyInfo.ctors.length =
+    decl.types[familyIdx].ctors.length
+  isUnsafe : familyInfo.isUnsafe = decl.isUnsafe
+  constructor : ∀ ctorIdx
+    (hctor : ctorIdx < decl.types[familyIdx].ctors.length),
+    Nonempty (ProductionConstructorAlignment C decl familyIdx ctorIdx
+      familyInfo)
+
+/-- Every inductive header visible after an inductive installation either
+already existed or is one exact family of the declaration just installed. -/
+def ProductionInductiveOrigins
+    (source target : ConstMap) (decl : VInductDecl) : Prop :=
+  ∀ familyName familyInfo,
+    target.find? familyName = some (.inductInfo familyInfo) →
+    source.find? familyName = some (.inductInfo familyInfo) ∨
+      ∃ familyIdx, familyName = familyInfo.name ∧
+        Nonempty (ProductionFamilyAlignment target decl familyIdx familyInfo)
+
 variable (safety : DefinitionSafety) in
 inductive Aligned : ConstMap → VEnv → Prop where
   | empty : Aligned {} .empty
@@ -539,11 +779,18 @@ inductive Aligned : ConstMap → VEnv → Prop where
   | const : Aligned C venv → C.find? n = none → TrConstant safety venv ci ci' →
     venv.addConst n ci' = some venv' → ci.name = n → Aligned (C.insert n ci) venv'
   | defeq : Aligned C venv → Aligned C (venv.addDefEq df)
+  /-- Production constant maps are implementation maps rather than ordered
+  declaration lists.  A bulk declaration such as nested restoration may
+  insert fresh entries in a different order from the dependency order used
+  to type their abstract counterparts.  Exact lookup equivalence, together
+  with well-formedness of the target representation, permits transport
+  between those insertion histories without changing their semantics. -/
+  | mapExt : Aligned C venv → C'.WF →
+      (∀ name, C.find? name = C'.find? name) → Aligned C' venv
 
 /-- Constructive implementation boundary for an inductive extension at one
 observer safety. Besides the independent compilation and installation
-witnesses, it records exact production-map alignment at that safety. The
-`Eq` clause is the canonicality fact consumed by quotient initialization. -/
+witnesses, it records exact production-map alignment at that safety. -/
 inductive AddInduct (safety : DefinitionSafety)
     (m₁ : ConstMap) (env₁ : VEnv) (decl : VInductDecl)
     (m₂ : ConstMap) (env₂ : VEnv) : Prop where
@@ -552,18 +799,18 @@ inductive AddInduct (safety : DefinitionSafety)
     VInductDecl.CompilesTo env₁ decl _block →
     VInductBlock.WF env₁ _block →
     VInductBlock.install env₁ _block = some env₂ →
+    ProductionInductiveOrigins m₁ m₂ decl →
+    (∀ {name ci}, m₁.find? name = some ci → m₂.find? name = some ci) →
     (Aligned safety m₁ env₁ → Aligned safety m₂ env₂) →
     (∀ {name ci}, m₂.find? name = some ci → ci.deltaValue?.isSome →
       m₁.find? name = some ci) →
-    (∀ info, m₂.find? ``Eq = some (.inductInfo info) →
-      env₂.constants ``Eq = some eqConst) →
     AddInduct safety m₁ env₁ decl m₂ env₂
 
 theorem AddInduct.toVEnv
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
     VEnv.AddInduct env₁ decl env₂ :=
   match H with
-  | .intro _ hdecl hcompile hblock hinstall _ _ _ =>
+  | .intro _ hdecl hcompile hblock hinstall _ _ _ _ =>
     .intro hdecl hcompile hblock hinstall
 
 theorem AddInduct.declWF
@@ -575,6 +822,108 @@ theorem AddInduct.le
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) : env₁ ≤ env₂ := by
   cases H with
   | intro _ _ _ _ hinstall => exact VInductBlock.install_le hinstall
+
+theorem AddInduct.productionOrigins
+    (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
+    ProductionInductiveOrigins m₁ m₂ decl := by
+  cases H with
+  | intro _ _ _ _ _ horigins => exact horigins
+
+theorem AddInduct.preservesSourceFind
+    (H : AddInduct safety m₁ env₁ decl m₂ env₂)
+    (hfind : m₁.find? name = some ci) : m₂.find? name = some ci := by
+  cases H with
+  | intro _ _ _ _ _ _ hpreserves => exact hpreserves hfind
+
+theorem AddInduct.aligned
+    (H : AddInduct safety m₁ env₁ decl m₂ env₂)
+    (haligned : Aligned safety m₁ env₁) : Aligned safety m₂ env₂ := by
+  cases H with
+  | intro _ _ _ _ _ _ _ hpreserves => exact hpreserves haligned
+
+def ProductionConstructorAlignment.rebase
+    (H : ProductionConstructorAlignment source decl familyIdx ctorIdx
+      familyInfo)
+    (hpreserves : ∀ {name ci}, source.find? name = some ci →
+      target.find? name = some ci) :
+    ProductionConstructorAlignment target decl familyIdx ctorIdx familyInfo :=
+  { H with lookup := hpreserves H.lookup }
+
+def ProductionFamilyAlignment.rebase
+    (H : ProductionFamilyAlignment source decl familyIdx familyInfo)
+    (hfamily : target.find? familyInfo.name = some (.inductInfo familyInfo))
+    (hpreserves : ∀ {name ci}, source.find? name = some ci →
+      target.find? name = some ci) :
+    ProductionFamilyAlignment target decl familyIdx familyInfo where
+  familyIdx_lt := H.familyIdx_lt
+  name := H.name
+  lookup := hfamily
+  all := H.all
+  levelParams := H.levelParams
+  numParams := H.numParams
+  numIndices := H.numIndices
+  constructors := H.constructors
+  isUnsafe := H.isUnsafe
+  constructor ctorIdx hctor := by
+    rcases H.constructor ctorIdx hctor with ⟨C⟩
+    exact ⟨C.rebase hpreserves⟩
+
+/-- Persistent, declaration-level provenance for one visible production
+inductive family in one abstract environment. -/
+structure InstalledInductiveFamilyProvenanceAt
+    (C : ConstMap) (env : VEnv) (familyName : Name)
+    (familyInfo : InductiveVal) where
+  decl : VInductDecl
+  familyIdx : Nat
+  name : familyName = familyInfo.name
+  alignment : ProductionFamilyAlignment C decl familyIdx familyInfo
+  installed : VEnv.InstalledInductCertificate env decl
+
+/-- Every production inductive visible to this observer comes from a prior,
+finitely well-formed abstract inductive installation. -/
+def InstalledInductiveProvenance
+    (safety : DefinitionSafety) (C : ConstMap) (env : VEnv) : Prop :=
+  ∀ familyName familyInfo,
+    C.find? familyName = some (.inductInfo familyInfo) →
+    safety ≤ (ConstantInfo.inductInfo familyInfo).safety →
+    Nonempty (InstalledInductiveFamilyProvenanceAt C env familyName familyInfo)
+
+def InstalledInductiveFamilyProvenanceAt.mono
+    (H : InstalledInductiveFamilyProvenanceAt source env familyName familyInfo)
+    (hfind : target.find? familyInfo.name = some (.inductInfo familyInfo))
+    (hpreserves : ∀ {name ci}, source.find? name = some ci →
+      target.find? name = some ci)
+    (henv : env ≤ env') :
+    InstalledInductiveFamilyProvenanceAt target env' familyName familyInfo where
+  decl := H.decl
+  familyIdx := H.familyIdx
+  name := H.name
+  alignment := H.alignment.rebase hfind hpreserves
+  installed := H.installed.mono henv
+
+theorem AddInduct.installedCertificate
+    (H : AddInduct safety source base decl target installed) :
+    VEnv.InstalledInductCertificate installed decl := by
+  cases H with
+  | intro block hdecl hcompile hblock hinstall =>
+    exact .intro hdecl.1 hdecl.2 hcompile hblock hinstall VEnv.LE.rfl
+
+theorem InstalledInductiveProvenance.addInduct
+    (Hsource : InstalledInductiveProvenance safety source base)
+    (H : AddInduct safety source base decl target installed) :
+    InstalledInductiveProvenance safety target installed := by
+  intro familyName familyInfo hfind hvisible
+  rcases H.productionOrigins familyName familyInfo hfind with hold | hnew
+  · rcases Hsource familyName familyInfo hold hvisible with ⟨P⟩
+    exact ⟨P.mono (by simpa [P.name] using hfind)
+      H.preservesSourceFind H.le⟩
+  · rcases hnew with ⟨familyIdx, hname, ⟨Halignment⟩⟩
+    exact ⟨{
+      decl := decl
+      familyIdx := familyIdx
+      name := hname
+      alignment := Halignment
+      installed := H.installedCertificate }⟩
 
 /-- Insert a whole block of definitions into the constant map. -/
 def insertDefs (C : ConstMap) (cis : List DefinitionVal) : ConstMap :=

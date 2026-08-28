@@ -75,7 +75,7 @@ def Lean.Declaration.name : Declaration → String
   | .mutualDefnDecl d => s!"mutualDefnDecl {d.map (·.name)}"
   | .inductDecl _ _ d _ => s!"inductDecl {d.map (·.name)}"
 
-def Lean.Expr.hasStrLit (e : Expr) : Bool := (e.find? isStringLit).isSome
+def Lean.Expr.hasStrLit (e : Expr) : Bool := e.findAny isStringLit
 
 def Lean.ConstantInfo.hasStrLit (ci : ConstantInfo) : Bool :=
   ci.type.hasStrLit || (ci.value? (allowOpaque := true)).any (·.hasStrLit)

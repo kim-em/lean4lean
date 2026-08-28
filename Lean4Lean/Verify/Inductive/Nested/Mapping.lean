@@ -1,4 +1,5 @@
-import Lean4Lean.Verify.Inductive.Equation.Build
+import Lean4Lean.Verify.Inductive.Nested.Recognition
+import Lean4Lean.Verify.Inductive.Nested.RestorationValidation
 
 namespace Lean4Lean
 
@@ -49,93 +50,6 @@ theorem Environment.addInductiveAfterLowering.WF
     · simp only [hzero, ↓reduceIte]
       exact (Hrestore loweredEnv Hinstalled hzero).mono fun outEnv Hrestored =>
         .nested hzero Hinstalled Hrestored
-
-/-- Successful nested restoration retains both the exact declaration-fold
-trace and the independently specified auxiliary-witness validation. -/
-structure RestoredAfterInstallResult
-    (res : Lean4Lean.ElimNestedInductive.Result)
-    (sourceEnv loweredEnv : Environment) (recNameMap : NameMap Name)
-    (allIndNames : List Name) (types : List InductiveType)
-    (auxRecNames : List Name) (Validated : Environment → Prop)
-    (outEnv : Environment) : Prop where
-  restoration : Nonempty (RestoredNestedDeclarationsResult res loweredEnv
-    sourceEnv recNameMap allIndNames types auxRecNames ((), outEnv))
-  validated : Validated outEnv
-
-/-- Compose the verified declaration-restoration folds with the production
-auxiliary validation pass. -/
-theorem Environment.restoreNestedAfterInstall.WF
-    (env loweredEnv : Environment) (lparams : List Name)
-    (types : List InductiveType) (safety : DefinitionSafety)
-    (allowPrimitive : Bool) (fuel : FuelConfig)
-    (res : Lean4Lean.ElimNestedInductive.Result)
-    (Htypes : ∀ indType, indType ∈ types →
-      ∃ oldInfo : InductiveVal,
-        loweredEnv.find? indType.name = some (.inductInfo oldInfo) ∧
-        (∀ ctorName, ctorName ∈ oldInfo.ctors →
-          ∃ ctorInfo : ConstructorVal,
-            loweredEnv.find? ctorName = some (.ctorInfo ctorInfo) ∧
-            RestoreTelescope ctorInfo.type res.nparams) ∧
-        ∃ recInfo : RecursorVal,
-          loweredEnv.find? (Lean.mkRecName indType.name) =
-            some (.recInfo recInfo) ∧
-          RestoreTelescope recInfo.type res.nparams ∧
-          ∀ rule ∈ recInfo.rules,
-            RestoreTelescope rule.rhs res.nparams)
-    (Haux : ∀ recName,
-      recName ∈ (Lean4Lean.mkAuxRecNameMap loweredEnv types).1 →
-      ∃ oldInfo : RecursorVal,
-        loweredEnv.find? recName = some (.recInfo oldInfo) ∧
-        RestoreTelescope oldInfo.type res.nparams ∧
-        ∀ rule ∈ oldInfo.rules,
-          RestoreTelescope rule.rhs res.nparams)
-    (Validated : Environment → Prop)
-    (Hvalidate : ∀ restoredEnv,
-      Nonempty (RestoredNestedDeclarationsResult res loweredEnv env
-        (Lean4Lean.mkAuxRecNameMap loweredEnv types).2 (types.map (·.name))
-        types (Lean4Lean.mkAuxRecNameMap loweredEnv types).1
-        ((), restoredEnv)) →
-      (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
-        res).WF fun _ => Validated restoredEnv) :
-    (Environment.restoreNestedAfterInstall env loweredEnv lparams types safety
-      allowPrimitive fuel res).WF fun outEnv =>
-        RestoredAfterInstallResult res env loweredEnv
-          (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
-          (types.map (·.name)) types
-          (Lean4Lean.mkAuxRecNameMap loweredEnv types).1 Validated outEnv := by
-  let recNames := (Lean4Lean.mkAuxRecNameMap loweredEnv types).1
-  let recNameMap := (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
-  let allIndNames := types.map (·.name)
-  have Hdeclarations := restoreNestedDeclarations_refines res loweredEnv env
-    recNameMap allIndNames allowPrimitive types recNames Htypes (by
-      simpa [recNames] using Haux)
-  have HrestoredEnv :
-      ((·.2) <$> Lean4Lean.restoreNestedDeclarations res loweredEnv
-        recNameMap allIndNames allowPrimitive types recNames env).WF
-          fun restoredEnv => Nonempty (RestoredNestedDeclarationsResult res
-            loweredEnv env recNameMap allIndNames types recNames
-              ((), restoredEnv)) := by
-    exact Hdeclarations.map fun restored Hrestored => by
-      rcases restored with ⟨unit, restoredEnv⟩
-      rcases unit with ⟨⟩
-      exact Hrestored
-  have Houtput :
-      (((·.2) <$> Lean4Lean.restoreNestedDeclarations res loweredEnv
-          recNameMap allIndNames allowPrimitive types recNames env).bind
-        fun restoredEnv =>
-          (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
-            res).bind fun _ => Except.pure restoredEnv).WF
-        (RestoredAfterInstallResult res env loweredEnv recNameMap allIndNames
-          types recNames Validated) :=
-    HrestoredEnv.bind fun restoredEnv Hrestored => by
-      exact (Hvalidate restoredEnv (by
-        simpa [recNames, recNameMap, allIndNames] using Hrestored)).bind
-          fun _ Hvalidated => Except.WF.pure (show
-            RestoredAfterInstallResult res env loweredEnv recNameMap
-              allIndNames types recNames Validated restoredEnv from
-                ⟨Hrestored, Hvalidated⟩)
-  simpa [Environment.restoreNestedAfterInstall, recNames, recNameMap,
-    allIndNames, StateT.run, bind, Except.bind, pure] using Houtput
 
 /-- Complete outcome specification for an application already recognized as
 nested: either an existing cache entry is reused without changing state, or a
@@ -383,6 +297,96 @@ theorem NestedAuxLE.mem
     exact List.mem_append_left suffix hsource
   simpa using htarget
 
+/-- A family freshly appended by nested lowering, together with the matching
+cache entry that lets restoration recover the application from which it was
+built.  Keeping the two append-only arrays paired is the provenance that is
+lost by `NestedNewTypesLE` alone. -/
+structure GeneratedFamilyWitness
+    (env : Environment) (params : Array Expr)
+    (nestedAux : Array (Expr × Name))
+    (family : InductiveType) where
+  lctx : LocalContext
+  As : Array Expr
+  levels : List Level
+  nestedNParams : Nat
+  args : Array Expr
+  argsArity : nestedNParams ≤ args.size
+  sourceName : Name
+  auxName : Name
+  sourceInfo : InductiveVal
+  data : Lean4Lean.ElimNestedInductive.AuxiliaryData
+  selection : LocalForallSelection lctx As
+  selectionNodup : selection.fvars.Nodup
+  levelsNoMVars : ∀ level ∈ levels, level.hasMVar' = false
+  argsFVars : ∀ arg ∈ args, arg.FVarsIn (· ∈ selection.fvars)
+  built : BuiltAuxiliary env lctx params As levels nestedNParams args
+    sourceName auxName sourceInfo data
+  family_eq : family = data.type
+  cached : (data.nested, auxName) ∈ nestedAux
+
+/-- Closing a generated family's cached application over the final lowering
+parameters yields the same de Bruijn application as closing the source
+application over the parameters selected when the auxiliary was built.  The
+retained argument-scope invariant is the essential alpha-conversion premise. -/
+theorem GeneratedFamilyWitness.cachedClosureAlpha
+    (H : GeneratedFamilyWitness env params nestedAux family)
+    (resultSelection : LocalForallSelection resultLctx params)
+    (hresultNodup : resultSelection.fvars.Nodup) :
+    H.data.nested.abstractList resultSelection.fvars =
+      (mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
+        H.args).abstractList H.selection.fvars := by
+  let sourceApp := mkAppRange (.const H.sourceName H.levels) 0
+    H.nestedNParams H.args
+  have HsourceScope : sourceApp.FVarsIn (· ∈ H.selection.fvars) := by
+    apply FVarsIn.mkAppRange_zero H.argsArity
+    · simpa [Lean4Lean.FVarsIn] using H.levelsNoMVars
+    · exact H.argsFVars
+  have Hclosed : (sourceApp.abstractList H.selection.fvars).FVarsIn
+      (fun _ => False) := by
+    apply FVarsIn.abstractList_of
+    exact HsourceScope.mono fun fv hfv => Or.inl hfv
+  have Haway : (sourceApp.abstractList H.selection.fvars).FVarsIn
+      (fun fv => fv ∉ resultSelection.fvars) :=
+    Hclosed.mono fun _ hfalse => False.elim hfalse
+  rw [H.built.nested]
+  change (Expr.reopenParams sourceApp H.As params).abstractList
+      resultSelection.fvars = sourceApp.abstractList H.selection.fvars
+  rw [Expr.reopenParams_eq_reopenFVarsAt H.selection.expressions
+    resultSelection.expressions]
+  exact Haway.abstractList_instantiateRevList hresultNodup
+
+/-- The unprocessed source stored in a dynamic lowering-queue slot is either
+one of the initial mutual families or an auxiliary family generated while an
+earlier slot was traversed. -/
+inductive SourceFamilyOrigin
+    (env : Environment) (params : Array Expr)
+    (initial : Array InductiveType)
+    (nestedAux : Array (Expr × Name)) :
+    InductiveType → Type
+  | original (j : Nat) (hj : j < initial.size) :
+      SourceFamilyOrigin env params initial nestedAux initial[j]
+  | generated (H : GeneratedFamilyWitness env params nestedAux family) :
+      SourceFamilyOrigin env params initial nestedAux family
+
+def SourceFamilyOrigin.mono
+    (H : SourceFamilyOrigin env params initial state.nestedAux family)
+    (Haux : NestedAuxLE state nextState) :
+    SourceFamilyOrigin env params initial nextState.nestedAux family := by
+  cases H with
+  | original j hj => exact .original j hj
+  | generated Hgenerated =>
+    exact .generated
+      { Hgenerated with cached := Haux.mem Hgenerated.cached }
+
+/-- Provenance for all queue entries at or beyond the dynamic cursor. -/
+def PendingSourceFamilyOrigins
+    (env : Environment) (params : Array Expr)
+    (initial : Array InductiveType) (cursor : Nat)
+    (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
+  ∀ j, cursor ≤ j → (hj : j < state.newTypes.size) →
+    Nonempty (SourceFamilyOrigin env params initial state.nestedAux
+      state.newTypes[j])
+
 private theorem nestedAuxFold_find_of_not_mem
     (entries : List (Expr × Name))
     (map : Std.TreeMap Name Expr Name.quickCmp)
@@ -538,6 +542,51 @@ theorem nestedAuxFold_find
       have htailFind := ih (map.insert entry.2 entry.1) htailNodup htail
       simpa using htailFind
 
+/-- A successful lookup in a cache fold comes either from the initial map or
+from an exact cache entry.  This is the reverse direction of
+`nestedAuxFold_find`; unlike that theorem it does not need name uniqueness,
+because the value returned by the final insertion is retained exactly. -/
+theorem nestedAuxFold_find_mem_or_initial
+    (entries : List (Expr × Name))
+    (map : Std.TreeMap Name Expr Name.quickCmp)
+    (hfind : (entries.foldl
+      (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+        (entry : Expr × Name) => map.insert entry.2 entry.1)
+      map)[name]? = some nested) :
+    map[name]? = some nested ∨ (nested, name) ∈ entries := by
+  induction entries generalizing map with
+  | nil => exact Or.inl hfind
+  | cons entry entries ih =>
+    simp only [List.foldl_cons] at hfind
+    rcases ih (map := map.insert entry.2 entry.1) hfind with
+      hinsert | htail
+    · rw [Std.TreeMap.getElem?_insert] at hinsert
+      split at hinsert
+      next hcmp =>
+        have hname : entry.2 = name :=
+          Std.LawfulEqCmp.compare_eq_iff_eq.mp hcmp
+        have hnested : entry.1 = nested := Option.some.inj hinsert
+        exact Or.inr (by
+          apply List.mem_cons.mpr
+          left
+          exact Prod.ext hnested.symm hname.symm)
+      next => exact Or.inl hinsert
+    · exact Or.inr (by simp [htail])
+
+/-- A lookup in a cache fold starting from the empty production map is
+therefore witnessed by an exact cache entry. -/
+theorem nestedAuxFold_find_mem
+    (entries : List (Expr × Name))
+    (hfind : (entries.foldl
+      (fun (map : Std.TreeMap Name Expr Name.quickCmp)
+        (entry : Expr × Name) => map.insert entry.2 entry.1)
+      ({} : Std.TreeMap Name Expr Name.quickCmp))[name]? = some nested) :
+    (nested, name) ∈ entries := by
+  rcases nestedAuxFold_find_mem_or_initial entries {} hfind with
+    hinitial | hentry
+  · simp at hinitial
+  · exact hentry
+
 /-- A final restoration map faithfully represents every entry retained in a
 nested-lowering state. This isolates the map property needed by local
 lowering/restoration proofs from the particular fold that builds the map. -/
@@ -596,10 +645,55 @@ theorem GeneratedAuxiliary.nestedAuxLE
   rw [hstate]
   exact ⟨[(data.nested, auxName)], by simp⟩
 
+theorem GeneratedAuxiliary.pendingSourceFamilyOrigins
+    (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
+      sourceName sourceInfo state out)
+    (Hselection : LocalForallSelection lctx As)
+    (hselectionNodup : Hselection.fvars.Nodup)
+    (hnparams : nparams ≤ args.size)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
+    (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
+    PendingSourceFamilyOrigins env params initial cursor out.2 := by
+  rcases H.generated with
+    ⟨auxName, nextIdx, data, _Hfresh, Hbuilt, _hresult, hstate⟩
+  rw [hstate]
+  intro j hcursor hj
+  simp only [Array.size_push] at hj
+  by_cases hold : j < state.newTypes.size
+  · rcases Horigins j hcursor hold with ⟨Horigin⟩
+    have Haux : NestedAuxLE state
+        { state with
+          nextIdx := nextIdx
+          nestedAux := state.nestedAux.push (data.nested, auxName)
+          newTypes := state.newTypes.push data.type } :=
+      ⟨[(data.nested, auxName)], by simp⟩
+    have Horigin' := Horigin.mono Haux
+    exact ⟨by simpa [Array.getElem_push, hold] using Horigin'⟩
+  · have heq : j = state.newTypes.size := by omega
+    subst j
+    exact ⟨SourceFamilyOrigin.generated {
+      lctx := lctx
+      As := As
+      levels := levels
+      nestedNParams := nparams
+      args := args
+      argsArity := hnparams
+      sourceName := sourceName
+      auxName := auxName
+      sourceInfo := sourceInfo
+      data := data
+      selection := Hselection
+      selectionNodup := hselectionNodup
+      levelsNoMVars := Hlevels
+      argsFVars := Hargs
+      built := Hbuilt
+      family_eq := by simp [Array.getElem_push]
+      cached := by simp }⟩
+
 theorem GeneratedAuxiliary.namesWF
     (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
       sourceName sourceInfo state out)
-    (Hindex : AppendIndexAfterIndexFaithful)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   rcases H.generated with
     ⟨auxName, nextIdx, data, Hfresh, Hbuilt, hresult, hstate⟩
@@ -610,11 +704,10 @@ theorem GeneratedAuxiliary.namesWF
     rcases List.mem_map.mp hmem with ⟨⟨nested, oldName⟩, hold, heq⟩
     change oldName = auxName at heq
     rcases Hstate.indexed nested oldName (by simpa using hold) with
-      ⟨oldBase, oldIndex, holdName, holdIndex⟩
-    have hsuffix : oldIndex = index := Hindex oldBase
-      (`_nested ++ sourceName) oldIndex index (by
-        rw [← holdName, ← hname]
-        exact heq)
+      ⟨oldIndex, holdName, holdIndex⟩
+    have hsuffix : oldIndex = index := by
+      rw [holdName, hname] at heq
+      injection heq
     omega
   constructor
   · simp only [Array.toList_push, List.map_append, List.map_singleton]
@@ -630,13 +723,13 @@ theorem GeneratedAuxiliary.namesWF
     simp only [Array.mem_push] at hentry
     rcases hentry with hold | hnew
     · rcases Hstate.indexed nested name hold with
-        ⟨base, oldIndex, holdName, holdIndex⟩
-      refine ⟨base, oldIndex, holdName, ?_⟩
+        ⟨oldIndex, holdName, holdIndex⟩
+      refine ⟨oldIndex, holdName, ?_⟩
       change oldIndex < nextIdx
       rw [hnext]
       omega
     · cases hnew
-      refine ⟨`_nested ++ sourceName, index, hname, ?_⟩
+      refine ⟨index, hname, ?_⟩
       change index < nextIdx
       rw [hnext]
       omega
@@ -646,7 +739,7 @@ theorem GeneratedAuxiliary.namesWF
     · exact Hstate.reserved nested name hold
     · cases hnew
       rw [hname]
-      exact nested_isPrefix_appendIndexAfter sourceName index
+      exact nested_isPrefix_mkNum index
 
 theorem GeneratedAuxiliary.namesFresh
     (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
@@ -677,14 +770,29 @@ theorem GeneratedAuxiliaryBatch.nestedAuxLE
   | nil => exact .refl _
   | cons Hstep Htail ih => exact Hstep.nestedAuxLE.trans ih
 
+theorem GeneratedAuxiliaryBatch.pendingSourceFamilyOrigins
+    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
+      args result sourceNames state out)
+    (Hselection : LocalForallSelection lctx As)
+    (hselectionNodup : Hselection.fvars.Nodup)
+    (hnparams : nparams ≤ args.size)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
+    (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
+    PendingSourceFamilyOrigins env params initial cursor out.2 := by
+  induction H with
+  | nil => exact Horigins
+  | cons Hstep Htail ih =>
+    exact ih (Hstep.pendingSourceFamilyOrigins Hselection hselectionNodup
+      hnparams Hlevels Hargs Horigins)
+
 theorem GeneratedAuxiliaryBatch.namesWF
     (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
       args result sourceNames state out)
-    (Hindex : AppendIndexAfterIndexFaithful)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   induction H with
   | nil => exact Hstate
-  | cons Hstep Htail ih => exact ih (Hstep.namesWF Hindex Hstate)
+  | cons Hstep Htail ih => exact ih (Hstep.namesWF Hstate)
 
 theorem GeneratedAuxiliaryBatch.namesFresh
     (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
@@ -705,7 +813,7 @@ theorem GeneratedAuxiliaryBatch.generatedFor
     ∃ (stepState : Lean4Lean.ElimNestedInductive.State)
         (sourceInfo : InductiveVal) (auxName : Name) (nextIdx : Nat)
         (data : Lean4Lean.ElimNestedInductive.AuxiliaryData),
-      FreshNestedName env (`_nested ++ sourceName) stepState.nextIdx
+      FreshNestedName env `_nested stepState.nextIdx
         auxName nextIdx ∧
       BuiltAuxiliary env lctx params As levels nparams args sourceName auxName
         sourceInfo data ∧
@@ -757,7 +865,7 @@ theorem GeneratedAuxiliaryBatch.targetResult
     ∃ (stepState : Lean4Lean.ElimNestedInductive.State)
         (sourceInfo : InductiveVal) (auxName : Name) (nextIdx : Nat)
         (data : Lean4Lean.ElimNestedInductive.AuxiliaryData),
-      FreshNestedName env (`_nested ++ targetName) stepState.nextIdx
+      FreshNestedName env `_nested stepState.nextIdx
         auxName nextIdx ∧
       BuiltAuxiliary env lctx params As levels nparams args targetName auxName
         sourceInfo data ∧
@@ -884,6 +992,41 @@ def NestedReplacementHasFinalMapping
           input.getAppArgs).abstract As).instantiateRev params) = true ∧
       finalResult.aux2nested.find? auxName = some nested
 
+/-- Non-erased successful-hit provenance.  Unlike
+`NestedReplacementHasFinalMapping`, this retains the exact cache-or-generation
+branch and the state at which it completed.  In the generated branch this is
+the persistent path back to `BuiltAuxiliary`; cached hits remain identifiable
+as cache reuse and can be joined to final generated-family origins. -/
+def NestedReplacementFinalTrace
+    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (input : Expr) (state : Lean4Lean.ElimNestedInductive.State)
+    (lowered : Expr) (nextState : Lean4Lean.ElimNestedInductive.State)
+    (finalResult : Lean4Lean.ElimNestedInductive.Result)
+    (finalState : Lean4Lean.ElimNestedInductive.State) : Prop :=
+  ∃ value targetName levels,
+    NestedAppCandidate env state input value ∧
+    input.getAppFn = .const targetName levels ∧
+    RecognizedNestedReplacement env lctx params As targetName levels
+      input.getAppArgs value state (some lowered, nextState) ∧
+    NestedAuxLE nextState finalState ∧
+    NestedAuxMapModels finalResult finalState
+
+/-- Forget the retained operational branch only after clients that need
+generated-family provenance have had a chance to inspect it. -/
+theorem NestedReplacementFinalTrace.mapping
+    (H : NestedReplacementFinalTrace env lctx params As input state lowered
+      nextState finalResult finalState) :
+    NestedReplacementHasFinalMapping env lctx params As input state lowered
+      finalResult := by
+  rcases H with
+    ⟨value, targetName, levels, Hcandidate, hhead, Hrecognized, Hlater, Hmap⟩
+  rcases Hrecognized.finalMapping Hlater Hmap with
+    ⟨auxName, auxLevels, nested, replacement, hresult, hreplacement,
+      hnested, hlookup⟩
+  cases hresult
+  exact ⟨value, targetName, levels, auxName, auxLevels, nested, Hcandidate,
+    hhead, hreplacement, hnested, hlookup⟩
+
 /-- A mapped lowering hit introduces only its selected parameter variables;
 all trailing arguments are inherited from the source application. -/
 theorem NestedReplacementHasFinalMapping.outputFVarsIn
@@ -912,6 +1055,14 @@ theorem NestedReplacementHasFinalMapping.outputFVarsIn
     apply Hinput.getAppArgsList
     rw [← Expr.getAppArgs_toList]
     exact List.mem_of_mem_drop harg
+
+theorem NestedReplacementFinalTrace.outputFVarsIn
+    (H : NestedReplacementFinalTrace env lctx params As input state lowered
+      nextState finalResult finalState)
+    (Hselection : LocalForallSelection lctx As)
+    (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
+    lowered.FVarIdsIn (· ∈ Hselection.fvars) :=
+  H.mapping.outputFVarsIn Hselection Hinput
 
 /-- A mapped lowering leaf after reopening its cached source application with
 the parameter array chosen by restoration. -/
@@ -1105,6 +1256,19 @@ theorem NestedReplacementHasFinalMapping.reopensOfFVars
   intro value targetName levels Hcandidate hhead
   exact Hcandidate.abstractedPrefixClosed Hselection Hinput hhead
 
+theorem NestedReplacementFinalTrace.reopensOfFVars
+    (H : NestedReplacementFinalTrace env lctx params As input state lowered
+      nextState finalResult finalState)
+    (hresultParams : finalResult.params = params)
+    (fvars : List FVarId)
+    (hparams : params = (fvars.map Expr.fvar).toArray)
+    (hnodup : fvars.Nodup)
+    (Hselection : LocalForallSelection lctx As)
+    (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
+    NestedReplacementReopens env lctx params As input state lowered
+      finalResult restoreAs :=
+  H.mapping.reopensOfFVars hresultParams fvars hparams hnodup Hselection Hinput
+
 /-- Successful node replacement retains both the independent recognition
 certificate and the final restoration-map entry for the auxiliary family it
 returns. This is the leaf case needed by the structural expression inverse. -/
@@ -1124,6 +1288,19 @@ theorem NestedReplacement.finalMapping
     exact ⟨_, _, _, auxName, auxLevels, nested,
       Hcandidate, hhead, hreplacement, hnested, hlookup⟩
 
+/-- Successful node replacement with its cache-or-generation branch retained
+verbatim. -/
+theorem NestedReplacement.finalTrace
+    (H : NestedReplacement env lctx params As input state
+      (some lowered, nextState))
+    (Hlater : NestedAuxLE nextState finalState)
+    (Hmap : NestedAuxMapModels finalResult finalState) :
+    NestedReplacementFinalTrace env lctx params As input state lowered
+      nextState finalResult finalState := by
+  cases H with
+  | recognized Hcandidate hhead Hrecognized =>
+    exact ⟨_, _, _, Hcandidate, hhead, Hrecognized, Hlater, Hmap⟩
+
 /-- Structural expression-lowering relation whose successful leaves are
 already connected to the final restoration map. Unlike the operational trace,
 this relation forgets monadic control flow and retains exactly the semantic
@@ -1133,8 +1310,8 @@ inductive NestedExprMapping
     (finalResult : Lean4Lean.ElimNestedInductive.Result) :
     Expr → Lean4Lean.ElimNestedInductive.State →
       Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | hit : NestedReplacementHasFinalMapping env lctx params As input state
-      output finalResult →
+  | hit : NestedReplacementFinalTrace env lctx params As input state output
+      nextState finalResult finalState →
       NestedExprMapping env lctx params As finalResult input state
         (output, nextState)
   | bvar : NestedReplacement env lctx params As (.bvar i) state (none, state) →
@@ -1843,14 +2020,29 @@ theorem RecognizedNestedReplacement.nestedAuxLE
   | cached => exact .refl _
   | generated _ Hbatch => exact Hbatch.nestedAuxLE
 
+theorem RecognizedNestedReplacement.pendingSourceFamilyOrigins
+    (H : RecognizedNestedReplacement env lctx params As targetName levels args
+      value state out)
+    (Hselection : LocalForallSelection lctx As)
+    (hselectionNodup : Hselection.fvars.Nodup)
+    (hnparams : value.numParams ≤ args.size)
+    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
+    (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
+    (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
+    PendingSourceFamilyOrigins env params initial cursor out.2 := by
+  cases H with
+  | cached => exact Horigins
+  | generated _ Hbatch =>
+    exact Hbatch.pendingSourceFamilyOrigins Hselection hselectionNodup
+      hnparams Hlevels Hargs Horigins
+
 theorem RecognizedNestedReplacement.namesWF
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out)
-    (Hindex : AppendIndexAfterIndexFaithful)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   cases H with
   | cached => exact Hstate
-  | generated _ Hbatch => exact Hbatch.namesWF Hindex Hstate
+  | generated _ Hbatch => exact Hbatch.namesWF Hstate
 
 theorem RecognizedNestedReplacement.namesFresh
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
@@ -1875,13 +2067,32 @@ theorem NestedReplacement.nestedAuxLE
   | unrecognized => exact .refl _
   | recognized _ _ Hresult => exact Hresult.nestedAuxLE
 
+theorem NestedReplacement.pendingSourceFamilyOrigins
+    (H : NestedReplacement env lctx params As e state out)
+    (Hselection : LocalForallSelection lctx As)
+    (hselectionNodup : Hselection.fvars.Nodup)
+    (Hinput : e.FVarsIn (· ∈ Hselection.fvars))
+    (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
+    PendingSourceFamilyOrigins env params initial cursor out.2 := by
+  cases H with
+  | unrecognized => exact Horigins
+  | recognized Hcandidate hhead Hresult =>
+    exact Hresult.pendingSourceFamilyOrigins Hselection hselectionNodup
+      Hcandidate.parameters.arity (by
+        have Hfn := Hinput.getAppFn
+        rw [hhead] at Hfn
+        simpa [Lean4Lean.FVarsIn] using Hfn) (by
+        intro arg harg
+        apply Hinput.getAppArgsList
+        rw [← Expr.getAppArgs_toList]
+        exact Array.mem_toList_iff.mpr harg) Horigins
+
 theorem NestedReplacement.namesWF
     (H : NestedReplacement env lctx params As e state out)
-    (Hindex : AppendIndexAfterIndexFaithful)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   cases H with
   | unrecognized => exact Hstate
-  | recognized _ _ Hresult => exact Hresult.namesWF Hindex Hstate
+  | recognized _ _ Hresult => exact Hresult.namesWF Hstate
 
 theorem NestedReplacement.namesFresh
     (H : NestedReplacement env lctx params As e state out)
@@ -1921,23 +2132,53 @@ theorem NestedExprReplacement.nestedAuxLE
   | mdata Hnode _ ihBody | proj Hnode _ ihBody =>
     exact Hnode.nestedAuxLE.trans ihBody
 
+theorem NestedExprReplacement.pendingSourceFamilyOrigins
+    (H : NestedExprReplacement env lctx params As e state out)
+    (Hselection : LocalForallSelection lctx As)
+    (hselectionNodup : Hselection.fvars.Nodup)
+    (Hinput : e.FVarsIn (· ∈ Hselection.fvars))
+    (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
+    PendingSourceFamilyOrigins env params initial cursor out.2 := by
+  induction H with
+  | hit Hnode =>
+    exact Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hinput
+      Horigins
+  | bvar | fvar | mvar | sort | const | lit => exact Horigins
+  | app Hnode _ _ ihFn ihArg =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihArg Hinput.2 (ihFn Hinput.1
+      (Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hinput
+        Horigins))
+  | lam Hnode _ _ ihDom ihBody | forallE Hnode _ _ ihDom ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihBody Hinput.2 (ihDom Hinput.1
+      (Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hinput
+        Horigins))
+  | letE Hnode _ _ _ ihType ihValue ihBody =>
+    simp only [Lean4Lean.FVarsIn] at Hinput
+    exact ihBody Hinput.2.2 (ihValue Hinput.2.1 (ihType Hinput.1
+      (Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hinput
+        Horigins)))
+  | mdata Hnode _ ihBody | proj Hnode _ ihBody =>
+    exact ihBody Hinput (Hnode.pendingSourceFamilyOrigins Hselection
+      hselectionNodup Hinput Horigins)
+
 theorem NestedExprReplacement.namesWF
     (H : NestedExprReplacement env lctx params As e state out)
-    (Hindex : AppendIndexAfterIndexFaithful)
     (Hstate : NestedAuxNamesWF state) : NestedAuxNamesWF out.2 := by
   induction H with
-  | hit Hnode => exact Hnode.namesWF Hindex Hstate
+  | hit Hnode => exact Hnode.namesWF Hstate
   | bvar | fvar | mvar | sort | const | lit => exact Hstate
   | app Hnode Hfn Harg ihFn ihArg =>
-    exact ihArg (ihFn (Hnode.namesWF Hindex Hstate))
+    exact ihArg (ihFn (Hnode.namesWF Hstate))
   | lam Hnode Hdom Hbody ihDom ihBody =>
-    exact ihBody (ihDom (Hnode.namesWF Hindex Hstate))
+    exact ihBody (ihDom (Hnode.namesWF Hstate))
   | forallE Hnode Hdom Hbody ihDom ihBody =>
-    exact ihBody (ihDom (Hnode.namesWF Hindex Hstate))
+    exact ihBody (ihDom (Hnode.namesWF Hstate))
   | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
-    exact ihBody (ihValue (ihType (Hnode.namesWF Hindex Hstate)))
+    exact ihBody (ihValue (ihType (Hnode.namesWF Hstate)))
   | mdata Hnode Hbody ihBody | proj Hnode Hbody ihBody =>
-    exact ihBody (Hnode.namesWF Hindex Hstate)
+    exact ihBody (Hnode.namesWF Hstate)
 
 theorem NestedExprReplacement.namesFresh
     (H : NestedExprReplacement env lctx params As e state out)
@@ -2033,7 +2274,7 @@ theorem NestedExprReplacement.finalMapping
     (Hmap : NestedAuxMapModels finalResult finalState) :
     NestedExprMapping env lctx params As finalResult input state out := by
   induction H generalizing finalState with
-  | hit Hnode => exact .hit (Hnode.finalMapping Hlater Hmap)
+  | hit Hnode => exact .hit (Hnode.finalTrace Hlater Hmap)
   | bvar Hnode => exact .bvar Hnode
   | fvar Hnode => exact .fvar Hnode
   | mvar Hnode => exact .mvar Hnode

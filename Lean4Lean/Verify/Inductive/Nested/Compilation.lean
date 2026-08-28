@@ -1,4 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration
+import Lean4Lean.Verify.Inductive.Nested.ConstructorInstallation
+import Lean4Lean.Verify.Inductive.Nested.Recognition
+import Lean4Lean.Verify.Inductive.Run.LiteralDisjoint
 
 namespace Lean4Lean
 
@@ -594,224 +597,6 @@ theorem RestoredRecursorInstallationTrace.checking
   | cons Hstep Htail Hsemantic Hrest ih =>
     exact ih (Hsemantic.checking Hvalid)
 
-structure RestoredConstructorInstallationSemantics
-    (safety : DefinitionSafety)
-    (Hstep : RestoredConstructorStep result loweredEnv ctorName
-      sourceProdEnv targetProdEnv)
-    (sourceVEnv targetVEnv : VEnv) where
-  constructor : VConstVal
-  translated : TrConstVal safety sourceVEnv
-    (.ctorInfo Hstep.restored.newInfo) constructor
-  wf : constructor.toVConstant.WF sourceVEnv
-  installed : sourceVEnv.addConst constructor.name constructor.toVConstant =
-    some targetVEnv
-
-theorem RestoredConstructorInstallationSemantics.checking
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {loweredEnv sourceProdEnv targetProdEnv : Environment}
-    {ctorName : Name}
-    {Hstep : RestoredConstructorStep result loweredEnv ctorName
-      sourceProdEnv targetProdEnv}
-    {sourceVEnv targetVEnv : VEnv}
-    (H : RestoredConstructorInstallationSemantics safety Hstep sourceVEnv
-      targetVEnv)
-    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
-    CheckingEnv safety targetProdEnv targetVEnv := by
-  have hprodFresh : sourceProdEnv.find?
-      Hstep.restored.newInfo.name = none :=
-    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
-  have Hadd : sourceVEnv.addConst Hstep.restored.newInfo.name
-      H.constructor.toVConstant = some targetVEnv := by
-    have hname : Hstep.restored.newInfo.name = H.constructor.name := by
-      simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using
-        H.translated.2
-    rw [hname]
-    exact H.installed
-  have Hnext := CheckingEnv.add
-    (ci := .ctorInfo Hstep.restored.newInfo)
-    (ci' := H.constructor.toVConstant) Hvalid hprodFresh H.translated.1
-    H.wf Hadd rfl
-  have htarget : targetProdEnv = sourceProdEnv.add
-      (.ctorInfo Hstep.restored.newInfo) :=
-    congrArg Prod.snd Hstep.restored.output
-  rwa [htarget]
-
-/-- Build the installation payload for a restored constructor.  All metadata
-and freshness facts are derived; the only restoration-specific semantic
-premise is translation of the restored concrete type to the original
-abstract constructor type. -/
-theorem RestoredConstructorStep.installationOfMetadata
-    (Hstep : RestoredConstructorStep result loweredEnv ctorName
-      sourceProdEnv targetProdEnv)
-    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
-    (constructor : VConstVal)
-    (Hsafety : safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety)
-    (Huvars : Hstep.oldInfo.levelParams.length = constructor.uvars)
-    (Hname : Hstep.oldInfo.name = constructor.name)
-    (Htype : TrExprS sourceVEnv Hstep.oldInfo.levelParams []
-      Hstep.restored.newInfo.type constructor.type)
-    (Hwf : constructor.toVConstant.WF sourceVEnv) :
-    ∃ targetVEnv,
-      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
-        sourceVEnv targetVEnv) := by
-  have hprodFresh : sourceProdEnv.find?
-      Hstep.restored.newInfo.name = none :=
-    find?_none_of_contains_false Hvalid.map_wf Hstep.restored.fresh
-  have Htranslated := Hstep.restored.restoration.translatedOfMetadata
-    Hsafety Huvars Hname Htype
-  rcases CheckingEnv.exists_addConst Hvalid hprodFresh
-      constructor.toVConstant with ⟨targetVEnv, Hinstalled⟩
-  have Hinstalled' : sourceVEnv.addConst constructor.name
-      constructor.toVConstant = some targetVEnv := by
-    rw [← Htranslated.2]
-    exact Hinstalled
-  exact ⟨targetVEnv, ⟨{
-    constructor := constructor
-    translated := Htranslated
-    wf := Hwf
-    installed := Hinstalled' }⟩⟩
-
-/-- Compatibility form for non-nested callers which already translate the
-old constructor in the target environment. -/
-theorem RestoredConstructorStep.installation
-    (Hstep : RestoredConstructorStep result loweredEnv ctorName
-      sourceProdEnv targetProdEnv)
-    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
-    (constructor : VConstVal)
-    (Hold : TrConstVal safety sourceVEnv
-      (.ctorInfo Hstep.oldInfo) constructor)
-    (Htype : TrExprS sourceVEnv Hstep.oldInfo.levelParams []
-      Hstep.restored.newInfo.type constructor.type)
-    (Hwf : constructor.toVConstant.WF sourceVEnv) :
-    ∃ targetVEnv,
-      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
-        sourceVEnv targetVEnv) := by
-  apply Hstep.installationOfMetadata Hvalid constructor
-  · exact Hold.1.1
-  · simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
-      Hold.1.2.1
-  · simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using Hold.2
-  · exact Htype
-  · exact Hwf
-
-inductive RestoredConstructorInstallationTrace
-    (safety : DefinitionSafety) :
-    ∀ {names sourceProdEnv targetProdEnv},
-      StateForMTrace (RestoredConstructorStep result loweredEnv)
-        names sourceProdEnv targetProdEnv →
-      VEnv → List VConstVal → VEnv → Prop
-  | nil (sourceProdEnv : Environment) (sourceVEnv : VEnv) :
-      RestoredConstructorInstallationTrace safety
-        (StateForMTrace.nil (P := RestoredConstructorStep result loweredEnv)
-          (source := sourceProdEnv)) sourceVEnv [] sourceVEnv
-  | cons
-      (Hstep : RestoredConstructorStep result loweredEnv ctorName
-        sourceProdEnv middleProdEnv)
-      (Htail : StateForMTrace (RestoredConstructorStep result loweredEnv)
-        names middleProdEnv targetProdEnv)
-      (Hsemantic : RestoredConstructorInstallationSemantics safety Hstep
-        sourceVEnv middleVEnv)
-      (Hrest : RestoredConstructorInstallationTrace safety Htail middleVEnv
-        constructors targetVEnv) :
-      RestoredConstructorInstallationTrace safety (.cons Hstep Htail)
-        sourceVEnv (Hsemantic.constructor :: constructors) targetVEnv
-
-theorem RestoredConstructorInstallationTrace.translatedFresh
-    {names : List Name} {sourceProdEnv targetProdEnv : Environment}
-    {Htrace : StateForMTrace (RestoredConstructorStep result loweredEnv)
-      names sourceProdEnv targetProdEnv}
-    {sourceVEnv targetVEnv : VEnv} {constructors : List VConstVal}
-    (H : RestoredConstructorInstallationTrace safety Htrace sourceVEnv
-      constructors targetVEnv)
-    (hsourceWF : sourceProdEnv.constants.WF) :
-    ∃ entries,
-      ∃ Hfresh : FreshConstantTrace sourceProdEnv entries targetProdEnv,
-        TranslatedFreshConstantTrace safety Hfresh sourceVEnv constructors
-          targetVEnv := by
-  induction H with
-  | nil => exact ⟨[], .nil, .nil _ _⟩
-  | @cons ctorName sourceProdEnv middleProdEnv names targetProdEnv
-      sourceVEnv middleVEnv constructors targetVEnv Hstep Htail Hsemantic
-      Hrest ih =>
-    let ci : ConstantInfo := .ctorInfo Hstep.restored.newInfo
-    have hfresh : sourceProdEnv.find? ci.name = none :=
-      find?_none_of_contains_false hsourceWF Hstep.restored.fresh
-    have hmiddle : middleProdEnv = sourceProdEnv.add ci :=
-      congrArg Prod.snd Hstep.restored.output
-    have hmiddleWF : middleProdEnv.constants.WF :=
-      hmiddle.symm ▸ constantsWF_add_checked hsourceWF hfresh
-    rcases ih hmiddleWF with
-      ⟨entries, Hfresh, Htranslated⟩
-    have HtranslatedTail :
-        ∃ Hfresh' : FreshConstantTrace (sourceProdEnv.add ci) entries
-            targetProdEnv,
-          TranslatedFreshConstantTrace safety Hfresh' middleVEnv constructors
-            targetVEnv := by
-      exact hmiddle ▸ ⟨Hfresh, Htranslated⟩
-    rcases HtranslatedTail with ⟨Hfresh', Htranslated'⟩
-    exact ⟨ci :: entries, .cons hfresh Hfresh',
-      .cons hfresh Hfresh' Hsemantic.translated Hsemantic.wf
-        Hsemantic.installed Htranslated'⟩
-
-theorem RestoredConstructorInstallationTrace.checking
-    {names : List Name} {sourceProdEnv targetProdEnv : Environment}
-    {Htrace : StateForMTrace (RestoredConstructorStep result loweredEnv)
-      names sourceProdEnv targetProdEnv}
-    {sourceVEnv targetVEnv : VEnv} {constructors : List VConstVal}
-    (H : RestoredConstructorInstallationTrace safety Htrace sourceVEnv
-      constructors targetVEnv)
-    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv) :
-    CheckingEnv safety targetProdEnv targetVEnv := by
-  induction H with
-  | nil => exact Hvalid
-  | cons Hstep Htail Hsemantic Hrest ih =>
-    exact ih (Hsemantic.checking Hvalid)
-
-/-- One source constructor paired with the exact operational restoration
-step that installs it.  Source translation is stated in the canonical
-post-header environment, not the production interleaved environment. -/
-structure RestoredSourceConstructorSemantics
-    (lparams : List Name) (safety : DefinitionSafety) (canonicalEnv : VEnv)
-    (Hstep : RestoredConstructorStep result loweredEnv ctorName
-      sourceProdEnv targetProdEnv)
-    (source : Constructor) where
-  constructor : VConstVal
-  sourceTranslation : TrSourceConst canonicalEnv lparams source.name
-    source.type constructor
-  restoredTranslation : TrConstVal safety canonicalEnv
-    (.ctorInfo Hstep.restored.newInfo) constructor
-
-/-- Positional source-constructor semantics for the exact constructor
-restoration fold of one family. -/
-inductive RestoredSourceConstructorTrace
-    (lparams : List Name) (safety : DefinitionSafety) (canonicalEnv : VEnv) :
-    List Name → Environment → Environment →
-      List Constructor → List VConstVal → Prop
-  | nil (sourceProdEnv : Environment) :
-      RestoredSourceConstructorTrace lparams safety canonicalEnv
-        [] sourceProdEnv sourceProdEnv [] []
-  | cons
-      (Hstep : RestoredConstructorStep result loweredEnv ctorName
-        sourceProdEnv middleProdEnv)
-      (Hsemantic : RestoredSourceConstructorSemantics lparams safety
-        canonicalEnv Hstep source)
-      (Hrest : RestoredSourceConstructorTrace lparams safety canonicalEnv
-        names middleProdEnv targetProdEnv sources constructors) :
-      RestoredSourceConstructorTrace lparams safety canonicalEnv
-        (ctorName :: names) sourceProdEnv targetProdEnv (source :: sources)
-        (Hsemantic.constructor :: constructors)
-
-theorem RestoredSourceConstructorTrace.forall₂
-    (H : RestoredSourceConstructorTrace lparams safety canonicalEnv names
-      sourceProdEnv targetProdEnv sources constructors) :
-    List.Forall₂ (fun source constructor =>
-      TrSourceConst canonicalEnv lparams source.name source.type constructor)
-      sources constructors := by
-  induction H with
-  | nil => exact .nil
-  | cons Hstep Hsemantic Hrest ih =>
-    exact .cons Hsemantic.sourceTranslation ih
-
 /-- Source-family semantics indexed by the production restoration trace but
 staged in the canonical abstract environments required by mutual typing. -/
 inductive RestoredSourceInductiveSemanticTrace
@@ -837,7 +622,7 @@ inductive RestoredSourceInductiveSemanticTrace
         types middleProdEnv targetProdEnv)
       (Hheader : TrSourceConst sourceVEnv lparams indType.name indType.type
         owner.toVConstVal)
-      (Hconstructors : RestoredSourceConstructorTrace lparams safety envTypes
+      (Hconstructors : RestoredSourceConstructorTrace result loweredEnv lparams safety envTypes
         Hstep.oldInfo.ctors Hstep.restored.headerEnv
           Hstep.restored.constructorEnv indType.ctors owner.ctors)
       (Hrecursor : RestoredPrimaryRecursorSemantics decl owner safety
@@ -859,7 +644,7 @@ structure RestoredSourceInductiveSemantics
   owner : VInductiveType
   header : TrSourceConst sourceVEnv lparams indType.name indType.type
     owner.toVConstVal
-  constructors : RestoredSourceConstructorTrace lparams safety envTypes
+  constructors : RestoredSourceConstructorTrace result loweredEnv lparams safety envTypes
     Hstep.oldInfo.ctors Hstep.restored.headerEnv
       Hstep.restored.constructorEnv indType.ctors owner.ctors
   recursor : RestoredPrimaryRecursorSemantics decl owner safety
@@ -905,6 +690,42 @@ theorem RestoredSourceInductiveSemanticTrace.types
   | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
     exact .cons ⟨Hheader, Hconstructors.forall₂⟩ ih
 
+/-- Header well-formedness is already pointwise data in the exact restored
+source trace; no separate final-assembly premise is needed. -/
+theorem RestoredSourceInductiveSemanticTrace.typeConstantsWF
+    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+      envTypes envCtors Htrace owners recursors)
+    (htypes : decl.types = owners) :
+    ∀ ci ∈ decl.typeConstants, ci.toVConstant.WF sourceVEnv := by
+  intro ci hci
+  simp only [VInductDecl.typeConstants] at hci
+  rcases List.mem_map.mp hci with ⟨owner, howner, rfl⟩
+  have howner' : owner ∈ owners := by
+    rw [← htypes]
+    exact howner
+  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types owner howner' with
+    ⟨_source, _hsource, Howner⟩
+  exact Howner.header.wf
+
+/-- Constructor well-formedness is likewise fixed by the canonical
+post-header interpretation of the restoration trace. -/
+theorem RestoredSourceInductiveSemanticTrace.constructorConstantsWF
+    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+      envTypes envCtors Htrace owners recursors)
+    (htypes : decl.types = owners) :
+    ∀ ci ∈ decl.constructorConstants, ci.toVConstant.WF envTypes := by
+  intro ci hci
+  simp only [VInductDecl.constructorConstants] at hci
+  rcases List.mem_flatMap.mp hci with ⟨owner, howner, hctor⟩
+  have howner' : owner ∈ owners := by
+    rw [← htypes]
+    exact howner
+  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types owner howner' with
+    ⟨_source, _hsource, Howner⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r Howner.ctors ci hctor with
+    ⟨_sourceCtor, _hsourceCtor, Hctor⟩
+  exact Hctor.wf
+
 theorem RestoredSourceInductiveSemanticTrace.primaryRecursors
     (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors) :
@@ -914,6 +735,21 @@ theorem RestoredSourceInductiveSemanticTrace.primaryRecursors
   | nil => exact .nil _
   | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
     exact .cons Hstep Htail Hrecursor ih
+
+/-- Primary restored recursors are typed in the canonical environment that
+already contains every mutual constructor. -/
+theorem RestoredSourceInductiveSemanticTrace.primaryRecursorsWF
+    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+      envTypes envCtors Htrace owners recursors) :
+    ∀ ci ∈ recursors, ci.toVConstant.WF envCtors := by
+  induction H with
+  | nil => simp
+  | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
+    intro ci hci
+    simp only [List.mem_cons] at hci
+    rcases hci with rfl | hrest
+    · exact Hrecursor.wf
+    · exact ih ci hrest
 
 /-- Reconstruct the independent source declaration translation from the
 canonical-stage semantic trace.  The executable restoration trace fixes all
@@ -1649,7 +1485,7 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilation
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryRecursors : NestedRecursorCertificate decl primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate envCtors decl
+    (HprimaryRules : NestedIotaBuildCertificate decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
@@ -1703,7 +1539,7 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfSemanticTra
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryRecursors : RestoredPrimaryRecursorSemanticTrace decl safety
       canonicalCtorEnv H.inductives (main :: rest) primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate envCtors decl
+    (HprimaryRules : NestedIotaBuildCertificate decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
@@ -1759,7 +1595,7 @@ theorem RestoredNestedDeclarationsResult.sourceCoreAndNestedCompilation
     (htypesAdded : sourceVEnv.addConstVals decl.typeConstants = some envTypes)
     (hctorsAdded : envTypes.addConstVals decl.constructorConstants =
       some envCtors)
-    (HprimaryRules : IotaBuildCertificate envCtors decl
+    (HprimaryRules : NestedIotaBuildCertificate decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
@@ -1812,7 +1648,7 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfInstallatio
     (HprimaryRecursors : RestoredPrimaryRecursorCertificate decl result
       loweredEnv auxRec allIndNames safety H.inductives Hprimary
       primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate envCtors decl
+    (HprimaryRules : NestedIotaBuildCertificate decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
@@ -1855,7 +1691,7 @@ theorem RestoredNestedDeclarationsResult.canonicalNestedCompilationOfShapes
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryShapes : RestoredPrimaryRecursorShapes decl result loweredEnv
       auxRec allIndNames safety Hprimary (main :: rest) primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate envCtors decl
+    (HprimaryRules : NestedIotaBuildCertificate decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
@@ -1908,7 +1744,7 @@ theorem RestoredNestedDeclarationsResult.nestedCompilationCertificate
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors : List VConstVal) (primaryRules : List VDefEq)
     (HprimaryRecursors : NestedRecursorCertificate decl primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate envCtors decl block primaryRules)
+    (HprimaryRules : NestedIotaBuildCertificate decl block primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
@@ -1939,466 +1775,6 @@ theorem RestoredNestedDeclarationsResult.nestedCompilationCertificate
     htypesSource primaryRecursors auxiliaryRecursors primaryRules
     auxiliaryRules HprimaryRecursors HprimaryRules hprimaryLength Haux htypes
     hctors htypesAdded hctorsAdded hrecursors hrules hnames⟩
-
-/-- Syntactic facts that must hold before an expression can be treated as a
-nested occurrence. The environment lookup and parameter scan are certified
-separately, at the point where their reader/state effects are exposed. -/
-structure NestedAppShape (e : Expr) : Prop where
-  isApp : e.isApp = true
-  constHead : ∃ fn levels, e.getAppFn = .const fn levels
-
-theorem isNestedInductiveApp_shape
-    (e : Expr) (env : Environment)
-    (state : Lean4Lean.ElimNestedInductive.State) :
-    (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
-      fun out => out.1.isSome → NestedAppShape e := by
-  intro out hout hsome
-  unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
-  by_cases happ : e.isApp = false
-  · simp only [happ, Bool.not_false, if_true] at hout
-    change Except.ok (none, state) = .ok out at hout
-    cases hout
-    simp at hsome
-  · have happTrue : e.isApp = true := by
-      cases h : e.isApp <;> simp_all
-    cases hhead : e.getAppFn with
-    | const fn levels =>
-      exact ⟨happTrue, ⟨fn, levels, hhead⟩⟩
-    | _ =>
-      simp [happTrue, hhead, ReaderT.pure, StateT.pure] at hout
-      cases hout
-      simp at hsome
-
-/-- Independent specification of the occurrence test used while scanning
-parameters of a previously declared inductive application. -/
-def MentionsNestedNewType
-    (newTypes : Array InductiveType) (e : Expr) : Prop :=
-  (e.find? fun
-    | .const name _ => newTypes.any fun type => name == type.name
-    | _ => false).isSome
-
-theorem mentionsNestedNewType_iff
-    (newTypes : Array InductiveType) (e : Expr) :
-    Lean4Lean.ElimNestedInductive.mentionsNestedNewType newTypes e = true ↔
-      MentionsNestedNewType newTypes e := by
-  rfl
-
-theorem nestedParamFlags_fst
-    (newTypes : Array InductiveType) (args : Array Expr) (n : Nat) :
-    (Lean4Lean.ElimNestedInductive.nestedParamFlags newTypes args n).1 = true ↔
-      ∃ i, i < n ∧ MentionsNestedNewType newTypes args[i]! := by
-  induction n with
-  | zero => simp [Lean4Lean.ElimNestedInductive.nestedParamFlags]
-  | succ n ih =>
-    rw [Lean4Lean.ElimNestedInductive.nestedParamFlags]
-    simp only [Bool.or_eq_true, ih, mentionsNestedNewType_iff]
-    constructor
-    · rintro (⟨i, hi, hmentions⟩ | hmentions)
-      · exact ⟨i, by omega, hmentions⟩
-      · exact ⟨n, by omega, hmentions⟩
-    · rintro ⟨i, hi, hmentions⟩
-      by_cases h : i = n
-      · subst i; exact Or.inr hmentions
-      · exact Or.inl ⟨i, by omega, hmentions⟩
-
-theorem nestedParamFlags_snd_false
-    (newTypes : Array InductiveType) (args : Array Expr) (n : Nat) :
-    (Lean4Lean.ElimNestedInductive.nestedParamFlags newTypes args n).2 = false ↔
-      ∀ i, i < n → args[i]!.hasLooseBVars = false := by
-  induction n with
-  | zero => simp [Lean4Lean.ElimNestedInductive.nestedParamFlags]
-  | succ n ih =>
-    rw [Lean4Lean.ElimNestedInductive.nestedParamFlags]
-    simp only [Bool.or_eq_false_iff, ih]
-    constructor
-    · rintro ⟨hprev, hn⟩ i hi
-      by_cases h : i = n
-      · simpa [h] using hn
-      · exact hprev i (by omega)
-    · intro hall
-      exact ⟨fun i hi => hall i (by omega), hall n (by omega)⟩
-
-/-- Abstract contract for the parameter scan in
-`isNestedInductiveApp?`: the application has enough arguments, at least one
-parameter mentions a family currently being lowered, and every scanned
-parameter is closed with respect to bound variables. -/
-structure NestedParameterScan
-    (newTypes : Array InductiveType) (args : Array Expr) (n : Nat) : Prop where
-  arity : n ≤ args.size
-  nested : ∃ i, i < n ∧ MentionsNestedNewType newTypes args[i]!
-  closed : ∀ i, i < n → args[i]!.hasLooseBVars = false
-
-theorem NestedParameterScan.noLoose
-    (H : NestedParameterScan newTypes args n) (hi : i < n) :
-    args[i]!.hasLooseBVars = false :=
-  H.closed i hi
-
-theorem NestedParameterScan.hasOccurrence
-    (H : NestedParameterScan newTypes args n) :
-    ∃ i, i < args.size ∧ MentionsNestedNewType newTypes args[i]! := by
-  rcases H.nested with ⟨i, hi, hmentions⟩
-  exact ⟨i, Nat.lt_of_lt_of_le hi H.arity, hmentions⟩
-
-/-- Full abstract acceptance contract for nested-application recognition.
-This is deliberately stated without reference to the executable loop, so its
-eventual refinement theorem cannot silently inherit an implementation bug. -/
-structure NestedAppCandidate (env : Environment)
-    (state : Lean4Lean.ElimNestedInductive.State)
-    (e : Expr) (info : InductiveVal) : Prop where
-  shape : NestedAppShape e
-  headFound : ∃ fn levels, e.getAppFn = .const fn levels ∧
-    env.find? fn = some (.inductInfo info)
-  parameters : NestedParameterScan state.newTypes e.getAppArgs info.numParams
-
-/-- Recognition is maximal over an application spine: adding trailing
-arguments preserves a nested-family candidate because only its leading
-parameter prefix is inspected. -/
-theorem NestedAppCandidate.app
-    (H : NestedAppCandidate env state fn info) (arg : Expr) :
-    NestedAppCandidate env state (.app fn arg) info := by
-  have hargs : (Expr.app fn arg).getAppArgs = fn.getAppArgs.push arg := by
-    rw [Expr.getAppArgs_eq, Expr.getAppArgs_eq, Expr.getAppArgsList_app]
-    simp
-  refine {
-    shape := ⟨rfl, ?_⟩
-    headFound := ?_
-    parameters := ?_ }
-  · rcases H.shape.constHead with ⟨name, levels, hhead⟩
-    exact ⟨name, levels, by simpa [Expr.getAppFn] using hhead⟩
-  · rcases H.headFound with ⟨name, levels, hhead, hfound⟩
-    exact ⟨name, levels, by simpa [Expr.getAppFn] using hhead, hfound⟩
-  · refine {
-      arity := by
-        rw [hargs]
-        exact Nat.le_trans H.parameters.arity (by simp)
-      nested := ?_
-      closed := ?_ }
-    · rcases H.parameters.nested with ⟨i, hi, hmentions⟩
-      refine ⟨i, hi, ?_⟩
-      have hiOld : i < fn.getAppArgs.size :=
-        Nat.lt_of_lt_of_le hi H.parameters.arity
-      have hiPush : i < (fn.getAppArgs.push arg).size := by simp; omega
-      have hbang : (fn.getAppArgs.push arg)[i]! = fn.getAppArgs[i]! := by
-        simp only [Array.getElem!_eq_getD]
-        unfold Array.getD
-        rw [dif_pos hiPush, dif_pos hiOld]
-        exact Array.getElem_push_lt hiOld
-      rw [hargs, hbang]
-      exact hmentions
-    · intro i hi
-      have hiOld : i < fn.getAppArgs.size :=
-        Nat.lt_of_lt_of_le hi H.parameters.arity
-      have hiPush : i < (fn.getAppArgs.push arg).size := by simp; omega
-      have hbang : (fn.getAppArgs.push arg)[i]! = fn.getAppArgs[i]! := by
-        simp only [Array.getElem!_eq_getD]
-        unfold Array.getD
-        rw [dif_pos hiPush, dif_pos hiOld]
-        exact Array.getElem_push_lt hiOld
-      rw [hargs, hbang]
-      exact H.parameters.closed i hi
-
-theorem isNestedInductiveApp_candidate
-    (e : Expr) (env : Environment)
-    (state : Lean4Lean.ElimNestedInductive.State) :
-    (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
-      fun out => ∀ info, out.1 = some info →
-        NestedAppCandidate env state e info := by
-  intro out hout info hinfo
-  unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
-  by_cases happ : e.isApp = false
-  · simp [happ] at hout
-    cases hout
-    simp at hinfo
-  · have happTrue : e.isApp = true := by
-      cases h : e.isApp <;> simp_all
-    cases hhead : e.getAppFn with
-    | const fn levels =>
-      simp [happTrue, hhead,
-        Lean4Lean.ElimNestedInductive.isNestedInductiveAppConst?] at hout
-      cases hfound : env.find? fn with
-      | none =>
-        simp [hfound] at hout
-        change Except.ok (none, state) = .ok out at hout
-        cases hout
-        simp at hinfo
-      | some found =>
-        cases found with
-        | inductInfo ci =>
-          simp only [hfound] at hout
-          by_cases harity : e.getAppArgs.size < ci.numParams
-          · simp [harity] at hout
-            cases hout
-            simp at hinfo
-          · simp only [harity, ↓reduceIte] at hout
-            let flags := Lean4Lean.ElimNestedInductive.nestedParamFlags
-              state.newTypes e.getAppArgs ci.numParams
-            by_cases hnested : flags.1 = false
-            · simp [flags, hnested] at hout
-              cases hout
-              simp at hinfo
-            · have hnestedTrue : flags.1 = true := by
-                cases h : flags.1 <;> simp_all
-              by_cases hloose : flags.2 = true
-              · simp [flags, hnestedTrue, hloose] at hout
-                cases hout
-              · have hlooseFalse : flags.2 = false := by
-                  cases h : flags.2 <;> simp_all
-                simp [flags, hnestedTrue, hlooseFalse] at hout
-                cases hout
-                simp only [Option.some.injEq] at hinfo
-                subst info
-                refine {
-                  shape := ⟨happTrue, ⟨fn, levels, hhead⟩⟩
-                  headFound := ⟨fn, levels, hhead, hfound⟩
-                  parameters := ?_ }
-                refine {
-                  arity := by omega
-                  nested := (nestedParamFlags_fst
-                    state.newTypes e.getAppArgs ci.numParams).mp hnestedTrue
-                  closed := (nestedParamFlags_snd_false
-                    state.newTypes e.getAppArgs ci.numParams).mp hlooseFalse }
-        | _ =>
-          simp [hfound] at hout
-          change Except.ok (none, state) = .ok out at hout
-          cases hout
-          simp at hinfo
-    | _ =>
-      simp [happTrue, hhead] at hout
-      cases hout
-      simp at hinfo
-
-/-- Completeness of the independent recognition contract: every abstract
-candidate is returned by the executable recognizer. -/
-theorem NestedAppCandidate.recognized
-    (H : NestedAppCandidate env state e info) :
-    (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
-      fun out => out.1 = some info := by
-  intro out hout
-  rcases H.headFound with ⟨fn, levels, hhead, hfound⟩
-  have hnested :
-      (Lean4Lean.ElimNestedInductive.nestedParamFlags state.newTypes
-        e.getAppArgs info.numParams).1 = true :=
-    (nestedParamFlags_fst state.newTypes e.getAppArgs info.numParams).mpr
-      H.parameters.nested
-  have hloose :
-      (Lean4Lean.ElimNestedInductive.nestedParamFlags state.newTypes
-        e.getAppArgs info.numParams).2 = false :=
-    (nestedParamFlags_snd_false state.newTypes e.getAppArgs
-      info.numParams).mpr H.parameters.closed
-  have harity : ¬ e.getAppArgs.size < info.numParams :=
-    Nat.not_lt_of_ge H.parameters.arity
-  unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
-  simp only [H.shape.isApp, Bool.not_true, Bool.false_eq_true, ↓reduceIte,
-    hhead, Lean4Lean.ElimNestedInductive.isNestedInductiveAppConst?] at hout
-  simp [hfound, harity, hnested, hloose] at hout
-  cases hout
-  rfl
-
-def NoNestedAppCandidate (env : Environment)
-    (state : Lean4Lean.ElimNestedInductive.State) (e : Expr) : Prop :=
-  ∀ info, ¬ NestedAppCandidate env state e info
-
-theorem isNestedInductiveApp_preservesState
-    (e : Expr) (env : Environment)
-    (state : Lean4Lean.ElimNestedInductive.State) :
-    (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
-      fun out => out.2 = state := by
-  intro out hout
-  unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
-  by_cases happ : e.isApp = false
-  · simp [happ] at hout
-    cases hout
-    rfl
-  · have happTrue : e.isApp = true := by
-      cases h : e.isApp <;> simp_all
-    cases hhead : e.getAppFn with
-    | const fn levels =>
-      simp [happTrue, hhead,
-        Lean4Lean.ElimNestedInductive.isNestedInductiveAppConst?] at hout
-      cases hfound : env.find? fn with
-      | none =>
-        simp [hfound] at hout
-        cases hout
-        rfl
-      | some found =>
-        cases found with
-        | inductInfo ci =>
-          simp only [hfound] at hout
-          by_cases harity : e.getAppArgs.size < ci.numParams
-          · simp [harity] at hout
-            cases hout
-            rfl
-          · simp only [harity, ↓reduceIte] at hout
-            let flags := Lean4Lean.ElimNestedInductive.nestedParamFlags
-              state.newTypes e.getAppArgs ci.numParams
-            by_cases hnested : flags.1 = false
-            · simp [flags, hnested] at hout
-              cases hout
-              rfl
-            · have hnestedTrue : flags.1 = true := by
-                cases h : flags.1 <;> simp_all
-              by_cases hloose : flags.2 = true
-              · simp [flags, hnestedTrue, hloose] at hout
-                cases hout
-              · have hlooseFalse : flags.2 = false := by
-                  cases h : flags.2 <;> simp_all
-                simp [flags, hnestedTrue, hlooseFalse] at hout
-                cases hout
-                rfl
-        | _ =>
-          simp [hfound] at hout
-          cases hout
-          rfl
-    | _ =>
-      simp [happTrue, hhead] at hout
-      cases hout
-      rfl
-
-/-- Reader/state bind specialized to nested lowering. -/
-theorem nestedBind.WF
-    {α β : Type} {P : α × Lean4Lean.ElimNestedInductive.State → Prop}
-    {Q : β × Lean4Lean.ElimNestedInductive.State → Prop}
-    {x : Lean4Lean.ElimNestedInductive.M α}
-    {f : α → Lean4Lean.ElimNestedInductive.M β}
-    (Hx : (x env state).WF P)
-    (Hf : ∀ a nextState, P (a, nextState) →
-      (f a env nextState).WF Q) :
-    ((x >>= f) env state).WF Q := by
-  exact Hx.bind fun result hresult => Hf result.1 result.2 hresult
-
-/-- A reviewable trace of the mutual-family generation loop.  Each list member
-has one certified fresh-generation step, and the accumulator passed to the
-tail is exactly the executable `Option.or` update. -/
-inductive GeneratedAuxiliaryBatch
-    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
-    (targetName : Name) (levels : List Level) (nparams : Nat)
-    (args : Array Expr) : Option Expr → List Name →
-      Lean4Lean.ElimNestedInductive.State →
-      Option Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | nil (hresult : result.isSome = true) :
-      GeneratedAuxiliaryBatch env lctx params As targetName levels nparams args
-        result [] state (result, state)
-  | cons :
-      GeneratedAuxiliary env lctx params As targetName levels nparams args
-        sourceName sourceInfo state step →
-      GeneratedAuxiliaryBatch env lctx params As targetName levels nparams args
-        (step.1.or result) sourceNames step.2 out →
-      GeneratedAuxiliaryBatch env lctx params As targetName levels nparams args
-        result (sourceName :: sourceNames) state out
-
-theorem GeneratedAuxiliaryBatch.resultSome
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
-      args result sourceNames state out) : out.1.isSome = true := by
-  induction H with
-  | nil hresult => exact hresult
-  | cons _ _ ih => exact ih
-
-theorem GeneratedAuxiliaryBatch.appendSizes
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
-      args result sourceNames state out) :
-    out.2.nestedAux.size = state.nestedAux.size + sourceNames.length ∧
-    out.2.newTypes.size = state.newTypes.size + sourceNames.length := by
-  induction H with
-  | nil => simp
-  | cons Hstep Htail ih =>
-    rcases Hstep.generated with
-      ⟨auxName, nextIdx, data, Hfresh, Hdata, hresult, hstate⟩
-    constructor
-    · rw [ih.1, hstate]
-      simp only [Array.size_push, List.length_cons]
-      omega
-    · rw [ih.2, hstate]
-      simp only [Array.size_push, List.length_cons]
-      omega
-
-theorem GeneratedAuxiliaryBatch.auxFVarsIn
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
-      args result sourceNames state out)
-    (HAs : LocalForallSelection lctx As)
-    (hnparams : nparams ≤ args.size)
-    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
-    (Hargs : ∀ arg ∈ args,
-      arg.FVarsIn (fun fv => fv ∈ HAs.fvars ∨ P fv))
-    (Hparams : ∀ param ∈ params, param.FVarsIn P)
-    (Hstate : NestedAuxFVarsIn P state) :
-    NestedAuxFVarsIn P out.2 := by
-  induction H with
-  | nil => exact Hstate
-  | cons Hstep Htail ih =>
-    exact ih (Hstep.auxFVarsIn HAs hnparams Hlevels Hargs Hparams Hstate)
-
-theorem GeneratedAuxiliaryBatch.pendingNewTypesClosed
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
-      args result sourceNames state out)
-    (Henv : EnvironmentTypesClosed env)
-    (Hclosing : NestedClosingContext lctx As ngen)
-    (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
-    (Hargs : ∀ arg ∈ args,
-      arg.FVarsIn (· ∈ Hclosing.selection.fvars))
-    (Hstate : PendingNewTypesClosed cursor state) :
-    PendingNewTypesClosed cursor out.2 := by
-  induction H with
-  | nil => exact Hstate
-  | cons Hstep Htail ih =>
-    exact ih (Hstep.pendingNewTypesClosed Henv Hclosing Hlevels Hargs Hstate)
-
-private theorem generateAuxiliariesLoop_refines
-    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
-    (targetName : Name) (levels : List Level) (nparams : Nat)
-    (args : Array Expr) (hsize : As.size = params.size)
-    (sourceNames : List Name) (infos : InductiveMemberInfos env sourceNames)
-    (result : Option Expr) (state : Lean4Lean.ElimNestedInductive.State)
-    (hready : result.isSome = true ∨ targetName ∈ sourceNames) :
-    (Lean4Lean.ElimNestedInductive.generateAuxiliaries.loop lctx params As
-      targetName levels nparams args result sourceNames env state).WF fun out =>
-        GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
-          args result sourceNames state out := by
-  induction infos generalizing result state with
-  | nil =>
-    rcases hready with hsome | hmem
-    · simp only [Lean4Lean.ElimNestedInductive.generateAuxiliaries.loop,
-        hsome, ↓reduceIte, pure, ReaderT.pure, StateT.pure]
-      exact Except.WF.pure (.nil hsome)
-    · simp at hmem
-  | @cons sourceName sourceInfo sourceNames hlookup infos ih =>
-    rw [Lean4Lean.ElimNestedInductive.generateAuxiliaries.loop]
-    refine nestedBind.WF
-      (generateAuxiliary_refines env lctx params As targetName levels nparams
-        args sourceName sourceInfo state hlookup hsize) ?_
-    intro found nextState Hstep
-    have hnext : (found.or result).isSome = true ∨
-        targetName ∈ sourceNames := by
-      rcases hready with hsome | hmem
-      · left
-        cases found <;> cases result <;> simp_all
-      · simp only [List.mem_cons] at hmem
-        rcases hmem with heq | htail
-        · subst sourceName
-          left
-          rcases Hstep.generated with
-            ⟨auxName, nextIdx, data, Hfresh, Hdata, hfound, hstate⟩
-          simp only [beq_self_eq_true, if_true] at hfound
-          rw [hfound]
-          simp
-        · exact Or.inr htail
-    exact (ih (result := found.or result) (state := nextState) hnext).mono
-      fun _ Htail => .cons Hstep Htail
-
-theorem generateAuxiliaries_refines
-    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
-    (targetName : Name) (levels : List Level) (nparams : Nat)
-    (args : Array Expr) (value : InductiveVal)
-    (state : Lean4Lean.ElimNestedInductive.State)
-    (hsize : As.size = params.size)
-    (infos : InductiveMemberInfos env value.all)
-    (htarget : targetName ∈ value.all) :
-    (Lean4Lean.ElimNestedInductive.generateAuxiliaries lctx params As targetName
-      levels nparams args value env state).WF fun out =>
-        GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
-          args none value.all state out := by
-  unfold Lean4Lean.ElimNestedInductive.generateAuxiliaries
-  exact generateAuxiliariesLoop_refines env lctx params As targetName levels
-    nparams args hsize value.all infos none state (Or.inr htarget)
 
 theorem addConstant_find_self
     (env : Environment) (info : ConstantInfo)
@@ -2501,17 +1877,6 @@ theorem AddConstants.entryNames
     simp only [List.mem_cons] at hentry
     rcases hentry with rfl | htail
     · exact htr.2
-    · exact ih htail
-
-theorem AddConstants.entrySafety
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hentry : entry ∈ entries) : safety ≤ entry.1.safety := by
-  induction H with
-  | nil => simp at hentry
-  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
-    simp only [List.mem_cons] at hentry
-    rcases hentry with rfl | htail
-    · exact htr.1.1
     · exact ih htail
 
 /-- A successful lockstep installation makes every constructor recognized as
@@ -2773,7 +2138,8 @@ shape of every installed production entry. -/
 theorem declareRecursorsAndClosure
     (k : Bool)
     (Hrecursors :
-      (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF
+      (AddInductive.declareRecursors stats indTypes elimLevel recInfos k
+        c.lparams c).WF
         fun outEnv =>
           ∃ outVEnv : VEnv,
           ∃ entries : List (ConstantInfo × VConstVal),
@@ -2782,7 +2148,8 @@ theorem declareRecursorsAndClosure
             AddConstants c.safety c.env venv entries outEnv outVEnv)
     (hwf : c.env.constants.WF)
     (hclosed : MutualInductivesClosed c.env) :
-    (AddInductive.declareRecursors stats indTypes elimLevel recInfos k c).WF
+    (AddInductive.declareRecursors stats indTypes elimLevel recInfos k
+      c.lparams c).WF
       fun outEnv =>
         ∃ outVEnv : VEnv,
         ∃ entries : List (ConstantInfo × VConstVal),
@@ -3011,7 +2378,6 @@ theorem AddInductive.formationCore.closedWF
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
@@ -3043,7 +2409,8 @@ theorem AddInductive.formationCore.closedWF
   apply formationCoreAndClosure stats numParams indTypes numNested isUnsafe c
     HheadersClosed
   intro headerEnv Hheader
-  exact AddInductive.constructorPhases.WF Hheader hconsume hlit hproj
+  exact AddInductive.constructorPhases.WF Hheader hconsume
+    Hheader.materializedAvailableLiteralDisjoint hproj
     hunsafe hvisible hnprimCtors
 
 

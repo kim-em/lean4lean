@@ -1,4 +1,6 @@
-import Lean4Lean.Verify.Inductive.Nested.LoweringTrace
+import Lean4Lean.Verify.Inductive.Nested.LoweringInstallation
+import Lean4Lean.Verify.Inductive.Recursor.FirstPass
+import Lean4Lean.Verify.Inductive.Specification.Formation
 
 namespace Lean4Lean
 
@@ -81,6 +83,49 @@ theorem NestedLoweringResultClosed.toResult
   rcases H with ⟨finalState, Hrun, _Hcache, _Hparams⟩
   exact ⟨finalState, Hrun⟩
 
+/-- Provenance for an arbitrary member of the expanded lowering result.  The
+existential final state is retained so generated-family cache evidence can be
+fed directly to the final restoration map. -/
+theorem NestedLoweringResult.finalFamilyOriginAt
+    (H : NestedLoweringResult env fuel nparams types initialState result)
+    (Henv : EnvironmentTypesClosed env)
+    (Hsources : SourceSyntaxChecks types)
+    (hinitial : initialState.newTypes = types.toArray)
+    (hj : j < result.types.length) :
+    ∃ finalState,
+      NestedLoweringRun env fuel nparams types initialState
+        (result, finalState) ∧
+      Nonempty (FinalLoweredFamilyOrigin env result.params nparams
+        initialState.newTypes finalState result.types[j]) := by
+  rcases H with ⟨finalState, Hrun⟩
+  exact ⟨finalState, Hrun,
+    Hrun.finalFamilyOriginAt Henv Hsources hinitial hj⟩
+
+theorem NestedLoweringResultClosed.finalFamilyOriginAt
+    (H : NestedLoweringResultClosed env fuel nparams types initialState result)
+    (Henv : EnvironmentTypesClosed env)
+    (Hsources : SourceSyntaxChecks types)
+    (hinitial : initialState.newTypes = types.toArray)
+    (hj : j < result.types.length) :
+    ∃ finalState,
+      NestedLoweringRun env fuel nparams types initialState
+        (result, finalState) ∧
+      Nonempty (FinalLoweredFamilyOrigin env result.params nparams
+        initialState.newTypes finalState result.types[j]) :=
+  H.toResult.finalFamilyOriginAt Henv Hsources hinitial hj
+
+/-- A generated-family provenance witness selects exactly the independently
+validated auxiliary translation associated with its surviving cache entry. -/
+theorem GeneratedFamilyWitness.closedAuxiliaryTranslation
+    (H : GeneratedFamilyWitness sourceEnv params finalState.nestedAux family)
+    (Hmap : NestedAuxMapModels result finalState)
+    {selection : LocalForallSelection result.lctx result.params}
+    (Htranslations : ClosedNestedAuxiliaryTranslations venv lparams result
+      selection) :
+    Nonempty (ClosedNestedAuxiliaryTranslation venv lparams result selection
+      H.data.nested) :=
+  Htranslations H.auxName H.data.nested (Hmap _ _ H.cached)
+
 theorem NestedLoweringResultClosed.resultParamsNodup
     (H : NestedLoweringResultClosed env fuel nparams types initialState result) :
     NestedResultParamsNodup result := by
@@ -103,14 +148,117 @@ theorem NestedLoweringResultClosed.selectionNodup
   rw [heq]
   exact hnodup
 
+/-- Reinterpret a validated auxiliary witness in the universe context used
+by generated recursors.  Small elimination leaves the certificate unchanged;
+large elimination prepends the fresh universe parameter and structurally
+re-inverts the same closed concrete telescope after shifting its abstract
+target.  Re-inversion is deliberate: it avoids assuming that a particular
+choice of validation domains is preserved definitionally by universe
+substitution. -/
+theorem ClosedNestedAuxiliaryTranslation.toRecursorContext
+    {c : AddInductive.Context}
+    (H : ClosedNestedAuxiliaryTranslation venv c.lparams res selection e)
+    (henv : venv.WF)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    Nonempty (ClosedNestedAuxiliaryTranslation venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      res selection e) := by
+  cases elimLevel with
+  | zero => exact ⟨by simpa [AddInductive.getRecLevelParams] using H⟩
+  | param fresh =>
+    let shift := VLevel.prependShift c.lparams.length
+    have hshift : ∀ level ∈ shift,
+        level.WF (fresh :: c.lparams).length := by
+      simpa [shift] using
+        VLevel.prependShift_wf (n := c.lparams.length)
+    have Hclosed : TrExprS venv (fresh :: c.lparams) []
+        (res.lctx.mkForall res.params e) (H.closedTarget.instL shift) := by
+      simpa [VLCtx.instL, shift] using H.closed.prependLevelParam
+        henv (by trivial) Helim
+    have HclosedType : venv.IsType (fresh :: c.lparams).length []
+        (H.closedTarget.instL shift) := H.closedType.instL hshift
+    have Htel := selection.forallTelescope e
+    rcases TrExprS.forallTelescope_typed_shape_with_context henv Htel Hclosed
+        HclosedType with
+      ⟨domains, residualTarget, harity, htarget, Hresidual,
+        HresidualType⟩
+    exact ⟨⟨H.closedTarget.instL shift, domains, residualTarget, harity,
+      Hclosed, HclosedType, htarget, Hresidual, HresidualType⟩⟩
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+/-- Pointwise universe rebasing of all validated nested auxiliaries. -/
+theorem ClosedNestedAuxiliaryTranslations.toRecursorContext
+    {c : AddInductive.Context}
+    (H : ClosedNestedAuxiliaryTranslations venv c.lparams res selection)
+    (henv : venv.WF)
+    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    ClosedNestedAuxiliaryTranslations venv
+      (AddInductive.getRecLevelParams elimLevel c.lparams)
+      res selection := by
+  intro name e hfind
+  rcases H name e hfind with ⟨Haux⟩
+  exact Haux.toRecursorContext henv Helim
+
+/-- Rebase a validated auxiliary residual along a semantic conversion from
+the caller's parameter telescope to the domains recovered by validation.
+This is the syntax-independent core needed by nested restoration: once the
+two dependent parameter contexts have been related, neither a dummy residual
+nor the concrete free variables used by either opening remain relevant. -/
+theorem ClosedNestedAuxiliaryTranslation.residualAtDefEqParameterDomains
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (henv : venv.WF) (parameterDomains : List VExpr)
+    (Hcontexts : VEnv.IsDefEqCtx venv lparams.length []
+      parameterDomains.reverse H.domains.reverse) :
+    Expr.AbstractTypeTranslation venv lparams
+      (abstractForallContext parameterDomains [])
+      (e.abstractList selection.fvars) := by
+  have Hvlctx := abstractForallContext.isDefEq Hcontexts
+  rcases H.residual.defeqDFC henv (Hvlctx.symm henv.ordered) with
+    ⟨target, Hresidual⟩
+  refine ⟨target, Hresidual, ?_⟩
+  have HctxSymm := Hvlctx.symm henv.ordered
+  have HresidualType := H.residualType.defeqDFC henv.ordered
+    HctxSymm.defeqCtx
+  have HtargetEq := H.residual.uniq henv HctxSymm Hresidual
+  have HtargetEq' := HtargetEq.defeqDFC henv.ordered HctxSymm.defeqCtx
+  exact VEnv.IsType.defeqU_l henv Hvlctx.wf.toCtx HtargetEq'
+    HresidualType
+
+/-- A successfully validated auxiliary witness is already a restored family
+with no remaining indices: its cached source-family prefix itself has a sort
+as type.  The separate end-to-end header-alignment theorem is responsible for
+showing that production assigned the corresponding generated family zero
+indices; this constructor packages the resulting source-facing semantics. -/
+theorem ClosedNestedAuxiliaryTranslation.toRestoredFamilySemanticsZero
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (henv : venv.WF) (parameterDomains : List VExpr)
+    (Hcontexts : VEnv.IsDefEqCtx venv lparams.length []
+      parameterDomains.reverse H.domains.reverse) :
+    Nonempty (RestoredFamilySemantics venv lparams parameterDomains 0) := by
+  rcases H.residualType with ⟨resultLevel, Htyping⟩
+  have HtypingBase : venv.HasType lparams.length H.domains.reverse
+      H.residualTarget (.sort resultLevel) := by
+    simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Htyping
+  have Htyping' := HtypingBase.defeqDFC henv.ordered
+    (Hcontexts.symm henv.ordered)
+  refine ⟨{
+    family := H.residualTarget
+    indexDomains := []
+    familyResult := .sort resultLevel
+    indexCount := rfl
+    familyTyping := by simpa [VExpr.wrapForalls] using Htyping'
+    familyApplicationType := by
+      exact ⟨resultLevel, by simpa [VExpr.mkApps] using Htyping'⟩
+  }⟩
+
 /-- Rebase a validated auxiliary residual onto any independently translated
 copy of the same concrete parameter telescope.  Validation obtains its
 `domains` by inverting a closed witness, while restored recursors obtain their
 parameter domains from the source-header telescope.  Those lists need not be
 syntactically equal: translation may choose definitionally equal dependent
-domains.  The common concrete `mkForall` prefix nevertheless induces an exact
-context conversion, which transports both residual translation and typehood
-into the canonical parameter context. -/
+domains.  The common concrete `mkForall` prefix induces the context conversion
+consumed by `residualAtDefEqParameterDomains`. -/
 theorem ClosedNestedAuxiliaryTranslation.residualAtParameterDomains
     (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
     (henv : venv.WF) (hselectionNodup : selection.fvars.Nodup)
@@ -134,17 +282,33 @@ theorem ClosedNestedAuxiliaryTranslation.residualAtParameterDomains
       (.refl henv (by trivial)) Hdummy Hclosed
       hparameterDomains H.arity
     simpa [VLCtx.toCtx] using Hconverted
-  have Hvlctx := abstractForallContext.isDefEq Hcontexts
-  rcases H.residual.defeqDFC henv (Hvlctx.symm henv.ordered) with
-    ⟨target, Hresidual⟩
-  refine ⟨target, Hresidual, ?_⟩
-  have HctxSymm := Hvlctx.symm henv.ordered
-  have HresidualType := H.residualType.defeqDFC henv.ordered
-    HctxSymm.defeqCtx
-  have HtargetEq := H.residual.uniq henv HctxSymm Hresidual
-  have HtargetEq' := HtargetEq.defeqDFC henv.ordered HctxSymm.defeqCtx
-  exact VEnv.IsType.defeqU_l henv Hvlctx.wf.toCtx HtargetEq'
-    HresidualType
+  exact H.residualAtDefEqParameterDomains henv parameterDomains Hcontexts
+
+/-- Weakening of `residualAtDefEqParameterDomains` below an already
+translated recursor suffix. -/
+theorem
+    ClosedNestedAuxiliaryTranslation.residualAtDefEqParameterDomainsUnder
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (henv : venv.WF) (hselectionNodup : selection.fvars.Nodup)
+    (parameterDomains suffixDomains : List VExpr)
+    (Hcontexts : VEnv.IsDefEqCtx venv lparams.length []
+      parameterDomains.reverse H.domains.reverse) :
+    Expr.AbstractTypeTranslation venv lparams
+      (abstractForallContext (parameterDomains ++ suffixDomains) [])
+      (e.abstractList selection.fvars suffixDomains.length) := by
+  rcases H.residualAtDefEqParameterDomains henv parameterDomains Hcontexts
+      with ⟨target, Hresidual, HresidualType⟩
+  have Hweak := Hresidual.weakBV henv.ordered
+    (abstractForallContext.bvLift suffixDomains
+      (abstractForallContext parameterDomains []))
+  rw [← Expr.abstractList_add_eq_liftLooseBVars H.sourceClosed
+    hselectionNodup] at Hweak
+  have HweakType := HresidualType.weakN henv.ordered
+    (abstractForallContext.bvLift suffixDomains
+      (abstractForallContext parameterDomains [])).toCtx
+  refine ⟨target.liftN suffixDomains.length 0, ?_, ?_⟩
+  · simpa only [abstractForallContext_append, Nat.zero_add] using Hweak
+  · simpa only [abstractForallContext_append] using HweakType
 
 /-- Depth-general canonical-parameter form of
 `residualAtParameterDomains`.  This is the form consumed by restored
@@ -182,6 +346,46 @@ theorem NestedLoweringResultClosed.resultParamsSize
     result.params.size = result.nparams := by
   rcases H with ⟨_finalState, Hrun, _Hcache, _Hparams⟩
   exact Hrun.resultParamsSize.trans Hrun.resultNParams.symm
+
+/-- The final lowering parameter selection closes the same raw source-header
+prefix with any residual body.  This is the exact syntactic leg used before
+the independent abstract header normalization takes over; it deliberately
+does not compare lowering's raw domains with the checker's consumed domains. -/
+theorem NestedLoweringResultClosed.sourceParameterPrefix
+    (H : NestedLoweringResultClosed env fuel nparams types initialState result)
+    (Hclosed : ∀ source ∈ types,
+      source.type.FVarsIn fun _ => False)
+    (body : Expr) :
+    ∃ first rest residual,
+      types = first :: rest ∧
+      Expr.ForallTelescope first.type nparams residual ∧
+      Expr.SameForallPrefix nparams
+        (result.lctx.mkForall result.params body) first.type := by
+  rcases H with ⟨finalState, Hrun, Hcache, Hparams⟩
+  have Hwhole : NestedLoweringResultClosed env fuel nparams types
+      initialState result := ⟨finalState, Hrun, Hcache, Hparams⟩
+  rcases Hrun.source with
+    ⟨first, rest, tail, paramsState, lctx, params, htypes, Hopening,
+      _hnewTypes, _hnestedAux, _hnextIdx, _hprefix, Hctx, Hselection, Hqueue⟩
+  rcases Hselection with ⟨Hselection⟩
+  rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
+  have hsourceClosed : first.type.FVarsIn fun _ => False :=
+    Hclosed first (by rw [htypes]; simp)
+  have hclosed := Hopening.toRestoreParamOpening.root_mkForall_tail Hctx.wf
+    Htelescope (FVarsIn_to_FVarIdsIn hsourceClosed)
+  have HselectionResult : LocalForallSelection result.lctx result.params := by
+    rcases Hqueue.resultContext with ⟨hlctx, hparams⟩
+    rw [hlctx, hparams]
+    exact Hselection
+  have Hsame := HselectionResult.sameForallPrefix
+    (Hwhole.selectionNodup HselectionResult) body tail
+  have hclosedResult : result.lctx.mkForall result.params tail =
+      first.type := by
+    rcases Hqueue.resultContext with ⟨hlctx, hparams⟩
+    rw [hlctx, hparams]
+    exact hclosed
+  rw [Hrun.resultParamsSize, hclosedResult] at Hsame
+  exact ⟨first, rest, residual, htypes, Htelescope, Hsame⟩
 
 /-- Actual operational restoration openings satisfy the arbitrary-depth
 alpha law for every validated auxiliary hit. -/
@@ -338,6 +542,44 @@ theorem NestedRestorationOpening.exactFamilyHitAbstractTypeTranslationAtPrefix
   simpa only [abstractForallContext_append] using
     Hopen.exactFamilyHitAbstractTypeTranslation Hlower selection Haux henv
       family levels hfind hrec t restored hhead hargs Hhit suffixDomains
+
+/-- Semantic-context form of the exact-family interpreter.  The caller may
+identify the canonical source parameter context with validation's dependent
+domains by definitional equality, without manufacturing a second concrete
+dummy telescope solely to compare their translations. -/
+theorem
+    NestedRestorationOpening.exactFamilyHitAbstractTypeTranslationAtDefEqPrefix
+    (Hopen : NestedRestorationOpening result prodEnv auxRec input output)
+    (Hlower : NestedLoweringResultClosed env fuel nparams types initialState
+      result)
+    (selection : LocalForallSelection result.lctx result.params)
+    (Haux : ClosedNestedAuxiliaryTranslation venv lparams result selection e)
+    (henv : venv.WF)
+    (parameterDomains : List VExpr)
+    (Hcontexts : VEnv.IsDefEqCtx venv lparams.length []
+      parameterDomains.reverse Haux.domains.reverse)
+    (family : Name) (levels : List Level)
+    (hfind : result.aux2nested.find? family = some e)
+    (hrec : auxRec.find? family = none)
+    (t restored : Expr)
+    (hhead : t.getAppFn = .const family levels)
+    (hargs : t.getAppArgs.size = result.nparams)
+    (Hhit : result.restoreNestedNode prodEnv Hopen.params auxRec t =
+      some restored)
+    (suffixDomains : List VExpr) :
+    Expr.AbstractTypeTranslation venv lparams
+      (abstractForallContext (parameterDomains ++ suffixDomains) [])
+      (restored.abstractList Hopen.selection.fvars suffixDomains.length) := by
+  have Hexact := restoreNestedNode_family_exactParams result prodEnv
+    Hopen.params auxRec t e family levels hhead hrec hfind hargs
+  have hrestored : restored =
+      (e.abstract result.params).instantiateRev Hopen.params :=
+    Option.some.inj (Hhit.symm.trans Hexact)
+  subst restored
+  rw [Hopen.auxiliaryAlphaAt Hlower selection Haux family hfind
+    suffixDomains.length]
+  exact Haux.residualAtDefEqParameterDomainsUnder henv
+    (Hlower.selectionNodup selection) parameterDomains suffixDomains Hcontexts
 
 /-- Lookup-driven form used by a recursor-domain callback.  Validation of all
 cached auxiliaries supplies the particular closed translation selected by the
@@ -521,12 +763,11 @@ theorem NestedLoweringResult.sourceFinalMappingAt
     by simpa using Hmapped, htarget⟩
 
 /-- The source-family mapping with cache uniqueness discharged from the empty
-production cache and the isolated suffix-index primitive law. -/
-theorem NestedLoweringResult.sourceFinalMappingAtOfIndexFaithful
+production cache. -/
+theorem NestedLoweringResult.sourceFinalMappingAtOfEmpty
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResult env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hindex : AppendIndexAfterIndexFaithful)
     (hempty : initialState.nestedAux = #[])
     (hj : j < sourceTypes.length) :
     ∃ params stepState target loweredState,
@@ -536,7 +777,7 @@ theorem NestedLoweringResult.sourceFinalMappingAtOfIndexFaithful
       result.types[j]? = some target := by
   rcases H.sourceFinalMappingAt hj with ⟨finalState, Hrun, Hmapped⟩
   apply Hmapped
-  apply Hrun.resultNamesNodupOfEmpty Hindex
+  apply Hrun.resultNamesNodupOfEmpty
   simpa using hempty
 
 theorem NestedLoweringResult.sourceFinalMappingAtFresh
@@ -550,7 +791,7 @@ theorem NestedLoweringResult.sourceFinalMappingAtFresh
       LoweredInductiveMapping env params nparams result sourceTypes[j]
         stepState (target, loweredState) ∧
       result.types[j]? = some target :=
-  H.sourceFinalMappingAtOfIndexFaithful appendIndexAfterIndexFaithful hempty hj
+  H.sourceFinalMappingAtOfEmpty hempty hj
 
 /-- Fresh-cache source mapping with the lowering parameters identified with
 the parameters retained by the production restoration record. -/
@@ -572,7 +813,7 @@ theorem NestedLoweringResult.sourceFinalMappingAtFreshAligned
         newTypes := sourceTypes.toArray }).newTypes.size := by
     simpa using hj
   apply Hrun.finalMappingAtInitialAligned _ hjInitial
-  apply Hrun.resultNamesNodupOfEmpty appendIndexAfterIndexFaithful
+  apply Hrun.resultNamesNodupOfEmpty
   simpa using hempty
 
 /-- Every original family retains its positional slot in the expanded
@@ -755,6 +996,439 @@ theorem NestedLoweringResultClosed.sourceHeaderTranslationAtFresh
   rw [← Hmapping.name, ← Hmapping.type]
   simpa [htargetEq] using Hheader
 
+/-- Semantic family telescope for an original (non-generated) member of a
+lowered mutual block.  The family constant is rebuilt in the independently
+checked source-constructor environment, rather than transported from the
+lowered constructor environment: the latter also contains generated nested
+constructors and therefore need not be comparable by environment inclusion.
+
+The common parameter context comes from the materialized source-header
+cache.  The family-local parameter and index domains come from the lowered
+header's `TypeShape`; uniqueness of translation of the unchanged original
+header transfers that shape to the independently materialized source family.
+-/
+theorem NestedLoweringResultClosed.originalFamilyRestoredSemanticsAtFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (hempty : initialState.nestedAux = #[])
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length) :
+    let Us := AddInductive.getRecLevelParams Hprod.elimLevel c.lparams
+    let parameterDomains :=
+      (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+        Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse
+    Nonempty (RestoredFamilySemantics envCtors Us parameterDomains
+      Hprod.recInfos[familyIdx]!.indices.size) := by
+  dsimp only
+  have hresult : familyIdx < result.types.length :=
+    Nat.lt_of_lt_of_le hfamily H.toResult.sourceTypes_length_le
+  have hloweredDecl : familyIdx < loweredDecl.types.length := by
+    rw [<- Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
+    exact hresult
+  have hsourceDecl : familyIdx < sourceDecl.types.length := by
+    rw [<- Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource]
+    exact hfamily
+  have hrecInfo : familyIdx < Hprod.recInfos.size := by
+    rw [Hprod.cardinality.records]
+    exact hloweredDecl
+  let sourceTarget := sourceDecl.types[familyIdx]
+  let loweredTarget := loweredDecl.types[familyIdx]
+  have HsourceType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
+    Hsource familyIdx hfamily hsourceDecl
+  rcases H.sourceHeaderTranslationAtFresh hempty R.core familyIdx hfamily with
+    ⟨_hdecl, HloweredHeader⟩
+  have hsourceWF : sourceVEnv.WF := by
+    rw [<- Hheaders.sourceContextVEnv]
+    exact Hheaders.sourceContext.checking.tr.wf
+  have hsourceLE : sourceVEnv ≤ envCtors :=
+    (VEnv.addConstVals_le Hsource.typesAdded).trans
+      (VEnv.addConstVals_le Hsource.ctorsAdded)
+  have henvCtors : envCtors.WF :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF Hsource hsourceWF
+  have HtargetEq : sourceVEnv.IsDefEqU c.lparams.length []
+      sourceTarget.type loweredTarget.type := by
+    exact HsourceType.header.type.uniq hsourceWF
+      (.refl hsourceWF (by trivial)) (by
+        simpa [sourceTarget, loweredTarget] using HloweredHeader.type)
+  have HloweredShape : loweredDecl.TypeShape sourceVEnv
+      Hheaders.sourceMaterialized.headers.params loweredTarget := by
+    have Hshape := Hheaders.sourceMaterialized.headers.typeShapes
+      loweredTarget (List.getElem_mem hloweredDecl)
+    simpa only [Hheaders.sourceContextVEnv] using Hshape
+  rcases HloweredShape with
+    ⟨normalized, ownParams, afterParams, indices, familyResult, exprType,
+      Hnormalized, HparamsTake, HindicesTake, Hparams, Hresult⟩
+  have HsourceNormalized : sourceVEnv.IsDefEq c.lparams.length []
+      sourceTarget.type normalized exprType := by
+    have HtargetEq' : sourceVEnv.IsDefEqU loweredDecl.uvars []
+        sourceTarget.type loweredTarget.type := by
+      simpa [R.core.uvars] using HtargetEq
+    have Hnormalized' := VEnv.IsDefEq.transU_r hsourceWF (by trivial)
+      HtargetEq' Hnormalized
+    simpa [R.core.uvars] using Hnormalized'
+  rcases VExpr.takeForalls_rebuild HparamsTake with
+    ⟨HnormalizedEq, hownParams⟩
+  rcases VExpr.takeForalls_rebuild HindicesTake with
+    ⟨HafterParamsEq, hindices⟩
+  have HnormalizedFull : normalized =
+      VExpr.wrapForalls (ownParams ++ indices) familyResult := by
+    rw [HnormalizedEq, HafterParamsEq, VExpr.wrapForalls_append]
+  have hsourceTargetUvars : sourceTarget.uvars = c.lparams.length := by
+    simpa [sourceTarget] using HsourceType.header.uvars
+  have hindexCount : indices.length =
+      Hprod.recInfos[familyIdx]!.indices.size := by
+    have hsourceIndices : sourceTarget.numIndices =
+        loweredTarget.numIndices := by
+      exact Hmetadata.numIndices
+        (by
+          calc
+            sourceDecl.types.length = sourceTypes.length :=
+              (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
+                Hsource).symm
+            _ ≤ result.types.length := H.toResult.sourceTypes_length_le
+            _ = loweredDecl.types.length :=
+              Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core)
+        familyIdx hsourceDecl hloweredDecl
+    calc
+      indices.length = loweredTarget.numIndices := hindices
+      _ = sourceTarget.numIndices := hsourceIndices.symm
+      _ = Hprod.recInfos[familyIdx]!.indices.size := by
+        rw [hsourceIndices]
+        exact (Hprod.cardinality.indices familyIdx hrecInfo).symm
+  have hsourceTargetMem : sourceTarget.toVConstVal ∈
+      sourceDecl.typeConstants := by
+    exact List.mem_map_of_mem (List.getElem_mem hsourceDecl)
+  have hlookupTypes : envTypes.constants sourceTarget.name =
+      some sourceTarget.toVConstant := by
+    exact VEnv.addConstVals_get Hsource.typesAdded hsourceTargetMem
+  have hlookupCtors : envCtors.constants sourceTarget.name =
+      some sourceTarget.toVConstant :=
+    (VEnv.addConstVals_le Hsource.ctorsAdded).constants hlookupTypes
+  have build : ∀ (elimLevel : Level)
+      (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel),
+      Nonempty (RestoredFamilySemantics envCtors
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+          Helim).parameterDecls.toCtx.reverse
+        Hprod.recInfos[familyIdx]!.indices.size) := by
+    intro elimLevel Helim
+    cases elimLevel with
+    | zero =>
+      change Nonempty (RestoredFamilySemantics envCtors c.lparams
+        Hheaders.sourceMaterialized.parameterScope.toCtx.reverse
+        Hprod.recInfos[familyIdx]!.indices.size)
+      let parameterDomains :=
+        Hheaders.sourceMaterialized.parameterScope.toCtx.reverse
+      let levels := VLevel.params c.lparams.length
+      have hlevelsWF : ∀ level ∈ levels,
+          level.WF c.lparams.length := by
+        simpa [levels] using VLevel.params_wf
+      have hlevelsLength : levels.length = sourceTarget.uvars := by
+        simp [levels, hsourceTargetUvars]
+      have htargetInst : sourceTarget.type.instL levels = sourceTarget.type := by
+        change sourceTarget.type.instL (VLevel.params c.lparams.length) = _
+        rw [<- hsourceTargetUvars]
+        have htyped := Classical.choose_spec HsourceType.header.wf
+        exact (htyped.levelWF (by trivial)).1.instL_id
+      have HconstBase := VEnv.HasType.const (env := envCtors)
+        (U := c.lparams.length) (Γ := []) hlookupCtors hlevelsWF hlevelsLength
+      have Hconst : envCtors.HasType c.lparams.length []
+          (.const sourceTarget.name levels)
+          (VExpr.wrapForalls (ownParams ++ indices) familyResult) := by
+        have HsourceNormalized' := HsourceNormalized.mono hsourceLE
+        rw [HnormalizedFull] at HsourceNormalized'
+        have HconstBase' : envCtors.HasType c.lparams.length []
+            (.const sourceTarget.name levels) sourceTarget.type := by
+          simpa [htargetInst] using HconstBase
+        exact HconstBase'.defeqU_r henvCtors (by trivial)
+          ⟨exprType, HsourceNormalized'⟩
+      have Hfamily := VEnv.HasType.mkApps_wrapForalls_prefix_canonical
+        henvCtors.ordered Hconst
+      have HownCommon : VEnv.IsDefEqCtx envCtors c.lparams.length []
+          ownParams.reverse
+          Hheaders.sourceMaterialized.headers.params.reverse := by
+        have Hparams' : VEnv.IsDefEqCtx sourceVEnv c.lparams.length []
+            Hheaders.sourceMaterialized.headers.params.reverse
+            ownParams.reverse := by
+          simpa [VInductDecl.ParamsDefEq, R.core.uvars] using Hparams
+        exact (Hparams'.symm hsourceWF.ordered).mono hsourceLE
+      have HcommonCached : VEnv.IsDefEqCtx envCtors c.lparams.length []
+          Hheaders.sourceMaterialized.headers.params.reverse
+          Hheaders.sourceMaterialized.parameterScope.toCtx := by
+        have Hcached₀ := Hheaders.sourceMaterialized.paramsContext
+        have Hcached : VEnv.IsDefEqCtx sourceVEnv c.lparams.length []
+            Hheaders.sourceMaterialized.headers.params.reverse
+            Hheaders.sourceMaterialized.parameterScope.toCtx := by
+          simpa only [Hheaders.sourceContextVEnv] using Hcached₀
+        exact Hcached.mono hsourceLE
+      have HownCached := VEnv.IsDefEqCtx.transEmpty henvCtors HownCommon
+        HcommonCached
+      have Hfamily₀ : envCtors.HasType c.lparams.length ownParams.reverse
+          (VExpr.mkApps
+            ((VExpr.const sourceTarget.name levels).liftN ownParams.length 0)
+            (recursorCanonicalVars ownParams.length))
+          (VExpr.wrapForalls indices familyResult) := by
+        simpa [recursorCanonicalVars] using Hfamily
+      have Hfamily' := Hfamily₀.defeqDFC henvCtors.ordered HownCached
+      have Happlication₀ := VEnv.HasType.mkApps_wrapForalls_canonical
+        henvCtors.ordered Hfamily₀
+      have Hresult₀ : envCtors.IsDefEq c.lparams.length
+          (indices.reverse ++ ownParams.reverse) familyResult
+          (.sort loweredTarget.resultLevel)
+          (.sort (.succ loweredTarget.resultLevel)) := by
+        simpa [R.core.uvars] using Hresult.mono hsourceLE
+      have HfamilyType := Hfamily₀.isType henvCtors.ordered
+        HownCached.isType
+      have HfullCtx :=
+        (VEnv.IsType.wrapForalls_inv henvCtors.ordered HownCached.isType
+          HfamilyType).1
+      have HapplicationType₀ : envCtors.IsType c.lparams.length
+          (indices.reverse ++ ownParams.reverse)
+          (VExpr.mkApps
+            ((VExpr.mkApps
+              ((VExpr.const sourceTarget.name levels).liftN ownParams.length 0)
+              (recursorCanonicalVars ownParams.length)).liftN
+                indices.length 0)
+            (recursorCanonicalVars indices.length)) :=
+        ⟨loweredTarget.resultLevel,
+          Happlication₀.defeqU_r henvCtors HfullCtx
+            ⟨.sort (.succ loweredTarget.resultLevel), Hresult₀⟩⟩
+      have HapplicationType := HapplicationType₀.imp fun _ Htype =>
+        Htype.defeqDFC' henvCtors.ordered HownCached
+      refine ⟨{
+        family := VExpr.mkApps
+          ((VExpr.const sourceTarget.name levels).liftN ownParams.length 0)
+          (recursorCanonicalVars ownParams.length)
+        indexDomains := indices
+        familyResult := familyResult
+        indexCount := hindexCount
+        familyTyping := by simpa [parameterDomains] using Hfamily'
+        familyApplicationType := by
+          rcases HapplicationType with ⟨applicationLevel, HapplicationType⟩
+          refine ⟨applicationLevel, ?_⟩
+          change envCtors.IsDefEq _ _ _ _ _
+          simpa [parameterDomains] using HapplicationType
+      }⟩
+    | param fresh =>
+      let shift := VLevel.prependShift c.lparams.length
+      change Nonempty (RestoredFamilySemantics envCtors (fresh :: c.lparams)
+        (Hheaders.sourceMaterialized.parameterScope.instL shift).toCtx.reverse
+        Hprod.recInfos[familyIdx]!.indices.size)
+      let parameterDomains :=
+        (Hheaders.sourceMaterialized.parameterScope.instL shift).toCtx.reverse
+      let ownParams' := ownParams.map (VExpr.instL shift)
+      let indices' := indices.map (VExpr.instL shift)
+      let familyResult' := familyResult.instL shift
+      have hshift : ∀ level ∈ shift,
+          level.WF (fresh :: c.lparams).length := by
+        simpa [shift] using
+          VLevel.prependShift_wf (n := c.lparams.length)
+      have hshiftLength : shift.length = sourceTarget.uvars := by
+        simp [shift, hsourceTargetUvars]
+      have HconstBase := VEnv.HasType.const (env := envCtors)
+        (U := (fresh :: c.lparams).length) (Γ := []) hlookupCtors hshift
+        hshiftLength
+      have HsourceNormalized' := HsourceNormalized.instL hshift |>.mono hsourceLE
+      rw [HnormalizedFull] at HsourceNormalized'
+      have Hconst : envCtors.HasType (fresh :: c.lparams).length []
+          (.const sourceTarget.name shift)
+          (VExpr.wrapForalls (ownParams' ++ indices') familyResult') := by
+        have HsourceNormalizedU : envCtors.IsDefEqU
+            (fresh :: c.lparams).length [] (sourceTarget.type.instL shift)
+            (VExpr.wrapForalls (ownParams' ++ indices') familyResult') := by
+          refine ⟨exprType.instL shift, ?_⟩
+          simpa [ownParams', indices', familyResult',
+            VExpr.instL_wrapForalls] using HsourceNormalized'
+        exact HconstBase.defeqU_r henvCtors (by trivial)
+          HsourceNormalizedU
+      have Hfamily := VEnv.HasType.mkApps_wrapForalls_prefix_canonical
+        henvCtors.ordered Hconst
+      have Hparams' :=
+        Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.instL hshift Hparams
+      have HownCommon : VEnv.IsDefEqCtx envCtors
+          (fresh :: c.lparams).length [] ownParams'.reverse
+          (Hheaders.sourceMaterialized.headers.params.map
+            (VExpr.instL shift)).reverse := by
+        have Hparams'' := Hparams'.symm hsourceWF.ordered |>.mono hsourceLE
+        simpa only [VInductDecl.ParamsDefEq, R.core.uvars, ownParams',
+          List.map_reverse, List.map_nil] using Hparams''
+      have Hcached₀ := Hheaders.sourceMaterialized.paramsContext
+      have Hcached : VEnv.IsDefEqCtx sourceVEnv c.lparams.length []
+          Hheaders.sourceMaterialized.headers.params.reverse
+          Hheaders.sourceMaterialized.parameterScope.toCtx := by
+        simpa only [Hheaders.sourceContextVEnv] using Hcached₀
+      have Hcached' :=
+        Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.instL hshift Hcached
+      have HcommonCached : VEnv.IsDefEqCtx envCtors
+          (fresh :: c.lparams).length []
+          (Hheaders.sourceMaterialized.headers.params.map
+            (VExpr.instL shift)).reverse
+          (Hheaders.sourceMaterialized.parameterScope.instL shift).toCtx := by
+        have Hcached'' := Hcached'.mono hsourceLE
+        simpa only [VLCtx.instL_toCtx, List.map_reverse, List.map_nil,
+          shift] using Hcached''
+      have HownCached := VEnv.IsDefEqCtx.transEmpty henvCtors HownCommon
+        HcommonCached
+      have Hfamily₀ : envCtors.HasType (fresh :: c.lparams).length
+          ownParams'.reverse
+          (VExpr.mkApps
+            ((VExpr.const sourceTarget.name shift).liftN ownParams'.length 0)
+            (recursorCanonicalVars ownParams'.length))
+          (VExpr.wrapForalls indices' familyResult') := by
+        simpa [recursorCanonicalVars] using Hfamily
+      have Hfamily' := Hfamily₀.defeqDFC henvCtors.ordered HownCached
+      have Happlication₀ := VEnv.HasType.mkApps_wrapForalls_canonical
+        henvCtors.ordered Hfamily₀
+      have Hresult₀ : envCtors.IsDefEq (fresh :: c.lparams).length
+          (indices'.reverse ++ ownParams'.reverse) familyResult'
+          (.sort (loweredTarget.resultLevel.inst shift))
+          (.sort (.succ (loweredTarget.resultLevel.inst shift))) := by
+        have Hresult' := Hresult.instL hshift |>.mono hsourceLE
+        simpa [R.core.uvars, ownParams', indices', familyResult',
+          VExpr.instL, VLevel.inst] using
+          Hresult'
+      have HfamilyType := Hfamily₀.isType henvCtors.ordered
+        HownCached.isType
+      have HfullCtx :=
+        (VEnv.IsType.wrapForalls_inv henvCtors.ordered HownCached.isType
+          HfamilyType).1
+      have HapplicationType₀ : envCtors.IsType
+          (fresh :: c.lparams).length
+          (indices'.reverse ++ ownParams'.reverse)
+          (VExpr.mkApps
+            ((VExpr.mkApps
+              ((VExpr.const sourceTarget.name shift).liftN
+                ownParams'.length 0)
+              (recursorCanonicalVars ownParams'.length)).liftN
+                indices'.length 0)
+            (recursorCanonicalVars indices'.length)) :=
+        ⟨loweredTarget.resultLevel.inst shift,
+          Happlication₀.defeqU_r henvCtors HfullCtx
+            ⟨.sort (.succ (loweredTarget.resultLevel.inst shift)), Hresult₀⟩⟩
+      have HapplicationType := HapplicationType₀.imp fun _ Htype =>
+        Htype.defeqDFC' henvCtors.ordered HownCached
+      refine ⟨{
+        family := VExpr.mkApps
+          ((VExpr.const sourceTarget.name shift).liftN ownParams'.length 0)
+          (recursorCanonicalVars ownParams'.length)
+        indexDomains := indices'
+        familyResult := familyResult'
+        indexCount := by simpa [indices'] using hindexCount
+        familyTyping := by simpa [parameterDomains] using Hfamily'
+        familyApplicationType := by
+          rcases HapplicationType with ⟨applicationLevel, HapplicationType⟩
+          refine ⟨applicationLevel, ?_⟩
+          change envCtors.IsDefEq _ _ _ _ _
+          simpa [parameterDomains] using HapplicationType
+      }⟩
+    | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+      simp [AddInductive.AdmissibleElimLevel] at Helim
+  exact build Hprod.elimLevel Hprod.elimLevelAdmissible
+
+/-- The canonical production parameter suffix and every validated auxiliary
+parameter telescope describe the same dependent context.  The proof crosses
+the executable passes only through the unchanged raw source header: lowering
+supplies exact syntax on one side, while `MaterializedHeaderResult` supplies
+the independent semantic normalization on the other. -/
+theorem NestedLoweringResultClosed.auxiliaryCanonicalParameterContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (hempty : initialState.nestedAux = #[])
+    (selection : LocalForallSelection result.lctx result.params)
+    (Haux : ClosedNestedAuxiliaryTranslation envCtors
+      (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams)
+      result selection e) :
+    let parameterDomains :=
+      (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+        Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse
+    VEnv.IsDefEqCtx envCtors
+      (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams).length []
+      parameterDomains.reverse Haux.domains.reverse := by
+  dsimp only
+  have HsourceClosed : ∀ source ∈ sourceTypes,
+      source.type.FVarsIn fun _ => False := by
+    intro source hsource
+    rcases Lean4Lean.List.Forall₂.forall_exists_l Hsource.types source
+        hsource with ⟨target, _htarget, Htarget⟩
+    exact Htarget.header.type.fvarsIn.mono fun fv hfv => by
+      simpa [VLCtx.fvars] using hfv
+  rcases H.sourceParameterPrefix HsourceClosed e with
+    ⟨first, rest, residual, hsourceTypes, Htelescope, Hsame⟩
+  subst sourceTypes
+  have hfamily : 0 < (first :: rest).length := by simp
+  rcases H.sourceHeaderTranslationAtFresh hempty R.core 0 hfamily with
+    ⟨hdecl, Hheader⟩
+  have Hheader' : TrSourceConst Hheaders.sourceContext.venv c.lparams
+      first.name first.type (loweredDecl.types[0]'hdecl).toVConstVal := by
+    rw [Hheaders.sourceContextVEnv]
+    simpa using Hheader
+  have Htelescope' : Expr.ForallTelescope first.type loweredDecl.nparams
+      residual := by
+    rw [R.core.nparams]
+    exact Htelescope
+  rcases Hheaders.sourceMaterialized.sourceParameterDomainsAt first
+      loweredDecl.types[0] Hheader' (List.getElem_mem hdecl)
+      Hprod.elimLevelAdmissible Htelescope' with
+    ⟨sourceDomains, sourceResidual, hsourceDomains,
+      HsourceTranslation, HsourceContext⟩
+  rw [Hheaders.sourceContextVEnv] at HsourceTranslation HsourceContext
+  have hsourceLE : sourceVEnv ≤ envCtors :=
+    (VEnv.addConstVals_le Hsource.typesAdded).trans
+      (VEnv.addConstVals_le Hsource.ctorsAdded)
+  have hsourceWF : sourceVEnv.WF := by
+    have hwf := Hheaders.sourceContext.checking.tr.wf
+    rw [Hheaders.sourceContextVEnv] at hwf
+    exact hwf
+  have henv : envCtors.WF :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF Hsource hsourceWF
+  have HsourceTranslation' : TrExprS envCtors
+      (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams) []
+      first.type (VExpr.wrapForalls sourceDomains sourceResidual) :=
+    HsourceTranslation.mono hsourceLE
+  have HauxClosed : TrExprS envCtors
+      (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams) []
+      (result.lctx.mkForall result.params e)
+      (VExpr.wrapForalls Haux.domains Haux.residualTarget) := by
+    rw [← Haux.target]
+    exact Haux.closed
+  have HauxSource : VEnv.IsDefEqCtx envCtors
+      (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams).length []
+      Haux.domains.reverse sourceDomains.reverse := by
+    have hauxDomains : Haux.domains.length = nparams :=
+      Haux.arity.trans (H.resultParamsSize.trans H.toResult.resultNParams)
+    have Hcontexts := Hsame.translatedContextsExact henv
+      (.refl henv (by trivial)) HauxClosed HsourceTranslation'
+      hauxDomains (by simpa [R.core.nparams] using hsourceDomains)
+    simpa [VLCtx.toCtx] using Hcontexts
+  have HsourceContext' := HsourceContext.mono hsourceLE
+  have HparameterSource := HsourceContext'.symm henv.ordered
+  have HsourceAux := HauxSource.symm henv.ordered
+  have HparameterAux := VEnv.IsDefEqCtx.transEmpty henv
+    HparameterSource HsourceAux
+  simpa using HparameterAux
+
 /-- Constructor freshness required by source-expression restoration is not a
 family-wise semantic input.  When lowering and ordinary installation start
 from the same production environment, it follows from generated-family
@@ -870,6 +1544,115 @@ theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
   exact ⟨fvars, stepState, target, loweredState, hparams, hnodup, hsize,
     htarget, hctorNames, Hmapping.constructors, Htrace, Haligned⟩
 
+/-- Every key selected by the production auxiliary-recursor map is one of
+the recursors generated for the complete dynamically lowered family list.
+This connects `mkAuxRecNameMap`'s metadata suffix to the independently
+verified recursor batch without assuming a naming convention for that suffix. -/
+theorem NestedLoweringResultClosed.auxRecKeyGeneratedAtFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (hempty : initialState.nestedAux = #[])
+    (hmap : (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2.find? old =
+      some new) :
+    old ∈ (Hprod.entries.map Prod.snd).map (·.name) := by
+  rcases H with ⟨finalState, Hrun, Hcache, Hparams⟩
+  rcases Hrun.source with
+    ⟨main, rest, tail, paramsState, lctx, params, hsource, Hopening,
+      hinitial, hinitialAux, hinitialNext, _hprefix, Hctx, Hselection, Hqueue⟩
+  subst sourceTypes
+  have Hclosed : NestedLoweringResultClosed loweredSourceEnv fuel nparams
+      (main :: rest)
+      { initialState with newTypes := (main :: rest).toArray } result :=
+    ⟨finalState, Hrun, Hcache, Hparams⟩
+  rcases Hclosed.sourceFinalMappingAtFreshAligned hempty (j := 0) (by simp) with
+    ⟨_mainFVars, _mainState, mainTarget, _mainLoweredState, _mainParams,
+      _mainNodup, _mainSize, Hmain, hmainTarget⟩
+  have hmainMem : mainTarget ∈ result.types.toArray.toList := by
+    simpa using List.mem_of_getElem? hmainTarget
+  rcases Hprod.findSourceHeader Hc hmainMem with
+    ⟨mainInfo, hmainFind, _hmainCtors, hall⟩
+  have hmainFind' :
+      loweredEnv.find? main.name = some (.inductInfo mainInfo) := by
+    have hmainName : mainTarget.name = main.name := by
+      simpa using Hmain.name
+    rw [← hmainName]
+    exact hmainFind
+  have hkey := mkAuxRecNameMap_recMap_find_mem main rest loweredEnv mainInfo
+    hmainFind' hmap
+  rcases mkAuxRecNameMap_recNames_mem main rest loweredEnv mainInfo hmainFind'
+      hkey with ⟨familyName, hfamilyInfo, holdName⟩
+  rw [hall] at hfamilyInfo
+  rcases List.mem_map.mp hfamilyInfo with
+    ⟨family, hfamily, hfamilyName⟩
+  rcases List.mem_iff_getElem.mp hfamily with
+    ⟨familyIdx, hfamilyIdx, hfamilyEq⟩
+  have hrecords : Hprod.recInfos.size = result.types.toArray.size := by
+    rw [Hprod.cardinality.records,
+      ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
+    simp
+  have hgenerated := Hprod.generated.recursorName_mem hrecords familyIdx
+    (by simpa using hfamilyIdx)
+  have hget : result.types.toArray[familyIdx]! =
+      result.types.toArray.toList[familyIdx] := by
+    rw [Array.getElem!_eq_getD,
+      ← Array.getElem_eq_getD (h := by simpa using hfamilyIdx) default]
+    exact (Array.getElem_toList hfamilyIdx).symm
+  have hname : old = Lean.mkRecName result.types.toArray[familyIdx]!.name := by
+    rw [holdName, ← hfamilyName, ← hfamilyEq, ← hget]
+  rwa [hname]
+
+/-- Consequently every auxiliary-recursion key is fresh in the abstract
+constructor environment in which generated recursor domains were built. -/
+theorem NestedLoweringResultClosed.auxRecKeyFreshAtCtors
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (hempty : initialState.nestedAux = #[])
+    (hmap : (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2.find? old =
+      some new) :
+    R.declared.venvCtors.constants old = none := by
+  apply Hprod.recursorNamesFresh [] (by simp) old
+  change old ∈ (Hprod.entries.map Prod.snd).map (·.name)
+  exact H.auxRecKeyGeneratedAtFresh Hc Hprod hempty hmap
+
+/-- Every retained generated-recursors declaration type avoids the entire
+fresh recursor-name set.  The proof uses its semantic translation in the
+pre-recursors constructor environment, so it applies uniformly to motive,
+minor, index, and major declarations. -/
+theorem RecursorPhasesResult.declarationTypeAvoidsGeneratedRecursors
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (D : BoundFVarDeclarationAt H.localContext xs i) :
+    D.type.AvoidsConsts ((H.entries.map Prod.snd).map (·.name)) := by
+  rcases H.recursorWF.translatedDeclarationType D with ⟨target, Htype⟩
+  apply checkPositivityStep.TrExprS.sourceAvoidsFresh _ Htype
+  intro name hname
+  rw [H.recursorEnv, R.declared.contextVEnv]
+  apply H.recursorNamesFresh [] (by simp) name
+  change name ∈ (H.entries.map Prod.snd).map (·.name)
+  exact hname
+
 /-- Production restoration never renames the primary recursor of an
 original mutual-family member.  Original families occupy positions strictly
 before the auxiliary suffix from which `mkAuxRecNameMap` is built, and the
@@ -892,7 +1675,7 @@ theorem NestedLoweringResultClosed.sourceRecursorUnmappedAtFresh
   rcases H with ⟨finalState, Hrun, Hcache, Hparams⟩
   rcases Hrun.source with
     ⟨main, rest, tail, paramsState, lctx, params, hsource, Hopening,
-      hinitial, hinitialAux, hinitialNext, Hctx, Hselection, Hqueue⟩
+      hinitial, hinitialAux, hinitialNext, _hprefix, Hctx, Hselection, Hqueue⟩
   subst sourceTypes
   have Hclosed : NestedLoweringResultClosed loweredSourceEnv fuel nparams
       (main :: rest)
@@ -970,7 +1753,7 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFresh
     (hempty : initialState.nestedAux = #[])
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
       sourceTypes[familyIdx] sourceProdEnv targetProdEnv) :
-    RestoredSourceConstructorTrace c.lparams c.safety canonicalEnv
+    RestoredSourceConstructorTrace result loweredEnv c.lparams c.safety canonicalEnv
       Hstep.oldInfo.ctors Hstep.restored.headerEnv
         Hstep.restored.constructorEnv sourceTypes[familyIdx].ctors
           constructors := by
@@ -1136,7 +1919,7 @@ semantic-trace assembly.  Header and constructor semantics come from the
 independent source translation. The source-recursion payload is explicitly
 indexed by the original declaration, while the installed expanded declaration
 is used only to recover production safety metadata and name preservation. -/
-theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
+theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFreshExactOwner
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -1166,8 +1949,9 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
       (sourceDecl.types[familyIdx]'hdecl) envCtors)
     (Hrefine : RestoredPrimaryRecursorRefinement Hstep.restored.recursor
       envCtors HsourceRec.recursor) :
-    Nonempty (RestoredSourceInductiveSemantics sourceDecl c.lparams c.safety
-      sourceVEnv envTypes envCtors Hstep) := by
+    Nonempty { S : RestoredSourceInductiveSemantics sourceDecl c.lparams
+        c.safety sourceVEnv envTypes envCtors Hstep //
+      S.owner = sourceDecl.types[familyIdx]'hdecl } := by
   rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _stepState, target, _loweredState, _hparams, _hnodup,
       _hsize, Hmapping, htarget⟩
@@ -1218,11 +2002,177 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
     name := HrecName
     wf := HrecWF
     shape := HsourceRec.shape }
-  exact ⟨{
+  exact ⟨⟨{
     owner := sourceDecl.types[familyIdx]'hdecl
     header := Hsource.header
     constructors := HctorSemantics
-    recursor := HrecSemantics }⟩
+    recursor := HrecSemantics }, rfl⟩⟩
+
+/-- Compatibility projection of the exact-owner source-family producer. -/
+theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (hempty : initialState.nestedAux = #[])
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
+    (hdecl : familyIdx < sourceDecl.types.length)
+    (hentry : familyIdx < Hprod.entries.length)
+    (Hsource : TrInductiveType sourceVEnv envTypes c.lparams
+      sourceTypes[familyIdx] (sourceDecl.types[familyIdx]'hdecl))
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv envTypes)
+    (Hstep : RestoredInductiveStep result loweredEnv
+      (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
+      sourceTypes[familyIdx] sourceProdEnv targetProdEnv)
+    (HsourceRec : SourcePrimaryRecursorSemantics sourceDecl
+      (sourceDecl.types[familyIdx]'hdecl) envCtors)
+    (Hrefine : RestoredPrimaryRecursorRefinement Hstep.restored.recursor
+      envCtors HsourceRec.recursor) :
+    Nonempty (RestoredSourceInductiveSemantics sourceDecl c.lparams c.safety
+      sourceVEnv envTypes envCtors Hstep) := by
+  rcases H.sourceInductiveSemanticsAtFreshExactOwner Hc Hprod Hsources hempty
+      familyIdx hfamily hdecl hentry Hsource Hfamilies Hconstructors Hstep
+        HsourceRec Hrefine with ⟨⟨S, _howner⟩⟩
+  exact ⟨S⟩
+
+/-- Fold exact-owner family producers over the operational restoration trace
+while consuming the source declaration's `Forall₂` alignment in lockstep.
+The aggregate owner list is therefore the source declaration's literal type
+list, rather than an existential list later identified by a callback. -/
+theorem StateForMTrace.sourceInductiveSemanticTraceExactOwners
+    {decl : VInductDecl} {lparams : List Name}
+    {safety : DefinitionSafety} {sourceVEnv envTypes envCtors : VEnv}
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv : Environment} {auxRec : NameMap Name}
+    {allIndNames : List Name}
+    {sourceTypes : List InductiveType}
+    {sourceProdEnv targetProdEnv : Environment}
+    {owners : List VInductiveType}
+    (Htrace : StateForMTrace
+      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
+      sourceTypes sourceProdEnv targetProdEnv)
+    (Htypes : List.Forall₂
+      (TrInductiveType sourceVEnv envTypes lparams) sourceTypes owners)
+    (Hsemantics : ∀ i
+      (hsource : i < sourceTypes.length) (howner : i < owners.length)
+      stepSource stepTarget
+      (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
+        sourceTypes[i] stepSource stepTarget)
+      (Htype : TrInductiveType sourceVEnv envTypes lparams
+        sourceTypes[i] owners[i]),
+      Nonempty { S : RestoredSourceInductiveSemantics decl lparams safety
+          sourceVEnv envTypes envCtors Hstep // S.owner = owners[i] }) :
+    ∃ recursors,
+      RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+        envTypes envCtors Htrace owners recursors := by
+  induction Htrace generalizing owners with
+  | nil =>
+    cases Htypes
+    exact ⟨[], .nil _⟩
+  | @cons head source middle tail target Hstep Htail ih =>
+    cases Htypes with
+    | @cons _ owner _ tailOwners HheadTypes HtailTypes =>
+      rcases Hsemantics 0 (by simp) (by simp) source middle (by
+          simpa using Hstep) (by simpa using HheadTypes) with
+        ⟨⟨Hhead, hheadOwner⟩⟩
+      have hheadOwner' : Hhead.owner = owner := by
+        simpa using hheadOwner
+      rcases ih HtailTypes (fun i hsource howner stepSource stepTarget
+          HtailStep HtailType => by
+        have hsource' : i + 1 < (head :: tail).length := by
+          simpa using hsource
+        have howner' : i + 1 < (owner :: tailOwners).length := by
+          simpa using howner
+        rcases Hsemantics (i + 1) hsource' howner' stepSource stepTarget
+            (by simpa using HtailStep) (by simpa using HtailType) with
+          ⟨⟨S, hS⟩⟩
+        exact ⟨⟨S, by simpa using hS⟩⟩) with
+        ⟨tailRecursors, Hrest⟩
+      cases hheadOwner'
+      exact ⟨Hhead.recursor.recursor :: tailRecursors,
+        .cons Hstep Htail Hhead.header Hhead.constructors Hhead.recursor
+          Hrest⟩
+
+/-- Assemble source semantics with the aggregate owner list fixed to the
+literal independently specified declaration.  The indexed fold consumes the
+source core's `Forall₂` proof and the exact owner retained by each producer;
+no post-hoc owner-list equality is required. -/
+theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshExactOwners
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
+      sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hfamilies : ∀ name nested,
+      result.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true)
+    (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv envTypes)
+    (hempty : initialState.nestedAux = #[])
+    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv
+      loweredSourceEnv (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+      allIndNames sourceTypes auxRecNames out)
+    (HsourceRecursors : ∀ familyIdx
+      (hfamily : familyIdx < sourceTypes.length)
+      (hdecl : familyIdx < sourceDecl.types.length)
+      (_hentry : familyIdx < Hprod.entries.length),
+      Nonempty (SourcePrimaryRecursorSemantics sourceDecl
+        (sourceDecl.types[familyIdx]'hdecl) envCtors))
+    (HrecursorRefinements : ∀ familyIdx
+      (hfamily : familyIdx < sourceTypes.length)
+      (hdecl : familyIdx < sourceDecl.types.length)
+      (hentry : familyIdx < Hprod.entries.length)
+      (stepSource stepTarget : Environment)
+      (Hstep : RestoredInductiveStep result loweredEnv
+        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
+        sourceTypes[familyIdx] stepSource stepTarget)
+      (HsourceRec : SourcePrimaryRecursorSemantics sourceDecl
+        (sourceDecl.types[familyIdx]'hdecl) envCtors),
+      RestoredPrimaryRecursorRefinement Hstep.restored.recursor envCtors
+        HsourceRec.recursor) :
+    ∃ recursors,
+      RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
+        sourceVEnv envTypes envCtors Hrestored.inductives sourceDecl.types
+          recursors := by
+  apply Hrestored.inductives.sourceInductiveSemanticTraceExactOwners
+    Hsource.types
+  intro familyIdx hfamily hdecl stepSource stepTarget Hstep Htype
+  rcases H.toResult.sourceFinalMappingAtFresh hempty hfamily with
+    ⟨_mappingParams, _mappingState, _mappingTarget, _mappingLowered,
+      _mappingSize, _mapping, htarget⟩
+  have hresult : familyIdx < result.types.length :=
+    (_root_.getElem?_eq_some_iff.mp htarget).1
+  have hentry : familyIdx < Hprod.entries.length := by
+    rw [Hprod.generated.length, Hprod.cardinality.records,
+      ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
+    simpa using hresult
+  rcases HsourceRecursors familyIdx hfamily hdecl hentry with
+    ⟨HsourceRec⟩
+  rcases H.sourceInductiveSemanticsAtFreshExactOwner Hc Hprod Hsources hempty
+      familyIdx hfamily hdecl hentry Htype Hfamilies Hconstructors Hstep
+      HsourceRec
+      (HrecursorRefinements familyIdx hfamily hdecl hentry stepSource
+        stepTarget Hstep HsourceRec) with ⟨⟨S, howner⟩⟩
+  exact ⟨⟨S, by simpa using howner⟩⟩
 
 /-- Assemble the independent source declaration semantics over the exact
 production mutual-restoration trace. The lowered and source declarations are
@@ -1422,7 +2372,9 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTranslatedTypes
 
 /-- Preferred whole-mutual boundary for canonical restored recursor typing.
 The remaining family-wise obligation is decomposed at every forall binder and
-already includes typehood of every domain and the final result. -/
+already includes typehood of every domain and the final result.  The fold is
+indexed by the literal source declaration types, so downstream assembly never
+chooses an existential owner list or asks for a post-hoc owner equality. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTelescopeTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1462,16 +2414,33 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTelescopeTranslat
           (Hprod.recInfos.flatMap (·.minors)).size +
           Hprod.recInfos[familyIdx]!.indices.size + 1)
         targetType) :
-    ∃ owners recursors,
+    ∃ recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
-        sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
-  apply H.sourceSemanticTraceAtFreshOfRealizations Hc Hprod Hsources Hsource
-    Hfamilies Hconstructors hempty Hrestored
-  intro familyIdx hfamily hdecl hentry stepSource stepTarget Hstep
+        sourceVEnv envTypes envCtors Hrestored.inductives sourceDecl.types
+          recursors := by
+  apply Hrestored.inductives.sourceInductiveSemanticTraceExactOwners
+    Hsource.types
+  intro familyIdx hfamily hdecl stepSource stepTarget Hstep Htype
+  rcases H.toResult.sourceFinalMappingAtFresh hempty hfamily with
+    ⟨_mappingParams, _mappingState, _mappingTarget, _mappingLowered,
+      _mappingSize, _mapping, htarget⟩
+  have hresult : familyIdx < result.types.length :=
+    (_root_.getElem?_eq_some_iff.mp htarget).1
+  have hentry : familyIdx < Hprod.entries.length := by
+    rw [Hprod.generated.length, Hprod.cardinality.records,
+      ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
+    simpa using hresult
   rcases HtelescopeTypes familyIdx hfamily hdecl hentry stepSource stepTarget
-      Hstep with ⟨targetType, Htype⟩
-  exact H.sourcePrimaryRecursorRealizationAtFreshOfTelescope Hprod Hsource
-    Hmetadata hempty familyIdx hfamily hdecl hentry Hstep targetType Htype
+      Hstep with ⟨targetType, Htelescope⟩
+  rcases H.sourcePrimaryRecursorRealizationAtFreshOfTelescope Hprod Hsource
+      Hmetadata hempty familyIdx hfamily hdecl hentry Hstep targetType
+        Htelescope with
+    ⟨recursor, ⟨Hrealization⟩⟩
+  have Hrefinement := Hrealization.refinement
+  rw [← Hrealization.recursor_eq] at Hrefinement
+  exact H.sourceInductiveSemanticsAtFreshExactOwner Hc Hprod Hsources hempty
+    familyIdx hfamily hdecl hentry Htype Hfamilies Hconstructors Hstep
+      Hrealization.source Hrefinement
 
 theorem NestedLoweringResult.sourceTypeName
     {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -1601,9 +2570,20 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
   have hsourceLE : sourceVEnv <= envCtors :=
     (VEnv.addConstVals_le Hsource.typesAdded).trans
       (VEnv.addConstVals_le Hsource.ctorsAdded)
-  rcases Hprod.sourceRecursorParameterTemplateAt familyIdx hentry hsourceLE
-      with ⟨HtemplateTelescope, HtemplatePrefix, Htemplate,
-        HtemplateType⟩
+  have HtemplateData :
+      Expr.ForallTelescope template stats.params.size
+          (.sort (.zero : Level)) ∧
+        Lean.Expr.SameForallDomains stats.params.size template E.info.type ∧
+        TrExprS envCtors Us [] template
+            (VExpr.wrapForalls parameterDomains
+              (.sort (.zero : VLevel))) ∧
+        envCtors.IsType Us.length []
+          (VExpr.wrapForalls parameterDomains
+            (.sort (.zero : VLevel))) := by
+    simpa [E, Us, sourceSuffix, parameterDomains, template] using
+      Hprod.sourceRecursorParameterTemplateAt familyIdx hentry hsourceLE
+  rcases HtemplateData with
+    ⟨HtemplateTelescope, HtemplatePrefix, Htemplate, HtemplateType⟩
   have hparams : result.nparams = stats.params.size :=
     hresultNparams.trans <|
       R.core.nparams.symm.trans Hprod.cardinality.params.symm
@@ -1619,7 +2599,7 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
   have HtemplateTelescope' : Expr.ForallTelescope template result.nparams
       (.sort (.zero : Level)) := by
     simpa [template, hparams] using HtemplateTelescope
-  have HtemplatePrefix' : Expr.SameForallDomains result.nparams template
+  have HtemplatePrefix' : Lean.Expr.SameForallDomains result.nparams template
       E.info.type := by
     simpa [template, E, hparams] using HtemplatePrefix
   have hlevels : E.info.levelParams = Us := by
@@ -1717,9 +2697,10 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledTelescopes
           (Hprod.recInfos.flatMap (·.minors)).size +
           Hprod.recInfos[familyIdx]!.indices.size + 1)
         targetType) :
-    ∃ owners recursors,
+    ∃ recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
-        sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
+        sourceVEnv envTypes envCtors Hrestored.inductives sourceDecl.types
+          recursors := by
   have Hfamilies : ∀ name nested,
       result.aux2nested.find? name = some nested →
       (`_nested).isPrefixOf name = true := by
@@ -1772,9 +2753,10 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledSuffixes
         envCtors []
         ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
           Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse)) :
-    exists owners recursors,
+    exists recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
-        sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
+        sourceVEnv envTypes envCtors Hrestored.inductives sourceDecl.types
+          recursors := by
   apply H.sourceSemanticTraceOfInstalledTelescopes Hc Hprod Hsources Hsource
     Hmetadata Howners hempty Hrestored
   intro familyIdx hfamily hdecl hentry stepSource stepTarget Hstep
@@ -1844,7 +2826,7 @@ theorem RecursorPhasesResult.auxRestorationSourcesOfLowering
   rcases Hlower with ⟨finalState, Hrun⟩
   rcases Hrun.source with
     ⟨main, rest, tail, paramsState, lctx, params, hsource, Hopening,
-      hinitial, _hinitialAux, _hinitialNext, _Hctx, _Hselection, Hqueue⟩
+      hinitial, _hinitialAux, _hinitialNext, _hprefix, _Hctx, _Hselection, Hqueue⟩
   subst sourceTypes
   have Hrestorable := H.restorationSources Hc (by
     intro lowered hlowered ctor hctor
@@ -1895,12 +2877,16 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
     (lparams : List Name) (safety : DefinitionSafety)
     (allowPrimitive : Bool) (fuel : FuelConfig)
     (Validated : Environment → Prop)
-    (Hvalidate : ∀ restoredEnv,
+    (Hvalidate : ∀ restoredEnv validationEnv,
       Nonempty (RestoredNestedDeclarationsResult res loweredEnv sourceProdEnv
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
         (sourceTypes.map (·.name)) sourceTypes
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
         ((), restoredEnv)) →
+      Nonempty (RestoredConstructorValidationEnvironment res loweredEnv
+        sourceProdEnv (sourceTypes.map (·.name)) sourceTypes validationEnv) →
+      Lean4Lean.validateRestoredConstructorParameters.run validationEnv
+        lparams safety fuel sourceTypes res = .ok () →
       (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
         res).WF fun _ => Validated restoredEnv) :
     (Environment.restoreNestedAfterInstall sourceProdEnv loweredEnv lparams
@@ -1908,6 +2894,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
         RestoredAfterInstallResult res sourceProdEnv loweredEnv
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) sourceTypes
+          lparams safety fuel
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
           Validated outEnv := by
   have hnparams : res.nparams = nparams := Hlower.resultNParams
@@ -1958,6 +2945,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
         RestoredAfterInstallResult res sourceProdEnv loweredEnv
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) sourceTypes
+          lparams safety fuel
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
           (fun _ =>
             ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
@@ -1970,7 +2958,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
       ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res ∧
       ∃ selection : LocalForallSelection res.lctx res.params,
         ClosedNestedAuxiliaryTranslations venv lparams res selection)
-  intro restoredEnv Hrestoration
+  intro restoredEnv _validationEnv Hrestoration _Hvalidation _Hparameters
   have Hvalid := hvalid restoredEnv Hrestoration
   refine (Hlower.validateNestedAuxiliariesWF Hvalid mlctx hmlctx hlctx
     hfresh).mono fun _ Hvalidated => ⟨Hvalidated, ?_⟩

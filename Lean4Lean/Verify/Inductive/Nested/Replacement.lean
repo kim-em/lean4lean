@@ -200,6 +200,34 @@ theorem ExprReplacement.ForallTelescopeReplacement.domainPairs
     · exact Hdomain
     · exact Hpairs pair htail
 
+/-- Select the corresponding old and restored domains at a concrete binder
+position in a binder-aligned replacement telescope. -/
+theorem ExprReplacement.ForallTelescopeReplacement.binderAt
+    (H : ExprReplacement.ForallTelescopeReplacement replaceNode input output
+      arity oldResidual newResidual)
+    (i : Nat) (hi : i < arity) :
+    ∃ oldDomain newDomain,
+      Expr.ForallBinderAt input i oldDomain ∧
+      Expr.ForallBinderAt output i newDomain ∧
+      ExprReplacement replaceNode oldDomain newDomain := by
+  induction H generalizing i with
+  | nil => omega
+  | @cons name oldDomain oldBody bi newDomain newBody arity oldResidual
+      newResidual Hnone Hdomain Hbody ih =>
+    cases i with
+    | zero =>
+      refine ⟨oldDomain, newDomain, .here, ?_, Hdomain⟩
+      simpa [Expr.updateForallE!] using
+        (Expr.ForallBinderAt.here (name := name) (body := newBody)
+          (bi := bi) (domain := newDomain))
+    | succ i =>
+      rcases ih i (by omega) with
+        ⟨oldInnerDomain, newInnerDomain, Hold, Hnew, Hreplacement⟩
+      refine ⟨oldInnerDomain, newInnerDomain, .there Hold, ?_, Hreplacement⟩
+      simpa [Expr.updateForallE!] using
+        (Expr.ForallBinderAt.there (name := name)
+          (outerDomain := newDomain) (bi := bi) Hnew)
+
 /-- Existential target of a concrete expression which translates to an
 abstract type in the indicated context. -/
 def Expr.AbstractTypeTranslation
@@ -741,6 +769,118 @@ theorem ExprReplacement.eq_replace
     rw [Lean.Expr.replaceNoCache.eq_def, h]
     dsimp only
     rw [← ihBody]
+
+/-- On syntax which avoids every key of the auxiliary-recursor map, the
+recursor-renaming branch of `restoreNestedNode` is observationally absent.
+The remaining family and constructor branches are independent of `auxRec`. -/
+theorem restoreNestedNode_eq_empty_of_avoids
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
+    (recNames : List Name) (t : Expr)
+    (Hkeys : ∀ old new, auxRec.find? old = some new → old ∈ recNames)
+    (Havoid : t.AvoidsConsts recNames) :
+    result.restoreNestedNode env As auxRec t =
+      result.restoreNestedNode env As {} t := by
+  cases t with
+  | const name levels =>
+      cases Havoid with
+      | const _ _ hfresh =>
+          have hnone : auxRec.find? name = none := by
+            cases hfind : auxRec.find? name with
+            | none => rfl
+            | some new => exact False.elim (hfresh (Hkeys name new hfind))
+          have hempty : ({} : NameMap Name).find? name = none := rfl
+          simp [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode, hnone,
+            hempty]
+  | bvar | fvar | mvar | sort | app | lam | forallE | letE | lit | mdata
+      | proj => rfl
+
+/-- Change an operational restoration certificate to the empty auxiliary
+recursor map whenever the input contains none of that map's keys. -/
+theorem ExprReplacement.toEmptyAuxRec
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {env : Environment} {As : Array Expr} {auxRec : NameMap Name}
+    {recNames : List Name} {input output : Expr}
+    (H : ExprReplacement (result.restoreNestedNode env As auxRec) input output)
+    (Hkeys : ∀ old new, auxRec.find? old = some new → old ∈ recNames)
+    (Havoid : input.AvoidsConsts recNames) :
+    ExprReplacement (result.restoreNestedNode env As {}) input output := by
+  induction H with
+  | hit h =>
+      exact .hit ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+        recNames _ Hkeys Havoid).symm.trans h)
+  | bvar h =>
+      exact .bvar ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+        recNames _ Hkeys Havoid).symm.trans h)
+  | fvar h =>
+      exact .fvar ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+        recNames _ Hkeys Havoid).symm.trans h)
+  | mvar h =>
+      exact .mvar ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+        recNames _ Hkeys Havoid).symm.trans h)
+  | sort h =>
+      exact .sort ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+        recNames _ Hkeys Havoid).symm.trans h)
+  | const h =>
+      exact .const ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+        recNames _ Hkeys Havoid).symm.trans h)
+  | lit h =>
+      exact .lit ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+        recNames _ Hkeys Havoid).symm.trans h)
+  | app h hfn harg ihFn ihArg =>
+      cases Havoid with
+      | app _ _ Hfn Harg =>
+          exact .app
+            ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+              recNames _ Hkeys (.app _ _ Hfn Harg)).symm.trans h)
+            (ihFn Hfn) (ihArg Harg)
+  | lam h hdom hbody ihDom ihBody =>
+      cases Havoid with
+      | lam _ _ _ _ Hdom Hbody =>
+          exact .lam
+            ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+              recNames _ Hkeys (.lam _ _ _ _ Hdom Hbody)).symm.trans h)
+            (ihDom Hdom) (ihBody Hbody)
+  | forallE h hdom hbody ihDom ihBody =>
+      cases Havoid with
+      | forallE _ _ _ _ Hdom Hbody =>
+          exact .forallE
+            ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+              recNames _ Hkeys (.forallE _ _ _ _ Hdom Hbody)).symm.trans h)
+            (ihDom Hdom) (ihBody Hbody)
+  | letE h htype hvalue hbody ihType ihValue ihBody =>
+      cases Havoid with
+      | letE _ _ _ _ _ Htype Hvalue Hbody =>
+          exact .letE
+            ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+              recNames _ Hkeys (.letE _ _ _ _ _ Htype Hvalue Hbody)).symm.trans h)
+            (ihType Htype) (ihValue Hvalue) (ihBody Hbody)
+  | mdata h hbody ihBody =>
+      cases Havoid with
+      | mdata _ _ Hbody =>
+          exact .mdata
+            ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+              recNames _ Hkeys (.mdata _ _ Hbody)).symm.trans h)
+            (ihBody Hbody)
+  | proj h hbody ihBody =>
+      cases Havoid with
+      | proj _ _ _ Hbody =>
+          exact .proj
+            ((restoreNestedNode_eq_empty_of_avoids result env As auxRec
+              recNames _ Hkeys (.proj _ _ _ Hbody)).symm.trans h)
+            (ihBody Hbody)
+
+theorem Expr.replace_restoreNestedNode_eq_empty_of_avoids
+    (result : Lean4Lean.ElimNestedInductive.Result)
+    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
+    (recNames : List Name) (input : Expr)
+    (Hkeys : ∀ old new, auxRec.find? old = some new → old ∈ recNames)
+    (Havoid : input.AvoidsConsts recNames) :
+    input.replace (result.restoreNestedNode env As auxRec) =
+      input.replace (result.restoreNestedNode env As {}) := by
+  have Hactual := ExprReplacement.ofReplace
+    (result.restoreNestedNode env As auxRec) input
+  exact (Hactual.toEmptyAuxRec Hkeys Havoid).eq_replace
 
 /-- The body traversal used by `restoreNested` is now related exactly to its
 three independently specified node-restoration cases. -/

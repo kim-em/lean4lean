@@ -206,8 +206,25 @@ theorem
   have hmajorLocal : sourceMajor.abstractList
       F.semantic.generated.arguments_bound.fvars =
       F.semantic.generated.abstractedMajor := by
-    unfold sourceMajor BoundGeneratedRecursiveCall.abstractedMajor
-    rw [Expr.abstractList_mkAppN, hlocalAbstract]
+    have hfieldClosed : A.rule.recursiveArgs[j].looseBVarRange' = 0 := by
+      have hclosed := F.semantic.field_translation.closed
+      rw [A.semantics.context.mlctx.noBV] at hclosed
+      exact hclosed.looseBVarRange_zero
+    calc
+      sourceMajor.abstractList F.semantic.generated.arguments_bound.fvars =
+          mkAppN
+            (A.rule.recursiveArgs[j].abstractList
+              F.semantic.generated.arguments_bound.fvars)
+            (List.ofFn (fun index :
+              Fin F.semantic.generated.arguments_bound.fvars.length =>
+                Expr.bvar
+                  (F.semantic.generated.arguments_bound.fvars.length - 1 -
+                    index))).toArray := by
+        unfold sourceMajor
+        rw [Expr.abstractList_mkAppN, hlocalAbstract]
+      _ = F.semantic.generated.abstractedMajor :=
+        (F.semantic.generated.abstractedMajor_eq_of_closed
+          hfieldClosed).symm
   have HclosedMajor := Hscope.abstractFront
     H.outVEnvWF hscopeBase HnarrowMajor
   rw [hsourceShape sourceMajor, hmajorLocal] at HclosedMajor

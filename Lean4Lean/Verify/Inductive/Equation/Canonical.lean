@@ -1332,9 +1332,162 @@ theorem
     VExpr.liftN_mkApps, VExpr.liftN, domains,
     List.append_assoc] using Htr
 
+/-- Cached parameters are already present in the recursive-call root, hence
+cannot collide with the call-local binders freshly introduced above it. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.parameterFVarsFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    ∀ fv ∈ A.rule.params_bound.fvars,
+      fv ∉ F.semantic.generated.arguments_bound.fvars := by
+  intro fv hparam
+  intro hlocal
+  have hsource : Expr.fvar fv ∈ stats.params.toList := by
+    rw [A.rule.params_bound.expressions]
+    simpa using hparam
+  have go : ∀ {sources : List Expr} {targets : List VExpr},
+      List.Forall₂
+        (TrExprS A.semantics.context.venv
+          (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+          A.semantics.context.mlctx.vlctx) sources targets →
+      Expr.fvar fv ∈ sources →
+      fv ∈ A.semantics.context.mlctx.vlctx.fvars := by
+    intro sources targets Htr
+    induction Htr with
+    | nil => simp
+    | cons Hhead _ ih =>
+      simp only [List.mem_cons]
+      intro hmem
+      rcases hmem with rfl | hmem
+      · simpa only [FVarsIn] using Hhead.fvarsIn
+      · exact ih hmem
+  have hscope := go A.semantics.validStats.params hsource
+  have hroot : fv ∈ A.rule.root.lctx.fvars := by
+    rw [← A.semantics.context.lctx_eq,
+      A.semantics.context.mlctx_wf.tr.fvars_eq]
+    exact hscope
+  exact F.semantic.generated.arguments_bound.fresh fv hlocal hroot
+
 /-- The common parameter/motive/minor part of a generated recursive call,
 after closing its call-local arguments and then the surrounding rule binders,
 is exactly the canonical equation prefix weakened below the local lambdas. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.rawRecursorPrefixClosed
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    Closed (mkAppN
+      (mkAppN
+        (mkAppN
+          (.const F.semantic.generated.recursorName
+            (AddInductive.getRecLevels H.elimLevel stats.levels))
+          stats.params)
+        (H.recInfos.map (·.motive)))
+      (H.recInfos.flatMap (·.minors))) := by
+  have mkAppNClosed : ∀ (head : Expr) (args : Array Expr),
+      Closed head → (∀ arg ∈ args, Closed arg) →
+      Closed (mkAppN head args) := by
+    intro head args hhead hargs
+    unfold mkAppN
+    rw [← Array.foldl_toList]
+    have go : ∀ (xs : List Expr) (acc : Expr),
+        Closed acc → (∀ arg ∈ xs, Closed arg) →
+        Closed (xs.foldl Expr.app acc) := by
+      intro xs
+      induction xs with
+      | nil => simp
+      | cons first rest ih =>
+        intro acc hacc hall
+        simp only [List.foldl_cons]
+        apply ih (.app acc first)
+        · exact ⟨hacc, hall first (by simp)⟩
+        · intro arg harg
+          exact hall arg (by simp [harg])
+    exact go args.toList head hhead (by
+      intro arg harg
+      exact hargs arg (by simpa using harg))
+  have boundClosed : ∀ {root xs} (B : BoundFVarArray root xs),
+      ∀ arg ∈ xs, Closed arg := by
+    intro root xs B arg harg
+    rw [B.expressions] at harg
+    simp at harg
+    rcases harg with ⟨fv, _hfv, rfl⟩
+    trivial
+  apply mkAppNClosed
+  · apply mkAppNClosed
+    · apply mkAppNClosed
+      · trivial
+      · exact boundClosed A.rule.params_bound
+    · exact boundClosed A.rule.motives_bound
+  · exact boundClosed A.rule.minors_bound
+
+/-- The instantiated call template has the raw recursor prefix followed by
+the locally abstracted recursive indices.  Closing rule binders distributes
+structurally over that exact spine. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedRecursor_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let sourceIndices := Std.Slice.toList
+      (F.semantic.generated.exposedType.getAppArgs.toSubarray
+        stats.params.size)
+    let localPrefix := mkAppN
+      (mkAppN
+        (mkAppN
+          (.const F.semantic.generated.recursorName
+            (AddInductive.getRecLevels H.elimLevel stats.levels))
+          stats.params)
+        (H.recInfos.map (·.motive)))
+      (H.recInfos.flatMap (·.minors))
+    F.semantic.generated.outerAbstractedRecursor A.rule.binders =
+      Expr.mkAppList
+        (localPrefix.abstractList A.rule.binders
+          F.semantic.generated.localArgs.size)
+        (sourceIndices.map fun index =>
+          (index.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.binders F.semantic.generated.localArgs.size) := by
+  dsimp only
+  unfold BoundGeneratedRecursiveCall.outerAbstractedRecursor
+  rw [SemanticBoundGeneratedRecursiveCall.abstractedRecursor_eq
+    A.semantics.context F.semantic]
+  have hclosed := F.rawRecursorPrefixClosed
+  rw [Expr.liftLooseBVars_eq_self hclosed.looseBVarRange_le]
+  rw [Expr.abstractList_mkAppN, Expr.mkAppN_eq_mkAppList]
+  simp [AddInductive.getIIndices, List.map_map, Function.comp_def]
+
 theorem
     RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedCommonPrefix_eq_lift
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1356,12 +1509,9 @@ theorem
           (mkAppN
             (.const F.semantic.generated.recursorName
               (AddInductive.getRecLevels H.elimLevel stats.levels))
-            (stats.params.map fun arg => arg.abstractList
-              F.semantic.generated.arguments_bound.fvars))
-          ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars)
+            stats.params)
+          (H.recInfos.map (·.motive)))
+        (H.recInfos.flatMap (·.minors))
     let canonicalPrefix :=
       mkAppN
         (mkAppN
@@ -1379,61 +1529,57 @@ theorem
       canonicalPrefix.liftLooseBVars' 0
         F.semantic.generated.localArgs.size := by
   dsimp only
-  have Hp := F.semantic.generated.outerAbstractedBoundArray_eq_lift
-    A.rule.params_bound A.rule.binders_nodup (by
-      intro fv hfv
-      simp [BoundGeneratedRecursorRule.binders, hfv])
-  have Hm := F.semantic.generated.outerAbstractedBoundArray_eq_lift
-    A.rule.motives_bound A.rule.binders_nodup (by
-      intro fv hfv
-      simp [BoundGeneratedRecursorRule.binders, hfv])
-  have Hmi := F.semantic.generated.outerAbstractedBoundArray_eq_lift
-    A.rule.minors_bound A.rule.binders_nodup (by
-      intro fv hfv
-      simp [BoundGeneratedRecursorRule.binders, hfv])
-  have Hp' :
-      (stats.params.map fun arg => arg.abstractList
-        F.semantic.generated.arguments_bound.fvars).map
-          (fun arg => arg.abstractList A.rule.binders
-            F.semantic.generated.localArgs.size) =
-        stats.params.map (fun arg =>
-          (arg.abstractList A.rule.binders).liftLooseBVars' 0
-            F.semantic.generated.localArgs.size) := by
-    rw [Array.map_map]
-    change stats.params.map (fun arg =>
-      (arg.abstractList F.semantic.generated.arguments_bound.fvars).abstractList
-        A.rule.binders F.semantic.generated.localArgs.size) = _
-    exact Hp
-  have Hm' :
-      ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-        F.semantic.generated.arguments_bound.fvars).map
-          (fun arg => arg.abstractList A.rule.binders
-            F.semantic.generated.localArgs.size) =
-        (H.recInfos.map (·.motive)).map (fun arg =>
-          (arg.abstractList A.rule.binders).liftLooseBVars' 0
-            F.semantic.generated.localArgs.size) := by
-    rw [Array.map_map]
-    change (H.recInfos.map (·.motive)).map (fun arg =>
-      (arg.abstractList F.semantic.generated.arguments_bound.fvars).abstractList
-        A.rule.binders F.semantic.generated.localArgs.size) = _
-    exact Hm
-  have Hmi' :
-      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-        F.semantic.generated.arguments_bound.fvars).map
-          (fun arg => arg.abstractList A.rule.binders
-            F.semantic.generated.localArgs.size) =
-        (H.recInfos.flatMap (·.minors)).map (fun arg =>
-          (arg.abstractList A.rule.binders).liftLooseBVars' 0
-            F.semantic.generated.localArgs.size) := by
-    rw [Array.map_map]
-    change (H.recInfos.flatMap (·.minors)).map (fun arg =>
-      (arg.abstractList F.semantic.generated.arguments_bound.fvars).abstractList
-        A.rule.binders F.semantic.generated.localArgs.size) = _
-    exact Hmi
-  simp only [Expr.abstractList_mkAppN, Expr.abstractList_const]
-  rw [Hp', Hm', Hmi']
-  simp [Expr.liftLooseBVars'_mkAppN, Array.map_map,
-    Function.comp_def, Expr.liftLooseBVars']
+  let rawPrefix := mkAppN
+    (mkAppN
+      (mkAppN
+        (.const F.semantic.generated.recursorName
+          (AddInductive.getRecLevels H.elimLevel stats.levels))
+        stats.params)
+      (H.recInfos.map (·.motive)))
+    (H.recInfos.flatMap (·.minors))
+  have mkAppNClosed : ∀ (head : Expr) (args : Array Expr),
+      Closed head → (∀ arg ∈ args, Closed arg) →
+      Closed (mkAppN head args) := by
+    intro head args hhead hargs
+    unfold mkAppN
+    rw [← Array.foldl_toList]
+    have go : ∀ (xs : List Expr) (acc : Expr),
+        Closed acc → (∀ arg ∈ xs, Closed arg) →
+        Closed (xs.foldl Expr.app acc) := by
+      intro xs
+      induction xs with
+      | nil => simp
+      | cons first rest ih =>
+        intro acc hacc hall
+        simp only [List.foldl_cons]
+        apply ih (.app acc first)
+        · exact ⟨hacc, hall first (by simp)⟩
+        · intro arg harg
+          exact hall arg (by simp [harg])
+    exact go args.toList head hhead (by
+      intro arg harg
+      exact hargs arg (by simpa using harg))
+  have boundClosed : ∀ {root xs} (B : BoundFVarArray root xs),
+      ∀ arg ∈ xs, Closed arg := by
+    intro root xs B arg harg
+    rw [B.expressions] at harg
+    simp at harg
+    rcases harg with ⟨fv, _hfv, rfl⟩
+    trivial
+  have hclosed : Closed rawPrefix := by
+    apply mkAppNClosed
+    · apply mkAppNClosed
+      · apply mkAppNClosed
+        · trivial
+        · exact boundClosed A.rule.params_bound
+      · exact boundClosed A.rule.motives_bound
+    · exact boundClosed A.rule.minors_bound
+  have hshift := Expr.abstractList_add_eq_liftLooseBVars
+    (e := rawPrefix) (fvars := A.rule.binders) (depth := 0)
+    (extra := F.semantic.generated.localArgs.size)
+    hclosed A.rule.binders_nodup
+  simpa [rawPrefix, Expr.abstractList_mkAppN, Array.map_map,
+    Function.comp_def] using hshift
 
 /-- Closing semantic recursive indices first over constructor fields and then
 over the outer parameter/motive/minor groups is exactly production's single
@@ -1781,49 +1927,35 @@ theorem
       F.semantic.generated.outerAbstractedMajor A.rule.binders := by
   let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
   let inserted := T.motives ++ T.minors
-  rcases F.finalAppliedMajorTarget with
-    ⟨localDomains, fieldDomains, fv, fieldVar,
-      hlocal, hfields, _hfieldVar, hfieldEq, hfield,
-      hfieldSource, _Hmajor, _htarget⟩
-  have hfieldRoot : fv ∈ A.rule.root.lctx.fvars :=
-    A.rule.all_args_bound.members fv hfield
-  rcases F.semantic.generated.outerAbstractedMajor_eq_bvar_of_field_eq
-      hfieldEq hfieldRoot A.rule.all_args_nodup hfield with
-    ⟨allFieldVar, _hallBound, hallSource, hallShape⟩
-  rw [hfieldSource] at hallSource
-  cases hallSource
-  have hfieldFull : fv ∈ A.rule.binders := by
-    unfold BoundGeneratedRecursorRule.binders
-    exact List.mem_append_right _ hfield
-  have hnotOuter : fv ∉
-      (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
-        A.rule.minors_bound.fvars :=
-    A.rule.all_args_outer_fresh fv hfield
-  have hfullSource : (Expr.fvar fv).abstractList A.rule.binders =
-      .bvar fieldVar := by
-    unfold BoundGeneratedRecursorRule.binders
-    rw [Expr.abstractList_append,
-      Expr.abstractList_fvar_of_not_mem hnotOuter, hfieldSource]
-  rcases F.semantic.generated.outerAbstractedMajor_eq_bvar_of_field_eq
-      hfieldEq hfieldRoot A.rule.binders_nodup hfieldFull with
-    ⟨fullFieldVar, _hfullBound, hfullSource', hfullShape⟩
-  have hfullSource'' : (Expr.fvar fv).abstractList A.rule.binders =
-      .bvar fullFieldVar := by
-    simpa [BoundGeneratedRecursorRule.binders,
-      List.append_assoc] using hfullSource'
-  rw [hfullSource] at hfullSource''
-  cases hfullSource''
-  have hfullShape' :
-      F.semantic.generated.outerAbstractedMajor A.rule.binders =
-        mkAppN (.bvar (F.semantic.generated.localArgs.size + fieldVar))
-          (F.semantic.generated.localIndices.map Expr.bvar).toArray := by
-    simpa [BoundGeneratedRecursorRule.binders,
-      List.append_assoc] using hfullShape
+  let fieldPosition := A.semantics.recursivePositions[j]!
+  have hfieldPosition : fieldPosition < A.rule.allArgs.size :=
+    (A.semantics.decisions.selected_at j hj).1
+  have hfieldPositionFVars : fieldPosition <
+      A.rule.all_args_bound.fvars.length := by
+    rw [A.rule.all_args_bound.length_fvars]
+    exact hfieldPosition
+  rcases A.rule.all_args_bound.getElem_eq_fvar fieldPosition
+      hfieldPosition with ⟨_hpositionFVars, hfieldAt⟩
+  have hfieldBang : A.rule.allArgs[fieldPosition]! =
+      .fvar A.rule.all_args_bound.fvars[fieldPosition] :=
+    (getElem!_pos A.rule.allArgs fieldPosition hfieldPosition).trans hfieldAt
+  have hfieldEq : A.rule.recursiveArgs[j] =
+      .fvar A.rule.all_args_bound.fvars[fieldPosition] := by
+    rw [← getElem!_pos A.rule.recursiveArgs j hj]
+    exact (A.semantics.decisions.selected_at j hj).2.trans hfieldBang
+  have hfieldRoot : A.rule.all_args_bound.fvars[fieldPosition] ∈
+      F.originRoot.lctx.fvars :=
+    F.field_mem_originRoot (List.getElem_mem hfieldPositionFVars)
+  have hallShape :=
+    F.semantic.generated.outerAbstractedMajor_eq_bvar_at hfieldEq
+      hfieldRoot A.rule.all_args_nodup hfieldPositionFVars rfl
+  have hfullShape := F.outerAbstractedAppliedMajorOrdinal
   have hbaseFull :
       F.semantic.generated.outerAbstractedMajor
           A.rule.all_args_bound.fvars =
         F.semantic.generated.outerAbstractedMajor A.rule.binders := by
-    rw [hallShape, hfullShape']
+    rw [hallShape, hfullShape]
+    simp [fieldPosition, A.rule.all_args_bound.length_fvars]
   rcases F.cachedSemanticCallArgumentFrame with
     ⟨_binding, _evidence, _scope, _Hscope,
       cachedFields, cachedLocals, _narrowIndices, _narrowMajor,
@@ -2479,8 +2611,9 @@ theorem
       Hparameters, HspineIndices⟩
   have HparametersOriginal := Hparameters
   have HouterParameters :=
-    F.semantic.generated.outerAbstractedBoundArray_eq_lift
-      A.rule.params_bound A.rule.binders_nodup (by
+    F.semantic.generated.outerAbstractedBoundArray_eq_lift_of_fresh
+      A.rule.params_bound F.parameterFVarsFresh
+      A.rule.binders_nodup (by
         intro fv hfv
         simp [BoundGeneratedRecursorRule.binders, hfv])
   have hparameterSources :

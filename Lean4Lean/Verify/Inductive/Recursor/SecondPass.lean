@@ -10,6 +10,288 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+/-- Semantic evidence retained by one successful recursive-call blueprint
+producer.  The first pass does not yet know the completed mutual minor array,
+so the certificate is deliberately polymorphic in that array and in the
+generated recursor levels.  Instantiation is nevertheless exact: its value is
+the executable `RecCallBlueprint.build`, not a replayed call. -/
+structure RecInfoCallBlueprintSemanticOrigin
+    (stats : AddInductive.InductiveStats)
+    (motives : Array Expr)
+    {root : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF root recLparams) (rootScope : FVarId → Prop)
+    (decl : VInductDecl) (depth : Nat) (field : Expr)
+    (call : AddInductive.RecCallBlueprint) : Prop where
+  semantic : ∀ (indTypes : Array InductiveType) (minors : Array Expr)
+      (lvls : List Level),
+    ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats
+        motives minors lvls R decl depth field
+        (call.build indTypes stats motives minors lvls),
+      S.rootScope = rootScope
+
+/-- Array alignment for the semantic call certificates emitted by
+`loopUBlueprints`.  Entry `j` is rooted after exactly the `j` earlier
+hypotheses installed by that same loop, hence its validation depth is
+`depth + j`. -/
+structure RecInfoHypothesisCallSemanticOrigins
+    {recLparams : List Name}
+    (Rroot : RecursorContextWF fieldRoot recLparams)
+    (decl : VInductDecl) (depth : Nat)
+    (stats : AddInductive.InductiveStats) (motives : Array Expr)
+    (rootScope : FVarId → Prop)
+    (fields hypotheses : Array Expr)
+    (calls : Array AddInductive.RecCallBlueprint) : Prop where
+  size_eq : calls.size = hypotheses.size
+  entry : ∀ j (hj : j < hypotheses.size),
+    ∃ originRoot,
+      ∃ Rorigin : RecursorContextWF originRoot recLparams,
+        ∃ priorHypotheses : Array Expr,
+          ∃ _ : RecursorRecentBoundFVarArray Rroot Rorigin priorHypotheses,
+            priorHypotheses.size = j ∧
+              Nonempty (RecInfoCallBlueprintSemanticOrigin stats motives
+                Rorigin rootScope decl (depth + j) fields[j]! calls[j]!)
+
+theorem RecInfoHypothesisCallSemanticOrigins.empty
+    {recLparams : List Name}
+    (R : RecursorContextWF c recLparams) (decl : VInductDecl) (depth : Nat)
+    (stats : AddInductive.InductiveStats) (motives : Array Expr)
+    (rootScope : FVarId → Prop)
+    (fields : Array Expr) :
+    RecInfoHypothesisCallSemanticOrigins R decl depth stats motives rootScope
+      fields #[] #[] where
+  size_eq := rfl
+  entry j hj := by simp at hj
+
+theorem RecInfoHypothesisCallSemanticOrigins.pushCurrent
+    {recLparams : List Name}
+    {Rroot : RecursorContextWF fieldRoot recLparams}
+    {R : RecursorContextWF c recLparams}
+    {calls : Array AddInductive.RecCallBlueprint}
+    (Hsem : RecInfoHypothesisCallSemanticOrigins Rroot decl depth stats
+      motives rootScope fields hypotheses calls)
+    (hnext : hypotheses.size < fields.size)
+    (Hrecent : RecursorRecentBoundFVarArray Rroot R hypotheses)
+    (call : AddInductive.RecCallBlueprint)
+    (S : RecInfoCallBlueprintSemanticOrigin stats motives R rootScope decl
+      (depth + hypotheses.size) fields[hypotheses.size]! call) :
+    RecInfoHypothesisCallSemanticOrigins Rroot decl depth stats motives rootScope
+      fields (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) (calls.push call) := by
+  refine {
+    size_eq := by simpa using congrArg Nat.succ Hsem.size_eq
+    entry := ?_ }
+  intro j hj
+  by_cases hlast : j = hypotheses.size
+  · subst j
+    have hcall : (calls.push call)[hypotheses.size]! = call := by
+      rw [show hypotheses.size = calls.size from Hsem.size_eq.symm]
+      simp
+    rw [hcall]
+    exact ⟨c, R, hypotheses, Hrecent, rfl, ⟨S⟩⟩
+  · have hjOld : j < hypotheses.size := by
+      have : j < hypotheses.size + 1 := by simpa using hj
+      omega
+    rcases Hsem.entry j hjOld with
+      ⟨originRoot, Rorigin, priorHypotheses, Hprior, hpriorSize, S⟩
+    have hjCalls : j < calls.size := by rw [Hsem.size_eq]; exact hjOld
+    have hcall : (calls.push call)[j]! = calls[j]! := by
+      simp only [Array.getElem!_eq_getD]
+      unfold Array.getD
+      rw [dif_pos (by simp; omega), dif_pos hjCalls]
+      exact Array.getElem_push_lt hjCalls
+    rw [hcall]
+    exact ⟨originRoot, Rorigin, priorHypotheses, Hprior,
+      hpriorSize, S⟩
+
+/-- Field-traversal semantics retained at the exact producer contexts. -/
+structure RecInfoRuleFieldSemanticSource
+    {recLparams : List Name}
+    (Rambient : RecursorContextWF c recLparams)
+    (stats : AddInductive.InductiveStats) (S : RecInfoMinorTypeShape) where
+  traversal : RecInfoMinorTraversalShape
+  traversal_eq : S.traversal = some traversal
+  traversal_constructor : traversal.constructor = S.constructor
+  traversal_fields : traversal.fields = S.fields
+  traversal_recursiveFields : traversal.recursiveFields = S.recursiveFields
+  traversal_stats : traversal.stats = stats
+  rootWF : RecursorContextWF traversal.rootContext recLparams
+  terminalWF : RecursorContextWF traversal.terminalContext recLparams
+  parameterDepth : Nat
+  parameterSuffix : RecursorParameterContextSuffix rootWF stats parameterDepth
+  terminalExtension : RecursorContextExtension terminalWF Rambient
+  fieldsRecent : RecursorRecentBoundFVarArray rootWF terminalWF S.fields
+  parameterTarget : VExpr
+  parameterTail_params : traversal.parameterTail.FVarsIn
+    (· ∈ ExprArrayFVarIds stats.params)
+  parameterTranslation : TrExprS rootWF.venv recLparams rootWF.mlctx.vlctx
+    traversal.parameterTail parameterTarget
+  parameterType : rootWF.venv.IsType recLparams.length
+    rootWF.mlctx.vlctx.toCtx parameterTarget
+  fieldOpening : ConstructorFieldOpening traversal.parameterTail
+    traversal.terminal S.fields
+  fieldParameterUp : IsFVarUpSet (fun fv => fv ∈ fieldsRecent.fvars ∨
+    fv ∈ ExprArrayFVarIds stats.params) terminalWF.mlctx.vlctx
+  terminalTarget : VExpr
+  terminalTranslation : TrExprS terminalWF.venv recLparams
+    terminalWF.mlctx.vlctx traversal.terminal terminalTarget
+  terminalType : terminalWF.venv.IsType recLparams.length
+    terminalWF.mlctx.vlctx.toCtx terminalTarget
+  constructorApplication : RecursorConstructorApplicationAt terminalWF stats
+    traversal.constructor traversal.terminal S.fields terminalTarget
+  fieldTargetDefEq : rootWF.venv.IsDefEqU recLparams.length
+    rootWF.mlctx.vlctx.toCtx parameterTarget
+      (terminalWF.mlctx.mkForall' S.fields.size fieldsRecent.size_le
+        terminalTarget)
+
+def RecInfoRuleFieldSemanticSource.mono
+    (F : RecInfoRuleFieldSemanticSource R stats S)
+    (E : RecursorContextExtension R R') :
+    RecInfoRuleFieldSemanticSource R' stats S :=
+  { F with terminalExtension := F.terminalExtension.trans E }
+
+/-- Stable rule-row form of the producer semantic origins.  It is indexed by
+the exact retained minor shape and blueprint, so later installation cannot
+pair a semantic call row with an unrelated executable rule. -/
+def RecInfoRuleBlueprintSemanticOriginAt
+    {recLparams : List Name}
+    (Rambient : RecursorContextWF c recLparams) (decl : VInductDecl)
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (elimLevel : Level) (parameterDecls : VLCtx)
+    (expectedOwnerIdx : Nat) (S : RecInfoMinorTypeShape)
+    (B : AddInductive.RecRuleBlueprint) : Prop :=
+  ∃ origins : RecInfoMinorHypothesisTypeOrigins S.sourceFullContext
+      S.recursiveFields S.hypotheses,
+    S.hypothesis_type_origins = some origins ∧
+    origins.stats = stats ∧
+    origins.recInfos.map (·.motive) = recInfos.map (·.motive) ∧
+    ∃ F : RecInfoRuleFieldSemanticSource Rambient stats S,
+      F.parameterSuffix.parameterDecls = parameterDecls ∧
+      ∃ depth,
+        RecursorValidAppStatsWF F.terminalWF.venv recLparams
+          F.terminalWF.mlctx.vlctx stats decl depth ∧
+        ∃ fields : List (RecursorRecursiveDomainAt F.terminalWF.venv decl
+            recLparams.length),
+          RecursorFieldSelectionsAt F.terminalWF.venv decl recLparams.length
+            S.fields S.recursiveFields fields ∧
+          AddInductive.isValidIndAppIdx stats F.traversal.terminal
+            expectedOwnerIdx = true ∧
+          expectedOwnerIdx < decl.types.length ∧
+          ∃ ownerIdx,
+            AddInductive.isValidIndApp? stats F.traversal.terminal =
+              some ownerIdx ∧
+            Nonempty (RecursorValidatedIndAppAt F.terminalWF.venv recLparams
+              F.terminalWF.mlctx.vlctx stats decl depth F.traversal.terminal
+              F.terminalTarget ownerIdx) ∧
+        ∃ binding : RecursorMotiveBinding F.terminalWF
+            recInfos[ownerIdx]! elimLevel,
+          Nonempty (RecursorMotiveTelescopeEvidence F.terminalWF stats
+            recInfos[ownerIdx]! binding F.traversal.terminal
+            F.terminalTarget) ∧
+        Nonempty (RecInfoHypothesisCallSemanticOrigins F.terminalWF decl depth
+          stats (recInfos.map (·.motive))
+          (fun fv => fv ∈ F.fieldsRecent.fvars ∨
+            fv ∈ ExprArrayFVarIds stats.params)
+          S.recursiveFields S.hypotheses B.recursiveCalls)
+
+theorem RecInfoRuleBlueprintSemanticOriginAt.mono
+    {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {R' : RecursorContextWF c' recLparams}
+    (H : RecInfoRuleBlueprintSemanticOriginAt R decl stats recInfos elimLevel
+      parameterDecls
+      expectedOwnerIdx S B)
+    (E : RecursorContextExtension R R') :
+    RecInfoRuleBlueprintSemanticOriginAt R' decl stats recInfos elimLevel
+      parameterDecls
+      expectedOwnerIdx S B := by
+  unfold RecInfoRuleBlueprintSemanticOriginAt at H ⊢
+  rcases H with
+    ⟨origins, hshape, hstats, hmotives, F, hparams, depth, HvalidStats,
+      fields, Hselection, hexpectedValid, hexpectedLt,
+      ownerIdx, htargetValid, Hvalidated, binding, Hevidence, Hcalls⟩
+  exact ⟨origins, hshape, hstats, hmotives, F.mono E, hparams, depth,
+    HvalidStats, fields, Hselection, hexpectedValid, hexpectedLt,
+    ownerIdx, htargetValid, Hvalidated, binding, Hevidence, Hcalls⟩
+
+/-- Owner/minor-indexed persistence of the semantic blueprint rows through
+the complete mutual second pass. -/
+structure RecInfoRuleBlueprintSemanticOrigins
+    {recLparams : List Name}
+    (R : RecursorContextWF c recLparams) (decl : VInductDecl)
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (elimLevel : Level) (parameterDecls : VLCtx)
+    (Horigins : RecInfoTypeOrigins c recInfos) : Prop where
+  rows_size : ∀ owner (howner : owner < recInfos.size),
+    recInfos[owner]!.ruleBlueprints.size =
+      Horigins.minorTypes[owner]!.size
+  entry : ∀ owner (howner : owner < recInfos.size)
+      (localIndex : Nat)
+      (hlocal : localIndex < Horigins.minorTypes[owner]!.size),
+    Nonempty (RecInfoRuleBlueprintSemanticOriginAt R decl stats recInfos elimLevel
+      parameterDecls
+      owner
+      (Horigins.minorShapes owner howner localIndex hlocal)
+      recInfos[owner]!.ruleBlueprints[localIndex]!)
+  /-- Every retained field binder is distinct from every binder in the
+  completed recursor prefix.  This is producer evidence: later minor
+  allocations preserve earlier rows because their fresh id is not in the
+  current context, while a newly completed row was opened after the prefix
+  that already existed. -/
+  fields_outer_fresh : ∀ owner (howner : owner < recInfos.size)
+      (localIndex : Nat)
+      (hlocal : localIndex < Horigins.minorTypes[owner]!.size)
+      (fv : FVarId),
+    fv ∈ (Horigins.minorShapes owner howner localIndex hlocal).fields_bound.fvars →
+    fv ∉ (ExprArrayFVarIds stats.params ++
+      ExprArrayFVarIds (recInfos.map (·.motive))) ++
+      ExprArrayFVarIds (recInfos.flatMap (·.minors))
+
+theorem RecInfoRuleBlueprintSemanticOrigins.mono
+    {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {R' : RecursorContextWF c' recLparams}
+    (H : RecInfoRuleBlueprintSemanticOrigins R decl stats recInfos elimLevel
+      parameterDecls Horigins)
+    (E : RecursorContextExtension R R') :
+    RecInfoRuleBlueprintSemanticOrigins R' decl stats recInfos elimLevel
+      parameterDecls
+      (Horigins.mono E.contextLE) := by
+  refine {
+    rows_size := H.rows_size
+    entry := ?_
+    fields_outer_fresh := ?_ }
+  · intro owner howner localIndex hlocal
+    have hlocalOld : localIndex < Horigins.minorTypes[owner]!.size := by
+      simpa [RecInfoTypeOrigins.mono] using hlocal
+    rcases H.entry owner howner localIndex hlocalOld with ⟨Hentry⟩
+    exact ⟨by simpa [RecInfoTypeOrigins.mono] using Hentry.mono E⟩
+  · intro owner howner localIndex hlocal fv hfv
+    simpa [RecInfoTypeOrigins.mono] using
+      H.fields_outer_fresh owner howner localIndex hlocal fv hfv
+
+/-- Before the executable second pass begins, every minor/blueprint row is
+empty, so the semantic-origin table is established without any entries. -/
+theorem RecInfoRuleBlueprintSemanticOrigins.ofEmpty
+    {recLparams : List Name}
+    (R : RecursorContextWF c recLparams) (decl : VInductDecl)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hempty : RecInfoMinorsEmpty recInfos)
+    (Hcounts : RecInfoBlueprintCounts recInfos) (elimLevel : Level) :
+    RecInfoRuleBlueprintSemanticOrigins R decl stats recInfos elimLevel
+      parameterDecls Horigins where
+  rows_size owner howner :=
+    (Hcounts owner howner).trans
+      (Horigins.minors owner howner).size_eq.symm
+  entry owner howner localIndex hlocal := by
+    have hsize := (Horigins.minors owner howner).size_eq
+    rw [Hempty owner howner] at hsize
+    omega
+  fields_outer_fresh owner howner localIndex hlocal := by
+    have hsize := (Horigins.minors owner howner).size_eq
+    rw [Hempty owner howner] at hsize
+    omega
+
 namespace mkRecRules.loopU
 
 /-- Binder-aware refinement of the production recursive-result loop. -/
@@ -29,15 +311,7 @@ theorem boundGeneratedCalls
   by_cases hnext : i < u.size
   · rw [dif_pos hnext]
     let buildCall : Expr → Array Expr → AddInductive.M Expr :=
-      fun uiTy xs => do
-        let some itIdx := AddInductive.isValidIndApp? stats uiTy
-          | throw (.other
-            "recursive constructor field lost its inductive result type")
-        let itIndices := uiTy.getAppArgs[stats.params.size:]
-        let val := Expr.const (Lean.mkRecName indTypes[itIdx]!.name) lvls
-        let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params)
-          motives) minors) itIndices
-        return (← getLCtx).mkLambda xs <| val.app (mkAppN u[i] xs)
+      mkRecRules.buildRecursiveCall indTypes stats motives minors lvls u[i]
     have hval :
         (AddInductive.mkRecInfos.loopUArgs u[i] buildCall c).WF
           (fun value => Nonempty (BoundGeneratedRecursiveCall indTypes stats
@@ -46,7 +320,7 @@ theorem boundGeneratedCalls
         (Q := fun value => Nonempty (BoundGeneratedRecursiveCall indTypes
           stats motives minors lvls c u[i] value)) u[i] buildCall c Hc ?_
       intro uiTy xs c' Hc' Hxs Hle
-      unfold buildCall
+      unfold buildCall mkRecRules.buildRecursiveCall
       cases hvalid : AddInductive.isValidIndApp? stats uiTy with
       | none =>
         simp only [hvalid, bind, Except.bind]
@@ -86,9 +360,8 @@ theorem semanticBoundGeneratedCalls
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -127,11 +400,11 @@ theorem semanticBoundGeneratedCalls
       rw [hfield]
       simpa only [buildCall, hfield] using
         mkRecRules.boundGeneratedCallSemantic indTypes stats motives minors
-        lvls R Hstats hwhnf hconsume hlit hctx hproj fv Hfield
+        lvls R Hstats hconsume hlit hctx hproj fv Hfield
         (HfieldScope i hnext hfield) hrootUp
     exact hval.bind fun value Hvalue => by
       rcases Hvalue with ⟨Hvalue, hscope⟩
-      exact semanticBoundGeneratedCalls R Hstats hwhnf hconsume hlit hctx
+      exact semanticBoundGeneratedCalls R Hstats hconsume hlit hctx
         hproj Hfields HfieldScope hrootUp
           (Hprefix.push hnext Hvalue hscope) Hk
   · rw [dif_neg hnext]
@@ -164,9 +437,8 @@ theorem mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -188,7 +460,7 @@ theorem mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty
       (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
       u 0 #[] k c).WF Q :=
-  mkRecRules.loopU.semanticBoundGeneratedCalls R Hstats hwhnf hconsume hlit
+  mkRecRules.loopU.semanticBoundGeneratedCalls R Hstats hconsume hlit
     hctx hproj Hfields HfieldScope hrootUp
     (SemanticBoundGeneratedRecursiveCalls.empty indTypes stats motives minors
       lvls R decl depth P u) Hk
@@ -225,7 +497,7 @@ theorem resultBindings {alpha : Type}
           (body.instantiate1 param) (i + 1) bu u fuel c).WF Q
         exact ih Hc Hbu Hu Hselected Hroot
       | none =>
-        change (Lean4Lean.withLocalDecl name bi dom.consumeTypeAnnotations
+        change (Lean4Lean.withLocalDecl name bi dom.consumeTypeAnnotationsVerified
           (fun arg => do
             let bu := bu.push arg
             let u := if (← AddInductive.isRecArg stats dom).isSome then
@@ -238,7 +510,7 @@ theorem resultBindings {alpha : Type}
         let c' : AddInductive.Context := { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotations bi }
+            dom.consumeTypeAnnotationsVerified bi }
         change (AddInductive.isRecArg stats dom c' >>= fun selected =>
           AddInductive.mkRecInfos.loopCtorArgs.loop stats
             k (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
@@ -250,9 +522,9 @@ theorem resultBindings {alpha : Type}
           intro _ _
           trivial
         refine hclass.bind fun selected _ => ?_
-        let Hc' := Hc.withLocalDecl name dom.consumeTypeAnnotations bi
+        let Hc' := Hc.withLocalDecl name dom.consumeTypeAnnotationsVerified bi
         let hstep := BindingContextLE.withLocalDecl c Hc name
-          dom.consumeTypeAnnotations bi
+          dom.consumeTypeAnnotationsVerified bi
         cases selected with
         | none =>
           have hselected' : u.toList.Sublist
@@ -261,8 +533,8 @@ theorem resultBindings {alpha : Type}
               (List.sublist_append_left bu.toList
                 [.fvar ⟨c.ngen.curr⟩])
           exact ih Hc'
-            (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
-            (Hu.weaken name dom.consumeTypeAnnotations bi)
+            (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
+            (Hu.weaken name dom.consumeTypeAnnotationsVerified bi)
             hselected'
             (Hroot.trans hstep)
         | some target =>
@@ -271,8 +543,8 @@ theorem resultBindings {alpha : Type}
             simpa using
               Hselected.append_right [.fvar ⟨c.ngen.curr⟩]
           exact ih Hc'
-            (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
-            (Hu.pushCurrent Hc Hroot name dom.consumeTypeAnnotations bi)
+            (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
+            (Hu.pushCurrent Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
             hselected'
             (Hroot.trans hstep)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
@@ -314,15 +586,15 @@ theorem oneRuleSemantics
     {decl : VInductDecl} {tail : Expr} {tailTarget introTarget : VExpr}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
+    (Hsuffix : RecursorParameterContextSuffix R stats depth)
     (hprefix : RecursorParamPrefix stats 0 ctor.type tail)
     (htailFVars : tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params))
     (hparameterUp : IsFVarUpSet
       (fun fv => fv ∈ ExprArrayFVarIds stats.params) R.mlctx.vlctx)
     (howner : ownerIdx < decl.types.length)
     (Hnormal : CheckedConstructorOwnerNormalForm stats ownerIdx tail)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -381,7 +653,7 @@ theorem oneRuleSemantics
         out.2 = minorIdx + 1)
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
-      process c R Hstats hprefix hwhnf hconsume hlit hctx hproj Htail
+      process c R Hstats hprefix hconsume hlit hctx hproj Htail
       HtailType htailFVars hparameterUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allArgs
     recursiveArgs fields positions args hterminalNonforall Hterminal HterminalType
@@ -426,7 +698,8 @@ theorem oneRuleSemantics
     (indTypes := indTypes) (stats := stats) (motives := motives)
     (minors := minors) (lvls := lvls) (u := recursiveArgs)
     (k := buildRule) (c := current) (decl := decl) Rargs
-    HstatsArgs hwhnf hconsume hlit hctxArgs hproj
+    HstatsArgs hconsume
+      (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs hproj
     (Hselection.selectedFVars
       HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray Hrecursive)
     (P := fun fv => fv ∈ _Hopening.fvars ∨
@@ -486,7 +759,10 @@ theorem oneRuleSemantics
           current.lctx.mkLambda allArgs <|
           mkAppN (mkAppN minors[minorIdx]! allArgs) recursiveResults } := {
     root := current
+    outerRoot := current
     root_wf := Rargs.toBindingContextWF
+    outer_wf := Rargs.toBindingContextWF
+    root_le_outer := BindingContextLE.refl current
     target := terminal
     allArgs := allArgs
     recursiveArgs := recursiveArgs
@@ -519,8 +795,11 @@ theorem oneRuleSemantics
     context := Rargs
     fieldRoot := c
     fieldRootContext := R
+    parameterDepth := depth
+    parameterSuffix := Hsuffix
+    parameterDecls := Hsuffix.parameterDecls
+    parameterDecls_eq := rfl
     fieldRootExtension := .refl R
-    fieldRoot_vlctx := rfl
     fieldsRecent := HfieldsRecent
     parameterTail := tail
     parameterPrefix := hprefix
@@ -551,12 +830,13 @@ theorem oneRuleSemantics
     constructor_typing := _HintroAppliedType
     target_valid := hselectedOwner
     validated := HstatsArgs.validatedIndAppAt Hterminal hselectedOwner
-      hselectedOwnerLt hlit hctxArgs hproj
+      hselectedOwnerLt
+        (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs hproj
     fields := fields
     selection := Hselection
     decisionPositions := positions
     decisions := Hdecisions
-    calls := Hcalls }
+    calls := Hcalls.toStaged (.refl Rargs) }
   apply Except.WF.pure
   refine Exists.intro Hrule ?_
   exact And.intro (Nonempty.intro Hsemantic) rfl
@@ -573,10 +853,10 @@ theorem semanticGeneratedRules
     {decl : VInductDecl}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
+    (Hsuffix : RecursorParameterContextSuffix R stats depth)
     (howner : ownerIdx < decl.types.length)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -620,7 +900,7 @@ theorem semanticGeneratedRules
           Htail, HtailType, Hintro, HintroType⟩
       rw [AddInductive.mkRecRules.loopCtors]
       have Hone := oneRuleSemantics indTypes stats motives minors lvls ctor
-        start ownerIdx R Hstats Hprefix HtailFVars hparameterUp howner Hnormal hwhnf
+        start ownerIdx R Hstats Hsuffix Hprefix HtailFVars hparameterUp howner Hnormal
         hconsume hlit hctx hproj Htail
         HtailType Hintro HintroType Hparams Hmotives Hminors HouterNodup
         (by simp at hminorsRoom; omega)
@@ -756,7 +1036,10 @@ theorem boundGeneratedRules
           exact HouterNodup
         exact ⟨{
           root := c'
+          outerRoot := c'
           root_wf := Hc'
+          outer_wf := Hc'
+          root_le_outer := BindingContextLE.refl c'
           target := target
           allArgs := bu
           recursiveArgs := u
@@ -835,10 +1118,10 @@ theorem mkRecRules.semanticGeneratedRules
     {decl : VInductDecl}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
+    (Hsuffix : RecursorParameterContextSuffix R stats depth)
     (howner : dIdx < decl.types.length)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -872,7 +1155,7 @@ theorem mkRecRules.semanticGeneratedRules
   unfold AddInductive.mkRecRules
   have H := mkRecRules.loopCtors.semanticGeneratedRules indTypes stats
     motives minors (AddInductive.getRecLevels elimLevel stats.levels)
-    indTypes[dIdx]!.ctors #[] start dIdx R Hstats howner hwhnf hconsume hlit hctx
+    indTypes[dIdx]!.ctors #[] start dIdx R Hstats Hsuffix howner hconsume hlit hctx
     hproj Hparams Hmotives Hminors HouterNodup hparameterUp hminorsRoom Hseed
   exact H.mono fun out Hout => by
     rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
@@ -933,9 +1216,9 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
       stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
+    (Hsuffix : RecursorParameterContextSuffix R stats depth)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -984,7 +1267,7 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
     rwa [← hsize]
   have H := mkRecRules.semanticGeneratedRules indTypes elimLevel stats dIdx
     (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-    (recursorMinorOffset indTypes dIdx) R Hstats howner hwhnf hconsume hlit hctx
+    (recursorMinorOffset indTypes dIdx) R Hstats Hsuffix howner hconsume hlit hctx
     hproj Hparams Hbindings.motives Hbindings.flatMinors
     (Hbindings.outerNodup Hparams hnoalias) hparameterUp hroom Hseed
   exact H.mono fun out Hout => by
@@ -1064,10 +1347,10 @@ theorem resultBindings {alpha : Type}
     apply withLocalDecl.continueRaw
     refine resultBindings stats u recInfos k (i + 1)
       (v.push (.fvar ⟨c.ngen.curr⟩)) _
-      (Hc.withLocalDecl vName viTy.consumeTypeAnnotations .default)
-      (Hv.pushCurrent Hc Hroot vName viTy.consumeTypeAnnotations .default)
+      (Hc.withLocalDecl vName viTy.consumeTypeAnnotationsVerified .default)
+      (Hv.pushCurrent Hc Hroot vName viTy.consumeTypeAnnotationsVerified .default)
       (Hroot.trans <| BindingContextLE.withLocalDecl c Hc vName
-        viTy.consumeTypeAnnotations .default) ?_
+        viTy.consumeTypeAnnotationsVerified .default) ?_
     intro outValues out Hout Hvalues HrootOut hsize
     apply Hk outValues out Hout Hvalues HrootOut
     simp only [Array.size_push] at hsize
@@ -1092,7 +1375,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     (R : RecursorContextWF current recLparams)
     (i : Nat) (v : Array Expr)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R v)
-    (Horigins : RecInfoHypothesisTypeOrigins stats recInfos current u v)
+    (Horigins : RecInfoHypothesisTypeOrigins stats recInfos root current u v)
     (hprocessed : v.size = i)
     (Hvi : ∀ {next : AddInductive.Context}
       (Rnext : RecursorContextWF next recLparams)
@@ -1109,7 +1392,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
         return (← getLCtx).mkForall xs motiveApp) next).WF fun viTy =>
           ∃ viTarget,
             TrExprS Rnext.venv recLparams Rnext.mlctx.vlctx
-              viTy.consumeTypeAnnotations viTarget ∧
+              viTy.consumeTypeAnnotationsVerified viTarget ∧
             Rnext.venv.IsType recLparams.length
               Rnext.mlctx.vlctx.toCtx viTarget ∧
             Nonempty (RecInfoHypothesisTypeOrigin
@@ -1118,7 +1401,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr),
       RecursorRecentBoundFVarArray Rroot Rout values →
-      RecInfoHypothesisTypeOrigins stats recInfos out u values →
+      RecInfoHypothesisTypeOrigins stats recInfos root out u values →
       values.size = v.size + (u.size - i) →
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos i v k current).WF Q := by
@@ -1145,10 +1428,10 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     rw [← hprocessed] at HviOrigin'
     refine resultSemanticBindings stats u recInfos k Rroot R' (i + 1)
       (v.push (.fvar ⟨current.ngen.curr⟩))
-      (Hrecent.pushCurrent vName viTy.consumeTypeAnnotations viTarget
+      (Hrecent.pushCurrent vName viTy.consumeTypeAnnotationsVerified viTarget
         .default HviTr HviType)
       (Horigins.pushCurrent R.toBindingContextWF vName viTy .default
-        (by rw [hprocessed]; exact hnext) HviOrigin')
+        (by rw [hprocessed]; exact hnext) Hrecent.contextLE HviOrigin')
       (by simp [hprocessed])
       Hvi ?_
     intro out Rout values Hvalues HvalueOrigins hsize
@@ -1174,9 +1457,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -1223,7 +1505,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr),
       RecursorRecentBoundFVarArray R Rout values →
-      RecInfoHypothesisTypeOrigins stats recInfos out u values →
+      RecInfoHypothesisTypeOrigins stats recInfos c out u values →
       values.size = u.size →
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q := by
@@ -1250,7 +1532,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     exact hfieldEq
   rw [hfieldEq, hfieldBang]
   apply mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats recInfos next
-    Rnext HstatsAt hwhnf hconsume hlit hctxAt hproj HfieldAt
+    Rnext HstatsAt hconsume
+      (by simpa only [Hprior.venv_eq] using hlit) hctxAt hproj HfieldAt
       (Hmotives.mono Hprior.contextExtension.contextLE) hrecords
   intro current Rcurrent exposedType syntaxTarget terminalTarget
     appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
@@ -1277,9 +1560,8 @@ theorem resultSemanticsOfMotiveApplications
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -1301,7 +1583,7 @@ theorem resultSemanticsOfMotiveApplications
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr),
       RecursorRecentBoundFVarArray R Rout values →
-      RecInfoHypothesisTypeOrigins stats recInfos out u values →
+      RecInfoHypothesisTypeOrigins stats recInfos c out u values →
       values.size = u.size →
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q := by
@@ -1328,7 +1610,8 @@ theorem resultSemanticsOfMotiveApplications
     exact hfieldEq
   rw [hfieldEq, hfieldBang]
   apply mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats recInfos next
-    Rnext HstatsNext hwhnf hconsume hlit hctxNext hproj HfieldAt
+    Rnext HstatsNext hconsume
+      (by simpa only [Hprior.venv_eq] using hlit) hctxNext hproj HfieldAt
       (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
   intro current Rcurrent exposedType syntaxTarget terminalTarget
     appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
@@ -1346,7 +1629,9 @@ theorem resultSemanticsOfMotiveApplications
       (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
     Hargs.noIndConsts (names := decl.types.map (·.name)) hctxNext
   let Hvalidated := HstatsCurrent.validatedIndAppAt Hexposed hvalid
-    htargetDecl hlit hctxCurrent hproj
+    htargetDecl
+      (by simpa only [Hargs.venv_eq, Hprior.venv_eq] using hlit)
+    hctxCurrent hproj
   exact Happlications.applyAtMono Hbindings Horigins Hshape
     (Hprior.contextExtension.trans Hargs.contextExtension)
     target htarget Hexposed Hdefeq
@@ -1366,9 +1651,8 @@ theorem resultSemanticsOfMotiveTelescopes
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -1390,15 +1674,1113 @@ theorem resultSemanticsOfMotiveTelescopes
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr),
       RecursorRecentBoundFVarArray R Rout values →
-      RecInfoHypothesisTypeOrigins stats recInfos out u values →
+      RecInfoHypothesisTypeOrigins stats recInfos c out u values →
       values.size = u.size →
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q :=
-  resultSemanticsOfMotiveApplications stats u recInfos k R Hstats hwhnf
+  resultSemanticsOfMotiveApplications stats u recInfos k R Hstats
     hconsume hlit hctx hproj Hfields Htelescopes.applications Hbindings
     Horigins Hshape hrecords Hk
 
 end mkRecInfos.loopU
+
+namespace mkRecInfos.loopUBlueprints
+
+/-- The blueprint-retaining hypothesis loop introduces the same fresh
+hypothesis binders as `loopU`, while retaining exactly one call blueprint for
+each binder. -/
+theorem resultBindings {alpha : Type}
+    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array Expr → Array AddInductive.RecCallBlueprint →
+      AddInductive.M alpha) {Q : alpha → Prop}
+    (i : Nat) (v : Array Expr)
+    (calls : Array AddInductive.RecCallBlueprint)
+    (c : AddInductive.Context)
+    (Hc : BindingContextWF c) (Hv : FreshBoundFVarArray root c v)
+    (Hroot : BindingContextLE root c)
+    (hcalls : calls.size = v.size)
+    (Hk : ∀ outValues outCalls c, BindingContextWF c →
+      FreshBoundFVarArray root c outValues →
+      BindingContextLE root c →
+      outValues.size = v.size + (u.size - i) →
+      outCalls.size = outValues.size →
+      (k outValues outCalls c).WF Q) :
+    (AddInductive.mkRecInfos.loopUBlueprints stats u recInfos i v calls
+      k c).WF Q := by
+  rw [AddInductive.mkRecInfos.loopUBlueprints]
+  by_cases hnext : i < u.size
+  · rw [dif_pos hnext]
+    have hviTy :
+        ((AddInductive.mkRecInfos.loopUArgs u[i] fun uiTy xs => do
+          let some itIdx := AddInductive.isValidIndApp? stats uiTy
+            | throw (.other
+              "recursive constructor field lost its inductive result type")
+          let itIndices := uiTy.getAppArgs[stats.params.size:]
+          let lctx ← getLCtx
+          let motiveApp := .app
+            (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN u[i] xs)
+          let viTy := lctx.mkForall xs motiveApp
+          return (viTy, ({
+            major := u[i]
+            args := xs
+            lctx := lctx
+            targetTypeIdx := itIdx
+            targetIndices := itIndices
+            template := lctx.mkLambda xs <|
+              (mkAppN (.bvar 0) itIndices).app (mkAppN u[i] xs) } :
+              AddInductive.RecCallBlueprint))) c).WF
+          (fun _ => True) := by
+      intro _ _
+      trivial
+    refine hviTy.bind fun result _ => ?_
+    rcases result with ⟨viTy, call⟩
+    have hget : ((getLCtx : AddInductive.M LocalContext) c).WF
+        (fun lctx => lctx = c.lctx) := by
+      intro lctx h
+      cases h
+      rfl
+    refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+      hget fun lctx hlctx => ?_
+    subst lctx
+    let vName := (c.lctx.get! u[i].fvarId!).userName.appendAfter "_ih"
+    apply withLocalDecl.continueRaw
+    refine resultBindings stats u recInfos k (i + 1)
+      (v.push (.fvar ⟨c.ngen.curr⟩)) (calls.push call) _
+      (Hc.withLocalDecl vName viTy.consumeTypeAnnotationsVerified .default)
+      (Hv.pushCurrent Hc Hroot vName viTy.consumeTypeAnnotationsVerified .default)
+      (Hroot.trans <| BindingContextLE.withLocalDecl c Hc vName
+        viTy.consumeTypeAnnotationsVerified .default) (by simp [hcalls]) ?_
+    intro outValues outCalls out Hout Hvalues HrootOut hsize hcallSize
+    apply Hk outValues outCalls out Hout Hvalues HrootOut
+    · simp only [Array.size_push] at hsize
+      omega
+    · exact hcallSize
+  · rw [dif_neg hnext]
+    exact Hk v calls c Hc Hv Hroot (by omega) hcalls
+termination_by u.size - i
+
+/-- Semantic orchestration for the blueprint-retaining hypothesis loop.  The
+proof follows the exact producer run; the continuation receives both the
+fresh hypotheses and the equally-sized retained call-blueprint row. -/
+theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array Expr → Array AddInductive.RecCallBlueprint →
+      AddInductive.M alpha)
+    {recLparams : List Name}
+    {root current : AddInductive.Context}
+    (Rroot : RecursorContextWF root recLparams)
+    (R : RecursorContextWF current recLparams)
+    (rootScope : FVarId → Prop)
+    (i : Nat) (v : Array Expr)
+    (calls : Array AddInductive.RecCallBlueprint)
+    (Hrecent : RecursorRecentBoundFVarArray Rroot R v)
+    (Horigins : RecInfoHypothesisTypeOrigins stats recInfos root current u v)
+    (HcallOrigins : RecInfoHypothesisCallBlueprintOrigins Horigins calls)
+    (HcallSemantics : RecInfoHypothesisCallSemanticOrigins Rroot decl depth
+      stats (recInfos.map (·.motive)) rootScope u v calls)
+    (hprocessed : v.size = i)
+    (hcalls : calls.size = v.size)
+    (Hvi : ∀ {next : AddInductive.Context}
+      (Rnext : RecursorContextWF next recLparams)
+      {prior : Array Expr}
+      (Hprior : RecursorRecentBoundFVarArray Rroot Rnext prior)
+      (j : Nat) (hj : j < u.size),
+      ((AddInductive.mkRecInfos.loopUArgs u[j] fun uiTy xs => do
+        let some itIdx := AddInductive.isValidIndApp? stats uiTy
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        let itIndices := uiTy.getAppArgs[stats.params.size:]
+        let lctx ← getLCtx
+        let motiveApp := .app
+          (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN u[j] xs)
+        let viTy := lctx.mkForall xs motiveApp
+        return (viTy, ({
+          major := u[j]
+          args := xs
+          lctx := lctx
+          targetTypeIdx := itIdx
+          targetIndices := itIndices
+          template := lctx.mkLambda xs <|
+            (mkAppN (.bvar 0) itIndices).app (mkAppN u[j] xs) } :
+            AddInductive.RecCallBlueprint))) next).WF fun result =>
+          ∃ viTarget,
+            TrExprS Rnext.venv recLparams Rnext.mlctx.vlctx
+              result.1.consumeTypeAnnotationsVerified viTarget ∧
+            Rnext.venv.IsType recLparams.length
+              Rnext.mlctx.vlctx.toCtx viTarget ∧
+            ∃ O : RecInfoHypothesisTypeOrigin
+                stats recInfos next u[j]! result.1,
+              result.2 = {
+                major := u[j]!
+                args := O.args
+                lctx := O.current.lctx
+                targetTypeIdx := O.ownerIdx
+                targetIndices :=
+                  O.exposedType.getAppArgs[stats.params.size:]
+                template := O.current.lctx.mkLambda O.args <|
+                  (mkAppN (.bvar 0)
+                    O.exposedType.getAppArgs[stats.params.size:]).app
+                      (mkAppN u[j]! O.args) } ∧
+              RecInfoCallBlueprintSemanticOrigin stats
+                (recInfos.map (·.motive)) Rnext rootScope decl
+                (depth + prior.size) u[j]! result.2)
+    (Hk : ∀ {out : AddInductive.Context}
+      (Rout : RecursorContextWF out recLparams)
+      (values : Array Expr)
+      (outCalls : Array AddInductive.RecCallBlueprint),
+      RecursorRecentBoundFVarArray Rroot Rout values →
+      (HoutOrigins : RecInfoHypothesisTypeOrigins
+        stats recInfos root out u values) →
+      RecInfoHypothesisCallBlueprintOrigins HoutOrigins outCalls →
+      RecInfoHypothesisCallSemanticOrigins Rroot decl depth stats
+        (recInfos.map (·.motive)) rootScope u values outCalls →
+      values.size = v.size + (u.size - i) →
+      outCalls.size = values.size →
+      (k values outCalls out).WF Q) :
+    (AddInductive.mkRecInfos.loopUBlueprints stats u recInfos i v calls
+      k current).WF Q := by
+  rw [AddInductive.mkRecInfos.loopUBlueprints]
+  by_cases hnext : i < u.size
+  · rw [dif_pos hnext]
+    refine (Hvi R Hrecent i hnext).bind fun result Hresult => ?_
+    rcases result with ⟨viTy, call⟩
+    rcases Hresult with
+      ⟨viTarget, HviTr, HviType, O, hcall, HcallSemantic⟩
+    subst i
+    have hget : ((getLCtx : AddInductive.M LocalContext) current).WF
+        (fun lctx => lctx = current.lctx) := by
+      intro lctx h
+      cases h
+      rfl
+    refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+      hget fun lctx hlctx => ?_
+    subst lctx
+    let vName :=
+      (current.lctx.get! u[v.size].fvarId!).userName.appendAfter "_ih"
+    refine withLocalDecl.recursorWF (name := vName) (bi := .default)
+      R HviTr HviType ?_
+    let R' := R.withLocalDecl (name := vName) (bi := .default)
+      HviTr HviType
+    refine resultSemanticBindings stats u recInfos k Rroot R' rootScope
+      (v.size + 1)
+      (v.push (.fvar ⟨current.ngen.curr⟩)) (calls.push call)
+      (Hrecent.pushCurrent vName viTy.consumeTypeAnnotationsVerified viTarget
+        .default HviTr HviType)
+      (Horigins.pushCurrent R.toBindingContextWF vName viTy .default
+        hnext Hrecent.contextLE ⟨O⟩)
+      (HcallOrigins.pushCurrent R.toBindingContextWF vName viTy .default
+        hnext Hrecent.contextLE O call hcall)
+      (HcallSemantics.pushCurrent hnext Hrecent call HcallSemantic)
+      (by simp) (by simp [hcalls]) Hvi ?_
+    intro out Rout values outCalls Hvalues HvalueOrigins HvalueCallOrigins
+      HvalueCallSemantics hsize hcallSize
+    apply Hk Rout values outCalls Hvalues HvalueOrigins HvalueCallOrigins
+      HvalueCallSemantics
+    · simp only [Array.size_push] at hsize
+      omega
+    · exact hcallSize
+  · rw [dif_neg hnext]
+    exact Hk R v calls Hrecent Horigins HcallOrigins HcallSemantics
+      (by omega) hcalls
+termination_by u.size - i
+
+/-- Pointwise semantic certificate for the exact pair returned by the
+blueprint-producing `loopUArgs` callback. -/
+theorem inductionHypothesisTypeOrigin
+    (fv : FVarId) (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (c : AddInductive.Context) {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    {rootScope : FVarId → Prop}
+    (hfieldScope : rootScope fv)
+    (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
+    (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Happ : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
+      {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+      Rcurrent.venv.IsDefEqU recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx terminalTarget →
+      (Hargs : RecursorRecentBoundFVarArray R Rcurrent args) →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN (.fvar fv) args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
+      (hvalid : AddInductive.isValidIndApp? stats exposedType =
+        some target) →
+      let itIndices := exposedType.getAppArgs[stats.params.size:]
+      let motiveApp := Expr.app
+        (mkAppN recInfos[target]!.motive itIndices)
+        (mkAppN (.fvar fv) args)
+      ∃ motiveTarget,
+        TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+          motiveApp motiveTarget ∧
+        Rcurrent.venv.IsType recLparams.length
+          Rcurrent.mlctx.vlctx.toCtx motiveTarget) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
+      (fun exposedType args => do
+        let some target := AddInductive.isValidIndApp? stats exposedType
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        let targetIndices := exposedType.getAppArgs[stats.params.size:]
+        let lctx ← getLCtx
+        let motiveApp := Expr.app
+          (mkAppN recInfos[target]!.motive targetIndices)
+          (mkAppN (.fvar fv) args)
+        let viTy := lctx.mkForall args motiveApp
+        return (viTy, ({
+          major := .fvar fv
+          args := args
+          lctx := lctx
+          targetTypeIdx := target
+          targetIndices := targetIndices
+          template := lctx.mkLambda args <|
+            (mkAppN (.bvar 0) targetIndices).app
+              (mkAppN (.fvar fv) args) } :
+            AddInductive.RecCallBlueprint))) c).WF fun result =>
+        ∃ viTarget,
+          TrExprS R.venv recLparams R.mlctx.vlctx
+            result.1.consumeTypeAnnotationsVerified viTarget ∧
+          R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
+          ∃ O : RecInfoHypothesisTypeOrigin
+              stats recInfos c (.fvar fv) result.1,
+            result.2 = {
+              major := .fvar fv
+              args := O.args
+              lctx := O.current.lctx
+              targetTypeIdx := O.ownerIdx
+              targetIndices :=
+                O.exposedType.getAppArgs[stats.params.size:]
+              template := O.current.lctx.mkLambda O.args <|
+                (mkAppN (.bvar 0)
+                  O.exposedType.getAppArgs[stats.params.size:]).app
+                    (mkAppN (.fvar fv) O.args) } ∧
+            RecInfoCallBlueprintSemanticOrigin stats
+              (recInfos.map (·.motive)) R rootScope decl depth
+              (.fvar fv) result.2 := by
+  let build : Expr → Array Expr → Nat →
+      AddInductive.M (Expr × AddInductive.RecCallBlueprint) :=
+    fun exposedType args target => do
+      let targetIndices := exposedType.getAppArgs[stats.params.size:]
+      let lctx ← getLCtx
+      let motiveApp := Expr.app
+        (mkAppN recInfos[target]!.motive targetIndices)
+        (mkAppN (.fvar fv) args)
+      let viTy := lctx.mkForall args motiveApp
+      return (viTy, {
+        major := .fvar fv
+        args := args
+        lctx := lctx
+        targetTypeIdx := target
+        targetIndices := targetIndices
+        template := lctx.mkLambda args <|
+          (mkAppN (.bvar 0) targetIndices).app
+            (mkAppN (.fvar fv) args) })
+  have hfvScope : fv ∈ R.mlctx.vlctx.fvars := by
+    simpa only [FVarsIn] using hfield.fvarsIn
+  have hfvRoot : fv ∈ c.lctx.fvars := by
+    rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
+    exact hfvScope
+  have Hrun := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats build c R
+    Hstats hconsume hlit hctx hproj hfield hfieldScope hrootUp
+    (Q := fun target result => ∃ viTarget,
+      TrExprS R.venv recLparams R.mlctx.vlctx
+        result.1.consumeTypeAnnotationsVerified viTarget ∧
+      R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
+      ∃ O : RecInfoHypothesisTypeOrigin
+          stats recInfos c (.fvar fv) result.1,
+        O.ownerIdx = target ∧
+        result.2 = {
+          major := .fvar fv
+          args := O.args
+          lctx := O.current.lctx
+          targetTypeIdx := O.ownerIdx
+          targetIndices :=
+            O.exposedType.getAppArgs[stats.params.size:]
+          template := O.current.lctx.mkLambda O.args <|
+            (mkAppN (.bvar 0)
+              O.exposedType.getAppArgs[stats.params.size:]).app
+                (mkAppN (.fvar fv) O.args) } ∧
+        ∀ (domain : VExpr),
+          R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+            fieldTarget domain →
+          ∀ (htarget : O.ownerIdx < decl.types.length),
+            decl.RecursiveArgAtTarget R.venv recLparams.length
+              (decl.types[O.ownerIdx]'htarget).name
+              R.mlctx.vlctx.toCtx depth domain →
+          RecInfoCallBlueprintSemanticOrigin stats
+            (recInfos.map (·.motive)) R rootScope decl depth
+            (.fvar fv) result.2) ?_
+  · change (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
+      (fun exposedType args => do
+        let some target := AddInductive.isValidIndApp? stats exposedType
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        build exposedType args target) c).WF _
+    exact Hrun.mono (fun result Hout => by
+      rcases Hout with ⟨domain, hfieldType, target, htarget,
+        hrecursive, viTarget, Hvi, HviType, O, howner, hcall, Hsemantic⟩
+      subst target
+      exact ⟨viTarget, Hvi, HviType, O, hcall,
+        Hsemantic domain hfieldType htarget hrecursive⟩)
+  · intro Hinput current Rcurrent exposedType syntaxTarget terminalTarget
+      appliedTarget args target Htrace Hexposed Hdefeq Hterminal Hargs Happlied
+      HappliedType hvalid hexposedScope hup
+    rcases Happ Rcurrent Hexposed Hdefeq Hterminal Hargs Happlied
+        HappliedType hvalid with ⟨motiveTarget, Hmotive, HmotiveType⟩
+    have htargetStats : target < stats.indConsts.size :=
+      (checkPositivityStep.isValidIndApp?_some hvalid).1
+    have htarget : target < recInfos.size := by
+      rw [hrecords]
+      exact htargetStats
+    rcases Hmotives.get_eq_fvar target
+        (by simpa using htarget) with
+      ⟨motiveFVar, hmotiveFVar, hmotiveMember⟩
+    rcases Hargs.mkForall Hmotive HmotiveType with
+      ⟨viTarget, Hvi, HviType⟩
+    let targetIndices := exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[target]!.motive targetIndices)
+      (mkAppN (.fvar fv) args)
+    rcases hconsume c recLparams R Hvi HviType with
+      ⟨consumedTarget, Hconsumed⟩
+    change (Except.ok (current.lctx.mkForall args motiveApp,
+      ({
+        major := .fvar fv
+        args := args
+        lctx := current.lctx
+        targetTypeIdx := target
+        targetIndices := targetIndices
+        template := current.lctx.mkLambda args <|
+          (mkAppN (.bvar 0) targetIndices).app
+            (mkAppN (.fvar fv) args) } :
+          AddInductive.RecCallBlueprint))).WF _
+    let O : RecInfoHypothesisTypeOrigin stats recInfos c
+        (.fvar fv) (current.lctx.mkForall args motiveApp) := {
+        current := current
+        current_wf := Rcurrent.toBindingContextWF
+        current_extends := Hargs.contextLE
+        exposedType := exposedType
+        args := args
+        arguments_bound := Hargs.toFreshBoundFVarArray
+        loopInput := Hinput
+        loopTrace := Htrace
+        field_fvar := ⟨fv, rfl, hfvRoot⟩
+        ownerIdx := target
+        owner_valid := hvalid
+        motive_is_fvar := ⟨motiveFVar, by
+          rw [getElem!_pos recInfos target htarget]
+          simpa only [Array.getElem_map] using hmotiveFVar,
+          hmotiveMember⟩
+        type_eq := rfl }
+    refine Except.WF.pure
+      ⟨consumedTarget, Hconsumed.consumed, Hconsumed.isType, O, rfl, rfl, ?_⟩
+    intro domain hfieldTyping htargetDecl hrecursive
+    refine { semantic := ?_ }
+    intro indTypes minors lvls
+    let call : AddInductive.RecCallBlueprint := {
+      major := .fvar fv
+      args := args
+      lctx := current.lctx
+      targetTypeIdx := target
+      targetIndices := targetIndices
+      template := current.lctx.mkLambda args <|
+        (mkAppN (.bvar 0) targetIndices).app
+          (mkAppN (.fvar fv) args) }
+    let value := call.build indTypes stats (recInfos.map (·.motive))
+      minors lvls
+    let Hgenerated : BoundGeneratedRecursiveCall indTypes stats
+        (recInfos.map (·.motive)) minors lvls c (.fvar fv) value := {
+      exposedType := exposedType
+      ownerIdx := target
+      owner_valid := hvalid
+      localArgs := args
+      current := current
+      current_wf := Rcurrent.toBindingContextWF
+      current_extends := Hargs.contextLE
+      arguments_bound := Hargs.toFreshBoundFVarArray
+      value_eq := by
+        simp [value, call, AddInductive.RecCallBlueprint.build,
+          AddInductive.getIIndices, hvalid, targetIndices] }
+    let HstatsCurrent := Hstats.weakenRecent Hargs
+    have hctxCurrent : VLCtx.NoIndConsts
+        (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
+      Hargs.noIndConsts (names := decl.types.map (·.name)) hctx
+    let Hvalidated := HstatsCurrent.validatedIndAppAt Hexposed hvalid
+      htargetDecl (by simpa only [Hargs.venv_eq] using hlit)
+      hctxCurrent hproj
+    have HexposedType : Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget :=
+      VEnv.IsType.defeqU_l Rcurrent.checking.tr.wf
+        Rcurrent.mlctx_wf.tr.wf.toCtx Hdefeq.symm Hterminal
+    have HappliedType' : Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget syntaxTarget :=
+      HappliedType.defeqU_r Rcurrent.checking.tr.wf
+        Rcurrent.mlctx_wf.tr.wf.toCtx Hdefeq.symm
+    let commonDomains := MLCtxForallDomains Rcurrent.mlctx
+      args.size Hargs.size_le
+    have HexposedClosed := Hargs.mkForallExact Hexposed HexposedType
+    have HappliedClosed := Hargs.mkLambda Happlied HappliedType'
+    refine ⟨{
+      generated := Hgenerated
+      current_context := Rcurrent
+      recent := Hargs
+      rootScope := rootScope
+      exposed_scope := hexposedScope
+      current_scope_up := hup
+      exposedTarget := syntaxTarget
+      exposed_translation := Hexposed
+      terminalTarget := terminalTarget
+      exposed_defeq := Hdefeq
+      terminal_type := Hterminal
+      appliedFieldTarget := appliedTarget
+      applied_field_translation := Happlied
+      applied_field_typing := HappliedType
+      validated := Hvalidated
+      commonDomains := commonDomains
+      commonDomains_length :=
+        Rcurrent.onlyLams.forallDomains_length args.size Hargs.size_le
+      common_exposed_translation := by
+        simpa [commonDomains] using HexposedClosed.1
+      common_exposed_type := by
+        simpa [commonDomains] using HexposedClosed.2
+      common_applied_translation := by
+        simpa [commonDomains] using HappliedClosed.1
+      common_applied_typing := by
+        simpa [commonDomains] using HappliedClosed.2
+      fieldTarget := fieldTarget
+      domain := domain
+      field_translation := hfield
+      field_typing := hfieldTyping
+      owner_lt := htargetDecl
+      recursive := hrecursive }, rfl⟩
+
+/-- Close the retained-blueprint hypothesis loop from the independently
+verified motive applications.  The additional output is produced by the same
+successful traversal, so no replay or alpha-compatibility premise is needed. -/
+theorem resultSemanticsOfMotiveApplications
+    {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array Expr → Array AddInductive.RecCallBlueprint →
+      AddInductive.M alpha)
+    {recLparams : List Name} {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    (rootScope : FVarId → Prop)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hfields : ∀ j (hj : j < u.size),
+      ∃ fv fieldTarget,
+        u[j] = .fvar fv ∧
+        TrExprS R.venv recLparams R.mlctx.vlctx
+          (.fvar fv) fieldTarget ∧ rootScope fv)
+    (rootScopeInContext : ∀ fv, rootScope fv → fv ∈ R.mlctx.vlctx.fvars)
+    (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
+    (Happlications : RecInfoMotiveApplications R stats decl recInfos
+      elimLevel)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hshape : RecInfoMotiveTypeShapes c recInfos
+      Horigins.motiveTypes elimLevel)
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Hk : ∀ {out : AddInductive.Context}
+      (Rout : RecursorContextWF out recLparams)
+      (values : Array Expr)
+      (calls : Array AddInductive.RecCallBlueprint),
+      RecursorRecentBoundFVarArray R Rout values →
+      (HoutOrigins : RecInfoHypothesisTypeOrigins
+        stats recInfos c out u values) →
+      RecInfoHypothesisCallBlueprintOrigins HoutOrigins calls →
+      RecInfoHypothesisCallSemanticOrigins R decl depth stats
+        (recInfos.map (·.motive)) rootScope u values calls →
+      values.size = u.size →
+      calls.size = values.size →
+      (k values calls out).WF Q) :
+    (AddInductive.mkRecInfos.loopUBlueprints stats u recInfos 0 #[] #[]
+      k c).WF Q := by
+  refine resultSemanticBindings stats u recInfos k R R rootScope 0 #[] #[]
+    (RecursorRecentBoundFVarArray.empty R)
+    (RecInfoHypothesisTypeOrigins.empty stats recInfos c u)
+    (RecInfoHypothesisCallBlueprintOrigins.empty
+      (RecInfoHypothesisTypeOrigins.empty stats recInfos c u))
+    (RecInfoHypothesisCallSemanticOrigins.empty R decl depth stats
+      (recInfos.map (·.motive)) rootScope u)
+    rfl rfl ?_ ?_
+  intro next Rnext prior Hprior j hj
+  rcases Hfields j hj with ⟨fv, fieldTarget, hfieldEq, Hfield, hfieldScope⟩
+  let W := Rnext.onlyLams.dropN_fvlift prior.size Hprior.size_le
+  have HfieldAt : TrExprS Rnext.venv recLparams Rnext.mlctx.vlctx
+      (.fvar fv) (fieldTarget.liftN prior.size 0) := by
+    have HfieldBase : TrExprS Rnext.venv recLparams
+        (Rnext.mlctx.dropN prior.size Hprior.size_le).vlctx
+        (.fvar fv) fieldTarget := by
+      simpa only [Hprior.venv_eq, Hprior.drop_eq] using Hfield
+    exact HfieldBase.weakFV Rnext.checking.tr.wf.ordered W
+      Rnext.mlctx_wf.tr.wf
+  have HstatsNext := Hstats.weakenRecent Hprior
+  have hctxNext : VLCtx.NoIndConsts (decl.types.map (·.name))
+      Rnext.mlctx.vlctx :=
+    Hprior.noIndConsts (names := decl.types.map (·.name)) hctx
+  have hfieldBang : u[j]! = .fvar fv := by
+    rw [getElem!_pos u j hj]
+    exact hfieldEq
+  rw [hfieldEq, hfieldBang]
+  apply inductionHypothesisTypeOrigin fv stats recInfos next
+    Rnext HstatsNext hconsume
+      (by simpa only [Hprior.venv_eq] using hlit) hctxNext hproj HfieldAt
+      hfieldScope (Hprior.upsetRoot rootScopeInContext hrootUp)
+      (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
+  intro current Rcurrent exposedType syntaxTarget terminalTarget
+    appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
+    HappliedType hvalid
+  let HstatsCurrent := HstatsNext.weakenRecent Hargs
+  have htargetStats : target < stats.indConsts.size :=
+    (checkPositivityStep.isValidIndApp?_some hvalid).1
+  have htarget : target < recInfos.size := by
+    rw [hrecords]
+    exact htargetStats
+  have htargetDecl : target < decl.types.length := by
+    rw [← HstatsCurrent.types_size]
+    exact htargetStats
+  have hctxCurrent : VLCtx.NoIndConsts
+      (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
+    Hargs.noIndConsts (names := decl.types.map (·.name)) hctxNext
+  let Hvalidated := HstatsCurrent.validatedIndAppAt Hexposed hvalid
+    htargetDecl
+      (by simpa only [Hargs.venv_eq, Hprior.venv_eq] using hlit)
+    hctxCurrent hproj
+  exact Happlications.applyAtMono Hbindings Horigins Hshape
+    (Hprior.contextExtension.trans Hargs.contextExtension)
+    target htarget Hexposed Hdefeq
+    Hterminal Happlied HappliedType Hvalidated
+  · intro out Rout values calls Hvalues HvalueOrigins HvalueCallOrigins
+      HvalueCallSemantics hsize hcallSize
+    apply Hk Rout values calls Hvalues HvalueOrigins HvalueCallOrigins
+      HvalueCallSemantics
+    · simpa using hsize
+    · exact hcallSize
+
+/-- Shared-telescope form of the blueprint-retaining first pass. -/
+theorem resultSemanticsOfMotiveTelescopes
+    {alpha : Type} {Q : alpha → Prop}
+    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array Expr → Array AddInductive.RecCallBlueprint →
+      AddInductive.M alpha)
+    {recLparams : List Name} {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    (rootScope : FVarId → Prop)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
+      TrProj Delta.toCtx s j e' e'' →
+      e'.containsAnyConst (decl.types.map (·.name)) = false →
+      e''.containsAnyConst (decl.types.map (·.name)) = false)
+    (Hfields : ∀ j (hj : j < u.size),
+      ∃ fv fieldTarget,
+        u[j] = .fvar fv ∧
+        TrExprS R.venv recLparams R.mlctx.vlctx
+          (.fvar fv) fieldTarget ∧ rootScope fv)
+    (rootScopeInContext : ∀ fv, rootScope fv → fv ∈ R.mlctx.vlctx.fvars)
+    (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
+    (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
+      elimLevel)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hshape : RecInfoMotiveTypeShapes c recInfos
+      Horigins.motiveTypes elimLevel)
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Hk : ∀ {out : AddInductive.Context}
+      (Rout : RecursorContextWF out recLparams)
+      (values : Array Expr)
+      (calls : Array AddInductive.RecCallBlueprint),
+      RecursorRecentBoundFVarArray R Rout values →
+      (HoutOrigins : RecInfoHypothesisTypeOrigins
+        stats recInfos c out u values) →
+      RecInfoHypothesisCallBlueprintOrigins HoutOrigins calls →
+      RecInfoHypothesisCallSemanticOrigins R decl depth stats
+        (recInfos.map (·.motive)) rootScope u values calls →
+      values.size = u.size →
+      calls.size = values.size →
+      (k values calls out).WF Q) :
+    (AddInductive.mkRecInfos.loopUBlueprints stats u recInfos 0 #[] #[]
+      k c).WF Q :=
+  resultSemanticsOfMotiveApplications stats u recInfos k R rootScope Hstats
+    hconsume hlit hctx hproj Hfields rootScopeInContext hrootUp
+    Htelescopes.applications Hbindings
+    Horigins Hshape hrecords Hk
+
+end mkRecInfos.loopUBlueprints
+
+/-- Equality of the four pre-existing semantic projections of a `RecInfo`
+array.  Retaining executable rule blueprints changes no binding, type-origin,
+or telescope input. -/
+structure RecInfoCoreEq (left right : Array AddInductive.RecInfo) : Prop where
+  size_eq : left.size = right.size
+  motive_eq_all : ∀ (i : Nat), left[i]!.motive = right[i]!.motive
+  motive_eq : ∀ i (hi : i < left.size),
+    left[i]!.motive = right[i]!.motive
+  minors_eq : ∀ i (hi : i < left.size),
+    left[i]!.minors = right[i]!.minors
+  indices_eq : ∀ i (hi : i < left.size),
+    left[i]!.indices = right[i]!.indices
+  major_eq : ∀ i (hi : i < left.size),
+    left[i]!.major = right[i]!.major
+
+theorem RecInfoCoreEq.map_motive
+    (H : RecInfoCoreEq left right) :
+    left.map (·.motive) = right.map (·.motive) := by
+  apply Array.ext
+  · simpa using H.size_eq
+  · intro i hiLeft hiRight
+    have hi : i < left.size := by simpa using hiLeft
+    have h := H.motive_eq i hi
+    rw [getElem!_pos left i hi,
+      getElem!_pos right i (by simpa [← H.size_eq] using hi)] at h
+    simpa only [Array.getElem_map] using h
+
+theorem RecInfoCoreEq.map_major
+    (H : RecInfoCoreEq left right) :
+    left.map (·.major) = right.map (·.major) := by
+  apply Array.ext
+  · simpa using H.size_eq
+  · intro i hiLeft hiRight
+    have hi : i < left.size := by simpa using hiLeft
+    have h := H.major_eq i hi
+    rw [getElem!_pos left i hi,
+      getElem!_pos right i (by simpa [← H.size_eq] using hi)] at h
+    simpa only [Array.getElem_map] using h
+
+theorem RecInfoCoreEq.map_minors
+    (H : RecInfoCoreEq left right) :
+    left.map (·.minors) = right.map (·.minors) := by
+  apply Array.ext
+  · simpa using H.size_eq
+  · intro i hiLeft hiRight
+    have hi : i < left.size := by simpa using hiLeft
+    have h := H.minors_eq i hi
+    rw [getElem!_pos left i hi,
+      getElem!_pos right i (by simpa [← H.size_eq] using hi)] at h
+    simpa only [Array.getElem_map] using h
+
+theorem RecInfoCoreEq.map_indices
+    (H : RecInfoCoreEq left right) :
+    left.map (·.indices) = right.map (·.indices) := by
+  apply Array.ext
+  · simpa using H.size_eq
+  · intro i hiLeft hiRight
+    have hi : i < left.size := by simpa using hiLeft
+    have h := H.indices_eq i hi
+    rw [getElem!_pos left i hi,
+      getElem!_pos right i (by simpa [← H.size_eq] using hi)] at h
+    simpa only [Array.getElem_map] using h
+
+theorem RecInfoCoreEq.indices_eq_all
+    (H : RecInfoCoreEq left right) (i : Nat) :
+    left[i]!.indices = right[i]!.indices := by
+  by_cases hi : i < left.size
+  · exact H.indices_eq i hi
+  · have hi' : ¬ i < right.size := by
+      intro hi'
+      apply hi
+      rwa [H.size_eq]
+    simp [Array.getElem!_eq_getD, Array.getD, hi, hi']
+
+theorem RecInfoCoreEq.major_eq_all
+    (H : RecInfoCoreEq left right) (i : Nat) :
+    left[i]!.major = right[i]!.major := by
+  by_cases hi : i < left.size
+  · exact H.major_eq i hi
+  · have hi' : ¬ i < right.size := by
+      intro hi'
+      apply hi
+      rwa [H.size_eq]
+    simp [Array.getElem!_eq_getD, Array.getD, hi, hi']
+
+def RecursorMotiveBinding.congrInfo
+    (B : RecursorMotiveBinding R info elimLevel)
+    (hmotive : info.motive = info'.motive)
+    (hindices : info.indices = info'.indices)
+    (hmajor : info.major = info'.major) :
+    RecursorMotiveBinding R info' elimLevel where
+  motiveTarget := B.motiveTarget
+  motiveTypeTarget := B.motiveTypeTarget
+  motive := by simpa only [← hmotive] using B.motive
+  motiveType := by
+    simpa only [← hindices, ← hmajor] using B.motiveType
+  typing := B.typing
+  typeIsType := B.typeIsType
+
+def RecursorMotiveTelescopeEvidence.congrInfo
+    (E : RecursorMotiveTelescopeEvidence R stats info B exposedType
+      syntaxTarget)
+    (hmotive : info.motive = info'.motive)
+    (hindices : info.indices = info'.indices)
+    (hmajor : info.major = info'.major) :
+    RecursorMotiveTelescopeEvidence R stats info'
+      (B.congrInfo hmotive hindices hmajor) exposedType syntaxTarget where
+  indices := E.indices
+  family := E.family
+  familyActualType := E.familyActualType
+  familyType := E.familyType
+  motiveType := E.motiveType
+  resultLevel := E.resultLevel
+  syntax_eq := E.syntax_eq
+  indices_translation := E.indices_translation
+  family_typing := E.family_typing
+  family_type_defeq := E.family_type_defeq
+  motive_type_defeq := E.motive_type_defeq
+  telescope := E.telescope
+
+structure RecInfoMotiveCoreEq
+    (left right : Array AddInductive.RecInfo) : Prop where
+  map_motive : left.map (·.motive) = right.map (·.motive)
+  motive_eq : ∀ (i : Nat), left[i]!.motive = right[i]!.motive
+  indices_eq : ∀ (i : Nat), left[i]!.indices = right[i]!.indices
+  major_eq : ∀ (i : Nat), left[i]!.major = right[i]!.major
+
+theorem RecInfoRuleBlueprintSemanticOriginAt.rebaseMotiveCore
+    (Horigin : RecInfoRuleBlueprintSemanticOriginAt R decl stats left
+      elimLevel parameterDecls expectedOwnerIdx S B)
+    (H : RecInfoMotiveCoreEq left right) :
+    RecInfoRuleBlueprintSemanticOriginAt R decl stats right elimLevel
+      parameterDecls expectedOwnerIdx S B := by
+  unfold RecInfoRuleBlueprintSemanticOriginAt at Horigin ⊢
+  rcases Horigin with
+    ⟨origins, hshape, hstats, hmotives, F, hparams, depth, HvalidStats,
+      fields, Hselection, hexpectedValid, hexpectedLt, ownerIdx,
+      htargetValid, Hvalidated, binding, ⟨Hevidence⟩, Hcalls⟩
+  let binding' := binding.congrInfo (H.motive_eq ownerIdx)
+    (H.indices_eq ownerIdx) (H.major_eq ownerIdx)
+  let evidence' := Hevidence.congrInfo (H.motive_eq ownerIdx)
+    (H.indices_eq ownerIdx) (H.major_eq ownerIdx)
+  have Hcalls' := Hcalls
+  rw [H.map_motive] at Hcalls'
+  exact ⟨origins, hshape, hstats, hmotives.trans H.map_motive,
+    F, hparams, depth, HvalidStats, fields, Hselection, hexpectedValid,
+    hexpectedLt, ownerIdx, htargetValid, Hvalidated,
+    binding', ⟨evidence'⟩, Hcalls'⟩
+
+theorem RecInfoCoreEq.flatMap_minors
+    (H : RecInfoCoreEq left right) :
+    left.flatMap (·.minors) = right.flatMap (·.minors) := by
+  apply Array.toList_inj.mp
+  simpa [Array.toList_flatMap, Array.toList_map, List.flatMap_map] using
+    congrArg (fun a : Array (Array Expr) =>
+      a.toList.flatMap Array.toList) H.map_minors
+
+theorem RecInfoCoreEq.flatMap_indices
+    (H : RecInfoCoreEq left right) :
+    left.flatMap (·.indices) = right.flatMap (·.indices) := by
+  apply Array.toList_inj.mp
+  simpa [Array.toList_flatMap, Array.toList_map, List.flatMap_map] using
+    congrArg (fun a : Array (Array Expr) =>
+      a.toList.flatMap Array.toList) H.map_indices
+
+def BoundFVarArray.rebaseExprs
+    (B : BoundFVarArray c xs) (h : xs = ys) : BoundFVarArray c ys where
+  fvars := B.fvars
+  expressions := h.symm.trans B.expressions
+  members := B.members
+
+def RecInfoBindings.rebaseCore
+    (B : RecInfoBindings c left) (H : RecInfoCoreEq left right) :
+    RecInfoBindings c right where
+  motives := B.motives.rebaseExprs H.map_motive
+  majors := B.majors.rebaseExprs H.map_major
+  indices i hi := by
+    have hi' : i < left.size := by simpa [H.size_eq] using hi
+    exact (B.indices i hi').rebaseExprs (H.indices_eq i hi')
+  minors i hi := by
+    have hi' : i < left.size := by simpa [H.size_eq] using hi
+    exact (B.minors i hi').rebaseExprs (H.minors_eq i hi')
+
+theorem RecInfoBindings.rebaseCore_motives_fvars
+    (B : RecInfoBindings c left) (H : RecInfoCoreEq left right) :
+    (B.rebaseCore H).motives.fvars = B.motives.fvars := rfl
+
+theorem RecInfoBindings.rebaseCore_majors_fvars
+    (B : RecInfoBindings c left) (H : RecInfoCoreEq left right) :
+    (B.rebaseCore H).majors.fvars = B.majors.fvars := rfl
+
+theorem RecInfoBindings.rebaseCore_flatMinors_fvars
+    (B : RecInfoBindings c left) (H : RecInfoCoreEq left right) :
+    (B.rebaseCore H).flatMinors.fvars = B.flatMinors.fvars := by
+  calc
+    (B.rebaseCore H).flatMinors.fvars =
+        ExprArrayFVarIds (right.flatMap (·.minors)) :=
+      ((B.rebaseCore H).flatMinors.exprArrayFVarIds).symm
+    _ = ExprArrayFVarIds (left.flatMap (·.minors)) := by rw [H.flatMap_minors]
+    _ = B.flatMinors.fvars := B.flatMinors.exprArrayFVarIds
+
+theorem RecInfoBindings.rebaseCore_flatIndices_fvars
+    (B : RecInfoBindings c left) (H : RecInfoCoreEq left right) :
+    (B.rebaseCore H).flatIndices.fvars = B.flatIndices.fvars := by
+  calc
+    (B.rebaseCore H).flatIndices.fvars =
+        ExprArrayFVarIds (right.flatMap (·.indices)) :=
+      ((B.rebaseCore H).flatIndices.exprArrayFVarIds).symm
+    _ = ExprArrayFVarIds (left.flatMap (·.indices)) := by rw [H.flatMap_indices]
+    _ = B.flatIndices.fvars := B.flatIndices.exprArrayFVarIds
+
+theorem RecInfoBindings.NoAlias.rebaseCore
+    {stats : AddInductive.InductiveStats}
+    (B : RecInfoBindings c left) (params : BoundFVarArray c stats.params)
+    (N : RecInfoBindings.NoAlias B params)
+    (H : RecInfoCoreEq left right) :
+    RecInfoBindings.NoAlias (B.rebaseCore H) params := by
+  unfold RecInfoBindings.NoAlias at N ⊢
+  unfold RecInfoBindings.allFvars at N ⊢
+  rw [← H.map_motive, ← H.map_major, ← H.flatMap_minors,
+    ← H.flatMap_indices]
+  exact N
+
+theorem RecInfoOuterOrder.rebaseCore
+    (B : RecInfoBindings c left)
+    (O : RecInfoOuterOrder R params B) (H : RecInfoCoreEq left right) :
+    RecInfoOuterOrder R params (B.rebaseCore H) := by
+  unfold RecInfoOuterOrder at O ⊢
+  simpa only [B.rebaseCore_motives_fvars H,
+    B.rebaseCore_flatMinors_fvars H] using O
+
+def RecInfoTypeOrigins.rebaseCore
+    (O : RecInfoTypeOrigins c left) (H : RecInfoCoreEq left right) :
+    RecInfoTypeOrigins c right where
+  motiveTypes := O.motiveTypes
+  majorTypes := O.majorTypes
+  indexTypes := O.indexTypes
+  minorTypes := O.minorTypes
+  indexTypes_size := O.indexTypes_size.trans H.size_eq
+  minorTypes_size := O.minorTypes_size.trans H.size_eq
+  motives := H.map_motive ▸ O.motives
+  majors := H.map_major ▸ O.majors
+  indices i hi := by
+    have hi' : i < left.size := by simpa [H.size_eq] using hi
+    rw [← H.indices_eq i hi']
+    exact O.indices i hi'
+  minors i hi := by
+    have hi' : i < left.size := by simpa [H.size_eq] using hi
+    rw [← H.minors_eq i hi']
+    exact O.minors i hi'
+  minorShapes i hi j hj := by
+    have hi' : i < left.size := by simpa [H.size_eq] using hi
+    exact O.minorShapes i hi' j hj
+
+theorem RecInfoMajorTypeShapes.rebaseCore
+    (S : RecInfoMajorTypeShapes stats left majorTypes)
+    (H : RecInfoCoreEq left right) :
+    RecInfoMajorTypeShapes stats right majorTypes := by
+  refine ⟨S.size_eq.trans H.size_eq, ?_⟩
+  intro i hi
+  have hi' : i < left.size := by simpa [H.size_eq] using hi
+  rw [← H.indices_eq i hi']
+  exact S.shape i hi'
+
+theorem RecInfoMotiveTypeShapes.rebaseCore
+    (S : RecInfoMotiveTypeShapes c left motiveTypes elimLevel)
+    (H : RecInfoCoreEq left right) :
+    RecInfoMotiveTypeShapes c right motiveTypes elimLevel := by
+  refine ⟨S.size_eq.trans H.size_eq, ?_⟩
+  intro i hi
+  have hi' : i < left.size := by simpa [H.size_eq] using hi
+  rw [← H.indices_eq i hi', ← H.major_eq i hi']
+  exact S.shape i hi'
+
+theorem RecInfoMotiveTelescopes.rebaseCore
+    (T : RecInfoMotiveTelescopes R stats decl parameterCtx left elimLevel)
+    (H : RecInfoCoreEq left right) :
+    RecInfoMotiveTelescopes R stats decl parameterCtx right elimLevel := by
+  refine ⟨?_, ?_, ?_⟩
+  · intro target htarget
+    have htarget' : target < left.size := by
+      simpa [H.size_eq] using htarget
+    apply RecursorMotiveTelescopeAt.congrInfo (T.telescope target htarget')
+    · exact (H.motive_eq target htarget').symm
+    · exact (H.indices_eq target htarget').symm
+    · exact (H.major_eq target htarget').symm
+  · intro target htarget
+    have htarget' : target < left.size := by
+      simpa [H.size_eq] using htarget
+    rcases T.seed target htarget' with ⟨S, hparams⟩
+    let S' := S.congrInfo (H.indices_eq target htarget').symm
+      (H.major_eq target htarget').symm
+    exact ⟨S', by
+      simpa [S', RecursorMotiveTelescopeSeed.congrInfo] using hparams⟩
+  · intro target htarget
+    have htarget' : target < left.size := by
+      simpa [H.size_eq] using htarget
+    rcases T.seed target htarget' with ⟨S, hparams⟩
+    let S' := S.congrInfo (H.indices_eq target htarget').symm
+      (H.major_eq target htarget').symm
+    exact ⟨S'.canonical, by
+      simpa [S', RecursorMotiveTelescopeSeed.congrInfo] using hparams⟩
+
+theorem RecInfoArities.rebaseCore
+    (A : RecInfoArities stats left) (H : RecInfoCoreEq left right) :
+    RecInfoArities stats right := by
+  intro i hi
+  have hi' : i < left.size := by simpa [H.size_eq] using hi
+  rw [← H.indices_eq i hi']
+  exact A i hi'
+
+theorem RecInfoMinorTypeShape.HasHypothesisTypeOrigins.rebaseCore
+    (S : RecInfoMinorTypeShape)
+    (P : RecInfoMinorTypeShape.HasHypothesisTypeOrigins S stats left)
+    (H : RecInfoCoreEq left right) :
+    RecInfoMinorTypeShape.HasHypothesisTypeOrigins S stats right := by
+  unfold RecInfoMinorTypeShape.HasHypothesisTypeOrigins at P ⊢
+  cases hopt : S.hypothesis_type_origins with
+  | none => simp [hopt] at P
+  | some origins =>
+      simp only [hopt, Option.some.injEq] at P ⊢
+      exact ⟨P.1, P.2.trans H.map_motive⟩
+
+theorem RecInfoMinorSemanticAlignment.rebaseCore
+    (O : RecInfoTypeOrigins c left)
+    (A : RecInfoMinorSemanticAlignment R O parameterDecls)
+    (H : RecInfoCoreEq left right) :
+    RecInfoMinorSemanticAlignment R (O.rebaseCore H) parameterDecls := by
+  intro owner howner localIndex hlocal
+  have howner' : owner < left.size := by simpa [H.size_eq] using howner
+  simpa [RecInfoTypeOrigins.rebaseCore] using
+    A owner howner' localIndex hlocal
+
+theorem RecInfoMinorSourceAlignment.rebaseCore
+    (O : RecInfoTypeOrigins c left)
+    (A : RecInfoMinorSourceAlignment stats indTypes O)
+    (H : RecInfoCoreEq left right) :
+    RecInfoMinorSourceAlignment stats indTypes (O.rebaseCore H) := by
+  intro owner howner hsourceOwner localIndex hlocal
+  have howner' : owner < left.size := by simpa [H.size_eq] using howner
+  rcases A owner howner' hsourceOwner localIndex hlocal with
+    ⟨horigin, hindex, hsource, hhypotheses, traversal, htraversal,
+      hctor, hfields, hrecursive, hstats, hvalid, hmotive,
+      hroot, hterminal, hfull⟩
+  refine ⟨horigin, hindex, hsource,
+    RecInfoMinorTypeShape.HasHypothesisTypeOrigins.rebaseCore _
+      hhypotheses H,
+    traversal, htraversal, hctor, hfields, hrecursive, hstats, hvalid,
+    ?_, hroot, hterminal, hfull⟩
+  rcases hindices : AddInductive.getIIndices stats traversal.terminal with
+    ⟨motiveOwner, indices⟩
+  change (O.minorShapes owner howner' localIndex hlocal).motiveApp =
+    Expr.app (mkAppN right[motiveOwner]!.motive indices)
+      (mkAppN
+        (mkAppN (.const
+          (O.minorShapes owner howner' localIndex hlocal).constructor.name
+            stats.levels) stats.params)
+        (O.minorShapes owner howner' localIndex hlocal).fields)
+  rw [← H.motive_eq_all]
+  simpa only [hindices] using hmotive
+
+theorem modifyMinorAndBlueprint_coreEq
+    (recInfos : Array AddInductive.RecInfo) (dIdx : Nat)
+    (hidx : dIdx < recInfos.size) (minor : Expr)
+    (blueprint : AddInductive.RecRuleBlueprint) :
+    RecInfoCoreEq
+      (recInfos.modify dIdx fun info =>
+        { info with minors := info.minors.push minor })
+      (recInfos.modify dIdx fun info =>
+        { info with
+          minors := info.minors.push minor
+          ruleBlueprints := info.ruleBlueprints.push blueprint }) := by
+  constructor
+  · simp
+  · intro i
+    by_cases hi : i < recInfos.size
+    · by_cases hself : dIdx = i
+      · subst i
+        rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+      · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi hself]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi hself]
+    · simp [Array.getElem!_eq_getD, Array.getD, hi]
+  all_goals
+    intro i hi
+    have hi' : i < recInfos.size := by simpa using hi
+    by_cases hself : dIdx = i
+    · subst i
+      rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+      rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+    · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi' hself]
+      rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi' hself]
+
+theorem modifyMinorAndBlueprint_motiveCoreEq
+    (recInfos : Array AddInductive.RecInfo) (dIdx : Nat)
+    (hidx : dIdx < recInfos.size)
+    (minor : Expr) (blueprint : AddInductive.RecRuleBlueprint) :
+    RecInfoMotiveCoreEq recInfos
+      (recInfos.modify dIdx fun info =>
+        { info with
+          minors := info.minors.push minor
+          ruleBlueprints := info.ruleBlueprints.push blueprint }) := by
+  let next := recInfos.modify dIdx fun info =>
+    { info with
+      minors := info.minors.push minor
+      ruleBlueprints := info.ruleBlueprints.push blueprint }
+  have hfield : ∀ (i : Nat),
+      recInfos[i]!.motive = next[i]!.motive ∧
+      recInfos[i]!.indices = next[i]!.indices ∧
+      recInfos[i]!.major = next[i]!.major := by
+    intro i
+    by_cases hi : i < recInfos.size
+    · by_cases hself : dIdx = i
+      · subst i
+        rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+        simp
+      · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi
+          hself]
+        simp
+    · have hiNext : ¬ i < next.size := by simpa [next] using hi
+      simp [Array.getElem!_eq_getD, Array.getD, hi, hiNext]
+  refine {
+    map_motive := ?_
+    motive_eq := fun i => (hfield i).1
+    indices_eq := fun i => (hfield i).2.1
+    major_eq := fun i => (hfield i).2.2 }
+  apply Array.ext
+  · simp [next]
+  · intro i hiLeft hiRight
+    have hiLeft' : i < recInfos.size := by simpa using hiLeft
+    have hiRight' : i < next.size := by
+      dsimp [next]
+      simpa using hiRight
+    rw [Array.getElem_map, Array.getElem_map]
+    have h := (hfield i).1
+    rw [getElem!_pos recInfos i hiLeft', getElem!_pos next i hiRight'] at h
+    exact h
 
 namespace mkRecInfos.loopCtors
 
@@ -1411,6 +2793,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (indTypes : Array InductiveType)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (minorName : Name) (minorTy : Expr)
+    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
     {recLparams : List Name} {depth : Nat}
     {root c : AddInductive.Context}
@@ -1422,6 +2805,9 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
+    (HblueprintSemantics : RecInfoRuleBlueprintSemanticOrigins R decl stats
+      recInfos elimLevel Hsuffix.parameterDecls Horigins)
     (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
     (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
       Hsuffix.parameterDecls)
@@ -1445,13 +2831,13 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       recInfos[i]!.minors.size = 0)
     {minorTarget : VExpr}
     (Hminor : TrExprS R.venv recLparams R.mlctx.vlctx
-      minorTy.consumeTypeAnnotations minorTarget)
+      minorTy.consumeTypeAnnotationsVerified minorTarget)
     (HminorType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx minorTarget)
     (HminorShape : RecInfoMinorTypeShape)
     (HminorShapePosition :
       HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
-      HminorShape.origin = minorTy.consumeTypeAnnotations)
+      HminorShape.origin = minorTy.consumeTypeAnnotationsVerified)
     (HminorSource : HminorShape.sourceConstructors =
       indTypes[dIdx]!.ctors)
     (HminorHypothesisOrigins :
@@ -1459,6 +2845,9 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (HminorSemantic :
       Nonempty (RecInfoMinorSemanticSourceAt R HminorShape
         Hsuffix.parameterDecls))
+    (HminorFieldsFresh : ∀ fv ∈ HminorShape.fields_bound.fvars,
+      fv ∉ (Hparams.fvars ++ Hbindings.motives.fvars) ++
+        Hbindings.flatMinors.fvars)
     (HminorTraversal : ∃ traversal,
       HminorShape.traversal = some traversal ∧
       traversal.constructor = HminorShape.constructor ∧
@@ -1479,6 +2868,13 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       BindingContextLE traversal.rootContext c ∧
       BindingContextLE traversal.terminalContext c ∧
       BindingContextLE HminorShape.sourceFullContext c)
+    (HminorBlueprint : RecInfoRuleBlueprintOriginAt stats
+      HminorShape (.fvar ⟨c.ngen.curr⟩)
+      (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))
+    (HminorBlueprintSemantic : Nonempty
+      (RecInfoRuleBlueprintSemanticOriginAt R decl stats recInfos elimLevel
+        Hsuffix.parameterDecls dIdx HminorShape
+        (mkBlueprint (.fvar ⟨c.ngen.curr⟩))))
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
@@ -1492,6 +2888,9 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
         (decl.types.map (·.name)) Rout.mlctx.vlctx)
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
+      RecInfoRuleBlueprintOrigins stats out HoriginsOut →
+      RecInfoRuleBlueprintSemanticOrigins Rout decl stats out elimLevel
+        HsuffixOut.parameterDecls HoriginsOut →
       RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
       RecInfoMinorSemanticAlignment Rout HoriginsOut
         HsuffixOut.parameterDecls →
@@ -1511,10 +2910,12 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoArities stats out →
       BindingContextLE root outCtx →
       (k out outCtx).WF Q) :
-    (withLocalDecl minorName .default minorTy.consumeTypeAnnotations
+    (withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified
       (fun minor =>
         let next := recInfos.modify dIdx fun info =>
-          { info with minors := info.minors.push minor }
+          { info with
+            minors := info.minors.push minor
+            ruleBlueprints := info.ruleBlueprints.push (mkBlueprint minor) }
         k next) c).WF Q := by
   refine withLocalDecl.recursorWF (name := minorName) (bi := .default)
     R Hminor HminorType ?_
@@ -1523,27 +2924,554 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
   let cMinor : AddInductive.Context := { c with
     ngen := c.ngen.next
     lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ minorName
-      minorTy.consumeTypeAnnotations .default }
+      minorTy.consumeTypeAnnotationsVerified .default }
   let next := recInfos.modify dIdx fun info =>
-    { info with minors := info.minors.push (.fvar ⟨c.ngen.curr⟩) }
+    { info with
+      minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
+      ruleBlueprints := info.ruleBlueprints.push
+        (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
   let Hstep := RecursorContextExtension.withLocalDecl
     (name := minorName) (bi := .default) R Hminor HminorType
   let HbindingsMinor := Hbindings.addMinor dIdx hidx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
-      minorTy.consumeTypeAnnotations .default
+      minorTy.consumeTypeAnnotationsVerified .default
   let HoriginsMinor := Horigins.addMinor dIdx hidx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
-      minorTy.consumeTypeAnnotations .default HminorShape
+      minorTy.consumeTypeAnnotationsVerified .default HminorShape
       HminorShapePosition
   let HminorSourcesMinor := HminorSources.addMinor dIdx hidx hsourceIdx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
-    minorTy.consumeTypeAnnotations .default HminorShape
+    minorTy.consumeTypeAnnotationsVerified .default HminorShape
     HminorShapePosition HminorSource HminorHypothesisOrigins HminorTraversal
   let HminorSemanticsMinor := HminorSemantics.addMinor
     (RecursorContextExtension.refl R) dIdx hidx minorName
-    minorTy.consumeTypeAnnotations .default Hminor HminorType HminorShape
+    minorTy.consumeTypeAnnotationsVerified .default Hminor HminorType HminorShape
     HminorShapePosition HminorSemantic
+  let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+    (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+  let HmotiveCore := modifyMinorAndBlueprint_motiveCoreEq recInfos dIdx hidx
+    (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+  have hmotivesNext : next.map (·.motive) = recInfos.map (·.motive) := by
+    apply Array.ext
+    · simp [next]
+    · intro i hiNext hiOld
+      rw [Array.getElem_map, Array.getElem_map]
+      rw [Array.getElem_modify (by simpa [next] using hiNext)]
+      split <;> rfl
+  let HbindingsNext : RecInfoBindings cMinor next :=
+    HbindingsMinor.rebaseCore Hcore
+  let HoriginsNext : RecInfoTypeOrigins cMinor next :=
+    HoriginsMinor.rebaseCore Hcore
   let HparamsMinor := Hparams.mono Hstep.contextLE
+  have hmotivesFVarsNext : HbindingsNext.motives.fvars =
+      Hbindings.motives.fvars := by
+    change (HbindingsMinor.rebaseCore Hcore).motives.fvars = _
+    rw [HbindingsMinor.rebaseCore_motives_fvars Hcore]
+    exact Hbindings.addMinor_motives_fvars dIdx hidx
+      (BindingContextLE.refl c) R.toBindingContextWF minorName
+      minorTy.consumeTypeAnnotationsVerified .default
+  have hflatMinorsFVarsNext : HbindingsNext.flatMinors.fvars =
+      Hbindings.flatMinors.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)] := by
+    change (HbindingsMinor.rebaseCore Hcore).flatMinors.fvars = _
+    rw [HbindingsMinor.rebaseCore_flatMinors_fvars Hcore]
+    exact Hbindings.addMinor_flatMinors_fvars dIdx hidx
+      (BindingContextLE.refl c) R.toBindingContextWF minorName
+      minorTy.consumeTypeAnnotationsVerified .default Hlater
+  have HblueprintsNext :
+      RecInfoRuleBlueprintOrigins stats next HoriginsNext := by
+    refine {
+      rows_size := ?_
+      entry := ?_
+      fields_outer_fresh := ?_ }
+    · intro owner howner
+      have hownerOld : owner < recInfos.size := by
+        simpa [next] using howner
+      by_cases hdi : dIdx = owner
+      · subst owner
+        have hrow := Hblueprints.rows_size dIdx hidx
+        have hminorSize := (Horigins.minors dIdx hidx).size_eq
+        have hidxTypes : dIdx < Horigins.minorTypes.size := by
+          rw [Horigins.minorTypes_size]
+          exact hidx
+        dsimp [next, HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_self Horigins.minorTypes
+          dIdx _ hidxTypes]
+        simp only [Array.size_push]
+        omega
+      · have hrow := Hblueprints.rows_size owner hownerOld
+        have hownerTypes : owner < Horigins.minorTypes.size := by
+          rw [Horigins.minorTypes_size]
+          exact hownerOld
+        dsimp [next, HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
+          hownerOld hdi]
+        rw [mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+          dIdx owner _ hownerTypes hdi]
+        exact hrow
+    · intro owner howner localIndex hlocal
+      have hownerOld : owner < recInfos.size := by
+        simpa [next] using howner
+      by_cases hdi : dIdx = owner
+      · subst owner
+        by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+        · subst localIndex
+          have hminorIndex : Horigins.minorTypes[dIdx]!.size =
+              recInfos[dIdx]!.minors.size :=
+            (Horigins.minors dIdx hidx).size_eq
+          have hblueprintIndex : Horigins.minorTypes[dIdx]!.size =
+              recInfos[dIdx]!.ruleBlueprints.size :=
+            (Hblueprints.rows_size dIdx hidx).symm
+          have hminorLast :
+              (recInfos[dIdx]!.minors.push (.fvar ⟨c.ngen.curr⟩))[
+                Horigins.minorTypes[dIdx]!.size]! =
+                .fvar ⟨c.ngen.curr⟩ := by
+            rw [hminorIndex]
+            simp
+          have hblueprintLast :
+              (recInfos[dIdx]!.ruleBlueprints.push
+                (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[
+                  Horigins.minorTypes[dIdx]!.size]! =
+                mkBlueprint (.fvar ⟨c.ngen.curr⟩) := by
+            rw [hblueprintIndex]
+            simp
+          have hshapeLast :
+              HoriginsNext.minorShapes dIdx howner
+                Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+            simp [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+          rw [hshapeLast]
+          simpa [next, HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+            RecInfoRuleBlueprintOriginAt,
+            mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
+            hminorLast, hblueprintLast]
+            using HminorBlueprint
+        · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+            dsimp [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
+              RecInfoTypeOrigins.addMinor] at hlocal
+            have hidxTypes : dIdx < Horigins.minorTypes.size := by
+              rw [Horigins.minorTypes_size]
+              exact hidx
+            rw [mkRecInfos.loopCtors.getElemBang_modify_self
+              Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+            simp only [Array.size_push] at hlocal
+            omega
+          have holdMinor : localIndex < recInfos[dIdx]!.minors.size := by
+            rw [← (Horigins.minors dIdx hidx).size_eq]
+            exact hold
+          have holdBlueprint :
+              localIndex < recInfos[dIdx]!.ruleBlueprints.size := by
+            rw [Hblueprints.rows_size dIdx hidx]
+            exact hold
+          have holdMinor' : localIndex < recInfos[dIdx].minors.size := by
+            simpa [getElem!_pos recInfos dIdx hidx] using holdMinor
+          have holdBlueprint' :
+              localIndex < recInfos[dIdx].ruleBlueprints.size := by
+            simpa [getElem!_pos recInfos dIdx hidx] using holdBlueprint
+          have hminorGet :
+              (recInfos[dIdx]!.minors.push
+                (.fvar ⟨c.ngen.curr⟩))[localIndex]! =
+                recInfos[dIdx]!.minors[localIndex]! := by
+            simp [Array.getElem!_eq_getD, Array.getD, hidx, holdMinor',
+              Array.getElem_push_lt holdMinor'] <;> omega
+          have hblueprintGet :
+              (recInfos[dIdx]!.ruleBlueprints.push
+                (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
+                recInfos[dIdx]!.ruleBlueprints[localIndex]! := by
+            simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
+              Array.getElem_push_lt holdBlueprint'] <;> omega
+          have Hentry := Hblueprints.entry dIdx hidx localIndex hold
+          have hshapeOld :
+              HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+                Horigins.minorShapes dIdx hidx localIndex hold := by
+            simp [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+              hlast]
+          rw [hshapeOld]
+          simpa [next, HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+            RecInfoRuleBlueprintOriginAt,
+            mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
+            hlast, Array.getElem_push_lt hold,
+            Array.getElem_push_lt holdMinor,
+            Array.getElem_push_lt holdBlueprint,
+            hminorGet, hblueprintGet] using Hentry
+      · have hlocalOld : localIndex < Horigins.minorTypes[owner]!.size := by
+          simpa [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
+            RecInfoTypeOrigins.addMinor,
+            mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+              dIdx owner _ (by simpa [Horigins.minorTypes_size] using hownerOld)
+              hdi] using hlocal
+        have Hentry := Hblueprints.entry owner hownerOld localIndex hlocalOld
+        have hshapeOld :
+            HoriginsNext.minorShapes owner howner localIndex hlocal =
+              Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+          simp [HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor, hdi]
+        rw [hshapeOld]
+        simpa [next, HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+          RecInfoRuleBlueprintOriginAt,
+          hdi,
+          mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
+            hownerOld hdi] using Hentry
+    · intro owner howner localIndex hlocal fv hfv
+      have hownerOld : owner < recInfos.size := by
+        simpa [next] using howner
+      rw [hmotivesNext, Hparams.exprArrayFVarIds,
+        Hbindings.motives.exprArrayFVarIds,
+        HbindingsNext.flatMinors.exprArrayFVarIds,
+        hflatMinorsFVarsNext]
+      intro houter
+      have holdOrCurrent :
+          fv ∈ (Hparams.fvars ++ Hbindings.motives.fvars) ++
+              Hbindings.flatMinors.fvars ∨
+            fv = (⟨c.ngen.curr⟩ : FVarId) := by
+        rcases List.mem_append.mp houter with hpm | hminorCurrent
+        · exact Or.inl (List.mem_append.mpr (Or.inl hpm))
+        · rcases List.mem_append.mp hminorCurrent with hminor | hcurrent
+          · exact Or.inl (List.mem_append.mpr (Or.inr hminor))
+          · exact Or.inr (by simpa using hcurrent)
+      rcases holdOrCurrent with holdOuter | hcurrent
+      · by_cases hdi : dIdx = owner
+        · subst owner
+          by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+          · subst localIndex
+            have hshapeLast :
+                HoriginsNext.minorShapes dIdx howner
+                    Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+              simp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+            rw [hshapeLast] at hfv
+            exact HminorFieldsFresh fv hfv holdOuter
+          · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+              dsimp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore,
+                RecInfoTypeOrigins.addMinor] at hlocal
+              have hidxTypes : dIdx < Horigins.minorTypes.size := by
+                rw [Horigins.minorTypes_size]
+                exact hidx
+              rw [mkRecInfos.loopCtors.getElemBang_modify_self
+                Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+              simp only [Array.size_push] at hlocal
+              omega
+            have hshapeOld :
+                HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+                  Horigins.minorShapes dIdx hidx localIndex hold := by
+              simp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+                hlast]
+            rw [hshapeOld] at hfv
+            apply Hblueprints.fields_outer_fresh dIdx hidx
+              localIndex hold fv hfv
+            simpa only [Hparams.exprArrayFVarIds,
+              Hbindings.motives.exprArrayFVarIds,
+              Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
+        · have hlocalOld :
+              localIndex < Horigins.minorTypes[owner]!.size := by
+            simpa [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+              mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+                dIdx owner _
+                  (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
+              using hlocal
+          have hshapeOld :
+              HoriginsNext.minorShapes owner howner localIndex hlocal =
+                Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+            simp [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+              hdi]
+          rw [hshapeOld] at hfv
+          apply Hblueprints.fields_outer_fresh owner hownerOld
+            localIndex hlocalOld fv hfv
+          simpa only [Hparams.exprArrayFVarIds,
+            Hbindings.motives.exprArrayFVarIds,
+            Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
+      · subst fv
+        apply R.toBindingContextWF.current_not_mem
+        by_cases hdi : dIdx = owner
+        · subst owner
+          by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+          · subst localIndex
+            have hshapeLast :
+                HoriginsNext.minorShapes dIdx howner
+                    Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+              simp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+            rw [hshapeLast] at hfv
+            rcases HminorSemantic with ⟨HS⟩
+            exact HS.semantic.extension.contextLE.fvars
+              (HminorShape.fields_bound.members _ hfv)
+          · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+              dsimp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore,
+                RecInfoTypeOrigins.addMinor] at hlocal
+              have hidxTypes : dIdx < Horigins.minorTypes.size := by
+                rw [Horigins.minorTypes_size]
+                exact hidx
+              rw [mkRecInfos.loopCtors.getElemBang_modify_self
+                Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+              simp only [Array.size_push] at hlocal
+              omega
+            have hshapeOld :
+                HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+                  Horigins.minorShapes dIdx hidx localIndex hold := by
+              simp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+                hlast]
+            rw [hshapeOld] at hfv
+            rcases HminorSemantics dIdx hidx localIndex hold with ⟨HS⟩
+            exact HS.semantic.extension.contextLE.fvars
+              ((Horigins.minorShapes dIdx hidx localIndex hold
+                ).fields_bound.members _ hfv)
+        · have hlocalOld :
+              localIndex < Horigins.minorTypes[owner]!.size := by
+            simpa [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+              mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+                dIdx owner _
+                  (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
+              using hlocal
+          have hshapeOld :
+              HoriginsNext.minorShapes owner howner localIndex hlocal =
+                Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+            simp [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+              hdi]
+          rw [hshapeOld] at hfv
+          rcases HminorSemantics owner hownerOld localIndex hlocalOld with ⟨HS⟩
+          exact HS.semantic.extension.contextLE.fvars
+            ((Horigins.minorShapes owner hownerOld localIndex hlocalOld
+              ).fields_bound.members _ hfv)
+  have HblueprintSemanticsNext :
+      RecInfoRuleBlueprintSemanticOrigins Rminor decl stats next elimLevel
+        Hsuffix.parameterDecls HoriginsNext := by
+    refine {
+      rows_size := HblueprintsNext.rows_size
+      entry := ?_
+      fields_outer_fresh := ?_ }
+    intro owner howner localIndex hlocal
+    have hownerOld : owner < recInfos.size := by
+      simpa [next] using howner
+    by_cases hdi : dIdx = owner
+    · subst owner
+      by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+      · subst localIndex
+        have hblueprintIndex : Horigins.minorTypes[dIdx]!.size =
+            recInfos[dIdx]!.ruleBlueprints.size :=
+          (Hblueprints.rows_size dIdx hidx).symm
+        have hblueprintLast :
+            (recInfos[dIdx]!.ruleBlueprints.push
+              (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[
+                Horigins.minorTypes[dIdx]!.size]! =
+              mkBlueprint (.fvar ⟨c.ngen.curr⟩) := by
+          rw [hblueprintIndex]
+          simp
+        have hshapeLast :
+            HoriginsNext.minorShapes dIdx howner
+              Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+          simp [HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+        rw [hshapeLast]
+        rcases HminorBlueprintSemantic with ⟨HminorBlueprintSemantic⟩
+        have HminorBlueprintSemantic' :=
+          (HminorBlueprintSemantic.mono Hstep).rebaseMotiveCore HmotiveCore
+        simpa [next, Rminor, RecInfoRuleBlueprintSemanticOriginAt,
+          mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
+          hblueprintLast, hmotivesNext] using HminorBlueprintSemantic'
+      · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+          dsimp [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
+            RecInfoTypeOrigins.addMinor] at hlocal
+          have hidxTypes : dIdx < Horigins.minorTypes.size := by
+            rw [Horigins.minorTypes_size]
+            exact hidx
+          rw [mkRecInfos.loopCtors.getElemBang_modify_self
+            Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+          simp only [Array.size_push] at hlocal
+          omega
+        have holdBlueprint :
+            localIndex < recInfos[dIdx]!.ruleBlueprints.size := by
+          rw [Hblueprints.rows_size dIdx hidx]
+          exact hold
+        have holdBlueprint' :
+            localIndex < recInfos[dIdx].ruleBlueprints.size := by
+          simpa [getElem!_pos recInfos dIdx hidx] using holdBlueprint
+        have hblueprintGet :
+            (recInfos[dIdx]!.ruleBlueprints.push
+              (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
+              recInfos[dIdx]!.ruleBlueprints[localIndex]! := by
+          simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
+            Array.getElem_push_lt holdBlueprint'] <;> omega
+        rcases HblueprintSemantics.entry dIdx hidx localIndex hold with ⟨Hentry⟩
+        have Hentry := (Hentry.mono Hstep).rebaseMotiveCore HmotiveCore
+        have hshapeOld :
+            HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+              Horigins.minorShapes dIdx hidx localIndex hold := by
+          simp [HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+            hlast]
+        rw [hshapeOld]
+        simpa [next, Rminor, RecInfoRuleBlueprintSemanticOriginAt,
+          mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
+          hlast, Array.getElem_push_lt holdBlueprint, hblueprintGet,
+          hmotivesNext] using
+            Hentry
+    · have hlocalOld : localIndex < Horigins.minorTypes[owner]!.size := by
+        simpa [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
+          RecInfoTypeOrigins.addMinor,
+          mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+            dIdx owner _ (by simpa [Horigins.minorTypes_size] using hownerOld)
+            hdi] using hlocal
+      rcases HblueprintSemantics.entry owner hownerOld localIndex
+        hlocalOld with ⟨Hentry⟩
+      have Hentry := (Hentry.mono Hstep).rebaseMotiveCore HmotiveCore
+      have hshapeOld :
+          HoriginsNext.minorShapes owner howner localIndex hlocal =
+            Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+        simp [HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor, hdi]
+      rw [hshapeOld]
+      simpa [next, Rminor, RecInfoRuleBlueprintSemanticOriginAt, hdi,
+        mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
+          hownerOld hdi, hmotivesNext] using Hentry
+    · intro owner howner localIndex hlocal fv hfv
+      have hownerOld : owner < recInfos.size := by
+        simpa [next] using howner
+      rw [hmotivesNext, Hparams.exprArrayFVarIds,
+        Hbindings.motives.exprArrayFVarIds,
+        HbindingsNext.flatMinors.exprArrayFVarIds,
+        hflatMinorsFVarsNext]
+      intro houter
+      have holdOrCurrent :
+          fv ∈ (Hparams.fvars ++ Hbindings.motives.fvars) ++
+              Hbindings.flatMinors.fvars ∨
+            fv = (⟨c.ngen.curr⟩ : FVarId) := by
+        rcases List.mem_append.mp houter with hpm | hminorCurrent
+        · exact Or.inl (List.mem_append.mpr (Or.inl hpm))
+        · rcases List.mem_append.mp hminorCurrent with hminor | hcurrent
+          · exact Or.inl (List.mem_append.mpr (Or.inr hminor))
+          · exact Or.inr (by simpa using hcurrent)
+      rcases holdOrCurrent with holdOuter | hcurrent
+      · by_cases hdi : dIdx = owner
+        · subst owner
+          by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+          · subst localIndex
+            have hshapeLast :
+                HoriginsNext.minorShapes dIdx howner
+                    Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+              simp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+            rw [hshapeLast] at hfv
+            exact HminorFieldsFresh fv hfv holdOuter
+          · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+              dsimp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore,
+                RecInfoTypeOrigins.addMinor] at hlocal
+              have hidxTypes : dIdx < Horigins.minorTypes.size := by
+                rw [Horigins.minorTypes_size]
+                exact hidx
+              rw [mkRecInfos.loopCtors.getElemBang_modify_self
+                Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+              simp only [Array.size_push] at hlocal
+              omega
+            have hshapeOld :
+                HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+                  Horigins.minorShapes dIdx hidx localIndex hold := by
+              simp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+                hlast]
+            rw [hshapeOld] at hfv
+            apply HblueprintSemantics.fields_outer_fresh dIdx hidx
+              localIndex hold fv hfv
+            simpa only [Hparams.exprArrayFVarIds,
+              Hbindings.motives.exprArrayFVarIds,
+              Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
+        · have hlocalOld :
+              localIndex < Horigins.minorTypes[owner]!.size := by
+            simpa [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+              mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+                dIdx owner _
+                  (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
+              using hlocal
+          have hshapeOld :
+              HoriginsNext.minorShapes owner howner localIndex hlocal =
+                Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+            simp [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+              hdi]
+          rw [hshapeOld] at hfv
+          apply HblueprintSemantics.fields_outer_fresh owner hownerOld
+            localIndex hlocalOld fv hfv
+          simpa only [Hparams.exprArrayFVarIds,
+            Hbindings.motives.exprArrayFVarIds,
+            Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
+      · subst fv
+        apply R.toBindingContextWF.current_not_mem
+        by_cases hdi : dIdx = owner
+        · subst owner
+          by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+          · subst localIndex
+            have hshapeLast :
+                HoriginsNext.minorShapes dIdx howner
+                    Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+              simp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+            rw [hshapeLast] at hfv
+            rcases HminorSemantic with ⟨HS⟩
+            exact HS.semantic.extension.contextLE.fvars
+              (HminorShape.fields_bound.members _ hfv)
+          · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+              dsimp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore,
+                RecInfoTypeOrigins.addMinor] at hlocal
+              have hidxTypes : dIdx < Horigins.minorTypes.size := by
+                rw [Horigins.minorTypes_size]
+                exact hidx
+              rw [mkRecInfos.loopCtors.getElemBang_modify_self
+                Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+              simp only [Array.size_push] at hlocal
+              omega
+            have hshapeOld :
+                HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+                  Horigins.minorShapes dIdx hidx localIndex hold := by
+              simp [HoriginsNext, HoriginsMinor,
+                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+                hlast]
+            rw [hshapeOld] at hfv
+            rcases HminorSemantics dIdx hidx localIndex hold with ⟨HS⟩
+            exact HS.semantic.extension.contextLE.fvars
+              ((Horigins.minorShapes dIdx hidx localIndex hold
+                ).fields_bound.members _ hfv)
+        · have hlocalOld :
+              localIndex < Horigins.minorTypes[owner]!.size := by
+            simpa [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+              mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+                dIdx owner _
+                  (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
+              using hlocal
+          have hshapeOld :
+              HoriginsNext.minorShapes owner howner localIndex hlocal =
+                Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+            simp [HoriginsNext, HoriginsMinor,
+              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+              hdi]
+          rw [hshapeOld] at hfv
+          rcases HminorSemantics owner hownerOld localIndex hlocalOld with ⟨HS⟩
+          exact HS.semantic.extension.contextLE.fvars
+            ((Horigins.minorShapes owner hownerOld localIndex hlocalOld
+              ).fields_bound.members _ hfv)
+  have HminorSourcesNext :
+      RecInfoMinorSourceAlignment stats indTypes HoriginsNext := by
+    exact RecInfoMinorSourceAlignment.rebaseCore _ HminorSourcesMinor Hcore
+  have HminorSemanticsNext :
+      RecInfoMinorSemanticAlignment Rminor HoriginsNext
+        Hsuffix.parameterDecls := by
+    exact RecInfoMinorSemanticAlignment.rebaseCore _ HminorSemanticsMinor Hcore
   have HorderMinor : RecInfoOuterOrder Rminor HparamsMinor
       HbindingsMinor := by
     refine RecInfoOuterOrder.addMinor
@@ -1551,15 +3479,19 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     · rfl
     · exact Hbindings.addMinor_motives_fvars dIdx hidx
         (BindingContextLE.refl c) R.toBindingContextWF minorName
-          minorTy.consumeTypeAnnotations .default
+          minorTy.consumeTypeAnnotationsVerified .default
     · exact Hbindings.addMinor_flatMinors_fvars dIdx hidx
         (BindingContextLE.refl c) R.toBindingContextWF minorName
-          minorTy.consumeTypeAnnotations .default Hlater
+          minorTy.consumeTypeAnnotationsVerified .default Hlater
     · rfl
+  have HorderNext : RecInfoOuterOrder Rminor HparamsMinor HbindingsNext :=
+    RecInfoOuterOrder.rebaseCore HbindingsMinor HorderMinor Hcore
   refine Hk next Rminor rfl (Hsuffix.withAmbient Hminor HminorType) rfl
     (Hstats.withFVar Rminor.checking.tr.wf Rminor.mlctx_wf.tr.wf)
     (VLCtx.NoIndConsts.cons hctx rfl)
-    HbindingsMinor HoriginsMinor HminorSourcesMinor HminorSemanticsMinor
+    HbindingsNext HoriginsNext HblueprintsNext HblueprintSemanticsNext
+      HminorSourcesNext
+      HminorSemanticsNext
       ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
       HparamsMinor ?_ ?_ ?_ ?_
   · simp [next]
@@ -1569,21 +3501,26 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
   · intro i hi hine
     dsimp [next]
     rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi hine]
-  · exact HmajorTypes.mono Hstep
-  · exact HmajorShapes.modifyMinors dIdx
-      (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))
-  · exact HmotiveTypes.mono Hstep
-  · exact (HmotiveShapes.mono Hbindings Hstep.contextLE).modifyMinors
-      dIdx (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))
-  · exact (Htelescopes.mono Hstep).modifyMinors dIdx
-      (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))
-  · exact HindexRows.mono Hstep
-  · exact Hbindings.addMinor_noAlias Hparams HnoAlias dIdx hidx
+  · change RecursorTranslatedOriginTypes Rminor Horigins.majorTypes
+    simpa [Rminor] using HmajorTypes.mono Hstep
+  · exact (HmajorShapes.modifyMinors dIdx
+      (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))).rebaseCore Hcore
+  · change RecursorTranslatedOriginTypes Rminor Horigins.motiveTypes
+    simpa [Rminor] using HmotiveTypes.mono Hstep
+  · exact ((HmotiveShapes.mono Hbindings Hstep.contextLE).modifyMinors
+      dIdx (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))).rebaseCore Hcore
+  · exact ((Htelescopes.mono Hstep).modifyMinors dIdx
+      (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))).rebaseCore Hcore
+  · change RecursorTranslatedOriginTypeRows Rminor Horigins.indexTypes
+    simpa [Rminor] using HindexRows.mono Hstep
+  · exact RecInfoBindings.NoAlias.rebaseCore
+      HbindingsMinor HparamsMinor
+      (Hbindings.addMinor_noAlias Hparams HnoAlias dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName
-        minorTy.consumeTypeAnnotations .default
-  · exact HorderMinor
-  · exact Harities.modifyMinors dIdx
-      (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))
+        minorTy.consumeTypeAnnotationsVerified .default) Hcore
+  · exact HorderNext
+  · exact (Harities.modifyMinors dIdx
+      (fun minors => minors.push (.fvar ⟨c.ngen.curr⟩))).rebaseCore Hcore
   · exact Hroot.trans Hstep.contextLE
 
 /-- Complete semantic refinement of one constructor iteration in the second
@@ -1610,9 +3547,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (hprefix : RecursorParamPrefix stats 0 ctor.type tail)
     (htailScope : tail.FVarsIn
       (fun fv => fv ∈ ExprArrayFVarIds stats.params))
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -1628,6 +3564,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       R.mlctx.vlctx.toCtx introTarget tailTarget)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
+    (HblueprintSemantics : RecInfoRuleBlueprintSemanticOrigins R decl stats
+      recInfos elimLevel Hsuffix.parameterDecls Horigins)
     (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
     (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
       Hsuffix.parameterDecls)
@@ -1666,6 +3605,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         (decl.types.map (·.name)) Rout.mlctx.vlctx)
       (HbindingsOut : RecInfoBindings outCtx out)
       (HoriginsOut : RecInfoTypeOrigins outCtx out),
+      RecInfoRuleBlueprintOrigins stats out HoriginsOut →
+      RecInfoRuleBlueprintSemanticOrigins Rout decl stats out elimLevel
+        HsuffixOut.parameterDecls HoriginsOut →
       RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
       RecInfoMinorSemanticAlignment Rout HoriginsOut
         HsuffixOut.parameterDecls →
@@ -1692,17 +3634,26 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           (mkAppN (.const ctor.name stats.levels) stats.params) allFields
         let motiveApp := Expr.app
           (mkAppN recInfos[ownerIdx]!.motive indices) introApp
-        AddInductive.mkRecInfos.loopU stats recursiveFields recInfos 0 #[]
-          fun hypotheses => do
+        AddInductive.mkRecInfos.loopUBlueprints stats recursiveFields recInfos
+          0 #[] #[] fun hypotheses calls => do
             let lctx ← getLCtx
             let minorTy := lctx.mkForall allFields <|
               lctx.mkForall hypotheses motiveApp
             let minorName :=
               ctor.name.replacePrefix indTypeName .anonymous
             withLocalDecl minorName .default
-                minorTy.consumeTypeAnnotations fun minor =>
+                minorTy.consumeTypeAnnotationsVerified fun minor =>
               let next := recInfos.modify dIdx fun info =>
-                { info with minors := info.minors.push minor }
+                { info with
+                  minors := info.minors.push minor
+                  ruleBlueprints := info.ruleBlueprints.push {
+                    ctor := ctor.name
+                    fields := allFields
+                    lctx := lctx
+                    recursiveCalls := calls
+                    targetTypeIdx := ownerIdx
+                    targetIndices := indices
+                    minor := minor } }
               k next) c).WF Q := by
   let process := fun terminal allFields recursiveFields =>
     let (ownerIdx, indices) := AddInductive.getIIndices stats terminal
@@ -1710,22 +3661,31 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       (mkAppN (.const ctor.name stats.levels) stats.params) allFields
     let motiveApp := Expr.app
       (mkAppN recInfos[ownerIdx]!.motive indices) introApp
-    AddInductive.mkRecInfos.loopU stats recursiveFields recInfos 0 #[]
-      fun hypotheses => do
+    AddInductive.mkRecInfos.loopUBlueprints stats recursiveFields recInfos
+      0 #[] #[] fun hypotheses calls => do
         let lctx ← getLCtx
         let minorTy := lctx.mkForall allFields <|
           lctx.mkForall hypotheses motiveApp
         let minorName := ctor.name.replacePrefix indTypeName .anonymous
-        withLocalDecl minorName .default minorTy.consumeTypeAnnotations
+        withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified
             fun minor =>
           let next := recInfos.modify dIdx fun info =>
-            { info with minors := info.minors.push minor }
+            { info with
+              minors := info.minors.push minor
+              ruleBlueprints := info.ruleBlueprints.push {
+                ctor := ctor.name
+                fields := allFields
+                lctx := lctx
+                recursiveCalls := calls
+                targetTypeIdx := ownerIdx
+                targetIndices := indices
+                minor := minor } }
           k next
   change (AddInductive.mkRecInfos.loopCtorArgs stats ctor.type process c).WF Q
   apply mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent (Q := Q)
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
-      process c R Hstats hprefix hwhnf hconsume hlit hctx hproj htail
+      process c R Hstats hprefix hconsume hlit hctx hproj htail
       htailType htailScope Hsuffix.parameterFVarsUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allFields
     recursiveFields fields positions args HterminalNonforall Hterminal
@@ -1764,7 +3724,13 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     rw [← HstatsArgs.types_size]
     exact htargetStats
   let Hvalidated := HstatsArgs.validatedIndAppAt Hterminal
-    Happlication.owner_valid htargetDecl hlit hctxArgs hproj
+    Happlication.owner_valid htargetDecl
+      (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs hproj
+  rcases HmotiveShapes.motiveBindingAtRecent Hbindings Horigins
+      HfieldsRecent Happlication.ownerIdx htarget with ⟨HbindingAt⟩
+  let Hbinding := HbindingAt.toBinding
+  have HmotiveEvidence := Htelescopes.telescope Happlication.ownerIdx
+    htarget Rargs HextArgs Hbinding Hterminal HterminalType Hvalidated
   have HterminalWF : VExpr.WF Rargs.venv recLparams.length
       Rargs.mlctx.vlctx.toCtx terminalTarget := by
     rcases Happlication.terminal_type with ⟨u, Htyped⟩
@@ -1782,7 +3748,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     rfl
   dsimp only [process]
   rw [howner]
-  let finish := fun hypotheses => do
+  let finish := fun hypotheses calls => do
     let lctx ← getLCtx
     let motiveApp := Expr.app
       (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
@@ -1791,25 +3757,65 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     let minorTy := lctx.mkForall allFields <|
       lctx.mkForall hypotheses motiveApp
     let minorName := ctor.name.replacePrefix indTypeName .anonymous
-    withLocalDecl minorName .default minorTy.consumeTypeAnnotations
+    withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified
         fun minor =>
       let next := recInfos.modify dIdx fun info =>
-        { info with minors := info.minors.push minor }
+        { info with
+          minors := info.minors.push minor
+          ruleBlueprints := info.ruleBlueprints.push {
+            ctor := ctor.name
+            fields := allFields
+            lctx := lctx
+            recursiveCalls := calls
+            targetTypeIdx := Happlication.ownerIdx
+            targetIndices := indices
+            minor := minor } }
       k next
-  change (AddInductive.mkRecInfos.loopU stats recursiveFields recInfos 0 #[]
-    finish current).WF Q
+  change (AddInductive.mkRecInfos.loopUBlueprints stats recursiveFields
+    recInfos 0 #[] #[] finish current).WF Q
   let HbindingsArgs := Hbindings.mono HextArgs.contextLE
   let HoriginsArgs := Horigins.mono HextArgs.contextLE
   let HmotiveShapesArgs := HmotiveShapes.mono Hbindings HextArgs.contextLE
   let HtelescopesArgs := Htelescopes.mono HextArgs
-  apply mkRecInfos.loopU.resultSemanticsOfMotiveTelescopes (Q := Q)
-    stats recursiveFields recInfos finish Rargs HstatsArgs hwhnf hconsume hlit
+  let producerScope : FVarId → Prop := fun fv =>
+    fv ∈ HfieldsRecent.fvars ∨ fv ∈ ExprArrayFVarIds stats.params
+  apply mkRecInfos.loopUBlueprints.resultSemanticsOfMotiveTelescopes (Q := Q)
+    stats recursiveFields recInfos finish Rargs producerScope HstatsArgs hconsume
+      (by simpa only [HfieldsRecent.venv_eq] using hlit)
       hctxArgs hproj
-      (Hselections.selectedFVars
-        HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray Hrecursive)
+      (by
+        intro j hj
+        rcases Hselections.selectedFVars
+            HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray Hrecursive
+            j hj with ⟨fv, target, heq, Htr⟩
+        refine ⟨fv, target, heq, Htr, Or.inl ?_⟩
+        have hselectedExpr : Expr.fvar fv ∈ recursiveFields.toList := by
+          rw [← heq]
+          exact Array.getElem_mem_toList hj
+        have hallExpr : Expr.fvar fv ∈ allFields.toList :=
+          Hselections.toSource.selectedSublist.subset hselectedExpr
+        rw [HfieldsRecent.expressions] at hallExpr
+        simpa using hallExpr)
+      (by
+        intro fv hfv
+        rcases hfv with hfield | hparam
+        · have hmem := HfieldsRecent.members fv hfield
+          rw [← Rargs.lctx_eq, Rargs.mlctx_wf.tr.fvars_eq] at hmem
+          exact hmem
+        · have hp : fv ∈ Hparams.fvars := by
+            rw [← Hparams.exprArrayFVarIds]
+            exact hparam
+          have hmem := HextArgs.contextLE (Hparams.members fv hp)
+          rw [← Rargs.lctx_eq, Rargs.mlctx_wf.tr.fvars_eq] at hmem
+          exact hmem)
+      (by
+        dsimp only [producerScope]
+        rw [Hopening.fvars_eq_bound
+          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
+        exact _HfieldParameterUp)
       HtelescopesArgs HbindingsArgs HoriginsArgs HmotiveShapesArgs hrecords
-  intro outCtx Rout hypotheses HhypothesesRecent HhypothesisOrigins
-    hhypothesesSize
+  intro outCtx Rout hypotheses calls HhypothesesRecent HhypothesisOrigins
+    HhypothesisCallOrigins HhypothesisCallSemantics hhypothesesSize hcallsSize
   let HextAll := HextArgs.trans HhypothesesRecent.contextExtension
   have HmotiveAt : TrExprS Rout.venv recLparams Rout.mlctx.vlctx
       (Expr.app
@@ -1916,6 +3922,37 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       Hbindings.flatMinors.fvars).reverse <+ Rout.mlctx.vlctx.fvars
     exact HorderOut0
   let HminorSemanticsOut := HminorSemantics.mono HextAll
+  let HcompletedOrigins : RecInfoMinorHypothesisTypeOrigins
+      outCtx recursiveFields hypotheses := {
+    stats := stats
+    recInfos := recInfos
+    fieldRoot := current
+    fieldRoot_wf := Rargs.toBindingContextWF
+    hypotheses_outer_fresh := by
+      intro fv houter hhypothesis
+      rw [Hparams.exprArrayFVarIds,
+        Hbindings.motives.exprArrayFVarIds] at houter
+      rw [(HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
+        ).exprArrayFVarIds] at hhypothesis
+      apply HhypothesesRecent.toFreshBoundFVarArray.fresh fv hhypothesis
+      apply HextArgs.contextLE.fvars
+      rcases List.mem_append.mp houter with hparam | hmotive
+      · exact Hparams.members fv hparam
+      · exact Hbindings.motives.members fv hmotive
+    entry := by
+      intro j hj
+      rcases HhypothesisOrigins.entry j hj with
+        ⟨originRoot, sourceType, HoriginRoot, ⟨O⟩, D, htype⟩
+      exact ⟨originRoot, sourceType, HoriginRoot, ⟨O.toMinor⟩, D, htype⟩ }
+  have HcompletedCalls :
+      RecInfoCallBlueprintOrigins HcompletedOrigins calls := by
+    refine {
+      size_eq := HhypothesisCallOrigins.size_eq
+      entry := ?_ }
+    intro j hj
+    rcases HhypothesisCallOrigins.entry j hj with
+      ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
+    exact ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
   refine continueMinorSemantics (Q := Q) stats indTypes dIdx recInfos
     (ctor.name.replacePrefix indTypeName .anonymous)
     (outCtx.lctx.mkForall allFields
@@ -1926,7 +3963,17 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           (mkAppN
             (mkAppN (.const ctor.name stats.levels) stats.params)
             allFields))))
+    (fun minor => {
+      ctor := ctor.name
+      fields := allFields
+      lctx := outCtx.lctx
+      recursiveCalls := calls
+      targetTypeIdx := Happlication.ownerIdx
+      targetIndices := indices
+      minor := minor })
     k Rout HsuffixOut HstatsOut hctxOut HbindingsOut HoriginsOut
+      (Hblueprints.mono HextAll.contextLE)
+      (HblueprintSemantics.mono HextAll)
       (HminorSources.mono HextAll.contextLE)
       HminorSemanticsOut
       (HmajorTypes.mono HextAll) HmajorShapes
@@ -1945,7 +3992,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
               (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
               (mkAppN
                 (mkAppN (.const ctor.name stats.levels) stats.params)
-                allFields)))).consumeTypeAnnotations
+                allFields)))).consumeTypeAnnotationsVerified
         constructor := ctor
         sourceConstructors := sourceConstructors
         sourceConstructor := by
@@ -1972,39 +4019,15 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
             hhypothesis
           exact HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.members
             fv hfield
-        hypothesis_type_origins := some {
-          stats := stats
-          recInfos := recInfos
-          hypotheses_outer_fresh := by
-            intro fv houter hhypothesis
-            rw [Hparams.exprArrayFVarIds,
-              Hbindings.motives.exprArrayFVarIds] at houter
-            rw [(HhypothesesRecent.toFreshBoundFVarArray.toBoundFVarArray
-              ).exprArrayFVarIds] at hhypothesis
-            apply HhypothesesRecent.toFreshBoundFVarArray.fresh fv
-              hhypothesis
-            apply HextArgs.contextLE.fvars
-            rcases List.mem_append.mp houter with hparam | hmotive
-            · exact Hparams.members fv hparam
-            · exact Hbindings.motives.members fv hmotive
-          entry := by
-            intro j hj
-            rcases HhypothesisOrigins.entry j hj with
-              ⟨originRoot, sourceType, ⟨O⟩, D, htype⟩
-            exact ⟨originRoot, sourceType, ⟨{
-              current := O.current
-              current_wf := O.current_wf
-              current_extends := O.current_extends
-              exposedType := O.exposedType
-              args := O.args
-              arguments_bound := O.arguments_bound
-              field_fvar := O.field_fvar
-              ownerIdx := O.ownerIdx
-              owner_valid := O.owner_valid
-              motive_is_fvar := O.motive_is_fvar
-              type_eq := O.type_eq }⟩, D, htype⟩ }
+        hypothesis_type_origins := some HcompletedOrigins
         hypotheses_size := hhypothesesSize
         traversal := some traversal
+        hypothesis_origins_fieldRoot := by
+          intro origins' T horigins htraversal
+          simp only [Option.some.injEq] at horigins htraversal
+          subst origins'
+          subst T
+          rfl
         motiveApp := Expr.app
           (mkAppN recInfos[Happlication.ownerIdx]!.motive indices)
           (mkAppN
@@ -2021,7 +4044,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         consumed_eq := rfl } ⟨rfl, rfl⟩ (by
           simpa [HoriginsOut, RecInfoTypeOrigins.mono, horiginIndex] using
             hsourceFamily)
-      (by simp [RecInfoMinorTypeShape.HasHypothesisTypeOrigins])
+      (by exact ⟨rfl, rfl⟩)
       ⟨{
         semantic := {
           sourceWF := Rout
@@ -2042,10 +4065,16 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           parameterTranslation := htail
           parameterType := htailType
           fieldsRecent := HfieldsRecent
+          fieldOpening := Hopening
+          fieldParameterUp := by
+            rw [Hopening.fvars_eq_bound
+              HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
+            exact _HfieldParameterUp
           hypothesesRecent := HhypothesesRecent
           terminalTarget := terminalTarget
           terminalTranslation := Hterminal
           terminalType := HterminalType
+          constructorApplication := Happlication
           fieldTargetDefEq := HfieldTargetDefEq
           motivePreTarget := motiveTarget
           motivePreTranslation := Hmotive
@@ -2076,21 +4105,72 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           consumedTarget := consumedTarget
           consumption := Hconsumed }
         parameterDecls_eq := rfl }⟩
+      (by
+        intro fv hfield houter
+        apply HfieldsRecent.toFreshBoundFVarArray.fresh fv hfield
+        rcases List.mem_append.mp houter with hpm | hminor
+        · rcases List.mem_append.mp hpm with hparam | hmotive
+          · exact Hparams.members fv hparam
+          · exact Hbindings.motives.members fv hmotive
+        · exact Hbindings.flatMinors.members fv hminor)
       ⟨traversal, rfl, rfl, rfl, rfl, rfl, by
         rw [howner]
         exact Happlication.owner_valid, by rw [howner],
         HextAll.contextLE,
         HhypothesesRecent.contextExtension.contextLE,
-        BindingContextLE.refl outCtx⟩ ?_
+        BindingContextLE.refl outCtx⟩
+      (by
+        refine ⟨rfl, rfl, rfl, rfl, traversal, HcompletedOrigins,
+          rfl, rfl, ?_, ?_, HcompletedCalls⟩
+        · rw [howner]
+        · rw [howner])
+      (by
+        refine ⟨HcompletedOrigins, rfl, rfl, rfl, {
+          traversal := traversal
+          traversal_eq := rfl
+          traversal_constructor := rfl
+          traversal_fields := rfl
+          traversal_recursiveFields := rfl
+          traversal_stats := rfl
+          rootWF := R
+          terminalWF := Rargs
+          parameterDepth := depth
+          parameterSuffix := Hsuffix
+          terminalExtension := HhypothesesRecent.contextExtension
+          fieldsRecent := HfieldsRecent
+          parameterTarget := tailTarget
+          parameterTail_params := htailScope
+          parameterTranslation := htail
+          parameterType := htailType
+          fieldOpening := Hopening
+          fieldParameterUp := by
+            rw [Hopening.fvars_eq_bound
+              HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
+            exact _HfieldParameterUp
+          terminalTarget := terminalTarget
+          terminalTranslation := Hterminal
+          terminalType := HterminalType
+          constructorApplication := Happlication
+          fieldTargetDefEq := HfieldTargetDefEq }, rfl,
+          depth + allFields.size, HstatsArgs, fields, Hselections,
+          hdidxValid, hdidxDecl,
+          Happlication.ownerIdx,
+          Happlication.owner_valid, ⟨Hvalidated⟩,
+          Hbinding, HmotiveEvidence, ⟨?_⟩⟩
+        · simpa using HhypothesisCallSemantics) ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
     hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
-    HminorSourcesNext HminorSemanticsNext hsizeNext hcountNext hotherNext
+    HblueprintsNext HblueprintSemanticsNext HminorSourcesNext
+    HminorSemanticsNext
+    hsizeNext hcountNext hotherNext
     HmajorTypesNext HmajorShapesNext
     HmotiveTypesNext HmotiveShapesNext HtelescopesNext HindexRowsNext
     HparamsNext HnoAliasNext HorderNext HaritiesNext HrootNext
   exact Hk next Rnext (henvNext.trans HextAll.venv_eq) HsuffixNext
     (hparameterDeclsNext.trans (by rfl)) HstatsNext hctxNext
-    HbindingsNext HoriginsNext HminorSourcesNext HminorSemanticsNext
+    HbindingsNext HoriginsNext HblueprintsNext HblueprintSemanticsNext
+    HminorSourcesNext
+    HminorSemanticsNext
     hsizeNext hcountNext hotherNext
     HmajorTypesNext HmajorShapesNext HmotiveTypesNext HmotiveShapesNext
     HtelescopesNext HindexRowsNext HparamsNext HnoAliasNext HorderNext
@@ -2114,9 +4194,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Hsuffix : RecursorParameterContextSuffix R stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -2124,6 +4203,9 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
+    (HblueprintSemantics : RecInfoRuleBlueprintSemanticOrigins R decl stats
+      recInfos elimLevel Hsuffix.parameterDecls Horigins)
     (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
     (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
       Hsuffix.parameterDecls)
@@ -2178,6 +4260,9 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
       (HbindingsOut : RecInfoBindings outCtx out) →
       (HoriginsOut : RecInfoTypeOrigins outCtx out) →
+      RecInfoRuleBlueprintOrigins stats out HoriginsOut →
+      RecInfoRuleBlueprintSemanticOrigins Rout decl stats out elimLevel
+        HsuffixOut.parameterDecls HoriginsOut →
       RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
       RecInfoMinorSemanticAlignment Rout HoriginsOut
         HsuffixOut.parameterDecls →
@@ -2203,7 +4288,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
   induction ctors generalizing recInfos c depth sourceIndex with
   | nil =>
       exact Hk recInfos R rfl Hsuffix rfl Hstats hctx Hbindings Horigins
-        HminorSources HminorSemantics rfl (by simp) (by intros; rfl)
+        Hblueprints HblueprintSemantics HminorSources HminorSemantics rfl (by simp)
+        (by intros; rfl)
         HmajorTypes HmajorShapes
         HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams HnoAlias
         Horder Harities Hroot
@@ -2227,21 +4313,25 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         ctor tail sourceConstructors sourceIndex hsourceConstructor hsourceFamily
         (fun next => AddInductive.mkRecInfos.loopCtors stats indTypeName
           dIdx next ctors k)
-        R Hsuffix Hstats Hprefix HtailScope hwhnf hconsume hlit hctx hproj Htail
-        HtailType Hintro HintroType Hbindings Horigins HminorSources
+        R Hsuffix Hstats Hprefix HtailScope hconsume hlit hctx hproj Htail
+        HtailType Hintro HintroType Hbindings Horigins Hblueprints
+        HblueprintSemantics HminorSources
         HminorSemantics HmajorTypes
         HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows
         Hparams HnoAlias Horder Hroot hidx hsourceIdx horiginIndex Harities
         Hlater hrecords Hnormal ?_
       intro nextCtx nextDepth next Rnext henvNext HsuffixNext
         hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
-        HminorSourcesNext HminorSemanticsNext hsizeNext hcountNext hotherNext
+        HblueprintsNext HblueprintSemanticsNext HminorSourcesNext HminorSemanticsNext
+        hsizeNext hcountNext hotherNext
         HmajorTypesNext HmajorShapesNext
         HmotiveTypesNext HmotiveShapesNext HtelescopesNext HindexRowsNext
         HparamsNext HnoAliasNext HorderNext HaritiesNext HrootNext
       refine ih next (sourceIndex + 1) htailConstructors Rnext HsuffixNext
-        HstatsNext hctxNext HbindingsNext
-        HoriginsNext HminorSourcesNext HminorSemanticsNext HmajorTypesNext
+        HstatsNext (by simpa only [henvNext] using hlit) hctxNext HbindingsNext
+        HoriginsNext HblueprintsNext HblueprintSemanticsNext HminorSourcesNext
+        HminorSemanticsNext
+        HmajorTypesNext
         HmajorShapesNext HmotiveTypesNext
         HmotiveShapesNext HtelescopesNext HindexRowsNext HparamsNext
         HnoAliasNext HorderNext HrootNext ?_ ?_ HaritiesNext ?_ ?_ ?_ ?_
@@ -2259,7 +4349,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         simp [hnextCtor]
       · intro outCtx outDepth out Rout henvOut HsuffixOut
           hparameterDeclsOut HstatsOut hctxOut HbindingsOut HoriginsOut
-          HminorSourcesOut HminorSemanticsOut houtSize houtCount houtOther
+          HblueprintsOut HblueprintSemanticsOut HminorSourcesOut HminorSemanticsOut
+          houtSize houtCount houtOther
           HmajorTypesOut HmajorShapesOut
           HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
           HparamsOut HnoAliasOut HorderOut HaritiesOut HrootOut
@@ -2277,7 +4368,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           exact hotherNext i hi hine
         exact Hk out Rout (henvOut.trans henvNext) HsuffixOut
           (hparameterDeclsOut.trans hparameterDeclsNext) HstatsOut hctxOut
-          HbindingsOut HoriginsOut HminorSourcesOut HminorSemanticsOut
+          HbindingsOut HoriginsOut HblueprintsOut HblueprintSemanticsOut HminorSourcesOut
+          HminorSemanticsOut
           houtSize' houtCount' houtOther'
           HmajorTypesOut HmajorShapesOut HmotiveTypesOut HmotiveShapesOut
           HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HorderOut
@@ -2328,13 +4420,23 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
             (mkAppN (.const ctor.name stats.levels) stats.params) bu
           let motiveApp := Expr.app
             (mkAppN recInfos[itIdx]!.motive itIndices) introApp
-          AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] fun v => do
+          AddInductive.mkRecInfos.loopUBlueprints stats u recInfos 0 #[] #[]
+              fun v calls => do
             let lctx ← getLCtx
             let minorTy := lctx.mkForall bu <| lctx.mkForall v motiveApp
             let minorName := ctor.name.replacePrefix indTypeName .anonymous
-            withLocalDecl minorName .default minorTy.consumeTypeAnnotations fun minor =>
+            withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified fun minor =>
               let recInfos := recInfos.modify dIdx fun s =>
-                { s with minors := s.minors.push minor }
+                { s with
+                  minors := s.minors.push minor
+                  ruleBlueprints := s.ruleBlueprints.push {
+                    ctor := ctor.name
+                    fields := bu
+                    lctx := lctx
+                    recursiveCalls := calls
+                    targetTypeIdx := itIdx
+                    targetIndices := itIndices
+                    minor := minor } }
               AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
                 ctors k)
         c Hc ?_
@@ -2346,20 +4448,29 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
         (mkAppN (.const ctor.name stats.levels) stats.params) bu
       let motiveApp := Expr.app
         (mkAppN recInfos[itIdx]!.motive itIndices) introApp
-      apply mkRecInfos.loopU.resultBindings (root := cArgs) (Q := Q)
+      apply mkRecInfos.loopUBlueprints.resultBindings (root := cArgs) (Q := Q)
         stats u recInfos
-        (fun v => do
+        (fun v calls => do
           let lctx ← getLCtx
           let minorTy := lctx.mkForall bu <| lctx.mkForall v motiveApp
           let minorName := ctor.name.replacePrefix indTypeName .anonymous
-          withLocalDecl minorName .default minorTy.consumeTypeAnnotations fun minor =>
+          withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified fun minor =>
             let recInfos := recInfos.modify dIdx fun s =>
-              { s with minors := s.minors.push minor }
+              { s with
+                minors := s.minors.push minor
+                ruleBlueprints := s.ruleBlueprints.push {
+                  ctor := ctor.name
+                  fields := bu
+                  lctx := lctx
+                  recursiveCalls := calls
+                  targetTypeIdx := itIdx
+                  targetIndices := itIndices
+                  minor := minor } }
             AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos
               ctors k)
-        0 #[] cArgs HcArgs (FreshBoundFVarArray.empty cArgs)
-          (BindingContextLE.refl cArgs)
-      intro v cIH HcIH Hv hIH hvSize
+        0 #[] #[] cArgs HcArgs (FreshBoundFVarArray.empty cArgs)
+          (BindingContextLE.refl cArgs) rfl
+      intro v calls cIH HcIH Hv hIH hvSize hcallsSize
       have hget : ((getLCtx : AddInductive.M LocalContext) cIH).WF
           (fun lctx => lctx = cIH.lctx) := by
         intro lctx h
@@ -2372,19 +4483,28 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       let minorName := ctor.name.replacePrefix indTypeName .anonymous
       apply withLocalDecl.continueRaw
       let next := recInfos.modify dIdx fun s =>
-        { s with minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩) }
+        { s with
+          minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩)
+          ruleBlueprints := s.ruleBlueprints.push {
+            ctor := ctor.name
+            fields := bu
+            lctx := cIH.lctx
+            recursiveCalls := calls
+            targetTypeIdx := itIdx
+            targetIndices := itIndices
+            minor := .fvar ⟨cIH.ngen.curr⟩ } }
       let cMinor : AddInductive.Context := { cIH with
         ngen := cIH.ngen.next
         lctx := cIH.lctx.mkLocalDecl ⟨cIH.ngen.curr⟩ minorName
-          minorTy.consumeTypeAnnotations .default }
+          minorTy.consumeTypeAnnotationsVerified .default }
       let HcMinor := HcIH.withLocalDecl minorName
-        minorTy.consumeTypeAnnotations .default
+        minorTy.consumeTypeAnnotationsVerified .default
       let HbindingsMinor := Hbindings.addMinor dIdx hidx (hArgs.trans hIH)
-        HcIH minorName minorTy.consumeTypeAnnotations .default
+        HcIH minorName minorTy.consumeTypeAnnotationsVerified .default
       let HoriginsMinor := Horigins.addMinor dIdx hidx (hArgs.trans hIH)
-        HcIH minorName minorTy.consumeTypeAnnotations .default {
+        HcIH minorName minorTy.consumeTypeAnnotationsVerified .default {
           localIndex := Horigins.minorTypes[dIdx]!.size
-          origin := minorTy.consumeTypeAnnotations
+          origin := minorTy.consumeTypeAnnotationsVerified
           constructor := ctor
           sourceConstructors :=
             List.replicate Horigins.minorTypes[dIdx]!.size ctor ++ [ctor]
@@ -2407,25 +4527,45 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
           hypothesis_type_origins := none
           hypotheses_size := by simpa using hvSize
           traversal := none
+          hypothesis_origins_fieldRoot := by
+            intro origins T horigins _htraversal
+            simp at horigins
           motiveApp := motiveApp
           sourceType := minorTy
           sourceType_eq := rfl
           consumed_eq := rfl } ⟨rfl, rfl⟩
+      let blueprint : AddInductive.RecRuleBlueprint := {
+        ctor := ctor.name
+        fields := bu
+        lctx := cIH.lctx
+        recursiveCalls := calls
+        targetTypeIdx := itIdx
+        targetIndices := itIndices
+        minor := .fvar ⟨cIH.ngen.curr⟩ }
+      let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+        (.fvar ⟨cIH.ngen.curr⟩) blueprint
+      let HbindingsNext : RecInfoBindings cMinor next :=
+        HbindingsMinor.rebaseCore Hcore
+      let HoriginsNext : RecInfoTypeOrigins cMinor next :=
+        HoriginsMinor.rebaseCore Hcore
       let HparamsMinor := Hparams.mono <| (hArgs.trans hIH).trans <|
           BindingContextLE.withLocalDecl cIH HcIH minorName
-            minorTy.consumeTypeAnnotations .default
+            minorTy.consumeTypeAnnotationsVerified .default
       let HnoAliasMinor := Hbindings.addMinor_noAlias Hparams HnoAlias
         dIdx hidx (hArgs.trans hIH) HcIH minorName
-          minorTy.consumeTypeAnnotations .default
+          minorTy.consumeTypeAnnotationsVerified .default
+      have HnoAliasNext : HbindingsNext.NoAlias HparamsMinor := by
+        exact RecInfoBindings.NoAlias.rebaseCore HbindingsMinor HparamsMinor
+          HnoAliasMinor Hcore
       let HrootMinor := (Hroot.trans hArgs).trans <| hIH.trans <|
           BindingContextLE.withLocalDecl cIH HcIH minorName
-            minorTy.consumeTypeAnnotations .default
-      refine ih next cMinor HcMinor HbindingsMinor HoriginsMinor
-        HparamsMinor HnoAliasMinor
+            minorTy.consumeTypeAnnotationsVerified .default
+      refine ih next cMinor HcMinor HbindingsNext HoriginsNext
+        HparamsMinor HnoAliasNext
         HrootMinor ?_ ?_ ?_
       · simpa [next] using hidx
-      · exact Harities.modifyMinors dIdx (fun minors =>
-          minors.push (.fvar ⟨cIH.ngen.curr⟩))
+      · exact (Harities.modifyMinors dIdx (fun minors =>
+          minors.push (.fvar ⟨cIH.ngen.curr⟩))).rebaseCore Hcore
       · intro out cOut houtSize houtCount houtOther HcOut HbindingsOut
           HoriginsOut HparamsOut HnoAliasOut HaritiesOut HrootOut
         have houtSize' : out.size = recInfos.size := by
@@ -2532,9 +4672,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (HsuffixCtx : RecursorParameterContextSuffix R stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
@@ -2542,6 +4681,9 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
+    (HblueprintSemantics : RecInfoRuleBlueprintSemanticOrigins R decl stats
+      recInfos elimLevel HsuffixCtx.parameterDecls Horigins)
     (HminorSources : RecInfoMinorSourceAlignment stats indTypes Horigins)
     (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
       HsuffixCtx.parameterDecls)
@@ -2598,6 +4740,9 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
       (HbindingsOut : RecInfoBindings outCtx out) →
       (HoriginsOut : RecInfoTypeOrigins outCtx out) →
+      RecInfoRuleBlueprintOrigins stats out HoriginsOut →
+      RecInfoRuleBlueprintSemanticOrigins Rout decl stats out elimLevel
+        HsuffixOut.parameterDecls HoriginsOut →
       RecInfoMinorSourceAlignment stats indTypes HoriginsOut →
       RecInfoMinorSemanticAlignment Rout HoriginsOut
         HsuffixOut.parameterDecls →
@@ -2626,8 +4771,9 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (by simp [getElem!_pos indTypes dIdx hfamily])
       (fun out => AddInductive.mkRecInfos.loopInd2 stats indTypes
         (dIdx + 1) out k)
-      R HsuffixCtx Hstats hwhnf hconsume hlit hctx hproj Hbindings
-      Horigins HminorSources HminorSemantics HmajorTypes HmajorShapes
+      R HsuffixCtx Hstats hconsume hlit hctx hproj Hbindings
+      Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
+      HmajorTypes HmajorShapes
       HmotiveTypes HmotiveShapes
       Htelescopes HindexRows Hparams HnoAlias Horder Hroot
       (by simpa [hsize] using hfamily)
@@ -2642,13 +4788,16 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         hparameterDeclsCurrent dIdx hfamily ctor hctor
     · intro outCtx outDepth out Rout henvOut HsuffixOut
         hparameterDeclsOut HstatsOut hctxOut HbindingsOut HoriginsOut
-        HminorSourcesOut HminorSemanticsOut houtSize houtCount houtOther
+        HblueprintsOut HblueprintSemanticsOut HminorSourcesOut HminorSemanticsOut
+        houtSize houtCount houtOther
         HmajorTypesOut HmajorShapesOut
         HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
         HparamsOut HnoAliasOut HorderOut HaritiesOut HrootOut
       refine resultSemantics (root := root) (Q := Q) stats indTypes
-        (dIdx + 1) out k Rout HsuffixOut HstatsOut hwhnf hconsume hlit
-        hctxOut hproj HbindingsOut HoriginsOut HminorSourcesOut
+        (dIdx + 1) out k Rout HsuffixOut HstatsOut hconsume
+        (by simpa only [henvOut] using hlit)
+        hctxOut hproj HbindingsOut HoriginsOut HblueprintsOut
+        HblueprintSemanticsOut HminorSourcesOut
         HminorSemanticsOut HmajorTypesOut
         HmajorShapesOut HmotiveTypesOut HmotiveShapesOut HtelescopesOut
         HindexRowsOut HparamsOut HnoAliasOut HorderOut HrootOut ?_ ?_
@@ -2676,21 +4825,23 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           hfamilyIdx ctor hctor
       · intro finalCtx finalDepth final Rfinal henvFinal HsuffixFinal
           hparameterDeclsFinal HstatsFinal hctxFinal HbindingsFinal
-          HoriginsFinal HminorSourcesFinal HminorSemanticsFinal
+          HoriginsFinal HblueprintsFinal HblueprintSemanticsFinal
+          HminorSourcesFinal HminorSemanticsFinal
           hfinalSize hfinalCounts HmajorTypesFinal
           HmajorShapesFinal HmotiveTypesFinal HmotiveShapesFinal
           HtelescopesFinal HindexRowsFinal HparamsFinal HnoAliasFinal
           HorderFinal HaritiesFinal HrootFinal
         exact Hk final Rfinal (henvFinal.trans henvOut) HsuffixFinal
           (hparameterDeclsFinal.trans hparameterDeclsOut) HstatsFinal
-          hctxFinal HbindingsFinal HoriginsFinal HminorSourcesFinal
+          hctxFinal HbindingsFinal HoriginsFinal HblueprintsFinal
+          HblueprintSemanticsFinal HminorSourcesFinal
           HminorSemanticsFinal hfinalSize hfinalCounts
           HmajorTypesFinal HmajorShapesFinal HmotiveTypesFinal
           HmotiveShapesFinal HtelescopesFinal HindexRowsFinal HparamsFinal
           HnoAliasFinal HorderFinal HaritiesFinal HrootFinal
   · rw [dif_neg hfamily]
     exact Hk recInfos R rfl HsuffixCtx rfl Hstats hctx Hbindings Horigins
-      HminorSources HminorSemantics hsize
+      Hblueprints HblueprintSemantics HminorSources HminorSemantics hsize
       (fun i hi => Hprefix i (by omega) hi) HmajorTypes
       HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams
       HnoAlias Horder Harities Hroot
@@ -2728,8 +4879,9 @@ theorem mkRecInfos.resultBindings {alpha : Type} {Q : alpha → Prop}
       (RecInfoBindings.empty_noAlias c Hparams hparamsNodup)
       (BindingContextLE.refl c) rfl
       (RecInfoArities.empty stats) RecInfoMinorsEmpty.empty
+      RecInfoBlueprintCounts.empty
   intro recInfos cFrames hsize HcFrames HbindingsFrames HoriginsFrames HparamsFrames
-    HnoAliasFrames HaritiesFrames HemptyFrames HrootFrames
+    HnoAliasFrames HaritiesFrames HemptyFrames HblueprintsFrames HrootFrames
   apply mkRecInfos.loopInd2.resultBindings (root := c) (Q := Q)
     stats indTypes 0 recInfos k cFrames HcFrames HbindingsFrames HoriginsFrames
       HparamsFrames HnoAliasFrames HrootFrames

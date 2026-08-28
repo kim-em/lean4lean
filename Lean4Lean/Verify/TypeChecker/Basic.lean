@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Environment.Lemmas
 import Lean4Lean.Verify.Typing.ConditionallyTyped
+import Lean4Lean.Verify.Typing.ProjectionReadiness
 import Lean4Lean.TypeChecker
 
 namespace Except
@@ -320,6 +321,10 @@ nonrec abbrev VContext.TrLCtx (c : VContext) : Prop :=
   TrLCtx c.venv c.lparams c.lctx' c.vlctx
 nonrec abbrev VContext.FVarsBelow (c : VContext) : Expr → Expr → Prop :=
   FVarsBelow c.vlctx
+nonrec abbrev VContext.ProjectionNameReady (c : VContext) : Name → Prop :=
+  VerifyInductive.ProjectionNameReady c.safety c.env.constants c.venv
+nonrec abbrev VContext.ProjectionsReady (c : VContext) : Expr → Prop :=
+  VerifyInductive.ProjectionsReady c.safety c.env.constants c.venv
 nonrec abbrev VContext.TrTyping (c : VContext) : Expr → Expr → VExpr → VExpr → Prop :=
   TrTyping c.venv c.lparams c.vlctx
 

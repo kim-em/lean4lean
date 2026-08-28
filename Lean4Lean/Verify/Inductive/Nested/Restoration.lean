@@ -657,6 +657,144 @@ structure GeneratedRecursorRestoredSuffixTranslations
     newEnv newBase
   residual : GeneratedRecursorRestoredResidualTranslation H newEnv newBase
 
+/-- Source-facing semantics of one family in the final lowered mutual block.
+The payload deliberately stops at the family telescope: motive syntax and
+major applications are canonical consequences, rather than additional facts
+that every original/generated-family branch must establish independently. -/
+structure RestoredFamilySemantics
+    (env : VEnv) (levelParams : List Name)
+    (parameterDomains : List VExpr) (numIndices : Nat) where
+  family : VExpr
+  indexDomains : List VExpr
+  familyResult : VExpr
+  indexCount : indexDomains.length = numIndices
+  familyTyping : env.HasType levelParams.length parameterDomains.reverse family
+    (VExpr.wrapForalls indexDomains familyResult)
+  /-- The restored family applied to its canonical index variables is a
+  type, not merely an arbitrary term with a well-formed result type. -/
+  familyApplicationType : env.IsType levelParams.length
+    (indexDomains.reverse ++ parameterDomains.reverse)
+    (VExpr.mkApps (family.liftN indexDomains.length 0)
+      (recursorCanonicalVars indexDomains.length))
+
+def RestoredFamilySemantics.motiveType
+    (S : RestoredFamilySemantics env levelParams parameterDomains numIndices)
+    (resultLevel : VLevel) : VExpr :=
+  VExpr.wrapForalls S.indexDomains
+    (.forallE
+      (VExpr.mkApps (S.family.liftN S.indexDomains.length 0)
+        (recursorCanonicalVars S.indexDomains.length))
+      (.sort resultLevel))
+
+theorem RestoredFamilySemantics.motiveTelescope
+    (S : RestoredFamilySemantics env levelParams parameterDomains numIndices)
+    (resultLevel : VLevel) :
+    RecursorMotiveTelescope resultLevel S.indexDomains.length S.family
+      (VExpr.wrapForalls S.indexDomains S.familyResult)
+      (S.motiveType resultLevel) := by
+  exact RecursorMotiveTelescope.wrapForalls S.indexDomains S.family
+    S.familyResult resultLevel
+
+/-- Canonically applying the restored family to all of its indices exposes
+the stored result in the completed family telescope. -/
+theorem RestoredFamilySemantics.familyApplicationTyping
+    (S : RestoredFamilySemantics env levelParams parameterDomains numIndices)
+    (henv : env.Ordered) :
+    env.HasType levelParams.length
+      (S.indexDomains.reverse ++ parameterDomains.reverse)
+      (VExpr.mkApps (S.family.liftN S.indexDomains.length 0)
+        (recursorCanonicalVars S.indexDomains.length))
+      S.familyResult :=
+  VEnv.HasType.mkApps_wrapForalls_canonical henv S.familyTyping
+
+/-- The canonical motive type is well formed in the common parameter
+context.  The family application invariant supplies the major domain, while
+validity of the family telescope supplies the dependent index context. -/
+theorem RestoredFamilySemantics.motiveTypeIsType
+    (S : RestoredFamilySemantics env levelParams parameterDomains numIndices)
+    (henv : env.Ordered)
+    (hparams : OnCtx parameterDomains.reverse
+      (env.IsType levelParams.length))
+    (resultLevel : VLevel) (hresult : resultLevel.WF levelParams.length) :
+    env.IsType levelParams.length parameterDomains.reverse
+      (S.motiveType resultLevel) := by
+  have HfamilyType := S.familyTyping.isType henv hparams
+  have Hindices := VEnv.IsType.wrapForalls_inv henv hparams HfamilyType
+  have Hbody : env.IsType levelParams.length
+      (S.indexDomains.reverse ++ parameterDomains.reverse)
+      (.forallE
+        (VExpr.mkApps (S.family.liftN S.indexDomains.length 0)
+          (recursorCanonicalVars S.indexDomains.length))
+        (.sort resultLevel)) :=
+    VEnv.IsType.forallE S.familyApplicationType
+      ⟨.succ resultLevel, VEnv.HasType.sort hresult⟩
+  exact VEnv.IsType.wrapForalls Hindices.1 Hbody
+
+/-- Weakening the canonical motive type beneath any already well-formed
+inner suffix preserves its well-formedness. -/
+theorem RestoredFamilySemantics.motiveTypeIsTypeAfter
+    (S : RestoredFamilySemantics env levelParams parameterDomains numIndices)
+    (henv : env.Ordered) (added : List VExpr)
+    (hctx : OnCtx (added.reverse ++ parameterDomains.reverse)
+      (env.IsType levelParams.length))
+    (resultLevel : VLevel) (hresult : resultLevel.WF levelParams.length) :
+    env.IsType levelParams.length
+      (added.reverse ++ parameterDomains.reverse)
+      ((S.motiveType resultLevel).liftN added.length 0) := by
+  have Hbase := S.motiveTypeIsType henv
+    (OnCtx.append_right hctx) resultLevel hresult
+  exact Hbase.weakN henv (.zero added.reverse (by simp))
+
+/-- The canonical motive/family parallel telescope remains usable beneath an
+arbitrary well-formed suffix.  This is the source-facing major-domain/result
+interface needed by restored recursor traversal. -/
+theorem RestoredFamilySemantics.applyMajorTypedAfter
+    (S : RestoredFamilySemantics env levelParams parameterDomains numIndices)
+    (henv : env.WF) (added : List VExpr)
+    (hctx : OnCtx (added.reverse ++ parameterDomains.reverse)
+      (env.IsType levelParams.length))
+    (indexTargets : List VExpr)
+    (hindices : indexTargets.length = S.indexDomains.length)
+    (resultLevel : VLevel) (motive major : VExpr)
+    (Hmotive : env.HasType levelParams.length
+      (added.reverse ++ parameterDomains.reverse) motive
+      ((S.motiveType resultLevel).liftN added.length 0))
+    (Hmajor : env.HasType levelParams.length
+      (added.reverse ++ parameterDomains.reverse) major
+      (VExpr.mkApps (S.family.liftN added.length 0) indexTargets)) :
+    env.HasType levelParams.length
+      (added.reverse ++ parameterDomains.reverse)
+      (.app (VExpr.mkApps motive indexTargets) major)
+      (.sort resultLevel) := by
+  have W : Ctx.LiftN added.length 0 parameterDomains.reverse
+      (added.reverse ++ parameterDomains.reverse) := by
+    exact .zero added.reverse (by simp)
+  have Hfamily := S.familyTyping.weakN henv.ordered W
+  have Htelescope := (S.motiveTelescope resultLevel).liftN added.length 0
+  rw [<- hindices] at Htelescope
+  exact Htelescope.applyMajorTyped henv hctx Hfamily Hmotive Hmajor
+
+/-- Rebase a canonical first-pass family telescope onto the common restored
+parameter context.  This is the generic original-family constructor; the
+end-to-end lowering proof supplies the context conversion. -/
+def RecursorCanonicalMotiveTelescope.toRestoredFamilySemantics
+    (C : RecursorCanonicalMotiveTelescope env levelParams stats decl target info
+      elimLevel)
+    (henv : env.Ordered)
+    (parameterDomains : List VExpr)
+    (Hparams : VEnv.IsDefEqCtx env levelParams.length [] C.params.reverse
+      parameterDomains.reverse) :
+    RestoredFamilySemantics env levelParams parameterDomains info.indices.size :=
+  {
+    family := C.family
+    indexDomains := C.indices
+    familyResult := C.familyResult
+    indexCount := C.indices_length
+    familyTyping := C.family_typing.defeqDFC henv Hparams
+    familyApplicationType := C.familyApplicationType.imp fun _ Htype =>
+      Htype.defeqDFC' henv Hparams
+  }
+
 /-- Stateful semantic obligation for one restored recursor domain.  The
 state relates the exact translated prefix to its source recursor slots, so
 later domains may rely on more than bare context well-formedness. -/
@@ -1860,6 +1998,8 @@ structure RestoredConstructorDeclResult
     (loweredEnv sourceEnv : Environment) (ctorName : Name)
     (oldInfo : ConstructorVal) (out : Unit × Environment) where
   newInfo : ConstructorVal
+  newInfo_eq : newInfo =
+    { oldInfo with type := result.restoreNested loweredEnv oldInfo.type }
   restoration : ConstructorRestoration result loweredEnv oldInfo newInfo
   fresh : sourceEnv.contains newInfo.name = false
   output : out = ((), sourceEnv.add (.ctorInfo newInfo))
@@ -1896,6 +2036,7 @@ theorem restoreConstructorDecl_refines
     exact ⟨{
       newInfo := { oldInfo with
         type := result.restoreNested loweredEnv oldInfo.type }
+      newInfo_eq := rfl
       restoration := restoreConstructor_refines result loweredEnv oldInfo
         Htelescope
       fresh := hfresh

@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Recursor.SecondPass
+import Lean4Lean.Verify.Inductive.Recursor.BlueprintRules
 
 namespace Lean4Lean
 
@@ -167,8 +167,8 @@ theorem RecInfoMinorTypeShape.hypothesisBinderAt
         S.fields_bound.fvars j) := by
     rw [S.sourceType_eq]
     simpa only [Nat.zero_add] using Hfields.prependBinderAt HinnerClosed
-  have hconsumed : S.sourceType.consumeTypeAnnotations = S.sourceType :=
-    Hsource.consumeTypeAnnotations_eq_self
+  have hconsumed : S.sourceType.consumeTypeAnnotationsVerified = S.sourceType :=
+    Hsource.consumeTypeAnnotationsVerified_eq_self
   have horigin : S.origin = S.sourceType :=
     S.consumed_eq.symm.trans hconsumed
   rw [horigin]
@@ -1256,6 +1256,10 @@ structure GeneratedRecursorEntry
   levels : info.levelParams =
     AddInductive.getRecLevelParams elimLevel lparams
   name : info.name = Lean.mkRecName indTypes[ownerIdx]!.name
+  /-- The production recursor pass chooses safety from the checking context.
+  Retaining this exact bit is needed when an unsafe block is hidden from the
+  partial and safe environment observers. -/
+  isUnsafe : info.isUnsafe = (c.safety != .safe)
   type : info.type =
     (c.lctx.mkForall stats.params <|
      c.lctx.mkForall (recInfos.map (·.motive)) <|
@@ -1280,6 +1284,7 @@ def GeneratedRecursorEntry.ofRecursorInfo
     (numMinors numMotives : Nat) (all : List Name)
     (k isUnsafe : Bool) (ownerIdx : Nat) (rules : List RecursorRule)
     (recursor : VConstVal)
+    (hunsafe : isUnsafe = (c.safety != .safe))
     (Htr : TrConstVal safety env
       (.recInfo (AddInductive.declareRecursors.recursorInfo stats indTypes
         elimLevel recInfos numMinors numMotives all c.lctx k isUnsafe
@@ -1301,6 +1306,8 @@ def GeneratedRecursorEntry.ofRecursorInfo
   translated := Htr
   levels := rfl
   name := rfl
+  isUnsafe := by
+    simp [AddInductive.declareRecursors.recursorInfo, hunsafe]
   type := rfl
   rules := Hrules
 
@@ -1357,17 +1364,33 @@ structure GeneratedRecursorRuleSemanticsRange
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
     (recInfos : Array AddInductive.RecInfo)
+    (Horigins : RecInfoTypeOrigins semanticRoot recInfos)
     (elimLevel : Level)
+    (parameterDecls : VLCtx)
     (start : Nat) (entries : List (ConstantInfo × VConstVal)) where
   covered : start + entries.length = recInfos.size
   entry : ∀ i (hi : i < entries.length),
     ∃ info : RecursorVal,
       entries[i].1 = .recInfo info ∧
-      SemanticBoundGeneratedRecursorRules indTypes stats
-        (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
-        (AddInductive.getRecLevels elimLevel stats.levels) Rroot decl
-        (start + i) indTypes[start + i]!.ctors
-        (recursorMinorOffset indTypes (start + i)) info.rules
+      ∃ Hrules : SemanticBoundGeneratedRecursorRules indTypes stats
+          (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
+          (AddInductive.getRecLevels elimLevel stats.levels) Rroot decl
+          (start + i) indTypes[start + i]!.ctors
+          (recursorMinorOffset indTypes (start + i)) info.rules,
+        Nonempty (Hrules.ProducerMotiveEvidence recInfos elimLevel) ∧
+        ∀ localIndex
+            (hctor : localIndex < indTypes[start + i]!.ctors.length)
+            (hrule : localIndex < info.rules.length),
+          ∃ Hrule : BoundGeneratedRecursorRule indTypes stats
+              (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
+              (AddInductive.getRecLevels elimLevel stats.levels)
+              indTypes[start + i]!.ctors[localIndex]
+              (recursorMinorOffset indTypes (start + i) + localIndex)
+              info.rules[localIndex],
+            ∃ S : Hrule.Semantics Rroot decl (start + i),
+              Nonempty (Hrule.ProducerOriginEvidence S recInfos elimLevel
+                Horigins (start + i) localIndex) ∧
+              S.parameterDecls = parameterDecls
 
 def GeneratedRecursorsRange.atZero
     (H : GeneratedRecursorsRange safety env lparams elimLevel c stats
@@ -1385,6 +1408,22 @@ theorem GeneratedRecursors.nonInductive
       (info, value) ∈ entries → ∀ inductiveValue,
         info ≠ ConstantInfo.inductInfo inductiveValue := by
   intro info value hmem inductiveValue
+  rcases List.mem_iff_getElem.mp hmem with ⟨i, hi, heq⟩
+  have Hentry := H.entry i hi
+  rw [heq] at Hentry
+  have hsource : info = .recInfo Hentry.info := by
+    simpa using Hentry.source_eq
+  rw [hsource]
+  simp
+
+/-- Generated recursor entries cannot introduce constructor metadata. -/
+theorem GeneratedRecursors.nonConstructor
+    (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
+      recInfos entries) :
+    ∀ (info : ConstantInfo) (value : VConstVal),
+      (info, value) ∈ entries → ∀ constructorValue,
+        info ≠ ConstantInfo.ctorInfo constructorValue := by
+  intro info value hmem constructorValue
   rcases List.mem_iff_getElem.mp hmem with ⟨i, hi, heq⟩
   have Hentry := H.entry i hi
   rw [heq] at Hentry
@@ -1914,7 +1953,7 @@ def GeneratedRecursors.nestedCompilationCertificate
     (hrecursors : block.recursors =
       entries.map Prod.snd ++ auxRecursors)
     (hrules : block.rules = primaryRules ++ auxiliaryRules)
-    (hprimaryRules : IotaListCertificate envCtors decl block primaryRules)
+    (hprimaryRules : NestedIotaListCertificate decl block primaryRules)
     (hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
     NestedCompilationCertificate sourceEnv decl block where

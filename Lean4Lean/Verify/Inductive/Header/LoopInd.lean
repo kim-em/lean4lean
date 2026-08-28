@@ -19,7 +19,7 @@ header shows that this normal form is definitionally equal to the header in
 theorem initialHeaderNormalization
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
-    (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
+    (Htarget : TrSourceConstRaw Hc.venv c.lparams source.name source.type
       target.toVConstVal)
     (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
       source.type checkedType sourceType checkedType')
@@ -54,7 +54,7 @@ This is the state consumed by the first parameter/index branch. -/
 theorem initialHeaderState
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
-    (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
+    (Htarget : TrSourceConstRaw Hc.venv c.lparams source.name source.type
       target.toVConstVal)
     (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
       source.type checkedType sourceType checkedType')
@@ -91,7 +91,7 @@ theorem initialHeaderSynthesisState
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx normalized normalized' ∧
       Nonempty (checkInductiveTypes.loopType.HeaderSynthesisCertificate
         Hc target normalized' 0 0) := by
-  rcases initialHeaderNormalization Hc hctx Htarget hchecked hnormalized with
+  rcases initialHeaderNormalization Hc hctx Htarget.raw hchecked hnormalized with
     ⟨normalized', exprType, hnormalized', hheader⟩
   have hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
       [] Hc.mlctx.vlctx.toCtx := by
@@ -119,7 +119,7 @@ noncomputable def initialLaterParameterScope
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
     (hi : 0 < stats.params.size)
-    (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
+    (Htarget : TrSourceConstRaw Hc.venv c.lparams source.name source.type
       target.toVConstVal)
     (hnormalized : FVarsBelow Hc.mlctx.vlctx source.type normalized) :
     checkInductiveTypes.loopType.LaterParameterScope
@@ -141,7 +141,7 @@ where it can seed an independent later-header telescope certificate. -/
 theorem initialLaterHeaderDefEqOfTranslation
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c)
-    (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
+    (Htarget : TrSourceConstRaw Hc.venv c.lparams source.name source.type
       target.toVConstVal)
     (hsource : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
       source.type sourceType)
@@ -218,7 +218,7 @@ theorem initialLaterHeaderDefEq
     ∃ normalized',
       TrExprS Hc.venv c.lparams [] normalized normalized' ∧
       Hc.venv.IsDefEqU c.lparams.length [] target.type normalized' :=
-  initialLaterHeaderDefEqOfTranslation Hc Htarget hchecked.2.1
+  initialLaterHeaderDefEqOfTranslation Hc Htarget.raw hchecked.2.1
     hnormalized hfvars
 
 /-- Initialize the narrow later-header synthesis state in the empty consumed
@@ -237,7 +237,7 @@ theorem initialLaterHeaderSynthesisStateOfTranslation
       TrExprS Hc.venv c.lparams [] normalized normalized' ∧
       Nonempty (checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
         Hc.venv c.lparams target [] normalized' 0 0) := by
-  rcases initialLaterHeaderDefEqOfTranslation Hc Htarget hsource
+  rcases initialLaterHeaderDefEqOfTranslation Hc Htarget.raw hsource
       hnormalized hfvars with
     ⟨normalized', hnormalized', hheader⟩
   have htargetType : Hc.venv.IsType c.lparams.length [] target.type := by
@@ -689,7 +689,8 @@ theorem firstResult.synthesizesHeader
     (huvars : c.lparams.length = uvars)
     (Hrec : ∀ resultSort resultLevel,
       VLevel.ofLevel c.lparams resultSort = some resultLevel →
-      checkInductiveTypes.loopType.SynthesizedHeader Hc.venv uvars nparams
+      checkInductiveTypes.loopType.SynthesizedHeader Hc.venv c.lparams
+        uvars nparams
         Hsynthesis.params source nindices resultLevel →
       checkInductiveTypes.loopType.AmbientParamContext
         Hc Hsynthesis.params Hsynthesis.indices.length →
@@ -732,7 +733,7 @@ theorem firstResult.initializesPrefix
     (huvars : c.lparams.length = skeleton.uvars)
     (Hrec : ∀ resultSort resultLevel,
       VLevel.ofLevel c.lparams resultSort = some resultLevel →
-      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc.venv
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc.venv c.lparams
         skeleton Hsynthesis.params resultLevel [(nindices, resultLevel)] 1 →
       checkInductiveTypes.loopType.AmbientParamContext
         Hc Hsynthesis.params Hsynthesis.indices.length →
@@ -897,7 +898,7 @@ theorem laterResult.extendsPrefix
     (hindex : dIdx < skeleton.types.length)
     (hsource : skeleton.types[dIdx] = source)
     (Hprefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
-      Hc.venv skeleton commonParams commonLevel metadata dIdx)
+      Hc.venv c.lparams skeleton commonParams commonLevel metadata dIdx)
     (Hsynthesis : checkInductiveTypes.loopType.HeaderSynthesisCertificate
       Hc source current skeleton.nparams nindices)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current)
@@ -909,7 +910,7 @@ theorem laterResult.extendsPrefix
     (Hrec : ∀ resultSort resultLevel,
       resultSort.isEquiv stats.resultLevel = true →
       VLevel.ofLevel c.lparams resultSort = some resultLevel →
-      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc.venv
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc.venv c.lparams
         skeleton commonParams commonLevel
         (metadata ++ [(nindices, resultLevel)]) (dIdx + 1) →
       (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
@@ -959,7 +960,7 @@ theorem laterResult.extendsPrefixNarrow
     (hindex : dIdx < skeleton.types.length)
     (hsource : skeleton.types[dIdx] = source)
     (Hprefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
-      Hc.venv skeleton commonParams commonLevel metadata dIdx)
+      Hc.venv c.lparams skeleton commonParams commonLevel metadata dIdx)
     (Hsynthesis : checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
       Hc.venv c.lparams source scope narrowCurrent
       skeleton.nparams nindices)
@@ -976,7 +977,7 @@ theorem laterResult.extendsPrefixNarrow
     (Hrec : ∀ resultSort resultLevel,
       resultSort.isEquiv stats.resultLevel = true →
       VLevel.ofLevel c.lparams resultSort = some resultLevel →
-      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc.venv
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc.venv c.lparams
         skeleton commonParams commonLevel
         (metadata ++ [(nindices, resultLevel)]) (dIdx + 1) →
       (AddInductive.checkInductiveTypes.loopInd skeleton.nparams indTypes
@@ -1010,8 +1011,11 @@ theorem laterResult.extendsPrefixNarrow
     htypeNarrow hsourceFull' hsorted
   rcases TrExpr.sort_source hsortedNarrow with
     ⟨resultLevel, hofLevel, _hresult⟩
+  rcases Hruntime.independentSourceScope with
+    ⟨sourceScope, HsourceScope, hsourceScopeFVars⟩
   have hheader := Hsynthesis.synthesizedHeaderWithParams
-    Hc.checking.tr.wf huvars hparams hofLevel hsortedNarrow
+    Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
+      huvars hparams hofLevel hsortedNarrow
   have hlevel : resultLevel ≈ commonLevel :=
     Level.isEquiv_wf hguard hofLevel hcommon
   exact Hrec resultSort resultLevel hguard hofLevel
@@ -1188,7 +1192,7 @@ theorem firstStep.initializesPrefix
         skeleton.nparams nindices →
       checkInductiveTypes.loopType.ParameterContextSuffix
         Hc' stats' nindices →
-      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc'.venv
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc'.venv c'.lparams
         skeleton params resultLevel [(nindices, resultLevel)] 1 →
       checkInductiveTypes.loopType.AmbientParamContext
         Hc' params nindices →
@@ -1239,9 +1243,9 @@ theorem firstStep.initializesPrefix
         stats k)
     (Q := Q) (hconsume := hconsume)
     (Hresult := by
-      intro c' stats' type'' current'' i' nindices' Hc' henv' hsafety' hlparams'
-        hempty' hlevels' hnindices' hconsts' Hdecl' hforall iEq Hcache'
-        Hsuffix' Hsynthesis' htype'
+      intro c' stats' type'' current'' i' nindices' Hc' henv' hsafety'
+        hlparams' _hallowPrimitive _hfuel hempty' hlevels' hnindices'
+        hconsts' Hdecl' hforall iEq Hcache' Hsuffix' Hsynthesis' htype'
       cases iEq
       apply firstResult.initializesPrefix k Q Hc' hempty' hskeletonIdx
         Hsynthesis' htype'
@@ -1252,6 +1256,7 @@ theorem firstStep.initializesPrefix
           Hprefix
         simpa [Hsynthesis'.indexCount] using Hambient)
     (Hc := Hc) (henv := rfl) (hsafety := rfl) (hlparams := rfl)
+    (hallowPrimitive := rfl) (hfuel := rfl)
     (hempty := hempty)
     (hlevelsStable := rfl) (hnindicesStable := rfl)
     (hconstsStable := rfl)
@@ -1286,7 +1291,7 @@ theorem laterStep.extendsPrefix
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
     (Hprefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
-      Hc.venv skeleton commonParams commonLevel metadata dIdx)
+      Hc.venv c.lparams skeleton commonParams commonLevel metadata dIdx)
     (Hambient : checkInductiveTypes.loopType.AmbientParamContext
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
@@ -1309,7 +1314,7 @@ theorem laterStep.extendsPrefix
         (updatedStats stats stats.lctx resultSort false nindices
           indTypes[dIdx].name)
         (depth + nindices) →
-      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc'.venv
+      checkInductiveTypes.loopType.SynthesizedHeaderPrefix Hc'.venv c'.lparams
         skeleton commonParams commonLevel
         (metadata ++ [(nindices, resultLevel)]) (dIdx + 1) →
       checkInductiveTypes.loopType.AmbientParamContext Hc'
@@ -1347,7 +1352,7 @@ theorem laterStep.extendsPrefix
   let Hscope : ∀ h : 0 < stats.params.size,
       checkInductiveTypes.loopType.LaterParameterScope Hsuffix 0
         normalized := fun h =>
-    initialLaterParameterScope Hc Hsuffix h Htarget hbelow
+    initialLaterParameterScope Hc Hsuffix h Htarget.raw hbelow
   apply checkInductiveTypes.loopType.laterParameterSynthesisWF Hc
     (target := skeleton.types[dIdx])
     (k := fun type stats nindices => show AddInductive.M α from do
@@ -1388,7 +1393,7 @@ theorem laterStep.extendsPrefix
         (depth := depth) (commonParams := commonParams)
         (paramU := c.lparams.length)
         (R := fun env =>
-          checkInductiveTypes.loopType.SynthesizedHeaderPrefix env
+          checkInductiveTypes.loopType.SynthesizedHeaderPrefix env c.lparams
               skeleton commonParams commonLevel metadata dIdx ∧
             TrInductDeclSkeletonHeaders env c.lparams skeleton.nparams
               indTypes.toList isUnsafe skeleton envTypes)
@@ -1411,18 +1416,24 @@ theorem laterStep.extendsPrefix
             (dIdx + 1) stats k)
         (Q := Q)
         (Hresult := by
-          intro c' Hc' henv' hsafety' hlparams' type''' narrow''' full''' scope'''
-            nindices''' fuel''' hforall''' Hsynthesis''' Hruntime'''
+          intro c' Hc' henv' hsafety' hlparams' _hallowPrimitive _hfuel
+            type''' narrow''' full''' scope''' nindices''' fuel''' hforall'''
+            Hsynthesis''' Hruntime'''
             htypeNarrow''' _htypeFVars''' htypeFull''' Hcache'''
             Hsuffix''' Hambient''' HR''' hparams'''
           rcases HR''' with ⟨Hprefix''', Hdecl'''⟩
+          have HprefixForHeader :
+              checkInductiveTypes.loopType.SynthesizedHeaderPrefix
+                Hc'.venv c'.lparams skeleton commonParams commonLevel
+                  metadata dIdx := by
+            simpa [hlparams'] using Hprefix'''
           apply checkInductiveTypes.loopType.result.WF
             (fuel := fuel''') (Q := Q) hforall''' rfl
           apply laterResult.extendsPrefixNarrow
             (indTypes := indTypes) (indName := indTypes[dIdx].name)
             (commonParams := commonParams) (metadata := metadata)
             (commonLevel := commonLevel) k Q Hc' hnonempty
-            hskeletonIdx rfl Hprefix''' Hsynthesis'''
+            hskeletonIdx rfl HprefixForHeader Hsynthesis'''
             Hruntime''' htypeNarrow''' htypeFull'''
           · rw [hlparams', ← Hdecl.uvars]
           · simpa [hlparams', ← Hdecl.uvars] using hparams'''
@@ -1434,7 +1445,8 @@ theorem laterStep.extendsPrefix
             · exact Hsuffix'''.reindex (by simp [updatedStats])
             · exact Hprefix'
             · exact Hambient''')
-        hconsume Hc rfl rfl (by simpa using Hcache) (by simpa using Hsuffix)
+        hconsume Hc rfl rfl rfl rfl (by simpa using Hcache)
+        (by simpa using Hsuffix)
         (by simpa using Hambient) ⟨Hprefix, Hdecl⟩ Hsynthesis''
         hparamsBoundary
         Hruntime
@@ -1457,6 +1469,9 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
     (Δ : VLCtx) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (depth : Nat) where
   headers : HeaderCertificate env decl
+  normalizedSources : ∀ i (hi : i < decl.types.length), Nonempty
+    (checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope env Us
+      headers.params decl.nparams decl.types[i].numIndices)
   commonLevel : VLevel.ofLevel Us stats.resultLevel =
     some headers.resultLevel
   levels : stats.levels.length = decl.uvars
@@ -1554,6 +1569,8 @@ def MaterializedHeaderResult.mono {env env' : VEnv}
     (H : MaterializedHeaderResult env Us Δ stats decl depth) :
     MaterializedHeaderResult env' Us Δ stats decl depth where
   headers := H.headers.mono henv
+  normalizedSources := fun i hi =>
+    ⟨(Classical.choice (H.normalizedSources i hi)).mono henv⟩
   commonLevel := H.commonLevel
   levels := H.levels
   levelParams := H.levelParams
@@ -1600,7 +1617,7 @@ theorem laterSteps.materialize
     (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
       Hc stats depth)
     (Hprefix : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
-      Hc.venv skeleton commonParams commonLevel metadata dIdx)
+      Hc.venv c.lparams skeleton commonParams commonLevel metadata dIdx)
     (Hambient : checkInductiveTypes.loopType.AmbientParamContext
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
@@ -1670,7 +1687,7 @@ theorem laterSteps.materialize
       rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.types_length Hdecl]
       simp
     have Hprefix' : checkInductiveTypes.loopType.SynthesizedHeaderPrefix
-        Hc.venv skeleton commonParams commonLevel metadata
+        Hc.venv c.lparams skeleton commonParams commonLevel metadata
           skeleton.types.length := by
       simpa [heq, htypes] using Hprefix
     rcases Hprefix'.materializes with
@@ -1689,6 +1706,8 @@ theorem laterSteps.materialize
     · apply Hfinish (depth' := depth) Hc rfl rfl rfl Hdecl'
       refine {
         headers := Hheaders
+        normalizedSources :=
+          Hprefix'.normalizedSourceAtMaterialized hmaterialize
         commonLevel := hcommon
         levels := ?_
         levelParams := hlevelParams
@@ -1824,6 +1843,7 @@ def MaterializedHeaderResult.withAmbient
   have hparams := weakenParams H.params
   refine {
     headers := H.headers
+    normalizedSources := H.normalizedSources
     commonLevel := H.commonLevel
     levels := H.levels
     levelParams := H.levelParams

@@ -29,9 +29,8 @@ theorem recursiveDomainsRecursor {alpha : Type}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hparams : stats.params.size ≤ i)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
@@ -82,7 +81,7 @@ theorem recursiveDomainsRecursor {alpha : Type}
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotations bi }
+          dom.consumeTypeAnnotationsVerified bi }
       let R' : RecursorContextWF c' recLparams :=
         R.withLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType
@@ -108,19 +107,19 @@ theorem recursiveDomainsRecursor {alpha : Type}
           (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
         exact TrExprS.fvar (A := consumedDom.lift) (by
           change VLCtx.find? ((some (⟨c.ngen.curr⟩,
-            dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom) ::
+            dom.consumeTypeAnnotationsVerified.fvarsList), .vlam consumedDom) ::
               R.mlctx.vlctx) (Sum.inr ⟨c.ngen.curr⟩) = _
           simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
             VLocalDecl.value, VLocalDecl.type])
       have hopened := R.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbodyConsumed
-      have Hclass := isRecArg.refinesRecursor R' Hstats' hwhnf hconsume
+      have Hclass := isRecArg.refinesRecursor R' Hstats' hconsume
         hlit hctx' hproj
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
       refine Hclass.bind fun selected hselected => ?_
       cases selected with
       | none =>
-        exact ih R' Hstats' (by omega) hctx' hopened
+        exact ih R' Hstats' (by omega) hlit hctx' hopened
           (.nonrecursive hfields) hargsWeak
       | some target =>
         rcases hselected target rfl with ⟨howner, hrecursive⟩
@@ -139,7 +138,7 @@ theorem recursiveDomainsRecursor {alpha : Type}
             ((args.map fun arg => arg.liftN 1 0) ++ [.bvar 0]) := by
           simpa using checkPositivityStep.forall₂_append
             hargsWeak (.cons harg .nil)
-        exact ih R' Hstats' (by omega) hctx' hopened
+        exact ih R' Hstats' (by omega) hlit hctx' hopened
           (.recursive hfields (cert := cert) rfl) hargs'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
@@ -159,9 +158,8 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursor {alpha : Type}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hprefix : RecursorParamPrefix stats 0 t tail)
-    (hwhnf : WhnfLParamsCompat)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
@@ -197,7 +195,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursor {alpha : Type}
         stats.params.size #[] #[] fuel inputContext).WF Q := by
     intro fuel
     exact mkRecInfos.loopCtorArgs.loop.recursiveDomainsRecursor stats k R
-      Hstats (Nat.le_refl _) hwhnf hconsume hlit hctx hproj htail .nil .nil Hk
+      Hstats (Nat.le_refl _) hconsume hlit hctx hproj htail .nil .nil Hk
   exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
     inputContext.fuel.inductiveFuel
 
@@ -286,7 +284,7 @@ structure RecursorMotiveFrameWF
   majorTr :
     let majorTy :=
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-        indices).consumeTypeAnnotations
+        indices).consumeTypeAnnotationsVerified
     TrExprS Rindices.venv
       recLparams
       Rindices.mlctx.vlctx majorTy majorTarget
@@ -313,7 +311,7 @@ structure RecursorMotiveFrameWF
   motiveClosed :
     let majorTy :=
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-        indices).consumeTypeAnnotations
+        indices).consumeTypeAnnotationsVerified
     let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
       majorTr majorType
     let cMajor : AddInductive.Context := { c with
@@ -326,7 +324,7 @@ structure RecursorMotiveFrameWF
       ∃ closedTarget,
         TrExprS Rindices.venv recLparams
           (Rindices.mlctx.dropN indices.size hsize).vlctx
-          motiveTy.consumeTypeAnnotations closedTarget ∧
+          motiveTy.consumeTypeAnnotationsVerified closedTarget ∧
         Rindices.venv.IsType recLparams.length
           (Rindices.mlctx.dropN indices.size hsize).vlctx.toCtx closedTarget ∧
         closedTarget = VExpr.wrapForalls indexDomains
@@ -334,7 +332,7 @@ structure RecursorMotiveFrameWF
   motiveTr :
     let majorTy :=
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-        indices).consumeTypeAnnotations
+        indices).consumeTypeAnnotationsVerified
     let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
       majorTr majorType
     let cMajor : AddInductive.Context := { c with
@@ -345,7 +343,7 @@ structure RecursorMotiveFrameWF
       cMajor.lctx.mkForall #[major] <| .sort elimLevel
     TrExprS Rmajor.venv
       recLparams
-      Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotations motiveTarget
+      Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotationsVerified motiveTarget
   motiveType :
     let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
       majorTr majorType
@@ -355,14 +353,14 @@ structure RecursorMotiveFrameWF
   motiveSourceEq :
     let majorTy :=
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-        indices).consumeTypeAnnotations
+        indices).consumeTypeAnnotationsVerified
     let cMajor : AddInductive.Context := { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ `t majorTy .default }
     let major := Expr.fvar ⟨c.ngen.curr⟩
     let motiveTy := cMajor.lctx.mkForall indices <|
       cMajor.lctx.mkForall #[major] <| .sort elimLevel
-    motiveTy.consumeTypeAnnotations = motiveTy
+    motiveTy.consumeTypeAnnotationsVerified = motiveTy
 
 /-- The independent canonical family/motive telescope attached to one
 completed executable frame.  Its motive type is still compared with the
@@ -2904,12 +2902,12 @@ inductive Expr.ForallBinderAt : Expr → Nat → Expr → Prop
 
 /-- Selecting any forall binder proves that consuming a possible annotation
 at the top level leaves the enclosing expression unchanged. -/
-theorem Expr.ForallBinderAt.consumeTypeAnnotations_eq_self
+theorem Expr.ForallBinderAt.consumeTypeAnnotationsVerified_eq_self
     (H : Expr.ForallBinderAt source i domain) :
-    source.consumeTypeAnnotations = source := by
+    source.consumeTypeAnnotationsVerified = source := by
   cases H with
-  | here => apply Expr.consumeTypeAnnotations_eq_self <;> rfl
-  | there _ => apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+  | here => apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
+  | there _ => apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
 
 theorem Expr.ForallBinderAt.unique
     (H₁ : Expr.ForallBinderAt source i domain₁)
@@ -3798,6 +3796,27 @@ theorem Expr.SameLambdaPrefix.abstractList
     simp only [Expr.abstractList]
     exact ih (H.abstract1 fv k) k
 
+/-- Substituting the same outer placeholder into two expressions preserves
+their literal common lambda prefix.  Binder domains are transformed
+identically; only the unrestricted residuals may differ. -/
+theorem Expr.SameLambdaPrefix.instantiate1'
+    (H : Expr.SameLambdaPrefix n left right)
+    (value : Expr) (k : Nat := 0) :
+    Expr.SameLambdaPrefix n
+      (left.instantiate1' value k) (right.instantiate1' value k) := by
+  induction H generalizing k with
+  | nil => exact .nil
+  | cons H ih =>
+      simp only [Expr.instantiate1']
+      exact .cons (ih (k + 1))
+
+/-- Outermost specialization of `Expr.SameLambdaPrefix.instantiate1'`. -/
+theorem Expr.SameLambdaPrefix.instantiate1
+    (H : Expr.SameLambdaPrefix n left right) (value : Expr) :
+    Expr.SameLambdaPrefix n
+      (left.instantiate1 value) (right.instantiate1 value) := by
+  simpa [Expr.instantiate1_eq] using H.instantiate1' value 0
+
 /-- Reuse the binder-domain part of one lambda translation with a different
 residual body.  The two source telescopes share their concrete prefix, so the
 template derivation supplies the exact translated domains and their type
@@ -3905,36 +3924,163 @@ theorem Expr.LambdaTelescope.trans
     rw [← Nat.add_right_comm outerArity innerArity 1]
     exact h
 
-theorem Expr.ForallTelescope.consumeTypeAnnotations_eq_self
+/-- A concrete lambda expression and arity determine its telescope residual. -/
+theorem Expr.LambdaTelescope.result_eq
+    (Hleft : Expr.LambdaTelescope outer arity left)
+    (Hright : Expr.LambdaTelescope outer arity right) : left = right := by
+  induction Hleft generalizing right with
+  | nil => cases Hright; rfl
+  | cons Hleft ih =>
+      cases Hright with
+      | cons Hright => exact ih Hright
+
+/-- Instantiating an outer loose variable preserves a concrete lambda
+telescope.  In the residual the substitution depth is shifted past every
+leading binder, exactly as it is when a closed recursive-call template is
+instantiated with its final recursor prefix. -/
+theorem Expr.LambdaTelescope.instantiate1'
+    (H : Expr.LambdaTelescope outer arity result)
+    (value : Expr) (k : Nat := 0) :
+    Expr.LambdaTelescope (outer.instantiate1' value k) arity
+      (result.instantiate1' value (k + arity)) := by
+  induction H generalizing k with
+  | nil => exact .nil _
+  | cons H ih =>
+      simp only [Expr.instantiate1']
+      apply Expr.LambdaTelescope.cons
+      simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
+
+/-- Specialization of `Expr.LambdaTelescope.instantiate1'` at the outermost
+substitution depth. -/
+theorem Expr.LambdaTelescope.instantiate1
+    (H : Expr.LambdaTelescope outer arity result) (value : Expr) :
+    Expr.LambdaTelescope (outer.instantiate1 value) arity
+      (result.instantiate1' value arity) := by
+  simpa [Expr.instantiate1_eq] using H.instantiate1' value 0
+
+/-- Abstracting one free variable below a closed loose-variable boundary can
+introduce at most the newly bound variable at that boundary. -/
+theorem Expr.abstract1_looseBVarRange_le
+    {e : Expr} {fv : FVarId} {k : Nat}
+    : (e.abstract1 fv k).looseBVarRange' ≤
+        max k e.looseBVarRange' + 1 := by
+  induction e generalizing k with
+  | bvar i => simp [Expr.abstract1, Lean.Expr.looseBVarRange']; split <;> omega
+  | fvar other =>
+      simp only [Expr.abstract1]
+      split <;> simp [Lean.Expr.looseBVarRange']
+  | mvar | sort | const | lit => simp [Expr.abstract1, Lean.Expr.looseBVarRange']
+  | app fn arg ihFn ihArg =>
+      simp only [Expr.abstract1, Lean.Expr.looseBVarRange', Nat.max_le]
+      constructor
+      · exact Nat.le_trans (ihFn (k := k)) (by omega)
+      · exact Nat.le_trans (ihArg (k := k)) (by omega)
+  | mdata data body ih | proj _ _ body ih =>
+      simpa [Expr.abstract1, Lean.Expr.looseBVarRange'] using ih (k := k)
+  | lam name domain body bi ihDomain ihBody
+  | forallE name domain body bi ihDomain ihBody =>
+      simp only [Expr.abstract1, Lean.Expr.looseBVarRange', Nat.max_le]
+      constructor
+      · exact Nat.le_trans (ihDomain (k := k)) (by omega)
+      · have Hbody := ihBody (k := k + 1)
+        omega
+  | letE name type value body nondep ihType ihValue ihBody =>
+      simp only [Expr.abstract1, Lean.Expr.looseBVarRange', Nat.max_le]
+      constructor
+      · constructor
+        · exact Nat.le_trans (ihType (k := k)) (by omega)
+        · exact Nat.le_trans (ihValue (k := k)) (by omega)
+      · have Hbody := ihBody (k := k + 1)
+        omega
+
+/-- Simultaneous free-variable abstraction raises a closed loose-variable
+boundary by exactly the number of introduced binders. -/
+theorem Expr.abstractList_looseBVarRange_le
+    {e : Expr} {fvs : List FVarId} {k : Nat}
+    : (e.abstractList fvs k).looseBVarRange' ≤
+        max k e.looseBVarRange' + fvs.length := by
+  induction fvs generalizing e k with
+  | nil => exact Nat.le_max_right _ _
+  | cons fv fvs ih =>
+      simp only [Expr.abstractList, List.length_cons]
+      have Hhead := Expr.abstract1_looseBVarRange_le
+        (e := e) (fv := fv) (k := k)
+      have Htail := ih (e := e.abstract1 fv k) (k := k)
+      omega
+
+/-- Application spines preserve a common loose-variable bound. -/
+theorem Expr.mkAppN_looseBVarRange_le
+    (Hfn : fn.looseBVarRange' ≤ k)
+  (Hargs : ∀ arg ∈ args, arg.looseBVarRange' ≤ k) :
+    (mkAppN fn args).looseBVarRange' ≤ k := by
+  unfold mkAppN
+  rw [← Array.foldl_toList]
+  have Hlist : ∀ arg ∈ args.toList, arg.looseBVarRange' ≤ k := by
+    intro arg harg
+    exact Hargs arg (Array.mem_toList_iff.mp harg)
+  generalize args.toList = list at Hlist
+  induction list generalizing fn with
+  | nil => exact Hfn
+  | cons arg rest ih =>
+      simp only [List.foldl_cons]
+      apply ih
+      · simpa [Lean.Expr.looseBVarRange', Nat.max_le] using
+          And.intro Hfn (Hlist arg (by simp))
+      · intro other hother
+        exact Hlist other (by simp [hother])
+
+@[simp] theorem Expr.instantiate1'_mkAppN :
+    (mkAppN fn args).instantiate1' value k =
+      mkAppN (fn.instantiate1' value k)
+        (args.map fun arg => arg.instantiate1' value k) := by
+  unfold mkAppN
+  rw [← Array.foldl_toList, ← Array.foldl_toList]
+  rw [Array.toList_map]
+  generalize args.toList = list
+  induction list generalizing fn with
+  | nil => rfl
+  | cons arg rest ih =>
+      simp only [List.foldl_cons, List.map_cons, Expr.instantiate1']
+      exact ih (fn := fn.app arg)
+
+@[simp] theorem Expr.getAppFn_liftLooseBVars'
+    {e : Expr} {start amount : Nat} :
+    (e.liftLooseBVars' start amount).getAppFn =
+      e.getAppFn.liftLooseBVars' start amount := by
+  induction e generalizing start with
+  | app fn arg ih => simpa [Expr.getAppFn, Expr.liftLooseBVars'] using ih
+  | _ => rfl
+
+theorem Expr.ForallTelescope.consumeTypeAnnotationsVerified_eq_self
     (H : Expr.ForallTelescope outer arity body)
-    (hbody : body.consumeTypeAnnotations = body) :
-    outer.consumeTypeAnnotations = outer := by
+    (hbody : body.consumeTypeAnnotationsVerified = body) :
+    outer.consumeTypeAnnotationsVerified = outer := by
   cases H with
   | nil => exact hbody
   | cons H =>
-    apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+    apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
 
-theorem Expr.ForallTelescope.consumeTypeAnnotations_eq_self_of_pos
+theorem Expr.ForallTelescope.consumeTypeAnnotationsVerified_eq_self_of_pos
     (H : Expr.ForallTelescope outer arity body) (hpos : 0 < arity) :
-    outer.consumeTypeAnnotations = outer := by
+    outer.consumeTypeAnnotationsVerified = outer := by
   cases H with
   | nil => simp at hpos
-  | cons _ => apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+  | cons _ => apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
 
 /-- Removing a possible top-level binder annotation preserves the number of
 leading forall binders.  In the zero-binder case the residual may itself be
 the annotation payload, so it is retained existentially. -/
-theorem Expr.ForallTelescope.consumeTypeAnnotations_arity
+theorem Expr.ForallTelescope.consumeTypeAnnotationsVerified_arity
     (H : Expr.ForallTelescope outer arity body) :
-    ∃ residual, Expr.ForallTelescope outer.consumeTypeAnnotations
+    ∃ residual, Expr.ForallTelescope outer.consumeTypeAnnotationsVerified
       arity residual := by
   cases H with
   | nil => exact ⟨_, .nil _⟩
   | @cons body arity result name dom bi Htail =>
       have houter :
-          (Expr.forallE name dom body bi).consumeTypeAnnotations =
+          (Expr.forallE name dom body bi).consumeTypeAnnotationsVerified =
             Expr.forallE name dom body bi := by
-        apply Expr.consumeTypeAnnotations_eq_self <;> rfl
+        apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
       exact ⟨_, houter ▸ Expr.ForallTelescope.cons Htail⟩
 
 theorem Expr.LambdaTelescope.abstract1
@@ -3977,6 +4123,29 @@ theorem Expr.AvoidingLambdaTelescope.toLambdaTelescope
   induction H with
   | nil => exact .nil _
   | cons _ _ ih => exact .cons ih
+
+/-- Avoidance is a property of the shared binder domains, not of the
+unrestricted residual.  It therefore transports across an exact common
+lambda prefix once the replacement telescope identifies its residual. -/
+theorem Expr.SameLambdaPrefix.avoidingLambdaTelescope
+    (Hsame : Expr.SameLambdaPrefix arity template replacement)
+    (Htemplate : Expr.AvoidingLambdaTelescope names template arity
+      templateResidual)
+    (Hreplacement : Expr.LambdaTelescope replacement arity
+      replacementResidual) :
+    Expr.AvoidingLambdaTelescope names replacement arity
+      replacementResidual := by
+  induction Hsame generalizing templateResidual replacementResidual with
+  | nil =>
+      cases Htemplate
+      cases Hreplacement
+      exact .nil _
+  | cons Hsame ih =>
+      cases Htemplate with
+      | cons hdomain HtemplateTail =>
+        cases Hreplacement with
+        | cons HreplacementTail =>
+          exact .cons hdomain (ih HtemplateTail HreplacementTail)
 
 theorem Expr.AvoidingLambdaTelescope.trans
     (Houter : Expr.AvoidingLambdaTelescope names outer outerArity middle)
@@ -4948,6 +5117,19 @@ theorem BindingContextLE.trans
     H₂.safety_eq.trans H₁.safety_eq,
     H₂.allowPrimitive_eq.trans H₁.allowPrimitive_eq,
     H₂.fuel_eq.trans H₁.fuel_eq⟩
+
+/-- `BindingContextLE` records the executable fields that affect local
+binder identity and lookup.  The embedded typechecker's active universe
+parameter list is tracked separately by `RecursorContextWF`, so changing it
+on either endpoint preserves this relation definitionally. -/
+theorem BindingContextLE.rebaseTypeCheckerLParams
+    (H : BindingContextLE c c')
+    (lparams lparams' : Option (List Name)) :
+    BindingContextLE
+      { c with typeCheckerLParams := lparams }
+      { c' with typeCheckerLParams := lparams' } :=
+  ⟨H.fvars, H.declarations, H.env_eq, H.lparams_eq, H.safety_eq,
+    H.allowPrimitive_eq, H.fuel_eq⟩
 
 
 end VerifyInductive

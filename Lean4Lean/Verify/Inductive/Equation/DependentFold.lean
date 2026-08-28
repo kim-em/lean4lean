@@ -57,14 +57,12 @@ theorem
         Expr.LambdaTelescope
           (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
           localDomains.length
-          ((F.semantic.generated.body.abstractList
-            F.semantic.generated.arguments_bound.fvars).abstractList
-              A.rule.binders F.semantic.generated.localArgs.size) ∧
+          (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size) ∧
         TrExprS H.outVEnv Us
           (abstractForallContext (equationDomains ++ localDomains) [])
-          ((F.semantic.generated.body.abstractList
-            F.semantic.generated.arguments_bound.fvars).abstractList
-              A.rule.binders F.semantic.generated.localArgs.size)
+          (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size)
           resultBody ∧
         TrExprS H.outVEnv Us
           (abstractForallContext (equationDomains ++ localDomains) [])
@@ -104,9 +102,8 @@ theorem
   have Htelescope' : Expr.LambdaTelescope
       (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
       localDomains.length
-      ((F.semantic.generated.body.abstractList
-        F.semantic.generated.arguments_bound.fvars).abstractList
-          A.rule.binders F.semantic.generated.localArgs.size) := by
+      (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size) := by
     simpa [hlocal] using Htelescope
   have HequationCtx : OnCtx
       (abstractForallContext equationDomains []).toCtx
@@ -189,9 +186,8 @@ structure
   source_telescope : Expr.LambdaTelescope
     (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
     localDomains.length
-    ((frame.semantic.generated.body.abstractList
-      frame.semantic.generated.arguments_bound.fvars).abstractList
-        A.rule.binders frame.semantic.generated.localArgs.size)
+    (frame.semantic.generated.body.abstractList
+      A.rule.binders frame.semantic.generated.localArgs.size)
   template_telescope : Expr.LambdaTelescope
     ((frame.semantic.generated.current.lctx.mkLambda
         frame.semantic.generated.localArgs
@@ -214,9 +210,8 @@ structure
             B.fieldDomains.reverse).reverse
     TrExprS H.outVEnv Us
       (abstractForallContext (equationDomains ++ localDomains) [])
-      ((frame.semantic.generated.body.abstractList
-        frame.semantic.generated.arguments_bound.fvars).abstractList
-          A.rule.binders frame.semantic.generated.localArgs.size)
+      (frame.semantic.generated.body.abstractList
+      A.rule.binders frame.semantic.generated.localArgs.size)
       resultBody
   template_residual_translation :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -350,8 +345,8 @@ theorem
       localDomains.length
       (F.semantic.generated.outerAbstractedMajor A.rule.binders) := by
     simpa [hlocal, BoundGeneratedRecursiveCall.outerAbstractedMajor] using
-      (F.semantic.generated.appliedFieldLambdaTelescope.abstractList
-        A.rule.binders)
+      ((F.semantic.generated.appliedFieldLambdaTelescope
+        F.semantic.fieldClosed).abstractList A.rule.binders)
   have HsamePrefix : Expr.SameLambdaPrefix localDomains.length
       (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
       ((F.semantic.generated.current.lctx.mkLambda
@@ -359,7 +354,7 @@ theorem
           (mkAppN A.rule.recursiveArgs[j]
             F.semantic.generated.localArgs)).abstractList A.rule.binders) := by
     simpa [hlocal] using
-      F.semantic.generated.sameOuterAppliedFieldLambdaPrefix A.rule.binders
+      F.semantic.sameOuterAppliedFieldLambdaPrefix A.rule.binders
   exact ⟨{
     frame := F
     localDomains := localDomains
@@ -466,7 +461,7 @@ theorem
       E.frame.semantic.generated.localArgs.size (.sort .zero) := by
     exact Htemplate₀
   have hresidual := E.frame.semantic.generated.outerAbstractedMotiveApp_eq
-    A.rule.binders
+    A.rule.binders E.frame.semantic.fieldClosed
   have HreplacementRaw : Expr.ForallTelescope
       ((E.frame.semantic.generated.current.lctx.mkForall
         E.frame.semantic.generated.localArgs motiveApp).abstractList
@@ -629,7 +624,7 @@ theorem
       E.frame.semantic.generated.arguments_bound.fvars := rfl
   rw [hselectionFVars] at Hraw
   have hresidual := E.frame.semantic.generated.outerAbstractedMotiveApp_eq
-    A.rule.binders
+    A.rule.binders E.frame.semantic.fieldClosed
   have Hbase : Expr.ForallTelescope
       ((E.frame.semantic.generated.current.lctx.mkForall
         E.frame.semantic.generated.localArgs motiveApp).abstractList
@@ -1348,8 +1343,9 @@ theorem
       A.semantics.recursivePositions := by
     rw [hparameterTail]
     exact A.semantics.decisions
-  have HloopReplay : RecursorLoopUArgsReplayCompat := H.loopUArgsReplay
-  unfold RecursorLoopUArgsReplayCompat at HloopReplay
+  have HloopReplay : RecursorLoopUArgsCompletedAlphaCompat :=
+    H.loopUArgsReplay
+  unfold RecursorLoopUArgsCompletedAlphaCompat at HloopReplay
   have Hreplay :
       O.replayTrace S.fields_bound.fvars =
         E.frame.semantic.generated.replayTrace
@@ -1364,6 +1360,7 @@ theorem
         (fun info : AddInductive.RecInfo => info.minors))
       (lvls := AddInductive.getRecLevels H.elimLevel
         hypothesisOrigins.stats.levels)
+      (recLparams := Us)
       (root₁ := traversal.rootContext)
       (root₂ := A.semantics.fieldRoot)
       (current₁ := traversal.terminalContext)
@@ -1381,12 +1378,14 @@ theorem
       (j := j) (hj₁ := hjSourceRecursive) (hj₂ := hj)
       (sourceType := sourceType)
       (value := A.rule.recursiveResults[j]!)
-      (O := O) (G := E.frame.semantic.generated)
+      (O := O) (R := A.semantics.context) (decl := decl)
+      (depth := A.semantics.depth) (S := E.frame.semantic)
       (fieldBinders₁ := S.fields_bound.fvars)
       (fieldBinders₂ := A.rule.all_args_bound.fvars)
       traversal.parameterTail_fvars HminorDecisions HruleDecisions
       S.fields_bound.expressions
       A.rule.all_args_bound.expressions hpositions
+      hhypothesisRecInfos
   have HlocalTelescopeReplay :
       (O.current.lctx.mkForall O.args (.sort .zero)).abstractList
           S.fields_bound.fvars =
@@ -1582,7 +1581,7 @@ theorem
             (S.fields_bound.fvars.length - 1 - fieldPosition)))
           (O.localIndices.map Expr.bvar).toArray by
         simpa [fieldPosition] using houterField]
-    rw [hrecursiveMajor.1, hfieldBinderLength, hlocalArity, hlocalIndices]
+    rw [hrecursiveMajor, hfieldBinderLength, hlocalArity, hlocalIndices]
   have hfieldPositionRuleFVars : fieldPosition <
       A.rule.all_args_bound.fvars.length := by
     rw [A.rule.all_args_bound.length_fvars]
@@ -2715,7 +2714,7 @@ theorem
       A.rule.all_args_bound.fvars 0
     have hresidual :=
       E.frame.semantic.generated.outerAbstractedMotiveApp_eq
-        A.rule.all_args_bound.fvars
+        A.rule.all_args_bound.fvars E.frame.semantic.fieldClosed
     have hgeneratedOwnerRecInfos :
         E.frame.semantic.generated.ownerIdx < H.recInfos.size := by
       simpa [H.generated.length] using E.frame.entry_lt

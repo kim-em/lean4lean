@@ -46,6 +46,26 @@ def evenOddDecl : Declaration :=
     }]
   }] false
 
+/-- A higher-order recursive field opens a call-local binder while recursor
+rules are generated.  The reader-local name generator may reuse that binder's
+identifier for the minor installed immediately afterwards, so this declaration
+regresses the collision that retained recursor blueprints must survive. -/
+def higherOrderRecursiveDecl : Declaration :=
+  .inductDecl [] 0 [{
+    name := `L4LHigherOrderTree
+    type := .sort 1
+    ctors := [{
+      name := `L4LHigherOrderTree.branch
+      type := .forallE `children
+        (.forallE `i (.const ``Nat [])
+          (.const `L4LHigherOrderTree []) .default)
+        (.const `L4LHigherOrderTree []) .default
+    }, {
+      name := `L4LHigherOrderTree.leaf
+      type := .const `L4LHigherOrderTree []
+    }]
+  }] false
+
 private def expectAccepted (label : String) (env : Kernel.Environment)
     (decl : Declaration) : MetaM Unit := do
   match Lean4Lean.addDecl env decl with
@@ -57,5 +77,6 @@ run_meta do
   let env := (← getEnv).toKernelEnv
   expectAccepted "ordinary recursive inductive" env natLikeDecl
   expectAccepted "mutually recursive inductive" env evenOddDecl
+  expectAccepted "higher-order recursive inductive" env higherOrderRecursiveDecl
 
 end Lean4Lean.Tests.RecursiveInductive

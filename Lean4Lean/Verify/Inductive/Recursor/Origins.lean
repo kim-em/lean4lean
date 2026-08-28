@@ -446,7 +446,7 @@ def TranslatedOriginTypes.push
     (name : Name) (bi : BinderInfo) :
     let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
       Hdom.consumed Hdom.isType
-    TranslatedOriginTypes Hc' (origins.push dom.consumeTypeAnnotations) := by
+    TranslatedOriginTypes Hc' (origins.push dom.consumeTypeAnnotationsVerified) := by
   dsimp only
   let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
     Hdom.consumed Hdom.isType
@@ -797,6 +797,50 @@ structure RecursorLoopUArgsTrace where
   motive : Expr
   indices : Array Expr
 
+/-- Exact executable input of one `loopUArgs` traversal.  Retaining both
+reader runs prevents later replay arguments from silently choosing an
+unrelated normalized field domain.  `closedNormalized` is the canonical
+alpha-insensitive view once the caller supplies the outer field binders. -/
+structure RecursorLoopUArgsInput
+    (root : AddInductive.Context) (field : Expr) where
+  inferredType : Expr
+  normalizedType : Expr
+  inference :
+    (monadLift (TypeChecker.inferType field) : AddInductive.M Expr) root =
+      .ok inferredType
+  normalization :
+    (monadLift (TypeChecker.whnf inferredType) : AddInductive.M Expr) root =
+      .ok normalizedType
+
+/-- Exact successful prefix of the executable `loopUArgs.loop` traversal.
+Unlike the old replay contract, this ties the retained terminal expression,
+fresh argument array, and terminal context to the concrete normalized input
+and every intervening WHNF call. -/
+inductive RecursorLoopUArgsPrefix
+    (root : AddInductive.Context) (source : Expr) :
+    AddInductive.Context → Expr → Array Expr → Prop
+  | root : RecursorLoopUArgsPrefix root source root source #[]
+  | push
+      {current next : AddInductive.Context} {args : Array Expr}
+      {name : Name} {domain body normalized : Expr} {bi : BinderInfo}
+      (previous : RecursorLoopUArgsPrefix root source current
+        (.forallE name domain body bi) args)
+      (next_eq : next = { current with
+        ngen := current.ngen.next
+        lctx := current.lctx.mkLocalDecl ⟨current.ngen.curr⟩ name
+          domain.consumeTypeAnnotationsVerified bi })
+      (normalization :
+        (monadLift (TypeChecker.whnf
+          (body.instantiate1 (.fvar ⟨current.ngen.curr⟩))) :
+            AddInductive.M Expr) next = .ok normalized) :
+      RecursorLoopUArgsPrefix root source next normalized
+        (args.push (.fvar ⟨current.ngen.curr⟩))
+
+def RecursorLoopUArgsInput.closedNormalized
+    (H : RecursorLoopUArgsInput root field)
+    (outerBinders : List FVarId) : Expr :=
+  H.normalizedType.abstractList outerBinders
+
 structure RecInfoMinorHypothesisTypeOrigin
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
@@ -807,6 +851,9 @@ structure RecInfoMinorHypothesisTypeOrigin
   exposedType : Expr
   args : Array Expr
   arguments_bound : FreshBoundFVarArray root current args
+  loopInput : RecursorLoopUArgsInput root field
+  loopTrace : RecursorLoopUArgsPrefix root loopInput.normalizedType current
+    exposedType args
   field_fvar : ∃ fv, field = .fvar fv ∧ fv ∈ root.lctx.fvars
   ownerIdx : Nat
   owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
@@ -832,8 +879,8 @@ theorem RecInfoMinorHypothesisTypeOrigin.sourceTelescope
       (motiveApp.abstractList O.arguments_bound.fvars) := by
   cases O with
   | mk current current_wf _current_extends exposedType args
-      arguments_bound _field_fvar ownerIdx _owner_valid _motive_is_fvar
-      type_eq =>
+      arguments_bound _loopInput _loopTrace _field_fvar ownerIdx _owner_valid
+      _motive_is_fvar type_eq =>
     dsimp only at type_eq ⊢
     rw [type_eq]
     exact arguments_bound.toBoundFVarArray.mkForall_forallTelescope
@@ -1039,9 +1086,9 @@ theorem RecInfoMinorHypothesisTypeOrigin.outerAbstractedField_eq_bvar_at
 /-- The constructed hypothesis origin cannot itself be a top-level parameter
 annotation: a nonempty local suffix produces a forall, while the empty case
 is the explicit motive application. -/
-theorem RecInfoMinorHypothesisTypeOrigin.consumeTypeAnnotations_eq_self
+theorem RecInfoMinorHypothesisTypeOrigin.consumeTypeAnnotationsVerified_eq_self
     (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
-    type.consumeTypeAnnotations = type := by
+    type.consumeTypeAnnotationsVerified = type := by
   let itIndices := O.exposedType.getAppArgs[stats.params.size:]
   let motiveApp := Expr.app
     (mkAppN recInfos[O.ownerIdx]!.motive itIndices)
@@ -1051,7 +1098,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.consumeTypeAnnotations_eq_self
   · have Htelescope :=
       O.arguments_bound.toBoundFVarArray.mkForall_forallTelescope
         O.current_wf motiveApp
-    exact Htelescope.consumeTypeAnnotations_eq_self_of_pos hpos
+    exact Htelescope.consumeTypeAnnotationsVerified_eq_self_of_pos hpos
   · have hsize : O.args.size = 0 := by omega
     have hargs : O.args = #[] := Array.eq_empty_of_size_eq_zero hsize
     rw [hargs]
@@ -1062,7 +1109,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.consumeTypeAnnotations_eq_self
           (mkAppN recInfos[O.ownerIdx]!.motive itIndices)
           (mkAppN field #[])).getAppFn = .fvar motiveFVar := by
       simp only [Expr.getAppFn, Expr.getAppFn_mkAppN, hmotive]
-    apply Expr.consumeTypeAnnotations_eq_self
+    apply Expr.consumeTypeAnnotationsVerified_eq_self
     · change (Expr.app _ _).isAppOfArity `optParam 2 = false
       exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
     · change (Expr.app _ _).isAppOfArity `autoParam 2 = false
@@ -1077,16 +1124,19 @@ structure RecInfoMinorHypothesisTypeOrigins
     (c : AddInductive.Context) (fields hypotheses : Array Expr) where
   stats : AddInductive.InductiveStats
   recInfos : Array AddInductive.RecInfo
+  fieldRoot : AddInductive.Context
+  fieldRoot_wf : BindingContextWF fieldRoot
   hypotheses_outer_fresh : ∀ fv,
     fv ∈ ExprArrayFVarIds stats.params ++
         ExprArrayFVarIds (recInfos.map (·.motive)) →
       fv ∉ ExprArrayFVarIds hypotheses
   entry : ∀ j (hj : j < hypotheses.size),
     ∃ root sourceType,
+      BindingContextLE fieldRoot root ∧
       Nonempty (RecInfoMinorHypothesisTypeOrigin
         stats recInfos root fields[j]! sourceType) ∧
       ∃ D : BoundFVarDeclarationAt c hypotheses j,
-        D.type = sourceType.consumeTypeAnnotations
+        D.type = sourceType.consumeTypeAnnotationsVerified
 
 /-- The exact source construction retained for one generated minor domain.
 The source local context is intentionally stored in the certificate: after
@@ -1116,12 +1166,16 @@ structure RecInfoMinorTypeShape where
       sourceFullContext recursiveFields hypotheses)
   hypotheses_size : hypotheses.size = recursiveFields.size
   traversal : Option RecInfoMinorTraversalShape
+  hypothesis_origins_fieldRoot : ∀ origins T,
+    hypothesis_type_origins = some origins →
+    traversal = some T →
+    origins.fieldRoot = T.terminalContext
   motiveApp : Expr
   sourceType : Expr
   sourceType_eq : sourceType =
     sourceContext.mkForall fields
       (sourceContext.mkForall hypotheses motiveApp)
-  consumed_eq : sourceType.consumeTypeAnnotations = origin
+  consumed_eq : sourceType.consumeTypeAnnotationsVerified = origin
 
 /-- A semantic minor retained its completed hypothesis-origin table, and the
 table was produced with the expected inductive statistics. -/
@@ -1216,7 +1270,7 @@ theorem RecInfoMinorTypeShape.originTelescope
     (S : RecInfoMinorTypeShape) :
     ∃ residual, Expr.ForallTelescope S.origin
       (S.fields.size + S.hypotheses.size) residual := by
-  rcases S.sourceTelescope.consumeTypeAnnotations_arity with
+  rcases S.sourceTelescope.consumeTypeAnnotationsVerified_arity with
     ⟨residual, Htelescope⟩
   rw [S.consumed_eq] at Htelescope
   exact ⟨residual, Htelescope⟩
@@ -1242,6 +1296,79 @@ structure RecInfoTypeOrigins (c : AddInductive.Context)
     (hj : j < minorTypes[i]!.size),
     RecInfoMinorTypeShape
 
+/-- The exact first-pass recursive-call blueprints paired with one retained
+minor hypothesis-origin table.  This is producer evidence, not a replay
+compatibility premise: every field comes from the single successful
+`loopUBlueprints` run which introduced the corresponding hypothesis. -/
+structure RecInfoCallBlueprintOrigins
+    {sourceFullContext : AddInductive.Context}
+    (origins : RecInfoMinorHypothesisTypeOrigins
+      sourceFullContext fields hypotheses)
+    (calls : Array AddInductive.RecCallBlueprint) : Prop where
+  size_eq : calls.size = hypotheses.size
+  entry : ∀ j (hj : j < hypotheses.size),
+    ∃ originRoot sourceType,
+      ∃ (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos
+        originRoot fields[j]! sourceType),
+        ∃ (D : BoundFVarDeclarationAt sourceFullContext hypotheses j),
+          BindingContextLE origins.fieldRoot originRoot ∧
+          D.type = sourceType.consumeTypeAnnotationsVerified ∧
+          calls[j]! = {
+            major := fields[j]!
+            args := O.args
+            lctx := O.current.lctx
+            targetTypeIdx := O.ownerIdx
+            targetIndices :=
+              O.exposedType.getAppArgs[origins.stats.params.size:]
+            template := O.current.lctx.mkLambda O.args <|
+              (mkAppN (.bvar 0)
+                O.exposedType.getAppArgs[origins.stats.params.size:]).app
+                  (mkAppN fields[j]! O.args) }
+
+/-- One executable rule blueprint is the exact product of its retained minor
+source shape. -/
+def RecInfoRuleBlueprintOriginAt
+    (stats : AddInductive.InductiveStats)
+    (S : RecInfoMinorTypeShape)
+    (minor : Expr) (B : AddInductive.RecRuleBlueprint) : Prop :=
+  B.ctor = S.constructor.name ∧
+    B.fields = S.fields ∧
+    B.lctx = S.sourceFullContext.lctx ∧
+    B.minor = minor ∧
+    ∃ traversal origins,
+      S.traversal = some traversal ∧
+      S.hypothesis_type_origins = some origins ∧
+      B.targetTypeIdx =
+        (AddInductive.getIIndices stats traversal.terminal).1 ∧
+      B.targetIndices =
+        (AddInductive.getIIndices stats traversal.terminal).2 ∧
+      RecInfoCallBlueprintOrigins origins B.recursiveCalls
+
+/-- Owner- and minor-indexed alignment between the executable rule blueprint
+rows and the independently retained first-pass minor origins.  A rule builder
+which consumes this certificate never reruns field classification, inference,
+or WHNF and therefore needs no alpha/replay oracle. -/
+structure RecInfoRuleBlueprintOrigins
+    (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (H : RecInfoTypeOrigins c recInfos) : Prop where
+  rows_size : ∀ owner (howner : owner < recInfos.size),
+    recInfos[owner]!.ruleBlueprints.size = H.minorTypes[owner]!.size
+  entry : ∀ owner (howner : owner < recInfos.size)
+    localIndex (hlocal : localIndex < H.minorTypes[owner]!.size),
+    let S := H.minorShapes owner howner localIndex hlocal
+    let B := recInfos[owner]!.ruleBlueprints[localIndex]!
+    RecInfoRuleBlueprintOriginAt stats S
+      recInfos[owner]!.minors[localIndex]! B
+  fields_outer_fresh : ∀ owner (howner : owner < recInfos.size)
+      (localIndex : Nat)
+      (hlocal : localIndex < H.minorTypes[owner]!.size)
+      (fv : FVarId),
+    fv ∈ (H.minorShapes owner howner localIndex hlocal).fields_bound.fvars →
+    fv ∉ (ExprArrayFVarIds stats.params ++
+      ExprArrayFVarIds (recInfos.map (·.motive))) ++
+      ExprArrayFVarIds (recInfos.flatMap (·.minors))
+
 /-- Exact production shape of every generated major-premise declaration.
 This positional certificate is independent of translation: it records that
 the stored origin is the selected family applied to the retained common
@@ -1252,7 +1379,7 @@ structure RecInfoMajorTypeShapes (stats : AddInductive.InductiveStats)
   shape : ∀ i (hi : i < recInfos.size),
     majorTypes[i]! =
       (mkAppN (mkAppN stats.indConsts[i]! stats.params)
-        recInfos[i]!.indices).consumeTypeAnnotations
+        recInfos[i]!.indices).consumeTypeAnnotationsVerified
 
 def RecInfoMajorTypeShapes.empty (stats : AddInductive.InductiveStats) :
     RecInfoMajorTypeShapes stats #[] #[] where
@@ -1265,7 +1392,7 @@ def RecInfoMajorTypeShapes.push
     (info : AddInductive.RecInfo) (majorType : Expr)
     (hnew : majorType =
       (mkAppN (mkAppN stats.indConsts[recInfos.size]! stats.params)
-        info.indices).consumeTypeAnnotations) :
+        info.indices).consumeTypeAnnotationsVerified) :
     RecInfoMajorTypeShapes stats (recInfos.push info)
       (majorTypes.push majorType) where
   size_eq := by simpa using H.size_eq
@@ -1717,6 +1844,13 @@ structure RecursorCanonicalMotiveTelescope
       (.sort resultLevel))
   family_typing : env.HasType levelParams.length params.reverse family
     (VExpr.wrapForalls indices familyResult)
+  /-- The canonical full index application is itself a type.  This is the
+  semantic result-sort invariant needed to form the major binder of the
+  canonical motive, retained directly at the expression consumed there. -/
+  familyApplicationType : env.IsType levelParams.length
+    (indices.reverse ++ params.reverse)
+    (VExpr.mkApps (family.liftN indices.length 0)
+      (recursorCanonicalVars indices.length))
   telescope : RecursorMotiveTelescope resultLevel indices.length family
     (VExpr.wrapForalls indices familyResult) motiveType
 
@@ -1742,6 +1876,7 @@ def RecursorCanonicalMotiveTelescope.mono
   family_eq := H.family_eq
   motiveType_eq := H.motiveType_eq
   family_typing := H.family_typing.mono henv
+  familyApplicationType := H.familyApplicationType.mono henv
   telescope := H.telescope
 
 /-- A canonical motive telescope remains directly applicable after adding an
@@ -2380,7 +2515,7 @@ structure RecursorMajorBindingAt
     recInfos[target]!.major majorTarget
   majorType : TrExprS R.venv recLparams R.mlctx.vlctx
     ((mkAppN (mkAppN stats.indConsts[target]! stats.params)
-      recInfos[target]!.indices).consumeTypeAnnotations) majorTypeTarget
+      recInfos[target]!.indices).consumeTypeAnnotationsVerified) majorTypeTarget
   typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
     majorTarget majorTypeTarget
   typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
@@ -2404,7 +2539,7 @@ theorem RecInfoMajorTypeShapes.majorBindingAt
     simpa [Array.getElem!_eq_getD, Array.getD, htarget] using h
   have htype : D.type =
       (mkAppN (mkAppN stats.indConsts[target]! stats.params)
-        recInfos[target]!.indices).consumeTypeAnnotations :=
+        recInfos[target]!.indices).consumeTypeAnnotationsVerified :=
     (Horigins.majors.type_eq D).trans (Hshape.shape target htarget)
   have hfind := D.declaration
   rw [R.toBindingContextWF.wf.find?_eq_find?_toList] at hfind
@@ -2908,6 +3043,68 @@ theorem RecInfoMinorsEmpty.push
       exact Array.getElem_push_lt hiOld
     rw [hget]
     exact H i hiOld
+
+/-- The executable rule-blueprint row stays synchronized with the minor row.
+The first pass establishes two empty rows; the second pass appends one entry
+to each in the same successful `withLocalDecl` continuation. -/
+def RecInfoBlueprintCounts (recInfos : Array AddInductive.RecInfo) : Prop :=
+  ∀ i, i < recInfos.size →
+    recInfos[i]!.ruleBlueprints.size = recInfos[i]!.minors.size
+
+theorem RecInfoBlueprintCounts.empty : RecInfoBlueprintCounts #[] := by
+  intro i hi
+  simp at hi
+
+theorem RecInfoBlueprintCounts.pushEmpty
+    (H : RecInfoBlueprintCounts recInfos) :
+    RecInfoBlueprintCounts (recInfos.push {
+      motive, minors := #[], indices, major }) := by
+  intro i hi
+  by_cases hilast : i = recInfos.size
+  · subst i
+    simp
+  · have hiOld : i < recInfos.size := by
+      have : i < recInfos.size + 1 := by simpa using hi
+      omega
+    have hget : (recInfos.push {
+        motive, minors := #[], indices, major })[i]! = recInfos[i]! := by
+      simp only [Array.getElem!_eq_getD]
+      unfold Array.getD
+      rw [dif_pos hi, dif_pos hiOld]
+      exact Array.getElem_push_lt hiOld
+    rw [hget]
+    exact H i hiOld
+
+/-- The completed first pass has no minors and therefore its two empty
+blueprint/minor rows satisfy the exact origin-indexed alignment vacuously. -/
+theorem RecInfoRuleBlueprintOrigins.ofEmpty
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (Hempty : RecInfoMinorsEmpty recInfos)
+    (Hcounts : RecInfoBlueprintCounts recInfos) :
+    RecInfoRuleBlueprintOrigins stats recInfos Horigins where
+  rows_size owner howner := by
+    exact (Hcounts owner howner).trans (Horigins.minors owner howner).size_eq.symm
+  entry owner howner localIndex hlocal := by
+    have hsize := (Horigins.minors owner howner).size_eq
+    rw [Hempty owner howner] at hsize
+    omega
+  fields_outer_fresh owner howner localIndex hlocal := by
+    have hsize := (Horigins.minors owner howner).size_eq
+    rw [Hempty owner howner] at hsize
+    omega
+
+theorem RecInfoRuleBlueprintOrigins.mono
+    {Horigins : RecInfoTypeOrigins c recInfos}
+    (B : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
+    (hle : BindingContextLE c c') :
+    RecInfoRuleBlueprintOrigins stats recInfos (Horigins.mono hle) where
+  rows_size := B.rows_size
+  entry owner howner localIndex hlocal := by
+    simpa [RecInfoTypeOrigins.mono] using
+      B.entry owner howner localIndex hlocal
+  fields_outer_fresh owner howner localIndex hlocal fv hfv := by
+    simpa [RecInfoTypeOrigins.mono] using
+      B.fields_outer_fresh owner howner localIndex hlocal fv hfv
 
 /-- If every recursor-info minor row is empty, the retained flattened minor
 selection contains no identifiers either. -/
@@ -3911,6 +4108,14 @@ structure RecInfoMinorSemanticSource
   parameterType : rootWF.venv.IsType recLparams.length
     rootWF.mlctx.vlctx.toCtx parameterTarget
   fieldsRecent : RecursorRecentBoundFVarArray rootWF terminalWF S.fields
+  /-- The exact opening chosen by the successful first-pass constructor
+  traversal.  Later rule construction reads this certificate instead of
+  opening the constructor telescope a second time. -/
+  fieldOpening : ConstructorFieldOpening traversal.parameterTail
+    traversal.terminal S.fields
+  fieldParameterUp : IsFVarUpSet (fun fv =>
+    fv ∈ fieldsRecent.fvars ∨
+      fv ∈ ExprArrayFVarIds traversal.stats.params) terminalWF.mlctx.vlctx
   hypothesesRecent : RecursorRecentBoundFVarArray terminalWF sourceWF
     S.hypotheses
   terminalTarget : VExpr
@@ -3918,6 +4123,13 @@ structure RecInfoMinorSemanticSource
     terminalWF.mlctx.vlctx traversal.terminal terminalTarget
   terminalType : terminalWF.venv.IsType recLparams.length
     terminalWF.mlctx.vlctx.toCtx terminalTarget
+  /-- The exact checked constructor application at the end of the retained
+  field traversal.  Keeping this producer evidence allows the later
+  blueprint-only rule builder to recover its constructor typing without
+  replaying either field classification or type checking. -/
+  constructorApplication : RecursorConstructorApplicationAt terminalWF
+    traversal.stats traversal.constructor traversal.terminal S.fields
+    terminalTarget
   fieldTargetDefEq : rootWF.venv.IsDefEqU recLparams.length
     rootWF.mlctx.vlctx.toCtx parameterTarget
       (terminalWF.mlctx.mkForall' S.fields.size fieldsRecent.size_le
@@ -3967,10 +4179,13 @@ def RecInfoMinorSemanticSource.mono
   parameterTranslation := HS.parameterTranslation
   parameterType := HS.parameterType
   fieldsRecent := HS.fieldsRecent
+  fieldOpening := HS.fieldOpening
+  fieldParameterUp := HS.fieldParameterUp
   hypothesesRecent := HS.hypothesesRecent
   terminalTarget := HS.terminalTarget
   terminalTranslation := HS.terminalTranslation
   terminalType := HS.terminalType
+  constructorApplication := HS.constructorApplication
   fieldTargetDefEq := HS.fieldTargetDefEq
   motivePreTarget := HS.motivePreTarget
   motivePreTranslation := HS.motivePreTranslation
@@ -4021,9 +4236,9 @@ theorem RecInfoMinorSemanticSource.sourceType_consumeTypeAnnotations_eq_self
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
     (HS : RecInfoMinorSemanticSource R S) :
-    S.sourceType.consumeTypeAnnotations = S.sourceType := by
+    S.sourceType.consumeTypeAnnotationsVerified = S.sourceType := by
   by_cases hpositive : 0 < S.fields.size + S.hypotheses.size
-  · exact S.sourceTelescope.consumeTypeAnnotations_eq_self_of_pos hpositive
+  · exact S.sourceTelescope.consumeTypeAnnotationsVerified_eq_self_of_pos hpositive
   · have hfields : S.fields.size = 0 := by omega
     have hhypotheses : S.hypotheses.size = 0 := by omega
     have hfieldsEmpty : S.fields = #[] :=
@@ -4035,7 +4250,7 @@ theorem RecInfoMinorSemanticSource.sourceType_consumeTypeAnnotations_eq_self
         LocalContext.mkForall_empty, LocalContext.mkForall_empty]
     rw [hsource]
     rcases HS.motiveHeadRoot with ⟨motiveFVar, hhead, _hmotiveRoot⟩
-    apply Expr.consumeTypeAnnotations_eq_self
+    apply Expr.consumeTypeAnnotationsVerified_eq_self
     · change S.motiveApp.isAppOfArity `optParam 2 = false
       exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
     · change S.motiveApp.isAppOfArity `autoParam 2 = false

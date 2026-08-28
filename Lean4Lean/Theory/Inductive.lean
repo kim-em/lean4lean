@@ -530,6 +530,28 @@ def VInductDecl.CtorShape (env : VEnv) (decl : VInductDecl)
     env.IsDefEqCtx decl.uvars [] ownParams.reverse tailCtx ∧
     decl.CtorTailWF env target tailCtx 0 tail
 
+/-- Raw common-parameter shape of one constructor before normalization.
+This is separate from `CtorShape`: normalization may change the visible
+forall prefix, while the executable checker compares the original prefix
+directly with the mutual header parameters. -/
+def VInductDecl.CtorParameterShape (env : VEnv) (decl : VInductDecl)
+    (params : List VExpr) (ctor : VConstVal) : Prop :=
+  ∃ ownParams tail,
+    ctor.type.takeForalls decl.nparams = some (ownParams, tail) ∧
+    decl.ParamsDefEq env params ownParams
+
+/-- Source-facing common-parameter formation retained by both ordinary and
+nested declarations.  The family headers identify the shared semantic
+parameter telescope, while every original constructor retains its raw
+pre-normalization prefix against that same telescope. -/
+def VInductDecl.SourceParameterWF (env : VEnv)
+    (decl : VInductDecl) : Prop :=
+  ∃ params envTypes,
+    env.addConstVals decl.typeConstants = some envTypes ∧
+    (∀ type ∈ decl.types, decl.TypeShape env params type) ∧
+    ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
+      decl.CtorParameterShape envTypes params ctor
+
 theorem VInductDecl.TypeShape.mono
     {env env' : VEnv} {decl : VInductDecl}
     (henv : env ≤ env')
@@ -552,6 +574,177 @@ theorem VInductDecl.CtorShape.mono
       hparamsDefEq, hctx, htail⟩
   exact ⟨normalized, ownParams, tail, exprType, tailCtx, htype.mono henv,
     hparams, hparamsDefEq.mono henv, hctx.mono henv, htail.mono henv⟩
+
+theorem VInductDecl.CtorParameterShape.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : decl.CtorParameterShape env params ctor) :
+    decl.CtorParameterShape env' params ctor := by
+  rcases H with ⟨ownParams, tail, htake, hparams⟩
+  exact ⟨ownParams, tail, htake, hparams.mono henv⟩
+
+/-! ## Abstract nested expansion
+
+Nested lowering preserves the position of every constructor field, replacing
+maximal nested applications by applications of fresh auxiliary families. The
+relations below state that source-to-expanded correspondence independently of
+the executable lowering state. They deliberately precede any change to
+`VInductDecl.WF`: the implementation refinement must first prove that its
+stateful `Expr` traversal projects to this small `VExpr` relation. -/
+
+/-- Structural expression expansion with an explicit relation for maximal
+nested-application hits. Binder depth is retained because direct inductive
+applications use depth-indexed canonical parameters. -/
+inductive VExpr.NestedExprExpansion
+    (leaf : Nat → VExpr → VExpr → Prop) :
+    Nat → VExpr → VExpr → Prop
+  | hit : leaf depth source target →
+      NestedExprExpansion leaf depth source target
+  | bvar : NestedExprExpansion leaf depth (.bvar index) (.bvar index)
+  | sort : NestedExprExpansion leaf depth (.sort level) (.sort level)
+  | const : NestedExprExpansion leaf depth (.const name levels)
+      (.const name levels)
+  | app : NestedExprExpansion leaf depth sourceFn targetFn →
+      NestedExprExpansion leaf depth sourceArg targetArg →
+      NestedExprExpansion leaf depth (.app sourceFn sourceArg)
+        (.app targetFn targetArg)
+  | lam : NestedExprExpansion leaf depth sourceDomain targetDomain →
+      NestedExprExpansion leaf (depth + 1) sourceBody targetBody →
+      NestedExprExpansion leaf depth (.lam sourceDomain sourceBody)
+        (.lam targetDomain targetBody)
+  | forallE : NestedExprExpansion leaf depth sourceDomain targetDomain →
+      NestedExprExpansion leaf (depth + 1) sourceBody targetBody →
+      NestedExprExpansion leaf depth (.forallE sourceDomain sourceBody)
+        (.forallE targetDomain targetBody)
+
+/-- Change only the interpretation of successful leaves. -/
+theorem VExpr.NestedExprExpansion.map
+    (Hleaf : ∀ {depth source target}, leaf depth source target →
+      leaf' depth source target)
+    (H : VExpr.NestedExprExpansion leaf depth source target) :
+    VExpr.NestedExprExpansion leaf' depth source target := by
+  induction H with
+  | hit h => exact .hit (Hleaf h)
+  | bvar => exact .bvar
+  | sort => exact .sort
+  | const => exact .const
+  | app _ _ ihFn ihArg => exact .app ihFn ihArg
+  | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
+  | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
+
+/-- Leaving an abstract expression unchanged is always an expansion. -/
+theorem VExpr.NestedExprExpansion.refl
+    (leaf : Nat → VExpr → VExpr → Prop)
+    (depth : Nat) (e : VExpr) :
+    VExpr.NestedExprExpansion leaf depth e e := by
+  induction e generalizing depth with
+  | bvar => exact .bvar
+  | sort => exact .sort
+  | const => exact .const
+  | app _ _ ihFn ihArg => exact .app (ihFn depth) (ihArg depth)
+  | lam _ _ ihDomain ihBody =>
+    exact .lam (ihDomain depth) (ihBody (depth + 1))
+  | forallE _ _ ihDomain ihBody =>
+    exact .forallE (ihDomain depth) (ihBody (depth + 1))
+
+/-- The exact common-parameter prefix retained by nested lowering.  Unlike
+`NestedExprExpansion` of the complete constructor, this records where each
+of the first `arity` forall domains sits in the depth-indexed expansion. -/
+inductive VExpr.NestedForallPrefixExpansion
+    (leaf : Nat → VExpr → VExpr → Prop) :
+    Nat → Nat → VExpr → VExpr → Prop
+  | nil
+      (Hbody : VExpr.NestedExprExpansion leaf depth sourceBody targetBody) :
+      VExpr.NestedForallPrefixExpansion leaf depth 0 sourceBody targetBody
+  | cons
+      (Hdomain : VExpr.NestedExprExpansion leaf depth
+        sourceDomain targetDomain)
+      (Hbody : VExpr.NestedForallPrefixExpansion leaf (depth + 1) arity
+        sourceBody targetBody) :
+      VExpr.NestedForallPrefixExpansion leaf depth (arity + 1)
+        (.forallE sourceDomain sourceBody) (.forallE targetDomain targetBody)
+
+/-- One positionally corresponding source/expanded constructor.  The common
+parameter prefix is retained separately from the complete structural body so
+later semantic assembly never has to replay the executable parameter loop. -/
+structure VInductDecl.NestedConstructorExpansion
+    (leaf : Nat → VExpr → VExpr → Prop) (nparams : Nat)
+    (source target : VConstVal) : Prop where
+  name : target.name = source.name
+  uvars : target.uvars = source.uvars
+  parameters : VExpr.NestedForallPrefixExpansion leaf 0 nparams
+    source.type target.type
+  type : VExpr.NestedExprExpansion leaf 0 source.type target.type
+
+/-- One original family and its positionally corresponding expanded family.
+Headers are compared semantically; constructor bodies retain the structural
+nested-expansion relation. -/
+structure VInductDecl.NestedTypeExpansion
+    (env : VEnv) (decl : VInductDecl)
+    (leaf : Nat → VExpr → VExpr → Prop)
+    (source target : VInductiveType) : Prop where
+  name : target.name = source.name
+  uvars : target.uvars = source.uvars
+  type : env.IsDefEqU decl.uvars [] source.type target.type
+  numIndices : target.numIndices = source.numIndices
+  resultLevel : target.resultLevel = source.resultLevel
+  constructors : List.Forall₂ (NestedConstructorExpansion leaf decl.nparams)
+    source.ctors target.ctors
+
+/-- Independent source-to-expanded declaration relation for nested lowering.
+Original families occupy an exact prefix; generated leaves point to an
+auxiliary family in the remaining suffix and replace an expression containing
+an original-family occurrence. -/
+structure VInductDecl.NestedExpansion
+    (leaf : Nat → VExpr → VExpr → Prop)
+    (env : VEnv) (source expanded : VInductDecl) : Prop where
+  uvars : expanded.uvars = source.uvars
+  nparams : expanded.nparams = source.nparams
+  isUnsafe : expanded.isUnsafe = source.isUnsafe
+  sourcePrefix : source.types.length ≤ expanded.types.length
+  leafSource : ∀ {depth input output}, leaf depth input output →
+    input.containsAnyConst (source.types.map (·.name)) = true
+  leafTarget : ∀ {depth input output}, leaf depth input output →
+    ∃ auxiliary ∈ expanded.types.drop source.types.length,
+      ∃ levels args,
+        output.getAppFnArgs = (.const auxiliary.name levels, args)
+  originalTypes : List.Forall₂
+    (NestedTypeExpansion env source leaf) source.types
+      (expanded.types.take source.types.length)
+
+theorem VInductDecl.NestedTypeExpansion.mono
+    (henv : env ≤ env')
+    (H : VInductDecl.NestedTypeExpansion env decl leaf source target) :
+    VInductDecl.NestedTypeExpansion env' decl leaf source target where
+  name := H.name
+  uvars := H.uvars
+  type := H.type.mono henv
+  numIndices := H.numIndices
+  resultLevel := H.resultLevel
+  constructors := H.constructors
+
+/-- Nested expansion is stable when the ambient abstract environment grows.
+This is the relation-level ingredient needed by later block rebasing. -/
+theorem VInductDecl.NestedExpansion.mono
+    (henv : env ≤ env')
+    (H : VInductDecl.NestedExpansion leaf env source expanded) :
+    VInductDecl.NestedExpansion leaf env' source expanded where
+  uvars := H.uvars
+  nparams := H.nparams
+  isUnsafe := H.isUnsafe
+  sourcePrefix := H.sourcePrefix
+  leafSource := H.leafSource
+  leafTarget := H.leafTarget
+  originalTypes := Lean4Lean.List.Forall₂.imp
+    (fun _ _ h => h.mono henv) H.originalTypes
+
+/-- Rebase an expansion witness without changing either declaration or the
+leaf correspondence. -/
+theorem VInductDecl.NestedExpansion.rebase
+    (H : VInductDecl.NestedExpansion leaf env source expanded)
+    (henv : env ≤ env') :
+    VInductDecl.NestedExpansion leaf env' source expanded :=
+  H.mono henv
 
 /-- Source-level obligations that cannot be erased by ordinary or nested
 compilation. In particular constructor types are checked in an environment
@@ -577,14 +770,19 @@ def VInductDecl.FormationWF (env : VEnv) (decl : VInductDecl) : Prop :=
     (∀ type ∈ decl.types,
       type.resultLevel ≈ resultLevel ∧ decl.TypeShape env params type) ∧
     ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
+      decl.CtorParameterShape envTypes params ctor ∧
       decl.CtorShape envTypes params type ctor
 
-/-- Abstract well-formedness starts from the original source declaration.
-The ordinary/nested formation and positivity judgments extend `SourceWF`
-below; keeping this named projection prevents compilation proofs from replacing
-source typing with checks of generated artifacts. -/
-def VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop :=
-  decl.SourceWF env ∧ decl.FormationWF env
+theorem VInductDecl.FormationWF.sourceParameterWF
+    {env : VEnv} {decl : VInductDecl}
+    (H : VInductDecl.FormationWF env decl) :
+    VInductDecl.SourceParameterWF env decl := by
+  rcases H with
+    ⟨params, _resultLevel, envTypes, htypes, Htypes, Hconstructors⟩
+  exact ⟨params, envTypes, htypes,
+    fun type htype => (Htypes type htype).2,
+    fun type htype ctor hctor =>
+      (Hconstructors type htype ctor hctor).1⟩
 
 theorem VInductDecl.SourceWF.originalTypes
     {env : VEnv} {decl : VInductDecl}
@@ -604,14 +802,6 @@ theorem VInductDecl.SourceWF.originalConstructors
       ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes := by
   rcases H with ⟨_, _, _, _, envTypes, envCtors, htypes, hctors, _, hwf⟩
   exact ⟨envTypes, htypes, hwf⟩
-
-theorem VInductDecl.WF.originalConstructors
-    {env : VEnv} {decl : VInductDecl}
-    (H : decl.WF env) :
-    ∃ envTypes,
-      env.addConstVals decl.typeConstants = some envTypes ∧
-      ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes :=
-  H.1.originalConstructors
 
 /-- Install a compiled block in dependency order. -/
 def VInductBlock.install (env : VEnv) (block : VInductBlock) : Option VEnv := do
@@ -646,6 +836,14 @@ def VExpr.wrapLams (domains : List VExpr) (body : VExpr) : VExpr :=
 
 def VExpr.wrapForalls (domains : List VExpr) (body : VExpr) : VExpr :=
   domains.foldr .forallE body
+
+/-- Consume an exact forall prefix with the supplied arguments. Ill-shaped
+inputs are left unchanged; formation witnesses rule that branch out. -/
+def VExpr.instantiateForallPrefix : VExpr → List VExpr → VExpr
+  | type, [] => type
+  | .forallE _ body, arg :: args =>
+    instantiateForallPrefix (body.inst arg) args
+  | type, _ :: _ => type
 
 @[simp] theorem VExpr.wrapLams_append
     (left right : List VExpr) (body : VExpr) :
@@ -1090,6 +1288,162 @@ structure VInductDecl.IotaRule (env : VEnv)
     (rhsArgs.drop (ctorArgs.length - decl.nparams)).length = recursiveArgs.length
   rhs_guarded : rhsBody.GuardedIota (block.recursors.map (·.name)) fieldVars 0
 
+/-- A constructor field selected by a restored nested equation.  Unlike
+`RecursiveField`, this record does not claim that the source field has a
+direct mutual-family head: a genuinely nested field may instead be consumed
+by one of the restored auxiliary recursors. -/
+structure VInductDecl.NestedIotaField where
+  fieldIndex : Nat
+  arg : VExpr
+
+/-- Declarative iota equation for a restored primary nested recursor.
+
+Lowering-generated motives and minors remain in the restored primary
+recursor telescope, so their exact counts come from the same
+`NestedRecursorShape` witness as the recursor itself.  Recursive arguments are
+recorded by their ordered constructor-field positions rather than by
+`RecursiveArg`: the latter deliberately recognizes only direct mutual-family
+heads and therefore cannot classify fields such as `List Tree`.
+
+Typing of the equation remains an independent obligation of
+`VInductBlock.WF`; together with `rhs_guarded`, it ensures that every selected
+field is used only by a well-typed restored recursor call. -/
+structure VInductDecl.NestedIotaRule
+    (decl : VInductDecl) (block : VInductBlock)
+    (owner : VInductiveType) (ctor : VConstVal) (rule : VDefEq) where
+  recursor : VConstVal
+  recursor_mem : recursor ∈ block.recursors
+  recursor_shape : decl.NestedRecursorShape owner recursor
+  rule_uvars : rule.uvars = recursor.uvars
+  domains : List VExpr
+  lhsBody : VExpr
+  rhsBody : VExpr
+  typeBody : VExpr
+  lhs_wrapped : rule.lhs = VExpr.wrapLams domains lhsBody
+  rhs_wrapped : rule.rhs = VExpr.wrapLams domains rhsBody
+  type_wrapped : rule.type = VExpr.wrapForalls domains typeBody
+  recursorLevels : List VLevel
+  leadingArgs : List VExpr
+  ctorLevels : List VLevel
+  ctorArgs : List VExpr
+  lhs_pattern :
+    lhsBody = VExpr.mkApps (.const recursor.name recursorLevels)
+      (leadingArgs ++ [VExpr.mkApps (.const ctor.name ctorLevels) ctorArgs])
+  recursor_levels : recursorLevels.length = recursor.uvars
+  ctor_levels : ctorLevels.length = decl.uvars
+  leading_arity : leadingArgs.length = decl.nparams +
+    recursor_shape.motives.length + recursor_shape.minors.length +
+      owner.numIndices
+  constructor_arity : decl.nparams ≤ ctorArgs.length
+  parameter_args : ctorArgs.take decl.nparams =
+    leadingArgs.take decl.nparams
+  domains_arity : domains.length = decl.nparams +
+    recursor_shape.motives.length + recursor_shape.minors.length +
+      (ctorArgs.length - decl.nparams)
+  recursiveFields : List NestedIotaField
+  fieldPositions : List Nat
+  fieldPositions_eq : fieldPositions = recursiveFields.map (·.fieldIndex)
+  fieldPositions_ordered : fieldPositions.Pairwise (· < ·)
+  fields_at_positions : ∀ field ∈ recursiveFields,
+    ∃ h : field.fieldIndex < (ctorArgs.drop decl.nparams).length,
+      field.arg = (ctorArgs.drop decl.nparams)[field.fieldIndex]'h
+  recursiveArgs : List VExpr
+  recursiveArgs_eq : recursiveArgs = recursiveFields.map (·.arg)
+  recursive_args : List.Sublist recursiveArgs (ctorArgs.drop decl.nparams)
+  fieldVars : List Nat
+  fieldVars_eq : fieldVars = recursiveArgs.filterMap VExpr.bvarHead?
+  fields_in_scope : ∀ field ∈ fieldVars, field < domains.length
+  minorVar : Nat
+  minor_in_scope : minorVar < domains.length
+  rhsArgs : List VExpr
+  rhs_spine : rhsBody.getAppFnArgs = (.bvar minorVar, rhsArgs)
+  field_args : rhsArgs.take (ctorArgs.length - decl.nparams) =
+    ctorArgs.drop decl.nparams
+  recursive_results :
+    (rhsArgs.drop (ctorArgs.length - decl.nparams)).length =
+      recursiveArgs.length
+  rhs_guarded : rhsBody.GuardedIota
+    (block.recursors.map (·.name)) fieldVars 0
+
+/-- Reinterpret an ordinary equation from an expanded lowering declaration as
+one source nested equation.  The source nested-recursor shape fixes the
+retained auxiliary telescope; constructor identity is needed only at the
+constant-name boundary because the restored source constructor may have a
+different abstract type. -/
+def VInductDecl.IotaRule.toNestedOfCompatible
+    {env : VEnv} {loweredDecl sourceDecl : VInductDecl}
+    {loweredBlock sourceBlock : VInductBlock}
+    {loweredOwner sourceOwner : VInductiveType}
+    {loweredCtor sourceCtor : VConstVal} {rule : VDefEq}
+    (H : loweredDecl.IotaRule env loweredBlock loweredOwner loweredCtor rule)
+    (sourceRecursor : VConstVal)
+    (Hshape : sourceDecl.NestedRecursorShape sourceOwner sourceRecursor)
+    (hrecursorMem : sourceRecursor ∈ sourceBlock.recursors)
+    (hrecursorNames : sourceBlock.recursors.map (·.name) =
+      loweredBlock.recursors.map (·.name))
+    (hrecursorName : sourceRecursor.name = H.recursor.name)
+    (hrecursorUvars : sourceRecursor.uvars = H.recursor.uvars)
+    (huvars : sourceDecl.uvars = loweredDecl.uvars)
+    (hnparams : sourceDecl.nparams = loweredDecl.nparams)
+    (hindices : sourceOwner.numIndices = loweredOwner.numIndices)
+    (hmotives : Hshape.motives.length = loweredDecl.types.length)
+    (hminors : Hshape.minors.length =
+      loweredDecl.ownedConstructors.length)
+    (hctorName : sourceCtor.name = loweredCtor.name) :
+    sourceDecl.NestedIotaRule sourceBlock sourceOwner sourceCtor rule := by
+  let fields : List VInductDecl.NestedIotaField :=
+    H.recursiveFields.map fun field =>
+      { fieldIndex := field.fieldIndex, arg := field.arg }
+  refine {
+    recursor := sourceRecursor
+    recursor_mem := hrecursorMem
+    recursor_shape := Hshape
+    rule_uvars := H.rule_uvars.trans hrecursorUvars.symm
+    domains := H.domains
+    lhsBody := H.lhsBody
+    rhsBody := H.rhsBody
+    typeBody := H.typeBody
+    lhs_wrapped := H.lhs_wrapped
+    rhs_wrapped := H.rhs_wrapped
+    type_wrapped := H.type_wrapped
+    recursorLevels := H.recursorLevels
+    leadingArgs := H.leadingArgs
+    ctorLevels := H.ctorLevels
+    ctorArgs := H.ctorArgs
+    lhs_pattern := ?_
+    recursor_levels := H.recursor_levels.trans hrecursorUvars.symm
+    ctor_levels := by simpa [huvars] using H.ctor_levels
+    leading_arity := by
+      simpa [hnparams, hmotives, hminors, hindices] using H.leading_arity
+    constructor_arity := by simpa [hnparams] using H.constructor_arity
+    parameter_args := by simpa [hnparams] using H.parameter_args
+    domains_arity := by
+      simpa [hnparams, hmotives, hminors] using H.domains_arity
+    recursiveFields := fields
+    fieldPositions := H.fieldPositions
+    fieldPositions_eq := ?_
+    fieldPositions_ordered := H.fieldPositions_ordered
+    fields_at_positions := ?_
+    recursiveArgs := H.recursiveArgs
+    recursiveArgs_eq := ?_
+    recursive_args := by simpa [hnparams] using H.recursive_args
+    fieldVars := H.fieldVars
+    fieldVars_eq := H.fieldVars_eq
+    fields_in_scope := H.fields_in_scope
+    minorVar := H.minorVar
+    minor_in_scope := H.minor_in_scope
+    rhsArgs := H.rhsArgs
+    rhs_spine := H.rhs_spine
+    field_args := by simpa [hnparams] using H.field_args
+    recursive_results := by simpa [hnparams] using H.recursive_results
+    rhs_guarded := by simpa [hrecursorNames] using H.rhs_guarded }
+  · simpa [hrecursorName, hctorName] using H.lhs_pattern
+  · simpa [fields, Function.comp_def] using H.fieldPositions_eq
+  · intro field hfield
+    rcases List.mem_map.mp hfield with ⟨source, hsource, rfl⟩
+    simpa [hnparams] using H.fields_at_positions source hsource
+  · simpa [fields, Function.comp_def] using H.recursiveArgs_eq
+
 def VInductDecl.IotaRule.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
     (henv : env ≤ env')
@@ -1156,7 +1510,7 @@ structure VInductDecl.NestedCompilation
     env.addConstVals block.types = some envTypes ∧
     envTypes.addConstVals block.ctors = some envCtors ∧
     List.Forall₂ (fun owned rule =>
-      Nonempty (decl.IotaRule envCtors block owned.1 owned.2 rule))
+      Nonempty (decl.NestedIotaRule block owned.1 owned.2 rule))
       decl.ownedConstructors primaryRules
   auxiliary_guarded : ∀ rule ∈ auxiliaryRules,
     ∃ fieldVars, rule.rhs.GuardedIota
@@ -1199,16 +1553,12 @@ theorem VInductDecl.CompilesTo.mono
   | ordinary H => exact .ordinary (H.mono henv Hblock)
   | nested H =>
     rcases H.primary_rules with
-      ⟨oldTypes, oldCtors, holdTypes, holdCtors, holdRules⟩
+      ⟨_oldTypes, _oldCtors, _holdTypes, _holdCtors, holdRules⟩
     rcases Hblock with
       ⟨envTypes, envCtors, _envRecursors, htypes, hctors, _hrecs, _⟩
-    have htypesLE := VEnv.addConstVals_mono henv holdTypes htypes
-    have hctorsLE := VEnv.addConstVals_mono htypesLE holdCtors hctors
     exact .nested { H with
       primary_rules := ⟨envTypes, envCtors, htypes, hctors,
-        Lean4Lean.List.Forall₂.imp
-          (fun _ _ h => let ⟨rule⟩ := h; ⟨rule.mono hctorsLE⟩)
-          holdRules⟩ }
+        holdRules⟩ }
 
 theorem VInductDecl.CompilesTo.types
     {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
@@ -1225,6 +1575,408 @@ theorem VInductDecl.CompilesTo.ctors
   cases H with
   | ordinary H => exact H.ctors
   | nested H => exact H.ctors
+
+/-! ## Ordinary-or-nested formation derivations
+
+Nested formation refers only to prior, finitely derived installed inductive
+blocks. Keeping installation provenance in the same mutual derivation as
+formation avoids both an uncheckable environment lookup and a definitional
+cycle through `AddInduct`. -/
+
+/-- Exact construction of one direct auxiliary constructor before its own
+body is recursively lowered. -/
+structure VInductDecl.DirectAuxConstructor
+    (env : VEnv) (U : Nat)
+    (sourceParams baseArgs : List VExpr) (levels : List VLevel)
+    (containerFamily auxiliaryFamily : VInductiveType)
+    (source target : VConstVal) : Prop where
+  name : target.name = source.name.replacePrefix containerFamily.name
+    auxiliaryFamily.name
+  uvars : target.uvars = auxiliaryFamily.uvars
+  type : env.IsDefEqU U [] target.type
+    (VExpr.wrapForalls sourceParams
+      (VExpr.instantiateForallPrefix (source.type.instL levels) baseArgs))
+
+/-- A rigid head used to package two corresponding argument lists as one
+expression relation.  Unlike a bound variable, it is stable when the
+surrounding constructor telescope is lifted. -/
+def VInductDecl.nestedTrailingMarker : VExpr :=
+  .const `_nested.trailing []
+
+mutual
+
+/-- Formation evidence is either the ordinary judgment or a finite nested
+expansion into an independently ordinary well-formed declaration. -/
+inductive VInductDecl.FormationEvidence : VEnv → VInductDecl → Prop
+  | ordinary {env decl} : VInductDecl.FormationWF env decl →
+      VInductDecl.FormationEvidence env decl
+  | nested {base env decl} : VInductDecl.NestedFormationWF base decl →
+      base ≤ env →
+      VInductDecl.FormationEvidence env decl
+
+/-- Cycle-free provenance for a prior container block. The prior declaration
+has its own finite source/formation derivation, compiles to the exact block,
+and that well-formed block occurs below the ambient environment. -/
+inductive VEnv.InstalledInductCertificate : VEnv → VInductDecl → Prop
+  | intro {env container base block installed} :
+      VInductDecl.SourceWF base container →
+      VInductDecl.FormationEvidence base container →
+      container.CompilesTo base block →
+      block.WF base →
+      VInductBlock.install base block = some installed →
+      installed ≤ env →
+      VEnv.InstalledInductCertificate env container
+
+/-- One legal maximal nested-application replacement. The generated family
+is an exact parameter specialization of a family in a previously installed
+container block, and its direct constructors are the corresponding exact
+specializations with deterministic production names.  The executable
+lowering certificate separately retains that some concrete parameter syntax
+mentions the finite lowering queue.  That occurrence is intentionally not a
+premise here: `TrExprS` erases metadata and let types/values and interprets
+projections opaquely, so a concrete occurrence need not survive in `VExpr`.
+Such an erased-only occurrence may generate a semantically unused auxiliary;
+this remains sound because the prior-container specialization is exact and
+ordinary formation checks the complete expanded finite block. -/
+inductive VInductDecl.NestedAuxiliarySource :
+    VEnv → VInductDecl → List VInductiveType →
+      Nat → VExpr → VExpr → Prop
+  | intro {env source generated depth input output container
+      containerFamily auxiliaryFamily sourceParams baseArgs levels
+      auxiliaryLevels sourceTrailing targetTrailing} :
+      VEnv.InstalledInductCertificate env container →
+      containerFamily ∈ container.types →
+      auxiliaryFamily ∈ generated →
+      sourceParams.length = source.nparams →
+      baseArgs.length = container.nparams →
+      (∀ arg ∈ baseArgs, arg.ClosedN source.nparams) →
+      levels.length = container.uvars →
+      (∀ level ∈ levels, level.WF source.uvars) →
+      auxiliaryFamily.uvars = source.uvars →
+      env.IsDefEqU source.uvars [] auxiliaryFamily.type
+        (VExpr.wrapForalls sourceParams
+          (VExpr.instantiateForallPrefix
+            (containerFamily.type.instL levels) baseArgs)) →
+      List.Forall₂
+        (VInductDecl.DirectAuxConstructor env source.uvars sourceParams
+          baseArgs levels containerFamily auxiliaryFamily)
+        containerFamily.ctors auxiliaryFamily.ctors →
+      auxiliaryLevels.length = source.uvars →
+      VInductDecl.NestedExprWFExpansion env source generated
+        (source.nparams + depth)
+        (VExpr.mkApps VInductDecl.nestedTrailingMarker sourceTrailing)
+        (VExpr.mkApps VInductDecl.nestedTrailingMarker targetTrailing) →
+      input = VExpr.mkApps (.const containerFamily.name levels)
+        (baseArgs.map (fun arg => arg.liftN depth 0) ++ sourceTrailing) →
+      output = VExpr.mkApps (.const auxiliaryFamily.name auxiliaryLevels)
+        (source.paramVars depth ++ targetTrailing) →
+      VInductDecl.NestedAuxiliarySource env source generated depth input output
+
+/-- Specialized structural expansion used inside the mutual formation
+derivation. It has a forgetful map to `VExpr.NestedExprExpansion`; spelling it
+out here is required by Lean's strict-positivity checker for the mutual leaf. -/
+inductive VInductDecl.NestedExprWFExpansion :
+    VEnv → VInductDecl → List VInductiveType →
+      Nat → VExpr → VExpr → Prop
+  | hit {env source generated depth relativeDepth input output} :
+      depth = source.nparams + relativeDepth →
+      VInductDecl.NestedAuxiliarySource env source generated relativeDepth
+        input output →
+      VInductDecl.NestedExprWFExpansion env source generated depth input output
+  | bvar {env source generated index depth} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.bvar index) (.bvar index)
+  | sort {env source generated level depth} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.sort level) (.sort level)
+  | const {env source generated name levels depth} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.const name levels) (.const name levels)
+  | app {env source generated depth sourceFn targetFn sourceArg targetArg} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceFn targetFn →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceArg targetArg →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.app sourceFn sourceArg) (.app targetFn targetArg)
+  | lam {env source generated depth sourceDomain targetDomain sourceBody
+      targetBody} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceDomain targetDomain →
+      VInductDecl.NestedExprWFExpansion env source generated (depth + 1)
+        sourceBody targetBody →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.lam sourceDomain sourceBody) (.lam targetDomain targetBody)
+  | forallE {env source generated depth sourceDomain targetDomain sourceBody
+      targetBody} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceDomain targetDomain →
+      VInductDecl.NestedExprWFExpansion env source generated (depth + 1)
+        sourceBody targetBody →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.forallE sourceDomain sourceBody) (.forallE targetDomain targetBody)
+
+/-- Strictly-positive counterpart of `NestedForallPrefixExpansion` for the
+mutually defined nested-formation leaf. -/
+inductive VInductDecl.NestedForallPrefixWFExpansion :
+    VEnv → VInductDecl → List VInductiveType →
+      Nat → Nat → VExpr → VExpr → Prop
+  | nil
+      (Hbody : VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceBody targetBody) :
+      VInductDecl.NestedForallPrefixWFExpansion env source generated depth 0
+        sourceBody targetBody
+  | cons
+      (Hdomain : VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceDomain targetDomain)
+      (Hbody : VInductDecl.NestedForallPrefixWFExpansion env source generated
+        (depth + 1) arity sourceBody targetBody) :
+      VInductDecl.NestedForallPrefixWFExpansion env source generated depth
+        (arity + 1) (.forallE sourceDomain sourceBody)
+          (.forallE targetDomain targetBody)
+
+/-- Ordered constructor expansion without nesting the mutually defined leaf
+inside an external `List.Forall₂`. -/
+inductive VInductDecl.NestedConstructorWFExpansions :
+    VEnv → VInductDecl → List VInductiveType →
+      List VConstVal → List VConstVal → Prop
+  | nil {env source generated} :
+      VInductDecl.NestedConstructorWFExpansions env source generated [] []
+  | cons {env source generated sourceCtor targetCtor sourceCtors targetCtors} :
+      targetCtor.name = sourceCtor.name →
+      targetCtor.uvars = sourceCtor.uvars →
+      VInductDecl.NestedForallPrefixWFExpansion env source generated 0
+        source.nparams sourceCtor.type targetCtor.type →
+      VInductDecl.NestedExprWFExpansion env source generated 0 sourceCtor.type
+        targetCtor.type →
+      VInductDecl.NestedConstructorWFExpansions env source generated
+        sourceCtors targetCtors →
+      VInductDecl.NestedConstructorWFExpansions env source generated
+        (sourceCtor :: sourceCtors) (targetCtor :: targetCtors)
+
+/-- Ordered family expansion for the initial mutual block followed by the
+direct, unlowered auxiliary queue. -/
+inductive VInductDecl.NestedTypeWFExpansions :
+    VEnv → VInductDecl → List VInductiveType →
+      List VInductiveType → List VInductiveType → Prop
+  | nil {env source generated} :
+      VInductDecl.NestedTypeWFExpansions env source generated [] []
+  | cons {env source generated sourceType targetType sourceTypes targetTypes} :
+      targetType.name = sourceType.name →
+      targetType.uvars = sourceType.uvars →
+      env.IsDefEqU source.uvars [] sourceType.type targetType.type →
+      targetType.numIndices = sourceType.numIndices →
+      targetType.resultLevel = sourceType.resultLevel →
+      VInductDecl.NestedConstructorWFExpansions env source generated
+        sourceType.ctors targetType.ctors →
+      VInductDecl.NestedTypeWFExpansions env source generated sourceTypes
+        targetTypes →
+      VInductDecl.NestedTypeWFExpansions env source generated
+        (sourceType :: sourceTypes) (targetType :: targetTypes)
+
+/-- A nested declaration is formed by expanding the original families and a
+finite queue of direct auxiliary sources into a declaration satisfying the
+ordinary source and formation judgments. -/
+inductive VInductDecl.NestedFormationWF : VEnv → VInductDecl → Prop
+  | intro {env source expanded generated} :
+      VInductDecl.SourceWF env expanded →
+      VInductDecl.FormationWF env expanded →
+      VInductDecl.SourceParameterWF env source →
+      expanded.uvars = source.uvars →
+      expanded.nparams = source.nparams →
+      expanded.isUnsafe = source.isUnsafe →
+      VInductDecl.NestedTypeWFExpansions env source generated
+        (source.types ++ generated) expanded.types →
+      VInductDecl.NestedFormationWF env source
+
+end
+
+/-- Constructor expressions count every enclosing forall binder, whereas
+`NestedAuxiliarySource` counts only constructor-field binders below the common
+parameter prefix.  This wrapper is the explicit boundary between those two
+depth conventions. -/
+def VInductDecl.NestedAuxiliarySourceAbsolute
+    (env : VEnv) (source : VInductDecl)
+    (generated : List VInductiveType) (depth : Nat)
+    (input output : VExpr) : Prop :=
+  ∃ relativeDepth,
+    depth = source.nparams + relativeDepth ∧
+    VInductDecl.NestedAuxiliarySource env source generated relativeDepth
+      input output
+
+
+/-- Abstract well-formedness always retains the original source judgment;
+formation is a finite ordinary-or-nested derivation. -/
+def VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop :=
+  decl.SourceWF env ∧ decl.FormationEvidence env
+
+theorem VInductDecl.WF.originalConstructors
+    {env : VEnv} {decl : VInductDecl}
+    (H : decl.WF env) :
+    ∃ envTypes,
+      env.addConstVals decl.typeConstants = some envTypes ∧
+      ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes :=
+  H.1.originalConstructors
+
+/-- Forget the mutual positivity encoding and recover the reusable generic
+expression carrier. -/
+theorem VInductDecl.NestedExprWFExpansion.toNestedExprExpansion
+    {env : VEnv} {source : VInductDecl}
+    {generated : List VInductiveType} {depth : Nat} {input output : VExpr}
+    (H : VInductDecl.NestedExprWFExpansion env source generated depth input
+      output) :
+    VExpr.NestedExprExpansion
+      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      depth input output := by
+  exact VInductDecl.NestedExprWFExpansion.rec
+    (motive_1 := fun _ _ _ => True)
+    (motive_2 := fun _ _ _ => True)
+    (motive_3 := fun _ _ _ _ _ _ _ => True)
+    (motive_4 := fun env source generated depth input output _ =>
+      VExpr.NestedExprExpansion
+        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+        depth input output)
+    (motive_5 := fun _ _ _ _ _ _ _ _ => True)
+    (motive_6 := fun _ _ _ _ _ _ => True)
+    (motive_7 := fun _ _ _ _ _ _ => True)
+    (motive_8 := fun _ _ _ => True)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (fun hdepth Hleaf _ => .hit ⟨_, hdepth, Hleaf⟩)
+    (by exact .bvar)
+    (by exact .sort)
+    (by exact .const)
+    (fun _ _ ihFn ihArg => .app ihFn ihArg)
+    (fun _ _ ihDomain ihBody => .lam ihDomain ihBody)
+    (fun _ _ ihDomain ihBody => .forallE ihDomain ihBody)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    H
+
+/-- Forget the specialized constructor-list encoding. -/
+theorem VInductDecl.NestedConstructorWFExpansions.toForall₂
+    {env : VEnv} {source : VInductDecl}
+    {generated : List VInductiveType} {sourceCtors targetCtors : List VConstVal}
+    (H : VInductDecl.NestedConstructorWFExpansions env source generated
+      sourceCtors targetCtors) :
+    List.Forall₂
+      (VInductDecl.NestedConstructorExpansion
+        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+        source.nparams)
+      sourceCtors targetCtors := by
+  exact VInductDecl.NestedConstructorWFExpansions.rec
+    (motive_1 := fun _ _ _ => True)
+    (motive_2 := fun _ _ _ => True)
+    (motive_3 := fun _ _ _ _ _ _ _ => True)
+    (motive_4 := fun env source generated depth input output _ =>
+      VExpr.NestedExprExpansion
+        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+        depth input output)
+    (motive_5 := fun env source generated depth arity input output _ =>
+      VExpr.NestedForallPrefixExpansion
+        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+        depth arity input output)
+    (motive_6 := fun env source generated sourceCtors targetCtors _ =>
+      List.Forall₂
+        (VInductDecl.NestedConstructorExpansion
+          (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+          source.nparams)
+        sourceCtors targetCtors)
+    (motive_7 := fun _ _ _ _ _ _ => True)
+    (motive_8 := fun _ _ _ => True)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (fun hdepth Hleaf _ => .hit ⟨_, hdepth, Hleaf⟩)
+    (by exact .bvar)
+    (by exact .sort)
+    (by exact .const)
+    (fun _ _ ihFn ihArg => .app ihFn ihArg)
+    (fun _ _ ihDomain ihBody => .lam ihDomain ihBody)
+    (fun _ _ ihDomain ihBody => .forallE ihDomain ihBody)
+    (fun _ ihBody => .nil ihBody)
+    (fun _ _ ihDomain ihBody => .cons ihDomain ihBody)
+    (by exact .nil)
+    (fun hname huvars _ _ _ ihParams ihType ihTail =>
+      .cons ⟨hname, huvars, ihParams, ihType⟩ ihTail)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    H
+
+/-- Forget the specialized family-list encoding. -/
+theorem VInductDecl.NestedTypeWFExpansions.toForall₂
+    {env : VEnv} {source : VInductDecl}
+    {generated sourceTypes targetTypes : List VInductiveType}
+    (H : VInductDecl.NestedTypeWFExpansions env source generated sourceTypes
+      targetTypes) :
+    List.Forall₂
+      (VInductDecl.NestedTypeExpansion env source
+        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated))
+      sourceTypes targetTypes := by
+  exact VInductDecl.NestedTypeWFExpansions.rec
+    (motive_1 := fun _ _ _ => True)
+    (motive_2 := fun _ _ _ => True)
+    (motive_3 := fun _ _ _ _ _ _ _ => True)
+    (motive_4 := fun env source generated depth input output _ =>
+      VExpr.NestedExprExpansion
+        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+        depth input output)
+    (motive_5 := fun env source generated depth arity input output _ =>
+      VExpr.NestedForallPrefixExpansion
+        (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+        depth arity input output)
+    (motive_6 := fun env source generated sourceCtors targetCtors _ =>
+      List.Forall₂
+        (VInductDecl.NestedConstructorExpansion
+          (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+          source.nparams)
+        sourceCtors targetCtors)
+    (motive_7 := fun env source generated sourceTypes targetTypes _ =>
+      List.Forall₂
+        (VInductDecl.NestedTypeExpansion env source
+          (VInductDecl.NestedAuxiliarySourceAbsolute env source generated))
+        sourceTypes targetTypes)
+    (motive_8 := fun _ _ _ => True)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (by intros; trivial)
+    (fun hdepth Hleaf _ => .hit ⟨_, hdepth, Hleaf⟩)
+    (by exact .bvar)
+    (by exact .sort)
+    (by exact .const)
+    (fun _ _ ihFn ihArg => .app ihFn ihArg)
+    (fun _ _ ihDomain ihBody => .lam ihDomain ihBody)
+    (fun _ _ ihDomain ihBody => .forallE ihDomain ihBody)
+    (fun _ ihBody => .nil ihBody)
+    (fun _ _ ihDomain ihBody => .cons ihDomain ihBody)
+    (by exact .nil)
+    (fun hname huvars _ _ _ ihParams ihType ihTail =>
+      .cons ⟨hname, huvars, ihParams, ihType⟩ ihTail)
+    (by exact .nil)
+    (fun hname huvars htype hindices hlevel _ _ ihCtors ihTail =>
+      .cons ⟨hname, huvars, htype, hindices, hlevel, ihCtors⟩ ihTail)
+    (by intros; trivial)
+    H
+
+theorem VEnv.InstalledInductCertificate.mono
+    {env env' : VEnv} {decl : VInductDecl}
+    (henv : env ≤ env')
+    (H : VEnv.InstalledInductCertificate env decl) :
+    VEnv.InstalledInductCertificate env' decl := by
+  cases H with
+  | intro hsource hformation hcompile hblock hinstall hle =>
+    exact .intro hsource hformation hcompile hblock hinstall (hle.trans henv)
+
 
 /-- Relational abstract environment extension for inductive declarations.
 Unlike the old placeholder function, this exposes the compiled block witness

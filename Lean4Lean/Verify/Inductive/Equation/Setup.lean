@@ -1,4 +1,5 @@
-import Lean4Lean.Verify.Inductive.Nested.Compilation
+import Lean4Lean.Verify.Inductive.CompletedRecursorSetup
+import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
 
 namespace Lean4Lean
 
@@ -28,7 +29,10 @@ structure RecursorPhasesResult
   recInfos : Array AddInductive.RecInfo
   localContext : AddInductive.Context
   localWF : BindingContextWF localContext
-  localExtends : BindingContextLE { c with env := ctorEnv } localContext
+  localExtends : BindingContextLE { c with
+    env := ctorEnv
+    typeCheckerLParams := some <|
+      AddInductive.getRecLevelParams elimLevel c.lparams } localContext
   recursorDepth : Nat
   recursorWF : RecursorContextWF localContext
     (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -43,10 +47,12 @@ structure RecursorPhasesResult
     recursorWF.mlctx.vlctx stats decl recursorDepth
   noIndConsts : VLCtx.NoIndConsts (decl.types.map (·.name))
     recursorWF.mlctx.vlctx
-  fieldReplay : RecursorFieldDecisionReplayCompat
-  loopUArgsReplay : RecursorLoopUArgsReplayCompat
+  loopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat
   bindings : RecInfoBindings localContext recInfos
   origins : RecInfoTypeOrigins localContext recInfos
+  blueprints : RecInfoRuleBlueprintOrigins stats recInfos origins
+  blueprintSemantics : RecInfoRuleBlueprintSemanticOrigins recursorWF decl
+    stats recInfos elimLevel parameterSuffix.parameterDecls origins
   minorSources : RecInfoMinorSourceAlignment stats indTypes origins
   minorSemantics : RecInfoMinorSemanticAlignment recursorWF origins
     parameterSuffix.parameterDecls
@@ -71,11 +77,91 @@ structure RecursorPhasesResult
   generated : GeneratedRecursors localContext.safety R.declared.venvCtors
     localContext.lparams elimLevel localContext stats indTypes recInfos entries
   ruleSemantics : GeneratedRecursorRuleSemanticsRange
-    recursorWF decl stats indTypes recInfos elimLevel 0 entries
+    recursorWF decl stats indTypes recInfos origins elimLevel
+      parameterSuffix.parameterDecls 0 entries
   installed : AddConstants localContext.safety localContext.env
     R.declared.venvCtors
     entries outEnv outVEnv
   closed : MutualInductivesClosed outEnv
+
+/-- Temporary ordinary compatibility view of the common completed recursor
+boundary.  Downstream equation proofs can migrate one module at a time while
+the executable ordinary pipeline retains its existing result type. -/
+def RecursorPhasesResult.completed
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) :
+    CompletedRecursorPhasesResult R.completed outEnv := by
+  have hmaterialized : R.completed.materializedFinal = R.materialized :=
+    R.completed_materializedFinal
+  exact {
+    elimLevel := H.elimLevel
+    elimLevelAdmissible := H.elimLevelAdmissible
+    lparamsNodup := H.lparamsNodup
+    recInfos := H.recInfos
+    localContext := H.localContext
+    localWF := H.localWF
+    localExtends := H.localExtends
+    recursorDepth := H.recursorDepth
+    recursorWF := H.recursorWF
+    recursorEnv := H.recursorEnv
+    parameterSuffix := H.parameterSuffix
+    parameterDecls := by
+      rw [hmaterialized]
+      exact H.parameterDecls
+    validStats := H.validStats
+    noIndConsts := H.noIndConsts
+    loopUArgsReplay := H.loopUArgsReplay
+    bindings := H.bindings
+    origins := H.origins
+    blueprints := H.blueprints
+    blueprintSemantics := H.blueprintSemantics
+    minorSources := H.minorSources
+    minorSemantics := H.minorSemantics
+    majorTypes := H.majorTypes
+    majorShapes := H.majorShapes
+    motiveTypes := H.motiveTypes
+    motiveShapes := H.motiveShapes
+    motiveTelescopes := by
+      rw [hmaterialized]
+      exact H.motiveTelescopes
+    indexRows := H.indexRows
+    params := H.params
+    noAlias := H.noAlias
+    outerOrder := H.outerOrder
+    arities := H.arities
+    minorCounts := H.minorCounts
+    cardinality := H.cardinality
+    outVEnv := H.outVEnv
+    entries := H.entries
+    generated := by
+      simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
+        H.generated
+    ruleSemantics := H.ruleSemantics
+    installed := by
+      simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
+        H.installed
+    closed := H.closed }
+
+/-- The ordinary compatibility result inherits exact constructor-owner
+preservation from the common completed recursor boundary. -/
+theorem RecursorPhasesResult.constructorOwnersPresent
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (hsource : ConstructorOwnersPresent c.env) :
+    ConstructorOwnersPresent outEnv :=
+  H.completed.constructorOwnersPresent hsource
 
 /-- The exact `getElimLevel`/`mkRecInfos`/`declareRecursors` suffix of
 `AddInductive.run`.  The executable `checkRecursorTypes` pass now supplies
@@ -91,11 +177,9 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (R : ConstructorPhasesResult Hheaders ctorEnv)
     (hclosed : MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hwhnf : WhnfLParamsCompat)
-    (hfieldReplay : RecursorFieldDecisionReplayCompat)
-    (hloopUArgsReplay : RecursorLoopUArgsReplayCompat)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint
+      R.declared.context.venv stats.indConsts)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
@@ -106,19 +190,23 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name)) :
     ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
-      AddInductive.isKTarget stats indTypes >>= fun kTarget =>
-      AddInductive.mkRecInfos stats indTypes elimLevel fun recInfos =>
-        AddInductive.declareRecursors stats indTypes elimLevel recInfos
-          kTarget)
+      AddInductive.withTypeCheckerLParams
+        (AddInductive.getRecLevelParams elimLevel c.lparams) do
+        let kTarget ← AddInductive.isKTarget stats indTypes
+        AddInductive.mkRecInfos stats indTypes elimLevel fun recInfos =>
+          AddInductive.declareRecursors stats indTypes elimLevel recInfos
+            kTarget c.lparams)
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (RecursorPhasesResult R outEnv) := by
-  apply R.getElimLevelMkRecInfosWF hlparams hwhnf hconsume hlit hproj
+  apply R.getElimLevelMkRecInfosWF hlparams
+    Lean4Lean.recursorConsumeTypeAnnotationsCompat hlit hproj
     (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
     (k := fun elimLevel kTarget recInfos =>
-      AddInductive.declareRecursors stats indTypes elimLevel recInfos kTarget)
+      AddInductive.declareRecursors stats indTypes elimLevel recInfos kTarget
+        c.lparams)
   intro elimLevel hElim kTarget localContext localDepth recInfos Rlocal henvLocal
     HsuffixLocal hparameterDeclsLocal HstatsLocal hctxLocal Hbindings
-    Horigins HminorSources HminorSemantics HmajorTypes HmajorShapes
+    Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics HmajorTypes HmajorShapes
     HmotiveTypes HmotiveShapes
     Htelescopes HindexRows Hparams hnoalias houterOrder Harities HminorCounts
     Hcard Hle
@@ -167,8 +255,11 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       Htail, HtailType, Hintro, HintroType⟩
   have Hrecursors := AddInductive.declareRecursors.bindingSemanticWF
     (elimLevel := elimLevel) kTarget Hvalid Rlocal.toBindingContextWF Rlocal
-    HstatsLocal hwhnf hconsume hlit hctxLocal hproj Hcard Hcore Hbindings
-    Hparams hnoalias HsuffixLocal.parameterFVarsUp Hseed (by
+    HstatsLocal Lean4Lean.recursorConsumeTypeAnnotationsCompat
+    (by simpa only [henvLocal] using hlit)
+    hctxLocal hproj Hcard Hcore Hbindings
+    Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
+    Hparams hnoalias HminorCounts HsuffixLocal.parameterFVarsUp Hseed (by
       rw [Hle.safety_eq]
       exact hnotPartial) (by
         intro hallow
@@ -176,7 +267,21 @@ theorem ConstructorPhasesResult.recursorPhasesWF
   have hclosedLocal : MutualInductivesClosed localContext.env := by
     rw [Hle.env_eq]
     exact hclosed
-  exact Hrecursors.mono fun outEnv Hout => by
+  have Hrecursors' :
+      (AddInductive.declareRecursors stats indTypes elimLevel recInfos
+        kTarget c.lparams localContext).WF fun outEnv =>
+          ∃ outVEnv : VEnv,
+          ∃ entries : List (ConstantInfo × VConstVal),
+            Nonempty (GeneratedRecursors localContext.safety
+              R.declared.venvCtors localContext.lparams elimLevel localContext
+              stats indTypes recInfos entries) ∧
+            Nonempty (GeneratedRecursorRuleSemanticsRange Rlocal decl stats
+              indTypes recInfos Horigins elimLevel
+                HsuffixLocal.parameterDecls 0 entries) ∧
+            AddConstants localContext.safety localContext.env
+              R.declared.venvCtors entries outEnv outVEnv := by
+    simpa only [Hle.lparams_eq] using Hrecursors
+  exact Hrecursors'.mono fun outEnv Hout => by
     rcases Hout with
       ⟨outVEnv, entries, ⟨Hgenerated⟩, ⟨HruleSemantics⟩, Hinstalled⟩
     exact ⟨{
@@ -194,10 +299,11 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       parameterDecls := hparameterDeclsLocal
       validStats := HstatsLocal
       noIndConsts := hctxLocal
-      fieldReplay := hfieldReplay
       loopUArgsReplay := hloopUArgsReplay
       bindings := Hbindings
       origins := Horigins
+      blueprints := Hblueprints
+      blueprintSemantics := HblueprintSemantics
       minorSources := HminorSources
       minorSemantics := HminorSemantics
       majorTypes := HmajorTypes
@@ -237,21 +343,7 @@ theorem RecursorPhasesResult.minorPrefixLength_eq
     ((H.recInfos.toList.take owner).flatMap
       (fun info => info.minors.toList)).length =
       recursorMinorOffset indTypes owner := by
-  have hsizes : H.recInfos.size = indTypes.size := by
-    calc
-      H.recInfos.size = decl.types.length := H.cardinality.records
-      _ = indTypes.toList.length :=
-        (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
-      _ = indTypes.size := by simp
-  induction owner with
-  | zero => simp [recursorMinorOffset]
-  | succ owner ih =>
-      have hrec : owner < H.recInfos.size := by omega
-      have hind : owner < indTypes.size := by omega
-      rw [recursorMinorOffset_step indTypes owner hind]
-      simp [List.take_add_one, hrec, ih (by omega)]
-      simpa [getElem!_pos H.recInfos owner hrec,
-        getElem!_pos indTypes owner hind] using H.minorCounts owner hrec
+  exact H.completed.minorPrefixLength_eq owner howner
 
 def RecursorPhasesResult.staged
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -282,11 +374,57 @@ theorem RecursorPhasesResult.outVEnvWF
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     (H : RecursorPhasesResult R outEnv) : H.outVEnv.WF := by
-  have hvalid : CheckingEnv.Valid H.localContext.safety
-      H.localContext.env R.declared.venvCtors := by
-    rw [← R.declared.contextVEnv, ← H.recursorEnv]
-    exact H.recursorWF.checking
-  exact (H.installed.valid hvalid).tr.wf
+  exact H.completed.outVEnvWF
+
+/-- The complete executable recursor suffix preserves the constructor
+parameter semantics established by header/constructor installation.  The
+only new production entries are recursors, so no new inductive family can
+appear while transporting the invariant to the final recursor environment. -/
+theorem RecursorPhasesResult.constructorSemantics
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (Hsource : InductiveConstructorsSemanticallyCoherent
+      safety c.env sourceEnv) :
+    InductiveConstructorsSemanticallyCoherent safety outEnv H.outVEnv := by
+  exact H.completed.constructorSemantics Hsource
+
+/-- Recursor installation preserves the exact declaration provenance built
+by the header and constructor folds, since every new entry is a recursor. -/
+theorem RecursorPhasesResult.productionInductiveOrigins
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) :
+    ProductionInductiveOrigins c.env.constants outEnv.constants decl := by
+  exact H.completed.productionInductiveOrigins
+
+/-- Adding the verified equation batch changes only definitional equality,
+so the completed recursor environment retains the same constructor-parameter
+semantics in the exact abstract environment installed by `AddInduct`. -/
+theorem RecursorPhasesResult.completedConstructorSemantics
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (Hsource : InductiveConstructorsSemanticallyCoherent
+      safety c.env sourceEnv) (rules : List VDefEq) :
+    InductiveConstructorsSemanticallyCoherent safety outEnv
+      (H.outVEnv.addDefEqRules rules) :=
+  H.completed.completedConstructorSemantics Hsource rules
 
 /-- The executable recursor phase supplies the binder-explicit translation
 certificate for every owner in the mutual block.  Binder selections and
@@ -302,17 +440,9 @@ theorem RecursorPhasesResult.generatedTelescopeTranslations
     (H : RecursorPhasesResult R outEnv) :
     GeneratedRecursorTelescopeTranslations R.declared.venvCtors stats
       H.recInfos H.entries := by
-  intro ownerIdx hentry
-  have hrecInfo : ownerIdx < H.recInfos.size := by
-    rw [← H.generated.length]
-    exact hentry
-  let E := H.generated.entry ownerIdx hentry
-  let selections := H.bindings.toRecursorLocalSelections H.localWF H.params
-    ownerIdx hrecInfo
-  have hnoalias : selections.NoAlias :=
-    H.bindings.selectionNoAlias H.localWF H.params H.noAlias ownerIdx hrecInfo
-  refine ⟨E.info, E.source_eq, ?_⟩
-  exact E.telescopeTranslation selections hrecInfo hnoalias
+  simpa [RecursorPhasesResult.completed, ConstructorPhasesResult.completed,
+    R.declared.contextVEnv] using
+    H.completed.generatedTelescopeTranslations
 
 /-- The concrete parameter/motive/minor binder domains are identical for
 any two recursors generated from the same mutual block.  This is a
@@ -551,6 +681,35 @@ theorem mkAuxRecNameMap_recMap_find_none
     change ({} : NameMap Name).find? query = none
     rfl
 
+/-- Every key returned by the production auxiliary-recursor map also occurs
+in its first component.  The executable builds the list and map in the same
+fold; this theorem exposes that shared domain without unfolding the fold at
+later restoration call sites. -/
+theorem mkAuxRecNameMap_recMap_find_mem
+    (main : InductiveType) (rest : List InductiveType)
+    (env : Environment) (info : InductiveVal)
+    (hfind : env.find? main.name = some (.inductInfo info))
+    (hmap : (Lean4Lean.mkAuxRecNameMap env (main :: rest)).2.find? query =
+      some mapped) :
+    query ∈ (Lean4Lean.mkAuxRecNameMap env (main :: rest)).1 := by
+  by_cases hlength : (main :: rest).length < info.all.length
+  · rw [mkAuxRecNameMap_recNames main rest env info hfind hlength]
+    by_contra hnot
+    have hnone := mkAuxRecNameMap_recMap_find_none main rest env info hfind hnot
+    rw [hnone] at hmap
+    cases hmap
+  · have hsuffix : info.all.drop (main :: rest).length = [] :=
+      List.drop_eq_nil_iff.mpr (Nat.le_of_not_gt hlength)
+    have hsuffix' : info.all.drop (rest.length + 1) = [] := by
+      simpa using hsuffix
+    have hnone := mkAuxRecNameMap_recMap_find_none (query := query)
+      main rest env info hfind
+      (by
+        intro hmem
+        simpa [hsuffix'] using hmem)
+    rw [hnone] at hmap
+    cases hmap
+
 theorem mkRecName_injective : Function.Injective Lean.mkRecName := by
   intro left right heq
   simpa [Lean.mkRecName, Lean.Name.getPrefix] using
@@ -671,9 +830,10 @@ theorem RestoredConstructorStep.metadataOfInstalled
     (hname : ctorName = ctor.name) :
     c.safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety ∧
       Hstep.oldInfo.levelParams = c.lparams ∧
-      Hstep.oldInfo.name = ctor.name := by
+      Hstep.oldInfo.name = ctor.name ∧
+      Hstep.oldInfo.isUnsafe = isUnsafe := by
   rcases R.declared.sourceAligned.findSource howner hctor with
-    ⟨info, value, hentry, hinfoName, _hinfoType, hlevels, _hunsafe⟩
+    ⟨info, value, hentry, hinfoName, _hinfoType, hlevels, hunsafe⟩
   have hlookup := H.findConstructorOfMem hentry
   have hstepLookup :
       outEnv.find? ctor.name = some (.ctorInfo Hstep.oldInfo) := by
@@ -686,7 +846,8 @@ theorem RestoredConstructorStep.metadataOfInstalled
       Option.some.inj (hstepLookup.symm.trans hlookup')
     exact ConstantInfo.ctorInfo.inj heq
   subst info
-  exact ⟨R.declared.installed.entrySafety hentry, hlevels, hinfoName⟩
+  exact ⟨R.declared.installed.entrySafety hentry, hlevels, hinfoName,
+    hunsafe⟩
 
 /-- The constructor fold nested inside an operational family restoration is
 indexed by exactly the constructor-name list of the aligned installed lowered
@@ -1269,21 +1430,31 @@ theorem RecursorPhasesResult.generatedRuleSemantics
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     (H : RecursorPhasesResult R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    SemanticBoundGeneratedRecursorRules indTypes stats
-      (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
-      (AddInductive.getRecLevels H.elimLevel stats.levels)
-      H.recursorWF decl owner indTypes[owner]!.ctors
-      (recursorMinorOffset indTypes owner)
-      (H.generated.entry owner howner).info.rules := by
+    ∃ Hsemantic : SemanticBoundGeneratedRecursorRules indTypes stats
+        (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
+        (AddInductive.getRecLevels H.elimLevel stats.levels)
+        H.recursorWF decl owner indTypes[owner]!.ctors
+        (recursorMinorOffset indTypes owner)
+        (H.generated.entry owner howner).info.rules,
+      Nonempty (Hsemantic.ProducerMotiveEvidence H.recInfos
+        H.elimLevel) := by
   rcases H.ruleSemantics.entry owner howner with
-    ⟨info, hsource, Hsemantic⟩
+    ⟨info, hsource, Hsemantic, Hmotive, _Horigins⟩
   let E := H.generated.entry owner howner
   have hinfo : info = E.info := by
     have heq : ConstantInfo.recInfo info = .recInfo E.info :=
       hsource.symm.trans E.source_eq
     injection heq
   subst info
-  simpa [E] using Hsemantic
+  dsimp [E] at Hsemantic Hmotive ⊢
+  let Hpair : ∃ Hs : SemanticBoundGeneratedRecursorRules indTypes stats
+        (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
+        (AddInductive.getRecLevels H.elimLevel stats.levels)
+        H.recursorWF decl (0 + owner) indTypes[0 + owner]!.ctors
+        (recursorMinorOffset indTypes (0 + owner)) E.info.rules,
+      Nonempty (Hs.ProducerMotiveEvidence H.recInfos H.elimLevel) :=
+    ⟨Hsemantic, Hmotive⟩
+  simpa only [Nat.zero_add] using Hpair
 
 /-- Pointwise projection used by abstract iota reconstruction.  It exposes
 the exact generated source rule together with the semantic trace from the
@@ -1306,9 +1477,22 @@ theorem RecursorPhasesResult.generatedRuleSemantic
         indTypes[owner]!.ctors[i]
         (recursorMinorOffset indTypes owner + i)
         (H.generated.entry owner howner).info.rules[i],
-      Nonempty (Hrule.Semantics
-        H.recursorWF decl owner) :=
-  (H.generatedRuleSemantics owner howner).entry i hctor hrule
+      ∃ S : Hrule.Semantics H.recursorWF decl owner,
+        Nonempty (Hrule.ProducerOriginEvidence S H.recInfos H.elimLevel
+          H.origins owner i) ∧
+        S.parameterDecls = H.parameterSuffix.parameterDecls := by
+  rcases H.ruleSemantics.entry owner howner with
+    ⟨info, hsource, _Hsemantic, _Hmotive, Horigins⟩
+  let E := H.generated.entry owner howner
+  have hinfo : info = E.info := by
+    have heq : ConstantInfo.recInfo info = .recInfo E.info :=
+      hsource.symm.trans E.source_eq
+    injection heq
+  subst info
+  dsimp [E] at Horigins ⊢
+  have hzero : 0 + owner = owner := Nat.zero_add owner
+  rw [hzero] at Horigins
+  exact Horigins i hctor hrule
 
 /-- The family selected from the generated residual is exactly the outer
 owner whose constructor batch is being traversed. -/
@@ -1332,16 +1516,20 @@ theorem RecursorPhasesResult.generatedRuleSemanticOwner
         (H.generated.entry owner howner).info.rules[i],
       ∃ Hsemantic : Hrule.Semantics
           H.recursorWF decl owner,
+        Nonempty (Hrule.ProducerOriginEvidence Hsemantic H.recInfos
+          H.elimLevel H.origins owner i) ∧
+        Hsemantic.parameterDecls = H.parameterSuffix.parameterDecls ∧
         Hsemantic.ownerIdx = owner := by
   rcases H.generatedRuleSemantic owner howner i hctor hrule with
-    ⟨Hrule, ⟨Hsemantic⟩⟩
+    ⟨Hrule, Hsemantic, Hmotive, hparameterDecls⟩
   have htypeNames : (decl.types.map (·.name)).Nodup := by
     have hprefix := (List.nodup_append.mp
       (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup
         R.core)).1
     simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
       VInductiveType.toVConstVal, Function.comp_def] using hprefix
-  exact ⟨Hrule, Hsemantic, Hsemantic.owner_eq Hrule htypeNames⟩
+  exact ⟨Hrule, Hsemantic, Hmotive, hparameterDecls,
+    Hsemantic.owner_eq Hrule htypeNames⟩
 
 /-- Complete source alignment for one rule emitted by the mutual recursor
 loop.  The entry index selects the same concrete family in `indTypes`, the
@@ -1379,6 +1567,12 @@ structure RecursorPhasesResult.GeneratedRuleAlignment
     (H.generated.entry owner howner).info.rules[i]
   semantics : rule.Semantics
     H.recursorWF decl owner
+  parameterDecls_eq : semantics.parameterSuffix.parameterDecls =
+    H.parameterSuffix.parameterDecls
+  motiveEvidence : Nonempty (rule.ProducerMotiveEvidence semantics
+    H.recInfos H.elimLevel)
+  originEvidence : Nonempty (rule.ProducerOriginEvidence semantics
+    H.recInfos H.elimLevel H.origins owner i)
   semantic_owner : semantics.ownerIdx = owner
 
 /-- Select the fully aligned pointwise rule package directly from the
@@ -1421,7 +1615,9 @@ theorem RecursorPhasesResult.generatedRuleAlignment
     rw [E.rules.length]
     exact hctor
   rcases H.generatedRuleSemanticOwner owner howner i hctor hsourceRule with
-    ⟨Hrule, Hsemantic, hsemanticOwner⟩
+    ⟨Hrule, Hsemantic, ⟨Horigin⟩, hparameterDecls, hsemanticOwner⟩
+  let Hmotive : Nonempty (Hrule.ProducerMotiveEvidence Hsemantic H.recInfos
+      H.elimLevel) := ⟨Horigin.producer⟩
   exact ⟨{
     sourceOwner_lt := hsourceOwner
     sourceCtor_lt := hsourceCtor
@@ -1432,6 +1628,9 @@ theorem RecursorPhasesResult.generatedRuleAlignment
     sourceRule_lt := hsourceRule
     rule := Hrule
     semantics := Hsemantic
+    parameterDecls_eq := Hsemantic.parameterDecls_eq.trans hparameterDecls
+    motiveEvidence := Hmotive
+    originEvidence := ⟨Horigin⟩
     semantic_owner := hsemanticOwner }⟩
 
 /-- The recursor selected by a generated rule carries the exact five-part,
@@ -1763,7 +1962,11 @@ theorem RecursorPhasesResult.sourceRecursorParameterTemplateAt
         stats.params := sourceParams.monoFVars (by
           intro fv hfv
           exact hfv)
-    exact sourceParamsAtCtor.mkForall_mono H.localExtends
+    have HlocalExtendsBase :
+        BindingContextLE { c with env := ctorEnv } H.localContext := by
+      simpa using H.localExtends.rebaseTypeCheckerLParams
+        c.typeCheckerLParams H.localContext.typeCheckerLParams
+    exact sourceParamsAtCtor.mkForall_mono HlocalExtendsBase
       (.sort (.zero : Level))
   have Hdomains : Expr.SameForallDomains stats.params.size template
       E.info.type := by
@@ -3104,22 +3307,14 @@ theorem
       Nonempty (RecursorMotiveTelescopeEvidence A.semantics.context stats
         H.recInfos[owner]! binding A.rule.target
         A.semantics.targetTarget) := by
-  have hrecInfo : owner < H.recInfos.size := by
-    simpa [H.generated.length] using howner
-  let Hext : RecursorContextExtension H.recursorWF A.semantics.context :=
-    A.semantics.fieldRootExtension.trans
-      A.semantics.fieldsRecent.contextExtension
-  rcases H.motiveShapes.motiveBindingAtMono
-      (Rcurrent := A.semantics.context) H.bindings H.origins
-      Hext.contextLE owner hrecInfo with ⟨Hbinding⟩
-  let binding : RecursorMotiveBinding A.semantics.context
-      H.recInfos[owner]! H.elimLevel := Hbinding.toBinding
-  have Hvalidated := A.semantics.validated
-  rw [A.semantic_owner] at Hvalidated
-  refine ⟨binding, ?_⟩
-  exact H.motiveTelescopes.telescope owner hrecInfo A.semantics.context
-    Hext binding A.semantics.target_translation A.semantics.target_type
-    Hvalidated
+  rcases A.motiveEvidence with ⟨Hmotive⟩
+  have Hpair : ∃ binding : RecursorMotiveBinding A.semantics.context
+        H.recInfos[A.semantics.ownerIdx]! H.elimLevel,
+      Nonempty (RecursorMotiveTelescopeEvidence A.semantics.context stats
+        H.recInfos[A.semantics.ownerIdx]! binding A.rule.target
+        A.semantics.targetTarget) := ⟨Hmotive.binding, Hmotive.telescope⟩
+  rw [A.semantic_owner] at Hpair
+  exact Hpair
 
 /-- The permutation-free first-pass motive telescope is retained through the
 complete mutual and constructor passes and transported to the final constant
@@ -3251,25 +3446,6 @@ theorem RecursorPhasesResult.finalCanonicalMotiveTelescopeAt
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
   exact ⟨S.canonical.mono hbase, hparams.mono hbase⟩
-
-/-- Compose two context conversions over the empty base.  The domain proof
-of the second conversion is transported back across the already composed
-prefix before transitivity is applied, so dependent domains remain in the
-correct context. -/
-theorem VEnv.IsDefEqCtx.transEmpty
-    (henv : env.WF)
-    (H₁ : VEnv.IsDefEqCtx env U [] Γ₁ Γ₂)
-    (H₂ : VEnv.IsDefEqCtx env U [] Γ₂ Γ₃) :
-    VEnv.IsDefEqCtx env U [] Γ₁ Γ₃ := by
-  induction H₁ generalizing Γ₃ with
-  | zero => exact H₂
-  | @succ Γ₁ Γ₂ A₁ A₂ u H₁ hdom ih =>
-    cases H₂ with
-    | succ H₂ hdom₂ =>
-      have Hprefix := ih H₂
-      have hdom₂' := hdom₂.defeqDFC henv.ordered (H₁.symm henv.ordered)
-      exact .succ Hprefix
-        (hdom.trans_r henv H₁.isType hdom₂')
 
 /-- Rebase a conversion between two dependent prefixes along a conversion
 of their common suffix.  Both prefix contexts are known well formed from the

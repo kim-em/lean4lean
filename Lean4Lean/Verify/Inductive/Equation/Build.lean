@@ -1,4 +1,6 @@
 import Lean4Lean.Verify.Inductive.Equation.Final
+import Lean4Lean.Verify.Inductive.TypeAnnotations
+import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 
 namespace Lean4Lean
 
@@ -337,13 +339,11 @@ theorem RecursorPhasesResult.trEnvOfOrdinaryCompilation
     (hnonempty : indTypes.toList ≠ [])
     (Hcompile : OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block)
-    (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv)
-    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (H.outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
+    (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv) :
     TrEnv' c.safety outEnv.constants c.env.quotInit
       (H.outVEnv.addDefEqRules rules) :=
   (H.blockCertificate rules hrules).trEnvOfOrdinaryCompilation R.formation
-    R.core hnonempty Hcompile htr heq
+    R.core hnonempty Hcompile H.productionInductiveOrigins htr
 
 /-- Nested-compilation counterpart of `trEnvOfOrdinaryCompilation`. -/
 theorem RecursorPhasesResult.trEnvOfNestedCompilation
@@ -360,13 +360,11 @@ theorem RecursorPhasesResult.trEnvOfNestedCompilation
     (hnonempty : indTypes.toList ≠ [])
     (Hcompile : NestedCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block)
-    (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv)
-    (heq : ∀ info, outEnv.constants.find? ``Eq = some (.inductInfo info) →
-      (H.outVEnv.addDefEqRules rules).constants ``Eq = some eqConst) :
+    (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv) :
     TrEnv' c.safety outEnv.constants c.env.quotInit
       (H.outVEnv.addDefEqRules rules) :=
   (H.blockCertificate rules hrules).trEnvOfNestedCompilation R.formation
-    R.core hnonempty Hcompile htr heq
+    R.core hnonempty Hcompile H.productionInductiveOrigins htr
 
 /-- Compositional verifier for the complete production computation after
 `checkInductiveTypes` has materialized `stats`. This is the first boundary
@@ -387,11 +385,7 @@ theorem AddInductive.runWithStats.WF
           ∃ _ : ConstructorPhasesResult Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hwhnf : WhnfLParamsCompat)
-    (hfieldReplay : RecursorFieldDecisionReplayCompat)
-    (hloopUArgsReplay : RecursorLoopUArgsReplayCompat)
-    (hrecConsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
     (hproj : ∀ {Delta : VLCtx} {s j e' e''},
       TrProj Delta.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
@@ -410,8 +404,14 @@ theorem AddInductive.runWithStats.WF
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
       rcases Hresult with ⟨headerEnv, Hheaders, R, hclosed⟩
-      exact (R.recursorPhasesWF hclosed hlparams hwhnf hfieldReplay
-        hloopUArgsReplay hrecConsume hlit hproj hnotPartial hnprim).mono
+      have hlitHeaders := Hheaders.materializedAvailableLiteralDisjoint
+      have hlitCtors :=
+        R.declared.installed.availableLiteralDisjoint hlitHeaders
+      have hlit : checkPositivityStep.AvailableLiteralDisjoint
+          R.declared.context.venv stats.indConsts := by
+        simpa [R.declared.contextVEnv] using hlitCtors
+      exact (R.recursorPhasesWF hclosed hlparams hloopUArgsReplay hlit hproj
+        hnotPartial hnprim).mono
           fun outEnv Hrecursors =>
             show ∃ headerEnv ctorEnv,
               ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
@@ -442,11 +442,7 @@ theorem AddInductive.runWithStats.closedWF
       ¬ Kernel.Environment.primitives.contains info.name)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlparams : c.lparams.Nodup)
-    (hwhnf : WhnfLParamsCompat)
-    (hfieldReplay : RecursorFieldDecisionReplayCompat)
-    (hloopUArgsReplay : RecursorLoopUArgsReplayCompat)
-    (hrecConsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
@@ -468,13 +464,9 @@ theorem AddInductive.runWithStats.closedWF
   apply AddInductive.runWithStats.WF stats numParams indTypes numNested
     isUnsafe c
   · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
-      hvisible hnprimTypes hconsume hlit hproj hunsafe hnprimCtors
+      hvisible hnprimTypes hconsume hproj hunsafe hnprimCtors
   · exact hlparams
-  · exact hwhnf
-  · exact hfieldReplay
   · exact hloopUArgsReplay
-  · exact hrecConsume
-  · exact hlit
   · exact hproj
   · exact hnotPartial
   · exact hnprimRecursors
@@ -510,7 +502,6 @@ theorem AddInductive.run.materialize
       types.toArray.toList (c.safety != .safe) skeleton envTypes)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (hconsume : ConsumeTypeAnnotationsCompat)
     (Hfinish : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth : Nat},
@@ -533,7 +524,7 @@ theorem AddInductive.run.materialize
     apply Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.checkInductiveTypes.materialize
       (fun stats => AddInductive.runWithStats stats skeleton.nparams
         types.toArray numNested (c.safety != .safe)) Q Hc Hdecl hctx hnonempty
-      hconsume
+      Lean4Lean.consumeTypeAnnotationsCompat
     intro c' stats decl depth Hc' henvEq hsafetyEq hlparamsEq Hdecl' Hmaterialized
     apply Hfinish Hc' henvEq hsafetyEq Hdecl' Hmaterialized
     simpa [hlparamsEq] using hnodup
@@ -556,12 +547,7 @@ structure RunWithStatsVerificationInputs
     (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
       isUnsafe c.lparams).toList,
     ¬ Kernel.Environment.primitives.contains info.name
-  consume : ConsumeTypeAnnotationsCompat
-  whnfLParams : WhnfLParamsCompat
-  recursiveFieldReplay : RecursorFieldDecisionReplayCompat
-  loopUArgsReplay : RecursorLoopUArgsReplayCompat
-  recursorConsume : RecursorConsumeTypeAnnotationsCompat
-  literalDisjoint : checkPositivityStep.LiteralDisjoint stats.indConsts
+  loopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat
   projections : ProjectionConstPreservation
   freshConstructorConstants : c.allowPrimitive = true →
     ∀ owner ∈ indTypes.toList,
@@ -571,6 +557,22 @@ structure RunWithStatsVerificationInputs
     ∀ owner (howner : owner < indTypes.size),
     ¬ Kernel.Environment.primitives.contains
       (Lean.mkRecName indTypes[owner]!.name)
+
+/-- On the ordinary declaration path, primitive-name freshness is automatic:
+the three freshness fields are only queried when `allowPrimitive = true`.
+This constructor keeps the finite `Bool`/`Nat` bootstrap branch out of the
+general verification inputs instead of asking callers for false premises. -/
+theorem RunWithStatsVerificationInputs.ofAllowPrimitiveFalse
+    (hallow : c.allowPrimitive = false)
+    (loopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
+    (projections : ProjectionConstPreservation) :
+    RunWithStatsVerificationInputs c stats decl numParams depth numNested
+      indTypes isUnsafe Hc Hdecl Hmaterialized where
+  freshTypes htrue := by simp_all
+  loopUArgsReplay := loopUArgsReplay
+  projections := projections
+  freshConstructorConstants htrue := by simp_all
+  freshRecursors htrue := by simp_all
 
 theorem RunWithStatsVerificationInputs.verify
     (H : RunWithStatsVerificationInputs c stats decl numParams depth
@@ -587,10 +589,10 @@ theorem RunWithStatsVerificationInputs.verify
         ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
           Nonempty (RecursorPhasesResult R outEnv) :=
   fun hlparams => AddInductive.runWithStats.closedWF Hc Hclosed Hdecl
-    Hmaterialized hvisible H.freshTypes H.consume
-    hlparams H.whnfLParams H.recursiveFieldReplay H.loopUArgsReplay
-    H.recursorConsume
-    H.literalDisjoint (fun Htr hfree =>
+    Hmaterialized hvisible H.freshTypes
+    Lean4Lean.consumeTypeAnnotationsCompat
+    hlparams H.loopUArgsReplay
+    (fun Htr hfree =>
       H.projections (decl.types.map (·.name)) Htr hfree)
     (fun h => Hdecl.isUnsafe.trans h)
     H.freshConstructorConstants hnotPartial
@@ -625,7 +627,6 @@ theorem AddInductive.run.closedWF
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
-    (hconsume : ConsumeTypeAnnotationsCompat)
     (Hinputs : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth : Nat}
@@ -641,7 +642,7 @@ theorem AddInductive.run.closedWF
       (VerifiedInductiveRunResult c skeleton envTypes types numNested) := by
   apply AddInductive.run.materialize numNested
     (VerifiedInductiveRunResult c skeleton envTypes types numNested)
-    Hc Hdecl hctx hnonempty hconsume
+    Hc Hdecl hctx hnonempty
   intro c' stats decl depth Hc' henvEq hsafetyEq Hdecl' Hmaterialized
     hlparamsNodup
   have Hclosed' : MutualInductivesClosed c'.env := by
@@ -718,7 +719,6 @@ theorem AddInductive.run.closedAddInductWF
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
-    (hconsume : ConsumeTypeAnnotationsCompat)
     (hproj : ProjectionConstPreservation)
     (Hinputs : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -736,7 +736,7 @@ theorem AddInductive.run.closedAddInductWF
         ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
           VEnv.AddInduct Hc'.venv decl finalVEnv := by
   exact (AddInductive.run.closedWF numNested Hc Hclosed Hdecl hctx hnonempty
-    HnotPartial hconsume Hinputs).mono fun _ Hrun =>
+    HnotPartial Hinputs).mono fun _ Hrun =>
       Hrun.addInductCanonical hproj
 
 /-- Close a verified ordinary executable run against the independent

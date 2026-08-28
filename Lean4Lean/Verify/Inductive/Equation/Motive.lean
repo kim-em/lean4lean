@@ -1911,44 +1911,52 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.GeneratedRuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    ∃ originRoot,
+    ∃ Rorigin : RecursorContextWF originRoot
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams),
+    ∃ _ : RecursorContextExtension A.semantics.context Rorigin,
+    ∃ callDepth,
     ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats
         (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
         (AddInductive.getRecLevels H.elimLevel stats.levels)
-        A.semantics.context decl A.semantics.depth
+        Rorigin decl callDepth
         A.rule.recursiveArgs[j] A.rule.recursiveResults[j]!,
       ∃ domains : List VExpr,
         domains.length = S.generated.localArgs.size ∧
         TrExprS H.outVEnv
           (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-          A.semantics.context.mlctx.vlctx
+          Rorigin.mlctx.vlctx
           (S.generated.current.lctx.mkForall S.generated.localArgs
             S.generated.exposedType)
           (VExpr.wrapForalls domains S.exposedTarget) ∧
         H.outVEnv.IsType
           (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-          A.semantics.context.mlctx.vlctx.toCtx
+          Rorigin.mlctx.vlctx.toCtx
           (VExpr.wrapForalls domains S.exposedTarget) ∧
         TrExprS H.outVEnv
           (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-          A.semantics.context.mlctx.vlctx
+          Rorigin.mlctx.vlctx
           (S.generated.current.lctx.mkLambda S.generated.localArgs
             (mkAppN A.rule.recursiveArgs[j] S.generated.localArgs))
           (VExpr.wrapLams domains S.appliedFieldTarget) ∧
         H.outVEnv.HasType
           (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-          A.semantics.context.mlctx.vlctx.toCtx
+          Rorigin.mlctx.vlctx.toCtx
           (VExpr.wrapLams domains S.appliedFieldTarget)
           (VExpr.wrapForalls domains S.exposedTarget) := by
-  rcases A.semantics.calls.entries j hj hj with ⟨S, _⟩
+  rcases A.semantics.calls.entries j hj hj with
+    ⟨originRoot, Rorigin, Hext, callDepth, S, _hscope⟩
   let F := S.appliedFieldTelescope
-  have hsemantic : A.semantics.context.venv = R.declared.venvCtors :=
-    A.semantics.context_venv.trans (H.recursorEnv.trans R.declared.contextVEnv)
+  have hsemantic : Rorigin.venv = R.declared.venvCtors :=
+    Hext.venv_eq.trans <|
+      A.semantics.context_venv.trans <|
+        H.recursorEnv.trans R.declared.contextVEnv
   have Hexposed := F.exposed_translation
   have HexposedType := F.exposed_type
   have Happlied := F.applied_translation
   have HappliedType := F.applied_typing
   rw [hsemantic] at Hexposed HexposedType Happlied HappliedType
-  exact ⟨S, F.domains, F.domains_length,
+  exact ⟨originRoot, Rorigin, Hext, callDepth, S, F.domains, F.domains_length,
     Hexposed.mono H.installed.le, HexposedType.mono H.installed.le,
     Happlied.mono H.installed.le, HappliedType.mono H.installed.le⟩
 

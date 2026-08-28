@@ -70,6 +70,8 @@ theorem
                 BindingContextLE traversal.rootContext H.localContext ∧
                 BindingContextLE traversal.terminalContext H.localContext ∧
                 BindingContextLE S.sourceFullContext H.localContext ∧
+                traversal.recursivePositions =
+                  A.semantics.recursivePositions ∧
                 let sourceBinders := H.params.fvars ++
                   H.bindings.motives.fvars ++
                     H.bindings.flatMinors.fvars.take minorIdx
@@ -162,6 +164,22 @@ theorem
         H.parameterSuffix.parameterDecls) := by
     simpa [S] using
       H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound
+  rcases A.originEvidence with ⟨P⟩
+  have hshapeCanonical :
+      H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound =
+        H.origins.minorShapes owner P.owner_lt i P.local_lt := by
+    exact H.origins.minorShapes_congr hposition.1 O.owner_lt P.owner_lt
+      hposition.2 hshapeBound P.local_lt
+  have hproducerShape : P.producer.minorShape = S :=
+    P.shape_eq.trans hshapeCanonical.symm
+  have hproducerTraversal := P.producer.minorTraversal_eq
+  rw [hproducerShape] at hproducerTraversal
+  have hminorTraversal : P.producer.minorTraversal = traversal :=
+    Option.some.inj (hproducerTraversal.symm.trans htraversal)
+  have hpositions : traversal.recursivePositions =
+      A.semantics.recursivePositions := by
+    rw [← hminorTraversal]
+    exact P.producer.decisionPositions_eq
   exact ⟨T, D, O, S, horigin, hlocal, hconstructors, hconstructor,
     hfieldCount, Hsemantic, hypothesisOrigins, hhypothesisOrigins,
     hhypothesisStats,
@@ -170,7 +188,7 @@ theorem
     htraversalFields, htraversalRecursiveFields, hstats, hvalid,
     hmotiveApp,
     hrootContext,
-    hterminalContext, hsourceContext,
+    hterminalContext, hsourceContext, hpositions,
     Hdomain, HdomainType⟩
 
 /-- The constructor target retained by the earlier minor-generation pass and
@@ -213,7 +231,7 @@ theorem
       _hhypothesisStats, _hhypothesisRecInfos, traversal, htraversal,
       htraversalConstructor, htraversalFields,
       _htraversalRecursiveFields, hstats, hvalid, hmotiveApp,
-      _hrootContext, _hterminalContext, _hsourceContext,
+      _hrootContext, _hterminalContext, _hsourceContext, _hpositions,
       _Hdomain, _HdomainType⟩
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
@@ -566,6 +584,8 @@ theorem
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ minorConsumedDomains : List VExpr,
       ∃ minorConsumedResidual,
+      ∃ ruleConsumedDomains : List VExpr,
+      ∃ ruleConsumedResidual,
       minorConsumedDomains.length = A.rule.allArgs.size ∧
       (VExpr.wrapForalls HS.semantic.fieldDomains
         HS.semantic.terminalTarget).lift'
@@ -573,10 +593,14 @@ theorem
             HS.semantic.hypothesesRecent.contextExtension).trans
               HS.semantic.extension).shift.consN 0)) =
           VExpr.wrapForalls minorConsumedDomains minorConsumedResidual ∧
-      A.semantics.fieldTelescope.domains.length = A.rule.allArgs.size ∧
+      ruleConsumedDomains.length = A.rule.allArgs.size ∧
+      (VExpr.wrapForalls A.semantics.fieldTelescope.domains
+          A.semantics.targetTarget).lift'
+            (A.semantics.fieldRootExtension.shift.consN 0) =
+        VExpr.wrapForalls ruleConsumedDomains ruleConsumedResidual ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         (minorConsumedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-        (A.semantics.fieldTelescope.domains.reverse ++
+        (ruleConsumedDomains.reverse ++
           H.recursorWF.mlctx.vlctx.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let Hext : RecursorContextExtension HS.semantic.rootWF H.recursorWF :=
@@ -587,30 +611,18 @@ theorem
     ⟨minorSourceDomains, minorSourceResidual, minorConsumedDomains,
       minorConsumedResidual, hminorSource, hminorConsumed,
       HminorSource, hminorTarget, HminorContexts⟩
-  rcases A.semantics.fieldContextDefEq with
-    ⟨ruleSourceDomains, ruleSourceResidual, hruleSource,
-      hparameterTarget, HruleContexts⟩
-  let ruleSemanticDomains := A.semantics.fieldTelescope.domains
-  have hruleSemantic : ruleSemanticDomains.length =
-      A.rule.allArgs.size := A.semantics.fieldTelescope.domains_length
+  rcases A.semantics.fieldContextDefEqMono with
+    ⟨ruleSourceDomains, ruleSourceResidual, ruleConsumedDomains,
+      ruleConsumedResidual, hruleSource, hruleConsumed, HruleSource₀,
+      hruleConsumedTarget, HruleContexts⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
-  have HruleSource₀ : TrExprS A.semantics.fieldRootContext.venv Us
-      A.semantics.fieldRootContext.mlctx.vlctx
-      A.semantics.parameterTail
-      (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
-    rw [← hparameterTarget]
-    exact A.semantics.parameterTranslation
-  have hsemanticRoot : A.semantics.fieldRootContext.venv =
-      H.recursorWF.venv :=
-    A.semantics.fieldsRecent.venv_eq.symm.trans A.semantics.context_venv
-  rw [hsemanticRoot] at HruleSource₀ HruleContexts
   have HruleSource : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
       A.semantics.parameterTail
       (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
     have Hsource := HruleSource₀.mono hbase
-    simpa [A.semantics.fieldRoot_vlctx] using Hsource
+    exact Hsource
   have HminorSource' : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
       A.semantics.parameterTail
       (VExpr.wrapForalls minorSourceDomains minorSourceResidual) := by
@@ -630,16 +642,17 @@ theorem
   have HminorContexts' := HminorContexts.mono hbase
   have HruleContexts' : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (ruleSourceDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-      (ruleSemanticDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
+      (ruleConsumedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
     have Hcontexts := HruleContexts.mono hbase
-    simpa [ruleSemanticDomains, A.semantics.fieldRoot_vlctx] using Hcontexts
+    exact Hcontexts
   have HminorToSource := HminorContexts'.symm H.outVEnvWF.ordered
   have HminorToRuleSource := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HminorToSource HsourceContexts
   have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HminorToRuleSource HruleContexts'
-  exact ⟨minorConsumedDomains, minorConsumedResidual,
-    hminorConsumed.trans hfields, hminorTarget, hruleSemantic, Haligned⟩
+  exact ⟨minorConsumedDomains, minorConsumedResidual, ruleConsumedDomains,
+    ruleConsumedResidual, hminorConsumed.trans hfields, hminorTarget,
+    hruleConsumed, hruleConsumedTarget, Haligned⟩
 
 /-- Join the two executable passes at their consumed constructor-field
 contexts.  Each pass first translates the same original constructor tail in
@@ -664,13 +677,13 @@ theorem
       ∃ HS : RecInfoMinorSemanticSourceAt H.recursorWF S
           H.parameterSuffix.parameterDecls,
         ∃ minorConsumedDomains : List VExpr,
+          ∃ ruleConsumedDomains : List VExpr,
           minorConsumedDomains.length = A.rule.allArgs.size ∧
-          A.semantics.fieldTelescope.domains.length =
-            A.rule.allArgs.size ∧
+          ruleConsumedDomains.length = A.rule.allArgs.size ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             (minorConsumedDomains.reverse ++
               H.recursorWF.mlctx.vlctx.toCtx)
-            (A.semantics.fieldTelescope.domains.reverse ++
+            (ruleConsumedDomains.reverse ++
               H.recursorWF.mlctx.vlctx.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases A.finalSelectedMinorTransportedFieldContext with
@@ -678,32 +691,18 @@ theorem
       minorConsumedDomains, _minorConsumedResidual, _hlocal, _htail,
       hminorSource, hminorConsumed, HminorSource, _hminorTarget,
       HminorContexts⟩
-  rcases A.semantics.fieldContextDefEq with
-    ⟨ruleSourceDomains, ruleSourceResidual, hruleSource,
-      hparameterTarget, HruleContexts⟩
-  let ruleSemanticDomains := A.semantics.fieldTelescope.domains
-  have hruleSemantic : ruleSemanticDomains.length =
-      A.rule.allArgs.size := by
-    exact A.semantics.fieldTelescope.domains_length
+  rcases A.semantics.fieldContextDefEqMono with
+    ⟨ruleSourceDomains, ruleSourceResidual, ruleConsumedDomains,
+      _ruleConsumedResidual, hruleSource, hruleConsumed, HruleSource₀,
+      _hruleConsumedTarget, HruleContexts⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
-  have HruleSource₀ : TrExprS A.semantics.fieldRootContext.venv Us
-      A.semantics.fieldRootContext.mlctx.vlctx
-      A.semantics.parameterTail
-      (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
-    rw [← hparameterTarget]
-    exact A.semantics.parameterTranslation
-  have hsemanticRoot : A.semantics.fieldRootContext.venv =
-      H.recursorWF.venv := by
-    exact A.semantics.fieldsRecent.venv_eq.symm.trans
-      A.semantics.context_venv
-  rw [hsemanticRoot] at HruleSource₀ HruleContexts
   have HruleSource : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
       A.semantics.parameterTail
       (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
     have Hsource := HruleSource₀.mono hbase
-    simpa [A.semantics.fieldRoot_vlctx] using Hsource
+    exact Hsource
   have HminorSource' := HminorSource.mono hbase
   have HrootWF : VLCtx.WF H.outVEnv Us.length
       H.recursorWF.mlctx.vlctx :=
@@ -718,16 +717,16 @@ theorem
   have HminorContexts' := HminorContexts.mono hbase
   have HruleContexts' : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (ruleSourceDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-      (ruleSemanticDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
+      (ruleConsumedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
     have Hcontexts := HruleContexts.mono hbase
-    simpa [ruleSemanticDomains, A.semantics.fieldRoot_vlctx] using Hcontexts
+    exact Hcontexts
   have HminorToSource := HminorContexts'.symm H.outVEnvWF.ordered
   have HminorToRuleSource := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HminorToSource HsourceContexts
   have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HminorToRuleSource HruleContexts'
-  exact ⟨S, HS, minorConsumedDomains,
-    hminorConsumed, hruleSemantic, Haligned⟩
+  exact ⟨S, HS, minorConsumedDomains, ruleConsumedDomains,
+    hminorConsumed, hruleConsumed, Haligned⟩
 
 /-- Transport the shared constructor tail retained by the first minor pass
 into the exact parameter context and environment used by final rule
@@ -951,41 +950,21 @@ theorem
         BindingContextLE S.sourceFullContext H.localContext := by
   rcases A.finalSelectedMinorShape with
     ⟨_T, _D, _O, S, _horigin, hlocal, _hconstructors, hconstructor,
-      _hfieldCount, _Hsemantic, _hypothesisOrigins, _hhypothesisOrigins,
+      _hfieldCount, Hsemantic, _hypothesisOrigins, _hhypothesisOrigins,
       _hhypothesisStats, _hhypothesisRecInfos, traversal, htraversal,
       htraversalConstructor,
       _htraversalFields, htraversalRecursiveFields, hstats, _hvalid,
       _hmotiveApp,
       _hrootContext,
-      hterminalContext, hsourceContext, _Hdomain, _HdomainType⟩
+      hterminalContext, hsourceContext, hpositions, _Hdomain, _HdomainType⟩
+  rcases Hsemantic with ⟨HS⟩
+  have hsemanticTraversal : HS.semantic.traversal = traversal := by
+    exact Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
       traversal.parameterTail = A.semantics.parameterTail :=
     hprefixTraversal.tail_eq A.semantics.parameterPrefix
-  have HruleDecisions : RecursorFieldDecisions stats
-      A.semantics.fieldRoot traversal.parameterTail A.rule.root
-      A.rule.target A.rule.allArgs A.rule.recursiveArgs
-      A.semantics.recursivePositions := by
-    rw [hparameterTail]
-    exact A.semantics.decisions
-  have hterminalToRule : BindingContextLE traversal.terminalContext
-      A.semantics.fieldRoot :=
-    hterminalContext.trans A.semantics.fieldRootExtension.contextLE
-  have HminorDecisions : RecursorFieldDecisions stats
-      traversal.rootContext traversal.parameterTail traversal.terminalContext
-      traversal.terminal traversal.fields traversal.recursiveFields
-      traversal.recursivePositions := by
-    simpa [hstats] using traversal.decisions
-  have hpositions : traversal.recursivePositions =
-      A.semantics.recursivePositions :=
-    H.fieldReplay stats traversal.rootContext A.semantics.fieldRoot
-      traversal.terminalContext A.rule.root traversal.parameterTail
-      traversal.terminal A.rule.target traversal.fields
-      traversal.recursiveFields A.rule.allArgs A.rule.recursiveArgs
-      traversal.recursivePositions A.semantics.recursivePositions
-      hterminalToRule traversal.parameterTail_fvars HminorDecisions
-      HruleDecisions
   have hhypotheses : S.hypotheses.size = A.rule.recursiveArgs.size :=
     S.hypotheses_size_eq_rule traversal A.semantics
       htraversalRecursiveFields hpositions
@@ -1025,41 +1004,21 @@ theorem
   dsimp only
   rcases A.finalSelectedMinorShape with
     ⟨T, D, _O, S, horigin, _hlocal, _hconstructors, hconstructor,
-      hfieldCount, _Hsemantic, _hypothesisOrigins, _hhypothesisOrigins,
+      hfieldCount, Hsemantic, _hypothesisOrigins, _hhypothesisOrigins,
       _hhypothesisStats, _hhypothesisRecInfos, traversal, _htraversal,
       htraversalConstructor,
       _htraversalFields, htraversalRecursiveFields, hstats, _hvalid,
       _hmotiveApp,
       _hrootContext,
-      hterminalContext, _hsourceContext, Hdomain, _HdomainType⟩
+      hterminalContext, _hsourceContext, hpositions, Hdomain, _HdomainType⟩
+  rcases Hsemantic with ⟨HS⟩
+  have hsemanticTraversal : HS.semantic.traversal = traversal := by
+    exact Option.some.inj (HS.semantic.traversal_eq.symm.trans _htraversal)
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
       traversal.parameterTail = A.semantics.parameterTail :=
     hprefixTraversal.tail_eq A.semantics.parameterPrefix
-  have HruleDecisions : RecursorFieldDecisions stats
-      A.semantics.fieldRoot traversal.parameterTail A.rule.root
-      A.rule.target A.rule.allArgs A.rule.recursiveArgs
-      A.semantics.recursivePositions := by
-    rw [hparameterTail]
-    exact A.semantics.decisions
-  have hterminalToRule : BindingContextLE traversal.terminalContext
-      A.semantics.fieldRoot :=
-    hterminalContext.trans A.semantics.fieldRootExtension.contextLE
-  have HminorDecisions : RecursorFieldDecisions stats
-      traversal.rootContext traversal.parameterTail traversal.terminalContext
-      traversal.terminal traversal.fields traversal.recursiveFields
-      traversal.recursivePositions := by
-    simpa [hstats] using traversal.decisions
-  have hpositions : traversal.recursivePositions =
-      A.semantics.recursivePositions :=
-    H.fieldReplay stats traversal.rootContext A.semantics.fieldRoot
-      traversal.terminalContext A.rule.root traversal.parameterTail
-      traversal.terminal A.rule.target traversal.fields
-      traversal.recursiveFields A.rule.allArgs A.rule.recursiveArgs
-      traversal.recursivePositions A.semantics.recursivePositions
-      hterminalToRule traversal.parameterTail_fvars HminorDecisions
-      HruleDecisions
   have hhypotheses : S.hypotheses.size = A.rule.recursiveArgs.size :=
     S.hypotheses_size_eq_rule traversal A.semantics
       htraversalRecursiveFields hpositions
@@ -1185,35 +1144,15 @@ theorem
       htraversalFields, htraversalRecursiveFields, hstats, _hvalid,
       _hmotiveApp,
       _hrootContext,
-      hterminalContext, hsourceContext, Hdomain, HdomainType⟩
+      hterminalContext, hsourceContext, hpositions, Hdomain, HdomainType⟩
+  rcases Hsemantic with ⟨HS⟩
+  have hsemanticTraversal : HS.semantic.traversal = traversal := by
+    exact Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
       traversal.parameterTail = A.semantics.parameterTail :=
     hprefixTraversal.tail_eq A.semantics.parameterPrefix
-  have HruleDecisions : RecursorFieldDecisions stats
-      A.semantics.fieldRoot traversal.parameterTail A.rule.root
-      A.rule.target A.rule.allArgs A.rule.recursiveArgs
-      A.semantics.recursivePositions := by
-    rw [hparameterTail]
-    exact A.semantics.decisions
-  have hterminalToRule : BindingContextLE traversal.terminalContext
-      A.semantics.fieldRoot :=
-    hterminalContext.trans A.semantics.fieldRootExtension.contextLE
-  have HminorDecisions : RecursorFieldDecisions stats
-      traversal.rootContext traversal.parameterTail traversal.terminalContext
-      traversal.terminal traversal.fields traversal.recursiveFields
-      traversal.recursivePositions := by
-    simpa [hstats] using traversal.decisions
-  have hpositions : traversal.recursivePositions =
-      A.semantics.recursivePositions :=
-    H.fieldReplay stats traversal.rootContext A.semantics.fieldRoot
-      traversal.terminalContext A.rule.root traversal.parameterTail
-      traversal.terminal A.rule.target traversal.fields
-      traversal.recursiveFields A.rule.allArgs A.rule.recursiveArgs
-      traversal.recursivePositions A.semantics.recursivePositions
-      hterminalToRule traversal.parameterTail_fvars HminorDecisions
-      HruleDecisions
   have hhypotheses : S.hypotheses.size = A.rule.recursiveArgs.size :=
     S.hypotheses_size_eq_rule traversal A.semantics
       htraversalRecursiveFields hpositions
@@ -1235,7 +1174,7 @@ theorem
   exact ⟨T, S, hypothesisOrigins, traversal, hhypothesisOrigins,
     hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
     htraversalRecursiveFields, hstats, hparameterTail, hpositions,
-    hlocal, hfieldCount, hhypotheses, hsourceContext, Hsemantic,
+    hlocal, hfieldCount, hhypotheses, hsourceContext, ⟨HS⟩,
     Expr.ForallTelescopeTypeTranslation.ofTrExprS
       Habstract Hdomain' HdomainType⟩
 /-- Independently replay the complete selected-minor telescope in the exact
@@ -2036,7 +1975,7 @@ theorem
       hsourceFields, hsourceHypotheses, _hsourceContext,
       ⟨HS⟩, hfields, hhypotheses, htarget, Hsource, Hresidual,
       HresidualType, _Htyped⟩
-  have hconsume := S.sourceTelescope.consumeTypeAnnotations_eq_self_of_pos
+  have hconsume := S.sourceTelescope.consumeTypeAnnotationsVerified_eq_self_of_pos
     (by simpa [hsourceFields, hsourceHypotheses] using hpositive)
   have horigin : S.origin = S.sourceType :=
     S.consumed_eq.symm.trans hconsume
@@ -2139,36 +2078,13 @@ theorem
       _hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
       traversal, htraversal, htraversalConstructor, htraversalFields,
       htraversalRecursiveFields, htraversalStats, hvalid, hmotiveApp,
-      _hrootContext, hterminalContext, _hsourceContext, Hdomain,
+      _hrootContext, hterminalContext, _hsourceContext, hpositions, Hdomain,
       HdomainType⟩
   have hprefixTraversal := traversal.parameterPrefix
   rw [htraversalStats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
       traversal.parameterTail = A.semantics.parameterTail :=
     hprefixTraversal.tail_eq A.semantics.parameterPrefix
-  have HruleDecisions : RecursorFieldDecisions stats
-      A.semantics.fieldRoot traversal.parameterTail A.rule.root
-      A.rule.target A.rule.allArgs A.rule.recursiveArgs
-      A.semantics.recursivePositions := by
-    rw [hparameterTail]
-    exact A.semantics.decisions
-  have hterminalToRule : BindingContextLE traversal.terminalContext
-      A.semantics.fieldRoot :=
-    hterminalContext.trans A.semantics.fieldRootExtension.contextLE
-  have HminorDecisions : RecursorFieldDecisions stats
-      traversal.rootContext traversal.parameterTail traversal.terminalContext
-      traversal.terminal traversal.fields traversal.recursiveFields
-      traversal.recursivePositions := by
-    simpa [htraversalStats] using traversal.decisions
-  have hpositions : traversal.recursivePositions =
-      A.semantics.recursivePositions :=
-    H.fieldReplay stats traversal.rootContext A.semantics.fieldRoot
-      traversal.terminalContext A.rule.root traversal.parameterTail
-      traversal.terminal A.rule.target traversal.fields
-      traversal.recursiveFields A.rule.allArgs A.rule.recursiveArgs
-      traversal.recursivePositions A.semantics.recursivePositions
-      hterminalToRule traversal.parameterTail_fvars HminorDecisions
-      HruleDecisions
   have hsourceHypotheses : S.hypotheses.size =
       A.rule.recursiveArgs.size :=
     S.hypotheses_size_eq_rule traversal A.semantics
@@ -3396,6 +3312,8 @@ theorem
         H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
     ∃ outerFields : List VExpr,
     ∃ outerResidual : VExpr,
+    ∃ ruleFields : List VExpr,
+    ∃ ruleResidual : VExpr,
       outerScope.fvars = outerBinders.reverse ∧
       Houter.shift = fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
         (· ∈ outerBinders) ∧
@@ -3406,10 +3324,15 @@ theorem
         (VExpr.wrapForalls outerFields outerResidual) ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length [] outerScope.toCtx
         (T.params ++ T.motives ++ T.minors).reverse ∧
+      ruleFields.length = A.rule.allArgs.size ∧
+      (VExpr.wrapForalls A.semantics.fieldTelescope.domains
+          A.semantics.targetTarget).lift'
+            (A.semantics.fieldRootExtension.shift.consN 0) =
+        VExpr.wrapForalls ruleFields ruleResidual ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         ((liftForallDomains outerFields Houter.shift).reverse ++
           H.recursorWF.mlctx.vlctx.toCtx)
-        (A.semantics.fieldTelescope.domains.reverse ++
+        (ruleFields.reverse ++
           H.recursorWF.mlctx.vlctx.toCtx) := by
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -3421,24 +3344,20 @@ theorem
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
-  have hfieldRootEnv : A.semantics.fieldRootContext.venv =
-      H.recursorWF.venv :=
-    A.semantics.fieldsRecent.venv_eq.symm.trans
-      A.semantics.context_venv
+  rcases A.semantics.fieldContextDefEqMono with
+    ⟨sourceDomains, _sourceResidual, ruleFields, ruleResidual,
+      hsourceDomains, hruleFields, Hruntime₀, hruleTarget,
+      HsourceSemantic₀⟩
   have Hruntime : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
-      A.semantics.parameterTail A.semantics.parameterTarget := by
-    have Htr := A.semantics.parameterTranslation
-    rw [hfieldRootEnv, A.semantics.fieldRoot_vlctx] at Htr
-    exact Htr.mono hbase
+      A.semantics.parameterTail
+      (VExpr.wrapForalls sourceDomains _sourceResidual) :=
+    Hruntime₀.mono hbase
   have HruntimeWF : VLCtx.WF H.outVEnv Us.length
       H.recursorWF.mlctx.vlctx :=
     (H.recursorWF.mlctx_wf.mono hbase).tr.wf
   have Hwhole := Houter.fullTargetEq H.outVEnvWF HouterTail
     (Hruntime.trExpr H.outVEnvWF HruntimeWF)
-  rcases A.semantics.fieldContextDefEq with
-    ⟨sourceDomains, sourceResidual, hsourceDomains,
-      hparameterTarget, HsourceSemantic₀⟩
-  rw [VExpr.lift'_wrapForalls_exact, hparameterTarget] at Hwhole
+  rw [VExpr.lift'_wrapForalls_exact] at Hwhole
   have HruntimeBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
       H.recursorWF.mlctx.vlctx.toCtx H.recursorWF.mlctx.vlctx.toCtx :=
     .refl HruntimeWF.toCtx
@@ -3448,15 +3367,14 @@ theorem
         (houterFields.trans hsourceDomains.symm)) Hwhole
   have HsourceSemantic : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (sourceDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-      (A.semantics.fieldTelescope.domains.reverse ++
+      (ruleFields.reverse ++
         H.recursorWF.mlctx.vlctx.toCtx) := by
-    rw [hfieldRootEnv, A.semantics.fieldRoot_vlctx] at HsourceSemantic₀
     exact HsourceSemantic₀.mono hbase
   have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HouterSource HsourceSemantic
-  exact ⟨outerScope, Houter, outerFields, outerResidual, houterScope,
-    houterShift, houterFields, HouterTail, HouterType, HouterPrefix,
-    Haligned⟩
+  exact ⟨outerScope, Houter, outerFields, outerResidual, ruleFields,
+    ruleResidual, houterScope, houterShift, houterFields, HouterTail,
+    HouterType, HouterPrefix, hruleFields, hruleTarget, Haligned⟩
 
 /-- Select the translated minor domain corresponding to recursive-result
 ordinal `j`.  The source binder is retained explicitly, and its abstract
@@ -3657,7 +3575,7 @@ theorem
               Nonempty (RecInfoMinorHypothesisTypeOrigin
                 hypothesisOrigins.stats hypothesisOrigins.recInfos
                 originRoot S.recursiveFields[j]! sourceType) ∧
-              D.type = sourceType.consumeTypeAnnotations ∧
+              D.type = sourceType.consumeTypeAnnotationsVerified ∧
               D.type = sourceType := by
   dsimp only
   rcases A.finalSelectedMinorHypothesisDomainAt j hj with
@@ -3674,12 +3592,13 @@ theorem
   rcases S.hypotheses_bound.declarationAt S.sourceFullWF j hjSource with
     ⟨D⟩
   rcases hypothesisOrigins.entry j hjSource with
-    ⟨originRoot, sourceType, HtypeOrigin, Dorigin, htypeOrigin⟩
-  have hdeclarationType : D.type = sourceType.consumeTypeAnnotations :=
+    ⟨originRoot, sourceType, _HfieldRoot, HtypeOrigin, Dorigin,
+      htypeOrigin⟩
+  have hdeclarationType : D.type = sourceType.consumeTypeAnnotationsVerified :=
     (D.type_unique Dorigin).trans htypeOrigin
   rcases HtypeOrigin with ⟨O⟩
   have hdeclarationTypeExact : D.type = sourceType :=
-    hdeclarationType.trans O.consumeTypeAnnotations_eq_self
+    hdeclarationType.trans O.consumeTypeAnnotationsVerified_eq_self
   have hjRecursiveFields : j < S.recursiveFields.size := by
     rw [← S.hypotheses_size, hsourceHypotheses]
     exact hj

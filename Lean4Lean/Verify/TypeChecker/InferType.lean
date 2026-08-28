@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.TypeChecker.Reduce
 import Lean4Lean.Verify.EquivManager
+import Lean4Lean.Verify.Typing.ProjectionInference
 
 open Lean4Lean
 
@@ -384,6 +385,147 @@ theorem inferLet.WF
   refine .stateWF fun wf => ?_
   refine (c.withMLC_self ▸ inferLet.loop.WF (Nat.zero_le _) [] rfl rfl rfl rfl rfl ?_ hr) hinf
   exact fun P hP he => ⟨(AllAbove.wf wf.trctx.wf.fvwf).2 hP, he.mono fun _ h _ => h, fun _ => id⟩
+
+/-- The proposition side check preserves verified state.  The selected-field
+interpreter only needs its control-flow result; the stronger semantic result
+is proved later by `isProp.WF`. -/
+theorem projectionGetSortLevel.WF
+    (he : c.TrExprS e e') :
+    (getSortLevel e).WF c s fun _ _ => True := by
+  unfold getSortLevel
+  refine (inferType.WF he).bind fun inferredType _ _ ⟨_, htyping⟩ => ?_
+  refine (ensureSortCore.WF (e := inferredType) (e₀ := e) htyping.2.2.1).bind
+    fun normalized _ _ Hnormalized => ?_
+  rcases Hnormalized.1 with ⟨level, rfl⟩
+  exact .pure trivial
+
+theorem projectionIsProp.WF
+    (he : c.TrExprS e e') :
+    (isProp e).WF c s fun _ _ => True := by
+  unfold isProp
+  exact (projectionGetSortLevel.WF he).bind fun _ _ _ _ => .pure trivial
+
+/-- Verify the executable selected-field loop assuming translations of the
+strictly earlier primitive projections that it may insert.  The assumption
+is an induction hypothesis, indexed by the current absolute field position;
+`inferProj.WF` discharges it by strong induction on the requested index.
+
+Both runtime branches use the same semantic instantiation.  In the
+independent branch the concrete instantiation is definitionally the original
+body because production observed `hasLooseBVars = false`. -/
+theorem instantiateProjectionFieldsExact.loop.WF
+    (hsource : c.TrExprS source source')
+    (hfail : ∀ {α} {s'}, (@fail α).WF c s' fun _ _ => False)
+    (hprojection : ∀ (current : Nat), position ≤ current →
+      current < position + remaining →
+      ∀ {domain domain'}, c.TrExprS domain domain' →
+        ∃ projected projectedType,
+          c.TrTyping (.proj typeName current struct) domain
+            projected projectedType) :
+    (instantiateProjectionFieldsExact.loop typeName struct maybePropType fail
+      position remaining source).WF c s fun result _ =>
+        ∃ target, c.TrExprS result.result target := by
+  induction remaining generalizing s position source source' with
+  | zero =>
+      exact .pure ⟨source', hsource⟩
+  | succ remaining ih =>
+      unfold instantiateProjectionFieldsExact.loop
+      refine (whnf.WF hsource).bind fun normalized _ _ Hnormalized => ?_
+      rcases Hnormalized with ⟨_, Hnormalized⟩
+      split
+      · rename_i binderName domain body binderInfo hbelow
+        rcases Hnormalized.forallView with ⟨view⟩
+        have hcurrentUpper : position < position + (remaining + 1) := by omega
+        rcases hprojection position (Nat.le_refl position) hcurrentUpper
+            view.domainTranslation with
+          ⟨projected, projectedType, Hprojected⟩
+        have hdomainDefEq : c.IsDefEqU projectedType view.abstractDomain :=
+          Hprojected.2.2.1.uniq c.Ewf (.refl c.Ewf c.Δwf)
+            view.domainTranslation
+        have hprojectedAtDomain :
+            c.HasType projected view.abstractDomain :=
+          Hprojected.2.2.2.defeqU_r c.Ewf c.Δwf hdomainDefEq
+        have hbodyInst : c.TrExprS (body.instantiate1 (.proj typeName position struct))
+            (view.abstractBody.inst projected) := by
+          rw [Expr.instantiate1_eq]
+          exact view.bodyTranslation.inst c.Ewf.ordered hprojectedAtDomain
+            Hprojected.2.1
+        have hprojectionTail : ∀ (current : Nat), position + 1 ≤ current →
+            current < position + 1 + remaining →
+            ∀ {domain domain'}, c.TrExprS domain domain' →
+              ∃ projected projectedType,
+                c.TrTyping (.proj typeName current struct) domain
+                  projected projectedType := by
+          intro current hlower hupper domain domain' hdomain
+          apply hprojection current (by omega) (by omega) hdomain
+        split
+        · rename_i hdependent
+          split
+          · refine (projectionIsProp.WF view.domainTranslation).bind fun _ _ _ _ => ?_
+            split
+            · refine RecM.WF.bind
+                (f := fun tail => pure (ProjectionFieldResult.dependent
+                  position remaining source binderName domain body binderInfo tail))
+                (ih (position := position + 1)
+                (source := body.instantiate1 (.proj typeName position struct))
+                (source' := view.abstractBody.inst projected)
+                hbodyInst hprojectionTail) fun tail _ _ ⟨target, htarget⟩ => ?_
+              exact RecM.WF.pure
+                (a := ProjectionFieldResult.dependent position remaining source
+                  binderName domain body binderInfo tail)
+                (Q := fun result _ => ∃ target, c.TrExprS result.result target)
+                ⟨target, htarget⟩
+            · exact hfail.bind fun _ _ _ hfalse => hfalse.elim
+          · refine RecM.WF.bind
+              (f := fun tail => pure (ProjectionFieldResult.dependent
+                position remaining source binderName domain body binderInfo tail))
+              (ih (position := position + 1)
+              (source := body.instantiate1 (.proj typeName position struct))
+              (source' := view.abstractBody.inst projected)
+              hbodyInst hprojectionTail) fun tail _ _ ⟨target, htarget⟩ => ?_
+            exact RecM.WF.pure
+              (a := ProjectionFieldResult.dependent position remaining source
+                binderName domain body binderInfo tail)
+              (Q := fun result _ => ∃ target, c.TrExprS result.result target)
+              ⟨target, htarget⟩
+        · rename_i hindependent
+          have hclosed : body.looseBVarRange' = 0 := by
+            simpa [Expr.hasLooseBVars] using hindependent
+          have hbodyEq :
+              body.instantiate1 (.proj typeName position struct) = body := by
+            rw [Expr.instantiate1_eq]
+            exact Expr.instantiate1'_eq_self (Nat.le_of_eq hclosed)
+          rw [hbodyEq] at hbodyInst
+          refine RecM.WF.bind
+            (f := fun tail => pure (ProjectionFieldResult.independent position
+              remaining source binderName domain body binderInfo tail))
+            (ih (position := position + 1) (source := body)
+            (source' := view.abstractBody.inst projected)
+            hbodyInst hprojectionTail) fun tail _ _ ⟨target, htarget⟩ => ?_
+          exact RecM.WF.pure
+            (a := ProjectionFieldResult.independent position remaining source
+              binderName domain body binderInfo tail)
+            (Q := fun result _ => ∃ target, c.TrExprS result.result target)
+            ⟨target, htarget⟩
+      · exact hfail.mono fun _ _ _ hfalse => hfalse.elim
+
+/-- Verify the complete selected-field prefix from its production starting
+position.  The only recursive obligations are primitive projections with a
+strictly smaller field index than the requested one. -/
+theorem instantiateProjectionFieldsExact.WF
+    (hsource : c.TrExprS source source')
+    (hfail : ∀ {α} {s'}, (@fail α).WF c s' fun _ _ => False)
+    (hprojection : ∀ (current : Nat), current < index →
+      ∀ {domain domain'}, c.TrExprS domain domain' →
+        ∃ projected projectedType,
+          c.TrTyping (.proj typeName current struct) domain
+            projected projectedType) :
+    (instantiateProjectionFieldsExact typeName index struct maybePropType
+      source fail).WF c s fun result _ =>
+        ∃ target, c.TrExprS result.result target := by
+  unfold instantiateProjectionFieldsExact
+  exact instantiateProjectionFieldsExact.loop.WF hsource hfail
+    (fun current _ hcurrent => hprojection current (by simpa using hcurrent))
 
 theorem inferProj.WF
     (he : c.TrExprS e e') (hty : c.TrExprS ety ety') (hasty : c.HasType e' ty') :

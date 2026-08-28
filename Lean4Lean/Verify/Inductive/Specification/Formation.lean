@@ -27,6 +27,73 @@ theorem typeShape_mono {env env' : VEnv} (henv : env ≤ env')
     hnormalized.mono henv, hparamsTake, hindicesTake,
     hparams.mono henv, hresult.mono henv⟩
 
+/-- Assemble the persistent semantic constructor witness from the independent
+family and constructor shape judgments.  The two concrete parameter
+telescopes may differ syntactically; both are compared to the declaration's
+canonical parameter context in the common final environment. -/
+theorem InductiveConstructorSemanticCoherenceAt.ofShapes
+    {decl : VInductDecl}
+    (C : InductiveConstructorCoherenceAt
+      prodEnv familyName familyInfo i hi)
+    (henv : finalEnv.WF)
+    (family : VInductiveType) (ctor : VConstVal)
+    (hfamilyLookup : finalEnv.constants familyName =
+      some family.toVConstant)
+    (hctorLookup : finalEnv.constants familyInfo.ctors[i] =
+      some ctor.toVConstant)
+    (hfamilyUvars : family.uvars = decl.uvars)
+    (hctorUvars : ctor.uvars = decl.uvars)
+    (hlevelParams : familyInfo.levelParams.length = decl.uvars)
+    (hnumParams : familyInfo.numParams = decl.nparams)
+    (Hfamily : decl.TypeShape familyEnv params family)
+    (Hctor : decl.CtorShape ctorEnv params family ctor)
+    (hfamilyLE : familyEnv ≤ finalEnv)
+    (hctorLE : ctorEnv ≤ finalEnv) :
+    Nonempty (InductiveConstructorSemanticCoherenceAt
+      prodEnv finalEnv familyName familyInfo i hi) := by
+  rcases Hfamily with
+    ⟨familyNormalized, familyDomains, familyAfterParams, familyIndices,
+      familyResult, familyType, HfamilyDefEq, HfamilyParams,
+      _HfamilyIndices, HfamilyDomains, _HfamilyResult⟩
+  rcases Hctor with
+    ⟨constructorNormalized, constructorDomains, constructorTail,
+      constructorType, _constructorTailCtx, HconstructorDefEq,
+      HconstructorParams, HconstructorDomains, _HconstructorCtx,
+      _HconstructorTail⟩
+  have HfamilyToCanonical : finalEnv.IsDefEqCtx decl.uvars []
+      familyDomains.reverse params.reverse :=
+    (HfamilyDomains.mono hfamilyLE).symm henv.ordered
+  have HcanonicalToConstructor : finalEnv.IsDefEqCtx decl.uvars []
+      params.reverse constructorDomains.reverse :=
+    HconstructorDomains.mono hctorLE
+  have Hdomains : finalEnv.IsDefEqCtx decl.uvars []
+      familyDomains.reverse constructorDomains.reverse :=
+    VEnv.IsDefEqCtx.transEmpty henv HfamilyToCanonical
+      HcanonicalToConstructor
+  exact ⟨{
+    toInductiveConstructorCoherenceAt := C
+    familyTarget := family.toVConstant
+    constructorTarget := ctor.toVConstant
+    familyLookup := hfamilyLookup
+    constructorLookup := hctorLookup
+    familyUvars := hfamilyUvars.trans hlevelParams.symm
+    constructorUvars := hctorUvars.trans hlevelParams.symm
+    familyNormalized := familyNormalized
+    constructorNormalized := constructorNormalized
+    familyDomains := familyDomains
+    constructorDomains := constructorDomains
+    familyTail := familyAfterParams
+    constructorTail := constructorTail
+    familyType := familyType
+    constructorType := constructorType
+    familyDefEq := by
+      simpa [hlevelParams] using HfamilyDefEq.mono hfamilyLE
+    constructorDefEq := by
+      simpa [hlevelParams] using HconstructorDefEq.mono hctorLE
+    familyParams := by simpa [hnumParams] using HfamilyParams
+    constructorParams := by simpa [hnumParams] using HconstructorParams
+    parameterDomains := by simpa [hlevelParams] using Hdomains }⟩
+
 /-- Expose the next family-local parameter from `TypeShape` as a certified
 presentation of the whole source header. -/
 theorem VInductDecl.TypeShape.nextParameter
@@ -163,6 +230,19 @@ structure ConstructorCertificate (env : VEnv) (decl : VInductDecl)
     (envTypes : VEnv) (params : List VExpr) : Prop where
   shapes : ∀ owned ∈ decl.ownedConstructors,
     decl.CtorShape envTypes params owned.1 owned.2
+
+/-- Raw common-parameter shapes retained separately from normalized
+constructor formation. -/
+structure ConstructorParameterCertificate (env : VEnv) (decl : VInductDecl)
+    (params : List VExpr) : Prop where
+  shapes : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
+    decl.CtorParameterShape env params ctor
+
+theorem ConstructorParameterCertificate.ctorParameterShape
+    (H : ConstructorParameterCertificate env decl params)
+    (htype : type ∈ decl.types) (hctor : ctor ∈ type.ctors) :
+    decl.CtorParameterShape env params ctor :=
+  H.shapes type htype ctor hctor
 
 /-- Constructor-tail formation together with the typing fact recovered by
 fully applying the checked inductive header. -/
@@ -315,6 +395,8 @@ structure FormationCertificate (env : VEnv) (decl : VInductDecl) where
   headers : HeaderCertificate env decl
   envTypes : VEnv
   typesInstalled : env.addConstVals decl.typeConstants = some envTypes
+  constructorParameters : ConstructorParameterCertificate envTypes decl
+    headers.params
   constructors : ConstructorCertificate env decl envTypes headers.params
 
 theorem FormationCertificate.formationWF
@@ -322,24 +404,28 @@ theorem FormationCertificate.formationWF
   exact ⟨H.headers.params, H.headers.resultLevel, H.envTypes, H.typesInstalled,
     fun type htype => ⟨H.headers.commonLevels type htype,
       H.headers.typeShapes type htype⟩,
-    fun type htype ctor hctor => H.constructors.ctorShape htype hctor⟩
+    fun type htype ctor hctor =>
+      ⟨H.constructorParameters.ctorParameterShape htype hctor,
+        H.constructors.ctorShape htype hctor⟩⟩
 
 theorem FormationCertificate.declWF
     (H : FormationCertificate env decl) (hsource : decl.SourceWF env) :
     decl.WF env :=
-  ⟨hsource, H.formationWF⟩
+  ⟨hsource, .ordinary H.formationWF⟩
 
 def FormationCertificate.ofPrefixes
     (Hheaders : HeaderLoopCertificate env lparams decl params stats
       decl.types.length)
     (envTypes : VEnv)
     (htypes : env.addConstVals decl.typeConstants = some envTypes)
+    (HctorParameters : ConstructorParameterCertificate envTypes decl params)
     (Hctors : ConstructorPrefixCertificate env decl envTypes params
       decl.ownedConstructors.length) :
     FormationCertificate env decl where
   headers := Hheaders.headerPrefix.complete
   envTypes := envTypes
   typesInstalled := htypes
+  constructorParameters := HctorParameters
   constructors := Hctors.complete
 
 /-- Build ordered relational coverage from equal lengths and pointwise array-
@@ -1399,6 +1485,36 @@ theorem TrInductDeclCore.ofPhases
     typesAdded := Hheaders.typesAdded
     ctorsAdded := Hctors.ctorsAdded
     types := combine Hheaders.types Hctors.types }
+
+/-- The two abstract staging environments retained by core translation are
+well formed whenever the source environment is: translated headers may be
+added as axioms first, followed by the independently checked original
+constructors. -/
+theorem TrInductDeclCore.envCtorsWF
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (henv : env.WF) : envCtors.WF := by
+  have htypes : ∀ ci ∈ decl.typeConstants,
+      ci.toVConstant.WF env := by
+    intro ci hci
+    simp only [VInductDecl.typeConstants] at hci
+    rcases List.mem_map.mp hci with ⟨target, htarget, rfl⟩
+    rcases Lean4Lean.List.Forall₂.forall_exists_r H.types target htarget with
+      ⟨source, _hsource, Htarget⟩
+    exact Htarget.header.wf
+  have henvTypes : envTypes.WF :=
+    VEnv.WF.addConstVals henv htypes H.typesAdded
+  have hctors : ∀ ci ∈ decl.constructorConstants,
+      ci.toVConstant.WF envTypes := by
+    intro ci hci
+    simp only [VInductDecl.constructorConstants] at hci
+    rcases List.mem_flatMap.mp hci with ⟨target, htarget, hctor⟩
+    rcases Lean4Lean.List.Forall₂.forall_exists_r H.types target htarget with
+      ⟨source, _hsource, Htarget⟩
+    rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget.ctors ci hctor with
+      ⟨sourceCtor, _hsourceCtor, Hctor⟩
+    exact Hctor.wf
+  exact VEnv.WF.addConstVals henvTypes hctors H.ctorsAdded
 
 /-- Pointwise original-source translations already contain all typing and
 universe facts required by `SourceWF`. Thus the aggregate source judgment

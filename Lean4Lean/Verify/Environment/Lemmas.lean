@@ -38,6 +38,124 @@ private theorem find?_add_cases
     rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
     exact hfind
 
+theorem TypeAnnotationWrappers.addConstant
+    (H : TypeAnnotationWrappers env)
+    (hwf : env.constants.WF) (ci : ConstantInfo)
+    (hfresh : env.find? ci.name = none) :
+    TypeAnnotationWrappers (env.add ci) := by
+  apply H.rebase
+  intro name old hlookup
+  have hne : ci.name ≠ name := by
+    intro heq
+    subst name
+    rw [hlookup] at hfresh
+    contradiction
+  rw [find?_add_of_ne hwf ci hfresh hne]
+  exact hlookup
+
+theorem TypeAnnotationWrappers.addDefinitions
+    (H : TypeAnnotationWrappers env) (hwf : env.constants.WF) :
+    ∀ (vs : List DefinitionVal),
+      (∀ v ∈ vs, env.find? v.name = none) →
+      (vs.map (·.name)).Nodup →
+      TypeAnnotationWrappers
+        (vs.foldl (fun env v => env.add (.defnInfo v)) env)
+  | [], _, _ => H
+  | v :: vs, hfresh, hnodup => by
+      simp only [List.map_cons, List.nodup_cons] at hnodup
+      have hvfresh := hfresh v (by simp)
+      have hvfreshMap : env.constants.find? v.name = none := by
+        rwa [← hwf.find?'_eq_find?]
+      have hwf' : (env.add (.defnInfo v)).constants.WF := by
+        change (env.constants.insert v.name (.defnInfo v)).WF
+        exact hwf.insert v.name (.defnInfo v) hvfreshMap
+      apply TypeAnnotationWrappers.addDefinitions
+        (TypeAnnotationWrappers.addConstant H hwf (.defnInfo v) hvfresh)
+        hwf' vs
+      · intro w hw
+        have hne : v.name ≠ w.name := by
+          intro heq
+          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
+        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
+        exact hfresh w (by simp [hw])
+      · exact hnodup.2
+
+/-- Adding a fresh non-constructor constant preserves constructor-owner
+presence. -/
+theorem ConstructorOwnersPresent.addNonConstructor
+    {ci : ConstantInfo}
+    (H : ConstructorOwnersPresent env)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hnctor : ∀ info, ci ≠ .ctorInfo info) :
+    ConstructorOwnersPresent (env.add ci) := by
+  intro name info hfind
+  rcases find?_add_cases hwf ci hfresh hfind with
+    ⟨_, hnew⟩ | hold
+  · exact False.elim (hnctor info hnew.symm)
+  · rcases H name info hold with ⟨owner, howner⟩
+    have hne : ci.name ≠ info.induct := by
+      intro heq
+      rw [← heq, hfresh] at howner
+      contradiction
+    exact ⟨owner, (find?_add_of_ne hwf ci hfresh hne).trans howner⟩
+
+/-- Adding a fresh constructor whose owner is already present preserves
+constructor-owner presence. -/
+theorem ConstructorOwnersPresent.addConstructor
+    (H : ConstructorOwnersPresent env)
+    (hwf : env.constants.WF) (info : ConstructorVal)
+    (hfresh : env.find? info.name = none)
+    (howner : env.find? info.induct = some (.inductInfo owner)) :
+    ConstructorOwnersPresent (env.add (.ctorInfo info)) := by
+  intro name found hfind
+  rcases find?_add_cases hwf (.ctorInfo info) hfresh hfind with
+    ⟨_, hnew⟩ | hold
+  · have hfound : found = info :=
+      ConstantInfo.ctorInfo.inj hnew
+    subst found
+    have hne : info.name ≠ info.induct := by
+      intro heq
+      rw [← heq, hfresh] at howner
+      contradiction
+    exact ⟨owner,
+      (find?_add_of_ne hwf (.ctorInfo info) hfresh hne).trans howner⟩
+  · rcases H name found hold with ⟨oldOwner, holdOwner⟩
+    have hne : info.name ≠ found.induct := by
+      intro heq
+      rw [← heq, hfresh] at holdOwner
+      contradiction
+    exact ⟨oldOwner,
+      (find?_add_of_ne hwf (.ctorInfo info) hfresh hne).trans holdOwner⟩
+
+/-- A fresh mutual-definition fold contains no constructor metadata and
+hence preserves constructor-owner presence. -/
+theorem ConstructorOwnersPresent.addDefinitions
+    (H : ConstructorOwnersPresent env) (hwf : env.constants.WF) :
+    ∀ (vs : List DefinitionVal),
+      (∀ v ∈ vs, env.find? v.name = none) →
+      (vs.map (·.name)).Nodup →
+      ConstructorOwnersPresent
+        (vs.foldl (fun env v => env.add (.defnInfo v)) env)
+  | [], _, _ => H
+  | v :: vs, hfresh, hnodup => by
+      simp only [List.map_cons, List.nodup_cons] at hnodup
+      have hvfresh := hfresh v (by simp)
+      have hvfreshMap : env.constants.find? v.name = none := by
+        rwa [← hwf.find?'_eq_find?]
+      have hwf' : (env.add (.defnInfo v)).constants.WF := by
+        change (env.constants.insert v.name (.defnInfo v)).WF
+        exact hwf.insert v.name (.defnInfo v) hvfreshMap
+      have H' : ConstructorOwnersPresent (env.add (.defnInfo v)) :=
+        H.addNonConstructor hwf hvfresh (by intro _ h; cases h)
+      apply H'.addDefinitions hwf' vs
+      · intro w hw
+        have hne : v.name ≠ w.name := by
+          intro heq
+          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
+        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
+        exact hfresh w (by simp [hw])
+      · exact hnodup.2
+
 theorem InductiveMemberInfos.addConstant
     {ci : ConstantInfo}
     (H : InductiveMemberInfos env names)
@@ -103,6 +221,298 @@ theorem MutualInductivesClosed.addDefinitions
         exact hfresh w (by simp [hw])
       · exact hnodup.2
 
+theorem InductiveConstructorsCoherent.constructorAt
+    (H : InductiveConstructorsCoherent env)
+    (hfamily : env.find? familyName = some (.inductInfo familyInfo))
+    (hi : i < familyInfo.ctors.length) :
+    Nonempty (InductiveConstructorCoherenceAt env familyName familyInfo i hi) :=
+  H familyName familyInfo hfamily i hi
+
+theorem InductiveConstructorsCoherent.constructorLookup
+    (H : InductiveConstructorsCoherent env)
+    (hfamily : env.find? familyName = some (.inductInfo familyInfo))
+    (hi : i < familyInfo.ctors.length) :
+    ∃ info : ConstructorVal,
+      env.find? familyInfo.ctors[i] = some (.ctorInfo info) ∧
+      info.induct = familyName ∧
+      info.cidx = i ∧
+      info.numParams = familyInfo.numParams ∧
+      info.levelParams = familyInfo.levelParams ∧
+      info.isUnsafe = familyInfo.isUnsafe := by
+  rcases H.constructorAt hfamily hi with ⟨C⟩
+  exact ⟨C.info, C.lookup, C.induct, C.cidx, C.numParams,
+    C.levelParams, C.isUnsafe⟩
+
+def InductiveConstructorCoherenceAt.addConstant
+    {ci : ConstantInfo}
+    (H : InductiveConstructorCoherenceAt env familyName familyInfo i hi)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none) :
+    InductiveConstructorCoherenceAt (env.add ci) familyName familyInfo i hi := by
+  have hne : ci.name ≠ familyInfo.ctors[i] := by
+    intro heq
+    rw [heq, H.lookup] at hfresh
+    contradiction
+  exact { H with lookup :=
+    (find?_add_of_ne hwf ci hfresh hne).trans H.lookup }
+
+/-- Adding a fresh constant which is not an inductive header preserves all
+previous constructor/header coherence. -/
+theorem InductiveConstructorsCoherent.addNonInductive
+    {ci : ConstantInfo}
+    (H : InductiveConstructorsCoherent env)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hnind : ∀ value, ci ≠ .inductInfo value) :
+    InductiveConstructorsCoherent (env.add ci) := by
+  intro familyName familyInfo hfamily i hi
+  rcases find?_add_cases hwf ci hfresh hfamily with
+    ⟨_, hvalue⟩ | hold
+  · exact False.elim (hnind familyInfo hvalue.symm)
+  · rcases H.constructorAt hold hi with ⟨C⟩
+    exact ⟨C.addConstant hwf hfresh⟩
+
+/-- A fresh mutual-definition fold contains no inductive headers and hence
+preserves constructor/header coherence. -/
+theorem InductiveConstructorsCoherent.addDefinitions
+    (H : InductiveConstructorsCoherent env) (hwf : env.constants.WF) :
+    ∀ (vs : List DefinitionVal),
+      (∀ v ∈ vs, env.find? v.name = none) →
+      (vs.map (·.name)).Nodup →
+      InductiveConstructorsCoherent
+        (vs.foldl (fun env v => env.add (.defnInfo v)) env)
+  | [], _, _ => H
+  | v :: vs, hfresh, hnodup => by
+      simp only [List.map_cons, List.nodup_cons] at hnodup
+      have hvfresh := hfresh v (by simp)
+      have hvfreshMap : env.constants.find? v.name = none := by
+        rwa [← hwf.find?'_eq_find?]
+      have hwf' : (env.add (.defnInfo v)).constants.WF := by
+        change (env.constants.insert v.name (.defnInfo v)).WF
+        exact hwf.insert v.name (.defnInfo v) hvfreshMap
+      have H' : InductiveConstructorsCoherent
+          (env.add (.defnInfo v)) :=
+        H.addNonInductive hwf hvfresh (by intro _ h; cases h)
+      apply H'.addDefinitions hwf' vs
+      · intro w hw
+        have hne : v.name ≠ w.name := by
+          intro heq
+          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
+        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
+        exact hfresh w (by simp [hw])
+      · exact hnodup.2
+
+def InductiveConstructorSemanticCoherenceAt.mono
+    (H : InductiveConstructorSemanticCoherenceAt
+      env venv familyName familyInfo i hi)
+    (hle : venv ≤ venv') :
+    InductiveConstructorSemanticCoherenceAt
+      env venv' familyName familyInfo i hi :=
+  { H with
+    familyLookup := hle.constants H.familyLookup
+    constructorLookup := hle.constants H.constructorLookup
+    familyDefEq := H.familyDefEq.mono hle
+    constructorDefEq := H.constructorDefEq.mono hle
+    parameterDomains := H.parameterDomains.mono hle }
+
+def InductiveConstructorSemanticCoherenceAt.addConstant
+    {ci : ConstantInfo}
+    (H : InductiveConstructorSemanticCoherenceAt
+      env venv familyName familyInfo i hi)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hle : venv ≤ venv') :
+    InductiveConstructorSemanticCoherenceAt
+      (env.add ci) venv' familyName familyInfo i hi :=
+  { H.mono hle with
+    toInductiveConstructorCoherenceAt :=
+      H.toInductiveConstructorCoherenceAt.addConstant hwf hfresh }
+
+/-- Transport one semantic constructor witness across an arbitrary
+production-environment extension once the exact constructor lookup has been
+shown to survive.  All semantic fields only require monotonicity of the
+abstract environment. -/
+def InductiveConstructorSemanticCoherenceAt.rebaseProduction
+    (H : InductiveConstructorSemanticCoherenceAt
+      env venv familyName familyInfo i hi)
+    (hlookup : env'.find? familyInfo.ctors[i] = some (.ctorInfo H.info))
+    (hle : venv ≤ venv') :
+    InductiveConstructorSemanticCoherenceAt
+      env' venv' familyName familyInfo i hi :=
+  { H.mono hle with
+    toInductiveConstructorCoherenceAt :=
+      { H.toInductiveConstructorCoherenceAt with lookup := hlookup } }
+
+theorem InductiveConstructorsSemanticallyCoherent.mono
+    (H : InductiveConstructorsSemanticallyCoherent safety env venv)
+    (hle : venv ≤ venv') :
+    InductiveConstructorsSemanticallyCoherent safety env venv' := by
+  intro familyName familyInfo hfamily hvisible i hi
+  rcases H familyName familyInfo hfamily hvisible i hi with ⟨C⟩
+  exact ⟨C.mono hle⟩
+
+/-- A fresh non-inductive production constant and any monotone abstract
+extension preserve visible constructor semantics. -/
+theorem InductiveConstructorsSemanticallyCoherent.addNonInductive
+    {ci : ConstantInfo}
+    (H : InductiveConstructorsSemanticallyCoherent safety env venv)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hnind : ∀ value, ci ≠ .inductInfo value)
+    (hle : venv ≤ venv') :
+    InductiveConstructorsSemanticallyCoherent safety (env.add ci) venv' := by
+  intro familyName familyInfo hfamily hvisible i hi
+  rcases find?_add_cases hwf ci hfresh hfamily with
+    ⟨_, hvalue⟩ | hold
+  · exact False.elim (hnind familyInfo hvalue.symm)
+  · rcases H familyName familyInfo hold hvisible i hi with ⟨C⟩
+    exact ⟨C.addConstant hwf hfresh hle⟩
+
+/-- A fresh mutual-definition fold changes no inductive metadata.  All old
+semantic witnesses may be transported directly to the final abstract model,
+then retained while the remaining production definitions are inserted. -/
+theorem InductiveConstructorsSemanticallyCoherent.addDefinitions
+    (H : InductiveConstructorsSemanticallyCoherent safety env venv)
+    (hwf : env.constants.WF) :
+    ∀ (vs : List DefinitionVal),
+      (∀ v ∈ vs, env.find? v.name = none) →
+      (vs.map (·.name)).Nodup →
+      venv ≤ venv' →
+      InductiveConstructorsSemanticallyCoherent safety
+        (vs.foldl (fun env v => env.add (.defnInfo v)) env) venv'
+  | [], _, _, hle => H.mono hle
+  | v :: vs, hfresh, hnodup, hle => by
+      simp only [List.map_cons, List.nodup_cons] at hnodup
+      have hvfresh := hfresh v (by simp)
+      have hvfreshMap : env.constants.find? v.name = none := by
+        rwa [← hwf.find?'_eq_find?]
+      have hwf' : (env.add (.defnInfo v)).constants.WF := by
+        change (env.constants.insert v.name (.defnInfo v)).WF
+        exact hwf.insert v.name (.defnInfo v) hvfreshMap
+      have H' : InductiveConstructorsSemanticallyCoherent safety
+          (env.add (.defnInfo v)) venv' :=
+        H.addNonInductive hwf hvfresh (by intro _ h; cases h) hle
+      apply H'.addDefinitions hwf' vs
+      · intro w hw
+        have hne : v.name ≠ w.name := by
+          intro heq
+          exact hnodup.1 (List.mem_map.mpr ⟨w, hw, heq.symm⟩)
+        rw [find?_add_of_ne hwf (.defnInfo v) hvfresh hne]
+        exact hfresh w (by simp [hw])
+      · exact hnodup.2
+      · exact VEnv.LE.rfl
+
+theorem InstalledInductiveProvenance.monoEnv
+    (H : InstalledInductiveProvenance safety C env)
+    (henv : env ≤ env') :
+    InstalledInductiveProvenance safety C env' := by
+  intro familyName familyInfo hfind hvisible
+  rcases H familyName familyInfo hfind hvisible with ⟨P⟩
+  exact ⟨P.mono (by simpa [P.name] using hfind) (fun h => h) henv⟩
+
+/-- A fresh non-inductive production entry preserves declaration-level
+inductive provenance across any monotone abstract extension. -/
+theorem InstalledInductiveProvenance.insertNonInductive
+    (H : InstalledInductiveProvenance safety C env)
+    (hwf : C.WF) (hfresh : C.find? ci.name = none)
+    (hnind : ∀ familyInfo, ci ≠ .inductInfo familyInfo)
+    (henv : env ≤ env') :
+    InstalledInductiveProvenance safety (C.insert ci.name ci) env' := by
+  have hpreserves : ∀ {name found}, C.find? name = some found →
+      (C.insert ci.name ci).find? name = some found := by
+    intro name found hfind
+    rw [hwf.find?_insert]
+    split
+    · rename_i heq
+      have hname : ci.name = name := LawfulBEq.eq_of_beq heq
+      subst name
+      rw [hfind] at hfresh
+      contradiction
+    · exact hfind
+  intro familyName familyInfo hfind hvisible
+  have hold : C.find? familyName = some (.inductInfo familyInfo) := by
+    rw [hwf.find?_insert] at hfind
+    split at hfind
+    · exact False.elim (hnind familyInfo (Option.some.inj hfind))
+    · exact hfind
+  rcases H familyName familyInfo hold hvisible with ⟨P⟩
+  exact ⟨P.mono (by simpa [P.name] using hfind) hpreserves henv⟩
+
+/-- An entry hidden from the current safety observer cannot introduce a
+visible inductive family, even if another observer installed it. -/
+theorem InstalledInductiveProvenance.insertInvisible
+    (H : InstalledInductiveProvenance safety C env)
+    (hwf : C.WF) (hfresh : C.find? ci.name = none)
+    (hhidden : ¬ safety ≤ ci.safety) :
+    InstalledInductiveProvenance safety (C.insert ci.name ci) env := by
+  have hpreserves : ∀ {name found}, C.find? name = some found →
+      (C.insert ci.name ci).find? name = some found := by
+    intro name found hfind
+    rw [hwf.find?_insert]
+    split
+    · rename_i heq
+      have hname : ci.name = name := LawfulBEq.eq_of_beq heq
+      subst name
+      rw [hfind] at hfresh
+      contradiction
+    · exact hfind
+  intro familyName familyInfo hfind hvisible
+  have hold : C.find? familyName = some (.inductInfo familyInfo) := by
+    rw [hwf.find?_insert] at hfind
+    split at hfind
+    · have heq : ci = .inductInfo familyInfo := Option.some.inj hfind
+      exact False.elim (hhidden (by simpa [heq] using hvisible))
+    · exact hfind
+  rcases H familyName familyInfo hold hvisible with ⟨P⟩
+  exact ⟨P.mono (by simpa [P.name] using hfind) hpreserves VEnv.LE.rfl⟩
+
+/-- Rebase an observer across a production extension whose genuinely new
+inductive headers are all hidden at that observer's safety. -/
+theorem InstalledInductiveProvenance.rebaseHidden
+    (H : InstalledInductiveProvenance safety source env)
+    (hpreserves : ∀ {name found}, source.find? name = some found →
+      target.find? name = some found)
+    (hhidden : ∀ familyName familyInfo,
+      target.find? familyName = some (.inductInfo familyInfo) →
+      source.find? familyName = none →
+      ¬ safety ≤ (ConstantInfo.inductInfo familyInfo).safety) :
+    InstalledInductiveProvenance safety target env := by
+  intro familyName familyInfo hfind hvisible
+  cases hold : source.find? familyName with
+  | none => exact False.elim (hhidden familyName familyInfo hfind hold hvisible)
+  | some oldInfo =>
+      have hsame := hpreserves hold
+      rw [hfind] at hsame
+      have heq : oldInfo = .inductInfo familyInfo := Option.some.inj hsame.symm
+      subst oldInfo
+      rcases H familyName familyInfo hold hvisible with ⟨P⟩
+      exact ⟨P.mono (by simpa [P.name] using hfind) hpreserves VEnv.LE.rfl⟩
+
+/-- A fresh mutual-definition fold contains no inductive headers and hence
+preserves installed declaration provenance. -/
+theorem InstalledInductiveProvenance.insertDefs
+    (H : InstalledInductiveProvenance safety C env)
+    (hwf : C.WF) : ∀ (cis : List DefinitionVal),
+      (∀ ci ∈ cis, C.find? ci.name = none) →
+      (cis.map (·.name)).Nodup → env ≤ env' →
+      InstalledInductiveProvenance safety (insertDefs C cis) env'
+  | [], _, _, henv => InstalledInductiveProvenance.monoEnv H henv
+  | ci :: cis, hfresh, hnodup, henv => by
+      simp only [List.map_cons, List.nodup_cons] at hnodup
+      have hciFresh := hfresh ci (by simp)
+      have hwf' := hwf.insert ci.name (.defnInfo ci) hciFresh
+      have H' : InstalledInductiveProvenance safety
+          (C.insert ci.name (.defnInfo ci)) env' :=
+        InstalledInductiveProvenance.insertNonInductive
+          (ci := .defnInfo ci) H hwf hciFresh
+          (by intro _ h; cases h) henv
+      apply InstalledInductiveProvenance.insertDefs H' hwf' cis
+      · intro cj hcj
+        rw [hwf.find?_insert]
+        have hne : ci.name ≠ cj.name := by
+          intro heq
+          exact hnodup.1 (List.mem_map.mpr ⟨cj, hcj, heq.symm⟩)
+        rw [if_neg (by simpa using hne)]
+        exact hfresh cj (by simp [hcj])
+      · exact hnodup.2
+      · exact VEnv.LE.rfl
+
 end VerifyInductive
 
 theorem TrConstant.sf_mono (hsf : safety ≤ safety')
@@ -127,6 +537,7 @@ theorem Aligned.map_wf (H : Aligned safety C venv) : C.WF := by
   | ignoreConst _ h1 _ _ ih
   | const _ h1 _ _ _ ih => exact ih.insert _ _ h1
   | defeq _ ih => exact ih
+  | mapExt _ htarget _ _ => exact htarget
 
 theorem Aligned.find?_iff (H : Aligned safety C venv) :
     (∃ ci, C.find? name = some ci ∧ safety ≤ ci.safety) ↔ ∃ ci, venv.constants name = some ci := by
@@ -140,6 +551,9 @@ theorem Aligned.find?_iff (H : Aligned safety C venv) :
     simp [VEnv.addConst] at eq; split at eq <;> cases eq
     split <;> simp_all; exact h2.1
   | defeq _ ih => exact ih
+  | mapExt _ _ heq ih =>
+    rw [← heq]
+    exact ih
 
 theorem Aligned.addQuot1 {Q : Prop}
     (H1 : ∀ c env, Aligned safety c env → P c env → Q)
@@ -156,7 +570,7 @@ nonrec theorem Aligned.addQuot (H : AddQuot C₁ C₂ venv₁ venv₂)
 theorem Aligned.addInduct (H : AddInduct safety C₁ venv₁ decl C₂ venv₂) :
     Aligned safety C₁ venv₁ → Aligned safety C₂ venv₂ := by
   cases H with
-  | intro _ _ _ _ _ haligned _ _ => exact haligned
+  | intro _ _ _ _ _ _ _ haligned _ => exact haligned
 
 theorem Aligned.addDefEqs {C : ConstMap} : ∀ {cis' : List VDefVal} {venv},
     Aligned safety C venv → Aligned safety C (venv.addDefEqs cis')
@@ -229,6 +643,9 @@ theorem Aligned.find? (H : Aligned safety C venv)
       simp; rename_i h'; refine h2.mono this
     · let ⟨_, h1, h2⟩ := ih h; exact ⟨_, this.constants h1, h2.mono this⟩
   | defeq h1 ih => let ⟨_, h1, h2⟩ := ih h; exact ⟨_, h1, h2.mono VEnv.addDefEq_le⟩
+  | mapExt _ _ heq ih =>
+    rw [← heq] at h
+    exact ih h
 
 theorem Aligned.find?_uniq (H : Aligned safety C venv)
     (h : C.find? name = some ci) (hs : venv.constants name = some ci') :
@@ -247,6 +664,9 @@ theorem Aligned.find?_uniq (H : Aligned safety C venv)
     · rintro ⟨⟩ ⟨⟩; rename_i n _ _ _; subst n; exact ⟨h4, h2.mono this⟩
     · intro hs h; let ⟨h1, h2⟩ := ih h hs; exact ⟨h1, h2.mono this⟩
   | defeq h1 ih => let ⟨h1, h2⟩ := ih h hs; exact ⟨h1, h2.mono VEnv.addDefEq_le⟩
+  | mapExt _ _ heq ih =>
+    rw [← heq] at h
+    exact ih h hs
 
 theorem TrEnv.find?_iff (H : TrEnv safety env venv) :
     (∃ ci, env.find? name = some ci ∧ safety ≤ ci.safety) ↔ ∃ ci, venv.constants name = some ci := by
@@ -368,7 +788,7 @@ theorem TrEnv'.of_value (H : TrEnv' safety C Q venv) (h : C.find? name = some ci
     · contradiction
   | induct _ h1 H ih =>
     cases h1 with
-    | intro block _ _ _ hinstall _ hdelta _ =>
+    | intro block _ _ _ hinstall _ _ _ hdelta =>
       exact (ih (hdelta h (by simp [hv]))).mono
         (VInductBlock.install_le hinstall)
 
@@ -480,14 +900,16 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
   safePrimitives : ∀ {n ci}, env.find? n = some ci →
     Kernel.Environment.primitives.contains n →
     ci.safety = .safe ∧ ci.levelParams = []
+  typeAnnotationWrappers : TypeAnnotationWrappers env
 
 theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
     (hsafe : ∀ {n ci}, env.find? n = some ci →
       Kernel.Environment.primitives.contains n →
-      ci.safety = .safe ∧ ci.levelParams = []) :
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (hannotations : TypeAnnotationWrappers env) :
     CheckingEnv.Valid safety env venv :=
-  ⟨H.toChecking, hprims, hsafe⟩
+  ⟨H.toChecking, hprims, hsafe, hannotations⟩
 
 theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
     (hn : env.find? ci.name = none)
@@ -500,3 +922,5 @@ theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
   tr := H.tr.add hn htr hci hadd hdelta
   hasPrimitives := H.hasPrimitives.addConst_of_not_primitive hadd hnprim
   safePrimitives := H.tr.safePrimitives_add hn hnprim H.safePrimitives
+  typeAnnotationWrappers := VerifyInductive.TypeAnnotationWrappers.addConstant
+    H.typeAnnotationWrappers H.tr.map_wf ci hn

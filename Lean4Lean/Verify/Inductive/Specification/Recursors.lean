@@ -196,6 +196,89 @@ theorem IotaListCertificate.forall₂
   intro i hctor hrule
   exact H.rules i hctor hrule
 
+/-- Complete restored-primary equation list for a nested declaration.  Its
+pointwise judgment permits the auxiliary motive/minor telescope retained by
+the exact restored recursor shape and fields consumed by auxiliary recursors. -/
+structure NestedIotaListCertificate (decl : VInductDecl)
+    (block : VInductBlock) (ruleList : List VDefEq) : Prop where
+  length : ruleList.length = decl.ownedConstructors.length
+  rules : ∀ i (hctor : i < decl.ownedConstructors.length)
+      (hrule : i < ruleList.length),
+    Nonempty (decl.NestedIotaRule block decl.ownedConstructors[i].1
+      decl.ownedConstructors[i].2 ruleList[i])
+
+/-- Append-oriented form used while source primary batches are selected from
+the expanded generated-rule traversal. -/
+structure NestedIotaBuildCertificate (decl : VInductDecl)
+    (block : VInductBlock) (rules : List VDefEq) : Prop where
+  covered : rules.length ≤ decl.ownedConstructors.length
+  shapes : ∀ i (hrule : i < rules.length)
+      (hctor : i < decl.ownedConstructors.length),
+    Nonempty (decl.NestedIotaRule block decl.ownedConstructors[i].1
+      decl.ownedConstructors[i].2 rules[i])
+
+theorem NestedIotaBuildCertificate.empty
+    (decl : VInductDecl) (block : VInductBlock) :
+    NestedIotaBuildCertificate decl block [] where
+  covered := Nat.zero_le _
+  shapes _ h := by simp at h
+
+theorem NestedIotaBuildCertificate.push
+    (H : NestedIotaBuildCertificate decl block rules)
+    (hnext : rules.length < decl.ownedConstructors.length)
+    (hshape : Nonempty (decl.NestedIotaRule block
+      decl.ownedConstructors[rules.length].1
+      decl.ownedConstructors[rules.length].2 rule)) :
+    NestedIotaBuildCertificate decl block (rules ++ [rule]) where
+  covered := by simp; omega
+  shapes i hrule hctor := by
+    by_cases hold : i < rules.length
+    · simpa [List.getElem_append, hold] using H.shapes i hold hctor
+    · have hi : i = rules.length := by simp at hrule; omega
+      subst i
+      simpa using hshape
+
+theorem NestedIotaBuildCertificate.append
+    (H : NestedIotaBuildCertificate decl block rules)
+    (hlen : newRules.length + rules.length ≤
+      decl.ownedConstructors.length)
+    (hshapes : ∀ i (hi : i < newRules.length),
+      Nonempty (decl.NestedIotaRule block
+        decl.ownedConstructors[rules.length + i].1
+        decl.ownedConstructors[rules.length + i].2 newRules[i])) :
+    NestedIotaBuildCertificate decl block (rules ++ newRules) := by
+  induction newRules generalizing rules with
+  | nil => simpa using H
+  | cons rule newRules ih =>
+      have hnext : rules.length < decl.ownedConstructors.length := by
+        simp at hlen
+        omega
+      have hhead := hshapes 0 (by simp)
+      have Hpush := H.push hnext (by simpa using hhead)
+      have Htail := ih Hpush (by
+          simp at hlen ⊢
+          omega) (by
+          intro i hi
+          have h := hshapes (i + 1) (by simpa using hi)
+          simpa [Nat.add_assoc, Nat.add_comm 1 i] using h)
+      simpa [List.append_assoc] using Htail
+
+theorem NestedIotaBuildCertificate.complete
+    (H : NestedIotaBuildCertificate decl block rules)
+    (hcomplete : rules.length = decl.ownedConstructors.length) :
+    NestedIotaListCertificate decl block rules where
+  length := hcomplete
+  rules i hctor hrule := H.shapes i hrule hctor
+
+theorem NestedIotaListCertificate.forall₂
+    (H : NestedIotaListCertificate decl block ruleList) :
+    List.Forall₂ (fun owned rule =>
+      Nonempty (decl.NestedIotaRule block owned.1 owned.2 rule))
+      decl.ownedConstructors ruleList := by
+  apply List.forall₂_of_getElem H.length.symm
+  intro i hctor hrule
+  exact H.rules i hctor hrule
+
 /-- Generator-facing form of ordinary compilation. Its indexed fields match
 the loops in `mkRecInfos` and `mkRecRules`; `ordinary` below converts them to
 the independent list-relational specification. -/
@@ -281,7 +364,7 @@ structure NestedCompilationCertificate (env : VEnv)
   primaryRules : List VDefEq
   auxiliaryRules : List VDefEq
   rules_eq : block.rules = primaryRules ++ auxiliaryRules
-  primary_rules : IotaListCertificate envCtors decl block primaryRules
+  primary_rules : NestedIotaListCertificate decl block primaryRules
   auxiliary_guarded : ∀ rule ∈ auxiliaryRules,
     ∃ fieldVars, rule.rhs.GuardedIota
       (block.recursors.map (·.name)) fieldVars 0
@@ -348,6 +431,26 @@ theorem RestoredBlockCertificate.addInductOfNestedCompilation
     (Hformation.declWF (Lean4Lean.TrInductDecl.sourceWF Htranslated))
     Hcompile.compilesTo
 
+/-- Restored-block endpoint for the independent nested formation judgment.
+The source translation continues to supply `SourceWF`; the finite nested
+derivation supplies the non-ordinary formation branch. -/
+theorem RestoredBlockCertificate.addInductOfNestedFormation
+    (H : RestoredBlockCertificate env block)
+    (Hformation : decl.NestedFormationWF env)
+    (Hsource : TrInductDeclCore env lparams nparams sourceTypes isUnsafe decl
+      sourceEnvTypes sourceEnvCtors)
+    (hnonempty : sourceTypes ≠ [])
+    (Hcompile : NestedCompilationCertificate env decl block) :
+    VEnv.AddInduct env decl (H.outVEnv.addDefEqRules block.rules) := by
+  have Htranslated :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
+      Hsource
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
+  exact H.addInduct
+    ⟨Lean4Lean.TrInductDecl.sourceWF Htranslated,
+      .nested Hformation VEnv.LE.rfl⟩
+    Hcompile.compilesTo
+
 /-- Append-oriented restoration invariant for the auxiliary recursor/rule
 suffix. It mirrors `processRec`: recursors receive consecutive `main.recN`
 names, while restored auxiliary rules must retain a guarded RHS. -/
@@ -402,7 +505,7 @@ def NestedCompilationCertificate.ofRestoration
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryRecursors : NestedRecursorCertificate decl primaryRecursors)
-    (HprimaryRules : IotaBuildCertificate envCtors decl block primaryRules)
+    (HprimaryRules : NestedIotaBuildCertificate decl block primaryRules)
     (hprimaryLength : primaryRules.length =
       decl.ownedConstructors.length)
     (Haux : AuxiliaryRestorationPrefix decl block main

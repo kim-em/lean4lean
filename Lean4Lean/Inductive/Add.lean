@@ -11,11 +11,40 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace AddInductive
 open TypeChecker
 
+structure RecCallBlueprint where
+  major : Expr
+  args : Array Expr
+  /-- The producer context containing the temporary higher-order binders in
+  `args`.  These binders are out of scope by final recursor installation, so
+  rule construction must not consult the final ambient context for them. -/
+  lctx : LocalContext
+  targetTypeIdx : Nat
+  targetIndices : Array Expr
+  /-- The complete call closed over its temporary higher-order binders, with
+  one outer de Bruijn placeholder for the final recursor application.  It is
+  produced before those temporary identifiers leave scope, so later outer
+  binders cannot be confused with them even if the reader-local name
+  generator reuses an identifier. -/
+  template : Expr
+  deriving Inhabited
+
+structure RecRuleBlueprint where
+  ctor : Name
+  fields : Array Expr
+  /-- The producer context containing the temporary constructor fields. -/
+  lctx : LocalContext
+  recursiveCalls : Array RecCallBlueprint
+  targetTypeIdx : Nat
+  targetIndices : Array Expr
+  minor : Expr
+  deriving Inhabited
+
 structure RecInfo where
   motive : Expr
   minors : Array Expr
   indices : Array Expr
   major : Expr
+  ruleBlueprints : Array RecRuleBlueprint := #[]
   deriving Inhabited
 
 structure InductiveStats where
@@ -32,6 +61,10 @@ structure Context where
   env : Environment
   lctx : LocalContext := {}
   lparams : List Name
+  /-- Universe parameters used by embedded typechecker calls.  Inductive
+  declarations normally use `lparams`; generated large-elimination recursors
+  temporarily prepend their fresh result-universe parameter. -/
+  typeCheckerLParams : Option (List Name) := none
   ngen : NameGenerator := { namePrefix := `_ind_fresh }
   safety : DefinitionSafety
   allowPrimitive : Bool
@@ -43,7 +76,8 @@ instance : MonadLocalNameGenerator M where
   withFreshId f c := f c.ngen.curr { c with ngen := c.ngen.next }
 
 instance (priority := low) : MonadLift TypeChecker.M M where
-  monadLift x c := x.run c.env c.safety c.lctx c.lparams (fuel := c.fuel)
+  monadLift x c := x.run c.env c.safety c.lctx
+    (c.typeCheckerLParams.getD c.lparams) (fuel := c.fuel)
 
 instance (priority := low+1) : MonadWithReaderOf LocalContext M where
   withReader f x := withReader (fun c => { c with lctx := f c.lctx }) x
@@ -53,6 +87,12 @@ instance : MonadLCtx M where
 
 @[inline] def withEnv (env : Environment) (x : M α) : M α :=
   withReader (fun c => { c with env }) x
+
+/-- Run embedded typechecker calls under the universe parameters of a
+generated recursor while preserving every other inductive-checker reader
+field. -/
+@[inline] def withTypeCheckerLParams (lparams : List Name) (x : M α) : M α :=
+  withReader (fun c => { c with typeCheckerLParams := some lparams }) x
 
 def getType (fvar : Expr) : M Expr :=
   return ((← getLCtx).get! fvar.fvarId!).type
@@ -72,7 +112,7 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
     if let .forallE name dom body bi := type then
       if i < nparams then
         if stats.indConsts.isEmpty then
-          withLocalDecl name bi dom.consumeTypeAnnotations fun param => do
+          withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun param => do
             let stats := { stats with params := stats.params.push param }
             let type := body.instantiate1 param
             loopType nparams stats (← whnf type) (i + 1) nindices fuel k
@@ -83,7 +123,7 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
           let type := body.instantiate1 param
           loopType nparams stats (← whnf type) (i + 1) nindices fuel k
       else
-        withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+        withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
           let type := body.instantiate1 arg
           loopType nparams stats (← whnf type) i (nindices + 1) fuel k
     else
@@ -129,9 +169,9 @@ def checkInductiveTypes
     { (default : InductiveStats) with levels := (← read).lparams.map .param } k
 
 def hasIndOcc (indConsts : Array Expr) (t : Expr) : Bool :=
-  (t.find? fun
+  t.findAny fun
     | .const e _ => indConsts.any fun I => I.constName! == e
-    | _ => false).isSome
+    | _ => false
 
 /-- Return true if declaration is recursive -/
 def isRec (indTypes : Array InductiveType) (indConsts : Array Expr) : Bool :=
@@ -217,7 +257,7 @@ where
   | fuel+1 => do
     let t ← whnf t
     let .forallE name dom body bi := t | return isValidIndApp? stats t
-    withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+    withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
     loop (body.instantiate1 arg) fuel
 
 def checkPositivityStep (stats : InductiveStats) (t : Expr)
@@ -227,7 +267,7 @@ def checkPositivityStep (stats : InductiveStats) (t : Expr)
     if hasIndOcc stats.indConsts dom then
       throw <| .other s!"arg #{idx + 1} of '{ctor}' \
         has a non positive occurrence of the datatypes being declared"
-    withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+    withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
       recur (body.instantiate1 arg)
   else if let none := isValidIndApp? stats t then
     throw <| .other s!"arg #{idx + 1} of '{ctor}' \
@@ -262,7 +302,7 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
             is too big for the corresponding inductive datatype"
         if !isUnsafe then
           checkPositivity stats dom ctor i
-        withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+        withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
           loopCtor stats isUnsafe ctor targetIdx
             (body.instantiate1 arg) (i + 1) fuel
     else if !isValidIndAppIdx stats t targetIdx then
@@ -306,6 +346,13 @@ def checkConstructors (indTypes : Array InductiveType)
   let _ ← getEnv
   checkConstructors.loopTypes indTypes stats isUnsafe 0
 
+/-- Number of binders in a constructor's complete source telescope.  Keeping
+this calculation named makes the production `numFields` entry available to
+the projection refinement without duplicating the executable traversal. -/
+def constructorArity : Expr → Nat
+  | .forallE _ _ body _ => constructorArity body + 1
+  | _ => 0
+
 /-- Production metadata for one constructor. Keeping this record construction
 named lets verification retain the exact source-aligned entry, rather than
 only its translated type. -/
@@ -313,10 +360,7 @@ def constructorInfo (stats : InductiveStats) (lparams : List Name)
     (isUnsafe : Bool) (indType : InductiveType) (cidx : Nat)
     (ctor : Constructor) : ConstructorVal :=
   let type := ctor.type
-  let rec arity i
-    | .forallE _ _ body _ => arity (i + 1) body
-    | _ => i
-  let arity := arity 0 type
+  let arity := constructorArity type
   {
     type, cidx, isUnsafe
     levelParams := lparams
@@ -326,6 +370,15 @@ def constructorInfo (stats : InductiveStats) (lparams : List Name)
     numFields := assert! arity ≥ stats.params.size
       arity - stats.params.size
   }
+
+@[simp] theorem constructorInfo_numFields
+    (stats : InductiveStats) (lparams : List Name)
+    (isUnsafe : Bool) (indType : InductiveType) (cidx : Nat)
+    (ctor : Constructor) :
+    (constructorInfo stats lparams isUnsafe indType cidx ctor).numFields =
+      constructorArity ctor.type - stats.params.size := by
+  simp [constructorInfo]
+  omega
 
 def declareConstructors (stats : InductiveStats)
     (indTypes : Array InductiveType) (isUnsafe : Bool) : M Environment :=
@@ -347,7 +400,7 @@ def isLargeEliminator (stats : InductiveStats) (indTypes : Array InductiveType) 
     | 0 => throw .deepRecursion
     | fuel+1 => do
       if let .forallE name dom body bi := type then
-        withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+        withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
           let mut toCheck := toCheck
           if i ≥ stats.params.size then
             if !(← ensureType dom).sortLevel!.isAlwaysZero then
@@ -393,7 +446,7 @@ def loopArgs1 (stats : InductiveStats) (type : Expr) (i : Nat) (indices : Array 
       if i < stats.params.size then
         loopArgs1 stats (← whnf <| body.instantiate1 stats.params[i]!) (i + 1) indices fuel k
       else
-        withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+        withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
         loopArgs1 stats (← whnf <| body.instantiate1 arg) i (indices.push arg) fuel k
     else
       if i < stats.params.size then
@@ -409,12 +462,13 @@ def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α
     unless indices.size == stats.nindices[dIdx]! do
       throw <| .other "recursor index arity does not match checked inductive header"
     let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
-    withLocalDecl `t .default tTy.consumeTypeAnnotations fun major => do
+    withLocalDecl `t .default tTy.consumeTypeAnnotationsVerified fun major => do
     let lctx ← getLCtx
     let motiveTy := lctx.mkForall indices <| lctx.mkForall #[major] <| .sort elimLevel
     let name := if indTypes.size > 1 then (`motive).appendIndexAfter (dIdx+1) else `motive
-    withLocalDecl name .default motiveTy.consumeTypeAnnotations fun motive => do
-    loopInd1 (dIdx + 1) (recInfos.push { motive, minors := #[], indices, major }) k
+    withLocalDecl name .default motiveTy.consumeTypeAnnotationsVerified fun motive => do
+    loopInd1 (dIdx + 1) (recInfos.push {
+      motive, minors := #[], indices, major, ruleBlueprints := #[] }) k
   else
     k recInfos
 termination_by indTypes.size - dIdx
@@ -430,7 +484,7 @@ where
       if let some param := stats.params[i]? then
         loop (body.instantiate1 param) (i + 1) bu u fuel
       else
-        withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+        withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
         let bu := bu.push arg
         let u := if (← isRecArg stats dom).isSome then u.push arg else u
         loop (body.instantiate1 arg) (i + 1) bu u fuel
@@ -443,7 +497,7 @@ where
   | 0 => throw .deepRecursion
   | fuel+1 => do
     if let .forallE name dom body bi := uiTy then
-      withLocalDecl name bi dom.consumeTypeAnnotations fun arg => do
+      withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
       loop (← whnf <| body.instantiate1 arg) (xs.push arg) fuel
     else
       k uiTy xs
@@ -460,10 +514,41 @@ def loopU (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
       return (← getLCtx).mkForall xs <|
         .app (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN ui xs)
     let vName := ((← getLCtx).get! ui.fvarId!).userName.appendAfter "_ih"
-    withLocalDecl vName .default viTy.consumeTypeAnnotations fun vi => do
+    withLocalDecl vName .default viTy.consumeTypeAnnotationsVerified fun vi => do
     loopU (i + 1) (v.push vi) k
   else
     k v
+termination_by u.size - i
+
+variable (stats : InductiveStats) (u : Array Expr) (recInfos : Array RecInfo) in
+def loopUBlueprints (i : Nat) (v : Array Expr)
+    (calls : Array RecCallBlueprint)
+    (k : Array Expr → Array RecCallBlueprint → M α) : M α := do
+  if _h : i < u.size then
+    let ui := u[i]
+    let (viTy, call) ← loopUArgs ui fun uiTy xs => do
+      let some itIdx := isValidIndApp? stats uiTy
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      let itIndices := uiTy.getAppArgs[stats.params.size:]
+      let lctx ← getLCtx
+      let viTy := lctx.mkForall xs <|
+        .app (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN ui xs)
+      return (viTy, ({
+        major := ui
+        args := xs
+        lctx := lctx
+        targetTypeIdx := itIdx
+        targetIndices := itIndices
+        template := lctx.mkLambda xs <|
+          (mkAppN (.bvar 0) itIndices).app (mkAppN ui xs) } :
+            RecCallBlueprint))
+    let vName := ((← getLCtx).get! ui.fvarId!).userName.appendAfter "_ih"
+    withLocalDecl vName .default viTy.consumeTypeAnnotationsVerified fun vi => do
+    loopUBlueprints (i + 1) (v.push vi)
+      (calls.push call) k
+  else
+    k v calls
 termination_by u.size - i
 
 variable (stats : InductiveStats) (indTypeName : Name) (dIdx : Nat) in
@@ -474,12 +559,23 @@ def loopCtors (recInfos : Array RecInfo)
     let (itIdx, itIndices) := getIIndices stats t
     let introApp := mkAppN (mkAppN (.const ctor.name stats.levels) stats.params) bu
     let motiveApp := Expr.app (mkAppN recInfos[itIdx]!.motive itIndices) introApp
-    loopU stats u recInfos 0 #[] fun v => do
+    loopUBlueprints stats u recInfos 0 #[] #[] fun v calls => do
     let lctx ← getLCtx
     let minorTy := lctx.mkForall bu <| lctx.mkForall v motiveApp
     let minorName := ctor.name.replacePrefix indTypeName .anonymous
-    withLocalDecl minorName .default minorTy.consumeTypeAnnotations fun minor => do
-    let recInfos := recInfos.modify dIdx fun s => { s with minors := s.minors.push minor }
+    withLocalDecl minorName .default minorTy.consumeTypeAnnotationsVerified fun minor => do
+    let blueprint : RecRuleBlueprint := {
+      ctor := ctor.name
+      fields := bu
+      lctx := lctx
+      recursiveCalls := calls
+      targetTypeIdx := itIdx
+      targetIndices := itIndices
+      minor := minor }
+    let recInfos := recInfos.modify dIdx fun s => {
+      s with
+      minors := s.minors.push minor
+      ruleBlueprints := s.ruleBlueprints.push blueprint }
     loopCtors recInfos ctors k
   | [] => k recInfos
 
@@ -520,9 +616,11 @@ def loopU (indTypes : Array InductiveType) (stats : InductiveStats)
           "recursive constructor field lost its inductive result type")
       let itIndices := uiTy.getAppArgs[stats.params.size:]
       let val := .const (mkRecName indTypes[itIdx]!.name) lvls
-      let val := mkAppN (mkAppN (mkAppN (mkAppN val stats.params) motives)
-        minors) itIndices
-      return (← getLCtx).mkLambda xs <| val.app (mkAppN ui xs)
+      let val := mkAppN (mkAppN (mkAppN val stats.params) motives) minors
+      let lctx ← getLCtx
+      return (lctx.mkLambda xs <|
+        (mkAppN (.bvar 0) itIndices).app (mkAppN ui xs)).instantiate1
+          val
     loopU indTypes stats motives minors lvls u (i + 1) (v.push val) k
   else
     k v
@@ -561,6 +659,38 @@ def mkRecRules (indTypes : Array InductiveType) (elimLevel : Level) (stats : Ind
     StateT Nat M (List RecursorRule) :=
   mkRecRules.loopCtors indTypes stats motives minors
     (getRecLevels elimLevel stats.levels) indTypes[dIdx]!.ctors #[]
+
+def RecCallBlueprint.build (blueprint : RecCallBlueprint)
+    (indTypes : Array InductiveType) (stats : InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level) : Expr :=
+  let value := .const (mkRecName indTypes[blueprint.targetTypeIdx]!.name) lvls
+  let value := mkAppN (mkAppN (mkAppN value stats.params) motives) minors
+  blueprint.template.instantiate1 value
+
+def RecRuleBlueprint.build (blueprint : RecRuleBlueprint)
+    (indTypes : Array InductiveType) (stats : InductiveStats)
+    (motives minors : Array Expr) (lvls : List Level)
+    (outerLCtx : LocalContext) : RecursorRule :=
+  let recursiveValues := blueprint.recursiveCalls.map fun call =>
+    call.build indTypes stats motives minors lvls
+  {
+    ctor := blueprint.ctor
+    nfields := blueprint.fields.size
+    rhs := outerLCtx.mkLambda stats.params <| outerLCtx.mkLambda motives <|
+      outerLCtx.mkLambda minors <| blueprint.lctx.mkLambda blueprint.fields <|
+      mkAppN (mkAppN blueprint.minor blueprint.fields) recursiveValues
+  }
+
+/-- Build recursor rules from the exact first-pass field and higher-order
+recursive-call choices retained by `mkRecInfos`.  This deliberately performs
+no second constructor traversal, classification, inference, or WHNF. -/
+def mkRecRulesFromBlueprints (indTypes : Array InductiveType)
+    (elimLevel : Level) (stats : InductiveStats) (recInfos : Array RecInfo)
+    (dIdx : Nat) (motives minors : Array Expr) : M (List RecursorRule) := do
+  let lctx ← getLCtx
+  let lvls := getRecLevels elimLevel stats.levels
+  return recInfos[dIdx]!.ruleBlueprints.toList.map fun blueprint =>
+    blueprint.build indTypes stats motives minors lvls lctx
 
 namespace declareRecursors
 
@@ -623,7 +753,9 @@ def loop (stats : InductiveStats) (indTypes : Array InductiveType)
     (lparams : List Name) (allowPrimitive : Bool)
     (dIdx : Nat) (env : Environment) : StateT Nat M Environment := do
   if h : dIdx < indTypes.size then
-    let rules ← mkRecRules indTypes elimLevel stats dIdx motives minors
+    let rules ← mkRecRulesFromBlueprints indTypes elimLevel stats recInfos
+      dIdx motives minors
+    modify (· + indTypes[dIdx]!.ctors.length)
     let info := recursorInfo stats indTypes elimLevel recInfos numMinors
       numMotives all lctx k isUnsafe lparams dIdx rules
     let name := info.name
@@ -639,22 +771,24 @@ end declareRecursors
 
 def declareRecursors (stats : InductiveStats)
     (indTypes : Array InductiveType) (elimLevel : Level)
-    (recInfos : Array RecInfo) (k : Bool) : M Environment := do
+    (recInfos : Array RecInfo) (k : Bool)
+    (declarationLParams : List Name) : M Environment := do
   let motives := recInfos.map (·.motive)
   let minors := recInfos.flatMap (·.minors)
   let numMinors := minors.size
   let numMotives := motives.size
   let all := indTypes.map (·.name) |>.toList
   let lctx ← getLCtx
-  let {lparams, safety, ..} ← read
+  let {safety, ..} ← read
   let isUnsafe := safety != .safe
   AddInductive.declareRecursors.checkRecursorTypes stats indTypes elimLevel
-    recInfos numMinors numMotives all lctx k isUnsafe lparams 0
+    recInfos numMinors numMotives all lctx k isUnsafe declarationLParams 0
   StateT.run' (s := 0) do
   let env ← getEnv
   let {allowPrimitive, ..} ← read
   declareRecursors.loop stats indTypes elimLevel recInfos motives minors
-    numMinors numMotives all lctx k isUnsafe lparams allowPrimitive 0 env
+    numMinors numMotives all lctx k isUnsafe declarationLParams
+      allowPrimitive 0 env
 
 def runWithStats (stats : InductiveStats) (nparams : Nat)
     (indTypes : Array InductiveType) (numNested : Nat)
@@ -666,9 +800,11 @@ def runWithStats (stats : InductiveStats) (nparams : Nat)
         declareConstructors stats indTypes isUnsafe
   fun c =>
     (getElimLevel stats indTypes >>= fun elimLevel =>
-      isKTarget stats indTypes >>= fun k =>
-      mkRecInfos stats indTypes elimLevel fun recInfos =>
-        declareRecursors stats indTypes elimLevel recInfos k) { c with env := ctorEnv }
+      withTypeCheckerLParams (getRecLevelParams elimLevel c.lparams) do
+        let k ← isKTarget stats indTypes
+        mkRecInfos stats indTypes elimLevel fun recInfos =>
+          declareRecursors stats indTypes elimLevel recInfos k c.lparams)
+      { c with env := ctorEnv }
 
 def run (nparams : Nat) (types : List InductiveType) (numNested : Nat) :
     M Environment := fun c => do
@@ -783,7 +919,7 @@ def findUniqueName (env : Environment) (n : Name) (i : Nat) :
     Nat → Except Exception (Name × Nat)
   | 0 => throw <| .other "failed to select a fresh nested-inductive name"
   | fuel + 1 =>
-    let r := n.appendIndexAfter i
+    let r := Name.mkNum n i
     if env.contains r then
       findUniqueName env n (i + 1) fuel
     else
@@ -811,9 +947,9 @@ def replaceParams (params : Array Expr) (e : Expr) (As : Array Expr) : M Expr :=
 THEN return the `inductive_val` in the `constant_info` associated with `I`.
 Otherwise, return none. -/
 def mentionsNestedNewType (newTypes : Array InductiveType) (e : Expr) : Bool :=
-  (e.find? fun
+  e.findAny fun
     | .const t _ => newTypes.any fun ty => t == ty.name
-    | _ => false).isSome
+    | _ => false
 
 def nestedParamFlags (newTypes : Array InductiveType) (args : Array Expr) :
     Nat → Bool × Bool
@@ -886,7 +1022,7 @@ def generateAuxiliary (lctx : LocalContext) (params As : Array Expr)
     (I_name : Name) (I_lvls : List Level) (I_nparams : Nat)
     (args : Array Expr) (J_name : Name) : M (Option Expr) := do
   let env ← read
-  let auxJ_name ← mkUniqueName (`_nested ++ J_name)
+  let auxJ_name ← mkUniqueName `_nested
   let data ← buildAuxiliary env lctx params As I_lvls I_nparams args J_name auxJ_name
   modify fun st => { st with nestedAux := st.nestedAux.push (data.nested, auxJ_name) }
   let result ← if J_name == I_name then
@@ -1004,10 +1140,10 @@ def mkAuxRecNameMap (env' : Environment) (types : List InductiveType) :
   return (oldRecNames.toList, recMap)
 
 def checkNoNestedAux (n : Name) (e : Expr) : Except Exception Unit := do
-  if (e.find? fun
+  if e.findAny fun
       | .const c _ => (`_nested).isPrefixOf c
       | .proj s _ _ => (`_nested).isPrefixOf s
-      | _ => false).isSome then
+      | _ => false then
     throw <| .other s!"invalid declaration '{n}', it uses the reserved prefix '_nested'"
 
 def checkConstructorSources (env : Environment) :
@@ -1076,6 +1212,43 @@ def restoreInductiveDecl (res : ElimNestedInductive.Result)
   restoreRecursorDecl res loweredEnv recNameMap allIndNames allowPrimitive
     (mkRecName indType.name)
 
+/-- Restore only the source family headers and constructors.  This side
+environment is used to validate original constructor parameters at the exact
+post-constructor boundary, before restored recursors can become dependencies. -/
+def restoreInductiveConstructors (res : ElimNestedInductive.Result)
+    (loweredEnv : Environment) (allIndNames : List Name)
+    (allowPrimitive : Bool) (indType : InductiveType) :
+    StateT Environment (Except Exception) Unit := do
+  let some (.inductInfo ind) := loweredEnv.find? indType.name | unreachable!
+  restoreInductiveHeaderDecl loweredEnv allIndNames allowPrimitive indType.name
+  ind.ctors.forM fun ctorName =>
+    restoreConstructorDecl res loweredEnv allowPrimitive ctorName
+
+/-- Restore the constructors of one source family after every mutual header
+has already been installed in the side validation environment. -/
+def restoreInductiveConstructorsOnly (res : ElimNestedInductive.Result)
+    (loweredEnv : Environment) (allowPrimitive : Bool)
+    (indType : InductiveType) :
+    StateT Environment (Except Exception) Unit := do
+  let some (.inductInfo ind) := loweredEnv.find? indType.name | unreachable!
+  ind.ctors.forM fun ctorName =>
+    restoreConstructorDecl res loweredEnv allowPrimitive ctorName
+
+/-- Restore the source header/constructor prefix without installing any
+recursors.  The ordinary returned restoration still uses
+`restoreNestedDeclarations`; this is a proof-oriented validation boundary. -/
+def restoreNestedConstructors (res : ElimNestedInductive.Result)
+    (loweredEnv : Environment) (allIndNames : List Name)
+    (allowPrimitive : Bool) (types : List InductiveType) :
+    StateT Environment (Except Exception) Unit := do
+  -- Constructors of one mutual family may mention a later sibling, so the
+  -- validation environment uses the canonical dependency order.
+  types.forM fun indType =>
+    restoreInductiveHeaderDecl loweredEnv allIndNames allowPrimitive
+      indType.name
+  types.forM fun indType =>
+    restoreInductiveConstructorsOnly res loweredEnv allowPrimitive indType
+
 /-- The complete declaration-restoration loop for a lowered nested block.
 Kept separate from `Environment.addInductive` so its state transition can be
 verified compositionally. -/
@@ -1090,6 +1263,60 @@ def restoreNestedDeclarations (res : ElimNestedInductive.Result)
   auxRecNames.forM fun recName =>
     restoreRecursorDecl res loweredEnv recNameMap allIndNames
       allowPrimitive recName
+
+namespace validateRestoredConstructorParameters
+
+/-- Recheck exactly the common-parameter prefix of one original constructor
+against the parameter free variables retained by nested lowering.  This pass
+deliberately stops before constructor fields: those may contain the nested
+occurrences handled by lowering and must not be sent back through the ordinary
+positivity checker. -/
+def loop (env : Environment) (lparams : List Name)
+    (safety : DefinitionSafety) (typeCheckerFuel : FuelConfig)
+    (fullLCtx currentLCtx : LocalContext) (ctorName : Name)
+    (params : Array Expr) (type : Expr)
+    (i fuel : Nat) : Except Exception Unit :=
+  match fuel with
+  | 0 => throw .deepRecursion
+  | fuel + 1 => do
+    if hi : i < params.size then
+      let .forallE _ dom body _ := type
+        | throw <| .other s!"number of parameters mismatch in constructor '{ctorName}'"
+      let .cdecl _ fv paramName paramType bi kind :=
+          fullLCtx.get! params[i].fvarId!
+        | throw <| .other s!"invalid retained parameter context for '{ctorName}'"
+      unless ← TypeChecker.M.run env (safety := safety)
+          (lctx := currentLCtx) (lparams := lparams)
+          (fuel := typeCheckerFuel) (TypeChecker.isDefEq dom paramType) do
+        throw <| .other
+          s!"arg #{i + 1} of '{ctorName}' does not match inductive datatype parameters"
+      loop env lparams safety typeCheckerFuel fullLCtx
+        (currentLCtx.mkLocalDecl fv paramName paramType bi kind)
+        ctorName params (body.instantiate1 params[i]) (i + 1) fuel
+    else
+      pure ()
+
+/-- Recheck every original constructor type and its common-parameter prefix
+in the source-shaped restored environment.  The local context and parameter
+free variables are exact producer data retained by nested lowering, so this
+does not reconstruct them in an environment already containing the restored
+declarations.
+
+This is an intentionally conservative post-restoration validation pass: it
+can reject through the type-checker's ordinary recursion fuel in addition to
+the lowering/production checks that have already succeeded. -/
+def run (env : Environment) (lparams : List Name) (safety : DefinitionSafety)
+    (fuel : FuelConfig) (types : List InductiveType)
+    (res : ElimNestedInductive.Result) : Except Exception Unit := do
+  types.forM fun type =>
+    type.ctors.forM fun ctor => do
+      _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
+        (lparams := lparams) (fuel := fuel)
+        (TypeChecker.checkType ctor.type)
+      loop env lparams safety fuel res.lctx {} ctor.name res.params
+        ctor.type 0 fuel.inductiveFuel
+
+end validateRestoredConstructorParameters
 
 /-- Validate every generated auxiliary witness in the restored local
 parameter context. -/
@@ -1113,6 +1340,10 @@ def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
   let restoredEnv ← (·.2) <$> StateT.run (s := env)
     (restoreNestedDeclarations res loweredEnv recNameMap' allIndNames
       allowPrimitive types recNames')
+  let validationEnv ← (·.2) <$> StateT.run (s := env)
+    (restoreNestedConstructors res loweredEnv allIndNames allowPrimitive types)
+  validateRestoredConstructorParameters.run validationEnv lparams safety
+    fuel types res
   validateNestedAuxiliaries restoredEnv lparams safety fuel res
   return restoredEnv
 

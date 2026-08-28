@@ -10,6 +10,41 @@ open Lean4Lean
 
 namespace Lean
 
+/-- Two expressions have the same leading forall names and domains, while
+their binder annotations and residual bodies may differ. -/
+inductive Expr.SameForallDomains : Nat → Expr → Expr → Prop
+  | nil : Expr.SameForallDomains 0 left right
+  | cons : Expr.SameForallDomains n left right →
+      Expr.SameForallDomains (n + 1)
+        (.forallE name dom left leftBi) (.forallE name dom right rightBi)
+
+theorem Expr.SameForallDomains.trans
+    (H₁ : Expr.SameForallDomains n left middle)
+    (H₂ : Expr.SameForallDomains n middle right) :
+    Expr.SameForallDomains n left right := by
+  induction H₁ generalizing right with
+  | nil => cases H₂; exact .nil
+  | cons _ ih =>
+    cases H₂ with
+    | cons H₂ => exact .cons (ih H₂)
+
+/-- `inferImplicit` may choose different annotations for two different
+residuals, but it preserves a common concrete domain prefix. -/
+theorem Expr.SameForallDomains.inferImplicit
+    (H : Expr.SameForallDomains n left right)
+    (max : Nat) (inferBinderTypes : Bool) :
+    Expr.SameForallDomains n
+      (left.inferImplicit max inferBinderTypes)
+      (right.inferImplicit max inferBinderTypes) := by
+  induction max generalizing n left right with
+  | zero => simpa [Expr.inferImplicit] using H
+  | succ max ih =>
+    cases H with
+    | nil => exact .nil
+    | cons Htail =>
+      simp only [Expr.inferImplicit]
+      exact .cons (ih Htail)
+
 instance : LawfulBEq FVarId where
   eq_of_beq := @fun ⟨a⟩ ⟨b⟩ h => by cases LawfulBEq.eq_of_beq (α := Name) h; rfl
   rfl := BEq.rfl (α := Name)

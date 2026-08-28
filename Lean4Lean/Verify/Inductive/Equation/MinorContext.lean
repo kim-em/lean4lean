@@ -833,7 +833,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
-  rcases checkInductiveTypes.loopType.MLCtxOnlyLams.narrowFVars
+  rcases checkInductiveTypes.loopType.narrowFVars
       H.recursorWF.onlyLams
       H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
       (fun fv => fv ∈ sourceBinders) A.finalSelectedMinorPrefixUp with
@@ -1531,162 +1531,6 @@ theorem
   exact ⟨T, scope, Hscope, hscope, hscopeShift, hscopeSource, by
     simpa [outerDomains, List.reverse_append, List.append_assoc] using Hctx⟩
 
-/-- Replay the constructor fields over the complete dependency-selected
-outer scope.  The resulting context contains the literal semantic field
-free variables above parameters, motives, and every minor, while its target
-domains are based at the exact generated anonymous outer prefix. -/
-theorem
-    RecursorPhasesResult.GeneratedRuleAlignment.finalOuterFieldNarrowScope
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {H : RecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-      H.bindings.flatMinors.fvars
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
-        (H.generated.entry owner howner).info.type H.entries[owner].2.type
-        stats.params.size (H.recInfos.map (·.motive)).size
-        (H.recInfos.flatMap (·.minors)).size
-        H.recInfos[owner]!.indices.size owner,
-      ∃ outerScope,
-      ∃ Houter : checkInductiveTypes.loopType.FVarNarrowScope
-          H.outVEnv Us outerScope H.recursorWF.mlctx.vlctx,
-      ∃ fieldScope,
-      ∃ Hfield : checkInductiveTypes.loopType.FVarNarrowScope
-          H.outVEnv Us fieldScope A.semantics.context.mlctx.vlctx,
-      ∃ fieldDomains : List VExpr,
-        outerScope.fvars = outerBinders.reverse ∧
-        fieldScope.fvars = A.semantics.fieldsRecent.fvars.reverse ++
-          outerScope.fvars ∧
-        fieldScope.drop A.rule.allArgs.size = outerScope ∧
-        fieldDomains.length = A.rule.allArgs.size ∧
-        fieldScope.toCtx = fieldDomains.reverse ++ outerScope.toCtx ∧
-        Hfield.shift = Houter.shift.consN A.rule.allArgs.size ∧
-        Hfield.expanded.toCtx =
-          (liftForallDomains fieldDomains Houter.shift).reverse ++
-            Houter.expanded.toCtx ∧
-        (∀ {body target},
-          TrExprS H.outVEnv Us fieldScope body target →
-          H.outVEnv.IsType Us.length fieldScope.toCtx target →
-          TrExprS H.outVEnv Us outerScope
-              (A.semantics.context.mlctx.mkForall A.rule.allArgs.size
-                A.semantics.fieldsRecent.size_le body)
-              (VExpr.wrapForalls fieldDomains target) ∧
-            H.outVEnv.IsType Us.length outerScope.toCtx
-              (VExpr.wrapForalls fieldDomains target)) ∧
-        VEnv.IsDefEqCtx H.outVEnv Us.length [] outerScope.toCtx
-          (T.params ++ T.motives ++ T.minors).reverse := by
-  dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-    H.bindings.flatMinors.fvars
-  rcases A.finalOuterPrefixDefEqCtx with
-    ⟨T, outerScope, Houter, houterFVars, _houterShift,
-      _houterSource, HouterPrefix⟩
-  rcases A.semantics.context.onlyLams.lamPrefix
-      A.rule.allArgs.size A.semantics.fieldsRecent.size_le with
-    ⟨_runtimeFieldDomains, HfieldPrefix⟩
-  have hfieldRoot :
-      (A.semantics.context.mlctx.dropN A.rule.allArgs.size
-        HfieldPrefix.le).vlctx = H.recursorWF.mlctx.vlctx := by
-    have hle : HfieldPrefix.le = A.semantics.fieldsRecent.size_le :=
-      Subsingleton.elim _ _
-    rw [hle, A.semantics.fieldsRecent.drop_eq,
-      A.semantics.fieldRoot_vlctx]
-  let HfieldBase := Houter.retargetRuntime hfieldRoot.symm
-  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
-  have HfieldWF : A.semantics.context.mlctx.WF H.outVEnv Us := by
-    have Hwf := A.semantics.context.mlctx_wf
-    rw [A.semantics.context_venv] at Hwf
-    exact Hwf.mono hbase
-  have hfieldRev : A.semantics.context.mlctx.fvarRevList
-      A.rule.allArgs.size HfieldPrefix.le =
-        A.semantics.fieldsRecent.fvars.reverse := by
-    have hle : HfieldPrefix.le = A.semantics.fieldsRecent.size_le :=
-      Subsingleton.elim _ _
-    rw [hle]
-    exact A.semantics.fieldsRecent.fvarRevList_eq
-  have hcontextFVars : A.semantics.context.mlctx.vlctx.fvars =
-      A.semantics.fieldsRecent.fvars.reverse ++
-        H.recursorWF.mlctx.vlctx.fvars := by
-    simpa [A.semantics.fieldRoot_vlctx] using
-      A.semantics.fieldsRecent.contextFVars
-  have hcontextNodup :
-      (A.semantics.fieldsRecent.fvars.reverse ++
-        H.recursorWF.mlctx.vlctx.fvars).Nodup := by
-    rw [← hcontextFVars]
-    exact A.semantics.context.mlctx_wf.fvars_nodup
-  have hfieldRootDisjoint := (List.nodup_append.mp hcontextNodup).2.2
-  have HouterAtBase : IsFVarUpSet
-      (fun fv => fv ∈
-        A.semantics.context.mlctx.fvarRevList A.rule.allArgs.size
-            HfieldPrefix.le ++ outerScope.fvars)
-      H.recursorWF.mlctx.vlctx := by
-    apply (IsFVarUpSet.congr
-      H.recursorWF.mlctx_wf.tr.wf.fvwf ?_).mp Houter.upset
-    intro fv hfv
-    constructor
-    · intro houter
-      exact List.mem_append_right _ houter
-    · intro hselected
-      rcases List.mem_append.mp hselected with hfield | houter
-      · exfalso
-        rw [hfieldRev] at hfield
-        exact hfieldRootDisjoint fv hfield fv hfv rfl
-      · exact houter
-  have HouterAtDropped : IsFVarUpSet
-      (fun fv => fv ∈
-        A.semantics.context.mlctx.fvarRevList A.rule.allArgs.size
-            HfieldPrefix.le ++ outerScope.fvars)
-      (A.semantics.context.mlctx.dropN A.rule.allArgs.size
-        HfieldPrefix.le).vlctx := by
-    rw [hfieldRoot]
-    exact HouterAtBase
-  have HfieldUp : IsFVarUpSet
-      (fun fv => fv ∈
-        A.semantics.context.mlctx.fvarRevList A.rule.allArgs.size
-            HfieldPrefix.le ++ outerScope.fvars)
-      A.semantics.context.mlctx.vlctx := by
-    apply HfieldPrefix.isFVarUpSet_of_base
-      A.semantics.fieldParameterUp HouterAtDropped
-    · intro fv hfv
-      left
-      rw [hfieldRev] at hfv
-      simpa using hfv
-    · intro fv hfv
-      rcases hfv with hfield | hparam
-      · exact List.mem_append_left _ (by
-          rw [hfieldRev]
-          simpa using hfield)
-      · apply List.mem_append_right
-        rw [houterFVars]
-        simp only [List.mem_reverse, outerBinders]
-        exact List.mem_append_left _ (List.mem_append_left _ (by
-          rw [← H.params.exprArrayFVarIds]
-          exact hparam))
-  rcases HfieldPrefix.extendFVarNarrowScope H.outVEnvWF HfieldWF
-      HfieldBase HfieldUp with
-    ⟨fieldScope, Hfield, hfieldFVars, hfieldBase,
-      fieldDomains, hfieldDomains, hfieldContext, hfieldShift,
-      hfieldExpanded, HfieldReplay⟩
-  exact ⟨T, outerScope, Houter, fieldScope, Hfield, fieldDomains,
-    houterFVars, by simpa [hfieldRev] using hfieldFVars,
-    hfieldBase, hfieldDomains, hfieldContext, hfieldShift,
-    hfieldExpanded, by
-      intro body target Hbody HbodyType
-      simpa using HfieldReplay Hbody HbodyType,
-    HouterPrefix⟩
-
 /-- Translate the original constructor tail directly in the complete outer
 scope.  This gives a source-stable field telescope over the same generated
 parameter/motive/minor prefix used by the installed selected minor. -/
@@ -1740,20 +1584,15 @@ theorem
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
     exact H.installed.le
-  have hfieldRootEnv : A.semantics.fieldRootContext.venv =
-      H.recursorWF.venv :=
-    A.semantics.fieldsRecent.venv_eq.symm.trans
-      A.semantics.context_venv
+  let E := A.semantics.fieldRootExtension
   have Hruntime : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
-      A.semantics.parameterTail A.semantics.parameterTarget := by
-    have Htr := A.semantics.parameterTranslation
-    rw [hfieldRootEnv, A.semantics.fieldRoot_vlctx] at Htr
-    exact Htr.mono hbase
+      A.semantics.parameterTail
+        (A.semantics.parameterTarget.lift' (E.shift.consN 0)) :=
+    (E.weakTrExprS A.semantics.parameterTranslation).mono hbase
   have HruntimeType : H.outVEnv.IsType Us.length
-      H.recursorWF.mlctx.vlctx.toCtx A.semantics.parameterTarget := by
-    have Htype := A.semantics.parameterType
-    rw [hfieldRootEnv, A.semantics.fieldRoot_vlctx] at Htype
-    exact Htype.mono hbase
+      H.recursorWF.mlctx.vlctx.toCtx
+        (A.semantics.parameterTarget.lift' (E.shift.consN 0)) :=
+    (E.weakIsType A.semantics.parameterType).mono hbase
   have hclosed : Closed A.semantics.parameterTail 0 := by
     have h := Hruntime.closed
     rw [H.recursorWF.mlctx.noBV] at h

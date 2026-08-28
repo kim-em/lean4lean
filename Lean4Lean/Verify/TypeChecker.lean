@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.TypeChecker.InferType
 import Lean4Lean.Verify.TypeChecker.WHNF
 import Lean4Lean.Verify.TypeChecker.IsDefEq
+import Lean4Lean.Verify.Environment.Basic
 
 namespace Lean4Lean
 
@@ -15,8 +16,25 @@ structure VEnvs.WF (env : Environment) (ves : VEnvs) where
   hasPrimitives : VEnv.HasPrimitives (ves.venv safety)
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
+  typeAnnotationWrappers : TypeAnnotationWrappers env
   inductivesClosed : VerifyInductive.MutualInductivesClosed env
+  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
+  constructorSemantics : VerifyInductive.InductiveConstructorsSemanticallyCoherent
+    safety env (ves.venv safety)
+  inductiveProvenance : InstalledInductiveProvenance
+    safety env.constants (ves.venv safety)
   mono : safety ≤ safety' → ves.venv safety' ≤ ves.venv safety
+
+/-- The unsafe observer sees every production inductive, so the persistent
+semantic invariant also supplies safety-independent exact constructor
+metadata coherence. -/
+theorem VEnvs.WF.inductiveConstructorsCoherent
+    {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
+    VerifyInductive.InductiveConstructorsCoherent env := by
+  intro familyName familyInfo hfamily i hi
+  rcases wf.constructorSemantics (safety := .unsafe)
+      familyName familyInfo hfamily DefinitionSafety.unsafe_le i hi with ⟨C⟩
+  exact ⟨C.toInductiveConstructorCoherenceAt⟩
 
 /-- Assemble a `VEnvs` from a pointwise existential. `DefinitionSafety` has three elements, so
 this is a finite case split rather than an appeal to choice -- the name records what it replaces. -/

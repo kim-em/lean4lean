@@ -171,31 +171,6 @@ theorem RestoreParamOpening.context_extension
     · simp [hlctx, decl, LocalContext.mkLocalDecl_toList]
     · simp [hparams, decl, List.append_assoc, LocalDecl.fvarId]
 
-/-- In a well-formed local context, a declaration occurring in `toList` is
-the unique declaration found at its free-variable identifier. -/
-theorem LocalContextWF_find?_eq_some_of_mem
-    {lctx : LocalContext} {d : LocalDecl}
-    (H : lctx.WF) (hd : d ∈ lctx.toList) :
-    lctx.find? d.fvarId = some d := by
-  rw [H.find?_eq_find?_toList]
-  have find_of_nodup : ∀ (ds : List LocalDecl) (d : LocalDecl),
-      (ds.map (fun decl => decl.fvarId)).Nodup → d ∈ ds →
-      ds.find? (d.fvarId == ·.fvarId) = some d := by
-    intro ds
-    induction ds with
-    | nil => simp
-    | cons head tail ih =>
-      intro d hnodup hmem
-      simp only [List.map_cons, List.nodup_cons] at hnodup
-      simp only [List.mem_cons] at hmem
-      rcases hmem with rfl | hmem
-      · simp
-      · have hne : d.fvarId ≠ head.fvarId := by
-          intro heq
-          exact hnodup.1 (heq ▸ List.mem_map.mpr ⟨d, hmem, rfl⟩)
-        simp [hne, ih d hnodup.2 hmem]
-  exact find_of_nodup lctx.toList d H.nodup hd
-
 /-- A positional bound-variable witness and a declaration occurring at the
 same free-variable identifier in a well-formed context are the same local
 declaration. -/
@@ -562,50 +537,12 @@ inductive Expr.SameForallPrefix : Nat → Expr → Expr → Prop
       Expr.SameForallPrefix (n + 1)
         (.forallE name dom left bi) (.forallE name dom right bi)
 
-/-- Two expressions have the same leading forall names and domains, while
-their binder annotations and residual bodies may differ.  This is the right
-relation for comparing a production telescope after `inferImplicit` with an
-independently translated dummy telescope: binder annotations are absent from
-`VExpr`, but the concrete domains must still agree exactly. -/
-inductive Expr.SameForallDomains : Nat → Expr → Expr → Prop
-  | nil : Expr.SameForallDomains 0 left right
-  | cons : Expr.SameForallDomains n left right →
-      Expr.SameForallDomains (n + 1)
-        (.forallE name dom left leftBi) (.forallE name dom right rightBi)
-
 theorem Expr.SameForallPrefix.sameForallDomains
     (H : Expr.SameForallPrefix n left right) :
     Expr.SameForallDomains n left right := by
   induction H with
   | nil => exact .nil
   | cons _ ih => exact .cons ih
-
-theorem Expr.SameForallDomains.trans
-    (H₁ : Expr.SameForallDomains n left middle)
-    (H₂ : Expr.SameForallDomains n middle right) :
-    Expr.SameForallDomains n left right := by
-  induction H₁ generalizing right with
-  | nil => cases H₂; exact .nil
-  | cons _ ih =>
-    cases H₂ with
-    | cons H₂ => exact .cons (ih H₂)
-
-/-- `inferImplicit` may choose different annotations for two different
-residuals, but it preserves a common concrete domain prefix. -/
-theorem Expr.SameForallDomains.inferImplicit
-    (H : Expr.SameForallDomains n left right)
-    (max : Nat) (inferBinderTypes : Bool) :
-    Expr.SameForallDomains n
-      (left.inferImplicit max inferBinderTypes)
-      (right.inferImplicit max inferBinderTypes) := by
-  induction max generalizing n left right with
-  | zero => simpa [Expr.inferImplicit] using H
-  | succ max ih =>
-    cases H with
-    | nil => exact .nil
-    | cons Htail =>
-      simp only [Expr.inferImplicit]
-      exact .cons (ih Htail)
 
 theorem Expr.SameForallPrefix.symm
     (H : Expr.SameForallPrefix n left right) :
@@ -779,7 +716,7 @@ Production's `inferImplicit` is allowed to inspect the residual when choosing
 annotations, so an independent dummy residual need not produce literally the
 same prefix.  Since annotations are erased by `TrExprS`, equality of the
 concrete names and domains is sufficient to reuse the translated telescope. -/
-theorem Expr.SameForallDomains.replaceTranslatedResidual
+theorem _root_.Lean.Expr.SameForallDomains.replaceTranslatedResidual
     (Hsame : Expr.SameForallDomains n template replacement)
     (HtemplateTelescope : Expr.ForallTelescope template n templateResidual)
     (HreplacementTelescope :

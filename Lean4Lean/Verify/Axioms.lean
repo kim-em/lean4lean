@@ -302,42 +302,31 @@ open private mkLevelIMaxCore from Lean.Level in
 /-- Workaround for https://github.com/leanprover/lean4/pull/7631#issuecomment-3289800246 -/
 @[simp] axiom mkLevelIMaxCore_eq (e : Expr) (n : Nat) : mkLevelIMaxCore = mkIMaxCore
 
-/-- The optimized universe normalizers are opaque runtime helpers.  They may
-discard or reassociate their inputs, but cannot manufacture a universe
-metavariable when neither input contains one. -/
-axiom mkLevelMax'_hasMVar_false (u v : Level) :
+open private mkLevelMaxCore from Lean.Level in
+theorem mkLevelMax'_hasMVar_false (u v : Level) :
     u.hasMVar' = false → v.hasMVar' = false →
-      (mkLevelMax' u v).hasMVar' = false
+      (mkLevelMax' u v).hasMVar' = false := by
+  intro hu hv
+  unfold Lean.mkLevelMax'
+  unfold mkLevelMaxCore
+  repeat' first | split
+  all_goals simp_all
+  all_goals repeat' first | split
+  all_goals simp_all [Lean.mkLevelMax]
+  all_goals repeat' first | split
+  all_goals simp_all [hasMVar']
 
-axiom mkLevelIMax'_hasMVar_false (u v : Level) :
+open private mkLevelIMaxCore from Lean.Level in
+theorem mkLevelIMax'_hasMVar_false (u v : Level) :
     u.hasMVar' = false → v.hasMVar' = false →
-      (mkLevelIMax' u v).hasMVar' = false
+      (mkLevelIMax' u v).hasMVar' = false := by
+  intro hu hv
+  unfold Lean.mkLevelIMax'
+  unfold mkLevelIMaxCore
+  repeat' first | split
+  all_goals simp_all [mkLevelMax'_hasMVar_false, hasMVar', Lean.mkLevelIMax]
 
 end Level
-
-namespace Name
-
-/-- `Name.appendIndexAfter` is implemented with opaque
-`String.Internal.append`, for which core exposes no logical specification.
-This is the precise suffix-parsing fact needed to verify freshness of names
-generated with a monotone numeric counter. -/
-axiom appendIndexAfter_index_injective
-    (firstBase secondBase : Name) (firstIndex secondIndex : Nat) :
-    firstBase.appendIndexAfter firstIndex =
-      secondBase.appendIndexAfter secondIndex →
-    firstIndex = secondIndex
-
-/-- Macro-aware `Name.append` and `Name.appendIndexAfter` are implemented via
-opaque manipulation of `MacroScopesView` and `String.Internal.append`.  This
-is the prefix-preservation fact used to show that lowering-generated names
-remain inside their private namespace, including when the appended source
-name carries macro scopes. -/
-axiom isPrefixOf_append_appendIndexAfter
-    (pre suffix : Name) (index : Nat) :
-    pre.hasMacroScopes = false →
-    pre.isPrefixOf ((pre ++ suffix).appendIndexAfter index) = true
-
-end Name
 
 namespace Expr
 
@@ -454,33 +443,6 @@ def instantiate1' (e : Expr) (subst : Expr) (d := 0) : Expr :=
 
 /-- This could be an `@[implemented_by]` -/
 @[simp] axiom instantiate1_eq (e : Expr) (subst) : e.instantiate1 subst = e.instantiate1' subst
-
-/-- `consumeTypeAnnotations` is an opaque runtime function in Lean, so expose
-its defining equation just like the other executable `Expr` primitives in this
-file. -/
-@[simp] axiom consumeTypeAnnotations_eq (e : Expr) :
-    e.consumeTypeAnnotations =
-      if e.isOptParam || e.isAutoParam then
-        e.appFn!.appArg!.consumeTypeAnnotations
-      else if e.isOutParam || e.isSemiOutParam then
-        e.appArg!.consumeTypeAnnotations
-      else e
-
-/-- Structural boolean reference for the opaque runtime `Expr.find?`. -/
-def findAny (p : Expr → Bool) : Expr → Bool
-  | e@(.app fn arg) => p e || findAny p fn || findAny p arg
-  | e@(.lam _ ty body _) => p e || findAny p ty || findAny p body
-  | e@(.forallE _ ty body _) => p e || findAny p ty || findAny p body
-  | e@(.letE _ ty value body _) =>
-    p e || findAny p ty || findAny p value || findAny p body
-  | e@(.mdata _ inner) => p e || findAny p inner
-  | e@(.proj _ _ inner) => p e || findAny p inner
-  | e => p e
-
-/-- `Expr.find?` is opaque and implemented by `lean_find_expr`; only its
-existence result is needed by inductive occurrence checking. -/
-@[simp] axiom find?_isSome_eq_findAny (p : Expr → Bool) (e : Expr) :
-    (e.find? p).isSome = e.findAny p
 
 @[simp] def instantiateList : Expr → List Expr → (k :_:= 0) → Expr
   | e, [], _ => e

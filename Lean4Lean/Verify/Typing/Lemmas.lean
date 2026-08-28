@@ -2083,6 +2083,23 @@ theorem IsFVarUpSet.suffixFVars (suffix : VLCtx) : ∀ (added : VLCtx),
         simp [hfv]
       exact False.elim ((h.2.1 fv deps rfl).1 hmem)
 
+/-- Prepending declarations whose free-variable binders lie outside an
+up-set preserves that up-set.  This is the precise staged-context rule: fresh
+local binders may depend on the retained root scope, but do not themselves
+become members of it. -/
+theorem IsFVarUpSet.prependFresh (P : FVarId → Prop) (suffix : VLCtx) :
+    ∀ (added : VLCtx),
+      IsFVarUpSet P suffix →
+      (∀ fv, fv ∈ added.fvars → ¬ P fv) →
+      IsFVarUpSet P (added ++ suffix)
+  | [], H, _ => H
+  | (none, d) :: added, H, hfresh =>
+      prependFresh P suffix added H fun fv h => hfresh fv h
+  | (some (fv, deps), d) :: added, H, hfresh => by
+      refine ⟨prependFresh P suffix added H
+        (fun fv' h => hfresh fv' (.tail _ h)), ?_⟩
+      exact fun hP => False.elim (hfresh fv (.head _) hP)
+
 def AllAbove (Δ : VLCtx) (P : FVarId → Prop) (fv : FVarId) : Prop := fv ∈ Δ.fvars → P fv
 
 theorem AllAbove.wf (H : Δ.FVWF) : IsFVarUpSet (AllAbove Δ P) Δ ↔ IsFVarUpSet P Δ :=

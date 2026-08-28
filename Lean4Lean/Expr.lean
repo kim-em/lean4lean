@@ -9,6 +9,31 @@ def arrow (d b : Expr) : Expr := .forallE `a d b .default
 
 def lam0 (ty e : Expr) : Expr := .lam `_ ty e default
 
+/-- Transparent, root-first expression search used by the verified checker.
+Unlike Lean's opaque `Expr.find?`, this exposes its traversal to proofs. -/
+def findAny (p : Expr → Bool) : Expr → Bool
+  | e@(.app fn arg) => p e || findAny p fn || findAny p arg
+  | e@(.lam _ ty body _) => p e || findAny p ty || findAny p body
+  | e@(.forallE _ ty body _) => p e || findAny p ty || findAny p body
+  | e@(.letE _ ty value body _) =>
+    p e || findAny p ty || findAny p value || findAny p body
+  | e@(.mdata _ inner) => p e || findAny p inner
+  | e@(.proj _ _ inner) => p e || findAny p inner
+  | e => p e
+
+/-- Transparent reference implementation of the outer annotation erasure used
+by the verified checker. -/
+def consumeTypeAnnotationsVerified : Expr → Expr
+  | e@(.app (.app (.const name _) type) _) =>
+    if name == ``optParam || name == ``autoParam then
+      consumeTypeAnnotationsVerified type
+    else e
+  | e@(.app (.const name _) type) =>
+    if name == ``outParam || name == ``semiOutParam then
+      consumeTypeAnnotationsVerified type
+    else e
+  | e => e
+
 namespace ReplaceImpl
 
 unsafe abbrev ReplaceT := StateT (PtrMap Expr Expr)

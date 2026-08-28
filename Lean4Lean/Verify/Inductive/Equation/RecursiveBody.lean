@@ -796,12 +796,9 @@ theorem
           (mkAppN
             (.const F.semantic.generated.recursorName
               (AddInductive.getRecLevels H.elimLevel stats.levels))
-            (stats.params.map fun arg => arg.abstractList
-              F.semantic.generated.arguments_bound.fvars))
-          ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars)
+            stats.params)
+          (H.recInfos.map (·.motive)))
+        (H.recInfos.flatMap (·.minors))
     let target :=
       ((VExpr.mkApps
           ((VExpr.const recursor.name (VLevel.params Us.length)).liftN
@@ -831,12 +828,9 @@ theorem
         (mkAppN
           (.const F.semantic.generated.recursorName
             (AddInductive.getRecLevels H.elimLevel stats.levels))
-          (stats.params.map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars))
-      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-        F.semantic.generated.arguments_bound.fvars)
+          stats.params)
+        (H.recInfos.map (·.motive)))
+      (H.recInfos.flatMap (·.minors))
   let target :=
     ((VExpr.mkApps
         ((VExpr.const recursor.name (VLevel.params Us.length)).liftN
@@ -932,12 +926,9 @@ theorem
           (mkAppN
             (.const F.semantic.generated.recursorName
               (AddInductive.getRecLevels H.elimLevel stats.levels))
-            (stats.params.map fun arg => arg.abstractList
-              F.semantic.generated.arguments_bound.fvars))
-          ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars)
+            stats.params)
+          (H.recInfos.map (·.motive)))
+        (H.recInfos.flatMap (·.minors))
     ∃ (equationDomains localDomains : List VExpr)
         (prefixTarget : VExpr) (indexTargets : List VExpr)
         (majorTarget : VExpr),
@@ -977,12 +968,9 @@ theorem
         (mkAppN
           (.const F.semantic.generated.recursorName
             (AddInductive.getRecLevels H.elimLevel stats.levels))
-          (stats.params.map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars))
-      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-        F.semantic.generated.arguments_bound.fvars)
+          stats.params)
+        (H.recInfos.map (·.motive)))
+      (H.recInfos.flatMap (·.minors))
   rcases F.canonicalInsertedSemanticCallArgumentFrame T with
     ⟨_binding, evidence, _scope, Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, _narrowExposed, _hfront,
@@ -1103,12 +1091,9 @@ theorem
           (mkAppN
             (.const F.semantic.generated.recursorName
               (AddInductive.getRecLevels H.elimLevel stats.levels))
-            (stats.params.map fun arg => arg.abstractList
-              F.semantic.generated.arguments_bound.fvars))
-          ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars)
+            stats.params)
+          (H.recInfos.map (·.motive)))
+        (H.recInfos.flatMap (·.minors))
     ∃ (equationDomains localDomains : List VExpr)
         (prefixTarget : VExpr) (indexTargets : List VExpr)
         (majorTarget ownerTarget : VExpr),
@@ -1172,12 +1157,9 @@ theorem
         (mkAppN
           (.const F.semantic.generated.recursorName
             (AddInductive.getRecLevels H.elimLevel stats.levels))
-          (stats.params.map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars))
-      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-        F.semantic.generated.arguments_bound.fvars)
+          stats.params)
+        (H.recInfos.map (·.motive)))
+      (H.recInfos.flatMap (·.minors))
   rcases F.canonicalInsertedSemanticCallArgumentFrame T with
     ⟨_binding, _evidence, _scope, _Hscope, fieldDomains, rawLocalDomains,
       liftedFront, narrowIndices, narrowMajor, _narrowExposed, _hfront,
@@ -1417,9 +1399,8 @@ theorem
           (VExpr.mkApps ownerTarget args) →
         TrExprS H.outVEnv Us
             (abstractForallContext (equationDomains ++ localDomains) [])
-            ((F.semantic.generated.body.abstractList
-              F.semantic.generated.arguments_bound.fvars).abstractList
-                A.rule.binders F.semantic.generated.localArgs.size)
+            (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size)
             (VExpr.mkApps prefixTarget args) ∧
           VExpr.WF H.outVEnv Us.length
             (abstractForallContext
@@ -1435,12 +1416,9 @@ theorem
         (mkAppN
           (.const F.semantic.generated.recursorName
             (AddInductive.getRecLevels H.elimLevel stats.levels))
-          (stats.params.map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars))
-      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-        F.semantic.generated.arguments_bound.fvars)
+          stats.params)
+        (H.recInfos.map (·.motive)))
+      (H.recInfos.flatMap (·.minors))
   rcases F.canonicalRecursiveCallApplicationTelescope T with
     ⟨equationDomains, localDomains, prefixTarget, indexTargets,
       majorTarget, ownerTarget, hlocal, Hctx, HlocalTemplate,
@@ -1469,9 +1447,8 @@ theorem
     H.outVEnvWF.ordered Hctx Hprefix Hargs HleftWF
   have Hcall' : TrExprS H.outVEnv Us
       (abstractForallContext (equationDomains ++ localDomains) [])
-      ((F.semantic.generated.body.abstractList
-        F.semantic.generated.arguments_bound.fvars).abstractList
-          A.rule.binders F.semantic.generated.localArgs.size)
+      (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size)
       (VExpr.mkApps prefixTarget args) := by
     have hrecursorShape :
         F.semantic.generated.outerAbstractedRecursor A.rule.binders =
@@ -1483,12 +1460,8 @@ theorem
                 F.semantic.generated.arguments_bound.fvars).abstractList
                 A.rule.binders
                   F.semantic.generated.localArgs.size) := by
-      unfold BoundGeneratedRecursiveCall.outerAbstractedRecursor
-        BoundGeneratedRecursiveCall.abstractedRecursor
-      rw [Expr.abstractList_mkAppN]
-      rw [Expr.mkAppN_eq_mkAppList]
-      simp [localPrefix, sourceIndices, AddInductive.getIIndices,
-        List.map_map, Function.comp_def]
+      simpa [localPrefix, sourceIndices] using
+        F.outerAbstractedRecursor_eq
     rw [F.semantic.generated.outerAbstractedBody_eq_named]
     rw [hrecursorShape]
     have hsource : Expr.mkAppList
@@ -1561,9 +1534,8 @@ theorem
       let args := indexTargets ++ [majorTarget]
       TrExprS H.outVEnv Us
           (abstractForallContext (equationDomains ++ localDomains) [])
-          ((F.semantic.generated.body.abstractList
-            F.semantic.generated.arguments_bound.fvars).abstractList
-              A.rule.binders F.semantic.generated.localArgs.size)
+          (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size)
           (VExpr.mkApps prefixTarget args) ∧
         TrExprS H.outVEnv Us
           (abstractForallContext (equationDomains ++ localDomains) [])
@@ -1599,12 +1571,9 @@ theorem
         (mkAppN
           (.const F.semantic.generated.recursorName
             (AddInductive.getRecLevels H.elimLevel stats.levels))
-          (stats.params.map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars))
-      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-        F.semantic.generated.arguments_bound.fvars)
+          stats.params)
+        (H.recInfos.map (·.motive)))
+      (H.recInfos.flatMap (·.minors))
   rcases F.canonicalInsertedSemanticMajorTyping T (B := B) with
     ⟨C, equationDomains, fieldDomains, localDomains, added, frontDomains,
       indexTargets, majorTarget, ownerTarget, hdecomposition, hequation,
@@ -1841,9 +1810,21 @@ theorem
       (H.recInfos.map (fun info : AddInductive.RecInfo => info.motive))
       selectedOwner hselectedMotiveBound]
     simpa using hselectedMotiveValue
-  have hselectedMotiveRoot : motiveFVar ∈ A.rule.root.lctx.fvars :=
-    A.rule.motives_bound.members motiveFVar
-      (List.getElem_mem hselectedMotiveFVars)
+  have hselectedMotiveRoot : motiveFVar ∈ A.rule.root.lctx.fvars := by
+    let Hext : RecursorContextExtension H.recursorWF
+        A.semantics.context :=
+      A.semantics.fieldRootExtension.trans
+        A.semantics.fieldsRecent.contextExtension
+    rcases H.motiveShapes.motiveBindingAtMono
+        (Rcurrent := A.semantics.context) H.bindings H.origins
+        Hext.contextLE selectedOwner hselectedRecInfo with ⟨Hbinding⟩
+    have hscope := Hbinding.motive.fvarsIn
+    rw [getElem!_pos H.recInfos selectedOwner hselectedRecInfo,
+      hselectedMotiveValue] at hscope
+    change motiveFVar ∈ A.semantics.context.mlctx.vlctx.fvars at hscope
+    rw [← A.semantics.context.lctx_eq,
+      A.semantics.context.mlctx_wf.tr.fvars_eq]
+    exact hscope
   have hselectedMotiveBinder : motiveFVar ∈ A.rule.binders := by
     simp [BoundGeneratedRecursorRule.binders, motiveFVar,
       List.getElem_mem hselectedMotiveFVars]
@@ -2003,9 +1984,8 @@ theorem
     H.outVEnvWF.ordered Hctx Hprefix Hargs HleftWF
   have Hcall' : TrExprS H.outVEnv Us
       (abstractForallContext (equationDomains ++ localDomains) [])
-      ((F.semantic.generated.body.abstractList
-        F.semantic.generated.arguments_bound.fvars).abstractList
-          A.rule.binders F.semantic.generated.localArgs.size)
+      (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size)
       (VExpr.mkApps prefixTarget args) := by
     have hrecursorShape :
         F.semantic.generated.outerAbstractedRecursor A.rule.binders =
@@ -2015,13 +1995,10 @@ theorem
             (sourceIndices.map fun index =>
               (index.abstractList
                 F.semantic.generated.arguments_bound.fvars).abstractList
-                  A.rule.binders
+                A.rule.binders
                   F.semantic.generated.localArgs.size) := by
-      unfold BoundGeneratedRecursiveCall.outerAbstractedRecursor
-        BoundGeneratedRecursiveCall.abstractedRecursor
-      rw [Expr.abstractList_mkAppN, Expr.mkAppN_eq_mkAppList]
-      simp [localPrefix, sourceIndices, AddInductive.getIIndices,
-        List.map_map, Function.comp_def]
+      simpa [localPrefix, sourceIndices] using
+        F.outerAbstractedRecursor_eq
     rw [F.semantic.generated.outerAbstractedBody_eq_named, hrecursorShape]
     have hsource : Expr.mkAppList
         (localPrefix.abstractList A.rule.binders

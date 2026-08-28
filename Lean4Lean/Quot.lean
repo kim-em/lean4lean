@@ -17,6 +17,15 @@ def ExprBuildT.run [Monad m] (x : ExprBuildT m α) : m α := x {} {}
 instance : MonadLocalNameGenerator (ExprBuildT m) where
   withFreshId x c ngen := x ngen.curr c ngen.next
 
+/-- The exact concrete family arity accepted by quotient initialization for
+`Eq`.  Keeping this syntax explicit lets the verification theorem use the
+successful comparison performed by `checkEqType`, instead of assuming that
+every inductive declaration whose name is `Eq` denotes abstract equality. -/
+def expectedEqType (u : Name) : Expr :=
+  .forallE `α (.sort (.param u))
+    (.forallE .anonymous (.bvar 0)
+      (.forallE .anonymous (.bvar 1) .prop .default) .default) .implicit
+
 def checkEqType (env : Environment) : Except Exception Unit := do
   let fail {α} (s : String) : Except Exception α :=
     throw <| .other s!"failed to initialize quot module, {s}"
@@ -24,9 +33,8 @@ def checkEqType (env : Environment) : Except Exception Unit := do
   let [u] := info.levelParams | fail "unexpected number of universe params at 'Eq' type"
   let [eqRefl] := info.ctors | fail "unexpected number of constructors for 'Eq' type"
   ExprBuildT.run do
-    withLocalDecl `α .implicit (.sort (.param u)) fun α => do
-      if info.type != ((← read).mkForall #[α] <| .arrow α <| .arrow α .prop) then
-        fail "'Eq' has an expected type"
+    if info.type != expectedEqType u then
+      fail "'Eq' has an expected type"
     let info ← env.get eqRefl
     let [u] := info.levelParams
       | fail "unexpected number of universe params at 'Eq' type constructor"

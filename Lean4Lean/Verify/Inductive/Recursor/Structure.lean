@@ -20,7 +20,7 @@ theorem refines
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       Hc.mlctx.vlctx stats decl depth)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Hc.mlctx.vlctx)
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
@@ -70,7 +70,7 @@ theorem refines
             (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
           apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
           rfl
-        have Hrec := ih Hc' Hstats' hctx'
+        have Hrec := ih Hc' Hstats' hlit hctx'
           (hopened.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
         exact Hrec.mono fun result hrec target htarget => by
           rcases hrec target htarget with ⟨htarget, hrecursive⟩
@@ -103,7 +103,7 @@ theorem isRecArg.refines
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       Hc.mlctx.vlctx stats decl depth)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Hc.mlctx.vlctx)
     (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
@@ -153,7 +153,7 @@ theorem selectedSublist {α : Type}
           (body.instantiate1 param) (i + 1) bu u fuel c).WF Q
         exact ih hselected
       | none =>
-        change (Lean4Lean.withLocalDecl name bi dom.consumeTypeAnnotations
+        change (Lean4Lean.withLocalDecl name bi dom.consumeTypeAnnotationsVerified
           (fun arg => do
             let bu := bu.push arg
             let u := if (← AddInductive.isRecArg stats dom).isSome then
@@ -166,7 +166,7 @@ theorem selectedSublist {α : Type}
         let c' : AddInductive.Context := { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotations bi }
+            dom.consumeTypeAnnotationsVerified bi }
         change (AddInductive.isRecArg stats dom c' >>= fun selected =>
           AddInductive.mkRecInfos.loopCtorArgs.loop stats
             k (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
@@ -940,7 +940,7 @@ theorem recursiveDomains {α : Type}
       Hc.mlctx.vlctx stats decl depth)
     (hparams : stats.params.size ≤ i)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Hc.mlctx.vlctx)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -1004,7 +1004,7 @@ theorem recursiveDomains {α : Type}
           (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
         exact TrExprS.fvar (A := consumedDom'.lift) (by
           change VLCtx.find? ((some (⟨c.ngen.curr⟩,
-            dom.consumeTypeAnnotations.fvarsList), .vlam consumedDom') ::
+            dom.consumeTypeAnnotationsVerified.fvarsList), .vlam consumedDom') ::
               Hc.mlctx.vlctx) (Sum.inr ⟨c.ngen.curr⟩) = _
           simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
             VLocalDecl.value, VLocalDecl.type])
@@ -1015,7 +1015,7 @@ theorem recursiveDomains {α : Type}
       refine Hclass.bind fun selected hselected => ?_
       cases selected with
       | none =>
-        exact ih Hc' Hstats' (by omega) hctx' hopened
+        exact ih Hc' Hstats' (by omega) hlit hctx' hopened
           (.nonrecursive hfields) hargsWeak
       | some target =>
         rcases hselected target rfl with ⟨howner, hrecursive⟩
@@ -1033,7 +1033,7 @@ theorem recursiveDomains {α : Type}
             ((args.map fun arg => arg.liftN 1 0) ++ [.bvar 0]) := by
           simpa using checkPositivityStep.forall₂_append
             hargsWeak (.cons harg .nil)
-        exact ih Hc' Hstats' (by omega) hctx' hopened
+        exact ih Hc' Hstats' (by omega) hlit hctx' hopened
           (.recursive hfields (cert := cert) rfl) hargs'
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata | proj =>
       exact Hk Hc htype hfields hargs
@@ -1052,7 +1052,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomains {α : Type}
       Hc.mlctx.vlctx stats decl 0)
     (hprefix : RecursorParamPrefix stats 0 t tail)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Hc.mlctx.vlctx)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -1124,7 +1124,7 @@ theorem continueWith {α : Type}
           let c' : AddInductive.Context := { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotations bi }
+              dom.consumeTypeAnnotationsVerified bi }
           change ((monadLift (TypeChecker.whnf
             (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
               AddInductive.M Expr) c' >>= fun next =>
@@ -1222,7 +1222,7 @@ theorem resultCount
       let cMajor : AddInductive.Context := { cIndices with
         ngen := cIndices.ngen.next
         lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩ `t
-          (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices).consumeTypeAnnotations
+          (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices).consumeTypeAnnotationsVerified
           .default }
       have hget : ((getLCtx : AddInductive.M LocalContext) cMajor).WF
           (fun lctx => lctx = cMajor.lctx) := by
@@ -1326,6 +1326,65 @@ termination_by u.size - i
 
 end mkRecInfos.loopU
 
+namespace mkRecInfos.loopUBlueprints
+
+/-- The retained-blueprint hypothesis loop likewise returns only through its
+continuation, now carrying one exact call blueprint per recursive field. -/
+theorem continueWith {α : Type}
+    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (recInfos : Array AddInductive.RecInfo)
+    (k : Array Expr → Array AddInductive.RecCallBlueprint →
+      AddInductive.M α) {Q : α → Prop}
+    (Hk : ∀ v calls c, (k v calls c).WF Q)
+    (i : Nat) (v : Array Expr)
+    (calls : Array AddInductive.RecCallBlueprint)
+    (c : AddInductive.Context) :
+    (AddInductive.mkRecInfos.loopUBlueprints stats u recInfos i v calls
+      k c).WF Q := by
+  rw [AddInductive.mkRecInfos.loopUBlueprints]
+  by_cases hnext : i < u.size
+  · rw [dif_pos hnext]
+    have hviTy :
+        ((AddInductive.mkRecInfos.loopUArgs u[i] fun uiTy xs => do
+          let some itIdx := AddInductive.isValidIndApp? stats uiTy
+            | throw (.other
+              "recursive constructor field lost its inductive result type")
+          let itIndices := uiTy.getAppArgs[stats.params.size:]
+          let lctx ← getLCtx
+          let motiveApp := .app
+            (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN u[i] xs)
+          let viTy := lctx.mkForall xs motiveApp
+          return (viTy, ({
+            major := u[i]
+            args := xs
+            lctx := lctx
+            targetTypeIdx := itIdx
+            targetIndices := itIndices
+            template := lctx.mkLambda xs <|
+              (mkAppN (.bvar 0) itIndices).app (mkAppN u[i] xs) } :
+              AddInductive.RecCallBlueprint))) c).WF
+          (fun _ => True) := by
+      intro _ _
+      trivial
+    refine hviTy.bind fun result _ => ?_
+    rcases result with ⟨viTy, call⟩
+    have hget : ((getLCtx : AddInductive.M LocalContext) c).WF
+        (fun lctx => lctx = c.lctx) := by
+      intro lctx h
+      cases h
+      rfl
+    refine readerBind.WF (x := (getLCtx : AddInductive.M LocalContext))
+      hget fun lctx hlctx => ?_
+    subst lctx
+    apply withLocalDecl.continueRaw
+    exact continueWith stats u recInfos k Hk (i + 1)
+      (v.push (.fvar ⟨c.ngen.curr⟩)) (calls.push call) _
+  · rw [dif_neg hnext]
+    exact Hk v calls c
+termination_by u.size - i
+
+end mkRecInfos.loopUBlueprints
+
 namespace mkRecInfos.loopCtors
 
 theorem getElemBang_modify_ne {α : Type} [Inhabited α]
@@ -1364,7 +1423,8 @@ theorem resultCount {α : Type} {Q : α → Prop}
     (Hk : ∀ out c,
       out.size = recInfos.size →
       out[dIdx]!.minors.size = recInfos[dIdx]!.minors.size + ctors.length →
-      { out[dIdx]! with minors := #[] } = { recInfos[dIdx]! with minors := #[] } →
+      { out[dIdx]! with minors := #[], ruleBlueprints := #[] } =
+        { recInfos[dIdx]! with minors := #[], ruleBlueprints := #[] } →
       (∀ i, i < recInfos.size → dIdx ≠ i → out[i]! = recInfos[i]!) →
       (k out c).WF Q) :
     (AddInductive.mkRecInfos.loopCtors stats indTypeName dIdx recInfos ctors k c).WF Q := by
@@ -1381,8 +1441,8 @@ theorem resultCount {α : Type} {Q : α → Prop}
       rw [AddInductive.mkRecInfos.loopCtors]
       apply mkRecInfos.loopCtorArgs.selectedSublist stats
       intro t bu u cArgs _
-      apply mkRecInfos.loopU.continueWith stats u recInfos
-      intro v cIH
+      apply mkRecInfos.loopUBlueprints.continueWith stats u recInfos
+      intro v calls cIH
       have hget : ((getLCtx : AddInductive.M LocalContext) cIH).WF
           (fun lctx => lctx = cIH.lctx) := by
         intro lctx h
@@ -1392,8 +1452,18 @@ theorem resultCount {α : Type} {Q : α → Prop}
         hget fun lctx hlctx => ?_
       subst lctx
       apply withLocalDecl.continueRaw
-      let next := recInfos.modify dIdx fun s =>
-        { s with minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩) }
+      let blueprint : AddInductive.RecRuleBlueprint := {
+        ctor := ctor.name
+        fields := bu
+        lctx := cIH.lctx
+        recursiveCalls := calls
+        targetTypeIdx := (AddInductive.getIIndices stats t).1
+        targetIndices := (AddInductive.getIIndices stats t).2
+        minor := .fvar ⟨cIH.ngen.curr⟩ }
+      let next := recInfos.modify dIdx fun s => {
+        s with
+        minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩)
+        ruleBlueprints := s.ruleBlueprints.push blueprint }
       apply ih next _
       · simpa [next]
       · intro out cOut houtSize houtCount houtFrame
@@ -1403,13 +1473,19 @@ theorem resultCount {α : Type} {Q : α → Prop}
         · rw [houtCount]
           dsimp [next]
           have hnextIdx : dIdx < (recInfos.modify dIdx fun s =>
-              { s with minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩) }).size := by
+              { s with
+                minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩)
+                ruleBlueprints := s.ruleBlueprints.push blueprint }).size := by
             simpa using hidx
           have hbangModified :
               (recInfos.modify dIdx fun s =>
-                { s with minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩) })[dIdx]! =
+                { s with
+                  minors := s.minors.push (.fvar ⟨cIH.ngen.curr⟩)
+                  ruleBlueprints := s.ruleBlueprints.push blueprint })[dIdx]! =
               { recInfos[dIdx]! with
-                minors := recInfos[dIdx]!.minors.push (.fvar ⟨cIH.ngen.curr⟩) } := by
+                minors := recInfos[dIdx]!.minors.push (.fvar ⟨cIH.ngen.curr⟩)
+                ruleBlueprints := recInfos[dIdx]!.ruleBlueprints.push
+                  blueprint } := by
             simp only [Array.getElem!_eq_getD]
             unfold Array.getD
             rw [dif_pos hnextIdx, dif_pos hidx]
@@ -1429,7 +1505,8 @@ end mkRecInfos.loopCtors
 namespace mkRecInfos.loopInd2
 
 def SameFrame (a b : AddInductive.RecInfo) : Prop :=
-  { a with minors := #[] } = { b with minors := #[] }
+  { a with minors := #[], ruleBlueprints := #[] } =
+    { b with minors := #[], ruleBlueprints := #[] }
 
 theorem SameFrame.refl (a : AddInductive.RecInfo) : SameFrame a a := rfl
 
@@ -1984,7 +2061,7 @@ theorem checkConstructors.loopCtor.tailRefinesFull
     (htarget : decl.types[targetIdx] = target)
     (hparamAt : stats.params[i]? = none)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Hc.mlctx.vlctx)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -2003,8 +2080,8 @@ theorem checkConstructors.loopCtor.tailRefinesFull
         depth type') := by
   apply checkConstructors.loopCtor.tailRefines Hc Hstats hi htarget
     hparamAt hconsume hlit hctx hproj hunsafe hbound
-  · intro c' depth' posIdx type' type'' Hc' Hstats' hctx' htype'
-    exact checkPositivity.refines Hc' Hstats' hconsume hlit hctx' hproj htype'
+  · intro c' depth' posIdx type' type'' Hc' Hstats' hlit' hctx' htype'
+    exact checkPositivity.refines Hc' Hstats' hconsume hlit' hctx' hproj htype'
   · exact htr
 
 /-- Regard a constructor constant as the root of a telescope synthesis.  The
@@ -2028,6 +2105,68 @@ noncomputable def ConstructorSynthesisState.initial
   have htyped := Classical.choose_spec htype
   exact checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
     htype htype htyped
+
+/-- Exact semantic record of the common-parameter comparisons performed
+by `checkConstructors.loopCtor`.  Unlike `RecursorParamPrefix`, this trace
+does not forget the translated concrete constructor domain or the
+definitional equality returned by the executable `isDefEq` call.
+
+The list of `sourceDomains` is in telescope order.  The scope is the cached
+common-parameter scope after the same number of steps.  Keeping both sides
+is essential for nested restoration: constructor parameter domains need only
+be definitionally, not syntactically, equal to the family parameters. -/
+inductive CheckedConstructorParameterPrefix
+    (env : VEnv) (Us : List Name) (stats : AddInductive.InductiveStats)
+    (original : Expr) :
+    Nat → Expr → VLCtx → List VExpr → Prop where
+  | zero : CheckedConstructorParameterPrefix env Us stats original
+      0 original [] []
+  | step
+      (H : CheckedConstructorParameterPrefix env Us stats original
+        i (.forallE name dom body bi) scope sourceDomains)
+      (hparam : stats.params[i]? = some param)
+      (hparamFVar : param = .fvar fv)
+      (hdomain : TrExprS env Us scope dom sourceDomain)
+      (hdomainType : env.IsType Us.length scope.toCtx sourceDomain)
+      (hcompare : env.IsDefEqU Us.length scope.toCtx
+        sourceDomain paramType) :
+      CheckedConstructorParameterPrefix env Us stats original
+        (i + 1) (body.instantiate1 param)
+        ((some (fv, deps), .vlam paramType) :: scope)
+        (sourceDomains ++ [sourceDomain])
+
+/-- The retained pointwise comparisons assemble into the exact dependent
+context conversion from translated concrete constructor domains to cached
+family parameter domains. -/
+theorem CheckedConstructorParameterPrefix.contextDefEq
+    (henv : env.WF)
+    (H : CheckedConstructorParameterPrefix env Us stats original
+      i current scope sourceDomains) :
+    env.IsDefEqCtx Us.length [] sourceDomains.reverse scope.toCtx := by
+  induction H with
+  | zero => exact .zero
+  | step H hparam hparamFVar hdomain hdomainType hcompare ih =>
+    have hcompareAtSort :=
+      hcompare.of_l henv (ih.symm henv.ordered).isType
+        (Classical.choose_spec hdomainType)
+    have hcompareAtSource :=
+      hcompareAtSort.defeqDFC henv.ordered (ih.symm henv.ordered)
+    simpa [VLCtx.toCtx, List.reverse_append] using
+      (VEnv.IsDefEqCtx.succ ih hcompareAtSource)
+
+/-- Ordinary environment extension preserves the exact checked parameter
+trace, including the executable comparison witnesses. -/
+theorem CheckedConstructorParameterPrefix.mono
+    (henv : env ≤ env')
+    (H : CheckedConstructorParameterPrefix env Us stats original
+      i current scope sourceDomains) :
+    CheckedConstructorParameterPrefix env' Us stats original
+      i current scope sourceDomains := by
+  induction H with
+  | zero => exact .zero
+  | step H hparam hparamFVar hdomain hdomainType hcompare ih =>
+    exact .step ih hparam hparamFVar (hdomain.mono henv) (hdomainType.mono henv)
+      (hcompare.mono henv)
 
 /-- A successful cached-parameter comparison advances the semantic
 constructor telescope directly.  The executable loop performs no
@@ -2098,7 +2237,8 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
       Hc stats depth}
     (Q : Unit → Prop)
     (Hresult : ∀ {source' : Expr}
-        {current' fullCurrent' : VExpr} {fuel' : Nat},
+        {current' fullCurrent' : VExpr} {fuel' : Nat}
+        {sourceDomains : List VExpr},
       (Hsynthesis' :
         checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
           Hc.venv c.lparams (constructorTelescopeTarget ctorVal)
@@ -2106,10 +2246,13 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
       TrExprS Hc.venv c.lparams Hsuffix.parameterDecls source' current' →
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx source' fullCurrent' →
       RecursorParamSegment stats 0 decl.nparams original source' →
+      CheckedConstructorParameterPrefix Hc.venv c.lparams stats original
+        decl.nparams source' Hsuffix.parameterDecls sourceDomains →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
         source' decl.nparams (fuel' + 1) c).WF Q)
     (Hearly : ∀ {source' : Expr} {scope' : VLCtx}
-        {current' fullCurrent' : VExpr} {i' fuel' : Nat},
+        {current' fullCurrent' : VExpr} {i' fuel' : Nat}
+        {sourceDomains : List VExpr},
       i' < decl.nparams →
       (¬ ∃ name dom body bi, source' = .forallE name dom body bi) →
       checkInductiveTypes.loopType.LaterParameterScope
@@ -2120,6 +2263,8 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
           scope' current' i' 0) →
       TrExprS Hc.venv c.lparams scope' source' current' →
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx source' fullCurrent' →
+      CheckedConstructorParameterPrefix Hc.venv c.lparams stats original
+        i' source' scope' sourceDomains →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
         source' i' (fuel' + 1) c).WF Q)
     (hparams : stats.params.size = decl.nparams)
@@ -2137,10 +2282,13 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
         scope current i 0)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope source current)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
-      source fullCurrent) :
+      source fullCurrent)
+    {sourceDomains : List VExpr}
+    (Hcomparisons : CheckedConstructorParameterPrefix Hc.venv c.lparams
+      stats original i source scope sourceDomains) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source i fuel c).WF Q := by
-  induction fuel generalizing source scope current fullCurrent i with
+  induction fuel generalizing source scope current fullCurrent i sourceDomains with
   | zero => exact checkConstructors.loopCtor.zero.WF
   | succ fuel ih =>
     by_cases hi : i < decl.nparams
@@ -2190,6 +2338,21 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
               (body.instantiate1 stats.params[i]!) next := by
             simpa [Expr.instantiate1_eq, Hcurrent.parameter] using
               hopenedNarrow
+          have hsourceDomType : Hc.venv.IsType c.lparams.length
+              Hcurrent.older.toCtx sourceDom :=
+            hdomNarrowType.defeqU_l Hc.checking.tr.wf
+              Hsynthesis.scopeWF.toCtx
+              (hdomNarrow.uniq Hc.checking.tr.wf
+                (.refl Hc.checking.tr.wf Hsynthesis.scopeWF)
+                hsourceDom)
+          have Hcomparisons' : CheckedConstructorParameterPrefix
+              Hc.venv c.lparams stats original (i + 1)
+              (body.instantiate1 stats.params[i]!)
+              ((some (Hcurrent.fv, Hcurrent.deps),
+                .vlam Hcurrent.paramType) :: Hcurrent.older)
+              (sourceDomains ++ [sourceDom]) :=
+            .step Hcomparisons hparamAt Hcurrent.parameter hsourceDom hsourceDomType
+              hsourceDomEq
           let Hbody :
               checkInductiveTypes.loopType.LaterParameterScope
                 Hsuffix i body :=
@@ -2210,13 +2373,14 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
             (Hsegment := Hsegment.push hparamAt)
             Hsynthesis' hopenedNarrow'
             (hopenedFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+            Hcomparisons'
       · exact Hearly hi hforall (Hscope histats)
-          Hsynthesis htypeNarrow htypeFull
+          Hsynthesis htypeNarrow htypeFull Hcomparisons
     · have hieq : i = decl.nparams := by omega
       subst i
       have hscope := hcompleteScope rfl
       subst scope
-      exact Hresult Hsynthesis htypeNarrow htypeFull Hsegment
+      exact Hresult Hsynthesis htypeNarrow htypeFull Hsegment Hcomparisons
 
 theorem _root_.Lean4Lean.FVarsIn.getAppArgsList
     (H : FVarsIn P e) (ha : a ∈ e.getAppArgsList) : FVarsIn P a := by
@@ -2525,7 +2689,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hparamAt : stats.params[i]? = none)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
@@ -2559,9 +2723,9 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
           have hparamNext : stats.params[i + 1]? = none := by
             rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
             omega
-          have hdeps : dom.consumeTypeAnnotations.fvarsList ⊆ scope.fvars :=
+          have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
-              (Expr.consumeTypeAnnotations_fvarsIn hdomNarrow.fvarsIn)).1
+              (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
           rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
             ⟨domainLevel, hdomain⟩
           cases isUnsafe with
@@ -2582,14 +2746,14 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                 checkInductiveTypes.loopType.NarrowRuntimeScope
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
-                    dom.consumeTypeAnnotations.fvarsList),
+                    dom.consumeTypeAnnotationsVerified.fvarsList),
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
             have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
-                  dom.consumeTypeAnnotations.fvarsList),
+                  dom.consumeTypeAnnotationsVerified.fvarsList),
                   .vlam narrowDom) :: scope)
                 (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
               rw [Expr.instantiate1_eq]
@@ -2605,7 +2769,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
               (htargetShape := by
                 change decl.TypeShape Hc.venv params target
                 exact htargetShape)
-              hparamNext hbound
+              hparamNext hlit hbound
               hopenedNarrow
               (hopenedFull.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
             exact Htail.mono fun _ htail => by
@@ -2644,14 +2808,14 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                 checkInductiveTypes.loopType.NarrowRuntimeScope
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
-                    dom.consumeTypeAnnotations.fvarsList),
+                    dom.consumeTypeAnnotationsVerified.fvarsList),
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
             have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
-                  dom.consumeTypeAnnotations.fvarsList),
+                  dom.consumeTypeAnnotationsVerified.fvarsList),
                   .vlam narrowDom) :: scope)
                 (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
               rw [Expr.instantiate1_eq]
@@ -2667,7 +2831,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
               (htargetShape := by
                 change decl.TypeShape Hc.venv params target
                 exact htargetShape)
-              hparamNext hbound
+              hparamNext hlit hbound
               hopenedNarrow
               (hopenedFull.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
             exact Htail.mono fun _ htail => by
@@ -2727,7 +2891,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefines
     (htarget : decl.types[targetIdx] = target)
     (hparamAt : stats.params[i]? = none)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Hc.mlctx.vlctx)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
@@ -2783,7 +2947,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesNarrow
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hparamAt : stats.params[i]? = none)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
@@ -2851,7 +3015,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hparamAt : stats.params[decl.nparams]? = none)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
@@ -2924,7 +3088,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
     (htargetWF : target.toVConstant.WF Hc.venv)
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
       e'.containsAnyConst (decl.types.map (·.name)) = false →
       e''.containsAnyConst (decl.types.map (·.name)) = false)
@@ -2938,6 +3102,9 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       source 0 fuel c).WF
       (fun _ => ∃ tail tailTarget,
         RecursorParamPrefix stats 0 source tail ∧
+        ∃ sourceDomains,
+        CheckedConstructorParameterPrefix Hc.venv c.lparams stats source
+          decl.nparams tail Hsuffix.parameterDecls sourceDomains ∧
         TrExprS Hc.venv c.lparams Hsuffix.parameterDecls tail tailTarget ∧
         ConstructorTailCertificate Hc.venv decl target
           Hsuffix.parameterDecls.toCtx 0 tailTarget ∧
@@ -3010,6 +3177,10 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         (by simpa [Hstats.uvars] using Hchecked.2)
       exact ⟨source, ctorVal.type,
         .done (by rw [Hstats.params_size, hzero]),
+        [], by simpa [hzero, hscope] using
+          (CheckedConstructorParameterPrefix.zero :
+            CheckedConstructorParameterPrefix Hc.venv c.lparams stats source
+              0 source [] []),
         by simpa [hscope] using Hctor.type,
         by simpa [hscope] using Htail',
         by simpa [hscope, Hstats.params_size, hzero] using
@@ -3030,6 +3201,10 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       (Q := fun _ => ∃ tail,
         ∃ tailTarget,
         RecursorParamPrefix stats 0 (.forallE name dom body bi) tail ∧
+        ∃ sourceDomains,
+        CheckedConstructorParameterPrefix Hc.venv c.lparams stats
+          (.forallE name dom body bi) decl.nparams tail
+          Hsuffix.parameterDecls sourceDomains ∧
         TrExprS Hc.venv c.lparams Hsuffix.parameterDecls tail tailTarget ∧
         ConstructorTailCertificate Hc.venv decl target
           Hsuffix.parameterDecls.toCtx 0 tailTarget ∧
@@ -3040,8 +3215,8 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         decl.CtorShape Hc.venv params target ctorVal ∧
         Hc.venv.IsType decl.uvars [] ctorVal.type)
       (Hresult := by
-        intro source' current' fullCurrent' fuel'
-          Hsynthesis' htrNarrow htrFull Hsegment'
+        intro source' current' fullCurrent' fuel' sourceDomains
+          Hsynthesis' htrNarrow htrFull Hsegment' Hcomparisons
         have hindices : Hsynthesis'.indices = [] :=
           List.eq_nil_of_length_eq_zero Hsynthesis'.indexCount
         have hscopeCtx : Hsuffix.parameterDecls.toCtx =
@@ -3084,13 +3259,13 @@ theorem checkConstructors.loopCtor.refinesCtorShape
             stats.params.size (.forallE name dom body bi) source' := by
           simpa only [Hstats.params_size] using Hsegment'
         exact ⟨source', current', HsegmentComplete.complete rfl,
-          htrNarrow, Htail',
+          sourceDomains, Hcomparisons, htrNarrow, Htail',
           by simpa [Hstats.params_size] using
             (show Nonempty _ from ⟨Hsynthesis'⟩),
           Hchecked⟩)
       (Hearly := by
-        intro source' scope' current' fullCurrent' i' fuel' hi'
-          hforall Hscope' _Hsynthesis' _htrNarrow _htrFull
+        intro source' scope' current' fullCurrent' i' fuel' sourceDomains hi'
+          hforall Hscope' _Hsynthesis' _htrNarrow _htrFull _Hcomparisons
         exact checkConstructors.loopCtor.earlyParameterResult.WF
           (fuel := fuel') Hc Hscope'
           (by simpa [Hstats.params_size] using hi') hforall)
@@ -3109,6 +3284,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         exact hempty.symm)
       Hinitial Hctor.type
       (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+      CheckedConstructorParameterPrefix.zero
   · cases fuel with
     | zero => exact checkConstructors.loopCtor.zero.WF
     | succ fuel =>
@@ -3199,10 +3375,12 @@ def CheckedConstructorTailReplayAt
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : VInductiveType) (source : Constructor) : Prop :=
-  ∃ ctorVal tail tailTarget,
+  ∃ ctorVal tail tailTarget sourceDomains,
     ctorVal ∈ target.ctors ∧
     TrSourceConstRaw env Us source.name source.type ctorVal ∧
     RecursorParamPrefix stats 0 source.type tail ∧
+    CheckedConstructorParameterPrefix env Us stats source.type
+      stats.params.size tail scope sourceDomains ∧
     TrExprS env Us scope tail tailTarget ∧
     ConstructorTailCertificate env decl target scope.toCtx 0 tailTarget ∧
     Nonempty

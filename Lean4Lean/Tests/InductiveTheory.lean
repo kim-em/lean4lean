@@ -33,7 +33,7 @@ def enumCtorsEnv : VEnv where
   defeqs := fun _ => False
 
 theorem enumDecl_wf : enumDecl.WF .empty := by
-  unfold VInductDecl.WF VInductDecl.SourceWF VInductDecl.FormationWF
+  unfold VInductDecl.WF VInductDecl.SourceWF
   have haddType : VEnv.empty.addConstVals enumDecl.typeConstants = some enumTypesEnv := by
     simp [enumDecl, enumType, enumTypesEnv, VInductDecl.typeConstants,
       VEnv.addConstVals, VEnv.addConst, VEnv.empty]
@@ -61,7 +61,9 @@ theorem enumDecl_wf : enumDecl.WF .empty := by
         List.flatMap_cons, List.flatMap_nil, List.append_nil, List.mem_singleton] at hmem
       subst ctor
       exact hctor
-  · refine ⟨[], .succ .zero, enumTypesEnv, haddType, ?_, ?_⟩
+  · apply VInductDecl.FormationEvidence.ordinary
+    unfold VInductDecl.FormationWF
+    refine ⟨[], .succ .zero, enumTypesEnv, haddType, ?_, ?_⟩
     · intro type hmem
       simp [enumDecl] at hmem
       subst type
