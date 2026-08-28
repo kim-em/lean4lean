@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterEvidence
+import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterNativeEvidence
 import Lean4Lean.Verify.Inductive.Nested.NoPrimitiveRunInputs
 
 namespace Lean4Lean
@@ -97,7 +97,6 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
     (hnested : res.aux2nested.size ≠ 0)
     (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
     (hproj : ProjectionConstPreservation)
-    (hconstructorLocality : ConstructorParameterReplayLocality)
     (Hassembly : NestedFinalAssemblyProvider env lparams nparams sourceTypes
       isUnsafe fuel res) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
@@ -170,9 +169,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
           newTypes := sourceTypes.toArray } res := by
       simpa only [E'.productionContext_env] using HlowerInitialClosed
     have hconstructors : NestedExactConstructorSemantics E' := by
-      have Hparams := E'.restoredConstructorParameterDomains HlowerExact rfl
-        hconstructorLocality
-        (E'.restoredFamilyParameterScopes HlowerExact rfl)
+      have Hparams := E'.nativeRestoredConstructorParameterDomains HlowerExact
       cases isUnsafe with
       | false =>
           exact E'.safeConstructorSemanticsOfParameterDomains wf HlowerExact

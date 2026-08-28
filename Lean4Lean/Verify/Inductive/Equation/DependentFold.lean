@@ -2582,7 +2582,7 @@ theorem
     rw [hresidual] at Hsource'
     simpa [originFieldSource, hdeclarationType] using Hsource'
   have HgeneratedNeutralScope :=
-    E.frame.fieldAbstractedNeutralLocalForallSourceScope B
+    E.frame.fieldAbstractedNeutralLocalForallSourceScopeAtOrigin
   have HgeneratedNeutralAvoidsHypotheses :
       ((E.frame.semantic.generated.current.lctx.mkForall
         E.frame.semantic.generated.localArgs (.sort .zero)).abstractList

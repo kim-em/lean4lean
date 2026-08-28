@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Equation.RecursiveCall
+import Lean4Lean.Verify.Inductive.Equation.RecursiveApplicationFrame
 
 namespace Lean4Lean
 
@@ -10,6 +10,11 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+/- Obsolete contiguous-runtime call-argument frame.  Recursive calls after
+the first can have earlier generated hypotheses between the constructor
+fields and call locals; the producer-origin `NarrowIndexFrame` below is the
+replacement. -/
+/-
 /-- Cached call-argument frame for one recursive result.  Semantic indices
 and the eta-expanded constructor field are narrowed and then closed through
 the same replayed front, so their targets cannot come from unrelated
@@ -258,6 +263,26 @@ theorem
     by simpa [hfront] using HclosedMajor',
     by simpa [hfront] using HclosedExposed,
     by simpa [hfront] using HclosedTyping, HindexEq, HmajorEq⟩
+-/
+
+/-- Stable producer-origin entry point for the semantic index and major
+payload of one recursive result. -/
+theorem
+    RecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.cachedSemanticCallArgumentFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) : Nonempty F.NarrowIndexFrame :=
+  F.narrowIndexFrame
 
 /-- Close the replayed constructor-field and higher-order-argument front of
 every narrowed recursive index.  The resulting translations live directly
@@ -2575,26 +2600,6 @@ theorem
   have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
   exact ⟨T, T.resultShape hownerMotive⟩
-
-theorem RecursorPhasesResult.recursorNamesFresh
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv outEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv)
-    (rules : List VDefEq) (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
-    ∀ name ∈ (H.blockCertificate rules hrules).block.recursors.map (·.name),
-      R.declared.venvCtors.constants name = none := by
-  have hfresh :=
-    VEnv.addConstVals_names_fresh H.installed.abstract |>.2
-  intro name hname
-  change name ∈ (H.entries.map Prod.snd).map (·.name) at hname
-  rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
-  exact hfresh recursor hrecursor
-
 
 end VerifyInductive
 end Lean4Lean

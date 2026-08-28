@@ -1404,6 +1404,28 @@ def RecursorPhasesResult.blockCertificate
   exact Hgenerated.toBlockCertificate H.staged H.localWF H.bindings H.params
     Hheaders.typesWF R.declared.ctorsWF hrules
 
+/-- Names installed by the completed recursor phase were fresh in the
+post-constructor abstract environment.  This belongs at the installation
+boundary: nested restoration needs it before equation construction starts. -/
+theorem RecursorPhasesResult.recursorNamesFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq) (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
+    ∀ name ∈ (H.blockCertificate rules hrules).block.recursors.map (·.name),
+      R.declared.venvCtors.constants name = none := by
+  have hfresh :=
+    VEnv.addConstVals_names_fresh H.installed.abstract |>.2
+  intro name hname
+  change name ∈ (H.entries.map Prod.snd).map (·.name) at hname
+  rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
+  exact hfresh recursor hrecursor
+
 def RecursorPhasesResult.generatedCertificate
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}

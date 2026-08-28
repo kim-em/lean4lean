@@ -16,7 +16,6 @@ makes the eventual assumption audit finite and reviewable. -/
 structure InductiveVerificationAssumptions : Prop where
   loopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat
   projections : ProjectionConstPreservation
-  constructorParameterReplayLocality : ConstructorParameterReplayLocality
 
 /-- Uniform final result for the ordinary, non-nested post-lowering branch. -/
 theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
@@ -151,7 +150,7 @@ theorem Environment.addInductive.inductiveFinalResultWF
   · exact
       Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
         env lparams nparams types isUnsafe fuel res ves wf Hlower haux
-        A.loopUArgsReplay A.projections A.constructorParameterReplayLocality
+        A.loopUArgsReplay A.projections
         (HnestedAssembly res Hsources Hlower haux)
 
 /-- Checked `addDecl` composition for the non-primitive branch. Primitive
