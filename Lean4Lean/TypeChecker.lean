@@ -1437,16 +1437,16 @@ def whnfCore (e : Expr) : M Expr := (Inner.whnfCore e).run
 
 def unfoldDefinition (e : Expr) : M Expr := return (← (Inner.unfoldDefinition e).run).getD e
 
-/-- Infers the type of expression `e`. Note that this uses the optimization `inferOnly := true`, and
-so should only be used for the purpose of type inference on terms that are known to be well-typed.
-To typecheck terms for the first time, use `checkType`. -/
-def inferType (e : Expr) : M Expr := (Inner.inferType e).run
+/-- Infers the type of expression `e`. If `inferOnly := false`, this function throws an error
+whenever `e` is not typeable according to Lean's algorithmic typing judgment (barring resource
+exhaustion: it may also throw `.deterministicTimeout` or `.deepRecursion` on a typeable term).
+Setting `inferOnly := true` optimizes to avoid unnecessary checks in the case that `e` is already
+known to be well-typed. -/
+def inferType (e : Expr) (inferOnly := true) : M Expr := (Inner.inferType e inferOnly).run
 
 /-- Infers the type of expression `e` and checks that `e` is well-typed according to Lean's typing
-judgment.
-
-Use `inferType` to infer type alone. -/
-def checkType (e : Expr) : M Expr := (Inner.inferType e (inferOnly := false)).run
+judgment. Use `inferType` to infer the type alone. -/
+abbrev checkType (e : Expr) : M Expr := inferType e (inferOnly := false)
 
 @[inherit_doc isDefEqCore]
 def isDefEq (t s : Expr) : M Bool := (Inner.isDefEq t s).run
@@ -1461,7 +1461,7 @@ def ensureSort (t : Expr) (s := t) : M Expr := (ensureSortCore t s).run
 def ensureForall (t : Expr) (s := t) : M Expr := (ensureForallCore t s).run
 
 /-- Ensures that `e` is a type/proposition. If it is not, throws an error. -/
-def ensureType (e : Expr) : M Expr := do ensureSort (← inferType e) e
+def ensureType (e : Expr) (inferOnly := true) : M Expr := do ensureSort (← inferType e inferOnly) e
 
 def etaExpand (e : Expr) : M Expr :=
   let rec loop fvars

@@ -703,6 +703,7 @@ theorem _root_.Lean4Lean.Ctx.InstN.wf (henv : Ordered env) (W : Ctx.InstN Γ₀ 
   | zero => exact ⟨H.1, H.1⟩
   | succ W ih => let ⟨h1, h2⟩ := ih H.1; exact ⟨h1, h2, .instN henv W H.2 h₀⟩
 
+
 theorem IsDefEq.defeqDF_l' (henv : Ordered env) (h1 : env.IsDefEq U Γ A A' (.sort u))
     (h2 : env.IsDefEq U (Δ++A::Γ) e1 e2 B) : env.IsDefEq U (Δ++A'::Γ) e1 e2 B := by
   have ⟨_, H1, H2⟩ : ∃ Γ', Ctx.LiftN 1 (Δ.length + 1) (Δ ++ A :: Γ) Γ' ∧
@@ -904,3 +905,97 @@ theorem IsDefEq.instDF
       .trans (.appDF (.lamDF hA hf) ha) <|
       .defeqDF (.symm hi) (.beta hf.hasType.2 ha.hasType.2)
   H2 hf <| H2 hB (HasType.sort (hB.sort_r henv (Γ := _::_) ⟨hΓ, _, hA⟩))
+
+/-! ### Simultaneous substitution (`IsDefEq.substDF`)
+
+`Ctx.SubstEq env U Γ₀ σ σ' Γ` is a pair of substitutions `σ`, `σ'` that are pointwise
+definitionally equal, taking the context `Γ` down to `Γ₀`. `IsDefEq.substDF` substitutes such a
+pair into a defeq, generalizing `IsDefEq.instDF` from one variable to a whole substitution. -/
+
+inductive Ctx.SubstEq (env : VEnv) (U : Nat) (Γ₀ : List VExpr) :
+    VExpr.Subst → VExpr.Subst → List VExpr → Prop where
+  | nil : Ctx.SubstEq env U Γ₀ σ σ' []
+  | cons : Ctx.SubstEq env U Γ₀ σ.tail σ'.tail Γ →
+    env.HasType U Γ A (.sort u) →
+    env.IsDefEq U Γ₀ σ.head σ'.head (A.subst σ.tail) →
+    Ctx.SubstEq env U Γ₀ σ σ' (A :: Γ)
+
+/-- Diagonal left-projection. -/
+theorem Ctx.SubstEq.left (W : Ctx.SubstEq env U Γ₀ σ σ' Γ) : Ctx.SubstEq env U Γ₀ σ σ Γ := by
+  induction W with
+  | nil => exact .nil
+  | cons _ hA hhead ih => exact .cons ih hA hhead.hasType.1
+
+/-- Variable substitution lookup. -/
+theorem Ctx.SubstEq.lookup (W : Ctx.SubstEq env U Γ₀ σ σ' Γ) :
+    Lookup Γ i A → env.IsDefEq U Γ₀ (σ i) (σ' i) (A.subst σ) := by
+  intro h
+  induction W generalizing i A with
+  | nil => nomatch h
+  | cons W' hA' hhead ih =>
+    cases h with
+    | zero => rw [lift_subst]; exact hhead
+    | @succ Γ'' n ty B h' => rw [lift_subst]; exact ih h'
+
+variable! (henv : Ordered env) in
+/-- Codomain-weakening by one fresh variable. -/
+theorem Ctx.SubstEq.skip (W : Ctx.SubstEq env U Γ₀ σ σ' Γ) :
+    Ctx.SubstEq env U (B :: Γ₀) (σ.lift_r (.skip .refl)) (σ'.lift_r (.skip .refl)) Γ := by
+  induction W with
+  | nil => exact .nil
+  | @cons _ _ _ _ _ _ hA' hhead ih =>
+    refine .cons (Subst.lift_r_tail ▸ Subst.lift_r_tail ▸ ih) hA' ?_
+    rw [Subst.lift_r_tail]
+    have := hhead.weak' henv (Ctx.Lift'.skip (A := B) .refl)
+    rwa [lift'_subst] at this
+
+variable! (henv : Ordered env) in
+/-- Extension under a binder. -/
+theorem Ctx.SubstEq.lift (W : Ctx.SubstEq env U Γ₀ σ σ' Γ)
+    (hA : env.HasType U Γ A (.sort u)) :
+    Ctx.SubstEq env U (A.subst σ :: Γ₀) σ.lift σ'.lift (A :: Γ) := by
+  have htail : σ.lift.tail = σ.lift_r (.skip .refl) := by
+    funext i; simp [VExpr.Subst.tail, VExpr.Subst.lift, VExpr.Subst.lift_r, lift_eq_lift']
+  have htail' : σ'.lift.tail = σ'.lift_r (.skip .refl) := by
+    funext i; simp [VExpr.Subst.tail, VExpr.Subst.lift, VExpr.Subst.lift_r, lift_eq_lift']
+  refine .cons (htail ▸ htail' ▸ W.skip henv) hA ?_
+  show env.IsDefEq U (A.subst σ :: Γ₀) _ _ (A.subst σ.lift.tail)
+  rw [htail, show A.subst (σ.lift_r (.skip .refl)) = (A.subst σ).lift' (.skip .refl) from
+    (lift'_subst (e := A) (σ := σ) (ρ := .skip .refl)).symm]
+  exact .bvar (lift_eq_lift' ▸ Lookup.zero)
+
+variable! (henv : Ordered env) in
+/-- Generalized lift into `X :: Γ₀` for any sort-typed `X` defeq to `A.subst σ`. -/
+theorem Ctx.SubstEq.lift_at (W : Ctx.SubstEq env U Γ₀ σ σ' Γ)
+    (hA : env.HasType U Γ A (.sort u))
+    (hAX : env.IsDefEq U Γ₀ (A.subst σ) X (.sort u)) :
+    Ctx.SubstEq env U (X :: Γ₀) σ.lift σ'.lift (A :: Γ) := by
+  have htail : σ.lift.tail = σ.lift_r (.skip .refl) := by
+    funext i; simp [VExpr.Subst.tail, VExpr.Subst.lift, VExpr.Subst.lift_r, lift_eq_lift']
+  have htail' : σ'.lift.tail = σ'.lift_r (.skip .refl) := by
+    funext i; simp [VExpr.Subst.tail, VExpr.Subst.lift, VExpr.Subst.lift_r, lift_eq_lift']
+  refine .cons (htail ▸ htail' ▸ W.skip henv) hA ?_
+  show env.IsDefEq U (X :: Γ₀) _ _ (A.subst σ.lift.tail)
+  rw [htail, show A.subst (σ.lift_r (.skip .refl)) = (A.subst σ).lift' (.skip .refl) from
+    (lift'_subst (e := A) (σ := σ) (ρ := .skip .refl)).symm]
+  exact .defeqDF (hAX.symm.weak' henv (.skip .refl)) (.bvar (lift_eq_lift' ▸ Lookup.zero))
+
+/-- The source context of a substitution is well formed: each `cons` carries its domain's
+sort. This is what saves every caller from passing it. -/
+theorem Ctx.SubstEq.wf (W : Ctx.SubstEq env U Γ₀ σ σ' Γ) : OnCtx Γ (env.IsType U) := by
+  induction W with
+  | nil => trivial
+  | cons _ hA _ ih => exact ⟨ih, _, hA⟩
+
+variable! (henv : Ordered env) in
+/-- The identity substitution, which `nil` no longer pins: an induction on the context. -/
+theorem Ctx.SubstEq.id : ∀ {Γ}, OnCtx Γ (env.IsType U) → Ctx.SubstEq env U Γ .id .id Γ
+  | [], _ => .nil
+  | A::Γ, ⟨hΓ, _, hA⟩ => by
+    refine .cons (by
+      have := (id hΓ).skip (B := A) henv
+      rwa [show VExpr.Subst.id.lift_r (.skip .refl) = VExpr.Subst.id.tail from rfl] at this) hA ?_
+    rw [show A.subst VExpr.Subst.id.tail = A.lift from by
+      rw [show VExpr.Subst.id.tail = VExpr.Subst.id.lift_r (.skip .refl) from rfl,
+        ← lift'_subst, subst_id, ← lift_eq_lift']]
+    exact .bvar .zero

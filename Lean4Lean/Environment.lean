@@ -9,12 +9,22 @@ open TypeChecker Kernel Environment
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-def checkConstantVal (env : Environment) (v : ConstantVal) (allowPrimitive := false) : M Unit := do
-  checkName env v.name allowPrimitive
+def checkConstantValBody (env : Environment) (v : ConstantVal) : M Unit := do
   checkDuplicatedUnivParams v.levelParams
   checkNoMVarNoFVar env v.name v.type
   let sort ← checkType v.type
   _ ← ensureSort sort v.type
+
+def checkConstantVal (env : Environment) (v : ConstantVal) (allowPrimitive := false) : M Unit := do
+  checkName env v.name allowPrimitive
+  checkConstantValBody env v
+
+def checkDefinitionBody (env : Environment) (v : DefinitionVal) : M Unit := do
+  checkConstantValBody env v.toConstantVal
+  checkNoMVarNoFVar env v.name v.value
+  let valType ← TypeChecker.checkType v.value
+  if !(← isDefEq valType v.type) then
+    throw <| .declTypeMismatch env (.defnDecl v) valType
 
 def addAxiom (env : Environment) (v : AxiomVal) (check := true) (fuel : FuelConfig := {}) :
     Except Exception Environment := do
@@ -40,11 +50,11 @@ def addDefinition (env : Environment) (v : DefinitionVal)
           throw <| .declTypeMismatch env' (.defnDecl v) valType
   else if check then
     M.run env (safety := .safe) (lctx := {}) (lparams := v.levelParams) (fuel := fuel) do
-      checkConstantVal env v.toConstantVal (← checkPrimitiveDef v)
-      checkNoMVarNoFVar env v.name v.value
-      let valType ← TypeChecker.checkType v.value
-      if !(← isDefEq valType v.type) then
-        throw <| .declTypeMismatch env (.defnDecl v) valType
+      -- The type and the body are checked before `Primitive.checkDef` runs, so that its calls to
+      -- `isDefEq` are applied to terms already known to be well typed; the reserved-name check
+      -- only needs the primitive verdict, so it can wait until afterwards.
+      checkDefinitionBody env v
+      checkName env v.name (← Primitive.checkDef v)
   return env.add (.defnInfo v)
 
 def addTheorem (env : Environment) (v : TheoremVal) (check := true) (fuel : FuelConfig := {}) :
@@ -115,5 +125,5 @@ def addDecl (env : Environment) (decl : Declaration) (check := true) (fuel : Fue
   | .mutualDefnDecl v => addMutual env v check fuel
   | .quotDecl => addQuot env
   | .inductDecl lparams nparams types isUnsafe =>
-    let allowPrimitive ← checkPrimitiveInductive env lparams nparams types isUnsafe
+    let allowPrimitive ← Primitive.checkInductive env lparams nparams types isUnsafe
     addInductive env lparams nparams types isUnsafe allowPrimitive fuel

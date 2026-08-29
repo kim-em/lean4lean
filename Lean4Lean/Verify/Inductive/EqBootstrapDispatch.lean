@@ -164,12 +164,12 @@ whereas primitive Bool/Nat recognition requires both lists to be empty. -/
 theorem checkPrimitiveInductive_eq_false_of_eqBootstrapShape
     (env : Environment)
     (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
-    Environment.checkPrimitiveInductive env lparams nparams types isUnsafe =
+    Primitive.checkInductive env lparams nparams types isUnsafe =
       .ok false := by
   rcases Hshape with
     ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
       rfl, rfl, rfl, rfl⟩
-  simp [Environment.checkPrimitiveInductive]
+  simp [Primitive.checkInductive]
   rfl
 
 /-- Source-aligned ordinary execution of the exact safe bootstrap `Eq`

@@ -135,7 +135,7 @@ theorem addInductiveDeclaration.inductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
-    (hcheck : Environment.checkPrimitiveInductive env lparams nparams types
+    (hcheck : Primitive.checkInductive env lparams nparams types
       isUnsafe = .ok false) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>

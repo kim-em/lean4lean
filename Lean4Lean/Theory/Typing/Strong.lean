@@ -922,3 +922,259 @@ theorem HasTypeStratified.isType (H : HasTypeStratified env U Γ e A b n) :
   | @sort' _ l _ _ _ h _ => exact ⟨_, .base (.sort' (l := l.succ) (l' := l.succ) h h rfl)⟩
   | @forallE _ _ u _ _ v h1 h2 =>
     exact ⟨_, .base (.sort' (l := .imax u v) (l' := .imax u v) ⟨h1, h2⟩ ⟨h1, h2⟩ rfl)⟩
+
+/-- **Simultaneous substitution for the strong judgment**, the three-way left/right/cross bundle. -/
+theorem IsDefEqStrong.substEq' (henv : Ordered env)
+    (hΓ : CtxStrong env U Γ) (hΓ₀ : CtxStrong env U Γ₀)
+    (W : Ctx.SubstEq env U Γ₀ σ σ' Γ) (H : env.IsDefEqStrong U Γ e1 e2 A) :
+    env.IsDefEqStrong U Γ₀ (e1.subst σ) (e1.subst σ') (A.subst σ) ∧
+    env.IsDefEqStrong U Γ₀ (e2.subst σ) (e2.subst σ') (A.subst σ) ∧
+    env.IsDefEqStrong U Γ₀ (e1.subst σ) (e2.subst σ') (A.subst σ) := by
+  induction H generalizing Γ₀ σ σ' with
+  | bvar h _ _ =>
+    have s := (W.lookup h).strong henv hΓ₀.defeq; exact ⟨s, s, s⟩
+  | sortDF hw hw' h =>
+    have C : env.IsDefEqStrong U Γ₀ (.sort _) (.sort _) (.sort _) := .sortDF hw hw' h
+    exact ⟨C.hasType.1, C.hasType.2, C⟩
+  | symm _ ih => let ⟨l, r, c⟩ := ih hΓ hΓ₀ W; exact ⟨r, l, (r.trans c.symm).trans l⟩
+  | trans _ _ ih1 ih2 =>
+    let ⟨l1, _, c1⟩ := ih1 hΓ hΓ₀ W
+    let ⟨l2, r2, c2⟩ := ih2 hΓ hΓ₀ W
+    exact ⟨l1, r2, c1.trans (l2.symm.trans c2)⟩
+  | defeqDF hu _ _ ih1 ih2 =>
+    have hty := (ih1 hΓ hΓ₀ W.left).2.2
+    let ⟨l2, r2, c2⟩ := ih2 hΓ hΓ₀ W
+    exact ⟨.defeqDF hu hty l2, .defeqDF hu hty r2, .defeqDF hu hty c2⟩
+  | proofIrrel _ _ _ ih1 ih2 ih3 =>
+    let ⟨ihp, _, _⟩ := ih1 hΓ hΓ₀ W
+    let ⟨ihh, _, _⟩ := ih2 hΓ hΓ₀ W
+    let ⟨ihh', _, _⟩ := ih3 hΓ hΓ₀ W
+    exact ⟨ihh, ihh', .proofIrrel ihp.hasType.1 ihh.hasType.1 ihh'.hasType.2⟩
+  | @constDF c ci ls ls' u _ h1 hWls hWls' hlen hFf hu hcty _ _ _ =>
+    have hcl : (VExpr.instL ls ci.type).ClosedN 0 := (henv.closedC h1).instL
+    rw [show (VExpr.instL ls ci.type).subst σ = VExpr.instL ls ci.type from hcl.subst_eq .zero]
+    have C : env.IsDefEqStrong U Γ₀ (.const c ls) (.const c ls') (VExpr.instL ls ci.type) :=
+      .constDF h1 hWls hWls' hlen hFf hu hcty (hcty.weak0 henv)
+    exact ⟨C.hasType.1, C.hasType.2, C⟩
+  | @appDF Γ' A u B v _ _ _ _ hu hv hA hB _ _ _ ihA ihB ihf iha ihBinst =>
+    have hA' := (ihA hΓ hΓ₀ W.left).1
+    have hΓ_A : CtxStrong env U (A.subst σ :: Γ₀) := ⟨hΓ₀, _, hA'⟩
+    have hΓ_A_src : CtxStrong env U (A :: Γ') := ⟨hΓ, _, hA⟩
+    have W_A : Ctx.SubstEq env U (A.subst σ :: Γ₀) σ.lift σ.lift (A :: Γ') :=
+      W.left.lift henv hA.defeq
+    have hB' := (ihB hΓ_A_src hΓ_A W_A).1
+    have ⟨ihf_l, ihf_r, ihf_c⟩ := ihf hΓ hΓ₀ W
+    have ⟨iha_l, iha_r, iha_c⟩ := iha hΓ hΓ₀ W
+    have ⟨_, _, iha_cleft⟩ := iha hΓ hΓ₀ W.left
+    have ih2_cons : ∀ {x y : VExpr}, env.IsDefEqStrong U Γ₀ x y (A.subst σ) →
+        env.IsDefEqStrong U Γ₀ ((B.subst σ.lift).inst x) ((B.subst σ.lift).inst y) (.sort v) := by
+      intro x y hxy
+      have W_cons : Ctx.SubstEq env U Γ₀ (σ.cons x) (σ.cons y) (A :: Γ') := by
+        refine .cons (by simpa using W.left) hA.defeq (by simpa using hxy.defeq)
+      have := (ihB hΓ_A_src hΓ₀ W_cons).1
+      rwa [← inst_lift_cons, ← inst_lift_cons] at this
+    refine subst_inst ▸ ⟨?_, .defeqDF hv (ih2_cons iha_cleft.symm) ?_, ?_⟩
+    · exact .appDF hu hv hA' hB' ihf_l iha_l (ih2_cons iha_l)
+    · exact .appDF hu hv hA' hB' ihf_r iha_r (ih2_cons iha_r)
+    · exact .appDF hu hv hA' hB' ihf_c iha_c (ih2_cons iha_c)
+  | @lamDF Γ' A A' u B v _ _ hu hv h1 _ _ _ _ ihA ihB ihB' ihbody ihbody' =>
+    let ⟨ihA_l, ihA_r, ihA_c⟩ := ihA hΓ hΓ₀ W
+    have hA_in_Γ := h1.hasType.1
+    have hA'_in_Γ := h1.hasType.2
+    have hA_subst := ihA_l.hasType.1
+    have hA_σ'_subst := ihA_l.hasType.2
+    have hA'_subst := ihA_r.hasType.1
+    have hA'_σ'_subst := ihA_r.hasType.2
+    have hΓ_A_subst : CtxStrong env U (A.subst σ :: Γ₀) := ⟨hΓ₀, _, hA_subst⟩
+    have hΓ_A_σ'_subst : CtxStrong env U (A.subst σ' :: Γ₀) := ⟨hΓ₀, _, hA_σ'_subst⟩
+    have hΓ_A'_subst : CtxStrong env U (A'.subst σ :: Γ₀) := ⟨hΓ₀, _, hA'_subst⟩
+    have hΓ_A'_σ'_subst : CtxStrong env U (A'.subst σ' :: Γ₀) := ⟨hΓ₀, _, hA'_σ'_subst⟩
+    have hΓ_A_src : CtxStrong env U (A :: Γ') := ⟨hΓ, _, hA_in_Γ⟩
+    have hΓ_A'_src : CtxStrong env U (A' :: Γ') := ⟨hΓ, _, hA'_in_Γ⟩
+    have hAA'_σ := (ihA hΓ hΓ₀ W.left).2.2
+    have W_A := W.lift henv hA_in_Γ.defeq
+    have W_A_σ' := W.lift_at henv hA_in_Γ.defeq ihA_l.defeq
+    have W_A' := W.lift henv hA'_in_Γ.defeq
+    have W_A'_σ' := W.lift_at henv hA'_in_Γ.defeq ihA_r.defeq
+    have W_A_to_A'σ' := W.lift_at henv hA_in_Γ.defeq ihA_c.defeq
+    have W_left_A'σ := W.left.lift_at henv hA_in_Γ.defeq hAA'_σ.defeq
+    -- `B` typed (reflexively) at the four domain/substitution variants.
+    have B_Aσ := (ihB hΓ_A_src hΓ_A_subst W_A).1.hasType.1
+    have B_Aσ' := (ihB hΓ_A_src hΓ_A_σ'_subst W_A_σ').1.hasType.1
+    have B_A'σ := (ihB hΓ_A_src hΓ_A'_subst W_left_A'σ).1.hasType.1
+    have B_A'σ' := (ihB hΓ_A_src hΓ_A'_σ'_subst W_A_to_A'σ').1.hasType.1
+    -- `body`/`body'` congruences at the needed variants.
+    have body_Aσ := (ihbody hΓ_A_src hΓ_A_subst W_A).1
+    have body_Aσ' := (ihbody hΓ_A_src hΓ_A_σ'_subst W_A_σ').1
+    have body_cross_Aσ := (ihbody hΓ_A_src hΓ_A_subst W_A).2.2
+    have body_cross_A'σ' := (ihbody hΓ_A_src hΓ_A'_σ'_subst W_A_to_A'σ').2.2
+    have body'_A'σ := (ihbody' hΓ_A'_src hΓ_A'_subst W_A').2.1
+    have body'_A'σ' := (ihbody' hΓ_A'_src hΓ_A'_σ'_subst W_A'_σ').2.1
+    refine ⟨?_, .defeqDF (u := u.imax v) ⟨hu, hv⟩
+      (.forallEDF hu hv hAA'_σ.symm B_A'σ B_Aσ) ?_, ?_⟩
+    · exact .lamDF hu hv ihA_l B_Aσ B_Aσ' body_Aσ body_Aσ'
+    · exact .lamDF hu hv ihA_r B_A'σ B_A'σ' body'_A'σ body'_A'σ'
+    · exact .lamDF hu hv ihA_c B_Aσ B_A'σ' body_cross_Aσ body_cross_A'σ'
+  | @forallEDF Γ' A A' u _ _ v hu hv h1 _ _ ihA ihbody ihbody' =>
+    let ⟨ihA_l, ihA_r, ihA_c⟩ := ihA hΓ hΓ₀ W
+    have hA_in_Γ := h1.hasType.1
+    have hA'_in_Γ := h1.hasType.2
+    have hA_subst := ihA_l.hasType.1
+    have hA_σ'_subst := ihA_l.hasType.2
+    have hA'_subst := ihA_r.hasType.1
+    have hA'_σ'_subst := ihA_r.hasType.2
+    have hΓ_A_subst : CtxStrong env U (A.subst σ :: Γ₀) := ⟨hΓ₀, _, hA_subst⟩
+    have hΓ_A_σ'_subst : CtxStrong env U (A.subst σ' :: Γ₀) := ⟨hΓ₀, _, hA_σ'_subst⟩
+    have hΓ_A'_subst : CtxStrong env U (A'.subst σ :: Γ₀) := ⟨hΓ₀, _, hA'_subst⟩
+    have hΓ_A'_σ'_subst : CtxStrong env U (A'.subst σ' :: Γ₀) := ⟨hΓ₀, _, hA'_σ'_subst⟩
+    have hΓ_A_src : CtxStrong env U (A :: Γ') := ⟨hΓ, _, hA_in_Γ⟩
+    have hΓ_A'_src : CtxStrong env U (A' :: Γ') := ⟨hΓ, _, hA'_in_Γ⟩
+    have W_A := W.lift henv hA_in_Γ.defeq
+    have W_A_σ' := W.lift_at henv hA_in_Γ.defeq ihA_l.defeq
+    have W_A' := W.lift henv hA'_in_Γ.defeq
+    have W_A'_σ' := W.lift_at henv hA'_in_Γ.defeq ihA_r.defeq
+    have W_A_to_A'σ' := W.lift_at henv hA_in_Γ.defeq ihA_c.defeq
+    have body_Aσ := (ihbody hΓ_A_src hΓ_A_subst W_A).1
+    have body_Aσ' := (ihbody hΓ_A_src hΓ_A_σ'_subst W_A_σ').1
+    have body_cross_Aσ := (ihbody hΓ_A_src hΓ_A_subst W_A).2.2
+    have body_cross_A'σ' := (ihbody hΓ_A_src hΓ_A'_σ'_subst W_A_to_A'σ').2.2
+    have body'_A'σ := (ihbody' hΓ_A'_src hΓ_A'_subst W_A').2.1
+    have body'_A'σ' := (ihbody' hΓ_A'_src hΓ_A'_σ'_subst W_A'_σ').2.1
+    exact ⟨.forallEDF hu hv ihA_l body_Aσ body_Aσ',
+      .forallEDF hu hv ihA_r body'_A'σ body'_A'σ',
+      .forallEDF hu hv ihA_c body_cross_Aσ body_cross_A'σ'⟩
+  | @beta Γ' A u B v e e' hu hv hA _ _ _ _ _ ihA ihB ihe ihe' _ iheinst =>
+    have hA'σ := (ihA hΓ hΓ₀ W.left).1
+    have hΓ_A_src : CtxStrong env U (A :: Γ') := ⟨hΓ, _, hA⟩
+    have hΓ_A_subst : CtxStrong env U (A.subst σ :: Γ₀) := ⟨hΓ₀, _, hA'σ⟩
+    have hA_σ'_subst := (ihA hΓ hΓ₀ W).1.hasType.2
+    have hΓ_A_σ'_subst : CtxStrong env U (A.subst σ' :: Γ₀) := ⟨hΓ₀, _, hA_σ'_subst⟩
+    have W_A_left := W.left.lift henv hA.defeq
+    have W_A := W.lift henv hA.defeq
+    have W_A_σ' := W.lift_at henv hA.defeq (ihA hΓ hΓ₀ W).1.defeq
+    have hBσ := (ihB hΓ_A_src hΓ_A_subst W_A_left).1
+    have heσ := (ihe hΓ_A_src hΓ_A_subst W_A_left).1
+    have he'σ := (ihe' hΓ hΓ₀ W.left).1
+    -- `(B.subst σ.lift).inst _`-congruence, as in the `appDF` case.
+    have ih2_cons : ∀ {x y : VExpr}, env.IsDefEqStrong U Γ₀ x y (A.subst σ) →
+        env.IsDefEqStrong U Γ₀ ((B.subst σ.lift).inst x) ((B.subst σ.lift).inst y) (.sort v) := by
+      intro x y hxy
+      have W_cons : Ctx.SubstEq env U Γ₀ (σ.cons x) (σ.cons y) (A :: Γ') := by
+        refine .cons (by simpa using W.left) hA.defeq (by simpa using hxy.defeq)
+      have := (ihB hΓ_A_src hΓ₀ W_cons).1
+      rwa [← inst_lift_cons, ← inst_lift_cons] at this
+    -- diagonal-σ beta reduction
+    have H_σ : env.IsDefEqStrong U Γ₀ ((VExpr.app (VExpr.lam A e) e').subst σ)
+        ((e.inst e').subst σ) ((B.inst e').subst σ) := by
+      show env.IsDefEqStrong U Γ₀
+        (VExpr.app (VExpr.lam (A.subst σ) (e.subst σ.lift)) (e'.subst σ)) _ _
+      rw [show ((e.inst e').subst σ) = (e.subst σ.lift).inst (e'.subst σ) from subst_inst,
+          show ((B.inst e').subst σ) = (B.subst σ.lift).inst (e'.subst σ) from subst_inst]
+      exact .beta hu hv hA'σ hBσ heσ he'σ (ih2_cons he'σ)
+        (subst_inst ▸ subst_inst ▸ (iheinst hΓ hΓ₀ W.left).1)
+    have R := (iheinst hΓ hΓ₀ W).1
+    -- redex congruence for the left diagonal
+    have B_Aσ := (ihB hΓ_A_src hΓ_A_subst W_A).1.hasType.1
+    have B_Aσ' := (ihB hΓ_A_src hΓ_A_σ'_subst W_A_σ').1.hasType.1
+    have e_Aσ := (ihe hΓ_A_src hΓ_A_subst W_A).1
+    have e_Aσ' := (ihe hΓ_A_src hΓ_A_σ'_subst W_A_σ').1
+    have ⟨iha_l, _, _⟩ := ihA hΓ hΓ₀ W
+    have ⟨ihe'_l, _, _⟩ := ihe' hΓ hΓ₀ W
+    have L : env.IsDefEqStrong U Γ₀ ((VExpr.app (VExpr.lam A e) e').subst σ)
+        ((VExpr.app (VExpr.lam A e) e').subst σ') ((B.inst e').subst σ) := by
+      show env.IsDefEqStrong U Γ₀
+        (VExpr.app (VExpr.lam (A.subst σ) (e.subst σ.lift)) (e'.subst σ)) _ _
+      rw [show ((B.inst e').subst σ) = (B.subst σ.lift).inst (e'.subst σ) from subst_inst]
+      exact .appDF hu hv hA'σ hBσ (.lamDF hu hv iha_l B_Aσ B_Aσ' e_Aσ e_Aσ') ihe'_l
+        (ih2_cons ihe'_l)
+    exact ⟨L, R, H_σ.trans R⟩
+  | @eta Γ' A u B v e hu hv hA hB _ he _ _ ihA ihB _ ihe _ _ =>
+    -- normal form of substituting into the eta-expanded lambda
+    have h_lam_eq : ∀ τ : VExpr.Subst,
+        (VExpr.lam A (.app e.lift (.bvar 0))).subst τ =
+          .lam (A.subst τ) (.app (e.subst τ).lift (.bvar 0)) := by
+      intro τ
+      show VExpr.lam (A.subst τ) (.app (e.lift.subst τ.lift) ((VExpr.bvar 0).subst τ.lift)) = _
+      rw [lift_subst_lift]; rfl
+    have hΓ_A_src : CtxStrong env U (A :: Γ') := ⟨hΓ, _, hA⟩
+    have iha_l := (ihA hΓ hΓ₀ W).1
+    -- σ-diagonal eta
+    have hA_σ := (ihA hΓ hΓ₀ W).1.hasType.1
+    have hΓ_A_subst : CtxStrong env U (A.subst σ :: Γ₀) := ⟨hΓ₀, _, hA_σ⟩
+    have W_A_σ := W.left.lift henv hA.defeq
+    have W_A_cross := W.lift henv hA.defeq
+    have hB_σ := (ihB hΓ_A_src hΓ_A_subst W_A_σ).1.hasType.1
+    have he_σ := (ihe hΓ hΓ₀ W).1.hasType.1
+    have H_σ : env.IsDefEqStrong U Γ₀
+        ((VExpr.lam A (.app e.lift (.bvar 0))).subst σ) (e.subst σ) ((A.forallE B).subst σ) :=
+      (h_lam_eq σ) ▸ .eta hu hv hA_σ hB_σ (hB_σ.weakN henv (.succ .one))
+        he_σ (he_σ.weakN henv .one) (hA_σ.weakN henv .one)
+    have R := (ihe hΓ hΓ₀ W).1
+    -- σ'-diagonal eta
+    have hA_σ' := iha_l.hasType.2
+    have hΓ_A_σ'_subst : CtxStrong env U (A.subst σ' :: Γ₀) := ⟨hΓ₀, _, hA_σ'⟩
+    have W_A_σ' := W.lift_at henv hA.defeq iha_l.defeq
+    have hB_cross_Aσ := (ihB hΓ_A_src hΓ_A_subst W_A_cross).2.2
+    have hB_cross_Aσ' := (ihB hΓ_A_src hΓ_A_σ'_subst W_A_σ').2.2
+    have hB_σ' := (ihB hΓ_A_src hΓ_A_σ'_subst W_A_σ').1.hasType.2
+    -- the two forallE types are defeq; coerce e's σ'-typing across
+    have hTeq := IsDefEqStrong.forallEDF hu hv iha_l hB_cross_Aσ hB_cross_Aσ'
+    have he_σ' := IsDefEqStrong.defeqDF (u := u.imax v) ⟨hu, hv⟩ hTeq (ihe hΓ hΓ₀ W).1.hasType.2
+    have H_σ' : env.IsDefEqStrong U Γ₀
+        ((VExpr.lam A (.app e.lift (.bvar 0))).subst σ') (e.subst σ') ((A.forallE B).subst σ') :=
+      (h_lam_eq σ') ▸ .eta hu hv hA_σ' hB_σ' (hB_σ'.weakN henv (.succ .one))
+        he_σ' (he_σ'.weakN henv .one) (hA_σ'.weakN henv .one)
+    exact ⟨H_σ.trans (R.trans
+        (IsDefEqStrong.defeqDF (u := u.imax v) ⟨hu, hv⟩ hTeq.symm H_σ'.symm)),
+      R, H_σ.trans R⟩
+  | @extra df ls u _ h1 hWls hlen hu htype hlhs hrhs _ _ _ _ _ _ _ =>
+    have et : ∀ τ, (VExpr.instL ls df.type).subst τ = VExpr.instL ls df.type :=
+      fun _ => (htype.defeq.closedN henv ⟨⟩).subst_eq .zero
+    have el : ∀ τ, (VExpr.instL ls df.lhs).subst τ = VExpr.instL ls df.lhs :=
+      fun _ => (hlhs.defeq.closedN henv ⟨⟩).subst_eq .zero
+    have er : ∀ τ, (VExpr.instL ls df.rhs).subst τ = VExpr.instL ls df.rhs :=
+      fun _ => (hrhs.defeq.closedN henv ⟨⟩).subst_eq .zero
+    simp only [et, el, er]
+    have C : env.IsDefEqStrong U Γ₀ (VExpr.instL ls df.lhs) (VExpr.instL ls df.rhs)
+        (VExpr.instL ls df.type) :=
+      .extra h1 hWls hlen hu htype hlhs hrhs (hlhs.weak0 henv) (hrhs.weak0 henv)
+    exact ⟨C.hasType.1, C.hasType.2, C⟩
+
+/-- Simultaneous substitution of a related pair `σ ≡ σ'` into a strong defeq: the cross
+projection of `substEq'`. -/
+theorem IsDefEqStrong.subst (henv : Ordered env)
+    (hΓ : CtxStrong env U Γ) (hΓ₀ : CtxStrong env U Γ₀)
+    (W : Ctx.SubstEq env U Γ₀ σ σ' Γ) (H : env.IsDefEqStrong U Γ e1 e2 A) :
+    env.IsDefEqStrong U Γ₀ (e1.subst σ) (e2.subst σ') (A.subst σ) :=
+  (H.substEq' henv hΓ hΓ₀ W).2.2
+
+/-- Simultaneous substitution of a related pair `σ ≡ σ'` into a (weak) defeq, generalizing
+`IsDefEq.instDF` from one variable to a whole substitution. Assumes both contexts are well
+formed, as elsewhere in `Typing.Lemmas`; proved via the strong judgment. -/
+theorem IsDefEq.substDF (henv : Ordered env)
+    (hΓ : OnCtx Γ (env.IsType U)) (hΓ₀ : OnCtx Γ₀ (env.IsType U))
+    (W : Ctx.SubstEq env U Γ₀ σ σ' Γ) (H : env.IsDefEq U Γ e1 e2 A) :
+    env.IsDefEq U Γ₀ (e1.subst σ) (e2.subst σ') (A.subst σ) :=
+  ((H.strong henv hΓ).subst henv (.strong henv hΓ) (.strong henv hΓ₀) W).defeq
+
+variable! (henv : Ordered env) in
+theorem IsDefEq.subst (W : Ctx.SubstEq env U Γ₀ σ σ Γ)
+    (H : env.IsDefEq U Γ e1 e2 A) (hΓ₀ : OnCtx Γ₀ (env.IsType U) := by trivial) :
+    env.IsDefEq U Γ₀ (e1.subst σ) (e2.subst σ) (A.subst σ) := H.substDF henv W.wf hΓ₀ W
+
+variable! (henv : Ordered env) in
+theorem HasType.subst (W : Ctx.SubstEq env U Γ₀ σ σ Γ)
+    (H : env.HasType U Γ e A) (hΓ₀ : OnCtx Γ₀ (env.IsType U) := by trivial) :
+    env.HasType U Γ₀ (e.subst σ) (A.subst σ) := H.substDF henv W.wf hΓ₀ W
+
+variable! (henv : Ordered env) in
+theorem IsDefEqU.subst (W : Ctx.SubstEq env U Γ₀ σ σ Γ)
+    (H : env.IsDefEqU U Γ e1 e2) (hΓ₀ : OnCtx Γ₀ (env.IsType U) := by trivial) :
+    env.IsDefEqU U Γ₀ (e1.subst σ) (e2.subst σ) :=
+  let ⟨_, h⟩ := H; ⟨_, h.substDF henv W.wf hΓ₀ W⟩
+
+variable! (henv : Ordered env) in
+theorem IsType.subst (W : Ctx.SubstEq env U Γ₀ σ σ Γ)
+    (H : env.IsType U Γ A) (hΓ₀ : OnCtx Γ₀ (env.IsType U) := by trivial) :
+    env.IsType U Γ₀ (A.subst σ) :=
+  let ⟨_, h⟩ := H; ⟨_, h.substDF henv W.wf hΓ₀ W⟩

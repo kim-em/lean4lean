@@ -25,7 +25,7 @@ structure FuelConfig where
   /-- `etaExpand.loop.loop2`. -/
   etaExpand   : Nat := 1000
   /-- Starting fuel for `Methods.withFuel` (bounds mutual whnf/isDefEq depth). -/
-  recDepth    : Nat := 10000
+  recDepth    : Nat := 50000
   /-- Shared fuel for the structural loops in `Inductive/Add.lean`. -/
   inductiveFuel : Nat := 1000
   deriving Repr, Inhabited, Lean.FromJson, Lean.ToJson

@@ -1363,7 +1363,8 @@ theorem whnfInContext.WF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' :=
-  liftTypeChecker.WF Hc (TypeChecker.whnf.WF he)
+  liftTypeChecker.WF Hc <|
+    (TypeChecker.whnf.WF he).mono fun _ _ _ h => h.2
 
 /-- `whnf` preserves every admissible free-variable scope of its input, in
 addition to preserving the abstract expression up to definitional equality.

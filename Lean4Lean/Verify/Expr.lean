@@ -431,6 +431,20 @@ def hasFVar' : Expr → Bool
   | .forallE _ e1 e2 _ => e1.hasFVar' || e2.hasFVar'
   | .letE _ t v b _ => t.hasFVar' || v.hasFVar' || b.hasFVar'
 
+/-- Structural reading of `Expr.containsFVar`, which is `hasAnyFVar` at a single variable. -/
+def containsFVar' : Expr → FVarId → Bool
+  | .fvar fv', fv => fv' == fv
+  | .app e1 e2, fv
+  | .lam _ e1 e2 _, fv
+  | .forallE _ e1 e2 _, fv => e1.containsFVar' fv || e2.containsFVar' fv
+  | .letE _ t v b _, fv => t.containsFVar' fv || v.containsFVar' fv || b.containsFVar' fv
+  | .mdata _ e, fv | .proj _ _ e, fv => e.containsFVar' fv
+  | _, _ => false
+
+theorem hasFVar'_of_containsFVar' :
+    ∀ {e : Expr} {fv}, e.containsFVar' fv = true → e.hasFVar' = true := by
+  intro e; induction e <;> simp_all [containsFVar', hasFVar'] <;> grind
+
 /-- The cached `hasFVar` bit agrees with structural traversal. -/
 theorem hasFVar_eq (e : Expr) : e.hasFVar = e.hasFVar' := by
   change e.data.hasFVar = e.hasFVar'
@@ -452,6 +466,13 @@ theorem hasFVar_eq (e : Expr) : e.hasFVar = e.hasFVar' := by
   | mdata _ e ih | proj _ _ e ih =>
     simp only [Expr.data, hasFVar']
     rw [mkData_hasFVar (Data.looseBVarRange_le (d := e.data)), ih]
+
+open private visit in Lean.Expr.hasAnyFVar in
+/-- `containsFVar` agrees with structural traversal. -/
+theorem containsFVar_eq (e : Expr) (fv : FVarId) : e.containsFVar fv = e.containsFVar' fv := by
+  show visit _ e = _
+  induction e <;> rw [visit] <;>
+    simp_all [hasFVar_eq, hasFVar', containsFVar'] <;> grind [hasFVar'_of_containsFVar']
 
 def hasExprMVar' : Expr → Bool
   | .mvar _ => true
@@ -490,8 +511,8 @@ def hasExprMVar' : Expr → Bool
     rw [mkData_hasExprMVar (Data.looseBVarRange_le (d := e.data)), ih]
 
 def hasLevelMVar' : Expr → Bool
-  | .const _ ls => ls.any (·.hasMVar)
-  | .sort u => u.hasMVar
+  | .const _ ls => ls.any (·.hasMVar')
+  | .sort u => u.hasMVar'
   | .bvar _
   | .fvar _
   | .mvar _
@@ -509,7 +530,7 @@ def hasLevelMVar' : Expr → Bool
   induction e with
   | bvar => simp [Expr.data, hasLevelMVar', mkData_hasLevelMVar_of_false]
   | fvar | mvar | sort | const | lit =>
-    simp only [Expr.data, hasLevelMVar']
+    simp only [Expr.data, hasLevelMVar', ← Level.hasMVar_eq]
     apply mkData_hasLevelMVar
     omega
   | app _ _ ih1 ih2 =>
@@ -1133,6 +1154,10 @@ theorem instantiateList_instantiate1_comm (h : a.looseBVarRange' = 0) :
   congr 1; refine (instantiate1'_instantiate1' (j := 0) ..).trans ?_
   rw [liftLooseBVars_eq_self (by simp [h])]
 
+theorem instantiateRev_eq_instantiateList {e : Expr} {subst : Array Expr} :
+    instantiateRev e subst = instantiateList e subst.toList.reverse := by
+  let ⟨subst⟩ := subst; simp
+
 theorem instantiateRev_push {e : Expr} {subst a} :
     instantiateRev e (subst.push a) = instantiateRev (e.instantiate1' a) subst := by
   let ⟨subst⟩ := subst; simp [instantiateList]
@@ -1197,6 +1222,27 @@ theorem abstract1_hasLooseBVar (a e k i) :
 theorem abstract1_eq_liftLooseBVars (h : (abstract1 a e k).hasLooseBVar' k = false) :
     abstract1 a e k = liftLooseBVars' e k 1 := by
   induction e generalizing k <;> grind [abstract1, hasLooseBVar', liftLooseBVars']
+
+/-- Abstraction only ever *adds* loose bvars: it turns `a` into `bvar k` and shifts everything
+at or above `k` up. So a result that is still closed at `k` is one in which nothing was
+abstracted -- `a` did not occur. This is how a `hasLooseBVars` guard on an abstraction is cashed
+in: passing it says the term never mentioned the variable in the first place. -/
+theorem abstract1_eq_self {a : FVarId} {e : Expr} {k}
+    (h : (abstract1 a e k).looseBVarRange' ≤ k) : abstract1 a e k = e := by
+  induction e generalizing k with
+  | bvar i => simp only [abstract1] at h ⊢; split at h <;> simp_all [looseBVarRange']; omega
+  | fvar v => simp only [abstract1] at h ⊢; split at h <;> simp_all [looseBVarRange']; omega
+  | _ => simp_all [abstract1, looseBVarRange', Nat.max_le] <;> grind
+
+theorem abstractList_eq_self {e : Expr} {as : List FVarId} {k}
+    (h : (abstractList e as k).looseBVarRange' ≤ k) : abstractList e as k = e := by
+  induction as generalizing e with
+  | nil => rfl
+  | cons a as ih =>
+    have h' : (abstractList (abstract1 a e k) as k).looseBVarRange' ≤ k := h
+    have e1 := ih h'
+    show abstractList (abstract1 a e k) as k = e
+    rw [e1]; exact abstract1_eq_self (e1 ▸ h')
 
 -- theorem abstract1_looseBVarRange_le :
 --     (abstract1 a e k).looseBVarRange' ≤ max k e.looseBVarRange' + 1 := by

@@ -70,6 +70,36 @@ theorem PrimitiveBootstrapInstallation.lookup
     out.constants ci.name = some ci.toVConstant :=
   VEnv.addConstVals_get H.installed hci
 
+/-- A primitive specification survives a batch extension when the constant it
+inspects is unchanged.  The other constants and definitional equations used
+by the specification are covariant in the environment. -/
+theorem PrimSpec.Holds.monoOfConstantsEq
+    {env out : VEnv} {s : PrimSpec} {name : Name}
+    (H : s.Holds env name) (hle : env ≤ out)
+    (hsame : out.constants name = env.constants name) :
+    s.Holds out name := by
+  have old : out.contains name → env.contains name := by
+    rintro ⟨ci, hci⟩
+    exact ⟨ci, by rwa [hsame] at hci⟩
+  have new {n} : env.contains n → out.contains n := by
+    rintro ⟨ci, hci⟩
+    exact ⟨ci, hle.constants hci⟩
+  cases s with
+  | containsImplies ns => exact fun h n hn => new (H (old h) n hn)
+  | typeEq => exact fun _ h => H _ (hsame ▸ h)
+  | reflectsNatNat => exact fun h => ⟨(H (old h)).1.mono hle, fun a => ((H (old h)).2 a).mono hle⟩
+  | reflectsNatNatNat =>
+    exact fun h => ⟨(H (old h)).1.mono hle, fun a b => ((H (old h)).2 a b).mono hle⟩
+  | reflectsNatNatBool =>
+    exact fun h => ⟨(H (old h)).1.mono hle, fun a b => ((H (old h)).2 a b).mono hle⟩
+  | reflectsBitwise =>
+    exact fun h => ⟨fun _ hc => (H (old h)).1 _ (hsame ▸ hc),
+      fun env' hle' => (H (old h)).2 env' (hle.trans hle')⟩
+  | stringOfList =>
+    intro _ h
+    obtain ⟨h1, h2, h3⟩ := H _ (hsame ▸ h)
+    exact ⟨h1, h2.mono hle, h3.mono hle⟩
+
 /-- A complete canonical Bool batch restores the primitive invariant.  No
 intermediate environment is asserted to satisfy `HasPrimitives`. -/
 theorem VEnv.HasPrimitives.addBoolBootstrap
@@ -118,68 +148,34 @@ theorem VEnv.HasPrimitives.addBoolBootstrap
     exact ⟨ci, hle.constants hci⟩
   have natOld : out.contains ``Nat → env.contains ``Nat :=
     oldContains ``Nat (by decide) (by decide) (by decide)
-  refine {
-    bool := fun _ => ⟨⟨_, hFalse⟩, ⟨_, hTrue⟩⟩
-    boolFalse := fun h => by rw [hFalse] at h; exact Option.some.inj h |>.symm
-    boolTrue := fun h => by rw [hTrue] at h; exact Option.some.inj h |>.symm
-    nat := fun h =>
-      let ⟨hzero, hsucc⟩ := H.nat (natOld h)
-      ⟨newContains hzero, newContains hsucc⟩
-    natZero := fun h => H.natZero (by
-      rwa [same ``Nat.zero (by decide) (by decide) (by decide)] at h)
-    natSucc := fun h => H.natSucc (by
-      rwa [same ``Nat.succ (by decide) (by decide) (by decide)] at h)
-    natAdd := fun h a b =>
-      (H.natAdd (oldContains ``Nat.add (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natSub := fun h a b =>
-      (H.natSub (oldContains ``Nat.sub (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natMul := fun h a b =>
-      (H.natMul (oldContains ``Nat.mul (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natPow := fun h a b =>
-      (H.natPow (oldContains ``Nat.pow (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natGcd := fun h a b =>
-      (H.natGcd (oldContains ``Nat.gcd (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natMod := fun h a b =>
-      (H.natMod (oldContains ``Nat.mod (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natDiv := fun h a b =>
-      (H.natDiv (oldContains ``Nat.div (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natBEq := fun h a b =>
-      (H.natBEq (oldContains ``Nat.beq (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natBLE := fun h a b =>
-      (H.natBLE (oldContains ``Nat.ble (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natLAnd := fun h a b =>
-      (H.natLAnd (oldContains ``Nat.land (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natLOr := fun h a b =>
-      (H.natLOr (oldContains ``Nat.lor (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natXor := fun h a b =>
-      (H.natXor (oldContains ``Nat.xor (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natShiftLeft := fun h a b =>
-      (H.natShiftLeft
-        (oldContains ``Nat.shiftLeft (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natShiftRight := fun h a b =>
-      (H.natShiftRight
-        (oldContains ``Nat.shiftRight (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    charOfNat := fun h => H.charOfNat (by
-      rwa [same ``Char.ofNat (by decide) (by decide) (by decide)] at h)
-    stringOfList := fun h => by
-      rcases H.stringOfList (by
-        rwa [same ``String.ofList (by decide) (by decide) (by decide)] at h) with
-        ⟨hci, hnil, hcons⟩
-      exact ⟨hci, hnil.mono hle, hcons.mono hle⟩ }
+  intro p hp
+  rcases p with ⟨name, spec⟩
+  by_cases hBool : name = ``Bool
+  · have heq : (name, spec) =
+        (``Bool, .containsImplies [``Bool.false, ``Bool.true]) :=
+      List.nodup_keys_unique primSpecs_nodup hp (by simp [primSpecs]) hBool
+    cases heq
+    intro _ n hn
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hn
+    rcases hn with rfl | rfl
+    · exact ⟨_, hFalse⟩
+    · exact ⟨_, hTrue⟩
+  by_cases hFalseName : name = ``Bool.false
+  · have heq : (name, spec) = (``Bool.false, .typeEq .bool) :=
+      List.nodup_keys_unique primSpecs_nodup hp (by simp [primSpecs]) hFalseName
+    cases heq
+    intro _ h
+    rw [hFalse] at h
+    exact Option.some.inj h |>.symm
+  by_cases hTrueName : name = ``Bool.true
+  · have heq : (name, spec) = (``Bool.true, .typeEq .bool) :=
+      List.nodup_keys_unique primSpecs_nodup hp (by simp [primSpecs]) hTrueName
+    cases heq
+    intro _ h
+    rw [hTrue] at h
+    exact Option.some.inj h |>.symm
+  exact PrimSpec.Holds.monoOfConstantsEq (s := spec) (H (name, spec) hp) hle
+    (same name hBool hFalseName hTrueName)
 
 /-- A complete canonical Nat batch restores the primitive invariant. -/
 theorem VEnv.HasPrimitives.addNatBootstrap
@@ -226,69 +222,35 @@ theorem VEnv.HasPrimitives.addNatBootstrap
   have newContains {name : Name} : env.contains name → out.contains name := by
     rintro ⟨ci, hci⟩
     exact ⟨ci, hle.constants hci⟩
-  refine {
-    bool := fun h =>
-      let ⟨hfalse, htrue⟩ := H.bool
-        (oldContains ``Bool (by decide) (by decide) (by decide) h)
-      ⟨newContains hfalse, newContains htrue⟩
-    boolFalse := fun h => H.boolFalse (by
-      rwa [same ``Bool.false (by decide) (by decide) (by decide)] at h)
-    boolTrue := fun h => H.boolTrue (by
-      rwa [same ``Bool.true (by decide) (by decide) (by decide)] at h)
-    nat := fun _ => ⟨⟨_, hZero⟩, ⟨_, hSucc⟩⟩
-    natZero := fun h => by rw [hZero] at h; exact Option.some.inj h |>.symm
-    natSucc := fun h => by rw [hSucc] at h; exact Option.some.inj h |>.symm
-    natAdd := fun h a b =>
-      (H.natAdd (oldContains ``Nat.add (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natSub := fun h a b =>
-      (H.natSub (oldContains ``Nat.sub (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natMul := fun h a b =>
-      (H.natMul (oldContains ``Nat.mul (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natPow := fun h a b =>
-      (H.natPow (oldContains ``Nat.pow (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natGcd := fun h a b =>
-      (H.natGcd (oldContains ``Nat.gcd (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natMod := fun h a b =>
-      (H.natMod (oldContains ``Nat.mod (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natDiv := fun h a b =>
-      (H.natDiv (oldContains ``Nat.div (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natBEq := fun h a b =>
-      (H.natBEq (oldContains ``Nat.beq (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natBLE := fun h a b =>
-      (H.natBLE (oldContains ``Nat.ble (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natLAnd := fun h a b =>
-      (H.natLAnd (oldContains ``Nat.land (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natLOr := fun h a b =>
-      (H.natLOr (oldContains ``Nat.lor (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natXor := fun h a b =>
-      (H.natXor (oldContains ``Nat.xor (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natShiftLeft := fun h a b =>
-      (H.natShiftLeft
-        (oldContains ``Nat.shiftLeft (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    natShiftRight := fun h a b =>
-      (H.natShiftRight
-        (oldContains ``Nat.shiftRight (by decide) (by decide) (by decide) h)
-        a b).mono hle
-    charOfNat := fun h => H.charOfNat (by
-      rwa [same ``Char.ofNat (by decide) (by decide) (by decide)] at h)
-    stringOfList := fun h => by
-      rcases H.stringOfList (by
-        rwa [same ``String.ofList (by decide) (by decide) (by decide)] at h) with
-        ⟨hci, hnil, hcons⟩
-      exact ⟨hci, hnil.mono hle, hcons.mono hle⟩ }
+  intro p hp
+  rcases p with ⟨name, spec⟩
+  by_cases hNatName : name = ``Nat
+  · have heq : (name, spec) =
+        (``Nat, .containsImplies [``Nat.zero, ``Nat.succ]) :=
+      List.nodup_keys_unique primSpecs_nodup hp (by simp [primSpecs]) hNatName
+    cases heq
+    intro _ n hn
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hn
+    rcases hn with rfl | rfl
+    · exact ⟨_, hZero⟩
+    · exact ⟨_, hSucc⟩
+  by_cases hZeroName : name = ``Nat.zero
+  · have heq : (name, spec) = (``Nat.zero, .typeEq .nat) :=
+      List.nodup_keys_unique primSpecs_nodup hp (by simp [primSpecs]) hZeroName
+    cases heq
+    intro _ h
+    rw [hZero] at h
+    exact Option.some.inj h |>.symm
+  by_cases hSuccName : name = ``Nat.succ
+  · have heq : (name, spec) =
+        (``Nat.succ, .typeEq (.forallE .nat .nat)) :=
+      List.nodup_keys_unique primSpecs_nodup hp (by simp [primSpecs]) hSuccName
+    cases heq
+    intro _ h
+    rw [hSucc] at h
+    exact Option.some.inj h |>.symm
+  exact PrimSpec.Holds.monoOfConstantsEq (s := spec) (H (name, spec) hp) hle
+    (same name hNatName hZeroName hSuccName)
 
 /-- The completed atomic Bool batch restores `HasPrimitives`; no validity
 claim is made about its family-only prefix. -/

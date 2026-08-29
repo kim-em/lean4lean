@@ -36,10 +36,10 @@ separately from the ordinary fresh-name pipeline. -/
 theorem checkPrimitiveInductive_eq_true_iff
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) :
-    Environment.checkPrimitiveInductive env lparams nparams types isUnsafe =
+    Primitive.checkInductive env lparams nparams types isUnsafe =
         .ok true ↔
       PrimitiveInductiveShape lparams nparams types isUnsafe := by
-  unfold Environment.checkPrimitiveInductive PrimitiveInductiveShape
+  unfold Primitive.checkInductive PrimitiveInductiveShape
   constructor
   · intro h
     split at h
@@ -115,7 +115,7 @@ the two canonical bootstrap declarations. -/
 theorem checkPrimitiveInductive_result
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
-    (hresult : Environment.checkPrimitiveInductive env lparams nparams types
+    (hresult : Primitive.checkInductive env lparams nparams types
       isUnsafe = .ok allowPrimitive) :
     allowPrimitive = false ∨
       PrimitiveInductiveShape lparams nparams types isUnsafe := by

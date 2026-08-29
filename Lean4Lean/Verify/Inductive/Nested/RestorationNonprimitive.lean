@@ -78,7 +78,10 @@ theorem restoreInductiveHeaderDecl_primitiveSafe
       exact Except.WF.pure ⟨[ci], .cons hname.1 (by
         intro hallow
         change Kernel.Environment.primitives.contains oldInfo.name = false
-        exact hname.2 hallow) .nil⟩
+        cases hprim : Kernel.Environment.primitives.contains oldInfo.name
+        · rfl
+        · have := hname.2 (by simp [hprim])
+          simp [hallow] at this) .nil⟩
 
 /-- Constructor restoration retains the primitive-safety result of its exact
 successful `checkName`. -/
@@ -101,7 +104,10 @@ theorem restoreConstructorDecl_primitiveSafe
       exact Except.WF.pure ⟨[ci], .cons hname.1 (by
         intro hallow
         change Kernel.Environment.primitives.contains oldInfo.name = false
-        exact hname.2 hallow) .nil⟩
+        cases hprim : Kernel.Environment.primitives.contains oldInfo.name
+        · rfl
+        · have := hname.2 (by simp [hprim])
+          simp [hallow] at this) .nil⟩
 
 /-- Recursor restoration retains the primitive-safety result of its exact
 successful `checkName`. -/
@@ -127,7 +133,10 @@ theorem restoreRecursorDecl_primitiveSafe
       exact Except.WF.pure ⟨[ci], .cons hname.1 (by
         intro hallow
         change Kernel.Environment.primitives.contains newRecName = false
-        exact hname.2 hallow) .nil⟩
+        cases hprim : Kernel.Environment.primitives.contains newRecName
+        · rfl
+        · have := hname.2 (by simp [hprim])
+          simp [hallow] at this) .nil⟩
 
 /-- Fold primitive-safe step traces over the exact executable `forM`. -/
 theorem stateForM_primitiveSafe

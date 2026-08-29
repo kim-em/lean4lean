@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Environment.Checker
+import Lean4Lean.Verify.Typing.PrimSpec
 
 namespace Lean4Lean
 open Lean4Lean
@@ -83,6 +84,8 @@ theorem VInductBlock.install_mono
                 (cis := block.ctors) _ hctors₁ hctors₂
               exact VEnv.addConstVals_mono H htypes₁ htypes₂
 
+/- Superseded by the table-driven primitive preservation lemmas imported from
+`Typing.PrimSpec`; retained temporarily in the merge diff only for reference.
 theorem VEnv.addConst_eq_of_ne
     {env env' : VEnv}
     (hadd : env.addConst name ci = some env') (hne : name ≠ n) :
@@ -155,7 +158,7 @@ theorem VEnv.HasPrimitives.addDefEq {env : VEnv} (H : env.HasPrimitives) :
     stringOfList h :=
       let ⟨h1, h2, h3⟩ := H.stringOfList h
       ⟨h1, h2.mono VEnv.addDefEq_le, h3.mono VEnv.addDefEq_le⟩ }
-
+-/
 theorem safePrimitives_add' {env : Environment} (mapWF : env.constants.WF)
     (old : ∀ {n : Name} {ci}, env.find? n = some ci →
       Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = [])

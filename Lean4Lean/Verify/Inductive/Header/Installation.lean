@@ -37,9 +37,11 @@ theorem AddConstants.ofDeclareInductiveTypeInfosExists
       fun _ hchecked => by
         have hnprimHead :
             ¬ Kernel.Environment.primitives.contains info.name := by
+          intro hp
+          have hallowed := hchecked.2 hp
           cases hallow : allowPrimitive with
-          | false => simpa using hchecked.2 hallow
-          | true => exact hnprim hallow info (by simp)
+          | false => simp [hallow] at hallowed
+          | true => exact hnprim hallow info (by simp) hp
         have hnprimTail : allowPrimitive = true → ∀ info ∈ infos,
             ¬ Kernel.Environment.primitives.contains info.name := by
           intro hallow info hinfo

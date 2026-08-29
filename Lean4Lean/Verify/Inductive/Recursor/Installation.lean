@@ -855,7 +855,10 @@ theorem AddConstants.ofDeclareInductiveTypeInfos
           have hnprimHead :
               ¬ Kernel.Environment.primitives.contains info.name := by
             cases hallow : allowPrimitive with
-            | false => simpa using hchecked.2 hallow
+            | false =>
+              intro hp
+              have := hchecked.2 hp
+              simp [hallow] at this
             | true => exact hnprim hallow info (by simp)
           have hnprimTail : allowPrimitive = true → ∀ info ∈ infos,
               ¬ Kernel.Environment.primitives.contains info.name := by
@@ -1054,7 +1057,10 @@ theorem AddConstants.ofConstructorList
           have hnprimHead :
               ¬ Kernel.Environment.primitives.contains ctor.name := by
             cases hallow : allowPrimitive with
-            | false => simpa using hchecked.2 hallow
+            | false =>
+              intro hp
+              have := hchecked.2 hp
+              simp [hallow] at this
             | true => exact hnprim hallow ctor (by simp)
           have hnprimTail : allowPrimitive = true → ∀ ctor ∈ ctors,
               ¬ Kernel.Environment.primitives.contains ctor.name := by
@@ -1618,7 +1624,10 @@ theorem AddInductive.declareRecursors.loop.WF
                 (ConstantInfo.recInfo info).name := by
             change ¬ Kernel.Environment.primitives.contains info.name
             cases hallow : allowPrimitive with
-            | false => simpa using Hchecked.2 hallow
+            | false =>
+              intro hp
+              have := Hchecked.2 hp
+              simp [hallow] at this
             | true =>
               simpa [ConstantInfo.name, ConstantInfo.toConstantVal, info,
                 AddInductive.declareRecursors.recursorInfo] using
@@ -1842,7 +1851,10 @@ theorem AddInductive.declareRecursors.loop.semanticWF
                 (ConstantInfo.recInfo info).name := by
             change ¬ Kernel.Environment.primitives.contains info.name
             cases hallow : allowPrimitive with
-            | false => simpa using Hchecked.2 hallow
+            | false =>
+              intro hp
+              have := Hchecked.2 hp
+              simp [hallow] at this
             | true =>
               simpa [ConstantInfo.name, ConstantInfo.toConstantVal, info,
                 AddInductive.declareRecursors.recursorInfo] using

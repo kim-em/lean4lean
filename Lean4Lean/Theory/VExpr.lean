@@ -279,7 +279,78 @@ theorem inst_liftN (e1 e2 : VExpr) : (liftN 1 e1 k).inst e2 k = e1 := by
 theorem inst_liftN' (e1 e2 : VExpr) : (liftN (n+1) e1 k).inst e2 k = liftN n e1 k := by
   rw [← liftN'_liftN_hi, inst_liftN]
 
+/-- Instantiating *above* a lift: the variable substituted for is one the lift introduced, so it
+is consumed and the lift shrinks by one. `inst_liftN'` is the case `n = 0`, where the lift and
+the instantiation sit at the same index; here the instantiation has walked `n` binders past it. -/
+theorem inst_liftN_lo' (e1 e2 : VExpr) (n k : Nat) :
+    (liftN (n+1) e1 k).inst e2 (n+k) = liftN n e1 k := by
+  have h := liftN_instN_lo n (liftN 1 e1 k) e2 k k (Nat.le_refl _)
+  rw [inst_liftN, liftN'_liftN_hi, Nat.add_comm 1 n] at h
+  exact h.symm
+
+/-- The `k = 0` case, which is the one that arises when a telescope of binders is instantiated
+one at a time: the index counts down while the lift stays at the bottom. Stated separately
+because `n + k` does not unify with a literal index while `k` is open. -/
+theorem inst_liftN_lo (e1 e2 : VExpr) (n : Nat) :
+    (liftN (n+1) e1 0).inst e2 n = liftN n e1 0 := by
+  simpa using inst_liftN_lo' e1 e2 n 0
+
 theorem inst_lift (e1 e2 : VExpr) : (lift e1).inst e2 = e1 := inst_liftN ..
+
+/-- Eta's identity: a lift at `k+1` steps over the variable at `k`, so substituting that variable
+back for itself undoes the lift. This is what makes `f.lift` applied to `bvar 0` under a binder
+the same as `f`'s body -- the shape a codomain read off `whnf` has when it is closed back over
+the binder it was opened at. -/
+theorem inst_liftN_bvar : ∀ (e : VExpr) (k : Nat), (liftN 1 e (k+1)).inst (.bvar 0) k = e
+  | .bvar i, k => by
+    simp only [liftN, inst, instVar, liftVar]
+    split <;> rename_i h₁
+    · rcases Nat.lt_or_ge i k with h | h
+      · rw [if_pos h]
+      · have : i = k := by omega
+        subst this; rw [if_neg (Nat.lt_irrefl _), if_pos rfl]; simp
+    · rw [if_neg (by omega), if_neg (by omega)]; congr 1; omega
+  | .sort .., _ | .const .., _ => rfl
+  | .app .., k => by simp only [liftN, inst, inst_liftN_bvar]
+  | .lam .., k | .forallE .., k => by simp only [liftN, inst, inst_liftN_bvar]
+
+/-- Substitute a value for each of a telescope of binders, `inst` at index 0 once per binder.
+The list is in telescope order -- leftmost is the *outermost* binder, the same order `appN`
+applies its arguments in -- so the substitutions happen right to left, the innermost binder
+(`bvar 0`) taking the last element.
+
+This is a *substitution* rather than an abstraction applied to arguments (`mkLambda'` then
+`appN`), even though the two are beta-equivalent: statements built out of substituted pieces
+decompose on the nose, since substitution commutes with application syntactically, while an
+applied abstraction does so only up to defeq. -/
+def insts (e : VExpr) : List VExpr → VExpr
+  | [] => e
+  | a :: as => (e.insts as).inst a
+
+@[simp] theorem insts_nil (e : VExpr) : e.insts [] = e := rfl
+
+@[simp] theorem insts_cons (e a : VExpr) (as) : e.insts (a :: as) = (e.insts as).inst a := rfl
+
+/-- Substituting a telescope is substituting its outer half after its inner half. This is what
+turns an induction that peels the *innermost* binder -- the only one a list of types can be
+taken apart at -- into a statement about `insts`. -/
+theorem insts_append (e : VExpr) : ∀ (as bs : List VExpr),
+    e.insts (as ++ bs) = (e.insts bs).insts as
+  | [], _ => rfl
+  | a :: as, bs => by simp [insts_append e as bs]
+
+@[simp] theorem insts_sort (u) : ∀ as, (VExpr.sort u).insts as = .sort u
+  | [] => rfl
+  | _ :: as => by simp [insts_sort u as, inst]
+
+@[simp] theorem insts_const (c us) : ∀ as, (VExpr.const c us).insts as = .const c us
+  | [] => rfl
+  | _ :: as => by simp [insts_const c us as, inst]
+
+@[simp] theorem insts_app (e1 e2 : VExpr) :
+    ∀ as, (e1.app e2).insts as = (e1.insts as).app (e2.insts as)
+  | [] => rfl
+  | _ :: as => by simp [insts_app e1 e2 as, inst]
 
 protected theorem LevelWF.inst
     (h1 : e1.LevelWF U) (h2 : e2.LevelWF U) : (inst e1 e2 k).LevelWF U := by
@@ -718,6 +789,12 @@ def subst : VExpr → Subst → VExpr
   | .lam ty body, σ => .lam (ty.subst σ) (body.subst σ.lift)
   | .forallE ty body, σ => .forallE (ty.subst σ) (body.subst σ.lift)
 
+@[simp] theorem subst_bvar (i) (σ : Subst) : (VExpr.bvar i).subst σ = σ i := rfl
+@[simp] theorem subst_sort (u) (σ : Subst) : (VExpr.sort u).subst σ = .sort u := rfl
+@[simp] theorem subst_const (c us) (σ : Subst) : (VExpr.const c us).subst σ = .const c us := rfl
+@[simp] theorem subst_app (e1 e2 : VExpr) (σ : Subst) :
+    (e1.app e2).subst σ = (e1.subst σ).app (e2.subst σ) := rfl
+
 def Subst.lift_r (σ : Subst) (ρ : Lift) : Subst := fun x => (σ x).lift' ρ
 def Subst.lift_l (ρ : Lift) (σ : Subst) : Subst := fun x => σ (ρ.liftVar x)
 
@@ -732,6 +809,25 @@ theorem subst_lift' {e : VExpr} : (e.lift' ρ).subst σ = subst e (.lift_l ρ σ
 
 theorem lift'_subst {e : VExpr} : (e.subst σ).lift' ρ = subst e (.lift_r σ ρ) := by
   induction e generalizing ρ σ <;> simp! [*, Subst.lift_r, Subst.lift_r_lift]
+
+/-- Composition of substitutions; `subst_subst` says it is what running two in a row does. This
+is the counterpart of `Subst.comp` in `Experimental/SExpr.lean`, where the same API is proved
+out. -/
+def Subst.comp (σ σ' : Subst) : Subst := fun x => (σ x).subst σ'
+
+theorem Subst.comp_lift {σ σ' : Subst} : (σ.comp σ').lift = σ.lift.comp σ'.lift := by
+  funext i; cases i <;> simp! [comp, Subst.lift]
+  rw [lift_eq_lift', lift_eq_lift', lift'_subst, subst_lift']
+  congr 1; funext i; simp [Subst.lift_r, Subst.lift_l, Subst.lift, lift_eq_lift']
+
+theorem subst_subst {e : VExpr} : (e.subst σ).subst σ' = subst e (.comp σ σ') := by
+  induction e generalizing σ σ' <;> simp! [*, Subst.comp, Subst.comp_lift]
+
+/-- A substitution absorbs a lift: this is what replaces cancelling the lift against an
+instantiation one binder at a time. -/
+theorem liftN_subst {e : VExpr} {σ : Subst} :
+    (liftN n e k).subst σ = e.subst (.lift_l (.consN (.skipN .refl n) k) σ) := by
+  rw [← lift'_consN_skipN, subst_lift']
 
 def Subst.id : Subst := .bvar
 def Subst.head (σ : Subst) : VExpr := σ 0
@@ -750,6 +846,19 @@ def Subst.cons (σ : Subst) (e : VExpr) : Subst
   | i+1 => σ i
 
 abbrev Subst.one (e : VExpr) : Subst := .cons .id e
+
+@[simp] theorem Subst.cons_head (σ : Subst) (e) : (σ.cons e).head = e := rfl
+@[simp] theorem Subst.cons_tail (σ : Subst) (e) : (σ.cons e).tail = σ := rfl
+
+/-- A lift on the left of a substitution walks off it one binder at a time: `skip` drops the
+substitution's head, `refl` is the end. Together these reduce the `lift_l` that `liftN_subst`
+introduces, so a closing given as a `cons` chain reaches `Subst.id` by `simp`. -/
+@[simp] theorem Subst.lift_l_refl {σ : Subst} : Subst.lift_l .refl σ = σ := rfl
+@[simp] theorem Subst.lift_l_skip {ρ : Lift} {σ : Subst} :
+    Subst.lift_l (.skip ρ) σ = Subst.lift_l ρ σ.tail := rfl
+
+@[simp] theorem lift_subst {e : VExpr} {σ : Subst} : e.lift.subst σ = e.subst σ.tail := by
+  rw [lift_eq_lift', subst_lift']; rfl
 
 theorem Subst.Depth.one : (Subst.one e).Depth 0 1 := .id
 
@@ -794,3 +903,41 @@ theorem lift_r_one (e : VExpr) (ρ : Lift) :
 theorem lift'_inst_hi (e1 e2 : VExpr) (ρ : Lift) :
     lift' (e1.inst e2) ρ = (lift' e1 ρ.cons).inst (lift' e2 ρ) := by
   simp [subst_lift', lift'_subst, lift_r_one, inst_eq]
+
+theorem Subst.tail_eq_lift_l {σ : Subst} : σ.tail = σ.lift_l Lift.refl.skip := rfl
+
+theorem Subst.lift_r_tail {σ : Subst} {ρ : Lift} :
+    (σ.lift_r ρ).tail = σ.tail.lift_r ρ := by funext i; rfl
+
+def Subst.Fixes (σ : Subst) (n : Nat) := ∀ i < n, σ i = .bvar i
+
+theorem Subst.Fixes.zero : Fixes σ 0 := nofun
+
+theorem Subst.Fixes.lift {σ : Subst} (H : σ.Fixes n) : σ.lift.Fixes (n + 1) := fun
+  | 0, _ => rfl
+  | n+1, h => by simp [Subst.lift, H _ (Nat.lt_of_succ_lt_succ h), VExpr.lift, VExpr.liftN]
+
+theorem ClosedN.subst_eq {e : VExpr} (self : ClosedN e k) (h : σ.Fixes k) : e.subst σ = e := by
+  induction e generalizing k σ with (simp [ClosedN] at self; simp [*, VExpr.subst])
+  | bvar i => exact h _ self
+  | app _ _ ih1 ih2 => exact ⟨ih1 self.1 h, ih2 self.2 h⟩
+  | lam _ _ ih1 ih2 | forallE _ _ ih1 ih2 => exact ⟨ih1 self.1 h, ih2 self.2 h.lift⟩
+
+theorem lift_subst_cons {e : VExpr} : e.lift.subst (σ.cons t) = e.subst σ := by
+  rw [lift_subst, Subst.cons_tail]
+
+theorem lift_subst_lift {e : VExpr} {σ : Subst} : e.lift.subst σ.lift = (e.subst σ).lift := by
+  rw [lift_eq_lift', subst_lift', lift_eq_lift', lift'_subst]
+  congr 1; funext x
+  simp [Subst.lift_l, Subst.lift_r, Subst.lift, lift_eq_lift']
+
+theorem subst_inst {e : VExpr} : (e.inst a).subst σ = (e.subst σ.lift).inst (a.subst σ) := by
+  rw [inst_eq, inst_eq, subst_subst, subst_subst]; congr 1
+  funext i; obtain _|i := i <;> simp [Subst.comp, Subst.lift]
+  · simp [Subst.one, Subst.cons]
+  · simp [Subst.one, Subst.cons, Subst.id]
+
+theorem inst_lift_cons {e : VExpr} {σ : Subst} :
+    (e.subst σ.lift).inst x = e.subst (σ.cons x) := by
+  rw [inst_eq, subst_subst, Subst.one]; congr 1
+  funext i; obtain _|i := i <;> simp [Subst.comp, Subst.lift, Subst.cons]

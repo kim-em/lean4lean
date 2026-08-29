@@ -16,10 +16,10 @@ run_meta
   let some (.defnInfo natAdd) := env.toKernelEnv.find? ``Nat.add
     | throwError "Nat.add is not a definition"
   let partialNatAdd := { natAdd with safety := DefinitionSafety.partial }
-  match (Lean4Lean.Environment.checkPrimitiveDef partialNatAdd).run env.toKernelEnv
+  match (Primitive.checkDef partialNatAdd).run env.toKernelEnv
       (lparams := partialNatAdd.levelParams) with
-  | .ok false => pure ()
+  | .error _ => pure ()
   | .ok true => throwError "a partial definition was accepted as a primitive"
-  | .error _ => throwError "the partial primitive check failed unexpectedly"
+  | .ok false => throwError "a partial definition was reported as a non-primitive"
 
 end Lean4Lean.Tests.Environment

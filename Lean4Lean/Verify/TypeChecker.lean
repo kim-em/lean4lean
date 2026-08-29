@@ -306,17 +306,39 @@ theorem M.WF.forInForall₂ {c : VContext} {f : α → Unit → M (ForInStep Uni
     obtain ⟨cis', h1, h2⟩ := h
     exact ⟨ci' :: cis', .cons hR h1, .cons hQ h2⟩
 
+/-- The `FVarsBelow` is kept, not dropped: a caller that reduced a term living in some sub-context
+needs to know the result still does, and reduction is the only step where that could fail. -/
 nonrec theorem whnf.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
-    M.WF c s (whnf e) fun e₁ _ => c.TrExpr e₁ e' :=
-  (whnf.WF he).run.mono fun _ _ _ h => h.2
+    M.WF c s (whnf e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := (whnf.WF he).run
+
+nonrec theorem whnfCore.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    M.WF c s (whnfCore e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
+  (whnfCore.WF he).run
+
+/-- The `M`-level wrapper falls back to `e` itself when there is nothing to unfold, so unlike the
+`RecM` form it always returns something definitionally equal to its input. -/
+nonrec theorem unfoldDefinition.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    M.WF c s (unfoldDefinition e) fun e₁ _ => c.TrExpr e₁ e' := by
+  refine (unfoldDefinition.WF he).run.bind fun oe _ _ H => ?_
+  cases oe with
+  | some => exact .pure H.2
+  | none => exact .pure (he.trExpr c.Ewf c.Δwf)
+
+/-- In `inferOnly` mode the caller has to supply the translation, since that mode assumes the
+term is already known to be well typed. -/
+nonrec theorem inferType.WF' {c : VContext} {s : VState}
+    (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
+    (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
+    M.WF c s (inferType e inferOnly) fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty' :=
+  (inferType.WF' h1 hinf).run
 
 nonrec theorem inferType.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
-    M.WF c s (inferType e) fun ty _ => ∃ ty', c.TrTyping e ty e' ty' :=
+    M.WF c s (inferType e inferOnly) fun ty _ => ∃ ty', c.TrTyping e ty e' ty' :=
   (inferType.WF he).run
 
-nonrec theorem checkType.WF {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars)) :
-    M.WF c s (checkType e) fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty' :=
-  (checkType.WF h1).run
+/-- `checkType` is `inferType` at `inferOnly := false`, where the obligation is vacuous. -/
+theorem checkType.WF {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars)) :
+    M.WF c s (checkType e) fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty' := inferType.WF' h1 nofun
 
 nonrec theorem isDefEq.WF {c : VContext} {s : VState}
     (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') :
@@ -327,19 +349,29 @@ nonrec theorem isProp.WF {c : VContext} {s : VState}
     (he : c.TrExprS e e') : (isProp e).WF c s fun b _ => b → c.HasType e' (.sort .zero) :=
   (isProp.WF he).run
 
-nonrec theorem ensureSort.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem ensureSort.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
     M.WF c s (ensureSort e e₀) fun e1 _ => c.TrExpr e1 e' ∧ ∃ u, e1 = .sort u :=
   (ensureSortCore.WF he).run.mono fun _ _ _ h => ⟨h.2.1, h.1⟩
 
-nonrec theorem ensureForall.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem ensureForall.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
     M.WF c s (ensureForall e) fun e1 _ =>
       c.TrExpr e1 e' ∧ ∃ name ty body bi, e1 = .forallE name ty body bi :=
   (ensureForallCore.WF he).run.mono fun _ _ _ h => h.2
 
-nonrec theorem ensureType.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
-    M.WF c s (ensureType e) fun e1 _ => ∃ e', c.TrExprS e e' ∧ ∃ u u', e1 = .sort u ∧
+/-- At `inferOnly := false` the translation is an *output* rather than an input, so this is how a
+caller learns that a term it has not otherwise translated is a type -- which is what the primitive
+checker's `ensureType` calls are for. -/
+theorem ensureType.WF' {c : VContext} {s : VState}
+    (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
+    (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
+    M.WF c s (ensureType e inferOnly) fun e1 _ => ∃ e', c.TrExprS e e' ∧ ∃ u u', e1 = .sort u ∧
       VLevel.ofLevel c.lparams u = some u' ∧ c.HasType e' (.sort u') := by
-  refine (inferType.WF he).bind fun _ _ _ ⟨_, _, a1, a2, a3⟩ => ?_
+  refine (inferType.WF' h1 hinf).bind fun _ _ _ ⟨_, _, _, a1, a2, a3⟩ => ?_
   refine (ensureSort.WF a2).mono fun _ _ _ ⟨⟨_, b1, b2⟩, b3⟩ => ?_
   obtain ⟨_, rfl⟩ := b3; let .sort b1 := b1
   exact ⟨_, a1, _, _, rfl, b1, a3.defeqU_r c.Ewf c.Δwf b2.symm⟩
+
+theorem ensureType.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    M.WF c s (ensureType e inferOnly) fun e1 _ => ∃ e', c.TrExprS e e' ∧ ∃ u u', e1 = .sort u ∧
+      VLevel.ofLevel c.lparams u = some u' ∧ c.HasType e' (.sort u') :=
+  ensureType.WF' he.fvarsIn fun _ => ⟨_, he⟩

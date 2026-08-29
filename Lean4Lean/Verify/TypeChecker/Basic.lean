@@ -484,6 +484,9 @@ theorem getEnv.WF {c : VContext} {s : VState} :
     M.WF c s getEnv fun a s' => c.env = a ∧ s = s' := by
   rintro wf _ _ ⟨⟩; exact ⟨_, rfl, .rfl, wf, rfl, rfl⟩
 
+theorem M.WF.getEnv {c : VContext} {s : VState} {f : Environment → M α} {Q}
+    (H : WF c s (f c.env) Q) : (liftM getEnv >>= f).WF c s Q := H
+
 theorem RecM.WF.getEnv {c : VContext} {s : VState} {f : Environment → RecM α} {Q}
     (H : WF c s (f c.env) Q) : (liftM getEnv >>= f).WF c s Q := H
 
@@ -529,6 +532,15 @@ def VContext.withMLC (c : VContext) (m : MLCtx) [wf : c.MLCWF m] : VContext :=
 @[simp] theorem VContext.withMLC_self (c : VContext) : c.withMLC c.mlctx = c := by
   simp [withMLC, c.lctx_eq]
 
+/-- `withMLC` only moves the local context; the ambient environment and universe parameters are
+untouched, so judgements stated at `c` and at `c.withMLC m` are interchangeable. -/
+@[simp] theorem VContext.withMLC_venv (c : VContext) (m) [c.MLCWF m] :
+    (c.withMLC m).venv = c.venv := rfl
+@[simp] theorem VContext.withMLC_lparams (c : VContext) (m) [c.MLCWF m] :
+    (c.withMLC m).lparams = c.lparams := rfl
+@[simp] theorem VContext.withMLC_mlctx (c : VContext) (m) [c.MLCWF m] :
+    (c.withMLC m).mlctx = m := rfl
+
 def VState.next (s : VState) : VState := { s with ngen := s.ngen.next }
 
 protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
@@ -565,6 +577,56 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
       trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
       whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf }
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
+  refine have le' := le.trans hs2; ⟨s', hs1, le', ?_, hs4⟩
+  have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
+      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+  have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
+      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+  let ⟨_, _, a1, a2, a3⟩ := wf'.ectx
+  exact {
+    ngen_wf := (by simpa [VContext.withMLC] using wf'.ngen_wf :).2
+    ectx := ⟨_, _, a1, .comp (.skip_fvar _ _ .refl) a2, a3⟩
+    trctx := wf.trctx
+    inferTypeI_wf := hic wf'.inferTypeI_wf, inferTypeC_wf := hic wf'.inferTypeC_wf
+    whnfCore_wf := hwc wf'.whnfCore_wf, whnf_wf := hwc wf'.whnf_wf, unfold_wf := wf'.unfold_wf
+  }
+
+/-- The `M`-level twin of `RecM.WF.withLocalDecl`. The primitive checker probes its
+definitions under `withLocalDecl` in `M`, so it needs this form. -/
+protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
+    {s : VState} {f : Expr → M α} {Q name ty ty' bi}
+    (hty : (c.withMLC m).TrExprS ty ty')
+    (hty' : (c.withMLC m).IsType ty')
+    (hs : s₀ ≤ s)
+    (H : ∀ id cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
+      WF (c.withMLC (.vlam id name ty ty' bi m) (wf := cwf')) s' (f (.fvar id)) Q) :
+    (withLocalDecl name bi ty f).WF (c.withMLC m) s Q := by
+  intro wf a s' e
+  let id := s.ngen.curr
+  have h0 := s.ngen.next_reserves_self
+  have h1 := s.ngen.not_reserves_self
+  have le : s ≤ s.next := .next
+  have h1' := wf.find?_eq_none h1
+  let m' := m.vlam ⟨id⟩ name ty ty' bi
+  have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hty'⟩
+  have : VState.WF (c.withMLC m') s.next :=
+    have trctx := wf.trctx.mkLocalDecl h1' hty hty'
+    have hic {ic} (H : InferCache.WF (c.withMLC m) s ic) : InferCache.WF (c.withMLC m') s.next ic :=
+      fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
+    have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
+      fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
+    { ngen_wf := by
+        simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
+      ectx := by
+        let ⟨_, _, a1, a2, a3, a4⟩ := wf.ectx
+        refine
+          have b1 := ⟨a1, ?_, hty'.weak' c.Ewf.ordered a2.toCtx⟩
+          ⟨_, _, b1, a2.cons_fvar _ _ hty.fvarsList, a3.weak' c.Ewf (.skip_fvar _ _ .refl) b1,
+            fun _ h => by obtain _ | ⟨_, h⟩ := h <;> [exact h0; exact (a4 _ h).mono le]⟩
+        rintro _ _ ⟨⟩; exact ⟨mt (a4 _) h1, hty.fvarsList.trans a2.fvars_sublist.subset⟩
+      trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
+      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf }
+  let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 this a s' e
   refine have le' := le.trans hs2; ⟨s', hs1, le', ?_, hs4⟩
   have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
       InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
@@ -851,6 +913,27 @@ theorem MLCtx.dropN_all (c : MLCtx) :
   | nil => rfl
   | vlam _ _ _ _ _ c ih | vlet _ _ _ _ _ _ c ih => simpa using ih
 
+/-- The sharper form of `fvarRevList_prefix`: the variables a telescope opened and the ones it
+started from, in order. This is what says a term mentioning none of the former lives in the
+context the telescope was entered at. -/
+theorem MLCtx.fvars_eq_append (c : MLCtx) {n hn} :
+    c.vlctx.fvars = c.fvarRevList n hn ++ (c.dropN n hn).vlctx.fvars := by
+  induction n generalizing c with
+  | zero => simp
+  | succ n ih => match c with | .vlam .. | .vlet .. => simp; exact ih _
+
+/-- "Lives in the context the telescope was entered at" is an up-set for the telescope: the
+variables it opened are fresh, so the predicate is false on them and their dependency condition
+is vacuous. This is what lets `FVarsBelow` -- which `inferType`/`whnf` hand out -- be read as
+"still in the base context". -/
+theorem MLCtx.WF.isFVarUpSet_dropN : ∀ {c : MLCtx} (_ : c.WF env Us) (n hn),
+    IsFVarUpSet (· ∈ (c.dropN n hn).vlctx.fvars) c.vlctx
+  | _, wf, 0, _ => .fvars wf.tr.wf.fvwf
+  | .vlam _ _ _ _ _ c, ⟨h1, h2, _⟩, _+1, _
+  | .vlet _ _ _ _ _ _ c, ⟨h1, h2, _⟩, _+1, _ =>
+    ⟨h1.isFVarUpSet_dropN _ _, fun h =>
+      (h1.tr.find?_eq_none.1 h2 (dropN_fvars_subset (c := c) _ _ h)).elim⟩
+
 theorem MLCtx.WF.fvars_nodup : ∀ {c : MLCtx}, c.WF env Us → c.vlctx.fvars.Nodup
   | .nil, _ => .nil
   | .vlam _ _ _ _ _ c, ⟨h1, h2, _⟩
@@ -980,8 +1063,10 @@ theorem inferType.WF' {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlct
     RecM.WF c s (inferType e inferOnly) fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty' :=
   fun _ wf => wf.inferType h1 hinf
 
+/-- With the translation already in hand, `hinf` is satisfied whichever mode is used, so this
+holds at both settings of `inferOnly`. -/
 theorem inferType.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
-    RecM.WF c s (inferType e true) fun ty _ => ∃ ty', c.TrTyping e ty e' ty' := by
+    RecM.WF c s (inferType e inferOnly) fun ty _ => ∃ ty', c.TrTyping e ty e' ty' := by
   refine .stateWF fun wf => ?_
   refine (inferType.WF' he.fvarsIn fun _ => ⟨_, he⟩).le
     fun _ _ _ ⟨_, _, h1, h2, h3, h4⟩ => ⟨_, h1, he, h3, ?_⟩

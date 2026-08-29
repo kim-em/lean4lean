@@ -16,10 +16,16 @@ theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : Axi
   have hsafety : checkSafety ≤ (ConstantInfo.axiomInfo v).safety := by
     cases v.isUnsafe <;> exact DefinitionSafety.le_rfl
   unfold addAxiom
-  refine (checkConstantVal.WF wf (.axiomInfo v) false hsafety).run wf |>.bind fun _ h => ?_
-  obtain ⟨ci', htr, hci, hn, hnonprim⟩ := h
+  refine (checkConstantVal.WF wf (.axiomInfo v) false hsafety).run wf
+    |>.bind fun _ ⟨ci', htr, hci, hn, hnonprim⟩ => ?_
+  have hnonprim' :
+      Environment.primitives.contains (ConstantInfo.axiomInfo v).name = false := by
+    cases hprim : Environment.primitives.contains (ConstantInfo.axiomInfo v).name
+    · rfl
+    · have := hnonprim (by simp [hprim])
+      contradiction
   have ⟨ves', hwf, hstep⟩ := addConst.WF wf (.axiomInfo v) ci' checkSafety ?_ htr hci hn
-    (by intro _ h; cases h) (by intro _ h; cases h) (hnonprim rfl)
+    (by intro _ h; cases h) (by intro _ h; cases h) hnonprim'
     fun _ _ htr hci hadd old => ?_
   · exact .pure ⟨ves', hwf, ci', hstep⟩
   · intro safety _
@@ -34,11 +40,11 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
           (ves.venv safety).AddDef safety (.defnInfo v) ci' (ves'.venv safety)) := by
   unfold addDefinition; split
   · refine checkConstantVal.WF wf (.defnInfo v) false DefinitionSafety.unsafe_le
-      |>.run wf |>.bind fun _ ⟨ci0, htr, hwfc, hn, hnonprim⟩ => ?_
+      |>.run wf |>.bind fun _ ⟨ci0, htr, hwfc, hn, hnonprim⟩ => ?_; simp at hnonprim
     refine (checkNoMVarNoFVar.WF _ _ _).bind fun _ h => ?_
     have ⟨vesA, wfA, hstepA⟩ := addConst.WF wf (.axiomInfo { v with isUnsafe := true }) ci0
       .unsafe (fun _ => id) ⟨⟨DefinitionSafety.unsafe_le, htr.1.2.1, htr.1.2.2⟩, htr.2⟩
-      hwfc hn (by intro _ h; cases h) (by intro _ h; cases h) (hnonprim rfl)
+      hwfc hn (by intro _ h; cases h) (by intro _ h; cases h) hnonprim
       fun _ _ htr' hci' hadd' old =>
         .axiom htr' (by rwa [← old.map_wf.find?'_eq_find?]) hci' hadd' old
     have hadd := (hstepA .unsafe).2.2
@@ -50,10 +56,10 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       show (vesA.venv .unsafe).HasType ci0.uvars [] value' ci0.type
       rw [← htr.1.2.1]; exact hvalueType
     have ⟨ves', hwf', hmono'⟩ := addUnsafeDef.WF wf v ⟨ci0, value'⟩ (vesA.venv .unsafe)
-      ‹_› htr hwfc hadd hvalue hciWF hn (hnonprim rfl)
+      ‹_› htr hwfc hadd hvalue hciWF hn hnonprim
     exact .pure ⟨ves', hwf', hmono', (nomatch · ‹_›)⟩
   refine (checkDefinition.WF wf v).run wf |>.bind
-    fun _ ⟨allow, ci', hp, hu, ht, hname, hvalue, hci, hfresh, hnonprim⟩ => ?_
+    fun _ ⟨ci', hp, hu, ht, hname, hvalue, hci, hfresh⟩ => ?_
   have hle : v.safety ≤ .safe := DefinitionSafety.le_safe
   have hmono := wf.mono hle
   have htr : TrDefVal v.safety (ves.venv v.safety) (.defnInfo v) ci' := by
@@ -63,16 +69,15 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   have ⟨ves', hwf, hstep⟩ := addDef.WF wf v ci' v.safety ?_ htr (hci.mono hmono) hfresh ?_ ?_
   · exact .pure ⟨ves', hwf, (hstep · |>.le), fun _ => ⟨ci', hstep⟩⟩
   · simp [ConstantInfo.defnInfo_safety]
-  · intro hnamePrim; have := mt hnonprim; simp [hnamePrim] at this
-    exact ⟨by rw [ConstantInfo.defnInfo_safety, hp.safe this], hp.no_level_params this⟩
+  · exact fun h => ⟨by rw [ConstantInfo.defnInfo_safety, (hp h).safe], (hp h).no_level_params⟩
   · intro safety base hvisible hadd
     have hs : safety ≤ v.safety := by simpa [ConstantInfo.defnInfo_safety] using hvisible
     have hsf : TrDefVal safety (ves.venv v.safety) (.defnInfo v) ci' :=
       ⟨⟨htr.1.1.sf_mono hs, htr.1.2⟩, htr.2⟩
     have hci' := hci.mono (hmono.trans (wf.mono hs))
-    cases allow
-    · exact (wf.hasPrimitives.addConst (hnonprim rfl) hadd).addDefEq
-    · exact hp.preserves rfl (wf.mono DefinitionSafety.le_safe) wf.tr.wf wf.hasPrimitives
+    cases eq : Environment.primitives.contains v.name
+    · exact (wf.hasPrimitives.addConst eq hadd).addDefEq
+    · exact (hp eq).preserves (wf.mono DefinitionSafety.le_safe) wf.tr.wf wf.hasPrimitives
         (hsf.mono (wf.mono hs)) (hci.mono (hmono.trans (wf.mono hs))) hadd
 
 theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (v : TheoremVal) :
@@ -217,14 +222,14 @@ theorem addInductiveDeclaration.WF
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (Q : Environment → Prop)
     (Hadd : ∀ allowPrimitive,
-      Environment.checkPrimitiveInductive env lparams nparams types isUnsafe =
+      Primitive.checkInductive env lparams nparams types isUnsafe =
         .ok allowPrimitive →
       (Environment.addInductive env lparams nparams types isUnsafe
         allowPrimitive fuel).WF Q) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF Q := by
   have Hcheck :
-      (Environment.checkPrimitiveInductive env lparams nparams types
+      (Primitive.checkInductive env lparams nparams types
         isUnsafe).WF fun allowPrimitive =>
           (Environment.addInductive env lparams nparams types isUnsafe
             allowPrimitive fuel).WF Q := by
@@ -244,7 +249,7 @@ theorem addInductiveDeclaration.checkedLoweringClosedWF
     (Henv : VerifyInductive.EnvironmentTypesClosed env)
     (Q : Environment → Prop)
     (Hfinish : ∀ allowPrimitive res,
-      Environment.checkPrimitiveInductive env lparams nparams types
+      Primitive.checkInductive env lparams nparams types
         isUnsafe = .ok allowPrimitive →
       VerifyInductive.SourceSyntaxChecks types →
       VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
@@ -270,7 +275,7 @@ theorem addInductiveDeclaration.preservesWF
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig)
     (Hfinish : ∀ allowPrimitive res,
-      Environment.checkPrimitiveInductive env lparams nparams types
+      Primitive.checkInductive env lparams nparams types
         isUnsafe = .ok allowPrimitive →
       VerifyInductive.SourceSyntaxChecks types →
       VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
@@ -364,8 +369,8 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     rw [← hlp]
     refine (checkConstantVal.WF wf (.defnInfo v) false ?_ s).bind ?_
     · rw [ConstantInfo.defnInfo_safety, hsafety]; exact DefinitionSafety.le_rfl
-    refine fun _ _ _ ⟨ci', htr, hciw, hn, hnp⟩ => .pure ?_
-    exact ⟨hfound, ⟨⟨ci', .bvar 0⟩, ⟨htr, hciw, hn, hnp rfl⟩, hsafety, rfl⟩, rfl⟩
+    refine fun _ _ _ ⟨ci', htr, hciw, hn, hnp⟩ => .pure ?_; simp at hnp
+    exact ⟨hfound, ⟨⟨ci', .bvar 0⟩, ⟨htr, hciw, hn, hnp⟩, hsafety, rfl⟩, rfl⟩
   obtain ⟨⟨cis0, hQ0⟩, hnd, -⟩ := h1
   have hhdr := hQ0.imp fun _ _ h => h.1
   have hpull {P : DefinitionVal → VDefVal → Prop} (h : List.Forall₂ P (v₀ :: rest) cis0)
