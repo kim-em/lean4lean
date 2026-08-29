@@ -91,9 +91,22 @@ theorem DeclaredHeadersResult.closesMutuals
   rcases H.installed.origin H.sourceContext.checking.tr.map_wf hfind with
       hold | hnew
   · have Hsource := Hclosed targetName value hold
-    exact ⟨Hsource.members.mapEnvironment
-      (H.installed.preservesFind H.sourceContext.checking.tr.map_wf),
-      Hsource.target, Hsource.names⟩
+    have hpreserves : ∀ {name found},
+        c.env.find? name = some found →
+          headerEnv.find? name = some found := by
+      intro name found hfound
+      exact H.installed.preservesFind H.sourceContext.checking.tr.map_wf
+        hfound
+    refine ⟨Hsource.members.mapEnvironment hpreserves,
+      Hsource.target, Hsource.names, ?_⟩
+    intro member info hmember hfindMember
+    rcases Hsource.members.find hmember with ⟨sourceInfo, hsourceInfo⟩
+    have htargetInfo := hpreserves hsourceInfo
+    have hinfo : info = sourceInfo := by
+      rw [hfindMember] at htargetInfo
+      exact ConstantInfo.inductInfo.inj (Option.some.inj htargetInfo)
+    subst info
+    exact Hsource.parameters member sourceInfo hmember hsourceInfo
   · rcases hnew with ⟨entry, hentry, hname, hvalue⟩
     have hconstant : entry.1 ∈ H.entries.map Prod.fst :=
       List.mem_map.mpr ⟨entry, hentry, rfl⟩
@@ -107,11 +120,29 @@ theorem DeclaredHeadersResult.closesMutuals
     subst value
     have hentryName : entry.1.name = info.name := by
       exact (congrArg ConstantInfo.name hentryInfo).symm
-    exact ⟨by simpa [huniform info hinfo] using Hmembers,
+    refine ⟨by simpa [huniform info hinfo] using Hmembers,
       by
         rw [hname, hentryName, huniform info hinfo]
         exact List.mem_map.mpr ⟨info, hinfo, rfl⟩,
-      by simpa [huniform info hinfo] using hnames⟩
+      by simpa [huniform info hinfo] using hnames, ?_⟩
+    intro member memberInfo hmember hfindMember
+    have hmember' : member ∈ infos.map (fun candidate => candidate.name) := by
+      simpa only [huniform info hinfo] using hmember
+    rcases List.mem_map.mp hmember' with
+      ⟨candidate, hcandidate, hcandidateName⟩
+    have hcandidateLookup := hlookup candidate hcandidate
+    rw [hcandidateName] at hcandidateLookup
+    have hmemberInfo : memberInfo = candidate := by
+      rw [hfindMember] at hcandidateLookup
+      exact ConstantInfo.inductInfo.inj (Option.some.inj hcandidateLookup)
+    subst memberInfo
+    have hcandidateParams := inductiveTypeInfos_uniformNumParams stats
+      nparams indTypes numNested isUnsafe c.lparams hsize candidate (by
+        simpa [infos] using hcandidate)
+    have hinfoParams := inductiveTypeInfos_uniformNumParams stats nparams
+      indTypes numNested isUnsafe c.lparams hsize info (by
+        simpa [infos] using hinfo)
+    exact hcandidateParams.trans hinfoParams.symm
 
 /-- Skeleton-free header and constructor formation with the persistent
 production mutual-family lookup invariant attached to the same successful
@@ -149,7 +180,6 @@ theorem AddInductive.semanticFormationCoreClosedWF
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hproj : ProjectionConstPreservation)
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name) :
@@ -166,7 +196,7 @@ theorem AddInductive.semanticFormationCoreClosedWF
   have Hformation := AddInductive.semanticFormationCoreWF Hsemantic
     hlevels hlevelParams hindicesSize hindices hconsts hparams
     hcommonParams Hcache Hsuffix Hambient hcommon hvisible hnprimTypes
-    hconsume hproj hnprimCtors
+    hconsume hnprimCtors
   intro outEnv hout
   rcases Hformation outEnv hout with ⟨decl, headerEnv, Hheaders, R, _⟩
   have hclosedHeaders := Hheaders.closesMutuals Hclosed

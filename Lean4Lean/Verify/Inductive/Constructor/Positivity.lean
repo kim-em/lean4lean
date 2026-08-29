@@ -2196,102 +2196,148 @@ theorem RecursorContextWF.cdeclTypeAvoids
       hvalueTr, htypeTr⟩
   exact checkPositivityStep.TrExprS.sourceAvoidsFresh hfresh htypeTr
 
-/-- Source-level absence, rather than absence from the current environment,
-is sufficient to show that a translation contains no selected constants.
-This is the post-installation half of the split freshness argument used by
-generated iota equations. -/
+/-- Source-support form of the local-context freshness invariant.  Unlike the
+legacy Boolean invariant, it remains closed when a local let value contains a
+certified projection expansion. -/
+def VLCtx.SourceConstFree (names : List Name) (Δ : VLCtx) : Prop :=
+  ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
+    mapped.SourceConstFree names
+
+theorem VLCtx.SourceConstFree.ofNoIndConsts
+    (H : VLCtx.NoIndConsts names Δ) :
+    VLCtx.SourceConstFree names Δ :=
+  fun hfind => VExpr.SourceConstFree.ofContainsAnyConst (H hfind)
+
+theorem VLCtx.SourceConstFree.cons
+    (H : VLCtx.SourceConstFree names Δ)
+    (hvalue : d.value.SourceConstFree names) :
+    VLCtx.SourceConstFree names ((ofv, d) :: Δ) := by
+  intro v mapped type hfind
+  simp only [VLCtx.find?] at hfind
+  split at hfind
+  · cases hfind
+    exact hvalue
+  · simp at hfind
+    rcases hfind with ⟨old, _type, hfind, hmap, _⟩
+    rw [← hmap]
+    exact (H hfind).liftN d.depth 0
+
+/-- Source-level absence is preserved as source support.  Certified
+projection nodes retain the source major and deliberately ignore the
+administrative eliminator expansion. -/
 theorem TrExprS.noConstsOfSourceAvoids
     (hsource : e.AvoidsConsts names)
-    (hctx : VLCtx.NoIndConsts names Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst names = false →
-      e''.containsAnyConst names = false)
+    (hctxSupport : VLCtx.SourceConstFree names Δ)
     (H : TrExprS env Us Δ e e') :
-    e'.containsAnyConst names = false := by
+    e'.SourceConstFree names := by
   induction H with
-  | bvar hfind | fvar hfind => exact hctx hfind
-  | sort _ => rfl
+  | bvar hfind | fvar hfind => exact hctxSupport hfind
+  | sort _ => exact .sort _
   | @const name levels _ _ _ _ _ _ =>
     cases hsource with
     | const _ _ hnot =>
-      simp only [VExpr.containsAnyConst]
-      exact Bool.eq_false_iff.mpr fun hcontains =>
-        hnot (by simpa using hcontains)
+      exact .const name _ hnot
   | app _ _ _ _ ihFn ihArg =>
     cases hsource with
     | app _ _ hfn harg =>
-      exact Bool.or_eq_false_iff.mpr
-        ⟨ihFn hfn hctx, ihArg harg hctx⟩
+      exact .app (ihFn hfn hctxSupport) (ihArg harg hctxSupport)
   | lam _ _ _ ihDom ihBody =>
     cases hsource with
     | lam _ _ _ _ hdom hbody =>
-      exact Bool.or_eq_false_iff.mpr ⟨ihDom hdom hctx,
-        ihBody hbody (VLCtx.NoIndConsts.cons hctx (by rfl))⟩
+      exact .lam (ihDom hdom hctxSupport)
+        (ihBody hbody (VLCtx.SourceConstFree.cons hctxSupport (.bvar 0)))
   | forallE _ _ _ _ ihDom ihBody =>
     cases hsource with
     | forallE _ _ _ _ hdom hbody =>
-      exact Bool.or_eq_false_iff.mpr ⟨ihDom hdom hctx,
-        ihBody hbody (VLCtx.NoIndConsts.cons hctx (by rfl))⟩
+      exact .forallE (ihDom hdom hctxSupport)
+        (ihBody hbody (VLCtx.SourceConstFree.cons hctxSupport (.bvar 0)))
   | letE _ _ _ _ ihType ihValue ihBody =>
     cases hsource with
     | letE _ _ _ _ _ htype hvalue hbody =>
-      exact ihBody hbody <| hctx.cons (d := .vlet _ _) (ofv := none)
-        (ihValue hvalue hctx)
+      exact ihBody hbody <| VLCtx.SourceConstFree.cons
+        (d := .vlet _ _) (ofv := none) hctxSupport
+        (ihValue hvalue hctxSupport)
   | lit _ _ ih =>
     cases hsource with
-    | lit _ hexpanded => exact ih hexpanded hctx
+    | lit _ hexpanded => exact ih hexpanded hctxSupport
   | mdata _ ih =>
     cases hsource with
-    | mdata _ _ hbody => exact ih hbody hctx
+    | mdata _ _ hbody => exact ih hbody hctxSupport
   | proj _ Hproj ih =>
     cases hsource with
-    | proj _ _ _ hbody => exact hproj Hproj (ih hbody hctx)
+    | proj _ _ _ hbody =>
+      exact .projection Hproj.supportExpansion (ih hbody hctxSupport)
 
 theorem TrExprS.noFreshConsts
     (hfresh : ∀ name ∈ names, env.constants name = none)
-    (hctx : VLCtx.NoIndConsts names Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst names = false →
-      e''.containsAnyConst names = false)
+    (hctxSupport : VLCtx.SourceConstFree names Δ)
     (H : TrExprS env Us Δ e e') :
-    e'.containsAnyConst names = false := by
+    e'.SourceConstFree names := by
   induction H with
-  | bvar hfind | fvar hfind => exact hctx hfind
-  | sort _ => rfl
+  | bvar hfind | fvar hfind => exact hctxSupport hfind
+  | sort _ => exact .sort _
   | @const name _ _ _ _ hconst _ _ =>
-    change names.contains name = false
-    apply Bool.eq_false_iff.mpr
-    intro hcontains
-    have hmem : name ∈ names := by simpa using hcontains
+    apply VExpr.SourceConstFree.const
+    intro hmem
     rw [hfresh name hmem] at hconst
     cases hconst
   | app _ _ _ _ ihFn ihArg =>
-    exact Bool.or_eq_false_iff.mpr ⟨ihFn hctx, ihArg hctx⟩
+    exact .app (ihFn hctxSupport) (ihArg hctxSupport)
   | lam _ _ _ ihTy ihBody =>
-    apply Bool.or_eq_false_iff.mpr
-    refine ⟨ihTy hctx, ihBody ?_⟩
-    exact VLCtx.NoIndConsts.cons hctx (by rfl)
+    exact .lam (ihTy hctxSupport)
+      (ihBody (VLCtx.SourceConstFree.cons hctxSupport (.bvar 0)))
   | forallE _ _ _ _ ihTy ihBody =>
-    apply Bool.or_eq_false_iff.mpr
-    refine ⟨ihTy hctx, ihBody ?_⟩
-    exact VLCtx.NoIndConsts.cons hctx (by rfl)
+    exact .forallE (ihTy hctxSupport)
+      (ihBody (VLCtx.SourceConstFree.cons hctxSupport (.bvar 0)))
   | letE _ _ _ _ ihTy ihValue ihBody =>
-    exact ihBody (hctx.cons (d := .vlet _ _) (ofv := none)
-      (ihValue hctx))
-  | lit _ _ ih => exact ih hctx
-  | mdata _ ih => exact ih hctx
-  | proj _ Hproj ih => exact hproj Hproj (ih hctx)
+    exact ihBody (VLCtx.SourceConstFree.cons
+      (d := .vlet _ _) (ofv := none) hctxSupport (ihValue hctxSupport))
+  | lit _ _ ih => exact ih hctxSupport
+  | mdata _ ih => exact ih hctxSupport
+  | proj _ Hproj ih =>
+    exact .projection Hproj.supportExpansion (ih hctxSupport)
+
+/-- Environment-indexed replacement for the legacy projection-preservation
+argument above.  When the translation is retained at the checking boundary,
+ordinary target well-formedness proves freshness for the whole translated
+expression, including projection targets.  No property of the
+environment-free `TrProj` relation is assumed. -/
+theorem TrExprS.noFreshConstsAtCheckingEnv
+    (henv : VEnv.Ordered env)
+    (hfresh : ∀ name ∈ names, env.constants name = none)
+    (hctx : VLCtx.WF env Us.length Delta)
+    (H : TrExprS env Us Delta expression target) :
+    target.containsAnyConst names = false :=
+  VExpr.WF.noFreshConsts henv hfresh hctx.toCtx (H.wf henv hctx)
+
+/-- Pointwise form for a translated application spine retained in the same
+checking environment. -/
+theorem List.Forall₂.targets_noFreshConstsAtCheckingEnv
+    (H : List.Forall₂ (TrExprS env Us Delta) source target)
+    (henv : VEnv.Ordered env)
+    (hfresh : ∀ name ∈ names, env.constants name = none)
+    (hctx : VLCtx.WF env Us.length Delta) :
+    ∀ argument ∈ target,
+      argument.containsAnyConst names = false := by
+  induction H with
+  | nil => simp
+  | cons Hhead _ ih =>
+      intro argument hargument
+      simp only [List.mem_cons] at hargument
+      rcases hargument with rfl | hargument
+      · exact checkPositivityStep.TrExprS.noFreshConstsAtCheckingEnv
+          henv hfresh hctx Hhead
+      · exact ih argument hargument
 
 /-- Pointwise form of `TrExprS.noFreshConsts` for a translated application
 spine. -/
 theorem List.Forall₂.targets_noFreshConsts
     (H : List.Forall₂ (TrExprS env Us Δ) source target)
     (hfresh : ∀ name ∈ names, env.constants name = none)
-    (hctx : VLCtx.NoIndConsts names Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst names = false →
-      e''.containsAnyConst names = false) :
-    ∀ arg ∈ target, arg.containsAnyConst names = false := by
+    (hctx : VLCtx.NoIndConsts names Δ) :
+    ∀ arg ∈ target, arg.SourceConstFree names := by
+  have hctxSupport : VLCtx.SourceConstFree names Δ :=
+    VLCtx.SourceConstFree.ofNoIndConsts (names := names) (Δ := Δ) hctx
   induction H with
   | nil => simp
   | cons Hhead _ ih =>
@@ -2299,7 +2345,7 @@ theorem List.Forall₂.targets_noFreshConsts
     simp only [List.mem_cons] at harg
     rcases harg with rfl | harg
     · exact checkPositivityStep.TrExprS.noFreshConsts
-        hfresh hctx hproj Hhead
+        hfresh hctxSupport Hhead
     · exact ih arg harg
 
 /-- Pointwise post-installation counterpart driven by source-syntax
@@ -2307,12 +2353,10 @@ absence rather than environment freshness. -/
 theorem List.Forall₂.targets_noConstsOfSourceAvoids
     (H : List.Forall₂ (TrExprS env Us Delta) source target)
     (hsource : ∀ arg ∈ source, arg.AvoidsConsts names)
-    (hctx : VLCtx.NoIndConsts names Delta)
-    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
-      TrProj Delta.toCtx s i e' e'' →
-      e'.containsAnyConst names = false →
-      e''.containsAnyConst names = false) :
-    ∀ arg ∈ target, arg.containsAnyConst names = false := by
+    (hctx : VLCtx.NoIndConsts names Delta) :
+    ∀ arg ∈ target, arg.SourceConstFree names := by
+  have hctxSupport : VLCtx.SourceConstFree names Delta :=
+    VLCtx.SourceConstFree.ofNoIndConsts (names := names) (Δ := Delta) hctx
   induction H with
   | nil => simp
   | cons Hhead Htail ih =>
@@ -2320,7 +2364,7 @@ theorem List.Forall₂.targets_noConstsOfSourceAvoids
     simp only [List.mem_cons] at harg
     rcases harg with rfl | harg
     · exact checkPositivityStep.TrExprS.noConstsOfSourceAvoids
-        (hsource _ (by simp)) hctx hproj Hhead
+        (hsource _ (by simp)) hctxSupport Hhead
     · exact ih (fun sourceArg hmem => hsource sourceArg (by simp [hmem]))
         arg harg
 
@@ -2328,65 +2372,70 @@ theorem TrExprS.noIndOccAvailable
     (halign : IndConstNames indConsts names)
     (hlit : AvailableLiteralDisjoint env indConsts)
     (hctx : VLCtx.NoIndConsts names Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst names = false →
-      e''.containsAnyConst names = false)
     (H : TrExprS env Us Δ e e')
     (hno : AddInductive.hasIndOcc indConsts e = false) :
-    e'.containsAnyConst names = false := by
+    e'.SourceConstFree names := by
+  have hctxSupport : VLCtx.SourceConstFree names Δ :=
+    VLCtx.SourceConstFree.ofNoIndConsts hctx
+  clear hctx
   rw [hasIndOcc_eq_findAny] at hno
   induction H with
-  | bvar hfind | fvar hfind => exact hctx hfind
-  | sort _ => rfl
-  | const _ _ _ =>
+  | bvar hfind | fvar hfind =>
+    exact hctxSupport hfind
+  | sort _ => exact .sort _
+  | @const name levels _ _ _ _ _ _ =>
     simp only [Expr.findAny] at hno
-    change names.contains _ = false
-    rw [← halign]
-    exact hno
+    apply VExpr.SourceConstFree.const
+    intro hname
+    have : names.contains name = true := by simpa using hname
+    rw [← halign] at this
+    rw [this] at hno
+    cases hno
   | app _ _ _ _ ihFn ihArg =>
     simp only [Expr.findAny, Bool.false_or] at hno
     rcases Bool.or_eq_false_iff.mp hno with ⟨hfn, harg⟩
-    exact Bool.or_eq_false_iff.mpr ⟨ihFn hctx hfn, ihArg hctx harg⟩
+    exact .app (ihFn hfn hctxSupport) (ihArg harg hctxSupport)
   | lam _ _ _ ihTy ihBody =>
     simp only [Expr.findAny, Bool.false_or] at hno
     rcases Bool.or_eq_false_iff.mp hno with ⟨hty, hbody⟩
-    apply Bool.or_eq_false_iff.mpr
-    refine ⟨ihTy hctx hty, ihBody ?_ hbody⟩
-    exact VLCtx.NoIndConsts.cons hctx (by rfl)
+    apply VExpr.SourceConstFree.lam (ihTy hty hctxSupport)
+    apply ihBody hbody
+    exact VLCtx.SourceConstFree.cons (d := .vlam _) (ofv := none)
+      hctxSupport (.bvar 0)
   | forallE _ _ _ _ ihTy ihBody =>
     simp only [Expr.findAny, Bool.false_or] at hno
     rcases Bool.or_eq_false_iff.mp hno with ⟨hty, hbody⟩
-    apply Bool.or_eq_false_iff.mpr
-    refine ⟨ihTy hctx hty, ihBody ?_ hbody⟩
-    exact VLCtx.NoIndConsts.cons hctx (by rfl)
+    apply VExpr.SourceConstFree.forallE (ihTy hty hctxSupport)
+    apply ihBody hbody
+    exact VLCtx.SourceConstFree.cons (d := .vlam _) (ofv := none)
+      hctxSupport (.bvar 0)
   | letE _ _ _ _ ihTy ihValue ihBody =>
     simp only [Expr.findAny, Bool.false_or] at hno
     rcases Bool.or_eq_false_iff.mp hno with ⟨htyValue, hbody⟩
     rcases Bool.or_eq_false_iff.mp htyValue with ⟨hty, hvalue⟩
-    have hvalue' := ihValue hctx hvalue
-    exact ihBody (hctx.cons (d := .vlet _ _) (ofv := none) hvalue') hbody
+    have hvalue' := ihValue hvalue hctxSupport
+    exact ihBody hbody (VLCtx.SourceConstFree.cons
+      (d := .vlet _ _) (ofv := none) hctxSupport hvalue')
   | lit hcontains _ ih =>
-    apply ih hctx
+    apply ih
     rw [← hasIndOcc_eq_findAny]
     exact hlit _ hcontains
+    exact hctxSupport
   | mdata _ ih =>
-    simpa only [Expr.findAny, Bool.false_or] using ih hctx hno
+    simpa only [Expr.findAny, Bool.false_or] using ih hno hctxSupport
   | proj _ Hproj ih =>
     simp only [Expr.findAny, Bool.false_or] at hno
-    exact hproj Hproj (ih hctx hno)
+    exact .projection Hproj.supportExpansion (ih hno hctxSupport)
 
 /-- Backwards-compatible global form of `TrExprS.noIndOccAvailable`. -/
 theorem TrExprS.noIndOcc
     (halign : IndConstNames indConsts names)
     (hlit : LiteralDisjoint indConsts)
     (hctx : VLCtx.NoIndConsts names Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst names = false →
-      e''.containsAnyConst names = false)
     (H : TrExprS env Us Δ e e')
     (hno : AddInductive.hasIndOcc indConsts e = false) :
-    e'.containsAnyConst names = false :=
-  TrExprS.noIndOccAvailable halign hlit.available hctx hproj H hno
+    e'.SourceConstFree names :=
+  TrExprS.noIndOccAvailable halign hlit.available hctx H hno
 
 theorem ValidAppStatsWF.translatedIndexNoOccurrence
     (H : ValidAppStatsWF env Us Δ stats decl depth)
@@ -2395,11 +2444,8 @@ theorem ValidAppStatsWF.translatedIndexNoOccurrence
       type.getAppArgsList args')
     (hlit : AvailableLiteralDisjoint env stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hlower : stats.params.size ≤ j) (hupper : j < args'.length) :
-    args'[j].containsAnyConst (decl.types.map (·.name)) = false := by
+    args'[j].SourceConstFree (decl.types.map (·.name)) := by
   have hlen := forall₂_length_eq hargs
   have hjArgs : j < type.getAppArgs.size := by
     have hsize : type.getAppArgs.size = type.getAppArgsList.length := by
@@ -2414,7 +2460,7 @@ theorem ValidAppStatsWF.translatedIndexNoOccurrence
     List.getElem?_eq_getElem hupper
   have harg := forall₂_get?_eq_some hargs hsource htarget
   have hno := isValidIndAppIdx.indexNoOccurrence hvalid hlower hjArgs
-  exact TrExprS.noIndOccAvailable H.consts.names hlit hctx hproj harg hno
+  exact TrExprS.noIndOccAvailable H.consts.names hlit hctx harg hno
 
 theorem isValidIndAppIdx.validIndAppAt
     (H : ValidAppStatsWF env Us Δ stats decl depth)
@@ -2423,10 +2469,7 @@ theorem isValidIndAppIdx.validIndAppAt
     (hvalid : AddInductive.isValidIndAppIdx stats type typeIdx = true)
     (htarget : target = none ∨ target = some decl.types[typeIdx].name)
     (hlit : AvailableLiteralDisjoint env stats.indConsts)
-    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ) :
     decl.ValidIndAppAt target depth type' := by
   have hconst := H.indConstAt hi
   have hhead := isValidIndAppIdx.constHead hvalid hconst
@@ -2466,7 +2509,7 @@ theorem isValidIndAppIdx.validIndAppAt
   rcases List.mem_drop_iff_getElem.mp harg with ⟨j, hj, hargEq⟩
   subst arg
   exact H.translatedIndexNoOccurrence (j := decl.nparams + j)
-    hvalid hargs hlit hctx hproj
+    hvalid hargs hlit hctx
     (by rw [H.params_size]; omega) (by simpa [Nat.add_comm] using hj)
 
 /-- The exact indexed target recognized by the executable checker is a type,
@@ -2541,17 +2584,14 @@ theorem isValidIndApp?.validIndAppAt
     (htr : TrExprS env Us Δ type type')
     (hvalid : AddInductive.isValidIndApp? stats type = some typeIdx)
     (hlit : AvailableLiteralDisjoint env stats.indConsts)
-    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ) :
     decl.ValidIndAppAt none depth type' := by
   rcases isValidIndApp?_some hvalid with ⟨hi, hvalidIdx⟩
   have hi' : typeIdx < decl.types.length := by
     rw [← H.types_size]
     exact hi
   exact isValidIndAppIdx.validIndAppAt H hi' htr hvalidIdx
-    (Or.inl rfl) hlit hctx hproj
+    (Or.inl rfl) hlit hctx
 
 theorem noOccurrence.WF
     {type : Expr} {Q : Unit → Prop}
@@ -2572,9 +2612,6 @@ theorem noOccurrence.refines
       (decl.types.map (·.name)))
     (hlit : AvailableLiteralDisjoint env stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htr : TrExprS env Us Δ type type')
     (hocc : AddInductive.hasIndOcc stats.indConsts type = false) :
     (AddInductive.checkPositivityStep stats type ctor idx recur c).WF
@@ -2583,7 +2620,7 @@ theorem noOccurrence.refines
     (Q := fun _ => decl.SyntacticallyPositive env ctx depth type')
     hocc (.nonrecursive <|
       checkPositivityStep.TrExprS.noIndOccAvailable hconsts.names hlit hctx
-        hproj htr hocc)
+        htr hocc)
 
 theorem validApplication.WF
     (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
@@ -2615,16 +2652,13 @@ theorem validApplication.sourceRefines
     (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
     (hforall : ¬ ∃ name dom body bi, type = .forallE name dom body bi)
     (hvalid : AddInductive.isValidIndApp? stats type = some target) :
     (AddInductive.checkPositivityStep stats type ctor idx recur c).WF
       (fun _ => decl.SyntacticallyPositive env ctx depth type') := by
   apply validApplication.refines hocc hforall hvalid
-  exact isValidIndApp?.validIndAppAt Hstats htr hvalid hlit hctx hproj
+  exact isValidIndApp?.validIndAppAt Hstats htr hvalid hlit hctx
 
 theorem invalidApplication.WF
     (hocc : AddInductive.hasIndOcc stats.indConsts type = true)
@@ -2696,9 +2730,6 @@ theorem forallE.refines
       (decl.types.map (·.name)))
     (hlit : AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Hc.mlctx.vlctx)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hocc : AddInductive.hasIndOcc stats.indConsts
       (.forallE name dom body bi) = true)
     (hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = false)
@@ -2726,7 +2757,7 @@ theorem forallE.refines
       (fun _ => decl.SyntacticallyPositive Hc.venv Hc.mlctx.vlctx.toCtx depth
         (.forallE sourceDom' sourceBody')) := by
   have hdomNo := checkPositivityStep.TrExprS.noIndOccAvailable hconsts.names hlit
-    hctx hproj Hdom.source hdomOcc
+    hctx Hdom.source hdomOcc
   refine forallE.sourceWF (Q := fun _ => decl.SyntacticallyPositive Hc.venv
       Hc.mlctx.vlctx.toCtx depth (.forallE sourceDom' sourceBody'))
       (recur := recur) (ctor := ctor)
@@ -2756,9 +2787,6 @@ theorem result.refines
     (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hdefeq : env.IsDefEq decl.uvars ctorCtx result type' exprType) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       type i (fuel + 1) c).WF
@@ -2769,7 +2797,7 @@ theorem result.refines
       ctorCtx depth result)
     hforall hvalid (.result
       (checkPositivityStep.isValidIndAppIdx.validIndAppAt
-        Hstats hi htr hvalid (Or.inr rfl) hlit hctx hproj)
+        Hstats hi htr hvalid (Or.inr rfl) hlit hctx)
       hdefeq)
 
 /-- Semantic wrapper for a safe constructor field.  The low-level traversal
@@ -2922,9 +2950,6 @@ theorem tailRefines
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Hc.mlctx.vlctx)
-    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ fieldLevel fieldLevel',
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
@@ -2990,7 +3015,7 @@ theorem tailRefines
       · rcases htr.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf with
           ⟨exprType, htype⟩
         subst target
-        exact result.refines Hstats hi htr hforall hvalid hlit hctx hproj
+        exact result.refines Hstats hi htr hforall hvalid hlit hctx
           (by simpa [Hstats.uvars] using htype)
 
 end checkConstructors.loopCtor
@@ -3044,9 +3069,6 @@ theorem refines
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Hc.mlctx.vlctx)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
     (AddInductive.checkPositivity.loop stats ctor idx type fuel c).WF
       (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
@@ -3075,7 +3097,7 @@ theorem refines
         .unfold (by simpa [Hstats.uvars] using hsourceExposed) hpositive
     by_cases hocc : AddInductive.hasIndOcc stats.indConsts normalized = false
     · exact finish <| checkPositivityStep.noOccurrence.refines
-        Hstats.consts hlit hctx hproj hexposed hocc
+        Hstats.consts hlit hctx hexposed hocc
     have hocc' : AddInductive.hasIndOcc stats.indConsts normalized = true := by
       cases h : AddInductive.hasIndOcc stats.indConsts normalized
       · exact False.elim (hocc h)
@@ -3093,7 +3115,7 @@ theorem refines
       | forallE hdomType _ hdom hbody =>
         rcases hconsume c Hc hdom hdomType with ⟨consumedDom', Hdom⟩
         exact finish <| checkPositivityStep.forallE.refines Hc Hstats.consts
-          hlit hctx hproj hocc' hdomOcc' Hdom Hstats.uvars hbody
+          hlit hctx hocc' hdomOcc' Hdom Hstats.uvars hbody
           fun body'' hbodyEq hopened => by
             let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType
@@ -3111,7 +3133,7 @@ theorem refines
         exact checkPositivityStep.invalidApplication.WF hocc' hforall hvalid
       | some target =>
         exact finish <| checkPositivityStep.validApplication.sourceRefines
-          Hstats hexposed hlit hctx hproj hocc' hforall hvalid
+          Hstats hexposed hlit hctx hocc' hforall hvalid
 
 /-- Positivity refinement for constructor checking after mutual headers have
 left ambient declarations in the executable context.  The concrete checker
@@ -3128,9 +3150,6 @@ theorem refinesNarrow
       scope stats decl depth)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
     (AddInductive.checkPositivity.loop stats ctor idx type fuel c).WF
@@ -3175,7 +3194,7 @@ theorem refinesNarrow
     by_cases hocc : AddInductive.hasIndOcc stats.indConsts normalized = false
     · exact finish <| checkPositivityStep.noOccurrence.refines
         Hstats.consts hlit
-        (Hruntime.noIndConsts (decl.types.map (·.name))) hproj hexposed hocc
+        (Hruntime.noIndConsts (decl.types.map (·.name))) hexposed hocc
     have hocc' : AddInductive.hasIndOcc stats.indConsts normalized = true := by
       cases h : AddInductive.hasIndOcc stats.indConsts normalized
       · exact False.elim (hocc h)
@@ -3218,7 +3237,8 @@ theorem refinesNarrow
                   dom.consumeTypeAnnotationsVerified.fvarsList),
                   .vlam narrowDom) :: scope)
                 Hc'.mlctx.vlctx :=
-            Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+            Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
+              hdomNarrow hdomain
           have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
           have hopenedNarrow : TrExprS Hc'.venv c.lparams
               ((some (⟨c.ngen.curr⟩,
@@ -3241,7 +3261,7 @@ theorem refinesNarrow
             exact .forallE
               (checkPositivityStep.TrExprS.noIndOccAvailable Hstats.consts.names
                 hlit (Hruntime.noIndConsts (decl.types.map (·.name)))
-                hproj hdomNarrow hdomOcc')
+                hdomNarrow hdomOcc')
               (by simpa [Hstats.uvars] using hdomTyped)
               (by simpa [Hstats.uvars] using hbodyTyped)
               hpositive
@@ -3252,7 +3272,7 @@ theorem refinesNarrow
         exact finish <| checkPositivityStep.validApplication.sourceRefines
           Hstats hexposed hlit
             (Hruntime.noIndConsts (decl.types.map (·.name)))
-            hproj hocc' hforall hvalid
+            hocc' hforall hvalid
 
 end checkPositivity.loop
 
@@ -3279,14 +3299,11 @@ theorem checkPositivity.refines
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) Hc.mlctx.vlctx)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
     (AddInductive.checkPositivity stats type ctor idx c).WF
       (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
   apply checkPositivity.WF
-  exact checkPositivity.loop.refines Hc Hstats hconsume hlit hctx hproj htype
+  exact checkPositivity.loop.refines Hc Hstats hconsume hlit hctx htype
 
 /-- Public narrow-scope positivity refinement, including the production fuel
 lookup used by constructor checking. -/
@@ -3300,16 +3317,13 @@ theorem checkPositivity.refinesNarrow
       scope stats decl depth)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
     (AddInductive.checkPositivity stats type ctor idx c).WF
       (fun _ => decl.Positive Hc.venv scope.toCtx depth narrowType) := by
   apply checkPositivity.WF
   exact checkPositivity.loop.refinesNarrow Hc Hruntime Hstats hconsume
-    hlit hproj htypeNarrow htypeFull
+    hlit htypeNarrow htypeFull
 
 
 end VerifyInductive

@@ -158,14 +158,13 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     (_hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
-    (Hshape : EqBootstrapShape c.lparams nparams indTypes.toList isUnsafe)
-    (hproj : ProjectionConstPreservation) :
+    (Hshape : EqBootstrapShape c.lparams nparams indTypes.toList isUnsafe) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalOrdinaryRuleTranslation hproj with ⟨T⟩
+  rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
   let B := Hrecursors.blockCertificate T.rules T.rulesWF
   rcases Hheaders.eqBootstrapEntry Hshape with
     ⟨eqInfo, target, hentry, hinfoName, htargetName, htargetConstant⟩
@@ -204,6 +203,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     exact htypesEq
   rw [hsafety] at B
   rcases B.extendSafeExact wf hdecl hcompile horigins Hrecursors.closed
+      (Hrecursors.constructorOwnersPresent wf.constructorOwners)
       hconstructors with ⟨ves', wf', hle, hsafeReplay⟩
   have hsafeEq : (ves'.venv .safe).constants ``Eq = some eqConst :=
     hsafeReplay.constants houtEq

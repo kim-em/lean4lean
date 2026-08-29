@@ -102,7 +102,7 @@ private theorem validationConstructorFamilyValid
       lparams safety canonicalEnv names traceProdEnv traceTargetEnv
       sources constructors)
     (Hvalidation : ConstructorValidationStateTrace
-      (ConstructorValidationConstructorStep result loweredEnv)
+      (ConstructorValidationConstructorStep result loweredEnv allowPrimitive)
       names currentProdEnv targetProdEnv)
     (Hnonprimitive : ∀ constructor ∈ constructors,
       ¬ Kernel.Environment.primitives.contains constructor.name)
@@ -173,7 +173,8 @@ private theorem validationConstructorsValid
     (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
       sourceVEnv envTypes envCtors Htrace owners recursors)
     (Hvalidation : ConstructorValidationStateTrace
-      (ConstructorValidationConstructorFamilyStep result loweredEnv)
+      (ConstructorValidationConstructorFamilyStep result loweredEnv
+        allowPrimitive)
       sourceTypes currentProdEnv targetProdEnv)
     (Hnonprimitive : ∀ constructor ∈ owners.flatMap VInductiveType.ctors,
       ¬ Kernel.Environment.primitives.contains constructor.name)
@@ -235,7 +236,7 @@ theorem RestoredConstructorValidationEnvironment.valid
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       sourceTypes traceProdEnv tracePrimaryEnv}
     (H : RestoredConstructorValidationEnvironment result loweredEnv
-      sourceProdEnv allIndNames sourceTypes validationEnv)
+      sourceProdEnv allIndNames allowPrimitive sourceTypes validationEnv)
     (Hvalid : CheckingEnv.Valid safety sourceProdEnv sourceVEnv)
     (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
       sourceVEnv envTypes envCtors Htrace owners recursors)

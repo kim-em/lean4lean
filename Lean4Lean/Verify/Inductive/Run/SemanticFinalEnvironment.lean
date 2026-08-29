@@ -112,14 +112,13 @@ theorem SemanticRunWithStatsResult.extendSafe
     (wf : ves.WF c.env)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
-    (hnonempty : indTypes.toList ≠ [])
-    (hproj : ProjectionConstPreservation) :
+    (hnonempty : indTypes.toList ≠ []) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalOrdinaryRuleTranslation hproj with ⟨T⟩
+  rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
   let B := Hrecursors.blockCertificate T.rules T.rulesWF
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
@@ -152,11 +151,10 @@ theorem SemanticRunWithStatsResult.extendSafeOfQuotReady
     (hEq : CanonicalEqEnvs ves)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
-    (hnonempty : indTypes.toList ≠ [])
-    (hproj : ProjectionConstPreservation) :
+    (hnonempty : indTypes.toList ≠ []) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases Hrun.extendSafe wf hsafety hsource hnonempty hproj with
+  rcases Hrun.extendSafe wf hsafety hsource hnonempty with
     ⟨ves', wf', hle⟩
   exact ⟨ves', wf', hEq.mono hle, hle⟩
 
@@ -171,14 +169,13 @@ theorem SemanticRunWithStatsResult.extendUnsafe
     (hsafety : c.safety = .unsafe)
     (hsource : sourceEnv = ves.venv .unsafe)
     (hproduction : isUnsafe = (c.safety != .safe))
-    (hnonempty : indTypes.toList ≠ [])
-    (hproj : ProjectionConstPreservation) :
+    (hnonempty : indTypes.toList ≠ []) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalOrdinaryRuleTranslation hproj with ⟨T⟩
+  rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
   let B := Hrecursors.blockCertificate T.rules T.rulesWF
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
@@ -228,11 +225,10 @@ theorem SemanticRunWithStatsResult.extendUnsafeOfQuotReady
     (hsafety : c.safety = .unsafe)
     (hsource : sourceEnv = ves.venv .unsafe)
     (hproduction : isUnsafe = (c.safety != .safe))
-    (hnonempty : indTypes.toList ≠ [])
-    (hproj : ProjectionConstPreservation) :
+    (hnonempty : indTypes.toList ≠ []) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases Hrun.extendUnsafe wf hsafety hsource hproduction hnonempty hproj with
+  rcases Hrun.extendUnsafe wf hsafety hsource hproduction hnonempty with
     ⟨ves', wf', hle⟩
   exact ⟨ves', wf', hEq.mono hle, hle⟩
 

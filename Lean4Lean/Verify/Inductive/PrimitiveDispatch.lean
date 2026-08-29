@@ -29,8 +29,6 @@ theorem Environment.addInductiveAfterLowering.primitiveClosedWF
       isUnsafe skeleton envTypes)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (hctx : Hc.mlctx.vlctx = [])
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
@@ -57,7 +55,6 @@ theorem Environment.addInductiveAfterLowering.primitiveClosedWF
   have Hrun := AddInductive.run.primitiveClosedWF (c := c)
     (skeleton := skeleton) 0 Hc Hclosed Hdecl' Hshape' hctx hnonempty
     hnotPartial
-    hloopUArgsReplay hproj
   unfold Environment.addInductiveAfterLowering
   rw [haux, htypes]
   simpa [c, primitiveAddInductiveContext, Hdecl.nparams] using Hrun
@@ -76,9 +73,7 @@ theorem Environment.addInductive.primitiveClosedWF
     (Hdecl : TrInductDeclSkeletonHeaders Hc.venv lparams nparams types
       isUnsafe skeleton envTypes)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hctx : Hc.mlctx.vlctx = [])
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (hctx : Hc.mlctx.vlctx = []) :
     (Environment.addInductive env lparams nparams types isUnsafe true fuel).WF
       (VerifiedPrimitiveInductiveRunResult
         (primitiveAddInductiveContext env lparams isUnsafe fuel)
@@ -92,8 +87,7 @@ theorem Environment.addInductive.primitiveClosedWF
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.primitiveClosedWF env lparams
         nparams types isUnsafe fuel res skeleton envTypes Hc Hclosed Hdecl
-        Hshape hctx
-        hloopUArgsReplay hproj Hres.1 Hres.2
+        Hshape hctx Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
 /-- Non-vacuous declaration-dispatch theorem for the production primitive
@@ -110,9 +104,7 @@ theorem addInductiveDeclaration.primitiveWF
     (Hdecl : TrInductDeclSkeletonHeaders Hc.venv lparams nparams types
       isUnsafe skeleton envTypes)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hctx : Hc.mlctx.vlctx = [])
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (hctx : Hc.mlctx.vlctx = []) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun _ =>
         ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
@@ -120,8 +112,8 @@ theorem addInductiveDeclaration.primitiveWF
             VEnv.AddInduct Hc'.venv decl finalVEnv := by
   have Hrun := Environment.addInductive.primitiveClosedWF env lparams
     nparams types isUnsafe fuel skeleton envTypes Hc Hclosed Hdecl Hshape
-    hctx hloopUArgsReplay hproj
-  have Hmodel := Hrun.mono fun _ Hout => Hout.addInductCanonical hproj
+    hctx
+  have Hmodel := Hrun.mono fun _ Hout => Hout.addInductCanonical
   have hcheck := (checkPrimitiveInductive_eq_true_iff env lparams nparams
     types isUnsafe).mpr Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hmodel

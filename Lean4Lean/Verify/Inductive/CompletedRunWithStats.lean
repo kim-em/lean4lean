@@ -26,12 +26,7 @@ theorem AddInductive.runWithStats.completedWF
               depth sourceEnv indTypes ctorEnv,
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -46,7 +41,7 @@ theorem AddInductive.runWithStats.completedWF
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
     rcases Hresult with ⟨R, hclosed⟩
-    exact (R.recursorPhasesWF hclosed hlparams hloopUArgsReplay hlit hproj
+    exact (R.recursorPhasesWF hclosed hlparams hlit
       hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show ∃ ctorEnv,
@@ -74,12 +69,7 @@ theorem AddInductive.runWithStats.completedOrdinaryWF
           ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -97,9 +87,7 @@ theorem AddInductive.runWithStats.completedOrdinaryWF
       rcases Hresult with ⟨_headerEnv, _Hheaders, R, hclosed⟩
       exact ⟨R.completed, hclosed⟩
   · exact hlparams
-  · exact hloopUArgsReplay
   · exact hlit
-  · exact hproj
   · exact hnotPartial
   · exact hnprim
 
@@ -121,12 +109,7 @@ theorem AddInductive.runWithStats.completedPrimitiveWF
           ∃ R : PrimitiveConstructorPhasesResult Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -144,9 +127,7 @@ theorem AddInductive.runWithStats.completedPrimitiveWF
       rcases Hresult with ⟨_headerEnv, _Hheaders, R, hclosed⟩
       exact ⟨R.completed, hclosed⟩
   · exact hlparams
-  · exact hloopUArgsReplay
   · exact hlit
-  · exact hproj
   · exact hnotPartial
   · exact hnprim
 

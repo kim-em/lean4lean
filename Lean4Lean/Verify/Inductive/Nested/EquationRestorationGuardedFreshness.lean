@@ -89,5 +89,30 @@ theorem AvoidsTargetOnlyRecursors.const_not_mem_target
     simpa [AvoidsTargetOnlyRecursors, VExpr.containsAnyConst] using H
   exact hnotTargetOnly htargetOnly
 
+/-- Excluding old recursors and excluding the genuinely new target names
+excludes the complete target recursor set.  This is used for concrete atoms
+whose translation is an opaque leaf of the restoration traversal. -/
+theorem AvoidsTargetOnlyRecursors.targetFree
+    {sourceRecursors targetRecursors : List Name} {source : VExpr}
+    (H : AvoidsTargetOnlyRecursors sourceRecursors targetRecursors source)
+    (hsource : source.containsAnyConst sourceRecursors = false) :
+    source.containsAnyConst targetRecursors = false := by
+  induction source with
+  | bvar | sort => rfl
+  | const name levels =>
+      have hsourceNot : name ∉ sourceRecursors := by
+        simpa [VExpr.containsAnyConst] using hsource
+      have htargetNot : name ∉ targetRecursors :=
+        H.const_not_mem_target hsourceNot
+      simpa [VExpr.containsAnyConst] using htargetNot
+  | app fn arg ihFn ihArg =>
+      simp only [AvoidsTargetOnlyRecursors, VExpr.containsAnyConst,
+        Bool.or_eq_false_iff] at H hsource ⊢
+      exact ⟨ihFn H.1 hsource.1, ihArg H.2 hsource.2⟩
+  | lam domain body ihDomain ihBody | forallE domain body ihDomain ihBody =>
+      simp only [AvoidsTargetOnlyRecursors, VExpr.containsAnyConst,
+        Bool.or_eq_false_iff] at H hsource ⊢
+      exact ⟨ihDomain H.1 hsource.1, ihBody H.2 hsource.2⟩
+
 end VerifyInductive
 end Lean4Lean

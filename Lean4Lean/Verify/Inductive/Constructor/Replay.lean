@@ -244,9 +244,6 @@ theorem checkConstructors.loopTypes.refinesMaterialized
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hc.venv stats.indConsts)
-    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ targetIdx (hi : targetIdx < decl.types.length)
       fieldLevel fieldLevel',
@@ -301,7 +298,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
     have Hchecked := checkConstructors.loopCtor.refinesCtorShape
       (fuel := c.fuel.inductiveFuel) Hc Hsuffix Hstats hparamsCtx
       Hctor hchecked htarget rfl htargetUvars htargetLookup htargetWF
-      htargetShape hconsume hlit hproj hunsafe (hbound targetIdx htarget)
+      htargetShape hconsume hlit hunsafe (hbound targetIdx htarget)
     exact Hchecked.mono fun _ Hresult => by
       rcases Hresult with
         ⟨tail, tailTarget, Hprefix, sourceDomains, Hcomparisons,
@@ -518,6 +515,8 @@ structure RecursorParameterContextSuffix
     (TrExprS R.venv recLparams parameterDecls)
     stats.params.toList
     (checkInductiveTypes.loopType.cachedParamVars stats.params.size 0)
+  sources : checkInductiveTypes.loopType.FVarNarrowSources
+    R.venv recLparams parameterDecls
 
 /-- The cached parameter suffix is independently well formed after dropping
 the ambient declarations that precede it in the recursor context. -/
@@ -551,16 +550,6 @@ theorem VEnv.IsDefEqCtx.instL
   | _, _, _, .zero => .zero
   | _, _, _, .succ hctx htype =>
     .succ (VEnv.IsDefEqCtx.instL hls hctx) (htype.instL hls)
-
-theorem _root_.Lean4Lean.VLCtx.WF.mono
-    {env env' : VEnv} (henv : env ≤ env') :
-    ∀ {scope : VLCtx}, VLCtx.WF env U scope → VLCtx.WF env' U scope
-  | [], H => H
-  | (ofv, decl) :: scope, ⟨Hscope, Hfresh, Hdecl⟩ => by
-    refine ⟨VLCtx.WF.mono henv Hscope, Hfresh, ?_⟩
-    cases decl with
-    | vlam type => exact Hdecl.mono henv
-    | vlet type value => exact Hdecl.mono henv
 
 /-- Universe-instantiated view of a synthesized header target.  The stored
 constant arity and identity are unchanged; only the type interpreted under
@@ -695,7 +684,8 @@ def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
       context := H.context
       prefixLength := H.prefixLength
       cached := H.cached
-      narrowParams := H.narrowParams }
+      narrowParams := H.narrowParams
+      sources := H.sources }
   | param fresh =>
     let shift := VLevel.prependShift c.lparams.length
     have hcached : List.Forall₂
@@ -773,7 +763,10 @@ def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
       prefixLength := by
         rw [VLCtx.instL_eq_map, List.length_map, H.prefixLength]
       cached := hcached
-      narrowParams := hnarrow }
+      narrowParams := hnarrow
+      sources := H.sources.prependLevelParam Hc.checking.tr.wf
+        ((checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
+          Hc H).scopeWF Hc.checking.tr.wf) Helim }
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
@@ -1053,7 +1046,8 @@ def RecursorParameterContextSuffix.runtimeScope
     context := .refl R.checking.tr.wf R.mlctx_wf.tr.wf
     upset := ?_
     noBV := ?_
-    noIndConsts := H.noIndConsts }
+    noIndConsts := H.noIndConsts
+    sources := H.sources }
   · rw [H.context]
     exact W.toFVLift'
   · exact .zero (by
@@ -1097,7 +1091,8 @@ def RecursorParameterContextSuffix.withAmbient
       simpa only [List.cons_append] using congrArg (entry :: ·) H.context
     prefixLength := by simp [H.prefixLength]
     cached := H.cached
-    narrowParams := H.narrowParams }
+    narrowParams := H.narrowParams
+    sources := H.sources }
 
 theorem RecursorParameterContextSuffix.parameterDecls_length
     (H : RecursorParameterContextSuffix R stats depth) :
@@ -2097,12 +2092,8 @@ theorem RecursorValidAppStatsWF.translatedIndexNoOccurrence
     (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) scope)
-    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
-      TrProj Delta.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hlower : stats.params.size ≤ j) (hupper : j < args'.length) :
-    args'[j].containsAnyConst (decl.types.map (·.name)) = false := by
+    args'[j].SourceConstFree (decl.types.map (·.name)) := by
   have hlength := checkPositivityStep.forall₂_length_eq hargs
   have hjArgs : j < type.getAppArgs.size := by
     have hsize : type.getAppArgs.size = type.getAppArgsList.length := by
@@ -2119,7 +2110,7 @@ theorem RecursorValidAppStatsWF.translatedIndexNoOccurrence
     hargs hsource htarget
   have hno := checkPositivityStep.isValidIndAppIdx.indexNoOccurrence
     hvalid hlower hjArgs
-  exact checkPositivityStep.TrExprS.noIndOccAvailable H.consts.names hlit hctx hproj
+  exact checkPositivityStep.TrExprS.noIndOccAvailable H.consts.names hlit hctx
     harg hno
 
 /-- Recursor-universe form of application validation.  The executable
@@ -2132,11 +2123,7 @@ theorem RecursorValidAppStatsWF.validIndAppAtTarget
     (hi : typeIdx < decl.types.length)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
-      (decl.types.map (·.name)) scope)
-    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
-      TrProj Delta.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+      (decl.types.map (·.name)) scope) :
     decl.ValidIndAppAt (some (decl.types[typeIdx]'hi).name) depth type' := by
   rcases checkPositivityStep.isValidIndApp?_some hvalid with
     ⟨hsourceBound, hvalidIdx⟩
@@ -2178,7 +2165,7 @@ theorem RecursorValidAppStatsWF.validIndAppAtTarget
   rcases List.mem_drop_iff_getElem.mp harg with ⟨j, hj, hargEq⟩
   subst arg
   exact H.translatedIndexNoOccurrence (j := decl.nparams + j)
-    hvalidIdx hargs hlit hctx hproj
+    hvalidIdx hargs hlit hctx
     (by rw [H.params_size]; omega) (by simpa [Nat.add_comm] using hj)
 
 theorem RecursorValidAppStatsWF.validIndAppAt
@@ -2187,17 +2174,13 @@ theorem RecursorValidAppStatsWF.validIndAppAt
     (hvalid : AddInductive.isValidIndApp? stats type = some typeIdx)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
-      (decl.types.map (·.name)) scope)
-    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
-      TrProj Delta.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+      (decl.types.map (·.name)) scope) :
     decl.ValidIndAppAt none depth type' := by
   have hi : typeIdx < decl.types.length := by
     have hsourceBound := (checkPositivityStep.isValidIndApp?_some hvalid).1
     rw [← H.types_size]
     exact hsourceBound
-  exact (H.validIndAppAtTarget htr hvalid hi hlit hctx hproj).forgetTarget
+  exact (H.validIndAppAtTarget htr hvalid hi hlit hctx).forgetTarget
 
 /-- The concrete suffix consumed by motive application translates exactly to
 the abstract index suffix of a validated mutual-family application. -/
@@ -2366,17 +2349,13 @@ def RecursorValidAppStatsWF.validatedIndAppAt
     (hvalid : AddInductive.isValidIndApp? stats type = some target)
     (htarget : target < decl.types.length)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint env stats.indConsts)
-    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) scope)
-    (hproj : ∀ {Δ : VLCtx} {s j e' e''},
-      TrProj Δ.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) scope) :
     RecursorValidatedIndAppAt env recLparams scope stats decl depth
       type type' target := by
   exact {
     target_lt := htarget
     owner_valid := hvalid
-    application := H.validIndAppAtTarget htr hvalid htarget hlit hctx hproj
+    application := H.validIndAppAtTarget htr hvalid htarget hlit hctx
     indices_payload := H.translatedIndices htr hvalid htarget }
 
 namespace isRecArg.loop
@@ -2393,10 +2372,6 @@ theorem refinesRecursor
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
-      TrProj Delta.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htype : TrExpr R.venv recLparams R.mlctx.vlctx type type') :
     (AddInductive.isRecArg.loop stats type fuel c).WF
       (fun result => ∀ target, result = some target →
@@ -2466,7 +2441,7 @@ theorem refinesRecursor
           refine ⟨htargetDecl, .direct
             (by simpa [Hstats.levels] using hsourceExposed)
             (Hstats.validIndAppAtTarget hexposed hvalid htargetDecl
-              hlit hctx hproj)⟩
+              hlit hctx)⟩
 
 end isRecArg.loop
 
@@ -2480,10 +2455,6 @@ theorem isRecArg.refinesRecursor
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
-      TrProj Delta.toCtx s i e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htype : TrExpr R.venv recLparams R.mlctx.vlctx type type') :
     (AddInductive.isRecArg stats type c).WF
       (fun result => ∀ target, result = some target →
@@ -2500,7 +2471,7 @@ theorem isRecArg.refinesRecursor
   refine hread.bind fun _ h => ?_
   subst h
   exact isRecArg.loop.refinesRecursor R Hstats hconsume hlit hctx
-    hproj htype
+    htype
 
 /-- Recursive-domain metadata interpreted at an explicit universe arity.
 This is the second-pass analogue of `RecursorRecursiveDomain`; it is needed

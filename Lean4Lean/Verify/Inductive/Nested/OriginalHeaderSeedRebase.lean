@@ -8,6 +8,15 @@ open Kernel
 
 namespace VerifyInductive
 
+theorem VExpr.wrapForalls_domains_inj
+    (hlen : left.length = right.length)
+    (H : VExpr.wrapForalls left residual =
+      VExpr.wrapForalls right residual) :
+    left = right := by
+  exact VExpr.wrapForalls_prefix_domains_eq
+    (n := left.length) (suffix := []) (leftBody := residual)
+    (rightBody := residual) rfl hlen.symm (by simpa using H)
+
 /-- Adding constants changes no definitional-equality rules.  This exact
 equality is the missing reverse-facing companion to `VEnv.addConstVals_le`:
 the latter is sufficient for monotone typing transport, while nested header
@@ -93,7 +102,7 @@ theorem TrInductDeclCore.ctorEnvsLEExcept
 which its headers were checked.  This follows from successful abstract
 installation, rather than from a separate freshness premise. -/
 theorem TrInductDeclCore.baseAvoidsSourceNames
-    (H : TrInductDeclCore base lparams nparams types isUnsafe decl
+    (H : TrInductDeclCore base lparams declNParams types isUnsafe decl
       envTypes envCtors)
     {name : Name} {ci : VConstant}
     (hlookup : base.constants name = some ci) :
@@ -143,20 +152,21 @@ theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedSortP
       envTypes envCtors)
     (hbase : base.WF) (henv : base ≤ current) :
     ∃ Hprefix : Expr.ForallTelescopeTypeTranslation current levelParams []
-        (H.source.sources.closeSource (.sort (.zero : Level)))
-        H.sourceScope.length
-        (VExpr.wrapForalls H.sourceScope.toCtx.reverse
+        (H.semanticSources.closeSource (.sort (.zero : Level)))
+        H.semanticScope.length
+        (VExpr.wrapForalls H.semanticScope.toCtx.reverse
           (.sort (.zero : VLevel))),
       Hprefix.PrefixUsesOnly (fun name => name ∈ decl.sourceNames) := by
   have hzero : VLevel.ofLevel levelParams (.zero : Level) =
       some (.zero : VLevel) := rfl
-  have Hsort : TrExprS base levelParams H.sourceScope
+  have Hsort : TrExprS base levelParams H.semanticScope
       (.sort (.zero : Level)) (.sort (.zero : VLevel)) :=
     .sort hzero
-  have HsortType : base.IsType levelParams.length H.sourceScope.toCtx
+  have HsortType : base.IsType levelParams.length H.semanticScope.toCtx
       (.sort (.zero : VLevel)) :=
     ⟨.succ .zero, VEnv.HasType.sort (.of_ofLevel hzero)⟩
-  let Hclosed := H.source.closeTypedTelescope hbase Hsort HsortType
+  let Hclosed := H.semanticSources.closeTypedTelescope hbase
+    H.semanticScopeWF Hsort HsortType
   let Htransported := Hclosed.mono henv
   exact ⟨Htransported, Hclosed.prefixUsesOnlyOfCoreBase Hcore henv⟩
 
@@ -173,7 +183,7 @@ theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedSortP
     (hbase : base.WF) (henv : base ≤ current) :
     ∃ source target,
       ∃ Hprefix : Expr.ForallTelescopeTypeTranslation current levelParams []
-        source H.sourceScope.length target,
+        source H.semanticScope.length target,
         Hprefix.PrefixUsesOnly (fun name => name ∈ decl.sourceNames) := by
   rcases H.closedSortPrefixUsesOnlyExact Hcore hbase henv with
     ⟨Hprefix, HprefixUses⟩
@@ -193,6 +203,8 @@ theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedIndex
       parameterDomains.length = nparams ∧
       Expr.ForallTelescope source nparams indexSource ∧
       target = VExpr.wrapForalls parameterDomains indexTarget ∧
+      target = VExpr.wrapForalls H.semanticScope.toCtx.reverse
+        (.sort (.zero : VLevel)) ∧
       Expr.ForallTelescope indexSource nindices
         (.sort (.zero : Level)) ∧
       ∃ Hindices : Expr.ForallTelescopeTypeTranslation current levelParams
@@ -202,16 +214,16 @@ theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedIndex
           (fun name => name ∈ decl.sourceNames) := by
   rcases H.closedSortPrefixUsesOnlyExact Hcore hbase henv with
     ⟨Hprefix, HprefixUses⟩
-  let source := H.source.sources.closeSource (.sort (.zero : Level))
-  let target := VExpr.wrapForalls H.sourceScope.toCtx.reverse
+  let source := H.semanticSources.closeSource (.sort (.zero : Level))
+  let target := VExpr.wrapForalls H.semanticScope.toCtx.reverse
     (.sort (.zero : VLevel))
-  have harity : H.sourceScope.length = nindices + nparams := by
+  have harity : H.semanticScope.length = nindices + nparams := by
     calc
-      H.sourceScope.length = nparams + nindices := H.sourceLength
+      H.semanticScope.length = nparams + nindices := H.semanticLength
       _ = nindices + nparams := Nat.add_comm _ _
   have Hpacked :
       ∃ Hfull : Expr.ForallTelescopeTypeTranslation current levelParams []
-          source H.sourceScope.length target,
+          source H.semanticScope.length target,
         Hfull.PrefixUsesOnly
           (fun name => name ∈ decl.sourceNames) :=
     ⟨Hprefix, HprefixUses⟩
@@ -227,8 +239,8 @@ theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedIndex
     ⟨parameterDomains, indexSource, indexTarget, hparameters,
       Hsource, htarget, Hindices, HindicesUses⟩
   rcases Hindices.telescope with ⟨indexResidual, HindexSource⟩
-  have Hcomplete := H.source.sources.closeSource_telescope
-    (H.source.scopeWF hbase).fvars_nodup (.sort (.zero : Level))
+  have Hcomplete := H.semanticSources.closeSource_telescope
+    H.semanticScopeWF.fvars_nodup (.sort (.zero : Level))
   have hsortAbstract : ∀ fvars : List FVarId,
       (Expr.sort (.zero : Level)).abstractList fvars =
         .sort (.zero : Level) := by
@@ -246,12 +258,12 @@ theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedIndex
     Hsource.trans HindexSource
   have Hcomplete' : Expr.ForallTelescope source
       (nparams + nindices) (.sort (.zero : Level)) := by
-    simpa [source, H.sourceLength] using Hcomplete
+    simpa [source, H.semanticLength] using Hcomplete
   have hresidual : indexResidual = .sort (.zero : Level) :=
     Hcombined.residual_eq Hcomplete'
   subst indexResidual
   exact ⟨source, target, parameterDomains, indexSource, indexTarget,
-    hparameters, Hsource, htarget, HindexSource, Hindices, HindicesUses⟩
+    hparameters, Hsource, htarget, rfl, HindexSource, Hindices, HindicesUses⟩
 
 /-- Rebuild the exact normalized index telescope in an independently
 installed block environment.  Only the index domains are transported; the
@@ -278,7 +290,7 @@ theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedIndex
         indexSource nindices target' := by
   rcases H.closedIndexSuffixUsesOnly Hcore hbase henv with
     ⟨source, target, parameterDomains, indexSource, indexTarget,
-      hparameters, Hsource, htarget, HindexSource, Hindices,
+      hparameters, Hsource, htarget, _htargetSemantic, HindexSource, Hindices,
       HindicesUses⟩
   have Hresidual :
       Expr.ForallTelescopeTypeTranslation.ResidualReplacement targetEnv
@@ -289,6 +301,137 @@ theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedIndex
     ⟨target', Htarget'⟩
   exact ⟨source, target, parameterDomains, indexSource, indexTarget,
     hparameters, Hsource, htarget, HindexSource, target', Htarget'⟩
+
+/-- Exact-domain refinement of `closedIndexSuffixRebased`.  The translated
+index domains are exposed once, before changing environments, and the
+restriction proof transports those very targets into the independently
+installed block.  Only the harmless terminal residual is reconstructed.
+
+This is the form consumed by restored family/motive assembly: it rules out a
+second existential choice of index domains, which would otherwise require an
+invalid global translation-preservation principle to identify the choices. -/
+theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedIndexSuffixRebasedExact
+    (H : checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope
+      base levelParams commonParams nparams nindices)
+    (Hcore : TrInductDeclCore base lparams declNParams types isUnsafe decl
+      envTypes envCtors)
+    (hbase : base.WF) (henv : base ≤ current)
+    (E : VEnv.LEExcept (fun name => name ∈ decl.sourceNames)
+      current targetEnv) :
+    ∃ source target parameterDomains indexSource indexTarget indexDomains
+        oldResidual newResidual,
+      parameterDomains.length = nparams ∧
+      Expr.ForallTelescope source nparams indexSource ∧
+      target = VExpr.wrapForalls parameterDomains indexTarget ∧
+      Expr.ForallTelescope indexSource nindices
+        (.sort (.zero : Level)) ∧
+      indexDomains.length = nindices ∧
+      indexTarget = VExpr.wrapForalls indexDomains oldResidual ∧
+      Expr.ForallTelescopeTypeTranslation targetEnv levelParams
+        (abstractForallContext parameterDomains []) indexSource nindices
+        (VExpr.wrapForalls indexDomains newResidual) := by
+  rcases H.closedIndexSuffixUsesOnly Hcore hbase henv with
+    ⟨source, target, parameterDomains, indexSource, indexTarget,
+      hparameters, Hsource, htarget, _htargetSemantic, HindexSource, Hindices,
+      HindicesUses⟩
+  rcases Hindices.toWrapForalls with
+    ⟨indexDomains, sourceResidual, oldResidual, hindexDomains,
+      HsourceShape, hindexTarget, _Hresidual, _HresidualType⟩
+  have hsourceResidual : sourceResidual = .sort (.zero : Level) :=
+    HsourceShape.residual_eq HindexSource
+  subst sourceResidual
+  have Hreplacement :
+      Expr.ForallTelescopeTypeTranslation.ResidualReplacement targetEnv
+        Hindices :=
+    Expr.ForallTelescopeTypeTranslation.ResidualReplacement.sortZero
+      Hindices HindexSource
+  rcases Hindices.rebasePrefixReplaceResidualExact E HindicesUses Hreplacement
+      indexDomains oldResidual hindexDomains hindexTarget with
+    ⟨newResidual, Hrebased⟩
+  exact ⟨source, target, parameterDomains, indexSource, indexTarget,
+    indexDomains, oldResidual, newResidual, hparameters, Hsource, htarget,
+    HindexSource, hindexDomains, hindexTarget, Hrebased⟩
+
+/-- Canonical-residual strengthening of
+`closedIndexSuffixRebasedExact`.  It preserves the exact translated index
+domains and reconstructs the terminal target as literal `Sort 0`. -/
+theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedIndexSuffixRebasedCanonical
+    (H : checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope
+      base levelParams commonParams nparams nindices)
+    (Hcore : TrInductDeclCore base lparams declNParams types isUnsafe decl
+      envTypes envCtors)
+    (hbase : base.WF) (henv : base ≤ current)
+    (E : VEnv.LEExcept (fun name => name ∈ decl.sourceNames)
+      current targetEnv) :
+    ∃ source target parameterDomains indexSource indexTarget indexDomains
+        oldResidual,
+      parameterDomains.length = nparams ∧
+      Expr.ForallTelescope source nparams indexSource ∧
+      target = VExpr.wrapForalls parameterDomains indexTarget ∧
+      Expr.ForallTelescope indexSource nindices
+        (.sort (.zero : Level)) ∧
+      indexDomains.length = nindices ∧
+      indexTarget = VExpr.wrapForalls indexDomains oldResidual ∧
+      Expr.ForallTelescopeTypeTranslation targetEnv levelParams
+        (abstractForallContext parameterDomains []) indexSource nindices
+        (VExpr.wrapForalls indexDomains (.sort (.zero : VLevel))) ∧
+      VEnv.IsDefEqCtx targetEnv levelParams.length []
+        (H.indices.reverse ++ H.ownParams.reverse)
+        (indexDomains.reverse ++ parameterDomains.reverse) := by
+  rcases H.closedIndexSuffixUsesOnly Hcore hbase henv with
+    ⟨source, target, parameterDomains, indexSource, indexTarget,
+      hparameters, Hsource, htarget, htargetSemantic, HindexSource, Hindices,
+      HindicesUses⟩
+  rcases Hindices.toWrapForalls with
+    ⟨indexDomains, sourceResidual, oldResidual, hindexDomains,
+      HsourceShape, hindexTarget, Hresidual, _HresidualType⟩
+  have hsourceResidual : sourceResidual = .sort (.zero : Level) :=
+    HsourceShape.residual_eq HindexSource
+  subst sourceResidual
+  have holdResidual : oldResidual = .sort (.zero : VLevel) := by
+    cases Hresidual with
+    | sort hlevel =>
+      cases hlevel
+      rfl
+  have hsemanticDomains : H.semanticScope.toCtx.reverse =
+      parameterDomains ++ indexDomains := by
+    have hwrap :
+        VExpr.wrapForalls H.semanticScope.toCtx.reverse
+            (.sort (.zero : VLevel)) =
+          VExpr.wrapForalls (parameterDomains ++ indexDomains)
+            (.sort (.zero : VLevel)) := by
+      calc
+        _ = target := htargetSemantic.symm
+        _ = VExpr.wrapForalls parameterDomains indexTarget := htarget
+        _ = VExpr.wrapForalls parameterDomains
+              (VExpr.wrapForalls indexDomains oldResidual) := by
+                rw [hindexTarget]
+        _ = _ := by
+          rw [holdResidual, VExpr.wrapForalls_append]
+    apply VExpr.wrapForalls_domains_inj
+    · simp [H.semanticSources.toCtx_length, H.semanticLength,
+        hparameters, hindexDomains]
+    · exact hwrap
+  have HsemanticCurrent := H.semanticContext.mono henv
+  have HsemanticUses :=
+    (H.semanticContext.usesOnly_of_constants fun hlookup =>
+      Lean4Lean.VerifyInductive.TrInductDeclCore.baseAvoidsSourceNames
+        Hcore hlookup).mono henv
+  have HsemanticTarget := VEnv.IsDefEqCtx.rebaseExcept E
+    HsemanticCurrent HsemanticUses
+  have Hcontexts : VEnv.IsDefEqCtx targetEnv levelParams.length []
+      (H.indices.reverse ++ H.ownParams.reverse)
+      (indexDomains.reverse ++ parameterDomains.reverse) := by
+    have hscope : H.semanticScope.toCtx =
+        indexDomains.reverse ++ parameterDomains.reverse := by
+      rw [← List.reverse_reverse H.semanticScope.toCtx,
+        hsemanticDomains, List.reverse_append]
+    simpa [hscope] using HsemanticTarget
+  have Hrebased := Hindices.rebasePrefixSortZeroExact E HindicesUses
+    HindexSource indexDomains oldResidual hindexDomains hindexTarget
+  exact ⟨source, target, parameterDomains, indexSource, indexTarget,
+    indexDomains, oldResidual, hparameters, Hsource, htarget, HindexSource,
+    hindexDomains, hindexTarget, Hrebased, Hcontexts⟩
 
 /-- Family-indexed producer form of `closedIndexSuffixRebased`.  A completed
 header traversal already retains the normalized source telescope for every
@@ -317,78 +460,67 @@ theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.normalizedIndexSuff
   rcases H.normalizedSources i hi with ⟨Hsource⟩
   exact Hsource.closedIndexSuffixRebased Hcore hbase VEnv.LE.rfl E
 
-/-- View the first-pass closed motive as a typed translation of precisely its
-normalized index prefix.  The residual is the closed major-domain/result
-telescope; it is intentionally left opaque because restoration reconstructs
-that current-family portion in a different environment. -/
-theorem RecursorMotiveTelescopeSeed.indexPrefixTranslation
-    {root : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    (H : RecursorMotiveTelescopeSeed Rroot stats decl target info elimLevel) :
-    Expr.ForallTelescopeTypeTranslation Rroot.venv recLparams
-      H.motiveClosedScope
-      (root.lctx.mkForall info.indices
-        (root.lctx.mkForall #[info.major] (.sort elimLevel)))
-      info.indices.size H.motiveClosedTarget := by
-  have Htelescope := H.indicesBound.mkForall_forallTelescope
-    Rroot.toBindingContextWF
-    (root.lctx.mkForall #[info.major] (.sort elimLevel))
-  exact Expr.ForallTelescopeTypeTranslation.ofTrExprS Htelescope
-    H.motiveClosedTr H.motiveClosedType
+/-- Family-indexed exact-domain specialization of
+`closedIndexSuffixRebasedExact`. -/
+theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.normalizedIndexSuffixRebasedExactAt
+    {headerLparams : List Name}
+    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+      base headerLparams ctx stats decl depth)
+    (Hcore : TrInductDeclCore base lparams declNParams types isUnsafe decl
+      envTypes envCtors)
+    (hbase : base.WF)
+    (i : Nat) (hi : i < decl.types.length)
+    (E : VEnv.LEExcept (fun name => name ∈ decl.sourceNames)
+      base targetEnv) :
+    ∃ source target parameterDomains indexSource indexTarget indexDomains
+        oldResidual newResidual,
+      parameterDomains.length = decl.nparams ∧
+      Expr.ForallTelescope source decl.nparams indexSource ∧
+      target = VExpr.wrapForalls parameterDomains indexTarget ∧
+      Expr.ForallTelescope indexSource decl.types[i].numIndices
+        (.sort (.zero : Level)) ∧
+      indexDomains.length = decl.types[i].numIndices ∧
+      indexTarget = VExpr.wrapForalls indexDomains oldResidual ∧
+      Expr.ForallTelescopeTypeTranslation targetEnv headerLparams
+        (abstractForallContext parameterDomains []) indexSource
+        decl.types[i].numIndices
+        (VExpr.wrapForalls indexDomains newResidual) := by
+  rcases H.normalizedSources i hi with ⟨Hsource⟩
+  exact Hsource.closedIndexSuffixRebasedExact Hcore hbase VEnv.LE.rfl E
 
-/-- Exact boundary data for transporting only an original header's
-normalized index prefix.  No claim is made that the whole first-pass motive
-is rebasable: its residual mentions the current family, whose installed
-constant changes under nested restoration. -/
-structure OriginalHeaderSeedRebaseAt
-    {root : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    (H : RecursorMotiveTelescopeSeed Rroot stats decl target info elimLevel)
-    (targetEnv : VEnv) (changed : Name → Prop) : Prop where
-  agreement : VEnv.LEExcept changed Rroot.venv targetEnv
-  prefixUses :
-    H.indexPrefixTranslation.PrefixUsesOnly changed
-
-/-- Build the environment-agreement half of an original-header rebase from
-the two independently translated blocks.  The only remaining datum is the
-derivation-local fact that the normalized index prefix did not consult the
-lowered block's own constants. -/
-theorem OriginalHeaderSeedRebaseAt.ofCoreTranslations
-    {root : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {H : RecursorMotiveTelescopeSeed Rroot stats fromDecl target info
-      elimLevel}
-    (Hfrom : TrInductDeclCore base fromLparams fromNparams fromTypes
-      fromUnsafe fromDecl fromEnvTypes fromEnvCtors)
-    (Hto : TrInductDeclCore base toLparams toNparams toTypes
-      toUnsafe toDecl toEnvTypes toEnvCtors)
-    (henv : Rroot.venv = fromEnvCtors)
-    (Hprefix : H.indexPrefixTranslation.PrefixUsesOnly
-      (fun name => name ∈ fromDecl.sourceNames)) :
-    OriginalHeaderSeedRebaseAt H toEnvCtors
-      (fun name => name ∈ fromDecl.sourceNames) where
-  agreement := by
-    rw [henv]
-    exact Lean4Lean.VerifyInductive.TrInductDeclCore.ctorEnvsLEExcept
-      Hfrom Hto
-  prefixUses := Hprefix
-
-/-- Splice a typed restored current-family residual beneath the transported
-normalized index prefix.  The resulting abstract target is existential and
-may differ definitionally from the lowered seed target. -/
-theorem OriginalHeaderSeedRebaseAt.rebaseIndexPrefix
-    {root : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {H : RecursorMotiveTelescopeSeed Rroot stats decl target info elimLevel}
-    (C : OriginalHeaderSeedRebaseAt H targetEnv changed)
-    (Hresidual : H.indexPrefixTranslation.ResidualReplacement targetEnv) :
-    ∃ target', Expr.ForallTelescopeTypeTranslation targetEnv recLparams
-      H.motiveClosedScope
-      (root.lctx.mkForall info.indices
-        (root.lctx.mkForall #[info.major] (.sort elimLevel)))
-      info.indices.size target' :=
-  H.indexPrefixTranslation.rebasePrefixReplaceResidual
-    C.agreement C.prefixUses Hresidual
+/-- Family-indexed canonical-residual specialization of
+`closedIndexSuffixRebasedCanonical`. -/
+theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.normalizedIndexSuffixRebasedCanonicalAt
+    {headerLparams : List Name}
+    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult
+      base headerLparams ctx stats decl depth)
+    (Hcore : TrInductDeclCore base lparams declNParams types isUnsafe decl
+      envTypes envCtors)
+    (hbase : base.WF)
+    (i : Nat) (hi : i < decl.types.length)
+    (E : VEnv.LEExcept (fun name => name ∈ decl.sourceNames)
+      base targetEnv) :
+    ∃ source target parameterDomains indexSource indexTarget indexDomains
+        oldResidual,
+      parameterDomains.length = decl.nparams ∧
+      Expr.ForallTelescope source decl.nparams indexSource ∧
+      target = VExpr.wrapForalls parameterDomains indexTarget ∧
+      Expr.ForallTelescope indexSource decl.types[i].numIndices
+        (.sort (.zero : Level)) ∧
+      indexDomains.length = decl.types[i].numIndices ∧
+      indexTarget = VExpr.wrapForalls indexDomains oldResidual ∧
+      Expr.ForallTelescopeTypeTranslation targetEnv headerLparams
+        (abstractForallContext parameterDomains []) indexSource
+        decl.types[i].numIndices
+        (VExpr.wrapForalls indexDomains (.sort (.zero : VLevel))) := by
+  rcases H.normalizedSources i hi with ⟨Hsource⟩
+  rcases Hsource.closedIndexSuffixRebasedCanonical Hcore hbase VEnv.LE.rfl E with
+    ⟨source, target, parameterDomains, indexSource, indexTarget,
+      indexDomains, oldResidual, hparameters, HsourceTelescope, htarget,
+      HindexSource, hindexDomains, hindexTarget, Hindices, _Hcontexts⟩
+  exact ⟨source, target, parameterDomains, indexSource, indexTarget,
+    indexDomains, oldResidual, hparameters, HsourceTelescope, htarget,
+    HindexSource, hindexDomains, hindexTarget, Hindices⟩
 
 end VerifyInductive
 end Lean4Lean

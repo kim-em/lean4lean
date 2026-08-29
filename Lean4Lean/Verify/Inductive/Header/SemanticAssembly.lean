@@ -229,6 +229,8 @@ def AssembledSemanticHeaders.materializedResult
     headers := H.semanticPrefix.complete H.materialized
     normalizedSources :=
       H.semanticPrefix.normalizedSourceAtMaterialized H.materialized
+    normalizedShapes :=
+      H.semanticPrefix.normalizedShapeAtMaterialized H.materialized
     commonLevel := hcommon
     levels := ?_
     levelParams := hlevelParams

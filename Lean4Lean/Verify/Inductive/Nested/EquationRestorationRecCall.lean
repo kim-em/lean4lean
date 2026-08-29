@@ -21,18 +21,18 @@ theorem GuardedExprRestoration.recursorCallOfComponents
     (Hnames : RestoredRecursorNames auxRec sourceRecursors targetRecursors)
     (hsourceMem : sourceRecursor ∈ sourceRecursors)
     (hsourceMajor : sourceMajor.IsFieldApp fieldVars depth)
-    (Hwhole : VExprRestoration plan.restoreNode
+    (Hwhole : VExprRestoration plan.Relates
       (VExpr.mkApps (.const sourceRecursor levels)
         (sourceInit ++ [sourceMajor]))
       (VExpr.mkApps
         (.const (auxRec.getD sourceRecursor sourceRecursor) levels)
         (targetInit ++ [targetMajor])))
-    (Hmajor : VExprRestoration plan.restoreNode sourceMajor targetMajor)
+    (Hmajor : VExprRestoration plan.Relates sourceMajor targetMajor)
     (Hargs : List.Forall₂
-      (GuardedExprRestoration plan.restoreNode sourceRecursors
+      (GuardedExprRestoration plan.Relates sourceRecursors
         targetRecursors fieldVars depth)
       (sourceInit ++ [sourceMajor]) (targetInit ++ [targetMajor])) :
-    GuardedExprRestoration plan.restoreNode sourceRecursors targetRecursors
+    GuardedExprRestoration plan.Relates sourceRecursors targetRecursors
       fieldVars depth
       (VExpr.mkApps (.const sourceRecursor levels)
         (sourceInit ++ [sourceMajor]))
@@ -61,15 +61,15 @@ theorem VExpr.GuardedIota.restoredRecursorCall
     (Hnames : RestoredRecursorNames auxRec sourceRecursors targetRecursors)
     (hsourceMem : sourceRecursor ∈ sourceRecursors)
     (hsourceMajor : sourceMajor.IsFieldApp fieldVars depth)
-    (Hwhole : VExprRestoration plan.restoreNode
+    (Hwhole : VExprRestoration plan.Relates
       (VExpr.mkApps (.const sourceRecursor levels)
         (sourceInit ++ [sourceMajor]))
       (VExpr.mkApps
         (.const (auxRec.getD sourceRecursor sourceRecursor) levels)
         (targetInit ++ [targetMajor])))
-    (Hmajor : VExprRestoration plan.restoreNode sourceMajor targetMajor)
+    (Hmajor : VExprRestoration plan.Relates sourceMajor targetMajor)
     (Hargs : List.Forall₂
-      (GuardedExprRestoration plan.restoreNode sourceRecursors
+      (GuardedExprRestoration plan.Relates sourceRecursors
         targetRecursors fieldVars depth)
       (sourceInit ++ [sourceMajor]) (targetInit ++ [targetMajor])) :
     (VExpr.mkApps

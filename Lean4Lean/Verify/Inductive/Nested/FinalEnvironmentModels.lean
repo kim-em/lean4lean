@@ -320,6 +320,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     {auxRecNames : List Name} {outEnv : Environment}
     {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
+    {ves : VEnvs}
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool}
     (C : NestedFinalAssemblyCertificate H (ves.venv .safe) decl lparams

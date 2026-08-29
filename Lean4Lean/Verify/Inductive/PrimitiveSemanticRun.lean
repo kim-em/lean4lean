@@ -64,6 +64,8 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersClosedWF
   exact ⟨decl, envTypes, Hheader,
     Hinfos.closesMutuals Hclosed
       (inductiveTypeInfos_uniformAll stats nparams indTypes numNested
+        isUnsafe c.lparams hindicesSize)
+      (inductiveTypeInfos_uniformNumParams stats nparams indTypes numNested
         isUnsafe c.lparams hindicesSize)⟩
 
 /-- The real primitive header/check/constructor prefix with its declaration
@@ -166,8 +168,6 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation)
     (hnotPartial : c.safety ≠ .partial) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       (SemanticPrimitiveRunWithStatsResult c stats nparams depth Hc.venv
@@ -184,10 +184,8 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
     have Hmaterialized := Hheaders.sourceMaterialized
     rw [Hheaders.sourceContextVEnv] at Hmaterialized
     exact (R.completed.recursorPhasesWF hclosed hlparams
-      hloopUArgsReplay
       (Hshape.materializedLiteralDisjoint Hheaders.translation
         Hmaterialized)
-      (fun Htr hfree => hproj (decl.types.map (·.name)) Htr hfree)
       hnotPartial
       (fun _hallow owner howner =>
         Hshape.recursorsNonprimitive owner howner)).mono
@@ -250,9 +248,7 @@ theorem AddInductive.run.primitiveSemanticSourceAlignedWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF
       (VerifiedSemanticPrimitiveInductiveRunResultSourceAligned c Hc.venv
         nparams types numNested) := by
@@ -294,8 +290,7 @@ theorem AddInductive.run.primitiveSemanticSourceAlignedWF
       (numNested := numNested) Hsemantic Hclosed' hlevels hlevelParams
       hindicesSize hindices hconsts hparams hcommonParams Hcache Hsuffix
       Hambient hcommon Hshape' hvisible hlparamsNodup
-      hloopUArgsReplay
-      hproj hnotPartial).mono
+      hnotPartial).mono
         fun outEnv Hrun =>
           ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
             hlparams, hallowPrimitive, hfuel, hvenv, Hsemantic, Hshape',
@@ -312,15 +307,12 @@ theorem AddInductive.run.primitiveSemanticWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF
       (VerifiedSemanticPrimitiveInductiveRunResult c nparams types
         numNested) := by
   exact (AddInductive.run.primitiveSemanticSourceAlignedWF nparams numNested
-    Hc Hclosed Hshape hctx hnonempty HnotPartial
-    hloopUArgsReplay hproj).mono fun _ Hresult => by
+    Hc Hclosed Hshape hctx hnonempty HnotPartial).mono fun _ Hresult => by
       rcases Hresult with
         ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
           hlparams, _hallowPrimitive, _hfuel, _hvenv, Hsemantic, Hshape',

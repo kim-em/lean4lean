@@ -1234,6 +1234,18 @@ def restoreInductiveConstructorsOnly (res : ElimNestedInductive.Result)
   ind.ctors.forM fun ctorName =>
     restoreConstructorDecl res loweredEnv allowPrimitive ctorName
 
+/-- Restore only the source mutual-family headers.  Cached nested-family
+applications are types in this environment: they may mention any sibling
+family, but they cannot depend on constructors or recursors of the
+declaration currently being checked. -/
+def restoreNestedHeaders (loweredEnv : Environment)
+    (allIndNames : List Name) (allowPrimitive : Bool)
+    (types : List InductiveType) :
+    StateT Environment (Except Exception) Unit := do
+  types.forM fun indType =>
+    restoreInductiveHeaderDecl loweredEnv allIndNames allowPrimitive
+      indType.name
+
 /-- Restore the source header/constructor prefix without installing any
 recursors.  The ordinary returned restoration still uses
 `restoreNestedDeclarations`; this is a proof-oriented validation boundary. -/
@@ -1243,9 +1255,7 @@ def restoreNestedConstructors (res : ElimNestedInductive.Result)
     StateT Environment (Except Exception) Unit := do
   -- Constructors of one mutual family may mention a later sibling, so the
   -- validation environment uses the canonical dependency order.
-  types.forM fun indType =>
-    restoreInductiveHeaderDecl loweredEnv allIndNames allowPrimitive
-      indType.name
+  restoreNestedHeaders loweredEnv allIndNames allowPrimitive types
   types.forM fun indType =>
     restoreInductiveConstructorsOnly res loweredEnv allowPrimitive indType
 
@@ -1312,11 +1322,647 @@ def run (env : Environment) (lparams : List Name) (safety : DefinitionSafety)
     type.ctors.forM fun ctor => do
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
         (lparams := lparams) (fuel := fuel)
-        (TypeChecker.checkType ctor.type)
+        (do
+          let type ← TypeChecker.checkType ctor.type
+          TypeChecker.ensureSort type ctor.type)
       loop env lparams safety fuel res.lctx {} ctor.name res.params
         ctor.type 0 fuel.inductiveFuel
 
 end validateRestoredConstructorParameters
+
+namespace validateRestoredRecursorTypes
+
+/-- Recheck the type of one restored recursor before using any restored
+recursor as an environment dependency.  The side environment contains the
+source-shaped mutual headers and constructors, while the concrete recursor
+type is reconstructed from the exact lowered recursor and restoration map. -/
+def check (env loweredEnv : Environment) (lparams : List Name)
+    (safety : DefinitionSafety) (fuel : FuelConfig)
+    (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
+    (allIndNames : List Name) (recName : Name) : Except Exception Unit := do
+  let some (.recInfo recInfo) := loweredEnv.find? recName
+    | throw <| .other s!"missing lowered recursor '{recName}'"
+  let newRecName := recNameMap.getD recName recName
+  let restored := res.restoreRecursor loweredEnv recNameMap allIndNames
+    recName newRecName recInfo
+  env.checkNoMVarNoFVar restored.name restored.type
+  _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
+    (lparams := restored.levelParams) (fuel := fuel) do
+      let type ← TypeChecker.checkType restored.type
+      TypeChecker.ensureSort type restored.type
+
+/-- Recheck every primary and auxiliary restored recursor type in the
+source-shaped header/constructor environment.  This pass intentionally
+checks only types: restored equation semantics are still reconstructed from
+the producer and restoration traces. -/
+def run (env loweredEnv : Environment) (lparams : List Name)
+    (safety : DefinitionSafety) (fuel : FuelConfig)
+    (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
+    (allIndNames : List Name) (types : List InductiveType)
+    (auxRecNames : List Name) : Except Exception Unit := do
+  types.forM fun type =>
+    check env loweredEnv lparams safety fuel res recNameMap allIndNames
+      (mkRecName type.name)
+  auxRecNames.forM fun recName =>
+    check env loweredEnv lparams safety fuel res recNameMap allIndNames recName
+
+end validateRestoredRecursorTypes
+
+namespace validateRestoredRecursorRules
+
+/-- A simple structural upper bound for every de Bruijn index occurring in
+an expression.  Unlike `Expr.looseBVarRange`, binders do not subtract from
+this bound; this is the form needed to choose one finite `fieldVars` list for
+an entire closed restored rule. -/
+def rawBVarBound : Expr → Nat
+  | .bvar index => index + 1
+  | .app fn arg => max (rawBVarBound fn) (rawBVarBound arg)
+  | .lam _ domain body _ | .forallE _ domain body _ =>
+      max (rawBVarBound domain) (rawBVarBound body)
+  | .letE _ type value body _ =>
+      max (max (rawBVarBound type) (rawBVarBound value))
+        (rawBVarBound body)
+  | .mdata _ body | .proj _ _ body => rawBVarBound body
+  | .mvar _ | .fvar _ | .sort _ | .const _ _ | .lit _ => 0
+
+/-- Executable guarded-recursion check for a literal restored expression.
+The fuel decreases even when a constant-headed application is flattened, so
+the definition is total independently of any assumptions about expression
+hash-consing.  At a recursive head, the last argument must be headed by a
+de Bruijn variable designated by `fieldVars` at the current binder depth.
+Primitive projections inspect only their source major; their administrative
+expansion is justified later by the environment-indexed checked projection
+certificate. -/
+def guardedIotaCheck (recursors : List Name) (fieldVars : List Nat) :
+    Nat → Nat → Expr → Bool
+  | 0, _, _ => false
+  | fuel + 1, depth, expression =>
+    match expression with
+    | .bvar _ | .sort _ => true
+    | .const name _ => !recursors.contains name
+    | .app fn arg =>
+      match expression.getAppFn with
+      | .const name _ =>
+        if recursors.contains name then
+          match expression.getAppArgs.toList.reverse with
+          | [] => false
+          | major :: _ =>
+            let fieldMajor := match major.getAppFn with
+              | .bvar index => fieldVars.any fun field =>
+                  index == field + depth
+              | _ => false
+            fieldMajor && expression.getAppArgs.toList.all
+              (guardedIotaCheck recursors fieldVars fuel depth)
+        else
+          guardedIotaCheck recursors fieldVars fuel depth fn &&
+            guardedIotaCheck recursors fieldVars fuel depth arg
+      | _ =>
+        guardedIotaCheck recursors fieldVars fuel depth fn &&
+          guardedIotaCheck recursors fieldVars fuel depth arg
+    | .lam _ domain body _ | .forallE _ domain body _ =>
+      guardedIotaCheck recursors fieldVars fuel depth domain &&
+        guardedIotaCheck recursors fieldVars fuel (depth + 1) body
+    | .lit literal =>
+      guardedIotaCheck recursors fieldVars fuel depth literal.toConstructor
+    | .mdata _ body | .proj _ _ body =>
+      guardedIotaCheck recursors fieldVars fuel depth body
+    | .mvar _ | .fvar _ | .letE .. => false
+
+/-- Canonical finite field-variable candidate used by the executable guard
+check.  It contains every possible `index - depth` arising from a bvar head
+in the rule, while avoiding an unbounded search. -/
+def guardedFieldVars (expression : Expr) : List Nat :=
+  List.range (rawBVarBound expression)
+
+/-- Collect the constructor-field variables which occur as majors of actual
+source recursor calls.  The binder depth is local to the residual iota body;
+the separate rule-level driver below peels the closed equation telescope
+without changing it, exactly as `guardedRuleCheck` does. -/
+def recursiveMajorFieldVars (recursors : List Name) :
+    Nat → Nat → Expr → List Nat
+  | 0, _, _ => []
+  | fuel + 1, depth, expression =>
+    match expression with
+    | .bvar _ | .sort _ | .const _ _ | .mvar _ | .fvar _ => []
+    | .app fn arg =>
+      match expression.getAppFn with
+      | .const name _ =>
+        if recursors.contains name then
+          let arguments := expression.getAppArgs.toList
+          let current := match arguments.reverse with
+            | major :: _ => match major.getAppFn with
+              | .bvar index =>
+                if depth ≤ index then [index - depth] else []
+              | _ => []
+            | [] => []
+          current ++ arguments.flatMap
+            (recursiveMajorFieldVars recursors fuel depth)
+        else
+          recursiveMajorFieldVars recursors fuel depth fn ++
+            recursiveMajorFieldVars recursors fuel depth arg
+      | _ =>
+        recursiveMajorFieldVars recursors fuel depth fn ++
+          recursiveMajorFieldVars recursors fuel depth arg
+    | .lam _ domain body _ | .forallE _ domain body _ =>
+      recursiveMajorFieldVars recursors fuel depth domain ++
+        recursiveMajorFieldVars recursors fuel (depth + 1) body
+    | .letE _ type value body _ =>
+      recursiveMajorFieldVars recursors fuel depth type ++
+        recursiveMajorFieldVars recursors fuel depth value ++
+          recursiveMajorFieldVars recursors fuel (depth + 1) body
+    | .lit literal =>
+      recursiveMajorFieldVars recursors fuel depth literal.toConstructor
+    | .mdata _ body | .proj _ _ body =>
+      recursiveMajorFieldVars recursors fuel depth body
+
+/-- Producer-derived field candidates for a complete closed rule.  Leading
+rule lambdas are peeled without increasing depth; lambdas inside the residual
+body still increase it through `recursiveMajorFieldVars`.  Duplicate calls on
+the same field do not change the guard set. -/
+def recursiveFieldVars (recursors : List Name) (expression : Expr) :
+    List Nat :=
+  let rec go : Nat → Expr → List Nat
+    | 0, _ => []
+    | fuel + 1, .lam _ _ body _ => go fuel body
+    | fuel + 1, residual =>
+      recursiveMajorFieldVars recursors fuel 0 residual
+  (go (expression.approxDepth.toNat + rawBVarBound expression + 1)
+    expression).eraseDups
+
+/-- Check a closed equation RHS by peeling its rule telescope.  Binder
+domains must contain no recursor call (the empty field set enforces this),
+while the residual body is checked at depth zero with the finite field set
+computed from the complete literal rule. -/
+def guardedRuleCheck (recursors : List Name) (fieldVars : List Nat) :
+    Nat → Expr → Bool
+  | 0, _ => false
+  | fuel + 1, .lam _ domain body _ =>
+      guardedIotaCheck recursors [] fuel 0 domain &&
+        guardedRuleCheck recursors fieldVars fuel body
+  | fuel + 1, expression =>
+      guardedIotaCheck recursors fieldVars fuel 0 expression
+
+/-- Run the guarded-recursion predicate against an explicitly selected set of
+constructor-field variables.  Primary nested equations use this entry point:
+their field set is retained by the generated-rule blueprint and must not be
+replaced by an arbitrary syntactic upper bound. -/
+def checkGuardedWithFields (recursors : List Name) (fieldVars : List Nat)
+    (expression : Expr) :
+    Except Exception Unit :=
+  unless guardedRuleCheck recursors fieldVars
+      (expression.approxDepth.toNat + rawBVarBound expression + 1)
+      expression do
+    throw <| .other s!"restored recursor rule is not structurally guarded: {expression}"
+
+/-- Decide that an expression has exactly the requested leading lambda
+telescope.  The zero case deliberately rejects a lambda, so a successful
+check exposes both the complete telescope and a non-lambda residual. -/
+def exactLambdaArity : Nat → Expr → Bool
+  | 0, .lam _ _ _ _ => false
+  | 0, _ => true
+  | arity + 1, .lam _ _ body _ => exactLambdaArity arity body
+  | _ + 1, _ => false
+
+/-- Primary guardedness check with the producer's exact rule arity.  This
+prevents a malformed restoration from adding or removing binders while still
+passing the recursive guardedness traversal. -/
+def checkGuardedWithFieldsAtArity (recursors : List Name)
+    (fieldVars : List Nat) (arity : Nat) (expression : Expr) :
+    Except Exception Unit := do
+  unless exactLambdaArity arity expression do
+    throw <| .other s!"restored recursor rule changed lambda arity: {expression}"
+  checkGuardedWithFields recursors fieldVars expression
+
+/-- Remove exactly `arity` leading lambdas and return the residual.  This is
+the data-valued companion of `exactLambdaArity`; callers which need a
+certificate use the latter, while executable shape validation uses this
+function to inspect the literal residual. -/
+def dropHeadLambdas : Nat → Expr → Option Expr
+  | 0, expression => some expression
+  | arity + 1, .lam _ _ body _ => dropHeadLambdas arity body
+  | _ + 1, _ => none
+
+/-- De Bruijn variables of the constructor fields in their left-to-right
+order after closing the canonical equation telescope. -/
+def canonicalRuleFieldVars (nfields : Nat) : List Nat :=
+  List.ofFn fun i : Fin nfields => nfields - 1 - i
+
+def primaryRuleMinorVar? (expression : Expr) : Option Nat :=
+  match expression.getAppFn with
+  | .bvar index => some index
+  | _ => none
+
+/-- Small non-inlining boundary for executable structural assertions.  Its
+soundness theorem can expose the checked boolean without unfolding the
+potentially large expression computations which produced it. -/
+def checkPrimaryRuleCondition (condition : Bool) (message : String) :
+    Except Exception Unit := do
+  unless condition do
+    throw <| .other message
+
+/-- Structural validation specific to a primary generated/restored rule.
+The generated rule fixes the producer-selected recursive majors.  The
+restored rule must retain the exact canonical field prefix and must return
+one recursive result for each distinct selected field, in constructor-field
+order. -/
+def checkPrimaryRuleShape (recInfo : RecursorVal)
+    (sourceRecursors : List Name) (sourceRule restoredRule : RecursorRule) :
+    Except Exception Unit := do
+  let arity := recInfo.numParams + recInfo.numMotives + recInfo.numMinors +
+    restoredRule.nfields
+  checkPrimaryRuleCondition (sourceRule.rhs.getNumHeadLambdas == arity)
+    s!"generated recursor rule has an incompatible lambda arity: {sourceRule.rhs}"
+  let some residual := dropHeadLambdas arity restoredRule.rhs
+    | throw <| .other s!"restored recursor rule has an incompatible lambda telescope: {restoredRule.rhs}"
+  let some minorVar := primaryRuleMinorVar? residual
+    | throw <| .other s!"restored recursor rule does not have a minor-headed residual: {residual}"
+  checkPrimaryRuleCondition (minorVar < arity)
+    s!"restored recursor rule minor is out of scope: {residual}"
+  let fieldVars := canonicalRuleFieldVars restoredRule.nfields
+  let fieldArgs := fieldVars.map Expr.bvar
+  let rhsArgs := residual.getAppArgs.toList
+  checkPrimaryRuleCondition
+    (rhsArgs.take restoredRule.nfields == fieldArgs)
+    s!"restored recursor rule changed its constructor-field spine: {residual}"
+  let recursiveVars := recursiveFieldVars sourceRecursors sourceRule.rhs
+  checkPrimaryRuleCondition
+    (recursiveVars.all (· < restoredRule.nfields))
+    s!"generated recursor rule selected a non-field recursive major: {sourceRule.rhs}"
+  let recursivePositions := recursiveVars.map fun field =>
+    restoredRule.nfields - 1 - field
+  checkPrimaryRuleCondition
+    (decide (recursivePositions.Pairwise (· < ·)))
+    s!"generated recursor rule selected recursive fields out of order: {sourceRule.rhs}"
+  checkPrimaryRuleCondition
+    (recursiveVars.isSublist fieldVars)
+    s!"generated recursor rule selected a non-canonical field subsequence: {sourceRule.rhs}"
+  checkPrimaryRuleCondition
+    ((rhsArgs.drop restoredRule.nfields).length == recursiveVars.length)
+    s!"restored recursor rule changed its recursive-result arity: {residual}"
+
+/-- Compatibility entry point for auxiliary rules, whose compilation
+contract only asks for existential closed-rule guardedness.  This broad
+candidate must not be used to establish a primary `NestedIotaRule`, where the
+producer-selected field variables are semantically significant. -/
+def checkGuarded (recursors : List Name) (expression : Expr) :
+    Except Exception Unit :=
+  checkGuardedWithFields recursors (guardedFieldVars expression) expression
+
+/-- Reconstruct the closed literal iota left-hand side for one recursor rule.
+The rule telescope itself supplies the bound arguments.  Keeping the result
+closed is important for verification: checker soundness can interpret the
+two sides in the empty local context, without exporting the fresh local names
+used internally by `inferType`.
+
+This builder is deliberately syntax-directed.  Recursor and constructor
+metadata produced by the inductive compiler contain explicit forall
+telescopes; malformed metadata is rejected here and the completed expression
+is subsequently checked by the ordinary type checker. -/
+def instantiateEquationPrefix (recursorName : Name)
+    (arguments : List Expr) (type : Expr) : Except Exception Expr := do
+  match arguments with
+  | [] => return type
+  | argument :: arguments =>
+    let .forallE _ _ body _ := type
+      | throw <| .other s!"restored recursor '{recursorName}' has an invalid prefix telescope"
+    instantiateEquationPrefix recursorName arguments
+      (body.instantiate1 argument)
+
+def equationMajorDomainAfterIndices (recursorName : Name)
+    (remaining : Nat) (type : Expr) : Except Exception Expr := do
+  let .forallE _ domain body _ := type
+    | throw <| .other s!"restored recursor '{recursorName}' has no major premise"
+  if remaining = 0 then
+    return domain
+  else
+    equationMajorDomainAfterIndices recursorName (remaining - 1) body
+
+def replaceEquationBody (ctorName : Name) (remaining : Nat)
+    (expression body : Expr) : Except Exception Expr := do
+  if remaining = 0 then
+    return body
+  else
+    let .lam name domain inner binderInfo := expression
+      | throw <| .other s!"restored recursor rule '{ctorName}' has too few binders"
+    return .lam name domain
+      (← replaceEquationBody ctorName (remaining - 1) inner body) binderInfo
+
+/-- Remove an exact leading forall telescope.  This is used only after the
+ordinary checker has inferred the type of a closed equation LHS: the
+residual is then the type of the LHS body in the equation's binder context. -/
+def dropHeadForalls (remaining : Nat) (expression : Expr) : Option Expr :=
+  if remaining = 0 then
+    some expression
+  else
+    match expression with
+    | .forallE _ _ body _ => dropHeadForalls (remaining - 1) body
+    | _ => none
+
+/-- Binder-aware shift used by the shared equation witness.  Keeping the
+operation as visible syntax makes its cancellation under the temporary lets
+available by structural induction in the verification. -/
+def shiftEquationBody (expression : Expr) (cutoff amount : Nat) : Expr :=
+  match expression with
+  | .bvar index => .bvar (if index < cutoff then index else index + amount)
+  | .mdata data body => .mdata data (shiftEquationBody body cutoff amount)
+  | .proj name index body =>
+      .proj name index (shiftEquationBody body cutoff amount)
+  | .app fn arg =>
+      .app (shiftEquationBody fn cutoff amount)
+        (shiftEquationBody arg cutoff amount)
+  | .lam name domain body info =>
+      .lam name (shiftEquationBody domain cutoff amount)
+        (shiftEquationBody body (cutoff + 1) amount) info
+  | .forallE name domain body info =>
+      .forallE name (shiftEquationBody domain cutoff amount)
+        (shiftEquationBody body (cutoff + 1) amount) info
+  | .letE name type value body nondep =>
+      .letE name (shiftEquationBody type cutoff amount)
+        (shiftEquationBody value cutoff amount)
+        (shiftEquationBody body (cutoff + 1) amount) nondep
+  | expression => expression
+
+/-- Put the two equation bodies below one literal lambda telescope.  A first
+temporary let binds the body type once; the following two lets check the LHS
+and RHS against de Bruijn references to that same type.  Let translation
+therefore retains both bodies at one literal target type without requiring
+global uniqueness of expression translation. -/
+def buildEquationSharedWitness (recInfo : RecursorVal) (rule : RecursorRule)
+    (lhs lhsType : Expr) (equationLevel : Level) : Except Exception Expr := do
+  let arity := recInfo.numParams + recInfo.numMotives + recInfo.numMinors +
+    rule.nfields
+  let some lhsBody := dropHeadLambdas arity lhs
+    | throw <| .other s!"restored recursor rule '{rule.ctor}' has an incompatible LHS telescope"
+  let some rhsBody := dropHeadLambdas arity rule.rhs
+    | throw <| .other s!"restored recursor rule '{rule.ctor}' has an incompatible RHS telescope"
+  let some bodyType := dropHeadForalls arity lhsType
+    | throw <| .other s!"restored recursor rule '{rule.ctor}' has an incompatible inferred type telescope"
+  replaceEquationBody rule.ctor arity rule.rhs
+    (.letE `_equationType (.sort equationLevel) bodyType
+      (.letE `_equationLhs (.bvar 0)
+        (shiftEquationBody lhsBody 0 1)
+        (.letE `_equationRhs (.bvar 1)
+          (shiftEquationBody rhsBody 0 2) (.bvar 0) false)
+        false)
+      false)
+
+/-- Close the residual equation type under the rule's literal lambda prefix.
+Inferring this witness yields a forall telescope whose residual is the exact
+sort of the equation body type. -/
+def buildEquationBodyTypeWitness (recInfo : RecursorVal) (rule : RecursorRule)
+    (lhsType : Expr) : Except Exception Expr := do
+  let arity := recInfo.numParams + recInfo.numMotives + recInfo.numMinors +
+    rule.nfields
+  let some bodyType := dropHeadForalls arity lhsType
+    | throw <| .other s!"restored recursor rule '{rule.ctor}' has an incompatible inferred type telescope"
+  replaceEquationBody rule.ctor arity rule.rhs bodyType
+
+/-- Read the residual sort behind the exact equation binder prefix. -/
+def equationBodySortLevel (recInfo : RecursorVal) (rule : RecursorRule)
+    (witnessType : Expr) : Except Exception Level := do
+  let arity := recInfo.numParams + recInfo.numMotives + recInfo.numMinors +
+    rule.nfields
+  let some (.sort level) := dropHeadForalls arity witnessType
+    | throw <| .other s!"restored recursor rule '{rule.ctor}' has an invalid body-type universe"
+  return level
+
+structure EquationLhsPlan where
+  ctorLevels : List Level
+  ctorParams : Array Expr
+  indices : Array Expr
+
+def EquationLhsPlan.body (plan : EquationLhsPlan) (recInfo : RecursorVal)
+    (rule : RecursorRule) : Expr :=
+  let binderCount := recInfo.numParams + recInfo.numMotives +
+    recInfo.numMinors + rule.nfields
+  let binders := (List.range binderCount).toArray.map fun i =>
+    .bvar (binderCount - 1 - i)
+  let params := binders.extract 0 recInfo.numParams
+  let motives := binders.extract recInfo.numParams
+    (recInfo.numParams + recInfo.numMotives)
+  let minors := binders.extract
+    (recInfo.numParams + recInfo.numMotives)
+    (recInfo.numParams + recInfo.numMotives + recInfo.numMinors)
+  let fields := binders.extract
+    (recInfo.numParams + recInfo.numMotives + recInfo.numMinors)
+    binderCount
+  let recursorLevels := recInfo.levelParams.map Level.param
+  let ctorMajor := mkAppN
+    (mkAppN (.const rule.ctor plan.ctorLevels) plan.ctorParams) fields
+  mkAppN
+    (mkAppN
+      (mkAppN
+        (mkAppN (.const recInfo.name recursorLevels) params)
+        motives)
+      minors)
+    (plan.indices.push ctorMajor)
+
+def buildEquationLhsPlan (env : Environment) (recInfo : RecursorVal)
+    (rule : RecursorRule) : Except Exception EquationLhsPlan := do
+  let binderCount := recInfo.numParams + recInfo.numMotives +
+    recInfo.numMinors + rule.nfields
+  let binders := (List.range binderCount).toArray.map fun i =>
+    .bvar (binderCount - 1 - i)
+  let params := binders.extract 0 recInfo.numParams
+  let motives := binders.extract recInfo.numParams
+    (recInfo.numParams + recInfo.numMotives)
+  let minors := binders.extract
+    (recInfo.numParams + recInfo.numMotives)
+    (recInfo.numParams + recInfo.numMotives + recInfo.numMinors)
+  let fields := binders.extract
+    (recInfo.numParams + recInfo.numMotives + recInfo.numMinors)
+    binderCount
+  let some (.ctorInfo ctorInfo) := env.find? rule.ctor
+    | throw <| .other s!"missing restored rule constructor '{rule.ctor}'"
+  let recursorLevels := recInfo.levelParams.map Level.param
+  let recursorType := recInfo.type.instantiateLevelParams
+    recInfo.levelParams recursorLevels
+  let recursorPrefixType ← instantiateEquationPrefix recInfo.name
+    (params.toList ++ motives.toList ++ minors.toList) recursorType
+  let majorDomain ← equationMajorDomainAfterIndices recInfo.name
+    recInfo.numIndices recursorPrefixType
+  let majorArgs := majorDomain.getAppArgs
+  if majorArgs.size < ctorInfo.numParams then
+    throw <| .other s!"restored recursor '{recInfo.name}' has an invalid major family spine"
+  let ctorParams := majorArgs.extract 0 ctorInfo.numParams
+  let .const majorName ctorLevels := majorDomain.getAppFn
+    | throw <| .other s!"restored recursor '{recInfo.name}' has an invalid major family head"
+  unless majorName == ctorInfo.induct do
+    throw <| .other s!"restored rule constructor '{rule.ctor}' does not build the major family"
+  unless ctorLevels.length == ctorInfo.levelParams.length do
+    throw <| .other s!"restored rule constructor '{rule.ctor}' has incompatible universe arguments"
+  let ctorType := ctorInfo.type.instantiateLevelParams
+    ctorInfo.levelParams ctorLevels
+  let ctorResultType ← instantiateEquationPrefix recInfo.name
+    (ctorParams.toList ++ fields.toList) ctorType
+  let ctorArgs := ctorResultType.getAppArgs
+  if ctorArgs.size < ctorInfo.numParams + recInfo.numIndices then
+    throw <| .other s!"restored rule constructor '{rule.ctor}' has an invalid result spine"
+  let indices := ctorArgs.extract ctorInfo.numParams
+    (ctorInfo.numParams + recInfo.numIndices)
+  return { ctorLevels, ctorParams, indices }
+
+def buildEquationLhs (env : Environment) (recInfo : RecursorVal)
+    (rule : RecursorRule) : Except Exception Expr := do
+  let plan ← buildEquationLhsPlan env recInfo rule
+  let binderCount := recInfo.numParams + recInfo.numMotives +
+    recInfo.numMinors + rule.nfields
+  replaceEquationBody rule.ctor binderCount rule.rhs (plan.body recInfo rule)
+
+/-- Reconstruct the source-facing primary iota LHS.  Lowering-generated
+families can make the concrete major-domain parameter expressions differ
+from the source recursor's leading variables even though they are
+definitionally equal.  The declarative nested equation uses the latter, so
+the primary validator checks this canonicalized LHS directly. -/
+def buildPrimaryEquationLhs (env : Environment) (expectedCtorUvars : Nat)
+    (expectedPrefix : Nat) (recInfo : RecursorVal) (rule : RecursorRule) :
+    Except Exception Expr := do
+  let plan ← buildEquationLhsPlan env recInfo rule
+  checkPrimaryRuleCondition (plan.indices.size == recInfo.numIndices)
+    s!"restored recursor '{recInfo.name}' produced an incompatible primary index spine"
+  checkPrimaryRuleCondition (plan.ctorLevels.length == expectedCtorUvars)
+    s!"restored recursor rule '{rule.ctor}' has an incompatible source universe spine"
+  checkPrimaryRuleCondition
+    (recInfo.numParams + recInfo.numMotives + recInfo.numMinors == expectedPrefix)
+    s!"restored recursor '{recInfo.name}' has an incompatible source binder prefix"
+  let binderCount := recInfo.numParams + recInfo.numMotives +
+    recInfo.numMinors + rule.nfields
+  let binders := (List.range binderCount).toArray.map fun i =>
+    .bvar (binderCount - 1 - i)
+  let params := binders.extract 0 recInfo.numParams
+  let canonicalPlan := { plan with ctorParams := params }
+  replaceEquationBody rule.ctor binderCount rule.rhs
+    (canonicalPlan.body recInfo rule)
+
+/-- Recheck one exact restored equation as two closed terms.  Successful
+completion proves that both terms are typeable and that their inferred types
+are definitionally equal. -/
+def checkEquation (recInfo : RecursorVal) (rule : RecursorRule) :
+    TypeChecker.M Unit := do
+  let env ← TypeChecker.getEnv
+  let lhs ← buildEquationLhs env recInfo rule
+  env.checkNoMVarNoFVar recInfo.name lhs
+  env.checkNoMVarNoFVar recInfo.name rule.rhs
+  let lhsType ← TypeChecker.checkType lhs
+  let rhsType ← TypeChecker.checkType rule.rhs
+  unless ← TypeChecker.isDefEq lhsType rhsType do
+    throw <| .other s!"restored recursor rule '{rule.ctor}' has the wrong result type"
+  let bodyTypeWitness ← buildEquationBodyTypeWitness recInfo rule lhsType
+  env.checkNoMVarNoFVar recInfo.name bodyTypeWitness
+  let bodyTypeWitnessType ← TypeChecker.checkType bodyTypeWitness
+  let equationLevel ← equationBodySortLevel recInfo rule bodyTypeWitnessType
+  let shared ← buildEquationSharedWitness recInfo rule lhs lhsType equationLevel
+  env.checkNoMVarNoFVar recInfo.name shared
+  _ ← TypeChecker.checkType shared
+
+/-- Primary-rule counterpart of `checkEquation`, using the source-facing
+canonical parameter spine rather than the lowering-specific major-domain
+spine. -/
+def checkPrimaryEquation (expectedCtorUvars expectedPrefix : Nat)
+    (recInfo : RecursorVal) (rule : RecursorRule) : TypeChecker.M Unit := do
+  let env ← TypeChecker.getEnv
+  let lhs ← buildPrimaryEquationLhs env expectedCtorUvars expectedPrefix
+    recInfo rule
+  env.checkNoMVarNoFVar recInfo.name lhs
+  env.checkNoMVarNoFVar recInfo.name rule.rhs
+  let lhsType ← TypeChecker.checkType lhs
+  let rhsType ← TypeChecker.checkType rule.rhs
+  unless ← TypeChecker.isDefEq lhsType rhsType do
+    throw <| .other s!"restored primary recursor rule '{rule.ctor}' has the wrong result type"
+  let bodyTypeWitness ← buildEquationBodyTypeWitness recInfo rule lhsType
+  env.checkNoMVarNoFVar recInfo.name bodyTypeWitness
+  let bodyTypeWitnessType ← TypeChecker.checkType bodyTypeWitness
+  let equationLevel ← equationBodySortLevel recInfo rule bodyTypeWitnessType
+  let shared ← buildEquationSharedWitness recInfo rule lhs lhsType equationLevel
+  env.checkNoMVarNoFVar recInfo.name shared
+  _ ← TypeChecker.checkType shared
+
+/-- Recheck every exact rule stored in one restored recursor in the complete
+restored constant environment.  The check reconstructs its literal iota LHS
+and compares the two inferred result types, so the retained executable trace
+is equation-specific rather than an existential RHS-typing certificate. -/
+def check (env loweredEnv : Environment) (_lparams : List Name)
+    (safety : DefinitionSafety) (fuel : FuelConfig)
+    (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
+    (allIndNames auxRecNames : List Name) (recName : Name) :
+    Except Exception Unit := do
+  let some (.recInfo recInfo) := loweredEnv.find? recName
+    | throw <| .other s!"missing lowered recursor '{recName}'"
+  let newRecName := recNameMap.getD recName recName
+  let restored := res.restoreRecursor loweredEnv recNameMap allIndNames
+    recName newRecName recInfo
+  let restoredRecursorNames :=
+    allIndNames.map (fun name =>
+      let oldName := mkRecName name
+      recNameMap.getD oldName oldName) ++
+    auxRecNames.map fun oldName => recNameMap.getD oldName oldName
+  _ ← restored.rules.forM fun rule => do
+    env.checkNoMVarNoFVar restored.name rule.rhs
+    _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
+      (lparams := restored.levelParams) (fuel := fuel) do
+        TypeChecker.checkType rule.rhs
+    _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
+      (lparams := restored.levelParams) (fuel := fuel) do
+        checkEquation restored rule
+    checkGuarded restoredRecursorNames rule.rhs
+  return ()
+
+/-- Source-primary extension of the common restored-rule validation. -/
+def checkPrimary (env loweredEnv : Environment) (lparams : List Name)
+    (safety : DefinitionSafety) (fuel : FuelConfig)
+    (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
+    (allIndNames auxRecNames : List Name) (recName : Name) :
+    Except Exception Unit := do
+  check env loweredEnv lparams safety fuel res recNameMap allIndNames
+    auxRecNames recName
+  let some (.recInfo recInfo) := loweredEnv.find? recName
+    | throw <| .other s!"missing lowered recursor '{recName}'"
+  let newRecName := recNameMap.getD recName recName
+  let restored := res.restoreRecursor loweredEnv recNameMap allIndNames
+    recName newRecName recInfo
+  let restoredRecursorNames :=
+    allIndNames.map (fun name =>
+      let oldName := mkRecName name
+      recNameMap.getD oldName oldName) ++
+    auxRecNames.map fun oldName => recNameMap.getD oldName oldName
+  let sourceRecursorNames := allIndNames.map mkRecName ++ auxRecNames
+  _ ← recInfo.rules.forM fun sourceRule => do
+    let restoredRule := res.restoreRule loweredEnv recNameMap recName
+      newRecName sourceRule
+    checkGuardedWithFieldsAtArity restoredRecursorNames
+      (recursiveFieldVars sourceRecursorNames sourceRule.rhs)
+      sourceRule.rhs.getNumHeadLambdas
+      restoredRule.rhs
+  _ ← recInfo.rules.forM fun sourceRule =>
+    let restoredRule := res.restoreRule loweredEnv recNameMap recName
+      newRecName sourceRule
+    checkPrimaryRuleShape restored sourceRecursorNames sourceRule restoredRule
+  _ ← recInfo.rules.forM fun sourceRule =>
+    let restoredRule := res.restoreRule loweredEnv recNameMap recName
+      newRecName sourceRule
+    TypeChecker.M.run env (safety := safety) (lctx := {})
+      (lparams := restored.levelParams) (fuel := fuel) do
+        checkPrimaryEquation lparams.length
+          (res.nparams + res.types.length +
+            (res.types.flatMap (·.ctors)).length)
+          restored restoredRule
+  return ()
+
+/-- Recheck the literal restored rule batches for every primary and auxiliary
+recursor after all restored constants have been installed. -/
+def run (env loweredEnv : Environment) (lparams : List Name)
+    (safety : DefinitionSafety) (fuel : FuelConfig)
+    (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
+    (allIndNames : List Name) (types : List InductiveType)
+    (auxRecNames : List Name) : Except Exception Unit := do
+  types.forM fun type =>
+    checkPrimary env loweredEnv lparams safety fuel res recNameMap allIndNames
+      auxRecNames (mkRecName type.name)
+  auxRecNames.forM fun recName =>
+    check env loweredEnv lparams safety fuel res recNameMap allIndNames
+      auxRecNames recName
+
+end validateRestoredRecursorRules
 
 /-- Validate every generated auxiliary witness in the restored local
 parameter context. -/
@@ -1342,9 +1988,15 @@ def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
       allowPrimitive types recNames')
   let validationEnv ← (·.2) <$> StateT.run (s := env)
     (restoreNestedConstructors res loweredEnv allIndNames allowPrimitive types)
-  validateRestoredConstructorParameters.run validationEnv lparams safety
+  let auxiliaryHeaderEnv ← (·.2) <$> StateT.run (s := env)
+    (restoreNestedHeaders loweredEnv allIndNames allowPrimitive types)
+  validateRestoredConstructorParameters.run auxiliaryHeaderEnv lparams safety
     fuel types res
-  validateNestedAuxiliaries restoredEnv lparams safety fuel res
+  validateRestoredRecursorTypes.run validationEnv loweredEnv lparams safety
+    fuel res recNameMap' allIndNames types recNames'
+  validateRestoredRecursorRules.run restoredEnv loweredEnv lparams safety fuel
+    res recNameMap' allIndNames types recNames'
+  validateNestedAuxiliaries auxiliaryHeaderEnv lparams safety fuel res
   return restoredEnv
 
 /-- Complete production pipeline after nested lowering has produced its

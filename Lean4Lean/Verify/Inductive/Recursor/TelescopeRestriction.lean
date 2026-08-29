@@ -193,6 +193,118 @@ theorem rebasePrefixReplaceResidual
             (HdomainType.rebaseExcept E HdomainTypeUses)
             Hbody'⟩
 
+/-- Exact-target form of `rebasePrefixReplaceResidual`.  Environment
+replacement preserves every translated forall-domain literally; only the
+terminal residual is selected again in the target environment.  Retaining
+this equality is important for nested inductives, where the restored family
+semantics and the restored motive must share one and the same index-domain
+list rather than merely definitionally equal copies. -/
+theorem rebasePrefixReplaceResidualExact
+    (E : VEnv.LEExcept changed sourceEnv targetEnv)
+    (H : Expr.ForallTelescopeTypeTranslation sourceEnv levelParams ctx
+      source arity target)
+    (Hprefix : PrefixUsesOnly changed H)
+    (Hresidual : ResidualReplacement targetEnv H)
+    (domains : List VExpr) (oldResidual : VExpr)
+    (hdomains : domains.length = arity)
+    (htarget : target = VExpr.wrapForalls domains oldResidual) :
+    ∃ newResidual,
+      Expr.ForallTelescopeTypeTranslation targetEnv levelParams ctx source
+        arity (VExpr.wrapForalls domains newResidual) := by
+  induction H generalizing domains oldResidual with
+  | nil HoldTranslation HoldType =>
+      cases Hprefix
+      cases Hresidual with
+      | nil _ _ _ _ _ newResidual _ _ Htranslation Htype =>
+        have hnil : domains = [] :=
+          List.eq_nil_of_length_eq_zero hdomains
+        subst domains
+        exact ⟨newResidual, by
+          simpa [VExpr.wrapForalls] using
+            (Expr.ForallTelescopeTypeTranslation.nil Htranslation Htype)⟩
+  | @cons sourceCtx domain domainTarget body bodyArity bodyTarget name bi
+      Hdomain HdomainType Hbody ih =>
+      cases Hprefix with
+      | cons HdomainUses HdomainTypeUses HbodyUses =>
+        cases Hresidual with
+        | cons _ _ _ _ _ _ _ _ _ _ _ _ HbodyResidual =>
+          cases domains with
+          | nil => simp at hdomains
+          | cons head tail =>
+            simp only [List.length_cons] at hdomains
+            have htail : tail.length = bodyArity := by omega
+            simp only [VExpr.wrapForalls] at htarget
+            have hhead : domainTarget = head := VExpr.forallE.inj htarget |>.1
+            have hbodyTarget : bodyTarget =
+                VExpr.wrapForalls tail oldResidual :=
+              VExpr.forallE.inj htarget |>.2
+            subst head
+            rcases ih HbodyUses HbodyResidual tail oldResidual htail
+                hbodyTarget with ⟨newResidual, Hbody'⟩
+            exact ⟨newResidual, by
+              simpa [VExpr.wrapForalls] using
+                Expr.ForallTelescopeTypeTranslation.cons
+                  (Hdomain.rebaseExcept E HdomainUses)
+                  (HdomainType.rebaseExcept E HdomainTypeUses) Hbody'⟩
+
+/-- Canonical `Sort 0` specialization of
+`rebasePrefixReplaceResidualExact`.  This version states the rebuilt
+residual literally, so a restored family can immediately be applied to the
+canonical variables of the retained domain list and recognized as a type. -/
+theorem rebasePrefixSortZeroExact
+    (E : VEnv.LEExcept changed sourceEnv targetEnv)
+    (H : Expr.ForallTelescopeTypeTranslation sourceEnv levelParams ctx
+      source arity target)
+    (Hprefix : PrefixUsesOnly changed H)
+    (Htelescope : Expr.ForallTelescope source arity
+      (.sort (.zero : Level)))
+    (domains : List VExpr) (oldResidual : VExpr)
+    (hdomains : domains.length = arity)
+    (htarget : target = VExpr.wrapForalls domains oldResidual) :
+    Expr.ForallTelescopeTypeTranslation targetEnv levelParams ctx source
+      arity (VExpr.wrapForalls domains (.sort (.zero : VLevel))) := by
+  induction H generalizing domains oldResidual with
+  | nil HoldTranslation HoldType =>
+      cases Hprefix
+      cases Htelescope
+      have hnil : domains = [] :=
+        List.eq_nil_of_length_eq_zero hdomains
+      subst domains
+      simpa [VExpr.wrapForalls] using
+        (Expr.ForallTelescopeTypeTranslation.nil
+          (TrExprS.sort (Us := levelParams) (u := (.zero : Level))
+            (u' := (.zero : VLevel)) rfl)
+          (show targetEnv.IsType levelParams.length _
+              (.sort (.zero : VLevel)) from
+            ⟨.succ .zero,
+              VEnv.HasType.sort
+                (VLevel.WF.of_ofLevel
+                  (ls := levelParams) (l := (.zero : Level))
+                  (l' := (.zero : VLevel)) rfl)⟩))
+  | @cons sourceCtx domain domainTarget body bodyArity bodyTarget name bi
+      Hdomain HdomainType Hbody ih =>
+      cases Hprefix with
+      | cons HdomainUses HdomainTypeUses HbodyUses =>
+        cases Htelescope with
+        | cons HbodyTelescope =>
+          cases domains with
+          | nil => simp at hdomains
+          | cons head tail =>
+            simp only [List.length_cons] at hdomains
+            have htail : tail.length = bodyArity := by omega
+            simp only [VExpr.wrapForalls] at htarget
+            have hhead : domainTarget = head := VExpr.forallE.inj htarget |>.1
+            have hbodyTarget : bodyTarget =
+                VExpr.wrapForalls tail oldResidual :=
+              VExpr.forallE.inj htarget |>.2
+            subst head
+            have Hbody' := ih HbodyUses HbodyTelescope tail oldResidual htail
+              hbodyTarget
+            simpa [VExpr.wrapForalls] using
+              Expr.ForallTelescopeTypeTranslation.cons
+                (Hdomain.rebaseExcept E HdomainUses)
+                (HdomainType.rebaseExcept E HdomainTypeUses) Hbody'
+
 end Expr.ForallTelescopeTypeTranslation
 
 end VerifyInductive

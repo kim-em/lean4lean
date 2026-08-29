@@ -296,16 +296,7 @@ the presence or interpretation of the separately bootstrapped `Eq` constant. -/
 theorem addInductiveDeclaration.finalResultWF
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
-    (isUnsafe : Bool) (fuel : FuelConfig)
-    (A : VerifyInductive.InductiveVerificationAssumptions)
-    (HnestedAssembly : ∀ res,
-      VerifyInductive.SourceSyntaxChecks types →
-      VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
-        nparams types
-          { lvls := lparams.map .param, newTypes := types.toArray } res →
-      res.aux2nested.size ≠ 0 →
-      VerifyInductive.NestedFinalAssemblyProvider env lparams nparams types
-        isUnsafe fuel res) :
+    (isUnsafe : Bool) (fuel : FuelConfig) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         Nonempty (VerifyInductive.InductiveFinalResult outEnv ves lparams
@@ -317,7 +308,7 @@ theorem addInductiveDeclaration.finalResultWF
   cases allowPrimitive with
   | false =>
     exact VerifyInductive.Environment.addInductive.inductiveFinalResultWF
-      env lparams nparams types isUnsafe fuel ves wf A HnestedAssembly
+      env lparams nparams types isUnsafe fuel ves wf
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
         nparams types isUnsafe :=
@@ -325,29 +316,20 @@ theorem addInductiveDeclaration.finalResultWF
         nparams types isUnsafe).mp hallow
     exact
       VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
-        env lparams nparams types isUnsafe fuel ves wf Hprimitive A
+        env lparams nparams types isUnsafe fuel ves wf Hprimitive
 
 /-- Traditional environment-preservation projection of the complete
 inductive declaration result. -/
 theorem addInductiveDeclaration.finalPreservesWF
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
-    (isUnsafe : Bool) (fuel : FuelConfig)
-    (A : VerifyInductive.InductiveVerificationAssumptions)
-    (HnestedAssembly : ∀ res,
-      VerifyInductive.SourceSyntaxChecks types →
-      VerifyInductive.NestedLoweringResultClosed env fuel.inductiveFuel
-        nparams types
-          { lvls := lparams.map .param, newTypes := types.toArray } res →
-      res.aux2nested.size ≠ 0 →
-      VerifyInductive.NestedFinalAssemblyProvider env lparams nparams types
-        isUnsafe fuel res) :
+    (isUnsafe : Bool) (fuel : FuelConfig) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
           ∀ safety, ves.venv safety ≤ ves'.venv safety :=
   (addInductiveDeclaration.finalResultWF wf lparams nparams types
-    isUnsafe fuel A HnestedAssembly).mono
+    isUnsafe fuel).mono
       fun _ ⟨H⟩ => H.modelExtension
 
 private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except ε α).WF Q :=
@@ -430,36 +412,13 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   · obtain ⟨v, -, h⟩ := this.forall_exists_r ci hc; exact h.2.1
   · obtain ⟨v, -, h⟩ := hbody.forall_exists_r ci hc; exact h.2
 
-namespace VerifyInductive
-
-/-- Exact declaration-boundary proof debts for an inductive submitted through
-the generic `addDecl` entry point.  Each field is temporary: completion of the
-inductive verification removes this structure entirely by deriving all of its
-contents from the successful checked run. -/
-structure InductiveDeclarationVerificationInputs
-    (env : Environment) (lparams : List Name) (nparams : Nat)
-    (types : List InductiveType) (isUnsafe : Bool) : Prop where
-  assumptions : InductiveVerificationAssumptions
-  nestedAssembly : ∀ res,
-    SourceSyntaxChecks types →
-    NestedLoweringResultClosed env ({} : FuelConfig).inductiveFuel
-      nparams types
-        { lvls := lparams.map .param, newTypes := types.toArray } res →
-    res.aux2nested.size ≠ 0 →
-    NestedFinalAssemblyProvider env lparams nparams types isUnsafe {} res
-
-end VerifyInductive
-
-/-- Declaration forms currently admitted to the generic environment theorem.
-Inductives still carry explicit compatibility and exact nested-trace proof
-debts; completion removes that qualification and the corresponding input
-structure. Quotient initialization remains separate. -/
+/-- Declaration forms admitted to the generic environment theorem.  Checked
+inductive declarations carry no declaration-specific semantic premise;
+ordinary, primitive, and nested evidence is reconstructed from execution. -/
 def _root_.Lean.Declaration.IsModelled
     (env : Environment) (ves : VEnvs) : Declaration → Prop
   | .quotDecl => False
-  | .inductDecl lparams nparams types isUnsafe =>
-    VerifyInductive.InductiveDeclarationVerificationInputs env lparams
-      nparams types isUnsafe
+  | .inductDecl _ _ _ _ => True
   | _ => True
 
 /-- Successful checked addition of a currently modeled declaration preserves
@@ -478,7 +437,7 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   | mutualDefnDecl vs => exact addMutual.WF wf vs
   | inductDecl lparams nparams types isUnsafe =>
     exact addInductiveDeclaration.finalPreservesWF wf
-      lparams nparams types isUnsafe {} hdecl.assumptions hdecl.nestedAssembly
+      lparams nparams types isUnsafe {}
 
 /-- Every already-modeled declaration form preserves the canonical `Eq`
 invariant needed by the subsequent quotient and inductive boundaries. -/

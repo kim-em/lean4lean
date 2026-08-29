@@ -29,6 +29,21 @@ structure
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.GeneratedRuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) where
+  sourceShape : RecInfoMinorTypeShape
+  hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
+    sourceShape.sourceFullContext sourceShape.recursiveFields
+      sourceShape.hypotheses
+  hypothesisOrigins_eq :
+    sourceShape.hypothesis_type_origins = some hypothesisOrigins
+  sourceOriginRoot : AddInductive.Context
+  sourceType : Expr
+  sourceOrigin : RecInfoMinorHypothesisTypeOrigin hypothesisOrigins.stats
+    hypothesisOrigins.recInfos sourceOriginRoot
+      sourceShape.recursiveFields[j]! sourceType
+  sourceDeclaration : BoundFVarDeclarationAt sourceShape.sourceFullContext
+    sourceShape.hypotheses j
+  sourceDeclaration_type : sourceDeclaration.type =
+    sourceType.consumeTypeAnnotationsVerified
   originRoot : AddInductive.Context
   originContext : RecursorContextWF originRoot
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -48,6 +63,13 @@ structure
   root_scope : semantic.rootScope = fun fv =>
     fv ∈ A.semantics.fieldOpening.fvars ∨
       fv ∈ ExprArrayFVarIds stats.params
+  replay : sourceOrigin.replayTrace sourceShape.fields_bound.fvars =
+    semantic.generated.replayTrace A.rule.all_args_bound.fvars
+  semantic_eq : HEq semantic (A.producerReplayAt j hj).semantic
+  producerReplay_eq :
+    (A.producerReplayAt j hj).semantic.generated.replayTrace
+        A.rule.all_args_bound.fvars =
+      semantic.generated.replayTrace A.rule.all_args_bound.fvars
   entry_lt : semantic.generated.ownerIdx < H.entries.length
   telescope : GeneratedRecursorTelescopeTranslation H.outVEnv
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -96,10 +118,12 @@ theorem
     (A : H.GeneratedRuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
     Nonempty (A.RecursiveCallRecursorFrame j hj) := by
-  rcases A.motiveEvidence with ⟨Hproducer⟩
-  rcases Hproducer.calls.entries j hj hj with
-    ⟨originRoot, Rorigin, priorHypotheses, Hrecent,
-      hpriorSize, callDepth, S, hscope, Hmotive⟩
+  let Horigin := A.producerOrigin
+  let Hproducer := Horigin.producer
+  let P := A.producerReplayAt j hj
+  let originRoot := P.originRoot
+  let Rorigin := P.originContext
+  let S := P.semantic
   have hrecInfo : S.generated.ownerIdx < H.recInfos.size := by
     rw [H.cardinality.records]
     exact S.validated.target_lt
@@ -108,16 +132,27 @@ theorem
   rcases H.finalRecursorTelescopeTranslationAt
       S.generated.ownerIdx hentry with ⟨T⟩
   exact ⟨{
+    sourceShape := A.producerMinorShape
+    hypothesisOrigins := P.hypothesisOrigins
+    hypothesisOrigins_eq := P.hypothesisOrigins_eq
+    sourceOriginRoot := P.sourceOriginRoot
+    sourceType := P.sourceType
+    sourceOrigin := P.sourceOrigin
+    sourceDeclaration := P.sourceDeclaration
+    sourceDeclaration_type := P.sourceDeclaration_type
     originRoot := originRoot
     originContext := Rorigin
-    priorHypotheses := priorHypotheses
-    originRecent := Hrecent
-    priorHypotheses_size := hpriorSize
-    callDepth := callDepth
+    priorHypotheses := P.priorHypotheses
+    originRecent := P.originRecent
+    priorHypotheses_size := P.priorHypotheses_size
+    callDepth := P.callDepth
     semantic := S
-    motiveApplication := Hmotive
+    motiveApplication := P.motiveApplication
     motiveLookup := Hproducer.motiveLookup
-    root_scope := hscope
+    root_scope := P.root_scope
+    replay := P.replay
+    semantic_eq := HEq.rfl
+    producerReplay_eq := rfl
     entry_lt := hentry
     telescope := T
     typing := H.recursorTypingAt S.generated.ownerIdx hentry }⟩

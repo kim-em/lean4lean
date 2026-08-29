@@ -46,7 +46,6 @@ structure CompletedRecursorPhasesResult
     recursorWF.mlctx.vlctx stats decl recursorDepth
   noIndConsts : VLCtx.NoIndConsts (decl.types.map (·.name))
     recursorWF.mlctx.vlctx
-  loopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat
   bindings : RecInfoBindings localContext recInfos
   origins : RecInfoTypeOrigins localContext recInfos
   blueprints : RecInfoRuleBlueprintOrigins stats recInfos origins
@@ -121,12 +120,7 @@ theorem CompletedConstructorPhases.recursorPhasesWF
       sourceEnv indTypes ctorEnv)
     (hclosed : MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
-    (hproj : forall {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' ->
-      e'.containsAnyConst (decl.types.map (·.name)) = false ->
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true ->
       forall owner (howner : owner < indTypes.size),
@@ -142,7 +136,7 @@ theorem CompletedConstructorPhases.recursorPhasesWF
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (CompletedRecursorPhasesResult R outEnv) := by
   apply R.getElimLevelMkRecInfosWF hlparams
-    Lean4Lean.recursorConsumeTypeAnnotationsCompat hlit hproj
+    Lean4Lean.recursorConsumeTypeAnnotationsCompat hlit
     (Q := fun outEnv => Nonempty (CompletedRecursorPhasesResult R outEnv))
     (k := fun elimLevel kTarget recInfos =>
       AddInductive.declareRecursors stats indTypes elimLevel recInfos kTarget
@@ -196,7 +190,7 @@ theorem CompletedConstructorPhases.recursorPhasesWF
   have Hrecursors := AddInductive.declareRecursors.bindingSemanticWF
     (elimLevel := elimLevel) kTarget Hvalid Rlocal.toBindingContextWF Rlocal
     HstatsLocal Lean4Lean.recursorConsumeTypeAnnotationsCompat
-    hlit.available hctxLocal hproj Hcard Hcore Hbindings
+    hlit.available hctxLocal Hcard Hcore Hbindings
     Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
     Hparams hnoalias HminorCounts HsuffixLocal.parameterFVarsUp Hseed (by
       rw [Hle.safety_eq]
@@ -238,7 +232,6 @@ theorem CompletedConstructorPhases.recursorPhasesWF
       parameterDecls := hparameterDeclsLocal
       validStats := HstatsLocal
       noIndConsts := hctxLocal
-      loopUArgsReplay := hloopUArgsReplay
       bindings := Hbindings
       origins := Horigins
       blueprints := Hblueprints

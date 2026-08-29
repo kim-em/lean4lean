@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Context
+import Lean4Lean.Verify.LocalContext
 
 namespace Lean4Lean
 
@@ -93,6 +94,97 @@ theorem cachedParamVars_zero_eq_recursorCanonicalVars (n : Nat) :
   · rw [List.getElem?_eq_none_iff.2 (by simp; omega)]
     simp [hi]
 
+/-- Source-domain provenance for a dependency-closed narrowed context.
+The context is newest first.  At each retained declaration, its original
+Lean domain is translated in the already retained older tail. -/
+inductive FVarNarrowSources (env : VEnv) (Us : List Name) :
+    VLCtx → Type
+  | nil : FVarNarrowSources env Us []
+  | cons
+      (tail : FVarNarrowSources env Us scope)
+      (name : Name) (binderInfo : BinderInfo)
+      (domain : Expr)
+      (translation : TrExprS env Us scope domain target) :
+      FVarNarrowSources env Us
+        ((some (fv, deps), .vlam target) :: scope)
+
+def FVarNarrowSources.mono {env env' : VEnv} (henv : env ≤ env') :
+    FVarNarrowSources env Us scope → FVarNarrowSources env' Us scope
+  | .nil => .nil
+  | .cons tail name binderInfo domain translation =>
+    .cons (tail.mono henv) name binderInfo domain
+      (translation.mono henv)
+
+/-- Prepend one fresh recursor universe parameter to a retained source
+telescope without changing its concrete domains. -/
+def FVarNarrowSources.prependLevelParam
+    (H : FVarNarrowSources env Us scope)
+    (henv : env.WF) (hscope : scope.WF env Us.length)
+    (hfresh : fresh ∉ Us) :
+    FVarNarrowSources env (fresh :: Us)
+      (scope.instL (VLevel.prependShift Us.length)) :=
+  match H with
+  | .nil => .nil
+  | .cons tail name binderInfo domain translation =>
+    .cons (tail.prependLevelParam henv hscope.1 hfresh)
+      name binderInfo domain
+      (translation.prependLevelParam henv hscope.1 hfresh)
+
+/-- Close a body through all retained source declarations. -/
+def FVarNarrowSources.closeSource
+    (H : FVarNarrowSources env Us scope) (body : Expr) : Expr :=
+  match H with
+  | .nil => body
+  | .cons (fv := fv) tail name binderInfo domain _ =>
+    tail.closeSource (.forallE name domain
+      (body.abstract1 fv) binderInfo)
+
+@[simp] theorem FVarNarrowSources.closeSource_mono
+    {env env' : VEnv} (henv : env ≤ env')
+    (H : FVarNarrowSources env Us scope) (body : Expr) :
+    (H.mono henv).closeSource body = H.closeSource body := by
+  induction H generalizing body with
+  | nil => rfl
+  | cons tail name binderInfo domain translation ih =>
+    exact ih _
+
+@[simp] theorem FVarNarrowSources.closeSource_nil
+    (body : Expr) :
+    (FVarNarrowSources.nil : FVarNarrowSources env Us []).closeSource body =
+      body := rfl
+
+theorem FVarNarrowSources.toCtx_length
+    (H : FVarNarrowSources env Us scope) :
+    scope.toCtx.length = scope.length := by
+  induction H with
+  | nil => rfl
+  | cons tail name binderInfo domain translation ih =>
+    simp [VLCtx.toCtx, ih]
+
+theorem _root_.Lean4Lean.VLCtx.WF.mono
+    {env env' : VEnv} (henv : env ≤ env') :
+    ∀ {scope : VLCtx}, VLCtx.WF env U scope → VLCtx.WF env' U scope
+  | [], H => H
+  | (ofv, decl) :: scope, ⟨Hscope, Hfresh, Hdecl⟩ => by
+    refine ⟨VLCtx.WF.mono henv Hscope, Hfresh, ?_⟩
+    cases decl with
+    | vlam type => exact Hdecl.mono henv
+    | vlet type value => exact Hdecl.mono henv
+
+/-- Recover the exact source telescope of an executable context containing
+only lambda declarations.  Each `MLCtx` node already retains the strict
+translation used to install its abstract domain. -/
+def MLCtxOnlyLams.sources
+    {m : TypeChecker.MLCtx} (H : MLCtxOnlyLams m)
+    (Hwf : m.WF env Us) : FVarNarrowSources env Us m.vlctx :=
+  match m with
+  | .nil => .nil
+  | .vlam fv name type type' bi tail =>
+    .cons (MLCtxOnlyLams.sources H.tail_vlam Hwf.1)
+      name bi type Hwf.2.2.1
+  | .vlet fv name type value type' value' tail =>
+    False.elim H.vlet_false
+
 /-- Local invariant for the first header's common-parameter branch. -/
 structure ParameterCachePrefix (env : VEnv) (Us : List Name) (Δ : VLCtx)
     (stats : AddInductive.InductiveStats) (done depth : Nat) : Prop where
@@ -147,6 +239,7 @@ structure ParameterContextSuffix (Hc : ContextWF c)
   narrowParams : List.Forall₂
     (TrExprS Hc.venv c.lparams parameterDecls)
     stats.params.toList (cachedParamVars stats.params.size 0)
+  sources : FVarNarrowSources Hc.venv c.lparams parameterDecls
 
 /-- Reindex a parameter cache across statistics updates that leave the
 cached parameter array unchanged. -/
@@ -169,6 +262,7 @@ def ParameterContextSuffix.reindex
   prefixLength := H.prefixLength
   cached := by rw [hparams]; exact H.cached
   narrowParams := by rw [hparams]; exact H.narrowParams
+  sources := H.sources
 
 def _root_.Lean4Lean.checkPositivityStep.VLCtx.NoIndConsts
     (names : List Name) (Δ : VLCtx) : Prop :=
@@ -590,6 +684,7 @@ structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
   noBV : scope.NoBV
   noIndConsts : ∀ names,
     checkPositivityStep.VLCtx.NoIndConsts names scope
+  sources : FVarNarrowSources env Us scope
 
 def NarrowRuntimeScope.mono {env env' : VEnv} (henv : env ≤ env')
     (H : NarrowRuntimeScope env Us scope runtime) :
@@ -604,6 +699,7 @@ def NarrowRuntimeScope.mono {env env' : VEnv} (henv : env ≤ env')
   upset := H.upset
   noBV := H.noBV
   noIndConsts := H.noIndConsts
+  sources := H.sources.mono henv
 
 /-- Retarget only the executable context of a narrow scope along an exact
 context equality.  The semantic front is copied field-by-field so its data
@@ -623,6 +719,7 @@ def NarrowRuntimeScope.retargetRuntime
   upset := by cases h; exact H.upset
   noBV := H.noBV
   noIndConsts := H.noIndConsts
+  sources := H.sources
 
 theorem NarrowRuntimeScope.scopeWF
     (H : NarrowRuntimeScope env Us scope runtime)
@@ -855,6 +952,9 @@ def NarrowRuntimeScope.withIndex
     (hnewRuntime : VLCtx.WF env Us.length
       ((some (fv, deps), .vlam runtimeType) :: runtime))
     (hdeps : deps ⊆ scope.fvars)
+    (sourceName : Name) (sourceBinderInfo : BinderInfo)
+    (sourceDomain : Expr)
+    (hsourceDomain : TrExprS env Us scope sourceDomain indexType)
     (hdomain : env.IsDefEq Us.length H.expanded.toCtx
       (indexType.lift' H.shift) runtimeType (.sort u)) :
     NarrowRuntimeScope env Us
@@ -891,55 +991,8 @@ def NarrowRuntimeScope.withIndex
   noIndConsts := fun names =>
     checkPositivityStep.VLCtx.NoIndConsts.cons
       (H.noIndConsts names) rfl
-
-/-- Source-domain provenance for a dependency-closed narrowed context.
-The context is newest first.  At each retained declaration, its original
-Lean domain is translated in the already retained older tail; this is the
-datum needed to reconstruct an independent closed forall telescope rather
-than merely closing a later expression over anonymous target domains. -/
-inductive FVarNarrowSources (env : VEnv) (Us : List Name) :
-    VLCtx → Type
-  | nil : FVarNarrowSources env Us []
-  | cons
-      (tail : FVarNarrowSources env Us scope)
-      (name : Name) (binderInfo : BinderInfo)
-      (domain : Expr)
-      (translation : TrExprS env Us scope domain target) :
-      FVarNarrowSources env Us
-        ((some (fv, deps), .vlam target) :: scope)
-
-def FVarNarrowSources.mono {env env' : VEnv} (henv : env ≤ env') :
-    FVarNarrowSources env Us scope → FVarNarrowSources env' Us scope
-  | .nil => .nil
-  | .cons tail name binderInfo domain translation =>
-    .cons (tail.mono henv) name binderInfo domain
-      (translation.mono henv)
-
-/-- Close a body through all retained source declarations.  Each newest
-free variable is abstracted into the body before its forall is formed; the
-recursive call then abstracts the older variables through both that domain
-and body. -/
-def FVarNarrowSources.closeSource
-    (H : FVarNarrowSources env Us scope) (body : Expr) : Expr :=
-  match H with
-  | .nil => body
-  | .cons (fv := fv) tail name binderInfo domain _ =>
-    tail.closeSource (.forallE name domain
-      (body.abstract1 fv) binderInfo)
-
-@[simp] theorem FVarNarrowSources.closeSource_mono
-    {env env' : VEnv} (henv : env ≤ env')
-    (H : FVarNarrowSources env Us scope) (body : Expr) :
-    (H.mono henv).closeSource body = H.closeSource body := by
-  induction H generalizing body with
-  | nil => rfl
-  | cons tail name binderInfo domain translation ih =>
-    exact ih _
-
-@[simp] theorem FVarNarrowSources.closeSource_nil
-    (body : Expr) :
-    (FVarNarrowSources.nil : FVarNarrowSources env Us []).closeSource body =
-      body := rfl
+  sources := .cons H.sources sourceName sourceBinderInfo sourceDomain
+    hsourceDomain
 
 /-- A dependency-closed semantic subcontext of an executable all-lambda
 context.  Unlike `NarrowRuntimeScope`, this deliberately has no contiguous
@@ -1274,6 +1327,220 @@ theorem narrowFVars
   | @vlet fv name type value type' value' tail ih =>
     exact H.vlet_false.elim
 
+/-- The exact weakening induced by selecting named declarations from a
+newest-first executable context. -/
+def fvarSelectionLift (fvars : List FVarId) (P : FVarId → Prop)
+    [DecidablePred P] : Lift :=
+  match fvars with
+  | [] => .refl
+  | fv :: fvars =>
+    if P fv then .cons (fvarSelectionLift fvars P)
+    else .skip (fvarSelectionLift fvars P)
+
+/-- Selecting a smaller predicate and then embedding its selected context
+through a larger selection factors the direct runtime selection exactly. -/
+theorem fvarSelectionLift_mono_comp
+    (fvars : List FVarId) (P Q : FVarId → Prop)
+    [DecidablePred P] [DecidablePred Q]
+    (hsub : ∀ fv, P fv → Q fv) :
+    Lift.comp (fvarSelectionLift (fvars.filter Q) P)
+        (fvarSelectionLift fvars Q) =
+      fvarSelectionLift fvars P := by
+  induction fvars with
+  | nil => rfl
+  | cons fv fvars ih =>
+    by_cases hQ : Q fv
+    · by_cases hP : P fv
+      · simp [fvarSelectionLift, hQ, hP, ih]
+      · simp [fvarSelectionLift, hQ, hP, ih]
+    · have hP : ¬ P fv := fun hp => hQ (hsub fv hp)
+      simp [fvarSelectionLift, hQ, hP, ih]
+
+/-- Selecting every member of a list retains a pure `cons` lift. -/
+theorem fvarSelectionLift_all
+    (fvars : List FVarId) (P : FVarId → Prop) [DecidablePred P]
+    (hall : ∀ fv ∈ fvars, P fv) :
+    fvarSelectionLift fvars P = .consN .refl fvars.length := by
+  induction fvars with
+  | nil => rfl
+  | cons fv fvars ih =>
+    have hhead := hall fv (by simp)
+    have htail : ∀ other ∈ fvars, P other := by
+      intro other hother
+      exact hall other (by simp [hother])
+    simp [fvarSelectionLift, hhead, ih htail]
+
+/-- A prefix containing no selected identifiers contributes only skips. -/
+theorem fvarSelectionLift_append_none
+    (extra tail : List FVarId) (P : FVarId → Prop) [DecidablePred P]
+    (hnone : ∀ fv ∈ extra, ¬ P fv) :
+    fvarSelectionLift (extra ++ tail) P =
+      .skipN (fvarSelectionLift tail P) extra.length := by
+  induction extra with
+  | nil => rfl
+  | cons fv extra ih =>
+    have hhead := hnone fv (by simp)
+    have htail : ∀ other ∈ extra, ¬ P other := by
+      intro other hother
+      exact hnone other (by simp [hother])
+    simp [fvarSelectionLift, hhead, ih htail]
+
+/-- Selecting the second half of a disjoint concatenation is the ordinary
+uniform insertion of the first half in front of the retained context. -/
+theorem fvarSelectionLift_append_selected
+    (extra selected : List FVarId) (hdisjoint : extra.Disjoint selected) :
+    fvarSelectionLift (extra ++ selected) (· ∈ selected) =
+      .skipN (.consN .refl selected.length) extra.length := by
+  rw [fvarSelectionLift_append_none]
+  · rw [fvarSelectionLift_all]
+    intro fv hfv
+    exact hfv
+  · intro fv hfv hselected
+    exact hdisjoint hfv hselected
+
+/-- Strengthen non-contiguous narrowing with its exact concrete source
+closure.  This records, at the producer, that the narrowed source telescope
+is the `LocalContext.mkForall` telescope over precisely the selected free
+variables. -/
+theorem MLCtxOnlyLams.narrowFVarsSource
+    {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
+    (H : MLCtxOnlyLams c)
+    (henv : env.WF)
+    (Hwf : c.WF env Us)
+    (P : FVarId → Prop) [DecidablePred P]
+    (hup : IsFVarUpSet P c.vlctx) :
+    ∃ scope,
+      ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
+        scope.fvars = c.vlctx.fvars.filter P ∧
+        Hscope.shift = fvarSelectionLift c.vlctx.fvars P ∧
+        (∀ fv ∈ scope.fvars, ∃ decl,
+          c.lctx.find? fv = some decl) ∧
+        ∀ body,
+          Hscope.sources.closeSource body =
+            c.lctx.mkForall
+              (scope.fvars.reverse.map Expr.fvar).toArray body := by
+  induction c with
+  | nil =>
+    refine ⟨[], .nil, rfl, rfl, ?_, ?_⟩
+    · intro fv hfv
+      simp at hfv
+    · intro body
+      change body = ({} : LocalContext).mkForall #[] body
+      exact (LocalContext.mkForall_empty {} body).symm
+  | @vlam fv name type type' bi tail ih =>
+    have HruntimeWF := Hwf.tr.wf
+    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
+    rcases ih H.tail_vlam HtailWF hup.1 with
+      ⟨tailScope, HtailScope, htailScopeFVars,
+        htailShift, htailDecls, htailClose⟩
+    by_cases hP : P fv
+    · have hdeps : type.fvarsList ⊆ tailScope.fvars := by
+        intro dep hdep
+        rw [htailScopeFVars]
+        exact List.mem_filter.mpr ⟨Htype.fvarsList hdep, by
+          simpa using hup.2 hP dep hdep⟩
+      have hclosed : Closed type 0 := by
+        have h := Htype.closed
+        rw [tail.noBV] at h
+        exact h
+      have htypeFVars : FVarsIn (· ∈ tailScope.fvars) type := by
+        apply fvarsIn_iff.mpr
+        refine ⟨hdeps, ?_⟩
+        exact Htype.fvarsIn.mono fun _ _ => trivial
+      rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+        ⟨narrowType, HnarrowType⟩
+      have Hweak : TrExprS env Us HtailScope.expanded type
+          (narrowType.lift' HtailScope.shift) := by
+        simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
+          HtailScope.context.wf
+      have HtargetEq := Hweak.uniq henv HtailScope.context Htype
+      have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
+          type' :=
+        HtypeType.defeqDFC henv.ordered
+          (HtailScope.context.symm henv.ordered).defeqCtx
+      rcases HtargetType with ⟨u, HtargetType⟩
+      have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
+          (narrowType.lift' HtailScope.shift) type' (.sort u) :=
+        HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+      let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
+        HnarrowType Hdomain
+      have hnextFVars : ∀ body,
+          Hnext.sources.closeSource body =
+            HtailScope.sources.closeSource
+              (.forallE name type (body.abstract1 fv) bi) := by
+        intro body
+        rfl
+      have holdDecls : ∀ other ∈ tailScope.fvars.reverse,
+          ∃ decl, tail.lctx.find? other = some decl := by
+        intro other hother
+        exact htailDecls other (List.mem_reverse.mp hother)
+      have holdNodup : tailScope.fvars.reverse.Nodup :=
+        List.nodup_reverse.mpr (HtailScope.scopeWF henv).fvars_nodup
+      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_⟩
+      · change HtailScope.shift.cons = _
+        rw [htailShift]
+        simp [fvarSelectionLift, hP]
+      · intro other hother
+        change other ∈ fv :: tailScope.fvars at hother
+        simp only [List.mem_cons] at hother
+        rcases hother with rfl | hother
+        · refine ⟨.cdecl tail.lctx.decls.size other name type bi .default,
+            ?_⟩
+          simp [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+        · rcases htailDecls other hother with ⟨decl, hlookup⟩
+          refine ⟨decl, ?_⟩
+          simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+          rw [if_neg]
+          · exact hlookup
+          · intro heq
+            have heq' : fv = other := beq_iff_eq.mp heq
+            rw [heq'] at hfresh
+            rw [hlookup] at hfresh
+            contradiction
+      · intro body
+        have Happ := LocalContext.mkForall_append_fresh
+          HtailWF.tr.1 hfresh holdDecls holdNodup
+          (body := body) (name := name) (type := type) (bi := bi)
+        rw [hnextFVars body, htailClose]
+        simpa [Hnext, TypeChecker.MLCtx.lctx, List.reverse_cons]
+          using Happ.symm
+    · have hskip : fv ∉ tailScope.fvars := by
+        rw [htailScopeFVars]
+        simp [hP]
+      let Hnext := HtailScope.skipIndex henv HruntimeWF hskip
+      have hnextFVars : ∀ body,
+          Hnext.sources.closeSource body =
+            HtailScope.sources.closeSource body := by
+        intro body
+        rfl
+      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_⟩
+      · change HtailScope.shift.skip = _
+        rw [htailShift]
+        simp [fvarSelectionLift, hP]
+      · intro other hother
+        change other ∈ tailScope.fvars at hother
+        rcases htailDecls other hother with ⟨decl, hlookup⟩
+        refine ⟨decl, ?_⟩
+        simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+          LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+        rw [if_neg]
+        · exact hlookup
+        · intro heq
+          have heq' : fv = other := beq_iff_eq.mp heq
+          exact hskip (heq' ▸ hother)
+      · intro body
+        have Hskip := LocalContext.mkForall_skip_fresh
+          HtailWF.tr.1 hfresh
+          (selected := tailScope.fvars.reverse) (body := body)
+          (name := name) (type := type) (bi := bi)
+          (by simpa using hskip)
+        rw [hnextFVars body, htailClose]
+        simpa [Hnext, TypeChecker.MLCtx.lctx] using Hskip.symm
+  | @vlet fv name type value type' value' tail ih =>
+    exact H.vlet_false.elim
+
 /-- In a duplicate-free ambient list, filtering for the members of an
 ordered sublist recovers that sublist exactly. -/
 theorem List.filter_mem_eq_of_sublist_nodup
@@ -1313,11 +1580,18 @@ theorem NarrowRuntimeScope.independentSourceScope
     ∃ sourceScope,
       ∃ Hsource : FVarNarrowScope Hc.venv c.lparams sourceScope
           Hc.mlctx.vlctx,
-        sourceScope.fvars = scope.fvars := by
-  rcases narrowFVars Hc.onlyLams Hc.checking.tr.wf Hc.mlctx_wf
+        sourceScope.fvars = scope.fvars ∧
+        ∀ body,
+          Hsource.sources.closeSource body =
+            Hc.mlctx.lctx.mkForall
+              (sourceScope.fvars.reverse.map Expr.fvar).toArray body := by
+  rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
+      Hc.checking.tr.wf Hc.mlctx_wf
       (· ∈ scope.fvars) H.upset with
-    ⟨sourceScope, Hsource, hsourceFVars⟩
-  refine ⟨sourceScope, Hsource, hsourceFVars.trans ?_⟩
+    ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
+      hsourceClosure⟩
+  refine ⟨sourceScope, Hsource, hsourceFVars.trans ?_,
+    hsourceClosure⟩
   have hsub : scope.fvars <+ Hc.mlctx.vlctx.fvars := by
     rw [← H.context.fvars]
     exact H.lift.fvars_sublist
@@ -1348,7 +1622,8 @@ def NarrowRuntimeScope.ofParameterSuffix
     context := .refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
     upset := ?_
     noBV := ?_
-    noIndConsts := Hsuffix.noIndConsts }
+    noIndConsts := Hsuffix.noIndConsts
+    sources := Hsuffix.sources }
   · rw [Hsuffix.context]
     exact W.toFVLift'
   · exact .zero (by
@@ -2134,6 +2409,14 @@ structure NormalizedHeaderSourceTelescope (env : VEnv) (Us : List Name)
   runtime : VLCtx
   sourceScope : VLCtx
   source : FVarNarrowScope env Us sourceScope runtime
+  sourceLctx : LocalContext
+  sourceClosure : ∀ body,
+    source.sources.closeSource body =
+      sourceLctx.mkForall
+        (sourceScope.fvars.reverse.map Expr.fvar).toArray body
+  semanticScope : VLCtx
+  semanticSources : FVarNarrowSources env Us semanticScope
+  semanticScopeWF : semanticScope.WF env Us.length
   ownParams : List VExpr
   indices : List VExpr
   parameterCount : ownParams.length = nparams
@@ -2141,6 +2424,8 @@ structure NormalizedHeaderSourceTelescope (env : VEnv) (Us : List Name)
   sourceLength : sourceScope.length = nparams + nindices
   parameters : VEnv.IsDefEqCtx env Us.length []
     commonParams.reverse ownParams.reverse
+  semanticContext : VEnv.IsDefEqCtx env Us.length []
+    (indices.reverse ++ ownParams.reverse) semanticScope.toCtx
   alignment : HeaderSourceScopeAlignment env Us sourceScope runtime
     ownParams indices
 
@@ -2166,13 +2451,29 @@ def NormalizedHeaderSourceTelescope.mono {env env' : VEnv}
   runtime := H.runtime
   sourceScope := H.sourceScope
   source := H.source.mono henv
+  sourceLctx := H.sourceLctx
+  sourceClosure := by
+    intro body
+    simpa [FVarNarrowScope.mono] using H.sourceClosure body
+  semanticScope := H.semanticScope
+  semanticSources := H.semanticSources.mono henv
+  semanticScopeWF := H.semanticScopeWF.mono henv
   ownParams := H.ownParams
   indices := H.indices
   parameterCount := H.parameterCount
   indexCount := H.indexCount
   sourceLength := H.sourceLength
   parameters := H.parameters.mono henv
+  semanticContext := H.semanticContext.mono henv
   alignment := H.alignment.mono henv
+
+theorem NormalizedHeaderSourceTelescope.semanticLength
+    (H : NormalizedHeaderSourceTelescope env Us commonParams
+      nparams nindices) :
+    H.semanticScope.length = nparams + nindices := by
+  have hctx := H.semanticContext.length_eq
+  rw [H.semanticSources.toCtx_length] at hctx
+  simpa [H.parameterCount, H.indexCount, Nat.add_comm] using hctx.symm
 
 /-- Persistent result of checking one metadata-free source header.  The final
 mutual declaration need not exist yet; only its two block-wide counters are
@@ -2187,6 +2488,23 @@ structure SynthesizedHeader (env : VEnv) (Us : List Name)
   levelCount : Us.length = uvars
   normalizedSource : Nonempty
     (NormalizedHeaderSourceTelescope env Us params nparams numIndices)
+  /-- The retained concrete source telescope and the semantic header shape
+  are the same replay, not two unrelated existential witnesses.  This is
+  needed after nested lowering: the literal source index telescope must be
+  paired with the exact abstract index domains used to type the installed
+  family. -/
+  normalizedShape : ∃ sourceTelescope :
+      NormalizedHeaderSourceTelescope env Us params nparams numIndices,
+    ∃ residual exprType,
+      env.IsDefEq Us.length []
+        (source.toVInductiveType numIndices resultLevel).type
+        (VExpr.wrapForalls
+          (sourceTelescope.ownParams ++ sourceTelescope.indices) residual)
+        exprType ∧
+      env.IsDefEq Us.length
+        (sourceTelescope.indices.reverse ++
+          sourceTelescope.ownParams.reverse)
+        residual (.sort resultLevel) (.sort (.succ resultLevel))
   typeShape : ∀ decl : VInductDecl,
     decl.uvars = uvars → decl.nparams = nparams →
     decl.TypeShape env params
@@ -2200,6 +2518,11 @@ theorem NarrowHeaderSynthesisCertificate.synthesizedHeaderWithParams
     (Hruntime : NarrowRuntimeScope env Us scope runtime)
     (Hsource : FVarNarrowScope env Us sourceScope runtime)
     (hsourceFVars : sourceScope.fvars = scope.fvars)
+    (sourceLctx : LocalContext)
+    (hsourceClosure : ∀ body,
+      Hsource.sources.closeSource body =
+        sourceLctx.mkForall
+          (sourceScope.fvars.reverse.map Expr.fvar).toArray body)
     (huvars : Us.length = uvars)
     (hparams : VEnv.IsDefEqCtx env uvars []
       commonParams.reverse H.params.reverse)
@@ -2215,6 +2538,11 @@ theorem NarrowHeaderSynthesisCertificate.synthesizedHeaderWithParams
       runtime := runtime
       sourceScope := sourceScope
       source := Hsource
+      sourceLctx := sourceLctx
+      sourceClosure := hsourceClosure
+      semanticScope := scope
+      semanticSources := Hruntime.sources
+      semanticScopeWF := Hruntime.scopeWF henv
       ownParams := H.params
       indices := H.indices
       parameterCount := H.parameterCount
@@ -2227,7 +2555,47 @@ theorem NarrowHeaderSynthesisCertificate.synthesizedHeaderWithParams
           _ = scope.length := VLCtx.fvars_length_of_noBV Hruntime.noBV
           _ = nparams + nindices := H.scopeLength
       parameters := by simpa [huvars] using hparams
+      semanticContext := by
+        simpa [H.scopeCtx] using
+          (VEnv.IsDefEqCtx.refl H.scopeWF.toCtx)
       alignment := .narrow scope hsourceFVars Hruntime H.scopeCtx }⟩
+  normalizedShape := by
+    let sourceTelescope : NormalizedHeaderSourceTelescope env Us
+        commonParams nparams nindices := {
+      runtime := runtime
+      sourceScope := sourceScope
+      source := Hsource
+      sourceLctx := sourceLctx
+      sourceClosure := hsourceClosure
+      semanticScope := scope
+      semanticSources := Hruntime.sources
+      semanticScopeWF := Hruntime.scopeWF henv
+      ownParams := H.params
+      indices := H.indices
+      parameterCount := H.parameterCount
+      indexCount := H.indexCount
+      sourceLength := by
+        calc
+          sourceScope.length = sourceScope.fvars.length :=
+            Hsource.fvars_length.symm
+          _ = scope.fvars.length := congrArg List.length hsourceFVars
+          _ = scope.length := VLCtx.fvars_length_of_noBV Hruntime.noBV
+          _ = nparams + nindices := H.scopeLength
+      parameters := by simpa [huvars] using hparams
+      semanticContext := by
+        simpa [H.scopeCtx] using
+          (VEnv.IsDefEqCtx.refl H.scopeWF.toCtx)
+      alignment := .narrow scope hsourceFVars Hruntime H.scopeCtx }
+    rcases TrExpr.sort_result henv H.scopeWF.toCtx hsort with
+      ⟨resultLevel', hlevel', Hresult⟩
+    have hresultLevel : resultLevel' = resultLevel := by
+      rw [hofLevel] at hlevel'
+      exact (Option.some.inj hlevel').symm
+    subst resultLevel'
+    exact ⟨sourceTelescope, current, H.exprType, by
+      simpa [sourceTelescope, VInductiveTypeSkeleton.toVInductiveType] using
+        H.header, by
+      simpa [sourceTelescope, H.scopeCtx] using Hresult⟩
   typeShape decl hdeclUvars hdeclParams := by
     have huvars' : Us.length = decl.uvars :=
       huvars.trans hdeclUvars.symm
@@ -2258,9 +2626,11 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
   normalizedSource := by
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases narrowFVars Hc.onlyLams Hc.checking.tr.wf Hc.mlctx_wf
+    rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
+        Hc.checking.tr.wf Hc.mlctx_wf
         (· ∈ Hc.mlctx.vlctx.fvars) hup with
-      ⟨sourceScope, Hsource, hsourceFVars⟩
+      ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
+        hsourceClosure⟩
     have hfilter : Hc.mlctx.vlctx.fvars.filter
         (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
       List.filter_mem_eq_of_sublist_nodup (.refl _)
@@ -2269,6 +2639,11 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
       runtime := Hc.mlctx.vlctx
       sourceScope := sourceScope
       source := Hsource
+      sourceLctx := Hc.mlctx.lctx
+      sourceClosure := hsourceClosure
+      semanticScope := Hc.mlctx.vlctx
+      semanticSources := MLCtxOnlyLams.sources Hc.onlyLams Hc.mlctx_wf
+      semanticScopeWF := Hc.mlctx_wf.tr.wf
       ownParams := H.params
       indices := H.indices
       parameterCount := H.parameterCount
@@ -2287,7 +2662,61 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
           _ = nparams + nindices := by
             simp [H.parameterCount, H.indexCount, Nat.add_comm]
       parameters := .refl (OnCtx.append_right H.context.isType)
+      semanticContext := H.context
       alignment := .full (hsourceFVars.trans hfilter) H.context }⟩
+  normalizedShape := by
+    have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
+      (by simpa using Hc.mlctx_wf.tr.wf)
+    rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
+        Hc.checking.tr.wf Hc.mlctx_wf
+        (· ∈ Hc.mlctx.vlctx.fvars) hup with
+      ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
+        hsourceClosure⟩
+    have hfilter : Hc.mlctx.vlctx.fvars.filter
+        (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
+      List.filter_mem_eq_of_sublist_nodup (.refl _)
+        Hc.mlctx_wf.tr.wf.fvars_nodup
+    let sourceTelescope : NormalizedHeaderSourceTelescope Hc.venv c.lparams
+        H.params nparams nindices := {
+      runtime := Hc.mlctx.vlctx
+      sourceScope := sourceScope
+      source := Hsource
+      sourceLctx := Hc.mlctx.lctx
+      sourceClosure := hsourceClosure
+      semanticScope := Hc.mlctx.vlctx
+      semanticSources := MLCtxOnlyLams.sources Hc.onlyLams Hc.mlctx_wf
+      semanticScopeWF := Hc.mlctx_wf.tr.wf
+      ownParams := H.params
+      indices := H.indices
+      parameterCount := H.parameterCount
+      indexCount := H.indexCount
+      sourceLength := by
+        calc
+          sourceScope.length = sourceScope.fvars.length :=
+            Hsource.fvars_length.symm
+          _ = Hc.mlctx.vlctx.fvars.length :=
+            congrArg List.length (hsourceFVars.trans hfilter)
+          _ = Hc.mlctx.length := Hc.onlyLams.fvars_length
+          _ = Hc.mlctx.vlctx.toCtx.length :=
+            Hc.onlyLams.toCtx_length.symm
+          _ = (H.indices.reverse ++ H.params.reverse).length :=
+            H.context.length_eq.symm
+          _ = nparams + nindices := by
+            simp [H.parameterCount, H.indexCount, Nat.add_comm]
+      parameters := .refl (OnCtx.append_right H.context.isType)
+      semanticContext := H.context
+      alignment := .full (hsourceFVars.trans hfilter) H.context }
+    rcases TrExpr.sort_result Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
+        hsort with ⟨resultLevel', hlevel', Hresult⟩
+    have hresultLevel : resultLevel' = resultLevel := by
+      rw [hofLevel] at hlevel'
+      exact (Option.some.inj hlevel').symm
+    subst resultLevel'
+    exact ⟨sourceTelescope, current, H.exprType, by
+      simpa [sourceTelescope, VInductiveTypeSkeleton.toVInductiveType] using
+        H.header, by
+      simpa [sourceTelescope] using Hresult.defeqDFC Hc.checking.tr.wf.ordered
+        (H.context.symm Hc.checking.tr.wf.ordered)⟩
   typeShape decl hdeclUvars hdeclParams := by
     have huvars' : c.lparams.length = decl.uvars :=
       huvars.trans hdeclUvars.symm
@@ -2319,9 +2748,11 @@ theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
   normalizedSource := by
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases narrowFVars Hc.onlyLams Hc.checking.tr.wf Hc.mlctx_wf
+    rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
+        Hc.checking.tr.wf Hc.mlctx_wf
         (· ∈ Hc.mlctx.vlctx.fvars) hup with
-      ⟨sourceScope, Hsource, hsourceFVars⟩
+      ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
+        hsourceClosure⟩
     have hfilter : Hc.mlctx.vlctx.fvars.filter
         (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
       List.filter_mem_eq_of_sublist_nodup (.refl _)
@@ -2330,6 +2761,11 @@ theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
       runtime := Hc.mlctx.vlctx
       sourceScope := sourceScope
       source := Hsource
+      sourceLctx := Hc.mlctx.lctx
+      sourceClosure := hsourceClosure
+      semanticScope := Hc.mlctx.vlctx
+      semanticSources := MLCtxOnlyLams.sources Hc.onlyLams Hc.mlctx_wf
+      semanticScopeWF := Hc.mlctx_wf.tr.wf
       ownParams := H.params
       indices := H.indices
       parameterCount := H.parameterCount
@@ -2348,7 +2784,61 @@ theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
           _ = nparams + nindices := by
             simp [H.parameterCount, H.indexCount, Nat.add_comm]
       parameters := by simpa [huvars] using hparams
+      semanticContext := H.context
       alignment := .full (hsourceFVars.trans hfilter) H.context }⟩
+  normalizedShape := by
+    have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
+      (by simpa using Hc.mlctx_wf.tr.wf)
+    rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
+        Hc.checking.tr.wf Hc.mlctx_wf
+        (· ∈ Hc.mlctx.vlctx.fvars) hup with
+      ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
+        hsourceClosure⟩
+    have hfilter : Hc.mlctx.vlctx.fvars.filter
+        (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
+      List.filter_mem_eq_of_sublist_nodup (.refl _)
+        Hc.mlctx_wf.tr.wf.fvars_nodup
+    let sourceTelescope : NormalizedHeaderSourceTelescope Hc.venv c.lparams
+        commonParams nparams nindices := {
+      runtime := Hc.mlctx.vlctx
+      sourceScope := sourceScope
+      source := Hsource
+      sourceLctx := Hc.mlctx.lctx
+      sourceClosure := hsourceClosure
+      semanticScope := Hc.mlctx.vlctx
+      semanticSources := MLCtxOnlyLams.sources Hc.onlyLams Hc.mlctx_wf
+      semanticScopeWF := Hc.mlctx_wf.tr.wf
+      ownParams := H.params
+      indices := H.indices
+      parameterCount := H.parameterCount
+      indexCount := H.indexCount
+      sourceLength := by
+        calc
+          sourceScope.length = sourceScope.fvars.length :=
+            Hsource.fvars_length.symm
+          _ = Hc.mlctx.vlctx.fvars.length :=
+            congrArg List.length (hsourceFVars.trans hfilter)
+          _ = Hc.mlctx.length := Hc.onlyLams.fvars_length
+          _ = Hc.mlctx.vlctx.toCtx.length :=
+            Hc.onlyLams.toCtx_length.symm
+          _ = (H.indices.reverse ++ H.params.reverse).length :=
+            H.context.length_eq.symm
+          _ = nparams + nindices := by
+            simp [H.parameterCount, H.indexCount, Nat.add_comm]
+      parameters := by simpa [huvars] using hparams
+      semanticContext := H.context
+      alignment := .full (hsourceFVars.trans hfilter) H.context }
+    rcases TrExpr.sort_result Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
+        hsort with ⟨resultLevel', hlevel', Hresult⟩
+    have hresultLevel : resultLevel' = resultLevel := by
+      rw [hofLevel] at hlevel'
+      exact (Option.some.inj hlevel').symm
+    subst resultLevel'
+    exact ⟨sourceTelescope, current, H.exprType, by
+      simpa [sourceTelescope, VInductiveTypeSkeleton.toVInductiveType] using
+        H.header, by
+      simpa [sourceTelescope] using Hresult.defeqDFC Hc.checking.tr.wf.ordered
+        (H.context.symm Hc.checking.tr.wf.ordered)⟩
   typeShape decl hdeclUvars hdeclParams := by
     have huvars' : c.lparams.length = decl.uvars :=
       huvars.trans hdeclUvars.symm
@@ -2456,6 +2946,49 @@ theorem SynthesizedHeaderPrefix.normalizedSourceAtMaterialized
     rw [htargetEq]
     simp [VInductiveTypeSkeleton.toVInductiveType]
   simpa [hfields.2.1, hindices] using Hsource
+
+/-- The materialized family retains the joint source/semantic header witness
+used by the checker.  In particular, the concrete source index telescope and
+the abstract index domains in the family typing are selected by one header
+replay, rather than by unrelated existential `TypeShape` proofs. -/
+theorem SynthesizedHeaderPrefix.normalizedShapeAtMaterialized
+    (H : SynthesizedHeaderPrefix env Us skeleton params commonLevel metadata
+      skeleton.types.length)
+    (Hmaterialize : skeleton.materialize metadata = some decl)
+    (i : Nat) (hi : i < decl.types.length) :
+    ∃ sourceTelescope : NormalizedHeaderSourceTelescope env Us params
+        decl.nparams decl.types[i].numIndices,
+      ∃ residual exprType,
+        env.IsDefEq Us.length [] decl.types[i].type
+          (VExpr.wrapForalls
+            (sourceTelescope.ownParams ++ sourceTelescope.indices) residual)
+          exprType ∧
+        env.IsDefEq Us.length
+          (sourceTelescope.indices.reverse ++
+            sourceTelescope.ownParams.reverse)
+          residual (.sort decl.types[i].resultLevel)
+            (.sort (.succ decl.types[i].resultLevel)) := by
+  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
+  have hskeleton : i < skeleton.types.length := by omega
+  have hmetadata : i < metadata.length := by
+    rw [VInductDeclSkeleton.materialize_length Hmaterialize]
+    exact hskeleton
+  have Hchecked := Lean4Lean.VerifyInductive.List.Forall₂.getElem H.checked i
+    (by simpa using hskeleton) hmetadata
+  rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize hskeleton with
+    ⟨data, hdata, htarget⟩
+  have hdataEq : data = metadata[i] := by
+    rw [List.getElem?_eq_getElem hmetadata] at hdata
+    exact Option.some.inj hdata.symm
+  subst data
+  have htargetEq : decl.types[i] = skeleton.types[i].toVInductiveType
+      metadata[i].1 metadata[i].2 := by
+    rw [List.getElem?_eq_getElem hi] at htarget
+    exact Option.some.inj htarget
+  have Hshape := Hchecked.header.normalizedShape
+  rw [hfields.2.1]
+  rw [htargetEq]
+  simpa [VInductiveTypeSkeleton.toVInductiveType] using Hshape
 
 /-- Once every header has been visited, exact materialization turns the
 metadata-prefix invariant into the public formation header certificate. -/
@@ -2640,6 +3173,7 @@ def ParameterContextSuffix.empty
   prefixLength := rfl
   cached := by simp [hparams]
   narrowParams := by simp [hparams, cachedParamVars]
+  sources := .nil
 
 /-- The first-header parameter branch extends the cached suffix itself.  The
 empty-prefix premise records that parameters are all introduced before any
@@ -2662,7 +3196,8 @@ def ParameterContextSuffix.push
     context := ?_
     prefixLength := rfl
     cached := ?_
-    narrowParams := ?_ }
+    narrowParams := ?_
+    sources := ?_ }
   · have hcontext := H.context
     rw [hprefix] at hcontext
     change entry :: Hc.mlctx.vlctx = [] ++ entry :: H.parameterDecls
@@ -2719,6 +3254,11 @@ def ParameterContextSuffix.push
     simpa [Array.toList_push, cachedParamVars_succ] using
       Lean4Lean.VerifyInductive.List.Forall₂.append' hold
         (.cons hnew .nil)
+  · have hscope : Hc.mlctx.vlctx = H.parameterDecls := by
+      simpa [hprefix] using H.context
+    change FVarNarrowSources Hc.venv c.lparams
+      (entry :: H.parameterDecls)
+    exact .cons H.sources name bi ty (by simpa [hscope] using htr)
 
 /-- Index binders extend only the ambient prefix and preserve the exact
 cached-parameter suffix. -/
@@ -2738,7 +3278,8 @@ def ParameterContextSuffix.withIndex
     context := ?_
     prefixLength := by simp [H.prefixLength]
     cached := H.cached
-    narrowParams := H.narrowParams }
+    narrowParams := H.narrowParams
+    sources := H.sources }
   change entry :: Hc.mlctx.vlctx =
     (entry :: H.ambientDecls) ++ H.parameterDecls
   simp only [List.cons_append]
@@ -4800,7 +5341,8 @@ theorem laterIndexSynthesisWF
               dom.consumeTypeAnnotationsVerified.fvarsList),
               .vlam indexType) :: scope)
             Hc'.mlctx.vlctx :=
-          Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+          Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
+            hdomNarrow hdomain
         have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
         have hopenedNarrow : TrExprS Hc'.venv c.lparams
             ((some (⟨c.ngen.curr⟩,

@@ -1260,6 +1260,10 @@ structure GeneratedRecursorEntry
   Retaining this exact bit is needed when an unsafe block is hidden from the
   partial and safe environment observers. -/
   isUnsafe : info.isUnsafe = (c.safety != .safe)
+  numParams : info.numParams = stats.params.size
+  numIndices : info.numIndices = stats.nindices[ownerIdx]!
+  numMotives : info.numMotives = (recInfos.map (·.motive)).size
+  numMinors : info.numMinors = (recInfos.flatMap (·.minors)).size
   type : info.type =
     (c.lctx.mkForall stats.params <|
      c.lctx.mkForall (recInfos.map (·.motive)) <|
@@ -1282,6 +1286,8 @@ def GeneratedRecursorEntry.ofRecursorInfo
     (indTypes : Array InductiveType)
     (recInfos : Array AddInductive.RecInfo)
     (numMinors numMotives : Nat) (all : List Name)
+    (hnumMinors : numMinors = (recInfos.flatMap (·.minors)).size)
+    (hnumMotives : numMotives = (recInfos.map (·.motive)).size)
     (k isUnsafe : Bool) (ownerIdx : Nat) (rules : List RecursorRule)
     (recursor : VConstVal)
     (hunsafe : isUnsafe = (c.safety != .safe))
@@ -1308,6 +1314,12 @@ def GeneratedRecursorEntry.ofRecursorInfo
   name := rfl
   isUnsafe := by
     simp [AddInductive.declareRecursors.recursorInfo, hunsafe]
+  numParams := rfl
+  numIndices := rfl
+  numMotives := by
+    simpa [AddInductive.declareRecursors.recursorInfo] using hnumMotives
+  numMinors := by
+    simpa [AddInductive.declareRecursors.recursorInfo] using hnumMinors
   type := rfl
   rules := Hrules
 
@@ -1588,15 +1600,12 @@ theorem GeneratedRecursors.iotaRule_ofTranslationCertificate
     (hfresh : ∀ name ∈ block.recursors.map (·.name),
       trEnv.constants name = none)
     (hctx : VLCtx.NoIndConsts (block.recursors.map (·.name))
-      (abstractForallContext Hequation.shape.domains Δ))
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst (block.recursors.map (·.name)) = false →
-      e''.containsAnyConst (block.recursors.map (·.name)) = false) :
+      (abstractForallContext Hequation.shape.domains Δ)) :
     Nonempty (decl.IotaRule semanticEnv block owner ctor rule) := by
   have hpresent := Hgenerated.recursorsPresent block Hcard Hdecl hrecursors
     Hrule.recursive_calls
   exact Hrule.iotaRule_ofTranslationCertificate Hequation Hselection Hargs
-    hfresh hctx hproj hpresent
+    hfresh hctx hpresent
 
 theorem GeneratedRecursors.iotaRule_ofTranslation
     (Hgenerated : GeneratedRecursors safety generatedEnv lparams elimLevel c
@@ -1971,7 +1980,6 @@ def GeneratedRecursors.nestedCompilationCertificate
   recursors_eq := hrecursors
   primary_recursors :=
     (H.recursorCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl).toNested
-  auxiliary_names := Haux.names
   primaryRules := primaryRules
   auxiliaryRules := auxiliaryRules
   rules_eq := hrules

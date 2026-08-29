@@ -118,12 +118,13 @@ theorem RestoredConstructorSemanticMappingTrace.at
           stepSource stepTarget,
       ∃ Hsemantic : RestoredSourceConstructorSemantics lparams safety
           canonicalEnv Hstep sources[i],
+        Hstep.oldInfo.name = targets[i].name ∧
         Hsemantic.constructor = constructors[i] := by
   induction H generalizing i with
   | nil => simp at hsource
   | cons Hmapping Hstep hsafety hlevels hname htype Hsemantic Hrest ih =>
     cases i with
-    | zero => exact ⟨_, _, _, _, Hmapping, Hstep, Hsemantic, rfl⟩
+    | zero => exact ⟨_, _, _, _, Hmapping, Hstep, Hsemantic, hname, rfl⟩
     | succ i =>
       simpa using ih i (by simpa using hsource) (by simpa using htarget)
           (by simpa using hconstructor)

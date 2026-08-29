@@ -110,6 +110,19 @@ inductive CheckedTrProj (env : VEnv) (U : Nat) (Gamma : List VExpr)
 
 namespace CheckedTrProj
 
+/-- Forget only the environment certificate, retaining the exact canonical
+projection syntax.  This direction is sound because the legacy relation now
+records a concrete expansion instead of being opaque. -/
+theorem toTrProj
+    (H : CheckedTrProj env U Gamma structName index major target) :
+    TrProj (env := env) (U := U) Gamma structName index major target := by
+  cases H with
+  | canonical P hstruct hindex hmajor Hchecked =>
+      exact .canonical P hstruct hindex hmajor {
+        installed := Hchecked.installed
+        majorWF := Hchecked.majorWF
+        targetWF := Hchecked.targetWF }
+
 theorem mono
     (H : CheckedTrProj env U Gamma structName index major target)
     (Henv : env ≤ env') :
@@ -187,6 +200,37 @@ theorem targetWF
   cases H with
   | canonical P _ _ _ Hchecked => exact Hchecked.targetWF
 
+/-- The checked canonical target exposes exactly the support boundary used
+by nested guardedness. -/
+theorem supportExpansion
+    (H : CheckedTrProj env U Gamma structName index major target) :
+    VExpr.ProjectionSupportExpansion major target :=
+  H.toTrProj.supportExpansion
+
+private theorem checked_getAppFnArgs_mkApps
+    (fn : VExpr) (args : List VExpr) :
+    (VExpr.mkApps fn args).getAppFnArgs =
+      let (head, prior) := fn.getAppFnArgs
+      (head, prior ++ args) := by
+  induction args generalizing fn with
+  | nil => simp [VExpr.mkApps]
+  | cons arg args ih =>
+      rw [show VExpr.mkApps fn (arg :: args) =
+        VExpr.mkApps (.app fn arg) args from rfl, ih]
+      simp [List.append_assoc]
+
+/-- A canonical projection expansion is headed by its generated eliminator,
+never by a bound variable.  This lets equation-restoration spine inversion
+distinguish a projection expansion from a constructor-field application. -/
+theorem target_bvarHead?_eq_none
+    (H : CheckedTrProj env U Gamma structName index major target) :
+    target.bvarHead? = none := by
+  cases H with
+  | canonical P hstruct hindex hmajor Hchecked =>
+      unfold VExpr.bvarHead?
+      rw [CanonicalProjectionExpansion.target, checked_getAppFnArgs_mkApps]
+      rfl
+
 /-- A checked projection target cannot mention a constant absent from its
 actual abstract environment.  This is a consequence of target typing, not a
 projection compatibility premise. -/
@@ -199,6 +243,24 @@ theorem noFreshConsts
   VExpr.WF.noFreshConsts Henv Hfresh Hctx H.targetWF
 
 end CheckedTrProj
+
+namespace TrProj
+
+/-- The legacy surface relation already retains an environment-indexed
+canonical expansion together with installed-origin and target-typing
+evidence.  Repackage that evidence as the checked relation.  This is a
+pointwise conversion at the actual environment and context; it is not a
+global projection-preservation principle. -/
+theorem toChecked
+    (H : TrProj (env := env) (U := U) Gamma structName index major target) :
+    CheckedTrProj env U Gamma structName index major target := by
+  cases H with
+  | canonical P hstruct hindex hmajor Hwf =>
+      exact .canonical P hstruct hindex hmajor {
+        installed := Hwf.installed
+        targetTyping := Hwf.targetWF }
+
+end TrProj
 
 /-- Strict concrete-to-abstract expression translation whose projection leaf
 is tied to the surrounding environment, universe count, and local context.
@@ -253,6 +315,31 @@ inductive CheckedTrExprS (env : VEnv) (Us : List Name) :
       CheckedTrExprS env Us Delta (.proj structName index major) target
 
 namespace CheckedTrExprS
+
+/-- A checked translation refines the legacy syntax translation.  Projection
+nodes forget their environment certificate but keep the same canonical
+expansion target.  This bridge lets existing non-projection proof
+infrastructure consume certified checker output without reintroducing an
+opaque projection choice. -/
+theorem toTrExprS
+    (H : CheckedTrExprS env Us Delta expression target) :
+    TrExprS env Us Delta expression target := by
+  induction H with
+  | bvar hfind => exact .bvar hfind
+  | fvar hfind => exact .fvar hfind
+  | sort hlevel => exact .sort hlevel
+  | const hlookup hlevels hlength => exact .const hlookup hlevels hlength
+  | app hfn harg _ _ ihFn ihArg => exact .app hfn harg ihFn ihArg
+  | lam hdomain _ _ ihDomain ihBody =>
+      exact .lam hdomain ihDomain ihBody
+  | forallE hdomain hbody _ _ ihDomain ihBody =>
+      exact .forallE hdomain hbody ihDomain ihBody
+  | letE hvalue _ _ _ ihType ihValue ihBody =>
+      exact .letE hvalue ihType ihValue ihBody
+  | lit hliteral _ ih => exact .lit hliteral ih
+  | mdata _ ih => exact .mdata ih
+  | proj _ Hprojection ihMajor =>
+      exact .proj ihMajor Hprojection.toTrProj
 
 theorem closed
     (H : CheckedTrExprS env Us Delta expression target) :
@@ -434,7 +521,71 @@ theorem wf
   | lit _ _ ih | mdata _ ih => exact ih hDelta
   | proj _ Hprojection _ => exact Hprojection.targetWF
 
+/-- Projection-free concrete syntax has a literal checked target even when
+the two translations are performed in different environments.  Environment
+lookups justify acceptance but do not affect the translated syntax; the
+`IsUnique` index excludes the only environment-sensitive syntax constructor,
+primitive projection. -/
+theorem target_eq_of_uniqueCtx
+    (hDelta : TrExprS.IsUniqueCtx DeltaOne DeltaTwo)
+    (hUnique : TrExprS.IsUnique expression)
+    (Hone : CheckedTrExprS envOne Us DeltaOne expression targetOne)
+    (Htwo : CheckedTrExprS envTwo Us DeltaTwo expression targetTwo) :
+    targetOne = targetTwo := by
+  induction Hone generalizing DeltaTwo targetTwo with cases Htwo
+  | bvar => exact hDelta.find?_uniq ‹_› ‹_›
+  | fvar => exact hDelta.find?_uniq ‹_› ‹_›
+  | sort hlevel => cases hlevel.symm.trans ‹_›; rfl
+  | const _ hlevels => cases hlevels.symm.trans ‹_›; rfl
+  | app _ _ _ _ ihFn ihArg =>
+      cases ihFn hDelta hUnique.1 ‹_›
+      cases ihArg hDelta hUnique.2 ‹_›
+      rfl
+  | lam _ _ _ ihDomain ihBody =>
+      cases ihDomain hDelta hUnique.1 ‹_›
+      cases ihBody (hDelta.cons .vlam) hUnique.2 ‹_›
+      rfl
+  | forallE _ _ _ _ ihDomain ihBody =>
+      cases ihDomain hDelta hUnique.1 ‹_›
+      cases ihBody (hDelta.cons .vlam) hUnique.2 ‹_›
+      rfl
+  | letE _ _ _ _ _ ihValue ihBody =>
+      cases ihValue hDelta hUnique.1 ‹_›
+      cases ihBody (hDelta.cons .vlet) hUnique.2 ‹_›
+      rfl
+  | lit _ _ ih => exact ih hDelta .toConstructor ‹_›
+  | mdata _ ih => exact ih hDelta hUnique ‹_›
+  | proj => cases hUnique
+
 end CheckedTrExprS
+
+namespace TrExprS
+
+/-- Upgrade a strict translation to the environment-indexed checked
+translation.  In the projection case the exact canonical expansion and its
+typing certificate are repackaged by `TrProj.toChecked`; no preservation
+property over unrelated environments is used. -/
+theorem toChecked
+    (H : TrExprS env Us Delta expression target) :
+    CheckedTrExprS env Us Delta expression target := by
+  induction H with
+  | bvar hfind => exact .bvar hfind
+  | fvar hfind => exact .fvar hfind
+  | sort hlevel => exact .sort hlevel
+  | const hlookup hlevels hlength => exact .const hlookup hlevels hlength
+  | app hfn harg _ _ ihFn ihArg => exact .app hfn harg ihFn ihArg
+  | lam hdomain _ _ ihDomain ihBody =>
+      exact .lam hdomain ihDomain ihBody
+  | forallE hdomain hbody _ _ ihDomain ihBody =>
+      exact .forallE hdomain hbody ihDomain ihBody
+  | letE hvalue _ _ _ ihType ihValue ihBody =>
+      exact .letE hvalue ihType ihValue ihBody
+  | lit hliteral _ ih => exact .lit hliteral ih
+  | mdata _ ih => exact .mdata ih
+  | proj _ Hprojection ihMajor =>
+      exact .proj ihMajor Hprojection.toChecked
+
+end TrExprS
 
 /-- Non-strict checked translation, used at normalization boundaries. -/
 def CheckedTrExpr (env : VEnv) (Us : List Name) (Delta : VLCtx)

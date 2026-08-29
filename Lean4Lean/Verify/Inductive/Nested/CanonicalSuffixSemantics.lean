@@ -213,6 +213,43 @@ theorem GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEq
   rw [Hrestored Hdomain Hreplacement]
   exact ⟨Htranslation, Htype⟩
 
+/-- Equivalence-based form of `ofRestoredAbstractEq`.  Operational
+restoration and alpha-reopening are specified by Lean's expression
+equivalence relation, which is exactly the congruence respected by `TrExprS`;
+requiring propositional syntax equality here would discard valid producer
+evidence. -/
+theorem GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEqv
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    {H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry}
+    {newEnv : VEnv} {newBase : VLCtx} {initialPrefix targets : List VExpr}
+    {position binderDepth : Nat} (restoredSource : Expr)
+    (Hrestored : forall {oldDomain newDomain},
+      Expr.ForallBinderAt
+        (H.trace.opening.body.abstractList H.trace.opening.selection.fvars)
+        position
+        (oldDomain.abstractList H.trace.opening.selection.fvars binderDepth) ->
+      ExprReplacement
+        (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
+        oldDomain newDomain ->
+      (newDomain.abstractList H.trace.opening.selection.fvars binderDepth ==
+        restoredSource) = true)
+    (Htranslation : TrExprS newEnv Hentry.info.levelParams
+      (abstractForallContext (initialPrefix ++ targets.take position) newBase)
+      restoredSource targets[position]!)
+    (Htype : newEnv.IsType Hentry.info.levelParams.length
+      (abstractForallContext
+        (initialPrefix ++ targets.take position) newBase).toCtx
+      targets[position]!) :
+    GeneratedRecursorCanonicalDomainTranslation H newEnv newBase
+      initialPrefix targets position binderDepth := by
+  intro oldDelta oldDomain newDomain oldDomainTarget Hdomain Hreplacement
+    _Hold _HoldType
+  exact ⟨Htranslation.eqv
+    (BEq.symm (Hrestored Hdomain Hreplacement)), Htype⟩
+
 /-- A canonical target list plus source-facing translations for the four
 generated recursor domain groups and its final residual.  This interface
 removes all dependent-fold state bookkeeping from later semantic proofs:

@@ -42,7 +42,7 @@ def RestoredPrimaryIotaSemantics.ofStructuralGuarded
       Hsource.lhsBody Hsource.typeBody)
     (rhsTyping : targetEnv.HasType sourceRule.uvars Hsource.domains.reverse
       Hrhs.targetBody Hsource.typeBody)
-    (Hguard : GuardedExprRestoration Hrhs.plan.restoreNode sourceRecursors
+    (Hguard : GuardedExprRestoration Hrhs.plan.Relates sourceRecursors
       (restoredBlock.recursors.map (·.name)) Hsource.fieldVars 0
       Hrhs.sourceBody Hrhs.targetBody) :
     RestoredPrimaryIotaSemantics decl sourceBlock restoredBlock owner ctor
@@ -96,7 +96,7 @@ def RestoredPrimaryIotaSemantics.ofStructural
       (abstractForallContext [] Hrhs.sourceScope).toCtx
       (abstractForallContext [] Hrhs.targetScope).toCtx
       Hrhs.sourceBody Hrhs.targetBody sourceType Hsource.typeBody)
-    (Hguard : GuardedExprRestoration Hrhs.plan.restoreNode sourceRecursors
+    (Hguard : GuardedExprRestoration Hrhs.plan.Relates sourceRecursors
       (restoredBlock.recursors.map (·.name)) Hsource.fieldVars 0
       Hrhs.sourceBody Hrhs.targetBody) :
     RestoredPrimaryIotaSemantics decl sourceBlock restoredBlock owner ctor

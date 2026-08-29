@@ -54,7 +54,7 @@ structure NestedRestoredNodeBehavior
       node.source = .const oldName abstractLevels ∧
       node.target = .const newName abstractLevels) ∨
     (node.provenance.IsNonrecursor ∧
-      node.target.containsAnyConst restoredRecursors = false)
+      node.target.SourceConstFree restoredRecursors)
 
 /-- Translating the same concrete universe list on the two sides of a
 recursor rename produces the same abstract universe list. -/
@@ -89,7 +89,7 @@ theorem NestedRestoredNodeBehavior.recursor
   have Htarget := node.targetTranslation
   rw [hinput] at Hsource
   rw [houtput] at Htarget
-  rcases translatedRecursorEndpoints Hsource Htarget with
+  rcases translatedRecursorEndpoints Hsource.toTrExprS Htarget.toTrExprS with
     ⟨abstractLevels, hsource, htarget⟩
   exact ⟨Or.inl ⟨oldName, newName, abstractLevels, hprovenance,
     hfind, hsource, htarget⟩⟩

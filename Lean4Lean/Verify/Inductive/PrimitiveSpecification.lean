@@ -16,8 +16,7 @@ theorem SemanticPrimitiveRunWithStatsResult.independentSpecification
     (Hrun : SemanticPrimitiveRunWithStatsResult c stats nparams depth
       sourceEnv indTypes isUnsafe outEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
-      isUnsafe)
-    (hproj : ProjectionConstPreservation) :
+      isUnsafe) :
     Nonempty (InductiveSpecificationResult sourceEnv c.lparams nparams
       indTypes.toList isUnsafe) := by
   rcases Hrun with ⟨decl, _ctorEnv, R, ⟨Hrecursors⟩⟩
@@ -25,7 +24,7 @@ theorem SemanticPrimitiveRunWithStatsResult.independentSpecification
     rcases Hshape with ⟨_, _, _, hbool | ⟨binderName, binderInfo, hnat⟩⟩
     · simp [hbool]
     · simp [hnat]
-  rcases Hrecursors.canonicalCompletedRuleTranslation hproj with ⟨T⟩
+  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
   exact ⟨{
     decl := decl
     envTypes := R.headerVEnv

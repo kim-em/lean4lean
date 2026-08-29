@@ -227,6 +227,15 @@ inductive IsDefEqCtx.UsesOnly {env : VEnv} {uvars : Nat}
   | succ : UsesOnly changed Hctx → Htype.UsesOnly changed →
       UsesOnly changed (.succ Hctx Htype)
 
+theorem IsDefEqCtx.UsesOnly.mono
+    {env env' : VEnv} (henv : env ≤ env')
+    {H : env.IsDefEqCtx uvars base left right}
+    (HU : H.UsesOnly changed) :
+    (H.mono henv).UsesOnly changed := by
+  induction HU with
+  | zero => exact .zero
+  | succ _ _ IH => exact .succ IH (IsDefEq.UsesOnly.mono henv ‹_›)
+
 theorem IsDefEqCtx.rebaseExcept
     (E : LEExcept changed src dst)
     (H : src.IsDefEqCtx uvars base left right)
@@ -353,6 +362,51 @@ theorem VLCtx.IsDefEq.usesOnly_of_constants
     exact .cons _ _ _ _ _ Hctx Hfresh Hdecl IH
       (Hdecl.usesOnly_of_constants Hconstants)
 
+/-- A finite environment anchor for one certified projection.  Restriction
+replay does not need every constant of the ambient source environment: it only
+needs an earlier environment in which the same projection certificate was
+already valid and whose constants all avoid `changed`.
+
+The canonical witness produced by `usesOnly_of_constants` is the current
+environment itself.  The explicit anchor is what makes the evidence stable
+when the translation is subsequently weakened to a larger environment. -/
+structure TrProj.RestrictionSupport
+    {env : VEnv} {U : Nat} {Gamma : List VExpr}
+    {structName : Name} {index : Nat} {major projected : VExpr}
+    (changed : Name → Prop)
+    (H : TrProj (env := env) (U := U) Gamma structName index major projected) where
+  anchor : VEnv
+  anchor_le : anchor ≤ env
+  projection : TrProj (env := anchor) (U := U) Gamma
+    structName index major projected
+  constants : ∀ {name ci}, anchor.constants name = some ci →
+    ¬ changed name
+
+theorem TrProj.RestrictionSupport.rebaseExcept
+    (E : VEnv.LEExcept changed src dst)
+    {H : TrProj (env := src) (U := U) Gamma
+      structName index major projected}
+    (S : H.RestrictionSupport changed) :
+    TrProj (env := dst) (U := U) Gamma
+      structName index major projected := by
+  apply S.projection.mono
+  constructor
+  · intro name ci hlookup
+    exact E.constants (S.anchor_le.constants hlookup) (S.constants hlookup)
+  · intro df hdf
+    exact E.defeqs (S.anchor_le.defeqs hdf)
+
+def TrProj.RestrictionSupport.mono
+    {env env' : VEnv} (henv : env ≤ env')
+    {H : TrProj (env := env) (U := U) Gamma
+      structName index major projected}
+    (S : H.RestrictionSupport changed) :
+    (H.mono henv).RestrictionSupport changed where
+  anchor := S.anchor
+  anchor_le := S.anchor_le.trans henv
+  projection := S.projection
+  constants := S.constants
+
 /-- The semantic premises and constant translations used by one concrete
 expression translation derivation. -/
 inductive TrExprS.UsesOnly {env : VEnv} {levelParams : List Name}
@@ -409,7 +463,8 @@ inductive TrExprS.UsesOnly {env : VEnv} {levelParams : List Name}
       (structName : Name) (index : Nat) (projected : VExpr)
       (H : TrExprS env levelParams ctx source target)
       (Hproj : TrProj ctx.toCtx structName index target projected)
-      (Huses : UsesOnly changed H) :
+      (Huses : UsesOnly changed H)
+      (HprojUses : Hproj.RestrictionSupport changed) :
       UsesOnly changed (.proj H Hproj)
 
 theorem TrExprS.rebaseExcept
@@ -443,8 +498,9 @@ theorem TrExprS.rebaseExcept
   | lit Hcontains Hliteral HconstructorUses IH =>
     exact .lit (VEnv.ContainsLits.rebaseExcept E Hcontains Hliteral) IH
   | mdata Huses IH => exact .mdata IH
-  | proj ctx source target structName index projected H Hproj Huses IH =>
-    exact .proj IH Hproj
+  | proj ctx source target structName index projected H Hproj Huses
+      HprojUses IH =>
+    exact .proj IH (HprojUses.rebaseExcept E)
 
 theorem TrExprS.usesOnly_of_constants
     {env : VEnv} {changed : Name → Prop}
@@ -474,7 +530,12 @@ theorem TrExprS.usesOnly_of_constants
   | lit Hcontains Hconstructor IH =>
     exact .lit Hcontains (Hcontains.usesOnly_of_constants Hconstants) IH
   | mdata H IH => exact .mdata IH
-  | proj H Hproj IH => exact .proj _ _ _ _ _ _ H Hproj IH
+  | proj H Hproj IH =>
+    exact .proj _ _ _ _ _ _ H Hproj IH {
+      anchor := env
+      anchor_le := VEnv.LE.rfl
+      projection := Hproj
+      constants := Hconstants }
 
 /-- A translated expression retains its proof-relevant dependency
 certificate when its derivation is weakened to a larger environment. -/
@@ -507,8 +568,9 @@ theorem TrExprS.UsesOnly.mono
   | lit Hcontains Hliteral HconstructorUses IH =>
     exact .lit (Hcontains.mono henv) Hliteral IH
   | mdata Huses IH => exact .mdata IH
-  | proj ctx source target structName index projected H Hproj Huses IH =>
+  | proj ctx source target structName index projected H Hproj Huses
+      HprojUses IH =>
     exact .proj ctx source target structName index projected
-      (H.mono henv) Hproj IH
+      (H.mono henv) (Hproj.mono henv) IH (HprojUses.mono henv)
 
 end Lean4Lean

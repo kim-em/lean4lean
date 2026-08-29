@@ -1012,10 +1012,10 @@ theorem laterResult.extendsPrefixNarrow
   rcases TrExpr.sort_source hsortedNarrow with
     ⟨resultLevel, hofLevel, _hresult⟩
   rcases Hruntime.independentSourceScope with
-    ⟨sourceScope, HsourceScope, hsourceScopeFVars⟩
+    ⟨sourceScope, HsourceScope, hsourceScopeFVars, hsourceClosure⟩
   have hheader := Hsynthesis.synthesizedHeaderWithParams
     Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
-      huvars hparams hofLevel hsortedNarrow
+      Hc.mlctx.lctx hsourceClosure huvars hparams hofLevel hsortedNarrow
   have hlevel : resultLevel ≈ commonLevel :=
     Level.isEquiv_wf hguard hofLevel hcommon
   exact Hrec resultSort resultLevel hguard hofLevel
@@ -1472,6 +1472,20 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
   normalizedSources : ∀ i (hi : i < decl.types.length), Nonempty
     (checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope env Us
       headers.params decl.nparams decl.types[i].numIndices)
+  normalizedShapes : ∀ i (hi : i < decl.types.length),
+    ∃ sourceTelescope :
+        checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope env Us
+          headers.params decl.nparams decl.types[i].numIndices,
+      ∃ residual exprType,
+        env.IsDefEq Us.length [] decl.types[i].type
+          (VExpr.wrapForalls
+            (sourceTelescope.ownParams ++ sourceTelescope.indices) residual)
+          exprType ∧
+        env.IsDefEq Us.length
+          (sourceTelescope.indices.reverse ++
+            sourceTelescope.ownParams.reverse)
+          residual (.sort decl.types[i].resultLevel)
+            (.sort (.succ decl.types[i].resultLevel))
   commonLevel : VLevel.ofLevel Us stats.resultLevel =
     some headers.resultLevel
   levels : stats.levels.length = decl.uvars
@@ -1571,6 +1585,11 @@ def MaterializedHeaderResult.mono {env env' : VEnv}
   headers := H.headers.mono henv
   normalizedSources := fun i hi =>
     ⟨(Classical.choice (H.normalizedSources i hi)).mono henv⟩
+  normalizedShapes := fun i hi => by
+    rcases H.normalizedShapes i hi with
+      ⟨sourceTelescope, residual, exprType, hheader, hresult⟩
+    exact ⟨sourceTelescope.mono henv, residual, exprType,
+      hheader.mono henv, hresult.mono henv⟩
   commonLevel := H.commonLevel
   levels := H.levels
   levelParams := H.levelParams
@@ -1708,6 +1727,8 @@ theorem laterSteps.materialize
         headers := Hheaders
         normalizedSources :=
           Hprefix'.normalizedSourceAtMaterialized hmaterialize
+        normalizedShapes :=
+          Hprefix'.normalizedShapeAtMaterialized hmaterialize
         commonLevel := hcommon
         levels := ?_
         levelParams := hlevelParams
@@ -1806,6 +1827,7 @@ def MaterializedHeaderResult.parameterSuffix
     rw [hsize,
       checkInductiveTypes.loopType.cachedParamVars_eq_paramVars decl]
     exact H.narrowParams
+  sources := H.runtimeScope.sources
 
 /-- Extend a completed header result by one semantically verified ambient
 declaration.  The cached common-parameter suffix is unchanged; only its
@@ -1844,6 +1866,7 @@ def MaterializedHeaderResult.withAmbient
   refine {
     headers := H.headers
     normalizedSources := H.normalizedSources
+    normalizedShapes := H.normalizedShapes
     commonLevel := H.commonLevel
     levels := H.levels
     levelParams := H.levelParams

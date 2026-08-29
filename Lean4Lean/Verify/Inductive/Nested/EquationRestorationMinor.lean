@@ -39,14 +39,14 @@ theorem AvoidsTargetOnlyRecursors.mkApps_args
 theorem NestedRestorationPlan.AtomicProvenance.minorSpineAlignment
     (Hatomic : NestedRestorationPlan.AtomicProvenance plan sourceRecursors
       restoredRecursors)
-    (Hrest : VExprRestoration plan.restoreNode
+    (Hrest : VExprRestoration plan.Relates
       (VExpr.mkApps (.bvar minorVar) (sourceFields ++ sourceResults)) target) :
     ∃ targetFields targetResults,
       target = VExpr.mkApps (.bvar minorVar)
         (targetFields ++ targetResults) ∧
-      List.Forall₂ (VExprRestoration plan.restoreNode)
+      List.Forall₂ (VExprRestoration plan.Relates)
         sourceFields targetFields ∧
-      List.Forall₂ (VExprRestoration plan.restoreNode)
+      List.Forall₂ (VExprRestoration plan.Relates)
         sourceResults targetResults := by
   rcases Hatomic.bvarMkAppsAlignment Hrest with
     ⟨targetArgs, htarget, Haligned⟩
@@ -62,22 +62,21 @@ theorem GuardedExprRestoration.fieldsOfRecursorFree
     (Hatomic : plan.AtomicProvenance sourceRecursors targetRecursors)
     (hkeys : NestedRestorationPlan.RecursorKeysCovered
       auxRec sourceRecursors)
-    (hproj : ProjectionConstPreservation)
-    (Haligned : List.Forall₂ (VExprRestoration plan.restoreNode)
+    (Haligned : List.Forall₂ (VExprRestoration plan.Relates)
       sourceFields targetFields)
     (hsourceFree : ∀ field ∈ sourceFields,
       field.containsAnyConst sourceRecursors = false)
     (hfresh : ∀ field ∈ sourceFields,
       AvoidsTargetOnlyRecursors sourceRecursors targetRecursors field) :
     List.Forall₂
-      (GuardedExprRestoration plan.restoreNode sourceRecursors
+      (GuardedExprRestoration plan.Relates sourceRecursors
         targetRecursors fieldVars depth)
       sourceFields targetFields := by
   induction Haligned with
   | nil => exact .nil
   | @cons source target sources targets Hhead Htail ih =>
       apply List.Forall₂.cons
-      · exact GuardedExprRestoration.ofRecursorFree Hatomic hkeys hproj
+      · exact GuardedExprRestoration.ofRecursorFree Hatomic hkeys
           Hhead (hsourceFree source (by simp)) (hfresh source (by simp))
       · exact ih
           (fun field hfield => hsourceFree field (by simp [hfield]))

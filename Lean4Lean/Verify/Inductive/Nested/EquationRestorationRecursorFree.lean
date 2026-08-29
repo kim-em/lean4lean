@@ -18,17 +18,16 @@ theorem NestedRestorationPlan.AtomicProvenance.restorationRecursorFree
     (Hatomic : plan.AtomicProvenance sourceRecursors targetRecursors)
     (hkeys : NestedRestorationPlan.RecursorKeysCovered
       auxRec sourceRecursors)
-    (hproj : ProjectionConstPreservation)
-    (Hrest : VExprRestoration plan.restoreNode source target)
+    (Hrest : VExprRestoration plan.Relates source target)
     (hsourceFree : source.containsAnyConst sourceRecursors = false)
     (hfresh : AvoidsTargetOnlyRecursors sourceRecursors targetRecursors
       source) :
-    target.containsAnyConst targetRecursors = false := by
+    target.SourceConstFree targetRecursors := by
   induction Hrest with
   | @hit source target hhit =>
       rcases plan.exists_node_of_restoreNode_eq_some hhit with
         ⟨node, hnode, hnodeSource, hnodeTarget⟩
-      have Hbehavior := Hatomic.behaviors hproj node hnode
+      have Hbehavior := Hatomic.behaviors node hnode
       rcases Hbehavior.classification with
         ⟨oldName, newName, levels, _hrecursor, hfind,
           hsource, _htarget⟩ |
@@ -40,25 +39,36 @@ theorem NestedRestorationPlan.AtomicProvenance.restorationRecursorFree
         rw [hsourceEq] at hsourceFree
         simp [VExpr.containsAnyConst, holdMem] at hsourceFree
       · rwa [hnodeTarget] at htargetFree
-  | bvar | sort => rfl
-  | @const name levels hnone =>
+  | leaf =>
+      exact VExpr.SourceConstFree.ofContainsAnyConst
+        (hfresh.targetFree hsourceFree)
+  | bvar => exact .bvar _
+  | sort => exact .sort _
+  | @const name levels =>
       have hsourceNot : name ∉ sourceRecursors := by
         simpa [VExpr.containsAnyConst] using hsourceFree
       have htargetNot : name ∉ targetRecursors :=
         hfresh.const_not_mem_target hsourceNot
-      simpa [VExpr.containsAnyConst] using htargetNot
-  | app hnone hfn harg ihfn iharg =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree ⊢
-      exact ⟨ihfn hsourceFree.1 hfresh.app_left,
-        iharg hsourceFree.2 hfresh.app_right⟩
-  | lam hnone hdomain hbody ihdomain ihbody =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree ⊢
-      exact ⟨ihdomain hsourceFree.1 hfresh.lam_domain,
-        ihbody hsourceFree.2 hfresh.lam_body⟩
-  | forallE hnone hdomain hbody ihdomain ihbody =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree ⊢
-      exact ⟨ihdomain hsourceFree.1 hfresh.forall_domain,
-        ihbody hsourceFree.2 hfresh.forall_body⟩
+      exact .const name levels htargetNot
+  | app hfn harg ihfn iharg =>
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree
+      exact .app (ihfn hsourceFree.1 hfresh.app_left)
+        (iharg hsourceFree.2 hfresh.app_right)
+  | lam hdomain hbody ihdomain ihbody =>
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree
+      exact .lam (ihdomain hsourceFree.1 hfresh.lam_domain)
+        (ihbody hsourceFree.2 hfresh.lam_body)
+  | forallE hdomain hbody ihdomain ihbody =>
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree
+      exact .forallE (ihdomain hsourceFree.1 hfresh.forall_domain)
+        (ihbody hsourceFree.2 hfresh.forall_body)
+  | projection sourceExpansion targetExpansion sourceNotBVarHead hmajor ih =>
+      cases sourceExpansion with
+      | canonical sourceHead sourceMinor =>
+          simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff]
+            at hsourceFree
+          exact .projection targetExpansion
+            (ih hsourceFree.1.2 hfresh.app_left.app_right)
 
 end VerifyInductive
 end Lean4Lean

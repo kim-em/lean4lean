@@ -47,7 +47,7 @@ structure RestoredRuleRhsTranslation
   sourceBody : VExpr
   targetBody : VExpr
   body : RestoredExprTranslation
-    (result.restoreNestedNode prodEnv opening.params auxRec) plan.restoreNode
+    (result.restoreNestedNode prodEnv opening.params auxRec) plan.Relates
     sourceEnv targetEnv Us (abstractForallContext [] sourceScope)
       (abstractForallContext [] targetScope)
       (source := sourceBody) (target := targetBody) opening.replacement
@@ -59,6 +59,21 @@ structure RestoredRuleRhsTranslation
   guardedness and typing seed at precisely the restoration boundary. -/
   sourceTranslation : TrExprS targetEnv Us [] oldRule.rhs
     (VExpr.wrapLams targetScope.toCtx.reverse sourceBody)
+
+/-- The literal RHS restoration has a binder-correct semantic trace without
+any separately supplied node plan.  In particular, hits below higher-order
+field binders retain the extended contexts in which their checked endpoint
+translations were produced. -/
+theorem RestoredRuleRhsTranslation.contextualTrace
+    (H : RestoredRuleRhsTranslation result prodEnv auxRec oldRecName
+      newRecName oldRule newRule Hrule sourceEnv targetEnv Us) :
+    ContextualExprRestoration result prodEnv H.opening.params auxRec sourceEnv
+      targetEnv Us (abstractForallContext [] H.sourceScope)
+        (abstractForallContext [] H.targetScope)
+        (source := H.sourceBody) (target := H.targetBody)
+        H.opening.replacement :=
+  H.opening.replacement.contextualTrace H.body.sourceTranslation
+    H.body.targetTranslation
 
 /-- The independently interpreted restored body, closed below the unchanged
 parameter prefix, translates to the corresponding restored abstract RHS.
@@ -78,7 +93,7 @@ theorem RestoredRuleRhsTranslation.restoredTranslation
       H.opening.selection.fvars.length := by
     simpa using lambdaDeclarationScope_toCtx_length H.targetDeclarations
   have Hresidual := TrExprS.abstractFVarLambdaSuffix
-    H.targetDeclarations htargetNodup H.body.targetTranslation
+    H.targetDeclarations htargetNodup H.body.targetTranslation.toTrExprS
   have HsourceTelescope : Expr.LambdaTelescope oldRule.rhs
       H.opening.selection.fvars.length
       (H.opening.body.abstractList H.opening.selection.fvars) := by

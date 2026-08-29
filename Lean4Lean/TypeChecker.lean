@@ -707,6 +707,31 @@ def projectionFreeCertificate? (candidate : Expr) :
   | true => some ⟨h⟩
   | false => none
 
+/-- Executable scope check for a generated projection candidate.  Candidate
+generation is deliberately untrusted, so validation records directly that it
+did not invent free variables or metavariables before invoking checked type
+inference.  Loose bound variables remain the responsibility of `inferType`,
+which performs its existing top-level check. -/
+def projectionCandidateScopeValid (lctx : LocalContext) : Expr → Bool
+  | .bvar _ => true
+  | .fvar fvarId => (lctx.find? fvarId).isSome
+  | .mvar _ => false
+  | .sort level => !level.hasMVar
+  | .const _ levels => levels.all fun level => !level.hasMVar
+  | .app fn argument =>
+      projectionCandidateScopeValid lctx fn &&
+        projectionCandidateScopeValid lctx argument
+  | .lam _ domain body _ | .forallE _ domain body _ =>
+      projectionCandidateScopeValid lctx domain &&
+        projectionCandidateScopeValid lctx body
+  | .letE _ type value body _ =>
+      projectionCandidateScopeValid lctx type &&
+        projectionCandidateScopeValid lctx value &&
+        projectionCandidateScopeValid lctx body
+  | .lit _ => true
+  | .mdata _ body | .proj _ _ body =>
+      projectionCandidateScopeValid lctx body
+
 structure ProjectionCertificate where
   projection : ProjectionResult
   candidate : Expr
@@ -716,17 +741,26 @@ structure ProjectionCertificate where
   candidateType : Expr
 
 def validateProjectionResult (projection : ProjectionResult)
-    (candidate : Expr) : RecM ProjectionCertificate := do
-  let some parsed := projection.expansion.parsedShell? candidate
-    | throw <| .other "projection expansion is not canonical"
-  let candidateType ← inferType candidate (inferOnly := false)
-  unless ← isDefEq candidateType projection.type do
-    throw <| .other "projection expansion type does not match projection type"
-  return {
-    projection, candidate
-    shell := parsed.shell
-    shellRun := parsed.exact
-    candidateType }
+    (candidate : Expr) : RecM ProjectionCertificate :=
+  fun methods context state =>
+    match projection.expansion.parsedShell? candidate with
+    | none => .error <| .other "projection expansion is not canonical"
+    | some parsed =>
+      if projectionCandidateScopeValid context.lctx candidate then
+        match inferType candidate (inferOnly := false) methods context state with
+        | .error error => .error error
+        | .ok (candidateType, inferenceState) =>
+          match isDefEq candidateType projection.type methods context inferenceState with
+          | .error error => .error error
+          | .ok (false, _) => .error <|
+              .other "projection expansion type does not match projection type"
+          | .ok (true, finalState) => .ok ({
+              projection, candidate
+              shell := parsed.shell
+              shellRun := parsed.exact
+              candidateType }, finalState)
+      else
+        .error <| .other "projection expansion contains an out-of-scope variable"
 
 def validateProjectionCandidate (typeName : Name) (index : Nat)
     (struct structType candidate : Expr) : RecM ProjectionCertificate := do

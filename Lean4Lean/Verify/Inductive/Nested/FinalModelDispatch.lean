@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterEvidence
 import Lean4Lean.Verify.Inductive.Nested.NoPrimitiveRunInputs
+import Lean4Lean.Verify.Inductive.Nested.AssemblyProviderEvidence
 
 namespace Lean4Lean
 
@@ -36,6 +37,7 @@ theorem NestedExactFinalRunResult.inductiveFinalResult
       (ves.venv (if isUnsafe then .unsafe else .safe)) decl lparams nparams
       isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed sourceProdEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -47,59 +49,30 @@ theorem NestedExactFinalRunResult.inductiveFinalResult
       nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := by
     simpa only [E.productionContext_env] using Hlower
+  have Hmetadata : MaterializedInductivePrefix decl
+      E.production.loweredDecl := by
+    simpa only [E.production_eq] using E.assembly.materialized
   cases isUnsafe with
   | false =>
-      exact E.safeInductiveFinalResult wf Hlower' hempty hconstructors
+      exact E.safeInductiveFinalResult wf Hlower' Hmetadata
+        Hsources hempty hconstructors
   | true =>
-      exact E.unsafeInductiveFinalResult wf Hlower' hempty hconstructors
+      exact E.unsafeInductiveFinalResult wf Hlower' Hmetadata
+        Hsources hempty hconstructors
 
-/-- Evidence provider for the assembly associated with the *actual* ordinary
-production and restoration selected by the executable nested run. -/
-def NestedFinalAssemblyProvider
-    (env : Environment) (lparams : List Name) (nparams : Nat)
-    (sourceTypes : List InductiveType) (isUnsafe : Bool)
-    (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result) : Prop :=
-  ∀ (c' : AddInductive.Context)
-    (stats : AddInductive.InductiveStats) (depth : Nat)
-    (commonParams : List VExpr) (commonLevel : VLevel)
-    (Hc' : ContextWF c'),
-    c'.env = env →
-    c'.safety =
-      (nestedAddInductiveContext env lparams isUnsafe false fuel).safety →
-    c'.lparams = lparams →
-    checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
-      Hc'.venv c'.lparams nparams commonParams commonLevel
-        res.types.toArray.toList →
-    ∀ loweredEnv,
-    (P : NestedInstalledProduction loweredEnv) →
-    ∀ restoredEnv
-      (Hrestored : RestoredNestedDeclarationsResult res loweredEnv env
-        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
-        (sourceTypes.map (·.name)) sourceTypes
-        (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
-        ((), restoredEnv)),
-      ∃ sourceDecl, Nonempty (NestedFinalAssemblyProducerEvidence P
-        Hrestored Hc'.venv sourceDecl lparams nparams isUnsafe
-          (if isUnsafe then .unsafe else .safe))
-
-/-- Final-result refinement for the nested post-lowering branch, factored at
-the exact assembly boundary still being derived from production. Constructor
-parameter domains are reconstructed internally from the exact replay and the
-single producer-locality compatibility contract. -/
+/-- Final-result refinement for the nested post-lowering branch.  Exact
+assembly and constructor parameter domains are reconstructed internally from
+the checked production, lowering, validation, and restoration traces. -/
 theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env)
+    (Hsources : SourceSyntaxChecks sourceTypes)
     (Hlower : NestedLoweringResultClosed env fuel.inductiveFuel nparams
       sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
-    (hnested : res.aux2nested.size ≠ 0)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation)
-    (hconstructorLocality : ConstructorParameterReplayLocality)
-    (Hassembly : NestedFinalAssemblyProvider env lparams nparams sourceTypes
-      isUnsafe fuel res) :
+    (hnested : res.aux2nested.size ≠ 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
@@ -125,7 +98,6 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
           .safe) Hctx := by
     intro c' stats depth commonParams commonLevel Hctx hallow _hfuel _Hsemantic
     exact SemanticRunVerificationInputs.ofNoPrimitive hallow
-      hloopUArgsReplay
   have HlowerInitialClosed : NestedLoweringResultClosed env
       fuel.inductiveFuel nparams sourceTypes
       { ({ lvls := lparams.map .param, newTypes := #[] } :
@@ -141,28 +113,68 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
   have hnonempty : 0 < res.types.toArray.size :=
     HlowerInitial.resultTypesSizePos
   have Hrun :=
-    Environment.addInductiveAfterLowering.nestedFinalExistentialSourceSemanticWF
+    Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSemanticWF
       env lparams nparams sourceTypes isUnsafe false fuel res
-      (fun _ => True) Hc' wf.inductivesClosed hctx
-      hnonempty (inductiveSafety_notPartial isUnsafe) hproj
-      Hinputs Hlower.toResult hnested
-      (fun c' stats depth commonParams commonLevel Hctx henv hsafety hlparams
-          Hsemantic loweredEnv P restoredEnv Hrestored => by
-        rcases Hassembly c' stats depth commonParams commonLevel Hctx henv
-            hsafety hlparams Hsemantic loweredEnv P restoredEnv Hrestored with
-          ⟨sourceDecl, HE⟩
-        exact ⟨sourceDecl, trivial, HE⟩)
+      Hc' wf.inductivesClosed wf.constructorOwners hctx
+      hnonempty (inductiveSafety_notPartial isUnsafe)
+      Hinputs Hsources rfl Hlower hnested
   exact Hrun.mono fun outEnv Hout => by
     rcases Hout with ⟨c', Hctx, henv, hsafety, hlparams, hallow, hfuel,
-      hvenv, ⟨R⟩⟩
-    rcases R with ⟨sourceDecl, _haccepted, E⟩
+      hvenv, sourceDecl, ⟨V⟩⟩
     have hsource : Hctx.venv = ves.venv
         (if isUnsafe then .unsafe else .safe) := by
       exact hvenv.trans Hc'_venv
-    have E' : NestedExactFinalRunResult res env sourceTypes
+    have V' : NestedValidatedRunResult res env sourceTypes
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := by
-      simpa only [hsource] using E
+      simpa only [hsource] using V
+    rcases V'.assemblyNative wf Hsources with ⟨⟨C, hproduction⟩⟩
+    have Hvalid : CheckingEnv.Valid
+        (if isUnsafe then .unsafe else .safe) env
+          (ves.venv (if isUnsafe then .unsafe else .safe)) :=
+      (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
+        (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
+        wf.safePrimitives wf.typeAnnotationWrappers
+    let E' : NestedExactFinalRunResult res env sourceTypes
+        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+        nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := {
+      loweredEnv := V'.loweredEnv
+      production := V'.production
+      productionContext := V'.productionContext
+      productionContextWF := V'.productionContextWF
+      productionContext_env := V'.productionContext_env
+      productionContext_lparams := V'.productionContext_lparams
+      productionContext_safety := V'.productionContext_safety
+      production_c := V'.production_c
+      production_nparams := V'.production_nparams
+      production_isUnsafe := V'.production_isUnsafe
+      production_initialEnv := V'.production_initialEnv
+      production_indTypes := V'.production_indTypes
+      validationFuel := V'.validationFuel
+      lowering := V'.lowering
+      restoration := V'.restoration
+      primitiveSafe := V'.primitiveSafe
+      validationEnv := V'.validationEnv
+      validationEnvironment := by
+        simpa only [V'.productionContext_allowPrimitive] using
+          V'.validationEnvironment
+      recursorTypeValidation := V'.recursorTypeValidation
+      recursorRuleValidation := V'.recursorRuleValidation
+      auxiliaryHeaderEnv := V'.auxiliaryHeaderEnv
+      headerValidationEnvironment := V'.headerValidationEnvironment
+      parameterValidation := V'.parameterValidation
+      auxiliaryVEnv := V'.auxiliaryVEnv
+      auxiliaryMLCtx := V'.auxiliaryMLCtx
+      auxiliaryMLCtx_lctx := V'.auxiliaryMLCtx_lctx
+      auxiliaryMLCtxWF := V'.auxiliaryMLCtxWF
+      validatedAuxiliaries := V'.validatedAuxiliaries
+      auxiliarySelection := V'.auxiliarySelection
+      auxiliaryTranslations := V'.auxiliaryTranslations
+      nativeSource := V'.nativeSource
+      nativeSourceDecl_eq := V'.nativeSourceDecl_eq
+      assembly := C
+      production_eq := hproduction
+      finalResult := C.finalEnvironment Hvalid }
     have HlowerExact : NestedLoweringResultClosed E'.productionContext.env
         fuel.inductiveFuel nparams sourceTypes
         { ({ lvls := lparams.map .param, newTypes := #[] } :
@@ -170,17 +182,23 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
           newTypes := sourceTypes.toArray } res := by
       simpa only [E'.productionContext_env] using HlowerInitialClosed
     have hconstructors : NestedExactConstructorSemantics E' := by
-      have Hparams := E'.restoredConstructorParameterDomains HlowerExact rfl
-        hconstructorLocality
+      have Hparams := E'.restoredConstructorParameterDomainsNative
         (E'.restoredFamilyParameterScopes HlowerExact rfl)
+      have Howners : ConstructorOwnersPresent E'.productionContext.env := by
+        rw [E'.productionContext_env]
+        exact wf.constructorOwners
+      have Hmetadata : MaterializedInductivePrefix sourceDecl
+          E'.production.loweredDecl := by
+        simpa only [E'.production_eq] using E'.assembly.materialized
       cases isUnsafe with
       | false =>
           exact E'.safeConstructorSemanticsOfParameterDomains wf HlowerExact
-            rfl Hparams
+            Hmetadata Hsources Howners rfl Hparams
       | true =>
           exact E'.unsafeConstructorSemanticsOfParameterDomains wf HlowerExact
-            rfl Hparams
-    exact E'.inductiveFinalResult wf HlowerInitialClosed rfl hconstructors
+            Hmetadata Hsources Howners rfl Hparams
+    exact E'.inductiveFinalResult wf Hsources HlowerInitialClosed rfl
+      hconstructors
 
 end VerifyInductive
 end Lean4Lean

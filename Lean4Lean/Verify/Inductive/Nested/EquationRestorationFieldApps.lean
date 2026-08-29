@@ -27,7 +27,7 @@ theorem NestedRestorationPlan.AtomicProvenance.nodeSourceNotBVarHead
     have Htarget := node.targetTranslation
     rw [hinput] at Hsource
     rw [houtput] at Htarget
-    rcases translatedRecursorEndpoints Hsource Htarget with
+    rcases translatedRecursorEndpoints Hsource.toTrExprS Htarget.toTrExprS with
       ⟨abstractLevels, hsource, _htarget⟩
     rw [hsource]
     rfl
@@ -49,13 +49,13 @@ theorem NestedRestorationPlan.AtomicProvenance.nodeSourceConstHead
     have Htarget := node.targetTranslation
     rw [hinput] at Hsource
     rw [houtput] at Htarget
-    rcases translatedRecursorEndpoints Hsource Htarget with
+    rcases translatedRecursorEndpoints Hsource.toTrExprS Htarget.toTrExprS with
       ⟨abstractLevels, hsource, _htarget⟩
     exact ⟨oldName, abstractLevels, by rw [hsource]; rfl⟩
   · cases Hnonrecursor.nonrecursor with
     | family hfind hhead hhit | constructor hfind hhead hhit =>
         rcases checkPositivityStep.TrExprS.constAppSpine
-            node.sourceTranslation hhead with
+            node.sourceTranslation.toTrExprS hhead with
           ⟨levels, args, hspine, _hlevels, _hargs⟩
         exact ⟨_, levels, congrArg Prod.fst hspine⟩
 
@@ -71,7 +71,7 @@ theorem NestedRestorationPlan.AtomicProvenance.nonrecursorHeadNotSource
   cases Hnonrecursor.nonrecursor with
   | family hfind hconcreteHead hhit =>
       rcases checkPositivityStep.TrExprS.constAppSpine
-          node.sourceTranslation hconcreteHead with
+          node.sourceTranslation.toTrExprS hconcreteHead with
         ⟨abstractLevels, args, habstractHead, _hlevels, _hargs⟩
       have hnames := VExpr.const.inj
         ((congrArg Prod.fst habstractHead).symm.trans hsource) |>.1
@@ -79,7 +79,7 @@ theorem NestedRestorationPlan.AtomicProvenance.nonrecursorHeadNotSource
       rwa [hnames]
   | constructor hfind hconcreteHead hhit =>
       rcases checkPositivityStep.TrExprS.constAppSpine
-          node.sourceTranslation hconcreteHead with
+          node.sourceTranslation.toTrExprS hconcreteHead with
         ⟨abstractLevels, args, habstractHead, _hlevels, _hargs⟩
       have hnames := VExpr.const.inj
         ((congrArg Prod.fst habstractHead).symm.trans hsource) |>.1
@@ -88,20 +88,16 @@ theorem NestedRestorationPlan.AtomicProvenance.nonrecursorHeadNotSource
 
 /-- A finite plan cannot stop structurally at a bound-variable-headed
 application. -/
-theorem NestedRestorationPlan.AtomicProvenance.restoreNode_eq_none_of_bvarHead
+theorem NestedRestorationPlan.AtomicProvenance.not_relates_of_bvarHead
     (H : NestedRestorationPlan.AtomicProvenance plan sourceRecursors
       restoredRecursors)
     (hhead : source.bvarHead? = some field) :
-    plan.restoreNode source = none := by
-  cases hrestore : plan.restoreNode source with
-  | none => rfl
-  | some target =>
-      rcases plan.exists_node_of_restoreNode_eq_some hrestore with
-        ⟨node, hnode, hsource, _htarget⟩
-      have hnone := H.nodeSourceNotBVarHead node hnode
-      rw [hsource] at hnone
-      rw [hhead] at hnone
-      cases hnone
+    ¬ plan.Relates source target := by
+  rintro ⟨node, hnode, hsource, _htarget⟩
+  have hnone := H.nodeSourceNotBVarHead node hnode
+  rw [hsource] at hnone
+  rw [hhead] at hnone
+  cases hnone
 
 /-- Structural restoration preserves the bound-variable application head.
 Atomic stopping is excluded by the exact finite provenance plan; restoration
@@ -109,27 +105,30 @@ inside application arguments is irrelevant to the head. -/
 theorem NestedRestorationPlan.AtomicProvenance.bvarHead_eq_some
     (H : NestedRestorationPlan.AtomicProvenance plan sourceRecursors
       restoredRecursors)
-    (Hrest : VExprRestoration plan.restoreNode source target)
+    (Hrest : VExprRestoration plan.Relates source target)
     (hhead : source.bvarHead? = some field) :
     target.bvarHead? = some field := by
   induction Hrest with
   | hit hhit =>
-      rw [H.restoreNode_eq_none_of_bvarHead hhead] at hhit
-      cases hhit
+      exact False.elim (H.not_relates_of_bvarHead hhead hhit)
+  | leaf => exact hhead
   | bvar => exact hhead
   | sort | const | lam | forallE =>
       change none = some field at hhead
       cases hhead
-  | app _ _ _ ihfn _ =>
+  | app _ _ ihfn _ =>
       rw [VExpr.bvarHead?_app] at hhead ⊢
       exact ihfn hhead
+  | projection _ _ sourceNotBVarHead _ _ =>
+      rw [sourceNotBVarHead] at hhead
+      cases hhead
 
 /-- In particular, a designated constructor-field application remains a
 field application at the same binder depth after restoration. -/
 theorem NestedRestorationPlan.AtomicProvenance.isFieldApp
     (H : NestedRestorationPlan.AtomicProvenance plan sourceRecursors
       restoredRecursors)
-    (Hrest : VExprRestoration plan.restoreNode source target)
+    (Hrest : VExprRestoration plan.Relates source target)
     (hfield : source.IsFieldApp fieldVars depth) :
     target.IsFieldApp fieldVars depth := by
   rcases hfield with ⟨field, hfieldMem, args, hspine⟩

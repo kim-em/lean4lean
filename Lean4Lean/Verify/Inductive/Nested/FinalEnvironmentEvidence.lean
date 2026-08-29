@@ -25,6 +25,10 @@ theorem ProductionInductiveOrigins.mutualInductivesClosed
       target.find? name = some found)
     (hmembers : InductiveMemberInfos target
       (decl.types.map (fun type => type.name)))
+    (hmemberParams : ∀ member info,
+      member ∈ decl.types.map (fun type => type.name) →
+      target.find? member = some (.inductInfo info) →
+      info.numParams = decl.nparams)
     (hnames : (decl.types.map (fun type => type.name)).Nodup) :
     MutualInductivesClosed target := by
   intro familyName familyInfo hfamily
@@ -40,9 +44,17 @@ theorem ProductionInductiveOrigins.mutualInductivesClosed
       exact hold
     have Hclosed := hsourceClosed familyName familyInfo holdEnv
     exact ⟨Hclosed.members.mapEnvironment hpreserves, Hclosed.target,
-      Hclosed.names⟩
+      Hclosed.names, by
+        intro member info hmember hfind
+        rcases Hclosed.members.find hmember with ⟨sourceInfo, hsourceInfo⟩
+        have htargetInfo := hpreserves hsourceInfo
+        rw [hfind] at htargetInfo
+        have hinfo : info = sourceInfo :=
+          ConstantInfo.inductInfo.inj (Option.some.inj htargetInfo)
+        subst info
+        exact Hclosed.parameters member sourceInfo hmember hsourceInfo⟩
   · rcases hnew with ⟨familyIdx, hfamilyName, ⟨A⟩⟩
-    refine ⟨?_, ?_, ?_⟩
+    refine ⟨?_, ?_, ?_, ?_⟩
     · rw [A.all]
       exact hmembers
     · rw [A.all]
@@ -50,6 +62,9 @@ theorem ProductionInductiveOrigins.mutualInductivesClosed
         List.getElem_mem A.familyIdx_lt, (hfamilyName.trans A.name).symm⟩
     · rw [A.all]
       exact hnames
+    · intro member info hmember hlookup
+      rw [A.all] at hmember
+      exact (hmemberParams member info hmember hlookup).trans A.numParams.symm
 
 /-- Every original source family restored by the exact outer fold is visible
 in its final production environment, in source order. -/
@@ -82,9 +97,12 @@ private theorem StateForMTrace.restoredSourceMemberInfos
     (hsplit : sourceTypes = processed ++ remaining)
     (hsourceWF : stepSource.constants.WF) :
     InductiveMemberInfos targetEnv
-      (remaining.map (fun type => type.name)) := by
+        (remaining.map (fun type => type.name)) ∧
+      (∀ member info, member ∈ remaining.map (fun type => type.name) →
+        targetEnv.find? member = some (.inductInfo info) →
+        info.numParams = sourceDecl.nparams) := by
   induction Htrace generalizing processed with
-  | nil => exact .nil
+  | nil => exact ⟨.nil, by simp⟩
   | @cons head source middle tail target Hstep Htail ih =>
       let familyIdx := processed.length
       have hfamily : familyIdx < sourceTypes.length := by
@@ -121,11 +139,21 @@ private theorem StateForMTrace.restoredSourceMemberInfos
       have hheadTarget : target.find? head.name =
           some (.inductInfo Hstep'.restored.header.newInfo) :=
         HtailFresh.preservesSourceFind hmiddleWF hheadMiddle
-      have HtailMembers := ih
+      rcases ih
         (processed := processed ++ [head])
         (hsplit := by simpa [List.append_assoc] using hsplit)
-        hmiddleWF
-      exact .cons hheadTarget HtailMembers
+        hmiddleWF with ⟨HtailMembers, HtailParams⟩
+      refine ⟨.cons hheadTarget HtailMembers, ?_⟩
+      intro member info hmember hmemberLookup
+      simp only [List.map_cons, List.mem_cons] at hmember
+      rcases hmember with hhead | htail
+      · subst member
+        rw [hmemberLookup] at hheadTarget
+        have hinfo : info = Hstep'.restored.header.newInfo :=
+          ConstantInfo.inductInfo.inj (Option.some.inj hheadTarget)
+        subst info
+        exact Halign.numParams
+      · exact HtailParams member info htail hmemberLookup
 
 private theorem sourceTypeNames
     (H : List.Forall₂ (TrInductiveType sourceEnv envTypes lparams)
@@ -176,7 +204,7 @@ theorem NestedFinalAssemblyCertificate.mutualInductivesClosed
       ((), outEnv) := by
     simpa only [henv, hnames] using H
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
-  have HprimaryMembers :=
+  obtain ⟨HprimaryMembers, HprimaryParams⟩ :=
     Hrestored.inductives.restoredSourceMemberInfos Hlower Hc Hprod Hsource
       Hmetadata Hsources Howners hempty [] (by simp) hsourceWF
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
@@ -192,6 +220,23 @@ theorem NestedFinalAssemblyCertificate.mutualInductivesClosed
       (decl.types.map (fun type => type.name)) := by
     rw [← sourceTypeNames Hsource.types]
     exact HmembersSource
+  have HmemberParams : ∀ member info,
+      member ∈ decl.types.map (fun type => type.name) →
+      outEnv.find? member = some (.inductInfo info) →
+      info.numParams = decl.nparams := by
+    intro member info hmember hlookup
+    have hmemberSource : member ∈
+        sourceTypes.map (fun type => type.name) := by
+      rwa [sourceTypeNames Hsource.types]
+    rcases HprimaryMembers.find hmemberSource with
+      ⟨primaryInfo, hprimaryLookup⟩
+    have houtLookup := HauxFresh.preservesSourceFind
+      (HprimaryFresh.targetWF hsourceWF) hprimaryLookup
+    rw [hlookup] at houtLookup
+    have hinfo : info = primaryInfo :=
+      ConstantInfo.inductInfo.inj (Option.some.inj houtLookup)
+    subst info
+    exact HprimaryParams member primaryInfo hmemberSource hprimaryLookup
   have htypeNames : (decl.types.map (fun type => type.name)).Nodup := by
     simpa [VInductDecl.typeConstants, VInductiveType.toVConstVal,
       Function.comp_def] using VEnv.addConstVals_names_nodup C.typesAdded
@@ -207,6 +252,7 @@ theorem NestedFinalAssemblyCertificate.mutualInductivesClosed
       simpa only [henv] using hfind
     exact Hfresh.preservesSourceFind hsourceWF hfind'
   · exact Hmembers
+  · exact HmemberParams
   · exact htypeNames
 
 /-- The positionally aligned constructor restoration trace retains enough

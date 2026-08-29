@@ -206,14 +206,6 @@ structure OrdinaryRuleTranslationResult
   equations : H.GeneratedIotaEquationTranslations Us Δ owner rules
   contextFree : VLCtx.NoIndConsts
     ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) Δ
-  projections : ∀ {Delta : VLCtx} {s j e' e''},
-    TrProj Delta.toCtx s j e' e'' →
-    e'.containsAnyConst
-      ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) =
-        false →
-    e''.containsAnyConst
-      ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) =
-        false
   complete : owner = H.entries.length
 
 def RecursorPhasesResult.GeneratedEquationBuild.ordinaryResult
@@ -227,15 +219,7 @@ def RecursorPhasesResult.GeneratedEquationBuild.ordinaryResult
     {H : RecursorPhasesResult R outEnv} {Us : List Name}
     {owner : Nat} {rules : List VDefEq}
     (T : H.GeneratedEquationBuild Us owner rules)
-    (hcomplete : owner = H.entries.length)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst
-        ((H.blockCertificate rules T.rulesWF).block.recursors.map
-          (·.name)) = false →
-      e''.containsAnyConst
-        ((H.blockCertificate rules T.rulesWF).block.recursors.map
-          (·.name)) = false) :
+    (hcomplete : owner = H.entries.length) :
     OrdinaryRuleTranslationResult H where
   Us := Us
   Δ := []
@@ -246,7 +230,6 @@ def RecursorPhasesResult.GeneratedEquationBuild.ordinaryResult
   contextFree := by
     intro v mapped type hfind
     simp [VLCtx.find?] at hfind
-  projections := hproj
   complete := hcomplete
 
 /-- The completed recursor phase determines the full ordinary compilation
@@ -261,14 +244,11 @@ theorem RecursorPhasesResult.canonicalOrdinaryRuleTranslation
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv)
-    (hproj : ProjectionConstPreservation) :
+    (H : RecursorPhasesResult R outEnv) :
     Nonempty (OrdinaryRuleTranslationResult H) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases H.existsCanonicalGeneratedEquationBuild with ⟨rules, ⟨T⟩⟩
-  refine ⟨T.ordinaryResult rfl ?_⟩
-  intro Delta s j e' e'' Hprojection hfree
-  exact hproj _ Hprojection hfree
+  exact ⟨T.ordinaryResult rfl⟩
 
 theorem OrdinaryRuleTranslationResult.compilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -283,7 +263,7 @@ theorem OrdinaryRuleTranslationResult.compilation
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate T.rules T.rulesWF).block :=
   H.ordinaryCompilationOfRuleBuild T.rules T.rulesWF
-    (T.equations.build T.rules T.rulesWF T.contextFree T.projections)
+    (T.equations.build T.rules T.rulesWF T.contextFree)
     (T.equations.completeLength T.complete)
 
 theorem RecursorPhasesResult.addInductOfOrdinaryCompilation
@@ -385,11 +365,6 @@ theorem AddInductive.runWithStats.WF
           ∃ _ : ConstructorPhasesResult Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -410,7 +385,7 @@ theorem AddInductive.runWithStats.WF
       have hlit : checkPositivityStep.AvailableLiteralDisjoint
           R.declared.context.venv stats.indConsts := by
         simpa [R.declared.contextVEnv] using hlitCtors
-      exact (R.recursorPhasesWF hclosed hlparams hloopUArgsReplay hlit hproj
+      exact (R.recursorPhasesWF hclosed hlparams hlit
         hnotPartial hnprim).mono
           fun outEnv Hrecursors =>
             show ∃ headerEnv ctorEnv,
@@ -442,10 +417,6 @@ theorem AddInductive.runWithStats.closedWF
       ¬ Kernel.Environment.primitives.contains info.name)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
@@ -464,10 +435,8 @@ theorem AddInductive.runWithStats.closedWF
   apply AddInductive.runWithStats.WF stats numParams indTypes numNested
     isUnsafe c
   · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
-      hvisible hnprimTypes hconsume hproj hunsafe hnprimCtors
+      hvisible hnprimTypes hconsume hunsafe hnprimCtors
   · exact hlparams
-  · exact hloopUArgsReplay
-  · exact hproj
   · exact hnotPartial
   · exact hnprimRecursors
 
@@ -547,8 +516,6 @@ structure RunWithStatsVerificationInputs
     (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
       isUnsafe c.lparams).toList,
     ¬ Kernel.Environment.primitives.contains info.name
-  loopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat
-  projections : ProjectionConstPreservation
   freshConstructorConstants : c.allowPrimitive = true →
     ∀ owner ∈ indTypes.toList,
     ∀ ctor ∈ owner.ctors,
@@ -563,14 +530,10 @@ the three freshness fields are only queried when `allowPrimitive = true`.
 This constructor keeps the finite `Bool`/`Nat` bootstrap branch out of the
 general verification inputs instead of asking callers for false premises. -/
 theorem RunWithStatsVerificationInputs.ofAllowPrimitiveFalse
-    (hallow : c.allowPrimitive = false)
-    (loopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (projections : ProjectionConstPreservation) :
+    (hallow : c.allowPrimitive = false) :
     RunWithStatsVerificationInputs c stats decl numParams depth numNested
       indTypes isUnsafe Hc Hdecl Hmaterialized where
   freshTypes htrue := by simp_all
-  loopUArgsReplay := loopUArgsReplay
-  projections := projections
   freshConstructorConstants htrue := by simp_all
   freshRecursors htrue := by simp_all
 
@@ -591,9 +554,7 @@ theorem RunWithStatsVerificationInputs.verify
   fun hlparams => AddInductive.runWithStats.closedWF Hc Hclosed Hdecl
     Hmaterialized hvisible H.freshTypes
     Lean4Lean.consumeTypeAnnotationsCompat
-    hlparams H.loopUArgsReplay
-    (fun Htr hfree =>
-      H.projections (decl.types.map (·.name)) Htr hfree)
+    hlparams
     (fun h => Hdecl.isUnsafe.trans h)
     H.freshConstructorConstants hnotPartial
     H.freshRecursors
@@ -697,15 +658,14 @@ including mutual and dependent recursive cases, are reconstructed from the
 completed recursor phase. -/
 theorem VerifiedInductiveRunResult.addInductCanonical
     (Hrun : VerifiedInductiveRunResult source skeleton envTypes types
-      numNested outEnv)
-    (hproj : ProjectionConstPreservation) :
+      numNested outEnv) :
     ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
       ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
         VEnv.AddInduct Hc'.venv decl finalVEnv := by
   apply Hrun.addInductOfRuleTranslations
   intro c' stats decl depth Hc' Hdecl Hmaterialized headerEnv ctorEnv
     Hheaders R Hrecursors
-  exact Hrecursors.canonicalOrdinaryRuleTranslation hproj
+  exact Hrecursors.canonicalOrdinaryRuleTranslation
 
 /-- End-to-end refinement theorem for the executable ordinary installer.
 The postcondition exposes the independently materialized declaration and an
@@ -719,7 +679,6 @@ theorem AddInductive.run.closedAddInductWF
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
-    (hproj : ProjectionConstPreservation)
     (Hinputs : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {decl : VInductDecl}
       {depth : Nat}
@@ -737,7 +696,7 @@ theorem AddInductive.run.closedAddInductWF
           VEnv.AddInduct Hc'.venv decl finalVEnv := by
   exact (AddInductive.run.closedWF numNested Hc Hclosed Hdecl hctx hnonempty
     HnotPartial Hinputs).mono fun _ Hrun =>
-      Hrun.addInductCanonical hproj
+      Hrun.addInductCanonical
 
 /-- Close a verified ordinary executable run against the independent
 `VEnv.AddInduct` specification once the generated rule batch and compilation

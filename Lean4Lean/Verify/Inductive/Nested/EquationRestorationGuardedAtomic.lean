@@ -13,18 +13,9 @@ by one of its exact production nodes.  This is the converse of
 theorem NestedRestorationPlan.exists_node_of_restoreNode_eq_some
     (plan : NestedRestorationPlan result prodEnv params auxRec sourceEnv
       targetEnv Us sourceContext targetContext)
-    (hhit : plan.restoreNode source = some target) :
+    (hhit : plan.Relates source target) :
     ∃ node ∈ plan.nodes,
-      node.source = source ∧ node.target = target := by
-  classical
-  unfold NestedRestorationPlan.restoreNode at hhit
-  unfold NestedRestorationPlan.selectedNode? at hhit
-  split at hhit
-  · rename_i hexists
-    simp only [Option.map_some, Option.some.injEq] at hhit
-    exact ⟨Classical.choose hexists, (Classical.choose_spec hexists).1,
-      (Classical.choose_spec hexists).2, hhit⟩
-  · simp at hhit
+      node.source = source ∧ node.target = target := hhit
 
 /-- Every auxiliary-recursor rename key belongs to the source guardedness
 set.  This exact finite-domain property is supplied by the generated
@@ -45,13 +36,12 @@ theorem NestedRestorationPlan.AtomicProvenance.guardedHitTarget
       targetEnv Us sourceContext targetContext}
     (H : plan.AtomicProvenance sourceRecursors targetRecursors)
     (hkeys : NestedRestorationPlan.RecursorKeysCovered auxRec sourceRecursors)
-    (hproj : ProjectionConstPreservation)
-    (hhit : plan.restoreNode source = some target)
+    (hhit : plan.Relates source target)
     (hguarded : source.GuardedIota sourceRecursors fieldVars depth) :
     target.GuardedIota targetRecursors fieldVars depth := by
   rcases plan.exists_node_of_restoreNode_eq_some hhit with
     ⟨node, hnode, hsource, htarget⟩
-  have Hbehavior := H.behaviors hproj node hnode
+  have Hbehavior := H.behaviors node hnode
   rcases Hbehavior.classification with
     ⟨oldName, newName, levels, _hrecursor, hfind,
       hnodeSource, _hnodeTarget⟩ |
@@ -62,10 +52,13 @@ theorem NestedRestorationPlan.AtomicProvenance.guardedHitTarget
     rw [hsourceEq] at hguarded
     have hnot : oldName ∉ sourceRecursors := by
       generalize heq : (.const oldName levels : VExpr) = guardedExpr at hguarded
-      cases hguarded <;>
-        simp_all [VExpr.mkApps_append, VExpr.mkApps]
+      cases hguarded with
+      | projection expansion _ =>
+        cases expansion
+        simp_all
+      | _ => simp_all [VExpr.mkApps_append, VExpr.mkApps]
     exact False.elim (hnot holdMem)
-  · apply VExpr.GuardedIota.ofContainsAnyConstFalse
+  · apply VExpr.SourceConstFree.guardedIota
     rwa [htarget] at hfree
 
 end VerifyInductive

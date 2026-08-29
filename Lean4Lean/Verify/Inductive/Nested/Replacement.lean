@@ -110,6 +110,69 @@ theorem ExprReplacement.forallTelescope_residual
         (Expr.ForallTelescope.cons (name := name) (dom := _)
           (bi := bi) Hrestored)
 
+/-- A replacement callback which never matches a lambda node preserves the
+complete leading lambda telescope and retains the exact replacement of its
+residual.  This is the RHS counterpart of
+`ExprReplacement.forallTelescope_residual`; nested recursor restoration uses
+the former for recursor types and this theorem for equation right-hand
+sides. -/
+theorem ExprReplacement.lambdaTelescope_residual
+    (Hnone : ∀ name dom body bi,
+      replaceNode (.lam name dom body bi) = none)
+    (Hreplace : ExprReplacement replaceNode input output)
+    (Htelescope : Expr.LambdaTelescope input arity residual) :
+    ∃ restoredResidual,
+      Expr.LambdaTelescope output arity restoredResidual ∧
+      ExprReplacement replaceNode residual restoredResidual := by
+  induction Htelescope generalizing output with
+  | nil => exact ⟨output, .nil output, Hreplace⟩
+  | @cons body arity residual name dom bi Htail ih =>
+    cases Hreplace with
+    | hit h =>
+      rw [Hnone] at h
+      contradiction
+    | lam h hdom hbody =>
+      rcases ih hbody with ⟨restoredResidual, Hrestored, Hresidual⟩
+      refine ⟨restoredResidual, ?_, Hresidual⟩
+      simpa [Expr.updateLambdaE!] using
+        (Expr.LambdaTelescope.cons (name := name) (dom := _)
+          (bi := bi) Hrestored)
+
+/-- A bound-variable-headed concrete application cannot be a restoration
+hit.  Consequently replacement preserves its head and ordered argument
+spine, while exposing the literal pointwise replacement trace for the
+arguments. -/
+theorem ExprReplacement.bvarSpine
+    (Hnone : ∀ input index,
+      input.getAppFn = .bvar index → replaceNode input = none)
+    (Hreplace : ExprReplacement replaceNode input output)
+    (Hspine : input.getAppFn = .bvar index) :
+    ∃ outputArgs,
+      output.getAppFn = .bvar index ∧
+      List.Forall₂ (ExprReplacement replaceNode)
+        input.getAppArgsList outputArgs ∧
+      output.getAppArgsList = outputArgs := by
+  induction Hreplace generalizing index with
+  | hit h =>
+      rw [Hnone _ index Hspine] at h
+      contradiction
+  | @bvar sourceIndex _ =>
+      have hindex : sourceIndex = index := Expr.bvar.inj Hspine
+      subst index
+      exact ⟨[], rfl, .nil, rfl⟩
+  | @app fn arg fn' arg' _ Hfn Harg ihFn _ =>
+      have HfnSpine : fn.getAppFn = .bvar index := by
+        simpa [Expr.getAppFn] using Hspine
+      rcases ihFn HfnSpine with ⟨priorArgs, Hhead, Hprior, Hargs⟩
+      refine ⟨priorArgs ++ [arg'], ?_, ?_, ?_⟩
+      · simpa [Expr.updateApp!, Expr.getAppFn, Hhead]
+      · simpa only [Expr.getAppArgsList_app] using
+          Lean4Lean.VerifyInductive.checkPositivityStep.forall₂_append
+            Hprior (.cons Harg .nil)
+      · simp [Expr.updateApp!, Expr.getAppArgsList_app, Hargs]
+  | fvar | mvar | sort | const | lit | lam | forallE | letE | mdata | proj =>
+      cases Hspine
+
 /-- Binder-aligned form of expression replacement.  Unlike the existential
 `forallTelescope_residual` theorem, this relation retains the replacement
 proof for every old/restored domain and for the final residual. -/

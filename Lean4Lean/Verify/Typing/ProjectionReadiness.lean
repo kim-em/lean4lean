@@ -89,7 +89,59 @@ inductive ProjectionsReady
       ProjectionsReady safety constants env major →
       ProjectionsReady safety constants env (.proj structName index major)
 
+/-- Every primitive projection occurring in an expression avoids a set of
+family and eliminator names.  The predicate follows concrete syntax; unlike
+`Expr.containsAnyConst`, it also observes the structure name stored in a
+`.proj` node, because certified expansion materializes both that family name
+and its `.casesOn` eliminator. -/
+def ProjectionNamesAvoid (names : List Name) : Expr → Prop
+  | .bvar _ | .fvar _ | .mvar _ | .sort _ | .const .. | .lit _ => True
+  | .app fn arg =>
+      ProjectionNamesAvoid names fn ∧ ProjectionNamesAvoid names arg
+  | .lam _ domain body _ | .forallE _ domain body _ =>
+      ProjectionNamesAvoid names domain ∧ ProjectionNamesAvoid names body
+  | .letE _ type value body _ =>
+      ProjectionNamesAvoid names type ∧
+        ProjectionNamesAvoid names value ∧
+        ProjectionNamesAvoid names body
+  | .mdata _ body => ProjectionNamesAvoid names body
+  | .proj structName _ major =>
+      structName ∉ names ∧ mkCasesOnName structName ∉ names ∧
+        ProjectionNamesAvoid names major
+
 namespace ProjectionNameReady
+
+/-- A ready projection family cannot be one of the names absent from the
+concrete environment at the checker boundary.  This is the pointwise
+freshness fact needed by staged inductive checking: it follows from the
+actual family lookup retained by readiness, rather than from a global
+property of projection translation. -/
+theorem family_not_mem
+    (H : ProjectionNameReady safety constants env name)
+    {names : List Name}
+    (Hfresh : ∀ current ∈ names, constants.find? current = none) :
+    name ∉ names := by
+  intro hname
+  rcases H with ⟨H⟩
+  have := Hfresh name hname
+  rw [H.familyLookup] at this
+  contradiction
+
+/-- The eliminator selected by a ready projection cannot be one of the
+names absent from the concrete environment at the checker boundary.  A
+certified projection expansion introduces exactly this constant at its
+head, so this lemma is the freshness bridge from production provenance to
+the environment-indexed translation. -/
+theorem eliminator_not_mem
+    (H : ProjectionNameReady safety constants env name)
+    {names : List Name}
+    (Hfresh : ∀ current ∈ names, constants.find? current = none) :
+    mkCasesOnName name ∉ names := by
+  intro heliminator
+  rcases H with ⟨H⟩
+  have := Hfresh (mkCasesOnName name) heliminator
+  rw [H.eliminatorLookup] at this
+  contradiction
 
 /-- Exact metadata retained after the successful family, singleton
 constructor, field-bound, and eliminator checks performed by `inferProj`.
@@ -291,6 +343,28 @@ theorem mono
 end ProjectionNameReady
 
 namespace ProjectionsReady
+
+/-- Successful pointwise readiness proves that all projection families and
+their concrete eliminators avoid names absent from the actual checker
+environment.  This is the structural freshness invariant consumed by the
+certified translation; no projection-output preservation callback appears
+in the statement. -/
+theorem projectionNamesAvoid
+    (H : ProjectionsReady safety constants env expression)
+    {names : List Name}
+    (Hfresh : ∀ current ∈ names, constants.find? current = none) :
+    ProjectionNamesAvoid names expression := by
+  induction H with
+  | bvar | fvar | sort | const | mvar | lit => trivial
+  | app _ _ ihFn ihArg => exact ⟨ihFn, ihArg⟩
+  | lam _ _ ihDomain ihBody | forallE _ _ ihDomain ihBody =>
+      exact ⟨ihDomain, ihBody⟩
+  | letE _ _ _ ihType ihValue ihBody =>
+      exact ⟨ihType, ihValue, ihBody⟩
+  | mdata _ ih => exact ih
+  | proj Hname _ ihMajor =>
+      exact ⟨Hname.family_not_mem Hfresh,
+        Hname.eliminator_not_mem Hfresh, ihMajor⟩
 
 theorem projectionName
     (H : ProjectionsReady safety constants env

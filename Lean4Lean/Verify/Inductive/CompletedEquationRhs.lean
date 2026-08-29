@@ -2005,14 +2005,12 @@ theorem
         Expr.LambdaTelescope
           (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
           localDomains.length
-          ((F.semantic.generated.body.abstractList
-            F.semantic.generated.arguments_bound.fvars).abstractList
-              A.rule.binders F.semantic.generated.localArgs.size) ∧
+          (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size) ∧
         TrExprS H.outVEnv Us
           (abstractForallContext (equationDomains ++ localDomains) [])
-          ((F.semantic.generated.body.abstractList
-            F.semantic.generated.arguments_bound.fvars).abstractList
-              A.rule.binders F.semantic.generated.localArgs.size)
+          (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size)
           resultBody ∧
         H.outVEnv.HasType Us.length
           (abstractForallContext equationDomains []).toCtx
@@ -2034,9 +2032,8 @@ theorem
   have Htelescope' : Expr.LambdaTelescope
       (A.rule.recursiveResults[j]!.abstractList A.rule.binders)
       localDomains.length
-      ((F.semantic.generated.body.abstractList
-        F.semantic.generated.arguments_bound.fvars).abstractList
-          A.rule.binders F.semantic.generated.localArgs.size) := by
+      (F.semantic.generated.body.abstractList
+        A.rule.binders F.semantic.generated.localArgs.size) := by
     simpa [hlocal] using Htelescope
   exact ⟨F, equationDomains, localDomains, resultBody, resultType,
     hequation, hlocal, Htelescope', by simpa [resultBody, args] using Hbody,
@@ -2081,12 +2078,9 @@ theorem
           (mkAppN
             (.const F.semantic.generated.recursorName
               (AddInductive.getRecLevels H.elimLevel stats.levels))
-            (stats.params.map fun arg => arg.abstractList
-              F.semantic.generated.arguments_bound.fvars))
-          ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars)
+            stats.params)
+          (H.recInfos.map (·.motive)))
+        (H.recInfos.flatMap (·.minors))
     let selectedOwner := F.semantic.generated.ownerIdx
     let recursor := (H.entries[selectedOwner]'F.entry_lt).2
     let target :=
@@ -2111,12 +2105,9 @@ theorem
         (mkAppN
           (.const F.semantic.generated.recursorName
             (AddInductive.getRecLevels H.elimLevel stats.levels))
-          (stats.params.map fun arg => arg.abstractList
-            F.semantic.generated.arguments_bound.fvars))
-        ((H.recInfos.map (·.motive)).map fun arg => arg.abstractList
-          F.semantic.generated.arguments_bound.fvars))
-      ((H.recInfos.flatMap (·.minors)).map fun arg => arg.abstractList
-        F.semantic.generated.arguments_bound.fvars)
+          stats.params)
+        (H.recInfos.map (·.motive)))
+      (H.recInfos.flatMap (·.minors))
   let selectedOwner := F.semantic.generated.ownerIdx
   let recursor := (H.entries[selectedOwner]'F.entry_lt).2
   let target :=

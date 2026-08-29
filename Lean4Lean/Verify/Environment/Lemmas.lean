@@ -175,8 +175,22 @@ theorem MutualInductiveClosure.addConstant
     {ci : ConstantInfo}
     (H : MutualInductiveClosure env targetName value)
     (hwf : env.constants.WF) (hfresh : env.find? ci.name = none) :
-    MutualInductiveClosure (env.add ci) targetName value :=
-  ⟨H.members.addConstant hwf hfresh, H.target, H.names⟩
+    MutualInductiveClosure (env.add ci) targetName value := by
+  refine ⟨H.members.addConstant hwf hfresh, H.target, H.names, ?_⟩
+  intro member info hmember hfind
+  rcases H.members.find hmember with ⟨oldInfo, hold⟩
+  have hne : ci.name ≠ member := by
+    intro heq
+    subst member
+    rw [hold] at hfresh
+    contradiction
+  have hfind' := hfind
+  rw [find?_add_of_ne hwf ci hfresh hne] at hfind'
+  have hinfo : info = oldInfo := by
+    rw [hold] at hfind'
+    exact ConstantInfo.inductInfo.inj (Option.some.inj hfind'.symm)
+  subst info
+  exact H.parameters member oldInfo hmember hold
 
 /-- A fresh non-inductive production constant preserves complete mutual-block
 metadata. -/
@@ -397,42 +411,6 @@ theorem InductiveConstructorsSemanticallyCoherent.addDefinitions
         exact hfresh w (by simp [hw])
       · exact hnodup.2
       · exact VEnv.LE.rfl
-
-theorem InstalledInductiveProvenance.monoEnv
-    (H : InstalledInductiveProvenance safety C env)
-    (henv : env ≤ env') :
-    InstalledInductiveProvenance safety C env' := by
-  intro familyName familyInfo hfind hvisible
-  rcases H familyName familyInfo hfind hvisible with ⟨P⟩
-  exact ⟨P.mono (by simpa [P.name] using hfind) (fun h => h) henv⟩
-
-/-- A fresh non-inductive production entry preserves declaration-level
-inductive provenance across any monotone abstract extension. -/
-theorem InstalledInductiveProvenance.insertNonInductive
-    (H : InstalledInductiveProvenance safety C env)
-    (hwf : C.WF) (hfresh : C.find? ci.name = none)
-    (hnind : ∀ familyInfo, ci ≠ .inductInfo familyInfo)
-    (henv : env ≤ env') :
-    InstalledInductiveProvenance safety (C.insert ci.name ci) env' := by
-  have hpreserves : ∀ {name found}, C.find? name = some found →
-      (C.insert ci.name ci).find? name = some found := by
-    intro name found hfind
-    rw [hwf.find?_insert]
-    split
-    · rename_i heq
-      have hname : ci.name = name := LawfulBEq.eq_of_beq heq
-      subst name
-      rw [hfind] at hfresh
-      contradiction
-    · exact hfind
-  intro familyName familyInfo hfind hvisible
-  have hold : C.find? familyName = some (.inductInfo familyInfo) := by
-    rw [hwf.find?_insert] at hfind
-    split at hfind
-    · exact False.elim (hnind familyInfo (Option.some.inj hfind))
-    · exact hfind
-  rcases H familyName familyInfo hold hvisible with ⟨P⟩
-  exact ⟨P.mono (by simpa [P.name] using hfind) hpreserves henv⟩
 
 /-- An entry hidden from the current safety observer cannot introduce a
 visible inductive family, even if another observer installed it. -/

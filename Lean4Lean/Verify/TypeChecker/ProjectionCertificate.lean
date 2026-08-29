@@ -1,9 +1,75 @@
 import Lean4Lean.ProjectionCertificate
 import Lean4Lean.Verify.Typing.Lemmas
+import Lean4Lean.Verify.TypeChecker.Basic
 
 namespace Lean4Lean.TypeChecker.Inner
 
 open Lean hiding Environment Exception
+
+/-- Soundness of the executable candidate-scope gate.  This is the direct
+source of the free-variable premise used by checked candidate inference; it
+does not trust any corresponding claim made by the candidate generator. -/
+theorem projectionCandidateScopeValid_sound
+    (H : projectionCandidateScopeValid lctx expression = true) :
+    FVarsIn (fun fvarId => ∃ declaration, lctx.find? fvarId = some declaration)
+      expression := by
+  induction expression <;>
+    simp_all [projectionCandidateScopeValid, FVarsIn,
+      Option.isSome_iff_exists]
+
+/-- At a verified checker boundary the executable local-context membership
+test is exactly membership in the abstract local-variable context. -/
+theorem projectionCandidateScopeValid_fvarsIn
+    (c : VContext)
+    (H : projectionCandidateScopeValid c.lctx expression = true) :
+    FVarsIn (· ∈ c.vlctx.fvars) expression := by
+  have Hscope := projectionCandidateScopeValid_sound H
+  apply Hscope.mono
+  intro fvarId
+  rintro ⟨declaration, hfind⟩
+  have hfind' : c.lctx'.find? fvarId = some declaration := by
+    simpa only [c.lctx_eq] using hfind
+  exact c.trlctx.find?_eq_some.mp ⟨declaration, hfind'⟩
+
+/-- Pattern abstraction only removes concrete subexpressions or rearranges
+bound variables; it never introduces a free variable or universe metavariable.
+This is the source-side coverage fact needed when the generated projection
+candidate is checked with `inferOnly := false`. -/
+theorem abstractProjectionPatterns_fvarsIn
+    (patterns : List Expr) : ∀ (expression : Expr) (depth : Nat),
+    FVarsIn predicate expression →
+      FVarsIn predicate
+        (abstractProjectionPatterns patterns expression depth)
+  | expression, depth => by
+      intro Hexpression
+      unfold abstractProjectionPatterns
+      split
+      · trivial
+      · cases expression <;>
+          simp_all [FVarsIn, abstractProjectionPatterns_fvarsIn]
+
+/-- Wrapping a generated telescope preserves free-variable coverage when
+every generated domain and the final body have that coverage. -/
+theorem wrapProjectionLambdas_fvarsIn
+    (hdomains : ∀ binder ∈ binders, FVarsIn predicate binder.domain)
+    (hbody : FVarsIn predicate body) :
+    FVarsIn predicate (wrapProjectionLambdas binders body) := by
+  induction binders with
+  | nil => simpa [wrapProjectionLambdas] using hbody
+  | cons binder binders ih =>
+      simp only [wrapProjectionLambdas, List.foldr_cons, FVarsIn]
+      exact ⟨hdomains binder (by simp), ih
+        (fun current hcurrent => hdomains current (by simp [hcurrent]))⟩
+
+/-- The synthetic de Bruijn index spine contains no free variables. -/
+theorem projectionBoundVars_fvarsIn
+    (count : Nat) :
+    ∀ expression ∈ projectionBoundVars count,
+      FVarsIn predicate expression := by
+  intro expression hexpression
+  simp [projectionBoundVars] at hexpression
+  rcases hexpression with ⟨index, _, rfl⟩
+  trivial
 
 /-- Independent structural meaning of a parsed lambda telescope.  Binder
 names and annotations are retained existentially by the derivation, while
@@ -162,6 +228,16 @@ theorem projection_mkAppN_eq_mkAppList
   | cons argument arguments ih =>
       simpa using ih (fn := .app fn argument)
 
+/-- Array application has the same free-variable coverage rule as list
+application. -/
+theorem FVarsIn.mkAppN
+    (hfn : FVarsIn predicate fn)
+    (hargs : ∀ argument ∈ arguments.toList,
+      FVarsIn predicate argument) :
+    FVarsIn predicate (Lean.mkAppN fn arguments) := by
+  rw [projection_mkAppN_eq_mkAppList]
+  exact FVarsIn.mkAppList.mpr ⟨hfn, hargs⟩
+
 /-- Pointwise translations and ordinary argument typings retained by an
 application stack.  This is exactly the evidence already present in every
 strict application translation; no extra checking is performed. -/
@@ -302,6 +378,95 @@ theorem GeneratedProjectionCandidate.parses
   rw [generated.exact]
   simp [ProjectionExpansion.parseShell?, hparsed]
   omega
+
+/-- Free-variable coverage for the exact generated candidate.  Every source
+of syntax in the generator is listed explicitly; in particular the theorem
+does not accept a pretranslated candidate or any projection resolver. -/
+theorem GeneratedProjectionCandidate.fvarsIn
+    (generated : GeneratedProjectionCandidate projection)
+    (hresultLevel : generated.resultLevel.hasMVar' = false)
+    (hfamilyLevels : ∀ level ∈ projection.expansion.familyLevels,
+      level.hasMVar' = false)
+    (hparams : ∀ parameter ∈ projection.expansion.params,
+      FVarsIn predicate parameter)
+    (hindices : ∀ index ∈ projection.expansion.indices,
+      FVarsIn predicate index)
+    (hstruct : FVarsIn predicate projection.expansion.struct)
+    (htype : FVarsIn predicate projection.type)
+    (hindexDomains : ∀ binder ∈ generated.indexBinders,
+      FVarsIn predicate binder.domain)
+    (hfieldDomains : ∀ binder ∈ generated.fieldBinders,
+      FVarsIn predicate binder.domain) :
+    FVarsIn predicate generated.candidate := by
+  have hfamilyConst : FVarsIn predicate
+      (.const projection.expansion.typeName
+        projection.expansion.familyLevels) := by
+    exact hfamilyLevels
+  have hliftedParams : ∀ parameter ∈
+      projection.expansion.params.map (fun parameter =>
+        parameter.liftLooseBVars 0 generated.indexBinders.length),
+      FVarsIn predicate parameter := by
+    intro parameter hparameter
+    simp only [List.mem_map] at hparameter
+    rcases hparameter with ⟨source, hsource, rfl⟩
+    rw [Expr.liftLooseBVars_eq]
+    exact (hparams source hsource).liftLooseBVars
+  have hmajorDomain : FVarsIn predicate
+      (mkAppN
+        (.const projection.expansion.typeName
+          projection.expansion.familyLevels)
+        ((projection.expansion.params.map fun parameter =>
+            parameter.liftLooseBVars 0 generated.indexBinders.length) ++
+          projectionBoundVars generated.indexBinders.length).toArray) := by
+    apply FVarsIn.mkAppN hfamilyConst
+    intro argument hargument
+    simp only [List.toList_toArray, List.mem_append] at hargument
+    rcases hargument with hargument | hargument
+    · exact hliftedParams argument hargument
+    · exact projectionBoundVars_fvarsIn _ argument hargument
+  have hmotive : FVarsIn predicate
+      (wrapProjectionLambdas
+        (generated.indexBinders ++ [{
+          name := `_major
+          domain := mkAppN
+            (.const projection.expansion.typeName
+              projection.expansion.familyLevels)
+            ((projection.expansion.params.map fun parameter =>
+                parameter.liftLooseBVars 0 generated.indexBinders.length) ++
+              projectionBoundVars generated.indexBinders.length).toArray
+          info := .default }])
+        (abstractProjectionPatterns
+          (projection.expansion.indices ++ [projection.expansion.struct])
+          projection.type)) := by
+    apply wrapProjectionLambdas_fvarsIn
+    · intro binder hbinder
+      simp only [List.mem_append, List.mem_singleton] at hbinder
+      rcases hbinder with hbinder | rfl
+      · exact hindexDomains binder hbinder
+      · exact hmajorDomain
+    · exact abstractProjectionPatterns_fvarsIn _ _ _ htype
+  have hminor : FVarsIn predicate
+      (wrapProjectionLambdas generated.fieldBinders
+        (.bvar (projection.expansion.numFields -
+          projection.expansion.index - 1))) := by
+    exact wrapProjectionLambdas_fvarsIn hfieldDomains trivial
+  rw [generated.exact]
+  apply FVarsIn.mkAppN
+  · intro level hlevel
+    simp only [List.mem_cons] at hlevel
+    rcases hlevel with rfl | hlevel
+    · exact hresultLevel
+    · exact hfamilyLevels level hlevel
+  · intro argument hargument
+    simp only [List.toList_toArray, List.mem_append, List.mem_cons,
+      List.not_mem_nil, or_false] at hargument
+    rcases hargument with ((hparameter | hmotiveArgument) | hindex) |
+        hstructArgument | hminorArgument
+    · exact hparams argument hparameter
+    · simpa [hmotiveArgument] using hmotive
+    · exact hindices argument hindex
+    · simpa [hstructArgument] using hstruct
+    · simpa [hminorArgument] using hminor
 
 /-- Every recursive projection inserted by a dependent selected-field prefix
 has a strictly smaller field index than the requested projection. -/

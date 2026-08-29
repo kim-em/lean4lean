@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.LoweringTrace
 import Lean4Lean.Verify.Inductive.Nested.Compilation
+import Lean4Lean.Verify.Inductive.Equation.Setup
 
 namespace Lean4Lean
 

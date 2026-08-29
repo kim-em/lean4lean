@@ -42,31 +42,29 @@ theorem NestedRestoredNode.sourceNotBVarHeadOfNonrecursor
   cases H with
   | family hfind hhead hhit | constructor hfind hhead hhit =>
       rcases checkPositivityStep.TrExprS.constAppSpine
-          node.sourceTranslation hhead with
+          node.sourceTranslation.toTrExprS hhead with
         ⟨levels, args, hspine, _hlevels, _hargs⟩
       unfold VExpr.bvarHead?
       rw [hspine]
 
-/-- Translation of the independently generated target preserves its retained
-source-side recursor absence.  Projection behavior is the single global
-typing-spec property already used by ordinary equation verification. -/
+/-- Translation of the independently generated target preserves source-level
+recursor support.  Certified projection expansions contribute only their
+source major, never their administrative eliminator syntax. -/
 theorem GeneratedNonrecursorHitFreeness.targetRecursorFree
     (H : GeneratedNonrecursorHitFreeness node sourceRecursors
-      restoredRecursors)
-    (hproj : ProjectionConstPreservation) :
-    node.target.containsAnyConst restoredRecursors = false :=
+      restoredRecursors) :
+    node.target.SourceConstFree restoredRecursors :=
   checkPositivityStep.TrExprS.noConstsOfSourceAvoids H.sourceAvoids
-    H.contextFree (fun Hproj hfree => hproj _ Hproj hfree)
-    node.targetTranslation
+    (checkPositivityStep.VLCtx.SourceConstFree.ofNoIndConsts H.contextFree)
+    node.targetTranslation.toTrExprS
 
 /-- An independently generated non-recursor target supplies the complete
 family/constructor branch of finite-node behavior. -/
 theorem GeneratedNonrecursorHitFreeness.behavior
     (H : GeneratedNonrecursorHitFreeness node sourceRecursors
-      restoredRecursors)
-    (hproj : ProjectionConstPreservation) :
+      restoredRecursors) :
     NestedRestoredNodeBehavior node restoredRecursors :=
-  ⟨Or.inr ⟨H.nonrecursor, H.targetRecursorFree hproj⟩⟩
+  ⟨Or.inr ⟨H.nonrecursor, H.targetRecursorFree⟩⟩
 
 /-- Exact atomic provenance for every member of one finite restoration plan.
 Each member is either the literal auxiliary-recursor constant rename or an
@@ -88,8 +86,7 @@ structure NestedRestorationPlan.AtomicProvenance
 -/
 theorem NestedRestorationPlan.AtomicProvenance.behaviors
     (H : NestedRestorationPlan.AtomicProvenance plan sourceRecursors
-      restoredRecursors)
-    (hproj : ProjectionConstPreservation) :
+      restoredRecursors) :
     ∀ node ∈ plan.nodes,
       NestedRestoredNodeBehavior node restoredRecursors := by
   intro node hnode
@@ -98,7 +95,7 @@ theorem NestedRestorationPlan.AtomicProvenance.behaviors
       Hnonrecursor
   · exact NestedRestoredNodeBehavior.recursor node hprovenance hfind
       hinput houtput
-  · exact Hnonrecursor.behavior hproj
+  · exact Hnonrecursor.behavior
 
 /-- Exact atomic provenance plus ordinary environment/context validity gives
 the complete finite plan semantics, including endpoint typings. -/
@@ -115,11 +112,10 @@ theorem NestedRestorationPlan.AtomicProvenance.semantics
     (hsourceEnv : sourceEnv.Ordered)
     (htargetEnv : targetEnv.Ordered)
     (hsourceContext : sourceContext.WF sourceEnv Us.length)
-    (htargetContext : targetContext.WF targetEnv Us.length)
-    (hproj : ProjectionConstPreservation) :
+    (htargetContext : targetContext.WF targetEnv Us.length) :
     NestedRestorationPlan.Semantics plan restoredRecursors :=
   plan.semanticsOfBehaviors hsourceEnv htargetEnv hsourceContext
-    htargetContext (H.behaviors hproj)
+    htargetContext H.behaviors
 
 end VerifyInductive
 end Lean4Lean

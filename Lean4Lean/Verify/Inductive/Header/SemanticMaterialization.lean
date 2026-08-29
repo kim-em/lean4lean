@@ -24,6 +24,12 @@ theorem SynthesizedHeader.retarget
   parameterCount := H.parameterCount
   levelCount := H.levelCount
   normalizedSource := H.normalizedSource
+  normalizedShape := by
+    rcases source with ⟨sourceVal, sourceCtors⟩
+    rcases target with ⟨targetVal, targetCtors⟩
+    simp only at htarget
+    subst targetVal
+    exact H.normalizedShape
   typeShape decl huvars hnparams := by
     have Hshape := H.typeShape decl huvars hnparams
     rcases source with ⟨sourceVal, sourceCtors⟩
@@ -42,6 +48,11 @@ def SynthesizedHeader.mono {env env' : VEnv}
   levelCount := H.levelCount
   normalizedSource :=
     ⟨(Classical.choice H.normalizedSource).mono henv⟩
+  normalizedShape := by
+    rcases H.normalizedShape with
+      ⟨sourceTelescope, residual, exprType, hheader, hresult⟩
+    exact ⟨sourceTelescope.mono henv, residual, exprType,
+      hheader.mono henv, hresult.mono henv⟩
   typeShape decl huvars hnparams :=
     (H.typeShape decl huvars hnparams).mono henv
 

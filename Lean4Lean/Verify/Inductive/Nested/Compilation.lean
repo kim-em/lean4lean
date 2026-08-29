@@ -21,17 +21,10 @@ theorem AuxiliaryRestorationPrefix.pushRestoredRecursor
     (H : AuxiliaryRestorationPrefix decl block main recursors rules)
     (Hrestore : RecursorRestoration result prodEnv auxRec allIndNames
       oldRecName newRecName oldInfo newInfo)
-    (Htr : TrConstVal safety trEnv (.recInfo newInfo) recursor)
-    (hnewName : newRecName =
-      (decl.recursorName main).appendIndexAfter (recursors.length + 1)) :
+    (Htr : TrConstVal safety trEnv (.recInfo newInfo) recursor) :
     AuxiliaryRestorationPrefix decl block main
       (recursors ++ [recursor]) rules := by
-  apply H.pushRecursor
-  calc
-    recursor.name = newInfo.name := Htr.2.symm
-    _ = newRecName := Hrestore.name
-    _ = (decl.recursorName main).appendIndexAfter
-        (recursors.length + 1) := hnewName
+  exact H.pushRecursor
 
 /-- Restored-rule guardedness is deliberately supplied independently of
 `RuleRestoration`: the latter is a syntactic executable refinement, whereas
@@ -46,8 +39,8 @@ theorem AuxiliaryRestorationPrefix.appendRestoredRules
       (habstract : i < abstractRules.length),
       RuleRestoration result prodEnv auxRec oldRecName newRecName
         sourceRules[i] restoredRules[i] →
-      ∃ fieldVars, abstractRules[i].rhs.GuardedIota
-        (block.recursors.map (·.name)) fieldVars 0) :
+      abstractRules[i].rhs.GuardedRuleRhs
+        (block.recursors.map (·.name))) :
     AuxiliaryRestorationPrefix decl block main recursors
       (rules ++ abstractRules) := by
   apply H.appendRules
@@ -75,8 +68,6 @@ structure RestoredAuxiliaryStepSemantics
   rules : List VDefEq
   translated : TrConstVal safety trEnv
     (.recInfo Hstep.restored.newInfo) recursor
-  sequentialName : Hstep.restored.newRecName =
-    (decl.recursorName main).appendIndexAfter (priorRecursors.length + 1)
   rulesLength : rules.length = Hstep.restored.newInfo.rules.length
   guarded : ∀ i (hsource : i < Hstep.oldInfo.rules.length)
     (hrestored : i < Hstep.restored.newInfo.rules.length)
@@ -84,8 +75,7 @@ structure RestoredAuxiliaryStepSemantics
     RuleRestoration result loweredEnv auxRec oldRecName
       Hstep.restored.newRecName Hstep.oldInfo.rules[i]
       Hstep.restored.newInfo.rules[i] →
-    ∃ fieldVars, rules[i].rhs.GuardedIota
-      (block.recursors.map (·.name)) fieldVars 0
+    rules[i].rhs.GuardedRuleRhs (block.recursors.map (·.name))
 
 theorem RestoredAuxiliaryStepSemantics.advance
     (H : RestoredAuxiliaryStepSemantics decl block main safety trEnv Hstep
@@ -95,7 +85,7 @@ theorem RestoredAuxiliaryStepSemantics.advance
     AuxiliaryRestorationPrefix decl block main
       (priorRecursors ++ [H.recursor]) (priorRules ++ H.rules) := by
   have Hrecursor := Hprefix.pushRestoredRecursor
-    Hstep.restored.restoration H.translated H.sequentialName
+    Hstep.restored.restoration H.translated
   exact Hrecursor.appendRestoredRules Hstep.restored.restoration.rules
     H.rulesLength H.guarded
 
@@ -2167,14 +2157,27 @@ theorem DeclaredInductiveInfos.closesMutuals
     (H : DeclaredInductiveInfos source infos target)
     (hold : MutualInductivesClosed source)
     (huniform : ∀ info ∈ infos,
-      info.all = infos.map (fun member => member.name)) :
+      info.all = infos.map (fun member => member.name))
+    (hparams : ∀ info ∈ infos, info.numParams = numParams) :
     MutualInductivesClosed target := by
   intro targetName value hfind
   rcases H.origin hfind with holdLookup |
       ⟨info, hinfo, hname, hvalue⟩
   · have Hclosure := hold targetName value holdLookup
     exact ⟨Hclosure.members.mapEnvironment H.preserves, Hclosure.target,
-      Hclosure.names⟩
+      Hclosure.names, by
+        intro member info hmember hfind
+        have holdMember : source.find? member =
+            some (.inductInfo info) := by
+          rcases H.origin hfind with holdMember |
+              ⟨newInfo, hnewInfo, hname, hfound⟩
+          · exact holdMember
+          · rcases Hclosure.members.find hmember with
+              ⟨oldInfo, holdInfo⟩
+            have hfresh := H.sourceFresh newInfo hnewInfo
+            rw [← hname, holdInfo] at hfresh
+            contradiction
+        exact Hclosure.parameters member info hmember holdMember⟩
   · cases hvalue
     have hmembers := H.newMembers
     rw [← huniform value hinfo] at hmembers
@@ -2183,7 +2186,18 @@ theorem DeclaredInductiveInfos.closesMutuals
       rw [huniform value hinfo]
       exact List.mem_map.mpr ⟨value, hinfo, rfl⟩, by
         rw [huniform value hinfo]
-        exact H.namesNodup⟩
+        exact H.namesNodup, by
+          intro member memberInfo hmember hmemberLookup
+          rw [huniform value hinfo] at hmember
+          rcases List.mem_map.mp hmember with
+            ⟨sourceMember, hsourceMember, hsourceName⟩
+          have hsourceLookup := H.installed sourceMember hsourceMember
+          rw [hsourceName, hmemberLookup] at hsourceLookup
+          have hinfoEq : memberInfo = sourceMember :=
+            ConstantInfo.inductInfo.inj (Option.some.inj hsourceLookup)
+          subst memberInfo
+          exact (hparams sourceMember hsourceMember).trans
+            (hparams value hinfo).symm⟩
 
 private theorem property_of_mem_zipWith
     (f : α → β → γ) (P : γ → Prop)
@@ -2252,6 +2266,35 @@ theorem inductiveTypeInfos_uniformAll
   exact hall.trans (zipWith_left_projection
     (fun type : InductiveType => type.name) hlength).symm
 
+/-- All headers emitted by one executable mutual-header batch carry the
+same common-parameter count supplied to that batch. -/
+theorem inductiveTypeInfos_uniformNumParams
+    (stats : AddInductive.InductiveStats) (numParams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
+    (lparams : List Name)
+    (hsize : stats.nindices.size = indTypes.size) :
+    ∀ info ∈ (AddInductive.inductiveTypeInfos stats numParams indTypes
+      numNested isUnsafe lparams).toList,
+      info.numParams = numParams := by
+  intro info hinfo
+  simp [AddInductive.inductiveTypeInfos, hsize] at hinfo ⊢
+  exact property_of_mem_zipWith
+    (fun (indType : InductiveType) (numIndices : Nat) =>
+      show InductiveVal from {
+        name := indType.name
+        levelParams := lparams
+        type := indType.type
+        numParams := numParams
+        numIndices := numIndices
+        all := indTypes.toList.map (fun type => type.name)
+        numNested := numNested
+        isUnsafe := isUnsafe
+        ctors := indType.ctors.map (fun ctor => ctor.name)
+        isRec := AddInductive.isRec indTypes stats.indConsts
+        isReflexive := AddInductive.isReflexive indTypes stats.indConsts })
+    (fun generated => generated.numParams = numParams)
+    (by intro _ _; rfl) hinfo
+
 theorem inductiveTypeInfos_source_mem
     (stats : AddInductive.InductiveStats) (numParams : Nat)
     (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
@@ -2296,6 +2339,8 @@ theorem declareInductiveTypes_closesMutuals
         Hdeclared.closesMutuals hold
           (inductiveTypeInfos_uniformAll stats numParams indTypes numNested
             isUnsafe c.lparams hsize)
+          (inductiveTypeInfos_uniformNumParams stats numParams indTypes
+            numNested isUnsafe c.lparams hsize)
 
 /-- Pair the existing semantic header refinement with the independently
 proved production lookup invariant for the very same executable result. -/
@@ -2378,9 +2423,6 @@ theorem AddInductive.formationCore.closedWF
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
@@ -2410,7 +2452,7 @@ theorem AddInductive.formationCore.closedWF
     HheadersClosed
   intro headerEnv Hheader
   exact AddInductive.constructorPhases.WF Hheader hconsume
-    Hheader.materializedAvailableLiteralDisjoint hproj
+    Hheader.materializedAvailableLiteralDisjoint
     hunsafe hvisible hnprimCtors
 
 

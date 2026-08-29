@@ -705,7 +705,8 @@ theorem
       E.template_residual_translation
   rcases
       E.frame.semantic.generated.translatedOuterAbstractedMajor_eq_of_field_eq
-        hsource hfieldRoot A.rule.binders_nodup hfieldBinders
+        hsource (E.frame.field_mem_originRoot hfieldAll)
+        A.rule.binders_nodup hfieldBinders
         E.equation_length E.local_length Hmajor with
     ⟨fieldVar, hfieldVar, hfieldSource, htarget⟩
   exact ⟨fv, fieldVar, hsource, hfieldBinders,
@@ -1072,12 +1073,6 @@ theorem
               (A.rule.allArgs.size - 1 -
                 A.semantics.recursivePositions[j]!)))
             (E.frame.semantic.generated.localIndices.map Expr.bvar).toArray ∧
-        E.frame.semantic.appliedFieldTarget =
-          VExpr.mkApps
-            (.bvar (E.frame.semantic.generated.localArgs.size +
-              (A.rule.allArgs.size - 1 -
-                A.semantics.recursivePositions[j]!)))
-            (E.frame.semantic.generated.localIndices.map VExpr.bvar) ∧
         O.replayTrace S.fields_bound.fvars =
           E.frame.semantic.generated.replayTrace
             A.rule.all_args_bound.fvars ∧
@@ -1128,52 +1123,20 @@ theorem
         O.outerAbstractedMotiveApp S.fields_bound.fvars =
           E.frame.semantic.generated.outerAbstractedMotiveApp
             A.rule.all_args_bound.fvars ∧
-        (∃ binding : RecursorMotiveBinding
-              E.frame.semantic.current_context
-              H.recInfos[E.frame.semantic.generated.ownerIdx]!
-              H.elimLevel,
-          ∃ evidence : RecursorMotiveTelescopeEvidence
-              E.frame.semantic.current_context stats
-              H.recInfos[E.frame.semantic.generated.ownerIdx]!
-              binding E.frame.semantic.generated.exposedType
-              E.frame.semantic.exposedTarget,
-            ∃ (semanticLocalDomains semanticFieldDomains : List VExpr),
-              semanticLocalDomains.length =
-                  E.frame.semantic.generated.localArgs.size ∧
-              semanticFieldDomains.length = A.rule.allArgs.size ∧
-              E.frame.semantic.current_context.mlctx.vlctx.toCtx =
-                semanticLocalDomains.reverse ++
-                  semanticFieldDomains.reverse ++
-                    A.semantics.fieldRootContext.mlctx.vlctx.toCtx ∧
-              let semanticTarget := VExpr.app
-                (VExpr.mkApps binding.motiveTarget evidence.indices)
-                E.frame.semantic.appliedFieldTarget
-              TrExprS H.outVEnv Us
-                  (abstractForallContext
-                    (semanticFieldDomains ++ semanticLocalDomains)
-                    A.semantics.fieldRootContext.mlctx.vlctx)
-                  (O.outerAbstractedMotiveApp S.fields_bound.fvars)
-                  semanticTarget ∧
-                H.outVEnv.HasType Us.length
-                  (abstractForallContext
-                    (semanticFieldDomains ++ semanticLocalDomains)
-                    A.semantics.fieldRootContext.mlctx.vlctx).toCtx
-                  semanticTarget (.sort evidence.resultLevel) ∧
-                TrExprS H.outVEnv Us
-                  (abstractForallContext semanticFieldDomains
-                    A.semantics.fieldRootContext.mlctx.vlctx)
-                  ((E.frame.semantic.generated.current.lctx.mkForall
-                    E.frame.semantic.generated.localArgs
-                    (Expr.app
-                      (mkAppN
-                        H.recInfos[
-                          E.frame.semantic.generated.ownerIdx]!.motive
-                        E.frame.semantic.generated.exposedType.getAppArgs[
-                          stats.params.size:])
-                      (mkAppN A.rule.recursiveArgs[j]
-                        E.frame.semantic.generated.localArgs))).abstractList
-                    A.rule.all_args_bound.fvars)
-                  (VExpr.wrapForalls semanticLocalDomains semanticTarget)) ∧
+        Closed (O.outerAbstractedMotiveApp S.fields_bound.fvars)
+          (O.args.size + S.fields.size) ∧
+        (let generatedMotiveApp := Expr.app
+            (mkAppN
+              H.recInfos[E.frame.semantic.generated.ownerIdx]!.motive
+              E.frame.semantic.generated.exposedType.getAppArgs[
+                stats.params.size:])
+            (mkAppN A.rule.recursiveArgs[j]
+              E.frame.semantic.generated.localArgs);
+          Closed
+            ((E.frame.semantic.generated.current.lctx.mkForall
+              E.frame.semantic.generated.localArgs generatedMotiveApp
+              ).abstractList A.rule.all_args_bound.fvars)
+            A.rule.allArgs.size) ∧
         (let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
               H.bindings.flatMinors.fvars.take minorIdx
@@ -1317,9 +1280,9 @@ theorem
       hruleSelected, hlocal, hsourceFields, hsourceHypotheses,
       hsourceContext,
       HminorSemantic,
-      hfields, hhypotheses, htarget, _Hbinder, Hdomain, HdomainType,
-      originRoot, sourceType, ⟨O⟩, _hdeclarationConsumed,
-      hdeclarationExact⟩
+      hproducerShape, hfields, hhypotheses, htarget, _Hbinder, Hdomain,
+      HdomainType, originRoot, sourceType, O, _hdeclarationConsumed,
+      hdeclarationExact, HproducerReplay⟩
   have htelescope : T₀ = T := T₀.eq T
   subst T₀
   subst stats
@@ -1343,49 +1306,11 @@ theorem
       A.semantics.recursivePositions := by
     rw [hparameterTail]
     exact A.semantics.decisions
-  have HloopReplay : RecursorLoopUArgsCompletedAlphaCompat :=
-    H.loopUArgsReplay
-  unfold RecursorLoopUArgsCompletedAlphaCompat at HloopReplay
   have Hreplay :
       O.replayTrace S.fields_bound.fvars =
         E.frame.semantic.generated.replayTrace
           A.rule.all_args_bound.fvars := by
-    simpa only [getElem!_pos A.rule.recursiveArgs j hj] using HloopReplay
-      (stats := hypothesisOrigins.stats)
-      (recInfos := hypothesisOrigins.recInfos)
-      (indTypes := indTypes)
-      (motives := H.recInfos.map
-        (fun info : AddInductive.RecInfo => info.motive))
-      (minors := H.recInfos.flatMap
-        (fun info : AddInductive.RecInfo => info.minors))
-      (lvls := AddInductive.getRecLevels H.elimLevel
-        hypothesisOrigins.stats.levels)
-      (recLparams := Us)
-      (root₁ := traversal.rootContext)
-      (root₂ := A.semantics.fieldRoot)
-      (current₁ := traversal.terminalContext)
-      (current₂ := A.rule.root)
-      (originRoot := originRoot)
-      (source := traversal.parameterTail)
-      (terminal₁ := traversal.terminal)
-      (terminal₂ := A.rule.target)
-      (all₁ := S.fields)
-      (recursive₁ := S.recursiveFields)
-      (all₂ := A.rule.allArgs)
-      (recursive₂ := A.rule.recursiveArgs)
-      (positions₁ := traversal.recursivePositions)
-      (positions₂ := A.semantics.recursivePositions)
-      (j := j) (hj₁ := hjSourceRecursive) (hj₂ := hj)
-      (sourceType := sourceType)
-      (value := A.rule.recursiveResults[j]!)
-      (O := O) (R := A.semantics.context) (decl := decl)
-      (depth := A.semantics.depth) (S := E.frame.semantic)
-      (fieldBinders₁ := S.fields_bound.fvars)
-      (fieldBinders₂ := A.rule.all_args_bound.fvars)
-      traversal.parameterTail_fvars HminorDecisions HruleDecisions
-      S.fields_bound.expressions
-      A.rule.all_args_bound.expressions hpositions
-      hhypothesisRecInfos
+    exact HproducerReplay.trans E.frame.producerReplay_eq
   have HlocalTelescopeReplay :
       (O.current.lctx.mkForall O.args (.sort .zero)).abstractList
           S.fields_bound.fvars =
@@ -1596,8 +1521,7 @@ theorem
   have hgeneratedMajorFields :=
     E.frame.semantic.generated.outerAbstractedMajor_eq_bvar_at
       hruleFieldExact
-      (A.rule.all_args_bound.members
-        A.rule.all_args_bound.fvars[fieldPosition]
+      (E.frame.field_mem_originRoot
         (List.getElem_mem hfieldPositionRuleFVars))
       A.rule.all_args_nodup hfieldPositionRuleFVars rfl
   have hmajorFieldAlignment :
@@ -1619,23 +1543,132 @@ theorem
     unfold RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp
       BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
     rw [Hreplay, hmajorFieldAlignment]
-  rcases E.frame.finalFieldAbstractedNormalizedMotiveApplication with
-    ⟨semanticBinding, semanticEvidence, semanticLocalDomains,
-      semanticFieldDomains, hsemanticLocal, hsemanticFields,
-      hsemanticContext, HsemanticGenerated, HsemanticType,
-      HsemanticForall⟩
-  let semanticTarget := VExpr.app
-    (VExpr.mkApps semanticBinding.motiveTarget semanticEvidence.indices)
-    E.frame.semantic.appliedFieldTarget
-  have HsemanticOrigin : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (abstractForallContext
-        (semanticFieldDomains ++ semanticLocalDomains)
-        A.semantics.fieldRootContext.mlctx.vlctx)
-      (O.outerAbstractedMotiveApp S.fields_bound.fvars)
-      semanticTarget := by
-    rw [hmotiveAppAlignment]
-    exact HsemanticGenerated
+  rcases E.frame.motiveApplication with ⟨HproducerMotive⟩
+  have HrawGeneratedMotiveClosed : Closed
+      (Expr.app
+        (mkAppN
+          (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]!
+          E.frame.semantic.generated.exposedType.getAppArgs[
+            hypothesisOrigins.stats.params.size:])
+        (mkAppN A.rule.recursiveArgs[j]
+          E.frame.semantic.generated.localArgs)) 0 := by
+    have hclosed := HproducerMotive.translation.closed
+    rw [E.frame.semantic.current_context.mlctx.noBV] at hclosed
+    exact hclosed
+  have HlocalGeneratedMotiveClosed : Closed
+      ((Expr.app
+        (mkAppN
+          (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]!
+          E.frame.semantic.generated.exposedType.getAppArgs[
+            hypothesisOrigins.stats.params.size:])
+        (mkAppN A.rule.recursiveArgs[j]
+          E.frame.semantic.generated.localArgs)).abstractList
+            E.frame.semantic.generated.arguments_bound.fvars)
+      E.frame.semantic.generated.localArgs.size := by
+    have hclosed := Closed.abstractList_at
+      (fvars := E.frame.semantic.generated.arguments_bound.fvars)
+      (depth := 0) (outer := 0) HrawGeneratedMotiveClosed
+    simpa [E.frame.semantic.generated.arguments_bound.length_fvars] using
+      hclosed
+  have hfieldLoose : A.rule.recursiveArgs[j].looseBVarRange' = 0 := by
+    have hclosed := E.frame.semantic.field_translation.closed
+    rw [E.frame.originContext.mlctx.noBV] at hclosed
+    exact hclosed.looseBVarRange_zero
+  have HgeneratedMotiveClosed : Closed
+      (E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.all_args_bound.fvars)
+      (E.frame.semantic.generated.localArgs.size + A.rule.allArgs.size) := by
+    have hclosed := Closed.abstractList_at
+      (fvars := A.rule.all_args_bound.fvars)
+      (depth := E.frame.semantic.generated.localArgs.size) (outer := 0)
+      HlocalGeneratedMotiveClosed
+    have hnormalize :=
+      E.frame.semantic.generated.outerAbstractedMotiveApp_eq
+        A.rule.all_args_bound.fvars hfieldLoose
+    dsimp only at hnormalize
+    rw [hnormalize] at hclosed
+    simpa [A.rule.all_args_bound.length_fvars] using hclosed
+  rcases E.frame.cachedSemanticCallArgumentFrame (B := B) with
+    ⟨_binding, _evidence, _scope, _Hscope, _fieldDomains, _localDomains,
+      _narrowIndices, _narrowMajor, _narrowExposed, _hscopeContext,
+      _hfields, _hfieldEq, _hlocal, HneutralTranslation,
+      _HneutralType, _Hctx, _hlength, _Hindices, _Hmajor,
+      _Hexposed, _Htyping, _HindexEq, _HmajorEq⟩
+  have HgeneratedNeutralClosed : Closed
+      ((E.frame.semantic.generated.current.lctx.mkForall
+        E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.all_args_bound.fvars) A.rule.allArgs.size := by
+    have hraw := HneutralTranslation.closed
+    rw [B.runtime.noBV] at hraw
+    have hclosed := Closed.abstractList_at
+      (fvars := A.rule.all_args_bound.fvars)
+      (depth := 0) (outer := 0) hraw
+    simpa [A.rule.all_args_bound.length_fvars] using hclosed
+  let generatedMotiveApp := Expr.app
+    (mkAppN H.recInfos[E.frame.semantic.generated.ownerIdx]!.motive
+      E.frame.semantic.generated.exposedType.getAppArgs[
+        hypothesisOrigins.stats.params.size:])
+    (mkAppN A.rule.recursiveArgs[j]
+      E.frame.semantic.generated.localArgs)
+  let generatedFieldSource :=
+    (E.frame.semantic.generated.current.lctx.mkForall
+      E.frame.semantic.generated.localArgs generatedMotiveApp).abstractList
+        A.rule.all_args_bound.fvars
+  let generatedNeutralSource :=
+    (E.frame.semantic.generated.current.lctx.mkForall
+      E.frame.semantic.generated.localArgs (.sort .zero)).abstractList
+        A.rule.all_args_bound.fvars
+  let Gselection :=
+    E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
+      E.frame.semantic.generated.current_wf
+  have HgeneratedActualNeutral : Expr.SameForallPrefix
+      E.frame.semantic.generated.localArgs.size
+      generatedFieldSource generatedNeutralSource := by
+    have Hprefix := (Gselection.sameForallPrefix
+      E.frame.semantic.generated.arguments_bound.nodup
+      generatedMotiveApp (.sort .zero)).abstractList
+        A.rule.all_args_bound.fvars
+    simpa [generatedFieldSource, generatedNeutralSource,
+      generatedMotiveApp, Gselection] using Hprefix
+  have HgeneratedTelescope : Expr.ForallTelescope generatedFieldSource
+      E.frame.semantic.generated.localArgs.size
+      (E.frame.semantic.generated.outerAbstractedMotiveApp
+        A.rule.all_args_bound.fvars) := by
+    have Hsource :=
+      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.mkForall_forallTelescope
+        E.frame.semantic.generated.current_wf generatedMotiveApp
+    have Hsource' := Hsource.abstractList
+      A.rule.all_args_bound.fvars 0
+    have hresidual :=
+      E.frame.semantic.generated.outerAbstractedMotiveApp_eq
+        A.rule.all_args_bound.fvars hfieldLoose
+    have hgeneratedOwnerRecInfos :
+        E.frame.semantic.generated.ownerIdx < H.recInfos.size := by
+      simpa [H.generated.length] using E.frame.entry_lt
+    have hselectedMotive :
+        (H.recInfos.map (·.motive))[E.frame.semantic.generated.ownerIdx]! =
+          H.recInfos[E.frame.semantic.generated.ownerIdx]!.motive := by
+      rw [getElem!_pos (H.recInfos.map (·.motive))
+          E.frame.semantic.generated.ownerIdx
+            (by simpa using hgeneratedOwnerRecInfos),
+        getElem!_pos H.recInfos E.frame.semantic.generated.ownerIdx
+          hgeneratedOwnerRecInfos]
+      simp
+    rw [hselectedMotive] at hresidual
+    have hresidual' :
+        (generatedMotiveApp.abstractList
+          E.frame.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+              E.frame.semantic.generated.localArgs.size =
+          E.frame.semantic.generated.outerAbstractedMotiveApp
+            A.rule.all_args_bound.fvars := by
+      simpa [generatedMotiveApp] using hresidual
+    simpa [generatedFieldSource, Nat.zero_add, hresidual'] using Hsource'
+  have HgeneratedFieldClosed : Closed generatedFieldSource
+      A.rule.allArgs.size := by
+    exact HgeneratedActualNeutral.leftClosed HgeneratedTelescope
+      (by simpa [generatedNeutralSource] using HgeneratedNeutralClosed)
+      (by simpa [Nat.add_comm] using HgeneratedMotiveClosed)
   let localMotiveApp :=
     (Expr.app
       (mkAppN hypothesisOrigins.recInfos[O.ownerIdx]!.motive
@@ -1667,11 +1700,8 @@ theorem
   have HoriginMotiveClosed : Closed
       (O.outerAbstractedMotiveApp S.fields_bound.fvars)
       (O.args.size + S.fields.size) := by
-    have hclosed := HsemanticOrigin.closed
-    rw [abstractForallContext_bvars,
-      A.semantics.fieldRootContext.mlctx.noBV, Nat.add_zero] at hclosed
-    simpa [hsemanticLocal, hsemanticFields, hlocalArity,
-      hsourceFields, Nat.add_comm] using hclosed
+    rw [hmotiveAppAlignment]
+    simpa [hlocalArity, hsourceFields] using HgeneratedMotiveClosed
   have HlocalMotiveClosed : Closed localMotiveApp O.args.size := by
     apply Expr.closed_of_abstractList
     rw [hfieldClosedMotiveApp]
@@ -2024,15 +2054,14 @@ theorem
     hsourceHypotheses, hsourceContext, HminorSemantic, hfields, hhypotheses,
     htarget,
     rfl, by simpa [fieldPosition] using houterField,
-    hrecursiveMajor.1, hrecursiveMajor.2, Hreplay,
+    hrecursiveMajor, Hreplay,
     HlocalTelescopeReplay, HlocalLambdaReplay, HlocalForallReplay,
     hmotiveReplay,
     hindicesReplay, hownerReplay, hlocalArity, hmajorAlignment,
     hmotiveAppAlignment,
-    ⟨semanticBinding, semanticEvidence, semanticLocalDomains,
-      semanticFieldDomains, hsemanticLocal, hsemanticFields,
-      hsemanticContext, HsemanticOrigin, HsemanticType,
-      HsemanticForall⟩,
+    HoriginMotiveClosed,
+    (by simpa [generatedFieldSource, generatedMotiveApp] using
+      HgeneratedFieldClosed),
     Hdomain,
     ⟨hypothesisLocalDomains, sourceResidual, hypothesisResidual,
       hhypothesisLocalDomains, _HsourceResidual, by
@@ -2154,10 +2183,11 @@ theorem
       _hsourceSelected, _hruleSelected, _hlocal, hsourceFields,
       hsourceHypotheses, _hsourceContext, _HminorSemantic,
       hfields, hhypotheses, htarget, _hdeclarationType,
-      _houterField, _hmajorOuter, _hmajorApplied, _Hreplay,
+      _houterField, _hmajorOuter, _Hreplay,
       _HlocalTelescopeReplay, _HlocalLambdaReplay, _HlocalForallReplay,
       _hmotiveReplay, _hindicesReplay, hownerReplay, hlocalArity,
-      _hmajorAlignment, _hmotiveAppAlignment, _Hsemantic,
+      _hmajorAlignment, _hmotiveAppAlignment,
+      _HoriginMotiveClosed, _HgeneratedNeutralClosed,
       _Hdomain, Hresiduals, Htyping⟩
   rcases Hresiduals with
     ⟨hypothesisLocalDomains, _sourceResidual, hypothesisResidual,
@@ -2238,10 +2268,11 @@ theorem
       _hsourceSelected, _hruleSelected, _hlocal, hsourceFields,
       hsourceHypotheses, _hsourceContext, _HminorSemantic,
       hfields, hhypotheses, htarget, hdeclarationType,
-      _houterField, _hmajorOuter, _hmajorApplied, _Hreplay,
+      _houterField, _hmajorOuter, _Hreplay,
       _HlocalTelescopeReplay, _HlocalLambdaReplay, HlocalForallReplay,
       _hmotiveReplay, _hindicesReplay, hownerReplay, hlocalArity,
-      _hmajorAlignment, _hmotiveAppAlignment, _Hsemantic,
+      _hmajorAlignment, _hmotiveAppAlignment,
+      _HoriginMotiveClosed, _HgeneratedNeutralClosed,
       _Hdomain, _Hresiduals, _Htyping⟩
   exact ⟨S, hypothesisOrigins, fieldDomains, hypothesisDomains,
     targetResidual, D, originRoot, sourceType, O, hfields, hhypotheses,
@@ -2382,10 +2413,11 @@ theorem
       _hsourceSelected, _hruleSelected, _hlocal, hsourceFields,
       hsourceHypotheses, _hsourceContext, _HminorSemantic,
       hfields, hhypotheses, htarget, hdeclarationType,
-      _houterField, _hmajorOuter, _hmajorApplied, _Hreplay,
+      _houterField, _hmajorOuter, _Hreplay,
       _HlocalTelescopeReplay, _HlocalLambdaReplay, HlocalForallReplay,
       _hmotiveReplay, _hindicesReplay, _hownerReplay, hlocalArity,
-      _hmajorAlignment, hmotiveAppAlignment, Hsemantic,
+      _hmajorAlignment, hmotiveAppAlignment,
+      HoriginMotiveClosedRaw, HgeneratedFieldClosed,
       Hdomain, Hresiduals, _Htyping⟩
   rcases Hresiduals with
     ⟨hypothesisLocalDomains, _sourceResidual, hypothesisResidual,
@@ -2633,26 +2665,10 @@ theorem
     rcases hfv with hfield | hnotHypothesis
     · exact S.hypotheses_fields_fresh fv hhypothesis hfield
     · exact hnotHypothesis hhypothesis
-  rcases Hsemantic with
-    ⟨_semanticBinding, _semanticEvidence, semanticLocalDomains,
-      semanticFieldDomains, hsemanticLocal, hsemanticFields,
-      _hsemanticContext, HsemanticOrigin, _HsemanticType,
-      HsemanticForall⟩
-  have HgeneratedFieldClosed : Closed generatedFieldSource
-      A.rule.allArgs.size := by
-    have hclosed := HsemanticForall.closed
-    rw [abstractForallContext_bvars,
-      A.semantics.fieldRootContext.mlctx.noBV, Nat.add_zero] at hclosed
-    simpa [generatedFieldSource, generatedMotiveApp, hsemanticFields] using
-      hclosed
   have HoriginMotiveClosed : Closed
       (O.outerAbstractedMotiveApp S.fields_bound.fvars)
       (A.rule.allArgs.size + O.args.size) := by
-    have hclosed := HsemanticOrigin.closed
-    rw [abstractForallContext_bvars,
-      A.semantics.fieldRootContext.mlctx.noBV, Nat.add_zero] at hclosed
-    simpa [hsemanticLocal, hsemanticFields, hlocalArity,
-      Nat.add_comm, Nat.add_left_comm, Nat.add_assoc] using hclosed
+    simpa [hsourceFields, Nat.add_comm] using HoriginMotiveClosedRaw
   have HoriginFieldClosed : Closed originFieldSource
       A.rule.allArgs.size := by
     exact HfieldPrefix.leftClosed HoriginTelescope HgeneratedFieldClosed

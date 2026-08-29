@@ -12,46 +12,55 @@ family/constructor replacements are justified by recursor-freeness;
 recursor applications are represented as applications on both sides with
 their major-field provenance retained. -/
 inductive GuardedExprRestoration
-      (replaceNode : VExpr → Option VExpr)
+      (replaceNode : VExpr → VExpr → Prop)
       (sourceRecursors targetRecursors : List Name)
       (fieldVars : List Nat) : Nat → VExpr → VExpr → Prop
-    | hit (hhit : replaceNode source = some target)
+    | hit (hhit : replaceNode source target)
         (hsource : source.GuardedIota sourceRecursors fieldVars depth)
-        (htargetFree : target.containsAnyConst targetRecursors = false) :
+        (htargetGuarded : target.GuardedIota targetRecursors fieldVars depth) :
         GuardedExprRestoration replaceNode sourceRecursors targetRecursors
           fieldVars depth source target
-    | bvar (hnone : replaceNode (.bvar index) = none) :
+    | leaf
+        (htarget : source.GuardedIota targetRecursors fieldVars depth) :
+        GuardedExprRestoration replaceNode sourceRecursors targetRecursors
+          fieldVars depth source source
+    | bvar :
         GuardedExprRestoration replaceNode sourceRecursors targetRecursors
           fieldVars depth (.bvar index) (.bvar index)
-    | sort (hnone : replaceNode (.sort level) = none) :
+    | sort :
         GuardedExprRestoration replaceNode sourceRecursors targetRecursors
           fieldVars depth (.sort level) (.sort level)
-    | const (hnone : replaceNode (.const name levels) = none)
-        (hsource : name ∉ sourceRecursors)
+    | const (hsource : name ∉ sourceRecursors)
         (htarget : name ∉ targetRecursors) :
         GuardedExprRestoration replaceNode sourceRecursors targetRecursors
           fieldVars depth (.const name levels) (.const name levels)
-    | app (hnone : replaceNode (.app fn arg) = none)
-        (hfn : GuardedExprRestoration replaceNode sourceRecursors
+    | app (hfn : GuardedExprRestoration replaceNode sourceRecursors
           targetRecursors fieldVars depth fn fn')
         (harg : GuardedExprRestoration replaceNode sourceRecursors
           targetRecursors fieldVars depth arg arg') :
         GuardedExprRestoration replaceNode sourceRecursors targetRecursors
           fieldVars depth (.app fn arg) (.app fn' arg')
-    | lam (hnone : replaceNode (.lam domain body) = none)
-        (hdomain : GuardedExprRestoration replaceNode sourceRecursors
+    | lam (hdomain : GuardedExprRestoration replaceNode sourceRecursors
           targetRecursors fieldVars depth domain domain')
         (hbody : GuardedExprRestoration replaceNode sourceRecursors
           targetRecursors fieldVars (depth + 1) body body') :
         GuardedExprRestoration replaceNode sourceRecursors targetRecursors
           fieldVars depth (.lam domain body) (.lam domain' body')
-    | forallE (hnone : replaceNode (.forallE domain body) = none)
-        (hdomain : GuardedExprRestoration replaceNode sourceRecursors
+    | forallE (hdomain : GuardedExprRestoration replaceNode sourceRecursors
           targetRecursors fieldVars depth domain domain')
         (hbody : GuardedExprRestoration replaceNode sourceRecursors
           targetRecursors fieldVars (depth + 1) body body') :
         GuardedExprRestoration replaceNode sourceRecursors targetRecursors
           fieldVars depth (.forallE domain body) (.forallE domain' body')
+    | projection
+        (sourceExpansion : VExpr.ProjectionSupportExpansion
+          sourceMajor sourceTarget)
+        (targetExpansion : VExpr.ProjectionSupportExpansion
+          targetMajor targetTarget)
+        (hmajor : GuardedExprRestoration replaceNode sourceRecursors
+          targetRecursors fieldVars depth sourceMajor targetMajor) :
+        GuardedExprRestoration replaceNode sourceRecursors targetRecursors
+          fieldVars depth sourceTarget targetTarget
     | recCall
         (sourceRecursor targetRecursor : Name)
         (sourceLevels targetLevels : List VLevel)
@@ -81,14 +90,16 @@ theorem GuardedExprRestoration.targetGuarded
       fieldVars depth source target) :
     target.GuardedIota targetRecursors fieldVars depth := by
   induction H with
-  | hit _ _ hfree =>
-      exact VExpr.GuardedIota.ofContainsAnyConstFalse hfree
+  | hit _ _ hguarded => exact hguarded
+  | leaf htarget => exact htarget
   | bvar => exact .bvar
   | sort => exact .sort
-  | const _ _ htarget => exact .const htarget
-  | app _ _ _ ihfn iharg => exact .app ihfn iharg
-  | lam _ _ _ ihdomain ihbody => exact .lam ihdomain ihbody
-  | forallE _ _ _ ihdomain ihbody => exact .forallE ihdomain ihbody
+  | const _ htarget => exact .const htarget
+  | app _ _ ihfn iharg => exact .app ihfn iharg
+  | lam _ _ ihdomain ihbody => exact .lam ihdomain ihbody
+  | forallE _ _ ihdomain ihbody => exact .forallE ihdomain ihbody
+  | projection _ targetExpansion _ ihmajor =>
+      exact .projection targetExpansion ihmajor
   | recCall _ _ _ _ _ _ _ _ _ htargetMem _ htargetMajor _ htargetArgs =>
       exact .recCall htargetMem htargetArgs htargetMajor
 

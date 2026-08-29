@@ -180,11 +180,12 @@ theorem LoweredConstructorTranslation.nestedAuxLE
 
 theorem LoweredConstructorTranslation.pendingSourceFamilyOrigins
     (H : LoweredConstructorTranslation env params nparams source state out)
+    (hclosures : MutualInductivesClosed env)
     (Hsource : source.type.FVarsIn fun _ => False)
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
     PendingSourceFamilyOrigins env params initial cursor out.2 := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, Hopening, _Hbinding,
+    ⟨lctx, tail, As, lowered, openedState, Hopening, Hbinding,
       Hselection, hnodup, hopenedTypes, hopenedAux, _hopenedNext, _hsize,
       Hreplace, _htype⟩
   have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
@@ -202,7 +203,10 @@ theorem LoweredConstructorTranslation.pendingSourceFamilyOrigins
       exact ⟨[], by simp⟩
     have Horigin' := Horigin.mono Haux
     exact ⟨by simpa [hopenedTypes] using Horigin'⟩
-  exact Hreplace.pendingSourceFamilyOrigins Hselection hnodup Htail Hopened
+  have Hclosing : NestedClosingContext lctx As openedState.ngen :=
+    Hopening.closingContext Hbinding Hselection hnodup Hsource
+  exact Hreplace.pendingSourceFamilyOrigins Hselection hnodup Hclosing
+    hclosures Htail Hopened
 
 theorem LoweredConstructorTranslation.namesWF
     (H : LoweredConstructorTranslation env params nparams source state out)
@@ -1207,6 +1211,7 @@ theorem LoweredConstructorTranslations.nestedAuxLE
 
 theorem LoweredConstructorTranslations.pendingSourceFamilyOrigins
     (H : LoweredConstructorTranslations env params nparams sources state out)
+    (hclosures : MutualInductivesClosed env)
     (Hsources : ∀ source ∈ sources,
       source.type.FVarsIn fun _ => False)
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
@@ -1215,7 +1220,8 @@ theorem LoweredConstructorTranslations.pendingSourceFamilyOrigins
   | nil => exact Horigins
   | cons Hhead Htail ih =>
     exact ih (fun source hsource => Hsources source (by simp [hsource]))
-      (Hhead.pendingSourceFamilyOrigins (Hsources _ (by simp)) Horigins)
+      (Hhead.pendingSourceFamilyOrigins hclosures
+        (Hsources _ (by simp)) Horigins)
 
 theorem LoweredConstructorTranslations.pendingNewTypesClosed
     (H : LoweredConstructorTranslations env params nparams sources state out)
@@ -1702,10 +1708,11 @@ theorem LoweredInductiveTranslation.nestedAuxLE
 
 theorem LoweredInductiveTranslation.pendingSourceFamilyOrigins
     (H : LoweredInductiveTranslation env params nparams source state out)
+    (hclosures : MutualInductivesClosed env)
     (Hsource : InductiveConstructorsClosed source)
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
     PendingSourceFamilyOrigins env params initial cursor out.2 :=
-  H.constructors.pendingSourceFamilyOrigins Hsource Horigins
+  H.constructors.pendingSourceFamilyOrigins hclosures Hsource Horigins
 
 theorem LoweredInductiveTranslation.pendingNewTypesClosed
     (H : LoweredInductiveTranslation env params nparams source state out)
@@ -2006,6 +2013,7 @@ theorem LowerNextTranslation.familyOrigins
     (H : LowerNextTranslation env params nparams i state
       (some source, nextState))
     (Hpending : PendingNewTypesClosed i state)
+    (hclosures : MutualInductivesClosed env)
     (Horigins : LoweringQueueFamilyOrigins env params nparams initial i state) :
     LoweringQueueFamilyOrigins env params nparams initial (i + 1)
       nextState := by
@@ -2020,7 +2028,7 @@ theorem LowerNextTranslation.familyOrigins
       ⟨[], by simp [NestedAuxLE]⟩
     have hiLowered := (Hle.getElem hi).choose
     have HpendingOrigins := Hlowered.pendingSourceFamilyOrigins
-      (Hpending i (Nat.le_refl _) hi) Horigins.pending
+      hclosures (Hpending i (Nat.le_refl _) hi) Horigins.pending
     constructor
     · intro j hjNext hjProcessed
       by_cases hji : j = i
@@ -2285,6 +2293,7 @@ final slot. -/
 theorem LoweringQueueTrace.finalFamilyOriginAt
     (H : LoweringQueueTrace env params nparams lctx i fuel state out)
     (Henv : EnvironmentTypesClosed env)
+    (hclosures : MutualInductivesClosed env)
     (Hpending : PendingNewTypesClosed i state)
     (Horigins : LoweringQueueFamilyOrigins env params nparams initial i state)
     (hj : j < out.1.types.length) :
@@ -2297,7 +2306,7 @@ theorem LoweringQueueTrace.finalFamilyOriginAt
     simpa using Hprocessed
   | step Hnext Htail ih =>
     exact ih (Hnext.pendingNewTypesClosed Henv Hpending)
-      (Hnext.familyOrigins Hpending Horigins) hj
+      (Hnext.familyOrigins Hpending hclosures Horigins) hj
 
 theorem LoweringQueueTrace.resultRestorable
     (H : LoweringQueueTrace env params nparams lctx i fuel state out)
@@ -2428,6 +2437,7 @@ by the restoration record. -/
 theorem NestedLoweringRun.finalFamilyOriginAt
     (H : NestedLoweringRun env fuel nparams types initialState out)
     (Henv : EnvironmentTypesClosed env)
+    (hclosures : MutualInductivesClosed env)
     (Hsources : SourceSyntaxChecks types)
     (hinitial : initialState.newTypes = types.toArray)
     (hj : j < out.1.types.length) :
@@ -2462,7 +2472,7 @@ theorem NestedLoweringRun.finalFamilyOriginAt
       simpa [Array.getElem!_eq_getD, Array.getD, hjState, hjInitial] using heq
     rw [hvalue]
     exact Hsources.constructorsClosed hmember
-  have Hfinal := Hqueue.finalFamilyOriginAt Henv Hpending Horigins hj
+  have Hfinal := Hqueue.finalFamilyOriginAt Henv hclosures Hpending Horigins hj
   rw [Hqueue.resultContext.2]
   exact Hfinal
 

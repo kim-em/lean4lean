@@ -1,43 +1,13 @@
 import Lean4Lean.Verify.Typing.Projection
 import Lean4Lean.Verify.Typing.ConstSupport
+import Lean4Lean.Verify.Typing.ProjectionRelationCore
 import Lean4Lean.Theory.Typing.Lemmas
+import Lean4Lean.Theory.Typing.Strong
+import Lean4Lean.Theory.Typing.UniqueTyping
 
 namespace Lean4Lean
 
 open Lean
-
-/-- Installed provenance for the eliminator used by one canonical projection
-expansion.  This is deliberately stronger than a bare typing derivation: the
-head constant is the primary recursor of the exact one-constructor family
-named by the projection, and the explicit universe/parameter spines have the
-declaration-prescribed lengths.
-
-The constructor-field and motive equations are supplied by the subsequent
-projection-inference trace.  Keeping installation provenance here makes it
-impossible for the core projection relation to choose an unrelated, merely
-well-typed recursor application while that trace is being connected. -/
-structure CanonicalProjectionExpansion.InstalledOrigin
-    (env : VEnv) (U : Nat) (P : CanonicalProjectionExpansion) where
-  decl : VInductDecl
-  owner : VInductiveType
-  ctor : VConstVal
-  recursor : VConstVal
-  eliminator : VConstant
-  installed : VEnv.InstalledInductCertificate env decl
-  owner_mem : owner ∈ decl.types
-  owner_name : owner.name = P.structName
-  owner_single : owner.ctors = [ctor]
-  recursor_name : recursor.name = mkRecName P.structName
-  recursor_lookup : env.constants (mkRecName P.structName) =
-    some recursor.toVConstant
-  eliminator_lookup : env.constants (mkCasesOnName P.structName) =
-    some eliminator
-  recursor_shape : Nonempty (decl.NestedRecursorShape owner recursor)
-  familyLevels_length : P.familyLevels.length = decl.uvars
-  familyLevels_wf : ∀ level ∈ P.familyLevels, level.WF U
-  resultLevel_wf : P.resultLevel.WF U
-  params_length : P.params.length = decl.nparams
-  indices_length : P.indices.length = owner.numIndices
 
 namespace CanonicalProjectionExpansion.InstalledOrigin
 
@@ -124,6 +94,34 @@ def liftN
   indices_length := by simpa [CanonicalProjectionExpansion.liftN] using
     H.indices_length
 
+def lift'
+    (H : CanonicalProjectionExpansion.InstalledOrigin env U P)
+    (lift : Lift) :
+    CanonicalProjectionExpansion.InstalledOrigin env U (P.lift' lift) where
+  decl := H.decl
+  owner := H.owner
+  ctor := H.ctor
+  recursor := H.recursor
+  eliminator := H.eliminator
+  installed := H.installed
+  owner_mem := H.owner_mem
+  owner_name := H.owner_name
+  owner_single := H.owner_single
+  recursor_name := H.recursor_name
+  recursor_lookup := H.recursor_lookup
+  eliminator_lookup := H.eliminator_lookup
+  recursor_shape := H.recursor_shape
+  familyLevels_length := by simpa [CanonicalProjectionExpansion.lift'] using
+    H.familyLevels_length
+  familyLevels_wf := by simpa [CanonicalProjectionExpansion.lift'] using
+    H.familyLevels_wf
+  resultLevel_wf := by simpa [CanonicalProjectionExpansion.lift'] using
+    H.resultLevel_wf
+  params_length := by simpa [CanonicalProjectionExpansion.lift'] using
+    H.params_length
+  indices_length := by simpa [CanonicalProjectionExpansion.lift'] using
+    H.indices_length
+
 def instN
     (H : CanonicalProjectionExpansion.InstalledOrigin env U P)
     (substitution : VExpr) (k : Nat) :
@@ -154,19 +152,6 @@ def instN
     H.indices_length
 
 end CanonicalProjectionExpansion.InstalledOrigin
-
-/-- Installed origin together with the exact major-premise family typing.
-The major type is precisely the installed owner applied to the retained
-universe, parameter, and index spines.
-This removes the former freedom to choose unrelated recursor parameters. -/
-structure CanonicalProjectionExpansion.InstalledTyping
-    (env : VEnv) (U : Nat) (Gamma : List VExpr)
-    (P : CanonicalProjectionExpansion)
-    extends CanonicalProjectionExpansion.InstalledOrigin env U P where
-  majorType : env.HasType U Gamma P.major
-    (VExpr.mkApps
-      (.const toInstalledOrigin.owner.name P.familyLevels)
-      (P.params ++ P.indices))
 
 namespace CanonicalProjectionExpansion.InstalledTyping
 
@@ -216,6 +201,22 @@ def weakN
     simpa [CanonicalProjectionExpansion.liftN, VExpr.liftN] using
       H.majorType.weakN Henv W
 
+def weak'
+    (H : CanonicalProjectionExpansion.InstalledTyping env U Gamma P)
+    (Henv : VEnv.Ordered env)
+    (W : Ctx.Lift' lift Gamma Gamma') :
+    CanonicalProjectionExpansion.InstalledTyping env U Gamma'
+      (P.lift' lift) where
+  toInstalledOrigin := H.toInstalledOrigin.lift' lift
+  majorType := by
+    change env.HasType U Gamma' (P.major.lift' lift)
+      (VExpr.mkApps (.const H.owner.name P.familyLevels)
+        (P.params.map (VExpr.lift' · lift) ++
+          P.indices.map (VExpr.lift' · lift)))
+    have Hmajor := H.majorType.weak' Henv W
+    rw [VExpr.lift'_mkApps] at Hmajor
+    simpa [VExpr.lift', List.map_append] using Hmajor
+
 def instN
     (H : CanonicalProjectionExpansion.InstalledTyping env U GammaOne P)
     (Henv : VEnv.Ordered env)
@@ -241,14 +242,6 @@ derivations in the environment where the projection is translated.
 The certificate is deliberately proof-relevant and finite.  It is intended
 to be constructed by the verified canonical expander from installed
 structure metadata, never exposed as a declaration-checker premise. -/
-structure CanonicalProjectionExpansion.WF
-    (env : VEnv) (U : Nat) (Gamma : List VExpr)
-    (P : CanonicalProjectionExpansion) : Prop where
-  installed : Nonempty
-    (CanonicalProjectionExpansion.InstalledTyping env U Gamma P)
-  majorWF : VExpr.WF env U Gamma P.major
-  targetWF : VExpr.WF env U Gamma P.target
-
 theorem CanonicalProjectionExpansion.WF.mono
     (H : CanonicalProjectionExpansion.WF env U Gamma P)
     (Henv : env ≤ env') :
@@ -269,6 +262,75 @@ theorem CanonicalProjectionExpansion.WF.defeqCtx
     exact ⟨installed.defeqCtx Henv Hctx⟩
   majorWF := H.majorWF.defeqDFC Henv Hctx
   targetWF := H.targetWF.defeqDFC Henv Hctx
+
+/-- Changing the major along definitional equality changes the canonical
+eliminator application by definitional equality and preserves its typing. -/
+theorem CanonicalProjectionExpansion.WF.replaceMajor
+    (H : CanonicalProjectionExpansion.WF env U Gamma P)
+    (major : VExpr)
+    (Henv : VEnv.WF env) (Hctx : OnCtx Gamma (env.IsType U))
+    (Hmajor : env.IsDefEqU U Gamma P.major major) :
+    CanonicalProjectionExpansion.WF env U Gamma
+      (P.replaceMajor major) := by
+  rcases H.installed with ⟨installed⟩
+  have HmajorType : env.HasType U Gamma major
+      (VExpr.mkApps (.const installed.owner.name P.familyLevels)
+        (P.params ++ P.indices)) :=
+    installed.majorType.defeqU_l Henv Hctx Hmajor
+  let head := VExpr.mkApps
+    (.const (mkCasesOnName P.structName)
+      (P.resultLevel :: P.familyLevels))
+    (P.params ++ [P.motive] ++ P.indices)
+  have HoldShape : P.target = .app (.app head P.major) P.minor := by
+    simp [CanonicalProjectionExpansion.target, head, VExpr.mkApps,
+      List.foldl_append]
+  have HnewShape : (P.replaceMajor major).target =
+      .app (.app head major) P.minor := by
+    simp [CanonicalProjectionExpansion.target,
+      CanonicalProjectionExpansion.replaceMajor,
+      CanonicalProjectionExpansion.minor,
+      CanonicalProjectionExpansion.fieldVar, head, VExpr.mkApps,
+      List.foldl_append]
+  have HoldWF : VExpr.WF env U Gamma (.app (.app head P.major) P.minor) := by
+    simpa [HoldShape] using H.targetWF
+  rcases HoldWF.app_inv Henv.ordered Hctx with
+    ⟨minorDomain, minorBody, Hfunction, Hminor⟩
+  have HinnerWF : VExpr.WF env U Gamma (.app head P.major) :=
+    ⟨_, Hfunction⟩
+  rcases HinnerWF.app_inv Henv.ordered Hctx with
+    ⟨majorDomain, majorBody, Hhead, HoldMajor⟩
+  have HmajorAtDomain : env.IsDefEq U Gamma P.major major majorDomain :=
+    Hmajor.of_l Henv Hctx HoldMajor
+  have HheadEq : env.IsDefEq U Gamma head head
+      (.forallE majorDomain majorBody) :=
+    Hhead
+  have HinnerBase : env.IsDefEq U Gamma (.app head P.major)
+      (.app head major) (majorBody.inst P.major) :=
+    .appDF HheadEq HmajorAtDomain
+  have HinnerTypes : env.IsDefEqU U Gamma
+      (majorBody.inst P.major) (.forallE minorDomain minorBody) :=
+    (HinnerBase.hasType.1.uniqU Henv Hctx Hfunction)
+  have Hinner : env.IsDefEq U Gamma (.app head P.major)
+      (.app head major) (.forallE minorDomain minorBody) :=
+    HinnerTypes.defeqDF Henv Hctx HinnerBase
+  have HminorEq : env.IsDefEq U Gamma P.minor P.minor minorDomain :=
+    Hminor
+  have Htargets : env.IsDefEqU U Gamma P.target
+      (P.replaceMajor major).target := by
+    rw [HoldShape, HnewShape]
+    exact (VEnv.IsDefEq.appDF Hinner HminorEq).toU
+  exact {
+    installed := ⟨{
+      toInstalledOrigin := {
+        installed.toInstalledOrigin with
+        params_length := installed.params_length
+        indices_length := installed.indices_length }
+      majorType := by
+        simpa [CanonicalProjectionExpansion.replaceMajor] using HmajorType }⟩
+    majorWF := Hmajor.symm.trans Henv Hctx
+      (H.majorWF.trans Henv Hctx Hmajor)
+    targetWF := Htargets.symm.trans Henv Hctx
+      (H.targetWF.trans Henv Hctx Htargets) }
 
 theorem CanonicalProjectionExpansion.WF.instL
     (H : CanonicalProjectionExpansion.WF env U Gamma P)
@@ -302,6 +364,22 @@ theorem CanonicalProjectionExpansion.WF.weakN
     rw [CanonicalProjectionExpansion.target_liftN]
     exact H.targetWF.weakN Henv W
 
+theorem CanonicalProjectionExpansion.WF.weak'
+    (H : CanonicalProjectionExpansion.WF env U Gamma P)
+    (Henv : VEnv.Ordered env)
+    (W : Ctx.Lift' lift Gamma Gamma') :
+    CanonicalProjectionExpansion.WF env U Gamma' (P.lift' lift) where
+  installed := by
+    rcases H.installed with ⟨installed⟩
+    exact ⟨installed.weak' Henv W⟩
+  majorWF := by
+    change env.IsDefEqU U Gamma' (P.major.lift' lift)
+      (P.major.lift' lift)
+    exact H.majorWF.weak' Henv W
+  targetWF := by
+    rw [CanonicalProjectionExpansion.target_lift']
+    exact H.targetWF.weak' Henv W
+
 theorem CanonicalProjectionExpansion.WF.instN
     (H : CanonicalProjectionExpansion.WF env U GammaOne P)
     (Henv : VEnv.Ordered env)
@@ -319,20 +397,6 @@ theorem CanonicalProjectionExpansion.WF.instN
   targetWF := by
     rw [CanonicalProjectionExpansion.target_instN]
     exact H.targetWF.instN Henv W Hsubstitution
-
-/-- Environment-indexed translation of a primitive projection to the
-canonical eliminator term.  All syntax fields are fixed by the witness and
-both endpoints are validated in `env`; there is no global preservation or
-provider callback in this relation. -/
-inductive EnvTrProj (env : VEnv) (U : Nat) (Gamma : List VExpr)
-    (structName : Name) (index : Nat) (major : VExpr) : VExpr → Prop where
-  | canonical
-      (P : CanonicalProjectionExpansion)
-      (hstruct : P.structName = structName)
-      (hindex : P.index = index)
-      (hmajor : P.major = major)
-      (Hwf : CanonicalProjectionExpansion.WF env U Gamma P) :
-      EnvTrProj env U Gamma structName index major P.target
 
 namespace EnvTrProj
 
@@ -369,6 +433,11 @@ theorem targetWF
     VExpr.WF env U Gamma target := by
   cases H with
   | canonical P _ _ _ Hwf => exact Hwf.targetWF
+
+theorem wf
+    (H : EnvTrProj env U Gamma structName index major target) :
+    VExpr.WF env U Gamma target :=
+  H.targetWF
 
 /-- Fresh-name absence for projection output is derived from environment and
 context well-formedness.  It does not assume that expansion preserves the
@@ -413,6 +482,23 @@ theorem weakN
         .canonical (P.liftN n k) hstruct hindex
           (by simp [CanonicalProjectionExpansion.liftN, hmajor])
           (Hwf.weakN Henv W)
+      simpa using Hcanonical
+
+/-- Single-cutoff weakening, expressed through the canonical binder-aware
+`LiftN` operation used by projection expansions. -/
+theorem weak'
+    (H : EnvTrProj env U Gamma structName index major target)
+    (Henv : VEnv.Ordered env)
+    (W : Ctx.Lift' n Gamma Gamma') :
+    EnvTrProj env U Gamma' structName index (major.lift' n)
+      (target.lift' n) := by
+  cases H with
+  | canonical P hstruct hindex hmajor Hwf =>
+      have Hcanonical : EnvTrProj env U Gamma' structName index
+          (major.lift' n) (P.lift' n).target :=
+        .canonical (P.lift' n) hstruct hindex
+          (by simp [CanonicalProjectionExpansion.lift', hmajor])
+          (Hwf.weak' Henv W)
       simpa using Hcanonical
 
 /-- Context instantiation is derived from the binder-aware instantiation of

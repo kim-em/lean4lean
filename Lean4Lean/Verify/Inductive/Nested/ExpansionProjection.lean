@@ -8,9 +8,9 @@ open Kernel
 namespace VerifyInductive
 
 /-- Interpret a stateful production expression mapping as the independent
-structural abstract expansion relation. Successful replacements and
-projections are the only non-structural cases: callers interpret mapped
-generated-family leaves and the already-abstract projection boundary. -/
+structural abstract expansion relation. Successful replacements are the only
+non-structural cases supplied by callers. Projection support is recovered
+from the two environment-indexed certified translations themselves. -/
 theorem NestedExprMapping.abstractExpansion
     (H : NestedExprMapping prodEnv lctx params As result input state out)
     (Hctx : TrExprS.IsUniqueCtx sourceCtx targetCtx)
@@ -39,12 +39,6 @@ theorem NestedExprMapping.abstractExpansion
       TrExprS venv lparams targetCtx
         (Expr.updateLet! (.letE name type value body nondep)
           type' value' body' nondep) targetTarget →
-      VExpr.NestedExprExpansion leaf depth sourceTarget targetTarget)
-    (Hproj : ∀ {depth sourceBody targetBody sourceTarget targetTarget
-        structName index} {sourceCtx targetCtx : VLCtx},
-      VExpr.NestedExprExpansion leaf depth sourceBody targetBody →
-      TrProj sourceCtx.toCtx structName index sourceBody sourceTarget →
-      TrProj targetCtx.toCtx structName index targetBody targetTarget →
       VExpr.NestedExprExpansion leaf depth sourceTarget targetTarget)
     (Hsource : TrExprS venv lparams sourceCtx input sourceTarget)
     (Htarget : TrExprS venv lparams targetCtx out.1 targetTarget) :
@@ -111,8 +105,9 @@ theorem NestedExprMapping.abstractExpansion
     | proj HsourceBody HsourceProj =>
       cases Htarget' with
       | proj HtargetBody HtargetProj =>
-        exact Hproj (ihBody Hctx HsourceBody HtargetBody)
-          HsourceProj HtargetProj
+        exact .projection HsourceProj.supportExpansion
+          HtargetProj.supportExpansion
+          (ihBody Hctx HsourceBody HtargetBody)
 
 end VerifyInductive
 end Lean4Lean

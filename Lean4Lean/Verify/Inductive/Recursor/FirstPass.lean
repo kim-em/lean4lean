@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Recursor.Origins
+import Lean4Lean.Verify.Typing.EnvironmentRestriction
 
 namespace Lean4Lean
 
@@ -44,6 +45,33 @@ theorem VInductDecl.paramVars_append_canonicalIndexVars
     List.reverse_append, List.map_append]
   simp [Function.comp_def, Nat.add_comm]
 
+/-- Semantic header selected by the recursor universe policy, factored out
+so the checked producer can retain a dependency certificate for the exact
+small- or large-elimination translation. -/
+def recursorTargetSkeletonOf
+    (target : VInductiveType) (lparams : List Name) (elimLevel : Level)
+    (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) :
+    VInductiveTypeSkeleton :=
+  match elimLevel with
+  | .zero => target.toSkeleton
+  | .param _ =>
+    { target.toSkeleton with
+      type := target.type.instL (VLevel.prependShift lparams.length) }
+  | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
+
+@[simp] theorem recursorTargetSkeletonOf_zero
+    (target : VInductiveType) (lparams : List Name)
+    (Helim : AddInductive.AdmissibleElimLevel lparams .zero) :
+    recursorTargetSkeletonOf target lparams .zero Helim =
+      target.toSkeleton := rfl
+
+@[simp] theorem recursorTargetSkeletonOf_param
+    (target : VInductiveType) (lparams : List Name) (fresh : Name)
+    (Helim : AddInductive.AdmissibleElimLevel lparams (.param fresh)) :
+    recursorTargetSkeletonOf target lparams (.param fresh) Helim =
+      { target.toSkeleton with
+        type := target.type.instL (VLevel.prependShift lparams.length) } := rfl
+
 /-- All independently checked inputs needed to replay one source family
 header during recursor construction.  The family index is retained in the
 package, so parameter/index arities cannot be borrowed from another member
@@ -58,6 +86,24 @@ structure CheckedRecursorHeaderAt
     Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth
   sourceTranslation : TrSourceConst Hc.venv c.lparams source.name
     source.type target.toVConstVal
+  /-- The header translation was produced before this declaration's own
+  constants were installed.  Retaining that derivation-local fact permits
+  nested restoration to transport only the index prefix without asserting
+  a false global preservation theorem. -/
+  sourceTranslationUses : sourceTranslation.type.UsesOnly
+    (fun name => name ∈ decl.sourceNames)
+  /-- The same producer-local restriction certificate after applying the
+  recursor universe policy.  This is retained at formation time, before the
+  installed block can become an apparent dependency. -/
+  recursorSourceTranslationRestricted : ∀ elimLevel
+      (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel),
+    ∃ targetType,
+      ∃ translation : TrExprS Hc.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams) []
+        source.type targetType,
+      translation.UsesOnly (fun name => name ∈ decl.sourceNames) ∧
+        targetType = (recursorTargetSkeletonOf target c.lparams elimLevel
+          Helim).type
   targetLookup : Hc.venv.constants target.name = some target.toVConstant
   lparamsNodup : c.lparams.Nodup
 
@@ -70,13 +116,7 @@ def CheckedRecursorHeaderAt.recursorTargetSkeleton
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     VInductiveTypeSkeleton :=
-  match elimLevel with
-  | .zero => H.target.toSkeleton
-  | .param _ =>
-    { H.target.toSkeleton with
-      type := H.target.type.instL
-        (VLevel.prependShift c.lparams.length) }
-  | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
+  recursorTargetSkeletonOf H.target c.lparams elimLevel Helim
 
 /-- Common header parameters after the optional leading recursor universe is
 introduced.  Term-variable indices are unchanged; only universe indices in
@@ -188,6 +228,7 @@ theorem CheckedRecursorHeaderAt.recursorParameterPresentation
         | cons domain domains ih =>
           exact congrArg (VExpr.forallE (domain.instL shift)) ih
       simpa only [CheckedRecursorHeaderAt.recursorTargetSkeleton,
+        recursorTargetSkeletonOf_param,
         VInductiveType.toSkeleton, ownParams', afterParams', targetType',
         List.map_nil, AddInductive.getRecLevelParams,
         instL_wrapForalls, shift] using hnormalized'
@@ -635,6 +676,9 @@ def CheckedRecursorHeaderAt.withAmbient
     materialized := H.materialized.withAmbient
       (name := name) (bi := bi) htr hty
     sourceTranslation := H.sourceTranslation
+    sourceTranslationUses := H.sourceTranslationUses
+    recursorSourceTranslationRestricted :=
+      H.recursorSourceTranslationRestricted
     targetLookup := H.targetLookup
     lparamsNodup := H.lparamsNodup }
 
@@ -2856,7 +2900,8 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
                   dom.consumeTypeAnnotationsVerified.fvarsList),
                   .vlam indexType) :: scope)
                 Hc'.mlctx.vlctx :=
-            Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+            Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
+              hdomNarrow hdomain
           have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
           let Wnarrow : VLCtx.FVLift scope
               ((some (⟨c.ngen.curr⟩,
@@ -3385,7 +3430,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                   dom.consumeTypeAnnotationsVerified.fvarsList),
                   .vlam indexType) :: scope)
                 R'.mlctx.vlctx :=
-            Hruntime.withIndex R'.mlctx_wf.tr.wf hdeps hdomain
+            Hruntime.withIndex R'.mlctx_wf.tr.wf hdeps name bi dom
+              hdomNarrow hdomain
           have hscopeWF := Hruntime'.scopeWF R'.checking.tr.wf
           let Wnarrow : VLCtx.FVLift scope
               ((some (⟨current.ngen.curr⟩,

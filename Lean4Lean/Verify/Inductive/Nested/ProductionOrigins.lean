@@ -25,7 +25,7 @@ private theorem NestedReplacementFinalTrace.output_constructorArity_eq_zero
     AddInductive.constructorArity output = 0 := by
   rcases H.mapping with
     ⟨value, targetName, levels, auxName, auxLevels, nested,
-      Hcandidate, hhead, houtput, hnested, hlookup⟩
+      Hcandidate, _hauxLevels, _hhead, houtput, _hnested, _hlookup⟩
   rw [houtput]
   rw [Expr.mkAppRange_to_end _ _ _ Hcandidate.parameters.arity]
   rw [Expr.mkAppN_eq_mkAppList]

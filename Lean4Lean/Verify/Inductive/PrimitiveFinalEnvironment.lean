@@ -372,8 +372,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafe
       (ves.venv .safe) indTypes (c.safety != .safe) outEnv)
     (wf : ves.WF c.env)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
-      (c.safety != .safe))
-    (hproj : ProjectionConstPreservation) :
+      (c.safety != .safe)) :
     exists decl : VInductDecl, exists ves' : VEnvs,
       ves'.WF outEnv /\
       forall safety, ves.venv safety <= ves'.venv safety := by
@@ -385,7 +384,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafe
     rcases Hshape with ⟨_, _, _, hbool | ⟨binderName, binderInfo, hnat⟩⟩
     · simp [hbool]
     · simp [hnat]
-  rcases Hrecursors.canonicalCompletedRuleTranslation hproj with ⟨T⟩
+  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
   let Hcert0 := Hrecursors.blockCertificate T.rules T.rulesWF
   have Hcert : CompletedBlockCertificate .safe c.env (ves.venv .safe)
       R.headerEntries R.constructorEntries Hrecursors.entries T.rules
@@ -425,8 +424,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
     (wf : ves.WF c.env)
     (hEq : EqReadyOrAbsent c.env ves)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
-      (c.safety != .safe))
-    (hproj : ProjectionConstPreservation) :
+      (c.safety != .safe)) :
     exists decl : VInductDecl, exists ves' : VEnvs,
       ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
       forall safety, ves.venv safety <= ves'.venv safety := by
@@ -438,7 +436,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
     rcases Hshape with ⟨_, _, _, hbool | ⟨binderName, binderInfo, hnat⟩⟩
     · simp [hbool]
     · simp [hnat]
-  rcases Hrecursors.canonicalCompletedRuleTranslation hproj with ⟨T⟩
+  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
   let Hcert0 := Hrecursors.blockCertificate T.rules T.rulesWF
   have Hcert : CompletedBlockCertificate .safe c.env (ves.venv .safe)
       R.headerEntries R.constructorEntries Hrecursors.entries T.rules
@@ -491,12 +489,11 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeOfQuotReady
     (wf : ves.WF c.env)
     (hEq : CanonicalEqEnvs ves)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
-      (c.safety != .safe))
-    (hproj : ProjectionConstPreservation) :
+      (c.safety != .safe)) :
     exists decl : VInductDecl, exists ves' : VEnvs,
       ves'.WF outEnv /\ CanonicalEqEnvs ves' /\
       forall safety, ves.venv safety <= ves'.venv safety := by
-  rcases Hrun.extendSafeEqReadyOrAbsent wf (Or.inr hEq) Hshape hproj with
+  rcases Hrun.extendSafeEqReadyOrAbsent wf (Or.inr hEq) Hshape with
     ⟨decl, ves', wf', _hEq', hle⟩
   exact ⟨decl, ves', wf', hEq.mono hle, hle⟩
 
@@ -506,8 +503,7 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeEqRea
     (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
       (ves.venv .safe) nparams types numNested outEnv)
     (wf : ves.WF source.env)
-    (hEq : EqReadyOrAbsent source.env ves)
-    (hproj : ProjectionConstPreservation) :
+    (hEq : EqReadyOrAbsent source.env ves) :
     exists decl : VInductDecl, exists ves' : VEnvs,
       ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
       forall safety, ves.venv safety <= ves'.venv safety := by
@@ -523,7 +519,7 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeEqRea
       (ves.venv .safe) types.toArray (c'.safety != .safe) outEnv := by
     simpa [hvenv, hsafety] using Hphases
   have hEq' : EqReadyOrAbsent c'.env ves := by simpa [henv] using hEq
-  exact Hphases'.extendSafeEqReadyOrAbsent wf' hEq' Hshape' hproj
+  exact Hphases'.extendSafeEqReadyOrAbsent wf' hEq' Hshape'
 
 /-- Source-aligned primitive refinement without an equality-bootstrap
 premise. -/
@@ -531,8 +527,7 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafe
     {ves : VEnvs}
     (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
       (ves.venv .safe) nparams types numNested outEnv)
-    (wf : ves.WF source.env)
-    (hproj : ProjectionConstPreservation) :
+    (wf : ves.WF source.env) :
     exists decl : VInductDecl, exists ves' : VEnvs,
       ves'.WF outEnv /\
       forall safety, ves.venv safety <= ves'.venv safety := by
@@ -548,19 +543,17 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafe
       (ves.venv .safe) types.toArray (c'.safety != .safe) outEnv := by
     simpa [hvenv, hsafety] using Hphases
   exact SemanticPrimitiveRunWithStatsResult.extendSafe Hphases' wf' Hshape'
-    hproj
 
 /-- Compatibility adapter for source-aligned callers already past `Eq`. -/
 theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeOfQuotReady
     (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
       (ves.venv .safe) nparams types numNested outEnv)
     (wf : ves.WF source.env)
-    (hEq : CanonicalEqEnvs ves)
-    (hproj : ProjectionConstPreservation) :
+    (hEq : CanonicalEqEnvs ves) :
     exists decl : VInductDecl, exists ves' : VEnvs,
       ves'.WF outEnv /\ CanonicalEqEnvs ves' /\
       forall safety, ves.venv safety <= ves'.venv safety := by
-  rcases Hrun.extendSafeEqReadyOrAbsent wf (Or.inr hEq) hproj with
+  rcases Hrun.extendSafeEqReadyOrAbsent wf (Or.inr hEq) with
     ⟨decl, ves', wf', _hEq', hle⟩
   exact ⟨decl, ves', wf', hEq.mono hle, hle⟩
 
@@ -576,21 +569,18 @@ theorem AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
         ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
         forall safety, ves.venv safety <= ves'.venv safety := by
   have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty HnotPartial
-    hloopUArgsReplay hproj
   exact Hrun.mono fun outEnv Hresult => by
     have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
         c (ves.venv .safe) nparams types numNested outEnv := by
       simpa [hsource] using Hresult
-    exact Hresult'.extendSafeEqReadyOrAbsent wf hEq hproj
+    exact Hresult'.extendSafeEqReadyOrAbsent wf hEq
 
 /-- The executable primitive checker reaches the final safety-indexed model
 without an equality-bootstrap premise. -/
@@ -604,23 +594,20 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
         ves'.WF outEnv /\
         forall safety, ves.venv safety <= ves'.venv safety := by
   have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty HnotPartial
-    hloopUArgsReplay hproj
   exact Hrun.mono fun outEnv Hresult => by
     have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
         c (ves.venv .safe) nparams types numNested outEnv := by
       simpa [hsource] using Hresult
     exact
       VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafe
-        Hresult' wf hproj
+        Hresult' wf
 
 /-- Compatibility adapter for executable primitive runs after canonical
 equality is available. -/
@@ -634,16 +621,14 @@ theorem AddInductive.run.primitiveFinalEnvironmentWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
         ves'.WF outEnv /\ CanonicalEqEnvs ves' /\
         forall safety, ves.venv safety <= ves'.venv safety := by
   have Hrun := AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF
     nparams numNested Hc wf hsource (Or.inr hEq) Hshape hctx
-    hnonempty HnotPartial hloopUArgsReplay hproj
+    hnonempty HnotPartial
   exact Hrun.mono fun _ ⟨decl, ves', wf', _hEq', hle⟩ =>
     ⟨decl, ves', wf', hEq.mono hle, hle⟩
 

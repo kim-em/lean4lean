@@ -10,6 +10,8 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+open checkInductiveTypes.loopType
+
 /-- The generated recursor and the independently replayed canonical motive
 share the same parameter context.  This is the first direct bridge from the
 five-group executable telescope to the permutation-free semantic telescope;

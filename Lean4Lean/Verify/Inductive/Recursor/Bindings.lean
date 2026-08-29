@@ -782,7 +782,9 @@ def RecursorParameterContextSuffix.weakenRecent
       omega
     cached := H.cached
     narrowParams := by
-      simpa only [Hrecent.venv_eq] using H.narrowParams }
+      simpa only [Hrecent.venv_eq] using H.narrowParams
+    sources := by
+      simpa only [Hrecent.venv_eq] using H.sources }
 
 /-- Cached inductive parameters remain aligned after `loopUArgs` opens an
 exact suffix of higher-order arguments.  The semantic parameter variables
@@ -989,10 +991,6 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
     (hparamAt : stats.params[i]? = none)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hparams : BoundFVarArray root stats.params)
     (Hfields : RecentBoundFVarArray Hroot Hc fields)
     (Hopening : ConstructorFieldOpening source type fields)
@@ -1029,7 +1027,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
           | false =>
             have Hpos := checkPositivity.refinesNarrow
               (ctor := ctor) (idx := i) Hc Hruntime Hstats
-              hconsume hlit hproj hdomNarrow
+              hconsume hlit hdomNarrow
               (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
             refine checkConstructors.loopCtor.safeField.sourceWF
               (Q := fun _ => Nonempty
@@ -1047,7 +1045,8 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
                     dom.consumeTypeAnnotationsVerified.fvarsList),
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
-              Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+              Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
+                hdomNarrow hdomain
             have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
@@ -1097,7 +1096,8 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
                     dom.consumeTypeAnnotationsVerified.fvarsList),
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
-              Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps hdomain
+              Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
+                hdomNarrow hdomain
             have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
@@ -1156,10 +1156,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
     (hi : targetIdx < decl.types.length)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false) :
+    :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source 0 fuel c).WF
       (fun _ => ∃ tail,
@@ -1187,7 +1184,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
         (Hroot := Hc) Hc
         (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
           Hc Hsuffix)
-        Hstats hi hparamAt hconsume hlit hproj Hsuffix.paramsBound
+        Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
         (RecentBoundFVarArray.empty Hc)
         (ConstructorFieldOpening.empty source)
         (by simpa [hscope] using Hctor.type)
@@ -1223,7 +1220,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
           (Hroot := Hc) Hc
           (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
             Hc Hsuffix)
-          Hstats hi hparamAt hconsume hlit hproj Hsuffix.paramsBound
+          Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
           (RecentBoundFVarArray.empty Hc)
           (ConstructorFieldOpening.empty source') htrNarrow htrFull
         exact Hnormal.mono fun _ Hnormal =>
@@ -1363,10 +1360,6 @@ theorem ownerNormalFormsWF
     (htargetIdx : targetIdx < decl.types.length)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hfinish : ConstructorOwnerNormalFormRow stats targetIdx source.ctors
         source.ctors.length → Q ()) :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
@@ -1385,11 +1378,11 @@ theorem ownerNormalFormsWF
       checkConstructors.loopCtor.ownerNormalFormFromStartWF
         (fuel := c.fuel.inductiveFuel) (isUnsafe := isUnsafe)
         Hc Hsuffix Hstats Hctor hchecked
-        htargetIdx hconsume hlit hproj
+        htargetIdx hconsume hlit
     exact Hnormal.mono fun _ Hentry =>
       ownerNormalFormsWF Hc Htarget
         (Hrow.push hidx Hentry) Hsuffix Hstats htargetIdx
-        hconsume hlit hproj Hfinish
+        hconsume hlit Hfinish
   · have heq : ctorIdx = source.ctors.length := by
       have := Hrow.covered
       omega
@@ -1415,10 +1408,6 @@ theorem ownerNormalFormsWF
       Hsuffix.parameterDecls stats decl 0)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hfinish : ConstructorOwnerNormalFormRows stats indTypes indTypes.size →
       Q ()) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
@@ -1442,10 +1431,10 @@ theorem ownerNormalFormsWF
       Hc Htarget
       (ConstructorOwnerNormalFormRow.empty stats targetIdx
         indTypes[targetIdx].ctors)
-      Hsuffix Hstats htarget hconsume hlit hproj
+      Hsuffix Hstats htarget hconsume hlit
     intro Hrow
     exact ownerNormalFormsWF Hc Htypes (Hrows.push hidx Hrow)
-      Hsuffix Hstats hconsume hlit hproj Hfinish
+      Hsuffix Hstats hconsume hlit Hfinish
   · have heq : targetIdx = indTypes.size := by
       have := Hrows.covered
       omega
@@ -1482,10 +1471,6 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htype : TrExprS R.venv recLparams R.mlctx.vlctx t typeTarget)
     (htypeType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx typeTarget)
@@ -1717,7 +1702,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         hrootType.trans Rroot.checking.tr.wf
           Rroot.mlctx_wf.tr.wf.toCtx HclosedConsumedRoot
       have Hclass := isRecArg.refinesRecursor R' Hstats' hconsume
-        hlit hctx' hproj
+        hlit hctx'
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
       have hopenFvars : Hopening.fvars =
           Hrecent.toBoundFVarArray.fvars :=
@@ -1848,10 +1833,6 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
     (htailType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx tailTarget)
@@ -1916,7 +1897,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         tailTarget tailTarget
       exact ⟨.sort level, Htype⟩
     exact mkRecInfos.loopCtorArgs.loop.recursiveDomainsRecursorRecent
-      stats head k R R Hstats (Nat.le_refl _) hconsume hlit hctx hproj
+      stats head k R R Hstats (Nat.le_refl _) hconsume hlit hctx
       htail htailType .nil .nil .nil (RecursorRecentBoundFVarArray.empty R)
       (ConstructorFieldOpening.empty tail)
       hrootType

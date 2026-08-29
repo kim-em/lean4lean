@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.CompletedEquationMotive
+import Lean4Lean.Verify.Inductive.CompletedEquationRecursiveCallScope
 
 namespace Lean4Lean
 
@@ -10,48 +10,14 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Final-environment recursor package selected by one generated recursive
-call.  The validated terminal application fixes the mutual-family owner, so
-both the exact five-part telescope and the installed constant typing can be
-selected without trusting the recursor name embedded in the generated term.
--/
-structure
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
-    (j : Nat) (hj : j < A.rule.recursiveArgs.size) where
-  semantic : SemanticBoundGeneratedRecursiveCall indTypes stats
-    (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
-    (AddInductive.getRecLevels H.elimLevel stats.levels)
-    A.semantics.context decl A.semantics.depth
-    A.rule.recursiveArgs[j] A.rule.recursiveResults[j]!
-  root_scope : semantic.rootScope =
-    (fun fv => fv ∈ A.semantics.fieldOpening.fvars ∨
-      fv ∈ ExprArrayFVarIds stats.params)
-  entry_lt : semantic.generated.ownerIdx < H.entries.length
-  telescope : GeneratedRecursorTelescopeTranslation H.outVEnv
-    (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-    (H.generated.entry semantic.generated.ownerIdx entry_lt).info.type
-    H.entries[semantic.generated.ownerIdx].2.type
-    stats.params.size (H.recInfos.map (·.motive)).size
-    (H.recInfos.flatMap (·.minors)).size
-    H.recInfos[semantic.generated.ownerIdx]!.indices.size
-    semantic.generated.ownerIdx
-  typing :
-    let recursor := H.entries[semantic.generated.ownerIdx].2
-    H.outVEnv.HasType recursor.uvars []
-      (.const recursor.name (VLevel.params recursor.uvars)) recursor.type
+open checkInductiveTypes.loopType
 
+/-- Every retained constructor-field variable is present in the exact
+producer root of this recursive call.  Earlier induction hypotheses may make
+that root strictly larger than the common field context, so consumers must
+use the retained extension rather than identify the two contexts. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.recursiveCallRecursorFrame
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.field_mem_originRoot
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -61,23 +27,277 @@ theorem
     {H : CompletedRecursorPhasesResult R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
-    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
-    Nonempty (A.RecursiveCallRecursorFrame j hj) := by
-  rcases A.semantics.calls.entries j hj hj with ⟨S, hscope⟩
-  have hrecInfo : S.generated.ownerIdx < H.recInfos.size := by
-    rw [H.cardinality.records]
-    exact S.validated.target_lt
-  have hentry : S.generated.ownerIdx < H.entries.length := by
-    simpa [H.generated.length] using hrecInfo
-  rcases H.finalRecursorTelescopeTranslationAt
-      S.generated.ownerIdx hentry with ⟨T⟩
-  exact ⟨{
-    semantic := S
-    root_scope := hscope
-    entry_lt := hentry
-    telescope := T
-    typing := H.recursorTypingAt S.generated.ownerIdx hentry }⟩
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    {fv : FVarId} (hfv : fv ∈ A.rule.all_args_bound.fvars) :
+    fv ∈ F.originRoot.lctx.fvars := by
+  have hfieldRecent : fv ∈ A.semantics.fieldsRecent.fvars := by
+    rw [BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl]
+    exact hfv
+  exact F.originExtension.contextLE.fvars
+    (A.semantics.fieldsRecent.members fv hfieldRecent)
+
+/-- Every identifier selected by the producer's root-scope predicate is an
+actual declaration of its staged origin context. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.rootScope_mem_originContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    {fv : FVarId} (hfv : F.semantic.rootScope fv) :
+    fv ∈ F.originContext.mlctx.vlctx.fvars := by
+  rw [F.root_scope] at hfv
+  have hcommon : fv ∈ A.semantics.context.mlctx.vlctx.fvars := by
+    rcases hfv with hfield | hparam
+    · have hfieldRecent : fv ∈ A.semantics.fieldsRecent.fvars := by
+        rw [← A.semantics.fieldOpening.fvars_eq_bound
+          A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+        exact hfield
+      have hraw := A.semantics.fieldsRecent.members fv hfieldRecent
+      rw [← A.semantics.context.lctx_eq,
+        A.semantics.context.mlctx_wf.tr.fvars_eq] at hraw
+      exact hraw
+    · have hparamDecl : fv ∈
+          A.semantics.parameterSuffix.parameterDecls.fvars := by
+        rw [A.semantics.parameterSuffix.parameterDecls_fvars]
+        exact List.mem_reverse.mpr hparam
+      have hroot : fv ∈
+          A.semantics.fieldRootContext.mlctx.vlctx.fvars := by
+        rw [A.semantics.parameterSuffix.context, VLCtx.fvars_append]
+        exact List.mem_append_right _ hparamDecl
+      have hraw : fv ∈ A.semantics.fieldRoot.lctx.fvars := by
+        rw [← A.semantics.fieldRootContext.lctx_eq,
+          A.semantics.fieldRootContext.mlctx_wf.tr.fvars_eq]
+        exact hroot
+      have hraw' := A.semantics.fieldsRecent.contextLE.fvars hraw
+      rw [← A.semantics.context.lctx_eq,
+        A.semantics.context.mlctx_wf.tr.fvars_eq] at hraw'
+      exact hraw'
+  have horigin := F.originExtension.contextLE.fvars <| by
+    rw [← A.semantics.context.lctx_eq,
+      A.semantics.context.mlctx_wf.tr.fvars_eq]
+    exact hcommon
+  rw [← F.originContext.lctx_eq,
+    F.originContext.mlctx_wf.tr.fvars_eq] at horigin
+  exact horigin
+
+/-- The producer-root part of a recursive call's retained source scope is
+dependency closed in the exact producer context.  The proof drops only the
+fresh call-local lambda suffix from the producer's existing up-set; it does
+not identify the producer context with the earlier common field context, so
+earlier generated induction hypotheses may remain ambient and unselected. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.rootScope_up
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    IsFVarUpSet F.semantic.rootScope
+      F.originContext.mlctx.vlctx := by
+  rcases F.semantic.current_context.onlyLams.lamPrefix
+      F.semantic.generated.localArgs.size F.semantic.recent.size_le with
+    ⟨_domains, HlocalPrefix⟩
+  have Htail := HlocalPrefix.dropN_isFVarUpSet
+    F.semantic.current_scope_up
+  have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+    Subsingleton.elim _ _
+  rw [hle, F.semantic.recent.drop_eq] at Htail
+  apply (IsFVarUpSet.congr
+    F.originContext.mlctx_wf.tr.wf.fvwf ?_).mp Htail
+  intro fv hfv
+  constructor
+  · intro hselected
+    rcases hselected with hrecent | hroot
+    · exact False.elim <| F.semantic.recent.fresh fv hrecent <| by
+        rw [← F.originContext.lctx_eq,
+          F.originContext.mlctx_wf.tr.fvars_eq]
+        exact hfv
+    · exact hroot
+  · exact Or.inr
+
+/-- Select exactly the producer-declared field/parameter dependencies from
+the actual staged origin of a recursive call.  Ambient hypotheses generated
+for earlier recursive fields are skipped by `narrowFVars`; the retained
+translation evidence is derived from the origin context itself. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.rootNarrowScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope F.originContext.mlctx.vlctx,
+        ∀ fv, fv ∈ scope.fvars ↔
+          fv ∈ F.originContext.mlctx.vlctx.fvars ∧
+            F.semantic.rootScope fv := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  classical
+  rcases checkInductiveTypes.loopType.narrowFVars
+      F.originContext.onlyLams F.originContext.checking.tr.wf
+      F.originContext.mlctx_wf F.semantic.rootScope F.rootScope_up with
+    ⟨scope, Hscope, hscope⟩
+  have henv : F.originContext.venv ≤ H.outVEnv := by
+    rw [F.originExtension.venv_eq, A.semantics.context_venv,
+      H.recursorEnv]
+    exact H.installed.le
+  refine ⟨scope, Hscope.mono henv, ?_⟩
+  intro fv
+  rw [hscope, List.mem_filter]
+  simp
+
+/-- Reconstruct the call-local lambda suffix above the dependency-selected
+producer root.  Earlier induction hypotheses remain in the executable
+origin but are skipped by the root `FVarNarrowScope`; only the freshly
+generated higher-order arguments are replayed. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.localNarrowScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ rootScope,
+      ∃ Hroot : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us rootScope F.originContext.mlctx.vlctx,
+        (∀ fv, fv ∈ rootScope.fvars ↔
+          fv ∈ F.originContext.mlctx.vlctx.fvars ∧
+            F.semantic.rootScope fv) ∧
+        ∃ scope,
+          ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+              H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+            scope.fvars = F.semantic.recent.fvars.reverse ++
+              rootScope.fvars ∧
+            scope.drop F.semantic.generated.localArgs.size = rootScope ∧
+            ∃ localDomains : List VExpr,
+              localDomains.length = F.semantic.generated.localArgs.size ∧
+              scope.toCtx = localDomains.reverse ++ rootScope.toCtx ∧
+              Hscope.shift = Hroot.shift.consN
+                F.semantic.generated.localArgs.size ∧
+              Hscope.expanded.toCtx =
+                (liftForallDomains localDomains Hroot.shift).reverse ++
+                  Hroot.expanded.toCtx ∧
+              ∀ {body target},
+                TrExprS H.outVEnv Us scope body target →
+                H.outVEnv.IsType Us.length scope.toCtx target →
+                TrExprS H.outVEnv Us rootScope
+                    (F.semantic.generated.current.lctx.mkForall
+                      F.semantic.generated.localArgs body)
+                    (VExpr.wrapForalls localDomains target) ∧
+                  H.outVEnv.IsType Us.length rootScope.toCtx
+                    (VExpr.wrapForalls localDomains target) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  rcases F.rootNarrowScope with ⟨rootScope, Hroot, hroot⟩
+  rcases F.semantic.current_context.onlyLams.lamPrefix
+      F.semantic.generated.localArgs.size F.semantic.recent.size_le with
+    ⟨semanticLocalDomains, HlocalPrefix⟩
+  have hbase : F.semantic.current_context.venv ≤ H.outVEnv := by
+    rw [F.semantic.recent.venv_eq, F.originExtension.venv_eq,
+      A.semantics.context_venv, H.recursorEnv]
+    exact H.installed.le
+  have HcurrentWF : F.semantic.current_context.mlctx.WF H.outVEnv Us :=
+    F.semantic.current_context.mlctx_wf.mono hbase
+  have hlocalRev :
+      F.semantic.current_context.mlctx.fvarRevList
+          F.semantic.generated.localArgs.size HlocalPrefix.le =
+        F.semantic.recent.fvars.reverse := by
+    have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle]
+    exact F.semantic.recent.fvarRevList_eq
+  have hlocalRuntime :
+      (F.semantic.current_context.mlctx.dropN
+        F.semantic.generated.localArgs.size HlocalPrefix.le).vlctx =
+          F.originContext.mlctx.vlctx := by
+    have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle, F.semantic.recent.drop_eq]
+  let HrootAtDrop := Hroot.retargetRuntime hlocalRuntime.symm
+  have Hup : IsFVarUpSet
+      (fun fv => fv ∈
+        F.semantic.current_context.mlctx.fvarRevList
+            F.semantic.generated.localArgs.size HlocalPrefix.le ++
+          rootScope.fvars)
+      F.semantic.current_context.mlctx.vlctx := by
+    apply (IsFVarUpSet.congr HcurrentWF.tr.wf.fvwf ?_).mp
+      F.semantic.current_scope_up
+    intro fv hfv
+    rw [hlocalRev]
+    constructor
+    · intro hselected
+      rcases hselected with hlocal | hrootSelected
+      · exact List.mem_append_left _
+          (List.mem_reverse.mpr hlocal)
+      · exact List.mem_append_right _ <| (hroot fv).2
+          ⟨F.rootScope_mem_originContext hrootSelected, hrootSelected⟩
+    · intro hselected
+      rcases List.mem_append.mp hselected with hlocal | hrootSelected
+      · exact Or.inl (List.mem_reverse.mp hlocal)
+      · exact Or.inr (hroot fv |>.1 hrootSelected).2
+  rcases HlocalPrefix.extendFVarNarrowScope H.outVEnvWF
+      HcurrentWF HrootAtDrop Hup with
+    ⟨scope, Hscope, hscopeFVars, hscopeBase, localDomains,
+      hlocalDomains, hscopeContext, hscopeShift, hscopeExpanded,
+      Hreplay⟩
+  have hsource : ∀ body,
+      F.semantic.current_context.mlctx.mkForall
+          F.semantic.generated.localArgs.size HlocalPrefix.le body =
+        F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs body := by
+    intro body
+    rw [← F.semantic.current_context.lctx_eq]
+    symm
+    apply F.semantic.current_context.mlctx_wf.mkForall_eq
+    have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+      Subsingleton.elim _ _
+    simpa only [hle] using F.semantic.recent.reverse_eq
+  refine ⟨rootScope, Hroot, hroot, scope, Hscope, ?_, ?_,
+    localDomains, hlocalDomains, hscopeContext, hscopeShift,
+    hscopeExpanded, ?_⟩
+  · simpa [hlocalRev] using hscopeFVars
+  · simpa [HrootAtDrop,
+      checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
+        hscopeBase
+  · intro body target Hbody HbodyType
+    rw [← hsource]
+    exact Hreplay Hbody HbodyType
 
 /-- Closing first the call-local higher-order arguments and then the complete
 constructor-field suffix removes every dependency except the cached inductive
@@ -101,7 +321,7 @@ theorem
         F.semantic.generated.arguments_bound.fvars).abstractList
       A.rule.all_args_bound.fvars
       F.semantic.generated.localArgs.size).FVarsIn
-        (fun fv => fv ∈ ExprArrayFVarIds stats.params) := by
+        F.semantic.rootScope := by
   have hlocalFvars : F.semantic.recent.fvars =
       F.semantic.generated.arguments_bound.fvars :=
     BoundFVarArray.fvars_eq
@@ -110,95 +330,11 @@ theorem
   have Hlocal := FVarsIn.abstractList_of
     (selected := F.semantic.recent.fvars)
     (k := 0) F.semantic.exposed_scope
-  rw [F.root_scope] at Hlocal
   have Hfields := FVarsIn.abstractList_of
-    (selected := A.semantics.fieldOpening.fvars)
-    (k := F.semantic.generated.localArgs.size) Hlocal
-  have hfieldFvars : A.semantics.fieldOpening.fvars =
-      A.rule.all_args_bound.fvars :=
-    A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
-  simpa [hlocalFvars, hfieldFvars] using Hfields
-
-/-- Replay the constructor fields once above the cached parameter scope.
-This rule-wide frame is independent of any particular recursive call; later
-call-local replay extends its retained front without changing the field
-prefix. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.narrowFieldRuntimeScope
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let parameterDecls := H.parameterSuffix.parameterDecls
-    ∃ fieldScope,
-      ∃ HfieldScope : checkInductiveTypes.loopType.NarrowRuntimeScope
-          H.recursorWF.venv Us fieldScope A.semantics.context.mlctx.vlctx,
-        fieldScope.fvars =
-            A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
-        fieldScope.drop HfieldScope.frontSourceDomains.length =
-            parameterDecls ∧
-        ∃ fieldDomains,
-          fieldDomains.length = A.rule.allArgs.size ∧
-          HfieldScope.frontSourceDomains = fieldDomains := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let parameterDecls := H.parameterSuffix.parameterDecls
-  let Hparameter := H.parameterSuffix.runtimeScope
-  rcases A.semantics.context.onlyLams.lamPrefix
-      A.rule.allArgs.size A.semantics.fieldsRecent.size_le with
-    ⟨_runtimeFieldDomains, HfieldPrefix⟩
-  have hfieldRuntime :
-      (A.semantics.context.mlctx.dropN A.rule.allArgs.size
-        HfieldPrefix.le).vlctx = H.recursorWF.mlctx.vlctx := by
-    have hle : HfieldPrefix.le = A.semantics.fieldsRecent.size_le :=
-      Subsingleton.elim _ _
-    rw [hle, A.semantics.fieldsRecent.drop_eq,
-      A.semantics.fieldRoot_vlctx]
-  let HfieldBase := Hparameter.retargetRuntime hfieldRuntime.symm
-  have HfieldWF : A.semantics.context.mlctx.WF H.recursorWF.venv Us := by
-    simpa only [Us, A.semantics.context_venv] using
-      A.semantics.context.mlctx_wf
-  have hfieldRev : A.semantics.context.mlctx.fvarRevList
-      A.rule.allArgs.size HfieldPrefix.le =
-        A.semantics.fieldsRecent.fvars.reverse := by
-    have hle : HfieldPrefix.le = A.semantics.fieldsRecent.size_le :=
-      Subsingleton.elim _ _
-    rw [hle]
-    exact A.semantics.fieldsRecent.fvarRevList_eq
-  have HfieldUp : IsFVarUpSet
-      (fun fv => fv ∈ A.semantics.context.mlctx.fvarRevList
-          A.rule.allArgs.size HfieldPrefix.le ++ parameterDecls.fvars)
-      A.semantics.context.mlctx.vlctx := by
-    apply (IsFVarUpSet.congr HfieldWF.tr.wf.fvwf ?_).mp
-      A.semantics.fieldParameterUp
-    intro fv _
-    rw [hfieldRev, H.parameterSuffix.parameterDecls_fvars]
-    simp [parameterDecls]
-  rcases HfieldPrefix.extendNarrowRuntimeScope
-      H.recursorWF.checking.tr.wf HfieldWF HfieldBase HfieldUp with
-    ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
-      fieldDomains, hfieldDomains, hfieldFront⟩
-  have hbase : fieldScope.drop HfieldScope.frontSourceDomains.length =
-      parameterDecls := by
-    simpa [HfieldBase, Hparameter,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
-      RecursorParameterContextSuffix.runtimeScope,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix]
-      using hfieldBase
-  have hfront : HfieldScope.frontSourceDomains = fieldDomains := by
-    simpa [HfieldBase, Hparameter,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.retargetRuntime,
-      RecursorParameterContextSuffix.runtimeScope,
-      checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix]
-      using hfieldFront
-  exact ⟨fieldScope, HfieldScope, by simpa [hfieldRev] using
-    hfieldScopeFVars, hbase, fieldDomains, hfieldDomains, hfront⟩
+    (selected := A.rule.all_args_bound.fvars)
+    (k := F.semantic.generated.localArgs.size)
+    (Hlocal.mono fun _ hfv => Or.inr hfv)
+  simpa [hlocalFvars] using Hfields
 
 /-- First-class rule-wide field narrowing witness.  Recursive-result folds
 retain one value of this structure and replay every call-local suffix above
@@ -217,17 +353,25 @@ structure
     (A : H.GeneratedRuleAlignment owner howner i hctor) where
   fieldScope : VLCtx
   runtime : checkInductiveTypes.loopType.NarrowRuntimeScope
-    H.recursorWF.venv
+    A.semantics.fieldRootContext.venv
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
     fieldScope A.semantics.context.mlctx.vlctx
   scope_fvars : fieldScope.fvars =
     A.semantics.fieldsRecent.fvars.reverse ++
-      H.parameterSuffix.parameterDecls.fvars
+      A.semantics.parameterSuffix.parameterDecls.fvars
   scope_base : fieldScope.drop runtime.frontSourceDomains.length =
-    H.parameterSuffix.parameterDecls
+    A.semantics.parameterSuffix.parameterDecls
   fieldDomains : List VExpr
   fieldDomains_length : fieldDomains.length = A.rule.allArgs.size
   front : runtime.frontSourceDomains = fieldDomains
+  forwardDomains : List VExpr
+  forwardResidual : VExpr
+  forwardDomains_length : forwardDomains.length = A.rule.allArgs.size
+  forwardTarget :
+    (VExpr.wrapForalls A.semantics.fieldTelescope.domains
+      A.semantics.targetTarget).lift'
+        (A.semantics.fieldRootExtension.shift.consN 0) =
+      VExpr.wrapForalls forwardDomains forwardResidual
 
 /-- The rule-wide narrowing frame is literally the constructor-field
 telescope abstracted over the cached parameter declarations.  This exposes
@@ -248,7 +392,7 @@ theorem
     (B : A.NarrowFieldRuntimeFrame) :
     B.fieldScope.toCtx =
       (abstractForallContext B.fieldDomains
-        H.parameterSuffix.parameterDecls).toCtx := by
+        A.semantics.parameterSuffix.parameterDecls).toCtx := by
   rw [abstractForallContext_toCtx, B.runtime.front.sourceContext,
     B.scope_base, B.front]
 
@@ -275,9 +419,9 @@ theorem
   have happend :
       VLCtx.fvars
           (B.fieldScope.take B.runtime.frontSourceDomains.length) ++
-          H.parameterSuffix.parameterDecls.fvars =
+          A.semantics.parameterSuffix.parameterDecls.fvars =
         A.semantics.fieldsRecent.fvars.reverse ++
-          H.parameterSuffix.parameterDecls.fvars := by
+          A.semantics.parameterSuffix.parameterDecls.fvars := by
     rw [← hsplit, B.scope_fvars]
   have hfields : VLCtx.fvars
       (B.fieldScope.take B.runtime.frontSourceDomains.length) =
@@ -287,6 +431,725 @@ theorem
   exact BoundFVarArray.fvars_eq
     A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
     A.rule.all_args_bound rfl
+
+private theorem cachedParameterCoreDeclarations
+    {params : List Expr} {scope : VLCtx}
+    (H : List.Forall₂
+      checkInductiveTypes.loopType.CachedParameterDecl params scope) :
+    List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      scope.fvars scope := by
+  induction H with
+  | nil => exact .nil
+  | cons h _ ih =>
+    rcases h with ⟨fv, deps, type, _hparam, rfl⟩
+    exact .cons ⟨deps, type, rfl⟩ ih
+
+/-- Forget only source-declaration provenance from the fixed field frame.
+The resulting dependency-selection core retains its exact cached parameter
+and field targets, which are the targets consumed by equation assembly. -/
+def CompletedRecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame.core
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    (B : A.NarrowFieldRuntimeFrame) :
+    checkInductiveTypes.loopType.FVarNarrowCore H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      B.fieldScope A.semantics.context.mlctx.vlctx := by
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv]
+    exact H.installed.le
+  have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.semantics.fieldRootExtension.venv_eq]
+    exact hbase
+  let Hruntime := B.runtime.mono hfieldBase
+  have Hfront := Hruntime.front.sourceDeclarations
+  have Hparams := cachedParameterCoreDeclarations
+    H.parameterSuffix.cached
+  have Hdeclarations : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      B.fieldScope.fvars B.fieldScope := by
+    have Happ := Lean4Lean.VerifyInductive.List.Forall₂.append'
+      Hfront Hparams
+    have hscope : B.fieldScope.take Hruntime.frontSourceDomains.length ++
+        H.parameterSuffix.parameterDecls = B.fieldScope := by
+      change B.fieldScope.take B.runtime.frontSourceDomains.length ++
+        H.parameterSuffix.parameterDecls = B.fieldScope
+      rw [← A.parameterDecls_eq, ← B.scope_base]
+      exact List.take_append_drop B.runtime.frontSourceDomains.length
+        B.fieldScope
+    rw [← hscope, VLCtx.fvars_append]
+    simpa [Hruntime,
+      checkInductiveTypes.loopType.NarrowRuntimeScope.mono] using Happ
+  exact {
+    expanded := Hruntime.expanded
+    shift := Hruntime.shift
+    lift := Hruntime.lift
+    context := Hruntime.context
+    upset := Hruntime.upset
+    noBV := Hruntime.noBV
+    declarations := Hdeclarations }
+
+/-- Extend the exact cached field core through the producer's skipped prior
+hypotheses and then through this call's retained higher-order locals.  The
+target telescope is definitionally based on `B.fieldScope`; non-contiguity
+is represented solely by the core weakening. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.currentCachedNarrowCore
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore H.outVEnv Us
+          scope F.semantic.current_context.mlctx.vlctx,
+        scope.fvars = F.semantic.recent.fvars.reverse ++
+          B.fieldScope.fvars ∧
+        scope.drop F.semantic.generated.localArgs.size = B.fieldScope ∧
+        ∃ localDomains : List VExpr,
+          localDomains.length = F.semantic.generated.localArgs.size ∧
+          scope.toCtx = localDomains.reverse ++ B.fieldScope.toCtx ∧
+          ∀ {body target},
+            TrExprS H.outVEnv Us scope body target →
+            H.outVEnv.IsType Us.length scope.toCtx target →
+            TrExprS H.outVEnv Us B.fieldScope
+                (F.semantic.generated.current.lctx.mkForall
+                  F.semantic.generated.localArgs body)
+                (VExpr.wrapForalls localDomains target) ∧
+              H.outVEnv.IsType Us.length B.fieldScope.toCtx
+                (VExpr.wrapForalls localDomains target) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let Hfield := B.core
+  rcases F.originContext.onlyLams.lamPrefix
+      F.priorHypotheses.size F.originRecent.size_le with
+    ⟨_priorDomains, HpriorPrefix⟩
+  have hpriorBase :
+      (F.originContext.mlctx.dropN F.priorHypotheses.size
+        HpriorPrefix.le).vlctx = A.semantics.context.mlctx.vlctx := by
+    have hle : HpriorPrefix.le = F.originRecent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle, F.originRecent.drop_eq]
+  let HpriorBase := Hfield.retargetRuntime hpriorBase.symm
+  have HoriginWF : F.originContext.mlctx.WF H.outVEnv Us := by
+    have henv : F.originContext.venv ≤ H.outVEnv := by
+      rw [F.originRecent.venv_eq, A.semantics.context_venv,
+        H.recursorEnv]
+      exact H.installed.le
+    exact F.originContext.mlctx_wf.mono henv
+  have hpriorSkip : ∀ fv ∈ F.originContext.mlctx.fvarRevList
+      F.priorHypotheses.size HpriorPrefix.le,
+      fv ∉ B.fieldScope.fvars := by
+    intro fv hfv hselected
+    have hle : HpriorPrefix.le = F.originRecent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle, F.originRecent.fvarRevList_eq] at hfv
+    apply F.originRecent.fresh fv (List.mem_reverse.mp hfv)
+    rw [← A.semantics.context.lctx_eq,
+      A.semantics.context.mlctx_wf.tr.fvars_eq]
+    have hexpanded : fv ∈ Hfield.expanded.fvars :=
+      Hfield.lift.fvars_sublist.subset hselected
+    rw [Hfield.context.fvars] at hexpanded
+    exact hexpanded
+  rcases HpriorPrefix.skipFVarNarrowCore H.outVEnvWF HoriginWF
+      ⟨HpriorBase⟩ hpriorSkip with ⟨Horigin⟩
+  rcases F.semantic.current_context.onlyLams.lamPrefix
+      F.semantic.generated.localArgs.size F.semantic.recent.size_le with
+    ⟨_localSourceDomains, HlocalPrefix⟩
+  have hlocalBase :
+      (F.semantic.current_context.mlctx.dropN
+        F.semantic.generated.localArgs.size HlocalPrefix.le).vlctx =
+          F.originContext.mlctx.vlctx := by
+    have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle, F.semantic.recent.drop_eq]
+  let HlocalBase := Horigin.retargetRuntime hlocalBase.symm
+  have HlocalWF : F.semantic.current_context.mlctx.WF H.outVEnv Us := by
+    have henv : F.semantic.current_context.venv ≤ H.outVEnv := by
+      rw [F.semantic.recent.venv_eq, F.originRecent.venv_eq,
+        A.semantics.context_venv, H.recursorEnv]
+      exact H.installed.le
+    exact F.semantic.current_context.mlctx_wf.mono henv
+  have hlocalRev : F.semantic.current_context.mlctx.fvarRevList
+      F.semantic.generated.localArgs.size HlocalPrefix.le =
+        F.semantic.recent.fvars.reverse := by
+    have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle]
+    exact F.semantic.recent.fvarRevList_eq
+  have HlocalUp : IsFVarUpSet
+      (fun fv => fv ∈ F.semantic.current_context.mlctx.fvarRevList
+          F.semantic.generated.localArgs.size HlocalPrefix.le ++
+            B.fieldScope.fvars)
+      F.semantic.current_context.mlctx.vlctx := by
+    apply (IsFVarUpSet.congr HlocalWF.tr.wf.fvwf ?_).mp
+      F.semantic.current_scope_up
+    intro fv _
+    rw [F.root_scope, hlocalRev, B.scope_fvars,
+      A.parameterDecls_eq, H.parameterSuffix.parameterDecls_fvars]
+    rw [A.semantics.fieldOpening.fvars_eq_bound
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+    simp [List.append_assoc]
+  rcases HlocalPrefix.extendFVarNarrowCore H.outVEnvWF HlocalWF
+      HlocalBase HlocalUp with
+    ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
+      hcontext, _hshift, Hreplay⟩
+  have hsource : ∀ body,
+      F.semantic.generated.current.lctx.mkForall
+          F.semantic.generated.localArgs body =
+        F.semantic.current_context.mlctx.mkForall
+          F.semantic.generated.localArgs.size HlocalPrefix.le body := by
+    intro body
+    rw [← F.semantic.current_context.lctx_eq]
+    apply F.semantic.current_context.mlctx_wf.mkForall_eq
+    have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
+      Subsingleton.elim _ _
+    rw [hle]
+    exact F.semantic.recent.reverse_eq
+  exact ⟨scope, Hscope, by simpa [hlocalRev] using hscope,
+    hdrop, localDomains, hlocal, hcontext, by
+      intro body target Hbody HbodyType
+      rw [hsource]
+      simpa [HlocalBase,
+        checkInductiveTypes.loopType.FVarNarrowCore.retargetRuntime] using
+        Hreplay Hbody HbodyType⟩
+
+/-- Restrict the complete recursive index spine through the exact cached
+target core.  This is the list-level equation certificate: all indices share
+one non-contiguous weakening and one cached parameter/field/local context. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.cachedCoreSemanticIndices
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore H.outVEnv Us
+          scope F.semantic.current_context.mlctx.vlctx,
+      ∃ localDomains narrowIndices,
+        scope.fvars = F.semantic.recent.fvars.reverse ++
+          A.semantics.fieldsRecent.fvars.reverse ++
+            H.parameterSuffix.parameterDecls.fvars ∧
+        scope.drop F.semantic.generated.localArgs.size = B.fieldScope ∧
+        localDomains.length = F.semantic.generated.localArgs.size ∧
+        scope.toCtx = localDomains.reverse ++ B.fieldScope.toCtx ∧
+        (∀ {body target},
+          TrExprS H.outVEnv Us scope body target →
+          H.outVEnv.IsType Us.length scope.toCtx target →
+          TrExprS H.outVEnv Us B.fieldScope
+              (F.semantic.generated.current.lctx.mkForall
+                F.semantic.generated.localArgs body)
+              (VExpr.wrapForalls localDomains target) ∧
+            H.outVEnv.IsType Us.length B.fieldScope.toCtx
+              (VExpr.wrapForalls localDomains target)) ∧
+        evidence.indices.length = F.telescope.indices.length ∧
+        List.Forall₂ (TrExprS H.outVEnv Us scope)
+          sourceIndices narrowIndices ∧
+        List.Forall₂
+          (fun narrow full => H.outVEnv.IsDefEqU Us.length
+            F.semantic.current_context.mlctx.vlctx.toCtx
+            (narrow.lift' Hscope.shift) full)
+          narrowIndices evidence.indices := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  rcases F.semanticMotiveTelescopeEvidence with ⟨binding, ⟨evidence⟩⟩
+  have hrecInfo : selectedOwner < H.recInfos.size := by
+    simpa [selectedOwner, H.generated.length] using F.entry_lt
+  have htranslated :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      evidence.indices_translation
+  have hsourceArity := checkPositivityStep.getIIndices.index_arity
+    F.semantic.generated.owner_valid
+  have hrecArity := H.arities selectedOwner hrecInfo
+  have hlength : evidence.indices.length = F.telescope.indices.length := by
+    rw [F.telescope.indices_length, hrecArity]
+    simpa [AddInductive.getIIndices] using
+      htranslated.symm.trans hsourceArity
+  have hsemantic : F.semantic.current_context.venv =
+      R.context.venv :=
+    F.semantic.recent.venv_eq.trans
+      (F.originExtension.venv_eq.trans <|
+        A.semantics.context_venv.trans
+        (H.recursorEnv))
+  have Hindices := evidence.indices_translation
+  rw [hsemantic] at Hindices
+  have HindicesFinal := Lean4Lean.List.Forall₂.imp
+    (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
+  rcases F.currentCachedNarrowCore B with
+    ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
+      hcontext, Hreplay⟩
+  have hscopeExact : scope.fvars = F.semantic.recent.fvars.reverse ++
+      A.semantics.fieldsRecent.fvars.reverse ++
+        H.parameterSuffix.parameterDecls.fvars := by
+    rw [hscope, B.scope_fvars, A.parameterDecls_eq, List.append_assoc]
+  have HsourceScope : ∀ source ∈ sourceIndices,
+      source.FVarsIn (fun fv =>
+        fv ∈ F.semantic.recent.fvars ∨ F.semantic.rootScope fv) := by
+    intro source hsource
+    have hsourceFull : source ∈
+        F.semantic.generated.exposedType.getAppArgsList := by
+      rw [← Expr.getAppArgs_toList]
+      change source ∈
+        (F.semantic.generated.exposedType.getAppArgs.toSubarray
+          stats.params.size).toList at hsource
+      rw [Subarray.toList_eq_drop_take,
+        Array.array_toSubarray] at hsource
+      exact List.mem_of_mem_take (List.mem_of_mem_drop hsource)
+    exact F.semantic.exposed_scope.getAppArgsList hsourceFull
+  have restrictIndices : ∀ {sources : List Expr} {targets : List VExpr},
+      List.Forall₂
+          (TrExprS H.outVEnv Us F.semantic.current_context.mlctx.vlctx)
+          sources targets →
+      sources ⊆ sourceIndices →
+      ∃ narrowTargets,
+        List.Forall₂ (TrExprS H.outVEnv Us scope) sources narrowTargets ∧
+        List.Forall₂
+          (fun narrow full => H.outVEnv.IsDefEqU Us.length
+            F.semantic.current_context.mlctx.vlctx.toCtx
+            (narrow.lift' Hscope.shift) full)
+          narrowTargets targets := by
+    intro sources targets Htranslated hsubset
+    induction Htranslated with
+    | nil => exact ⟨[], .nil, .nil⟩
+    | @cons source target sources targets Hindex _ ih =>
+      have hsource : source ∈ sourceIndices := hsubset List.mem_cons_self
+      have Hsource := HsourceScope source hsource
+      have HsourceNarrow : source.FVarsIn (· ∈ scope.fvars) := by
+        apply Hsource.mono
+        intro fv hfv
+        rw [F.root_scope,
+          A.semantics.fieldOpening.fvars_eq_bound
+            A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+          at hfv
+        rw [hscopeExact, H.parameterSuffix.parameterDecls_fvars]
+        rcases hfv with hlocalFv | hfield | hparam
+        · exact List.mem_append_left _
+            (List.mem_append_left _ (List.mem_reverse.mpr hlocalFv))
+        · exact List.mem_append_left _
+            (List.mem_append_right _ (List.mem_reverse.mpr hfield))
+        · exact List.mem_append_right _ (List.mem_reverse.mpr hparam)
+      have hclosed : Closed source 0 := by
+        have h := Hindex.closed
+        rw [F.semantic.current_context.mlctx.noBV] at h
+        exact h
+      rcases Hscope.restrictEq H.outVEnvWF Hindex hclosed HsourceNarrow with
+        ⟨narrowTarget, HnarrowTarget, HtargetEq⟩
+      have htailSubset : sources ⊆ sourceIndices := by
+        intro other hother
+        exact hsubset (List.mem_cons_of_mem source hother)
+      rcases ih htailSubset with ⟨narrowTargets, Hnarrow, Heq⟩
+      exact ⟨narrowTarget :: narrowTargets,
+        .cons HnarrowTarget Hnarrow, .cons HtargetEq.symm Heq⟩
+  rcases restrictIndices HindicesFinal (List.Subset.refl sourceIndices) with
+    ⟨narrowIndices, HnarrowIndices, HindexEq⟩
+  exact ⟨binding, evidence, scope, Hscope, localDomains, narrowIndices,
+    hscopeExact, hdrop, hlocal, hcontext, Hreplay, hlength,
+    HnarrowIndices, HindexEq⟩
+
+/-- Shared cached-target frame for every semantic argument of one recursive
+call.  Locals and fields are closed from a single dependency-selected core;
+the cached parameter suffix remains literal. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.cachedCoreSemanticCallArgumentFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj)
+    (B : A.NarrowFieldRuntimeFrame) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let parameterDecls := H.parameterSuffix.parameterDecls
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore H.outVEnv Us
+          scope F.semantic.current_context.mlctx.vlctx,
+      ∃ (fieldDomains localDomains narrowIndices : List VExpr)
+          (narrowMajor narrowExposed : VExpr),
+        scope.toCtx = localDomains.reverse ++ B.fieldScope.toCtx ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        fieldDomains = B.fieldDomains ∧
+        localDomains.length = F.semantic.generated.localArgs.size ∧
+        TrExprS H.outVEnv Us B.fieldScope
+          (F.semantic.generated.current.lctx.mkForall
+            F.semantic.generated.localArgs (.sort .zero))
+          (VExpr.wrapForalls localDomains (.sort .zero)) ∧
+        H.outVEnv.IsType Us.length B.fieldScope.toCtx
+          (VExpr.wrapForalls localDomains (.sort .zero)) ∧
+        OnCtx
+          (abstractForallContext (fieldDomains ++ localDomains)
+            parameterDecls).toCtx
+          (H.outVEnv.IsType Us.length) ∧
+        evidence.indices.length = F.telescope.indices.length ∧
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext (fieldDomains ++ localDomains)
+              parameterDecls))
+          (sourceIndices.map fun index =>
+            (index.abstractList
+              F.semantic.generated.arguments_bound.fvars).abstractList
+                A.rule.all_args_bound.fvars
+                F.semantic.generated.localArgs.size)
+          narrowIndices ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext (fieldDomains ++ localDomains)
+            parameterDecls)
+          (F.semantic.generated.outerAbstractedMajor
+            A.rule.all_args_bound.fvars) narrowMajor ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext (fieldDomains ++ localDomains)
+            parameterDecls)
+          ((F.semantic.generated.exposedType.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+              A.rule.all_args_bound.fvars
+              F.semantic.generated.localArgs.size) narrowExposed ∧
+        H.outVEnv.HasType Us.length
+          (abstractForallContext (fieldDomains ++ localDomains)
+            parameterDecls).toCtx narrowMajor narrowExposed ∧
+        List.Forall₂
+          (fun narrow full => H.outVEnv.IsDefEqU Us.length
+            F.semantic.current_context.mlctx.vlctx.toCtx
+            (narrow.lift' Hscope.shift) full)
+          narrowIndices evidence.indices ∧
+        H.outVEnv.IsDefEqU Us.length
+          F.semantic.current_context.mlctx.vlctx.toCtx
+          F.semantic.appliedFieldTarget
+          (narrowMajor.lift' Hscope.shift) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let parameterDecls := H.parameterSuffix.parameterDecls
+  rcases F.cachedCoreSemanticIndices B with
+    ⟨binding, evidence, scope, Hscope, localDomains, narrowIndices,
+      hscopeFVars, hdropLocal, hlocal, hscopeContext, Hreplay,
+      hlength, Hindices, HindexEq⟩
+  let sourceMajor := mkAppN A.rule.recursiveArgs[j]
+    F.semantic.generated.localArgs
+  have hmajorScope : sourceMajor.FVarsIn (· ∈ scope.fvars) := by
+    dsimp only [sourceMajor]
+    rw [Expr.mkAppN_eq_mkAppList]
+    apply FVarsIn.mkAppList.mpr
+    constructor
+    · rcases A.rule.recursive_args_bound.getElem_eq_fvar j hj with
+        ⟨hjFVars, hfieldSource⟩
+      rw [hfieldSource]
+      have hfieldAll : A.rule.recursive_args_bound.fvars[j] ∈
+          A.rule.all_args_bound.fvars :=
+        A.rule.recursive_args_bound.fvars_subset_of_sublist
+          A.rule.all_args_bound A.rule.recursive_args_sublist
+          (List.getElem_mem hjFVars)
+      have hfieldRecent : A.rule.recursive_args_bound.fvars[j] ∈
+          A.semantics.fieldsRecent.fvars := by
+        rw [BoundFVarArray.fvars_eq
+          A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+          A.rule.all_args_bound rfl]
+        exact hfieldAll
+      rw [hscopeFVars]
+      exact List.mem_append_left _
+        (List.mem_append_right _ (List.mem_reverse.mpr hfieldRecent))
+    · intro arg harg
+      have harg' : arg ∈
+          F.semantic.generated.arguments_bound.fvars.map Expr.fvar := by
+        simpa [F.semantic.generated.arguments_bound.expressions] using harg
+      rcases List.mem_map.mp harg' with ⟨localFv, hlocalFv, rfl⟩
+      have hlocalRecent : localFv ∈ F.semantic.recent.fvars := by
+        rw [BoundFVarArray.fvars_eq
+          F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+          F.semantic.generated.arguments_bound.toBoundFVarArray rfl]
+        exact hlocalFv
+      rw [hscopeFVars]
+      exact List.mem_append_left _
+        (List.mem_append_left _ (List.mem_reverse.mpr hlocalRecent))
+  have hexposedScope : F.semantic.generated.exposedType.FVarsIn
+      (· ∈ scope.fvars) := by
+    apply F.semantic.exposed_scope.mono
+    intro fv hfv
+    rw [F.root_scope,
+      A.semantics.fieldOpening.fvars_eq_bound
+        A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
+      at hfv
+    rw [hscopeFVars, H.parameterSuffix.parameterDecls_fvars]
+    rcases hfv with hlocalFv | hfield | hparam
+    · exact List.mem_append_left _
+        (List.mem_append_left _ (List.mem_reverse.mpr hlocalFv))
+    · exact List.mem_append_left _
+        (List.mem_append_right _ (List.mem_reverse.mpr hfield))
+    · exact List.mem_append_right _ (List.mem_reverse.mpr hparam)
+  have hsemantic : F.semantic.current_context.venv =
+      R.context.venv :=
+    F.semantic.recent.venv_eq.trans
+      (F.originExtension.venv_eq.trans <|
+        A.semantics.context_venv.trans
+        (H.recursorEnv))
+  have HmajorFull := F.semantic.applied_field_translation
+  have HexposedFull := F.semantic.exposed_translation
+  rw [hsemantic] at HmajorFull HexposedFull
+  have HmajorFinal := HmajorFull.mono H.installed.le
+  have HexposedFinal := HexposedFull.mono H.installed.le
+  have hmajorClosed : Closed sourceMajor 0 := by
+    have h := HmajorFinal.closed
+    rw [F.semantic.current_context.mlctx.noBV] at h
+    exact h
+  have hexposedClosed : Closed F.semantic.generated.exposedType 0 := by
+    have h := HexposedFinal.closed
+    rw [F.semantic.current_context.mlctx.noBV] at h
+    exact h
+  rcases Hscope.restrictEq H.outVEnvWF HmajorFinal hmajorClosed
+      hmajorScope with ⟨narrowMajor, Hmajor, HmajorEq⟩
+  rcases Hscope.restrictEq H.outVEnvWF HexposedFinal hexposedClosed
+      hexposedScope with ⟨narrowExposed, Hexposed, _HexposedEq⟩
+  have HfullMajorType : F.semantic.current_context.venv.HasType Us.length
+      F.semantic.current_context.mlctx.vlctx.toCtx
+      F.semantic.appliedFieldTarget F.semantic.exposedTarget :=
+    F.semantic.applied_field_typing.defeqU_r
+      F.semantic.current_context.checking.tr.wf
+      F.semantic.current_context.mlctx_wf.tr.wf.toCtx
+      F.semantic.exposed_defeq.symm
+  rw [hsemantic] at HfullMajorType
+  have Htyping := Hscope.hasTypeOfFullPair H.outVEnvWF Hmajor Hexposed
+    HmajorFinal HexposedFinal (HfullMajorType.mono H.installed.le)
+  have hzero : VLevel.ofLevel Us (.zero : Level) =
+      some (.zero : VLevel) := rfl
+  have Hzero : TrExprS H.outVEnv Us scope
+      (.sort (.zero : Level)) (.sort (.zero : VLevel)) := .sort hzero
+  have HzeroType : H.outVEnv.IsType Us.length scope.toCtx
+      (.sort (.zero : VLevel)) :=
+    ⟨.succ .zero, VEnv.HasType.sort (.of_ofLevel hzero)⟩
+  rcases Hreplay Hzero HzeroType with
+    ⟨HlocalTemplate, HlocalTemplateType⟩
+  let frontCount := F.semantic.generated.localArgs.size +
+    A.rule.allArgs.size
+  have hdropFront : scope.drop frontCount = parameterDecls := by
+    rw [show frontCount = F.semantic.generated.localArgs.size +
+        B.fieldDomains.length by simp [frontCount, B.fieldDomains_length],
+      ← List.drop_drop, hdropLocal]
+    change B.fieldScope.drop B.fieldDomains.length = parameterDecls
+    rw [← B.front, B.scope_base, A.parameterDecls_eq]
+  have hscopeParts : scope.take frontCount ++ parameterDecls = scope := by
+    rw [← hdropFront]
+    exact List.take_append_drop frontCount scope
+  have hfrontFVars : (scope.fvars.take frontCount).reverse =
+      A.rule.all_args_bound.fvars ++
+        F.semantic.generated.arguments_bound.fvars := by
+    have hlocalFVars : F.semantic.recent.fvars =
+        F.semantic.generated.arguments_bound.fvars :=
+      BoundFVarArray.fvars_eq
+        F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+        F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+    have hfieldFVars : A.semantics.fieldsRecent.fvars =
+        A.rule.all_args_bound.fvars :=
+      BoundFVarArray.fvars_eq
+        A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+        A.rule.all_args_bound rfl
+    have hparts := congrArg VLCtx.fvars hscopeParts
+    rw [VLCtx.fvars_append, hscopeFVars] at hparts
+    have hprefix : VLCtx.fvars (scope.take frontCount) =
+        F.semantic.recent.fvars.reverse ++
+          A.semantics.fieldsRecent.fvars.reverse :=
+      List.append_cancel_right hparts
+    rw [← Hscope.fvars_take, hprefix, List.reverse_append, List.reverse_reverse,
+      List.reverse_reverse, hlocalFVars, hfieldFVars]
+  have hfrontDomains :
+      (VLCtx.toCtx (scope.take frontCount)).reverse =
+        B.fieldDomains ++ localDomains := by
+    have hparts := congrArg VLCtx.toCtx hscopeParts
+    rw [VLCtx.toCtx_append, hscopeContext] at hparts
+    have hparts' : VLCtx.toCtx (scope.take frontCount) ++
+        parameterDecls.toCtx =
+          localDomains.reverse ++ B.fieldDomains.reverse ++
+            parameterDecls.toCtx := by
+      simpa [B.fieldScope_eq, parameterDecls, A.parameterDecls_eq,
+        abstractForallContext_toCtx, List.append_assoc] using hparts
+    have hprefix : VLCtx.toCtx (scope.take frontCount) =
+        localDomains.reverse ++ B.fieldDomains.reverse := by
+      exact List.append_cancel_right hparts'
+    rw [hprefix, List.reverse_append, List.reverse_reverse,
+      List.reverse_reverse]
+  have closeSource : ∀ {source target},
+      TrExprS H.outVEnv Us scope source target →
+      TrExprS H.outVEnv Us
+        (abstractForallContext (B.fieldDomains ++ localDomains)
+          parameterDecls)
+        (source.abstractList
+          (A.rule.all_args_bound.fvars ++
+            F.semantic.generated.arguments_bound.fvars)) target := by
+    intro source target Hsource
+    have Hclosed := Hscope.abstractPrefix H.outVEnvWF frontCount
+      hdropFront Hsource
+    rw [hfrontFVars] at Hclosed
+    rw [hfrontDomains] at Hclosed
+    exact Hclosed
+  have closeSources : ∀ {sources : List Expr} {targets : List VExpr},
+      List.Forall₂ (TrExprS H.outVEnv Us scope) sources targets →
+      List.Forall₂
+        (TrExprS H.outVEnv Us
+          (abstractForallContext (B.fieldDomains ++ localDomains)
+            parameterDecls))
+        (sources.map fun source => source.abstractList
+          (A.rule.all_args_bound.fvars ++
+            F.semantic.generated.arguments_bound.fvars)) targets := by
+    intro sources targets Hsources
+    induction Hsources with
+    | nil => exact .nil
+    | cons Hhead _ ih => exact .cons (closeSource Hhead) ih
+  have HindicesClosed := closeSources Hindices
+  have HmajorClosed := closeSource Hmajor
+  have HexposedClosed := closeSource Hexposed
+  have hsourceShape : ∀ source : Expr,
+      source.abstractList
+          (A.rule.all_args_bound.fvars ++
+            F.semantic.generated.arguments_bound.fvars) =
+        (source.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size := by
+    intro source
+    have hnodup : (A.rule.all_args_bound.fvars ++
+        F.semantic.generated.arguments_bound.fvars).Nodup := by
+      rw [← hfrontFVars]
+      exact List.nodup_reverse.mpr <|
+        (Hscope.scopeWF H.outVEnvWF).fvars_nodup.sublist
+          (List.take_sublist frontCount scope.fvars)
+    have h := Expr.abstractList_after_inner
+      (e := source) (outer := A.rule.all_args_bound.fvars)
+      (inner := F.semantic.generated.arguments_bound.fvars) (k := 0)
+      hnodup
+    simpa [F.semantic.generated.arguments_bound.length_fvars] using h.symm
+  have HindicesClosed' := HindicesClosed
+  simp only [List.map_map, Function.comp_def] at HindicesClosed'
+  have hsourceFunction : (fun source : Expr => source.abstractList
+      (A.rule.all_args_bound.fvars ++
+        F.semantic.generated.arguments_bound.fvars)) =
+      (fun source : Expr => (source.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.all_args_bound.fvars
+          F.semantic.generated.localArgs.size) := by
+    funext source
+    exact hsourceShape source
+  rw [hsourceFunction] at HindicesClosed'
+  rw [hsourceShape] at HmajorClosed HexposedClosed
+  have hlocalAbstract :
+      F.semantic.generated.localArgs.map (fun arg => arg.abstractList
+        F.semantic.generated.arguments_bound.fvars) =
+      (List.ofFn (fun index :
+          Fin F.semantic.generated.arguments_bound.fvars.length =>
+        Expr.bvar
+          (F.semantic.generated.arguments_bound.fvars.length - 1 - index)
+        )).toArray := by
+    calc
+      _ = ((F.semantic.generated.arguments_bound.fvars.map Expr.fvar).toArray.map
+          fun arg => arg.abstractList
+            F.semantic.generated.arguments_bound.fvars) := by
+        exact congrArg (Array.map fun arg => arg.abstractList
+          F.semantic.generated.arguments_bound.fvars)
+            F.semantic.generated.arguments_bound.expressions
+      _ = _ := by
+        simpa using Expr.abstractList_fvarArray
+          F.semantic.generated.arguments_bound.fvars 0
+          F.semantic.generated.arguments_bound.nodup
+  have hmajorLocal : sourceMajor.abstractList
+      F.semantic.generated.arguments_bound.fvars =
+      F.semantic.generated.abstractedMajor := by
+    have hfieldClosed : A.rule.recursiveArgs[j].looseBVarRange' = 0 := by
+      have hclosed := F.semantic.field_translation.closed
+      rw [F.originContext.mlctx.noBV] at hclosed
+      exact hclosed.looseBVarRange_zero
+    calc
+      sourceMajor.abstractList
+          F.semantic.generated.arguments_bound.fvars =
+        mkAppN
+          (A.rule.recursiveArgs[j].abstractList
+            F.semantic.generated.arguments_bound.fvars)
+          (List.ofFn (fun index :
+            Fin F.semantic.generated.arguments_bound.fvars.length =>
+              Expr.bvar
+                (F.semantic.generated.arguments_bound.fvars.length - 1 -
+                  index))).toArray := by
+        dsimp only [sourceMajor]
+        rw [Expr.abstractList_mkAppN, hlocalAbstract]
+      _ = F.semantic.generated.abstractedMajor :=
+        (F.semantic.generated.abstractedMajor_eq_of_closed
+          hfieldClosed).symm
+  rw [hmajorLocal] at HmajorClosed
+  have HclosedCtx : OnCtx
+      (abstractForallContext (B.fieldDomains ++ localDomains)
+        parameterDecls).toCtx (H.outVEnv.IsType Us.length) := by
+    have Hwf := (Hscope.scopeWF H.outVEnvWF).toCtx
+    rw [hscopeContext, B.fieldScope_eq] at Hwf
+    simpa [parameterDecls, A.parameterDecls_eq,
+      List.reverse_append, List.append_assoc,
+      VLCtx.toCtx] using Hwf
+  have HclosedTyping : H.outVEnv.HasType Us.length
+      (abstractForallContext (B.fieldDomains ++ localDomains)
+        parameterDecls).toCtx narrowMajor narrowExposed := by
+    have hctx :
+        (abstractForallContext (B.fieldDomains ++ localDomains)
+          parameterDecls).toCtx = scope.toCtx := by
+      rw [hscopeContext, B.fieldScope_eq]
+      simp [parameterDecls, A.parameterDecls_eq,
+        List.reverse_append, List.append_assoc,
+        VLCtx.toCtx]
+    rw [hctx]
+    exact Htyping
+  exact ⟨binding, evidence, scope, Hscope, B.fieldDomains, localDomains,
+    narrowIndices, narrowMajor, narrowExposed, hscopeContext,
+    B.fieldDomains_length, rfl, hlocal, HlocalTemplate,
+    HlocalTemplateType, HclosedCtx, hlength,
+    by simpa using HindicesClosed',
+    by simpa [BoundGeneratedRecursiveCall.outerAbstractedMajor] using
+      HmajorClosed,
+    HexposedClosed, HclosedTyping, HindexEq, HmajorEq⟩
 
 /-- The narrowed constructor-field telescope is well formed in the final
 recursor environment, over the exact cached parameter suffix. -/
@@ -305,13 +1168,16 @@ theorem
     (B : A.NarrowFieldRuntimeFrame) :
     OnCtx
       (abstractForallContext B.fieldDomains
-        H.parameterSuffix.parameterDecls).toCtx
+        A.semantics.parameterSuffix.parameterDecls).toCtx
       (H.outVEnv.IsType
         (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.installed.le
-  have Hruntime := B.runtime.mono hbase
+  have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.semantics.fieldRootExtension.venv_eq]
+    exact hbase
+  have Hruntime := B.runtime.mono hfieldBase
   have Hscope := Hruntime.scopeWF H.outVEnvWF
   rw [← B.fieldScope_eq]
   exact Hscope.toCtx
@@ -373,7 +1239,10 @@ theorem
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.installed.le
-  let Hruntime := B.runtime.mono hbase
+  have hfieldBaseEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.semantics.fieldRootExtension.venv_eq]
+    exact hbase
+  let Hruntime := B.runtime.mono hfieldBaseEnv
   have hfieldDrop :
       A.semantics.context.mlctx.vlctx.drop A.rule.allArgs.size =
         A.semantics.fieldRootContext.mlctx.vlctx := by
@@ -443,23 +1312,19 @@ theorem
         VExpr.wrapForalls minorConsumedDomains minorConsumedResidual ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         (minorConsumedDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-        B.runtime.expanded.toCtx := by
+        (B.forwardDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases A.finalSelectedMinorSemanticFieldAlignmentFor S HS htail hfields with
-    ⟨minorConsumedDomains, minorConsumedResidual, hminor,
-      hminorTarget, _hrule, Hminor⟩
-  rcases B.semanticFieldContext with
-    ⟨_hrule', _hsemanticContext, _hexpandedLength,
-      _hexpandedContext, _HfieldBase, Hexpanded⟩
-  have Hexpanded' : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      B.runtime.expanded.toCtx
-      (A.semantics.fieldTelescope.domains.reverse ++
-        H.recursorWF.mlctx.vlctx.toCtx) := by
-    simpa [A.semantics.fieldRoot_vlctx] using Hexpanded
-  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF Hminor
-    (Hexpanded'.symm H.outVEnvWF.ordered)
+    ⟨minorConsumedDomains, minorConsumedResidual,
+      ruleConsumedDomains, ruleConsumedResidual,
+      hminor, hminorTarget, hrule, hruleTarget, Hminor⟩
+  have hruleDomains : ruleConsumedDomains = B.forwardDomains := by
+    exact VExpr.wrapForalls_prefix_domains_eq (suffix := []) hrule
+      B.forwardDomains_length (by
+        simpa using hruleTarget.symm.trans B.forwardTarget)
+  rw [hruleDomains] at Hminor
   exact ⟨minorConsumedDomains, minorConsumedResidual, hminor,
-    by simpa using hminorTarget, Haligned⟩
+    hminorTarget, Hminor⟩
 
 /-- The field prefix obtained by translating the complete original minor in
 the full recursor context is definitionally equal to the fixed narrow-field
@@ -514,7 +1379,7 @@ theorem
           (T.params ++ T.motives ++ T.minors.take minorIdx).reverse) ∧
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         (weakenedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-        B.runtime.expanded.toCtx := by
+        (B.forwardDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let arity := A.rule.allArgs.size + A.rule.recursiveArgs.size
   let minorIdx := recursorMinorOffset indTypes owner + i
@@ -807,7 +1672,8 @@ theorem
                 (narrowFields.length + hypothesisDomains.length))) ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             (weakenedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-            B.runtime.expanded.toCtx := by
+            (B.forwardDomains.reverse ++
+              H.recursorWF.mlctx.vlctx.toCtx) := by
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
@@ -962,7 +1828,8 @@ theorem
                 (narrowFields.length + hypothesisDomains.length))) ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             (weakenedFields.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-            B.runtime.expanded.toCtx := by
+            (B.forwardDomains.reverse ++
+              H.recursorWF.mlctx.vlctx.toCtx) := by
   dsimp only
   rcases A.finalSelectedMinorFieldApplicationWithNarrowFrame B hpositive with
     ⟨T₁, scope, Hscope, narrowFields, weakenedFields,
@@ -1086,21 +1953,17 @@ theorem
       hhypotheses, hweakenedExact,
       HselectedPrefix, Happlication, HselectedNarrow⟩
   rcases A.finalOuterConstructorFieldRuntimeAlignmentFor T with
-    ⟨outerScope, Houter, outerFields, outerResidual, houterScope,
+    ⟨outerScope, Houter, outerFields, outerResidual,
+      ruleFields, ruleResidual, houterScope,
       houterShift, houterFields, HouterTail, _HouterType,
-      HouterPrefix, HouterSemantic⟩
-  rcases B.semanticFieldContext with
-    ⟨_hsemanticFields, _hsemanticContext, _hexpandedLength,
-      _hexpandedContext, _HfieldBase, HexpandedSemantic⟩
-  have HexpandedSemantic' : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      B.runtime.expanded.toCtx
-      (A.semantics.fieldTelescope.domains.reverse ++
-        H.recursorWF.mlctx.vlctx.toCtx) := by
-    simpa [A.semantics.fieldRoot_vlctx] using HexpandedSemantic
-  have HselectedSemantic := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    HselectedNarrow HexpandedSemantic'
+      HouterPrefix, hruleFields, hruleTarget, HouterSemantic⟩
+  have hruleDomains : ruleFields = B.forwardDomains := by
+    exact VExpr.wrapForalls_prefix_domains_eq (suffix := []) hruleFields
+      B.forwardDomains_length (by
+        simpa using hruleTarget.symm.trans B.forwardTarget)
+  rw [hruleDomains] at HouterSemantic
   have HselectedOuter := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    HselectedSemantic (HouterSemantic.symm H.outVEnvWF.ordered)
+    HselectedNarrow (HouterSemantic.symm H.outVEnvWF.ordered)
   rw [hweakenedExact] at HselectedOuter
   have houterSplit : outerBinders = sourceBinders ++ remainingBinders := by
     simp only [outerBinders, sourceBinders, remainingBinders,
@@ -1333,15 +2196,14 @@ theorem
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.installed.le
-  have hfieldRootEnv : A.semantics.fieldRootContext.venv =
-      H.recursorWF.venv :=
-    A.semantics.fieldsRecent.venv_eq.symm.trans
-      A.semantics.context_venv
+  rcases A.semantics.fieldContextDefEqMono with
+    ⟨runtimeDomains, runtimeResidual, _consumedDomains, _consumedResidual,
+      _hruntimeDomains, _hconsumedDomains, Hruntime₀,
+      _hconsumedTarget, _Hcontexts⟩
   have Hruntime : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
-      A.semantics.parameterTail A.semantics.parameterTarget := by
-    have Htr := A.semantics.parameterTranslation
-    rw [hfieldRootEnv, A.semantics.fieldRoot_vlctx] at Htr
-    exact Htr.mono hbase
+      A.semantics.parameterTail
+      (VExpr.wrapForalls runtimeDomains runtimeResidual) :=
+    Hruntime₀.mono hbase
   have HruntimeWF : VLCtx.WF H.outVEnv Us.length
       H.recursorWF.mlctx.vlctx :=
     (H.recursorWF.mlctx_wf.mono hbase).tr.wf
@@ -1537,20 +2399,28 @@ theorem
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             (minorConsumedDomains.reverse ++
               H.recursorWF.mlctx.vlctx.toCtx)
-            B.runtime.expanded.toCtx := by
+            (B.forwardDomains.reverse ++
+              H.recursorWF.mlctx.vlctx.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalSelectedMinorSemanticFieldAlignment with
-    ⟨S, HS, minorConsumedDomains, hminor, _hrule, Hminor⟩
-  rcases B.semanticFieldContext with
-    ⟨_hrule', _hsemanticContext, _hexpandedLength,
-      _hexpandedContext, _HfieldBase, Hexpanded⟩
-  have Hexpanded' : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      B.runtime.expanded.toCtx
-      (A.semantics.fieldTelescope.domains.reverse ++
-        H.recursorWF.mlctx.vlctx.toCtx) := by
-    simpa [A.semantics.fieldRoot_vlctx] using Hexpanded
-  have Haligned := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF Hminor
-    (Hexpanded'.symm H.outVEnvWF.ordered)
+  rcases A.finalSelectedMinorSemanticSource with
+    ⟨S, HS, _hlocal, htail⟩
+  have hfields : S.fields.size = A.rule.allArgs.size := by
+    have htraversalFields := HS.semantic.traversal_fields
+    have hsemanticFields := congrArg Array.size htraversalFields
+    have hterminal := HS.semantic.traversal.fieldTelescope
+    have hrule := A.semantics.fieldOpening.telescope
+    rw [htail] at hterminal
+    have hsemanticResidual :
+        A.semantics.fieldOpening.residual.isForall = false := by
+      rw [← A.semantics.fieldOpening.closed, Expr.abstractList_isForall]
+      exact A.semantics.target_not_forall
+    exact hsemanticFields.symm.trans
+      (hterminal.eq_of_residual_not_forall hrule
+        HS.semantic.traversal.fieldResidual_not_forall
+        hsemanticResidual).1
+  rcases A.finalSelectedMinorExpandedFieldAlignmentFor B S HS htail hfields with
+    ⟨minorConsumedDomains, _minorConsumedResidual, hminor,
+      _hminorTarget, Haligned⟩
   exact ⟨S, HS, minorConsumedDomains, hminor, Haligned⟩
 
 /-- Retain the untranslated source telescope while composing the selected
@@ -1584,69 +2454,41 @@ theorem
             (VExpr.wrapForalls sourceDomains sourceResidual) ∧
           VEnv.IsDefEqCtx H.outVEnv Us.length []
             (sourceDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-            B.runtime.expanded.toCtx := by
+            (B.forwardDomains.reverse ++
+              H.recursorWF.mlctx.vlctx.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases A.finalSelectedMinorTransportedFieldContext with
     ⟨S, HS, sourceDomains, sourceResidual, consumedDomains,
-      _consumedResidual, _hlocal, htail, hsource, hconsumed,
-      Hsource, _hconsumedTarget, HsourceConsumed⟩
-  rcases A.semantics.fieldContextDefEq with
-    ⟨ruleSourceDomains, ruleSourceResidual, hruleSource,
-      hparameterTarget, HruleContexts⟩
+      consumedResidual, _hlocal, htail, hsource, hconsumed,
+      Hsource, hconsumedTarget, HsourceConsumed⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.installed.le
-  have HruleSource₀ : TrExprS A.semantics.fieldRootContext.venv Us
-      A.semantics.fieldRootContext.mlctx.vlctx
-      A.semantics.parameterTail
-      (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
-    rw [← hparameterTarget]
-    exact A.semantics.parameterTranslation
-  have hsemanticRoot : A.semantics.fieldRootContext.venv =
-      H.recursorWF.venv := by
-    exact A.semantics.fieldsRecent.venv_eq.symm.trans
-      A.semantics.context_venv
-  rw [hsemanticRoot] at HruleSource₀ HruleContexts
-  have HruleSource : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
-      A.semantics.parameterTail
-      (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
-    have Hsource' := HruleSource₀.mono hbase
-    simpa [A.semantics.fieldRoot_vlctx] using Hsource'
   have Hsource' := Hsource.mono hbase
-  have HrootWF : VLCtx.WF H.outVEnv Us.length
-      H.recursorWF.mlctx.vlctx :=
-    (H.recursorWF.mlctx_wf.mono hbase).tr.wf
-  have HsourceTarget := Hsource'.uniq H.outVEnvWF
-    (.refl H.outVEnvWF HrootWF) HruleSource
-  have HrootBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      H.recursorWF.mlctx.vlctx.toCtx H.recursorWF.mlctx.vlctx.toCtx :=
-    .refl HrootWF.toCtx
-  have HsourceRule := VEnv.IsDefEqU.wrapForalls_context
-    H.outVEnvWF HrootBase (hsource.trans hruleSource.symm) HsourceTarget
-  have HsourceConsumed' := HsourceConsumed.mono hbase
-  have HruleContexts' : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      (ruleSourceDomains.reverse ++ H.recursorWF.mlctx.vlctx.toCtx)
-      (A.semantics.fieldTelescope.domains.reverse ++
-        H.recursorWF.mlctx.vlctx.toCtx) := by
-    have Hcontexts := HruleContexts.mono hbase
-    simpa [A.semantics.fieldRoot_vlctx] using Hcontexts
-  have HconsumedSource := HsourceConsumed'.symm H.outVEnvWF.ordered
-  have HconsumedRuleSource := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    HconsumedSource HsourceRule
-  have HconsumedSemantic := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    HconsumedRuleSource HruleContexts'
-  rcases B.semanticFieldContext with
-    ⟨_hrule, _hsemanticContext, _hexpandedLength,
-      _hexpandedContext, _HfieldBase, Hexpanded⟩
-  have Hexpanded' : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      B.runtime.expanded.toCtx
-      (A.semantics.fieldTelescope.domains.reverse ++
-        H.recursorWF.mlctx.vlctx.toCtx) := by
-    simpa [A.semantics.fieldRoot_vlctx] using Hexpanded
-  have HconsumedExpanded := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    HconsumedSemantic (Hexpanded'.symm H.outVEnvWF.ordered)
+  have hfields : S.fields.size = A.rule.allArgs.size := by
+    have htraversalFields := HS.semantic.traversal_fields
+    have hsemanticFields := congrArg Array.size htraversalFields
+    have hterminal := HS.semantic.traversal.fieldTelescope
+    have hrule := A.semantics.fieldOpening.telescope
+    rw [htail] at hterminal
+    have hsemanticResidual :
+        A.semantics.fieldOpening.residual.isForall = false := by
+      rw [← A.semantics.fieldOpening.closed, Expr.abstractList_isForall]
+      exact A.semantics.target_not_forall
+    exact hsemanticFields.symm.trans
+      (hterminal.eq_of_residual_not_forall hrule
+        HS.semantic.traversal.fieldResidual_not_forall
+        hsemanticResidual).1
+  rcases A.finalSelectedMinorExpandedFieldAlignmentFor B S HS htail hfields with
+    ⟨minorConsumedDomains, minorConsumedResidual, hminor,
+      hminorTarget, HminorNarrow⟩
+  have hconsumedDomains : consumedDomains = minorConsumedDomains := by
+    exact VExpr.wrapForalls_prefix_domains_eq (suffix := [])
+      hconsumed hminor (by
+        simpa using hconsumedTarget.symm.trans hminorTarget)
+  rw [hconsumedDomains] at HsourceConsumed
   have HsourceExpanded := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    HsourceConsumed' HconsumedExpanded
+    (HsourceConsumed.mono hbase) HminorNarrow
   exact ⟨S, HS, sourceDomains, sourceResidual, hsource, htail,
     Hsource', HsourceExpanded⟩
 
@@ -1682,9 +2524,8 @@ theorem
             (B.fieldDomains.reverse ++
               H.parameterSuffix.parameterDecls.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalSelectedMinorExpandedSourceFieldAlignment B with
-    ⟨S, HS, sourceDomains, sourceResidual, hsource, htail, Hsource,
-      HsourceExpanded⟩
+  rcases A.finalSelectedMinorSemanticSource with
+    ⟨S, HS, _hlocal, htail⟩
   rcases HS.semantic.parameterTranslationAtSuffix with
     ⟨narrowTarget, Hnarrow₀⟩
   have hbaseEnv : HS.semantic.rootWF.venv ≤ H.outVEnv := by
@@ -1705,56 +2546,64 @@ theorem
     ⟨baseScope, baseExpanded, baseShift, hscopeBase,
       hexpandedBase, hshift, Wbase⟩
   have hbaseScope : baseScope = H.parameterSuffix.parameterDecls := by
-    rw [← hscopeBase, B.scope_base]
+    rw [← hscopeBase, B.scope_base, A.parameterDecls_eq]
   subst baseScope
   rcases B.semanticFieldContext with
     ⟨_hruleLength, _hsemanticContext, hfrontExpanded,
       _hexpandedContext, HfieldBase, _Hexpanded⟩
   have HbaseContext : VLCtx.IsDefEq H.outVEnv Us.length
-      baseExpanded H.recursorWF.mlctx.vlctx := by
+      baseExpanded A.semantics.fieldRootContext.mlctx.vlctx := by
     rw [hfrontExpanded] at hexpandedBase
     have HfieldBase' := HfieldBase
     rw [hexpandedBase] at HfieldBase'
-    simpa [A.semantics.fieldRoot_vlctx] using HfieldBase'
+    exact HfieldBase'
   rw [hbaseScope] at Wbase
   have HnarrowWeak : TrExprS H.outVEnv Us baseExpanded
       A.semantics.parameterTail
       ((VExpr.wrapForalls narrowDomains narrowResidual).lift'
         baseShift) := by
     exact Hnarrow.weakFV' H.outVEnvWF.ordered Wbase HbaseContext.wf
+  have hfieldBaseEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.semantics.fieldRootExtension.venv_eq, H.recursorEnv]
+    exact H.installed.le
+  rcases A.semantics.fieldContextDefEq with
+    ⟨sourceDomains, sourceResidual, hsource, hparameterTarget,
+      HsourceFields₀⟩
+  have Hsource : TrExprS H.outVEnv Us
+      A.semantics.fieldRootContext.mlctx.vlctx A.semantics.parameterTail
+      (VExpr.wrapForalls sourceDomains sourceResidual) := by
+    have Htr := A.semantics.parameterTranslation.mono hfieldBaseEnv
+    simpa only [hparameterTarget] using Htr
   have Htarget := HnarrowWeak.uniq H.outVEnvWF HbaseContext Hsource
   rw [VExpr.lift'_wrapForalls_exact] at Htarget
   let liftedDomains := liftForallDomains narrowDomains baseShift
   have hliftedLength : liftedDomains.length = narrowDomains.length := by
     exact liftForallDomains_length narrowDomains baseShift
   have HbaseDefEq : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      (VLCtx.toCtx baseExpanded) H.recursorWF.mlctx.vlctx.toCtx :=
+      (VLCtx.toCtx baseExpanded)
+        A.semantics.fieldRootContext.mlctx.vlctx.toCtx :=
     HbaseContext.defeqCtx
   have HliftedSource := VEnv.IsDefEqU.wrapForalls_context
     H.outVEnvWF HbaseDefEq
       (hliftedLength.trans hnarrowLength |>.trans hsource.symm) Htarget
+  have HsourceFields := HsourceFields₀.mono hfieldBaseEnv
+  rcases B.semanticFieldContext with
+    ⟨_hruleLength, _hsemanticContext, _hfrontExpanded,
+      _hexpandedContext, _HfieldBase, Hexpanded⟩
+  have HsourceExpanded := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    HsourceFields (Hexpanded.symm H.outVEnvWF.ordered)
   have HliftedExpanded := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     HliftedSource HsourceExpanded
   have hexpandedContext : B.runtime.expanded.toCtx =
       B.runtime.frontExpandedDomains.reverse ++ VLCtx.toCtx baseExpanded := by
     rw [B.runtime.front.expandedContext, hexpandedBase]
   rw [hexpandedContext] at HliftedExpanded
-  have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv]
-    exact H.installed.le
-  have hsemanticRoot : A.semantics.fieldRootContext.venv =
-      H.recursorWF.venv := by
-    exact A.semantics.fieldsRecent.venv_eq.symm.trans
-      A.semantics.context_venv
-  have HsourceType₀ := A.semantics.parameterType
-  rw [hsemanticRoot, A.semantics.fieldRoot_vlctx] at HsourceType₀
-  have HsourceType := HsourceType₀.mono hrecBase
+  have HsourceType := A.semantics.parameterType.mono hfieldBaseEnv
   have HrootWF : VLCtx.WF H.outVEnv Us.length
-      H.recursorWF.mlctx.vlctx :=
-    (H.recursorWF.mlctx_wf.mono hrecBase).tr.wf
-  have HparameterTranslation₀ := A.semantics.parameterTranslation
-  rw [hsemanticRoot, A.semantics.fieldRoot_vlctx] at HparameterTranslation₀
-  have HparameterTranslation := HparameterTranslation₀.mono hrecBase
+      A.semantics.fieldRootContext.mlctx.vlctx :=
+    (A.semantics.fieldRootContext.mlctx_wf.mono hfieldBaseEnv).tr.wf
+  have HparameterTranslation :=
+    A.semantics.parameterTranslation.mono hfieldBaseEnv
   have HparameterSource := HparameterTranslation.uniq H.outVEnvWF
     (.refl H.outVEnvWF HrootWF) Hsource
   have HsourceWrappedType := VEnv.IsType.defeqU_l H.outVEnvWF
@@ -1876,7 +2725,8 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     have HfieldCtx := B.fieldContextWF
     rw [abstractForallContext_toCtx] at HfieldCtx
-    simpa [Us] using HfieldCtx.drop B.fieldDomains.length
+    simpa [Us, A.parameterDecls_eq] using
+      HfieldCtx.drop B.fieldDomains.length
   have Hminor' : TrExprS H.outVEnv Us
       H.parameterSuffix.parameterDecls A.semantics.parameterTail
       (VExpr.wrapForalls minorDomains minorResidual) := by
@@ -1961,7 +2811,8 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     have HfieldCtx := B.fieldContextWF
     rw [abstractForallContext_toCtx] at HfieldCtx
-    simpa [Us] using HfieldCtx.drop B.fieldDomains.length
+    simpa [Us, A.parameterDecls_eq] using
+      HfieldCtx.drop B.fieldDomains.length
   have HcheckedTarget := Hchecked'.uniq H.outVEnvWF
     (VLCtx.IsDefEq.refl H.outVEnvWF
       (H.parameterSuffix.parameterWF.mono hrecBase)) HotherChecked
@@ -2127,7 +2978,8 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     have HfieldCtx := B.fieldContextWF
     rw [abstractForallContext_toCtx] at HfieldCtx
-    simpa [Us] using HfieldCtx.drop B.fieldDomains.length
+    simpa [Us, A.parameterDecls_eq] using
+      HfieldCtx.drop B.fieldDomains.length
   have HcheckedTarget := Hchecked.uniq H.outVEnvWF
     (VLCtx.IsDefEq.refl H.outVEnvWF
       (H.parameterSuffix.parameterWF.mono hrecBase)) HotherChecked
@@ -2391,7 +3243,10 @@ theorem
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.installed.le
-  let Hruntime := B.runtime.mono hbase
+  have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.semantics.fieldRootExtension.venv_eq]
+    exact hbase
+  let Hruntime := B.runtime.mono hfieldBase
   have Hfull : TrExprS H.outVEnv Us A.semantics.context.mlctx.vlctx
       A.rule.target A.semantics.targetTarget := by
     have Htr := A.semantics.target_translation
@@ -2409,7 +3264,8 @@ theorem
   have hscope : A.rule.target.FVarsIn (· ∈ B.fieldScope.fvars) := by
     apply A.semantics.targetFVarsIn.mono
     intro fv hfv
-    rw [B.scope_fvars, H.parameterSuffix.parameterDecls_fvars]
+    rw [B.scope_fvars, A.parameterDecls_eq,
+      H.parameterSuffix.parameterDecls_fvars]
     rcases hfv with hfield | hparam
     · exact List.mem_append_left _ (List.mem_reverse.mpr hfield)
     · exact List.mem_append_right _ (List.mem_reverse.mpr hparam)
@@ -2428,9 +3284,9 @@ theorem
     have happend :
         VLCtx.fvars
             (B.fieldScope.take Hruntime.frontSourceDomains.length) ++
-              H.parameterSuffix.parameterDecls.fvars =
+              A.semantics.parameterSuffix.parameterDecls.fvars =
           A.semantics.fieldsRecent.fvars.reverse ++
-              H.parameterSuffix.parameterDecls.fvars := by
+              A.semantics.parameterSuffix.parameterDecls.fvars := by
       rw [← hsplit, B.scope_fvars]
     exact List.append_cancel_right happend
   have hfieldFVars : A.semantics.fieldsRecent.fvars =
@@ -2449,9 +3305,10 @@ theorem
   have HtargetType' : H.outVEnv.IsType Us.length
       (abstractForallContext B.fieldDomains
         H.parameterSuffix.parameterDecls).toCtx target := by
-    rw [← B.fieldScope_eq]
+    rw [← A.parameterDecls_eq, ← B.fieldScope_eq]
     exact HtargetType
-  exact ⟨target, Hclosed, HtargetType'⟩
+  exact ⟨target, by simpa only [A.parameterDecls_eq] using Hclosed,
+    HtargetType'⟩
 
 theorem
     CompletedRecursorPhasesResult.GeneratedRuleAlignment.narrowFieldRuntimeFrame
@@ -2469,6 +3326,10 @@ theorem
   rcases A.narrowFieldRuntimeScope with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
       fieldDomains, hfieldDomains, hfieldFront⟩
+  rcases A.semantics.fieldContextDefEqMono with
+    ⟨_sourceDomains, _sourceResidual, forwardDomains, forwardResidual,
+      _hsourceDomains, hforwardDomains, _Hsource, hforwardTarget,
+      _Hcontexts⟩
   exact ⟨{
     fieldScope := fieldScope
     runtime := HfieldScope
@@ -2476,8 +3337,17 @@ theorem
     scope_base := hfieldBase
     fieldDomains := fieldDomains
     fieldDomains_length := hfieldDomains
-    front := hfieldFront }⟩
+    front := hfieldFront
+    forwardDomains := forwardDomains
+    forwardResidual := forwardResidual
+    forwardDomains_length := hforwardDomains
+    forwardTarget := hforwardTarget }⟩
 
+/- Obsolete contiguous-scope replay.  A staged recursive call may have
+earlier generated hypotheses between its local suffix and the rule-wide
+field context, so these statements were false for every call after the
+first.  Their consumers are migrated to `FVarNarrowScope` below. -/
+/-
 /-- Replay one exact higher-order call suffix above a fixed rule-wide field
 and cached-parameter frame.  The fixed-frame argument is the common-context
 anchor needed by the recursive-result list fold. -/
@@ -2527,7 +3397,8 @@ theorem
   have HlocalWF : F.semantic.current_context.mlctx.WF
       H.recursorWF.venv Us := by
     have hvenv : F.semantic.current_context.venv = H.recursorWF.venv :=
-      F.semantic.recent.venv_eq.trans A.semantics.context_venv
+      F.semantic.recent.venv_eq.trans <|
+        F.originExtension.venv_eq.trans A.semantics.context_venv
     simpa only [Us, hvenv] using F.semantic.current_context.mlctx_wf
   have hlocalRev : F.semantic.current_context.mlctx.fvarRevList
       F.semantic.generated.localArgs.size HlocalPrefix.le =
@@ -2636,7 +3507,8 @@ theorem
   let HlocalBase := HfieldScopeOut.retargetRuntime hlocalRuntime.symm
   have HlocalWF : F.semantic.current_context.mlctx.WF H.outVEnv Us := by
     have hvenv : F.semantic.current_context.venv = H.recursorWF.venv :=
-      F.semantic.recent.venv_eq.trans A.semantics.context_venv
+      F.semantic.recent.venv_eq.trans <|
+        F.originExtension.venv_eq.trans A.semantics.context_venv
     have Hwf : F.semantic.current_context.mlctx.WF
         H.recursorWF.venv Us := by
       simpa only [Us, hvenv] using F.semantic.current_context.mlctx_wf
@@ -2919,6 +3791,12 @@ theorem
     semanticFieldDomains, hfront, hlocal, hsemanticLocal, hsemanticFields,
     hsemanticContext', hexpanded, HexpandedFieldDecls, HlocalBase, by
       simpa [Nat.add_comm] using HfieldBase, hcontexts⟩
+-/
+
+/- Obsolete motive reconstruction through sibling contexts.  The exact
+producer now retains `ProducerMotiveApplication`; consumers must use that
+certificate instead of fabricating an extension from `H.recursorWF`. -/
+/-
 /-- The validated terminal application of a recursive call consumes the
 same canonical motive telescope retained for the call-selected mutual
 family.  This is the semantic index/major alignment needed to consume the
@@ -2950,9 +3828,12 @@ theorem
       A.semantics.context :=
     A.semantics.fieldRootExtension.trans
       A.semantics.fieldsRecent.contextExtension
+  let HextOrigin : RecursorContextExtension H.recursorWF
+      F.originContext :=
+    HextRule.trans F.originExtension
   let Hext : RecursorContextExtension H.recursorWF
       F.semantic.current_context :=
-    HextRule.trans F.semantic.recent.contextExtension
+    HextOrigin.trans F.semantic.recent.contextExtension
   rcases H.motiveShapes.motiveBindingAtMono
       (Rcurrent := F.semantic.current_context) H.bindings H.origins
       Hext.contextLE selectedOwner hrecInfo with ⟨Hbinding⟩
@@ -2970,6 +3851,12 @@ theorem
     F.semantic.current_context Hext binding F.semantic.exposed_translation
     HexposedType F.semantic.validated
 
+/- Obsolete sibling-context closing chain.  These lemmas closed the call
+suffix into `A.semantics.context`, but the exact producer origin can contain
+earlier hypotheses and is only a sibling of that context.  The ordinal
+source identity below is context-independent; semantic consumers use the
+exact FVar-narrowed origin instead. -/
+/-
 /-- Final-environment form of the exact higher-order field telescope fixed
 by this recursive-call frame.  Unlike the earlier rule-indexed existential,
 the source call, exposed family target, and eta-expanded major are all tied
@@ -2991,26 +3878,26 @@ theorem
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     ∃ domains : List VExpr,
       domains.length = F.semantic.generated.localArgs.size ∧
-      TrExprS H.outVEnv Us A.semantics.context.mlctx.vlctx
+      TrExprS H.outVEnv Us F.originContext.mlctx.vlctx
         (F.semantic.generated.current.lctx.mkForall
           F.semantic.generated.localArgs F.semantic.generated.exposedType)
         (VExpr.wrapForalls domains F.semantic.exposedTarget) ∧
-      H.outVEnv.IsType Us.length A.semantics.context.mlctx.vlctx.toCtx
+      H.outVEnv.IsType Us.length F.originContext.mlctx.vlctx.toCtx
         (VExpr.wrapForalls domains F.semantic.exposedTarget) ∧
-      TrExprS H.outVEnv Us A.semantics.context.mlctx.vlctx
+      TrExprS H.outVEnv Us F.originContext.mlctx.vlctx
         (F.semantic.generated.current.lctx.mkLambda
           F.semantic.generated.localArgs
           (mkAppN A.rule.recursiveArgs[j]
             F.semantic.generated.localArgs))
         (VExpr.wrapLams domains F.semantic.appliedFieldTarget) ∧
-      H.outVEnv.HasType Us.length A.semantics.context.mlctx.vlctx.toCtx
+      H.outVEnv.HasType Us.length F.originContext.mlctx.vlctx.toCtx
         (VExpr.wrapLams domains F.semantic.appliedFieldTarget)
         (VExpr.wrapForalls domains F.semantic.exposedTarget) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let E := F.semantic.appliedFieldTelescope
-  have hsemantic : A.semantics.context.venv = R.context.venv :=
-    A.semantics.context_venv.trans
-      H.recursorEnv
+  have hsemantic : F.originContext.venv = R.context.venv :=
+    F.originExtension.venv_eq.trans <| A.semantics.context_venv.trans
+      (H.recursorEnv)
   have Hexposed := E.exposed_translation
   have HexposedType := E.exposed_type
   have Happlied := E.applied_translation
@@ -3044,7 +3931,7 @@ theorem
       localDomains.length = F.semantic.generated.localArgs.size ∧
       TrExprS H.outVEnv Us
         (abstractForallContext localDomains
-          A.semantics.context.mlctx.vlctx)
+          F.originContext.mlctx.vlctx)
         F.semantic.generated.abstractedMajor
         F.semantic.appliedFieldTarget := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -3053,7 +3940,8 @@ theorem
       Happlied, _HappliedType⟩
   refine ⟨localDomains, hlocal, ?_⟩
   exact TrExprS.lambdaTelescope_exact_residual
-    F.semantic.generated.appliedFieldLambdaTelescope hlocal Happlied
+    (F.semantic.generated.appliedFieldLambdaTelescope
+      F.semantic.fieldClosed) hlocal Happlied
 
 /-- Close the constructor-field suffix around the exact applied-major
 translation.  The call-local domains remain innermost, while the production
@@ -3147,12 +4035,12 @@ theorem
     ⟨hjFvars, hsource⟩
   let fv := A.rule.recursive_args_bound.fvars[j]
   have hsource' : A.rule.recursiveArgs[j] = .fvar fv := hsource
-  have hfieldRoot : fv ∈ A.rule.root.lctx.fvars :=
-    A.rule.recursive_args_bound.members fv (List.getElem_mem hjFvars)
   have hfield : fv ∈ A.rule.all_args_bound.fvars :=
     A.rule.recursive_args_bound.fvars_subset_of_sublist
       A.rule.all_args_bound A.rule.recursive_args_sublist
       (List.getElem_mem hjFvars)
+  have hfieldRoot : fv ∈ F.originRoot.lctx.fvars :=
+    F.field_mem_originRoot hfield
   have hruleDomains : fieldDomains.length =
       A.rule.all_args_bound.fvars.length :=
     hfields.trans A.rule.all_args_bound.length_fvars.symm
@@ -3213,8 +4101,8 @@ theorem
   have hfieldFull : fv ∈ A.rule.binders := by
     unfold BoundGeneratedRecursorRule.binders
     exact List.mem_append_right _ hfield
-  have hfieldRoot : fv ∈ A.rule.root.lctx.fvars :=
-    A.rule.all_args_bound.members fv hfield
+  have hfieldRoot : fv ∈ F.originRoot.lctx.fvars :=
+    F.field_mem_originRoot hfield
   have hnotOuter : fv ∉
       (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
         A.rule.minors_bound.fvars :=
@@ -3238,9 +4126,13 @@ theorem
   simpa [hlocal, BoundGeneratedRecursorRule.binders,
     List.append_assoc] using hmajorShape
 
-/-- Ordinal form of `outerAbstractedAppliedMajorAlignment`.  Replay of the
-recursive-field mask identifies the existential field variable with the
-reverse de Bruijn ordinal of the selected constructor-field position. -/
+-/
+
+/-- Ordinal form of the recursive applied-major source.  The identity is
+derived from the producer's exact selected field position and does not rely
+on replaying or identifying local contexts.  The recursive-field mask
+identifies the existential field variable with the reverse de Bruijn ordinal
+of the selected constructor-field position. -/
 theorem
     CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedAppliedMajorOrdinal
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -3260,17 +4152,8 @@ theorem
         mkAppN
           (.bvar (F.semantic.generated.localArgs.size +
             (A.rule.allArgs.size - 1 - fieldPosition)))
-          (F.semantic.generated.localIndices.map Expr.bvar).toArray ∧
-      F.semantic.appliedFieldTarget =
-        VExpr.mkApps
-          (.bvar (F.semantic.generated.localArgs.size +
-            (A.rule.allArgs.size - 1 - fieldPosition)))
-          (F.semantic.generated.localIndices.map VExpr.bvar) := by
+          (F.semantic.generated.localIndices.map Expr.bvar).toArray := by
   dsimp only
-  rcases F.outerAbstractedAppliedMajorAlignment with
-    ⟨localDomains, fieldDomains, fv, fieldVar,
-      hlocal, hfields, _hfieldVar, hsource, hfieldSource,
-      hmajor, htarget⟩
   let fieldPosition := A.semantics.recursivePositions[j]!
   have hfieldPosition : fieldPosition < A.rule.allArgs.size :=
     (A.semantics.decisions.selected_at j hj).1
@@ -3280,24 +4163,29 @@ theorem
     exact hfieldPosition
   rcases A.rule.all_args_bound.getElem_eq_fvar fieldPosition
       hfieldPosition with ⟨_hpositionFVars, hfieldAt⟩
-  have hrecursiveBang : A.rule.recursiveArgs[j]! = .fvar fv := by
-    rw [getElem!_pos A.rule.recursiveArgs j hj]
-    exact hsource
   have hfieldBang : A.rule.allArgs[fieldPosition]! =
       .fvar A.rule.all_args_bound.fvars[fieldPosition] :=
     (getElem!_pos A.rule.allArgs fieldPosition hfieldPosition).trans hfieldAt
   have hselected := (A.semantics.decisions.selected_at j hj).2
-  have hfvExact : fv = A.rule.all_args_bound.fvars[fieldPosition] :=
-    Expr.fvar.inj (hrecursiveBang.symm.trans (hselected.trans hfieldBang))
+  let fv := A.rule.all_args_bound.fvars[fieldPosition]
+  have hsource : A.rule.recursiveArgs[j] = .fvar fv := by
+    rw [← getElem!_pos A.rule.recursiveArgs j hj]
+    exact hselected.trans hfieldBang
+  have hfield : fv ∈ A.rule.all_args_bound.fvars :=
+    List.getElem_mem hfieldPositionFVars
+  have hfieldRoot : fv ∈ F.originRoot.lctx.fvars :=
+    F.field_mem_originRoot hfield
+  have hfieldFull : fv ∈ A.rule.binders := by
+    exact List.mem_append_right _ hfield
+  rcases F.semantic.generated.outerAbstractedMajor_eq_bvar_of_field_eq
+      hsource hfieldRoot A.rule.binders_nodup hfieldFull with
+    ⟨fieldVar, _hfieldVar, hfieldSource, hmajor⟩
   have hfieldExact := Expr.abstractList_fvar_getElem
     A.rule.all_args_nodup fieldPosition hfieldPositionFVars (k := 0)
-  rw [← hfvExact] at hfieldExact
   have hnotOuter : fv ∉
       (A.rule.params_bound.fvars ++ A.rule.motives_bound.fvars) ++
         A.rule.minors_bound.fvars :=
-    A.rule.all_args_outer_fresh fv <| by
-      rw [hfvExact]
-      exact List.getElem_mem hfieldPositionFVars
+    A.rule.all_args_outer_fresh fv hfield
   have hfieldFullExact : (Expr.fvar fv).abstractList A.rule.binders =
       .bvar (A.rule.allArgs.size - 1 - fieldPosition) := by
     unfold BoundGeneratedRecursorRule.binders
@@ -3307,9 +4195,8 @@ theorem
   have hfieldVarExact : fieldVar =
       A.rule.allArgs.size - 1 - fieldPosition :=
     Expr.bvar.inj (hfieldSource.symm.trans hfieldFullExact)
-  constructor
-  · simpa [fieldPosition, hfieldVarExact, hlocal] using hmajor
-  · simpa [fieldPosition, hfieldVarExact, hlocal] using htarget
+  simpa [fieldPosition, hfieldVarExact,
+    BoundGeneratedRecursorRule.binders, List.append_assoc] using hmajor
 
 /-- The validated recursive field determines the exact expected motive
 application in the final environment.  Its index targets and eta-expanded
@@ -3399,12 +4286,14 @@ theorem
   have hsemantic : F.semantic.current_context.venv =
       R.context.venv :=
     F.semantic.recent.venv_eq.trans
-      (A.semantics.context_venv.trans
-        H.recursorEnv)
-  have hsemanticRoot : A.semantics.context.venv =
+      (F.originExtension.venv_eq.trans <|
+        A.semantics.context_venv.trans
+        (H.recursorEnv))
+  have hsemanticRoot : F.originContext.venv =
       R.context.venv :=
-    A.semantics.context_venv.trans
-      H.recursorEnv
+    F.originExtension.venv_eq.trans <|
+      A.semantics.context_venv.trans
+      (H.recursorEnv)
   have Hindices := evidence.indices_translation
   rw [hsemantic] at Hindices
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
@@ -3654,8 +4543,10 @@ theorem
       hlocal, hfields, hcontext, Hsource, Htyped, Hforall⟩
   have howner : selectedOwner < H.recInfos.size := by
     simpa [selectedOwner, H.generated.length] using F.entry_lt
+  have hfieldClosed : A.rule.recursiveArgs[j].looseBVarRange' = 0 :=
+    F.semantic.fieldClosed
   have hsource := F.semantic.generated.outerAbstractedMotiveApp_eq
-    A.rule.all_args_bound.fvars
+    A.rule.all_args_bound.fvars hfieldClosed
   have hselectedMotive :
       (H.recInfos.map (·.motive))[selectedOwner]! =
         H.recInfos[selectedOwner]!.motive := by
@@ -3679,6 +4570,11 @@ theorem
   exact ⟨binding, evidence, localDomains, fieldDomains,
     hlocal, hfields, hcontext, Hsource, Htyped, Hforall⟩
 
+-/
+
+/- Obsolete contiguous expanded-context comparison.  It depended on the
+false call-origin/common-context identification removed above. -/
+/-
 /-- Move the unopened semantic local telescope through the narrowing context
 conversion and then close the expanded constructor fields.  The target is
 kept existential because context conversion may change its representatives;
@@ -3905,6 +4801,11 @@ theorem
     semanticTarget, htype, hfieldDomains, HexpandedRaw, Hsemantic,
     HfieldBase'⟩
 
+-/
+
+/- Obsolete sibling-context index closure.  Exact validated indices are now
+restricted by `narrowValidatedIndices` at their literal producer origin. -/
+/-
 /-- Pointwise field-closed form of the semantic recursive index spine.  Each
 index is first closed over the call-local higher-order arguments and then
 over the constructor fields, preserving the exact target list selected by
@@ -4038,6 +4939,8 @@ theorem
   exact ⟨binding, evidence, localDomains, fieldDomains,
     hlocal, hfields, hlength, HclosedIndices, Hscoped⟩
 
+-/
+
 /-- Domain-witness-free form of the source-scope conclusion above.  Once
 call locals and constructor fields are abstracted, recursive indices mention
 only the common inductive parameters; in particular they avoid every motive
@@ -4064,12 +4967,34 @@ theorem
             A.rule.all_args_bound.fvars
             F.semantic.generated.localArgs.size,
       FVarsIn (· ∈ ExprArrayFVarIds stats.params) source := by
-  let sourceIndices :=
-    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
-  rcases F.finalFieldAbstractedSemanticIndices with
-    ⟨_binding, _evidence, localDomains, _fieldDomains,
-      hlocal, _hfields, _hlength, _Hindices, Hscoped⟩
-  simpa [hlocal] using Hscoped
+  dsimp only
+  intro closedSource hclosedSource
+  rcases List.mem_map.mp hclosedSource with ⟨source, hsource, rfl⟩
+  have hsourceFull : source ∈
+      F.semantic.generated.exposedType.getAppArgsList := by
+    rw [← Expr.getAppArgs_toList]
+    change source ∈
+      (F.semantic.generated.exposedType.getAppArgs.toSubarray
+        stats.params.size).toList at hsource
+    rw [Subarray.toList_eq_drop_take,
+      Array.array_toSubarray] at hsource
+    exact List.mem_of_mem_take (List.mem_of_mem_drop hsource)
+  have Hsource := F.semantic.exposed_scope.getAppArgsList hsourceFull
+  have Hlocal := FVarsIn.abstractList_of
+    (selected := F.semantic.recent.fvars) (k := 0) Hsource
+  rw [F.root_scope] at Hlocal
+  have Hfield := FVarsIn.abstractList_of
+    (selected := A.semantics.fieldOpening.fvars)
+    (k := F.semantic.generated.localArgs.size) Hlocal
+  have hlocalFvars : F.semantic.recent.fvars =
+      F.semantic.generated.arguments_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+      F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+  have hopenFvars : A.semantics.fieldOpening.fvars =
+      A.rule.all_args_bound.fvars :=
+    A.semantics.fieldOpening.fvars_eq_bound A.rule.all_args_bound
+  simpa [hlocalFvars, hopenFvars] using Hfield
 
 /-- After closing call locals and constructor fields, the complete semantic
 motive application mentions only the common parameters and motive binders.
@@ -4142,12 +5067,15 @@ theorem
       refine ⟨source, ?_, rfl⟩
       rw [← Subarray.toList_toArray]
       exact Array.mem_toList_iff.mpr hsource
-  rcases F.finalAppliedMajorTarget with
-    ⟨_localDomains, _fieldDomains, fieldFVar, _fieldVar,
-      _hlocal, _hfields, _hfieldVar, hfieldEq, hfield,
-      _hfieldSource, _Hmajor, _htarget⟩
-  have hfieldRoot : fieldFVar ∈ A.rule.root.lctx.fvars :=
-    A.rule.all_args_bound.members fieldFVar hfield
+  rcases A.rule.recursive_args_bound.getElem_eq_fvar j hj with
+    ⟨hjFVars, hfieldEq⟩
+  let fieldFVar := A.rule.recursive_args_bound.fvars[j]
+  have hfield : fieldFVar ∈ A.rule.all_args_bound.fvars :=
+    A.rule.recursive_args_bound.fvars_subset_of_sublist
+      A.rule.all_args_bound A.rule.recursive_args_sublist
+      (List.getElem_mem hjFVars)
+  have hfieldRoot : fieldFVar ∈ F.originRoot.lctx.fvars :=
+    F.field_mem_originRoot hfield
   rcases F.semantic.generated.outerAbstractedMajor_eq_bvar_of_field_eq
       hfieldEq hfieldRoot A.rule.all_args_nodup hfield with
     ⟨fieldVar, _hfieldVarBound, _hfieldAbstract, hmajorShape⟩
@@ -4207,10 +5135,12 @@ theorem
       F.semantic.generated.exposedType.getAppArgs[stats.params.size:])
     (mkAppN A.rule.recursiveArgs[j]
       F.semantic.generated.localArgs)
+  have hfieldClosed : A.rule.recursiveArgs[j].looseBVarRange' = 0 :=
+    F.semantic.fieldClosed
   have hfields := F.semantic.generated.outerAbstractedMotiveApp_eq
-    A.rule.all_args_bound.fvars
+    A.rule.all_args_bound.fvars hfieldClosed
   have hfull := F.semantic.generated.outerAbstractedMotiveApp_eq
-    A.rule.binders
+    A.rule.binders hfieldClosed
   dsimp only at hfields hfull
   have happend := Expr.abstractList_after_inner
     (e := motiveApp.abstractList
@@ -4238,6 +5168,9 @@ theorem
   rw [hfields'] at happend
   exact happend.trans hfull'
 
+/- Obsolete cached-scope index restriction; the selected scope above is the
+native replacement. -/
+/-
 /-- Restrict every semantic recursive index to the replayed
 parameter/field/local scope while retaining its exact relationship to the
 target produced in the executable context.  This is the pointwise inverse
@@ -4301,9 +5234,29 @@ theorem
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
   let parameterDecls := H.parameterSuffix.parameterDecls
-  rcases F.finalSemanticMotiveApplication with
-    ⟨binding, evidence, hlength, Hindices, _Happlication, _Htyping,
-      _Hforall⟩
+  rcases F.semanticMotiveTelescopeEvidence with ⟨binding, ⟨evidence⟩⟩
+  have hrecInfo : selectedOwner < H.recInfos.size := by
+    simpa [selectedOwner, H.generated.length] using F.entry_lt
+  have htranslated :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      evidence.indices_translation
+  have hsourceArity := checkPositivityStep.getIIndices.index_arity
+    F.semantic.generated.owner_valid
+  have hrecArity := H.arities selectedOwner hrecInfo
+  have hlength : evidence.indices.length = F.telescope.indices.length := by
+    rw [F.telescope.indices_length, hrecArity]
+    simpa [AddInductive.getIIndices] using
+      htranslated.symm.trans hsourceArity
+  have hsemantic : F.semantic.current_context.venv =
+      R.context.venv :=
+    F.semantic.recent.venv_eq.trans
+      (F.originExtension.venv_eq.trans <|
+        A.semantics.context_venv.trans
+        (H.recursorEnv))
+  have Hindices := evidence.indices_translation
+  rw [hsemantic] at Hindices
+  have HindicesFinal := Lean4Lean.List.Forall₂.imp
+    (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
   rcases F.narrowLocalForallReplayFor B with
     ⟨scope, Hscope, hscopeFVars, hscopeBase,
       localDomains, hlocal, hfront, HforallReplay⟩
@@ -4368,11 +5321,13 @@ theorem
       rcases ih htailSubset with ⟨narrowTargets, Hnarrow, Heq⟩
       exact ⟨narrowTarget :: narrowTargets,
         .cons HnarrowTarget Hnarrow, .cons HtargetEq.symm Heq⟩
-  rcases hnarrow Hindices (by intro source; exact id) with
+  rcases hnarrow HindicesFinal (by intro source; exact id) with
     ⟨narrowIndices, HnarrowIndices, HindexEq⟩
   exact ⟨binding, evidence, scope, Hscope, hscopeFVars, hscopeBase,
     localDomains, hlocal, hfront, HforallReplay,
     narrowIndices, hlength, HnarrowIndices, HindexEq⟩
+
+-/
 
 /-- Replay the eta-expanded recursive field in the same narrow runtime scope
 used for its semantic indices.  The source contains only the selected
@@ -4393,7 +5348,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallRecursorFrame j hj)
     (scope : VLCtx)
-    (Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hscope : checkInductiveTypes.loopType.FVarNarrowCore
       H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       scope F.semantic.current_context.mlctx.vlctx)
     (hscopeFVars : scope.fvars =
@@ -4458,8 +5413,9 @@ theorem
   have hsemantic : F.semantic.current_context.venv =
       R.context.venv :=
     F.semantic.recent.venv_eq.trans
-      (A.semantics.context_venv.trans
-        H.recursorEnv)
+      (F.originExtension.venv_eq.trans <|
+        A.semantics.context_venv.trans
+        (H.recursorEnv))
   have Hmajor := F.semantic.applied_field_translation
   rw [hsemantic] at Hmajor
   have HmajorFinal := Hmajor.mono H.installed.le
@@ -4492,7 +5448,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallRecursorFrame j hj)
     (scope : VLCtx)
-    (Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hscope : checkInductiveTypes.loopType.FVarNarrowCore
       H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       scope F.semantic.current_context.mlctx.vlctx)
     (hscopeFVars : scope.fvars =
@@ -4527,8 +5483,9 @@ theorem
   have hsemantic : F.semantic.current_context.venv =
       R.context.venv :=
     F.semantic.recent.venv_eq.trans
-      (A.semantics.context_venv.trans
-        H.recursorEnv)
+      (F.originExtension.venv_eq.trans <|
+        A.semantics.context_venv.trans
+        (H.recursorEnv))
   have Hfull := F.semantic.exposed_translation
   have HfullType : F.semantic.current_context.venv.IsType Us.length
       F.semantic.current_context.mlctx.vlctx.toCtx
@@ -4569,7 +5526,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallRecursorFrame j hj)
     (scope : VLCtx)
-    (Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hscope : checkInductiveTypes.loopType.FVarNarrowCore
       H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       scope F.semantic.current_context.mlctx.vlctx)
     (hscopeFVars : scope.fvars =
@@ -4593,8 +5550,9 @@ theorem
   have hsemantic : F.semantic.current_context.venv =
       R.context.venv :=
     F.semantic.recent.venv_eq.trans
-      (A.semantics.context_venv.trans
-        H.recursorEnv)
+      (F.originExtension.venv_eq.trans <|
+        A.semantics.context_venv.trans
+        (H.recursorEnv))
   have HfullMajor := F.semantic.applied_field_translation
   have HfullExposed := F.semantic.exposed_translation
   have HfullMajorType : F.semantic.current_context.venv.HasType Us.length
@@ -4631,7 +5589,7 @@ theorem
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallRecursorFrame j hj)
     (scope : VLCtx)
-    (Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope
+    (Hscope : checkInductiveTypes.loopType.FVarNarrowCore
       H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       scope F.semantic.current_context.mlctx.vlctx)
     (hscopeFVars : scope.fvars =
@@ -4655,8 +5613,9 @@ theorem
   have hsemantic : F.semantic.current_context.venv =
       R.context.venv :=
     F.semantic.recent.venv_eq.trans
-      (A.semantics.context_venv.trans
-        H.recursorEnv)
+      (F.originExtension.venv_eq.trans <|
+        A.semantics.context_venv.trans
+        (H.recursorEnv))
   have HfullMajor := F.semantic.applied_field_translation
   have HfullExposed := F.semantic.exposed_translation
   have HfullMajorType : F.semantic.current_context.venv.HasType Us.length
@@ -4673,6 +5632,598 @@ theorem
     (HfullExposed.mono H.installed.le)
     (HfullMajorType.mono H.installed.le)
   exact ⟨narrowExposed, HnarrowExposed, Htyped⟩
+
+/-- Package every semantic argument of a generated recursive call in one
+dependency-selected scope.  Earlier recursive hypotheses may occur between
+the retained locals and constructor fields in the executable context; the
+`FVarNarrowScope` shift records those skips explicitly, so subsequent
+equation assembly never has to reconstruct a fictitious contiguous front. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.selectedSemanticCallArgumentFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+      ∃ rootScope,
+      ∃ Hroot : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us rootScope F.originContext.mlctx.vlctx,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+      ∃ (localDomains narrowIndices : List VExpr)
+          (narrowMajor narrowExposed : VExpr),
+        rootScope.fvars = A.semantics.fieldsRecent.fvars.reverse ++
+          H.parameterSuffix.parameterDecls.fvars ∧
+        scope.fvars = F.semantic.recent.fvars.reverse ++ rootScope.fvars ∧
+        scope.drop F.semantic.generated.localArgs.size = rootScope ∧
+        localDomains.length = F.semantic.generated.localArgs.size ∧
+        scope.toCtx = localDomains.reverse ++ rootScope.toCtx ∧
+        Hscope.shift = Hroot.shift.consN
+          F.semantic.generated.localArgs.size ∧
+        TrExprS H.outVEnv Us rootScope
+          (F.semantic.generated.current.lctx.mkForall
+            F.semantic.generated.localArgs (.sort .zero))
+          (VExpr.wrapForalls localDomains (.sort .zero)) ∧
+        H.outVEnv.IsType Us.length rootScope.toCtx
+          (VExpr.wrapForalls localDomains (.sort .zero)) ∧
+        evidence.indices.length = F.telescope.indices.length ∧
+        List.Forall₂ (TrExprS H.outVEnv Us scope)
+          sourceIndices narrowIndices ∧
+        TrExprS H.outVEnv Us scope
+          (mkAppN A.rule.recursiveArgs[j]
+            F.semantic.generated.localArgs) narrowMajor ∧
+        TrExprS H.outVEnv Us scope
+          F.semantic.generated.exposedType narrowExposed ∧
+        H.outVEnv.HasType Us.length scope.toCtx narrowMajor narrowExposed ∧
+        List.Forall₂
+          (fun narrow full => H.outVEnv.IsDefEqU Us.length
+            F.semantic.current_context.mlctx.vlctx.toCtx
+            (narrow.lift' Hscope.shift) full)
+          narrowIndices evidence.indices ∧
+        H.outVEnv.IsDefEqU Us.length
+          F.semantic.current_context.mlctx.vlctx.toCtx
+          F.semantic.appliedFieldTarget
+          (narrowMajor.lift' Hscope.shift) ∧
+        H.outVEnv.IsDefEqU Us.length
+          F.semantic.current_context.mlctx.vlctx.toCtx
+          (narrowExposed.lift' Hscope.shift) F.semantic.exposedTarget := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  rcases F.semanticMotiveTelescopeEvidence with ⟨binding, ⟨evidence⟩⟩
+  have hrecInfo : selectedOwner < H.recInfos.size := by
+    simpa [selectedOwner, H.generated.length] using F.entry_lt
+  have htranslated :=
+    Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      evidence.indices_translation
+  have hsourceArity := checkPositivityStep.getIIndices.index_arity
+    F.semantic.generated.owner_valid
+  have hrecArity := H.arities selectedOwner hrecInfo
+  have hlength : evidence.indices.length = F.telescope.indices.length := by
+    rw [F.telescope.indices_length, hrecArity]
+    simpa [AddInductive.getIIndices] using
+      htranslated.symm.trans hsourceArity
+  have hsemantic : F.semantic.current_context.venv =
+      R.context.venv :=
+    F.semantic.recent.venv_eq.trans
+      (F.originExtension.venv_eq.trans <|
+        A.semantics.context_venv.trans
+        (H.recursorEnv))
+  have Hindices := evidence.indices_translation
+  rw [hsemantic] at Hindices
+  have HindicesFinal := Lean4Lean.List.Forall₂.imp
+    (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
+  rcases F.currentNarrowScope with
+    ⟨rootScope, Hroot, scope, Hscope, hroot, hscope, hdrop,
+      localDomains, hlocal, hcontext, hshift, Hreplay⟩
+  have hzero : VLevel.ofLevel Us (.zero : Level) =
+      some (.zero : VLevel) := rfl
+  have Hzero : TrExprS H.outVEnv Us scope
+      (.sort (.zero : Level)) (.sort (.zero : VLevel)) := .sort hzero
+  have HzeroType : H.outVEnv.IsType Us.length scope.toCtx
+      (.sort (.zero : VLevel)) :=
+    ⟨.succ .zero, VEnv.HasType.sort (.of_ofLevel hzero)⟩
+  rcases Hreplay Hzero HzeroType with
+    ⟨HlocalTemplate, HlocalTemplateType⟩
+  have HsourceScope : ∀ source ∈ sourceIndices,
+      source.FVarsIn (fun fv =>
+        fv ∈ F.semantic.recent.fvars ∨ F.semantic.rootScope fv) := by
+    intro source hsource
+    have hsourceFull : source ∈
+        F.semantic.generated.exposedType.getAppArgsList := by
+      rw [← Expr.getAppArgs_toList]
+      change source ∈
+        (F.semantic.generated.exposedType.getAppArgs.toSubarray
+          stats.params.size).toList at hsource
+      rw [Subarray.toList_eq_drop_take,
+        Array.array_toSubarray] at hsource
+      exact List.mem_of_mem_take (List.mem_of_mem_drop hsource)
+    exact F.semantic.exposed_scope.getAppArgsList hsourceFull
+  have narrowIndicesFor : ∀ {sources : List Expr} {targets : List VExpr},
+      List.Forall₂
+          (TrExprS H.outVEnv Us F.semantic.current_context.mlctx.vlctx)
+          sources targets →
+      sources ⊆ sourceIndices →
+      ∃ narrowTargets,
+        List.Forall₂ (TrExprS H.outVEnv Us scope) sources narrowTargets ∧
+        List.Forall₂
+          (fun narrow full => H.outVEnv.IsDefEqU Us.length
+            F.semantic.current_context.mlctx.vlctx.toCtx
+            (narrow.lift' Hscope.shift) full)
+          narrowTargets targets := by
+    intro sources targets Htranslated hsubset
+    induction Htranslated with
+    | nil => exact ⟨[], .nil, .nil⟩
+    | @cons source target sources targets Hindex _ ih =>
+      have hsource : source ∈ sourceIndices :=
+        hsubset List.mem_cons_self
+      have Hsource := HsourceScope source hsource
+      have HsourceNarrow : source.FVarsIn (· ∈ scope.fvars) := by
+        apply Hsource.mono
+        intro fv hfv
+        rw [hscope, hroot,
+          H.parameterSuffix.parameterDecls_fvars]
+        have hopen : A.semantics.fieldOpening.fvars =
+            A.semantics.fieldsRecent.fvars :=
+          A.semantics.fieldOpening.fvars_eq_bound
+            A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+        rcases hfv with hlocalFv | hrootFv
+        · exact List.mem_append_left _ (List.mem_reverse.mpr hlocalFv)
+        · rw [F.root_scope] at hrootFv
+          rcases hrootFv with hfield | hparam
+          · apply List.mem_append_right
+            apply List.mem_append_left
+            rw [← hopen]
+            exact List.mem_reverse.mpr hfield
+          · apply List.mem_append_right
+            apply List.mem_append_right
+            exact List.mem_reverse.mpr hparam
+      have hclosed : Closed source 0 := by
+        have h := Hindex.closed
+        rw [F.semantic.current_context.mlctx.noBV] at h
+        exact h
+      rcases Hscope.restrictEq H.outVEnvWF Hindex hclosed HsourceNarrow with
+        ⟨narrowTarget, HnarrowTarget, HtargetEq⟩
+      have htailSubset : sources ⊆ sourceIndices := by
+        intro other hother
+        exact hsubset (List.mem_cons_of_mem source hother)
+      rcases ih htailSubset with ⟨narrowTargets, Hnarrow, Heq⟩
+      exact ⟨narrowTarget :: narrowTargets,
+        .cons HnarrowTarget Hnarrow, .cons HtargetEq.symm Heq⟩
+  rcases narrowIndicesFor HindicesFinal (List.Subset.refl sourceIndices) with
+    ⟨narrowIndices, HnarrowIndices, HindexEq⟩
+  have hscopeExact : scope.fvars =
+      F.semantic.recent.fvars.reverse ++
+        A.semantics.fieldsRecent.fvars.reverse ++
+          H.parameterSuffix.parameterDecls.fvars := by
+    rw [hscope, hroot, List.append_assoc]
+  rcases F.narrowSemanticAppliedMajor scope Hscope.toCore hscopeExact with
+    ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
+  rcases F.narrowSemanticAppliedMajorTypingFor scope Hscope.toCore hscopeExact
+      HnarrowMajor with
+    ⟨narrowExposed, HnarrowExposed, HnarrowTyping⟩
+  rcases F.narrowSemanticExposedType scope Hscope.toCore hscopeExact with
+    ⟨_otherExposed, _resultLevel, _HotherExposed, HexposedEq,
+      _HotherType⟩
+  have HnarrowExposedEq : H.outVEnv.IsDefEqU Us.length
+      F.semantic.current_context.mlctx.vlctx.toCtx
+      (narrowExposed.lift' Hscope.shift) F.semantic.exposedTarget := by
+    have hsemantic : F.semantic.current_context.venv =
+        R.context.venv :=
+      F.semantic.recent.venv_eq.trans
+        (F.originExtension.venv_eq.trans <|
+          A.semantics.context_venv.trans
+          (H.recursorEnv))
+    have Hfull := F.semantic.exposed_translation
+    rw [hsemantic] at Hfull
+    exact Hscope.fullTargetEq H.outVEnvWF HnarrowExposed
+      (Hfull.mono H.installed.le |>.trExpr H.outVEnvWF
+        (Hscope.context.symm H.outVEnvWF.ordered).wf)
+  exact ⟨binding, evidence, rootScope, Hroot, scope, Hscope,
+    localDomains, narrowIndices, narrowMajor, narrowExposed,
+    hroot, hscope, hdrop, hlocal, hcontext, hshift,
+    HlocalTemplate, HlocalTemplateType, hlength, HnarrowIndices, HnarrowMajor,
+    HnarrowExposed, HnarrowTyping,
+    HindexEq, HmajorEq, HnarrowExposedEq⟩
+
+/-- Close the complete dependency-selected call scope and split its target
+telescope after the common parameters.  This is the equation-facing form of
+`selectedSemanticCallArgumentFrame`: its source abstractions are literally
+the generated local/field/parameter abstractions, while its target domains
+come from the one selected semantic scope rather than an unrelated replay. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.closedSelectedSemanticCallArgumentFrame
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
+    (F : A.RecursiveCallRecursorFrame j hj) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let selectedOwner := F.semantic.generated.ownerIdx
+    let sourceIndices :=
+      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+    let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+    ∃ binding : RecursorMotiveBinding F.semantic.current_context
+        H.recInfos[selectedOwner]! H.elimLevel,
+      ∃ evidence : RecursorMotiveTelescopeEvidence
+          F.semantic.current_context stats H.recInfos[selectedOwner]!
+          binding F.semantic.generated.exposedType F.semantic.exposedTarget,
+      ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope F.semantic.current_context.mlctx.vlctx,
+      ∃ (parameterDomains fieldDomains localDomains narrowIndices : List VExpr)
+          (narrowMajor narrowExposed : VExpr),
+        scope.toCtx.reverse = parameterDomains ++ fieldDomains ++
+          localDomains ∧
+        parameterDomains.length = stats.params.size ∧
+        fieldDomains.length = A.rule.allArgs.size ∧
+        localDomains.length = F.semantic.generated.localArgs.size ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext (parameterDomains ++ fieldDomains) [])
+          (((F.semantic.generated.current.lctx.mkForall
+            F.semantic.generated.localArgs (.sort .zero)).abstractList
+              A.rule.all_args_bound.fvars).abstractList
+                A.rule.params_bound.fvars A.rule.allArgs.size)
+          (VExpr.wrapForalls localDomains (.sort .zero)) ∧
+        H.outVEnv.IsType Us.length
+          (abstractForallContext (parameterDomains ++ fieldDomains) []).toCtx
+          (VExpr.wrapForalls localDomains (.sort .zero)) ∧
+        OnCtx
+          (abstractForallContext
+            (parameterDomains ++ fieldDomains ++ localDomains) []).toCtx
+          (H.outVEnv.IsType Us.length) ∧
+        evidence.indices.length = F.telescope.indices.length ∧
+        List.Forall₂
+          (TrExprS H.outVEnv Us
+            (abstractForallContext
+              (parameterDomains ++ fieldDomains ++ localDomains) []))
+          (sourceIndices.map fun index =>
+            ((index.abstractList
+              F.semantic.generated.arguments_bound.fvars).abstractList
+                A.rule.all_args_bound.fvars
+                F.semantic.generated.localArgs.size).abstractList
+                  A.rule.params_bound.fvars cutoff)
+          narrowIndices ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            (parameterDomains ++ fieldDomains ++ localDomains) [])
+          ((F.semantic.generated.outerAbstractedMajor
+            A.rule.all_args_bound.fvars).abstractList
+              A.rule.params_bound.fvars cutoff) narrowMajor ∧
+        TrExprS H.outVEnv Us
+          (abstractForallContext
+            (parameterDomains ++ fieldDomains ++ localDomains) [])
+          (((F.semantic.generated.exposedType.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+              A.rule.all_args_bound.fvars
+              F.semantic.generated.localArgs.size).abstractList
+                A.rule.params_bound.fvars cutoff) narrowExposed ∧
+        H.outVEnv.HasType Us.length
+          (abstractForallContext
+            (parameterDomains ++ fieldDomains ++ localDomains) []).toCtx
+          narrowMajor narrowExposed ∧
+        List.Forall₂
+          (fun narrow full => H.outVEnv.IsDefEqU Us.length
+            F.semantic.current_context.mlctx.vlctx.toCtx
+            (narrow.lift' Hscope.shift) full)
+          narrowIndices evidence.indices ∧
+        H.outVEnv.IsDefEqU Us.length
+          F.semantic.current_context.mlctx.vlctx.toCtx
+          F.semantic.appliedFieldTarget
+          (narrowMajor.lift' Hscope.shift) := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let selectedOwner := F.semantic.generated.ownerIdx
+  let sourceIndices :=
+    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
+  let cutoff := F.semantic.generated.localArgs.size + A.rule.allArgs.size
+  rcases F.selectedSemanticCallArgumentFrame with
+    ⟨binding, evidence, rootScope, Hroot, scope, Hscope,
+      localDomains, narrowIndices, narrowMajor, narrowExposed,
+      hroot, hscope, _hdrop, hlocal, hscopeContext, _hshift,
+      HlocalTemplate, HlocalTemplateType, hlength,
+      Hindices, Hmajor, Hexposed, Htyping, HindexEq, HmajorEq,
+      _HexposedEq⟩
+  have hlocalFVars : F.semantic.recent.fvars =
+      F.semantic.generated.arguments_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      F.semantic.recent.toFreshBoundFVarArray.toBoundFVarArray
+      F.semantic.generated.arguments_bound.toBoundFVarArray rfl
+  have hfieldFVars : A.semantics.fieldsRecent.fvars =
+      A.rule.all_args_bound.fvars :=
+    BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl
+  have hparameterFVars : H.parameterSuffix.parameterDecls.fvars =
+      A.rule.params_bound.fvars.reverse := by
+    rw [H.parameterSuffix.parameterDecls_fvars,
+      A.rule.params_bound.exprArrayFVarIds]
+  have hscopeNames : scope.fvars.reverse =
+      A.rule.params_bound.fvars ++ A.rule.all_args_bound.fvars ++
+        F.semantic.generated.arguments_bound.fvars := by
+    rw [hscope, hroot, List.reverse_append, List.reverse_append,
+      hlocalFVars, hfieldFVars, hparameterFVars,
+      List.reverse_reverse]
+    simp [List.append_assoc]
+  have hscopeNamesNodup :
+      (A.rule.params_bound.fvars ++ A.rule.all_args_bound.fvars ++
+        F.semantic.generated.arguments_bound.fvars).Nodup := by
+    rw [← hscopeNames]
+    exact List.nodup_reverse.mpr (Hscope.scopeWF H.outVEnvWF).fvars_nodup
+  have hsourceShape : ∀ source : Expr,
+      source.abstractList scope.fvars.reverse =
+        ((source.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size).abstractList
+              A.rule.params_bound.fvars cutoff := by
+    intro source
+    have hallNodup :
+        (A.rule.params_bound.fvars ++
+          (A.rule.all_args_bound.fvars ++
+            F.semantic.generated.arguments_bound.fvars)).Nodup := by
+      simpa [List.append_assoc] using hscopeNamesNodup
+    have hfieldsLocalsNodup :
+        (A.rule.all_args_bound.fvars ++
+          F.semantic.generated.arguments_bound.fvars).Nodup :=
+      (List.nodup_append.mp hallNodup).2.1
+    have hfirst := Expr.abstractList_after_inner
+      (e := source) (outer := A.rule.all_args_bound.fvars)
+      (inner := F.semantic.generated.arguments_bound.fvars) (k := 0)
+      hfieldsLocalsNodup
+    have hsecond := Expr.abstractList_after_inner
+      (e := source) (outer := A.rule.params_bound.fvars)
+      (inner := A.rule.all_args_bound.fvars ++
+        F.semantic.generated.arguments_bound.fvars) (k := 0)
+      hallNodup
+    have hlocalLength :
+        F.semantic.generated.arguments_bound.fvars.length =
+          F.semantic.generated.localArgs.size :=
+      F.semantic.generated.arguments_bound.length_fvars
+    have hfieldLength : A.rule.all_args_bound.fvars.length =
+        A.rule.allArgs.size := A.rule.all_args_bound.length_fvars
+    rw [hlocalLength] at hfirst
+    rw [← hfirst] at hsecond
+    simpa [cutoff, hscopeNames, hlocalLength, hfieldLength,
+      Nat.add_comm, List.append_assoc] using hsecond.symm
+  have closeSource : ∀ {source : Expr} {target : VExpr},
+      TrExprS H.outVEnv Us scope source target →
+      TrExprS H.outVEnv Us
+        (abstractForallContext scope.toCtx.reverse [])
+        (((source.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size).abstractList
+              A.rule.params_bound.fvars cutoff) target := by
+    intro source target Hsource
+    have Hclosed := Hscope.abstractAll H.outVEnvWF Hsource
+    rw [hsourceShape source] at Hclosed
+    exact Hclosed
+  have closeSources : ∀ {sources : List Expr} {targets : List VExpr},
+      List.Forall₂ (TrExprS H.outVEnv Us scope) sources targets →
+      List.Forall₂
+        (TrExprS H.outVEnv Us
+          (abstractForallContext scope.toCtx.reverse []))
+        (sources.map fun source =>
+          ((source.abstractList
+            F.semantic.generated.arguments_bound.fvars).abstractList
+              A.rule.all_args_bound.fvars
+              F.semantic.generated.localArgs.size).abstractList
+                A.rule.params_bound.fvars cutoff)
+        targets := by
+    intro sources targets Hsources
+    induction Hsources with
+    | nil => exact .nil
+    | cons Hhead _ ih => exact .cons (closeSource Hhead) ih
+  have HclosedIndices := closeSources Hindices
+  have HclosedMajor := closeSource Hmajor
+  have HclosedExposed := closeSource Hexposed
+  let sourceMajor := mkAppN A.rule.recursiveArgs[j]
+    F.semantic.generated.localArgs
+  have hlocalAbstract :
+      F.semantic.generated.localArgs.map (fun arg => arg.abstractList
+        F.semantic.generated.arguments_bound.fvars) =
+      (List.ofFn (fun index :
+          Fin F.semantic.generated.arguments_bound.fvars.length =>
+        Expr.bvar
+          (F.semantic.generated.arguments_bound.fvars.length - 1 - index)
+        )).toArray := by
+    calc
+      F.semantic.generated.localArgs.map (fun arg => arg.abstractList
+          F.semantic.generated.arguments_bound.fvars) =
+          ((F.semantic.generated.arguments_bound.fvars.map Expr.fvar).toArray.map
+            fun arg => arg.abstractList
+              F.semantic.generated.arguments_bound.fvars) := by
+        exact congrArg (Array.map fun arg => arg.abstractList
+          F.semantic.generated.arguments_bound.fvars)
+            F.semantic.generated.arguments_bound.expressions
+      _ = _ := by
+        simpa using Expr.abstractList_fvarArray
+          F.semantic.generated.arguments_bound.fvars 0
+          F.semantic.generated.arguments_bound.nodup
+  have hmajorLocal : sourceMajor.abstractList
+      F.semantic.generated.arguments_bound.fvars =
+      F.semantic.generated.abstractedMajor := by
+    have hfieldClosed : A.rule.recursiveArgs[j].looseBVarRange' = 0 := by
+      have hclosed := F.semantic.field_translation.closed
+      rw [F.originContext.mlctx.noBV] at hclosed
+      exact hclosed.looseBVarRange_zero
+    calc
+      sourceMajor.abstractList F.semantic.generated.arguments_bound.fvars =
+          mkAppN
+            (A.rule.recursiveArgs[j].abstractList
+              F.semantic.generated.arguments_bound.fvars)
+            (List.ofFn (fun index :
+              Fin F.semantic.generated.arguments_bound.fvars.length =>
+                Expr.bvar
+                  (F.semantic.generated.arguments_bound.fvars.length - 1 -
+                    index))).toArray := by
+        unfold sourceMajor
+        rw [Expr.abstractList_mkAppN, hlocalAbstract]
+      _ = F.semantic.generated.abstractedMajor :=
+        (F.semantic.generated.abstractedMajor_eq_of_closed
+          hfieldClosed).symm
+  rw [show mkAppN A.rule.recursiveArgs[j]
+      F.semantic.generated.localArgs = sourceMajor from rfl,
+    hmajorLocal] at HclosedMajor
+  let rootDomains := rootScope.toCtx.reverse
+  let parameterDomains := rootDomains.take stats.params.size
+  let fieldDomains := rootDomains.drop stats.params.size
+  have hrootLength : rootDomains.length =
+      stats.params.size + A.rule.allArgs.size := by
+    calc
+      rootDomains.length = rootScope.toCtx.length := by simp [rootDomains]
+      _ = rootScope.length := Hroot.toCtx_length
+      _ = rootScope.fvars.length := Hroot.fvars_length.symm
+      _ = rootScope.fvars.reverse.length := by simp
+      _ = _ := by
+        rw [hroot, List.reverse_append, hfieldFVars, hparameterFVars,
+          List.reverse_reverse]
+        simp [A.rule.params_bound.length_fvars,
+          A.rule.all_args_bound.length_fvars, Nat.add_comm]
+  have hparamsLE : stats.params.size ≤ rootDomains.length := by omega
+  have hparameters : parameterDomains.length = stats.params.size := by
+    simp [parameterDomains, List.length_take, Nat.min_eq_left hparamsLE]
+  have hfields : fieldDomains.length = A.rule.allArgs.size := by
+    simp only [fieldDomains, List.length_drop]
+    rw [hrootLength]
+    omega
+  have hrootDomains : rootDomains = parameterDomains ++ fieldDomains :=
+    (List.take_append_drop stats.params.size rootDomains).symm
+  have hall : scope.toCtx.reverse =
+      parameterDomains ++ fieldDomains ++ localDomains := by
+    rw [hscopeContext, List.reverse_append, List.reverse_reverse,
+      ← hrootDomains]
+  have hrootContext :
+      (abstractForallContext (parameterDomains ++ fieldDomains) []).toCtx =
+        rootScope.toCtx := by
+    rw [← hrootDomains]
+    simp [rootDomains, abstractForallContext_toCtx, VLCtx.toCtx]
+  have hcontext :
+      (abstractForallContext
+        (parameterDomains ++ fieldDomains ++ localDomains) []).toCtx =
+        scope.toCtx := by
+    rw [← hall]
+    simp [abstractForallContext_toCtx, VLCtx.toCtx]
+  have hrootNames : rootScope.fvars.reverse =
+      A.rule.params_bound.fvars ++ A.rule.all_args_bound.fvars := by
+    calc
+      rootScope.fvars.reverse =
+          (A.semantics.fieldsRecent.fvars.reverse ++
+            H.parameterSuffix.parameterDecls.fvars).reverse := by rw [hroot]
+      _ = H.parameterSuffix.parameterDecls.fvars.reverse ++
+          A.semantics.fieldsRecent.fvars := by simp
+      _ = A.rule.params_bound.fvars ++
+          A.rule.all_args_bound.fvars := by
+        rw [hparameterFVars, hfieldFVars, List.reverse_reverse]
+  have hrootNamesNodup :
+      (A.rule.params_bound.fvars ++ A.rule.all_args_bound.fvars).Nodup := by
+    rw [← hrootNames]
+    exact List.nodup_reverse.mpr
+      (Hroot.scopeWF H.outVEnvWF).fvars_nodup
+  let rawLocalForall := F.semantic.generated.current.lctx.mkForall
+    F.semantic.generated.localArgs (.sort .zero)
+  have HclosedLocalTemplate₀ := Hroot.abstractAll
+    H.outVEnvWF HlocalTemplate
+  have hlocalSource : rawLocalForall.abstractList rootScope.fvars.reverse =
+      ((rawLocalForall.abstractList
+        A.rule.all_args_bound.fvars).abstractList
+          A.rule.params_bound.fvars A.rule.allArgs.size) := by
+    have happend := Expr.abstractList_after_inner
+      (e := rawLocalForall) (outer := A.rule.params_bound.fvars)
+      (inner := A.rule.all_args_bound.fvars) (k := 0) hrootNamesNodup
+    simpa [hrootNames, A.rule.all_args_bound.length_fvars] using happend.symm
+  have HclosedLocalTemplate : TrExprS H.outVEnv Us
+      (abstractForallContext (parameterDomains ++ fieldDomains) [])
+      (((F.semantic.generated.current.lctx.mkForall
+        F.semantic.generated.localArgs (.sort .zero)).abstractList
+          A.rule.all_args_bound.fvars).abstractList
+            A.rule.params_bound.fvars A.rule.allArgs.size)
+      (VExpr.wrapForalls localDomains (.sort .zero)) := by
+    rw [← hrootDomains]
+    simpa [rootDomains, rawLocalForall, hlocalSource] using
+      HclosedLocalTemplate₀
+  have HclosedLocalTemplateType : H.outVEnv.IsType Us.length
+      (abstractForallContext (parameterDomains ++ fieldDomains) []).toCtx
+      (VExpr.wrapForalls localDomains (.sort .zero)) := by
+    rw [hrootContext]
+    exact HlocalTemplateType
+  have HclosedIndices' : List.Forall₂
+      (TrExprS H.outVEnv Us
+        (abstractForallContext
+          (parameterDomains ++ fieldDomains ++ localDomains) []))
+      (sourceIndices.map fun index =>
+        ((index.abstractList
+          F.semantic.generated.arguments_bound.fvars).abstractList
+            A.rule.all_args_bound.fvars
+            F.semantic.generated.localArgs.size).abstractList
+              A.rule.params_bound.fvars cutoff)
+      narrowIndices := by
+    rw [← hall]
+    exact HclosedIndices
+  have HclosedMajor' : TrExprS H.outVEnv Us
+      (abstractForallContext
+        (parameterDomains ++ fieldDomains ++ localDomains) [])
+      ((F.semantic.generated.outerAbstractedMajor
+        A.rule.all_args_bound.fvars).abstractList
+          A.rule.params_bound.fvars cutoff) narrowMajor := by
+    rw [← hall]
+    simpa [BoundGeneratedRecursiveCall.outerAbstractedMajor] using HclosedMajor
+  have HclosedExposed' : TrExprS H.outVEnv Us
+      (abstractForallContext
+        (parameterDomains ++ fieldDomains ++ localDomains) [])
+      (((F.semantic.generated.exposedType.abstractList
+        F.semantic.generated.arguments_bound.fvars).abstractList
+          A.rule.all_args_bound.fvars
+          F.semantic.generated.localArgs.size).abstractList
+            A.rule.params_bound.fvars cutoff) narrowExposed := by
+    rw [← hall]
+    exact HclosedExposed
+  have HclosedCtx : OnCtx
+      (abstractForallContext
+        (parameterDomains ++ fieldDomains ++ localDomains) []).toCtx
+      (H.outVEnv.IsType Us.length) := by
+    rw [hcontext]
+    exact (Hscope.scopeWF H.outVEnvWF).toCtx
+  have HclosedTyping : H.outVEnv.HasType Us.length
+      (abstractForallContext
+        (parameterDomains ++ fieldDomains ++ localDomains) []).toCtx
+      narrowMajor narrowExposed := by
+    rw [hcontext]
+    exact Htyping
+  refine ⟨binding, evidence, scope, Hscope, parameterDomains,
+    fieldDomains, localDomains, narrowIndices, narrowMajor, narrowExposed, ?_,
+    hparameters, hfields, hlocal, HclosedLocalTemplate,
+    HclosedLocalTemplateType, HclosedCtx, hlength, ?_, ?_, ?_,
+    HclosedTyping, HindexEq, HmajorEq⟩
+  · exact hall
+  · exact HclosedIndices'
+  · exact HclosedMajor'
+  · exact HclosedExposed'
 
 /-- The replayed narrow front is exactly the constructor fields followed by
 the higher-order call arguments, in source-binder order.  This packages the

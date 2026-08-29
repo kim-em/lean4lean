@@ -10,6 +10,8 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+open checkInductiveTypes.loopType
+
 /-- Recover the exact source construction behind this rule's flattened minor
 domain.  In particular, the retained second-pass shape names the same source
 family and constructor slot as rule generation, rather than merely occupying
@@ -71,6 +73,7 @@ theorem
                 BindingContextLE S.sourceFullContext H.localContext ∧
                 traversal.recursivePositions =
                   A.semantics.recursivePositions ∧
+                A.producerMinorShape = S ∧
                 let sourceBinders := H.params.fvars ++
                   H.bindings.motives.fvars ++
                     H.bindings.flatMinors.fvars.take minorIdx
@@ -163,11 +166,11 @@ theorem
         H.parameterSuffix.parameterDecls) := by
     simpa [S] using
       H.minorSemantics O.owner O.owner_lt O.localIndex hshapeBound
-  rcases A.originEvidence with ⟨P⟩
+  let P := A.producerOrigin
   have hshapeCanonical :
       H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound =
-        H.origins.minorShapes owner P.owner_lt i P.local_lt :=
-    H.origins.minorShapes_congr hposition.1 O.owner_lt P.owner_lt
+        H.origins.minorShapes owner P.owner_lt i P.local_lt := by
+    exact H.origins.minorShapes_congr hposition.1 O.owner_lt P.owner_lt
       hposition.2 hshapeBound P.local_lt
   have hproducerShape : P.producer.minorShape = S :=
     P.shape_eq.trans hshapeCanonical.symm
@@ -187,7 +190,7 @@ theorem
     htraversalFields, htraversalRecursiveFields, hstats, hvalid,
     hmotiveApp,
     hrootContext,
-    hterminalContext, hsourceContext, hpositions,
+    hterminalContext, hsourceContext, hpositions, hproducerShape,
     Hdomain, HdomainType⟩
 
 /-- The constructor target retained by the earlier minor-generation pass and
@@ -230,6 +233,7 @@ theorem
       htraversalConstructor, htraversalFields,
       _htraversalRecursiveFields, hstats, hvalid, hmotiveApp,
       _hrootContext, _hterminalContext, _hsourceContext, _hpositions,
+      _hproducerShape,
       _Hdomain, _HdomainType⟩
   have hprefixTraversal := traversal.parameterPrefix
   rw [hstats, htraversalConstructor, hconstructor] at hprefixTraversal
@@ -941,7 +945,8 @@ theorem
       _htraversalFields, htraversalRecursiveFields, hstats, _hvalid,
       _hmotiveApp,
       _hrootContext,
-      hterminalContext, hsourceContext, hpositions, _Hdomain, _HdomainType⟩
+      hterminalContext, hsourceContext, hpositions, _hproducerShape,
+      _Hdomain, _HdomainType⟩
   rcases Hsemantic with ⟨HS⟩
   have hsemanticTraversal : HS.semantic.traversal = traversal := by
     exact Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
@@ -994,7 +999,8 @@ theorem
       _htraversalFields, htraversalRecursiveFields, hstats, _hvalid,
       _hmotiveApp,
       _hrootContext,
-      hterminalContext, _hsourceContext, hpositions, Hdomain, _HdomainType⟩
+      hterminalContext, _hsourceContext, hpositions, _hproducerShape,
+      Hdomain, _HdomainType⟩
   rcases Hsemantic with ⟨HS⟩
   have hsemanticTraversal : HS.semantic.traversal = traversal := by
     exact Option.some.inj (HS.semantic.traversal_eq.symm.trans _htraversal)
@@ -1109,6 +1115,7 @@ theorem
         BindingContextLE S.sourceFullContext H.localContext ∧
         Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
           H.parameterSuffix.parameterDecls) ∧
+        A.producerMinorShape = S ∧
         let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
           H.bindings.flatMinors.fvars.take minorIdx
         Expr.ForallTelescopeTypeTranslation H.outVEnv Us
@@ -1126,7 +1133,8 @@ theorem
       htraversalFields, htraversalRecursiveFields, hstats, _hvalid,
       _hmotiveApp,
       _hrootContext,
-      hterminalContext, hsourceContext, hpositions, Hdomain, HdomainType⟩
+      hterminalContext, hsourceContext, hpositions, hproducerShape,
+      Hdomain, HdomainType⟩
   rcases Hsemantic with ⟨HS⟩
   have hsemanticTraversal : HS.semantic.traversal = traversal := by
     exact Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
@@ -1157,6 +1165,7 @@ theorem
     hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
     htraversalRecursiveFields, hstats, hparameterTail, hpositions,
     hlocal, hfieldCount, hhypotheses, hsourceContext, ⟨HS⟩,
+    hproducerShape,
     Expr.ForallTelescopeTypeTranslation.ofTrExprS
       Habstract Hdomain' HdomainType⟩
 /-- Independently replay the complete selected-minor telescope in the exact
@@ -1240,7 +1249,8 @@ theorem
       _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
       htraversal, _htraversalFields, _htraversalRecursiveFields,
       _htraversalStats, hparameterTail, _hpositions, _hlocal,
-      hfields, hhypotheses, _hsourceContext, Hsemantic, Hinstalled⟩
+      hfields, hhypotheses, _hsourceContext, Hsemantic, _hproducerShape,
+      Hinstalled⟩
   rcases Hsemantic with ⟨HS⟩
   have hsemanticTraversal : HS.semantic.traversal = traversal :=
     Option.some.inj (HS.semantic.traversal_eq.symm.trans htraversal)
@@ -1824,6 +1834,7 @@ theorem
           BindingContextLE S.sourceFullContext H.localContext ∧
           Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
             H.parameterSuffix.parameterDecls) ∧
+          A.producerMinorShape = S ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -1858,7 +1869,7 @@ theorem
       htraversalFields, htraversalRecursiveFields, htraversalStats,
       hparameterTail, hpositions,
       hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
-      HminorSemantic, Htyped⟩
+      HminorSemantic, hproducerShape, Htyped⟩
   rcases Htyped.toWrapForalls with
     ⟨domains, sourceResidual, targetResidual, hlength,
       Hsource, htarget, Hresidual, HresidualType⟩
@@ -1879,7 +1890,7 @@ theorem
     htraversalFields, htraversalRecursiveFields, htraversalStats,
     hparameterTail, hpositions,
     hlocal, hsourceFields, hsourceHypotheses, hsourceContext, HminorSemantic,
-    hfields, hhypotheses, htarget, Hsource, Hresidual,
+    hproducerShape, hfields, hhypotheses, htarget, Hsource, Hresidual,
     HresidualType, Htyped⟩
 
 /-- In the positive-arity case annotation consumption cannot change the
@@ -1947,7 +1958,7 @@ theorem
       htraversal, _htraversalFields, _htraversalRecursiveFields,
       _htraversalStats, hparameterTail, _hpositions, hlocal,
       hsourceFields, hsourceHypotheses, _hsourceContext,
-      ⟨HS⟩, hfields, hhypotheses, htarget, Hsource, Hresidual,
+      ⟨HS⟩, _hproducerShape, hfields, hhypotheses, htarget, Hsource, Hresidual,
       HresidualType, _Htyped⟩
   have hconsume := S.sourceTelescope.consumeTypeAnnotationsVerified_eq_self_of_pos
     (by simpa [hsourceFields, hsourceHypotheses] using hpositive)
@@ -2051,8 +2062,8 @@ theorem
       _hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
       traversal, htraversal, htraversalConstructor, htraversalFields,
       htraversalRecursiveFields, htraversalStats, hvalid, hmotiveApp,
-      _hrootContext, hterminalContext, _hsourceContext, hpositions, Hdomain,
-      HdomainType⟩
+      _hrootContext, hterminalContext, _hsourceContext, hpositions,
+      _hproducerShape, Hdomain, HdomainType⟩
   have hprefixTraversal := traversal.parameterPrefix
   rw [htraversalStats, htraversalConstructor, hconstructor] at hprefixTraversal
   have hparameterTail :
@@ -2787,7 +2798,7 @@ theorem
       _hlocal, _hsourceFields, _hsourceHypotheses,
       _hsourceContext,
       _HminorSemantic,
-      hfields, hhypotheses, htarget, _Hsource, _Hresidual,
+      _hproducerShape, hfields, hhypotheses, htarget, _Hsource, _Hresidual,
       _HresidualType, Htyped⟩
   let minorIdx := recursorMinorOffset indTypes owner + i
   let base := T.params ++ T.motives ++ T.minors.take minorIdx
@@ -3381,6 +3392,7 @@ theorem
           BindingContextLE S.sourceFullContext H.localContext ∧
           Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
             H.parameterSuffix.parameterDecls) ∧
+          A.producerMinorShape = S ∧
           fieldDomains.length = A.rule.allArgs.size ∧
           hypothesisDomains.length = A.rule.recursiveArgs.size ∧
           T.minors[minorIdx]! = VExpr.wrapForalls
@@ -3411,7 +3423,7 @@ theorem
       htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
       hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
       HminorSemantic,
-      hfields, hhypotheses, htarget, _Hsource, _Hresidual,
+      hproducerShape, hfields, hhypotheses, htarget, _Hsource, _Hresidual,
       _HresidualType, Htyped⟩
   let position := A.rule.allArgs.size + j
   have hposition : position <
@@ -3448,7 +3460,7 @@ theorem
     htraversalFields, htraversalRecursiveFields, htraversalStats,
     hparameterTail, hpositions,
     hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
-    HminorSemantic, hfields, hhypotheses, htarget, Hbinder, Hdomain,
+    HminorSemantic, hproducerShape, hfields, hhypotheses, htarget, Hbinder, Hdomain,
     HdomainType⟩
 
 /-- Identify the source side of the selected recursive-hypothesis translation
@@ -3502,6 +3514,7 @@ theorem
             BindingContextLE S.sourceFullContext H.localContext ∧
             Nonempty (RecInfoMinorSemanticSourceAt H.recursorWF S
               H.parameterSuffix.parameterDecls) ∧
+            A.producerMinorShape = S ∧
             fieldDomains.length = A.rule.allArgs.size ∧
             hypothesisDomains.length = A.rule.recursiveArgs.size ∧
             T.minors[minorIdx]! = VExpr.wrapForalls
@@ -3531,11 +3544,14 @@ theorem
                   (T.params ++ T.motives ++ T.minors.take minorIdx) [])).toCtx
               hypothesisDomains[j]! ∧
             ∃ originRoot sourceType,
-              Nonempty (RecInfoMinorHypothesisTypeOrigin
+              ∃ O : RecInfoMinorHypothesisTypeOrigin
                 hypothesisOrigins.stats hypothesisOrigins.recInfos
-                originRoot S.recursiveFields[j]! sourceType) ∧
+                originRoot S.recursiveFields[j]! sourceType,
               D.type = sourceType.consumeTypeAnnotationsVerified ∧
-              D.type = sourceType := by
+              D.type = sourceType ∧
+              O.replayTrace S.fields_bound.fvars =
+                (A.producerReplayAt j hj).semantic.generated.replayTrace
+                  A.rule.all_args_bound.fvars := by
   dsimp only
   rcases A.finalSelectedMinorHypothesisDomainAt j hj with
     ⟨T, S, hypothesisOrigins, traversal, fieldDomains, hypothesisDomains,
@@ -3544,28 +3560,31 @@ theorem
       htraversalRecursiveFields, htraversalStats, hparameterTail, hpositions,
       hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
       HminorSemantic,
-      hfields, hhypotheses, htarget, Hbinder, Hdomain, HdomainType⟩
-  have hjSource : j < S.hypotheses.size := by
-    rw [hsourceHypotheses]
-    exact hj
-  rcases S.hypotheses_bound.declarationAt S.sourceFullWF j hjSource with
-    ⟨D⟩
-  rcases hypothesisOrigins.entry j hjSource with
-    ⟨originRoot, sourceType, _HfieldRoot, HtypeOrigin, Dorigin,
-      htypeOrigin⟩
-  have hdeclarationType : D.type = sourceType.consumeTypeAnnotationsVerified :=
-    (D.type_unique Dorigin).trans htypeOrigin
-  rcases HtypeOrigin with ⟨O⟩
+      hproducerShape, hfields, hhypotheses, htarget, Hbinder, Hdomain,
+      HdomainType⟩
+  subst S
+  let P := A.producerReplayAt j hj
+  have horigins : hypothesisOrigins = P.hypothesisOrigins :=
+    Option.some.inj (hhypothesisOrigins.symm.trans P.hypothesisOrigins_eq)
+  subst hypothesisOrigins
+  let D := P.sourceDeclaration
+  let originRoot := P.sourceOriginRoot
+  let sourceType := P.sourceType
+  let O := P.sourceOrigin
+  have hdeclarationType : D.type =
+      sourceType.consumeTypeAnnotationsVerified :=
+    P.sourceDeclaration_type
   have hdeclarationTypeExact : D.type = sourceType :=
     hdeclarationType.trans O.consumeTypeAnnotationsVerified_eq_self
-  have hjRecursiveFields : j < S.recursiveFields.size := by
-    rw [← S.hypotheses_size, hsourceHypotheses]
+  have hjRecursiveFields : j < A.producerMinorShape.recursiveFields.size := by
+    rw [← A.producerMinorShape.hypotheses_size, hsourceHypotheses]
     exact hj
   have hjTraversal : j < traversal.recursiveFields.size := by
     rw [htraversalRecursiveFields]
     exact hjRecursiveFields
-  have hsourceSelected : S.recursiveFields[j]! =
-      S.fields[A.semantics.recursivePositions[j]!]! := by
+  have hsourceSelected : A.producerMinorShape.recursiveFields[j]! =
+      A.producerMinorShape.fields[
+        A.semantics.recursivePositions[j]!]! := by
     have Hselected := traversal.decisions.selected_at j hjTraversal
     rw [htraversalRecursiveFields, htraversalFields, hpositions] at Hselected
     exact Hselected.2
@@ -3578,29 +3597,31 @@ theorem
   let position := A.rule.allArgs.size + j
   let declarationDomain :=
     ((D.type.abstractList
-        (S.hypotheses_bound.fvars.take j)).abstractList
-      S.fields_bound.fvars j).abstractList sourceBinders position
+        (A.producerMinorShape.hypotheses_bound.fvars.take j)).abstractList
+      A.producerMinorShape.fields_bound.fvars j).abstractList
+        sourceBinders position
   have HdeclarationBinder :=
-    (S.hypothesisBinderAt D).abstractList sourceBinders
+    (A.producerMinorShape.hypothesisBinderAt D).abstractList sourceBinders
   simp only [Nat.zero_add] at HdeclarationBinder
   rw [hsourceFields] at HdeclarationBinder
   have HdeclarationBinder' : Expr.ForallBinderAt
-      (S.origin.abstractList sourceBinders) position declarationDomain := by
+      (A.producerMinorShape.origin.abstractList sourceBinders)
+        position declarationDomain := by
     exact HdeclarationBinder
   have hsourceDomain : sourceDomain = declarationDomain :=
     Hbinder.unique HdeclarationBinder'
   rw [hsourceDomain] at Hdomain
-  exact ⟨T, S, hypothesisOrigins, traversal, fieldDomains,
+  exact ⟨T, A.producerMinorShape, P.hypothesisOrigins, traversal, fieldDomains,
     hypothesisDomains, targetResidual, D,
     hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
     htraversalFields, htraversalRecursiveFields, htraversalStats,
     hparameterTail, hpositions,
     hsourceSelected, hruleSelected,
     hlocal, hsourceFields, hsourceHypotheses, hsourceContext,
-    HminorSemantic, hfields, hhypotheses,
+    HminorSemantic, rfl, hfields, hhypotheses,
     htarget, HdeclarationBinder', Hdomain, HdomainType,
-    originRoot, sourceType, ⟨O⟩, hdeclarationType,
-    hdeclarationTypeExact⟩
+    originRoot, sourceType, O, hdeclarationType,
+    hdeclarationTypeExact, P.replay⟩
 
 /-- Interpret the exact first-pass recursive-hypothesis declaration in the
 completed verified recursor context.  The declaration is first transported
@@ -3650,9 +3671,10 @@ theorem
       _htraversal, _htraversalFields, _htraversalRecursiveFields,
       _htraversalStats, _hparameterTail, _hpositions,
       _hsourceSelected, _hruleSelected, hlocal, hfields, hhypotheses,
-      hsourceContext, HminorSemantic, _hfieldDomains, _hhypothesisDomains, _htarget,
-      _Hbinder, _Hdomain, _HdomainType, originRoot, sourceType, ⟨O⟩,
-      _hconsumed, htype⟩
+      hsourceContext, HminorSemantic, _hproducerShape, _hfieldDomains,
+      _hhypothesisDomains, _htarget,
+      _Hbinder, _Hdomain, _HdomainType, originRoot, sourceType, O,
+      _hconsumed, htype, _hreplay⟩
   rcases HminorSemantic with ⟨HS⟩
   rcases HS.semantic.sourceWF.translatedDeclarationType D with
     ⟨sourceTarget, HsourceTarget⟩

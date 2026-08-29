@@ -1610,6 +1610,46 @@ inductive SameTelescopeDomains : Nat → VExpr → VExpr → Prop
       SameTelescopeDomains (arity + 1)
         (.forallE domain left) (.forallE domain right)
 
+/-- Two types expose the same number of forall binders, without requiring
+their dependent domains to be literally identical.  This is the shape
+relation used when an installed constructor parameter telescope is only
+definitionally equal to the corresponding family telescope. -/
+inductive SameTelescopeArity : Nat → VExpr → VExpr → Prop
+  | zero (left right : VExpr) : SameTelescopeArity 0 left right
+  | succ (leftDomain rightDomain left right : VExpr) {arity : Nat} :
+      SameTelescopeArity arity left right →
+      SameTelescopeArity (arity + 1)
+        (.forallE leftDomain left) (.forallE rightDomain right)
+
+theorem SameTelescopeArity.instN
+    (H : SameTelescopeArity arity left right)
+    (value : VExpr) (k : Nat) :
+    SameTelescopeArity arity (left.inst value k) (right.inst value k) := by
+  induction H generalizing k with
+  | zero => exact .zero _ _
+  | @succ leftDomain rightDomain left right arity H ih =>
+      apply SameTelescopeArity.succ
+      simpa [VExpr.inst] using ih (k + 1)
+
+theorem SameTelescopeArity.wrapForalls
+    (leftDomains rightDomains : List VExpr)
+    (hlen : leftDomains.length = rightDomains.length)
+    (left right : VExpr) :
+    SameTelescopeArity leftDomains.length
+      (VExpr.wrapForalls leftDomains left)
+      (VExpr.wrapForalls rightDomains right) := by
+  induction leftDomains generalizing rightDomains with
+  | nil =>
+    have hright : rightDomains = [] := List.eq_nil_of_length_eq_zero hlen.symm
+    subst rightDomains
+    exact .zero _ _
+  | cons leftDomain leftDomains ih =>
+    cases rightDomains with
+    | nil => simp at hlen
+    | cons rightDomain rightDomains =>
+      apply SameTelescopeArity.succ
+      exact ih rightDomains (by simpa using Nat.succ.inj hlen)
+
 theorem SameTelescopeDomains.wrapForalls
     (domains : List VExpr) (left right : VExpr) :
     SameTelescopeDomains domains.length
@@ -1638,6 +1678,44 @@ def VExpr.applyForallType : VExpr → List VExpr → VExpr
   | type, [] => type
   | .forallE _ body, arg :: args => applyForallType (body.inst arg) args
   | type, _ :: _ => type
+
+/-- Definitional equality between two equally long dependent function types
+survives consumption of the same well-typed argument spine.  The domains may
+differ definitionally; `forallE_inv` transports each argument through the
+left domain before substituting it into both residuals. -/
+theorem VEnv.IsDefEqU.applyForallType
+    (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
+    (Hshape : SameTelescopeArity args.length leftType rightType)
+    (Htypes : env.IsDefEqU uvars ctx leftType rightType)
+    (Hleft : env.HasType uvars ctx fn leftType)
+    (Happs : VExpr.WF env uvars ctx (VExpr.mkApps fn args)) :
+    env.IsDefEqU uvars ctx
+      (VExpr.applyForallType leftType args)
+      (VExpr.applyForallType rightType args) := by
+  induction args generalizing fn leftType rightType with
+  | nil =>
+    cases Hshape with
+    | zero => simpa [VExpr.applyForallType] using Htypes
+  | cons arg args ih =>
+    cases Hshape with
+    | @succ leftDomain rightDomain leftBody rightBody arity Htail =>
+      have Harg : env.HasType uvars ctx arg leftDomain :=
+        VEnv.HasType.mkApps_head henv hctx Hleft Happs
+      rcases (VEnv.IsDefEqU.forallE_inv henv hctx Htypes).2 with
+        ⟨bodyLevel, Hbody⟩
+      have HbodyInst : env.IsDefEqU uvars ctx
+          (leftBody.inst arg) (rightBody.inst arg) := by
+        refine ⟨.sort bodyLevel, ?_⟩
+        simpa [VExpr.inst] using
+          Hbody.instN henv.ordered Harg .zero
+      have HleftApp : env.HasType uvars ctx (.app fn arg)
+          (leftBody.inst arg) := Hleft.app Harg
+      have HappRest : VExpr.WF env uvars ctx
+          (VExpr.mkApps (.app fn arg) args) := by
+        simpa [VExpr.mkApps] using Happs
+      have Hrest := ih (fn := .app fn arg)
+        (Htail.instN arg 0) HbodyInst HleftApp HappRest
+      simpa [VExpr.applyForallType] using Hrest
 
 /-- Source-side residual substitution matching complete application of a
 forall telescope.  At each step the outer binder lies beneath all still-inner
@@ -2216,13 +2294,30 @@ theorem VExpr.GuardedIota.ofContainsAnyConstFalse
       simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
       exact .forallE (ihDom h.1) (ihBody h.2)
 
+/-- The guarded-iota judgment follows source-visible constant support.
+Certified projection expansions are admitted through their source major;
+their eliminator, motive, and generated minor are administrative syntax. -/
+theorem VExpr.SourceConstFree.guardedIota
+    (H : VExpr.SourceConstFree recursors e) :
+    VExpr.GuardedIota recursors fieldVars depth e := by
+  induction H generalizing depth with
+  | bvar => exact .bvar
+  | sort => exact .sort
+  | const name levels fresh => exact .const fresh
+  | app _ _ ihFn ihArg => exact .app ihFn ihArg
+  | lam _ _ ihDomain ihBody =>
+      exact .lam ihDomain ihBody
+  | forallE _ _ ihDomain ihBody =>
+      exact .forallE ihDomain ihBody
+  | projection expansion _ ihMajor =>
+      exact .projection expansion ihMajor
+
 /-- Closing a guarded body over recursor-free domains preserves the guard,
 with the body checked beneath exactly the number of introduced binders. -/
 theorem VExpr.GuardedIota.wrapLams
     {recursors : List Name} {fieldVars : List Nat}
     {domains : List VExpr} {body : VExpr} {depth : Nat}
-    (hdomains : ∀ dom ∈ domains,
-      dom.containsAnyConst recursors = false)
+    (hdomains : ∀ dom ∈ domains, dom.SourceConstFree recursors)
     (hbody : body.GuardedIota recursors fieldVars
       (depth + domains.length)) :
     (VExpr.wrapLams domains body).GuardedIota recursors fieldVars depth := by
@@ -2231,7 +2326,7 @@ theorem VExpr.GuardedIota.wrapLams
   | cons dom domains ih =>
       simp only [VExpr.wrapLams, List.foldr_cons]
       apply VExpr.GuardedIota.lam
-      · exact VExpr.GuardedIota.ofContainsAnyConstFalse
+      · exact VExpr.SourceConstFree.guardedIota
           (hdomains dom (by simp))
       · apply ih
         · intro inner hinner
@@ -2299,8 +2394,7 @@ theorem VExpr.GuardedIota.recCallWrapped
     {recursors : List Name} {fieldVars : List Nat} {depth : Nat}
     {domains : List VExpr} {recursor : Name} {levels : List VLevel}
     {init : List VExpr} {major : VExpr}
-    (hdomains : ∀ dom ∈ domains,
-      dom.containsAnyConst recursors = false)
+    (hdomains : ∀ dom ∈ domains, dom.SourceConstFree recursors)
     (hrecursor : recursor ∈ recursors)
     (hargs : ∀ arg ∈ init ++ [major],
       arg.GuardedIota recursors fieldVars (depth + domains.length))
@@ -2326,7 +2420,7 @@ structure IotaRecursiveResultCertificate
   result_eq : result = (VExpr.wrapLams domains <|
     VExpr.mkApps (.const recursor levels) (init ++ [major]))
   domains_recursor_free : ∀ dom ∈ domains,
-    dom.containsAnyConst recursors = false
+    dom.SourceConstFree recursors
   recursor_mem : recursor ∈ recursors
   arguments_guarded : ∀ arg ∈ init ++ [major],
     arg.GuardedIota recursors fieldVars domains.length
@@ -2382,13 +2476,13 @@ theorem IotaRecursiveResultsCertificate.minorRhs
     (H : IotaRecursiveResultsCertificate recursors fieldVars
       recursiveArgs recursiveResults)
     (hfields : ∀ arg ∈ fieldArgs,
-      arg.containsAnyConst recursors = false) :
+      arg.SourceConstFree recursors) :
     (VExpr.mkApps (.bvar minorVar)
       (fieldArgs ++ recursiveResults)).GuardedIota
         recursors fieldVars 0 := by
   apply VExpr.GuardedIota.minorRhs
   · intro arg harg
-    exact VExpr.GuardedIota.ofContainsAnyConstFalse (hfields arg harg)
+    exact VExpr.SourceConstFree.guardedIota (hfields arg harg)
   · exact H.results_guarded
 
 /-- Complete right-hand-side fragment of an iota rule. The executable minor
@@ -2407,7 +2501,7 @@ structure IotaRhsCertificate
     recursiveArgs.filterMap VExpr.bvarHead?
   fields_in_scope : ∀ field ∈ fieldVars, field < domains.length
   fields_recursor_free : ∀ arg ∈ fieldArgs,
-    arg.containsAnyConst recursors = false
+    arg.SourceConstFree recursors
   recursive_results : IotaRecursiveResultsCertificate
     recursors fieldVars recursiveArgs recursiveResults
 

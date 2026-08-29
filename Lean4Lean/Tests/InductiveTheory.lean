@@ -77,14 +77,16 @@ theorem enumDecl_wf : enumDecl.WF .empty := by
       subst type
       simp [enumType] at hctorMem
       subst ctor
-      refine ⟨.const `Enum0 [], [], .const `Enum0 [], .sort (.succ .zero), [],
-        ?_, rfl, .zero, .zero, ?_⟩
-      · exact .constDF hlookup nofun nofun rfl .nil
-      · apply VInductDecl.CtorTailWF.result
-          (result' := .const `Enum0 []) (type := .sort (.succ .zero))
-        · simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, enumDecl, enumType,
-            VExpr.getAppFnArgs.go, VInductDecl.paramVars]
+      refine ⟨?_, ?_⟩
+      · exact ⟨[], enumCtor.type, rfl, .zero⟩
+      · refine ⟨.const `Enum0 [], [], .const `Enum0 [], .sort (.succ .zero), [],
+          ?_, rfl, .zero, .zero, ?_⟩
         · exact .constDF hlookup nofun nofun rfl .nil
+        · apply VInductDecl.CtorTailWF.result
+            (result' := .const `Enum0 []) (type := .sort (.succ .zero))
+          · simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, enumDecl,
+              enumType, VExpr.getAppFnArgs.go, VInductDecl.paramVars]
+          · exact .constDF hlookup nofun nofun rfl .nil
 
 theorem recursiveOccurrence_positive :
     enumDecl.SyntacticallyPositive {} [] 0 (.const `Enum0 []) := by
@@ -97,8 +99,17 @@ theorem negativeOccurrence_not_positive :
       (.forallE (.const `Enum0 []) (.const `Enum0 [])) := by
   intro h
   cases h with
-  | nonrecursive h => simp [VExpr.containsAnyConst, enumDecl, enumType] at h
-  | forallE h _ _ _ => simp [VExpr.containsAnyConst, enumDecl, enumType] at h
+  | nonrecursive h =>
+      cases h with
+      | forallE hdom _ =>
+          cases hdom with
+          | const _ _ hf => exact hf (by simp [enumDecl, enumType])
+          | projection hexp _ => cases hexp
+      | projection hexp _ => cases hexp
+  | forallE h _ _ _ =>
+      cases h with
+      | const _ _ hf => exact hf (by simp [enumDecl, enumType])
+      | projection hexp _ => cases hexp
   | recursive h =>
     simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, VExpr.getAppFnArgs.go,
       enumDecl, enumType] at h

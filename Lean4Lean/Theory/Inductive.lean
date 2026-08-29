@@ -190,6 +190,107 @@ def VInductDecl.ParamsDefEq (env : VEnv) (decl : VInductDecl)
     (params params' : List VExpr) : Prop :=
   VEnv.IsDefEqCtx env decl.uvars [] params.reverse params'.reverse
 
+/-- The support-relevant shape of a primitive projection expansion.  The
+arguments before the major and the generated minor are administrative: they
+are reconstructed by the certified projection producer, but they were not
+subterms of the source projection expression. -/
+inductive VExpr.ProjectionSupportExpansion (major : VExpr) : VExpr → Prop
+  | canonical (administrativeHead minor : VExpr) :
+      ProjectionSupportExpansion major
+        (.app (.app administrativeHead major) minor)
+
+theorem VExpr.ProjectionSupportExpansion.liftN
+    (H : VExpr.ProjectionSupportExpansion major target) (n k : Nat) :
+    VExpr.ProjectionSupportExpansion (major.liftN n k)
+      (target.liftN n k) := by
+  cases H with
+  | canonical administrativeHead minor =>
+    simpa [VExpr.liftN] using
+      VExpr.ProjectionSupportExpansion.canonical
+        (administrativeHead.liftN n k) (minor.liftN n k)
+
+/-- Constant support inherited from source syntax.  Ordinary nodes expose
+the support of all source subterms.  A certified projection expansion exposes
+only the support of its source major; the eliminator, motive, inferred
+parameters, and generated minor are administrative elaboration artifacts.
+
+This is intentionally distinct from raw `containsAnyConst`: canonical
+projection expansion does not preserve that stronger property. -/
+inductive VExpr.SourceConstFree (names : List Name) : VExpr → Prop
+  | bvar (index : Nat) : SourceConstFree names (.bvar index)
+  | sort (level : VLevel) : SourceConstFree names (.sort level)
+  | const (name : Name) (levels : List VLevel) (fresh : name ∉ names) :
+      SourceConstFree names (.const name levels)
+  | app : SourceConstFree names fn → SourceConstFree names arg →
+      SourceConstFree names (.app fn arg)
+  | lam : SourceConstFree names domain → SourceConstFree names body →
+      SourceConstFree names (.lam domain body)
+  | forallE : SourceConstFree names domain →
+      SourceConstFree names body → SourceConstFree names (.forallE domain body)
+  | projection : ProjectionSupportExpansion major target →
+      SourceConstFree names major → SourceConstFree names target
+
+theorem VExpr.SourceConstFree.ofContainsAnyConst
+    {expression : VExpr} {names : List Name}
+    (H : expression.containsAnyConst names = false) :
+    expression.SourceConstFree names := by
+  induction expression with
+  | bvar index => exact .bvar index
+  | sort level => exact .sort level
+  | const name levels =>
+    apply SourceConstFree.const name levels
+    intro hname
+    simp [VExpr.containsAnyConst, hname] at H
+  | app fn arg ihFn ihArg =>
+    rcases Bool.or_eq_false_iff.mp H with ⟨hfn, harg⟩
+    exact .app (ihFn hfn) (ihArg harg)
+  | lam domain body ihDomain ihBody | forallE domain body ihDomain ihBody =>
+    rcases Bool.or_eq_false_iff.mp H with ⟨hdomain, hbody⟩
+    first | exact .lam (ihDomain hdomain) (ihBody hbody)
+          | exact .forallE (ihDomain hdomain) (ihBody hbody)
+
+/-- Universe instantiation preserves source support. -/
+theorem VExpr.SourceConstFree.instL
+    {expression : VExpr} {names : List Name}
+    (H : expression.SourceConstFree names) (levels : List VLevel) :
+    (expression.instL levels).SourceConstFree names := by
+  induction H with
+  | bvar index => exact .bvar index
+  | sort level => exact .sort _
+  | const name sourceLevels fresh => exact .const name _ fresh
+  | app _ _ ihFn ihArg => exact .app ihFn ihArg
+  | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
+  | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
+  | @projection major target expansion _ ihMajor =>
+    cases expansion with
+    | canonical administrativeHead minor =>
+      apply SourceConstFree.projection
+        (ProjectionSupportExpansion.canonical
+          (administrativeHead.instL levels)
+          (minor.instL levels))
+      exact ihMajor
+
+/-- Bound-variable weakening preserves source support. -/
+theorem VExpr.SourceConstFree.liftN
+    {expression : VExpr} {names : List Name}
+    (H : expression.SourceConstFree names) (n k : Nat) :
+    (expression.liftN n k).SourceConstFree names := by
+  induction H generalizing k with
+  | bvar index => exact .bvar _
+  | sort level => exact .sort level
+  | const name sourceLevels fresh => exact .const name sourceLevels fresh
+  | app _ _ ihFn ihArg => exact .app (ihFn k) (ihArg k)
+  | lam _ _ ihDomain ihBody => exact .lam (ihDomain k) (ihBody (k + 1))
+  | forallE _ _ ihDomain ihBody =>
+    exact .forallE (ihDomain k) (ihBody (k + 1))
+  | @projection major target expansion _ ihMajor =>
+    cases expansion with
+    | canonical administrativeHead minor =>
+      exact .projection
+        (.canonical (administrativeHead.liftN n k) (minor.liftN n k))
+        (ihMajor k)
+
+
 /-- A fully applied occurrence of one of the simultaneously declared types.
 Recursive occurrences use precisely the common parameter variables, and their
 indices contain no recursive occurrence. -/
@@ -203,7 +304,7 @@ def VInductDecl.ValidIndAppAt (decl : VInductDecl) (target : Option Name)
       args.length = decl.nparams + type.numIndices ∧
       args.take decl.nparams = decl.paramVars depth ∧
       ∀ arg ∈ args.drop decl.nparams,
-        arg.containsAnyConst (decl.types.map (·.name)) = false
+        arg.SourceConstFree (decl.types.map (·.name))
 
 theorem VInductDecl.ValidIndAppAt.forgetTarget
     {decl : VInductDecl} {target : Option Name}
@@ -237,7 +338,7 @@ theorem VInductDecl.ValidIndAppAt.instL
   · intro arg harg
     rw [← List.map_drop] at harg
     rcases List.mem_map.mp harg with ⟨source, hsource, rfl⟩
-    simpa using hindices source hsource
+    exact (hindices source hsource).instL levels
 
 /-- A concrete application spine cannot name two different members of the
 same inductive block.  Keeping this fact at the abstract boundary lets later
@@ -293,10 +394,10 @@ inductive Positive (env : VEnv) (decl : VInductDecl) :
 inductive SyntacticallyPositive (env : VEnv)
     (decl : VInductDecl) : List VExpr → Nat → VExpr → Prop
   | nonrecursive :
-    e.containsAnyConst (decl.types.map (·.name)) = false →
+    e.SourceConstFree (decl.types.map (·.name)) →
     SyntacticallyPositive env decl ctx depth e
   | forallE :
-    dom.containsAnyConst (decl.types.map (·.name)) = false →
+    dom.SourceConstFree (decl.types.map (·.name)) →
     env.IsDefEq decl.uvars ctx dom checkedDom (.sort domLevel) →
     env.IsDefEq decl.uvars (dom :: ctx) body checkedBody bodyType →
     Positive env decl (checkedDom :: ctx) (depth + 1) checkedBody →
@@ -616,6 +717,11 @@ inductive VExpr.NestedExprExpansion
       NestedExprExpansion leaf (depth + 1) sourceBody targetBody →
       NestedExprExpansion leaf depth (.forallE sourceDomain sourceBody)
         (.forallE targetDomain targetBody)
+  | projection :
+      ProjectionSupportExpansion sourceMajor sourceTarget →
+      ProjectionSupportExpansion targetMajor targetTarget →
+      NestedExprExpansion leaf depth sourceMajor targetMajor →
+      NestedExprExpansion leaf depth sourceTarget targetTarget
 
 /-- Change only the interpretation of successful leaves. -/
 theorem VExpr.NestedExprExpansion.map
@@ -631,6 +737,8 @@ theorem VExpr.NestedExprExpansion.map
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
   | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
   | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
+  | projection Hsource Htarget _ ihMajor =>
+    exact .projection Hsource Htarget ihMajor
 
 /-- Leaving an abstract expression unchanged is always an expansion. -/
 theorem VExpr.NestedExprExpansion.refl
@@ -912,6 +1020,10 @@ inductive VExpr.GuardedIota (recursors : List Name) (fieldVars : List Nat) :
       GuardedIota recursors fieldVars depth dom →
       GuardedIota recursors fieldVars (depth + 1) body →
       GuardedIota recursors fieldVars depth (.forallE dom body)
+  | projection :
+      ProjectionSupportExpansion major target →
+      GuardedIota recursors fieldVars depth major →
+      GuardedIota recursors fieldVars depth target
   | recCall :
       recursor ∈ recursors →
       (∀ arg ∈ init ++ [major],
@@ -919,6 +1031,57 @@ inductive VExpr.GuardedIota (recursors : List Name) (fieldVars : List Nat) :
       major.IsFieldApp fieldVars depth →
       GuardedIota recursors fieldVars depth
         (VExpr.mkApps (.const recursor levels) (init ++ [major]))
+
+/-- Guardedness for the closed RHS stored in a definitional equation.
+Top-level lambdas are the equation telescope, so their bound constructor
+fields become the free field variables of the residual iota body.  Testing
+the complete closed lambda with an increasing `GuardedIota` depth would
+instead (and incorrectly) classify every bound field as non-recursive.
+
+Binder domains are checked with an empty field set, which permits ordinary
+types but no recursive call.  Once the telescope is peeled, the residual
+body uses the ordinary guarded-iota judgment at depth zero. -/
+inductive VExpr.GuardedRuleRhs (recursors : List Name) : VExpr → Prop
+  | body (fieldVars : List Nat) :
+      GuardedIota recursors fieldVars 0 expression →
+      GuardedRuleRhs recursors expression
+  | lam :
+      GuardedIota recursors [] 0 domain →
+      GuardedRuleRhs recursors body →
+      GuardedRuleRhs recursors (.lam domain body)
+
+/-- Guardedness depends on the recursor collection only through membership.
+This permits an executable checker to use the concrete restoration order and
+the abstract block proof to use its canonical recursor order, once those two
+orders have been identified extensionally. -/
+theorem VExpr.GuardedIota.congrRecursors
+    {expression : VExpr} {recursors recursors' : List Name}
+    {fieldVars : List Nat} {depth : Nat}
+    (hsame : ∀ name, name ∈ recursors ↔ name ∈ recursors')
+    (H : expression.GuardedIota recursors fieldVars depth) :
+    expression.GuardedIota recursors' fieldVars depth := by
+  induction H with
+  | bvar => exact .bvar
+  | sort => exact .sort
+  | const fresh =>
+      exact .const (fun hmem => fresh ((hsame _).mpr hmem))
+  | app _ _ ihFn ihArg => exact .app ihFn ihArg
+  | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
+  | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
+  | projection expansion _ ihMajor => exact .projection expansion ihMajor
+  | recCall recursorMem arguments majorField ihArguments =>
+      exact .recCall ((hsame _).mp recursorMem) ihArguments majorField
+
+theorem VExpr.GuardedRuleRhs.congrRecursors
+    {expression : VExpr} {recursors recursors' : List Name}
+    (hsame : ∀ name, name ∈ recursors ↔ name ∈ recursors')
+    (H : expression.GuardedRuleRhs recursors) :
+    expression.GuardedRuleRhs recursors' := by
+  induction H with
+  | body fieldVars guarded =>
+      exact .body fieldVars (guarded.congrRecursors hsame)
+  | lam domainGuarded _ ihBody =>
+      exact .lam (domainGuarded.congrRecursors hsame) ihBody
 
 def VInductDecl.ownedConstructors
     (decl : VInductDecl) : List (VInductiveType × VConstVal) :=
@@ -1500,9 +1663,6 @@ structure VInductDecl.NestedCompilation
   primary_recursors : List.Forall₂ (fun type recursor =>
     Nonempty (decl.NestedRecursorShape type recursor))
     decl.types primaryRecursors
-  auxiliary_names : auxiliaryRecursors.map (·.name) =
-    (List.range auxiliaryRecursors.length).map fun i =>
-      (decl.recursorName main).appendIndexAfter (i + 1)
   primaryRules : List VDefEq
   auxiliaryRules : List VDefEq
   rules_eq : block.rules = primaryRules ++ auxiliaryRules
@@ -1513,8 +1673,7 @@ structure VInductDecl.NestedCompilation
       Nonempty (decl.NestedIotaRule block owned.1 owned.2 rule))
       decl.ownedConstructors primaryRules
   auxiliary_guarded : ∀ rule ∈ auxiliaryRules,
-    ∃ fieldVars, rule.rhs.GuardedIota
-      (block.recursors.map (·.name)) fieldVars 0
+    rule.rhs.GuardedRuleRhs (block.recursors.map (·.name))
   names : List.Nodup ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 
 /-- Pure abstract compilation, kept separate from the executable
@@ -1641,10 +1800,11 @@ ordinary formation checks the complete expanded finite block. -/
 inductive VInductDecl.NestedAuxiliarySource :
     VEnv → VInductDecl → List VInductiveType →
       Nat → VExpr → VExpr → Prop
-  | intro {env source generated depth input output container
+  | intro {env sourceTypesEnv source generated depth input output container
       containerFamily auxiliaryFamily sourceParams baseArgs levels
-      auxiliaryLevels sourceTrailing targetTrailing} :
-      VEnv.InstalledInductCertificate env container →
+      auxiliaryLevels inputBaseArgs sourceTrailing targetTrailing} :
+      env.addConstVals source.typeConstants = some sourceTypesEnv →
+      VEnv.InstalledInductCertificate sourceTypesEnv container →
       containerFamily ∈ container.types →
       auxiliaryFamily ∈ generated →
       sourceParams.length = source.nparams →
@@ -1653,21 +1813,26 @@ inductive VInductDecl.NestedAuxiliarySource :
       levels.length = container.uvars →
       (∀ level ∈ levels, level.WF source.uvars) →
       auxiliaryFamily.uvars = source.uvars →
-      env.IsDefEqU source.uvars [] auxiliaryFamily.type
+      sourceTypesEnv.IsDefEqU source.uvars [] auxiliaryFamily.type
         (VExpr.wrapForalls sourceParams
           (VExpr.instantiateForallPrefix
             (containerFamily.type.instL levels) baseArgs)) →
       List.Forall₂
-        (VInductDecl.DirectAuxConstructor env source.uvars sourceParams
+        (VInductDecl.DirectAuxConstructor sourceTypesEnv source.uvars sourceParams
           baseArgs levels containerFamily auxiliaryFamily)
         containerFamily.ctors auxiliaryFamily.ctors →
       auxiliaryLevels.length = source.uvars →
       VInductDecl.NestedExprWFExpansion env source generated
         (source.nparams + depth)
+        (VExpr.mkApps VInductDecl.nestedTrailingMarker
+          (baseArgs.map (fun arg => arg.liftN depth 0)))
+        (VExpr.mkApps VInductDecl.nestedTrailingMarker inputBaseArgs) →
+      VInductDecl.NestedExprWFExpansion env source generated
+        (source.nparams + depth)
         (VExpr.mkApps VInductDecl.nestedTrailingMarker sourceTrailing)
         (VExpr.mkApps VInductDecl.nestedTrailingMarker targetTrailing) →
       input = VExpr.mkApps (.const containerFamily.name levels)
-        (baseArgs.map (fun arg => arg.liftN depth 0) ++ sourceTrailing) →
+        (inputBaseArgs ++ sourceTrailing) →
       output = VExpr.mkApps (.const auxiliaryFamily.name auxiliaryLevels)
         (source.paramVars depth ++ targetTrailing) →
       VInductDecl.NestedAuxiliarySource env source generated depth input output
@@ -1715,6 +1880,14 @@ inductive VInductDecl.NestedExprWFExpansion :
         sourceBody targetBody →
       VInductDecl.NestedExprWFExpansion env source generated depth
         (.forallE sourceDomain sourceBody) (.forallE targetDomain targetBody)
+  | projection {env source generated depth sourceMajor targetMajor
+      sourceTarget targetTarget} :
+      VExpr.ProjectionSupportExpansion sourceMajor sourceTarget →
+      VExpr.ProjectionSupportExpansion targetMajor targetTarget →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceMajor targetMajor →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceTarget targetTarget
 
 /-- Strictly-positive counterpart of `NestedForallPrefixExpansion` for the
 mutually defined nested-formation leaf. -/
@@ -1851,6 +2024,8 @@ theorem VInductDecl.NestedExprWFExpansion.toNestedExprExpansion
     (fun _ _ ihFn ihArg => .app ihFn ihArg)
     (fun _ _ ihDomain ihBody => .lam ihDomain ihBody)
     (fun _ _ ihDomain ihBody => .forallE ihDomain ihBody)
+    (fun Hsource Htarget _ ihMajor =>
+      .projection Hsource Htarget ihMajor)
     (by intros; trivial)
     (by intros; trivial)
     (by intros; trivial)
@@ -1902,6 +2077,8 @@ theorem VInductDecl.NestedConstructorWFExpansions.toForall₂
     (fun _ _ ihFn ihArg => .app ihFn ihArg)
     (fun _ _ ihDomain ihBody => .lam ihDomain ihBody)
     (fun _ _ ihDomain ihBody => .forallE ihDomain ihBody)
+    (fun Hsource Htarget _ ihMajor =>
+      .projection Hsource Htarget ihMajor)
     (fun _ ihBody => .nil ihBody)
     (fun _ _ ihDomain ihBody => .cons ihDomain ihBody)
     (by exact .nil)
@@ -1957,6 +2134,8 @@ theorem VInductDecl.NestedTypeWFExpansions.toForall₂
     (fun _ _ ihFn ihArg => .app ihFn ihArg)
     (fun _ _ ihDomain ihBody => .lam ihDomain ihBody)
     (fun _ _ ihDomain ihBody => .forallE ihDomain ihBody)
+    (fun Hsource Htarget _ ihMajor =>
+      .projection Hsource Htarget ihMajor)
     (fun _ ihBody => .nil ihBody)
     (fun _ _ ihDomain ihBody => .cons ihDomain ihBody)
     (by exact .nil)

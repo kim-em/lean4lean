@@ -357,6 +357,116 @@ theorem RestoreParamOpening.forall_rebuilding_data
         Expr.instantiate1_eq, hbodyNoId.abstract_instantiate1]
   | lam Hnext ih => cases Htel
 
+/-- Lambda counterpart of `forall_rebuilding_data`.  Equation restoration
+opens an initial lambda prefix and later closes the selected declarations
+with `mkLambda`; this certificate proves that the round trip uses the
+literal source binder prefix and is not merely alpha-equivalent to it. -/
+theorem RestoreParamOpening.lambda_rebuilding_data
+    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+    (Hwf : outLctx.WF)
+    (Htel : Expr.LambdaTelescope e n residual) :
+    ∃ decls : List LocalDecl,
+      outLctx.toList = decls.reverse ++ lctx.toList ∧
+      outAs.toList = As.toList ++
+        decls.map (fun d => Expr.fvar d.fvarId) ∧
+      decls.length = n ∧
+      (decls.map (fun d => d.fvarId)).Nodup ∧
+      (∀ d ∈ decls, outLctx.find? d.fvarId = some d) ∧
+      (e.FVarIdsIn (fun fv => fv ∉ decls.map (fun d => d.fvarId)) →
+        (decls.map (fun d => d.fvarId)).foldr
+          (fun fv result =>
+            LocalContext.mkBindingList1 true outLctx [] fv
+              (result.abstract1 fv)) tail = e) := by
+  induction Hopen generalizing residual with
+  | done =>
+    cases Htel
+    exact ⟨[], by simp⟩
+  | forallE Hnext ih => cases Htel
+  | lam Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    cases Htel with
+    | cons Hbody =>
+      have HbodyInst : Expr.LambdaTelescope
+          (body.instantiate1 (.fvar id)) n'
+          (residual.instantiate1' (.fvar id) n') := by
+        simpa [Expr.instantiate1_eq] using
+          Hbody.instantiate1' (.fvar id) 0
+      rcases ih Hwf HbodyInst with
+        ⟨decls, hlctx, hparams, hlength, hnodup, hfind, hrebuild⟩
+      let decl : LocalDecl :=
+        .cdecl lctx'.decls.size id name dom bi .default
+      have hlctx' : outLctx'.toList =
+          (decl :: decls).reverse ++ lctx'.toList := by
+        simp [hlctx, decl, LocalContext.mkLocalDecl_toList]
+      have hparams' : outAs'.toList = As'.toList ++
+          (decl :: decls).map (fun d => Expr.fvar d.fvarId) := by
+        simp [hparams, decl, List.append_assoc, LocalDecl.fvarId]
+      have hallNodup :
+          ((decl :: decls).map (fun d => d.fvarId)).Nodup := by
+        have hall := Hwf.nodup
+        rw [hlctx', List.map_append] at hall
+        have hrev := (List.nodup_append.mp hall).1
+        rw [List.map_reverse] at hrev
+        exact List.nodup_reverse.mp hrev
+      have hfind' : ∀ d ∈ decl :: decls,
+          outLctx'.find? d.fvarId = some d := by
+        intro d hd
+        apply LocalContextWF_find?_eq_some_of_mem Hwf
+        rw [hlctx']
+        exact List.mem_append_left _ (List.mem_reverse.mpr hd)
+      refine ⟨decl :: decls, hlctx', hparams', by simp [hlength],
+        hallNodup, hfind', ?_⟩
+      intro hfree
+      simp only [Expr.FVarIdsIn] at hfree
+      simp only [List.map_cons, List.mem_cons, not_or, decl,
+        LocalDecl.fvarId] at hfree
+      have hbodyNoId : body.FVarIdsIn (fun fv => fv ≠ id) :=
+        hfree.2.mono fun _ hfv => hfv.1
+      have hbodyNoRest : body.FVarIdsIn
+          (fun fv => fv ∉ decls.map (fun d => d.fvarId)) :=
+        hfree.2.mono fun _ hfv => hfv.2
+      have hallNodup' : id ∉ decls.map (fun d => d.fvarId) ∧
+          (decls.map (fun d => d.fvarId)).Nodup := by
+        simpa [decl, LocalDecl.fvarId] using hallNodup
+      have hopenFree : (body.instantiate1 (.fvar id)).FVarIdsIn
+          (fun fv => fv ∉ decls.map (fun d => d.fvarId)) := by
+        apply hbodyNoRest.instantiate1
+        simpa [Expr.FVarIdsIn] using hallNodup'.1
+      have hinner := hrebuild hopenFree
+      simp only [List.map_cons, List.foldr_cons]
+      rw [hinner]
+      have hhead := hfind' decl (by simp)
+      have hheadId : outLctx'.find? id = some decl := by
+        simpa [decl, LocalDecl.fvarId] using hhead
+      simp [LocalContext.mkBindingList1, hheadId, decl, LocalDecl.fvarId,
+        Expr.instantiate1_eq, hbodyNoId.abstract_instantiate1]
+
+/-- Closing a root lambda opening with its unchanged exposed body reproduces
+the original equation RHS exactly. -/
+theorem RestoreParamOpening.root_mkLambda_tail
+    (Hopen : RestoreParamOpening {} #[] e n outLctx outAs tail)
+    (Hwf : outLctx.WF)
+    (Htel : Expr.LambdaTelescope e n residual)
+    (Hclosed : e.FVarIdsIn fun _ => False) :
+    outLctx.mkLambda outAs tail = e := by
+  rcases Hopen.lambda_rebuilding_data Hwf Htel with
+    ⟨decls, _hlctx, hparams, _hlength, hnodup, hfind, hrebuild⟩
+  have harray :
+      outAs = (decls.map (fun d => Expr.fvar d.fvarId)).toArray := by
+    apply Array.toList_inj.mp
+    simpa using hparams
+  rw [harray, LocalContext.mkLambda]
+  rw [show decls.map (fun d => Expr.fvar d.fvarId) =
+      (decls.map (fun d => d.fvarId)).map Expr.fvar by simp]
+  rw [LocalContext.mkBinding_eq]
+  rw [LocalContext.mkBindingList_eq_fold]
+  · apply hrebuild
+    exact Hclosed.mono fun fv hfalse => False.elim hfalse
+  · intro fv hfv
+    rcases List.mem_map.mp hfv with ⟨d, hd, rfl⟩
+    exact ⟨d, hfind d hd⟩
+  · exact hnodup
+
 /-- Folding the declarations copied by a forall opening removes exactly the
 new parameter IDs.  `P` describes the free variables allowed before the
 opening; the root specialization uses `P := False`. -/
@@ -1295,6 +1405,69 @@ theorem RestoreParamOpening.forallResidualData
         rw [hlength] at hcomm
         simpa using hcomm
   | lam Hnext ih => cases Htel
+
+/-- Jointly opening a generated lambda telescope substitutes precisely the
+fresh restoration variables into its residual body. -/
+theorem RestoreParamOpening.lambdaResidualData
+    (Hopen : RestoreParamOpening lctx As outer n outLctx outAs tail)
+    (Htel : Expr.LambdaTelescope outer n residual) :
+    ∃ fvars : List FVarId,
+      outAs.toList = As.toList ++ fvars.map Expr.fvar ∧
+      fvars.length = n ∧
+      tail = residual.instantiateRevList (fvars.map Expr.fvar) := by
+  induction Hopen generalizing residual with
+  | done =>
+    cases Htel
+    exact ⟨[], by simp⟩
+  | forallE Hnext ih => cases Htel
+  | lam Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    cases Htel with
+    | cons Hbody =>
+      have Hbody' := Hbody.instantiate1' (.fvar id) 0
+      rcases ih (residual := residual.instantiate1' (.fvar id) n')
+        (by simpa [Expr.instantiate1_eq] using Hbody') with
+        ⟨fvars, heq, hlength, htail⟩
+      refine ⟨id :: fvars, ?_, by simp [hlength], ?_⟩
+      · simpa [heq, List.append_assoc]
+      · rw [htail]
+        have hcomm := Expr.instantiateRevList_instantiate1'_fvars
+          residual id fvars 0 0
+        simp only [Nat.zero_add, Nat.add_zero] at hcomm
+        rw [hlength] at hcomm
+        simpa using hcomm
+
+/-- Split a complete lambda telescope at any retained prefix length. -/
+theorem Expr.LambdaTelescope.splitAt
+    (H : Expr.LambdaTelescope outer arity residual)
+    (hn : n ≤ arity) :
+    ∃ middle,
+      Expr.LambdaTelescope outer n middle ∧
+      Expr.LambdaTelescope middle (arity - n) residual := by
+  induction n generalizing outer arity with
+  | zero => exact ⟨outer, .nil _, by simpa using H⟩
+  | succ n ih =>
+    cases H with
+    | nil => simp at hn
+    | @cons body arity residual name dom bi Htail =>
+      rcases ih Htail (by omega) with ⟨middle, Hprefix, Hsuffix⟩
+      refine ⟨middle, ?_, ?_⟩
+      · exact .cons Hprefix
+      · simpa using Hsuffix
+
+/-- Substitution outside a concrete lambda telescope preserves its exact
+arity and substitutes below the complete prefix. -/
+theorem Expr.LambdaTelescope.instantiateRevList
+    (H : Expr.LambdaTelescope outer arity residual)
+    (values : List Expr) (k : Nat := 0) :
+    Expr.LambdaTelescope (outer.instantiateRevList values k) arity
+      (residual.instantiateRevList values (k + arity)) := by
+  induction H generalizing k with
+  | nil => exact .nil _
+  | cons H ih =>
+    simp only [Expr.instantiateRevList_lam]
+    apply Expr.LambdaTelescope.cons
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
 
 /-- Lowering's source traversal exposes an ordinary residual telescope and
 substitutes exactly the free variables appended to its parameter array. -/

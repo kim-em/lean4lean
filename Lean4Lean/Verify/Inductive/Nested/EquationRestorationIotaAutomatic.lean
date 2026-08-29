@@ -36,7 +36,6 @@ noncomputable def RestoredPrimaryIotaSemantics.ofAtomicStructural
       (abstractForallContext [] Hrhs.sourceScope).WF sourceEnv Us.length)
     (htargetContext :
       (abstractForallContext [] Hrhs.targetScope).WF targetEnv Us.length)
-    (hproj : ProjectionConstPreservation)
     (uvars_eq : Us.length = sourceRule.uvars)
     (domains_eq : Hrhs.targetScope.toCtx.reverse = Hsource.domains)
     (rhsArgs : List VExpr)
@@ -53,18 +52,18 @@ noncomputable def RestoredPrimaryIotaSemantics.ofAtomicStructural
       Hsource.lhsBody Hsource.typeBody)
     (Htyping : TypedExprRestoration Hrhs.plan
       (Hatomic.semantics hsourceEnv htargetEnv hsourceContext htargetContext
-        hproj)
+        )
       (abstractForallContext [] Hrhs.sourceScope).toCtx
       (abstractForallContext [] Hrhs.targetScope).toCtx
       Hrhs.sourceBody Hrhs.targetBody sourceType Hsource.typeBody)
-    (Hguard : GuardedExprRestoration Hrhs.plan.restoreNode sourceRecursors
+    (Hguard : GuardedExprRestoration Hrhs.plan.Relates sourceRecursors
       (restoredBlock.recursors.map (·.name)) Hsource.fieldVars 0
       Hrhs.sourceBody Hrhs.targetBody) :
     RestoredPrimaryIotaSemantics decl sourceBlock restoredBlock owner ctor
       sourceRule Hsource Hrhs :=
   .ofStructural recursor_mem sourceRecursors
     (Hatomic.semantics hsourceEnv htargetEnv hsourceContext htargetContext
-      hproj)
+      )
     uvars_eq domains_eq rhsArgs rhs_spine field_args recursive_results
     contextWF lhsTyping Htyping Hguard
 
@@ -94,7 +93,6 @@ noncomputable def VInductDecl.NestedIotaRule.ofAtomicStructural
       (abstractForallContext [] Hrhs.sourceScope).WF sourceEnv Us.length)
     (htargetContext :
       (abstractForallContext [] Hrhs.targetScope).WF targetEnv Us.length)
-    (hproj : ProjectionConstPreservation)
     (uvars_eq : Us.length = sourceRule.uvars)
     (domains_eq : Hrhs.targetScope.toCtx.reverse = Hsource.domains)
     (rhsArgs : List VExpr)
@@ -111,16 +109,16 @@ noncomputable def VInductDecl.NestedIotaRule.ofAtomicStructural
       Hsource.lhsBody Hsource.typeBody)
     (Htyping : TypedExprRestoration Hrhs.plan
       (Hatomic.semantics hsourceEnv htargetEnv hsourceContext htargetContext
-        hproj)
+        )
       (abstractForallContext [] Hrhs.sourceScope).toCtx
       (abstractForallContext [] Hrhs.targetScope).toCtx
       Hrhs.sourceBody Hrhs.targetBody sourceType Hsource.typeBody)
-    (Hguard : GuardedExprRestoration Hrhs.plan.restoreNode sourceRecursors
+    (Hguard : GuardedExprRestoration Hrhs.plan.Relates sourceRecursors
       (restoredBlock.recursors.map (·.name)) Hsource.fieldVars 0
       Hrhs.sourceBody Hrhs.targetBody) :
     decl.NestedIotaRule restoredBlock owner ctor (Hrhs.abstractRule sourceRule) :=
   (RestoredPrimaryIotaSemantics.ofAtomicStructural recursor_mem sourceRecursors Hatomic
-    hsourceEnv htargetEnv hsourceContext htargetContext hproj uvars_eq
+    hsourceEnv htargetEnv hsourceContext htargetContext uvars_eq
     domains_eq rhsArgs rhs_spine field_args recursive_results contextWF
     lhsTyping Htyping Hguard).nestedIotaRule
 

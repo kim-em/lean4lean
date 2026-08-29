@@ -1810,14 +1810,10 @@ theorem
       (H.recInfos.map (fun info : AddInductive.RecInfo => info.motive))
       selectedOwner hselectedMotiveBound]
     simpa using hselectedMotiveValue
-  have hselectedMotiveRoot : motiveFVar ∈ A.rule.root.lctx.fvars := by
-    let Hext : RecursorContextExtension H.recursorWF
-        A.semantics.context :=
-      A.semantics.fieldRootExtension.trans
-        A.semantics.fieldsRecent.contextExtension
-    rcases H.motiveShapes.motiveBindingAtMono
-        (Rcurrent := A.semantics.context) H.bindings H.origins
-        Hext.contextLE selectedOwner hselectedRecInfo with ⟨Hbinding⟩
+  have hselectedMotiveRuleRoot :
+      motiveFVar ∈ A.rule.root.lctx.fvars := by
+    rcases F.motiveLookup.rootBinding selectedOwner hselectedRecInfo with
+      ⟨Hbinding⟩
     have hscope := Hbinding.motive.fvarsIn
     rw [getElem!_pos H.recInfos selectedOwner hselectedRecInfo,
       hselectedMotiveValue] at hscope
@@ -1825,6 +1821,8 @@ theorem
     rw [← A.semantics.context.lctx_eq,
       A.semantics.context.mlctx_wf.tr.fvars_eq]
     exact hscope
+  have hselectedMotiveRoot : motiveFVar ∈ F.originRoot.lctx.fvars :=
+    F.originExtension.contextLE.fvars hselectedMotiveRuleRoot
   have hselectedMotiveBinder : motiveFVar ∈ A.rule.binders := by
     simp [BoundGeneratedRecursorRule.binders, motiveFVar,
       List.getElem_mem hselectedMotiveFVars]

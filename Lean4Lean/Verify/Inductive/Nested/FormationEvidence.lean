@@ -198,6 +198,8 @@ theorem nestedExprExpansion_toNestedExprWFExpansion
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
   | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
   | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
+  | projection Hsource Htarget _ ihMajor =>
+    exact .projection Hsource Htarget ihMajor
 
 /-- Repackage the retained common-parameter prefix into the mutually
 strictly-positive formation carrier. -/

@@ -1919,7 +1919,7 @@ theorem
           (VExpr.wrapLams domains S.appliedFieldTarget)
           (VExpr.wrapForalls domains S.exposedTarget) := by
   rcases A.semantics.calls.entries j hj hj with
-    ⟨originRoot, Rorigin, Hext, callDepth, _rootScope, S, _hscope⟩
+    ⟨originRoot, Rorigin, Hext, callDepth, S, _hscope⟩
   let F := S.appliedFieldTelescope
   have hsemantic : Rorigin.venv = R.context.venv :=
     Hext.venv_eq.trans <|

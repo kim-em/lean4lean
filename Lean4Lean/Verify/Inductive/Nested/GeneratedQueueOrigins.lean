@@ -146,7 +146,9 @@ theorem GeneratedAuxiliary.pendingGeneratedFamilyOrigins
       sourceName sourceInfo state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
     (hnparams : nparams ≤ args.size)
+    (hsourceParams : nparams = sourceInfo.numParams)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
@@ -172,6 +174,7 @@ theorem GeneratedAuxiliary.pendingGeneratedFamilyOrigins
       As := As
       levels := levels
       nestedNParams := nparams
+      sourceNumParams := hsourceParams
       args := args
       argsArity := hnparams
       sourceName := sourceName
@@ -180,6 +183,8 @@ theorem GeneratedAuxiliary.pendingGeneratedFamilyOrigins
       data := data
       selection := Hselection
       selectionNodup := hselectionNodup
+      ngen := ngen
+      closing := Hclosing
       levelsNoMVars := Hlevels
       argsFVars := Hargs
       built := Hbuilt
@@ -191,7 +196,14 @@ theorem GeneratedAuxiliaryBatch.pendingGeneratedFamilyOrigins
       args result sourceNames state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
     (hnparams : nparams ≤ args.size)
+    (hclosures : MutualInductivesClosed env)
+    (triggerInfo : InductiveVal)
+    (htrigger : env.find? targetName = some (.inductInfo triggerInfo))
+    (hsourceNames : ∀ sourceName ∈ sourceNames,
+      sourceName ∈ triggerInfo.all)
+    (hnparamsTrigger : nparams = triggerInfo.numParams)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
@@ -200,15 +212,27 @@ theorem GeneratedAuxiliaryBatch.pendingGeneratedFamilyOrigins
   induction H with
   | nil => exact Horigins
   | cons Hstep Htail ih =>
-    exact ih (Hstep.pendingGeneratedFamilyOrigins Hselection
-      hselectionNodup hnparams Hlevels Hargs Horigins)
+    have Hclosure := hclosures targetName triggerInfo htrigger
+    rcases Hstep.generated with
+      ⟨_auxName, _nextIdx, _data, _Hfresh, Hbuilt, _hresult, _hstate⟩
+    have hmemberParams := Hclosure.parameters _ _
+      (hsourceNames _ (by simp)) Hbuilt.lookup
+    have hstepParams : nparams = _ :=
+      hnparamsTrigger.trans hmemberParams.symm
+    exact ih
+      (fun sourceName hsource => hsourceNames sourceName (by simp [hsource]))
+      (Hstep.pendingGeneratedFamilyOrigins Hselection
+        hselectionNodup Hclosing hnparams hstepParams Hlevels Hargs Horigins)
 
 theorem RecognizedNestedReplacement.pendingGeneratedFamilyOrigins
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
       value state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
     (hnparams : value.numParams ≤ args.size)
+    (hclosures : MutualInductivesClosed env)
+    (htrigger : env.find? targetName = some (.inductInfo value))
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
@@ -218,12 +242,15 @@ theorem RecognizedNestedReplacement.pendingGeneratedFamilyOrigins
   | cached => exact Horigins
   | generated _ Hbatch =>
     exact Hbatch.pendingGeneratedFamilyOrigins Hselection hselectionNodup
-      hnparams Hlevels Hargs Horigins
+      Hclosing hnparams hclosures value htrigger (by simp) rfl Hlevels Hargs
+      Horigins
 
 theorem NestedReplacement.pendingGeneratedFamilyOrigins
     (H : NestedReplacement env lctx params As e state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (hclosures : MutualInductivesClosed env)
     (Hinput : e.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
       state) :
@@ -232,7 +259,11 @@ theorem NestedReplacement.pendingGeneratedFamilyOrigins
   | unrecognized => exact Horigins
   | recognized Hcandidate hhead Hresult =>
     exact Hresult.pendingGeneratedFamilyOrigins Hselection hselectionNodup
-      Hcandidate.parameters.arity (by
+      Hclosing Hcandidate.parameters.arity hclosures (by
+        rcases Hcandidate.headFound with ⟨fn, levels, hfn, hfind⟩
+        rw [hhead] at hfn
+        injection hfn with hname _
+        simpa [hname] using hfind) (by
         have Hfn := Hinput.getAppFn
         rw [hhead] at Hfn
         simpa [Lean4Lean.FVarsIn] using Hfn) (by
@@ -245,6 +276,8 @@ theorem NestedExprReplacement.pendingGeneratedFamilyOrigins
     (H : NestedExprReplacement env lctx params As e state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (hclosures : MutualInductivesClosed env)
     (Hinput : e.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
       state) :
@@ -252,35 +285,36 @@ theorem NestedExprReplacement.pendingGeneratedFamilyOrigins
   induction H with
   | hit Hnode =>
     exact Hnode.pendingGeneratedFamilyOrigins Hselection hselectionNodup
-      Hinput Horigins
+      Hclosing hclosures Hinput Horigins
   | bvar | fvar | mvar | sort | const | lit => exact Horigins
   | app Hnode _ _ ihFn ihArg =>
     simp only [Lean4Lean.FVarsIn] at Hinput
     exact ihArg Hinput.2 (ihFn Hinput.1
-      (Hnode.pendingGeneratedFamilyOrigins Hselection hselectionNodup Hinput
-        Horigins))
+      (Hnode.pendingGeneratedFamilyOrigins Hselection hselectionNodup Hclosing
+        hclosures Hinput Horigins))
   | lam Hnode _ _ ihDom ihBody | forallE Hnode _ _ ihDom ihBody =>
     simp only [Lean4Lean.FVarsIn] at Hinput
     exact ihBody Hinput.2 (ihDom Hinput.1
-      (Hnode.pendingGeneratedFamilyOrigins Hselection hselectionNodup Hinput
-        Horigins))
+      (Hnode.pendingGeneratedFamilyOrigins Hselection hselectionNodup Hclosing
+        hclosures Hinput Horigins))
   | letE Hnode _ _ _ ihType ihValue ihBody =>
     simp only [Lean4Lean.FVarsIn] at Hinput
     exact ihBody Hinput.2.2 (ihValue Hinput.2.1 (ihType Hinput.1
-      (Hnode.pendingGeneratedFamilyOrigins Hselection hselectionNodup Hinput
-        Horigins)))
+      (Hnode.pendingGeneratedFamilyOrigins Hselection hselectionNodup Hclosing
+        hclosures Hinput Horigins)))
   | mdata Hnode _ ihBody | proj Hnode _ ihBody =>
     exact ihBody Hinput (Hnode.pendingGeneratedFamilyOrigins Hselection
-      hselectionNodup Hinput Horigins)
+      hselectionNodup Hclosing hclosures Hinput Horigins)
 
 theorem LoweredConstructorTranslation.pendingGeneratedFamilyOrigins
     (H : LoweredConstructorTranslation env params nparams source state out)
+    (hclosures : MutualInductivesClosed env)
     (Hsource : source.type.FVarsIn fun _ => False)
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
       state) :
     PendingGeneratedFamilyOrigins env params initialSize cursor out.2 := by
   rcases H.translated with
-    ⟨lctx, tail, As, lowered, openedState, Hopening, _Hbinding,
+    ⟨lctx, tail, As, lowered, openedState, Hopening, Hbinding,
       Hselection, hnodup, hopenedTypes, hopenedAux, _hopenedNext, _hsize,
       Hreplace, _htype⟩
   have Htail : tail.FVarsIn (· ∈ Hselection.fvars) :=
@@ -293,10 +327,14 @@ theorem LoweredConstructorTranslation.pendingGeneratedFamilyOrigins
       simpa [hopenedTypes] using hj
     rcases Horigins j hinitial hcursor hjState with ⟨Horigin⟩
     exact ⟨by simpa [hopenedTypes, hopenedAux] using Horigin⟩
-  exact Hreplace.pendingGeneratedFamilyOrigins Hselection hnodup Htail Hopened
+  have Hclosing : NestedClosingContext lctx As openedState.ngen :=
+    Hopening.closingContext Hbinding Hselection hnodup Hsource
+  exact Hreplace.pendingGeneratedFamilyOrigins Hselection hnodup Hclosing
+    hclosures Htail Hopened
 
 theorem LoweredConstructorTranslations.pendingGeneratedFamilyOrigins
     (H : LoweredConstructorTranslations env params nparams sources state out)
+    (hclosures : MutualInductivesClosed env)
     (Hsources : ∀ source ∈ sources,
       source.type.FVarsIn fun _ => False)
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
@@ -306,15 +344,17 @@ theorem LoweredConstructorTranslations.pendingGeneratedFamilyOrigins
   | nil => exact Horigins
   | cons Hhead Htail ih =>
     exact ih (fun source hsource => Hsources source (by simp [hsource]))
-      (Hhead.pendingGeneratedFamilyOrigins (Hsources _ (by simp)) Horigins)
+      (Hhead.pendingGeneratedFamilyOrigins hclosures
+        (Hsources _ (by simp)) Horigins)
 
 theorem LoweredInductiveTranslation.pendingGeneratedFamilyOrigins
     (H : LoweredInductiveTranslation env params nparams source state out)
+    (hclosures : MutualInductivesClosed env)
     (Hsource : InductiveConstructorsClosed source)
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
       state) :
     PendingGeneratedFamilyOrigins env params initialSize cursor out.2 :=
-  H.constructors.pendingGeneratedFamilyOrigins Hsource Horigins
+  H.constructors.pendingGeneratedFamilyOrigins hclosures Hsource Horigins
 
 /-- Complete lowering provenance for a dynamically generated final slot. -/
 structure FinalLoweredGeneratedFamilyOrigin
@@ -387,6 +427,7 @@ theorem LowerNextTranslation.generatedFamilyOrigins
     (H : LowerNextTranslation env params nparams i state
       (some source, nextState))
     (Hpending : PendingNewTypesClosed i state)
+    (hclosures : MutualInductivesClosed env)
     (Horigins : LoweringQueueGeneratedOrigins env params nparams initialSize i
       state) :
     LoweringQueueGeneratedOrigins env params nparams initialSize (i + 1)
@@ -402,7 +443,7 @@ theorem LowerNextTranslation.generatedFamilyOrigins
       ⟨[], by simp⟩
     have hiLowered := (Hle.getElem hi).choose
     have HpendingOrigins := Hlowered.pendingGeneratedFamilyOrigins
-      (Hpending i (Nat.le_refl _) hi) Horigins.pending
+      hclosures (Hpending i (Nat.le_refl _) hi) Horigins.pending
     constructor
     · intro j hinitial hjNext hjProcessed
       by_cases hji : j = i
@@ -446,6 +487,7 @@ lowering provenance. -/
 theorem LoweringQueueTrace.finalGeneratedFamilyOriginAt
     (H : LoweringQueueTrace env params nparams lctx i fuel state out)
     (Henv : EnvironmentTypesClosed env)
+    (hclosures : MutualInductivesClosed env)
     (Hpending : PendingNewTypesClosed i state)
     (Horigins : LoweringQueueGeneratedOrigins env params nparams initialSize i
       state)
@@ -459,7 +501,7 @@ theorem LoweringQueueTrace.finalGeneratedFamilyOriginAt
     exact Horigins.processed j hinitial hjState (by omega)
   | step Hnext Htail ih =>
     exact ih (Hnext.pendingNewTypesClosed Henv Hpending)
-      (Hnext.generatedFamilyOrigins Hpending Horigins) hj
+      (Hnext.generatedFamilyOrigins Hpending hclosures Horigins) hj
 
 theorem LoweringQueueTrace.familyPositions
     (H : LoweringQueueTrace env params nparams lctx i fuel state out)
@@ -481,6 +523,7 @@ position. -/
 theorem NestedLoweringRun.finalGeneratedFamilyOriginAt
     (H : NestedLoweringRun env fuel nparams types initialState out)
     (Henv : EnvironmentTypesClosed env)
+    (hclosures : MutualInductivesClosed env)
     (Hsources : SourceSyntaxChecks types)
     (hinitialTypes : initialState.newTypes = types.toArray)
     (hsuffix : initialState.newTypes.size ≤ j)
@@ -512,7 +555,7 @@ theorem NestedLoweringRun.finalGeneratedFamilyOriginAt
       simpa [Array.getElem!_eq_getD, Array.getD, hjState, hjInitial] using heq
     rw [hvalue]
     exact Hsources.constructorsClosed hmember
-  have Hfinal := Hqueue.finalGeneratedFamilyOriginAt Henv Hpending Horigins
+  have Hfinal := Hqueue.finalGeneratedFamilyOriginAt Henv hclosures Hpending Horigins
     hsuffix hj
   rw [Hqueue.resultContext.2]
   exact Hfinal
@@ -574,6 +617,7 @@ theorem NestedLoweringRun.finalCachedGeneratedFamilyOrigin
     (H : NestedLoweringRun env fuel nparams types initialState
       (result, finalState))
     (Henv : EnvironmentTypesClosed env)
+    (hclosures : MutualInductivesClosed env)
     (Hsources : SourceSyntaxChecks types)
     (hinitialTypes : initialState.newTypes = types.toArray)
     (hempty : initialState.nestedAux = #[])
@@ -589,7 +633,7 @@ theorem NestedLoweringRun.finalCachedGeneratedFamilyOrigin
   have hjResult : j < result.types.length := by
     rw [Hqueue.resultTypes]
     simpa using hj
-  rcases H.finalGeneratedFamilyOriginAt Henv Hsources hinitialTypes hinitial
+  rcases H.finalGeneratedFamilyOriginAt Henv hclosures Hsources hinitialTypes hinitial
     hjResult with ⟨Horigin⟩
   have hfamily : result.types[j] = finalState.newTypes[j] := by
     have harr : result.types.toArray = finalState.newTypes := by
@@ -642,13 +686,14 @@ theorem NestedLoweringRun.finalCachedGeneratedFamilyOriginOfLookup
     (H : NestedLoweringRun env fuel nparams types initialState
       (result, finalState))
     (Henv : EnvironmentTypesClosed env)
+    (hclosures : MutualInductivesClosed env)
     (Hsources : SourceSyntaxChecks types)
     (hinitialTypes : initialState.newTypes = types.toArray)
     (hempty : initialState.nestedAux = #[])
     (hlookup : result.aux2nested.find? auxName = some nested) :
     Nonempty (FinalCachedGeneratedFamilyOrigin env result.params nparams
       initialState.newTypes.size finalState nested auxName) :=
-  H.finalCachedGeneratedFamilyOrigin Henv Hsources hinitialTypes hempty
+  H.finalCachedGeneratedFamilyOrigin Henv hclosures Hsources hinitialTypes hempty
     (H.finalCacheEntryOfResultLookup hlookup)
 
 /-- Every successful expression-lowering hit in an exact run rejoins the
@@ -661,6 +706,7 @@ theorem NestedReplacementFinalTrace.finalGeneratedFamilyOrigin
     (Hrun : NestedLoweringRun env fuel nparams types initialState
       (result, runFinalState))
     (Henv : EnvironmentTypesClosed env)
+    (hclosures : MutualInductivesClosed env)
     (Hsources : SourceSyntaxChecks types)
     (hinitialTypes : initialState.newTypes = types.toArray)
     (hempty : initialState.nestedAux = #[]) :
@@ -676,10 +722,10 @@ theorem NestedReplacementFinalTrace.finalGeneratedFamilyOrigin
         initialState.newTypes.size runFinalState nested auxName) := by
   rcases H.mapping with
     ⟨value, targetName, levels, auxName, auxLevels, nested, Hcandidate,
-      hhead, hlowered, hnested, hlookup⟩
+      _hauxLevels, hhead, hlowered, hnested, hlookup⟩
   exact ⟨value, targetName, levels, auxName, auxLevels, nested, Hcandidate,
     hhead, hlowered, hnested,
-    Hrun.finalCachedGeneratedFamilyOriginOfLookup Henv Hsources hinitialTypes
+    Hrun.finalCachedGeneratedFamilyOriginOfLookup Henv hclosures Hsources hinitialTypes
       hempty hlookup⟩
 
 theorem FinalLoweredGeneratedFamilyOrigin.finalMapping

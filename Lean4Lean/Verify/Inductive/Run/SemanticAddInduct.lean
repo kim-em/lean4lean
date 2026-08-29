@@ -13,13 +13,12 @@ is recovered canonically from the retained recursor phase. -/
 theorem SemanticRunWithStatsResult.addInductCanonical
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (hnonempty : indTypes.toList ≠ [])
-    (hproj : ProjectionConstPreservation) :
+    (hnonempty : indTypes.toList ≠ []) :
     ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
       VEnv.AddInduct sourceEnv decl finalVEnv := by
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalOrdinaryRuleTranslation hproj with ⟨T⟩
+  rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
   exact ⟨decl, Hrecursors.outVEnv.addDefEqRules T.rules,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
       T.compilation⟩
@@ -31,8 +30,7 @@ nested lowering/restoration and the final environment boundary. -/
 theorem VerifiedSemanticInductiveRunResult.addInductCanonical
     (Hrun : VerifiedSemanticInductiveRunResult source nparams types
       numNested outEnv)
-    (hnonempty : types ≠ [])
-    (hproj : ProjectionConstPreservation) :
+    (hnonempty : types ≠ []) :
     ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
       c'.env = source.env ∧
       c'.safety = source.safety ∧
@@ -44,7 +42,7 @@ theorem VerifiedSemanticInductiveRunResult.addInductCanonical
       hlparams, Hsemantic, Hphases⟩
   have hnonempty' : types.toArray.toList ≠ [] := by
     simpa using hnonempty
-  rcases Hphases.addInductCanonical hnonempty' hproj with
+  rcases Hphases.addInductCanonical hnonempty' with
     ⟨decl, finalVEnv, Hadd⟩
   exact ⟨c', Hc', henv, hsafety, hlparams, decl, finalVEnv, Hadd⟩
 
@@ -57,7 +55,6 @@ theorem AddInductive.run.semanticAddInductWF
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
-    (hproj : ProjectionConstPreservation)
     (Hinputs : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {depth : Nat}
       {commonParams : List VExpr} {commonLevel : VLevel},
@@ -79,8 +76,8 @@ theorem AddInductive.run.semanticAddInductWF
     simpa using List.ne_nil_of_length_pos
       (by simpa using hnonempty : 0 < types.length)
   exact (AddInductive.run.semanticWF nparams numNested Hc Hclosed hctx
-    hnonempty HnotPartial hproj Hinputs).mono fun _ Hrun =>
-      Hrun.addInductCanonical htypes hproj
+    hnonempty HnotPartial Hinputs).mono fun _ Hrun =>
+      Hrun.addInductCanonical htypes
 
 end VerifyInductive
 end Lean4Lean

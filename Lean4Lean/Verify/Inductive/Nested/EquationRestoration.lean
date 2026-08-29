@@ -12,59 +12,35 @@ node replacement stops traversal; otherwise the relation records the exact
 structural recursion through `VExpr`.  The callback is specification data:
 later certificates interpret its hit cases as auxiliary-family expansion,
 constructor restoration, or auxiliary-recursor renaming. -/
-inductive VExprRestoration (replaceNode : VExpr → Option VExpr) :
+inductive VExprRestoration (replaceNode : VExpr → VExpr → Prop) :
     VExpr → VExpr → Prop
-  | hit (h : replaceNode input = some output) :
+  | hit (h : replaceNode input output) :
       VExprRestoration replaceNode input output
-  | bvar (h : replaceNode (.bvar i) = none) :
+  | leaf : VExprRestoration replaceNode input input
+  | bvar :
       VExprRestoration replaceNode (.bvar i) (.bvar i)
-  | sort (h : replaceNode (.sort u) = none) :
+  | sort :
       VExprRestoration replaceNode (.sort u) (.sort u)
-  | const (h : replaceNode (.const name levels) = none) :
+  | const :
       VExprRestoration replaceNode (.const name levels) (.const name levels)
-  | app (h : replaceNode (.app fn arg) = none)
-      (hfn : VExprRestoration replaceNode fn fn')
+  | app (hfn : VExprRestoration replaceNode fn fn')
       (harg : VExprRestoration replaceNode arg arg') :
       VExprRestoration replaceNode (.app fn arg) (.app fn' arg')
-  | lam (h : replaceNode (.lam domain body) = none)
-      (hdomain : VExprRestoration replaceNode domain domain')
+  | lam (hdomain : VExprRestoration replaceNode domain domain')
       (hbody : VExprRestoration replaceNode body body') :
       VExprRestoration replaceNode (.lam domain body) (.lam domain' body')
-  | forallE (h : replaceNode (.forallE domain body) = none)
-      (hdomain : VExprRestoration replaceNode domain domain')
+  | forallE (hdomain : VExprRestoration replaceNode domain domain')
       (hbody : VExprRestoration replaceNode body body') :
       VExprRestoration replaceNode (.forallE domain body)
         (.forallE domain' body')
-
-/-- A structural abstract restoration preserves absence of the restored
-recursor names whenever each atomic hit does.  This is the field-side lemma
-needed by guarded iota reconstruction; recursive-call hits are handled by a
-separate call-shape certificate. -/
-theorem VExprRestoration.containsAnyConst_eq_false
-    (H : VExprRestoration replaceNode input output)
-    (Hhit : ∀ {source target}, replaceNode source = some target →
-      source.containsAnyConst names = false →
-      target.containsAnyConst restoredNames = false)
-    (Hconst : ∀ {name levels}, replaceNode (.const name levels) = none →
-      names.contains name = false → restoredNames.contains name = false)
-    (hinput : input.containsAnyConst names = false) :
-    output.containsAnyConst restoredNames = false := by
-  induction H with
-  | hit h => exact Hhit h hinput
-  | bvar | sort => rfl
-  | @const name levels h =>
-      have hsource : names.contains name = false := by
-        simpa [VExpr.containsAnyConst] using hinput
-      simpa [VExpr.containsAnyConst] using Hconst h hsource
-  | app h hfn harg ihfn iharg =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hinput ⊢
-      exact ⟨ihfn hinput.1, iharg hinput.2⟩
-  | lam h hdomain hbody ihdomain ihbody =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hinput ⊢
-      exact ⟨ihdomain hinput.1, ihbody hinput.2⟩
-  | forallE h hdomain hbody ihdomain ihbody =>
-      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hinput ⊢
-      exact ⟨ihdomain hinput.1, ihbody hinput.2⟩
+  | projection
+      (sourceExpansion : VExpr.ProjectionSupportExpansion
+        sourceMajor sourceTarget)
+      (targetExpansion : VExpr.ProjectionSupportExpansion
+        targetMajor targetTarget)
+      (sourceNotBVarHead : sourceTarget.bvarHead? = none)
+      (hmajor : VExprRestoration replaceNode sourceMajor targetMajor) :
+      VExprRestoration replaceNode sourceTarget targetTarget
 
 end VerifyInductive
 
@@ -108,6 +84,15 @@ def renameConsts (rename : Name → Name) : VExpr → VExpr
       simp
   | bvar | sort | const | lam | forallE => rfl
 
+theorem ProjectionSupportExpansion.renameConsts
+    (H : ProjectionSupportExpansion major target) :
+    ProjectionSupportExpansion (major.renameConsts rename)
+      (target.renameConsts rename) := by
+  cases H with
+  | canonical administrativeHead minor =>
+      exact .canonical (administrativeHead.renameConsts rename)
+        (minor.renameConsts rename)
+
 theorem IsFieldApp.renameConsts
     (H : IsFieldApp fieldVars depth e) :
     IsFieldApp fieldVars depth (e.renameConsts rename) := by
@@ -137,6 +122,8 @@ theorem GuardedIota.renameConsts
   | lam hdomain hbody ihdomain ihbody => exact .lam ihdomain ihbody
   | forallE hdomain hbody ihdomain ihbody =>
       exact .forallE ihdomain ihbody
+  | projection expansion hmajor ihmajor =>
+      exact .projection expansion.renameConsts ihmajor
   | @recCall recursor init major depth levels hrecursor hargs hmajor ihargs =>
       rw [VExpr.renameConsts_mkApps]
       simp only [List.map_append, List.map_cons, List.map_nil]
@@ -156,8 +143,15 @@ namespace VerifyInductive
 
 /-- Pointwise restoration of a list of constructor fields preserves their
 order and length. -/
-abbrev VExprRestorationList (replaceNode : VExpr → Option VExpr) :=
+abbrev VExprRestorationList (replaceNode : VExpr → VExpr → Prop) :=
   List.Forall₂ (VExprRestoration replaceNode)
+
+theorem VExprRestorationList.leaf
+    (expressions : List VExpr) :
+    VExprRestorationList replaceNode expressions expressions := by
+  induction expressions with
+  | nil => exact .nil
+  | cons expression expressions ih => exact .cons .leaf ih
 
 theorem VExprRestorationList.length_eq
     (H : VExprRestorationList replaceNode sources targets) :

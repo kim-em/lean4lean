@@ -63,6 +63,8 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
     exact htypesLength.symm
   exact ⟨Hheaders, Hinfos.closesMutuals Hclosed
     (inductiveTypeInfos_uniformAll stats numParams indTypes numNested
+      isUnsafe c.lparams hsize)
+    (inductiveTypeInfos_uniformNumParams stats numParams indTypes numNested
       isUnsafe c.lparams hsize)⟩
 
 /-- The actual primitive header/check/constructor executable prefix, with
@@ -117,10 +119,6 @@ theorem AddInductive.runWithStats.primitiveClosedWF
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ∀ {Δ : VLCtx} {s j e' e''}, TrProj Δ.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial) :
     (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe
       c).WF fun outEnv =>
@@ -133,9 +131,7 @@ theorem AddInductive.runWithStats.primitiveClosedWF
   · exact AddInductive.formationCore.primitiveClosedWF Hc Hclosed Hdecl
       Hmaterialized Hshape hvisible
   · exact hlparams
-  · exact hloopUArgsReplay
   · exact Hshape.materializedLiteralDisjoint Hdecl Hmaterialized
-  · exact hproj
   · exact hnotPartial
   · intro _hallow owner howner
     exact Hshape.recursorsNonprimitive owner howner
@@ -174,9 +170,7 @@ theorem AddInductive.run.primitiveClosedWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run skeleton.nparams types numNested c).WF
       (VerifiedPrimitiveInductiveRunResult c skeleton envTypes types
         numNested) := by
@@ -208,9 +202,6 @@ theorem AddInductive.run.primitiveClosedWF
       simpa [hlparamsEq] using hnodup
     exact (AddInductive.runWithStats.primitiveClosedWF Hc' Hclosed' Hdecl'
       Hmaterialized Hshape' hvisible hlparamsNodup
-      hloopUArgsReplay
-      (fun Htr hfree =>
-        hproj (decl.types.map (·.name)) Htr hfree)
       HnotPartial').mono fun outEnv Hout => by
         rcases Hout with ⟨ctorEnv, R, Hrecursors⟩
         exact ⟨c', stats, decl, depth, Hc', Hdecl', Hmaterialized,

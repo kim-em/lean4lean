@@ -139,6 +139,14 @@ structure CanonicalProjectionExpansion where
 
 namespace CanonicalProjectionExpansion
 
+/-- Lift telescope domains under an arbitrary context embedding, advancing
+the embedding at each newly bound field. -/
+def liftDomains' (domains : List VExpr) (lift : Lift) : List VExpr :=
+  match domains with
+  | [] => []
+  | domain :: domains =>
+      domain.lift' lift :: liftDomains' domains lift.cons
+
 /-- Lift telescope domains at the successively deeper binder cutoffs. -/
 def liftDomains (domains : List VExpr) (n k : Nat) : List VExpr :=
   match domains with
@@ -169,6 +177,34 @@ def instDomains (domains : List VExpr) (substitution : VExpr) (k : Nat) :
   | nil => rfl
   | cons domain domains ih =>
       simp [instDomains, ih]
+
+@[simp] theorem liftDomains'_length
+    (domains : List VExpr) (lift : Lift) :
+    (liftDomains' domains lift).length = domains.length := by
+  induction domains generalizing lift with
+  | nil => rfl
+  | cons domain domains ih => simp [liftDomains', ih]
+
+private theorem Lift.cons_consN (lift : Lift) (count : Nat) :
+    lift.cons.consN count = (lift.consN count).cons := by
+  induction count with
+  | zero => rfl
+  | succ count ih => simp [Lift.consN, ih]
+
+theorem lift'_wrapLams (domains : List VExpr) (body : VExpr) :
+    (VExpr.wrapLams domains body).lift' lift =
+      VExpr.wrapLams (liftDomains' domains lift)
+        (body.lift' (lift.consN domains.length)) := by
+  induction domains generalizing lift with
+  | nil => rfl
+  | cons domain domains ih =>
+      simp only [VExpr.wrapLams, List.foldr_cons, VExpr.lift',
+        liftDomains', List.length_cons]
+      congr 1
+      change (VExpr.wrapLams domains body).lift' lift.cons =
+        VExpr.wrapLams (liftDomains' domains lift.cons)
+          (body.lift' (lift.consN domains.length).cons)
+      simpa [Lift.cons_consN] using (ih (lift := lift.cons))
 
 theorem liftN_wrapLams (domains : List VExpr) (body : VExpr) :
     (VExpr.wrapLams domains body).liftN n k =
@@ -217,6 +253,87 @@ def target (P : CanonicalProjectionExpansion) : VExpr :=
     (.const (mkCasesOnName P.structName) (P.resultLevel :: P.familyLevels))
     (P.params ++ [P.motive] ++ P.indices ++ [P.major, P.minor])
 
+end CanonicalProjectionExpansion
+
+/-- Installed provenance for the eliminator used by one canonical projection
+expansion.  This data lives below expression translation so projection nodes
+retain the exact environment in which their expansion was certified. -/
+structure CanonicalProjectionExpansion.InstalledOrigin
+    (env : VEnv) (U : Nat) (P : CanonicalProjectionExpansion) where
+  decl : VInductDecl
+  owner : VInductiveType
+  ctor : VConstVal
+  recursor : VConstVal
+  eliminator : VConstant
+  installed : VEnv.InstalledInductCertificate env decl
+  owner_mem : owner ∈ decl.types
+  owner_name : owner.name = P.structName
+  owner_single : owner.ctors = [ctor]
+  recursor_name : recursor.name = mkRecName P.structName
+  recursor_lookup : env.constants (mkRecName P.structName) =
+    some recursor.toVConstant
+  eliminator_lookup : env.constants (mkCasesOnName P.structName) =
+    some eliminator
+  recursor_shape : Nonempty (decl.NestedRecursorShape owner recursor)
+  familyLevels_length : P.familyLevels.length = decl.uvars
+  familyLevels_wf : ∀ level ∈ P.familyLevels, level.WF U
+  resultLevel_wf : P.resultLevel.WF U
+  params_length : P.params.length = decl.nparams
+  indices_length : P.indices.length = owner.numIndices
+
+/-- Installed origin together with the exact type of the projection major. -/
+structure CanonicalProjectionExpansion.InstalledTyping
+    (env : VEnv) (U : Nat) (Gamma : List VExpr)
+    (P : CanonicalProjectionExpansion)
+    extends CanonicalProjectionExpansion.InstalledOrigin env U P where
+  majorType : env.HasType U Gamma P.major
+    (VExpr.mkApps
+      (.const toInstalledOrigin.owner.name P.familyLevels)
+      (P.params ++ P.indices))
+
+/-- Environment validity for one canonical projection expansion. -/
+structure CanonicalProjectionExpansion.WF
+    (env : VEnv) (U : Nat) (Gamma : List VExpr)
+    (P : CanonicalProjectionExpansion) : Prop where
+  installed : Nonempty
+    (CanonicalProjectionExpansion.InstalledTyping env U Gamma P)
+  majorWF : VExpr.WF env U Gamma P.major
+  targetWF : VExpr.WF env U Gamma P.target
+
+/-- Environment-indexed primitive projection translation.  The environment
+and universe count are implicit to preserve the established surface syntax,
+but are fixed by every surrounding `TrExprS` projection node. -/
+inductive TrProj {env : VEnv} {U : Nat} (Gamma : List VExpr)
+    (structName : Name) (index : Nat) (major : VExpr) : VExpr → Prop where
+  | canonical
+      (P : CanonicalProjectionExpansion)
+      (hstruct : P.structName = structName)
+      (hindex : P.index = index)
+      (hmajor : P.major = major)
+      (Hwf : CanonicalProjectionExpansion.WF env U Gamma P) :
+      TrProj Gamma structName index major P.target
+
+/-- Forget typing and installed-origin data while retaining exactly the
+source-support boundary of a certified projection expansion. -/
+theorem TrProj.supportExpansion
+    (H : TrProj (env := env) (U := U) Gamma structName index major target) :
+    VExpr.ProjectionSupportExpansion major target := by
+  cases H with
+  | canonical P hstruct hindex hmajor Hwf =>
+    subst hmajor
+    let administrativeHead := VExpr.mkApps
+      (.const (mkCasesOnName P.structName)
+        (P.resultLevel :: P.familyLevels))
+      (P.params ++ [P.motive] ++ P.indices)
+    have Hshape : P.target =
+        .app (.app administrativeHead P.major) P.minor := by
+      simp [CanonicalProjectionExpansion.target, administrativeHead,
+        VExpr.mkApps, List.foldl_append]
+    rw [Hshape]
+    exact .canonical administrativeHead P.minor
+
+namespace CanonicalProjectionExpansion
+
 /-- Universe substitution of every explicit component of a canonical
 projection expansion. -/
 def instL (P : CanonicalProjectionExpansion) (substitution : List VLevel) :
@@ -231,6 +348,45 @@ def instL (P : CanonicalProjectionExpansion) (substitution : List VLevel) :
   fieldDomains := P.fieldDomains.map (VExpr.instL substitution)
   index := P.index
   index_lt := by simpa using P.index_lt
+
+/-- Arbitrary context embedding of every component, respecting the binders
+introduced by the constructor-field telescope. -/
+def lift' (P : CanonicalProjectionExpansion) (lift : Lift) :
+    CanonicalProjectionExpansion where
+  structName := P.structName
+  familyLevels := P.familyLevels
+  resultLevel := P.resultLevel
+  params := P.params.map (VExpr.lift' · lift)
+  indices := P.indices.map (VExpr.lift' · lift)
+  motive := P.motive.lift' lift
+  major := P.major.lift' lift
+  fieldDomains := liftDomains' P.fieldDomains lift
+  index := P.index
+  index_lt := by simpa using P.index_lt
+
+/-- Replace only the projection major while retaining every piece of
+installed family and field metadata. -/
+def replaceMajor (P : CanonicalProjectionExpansion) (major : VExpr) :
+    CanonicalProjectionExpansion where
+  structName := P.structName
+  familyLevels := P.familyLevels
+  resultLevel := P.resultLevel
+  params := P.params
+  indices := P.indices
+  motive := P.motive
+  major := major
+  fieldDomains := P.fieldDomains
+  index := P.index
+  index_lt := P.index_lt
+
+@[simp] theorem replaceMajor_target
+    (P : CanonicalProjectionExpansion) (major : VExpr) :
+    (P.replaceMajor major).target =
+      VExpr.mkApps
+        (.const (mkCasesOnName P.structName)
+          (P.resultLevel :: P.familyLevels))
+        (P.params ++ [P.motive] ++ P.indices ++ [major, P.minor]) := by
+  rfl
 
 /-- De Bruijn lifting of every component, respecting the increasing cutoff
 under the constructor-field telescope. -/
@@ -370,6 +526,50 @@ theorem target_noConsts_iff
     (P : CanonicalProjectionExpansion) (n k : Nat) :
     (P.liftN n k).fieldVar = P.fieldVar := by
   simp [fieldVar, liftN]
+
+@[simp] theorem fieldVar_lift'
+    (P : CanonicalProjectionExpansion) (lift : Lift) :
+    (P.lift' lift).fieldVar = P.fieldVar := by
+  simp [fieldVar, lift']
+
+private theorem Lift.fixes_consN (lift : Lift) (count : Nat) :
+    (lift.consN count).Fixes count := by
+  induction count with
+  | zero => exact Lift.Fixes.zero
+  | succ count ih => simpa [Lift.consN, Lift.Fixes] using ih
+
+theorem VExpr.lift'_mkApps
+    (fn : VExpr) (args : List VExpr) (lift : Lift) :
+    (fn.mkApps args).lift' lift =
+      (fn.lift' lift).mkApps (args.map (VExpr.lift' · lift)) := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons argument arguments ih =>
+      change ((fn.app argument).mkApps arguments).lift' lift =
+        ((fn.lift' lift).app (argument.lift' lift)).mkApps
+          (arguments.map (VExpr.lift' · lift))
+      simpa [VExpr.lift'] using ih (fn := fn.app argument)
+
+@[simp] theorem minor_lift'
+    (P : CanonicalProjectionExpansion) (lift : Lift) :
+    (P.lift' lift).minor = P.minor.lift' lift := by
+  rw [minor, minor, lift'_wrapLams]
+  change VExpr.wrapLams (liftDomains' P.fieldDomains lift)
+      (VExpr.bvar (P.lift' lift).fieldVar) =
+    VExpr.wrapLams (liftDomains' P.fieldDomains lift)
+      ((VExpr.bvar P.fieldVar).lift' (lift.consN P.fieldDomains.length))
+  rw [fieldVar_lift']
+  simp only [VExpr.lift']
+  rw [(Lift.fixes_consN lift P.fieldDomains.length).liftVar_eq
+    P.fieldVar_lt]
+
+@[simp] theorem target_lift'
+    (P : CanonicalProjectionExpansion) (lift : Lift) :
+    (P.lift' lift).target = P.target.lift' lift := by
+  unfold target
+  rw [VExpr.lift'_mkApps]
+  rw [minor_lift']
+  simp [lift', List.map_append]
 
 @[simp] theorem minor_liftN
     (P : CanonicalProjectionExpansion) (n k : Nat) :

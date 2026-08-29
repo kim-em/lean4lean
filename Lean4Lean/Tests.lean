@@ -5,4 +5,6 @@ import Lean4Lean.Tests.ProjectionWithoutCasesOn
 import Lean4Lean.Tests.InductiveTheory
 import Lean4Lean.Tests.Environment
 import Lean4Lean.Tests.RecursiveInductive
+import Lean4Lean.Tests.NestedInductive
+import Lean4Lean.Tests.KernelHardening
 import Lean4Lean.Tests.LevelStd

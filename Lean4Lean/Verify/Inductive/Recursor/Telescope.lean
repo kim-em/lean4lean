@@ -33,10 +33,6 @@ theorem recursiveDomainsRecursor {alpha : Type}
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htype : TrExprS R.venv recLparams R.mlctx.vlctx t typeTarget)
     (hfields : RecursorFieldSelectionsAt R.venv decl recLparams.length
       bu u fields)
@@ -114,7 +110,7 @@ theorem recursiveDomainsRecursor {alpha : Type}
       have hopened := R.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbodyConsumed
       have Hclass := isRecArg.refinesRecursor R' Hstats' hconsume
-        hlit hctx' hproj
+        hlit hctx'
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
       refine Hclass.bind fun selected hselected => ?_
       cases selected with
@@ -162,10 +158,6 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursor {alpha : Type}
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
     (Hk : ∀ {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
@@ -195,7 +187,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursor {alpha : Type}
         stats.params.size #[] #[] fuel inputContext).WF Q := by
     intro fuel
     exact mkRecInfos.loopCtorArgs.loop.recursiveDomainsRecursor stats k R
-      Hstats (Nat.le_refl _) hconsume hlit hctx hproj htail .nil .nil Hk
+      Hstats (Nat.le_refl _) hconsume hlit hctx htail .nil .nil Hk
   exact mkRecInfos.loopCtorArgs.loop.followsParamPrefix stats k hprefix Htail
     inputContext.fuel.inductiveFuel
 
@@ -2036,6 +2028,40 @@ theorem TrExprS.forallTelescope_shape
 def abstractForallContext (domains : List VExpr) (Δ : VLCtx) : VLCtx :=
   (domains.reverse.map fun type => (none, .vlam type)) ++ Δ
 
+@[simp] theorem VLCtx.instL_append
+    (left right : VLCtx) (levels : List VLevel) :
+    (left ++ right).instL levels =
+      left.instL levels ++ right.instL levels := by
+  induction left with
+  | nil => rfl
+  | cons entry left ih =>
+    rcases entry with ⟨ofv, decl⟩
+    simp [VLCtx.instL, ih]
+
+@[simp] theorem VLCtx.instL_abstractForallContext
+    (domains : List VExpr) (Δ : VLCtx) (levels : List VLevel) :
+    (abstractForallContext domains Δ).instL levels =
+      abstractForallContext (domains.map (VExpr.instL levels))
+        (Δ.instL levels) := by
+  have hmap : ∀ types : List VExpr,
+      VLCtx.instL
+          (types.map fun type =>
+            ((none, .vlam type) :
+              Option (FVarId × List FVarId) × VLocalDecl)) levels =
+      types.map fun type =>
+        ((none, .vlam (type.instL levels)) :
+          Option (FVarId × List FVarId) × VLocalDecl) := by
+    intro types
+    induction types with
+    | nil => rfl
+    | cons type types ih =>
+      simp [VLCtx.instL, VLocalDecl.instL, ih]
+  unfold abstractForallContext
+  rw [VLCtx.instL_append]
+  rw [← List.map_reverse]
+  rw [hmap domains.reverse]
+  simp [List.map_reverse, List.map_map, Function.comp_def]
+
 /-- Remove the outermost declaration of an anonymous forall context while
 instantiating every dependent declaration nested beneath it.  The witness is
 the context-side counterpart of `VExpr.inst_wrapForalls`; its bound-variable
@@ -2870,6 +2896,32 @@ theorem Expr.ForallTelescopeTypeTranslation.mono
   | cons Hdom HdomType Hbody ih =>
     exact .cons (Hdom.mono henv) (HdomType.mono henv) ih
 
+/-- Prepend a fresh concrete universe parameter to every judgment retained by
+a translated forall telescope.  The concrete telescope is unchanged; the
+semantic context and target are instantiated by the standard one-place
+universe shift. -/
+theorem Expr.ForallTelescopeTypeTranslation.prependLevelParam
+    (H : Expr.ForallTelescopeTypeTranslation env Us Δ source arity target)
+    (henv : env.WF) (hΔ : Δ.WF env Us.length) (hfresh : fresh ∉ Us) :
+    Expr.ForallTelescopeTypeTranslation env (fresh :: Us)
+      (Δ.instL (VLevel.prependShift Us.length)) source arity
+      (target.instL (VLevel.prependShift Us.length)) := by
+  let shift := VLevel.prependShift Us.length
+  have hshift : ∀ level ∈ shift,
+      level.WF (fresh :: Us).length := by
+    simpa [shift] using VLevel.prependShift_wf (n := Us.length)
+  induction H with
+  | nil Htr Htype =>
+    exact .nil (Htr.prependLevelParam henv hΔ hfresh) (by
+      simpa [shift, VLCtx.instL_toCtx] using Htype.instL hshift)
+  | cons Hdom HdomType Hbody ih =>
+    exact .cons
+      (Hdom.prependLevelParam henv hΔ hfresh)
+      (by simpa [shift, VLCtx.instL_toCtx] using HdomType.instL hshift)
+      (by
+        simpa [shift, VLCtx.instL, VLocalDecl.instL] using
+          ih ⟨hΔ, nofun, HdomType⟩)
+
 theorem Expr.ForallTelescopeTypeTranslation.telescope
     (H : Expr.ForallTelescopeTypeTranslation env Us Δ e n e') :
     ∃ residual, Expr.ForallTelescope e n residual := by
@@ -3453,6 +3505,27 @@ theorem checkInductiveTypes.loopType.FVarNarrowSources.closeTranslation
     simpa [FVarNarrowSources.closeSource, VLCtx.toCtx,
       List.reverse_cons, VExpr.wrapForalls] using Hclosed
 
+/-- Typed telescope form of `closeTranslation` when the exact semantic
+source provenance is retained directly, without an ambient narrowing
+wrapper. -/
+theorem checkInductiveTypes.loopType.FVarNarrowSources.closeTypedTelescope
+    (H : checkInductiveTypes.loopType.FVarNarrowSources env Us scope)
+    (henv : env.WF) (Hscope : scope.WF env Us.length)
+    (Hbody : TrExprS env Us scope body target)
+    (HbodyType : env.IsType Us.length scope.toCtx target) :
+    Expr.ForallTelescopeTypeTranslation env Us []
+      (H.closeSource body) scope.length
+      (VExpr.wrapForalls scope.toCtx.reverse target) := by
+  have Htranslation := H.closeTranslation henv Hscope Hbody HbodyType
+  have Htelescope := H.closeSource_telescope Hscope.fvars_nodup body
+  have HtargetType : env.IsType Us.length []
+      (VExpr.wrapForalls scope.toCtx.reverse target) := by
+    apply VEnv.IsType.wrapForalls
+    · simpa using Hscope.toCtx
+    · simpa using HbodyType
+  exact Expr.ForallTelescopeTypeTranslation.ofTrExprS
+    Htelescope Htranslation HtargetType
+
 /-- Typed telescope form of `closeTranslation` for an arbitrary body.  This
 is the reusable boundary between a named, non-contiguously narrowed scope and
 the completely closed source declaration used by an independent
@@ -3466,18 +3539,8 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.closeTypedTelescope
     Expr.ForallTelescopeTypeTranslation env Us []
       (H.sources.closeSource body) scope.length
       (VExpr.wrapForalls scope.toCtx.reverse target) := by
-  have HscopeWF := H.scopeWF henv
-  have Htranslation := H.sources.closeTranslation henv HscopeWF
+  exact H.sources.closeTypedTelescope henv (H.scopeWF henv)
     Hbody HbodyType
-  have Htelescope := H.sources.closeSource_telescope
-    HscopeWF.fvars_nodup body
-  have HtargetType : env.IsType Us.length []
-      (VExpr.wrapForalls scope.toCtx.reverse target) := by
-    apply VEnv.IsType.wrapForalls
-    · simpa using HscopeWF.toCtx
-    · simpa using HbodyType
-  exact Expr.ForallTelescopeTypeTranslation.ofTrExprS
-    Htelescope Htranslation HtargetType
 
 /-- Close the retained source declarations around a trivial sort.  This is
 an independent translation of the complete narrowed prefix, rather than a
@@ -3707,15 +3770,6 @@ theorem LocalContext.mkBindingList_forallTelescope
     List.length_reverse] using
     go fvs.reverse (body.abstractList fvs) (fun fv hfv =>
       hdecl fv (by simpa using hfv))
-
-/-- Closing no free variables leaves the body unchanged. -/
-theorem LocalContext.mkForall_empty (lctx : LocalContext) (body : Expr) :
-    lctx.mkForall #[] body = body := by
-  rw [LocalContext.mkForall]
-  change LocalContext.mkBinding false lctx
-    (([] : List FVarId).map Expr.fvar).toArray body = body
-  rw [LocalContext.mkBinding_eq]
-  rfl
 
 /-- The production `LocalContext.mkForall` interface specialized to an
 explicit list of free variables known to denote ordinary declarations. -/
@@ -4282,22 +4336,49 @@ theorem TrExprS.lambdaTelescope_exact_residual
         simpa [abstractForallContext, List.map_append, List.append_assoc]
           using ih htail hbody
 
+/-- The target domains exposed by a translated lambda telescope form a
+well-formed extension of the starting verification context. -/
+theorem TrExprS.lambdaTelescope_contextWF
+    (Htel : Expr.LambdaTelescope e arity residual)
+    (hdomains : domains.length = arity)
+    (Htr : TrExprS env Us Δ e (VExpr.wrapLams domains target))
+    (hDelta : Δ.WF env Us.length) :
+    (abstractForallContext domains Δ).WF env Us.length := by
+  induction Htel generalizing domains Δ with
+  | nil =>
+      have : domains = [] := List.eq_nil_of_length_eq_zero hdomains
+      subst domains
+      simpa [abstractForallContext] using hDelta
+  | @cons body arity residual name dom bi Htel ih =>
+      cases domains with
+      | nil => simp at hdomains
+      | cons domain domains =>
+        cases Htr with
+        | lam HdomainType _ HbodyTr =>
+          have htail : domains.length = arity := by simpa using hdomains
+          have hnext : VLCtx.WF env Us.length
+              ((none, VLocalDecl.vlam domain) :: Δ) :=
+            ⟨hDelta, by simp, HdomainType⟩
+          simpa [abstractForallContext, List.reverse_cons,
+            List.map_append, List.append_assoc] using
+              ih htail HbodyTr hnext
+
 /-- Post-installation telescope inversion driven by source-syntax absence.
 Only binder domains are shown recursor-free; the residual is allowed to
 contain the newly installed recursor constants. -/
 theorem TrExprS.avoidingLambdaTelescope_shape_with_context
     (Htel : Expr.AvoidingLambdaTelescope names e arity residual)
     (hctx : VLCtx.NoIndConsts names Delta)
-    (hproj : ∀ {Delta : VLCtx} {s i e' e''},
-      TrProj Delta.toCtx s i e' e'' →
-      e'.containsAnyConst names = false →
-      e''.containsAnyConst names = false)
     (Htr : TrExprS env Us Delta e e') :
     ∃ domains residual', domains.length = arity ∧
       e' = VExpr.wrapLams domains residual' ∧
       TrExprS env Us (abstractForallContext domains Delta)
         residual residual' ∧
-      ∀ dom ∈ domains, dom.containsAnyConst names = false := by
+      ∀ dom ∈ domains, dom.SourceConstFree names := by
+  have hctxSupport : checkPositivityStep.VLCtx.SourceConstFree names Delta :=
+    checkPositivityStep.VLCtx.SourceConstFree.ofNoIndConsts
+      (names := names) (Δ := Delta) hctx
+  clear hctx
   induction Htel generalizing Delta e' with
   | nil =>
     exact ⟨[], e', rfl, rfl,
@@ -4308,11 +4389,12 @@ theorem TrExprS.avoidingLambdaTelescope_shape_with_context
       rename_i _ hdomTr hbody
       have hdomFree :=
         checkPositivityStep.TrExprS.noConstsOfSourceAvoids
-          hdom hctx hproj hdomTr
-      have hctx' : VLCtx.NoIndConsts names
+          hdom hctxSupport hdomTr
+      have hctx' : checkPositivityStep.VLCtx.SourceConstFree names
           ((none, VLocalDecl.vlam dom') :: Delta) :=
-        VLCtx.NoIndConsts.cons hctx (by rfl)
-      rcases ih hctx' hbody with
+        checkPositivityStep.VLCtx.SourceConstFree.cons
+          (d := .vlam dom') (ofv := none) hctxSupport (.bvar 0)
+      rcases ih hbody hctx' with
         ⟨domains, residual', hlength, heq, hresidual, hfree⟩
       refine ⟨dom' :: domains, residual', by simp [hlength], ?_, ?_, ?_⟩
       · simp [VExpr.wrapLams, heq]
@@ -4330,16 +4412,17 @@ exposes it; the residual remains translated in the exact abstract context. -/
 theorem TrExprS.lambdaTelescope_shape_with_context_noFresh
     (hfresh : ∀ name ∈ names, env.constants name = none)
     (hctx : VLCtx.NoIndConsts names Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst names = false →
-      e''.containsAnyConst names = false)
     (Htel : Expr.LambdaTelescope e arity residual)
     (Htr : TrExprS env Us Δ e e') :
     ∃ domains residual', domains.length = arity ∧
       e' = VExpr.wrapLams domains residual' ∧
       TrExprS env Us (abstractForallContext domains Δ)
         residual residual' ∧
-      ∀ dom ∈ domains, dom.containsAnyConst names = false := by
+      ∀ dom ∈ domains, dom.SourceConstFree names := by
+  have hctxSupport : checkPositivityStep.VLCtx.SourceConstFree names Δ :=
+    checkPositivityStep.VLCtx.SourceConstFree.ofNoIndConsts
+      (names := names) (Δ := Δ) hctx
+  clear hctx
   induction Htel generalizing Δ e' with
   | nil =>
     exact ⟨[], e', rfl, rfl,
@@ -4348,10 +4431,13 @@ theorem TrExprS.lambdaTelescope_shape_with_context_noFresh
     cases Htr with
     | @lam dom' body' =>
       rename_i _ hdom hbody
-      have hctx' : VLCtx.NoIndConsts names
+      have hdomFree := checkPositivityStep.TrExprS.noFreshConsts
+        hfresh hctxSupport hdom
+      have hctx' : checkPositivityStep.VLCtx.SourceConstFree names
           ((none, VLocalDecl.vlam dom') :: Δ) :=
-        VLCtx.NoIndConsts.cons hctx (by rfl)
-      rcases ih hctx' hbody with
+        checkPositivityStep.VLCtx.SourceConstFree.cons
+          (d := .vlam dom') (ofv := none) hctxSupport (.bvar 0)
+      rcases ih hbody hctx' with
         ⟨domains, residual', hlength, heq, hresidual, hfree⟩
       refine ⟨dom' :: domains, residual', by simp [hlength], ?_, ?_, ?_⟩
       · simp [VExpr.wrapLams, heq]
@@ -4360,8 +4446,7 @@ theorem TrExprS.lambdaTelescope_shape_with_context_noFresh
       · intro current hmem
         simp only [List.mem_cons] at hmem
         rcases hmem with rfl | hmem
-        · exact checkPositivityStep.TrExprS.noFreshConsts
-            hfresh hctx hproj hdom
+        · exact hdomFree
         · exact hfree current hmem
 
 /-- Binding ordinary local declarations with `mkLambda` creates one concrete
@@ -4476,26 +4561,6 @@ theorem LocalContext.mkLambda_fvars_avoidingLambdaTelescope
   rw [LocalContext.mkLambda, LocalContext.mkBinding_eq]
   exact LocalContext.mkBindingList_avoidingLambdaTelescope hdecl havoid
 
-/-- With distinct selected declarations, closing a concatenated free-variable
-list is exactly the same as closing the suffix and then the prefix. -/
-theorem LocalContext.mkBindingList_append
-    (hdecl : ∀ fv ∈ xs ++ ys, ∃ decl, lctx.find? fv = some decl)
-    (hnodup : (xs ++ ys).Nodup) :
-    LocalContext.mkBindingList isLambda lctx (xs ++ ys) body =
-      LocalContext.mkBindingList isLambda lctx xs
-        (LocalContext.mkBindingList isLambda lctx ys body) := by
-  rcases List.nodup_append.mp hnodup with ⟨hxs, hys, _⟩
-  have hdeclXs : ∀ fv ∈ xs, ∃ decl, lctx.find? fv = some decl := by
-    intro fv hfv
-    exact hdecl fv (List.mem_append_left ys hfv)
-  have hdeclYs : ∀ fv ∈ ys, ∃ decl, lctx.find? fv = some decl := by
-    intro fv hfv
-    exact hdecl fv (List.mem_append_right xs hfv)
-  rw [LocalContext.mkBindingList_eq_fold hdecl hnodup,
-    LocalContext.mkBindingList_eq_fold hdeclXs hxs,
-    LocalContext.mkBindingList_eq_fold hdeclYs hys,
-    List.foldr_append]
-
 theorem LocalContext.mkBindingList_append_four
     (hdecl : ∀ fv ∈ ((as ++ bs) ++ cs) ++ ds,
       ∃ decl, lctx.find? fv = some decl)
@@ -4523,313 +4588,6 @@ theorem LocalContext.mkBindingList_append_four
     LocalContext.mkBindingList_eq_fold hcsDecl habc.2.1,
     LocalContext.mkBindingList_eq_fold hdsDecl habcd.2.1]
   simp only [List.foldr_append]
-
-/-- Closing an older selected list after extending the local context by one
-fresh selected declaration is the same as closing the new declaration first
-and then using the old context. -/
-theorem LocalContext.mkForall_append_fresh
-    {lctx : LocalContext} {selected : List FVarId} {fv : FVarId}
-    {name : Name} {type body : Expr} {bi : BinderInfo}
-    (hwf : lctx.WF) (hfind : lctx.find? fv = none)
-    (hdecl : ∀ other ∈ selected, ∃ decl,
-      lctx.find? other = some decl)
-    (hnodup : selected.Nodup) :
-    let next := lctx.mkLocalDecl fv name type bi
-    next.mkForall
-        ((selected ++ [fv]).map Expr.fvar).toArray body =
-      lctx.mkForall (selected.map Expr.fvar).toArray
-        (.forallE name type (body.abstract1 fv) bi) := by
-  dsimp only
-  let next := lctx.mkLocalDecl fv name type bi
-  have hfresh : fv ∉ selected := by
-    intro hmem
-    rcases hdecl fv hmem with ⟨decl, hsome⟩
-    rw [hfind] at hsome
-    contradiction
-  have hselectedNext : ∀ other ∈ selected, ∃ decl,
-      next.find? other = some decl := by
-    intro other hother
-    rcases hdecl other hother with ⟨decl, hlookup⟩
-    refine ⟨decl, ?_⟩
-    simp only [next, LocalContext.mkLocalDecl, LocalContext.find?,
-      hwf.map_wf.find?_insert]
-    rw [if_neg]
-    · exact hlookup
-    · intro heq
-      have : fv = other := beq_iff_eq.mp heq
-      exact hfresh (this.symm ▸ hother)
-  have hnewNext : next.find? fv = some
-      (.cdecl lctx.decls.size fv name type bi .default) := by
-    simp [next, LocalContext.mkLocalDecl, LocalContext.find?,
-      hwf.map_wf.find?_insert]
-  have hallNext : ∀ other ∈ selected ++ [fv], ∃ decl,
-      next.find? other = some decl := by
-    intro other hother
-    rcases List.mem_append.mp hother with hother | hother
-    · exact hselectedNext other hother
-    · simp only [List.mem_singleton] at hother
-      subst other
-      exact ⟨_, hnewNext⟩
-  have hallNodup : (selected ++ [fv]).Nodup := by
-    apply List.nodup_append.mpr
-    refine ⟨hnodup, by simp, ?_⟩
-    intro a ha b hb hab
-    have hb' : b = fv := by simpa using hb
-    apply hfresh
-    rw [← hb', ← hab]
-    exact ha
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
-    LocalContext.mkForall, LocalContext.mkBinding_eq]
-  rw [LocalContext.mkBindingList_append hallNext hallNodup]
-  have hsingle : LocalContext.mkBindingList false next [fv] body =
-      .forallE name type (body.abstract1 fv) bi := by
-    simp [LocalContext.mkBindingList_eq_fold, hnewNext,
-      LocalContext.mkBindingList1]
-  rw [hsingle]
-  exact LocalContext.mkBindingList_congr (by
-    intro other hother
-    simp only [next, LocalContext.mkLocalDecl, LocalContext.find?,
-      hwf.map_wf.find?_insert]
-    rw [if_neg]
-    intro heq
-    have : fv = other := beq_iff_eq.mp heq
-    exact hfresh (this.symm ▸ hother))
-
-/-- Extending a local context by a fresh declaration not selected for
-closure leaves the selected forall expression unchanged. -/
-theorem LocalContext.mkForall_skip_fresh
-    {lctx : LocalContext} {selected : List FVarId} {fv : FVarId}
-    {name : Name} {type body : Expr} {bi : BinderInfo}
-    (hwf : lctx.WF) (hfind : lctx.find? fv = none)
-    (hselected : fv ∉ selected) :
-    let next := lctx.mkLocalDecl fv name type bi
-    next.mkForall (selected.map Expr.fvar).toArray body =
-      lctx.mkForall (selected.map Expr.fvar).toArray body := by
-  dsimp only
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
-    LocalContext.mkForall, LocalContext.mkBinding_eq]
-  apply LocalContext.mkBindingList_congr
-  intro other hother
-  simp only [LocalContext.mkLocalDecl, LocalContext.find?,
-    hwf.map_wf.find?_insert]
-  rw [if_neg]
-  intro heq
-  have : fv = other := beq_iff_eq.mp heq
-  exact hselected (this.symm ▸ hother)
-
-/-- Strengthen non-contiguous narrowing with its exact concrete source
-closure.  The retained source provenance closes to `LocalContext.mkForall`
-over precisely the selected identifiers, so its positional binder domains
-can be compared directly with production recursor binders. -/
-def fvarSelectionLift (fvars : List FVarId) (P : FVarId → Prop)
-    [DecidablePred P] : Lift :=
-  match fvars with
-  | [] => .refl
-  | fv :: fvars =>
-    if P fv then .cons (fvarSelectionLift fvars P)
-    else .skip (fvarSelectionLift fvars P)
-
-/-- Selecting a smaller predicate and then embedding its selected context
-through a larger selection factors the direct runtime selection exactly. -/
-theorem fvarSelectionLift_mono_comp
-    (fvars : List FVarId) (P Q : FVarId → Prop)
-    [DecidablePred P] [DecidablePred Q]
-    (hsub : ∀ fv, P fv → Q fv) :
-    Lift.comp (fvarSelectionLift (fvars.filter Q) P)
-        (fvarSelectionLift fvars Q) =
-      fvarSelectionLift fvars P := by
-  induction fvars with
-  | nil => rfl
-  | cons fv fvars ih =>
-    by_cases hQ : Q fv
-    · by_cases hP : P fv
-      · simp [fvarSelectionLift, hQ, hP, ih]
-      · simp [fvarSelectionLift, hQ, hP, ih]
-    · have hP : ¬ P fv := fun hp => hQ (hsub fv hp)
-      simp [fvarSelectionLift, hQ, hP, ih]
-
-/-- Selecting every member of a list retains a pure `cons` lift. -/
-theorem fvarSelectionLift_all
-    (fvars : List FVarId) (P : FVarId → Prop) [DecidablePred P]
-    (hall : ∀ fv ∈ fvars, P fv) :
-    fvarSelectionLift fvars P = .consN .refl fvars.length := by
-  induction fvars with
-  | nil => rfl
-  | cons fv fvars ih =>
-    have hhead := hall fv (by simp)
-    have htail : ∀ other ∈ fvars, P other := by
-      intro other hother
-      exact hall other (by simp [hother])
-    simp [fvarSelectionLift, hhead, ih htail]
-
-/-- A prefix containing no selected identifiers contributes only skips. -/
-theorem fvarSelectionLift_append_none
-    (extra tail : List FVarId) (P : FVarId → Prop) [DecidablePred P]
-    (hnone : ∀ fv ∈ extra, ¬ P fv) :
-    fvarSelectionLift (extra ++ tail) P =
-      .skipN (fvarSelectionLift tail P) extra.length := by
-  induction extra with
-  | nil => rfl
-  | cons fv extra ih =>
-    have hhead := hnone fv (by simp)
-    have htail : ∀ other ∈ extra, ¬ P other := by
-      intro other hother
-      exact hnone other (by simp [hother])
-    simp [fvarSelectionLift, hhead, ih htail]
-
-/-- Selecting the second half of a disjoint concatenation is the ordinary
-uniform insertion of the first half in front of the retained context. -/
-theorem fvarSelectionLift_append_selected
-    (extra selected : List FVarId) (hdisjoint : extra.Disjoint selected) :
-    fvarSelectionLift (extra ++ selected) (· ∈ selected) =
-      .skipN (.consN .refl selected.length) extra.length := by
-  rw [fvarSelectionLift_append_none]
-  · rw [fvarSelectionLift_all]
-    intro fv hfv
-    exact hfv
-  · intro fv hfv hselected
-    exact hdisjoint hfv hselected
-
-theorem MLCtxOnlyLams.narrowFVarsSource
-    {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
-    (H : MLCtxOnlyLams c)
-    (henv : env.WF)
-    (Hwf : c.WF env Us)
-    (P : FVarId → Prop) [DecidablePred P]
-    (hup : IsFVarUpSet P c.vlctx) :
-    ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
-          env Us scope c.vlctx,
-        scope.fvars = c.vlctx.fvars.filter P ∧
-        Hscope.shift = fvarSelectionLift c.vlctx.fvars P ∧
-        (∀ fv ∈ scope.fvars, ∃ decl,
-          c.lctx.find? fv = some decl) ∧
-        ∀ body,
-          Hscope.sources.closeSource body =
-            c.lctx.mkForall
-              (scope.fvars.reverse.map Expr.fvar).toArray body := by
-  induction c with
-  | nil =>
-    refine ⟨[], .nil, rfl, rfl, ?_, ?_⟩
-    · intro fv hfv
-      simp at hfv
-    · intro body
-      change body = ({} : LocalContext).mkForall #[] body
-      exact (LocalContext.mkForall_empty {} body).symm
-  | @vlam fv name type type' bi tail ih =>
-    have HruntimeWF := Hwf.tr.wf
-    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
-    rcases ih H.tail_vlam HtailWF hup.1 with
-      ⟨tailScope, HtailScope, htailScopeFVars,
-        htailShift, htailDecls, htailClose⟩
-    by_cases hP : P fv
-    · have hdeps : type.fvarsList ⊆ tailScope.fvars := by
-        intro dep hdep
-        rw [htailScopeFVars]
-        exact List.mem_filter.mpr ⟨Htype.fvarsList hdep, by
-          simpa using hup.2 hP dep hdep⟩
-      have hclosed : Closed type 0 := by
-        have h := Htype.closed
-        rw [tail.noBV] at h
-        exact h
-      have htypeFVars : FVarsIn (· ∈ tailScope.fvars) type := by
-        apply fvarsIn_iff.mpr
-        refine ⟨hdeps, ?_⟩
-        exact Htype.fvarsIn.mono fun _ _ => trivial
-      rcases HtailScope.restrict henv Htype hclosed htypeFVars with
-        ⟨narrowType, HnarrowType⟩
-      have Hweak : TrExprS env Us HtailScope.expanded type
-          (narrowType.lift' HtailScope.shift) := by
-        simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
-          HtailScope.context.wf
-      have HtargetEq := Hweak.uniq henv HtailScope.context Htype
-      have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
-          type' :=
-        HtypeType.defeqDFC henv.ordered
-          (HtailScope.context.symm henv.ordered).defeqCtx
-      rcases HtargetType with ⟨u, HtargetType⟩
-      have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
-          (narrowType.lift' HtailScope.shift) type' (.sort u) :=
-        HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
-      let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
-        HnarrowType Hdomain
-      have hnextFVars : ∀ body,
-          Hnext.sources.closeSource body =
-            HtailScope.sources.closeSource
-              (.forallE name type (body.abstract1 fv) bi) := by
-        intro body
-        rfl
-      have holdDecls : ∀ other ∈ tailScope.fvars.reverse,
-          ∃ decl, tail.lctx.find? other = some decl := by
-        intro other hother
-        exact htailDecls other (List.mem_reverse.mp hother)
-      have holdNodup : tailScope.fvars.reverse.Nodup :=
-        List.nodup_reverse.mpr (HtailScope.scopeWF henv).fvars_nodup
-      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_⟩
-      · change HtailScope.shift.cons = _
-        rw [htailShift]
-        simp [fvarSelectionLift, hP]
-      · intro other hother
-        change other ∈ fv :: tailScope.fvars at hother
-        simp only [List.mem_cons] at hother
-        rcases hother with rfl | hother
-        · refine ⟨.cdecl tail.lctx.decls.size other name type bi .default,
-            ?_⟩
-          simp [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
-            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
-        · rcases htailDecls other hother with ⟨decl, hlookup⟩
-          refine ⟨decl, ?_⟩
-          simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
-            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
-          rw [if_neg]
-          · exact hlookup
-          · intro heq
-            have heq' : fv = other := beq_iff_eq.mp heq
-            rw [heq'] at hfresh
-            rw [hlookup] at hfresh
-            contradiction
-      · intro body
-        have Happ := LocalContext.mkForall_append_fresh
-          HtailWF.tr.1 hfresh holdDecls holdNodup
-          (body := body) (name := name) (type := type) (bi := bi)
-        rw [hnextFVars body, htailClose]
-        simpa [Hnext, TypeChecker.MLCtx.lctx, List.reverse_cons]
-          using Happ.symm
-    · have hskip : fv ∉ tailScope.fvars := by
-        rw [htailScopeFVars]
-        simp [hP]
-      let Hnext := HtailScope.skipIndex henv HruntimeWF hskip
-      have hnextFVars : ∀ body,
-          Hnext.sources.closeSource body =
-            HtailScope.sources.closeSource body := by
-        intro body
-        rfl
-      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_⟩
-      · change HtailScope.shift.skip = _
-        rw [htailShift]
-        simp [fvarSelectionLift, hP]
-      · intro other hother
-        change other ∈ tailScope.fvars at hother
-        rcases htailDecls other hother with ⟨decl, hlookup⟩
-        refine ⟨decl, ?_⟩
-        simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
-          LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
-        rw [if_neg]
-        · exact hlookup
-        · intro heq
-          have heq' : fv = other := beq_iff_eq.mp heq
-          exact hskip (heq' ▸ hother)
-      · intro body
-        have Hskip := LocalContext.mkForall_skip_fresh
-          HtailWF.tr.1 hfresh
-          (selected := tailScope.fvars.reverse) (body := body)
-          (name := name) (type := type) (bi := bi)
-          (by simpa using hskip)
-        rw [hnextFVars body, htailClose]
-        simpa [Hnext, TypeChecker.MLCtx.lctx] using
-          Hskip.symm
-  | @vlet fv name type value type' value' tail ih =>
-    exact H.vlet_false.elim
 
 /-- A selected executable array consists solely of ordinary free-variable
 declarations in the retained local context. -/

@@ -116,32 +116,12 @@ theorem NoHit.liftN
   rw [H.eq]
   exact NoHit.refl leaf (depth + amount) (target.liftN amount cutoff)
 
-/-- A structural expansion cannot take a lowering leaf when the source is
-free of every constant that a genuine leaf must contain.  This converts the
-independent expansion specification's source-side freshness invariant into
-proof-relevant evidence about the exact retained expansion derivation. -/
-theorem NoHit.ofSourceFree
-    {leaf : Nat → VExpr → VExpr → Prop} {depth : Nat}
-    {source target : VExpr}
-    (hleafSource : ∀ {depth input output}, leaf depth input output →
-      input.containsAnyConst names = true)
-    (H : NestedExprExpansion leaf depth source target)
-    (hsource : source.containsAnyConst names = false) :
-    NestedExprExpansion.NoHit H := by
-  induction H with
-  | hit Hleaf => simp [hleafSource Hleaf] at hsource
-  | bvar => exact .bvar
-  | sort => exact .sort
-  | const => exact .const
-  | app _ _ ihFn ihArg =>
-    have hparts := Bool.or_eq_false_iff.mp hsource
-    exact .app (ihFn hparts.1) (ihArg hparts.2)
-  | lam _ _ ihDomain ihBody =>
-    have hparts := Bool.or_eq_false_iff.mp hsource
-    exact .lam (ihDomain hparts.1) (ihBody hparts.2)
-  | forallE _ _ ihDomain ihBody =>
-    have hparts := Bool.or_eq_false_iff.mp hsource
-    exact .forallE (ihDomain hparts.1) (ihBody hparts.2)
+/- `NoHit.ofSourceFree` used to live here.  It ceased to be true once the
+certified projection case was added to `NestedExprExpansion`: a projection
+can change administrative syntax without taking a nested-lowering leaf.
+Consumers that need source-support reasoning use the environment-indexed
+certified projection translation instead of recovering literal equality from
+raw constant support. -/
 
 end VExpr.NestedExprExpansion
 

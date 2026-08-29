@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Inductive.Equation.Setup
-import Lean4Lean.Verify.Inductive.CompletedEquationBuild
 
 namespace Lean4Lean
 
@@ -10,6 +9,25 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
+
+/-- Recursor installation makes every generated recursor name fresh in the
+completed constructor environment, independently of the formation route. -/
+theorem CompletedRecursorPhasesResult.recursorNamesFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (rules : List VDefEq) (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
+    ∀ name ∈ (H.blockCertificate rules hrules).block.recursors.map (·.name),
+      R.context.venv.constants name = none := by
+  have hfresh := VEnv.addConstVals_names_fresh H.installed.abstract |>.2
+  intro name hname
+  change name ∈ (H.entries.map Prod.snd).map (·.name) at hname
+  rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
+  exact hfresh recursor hrecursor
 
 /-- Common equation-alignment layer for recursor runs entered from either
 ordinary or atomic primitive formation. -/
@@ -85,7 +103,8 @@ theorem CompletedRecursorPhasesResult.generatedRuleSemantic
         (H.generated.entry owner howner).info.rules[i],
       ∃ S : Hrule.Semantics H.recursorWF decl owner,
         Nonempty (Hrule.ProducerOriginEvidence S H.recInfos H.elimLevel
-          H.origins owner i) := by
+          H.origins owner i) ∧
+        S.parameterDecls = H.parameterSuffix.parameterDecls := by
   rcases H.ruleSemantics.entry owner howner with
     ⟨info, hsource, _Hsemantic, _Hmotive, Horigins⟩
   let E := H.generated.entry owner howner
@@ -121,16 +140,18 @@ theorem CompletedRecursorPhasesResult.generatedRuleSemanticOwner
       ∃ Hsemantic : Hrule.Semantics
           H.recursorWF decl owner,
         Nonempty (Hrule.ProducerOriginEvidence Hsemantic H.recInfos
-          H.elimLevel H.origins owner i) ∧ Hsemantic.ownerIdx = owner := by
+          H.elimLevel H.origins owner i) ∧
+        Hsemantic.parameterDecls = H.parameterSuffix.parameterDecls ∧
+        Hsemantic.ownerIdx = owner := by
   rcases H.generatedRuleSemantic owner howner i hctor hrule with
-    ⟨Hrule, Hsemantic, Horigin⟩
+    ⟨Hrule, Hsemantic, Horigin, hparameterDecls⟩
   have htypeNames : (decl.types.map (·.name)).Nodup := by
     have hprefix := (List.nodup_append.mp
       (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup
         R.core)).1
     simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
       VInductiveType.toVConstVal, Function.comp_def] using hprefix
-  exact ⟨Hrule, Hsemantic, Horigin,
+  exact ⟨Hrule, Hsemantic, Horigin, hparameterDecls,
     Hsemantic.owner_eq Hrule htypeNames⟩
 
 /-- Complete source alignment for one rule emitted by the mutual recursor
@@ -168,11 +189,58 @@ structure CompletedRecursorPhasesResult.GeneratedRuleAlignment
     (H.generated.entry owner howner).info.rules[i]
   semantics : rule.Semantics
     H.recursorWF decl owner
+  parameterDecls_eq : semantics.parameterSuffix.parameterDecls =
+    H.parameterSuffix.parameterDecls
   motiveEvidence : Nonempty (rule.ProducerMotiveEvidence semantics
     H.recInfos H.elimLevel)
   originEvidence : Nonempty (rule.ProducerOriginEvidence semantics
     H.recInfos H.elimLevel H.origins owner i)
   semantic_owner : semantics.ownerIdx = owner
+
+noncomputable def CompletedRecursorPhasesResult.GeneratedRuleAlignment.producerOrigin
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    A.rule.ProducerOriginEvidence A.semantics H.recInfos H.elimLevel
+      H.origins owner i :=
+  Classical.choice A.originEvidence
+
+noncomputable def CompletedRecursorPhasesResult.GeneratedRuleAlignment.producerMinorShape
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    RecInfoMinorTypeShape :=
+  A.producerOrigin.producer.minorShape
+
+noncomputable def CompletedRecursorPhasesResult.GeneratedRuleAlignment.producerReplayAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    A.rule.ProducerCallReplayAt (recInfos := H.recInfos) A.semantics
+      A.producerMinorShape j hj :=
+  Classical.choice (A.producerOrigin.producer.replay j hj)
 
 /-- Select the fully aligned pointwise rule package directly from the
 completed recursor phase.  All bounds not supplied by the caller follow from
@@ -213,7 +281,7 @@ theorem CompletedRecursorPhasesResult.generatedRuleAlignment
     rw [E.rules.length]
     exact hctor
   rcases H.generatedRuleSemanticOwner owner howner i hctor hsourceRule with
-    ⟨Hrule, Hsemantic, ⟨Horigin⟩, hsemanticOwner⟩
+    ⟨Hrule, Hsemantic, ⟨Horigin⟩, hparameterDecls, hsemanticOwner⟩
   let Hmotive : Nonempty (Hrule.ProducerMotiveEvidence Hsemantic H.recInfos
       H.elimLevel) := ⟨Horigin.producer⟩
   exact ⟨{
@@ -226,6 +294,7 @@ theorem CompletedRecursorPhasesResult.generatedRuleAlignment
     sourceRule_lt := hsourceRule
     rule := Hrule
     semantics := Hsemantic
+    parameterDecls_eq := Hsemantic.parameterDecls_eq.trans hparameterDecls
     motiveEvidence := Hmotive
     originEvidence := ⟨Horigin⟩
     semantic_owner := hsemanticOwner }⟩

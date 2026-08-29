@@ -15,15 +15,14 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeWithS
     {ves : VEnvs}
     (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
       (ves.venv .safe) nparams types numNested outEnv)
-    (wf : ves.WF source.env)
-    (hproj : ProjectionConstPreservation) :
+    (wf : ves.WF source.env) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult (ves.venv .safe)
         source.lparams nparams types (source.safety != .safe)) := by
   rcases
       VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafe
-        Hrun wf hproj with
+        Hrun wf with
     ⟨_decl, ves', wf', hle⟩
   have Hspec : Nonempty (InductiveSpecificationResult (ves.venv .safe)
       source.lparams nparams types (source.safety != .safe)) := by
@@ -37,7 +36,7 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeWithS
     have Hshape' : PrimitiveInductiveShape c'.lparams nparams
         types.toArray.toList (c'.safety != .safe) := by
       simpa [hsafety] using Hshape
-    have S := Hphases'.independentSpecification Hshape' hproj
+    have S := Hphases'.independentSpecification Hshape'
     simpa only [hlparams, hsafety] using S
   exact ⟨ves', wf', hle, Hspec⟩
 
@@ -53,9 +52,7 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WF outEnv ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
@@ -63,12 +60,12 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
           nparams types (c.safety != .safe)) := by
   have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty
-    HnotPartial hloopUArgsReplay hproj
+    HnotPartial
   exact Hrun.mono fun outEnv Hresult => by
     have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
         c (ves.venv .safe) nparams types numNested outEnv := by
       simpa [hsource] using Hresult
-    exact Hresult'.extendSafeWithSpecification wf hproj
+    exact Hresult'.extendSafeWithSpecification wf
 
 /-- Primitive post-lowering refinement with no equality-bootstrap premise. -/
 theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
@@ -77,8 +74,6 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
     (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
@@ -108,7 +103,7 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
   have hctx : Hc.mlctx.vlctx = [] := rfl
   have Hrun := AddInductive.run.primitiveFinalSpecificationModelWF
     (c := c) (ves := ves) nparams 0 Hc wf' hsource Hshape' hctx
-    hnonempty hnotPartial hloopUArgsReplay hproj
+    hnonempty hnotPartial
   unfold Environment.addInductiveAfterLowering
   rw [haux, htypes]
   simpa [c, primitiveAddInductiveContext] using Hrun
@@ -118,9 +113,7 @@ theorem Environment.addInductive.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe true fuel).WF
       fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
@@ -136,7 +129,7 @@ theorem Environment.addInductive.primitiveFinalSpecificationModelWF
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
         env lparams nparams types isUnsafe fuel res ves wf Hshape
-        hloopUArgsReplay hproj Hres.1 Hres.2
+        Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
 /-- Checked primitive declaration refinement without an equality-bootstrap
@@ -145,9 +138,7 @@ theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
@@ -156,7 +147,6 @@ theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
             nparams types isUnsafe) := by
   have Hrun := Environment.addInductive.primitiveFinalSpecificationModelWF
     env lparams nparams types isUnsafe fuel ves wf Hshape
-    hloopUArgsReplay hproj
   have hcheck := (checkPrimitiveInductive_eq_true_iff env lparams nparams
     types isUnsafe).mpr Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
@@ -167,13 +157,12 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeEqRea
     (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
       (ves.venv .safe) nparams types numNested outEnv)
     (wf : ves.WF source.env)
-    (hEq : EqReadyOrAbsent source.env ves)
-    (hproj : ProjectionConstPreservation) :
+    (hEq : EqReadyOrAbsent source.env ves) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult (ves.venv .safe)
         source.lparams nparams types (source.safety != .safe)) := by
-  rcases Hrun.extendSafeEqReadyOrAbsent wf hEq hproj with
+  rcases Hrun.extendSafeEqReadyOrAbsent wf hEq with
     ⟨_decl, ves', wf', hEq', hle⟩
   have Hspec : Nonempty (InductiveSpecificationResult (ves.venv .safe)
       source.lparams nparams types (source.safety != .safe)) := by
@@ -187,7 +176,7 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeEqRea
     have Hshape' : PrimitiveInductiveShape c'.lparams nparams
         types.toArray.toList (c'.safety != .safe) := by
       simpa [hsafety] using Hshape
-    have S := Hphases'.independentSpecification Hshape' hproj
+    have S := Hphases'.independentSpecification Hshape'
     simpa only [hlparams, hsafety] using S
   exact ⟨ves', wf', hEq', hle, Hspec⟩
 
@@ -203,9 +192,7 @@ theorem AddInductive.run.primitiveFinalSpecificationEqReadyOrAbsentWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
@@ -213,12 +200,12 @@ theorem AddInductive.run.primitiveFinalSpecificationEqReadyOrAbsentWF
           nparams types (c.safety != .safe)) := by
   have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty
-    HnotPartial hloopUArgsReplay hproj
+    HnotPartial
   exact Hrun.mono fun outEnv Hresult => by
     have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
         c (ves.venv .safe) nparams types numNested outEnv := by
       simpa [hsource] using Hresult
-    exact Hresult'.extendSafeEqReadyOrAbsentWithSpecification wf hEq hproj
+    exact Hresult'.extendSafeEqReadyOrAbsentWithSpecification wf hEq
 
 /-- Primitive post-lowering refinement retaining the exact independent source
 specification together with the complete bootstrap-aware environment model. -/
@@ -228,8 +215,6 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationEqReady
     (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env) (hEq : EqReadyOrAbsent env ves)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
@@ -259,7 +244,7 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationEqReady
   have hctx : Hc.mlctx.vlctx = [] := rfl
   have Hrun := AddInductive.run.primitiveFinalSpecificationEqReadyOrAbsentWF
     (c := c) (ves := ves) nparams 0 Hc wf' hsource hEq Hshape' hctx
-    hnonempty hnotPartial hloopUArgsReplay hproj
+    hnonempty hnotPartial
   unfold Environment.addInductiveAfterLowering
   rw [haux, htypes]
   simpa [c, primitiveAddInductiveContext] using Hrun
@@ -270,9 +255,7 @@ theorem Environment.addInductive.primitiveFinalSpecificationEqReadyOrAbsentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env) (hEq : EqReadyOrAbsent env ves)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe true fuel).WF
       fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
@@ -288,7 +271,7 @@ theorem Environment.addInductive.primitiveFinalSpecificationEqReadyOrAbsentWF
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.primitiveFinalSpecificationEqReadyOrAbsentWF
         env lparams nparams types isUnsafe fuel res ves wf hEq Hshape
-        hloopUArgsReplay hproj Hres.1 Hres.2
+        Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
 /-- Checked declaration dispatch for a canonical primitive Bool/Nat block,
@@ -297,9 +280,7 @@ theorem addInductiveDeclaration.primitiveFinalSpecificationEqReadyOrAbsentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env) (hEq : EqReadyOrAbsent env ves)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
@@ -309,7 +290,6 @@ theorem addInductiveDeclaration.primitiveFinalSpecificationEqReadyOrAbsentWF
   have Hrun :=
     Environment.addInductive.primitiveFinalSpecificationEqReadyOrAbsentWF
       env lparams nparams types isUnsafe fuel ves wf hEq Hshape
-      hloopUArgsReplay hproj
   have hcheck := (checkPrimitiveInductive_eq_true_iff env lparams nparams
     types isUnsafe).mpr Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun

@@ -21,19 +21,24 @@ inductive TypedExprRestoration
       (Hnode : NestedRestoredNodeSemantics node restoredRecursors) :
       TypedExprRestoration plan Hplan sourceContext.toCtx targetContext.toCtx
         node.source node.target Hnode.sourceType Hnode.targetType
-  | bvar (hnone : plan.restoreNode (.bvar index) = none)
+  | leaf
+      (hsource : sourceEnv.HasType Us.length sourceCtx source sourceType)
+      (htarget : targetEnv.HasType Us.length targetCtx source targetType) :
+      TypedExprRestoration plan Hplan sourceCtx targetCtx
+        source source sourceType targetType
+  | bvar
       (hsource : sourceEnv.HasType Us.length sourceCtx (.bvar index) sourceType)
       (htarget : targetEnv.HasType Us.length targetCtx (.bvar index) targetType) :
       TypedExprRestoration plan Hplan sourceCtx targetCtx
         (.bvar index) (.bvar index) sourceType targetType
-  | sort (hnone : plan.restoreNode (.sort level) = none)
+  | sort
       (hsource : sourceEnv.HasType Us.length sourceCtx
         (.sort level) sourceType)
       (htarget : targetEnv.HasType Us.length targetCtx
         (.sort level) targetType) :
       TypedExprRestoration plan Hplan sourceCtx targetCtx
         (.sort level) (.sort level) sourceType targetType
-  | const (hnone : plan.restoreNode (.const name levels) = none)
+  | const
       (hsource : sourceEnv.HasType Us.length sourceCtx
         (.const name levels) sourceType)
       (htarget : targetEnv.HasType Us.length targetCtx
@@ -41,7 +46,6 @@ inductive TypedExprRestoration
       TypedExprRestoration plan Hplan sourceCtx targetCtx
         (.const name levels) (.const name levels) sourceType targetType
   | app
-      (hnone : plan.restoreNode (.app sourceFn sourceArg) = none)
       (hfn : TypedExprRestoration plan Hplan sourceCtx targetCtx
         sourceFn targetFn (.forallE sourceDomain sourceBody)
           (.forallE targetDomain targetBody))
@@ -51,7 +55,6 @@ inductive TypedExprRestoration
         (.app sourceFn sourceArg) (.app targetFn targetArg)
         (sourceBody.inst sourceArg) (targetBody.inst targetArg)
   | lam
-      (hnone : plan.restoreNode (.lam sourceDomain sourceBody) = none)
       (hdomain : TypedExprRestoration plan Hplan sourceCtx targetCtx
         sourceDomain targetDomain (.sort sourceLevel) (.sort targetLevel))
       (hbody : TypedExprRestoration plan Hplan
@@ -62,7 +65,6 @@ inductive TypedExprRestoration
         (.forallE sourceDomain sourceBodyType)
         (.forallE targetDomain targetBodyType)
   | forallE
-      (hnone : plan.restoreNode (.forallE sourceDomain sourceBody) = none)
       (hdomain : TypedExprRestoration plan Hplan sourceCtx targetCtx
         sourceDomain targetDomain (.sort sourceLevel) (.sort targetLevel))
       (hbody : TypedExprRestoration plan Hplan
@@ -72,6 +74,19 @@ inductive TypedExprRestoration
         (.forallE sourceDomain sourceBody) (.forallE targetDomain targetBody)
         (.sort (.imax sourceLevel sourceBodyLevel))
         (.sort (.imax targetLevel targetBodyLevel))
+  | projection
+      (sourceExpansion : VExpr.ProjectionSupportExpansion
+        sourceMajor sourceTarget)
+      (targetExpansion : VExpr.ProjectionSupportExpansion
+        targetMajor targetTarget)
+      (hmajor : TypedExprRestoration plan Hplan sourceCtx targetCtx
+        sourceMajor targetMajor sourceMajorType targetMajorType)
+      (hsource : sourceEnv.HasType Us.length sourceCtx
+        sourceTarget sourceType)
+      (htarget : targetEnv.HasType Us.length targetCtx
+        targetTarget targetType) :
+      TypedExprRestoration plan Hplan sourceCtx targetCtx
+        sourceTarget targetTarget sourceType targetType
 
 variable {result : Lean4Lean.ElimNestedInductive.Result}
   {prodEnv : Environment} {params : Array Expr} {auxRec : NameMap Name}
@@ -92,10 +107,12 @@ theorem TypedExprRestoration.sourceTyping
     sourceEnv.HasType Us.length sourceCtx source sourceType := by
   induction H with
   | hit node _ Hnode => exact Hnode.sourceTyping
-  | bvar _ hsource _ | sort _ hsource _ | const _ hsource _ => exact hsource
-  | app _ _ _ ihfn iharg => exact .appDF ihfn iharg
-  | lam _ _ _ ihdomain ihbody => exact .lamDF ihdomain ihbody
-  | forallE _ _ _ ihdomain ihbody => exact .forallEDF ihdomain ihbody
+  | leaf hsource _ => exact hsource
+  | bvar hsource _ | sort hsource _ | const hsource _ => exact hsource
+  | app _ _ ihfn iharg => exact .appDF ihfn iharg
+  | lam _ _ ihdomain ihbody => exact .lamDF ihdomain ihbody
+  | forallE _ _ ihdomain ihbody => exact .forallEDF ihdomain ihbody
+  | projection _ _ _ hsource _ _ => exact hsource
 
 /-- Target endpoint typing is recovered compositionally from the structural
 certificate. -/
@@ -105,10 +122,12 @@ theorem TypedExprRestoration.targetTyping
     targetEnv.HasType Us.length targetCtx target targetType := by
   induction H with
   | hit node _ Hnode => exact Hnode.targetTyping
-  | bvar _ _ htarget | sort _ _ htarget | const _ _ htarget => exact htarget
-  | app _ _ _ ihfn iharg => exact .appDF ihfn iharg
-  | lam _ _ _ ihdomain ihbody => exact .lamDF ihdomain ihbody
-  | forallE _ _ _ ihdomain ihbody => exact .forallEDF ihdomain ihbody
+  | leaf _ htarget => exact htarget
+  | bvar _ htarget | sort _ htarget | const _ htarget => exact htarget
+  | app _ _ ihfn iharg => exact .appDF ihfn iharg
+  | lam _ _ ihdomain ihbody => exact .lamDF ihdomain ihbody
+  | forallE _ _ ihdomain ihbody => exact .forallEDF ihdomain ihbody
+  | projection _ _ _ _ htarget _ => exact htarget
 
 end VerifyInductive
 end Lean4Lean

@@ -1,5 +1,7 @@
 import Lean4Lean.Verify.TypeChecker.Reduce
 import Lean4Lean.Verify.EquivManager
+import Lean4Lean.Verify.TypeChecker.ProjectionResult
+import Lean4Lean.Verify.TypeChecker.ProjectionCertificate
 import Lean4Lean.Verify.Typing.ProjectionInference
 
 open Lean4Lean
@@ -526,6 +528,40 @@ theorem instantiateProjectionFieldsExact.WF
   unfold instantiateProjectionFieldsExact
   exact instantiateProjectionFieldsExact.loop.WF hsource hfail
     (fun current _ hcurrent => hprojection current (by simpa using hcurrent))
+
+/-- Semantic content of the exact executable validation trace.  Checked
+candidate inference supplies both translations and target typing, while the
+literal successful `isDefEq` run relates that inferred target type to the
+translation of the projection result.  No candidate, type, or compatibility
+proof is accepted independently of the retained run. -/
+theorem ProjectionValidationTrace.semantic
+    {s : VState}
+    (H : ProjectionValidationTrace methods c s.toState projection candidate
+      certificate)
+    (hresult : c.TrExprS projection.type selected)
+    (hmethods : methods.WF) (hstate : s.WF c) :
+    ∃ (inferredState finalState : VState)
+      (candidateTarget candidateTypeTarget : VExpr),
+      inferredState.toState = H.inferenceState ∧
+      finalState.toState = H.finalState ∧
+      c.TrTyping candidate certificate.candidateType candidateTarget
+        candidateTypeTarget ∧
+      c.IsDefEqU candidateTypeTarget selected := by
+  have hcandidate : candidate.FVarsIn (· ∈ c.vlctx.fvars) :=
+    projectionCandidateScopeValid_fvarsIn c H.scopeRun
+  have Hchecked := checkType.WF (c := c) (s := s) hcandidate methods hmethods
+    hstate certificate.candidateType H.inferenceState H.inferenceRun
+  rcases Hchecked with
+    ⟨inferredState, hinferredState, _hle, hinferredWF,
+      candidateTarget, candidateTypeTarget, Htyping⟩
+  have HdefeqRun := H.defeqRun
+  rw [← hinferredState] at HdefeqRun
+  have Hdefeq := isDefEq.WF Htyping.2.2.1 hresult methods hmethods
+    hinferredWF true H.finalState HdefeqRun
+  rcases Hdefeq with
+    ⟨finalState, hfinalState, _hleFinal, _hfinalWF, Htypes⟩
+  exact ⟨inferredState, finalState, candidateTarget, candidateTypeTarget,
+    hinferredState, hfinalState, Htyping, Htypes rfl⟩
 
 theorem inferProj.WF
     (he : c.TrExprS e e') (hty : c.TrExprS ety ety') (hasty : c.HasType e' ty') :

@@ -199,14 +199,6 @@ structure CompletedRuleTranslationResult
   equations : H.GeneratedIotaEquationTranslations Us Δ owner rules
   contextFree : VLCtx.NoIndConsts
     ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) Δ
-  projections : ∀ {Delta : VLCtx} {s j e' e''},
-    TrProj Delta.toCtx s j e' e'' →
-    e'.containsAnyConst
-      ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) =
-        false →
-    e''.containsAnyConst
-      ((H.blockCertificate rules rulesWF).block.recursors.map (·.name)) =
-        false
   complete : owner = H.entries.length
 
 def CompletedRecursorPhasesResult.GeneratedEquationBuild.completedResult
@@ -219,15 +211,7 @@ def CompletedRecursorPhasesResult.GeneratedEquationBuild.completedResult
     {H : CompletedRecursorPhasesResult R outEnv} {Us : List Name}
     {owner : Nat} {rules : List VDefEq}
     (T : H.GeneratedEquationBuild Us owner rules)
-    (hcomplete : owner = H.entries.length)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst
-        ((H.blockCertificate rules T.rulesWF).block.recursors.map
-          (·.name)) = false →
-      e''.containsAnyConst
-        ((H.blockCertificate rules T.rulesWF).block.recursors.map
-          (·.name)) = false) :
+    (hcomplete : owner = H.entries.length) :
     CompletedRuleTranslationResult H where
   Us := Us
   Δ := []
@@ -238,7 +222,6 @@ def CompletedRecursorPhasesResult.GeneratedEquationBuild.completedResult
   contextFree := by
     intro v mapped type hfind
     simp [VLCtx.find?] at hfind
-  projections := hproj
   complete := hcomplete
 
 /-- The completed recursor phase determines the full ordinary compilation
@@ -252,14 +235,11 @@ theorem CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation
     {ctorEnv outEnv : Environment}
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
-    (hproj : ProjectionConstPreservation) :
+    (H : CompletedRecursorPhasesResult R outEnv) :
     Nonempty (CompletedRuleTranslationResult H) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases H.existsCanonicalGeneratedEquationBuild with ⟨rules, ⟨T⟩⟩
-  refine ⟨T.completedResult rfl ?_⟩
-  intro Delta s j e' e'' Hprojection hfree
-  exact hproj _ Hprojection hfree
+  exact ⟨T.completedResult rfl⟩
 
 theorem CompletedRuleTranslationResult.compilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -273,7 +253,7 @@ theorem CompletedRuleTranslationResult.compilation
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate T.rules T.rulesWF).block :=
   H.ordinaryCompilationOfRuleBuild T.rules T.rulesWF
-    (T.equations.build T.rules T.rulesWF T.contextFree T.projections)
+    (T.equations.build T.rules T.rulesWF T.contextFree)
     (T.equations.completeLength T.complete)
 
 

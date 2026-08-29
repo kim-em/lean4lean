@@ -329,3 +329,126 @@ theorem TrLCtx.mkLetDecl
     TrLCtx env Us (lctx.mkLetDecl fv name ty val bi kind)
       ((some (fv, ty.fvarsList ++ val.fvarsList), .vlet ty' val') :: Δ) :=
   ⟨h1.1.mkLetDecl h2, by simpa using .cons h1.2 (.vlet h3 h4 h5)⟩
+
+/-- Closing no free variables leaves the body unchanged. -/
+theorem _root_.Lean.LocalContext.mkForall_empty
+    (lctx : LocalContext) (body : Expr) :
+    lctx.mkForall #[] body = body := by
+  rw [LocalContext.mkForall]
+  change LocalContext.mkBinding false lctx
+    (([] : List FVarId).map Expr.fvar).toArray body = body
+  rw [LocalContext.mkBinding_eq]
+  rfl
+
+/-- With distinct selected declarations, closing a concatenated free-variable
+list is exactly the same as closing the suffix and then the prefix. -/
+theorem _root_.Lean.LocalContext.mkBindingList_append
+    (hdecl : ∀ fv ∈ xs ++ ys, ∃ decl, lctx.find? fv = some decl)
+    (hnodup : (xs ++ ys).Nodup) :
+    LocalContext.mkBindingList isLambda lctx (xs ++ ys) body =
+      LocalContext.mkBindingList isLambda lctx xs
+        (LocalContext.mkBindingList isLambda lctx ys body) := by
+  rcases List.nodup_append.mp hnodup with ⟨hxs, hys, _⟩
+  have hdeclXs : ∀ fv ∈ xs, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    exact hdecl fv (List.mem_append_left ys hfv)
+  have hdeclYs : ∀ fv ∈ ys, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    exact hdecl fv (List.mem_append_right xs hfv)
+  rw [LocalContext.mkBindingList_eq_fold hdecl hnodup,
+    LocalContext.mkBindingList_eq_fold hdeclXs hxs,
+    LocalContext.mkBindingList_eq_fold hdeclYs hys,
+    List.foldr_append]
+
+/-- Closing an older selected list after extending the local context by one
+fresh selected declaration is the same as closing the new declaration first
+and then using the old context. -/
+theorem _root_.Lean.LocalContext.mkForall_append_fresh
+    {lctx : LocalContext} {selected : List FVarId} {fv : FVarId}
+    {name : Name} {type body : Expr} {bi : BinderInfo}
+    (hwf : lctx.WF) (hfind : lctx.find? fv = none)
+    (hdecl : ∀ other ∈ selected, ∃ decl,
+      lctx.find? other = some decl)
+    (hnodup : selected.Nodup) :
+    let next := lctx.mkLocalDecl fv name type bi
+    next.mkForall
+        ((selected ++ [fv]).map Expr.fvar).toArray body =
+      lctx.mkForall (selected.map Expr.fvar).toArray
+        (.forallE name type (body.abstract1 fv) bi) := by
+  dsimp only
+  let next := lctx.mkLocalDecl fv name type bi
+  have hfresh : fv ∉ selected := by
+    intro hmem
+    rcases hdecl fv hmem with ⟨decl, hsome⟩
+    rw [hfind] at hsome
+    contradiction
+  have hselectedNext : ∀ other ∈ selected, ∃ decl,
+      next.find? other = some decl := by
+    intro other hother
+    rcases hdecl other hother with ⟨decl, hlookup⟩
+    refine ⟨decl, ?_⟩
+    simp only [next, LocalContext.mkLocalDecl, LocalContext.find?,
+      hwf.map_wf.find?_insert]
+    rw [if_neg]
+    · exact hlookup
+    · intro heq
+      have : fv = other := beq_iff_eq.mp heq
+      exact hfresh (this.symm ▸ hother)
+  have hnewNext : next.find? fv = some
+      (.cdecl lctx.decls.size fv name type bi .default) := by
+    simp [next, LocalContext.mkLocalDecl, LocalContext.find?,
+      hwf.map_wf.find?_insert]
+  have hallNext : ∀ other ∈ selected ++ [fv], ∃ decl,
+      next.find? other = some decl := by
+    intro other hother
+    rcases List.mem_append.mp hother with hother | hother
+    · exact hselectedNext other hother
+    · simp only [List.mem_singleton] at hother
+      subst other
+      exact ⟨_, hnewNext⟩
+  have hallNodup : (selected ++ [fv]).Nodup := by
+    apply List.nodup_append.mpr
+    refine ⟨hnodup, by simp, ?_⟩
+    intro a ha b hb hab
+    have hb' : b = fv := by simpa using hb
+    apply hfresh
+    rw [← hb', ← hab]
+    exact ha
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
+    LocalContext.mkForall, LocalContext.mkBinding_eq]
+  rw [LocalContext.mkBindingList_append hallNext hallNodup]
+  have hsingle : LocalContext.mkBindingList false next [fv] body =
+      .forallE name type (body.abstract1 fv) bi := by
+    simp [LocalContext.mkBindingList_eq_fold, hnewNext,
+      LocalContext.mkBindingList1]
+  rw [hsingle]
+  exact LocalContext.mkBindingList_congr (by
+    intro other hother
+    simp only [next, LocalContext.mkLocalDecl, LocalContext.find?,
+      hwf.map_wf.find?_insert]
+    rw [if_neg]
+    intro heq
+    have : fv = other := beq_iff_eq.mp heq
+    exact hfresh (this.symm ▸ hother))
+
+/-- Extending a local context by a fresh declaration not selected for
+closure leaves the selected forall expression unchanged. -/
+theorem _root_.Lean.LocalContext.mkForall_skip_fresh
+    {lctx : LocalContext} {selected : List FVarId} {fv : FVarId}
+    {name : Name} {type body : Expr} {bi : BinderInfo}
+    (hwf : lctx.WF) (hfind : lctx.find? fv = none)
+    (hselected : fv ∉ selected) :
+    let next := lctx.mkLocalDecl fv name type bi
+    next.mkForall (selected.map Expr.fvar).toArray body =
+      lctx.mkForall (selected.map Expr.fvar).toArray body := by
+  dsimp only
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
+    LocalContext.mkForall, LocalContext.mkBinding_eq]
+  apply LocalContext.mkBindingList_congr
+  intro other hother
+  simp only [LocalContext.mkLocalDecl, LocalContext.find?,
+    hwf.map_wf.find?_insert]
+  rw [if_neg]
+  intro heq
+  have : fv = other := beq_iff_eq.mp heq
+  exact hselected (this.symm ▸ hother)

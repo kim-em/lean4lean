@@ -956,7 +956,8 @@ theorem
     simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
     simpa [typeBody, ownerTarget, args, majorSource, majorTarget,
       Expr.abstractList_app, Expr.abstractList_mkAppN,
-      Expr.mkAppN_eq_mkAppList, VExpr.mkApps_append, VExpr.mkApps,
+      Expr.mkAppN_eq_mkAppList, VExpr.mkApps_append,
+      VExpr.liftN_mkApps, recursorCanonicalVars_liftN_at_length,
       getElem!_pos indTypes owner A.sourceOwner_lt] using
       HtypeTranslation₀
   exact ⟨T, originalDomains, fieldDomains, fieldResult, lhsBody, typeBody,

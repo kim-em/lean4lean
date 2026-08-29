@@ -44,7 +44,6 @@ theorem AddInductive.semanticFormationCoreWF
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hproj : ProjectionConstPreservation)
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name) :
@@ -62,7 +61,6 @@ theorem AddInductive.semanticFormationCoreWF
       Hsemantic hlevels hlevelParams hindicesSize hindices hconsts hparams
       hcommonParams Hcache Hsuffix Hambient hcommon hvisible hnprimTypes
       hconsume
-      (fun Htr hfree => hproj _ Htr hfree)
   have Hcombined :
       ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
         isUnsafe >>= fun headerEnv =>
@@ -109,12 +107,12 @@ theorem AddInductive.semanticFormationCoreWF
         exact hcheckedOut
       have hlitInstalled := Hheaders.materializedAvailableLiteralDisjoint
       have Hchecked := AddInductive.checkConstructors.checkedWF Hheaders
-        hconsume hlitInstalled (fun Htr hfree => hproj _ Htr hfree)
+        hconsume hlitInstalled
         (fun h => Hheaders.translation.isUnsafe.trans h)
         checkedOut hfull
       have Howners :=
         AddInductive.checkConstructors.ownerNormalFormsWF Hheaders
-          hconsume hlitInstalled (fun Htr hfree => hproj _ Htr hfree)
+          hconsume hlitInstalled
           checkedOut hfull
       exact ⟨decl, Hheaders, Hchecked, Howners⟩
     have Hphases :

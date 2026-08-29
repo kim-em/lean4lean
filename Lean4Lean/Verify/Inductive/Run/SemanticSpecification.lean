@@ -32,13 +32,12 @@ translation and environment-extension judgments simultaneously. -/
 theorem SemanticRunWithStatsResult.independentSpecification
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (hnonempty : indTypes.toList ≠ [])
-    (hproj : ProjectionConstPreservation) :
+    (hnonempty : indTypes.toList ≠ []) :
     Nonempty (OrdinaryInductiveSpecificationResult sourceEnv c.lparams
       nparams indTypes.toList isUnsafe) := by
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
-  rcases Hrecursors.canonicalOrdinaryRuleTranslation hproj with ⟨T⟩
+  rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
   exact ⟨{
     decl := decl
     envTypes := Hheaders.context.venv
@@ -53,8 +52,7 @@ the independent specification result. -/
 theorem VerifiedSemanticInductiveRunResultSourceAligned.independentSpecification
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (hnonempty : types ≠ [])
-    (hproj : ProjectionConstPreservation) :
+    (hnonempty : types ≠ []) :
     Nonempty (OrdinaryInductiveSpecificationResult sourceEnv source.lparams
       nparams types (source.safety != .safe)) := by
   rcases Hrun with
@@ -62,7 +60,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.independentSpecification
       hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hphases⟩
   have hnonempty' : types.toArray.toList ≠ [] := by
     simpa using hnonempty
-  have Hspec := Hphases.independentSpecification hnonempty' hproj
+  have Hspec := Hphases.independentSpecification hnonempty'
   simpa only [hlparams, hvenv] using Hspec
 
 end VerifyInductive

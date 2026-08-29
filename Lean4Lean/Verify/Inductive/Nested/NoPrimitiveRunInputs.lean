@@ -21,13 +21,11 @@ theorem SemanticRunVerificationInputs.ofNoPrimitive
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {nparams depth numNested : Nat} {indTypes : Array InductiveType}
     {isUnsafe : Bool} {Hc : ContextWF c}
-    (hallow : c.allowPrimitive = false)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat) :
+    (hallow : c.allowPrimitive = false) :
     SemanticRunVerificationInputs c stats nparams depth numNested indTypes
       isUnsafe Hc where
   freshTypes htrue := by simp [hallow] at htrue
   freshConstructors htrue := by simp [hallow] at htrue
-  loopUArgsReplay := hloopUArgsReplay
   freshRecursors htrue := by simp [hallow] at htrue
 
 /-- A successful lowering trace necessarily began with a nonempty mutual

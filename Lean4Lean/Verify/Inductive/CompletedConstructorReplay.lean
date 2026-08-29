@@ -46,11 +46,47 @@ def CompletedConstructorPhases.checkedRecursorHeaderAt
   have hsourceLE : sourceEnv <= R.context.venv :=
     R.installation.headerLE.trans R.installation.constructorLE
   have Hsource := Htype.header.mono hsourceLE
+  have HsourceUses :=
+    (Htype.header.type.usesOnly_of_constants
+      (fun {_name _ci} hlookup =>
+        Lean4Lean.VerifyInductive.TrInductDeclCore.headerBaseAvoidsSourceNames
+          R.core hlookup)).mono hsourceLE
+  have HrecursorSource : ∀ elimLevel
+      (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel),
+      ∃ targetType,
+        ∃ translation : TrExprS R.context.venv
+          (AddInductive.getRecLevelParams elimLevel c.lparams) []
+          indTypes[familyIdx].type targetType,
+        translation.UsesOnly (fun name => name ∈ decl.sourceNames) ∧
+          targetType =
+            (mkRecInfos.loopArgs1.recursorTargetSkeletonOf
+              decl.types[familyIdx] c.lparams elimLevel Helim).type := by
+    intro elimLevel Helim
+    cases elimLevel with
+    | zero =>
+        exact ⟨decl.types[familyIdx].type, Hsource.type, HsourceUses, rfl⟩
+    | param fresh =>
+        have hsourceWF : sourceEnv.WF := by
+          simpa only [R.sourceContextVEnv] using
+            R.sourceContext.checking.tr.wf
+        have Hshifted := Htype.header.type.prependLevelParam hsourceWF
+          (by trivial) Helim
+        have HshiftedUses := Hshifted.usesOnly_of_constants
+          (fun {_name _ci} hlookup =>
+            Lean4Lean.VerifyInductive.TrInductDeclCore.headerBaseAvoidsSourceNames
+              R.core hlookup)
+        exact ⟨decl.types[familyIdx].type.instL
+            (VLevel.prependShift c.lparams.length),
+          Hshifted.mono hsourceLE, HshiftedUses.mono hsourceLE, rfl⟩
+    | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+        simp [AddInductive.AdmissibleElimLevel] at Helim
   refine {
     target := decl.types[familyIdx]
     targetAt := by simp [htarget]
     materialized := R.materializedFinal
     sourceTranslation := Hsource
+    sourceTranslationUses := HsourceUses
+    recursorSourceTranslationRestricted := HrecursorSource
     targetLookup := ?_
     lparamsNodup := hlparams }
   have hheaderLookup : R.headerVEnv.constants decl.types[familyIdx].name =
@@ -427,10 +463,6 @@ theorem CompletedConstructorPhases.mkRecInfosWF
     (hlparams : c.lparams.Nodup)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
-    (hproj : forall {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' ->
-      e'.containsAnyConst (decl.types.map (·.name)) = false ->
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (k : Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall {cOut : AddInductive.Context} {outDepth : Nat}
       (recInfos : Array AddInductive.RecInfo)
@@ -503,7 +535,7 @@ theorem CompletedConstructorPhases.mkRecInfosWF
     stats indTypes 0 recInfos k Rframes HsuffixFrames
     HstatsFrames hconsume hlit.available
     (checkInductiveTypes.loopType.MLCtxOnlyLams.noIndConsts
-      Rframes.onlyLams) hproj
+      Rframes.onlyLams)
     HbindingsFrames HoriginsFrames
     (RecInfoRuleBlueprintOrigins.ofEmpty HoriginsFrames HemptyFrames
       HblueprintCountsFrames)
@@ -557,10 +589,6 @@ theorem CompletedConstructorPhases.getElimLevelMkRecInfosWF
     (hlparams : c.lparams.Nodup)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
-    (hproj : forall {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' ->
-      e'.containsAnyConst (decl.types.map (·.name)) = false ->
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (k : Level -> Bool -> Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall elimLevel,
       (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) ->
@@ -622,7 +650,7 @@ theorem CompletedConstructorPhases.getElimLevelMkRecInfosWF
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams }).WF
         fun _ => True from fun _ _ => trivial).bind fun kTarget _ =>
-      R.mkRecInfosWF elimLevel hElim hlparams hconsume hlit hproj
+      R.mkRecInfosWF elimLevel hElim hlparams hconsume hlit
         (k elimLevel kTarget) (Hk elimLevel hElim kTarget)
 
 end VerifyInductive

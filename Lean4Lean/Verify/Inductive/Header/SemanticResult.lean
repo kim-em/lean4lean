@@ -65,6 +65,38 @@ theorem MaterializedSourceHeaderSemanticAccumulator.normalizedSourceAt
     VInductiveTypeSkeleton.toVInductiveType, payload, hiPayload] using
       payload.2.synthesized.normalizedSource
 
+/-- The skeleton-free header fold retains the concrete source telescope and
+its exact semantic family shape from the same checked replay. -/
+theorem MaterializedSourceHeaderSemanticAccumulator.normalizedShapeAt
+    (H : MaterializedSourceHeaderSemanticAccumulator env Us nparams params
+      commonLevel sources)
+    (i : Nat) (hi : i < (H.headerDecl isUnsafe).types.length) :
+    ∃ sourceTelescope : NormalizedHeaderSourceTelescope env Us params
+        (H.headerDecl isUnsafe).nparams
+        (H.headerDecl isUnsafe).types[i].numIndices,
+      ∃ residual exprType,
+        env.IsDefEq Us.length [] (H.headerDecl isUnsafe).types[i].type
+          (VExpr.wrapForalls
+            (sourceTelescope.ownParams ++ sourceTelescope.indices) residual)
+          exprType ∧
+        env.IsDefEq Us.length
+          (sourceTelescope.indices.reverse ++
+            sourceTelescope.ownParams.reverse)
+          residual (.sort (H.headerDecl isUnsafe).types[i].resultLevel)
+            (.sort (.succ (H.headerDecl isUnsafe).types[i].resultLevel)) := by
+  have hiPayload : i < H.payloads.length := by
+    simpa [MaterializedSourceHeaderSemanticAccumulator.headerDecl] using hi
+  let payload := H.payloads[i]
+  have htarget : (H.headerDecl isUnsafe).types[i] =
+      payload.2.headerType := by
+    simp [MaterializedSourceHeaderSemanticAccumulator.headerDecl,
+      payload, hiPayload]
+  rw [htarget]
+  simpa [MaterializedSourceHeaderSemanticAccumulator.headerDecl,
+    MaterializedSourceHeaderSemantics.headerType,
+    VInductiveTypeSkeleton.toVInductiveType, headerSkeleton] using
+      payload.2.synthesized.normalizedShape
+
 /-- Recovered semantic metadata is exactly the index-count vector of the
 header-only declaration. -/
 theorem MaterializedSourceHeaderSemanticAccumulator.metadata_numIndices
@@ -163,6 +195,7 @@ def MaterializedSourceHeaderSemanticAccumulator.materializedResult
         (H.headerDecl isUnsafe) depth where
   headers := H.headerCertificate isUnsafe
   normalizedSources := H.normalizedSourceAt
+  normalizedShapes := H.normalizedShapeAt
   commonLevel := hcommon
   levels := hlevels
   levelParams := hlevelParams

@@ -116,6 +116,7 @@ theorem RestoredPrimaryOperationalFamilySemantics.constructorAt
           A.target.ctors[i].name stepSource stepTarget,
       ∃ Hsemantic : RestoredSourceConstructorSemantics c.lparams c.safety
           canonicalEnv HctorStep sourceTypes[familyIdx].ctors[i],
+        HctorStep.oldInfo.name = A.target.ctors[i].name ∧
         Hsemantic.constructor = owner.ctors[i] :=
   F.constructors.at i hsource htarget hconstructor
 

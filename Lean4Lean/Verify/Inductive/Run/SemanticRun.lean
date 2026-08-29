@@ -41,8 +41,6 @@ theorem AddInductive.runWithStats.semanticWF
           ∃ _ : ConstructorPhasesResult Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation)
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -60,8 +58,7 @@ theorem AddInductive.runWithStats.semanticWF
     have hlit : checkPositivityStep.AvailableLiteralDisjoint
         R.declared.context.venv stats.indConsts := by
       simpa [R.declared.contextVEnv] using hlitCtors
-    exact (R.recursorPhasesWF hclosed hlparams hloopUArgsReplay hlit
-      (fun Htr hfree => hproj _ Htr hfree) hnotPartial hnprim).mono
+    exact (R.recursorPhasesWF hclosed hlparams hlit hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show SemanticRunWithStatsResult c stats nparams depth indTypes
             isUnsafe sourceEnv outEnv
@@ -107,8 +104,6 @@ theorem AddInductive.runWithStats.semanticClosedWF
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation)
     (hnotPartial : c.safety ≠ .partial)
     (hnprimRecursors : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -122,10 +117,8 @@ theorem AddInductive.runWithStats.semanticClosedWF
   · exact AddInductive.semanticFormationCoreClosedWF Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
       Hcache Hsuffix Hambient hcommon Hclosed hvisible hnprimTypes
-      Lean4Lean.consumeTypeAnnotationsCompat hproj hnprimCtors
+      Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors
   · exact hlparams
-  · exact hloopUArgsReplay
-  · exact hproj
   · exact hnotPartial
   · exact hnprimRecursors
 
@@ -144,7 +137,6 @@ structure SemanticRunVerificationInputs
   freshConstructors : c.allowPrimitive = true →
     ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
     ¬ Kernel.Environment.primitives.contains ctor.name
-  loopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat
   freshRecursors : c.allowPrimitive = true →
     ∀ owner (howner : owner < indTypes.size),
     ¬ Kernel.Environment.primitives.contains
@@ -203,7 +195,6 @@ theorem AddInductive.run.semanticSourceAlignedWF
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
-    (hproj : ProjectionConstPreservation)
     (Hinputs : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {depth : Nat}
       {commonParams : List VExpr} {commonLevel : VLevel},
@@ -254,7 +245,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
     exact (AddInductive.runWithStats.semanticClosedWF Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
       Hcache Hsuffix Hambient hcommon Hclosed' hvisible I.freshTypes
-      I.freshConstructors hlparamsNodup I.loopUArgsReplay hproj hnotPartial
+      I.freshConstructors hlparamsNodup hnotPartial
       I.freshRecursors).mono fun outEnv Hrun =>
         ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
           hlparams, hallowPrimitive, hfuel, hvenv, Hsemantic, Hrun⟩
@@ -269,7 +260,6 @@ theorem AddInductive.run.semanticWF
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
-    (hproj : ProjectionConstPreservation)
     (Hinputs : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {depth : Nat}
       {commonParams : List VExpr} {commonLevel : VLevel},
@@ -283,7 +273,7 @@ theorem AddInductive.run.semanticWF
     (AddInductive.run nparams types numNested c).WF
       (VerifiedSemanticInductiveRunResult c nparams types numNested) := by
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed hctx hnonempty HnotPartial hproj
+    Hclosed hctx hnonempty HnotPartial
     (fun Hc' _hallowPrimitive _hfuel Hsemantic =>
       Hinputs Hc' Hsemantic)).mono fun _ Hresult => by
       rcases Hresult with

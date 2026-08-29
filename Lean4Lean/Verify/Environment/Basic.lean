@@ -20,6 +20,18 @@ inductive InductiveMemberInfos (env : Environment) : List Name → Prop
       InductiveMemberInfos env names →
       InductiveMemberInfos env (name :: names)
 
+theorem InductiveMemberInfos.find
+    (H : InductiveMemberInfos env names)
+    (hname : name ∈ names) :
+    ∃ info, env.find? name = some (.inductInfo info) := by
+  induction H with
+  | nil => simp at hname
+  | @cons head info tail hhead _ ih =>
+    simp only [List.mem_cons] at hname
+    rcases hname with rfl | htail
+    · exact ⟨info, hhead⟩
+    · exact ih htail
+
 /-- One production inductive header has a complete, duplicate-free mutual
 family, including the header through which it was discovered. -/
 structure MutualInductiveClosure
@@ -27,6 +39,11 @@ structure MutualInductiveClosure
   members : InductiveMemberInfos env value.all
   target : targetName ∈ value.all
   names : value.all.Nodup
+  /-- Every header in the producer-owned mutual block was emitted with the
+  same common-parameter count. -/
+  parameters : ∀ member info, member ∈ value.all →
+    env.find? member = some (.inductInfo info) →
+    info.numParams = value.numParams
 
 /-- Every production inductive header has complete mutual-family metadata.
 Nested lowering follows `InductiveVal.all`, so this is part of the persistent
@@ -76,6 +93,11 @@ theorem MutualInductiveClosure.mapEnvironmentEq
   members := H.members.mapEnvironmentEq heq
   target := H.target
   names := H.names
+  parameters := by
+    intro member info hmember hfind
+    exact H.parameters member info hmember (by
+      rw [heq member]
+      exact hfind)
 
 /-- Closure of every mutual family is invariant under extensional equality of
 production constant lookup. -/
@@ -900,6 +922,42 @@ def InstalledInductiveFamilyProvenanceAt.mono
   name := H.name
   alignment := H.alignment.rebase hfind hpreserves
   installed := H.installed.mono henv
+
+theorem InstalledInductiveProvenance.monoEnv
+    (H : InstalledInductiveProvenance safety C env)
+    (henv : env ≤ env') :
+    InstalledInductiveProvenance safety C env' := by
+  intro familyName familyInfo hfind hvisible
+  rcases H familyName familyInfo hfind hvisible with ⟨P⟩
+  exact ⟨P.mono (by simpa [P.name] using hfind) (fun h => h) henv⟩
+
+/-- A fresh non-inductive production entry preserves declaration-level
+inductive provenance across any monotone abstract extension. -/
+theorem InstalledInductiveProvenance.insertNonInductive
+    (H : InstalledInductiveProvenance safety C env)
+    (hwf : C.WF) (hfresh : C.find? ci.name = none)
+    (hnind : ∀ familyInfo, ci ≠ .inductInfo familyInfo)
+    (henv : env ≤ env') :
+    InstalledInductiveProvenance safety (C.insert ci.name ci) env' := by
+  have hpreserves : ∀ {name found}, C.find? name = some found →
+      (C.insert ci.name ci).find? name = some found := by
+    intro name found hfind
+    rw [hwf.find?_insert]
+    split
+    · rename_i heq
+      have hname : ci.name = name := LawfulBEq.eq_of_beq heq
+      subst name
+      rw [hfind] at hfresh
+      contradiction
+    · exact hfind
+  intro familyName familyInfo hfind hvisible
+  have hold : C.find? familyName = some (.inductInfo familyInfo) := by
+    rw [hwf.find?_insert] at hfind
+    split at hfind
+    · exact False.elim (hnind familyInfo (Option.some.inj hfind))
+    · exact hfind
+  rcases H familyName familyInfo hold hvisible with ⟨P⟩
+  exact ⟨P.mono (by simpa [P.name] using hfind) hpreserves henv⟩
 
 theorem AddInduct.installedCertificate
     (H : AddInduct safety source base decl target installed) :

@@ -533,6 +533,54 @@ structure GeneratedRecursorRestorationTelescopeAlignment
       recInfos[ownerIdx]!.indices.size + 1)
     oldSuffixTarget
 
+/-- The retained opening and suffix traces determine the complete telescope
+of the exact restored recursor, independently of any semantic translation of
+its domains. -/
+theorem GeneratedRecursorRestorationTelescopeAlignment.restoredForallTelescope
+    {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
+    {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
+      indTypes recInfos ownerIdx entry}
+    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+      newInfo Hentry) :
+    Expr.ForallTelescope newInfo.type
+      (result.nparams + ((recInfos.map (·.motive)).size +
+        (recInfos.flatMap (·.minors)).size +
+        recInfos[ownerIdx]!.indices.size + 1))
+      (concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx) := by
+  let suffixArity := (recInfos.map (·.motive)).size +
+    (recInfos.flatMap (·.minors)).size +
+    recInfos[ownerIdx]!.indices.size + 1
+  have HnewPrefix := H.trace.opening.outputPrefixTelescope H.oldPrefix
+  have HnewSuffix := H.trace.suffix.newTelescope.abstractList
+    H.trace.opening.selection.fvars
+  have hresidual :
+      (concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+          H.trace.opening.selection.fvars suffixArity =
+      concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx := by
+    apply (concreteRecursorResult_noFVars.mono fun fv hfalse =>
+      False.elim hfalse).abstractList_eq_self
+    have howner : ownerIdx < (recInfos.map (·.motive)).size := by
+      simpa using H.owner_lt
+    exact concreteRecursorResult_closed howner
+  have HnewSuffix' : Expr.ForallTelescope
+      (H.trace.opening.restoredBody.abstractList
+        H.trace.opening.selection.fvars)
+      suffixArity
+      (concreteRecursorResult (recInfos.map (·.motive)).size
+        (recInfos.flatMap (·.minors)).size
+        recInfos[ownerIdx]!.indices.size ownerIdx) := by
+    dsimp [suffixArity] at hresidual ⊢
+    simp only [Nat.zero_add] at HnewSuffix
+    rw [hresidual] at HnewSuffix
+    exact HnewSuffix
+  exact HnewPrefix.trans HnewSuffix'
+
 /-- The semantic obligation for one concrete restored suffix domain at a
 fixed production position.  It is intentionally independent of the slot
 category; `GeneratedRecursorRestoredDomainTranslations` assigns one such
@@ -2094,6 +2142,8 @@ structure RestoredRecursorDeclResult
   newRecName : Name
   newInfo : RecursorVal
   mappedName : newRecName = auxRec.getD oldRecName oldRecName
+  produced : newInfo = result.restoreRecursor loweredEnv auxRec allIndNames
+    oldRecName (auxRec.getD oldRecName oldRecName) oldInfo
   restoration : RecursorRestoration result loweredEnv auxRec allIndNames
     oldRecName newRecName oldInfo newInfo
   fresh : sourceEnv.contains newInfo.name = false
@@ -2139,6 +2189,7 @@ theorem restoreRecursorDecl_refines
       newRecName := newRecName
       newInfo := newInfo
       mappedName := rfl
+      produced := rfl
       restoration := restoreRecursor_refines result loweredEnv auxRec
         allIndNames oldRecName newRecName oldInfo Htype Hrules
       fresh := by

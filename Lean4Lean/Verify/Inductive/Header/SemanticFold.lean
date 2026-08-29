@@ -270,11 +270,11 @@ theorem laterResult.snocsSemanticNarrow
   rcases TrExpr.sort_source hsortedNarrow with
     ⟨resultLevel, hofLevel, _hresult⟩
   rcases Hruntime.independentSourceScope with
-    ⟨sourceScope, HsourceScope, hsourceScopeFVars⟩
+    ⟨sourceScope, HsourceScope, hsourceScopeFVars, hsourceClosure⟩
   have hheader := Hsynthesis.synthesizedHeaderWithParams
     (uvars := c.lparams.length) (commonParams := commonParams)
     Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
-      rfl hparams hofLevel hsortedNarrow
+      Hc.mlctx.lctx hsourceClosure rfl hparams hofLevel hsortedNarrow
   have hlevel : resultLevel ≈ commonLevel :=
     Level.isEquiv_wf hguard hofLevel hcommon
   let HsemanticNext := Hsemantic.snoc source target nindices resultLevel
@@ -543,7 +543,8 @@ theorem laterStep.extendsSemanticAccumulator
         have hsortedNarrow := Hruntime.resultSort Hc.checking.tr.wf
           hnormalizedNarrow hfull hsorted
         rcases Hruntime.independentSourceScope with
-          ⟨sourceScope, HsourceScope, hsourceScopeFVars⟩
+          ⟨sourceScope, HsourceScope, hsourceScopeFVars,
+            hsourceClosure⟩
         have hcommonEmpty : commonParams = [] :=
           List.eq_nil_of_length_eq_zero (hcommonParams.trans hzero.symm)
         have hparamEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
@@ -554,7 +555,8 @@ theorem laterStep.extendsSemanticAccumulator
         have Hheader := Hsynthesis.synthesizedHeaderWithParams
           (uvars := c.lparams.length) (commonParams := commonParams)
           Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
-          rfl hparamEq hofLevel hsortedNarrow
+          Hc.mlctx.lctx hsourceClosure rfl hparamEq hofLevel
+          hsortedNarrow
         have Hheader' : checkInductiveTypes.loopType.SynthesizedHeader
             Hc.venv c.lparams c.lparams.length nparams commonParams
               sourceSkeleton 0 resultLevel := by

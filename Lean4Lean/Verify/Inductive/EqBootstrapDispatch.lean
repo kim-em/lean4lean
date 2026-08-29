@@ -183,8 +183,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
     (hsafety : source.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (Hshape : EqBootstrapShape source.lparams nparams types
-      (source.safety != .safe))
-    (hproj : ProjectionConstPreservation) :
+      (source.safety != .safe)) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult sourceEnv source.lparams
@@ -195,7 +194,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
         _hlparams, _hnparams, _hunsafe, htypes⟩
     rw [htypes]
     simp
-  have Hspec := Hrun.independentSpecification hnonempty hproj
+  have Hspec := Hrun.independentSpecification hnonempty
   rcases Hrun with
     ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hcSafety,
       hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hphases⟩
@@ -210,7 +209,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
       types.toArray.toList (source.safety != .safe) := by
     simpa [hlparams] using Hshape
   rcases Hphases.extendSafeEqBootstrap wf' hAbsent' hcSafety' hcVEnv
-      Hshape' hproj with ⟨ves', wf', hEq', hle⟩
+      Hshape' with ⟨ves', wf', hEq', hle⟩
   exact ⟨ves', wf', hEq', hle, Hspec⟩
 
 /-- Complete `AddInductive.run` refinement for the exact bootstrap `Eq`
@@ -227,7 +226,6 @@ theorem AddInductive.run.eqBootstrapFinalWF
     (hctx : Hc.mlctx.vlctx = [])
     (Hshape : EqBootstrapShape c.lparams nparams types
       (c.safety != .safe))
-    (hproj : ProjectionConstPreservation)
     (Hinputs : ∀ {c' : AddInductive.Context}
       {stats : AddInductive.InductiveStats} {depth : Nat}
       {commonParams : List VExpr} {commonLevel : VLevel},
@@ -253,8 +251,8 @@ theorem AddInductive.run.eqBootstrapFinalWF
     change 0 < 1
     decide
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed hctx hsize (by simp [hsafety]) hproj Hinputs).mono fun _ Hrun =>
-      Hrun.extendEqBootstrap wf hAbsent hsafety hsource Hshape hproj
+    Hclosed hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
+      Hrun.extendEqBootstrap wf hAbsent hsafety hsource Hshape
 
 /-- Final-model boundary for the zero-auxiliary production branch reached by
 the exact bootstrap `Eq` declaration. -/
@@ -265,8 +263,6 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
     (ves : VEnvs) (wf : ves.WF env)
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : EqBootstrapShape lparams nparams types isUnsafe)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
@@ -304,10 +300,9 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
     exact SemanticRunVerificationInputs.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
-      hloopUArgsReplay
   have Hrun := AddInductive.run.eqBootstrapFinalWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hAbsent
-    (by rfl) hsource wf.inductivesClosed (by rfl) Hshape' hproj Hinputs
+    (by rfl) hsource wf.inductivesClosed (by rfl) Hshape' Hinputs
   unfold Environment.addInductiveAfterLowering
   rw [haux]
   simpa [c, initialContext] using Hrun.mono fun _ h => by
@@ -326,9 +321,7 @@ theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
     (hAbsent : env.constants.find? ``Eq = none)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe false fuel).WF
       fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
@@ -348,7 +341,7 @@ theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF env
         lparams nparams types isUnsafe fuel res ves wf hAbsent Hshape
-        hloopUArgsReplay hproj Hres.1 Hres.2
+        Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
 /-- Checked `addDecl` dispatch for the exact non-primitive bootstrap `Eq`
@@ -359,9 +352,7 @@ theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
     (hAbsent : env.constants.find? ``Eq = none)
-    (Hshape : EqBootstrapShape lparams nparams types isUnsafe)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
-    (hproj : ProjectionConstPreservation) :
+    (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
@@ -370,7 +361,6 @@ theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
             nparams types false) := by
   have Hrun := Environment.addInductive.eqBootstrapFinalEnvironmentWF env
     lparams nparams types isUnsafe fuel ves wf hAbsent Hshape
-    hloopUArgsReplay hproj
   have hcheck := checkPrimitiveInductive_eq_false_of_eqBootstrapShape env Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
 

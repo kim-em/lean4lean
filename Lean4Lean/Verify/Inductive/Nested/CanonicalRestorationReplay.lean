@@ -749,9 +749,10 @@ theorem RecursorPhasesResult.restoredTelescopeAlignmentOfGeneratedName
     (hresultNparams : result.nparams = nparams)
     (hresultParams : result.params.size = result.nparams) :
     ∃ ownerIdx, ∃ hentry : ownerIdx < Hprod.entries.length,
-      Nonempty (GeneratedRecursorRestorationTelescopeAlignment result
-        loweredEnv auxRec Hstep.restored.newInfo
-          (Hprod.generated.entry ownerIdx hentry)) := by
+      oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name ∧
+        Nonempty (GeneratedRecursorRestorationTelescopeAlignment result
+          loweredEnv auxRec Hstep.restored.newInfo
+            (Hprod.generated.entry ownerIdx hentry)) := by
   rcases List.mem_map.mp hgenerated with ⟨value, hvalue, hvalueName⟩
   rcases List.mem_iff_getElem.mp hvalue with ⟨ownerIdx, hentry, hentryValue⟩
   have hentry' : ownerIdx < Hprod.entries.length := by simpa using hentry
@@ -770,8 +771,9 @@ theorem RecursorPhasesResult.restoredTelescopeAlignmentOfGeneratedName
         rw [E.source_eq]
         rfl
       _ = Lean.mkRecName indTypes[ownerIdx]!.name := E.name
-  exact ⟨ownerIdx, hentry', Hprod.restoredPrimaryTelescopeAlignment ownerIdx
-    hentry' Hstep holdRecName hresultNparams hresultParams⟩
+  exact ⟨ownerIdx, hentry', holdRecName,
+    Hprod.restoredPrimaryTelescopeAlignment ownerIdx hentry' Hstep
+      holdRecName hresultNparams hresultParams⟩
 
 /-- Exact generated-entry provenance for one concrete auxiliary restoration
 step.  The owner is an output, not a caller-selected index. -/
@@ -788,9 +790,59 @@ structure RestoredAuxiliaryGeneratedStepAlignment
       oldRecName sourceProdEnv targetProdEnv) where
   ownerIdx : Nat
   entry_lt : ownerIdx < Hprod.entries.length
+  oldRecName_eq : oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name
   alignment : GeneratedRecursorRestorationTelescopeAlignment result
     loweredEnv auxRec Hstep.restored.newInfo
       (Hprod.generated.entry ownerIdx entry_lt)
+
+/-- Convert one exact generated-entry alignment into its block-independent
+auxiliary recursor payload once the restored suffix has been interpreted in
+the canonical source-constructor environment.  Safety, universe arity, name,
+and the old generated entry are recovered from production and restoration. -/
+theorem RestoredAuxiliaryGeneratedStepAlignment.recursorStepOfSuffix
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {nparams depth : Nat}
+    {isUnsafe sourceIsUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {indTypes : Array InductiveType}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {Hprod : RecursorPhasesResult R loweredEnv}
+    {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+      oldRecName sourceProdEnv targetProdEnv}
+    (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      sourceIsUnsafe sourceDecl envTypes envCtors)
+    (hresultNparams : result.nparams = nparams)
+    (Hsuffix : GeneratedRecursorRestoredSuffixTranslationsInvariant
+      A.alignment Hprod.origins envCtors []
+      ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+        Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse)) :
+    Nonempty (RestoredAuxiliaryRecursorStep c.safety envCtors envCtors
+      Hstep) := by
+  rcases Hprod.restoredTelescopeOfSuffix Hsource A.ownerIdx A.entry_lt
+      A.alignment hresultNparams Hsuffix with ⟨targetType, Htype⟩
+  have Hmetadata := Hprod.restoredPrimaryRecursorMetadata A.ownerIdx
+    A.entry_lt Hstep A.oldRecName_eq
+  have Hlevels := Hprod.restoredPrimaryRecursorLevelParams A.ownerIdx
+    A.entry_lt Hstep A.oldRecName_eq
+  have Htranslation : TrExprS envCtors Hstep.restored.newInfo.levelParams []
+      Hstep.restored.newInfo.type targetType := by
+    rw [Hstep.restored.restoration.levelParams, Hlevels]
+    exact Htype.translation
+  have HtargetType : envCtors.IsType
+      Hstep.restored.newInfo.levelParams.length [] targetType := by
+    rw [Hstep.restored.restoration.levelParams, Hlevels]
+    exact Htype.isType
+  have Hsafety : c.safety ≤
+      (ConstantInfo.recInfo Hstep.restored.newInfo).safety := by
+    simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
+      ConstantInfo.isPartial, Hstep.restored.restoration.isUnsafe] using
+        Hmetadata.1
+  exact ⟨RestoredAuxiliaryRecursorStep.ofTypeTranslation targetType Hsafety
+    Htranslation HtargetType⟩
 
 /-- The concrete auxiliary fold, together with generated-name membership,
 determines a generated-entry telescope alignment at every state transition.
@@ -848,12 +900,12 @@ theorem StateForMTrace.generatedAlignmentTrace
   | @cons head source middle tail target Hstep Htail ih =>
       rcases Hprod.restoredTelescopeAlignmentOfGeneratedName Hstep
           (hgenerated head (by simp)) hresultNparams hresultParams with
-        ⟨ownerIdx, hentry, ⟨Halignment⟩⟩
+        ⟨ownerIdx, hentry, holdRecName, ⟨Halignment⟩⟩
       have hgeneratedTail : ∀ name ∈ tail,
           name ∈ (Hprod.entries.map Prod.snd).map (·.name) := by
         intro name hname
         exact hgenerated name (by simp [hname])
-      exact .cons Hstep Htail ⟨ownerIdx, hentry, Halignment⟩
+      exact .cons Hstep Htail ⟨ownerIdx, hentry, holdRecName, Halignment⟩
         (ih hgeneratedTail)
 
 /-- Every name selected by the executable auxiliary-recursion suffix is an
@@ -968,6 +1020,88 @@ inductive RestoredAuxiliaryRecursorTrace
           finalRecursors) :
       RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv
         (.cons Hstep Htail) priorRecursors finalRecursors
+
+/-- Fold translated and typed recursor payloads over the exact generated
+alignment trace.  The output recursor list is determined by the executable
+auxiliary-restoration order; no final list or list equality is supplied by a
+caller. -/
+theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTrace
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceVEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {Hprod : RecursorPhasesResult R loweredEnv}
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {auxRec : NameMap Name} {allIndNames : List Name}
+    {names : List Name} {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+      names sourceProdEnv targetProdEnv}
+    (H : RestoredAuxiliaryGeneratedAlignmentTrace Hprod Htrace)
+    (safety : DefinitionSafety) (trEnv recursorEnv : VEnv)
+    (Hsteps : ∀ oldRecName stepSource stepTarget
+      (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+        oldRecName stepSource stepTarget)
+      (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep),
+      Nonempty (RestoredAuxiliaryRecursorStep safety trEnv recursorEnv
+        Hstep)) :
+    ∀ priorRecursors, ∃ finalRecursors,
+      RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv Htrace
+        priorRecursors finalRecursors := by
+  induction H with
+  | nil source =>
+      intro priorRecursors
+      exact ⟨priorRecursors, .nil source priorRecursors⟩
+  | @cons oldRecName stepSource middle names stepTarget Hstep Htail Hhead
+      Hrest ih =>
+      intro priorRecursors
+      rcases Hsteps oldRecName stepSource middle Hstep Hhead with ⟨Hpayload⟩
+      rcases ih (priorRecursors ++ [Hpayload.recursor]) with
+        ⟨finalRecursors, HtailTrace⟩
+      exact ⟨finalRecursors,
+        RestoredAuxiliaryRecursorTrace.cons Hstep Htail Hpayload HtailTrace⟩
+
+/-- Native specialization of `recursorTrace`: every per-step payload is
+constructed from that step's generated-entry alignment and restored suffix
+semantics.  Consequently the auxiliary recursor list is an output of the
+actual restoration fold. -/
+theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfSuffixes
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {nparams depth : Nat}
+    {isUnsafe sourceIsUnsafe : Bool}
+    {sourceVEnv envTypes envCtors : VEnv}
+    {indTypes : Array InductiveType}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {Hprod : RecursorPhasesResult R loweredEnv}
+    {names : List Name} {sourceProdEnv targetProdEnv : Environment}
+    {Htrace : StateForMTrace
+      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
+      names sourceProdEnv targetProdEnv}
+    (H : RestoredAuxiliaryGeneratedAlignmentTrace Hprod Htrace)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      sourceIsUnsafe sourceDecl envTypes envCtors)
+    (hresultNparams : result.nparams = nparams)
+    (Hsuffixes : ∀ oldRecName stepSource stepTarget
+      (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
+        oldRecName stepSource stepTarget)
+      (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep),
+      GeneratedRecursorRestoredSuffixTranslationsInvariant A.alignment
+        Hprod.origins envCtors []
+        ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+          Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse)) :
+    ∃ auxiliaryRecursors,
+      RestoredAuxiliaryRecursorTrace c.safety envCtors envCtors Htrace []
+        auxiliaryRecursors := by
+  exact H.recursorTrace c.safety envCtors envCtors
+    (fun oldRecName stepSource stepTarget Hstep A =>
+      A.recursorStepOfSuffix Hsource hresultNparams
+        (Hsuffixes oldRecName stepSource stepTarget Hstep A)) []
 
 /-- Canonical concrete replay of the block-independent auxiliary recursor
 trace. -/
@@ -1339,7 +1473,7 @@ def RestoredSourceInductiveSemanticTrace.CanonicalReplay.appendAuxiliaryRecursor
     {HauxTrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       auxRecNames primaryProdEnv outProdEnv}
-    {Haux : RestoredAuxiliaryRecursorTrace safety sourceVEnv
+    {Haux : RestoredAuxiliaryRecursorTrace safety envCtors
       envCtors HauxTrace [] auxiliaryRecursors}
     {typeEntries constructorEntries primaryRecursorEntries :
       List (ConstantInfo × VConstVal)}
@@ -1347,8 +1481,7 @@ def RestoredSourceInductiveSemanticTrace.CanonicalReplay.appendAuxiliaryRecursor
     (Hprimary : Hsource.CanonicalReplay typeEntries constructorEntries
       primaryRecursorEntries primaryActualEntries)
     {auxiliaryEntries : List (ConstantInfo × VConstVal)}
-    (Hauxiliary : Haux.CanonicalReplay auxiliaryEntries)
-    (hle : sourceVEnv ≤ envCtors) :
+    (Hauxiliary : Haux.CanonicalReplay auxiliaryEntries) :
     CanonicalRestorationReplay safety sourceProdEnv outProdEnv sourceVEnv
       envTypes envCtors owners primaryRecursors auxiliaryRecursors := by
   let recursorEntries := primaryRecursorEntries ++ auxiliaryEntries
@@ -1379,7 +1512,7 @@ def RestoredSourceInductiveSemanticTrace.CanonicalReplay.appendAuxiliaryRecursor
     rcases List.mem_append.mp hentry with hprimary | hauxiliary
     · exact Hprimary.recursors entry hprimary
     · rcases Hauxiliary.recursors entry hauxiliary with ⟨htr, hwf⟩
-      exact ⟨htr.mono hle, hwf⟩
+      exact ⟨htr, hwf⟩
 
 /-- Assemble the complete canonical staged installation from exact primary
 source semantics and the block-independent auxiliary recursor trace.  Every
@@ -1407,7 +1540,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
       auxRecNames primaryProdEnv outProdEnv}
     (Hsource : RestoredSourceInductiveSemanticTrace decl c.lparams c.safety
       sourceVEnv envTypes envCtors HprimaryTrace decl.types primaryRecursors)
-    (Haux : RestoredAuxiliaryRecursorTrace c.safety sourceVEnv
+    (Haux : RestoredAuxiliaryRecursorTrace c.safety envCtors
       envCtors HauxTrace [] auxiliaryRecursors)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -1439,10 +1572,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
     Hprimary.fresh.targetWF Hc.checking.tr.map_wf
   rcases Haux.existsCanonicalReplay hprimaryWF with
     ⟨auxiliaryEntries, Hauxiliary⟩
-  let hsourceLE : sourceVEnv ≤ envCtors :=
-    (VEnv.addConstVals_le Hcore.typesAdded).trans
-      (VEnv.addConstVals_le Hcore.ctorsAdded)
-  let replay := Hprimary.appendAuxiliaryRecursors Hauxiliary hsourceLE
+  let replay := Hprimary.appendAuxiliaryRecursors Hauxiliary
   have htypesAbstract : sourceVEnv.addConstVals
       (replay.typeEntries.map Prod.snd) = some envTypes := by
     rw [replay.typeValues]

@@ -10,22 +10,17 @@ namespace VerifyInductive
 
 /-- A finite production plan cannot stop at an expression whose application
 head is not a constant. -/
-theorem NestedRestorationPlan.AtomicProvenance.restoreNode_eq_none_of_not_const
+theorem NestedRestorationPlan.AtomicProvenance.not_relates_of_not_const
     (H : NestedRestorationPlan.AtomicProvenance plan sourceRecursors
       restoredRecursors)
     (hhead : ∀ name levels,
       source.getAppFnArgs.1 ≠ .const name levels) :
-    plan.restoreNode source = none := by
-  cases hrestore : plan.restoreNode source with
-  | none => rfl
-  | some target =>
-      rcases plan.exists_node_of_restoreNode_eq_some hrestore with
-        ⟨node, hnode, hsource, _htarget⟩
-      rcases H.nodeSourceConstHead node hnode with
-        ⟨name, levels, hconst⟩
-      apply False.elim
-      apply hhead name levels
-      rwa [← hsource]
+    ¬ plan.Relates source target := by
+  rintro ⟨node, hnode, hsource, _htarget⟩
+  rcases H.nodeSourceConstHead node hnode with
+    ⟨name, levels, hconst⟩
+  apply hhead name levels
+  rwa [← hsource]
 
 /-- Exact structural extraction of an independently generated lambda prefix.
 The target has the same number and order of lambda domains, each related by
@@ -33,36 +28,35 @@ the finite restoration plan, followed by the exact restored body. -/
 theorem NestedRestorationPlan.AtomicProvenance.wrapLamsAlignment
     (Hatomic : NestedRestorationPlan.AtomicProvenance plan sourceRecursors
       restoredRecursors)
-    (Hrest : VExprRestoration plan.restoreNode
+    (Hrest : VExprRestoration plan.Relates
       (VExpr.wrapLams sourceDomains sourceBody) target) :
     ∃ targetDomains targetBody,
       target = VExpr.wrapLams targetDomains targetBody ∧
-      List.Forall₂ (VExprRestoration plan.restoreNode)
+      List.Forall₂ (VExprRestoration plan.Relates)
         sourceDomains targetDomains ∧
-      VExprRestoration plan.restoreNode sourceBody targetBody := by
+      VExprRestoration plan.Relates sourceBody targetBody := by
   induction sourceDomains generalizing target with
   | nil =>
       exact ⟨[], target, rfl, .nil, Hrest⟩
   | cons sourceDomain sourceDomains ih =>
-      change VExprRestoration plan.restoreNode
+      change VExprRestoration plan.Relates
         (.lam sourceDomain (VExpr.wrapLams sourceDomains sourceBody))
         target at Hrest
       cases Hrest with
       | hit hhit =>
-          have hnone : plan.restoreNode
-              (.lam sourceDomain
-                (VExpr.wrapLams sourceDomains sourceBody)) = none := by
-            apply Hatomic.restoreNode_eq_none_of_not_const
+          exact False.elim (Hatomic.not_relates_of_not_const (by
             intro name levels
-            simp [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go]
-          rw [hnone] at hhit
-          cases hhit
-      | lam hnone hdomain hbody =>
+            simp [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go]) hhit)
+      | leaf =>
+          exact ⟨sourceDomain :: sourceDomains, sourceBody, rfl,
+            .cons .leaf (VExprRestorationList.leaf sourceDomains), .leaf⟩
+      | lam hdomain hbody =>
           rcases ih hbody with
             ⟨targetDomains, targetBody, htarget, Hdomains, Hbody⟩
           subst htarget
           exact ⟨_ :: targetDomains, targetBody, rfl,
             .cons hdomain Hdomains, Hbody⟩
+      | projection sourceExpansion => cases sourceExpansion
 
 /-- Componentwise restoration of a generated lambda telescope assembles a
 guarded restoration of the whole telescope.  The independently generated
@@ -74,17 +68,16 @@ theorem GuardedExprRestoration.wrapLamsOfComponents
     (Hatomic : plan.AtomicProvenance sourceRecursors targetRecursors)
     (hkeys : NestedRestorationPlan.RecursorKeysCovered
       auxRec sourceRecursors)
-    (hproj : ProjectionConstPreservation)
-    (Hdomains : List.Forall₂ (VExprRestoration plan.restoreNode)
+    (Hdomains : List.Forall₂ (VExprRestoration plan.Relates)
       sourceDomains targetDomains)
     (hsourceFree : ∀ domain ∈ sourceDomains,
       domain.containsAnyConst sourceRecursors = false)
     (hfresh : ∀ domain ∈ sourceDomains,
       AvoidsTargetOnlyRecursors sourceRecursors targetRecursors domain)
-    (Hbody : GuardedExprRestoration plan.restoreNode sourceRecursors
+    (Hbody : GuardedExprRestoration plan.Relates sourceRecursors
       targetRecursors fieldVars (depth + sourceDomains.length)
       sourceBody targetBody) :
-    GuardedExprRestoration plan.restoreNode sourceRecursors targetRecursors
+    GuardedExprRestoration plan.Relates sourceRecursors targetRecursors
       fieldVars depth (VExpr.wrapLams sourceDomains sourceBody)
         (VExpr.wrapLams targetDomains targetBody) := by
   induction Hdomains generalizing depth with
@@ -93,10 +86,7 @@ theorem GuardedExprRestoration.wrapLamsOfComponents
       Hdomain Hdomains ih =>
       simp only [VExpr.wrapLams, List.foldr_cons]
       apply GuardedExprRestoration.lam
-      · apply Hatomic.restoreNode_eq_none_of_not_const
-        intro name levels
-        simp [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go]
-      · exact GuardedExprRestoration.ofRecursorFree Hatomic hkeys hproj
+      · exact GuardedExprRestoration.ofRecursorFree Hatomic hkeys
           Hdomain (hsourceFree sourceDomain (by simp))
             (hfresh sourceDomain (by simp))
       · apply ih

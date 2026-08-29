@@ -11,6 +11,44 @@ namespace VerifyInductive
 
 /-! # Producer-owned generated-family header evidence -/
 
+/-- Transport an ordered concrete argument translation across a semantic
+local-context conversion.  The target expressions are reconstructed by the
+translation relation itself; no equality or global preservation principle is
+assumed. -/
+theorem TrExprS.forall₂DefEqDFC
+    (henv : env.WF)
+    (Hctx : VLCtx.IsDefEq env lparams.length sourceCtx targetCtx)
+    (H : List.Forall₂ (TrExprS env lparams sourceCtx) sources targets) :
+    ∃ targets', List.Forall₂
+      (TrExprS env lparams targetCtx) sources targets' := by
+  induction H with
+  | nil => exact ⟨[], .nil⟩
+  | cons Hhead Htail ih =>
+    rcases Hhead.defeqDFC henv Hctx with ⟨target, Htarget⟩
+    rcases ih with ⟨targets, Htargets⟩
+    exact ⟨target :: targets, .cons Htarget Htargets⟩
+
+/-- Context transport also retains the pointwise definitional equality to
+the original targets.  This is the bridge used when the cached application
+and the generated header expose definitionally equal, but not syntactically
+identical, parameter telescopes. -/
+theorem TrExprS.forall₂DefEqDFCWithTargets
+    (henv : env.WF)
+    (Hctx : VLCtx.IsDefEq env lparams.length sourceCtx targetCtx)
+    (H : List.Forall₂ (TrExprS env lparams sourceCtx) sources targets) :
+    ∃ targets',
+      List.Forall₂ (TrExprS env lparams targetCtx) sources targets' ∧
+      List.Forall₂
+        (env.IsDefEqU lparams.length targetCtx.toCtx) targets' targets := by
+  induction H with
+  | nil => exact ⟨[], .nil, .nil⟩
+  | cons Hhead Htail ih =>
+    rcases Hhead.defeqDFC henv Hctx with ⟨target, Htarget⟩
+    rcases ih with ⟨targets, Htargets, Heq⟩
+    have HtargetEq := Htarget.uniq henv (Hctx.symm henv.ordered) Hhead
+    exact ⟨target :: targets, .cons Htarget Htargets,
+      .cons HtargetEq Heq⟩
+
 /-- The validated translation of a generated family's cached source
 application exposes the exact abstract container application and an ordered
 translation of every specialized parameter.  In particular, the abstract
@@ -39,7 +77,7 @@ theorem GeneratedFamilyWitness.abstractContainerApplication
         baseArgs ∧
       (∀ arg ∈ baseArgs, arg.ClosedN parameterDomains.length) ∧
       R.semantics.family = VExpr.mkApps
-        (.const H.sourceName abstractLevels) baseArgs := by
+      (.const H.sourceName abstractLevels) baseArgs := by
   have hsourceApp :
       mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams H.args =
         Expr.mkAppList (.const H.sourceName H.levels)
@@ -115,6 +153,109 @@ theorem GeneratedFamilyWitness.abstractContainerApplication
       have Hclosed := HargWF.closedN henv.ordered hctxClosed
       simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Hclosed
     · simpa [targetFamily] using hfamily
+
+/-- The source head of a restored generated-family application exposes the
+exact abstract constant installed for its container.  This is deliberately a
+single environment-indexed lookup: it does not assert that translating an
+arbitrary constant is preserved by unrelated environment extensions. -/
+theorem GeneratedFamilyWitness.abstractContainerLookup
+    (H : GeneratedFamilyWitness prodEnv params nestedAux family)
+    (R : RestoredFamilyRealization venv lparams parameterDomains 0
+      ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
+        H.args).abstractList H.selection.fvars)) :
+    ∃ abstractFamily,
+      venv.constants H.sourceName = some abstractFamily := by
+  have hsourceApp :
+      mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams H.args =
+        Expr.mkAppList (.const H.sourceName H.levels)
+          (H.args.toList.take H.nestedNParams) := by
+    apply Expr.mkAppRange_eq
+        (l₁ := []) (l₂ := H.args.toList.take H.nestedNParams)
+        (l₃ := H.args.toList.drop H.nestedNParams)
+    · simp
+    · rfl
+    · simpa using Nat.min_eq_left H.argsArity
+  have habstractApp :
+      (Expr.mkAppList (.const H.sourceName H.levels)
+        (H.args.toList.take H.nestedNParams)).abstractList
+          H.selection.fvars =
+        Expr.mkAppList (.const H.sourceName H.levels)
+          ((H.args.toList.take H.nestedNParams).map
+            (fun arg => arg.abstractList H.selection.fvars)) := by
+    have go : ∀ (args : List Expr) (head : Expr),
+        (Expr.mkAppList head args).abstractList H.selection.fvars =
+          Expr.mkAppList (head.abstractList H.selection.fvars)
+            (args.map (fun arg => arg.abstractList H.selection.fvars)) := by
+      intro args
+      induction args with
+      | nil => simp
+      | cons arg args ih =>
+        intro head
+        simp [Expr.mkAppList, Expr.abstractList_app, ih]
+    simpa using go (H.args.toList.take H.nestedNParams)
+      (.const H.sourceName H.levels)
+  rcases R with ⟨_semantics, Htranslated⟩
+  rw [hsourceApp, habstractApp] at Htranslated
+  rcases checkPositivityStep.TrExprS.mkAppList_inv Htranslated with
+    ⟨_abstractHead, _baseArgs, Hhead, _HbaseArgs, _hfamily⟩
+  cases Hhead with
+  | const hlookup _hlevels _huvars => exact ⟨_, hlookup⟩
+
+/-- The concrete universe specialization recorded by the auxiliary builder
+has exactly the arity of the environment-indexed abstract container selected
+by the restored source application.  This is read from the `TrExprS.const`
+node of that exact application; it is not a global constant-preservation
+principle. -/
+theorem GeneratedFamilyWitness.levelsLengthOfAbstractLookup
+    (H : GeneratedFamilyWitness prodEnv params nestedAux family)
+    (R : RestoredFamilyRealization venv lparams parameterDomains 0
+      ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
+        H.args).abstractList H.selection.fvars))
+    (hlookup : venv.constants H.sourceName = some abstractFamily) :
+    H.levels.length = abstractFamily.uvars := by
+  have hsourceApp :
+      mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams H.args =
+        Expr.mkAppList (.const H.sourceName H.levels)
+          (H.args.toList.take H.nestedNParams) := by
+    apply Expr.mkAppRange_eq
+        (l₁ := []) (l₂ := H.args.toList.take H.nestedNParams)
+        (l₃ := H.args.toList.drop H.nestedNParams)
+    · simp
+    · rfl
+    · simpa using Nat.min_eq_left H.argsArity
+  have habstractApp :
+      (Expr.mkAppList (.const H.sourceName H.levels)
+        (H.args.toList.take H.nestedNParams)).abstractList
+          H.selection.fvars =
+        Expr.mkAppList (.const H.sourceName H.levels)
+          ((H.args.toList.take H.nestedNParams).map
+            (fun arg => arg.abstractList H.selection.fvars)) := by
+    have go : ∀ (args : List Expr) (head : Expr),
+        (Expr.mkAppList head args).abstractList H.selection.fvars =
+          Expr.mkAppList (head.abstractList H.selection.fvars)
+            (args.map (fun arg => arg.abstractList H.selection.fvars)) := by
+      intro args
+      induction args with
+      | nil => simp
+      | cons arg args ih =>
+        intro head
+        simp [Expr.mkAppList, Expr.abstractList_app, ih]
+    simpa using go (H.args.toList.take H.nestedNParams)
+      (.const H.sourceName H.levels)
+  let targetFamily : VExpr := R.semantics.family
+  have Htranslated : TrExprS venv lparams
+      (abstractForallContext parameterDomains [])
+      ((mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
+        H.args).abstractList H.selection.fvars) targetFamily :=
+    R.sourceTranslation
+  rw [hsourceApp, habstractApp] at Htranslated
+  rcases checkPositivityStep.TrExprS.mkAppList_inv Htranslated with
+    ⟨_abstractHead, _baseArgs, Hhead, _HbaseArgs, _hfamily⟩
+  cases Hhead with
+  | const habstract _hlevels harity =>
+    have hfamily : _ = abstractFamily :=
+      Option.some.inj (habstract.symm.trans hlookup)
+    simpa [hfamily] using harity
 
 end VerifyInductive
 end Lean4Lean

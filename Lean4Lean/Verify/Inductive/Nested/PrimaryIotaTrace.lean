@@ -57,7 +57,6 @@ structure RestoredPrimaryIotaStructuralEvidence
     (abstractForallContext [] Hrhs.sourceScope).WF sourceEnv Us.length
   targetContextWF :
     (abstractForallContext [] Hrhs.targetScope).WF targetEnv Us.length
-  projection : ProjectionConstPreservation
   uvars : Us.length = sourceRule.uvars
   domains : Hrhs.targetScope.toCtx.reverse = Hsource.domains
   rhsArgs : List VExpr
@@ -72,11 +71,11 @@ structure RestoredPrimaryIotaStructuralEvidence
   sourceType : VExpr
   typing : TypedExprRestoration Hrhs.plan
     (nodes.atomicProvenance.semantics sourceEnvOrdered targetEnvOrdered
-      sourceContextWF targetContextWF projection)
+      sourceContextWF targetContextWF)
     (abstractForallContext [] Hrhs.sourceScope).toCtx
     (abstractForallContext [] Hrhs.targetScope).toCtx
     Hrhs.sourceBody Hrhs.targetBody sourceType Hsource.typeBody
-  guarded : GuardedExprRestoration Hrhs.plan.restoreNode sourceRecursors
+  guarded : GuardedExprRestoration Hrhs.plan.Relates sourceRecursors
     (restoredBlock.recursors.map (·.name)) Hsource.fieldVars 0
     Hrhs.sourceBody Hrhs.targetBody
 
@@ -99,7 +98,7 @@ def RestoredPrimaryIotaStructuralEvidence.semantics
       sourceRule Hsource Hrhs :=
   .ofStructural E.recursorMem E.sourceRecursors
     (E.nodes.atomicProvenance.semantics E.sourceEnvOrdered E.targetEnvOrdered
-      E.sourceContextWF E.targetContextWF E.projection)
+      E.sourceContextWF E.targetContextWF)
     E.uvars E.domains E.rhsArgs E.rhsSpine E.fieldArgs E.recursiveResults
     E.sourceTyping.contextWF E.sourceTyping.lhsTyping E.typing E.guarded
 
@@ -151,14 +150,14 @@ inductive RestoredPrimaryIotaRuleTrace
         oldRule newRule)
       (Hrules : RulesRestoration result prodEnv auxRec oldRecName newRecName
         oldRules newRules)
-      (Hsemantic : RestoredPrimaryIotaRuleSemantics decl block owner ctor
-        result prodEnv P targetVEnv auxRec oldRecName newRecName oldRule newRule
-        Hrule)
+      (abstractRule : VDefEq)
+      (Hshape : decl.NestedIotaRule block owner ctor abstractRule)
+      (Hwf : abstractRule.WF targetVEnv)
       (Hrest : RestoredPrimaryIotaRuleTrace decl block owner result prodEnv
         P targetVEnv auxRec oldRecName newRecName Hrules ctors rules) :
       RestoredPrimaryIotaRuleTrace decl block owner result prodEnv P
         targetVEnv auxRec oldRecName newRecName (.cons Hrule Hrules) (ctor :: ctors)
-        (Hsemantic.rhs.abstractRule Hsemantic.sourceRule :: rules)
+        (abstractRule :: rules)
 
 theorem RestoredPrimaryIotaRuleTrace.forall₂
     (H : RestoredPrimaryIotaRuleTrace decl block owner result prodEnv
@@ -167,8 +166,8 @@ theorem RestoredPrimaryIotaRuleTrace.forall₂
       Nonempty (decl.NestedIotaRule block owner ctor rule)) ctors rules := by
   induction H with
   | nil => exact .nil
-  | cons Hrule Hrules Hsemantic Hrest ih =>
-    exact .cons ⟨Hsemantic.evidence.semantics.nestedIotaRule⟩ ih
+  | cons Hrule Hrules abstractRule Hshape Hwf Hrest ih =>
+    exact .cons ⟨Hshape⟩ ih
 
 theorem RestoredPrimaryIotaRuleTrace.rulesWF
     (H : RestoredPrimaryIotaRuleTrace decl block owner result prodEnv
@@ -177,9 +176,9 @@ theorem RestoredPrimaryIotaRuleTrace.rulesWF
   intro rule hrule
   induction H with
   | nil => simp at hrule
-  | cons Hrule Hrules Hsemantic Hrest ih =>
+  | cons Hrule Hrules abstractRule Hshape Hwf Hrest ih =>
     rcases List.mem_cons.mp hrule with rfl | hrule
-    · exact Hsemantic.evidence.semantics.ruleWF
+    · exact Hwf
     · exact ih hrule
 
 /-- The exact abstract rule batch interpreting one restored primary recursor.
@@ -243,7 +242,6 @@ noncomputable def RestoredPrimaryIotaRuleSemantics.ofGeneratedAtomicStructural
       (abstractForallContext [] Hrhs.sourceScope).WF sourceEnv Us.length)
     (htargetContext :
       (abstractForallContext [] Hrhs.targetScope).WF targetEnv Us.length)
-    (hproj : ProjectionConstPreservation)
     (domains_eq : Hrhs.targetScope.toCtx.reverse = S.source.domains)
     (rhsArgs : List VExpr)
     (rhs_spine : Hrhs.targetBody.getAppFnArgs =
@@ -256,12 +254,12 @@ noncomputable def RestoredPrimaryIotaRuleSemantics.ofGeneratedAtomicStructural
     (HlhsAlignment : S.RestoredPrimaryLhsSpineAlignment targetEnv)
     (Htyping : TypedExprRestoration Hrhs.plan
       (Hnodes.atomicProvenance.semantics hsourceEnv htargetEnv hsourceContext
-        htargetContext hproj)
+        htargetContext)
       (abstractForallContext [] Hrhs.sourceScope).toCtx
       (abstractForallContext [] Hrhs.targetScope).toCtx
       Hrhs.sourceBody Hrhs.targetBody
         G.translation.typeBody S.source.typeBody)
-    (Hguard : GuardedExprRestoration Hrhs.plan.restoreNode sourceRecursors
+    (Hguard : GuardedExprRestoration Hrhs.plan.Relates sourceRecursors
       (restoredBlock.recursors.map (·.name)) S.source.fieldVars 0
       Hrhs.sourceBody Hrhs.targetBody) :
     RestoredPrimaryIotaRuleSemantics decl restoredBlock owner ctor result
@@ -303,7 +301,6 @@ noncomputable def RestoredPrimaryIotaRuleSemantics.ofGeneratedAtomicStructural
       targetEnvOrdered := htargetEnv
       sourceContextWF := hsourceContext
       targetContextWF := htargetContext
-      projection := hproj
       uvars := S.uvars
       domains := domains_eq
       rhsArgs := rhsArgs
@@ -357,7 +354,9 @@ theorem RulesRestoration.primaryIotaRuleTrace
         exact HS) with
         ⟨rules, Htail⟩
       exact ⟨Hhead.rhs.abstractRule Hhead.sourceRule :: rules,
-        .cons Hrule Hrules Hhead Htail⟩
+        .cons Hrule Hrules (Hhead.rhs.abstractRule Hhead.sourceRule)
+          Hhead.evidence.semantics.nestedIotaRule
+          Hhead.evidence.semantics.ruleWF Htail⟩
 
 /-- Mutual-family primary equation semantics, indexed simultaneously by the
 canonical source-family interpretation and the exact operational restoration

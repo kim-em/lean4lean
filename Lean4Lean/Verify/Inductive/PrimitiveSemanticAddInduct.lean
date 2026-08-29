@@ -14,8 +14,7 @@ theorem SemanticPrimitiveRunWithStatsResult.addInductCanonical
     (Hrun : SemanticPrimitiveRunWithStatsResult c stats nparams depth
       sourceEnv indTypes isUnsafe outEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
-      isUnsafe)
-    (hproj : ProjectionConstPreservation) :
+      isUnsafe) :
     ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
       VEnv.AddInduct sourceEnv decl finalVEnv := by
   rcases Hrun with ⟨decl, _ctorEnv, _R, ⟨Hrecursors⟩⟩
@@ -23,7 +22,7 @@ theorem SemanticPrimitiveRunWithStatsResult.addInductCanonical
     rcases Hshape with ⟨_, _, _, hbool | ⟨binderName, binderInfo, hnat⟩⟩
     · simp [hbool]
     · simp [hnat]
-  rcases Hrecursors.canonicalCompletedRuleTranslation hproj with ⟨T⟩
+  rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
   exact ⟨decl, Hrecursors.outVEnv.addDefEqRules T.rules,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
       T.compilation⟩
@@ -32,8 +31,7 @@ theorem SemanticPrimitiveRunWithStatsResult.addInductCanonical
 source checker-context equalities needed by environment composition. -/
 theorem VerifiedSemanticPrimitiveInductiveRunResult.addInductCanonical
     (Hrun : VerifiedSemanticPrimitiveInductiveRunResult source nparams types
-      numNested outEnv)
-    (hproj : ProjectionConstPreservation) :
+      numNested outEnv) :
     ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
       c'.env = source.env ∧
       c'.safety = source.safety ∧
@@ -43,7 +41,7 @@ theorem VerifiedSemanticPrimitiveInductiveRunResult.addInductCanonical
   rcases Hrun with
     ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
       hlparams, Hsemantic, Hshape, Hphases⟩
-  rcases Hphases.addInductCanonical Hshape hproj with
+  rcases Hphases.addInductCanonical Hshape with
     ⟨decl, finalVEnv, Hadd⟩
   exact ⟨c', Hc', henv, hsafety, hlparams, decl, finalVEnv, Hadd⟩
 

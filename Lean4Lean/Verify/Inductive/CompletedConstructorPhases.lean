@@ -322,6 +322,7 @@ def CompletedConstructorPhases.materializedFinal
     paramFVars := M.paramFVars
     parameterScope := M.parameterScope
     normalizedSources := M.normalizedSources
+    normalizedShapes := M.normalizedShapes
     ambientScope := M.ambientScope
     scopeDecomposition := by
       simpa only [R.contextMLCtx] using M.scopeDecomposition

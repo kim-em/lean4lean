@@ -58,13 +58,15 @@ theorem Environment.restoreNestedAfterInstall.primitiveSafeWF
           RestoreTelescope rule.rhs res.nparams)
     (hsourceWF : env.constants.WF)
     (Validated : Environment → Prop)
-    (Hvalidate : ∀ restoredEnv,
+    (Hvalidate : ∀ restoredEnv auxiliaryHeaderEnv,
       Nonempty (RestoredNestedDeclarationsResult res loweredEnv env
         (Lean4Lean.mkAuxRecNameMap loweredEnv types).2 (types.map (·.name))
         types (Lean4Lean.mkAuxRecNameMap loweredEnv types).1
         ((), restoredEnv)) →
-      (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
-        res).WF fun _ => Validated restoredEnv) :
+      Nonempty (RestoredHeaderValidationEnvironment loweredEnv env
+        (types.map (·.name)) types auxiliaryHeaderEnv) →
+      (Lean4Lean.validateNestedAuxiliaries auxiliaryHeaderEnv lparams safety
+        fuel res).WF fun _ => Validated restoredEnv) :
     (Environment.restoreNestedAfterInstall env loweredEnv lparams types safety
       allowPrimitive fuel res).WF fun outEnv =>
         PrimitiveSafeRestoredAfterInstallResult res env loweredEnv
@@ -72,39 +74,18 @@ theorem Environment.restoreNestedAfterInstall.primitiveSafeWF
           (types.map (·.name)) types
           (Lean4Lean.mkAuxRecNameMap loweredEnv types).1 allowPrimitive
           Validated outEnv := by
-  let recNames := (Lean4Lean.mkAuxRecNameMap loweredEnv types).1
-  let recNameMap := (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
-  let allIndNames := types.map (·.name)
-  have Hdeclarations := restoreNestedDeclarations_refines_primitiveSafe res
-    loweredEnv env recNameMap allIndNames allowPrimitive types recNames Htypes
-      (by simpa [recNames] using Haux) hsourceWF
-  have HrestoredEnv :
-      ((·.2) <$> Lean4Lean.restoreNestedDeclarations res loweredEnv
-        recNameMap allIndNames allowPrimitive types recNames env).WF
-          fun restoredEnv =>
-            Nonempty (RestoredNestedDeclarationsResult res loweredEnv env
-              recNameMap allIndNames types recNames ((), restoredEnv)) ∧
-            ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive env
-              entries restoredEnv := by
-    exact Hdeclarations.map fun restored Hrestored => by
-      rcases restored with ⟨resultUnit, restoredEnv⟩
-      rcases resultUnit with ⟨⟩
-      exact Hrestored
-  have Houtput :
-      (((·.2) <$> Lean4Lean.restoreNestedDeclarations res loweredEnv
-          recNameMap allIndNames allowPrimitive types recNames env).bind
-        fun restoredEnv =>
-          (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
-            res).bind fun _ => Except.pure restoredEnv).WF
-        (PrimitiveSafeRestoredAfterInstallResult res env loweredEnv recNameMap
-          allIndNames types recNames allowPrimitive Validated) :=
-    HrestoredEnv.bind fun restoredEnv Hrestored => by
-      exact (Hvalidate restoredEnv (by
-        simpa [recNames, recNameMap, allIndNames] using
-          Hrestored.1)).bind fun _ Hvalidated =>
-            Except.WF.pure ⟨Hrestored.1, Hrestored.2, Hvalidated⟩
-  simpa [Environment.restoreNestedAfterInstall, recNames, recNameMap,
-    allIndNames, StateT.run, bind, Except.bind, pure] using Houtput
+  have Hfull := Environment.restoreNestedAfterInstall.WF env loweredEnv
+    lparams types safety allowPrimitive fuel res Htypes Haux hsourceWF
+      Validated (by
+        intro restoredEnv validationEnv auxiliaryHeaderEnv Hrestored
+          _Hvalidation HauxiliaryHeader _Hparameters _HrecursorTypes
+          _HrecursorRules
+        exact Hvalidate restoredEnv auxiliaryHeaderEnv Hrestored
+          HauxiliaryHeader)
+  exact Hfull.mono fun _ Hresult => {
+    restoration := Hresult.restoration
+    primitiveSafe := Hresult.primitiveSafe
+    validated := Hresult.validated }
 
 /-- Lowering/ordinary-production specialization of the primitive-safe
 post-install verifier.  The declaration lookup and telescope premises are
@@ -126,14 +107,16 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringPrimitiveSafeWF
     (lparams : List Name) (safety : DefinitionSafety)
     (allowPrimitive : Bool) (fuel : FuelConfig)
     (Validated : Environment → Prop)
-    (Hvalidate : ∀ restoredEnv,
+    (Hvalidate : ∀ restoredEnv auxiliaryHeaderEnv,
       Nonempty (RestoredNestedDeclarationsResult res loweredEnv c.env
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
         (sourceTypes.map (·.name)) sourceTypes
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1
         ((), restoredEnv)) →
-      (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
-        res).WF fun _ => Validated restoredEnv) :
+      Nonempty (RestoredHeaderValidationEnvironment loweredEnv c.env
+        (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv) →
+      (Lean4Lean.validateNestedAuxiliaries auxiliaryHeaderEnv lparams safety
+        fuel res).WF fun _ => Validated restoredEnv) :
     (Environment.restoreNestedAfterInstall c.env loweredEnv lparams
       sourceTypes safety allowPrimitive fuel res).WF fun outEnv =>
         PrimitiveSafeRestoredAfterInstallResult res c.env loweredEnv

@@ -314,9 +314,12 @@ structure GeneratedFamilyWitness
   sourceName : Name
   auxName : Name
   sourceInfo : InductiveVal
+  sourceNumParams : nestedNParams = sourceInfo.numParams
   data : Lean4Lean.ElimNestedInductive.AuxiliaryData
   selection : LocalForallSelection lctx As
   selectionNodup : selection.fvars.Nodup
+  ngen : NameGenerator
+  closing : NestedClosingContext lctx As ngen
   levelsNoMVars : ∀ level ∈ levels, level.hasMVar' = false
   argsFVars : ∀ arg ∈ args, arg.FVarsIn (· ∈ selection.fvars)
   built : BuiltAuxiliary env lctx params As levels nestedNParams args
@@ -650,7 +653,9 @@ theorem GeneratedAuxiliary.pendingSourceFamilyOrigins
       sourceName sourceInfo state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
     (hnparams : nparams ≤ args.size)
+    (hsourceParams : nparams = sourceInfo.numParams)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
@@ -677,6 +682,7 @@ theorem GeneratedAuxiliary.pendingSourceFamilyOrigins
       As := As
       levels := levels
       nestedNParams := nparams
+      sourceNumParams := hsourceParams
       args := args
       argsArity := hnparams
       sourceName := sourceName
@@ -685,6 +691,8 @@ theorem GeneratedAuxiliary.pendingSourceFamilyOrigins
       data := data
       selection := Hselection
       selectionNodup := hselectionNodup
+      ngen := ngen
+      closing := Hclosing
       levelsNoMVars := Hlevels
       argsFVars := Hargs
       built := Hbuilt
@@ -775,7 +783,14 @@ theorem GeneratedAuxiliaryBatch.pendingSourceFamilyOrigins
       args result sourceNames state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
     (hnparams : nparams ≤ args.size)
+    (hclosures : MutualInductivesClosed env)
+    (triggerInfo : InductiveVal)
+    (htrigger : env.find? targetName = some (.inductInfo triggerInfo))
+    (hsourceNames : ∀ sourceName ∈ sourceNames,
+      sourceName ∈ triggerInfo.all)
+    (hnparamsTrigger : nparams = triggerInfo.numParams)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
@@ -783,8 +798,17 @@ theorem GeneratedAuxiliaryBatch.pendingSourceFamilyOrigins
   induction H with
   | nil => exact Horigins
   | cons Hstep Htail ih =>
-    exact ih (Hstep.pendingSourceFamilyOrigins Hselection hselectionNodup
-      hnparams Hlevels Hargs Horigins)
+    have Hclosure := hclosures targetName triggerInfo htrigger
+    rcases Hstep.generated with
+      ⟨_auxName, _nextIdx, _data, _Hfresh, Hbuilt, _hresult, _hstate⟩
+    have hmemberParams := Hclosure.parameters _ _
+      (hsourceNames _ (by simp)) Hbuilt.lookup
+    have hstepParams : nparams = _ :=
+      hnparamsTrigger.trans hmemberParams.symm
+    exact ih
+      (fun sourceName hsource => hsourceNames sourceName (by simp [hsource]))
+      (Hstep.pendingSourceFamilyOrigins Hselection hselectionNodup
+        Hclosing hnparams hstepParams Hlevels Hargs Horigins)
 
 theorem GeneratedAuxiliaryBatch.namesWF
     (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
@@ -869,6 +893,7 @@ theorem GeneratedAuxiliaryBatch.targetResult
         auxName nextIdx ∧
       BuiltAuxiliary env lctx params As levels nparams args targetName auxName
         sourceInfo data ∧
+      stepState.lvls = state.lvls ∧
       out.1 = some (mkAppRange
         (mkAppN (.const auxName stepState.lvls) As) nparams args.size args) ∧
       (data.nested, auxName) ∈ out.2.nestedAux ∧
@@ -886,7 +911,7 @@ theorem GeneratedAuxiliaryBatch.targetResult
           (mkAppN (.const auxName state.lvls) As) nparams args.size args) := by
         simpa using hresult
       have hfinal := Htail.result_eq_of_target_not_mem hnodup.1
-      refine ⟨state, _, auxName, nextIdx, data, Hfresh, Hbuilt, ?_, ?_, ?_⟩
+      refine ⟨state, _, auxName, nextIdx, data, Hfresh, Hbuilt, rfl, ?_, ?_, ?_⟩
       · simpa [hstepResult] using hfinal
       · apply Htail.nestedAuxLE.mem
         rw [hstepState]
@@ -894,7 +919,15 @@ theorem GeneratedAuxiliaryBatch.targetResult
       · apply Htail.newTypesLE.mem
         rw [hstepState]
         simp
-    · exact ih hnodup.2 htail
+    · rcases ih hnodup.2 htail with
+        ⟨stepState, sourceInfo, auxName, nextIdx, data, Hfresh, Hbuilt,
+          hlevels, hresult, hentry, htype⟩
+      rcases Hstep.generated with
+        ⟨headAuxName, headNextIdx, headData, headFresh, headBuilt,
+          headResult, hstep⟩
+      refine ⟨stepState, sourceInfo, auxName, nextIdx, data, Hfresh, Hbuilt,
+        ?_, hresult, hentry, htype⟩
+      simpa [hstep] using hlevels
 
 /-- The exact target result is already reversible by the map obtained from
 folding the batch's final cache, provided the separately tracked generated
@@ -917,7 +950,7 @@ theorem GeneratedAuxiliaryBatch.targetResultLookup
           (entry : Expr × Name) => map.insert entry.2 entry.1)
         {})[auxName]? = some data.nested := by
   rcases H.targetResult hsourceNames htarget with
-    ⟨stepState, sourceInfo, auxName, _nextIdx, data, _Hfresh, Hbuilt,
+    ⟨stepState, sourceInfo, auxName, _nextIdx, data, _Hfresh, Hbuilt, _hlevels,
       hresult, hentry, _htype⟩
   exact ⟨stepState, sourceInfo, auxName, data, Hbuilt, hresult,
     nestedAuxFold_find out.2.nestedAux.toList {} hauxNames
@@ -938,13 +971,14 @@ theorem GeneratedAuxiliaryBatch.targetResultMapped
         (data : Lean4Lean.ElimNestedInductive.AuxiliaryData),
       BuiltAuxiliary env lctx params As levels nparams args targetName auxName
         sourceInfo data ∧
+      stepState.lvls = state.lvls ∧
       out.1 = some (mkAppRange
         (mkAppN (.const auxName stepState.lvls) As) nparams args.size args) ∧
       finalResult.aux2nested.find? auxName = some data.nested := by
   rcases H.targetResult hsourceNames htarget with
-    ⟨stepState, sourceInfo, auxName, _nextIdx, data, _Hfresh, Hbuilt,
+    ⟨stepState, sourceInfo, auxName, _nextIdx, data, _Hfresh, Hbuilt, hlevels,
       hresult, hentry, _htype⟩
-  exact ⟨stepState, sourceInfo, auxName, data, Hbuilt, hresult,
+  exact ⟨stepState, sourceInfo, auxName, data, Hbuilt, hlevels, hresult,
     Hmap data.nested auxName (Hlater.mem hentry)⟩
 
 /-- Both cache reuse and fresh mutual-family generation expose the same
@@ -956,6 +990,7 @@ theorem RecognizedNestedReplacement.finalMapping
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
     ∃ auxName auxLevels nested lowered,
+      auxLevels = state.lvls ∧
       out.1 = some lowered ∧
       lowered = mkAppRange (mkAppN (.const auxName auxLevels) As)
         value.numParams args.size args ∧
@@ -969,12 +1004,14 @@ theorem RecognizedNestedReplacement.finalMapping
       ⟨⟨found, foundName⟩, hentry, heq, hname⟩
     change foundName = auxName at hname
     rw [hname] at hentry
-    refine ⟨auxName, state.lvls, found, _, rfl, rfl, heq, ?_⟩
+    refine ⟨auxName, state.lvls, found, _, rfl, rfl, rfl, heq, ?_⟩
     exact Hmap _ auxName (Hlater.mem hentry)
   | generated Hclosure Hbatch =>
     rcases Hbatch.targetResultMapped Hclosure.names Hclosure.target Hlater Hmap
-      with ⟨stepState, sourceInfo, auxName, data, Hbuilt, hresult, hlookup⟩
-    refine ⟨auxName, stepState.lvls, data.nested, _, hresult, rfl, ?_, hlookup⟩
+      with ⟨stepState, sourceInfo, auxName, data, Hbuilt, hlevels, hresult,
+        hlookup⟩
+    refine ⟨auxName, state.lvls, data.nested, _, rfl, hresult, ?_, ?_, hlookup⟩
+    · simpa [hlevels]
     rw [Hbuilt.nested]
     simp
 
@@ -984,6 +1021,7 @@ def NestedReplacementHasFinalMapping
     (lowered : Expr) (finalResult : Lean4Lean.ElimNestedInductive.Result) : Prop :=
     ∃ value targetName levels auxName auxLevels nested,
       NestedAppCandidate env state input value ∧
+      auxLevels = state.lvls ∧
       input.getAppFn = .const targetName levels ∧
       lowered = mkAppRange (mkAppN (.const auxName auxLevels) As)
         value.numParams input.getAppArgs.size input.getAppArgs ∧
@@ -1021,11 +1059,11 @@ theorem NestedReplacementFinalTrace.mapping
   rcases H with
     ⟨value, targetName, levels, Hcandidate, hhead, Hrecognized, Hlater, Hmap⟩
   rcases Hrecognized.finalMapping Hlater Hmap with
-    ⟨auxName, auxLevels, nested, replacement, hresult, hreplacement,
+    ⟨auxName, auxLevels, nested, replacement, hauxLevels, hresult, hreplacement,
       hnested, hlookup⟩
   cases hresult
   exact ⟨value, targetName, levels, auxName, auxLevels, nested, Hcandidate,
-    hhead, hreplacement, hnested, hlookup⟩
+    hauxLevels, hhead, hreplacement, hnested, hlookup⟩
 
 /-- A mapped lowering hit introduces only its selected parameter variables;
 all trailing arguments are inherited from the source application. -/
@@ -1037,7 +1075,7 @@ theorem NestedReplacementHasFinalMapping.outputFVarsIn
     lowered.FVarIdsIn (· ∈ Hselection.fvars) := by
   rcases H with
     ⟨value, targetName, levels, auxName, auxLevels, nested,
-      Hcandidate, hhead, hlowered, hnested, hlookup⟩
+      Hcandidate, _hauxLevels, hhead, hlowered, hnested, hlookup⟩
   have HAs : ∀ arg ∈ As.toList,
       arg.FVarIdsIn (· ∈ Hselection.fvars) := by
     intro arg harg
@@ -1191,7 +1229,7 @@ theorem NestedReplacementHasFinalMapping.reopens
       finalResult restoreAs := by
   rcases H with
     ⟨value, targetName, levels, auxName, auxLevels, nested,
-      Hcandidate, hhead, hlowered, hnested, hlookup⟩
+      Hcandidate, _hauxLevels, hhead, hlowered, hnested, hlookup⟩
   let base := (mkAppRange (.const targetName levels) 0 value.numParams
     input.getAppArgs).abstract As
   have habstract :
@@ -1282,11 +1320,11 @@ theorem NestedReplacement.finalMapping
   cases H with
   | recognized Hcandidate hhead Hrecognized =>
     rcases Hrecognized.finalMapping Hlater Hmap with
-      ⟨auxName, auxLevels, nested, replacement, hresult, hreplacement,
+      ⟨auxName, auxLevels, nested, replacement, hauxLevels, hresult, hreplacement,
         hnested, hlookup⟩
     cases hresult
     exact ⟨_, _, _, auxName, auxLevels, nested,
-      Hcandidate, hhead, hreplacement, hnested, hlookup⟩
+      Hcandidate, hauxLevels, hhead, hreplacement, hnested, hlookup⟩
 
 /-- Successful node replacement with its cache-or-generation branch retained
 verbatim. -/
@@ -2025,7 +2063,10 @@ theorem RecognizedNestedReplacement.pendingSourceFamilyOrigins
       value state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
     (hnparams : value.numParams ≤ args.size)
+    (hclosures : MutualInductivesClosed env)
+    (htrigger : env.find? targetName = some (.inductInfo value))
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
@@ -2034,7 +2075,8 @@ theorem RecognizedNestedReplacement.pendingSourceFamilyOrigins
   | cached => exact Horigins
   | generated _ Hbatch =>
     exact Hbatch.pendingSourceFamilyOrigins Hselection hselectionNodup
-      hnparams Hlevels Hargs Horigins
+      Hclosing hnparams hclosures value htrigger (by simp) rfl Hlevels Hargs
+      Horigins
 
 theorem RecognizedNestedReplacement.namesWF
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
@@ -2071,6 +2113,8 @@ theorem NestedReplacement.pendingSourceFamilyOrigins
     (H : NestedReplacement env lctx params As e state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (hclosures : MutualInductivesClosed env)
     (Hinput : e.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
     PendingSourceFamilyOrigins env params initial cursor out.2 := by
@@ -2078,7 +2122,11 @@ theorem NestedReplacement.pendingSourceFamilyOrigins
   | unrecognized => exact Horigins
   | recognized Hcandidate hhead Hresult =>
     exact Hresult.pendingSourceFamilyOrigins Hselection hselectionNodup
-      Hcandidate.parameters.arity (by
+      Hclosing Hcandidate.parameters.arity hclosures (by
+        rcases Hcandidate.headFound with ⟨fn, levels, hfn, hfind⟩
+        rw [hhead] at hfn
+        injection hfn with hname _
+        simpa [hname] using hfind) (by
         have Hfn := Hinput.getAppFn
         rw [hhead] at Hfn
         simpa [Lean4Lean.FVarsIn] using Hfn) (by
@@ -2136,32 +2184,34 @@ theorem NestedExprReplacement.pendingSourceFamilyOrigins
     (H : NestedExprReplacement env lctx params As e state out)
     (Hselection : LocalForallSelection lctx As)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (Hclosing : NestedClosingContext lctx As ngen)
+    (hclosures : MutualInductivesClosed env)
     (Hinput : e.FVarsIn (· ∈ Hselection.fvars))
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
     PendingSourceFamilyOrigins env params initial cursor out.2 := by
   induction H with
   | hit Hnode =>
-    exact Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hinput
-      Horigins
+    exact Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hclosing
+      hclosures Hinput Horigins
   | bvar | fvar | mvar | sort | const | lit => exact Horigins
   | app Hnode _ _ ihFn ihArg =>
     simp only [Lean4Lean.FVarsIn] at Hinput
     exact ihArg Hinput.2 (ihFn Hinput.1
-      (Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hinput
-        Horigins))
+      (Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hclosing
+        hclosures Hinput Horigins))
   | lam Hnode _ _ ihDom ihBody | forallE Hnode _ _ ihDom ihBody =>
     simp only [Lean4Lean.FVarsIn] at Hinput
     exact ihBody Hinput.2 (ihDom Hinput.1
-      (Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hinput
-        Horigins))
+      (Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hclosing
+        hclosures Hinput Horigins))
   | letE Hnode _ _ _ ihType ihValue ihBody =>
     simp only [Lean4Lean.FVarsIn] at Hinput
     exact ihBody Hinput.2.2 (ihValue Hinput.2.1 (ihType Hinput.1
-      (Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hinput
-        Horigins)))
+      (Hnode.pendingSourceFamilyOrigins Hselection hselectionNodup Hclosing
+        hclosures Hinput Horigins)))
   | mdata Hnode _ ihBody | proj Hnode _ ihBody =>
     exact ihBody Hinput (Hnode.pendingSourceFamilyOrigins Hselection
-      hselectionNodup Hinput Horigins)
+      hselectionNodup Hclosing hclosures Hinput Horigins)
 
 theorem NestedExprReplacement.namesWF
     (H : NestedExprReplacement env lctx params As e state out)

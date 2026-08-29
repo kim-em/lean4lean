@@ -47,7 +47,7 @@ theorem NestedExprMapping.eq_of_aux2nested_size_eq_zero
   | hit Hhit =>
       rcases Hhit.mapping with
         ⟨_value, _targetName, _levels, auxName, _auxLevels, nested,
-          _Hcandidate, _hhead, _hlowered, _hnested, hlookup⟩
+          _Hcandidate, _hauxLevels, _hhead, _hlowered, _hnested, hlookup⟩
       change (show Std.TreeMap Name Expr Name.quickCmp from
         result.aux2nested)[auxName]? = some nested at hlookup
       rw [ElimNestedInductive.Result.auxFind?_eq_none_of_size_eq_zero
@@ -202,8 +202,8 @@ theorem NestedLoweringResult.types_eq_source_of_aux2nested_size_eq_zero
   rcases H with ⟨finalState, Hrun⟩
   rcases Hrun.source with
     ⟨first, rest, tail, paramsState, lctx, params, hsourceTypes, _Hopening,
-      hinitialTypes, _hinitialAux, _hinitialNext, _Hctx, _Hselection,
-      Hqueue⟩
+      hinitialTypes, _hinitialAux, _hinitialNext, _Hprefix, _Hctx,
+      _Hselection, Hqueue⟩
   have Hpending : PendingNewTypesClosed 0 paramsState := by
     intro j _hjCursor hj
     have hjSource : j < sourceTypes.length := by

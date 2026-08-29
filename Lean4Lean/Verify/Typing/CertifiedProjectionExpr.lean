@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Typing.ProjectionDeterminism
+import Lean4Lean.Verify.Typing.CheckedProjectionExpr
 import Lean4Lean.Verify.TypeChecker.ProjectionCertificate
 
 namespace Lean4Lean
@@ -184,9 +185,116 @@ theorem noFreshConsts
   VExpr.WF.noFreshConsts henv.ordered Hfresh hDelta.toCtx
     (H.targetWF henv hDelta)
 
+/-- Forget the executable proposal/certificate details while retaining the
+environment-indexed canonical expansion and its derived target typing.  This
+is a one-way refinement: the weaker checked relation cannot manufacture the
+producer trace required by `CertifiedTrProj`. -/
+theorem toChecked
+    (H : CertifiedTrProj env Us Delta structName index concreteMajor major
+      concreteType target) :
+    CheckedTrProj env Us.length Delta.toCtx structName index major target := by
+  cases H with
+  | canonical P hstruct hindex hmajor installed projection generated
+      certificate hcertificateProjection hcertificateCandidate
+      hprojectionStruct hprojectionName hprojectionIndex constructorTail
+      selected residual parameters fields selection resultTranslation
+      candidateTranslation candidateTypeTarget candidateTypeTranslation
+      candidateTyping resultTypeDefEq =>
+      apply CheckedTrProj.canonical P hstruct hindex hmajor
+      refine {
+        installed := ⟨installed⟩
+        targetTyping := ?_ }
+      exact ⟨candidateTypeTarget, candidateTyping⟩
+
 end CertifiedTrProj
 
 namespace CertifiedTrExprS
+
+/-- Certified expression, projection, and selected-field evidence is stable
+under monotone abstract-environment extension.  This is proved mutually so a
+projection candidate keeps the recursively certified translations embedded
+in its certificate; no legacy `TrProj` transport lemma is used. -/
+theorem mono
+    (H : CertifiedTrExprS env Us Delta expression target)
+    (henv : env ≤ env') :
+    CertifiedTrExprS env' Us Delta expression target := by
+  exact CertifiedTrExprS.rec
+    (motive_1 := fun Delta expression target _ =>
+      env ≤ env' → CertifiedTrExprS env' Us Delta expression target)
+    (motive_2 := fun Delta structName index concreteMajor major concreteType
+        target _ =>
+      env ≤ env' → CertifiedTrProj env' Us Delta structName index
+        concreteMajor major concreteType target)
+    (motive_3 := fun Delta structName concreteMajor major position count
+        source selected _ =>
+      env ≤ env' → CertifiedProjectionSelectedField env' Us Delta
+        structName concreteMajor major position count source selected)
+    (bvar := by
+      intro target type Delta index hfind _
+      exact .bvar hfind)
+    (fvar := by
+      intro target type Delta fvarId hfind _
+      exact .fvar hfind)
+    (sort := by
+      intro level targetLevel Delta hlevel _
+      exact .sort hlevel)
+    (const := by
+      intro name constant targetLevels Delta levels hlookup hlevels hlength
+        henv
+      exact .const (henv.constants hlookup) hlevels hlength)
+    (app := by
+      intro fnTarget domain body argTarget Delta fn arg hfn harg Hfn Harg
+        ihFn ihArg henv
+      exact .app (hfn.mono henv) (harg.mono henv) (ihFn henv) (ihArg henv))
+    (lam := by
+      intro domainTarget Delta domain body bodyTarget name info hdomain
+        Hdomain Hbody ihDomain ihBody henv
+      exact .lam (hdomain.mono henv) (ihDomain henv) (ihBody henv))
+    (forallE := by
+      intro domainTarget bodyTarget Delta domain body name info hdomain hbody
+        Hdomain Hbody ihDomain ihBody henv
+      exact .forallE (hdomain.mono henv) (hbody.mono henv)
+        (ihDomain henv) (ihBody henv))
+    (letE := by
+      intro valueTarget typeTarget Delta type value body bodyTarget name nondep
+        hvalue Htype Hvalue Hbody ihType ihValue ihBody henv
+      exact .letE (hvalue.mono henv) (ihType henv) (ihValue henv)
+        (ihBody henv))
+    (lit := by
+      intro literal Delta target hliteral Hliteral ih henv
+      exact .lit (hliteral.mono henv) (ih henv))
+    (mdata := by
+      intro Delta body target data Hbody ih henv
+      exact .mdata (ih henv))
+    (proj := by
+      intro Delta concreteMajor major structName index concreteType target
+        Hmajor Hprojection ihMajor ihProjection henv
+      exact .proj (ihMajor henv) (ihProjection henv))
+    (canonical := by
+      intro structName index major concreteMajor Delta P hstruct hindex hmajor
+        installed projection generated certificate
+        hcertificateProjection hcertificateCandidate hprojectionStruct
+        hprojectionName hprojectionIndex constructorTail selected residual
+        parameters fields selection resultTranslation candidateTranslation
+        candidateTypeTarget candidateTypeTranslation candidateTyping
+        resultTypeDefEq ihSelection ihResult ihCandidate ihCandidateType henv
+      exact .canonical P hstruct hindex hmajor (installed.mono henv)
+        projection generated certificate hcertificateProjection
+        hcertificateCandidate hprojectionStruct hprojectionName
+        hprojectionIndex constructorTail selected residual
+        (parameters.mono henv) (fields.mono henv) (ihSelection henv)
+        (ihResult henv) (ihCandidate henv) candidateTypeTarget
+        (ihCandidateType henv) (candidateTyping.mono henv)
+        (resultTypeDefEq.mono henv))
+    (nil := by
+      intros
+      constructor
+      solve_by_elim [VEnv.IsDefEqU.mono])
+    (cons := by
+      intros
+      constructor <;>
+        solve_by_elim [VEnv.IsDefEqU.mono, VEnv.HasType.mono])
+    H henv
 
 /-- Certified translation evidence preserves the concrete binder discipline.
 The projection node introduces no binder-sensitive syntax beyond its major. -/
@@ -342,6 +450,90 @@ theorem wf
     (canonical := by
       intros
       solve_by_elim)
+    (nil := by intros; trivial)
+    (cons := by intros; trivial)
+    H hDelta
+
+/-- A certified strict translation performed before a finite name set is
+installed cannot synthesize any of those constants.  Projection nodes are
+covered by their retained candidate typing through the mutual `wf` proof;
+there is no separate projection-preservation premise. -/
+theorem noFreshConsts
+    (H : CertifiedTrExprS env Us Delta expression target)
+    (henv : VEnv.WF env) (hDelta : VLCtx.WF env Us.length Delta)
+    (Hfresh : ∀ name ∈ names, env.constants name = none) :
+    target.containsAnyConst names = false :=
+  VExpr.WF.noFreshConsts henv.ordered Hfresh hDelta.toCtx
+    (H.wf henv.ordered hDelta)
+
+/-- A fully certified strict translation refines the environment-indexed
+checked translation.  Projection nodes use `CertifiedTrProj.toChecked`, so
+the conversion never appeals to the legacy environment-free relation. -/
+theorem toChecked
+    (H : CertifiedTrExprS env Us Delta expression target)
+    (hDelta : VLCtx.WF env Us.length Delta) :
+    CheckedTrExprS env Us Delta expression target := by
+  exact CertifiedTrExprS.rec
+    (motive_1 := fun Delta expression target _ =>
+      VLCtx.WF env Us.length Delta →
+        CheckedTrExprS env Us Delta expression target)
+    (motive_2 := fun Delta structName index concreteMajor major concreteType
+        target _ =>
+      VLCtx.WF env Us.length Delta →
+        CheckedTrProj env Us.length Delta.toCtx structName index major target)
+    (motive_3 := fun _ _ _ _ _ _ _ _ _ => True)
+    (bvar := by
+      intro target type Delta index hfind _
+      exact .bvar hfind)
+    (fvar := by
+      intro target type Delta fvarId hfind _
+      exact .fvar hfind)
+    (sort := by
+      intro level targetLevel Delta hlevel _
+      exact .sort hlevel)
+    (const := by
+      intro name constant targetLevels Delta levels hlookup hlevels hlength _
+      exact .const hlookup hlevels hlength)
+    (app := by
+      intro fnTarget domain body argTarget Delta fn arg hfn harg Hfn Harg
+        ihFn ihArg hDelta
+      exact .app hfn harg (ihFn hDelta) (ihArg hDelta))
+    (lam := by
+      intro domainTarget Delta domain body bodyTarget name info hdomain
+        Hdomain Hbody ihDomain ihBody hDelta
+      exact .lam hdomain (ihDomain hDelta)
+        (ihBody ⟨hDelta, nofun, hdomain⟩))
+    (forallE := by
+      intro domainTarget bodyTarget Delta domain body name info hdomain hbody
+        Hdomain Hbody ihDomain ihBody hDelta
+      exact .forallE hdomain hbody (ihDomain hDelta)
+        (ihBody ⟨hDelta, nofun, hdomain⟩))
+    (letE := by
+      intro valueTarget typeTarget Delta type value body bodyTarget name nondep
+        hvalue Htype Hvalue Hbody ihType ihValue ihBody hDelta
+      exact .letE hvalue (ihType hDelta) (ihValue hDelta)
+        (ihBody ⟨hDelta, nofun, hvalue⟩))
+    (lit := by
+      intro literal Delta target hliteral Hliteral ih hDelta
+      exact .lit hliteral (ih hDelta))
+    (mdata := by
+      intro Delta body target data Hbody ih hDelta
+      exact .mdata (ih hDelta))
+    (proj := by
+      intro Delta concreteMajor major structName index concreteType target
+        Hmajor Hprojection ihMajor ihProjection hDelta
+      exact .proj (ihMajor hDelta) (ihProjection hDelta))
+    (canonical := by
+      intro structName index major concreteMajor Delta P hstruct hindex hmajor
+        installed projection generated certificate hcertificateProjection
+        hcertificateCandidate hprojectionStruct hprojectionName
+        hprojectionIndex constructorTail selected residual parameters fields
+        selection resultTranslation candidateTranslation candidateTypeTarget
+        candidateTypeTranslation candidateTyping resultTypeDefEq ihSelection
+        ihResult ihCandidate ihCandidateType hDelta
+      exact .canonical P hstruct hindex hmajor {
+        installed := ⟨installed⟩
+        targetTyping := ⟨candidateTypeTarget, candidateTyping⟩ })
     (nil := by intros; trivial)
     (cons := by intros; trivial)
     H hDelta

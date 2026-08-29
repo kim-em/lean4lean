@@ -37,13 +37,17 @@ structure RestoredRuleGuardSeeds
 producer's new-name freshness into the structural freshness seed needed by
 guarded restoration. -/
 theorem RestoredRuleGuardSeeds.sourceBodyFresh
+    {sourceEnv targetEnv : VEnv} {Us : List Name}
+    {Hrhs : RestoredRuleRhsTranslation result prodEnv auxRec oldRecName
+      newRecName oldRule newRule Hrule sourceEnv targetEnv Us}
     (H : RestoredRuleGuardSeeds Hrhs sourceRecursors targetRecursors)
-    (hproj : ProjectionConstPreservation) :
+    (hsourceEnv : sourceEnv.Ordered)
+    (hsourceContext :
+      (abstractForallContext [] Hrhs.sourceScope).WF sourceEnv Us.length) :
     AvoidsTargetOnlyRecursors sourceRecursors targetRecursors
       Hrhs.sourceBody := by
-  exact checkPositivityStep.TrExprS.noFreshConsts H.newNamesFresh
-    H.sourceContextFree (fun Hproj hfree => hproj _ Hproj hfree)
-    Hrhs.body.sourceTranslation
+  exact checkPositivityStep.TrExprS.noFreshConstsAtCheckingEnv hsourceEnv
+    H.newNamesFresh hsourceContext Hrhs.body.sourceTranslation.toTrExprS
 
 end VerifyInductive
 end Lean4Lean

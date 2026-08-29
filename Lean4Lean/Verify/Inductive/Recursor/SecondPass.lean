@@ -10,6 +10,23 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+/-- The allocation-insensitive payload represented by a retained recursive-
+call blueprint.  This is the common normal form of the first-pass
+`loopUArgs` origin and the second-pass generated call. -/
+def recCallBlueprintReplayTrace
+    (call : AddInductive.RecCallBlueprint) (motives : Array Expr)
+    (fieldBinders : List FVarId) : RecursorLoopUArgsTrace where
+  ownerIdx := call.targetTypeIdx
+  localArity := call.args.size
+  localTelescope :=
+    (call.lctx.mkForall call.args (.sort .zero)).abstractList fieldBinders
+  motive :=
+    (motives[call.targetTypeIdx]!.abstractList
+      (ExprArrayFVarIds call.args)).abstractList fieldBinders call.args.size
+  indices := call.targetIndices.map fun index =>
+    (index.abstractList (ExprArrayFVarIds call.args)).abstractList
+      fieldBinders call.args.size
+
 /-- Semantic evidence retained by one successful recursive-call blueprint
 producer.  The first pass does not yet know the completed mutual minor array,
 so the certificate is deliberately polymorphic in that array and in the
@@ -22,13 +39,17 @@ structure RecInfoCallBlueprintSemanticOrigin
     (R : RecursorContextWF root recLparams) (rootScope : FVarId → Prop)
     (decl : VInductDecl) (depth : Nat) (field : Expr)
     (call : AddInductive.RecCallBlueprint) : Prop where
+  owner_lt : call.targetTypeIdx < motives.size
   semantic : ∀ (indTypes : Array InductiveType) (minors : Array Expr)
       (lvls : List Level),
     ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats
         motives minors lvls R decl depth field
         (call.build indTypes stats motives minors lvls),
       S.rootScope = rootScope ∧
-        Nonempty S.ProducerMotiveApplication
+        Nonempty S.ProducerMotiveApplication ∧
+        ∀ fieldBinders,
+          S.generated.replayTrace fieldBinders =
+            recCallBlueprintReplayTrace call motives fieldBinders
 
 /-- Array alignment for the semantic call certificates emitted by
 `loopUBlueprints`.  Entry `j` is rooted after exactly the `j` earlier
@@ -159,6 +180,11 @@ structure RecInfoMotiveTelescopeLookup
     (Rroot : RecursorContextWF root recLparams)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (recInfos : Array AddInductive.RecInfo) (elimLevel : Level) : Prop where
+  /-- The motive binding already exists at the producer root.  Retaining it
+  prevents later equation proofs from reconstructing a false extension
+  between sibling constructor contexts merely to recover binder freshness. -/
+  rootBinding : ∀ target (htarget : target < recInfos.size),
+    Nonempty (RecursorMotiveBinding Rroot recInfos[target]! elimLevel)
   evidence : ∀ target (htarget : target < recInfos.size)
       {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
@@ -184,6 +210,11 @@ def RecInfoMotiveTelescopeLookup.of
     (Hshapes : RecInfoMotiveTypeShapes root recInfos Horigins.motiveTypes
       elimLevel) :
     RecInfoMotiveTelescopeLookup Rroot stats decl recInfos elimLevel where
+  rootBinding target htarget := by
+    rcases Hshapes.motiveBindingAtMono Hbindings Horigins
+        (RecursorContextExtension.refl Rroot).contextLE
+        target htarget with ⟨Hbinding⟩
+    exact ⟨Hbinding.toBinding⟩
   evidence target htarget _current Rcurrent Hext _depth _exposedType
       _syntaxTarget Hexposed HsyntaxType Hvalidated := by
     rcases Hshapes.motiveBindingAtMono (Rcurrent := Rcurrent)
@@ -410,10 +441,6 @@ theorem semanticBoundGeneratedCalls
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hfields : ∀ i (hi : i < u.size),
       ∃ fv fieldTarget,
         u[i] = .fvar fv ∧
@@ -447,12 +474,12 @@ theorem semanticBoundGeneratedCalls
       rw [hfield]
       simpa only [buildCall, hfield] using
         mkRecRules.boundGeneratedCallSemantic indTypes stats motives minors
-        lvls R Hstats hconsume hlit hctx hproj fv Hfield
+        lvls R Hstats hconsume hlit hctx fv Hfield
         (HfieldScope i hnext hfield) hrootUp
     exact hval.bind fun value Hvalue => by
       rcases Hvalue with ⟨Hvalue, hscope⟩
       exact semanticBoundGeneratedCalls R Hstats hconsume hlit hctx
-        hproj Hfields HfieldScope hrootUp
+        Hfields HfieldScope hrootUp
           (Hprefix.push hnext Hvalue hscope) Hk
   · rw [dif_neg hnext]
     apply Hk
@@ -487,10 +514,6 @@ theorem mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hfields : ∀ i (hi : i < u.size),
       ∃ fv fieldTarget,
         u[i] = .fvar fv ∧
@@ -508,7 +531,7 @@ theorem mkRecRules.loopU.semanticBoundGeneratedCallsFromEmpty
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
       u 0 #[] k c).WF Q :=
   mkRecRules.loopU.semanticBoundGeneratedCalls R Hstats hconsume hlit
-    hctx hproj Hfields HfieldScope hrootUp
+    hctx Hfields HfieldScope hrootUp
     (SemanticBoundGeneratedRecursiveCalls.empty indTypes stats motives minors
       lvls R decl depth P u) Hk
 
@@ -643,10 +666,6 @@ theorem oneRuleSemantics
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
     (HtailType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
       tailTarget)
@@ -700,7 +719,7 @@ theorem oneRuleSemantics
         out.2 = minorIdx + 1)
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
-      process c R Hstats hprefix hconsume hlit hctx hproj Htail
+      process c R Hstats hprefix hconsume hlit hctx Htail
       HtailType htailFVars hparameterUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allArgs
     recursiveArgs fields positions args hterminalNonforall Hterminal HterminalType
@@ -746,7 +765,7 @@ theorem oneRuleSemantics
     (minors := minors) (lvls := lvls) (u := recursiveArgs)
     (k := buildRule) (c := current) (decl := decl) Rargs
     HstatsArgs hconsume
-      (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs hproj
+      (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs
     (Hselection.selectedFVars
       HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray Hrecursive)
     (P := fun fv => fv ∈ _Hopening.fvars ∨
@@ -878,7 +897,7 @@ theorem oneRuleSemantics
     target_valid := hselectedOwner
     validated := HstatsArgs.validatedIndAppAt Hterminal hselectedOwner
       hselectedOwnerLt
-        (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs hproj
+        (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs
     fields := fields
     selection := Hselection
     decisionPositions := positions
@@ -905,10 +924,6 @@ theorem semanticGeneratedRules
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hparams : BoundFVarArray c stats.params)
     (Hmotives : BoundFVarArray c motives)
     (Hminors : BoundFVarArray c minors)
@@ -948,7 +963,7 @@ theorem semanticGeneratedRules
       rw [AddInductive.mkRecRules.loopCtors]
       have Hone := oneRuleSemantics indTypes stats motives minors lvls ctor
         start ownerIdx R Hstats Hsuffix Hprefix HtailFVars hparameterUp howner Hnormal
-        hconsume hlit hctx hproj Htail
+        hconsume hlit hctx Htail
         HtailType Hintro HintroType Hparams Hmotives Hminors HouterNodup
         (by simp at hminorsRoom; omega)
       exact Hone.bind fun out Hout => by
@@ -1170,10 +1185,6 @@ theorem mkRecRules.semanticGeneratedRules
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hparams : BoundFVarArray c stats.params)
     (Hmotives : BoundFVarArray c motives)
     (Hminors : BoundFVarArray c minors)
@@ -1203,7 +1214,7 @@ theorem mkRecRules.semanticGeneratedRules
   have H := mkRecRules.loopCtors.semanticGeneratedRules indTypes stats
     motives minors (AddInductive.getRecLevels elimLevel stats.levels)
     indTypes[dIdx]!.ctors #[] start dIdx R Hstats Hsuffix howner hconsume hlit hctx
-    hproj Hparams Hmotives Hminors HouterNodup hparameterUp hminorsRoom Hseed
+    Hparams Hmotives Hminors HouterNodup hparameterUp hminorsRoom Hseed
   exact H.mono fun out Hout => by
     rcases Hout with ⟨generated, hout, Hgenerated, hend⟩
     simpa using ⟨hout ▸ Hgenerated, hend⟩
@@ -1267,10 +1278,6 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hbindings : RecInfoBindings c recInfos)
     (Hparams : BoundFVarArray c stats.params)
     (hnoalias : Hbindings.NoAlias Hparams)
@@ -1315,7 +1322,7 @@ theorem RecursorCardinalityCertificate.mkRecRulesAtOffsetSemanticWF
   have H := mkRecRules.semanticGeneratedRules indTypes elimLevel stats dIdx
     (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
     (recursorMinorOffset indTypes dIdx) R Hstats Hsuffix howner hconsume hlit hctx
-    hproj Hparams Hbindings.motives Hbindings.flatMinors
+    Hparams Hbindings.motives Hbindings.flatMinors
     (Hbindings.outerNodup Hparams hnoalias) hparameterUp hroom Hseed
   exact H.mono fun out Hout => by
     refine ⟨Hout.1, ?_⟩
@@ -1507,10 +1514,6 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hfields : ∀ j (hj : j < u.size),
       ∃ fv fieldTarget,
         u[j] = .fvar fv ∧
@@ -1580,7 +1583,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
   rw [hfieldEq, hfieldBang]
   apply mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats recInfos next
     Rnext HstatsAt hconsume
-      (by simpa only [Hprior.venv_eq] using hlit) hctxAt hproj HfieldAt
+      (by simpa only [Hprior.venv_eq] using hlit) hctxAt HfieldAt
       (Hmotives.mono Hprior.contextExtension.contextLE) hrecords
   intro current Rcurrent exposedType syntaxTarget terminalTarget
     appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
@@ -1610,10 +1613,6 @@ theorem resultSemanticsOfMotiveApplications
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hfields : ∀ j (hj : j < u.size),
       ∃ fv fieldTarget,
         u[j] = .fvar fv ∧
@@ -1658,7 +1657,7 @@ theorem resultSemanticsOfMotiveApplications
   rw [hfieldEq, hfieldBang]
   apply mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats recInfos next
     Rnext HstatsNext hconsume
-      (by simpa only [Hprior.venv_eq] using hlit) hctxNext hproj HfieldAt
+      (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
       (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
   intro current Rcurrent exposedType syntaxTarget terminalTarget
     appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
@@ -1678,7 +1677,7 @@ theorem resultSemanticsOfMotiveApplications
   let Hvalidated := HstatsCurrent.validatedIndAppAt Hexposed hvalid
     htargetDecl
       (by simpa only [Hargs.venv_eq, Hprior.venv_eq] using hlit)
-    hctxCurrent hproj
+    hctxCurrent
   exact Happlications.applyAtMono Hbindings Horigins Hshape
     (Hprior.contextExtension.trans Hargs.contextExtension)
     target htarget Hexposed Hdefeq
@@ -1701,10 +1700,6 @@ theorem resultSemanticsOfMotiveTelescopes
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hfields : ∀ j (hj : j < u.size),
       ∃ fv fieldTarget,
         u[j] = .fvar fv ∧
@@ -1726,7 +1721,7 @@ theorem resultSemanticsOfMotiveTelescopes
       (k values out).WF Q) :
     (AddInductive.mkRecInfos.loopU stats u recInfos 0 #[] k c).WF Q :=
   resultSemanticsOfMotiveApplications stats u recInfos k R Hstats
-    hconsume hlit hctx hproj Hfields Htelescopes.applications Hbindings
+    hconsume hlit hctx Hfields Htelescopes.applications Hbindings
     Horigins Hshape hrecords Hk
 
 end mkRecInfos.loopU
@@ -1946,10 +1941,6 @@ theorem inductionHypothesisTypeOrigin
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
@@ -2049,7 +2040,7 @@ theorem inductionHypothesisTypeOrigin
     rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
     exact hfvScope
   have Hrun := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats build c R
-    Hstats hconsume hlit hctx hproj hfield hfieldScope hrootUp
+    Hstats hconsume hlit hctx hfield hfieldScope hrootUp
     (Q := fun target result => ∃ viTarget,
       TrExprS R.venv recLparams R.mlctx.vlctx
         result.1.consumeTypeAnnotationsVerified viTarget ∧
@@ -2143,7 +2134,9 @@ theorem inductionHypothesisTypeOrigin
     refine Except.WF.pure
       ⟨consumedTarget, Hconsumed.consumed, Hconsumed.isType, O, rfl, rfl, ?_⟩
     intro domain hfieldTyping htargetDecl hrecursive
-    refine { semantic := ?_ }
+    refine {
+      owner_lt := by simpa using htarget
+      semantic := ?_ }
     intro indTypes minors lvls
     let call : AddInductive.RecCallBlueprint := {
       major := .fvar fv
@@ -2175,7 +2168,7 @@ theorem inductionHypothesisTypeOrigin
       Hargs.noIndConsts (names := decl.types.map (·.name)) hctx
     let Hvalidated := HstatsCurrent.validatedIndAppAt Hexposed hvalid
       htargetDecl (by simpa only [Hargs.venv_eq] using hlit)
-      hctxCurrent hproj
+      hctxCurrent
     have HexposedType : Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx syntaxTarget :=
       VEnv.IsType.defeqU_l Rcurrent.checking.tr.wf
@@ -2223,13 +2216,19 @@ theorem inductionHypothesisTypeOrigin
       field_typing := hfieldTyping
       owner_lt := htargetDecl
       recursive := hrecursive }
-    refine ⟨S, rfl, ⟨?_⟩⟩
-    refine {
-      target := motiveTarget
-      translation := ?_
-      typing := HmotiveType }
-    simpa [S, Hgenerated, targetIndices, Array.getElem!_eq_getD,
-      Array.getD, htarget] using Hmotive
+    refine ⟨S, rfl, ?_, ?_⟩
+    · refine ⟨{
+        target := motiveTarget
+        translation := ?_
+        typing := HmotiveType }⟩
+      simpa [S, Hgenerated, targetIndices, Array.getElem!_eq_getD,
+        Array.getD, htarget] using Hmotive
+    · intro fieldBinders
+      simp [S, Hgenerated, call,
+        BoundGeneratedRecursiveCall.replayTrace,
+        recCallBlueprintReplayTrace,
+        Hargs.toFreshBoundFVarArray.toBoundFVarArray.exprArrayFVarIds]
+      rfl
 
 /-- Close the retained-blueprint hypothesis loop from the independently
 verified motive applications.  The additional output is produced by the same
@@ -2249,10 +2248,6 @@ theorem resultSemanticsOfMotiveApplications
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hfields : ∀ j (hj : j < u.size),
       ∃ fv fieldTarget,
         u[j] = .fvar fv ∧
@@ -2311,7 +2306,7 @@ theorem resultSemanticsOfMotiveApplications
   rw [hfieldEq, hfieldBang]
   apply inductionHypothesisTypeOrigin fv stats recInfos next
     Rnext HstatsNext hconsume
-      (by simpa only [Hprior.venv_eq] using hlit) hctxNext hproj HfieldAt
+      (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
       hfieldScope (Hprior.upsetRoot rootScopeInContext hrootUp)
       (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
   intro current Rcurrent exposedType syntaxTarget terminalTarget
@@ -2332,7 +2327,7 @@ theorem resultSemanticsOfMotiveApplications
   let Hvalidated := HstatsCurrent.validatedIndAppAt Hexposed hvalid
     htargetDecl
       (by simpa only [Hargs.venv_eq, Hprior.venv_eq] using hlit)
-    hctxCurrent hproj
+    hctxCurrent
   exact Happlications.applyAtMono Hbindings Horigins Hshape
     (Hprior.contextExtension.trans Hargs.contextExtension)
     target htarget Hexposed Hdefeq
@@ -2360,10 +2355,6 @@ theorem resultSemanticsOfMotiveTelescopes
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hfields : ∀ j (hj : j < u.size),
       ∃ fv fieldTarget,
         u[j] = .fvar fv ∧
@@ -2394,7 +2385,7 @@ theorem resultSemanticsOfMotiveTelescopes
     (AddInductive.mkRecInfos.loopUBlueprints stats u recInfos 0 #[] #[]
       k c).WF Q :=
   resultSemanticsOfMotiveApplications stats u recInfos k R rootScope Hstats
-    hconsume hlit hctx hproj Hfields rootScopeInContext hrootUp
+    hconsume hlit hctx Hfields rootScopeInContext hrootUp
     Htelescopes.applications Hbindings
     Horigins Hshape hrecords Hk
 
@@ -2565,6 +2556,12 @@ theorem RecInfoMotiveTelescopeLookup.rebaseMotiveCore
     (K : RecInfoMotiveTelescopeLookup R stats decl left elimLevel)
     (H : RecInfoMotiveCoreEq left right) :
     RecInfoMotiveTelescopeLookup R stats decl right elimLevel where
+  rootBinding target htarget := by
+    have htarget' : target < left.size := by
+      simpa [H.size_eq] using htarget
+    rcases K.rootBinding target htarget' with ⟨binding⟩
+    exact ⟨binding.congrInfo (H.motive_eq target)
+      (H.indices_eq target) (H.major_eq target)⟩
   evidence target htarget _current Rcurrent Hext _depth _exposedType
       _syntaxTarget Hexposed HsyntaxType Hvalidated := by
     have htarget' : target < left.size := by
@@ -3658,10 +3655,6 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
     (htailType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx tailTarget)
@@ -3793,7 +3786,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
   apply mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent (Q := Q)
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
-      process c R Hstats hprefix hconsume hlit hctx hproj htail
+      process c R Hstats hprefix hconsume hlit hctx htail
       htailType htailScope Hsuffix.parameterFVarsUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allFields
     recursiveFields fields positions args HterminalNonforall Hterminal
@@ -3833,7 +3826,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     exact htargetStats
   let Hvalidated := HstatsArgs.validatedIndAppAt Hterminal
     Happlication.owner_valid htargetDecl
-      (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs hproj
+      (by simpa only [HfieldsRecent.venv_eq] using hlit) hctxArgs
   rcases HmotiveShapes.motiveBindingAtRecent Hbindings Horigins
       HfieldsRecent Happlication.ownerIdx htarget with ⟨HbindingAt⟩
   let Hbinding := HbindingAt.toBinding
@@ -3890,7 +3883,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
   apply mkRecInfos.loopUBlueprints.resultSemanticsOfMotiveTelescopes (Q := Q)
     stats recursiveFields recInfos finish Rargs producerScope HstatsArgs hconsume
       (by simpa only [HfieldsRecent.venv_eq] using hlit)
-      hctxArgs hproj
+      hctxArgs
       (by
         intro j hj
         rcases Hselections.selectedFVars
@@ -4307,10 +4300,6 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
@@ -4423,7 +4412,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         ctor tail sourceConstructors sourceIndex hsourceConstructor hsourceFamily
         (fun next => AddInductive.mkRecInfos.loopCtors stats indTypeName
           dIdx next ctors k)
-        R Hsuffix Hstats Hprefix HtailScope hconsume hlit hctx hproj Htail
+        R Hsuffix Hstats Hprefix HtailScope hconsume hlit hctx Htail
         HtailType Hintro HintroType Hbindings Horigins Hblueprints
         HblueprintSemantics HminorSources
         HminorSemantics HmajorTypes
@@ -4785,10 +4774,6 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
@@ -4881,7 +4866,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       (by simp [getElem!_pos indTypes dIdx hfamily])
       (fun out => AddInductive.mkRecInfos.loopInd2 stats indTypes
         (dIdx + 1) out k)
-      R HsuffixCtx Hstats hconsume hlit hctx hproj Hbindings
+      R HsuffixCtx Hstats hconsume hlit hctx Hbindings
       Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
       HmajorTypes HmajorShapes
       HmotiveTypes HmotiveShapes
@@ -4906,7 +4891,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       refine resultSemantics (root := root) (Q := Q) stats indTypes
         (dIdx + 1) out k Rout HsuffixOut HstatsOut hconsume
         (by simpa only [henvOut] using hlit)
-        hctxOut hproj HbindingsOut HoriginsOut HblueprintsOut
+        hctxOut HbindingsOut HoriginsOut HblueprintsOut
         HblueprintSemanticsOut HminorSourcesOut
         HminorSemanticsOut HmajorTypesOut
         HmajorShapesOut HmotiveTypesOut HmotiveShapesOut HtelescopesOut

@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.CompletedRecursorSetup
 import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
+import Lean4Lean.Verify.Inductive.Header.LoopType
 
 namespace Lean4Lean
 
@@ -47,7 +48,6 @@ structure RecursorPhasesResult
     recursorWF.mlctx.vlctx stats decl recursorDepth
   noIndConsts : VLCtx.NoIndConsts (decl.types.map (·.name))
     recursorWF.mlctx.vlctx
-  loopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat
   bindings : RecInfoBindings localContext recInfos
   origins : RecInfoTypeOrigins localContext recInfos
   blueprints : RecInfoRuleBlueprintOrigins stats recInfos origins
@@ -116,7 +116,6 @@ def RecursorPhasesResult.completed
       exact H.parameterDecls
     validStats := H.validStats
     noIndConsts := H.noIndConsts
-    loopUArgsReplay := H.loopUArgsReplay
     bindings := H.bindings
     origins := H.origins
     blueprints := H.blueprints
@@ -177,13 +176,8 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (R : ConstructorPhasesResult Hheaders ctorEnv)
     (hclosed : MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hloopUArgsReplay : RecursorLoopUArgsCompletedAlphaCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       R.declared.context.venv stats.indConsts)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -199,7 +193,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (RecursorPhasesResult R outEnv) := by
   apply R.getElimLevelMkRecInfosWF hlparams
-    Lean4Lean.recursorConsumeTypeAnnotationsCompat hlit hproj
+    Lean4Lean.recursorConsumeTypeAnnotationsCompat hlit
     (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
     (k := fun elimLevel kTarget recInfos =>
       AddInductive.declareRecursors stats indTypes elimLevel recInfos kTarget
@@ -257,7 +251,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (elimLevel := elimLevel) kTarget Hvalid Rlocal.toBindingContextWF Rlocal
     HstatsLocal Lean4Lean.recursorConsumeTypeAnnotationsCompat
     (by simpa only [henvLocal] using hlit)
-    hctxLocal hproj Hcard Hcore Hbindings
+    hctxLocal Hcard Hcore Hbindings
     Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
     Hparams hnoalias HminorCounts HsuffixLocal.parameterFVarsUp Hseed (by
       rw [Hle.safety_eq]
@@ -299,7 +293,6 @@ theorem ConstructorPhasesResult.recursorPhasesWF
       parameterDecls := hparameterDeclsLocal
       validStats := HstatsLocal
       noIndConsts := hctxLocal
-      loopUArgsReplay := hloopUArgsReplay
       bindings := Hbindings
       origins := Horigins
       blueprints := Hblueprints
@@ -1404,6 +1397,29 @@ def RecursorPhasesResult.blockCertificate
   exact Hgenerated.toBlockCertificate H.staged H.localWF H.bindings H.params
     Hheaders.typesWF R.declared.ctorsWF hrules
 
+/-- Generated recursor names are fresh already at the post-constructor
+boundary.  This installation fact belongs with the block certificate rather
+than the later equation-application development, and is needed by nested
+restoration before equation proofs are assembled. -/
+theorem RecursorPhasesResult.recursorNamesFresh
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq) (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
+    ∀ name ∈ (H.blockCertificate rules hrules).block.recursors.map (·.name),
+      R.declared.venvCtors.constants name = none := by
+  have hfresh :=
+    VEnv.addConstVals_names_fresh H.installed.abstract |>.2
+  intro name hname
+  change name ∈ (H.entries.map Prod.snd).map (·.name) at hname
+  rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
+  exact hfresh recursor hrecursor
+
 def RecursorPhasesResult.generatedCertificate
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -1574,6 +1590,54 @@ structure RecursorPhasesResult.GeneratedRuleAlignment
   originEvidence : Nonempty (rule.ProducerOriginEvidence semantics
     H.recInfos H.elimLevel H.origins owner i)
   semantic_owner : semantics.ownerIdx = owner
+
+noncomputable def RecursorPhasesResult.GeneratedRuleAlignment.producerOrigin
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    A.rule.ProducerOriginEvidence A.semantics H.recInfos H.elimLevel
+      H.origins owner i :=
+  Classical.choice A.originEvidence
+
+noncomputable def RecursorPhasesResult.GeneratedRuleAlignment.producerMinorShape
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    RecInfoMinorTypeShape :=
+  A.producerOrigin.producer.minorShape
+
+noncomputable def RecursorPhasesResult.GeneratedRuleAlignment.producerReplayAt
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {H : RecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
+    A.rule.ProducerCallReplayAt (recInfos := H.recInfos) A.semantics
+      A.producerMinorShape j hj :=
+  Classical.choice (A.producerOrigin.producer.replay j hj)
 
 /-- Select the fully aligned pointwise rule package directly from the
 completed recursor phase.  All bounds not supplied by the caller follow from

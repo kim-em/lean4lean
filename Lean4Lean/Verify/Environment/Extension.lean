@@ -679,7 +679,7 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     inductiveProvenance {safety} := by
       change InstalledInductiveProvenance safety
         (env.constants.insert ci.name ci) (ves'.venv safety)
-      exact VerifyInductive.InstalledInductiveProvenance.insertNonInductive
+      exact InstalledInductiveProvenance.insertNonInductive
         (wf.inductiveProvenance (safety := safety))
         (wf.tr (safety := .safe)).map_wf hnMap hnind (hves' safety).le
     mono {safety safety'} hle := by
@@ -779,7 +779,7 @@ theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     inductiveProvenance {safety} := by
       change InstalledInductiveProvenance safety
         (env.constants.insert v.name (.defnInfo v)) (ves'.venv safety)
-      exact VerifyInductive.InstalledInductiveProvenance.insertNonInductive
+      exact InstalledInductiveProvenance.insertNonInductive
         (ci := .defnInfo v) (wf.inductiveProvenance (safety := safety))
         (wf.tr (safety := .safe)).map_wf hnMap (by intro _ h; cases h)
         (hves' safety).le
@@ -860,7 +860,7 @@ theorem addUnsafeDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     inductiveProvenance {safety} := by
       change InstalledInductiveProvenance safety
         (env.constants.insert v.name (.defnInfo v)) _
-      exact VerifyInductive.InstalledInductiveProvenance.insertNonInductive
+      exact InstalledInductiveProvenance.insertNonInductive
         (ci := .defnInfo v) (wf.inductiveProvenance (safety := safety))
         (wf.tr (safety := .safe)).map_wf hnMap (by intro _ h; cases h)
         (match safety with

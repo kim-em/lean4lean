@@ -2,6 +2,7 @@ import Lean4Lean.Theory.Typing.Basic
 import Lean4Lean.Verify.NameGenerator
 import Lean4Lean.Verify.VLCtx
 import Lean4Lean.Verify.Axioms
+import Lean4Lean.Verify.Typing.Projection
 
 namespace Lean4Lean
 open Lean
@@ -64,8 +65,6 @@ theorem VLCtx.WF.fvwf : ∀ {Δ}, VLCtx.WF env U Δ → Δ.FVWF
   | [], h => h
   | _ :: _, ⟨h1, h2, _⟩ => ⟨h1.fvwf, h2⟩
 
-def TrProj : ∀ (Γ : List VExpr) (structName : Name) (idx : Nat) (e : VExpr), VExpr → Prop := sorry
-
 def VEnv.ContainsLits (env : VEnv) : Literal → Prop
   | .natVal _ => env.contains ``Nat
   | .strVal _ => env.contains ``Char.ofNat ∧ env.contains ``String.ofList
@@ -100,7 +99,9 @@ inductive TrExprS : VLCtx → Expr → VExpr → Prop
     TrExprS Δ (.letE name ty val body nd) body'
   | lit : env.ContainsLits l → TrExprS Δ l.toConstructor e → TrExprS Δ (.lit l) e
   | mdata : TrExprS Δ e e' → TrExprS Δ (.mdata d e) e'
-  | proj : TrExprS Δ e e' → TrProj Δ.toCtx s i e' e'' → TrExprS Δ (.proj s i e) e''
+  | proj : TrExprS Δ e e' →
+      TrProj (env := env) (U := Us.length) Δ.toCtx s i e' e'' →
+      TrExprS Δ (.proj s i e) e''
 
 def TrExpr (env : VEnv) (Us : List Name) (Δ : VLCtx) (e : Expr) (e' : VExpr) : Prop :=
   ∃ e₂, TrExprS env Us Δ e e₂ ∧ env.IsDefEqU Us.length Δ.toCtx e₂ e'

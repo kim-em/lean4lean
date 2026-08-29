@@ -44,13 +44,13 @@ theorem GeneratedRecursorCanonicalDomainTranslation.ofZeroIndexFamilyMotive
       ExprReplacement
         (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
         oldDomain newDomain ->
-      newDomain.abstractList H.trace.opening.selection.fvars binderDepth =
+      (newDomain.abstractList H.trace.opening.selection.fvars binderDepth ==
         ((Expr.forallE name sourceFamily (.sort sourceLevel) bi).liftLooseBVars'
-          0 (targets.take position).length)) :
+          0 (targets.take position).length)) = true) :
     GeneratedRecursorCanonicalDomainTranslation H newEnv newBase
       parameterDomains targets position binderDepth := by
   subst newBase
-  apply GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEq
+  apply GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEqv
     ((Expr.forallE name sourceFamily (.sort sourceLevel) bi).liftLooseBVars'
       0 (targets.take position).length) Hrestored
   · rw [htarget]
@@ -105,12 +105,12 @@ theorem GeneratedRecursorCanonicalDomainTranslation.ofIndexedFamilyMotive
       ExprReplacement
         (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
         oldDomain newDomain ->
-      newDomain.abstractList H.trace.opening.selection.fvars binderDepth =
-        sourceMotive.liftLooseBVars' 0 (targets.take position).length) :
+      (newDomain.abstractList H.trace.opening.selection.fvars binderDepth ==
+        sourceMotive.liftLooseBVars' 0 (targets.take position).length) = true) :
     GeneratedRecursorCanonicalDomainTranslation H newEnv newBase
       parameterDomains targets position binderDepth := by
   subst newBase
-  apply GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEq
+  apply GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEqv
     (sourceMotive.liftLooseBVars' 0 (targets.take position).length) Hrestored
   · rw [htarget]
     exact F.motiveDomainTranslationAfter henv
@@ -240,12 +240,12 @@ theorem GeneratedRecursorCanonicalDomainTranslation.ofIndexedFamilyIndex
       ExprReplacement
         (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
         oldDomain newDomain ->
-      newDomain.abstractList H.trace.opening.selection.fvars binderDepth =
-        sourceDomain.liftLooseBVars' i added.length) :
+      (newDomain.abstractList H.trace.opening.selection.fvars binderDepth ==
+        sourceDomain.liftLooseBVars' i added.length) = true) :
     GeneratedRecursorCanonicalDomainTranslation H newEnv newBase
       parameterDomains targets position binderDepth := by
   subst newBase
-  apply GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEq
+  apply GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEqv
     (sourceDomain.liftLooseBVars' i added.length) Hrestored
   · rw [htarget, hprefix]
     simpa only [List.append_assoc] using
@@ -290,15 +290,15 @@ theorem GeneratedRecursorCanonicalDomainTranslation.ofIndexedFamilyMajor
       ExprReplacement
         (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
         oldDomain newDomain ->
-      newDomain.abstractList H.trace.opening.selection.fvars binderDepth =
+      (newDomain.abstractList H.trace.opening.selection.fvars binderDepth ==
         ((Expr.mkAppList
           (sourceFamily.liftLooseBVars' 0 numIndices)
           (sourceCanonicalVars numIndices)).liftLooseBVars'
-            numIndices added.length)) :
+            numIndices added.length)) = true) :
     GeneratedRecursorCanonicalDomainTranslation H newEnv newBase
       parameterDomains targets position binderDepth := by
   subst newBase
-  apply GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEq
+  apply GeneratedRecursorCanonicalDomainTranslation.ofRestoredAbstractEqv
     ((Expr.mkAppList
       (sourceFamily.liftLooseBVars' 0 numIndices)
       (sourceCanonicalVars numIndices)).liftLooseBVars'
@@ -340,8 +340,8 @@ theorem GeneratedRecursorCanonicalDomainTranslation.ofIndexedFamilyIndexAtCanoni
       ExprReplacement
         (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
         oldDomain newDomain ->
-      newDomain.abstractList H.trace.opening.selection.fvars binderDepth =
-        sourceDomain.liftLooseBVars' i motiveMinorTargets.length) :
+      (newDomain.abstractList H.trace.opening.selection.fvars binderDepth ==
+        sourceDomain.liftLooseBVars' i motiveMinorTargets.length) = true) :
     GeneratedRecursorCanonicalDomainTranslation H newEnv newBase
       parameterDomains
       (F.family.semantics.canonicalRecursorTargets motiveMinorTargets)
@@ -398,11 +398,11 @@ theorem GeneratedRecursorCanonicalDomainTranslation.ofIndexedFamilyMajorAtCanoni
       ExprReplacement
         (result.restoreNestedNode prodEnv H.trace.opening.params auxRec)
         oldDomain newDomain ->
-      newDomain.abstractList H.trace.opening.selection.fvars binderDepth =
+      (newDomain.abstractList H.trace.opening.selection.fvars binderDepth ==
         ((Expr.mkAppList
           (sourceFamily.liftLooseBVars' 0 numIndices)
           (sourceCanonicalVars numIndices)).liftLooseBVars'
-            numIndices motiveMinorTargets.length)) :
+            numIndices motiveMinorTargets.length)) = true) :
     GeneratedRecursorCanonicalDomainTranslation H newEnv newBase
       parameterDomains
       (F.family.semantics.canonicalRecursorTargets motiveMinorTargets)
@@ -559,6 +559,200 @@ theorem RestoredFamilySemantics.concreteRecursorResultAbstractTypeTranslationAft
         List.foldl_append] using Htranslation)
       (by simpa [motive] using Hmotive)
       (by simpa [indexTargets] using Hmajor)
+
+/-- Canonical-target specialization of
+`concreteRecursorResultAbstractTypeTranslationAfter`.  The owner motive and
+major typings are read back from the exact domain list produced by
+`canonicalRecursorTargets`; they are not additional semantic premises.
+
+The one displayed equality for the owner motive is the same equality already
+established while constructing that motive slot.  All later lifting, the
+owner-index spine, and the final major lookup are consequences of the literal
+list layout. -/
+theorem
+    RestoredFamilySemantics.concreteRecursorResultAbstractTypeTranslationAtCanonicalTargets
+    (S : RestoredFamilySemantics env levelParams parameterDomains numIndices)
+    (henv : env.WF) (motiveMinorTargets : List VExpr)
+    (hctx : OnCtx
+      ((S.canonicalRecursorTargets motiveMinorTargets).reverse ++
+        parameterDomains.reverse)
+      (env.IsType levelParams.length))
+    (hprefix : motiveMinorTargets.length = numMotives + numMinors)
+    (howner : ownerIdx < numMotives)
+    (resultLevel : VLevel)
+    (hownerMotive : motiveMinorTargets[ownerIdx]! =
+      (S.motiveType resultLevel).liftN ownerIdx 0) :
+    Expr.AbstractTypeTranslation env levelParams
+      (abstractForallContext
+        (parameterDomains ++ S.canonicalRecursorTargets motiveMinorTargets)
+        [])
+      (VerifyInductive.concreteRecursorResult
+        numMotives numMinors numIndices ownerIdx) := by
+  let targets := S.canonicalRecursorTargets motiveMinorTargets
+  let newer := motiveMinorTargets.drop (ownerIdx + 1) ++
+    S.canonicalIndexMajorTargets motiveMinorTargets
+  let older := (motiveMinorTargets.take ownerIdx).reverse ++
+    parameterDomains.reverse
+  have hownerPrefix : ownerIdx < motiveMinorTargets.length := by
+    rw [hprefix]
+    omega
+  have hsplit : motiveMinorTargets = motiveMinorTargets.take ownerIdx ++
+      motiveMinorTargets[ownerIdx] ::
+        motiveMinorTargets.drop (ownerIdx + 1) := by
+    calc
+      motiveMinorTargets = motiveMinorTargets.take (ownerIdx + 1) ++
+          motiveMinorTargets.drop (ownerIdx + 1) :=
+        (List.take_append_drop (ownerIdx + 1) motiveMinorTargets).symm
+      _ = (motiveMinorTargets.take ownerIdx ++
+          [motiveMinorTargets[ownerIdx]]) ++
+            motiveMinorTargets.drop (ownerIdx + 1) := by
+        rw [List.take_append_getElem hownerPrefix]
+      _ = motiveMinorTargets.take ownerIdx ++
+          motiveMinorTargets[ownerIdx] ::
+            motiveMinorTargets.drop (ownerIdx + 1) := by
+        simp [List.append_assoc]
+  have htargetsReverse : targets.reverse ++ parameterDomains.reverse =
+      newer.reverse ++
+      motiveMinorTargets[ownerIdx] :: older := by
+    dsimp only [targets, newer, older]
+    rw [RestoredFamilySemantics.canonicalRecursorTargets,
+      List.reverse_append, List.reverse_append]
+    have hmotivesReverse := congrArg List.reverse hsplit
+    simp only [List.reverse_append, List.reverse_cons,
+      List.reverse_singleton] at hmotivesReverse
+    rw [hmotivesReverse]
+    simp [List.append_assoc]
+  have hnewerLength : newer.length =
+      numMotives + numMinors + numIndices - ownerIdx := by
+    dsimp only [newer]
+    simp [hprefix]
+    omega
+  have Hmotive : env.HasType levelParams.length
+      (targets.reverse ++ parameterDomains.reverse)
+      (.bvar (1 + numIndices + numMinors +
+        (numMotives - 1 - ownerIdx)))
+      ((S.motiveType resultLevel).liftN targets.length 0) := by
+    apply VEnv.HasType.bvar
+    rw [htargetsReverse]
+    have Hlookup := Lookup.append_zero newer.reverse
+      (motiveMinorTargets[ownerIdx]'hownerPrefix) older
+    have hownerMotive' : motiveMinorTargets[ownerIdx] =
+        (S.motiveType resultLevel).liftN ownerIdx 0 := by
+      simpa [getElem!_pos motiveMinorTargets ownerIdx hownerPrefix] using
+        hownerMotive
+    rw [hownerMotive']
+    rw [hownerMotive'] at Hlookup
+    have hlookupIndex : newer.length =
+        1 + numIndices + numMinors + (numMotives - 1 - ownerIdx) := by
+      rw [hnewerLength]
+      omega
+    have hliftTotal : ownerIdx +
+        (1 + numIndices + numMinors +
+          (numMotives - 1 - ownerIdx) + 1) = targets.length := by
+      dsimp only [targets]
+      simp [hprefix, hnewerLength]
+      omega
+    simpa only [List.length_reverse, VExpr.liftN_liftN, hliftTotal,
+      hlookupIndex] using Hlookup
+  have hmajorPosition : motiveMinorTargets.length + numIndices <
+      targets.length := by
+    dsimp only [targets]
+    simp
+  have hmajorTarget : targets[motiveMinorTargets.length + numIndices] =
+      S.majorTypeAfter motiveMinorTargets := by
+    have Hselected :=
+      S.canonicalRecursorTargets_getElem_major motiveMinorTargets
+    dsimp only at Hselected
+    rw [List.getElem?_eq_getElem hmajorPosition] at Hselected
+    exact Option.some.inj Hselected
+  have htargetsLast : targets =
+      targets.take (motiveMinorTargets.length + numIndices) ++
+        [S.majorTypeAfter motiveMinorTargets] := by
+    have htake := List.take_append_getElem hmajorPosition
+    rw [hmajorTarget] at htake
+    have hlength : targets.length =
+        motiveMinorTargets.length + numIndices + 1 := by
+      dsimp only [targets]
+      simp
+    have hdrop : targets.drop (motiveMinorTargets.length + numIndices + 1) =
+        [] := by
+      apply List.drop_eq_nil_iff.mpr
+      omega
+    calc
+      targets = targets.take (motiveMinorTargets.length + numIndices + 1) ++
+          targets.drop (motiveMinorTargets.length + numIndices + 1) :=
+        (List.take_append_drop _ targets).symm
+      _ = targets.take (motiveMinorTargets.length + numIndices) ++
+          [S.majorTypeAfter motiveMinorTargets] := by
+        rw [hdrop]
+        simpa using htake.symm
+  have Hmajor : env.HasType levelParams.length
+      (targets.reverse ++ parameterDomains.reverse) (.bvar 0)
+      (VExpr.mkApps (S.family.liftN targets.length 0)
+        (List.ofFn fun i : Fin numIndices =>
+          VExpr.bvar (1 + (numIndices - 1 - i)))) := by
+    apply VEnv.HasType.bvar
+    have hmajorContext : targets.reverse ++ parameterDomains.reverse =
+        S.majorTypeAfter motiveMinorTargets ::
+          (targets.take (motiveMinorTargets.length + numIndices)).reverse ++
+            parameterDomains.reverse := by
+      calc
+        targets.reverse ++ parameterDomains.reverse =
+            (targets.take (motiveMinorTargets.length + numIndices) ++
+              [S.majorTypeAfter motiveMinorTargets]).reverse ++
+                parameterDomains.reverse := by rw [← htargetsLast]
+        _ = S.majorTypeAfter motiveMinorTargets ::
+            (targets.take
+              (motiveMinorTargets.length + numIndices)).reverse ++
+              parameterDomains.reverse := by
+            simp only [List.reverse_append, List.reverse_singleton,
+              List.singleton_append]
+    rw [hmajorContext]
+    have Hlookup : Lookup
+        (S.majorTypeAfter motiveMinorTargets ::
+          (targets.take (motiveMinorTargets.length + numIndices)).reverse ++
+            parameterDomains.reverse)
+        0 (S.majorTypeAfter motiveMinorTargets).lift := Lookup.zero
+    have hmajorLift : (S.majorTypeAfter motiveMinorTargets).lift =
+        VExpr.mkApps (S.family.liftN targets.length 0)
+          (List.ofFn fun i : Fin numIndices =>
+            VExpr.bvar (1 + (numIndices - 1 - i))) := by
+      simp only [RestoredFamilySemantics.majorTypeAfter,
+        VExpr.liftN_mkApps]
+      have hfamilyLift : S.indexDomains.length + 1 +
+          motiveMinorTargets.length = targets.length := by
+        dsimp only [targets]
+        simp [S.indexCount]
+        omega
+      congr 1
+      · rw [VExpr.liftN'_comm
+          (S.family.liftN S.indexDomains.length 0)
+          motiveMinorTargets.length 1 S.indexDomains.length 0
+          (Nat.zero_le _)]
+        rw [VExpr.liftN_liftN]
+        rw [show 1 + S.indexDomains.length =
+          S.indexDomains.length + 1 by omega]
+        rw [VExpr.liftN'_liftN_lo]
+        have hfamilyLift' : motiveMinorTargets.length +
+            (S.indexDomains.length + 1) = targets.length := by omega
+        rw [hfamilyLift']
+      · rw [recursorCanonicalVars_liftN_at_length,
+          recursorCanonicalVars_liftN_zero_eq_ofFn]
+        apply List.ext_getElem
+        · simp [S.indexCount]
+        · intro i hleft hright
+          simp only [List.getElem_ofFn]
+          have hi : i < numIndices := by simpa using hright
+          rw [S.indexCount]
+          congr 1
+          omega
+    rw [← hmajorLift]
+    exact Hlookup
+  exact S.concreteRecursorResultAbstractTypeTranslationAfter henv targets
+    (by simpa [targets] using hctx)
+    (by dsimp only [targets]; simp [hprefix]) howner resultLevel
+    (by simpa [targets] using Hmotive)
+    (by simpa [targets] using Hmajor)
 
 end VerifyInductive
 end Lean4Lean

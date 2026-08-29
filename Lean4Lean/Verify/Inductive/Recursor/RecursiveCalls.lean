@@ -1251,10 +1251,6 @@ theorem resultRecursiveDomain {alpha : Type}
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Rroot.venv stats.indConsts)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     {initialType uiTy : Expr} {xs : Array Expr} {fuel : Nat}
     {c : AddInductive.Context} {Q : Nat → alpha → Prop}
     (R : RecursorContextWF c recLparams)
@@ -1527,7 +1523,7 @@ theorem resultRecursiveDomain {alpha : Type}
           rw [← Hstats.types_size]
           exact htargetStats
         let Hvalid := Hstats.validatedIndAppAt hsyntax hvalid htarget
-          (by simpa only [Hxs.venv_eq] using hlit) hctx hproj
+          (by simpa only [Hxs.venv_eq] using hlit) hctx
         have Hterminal := Hk (target := target) R Htrace hsyntax hdefeq
           htypeType Hxs happlied happliedType hvalid htypeScope hcurrentUp
         exact Hterminal.mono fun out hout => by
@@ -1631,10 +1627,6 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
@@ -1728,7 +1720,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
     normalized #[] c.fuel.inductiveFuel c).WF _
   have Hloop := mkRecInfos.loopUArgs.loop.resultRecursiveDomain
     (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k R
-    hconsume hlit hproj R Hstats hctx hnormalizedTr hinferredType
+    hconsume hlit R Hstats hctx hnormalizedTr hinferredType
     (RecursorRecentBoundFVarArray.empty R)
     (RecursorLoopUArgsPrefix.root (root := c) (source := normalized))
     (hnormalizedScope.mono fun _ h => Or.inr h)
@@ -1994,10 +1986,6 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
@@ -2056,7 +2044,7 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin
     rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
     exact hfvScope
   have Hrun := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats build c R
-    Hstats hconsume hlit hctx hproj hfield hfvScope
+    Hstats hconsume hlit hctx hfield hfvScope
       (IsFVarUpSet.fvars (R.mlctx_wf.tr.wf).fvwf)
     (Q := fun _ viTy => ∃ viTarget,
       TrExprS R.venv recLparams R.mlctx.vlctx
@@ -2122,10 +2110,6 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisType
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
@@ -2170,7 +2154,7 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisType
             viTy.consumeTypeAnnotationsVerified viTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget := by
   exact (mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats
-    recInfos c R Hstats hconsume hlit hctx hproj hfield
+    recInfos c R Hstats hconsume hlit hctx hfield
       Hmotives hrecords Happ).mono
       fun _ Hout => ⟨Hout.choose, Hout.choose_spec.1,
         Hout.choose_spec.2.1⟩
@@ -2190,10 +2174,6 @@ theorem mkRecInfos.loopUArgs.resultValidatedIndApp {alpha : Type}
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Δ : VLCtx} {s j e' e''},
-      TrProj Δ.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
@@ -2249,7 +2229,7 @@ theorem mkRecInfos.loopUArgs.resultValidatedIndApp {alpha : Type}
         Hrecent.noIndConsts hctx
       exact Hk Rcurrent hsyntax hdefeq htypeType Hrecent happlied happliedType
         (HstatsCurrent.validatedIndAppAt hsyntax hvalid htarget
-          (by simpa only [Hrecent.venv_eq] using hlit) hctxCurrent hproj)
+          (by simpa only [Hrecent.venv_eq] using hlit) hctxCurrent)
 
 /-- Exact recursive-call syntax together with the inner binding context used
 to close its higher-order arguments. -/
@@ -2437,10 +2417,6 @@ theorem mkRecRules.boundGeneratedCallSemantic
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (fv : FVarId) {fieldTarget : VExpr}
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
@@ -2466,7 +2442,7 @@ theorem mkRecRules.boundGeneratedCallSemantic
         (mkAppN (.bvar 0) indices).app
           (mkAppN (.fvar fv) args)).instantiate1 recursor
   have Hloop := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats
-    buildCallAt root R Hstats hconsume hlit hctx hproj hfield
+    buildCallAt root R Hstats hconsume hlit hctx hfield
     hfieldScope hrootUp
     (Q := fun target value =>
       ∃ Hinput : RecursorLoopUArgsInput root (.fvar fv),
@@ -2537,7 +2513,7 @@ theorem mkRecRules.boundGeneratedCallSemantic
         Hrecent.noIndConsts (names := decl.types.map (·.name)) hctx
       let Hvalidated := HstatsCurrent.validatedIndAppAt hsyntax hvalid
         htargetDecl (by simpa only [Hrecent.venv_eq] using hlit)
-        hctxCurrent hproj
+        hctxCurrent
       exact Except.WF.pure
         ⟨Hinput, Hgenerated, Htrace, rfl, Rcurrent, Hrecent, syntaxTarget,
           terminalTarget,
@@ -2813,17 +2789,14 @@ theorem BoundGeneratedRecursiveCall.translatedOuterAbstractedLambdaShape_noFresh
       root field value)
     (Htr : TrExprS env Us Δ (value.abstractList binders) result)
     (hfresh : ∀ name ∈ recursors, env.constants name = none)
-    (hctx : VLCtx.NoIndConsts recursors Δ)
-    (hproj : ∀ {Δ : VLCtx} {s i e' e''}, TrProj Δ.toCtx s i e' e'' →
-      e'.containsAnyConst recursors = false →
-      e''.containsAnyConst recursors = false) :
+    (hctx : VLCtx.NoIndConsts recursors Δ) :
     ∃ domains residual, domains.length = H.localArgs.size ∧
       result = VExpr.wrapLams domains residual ∧
       TrExprS env Us (abstractForallContext domains Δ)
         (H.body.abstractList binders H.localArgs.size) residual ∧
-      ∀ dom ∈ domains, dom.containsAnyConst recursors = false := by
+      ∀ dom ∈ domains, dom.SourceConstFree recursors := by
   exact TrExprS.lambdaTelescope_shape_with_context_noFresh
-    hfresh hctx hproj (H.outerAbstractedLambdaTelescope binders) Htr
+    hfresh hctx (H.outerAbstractedLambdaTelescope binders) Htr
 
 /-- Simultaneous abstraction preserves the generated recursor spine and
 turns the freshly opened local arguments into the canonical de Bruijn spine

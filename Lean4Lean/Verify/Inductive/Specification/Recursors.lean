@@ -358,16 +358,12 @@ structure NestedCompilationCertificate (env : VEnv)
   auxiliaryRecursors : List VConstVal
   recursors_eq : block.recursors = primaryRecursors ++ auxiliaryRecursors
   primary_recursors : NestedRecursorCertificate decl primaryRecursors
-  auxiliary_names : auxiliaryRecursors.map (·.name) =
-    (List.range auxiliaryRecursors.length).map fun i =>
-      (decl.recursorName main).appendIndexAfter (i + 1)
   primaryRules : List VDefEq
   auxiliaryRules : List VDefEq
   rules_eq : block.rules = primaryRules ++ auxiliaryRules
   primary_rules : NestedIotaListCertificate decl block primaryRules
   auxiliary_guarded : ∀ rule ∈ auxiliaryRules,
-    ∃ fieldVars, rule.rhs.GuardedIota
-      (block.recursors.map (·.name)) fieldVars 0
+    rule.rhs.GuardedRuleRhs (block.recursors.map (·.name))
   names : List.Nodup
     ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 
@@ -398,7 +394,6 @@ def NestedCompilationCertificate.nested
   auxiliaryRecursors := H.auxiliaryRecursors
   recursors_eq := H.recursors_eq
   primary_recursors := H.primary_recursors.forall₂
-  auxiliary_names := H.auxiliary_names
   primaryRules := H.primaryRules
   auxiliaryRules := H.auxiliaryRules
   rules_eq := H.rules_eq
@@ -457,37 +452,26 @@ names, while restored auxiliary rules must retain a guarded RHS. -/
 structure AuxiliaryRestorationPrefix (decl : VInductDecl)
     (block : VInductBlock) (main : VInductiveType)
     (recursors : List VConstVal) (rules : List VDefEq) : Prop where
-  names : recursors.map (·.name) =
-    (List.range recursors.length).map fun i =>
-      (decl.recursorName main).appendIndexAfter (i + 1)
-  guarded : ∀ rule ∈ rules, ∃ fieldVars,
-    rule.rhs.GuardedIota (block.recursors.map (·.name)) fieldVars 0
+  guarded : ∀ rule ∈ rules,
+    rule.rhs.GuardedRuleRhs (block.recursors.map (·.name))
 
 theorem AuxiliaryRestorationPrefix.empty
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType) :
     AuxiliaryRestorationPrefix decl block main [] [] where
-  names := rfl
   guarded _ h := by simp at h
 
 theorem AuxiliaryRestorationPrefix.pushRecursor
-    (H : AuxiliaryRestorationPrefix decl block main recursors rules)
-    (hname : recursor.name =
-      (decl.recursorName main).appendIndexAfter (recursors.length + 1)) :
+    (H : AuxiliaryRestorationPrefix decl block main recursors rules) :
     AuxiliaryRestorationPrefix decl block main
       (recursors ++ [recursor]) rules where
-  names := by
-    simp only [List.map_append, List.map_singleton, List.length_append,
-      List.length_singleton, List.range_succ, hname, H.names,
-      List.map_concat, Function.comp_apply]
   guarded := H.guarded
 
 theorem AuxiliaryRestorationPrefix.appendRules
     (H : AuxiliaryRestorationPrefix decl block main recursors rules)
-    (hnew : ∀ rule ∈ newRules, ∃ fieldVars,
-      rule.rhs.GuardedIota (block.recursors.map (·.name)) fieldVars 0) :
+    (hnew : ∀ rule ∈ newRules,
+      rule.rhs.GuardedRuleRhs (block.recursors.map (·.name))) :
     AuxiliaryRestorationPrefix decl block main recursors
       (rules ++ newRules) where
-  names := H.names
   guarded rule hrule := by
     rcases List.mem_append.mp hrule with hold | hnewRule
     · exact H.guarded rule hold
@@ -533,7 +517,6 @@ def NestedCompilationCertificate.ofRestoration
   auxiliaryRecursors := auxiliaryRecursors
   recursors_eq := hrecursors
   primary_recursors := HprimaryRecursors
-  auxiliary_names := Haux.names
   primaryRules := primaryRules
   auxiliaryRules := auxiliaryRules
   rules_eq := hrules

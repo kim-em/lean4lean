@@ -245,7 +245,7 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
       HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
     let Hnext := HtailScope.withIndex
       HruntimeWF
-      hdeps Hdomain
+      hdeps name bi type HnarrowType Hdomain
     refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_⟩
     · simp [Hnext, htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
     · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
@@ -497,7 +497,8 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScopeForallReplay
     have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
         (narrowType.lift' HtailScope.shift) type' (.sort u) :=
       HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
-    let Hnext := HtailScope.withIndex HruntimeWF hdeps Hdomain
+    let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
+      HnarrowType Hdomain
     refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_, ?_⟩
     · simp [Hnext, htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
     · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
@@ -1505,6 +1506,8 @@ theorem AddInductive.declareRecursors.loop.WF
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (numMinors numMotives : Nat) (all : List Name)
+    (hnumMinors : numMinors = (recInfos.flatMap (·.minors)).size)
+    (hnumMotives : numMotives = (recInfos.map (·.motive)).size)
     (k isUnsafe : Bool) (allowPrimitive : Bool)
     (hisUnsafe : isUnsafe = (c.safety != .safe))
     (dIdx : Nat) (hdone : dIdx ≤ indTypes.size)
@@ -1627,7 +1630,8 @@ theorem AddInductive.declareRecursors.loop.WF
             hle.trans (VEnv.addConst_le haddInfo)
           have Htail := AddInductive.declareRecursors.loop.WF Hcard Hdecl c Hc
             Rowners Hbindings Horigins Hblueprints HminorSources HminorSemantics
-            Hparams hnoalias hcounts numMinors numMotives all k
+            Hparams hnoalias hcounts numMinors numMotives all hnumMinors
+            hnumMotives k
             isUnsafe allowPrimitive hisUnsafe (dIdx + 1) (by omega)
             (env.add (.recInfo info)) HnextValid hnextLe Htranslate hnprim
           exact Htail.mono fun out Hout => by
@@ -1638,7 +1642,8 @@ theorem AddInductive.declareRecursors.loop.WF
                 elimLevel c stats indTypes recInfos dIdx entry := by
               exact GeneratedRecursorEntry.ofRecursorInfo c.safety sourceVEnv
                 lparams elimLevel c stats indTypes recInfos numMinors
-                numMotives all k isUnsafe dIdx generated.1 recursor hisUnsafe
+                numMotives all hnumMinors hnumMotives k isUnsafe dIdx
+                generated.1 recursor hisUnsafe
                 HtrSource
                 Hgenerated
             have Hrange' : GeneratedRecursorsRange c.safety sourceVEnv
@@ -1692,10 +1697,6 @@ theorem AddInductive.declareRecursors.loop.semanticWF
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hbindings : RecInfoBindings c recInfos)
     (Horigins : RecInfoTypeOrigins c recInfos)
     (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
@@ -1725,6 +1726,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
           R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx introTarget
             tailTarget)
     (numMinors numMotives : Nat) (all : List Name)
+    (hnumMinors : numMinors = (recInfos.flatMap (·.minors)).size)
+    (hnumMotives : numMotives = (recInfos.map (·.motive)).size)
     (k isUnsafe : Bool) (allowPrimitive : Bool)
     (hisUnsafe : isUnsafe = (c.safety != .safe))
     (dIdx : Nat) (hdone : dIdx ≤ indTypes.size)
@@ -1850,9 +1853,10 @@ theorem AddInductive.declareRecursors.loop.semanticWF
           have hnextLe : sourceVEnv ≤ nextVEnv :=
             hle.trans (VEnv.addConst_le haddInfo)
           have Htail := AddInductive.declareRecursors.loop.semanticWF Hcard
-            Hdecl c R Hstats hconsume hlit hctx hproj Hbindings Horigins
+            Hdecl c R Hstats hconsume hlit hctx Hbindings Horigins
             Hblueprints HblueprintSemantics HminorSources HminorSemantics
-            Hparams hnoalias hcounts hparameterUp Hseed numMinors numMotives all k isUnsafe
+            Hparams hnoalias hcounts hparameterUp Hseed numMinors numMotives
+            all hnumMinors hnumMotives k isUnsafe
             allowPrimitive hisUnsafe (dIdx + 1) (by omega)
             (env.add (.recInfo info)) HnextValid hnextLe Htranslate hnprim
           exact Htail.mono fun out Hout => by
@@ -1864,7 +1868,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
                 elimLevel c stats indTypes recInfos dIdx entry := by
               exact GeneratedRecursorEntry.ofRecursorInfo c.safety sourceVEnv
                 lparams elimLevel c stats indTypes recInfos numMinors
-                numMotives all k isUnsafe dIdx generated.1 recursor hisUnsafe
+                numMotives all hnumMinors hnumMotives k isUnsafe dIdx
+                generated.1 recursor hisUnsafe
                 HtrSource
                 Hgenerated.bound
             have Hrange' : GeneratedRecursorsRange c.safety sourceVEnv
@@ -1999,7 +2004,7 @@ theorem AddInductive.declareRecursors.bindingWF
     Hcontext Rowners Hbindings Horigins Hblueprints HminorSources
     HminorSemantics Hparams hnoalias hcounts
     (recInfos.flatMap (·.minors)).size
-    (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList k
+    (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList rfl rfl k
     (c.safety != .safe) c.allowPrimitive rfl 0 (by omega) c.env
     Hvalid VEnv.LE.rfl
     (Htypes.recursorInfoTranslation k) hnprim
@@ -2031,10 +2036,6 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    (hproj : ∀ {Delta : VLCtx} {s j e' e''},
-      TrProj Delta.toCtx s j e' e'' →
-      e'.containsAnyConst (decl.types.map (·.name)) = false →
-      e''.containsAnyConst (decl.types.map (·.name)) = false)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
     (Hdecl : TrInductDeclCore sourceEnv c.lparams nparams
       indTypes.toList sourceIsUnsafe decl envTypes envCtors)
@@ -2102,10 +2103,11 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
   refine Hcheck.bind fun _ Htypes => ?_
   have Hloop := AddInductive.declareRecursors.loop.semanticWF
       (elimLevel := elimLevel) Hcard Hdecl c R Hstats hconsume hlit
-      hctx hproj Hbindings Horigins Hblueprints HblueprintSemantics
+      hctx Hbindings Horigins Hblueprints HblueprintSemantics
       HminorSources HminorSemantics Hparams hnoalias hcounts hparameterUp Hseed
       (recInfos.flatMap (·.minors)).size
-      (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList k
+      (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
+      rfl rfl k
       (c.safety != .safe) c.allowPrimitive rfl 0 (by omega) c.env
       Hvalid VEnv.LE.rfl
       (Htypes.recursorInfoTranslation k) hnprim
