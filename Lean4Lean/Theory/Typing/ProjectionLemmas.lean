@@ -365,5 +365,147 @@ theorem _root_.Lean4Lean.VInductDecl.ValidIndAppAt.instOuter {decl : VInductDecl
     rw [List.map_append, hparams, decl.paramVars_instOuter args h]
   · simp [hlen]
 
+/-- `Occurs a e d`: the term `a`, lifted over the `d` binders enclosing the position, occurs as a
+subterm of `e`. -/
+inductive _root_.Lean4Lean.VExpr.Occurs (a : VExpr) : VExpr → Nat → Prop
+  | refl : VExpr.Occurs a (a.liftN d) d
+  | appL : VExpr.Occurs a f d → VExpr.Occurs a (.app f x) d
+  | appR : VExpr.Occurs a x d → VExpr.Occurs a (.app f x) d
+  | lamA : VExpr.Occurs a A d → VExpr.Occurs a (.lam A b) d
+  | lamB : VExpr.Occurs a b (d + 1) → VExpr.Occurs a (.lam A b) d
+  | forallA : VExpr.Occurs a A d → VExpr.Occurs a (.forallE A b) d
+  | forallB : VExpr.Occurs a b (d + 1) → VExpr.Occurs a (.forallE A b) d
+  | proj : VExpr.Occurs a e d → VExpr.Occurs a (.proj n i e) d
+
+/-- Instantiation acts on the occurring subterm. -/
+theorem _root_.Lean4Lean.VExpr.Occurs.inst (H : VExpr.Occurs b E d) (x : VExpr) (j : Nat) :
+    VExpr.Occurs (b.inst x j) (E.inst x (j + d)) d := by
+  induction H with
+  | @refl d' =>
+    have := VExpr.liftN_instN_lo d' b x j 0 (Nat.zero_le _)
+    rw [Nat.add_comm] at this
+    rw [← this]
+    exact .refl
+  | appL _ ih => exact .appL ih
+  | appR _ ih => exact .appR ih
+  | lamA _ ih => exact .lamA ih
+  | lamB _ ih => exact .lamB (by simpa [Nat.add_assoc] using ih)
+  | forallA _ ih => exact .forallA ih
+  | forallB _ ih => exact .forallB (by simpa [Nat.add_assoc] using ih)
+  | proj _ ih => exact .proj ih
+
+theorem _root_.Lean4Lean.VExpr.Occurs.instOuter (H : VExpr.Occurs b E 0) (args : List VExpr) :
+    VExpr.Occurs (b.instOuter args) (E.instOuter args) 0 := by
+  induction args generalizing b E with
+  | nil => exact H
+  | cons a as ih =>
+    simp only [VExpr.instOuter_cons]
+    exact ih (by simpa using H.inst a as.length)
+
+/-- A free variable occurs. -/
+theorem _root_.Lean4Lean.VExpr.Occurs.of_not_skips' :
+    ∀ (E : VExpr) (d : Nat), ¬ E.Skips' 1 (k + d) → VExpr.Occurs (.bvar k) E d := by
+  intro E
+  induction E with
+  | bvar i =>
+    intro d h
+    simp only [VExpr.Skips', Classical.not_imp, Nat.not_lt] at h
+    obtain rfl : i = k + d := by omega
+    have : VExpr.bvar (k + d) = (VExpr.bvar k).liftN d := by
+      simp [VExpr.liftN, liftVar, Nat.add_comm]
+    rw [this]; exact .refl
+  | sort | const => intro _ h; exact (h trivial).elim
+  | app f x ihf ihx =>
+    intro d h
+    simp only [VExpr.Skips', not_and] at h
+    by_cases hf : f.Skips' 1 (k + d)
+    · exact .appR (ihx d (h hf))
+    · exact .appL (ihf d hf)
+  | lam A b ihA ihb =>
+    intro d h
+    simp only [VExpr.Skips', not_and] at h
+    by_cases hA : A.Skips' 1 (k + d)
+    · exact .lamB (ihb (d + 1) (by simpa [Nat.add_assoc] using h hA))
+    · exact .lamA (ihA d hA)
+  | forallE A b ihA ihb =>
+    intro d h
+    simp only [VExpr.Skips', not_and] at h
+    by_cases hA : A.Skips' 1 (k + d)
+    · exact .forallB (ihb (d + 1) (by simpa [Nat.add_assoc] using h hA))
+    · exact .forallA (ihA d hA)
+  | proj _ _ e ih => intro d h; exact .proj (ih d h)
+
+/-- A subterm of a well-formed term is well formed, below the binders enclosing it. -/
+theorem _root_.Lean4Lean.VExpr.WF.of_occurs (henv : VEnv.WF env) {a : VExpr} :
+    ∀ {e : VExpr} (Δ : List VExpr), VExpr.Occurs a e Δ.length →
+      OnCtx (Δ ++ Γ) (env.IsType U) → VExpr.WF env U (Δ ++ Γ) e → VExpr.WF env U Γ a := by
+  intro e Δ H
+  generalize hd : Δ.length = d at H
+  induction H generalizing Δ with
+  | refl =>
+    intro hΓ' H
+    subst hd
+    exact (IsDefEqU.weakN_iff henv hΓ' (.zero Δ)).1 H
+  | appL _ ih =>
+    intro hΓ' H
+    have ⟨_, _, hf, _⟩ := H.app_inv henv.ordered hΓ'
+    exact ih Δ hd hΓ' ⟨_, hf⟩
+  | appR _ ih =>
+    intro hΓ' H
+    have ⟨_, _, _, hx⟩ := H.app_inv henv.ordered hΓ'
+    exact ih Δ hd hΓ' ⟨_, hx⟩
+  | lamA _ ih =>
+    intro hΓ' H
+    have ⟨⟨_, hA⟩, _⟩ := H.lam_inv henv.ordered hΓ'
+    exact ih Δ hd hΓ' ⟨_, hA⟩
+  | @lamB _ _ A _ ih =>
+    intro hΓ' H
+    have ⟨⟨_, hA⟩, hb⟩ := H.lam_inv henv.ordered hΓ'
+    exact ih (A :: Δ) (by simp [hd]) ⟨hΓ', _, hA⟩ hb
+  | forallA _ ih =>
+    intro hΓ' H
+    have ⟨_, H⟩ := H
+    have ⟨⟨_, hA⟩, _⟩ := HasType.forallE_inv henv.ordered H
+    exact ih Δ hd hΓ' ⟨_, hA⟩
+  | @forallB _ _ A _ ih =>
+    intro hΓ' H
+    have ⟨_, H⟩ := H
+    have ⟨⟨_, hA⟩, _, hb⟩ := HasType.forallE_inv henv.ordered H
+    exact ih (A :: Δ) (by simp [hd]) ⟨hΓ', _, hA⟩ ⟨_, hb⟩
+  | proj _ ih =>
+    intro hΓ' H
+    have ⟨_, H⟩ := H
+    have ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ :=
+      HasType.proj_inv henv.ordered hΓ' H
+    exact ih Δ hd hΓ' ⟨_, hmajor.hasType.2⟩
+
+/-- Instantiating a variable that does not occur is irrelevant: the corresponding argument may be
+replaced by any other term. -/
+theorem _root_.Lean4Lean.VExpr.instOuter_set_of_skips :
+    ∀ (args : List VExpr) (E : VExpr), k < args.length → E.Skips 1 k →
+      E.instOuter args = E.instOuter (args.set (args.length - 1 - k) b) := by
+  intro args
+  induction args with
+  | nil => intro _ h; simp at h
+  | cons a as ih =>
+    intro E hk hs
+    obtain ⟨E', rfl⟩ := VExpr.skips_iff_exists.1 hs
+    simp only [List.length_cons] at hk
+    by_cases hkm : k = as.length
+    · subst hkm
+      simp [VExpr.inst_liftN]
+    · have hk' : k < as.length := by omega
+      have e1 : (VExpr.liftN 1 E' k).inst a as.length = VExpr.liftN 1 (E'.inst a (as.length - 1)) k := by
+        have := VExpr.liftN_instN_lo 1 E' a (as.length - 1) k (by omega)
+        rw [this]; congr 1; omega
+      have e2 : (VExpr.liftN 1 E' k).inst b as.length = VExpr.liftN 1 (E'.inst b (as.length - 1)) k := by
+        have := VExpr.liftN_instN_lo 1 E' b (as.length - 1) k (by omega)
+        rw [this]; congr 1; omega
+      have hidx : (a :: as).length - 1 - k = (as.length - 1 - k) + 1 := by simp; omega
+      rw [hidx, List.set_cons_succ]
+      simp only [VExpr.instOuter_cons, List.length_set]
+      rw [e1]
+      exact ih _ hk' .liftN
+
 end VEnv
 end Lean4Lean
