@@ -1070,5 +1070,68 @@ theorem _root_.Lean4Lean.List.forall₂_getElem {R : α → β → Prop} :
   | _, _, .cons _ H, i + 1, hi, hi' =>
     List.forall₂_getElem H i (by simpa using hi) (by simpa using hi')
 
+/-- Congruence along an application spine typed against a wrapped telescope. -/
+theorem IsDefEq.mkApps_congr (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)) :
+    ∀ {args args' : List VExpr} {f f' : VExpr} {doms : List VExpr} {body : VExpr},
+      env.IsDefEq U Γ f f' (VExpr.wrapForalls doms body) → args.length = doms.length →
+      args.length = args'.length →
+      (∀ j (hj : j < args.length) (hj' : j < doms.length) (hj'' : j < args'.length),
+        env.IsDefEq U Γ args[j] args'[j] (doms[j].instOuter (args.take j))) →
+      env.IsDefEq U Γ (VExpr.mkApps f args) (VExpr.mkApps f' args') (body.instOuter args) := by
+  intro args
+  induction args with
+  | nil =>
+    intro args' f f' doms body hf hlen hlen' _
+    cases doms with
+    | nil =>
+      cases args' with
+      | nil => simpa [VExpr.mkApps, VExpr.wrapForalls] using hf
+      | cons => simp at hlen'
+    | cons => simp at hlen
+  | cons a as ih =>
+    intro args' f f' doms body hf hlen hlen' hargs
+    cases doms with
+    | nil => simp at hlen
+    | cons d ds =>
+      cases args' with
+      | nil => simp at hlen'
+      | cons a' as' =>
+        simp only [List.length_cons, Nat.add_right_cancel_iff] at hlen hlen'
+        have hf' : env.IsDefEq U Γ f f' (.forallE d (VExpr.wrapForalls ds body)) := hf
+        have ha : env.IsDefEq U Γ a a' d := hargs 0 (by simp) (by simp) (by simp)
+        have hfa := hf'.appDF ha
+        rw [VExpr.wrapForalls_inst] at hfa
+        have := ih (args' := as') hfa (by simpa using hlen) hlen' fun j hj hj' hj'' => by
+          have := hargs (j + 1) (by simpa using hj) (by simpa using hj') (by simpa using hj'')
+          simp only [List.getElem_cons_succ, List.take_succ_cons, VExpr.instOuter_cons,
+            List.length_take] at this
+          have hj0 : j < as.length := by simpa using hj
+          rw [Nat.min_eq_left (Nat.le_of_lt hj0)] at this
+          simpa [VExpr.instDomains_getElem ds a 0 j (by simpa using hj')] using this
+        simpa [VExpr.mkApps, hlen] using this
+
+/-- Domains at the same position of two definitionally equal telescopes, instantiated by
+pointwise definitionally equal arguments, are definitionally equal. -/
+theorem InstForallsC.domain_defeq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    {dl dl₀ : List VExpr} {body body₀ : VExpr} {args' bs : List VExpr} {m : Nat}
+    (Hw : InstForallsC env U Γ (VExpr.wrapForalls dl body) args' res)
+    (hlen : args'.length = dl.length) (hlen₀ : dl₀.length = dl.length) (hm : m < dl.length)
+    (hT : env.IsDefEqU U Γ (VExpr.wrapForalls dl₀ body₀) (VExpr.wrapForalls dl body))
+    (hbs : bs.length = m) (hbsE : List.Forall₂ (env.IsDefEqU U Γ) bs (args'.take m)) :
+    env.IsDefEqU U Γ ((dl₀[m]'(by omega)).instOuter bs) (dl[m].instOuter (args'.take m)) := by
+  rw [VExpr.wrapForalls_split dl body m hm, ← List.take_append_drop m args'] at Hw
+  obtain ⟨midR, HwR, _⟩ := Hw.append_inv
+  have hmidR := HwR.wrapForalls_eq (by simp; omega)
+  rw [VExpr.instOuter_forallE] at hmidR
+  rw [VExpr.wrapForalls_split dl₀ body₀ m (by omega), VExpr.wrapForalls_split dl body m hm] at hT
+  obtain ⟨midL, HwL, hmid⟩ := InstForallsC.of_defeq henv hΓ HwR hT hbsE (by
+    rw [show bs.length = (dl₀.take m).length by simp; omega]
+    exact VExpr.takeForalls_wrapForalls _ _)
+  have hmidL := HwL.wrapForalls_eq (by simp; omega)
+  rw [VExpr.instOuter_forallE] at hmidL
+  subst hmidL hmidR
+  have ⟨⟨_, hDeq⟩, _⟩ := hmid.forallE_inv henv hΓ
+  exact ⟨_, hDeq⟩
+
 end VEnv
 end Lean4Lean
