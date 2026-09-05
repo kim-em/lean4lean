@@ -26,6 +26,19 @@ inductive InstForalls (env : VEnv) (U : Nat) (Γ : List VExpr) :
   | vacuous : InstForalls env U Γ B args res →
       InstForalls env U Γ (.forallE A B.lift) (a :: args) res
 
+/-- The typed-only walk: every argument is typed at its binder. -/
+inductive InstForallsC (env : VEnv) (U : Nat) (Γ : List VExpr) :
+    VExpr → List VExpr → VExpr → Prop
+  | nil : InstForallsC env U Γ T [] T
+  | cons : env.HasType U Γ a A → InstForallsC env U Γ (B.inst a) args res →
+      InstForallsC env U Γ (.forallE A B) (a :: args) res
+
+theorem InstForallsC.toInstForalls (H : InstForallsC env U Γ T args res) :
+    InstForalls env U Γ T args res := by
+  induction H with
+  | nil => exact .nil
+  | cons ha _ ih => exact .cons ha ih
+
 /-- The walk is congruent under definitional equality of the telescope and of the arguments. -/
 theorem InstForalls.defeq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     (H : InstForalls env U Γ T args res) (H' : InstForalls env U Γ T' args' res')
@@ -150,7 +163,7 @@ every argument is typed at its binder, and the whole application has the residua
 theorem HasType.mkApps_telescope (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     (hf : env.HasType U Γ f T) (H : VExpr.WF env U Γ (VExpr.mkApps f args))
     (hT : T.takeForalls args.length = some (doms, rest)) :
-    ∃ res, InstForalls env U Γ T args res ∧ env.HasType U Γ (VExpr.mkApps f args) res := by
+    ∃ res, InstForallsC env U Γ T args res ∧ env.HasType U Γ (VExpr.mkApps f args) res := by
   induction args generalizing f T doms rest with
   | nil => exact ⟨_, .nil, by simpa [VExpr.mkApps] using hf⟩
   | cons a args ih =>
@@ -344,19 +357,22 @@ theorem _root_.Lean4Lean.VExpr.mkApps_getAppFnArgs_eq (e : VExpr) :
 corresponding arguments. -/
 theorem _root_.Lean4Lean.VInductDecl.ValidIndAppAt.instOuter {decl : VInductDecl}
     (H : decl.ValidIndAppAt (some typeName) depth result)
+    (hfn : result.getAppFnArgs.1 = .const typeName levels)
     (args : List VExpr) (h : args.length = depth + decl.nparams) :
-    ∃ levels indices, result.instOuter args =
+    ∃ indices, result.instOuter args =
         VExpr.mkApps (.const typeName levels) (args.take decl.nparams ++ indices) ∧
-      levels.length = decl.uvars ∧
       ∃ type ∈ decl.types, type.name = typeName ∧ indices.length = type.numIndices := by
-  obtain ⟨type, htype, hname, levels, hfn, hlevels, hlen, hparams, -⟩ := H
+  obtain ⟨type, htype, hname, levels', hfn', hlevels, hlen, hparams, -⟩ := H
   rcases hname with hname | hname
   · cases hname
   cases Option.some.inj hname
+  have hfn'' : (VExpr.getAppFnArgs.go result []).1 = .const type.name levels := hfn
+  rw [hfn'] at hfn''
+  cases hfn''
   have hresult := VExpr.mkApps_getAppFnArgs_eq result
-  rw [hfn] at hresult
+  rw [hfn'] at hresult
   generalize hxs : (VExpr.getAppFnArgs.go result []).2 = xs at hlen hparams hresult
-  refine ⟨levels, (xs.drop decl.nparams).map (·.instOuter args), ?_, hlevels, type, htype, rfl, ?_⟩
+  refine ⟨(xs.drop decl.nparams).map (·.instOuter args), ?_, type, htype, rfl, ?_⟩
   · have e1 : result.instOuter args = ((VExpr.const type.name levels).mkApps xs).instOuter args := by
       rw [hresult]
     rw [e1, VExpr.instOuter_mkApps, VExpr.instOuter_const]
@@ -685,6 +701,175 @@ theorem _root_.Lean4Lean.VProjectionInfo.fieldType_eq_instOuter (info : VProject
   rw [VExpr.instDomsAt_getElem _ _ _ _ (by simp; omega), List.getElem_drop, List.getElem_map,
     VExpr.instOuter_eq_instOuterAt, VExpr.instOuterAt_append]
   simp [hparams]
+
+theorem _root_.Lean4Lean.VLevel.params_map_inst (ls : List VLevel) (h : ls.length = n) :
+    (VLevel.params n).map (·.inst ls) = ls := by
+  apply List.ext_getElem
+  · simp [h]
+  · intro j h1 h2
+    simp [VLevel.params, VLevel.inst, List.getD_eq_getElem?_getD, h2]
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instOuterAt_forallE (A B : VExpr) (args : List VExpr) (k : Nat) :
+    (VExpr.forallE A B).instOuterAt args k =
+      .forallE (A.instOuterAt args k) (B.instOuterAt args (k + 1)) := by
+  induction args generalizing A B with
+  | nil => rfl
+  | cons a as ih => simp [VExpr.inst, ih, Nat.add_right_comm]
+
+theorem _root_.Lean4Lean.VExpr.instOuter_forallE (A B : VExpr) (args : List VExpr) :
+    (VExpr.forallE A B).instOuter args = .forallE (A.instOuter args) (B.instOuterAt args 1) := by
+  simp [VExpr.instOuter_eq_instOuterAt]
+
+theorem _root_.Lean4Lean.List.forall₂_append_split {R : α → β → Prop} :
+    ∀ {a : List α} {c : List β} {b : List α} {d : List β}, List.Forall₂ R (a ++ b) (c ++ d) →
+      a.length = c.length → List.Forall₂ R a c ∧ List.Forall₂ R b d
+  | [], [], _, _, H, _ => ⟨.nil, H⟩
+  | _ :: _, [], _, _, _, h => by simp at h
+  | [], _ :: _, _, _, _, h => by simp at h
+  | _ :: a, _ :: c, b, d, .cons h H, hl => by
+    have ⟨h1, h2⟩ := List.forall₂_append_split H (by simpa using hl)
+    exact ⟨.cons h h1, h2⟩
+
+/-- Universe-level congruence for a closed type. -/
+theorem IsType.instL_defeq (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
+    (H : env.IsType U' [] e)
+    (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
+    env.IsDefEqU U Γ (e.instL ls) (e.instL ls') := by
+  have ⟨s, H⟩ := H
+  have Hs := H.strong henv (by trivial)
+  have H1 : env.IsDefEqStrong U [] (e.instL ls) (e.instL ls) ((VExpr.sort s).instL ls) :=
+    Hs.instL hls
+  have H2 := (EqUpToLevels.instL hls hls' heq Hs).2
+  have H3 := (EqUpToLevels.refl (by trivial) H1).1
+  have := EqUpToLevels.defeq henv henv.strong (by trivial) H1 H3 H2
+  exact ⟨_, this.defeq.weak0 henv⟩
+
+/-- An application spine typed against a wrapped telescope: every argument is typed at its
+instantiated domain, and the application at the instantiated body. -/
+theorem HasType.mkApps_wrapForalls (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)) :
+    ∀ {args : List VExpr} {f : VExpr} {doms : List VExpr} {body : VExpr},
+      env.HasType U Γ f (VExpr.wrapForalls doms body) →
+      VExpr.WF env U Γ (VExpr.mkApps f args) → args.length = doms.length →
+      (∀ j (hj : j < args.length) (hj' : j < doms.length),
+        env.HasType U Γ args[j] (doms[j].instOuter (args.take j))) ∧
+      env.HasType U Γ (VExpr.mkApps f args) (body.instOuter args) := by
+  intro args
+  induction args with
+  | nil =>
+    intro f doms body hf H hlen
+    cases doms with
+    | nil => exact ⟨fun _ h => by simp at h, by simpa [VExpr.mkApps, VExpr.wrapForalls] using hf⟩
+    | cons => simp at hlen
+  | cons a as ih =>
+    intro f doms body hf H hlen
+    cases doms with
+    | nil => simp at hlen
+    | cons d ds =>
+      simp only [List.length_cons, Nat.add_right_cancel_iff] at hlen
+      have hf' : env.HasType U Γ f (.forallE d (VExpr.wrapForalls ds body)) := hf
+      have hfa : VExpr.WF env U Γ (.app f a) :=
+        VExpr.WF.of_mkApps henv.ordered hΓ (f := .app f a) (by simpa [VExpr.mkApps] using H)
+      have ⟨A', B', hf'', ha'⟩ := hfa.app_inv henv.ordered hΓ
+      have ⟨⟨_, hA⟩, _, hB'⟩ := (hf'.uniqU henv hΓ hf'').forallE_inv henv hΓ
+      have ha : env.HasType U Γ a d := ha'.defeqU_r henv hΓ ⟨_, hA.symm⟩
+      have hfa' : env.HasType U Γ (.app f a) ((VExpr.wrapForalls ds body).inst a) := hf'.app ha
+      rw [VExpr.wrapForalls_inst] at hfa'
+      have ⟨ih1, ih2⟩ := ih hfa' (by simpa [VExpr.mkApps] using H) (by simpa using hlen)
+      refine ⟨fun j hj hj' => ?_, by simpa [VExpr.mkApps, hlen] using ih2⟩
+      cases j with
+      | zero => simpa using ha
+      | succ j =>
+        have := ih1 j (by simpa using hj) (by simpa using hj')
+        simp only [List.getElem_cons_succ, List.take_succ_cons, VExpr.instOuter_cons,
+          List.length_take]
+        have hj' : j < as.length := by simpa using hj
+        rw [Nat.min_eq_left (Nat.le_of_lt hj')]
+        simpa [VExpr.instDomains_getElem ds a 0 j (by omega)] using this
+
+/-- Rebuild a typed walk from a typed walk over pointwise definitionally equal arguments, provided
+the telescope is syntactically long enough. -/
+theorem InstForallsC.of_defeq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)) :
+    ∀ {args args' : List VExpr} {T T' res' : VExpr} {domsRest : List VExpr × VExpr},
+      InstForallsC env U Γ T' args' res' → env.IsDefEqU U Γ T T' →
+      List.Forall₂ (env.IsDefEqU U Γ) args args' →
+      T.takeForalls args.length = some domsRest →
+      ∃ res, InstForallsC env U Γ T args res ∧ env.IsDefEqU U Γ res res' := by
+  intro args
+  induction args with
+  | nil =>
+    intro args' T T' res' _ H' hT hargs _
+    cases hargs; cases H'; exact ⟨_, .nil, hT⟩
+  | cons a as ih =>
+    intro args' T T' res' domsRest H' hT hargs hdoms
+    cases hargs with | cons haa hargs
+    cases T <;> simp [VExpr.takeForalls] at hdoms
+    case forallE A B =>
+      obtain ⟨doms', rest', hB, -⟩ := hdoms
+      cases H' with
+      | cons ha' H' =>
+        have ⟨⟨_, hA⟩, _, hBB⟩ := hT.forallE_inv henv hΓ
+        have ha : env.HasType U Γ a A :=
+          (haa.of_r henv hΓ (ha'.defeqU_r henv hΓ ⟨_, hA.symm⟩)).hasType.1
+        have hinst := IsDefEq.instDF henv.ordered hΓ hBB (haa.of_l henv hΓ ha)
+        obtain ⟨_, hB'⟩ := VExpr.takeForalls_inst (a := a) (k := 0) hB
+        have ⟨res, H1, H2⟩ := ih H' ⟨_, hinst⟩ hargs hB'
+        exact ⟨res, .cons ha H1, H2⟩
+
+theorem InstForallsC.append_inv (H : InstForallsC env U Γ T (xs ++ ys) res) :
+    ∃ mid, InstForallsC env U Γ T xs mid ∧ InstForallsC env U Γ mid ys res := by
+  induction xs generalizing T with
+  | nil => exact ⟨_, .nil, H⟩
+  | cons x xs ih =>
+    cases H with
+    | cons hx H =>
+      have ⟨mid, h1, h2⟩ := ih H
+      exact ⟨mid, .cons hx h1, h2⟩
+
+theorem InstForallsC.wrapForalls_eq (H : InstForallsC env U Γ (VExpr.wrapForalls doms body) args res)
+    (hlen : args.length = doms.length) : res = body.instOuter args :=
+  H.toInstForalls.wrapForalls_eq hlen
+
+theorem _root_.Lean4Lean.List.Forall₂.append' {R : α → β → Prop} {a b : List α} {c d : List β}
+    (h1 : List.Forall₂ R a c) (h2 : List.Forall₂ R b d) : List.Forall₂ R (a ++ b) (c ++ d) := by
+  induction h1 with
+  | nil => exact h2
+  | cons h _ ih => exact .cons h ih
+
+/-- Argument lists that differ only at variables the body does not use instantiate it identically. -/
+theorem _root_.Lean4Lean.VExpr.instOuter_congr_of_skips :
+    ∀ (args args₂ : List VExpr) (E : VExpr), args.length = args₂.length →
+      (∀ k (hk : k < args.length) (hk₂ : k < args₂.length), args[k] ≠ args₂[k] →
+        E.Skips 1 (args.length - 1 - k)) →
+      E.instOuter args = E.instOuter args₂ := by
+  intro args
+  induction args with
+  | nil => intro args₂ E hlen _; cases args₂ <;> simp_all
+  | cons a as ih =>
+    intro args₂ E hlen hdiff
+    cases args₂ with
+    | nil => simp at hlen
+    | cons b bs =>
+      simp only [List.length_cons, Nat.add_right_cancel_iff] at hlen
+      simp only [VExpr.instOuter_cons]
+      have hstep : E.inst a as.length = E.inst b bs.length := by
+        by_cases hab : a = b
+        · rw [hab, hlen]
+        · have := hdiff 0 (by simp) (by simp) (by simpa using hab)
+          simp only [List.length_cons, Nat.add_sub_cancel, Nat.sub_zero] at this
+          obtain ⟨E', rfl⟩ := VExpr.skips_iff_exists.1 this
+          rw [VExpr.inst_liftN, ← hlen, VExpr.inst_liftN]
+      rw [hstep]
+      refine ih bs (E.inst b bs.length) hlen fun k hk hk₂ hne => ?_
+      have := hdiff (k + 1) (by simpa using hk) (by simpa using hk₂) (by simpa using hne)
+      simp only [List.length_cons] at this
+      have hk' : k < bs.length := hk₂
+      rw [show as.length + 1 - 1 - (k + 1) = bs.length - 1 - k by omega] at this
+      obtain ⟨E', hE⟩ := VExpr.skips_iff_exists.1 this
+      rw [hE]
+      have := VExpr.liftN_instN_lo 1 E' b (bs.length - 1) (bs.length - 1 - k) (by omega)
+      rw [show 1 + (bs.length - 1) = bs.length by omega] at this
+      rw [← this, hlen]
+      exact .liftN
 
 end VEnv
 end Lean4Lean
