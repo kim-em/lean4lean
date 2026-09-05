@@ -592,13 +592,210 @@ theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : in
     have hmI : c.HasType m' (VExpr.mkApps (.const info.getMajorInduct lsI') AA') :=
       hT'.defeqU_r c.Ewf c.Δwf (hAdefeq.symm.trans c.Ewf c.Δwf hAA)
     exact ⟨_, (VEnv.IsDefEq.proofIrrel hIsort hmI hnewI).symm⟩
+theorem _root_.Lean.Expr.isConstOf_eq_true {e : Expr} {n : Name} (h : e.isConstOf n = true) :
+    ∃ ls, e = .const n ls := by
+  cases e <;> simp [Expr.isConstOf] at h
+  case const n' ls => subst h; exact ⟨ls, rfl⟩
+
+theorem foldl_app_proj (r : Expr) (n : Name) (e : Expr) (l : List Nat) :
+    l.foldl (fun r i => Expr.app r (.proj n i e)) r = r.mkAppList (l.map fun i => .proj n i e) := by
+  induction l generalizing r with
+  | nil => rfl
+  | cons i l ih => simp [ih]
+
 /-- Converting a term of structure type to its constructor applied to its projections yields a
 definitionally equal term, by structure eta. -/
 theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
     RecM.WF c s (toCtorWhenStruct c.env whnf inferType n w) fun r _ =>
       c.FVarsBelow w r ∧ c.TrExpr r w' := by
-  sorry
-
+  have hid : ∀ {s : VState}, RecM.WF c s (pure w) fun r _ =>
+      c.FVarsBelow w r ∧ c.TrExpr r w' :=
+    .pure ⟨.rfl, he.trExpr c.Ewf c.Δwf⟩
+  unfold toCtorWhenStruct
+  split <;> [exact hid; rename_i hguard]
+  have hnonrec : c.env.isNonRecStructure n = true := by
+    revert hguard; cases c.env.isNonRecStructure n <;> simp
+  refine (inferType.WF he).bind fun T _ _ ⟨T', hfvT, _, hTS, hT'⟩ => ?_
+  refine (whnf.WF hTS).bind fun A _ _ ⟨hfvA, A', hAS, hAdefeq⟩ => ?_
+  split <;> [exact hid; rename_i hisConst]
+  have hisConst' : A.getAppFn.isConstOf n = true := by simpa using hisConst
+  obtain ⟨lsI, hAfn⟩ := Expr.isConstOf_eq_true hisConst'
+  refine (inferType.WF hAS).bind fun TT _ _ ⟨TT', _, _, hTTS, hTT'⟩ => ?_
+  refine (whnf.WF hTTS).bind fun u₀ _ _ ⟨_, u₀', hu₀S, hu₀defeq⟩ => ?_
+  split <;> [skip; exact hid]
+  split <;> [rename_i u hnz; exact hid]
+  -- the structure
+  unfold Lean.Kernel.Environment.isNonRecStructure at hnonrec
+  split at hnonrec <;> [rename_i hfind; cases hnonrec]
+  rename_i ctor numNested isUnsafe isReflexive
+  obtain ⟨sInfo, hfind, hsingle, hnind⟩ : ∃ sInfo : InductiveVal,
+      c.env.find? n = some (.inductInfo sInfo) ∧ sInfo.ctors = [ctor] ∧ sInfo.numIndices = 0 :=
+    ⟨_, hfind, rfl, rfl⟩
+  unfold expandEtaStruct
+  rw [Expr.withApp_eq, hAfn]
+  simp only [getFirstCtor, hfind, hsingle, List.head?_cons, Option.bind_eq_bind, Option.bind_some]
+  split <;> [rename_i mkInfo hci; exact hid]
+  split <;> [exact hid; rename_i hsize]
+  simp only [bne_iff_ne, ne_eq, Classical.not_not] at hsize
+  rw [foldl_app_proj]
+  have hnullary : mkAppRange (Expr.const ctor lsI) 0 mkInfo.numParams A.getAppArgs =
+      (Expr.const ctor lsI).mkAppList A.getAppArgsList := by
+    refine Expr.mkAppRange_eq (l₁ := []) (l₃ := []) ?_ rfl ?_
+    · rw [Expr.getAppArgs_toList, List.nil_append, List.append_nil]
+    · rw [List.nil_append, ← Expr.getAppArgs_toList, Array.length_toList, hsize]
+  rw [hnullary, ← Expr.mkAppList_append]
+  show RecM.WF c _ (pure ((Expr.const ctor lsI).mkAppList _)) _
+  -- registry facts
+  obtain ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
+    hnp, hnf, hnf', hsp, hsi, hidxs, ⟨indType, hIc⟩, hsort, hparams⟩ :=
+    VContext.registryShape hfind hsingle hci
+  subst hname
+  have hnindices : info.nindices = 0 := hsi ▸ hnind
+  -- the structure type application
+  have hAS' : c.TrExprS ((Expr.const n lsI).mkAppList A.getAppArgsList) A' := by
+    rwa [← hAfn, A.mkAppList_getAppArgsList]
+  have ⟨_, stk⟩ := AppStack.build hAS'
+  obtain ⟨lsI', P', hlsI, rfl, hPargs, hAfull⟩ := stk.constantApplication
+  have hAA := hAS'.uniq c.Ewf (.refl c.Ewf c.Δwf) hAfull
+  have .const hlcI _ hlenI := stk.tr
+  rw [hIc] at hlcI; cases hlcI
+  have hlsI'len : lsI'.length = info.uvars :=
+    (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hlsI)).symm.trans hlenI
+  have hlsI'w := VLevel.WF.of_mapM_ofLevel hlsI
+  have hP'len : P'.length = info.nparams := by
+    rw [← Lean4Lean.List.Forall₂.length_eq hPargs, ← Expr.getAppArgs_toList, Array.length_toList,
+      hsize, hnp]
+  have htS : c.HasType w' (VExpr.mkApps (.const n lsI') P') :=
+    hT'.defeqU_r c.Ewf c.Δwf (hAdefeq.symm.trans c.Ewf c.Δwf hAA)
+  -- the sort of the structure type is never zero
+  cases hu₀S with | sort hu' => ?_
+  have hsortS : c.HasType (VExpr.mkApps (.const n lsI') P') (.sort _) :=
+    (hTT'.defeqU_r c.Ewf c.Δwf hu₀defeq.symm).defeqU_l c.Ewf c.Δwf hAA
+  have hsortC := hsort lsI' P' hlsI'len hP'len hnindices ⟨_, hsortS⟩
+  have hguard : (info.resultLevel.inst lsI').IsNeverZero :=
+    (ofLevel_isNeverZero hu' hnz).of_equiv ((hsortS.uniqU c.Ewf c.Δwf hsortC).sort_inv c.Ewf c.Δwf)
+  have hclosed : info.ctorType.Closed := by
+    have ⟨_, h⟩ := hwf
+    exact VExpr.WF.closedN c.Ewf.ordered ⟨_, h⟩ trivial
+  -- the constructor telescope
+  have hparamsT := hparams lsI' P' hlsI'len (by rw [hP'len, hnindices, Nat.add_zero]) ⟨_, hsortS⟩
+  have hcT : c.HasType (.const info.ctorName lsI')
+      (VExpr.wrapForalls (doms.map (VExpr.instL lsI')) (result.instL lsI')) := by
+    have := VEnv.HasType.const (Γ := c.vlctx.toCtx) hctor hlsI'w hlsI'len
+    rwa [hshape, VExpr.instL_wrapForalls] at this
+  have hΓdoms : OnCtx ((doms.map (VExpr.instL lsI')).reverse ++ c.vlctx.toCtx)
+      (c.venv.IsType c.lparams.length) := by
+    have ⟨_, h⟩ := hwf.instL hlsI'w
+    have := h.weak0 c.Ewf.ordered (Γ := c.vlctx.toCtx)
+    rw [hshape, VExpr.instL_wrapForalls] at this
+    exact (VEnv.IsType.wrapForalls_inv c.Ewf c.Δwf.toCtx ⟨_, this⟩).1
+  have hdl : (doms.map (VExpr.instL lsI')).length = doms.length := by simp
+  have hnfields : info.nparams + info.numFields = doms.length := by
+    rw [hnf', hnf]; omega
+  -- the projections are typed along the constructor's field binders
+  have hprojT : ∀ i (hi : i < info.numFields),
+      c.HasType (.proj n i w') ((doms[info.nparams + i]'(by omega) |>.instL lsI').instOuter
+        (P' ++ (List.range i).map fun j => VExpr.proj n j w')) := by
+    intro i
+    induction i using Nat.strongRecOn with
+    | _ i ih =>
+    intro hi
+    have hkd : info.nparams + i < doms.length := by omega
+    have hfieldk := VProjectionInfo.fieldType_eq_instOuter info hshape hlsI'len hP'len hkd
+      (typeName := n) (major := w')
+    have hFty : c.IsType ((doms[info.nparams + i].instL lsI').instOuter
+        (P' ++ (List.range i).map fun j => VExpr.proj n j w')) := by
+      have hdom := hΓdoms.reverse_getElem (info.nparams + i) (by simpa using hkd)
+      rw [List.getElem_map] at hdom
+      refine VEnv.IsType.instOuter_telescope c.Ewf
+        (doms := (doms.map (VExpr.instL lsI')).take (info.nparams + i)) hdom
+        (by simp [hP'len]; omega) ?_
+      intro j hj hj'
+      simp only [List.length_append, List.length_map, List.length_range, hP'len] at hj
+      simp only [List.length_take, List.length_map] at hj'
+      rw [List.getElem_take, List.getElem_map]
+      rcases Nat.lt_or_ge j info.nparams with hjp | hjp
+      · rw [List.getElem_append_left (by omega), List.take_append_of_le_length (by omega)]
+        exact hparamsT j hjp (by omega)
+      · obtain ⟨k, rfl⟩ : ∃ k, j = info.nparams + k := ⟨j - info.nparams, by omega⟩
+        have hidx : (P' ++ (List.range i).map fun j => VExpr.proj n j w')[info.nparams + k] =
+            .proj n k w' := by
+          rw [List.getElem_append_right (by omega)]
+          simp [hP'len]
+        have htake : (P' ++ (List.range i).map fun j => VExpr.proj n j w').take (info.nparams + k) =
+            P' ++ (List.range k).map fun j => VExpr.proj n j w' := by
+          rw [List.take_append, List.take_of_length_le (l := P') (by omega), hP'len,
+            Nat.add_sub_cancel_left, ← List.map_take, List.take_range, Nat.min_eq_left (by omega)]
+        rw [hidx, htake]
+        exact ih k (by omega) (by omega)
+    have ⟨fl, hFty⟩ := hFty
+    have := VEnv.IsDefEq.projDF hinfo hlsI'w hlsI'len hP'len (indexArgs := []) (by simp [hnindices])
+      hfieldk hFty (by rw [List.append_nil]; exact htS) (by rw [List.append_nil]; exact htS) hclosed
+      (Or.inl hguard)
+    exact this
+  -- the expanded constructor application
+  have hargsT : ∀ j (hj : j < (P' ++ (List.range info.numFields).map fun j => VExpr.proj n j w').length)
+      (hj' : j < (doms.map (VExpr.instL lsI')).length),
+      c.HasType (P' ++ (List.range info.numFields).map fun j => VExpr.proj n j w')[j]
+        ((doms.map (VExpr.instL lsI'))[j].instOuter
+          ((P' ++ (List.range info.numFields).map fun j => VExpr.proj n j w').take j)) := by
+    intro j hj hj'
+    simp only [List.length_append, hP'len, List.length_map, List.length_range] at hj
+    simp only [List.length_map] at hj'
+    rw [List.getElem_map]
+    rcases Nat.lt_or_ge j info.nparams with hjp | hjp
+    · rw [List.getElem_append_left (by omega), List.take_append_of_le_length (by omega)]
+      exact hparamsT j hjp hj'
+    · obtain ⟨k, rfl⟩ : ∃ k, j = info.nparams + k := ⟨j - info.nparams, by omega⟩
+      have hidx : (P' ++ (List.range info.numFields).map fun j => VExpr.proj n j w')[info.nparams + k]
+          = .proj n k w' := by
+        rw [List.getElem_append_right (by omega)]
+        simp [hP'len]
+      have htake : (P' ++ (List.range info.numFields).map fun j => VExpr.proj n j w').take
+          (info.nparams + k) = P' ++ (List.range k).map fun j => VExpr.proj n j w' := by
+        rw [List.take_append, List.take_of_length_le (l := P') (by omega), hP'len,
+          Nat.add_sub_cancel_left, ← List.map_take, List.take_range, Nat.min_eq_left (by omega)]
+      rw [hidx, htake]
+      exact hprojT k (by omega)
+  have hctorT := VEnv.HasType.mkApps_of_telescope c.Ewf c.Δwf.toCtx hcT
+    (by simp [hP'len]; omega) hargsT
+  -- its type is the structure type
+  have hhead' : (result.instL lsI').getAppFnArgs.1 = .const n lsI' := by
+    rw [VExpr.getAppFnArgs_instL]
+    show (result.getAppFnArgs.1.instL lsI') = _
+    rw [hhead]
+    simp [VExpr.instL, VLevel.params_map_inst lsI' (hlsI'len.trans hdu.symm)]
+  obtain ⟨idx', hresEq, type, htype, hname, hidxLen⟩ :=
+    (hvalid.instL lsI').instOuter hhead'
+      (P' ++ (List.range info.numFields).map fun j => VExpr.proj n j w') (by simp [hP'len]; omega)
+  have hidx' : idx' = [] := by
+    rw [hidxs type htype hname, hnindices] at hidxLen; exact List.eq_nil_of_length_eq_zero hidxLen
+  subst hidx'
+  rw [hresEq, List.append_nil, hdn, List.take_left' hP'len] at hctorT
+  have heta := VEnv.IsDefEq.structEta hinfo hP'len hnindices htS hctorT
+  -- the executable expansion translates to it
+  have hexpS : c.TrExprS ((Expr.const info.ctorName lsI).mkAppList
+      (A.getAppArgsList ++ (List.range mkInfo.numFields).map fun i => Expr.proj n i w))
+      (VExpr.mkApps (.const info.ctorName lsI')
+        (P' ++ (List.range info.numFields).map fun j => VExpr.proj n j w')) := by
+    refine TrExprS.mkAppList_of_wf (.const hctor hlsI hlenI) (hPargs.append' ?_) ⟨_, hctorT⟩
+    rw [← hnf']
+    refine List.forall₂_of_getElem (by simp) fun i hi hi' => ?_
+    simp only [List.getElem_map, List.getElem_range]
+    simp only [List.length_map, List.length_range] at hi
+    exact .proj he (.direct ⟨_, htS⟩ ⟨_, hprojT i hi⟩)
+  refine .pure ⟨?_, ⟨_, hexpS, ⟨_, heta⟩⟩⟩
+  intro P hP hfe
+  have hfA : FVarsIn P A := hfvA P hP (hfvT P hP hfe)
+  rw [FVarsIn.mkAppList]
+  refine ⟨?_, fun a ha => ?_⟩
+  · have := hfA
+    rw [← A.mkAppList_getAppArgsList, hAfn, FVarsIn.mkAppList] at this
+    exact this.1
+  · simp only [List.mem_append, List.mem_map, List.mem_range] at ha
+    rcases ha with ha | ⟨i, -, rfl⟩
+    · exact hfA.of_mem_getAppArgsList ha
+    · exact hfe
 /-- Inductive recursor reduction refines the stored rules. -/
 theorem inductiveReduceRec.WF (he : c.TrExprS e e') :
     RecM.WF c s (inductiveReduceRec c.env e whnf inferType isDefEq) fun oe _ =>

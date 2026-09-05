@@ -253,8 +253,8 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
   have hargsLen : args'.length = e₂.getAppArgsList.length :=
     (Lean4Lean.List.Forall₂.length_eq hargs).symm
   -- registry facts
-  have ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
-    hnp, hnf, hnf', hsp, hsi, hidxs, hsort, _⟩ := VContext.registryShape hfind hsingle hci
+  obtain ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
+    hnp, hnf, hnf', hsp, hsi, hidxs, -, hsort, -⟩ := VContext.registryShape hfind hsingle hci
   subst hname
   have hnindices : info.nindices = 0 := by
     rw [← hsi]
@@ -696,7 +696,7 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
   have ⟨args', hargs, htT''⟩ := stk.translatedArguments
   have .const hfc hls hlen := stk.tr
   have heq := htT'.uniq c.Ewf (.refl c.Ewf c.Δwf) htT''
-  have ⟨info, hinfo, _, decl, doms, result, _, _, _, _, _, _, _, _, _, _, hnf, hnp, hni, _, _⟩ :=
+  obtain ⟨info, hinfo, -, decl, doms, result, -, -, -, -, -, -, -, -, -, -, hnf, hnp, hni, -, -, -, -⟩ :=
     VContext.registryShape hci rfl hcci
   have hlenP : args'.length = info.nparams := by
     have h2 : tType.getAppNumArgs = _ := beq_iff_eq.1 harity

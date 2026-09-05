@@ -1104,6 +1104,67 @@ theorem HasType.mkApps_of_telescope (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.Is
       rw [VExpr.instDomains_getElem ds a 0 j (by simpa using hj')]
       rwa [show min j as.length = 0 + j by omega] at this
 
+/-- The entries of a reversed telescope context are types in their prefix contexts. -/
+theorem _root_.Lean4Lean.OnCtx.reverse_getElem {doms Γ : List VExpr} {P : List VExpr → VExpr → Prop}
+    (hΓ : OnCtx (doms.reverse ++ Γ) P) (j : Nat) (hj : j < doms.length) :
+    P ((doms.take j).reverse ++ Γ) doms[j] := by
+  induction doms generalizing Γ j with
+  | nil => simp at hj
+  | cons d ds ih =>
+    rw [List.reverse_cons, List.append_assoc, List.singleton_append] at hΓ
+    cases j with
+    | zero => exact (hΓ.of_append (Γ' := ds.reverse)).2
+    | succ j =>
+      have := ih (Γ := d :: Γ) hΓ j (by simpa using hj)
+      simpa [List.reverse_cons, List.append_assoc] using this
+
+/-- A typed defeq under a telescope, instantiated at arguments typed along the telescope. -/
+theorem IsDefEq.instOuter_telescope (henv : VEnv.WF env) :
+    ∀ {doms args : List VExpr} {Γ : List VExpr} {X Y T : VExpr},
+      env.IsDefEq U (doms.reverse ++ Γ) X Y T → args.length = doms.length →
+      (∀ j (hj : j < args.length) (hj' : j < doms.length),
+        env.HasType U Γ args[j] (doms[j].instOuter (args.take j))) →
+      env.IsDefEq U Γ (X.instOuter args) (Y.instOuter args) (T.instOuter args) := by
+  intro doms args
+  induction args generalizing doms with
+  | nil =>
+    intro Γ X Y T H hlen _
+    cases doms with
+    | nil => simpa using H
+    | cons _ _ => simp at hlen
+  | cons a as ih =>
+    intro Γ X Y T H hlen hty
+    cases doms with
+    | nil => simp at hlen
+    | cons d ds =>
+      simp only [List.length_cons] at hlen
+      have ha : env.HasType U Γ a d := by
+        have := hty 0 (by simp) (by simp)
+        simpa only [List.getElem_cons_zero, List.take_zero, VExpr.instOuter_nil] using this
+      have W : Ctx.InstN Γ a d (ds.length + 0) (ds.reverse ++ d :: Γ)
+          ((VExpr.instDomains ds a 0).reverse ++ Γ) := Ctx.InstN.reverse ds .zero
+      have H' : env.IsDefEq U (ds.reverse ++ d :: Γ) X Y T := by
+        simpa [List.reverse_cons, List.append_assoc] using H
+      have H'' := H'.instN henv.ordered ha W
+      simp only [VExpr.instOuter_cons]
+      rw [show as.length = ds.length + 0 by omega]
+      refine ih (doms := VExpr.instDomains ds a 0) H'' (by simpa using hlen) ?_
+      intro j hj hj'
+      have := hty (j + 1) (by simp; omega) (by simp; omega)
+      simp only [List.getElem_cons_succ, List.take_succ_cons, VExpr.instOuter_cons,
+        List.length_take] at this
+      rw [VExpr.instDomains_getElem ds a 0 j (by simpa using hj')]
+      rwa [show min j as.length = 0 + j by omega] at this
+
+/-- A telescope domain is a type after instantiation at arguments typed along the telescope. -/
+theorem IsType.instOuter_telescope (henv : VEnv.WF env) {doms args : List VExpr} {Γ : List VExpr}
+    {A : VExpr} (H : env.IsType U (doms.reverse ++ Γ) A) (hlen : args.length = doms.length)
+    (hty : ∀ j (hj : j < args.length) (hj' : j < doms.length),
+      env.HasType U Γ args[j] (doms[j].instOuter (args.take j))) :
+    env.IsType U Γ (A.instOuter args) :=
+  let ⟨u, h⟩ := H
+  ⟨u, by have := IsDefEq.instOuter_telescope henv h hlen hty; rwa [VExpr.instOuter_sort] at this⟩
+
 end VEnv
 
 end Lean4Lean

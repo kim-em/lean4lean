@@ -42,7 +42,7 @@ def expandEtaStruct (eType e : Expr) : Expr :=
   eType.withApp fun I args => Id.run do
   let .const I ls := I | return e
   let some ctor := getFirstCtor env I | return e
-  let some (.ctorInfo info) := env.find? ctor | unreachable!
+  let some (.ctorInfo info) := env.find? ctor | return e
   if args.size != info.numParams then return e
   let result := mkAppRange (.const ctor ls) 0 info.numParams args
   pure <| (List.range info.numFields).foldl (fun result i => .app result (.proj I i e)) result
@@ -57,7 +57,7 @@ def toCtorWhenStruct (inductName : Name) (e : Expr) : m Expr := do
     return e
   let eType ← whnf (← inferType e)
   if !eType.getAppFn.isConstOf inductName then return e
-  let .sort u ← whnf (← inferType eType) | unreachable!
+  let .sort u ← whnf (← inferType eType) | return e
   unless u.isNeverZero do return e
   return expandEtaStruct env eType e
 

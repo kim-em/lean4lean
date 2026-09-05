@@ -371,6 +371,8 @@ theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : Induc
       info.numFields = mkInfo.numFields ∧
       structInfo.numParams = info.nparams ∧ structInfo.numIndices = info.nindices ∧
       (∀ type ∈ decl.types, type.name = n → type.numIndices = info.nindices) ∧
+      -- the structure type constant has the constructor's universe parameters
+      (∃ indType, c.venv.constants n = some ⟨info.uvars, indType⟩) ∧
       (∀ (ls : List VLevel) (P : List VExpr), ls.length = info.uvars → P.length = info.nparams →
         info.nindices = 0 →
         (∃ u, c.HasType (VExpr.mkApps (.const n ls) P) (.sort u)) →
