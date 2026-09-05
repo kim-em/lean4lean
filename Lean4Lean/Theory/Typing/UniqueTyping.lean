@@ -54,9 +54,17 @@ theorem IsDefEq.uniq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     have e5 := IsDefEqU.sort_inv henv hΓ₂ ⟨_, h⟩
     exact ⟨_, .defeqDF (.sortDF e4 a2 e3.symm) (d3.instN henv a6.hasType .zero), _,
       e3.trans e5.symm, a7.mono le₁, b7.mono le₂⟩
-  | proj =>
-    intro (.proj ..)
-    sorry
+  | proj a1 a2 a3 a4 a5 a6 _ a8 a9 a10 a11 _ _ ih2 =>
+    intro (.proj b1 b2 b3 b4 b5 b6 _ b8 b9 b10 b11 _)
+    have ⟨_, c1, _, _, _⟩ := ih2 n IH hΓ (Nat.le_of_succ_le le₁) (Nat.le_of_succ_le le₂) b10
+    let n+1 := n
+    replace le₁ := Nat.le_of_succ_le_succ le₁
+    replace le₂ := Nat.le_of_succ_le_succ le₂
+    cases henv.ordered.projections_unique a1 b1
+    have ⟨d1, d2⟩ := IsDefEqU.fieldType_inv_stratified henv hΓ a1 a2 a3 a4 a5 a6
+      a9.hasType.1 b2 b3 b4 b5 b6 b9.hasType.1 a11
+      ⟨_, a9.trans (IsDefEq.defeqDF c1.symm b9).symm⟩ ⟨_, c1⟩ a8 b8
+    exact ⟨_, d1, _, rfl, a8.mono le₁, d2.mono le₂⟩
   | lam a1 a2 _ a4 _ _ ih3 =>
     intro (.lam b1 b2 b3 b4)
     have ⟨_, c1, _, c2, c3, c4⟩ := ih3 n IH ⟨hΓ, _, a1.hasType⟩

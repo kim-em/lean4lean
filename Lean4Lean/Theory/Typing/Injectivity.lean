@@ -31,6 +31,38 @@ theorem IsDefEqU.forallE_inv (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)
 theorem IsDefEqU.sort_forallE_inv (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)) :
     ¬env.IsDefEqU U Γ (.sort u) (.forallE A B) := sorry
 
+/-- Field types of one projection computed at definitionally equal major types are
+definitionally equal, at the sort recorded by the first typing, and the second field type can
+be retyped at that sort without increasing its stratification height.
+
+This is the projection analogue of `forallE_inv_stratified`, which likewise retypes the
+codomain of the second function type at the sort of the first. Its content is
+`structApp_inv` (the parameters and universe levels of the two major types agree), the
+congruence of `VProjectionInfo.fieldType` under definitional equality of its inputs, and
+uniqueness of the sort of a type; the last is what `IsDefEq.uniq` proves and cannot use while
+being proven, which is why the statement is recorded here as a conjecture. -/
+theorem IsDefEqU.fieldType_inv_stratified (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    (hinfo : env.projections typeName info)
+    (hlevels₁ : ∀ l ∈ levels₁, l.WF U) (huvars₁ : levels₁.length = info.uvars)
+    (hparams₁ : params₁.length = info.nparams) (hindices₁ : indexArgs₁.length = info.nindices)
+    (hfield₁ : info.fieldType typeName levels₁ params₁ index sourceMajor₁ = some fieldType₁)
+    (hsource₁ : env.HasType U Γ sourceMajor₁
+      (VExpr.mkApps (.const typeName levels₁) (params₁ ++ indexArgs₁)))
+    (hlevels₂ : ∀ l ∈ levels₂, l.WF U) (huvars₂ : levels₂.length = info.uvars)
+    (hparams₂ : params₂.length = info.nparams) (hindices₂ : indexArgs₂.length = info.nindices)
+    (hfield₂ : info.fieldType typeName levels₂ params₂ index sourceMajor₂ = some fieldType₂)
+    (hsource₂ : env.HasType U Γ sourceMajor₂
+      (VExpr.mkApps (.const typeName levels₂) (params₂ ++ indexArgs₂)))
+    (hclosed : info.ctorType.Closed)
+    (hmajor : env.IsDefEqU U Γ sourceMajor₁ sourceMajor₂)
+    (htypes : env.IsDefEqU U Γ
+      (VExpr.mkApps (.const typeName levels₁) (params₁ ++ indexArgs₁))
+      (VExpr.mkApps (.const typeName levels₂) (params₂ ++ indexArgs₂)))
+    (hF₁ : env.HasTypeStratified U Γ fieldType₁ (.sort fieldLevel₁) true n)
+    (hF₂ : env.HasTypeStratified U Γ fieldType₂ (.sort fieldLevel₂) true n') :
+    env.IsDefEq U Γ fieldType₁ fieldType₂ (.sort fieldLevel₁) ∧
+      env.HasTypeStratified U Γ fieldType₂ (.sort fieldLevel₁) true n' := sorry
+
 /-- A constant is *rigid* when no definitional rule of the environment is headed by it
 after stripping the lambda binders that wrap stored rules: it has no delta rule, and it is
 not a recursor. Inductive type constants are rigid. -/
