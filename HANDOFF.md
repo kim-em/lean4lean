@@ -20,7 +20,7 @@ The final theorems (`addInductiveDeclaration.inductiveFinalResultWF`,
 report `sorryAx`. A dependency trace (walk the constant graph with theorem
 bodies loaded via `ConstantInfo.value? (allowOpaque := true)`;
 script in `/tmp/l4l-audit/Audit2.lean` during the session) shows exactly
-eleven declarations that introduce `sorry` into that closure:
+nine declarations that introduce `sorry` into that closure:
 
 Theory (the injectivity/strengthening conjectures; `Injectivity.lean`,
 `UniqueTyping.lean`; the first four are also open on `master`):
@@ -35,14 +35,22 @@ Theory (the injectivity/strengthening conjectures; `Injectivity.lean`,
   structure and becomes redundant once rigidity is carried in the checking
   environment, see `EquationHeadsCoherent`)
 
-Checker (`Verify/TypeChecker/*`):
+Checker (`Verify/TypeChecker/Recursor.lean`):
 
-- `inferProj.WF` (projection type inference)
-- `VContext.registryShape` (projection registry facts for a checking context)
 - `VContext.recursorRules`, `VContext.quotCoherent` (recursor rule and quotient
   facts for a checking context; `Verify/Environment/Recursors.lean` has the
   predicates, their monotonicity, `AddQuot.quotCoherent`, and
-  `EquationHeadsCoherent` for rigidity)
+  `EquationHeadsCoherent` for rigidity). The plumbing task is specified in
+  `/tmp/l4l-specs/task-K1-recursor-coherence.md` (copy at `TASK-K1.md` in the
+  worktree `/home/kim/worktrees/lean4lean/l4l-agent-K1`, branch
+  `agent/verify-inductives-K1`), where it was in progress at the end of the
+  session.
+
+Every other checker step is proved: projection inference (`inferProj.WF`),
+projection reduction, structure eta, unit-like comparison, and the whole of
+recursor reduction, all against the projection registry that every checking
+environment now carries (`CheckingEnv.Valid.projectionRegistry`,
+`VContext.projectionRegistry`, `VContext.registryShape`).
 
 `Params` (Church–Rosser) is never instantiated; `HeadReduction.lean` and
 `ChurchRosser.lean` are a parameterized development that already depends on the
@@ -115,19 +123,6 @@ metatheory. Treat the injectivity conjectures as the known open core.
 
 ## Remaining work
 
-- Discharge `VContext.registryShape` from `ProjectionRegistryCoherent` /
-  `Ordered.projectionShape` once the registry is a `CheckingEnv` field. That refactor
-  (`CheckingEnv.Valid` gains `constructorOwners` and `projectionRegistry`; `c.lparams.Nodup`
-  threaded through the constructor phases; early registration) is on branch
-  `agent/verify-inductives-P` (worktree `/home/kim/worktrees/lean4lean/l4l-agent-P`, last commit
-  `7b098c5`), not merged. Its build still fails at: `Nested/OrderInsensitiveAlignment.lean`
-  (`AddConstants.validOfFreshPermutation` needs a registry-aware form of `AddConstants.valid`
-  for batches containing constructors), `PrimitiveAtomicInstallation.lean`
-  (`StagedContextWF.complete` must supply the two new fields for a partial primitive batch),
-  `Run/SemanticFormation.lean` (`declareConstructors.WF` now takes a
-  `CheckedConstructorsResult`), and `Nested/ConstructorParameterValidationSoundness.lean`
-  (`CheckingEnv.Valid.add` now takes a `ProjectionRegistryStep` for each restored header and
-  constructor).
 - Discharge `VContext.recursorRules`: carry `RecursorRulesCoherent` in `CheckingEnv.Valid` and
   `VContext` like `projectionRegistry`, and produce it at the inductive installation boundary
   from the recursor certificates (`BoundGeneratedRecursorRule.EquationTranslation` gives the
@@ -137,8 +132,6 @@ metatheory. Treat the injectivity conjectures as the known open core.
   The nested path must cover the auxiliary recursors' rules too. `VContext.quotCoherent` is the
   `quot` step of the trace (`TrEnv'.quot`, `AddQuot`); `Rigid` for inductive types and `Quot`
   needs the trace to record that no stored rule is headed by them.
-- `inferProj.WF` (Verify/TypeChecker/InferType.lean) is the last checker sorry (in progress in a
-  separate worktree at the end of the session).
 - Optional cleanup: several executable arity guards (divergences.md) exist only so that the
   verification never needs "an inductive type application is not a function type"; since
   `IsDefEqU.sort_forallE_inv` is already an accepted conjecture of the development, those guards
