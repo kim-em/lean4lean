@@ -139,6 +139,95 @@ theorem instOuter_range_bvar (X : VExpr) (j n : Nat) (hX : X.ClosedN j) (hj : j 
   congr 1
   omega
 
+/-- The first `n` of `total` binders, seen from under all `total` binders: the outermost binder
+first. -/
+def bvarRange (n total : Nat) : List VExpr :=
+  (List.range n).map fun j => VExpr.bvar (total - 1 - j)
+
+@[simp] theorem bvarRange_length (n total : Nat) : (bvarRange n total).length = n := by
+  simp [bvarRange]
+
+theorem bvarRange_getElem (n total : Nat) (j : Nat) (h : j < n) :
+    (bvarRange n total)[j]'(by simpa using h) = VExpr.bvar (total - 1 - j) := by
+  simp [bvarRange]
+
+theorem bvarRange_take (n total k : Nat) (h : k ≤ n) :
+    (bvarRange n total).take k = bvarRange k total := by
+  simp only [bvarRange, ← List.map_take, List.take_range, Nat.min_eq_left h]
+
+theorem bvarRange_zero (total : Nat) : bvarRange 0 total = [] := rfl
+
+@[simp] theorem instL_bvarRange (n total : Nat) (ls : List VLevel) :
+    (bvarRange n total).map (VExpr.instL ls) = bvarRange n total := by
+  simp [bvarRange, List.map_map, Function.comp_def, VExpr.instL]
+
+theorem bvarRange_map_liftN (n total k : Nat) (h : n ≤ total) :
+    (bvarRange n total).map (VExpr.liftN k) = bvarRange n (total + k) := by
+  simp only [bvarRange, List.map_map]
+  apply List.map_congr_left
+  intro j hj
+  simp only [List.mem_range] at hj
+  simp only [Function.comp_def, VExpr.liftN, liftVar_base']
+  congr 1
+  omega
+
+/-- Instantiating the variables of a binder range selects the corresponding arguments. -/
+theorem instOuter_bvarRange (n total : Nat) (args : List VExpr) (hn : n ≤ total)
+    (htot : total ≤ args.length) :
+    (bvarRange n total).map (·.instOuter args) = (args.drop (args.length - total)).take n := by
+  apply List.ext_getElem
+  · simp; omega
+  · intro j h1 h2
+    simp only [List.length_map, bvarRange_length] at h1
+    simp only [List.getElem_map, bvarRange_getElem n total j h1]
+    rw [instOuter_bvar args (by omega), List.getElem_take, List.getElem_drop]
+    congr 1
+    omega
+
+theorem instOuter_range_bvar' (X : VExpr) (j n : Nat) (hX : X.ClosedN j) (hj : j ≤ n) :
+    X.instOuter (bvarRange j n) = X.liftN (n - j) :=
+  instOuter_range_bvar X j n hX hj
+
+theorem _root_.Lean4Lean.Lookup.of_getElem : ∀ {Γ : List VExpr} {i : Nat} (h : i < Γ.length),
+    Lookup Γ i (Γ[i].liftN (i + 1))
+  | _ :: _, 0, _ => .zero
+  | _ :: Γ, i + 1, h => by
+    have := Lookup.of_getElem (Γ := Γ) (i := i) (by simpa using h)
+    simp only [List.getElem_cons_succ]
+    rw [VExpr.liftN_succ]
+    exact .succ this
+
+/-- The variable for the `j`-th binder of a reversed telescope. -/
+theorem _root_.Lean4Lean.Lookup.reverse_append (doms Γ : List VExpr) (j : Nat)
+    (hj : j < doms.length) :
+    Lookup (doms.reverse ++ Γ) (doms.length - 1 - j) (doms[j].liftN (doms.length - j)) := by
+  have := Lookup.of_getElem (Γ := doms.reverse ++ Γ) (i := doms.length - 1 - j) (by simp; omega)
+  rw [List.getElem_append_left (by simp; omega), List.getElem_reverse] at this
+  have e1 : doms.length - 1 - (doms.length - 1 - j) = j := by omega
+  have e2 : doms.length - 1 - j + 1 = doms.length - j := by omega
+  have e3 : doms[doms.length - 1 - (doms.length - 1 - j)]'(by omega) = doms[j] := by
+    congr 1
+  rwa [e3, e2] at this
+
+theorem ClosedN.of_mkApps_fn {fn : VExpr} {args : List VExpr}
+    (h : (VExpr.mkApps fn args).ClosedN k) : fn.ClosedN k := by
+  induction args generalizing fn with
+  | nil => exact h
+  | cons a as ih => exact (ih h).1
+
+theorem ClosedN.of_mkApps_arg {fn : VExpr} {args : List VExpr}
+    (h : (VExpr.mkApps fn args).ClosedN k) : ∀ a ∈ args, a.ClosedN k := by
+  induction args generalizing fn with
+  | nil => simp
+  | cons a as ih =>
+    simp only [VExpr.mkApps, List.foldl_cons] at h
+    have := ih h
+    intro b hb
+    simp only [List.mem_cons] at hb
+    rcases hb with rfl | hb
+    · exact (ClosedN.of_mkApps_fn h).2
+    · exact this b hb
+
 end VExpr
 namespace VEnv
 
@@ -282,6 +371,153 @@ theorem IsDefEqU.mkApps_congr_left (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsT
     have ⟨A, B, hf, ha⟩ := hfa.app_inv henv.ordered hΓ
     have hff' : env.IsDefEq U Γ f f' (.forallE A B) := H.of_l henv hΓ hf
     exact ih ⟨_, hff'.appDF ha⟩ hwf
+
+end VEnv
+
+/-! ## Shapes of recursors, constructors, and iota rules -/
+
+/-- The syntactic shape of a recursor's type: a telescope of parameters, motives, minors,
+indices, and the major premise, whose domain is the inductive type applied to the parameter and
+index variables. -/
+structure VRecursorShape (env : VEnv) (recName : Name)
+    (recUvars nparams nmotives nminors nindices : Nat) (indName : Name) (indLevels : List VLevel)
+    where
+  type : VExpr
+  const : env.constants recName = some ⟨recUvars, type⟩
+  doms : List VExpr
+  result : VExpr
+  type_eq : type = VExpr.wrapForalls doms result
+  doms_length : doms.length = nparams + nmotives + nminors + nindices + 1
+  major_eq : doms[nparams + nmotives + nminors + nindices]? =
+    some (VExpr.mkApps (.const indName indLevels)
+      (VExpr.bvarRange nparams (nparams + nmotives + nminors + nindices) ++
+        VExpr.bvarRange nindices nindices))
+
+/-- The syntactic shape of a constructor's type: a telescope of parameters and fields whose result
+is the inductive type at the universe parameters, applied to the parameter variables and index
+expressions. -/
+structure VConstructorShape (env : VEnv) (ctorName : Name) (ctorUvars nparams nfields : Nat)
+    (indName : Name) where
+  type : VExpr
+  const : env.constants ctorName = some ⟨ctorUvars, type⟩
+  doms : List VExpr
+  indices : List VExpr
+  type_eq : type = VExpr.wrapForalls doms
+    (VExpr.mkApps (.const indName (VLevel.params ctorUvars))
+      (VExpr.bvarRange nparams (nparams + nfields) ++ indices))
+  doms_length : doms.length = nparams + nfields
+
+/-- The syntactic shape of a stored iota rule: a closed lambda-wrapped equation over parameters,
+motives, minors, and fields, whose left-hand side is the recursor applied to the parameter,
+motive, and minor variables, index expressions, and the constructor applied to the parameter and
+field variables. -/
+structure VIotaRuleShape (env : VEnv) (recName : Name)
+    (recUvars nparams nmotives nminors nindices : Nat) (ctorName : Name) (ctorLevels : List VLevel)
+    (nfields : Nat) (df : VDefEq) where
+  defeq : env.defeqs df
+  uvars : df.uvars = recUvars
+  doms : List VExpr
+  lhsBody : VExpr
+  rhsBody : VExpr
+  typeBody : VExpr
+  lhs_eq : df.lhs = VExpr.wrapLams doms lhsBody
+  rhs_eq : df.rhs = VExpr.wrapLams doms rhsBody
+  type_eq : df.type = VExpr.wrapForalls doms typeBody
+  doms_length : doms.length = nparams + nmotives + nminors + nfields
+  indexArgs : List VExpr
+  indexArgs_length : indexArgs.length = nindices
+  lhs_pattern : lhsBody = VExpr.mkApps (.const recName (VLevel.params recUvars))
+    (VExpr.bvarRange (nparams + nmotives + nminors) doms.length ++ indexArgs ++
+      [VExpr.mkApps (.const ctorName ctorLevels)
+        (VExpr.bvarRange nparams doms.length ++ VExpr.bvarRange nfields nfields)])
+
+namespace VEnv
+
+variable {env : VEnv} {U : Nat}
+
+/-- A recursor application spine types its arguments along the recursor telescope; in particular
+the major premise is typed at the inductive type applied to the parameters and indices. -/
+theorem VRecursorShape.spine_typing (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    (H : VRecursorShape env recName recUvars nparams nmotives nminors nindices indName indLevels)
+    (hls : ∀ l ∈ ls, l.WF U) (hlsl : ls.length = recUvars)
+    {pre : List VExpr} (hpre : pre.length = nparams + nmotives + nminors + nindices)
+    {major : VExpr}
+    (hwf : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ [major]))) :
+    (∀ j (hj : j < pre.length) (hj' : j < (H.doms.map (VExpr.instL ls)).length),
+      env.HasType U Γ pre[j] ((H.doms.map (VExpr.instL ls))[j].instOuter (pre.take j))) ∧
+    env.HasType U Γ major (VExpr.mkApps (.const indName (indLevels.map (VLevel.inst ls)))
+      (pre.take nparams ++ pre.drop (nparams + nmotives + nminors))) := by
+  have hc := HasType.const (Γ := Γ) H.const hls (by simpa using hlsl)
+  rw [H.type_eq, VExpr.instL_wrapForalls] at hc
+  have hlen : (pre ++ [major]).length = (H.doms.map (VExpr.instL ls)).length := by
+    simp [hpre, H.doms_length]
+  have ⟨hargs, _⟩ := HasType.mkApps_wrapForalls henv hΓ hc hwf hlen
+  refine ⟨fun j hj hj' => ?_, ?_⟩
+  · have := hargs j (by simp; omega) hj'
+    rwa [List.getElem_append_left hj, List.take_append_of_le_length (by omega)] at this
+  · have := hargs pre.length (by simp) (by simp [hpre, H.doms_length])
+    rw [List.getElem_append_right (Nat.le_refl _), List.take_left, List.getElem_map] at this
+    simp only [Nat.sub_self, List.getElem_singleton] at this
+    have hmaj : H.doms[pre.length]'(by simp [hpre, H.doms_length]) =
+        VExpr.mkApps (.const indName indLevels)
+          (VExpr.bvarRange nparams (nparams + nmotives + nminors + nindices) ++
+            VExpr.bvarRange nindices nindices) := by
+      rw [List.getElem_eq_iff, ← H.major_eq, hpre]
+    rw [hmaj] at this
+    simp only [VExpr.instL_mkApps, VExpr.instL, List.map_append, VExpr.instL_bvarRange,
+      VExpr.instOuter_mkApps, VExpr.instOuter_const] at this
+    rw [VExpr.instOuter_bvarRange _ _ _ (by omega) (by omega),
+      VExpr.instOuter_bvarRange _ _ _ (Nat.le_refl _) (by omega)] at this
+    rw [hpre, Nat.sub_self, List.drop_zero] at this
+    rw [show nparams + nmotives + nminors + nindices - nindices = nparams + nmotives + nminors by
+      omega] at this
+    rwa [List.take_of_length_le (l := pre.drop (nparams + nmotives + nminors)) (i := nindices)
+      (by simp; omega)] at this
+
+/-- A constructor application spine types its arguments along the constructor telescope and has
+the inductive type at the instantiated indices. -/
+theorem VConstructorShape.spine_typing (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    (H : VConstructorShape env ctorName ctorUvars nparams nfields indName)
+    (hls : ∀ l ∈ cls, l.WF U) (hlsl : cls.length = ctorUvars)
+    {P fields : List VExpr} (hP : P.length = nparams) (hf : fields.length = nfields)
+    (hwf : VExpr.WF env U Γ (VExpr.mkApps (.const ctorName cls) (P ++ fields))) :
+    (∀ j (hj : j < (P ++ fields).length) (hj' : j < (H.doms.map (VExpr.instL cls)).length),
+      env.HasType U Γ (P ++ fields)[j]
+        ((H.doms.map (VExpr.instL cls))[j].instOuter ((P ++ fields).take j))) ∧
+    env.HasType U Γ (VExpr.mkApps (.const ctorName cls) (P ++ fields))
+      (VExpr.mkApps (.const indName cls)
+        (P ++ H.indices.map fun e => (e.instL cls).instOuter (P ++ fields))) := by
+  have hc := HasType.const (Γ := Γ) H.const hls (by simpa using hlsl)
+  rw [H.type_eq, VExpr.instL_wrapForalls] at hc
+  have hlen : (P ++ fields).length = (H.doms.map (VExpr.instL cls)).length := by
+    simp [hP, hf, H.doms_length]
+  have ⟨hargs, hres⟩ := HasType.mkApps_wrapForalls henv hΓ hc hwf hlen
+  refine ⟨hargs, ?_⟩
+  simp only [VExpr.instL_mkApps, VExpr.instL, List.map_append, VExpr.instL_bvarRange,
+    VExpr.instOuter_mkApps, VExpr.instOuter_const, List.map_map, Function.comp_def,
+    VLevel.params_map_inst cls hlsl] at hres
+  rw [VExpr.instOuter_bvarRange _ _ _ (by omega) (by simp; omega)] at hres
+  simp only [List.length_append, hP, hf, Nat.sub_self, List.drop_zero] at hres
+  rwa [List.take_append_of_le_length (by omega), List.take_of_length_le (by omega)] at hres
+
+/-- The bodies of a stored iota rule are typed under its telescope, at any universe levels. -/
+theorem VIotaRuleShape.body_typing (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    (H : VIotaRuleShape env recName recUvars nparams nmotives nminors nindices ctorName ctorLevels
+      nfields df)
+    (hls : ∀ l ∈ ls, l.WF U) :
+    OnCtx ((H.doms.map (VExpr.instL ls)).reverse ++ Γ) (env.IsType U) ∧
+    env.HasType U ((H.doms.map (VExpr.instL ls)).reverse ++ Γ) (H.lhsBody.instL ls)
+      (H.typeBody.instL ls) ∧
+    env.HasType U ((H.doms.map (VExpr.instL ls)).reverse ++ Γ) (H.rhsBody.instL ls)
+      (H.typeBody.instL ls) := by
+  have ⟨hl, hr⟩ := henv.ordered.defEqWF H.defeq
+  rw [H.lhs_eq, H.type_eq] at hl
+  rw [H.rhs_eq, H.type_eq] at hr
+  have hl' := (hl.instL hls).weak0 henv.ordered (Γ := Γ)
+  have hr' := (hr.instL hls).weak0 henv.ordered (Γ := Γ)
+  simp only [VExpr.instL_wrapLams, VExpr.instL_wrapForalls] at hl' hr'
+  have ⟨h1, h2⟩ := HasType.wrapLams_inv henv hΓ hl'
+  exact ⟨h1, h2, (HasType.wrapLams_inv henv hΓ hr').2⟩
 
 end VEnv
 
