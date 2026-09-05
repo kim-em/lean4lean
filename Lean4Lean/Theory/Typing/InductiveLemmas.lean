@@ -76,26 +76,26 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
       env.IsType decl.uvars [] ctor.type ∧
       (∃ params, decl.TypeShape env params type ∧
         decl.CtorParameterShape env params ctor) ∧
-      decl.RawCtorShape type ctor := by
+      decl.RawCtorShape type ctor ∧ decl.sourceNames.Nodup := by
   induction H with
   | empty => cases hproj
   | const _ _ hadd ih =>
     rw [VEnv.addConst_projections hadd] at hproj
     rcases ih hproj with ⟨decl, type, ctor, htype, hctor, hname, hctorUvars,
       huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
-      ⟨params, Hshape, Hparams⟩, Hraw⟩
+      ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
     have hle := VEnv.addConst_le hadd
     exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
       hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
-      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw⟩
+      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
   | @defeq env' df' _ _ ih =>
     rcases ih hproj with ⟨decl, type, ctor, htype, hctor, hname, hctorUvars,
       huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
-      ⟨params, Hshape, Hparams⟩, Hraw⟩
+      ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
     have hle : env' ≤ env'.addDefEq df' := VEnv.addDefEq_le
     exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
       hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
-      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw⟩
+      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
   | @inductProjections base envTypes envCtors decl block
       hbase hctorsOrdered hsource hconstructorUvars hctorsWF hparams hshape
       htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
@@ -134,15 +134,15 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
         rfl, rfl, hlookup, hwf,
         ⟨params, (Htypes type htype).mono hbaseLe,
           (Hctors type htype ctor hctorMem).mono hle⟩,
-        hshape type htype ctor hctorMem⟩
+        hshape type htype ctor hctorMem, hsource⟩
     · rcases ihCtors hold with ⟨decl', type, ctor, htype, hctor, hname, hctorUvars,
         huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
-        ⟨params, Hshape, Hparams⟩, Hraw⟩
+        ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
       have hle : envCtors ≤ envCtors.addProjections block.projections :=
         VEnv.addProjections_le
       exact ⟨decl', type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
         hindices, hlevel, hctorName, hctorType, hle.constants hlookup,
-        hwf.mono hle, ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw⟩
+        hwf.mono hle, ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
 
 /-- The field count recorded by a projection entry is the syntactic arity of
 its constructor type beyond the common parameters. -/
@@ -154,7 +154,7 @@ theorem Ordered.projectionShape_numFields {env : VEnv} (H : Ordered env)
       info.nparams ≤ doms.length ∧
       info.numFields = doms.length - info.nparams := by
   rcases H.projectionShape hproj with ⟨decl, type, ctor, _, _, _, _, _, hnparams,
-    _, _, _, hctorType, _, _, _, Hraw⟩
+    _, _, _, hctorType, _, _, _, Hraw, _⟩
   rcases Hraw.forallArity with ⟨doms, result, heq, hle, _, _, harity⟩
   refine ⟨doms, result, ?_, ?_, ?_⟩
   · rw [← hctorType, heq]

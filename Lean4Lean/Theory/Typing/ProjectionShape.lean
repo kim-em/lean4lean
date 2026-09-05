@@ -48,7 +48,7 @@ theorem Ordered.projectionShape_params (henv : VEnv.WF env)
           (.sort info.resultLevel) (.sort (.succ info.resultLevel)) := by
   rcases henv.ordered.projectionShape hproj with
     ⟨decl, type, ctor, _, _, _, _, huvars, hnparams, hindices, hlevel, _,
-      hctorType, hlookup, _, ⟨params, Hshape, Hparams⟩, _⟩
+      hctorType, hlookup, _, ⟨params, Hshape, Hparams⟩, _, _⟩
   rcases Hshape with
     ⟨normalized, ownParams, rest, indices, result, exprType, hnormalized,
       hownParams, hindicesTake, HownParams, hresult⟩

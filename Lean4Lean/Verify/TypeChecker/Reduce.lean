@@ -152,9 +152,13 @@ theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
   split <;> [rename_i mkInfo; exact .pure nofun]
   split <;> [rename_i structInfo hfind; exact .pure nofun]
   split <;> [rename_i hsingle; exact .pure nofun]
+  split <;> [rename_i hinduct; exact .pure nofun]
+  split <;> [rename_i hunsafe; exact .pure nofun]
   split <;> [rename_i harity; exact .pure nofun]
   refine .pure fun e₁ heq => ?_
   have hsingle := beq_iff_eq.1 hsingle
+  have hinduct := beq_iff_eq.1 hinduct
+  have hunsafe := beq_iff_eq.1 hunsafe
   have harity := beq_iff_eq.1 harity
   -- the constructor application spine
   have hc₁ : c.TrExprS ((Expr.const mkC ls).mkAppList c₁.getAppArgsList) c' := by
@@ -170,8 +174,9 @@ theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
       (.proj n i (VExpr.mkApps (.const mkC _) args')) F' :=
     .projDF hinfo hls₀ huv₀ hP₀ hidx₀ hfield hFty hsm (hsm.transU_l c.Ewf c.Δwf.toCtx hceq)
       hclosed hguard
+  obtain ⟨_, habstract⟩ := c.familyConstant hfind hci hunsafe hfc
   have ⟨info', hinfo', hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
-    hnp, hnf, _⟩ := VContext.registryShape hfind hsingle hci
+    hnp, hnf, _⟩ := VContext.registryShape hfind habstract hsingle hci hinduct
   obtain rfl := c.Ewf.ordered.projections_unique hinfo hinfo'
   subst hname
   -- the selected argument

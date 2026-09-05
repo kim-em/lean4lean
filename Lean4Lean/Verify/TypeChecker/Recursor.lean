@@ -642,10 +642,16 @@ theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
     ⟨_, hfind, rfl, rfl⟩
   unfold expandEtaStruct
   rw [Expr.withApp_eq, hAfn]
-  simp only [getFirstCtor, hfind, hsingle, List.head?_cons, Option.bind_eq_bind, Option.bind_some]
+  simp only [hfind, hsingle, List.head?_cons]
   split <;> [rename_i mkInfo hci; exact hid]
+  split <;> [exact hid; rename_i hguard']
   split <;> [exact hid; rename_i hsize]
   simp only [bne_iff_ne, ne_eq, Classical.not_not] at hsize
+  have hinduct : mkInfo.induct = n := by
+    revert hguard'; cases h : mkInfo.induct == n <;> simp [beq_iff_eq] at h ⊢ <;> simp [h]
+  have hunsafe : mkInfo.isUnsafe = sInfo.isUnsafe := by
+    revert hguard'; cases h : mkInfo.isUnsafe == sInfo.isUnsafe <;> simp [beq_iff_eq] at h ⊢ <;>
+      simp [h]
   rw [foldl_app_proj]
   have hnullary : mkAppRange (Expr.const ctor lsI) 0 mkInfo.numParams A.getAppArgs =
       (Expr.const ctor lsI).mkAppList A.getAppArgsList := by
@@ -654,12 +660,6 @@ theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
     · rw [List.nil_append, ← Expr.getAppArgs_toList, Array.length_toList, hsize]
   rw [hnullary, ← Expr.mkAppList_append]
   show RecM.WF c _ (pure ((Expr.const ctor lsI).mkAppList _)) _
-  -- registry facts
-  obtain ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
-    hnp, hnf, hnf', hsp, hsi, hidxs, ⟨indType, hIc⟩, hsort, hparams⟩ :=
-    VContext.registryShape hfind hsingle hci
-  subst hname
-  have hnindices : info.nindices = 0 := hsi ▸ hnind
   -- the structure type application
   have hAS' : c.TrExprS ((Expr.const n lsI).mkAppList A.getAppArgsList) A' := by
     rwa [← hAfn, A.mkAppList_getAppArgsList]
@@ -667,6 +667,12 @@ theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
   obtain ⟨lsI', P', hlsI, rfl, hPargs, hAfull⟩ := stk.constantApplication
   have hAA := hAS'.uniq c.Ewf (.refl c.Ewf c.Δwf) hAfull
   have .const hlcI _ hlenI := stk.tr
+  -- registry facts
+  obtain ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
+    hnp, hnf, hnf', hsp, hsi, hidxs, ⟨indType, hIc⟩, hsort, hparams⟩ :=
+    VContext.registryShape hfind hlcI hsingle hci hinduct
+  subst hname
+  have hnindices : info.nindices = 0 := hsi ▸ hnind
   rw [hIc] at hlcI; cases hlcI
   have hlsI'len : lsI'.length = info.uvars :=
     (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hlsI)).symm.trans hlenI

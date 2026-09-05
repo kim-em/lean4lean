@@ -1,6 +1,8 @@
 import Lean4Lean.Verify.Environment.Lemmas
 import Lean4Lean.Verify.Typing.ConditionallyTyped
 import Lean4Lean.Theory.Typing.ProjectionLemmas
+import Lean4Lean.Theory.Typing.RecursorLemmas
+import Lean4Lean.Theory.Typing.ProjectionShape
 import Lean4Lean.TypeChecker
 
 namespace Except
@@ -355,16 +357,32 @@ nonrec abbrev VContext.FVarsBelow (c : VContext) : Expr → Expr → Prop :=
 nonrec abbrev VContext.TrTyping (c : VContext) : Expr → Expr → VExpr → VExpr → Prop :=
   TrTyping c.venv c.lparams c.vlctx
 
+/-- The abstract constant of a structure whose constructor is present: the constructor's
+visibility transfers to the family when both record the same `isUnsafe` flag. -/
+theorem VContext.familyConstant (c : VContext) {n mkC : Name} {sInfo : InductiveVal}
+    {mkInfo : ConstructorVal} {ci' : VConstant}
+    (hfind : c.env.find? n = some (.inductInfo sInfo))
+    (hci : c.env.find? mkC = some (.ctorInfo mkInfo))
+    (hunsafe : mkInfo.isUnsafe = sInfo.isUnsafe)
+    (hfc : c.venv.constants mkC = some ci') :
+    ∃ ci, c.venv.constants n = some ci := by
+  obtain ⟨-, hsafe, -⟩ := c.trenv.find?_uniq hci hfc
+  have hvis : c.safety ≤ (ConstantInfo.inductInfo sInfo).safety := by
+    simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, hunsafe] using hsafe
+  exact c.trenv.find?_iff.1 ⟨_, hfind, hvis⟩
+
 /-- The facts about a single-constructor inductive and its constructor that the checker's
 projection, structure-eta and unit-like steps consume, read off the projection registry.
 
 TODO: derive from `c.projectionRegistry` and `Ordered.projectionShape` once every checking
 environment carries the projection registry. -/
 theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : InductiveVal}
-    {mkInfo : ConstructorVal}
+    {mkInfo : ConstructorVal} {familyConstant : VConstant}
     (hfind : c.env.find? n = some (.inductInfo structInfo))
+    (habstract : c.venv.constants n = some familyConstant)
     (hsingle : structInfo.ctors = [mkC])
-    (hci : c.env.find? mkC = some (.ctorInfo mkInfo)) :
+    (hci : c.env.find? mkC = some (.ctorInfo mkInfo))
+    (hinduct : mkInfo.induct = n) :
     ∃ info, c.venv.projections n info ∧ info.ctorName = mkC ∧
     ∃ (decl : VInductDecl) (doms : List VExpr) (result : VExpr),
       c.venv.IsType info.uvars [] info.ctorType ∧
@@ -391,7 +409,137 @@ theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : Induc
         (∃ u, c.HasType (VExpr.mkApps (.const n ls) args) (.sort u)) →
         ∀ k (hk : k < info.nparams) (hk' : k < doms.length),
           c.HasType (args[k]'(by rw [hargs]; omega)) ((doms[k].instL ls).instOuter (args.take k))) := by
-  sorry
+  obtain ⟨A⟩ := c.projectionAlignment hfind habstract hsingle hci hinduct
+  have hciMap : c.env.constants.find? mkC = some (.ctorInfo mkInfo) := by
+    rwa [← c.trenv.map_wf.find?'_eq_find?]
+  have hcEq : A.constructorInfo = mkInfo := by
+    have := A.constructor_lookup
+    rw [hciMap] at this
+    cases this
+    rfl
+  obtain ⟨decl, type, ctor, htype, hctorMem, hname, hctorUvars, huvars, hnparams, hindices,
+    hlevel, hctorName, hctorType, hlookup, hwf, ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩ :=
+    c.Ewf.ordered.projectionShape A.projection
+  obtain ⟨doms, result, hshape, hle, hvalid, hhead, harity⟩ := Hraw.forallArity
+  have hfam := A.family_lookup
+  rw [hlookup] at hfam
+  have hfam' := Option.some.inj hfam
+  have htUvars : type.uvars = A.info.uvars := congrArg VConstant.uvars hfam'
+  have htType : type.type = A.familyType := congrArg VConstant.type hfam'
+  have hNumFields : mkInfo.numFields = doms.length - A.info.nparams := by
+    rw [← hcEq, A.constructor_numFields, VProjectionInfo.numFields, ← hctorType, harity]
+  -- the normalized shape of the type constant
+  obtain ⟨normalized, ownParams, afterParams, indices, result', exprType, hnorm, hown, hidx,
+    HownP, hres⟩ := Hshape
+  obtain ⟨ctorParams, tail, hctorParams, HctorP⟩ := Hparams
+  have hownLen : ownParams.length = decl.nparams := VExpr.takeForalls_domains_length hown
+  have hidxLen : indices.length = type.numIndices := VExpr.takeForalls_domains_length hidx
+  have hnormEq : normalized = VExpr.wrapForalls (ownParams ++ indices) result' := by
+    rw [VExpr.eq_wrapForalls_of_takeForalls hown, VExpr.eq_wrapForalls_of_takeForalls hidx,
+      VExpr.wrapForalls_append]
+  have hctorParamsEq : ctorParams = doms.take decl.nparams := by
+    have h1 := VExpr.takeForalls_wrapForalls_append (doms.take decl.nparams)
+      (doms.drop decl.nparams) result
+    rw [List.take_append_drop, show (doms.take decl.nparams).length = decl.nparams by
+      simp; omega] at h1
+    have h2 := hctorParams
+    rw [hshape] at h2
+    exact (Prod.mk.inj (Option.some.inj (h2.symm.trans h1))).1
+  have hctx : c.venv.IsDefEqCtx decl.uvars [] ownParams.reverse ctorParams.reverse :=
+    VEnv.IsDefEqCtx.trans_empty c.Ewf (HownP.symm c.Ewf.ordered) HctorP
+  -- the type constant's type is a type, hence so is its normalized telescope
+  have htypeWF : c.venv.IsType decl.uvars [] type.type := by
+    have := c.Ewf.ordered.constWF hlookup
+    change c.venv.IsType type.uvars [] type.type at this
+    rwa [htUvars, ← huvars] at this
+  have hnormWF : c.venv.IsType decl.uvars [] normalized :=
+    let ⟨u, h⟩ := htypeWF; ⟨u, h.defeqU_l c.Ewf (by trivial) ⟨_, hnorm⟩⟩
+  rw [hnormEq] at hnormWF
+  have hΓtel := (VEnv.IsType.wrapForalls_inv c.Ewf (by trivial) hnormWF).1
+  simp only [List.append_nil] at hΓtel
+  -- the typing of a well-formed application of the type constant along its telescope
+  have spine : ∀ (ls : List VLevel) (args : List VExpr), ls.length = A.info.uvars →
+      args.length = A.info.nparams + A.info.nindices →
+      (∃ u, c.HasType (VExpr.mkApps (.const n ls) args) (.sort u)) →
+      (∀ l ∈ ls, l.WF c.lparams.length) ∧
+      (∀ j (hj : j < args.length) (hj' : j < ((ownParams ++ indices).map (VExpr.instL ls)).length),
+        c.HasType args[j] (((ownParams ++ indices).map (VExpr.instL ls))[j].instOuter
+          (args.take j))) ∧
+      c.HasType (VExpr.mkApps (.const n ls) args) ((result'.instL ls).instOuter args) := by
+    intro ls args hls hargs ⟨u, hsort⟩
+    have hwfApp : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx
+        (VExpr.mkApps (.const n ls) args) := ⟨_, hsort⟩
+    have ⟨_, hcw⟩ := VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hwfApp
+    have ⟨ci', hci', hlsw, hlen'⟩ := VEnv.HasType.const_inv c.Ewf.ordered c.Δwf.toCtx hcw
+    have hc := VEnv.HasType.const (Γ := c.vlctx.toCtx) hlookup hlsw (by
+      rw [hlookup] at hci'; cases hci'; exact hlen')
+    have hdef : c.IsDefEqU (type.toVConstant.type.instL ls) (normalized.instL ls) := by
+      have := (hnorm.instL hlsw).weak0 c.Ewf.ordered (Γ := c.vlctx.toCtx)
+      exact ⟨_, this⟩
+    have hc' := hc.defeqU_r c.Ewf c.Δwf hdef
+    rw [hnormEq, VExpr.instL_wrapForalls] at hc'
+    have ⟨hargsT, hresT⟩ := VEnv.HasType.mkApps_wrapForalls c.Ewf c.Δwf.toCtx hc' hwfApp
+      (by simp [hargs, hownLen, hidxLen, hnparams, hindices])
+    exact ⟨hlsw, hargsT, hresT⟩
+  refine ⟨A.info, A.projection, A.ctorName, decl, doms, result, ?_, ?_, ?_, ?_, ?_, hnparams,
+    huvars, ?_, ?_, hNumFields, ?_, A.nparams, A.nindices, ?_, ⟨_, A.family_lookup⟩, ?_, ?_⟩
+  · rw [← huvars, ← hctorType]; exact hwf
+  · rw [A.ctorName]; exact A.constructor_abstract
+  · rw [← hctorType, hshape]
+  · rw [← hname]; exact hvalid
+  · rw [← hname]; exact hhead
+  · rw [← hnparams]; exact hle
+  · rw [← hcEq, A.constructor_numParams, A.nparams]
+  · rw [← hcEq, A.constructor_numFields]
+  · intro type' htype' hname'
+    have : type' = type := by
+      have hnodup' : (decl.types.map fun t => t.toVConstVal.name).Nodup := by
+        have := hnodup
+        simp only [VInductDecl.sourceNames, VInductDecl.typeConstants, List.map_map] at this
+        exact (List.nodup_append.1 this).1
+      exact List.eq_of_mem_of_nodup_map hnodup' htype' htype (by
+        show type'.name = type.name
+        rw [hname', hname])
+    rw [this, hindices]
+  · intro ls args hls hargs hsort
+    have ⟨hlsw, hargsT, hresT⟩ := spine ls args hls hargs hsort
+    have hΔ₀ : OnCtx (indices.reverse ++ ownParams.reverse) (c.venv.IsType decl.uvars) := by
+      rwa [List.reverse_append] at hΓtel
+    have e : (indices.reverse ++ ownParams.reverse).reverse = ownParams ++ indices := by simp
+    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf c.Δwf.toCtx hΔ₀ ⟨_, hres⟩ hlsw
+      (args := args) (by simp [hargs, hownLen, hidxLen, hnparams, hindices]; omega) (by
+        intro k hk hk'
+        simp only [e] at hk' ⊢
+        exact hargsT k hk hk')
+    rw [VExpr.instL, VExpr.instOuter_sort, hlevel] at hconv
+    exact hresT.defeqU_r c.Ewf c.Δwf hconv
+  · intro ls args hls hargs hsort k hk hk'
+    obtain ⟨hlsw, hargsT, -⟩ := spine ls args hls hargs hsort
+    have hk1 : k < args.length := by omega
+    have hkown : k < ownParams.length := by omega
+    have hkctor : k < ctorParams.length := by rw [hctorParamsEq]; simp; omega
+    have ⟨u, hdk⟩ := hctx.reverse_getElem k hkown hkctor
+    have hΔ₀ : OnCtx (ownParams.take k).reverse (c.venv.IsType decl.uvars) := by
+      have : (ownParams ++ indices).reverse =
+          (indices.reverse ++ (ownParams.drop k).reverse) ++ (ownParams.take k).reverse := by
+        rw [List.append_assoc, ← List.reverse_append, List.take_append_drop, List.reverse_append]
+      rw [this] at hΓtel
+      exact hΓtel.of_append
+    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf c.Δwf.toCtx hΔ₀ ⟨_, hdk⟩ hlsw
+      (args := args.take k) (by simp; omega) (by
+        intro j hj hj'
+        simp only [List.length_take] at hj
+        have := hargsT j (by omega) (by simp; omega)
+        simp only [List.reverse_reverse, List.getElem_map, List.getElem_take, List.take_take,
+          Nat.min_eq_left (Nat.le_of_lt (show j < k by omega))] at this ⊢
+        rw [List.getElem_append_left (by omega)] at this
+        exact this)
+    have hargk := hargsT k hk1 (by simp; omega)
+    rw [List.getElem_map, List.getElem_append_left (by omega)] at hargk
+    have hdoms : ctorParams[k] = doms[k] := by
+      simp only [hctorParamsEq, List.getElem_take]
+    rw [hdoms] at hconv
+    exact hargk.defeqU_r c.Ewf c.Δwf hconv
 
 class VContext.MLCWF (c : VContext) (m : MLCtx) : Prop where
   wf : m.WF c.venv c.lparams

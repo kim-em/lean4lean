@@ -232,6 +232,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
   split <;> [rename_i hnonrec; exact .pure nofun]
   split <;> [rename_i sInfo hfind; exact .pure nofun]
   split <;> [rename_i hsingle; exact .pure nofun]
+  split <;> [rename_i hunsafe; exact .pure nofun]
   refine (inferType.WF he₁).bind fun tType _ _ ⟨tT', _, _, htT, htT'⟩ => ?_
   refine (inferType.WF he₂).bind fun sType _ _ ⟨sT', _, _, hsT, hsT'⟩ => ?_
   refine (isDefEq.WF htT hsT).bind fun b _ _ hb => ?_
@@ -243,6 +244,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
   split <;> [rename_i hnz; exact .pure nofun]
   have harity := beq_iff_eq.1 harity
   have hsingle := beq_iff_eq.1 hsingle
+  have hunsafe := beq_iff_eq.1 hunsafe
   -- the constructor application
   have he₂'' : c.TrExprS ((Expr.const f ls).mkAppList e₂.getAppArgsList) e₂' := by
     rw [← hf, e₂.mkAppList_getAppArgsList]; exact he₂
@@ -253,8 +255,10 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
   have hargsLen : args'.length = e₂.getAppArgsList.length :=
     (Lean4Lean.List.Forall₂.length_eq hargs).symm
   -- registry facts
+  obtain ⟨_, habstract⟩ := c.familyConstant hfind hci hunsafe hfc
   obtain ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
-    hnp, hnf, hnf', hsp, hsi, hidxs, -, hsort, -⟩ := VContext.registryShape hfind hsingle hci
+    hnp, hnf, hnf', hsp, hsi, hidxs, -, hsort, -⟩ :=
+    VContext.registryShape hfind habstract hsingle hci rfl
   subst hname
   have hnindices : info.nindices = 0 := by
     rw [← hsi]
@@ -685,6 +689,10 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
   refine (M.WF.liftExcept envGet.WF).lift.bind fun cci _ _ hcci => ?_
   split <;> [rename_i cval hcval; exact .pure nofun]
   split <;> [skip; exact .pure nofun]
+  rename_i hinduct
+  split <;> [skip; exact .pure nofun]
+  rename_i hunsafe
+  split <;> [skip; exact .pure nofun]
   rename_i harity
   refine (inferType.WF he₂).bind fun sty _ _ ⟨sty', _, _, hsty, hsty'⟩ => ?_
   refine (isDefEqCore.WF htT hsty).mono fun b _ _ h hb => ?_
@@ -697,7 +705,7 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
   have .const hfc hls hlen := stk.tr
   have heq := htT'.uniq c.Ewf (.refl c.Ewf c.Δwf) htT''
   obtain ⟨info, hinfo, -, decl, doms, result, -, -, -, -, -, -, -, -, -, -, hnf, hnp, hni, -, -, -, -⟩ :=
-    VContext.registryShape hci rfl hcci
+    VContext.registryShape hci hfc rfl hcci (by simpa using hinduct)
   have hlenP : args'.length = info.nparams := by
     have h2 : tType.getAppNumArgs = _ := beq_iff_eq.1 harity
     rw [Expr.getAppNumArgs_eq, ← Expr.getAppArgsList_reverse, List.length_reverse] at h2

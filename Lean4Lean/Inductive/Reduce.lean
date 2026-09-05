@@ -41,8 +41,10 @@ def toCtorWhenK (rval : RecursorVal) (e : Expr) : m Expr := do
 def expandEtaStruct (eType e : Expr) : Expr :=
   eType.withApp fun I args => Id.run do
   let .const I ls := I | return e
-  let some ctor := getFirstCtor env I | return e
+  let some (.inductInfo sInfo) := env.find? I | return e
+  let some ctor := sInfo.ctors.head? | return e
   let some (.ctorInfo info) := env.find? ctor | return e
+  if info.induct != I || info.isUnsafe != sInfo.isUnsafe then return e
   if args.size != info.numParams then return e
   let result := mkAppRange (.const ctor ls) 0 info.numParams args
   pure <| (List.range info.numFields).foldl (fun result i => .app result (.proj I i e)) result

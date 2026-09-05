@@ -1190,6 +1190,50 @@ theorem IsDefEqU.closed_telescope_instOuter (henv : VEnv.WF env) (hΓ : OnCtx Γ
     (by rwa [List.map_reverse, List.reverse_reverse]) (by simpa using hargs) hty
   exact this
 
+theorem _root_.Lean4Lean.VExpr.eq_wrapForalls_of_takeForalls :
+    ∀ {n : Nat} {e : VExpr} {ds : List VExpr} {r : VExpr},
+      e.takeForalls n = some (ds, r) → e = VExpr.wrapForalls ds r
+  | 0, e, ds, r, H => by
+    change some ([], e) = some (ds, r) at H
+    cases Option.some.inj H
+    rfl
+  | n + 1, e, ds, r, H => by
+    cases e <;> simp [VExpr.takeForalls] at H
+    case forallE dom body =>
+      rcases H with ⟨tail, htail, hd⟩
+      rw [← hd]
+      exact congrArg (VExpr.forallE dom) (VExpr.eq_wrapForalls_of_takeForalls htail)
+
+/-- The entries of two definitionally equal closed contexts are definitionally equal in their
+common prefix. -/
+theorem IsDefEqCtx.getElem_empty {Γ₁ Γ₂ : List VExpr} (H : IsDefEqCtx env U [] Γ₁ Γ₂) :
+    ∀ (i : Nat) (h : i < Γ₁.length) (h' : i < Γ₂.length),
+      ∃ u, env.IsDefEq U (Γ₁.drop (i + 1)) Γ₁[i] Γ₂[i] (.sort u) := by
+  induction H with
+  | zero => intro i h; simp at h
+  | @succ Γ₁ Γ₂ A₁ A₂ u _ hd ih =>
+    intro i h h'
+    cases i with
+    | zero => exact ⟨u, hd⟩
+    | succ i => exact ih i (by simpa using h) (by simpa using h')
+
+/-- `getElem_empty` for reversed telescopes: the `k`-th binders agree under the binders before
+them. -/
+theorem IsDefEqCtx.reverse_getElem {l₁ l₂ : List VExpr}
+    (H : IsDefEqCtx env U [] l₁.reverse l₂.reverse) (k : Nat) (hk : k < l₁.length)
+    (hk' : k < l₂.length) :
+    ∃ u, env.IsDefEq U ((l₁.take k).reverse) l₁[k] l₂[k] (.sort u) := by
+  have hlen := H.length_eq
+  simp only [List.length_reverse] at hlen
+  have ⟨u, h⟩ := H.getElem_empty (l₁.length - 1 - k) (by simp; omega) (by simp; omega)
+  refine ⟨u, ?_⟩
+  rw [List.getElem_reverse, List.getElem_reverse, List.drop_reverse] at h
+  have e1 : l₁.length - 1 - (l₁.length - 1 - k) = k := by omega
+  have e2 : l₂.length - 1 - (l₁.length - 1 - k) = k := by omega
+  have e3 : l₁.length - (l₁.length - 1 - k + 1) = k := by omega
+  simp only [e1, e2, e3] at h
+  exact h
+
 end VEnv
 
 end Lean4Lean

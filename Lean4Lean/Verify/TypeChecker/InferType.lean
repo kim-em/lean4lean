@@ -410,17 +410,18 @@ theorem inferProj.WF (hb : c.FVarsBelow e ety) (he : c.TrExprS e e') (hty : c.Tr
   split <;> [exact hfail; rename_i hinduct]
   split <;> [exact hfail; rename_i hidx]
   have hidx : i < c_val.numFields := by simpa using hidx
-  -- registry facts
-  have ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
-    hnp, hnf, hnf', hsp, hsi, hidxs, hind, hsort, hparam⟩ :=
-    VContext.registryShape hci hsingle hcci
-  subst hname
   -- the spine of the whnf'd structure type
   have htT' : c.TrExprS ((Expr.const st I_levels).mkAppList type.getAppArgsList) tT' := by
     rw [← hI, type.mkAppList_getAppArgsList]; exact htT
   have ⟨fn', stk⟩ := AppStack.build htT'
   have ⟨args', hargs, htT''⟩ := stk.translatedArguments
   have .const (us' := ls') hfc hls hlen := stk.tr
+  -- registry facts
+  have hinduct' : c_val.induct = st := by simpa using hinduct
+  have ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
+    hnp, hnf, hnf', hsp, hsi, hidxs, hind, hsort, hparam⟩ :=
+    VContext.registryShape hci hfc hsingle hcci hinduct'
+  subst hname
   obtain ⟨indType, hind⟩ := hind
   rw [hfc] at hind; cases hind
   have heq := htT'.uniq c.Ewf (.refl c.Ewf c.Δwf) htT''

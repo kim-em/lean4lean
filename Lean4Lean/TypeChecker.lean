@@ -378,6 +378,8 @@ def reduceProjCoreCont (structName : Name) (idx : Nat) (c : Expr) : RecM (Option
   let .ctorInfo mkInfo ← env.get mkC | return none
   let some (.inductInfo structInfo) := env.find? structName | return none
   unless structInfo.ctors == [mkC] do return none
+  unless mkInfo.induct == structName do return none
+  unless mkInfo.isUnsafe == structInfo.isUnsafe do return none
   unless args.size == mkInfo.numParams + mkInfo.numFields do return none
   return args[mkInfo.numParams + idx]?
 
@@ -677,6 +679,7 @@ def tryEtaStructCore (t s : Expr) : RecM Bool := do
   -- redundant on a well-formed environment (see `divergences.md`)
   let some (.inductInfo sInfo) := env.find? fInfo.induct | return false
   unless sInfo.ctors == [f] do return false
+  unless fInfo.isUnsafe == sInfo.isUnsafe do return false
   let tType ← inferType t
   unless ← isDefEq tType (← inferType s) do return false
   -- The projections below are only well typed when the structure is never a proposition
@@ -873,10 +876,12 @@ def isDefEqUnitLike (t s : Expr) : RecM Bool := do
   let tType ← whnf (← inferType t)
   let .const I _ := tType.getAppFn | return false
   let env ← getEnv
-  let .inductInfo { isRec := false, ctors := [c], numIndices := 0, numParams, .. } ← env.get I
-    | return false
-  let .ctorInfo { numFields := 0, .. } ← env.get c | return false
+  let .inductInfo { isRec := false, ctors := [c], numIndices := 0, numParams, isUnsafe, .. } ←
+    env.get I | return false
+  let .ctorInfo { numFields := 0, induct, isUnsafe := ctorUnsafe, .. } ← env.get c | return false
   -- redundant on well-typed input (see `divergences.md`)
+  unless induct == I do return false
+  unless ctorUnsafe == isUnsafe do return false
   unless tType.getAppNumArgs == numParams do return false
   isDefEqCore tType (← inferType s)
 
