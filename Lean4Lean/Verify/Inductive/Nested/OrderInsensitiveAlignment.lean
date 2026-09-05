@@ -188,6 +188,11 @@ theorem CheckingEnv.Valid.mapExt
       exact hfindSource
     rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
     exact hfindTarget)
+  constructorOwners := H.constructorOwners.mapEnvironmentEq fun name => by
+    rw [Lean.Kernel.Environment.find?, Lean.Kernel.Environment.find?,
+      H.tr.map_wf.find?'_eq_find?, htargetWF.find?'_eq_find?]
+    exact heq name
+  projectionRegistry := H.projectionRegistry.mapExt heq
 
 /-- Forget the semantic part of a canonical lockstep installation while
 retaining its exact production freshness trace. -/

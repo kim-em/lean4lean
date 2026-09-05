@@ -1220,7 +1220,8 @@ theorem AddInductive.formationCore.closedWF
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
-      ¬ Kernel.Environment.primitives.contains ctor.name) :
+      ¬ Kernel.Environment.primitives.contains ctor.name)
+    (hlparams : c.lparams.Nodup) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -1247,7 +1248,7 @@ theorem AddInductive.formationCore.closedWF
   intro headerEnv Hheader
   exact AddInductive.constructorPhases.WF Hheader hconsume
     Hheader.materializedAvailableLiteralDisjoint
-    hunsafe hvisible hnprimCtors
+    hunsafe hvisible hnprimCtors hlparams
 
 
 end VerifyInductive

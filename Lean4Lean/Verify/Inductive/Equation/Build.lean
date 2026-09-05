@@ -435,7 +435,7 @@ theorem AddInductive.runWithStats.closedWF
   apply AddInductive.runWithStats.WF stats numParams indTypes numNested
     isUnsafe c
   · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
-      hvisible hnprimTypes hconsume hunsafe hnprimCtors
+      hvisible hnprimTypes hconsume hunsafe hnprimCtors hlparams
   · exact hlparams
   · exact hnotPartial
   · exact hnprimRecursors

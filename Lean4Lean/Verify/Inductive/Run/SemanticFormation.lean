@@ -61,7 +61,7 @@ theorem AddInductive.semanticFormationCoreWF
     AddInductive.declareInductiveTypes.semanticConstructorsWF
       Hsemantic hlevels hlevelParams hindicesSize hindices hconsts hparams
       hcommonParams Hcache Hsuffix Hambient hcommon hvisible hnprimTypes
-      hconsume
+      hconsume hlparams
   have Hcombined :
       ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
         isUnsafe >>= fun headerEnv =>
