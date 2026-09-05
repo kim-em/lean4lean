@@ -49,14 +49,6 @@ theorem VContext.quotCoherent (c : VContext) (h : c.env.quotInit = true) :
     QuotCoherent c.venv := by
   sorry
 
-/-- Inductive type constants are rigid: no stored equation is headed by one.
-
-TODO: derive from the environment trace once the nested auxiliary rules record their left-hand
-side shape (see `IsDefEqU.structApp_inv`). -/
-theorem VContext.inductRigid (c : VContext) {info : InductiveVal}
-    (h : c.env.find? n = some (.inductInfo info)) : c.venv.Rigid n := by
-  sorry
-
 namespace Inner
 
 variable {c : VContext} {s : VState}
@@ -550,13 +542,14 @@ theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : in
     rw [← Lean4Lean.List.Forall₂.length_eq hAargs, ← List.length_reverse,
       Expr.getAppArgsList_reverse, ← Expr.getAppNumArgs_eq, hnargs]
   have hAAwf := hAfull.wf c.Ewf c.Δwf
-  -- the inductive application is a proposition
-  have hIsort : c.HasType (VExpr.mkApps (.const info.getMajorInduct lsI') AA') (.sort .zero) := by
-    have hc := VEnv.HasType.const (Γ := c.vlctx.toCtx) hIc hlsI'w (by simpa using hlsI'len)
-    rw [VExpr.instL_wrapForalls] at hc
-    have ⟨_, h⟩ := VEnv.HasType.mkApps_wrapForalls c.Ewf c.Δwf.toCtx hc hAAwf
-      (by simp [hAAlen, hIlen])
-    simpa [VExpr.instL, VLevel.inst] using h
+  -- the inductive application is a proposition, and its arguments are typed along its telescope
+  have hcI := VEnv.HasType.const (Γ := c.vlctx.toCtx) hIc hlsI'w (by simpa using hlsI'len)
+  rw [VExpr.instL_wrapForalls] at hcI
+  have ⟨hIargs, hIsort⟩ := VEnv.HasType.mkApps_wrapForalls c.Ewf c.Δwf.toCtx hcI hAAwf
+    (by simp [hAAlen, hIlen])
+  simp only [VExpr.instL, VLevel.inst, VExpr.instOuter_sort] at hIsort
+  have hΓI : OnCtx (indDoms.reverse ++ []) (c.venv.IsType indUvars) :=
+    (VEnv.IsType.wrapForalls_inv c.Ewf trivial (c.Ewf.ordered.constWF hIc)).1
   -- the constructor application is typed at the inductive application
   have hcT := VEnv.HasType.const (Γ := c.vlctx.toCtx) hCc hlsI'w (by simpa using hlsI'len)
   rw [VExpr.instL_wrapForalls] at hcT
@@ -565,9 +558,25 @@ theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : in
     refine VEnv.HasType.mkApps_of_telescope c.Ewf c.Δwf.toCtx hcT (by simp [hClen]; omega) ?_
     intro j hj hj'
     simp only [List.length_take, List.length_map] at hj hj'
-    have := hparams _ _ lsI' AA' hAAwf hAAlen j (by omega) (by omega)
-    rw [List.getElem_take, List.take_take, Nat.min_eq_left (by omega), List.getElem_map]
-    exact this
+    have hjp : j < info.numParams := by omega
+    have hI_j := hIargs j (by omega) (by simp [hIlen]; omega)
+    have hdef := hparams j (by omega) (by omega)
+    have hΓ₀ : OnCtx ((indDoms.take j).reverse) (c.venv.IsType indUvars) := by
+      have : indDoms.reverse ++ [] = (indDoms.drop j).reverse ++ (indDoms.take j).reverse := by
+        rw [List.append_nil, ← List.reverse_append, List.take_append_drop]
+      rw [this] at hΓI
+      exact hΓI.of_append
+    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf c.Δwf.toCtx hΓ₀ hdef hlsI'w
+      (args := AA'.take j) (by simp; omega) (by
+        intro k hk hk'
+        simp only [List.length_take] at hk
+        have := hIargs k (by omega) (by simp [hIlen]; omega)
+        simp only [List.reverse_reverse, List.getElem_map, List.getElem_take, List.take_take,
+          Nat.min_eq_left (Nat.le_of_lt (show k < j by omega))]
+        simpa [List.getElem_map] using this)
+    rw [List.getElem_take, List.take_take, Nat.min_eq_left (Nat.le_of_lt hjp), List.getElem_map]
+    rw [List.getElem_map] at hI_j
+    exact hI_j.defeqU_r c.Ewf c.Δwf hconv
   have hnewS : c.TrExprS ((Expr.const ctorName lsI).mkAppList (A.getAppArgsList.take info.numParams))
       (VExpr.mkApps (.const ctorName lsI') (AA'.take info.numParams)) :=
     TrExprS.mkAppList_of_wf (.const hCc hlsI (by simpa using hlenI)) (forall₂_take hAargs _)

@@ -1165,6 +1165,31 @@ theorem IsType.instOuter_telescope (henv : VEnv.WF env) {doms args : List VExpr}
   let ⟨u, h⟩ := H
   ⟨u, by have := IsDefEq.instOuter_telescope henv h hlen hty; rwa [VExpr.instOuter_sort] at this⟩
 
+/-- A defeq between closed telescope domains, instantiated at universe levels and at arguments typed
+along the telescope. The domains live in the closed context of the binders before them. -/
+theorem IsDefEqU.closed_telescope_instOuter (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    {Δ₀ : List VExpr} {X Y : VExpr} (hΓ₀ : OnCtx Δ₀ (env.IsType U₀))
+    (H : env.IsDefEqU U₀ Δ₀ X Y) (hls : ∀ l ∈ ls, l.WF U)
+    {args : List VExpr} (hargs : args.length = Δ₀.length)
+    (hty : ∀ k (hk : k < args.length) (hk' : k < (Δ₀.reverse.map (VExpr.instL ls)).length),
+      env.HasType U Γ args[k] ((Δ₀.reverse.map (VExpr.instL ls))[k].instOuter (args.take k))) :
+    env.IsDefEqU U Γ ((X.instL ls).instOuter args) ((Y.instL ls).instOuter args) := by
+  have H' := H.instL hls
+  have hΓ₀' : OnCtx (Δ₀.map (VExpr.instL ls)) (env.IsType U) := hΓ₀.instL hls
+  have hclosed := CtxWF.closed henv.ordered hΓ₀'
+  have ⟨_, h⟩ := H
+  have hX : (X.instL ls).ClosedN Δ₀.length :=
+    (VExpr.WF.closedN henv.ordered ⟨_, h.hasType.1⟩ (CtxWF.closed henv.ordered hΓ₀)).instL
+  have hY : (Y.instL ls).ClosedN Δ₀.length :=
+    (VExpr.WF.closedN henv.ordered ⟨_, h.hasType.2⟩ (CtxWF.closed henv.ordered hΓ₀)).instL
+  have W := Ctx.LiftN.right hclosed Γ
+  have H'' := H'.weakN henv W
+  simp only [List.length_map] at H''
+  rw [hX.liftN_eq (Nat.le_refl _), hY.liftN_eq (Nat.le_refl _)] at H''
+  have := IsDefEqU.instOuter_telescope henv (doms := Δ₀.reverse.map (VExpr.instL ls)) (args := args)
+    (by rwa [List.map_reverse, List.reverse_reverse]) (by simpa using hargs) hty
+  exact this
+
 end VEnv
 
 end Lean4Lean

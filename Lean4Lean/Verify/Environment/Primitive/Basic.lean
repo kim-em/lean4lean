@@ -422,10 +422,6 @@ theorem VExpr.Subst.lift_comp_one {σ : VExpr.Subst} {v} : σ.lift.comp (.one v)
   funext i; cases i <;>
     simp [VExpr.Subst.comp, VExpr.Subst.lift, VExpr.Subst.cons, VExpr.Subst.one, VExpr.lift_subst]
 
-theorem OnCtx.of_append : ∀ {l Γ : List VExpr}, OnCtx (l ++ Γ) P → OnCtx Γ P
-  | [], _, h => h
-  | _ :: l, _, h => OnCtx.of_append (l := l) h.1
-
 /-- Both halves of an application are well formed. `app_inv` gives the typings, which is more
 than a caller peeling a spine apart wants to name: this is the form that chains. -/
 theorem VExpr.WF.app_inv₂ (henv : VEnv.Ordered env) (hΓ : OnCtx Γ (env.IsType U)) {f a : VExpr}

@@ -40,19 +40,16 @@ def RecursorAlignment (venv : VEnv) (rec : RecursorVal) (cnparams : Nat) : Prop 
     ∀ rule ∈ rec.rules, ∃ df, RecursorRuleAlignment venv rec rule indLevels cnparams df
 
 /-- A K-like recursor eliminates from a proposition with a single constructor whose only
-arguments are the parameters; the parameters of any application of the inductive type are typed
-along the constructor's telescope. -/
+arguments are the parameters; the constructor's parameter binders are definitionally the
+inductive type's parameter binders, under the binders before them. -/
 def KLikeAlignment (venv : VEnv) (rec : RecursorVal) (ctorName : Name) : Prop :=
   ∃ indUvars indDoms ctorDoms ctorBody,
     venv.constants rec.getMajorInduct = some ⟨indUvars, VExpr.wrapForalls indDoms (.sort .zero)⟩ ∧
     indDoms.length = rec.numParams + rec.numIndices ∧
     venv.constants ctorName = some ⟨indUvars, VExpr.wrapForalls ctorDoms ctorBody⟩ ∧
     ctorDoms.length = rec.numParams ∧
-    ∀ U Γ (ls : List VLevel) (args : List VExpr),
-      VExpr.WF venv U Γ (VExpr.mkApps (.const rec.getMajorInduct ls) args) →
-      args.length = rec.numParams + rec.numIndices →
-      ∀ k (hk : k < args.length) (hk' : k < ctorDoms.length),
-        venv.HasType U Γ args[k] ((ctorDoms[k].instL ls).instOuter (args.take k))
+    ∀ k (hk : k < indDoms.length) (hk' : k < ctorDoms.length),
+      venv.IsDefEqU indUvars ((indDoms.take k).reverse) indDoms[k] ctorDoms[k]
 
 /-- Every visible recursor of the constant map is aligned with the abstract environment. -/
 def RecursorRulesCoherent (safety : DefinitionSafety) (C : ConstMap) (venv : VEnv) : Prop :=
@@ -232,5 +229,102 @@ theorem QuotCoherent.ind_defeq (henv : VEnv.WF venv) (hΓ : OnCtx Γ (venv.IsTyp
   have hX2' : venv.HasType U Γ (.app p' a3') (.app β' q') :=
     hX2.defeqU_r henv hΓ ⟨_, htyeq.symm⟩
   exact ⟨_, VEnv.IsDefEq.proofIrrel hβsort hX1 hX2'⟩
+
+/-! ## Monotonicity
+
+The shape invariants only look up constants and stored equations, so they are preserved by
+environment extension. Rigidity is not: it is preserved exactly when the new stored equations are
+headed elsewhere, which is what `RigidPreserving` records. -/
+
+/-- Every constant rigid in `venv` stays rigid in `venv'`. -/
+def VEnv.RigidPreserving (venv venv' : VEnv) : Prop := ∀ c, venv.Rigid c → venv'.Rigid c
+
+theorem VEnv.RigidPreserving.rfl : VEnv.RigidPreserving venv venv := fun _ h => h
+
+theorem VEnv.RigidPreserving.trans (h1 : VEnv.RigidPreserving venv₁ venv₂)
+    (h2 : VEnv.RigidPreserving venv₂ venv₃) : VEnv.RigidPreserving venv₁ venv₃ :=
+  fun c h => h2 c (h1 c h)
+
+theorem VEnv.RigidPreserving.addConst (h : venv.addConst name ci = some venv') :
+    VEnv.RigidPreserving venv venv' := by
+  intro c hc df hdf
+  unfold VEnv.addConst at h
+  split at h <;> cases h
+  exact hc df hdf
+
+/-- Adding an equation headed (under its lambdas) by a constant that is not `c` keeps `c` rigid. -/
+theorem VEnv.Rigid.addDefEq (hc : venv.Rigid c) (hhead : ∀ ls, df.lhs.stripLams.getAppFnArgs.1 ≠ .const c ls) :
+    (venv.addDefEq df).Rigid c := by
+  intro df' hdf' ls
+  rcases hdf' with rfl | hdf'
+  · exact hhead ls
+  · exact hc df' hdf' ls
+
+/-- Adding an equation headed by a constant not yet in the environment keeps every existing
+constant rigid. -/
+theorem VEnv.RigidPreserving.addDefEq_fresh {head : Name}
+    (hhead : ∀ ls, df.lhs.stripLams.getAppFnArgs.1 = .const head ls)
+    (hfresh : venv.constants head = none) :
+    ∀ c, venv.contains c → venv.Rigid c → (venv.addDefEq df).Rigid c := by
+  intro c ⟨ci, hci⟩ hc
+  refine hc.addDefEq fun ls h => ?_
+  rw [hhead ls] at h
+  cases h
+  rw [hfresh] at hci
+  cases hci
+
+theorem VEnv.RigidPreserving.addProjections (entries : List VProjectionEntry) :
+    VEnv.RigidPreserving venv (venv.addProjections entries) := by
+  intro c hc df hdf
+  rw [VEnv.addProjections_defeqs] at hdf
+  exact hc df hdf
+
+def VRecursorShape.mono (h : venv ≤ venv')
+    (H : VRecursorShape venv recName recUvars nparams cnparams nmotives nminors nindices indName
+      indLevels) :
+    VRecursorShape venv' recName recUvars nparams cnparams nmotives nminors nindices indName
+      indLevels :=
+  { H with const := h.constants H.const }
+
+def VConstructorShape.mono (h : venv ≤ venv')
+    (H : VConstructorShape venv ctorName ctorUvars nparams nfields nindices indName) :
+    VConstructorShape venv' ctorName ctorUvars nparams nfields nindices indName :=
+  { H with const := h.constants H.const }
+
+def VIotaRuleShape.mono (h : venv ≤ venv')
+    (H : VIotaRuleShape venv recName recUvars nparams cnparams nmotives nminors nindices ctorName
+      ctorLevels nfields df) :
+    VIotaRuleShape venv' recName recUvars nparams cnparams nmotives nminors nindices ctorName
+      ctorLevels nfields df :=
+  { H with defeq := h.defeqs H.defeq }
+
+theorem RecursorRuleAlignment.mono {rec : RecursorVal} (h : venv ≤ venv')
+    (H : RecursorRuleAlignment venv rec rule indLevels cnparams df) :
+    RecursorRuleAlignment venv' rec rule indLevels cnparams df where
+  shape := H.shape.elim fun s => ⟨s.mono h⟩
+  rhs := H.rhs.mono h
+  ctor := H.ctor.elim fun u ⟨hu, hs⟩ => ⟨u, hu, hs.elim fun s => ⟨s.mono h⟩⟩
+
+theorem RecursorAlignment.mono (h : venv ≤ venv') (hr : VEnv.RigidPreserving venv venv')
+    (H : RecursorAlignment venv rec cnparams) : RecursorAlignment venv' rec cnparams :=
+  let ⟨indLevels, hle, ⟨s⟩, hrigid, hrules⟩ := H
+  ⟨indLevels, hle, ⟨s.mono h⟩, hr _ hrigid, fun rule hrule =>
+    let ⟨df, hdf⟩ := hrules rule hrule; ⟨df, hdf.mono h⟩⟩
+
+theorem KLikeAlignment.mono (h : venv ≤ venv')
+    (H : KLikeAlignment venv rec ctorName) : KLikeAlignment venv' rec ctorName := by
+  obtain ⟨indUvars, indDoms, ctorDoms, ctorBody, hI, hIlen, hC, hClen, hparams⟩ := H
+  refine ⟨indUvars, indDoms, ctorDoms, ctorBody, h.constants hI, hIlen, h.constants hC, hClen, ?_⟩
+  intro k hk hk'
+  exact (hparams k hk hk').mono h
+
+theorem QuotCoherent.mono (h : venv ≤ venv') (hr : VEnv.RigidPreserving venv venv')
+    (H : QuotCoherent venv) : QuotCoherent venv' where
+  quot := h.constants H.quot
+  quotMk := h.constants H.quotMk
+  lift := h.constants H.lift
+  ind := h.constants H.ind
+  defeq := h.defeqs H.defeq
+  rigid := hr _ H.rigid
 
 end Lean4Lean
