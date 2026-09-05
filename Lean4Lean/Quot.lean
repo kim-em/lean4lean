@@ -94,6 +94,21 @@ def Environment.addQuot (env : Environment) : Except Exception Environment := do
   }
   return markQuotInit env
 
+/-- Reduce a quotient eliminator application whose `Quot.mk` argument sits at position `mkPos`
+and whose function argument sits at position `argPos`. -/
+def quotReduceRecCont [Monad m] (e : Expr) (whnf : Expr → m Expr) (mkPos argPos : Nat) :
+    m (Option Expr) := do
+  let args := e.getAppArgs
+  if h : mkPos < args.size then
+    let mk ← whnf args[mkPos]
+    if !mk.isAppOfArity ``Quot.mk 3 then return none
+    let mut r := Expr.app args[argPos]! mk.appArg!
+    let elimArity := mkPos + 1
+    if elimArity < args.size then
+      r := mkAppRange r elimArity args.size args
+    return some r
+  else return none
+
 /-- Reduces the head application of a quotient eliminator as follows:
 
 ```
@@ -112,17 +127,6 @@ Quot.ind p (Quot.mk r a) ... ⟶ p a ...
 -/
 def quotReduceRec [Monad m] (e : Expr) (whnf : Expr → m Expr) : m (Option Expr) := do
   let .const fn _ := e.getAppFn | return none
-  let cont mkPos argPos := do
-    let args := e.getAppArgs
-    if h : mkPos < args.size then
-      let mk ← whnf args[mkPos]
-      if !mk.isAppOfArity ``Quot.mk 3 then return none
-      let mut r := Expr.app args[argPos]! mk.appArg!
-      let elimArity := mkPos + 1
-      if elimArity < args.size then
-        r := mkAppRange r elimArity args.size args
-      return some r
-    else return none
-  if fn == ``Quot.lift then cont 5 3
-  else if fn == ``Quot.ind then cont 4 3
+  if fn == ``Quot.lift then quotReduceRecCont e whnf 5 3
+  else if fn == ``Quot.ind then quotReduceRecCont e whnf 4 3
   else return none
