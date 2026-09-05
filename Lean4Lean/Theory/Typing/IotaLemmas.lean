@@ -91,5 +91,37 @@ theorem IsDefEq.mkApps_wrapLams (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType
       simp only [VExpr.instOuter_cons, hlen]
       exact this
 
+theorem _root_.Lean4Lean.VExpr.instL_wrapLams (doms : List VExpr) (body : VExpr) (ls : List VLevel) :
+    (VExpr.wrapLams doms body).instL ls =
+      VExpr.wrapLams (doms.map (VExpr.instL ls)) (body.instL ls) := by
+  induction doms with
+  | nil => rfl
+  | cons d ds ih => simp [VExpr.wrapLams, VExpr.instL] at ih ⊢; exact ih
+
+/-- A stored lambda-wrapped equation, instantiated at universe levels and applied to a full list of
+arguments typed at its telescope, yields the instantiated bodies. -/
+theorem IsDefEq.extra_instOuter (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    (hdf : env.defeqs df) (hls : ∀ l ∈ ls, l.WF U) (hlen : ls.length = df.uvars)
+    (hlhs : df.lhs = VExpr.wrapLams doms lhsBody) (hrhs : df.rhs = VExpr.wrapLams doms rhsBody)
+    (htype : df.type = VExpr.wrapForalls doms typeBody)
+    (hargs : args.length = doms.length)
+    (hty : ∀ j (hj : j < args.length) (hj' : j < doms.length),
+      env.HasType U Γ args[j] (((doms[j]).instL ls).instOuter (args.take j))) :
+    env.IsDefEq U Γ ((lhsBody.instL ls).instOuter args) ((rhsBody.instL ls).instOuter args)
+      ((typeBody.instL ls).instOuter args) := by
+  have hex := IsDefEq.extra (env := env) (Γ := Γ) hdf hls hlen
+  rw [hlhs, hrhs, htype, VExpr.instL_wrapLams, VExpr.instL_wrapLams, VExpr.instL_wrapForalls] at hex
+  have hex' := hex
+  have hty' : ∀ j (hj : j < args.length) (hj' : j < (doms.map (VExpr.instL ls)).length),
+      env.HasType U Γ args[j] ((doms.map (VExpr.instL ls))[j].instOuter (args.take j)) := by
+    intro j hj hj'
+    rw [List.getElem_map]
+    exact hty j hj (by simpa using hj')
+  have hcongr := IsDefEq.mkApps_congr henv hΓ (args := args) (args' := args) hex'
+    (by simpa using hargs) rfl fun j hj hj' _ => hty' j hj hj'
+  have h1 := IsDefEq.mkApps_wrapLams henv hΓ hex'.hasType.1 (by simpa using hargs) hty'
+  have h2 := IsDefEq.mkApps_wrapLams henv hΓ hex'.hasType.2 (by simpa using hargs) hty'
+  exact h1.symm.trans (hcongr.trans h2)
+
 end VEnv
 end Lean4Lean
