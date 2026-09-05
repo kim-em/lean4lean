@@ -217,5 +217,153 @@ theorem _root_.Lean4Lean.VExpr.WF.of_inst_occurs (henv : VEnv.WF env) {a : VExpr
       HasType.proj_inv henv.ordered hΓ' H
     exact ihe Δ hΓ' ⟨_, hmajor.hasType.2⟩ hocc
 
+/-- Instantiate the outermost binders of a telescope body one at a time: the first argument replaces
+the outermost variable (de Bruijn index `args.length - 1`), and so on. -/
+def _root_.Lean4Lean.VExpr.instOuter : VExpr → List VExpr → VExpr
+  | body, [] => body
+  | body, a :: as => VExpr.instOuter (body.inst a as.length) as
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instOuter_nil (body : VExpr) : body.instOuter [] = body := rfl
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instOuter_cons (body a : VExpr) (as : List VExpr) :
+    body.instOuter (a :: as) = (body.inst a as.length).instOuter as := rfl
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instOuter_mkApps (fn : VExpr) (xs args : List VExpr) :
+    (VExpr.mkApps fn xs).instOuter args =
+      VExpr.mkApps (fn.instOuter args) (xs.map fun x => x.instOuter args) := by
+  induction args generalizing fn xs with
+  | nil => simp
+  | cons a as ih => simp [ih, List.map_map, Function.comp_def]
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instOuter_const (args : List VExpr) :
+    (VExpr.const c ls).instOuter args = .const c ls := by
+  induction args <;> simp [VExpr.inst, *]
+
+theorem _root_.Lean4Lean.VExpr.instOuter_liftN (a : VExpr) (args : List VExpr) :
+    (a.liftN args.length).instOuter args = a := by
+  induction args with
+  | nil => simp
+  | cons b as ih =>
+    simp only [List.length_cons, VExpr.instOuter_cons]
+    rw [← VExpr.liftN'_liftN' (n1 := as.length) (n2 := 1) (Nat.zero_le _) (Nat.le_refl _)]
+    simp only [Nat.add_zero]
+    rw [VExpr.inst_liftN]
+    exact ih
+
+theorem _root_.Lean4Lean.VExpr.instOuter_bvar (args : List VExpr) (h : k < args.length) :
+    (VExpr.bvar k).instOuter args = args[args.length - 1 - k] := by
+  induction args generalizing k with
+  | nil => simp at h
+  | cons a as ih =>
+    simp only [VExpr.instOuter_cons, VExpr.inst, VExpr.instVar]
+    by_cases hk : k < as.length
+    · rw [if_pos hk, ih hk, List.getElem_cons, dif_neg (by simp; omega)]
+      congr 1
+      simp
+      omega
+    · have hk' : k = as.length := by simp at h; omega
+      subst hk'
+      rw [if_neg hk, if_pos rfl, VExpr.instOuter_liftN]
+      simp
+
+/-- Instantiate the domains of a telescope, the `k`-th domain sitting under `k` binders. -/
+def _root_.Lean4Lean.VExpr.instDomains : List VExpr → VExpr → Nat → List VExpr
+  | [], _, _ => []
+  | d :: ds, a, k => d.inst a k :: VExpr.instDomains ds a (k + 1)
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instDomains_length (doms : List VExpr) :
+    (VExpr.instDomains doms a k).length = doms.length := by
+  induction doms generalizing k <;> simp [VExpr.instDomains, *]
+
+theorem _root_.Lean4Lean.VExpr.wrapForalls_inst (doms : List VExpr) (body a : VExpr) (k : Nat) :
+    (VExpr.wrapForalls doms body).inst a k =
+      VExpr.wrapForalls (VExpr.instDomains doms a k) (body.inst a (k + doms.length)) := by
+  induction doms generalizing k with
+  | nil => rfl
+  | cons d ds ih =>
+    show (VExpr.forallE d (VExpr.wrapForalls ds body)).inst a k =
+      VExpr.forallE (d.inst a k) (VExpr.wrapForalls (VExpr.instDomains ds a (k + 1))
+        (body.inst a (k + (ds.length + 1))))
+    simp only [VExpr.inst]
+    rw [ih, Nat.add_assoc, Nat.add_comm 1]
+
+/-- A typed walk through a complete wrapped telescope instantiates its body. -/
+theorem InstForalls.wrapForalls_eq (H : InstForalls env U Γ (VExpr.wrapForalls doms body) args res)
+    (hlen : args.length = doms.length) : res = body.instOuter args := by
+  induction args generalizing doms body res with
+  | nil =>
+    cases doms with
+    | nil => cases H; rfl
+    | cons => simp at hlen
+  | cons a as ih =>
+    cases doms with
+    | nil => simp at hlen
+    | cons dom doms =>
+      simp only [List.length_cons, Nat.add_right_cancel_iff] at hlen
+      have H' : InstForalls env U Γ ((VExpr.wrapForalls doms body).inst a 0) as res := by
+        generalize hT : VExpr.wrapForalls (dom :: doms) body = T at H
+        simp only [VExpr.wrapForalls, List.foldr_cons] at hT
+        cases H with
+        | cons _ H' => cases hT; exact H'
+        | vacuous H' =>
+          injection hT with _ h2
+          rw [show VExpr.wrapForalls doms body = _ from h2, VExpr.inst_lift]; exact H'
+      rw [VExpr.wrapForalls_inst] at H'
+      have := ih H' (by simpa using hlen)
+      simpa [hlen] using this
+
+theorem _root_.Lean4Lean.VInductDecl.paramVars_instOuter (decl : VInductDecl)
+    (args : List VExpr) (h : args.length = depth + decl.nparams) :
+    (decl.paramVars depth).map (·.instOuter args) = args.take decl.nparams := by
+  apply List.ext_getElem
+  · simp [VInductDecl.paramVars]; omega
+  · intro j h1 h2
+    simp only [VInductDecl.paramVars, List.getElem_map, List.getElem_reverse, List.getElem_range,
+      List.getElem_take, List.length_range]
+    simp only [VInductDecl.paramVars, List.length_map, List.length_reverse, List.length_range,
+      List.length_take] at h1 h2
+    rw [VExpr.instOuter_bvar args (by omega)]
+    congr 1
+    omega
+
+theorem _root_.Lean4Lean.VExpr.mkApps_getAppFnArgs_eq (e : VExpr) :
+    VExpr.mkApps (VExpr.getAppFnArgs.go e []).1 (VExpr.getAppFnArgs.go e []).2 = e := by
+  have go : ∀ (e : VExpr) (suffix : List VExpr),
+      VExpr.mkApps (VExpr.getAppFnArgs.go e suffix).1 (VExpr.getAppFnArgs.go e suffix).2 =
+        VExpr.mkApps e suffix := by
+    intro e
+    induction e with
+    | app fn arg ihFn _ =>
+      intro suffix
+      simpa [VExpr.getAppFnArgs.go, VExpr.mkApps] using ihFn (arg :: suffix)
+    | bvar | sort | const | proj | lam | forallE => intro suffix; rfl
+  simpa [VExpr.mkApps] using go e []
+
+
+/-- Fully instantiating a valid inductive application replaces its parameter variables by the
+corresponding arguments. -/
+theorem _root_.Lean4Lean.VInductDecl.ValidIndAppAt.instOuter {decl : VInductDecl}
+    (H : decl.ValidIndAppAt (some typeName) depth result)
+    (args : List VExpr) (h : args.length = depth + decl.nparams) :
+    ∃ levels indices, result.instOuter args =
+        VExpr.mkApps (.const typeName levels) (args.take decl.nparams ++ indices) ∧
+      levels.length = decl.uvars ∧
+      ∃ type ∈ decl.types, type.name = typeName ∧ indices.length = type.numIndices := by
+  obtain ⟨type, htype, hname, levels, hfn, hlevels, hlen, hparams, -⟩ := H
+  rcases hname with hname | hname
+  · cases hname
+  cases Option.some.inj hname
+  have hresult := VExpr.mkApps_getAppFnArgs_eq result
+  rw [hfn] at hresult
+  generalize hxs : (VExpr.getAppFnArgs.go result []).2 = xs at hlen hparams hresult
+  refine ⟨levels, (xs.drop decl.nparams).map (·.instOuter args), ?_, hlevels, type, htype, rfl, ?_⟩
+  · have e1 : result.instOuter args = ((VExpr.const type.name levels).mkApps xs).instOuter args := by
+      rw [hresult]
+    rw [e1, VExpr.instOuter_mkApps, VExpr.instOuter_const]
+    congr 1
+    conv => lhs; rw [← List.take_append_drop decl.nparams xs]
+    rw [List.map_append, hparams, decl.paramVars_instOuter args h]
+  · simp [hlen]
+
 end VEnv
 end Lean4Lean
