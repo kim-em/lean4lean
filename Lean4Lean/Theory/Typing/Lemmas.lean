@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Basic
+import Lean4Lean.Theory.VDecl
 import Lean4Lean.Std.VariableBang
 
 namespace Lean4Lean
@@ -183,25 +184,6 @@ inductive VObject where
 
 namespace VEnv
 
-theorem addConst_le {env env' : VEnv} (h : env.addConst n ci = some env') : env ≤ env' := by
-  unfold addConst at h; split at h <;> cases h
-  exact ⟨fun _ => by simp; split <;> simp_all, by simp [*]⟩
-
-theorem addConst_self {env env' : VEnv} (h : env.addConst n ci = some env') :
-    env'.constants n = some ci := by
-  unfold addConst at h; split at h <;> cases h; simp
-
-theorem addConst_constants_of_ne {env env' : VEnv}
-    (h : env.addConst n ci = some env') (hne : n ≠ p) :
-    env'.constants p = env.constants p := by
-  unfold addConst at h
-  split at h <;> cases h
-  simp [hne]
-
-theorem addDefEq_le {env : VEnv} : env ≤ env.addDefEq df := ⟨id, .inr⟩
-
-theorem addDefEq_self {env : VEnv} : (env.addDefEq df).defeqs df := .inl rfl
-
 def HasObjects (env : VEnv) : List VObject → Prop
   | [] => True
   | .const n ci :: ls => env.constants n = some ci ∧ env.HasObjects ls
@@ -263,6 +245,136 @@ inductive Ordered : VEnv → Prop where
     Ordered env → ci.WF env →
     env.addConst n ci = some env' → Ordered env'
   | defeq : Ordered env → df.WF env → Ordered (env.addDefEq df)
+  | inductProjections {base envTypes envCtors : VEnv}
+      {decl : VInductDecl} {block : VInductBlock} :
+    Ordered base →
+    Ordered envCtors →
+    decl.sourceNames.Nodup →
+    (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
+    block.types = decl.typeConstants →
+    block.ctors = decl.constructorConstants →
+    block.projections = decl.projectionEntries →
+    base.addConstVals block.types = some envTypes →
+    envTypes.addConstVals block.ctors = some envCtors →
+    Ordered (envCtors.addProjections block.projections)
+
+theorem Ordered.projectionConstant (H : Ordered env)
+    (hprojection : env.projections name info) :
+    ∃ constant, env.constants name = some constant := by
+  induction H with
+  | empty => cases hprojection
+  | const _ _ hadd ih =>
+    rw [VEnv.addConst_projections hadd] at hprojection
+    rcases ih hprojection with ⟨constant, hconstant⟩
+    exact ⟨constant, (VEnv.addConst_le hadd).constants hconstant⟩
+  | defeq _ _ ih => exact ih hprojection
+  | @inductProjections base envTypes envCtors decl block
+      hbase hctorsOrdered hsource hconstructorUvars htypesSource hctorsSource
+      hprojections htypes hctors ihBase ihCtors =>
+    rw [VEnv.addProjections_iff] at hprojection
+    rcases hprojection with hnew | hold
+    · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
+      rw [hprojections] at hentry
+      rcases VInductDecl.projectionEntries_origin hentry with
+        ⟨type, htype, ctor, hctorsType, rfl⟩
+      have htypeValue : type.toVConstVal ∈ block.types := by
+        rw [htypesSource]
+        exact List.mem_map.mpr ⟨type, htype, rfl⟩
+      have hlookup := VEnv.addConstVals_get htypes htypeValue
+      refine ⟨type.toVConstant, ?_⟩
+      simpa only [VEnv.addProjections_constants] using
+        (VEnv.addConstVals_le hctors).constants hlookup
+    · simpa using ihCtors hold
+
+/-- Projection metadata in an ordered environment names the exact constructor
+constant from which that metadata was derived.  This is an invariant of the
+inductive installation trace, rather than an additional projection-readiness
+assumption. -/
+theorem Ordered.projectionConstructor (H : Ordered env)
+    (hprojection : env.projections name info) :
+    env.constants info.ctorName = some {
+      uvars := info.uvars
+      type := info.ctorType } := by
+  induction H with
+  | empty => cases hprojection
+  | const _ _ hadd ih =>
+    rw [VEnv.addConst_projections hadd] at hprojection
+    exact (VEnv.addConst_le hadd).constants (ih hprojection)
+  | defeq _ _ ih => exact ih hprojection
+  | @inductProjections base envTypes envCtors decl block
+      hbase hctorsOrdered hsource hconstructorUvars htypesSource hctorsSource
+      hprojections htypes hctors ihBase ihCtors =>
+    rw [VEnv.addProjections_iff] at hprojection
+    rcases hprojection with hnew | hold
+    · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
+      rw [hprojections] at hentry
+      rcases VInductDecl.projectionEntries_origin hentry with
+        ⟨type, htype, ctor, htypeCtors, rfl⟩
+      have hctorValue : ctor ∈ block.ctors := by
+        rw [hctorsSource, VInductDecl.constructorConstants]
+        apply List.mem_flatMap.mpr
+        exact ⟨type, htype, by simp [htypeCtors]⟩
+      have hlookup := VEnv.addConstVals_get hctors hctorValue
+      have huvars := hconstructorUvars ctor (by
+        rw [VInductDecl.constructorConstants]
+        exact List.mem_flatMap.mpr ⟨type, htype, by simp [htypeCtors]⟩)
+      rw [VEnv.addProjections_constants, ← huvars]
+      exact hlookup
+    · simpa only [VEnv.addProjections_constants] using ihCtors hold
+
+theorem Ordered.projections_unique (H : Ordered env)
+    (hleft : env.projections name left)
+    (hright : env.projections name right) : left = right := by
+  induction H with
+  | empty => cases hleft
+  | const _ _ hadd ih =>
+    rw [VEnv.addConst_projections hadd] at hleft hright
+    exact ih hleft hright
+  | defeq _ _ ih => exact ih hleft hright
+  | @inductProjections base envTypes envCtors decl block
+      hbase hctorsOrdered hsource hconstructorUvars htypesSource hctorsSource
+      hprojections htypes hctors ihBase ihCtors =>
+    have hstages : envCtors.projections = base.projections :=
+      (VEnv.addConstVals_projections hctors).trans <|
+        VEnv.addConstVals_projections htypes
+    rw [VEnv.addProjections_iff] at hleft hright
+    rcases hleft with hleft | hleft <;> rcases hright with hright | hright
+    · rcases hleft with ⟨leftEntry, hleftMem, hleftName, hleftInfo⟩
+      rcases hright with ⟨rightEntry, hrightMem, hrightName, hrightInfo⟩
+      have hentry : leftEntry = rightEntry := by
+        apply VInductDecl.projectionEntries_unique hsource
+        · simpa [hprojections] using hleftMem
+        · simpa [hprojections] using hrightMem
+        · exact hleftName.symm.trans hrightName
+      subst rightEntry
+      exact hleftInfo.trans hrightInfo.symm
+    · rcases hleft with ⟨entry, hentry, hname, hinfo⟩
+      rw [hstages] at hright
+      rcases hbase.projectionConstant hright with ⟨constant, hconstant⟩
+      rw [hprojections] at hentry
+      rcases VInductDecl.projectionEntries_origin hentry with
+        ⟨type, htype, ctor, hctorsType, hentryEq⟩
+      have hfresh := VEnv.addConstVals_names_fresh htypes type.toVConstVal (by
+        rw [htypesSource]
+        exact List.mem_map.mpr ⟨type, htype, rfl⟩)
+      rw [hname, hentryEq] at hconstant
+      simp only at hconstant
+      rw [hfresh] at hconstant
+      contradiction
+    · rcases hright with ⟨entry, hentry, hname, hinfo⟩
+      rw [hstages] at hleft
+      rcases hbase.projectionConstant hleft with ⟨constant, hconstant⟩
+      rw [hprojections] at hentry
+      rcases VInductDecl.projectionEntries_origin hentry with
+        ⟨type, htype, ctor, hctorsType, hentryEq⟩
+      have hfresh := VEnv.addConstVals_names_fresh htypes type.toVConstVal (by
+        rw [htypesSource]
+        exact List.mem_map.mpr ⟨type, htype, rfl⟩)
+      rw [hname, hentryEq] at hconstant
+      simp only at hconstant
+      rw [hfresh] at hconstant
+      contradiction
+    · exact ihCtors hleft hright
 
 def OnTypes (env : VEnv) (P : Nat → VExpr → VExpr → Prop) : Prop :=
   (∀ {n ci}, env.constants n = some ci → ∃ u, P ci.uvars ci.type (.sort u)) ∧
@@ -279,6 +391,10 @@ theorem Ordered.induction (motive : VEnv → Nat → VExpr → VExpr → Prop)
     (H : Ordered env) : OnTypes env (motive env) := by
   induction H with
   | empty => exact ⟨nofun, nofun⟩
+  | inductProjections _ _ _ _ _ _ _ _ _ ihBase ih =>
+    exact ⟨fun h => (ih.1 (by simpa using h)).imp fun _ => mono VEnv.addProjections_le,
+      fun h => (ih.2 (by simpa using h)).imp (mono VEnv.addProjections_le)
+        (mono VEnv.addProjections_le)⟩
   | const h1 h2 h3 ih =>
     apply OnTypes.mono .rfl (mono (addConst_le h3))
     unfold addConst at h3; split at h3 <;> cases h3
@@ -339,6 +455,11 @@ theorem IsDefEq.closedN' (H : env.IsDefEq U Γ e1 e2 A) (hΓ : CtxClosed Γ) :
     let ⟨hf, hf', _, hB⟩ := ih1 hΓ
     let ⟨ha, ha', _⟩ := ih2 hΓ
     exact ⟨⟨hf, ha⟩, ⟨hf', ha'⟩, hB.inst ha⟩
+  | projDF _ _ _ _ _ _ _ _ _ _ _ ihField ihLeft ihRight =>
+    let ⟨_, hm, _⟩ := ihLeft hΓ
+    let ⟨_, hm', _⟩ := ihRight hΓ
+    let ⟨hfield, _, _⟩ := ihField hΓ
+    exact ⟨hm, hm', hfield⟩
   | lamDF _ _ ih1 ih2 =>
     let ⟨hA, hA', _⟩ := ih1 hΓ
     let ⟨hb, hb', hB⟩ := ih2 ⟨hΓ, hA⟩
@@ -398,6 +519,10 @@ theorem IsDefEq.mono (H : env.IsDefEq U Γ e1 e2 A) : env'.IsDefEq U Γ e1 e2 A 
   | symm _ ih => exact .symm ih
   | trans _ _ ih1 ih2 => exact .trans ih1 ih2
   | appDF _ _ ih1 ih2 => exact .appDF ih1 ih2
+  | projDF h1 h2 h3 h4 h5 h6 _ _ _ hclosed hguard
+      ihField ihLeft ihRight =>
+    exact .projDF (henv.projections h1) h2 h3 h4 h5 h6
+      ihField ihLeft ihRight hclosed hguard
   | lamDF _ _ ih1 ih2 => exact .lamDF ih1 ih2
   | forallEDF _ _ ih1 ih2 => exact .forallEDF ih1 ih2
   | defeqDF _ _ ih1 ih2 => exact .defeqDF ih1 ih2
@@ -448,6 +573,8 @@ theorem Ordered.constWF (H : Ordered env) (h : env.constants n = some ci) : ci.W
     · cases h; exact h2
     · exact ih h
   | defeq _ _ ih => exact .mono addDefEq_le (ih h)
+  | inductProjections _ _ _ _ _ _ _ _ _ ihBase ih =>
+    exact .mono VEnv.addProjections_le (ih (by simpa using h))
 
 theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
   induction H with
@@ -460,6 +587,8 @@ theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
     obtain rfl | h := h
     · assumption
     · exact ih h
+  | inductProjections _ _ _ _ _ _ _ _ _ ihBase ih =>
+    exact .mono VEnv.addProjections_le (ih (by simpa using h))
 
 variable! (henv : Ordered env) in
 theorem CtxWF.closed (h : OnCtx Γ (IsType env U)) : CtxClosed Γ :=
@@ -483,6 +612,11 @@ theorem IsDefEq.levelWF (H : env.IsDefEq U Γ e1 e2 A) (W : OnCtx Γ fun _ A => 
   | appDF _ _ ih1 ih2 =>
     let ⟨hf, hf', _, hB⟩ := ih1 W; let ⟨ha, ha', _⟩ := ih2 W
     exact ⟨⟨hf, ha⟩, ⟨hf', ha'⟩, hB.inst ha⟩
+  | projDF _ _ _ _ _ _ _ _ _ _ _ ihField ihLeft ihRight =>
+    let ⟨_, hm, _⟩ := ihLeft W
+    let ⟨_, hm', _⟩ := ihRight W
+    let ⟨hfield, _, _⟩ := ihField W
+    exact ⟨hm, hm', hfield⟩
   | lamDF _ _ ih1 ih2 =>
     let ⟨hA, hA', _⟩ := ih1 W; let ⟨hb, hb', hB⟩ := ih2 ⟨W, hA⟩
     exact ⟨⟨hA, hb⟩, ⟨hA', hb'⟩, hA, hB⟩
@@ -523,6 +657,22 @@ theorem IsDefEq.weakN (W : Ctx.LiftN n k Γ Γ') (H : env.IsDefEq U Γ e1 e2 A) 
     rw [(henv.closedC h1).instL.liftN_eq (Nat.zero_le _)]
     exact .constDF h1 h2 h3 h4 h5
   | appDF _ _ ih1 ih2 => exact liftN_inst_hi .. ▸ .appDF (ih1 W) (ih2 W)
+  | @projDF typeName info levels params index sourceMajor fieldType _ fieldLevel
+      major indexArgs major' hinfo hlevels huvars hparams hindices hfield
+      _ _ _ hclosed hguard ihField ihLeft ihRight =>
+    have hfield' := VProjectionInfo.fieldType_liftN
+      (typeName := typeName) (levels := levels) (params := params)
+      (index := index) (major := sourceMajor) (n := n) (k := k) info hclosed
+    rw [hfield] at hfield'
+    have hleft := ihLeft W
+    have hright := ihRight W
+    simp only [VExpr.liftN_mkApps, List.map_append, VExpr.liftN] at hleft hright
+    simpa [VExpr.liftN, List.map_append] using
+      (.projDF (info := info) (params := params.map fun param => param.liftN n k)
+        (indexArgs := indexArgs.map fun arg => arg.liftN n k)
+        hinfo hlevels huvars (by simpa using hparams)
+        (by simpa using hindices) hfield' (ihField W)
+        hleft hright hclosed hguard)
   | lamDF _ _ ih1 ih2 => exact .lamDF (ih1 W) (ih2 W.succ)
   | forallEDF _ _ ih1 ih2 => exact .forallEDF (ih1 W) (ih2 W.succ)
   | defeqDF _ _ ih1 ih2 => exact .defeqDF (ih1 W) (ih2 W)
@@ -619,6 +769,31 @@ theorem IsDefEq.instL (H : env.IsDefEq U Γ e1 e2 A) :
     exact .constDF h1 (by simp [VLevel.WF.inst hls]) (by simp [VLevel.WF.inst hls])
       (by simp [h4]) (by simpa using h5.imp fun _ _ => VLevel.inst_congr_l)
   | appDF _ _ ih1 ih2 => exact VExpr.instL_instN ▸ .appDF ih1 ih2
+  | @projDF typeName info levels params index sourceMajor fieldType _ fieldLevel
+      major indexArgs major' hinfo hlevels huvars hparams hindices hfield
+      _ _ _ hclosed hguard ihField ihLeft ihRight =>
+    have hfield' := VProjectionInfo.fieldType_instL
+      (typeName := typeName) (levels := levels) (params := params)
+      (index := index) (major := sourceMajor) (substitution := ls) info
+    rw [hfield] at hfield'
+    have hleft := ihLeft
+    have hright := ihRight
+    have hguard' :
+        (info.resultLevel.inst (levels.map fun level => level.inst ls)).IsNeverZero ∨
+          fieldLevel.inst ls ≈ .zero := by
+      rcases hguard with hnever | hprop
+      · left
+        rw [← VLevel.inst_inst]
+        exact hnever.inst
+      · right
+        simpa [VLevel.inst] using VLevel.inst_congr_l (ls := ls) hprop
+    simp only [VExpr.instL_mkApps, List.map_append, VExpr.instL] at hleft hright
+    simpa [VExpr.instL, List.map_append] using
+      (.projDF (info := info) (params := params.map (VExpr.instL ls))
+        (indexArgs := indexArgs.map (VExpr.instL ls))
+        hinfo (by simp [VLevel.WF.inst hls]) (by simpa using huvars)
+        (by simpa using hparams) (by simpa using hindices)
+        hfield' ihField hleft hright hclosed hguard')
   | lamDF _ _ ih1 ih2 => exact .lamDF ih1 ih2
   | forallEDF _ _ ih1 ih2 => exact .forallEDF ih1 ih2
   | defeqDF _ _ ih1 ih2 => exact .defeqDF ih1 ih2
@@ -666,6 +841,22 @@ theorem IsDefEq.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : env.IsDefE
     rw [(henv.closedC h1).instL.instN_eq (Nat.zero_le _)]
     exact .constDF h1 h2 h3 h4 h5
   | appDF _ _ ih1 ih2 => exact VExpr.inst_inst_hi .. ▸ .appDF (ih1 W) (ih2 W)
+  | @projDF typeName info levels params index sourceMajor fieldType _ fieldLevel
+      major indexArgs major' hinfo hlevels huvars hparams hindices hfield
+      _ _ _ hclosed hguard ihField ihLeft ihRight =>
+    have hfield' := VProjectionInfo.fieldType_inst_some
+      (typeName := typeName) (levels := levels) (params := params)
+      (index := index) (major := sourceMajor) (result := fieldType)
+      (value := e₀) (k := k) info hclosed hfield
+    have hleft := ihLeft W
+    have hright := ihRight W
+    simp only [VExpr.inst_mkApps, List.map_append, VExpr.inst] at hleft hright
+    simpa [VExpr.inst, List.map_append] using
+      (.projDF (info := info) (params := params.map fun param => param.inst e₀ k)
+        (indexArgs := indexArgs.map fun arg => arg.inst e₀ k)
+        hinfo hlevels huvars (by simpa using hparams)
+        (by simpa using hindices) hfield' (ihField W)
+        hleft hright hclosed hguard)
   | lamDF _ _ ih1 ih2 => exact .lamDF (ih1 W) (ih2 W.succ)
   | forallEDF _ _ ih1 ih2 => exact .forallEDF (ih1 W) (ih2 W.succ)
   | defeqDF _ _ ih1 ih2 => exact .defeqDF (ih1 W) (ih2 W)
@@ -867,6 +1058,8 @@ theorem IsDefEq.isType' (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e1
   | symm _ ih => exact ih hΓ
   | trans _ _ ih1 => exact ih1 hΓ
   | appDF _ h2 ih1 => exact ((ih1 hΓ).forallE_inv henv).2.instN henv .zero h2.hasType.1
+  | projDF _ _ _ _ _ _ hfieldType _ _ _ _ _ _ _ =>
+    exact ⟨_, hfieldType.hasType.2⟩
   | lamDF h1 _ _ ih2 =>
     let ⟨_, h⟩ := ih2 ⟨hΓ, _, h1.hasType.1⟩
     exact ⟨_, .forallE h1.hasType.1 h⟩

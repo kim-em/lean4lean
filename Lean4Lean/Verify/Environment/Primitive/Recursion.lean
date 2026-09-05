@@ -412,20 +412,6 @@ theorem ProbeBundle.probe.WF {c : VContext} {m mp : MLCtx} [cwf : c.MLCWF m] [cw
   simp [plhs, parg, pγ, VExpr.Subst.cons, VExpr.liftN_subst, VExpr.subst_appN] at hsub ⊢
   exact hsub
 
--- def ProbeBundle.probe.WF (a₀ F dom : Expr) (fail : ∀ {α}, M α) (fvs : Array Expr) : Prop :=
---   ∀ subst mkRhs τ, subst.toList.Forall₂ c.TrExprS τ →
---     ∀ {β}, ∀ σ' : β → α,
---     (∀ b, c.IsDefEqU (F (σ' b) ih)) →
---     ∀ τn : List (α → Nat),
---     (∀ a ih ih', c.TrExprS lhs (f.app a |>.app ih') → c.TrExprS ih ih' →
---       (∀ {β}, ∀ σ' : β → List VExpr, ∀ τn : List (α → Nat),
---         τ.Forall₂ (fun x n => ∀ a, c.IsDefEqU (x.insts (σ a)) (.natLit (n a))) τn →
---         True) →
---       (mkRhs lhs ih).WF (c.withMLC m' (wf := cwf')) s'' fun rhs _ =>
---         ∃ rhsv, (c.withMLC m' (wf := cwf')).TrExprS rhs rhsv ∧
---         ((c.withMLC m' (wf := cwf')).IsDefEqU (.app (.app H.F aV) (.bvar 0)) rhsv → Q)) →
---     (r.1 subst mkRhs).WF (c.withMLC m) s' fun _ _ => Q)
-
 /-! ### The `go` step equation, one telescope at a time
 
 `go α motive f F (succ t) x hfuel ≡ F x fun y hy => go α motive f F t y pf` is checked with every

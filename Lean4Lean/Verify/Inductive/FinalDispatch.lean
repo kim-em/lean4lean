@@ -27,7 +27,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
   exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     env lparams nparams sourceTypes isUnsafe fuel res ves wf Hsources
     Hlower haux).mono
-      fun _ ⟨ves', wf', hle, Hspec⟩ =>
+      fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨InductiveFinalResult.ofModel ves' wf' hle Hspec⟩
 
 /-- Uniform final result for the canonical primitive Bool/Nat post-lowering
@@ -50,7 +50,7 @@ theorem Environment.addInductiveAfterLowering.primitiveInductiveFinalResultWF
     (Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
       env lparams nparams types false fuel res ves wf Hshape
       htypes haux).mono
-      fun _ ⟨ves', wf', hle, Hspec⟩ =>
+      fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
           wf := wf'
@@ -73,7 +73,7 @@ theorem Environment.addInductive.primitiveInductiveFinalResultWF
   exact
     (Environment.addInductive.primitiveFinalSpecificationModelWF
       env lparams nparams types false fuel ves wf Hshape).mono
-      fun _ ⟨ves', wf', hle, Hspec⟩ =>
+      fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
           wf := wf'
@@ -96,7 +96,7 @@ theorem addInductiveDeclaration.primitiveInductiveFinalResultWF
   exact
     (addInductiveDeclaration.primitiveFinalSpecificationModelWF
       env lparams nparams types false fuel ves wf Hshape).mono
-      fun _ ⟨ves', wf', hle, Hspec⟩ =>
+      fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
           wf := wf'

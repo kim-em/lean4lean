@@ -17,22 +17,21 @@ theorem SemanticPrimitiveRunWithStatsResult.independentSpecification
       sourceEnv indTypes isUnsafe outEnv)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe) :
-    Nonempty (InductiveSpecificationResult sourceEnv c.lparams nparams
-      indTypes.toList isUnsafe) := by
+    ∃ finalVEnv, Nonempty (InductiveSpecificationResult sourceEnv c.lparams
+      nparams indTypes.toList isUnsafe finalVEnv) := by
   rcases Hrun with ⟨decl, _ctorEnv, R, ⟨Hrecursors⟩⟩
   have hnonempty : indTypes.toList ≠ [] := by
     rcases Hshape with ⟨_, _, _, hbool | ⟨binderName, binderInfo, hnat⟩⟩
     · simp [hbool]
     · simp [hnat]
   rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
-  exact ⟨{
+  exact ⟨(Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv, ⟨{
     decl := decl
     envTypes := R.headerVEnv
     envCtors := R.context.venv
-    finalVEnv := Hrecursors.outVEnv.addDefEqRules T.rules
     source := R.core
     extension := Hrecursors.addInductOfOrdinaryCompilation T.rules
-      T.rulesWF hnonempty T.compilation }⟩
+      T.rulesWF hnonempty T.compilation }⟩⟩
 
 end VerifyInductive
 end Lean4Lean

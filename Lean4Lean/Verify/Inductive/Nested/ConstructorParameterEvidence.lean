@@ -168,9 +168,9 @@ theorem CheckedConstructorParameterPrefix.scopeWFOfFVWF
       exact hdomainType.defeqU_l henv (ih hfv).toCtx hcompare
     exact ⟨ih hfv, hfresh, hparamType⟩
 
-/-- Family-indexed residue still needed before the production checker trace
-can be connected to every restored constructor.  Unlike the old provider,
-this chooses no constructor and contains no constructor semantics. -/
+/-- Family-indexed parameter scopes connecting the production checker trace
+to restored constructors.  This chooses no constructor and contains no
+constructor semantics. -/
 def NestedRestoredFamilyParameterScopes
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes sourceEnv
       decl lparams nparams isUnsafe safety outEnv) : Prop :=

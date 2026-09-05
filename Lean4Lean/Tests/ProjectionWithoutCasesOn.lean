@@ -1,10 +1,9 @@
 import Lean4Lean.Environment
 
 /-!
-Certified projection checking now deliberately requires a checked canonical
-`.casesOn` witness.  The kernel-facing inductive installer does not create that
-later elaborator auxiliary, so a projection at this intermediate boundary is
-rejected rather than accepted without a verification certificate.
+Primitive projection inference depends only on the installed inductive and
+constructor metadata.  The kernel-facing installer does not create the later
+elaborator `.casesOn` auxiliary, and projection checking must not require it.
 -/
 
 namespace Lean4Lean.Tests.ProjectionWithoutCasesOn
@@ -40,7 +39,9 @@ run_meta do
     | throwError "fresh projection structure was rejected"
   if installed.find? (mkCasesOnName `L4LProjectionFresh) |>.isSome then
     throwError "inductive installation unexpectedly added `.casesOn`"
-  let .error _ := Lean4Lean.addDecl installed projectionDecl
-    | throwError "projection without `.casesOn` was accepted without a certificate"
+  let .ok projected := Lean4Lean.addDecl installed projectionDecl
+    | throwError "projection without `.casesOn` was rejected"
+  unless projected.contains `L4LProjectionFresh.value do
+    throwError "accepted projection declaration was not installed"
 
 end Lean4Lean.Tests.ProjectionWithoutCasesOn

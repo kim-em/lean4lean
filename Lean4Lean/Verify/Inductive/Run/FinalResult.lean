@@ -19,18 +19,20 @@ structure InductiveFinalResult
   targetModels : VEnvs
   wf : targetModels.WF outEnv
   mono : ∀ safety, sourceModels.venv safety ≤ targetModels.venv safety
-  specification : Nonempty (InductiveSpecificationResult
+  specification : InductiveSpecificationResult
     (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
-    sourceTypes isUnsafe)
+    sourceTypes isUnsafe
+    (targetModels.venv (if isUnsafe then .unsafe else .safe))
 
 /-- Construct the uniform result directly from the environment model and
 independent source specification. -/
 def InductiveFinalResult.ofModel
     (targetModels : VEnvs) (wf : targetModels.WF outEnv)
     (mono : ∀ safety, sourceModels.venv safety ≤ targetModels.venv safety)
-    (specification : Nonempty (InductiveSpecificationResult
+    (specification : InductiveSpecificationResult
       (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams
-      nparams sourceTypes isUnsafe)) :
+      nparams sourceTypes isUnsafe
+      (targetModels.venv (if isUnsafe then .unsafe else .safe))) :
     InductiveFinalResult outEnv sourceModels lparams nparams sourceTypes
       isUnsafe where
   targetModels := targetModels

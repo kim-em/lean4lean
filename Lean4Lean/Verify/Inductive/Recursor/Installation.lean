@@ -575,6 +575,18 @@ theorem AddConstants.append
   | cons hn hnprim htr hwf hadd hdelta _ ih =>
     exact .cons hn hnprim htr hwf hadd hdelta (ih H₂)
 
+/-- Projection metadata commutes with an ordinary lockstep constant batch. -/
+theorem AddConstants.addProjections
+    (H : AddConstants safety env venv entries outEnv outVEnv) :
+    AddConstants safety env (venv.addProjections projections) entries
+      outEnv (outVEnv.addProjections projections) := by
+  induction H with
+  | nil => exact .nil
+  | cons hn hnprim htr hwf hadd hdelta _ ih =>
+    exact .cons hn hnprim (htr.mono VEnv.addProjections_le)
+      (hwf.mono VEnv.addProjections_le)
+      (by rw [VEnv.addProjections_addConst, hadd]; rfl) hdelta ih
+
 theorem AddConstants.hasPrimitives
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (Hprimitives : venv.HasPrimitives) : outVEnv.HasPrimitives := by

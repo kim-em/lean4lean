@@ -117,7 +117,7 @@ theorem
     ⟨S, HselectedSource, HmotiveDomain₀⟩
   have henvLe : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
+    exact H.constructorVEnv_le
   let C := S.canonical.mono henvLe
   have HcanonicalSource : VEnv.IsDefEqCtx H.outVEnv Us.length []
       C.params.reverse S.motiveSourceScope.toCtx := by

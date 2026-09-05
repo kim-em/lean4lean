@@ -319,7 +319,7 @@ theorem
   rw [hparams₀, hmotives₀] at HmotiveDomain₀
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
+    exact H.constructorVEnv_le
   let C := S.canonical.mono hbase
   have hcanonicalSource : VEnv.IsDefEqCtx H.outVEnv Us.length []
       C.params.reverse S.motiveSourceScope.toCtx := by
@@ -967,7 +967,7 @@ theorem
     hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull,
     HcachedCtx, HlhsResidual, Hlhs', HtypeBody, HtypeTranslation⟩
 
-/-- Compatibility projection of `finalCachedCanonicalLhsBodyWithFrame` for
+/-- Projection of `finalCachedCanonicalLhsBodyWithFrame` for
 clients that do not need to relate the retained LHS field telescope to an
 independently narrowed RHS frame. -/
 theorem

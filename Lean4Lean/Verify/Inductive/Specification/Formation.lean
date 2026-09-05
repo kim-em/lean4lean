@@ -1294,134 +1294,6 @@ theorem VEnv.addConstVals_names_nodup
     (constants.map (·.name)).Nodup :=
   (VEnv.addConstVals_names_fresh H).1
 
-/-- Two fresh abstract constants with distinct names may be installed in
-either order, producing the same functional environment. -/
-theorem VEnv.addConstVals_swap
-    {env out : VEnv} {a b : VConstVal}
-    (hne : a.name ≠ b.name)
-    (H : env.addConstVals [a, b] = some out) :
-    env.addConstVals [b, a] = some out := by
-  have hfresh := VEnv.addConstVals_names_fresh H |>.2
-  have haFresh := hfresh a (by simp)
-  have hbFresh := hfresh b (by simp)
-  simp [VEnv.addConstVals, VEnv.addConst, haFresh, hbFresh, hne, hne.symm] at H ⊢
-  rw [← H]
-  congr 1
-  funext name
-  by_cases haName : a.name = name <;>
-    by_cases hbName : b.name = name <;> simp_all
-
-/-- Installing a list of fresh abstract constants is invariant under
-permutation: only the resulting finite map matters, not insertion order. -/
-theorem VEnv.addConstVals_perm
-    {env out : VEnv} {constants constants' : List VConstVal}
-    (Hperm : constants ~ constants')
-    (H : env.addConstVals constants = some out) :
-    env.addConstVals constants' = some out := by
-  induction Hperm generalizing env out with
-  | nil => exact H
-  | @cons ci constants constants' _ ih =>
-    simp only [VEnv.addConstVals] at H ⊢
-    cases hadd : env.addConst ci.name ci.toVConstant with
-    | none => simp [hadd] at H
-    | some next =>
-      rw [hadd] at H
-      simpa using ih H
-  | @swap a b constants =>
-    change env.addConstVals ([b, a] ++ constants) = some out at H
-    rcases VEnv.addConstVals_append_inv H with
-      ⟨middle, hprefix, hsuffix⟩
-    have hnodup := VEnv.addConstVals_names_nodup hprefix
-    have hne : b.name ≠ a.name := by
-      simpa using hnodup
-    change env.addConstVals ([a, b] ++ constants) = some out
-    exact VEnv.addConstVals_append
-      (VEnv.addConstVals_swap hne hprefix) hsuffix
-  | trans _ _ ih₁ ih₂ =>
-    exact ih₂ (ih₁ H)
-
-/-- Recover the canonical dependency-ordered block installation from a
-successful installation of the same constants in any restoration order. -/
-theorem VInductBlock.install_of_permutedConstants
-    {env out : VEnv} {block : VInductBlock}
-    {constants : List VConstVal}
-    (Hperm : block.types ++ block.ctors ++ block.recursors ~ constants)
-    (H : env.addConstVals constants = some out) :
-    block.install env = some (out.addDefEqRules block.rules) := by
-  have hcanonical : env.addConstVals
-      (block.types ++ block.ctors ++ block.recursors) = some out :=
-    VEnv.addConstVals_perm Hperm.symm H
-  rcases VEnv.addConstVals_append_inv (xs := block.types)
-      (ys := block.ctors ++ block.recursors) (by
-        simpa only [List.append_assoc] using hcanonical) with
-    ⟨envTypes, htypes, htail⟩
-  rcases VEnv.addConstVals_append_inv (xs := block.ctors)
-      (ys := block.recursors) htail with
-    ⟨envCtors, hctors, hrecursors⟩
-  simp [VInductBlock.install, htypes, hctors, hrecursors]
-
-/-- Semantic certificate for a block whose constants were produced in
-restoration order.  Typing is stated at the canonical dependency stages,
-while freshness/installation may be witnessed by any permutation of those
-constants. -/
-structure RestoredBlockCertificate (env : VEnv)
-    (block : VInductBlock) where
-  constants : List VConstVal
-  outVEnv : VEnv
-  order : block.types ++ block.ctors ++ block.recursors ~ constants
-  installed : env.addConstVals constants = some outVEnv
-  typesWF : ∀ ci ∈ block.types, ci.toVConstant.WF env
-  ctorsWF : ∀ envTypes,
-    env.addConstVals block.types = some envTypes →
-    ∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes
-  recursorsWF : ∀ envTypes envCtors,
-    env.addConstVals block.types = some envTypes →
-    envTypes.addConstVals block.ctors = some envCtors →
-    ∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors
-  rulesWF : ∀ df ∈ block.rules, df.WF outVEnv
-
-theorem RestoredBlockCertificate.canonicalStages
-    (H : RestoredBlockCertificate env block) :
-    ∃ envTypes envCtors,
-      env.addConstVals block.types = some envTypes ∧
-      envTypes.addConstVals block.ctors = some envCtors ∧
-      envCtors.addConstVals block.recursors = some H.outVEnv := by
-  have hcanonical : env.addConstVals
-      (block.types ++ block.ctors ++ block.recursors) = some H.outVEnv :=
-    VEnv.addConstVals_perm H.order.symm H.installed
-  rcases VEnv.addConstVals_append_inv (xs := block.types)
-      (ys := block.ctors ++ block.recursors) (by
-        simpa only [List.append_assoc] using hcanonical) with
-    ⟨envTypes, htypes, htail⟩
-  rcases VEnv.addConstVals_append_inv (xs := block.ctors)
-      (ys := block.recursors) htail with
-    ⟨envCtors, hctors, hrecursors⟩
-  exact ⟨envTypes, envCtors, htypes, hctors, hrecursors⟩
-
-/-- Restoration-order installation plus canonical stage typing discharges
-the independent compiled-block well-formedness judgment. -/
-theorem RestoredBlockCertificate.wf
-    (H : RestoredBlockCertificate env block) : block.WF env := by
-  rcases H.canonicalStages with
-    ⟨envTypes, envCtors, htypes, hctors, hrecursors⟩
-  exact ⟨envTypes, envCtors, H.outVEnv, htypes, hctors, hrecursors,
-    H.typesWF, H.ctorsWF envTypes htypes,
-    H.recursorsWF envTypes envCtors htypes hctors, H.rulesWF⟩
-
-theorem RestoredBlockCertificate.install
-    (H : RestoredBlockCertificate env block) :
-    block.install env = some (H.outVEnv.addDefEqRules block.rules) :=
-  VInductBlock.install_of_permutedConstants H.order H.installed
-
-/-- Final abstract inductive-extension assembly specialized to a restored
-block.  The declaration and compilation judgments remain independent inputs;
-the restoration certificate supplies block well-formedness and installation. -/
-theorem RestoredBlockCertificate.addInduct
-    (H : RestoredBlockCertificate env block)
-    (Hdecl : decl.WF env)
-    (Hcompile : decl.CompilesTo env block) :
-    VEnv.AddInduct env decl (H.outVEnv.addDefEqRules block.rules) :=
-  .intro Hdecl Hcompile H.wf H.install
 
 theorem VEnv.addConstVals_get
     {env out : VEnv} {constants : List VConstVal}
@@ -1556,6 +1428,22 @@ theorem TrInductDeclCore.sourceWF
     simp only [VInductDecl.constructorConstants] at hctor
     rcases List.mem_flatMap.mp hctor with ⟨target, htarget, hctor⟩
     exact (hproperties target htarget).2.2 ctor hctor |>.2
+
+/-- Constructor universe arities are already fixed by the pointwise source
+translation; unlike the aggregate `SourceWF` theorem, this fact needs no
+nonemptiness or global-name premise. -/
+theorem TrInductDeclCore.constructorUvars
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors) :
+    ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars := by
+  intro ctor hctor
+  simp only [VInductDecl.constructorConstants] at hctor
+  rcases List.mem_flatMap.mp hctor with ⟨target, htarget, hctor⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types target htarget with
+    ⟨source, _hsource, Htarget⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget.ctors ctor hctor with
+    ⟨sourceCtor, _hsourceCtor, Hctor⟩
+  exact Hctor.uvars.trans H.uvars.symm
 
 theorem TrInductDeclCore.toTrInductDecl
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl

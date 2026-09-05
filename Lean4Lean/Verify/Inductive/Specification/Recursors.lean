@@ -286,6 +286,7 @@ structure OrdinaryCompilationCertificate (env : VEnv)
     (decl : VInductDecl) (block : VInductBlock) : Prop where
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
+  projections : block.projections = decl.projectionEntries
   recursors : RecursorCertificate decl block.recursors
   rules : ∃ envTypes envCtors,
     env.addConstVals block.types = some envTypes ∧
@@ -330,6 +331,7 @@ theorem OrdinaryCompilationCertificate.ordinary
   exact {
   types := H.types
   ctors := H.ctors
+  projections := H.projections
   recursors := H.recursors.forall₂
   rules := ⟨envTypes, envCtors, htypes, hctors, Hrules.forall₂⟩
   names := H.names }
@@ -350,6 +352,7 @@ structure NestedCompilationCertificate (env : VEnv)
   types_source : decl.types = main :: rest
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
+  projections : block.projections = decl.projectionEntries
   envTypes : VEnv
   envCtors : VEnv
   types_added : env.addConstVals block.types = some envTypes
@@ -390,6 +393,7 @@ def NestedCompilationCertificate.nested
   types_source := H.types_source
   types := H.types
   ctors := H.ctors
+  projections := H.projections
   primaryRecursors := H.primaryRecursors
   auxiliaryRecursors := H.auxiliaryRecursors
   recursors_eq := H.recursors_eq
@@ -405,46 +409,6 @@ def NestedCompilationCertificate.nested
 theorem NestedCompilationCertificate.compilesTo
     (H : NestedCompilationCertificate env decl block) :
     decl.CompilesTo env block := .nested H.nested
-
-/-- Restored-block counterpart of the executable staged endpoint: source
-translation and formation establish declaration well-formedness, nested
-compilation supplies the independent compilation relation, and restoration
-supplies block installation. -/
-theorem RestoredBlockCertificate.addInductOfNestedCompilation
-    (H : RestoredBlockCertificate env block)
-    (Hformation : FormationCertificate env decl)
-    (Hsource : TrInductDeclCore env lparams nparams sourceTypes isUnsafe decl
-      sourceEnvTypes sourceEnvCtors)
-    (hnonempty : sourceTypes ≠ [])
-    (Hcompile : NestedCompilationCertificate env decl block) :
-    VEnv.AddInduct env decl (H.outVEnv.addDefEqRules block.rules) := by
-  have Htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
-      Hsource
-      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
-  exact H.addInduct
-    (Hformation.declWF (Lean4Lean.TrInductDecl.sourceWF Htranslated))
-    Hcompile.compilesTo
-
-/-- Restored-block endpoint for the independent nested formation judgment.
-The source translation continues to supply `SourceWF`; the finite nested
-derivation supplies the non-ordinary formation branch. -/
-theorem RestoredBlockCertificate.addInductOfNestedFormation
-    (H : RestoredBlockCertificate env block)
-    (Hformation : decl.NestedFormationWF env)
-    (Hsource : TrInductDeclCore env lparams nparams sourceTypes isUnsafe decl
-      sourceEnvTypes sourceEnvCtors)
-    (hnonempty : sourceTypes ≠ [])
-    (Hcompile : NestedCompilationCertificate env decl block) :
-    VEnv.AddInduct env decl (H.outVEnv.addDefEqRules block.rules) := by
-  have Htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
-      Hsource
-      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
-  exact H.addInduct
-    ⟨Lean4Lean.TrInductDecl.sourceWF Htranslated,
-      .nested Hformation VEnv.LE.rfl⟩
-    Hcompile.compilesTo
 
 /-- Append-oriented restoration invariant for the auxiliary recursor/rule
 suffix. It mirrors `processRec`: recursors receive consecutive `main.recN`
@@ -496,6 +460,7 @@ def NestedCompilationCertificate.ofRestoration
       auxiliaryRecursors auxiliaryRules)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
+    (hprojections : block.projections = decl.projectionEntries)
     (htypesAdded : env.addConstVals block.types = some envTypes)
     (hctorsAdded : envTypes.addConstVals block.ctors = some envCtors)
     (hrecursors : block.recursors =
@@ -509,6 +474,7 @@ def NestedCompilationCertificate.ofRestoration
   types_source := htypesSource
   types := htypes
   ctors := hctors
+  projections := hprojections
   envTypes := envTypes
   envCtors := envCtors
   types_added := htypesAdded

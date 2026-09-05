@@ -56,7 +56,6 @@ theorem NestedRestorationPlan.AtomicProvenance.wrapLamsAlignment
           subst htarget
           exact ⟨_ :: targetDomains, targetBody, rfl,
             .cons hdomain Hdomains, Hbody⟩
-      | projection sourceExpansion => cases sourceExpansion
 
 /-- Componentwise restoration of a generated lambda telescope assembles a
 guarded restoration of the whole telescope.  The independently generated

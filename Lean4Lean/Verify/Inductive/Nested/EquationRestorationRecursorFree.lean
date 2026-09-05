@@ -54,6 +54,14 @@ theorem NestedRestorationPlan.AtomicProvenance.restorationRecursorFree
       simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree
       exact .app (ihfn hsourceFree.1 hfresh.app_left)
         (iharg hsourceFree.2 hfresh.app_right)
+  | @proj sourceMajor targetMajor typeName index hmajor ihmajor =>
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree
+      have hmajorFresh : AvoidsTargetOnlyRecursors sourceRecursors targetRecursors
+          sourceMajor := by
+        unfold AvoidsTargetOnlyRecursors at hfresh ⊢
+        simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hfresh
+        exact hfresh.2
+      exact .proj typeName index (ihmajor hsourceFree.2 hmajorFresh)
   | lam hdomain hbody ihdomain ihbody =>
       simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree
       exact .lam (ihdomain hsourceFree.1 hfresh.lam_domain)
@@ -62,13 +70,6 @@ theorem NestedRestorationPlan.AtomicProvenance.restorationRecursorFree
       simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree
       exact .forallE (ihdomain hsourceFree.1 hfresh.forall_domain)
         (ihbody hsourceFree.2 hfresh.forall_body)
-  | projection sourceExpansion targetExpansion sourceNotBVarHead hmajor ih =>
-      cases sourceExpansion with
-      | canonical sourceHead sourceMinor =>
-          simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff]
-            at hsourceFree
-          exact .projection targetExpansion
-            (ih hsourceFree.1.2 hfresh.app_left.app_right)
 
 end VerifyInductive
 end Lean4Lean

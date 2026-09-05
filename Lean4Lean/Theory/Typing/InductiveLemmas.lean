@@ -5,22 +5,11 @@ import Lean4Lean.Theory.Typing.Env
 namespace Lean4Lean
 namespace VEnv
 
-theorem addConstVals_le {env env' : VEnv} {cis : List VConstVal}
-    (H : env.addConstVals cis = some env') : env ≤ env' := by
-  induction cis generalizing env with
-  | nil => simp [VEnv.addConstVals] at H; subst env'; exact .rfl
-  | cons ci cis ih =>
-    cases hadd : env.addConst ci.name ci.toVConstant with
-    | none => simp [VEnv.addConstVals, hadd] at H
-    | some env₁ =>
-      simp [VEnv.addConstVals, hadd] at H
-      exact (VEnv.addConst_le hadd).trans (ih H)
-
 theorem addDefEqRules_le {env : VEnv} {dfs : List VDefEq} : env ≤ env.addDefEqRules dfs := by
   induction dfs generalizing env with
   | nil => exact .rfl
   | cons df dfs ih =>
-    exact VEnv.addDefEq_le.trans ih
+      exact VEnv.addDefEq_le.trans ih
 
 theorem Ordered.addConstVals {env env' : VEnv} {cis : List VConstVal} (H : Ordered env)
     (hwf : ∀ ci ∈ cis, ci.toVConstant.WF env)
@@ -45,6 +34,8 @@ theorem Ordered.addDefEqRules {env : VEnv} {dfs : List VDefEq} (H : Ordered env)
       (fun df' hmem => (hwf df' (by simp [hmem])).mono VEnv.addDefEq_le)
 
 theorem VInductBlock.WF.ordered (H : VInductBlock.WF env block)
+    (hdecl : VInductDecl.WF env decl)
+    (hcompile : VInductDecl.CompilesTo env decl block)
     (henv : Ordered env) (hinstall : VInductBlock.install env block = some env') :
     Ordered env' := by
   rcases H with
@@ -52,14 +43,18 @@ theorem VInductBlock.WF.ordered (H : VInductBlock.WF env block)
       htypesWF, hctorsWF, hrecsWF, hrulesWF⟩
   have h1 := henv.addConstVals htypesWF htypes
   have h2 := h1.addConstVals hctorsWF hctors
-  have h3 := h2.addConstVals hrecsWF hrecs
-  have h4 := h3.addDefEqRules hrulesWF
+  have h3 := Ordered.inductProjections henv h2 hcompile.sourceNames
+    hdecl.1.2.2.2.1
+    hcompile.types hcompile.ctors
+    hcompile.projections htypes hctors
+  have h4 := h3.addConstVals hrecsWF hrecs
+  have h5 := h4.addDefEqRules hrulesWF
   simp [VInductBlock.install, htypes, hctors, hrecs] at hinstall
   cases hinstall
-  exact h4
+  exact h5
 
-theorem addInduct_WF (henv : Ordered env) (_hdecl : VInductDecl.WF env decl)
+theorem addInduct_WF (henv : Ordered env) (hdecl : VInductDecl.WF env decl)
     (henv' : VEnv.AddInduct env decl env') : Ordered env' := by
   cases henv' with
-  | intro _ _ hblock hinstall =>
-    exact VInductBlock.WF.ordered hblock henv hinstall
+  | intro _ hcompile hblock hinstall =>
+    exact VInductBlock.WF.ordered hblock hdecl hcompile henv hinstall

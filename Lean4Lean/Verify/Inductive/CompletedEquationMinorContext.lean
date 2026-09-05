@@ -44,7 +44,7 @@ theorem CompletedRecursorPhasesResult.finalPairedParameterAlignmentAt
   rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hcanonical⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   refine ⟨T, S, ?_⟩
   exact Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
     hgenerated ((hcanonical.mono hbase).symm H.outVEnvWF.ordered)
@@ -99,7 +99,7 @@ theorem
   rcases A.finalPairedParameterAlignment with ⟨T, S, hparameters⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   exact ⟨T, S.canonical.mono hbase, by
     simpa [RecursorCanonicalMotiveTelescope.mono] using hparameters⟩
 
@@ -708,7 +708,7 @@ theorem
     hscopeFiltered.trans A.finalOuterFilteredFVars
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   let HscopeOut := Hscope.mono hbase
   have hscopeSourceOut : ∀ body,
       HscopeOut.sources.closeSource body =
@@ -898,7 +898,7 @@ theorem
     hscopeFiltered.trans A.finalSelectedMinorFilteredFVars
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   let HscopeOut := Hscope.mono hbase
   have hscopeSourceOut : ∀ body,
       HscopeOut.sources.closeSource body =
@@ -1562,7 +1562,7 @@ theorem
   rw [hparams, hmotives, hminors] at HouterPrefix
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   let E := A.semantics.fieldRootExtension
   have Hruntime : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
       A.semantics.parameterTail

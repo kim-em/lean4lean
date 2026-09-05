@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Inductive.CompletedEquationFinal
-import Lean4Lean.Verify.Inductive.CompletedEquationBuild
 
 namespace Lean4Lean
 
@@ -10,6 +9,40 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
+
+theorem CompletedRecursorPhasesResult.addInductOfOrdinaryCompilation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    (hnonempty : indTypes.toList ≠ [])
+    (Hcompile : OrdinaryCompilationCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block) :
+    VEnv.AddInduct sourceEnv decl (H.blockCertificate rules hrules).finalVEnv :=
+  (H.blockCertificate rules hrules).addInductOfOrdinaryCompilation
+    R.formation R.core hnonempty Hcompile
+
+theorem CompletedRecursorPhasesResult.addInductOfNestedCompilation
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv)
+    (hnonempty : indTypes.toList ≠ [])
+    (Hcompile : NestedCompilationCertificate sourceEnv decl
+      (H.blockCertificate rules hrules).block) :
+    VEnv.AddInduct sourceEnv decl (H.blockCertificate rules hrules).finalVEnv :=
+  (H.blockCertificate rules hrules).addInductOfNestedCompilation
+    R.formation R.core hnonempty Hcompile
 
 /-- Owner-prefix accumulation of reconstructed equations and their typing
 proofs.  Keeping the equation traversal independent of the final block lets

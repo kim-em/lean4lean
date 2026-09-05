@@ -297,8 +297,7 @@ theorem AddInductive.run.primitiveSemanticSourceAlignedWF
             Hrun⟩
   simpa [AddInductive.run] using Hcombined
 
-/-- Compatibility adapter for primitive consumers that do not need the exact
-source abstract environment. -/
+/-- Project a primitive run to its declaration-level semantic result. -/
 theorem AddInductive.run.primitiveSemanticWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)

@@ -93,7 +93,7 @@ theorem RestoredRuleRhsTranslation.restoredTranslation
       H.opening.selection.fvars.length := by
     simpa using lambdaDeclarationScope_toCtx_length H.targetDeclarations
   have Hresidual := TrExprS.abstractFVarLambdaSuffix
-    H.targetDeclarations htargetNodup H.body.targetTranslation.toTrExprS
+    H.targetDeclarations htargetNodup H.body.targetTranslation
   have HsourceTelescope : Expr.LambdaTelescope oldRule.rhs
       H.opening.selection.fvars.length
       (H.opening.body.abstractList H.opening.selection.fvars) := by

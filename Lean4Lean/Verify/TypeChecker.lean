@@ -36,30 +36,43 @@ theorem VEnvs.WF.inductiveConstructorsCoherent
       familyName familyInfo hfamily DefinitionSafety.unsafe_le i hi with ⟨C⟩
   exact ⟨C.toInductiveConstructorCoherenceAt⟩
 
-/-- Assemble a `VEnvs` from a pointwise existential. `DefinitionSafety` has three elements, so
-this is a finite case split rather than an appeal to choice -- the name records what it replaces. -/
-theorem VEnvs.axiom_of_choice {P : DefinitionSafety → VEnv → Prop} (H : ∀ sf, ∃ x, P sf x) :
+theorem VEnvs.WF.projectionRegistryCoherent
+    {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
+    ProjectionRegistryCoherent safety env.constants (ves.venv safety) :=
+  wf.inductiveProvenance.projectionRegistryCoherent
+
+theorem VEnvs.WF.toProjectable
+    {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (safety : DefinitionSafety) :
+    CheckingEnv.Projectable safety env (ves.venv safety) where
+  toValid := wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives
+    wf.typeAnnotationWrappers
+  projectionRegistry := wf.projectionRegistryCoherent
+
+/-- Assemble a `VEnvs` from a pointwise existential by case analysis on the
+three safety levels. -/
+theorem VEnvs.ofPointwiseExists {P : DefinitionSafety → VEnv → Prop}
+    (H : ∀ sf, ∃ x, P sf x) :
     ∃ x : VEnvs, ∀ sf, P sf (x.venv sf) := by
   have ⟨x1, _⟩ := H .safe; have ⟨x2, _⟩ := H .partial; have ⟨x3, _⟩ := H .unsafe
   exact ⟨⟨fun | .safe => x1 | .partial => x2 | .unsafe => x3⟩, by rintro ⟨⟩ <;> assumption⟩
 
-/-- A model of `env` at a *single* safety level, which is all the type checker consumes.
-
-`VEnvs.WF` bundles one of these at every level, but not every environment the checker runs
-against admits that: while a `partial` mutual block is being checked its members are present
-as axioms tagged `safe` (an `AxiomVal` cannot be tagged `partial`), and their types were only
-checked at `partial`, so there is no `safe`-level model of that environment. -/
+/-- The type checker's model of `env` at one safety level.  Staged declaration
+checking only requires the active safety level, together with projection
+metadata coherence for every visible completed constructor. -/
 structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) : Prop where
   tr : TrEnv safety env venv
   hasPrimitives : VEnv.HasPrimitives venv
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
+  projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
 
 theorem VEnvs.WF.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
   tr := wf.tr
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
+  projectionRegistry := wf.projectionRegistryCoherent
 
 namespace TypeChecker
 open Inner
@@ -99,6 +112,18 @@ def VContext.mkCheckingValid {env : Environment} {venv : VEnv}
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
   .mkChecking wf.tr wf.hasPrimitives wf.safePrimitives lparams fuel
 
+def VContext.mkProjectable {env : Environment} {venv : VEnv}
+    (wf : CheckingEnv.Projectable safety env venv)
+    (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
+  .mkCheckingValid wf.toValid lparams fuel
+
+theorem VContext.mkProjectable_projectable
+    {env : Environment} {venv : VEnv}
+    (wf : CheckingEnv.Projectable safety env venv)
+    (lparams : List Name := []) (fuel : FuelConfig := {}) :
+    (VContext.mkProjectable wf lparams fuel).Projectable :=
+  wf.projectionRegistry
+
 def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
     (mlctx : MLCtx) (mlctx_wf : mlctx.WF venv lparams)
@@ -123,6 +148,13 @@ def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
+
+theorem VContext.mk1_projectable
+    {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
+    (wf : VEnvAt env safety venv) (lparams : List Name := [])
+    (fuel : FuelConfig := {}) :
+    (VContext.mk1 wf lparams fuel).Projectable :=
+  wf.projectionRegistry
 
 def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])

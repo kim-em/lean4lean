@@ -105,7 +105,7 @@ private theorem GeneratedRecursors.entrySafety_eq_unsafe
 /-- A completed safe ordinary run extends the complete safety-indexed model.
 The result depends only on the successful run and the source environment
 model; equality bootstrap state is irrelevant to inductive soundness. -/
-theorem SemanticRunWithStatsResult.extendSafe
+theorem SemanticRunWithStatsResult.extendSafeExact
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
@@ -113,13 +113,20 @@ theorem SemanticRunWithStatsResult.extendSafe
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+    ∃ ves' : VEnvs, ∃ decl : VInductDecl, ∃ envTypes envCtors : VEnv,
+      ves'.WF outEnv ∧
+      (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      TrInductDeclCore (ves.venv .safe) c.lparams nparams indTypes.toList
+        isUnsafe decl envTypes envCtors ∧
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
   rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
-  let B := Hrecursors.blockCertificate T.rules T.rulesWF
+  let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
+  let B := B0.sf_mono (safety := .safe) (by
+    rw [hsafety]
+    exact DefinitionSafety.le_rfl)
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       R.core
@@ -127,7 +134,8 @@ theorem SemanticRunWithStatsResult.extendSafe
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
-    T.compilation.compilesTo
+    by simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
+      T.compilation.compilesTo
   have hconstructors :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
@@ -138,9 +146,26 @@ theorem SemanticRunWithStatsResult.extendSafe
     Hrecursors.productionInductiveOrigins
   have howners : ConstructorOwnersPresent outEnv :=
     Hrecursors.constructorOwnersPresent wf.constructorOwners
-  rw [hsafety] at B
-  exact B.extendSafe wf hdecl hcompile horigins
-    Hrecursors.closed howners hconstructors
+  rcases B.extendSafeExact wf hdecl hcompile horigins
+      Hrecursors.closed howners hconstructors with
+    ⟨ves', wf', hle, hadd, _hsafe⟩
+  exact ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
+    wf', hle, R.core, hadd⟩
+
+/-- Environment-preservation projection of `extendSafeExact`. -/
+theorem SemanticRunWithStatsResult.extendSafe
+    {ves : VEnvs}
+    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
+      isUnsafe sourceEnv outEnv)
+    (wf : ves.WF c.env)
+    (hsafety : c.safety = .safe)
+    (hsource : sourceEnv = ves.venv .safe)
+    (hnonempty : indTypes.toList ≠ []) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  rcases Hrun.extendSafeExact wf hsafety hsource hnonempty with
+    ⟨ves', _decl, _envTypes, _envCtors, wf', hle, _source, _hadd⟩
+  exact ⟨ves', wf', hle⟩
 
 /-- Canonical equality, when already available, is preserved by monotonicity
 of the generic safe extension. -/
@@ -161,7 +186,7 @@ theorem SemanticRunWithStatsResult.extendSafeOfQuotReady
 /-- A completed unsafe ordinary run extends the unsafe model and is hidden
 from the partial and safe observers. Uniform entry safety is obtained from
 the actual staged installation rather than assumed separately. -/
-theorem SemanticRunWithStatsResult.extendUnsafe
+theorem SemanticRunWithStatsResult.extendUnsafeExact
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
@@ -170,13 +195,20 @@ theorem SemanticRunWithStatsResult.extendUnsafe
     (hsource : sourceEnv = ves.venv .unsafe)
     (hproduction : isUnsafe = (c.safety != .safe))
     (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+    ∃ ves' : VEnvs, ∃ decl : VInductDecl, ∃ envTypes envCtors : VEnv,
+      ves'.WF outEnv ∧
+      (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      TrInductDeclCore (ves.venv .unsafe) c.lparams nparams indTypes.toList
+        isUnsafe decl envTypes envCtors ∧
+      VEnv.AddInduct (ves.venv .unsafe) decl (ves'.venv .unsafe) := by
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
   rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
-  let B := Hrecursors.blockCertificate T.rules T.rulesWF
+  let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
+  let B := B0.sf_mono (safety := .unsafe) (by
+    rw [hsafety]
+    exact DefinitionSafety.le_rfl)
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       R.core
@@ -184,7 +216,8 @@ theorem SemanticRunWithStatsResult.extendUnsafe
   have hdecl : decl.WF (ves.venv .unsafe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .unsafe) B.block :=
-    T.compilation.compilesTo
+    by simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
+      T.compilation.compilesTo
   have hisUnsafe : isUnsafe = true := by
     exact hproduction.trans (by rw [hsafety]; decide)
   have hconstructors :
@@ -211,9 +244,27 @@ theorem SemanticRunWithStatsResult.extendUnsafe
           hisUnsafe hconstructors
     · exact Hrecursors.generated.entrySafety_eq_unsafe
         hlocalSafety hrecursors
-  rw [hsafety] at B
-  exact B.extendUnsafeOfHidden wf hdecl hcompile
-    horigins hentries Hrecursors.closed howners hconstructors
+  rcases B.extendUnsafeOfHiddenExact wf hdecl hcompile
+      horigins hentries Hrecursors.closed howners hconstructors with
+    ⟨ves', wf', hle, hadd⟩
+  exact ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
+    wf', hle, R.core, hadd⟩
+
+/-- Environment-preservation projection of `extendUnsafeExact`. -/
+theorem SemanticRunWithStatsResult.extendUnsafe
+    {ves : VEnvs}
+    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
+      isUnsafe sourceEnv outEnv)
+    (wf : ves.WF c.env)
+    (hsafety : c.safety = .unsafe)
+    (hsource : sourceEnv = ves.venv .unsafe)
+    (hproduction : isUnsafe = (c.safety != .safe))
+    (hnonempty : indTypes.toList ≠ []) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  rcases Hrun.extendUnsafeExact wf hsafety hsource hproduction hnonempty with
+    ⟨ves', _decl, _envTypes, _envCtors, wf', hle, _source, _hadd⟩
+  exact ⟨ves', wf', hle⟩
 
 /-- Canonical equality, when already available, is preserved by monotonicity
 of the generic unsafe extension. -/

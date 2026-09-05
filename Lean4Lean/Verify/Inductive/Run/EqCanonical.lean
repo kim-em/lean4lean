@@ -48,7 +48,7 @@ theorem BlockCertificate.extendSafeOfCanonicalEq
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
-        (outBase.addDefEqRules rules)) :
+        H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   exact H.extendSafe wf hdecl hcompile horigins hclosed hconstructorOwners
@@ -70,7 +70,7 @@ theorem BlockCertificate.extendSafeOfQuotReady
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
-        (outBase.addDefEqRules rules)) :
+        H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases H.extendSafeOfCanonicalEq wf hdecl hcompile horigins
@@ -95,7 +95,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenOfQuotReady
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .unsafe outEnv
-        (outVEnv.addDefEqRules rules)) :
+        H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases H.extendUnsafeOfHidden wf hdecl hcompile horigins hunsafe

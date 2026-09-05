@@ -29,12 +29,14 @@ theorem installedInductCertificate_familyLookup
       have hcanonical : VInductBlock.install base block =
           some (envRecursors.addDefEqRules block.rules) := by
         simp [VInductBlock.install, htypes, hctors, hrecursors]
-      have hinstalled : installed = envRecursors.addDefEqRules block.rules :=
+      have hinstalled : installed =
+          envRecursors.addDefEqRules block.rules :=
         Option.some.inj (Hinstall.symm.trans hcanonical)
       subst installed
       exact VEnv.addDefEqRules_le.constants
         ((VEnv.addConstVals_le hrecursors).constants
-          ((VEnv.addConstVals_le hctors).constants hlookupTypes))
+          (VEnv.addProjections_le.constants
+            ((VEnv.addConstVals_le hctors).constants hlookupTypes)))
     exact hle.constants hlookupInstalled
 
 /-- The declaration-level portion of a legal nested auxiliary source, obtained
@@ -195,11 +197,10 @@ theorem nestedExprExpansion_toNestedExprWFExpansion
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
+  | proj _ ihMajor => exact .proj ihMajor
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
   | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
   | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
-  | projection Hsource Htarget _ ihMajor =>
-    exact .projection Hsource Htarget ihMajor
 
 /-- Repackage the retained common-parameter prefix into the mutually
 strictly-positive formation carrier. -/

@@ -86,21 +86,27 @@ theorem VEnv.addDefEqs_ordered : ∀ {env : VEnv} {cis}, Ordered env →
 
 theorem VEnv.WF.ordered : WF env → Ordered env
   | ⟨ds, H⟩ => by
-    induction H with | empty => exact .empty | decl h _ ih
-    cases h with
-    | «axiom» h1 h2 => exact .const ih h1 h2
-    | @«def» env env' ci h1 h2 =>
-      refine .defeq (.const ih (h1.isType ih ⟨⟩) h2) ⟨?_, ?_⟩
-      · simp [VDefVal.toDefEq]
-        rw [← (h1.levelWF ⟨⟩).2.2.instL_id]
-        exact .const (addConst_self h2) VLevel.id_WF (by simp)
-      · exact h1.mono (addConst_le h2)
-    | mutualDef h0 h1 h2 =>
-      exact VEnv.addDefEqs_ordered (VEnv.addConsts_ordered ih h0 h1)
-        (VEnv.addConsts_constants h1) h2
-    | «opaque» h1 h2 => exact .const ih (h1.isType ih ⟨⟩) h2
-    | «example» _ => exact ih
-    | quot h1 h2 => exact addQuot_WF ih h1 h2
-    | induct h1 h2 => exact addInduct_WF ih h1 h2
+    induction H with
+    | empty => exact .empty
+    | decl h _ ih =>
+      cases h with
+      | «axiom» h1 h2 => exact .const ih h1 h2
+      | @«def» env env' ci h1 h2 =>
+        refine .defeq (.const ih (h1.isType ih ⟨⟩) h2) ⟨?_, ?_⟩
+        · simp [VDefVal.toDefEq]
+          rw [← (h1.levelWF ⟨⟩).2.2.instL_id]
+          exact .const (addConst_self h2) VLevel.id_WF (by simp)
+        · exact h1.mono (addConst_le h2)
+      | mutualDef h0 h1 h2 =>
+        exact VEnv.addDefEqs_ordered (VEnv.addConsts_ordered ih h0 h1)
+          (VEnv.addConsts_constants h1) h2
+      | «opaque» h1 h2 => exact .const ih (h1.isType ih ⟨⟩) h2
+      | «example» _ => exact ih
+      | quot h1 h2 => exact addQuot_WF ih h1 h2
+      | induct h1 h2 => exact addInduct_WF ih h1 h2
+    | inductProjections _ _ hsource hconstructorUvars htypesSource hctorsSource hprojections
+        htypes hctors ihBase ihCtors =>
+      exact .inductProjections ihBase ihCtors hsource hconstructorUvars htypesSource
+        hctorsSource hprojections htypes hctors
 
 instance : CoeOut (VEnv.WF env) env.Ordered := ⟨(·.ordered)⟩

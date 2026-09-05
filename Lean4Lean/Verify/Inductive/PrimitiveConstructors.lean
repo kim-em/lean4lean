@@ -289,18 +289,6 @@ theorem _root_.Lean4Lean.TrInductDeclHeaders.primitiveAbstractConstants
         · simpa [hlparams] using Hsucc.uvars
         · exact hsuccType
 
-/-- Primitive header-phase compatibility wrapper. -/
-theorem PrimitiveDeclaredHeadersResult.abstractConstants
-    (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv)
-    (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
-      isUnsafe) :
-    decl.typeConstants ++ decl.constructorConstants =
-        primitiveBoolConstants ∨
-      decl.typeConstants ++ decl.constructorConstants =
-        primitiveNatConstants :=
-  H.translation.primitiveAbstractConstants Hshape
-
 /-- The executable constructor declaration fold is verified atomically on a
 canonical primitive branch.  Validity is restored only after the family
 header and all constructors have been identified as one complete bootstrap
@@ -351,7 +339,7 @@ theorem AddInductive.declareConstructors.primitiveWF
       rw [← H.sourceContextVEnv]
       exact H.sourceContext.checking.hasPrimitives
     have hprimitives : venvCtors.HasPrimitives := by
-      rcases H.abstractConstants Hshape with hbool | hnat
+      rcases H.translation.primitiveAbstractConstants Hshape with hbool | hnat
       · have Hb : PrimitiveBootstrapInstallation sourceEnv venvCtors
             primitiveBoolConstants := by
           rw [← hbool]

@@ -108,6 +108,27 @@ theorem AtomicAddConstants.ofAddConstants
   | cons hn _hnprim htr hwf hadd hdelta _ ih =>
     exact .cons hn htr hwf hadd hdelta ih
 
+/-- Projection metadata commutes with a lockstep constant batch. -/
+theorem AtomicAddConstants.addProjections
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv) :
+    AtomicAddConstants safety env (venv.addProjections projections) entries
+      outEnv (outVEnv.addProjections projections) := by
+  induction H with
+  | nil => exact .nil
+  | cons hn htr hwf hadd hdelta _ ih =>
+    exact .cons hn (htr.mono VEnv.addProjections_le)
+      (hwf.mono VEnv.addProjections_le)
+      (by rw [VEnv.addProjections_addConst, hadd]; rfl) hdelta ih
+
+def AtomicAddConstants.sf_mono
+    (hsafety : safety ≤ checkSafety)
+    (H : AtomicAddConstants checkSafety env venv entries outEnv outVEnv) :
+    AtomicAddConstants safety env venv entries outEnv outVEnv := by
+  induction H with
+  | nil => exact .nil
+  | cons hn htr hwf hadd hdelta _ ih =>
+      exact .cons hn ⟨htr.1.sf_mono hsafety, htr.2⟩ hwf hadd hdelta ih
+
 theorem AtomicAddConstants.append
     (H1 : AtomicAddConstants safety env venv entries middleEnv middleVEnv)
     (H2 : AtomicAddConstants safety middleEnv middleVEnv rest outEnv outVEnv) :

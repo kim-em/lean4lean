@@ -27,8 +27,8 @@ theorem AddConstants.valueNamesNonprimitive
       simpa [htr.2] using hnprim
     · exact ih name htail
 
-/-- A primitive lookup visible after an `AddConstants` fold predates the
-fold, since every installed name is non-primitive. -/
+/-- A primitive lookup visible after an `AddConstants` fold was already
+visible before the fold, since every installed name is non-primitive. -/
 theorem AddConstants.sourceContainsOfTargetContainsPrimitive
     (H : AddConstants safety env source entries outEnv target)
     (hprimitive : Kernel.Environment.primitives.contains name)
@@ -49,11 +49,13 @@ theorem AddConstants.sourceContainsLits
     (hlit : target.ContainsLits literal) : source.ContainsLits literal := by
   cases literal with
   | natVal n =>
-      exact H.sourceContainsOfTargetContainsPrimitive (by native_decide) hlit
+      exact H.sourceContainsOfTargetContainsPrimitive (by
+        simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList]) hlit
   | strVal s =>
-      exact ⟨H.sourceContainsOfTargetContainsPrimitive (by native_decide)
-          hlit.1,
-        H.sourceContainsOfTargetContainsPrimitive (by native_decide) hlit.2⟩
+      exact ⟨H.sourceContainsOfTargetContainsPrimitive (by
+          simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList]) hlit.1,
+        H.sourceContainsOfTargetContainsPrimitive (by
+          simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList]) hlit.2⟩
 
 /-- The environment-indexed literal condition is preserved by an ordinary
 non-primitive constant installation. -/
@@ -1981,6 +1983,7 @@ included here because their validity depends on the independent iota schema. -/
 structure StagedBlock (safety : DefinitionSafety)
     (env : Environment) (venv : VEnv)
     (types ctors recursors : List (ConstantInfo × VConstVal))
+    (projections : List VProjectionEntry)
     (outEnv : Environment) (outVEnv : VEnv) where
   envTypes : Environment
   venvTypes : VEnv
@@ -1988,97 +1991,46 @@ structure StagedBlock (safety : DefinitionSafety)
   venvCtors : VEnv
   typesAdded : AddConstants safety env venv types envTypes venvTypes
   ctorsAdded : AddConstants safety envTypes venvTypes ctors envCtors venvCtors
-  recursorsAdded : AddConstants safety envCtors venvCtors recursors outEnv outVEnv
+  projectedWF : (venvCtors.addProjections projections).WF
+  recursorsAdded : AddConstants safety envCtors
+    (venvCtors.addProjections projections) recursors outEnv outVEnv
 
 def StagedBlock.sf_mono
     (hsafety : safety ≤ checkSafety)
-    (H : StagedBlock checkSafety env venv types ctors recursors
+    (H : StagedBlock checkSafety env venv types ctors recursors projections
       outEnv outVEnv) :
-    StagedBlock safety env venv types ctors recursors outEnv outVEnv where
+    StagedBlock safety env venv types ctors recursors projections outEnv outVEnv where
   envTypes := H.envTypes
   venvTypes := H.venvTypes
   envCtors := H.envCtors
   venvCtors := H.venvCtors
   typesAdded := H.typesAdded.sf_mono hsafety
   ctorsAdded := H.ctorsAdded.sf_mono hsafety
+  projectedWF := H.projectedWF
   recursorsAdded := H.recursorsAdded.sf_mono hsafety
 
-/-- Reinterpret a replayed three-stage installation using the translations
-of its original stronger-safety certificate. -/
-def StagedBlock.reindex
-    (H : StagedBlock checkSafety prodEnv base types ctors recursors
-      outEnv outBase)
-    (Hlarger : StagedBlock targetSafety prodEnv largerBase types ctors
-      recursors outEnv largerOut)
-    (hsafety : safety ≤ checkSafety)
-    (hbase : base ≤ largerBase) :
-    StagedBlock safety prodEnv largerBase types ctors recursors
-      outEnv largerOut := by
-  have henvTypes : H.envTypes = Hlarger.envTypes :=
-    H.typesAdded.prod_eq Hlarger.typesAdded
-  let Htypes : AddConstants checkSafety prodEnv base types
-      Hlarger.envTypes H.venvTypes := henvTypes ▸ H.typesAdded
-  let HctorsBase : AddConstants checkSafety Hlarger.envTypes H.venvTypes ctors
-      H.envCtors H.venvCtors := henvTypes ▸ H.ctorsAdded
-  have henvCtors : H.envCtors = Hlarger.envCtors :=
-    HctorsBase.prod_eq Hlarger.ctorsAdded
-  let Hctors : AddConstants checkSafety Hlarger.envTypes H.venvTypes ctors
-      Hlarger.envCtors H.venvCtors := henvCtors ▸ HctorsBase
-  let Hrecursors : AddConstants checkSafety Hlarger.envCtors H.venvCtors
-      recursors outEnv outBase := henvCtors ▸ H.recursorsAdded
-  have htypes : H.venvTypes ≤ Hlarger.venvTypes :=
-    VEnv.addConstVals_mono hbase H.typesAdded.abstract
-      Hlarger.typesAdded.abstract
-  have hctors : H.venvCtors ≤ Hlarger.venvCtors :=
-    VEnv.addConstVals_mono htypes H.ctorsAdded.abstract
-      Hlarger.ctorsAdded.abstract
-  exact {
-    envTypes := Hlarger.envTypes
-    venvTypes := Hlarger.venvTypes
-    envCtors := Hlarger.envCtors
-    venvCtors := Hlarger.venvCtors
-    typesAdded := Htypes.reindex Hlarger.typesAdded hsafety hbase
-    ctorsAdded := Hctors.reindex Hlarger.ctorsAdded hsafety htypes
-    recursorsAdded := Hrecursors.reindex Hlarger.recursorsAdded
-      hsafety hctors }
-
-@[simp] theorem StagedBlock.reindex_venvTypes
-    (H : StagedBlock checkSafety prodEnv base types ctors recursors
-      outEnv outBase)
-    (Hlarger : StagedBlock targetSafety prodEnv largerBase types ctors
-      recursors outEnv largerOut)
-    (hsafety : safety ≤ checkSafety) (hbase : base ≤ largerBase) :
-    (H.reindex Hlarger hsafety hbase).venvTypes = Hlarger.venvTypes := by
-  rfl
-
-@[simp] theorem StagedBlock.reindex_venvCtors
-    (H : StagedBlock checkSafety prodEnv base types ctors recursors
-      outEnv outBase)
-    (Hlarger : StagedBlock targetSafety prodEnv largerBase types ctors
-      recursors outEnv largerOut)
-    (hsafety : safety ≤ checkSafety) (hbase : base ≤ largerBase) :
-    (H.reindex Hlarger hsafety hbase).venvCtors = Hlarger.venvCtors := by
-  rfl
-
 theorem StagedBlock.valid
-    (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv)
+    (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv)
     (hvalid : CheckingEnv.Valid safety env venv) :
-    CheckingEnv.Valid safety outEnv outVEnv :=
-  H.recursorsAdded.valid (H.ctorsAdded.valid (H.typesAdded.valid hvalid))
+    CheckingEnv.Valid safety outEnv outVEnv := by
+  have htypes := H.typesAdded.valid hvalid
+  have hctors := H.ctorsAdded.valid htypes
+  exact H.recursorsAdded.valid (hctors.addProjections H.projectedWF)
 
 theorem StagedBlock.abstract_types
-    (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv) :
+    (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv) :
     venv.addConstVals (types.map Prod.snd) = some H.venvTypes :=
   H.typesAdded.abstract
 
 theorem StagedBlock.abstract_ctors
-    (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv) :
+    (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv) :
     H.venvTypes.addConstVals (ctors.map Prod.snd) = some H.venvCtors :=
   H.ctorsAdded.abstract
 
 theorem StagedBlock.abstract_recursors
-    (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv) :
-    H.venvCtors.addConstVals (recursors.map Prod.snd) = some outVEnv :=
+    (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv) :
+    (H.venvCtors.addProjections projections).addConstVals
+      (recursors.map Prod.snd) = some outVEnv :=
   H.recursorsAdded.abstract
 
 /-- Collapse the executable header/constructor/recursor staging into the
@@ -2086,55 +2038,48 @@ single lockstep installation trace needed by facts that concern the complete
 lowered production environment.  The staged form remains canonical for
 typing, because each family of constants has a different abstract source
 environment. -/
-theorem StagedBlock.combined
-    (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv) :
-    AddConstants safety env venv (types ++ ctors ++ recursors)
-      outEnv outVEnv :=
-  by
-    simpa [List.append_assoc] using
-      H.typesAdded.append (H.ctorsAdded.append H.recursorsAdded)
+theorem StagedBlock.productionTrace
+    (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv) :
+    AddConstants safety env (venv.addProjections projections)
+      (types ++ ctors ++ recursors) outEnv outVEnv := by
+  have Hprefix := (H.typesAdded.append H.ctorsAdded).addProjections
+    (projections := projections)
+  simpa [List.append_assoc] using
+    Hprefix.append H.recursorsAdded
 
 theorem StagedBlock.aligned
     (H : StagedBlock checkSafety env venv types ctors recursors
-      outEnv outVEnv)
+      projections outEnv outVEnv)
     (Halign : Aligned checkSafety env.constants venv) :
     Aligned checkSafety outEnv.constants outVEnv :=
-  H.recursorsAdded.aligned
-    (H.ctorsAdded.aligned (H.typesAdded.aligned Halign))
+  H.productionTrace.aligned (.projections Halign)
 
 theorem StagedBlock.trEnvIgnore
     (H : StagedBlock checkSafety prodEnv venv types ctors recursors
-      outEnv outVEnv)
+      projections outEnv outVEnv)
     (htypes : ∀ entry ∈ types, ¬ observerSafety ≤ entry.1.safety)
     (hctors : ∀ entry ∈ ctors, ¬ observerSafety ≤ entry.1.safety)
     (hrecursors : ∀ entry ∈ recursors,
       ¬ observerSafety ≤ entry.1.safety)
     (htr : TrEnv' observerSafety prodEnv.constants quotInit observerEnv) :
     TrEnv' observerSafety outEnv.constants quotInit observerEnv :=
-  H.recursorsAdded.trEnvIgnore hrecursors
-    (H.ctorsAdded.trEnvIgnore hctors
-      (H.typesAdded.trEnvIgnore htypes htr))
+  H.recursorsAdded.trEnvIgnore hrecursors <|
+    H.ctorsAdded.trEnvIgnore hctors <|
+      H.typesAdded.trEnvIgnore htypes htr
 
 theorem StagedBlock.quotInit_eq
     (H : StagedBlock safety prodEnv venv types ctors recursors
-      outEnv outVEnv) :
+      projections outEnv outVEnv) :
     outEnv.quotInit = prodEnv.quotInit :=
   H.recursorsAdded.quotInit_eq.trans
     (H.ctorsAdded.quotInit_eq.trans H.typesAdded.quotInit_eq)
 
 theorem StagedBlock.deltaConservative
-    (H : StagedBlock safety env venv types ctors recursors outEnv outVEnv)
+    (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv)
     (Halign : Aligned safety env.constants venv) :
     ∀ {name ci}, outEnv.constants.find? name = some ci →
       ci.deltaValue?.isSome → env.constants.find? name = some ci := by
-  have HalignTypes := H.typesAdded.aligned Halign
-  have HalignCtors := H.ctorsAdded.aligned HalignTypes
-  intro name ci hfind hdelta
-  exact H.typesAdded.deltaConservative Halign
-    (H.ctorsAdded.deltaConservative HalignTypes
-      (H.recursorsAdded.deltaConservative HalignCtors hfind hdelta)
-      hdelta)
-    hdelta
+  exact H.productionTrace.deltaConservative (.projections Halign)
 
 /-- The complete semantic certificate for the block assembled by the three
 executable installation stages. `AddConstants` records the per-step checking
@@ -2147,12 +2092,14 @@ structure BlockCertificate (safety : DefinitionSafety)
     (env : Environment) (venv : VEnv)
     (types ctors recursors : List (ConstantInfo × VConstVal))
     (rules : List VDefEq) (outEnv : Environment) (outVEnv : VEnv) where
-  staged : StagedBlock safety env venv types ctors recursors outEnv outVEnv
+  projections : List VProjectionEntry
+  staged : StagedBlock safety env venv types ctors recursors projections
+    outEnv outVEnv
   typesWF : ∀ ci ∈ types.map Prod.snd, ci.toVConstant.WF venv
   ctorsWF : ∀ ci ∈ ctors.map Prod.snd,
     ci.toVConstant.WF staged.venvTypes
   recursorsWF : ∀ ci ∈ recursors.map Prod.snd,
-    ci.toVConstant.WF staged.venvCtors
+    ci.toVConstant.WF (staged.venvCtors.addProjections projections)
   rulesWF : ∀ df ∈ rules, df.WF outVEnv
 
 def BlockCertificate.sf_mono
@@ -2161,52 +2108,22 @@ def BlockCertificate.sf_mono
       rules outEnv outVEnv) :
     BlockCertificate safety env venv types ctors recursors rules
       outEnv outVEnv where
+  projections := H.projections
   staged := H.staged.sf_mono hsafety
   typesWF := H.typesWF
   ctorsWF := H.ctorsWF
   recursorsWF := H.recursorsWF
   rulesWF := H.rulesWF
 
-/-- A replayed block inherits every observer-safety interpretation carried
-by its original certificate. -/
-def BlockCertificate.reindex
-    (H : BlockCertificate checkSafety prodEnv base types ctors recursors
-      rules outEnv outBase)
-    (Hlarger : BlockCertificate targetSafety prodEnv largerBase types ctors
-      recursors rules outEnv largerOut)
-    (hsafety : safety ≤ checkSafety)
-    (hbase : base ≤ largerBase) :
-    BlockCertificate safety prodEnv largerBase types ctors recursors
-      rules outEnv largerOut := by
-  have htypes : H.staged.venvTypes ≤ Hlarger.staged.venvTypes :=
-    VEnv.addConstVals_mono hbase H.staged.typesAdded.abstract
-      Hlarger.staged.typesAdded.abstract
-  have hctors : H.staged.venvCtors ≤ Hlarger.staged.venvCtors :=
-    VEnv.addConstVals_mono htypes H.staged.ctorsAdded.abstract
-      Hlarger.staged.ctorsAdded.abstract
-  have hout : outBase ≤ largerOut :=
-    VEnv.addConstVals_mono hctors H.staged.recursorsAdded.abstract
-      Hlarger.staged.recursorsAdded.abstract
-  exact {
-    staged := H.staged.reindex Hlarger.staged hsafety hbase
-    typesWF := fun ci hci => (H.typesWF ci hci).mono hbase
-    ctorsWF := by
-      intro ci hci
-      change ci.toVConstant.WF Hlarger.staged.venvTypes
-      exact (H.ctorsWF ci hci).mono htypes
-    recursorsWF := by
-      intro ci hci
-      change ci.toVConstant.WF Hlarger.staged.venvCtors
-      exact (H.recursorsWF ci hci).mono hctors
-    rulesWF := fun df hdf => (H.rulesWF df hdf).mono hout }
-
 /-- Generated recursor traversal discharges the recursor-typing field of the
 semantic block certificate in the exact pre-recursor environment recorded by
 the staging invariant. -/
 def GeneratedRecursors.toBlockCertificate
+    (projections : List VProjectionEntry)
     (staged : StagedBlock safety env venv types ctors recursors
-      outEnv outVEnv)
-    (H : GeneratedRecursors safety staged.venvCtors lparams elimLevel c stats
+      projections outEnv outVEnv)
+    (H : GeneratedRecursors safety
+      (staged.venvCtors.addProjections projections) lparams elimLevel c stats
       indTypes recInfos recursors)
     (Hc : BindingContextWF c)
     (Hbindings : RecInfoBindings c recInfos)
@@ -2217,6 +2134,7 @@ def GeneratedRecursors.toBlockCertificate
     (hrules : ∀ df ∈ rules, df.WF outVEnv) :
     BlockCertificate safety env venv types ctors recursors rules
       outEnv outVEnv where
+  projections := projections
   staged := staged
   typesWF := htypes
   ctorsWF := hctors
@@ -2230,6 +2148,20 @@ def BlockCertificate.block
   ctors := ctors.map Prod.snd
   recursors := recursors.map Prod.snd
   rules := rules
+  projections := _H.projections
+
+def BlockCertificate.finalVEnv
+    (H : BlockCertificate safety env venv types ctors recursors
+      rules outEnv outVEnv) : VEnv :=
+  outVEnv.addDefEqRules rules
+
+theorem BlockCertificate.block_eq_of_projections_eq
+    (H₁ : BlockCertificate safety₁ env₁ venv₁ types ctors recursors
+      rules outEnv₁ outVEnv₁)
+    (H₂ : BlockCertificate safety₂ env₂ venv₂ types ctors recursors
+      rules outEnv₂ outVEnv₂)
+    (h : H₁.projections = H₂.projections) : H₁.block = H₂.block := by
+  simp [BlockCertificate.block, h]
 
 /-- A completed executable staging certificate directly discharges the
 independent semantic well-formedness judgment. -/
@@ -2237,18 +2169,20 @@ theorem BlockCertificate.wf
     (H : BlockCertificate safety env venv types ctors recursors
       rules outEnv outVEnv) :
     H.block.WF venv := by
-  exact ⟨H.staged.venvTypes, H.staged.venvCtors, outVEnv,
+  exact ⟨H.staged.venvTypes, H.staged.venvCtors,
+    outVEnv,
     H.staged.abstract_types, H.staged.abstract_ctors,
-    H.staged.abstract_recursors, H.typesWF, H.ctorsWF, H.recursorsWF,
-    H.rulesWF⟩
+    H.staged.abstract_recursors, H.typesWF, H.ctorsWF,
+    H.recursorsWF, H.rulesWF⟩
 
 /-- The abstract installation result is fixed by the executable staging
 certificate; reduction rules are installed only after every recursor. -/
 theorem BlockCertificate.install
     (H : BlockCertificate safety env venv types ctors recursors
       rules outEnv outVEnv) :
-    H.block.install venv = some (outVEnv.addDefEqRules rules) := by
+    H.block.install venv = some H.finalVEnv := by
   simp [BlockCertificate.block, VInductBlock.install,
+    BlockCertificate.finalVEnv,
     H.staged.abstract_types, H.staged.abstract_ctors,
     H.staged.abstract_recursors]
 
@@ -2257,13 +2191,10 @@ theorem BlockCertificate.names
       rules outEnv outVEnv) :
     List.Nodup
       ((H.block.types ++ H.block.ctors ++ H.block.recursors).map (·.name)) := by
-  have hall : venv.addConstVals
+  have hall : (venv.addProjections H.projections).addConstVals
       (types.map Prod.snd ++ ctors.map Prod.snd ++ recursors.map Prod.snd) =
-      some outVEnv :=
-    VEnv.addConstVals_append
-      (VEnv.addConstVals_append H.staged.abstract_types
-        H.staged.abstract_ctors)
-      H.staged.abstract_recursors
+      some outVEnv := by
+    simpa [List.map_append, List.append_assoc] using H.staged.productionTrace.abstract
   simpa [BlockCertificate.block, List.map_append] using
     VEnv.addConstVals_names_nodup hall
 
@@ -2271,35 +2202,71 @@ theorem BlockCertificate.hasPrimitives
     (H : BlockCertificate safety env venv types ctors recursors
       rules outEnv outVEnv)
     (Hprimitives : venv.HasPrimitives) :
-    (outVEnv.addDefEqRules rules).HasPrimitives :=
-  hasPrimitives_addDefEqs (H.staged.recursorsAdded.hasPrimitives
-    (H.staged.ctorsAdded.hasPrimitives
-      (H.staged.typesAdded.hasPrimitives Hprimitives))) rules
+    H.finalVEnv.HasPrimitives := by
+  apply hasPrimitives_addDefEqs
+  exact H.staged.recursorsAdded.hasPrimitives
+    ((H.staged.ctorsAdded.hasPrimitives
+      (H.staged.typesAdded.hasPrimitives Hprimitives)).addProjections)
+
+/-- Validate the completed ordinary staging trace from its source.  The
+projection-stage well-formedness proof is part of the trace, so callers do
+not have to reconstruct it from a separate compilation witness. -/
+theorem BlockCertificate.valid
+    (H : BlockCertificate safety env venv types ctors recursors
+      rules outEnv outVEnv)
+    (Hvalid : CheckingEnv.Valid safety env venv) :
+    CheckingEnv.Valid safety outEnv outVEnv :=
+  H.staged.valid Hvalid
 
 /-- Replay all three executable installation stages in a larger abstract
 environment, retaining a complete block certificate rather than only its
 abstract endpoint.  The production environments and generated entries stay
 fixed; only their safety-indexed abstract interpretation changes. -/
 theorem BlockCertificate.rebaseCertificate
+    {decl : VInductDecl}
     (H : BlockCertificate checkSafety prodEnv base types ctors recursors
       rules outEnv outBase)
     (Hvalid : CheckingEnv.Valid safety prodEnv largerBase)
     (hsafety : safety ≤ checkSafety)
-    (hbase : base ≤ largerBase) :
+    (hbase : base ≤ largerBase)
+    (Hdecl : decl.WF base)
+    (Hcompile : decl.CompilesTo base H.block) :
     ∃ largerOutBase,
-      Nonempty (BlockCertificate safety prodEnv largerBase types ctors
-        recursors rules outEnv largerOutBase) ∧
-      outBase ≤ largerOutBase := by
+      ∃ Hlarger : BlockCertificate safety prodEnv largerBase types ctors
+        recursors rules outEnv largerOutBase,
+      outBase ≤ largerOutBase ∧ Hlarger.projections = H.projections := by
   rcases H.staged.typesAdded.rebase Hvalid hsafety hbase with
     ⟨largerTypes, Htypes, htypesLE⟩
   have HvalidTypes := Htypes.valid Hvalid
   rcases H.staged.ctorsAdded.rebase HvalidTypes hsafety htypesLE with
     ⟨largerCtors, Hctors, hctorsLE⟩
   have HvalidCtors := Hctors.valid HvalidTypes
-  rcases H.staged.recursorsAdded.rebase HvalidCtors hsafety hctorsLE with
+  have hprojectedWF :
+      (largerCtors.addProjections H.projections).WF := by
+    apply VEnv.WF.inductProjections
+        (base := largerBase) (envTypes := largerTypes)
+        (decl := decl) (block := H.block)
+    · exact Hvalid.tr.wf
+    · exact HvalidCtors.tr.wf
+    · exact Hcompile.sourceNames
+    · exact Hdecl.1.2.2.2.1
+    · exact Hcompile.types
+    · exact Hcompile.ctors
+    · exact Hcompile.projections
+    · exact Htypes.abstract
+    · exact Hctors.abstract
+  have HvalidProjected : CheckingEnv.Valid safety H.staged.envCtors
+      (largerCtors.addProjections H.projections) :=
+    HvalidCtors.addProjections hprojectedWF
+  have hctorsProjected :
+      H.staged.venvCtors.addProjections H.projections ≤
+        largerCtors.addProjections H.projections :=
+    VEnv.addProjections_mono hctorsLE
+  rcases H.staged.recursorsAdded.rebase HvalidProjected hsafety
+      hctorsProjected with
     ⟨largerOutBase, Hrecursors, hrecursorsLE⟩
-  refine ⟨largerOutBase, ⟨?_⟩, hrecursorsLE⟩
-  exact {
+  let Hlarger : BlockCertificate safety prodEnv largerBase types ctors
+      recursors rules outEnv largerOutBase := {
     staged := {
       envTypes := H.staged.envTypes
       venvTypes := largerTypes
@@ -2307,30 +2274,15 @@ theorem BlockCertificate.rebaseCertificate
       venvCtors := largerCtors
       typesAdded := Htypes
       ctorsAdded := Hctors
+      projectedWF := hprojectedWF
       recursorsAdded := Hrecursors }
     typesWF := fun ci hci => (H.typesWF ci hci).mono hbase
     ctorsWF := fun ci hci => (H.ctorsWF ci hci).mono htypesLE
-    recursorsWF := fun ci hci => (H.recursorsWF ci hci).mono hctorsLE
-    rulesWF := fun df hdf => (H.rulesWF df hdf).mono hrecursorsLE }
-
-/-- Replay a certified block in a larger abstract environment.  This is the
-core transport used by safe declarations across the unsafe/partial/safe
-models: it reconstructs all three installation stages, their stage-relative
-typing proofs, and monotonicity of the final rule-extended environment. -/
-theorem BlockCertificate.rebase
-    (H : BlockCertificate checkSafety prodEnv base types ctors recursors
-      rules outEnv outBase)
-    (Hvalid : CheckingEnv.Valid safety prodEnv largerBase)
-    (hsafety : safety ≤ checkSafety)
-    (hbase : base ≤ largerBase) :
-    ∃ largerOut,
-      H.block.WF largerBase ∧
-      H.block.install largerBase = some largerOut ∧
-      outBase.addDefEqRules rules ≤ largerOut := by
-  rcases H.rebaseCertificate Hvalid hsafety hbase with
-    ⟨largerOutBase, ⟨Hlarger⟩, houtBase⟩
-  exact ⟨largerOutBase.addDefEqRules rules, Hlarger.wf, Hlarger.install,
-    VEnv.addDefEqRules_mono houtBase⟩
+    recursorsWF := fun ci hci =>
+      (H.recursorsWF ci hci).mono hctorsProjected
+    rulesWF := fun df hdf => (H.rulesWF df hdf).mono hrecursorsLE
+    projections := H.projections }
+  exact ⟨largerOutBase, Hlarger, hrecursorsLE, rfl⟩
 
 /-- Re-establish source and formation well-formedness in a larger safety
 model using the freshly replayed block installation.  Freshness-sensitive
@@ -2399,20 +2351,25 @@ theorem BlockCertificate.rebaseAddInduct
     (hdecl : decl.WF base)
     (hcompile : decl.CompilesTo base H.block) :
     ∃ largerOutBase,
-      Nonempty (BlockCertificate safety prodEnv largerBase types ctors
-        recursors rules outEnv largerOutBase) ∧
-      VEnv.AddInduct largerBase decl (largerOutBase.addDefEqRules rules) ∧
-      outBase.addDefEqRules rules ≤ largerOutBase.addDefEqRules rules := by
-  rcases H.rebaseCertificate Hvalid hsafety hbase with
-    ⟨largerOutBase, ⟨Hlarger⟩, houtBase⟩
+      ∃ Hlarger : BlockCertificate safety prodEnv largerBase types ctors
+        recursors rules outEnv largerOutBase,
+      Hlarger.projections = H.projections ∧
+      VEnv.AddInduct largerBase decl Hlarger.finalVEnv ∧
+      H.finalVEnv ≤ Hlarger.finalVEnv := by
+  rcases H.rebaseCertificate Hvalid hsafety hbase hdecl hcompile with
+    ⟨largerOutBase, Hlarger, houtBase, hprojections⟩
   have hdeclLarger : decl.WF largerBase :=
     VInductDecl.WF.rebaseOfBlock hdecl hbase Hlarger.wf
       hcompile.types hcompile.ctors
   have hcompileLarger : decl.CompilesTo largerBase Hlarger.block :=
-    hcompile.mono hbase Hlarger.wf
-  exact ⟨largerOutBase, ⟨Hlarger⟩,
-    .intro hdeclLarger hcompileLarger Hlarger.wf Hlarger.install,
-    VEnv.addDefEqRules_mono houtBase⟩
+    by
+      have hblock := Hlarger.block_eq_of_projections_eq H hprojections
+      rw [← hblock] at hcompile
+      exact hcompile.mono hbase Hlarger.wf
+  refine ⟨largerOutBase, Hlarger, hprojections, ?_, ?_⟩
+  · simpa [BlockCertificate.finalVEnv, hprojections] using
+      VEnv.AddInduct.intro hdeclLarger hcompileLarger Hlarger.wf Hlarger.install
+  · exact VEnv.addDefEqRules_mono houtBase
 
 /-- Exact production-only fact needed to keep a newly installed unsafe block
 hidden from the unchanged partial and safe abstract models. -/
@@ -2433,7 +2390,7 @@ theorem BlockCertificate.installedInductiveHeadersUnsafe
       entry.1.safety = .unsafe) :
     InstalledInductiveHeadersUnsafe prodEnv outEnv := by
   intro familyName familyInfo hfamily hfresh
-  rcases H.staged.combined.entryOrigin hwf hfamily with hold | hnew
+  rcases H.staged.productionTrace.entryOrigin hwf hfamily with hold | hnew
   · rw [hfresh] at hold
     contradiction
   · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
@@ -2462,7 +2419,7 @@ theorem BlockCertificate.hiddenUnsafeConstructorSemantics
     (Hhidden : InstalledInductiveHeadersUnsafe prodEnv outEnv) :
     InductiveConstructorsSemanticallyCoherent observer outEnv observerBase := by
   intro familyName familyInfo hfamily hvisible i hi
-  let Hinstall := H.staged.combined
+  let Hinstall := H.staged.productionTrace
   rcases Hinstall.entryOrigin hwf hfamily with hold | hnew
   · rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩
     exact ⟨C.rebaseProduction
@@ -2489,13 +2446,13 @@ theorem BlockCertificate.hiddenUnsafeConstructorSemantics
 environments.  Partial and safe translation traces normally come from
 ignoring the newly installed unsafe production constants; every other field
 is derived from the block certificate and the source `VEnvs.WF`. -/
-theorem BlockCertificate.extendUnsafe
+theorem BlockCertificate.extendUnsafeExact
     {ves : VEnvs}
     (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
     (wf : ves.WF prodEnv)
     (htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
-      (outVEnv.addDefEqRules rules))
+      H.finalVEnv)
     (htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
       (ves.venv .partial))
     (htrSafe : TrEnv' .safe outEnv.constants outEnv.quotInit
@@ -2507,22 +2464,24 @@ theorem BlockCertificate.extendUnsafe
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .unsafe outEnv
-        (outVEnv.addDefEqRules rules))
+        H.finalVEnv)
     (hinductiveProvenance : ∀ safety,
       InstalledInductiveProvenance safety outEnv.constants
         (match safety with
-        | .unsafe => outVEnv.addDefEqRules rules
+        | .unsafe => H.finalVEnv
         | .partial => ves.venv .partial
         | .safe => ves.venv .safe))
     (hheadersUnsafe : InstalledInductiveHeadersUnsafe prodEnv outEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  apply Lean4Lean.VEnvs.WF.extendUnsafe wf (outVEnv.addDefEqRules rules)
+      (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      ves'.venv .unsafe = H.finalVEnv := by
+  apply Lean4Lean.VEnvs.WF.extendUnsafeExact wf
+    H.finalVEnv
     htrUnsafe htrPartial htrSafe
   · exact H.hasPrimitives wf.hasPrimitives
   · exact hsafePrimitives
   · exact wf.typeAnnotationWrappers.rebase
-      (H.staged.combined.preservesSourceFind
+      (H.staged.productionTrace.preservesSourceFind
         (wf.tr (safety := .unsafe)).map_wf)
   · exact hclosed
   · exact hconstructorOwners
@@ -2542,6 +2501,40 @@ theorem BlockCertificate.extendUnsafe
   · exact hinductiveProvenance
   · exact VInductBlock.install_le H.install
 
+/-- Environment-preservation projection of `extendUnsafeExact`. -/
+theorem BlockCertificate.extendUnsafe
+    {ves : VEnvs}
+    (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
+      recursors rules outEnv outVEnv)
+    (wf : ves.WF prodEnv)
+    (htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
+      H.finalVEnv)
+    (htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
+      (ves.venv .partial))
+    (htrSafe : TrEnv' .safe outEnv.constants outEnv.quotInit
+      (ves.venv .safe))
+    (hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
+      Kernel.Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (hclosed : MutualInductivesClosed outEnv)
+    (hconstructorOwners : ConstructorOwnersPresent outEnv)
+    (hconstructorSemantics :
+      InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+        H.finalVEnv)
+    (hinductiveProvenance : ∀ safety,
+      InstalledInductiveProvenance safety outEnv.constants
+        (match safety with
+        | .unsafe => H.finalVEnv
+        | .partial => ves.venv .partial
+        | .safe => ves.venv .safe))
+    (hheadersUnsafe : InstalledInductiveHeadersUnsafe prodEnv outEnv) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  rcases H.extendUnsafeExact wf htrUnsafe htrPartial htrSafe hsafePrimitives
+      hclosed hconstructorOwners hconstructorSemantics hinductiveProvenance
+      hheadersUnsafe with ⟨ves', wf', hle, _⟩
+  exact ⟨ves', wf', hle⟩
+
 /-- Semantic endpoint of the executable block certificates. Once source
 typing/formation and the independent compilation relation are supplied, the
 staged executable installation constructs the abstract inductive extension. -/
@@ -2550,7 +2543,7 @@ theorem BlockCertificate.addInductAbstract
       rules outEnv outVEnv)
     (Hdecl : decl.WF venv)
     (Hcompile : decl.CompilesTo venv H.block) :
-    VEnv.AddInduct venv decl (outVEnv.addDefEqRules rules) :=
+    VEnv.AddInduct venv decl H.finalVEnv :=
   .intro Hdecl Hcompile H.wf H.install
 
 theorem BlockCertificate.addInductOfFormation
@@ -2559,7 +2552,7 @@ theorem BlockCertificate.addInductOfFormation
     (Hformation : FormationCertificate venv decl)
     (Hsource : decl.SourceWF venv)
     (Hcompile : decl.CompilesTo venv H.block) :
-    VEnv.AddInduct venv decl (outVEnv.addDefEqRules rules) :=
+    VEnv.AddInduct venv decl H.finalVEnv :=
   H.addInductAbstract (Hformation.declWF Hsource) Hcompile
 
 /-- Ordinary compilation, source formation, and staged source translation
@@ -2572,7 +2565,7 @@ theorem BlockCertificate.addInductOfOrdinaryCompilation
       sourceEnvTypes sourceEnvCtors)
     (hnonempty : sourceTypes ≠ [])
     (Hcompile : OrdinaryCompilationCertificate venv decl H.block) :
-    VEnv.AddInduct venv decl (outVEnv.addDefEqRules rules) := by
+    VEnv.AddInduct venv decl H.finalVEnv := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       Hsource
@@ -2591,7 +2584,7 @@ theorem BlockCertificate.addInductOfNestedCompilation
       sourceEnvTypes sourceEnvCtors)
     (hnonempty : sourceTypes ≠ [])
     (Hcompile : NestedCompilationCertificate venv decl H.block) :
-    VEnv.AddInduct venv decl (outVEnv.addDefEqRules rules) := by
+    VEnv.AddInduct venv decl H.finalVEnv := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       Hsource
@@ -2600,9 +2593,8 @@ theorem BlockCertificate.addInductOfNestedCompilation
     (Lean4Lean.TrInductDecl.sourceWF Htranslated)
     Hcompile.compilesTo
 
-/-- Sound nested-formation endpoint.  Unlike the compatibility theorem above,
-this consumes the independent source-to-expanded formation derivation rather
-than asking the restored source declaration to satisfy the ordinary
+/-- Nested formation from the independent source-to-expanded derivation,
+without requiring the restored source declaration to satisfy the ordinary
 constructor-shape judgment. -/
 theorem BlockCertificate.addInductOfNestedFormation
     (H : BlockCertificate safety env venv blockTypes blockCtors
@@ -2612,7 +2604,7 @@ theorem BlockCertificate.addInductOfNestedFormation
       sourceEnvTypes sourceEnvCtors)
     (hnonempty : sourceTypes ≠ [])
     (Hcompile : NestedCompilationCertificate venv decl H.block) :
-    VEnv.AddInduct venv decl (outVEnv.addDefEqRules rules) := by
+    VEnv.AddInduct venv decl H.finalVEnv := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       Hsource
@@ -2635,7 +2627,7 @@ theorem BlockCertificate.addInduct
       decl)
     (hsourceAligned : Aligned checkSafety prodEnv.constants venv) :
     AddInduct checkSafety prodEnv.constants venv decl outEnv.constants
-      (outVEnv.addDefEqRules rules) := by
+      H.finalVEnv := by
   apply AddInduct.intro H.block hdecl hcompile H.wf H.install
   · exact horigins
   · intro name ci hfind
@@ -2643,9 +2635,9 @@ theorem BlockCertificate.addInduct
       rw [Lean.Kernel.Environment.find?,
         hsourceAligned.map_wf.find?'_eq_find?]
       exact hfind
-    have hout := H.staged.combined.preservesSourceFind
+    have hout := H.staged.productionTrace.preservesSourceFind
       hsourceAligned.map_wf hfindEnv
-    have houtWF := H.staged.combined.targetMapWF hsourceAligned.map_wf
+    have houtWF := H.staged.productionTrace.targetMapWF hsourceAligned.map_wf
     rw [Lean.Kernel.Environment.find?,
       houtWF.find?'_eq_find?] at hout
     exact hout
@@ -2664,7 +2656,7 @@ theorem BlockCertificate.addInductSafe
       decl)
     (hsourceAligned : Aligned .safe prodEnv.constants venv) :
     AddInduct .safe prodEnv.constants venv decl outEnv.constants
-      (outVEnv.addDefEqRules rules) := by
+      H.finalVEnv := by
   exact H.addInduct hdecl hcompile horigins hsourceAligned
 
 /-- Replay a safe certified block into any safety-indexed source model and
@@ -2679,24 +2671,29 @@ theorem BlockCertificate.rebaseAddInductSafe
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl) :
     ∃ largerOutBase,
-      Nonempty (BlockCertificate targetSafety prodEnv largerBase types ctors
-        recursors rules outEnv largerOutBase) ∧
+      ∃ Hlarger : BlockCertificate targetSafety prodEnv largerBase types ctors
+        recursors rules outEnv largerOutBase,
       AddInduct targetSafety prodEnv.constants largerBase decl outEnv.constants
         (largerOutBase.addDefEqRules rules) ∧
-      outBase.addDefEqRules rules ≤ largerOutBase.addDefEqRules rules := by
-  rcases H.rebaseCertificate Hvalid DefinitionSafety.le_safe hbase with
-    ⟨largerOutBase, ⟨Hlarger⟩, houtBase⟩
+      H.finalVEnv ≤
+        (largerOutBase.addDefEqRules rules) ∧
+      Hlarger.projections = H.projections := by
+  rcases H.rebaseCertificate Hvalid DefinitionSafety.le_safe hbase hdecl hcompile with
+    ⟨largerOutBase, Hlarger, houtBase, hprojections⟩
   have hdeclLarger : decl.WF largerBase :=
     VInductDecl.WF.rebaseOfBlock hdecl hbase Hlarger.wf
       hcompile.types hcompile.ctors
   have hcompileLarger : decl.CompilesTo largerBase Hlarger.block :=
-    hcompile.mono hbase Hlarger.wf
+    by
+      have hblock := Hlarger.block_eq_of_projections_eq H hprojections
+      rw [← hblock] at hcompile
+      exact hcompile.mono hbase Hlarger.wf
   have hadd : AddInduct targetSafety prodEnv.constants largerBase decl outEnv.constants
       (largerOutBase.addDefEqRules rules) := by
-    exact Hlarger.addInduct hdeclLarger hcompileLarger horigins
-      Hvalid.tr.aligned
-  exact ⟨largerOutBase, ⟨Hlarger⟩, hadd,
-    VEnv.addDefEqRules_mono houtBase⟩
+    simpa [BlockCertificate.finalVEnv, hprojections] using
+      Hlarger.addInduct hdeclLarger hcompileLarger horigins Hvalid.tr.aligned
+  exact ⟨largerOutBase, Hlarger, hadd,
+    VEnv.addDefEqRules_mono houtBase, hprojections⟩
 
 /-- Reconstruct constructor semantics for one replay of a safe block.  Old
 families are transported from the corresponding source safety model.  A new
@@ -2712,23 +2709,22 @@ theorem BlockCertificate.replaySafeConstructorSemantics
     (Hsource : InductiveConstructorsSemanticallyCoherent
       observer prodEnv observerBase)
     (Hcompleted : InductiveConstructorsSemanticallyCoherent .safe outEnv
-      (outBase.addDefEqRules rules))
-    (hreplay : outBase.addDefEqRules rules ≤
-      replayBase.addDefEqRules rules) :
+      H.finalVEnv)
+    (hreplay : H.finalVEnv ≤ Hreplay.finalVEnv) :
     InductiveConstructorsSemanticallyCoherent observer outEnv
-      (replayBase.addDefEqRules rules) := by
+      Hreplay.finalVEnv := by
   intro familyName familyInfo hfamily hvisible i hi
-  let Hinstall := Hreplay.staged.combined
+  let Hinstall := Hreplay.staged.productionTrace
   rcases Hinstall.entryOrigin hwf hfamily with hold | hnew
   · rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩
     have hlookup := Hinstall.preservesSourceFind hwf C.lookup
-    have hle : observerBase ≤ replayBase.addDefEqRules rules :=
-      Hinstall.le.trans VEnv.addDefEqRules_le
+    have hle : observerBase ≤ Hreplay.finalVEnv :=
+      VEnv.addProjections_le.trans (Hinstall.le.trans VEnv.addDefEqRules_le)
     exact ⟨C.rebaseProduction hlookup hle⟩
   · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
     have hsafe : .safe ≤ (ConstantInfo.inductInfo familyInfo).safety := by
       rw [hinfo]
-      exact H.staged.combined.entrySafety hentry
+      exact H.staged.productionTrace.entrySafety hentry
     have hsafe' : DefinitionSafety.safe ≤
         (if familyInfo.isUnsafe then DefinitionSafety.unsafe
           else DefinitionSafety.safe) := by
@@ -2765,10 +2761,11 @@ theorem BlockCertificate.extendSafeExact
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
-        (outBase.addDefEqRules rules)) :
+        H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-      outBase.addDefEqRules rules ≤ ves'.venv .safe := by
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) ∧
+      H.finalVEnv ≤ ves'.venv .safe := by
   have valid (safety : DefinitionSafety) :
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
@@ -2776,24 +2773,29 @@ theorem BlockCertificate.extendSafeExact
       wf.typeAnnotationWrappers
   rcases H.rebaseAddInductSafe (valid .unsafe)
       (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins with
-    ⟨unsafeBase, ⟨Hunsafe⟩, HunsafeAdd, hunsafeLE⟩
+    ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProj⟩
   rcases H.rebaseAddInductSafe (valid .partial)
       (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins with
-    ⟨partialBase, ⟨Hpartial⟩, HpartialAdd, hpartialLE⟩
+    ⟨partialBase, Hpartial, HpartialAdd, hpartialLE, hpartialProj⟩
   rcases H.rebaseAddInductSafe (valid .safe) VEnv.LE.rfl
       hdecl hcompile horigins with
-    ⟨safeBase, ⟨Hsafe⟩, HsafeAdd, hsafeLE⟩
+    ⟨safeBase, Hsafe, HsafeAdd, hsafeLE, hsafeProj⟩
   let pre : DefinitionSafety → VEnv
     | .unsafe => unsafeBase
     | .partial => partialBase
     | .safe => safeBase
-  let next (safety : DefinitionSafety) := (pre safety).addDefEqRules rules
+  let next (safety : DefinitionSafety) :=
+    (pre safety).addDefEqRules rules
   let cert : ∀ safety,
       BlockCertificate safety prodEnv (ves.venv safety) types ctors
         recursors rules outEnv (pre safety)
     | .unsafe => Hunsafe
     | .partial => Hpartial
     | .safe => Hsafe
+  have certProjections : ∀ safety, (cert safety).projections = H.projections
+    | .unsafe => hunsafeProj
+    | .partial => hpartialProj
+    | .safe => hsafeProj
   let adds : ∀ safety,
       AddInduct safety prodEnv.constants (ves.venv safety) decl outEnv.constants
         (next safety)
@@ -2801,35 +2803,51 @@ theorem BlockCertificate.extendSafeExact
     | .partial => HpartialAdd
     | .safe => HsafeAdd
   let outputLE : ∀ safety,
-      outBase.addDefEqRules rules ≤ (pre safety).addDefEqRules rules
+      H.finalVEnv ≤ next safety
     | .unsafe => hunsafeLE
     | .partial => hpartialLE
     | .safe => hsafeLE
   have hprimitives : ∀ safety, (next safety).HasPrimitives := by
     intro safety
-    exact (cert safety).hasPrimitives
-      (wf.hasPrimitives (safety := safety))
+    simpa [next, BlockCertificate.finalVEnv, certProjections safety] using
+      (cert safety).hasPrimitives (wf.hasPrimitives (safety := safety))
   have hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [] :=
-    (Hsafe.staged.valid (valid .safe)).safePrimitives
+    (Hsafe.valid (valid .safe)).safePrimitives
   have hsemantics : ∀ safety,
       InductiveConstructorsSemanticallyCoherent safety outEnv
         (next safety) := by
     intro safety
-    exact H.replaySafeConstructorSemantics (cert safety)
-      (wf.tr (safety := safety)).map_wf
-      (wf.constructorSemantics (safety := safety)) hconstructorSemantics
-      (outputLE safety)
+    have hreplay : H.finalVEnv ≤ (cert safety).finalVEnv := by
+      simpa [next, BlockCertificate.finalVEnv, certProjections safety] using
+        outputLE safety
+    simpa [next, BlockCertificate.finalVEnv, certProjections safety] using
+      H.replaySafeConstructorSemantics (cert safety)
+        (wf.tr (safety := safety)).map_wf
+        (wf.constructorSemantics (safety := safety)) hconstructorSemantics
+        hreplay
   have hmono : ∀ {safety safety'}, safety ≤ safety' →
       next safety' ≤ next safety := by
     intro safety safety' hle
+    have hblock' := (cert safety').block_eq_of_projections_eq H
+      (certProjections safety')
+    have hblock := (cert safety).block_eq_of_projections_eq H
+      (certProjections safety)
+    have hi' : H.block.install (ves.venv safety') = some (next safety') := by
+      simpa [next, BlockCertificate.finalVEnv, hblock', certProjections safety'] using
+        (cert safety').install
+    have hi : H.block.install (ves.venv safety) = some (next safety) := by
+      simpa [next, BlockCertificate.finalVEnv, hblock, certProjections safety] using
+        (cert safety).install
     exact VInductBlock.install_mono (wf.mono hle)
-      (cert safety').install (cert safety).install
+      hi' hi
   rcases wf.extendInductExact decl next adds H.staged.quotInit_eq
       hprimitives hsafePrimitives hclosed hconstructorOwners hsemantics hmono with
     ⟨ves', wf', hsourceLE, hexact⟩
-  refine ⟨ves', wf', hsourceLE, ?_⟩
+  refine ⟨ves', wf', hsourceLE, ?_, ?_⟩
+  rw [hexact .safe]
+  exact (adds .safe).toVEnv
   rw [hexact .safe]
   exact outputLE .safe
 
@@ -2847,12 +2865,12 @@ theorem BlockCertificate.extendSafe
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
-        (outBase.addDefEqRules rules)) :
+        H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases H.extendSafeExact wf hdecl hcompile horigins hclosed
       hconstructorOwners hconstructorSemantics with
-    ⟨ves', wf', hle, _hsafe⟩
+    ⟨ves', wf', hle, _hadd, _hsafe⟩
   exact ⟨ves', wf', hle⟩
 
 /-- Install a certified inductive block directly into the concrete
@@ -2868,7 +2886,7 @@ theorem BlockCertificate.trEnv'
       decl)
     (hsource : TrEnv' checkSafety prodEnv.constants quotInit venv) :
     TrEnv' checkSafety outEnv.constants quotInit
-      (outVEnv.addDefEqRules rules) :=
+      H.finalVEnv :=
   .induct hdecl
     (H.addInduct hdecl hcompile horigins hsource.aligned) hsource
 
@@ -2882,13 +2900,13 @@ theorem BlockCertificate.trEnvSafe
       decl)
     (hsource : TrEnv' .safe prodEnv.constants quotInit venv) :
     TrEnv' .safe outEnv.constants quotInit
-      (outVEnv.addDefEqRules rules) :=
+      H.finalVEnv :=
   .induct hdecl
     (H.addInductSafe hdecl hcompile horigins hsource.aligned) hsource
 
 /-- Unsafe inductives extend only the unsafe abstract model; partial and safe
 models replay the concrete additions through `TrEnv'.ignore`. -/
-theorem BlockCertificate.extendUnsafeOfHidden
+theorem BlockCertificate.extendUnsafeOfHiddenExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
@@ -2903,9 +2921,10 @@ theorem BlockCertificate.extendUnsafeOfHidden
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .unsafe outEnv
-        (outVEnv.addDefEqRules rules)) :
+        H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+      (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      VEnv.AddInduct (ves.venv .unsafe) decl (ves'.venv .unsafe) := by
   have validUnsafe : CheckingEnv.Valid .unsafe prodEnv
       (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
@@ -2922,7 +2941,7 @@ theorem BlockCertificate.extendUnsafeOfHidden
     rw [hunsafe entry hentry]
     decide
   have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
-      (outVEnv.addDefEqRules rules) := by
+      H.finalVEnv := by
     rw [H.staged.quotInit_eq]
     exact H.trEnv' hdecl hcompile horigins
       (wf.tr (safety := .unsafe))
@@ -2952,10 +2971,10 @@ theorem BlockCertificate.extendUnsafeOfHidden
     (wf.tr (safety := .unsafe)).map_wf hunsafe
   have haddUnsafe : AddInduct .unsafe prodEnv.constants
       (ves.venv .unsafe) decl outEnv.constants
-      (outVEnv.addDefEqRules rules) :=
+      H.finalVEnv :=
     H.addInduct hdecl hcompile horigins
       (wf.tr (safety := .unsafe)).aligned
-  have houtMapWF := H.staged.combined.targetMapWF
+  have houtMapWF := H.staged.productionTrace.targetMapWF
     (wf.tr (safety := .unsafe)).map_wf
   have hiddenProvenance (observer : DefinitionSafety)
       (hobserver : observer ≠ .unsafe) :
@@ -2984,16 +3003,43 @@ theorem BlockCertificate.extendUnsafeOfHidden
   have hinductiveProvenance : ∀ safety,
       InstalledInductiveProvenance safety outEnv.constants
         (match safety with
-        | .unsafe => outVEnv.addDefEqRules rules
+        | .unsafe => H.finalVEnv
         | .partial => ves.venv .partial
         | .safe => ves.venv .safe)
     | .unsafe => InstalledInductiveProvenance.addInduct
         (wf.inductiveProvenance (safety := .unsafe)) haddUnsafe
     | .partial => hiddenProvenance .partial (by decide)
     | .safe => hiddenProvenance .safe (by decide)
-  exact H.extendUnsafe wf htrUnsafe htrPartial htrSafe
-    (H.staged.valid validUnsafe).safePrimitives hclosed hconstructorOwners
-    hconstructorSemantics hinductiveProvenance hheadersUnsafe
+  rcases H.extendUnsafeExact wf htrUnsafe htrPartial htrSafe
+      (H.valid validUnsafe).safePrimitives hclosed hconstructorOwners
+      hconstructorSemantics hinductiveProvenance hheadersUnsafe with
+    ⟨ves', wf', hle, hexact⟩
+  refine ⟨ves', wf', hle, ?_⟩
+  rw [hexact]
+  exact haddUnsafe.toVEnv
+
+/-- Environment-preservation projection of `extendUnsafeOfHiddenExact`. -/
+theorem BlockCertificate.extendUnsafeOfHidden
+    {ves : VEnvs} {decl : VInductDecl}
+    (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
+      recursors rules outEnv outVEnv)
+    (wf : ves.WF prodEnv)
+    (hdecl : decl.WF (ves.venv .unsafe))
+    (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
+    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
+      decl)
+    (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
+      entry.1.safety = .unsafe)
+    (hclosed : MutualInductivesClosed outEnv)
+    (hconstructorOwners : ConstructorOwnersPresent outEnv)
+    (hconstructorSemantics :
+      InductiveConstructorsSemanticallyCoherent .unsafe outEnv
+        H.finalVEnv) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  rcases H.extendUnsafeOfHiddenExact wf hdecl hcompile horigins hunsafe hclosed
+      hconstructorOwners hconstructorSemantics with ⟨ves', wf', hle, _⟩
+  exact ⟨ves', wf', hle⟩
 
 theorem BlockCertificate.trEnvOfOrdinaryCompilation
     (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors
@@ -3007,7 +3053,7 @@ theorem BlockCertificate.trEnvOfOrdinaryCompilation
       decl)
     (htr : TrEnv' checkSafety prodEnv.constants quotInit venv) :
     TrEnv' checkSafety outEnv.constants quotInit
-      (outVEnv.addDefEqRules rules) := by
+      H.finalVEnv := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       Hsource
@@ -3027,7 +3073,7 @@ theorem BlockCertificate.trEnvOfNestedCompilation
       decl)
     (htr : TrEnv' checkSafety prodEnv.constants quotInit venv) :
     TrEnv' checkSafety outEnv.constants quotInit
-      (outVEnv.addDefEqRules rules) := by
+      H.finalVEnv := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNestedCompilation
       Hsource hnonempty Hcompile
@@ -3049,7 +3095,7 @@ theorem BlockCertificate.trEnvOfNestedFormation
       decl)
     (htr : TrEnv' checkSafety prodEnv.constants quotInit venv) :
     TrEnv' checkSafety outEnv.constants quotInit
-      (outVEnv.addDefEqRules rules) := by
+      H.finalVEnv := by
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNestedCompilation
       Hsource hnonempty Hcompile

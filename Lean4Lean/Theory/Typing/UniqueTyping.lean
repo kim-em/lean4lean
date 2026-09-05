@@ -54,6 +54,9 @@ theorem IsDefEq.uniq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     have e5 := IsDefEqU.sort_inv henv hΓ₂ ⟨_, h⟩
     exact ⟨_, .defeqDF (.sortDF e4 a2 e3.symm) (d3.instN henv a6.hasType .zero), _,
       e3.trans e5.symm, a7.mono le₁, b7.mono le₂⟩
+  | proj =>
+    intro (.proj ..)
+    sorry
   | lam a1 a2 _ a4 _ _ ih3 =>
     intro (.lam b1 b2 b3 b4)
     have ⟨_, c1, _, c2, c3, c4⟩ := ih3 n IH ⟨hΓ, _, a1.hasType⟩

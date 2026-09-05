@@ -649,9 +649,9 @@ theorem TrExprS.abstractSelectedExpansion
           have HscopeBody : body.FVarsIn (· ∈ fvars) := by
             simpa only [Lean4Lean.FVarsIn] using Hscope
           have Hmajor := ih Hbridge HclosedBody HscopeBody HcanonicalBody
-          exact .projection
-            (HcanonicalProj.supportExpansion.liftN fieldDepth targetDepth)
-            HcurrentProj.supportExpansion Hmajor
+          cases HcanonicalProj
+          cases HcurrentProj
+          exact .proj Hmajor
 
 /-- Internally constructed pre-lowering source for one exact generated
 queue family.  This package is an output of the producer proof below, not a
@@ -2284,9 +2284,7 @@ theorem NestedGeneratedFamilyNativeSources.replacementCompat
   exact ⟨fieldDepth, by omega, Hrelative⟩
 
 /-- Project the producer-owned generated registry to the ordered generated
-suffix expansion.  Unlike the legacy source-translation carrier, this theorem
-uses the exact origin stored at each slot and never asks all possible
-translations of that slot to be propositionally identical. -/
+suffix expansion using the exact origin stored at each slot. -/
 theorem NestedLoweringRun.generatedExpansionsOfNativeSources
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hrun : NestedLoweringRun prodEnv fuel nparams sourceTypes

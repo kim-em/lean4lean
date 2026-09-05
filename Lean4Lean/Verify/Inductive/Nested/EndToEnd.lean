@@ -1687,12 +1687,13 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtBase
     (hempty : initialState.nestedAux = #[]) :
     RestoreAuxConstructorsFresh result loweredEnv sourceVEnv := by
   rcases H with ⟨finalState, Hrun, _Hcache, _Hparams⟩
-  exact Hrun.restoreAuxConstructorsFreshOfInstallation
-    Hprod.staged.combined Hc.checking.tr.map_wf Howners hempty
+  simpa [RestoreAuxConstructorsFresh] using
+    Hrun.restoreAuxConstructorsFreshOfInstallation
+      Hprod.staged.productionTrace Hc.checking.tr.map_wf Howners hempty
 
 /-- Lift generated-constructor freshness through the source-header prefix
-reconstructed directly from lowering.  Unlike the legacy source-core route,
-this needs neither source constructors nor a completed source declaration. -/
+reconstructed directly from lowering, without source constructors or a
+completed source declaration. -/
 theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtHeaderPrefix
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -1919,9 +1920,9 @@ theorem NestedLoweringResultClosed.auxRecKeyFreshAtCtors
     (hmap : (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2.find? old =
       some new) :
     R.declared.venvCtors.constants old = none := by
-  apply Hprod.recursorNamesFresh [] (by simp) old
-  change old ∈ (Hprod.entries.map Prod.snd).map (·.name)
-  exact H.auxRecKeyGeneratedAtFresh Hc Hprod hempty hmap
+  have hmem : old ∈ (Hprod.entries.map Prod.snd).map (·.name) :=
+    H.auxRecKeyGeneratedAtFresh Hc Hprod hempty hmap
+  simpa using Hprod.recursorNamesFresh [] (by simp) old hmem
 
 /-- Every retained generated-recursors declaration type avoids the entire
 fresh recursor-name set.  The proof uses its semantic translation in the
@@ -1942,9 +1943,7 @@ theorem RecursorPhasesResult.declarationTypeAvoidsGeneratedRecursors
   apply checkPositivityStep.TrExprS.sourceAvoidsFresh _ Htype
   intro name hname
   rw [H.recursorEnv, R.declared.contextVEnv]
-  apply H.recursorNamesFresh [] (by simp) name
-  change name ∈ (H.entries.map Prod.snd).map (·.name)
-  exact hname
+  simpa using H.recursorNamesFresh [] (by simp) name hname
 
 /-- Production restoration never renames the primary recursor of an
 original mutual-family member.  Original families occupy positions strictly
@@ -2353,7 +2352,7 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFreshExactOwner
     constructors := HctorSemantics
     recursor := HrecSemantics }, rfl⟩⟩
 
-/-- Compatibility projection of the exact-owner source-family producer. -/
+/-- Source-family semantics obtained by forgetting the exact owner index. -/
 theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -3509,10 +3508,9 @@ theorem Environment.addInductive.checkedLoweringWF
     Hlowering.bind fun res Hres => Hfinish res Hsource Hres
   simpa [Environment.addInductive] using Hcombined
 
-/-- Strengthened outer composition used by the soundness proof.  Unlike the
-compatibility theorem above, this result discharges dynamic auxiliary-family
-closedness and the final cache scoping invariant from the source checks and
-the verified production environment. -/
+/-- Outer composition that discharges dynamic auxiliary-family closedness and
+the final cache scoping invariant from the source checks and the verified
+production environment. -/
 theorem Environment.addInductive.checkedLoweringClosedWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
@@ -3537,26 +3535,6 @@ theorem Environment.addInductive.checkedLoweringClosedWF
       hclosures Henv Hsource rfl rfl).bind fun res Hres =>
         Hfinish res Hsource Hres
   simpa [Environment.addInductive] using Hcombined
-
-/-- Compatibility projection of `checkedLoweringWF` for clients whose final
-postcondition does not depend on the retained source-syntax certificate. -/
-theorem Environment.addInductive.loweringWF
-    (env : Environment) (lparams : List Name) (nparams : Nat)
-    (types : List InductiveType) (isUnsafe allowPrimitive : Bool)
-    (fuel : FuelConfig)
-    (hclosures : MutualInductivesClosed env)
-    (Q : Environment → Prop)
-    (Hfinish : ∀ res,
-      NestedLoweringResult env fuel.inductiveFuel nparams types
-        { lvls := lparams.map .param, newTypes := types.toArray } res →
-      (Environment.addInductiveAfterLowering env lparams nparams types
-        isUnsafe allowPrimitive fuel res).WF Q) :
-    (Environment.addInductive env lparams nparams types isUnsafe
-      allowPrimitive fuel).WF Q := by
-  apply Environment.addInductive.checkedLoweringWF env lparams nparams types
-    isUnsafe allowPrimitive fuel hclosures Q
-  intro res _Hsource Hlower
-  exact Hfinish res Hlower
 
 
 end VerifyInductive

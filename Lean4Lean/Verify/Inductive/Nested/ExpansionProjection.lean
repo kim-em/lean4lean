@@ -105,9 +105,9 @@ theorem NestedExprMapping.abstractExpansion
     | proj HsourceBody HsourceProj =>
       cases Htarget' with
       | proj HtargetBody HtargetProj =>
-        exact .projection HsourceProj.supportExpansion
-          HtargetProj.supportExpansion
-          (ihBody Hctx HsourceBody HtargetBody)
+        cases HsourceProj
+        cases HtargetProj
+        exact .proj (ihBody Hctx HsourceBody HtargetBody)
 
 end VerifyInductive
 end Lean4Lean

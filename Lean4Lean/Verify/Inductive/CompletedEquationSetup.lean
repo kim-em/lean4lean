@@ -27,7 +27,7 @@ theorem CompletedRecursorPhasesResult.recursorNamesFresh
   intro name hname
   change name ∈ (H.entries.map Prod.snd).map (·.name) at hname
   rcases List.mem_map.mp hname with ⟨recursor, hrecursor, rfl⟩
-  exact hfresh recursor hrecursor
+  simpa using hfresh recursor hrecursor
 
 /-- Common equation-alignment layer for recursor runs entered from either
 ordinary or atomic primitive formation. -/
@@ -39,8 +39,9 @@ def CompletedRecursorPhasesResult.generatedCertificate
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv) :
-    GeneratedRecursors c.safety R.context.venv c.lparams H.elimLevel
-      H.localContext stats indTypes H.recInfos H.entries := by
+    GeneratedRecursors c.safety
+      (R.context.venv.addProjections decl.projectionEntries) c.lparams
+      H.elimLevel H.localContext stats indTypes H.recInfos H.entries := by
   simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using H.generated
 
 /-- The semantic batch retained by the installer is the batch stored in the
@@ -313,7 +314,8 @@ theorem CompletedRecursorPhasesResult.recursorTelescopeTranslationAt
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
-    Nonempty (GeneratedRecursorTelescopeTranslation R.context.venv
+    Nonempty (GeneratedRecursorTelescopeTranslation
+      (R.context.venv.addProjections decl.projectionEntries)
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -398,7 +400,8 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.recursorTelescopeTr
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (_A : H.GeneratedRuleAlignment owner howner i hctor) :
-    Nonempty (GeneratedRecursorTelescopeTranslation R.context.venv
+    Nonempty (GeneratedRecursorTelescopeTranslation
+      (R.context.venv.addProjections decl.projectionEntries)
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
@@ -479,7 +482,7 @@ theorem
       TrExprS.of_inferImplicit Htranslated
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have Hsort : TrExprS H.outVEnv Us []
       (H.localContext.lctx.mkForall stats.params
         (.sort (.zero : Level)))
@@ -779,7 +782,8 @@ theorem
         ((decl.types[owner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt).type := by
   rcases A.sourceConstructorTelescope with ⟨residual, Htelescope⟩
   have henv : R.headerVEnv ≤ H.outVEnv :=
-    R.installation.constructorLE.trans H.installed.le
+    R.installation.constructorLE.trans
+      (VEnv.addProjections_le.trans H.installed.le)
   have Htranslation := A.ctorTranslation.type.mono henv
   have Htype : H.outVEnv.IsType c.lparams.length []
       ((decl.types[owner]'A.abstractOwner_lt).ctors[i]'A.abstractCtor_lt).type := by
@@ -864,7 +868,7 @@ theorem
         (R.context.toAdmissibleRecursorContextWF
           H.elimLevelAdmissible).venv ≤ H.outVEnv := by
       simpa only [ContextWF.toAdmissibleRecursorContextWF_venv] using
-        H.installed.le
+        VEnv.addProjections_le.trans H.installed.le
     simpa [Us, parameterDecls] using Hsynthesis.mono hbaseLE
 
 /-- The independently checked constructor application transports into the
@@ -921,7 +925,7 @@ theorem
       (R.context.toAdmissibleRecursorContextWF
         H.elimLevelAdmissible).venv ≤ H.outVEnv := by
     simpa only [ContextWF.toAdmissibleRecursorContextWF_venv] using
-      H.installed.le
+      VEnv.addProjections_le.trans H.installed.le
   have Hintro' : TrExprS H.outVEnv Us parameterDecls
       (mkAppN (.const
           ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
@@ -1014,7 +1018,7 @@ theorem
       (R.context.toAdmissibleRecursorContextWF
         H.elimLevelAdmissible).venv ≤ H.outVEnv := by
     simpa only [ContextWF.toAdmissibleRecursorContextWF_venv] using
-      H.installed.le
+      VEnv.addProjections_le.trans H.installed.le
   have Htail' : TrExprS H.outVEnv Us parameterDecls
       A.semantics.parameterTail tailTarget := by
     simpa [Us, parameterDecls] using Htail.mono hbaseLE
@@ -1815,65 +1819,6 @@ theorem
   · simpa [parameterDecls, inserted, fieldDomains, liftedPrefix, added,
       hfields, List.append_assoc] using HtargetWeak
 
-/-- Compatibility projection of
-`finalCheckedConstructorEquationContextWithFrame` for clients that only need
-the installed equation context. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalCheckedConstructorEquationContext
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let parameterDecls :=
-      (R.materializedFinal.parameterSuffix.toRecursorContext
-        H.elimLevelAdmissible).parameterDecls
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
-        (H.generated.entry owner howner).info.type H.entries[owner].2.type
-        stats.params.size (H.recInfos.map (·.motive)).size
-        (H.recInfos.flatMap (·.minors)).size
-        H.recInfos[owner]!.indices.size owner,
-      ∃ (fieldDomains : List VExpr) (fieldResult introTarget : VExpr),
-        VEnv.IsDefEqCtx H.outVEnv Us.length []
-          T.params.reverse parameterDecls.toCtx ∧
-        fieldDomains.length = A.rule.allArgs.size ∧
-        OnCtx
-          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
-          (H.outVEnv.IsType Us.length) ∧
-        H.outVEnv.HasType Us.length
-          (((T.params ++ T.motives ++ T.minors) ++ fieldDomains).reverse)
-          ((VExpr.mkApps
-              (introTarget.liftN A.rule.allArgs.size 0)
-              (recursorCanonicalVars A.rule.allArgs.size)).liftN
-            (T.motives ++ T.minors).length A.rule.allArgs.size)
-          (fieldResult.liftN
-            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
-        TrExprS H.outVEnv Us
-          (abstractForallContext
-            ((parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
-              fieldDomains) [])
-          (A.rule.target.abstractList A.rule.binders)
-          (fieldResult.liftN
-            (T.motives ++ T.minors).length A.rule.allArgs.size) ∧
-        introTarget = VExpr.mkApps
-          (.const
-            ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
-            (recursorDeclarationAbstractLevels c.lparams
-              H.elimLevelAdmissible))
-          (recursorCanonicalVars stats.params.size) := by
-  rcases A.finalCheckedConstructorEquationContextWithFrame with
-    ⟨T, _originalDomains, fieldDomains, fieldResult, introTarget,
-      hparams, _horiginal, _hlifted, _Htail, _HoriginalCtx, hfields, Hctx, Hmajor,
-      Htarget, HintroShape⟩
-  exact ⟨T, fieldDomains, fieldResult, introTarget, hparams, hfields,
-    Hctx, Hmajor, Htarget, HintroShape⟩
-
 /-- Weaken the checked constructor major below the generated motive/minor
 prefix.  The explicit lift is the de Bruijn shift later field and equation
 terms must share; retaining it here prevents an implicit context-extension
@@ -2017,7 +1962,7 @@ theorem
   rcases A.finalPairedMotiveSeed with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   exact ⟨S, hparams.mono hbase, S.motiveTypeTr.mono hbase,
     S.motiveTypeDefEq.mono hbase⟩
 
@@ -2048,7 +1993,7 @@ theorem
   rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   exact ⟨S.canonical.mono hbase, hparams.mono hbase⟩
 
 /-- Owner-indexed form of `finalCanonicalMotiveTelescope`, independent of a
@@ -2077,7 +2022,7 @@ theorem CompletedRecursorPhasesResult.finalCanonicalMotiveTelescopeAt
   rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   exact ⟨S.canonical.mono hbase, hparams.mono hbase⟩
 
 end VerifyInductive

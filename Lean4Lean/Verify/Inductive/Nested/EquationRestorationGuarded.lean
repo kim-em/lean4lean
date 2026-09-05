@@ -40,6 +40,11 @@ inductive GuardedExprRestoration
           targetRecursors fieldVars depth arg arg') :
         GuardedExprRestoration replaceNode sourceRecursors targetRecursors
           fieldVars depth (.app fn arg) (.app fn' arg')
+    | proj (hmajor : GuardedExprRestoration replaceNode sourceRecursors
+          targetRecursors fieldVars depth major major') :
+        GuardedExprRestoration replaceNode sourceRecursors targetRecursors
+          fieldVars depth (.proj typeName index major)
+            (.proj typeName index major')
     | lam (hdomain : GuardedExprRestoration replaceNode sourceRecursors
           targetRecursors fieldVars depth domain domain')
         (hbody : GuardedExprRestoration replaceNode sourceRecursors
@@ -52,15 +57,6 @@ inductive GuardedExprRestoration
           targetRecursors fieldVars (depth + 1) body body') :
         GuardedExprRestoration replaceNode sourceRecursors targetRecursors
           fieldVars depth (.forallE domain body) (.forallE domain' body')
-    | projection
-        (sourceExpansion : VExpr.ProjectionSupportExpansion
-          sourceMajor sourceTarget)
-        (targetExpansion : VExpr.ProjectionSupportExpansion
-          targetMajor targetTarget)
-        (hmajor : GuardedExprRestoration replaceNode sourceRecursors
-          targetRecursors fieldVars depth sourceMajor targetMajor) :
-        GuardedExprRestoration replaceNode sourceRecursors targetRecursors
-          fieldVars depth sourceTarget targetTarget
     | recCall
         (sourceRecursor targetRecursor : Name)
         (sourceLevels targetLevels : List VLevel)
@@ -96,10 +92,9 @@ theorem GuardedExprRestoration.targetGuarded
   | sort => exact .sort
   | const _ htarget => exact .const htarget
   | app _ _ ihfn iharg => exact .app ihfn iharg
+  | proj _ ihmajor => exact .proj ihmajor
   | lam _ _ ihdomain ihbody => exact .lam ihdomain ihbody
   | forallE _ _ ihdomain ihbody => exact .forallE ihdomain ihbody
-  | projection _ targetExpansion _ ihmajor =>
-      exact .projection targetExpansion ihmajor
   | recCall _ _ _ _ _ _ _ _ _ htargetMem _ htargetMajor _ htargetArgs =>
       exact .recCall htargetMem htargetArgs htargetMajor
 

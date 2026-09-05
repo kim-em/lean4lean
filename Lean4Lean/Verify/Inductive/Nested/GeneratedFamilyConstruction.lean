@@ -64,13 +64,15 @@ theorem VEnv.InstalledInductCertificate.sourceParameterWF
     have hcanonical : VInductBlock.install base block =
         some (envRecursors.addDefEqRules block.rules) := by
       simp [VInductBlock.install, htypes, hctors, hrecursors]
-    have hinstalled : installed = envRecursors.addDefEqRules block.rules :=
+    have hinstalled : installed =
+        envRecursors.addDefEqRules block.rules :=
       Option.some.inj (Hinstall.symm.trans hcanonical)
     subst installed
     have htypesEnv : envTypes ≤ env :=
       (VEnv.addConstVals_le hctors).trans
-        ((VEnv.addConstVals_le hrecursors).trans
-          (VEnv.addDefEqRules_le.trans hle))
+        (VEnv.addProjections_le.trans
+          ((VEnv.addConstVals_le hrecursors).trans
+            (VEnv.addDefEqRules_le.trans hle)))
     have hbaseEnv : base ≤ env :=
       (VEnv.addConstVals_le hdeclTypes).trans htypesEnv
     rcases HsourceParameters with ⟨params, Htypes, Hconstructors⟩
@@ -102,11 +104,13 @@ theorem installedInductCertificate_constructorLookup
     have hcanonical : VInductBlock.install base block =
         some (envRecursors.addDefEqRules block.rules) := by
       simp [VInductBlock.install, htypes, hctors, hrecursors]
-    have hinstalled : installed = envRecursors.addDefEqRules block.rules :=
+    have hinstalled : installed =
+        envRecursors.addDefEqRules block.rules :=
       Option.some.inj (Hinstall.symm.trans hcanonical)
     subst installed
     exact hle.constants <| VEnv.addDefEqRules_le.constants <|
-      (VEnv.addConstVals_le hrecursors).constants hlookupCtors
+      (VEnv.addConstVals_le hrecursors).constants <|
+        VEnv.addProjections_le.constants hlookupCtors
 
 /-- Canonical abstract constructor obtained by specializing one constructor
 of a previously installed family.  Keeping this definition independent of

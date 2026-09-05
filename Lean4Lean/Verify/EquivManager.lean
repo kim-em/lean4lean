@@ -21,7 +21,8 @@ inductive RelevantEq : Expr → Expr → Prop
     RelevantEq (.letE _ t₁ v₁ b₁ _) (.letE _ t₂ v₂ b₂ _)
   | lit : RelevantEq (.lit l) (.lit l)
   | mdata : RelevantEq e₁ e₂ → RelevantEq (.mdata _ e₁) (.mdata _ e₂)
-  | proj : RelevantEq e₁ e₂ → RelevantEq (.proj _ i e₁) (.proj _ i e₂)
+  | proj : RelevantEq e₁ e₂ →
+      RelevantEq (.proj typeName i e₁) (.proj typeName i e₂)
 
 theorem RelevantEq.rfl : RelevantEq e e := by
   induction e with
@@ -300,7 +301,9 @@ theorem isEquiv.WF :
   · exact .bind (.andM isEquiv.WF isEquiv.WF) fun _ _ le H =>
       this le fun hb => .forallE (H hb).1 (H hb).2
   · exact .bind (.andM (.pure id) isEquiv.WF) fun _ _ le H =>
-      this le fun hb => (by simpa using (H hb).1) ▸ .proj (H hb).2
+      this le fun hb => by
+        rcases (by simpa using (H hb).1) with ⟨rfl, rfl⟩
+        exact .proj (H hb).2
   · exact .bind (.andM isEquiv.WF <| .andM isEquiv.WF isEquiv.WF) fun _ _ le H =>
       this le fun hb => .letE (H hb).1 (H hb).2.1 (H hb).2.2
   · exact .pure nofun

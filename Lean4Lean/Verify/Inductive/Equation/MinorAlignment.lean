@@ -621,7 +621,7 @@ theorem
       hruleConsumedTarget, HruleContexts⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have HruleSource : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
       A.semantics.parameterTail
       (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
@@ -701,7 +701,7 @@ theorem
       _hruleConsumedTarget, HruleContexts⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have HruleSource : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
       A.semantics.parameterTail
       (VExpr.wrapForalls ruleSourceDomains ruleSourceResidual) := by
@@ -773,7 +773,7 @@ theorem
       ← HS.semantic.hypothesesRecent.contextExtension.venv_eq,
       ← HS.semantic.extension.venv_eq, H.recursorEnv,
       R.declared.contextVEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have Htarget' := Htarget.mono hrootLE
   have HtargetAtParameters : TrExprS H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -835,7 +835,7 @@ theorem
         H.elimLevelAdmissible).venv ≤ H.outVEnv := by
     rw [ContextWF.toAdmissibleRecursorContextWF_venv,
       R.declared.contextVEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have HparameterWF : VLCtx.WF H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
       (R.materialized.parameterSuffix.toRecursorContext
@@ -907,7 +907,7 @@ theorem
         H.elimLevelAdmissible).venv ≤ H.outVEnv := by
     rw [ContextWF.toAdmissibleRecursorContextWF_venv,
       R.declared.contextVEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have HparameterWF : VLCtx.WF H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
       (R.materialized.parameterSuffix.toRecursorContext
@@ -1287,7 +1287,7 @@ theorem
     simpa using Hprefix₀
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have hscopeSourceOut : Hscope.sources.closeSource S.origin =
       H.localContext.lctx.mkForall
         (sourceBinders.map Expr.fvar).toArray S.origin := by
@@ -1456,7 +1456,7 @@ theorem
     exact HfullEq
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have HruntimeWF : OnCtx H.recursorWF.mlctx.vlctx.toCtx
       (H.outVEnv.IsType Us.length) :=
     (H.recursorWF.mlctx_wf.mono hbase).tr.wf.toCtx
@@ -2241,7 +2241,7 @@ theorem
     hmotiveApp', hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hresidual, HresidualType⟩
 
-/-- Compatibility specialization of `finalSelectedMinorAlignedResidual` for
+/-- Specialization of `finalSelectedMinorAlignedResidual` for
 callers that have already split off the positive-arity case. -/
 def
     RecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorPositiveAlignedResidual
@@ -3354,7 +3354,7 @@ theorem
       houterShift, houterFields, HouterTail, HouterType, HouterPrefix⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   rcases A.semantics.fieldContextDefEqMono with
     ⟨sourceDomains, _sourceResidual, ruleFields, ruleResidual,
       hsourceDomains, hruleFields, Hruntime₀, hruleTarget,
@@ -3722,7 +3722,7 @@ theorem
     ⟨sourceTarget, HsourceTarget⟩
   have henv : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have hsourceEnv : HS.semantic.sourceWF.venv ≤ H.outVEnv := by
     rw [← HS.semantic.extension.venv_eq]
     exact henv

@@ -2097,68 +2097,6 @@ theorem mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin
           hmotiveMember⟩
         type_eq := rfl }⟩⟩
 
-/-- Compatibility projection of `inductionHypothesisTypeOrigin` for callers
-which need only semantic well-formedness of the installed declaration type. -/
-theorem mkRecInfos.loopUArgs.inductionHypothesisType
-    (fv : FVarId) (stats : AddInductive.InductiveStats)
-    (recInfos : Array AddInductive.RecInfo)
-    (c : AddInductive.Context) {recLparams : List Name}
-    (R : RecursorContextWF c recLparams)
-    {decl : VInductDecl} {depth : Nat}
-    (Hstats : RecursorValidAppStatsWF R.venv recLparams
-      R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
-    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
-    {fieldTarget : VExpr}
-    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
-      (.fvar fv) fieldTarget)
-    (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
-    (hrecords : recInfos.size = stats.indConsts.size)
-    (Happ : ∀ {current : AddInductive.Context}
-      (Rcurrent : RecursorContextWF current recLparams)
-      {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
-      {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
-      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
-        exposedType syntaxTarget →
-      Rcurrent.venv.IsDefEqU recLparams.length
-        Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
-      Rcurrent.venv.IsType recLparams.length
-        Rcurrent.mlctx.vlctx.toCtx terminalTarget →
-      (Hargs : RecursorRecentBoundFVarArray R Rcurrent args) →
-      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
-        (mkAppN (.fvar fv) args) appliedTarget →
-      Rcurrent.venv.HasType recLparams.length
-        Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
-      (hvalid : AddInductive.isValidIndApp? stats exposedType =
-        some target) →
-      let itIndices := exposedType.getAppArgs[stats.params.size:]
-      let motiveApp := Expr.app
-        (mkAppN recInfos[target]!.motive itIndices)
-        (mkAppN (.fvar fv) args)
-      ∃ motiveTarget,
-        TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
-          motiveApp motiveTarget ∧
-        Rcurrent.venv.IsType recLparams.length
-          Rcurrent.mlctx.vlctx.toCtx motiveTarget) :
-    (AddInductive.mkRecInfos.loopUArgs (.fvar fv) (fun uiTy xs => do
-      let some itIdx := AddInductive.isValidIndApp? stats uiTy
-        | throw (.other
-          "recursive constructor field lost its inductive result type")
-      let itIndices := uiTy.getAppArgs[stats.params.size:]
-      let motiveApp := Expr.app
-        (mkAppN recInfos[itIdx]!.motive itIndices) (mkAppN (.fvar fv) xs)
-      return (← getLCtx).mkForall xs motiveApp) c).WF fun viTy =>
-        ∃ viTarget,
-          TrExprS R.venv recLparams R.mlctx.vlctx
-            viTy.consumeTypeAnnotationsVerified viTarget ∧
-          R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget := by
-  exact (mkRecInfos.loopUArgs.inductionHypothesisTypeOrigin fv stats
-    recInfos c R Hstats hconsume hlit hctx hfield
-      Hmotives hrecords Happ).mono
-      fun _ Hout => ⟨Hout.choose, Hout.choose_spec.1,
-        Hout.choose_spec.2.1⟩
-
 /-- Semantic interface for the strengthened recursive-field terminal check.
 The executable callback now validates the exposed result before projecting a
 mutual-family index; this theorem turns that branch into the corresponding
@@ -3026,8 +2964,7 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedRootFVar_eq_lift
   exact H.outerAbstractedFVar_eq_lift_of_fresh hfresh hbinders hfv
 
 /-- Array form for binders retained in a context other than the call root.
-The producer must supply the exact disjointness from temporary call-local
-arguments; no alpha-replay or caller compatibility premise is involved. -/
+The producer supplies exact disjointness from temporary call-local arguments. -/
 theorem BoundGeneratedRecursiveCall.outerAbstractedBoundArray_eq_lift_of_fresh
     (H : BoundGeneratedRecursiveCall indTypes stats motives minors lvls
       root field value)

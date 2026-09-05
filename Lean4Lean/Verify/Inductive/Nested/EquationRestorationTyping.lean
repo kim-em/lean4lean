@@ -74,19 +74,16 @@ inductive TypedExprRestoration
         (.forallE sourceDomain sourceBody) (.forallE targetDomain targetBody)
         (.sort (.imax sourceLevel sourceBodyLevel))
         (.sort (.imax targetLevel targetBodyLevel))
-  | projection
-      (sourceExpansion : VExpr.ProjectionSupportExpansion
-        sourceMajor sourceTarget)
-      (targetExpansion : VExpr.ProjectionSupportExpansion
-        targetMajor targetTarget)
+  | proj
       (hmajor : TypedExprRestoration plan Hplan sourceCtx targetCtx
         sourceMajor targetMajor sourceMajorType targetMajorType)
       (hsource : sourceEnv.HasType Us.length sourceCtx
-        sourceTarget sourceType)
+        (.proj typeName index sourceMajor) sourceType)
       (htarget : targetEnv.HasType Us.length targetCtx
-        targetTarget targetType) :
+        (.proj typeName index targetMajor) targetType) :
       TypedExprRestoration plan Hplan sourceCtx targetCtx
-        sourceTarget targetTarget sourceType targetType
+        (.proj typeName index sourceMajor) (.proj typeName index targetMajor)
+        sourceType targetType
 
 variable {result : Lean4Lean.ElimNestedInductive.Result}
   {prodEnv : Environment} {params : Array Expr} {auxRec : NameMap Name}
@@ -112,7 +109,7 @@ theorem TypedExprRestoration.sourceTyping
   | app _ _ ihfn iharg => exact .appDF ihfn iharg
   | lam _ _ ihdomain ihbody => exact .lamDF ihdomain ihbody
   | forallE _ _ ihdomain ihbody => exact .forallEDF ihdomain ihbody
-  | projection _ _ _ hsource _ _ => exact hsource
+  | proj _ hsource _ _ => exact hsource
 
 /-- Target endpoint typing is recovered compositionally from the structural
 certificate. -/
@@ -127,7 +124,7 @@ theorem TypedExprRestoration.targetTyping
   | app _ _ ihfn iharg => exact .appDF ihfn iharg
   | lam _ _ ihdomain ihbody => exact .lamDF ihdomain ihbody
   | forallE _ _ ihdomain ihbody => exact .forallEDF ihdomain ihbody
-  | projection _ _ _ _ htarget _ => exact htarget
+  | proj _ _ htarget _ => exact htarget
 
 end VerifyInductive
 end Lean4Lean

@@ -97,6 +97,21 @@ theorem VEnv.IsDefEq.noConsts
       exact ⟨Bool.or_eq_false_iff.mpr ⟨hfn, harg⟩,
         Bool.or_eq_false_iff.mpr ⟨hfn', harg'⟩,
         VExpr.containsAnyConst_inst_eq_false _ _ _ hforall.2 harg⟩
+  | @projDF typeName info levels params index sourceMajor fieldType Gamma
+      fieldLevel major indexArgs major'
+      hinfo hlevels huvars hparams hindices hfield hfieldTyping
+      hmajor hmajor' _ _ ihField ihMajor ihMajor' =>
+      specialize ihField Hctx
+      specialize ihMajor Hctx
+      specialize ihMajor' Hctx
+      have howner :=
+        (VExpr.containsAnyConst_mkApps_eq_false_iff
+          (.const typeName levels) (params ++ indexArgs)).mp ihMajor.2.2
+      have hname : names.contains typeName = false := by
+        simpa [VExpr.containsAnyConst] using howner.1
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff]
+      exact ⟨⟨hname, ihMajor.2.1⟩,
+        ⟨hname, ihMajor'.2.1⟩, ihField.1⟩
   | lamDF _ _ ihType ihBody =>
       specialize ihType Hctx
       rcases ihType with ⟨hA, hA', _⟩

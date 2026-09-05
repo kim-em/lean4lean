@@ -480,6 +480,24 @@ structure RecursorContextWF (c : AddInductive.Context)
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
 
+/-- Rebase a recursor-local context across an abstract-only extension while
+leaving the executable reader state unchanged. -/
+def RecursorContextWF.monoEnv
+    (H : RecursorContextWF c recLparams)
+    (hchecking : CheckingEnv.Valid c.safety c.env venv')
+    (hle : H.venv ≤ venv') : RecursorContextWF c recLparams where
+  venv := venv'
+  checking := hchecking
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf.mono hle
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
+  lparams_origin := H.lparams_origin
+  onlyLams := H.onlyLams
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
+
 /-- An ordinary verified context is already a recursor context when no
 universe rebasing is required. -/
 def ContextWF.toRecursorContextWF (H : ContextWF c) :

@@ -85,14 +85,16 @@ theorem PrimitiveInductiveShape.recursorsNonprimitive
     have : owner = 0 := by simpa using howner
     subst owner
     simp
-    native_decide
+    simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList,
+      Lean.mkRecName]
   · rcases htypes with ⟨binderName, binderInfo, htypes⟩
     subst types
     intro owner howner
     have : owner = 0 := by simpa using howner
     subst owner
     simp
-    native_decide
+    simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList,
+      Lean.mkRecName]
 
 end VerifyInductive
 end Lean4Lean

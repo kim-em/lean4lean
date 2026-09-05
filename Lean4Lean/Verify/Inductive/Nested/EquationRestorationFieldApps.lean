@@ -27,7 +27,7 @@ theorem NestedRestorationPlan.AtomicProvenance.nodeSourceNotBVarHead
     have Htarget := node.targetTranslation
     rw [hinput] at Hsource
     rw [houtput] at Htarget
-    rcases translatedRecursorEndpoints Hsource.toTrExprS Htarget.toTrExprS with
+    rcases translatedRecursorEndpoints Hsource Htarget with
       ⟨abstractLevels, hsource, _htarget⟩
     rw [hsource]
     rfl
@@ -49,13 +49,13 @@ theorem NestedRestorationPlan.AtomicProvenance.nodeSourceConstHead
     have Htarget := node.targetTranslation
     rw [hinput] at Hsource
     rw [houtput] at Htarget
-    rcases translatedRecursorEndpoints Hsource.toTrExprS Htarget.toTrExprS with
+    rcases translatedRecursorEndpoints Hsource Htarget with
       ⟨abstractLevels, hsource, _htarget⟩
     exact ⟨oldName, abstractLevels, by rw [hsource]; rfl⟩
   · cases Hnonrecursor.nonrecursor with
     | family hfind hhead hhit | constructor hfind hhead hhit =>
         rcases checkPositivityStep.TrExprS.constAppSpine
-            node.sourceTranslation.toTrExprS hhead with
+            node.sourceTranslation hhead with
           ⟨levels, args, hspine, _hlevels, _hargs⟩
         exact ⟨_, levels, congrArg Prod.fst hspine⟩
 
@@ -71,7 +71,7 @@ theorem NestedRestorationPlan.AtomicProvenance.nonrecursorHeadNotSource
   cases Hnonrecursor.nonrecursor with
   | family hfind hconcreteHead hhit =>
       rcases checkPositivityStep.TrExprS.constAppSpine
-          node.sourceTranslation.toTrExprS hconcreteHead with
+          node.sourceTranslation hconcreteHead with
         ⟨abstractLevels, args, habstractHead, _hlevels, _hargs⟩
       have hnames := VExpr.const.inj
         ((congrArg Prod.fst habstractHead).symm.trans hsource) |>.1
@@ -79,7 +79,7 @@ theorem NestedRestorationPlan.AtomicProvenance.nonrecursorHeadNotSource
       rwa [hnames]
   | constructor hfind hconcreteHead hhit =>
       rcases checkPositivityStep.TrExprS.constAppSpine
-          node.sourceTranslation.toTrExprS hconcreteHead with
+          node.sourceTranslation hconcreteHead with
         ⟨abstractLevels, args, habstractHead, _hlevels, _hargs⟩
       have hnames := VExpr.const.inj
         ((congrArg Prod.fst habstractHead).symm.trans hsource) |>.1
@@ -119,8 +119,8 @@ theorem NestedRestorationPlan.AtomicProvenance.bvarHead_eq_some
   | app _ _ ihfn _ =>
       rw [VExpr.bvarHead?_app] at hhead ⊢
       exact ihfn hhead
-  | projection _ _ sourceNotBVarHead _ _ =>
-      rw [sourceNotBVarHead] at hhead
+  | proj =>
+      change none = some field at hhead
       cases hhead
 
 /-- In particular, a designated constructor-field application remains a

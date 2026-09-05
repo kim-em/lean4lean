@@ -93,6 +93,10 @@ inductive NormalEq : List VExpr → VExpr → VExpr → Prop where
     Γ ⊢ a₁ : A → Γ ⊢ a₂ : A →
     Γ ⊢ f₁ ≡ₚ f₂ → Γ ⊢ a₁ ≡ₚ a₂ →
     Γ ⊢ .app f₁ a₁ ≡ₚ .app f₂ a₂
+  | projDF :
+    Γ ⊢ .proj typeName index major : resultType →
+    Γ ⊢ major ≡ₚ major' →
+    Γ ⊢ .proj typeName index major ≡ₚ .proj typeName index major'
   | lamDF :
     Γ ⊢ A ≡ A₁ : .sort u → Γ ⊢ A ≡ A₂ : .sort u →
     A::Γ ⊢ body₁ ≡ₚ body₂ →
@@ -120,6 +124,13 @@ theorem NormalEq.defeq (H : Γ ⊢ e1 ≡ₚ e2) : Γ ⊢ e1 ≡ e2 := by
   | sortDF h1 h2 h3 => exact ⟨_, .sortDF h1 h2 h3⟩
   | appDF hf₁ _ ha₁ _ _ _ ih1 ih2 =>
     exact ⟨_, .appDF ((ih1 hΓ).of_l henv hΓ hf₁) ((ih2 hΓ).of_l henv hΓ ha₁)⟩
+  | projDF hproj _ ihMajor =>
+    obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType, fieldLevel,
+      hinfo, hlevels, huvars, hparams, hindices, hfield, hfieldTyping,
+      hmajor, hclosed, hguard⟩ := hproj.proj_inv henv hΓ
+    have majorEq := (ihMajor hΓ).of_l henv hΓ hmajor.hasType.2
+    exact ⟨_, .projDF hinfo hlevels huvars hparams hindices hfield
+      hfieldTyping hmajor (hmajor.trans majorEq) hclosed hguard⟩
   | constDF h1 h2 h3 h4 h5 => exact ⟨_, .constDF h1 h2 h3 h4 h5⟩
   | lamDF hA₁ hA₂ _ ihB =>
     have ⟨_, hB⟩ := ihB ⟨hΓ, _, hA₁.hasType.1⟩
@@ -148,6 +159,9 @@ theorem NormalEq.symm (H : Γ ⊢ e1 ≡ₚ e2) : Γ ⊢ e2 ≡ₚ e1 := by
   | constDF h1 h2 h3 h4 h5 =>
     exact .constDF h1 h3 h2 (h5.length_eq.symm.trans h4) (h5.flip.imp (fun _ _ h => h.symm))
   | appDF h1 h2 h3 h4 _ _ ih1 ih2 => exact .appDF h2 h1 h4 h3 (ih1 hΓ) (ih2 hΓ)
+  | projDF hproj hMajor ihMajor =>
+    have ⟨_, whole⟩ := (NormalEq.projDF hproj hMajor).defeq hΓ
+    exact .projDF whole.hasType.2 (ihMajor hΓ)
   | lamDF h1 h2 h3 ih1 => exact .lamDF h2 h1 (ih1 ⟨hΓ, _, h1.hasType.1⟩)
   | forallEDF h1 h2 h4 h5 ih1 ih2 =>
     exact have hΓ' := ⟨hΓ, _, h1.hasType.1⟩
@@ -170,6 +184,8 @@ theorem NormalEq.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e1 ≡ₚ e2) :
   | appDF h1 h2 h3 h4 _ _ ih1 ih2 =>
     exact .appDF (h1.weakN henv W) (h2.weakN henv W)
       (h3.weakN henv W) (h4.weakN henv W) (ih1 W) (ih2 W)
+  | projDF hproj _ ihMajor =>
+    exact .projDF (hproj.weakN henv W) (ihMajor W)
   | lamDF h1 h2 h3 ih1 =>
      exact .lamDF (h1.weakN henv W) (h2.weakN henv W) (ih1 W.succ)
   | forallEDF h1 h2 h3 _ ih1 ih2 =>
@@ -194,6 +210,8 @@ theorem NormalEq.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ ⊢
   | constDF h1 h2 h3 h4 h5 => exact .constDF h1 h2 h3 h4 h5
   | appDF h1 h2 h3 h4 _ _ ih1 ih2 =>
     exact .appDF (h1.instN henv W h₀) (h2.instN henv W h₀) (h3.instN henv W h₀) (h4.instN henv W h₀) (ih1 W) (ih2 W)
+  | projDF hproj _ ihMajor =>
+    exact .projDF (hproj.instN henv W h₀) (ihMajor W)
   | lamDF h1 h2 h3 ih1 =>
     exact .lamDF (h1.instN henv h₀ W) (h2.instN henv h₀ W) (ih1 W.succ)
   | forallEDF h1 h2 h3 _ ih1 ih2 =>
@@ -232,6 +250,15 @@ theorem NormalEq.instN_r (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ �
     let ⟨hΓ₀, hΓ⟩ := W.wf henv h₀ hΓ₁
     exact .appDF hf (.defeqU_l henv hΓ (ih1.defeq hΓ) hf) ha
       (.defeqU_l henv hΓ (ih2.defeq hΓ) ha) ih1 ih2
+  | proj typeName index major ihMajor =>
+    obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType, fieldLevel,
+      hinfo, hlevels, huvars, hparams, hindices, hfield, hfieldTyping,
+      hmajor, hclosed, hguard⟩ := H.proj_inv henv hΓ₁
+    have majorNormal := ihMajor hΓ₁ W hmajor.hasType.2
+    have natural : Γ₁ ⊢ .proj typeName index major : fieldType :=
+      .projDF hinfo hlevels huvars hparams hindices hfield hfieldTyping
+        hmajor hmajor hclosed hguard
+    exact .projDF (natural.instN henv W h₀) majorNormal
   | lam A body ih1 ih2 =>
     let ⟨⟨_, h1⟩, _, h2⟩ := H.lam_inv henv hΓ₁
     have hA := h1.instN henv W h₀
@@ -254,6 +281,8 @@ theorem NormalEq.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
   | appDF h1 h2 h3 h4 _ _ ih1 ih2 =>
     exact .appDF (.defeqDFC henv W h1) (.defeqDFC henv W h2)
       (.defeqDFC henv W h3) (.defeqDFC henv W h4) (ih1 W) (ih2 W)
+  | projDF hproj _ ihMajor =>
+    exact .projDF (.defeqDFC henv W hproj) (ihMajor W)
   | lamDF h1 h2 h3 ih1 =>
     exact .lamDF (.defeqDFC henv W h1) (.defeqDFC henv W h2) (ih1 (W.succ h1.hasType.1))
   | forallEDF h1 h2 h3 _ ih1 ih2 =>
@@ -272,6 +301,17 @@ theorem NormalEq.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem NormalEq.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : A::Γ ⊢ e1 ≡ₚ e2) :
     A'::Γ ⊢ e1 ≡ₚ e2 := defeqDFC hΓ (.succ .zero W) H
+
+private theorem HasType.proj_weakN_iff
+    (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U))
+    (W : Ctx.LiftN n k Γ Γ') :
+    env.HasType U Γ'
+        (.proj typeName index (major.liftN n k))
+        (resultType.liftN n k) ↔
+      env.HasType U Γ (.proj typeName index major) resultType := by
+  simpa only [VExpr.liftN] using
+    (HasType.weakN_iff
+      (e := .proj typeName index major) (A := resultType) henv hΓ' W)
 
 variable! (hΓ₀ : OnCtx Γ₀ (IsType env univs)) in
 theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
@@ -312,11 +352,21 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx e
     have ⟨⟨_, h5⟩, _⟩ := this.forallE_inv henv hΓ
     exact .appDF (l1.defeqU_r henv hΓ this) r1
       (l2.defeqU_r henv hΓ ⟨_, h5⟩) r2 (ih1 W W₂ rfl rfl) (ih2 W W₂ rfl rfl)
+  | projDF hproj _ ihMajor =>
+    cases e1 with
+    | bvar | sort | const | app | lam | forallE => cases eq1
+    | proj sourceName sourceIndex sourceMajor =>
+      cases eq1
+      cases e2 <;> cases eq2
+      have hΓ₂ := (W₂.symm henv).isType' hΓ₀
+      have hproj' := hproj.defeqDFC henv W₂
+      have ⟨_, hnatural⟩ :=
+        (VExpr.WF.weakN_iff (e := .proj _ _ _) henv hΓ₂ W).1 ⟨_, hproj'⟩
+      exact .projDF hnatural (ihMajor W W₂ rfl rfl)
   | lamDF h1 h2 _ ih1 =>
     cases e1 <;> cases eq1
     cases e2 <;> cases eq2
     have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    -- have hΓ := hΓ₂.weakN_inv henv W
     have := (IsDefEq.weakN_iff (A := .sort ..) henv hΓ₂ W).1 <|
       .defeqDFC henv W₂ (h2.symm.trans h1)
     exact .lamDF this this.hasType.1 (ih1 W.succ (W₂.succ h2) rfl rfl)
@@ -386,6 +436,7 @@ theorem NormalEq.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
 private def meas : VExpr → Nat
   | .app f a
   | .forallE f a => meas f + meas a + 1
+  | .proj _ _ e => meas e + 1
   | .bvar _ | .const .. | .sort _ => 0
   | .lam A e => meas A + meas e + 3
 
@@ -402,6 +453,8 @@ theorem NormalEq.trans (hΓ : OnCtx Γ (IsType env univs)) :
   | .appDF l1 l2 l3 l4 l5 l6, .appDF r1 r2 r3 r4 r5 r6 =>
     .appDF l1 ((r1.uniqU henv hΓ l2).defeqDF henv hΓ r2) l3
       ((r3.uniqU henv hΓ l4).defeqDF henv hΓ r4) (l5.trans hΓ r5) (l6.trans hΓ r6)
+  | .projDF l1 l2, .projDF _ r2 =>
+    .projDF l1 (l2.trans hΓ r2)
   | .lamDF l1 l2 l3, .lamDF r1 r2 r3 =>
     have aa := r1.trans_r henv hΓ l2.symm
     .lamDF l1 (aa.symm.trans_l henv hΓ r2) (l3.trans ⟨hΓ, _, l1.hasType.1⟩ (r3.defeq_l hΓ aa))
@@ -472,6 +525,8 @@ inductive ParRed : List VExpr → VExpr → VExpr → Prop where
   | sort : Γ ⊢ .sort u ≫ .sort u
   | const : Γ ⊢ .const c ls ≫ .const c ls
   | app : Γ ⊢ f ≫ f' → Γ ⊢ a ≫ a' → Γ ⊢ .app f a ≫ .app f' a'
+  | proj : Γ ⊢ major ≫ major' →
+      Γ ⊢ .proj typeName index major ≫ .proj typeName index major'
   | lam : Γ ⊢ A ≫ A' → A::Γ ⊢ body ≫ body' → Γ ⊢ .lam A body ≫ .lam A' body'
   | forallE : Γ ⊢ A ≫ A' → A::Γ ⊢ B ≫ B' → Γ ⊢ .forallE A B ≫ .forallE A' B'
   | beta : A::Γ ⊢ e₁ ≫ e₁' → Γ ⊢ e₂ ≫ e₂' → Γ ⊢ .app (.lam A e₁) e₂ ≫ e₁'.inst e₂'
@@ -487,6 +542,9 @@ inductive CParRed : List VExpr → VExpr → VExpr → Prop where
   | sort : Γ ⊢ .sort u ⋙ .sort u
   | const : ¬NonNeutral Γ (.const c ls) → Γ ⊢ .const c ls ⋙ .const c ls
   | app : ¬NonNeutral Γ (.app f a) → Γ ⊢ f ⋙ f' → Γ ⊢ a ⋙ a' → Γ ⊢ .app f a ⋙ .app f' a'
+  | proj : ¬NonNeutral Γ (.proj typeName index major) →
+      Γ ⊢ major ⋙ major' →
+      Γ ⊢ .proj typeName index major ⋙ .proj typeName index major'
   | lam : Γ ⊢ A ⋙ A' → A::Γ ⊢ body ⋙ body' → Γ ⊢ .lam A body ⋙ .lam A' body'
   | forallE : Γ ⊢ A ⋙ A' → A::Γ ⊢ B ⋙ B' → Γ ⊢ .forallE A B ⋙ .forallE A' B'
   | beta : A::Γ ⊢ e₁ ⋙ e₁' → Γ ⊢ e₂ ⋙ e₂' → Γ ⊢ .app (.lam A e₁) e₂ ⋙ e₁'.inst e₂'
@@ -498,6 +556,7 @@ protected theorem ParRed.rfl : ∀ {e}, Γ ⊢ e ≫ e
   | .sort .. => .sort
   | .const .. => .const
   | .app .. => .app ParRed.rfl ParRed.rfl
+  | .proj .. => .proj ParRed.rfl
   | .lam .. => .lam ParRed.rfl ParRed.rfl
   | .forallE .. => .forallE ParRed.rfl ParRed.rfl
 
@@ -506,6 +565,7 @@ theorem ParRed.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e1 ≫ e2) :
   induction H generalizing k Γ' with
   | bvar | sort | const => exact .rfl
   | app _ _ ih1 ih2 => exact .app (ih1 W) (ih2 W)
+  | proj _ ihMajor => exact .proj (ihMajor W)
   | lam _ _ ih1 ih2 => exact .lam (ih1 W) (ih2 W.succ)
   | forallE _ _ ih1 ih2 => exact .forallE (ih1 W) (ih2 W.succ)
   | beta _ _ ih1 ih2 =>
@@ -533,6 +593,7 @@ theorem ParRed.instN (W : Ctx.InstN Γ₀ a1 A₀ k Γ₁ Γ)
       | succ h => exact ih.weakN .one
   | sort | const => exact .rfl
   | app _ _ ih1 ih2 => exact .app (ih1 W) (ih2 W)
+  | proj _ ihMajor => exact .proj (ihMajor W)
   | lam _ _ ih1 ih2 => exact .lam (ih1 W) (ih2 W.succ)
   | forallE _ _ ih1 ih2 => exact .forallE (ih1 W) (ih2 W.succ)
   | beta _ _ ih1 ih2 =>
@@ -549,6 +610,15 @@ theorem ParRed.defeq (H : Γ ⊢ e ≫ e') (he : Γ ⊢ e : A) : Γ ⊢ e ≡ e'
   | app _ _ ih1 ih2 =>
     have ⟨_, _, h1, h2⟩ := he.app_inv henv hΓ
     exact .trans_l henv hΓ he <| .appDF (ih1 hΓ h1) (ih2 hΓ h2)
+  | proj _ ihMajor =>
+    obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType, fieldLevel,
+      hinfo, hlevels, huvars, hparams, hindices, hfield, hfieldTyping,
+      hmajor, hclosed, hguard⟩ := he.proj_inv henv hΓ
+    have majorEq := ihMajor hΓ hmajor.hasType.2
+    have projected := IsDefEq.projDF hinfo hlevels huvars hparams hindices hfield hfieldTyping
+      hmajor (hmajor.trans majorEq) hclosed hguard
+    have ⟨_, typeToA⟩ := projected.hasType.1.uniq henv hΓ he
+    exact .defeqDF typeToA projected
   | lam _ _ ih1 ih2 =>
     have ⟨⟨_, h1⟩, _, h2⟩ := he.lam_inv henv hΓ
     exact .trans_l henv hΓ he <| .lamDF (ih1 hΓ h1) (ih2 ⟨hΓ, _, h1⟩ h2)
@@ -582,6 +652,10 @@ theorem ParRed.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
   | app _ _ ih1 ih2 =>
     have ⟨_, _, hf, ha⟩ := h.app_inv henv (W.isType' hΓ₀)
     exact .app (ih1 W hf) (ih2 W ha)
+  | proj _ ihMajor =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ :=
+      h.proj_inv henv (W.isType' hΓ₀)
+    exact .proj (ihMajor W hmajor.hasType.2)
   | lam _ _ ih1 ih2 =>
     have ⟨⟨_, hA⟩, _, he⟩ := h.lam_inv henv (W.isType' hΓ₀)
     exact .lam (ih1 W hA) (ih2 (W.succ hA) he)
@@ -626,17 +700,6 @@ theorem HasType.matches_inv {p : Pattern} {m1 m2} (H : Γ ⊢ e : A)
     have ⟨_, _, hf, ha⟩ := H.app_inv henv hΓ
     rintro (_|h) <;> [exact ⟨_, ha⟩; exact ih1 hf h]
 
--- theorem IsDefEqU.applyL {p : Pattern} (r : p.RHS) {m1 m1' m2}
---     (H : ∀ a, List.Forall₂ (· ≈ ·) (m1 a) (m1' a))
---     (H2 : TY.HasType Γ (r.apply m1 m2) A) :
---     TY.IsDefEqU Γ (r.apply m1 m2) (r.apply m1' m2) := by
---   match r with
---   | .fixed .. =>
---     dsimp [Pattern.RHS.apply]
---     exact TY.hasType_instL _ _
---   | .app f a => exact .app (apply_pat f H) (apply_pat a H)
---   | .var f => exact H _
-
 variable! (hΓ : OnCtx Γ' (IsType env univs)) in
 theorem ParRed.weakN_inv (W : Ctx.LiftN n k Γ Γ')
     (h : Γ' ⊢ e1.liftN n k : A) (H : Γ' ⊢ e1.liftN n k ≫ e2') :
@@ -652,6 +715,12 @@ theorem ParRed.weakN_inv (W : Ctx.LiftN n k Γ Γ')
     obtain ⟨_, a1, rfl⟩ := ih1 hΓ W hf rfl
     obtain ⟨_, b1, rfl⟩ := ih2 hΓ W ha rfl
     exact ⟨_, .app a1 b1, rfl⟩
+  | proj hMajor ihMajor =>
+    cases e1 <;> cases eq
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ :=
+      h.proj_inv henv hΓ
+    obtain ⟨_, majorRed, rfl⟩ := ihMajor hΓ W hmajor.hasType.2 rfl
+    exact ⟨_, .proj majorRed, rfl⟩
   | lam h1 h2 ih1 ih2 =>
     cases e1 <;> cases eq
     have ⟨⟨_, hA⟩, _, he⟩ := h.lam_inv henv hΓ
@@ -705,6 +774,7 @@ theorem CParRed.toParRed (H : Γ ⊢ e ⋙ e') : Γ ⊢ e ≫ e' := by
   | sort => exact .sort
   | const => exact .const
   | app _ _ _ ih1 ih2 => exact .app ih1 ih2
+  | proj _ _ ihMajor => exact .proj ihMajor
   | lam _ _ ih1 ih2 => exact .lam ih1 ih2
   | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
   | beta _ _ ih1 ih2 => exact .beta ih1 ih2
@@ -748,6 +818,11 @@ theorem CParRed.exists (H : Γ ⊢ e : A) : ∃ e', Γ ⊢ e ⋙ e' := by
     have ⟨_, h1⟩ := e_ih.1.1 hΓ hf
     have ⟨_, h2⟩ := e_ih.2.1 hΓ ha
     exact Classical.byCases (neut H e_ih) fun hn => ⟨_, .app hn h1 h2⟩
+  | proj ihMajor =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ :=
+      H.proj_inv henv hΓ
+    have ⟨_, h1⟩ := e_ih.1 hΓ hmajor.hasType.2
+    exact Classical.byCases (neut H e_ih) fun hn => ⟨_, .proj hn h1⟩
   | lam ih1 ih2 =>
     have ⟨⟨_, hA⟩, _, he⟩ := H.lam_inv henv hΓ
     have ⟨_, h1⟩ := e_ih.1.1 hΓ hA
@@ -787,6 +862,17 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
         o2 (.defeqU_l henv hΓ (n2.defeq hΓ) o2) n1 n2⟩
     | extra h1 h2 h3 => cases hn (.inr ⟨_, _, _, _, h1, h2, h3⟩)
     | beta => cases hn (.inl ⟨_, _, _, rfl⟩)
+  | proj hn _ ihMajor =>
+    obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType, fieldLevel,
+      hinfo, hlevels, huvars, hparams, hindices, hfield, hfieldTyping,
+      hmajor, _, _⟩ := H1.proj_inv henv hΓ
+    cases H with
+    | proj rMajor =>
+      let ⟨_, pMajor, nMajor⟩ := ihMajor hΓ hmajor.hasType.2 rMajor e_ih.2
+      have targetNatural := (ParRed.proj pMajor).hasType hΓ
+        ((ParRed.proj rMajor).hasType hΓ H1)
+      exact ⟨_, .proj pMajor, .projDF targetNatural nMajor⟩
+    | extra h1 h2 h3 => cases hn (.inr ⟨_, _, _, _, h1, h2, h3⟩)
   | lam _ _ ih1 ih2 =>
     have ⟨⟨_, l1⟩, _, l2⟩ := H1.lam_inv henv hΓ
     cases H with
@@ -950,6 +1036,13 @@ theorem ParRedS.app (hf : Γ ⊢ f ≫* f') (ha : Γ ⊢ a ≫* a') :
   induction hf with
   | rfl =>  exact .rfl
   | tail f1 f2 ihf => exact .tail ihf (.app f2 .rfl)
+
+theorem ParRedS.proj (hmajor : Γ ⊢ major ≫* major') :
+    Γ ⊢ VExpr.proj typeName index major ≫*
+      VExpr.proj typeName index major' := by
+  induction hmajor with
+  | rfl => exact .rfl
+  | tail h1 h2 ih => exact .tail ih (.proj h2)
 
 theorem ParRedS.lam (hf : Γ ⊢ A ≫* A') (ha : A::Γ ⊢ body ≫* body') :
     Γ ⊢ A.lam body ≫* A'.lam body' := by
@@ -1207,6 +1300,13 @@ theorem NormalEq.parRed (H1 : Γ ⊢ e₁ ≡ₚ e₂) (H2 : Γ ⊢ e₂ ≫ e�
       exact ⟨_, .trans (a1.app b1) h1, h2.trans hΓ (.instN_r hΓ' l3 b2 .zero d2)⟩
     | extra r1 r2 r3 r4 =>
       sorry
+  | projDF lproj lMajor ihMajor =>
+    cases H2 with
+    | proj rMajor =>
+      let ⟨_, majorRed, majorNormal⟩ := ihMajor hΓ rMajor
+      have reducedAtLeft := majorRed.proj.hasType hΓ lproj
+      exact ⟨_, majorRed.proj, .projDF reducedAtLeft majorNormal⟩
+    | extra _ hmatch => cases hmatch
   | lamDF l1 l2 l3 ih1 =>
     cases H2 with
     | lam r1 r2 =>
@@ -1358,6 +1458,15 @@ theorem IsDefEq.church_rosser
     exact mk (.appDF h1 h2) (.app a1 b1) (.app a2 b2) <|
       .appDF (a1.hasType hΓ h1.hasType.1) (a2.hasType hΓ h1.hasType.2)
         (b1.hasType hΓ h2.hasType.1) (b2.hasType hΓ h2.hasType.2) a3 b3
+  | projDF hinfo hlevels huvars hparams hindices hfield hfieldTyping
+      hLeft hRight hclosed hguard ihField ihLeft ihRight =>
+    have majorCR := (ihLeft hΓ).symm hΓ |>.trans hΓ (ihRight hΓ)
+    obtain ⟨-, -, _, _, majorLeft, majorRight, majorNormal⟩ := majorCR
+    have original := IsDefEq.projDF hinfo hlevels huvars hparams hindices hfield
+      hfieldTyping hLeft hRight hclosed hguard
+    have reducedAtLeft := majorLeft.proj.hasType hΓ original.hasType.1
+    exact mk original majorLeft.proj majorRight.proj <|
+      .projDF reducedAtLeft majorNormal
   | lamDF h1 h2 ih1 ih2 =>
     obtain ⟨-, -, _, _, a1, a2, a3⟩ := ih1 hΓ
     obtain ⟨-, -, _, _, b1, b2, b3⟩ := ih2 ⟨hΓ, _, h1.hasType.1⟩

@@ -2196,9 +2196,7 @@ theorem RecursorContextWF.cdeclTypeAvoids
       hvalueTr, htypeTr⟩
   exact checkPositivityStep.TrExprS.sourceAvoidsFresh hfresh htypeTr
 
-/-- Source-support form of the local-context freshness invariant.  Unlike the
-legacy Boolean invariant, it remains closed when a local let value contains a
-certified projection expansion. -/
+/-- Source-support form of the local-context freshness invariant. -/
 def VLCtx.SourceConstFree (names : List Name) (Δ : VLCtx) : Prop :=
   ∀ {v mapped type}, Δ.find? v = some (mapped, type) →
     mapped.SourceConstFree names
@@ -2266,7 +2264,8 @@ theorem TrExprS.noConstsOfSourceAvoids
   | proj _ Hproj ih =>
     cases hsource with
     | proj _ _ _ hbody =>
-      exact .projection Hproj.supportExpansion (ih hbody hctxSupport)
+      cases Hproj
+      exact .proj _ _ (ih hbody hctxSupport)
 
 theorem TrExprS.noFreshConsts
     (hfresh : ∀ name ∈ names, env.constants name = none)
@@ -2295,13 +2294,12 @@ theorem TrExprS.noFreshConsts
   | lit _ _ ih => exact ih hctxSupport
   | mdata _ ih => exact ih hctxSupport
   | proj _ Hproj ih =>
-    exact .projection Hproj.supportExpansion (ih hctxSupport)
+    cases Hproj
+    exact .proj _ _ (ih hctxSupport)
 
-/-- Environment-indexed replacement for the legacy projection-preservation
-argument above.  When the translation is retained at the checking boundary,
-ordinary target well-formedness proves freshness for the whole translated
-expression, including projection targets.  No property of the
-environment-free `TrProj` relation is assumed. -/
+/-- When the translation is retained at the checking boundary, ordinary target
+well-formedness proves freshness for the whole translated expression,
+including projection targets. -/
 theorem TrExprS.noFreshConstsAtCheckingEnv
     (henv : VEnv.Ordered env)
     (hfresh : ∀ name ∈ names, env.constants name = none)
@@ -2425,17 +2423,8 @@ theorem TrExprS.noIndOccAvailable
     simpa only [Expr.findAny, Bool.false_or] using ih hno hctxSupport
   | proj _ Hproj ih =>
     simp only [Expr.findAny, Bool.false_or] at hno
-    exact .projection Hproj.supportExpansion (ih hno hctxSupport)
-
-/-- Backwards-compatible global form of `TrExprS.noIndOccAvailable`. -/
-theorem TrExprS.noIndOcc
-    (halign : IndConstNames indConsts names)
-    (hlit : LiteralDisjoint indConsts)
-    (hctx : VLCtx.NoIndConsts names Δ)
-    (H : TrExprS env Us Δ e e')
-    (hno : AddInductive.hasIndOcc indConsts e = false) :
-    e'.SourceConstFree names :=
-  TrExprS.noIndOccAvailable halign hlit.available hctx H hno
+    cases Hproj
+    exact .proj _ _ (ih hno hctxSupport)
 
 theorem ValidAppStatsWF.translatedIndexNoOccurrence
     (H : ValidAppStatsWF env Us Δ stats decl depth)

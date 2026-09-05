@@ -187,14 +187,13 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult sourceEnv source.lparams
-        nparams types (source.safety != .safe)) := by
+        nparams types (source.safety != .safe) (ves'.venv .safe)) := by
   have hnonempty : types ≠ [] := by
     rcases Hshape with
       ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
         _hlparams, _hnparams, _hunsafe, htypes⟩
     rw [htypes]
     simp
-  have Hspec := Hrun.independentSpecification hnonempty
   rcases Hrun with
     ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hcSafety,
       hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hphases⟩
@@ -209,8 +208,9 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
       types.toArray.toList (source.safety != .safe) := by
     simpa [hlparams] using Hshape
   rcases Hphases.extendSafeEqBootstrap wf' hAbsent' hcSafety' hcVEnv
-      Hshape' with ⟨ves', wf', hEq', hle⟩
-  exact ⟨ves', wf', hEq', hle, Hspec⟩
+      Hshape' with ⟨ves', wf', hEq', hle, Hspec⟩
+  refine ⟨ves', wf', hEq', hle, ?_⟩
+  simpa only [hlparams, hsource] using Hspec
 
 /-- Complete `AddInductive.run` refinement for the exact bootstrap `Eq`
 declaration, without assuming canonical equality in the source model. -/
@@ -242,7 +242,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
       ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (InductiveSpecificationResult Hc.venv c.lparams
-          nparams types (c.safety != .safe)) := by
+          nparams types (c.safety != .safe) (ves'.venv .safe)) := by
   have hsize : 0 < types.toArray.size := by
     rcases Hshape with
       ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
@@ -270,7 +270,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
       ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
-            nparams types false) := by
+            nparams types false (ves'.venv .safe)) := by
   have hisUnsafe : isUnsafe = false := by
     rcases Hshape with
       ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
@@ -308,7 +308,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
   simpa [c, initialContext] using Hrun.mono fun _ h => by
     rcases h with ⟨ves', wf', hEq', hle, Hspec⟩
     have Hspec' : Nonempty (InductiveSpecificationResult
-        (ves.venv .safe) lparams nparams types false) := by
+        (ves.venv .safe) lparams nparams types false (ves'.venv .safe)) := by
       rw [hsource] at Hspec
       simpa [c, initialContext, htypes] using Hspec
     exact ⟨ves', wf', EqReadyOrAbsent.ofCanonical hEq', hle, Hspec'⟩
@@ -327,7 +327,7 @@ theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
         ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
-            nparams types false) := by
+            nparams types false (ves'.venv .safe)) := by
   have hAbsentFind : env.find? ``Eq = none := by
     rw [Lean.Kernel.Environment.find?,
       (wf.tr (safety := .safe)).map_wf.find?'_eq_find?]
@@ -358,7 +358,7 @@ theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
         ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
-            nparams types false) := by
+            nparams types false (ves'.venv .safe)) := by
   have Hrun := Environment.addInductive.eqBootstrapFinalEnvironmentWF env
     lparams nparams types isUnsafe fuel ves wf hAbsent Hshape
   have hcheck := checkPrimitiveInductive_eq_false_of_eqBootstrapShape env Hshape

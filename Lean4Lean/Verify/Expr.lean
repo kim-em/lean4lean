@@ -1244,17 +1244,6 @@ theorem abstractList_eq_self {e : Expr} {as : List FVarId} {k}
     show abstractList (abstract1 a e k) as k = e
     rw [e1]; exact abstract1_eq_self (e1 ▸ h')
 
--- theorem abstract1_looseBVarRange_le :
---     (abstract1 a e k).looseBVarRange' ≤ max k e.looseBVarRange' + 1 := by
---   have H {k a b c d} (h1 : a ≤ max k c + 1) (h2 : b ≤ max k d + 1) :
---       max a b ≤ max k (max c d) + 1 := by
---     rw [Nat.max_le]; simp [Nat.max_def]; split <;> split <;> omega
---   have {k a b c d} (h1 : a ≤ max k c + 1) (h2 : b ≤ max (k+1) d + 1) :
---       max a (b - 1) ≤ max k (max c (d - 1)) + 1 := by apply H <;> omega
---   induction e generalizing k with simp [abstract1, looseBVarRange', *] <;> try solve_by_elim
---   | bvar => split <;> omega
---   | fvar => split <;> simp [looseBVarRange']
-
 theorem lowerLooseBVars_eq_instantiate (h : e.hasLooseBVar' k = false) :
     e.lowerLooseBVars' (k + 1) 1 = instantiate1' e v k := by
   induction e generalizing k with simp_all [hasLooseBVar', lowerLooseBVars', instantiate1']

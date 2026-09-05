@@ -32,6 +32,19 @@ inductive CompletedFormationInstallation (safety : DefinitionSafety)
     CompletedFormationInstallation safety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv
 
+def CompletedFormationInstallation.sf_mono
+    (hsafety : safety ≤ checkSafety)
+    (H : CompletedFormationInstallation checkSafety sourceEnv sourceVEnv
+      headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv) :
+    CompletedFormationInstallation safety sourceEnv sourceVEnv headerEntries
+      headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv := by
+  cases H with
+  | ordinary Hheaders Hctors =>
+      exact .ordinary (Hheaders.sf_mono hsafety) (Hctors.sf_mono hsafety)
+  | primitive Hheaders Hctors Hbootstrap =>
+      exact .primitive (Hheaders.sf_mono hsafety) (Hctors.sf_mono hsafety)
+        Hbootstrap
+
 theorem CompletedFormationInstallation.headerLE
     (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv) :
@@ -256,6 +269,42 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
     InductiveConstructorsSemanticallyCoherent safety c.env sourceEnv ->
     InductiveConstructorsSemanticallyCoherent safety ctorEnv context.venv
 
+/-- The constructor-complete abstract environment admits the exact projection
+prefix of this declaration as a genuine staged well-formed environment. -/
+theorem CompletedConstructorPhases.projectedWF
+    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv) :
+    (R.context.venv.addProjections decl.projectionEntries).WF := by
+  let block : VInductBlock := {
+    types := decl.typeConstants
+    ctors := decl.constructorConstants
+    recursors := []
+    rules := []
+    projections := decl.projectionEntries }
+  apply VEnv.WF.inductProjections
+      (base := sourceEnv) (envTypes := R.headerVEnv)
+      (decl := decl) (block := block)
+  · rw [← R.sourceContextVEnv]
+    exact R.sourceContext.checking.tr.wf
+  · exact R.context.checking.tr.wf
+  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
+  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars R.core
+  · rfl
+  · rfl
+  · rfl
+  · exact R.core.typesAdded
+  · exact R.core.ctorsAdded
+
+/-- Projection registration changes neither the production environment nor
+its constant interpretation; only the independently certified abstract
+projection table is added. -/
+def CompletedConstructorPhases.projectedChecking
+    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv) :
+    CheckingEnv.Valid c.safety ctorEnv
+      (R.context.venv.addProjections decl.projectionEntries) :=
+  R.context.checking.addProjections R.projectedWF
+
 /-- The exact header/constructor installation trace preserves the persistent
 constructor-owner invariant.  New constructor metadata obtains its owner from
 the family-major constructor trace, and that owner's header is found in the
@@ -340,8 +389,8 @@ theorem CompletedConstructorPhases.materializedFinal_parameterScope
     checkInductiveTypes.loopInd.MaterializedHeaderResult.mono,
     R.materializedParameterScope]
 
-/-- The existing ordinary formation pipeline embeds into the completed
-boundary without losing its precise staged installation traces. -/
+/-- Embed the ordinary formation result into the completed constructor
+boundary while retaining its staged installation traces. -/
 def ConstructorPhasesResult.completed
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -390,19 +439,6 @@ def ConstructorPhasesResult.completed
   constructorSemantics := fun Hsource => by
     rw [R.declared.contextVEnv]
     exact R.constructorSemantics Hsource
-
-/-- The ordinary compatibility adapter retains exactly the materialized
-header cache previously used by recursor generation. -/
-theorem ConstructorPhasesResult.completed_materializedFinal
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv}
-    (R : ConstructorPhasesResult H ctorEnv) :
-    R.completed.materializedFinal = R.materialized := by
-  rfl
 
 /-- Transport the materialized header cache into the completed primitive
 constructor context. -/

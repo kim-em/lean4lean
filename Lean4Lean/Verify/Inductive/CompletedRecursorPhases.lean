@@ -72,13 +72,15 @@ structure CompletedRecursorPhasesResult
   cardinality : RecursorCardinalityCertificate stats recInfos decl
   outVEnv : VEnv
   entries : List (ConstantInfo × VConstVal)
-  generated : GeneratedRecursors localContext.safety R.context.venv
+  generated : GeneratedRecursors localContext.safety
+    (R.context.venv.addProjections decl.projectionEntries)
     localContext.lparams elimLevel localContext stats indTypes recInfos entries
   ruleSemantics : GeneratedRecursorRuleSemanticsRange
     recursorWF decl stats indTypes recInfos origins elimLevel
       parameterSuffix.parameterDecls 0 entries
   installed : AddConstants localContext.safety localContext.env
-    R.context.venv entries outEnv outVEnv
+    (R.context.venv.addProjections decl.projectionEntries)
+    entries outEnv outVEnv
   closed : MutualInductivesClosed outEnv
 
 /-- The concrete constructor and recursor installation traces preserve the
@@ -147,9 +149,9 @@ theorem CompletedConstructorPhases.recursorPhasesWF
     HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams hnoalias
     houterOrder Harities HminorCounts Hcard Hle
   have Hvalid : CheckingEnv.Valid localContext.safety localContext.env
-      R.context.venv := by
+      (R.context.venv.addProjections decl.projectionEntries) := by
     rw [Hle.safety_eq, Hle.env_eq]
-    exact R.context.checking
+    exact R.projectedChecking
   have Hcore : TrInductDeclCore sourceEnv localContext.lparams nparams
       indTypes.toList isUnsafe decl R.headerVEnv R.context.venv := by
     rw [Hle.lparams_eq]
@@ -205,13 +207,15 @@ theorem CompletedConstructorPhases.recursorPhasesWF
         kTarget c.lparams localContext).WF fun outEnv =>
           ∃ outVEnv : VEnv,
           ∃ entries : List (ConstantInfo × VConstVal),
-            Nonempty (GeneratedRecursors localContext.safety R.context.venv
+            Nonempty (GeneratedRecursors localContext.safety
+              (R.context.venv.addProjections decl.projectionEntries)
               localContext.lparams elimLevel localContext stats indTypes
               recInfos entries) ∧
             Nonempty (GeneratedRecursorRuleSemanticsRange Rlocal decl stats
               indTypes recInfos Horigins elimLevel
                 HsuffixLocal.parameterDecls 0 entries) ∧
-            AddConstants localContext.safety localContext.env R.context.venv
+            AddConstants localContext.safety localContext.env
+              (R.context.venv.addProjections decl.projectionEntries)
               entries outEnv outVEnv := by
     simpa only [Hle.lparams_eq] using Hrecursors
   exact Hrecursors'.mono fun outEnv Hout => by

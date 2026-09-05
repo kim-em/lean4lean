@@ -53,10 +53,7 @@ theorem NestedRestorationPlan.AtomicProvenance.guardedHitTarget
     have hnot : oldName ∉ sourceRecursors := by
       generalize heq : (.const oldName levels : VExpr) = guardedExpr at hguarded
       cases hguarded with
-      | projection expansion _ =>
-        cases expansion
-        simp_all
-      | _ => simp_all [VExpr.mkApps_append, VExpr.mkApps]
+      | _ => simp_all [VExpr.mkApps]
     exact False.elim (hnot holdMem)
   · apply VExpr.SourceConstFree.guardedIota
     rwa [htarget] at hfree

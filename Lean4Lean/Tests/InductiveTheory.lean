@@ -171,6 +171,7 @@ def enumBlock : VInductBlock where
   ctors := enumDecl.constructorConstants
   recursors := [enumRecursor]
   rules := [enumRule]
+  projections := enumDecl.projectionEntries
 
 def enumIota : enumDecl.IotaRule enumCtorsEnv enumBlock enumType enumCtor
     enumRule where
@@ -219,6 +220,7 @@ def enumIota : enumDecl.IotaRule enumCtorsEnv enumBlock enumType enumCtor
 theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation .empty enumBlock where
   types := rfl
   ctors := rfl
+  projections := rfl
   recursors := by
     exact .cons ⟨enumRecursorShape⟩ .nil
   rules := by

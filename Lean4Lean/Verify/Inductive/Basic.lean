@@ -156,7 +156,7 @@ theorem VExpr.mkApps_getAppFnArgs (e : VExpr) :
         VExpr.getAppFnArgs.go fn (arg :: suffix)
         VExpr.mkApps head args = VExpr.mkApps (.app fn arg) suffix)
       simpa [VExpr.mkApps] using ihFn (arg :: suffix)
-    | bvar | sort | const => intro suffix; rfl
+    | bvar | sort | const | proj => intro suffix; rfl
     | lam | forallE => intro suffix; rfl
   simpa [VExpr.getAppFnArgs, VExpr.mkApps] using go e []
 
@@ -219,6 +219,7 @@ theorem VExpr.takeForalls_rebuild
         cases hp
         rcases ih htail with ⟨hrebuild, hlength⟩
         exact ⟨by simp [VExpr.wrapForalls, hrebuild], by simp [hlength]⟩
+    | proj typeName index struct => simp [VExpr.takeForalls] at H
     | bvar | sort | const | app | lam => simp [VExpr.takeForalls] at H
 
 /-- Split one successful telescope decomposition at an arbitrary intermediate
@@ -2287,6 +2288,9 @@ theorem VExpr.GuardedIota.ofContainsAnyConstFalse
   | app fn arg ihFn ihArg =>
       simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
       exact .app (ihFn h.1) (ihArg h.2)
+  | proj typeName index major ihMajor =>
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
+      exact .proj (ihMajor h.2)
   | lam dom body ihDom ihBody =>
       simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
       exact .lam (ihDom h.1) (ihBody h.2)
@@ -2295,8 +2299,7 @@ theorem VExpr.GuardedIota.ofContainsAnyConstFalse
       exact .forallE (ihDom h.1) (ihBody h.2)
 
 /-- The guarded-iota judgment follows source-visible constant support.
-Certified projection expansions are admitted through their source major;
-their eliminator, motive, and generated minor are administrative syntax. -/
+Primitive projection nodes contribute the support of their source major. -/
 theorem VExpr.SourceConstFree.guardedIota
     (H : VExpr.SourceConstFree recursors e) :
     VExpr.GuardedIota recursors fieldVars depth e := by
@@ -2305,12 +2308,11 @@ theorem VExpr.SourceConstFree.guardedIota
   | sort => exact .sort
   | const name levels fresh => exact .const fresh
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
+  | proj _ _ _ ihMajor => exact .proj ihMajor
   | lam _ _ ihDomain ihBody =>
       exact .lam ihDomain ihBody
   | forallE _ _ ihDomain ihBody =>
       exact .forallE ihDomain ihBody
-  | projection expansion _ ihMajor =>
-      exact .projection expansion ihMajor
 
 /-- Closing a guarded body over recursor-free domains preserves the guard,
 with the body checked beneath exactly the number of introduced binders. -/

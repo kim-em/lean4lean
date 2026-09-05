@@ -3,12 +3,7 @@ import Lean4Lean.Verify.Environment.Primitive.DivMod
 import Lean4Lean.Verify.Environment.Primitive.Gcd
 import Lean4Lean.Verify.Environment.Primitive.Bitwise
 
-/-!
-This module contains the front-end-specific trust boundary for declaration verification.
-The checker, extension, and declaration modules introduce no additional `sorry`-backed
-assumptions. The imported type-checker and theory layers retain their own explicit
-verification gaps.
--/
+/-! Verification of primitive declarations. -/
 
 namespace Lean4Lean
 open Lean4Lean TypeChecker

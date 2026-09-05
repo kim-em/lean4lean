@@ -65,6 +65,7 @@ inductive NoHit {leaf : Nat → VExpr → VExpr → Prop} :
   | const : NoHit (.const : NestedExprExpansion leaf depth (.const name levels)
       (.const name levels))
   | app : NoHit Hfn → NoHit Harg → NoHit (.app Hfn Harg)
+  | proj : NoHit Hmajor → NoHit (.proj Hmajor)
   | lam : NoHit Hdomain → NoHit Hbody → NoHit (.lam Hdomain Hbody)
   | forallE : NoHit Hdomain → NoHit Hbody →
       NoHit (.forallE Hdomain Hbody)
@@ -78,6 +79,7 @@ theorem NoHit.eq {leaf : Nat → VExpr → VExpr → Prop} {depth : Nat}
   induction H with
   | bvar | sort | const => rfl
   | app _ _ ihFn ihArg => simp [ihFn, ihArg]
+  | proj _ ihMajor => simp [ihMajor]
   | lam _ _ ihDomain ihBody => simp [ihDomain, ihBody]
   | forallE _ _ ihDomain ihBody => simp [ihDomain, ihBody]
 
@@ -93,6 +95,9 @@ theorem NoHit.refl (leaf : Nat → VExpr → VExpr → Prop)
     rcases ihFn depth with ⟨Hfn, HfnNoHit⟩
     rcases ihArg depth with ⟨Harg, HargNoHit⟩
     exact ⟨.app Hfn Harg, .app HfnNoHit HargNoHit⟩
+  | proj _ _ major ihMajor =>
+    rcases ihMajor depth with ⟨Hmajor, HmajorNoHit⟩
+    exact ⟨.proj Hmajor, .proj HmajorNoHit⟩
   | lam _ _ ihDomain ihBody =>
     rcases ihDomain depth with ⟨Hdomain, HdomainNoHit⟩
     rcases ihBody (depth + 1) with ⟨Hbody, HbodyNoHit⟩
@@ -115,13 +120,6 @@ theorem NoHit.liftN
       NoHit expansion' := by
   rw [H.eq]
   exact NoHit.refl leaf (depth + amount) (target.liftN amount cutoff)
-
-/- `NoHit.ofSourceFree` used to live here.  It ceased to be true once the
-certified projection case was added to `NestedExprExpansion`: a projection
-can change administrative syntax without taking a nested-lowering leaf.
-Consumers that need source-support reasoning use the environment-indexed
-certified projection translation instead of recovering literal equality from
-raw constant support. -/
 
 end VExpr.NestedExprExpansion
 

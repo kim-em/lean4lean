@@ -26,6 +26,9 @@ inductive VExprRestoration (replaceNode : VExpr → VExpr → Prop) :
   | app (hfn : VExprRestoration replaceNode fn fn')
       (harg : VExprRestoration replaceNode arg arg') :
       VExprRestoration replaceNode (.app fn arg) (.app fn' arg')
+  | proj (hmajor : VExprRestoration replaceNode major major') :
+      VExprRestoration replaceNode (.proj typeName index major)
+        (.proj typeName index major')
   | lam (hdomain : VExprRestoration replaceNode domain domain')
       (hbody : VExprRestoration replaceNode body body') :
       VExprRestoration replaceNode (.lam domain body) (.lam domain' body')
@@ -33,14 +36,6 @@ inductive VExprRestoration (replaceNode : VExpr → VExpr → Prop) :
       (hbody : VExprRestoration replaceNode body body') :
       VExprRestoration replaceNode (.forallE domain body)
         (.forallE domain' body')
-  | projection
-      (sourceExpansion : VExpr.ProjectionSupportExpansion
-        sourceMajor sourceTarget)
-      (targetExpansion : VExpr.ProjectionSupportExpansion
-        targetMajor targetTarget)
-      (sourceNotBVarHead : sourceTarget.bvarHead? = none)
-      (hmajor : VExprRestoration replaceNode sourceMajor targetMajor) :
-      VExprRestoration replaceNode sourceTarget targetTarget
 
 end VerifyInductive
 
@@ -54,6 +49,8 @@ def renameConsts (rename : Name → Name) : VExpr → VExpr
   | .sort u => .sort u
   | .const name levels => .const (rename name) levels
   | .app fn arg => .app (fn.renameConsts rename) (arg.renameConsts rename)
+  | .proj typeName index major =>
+      .proj (rename typeName) index (major.renameConsts rename)
   | .lam domain body =>
       .lam (domain.renameConsts rename) (body.renameConsts rename)
   | .forallE domain body =>
@@ -82,16 +79,7 @@ def renameConsts (rename : Name → Name) : VExpr → VExpr
   | app fn arg ihFn _ =>
       simp only [VExpr.renameConsts, VExpr.getAppFnArgs_app, ihFn]
       simp
-  | bvar | sort | const | lam | forallE => rfl
-
-theorem ProjectionSupportExpansion.renameConsts
-    (H : ProjectionSupportExpansion major target) :
-    ProjectionSupportExpansion (major.renameConsts rename)
-      (target.renameConsts rename) := by
-  cases H with
-  | canonical administrativeHead minor =>
-      exact .canonical (administrativeHead.renameConsts rename)
-        (minor.renameConsts rename)
+  | bvar | sort | const | proj | lam | forallE => rfl
 
 theorem IsFieldApp.renameConsts
     (H : IsFieldApp fieldVars depth e) :
@@ -119,11 +107,10 @@ theorem GuardedIota.renameConsts
       rcases List.mem_map.mp hmem with ⟨source, hsource, heq⟩
       exact hname (hinjective heq ▸ hsource)
   | app hfn harg ihfn iharg => exact .app ihfn iharg
+  | proj hmajor ihMajor => exact .proj ihMajor
   | lam hdomain hbody ihdomain ihbody => exact .lam ihdomain ihbody
   | forallE hdomain hbody ihdomain ihbody =>
       exact .forallE ihdomain ihbody
-  | projection expansion hmajor ihmajor =>
-      exact .projection expansion.renameConsts ihmajor
   | @recCall recursor init major depth levels hrecursor hargs hmajor ihargs =>
       rw [VExpr.renameConsts_mkApps]
       simp only [List.map_append, List.map_cons, List.map_nil]

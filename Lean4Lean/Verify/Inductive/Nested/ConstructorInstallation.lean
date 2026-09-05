@@ -87,29 +87,6 @@ theorem RestoredConstructorStep.installationOfMetadata
     wf := Hwf
     installed := Hinstalled' }⟩⟩
 
-/-- Compatibility form for non-nested callers which already translate the
-old constructor in the target environment. -/
-theorem RestoredConstructorStep.installation
-    (Hstep : RestoredConstructorStep result loweredEnv ctorName
-      sourceProdEnv targetProdEnv)
-    (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
-    (constructor : VConstVal)
-    (Hold : TrConstVal safety sourceVEnv
-      (.ctorInfo Hstep.oldInfo) constructor)
-    (Htype : TrExprS sourceVEnv Hstep.oldInfo.levelParams []
-      Hstep.restored.newInfo.type constructor.type)
-    (Hwf : constructor.toVConstant.WF sourceVEnv) :
-    ∃ targetVEnv,
-      Nonempty (RestoredConstructorInstallationSemantics safety Hstep
-        sourceVEnv targetVEnv) := by
-  apply Hstep.installationOfMetadata Hvalid constructor
-  · exact Hold.1.1
-  · simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
-      Hold.1.2.1
-  · simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using Hold.2
-  · exact Htype
-  · exact Hwf
-
 inductive RestoredConstructorInstallationTrace
     (safety : DefinitionSafety) :
     ∀ {names sourceProdEnv targetProdEnv},

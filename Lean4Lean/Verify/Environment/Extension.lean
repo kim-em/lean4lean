@@ -21,13 +21,19 @@ theorem VEnv.addConst_mono {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ �
   unfold VEnv.addConst at h₁ h₂
   split at h₁ <;> cases h₁
   split at h₂ <;> cases h₂
-  refine { constants {n a} := ?_, defeqs := H.defeqs }
-  dsimp; split <;> [exact id; exact H.constants]
+  refine {
+    constants := by
+      intro n a
+      dsimp
+      split <;> [exact id; exact H.constants]
+    defeqs := H.defeqs
+    projections := H.projections }
 
 theorem VEnv.addDefEq_mono {env₁ env₂ : VEnv} (H : env₁ ≤ env₂) :
     env₁.addDefEq df ≤ env₂.addDefEq df where
   constants := H.constants
   defeqs := by rintro d (rfl | hd) <;> [exact .inl rfl; exact .inr (H.defeqs hd)]
+  projections := by exact H.projections
 
 theorem VEnv.addConsts_mono {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ ≤ env₂) :
     ∀ {cis}, env₁.addConsts cis = some env₁' → env₂.addConsts cis = some env₂' → env₁' ≤ env₂'
@@ -67,10 +73,12 @@ theorem VInductBlock.install_mono
         cases hctors₂ : types₂.addConstVals block.ctors with
         | none => simp [htypes₂, hctors₂] at h₂
         | some ctors₂ =>
-          cases hrecs₁ : ctors₁.addConstVals block.recursors with
+          cases hrecs₁ : (ctors₁.addProjections block.projections).addConstVals
+              block.recursors with
           | none => simp [htypes₁, hctors₁, hrecs₁] at h₁
           | some recs₁ =>
-            cases hrecs₂ : ctors₂.addConstVals block.recursors with
+            cases hrecs₂ : (ctors₂.addProjections block.projections).addConstVals
+                block.recursors with
             | none => simp [htypes₂, hctors₂, hrecs₂] at h₂
             | some recs₂ =>
               simp [htypes₁, hctors₁, hrecs₁] at h₁
@@ -78,87 +86,11 @@ theorem VInductBlock.install_mono
               subst env₁'
               subst env₂'
               apply VEnv.addDefEqRules_mono
-              apply VEnv.addConstVals_mono
-                (cis := block.recursors) _ hrecs₁ hrecs₂
+              apply VEnv.addConstVals_mono (cis := block.recursors) _ hrecs₁ hrecs₂
+              apply VEnv.addProjections_mono
               apply VEnv.addConstVals_mono
                 (cis := block.ctors) _ hctors₁ hctors₂
               exact VEnv.addConstVals_mono H htypes₁ htypes₂
-
-/- Superseded by the table-driven primitive preservation lemmas imported from
-`Typing.PrimSpec`; retained temporarily in the merge diff only for reference.
-theorem VEnv.addConst_eq_of_ne
-    {env env' : VEnv}
-    (hadd : env.addConst name ci = some env') (hne : name ≠ n) :
-    env'.constants n = env.constants n := by
-  unfold VEnv.addConst at hadd
-  split at hadd <;> cases hadd
-  simp [hne]
-
-theorem VEnv.HasPrimitives.addConst {env env' : VEnv} (H : env.HasPrimitives)
-    (hname : Environment.primitives.contains name = false)
-    (hadd : env.addConst name ci = some env') : env'.HasPrimitives := by
-  have le := VEnv.addConst_le hadd
-  have same {n} (hp : Environment.primitives.contains n = true) :
-      env'.constants n = env.constants n :=
-    VEnv.addConst_eq_of_ne hadd fun h => by subst h; simp_all
-  have oldContains {n} (hp : Environment.primitives.contains n = true) :
-      env'.contains n → env.contains n := fun ⟨ci, hci⟩ => ⟨ci, (same hp) ▸ hci⟩
-  have newContains {n} : env.contains n → env'.contains n := fun ⟨ci, hci⟩ => ⟨ci, le.constants hci⟩
-  refine let prims := _; have hprims : Environment.primitives = .ofList prims := rfl; ?_
-  replace hprims {n} : n ∈ prims → Environment.primitives.contains n := by
-    simp [hprims, NameSet.contains, NameSet.ofList]
-  simp only [List.mem_cons, prims] at hprims
-  constructor
-  · intro h
-    let ⟨h1, h2⟩ := H.bool (oldContains (hprims (by simp)) h)
-    exact ⟨newContains h1, newContains h2⟩
-  · intro ci h; apply H.boolFalse; rwa [← same (hprims (by simp))]
-  · intro ci h; apply H.boolTrue; rwa [← same (hprims (by simp))]
-  · intro h
-    let ⟨h1, h2⟩ := H.nat (oldContains (hprims (by simp)) h)
-    exact ⟨newContains h1, newContains h2⟩
-  · intro ci h; apply H.natZero; rwa [← same (hprims (by simp))]
-  · intro ci h; apply H.natSucc; rwa [← same (hprims (by simp))]
-  · intro h a b; exact (H.natAdd (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natSub (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natMul (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natPow (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natGcd (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natMod (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natDiv (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natBEq (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natBLE (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natLAnd (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natLOr (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natXor (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natShiftLeft (oldContains (hprims (by simp)) h) a b).mono le
-  · intro h a b; exact (H.natShiftRight (oldContains (hprims (by simp)) h) a b).mono le
-  · intro ci h; apply H.charOfNat; rwa [← same (hprims (by simp))]
-  · intro ci h
-    obtain ⟨rfl, h2, h3⟩ := H.stringOfList (by rwa [← same (hprims (by simp))])
-    exact ⟨rfl, h2.mono le, h3.mono le⟩
-
-theorem VEnv.HasPrimitives.addDefEq {env : VEnv} (H : env.HasPrimitives) :
-    (env.addDefEq df).HasPrimitives :=
-  { H with
-    natAdd h a b := (H.natAdd h a b).mono VEnv.addDefEq_le
-    natSub h a b := (H.natSub h a b).mono VEnv.addDefEq_le
-    natMul h a b := (H.natMul h a b).mono VEnv.addDefEq_le
-    natPow h a b := (H.natPow h a b).mono VEnv.addDefEq_le
-    natGcd h a b := (H.natGcd h a b).mono VEnv.addDefEq_le
-    natMod h a b := (H.natMod h a b).mono VEnv.addDefEq_le
-    natDiv h a b := (H.natDiv h a b).mono VEnv.addDefEq_le
-    natBEq h a b := (H.natBEq h a b).mono VEnv.addDefEq_le
-    natBLE h a b := (H.natBLE h a b).mono VEnv.addDefEq_le
-    natLAnd h a b := (H.natLAnd h a b).mono VEnv.addDefEq_le
-    natLOr h a b := (H.natLOr h a b).mono VEnv.addDefEq_le
-    natXor h a b := (H.natXor h a b).mono VEnv.addDefEq_le
-    natShiftLeft h a b := (H.natShiftLeft h a b).mono VEnv.addDefEq_le
-    natShiftRight h a b := (H.natShiftRight h a b).mono VEnv.addDefEq_le
-    stringOfList h :=
-      let ⟨h1, h2, h3⟩ := H.stringOfList h
-      ⟨h1, h2.mono VEnv.addDefEq_le, h3.mono VEnv.addDefEq_le⟩ }
--/
 theorem safePrimitives_add' {env : Environment} (mapWF : env.constants.WF)
     (old : ∀ {n : Name} {ci}, env.find? n = some ci →
       Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = [])
@@ -309,13 +241,24 @@ theorem VEnvAt.addAxioms {env : Environment} {venv : VEnv} {bs : DefinitionSafet
     have h₁' : venv.addConst v.name ci.toVConstant = some venv₁ := by rw [hn]; exact h₁
     have hle := VEnv.addConst_le h₁'
     have hax : (ConstantInfo.axiomInfo { v with isUnsafe := bs == .unsafe }).name = v.name := rfl
+    have hconstFresh : env.constants.find?
+        (ConstantInfo.axiomInfo { v with isUnsafe := bs == .unsafe }).name = none := by
+      rw [hax, ← wf.tr.map_wf.find?'_eq_find?]
+      exact hd.2.2.1
     have wf₁ : VEnvAt (env.add (.axiomInfo { v with isUnsafe := bs == .unsafe })) bs venv₁ :=
       { tr := TrEnv'.axiom (ci := { v with isUnsafe := bs == .unsafe }) (ci' := ci.toVConstant)
           ⟨hsf, hd.1.1.2.1, hd.1.1.2.2⟩
           (by rw [← wf.tr.map_wf.find?'_eq_find?]; exact hd.2.2.1) hd.2.1 h₁' wf.tr
         hasPrimitives := wf.hasPrimitives.addConst hd.2.2.2 h₁'
         safePrimitives := wf.safePrimitives_add _ (hax ▸ hd.2.2.1)
-          (by rw [hax]; simp [hd.2.2.2]) }
+          (by rw [hax]; simp [hd.2.2.2])
+        projectionRegistry := by
+          apply wf.projectionRegistry.insertNonInductive wf.tr.map_wf hconstFresh
+          · intro familyInfo h
+            cases h
+          · intro constructorInfo h
+            cases h
+          · exact hle }
     show VEnvAt (vs.foldl (fun e v => e.add (.axiomInfo { v with isUnsafe := bs == .unsafe }))
       (env.add (.axiomInfo { v with isUnsafe := bs == .unsafe }))) bs venv'
     refine VEnvAt.addAxioms hsf wf₁ ?_ hnd.2 h₂
@@ -366,7 +309,7 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     split <;> [skip; exact ⟨_, rfl⟩]
     obtain ⟨b, hb⟩ := (wf.tr (safety := sf)).exists_addConsts hfreshCis hndCis
     exact ⟨_, b, hb, rfl⟩
-  obtain ⟨ves', hves'⟩ := VEnvs.axiom_of_choice hves'
+  obtain ⟨ves', hves'⟩ := VEnvs.ofPointwiseExists hves'
   have hbaseSf (sf) (hv : sf ≤ bs) : ∃ b, (ves.venv sf).addConsts cis = some b ∧
       ves'.venv sf = b.addDefEqs cis := by
     have h := hves' sf; rw [if_pos hv] at h; exact h
@@ -436,7 +379,7 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
 of an unsafe inductive declaration: the production map changes for every
 checker view, but partial and safe views justify that change through
 `TrEnv'.ignore`, while the unsafe view receives the abstract block. -/
-theorem VEnvs.WF.extendUnsafe
+theorem VEnvs.WF.extendUnsafeExact
     {ves : VEnvs} {env env' : Environment} (wf : ves.WF env)
     (unsafeEnv : VEnv)
     (htrUnsafe : TrEnv' .unsafe env'.constants env'.quotInit unsafeEnv)
@@ -465,13 +408,14 @@ theorem VEnvs.WF.extendUnsafe
         | .safe => ves.venv .safe))
     (hleUnsafe : ves.venv .unsafe ≤ unsafeEnv) :
     ∃ ves' : VEnvs, ves'.WF env' ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+      (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      ves'.venv .unsafe = unsafeEnv := by
   let next : DefinitionSafety → VEnv
     | .unsafe => unsafeEnv
     | .partial => ves.venv .partial
     | .safe => ves.venv .safe
   let ves' : VEnvs := ⟨next⟩
-  refine ⟨ves', ?_, ?_⟩
+  refine ⟨ves', ?_, ?_, rfl⟩
   · refine {
       tr := ?_
       hasPrimitives := ?_
@@ -524,6 +468,43 @@ theorem VEnvs.WF.extendUnsafe
     | «unsafe» => exact hleUnsafe
     | «partial» => exact VEnv.LE.rfl
     | safe => exact VEnv.LE.rfl
+
+/-- Environment-preservation projection of `extendUnsafeExact`. -/
+theorem VEnvs.WF.extendUnsafe
+    {ves : VEnvs} {env env' : Environment} (wf : ves.WF env)
+    (unsafeEnv : VEnv)
+    (htrUnsafe : TrEnv' .unsafe env'.constants env'.quotInit unsafeEnv)
+    (htrPartial : TrEnv' .partial env'.constants env'.quotInit
+      (ves.venv .partial))
+    (htrSafe : TrEnv' .safe env'.constants env'.quotInit
+      (ves.venv .safe))
+    (hunsafePrimitives : unsafeEnv.HasPrimitives)
+    (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
+      Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (htypeAnnotationWrappers : TypeAnnotationWrappers env')
+    (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
+    (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
+    (hconstructorSemantics : ∀ safety,
+      VerifyInductive.InductiveConstructorsSemanticallyCoherent safety env'
+        (match safety with
+        | .unsafe => unsafeEnv
+        | .partial => ves.venv .partial
+        | .safe => ves.venv .safe))
+    (hinductiveProvenance : ∀ safety,
+      InstalledInductiveProvenance safety env'.constants
+        (match safety with
+        | .unsafe => unsafeEnv
+        | .partial => ves.venv .partial
+        | .safe => ves.venv .safe))
+    (hleUnsafe : ves.venv .unsafe ≤ unsafeEnv) :
+    ∃ ves' : VEnvs, ves'.WF env' ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  rcases wf.extendUnsafeExact unsafeEnv htrUnsafe htrPartial htrSafe
+      hunsafePrimitives hsafePrimitives htypeAnnotationWrappers
+      hinductivesClosed hconstructorOwners hconstructorSemantics
+      hinductiveProvenance hleUnsafe with ⟨ves', wf', hle, _⟩
+  exact ⟨ves', wf', hle⟩
 
 /-- Assemble the three safety-indexed results of one concrete inductive
 extension.  All implementation-specific work is isolated in the pointwise
@@ -650,7 +631,7 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     unfold VEnv.AddConst; split <;> [rename_i hvisible; exact ⟨ves.venv safety, rfl⟩]
     have ⟨venv', hadd⟩ := (wf.tr (safety := safety)).exists_addConst hn ci'.toVConstant
     exact ⟨venv', visible_tr safety hvisible, visible_wf safety hvisible, hadd⟩
-  obtain ⟨ves', hves'⟩ := VEnvs.axiom_of_choice hves'
+  obtain ⟨ves', hves'⟩ := VEnvs.ofPointwiseExists hves'
   have hadd (safety) (hvisible : safety ≤ ci.safety) :
       (ves.venv safety).addConst ci.name ci'.toVConstant = some (ves'.venv safety) := by
     have h := hves' safety; unfold VEnv.AddConst at h; rw [if_pos hvisible] at h; exact h.2.2
@@ -740,7 +721,7 @@ theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     have ⟨base, hadd⟩ := (wf.tr (safety := safety)).exists_addConst hn ci'.toVConstant
     exact ⟨base.addDefEq ci'.toDefEq,
       base, visible_tr safety hvisible, visible_wf safety hvisible, hadd, rfl⟩
-  obtain ⟨ves', hves'⟩ := VEnvs.axiom_of_choice hves'
+  obtain ⟨ves', hves'⟩ := VEnvs.ofPointwiseExists hves'
   have hbase (safety) (hvisible : safety ≤ (ConstantInfo.defnInfo v).safety) :
       ∃ base, (ves.venv safety).addConst v.name ci'.toVConstant = some base ∧
         ves'.venv safety = base.addDefEq ci'.toDefEq := by

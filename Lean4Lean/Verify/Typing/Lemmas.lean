@@ -804,21 +804,38 @@ theorem HasType.skips (W : Ctx.LiftN n k Γ Γ')
 theorem TrProj.weak'_inv (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U))
     (W : Ctx.Lift' l Γ Γ') :
     TrProj (env := env) (U := U) Γ' s i (e.lift' l) e' →
-      ∃ e', TrProj (env := env) (U := U) Γ s i e e' := sorry
+      ∃ e', TrProj (env := env) (U := U) Γ s i e e' := by
+  intro H
+  cases H with
+  | direct majorWF targetWF =>
+      refine ⟨.proj s i e, .direct
+        ((VExpr.WF.weak'_iff henv hΓ' W).mp majorWF) ?_⟩
+      apply (VExpr.WF.weak'_iff henv hΓ' W).mp
+      simpa [VExpr.lift'] using targetWF
 
 theorem TrProj.defeqDFC (henv : VEnv.WF env) (hΓ : env.IsDefEqCtx U [] Γ₁ Γ₂)
     (he : env.IsDefEqU U Γ₁ e₁ e₂)
     (H : TrProj (env := env) (U := U) Γ₁ s i e₁ e') :
     ∃ e', TrProj (env := env) (U := U) Γ₂ s i e₂ e' := by
   cases H with
-  | canonical P hstruct hindex hmajor Hwf =>
-      have Hctx := Hwf.defeqCtx henv.ordered hΓ
-      have Hmajor : env.IsDefEqU U Γ₂ P.major e₂ := by
-        have He := he.defeqDFC henv.ordered hΓ
-        simpa [hmajor] using He
-      have Hreplaced := Hctx.replaceMajor e₂ henv
-        (hΓ.symm henv.ordered).isType Hmajor
-      exact ⟨_, .canonical (P.replaceMajor e₂) hstruct hindex rfl Hreplaced⟩
+  | direct majorWF targetWF =>
+      have hΓ₂ : OnCtx Γ₂ (env.IsType U) := (hΓ.symm henv.ordered).isType
+      have he₂ := he.defeqDFC henv.ordered hΓ
+      obtain ⟨majorType, he₂'⟩ := he₂
+      have majorWF₂ : VExpr.WF env U Γ₂ e₂ :=
+        ⟨majorType, he₂'.hasType.2⟩
+      have targetWF₂ : VExpr.WF env U Γ₂ (.proj s i e₂) := by
+        obtain ⟨resultType, htarget⟩ := targetWF
+        obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType,
+            fieldLevel, hinfo, hlevels, huvars, hparams, hindices, hfield,
+            hfieldTyping, hsource, hclosed, hguard⟩ :=
+          HasType.proj_inv henv.ordered hΓ.isType htarget
+        have hfieldTyping₂ := hfieldTyping.defeqDFC henv.ordered hΓ
+        have hsource₂ := hsource.defeqDFC henv.ordered hΓ
+        have hsourceMajor₂ := hsource₂.trans_l henv hΓ₂ he₂'
+        exact ⟨fieldType, .projDF hinfo hlevels huvars hparams hindices
+          hfield hfieldTyping₂ hsourceMajor₂ hsourceMajor₂ hclosed hguard⟩
+      exact ⟨_, .direct majorWF₂ targetWF₂⟩
 
 variable! {env env' : VEnv} (henv : env ≤ env') in
 nonrec theorem VEnv.ContainsLits.mono : ∀ {l}, env.ContainsLits l → env'.ContainsLits l
@@ -1053,10 +1070,21 @@ theorem TrExpr.app (henv : VEnv.WF env) (hΔ : OnCtx Δ.toCtx (env.IsType Us.len
 
 variable! (henv : VEnv.WF env) (hΓ : IsDefEqCtx env U [] Γ₁ Γ₂) in
 theorem TrProj.uniq
-    (H1 : TrProj (env := env) (U := U) Γ₁ s₁ i e₁ e₁')
-    (H2 : TrProj (env := env) (U := U) Γ₂ s₂ i e₂ e₂')
+    (H1 : TrProj (env := env) (U := U) Γ₁ s i e₁ e₁')
+    (H2 : TrProj (env := env) (U := U) Γ₂ s i e₂ e₂')
     (H : env.IsDefEqU U Γ₁ e₁ e₂) :
-    env.IsDefEqU U Γ₁ e₁' e₂' := sorry
+    env.IsDefEqU U Γ₁ e₁' e₂' := by
+  cases H1 with
+  | direct _ targetWF =>
+    cases H2
+    obtain ⟨resultType, htarget⟩ := targetWF
+    obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType,
+        fieldLevel, hinfo, hlevels, huvars, hparams, hindices, hfield,
+        hfieldTyping, hsource, hclosed, hguard⟩ :=
+      HasType.proj_inv henv.ordered hΓ.isType htarget
+    have hsourceMajor₂ := hsource.transU_l henv hΓ.isType H
+    exact ⟨fieldType, .projDF hinfo hlevels huvars hparams hindices hfield
+      hfieldTyping hsource hsourceMajor₂ hclosed hguard⟩
 
 variable! (henv : VEnv.WF env) {Us : List Name} (hΔ : VLCtx.IsDefEq env Us.length Δ₁ Δ₂) in
 theorem TrExprS.uniq (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) :
@@ -2003,85 +2031,6 @@ theorem VEnv.HasPrimitives.addConst_of_not_primitive {env env' : VEnv}
     (h : env.HasPrimitives) (hadd : env.addConst n ci = some env')
     (hn : ¬ Kernel.Environment.primitives.contains n) : env'.HasPrimitives := by
   exact h.addConst (by simpa using hn) hadd
-/- The former field-by-field proof predates the table-driven `PrimSpec`
-invariant.  `VEnv.HasPrimitives.addConst` now proves this uniformly.
-  have fresh (p : Name) (hp : Kernel.Environment.primitives.contains p) : n ≠ p := by
-    rintro rfl
-    exact hn hp
-  have same (p : Name) (hp : Kernel.Environment.primitives.contains p) :=
-    VEnv.addConst_constants_of_ne hadd (fresh p hp)
-  have oldContains {p : Name} (hp : Kernel.Environment.primitives.contains p)
-      (H : env'.contains p) : env.contains p := by
-    let ⟨ci, hci⟩ := H
-    exact ⟨ci, by rwa [same p hp] at hci⟩
-  have newContains {p : Name} (H : env.contains p) : env'.contains p :=
-    let ⟨_, hci⟩ := H; ⟨_, (VEnv.addConst_le hadd).constants hci⟩
-  have reflectsNatNatNat {p : Name} (hp : Kernel.Environment.primitives.contains p)
-      {f : Nat → Nat → Nat} (H : env.ReflectsNatNatNat p f) :
-      env'.ReflectsNatNatNat p f := fun hp' a b =>
-    (H (oldContains hp hp') a b).mono (VEnv.addConst_le hadd)
-  have reflectsNatNatBool {p : Name} (hp : Kernel.Environment.primitives.contains p)
-      {f : Nat → Nat → Bool} (H : env.ReflectsNatNatBool p f) :
-      env'.ReflectsNatNatBool p f := fun hp' a b =>
-    (H (oldContains hp hp') a b).mono (VEnv.addConst_le hadd)
-  refine {
-    bool := fun H =>
-      let ⟨hfalse, htrue⟩ := h.bool (oldContains (by simp [Kernel.Environment.primitives,
-        NameSet.contains, NameSet.ofList]) H)
-      ⟨newContains hfalse, newContains htrue⟩
-    boolFalse := fun H => h.boolFalse (by
-      rwa [same ``Bool.false (by simp [Kernel.Environment.primitives,
-        NameSet.contains, NameSet.ofList])] at H)
-    boolTrue := fun H => h.boolTrue (by
-      rwa [same ``Bool.true (by simp [Kernel.Environment.primitives,
-        NameSet.contains, NameSet.ofList])] at H)
-    nat := fun H =>
-      let ⟨hzero, hsucc⟩ := h.nat (oldContains (by simp [Kernel.Environment.primitives,
-        NameSet.contains, NameSet.ofList]) H)
-      ⟨newContains hzero, newContains hsucc⟩
-    natZero := fun H => h.natZero (by
-      rwa [same ``Nat.zero (by simp [Kernel.Environment.primitives,
-        NameSet.contains, NameSet.ofList])] at H)
-    natSucc := fun H => h.natSucc (by
-      rwa [same ``Nat.succ (by simp [Kernel.Environment.primitives,
-        NameSet.contains, NameSet.ofList])] at H)
-    natAdd := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natAdd
-    natSub := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natSub
-    natMul := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natMul
-    natPow := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natPow
-    natGcd := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natGcd
-    natMod := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natMod
-    natDiv := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natDiv
-    natBEq := reflectsNatNatBool (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natBEq
-    natBLE := reflectsNatNatBool (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natBLE
-    natLAnd := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natLAnd
-    natLOr := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natLOr
-    natXor := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natXor
-    natShiftLeft := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natShiftLeft
-    natShiftRight := reflectsNatNatNat (by simp [Kernel.Environment.primitives,
-      NameSet.contains, NameSet.ofList]) h.natShiftRight
-    charOfNat := fun H => h.charOfNat (by
-      rwa [same ``Char.ofNat (by simp [Kernel.Environment.primitives,
-        NameSet.contains, NameSet.ofList])] at H)
-    stringOfList := fun H =>
-      let ⟨heq, hnil, hcons⟩ := h.stringOfList (by
-        rwa [same ``String.ofList (by simp [Kernel.Environment.primitives,
-          NameSet.contains, NameSet.ofList])] at H)
-      ⟨heq, hnil.mono (VEnv.addConst_le hadd), hcons.mono (VEnv.addConst_le hadd)⟩ }
--/
 
 theorem TrExprS.listChar (wf : env.Ordered) (henv : env.HasPrimitives)
     (H : env.contains ``String.ofList) :
@@ -2577,3 +2526,151 @@ theorem AppStack.append {e : Expr} (H : AppStack env Us Δ (e.mkAppList as) e' b
 
 theorem AppStack.build {e : Expr} (H : TrExprS env Us Δ (e.mkAppList as) e') :
     ∃ e', AppStack env Us Δ e e' as := by simpa using AppStack.append (.head H)
+
+/-- Recover the ordered abstract argument spine represented by an
+`AppStack`. -/
+theorem AppStack.translatedArguments
+    (H : AppStack env Us Δ fn fn' args) :
+    ∃ args' : List VExpr,
+      List.Forall₂ (TrExprS env Us Δ) args args' ∧
+      TrExprS env Us Δ (fn.mkAppList args) (VExpr.mkApps fn' args') := by
+  induction H with
+  | head Hfn =>
+      exact ⟨[], .nil, by simpa [VExpr.mkApps] using Hfn⟩
+  | @app fn arg fn' arg' domain body args _ _ Hfn Harg Htail ih =>
+      rcases ih with ⟨args', Hargs, Hfull⟩
+      refine ⟨arg' :: args', .cons Harg Hargs, ?_⟩
+      simpa [VExpr.mkApps] using Hfull
+
+/-- Split a pointwise translation at the same positional boundary on both
+sides. -/
+theorem forall₂_splitAt
+    (H : List.Forall₂ relation source target) (count : Nat) :
+    ∃ targetPrefix targetSuffix,
+      target = targetPrefix ++ targetSuffix ∧
+      List.Forall₂ relation (source.take count) targetPrefix ∧
+      List.Forall₂ relation (source.drop count) targetSuffix := by
+  induction count generalizing source target with
+  | zero => exact ⟨[], target, by simp, .nil, by simpa using H⟩
+  | succ count ih =>
+      cases H with
+      | nil => exact ⟨[], [], by simp, .nil, .nil⟩
+      | @cons sourceHead targetHead sourceTail targetTail hhead htail =>
+          rcases ih htail with
+            ⟨targetPrefix, targetSuffix, rfl, hprefix, hsuffix⟩
+          exact ⟨targetHead :: targetPrefix, targetSuffix, by simp,
+            .cons hhead hprefix, hsuffix⟩
+
+/-- A translated constant-headed application has one exact translated
+universe spine and one ordered abstract term spine. -/
+theorem AppStack.constantApplication
+    (H : AppStack env Us Δ (.const name levels) abstractHead args) :
+    ∃ translatedLevels translatedArgs,
+      levels.mapM (VLevel.ofLevel Us) = some translatedLevels ∧
+      abstractHead = VExpr.const name translatedLevels ∧
+      List.Forall₂ (TrExprS env Us Δ) args translatedArgs ∧
+      TrExprS env Us Δ
+        ((Expr.const name levels).mkAppList args)
+        (VExpr.mkApps (VExpr.const name translatedLevels) translatedArgs) := by
+  have Hhead := H.tr
+  cases Hhead with
+  | const hlookup hlevels hlength =>
+      rcases H.translatedArguments with ⟨translatedArgs, Hargs, Hfull⟩
+      exact ⟨_, translatedArgs, hlevels, rfl, Hargs, Hfull⟩
+
+/-- Split the translated arguments of a constant application at a known
+arity boundary. -/
+theorem AppStack.constantApplicationSplit
+    (H : AppStack env Us Δ (.const name levels) abstractHead args)
+    (hargs : args.length = numParams + numIndices) :
+    ∃ translatedLevels translatedParams translatedIndices,
+      levels.mapM (VLevel.ofLevel Us) = some translatedLevels ∧
+      abstractHead = VExpr.const name translatedLevels ∧
+      List.Forall₂ (TrExprS env Us Δ)
+        (args.take numParams) translatedParams ∧
+      List.Forall₂ (TrExprS env Us Δ)
+        (args.drop numParams) translatedIndices ∧
+      translatedParams.length = numParams ∧
+      translatedIndices.length = numIndices ∧
+      TrExprS env Us Δ
+        ((Expr.const name levels).mkAppList args)
+        (VExpr.mkApps (VExpr.const name translatedLevels)
+          (translatedParams ++ translatedIndices)) := by
+  rcases H.constantApplication with
+    ⟨translatedLevels, translatedArgs, hlevels, rfl, Hargs, Hfull⟩
+  rcases forall₂_splitAt Hargs numParams with
+    ⟨translatedParams, translatedIndices, rfl, Hparams, Hindices⟩
+  have hparamsLength : translatedParams.length = numParams := by
+    rw [← Lean4Lean.List.Forall₂.length_eq Hparams, List.length_take]
+    omega
+  have hindicesLength : translatedIndices.length = numIndices := by
+    rw [← Lean4Lean.List.Forall₂.length_eq Hindices, List.length_drop, hargs]
+    omega
+  exact ⟨translatedLevels, translatedParams, translatedIndices,
+    hlevels, rfl, Hparams, Hindices, hparamsLength, hindicesLength, Hfull⟩
+
+/-- Decompose a non-strict translation of a constant-headed application,
+retaining the equality between the recovered abstract spine and the original
+abstract type. -/
+theorem TrExpr.constantApplicationSplit
+    (henv : VEnv.WF env) (hΔ : VLCtx.WF env Us.length Δ)
+    (H : TrExpr env Us Δ
+      ((Expr.const name levels).mkAppList args) abstractType)
+    (hargs : args.length = numParams + numIndices) :
+    ∃ translatedLevels translatedParams translatedIndices,
+      levels.mapM (VLevel.ofLevel Us) = some translatedLevels ∧
+      List.Forall₂ (TrExprS env Us Δ)
+        (args.take numParams) translatedParams ∧
+      List.Forall₂ (TrExprS env Us Δ)
+        (args.drop numParams) translatedIndices ∧
+      translatedParams.length = numParams ∧
+      translatedIndices.length = numIndices ∧
+      env.IsDefEqU Us.length Δ.toCtx
+        (VExpr.mkApps (VExpr.const name translatedLevels)
+          (translatedParams ++ translatedIndices))
+        abstractType := by
+  rcases H with ⟨strictType, Hstrict, Hdefeq⟩
+  rcases AppStack.build Hstrict with ⟨abstractHead, Hstack⟩
+  rcases Hstack.constantApplicationSplit hargs with
+    ⟨translatedLevels, translatedParams, translatedIndices,
+      _hlevels, rfl, Hparams, Hindices, hparamsLength,
+      hindicesLength, Hfull⟩
+  have Hjoin : env.IsDefEqU Us.length Δ.toCtx
+      (VExpr.mkApps (VExpr.const name translatedLevels)
+        (translatedParams ++ translatedIndices)) strictType :=
+    Hfull.uniq henv (.refl henv hΔ) Hstrict
+  exact ⟨translatedLevels, translatedParams, translatedIndices,
+    _hlevels, Hparams, Hindices, hparamsLength, hindicesLength,
+    Hjoin.trans henv hΔ.toCtx Hdefeq⟩
+
+/-- The exact abstract view of a concrete forall obtained through a
+non-strict translation. -/
+structure TrExpr.ForallView
+    (env : VEnv) (Us : List Name) (Δ : VLCtx)
+    (domain body : Expr) (abstractType : VExpr) where
+  abstractDomain : VExpr
+  abstractBody : VExpr
+  domainType : env.IsType Us.length Δ.toCtx abstractDomain
+  bodyType : env.IsType Us.length
+    (abstractDomain :: Δ.toCtx) abstractBody
+  domainTranslation : TrExprS env Us Δ domain abstractDomain
+  bodyTranslation : TrExprS env Us
+    ((none, .vlam abstractDomain) :: Δ) body abstractBody
+  wholeDefEq : env.IsDefEqU Us.length Δ.toCtx
+    (.forallE abstractDomain abstractBody) abstractType
+
+theorem TrExpr.forallView
+    (H : TrExpr env Us Δ
+      (.forallE binderName domain body binderInfo) abstractType) :
+    Nonempty (TrExpr.ForallView env Us Δ domain body abstractType) := by
+  rcases H with ⟨strictType, Hstrict, Hdefeq⟩
+  cases Hstrict with
+  | forallE HdomainType HbodyType Hdomain Hbody =>
+      exact ⟨{
+        abstractDomain := _
+        abstractBody := _
+        domainType := HdomainType
+        bodyType := HbodyType
+        domainTranslation := Hdomain
+        bodyTranslation := Hbody
+        wholeDefEq := Hdefeq }⟩

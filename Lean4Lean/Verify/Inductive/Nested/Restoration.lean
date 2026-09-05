@@ -2506,47 +2506,6 @@ theorem RestoredNestedDeclarationsResult.namesNodup
   rcases H.freshTrace hwf with ⟨entries, Hentries⟩
   exact ⟨entries, Hentries, Hentries.namesNodup hwf⟩
 
-/-- Interpret the exact production restoration trace as a semantically typed
-abstract block.  The only semantic callback is pointwise translation of that
-exact trace; installation and its restoration/canonical order reconciliation
-are derived here. -/
-theorem RestoredNestedDeclarationsResult.restoredBlockCertificate
-    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
-      auxRec allIndNames types auxRecNames out)
-    (hsourceWF : sourceProdEnv.constants.WF)
-    (Hsemantics : ∀ entries
-      (Hentries : FreshConstantTrace sourceProdEnv entries out.2),
-      ∃ constants outVEnv,
-        TranslatedFreshConstantTrace safety Hentries sourceVEnv constants
-          outVEnv ∧
-        block.types ++ block.ctors ++ block.recursors ~ constants)
-    (HtypesWF : ∀ ci ∈ block.types, ci.toVConstant.WF sourceVEnv)
-    (HctorsWF : ∀ envTypes,
-      sourceVEnv.addConstVals block.types = some envTypes →
-      ∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes)
-    (HrecursorsWF : ∀ envTypes envCtors,
-      sourceVEnv.addConstVals block.types = some envTypes →
-      envTypes.addConstVals block.ctors = some envCtors →
-      ∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors)
-    (HrulesWF : ∀ entries
-      (Hentries : FreshConstantTrace sourceProdEnv entries out.2)
-      constants outVEnv,
-      TranslatedFreshConstantTrace safety Hentries sourceVEnv constants
-        outVEnv →
-      ∀ df ∈ block.rules, df.WF outVEnv) :
-    Nonempty (RestoredBlockCertificate sourceVEnv block) := by
-  rcases H.freshTrace hsourceWF with ⟨entries, Hentries⟩
-  rcases Hsemantics entries Hentries with
-    ⟨constants, outVEnv, Htranslated, Horder⟩
-  exact ⟨{
-    constants := constants
-    outVEnv := outVEnv
-    order := Horder
-    installed := Htranslated.abstract
-    typesWF := HtypesWF
-    ctorsWF := HctorsWF
-    recursorsWF := HrecursorsWF
-    rulesWF := HrulesWF entries Hentries constants outVEnv Htranslated }⟩
 
 theorem restoreNestedDeclarations_refines
     (result : Lean4Lean.ElimNestedInductive.Result)

@@ -208,7 +208,6 @@ theorem tryEtaExpansionCore.WF {c : VContext} {s : VState}
   split <;> [skip; exact .pure nofun]
   let .forallE (ty' := ty') c1 c2 c3 c4 := b2
   replace a4 := a4.defeqU_r c.Ewf c.Δwf b3.symm
-  -- have := b2.uniq c.Ewf (.refl c.Ewf c.Δwf) (.forallE c1 c2 c3 c4)
   refine (isDefEq.WF he₁ (.lam c1 c3 (.app (a4.weak c.Ewf) (.bvar .zero) (
     Expr.liftLooseBVars_eq_self (c.mlctx.noBV ▸ a2.closed).looseBVarRange_le ▸
       a2.weakBV c.Ewf (.skip (.vlam ty') .refl)) (.bvar rfl)))).mono fun _ _ _ h hb => ?_
@@ -488,7 +487,8 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
     RecM.WF c s (isDefEqUnitLike e₁ e₂) fun b _ => b = .true → c.IsDefEqU e₁' e₂' := sorry
 
 theorem lazyDeltaProjReduction.finish.WF {c : VContext} {s : VState}
-    (he₁ : c.TrExprS (.proj n₁ i e₁) e₁') (he₂ : c.TrExprS (.proj n₂ i e₂) e₂') :
+    (he₁ : c.TrExprS (.proj structName i e₁) e₁')
+    (he₂ : c.TrExprS (.proj structName i e₂) e₂') :
     (finish i e₁ e₂).WF c s fun r _ => r → c.IsDefEqU e₁' e₂' := by
   unfold finish
   refine (reduceProjCore.WF he₁).bind fun _ _ _ h1 => ?_; extract_lets F
@@ -503,7 +503,8 @@ theorem lazyDeltaProjReduction.finish.WF {c : VContext} {s : VState}
     a3.symm.trans c.Ewf c.Δwf <| (h hb).trans c.Ewf c.Δwf b3
 
 theorem lazyDeltaProjReduction.loop.WF {c : VContext} {s : VState}
-    (he₁ : c.TrExprS (.proj n₁ i e₁) e₁') (he₂ : c.TrExprS (.proj n₂ i e₂) e₂') :
+    (he₁ : c.TrExprS (.proj structName i e₁) e₁')
+    (he₂ : c.TrExprS (.proj structName i e₂) e₂') :
     (loop i e₁ e₂ n).WF c s fun r _ => r → c.IsDefEqU e₁' e₂' := by
   induction n generalizing s e₁ e₂ e₁' e₂' with | zero => exact .throw | succ n ih
   unfold loop; have .proj a1 a2 := he₁; have .proj b1 b2 := he₂
@@ -583,7 +584,9 @@ theorem isDefEqCore'.WF {c : VContext} {s : VState}
     · split <;> [rename_i h; exact this]
       simp at h; subst h
       exact .pure fun _ => c1.uniq c.Ewf (.refl c.Ewf c.Δwf) d1
-    · split <;> [rename_i h2; exact this]; simp at h2; subst h2
+    · split <;> [rename_i h2; exact this]
+      simp at h2
+      rcases h2 with ⟨rfl, rfl⟩
       refine (lazyDeltaProjReduction.loop.WF c1 d1).bind fun _ _ _ h => ?_
       split <;> [refine .pure fun _ => h ‹_›; exact this]
     · exact this

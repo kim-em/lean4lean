@@ -97,11 +97,9 @@ theorem NestedIotaListCertificate.toBuild
   covered := Nat.le_of_eq H.length
   shapes i hrule hctor := H.rules i hctor hrule
 
-/-- Source-family semantics already determine the exact primary recursor
-certificate.  Once the restored equations have been interpreted pointwise as
-source iota rules, this packages both primary inputs required by
-`canonicalNestedCompilationOfSemanticTrace`, including the exact flattened
-constructor count.
+/-- Source-family semantics determine the exact primary recursor certificate.
+Together with pointwise source iota rules, this packages the primary inputs
+and exact flattened constructor count used by nested compilation assembly.
 
 The block remains an argument, so later auxiliary recursors and rules may be
 present without entering the source-family traversal. -/

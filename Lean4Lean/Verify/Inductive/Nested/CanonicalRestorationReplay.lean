@@ -11,6 +11,23 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
+/-- Transfer the validity proved by a dependency-ordered staged installation
+to a concrete installation of the same constants in any fresh order.  The
+permutation argument is used only to identify production maps; abstract
+typing remains tied to the header/constructor/projection/recursor stages. -/
+theorem StagedBlock.validOfFreshPermutation
+    (H : StagedBlock safety source sourceVEnv types ctors recursors
+      projections canonicalTarget targetVEnv)
+    (Hactual : FreshConstantTrace source actualEntries actualTarget)
+    (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
+    (Hsource : CheckingEnv.Valid safety source sourceVEnv) :
+    CheckingEnv.Valid safety actualTarget targetVEnv := by
+  have HcanonicalValid := H.valid Hsource
+  have heq := Hactual.lookupEqOfPerm H.productionTrace.freshTrace
+    Hsource.tr.map_wf hperm
+  exact CheckingEnv.Valid.mapExt HcanonicalValid
+    (Hactual.targetWF Hsource.tr.map_wf) fun name => (heq name).symm
+
 open private Lean.Kernel.Environment.add from Lean.Environment
 
 /-! # Canonical replay of a fresh restoration batch
@@ -1328,6 +1345,8 @@ theorem CanonicalRestorationReplay.existsStagedBlock
       sourceVEnv envTypes envCtors owners primaryRecursors
         auxiliaryRecursors)
     (Hchecking : CheckingEnv safety sourceProdEnv sourceVEnv)
+    (projections : List VProjectionEntry)
+    (HprojectedWF : (envCtors.addProjections projections).WF)
     (Hprimitive : PrimitiveSafeFreshConstantTrace false sourceProdEnv
       primitiveEntries outProdEnv)
     (Hnondelta : FreshConstantTrace sourceProdEnv nondeltaEntries outProdEnv)
@@ -1339,7 +1358,8 @@ theorem CanonicalRestorationReplay.existsStagedBlock
       (H.constructorEntries.map Prod.snd) = some envCtors) :
     ∃ canonicalProdEnv finalVEnv,
       Nonempty (StagedBlock safety sourceProdEnv sourceVEnv H.typeEntries
-        H.constructorEntries H.recursorEntries canonicalProdEnv finalVEnv) ∧
+        H.constructorEntries H.recursorEntries projections canonicalProdEnv
+          finalVEnv) ∧
       ∀ name, outProdEnv.constants.find? name =
         canonicalProdEnv.constants.find? name := by
   rcases H.existsCanonicalFresh Hchecking.map_wf with
@@ -1381,12 +1401,17 @@ theorem CanonicalRestorationReplay.existsStagedBlock
     · exact VEnv.LE.rfl
   have HcheckingCtors : CheckingEnv safety prodCtors envCtors :=
     HconstructorsAdded.checking HcheckingTypes
+  have HcheckingProjected : CheckingEnv safety prodCtors
+      (envCtors.addProjections projections) :=
+    HcheckingCtors.addProjections HprojectedWF
   rcases AddConstants.exists_ofFresh HrecursorsFresh
-      (fun entry hentry => (H.recursors entry hentry).1)
-      (fun entry hentry => (H.recursors entry hentry).2)
+      (fun entry hentry => (H.recursors entry hentry).1.mono
+        VEnv.addProjections_le)
+      (fun entry hentry => (H.recursors entry hentry).2.mono
+        VEnv.addProjections_le)
       (fun entry hentry => hnonprimitive entry (by simp [hentry]))
       (fun entry hentry => hnondeltaCanonical entry (by simp [hentry]))
-      HcheckingCtors VEnv.LE.rfl with ⟨finalVEnv, HrecursorsAdded⟩
+      HcheckingProjected VEnv.LE.rfl with ⟨finalVEnv, HrecursorsAdded⟩
   exact ⟨canonicalProdEnv, finalVEnv, ⟨{
     envTypes := prodTypes
     venvTypes := envTypes
@@ -1394,6 +1419,7 @@ theorem CanonicalRestorationReplay.existsStagedBlock
     venvCtors := envCtors
     typesAdded := HtypesAdded
     ctorsAdded := HconstructorsAdded
+    projectedWF := HprojectedWF
     recursorsAdded := HrecursorsAdded }⟩, hlookup⟩
 
 /-- Join the exact primary and auxiliary replays.  The only transport is
@@ -1560,8 +1586,8 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
           auxiliaryRecursors,
       ∃ canonicalProdEnv finalVEnv,
         Nonempty (StagedBlock c.safety c.env sourceVEnv replay.typeEntries
-          replay.constructorEntries replay.recursorEntries canonicalProdEnv
-            finalVEnv) ∧
+          replay.constructorEntries replay.recursorEntries
+            decl.projectionEntries canonicalProdEnv finalVEnv) ∧
         ∀ name, outProdEnv.constants.find? name =
           canonicalProdEnv.constants.find? name := by
   rcases Hsource.existsExactCanonicalPrimaryReplay Hlower Hc Hprod hempty
@@ -1584,7 +1610,28 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
   have HsourceChecking : CheckingEnv c.safety c.env sourceVEnv := by
     simpa only [Hheaders.sourceContextVEnv] using
       Hheaders.sourceContext.checking.tr
-  rcases replay.existsStagedBlock HsourceChecking Hprimitive Hnondelta
+  have HprojectedWF :
+      (envCtors.addProjections decl.projectionEntries).WF := by
+    let block : VInductBlock := {
+      types := decl.typeConstants
+      ctors := decl.constructorConstants
+      recursors := []
+      rules := []
+      projections := decl.projectionEntries }
+    apply VEnv.WF.inductProjections
+        (base := sourceVEnv) (envTypes := envTypes)
+        (decl := decl) (block := block)
+    · exact HsourceChecking.wf
+    · exact TrInductDeclCore.envCtorsWF Hcore HsourceChecking.wf
+    · exact TrInductDeclCore.sourceNames_nodup Hcore
+    · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hcore
+    · rfl
+    · rfl
+    · rfl
+    · exact Hcore.typesAdded
+    · exact Hcore.ctorsAdded
+  rcases replay.existsStagedBlock HsourceChecking decl.projectionEntries
+      HprojectedWF Hprimitive Hnondelta
       hnondelta htypesAbstract hconstructorsAbstract with
     ⟨canonicalProdEnv, finalVEnv, Hstaged, hlookup⟩
   exact ⟨replay, canonicalProdEnv, finalVEnv, Hstaged, hlookup⟩

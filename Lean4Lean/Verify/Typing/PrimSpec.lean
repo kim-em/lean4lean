@@ -66,6 +66,41 @@ theorem PrimSpec.Holds.addDefEq {env : VEnv} {s : PrimSpec} {n : Name}
   | reflectsBitwise => exact fun h => ⟨(H h).1, fun env'' hle => (H h).2 env'' (le.trans hle)⟩
   | stringOfList => intro _ h; obtain ⟨h1, h2, h3⟩ := H _ h; exact ⟨h1, h2.mono le, h3.mono le⟩
 
+theorem PrimSpec.Holds.addProjections {env : VEnv} {s : PrimSpec} {n : Name}
+    (H : s.Holds env n) : s.Holds (env.addProjections entries) n := by
+  have le := VEnv.addProjections_le (env := env) (entries := entries)
+  have old {m} : (env.addProjections entries).contains m → env.contains m := by
+    rintro ⟨ci, hci⟩
+    exact ⟨ci, by simpa only [VEnv.addProjections_constants] using hci⟩
+  have new {m} : env.contains m → (env.addProjections entries).contains m := by
+    rintro ⟨ci, hci⟩
+    exact ⟨ci, by simpa only [VEnv.addProjections_constants] using hci⟩
+  cases s with
+  | containsImplies ns => exact fun h m hm => new (H (old h) m hm)
+  | typeEq =>
+      intro ci hci
+      apply H ci
+      simpa only [VEnv.addProjections_constants] using hci
+  | reflectsNatNat =>
+      exact fun h => ⟨(H (old h)).1.mono le, fun a => ((H (old h)).2 a).mono le⟩
+  | reflectsNatNatNat =>
+      exact fun h => ⟨(H (old h)).1.mono le, fun a b => ((H (old h)).2 a b).mono le⟩
+  | reflectsNatNatBool =>
+      exact fun h => ⟨(H (old h)).1.mono le, fun a b => ((H (old h)).2 a b).mono le⟩
+  | reflectsBitwise =>
+      exact fun h => ⟨fun ci hci => (H (old h)).1 ci (by
+          simpa only [VEnv.addProjections_constants] using hci),
+        fun env'' hle => (H (old h)).2 env'' (le.trans hle)⟩
+  | stringOfList =>
+      intro ci h
+      have h' : env.constants n = some ci := by simpa using h
+      obtain ⟨h1, h2, h3⟩ := H ci h'
+      exact ⟨h1, h2.mono le, h3.mono le⟩
+
+theorem VEnv.HasPrimitives.addProjections {env : VEnv} (H : env.HasPrimitives) :
+    (env.addProjections entries).HasPrimitives :=
+  fun p hp => (H p hp).addProjections
+
 /-- The single environment-extension theorem for `HasPrimitives`. Every spec whose name differs
 from the one being added transfers by monotonicity; the one that matches -- at most one, since
 `primSpecs` is keyed by name -- is the caller's obligation. Adding a non-primitive discharges it

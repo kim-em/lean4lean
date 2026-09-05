@@ -109,6 +109,16 @@ theorem AvoidsTargetOnlyRecursors.targetFree
       simp only [AvoidsTargetOnlyRecursors, VExpr.containsAnyConst,
         Bool.or_eq_false_iff] at H hsource ⊢
       exact ⟨ihFn H.1 hsource.1, ihArg H.2 hsource.2⟩
+  | proj typeName index major ihMajor =>
+      simp only [AvoidsTargetOnlyRecursors, VExpr.containsAnyConst,
+        Bool.or_eq_false_iff] at H hsource ⊢
+      have hsourceName : typeName ∉ sourceRecursors := by
+        simpa using hsource.1
+      have htargetName : typeName ∉ targetRecursors :=
+        AvoidsTargetOnlyRecursors.const_not_mem_target
+          (levels := []) (by simpa [AvoidsTargetOnlyRecursors,
+            VExpr.containsAnyConst] using H.1) hsourceName
+      exact ⟨by simpa using htargetName, ihMajor H.2 hsource.2⟩
   | lam domain body ihDomain ihBody | forallE domain body ihDomain ihBody =>
       simp only [AvoidsTargetOnlyRecursors, VExpr.containsAnyConst,
         Bool.or_eq_false_iff] at H hsource ⊢

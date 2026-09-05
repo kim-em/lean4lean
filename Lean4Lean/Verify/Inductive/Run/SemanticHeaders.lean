@@ -138,11 +138,14 @@ theorem InstalledSemanticHeaders.materializedAvailableLiteralDisjoint
   cases literal with
   | natVal n =>
       exact Hmaterialized'.natLiteralDisjoint
-        (H.familyNamesExcludePrimitive (by native_decide))
-        (H.familyNamesExcludePrimitive (by native_decide)) n
+        (H.familyNamesExcludePrimitive (by
+          simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList]))
+        (H.familyNamesExcludePrimitive (by
+          simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])) n
   | strVal s =>
       have hsourceString : Hc.venv.contains ``String.ofList :=
-        H.sourceContainsOfTargetContainsPrimitive (by native_decide)
+        H.sourceContainsOfTargetContainsPrimitive (by
+          simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
           havailable.2
       have hunreserved : ∀ name ∈
           checkPositivityStep.unreservedLiteralConstructorNames,
@@ -157,16 +160,20 @@ theorem InstalledSemanticHeaders.materializedAvailableLiteralDisjoint
         simp only [checkPositivityStep.literalConstructorNames,
           List.mem_cons, List.not_mem_nil, or_false] at hname
         rcases hname with rfl | rfl | rfl | rfl | rfl | rfl | rfl
-        · simpa using H.familyNamesExcludePrimitive (by native_decide)
-        · simpa using H.familyNamesExcludePrimitive (by native_decide)
-        · simpa using H.familyNamesExcludePrimitive (by native_decide)
+        · simpa using H.familyNamesExcludePrimitive (by
+            simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
+        · simpa using H.familyNamesExcludePrimitive (by
+            simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
+        · simpa using H.familyNamesExcludePrimitive (by
+            simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
         · exact hdisjoint ``Char (by
             simp [checkPositivityStep.unreservedLiteralConstructorNames])
         · exact hdisjoint ``List.nil (by
             simp [checkPositivityStep.unreservedLiteralConstructorNames])
         · exact hdisjoint ``List.cons (by
             simp [checkPositivityStep.unreservedLiteralConstructorNames])
-        · simpa using H.familyNamesExcludePrimitive (by native_decide)
+        · simpa using H.familyNamesExcludePrimitive (by
+            simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
       exact Hmaterialized'.literalDisjoint hliteral (.strVal s)
 
 /-- Package the installed semantic header fold and the completed constructor

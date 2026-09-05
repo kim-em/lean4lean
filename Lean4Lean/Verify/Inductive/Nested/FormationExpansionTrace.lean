@@ -169,6 +169,10 @@ theorem VInductDecl.NestedAuxiliarySource.liftDepth
     (fun relativeDepth _ cutoff _ => .bvar)
     (fun relativeDepth _ cutoff _ => .sort)
     (fun relativeDepth _ cutoff _ => .const)
+    (fun _ ihMajor relativeDepth habsolute cutoff Hcutoff => by
+      simpa [VExpr.liftN] using
+        VInductDecl.NestedExprWFExpansion.proj
+          (ihMajor relativeDepth habsolute cutoff Hcutoff))
     (fun _ _ ihFn ihArg relativeDepth habsolute cutoff Hcutoff =>
       .app (ihFn relativeDepth habsolute cutoff Hcutoff)
         (ihArg relativeDepth habsolute cutoff Hcutoff))
@@ -178,9 +182,6 @@ theorem VInductDecl.NestedAuxiliarySource.liftDepth
     (fun _ _ ihDomain ihBody relativeDepth habsolute cutoff Hcutoff =>
       .forallE (ihDomain relativeDepth habsolute cutoff Hcutoff)
         (ihBody (relativeDepth + 1) (by omega) (cutoff + 1) (by omega)))
-    (fun Hsource Htarget _ ihMajor relativeDepth habsolute cutoff Hcutoff =>
-      .projection (Hsource.liftN 1 cutoff) (Htarget.liftN 1 cutoff)
-        (ihMajor relativeDepth habsolute cutoff Hcutoff))
     (by intros; trivial)
     (by intros; trivial)
     (by intros; trivial)
@@ -251,13 +252,12 @@ theorem VExpr.NestedExprExpansion.toAbsoluteConstructorDepth
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
+  | proj _ ihMajor => exact .proj ihMajor
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
   | lam _ _ ihDomain ihBody =>
     exact .lam ihDomain (by simpa [Nat.add_assoc] using ihBody)
   | forallE _ _ ihDomain ihBody =>
     exact .forallE ihDomain (by simpa [Nat.add_assoc] using ihBody)
-  | projection Hsource Htarget _ ihMajor =>
-    exact .projection Hsource Htarget ihMajor
 
 /-- General inverse reindexing theorem, with the absolute-depth equality
 kept explicit so dependent induction can move beneath binders. -/
@@ -277,13 +277,12 @@ theorem VExpr.NestedExprExpansion.toRelativeConstructorDepthAux
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
+  | proj _ ihMajor => exact .proj (ihMajor hdepth)
   | app _ _ ihFn ihArg => exact .app (ihFn hdepth) (ihArg hdepth)
   | lam _ _ ihDomain ihBody =>
     exact .lam (ihDomain hdepth) (ihBody (by omega))
   | forallE _ _ ihDomain ihBody =>
     exact .forallE (ihDomain hdepth) (ihBody (by omega))
-  | projection Hsource Htarget _ ihMajor =>
-    exact .projection Hsource Htarget (ihMajor hdepth)
 
 /-- Inverse of `toAbsoluteConstructorDepth` at an exact offset. -/
 theorem VExpr.NestedExprExpansion.toRelativeConstructorDepth
@@ -308,6 +307,10 @@ theorem VExpr.NestedExprExpansion.liftDepth
   | bvar => exact VExpr.NestedExprExpansion.refl leaf _ _
   | sort => exact .sort
   | const => exact .const
+  | proj _ ihMajor =>
+    simpa [VExpr.liftN] using
+      VExpr.NestedExprExpansion.proj
+        (ihMajor cutoff Hcutoff)
   | app _ _ ihFn ihArg =>
     simpa [VExpr.liftN] using
       .app (ihFn cutoff Hcutoff) (ihArg cutoff Hcutoff)
@@ -319,9 +322,6 @@ theorem VExpr.NestedExprExpansion.liftDepth
     simpa [VExpr.liftN, Nat.add_assoc] using
       .forallE (ihDomain cutoff Hcutoff)
         (ihBody (cutoff + 1) (Nat.add_le_add_right Hcutoff 1))
-  | projection Hsource Htarget _ ihMajor =>
-    exact .projection (Hsource.liftN 1 cutoff) (Htarget.liftN 1 cutoff)
-      (ihMajor cutoff Hcutoff)
 
 /-- Binder-indexed expansion of two abstract forall telescopes.  The body is
 compared beneath every accumulated binder, exactly matching
@@ -413,6 +413,10 @@ theorem VExpr.NestedExprExpansion.liftAbsolute
   | bvar => exact VExpr.NestedExprExpansion.refl _ _ _
   | sort => exact .sort
   | const => exact .const
+  | proj _ ihMajor =>
+    simpa [VExpr.liftN] using
+      VExpr.NestedExprExpansion.proj
+        (ihMajor cutoff Hcutoff)
   | app _ _ ihFn ihArg =>
     simpa [VExpr.liftN] using
       VExpr.NestedExprExpansion.app (ihFn cutoff Hcutoff)
@@ -425,9 +429,6 @@ theorem VExpr.NestedExprExpansion.liftAbsolute
     simpa [VExpr.liftN, Nat.add_assoc] using
       VExpr.NestedExprExpansion.forallE (ihDomain cutoff Hcutoff)
         (ihBody (cutoff + 1) (by omega))
-  | projection Hsource Htarget _ ihMajor =>
-    exact .projection (Hsource.liftN 1 cutoff) (Htarget.liftN 1 cutoff)
-      (ihMajor cutoff Hcutoff)
 
 theorem NestedExpansionLookupCtx.vlamAbsolute
     (Hctx : NestedExpansionLookupCtx
@@ -705,8 +706,9 @@ theorem TrExprS.abstractExpansionRelational
   | proj HsourceBody HsourceProj ih =>
     cases Htarget with
     | proj HtargetBody HtargetProj =>
-      exact .projection HsourceProj.supportExpansion
-        HtargetProj.supportExpansion (ih Hctx HtargetBody)
+      cases HsourceProj
+      cases HtargetProj
+      exact .proj (ih Hctx HtargetBody)
 
 /-- Pointwise form of relational translation projection for one unchanged
 concrete application spine.  Source and target abstract arguments need not be
@@ -792,8 +794,9 @@ theorem TrExprS.abstractExpansionAbsolute
   | proj HsourceBody HsourceProj ih =>
     cases Htarget with
     | proj HtargetBody HtargetProj =>
-      exact .projection HsourceProj.supportExpansion
-        HtargetProj.supportExpansion (ih Hctx Hbase HtargetBody)
+      cases HsourceProj
+      cases HtargetProj
+      exact .proj (ih Hctx Hbase HtargetBody)
 
 theorem TrExprS.forall₂_abstractExpansionAbsolute
     (Hctx : NestedExpansionLookupCtx
@@ -1727,8 +1730,9 @@ theorem NestedExprMapping.abstractExpansionRelational
     | proj HsourceBody HsourceProj =>
       cases Htarget' with
       | proj HtargetBody HtargetProj =>
-        exact .projection HsourceProj.supportExpansion
-          HtargetProj.supportExpansion
+        cases HsourceProj
+        cases HtargetProj
+        exact .proj
           (ihBody Hctx Hdepth HsourceParams Hparams Hscope HsourceBody HtargetBody)
 
 /-- Correct absolute-depth projection used by inductive formation.  Parameter
@@ -1883,8 +1887,9 @@ theorem NestedExprMapping.abstractExpansionAbsolute
     | proj HsourceBody HsourceProj =>
       cases Htarget' with
       | proj HtargetBody HtargetProj =>
-        exact .projection HsourceProj.supportExpansion
-          HtargetProj.supportExpansion
+        cases HsourceProj
+        cases HtargetProj
+        exact .proj
           (ihBody Hctx Hbase Hdepth HsourceParams Hparams Hscope HsourceBody
             HtargetBody)
 

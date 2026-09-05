@@ -515,6 +515,7 @@ theorem Aligned.map_wf (H : Aligned safety C venv) : C.WF := by
   | ignoreConst _ h1 _ _ ih
   | const _ h1 _ _ _ ih => exact ih.insert _ _ h1
   | defeq _ ih => exact ih
+  | projections _ ih => exact ih
   | mapExt _ htarget _ _ => exact htarget
 
 theorem Aligned.find?_iff (H : Aligned safety C venv) :
@@ -529,6 +530,8 @@ theorem Aligned.find?_iff (H : Aligned safety C venv) :
     simp [VEnv.addConst] at eq; split at eq <;> cases eq
     split <;> simp_all; exact h2.1
   | defeq _ ih => exact ih
+  | projections _ ih =>
+    simpa only [VEnv.addProjections_constants] using ih
   | mapExt _ _ heq ih =>
     rw [← heq]
     exact ih
@@ -621,6 +624,11 @@ theorem Aligned.find? (H : Aligned safety C venv)
       simp; rename_i h'; refine h2.mono this
     · let ⟨_, h1, h2⟩ := ih h; exact ⟨_, this.constants h1, h2.mono this⟩
   | defeq h1 ih => let ⟨_, h1, h2⟩ := ih h; exact ⟨_, h1, h2.mono VEnv.addDefEq_le⟩
+  | projections h1 ih =>
+    rename_i entries
+    rcases ih h with ⟨ci', hci', htr⟩
+    exact ⟨ci', by simpa only [VEnv.addProjections_constants] using hci',
+      htr.mono (VEnv.addProjections_le (entries := entries))⟩
   | mapExt _ _ heq ih =>
     rw [← heq] at h
     exact ih h
@@ -642,6 +650,12 @@ theorem Aligned.find?_uniq (H : Aligned safety C venv)
     · rintro ⟨⟩ ⟨⟩; rename_i n _ _ _; subst n; exact ⟨h4, h2.mono this⟩
     · intro hs h; let ⟨h1, h2⟩ := ih h hs; exact ⟨h1, h2.mono this⟩
   | defeq h1 ih => let ⟨h1, h2⟩ := ih h hs; exact ⟨h1, h2.mono VEnv.addDefEq_le⟩
+  | projections h1 ih =>
+    rename_i entries
+    rcases ih h (by simpa only [VEnv.addProjections_constants] using hs) with
+      ⟨hname, htr⟩
+    exact ⟨hname, htr.mono
+      (VEnv.addProjections_le (env := _) (entries := entries))⟩
   | mapExt _ _ heq ih =>
     rw [← heq] at h
     exact ih h hs
@@ -650,11 +664,6 @@ theorem TrEnv.find?_iff (H : TrEnv safety env venv) :
     (∃ ci, env.find? name = some ci ∧ safety ≤ ci.safety) ↔ ∃ ci, venv.constants name = some ci := by
   conv => enter [1,1,_,1,1]; apply H.map_wf.find?'_eq_find?
   exact H.aligned.find?_iff
-
--- theorem TrEnv.contains_iff (H : TrEnv safety env venv) :
---     env.contains name ↔ ∃ oci, venv.constants name = some oci := by
---   simp [← H.find?_iff, Kernel.Environment.find?, H.map_wf.find?'_eq_find?,
---     ← Option.isSome_iff_exists, ← SMap.find?_isSome, Kernel.Environment.contains]
 
 theorem TrEnv.find? (H : TrEnv safety env venv)
     (h : env.find? name = some ci) (hs : safety ≤ ci.safety) :
@@ -902,3 +911,116 @@ theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
   safePrimitives := H.tr.safePrimitives_add hn hnprim H.safePrimitives
   typeAnnotationWrappers := VerifyInductive.TypeAnnotationWrappers.addConstant
     H.typeAnnotationWrappers H.tr.map_wf ci hn
+
+theorem CheckingEnv.addProjections
+    (H : CheckingEnv safety env venv)
+    (hwf : (venv.addProjections entries).WF) :
+    CheckingEnv safety env (venv.addProjections entries) where
+  aligned := .projections H.aligned
+  wf := hwf
+  of_value := fun hfind hvisible hvalue =>
+    (H.of_value hfind hvisible hvalue).mono VEnv.addProjections_le
+
+/-- Add an exact, independently well-formed projection table without changing
+the represented production environment. -/
+theorem CheckingEnv.Valid.addProjections
+    (H : CheckingEnv.Valid safety env venv)
+    (hwf : (venv.addProjections entries).WF) :
+    CheckingEnv.Valid safety env (venv.addProjections entries) where
+  tr := H.tr.addProjections hwf
+  hasPrimitives := H.hasPrimitives.addProjections
+  safePrimitives := H.safePrimitives
+  typeAnnotationWrappers := H.typeAnnotationWrappers
+
+/-- A staged checking environment in which every visible executable
+projection lookup has matching abstract projection metadata. -/
+structure CheckingEnv.Projectable (safety : DefinitionSafety)
+    (env : Environment) (venv : VEnv) : Prop extends
+    CheckingEnv.Valid safety env venv where
+  projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
+
+theorem CheckingEnv.Projectable.addNonInductive
+    (H : CheckingEnv.Projectable safety env venv)
+    (hn : env.find? ci.name = none)
+    (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
+    (hnind : ∀ familyInfo, ci ≠ .inductInfo familyInfo)
+    (hnctor : ∀ constructorInfo, ci ≠ .ctorInfo constructorInfo)
+    (htr : TrConstant safety venv ci ci')
+    (hci : ci'.WF venv)
+    (hadd : venv.addConst ci.name ci' = some venv')
+    (hdelta : ci.deltaValue? = none) :
+    CheckingEnv.Projectable safety (env.add ci) venv' := by
+  have hvalid := H.toValid.add hn hnprim htr hci hadd hdelta
+  refine { hvalid with projectionRegistry := ?_ }
+  have hfresh : env.constants.find? ci.name = none := by
+    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
+    exact hn
+  exact H.projectionRegistry.insertNonInductive H.tr.map_wf hfresh hnind
+    hnctor (VEnv.addConst_le hadd)
+
+theorem CheckingEnv.Projectable.addInductiveHeader
+    (H : CheckingEnv.Projectable safety env venv)
+    (hn : env.find? familyInfo.name = none)
+    (hnprim : ¬ Kernel.Environment.primitives.contains familyInfo.name)
+    (hconstructorsFresh : ∀ constructorName ∈ familyInfo.ctors,
+      env.constants.find? constructorName = none)
+    (htr : TrConstant safety venv (.inductInfo familyInfo) ci')
+    (hci : ci'.WF venv)
+    (hadd : venv.addConst familyInfo.name ci' = some venv') :
+    CheckingEnv.Projectable safety
+      (env.add (.inductInfo familyInfo)) venv' := by
+  have hvalid := H.toValid.add (ci := .inductInfo familyInfo) (ci' := ci')
+    hn hnprim htr hci hadd rfl
+  refine { hvalid with projectionRegistry := ?_ }
+  have hfresh : env.constants.find? familyInfo.name = none := by
+    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
+    exact hn
+  exact H.projectionRegistry.insertInductiveHeader H.tr.map_wf hfresh
+    hconstructorsFresh (VEnv.addConst_le hadd)
+
+theorem CheckingEnv.Projectable.addConstructor
+    (H : CheckingEnv.Projectable safety env venv)
+    (hn : env.find? constructorInfo.name = none)
+    (hnprim : ¬ Kernel.Environment.primitives.contains constructorInfo.name)
+    (htr : TrConstant safety venv (.ctorInfo constructorInfo) ci')
+    (hci : ci'.WF venv)
+    (hadd : venv.addConst constructorInfo.name ci' = some venv')
+    (hnew : ∀ familyName familyInfo,
+      env.constants.find? familyName = some (.inductInfo familyInfo) →
+      safety ≤ (ConstantInfo.inductInfo familyInfo).safety →
+      familyInfo.ctors = [constructorInfo.name] →
+      Nonempty (ProjectionRegistryAlignmentAt
+        (env.constants.insert constructorInfo.name (.ctorInfo constructorInfo))
+        venv' familyName familyInfo constructorInfo.name)) :
+    CheckingEnv.Projectable safety
+      (env.add (.ctorInfo constructorInfo)) venv' := by
+  have hvalid := H.toValid.add (ci := .ctorInfo constructorInfo) (ci' := ci')
+    hn hnprim htr hci hadd rfl
+  refine { hvalid with projectionRegistry := ?_ }
+  have hfresh : env.constants.find? constructorInfo.name = none := by
+    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
+    exact hn
+  exact H.projectionRegistry.insertConstructor H.tr.map_wf hfresh
+    (VEnv.addConst_le hadd) hnew
+
+/-- Resolve the exact declaration-level projection alignment selected by
+successful concrete family and constructor lookups. -/
+theorem CheckingEnv.Projectable.projectionAlignment
+    (H : CheckingEnv.Projectable safety env venv)
+    (hfamily : env.find? familyName = some (.inductInfo familyInfo))
+    (habstract : venv.constants familyName = some familyConstant)
+    (hsingle : familyInfo.ctors = [constructorName])
+    (hconstructor : env.find? constructorName =
+      some (.ctorInfo constructorInfo)) :
+    Nonempty (ProjectionRegistryAlignmentAt env.constants venv familyName
+      familyInfo constructorName) := by
+  have hfamilyMap : env.constants.find? familyName =
+      some (.inductInfo familyInfo) := by
+    rwa [← H.tr.map_wf.find?'_eq_find?]
+  have hconstructorMap : env.constants.find? constructorName =
+      some (.ctorInfo constructorInfo) := by
+    rwa [← H.tr.map_wf.find?'_eq_find?]
+  have hvisible : safety ≤ (ConstantInfo.inductInfo familyInfo).safety :=
+    (H.tr.find?_uniq hfamily habstract).2.1
+  exact H.projectionRegistry familyName familyInfo constructorName
+    constructorInfo hfamilyMap hvisible hsingle hconstructorMap

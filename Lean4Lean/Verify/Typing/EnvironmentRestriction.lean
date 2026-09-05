@@ -14,22 +14,27 @@ structure LEExcept (changed : Name → Prop) (src dst : VEnv) : Prop where
   constants : ∀ {name ci}, src.constants name = some ci → ¬ changed name →
     dst.constants name = some ci
   defeqs : ∀ {df}, src.defeqs df → dst.defeqs df
+  projections : ∀ {name info}, src.projections name info →
+    dst.projections name info
 
 theorem LE.toLEExcept (H : src ≤ dst) (changed : Name → Prop) :
     LEExcept changed src dst where
   constants h _ := H.constants h
   defeqs := H.defeqs
+  projections := H.projections
 
 theorem LEExcept.rfl (env : VEnv) (changed : Name → Prop) :
     LEExcept changed env env where
   constants h _ := h
   defeqs := id
+  projections := id
 
 theorem LEExcept.trans
     (Hab : LEExcept changed a b) (Hbc : LEExcept changed b c) :
     LEExcept changed a c where
   constants h hn := Hbc.constants (Hab.constants h hn) hn
   defeqs h := Hbc.defeqs (Hab.defeqs h)
+  projections h := Hbc.projections (Hab.projections h)
 
 /-- The constants on which a particular typing/definitional-equality
 derivation depends.  This is proof-relevant on purpose: merely knowing that
@@ -56,6 +61,31 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
       UsesOnly changed (.constDF Hlookup Hleft Hright Hlength Heq)
   | appDF : UsesOnly changed Hfn → UsesOnly changed Harg →
       UsesOnly changed (.appDF Hfn Harg)
+  | projDF
+      (typeName : Name) (info : VProjectionInfo)
+      (levels : List VLevel) (params indexArgs : List VExpr)
+      (index : Nat) (sourceMajor fieldType : VExpr)
+      (Gamma : List VExpr) (fieldLevel : VLevel)
+      (major major' : VExpr)
+      (Hinfo : env.projections typeName info)
+      (Hlevels : ∀ level ∈ levels, level.WF uvars)
+      (Huvars : levels.length = info.uvars)
+      (Hparams : params.length = info.nparams)
+      (Hindices : indexArgs.length = info.nindices)
+      (HfieldType : info.fieldType typeName levels params index sourceMajor =
+        some fieldType)
+      (Hfield : env.IsDefEq uvars Gamma fieldType fieldType (.sort fieldLevel))
+      (Hmajor : env.IsDefEq uvars Gamma sourceMajor major
+        (VExpr.mkApps (.const typeName levels) (params ++ indexArgs)))
+      (Hmajor' : env.IsDefEq uvars Gamma sourceMajor major'
+        (VExpr.mkApps (.const typeName levels) (params ++ indexArgs)))
+      (Hclosed : info.ctorType.Closed)
+      (Hguard : (info.resultLevel.inst levels).IsNeverZero ∨
+        fieldLevel ≈ .zero) :
+      UsesOnly changed Hfield → UsesOnly changed Hmajor →
+      UsesOnly changed Hmajor' →
+      UsesOnly changed (.projDF Hinfo Hlevels Huvars Hparams Hindices
+        HfieldType Hfield Hmajor Hmajor' Hclosed Hguard)
   | lamDF : UsesOnly changed Htype → UsesOnly changed Hbody →
       UsesOnly changed (.lamDF Htype Hbody)
   | forallEDF : UsesOnly changed Htype → UsesOnly changed Hbody →
@@ -88,6 +118,12 @@ theorem IsDefEq.rebaseExcept
   | constDF name ci levels levels' Hlookup Hleft Hright Hlength Heq Hname =>
     exact .constDF (E.constants Hlookup Hname) Hleft Hright Hlength Heq
   | appDF _ _ IHf IHa => exact .appDF IHf IHa
+  | projDF typeName info levels params indexArgs index sourceMajor fieldType
+      Gamma fieldLevel major major'
+      Hinfo Hlevels Huvars Hparams Hindices HfieldType
+      _ _ _ Hclosed Hguard _ _ _ IHfield IHmajor IHmajor' =>
+    exact .projDF (E.projections Hinfo) Hlevels Huvars Hparams Hindices
+      HfieldType IHfield IHmajor IHmajor' Hclosed Hguard
   | lamDF _ _ IHtype IHbody => exact .lamDF IHtype IHbody
   | forallEDF _ _ IHtype IHbody => exact .forallEDF IHtype IHbody
   | defeqDF _ _ IHtype IHterm => exact .defeqDF IHtype IHterm
@@ -115,6 +151,14 @@ theorem IsDefEq.usesOnly_of_constants
     exact .constDF _ _ _ _ Hlookup Hleft Hright Hlength Heq
       (Hconstants Hlookup)
   | appDF Hfn Harg IHfn IHarg => exact .appDF IHfn IHarg
+  | @projDF typeName info levels params index sourceMajor fieldType Gamma
+      fieldLevel major indexArgs major'
+      Hinfo Hlevels Huvars Hparams Hindices HfieldType
+      Hfield Hmajor Hmajor' Hclosed Hguard IHfield IHmajor IHmajor' =>
+    exact .projDF typeName info levels params indexArgs index sourceMajor fieldType
+      Gamma fieldLevel major major'
+      Hinfo Hlevels Huvars Hparams Hindices HfieldType
+      Hfield Hmajor Hmajor' Hclosed Hguard IHfield IHmajor IHmajor'
   | lamDF Htype Hbody IHtype IHbody => exact .lamDF IHtype IHbody
   | forallEDF Htype Hbody IHtype IHbody => exact .forallEDF IHtype IHbody
   | defeqDF Htype Hterm IHtype IHterm => exact .defeqDF IHtype IHterm
@@ -142,6 +186,15 @@ theorem IsDefEq.UsesOnly.mono
   | constDF name ci levels levels' Hlookup Hleft Hright Hlength Heq Hname =>
     exact .constDF name ci levels levels' (henv.constants Hlookup)
       Hleft Hright Hlength Heq Hname
+  | projDF typeName info levels params indexArgs index sourceMajor fieldType
+      Gamma fieldLevel major major'
+      Hinfo Hlevels Huvars Hparams Hindices HfieldType
+      Hfield Hmajor Hmajor' Hclosed Hguard _ _ _ IHfield IHmajor IHmajor' =>
+    exact .projDF typeName info levels params indexArgs index sourceMajor fieldType
+      Gamma fieldLevel major major'
+      (henv.projections Hinfo) Hlevels Huvars Hparams Hindices HfieldType
+      (Hfield.mono henv) (Hmajor.mono henv) (Hmajor'.mono henv)
+      Hclosed Hguard IHfield IHmajor IHmajor'
   | appDF _ _ IHfn IHarg => exact .appDF IHfn IHarg
   | lamDF _ _ IHtype IHbody => exact .lamDF IHtype IHbody
   | forallEDF _ _ IHtype IHbody => exact .forallEDF IHtype IHbody
@@ -362,14 +415,13 @@ theorem VLCtx.IsDefEq.usesOnly_of_constants
     exact .cons _ _ _ _ _ Hctx Hfresh Hdecl IH
       (Hdecl.usesOnly_of_constants Hconstants)
 
-/-- A finite environment anchor for one certified projection.  Restriction
+/-- A finite environment anchor for one verified projection.  Restriction
 replay does not need every constant of the ambient source environment: it only
-needs an earlier environment in which the same projection certificate was
+needs an earlier environment in which the same projection derivation was
 already valid and whose constants all avoid `changed`.
 
-The canonical witness produced by `usesOnly_of_constants` is the current
-environment itself.  The explicit anchor is what makes the evidence stable
-when the translation is subsequently weakened to a larger environment. -/
+The explicit anchor keeps the evidence stable when the translation is
+subsequently weakened to a larger environment. -/
 structure TrProj.RestrictionSupport
     {env : VEnv} {U : Nat} {Gamma : List VExpr}
     {structName : Name} {index : Nat} {major projected : VExpr}
@@ -395,6 +447,8 @@ theorem TrProj.RestrictionSupport.rebaseExcept
     exact E.constants (S.anchor_le.constants hlookup) (S.constants hlookup)
   · intro df hdf
     exact E.defeqs (S.anchor_le.defeqs hdf)
+  · intro name info hlookup
+    exact E.projections (S.anchor_le.projections hlookup)
 
 def TrProj.RestrictionSupport.mono
     {env env' : VEnv} (henv : env ≤ env')

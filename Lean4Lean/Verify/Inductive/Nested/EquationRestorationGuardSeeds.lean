@@ -47,7 +47,7 @@ theorem RestoredRuleGuardSeeds.sourceBodyFresh
     AvoidsTargetOnlyRecursors sourceRecursors targetRecursors
       Hrhs.sourceBody := by
   exact checkPositivityStep.TrExprS.noFreshConstsAtCheckingEnv hsourceEnv
-    H.newNamesFresh hsourceContext Hrhs.body.sourceTranslation.toTrExprS
+    H.newNamesFresh hsourceContext Hrhs.body.sourceTranslation
 
 end VerifyInductive
 end Lean4Lean

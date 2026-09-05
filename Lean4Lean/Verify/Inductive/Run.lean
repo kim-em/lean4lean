@@ -34,7 +34,6 @@ import Lean4Lean.Verify.Inductive.Nested.EquationRestorationFieldApps
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationRecCall
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationGuardedOrdinary
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationSpines
-import Lean4Lean.Verify.Inductive.Nested.EquationRestorationRecursorSpines
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationMinor
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationLambdas
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationIotaAutomatic

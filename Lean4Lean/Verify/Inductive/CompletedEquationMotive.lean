@@ -1064,7 +1064,7 @@ theorem
     ⟨T, S, hparameters, Hgenerated, _HgeneratedType⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have hparameterScope := S.motiveParameterAlignment.mono hbase
   have hparameters' :=
     Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
@@ -1611,8 +1611,9 @@ theorem
     A.semantics.context_venv.trans
       H.recursorEnv
   rw [hsemantic] at Htr Htyped
-  exact ⟨motiveTarget, resultLevel, Htr.mono H.installed.le,
-    Htyped.mono H.installed.le⟩
+  exact ⟨motiveTarget, resultLevel,
+    Htr.mono (VEnv.addProjections_le.trans H.installed.le),
+    Htyped.mono (VEnv.addProjections_le.trans H.installed.le)⟩
 
 /-- Close the independently typed constructor motive application over the
 exact production field telescope.  This is the expected-side application
@@ -1666,8 +1667,8 @@ theorem
           H.recursorEnv
   rw [hsemantic] at Hclosed
   have HclosedFinal := And.intro
-    (Hclosed.1.mono H.installed.le)
-    (Hclosed.2.mono H.installed.le)
+    (Hclosed.1.mono (VEnv.addProjections_le.trans H.installed.le))
+    (Hclosed.2.mono (VEnv.addProjections_le.trans H.installed.le))
   have hlength : fieldDomains.length = A.rule.allArgs.size := by
     exact A.semantics.context.onlyLams.forallDomains_length
       A.rule.allArgs.size A.semantics.fieldsRecent.size_le
@@ -1695,7 +1696,8 @@ theorem
       H.recursorEnv
   have HtypedFinal := Htyped
   rw [hcurrentSemantic] at HtypedFinal
-  have HtypedOut := HtypedFinal.mono H.installed.le
+  have HtypedOut := HtypedFinal.mono
+    (VEnv.addProjections_le.trans H.installed.le)
   exact ⟨fieldDomains, motiveTarget, resultLevel, hlength,
     by simpa [fieldDomains] using HclosedFinal.1,
     by simpa [fieldDomains] using HclosedFinal.2,
@@ -1777,8 +1779,8 @@ theorem
           H.recursorEnv
   rw [hsemanticRoot] at Hclosed
   have HclosedFinal := And.intro
-    (Hclosed.1.mono H.installed.le)
-    (Hclosed.2.mono H.installed.le)
+    (Hclosed.1.mono (VEnv.addProjections_le.trans H.installed.le))
+    (Hclosed.2.mono (VEnv.addProjections_le.trans H.installed.le))
   have hfieldLength : fieldDomains.length = A.rule.allArgs.size := by
     exact A.semantics.context.onlyLams.forallDomains_length
       A.rule.allArgs.size A.semantics.fieldsRecent.size_le
@@ -1806,8 +1808,10 @@ theorem
       H.recursorEnv
   rw [hsemanticCurrent] at Hindices Htyped
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
-    (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
-  have HtypedOut := Htyped.mono H.installed.le
+    (fun _ _ Hindex => Hindex.mono
+      (VEnv.addProjections_le.trans H.installed.le)) Hindices
+  have HtypedOut := Htyped.mono
+    (VEnv.addProjections_le.trans H.installed.le)
   exact ⟨binding, evidence, fieldDomains, hindexLength, HindicesFinal,
     hfieldLength, by
       simpa [fieldDomains] using HclosedFinal.1,
@@ -1863,9 +1867,11 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalFieldTelescope
   have Hmajor := F.major_translation
   have HmajorType := F.major_typing
   rw [hsemantic] at Htarget HtargetType Hmajor HmajorType
-  exact ⟨F.domains, F.domains_length, Htarget.mono H.installed.le,
-    HtargetType.mono H.installed.le, Hmajor.mono H.installed.le,
-    HmajorType.mono H.installed.le⟩
+  exact ⟨F.domains, F.domains_length,
+    Htarget.mono (VEnv.addProjections_le.trans H.installed.le),
+    HtargetType.mono (VEnv.addProjections_le.trans H.installed.le),
+    Hmajor.mono (VEnv.addProjections_le.trans H.installed.le),
+    HmajorType.mono (VEnv.addProjections_le.trans H.installed.le)⟩
 
 /-- Every recursive result selected by an aligned generated rule retains the
 typed higher-order field telescope from which its recursive call was built.
@@ -1930,8 +1936,10 @@ theorem
   have HappliedType := F.applied_typing
   rw [hsemantic] at Hexposed HexposedType Happlied HappliedType
   exact ⟨originRoot, Rorigin, Hext, callDepth, S, F.domains, F.domains_length,
-    Hexposed.mono H.installed.le, HexposedType.mono H.installed.le,
-    Happlied.mono H.installed.le, HappliedType.mono H.installed.le⟩
+    Hexposed.mono (VEnv.addProjections_le.trans H.installed.le),
+    HexposedType.mono (VEnv.addProjections_le.trans H.installed.le),
+    Happlied.mono (VEnv.addProjections_le.trans H.installed.le),
+    HappliedType.mono (VEnv.addProjections_le.trans H.installed.le)⟩
 
 /-- The aligned recursor is present and well typed in the final environment
 at its identity universe instantiation.  Rule typing can therefore consume
@@ -1957,7 +1965,8 @@ theorem CompletedRecursorPhasesResult.recursorTypingAt
       some recursor.toVConstant := by
     apply VEnv.addConstVals_get H.installed.abstract
     exact hmem
-  have hwfBase : recursor.toVConstant.WF R.context.venv :=
+  have hwfBase : recursor.toVConstant.WF
+      (R.context.venv.addProjections decl.projectionEntries) :=
     H.generated.recursorsWF H.localWF H.bindings H.params recursor hmem
   have hwf : recursor.toVConstant.WF H.outVEnv :=
     hwfBase.mono H.installed.le

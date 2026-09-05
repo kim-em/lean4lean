@@ -147,40 +147,6 @@ theorem assemblesSemanticHeadersExact
   exact AssembledSemanticHeaders.ofTargetsExact Hsemantic Hrows hcommonParams
     (by simpa using htypesAdded)
 
-/-- Compatibility projection for phases which do not need to identify the
-final declaration's type constants with the semantic fold targets. -/
-theorem assemblesSemanticHeaders
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    {indTypes : Array InductiveType} {isUnsafe : Bool}
-    {commonParams : List VExpr} {commonLevel : VLevel}
-    {Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
-        Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList}
-    {headerEnv : Environment}
-    (Hheader : ContextWF { c with env := headerEnv })
-    (hmlctx : Hheader.mlctx = Hc.mlctx)
-    (htypesAdded : Hc.venv.addConstVals
-      (Hsemantic.headerDecl isUnsafe).typeConstants = some Hheader.venv)
-    (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
-      Hc.venv c.lparams Hc.mlctx.vlctx stats
-        (Hsemantic.headerDecl isUnsafe) depth)
-    (hheaderParams : Hmaterialized.headers.params = commonParams)
-    (hcommonParams : commonParams.length = nparams)
-    (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint
-      Hheader.venv stats.indConsts) :
-    (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
-      { c with env := headerEnv }).WF fun _ =>
-        Nonempty (AssembledSemanticHeaders Hc.venv
-          Hheader.venv c.lparams nparams indTypes.toList
-            isUnsafe commonParams commonLevel) := by
-  exact (assemblesSemanticHeadersExact Hheader hmlctx htypesAdded
-    Hmaterialized hheaderParams hcommonParams hconsume hlit).mono
-      fun _ H => by
-        rcases H with ⟨H⟩
-        exact ⟨H.toAssembledSemanticHeaders⟩
-
 end checkConstructors.loopTypes
 end VerifyInductive
 end Lean4Lean

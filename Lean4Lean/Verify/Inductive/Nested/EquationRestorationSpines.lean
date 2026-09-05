@@ -54,6 +54,10 @@ theorem NestedRestorationPlan.AtomicProvenance.bvarSpineAlignment
         · rw [← hargs]
           exact Lean4Lean.VerifyInductive.List.Forall₂.append' Haligned
             (.cons harg .nil)
+  | @proj sourceMajor targetMajor typeName fieldIndex hmajor ihmajor =>
+      change (VExpr.proj typeName fieldIndex sourceMajor, []) =
+        (.bvar index, sourceArgs) at hspine
+      cases hspine
   | @lam sourceDomain targetDomain sourceBody targetBody hdomain hbody
       ihdomain ihbody =>
       change (VExpr.lam sourceDomain sourceBody, []) =
@@ -64,13 +68,6 @@ theorem NestedRestorationPlan.AtomicProvenance.bvarSpineAlignment
       change (VExpr.forallE sourceDomain sourceBody, []) =
         (.bvar index, sourceArgs) at hspine
       cases hspine
-  | @projection sourceMajor sourceTarget targetMajor targetTarget
-      sourceExpansion targetExpansion sourceNotBVarHead hmajor ih =>
-      have hhead : sourceTarget.bvarHead? = some index := by
-        unfold VExpr.bvarHead?
-        rw [hspine]
-      rw [sourceNotBVarHead] at hhead
-      cases hhead
 
 /-- `mkApps` specialization used by generated minor applications. -/
 theorem NestedRestorationPlan.AtomicProvenance.bvarMkAppsAlignment

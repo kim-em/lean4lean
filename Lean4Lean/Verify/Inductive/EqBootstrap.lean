@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Run.SemanticFinalEnvironment
+import Lean4Lean.Verify.Inductive.Run.SemanticSpecification
 
 namespace Lean4Lean
 
@@ -160,12 +161,17 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     (hsource : sourceEnv = ves.venv .safe)
     (Hshape : EqBootstrapShape c.lparams nparams indTypes.toList isUnsafe) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+      (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      Nonempty (InductiveSpecificationResult (ves.venv .safe) c.lparams
+        nparams indTypes.toList isUnsafe (ves'.venv .safe)) := by
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
   rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
-  let B := Hrecursors.blockCertificate T.rules T.rulesWF
+  let B0 := Hrecursors.blockCertificate T.rules T.rulesWF
+  let B := B0.sf_mono (safety := .safe) (by
+    rw [hsafety]
+    exact DefinitionSafety.le_rfl)
   rcases Hheaders.eqBootstrapEntry Hshape with
     ⟨eqInfo, target, hentry, hinfoName, htargetName, htargetConstant⟩
   have hnonempty : indTypes.toList ≠ [] := by
@@ -181,7 +187,8 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
-    T.compilation.compilesTo
+    by simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
+      T.compilation.compilesTo
   have hconstructors :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
@@ -195,22 +202,28 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
   have htypesEq : B.staged.venvTypes.constants ``Eq = some eqConst := by
     have hlookup := VEnv.addConstVals_get B.staged.abstract_types htypeValue
     simpa [htargetName, htargetConstant] using hlookup
-  have houtEq : (Hrecursors.outVEnv.addDefEqRules T.rules).constants ``Eq =
-      some eqConst := by
+  have houtEq :
+      (Hrecursors.outVEnv.addDefEqRules T.rules).constants ``Eq = some eqConst := by
     apply VEnv.addDefEqRules_le.constants
     apply (VEnv.addConstVals_le B.staged.abstract_recursors).constants
+    apply VEnv.addProjections_le.constants
     apply (VEnv.addConstVals_le B.staged.abstract_ctors).constants
     exact htypesEq
-  rw [hsafety] at B
   rcases B.extendSafeExact wf hdecl hcompile horigins Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
-      hconstructors with ⟨ves', wf', hle, hsafeReplay⟩
+      hconstructors with ⟨ves', wf', hle, hadd, hsafeReplay⟩
   have hsafeEq : (ves'.venv .safe).constants ``Eq = some eqConst :=
     hsafeReplay.constants houtEq
   have hcanonical : CanonicalEqEnvs ves' := by
     intro safety
     exact (wf'.mono DefinitionSafety.le_safe).constants hsafeEq
-  exact ⟨ves', wf', hcanonical, hle⟩
+  exact ⟨ves', wf', hcanonical, hle, ⟨{
+    decl := decl
+    envTypes := Hheaders.context.venv
+    envCtors := R.declared.venvCtors
+    source := R.core
+    extension := hadd
+  }⟩⟩
 
 end VerifyInductive
 end Lean4Lean

@@ -11,7 +11,7 @@ namespace VerifyInductive
 /-- A source-aligned ordinary checker result extends the complete
 safety-indexed abstract environment. The result is independent of whether
 the source environment has already bootstrapped canonical equality. -/
-theorem VerifiedSemanticInductiveRunResultSourceAligned.extend
+theorem VerifiedSemanticInductiveRunResultSourceAligned.extendWithSpecification
     {ves : VEnvs}
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
@@ -20,10 +20,13 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extend
     (hnotPartial : source.safety ≠ .partial)
     (hnonempty : types ≠ []) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+      (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      Nonempty (InductiveSpecificationResult sourceEnv source.lparams nparams types
+        (source.safety != .safe)
+        (ves'.venv (if source.safety != .safe then .unsafe else .safe))) := by
   rcases Hrun with
     ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
-      _hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hphases⟩
+      hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hphases⟩
   have wf' : ves.WF c'.env := by
     rw [henv]
     exact wf
@@ -37,16 +40,55 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extend
       have hproduction :
           (source.safety != .safe) = (c'.safety != .safe) :=
         congrArg (fun safety => safety != .safe) hsafety.symm
-      exact SemanticRunWithStatsResult.extendUnsafe Hphases wf' hcSafety hcVEnv
-        hproduction hnonempty'
+      rcases SemanticRunWithStatsResult.extendUnsafeExact Hphases wf'
+          hcSafety hcVEnv hproduction hnonempty' with
+        ⟨ves', decl, envTypes, envCtors, wf'', hle, hcore, hadd⟩
+      refine ⟨ves', wf'', hle, ?_⟩
+      have hspec : InductiveSpecificationResult (ves.venv .unsafe)
+          c'.lparams nparams types (source.safety != .safe)
+          (ves'.venv .unsafe) := {
+        decl := decl
+        envTypes := envTypes
+        envCtors := envCtors
+        source := by simpa using hcore
+        extension := hadd
+      }
+      exact ⟨by simpa [hs, hlparams, hsource] using hspec⟩
   | safe =>
       have hcSafety : c'.safety = .safe := hsafety.trans hs
       have hcVEnv : Hc'.venv = ves.venv .safe := by
         exact hvenv.trans (hsource.trans (congrArg ves.venv hs))
-      exact SemanticRunWithStatsResult.extendSafe Hphases wf' hcSafety hcVEnv
-        hnonempty'
+      rcases SemanticRunWithStatsResult.extendSafeExact Hphases wf'
+          hcSafety hcVEnv hnonempty' with
+        ⟨ves', decl, envTypes, envCtors, wf'', hle, hcore, hadd⟩
+      refine ⟨ves', wf'', hle, ?_⟩
+      have hspec : InductiveSpecificationResult (ves.venv .safe)
+          c'.lparams nparams types (source.safety != .safe)
+          (ves'.venv .safe) := {
+        decl := decl
+        envTypes := envTypes
+        envCtors := envCtors
+        source := by simpa using hcore
+        extension := hadd
+      }
+      exact ⟨by simpa [hs, hlparams, hsource] using hspec⟩
   | «partial» =>
       exact (hnotPartial hs).elim
+
+/-- Environment-preservation projection of `extendWithSpecification`. -/
+theorem VerifiedSemanticInductiveRunResultSourceAligned.extend
+    {ves : VEnvs}
+    (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
+      nparams types numNested outEnv)
+    (wf : ves.WF source.env)
+    (hsource : sourceEnv = ves.venv source.safety)
+    (hnotPartial : source.safety ≠ .partial)
+    (hnonempty : types ≠ []) :
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  rcases Hrun.extendWithSpecification wf hsource hnotPartial hnonempty with
+    ⟨ves', wf', hle, _spec⟩
+  exact ⟨ves', wf', hle⟩
 
 /-- Canonical equality is preserved by the generic source-aligned extension
 when it is present in the source model. -/
@@ -127,17 +169,15 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
       ∃ ves' : VEnvs, ves'.WF outEnv ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (OrdinaryInductiveSpecificationResult Hc.venv c.lparams
-          nparams types (c.safety != .safe)) := by
+          nparams types (c.safety != .safe)
+          (ves'.venv (if c.safety != .safe then .unsafe else .safe))) := by
   have hsize : 0 < types.toArray.size := by
     cases htypes : types with
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
     Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
-      rcases Hrun.extend wf hsource HnotPartial hnonempty with
-        ⟨ves', wf', hle⟩
-      exact ⟨ves', wf', hle,
-        Hrun.independentSpecification hnonempty⟩
+      exact Hrun.extendWithSpecification wf hsource HnotPartial hnonempty
 
 /-- Complete ordinary `AddInductive.run` refinement at the final environment
 boundary.  The executable run supplies the abstract declaration and every
@@ -206,17 +246,17 @@ theorem AddInductive.run.semanticFinalSpecificationWF
       ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (OrdinaryInductiveSpecificationResult Hc.venv c.lparams
-          nparams types (c.safety != .safe)) := by
+          nparams types (c.safety != .safe)
+          (ves'.venv (if c.safety != .safe then .unsafe else .safe))) := by
   have hsize : 0 < types.toArray.size := by
     cases htypes : types with
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
     Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
-      rcases Hrun.extendOfQuotReady wf hEq hsource HnotPartial hnonempty with
-        ⟨ves', wf', hEq', hle⟩
-      exact ⟨ves', wf', hEq', hle,
-        Hrun.independentSpecification hnonempty⟩
+      rcases Hrun.extendWithSpecification wf hsource HnotPartial hnonempty with
+        ⟨ves', wf', hle, Hspec⟩
+      exact ⟨ves', wf', hEq.mono hle, hle, Hspec⟩
 
 end VerifyInductive
 end Lean4Lean

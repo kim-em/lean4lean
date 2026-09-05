@@ -341,15 +341,16 @@ theorem CompletedRecursorPhasesResult.ordinaryCompilationOfRuleBuild
     (hrulesLength : rules.length = decl.ownedConstructors.length) :
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block := by
-  let Hgenerated : GeneratedRecursors c.safety R.context.venv
-      c.lparams H.elimLevel H.localContext stats indTypes H.recInfos
-      H.entries := by
+  let Hgenerated : GeneratedRecursors c.safety
+      (R.context.venv.addProjections decl.projectionEntries) c.lparams
+      H.elimLevel H.localContext stats indTypes H.recInfos H.entries := by
     simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using
       H.generated
   apply Hgenerated.ordinaryCompilationCertificate_ofRuleBuild H.localWF
     H.bindings H.params H.noAlias H.cardinality R.core
   · exact R.headerValues
   · exact R.constructorValues
+  · rfl
   · rfl
   · exact Hrules
   · simpa [CompletedBlockCertificate.block] using hrulesLength
@@ -684,8 +685,8 @@ theorem
 
 /-- In the canonical equation context, the retained constructor fields close
 to precisely the innermost canonical variables.  This identifies the direct
-source translation with the field application already typed by
-`finalCheckedConstructorEquationContext`. -/
+source translation with the field application typed by the framed equation
+context construction. -/
 theorem
     CompletedRecursorPhasesResult.GeneratedRuleAlignment.canonicalAllArgsTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -2175,93 +2176,6 @@ theorem
         A.rule.all_args_bound.length_fvars,
         List.append_assoc] using houter
 
-/- Obsolete index-only canonical projection.  The shared call-argument frame
-keeps indices, major, and exposed type in one certificate. -/
-/-
-/-- Canonical-source form of `insertedSemanticIndexFrame`.  The transported
-recursive indices now have exactly the source expressions emitted in the
-production equation, while retaining the narrowed semantic targets and the
-typed equation context used to assemble the recursive recursor call. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.canonicalInsertedSemanticIndexFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
-    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (H.generated.entry owner howner).info.type H.entries[owner].2.type
-      stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size
-      H.recInfos[owner]!.indices.size owner) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let sourceIndices :=
-      (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
-    let parameterDecls := H.parameterSuffix.parameterDecls
-    let inserted := T.motives ++ T.minors
-    ∃ (fieldDomains localDomains liftedFront : List VExpr)
-        (narrowIndices : List VExpr),
-      liftedFront =
-          (liftContextPrefix inserted.length
-            (fieldDomains ++ localDomains).reverse).reverse ∧
-        fieldDomains.length = A.rule.allArgs.size ∧
-        localDomains.length = F.semantic.generated.localArgs.size ∧
-        OnCtx
-          (abstractForallContext
-            (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []).toCtx
-          (H.outVEnv.IsType Us.length) ∧
-        List.Forall₂
-          (TrExprS H.outVEnv Us
-            (abstractForallContext
-              (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
-          (sourceIndices.map fun index =>
-            (index.abstractList
-              F.semantic.generated.arguments_bound.fvars).abstractList
-                A.rule.binders F.semantic.generated.localArgs.size)
-          (narrowIndices.map fun target =>
-            target.liftN inserted.length
-              (fieldDomains ++ localDomains).length) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let sourceIndices :=
-    (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
-  let parameterDecls := H.parameterSuffix.parameterDecls
-  let inserted := T.motives ++ T.minors
-  rcases F.insertedSemanticIndexFrame T with
-    ⟨fieldDomains, localDomains, liftedFront, narrowIndices,
-      hfront, hfields, hlocal, Hctx, Hindices⟩
-  have Hindices' : List.Forall₂
-      (TrExprS H.outVEnv Us
-        (abstractForallContext
-          (parameterDecls.toCtx.reverse ++ inserted ++ liftedFront) []))
-      (sourceIndices.map fun index =>
-        (((index.abstractList
-          F.semantic.generated.arguments_bound.fvars).abstractList
-            A.rule.all_args_bound.fvars
-            F.semantic.generated.localArgs.size).abstractList
-              A.rule.params_bound.fvars
-              (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
-          ).liftLooseBVars'
-            (F.semantic.generated.localArgs.size + A.rule.allArgs.size)
-            inserted.length)
-      (narrowIndices.map fun target =>
-        target.liftN inserted.length
-          (fieldDomains ++ localDomains).length) := by
-    simpa [inserted, hfields, hlocal, Nat.add_comm] using Hindices
-  have hsource := F.insertedSemanticIndexSources_eq T
-  dsimp only at hsource
-  rw [hsource] at Hindices'
-  exact ⟨fieldDomains, localDomains, liftedFront, narrowIndices,
-    hfront, hfields, hlocal, Hctx, Hindices'⟩
-
--/
 
 /-- Canonical-source form of the shared inserted call-argument frame.  This
 is the application-ready handoff: production's exact recursive index spine

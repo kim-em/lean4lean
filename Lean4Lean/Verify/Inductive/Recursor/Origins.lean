@@ -813,7 +813,7 @@ structure RecursorLoopUArgsInput
       .ok normalizedType
 
 /-- Exact successful prefix of the executable `loopUArgs.loop` traversal.
-Unlike the old replay contract, this ties the retained terminal expression,
+This ties the retained terminal expression,
 fresh argument array, and terminal context to the concrete normalized input
 and every intervening WHNF call. -/
 inductive RecursorLoopUArgsPrefix

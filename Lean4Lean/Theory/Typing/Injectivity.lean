@@ -1,9 +1,7 @@
 import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Theory.Typing.Strong
 
-/-!
-A bunch of important structural theorems which we can't prove :(
--/
+/-! Structural inversion theorems for definitional equality. -/
 
 namespace Lean4Lean
 namespace VEnv

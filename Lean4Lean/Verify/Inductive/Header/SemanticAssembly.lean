@@ -127,21 +127,6 @@ theorem AssembledSemanticHeaders.ofTargetsExact
           VInductDeclSkeleton.materialize_toSkeleton A.materialized]
       _ = Hsemantic.headers.targets := htypeConstants
 
-/-- Compatibility projection when only the assembled declaration is needed. -/
-theorem AssembledSemanticHeaders.ofTargets
-    (Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
-        env Us nparams params commonLevel sources)
-    (Hconstructors : CheckedSourceConstructorRows envTypes Us sources)
-    (hparams : params.length = nparams)
-    (htypesAdded : env.addConstVals Hsemantic.headers.targets =
-      some envTypes) :
-    Nonempty (AssembledSemanticHeaders env envTypes Us nparams sources
-      isUnsafe params commonLevel) := by
-  rcases AssembledSemanticHeaders.ofTargetsExact Hsemantic Hconstructors
-      hparams htypesAdded with ⟨H⟩
-  exact ⟨H.toAssembledSemanticHeaders⟩
-
 /-- The metadata used to materialize a declaration is exactly the resulting
 per-family index-count vector.  This is the declaration-wide counterpart of
 `materialize_typeAt`, factored out of the old traversal terminal case so the

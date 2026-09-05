@@ -12,10 +12,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
 /-- The motive application checked while producing this exact recursive
-call, transported only across the final constant-environment extension.
-Unlike the former reconstruction through the completed recursor context,
-this certificate remains in the literal call-local context where it was
-proved. -/
+call, transported across the final constant-environment extension. -/
 theorem
     CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.producerMotiveApplication
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -61,10 +58,11 @@ theorem
   have Htr := M.translation
   have Htype := M.typing
   rw [hsemantic] at Htr Htype
-  refine ⟨M.target, ?_, Htype.mono H.installed.le⟩
+  refine ⟨M.target, ?_, Htype.mono
+    (VEnv.addProjections_le.trans H.installed.le)⟩
   simpa [selectedOwner, sourceIndices, sourceMajor,
     Array.getElem!_eq_getD, Array.getD, hselectedOwner] using
-      Htr.mono H.installed.le
+      Htr.mono (VEnv.addProjections_le.trans H.installed.le)
 
 /-- Recover the selected mutual family's canonical motive telescope in the
 exact recursive-call context.  Both the motive binding and telescope lookup
@@ -287,14 +285,12 @@ theorem
     have horigin : F.originContext.venv = H.recursorWF.venv :=
       F.originRecent.venv_eq.trans A.semantics.context_venv
     rw [horigin, H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   exact ⟨scope, Hscope.mono henv, hscope⟩
 
 /-- Filtering the literal producer origin by the recursive call's declared
 field/parameter scope removes every earlier generated hypothesis and retains
-exactly the completed rule context's corresponding selection.  This is the
-identifier-level fact that the former replay-compatibility premise was
-standing in for. -/
+exactly the completed rule context's corresponding selection. -/
 theorem
     CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.originRootFilter_eq_rule
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -476,7 +472,7 @@ theorem
       F.semantic.recent.venv_eq.trans <|
         F.originRecent.venv_eq.trans A.semantics.context_venv
     rw [hcurrent, H.recursorEnv]
-    exact H.installed.le
+    exact VEnv.addProjections_le.trans H.installed.le
   have HlocalWF : F.semantic.current_context.mlctx.WF H.outVEnv Us :=
     F.semantic.current_context.mlctx_wf.mono henv
   have hlocalRev : F.semantic.current_context.mlctx.fvarRevList
@@ -610,7 +606,8 @@ theorem
           H.recursorEnv
   rw [hsemantic] at Hindices
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
-    (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
+    (fun _ _ Hindex => Hindex.mono
+      (VEnv.addProjections_le.trans H.installed.le)) Hindices
   rcases F.currentNarrowScope with
     ⟨rootScope, Hroot, scope, Hscope, hroot, hscope, hdrop,
       localDomains, hlocal, hcontext, hshift, _Hreplay⟩

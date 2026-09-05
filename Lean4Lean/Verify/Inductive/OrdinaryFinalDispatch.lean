@@ -11,7 +11,7 @@ namespace VerifyInductive
 
 /-- The ordinary production branch cannot request a reserved primitive name.
 Consequently all three primitive-name side conditions are vacuous; the only
-remaining run inputs are the shared, producer-shaped compatibility facts. -/
+remaining run inputs are facts retained by the shared producer pipeline. -/
 theorem SemanticRunVerificationInputs.ofAllowPrimitiveFalse
     (hallow : c.allowPrimitive = false) :
     SemanticRunVerificationInputs c stats nparams depth numNested indTypes
@@ -116,7 +116,8 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult
             (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
-            sourceTypes isUnsafe) := by
+            sourceTypes isUnsafe
+            (ves'.venv (if isUnsafe then .unsafe else .safe))) := by
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
   let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel
@@ -179,7 +180,8 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationWF
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult
             (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
-            sourceTypes isUnsafe) := by
+            sourceTypes isUnsafe
+            (ves'.venv (if isUnsafe then .unsafe else .safe))) := by
   exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     env lparams nparams sourceTypes isUnsafe fuel res ves wf Hsources Hlower
     haux).mono fun _ ⟨ves', wf', hle, Hspec⟩ =>

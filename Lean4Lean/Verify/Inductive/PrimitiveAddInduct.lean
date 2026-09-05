@@ -21,7 +21,7 @@ theorem VerifiedPrimitiveInductiveRunResult.addInductCanonical
   rcases Hrun with ⟨c', stats, decl, depth, Hc', Hdecl, Hmaterialized,
     ctorEnv, R, hnonempty, ⟨Hrecursors⟩⟩
   rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
-  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules T.rules,
+  exact ⟨c', Hc', decl, (Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
       T.compilation⟩
 

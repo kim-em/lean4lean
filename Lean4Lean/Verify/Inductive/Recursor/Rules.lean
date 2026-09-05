@@ -3825,10 +3825,9 @@ theorem BoundGeneratedRecursorRule.iotaRuleTranslation_ofSemantics
   exact H.iotaRuleTranslation_ofEquationSelectionBase Hequation
     Hsemantic.selection.toSource hctx
 
-/-- Stage-correct producer for the complete local iota payload.  Unlike the
-legacy translation record, this theorem permits equation translation after
-recursor installation and derives guarded recursive results from the
-retained pre-installation semantic calls. -/
+/-- Stage-correct producer for the complete local iota payload. Equation
+translation is checked after recursor installation, while guarded recursive
+results come from retained pre-installation semantic calls. -/
 theorem BoundGeneratedRecursorRule.stagedIotaRuleTranslation_ofSemantics
     {semanticRoot : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF semanticRoot recLparams}

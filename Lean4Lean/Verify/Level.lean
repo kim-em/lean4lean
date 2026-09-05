@@ -13,19 +13,6 @@ open Lean4Lean
 
 attribute [simp] mkLevelSucc mkLevelMax mkLevelIMax updateSucc! updateMax! updateIMax!
 
--- variable (ls : List Name) in
--- def _root_.Lean4Lean.VLevel.toLevel : VLevel → Level
---   | .zero => .zero
---   | .succ l => .succ l.toLevel
---   | .max l₁ l₂ => .max l₁.toLevel l₂.toLevel
---   | .imax l₁ l₂ => .imax l₁.toLevel l₂.toLevel
---   | .param n => match ls.get? n with
---     | some l => .param l
---     | none => .zero
-
--- theorem toLevel_inj {ls : List Name} (d : ls.Nodup)
---     {l₁ l₂ : VLevel} (eq : l₁.toLevel ls = l₂.toLevel ls) : l₁ = l₂ := sorry
-
 @[simp] def getOffset' : Level → Nat
   | succ u => getOffset' u + 1
   | _      => 0

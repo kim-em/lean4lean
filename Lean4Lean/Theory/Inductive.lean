@@ -3,24 +3,7 @@ import Lean4Lean.Theory.VDecl
 
 namespace Lean4Lean
 
-/-- The semantic output of compiling an inductive declaration. The staging is
-significant: all inductive headers are available while checking constructors,
-and all recursors are available while checking their reduction equations. -/
-structure VInductBlock where
-  types : List VConstVal
-  ctors : List VConstVal
-  recursors : List VConstVal
-  rules : List VDefEq
-
 namespace VEnv
-
-/-- Add a list of constants from left to right, failing on the first name
-collision. -/
-def addConstVals : VEnv → List VConstVal → Option VEnv
-  | env, [] => some env
-  | env, ci :: cis => do
-    let env ← env.addConst ci.name ci.toVConstant
-    env.addConstVals cis
 
 theorem addConstVal_mono
     {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ ≤ env₂)
@@ -36,6 +19,7 @@ theorem addConstVal_mono
     split at ha <;> split <;> simp_all
     exact H.constants ha
   · exact H.defeqs
+  · exact H.projections
 
 theorem addConstVals_mono
     {env₁ env₂ env₁' env₂' : VEnv} {cis : List VConstVal}
@@ -61,28 +45,7 @@ theorem addConstVals_mono
         simp [hhead₂] at h₂
         exact ih (addConstVal_mono H hhead₁ hhead₂) h₁ h₂
 
-/-- Reduction equations do not introduce names and therefore cannot fail. -/
-def addDefEqRules : VEnv → List VDefEq → VEnv
-  | env, [] => env
-  | env, df :: dfs => addDefEqRules (env.addDefEq df) dfs
-
 end VEnv
-
-def VInductDecl.typeConstants (decl : VInductDecl) : List VConstVal :=
-  decl.types.map VInductiveType.toVConstVal
-
-def VInductDecl.constructorConstants (decl : VInductDecl) : List VConstVal :=
-  decl.types.flatMap VInductiveType.ctors
-
-def VInductDecl.sourceNames (decl : VInductDecl) : List Name :=
-  decl.typeConstants.map VConstVal.name ++ decl.constructorConstants.map VConstVal.name
-
-theorem VInductDecl.typeNames_nodup
-    {decl : VInductDecl} (H : decl.sourceNames.Nodup) :
-    (decl.types.map (·.name)).Nodup := by
-  have hprefix := (List.nodup_append.mp H).1
-  simpa [VInductDecl.sourceNames, VInductDecl.typeConstants,
-    VInductiveType.toVConstVal, Function.comp_def] using hprefix
 
 /-- Duplicate-free source names turn equality of family names back into
 equality of their positions in the mutual block. -/
@@ -165,12 +128,14 @@ private theorem VExpr.getAppFnArgs.go_append
   | app fn arg ihFn _ =>
     simp only [VExpr.instL, VExpr.getAppFnArgs_app, ihFn]
     simp
-  | bvar | sort | const | lam | forallE =>
+  | bvar | sort | const | proj | lam | forallE =>
     rfl
 
 def VExpr.containsAnyConst (names : List Name) : VExpr → Bool
   | .bvar _ | .sort _ => false
   | .const name _ => names.contains name
+  | .proj typeName _ struct =>
+    names.contains typeName || struct.containsAnyConst names
   | .app fn arg | .lam fn arg | .forallE fn arg =>
     fn.containsAnyConst names || arg.containsAnyConst names
 
@@ -181,6 +146,18 @@ of an expression. -/
     (e.instL levels).containsAnyConst names = e.containsAnyConst names := by
   induction e <;> simp [VExpr.instL, VExpr.containsAnyConst, *]
 
+theorem VExpr.containsAnyConst_mkApps_eq_false_iff
+    (fn : VExpr) (args : List VExpr) :
+    (VExpr.mkApps fn args).containsAnyConst names = false ↔
+      fn.containsAnyConst names = false ∧
+        ∀ arg ∈ args, arg.containsAnyConst names = false := by
+  induction args generalizing fn with
+  | nil => simp [VExpr.mkApps]
+  | cons arg args ih =>
+      rw [show VExpr.mkApps fn (arg :: args) =
+        VExpr.mkApps (.app fn arg) args by rfl, ih]
+      simp [VExpr.containsAnyConst, and_assoc]
+
 /-- The common parameters as de Bruijn variables beneath `depth` additional
 constructor-field binders. -/
 def VInductDecl.paramVars (decl : VInductDecl) (depth : Nat) : List VExpr :=
@@ -190,45 +167,22 @@ def VInductDecl.ParamsDefEq (env : VEnv) (decl : VInductDecl)
     (params params' : List VExpr) : Prop :=
   VEnv.IsDefEqCtx env decl.uvars [] params.reverse params'.reverse
 
-/-- The support-relevant shape of a primitive projection expansion.  The
-arguments before the major and the generated minor are administrative: they
-are reconstructed by the certified projection producer, but they were not
-subterms of the source projection expression. -/
-inductive VExpr.ProjectionSupportExpansion (major : VExpr) : VExpr → Prop
-  | canonical (administrativeHead minor : VExpr) :
-      ProjectionSupportExpansion major
-        (.app (.app administrativeHead major) minor)
-
-theorem VExpr.ProjectionSupportExpansion.liftN
-    (H : VExpr.ProjectionSupportExpansion major target) (n k : Nat) :
-    VExpr.ProjectionSupportExpansion (major.liftN n k)
-      (target.liftN n k) := by
-  cases H with
-  | canonical administrativeHead minor =>
-    simpa [VExpr.liftN] using
-      VExpr.ProjectionSupportExpansion.canonical
-        (administrativeHead.liftN n k) (minor.liftN n k)
-
-/-- Constant support inherited from source syntax.  Ordinary nodes expose
-the support of all source subterms.  A certified projection expansion exposes
-only the support of its source major; the eliminator, motive, inferred
-parameters, and generated minor are administrative elaboration artifacts.
-
-This is intentionally distinct from raw `containsAnyConst`: canonical
-projection expansion does not preserve that stronger property. -/
+/-- Constant support inherited from source syntax. Projection owner names are
+metadata rather than expression subterms, matching `Expr.findAny`. -/
 inductive VExpr.SourceConstFree (names : List Name) : VExpr → Prop
   | bvar (index : Nat) : SourceConstFree names (.bvar index)
   | sort (level : VLevel) : SourceConstFree names (.sort level)
   | const (name : Name) (levels : List VLevel) (fresh : name ∉ names) :
       SourceConstFree names (.const name levels)
+  | proj (typeName : Name) (index : Nat) :
+      SourceConstFree names struct →
+      SourceConstFree names (.proj typeName index struct)
   | app : SourceConstFree names fn → SourceConstFree names arg →
       SourceConstFree names (.app fn arg)
   | lam : SourceConstFree names domain → SourceConstFree names body →
       SourceConstFree names (.lam domain body)
   | forallE : SourceConstFree names domain →
       SourceConstFree names body → SourceConstFree names (.forallE domain body)
-  | projection : ProjectionSupportExpansion major target →
-      SourceConstFree names major → SourceConstFree names target
 
 theorem VExpr.SourceConstFree.ofContainsAnyConst
     {expression : VExpr} {names : List Name}
@@ -241,6 +195,9 @@ theorem VExpr.SourceConstFree.ofContainsAnyConst
     apply SourceConstFree.const name levels
     intro hname
     simp [VExpr.containsAnyConst, hname] at H
+  | proj typeName index struct ihStruct =>
+    rcases Bool.or_eq_false_iff.mp H with ⟨_, hstruct⟩
+    exact .proj typeName index (ihStruct hstruct)
   | app fn arg ihFn ihArg =>
     rcases Bool.or_eq_false_iff.mp H with ⟨hfn, harg⟩
     exact .app (ihFn hfn) (ihArg harg)
@@ -258,17 +215,10 @@ theorem VExpr.SourceConstFree.instL
   | bvar index => exact .bvar index
   | sort level => exact .sort _
   | const name sourceLevels fresh => exact .const name _ fresh
+  | proj typeName index _ ihStruct => exact .proj typeName index ihStruct
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
   | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
   | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
-  | @projection major target expansion _ ihMajor =>
-    cases expansion with
-    | canonical administrativeHead minor =>
-      apply SourceConstFree.projection
-        (ProjectionSupportExpansion.canonical
-          (administrativeHead.instL levels)
-          (minor.instL levels))
-      exact ihMajor
 
 /-- Bound-variable weakening preserves source support. -/
 theorem VExpr.SourceConstFree.liftN
@@ -279,16 +229,11 @@ theorem VExpr.SourceConstFree.liftN
   | bvar index => exact .bvar _
   | sort level => exact .sort level
   | const name sourceLevels fresh => exact .const name sourceLevels fresh
+  | proj typeName index _ ihStruct => exact .proj typeName index (ihStruct k)
   | app _ _ ihFn ihArg => exact .app (ihFn k) (ihArg k)
   | lam _ _ ihDomain ihBody => exact .lam (ihDomain k) (ihBody (k + 1))
   | forallE _ _ ihDomain ihBody =>
     exact .forallE (ihDomain k) (ihBody (k + 1))
-  | @projection major target expansion _ ihMajor =>
-    cases expansion with
-    | canonical administrativeHead minor =>
-      exact .projection
-        (.canonical (administrativeHead.liftN n k) (minor.liftN n k))
-        (ihMajor k)
 
 
 /-- A fully applied occurrence of one of the simultaneously declared types.
@@ -705,6 +650,9 @@ inductive VExpr.NestedExprExpansion
   | sort : NestedExprExpansion leaf depth (.sort level) (.sort level)
   | const : NestedExprExpansion leaf depth (.const name levels)
       (.const name levels)
+  | proj : NestedExprExpansion leaf depth source target →
+      NestedExprExpansion leaf depth (.proj typeName index source)
+        (.proj typeName index target)
   | app : NestedExprExpansion leaf depth sourceFn targetFn →
       NestedExprExpansion leaf depth sourceArg targetArg →
       NestedExprExpansion leaf depth (.app sourceFn sourceArg)
@@ -717,11 +665,6 @@ inductive VExpr.NestedExprExpansion
       NestedExprExpansion leaf (depth + 1) sourceBody targetBody →
       NestedExprExpansion leaf depth (.forallE sourceDomain sourceBody)
         (.forallE targetDomain targetBody)
-  | projection :
-      ProjectionSupportExpansion sourceMajor sourceTarget →
-      ProjectionSupportExpansion targetMajor targetTarget →
-      NestedExprExpansion leaf depth sourceMajor targetMajor →
-      NestedExprExpansion leaf depth sourceTarget targetTarget
 
 /-- Change only the interpretation of successful leaves. -/
 theorem VExpr.NestedExprExpansion.map
@@ -734,11 +677,10 @@ theorem VExpr.NestedExprExpansion.map
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
+  | proj _ ihSource => exact .proj ihSource
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
   | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
   | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
-  | projection Hsource Htarget _ ihMajor =>
-    exact .projection Hsource Htarget ihMajor
 
 /-- Leaving an abstract expression unchanged is always an expansion. -/
 theorem VExpr.NestedExprExpansion.refl
@@ -749,6 +691,7 @@ theorem VExpr.NestedExprExpansion.refl
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
+  | proj _ _ _ ihSource => exact .proj (ihSource depth)
   | app _ _ ihFn ihArg => exact .app (ihFn depth) (ihArg depth)
   | lam _ _ ihDomain ihBody =>
     exact .lam (ihDomain depth) (ihBody (depth + 1))
@@ -911,23 +854,18 @@ theorem VInductDecl.SourceWF.originalConstructors
   rcases H with ⟨_, _, _, _, envTypes, envCtors, htypes, hctors, _, hwf⟩
   exact ⟨envTypes, htypes, hwf⟩
 
-/-- Install a compiled block in dependency order. -/
-def VInductBlock.install (env : VEnv) (block : VInductBlock) : Option VEnv := do
-  let env ← env.addConstVals block.types
-  let env ← env.addConstVals block.ctors
-  let env ← env.addConstVals block.recursors
-  return env.addDefEqRules block.rules
-
 /-- A compiled block is semantically well formed when every declaration is
 well formed at the stage where it is installed, and installation succeeds. -/
 def VInductBlock.WF (env : VEnv) (block : VInductBlock) : Prop :=
   ∃ envTypes envCtors envRecursors,
     env.addConstVals block.types = some envTypes ∧
     envTypes.addConstVals block.ctors = some envCtors ∧
-    envCtors.addConstVals block.recursors = some envRecursors ∧
+    (envCtors.addProjections block.projections).addConstVals
+      block.recursors = some envRecursors ∧
     (∀ ci ∈ block.types, ci.toVConstant.WF env) ∧
     (∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes) ∧
-    (∀ ci ∈ block.recursors, ci.toVConstant.WF envCtors) ∧
+    (∀ ci ∈ block.recursors,
+      ci.toVConstant.WF (envCtors.addProjections block.projections)) ∧
     ∀ df ∈ block.rules, df.WF envRecursors
 
 theorem VInductBlock.WF.exists_install (H : VInductBlock.WF env block) :
@@ -935,9 +873,6 @@ theorem VInductBlock.WF.exists_install (H : VInductBlock.WF env block) :
   rcases H with ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, _⟩
   exact ⟨envRecursors.addDefEqRules block.rules, by
     simp [VInductBlock.install, htypes, hctors, hrecs]⟩
-
-def VExpr.mkApps (fn : VExpr) (args : List VExpr) : VExpr :=
-  args.foldl .app fn
 
 def VExpr.wrapLams (domains : List VExpr) (body : VExpr) : VExpr :=
   domains.foldr .lam body
@@ -1020,10 +955,9 @@ inductive VExpr.GuardedIota (recursors : List Name) (fieldVars : List Nat) :
       GuardedIota recursors fieldVars depth dom →
       GuardedIota recursors fieldVars (depth + 1) body →
       GuardedIota recursors fieldVars depth (.forallE dom body)
-  | projection :
-      ProjectionSupportExpansion major target →
+  | proj :
       GuardedIota recursors fieldVars depth major →
-      GuardedIota recursors fieldVars depth target
+      GuardedIota recursors fieldVars depth (.proj typeName index major)
   | recCall :
       recursor ∈ recursors →
       (∀ arg ∈ init ++ [major],
@@ -1066,9 +1000,9 @@ theorem VExpr.GuardedIota.congrRecursors
   | const fresh =>
       exact .const (fun hmem => fresh ((hsame _).mpr hmem))
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
+  | proj _ ihMajor => exact .proj ihMajor
   | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
   | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
-  | projection expansion _ ihMajor => exact .projection expansion ihMajor
   | recCall recursorMem arguments majorField ihArguments =>
       exact .recCall ((hsame _).mp recursorMem) ihArguments majorField
 
@@ -1635,6 +1569,7 @@ structure VInductDecl.OrdinaryCompilation
     (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop where
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
+  projections : block.projections = decl.projectionEntries
   recursors : List.Forall₂ (fun type recursor =>
     Nonempty (decl.RecursorShape type recursor))
     decl.types block.recursors
@@ -1657,6 +1592,7 @@ structure VInductDecl.NestedCompilation
   types_source : decl.types = main :: rest
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
+  projections : block.projections = decl.projectionEntries
   primaryRecursors : List VConstVal
   auxiliaryRecursors : List VConstVal
   recursors_eq : block.recursors = primaryRecursors ++ auxiliaryRecursors
@@ -1734,6 +1670,36 @@ theorem VInductDecl.CompilesTo.ctors
   cases H with
   | ordinary H => exact H.ctors
   | nested H => exact H.ctors
+
+theorem VInductDecl.CompilesTo.projections
+    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) :
+    block.projections = decl.projectionEntries := by
+  cases H with
+  | ordinary H => exact H.projections
+  | nested H => exact H.projections
+
+theorem VInductDecl.CompilesTo.names
+    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) :
+    ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup := by
+  cases H with
+  | ordinary H => exact H.names
+  | nested H => exact H.names
+
+theorem VInductDecl.CompilesTo.sourceNames
+    {env : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : decl.CompilesTo env block) : decl.sourceNames.Nodup := by
+  have hprefix : ((block.types ++ block.ctors).map (·.name)).Nodup := by
+    apply List.Nodup.sublist (l₂ :=
+      (block.types ++ block.ctors ++ block.recursors).map (·.name))
+    · simpa [List.map_append, List.append_assoc] using
+      (List.prefix_append
+        ((block.types ++ block.ctors).map (·.name))
+        (block.recursors.map (·.name))).sublist
+    · exact H.names
+  simpa [VInductDecl.sourceNames, H.types, H.ctors, List.map_append]
+    using hprefix
 
 /-! ## Ordinary-or-nested formation derivations
 
@@ -1857,6 +1823,12 @@ inductive VInductDecl.NestedExprWFExpansion :
   | const {env source generated name levels depth} :
       VInductDecl.NestedExprWFExpansion env source generated depth
         (.const name levels) (.const name levels)
+  | proj {env source generated typeName index depth sourceMajor targetMajor} :
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        sourceMajor targetMajor →
+      VInductDecl.NestedExprWFExpansion env source generated depth
+        (.proj typeName index sourceMajor)
+        (.proj typeName index targetMajor)
   | app {env source generated depth sourceFn targetFn sourceArg targetArg} :
       VInductDecl.NestedExprWFExpansion env source generated depth
         sourceFn targetFn →
@@ -1880,14 +1852,6 @@ inductive VInductDecl.NestedExprWFExpansion :
         sourceBody targetBody →
       VInductDecl.NestedExprWFExpansion env source generated depth
         (.forallE sourceDomain sourceBody) (.forallE targetDomain targetBody)
-  | projection {env source generated depth sourceMajor targetMajor
-      sourceTarget targetTarget} :
-      VExpr.ProjectionSupportExpansion sourceMajor sourceTarget →
-      VExpr.ProjectionSupportExpansion targetMajor targetTarget →
-      VInductDecl.NestedExprWFExpansion env source generated depth
-        sourceMajor targetMajor →
-      VInductDecl.NestedExprWFExpansion env source generated depth
-        sourceTarget targetTarget
 
 /-- Strictly-positive counterpart of `NestedForallPrefixExpansion` for the
 mutually defined nested-formation leaf. -/
@@ -2021,11 +1985,10 @@ theorem VInductDecl.NestedExprWFExpansion.toNestedExprExpansion
     (by exact .bvar)
     (by exact .sort)
     (by exact .const)
+    (fun _ ihMajor => .proj ihMajor)
     (fun _ _ ihFn ihArg => .app ihFn ihArg)
     (fun _ _ ihDomain ihBody => .lam ihDomain ihBody)
     (fun _ _ ihDomain ihBody => .forallE ihDomain ihBody)
-    (fun Hsource Htarget _ ihMajor =>
-      .projection Hsource Htarget ihMajor)
     (by intros; trivial)
     (by intros; trivial)
     (by intros; trivial)
@@ -2074,11 +2037,10 @@ theorem VInductDecl.NestedConstructorWFExpansions.toForall₂
     (by exact .bvar)
     (by exact .sort)
     (by exact .const)
+    (fun _ ihMajor => .proj ihMajor)
     (fun _ _ ihFn ihArg => .app ihFn ihArg)
     (fun _ _ ihDomain ihBody => .lam ihDomain ihBody)
     (fun _ _ ihDomain ihBody => .forallE ihDomain ihBody)
-    (fun Hsource Htarget _ ihMajor =>
-      .projection Hsource Htarget ihMajor)
     (fun _ ihBody => .nil ihBody)
     (fun _ _ ihDomain ihBody => .cons ihDomain ihBody)
     (by exact .nil)
@@ -2131,11 +2093,10 @@ theorem VInductDecl.NestedTypeWFExpansions.toForall₂
     (by exact .bvar)
     (by exact .sort)
     (by exact .const)
+    (fun _ ihMajor => .proj ihMajor)
     (fun _ _ ihFn ihArg => .app ihFn ihArg)
     (fun _ _ ihDomain ihBody => .lam ihDomain ihBody)
     (fun _ _ ihDomain ihBody => .forallE ihDomain ihBody)
-    (fun Hsource Htarget _ ihMajor =>
-      .projection Hsource Htarget ihMajor)
     (fun _ ihBody => .nil ihBody)
     (fun _ _ ihDomain ihBody => .cons ihDomain ihBody)
     (by exact .nil)
@@ -2156,10 +2117,93 @@ theorem VEnv.InstalledInductCertificate.mono
   | intro hsource hformation hcompile hblock hinstall hle =>
     exact .intro hsource hformation hcompile hblock hinstall (hle.trans henv)
 
+/-- Every projection entry derived from an installed declaration is present
+in the ambient projection registry.  This is the registry fact carried by an
+installation certificate; clients do not need to reconstruct the internal
+type/constructor/recursor staging of `VInductBlock.install`. -/
+theorem VEnv.InstalledInductCertificate.projection
+    {env : VEnv} {decl : VInductDecl} {entry : VProjectionEntry}
+    (H : VEnv.InstalledInductCertificate env decl)
+    (hentry : entry ∈ decl.projectionEntries) :
+    env.projections entry.typeName entry.info := by
+  cases H with
+  | intro hsource hformation hcompile hblock hinstall hle =>
+    unfold VInductBlock.install at hinstall
+    simp at hinstall
+    rcases hinstall with
+      ⟨envTypes, htypes, envCtors, hctors, envRecursors, hrecursors, rfl⟩
+    apply hle.projections
+    simp only [VEnv.addDefEqRules_projections]
+    rw [VEnv.addConstVals_projections hrecursors]
+    rw [VEnv.addProjections_iff]
+    exact Or.inl ⟨entry, hcompile.projections.symm ▸ hentry, rfl, rfl⟩
 
-/-- Relational abstract environment extension for inductive declarations.
-Unlike the old placeholder function, this exposes the compiled block witness
-needed by the implementation-refinement proof. -/
+/-- An installed declaration exposes each of its family constants at the
+exact abstract value recorded by the source declaration. -/
+theorem VEnv.InstalledInductCertificate.familyConstant
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledInductCertificate env decl)
+    (familyIdx : Nat) (hfamily : familyIdx < decl.types.length) :
+    env.constants decl.types[familyIdx].name =
+      some decl.types[familyIdx].toVConstant := by
+  cases H with
+  | @intro _ _ base block installed Hsource Hformation Hcompile Hblock
+      Hinstall hle =>
+    rcases Hblock with
+      ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecursors,
+        _htypesWF, _hctorsWF, _hrecursorsWF, _hrulesWF⟩
+    have hmember : decl.types[familyIdx].toVConstVal ∈ block.types := by
+      rw [Hcompile.types]
+      exact List.mem_map.mpr
+        ⟨decl.types[familyIdx], List.getElem_mem hfamily, rfl⟩
+    have hlookup := VEnv.addConstVals_get htypes hmember
+    have hcanonical : VInductBlock.install base block =
+        some (envRecursors.addDefEqRules block.rules) := by
+      simp [VInductBlock.install, htypes, hctors, hrecursors]
+    have hinstalled : installed = envRecursors.addDefEqRules block.rules :=
+      Option.some.inj (Hinstall.symm.trans hcanonical)
+    subst installed
+    apply hle.constants
+    simpa only [VEnv.addDefEqRules_constants] using
+      (VEnv.addConstVals_le hrecursors).constants
+        (VEnv.addProjections_le.constants
+          ((VEnv.addConstVals_le hctors).constants hlookup))
+
+/-- An installed declaration exposes each of its constructor constants at
+the exact abstract value recorded by the source declaration. -/
+theorem VEnv.InstalledInductCertificate.constructorConstant
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledInductCertificate env decl)
+    (familyIdx ctorIdx : Nat) (hfamily : familyIdx < decl.types.length)
+    (hctor : ctorIdx < decl.types[familyIdx].ctors.length) :
+    env.constants decl.types[familyIdx].ctors[ctorIdx].name =
+      some decl.types[familyIdx].ctors[ctorIdx].toVConstant := by
+  cases H with
+  | @intro _ _ base block installed Hsource Hformation Hcompile Hblock
+      Hinstall hle =>
+    rcases Hblock with
+      ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecursors,
+        _htypesWF, _hctorsWF, _hrecursorsWF, _hrulesWF⟩
+    have hmember : decl.types[familyIdx].ctors[ctorIdx] ∈ block.ctors := by
+      rw [Hcompile.ctors]
+      simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+      exact ⟨decl.types[familyIdx], List.getElem_mem hfamily,
+        List.getElem_mem hctor⟩
+    have hlookup := VEnv.addConstVals_get hctors hmember
+    have hcanonical : VInductBlock.install base block =
+        some (envRecursors.addDefEqRules block.rules) := by
+      simp [VInductBlock.install, htypes, hctors, hrecursors]
+    have hinstalled : installed = envRecursors.addDefEqRules block.rules :=
+      Option.some.inj (Hinstall.symm.trans hcanonical)
+    subst installed
+    apply hle.constants
+    simpa only [VEnv.addDefEqRules_constants] using
+      (VEnv.addConstVals_le hrecursors).constants
+        (VEnv.addProjections_le.constants hlookup)
+
+
+/-- Relational abstract environment extension for inductive declarations,
+including the compiled block witness used by implementation refinement. -/
 inductive VEnv.AddInduct (env : VEnv) (decl : VInductDecl) : VEnv → Prop where
   | intro :
     decl.WF env →

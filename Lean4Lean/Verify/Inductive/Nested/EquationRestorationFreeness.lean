@@ -42,21 +42,20 @@ theorem NestedRestoredNode.sourceNotBVarHeadOfNonrecursor
   cases H with
   | family hfind hhead hhit | constructor hfind hhead hhit =>
       rcases checkPositivityStep.TrExprS.constAppSpine
-          node.sourceTranslation.toTrExprS hhead with
+          node.sourceTranslation hhead with
         ⟨levels, args, hspine, _hlevels, _hargs⟩
       unfold VExpr.bvarHead?
       rw [hspine]
 
 /-- Translation of the independently generated target preserves source-level
-recursor support.  Certified projection expansions contribute only their
-source major, never their administrative eliminator syntax. -/
+recursor support.  Primitive projections contribute only their source major. -/
 theorem GeneratedNonrecursorHitFreeness.targetRecursorFree
     (H : GeneratedNonrecursorHitFreeness node sourceRecursors
       restoredRecursors) :
     node.target.SourceConstFree restoredRecursors :=
   checkPositivityStep.TrExprS.noConstsOfSourceAvoids H.sourceAvoids
     (checkPositivityStep.VLCtx.SourceConstFree.ofNoIndConsts H.contextFree)
-    node.targetTranslation.toTrExprS
+    node.targetTranslation
 
 /-- An independently generated non-recursor target supplies the complete
 family/constructor branch of finite-node behavior. -/

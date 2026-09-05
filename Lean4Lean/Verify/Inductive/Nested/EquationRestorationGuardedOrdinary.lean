@@ -46,6 +46,14 @@ theorem GuardedExprRestoration.ofRecursorFree
       exact .app
         (ihfn hsourceFree.1 hfresh.app_left)
         (iharg hsourceFree.2 hfresh.app_right)
+  | proj hmajor ihmajor =>
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree
+      unfold AvoidsTargetOnlyRecursors at hfresh
+      simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hfresh
+      exact .proj
+        (ihmajor hsourceFree.2 (by
+          unfold AvoidsTargetOnlyRecursors
+          exact hfresh.2))
   | lam hdomain hbody ihdomain ihbody =>
       simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hsourceFree
       exact .lam
@@ -56,14 +64,6 @@ theorem GuardedExprRestoration.ofRecursorFree
       exact .forallE
         (ihdomain hsourceFree.1 hfresh.forall_domain)
         (ihbody hsourceFree.2 hfresh.forall_body)
-  | projection sourceExpansion targetExpansion sourceNotBVarHead hmajor ih =>
-      cases sourceExpansion with
-      | canonical sourceHead sourceMinor =>
-          simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff]
-            at hsourceFree
-          exact .projection
-            (.canonical sourceHead sourceMinor) targetExpansion
-            (ih hsourceFree.1.2 hfresh.app_left.app_right)
 
 end VerifyInductive
 end Lean4Lean

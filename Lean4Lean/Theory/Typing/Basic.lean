@@ -33,6 +33,22 @@ inductive IsDefEq : List VExpr → VExpr → VExpr → VExpr → Prop where
     Γ ⊢ f ≡ f' : .forallE A B →
     Γ ⊢ a ≡ a' : A →
     Γ ⊢ .app f a ≡ .app f' a' : B.inst a
+  | projDF :
+    env.projections typeName info →
+    (∀ l ∈ levels, l.WF uvars) →
+    levels.length = info.uvars →
+    params.length = info.nparams →
+    indexArgs.length = info.nindices →
+    info.fieldType typeName levels params index sourceMajor = some fieldType →
+    Γ ⊢ fieldType : .sort fieldLevel →
+    Γ ⊢ sourceMajor ≡ major :
+      VExpr.mkApps (.const typeName levels) (params ++ indexArgs) →
+    Γ ⊢ sourceMajor ≡ major' :
+      VExpr.mkApps (.const typeName levels) (params ++ indexArgs) →
+    info.ctorType.Closed →
+    (info.resultLevel.inst levels).IsNeverZero ∨ fieldLevel ≈ .zero →
+    Γ ⊢ .proj typeName index major ≡
+      .proj typeName index major' : fieldType
   | lamDF :
     Γ ⊢ A ≡ A' : .sort u →
     A::Γ ⊢ body ≡ body' : B →

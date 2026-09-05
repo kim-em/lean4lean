@@ -256,11 +256,9 @@ theorem RestoredPrimaryIotaFamilySemantics.ofRuleSemantics
       owner.ctors hlength Hsemantic with ⟨rules, Hrules⟩
   exact ⟨⟨rules, Hrules⟩⟩
 
-/-- Fold the literal restoration list from rule certificates produced by the
-post-restoration validator.  Unlike `ofRuleSemantics`, this constructor does
-not route through the legacy generated/restored structural payload: each
-pointwise certificate already names the exact declarative rule and its WF
-proof in the final checked environment. -/
+/-- Fold the literal restoration list from pointwise rule certificates produced
+by the post-restoration validator. Each certificate names the exact declarative
+rule and its WF proof in the final checked environment. -/
 theorem RestoredPrimaryIotaFamilySemantics.ofValidatedExactRules
     {decl : VInductDecl} {block : VInductBlock} {targetVEnv : VEnv}
     {owner : VInductiveType} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -2044,10 +2042,11 @@ theorem NestedFinalAssemblyExactLayout.ofCanonical
     {actualEntries : List ConstantInfo}
     {typeEntries constructorEntries recursorEntries :
       List (ConstantInfo × VConstVal)}
+    {projections : List VProjectionEntry}
     {primaryRecursors auxiliaryRecursors : List VConstVal}
     (Hactual : FreshConstantTrace source actualEntries actualTarget)
     (Hcanonical : StagedBlock safety source sourceVEnv typeEntries
-      constructorEntries recursorEntries canonicalTarget canonicalVEnv)
+      constructorEntries recursorEntries projections canonicalTarget canonicalVEnv)
     (hsourceWF : source.constants.WF)
     (htarget : ∀ name,
       actualTarget.find? name = canonicalTarget.find? name)
@@ -2057,7 +2056,7 @@ theorem NestedFinalAssemblyExactLayout.ofCanonical
       constructorEntries recursorEntries primaryRecursors
         auxiliaryRecursors where
   productionOrder := Hactual.permOfTargetLookupEq
-    Hcanonical.combined.freshTrace hsourceWF htarget
+    Hcanonical.productionTrace.freshTrace hsourceWF htarget
   recursorValues := hrecursors
 
 /-- The semantic residue of the auxiliary restoration fold.  Both fields are
@@ -2143,7 +2142,8 @@ structure NestedFinalCanonicalEvidence
   canonicalProdEnv : Environment
   finalBaseVEnv : VEnv
   canonical : StagedBlock safety sourceProdEnv sourceEnv typeEntries
-    constructorEntries recursorEntries canonicalProdEnv finalBaseVEnv
+    constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
+      finalBaseVEnv
   typeValues : typeEntries.map Prod.snd = decl.typeConstants
   constructorValues : constructorEntries.map Prod.snd =
     decl.constructorConstants
@@ -2174,7 +2174,8 @@ def NestedFinalCanonicalEvidence.ofProduction
       List (ConstantInfo × VConstVal))
     (canonicalProdEnv : Environment) (finalBaseVEnv : VEnv)
     (canonical : StagedBlock safety sourceProdEnv sourceEnv typeEntries
-      constructorEntries recursorEntries canonicalProdEnv finalBaseVEnv)
+      constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
+        finalBaseVEnv)
     (htypeValues : typeEntries.map Prod.snd = decl.typeConstants)
     (hconstructorValues : constructorEntries.map Prod.snd =
       decl.constructorConstants)
@@ -2294,7 +2295,8 @@ theorem NestedFinalCanonicalEvidence.ofProductionNativeFormation
       List (ConstantInfo × VConstVal))
     (canonicalProdEnv : Environment) (finalBaseVEnv : VEnv)
     (canonical : StagedBlock safety sourceProdEnv sourceVEnv typeEntries
-      constructorEntries recursorEntries canonicalProdEnv finalBaseVEnv)
+      constructorEntries recursorEntries sourceDecl.projectionEntries
+        canonicalProdEnv finalBaseVEnv)
     (htypeValues : typeEntries.map Prod.snd = sourceDecl.typeConstants)
     (hconstructorValues : constructorEntries.map Prod.snd =
       sourceDecl.constructorConstants)
@@ -3513,8 +3515,8 @@ theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
             auxiliaryRecursors,
         ∃ canonicalProdEnv finalVEnv,
           Nonempty (StagedBlock c.safety c.env sourceVEnv replay.typeEntries
-            replay.constructorEntries replay.recursorEntries canonicalProdEnv
-              finalVEnv) ∧
+            replay.constructorEntries replay.recursorEntries
+              decl.projectionEntries canonicalProdEnv finalVEnv) ∧
           ∀ name, outProdEnv.constants.find? name =
             canonicalProdEnv.constants.find? name := by
   have Halignment := Hrestored.generatedAlignmentTraceOfProduction Hlower Hc
@@ -3669,7 +3671,8 @@ structure NestedFinalAssemblySemanticEvidence
   canonicalProdEnv : Environment
   finalBaseVEnv : VEnv
   canonical : StagedBlock safety sourceProdEnv sourceEnv typeEntries
-    constructorEntries recursorEntries canonicalProdEnv finalBaseVEnv
+    constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
+      finalBaseVEnv
   typeValues : typeEntries.map Prod.snd = decl.typeConstants
   constructorValues : constructorEntries.map Prod.snd =
     decl.constructorConstants
@@ -4011,8 +4014,8 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
       envTypes envCtors sourceDecl.types primaryRecursors
         auxiliaryRecursors)
     (canonical : StagedBlock c.safety c.env sourceVEnv replay.typeEntries
-      replay.constructorEntries replay.recursorEntries canonicalProdEnv
-        finalBaseVEnv)
+      replay.constructorEntries replay.recursorEntries
+        sourceDecl.projectionEntries canonicalProdEnv finalBaseVEnv)
     (HruleValid : CheckingEnv.Valid c.safety ruleEnv finalBaseVEnv)
     (HruleRun : Lean4Lean.validateRestoredRecursorRules.run ruleEnv loweredEnv
       c.lparams c.safety validationFuel result
@@ -4301,7 +4304,7 @@ theorem NestedValidatedRunResult.assemblyOfFormation
     ⟨auxiliaryRecursors, HauxiliaryRecursors, replay, canonicalProdEnv,
       finalBaseVEnv, ⟨canonical⟩, _hlookup⟩
   have HruleValid : CheckingEnv.Valid safety outEnv finalBaseVEnv :=
-    canonical.combined.validOfFreshPermutation replay.fresh
+    canonical.validOfFreshPermutation replay.fresh
       replay.productionOrder (by
         rw [E.productionContext_env]
         simpa only [E.productionContext_safety] using
@@ -4747,7 +4750,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
     have Hchecking := E.productionContextWF.checking
     simpa only [hc, hinitial, E.productionContext_venv] using Hchecking
   have HruleValid : CheckingEnv.Valid P.c.safety outEnv finalBaseVEnv :=
-    canonical.combined.validOfFreshPermutation replay.fresh
+    canonical.validOfFreshPermutation replay.fresh
       replay.productionOrder HbaseValid
   have HruleRun : Lean4Lean.validateRestoredRecursorRules.run outEnv
       E.loweredEnv P.c.lparams P.c.safety E.validationFuel result

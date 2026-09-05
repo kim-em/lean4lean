@@ -1095,8 +1095,9 @@ theorem NestedFinalAssemblyCertificate.constructorSemanticsOfParameterDomains
   obtain ⟨entries, Hfresh⟩ := H.freshTrace hsourceMapWF
   have houtMapWF : outEnv.constants.WF := Hfresh.targetWF hsourceMapWF
   have hctorsLE : C.canonical.venvCtors ≤ finalVEnv :=
-    (VEnv.addConstVals_le C.canonical.abstract_recursors).trans
-      VEnv.addDefEqRules_le
+    VEnv.addProjections_le.trans
+      ((VEnv.addConstVals_le C.canonical.abstract_recursors).trans
+        VEnv.addDefEqRules_le)
   have htypesLE : C.canonical.venvTypes ≤ finalVEnv :=
     (VEnv.addConstVals_le C.constructorsAdded).trans hctorsLE
   have hsourceLE : ves.venv safety ≤ finalVEnv :=

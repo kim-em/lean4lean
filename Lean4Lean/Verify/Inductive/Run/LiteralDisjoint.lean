@@ -177,16 +177,20 @@ theorem DeclaredHeadersResult.literalNamesDisjointOfUnreserved
   simp only [checkPositivityStep.literalConstructorNames, List.mem_cons,
     List.not_mem_nil, or_false] at hliteral
   rcases hliteral with rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  · exact excludePrimitive (by native_decide)
-  · exact excludePrimitive (by native_decide)
-  · exact excludePrimitive (by native_decide)
+  · exact excludePrimitive (by
+      simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
+  · exact excludePrimitive (by
+      simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
+  · exact excludePrimitive (by
+      simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
   · exact hunreserved ``Char (by
       simp [checkPositivityStep.unreservedLiteralConstructorNames])
   · exact hunreserved ``List.nil (by
       simp [checkPositivityStep.unreservedLiteralConstructorNames])
   · exact hunreserved ``List.cons (by
       simp [checkPositivityStep.unreservedLiteralConstructorNames])
-  · exact excludePrimitive (by native_decide)
+  · exact excludePrimitive (by
+      simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
   where
     excludePrimitive {name : Name}
         (hprimitive : Kernel.Environment.primitives.contains name) :
@@ -297,11 +301,14 @@ theorem DeclaredHeadersResult.materializedAvailableLiteralDisjoint
   cases literal with
   | natVal n =>
       exact H.materialized.natLiteralDisjoint
-        (H.familyNamesExcludePrimitive (by native_decide))
-        (H.familyNamesExcludePrimitive (by native_decide)) n
+        (H.familyNamesExcludePrimitive (by
+          simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList]))
+        (H.familyNamesExcludePrimitive (by
+          simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])) n
   | strVal s =>
       have hsourceString : sourceEnv.contains ``String.ofList :=
-        H.sourceContainsOfTargetContainsPrimitive (by native_decide)
+        H.sourceContainsOfTargetContainsPrimitive (by
+          simp [Kernel.Environment.primitives, NameSet.contains, NameSet.ofList])
           havailable.2
       exact H.materialized.literalDisjoint
         (H.literalNamesDisjointOfStringOfList hsourceString) (.strVal s)

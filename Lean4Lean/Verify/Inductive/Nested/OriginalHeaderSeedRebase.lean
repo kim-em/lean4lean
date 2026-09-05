@@ -42,6 +42,26 @@ theorem VEnv.addConstVals_defeqs_eq
           split at hadd <;> cases hadd
           rfl
 
+theorem VEnv.addConstVals_projections_eq
+    {base out : VEnv} {constants : List VConstVal}
+    (H : base.addConstVals constants = some out) :
+    out.projections = base.projections := by
+  induction constants generalizing base with
+  | nil =>
+      simp [VEnv.addConstVals] at H
+      subst out
+      rfl
+  | cons ci constants ih =>
+      simp only [VEnv.addConstVals] at H
+      cases hadd : base.addConst ci.name ci.toVConstant with
+      | none => simp [hadd] at H
+      | some next =>
+          rw [hadd] at H
+          rw [ih H]
+          unfold VEnv.addConst at hadd
+          split at hadd <;> cases hadd
+          rfl
+
 /-- Two successful constant batches over the same base agree away from the
 names installed by the source batch.  This is the environment relation used
 to move a lowered header's family-independent prefix into the independently
@@ -69,6 +89,10 @@ theorem VEnv.addConstVals_LEExcept
     rw [VEnv.addConstVals_defeqs_eq Hsource] at hdf
     rw [VEnv.addConstVals_defeqs_eq Htarget]
     exact hdf
+  projections := by
+    rw [VEnv.addConstVals_projections_eq Hsource]
+    rw [VEnv.addConstVals_projections_eq Htarget]
+    exact id
 
 /-- Constructor environments produced from two independently translated
 inductive blocks over the same base agree away from the first block's own

@@ -16,7 +16,7 @@ theorem CompletedBlockCertificate.eqCanonicalOfBase
       rules outEnv outVEnv)
     (hEq : venv.QuotReady) :
     forall info, outEnv.constants.find? ``Eq = some (.inductInfo info) ->
-      (outVEnv.addDefEqRules rules).constants ``Eq = some eqConst := by
+      H.finalVEnv.constants ``Eq = some eqConst := by
   intro _info _hfind
   exact (VInductBlock.install_le H.install).constants hEq
 
@@ -32,18 +32,17 @@ theorem CompletedBlockCertificate.replaySafeConstructorSemantics
     (Hsource : InductiveConstructorsSemanticallyCoherent observer prodEnv
       observerBase)
     (Hcompleted : InductiveConstructorsSemanticallyCoherent .safe outEnv
-      (outBase.addDefEqRules rules))
-    (hreplay : outBase.addDefEqRules rules <=
-      replayBase.addDefEqRules rules) :
+      H.finalVEnv)
+    (hreplay : H.finalVEnv <= Hreplay.finalVEnv) :
     InductiveConstructorsSemanticallyCoherent observer outEnv
-      (replayBase.addDefEqRules rules) := by
+      Hreplay.finalVEnv := by
   intro familyName familyInfo hfamily hvisible i hi
   let Hinstall := Hreplay.staged.combinedAtomic
   rcases Hinstall.entryOrigin hwf hfamily with hold | hnew
   · rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩
     have hlookup := Hinstall.preservesSourceFind hwf C.lookup
-    have hle : observerBase <= replayBase.addDefEqRules rules :=
-      Hinstall.le.trans VEnv.addDefEqRules_le
+    have hle : observerBase <= Hreplay.finalVEnv :=
+      VEnv.addProjections_le.trans (Hinstall.le.trans VEnv.addDefEqRules_le)
     exact ⟨C.rebaseProduction hlookup hle⟩
   · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
     have hsafe : .safe <= (ConstantInfo.inductInfo familyInfo).safety := by
@@ -102,12 +101,12 @@ theorem CompletedBlockCertificate.preservesEqAbsentPrimitive
             entry.2.name = ``Bool.false \/ entry.2.name = ``Bool.true := by
           simpa using hvalue
         exact hor.elim
-          (fun h => (by native_decide : ``Bool ≠ ``Eq)
+          (fun h => (by decide : ``Bool ≠ ``Eq)
             (h.symm.trans heq))
           (fun hs => hs.elim
-            (fun h => (by native_decide : ``Bool.false ≠ ``Eq)
+            (fun h => (by decide : ``Bool.false ≠ ``Eq)
               (h.symm.trans heq))
-            (fun h => (by native_decide : ``Bool.true ≠ ``Eq)
+            (fun h => (by decide : ``Bool.true ≠ ``Eq)
               (h.symm.trans heq)))
       · rw [hnat, primitiveNatConstants_names] at hvalue
         rw [hname]
@@ -116,12 +115,12 @@ theorem CompletedBlockCertificate.preservesEqAbsentPrimitive
             entry.2.name = ``Nat.zero \/ entry.2.name = ``Nat.succ := by
           simpa using hvalue
         exact hor.elim
-          (fun h => (by native_decide : ``Nat ≠ ``Eq)
+          (fun h => (by decide : ``Nat ≠ ``Eq)
             (h.symm.trans heq))
           (fun hs => hs.elim
-            (fun h => (by native_decide : ``Nat.zero ≠ ``Eq)
+            (fun h => (by decide : ``Nat.zero ≠ ``Eq)
               (h.symm.trans heq))
-            (fun h => (by native_decide : ``Nat.succ ≠ ``Eq)
+            (fun h => (by decide : ``Nat.succ ≠ ``Eq)
               (h.symm.trans heq)))
     · have hprefix : entry ∈ types ++ ctors := by simp [hctor]
       have hvalue : entry.2.name ∈
@@ -138,12 +137,12 @@ theorem CompletedBlockCertificate.preservesEqAbsentPrimitive
             entry.2.name = ``Bool.false \/ entry.2.name = ``Bool.true := by
           simpa using hvalue
         exact hor.elim
-          (fun h => (by native_decide : ``Bool ≠ ``Eq)
+          (fun h => (by decide : ``Bool ≠ ``Eq)
             (h.symm.trans heq))
           (fun hs => hs.elim
-            (fun h => (by native_decide : ``Bool.false ≠ ``Eq)
+            (fun h => (by decide : ``Bool.false ≠ ``Eq)
               (h.symm.trans heq))
-            (fun h => (by native_decide : ``Bool.true ≠ ``Eq)
+            (fun h => (by decide : ``Bool.true ≠ ``Eq)
               (h.symm.trans heq)))
       · rw [hnat, primitiveNatConstants_names] at hvalue
         rw [hname]
@@ -152,19 +151,19 @@ theorem CompletedBlockCertificate.preservesEqAbsentPrimitive
             entry.2.name = ``Nat.zero \/ entry.2.name = ``Nat.succ := by
           simpa using hvalue
         exact hor.elim
-          (fun h => (by native_decide : ``Nat ≠ ``Eq)
+          (fun h => (by decide : ``Nat ≠ ``Eq)
             (h.symm.trans heq))
           (fun hs => hs.elim
-            (fun h => (by native_decide : ``Nat.zero ≠ ``Eq)
+            (fun h => (by decide : ``Nat.zero ≠ ``Eq)
               (h.symm.trans heq))
-            (fun h => (by native_decide : ``Nat.succ ≠ ``Eq)
+            (fun h => (by decide : ``Nat.succ ≠ ``Eq)
               (h.symm.trans heq)))
   · exact hrecursors entry hrecursors'
 
 /-- A safe completed canonical primitive block extends all three abstract
 safety models.  Header and constructor replay remains merely staged; the
 `HasPrimitives` invariant is restored only at their complete Bool/Nat batch. -/
-theorem CompletedBlockCertificate.extendSafePrimitive
+theorem CompletedBlockCertificate.extendSafePrimitiveExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : CompletedBlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
@@ -183,9 +182,10 @@ theorem CompletedBlockCertificate.extendSafePrimitive
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
-        (outBase.addDefEqRules rules)) :
+        H.finalVEnv) :
     exists ves' : VEnvs, ves'.WF outEnv /\
-      forall safety, ves.venv safety <= ves'.venv safety := by
+      (forall safety, ves.venv safety <= ves'.venv safety) /\
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
   have valid (safety : DefinitionSafety) :
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
@@ -193,35 +193,48 @@ theorem CompletedBlockCertificate.extendSafePrimitive
       wf.typeAnnotationWrappers
   rcases H.rebaseAddInductSafe (valid .unsafe)
       (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins with
-    ⟨unsafeBase, ⟨Hunsafe⟩, HunsafeAdd, hunsafeLE⟩
+    ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProjections⟩
   rcases H.rebaseAddInductSafe (valid .partial)
       (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins with
-    ⟨partialBase, ⟨Hpartial⟩, HpartialAdd, hpartialLE⟩
+    ⟨partialBase, Hpartial, HpartialAdd, hpartialLE,
+      hpartialProjections⟩
   rcases H.rebaseAddInductSafe (valid .safe) VEnv.LE.rfl hdecl hcompile
       horigins with
-    ⟨safeBase, ⟨Hsafe⟩, HsafeAdd, hsafeLE⟩
+    ⟨safeBase, Hsafe, HsafeAdd, hsafeLE, hsafeProjections⟩
   let pre : DefinitionSafety -> VEnv
     | .unsafe => unsafeBase
     | .partial => partialBase
     | .safe => safeBase
-  let next (safety : DefinitionSafety) := (pre safety).addDefEqRules rules
   let cert : forall safety,
       CompletedBlockCertificate safety prodEnv (ves.venv safety) types ctors
         recursors rules outEnv (pre safety)
     | .unsafe => Hunsafe
     | .partial => Hpartial
     | .safe => Hsafe
+  let next (safety : DefinitionSafety) := (cert safety).finalVEnv
   let adds : forall safety,
       AddInduct safety prodEnv.constants (ves.venv safety) decl
         outEnv.constants (next safety)
-    | .unsafe => HunsafeAdd
-    | .partial => HpartialAdd
-    | .safe => HsafeAdd
+    | .unsafe => by
+        simpa [next, cert, CompletedBlockCertificate.finalVEnv,
+          hunsafeProjections] using HunsafeAdd
+    | .partial => by
+        simpa [next, cert, CompletedBlockCertificate.finalVEnv,
+          hpartialProjections] using HpartialAdd
+    | .safe => by
+        simpa [next, cert, CompletedBlockCertificate.finalVEnv,
+          hsafeProjections] using HsafeAdd
   let outputLE : forall safety,
-      outBase.addDefEqRules rules <= (pre safety).addDefEqRules rules
-    | .unsafe => hunsafeLE
-    | .partial => hpartialLE
-    | .safe => hsafeLE
+      H.finalVEnv <= (cert safety).finalVEnv
+    | .unsafe => by
+        simpa [cert, CompletedBlockCertificate.finalVEnv,
+          hunsafeProjections] using hunsafeLE
+    | .partial => by
+        simpa [cert, CompletedBlockCertificate.finalVEnv,
+          hpartialProjections] using hpartialLE
+    | .safe => by
+        simpa [cert, CompletedBlockCertificate.finalVEnv,
+          hsafeProjections] using hsafeLE
   have formationPrimitives (safety : DefinitionSafety) :
       (cert safety).staged.venvCtors.HasPrimitives := by
     rcases hconstants with hbool | hnat
@@ -237,50 +250,33 @@ theorem CompletedBlockCertificate.extendSafePrimitive
       exact VEnv.addConstVals_append
         (cert safety).staged.abstract_types
         (cert safety).staged.abstract_ctors
-  rcases wf.extendInduct decl next adds H.staged.quotInit_eq
-      (fun safety => hasPrimitives_addDefEqs
-        ((cert safety).staged.recursorsAdded.hasPrimitives
-          (formationPrimitives safety)) rules)
+  rcases wf.extendInductExact decl next adds H.staged.quotInit_eq
+      (fun safety =>
+        hasPrimitives_addDefEqs
+          ((cert safety).staged.recursorsAdded.hasPrimitives
+            (formationPrimitives safety).addProjections)
+          rules)
       hsafePrimitives hclosed hconstructorOwners
       (fun safety => H.replaySafeConstructorSemantics (cert safety)
         (wf.tr (safety := safety)).map_wf
         (wf.constructorSemantics (safety := safety)) hconstructorSemantics
         (outputLE safety))
-      (fun {safety safety'} hle =>
-        VInductBlock.install_mono (wf.mono hle)
-          (cert safety').install (cert safety).install) with
-    ⟨ves', wf', hle⟩
-  exact ⟨ves', wf', hle⟩
-
-/-- Canonical-Eq compatibility adapter for declarations processed after the
-bootstrap equality family has already been established. -/
-theorem CompletedBlockCertificate.extendSafePrimitiveOfQuotReady
-    {ves : VEnvs} {decl : VInductDecl}
-    (H : CompletedBlockCertificate .safe prodEnv (ves.venv .safe) types ctors
-      recursors rules outEnv outBase)
-    (wf : ves.WF prodEnv)
-    (hEq : CanonicalEqEnvs ves)
-    (hconstants : types.map Prod.snd ++ ctors.map Prod.snd =
-        primitiveBoolConstants \/
-      types.map Prod.snd ++ ctors.map Prod.snd = primitiveNatConstants)
-    (hdecl : decl.WF (ves.venv .safe))
-    (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
-    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
-      decl)
-    (hsafePrimitives : forall {n ci}, outEnv.find? n = some ci ->
-      Environment.primitives.contains n ->
-      ci.safety = .safe /\ ci.levelParams = [])
-    (hclosed : MutualInductivesClosed outEnv)
-    (hconstructorOwners : ConstructorOwnersPresent outEnv)
-    (hconstructorSemantics :
-      InductiveConstructorsSemanticallyCoherent .safe outEnv
-        (outBase.addDefEqRules rules)) :
-    exists ves' : VEnvs, ves'.WF outEnv /\ CanonicalEqEnvs ves' /\
-      forall safety, ves.venv safety <= ves'.venv safety := by
-  rcases H.extendSafePrimitive wf hconstants hdecl hcompile horigins
-      hsafePrimitives hclosed
-      hconstructorOwners hconstructorSemantics with ⟨ves', wf', hle⟩
-  exact ⟨ves', wf', hEq.mono hle, hle⟩
+      (fun {safety safety'} hle => by
+        have hprojections : (cert safety').projections =
+            (cert safety).projections := by
+          cases safety <;> cases safety' <;>
+            simp only [cert, hunsafeProjections, hpartialProjections,
+              hsafeProjections]
+        have hblock : (cert safety').block = (cert safety).block :=
+          (cert safety').block_eq_of_projections_eq (cert safety) hprojections
+        have hinstall := (cert safety').install
+        rw [hblock] at hinstall
+        exact VInductBlock.install_mono (wf.mono hle)
+          hinstall (cert safety).install) with
+    ⟨ves', wf', hle, hexact⟩
+  refine ⟨ves', wf', hle, ?_⟩
+  rw [hexact .safe]
+  exact (adds .safe).toVEnv
 
 /-- Primitive installation preserves the bootstrap phase invariant: before
 `Eq`, the exact Bool/Nat batch leaves it absent; after `Eq`, monotonicity
@@ -307,20 +303,19 @@ theorem CompletedBlockCertificate.extendSafePrimitiveEqReadyOrAbsent
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
-        (outBase.addDefEqRules rules)) :
+        H.finalVEnv) :
     exists ves' : VEnvs, ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
       forall safety, ves.venv safety <= ves'.venv safety := by
   rcases hEq with habsent | hcanonical
   · have houtAbsent := hpreserveAbsent habsent
-    rcases H.extendSafePrimitive wf hconstants hdecl hcompile horigins
+    rcases H.extendSafePrimitiveExact wf hconstants hdecl hcompile horigins
         hsafePrimitives hclosed hconstructorOwners hconstructorSemantics with
-      ⟨ves', wf', hle⟩
+      ⟨ves', wf', hle, _hadd⟩
     exact ⟨ves', wf', Or.inl houtAbsent, hle⟩
-  · rcases H.extendSafePrimitiveOfQuotReady wf hcanonical hconstants hdecl
-        hcompile horigins hsafePrimitives hclosed hconstructorOwners
-        hconstructorSemantics with
-      ⟨ves', wf', hcanonical', hle⟩
-    exact ⟨ves', wf', Or.inr hcanonical', hle⟩
+  · rcases H.extendSafePrimitiveExact wf hconstants hdecl hcompile horigins
+        hsafePrimitives hclosed hconstructorOwners hconstructorSemantics with
+      ⟨ves', wf', hle, _hadd⟩
+    exact ⟨ves', wf', Or.inr (hcanonical.mono hle), hle⟩
 
 /-- The shared completed-constructor boundary still determines the exact
 canonical primitive constant batch from its source translation. -/
@@ -362,20 +357,24 @@ theorem CompletedRecursorPhasesResult.outValid
     CheckingEnv.Valid H.localContext.safety outEnv H.outVEnv := by
   apply H.installed.valid
   rw [H.localExtends.safety_eq, H.localExtends.env_eq]
-  exact R.context.checking
+  exact R.projectedChecking
 
 /-- A successful primitive Bool/Nat run extends the complete environment
 model without any premise about the bootstrap state of `Eq`. -/
-theorem SemanticPrimitiveRunWithStatsResult.extendSafe
+theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
     {ves : VEnvs}
     (Hrun : SemanticPrimitiveRunWithStatsResult c stats nparams depth
       (ves.venv .safe) indTypes (c.safety != .safe) outEnv)
     (wf : ves.WF c.env)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       (c.safety != .safe)) :
-    exists decl : VInductDecl, exists ves' : VEnvs,
+    exists ves' : VEnvs, exists decl : VInductDecl,
+      exists envTypes envCtors : VEnv,
       ves'.WF outEnv /\
-      forall safety, ves.venv safety <= ves'.venv safety := by
+      (forall safety, ves.venv safety <= ves'.venv safety) /\
+      TrInductDeclCore (ves.venv .safe) c.lparams nparams indTypes.toList
+        (c.safety != .safe) decl envTypes envCtors /\
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
   rcases Hrun with ⟨decl, _ctorEnv, R, ⟨Hrecursors⟩⟩
   have hsafety : c.safety = .safe := by
     have hnotUnsafe : (c.safety != .safe) = false := Hshape.2.2.1
@@ -386,10 +385,9 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafe
     · simp [hnat]
   rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
   let Hcert0 := Hrecursors.blockCertificate T.rules T.rulesWF
-  have Hcert : CompletedBlockCertificate .safe c.env (ves.venv .safe)
-      R.headerEntries R.constructorEntries Hrecursors.entries T.rules
-      outEnv Hrecursors.outVEnv := by
-    simpa [Hcert0, hsafety] using Hcert0
+  let Hcert := Hcert0.sf_mono (safety := .safe) (by
+    rw [hsafety]
+    exact DefinitionSafety.le_rfl)
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       R.core
@@ -397,7 +395,8 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafe
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) Hcert.block := by
-    simpa only [CompletedBlockCertificate.block] using
+    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
+      CompletedBlockCertificate.block] using
       T.compilation.compilesTo
   have hconstants := R.primitiveAbstractConstants Hshape
   have HvalidOut := Hrecursors.outValid
@@ -405,15 +404,17 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafe
     Hrecursors.localExtends.safety_eq.trans hsafety
   rw [hlocalSafety] at HvalidOut
   have Hsemantics : InductiveConstructorsSemanticallyCoherent .safe outEnv
-      (Hrecursors.outVEnv.addDefEqRules T.rules) :=
+      Hcert.finalVEnv := by
+    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
+      CompletedBlockCertificate.finalVEnv] using
     Hrecursors.completedConstructorSemantics
       (wf.constructorSemantics (safety := .safe)) T.rules
-  rcases Hcert.extendSafePrimitive wf hconstants hdecl hcompile
+  rcases Hcert.extendSafePrimitiveExact wf hconstants hdecl hcompile
       Hrecursors.productionInductiveOrigins HvalidOut.safePrimitives
       Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics with
-    ⟨ves', wf', hle⟩
-  exact ⟨decl, ves', wf', hle⟩
+    ⟨ves', wf', hle, hadd⟩
+  exact ⟨ves', decl, R.headerVEnv, R.context.venv, wf', hle, R.core, hadd⟩
 
 /-- A skeleton-free semantic primitive run now reaches the final
 safety-indexed environment boundary, not merely a single abstract
@@ -438,10 +439,9 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
     · simp [hnat]
   rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
   let Hcert0 := Hrecursors.blockCertificate T.rules T.rulesWF
-  have Hcert : CompletedBlockCertificate .safe c.env (ves.venv .safe)
-      R.headerEntries R.constructorEntries Hrecursors.entries T.rules
-      outEnv Hrecursors.outVEnv := by
-    simpa [Hcert0, hsafety] using Hcert0
+  let Hcert := Hcert0.sf_mono (safety := .safe) (by
+    rw [hsafety]
+    exact DefinitionSafety.le_rfl)
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
       R.core
@@ -449,7 +449,8 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) Hcert.block := by
-    simpa only [CompletedBlockCertificate.block] using
+    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
+      CompletedBlockCertificate.block] using
       T.compilation.compilesTo
   have hconstants := R.primitiveAbstractConstants Hshape
   have HvalidOut := Hrecursors.outValid
@@ -457,7 +458,9 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
     Hrecursors.localExtends.safety_eq.trans hsafety
   rw [hlocalSafety] at HvalidOut
   have Hsemantics : InductiveConstructorsSemanticallyCoherent .safe outEnv
-      (Hrecursors.outVEnv.addDefEqRules T.rules) :=
+      Hcert.finalVEnv := by
+    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
+      CompletedBlockCertificate.finalVEnv] using
     Hrecursors.completedConstructorSemantics
       (wf.constructorSemantics (safety := .safe)) T.rules
   have hpreserveAbsent : c.env.constants.find? ``Eq = none →
@@ -480,22 +483,6 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics with
     ⟨ves', wf', hEq', hle⟩
   exact ⟨decl, ves', wf', hEq', hle⟩
-
-/-- Compatibility adapter for callers already past the canonical `Eq`
-bootstrap declaration. -/
-theorem SemanticPrimitiveRunWithStatsResult.extendSafeOfQuotReady
-    (Hrun : SemanticPrimitiveRunWithStatsResult c stats nparams depth
-      (ves.venv .safe) indTypes (c.safety != .safe) outEnv)
-    (wf : ves.WF c.env)
-    (hEq : CanonicalEqEnvs ves)
-    (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
-      (c.safety != .safe)) :
-    exists decl : VInductDecl, exists ves' : VEnvs,
-      ves'.WF outEnv /\ CanonicalEqEnvs ves' /\
-      forall safety, ves.venv safety <= ves'.venv safety := by
-  rcases Hrun.extendSafeEqReadyOrAbsent wf (Or.inr hEq) Hshape with
-    ⟨decl, ves', wf', _hEq', hle⟩
-  exact ⟨decl, ves', wf', hEq.mono hle, hle⟩
 
 /-- Declaration-facing source alignment lets the completed semantic result
 consume the caller's exact safety-indexed source model. -/
@@ -520,42 +507,6 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeEqRea
     simpa [hvenv, hsafety] using Hphases
   have hEq' : EqReadyOrAbsent c'.env ves := by simpa [henv] using hEq
   exact Hphases'.extendSafeEqReadyOrAbsent wf' hEq' Hshape'
-
-/-- Source-aligned primitive refinement without an equality-bootstrap
-premise. -/
-theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafe
-    {ves : VEnvs}
-    (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
-      (ves.venv .safe) nparams types numNested outEnv)
-    (wf : ves.WF source.env) :
-    exists decl : VInductDecl, exists ves' : VEnvs,
-      ves'.WF outEnv /\
-      forall safety, ves.venv safety <= ves'.venv safety := by
-  rcases Hrun with
-    ⟨c', stats, depth, _commonParams, _commonLevel, Hc', henv, hsafety,
-      _hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hshape,
-      Hphases⟩
-  have wf' : ves.WF c'.env := by simpa [henv] using wf
-  have Hshape' : PrimitiveInductiveShape c'.lparams nparams
-      types.toArray.toList (c'.safety != .safe) := by
-    simpa [hsafety] using Hshape
-  have Hphases' : SemanticPrimitiveRunWithStatsResult c' stats nparams depth
-      (ves.venv .safe) types.toArray (c'.safety != .safe) outEnv := by
-    simpa [hvenv, hsafety] using Hphases
-  exact SemanticPrimitiveRunWithStatsResult.extendSafe Hphases' wf' Hshape'
-
-/-- Compatibility adapter for source-aligned callers already past `Eq`. -/
-theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeOfQuotReady
-    (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
-      (ves.venv .safe) nparams types numNested outEnv)
-    (wf : ves.WF source.env)
-    (hEq : CanonicalEqEnvs ves) :
-    exists decl : VInductDecl, exists ves' : VEnvs,
-      ves'.WF outEnv /\ CanonicalEqEnvs ves' /\
-      forall safety, ves.venv safety <= ves'.venv safety := by
-  rcases Hrun.extendSafeEqReadyOrAbsent wf (Or.inr hEq) with
-    ⟨decl, ves', wf', _hEq', hle⟩
-  exact ⟨decl, ves', wf', hEq.mono hle, hle⟩
 
 /-- The executable primitive checker reaches the final safety-indexed model
 whenever its verified checking context is the caller's safe source model. -/
@@ -605,32 +556,20 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
     have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
         c (ves.venv .safe) nparams types numNested outEnv := by
       simpa [hsource] using Hresult
-    exact
-      VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafe
-        Hresult' wf
-
-/-- Compatibility adapter for executable primitive runs after canonical
-equality is available. -/
-theorem AddInductive.run.primitiveFinalEnvironmentWF
-    (nparams numNested : Nat)
-    (Hc : ContextWF c)
-    (wf : ves.WF c.env)
-    (hsource : Hc.venv = ves.venv .safe)
-    (hEq : CanonicalEqEnvs ves)
-    (Hshape : PrimitiveInductiveShape c.lparams nparams
-      types.toArray.toList (c.safety != .safe))
-    (hctx : Hc.mlctx.vlctx = [])
-    (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
-    (AddInductive.run nparams types numNested c).WF fun outEnv =>
-      exists decl : VInductDecl, exists ves' : VEnvs,
-        ves'.WF outEnv /\ CanonicalEqEnvs ves' /\
-        forall safety, ves.venv safety <= ves'.venv safety := by
-  have Hrun := AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF
-    nparams numNested Hc wf hsource (Or.inr hEq) Hshape hctx
-    hnonempty HnotPartial
-  exact Hrun.mono fun _ ⟨decl, ves', wf', _hEq', hle⟩ =>
-    ⟨decl, ves', wf', hEq.mono hle, hle⟩
+    rcases Hresult' with
+      ⟨c', stats, depth, _commonParams, _commonLevel, _Hc', henv, hsafety,
+        _hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hshape',
+        Hphases⟩
+    have wf' : ves.WF c'.env := by simpa [henv] using wf
+    have Hshape'' : PrimitiveInductiveShape c'.lparams nparams
+        types.toArray.toList (c'.safety != .safe) := by
+      simpa [hsafety] using Hshape'
+    have Hphases' : SemanticPrimitiveRunWithStatsResult c' stats nparams depth
+        (ves.venv .safe) types.toArray (c'.safety != .safe) outEnv := by
+      simpa [hvenv, hsafety] using Hphases
+    rcases Hphases'.extendSafeExact wf' Hshape'' with
+      ⟨ves', decl, _envTypes, _envCtors, wf'', hle, _source, _hadd⟩
+    exact ⟨decl, ves', wf'', hle⟩
 
 end VerifyInductive
 end Lean4Lean

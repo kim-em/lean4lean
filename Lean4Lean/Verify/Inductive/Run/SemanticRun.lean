@@ -251,8 +251,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
           hlparams, hallowPrimitive, hfuel, hvenv, Hsemantic, Hrun⟩
   simpa [AddInductive.run] using Hcombined
 
-/-- Compatibility adapter for ordinary consumers that do not need to retain
-the exact source verification environment. -/
+/-- Project an ordinary run to its declaration-level semantic result. -/
 theorem AddInductive.run.semanticWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)

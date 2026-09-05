@@ -140,6 +140,12 @@ theorem eval_inst {l : VLevel} : (l.inst ls).eval ns = l.eval (ls.map (eval ns))
   induction l <;> simp [eval, inst, *, List.getD_eq_getElem?_getD]
   case param n => cases ls[n]? <;> simp [eval]
 
+theorem IsNeverZero.inst {l : VLevel} (H : IsNeverZero l) :
+    IsNeverZero (l.inst ls) := by
+  intro ns
+  rw [eval_inst]
+  exact H _
+
 theorem WF.inst {l : VLevel} (H : ∀ l ∈ ls, l.WF n) : (l.inst ls).WF n := by
   induction l with
   | zero => trivial

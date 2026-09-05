@@ -13,7 +13,8 @@ theorem NestedFinalEnvironmentResult.hasIndependentSpecification
     (H : NestedFinalEnvironmentResult sourceEnv decl lparams nparams
       sourceTypes isUnsafe safety outEnv) :
     Nonempty (InductiveSpecificationResult sourceEnv lparams nparams
-      sourceTypes isUnsafe) :=
+      sourceTypes isUnsafe
+        (H.baseVEnv.addDefEqRules H.rules)) :=
   ⟨H.independentSpecification⟩
 
 end VerifyInductive

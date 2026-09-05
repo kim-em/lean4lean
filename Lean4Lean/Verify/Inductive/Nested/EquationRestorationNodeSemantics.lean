@@ -89,7 +89,7 @@ theorem NestedRestoredNodeBehavior.recursor
   have Htarget := node.targetTranslation
   rw [hinput] at Hsource
   rw [houtput] at Htarget
-  rcases translatedRecursorEndpoints Hsource.toTrExprS Htarget.toTrExprS with
+  rcases translatedRecursorEndpoints Hsource Htarget with
     ⟨abstractLevels, hsource, htarget⟩
   exact ⟨Or.inl ⟨oldName, newName, abstractLevels, hprovenance,
     hfind, hsource, htarget⟩⟩

@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Verify.Inductive.Recursor.Telescope
-import Lean4Lean.Verify.Typing.CheckedProjectionExpr
+import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Inductive.Add
 
 namespace Lean4Lean
@@ -10,12 +10,12 @@ open Kernel
 
 namespace VerifyInductive
 
-/-! # Concrete guarded-iota syntax and checked translation
+/-! # Concrete guarded-iota syntax and strict translation
 
 This is the source-language counterpart of `VExpr.GuardedIota`.  It is kept
 deliberately syntax-directed so the restored-rule validation pass can decide
 it on the literal `Lean.Expr` stored in a `RecursorRule`.  The soundness
-theorem below passes primitive projections through `CheckedTrProj` and its
+theorem below passes primitive projections through `TrProj` and its
 environment-indexed support expansion; it does not use a global projection
 preservation property. -/
 
@@ -148,21 +148,18 @@ same abstract field application. -/
 theorem ConcreteIsFieldApp.translate
     (Hidentity : ConcreteBVarIdentity Delta)
     (Hfield : ConcreteIsFieldApp fieldVars depth expression)
-    (Htranslation : CheckedTrExprS env Us Delta expression target) :
+    (Htranslation : TrExprS env Us Delta expression target) :
     target.IsFieldApp fieldVars depth := by
   rcases Hfield with ⟨field, hfield, args, hhead, _hargs⟩
-  rcases TrExprS.bvarAppSpine Hidentity Htranslation.toTrExprS hhead with
+  rcases TrExprS.bvarAppSpine Hidentity Htranslation hhead with
     ⟨targetArgs, htarget, _⟩
   exact ⟨field, hfield, targetArgs, htarget⟩
 
-/-- Soundness of concrete guardedness through the environment-indexed
-checked translation.  Projection nodes use the exact certified expansion
-attached to `CheckedTrProj`; administrative eliminator syntax is never
-claimed to preserve raw constant occurrence. -/
+/-- Soundness of concrete guardedness through strict translation. -/
 theorem ConcreteGuardedIota.translate
     (Hguard : ConcreteGuardedIota recursors fieldVars depth expression)
     (Hidentity : ConcreteBVarIdentity Delta)
-    (Htranslation : CheckedTrExprS env Us Delta expression target) :
+    (Htranslation : TrExprS env Us Delta expression target) :
     target.GuardedIota recursors fieldVars depth := by
   induction Hguard generalizing Delta target with
   | bvar =>
@@ -189,12 +186,12 @@ theorem ConcreteGuardedIota.translate
   | proj _ ih =>
       cases Htranslation
       rename_i majorTarget projectionTarget _ Hprojection
-      exact .projection Hprojection.supportExpansion
-        (ih Hidentity (by assumption))
+      cases Hprojection
+      exact .proj (ih Hidentity (by assumption))
   | @recCall callDepth recursor levels init major recursor_mem
       arguments_guarded major_is_field ihArguments =>
-      have Hlegacy := Htranslation.toTrExprS
-      rcases checkPositivityStep.TrExprS.mkAppList_inv Hlegacy with
+      have Hstrict := Htranslation
+      rcases checkPositivityStep.TrExprS.mkAppList_inv Hstrict with
         ⟨headTarget, targetArgs, Hhead, Hargs, rfl⟩
       cases Hhead with
       | const _ hlevels _ =>
@@ -206,11 +203,11 @@ theorem ConcreteGuardedIota.translate
           · rcases Lean4Lean.List.Forall₂.forall_exists_r Hinit argument hinit with
               ⟨source, hsource, Hsource⟩
             exact ihArguments source (by simp [hsource]) Hidentity
-              Hsource.toChecked
+              Hsource
           · simp only [List.mem_singleton] at hmajor
             subst argument
-            exact ihArguments major (by simp) Hidentity Hmajor.toChecked
-        · exact major_is_field.translate Hidentity Hmajor.toChecked
+            exact ihArguments major (by simp) Hidentity Hmajor
+        · exact major_is_field.translate Hidentity Hmajor
 
 /-- Concrete analogue of `VExpr.GuardedRuleRhs`, separating the closed rule
 telescope from the residual iota body. -/
@@ -226,7 +223,7 @@ inductive ConcreteGuardedRuleRhs (recursors : List Name)
 theorem ConcreteGuardedRuleRhs.translate
     (Hguard : ConcreteGuardedRuleRhs recursors fieldVars expression)
     (Hidentity : ConcreteBVarIdentity Delta)
-    (Htranslation : CheckedTrExprS env Us Delta expression target) :
+    (Htranslation : TrExprS env Us Delta expression target) :
     target.GuardedRuleRhs recursors := by
   induction Hguard generalizing Delta target with
   | body Hbody =>
@@ -238,10 +235,7 @@ theorem ConcreteGuardedRuleRhs.translate
         (Hdomain.translate Hidentity (by assumption))
         (ih (Hidentity.consLam _) (by assumption))
 
-/-- Soundness of the terminating executable predicate.  This theorem is the
-bridge used by final assembly: a successful boolean result constructs the
-concrete guarded syntax tree, which `ConcreteGuardedIota.translate` then
-interprets through the checked expression/projection translation. -/
+/-- Soundness of the terminating executable guardedness predicate. -/
 theorem validateRestoredRecursorRules.guardedIotaCheck_sound
     (hcheck : Lean4Lean.validateRestoredRecursorRules.guardedIotaCheck
       recursors fieldVars fuel depth expression = true) :
@@ -1067,7 +1061,7 @@ theorem validateRestoredRecursorRules.primaryRuleShape_of_check
         recursive_results := by simpa using hresults }⟩
 
 /-- Abstract RHS spine forced by the executable primary-rule shape check and
-the checked translation of its exact residual. -/
+the strict translation of its exact residual. -/
 structure validateRestoredRecursorRules.CanonicalPrimaryRhsSpine
     (shape : validateRestoredRecursorRules.PrimaryRuleShapeCertificate
       recInfo sourceRecursors sourceRule restoredRule)
@@ -1310,12 +1304,11 @@ theorem validateRestoredRecursorRules.guardedResidual_of_checkGuardedWithFields
       hdomains Htranslation
     exact Hconcrete.translate
       (ConcreteBVarIdentity.abstractForallContext domains)
-      Hresidual.toChecked
+      Hresidual
   next => simp at hcheck
 
 /-- End-to-end soundness of the executable guard pass for a closed strict
-translation.  The field-variable witness is computed from the literal rule,
-and projection support comes exclusively from the checked translation. -/
+translation. -/
 theorem validateRestoredRecursorRules.guarded_of_checkGuarded
     (hcheck : Lean4Lean.validateRestoredRecursorRules.checkGuarded recursors
       expression = .ok ())
@@ -1326,7 +1319,7 @@ theorem validateRestoredRecursorRules.guarded_of_checkGuarded
   split at hcheck
   next hguarded =>
     exact (validateRestoredRecursorRules.guardedRuleCheck_sound hguarded).translate
-      ConcreteBVarIdentity.nil Htranslation.toChecked
+      ConcreteBVarIdentity.nil Htranslation
   next => simp at hcheck
 
 end VerifyInductive

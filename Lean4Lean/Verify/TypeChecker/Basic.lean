@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Environment.Lemmas
 import Lean4Lean.Verify.Typing.ConditionallyTyped
-import Lean4Lean.Verify.Typing.ProjectionReadiness
 import Lean4Lean.TypeChecker
 
 namespace Except
@@ -57,7 +56,8 @@ inductive IsDefEqE : Expr → Expr → Prop
   | letE : IsDefEqE t₁ t₂ → IsDefEqE v₁ v₂ → IsDefEqE b₁ b₂ →
     IsDefEqE (.letE _ t₁ v₁ b₁ _) (.letE _ t₂ v₂ b₂ _)
   | mdata : IsDefEqE e₁ e₂ → IsDefEqE (.mdata _ e₁) (.mdata _ e₂)
-  | proj : IsDefEqE e₁ e₂ → IsDefEqE (.proj _ i e₁) (.proj _ i e₂)
+  | proj : IsDefEqE e₁ e₂ →
+      IsDefEqE (.proj typeName i e₁) (.proj typeName i e₂)
 
 theorem IsDefEqE.symm (H1 : IsDefEqE env Us Δ e₁ e₂) : IsDefEqE env Us Δ e₂ e₁ := by
   induction H1 with
@@ -300,12 +300,36 @@ structure VContext extends Context where
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx
 
+def VContext.Projectable (c : VContext) : Prop :=
+  ProjectionRegistryCoherent c.safety c.env.constants c.venv
+
 @[simp] abbrev VContext.lctx' (c : VContext) := c.mlctx.lctx
 @[simp] abbrev VContext.vlctx (c : VContext) := c.mlctx.vlctx
 
 theorem VContext.trlctx (c : VContext) : TrLCtx c.venv c.lparams c.lctx' c.vlctx := c.mlctx_wf.tr
 theorem VContext.Ewf (c : VContext) : VEnv.WF c.venv := c.trenv.wf
 theorem VContext.Δwf (c : VContext) : c.vlctx.WF c.venv c.lparams.length := c.trlctx.wf
+
+theorem VContext.Projectable.projectionAlignment
+    {c : VContext} (H : c.Projectable)
+    (hfamily : c.env.find? familyName = some (.inductInfo familyInfo))
+    (habstract : c.venv.constants familyName = some familyConstant)
+    (hsingle : familyInfo.ctors = [constructorName])
+    (hconstructor : c.env.find? constructorName =
+      some (.ctorInfo constructorInfo)) :
+    Nonempty (ProjectionRegistryAlignmentAt c.env.constants c.venv familyName
+      familyInfo constructorName) := by
+  have hfamilyMap : c.env.constants.find? familyName =
+      some (.inductInfo familyInfo) := by
+    rwa [← c.trenv.map_wf.find?'_eq_find?]
+  have hconstructorMap : c.env.constants.find? constructorName =
+      some (.ctorInfo constructorInfo) := by
+    rwa [← c.trenv.map_wf.find?'_eq_find?]
+  have hvisible : c.safety ≤
+      (ConstantInfo.inductInfo familyInfo).safety :=
+    (c.trenv.find?_uniq hfamily habstract).2.1
+  exact H familyName familyInfo constructorName constructorInfo hfamilyMap
+    hvisible hsingle hconstructorMap
 
 nonrec abbrev VContext.TrExprS (c : VContext) : Expr → VExpr → Prop :=
   TrExprS c.venv c.lparams c.vlctx
@@ -321,10 +345,6 @@ nonrec abbrev VContext.TrLCtx (c : VContext) : Prop :=
   TrLCtx c.venv c.lparams c.lctx' c.vlctx
 nonrec abbrev VContext.FVarsBelow (c : VContext) : Expr → Expr → Prop :=
   FVarsBelow c.vlctx
-nonrec abbrev VContext.ProjectionNameReady (c : VContext) : Name → Prop :=
-  VerifyInductive.ProjectionNameReady c.safety c.env.constants c.venv
-nonrec abbrev VContext.ProjectionsReady (c : VContext) : Expr → Prop :=
-  VerifyInductive.ProjectionsReady c.safety c.env.constants c.venv
 nonrec abbrev VContext.TrTyping (c : VContext) : Expr → Expr → VExpr → VExpr → Prop :=
   TrTyping c.venv c.lparams c.vlctx
 
@@ -540,6 +560,10 @@ untouched, so judgements stated at `c` and at `c.withMLC m` are interchangeable.
     (c.withMLC m).lparams = c.lparams := rfl
 @[simp] theorem VContext.withMLC_mlctx (c : VContext) (m) [c.MLCWF m] :
     (c.withMLC m).mlctx = m := rfl
+
+theorem VContext.Projectable.withMLC
+    {c : VContext} (H : c.Projectable) (m : MLCtx) [c.MLCWF m] :
+    (c.withMLC m).Projectable := H
 
 def VState.next (s : VState) : VState := { s with ngen := s.ngen.next }
 

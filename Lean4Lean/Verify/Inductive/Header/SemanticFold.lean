@@ -888,8 +888,7 @@ theorem checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
   · rfl
   · rfl
 
-/-- Compatibility adapter for consumers that do not need exact alignment
-with the source verification environment. -/
+/-- Project header accumulation to its semantic result. -/
 theorem checkInductiveTypes.accumulatesSemanticHeaders
     {c : AddInductive.Context} {indTypes : Array InductiveType}
     {nparams : Nat} {alpha : Type}

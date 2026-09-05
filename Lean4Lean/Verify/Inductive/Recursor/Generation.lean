@@ -1172,8 +1172,9 @@ theorem AddInductive.declareRecursors.checkRecursorTypes.translationsWF
         (AddInductive.getRecLevelParams elimLevel lparams).length [] type := by
       simpa [info, AddInductive.declareRecursors.recursorInfo] using HisType
     refine (AddInductive.declareRecursors.checkRecursorTypes.translationsWF
-      Hvalid stats indTypes elimLevel recInfos numMinors numMotives all lctx k
-      isUnsafe lparams (dIdx + 1)).mono fun _ Htail owner hdone howner => ?_
+      Hvalid stats indTypes elimLevel recInfos numMinors numMotives
+      all lctx k isUnsafe lparams (dIdx + 1)).mono
+        fun _ Htail owner hdone howner => ?_
     by_cases heq : owner = dIdx
     · subst owner
       exact ⟨type, Htype', HisType'⟩
@@ -1201,8 +1202,8 @@ theorem AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslation
       fun _ => RecursorTypeTranslations venv lparams elimLevel
         { c with lctx := lctx } stats indTypes recInfos := by
   refine (AddInductive.declareRecursors.checkRecursorTypes.translationsWF
-    Hvalid stats indTypes elimLevel recInfos numMinors numMotives all lctx k
-    isUnsafe lparams 0).mono fun _ Hall => ?_
+    Hvalid stats indTypes elimLevel recInfos numMinors numMotives
+    all lctx k isUnsafe lparams 0).mono fun _ Hall => ?_
   exact {
     notPartial := hnotPartial
     typeAt := fun owner howner => Hall owner (Nat.zero_le _) howner }
@@ -1895,6 +1896,7 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
     (block : VInductBlock)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
+    (hprojections : block.projections = decl.projectionEntries)
     (hrecursors : block.recursors = entries.map Prod.snd)
     (hrules : IotaCertificate envCtors decl block)
     (hnames : List.Nodup
@@ -1903,6 +1905,7 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
   refine {
     types := htypes
     ctors := hctors
+    projections := hprojections
     recursors := ?_
     rules := ⟨envTypes, envCtors, by simpa [htypes] using Hdecl.typesAdded,
       by simpa [hctors] using Hdecl.ctorsAdded, hrules⟩
@@ -1928,6 +1931,7 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate_ofRuleBuild
     (block : VInductBlock)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
+    (hprojections : block.projections = decl.projectionEntries)
     (hrecursors : block.recursors = entries.map Prod.snd)
     (Hrules : IotaBuildCertificate envCtors decl block block.rules)
     (hrulesLength : block.rules.length = decl.ownedConstructors.length)
@@ -1935,7 +1939,8 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate_ofRuleBuild
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
     OrdinaryCompilationCertificate sourceEnv decl block :=
   H.ordinaryCompilationCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl
-    block htypes hctors hrecursors (Hrules.completeBlock hrulesLength) hnames
+    block htypes hctors hprojections hrecursors
+    (Hrules.completeBlock hrulesLength) hnames
 
 /-- Nested restoration reuses the verified primary recursor traversal and
 adds only the separately audited auxiliary-name/guardedness suffix. -/
@@ -1959,6 +1964,7 @@ def GeneratedRecursors.nestedCompilationCertificate
       auxRecursors auxiliaryRules)
     (htypes : block.types = decl.typeConstants)
     (hctors : block.ctors = decl.constructorConstants)
+    (hprojections : block.projections = decl.projectionEntries)
     (hrecursors : block.recursors =
       entries.map Prod.snd ++ auxRecursors)
     (hrules : block.rules = primaryRules ++ auxiliaryRules)
@@ -1971,6 +1977,7 @@ def GeneratedRecursors.nestedCompilationCertificate
   types_source := htypesSource
   types := htypes
   ctors := hctors
+  projections := hprojections
   envTypes := envTypes
   envCtors := envCtors
   types_added := by simpa [htypes] using Hdecl.typesAdded

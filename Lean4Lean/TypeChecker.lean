@@ -229,184 +229,34 @@ def getSortLevel (e : Expr) : RecM Level := do
 zero. -/
 def isProp (e : Expr) : RecM Bool := return (← getSortLevel e).isAlwaysZero
 
-/-- The concrete syntax retained by projection inference for subsequent
-canonical `.casesOn` expansion.  The raw parameter-instantiated constructor
-type and declared field count determine the complete field telescope, but are
-retained without traversing its suffix in the production checker. -/
-structure SingletonConstructor (constructors : List Name) where
-  name : Name
-  exact : constructors = [name]
+/-- Instantiate the common-parameter prefix of a constructor telescope. -/
+def instantiateProjectionParameters (type : Expr) (args : Array Expr) :
+    Nat → Nat → RecM (Option Expr)
+  | _, 0 => pure (some type)
+  | position, remaining + 1 => do
+    let .forallE _ _ body _ ← whnf type | return none
+    let some argument := args[position]? | return none
+    instantiateProjectionParameters (body.instantiate1 argument) args
+      (position + 1) remaining
 
-/-- Pure, proof-retaining form of the legacy singleton-constructor pattern.
-The equality field is erased at runtime; success and failure are exactly the
-same list-shape test. -/
-def singletonConstructor? :
-    (constructors : List Name) → Option (SingletonConstructor constructors)
-  | [name] => some ⟨name, rfl⟩
-  | _ => none
+/-- Instantiate the fields preceding a selected projection field. -/
+def instantiateProjectionFields (typeName : Name) (struct : Expr)
+    (maybePropType : Bool) : Expr → Nat → Nat → RecM (Option Expr)
+  | type, _, 0 => pure (some type)
+  | type, position, remaining + 1 => do
+    let .forallE _ domain body _ ← whnf type | return none
+    if body.hasLooseBVars then
+      if maybePropType then
+        unless ← isProp domain do return none
+      instantiateProjectionFields typeName struct maybePropType
+        (body.instantiate1 (.proj typeName position struct))
+        (position + 1) remaining
+    else
+      instantiateProjectionFields typeName struct maybePropType body
+        (position + 1) remaining
 
-/-- Exact successful execution trace for the common-parameter loop.  The
-proof object is erased; its indices retain every substitution performed by
-the production computation. -/
-inductive ProjectionParameterResult : List Expr → Expr → Type
-  | nil (constructorType : Expr) :
-      ProjectionParameterResult [] constructorType
-  | cons (argument : Expr) (arguments : List Expr)
-      (constructorType : Expr) (name : Name) (domain body : Expr)
-      (info : BinderInfo)
-      (tail : ProjectionParameterResult arguments
-        (body.instantiate1 argument)) :
-      ProjectionParameterResult (argument :: arguments) constructorType
-
-def ProjectionParameterResult.result :
-    ProjectionParameterResult arguments constructorType → Expr
-  | .nil constructorType => constructorType
-  | .cons _ _ _ _ _ _ _ tail => tail.result
-
-/-- Exact successful execution trace for the selected-field prefix loop. -/
-inductive ProjectionFieldResult (typeName : Name) (struct : Expr) :
-    Nat → Nat → Expr → Type
-  | nil (position : Nat) (type : Expr) :
-      ProjectionFieldResult typeName struct position 0 type
-  | dependent (position remaining : Nat) (type : Expr)
-      (name : Name) (domain body : Expr) (info : BinderInfo)
-      (tail : ProjectionFieldResult typeName struct (position + 1) remaining
-        (body.instantiate1 (.proj typeName position struct))) :
-      ProjectionFieldResult typeName struct position (remaining + 1) type
-  | independent (position remaining : Nat) (type : Expr)
-      (name : Name) (domain body : Expr) (info : BinderInfo)
-      (tail : ProjectionFieldResult typeName struct (position + 1) remaining
-        body) :
-      ProjectionFieldResult typeName struct position (remaining + 1) type
-
-def ProjectionFieldResult.result :
-    ProjectionFieldResult typeName struct position remaining type → Expr
-  | .nil _ type => type
-  | .dependent _ _ _ _ _ _ _ tail => tail.result
-  | .independent _ _ _ _ _ _ _ tail => tail.result
-
-/-- Positions at which the executable loop inserted a preceding primitive
-projection into a dependent field body. -/
-def ProjectionFieldResult.projectionPositions :
-    ProjectionFieldResult typeName struct position remaining type → List Nat
-  | .nil .. => []
-  | .dependent position _ _ _ _ _ _ tail =>
-      position :: tail.projectionPositions
-  | .independent _ _ _ _ _ _ _ tail => tail.projectionPositions
-
-/-- Truncate a successful selected-field trace to any earlier field.  This
-is the executable evidence used by the well-founded projection proof: a
-dependent step at position `p` can replay precisely the first `p` steps,
-without inspecting any later field. -/
-def ProjectionFieldResult.take
-    (trace : ProjectionFieldResult typeName struct position remaining type)
-    (count : Nat) (hcount : count ≤ remaining) :
-    ProjectionFieldResult typeName struct position count type :=
-  match count, trace with
-  | 0, _ => .nil position type
-  | count + 1, .dependent position remaining type name domain body info tail =>
-      .dependent position count type name domain body info
-        (tail.take count (Nat.le_of_succ_le_succ hcount))
-  | count + 1, .independent position remaining type name domain body info tail =>
-      .independent position count type name domain body info
-        (tail.take count (Nat.le_of_succ_le_succ hcount))
-
-structure ProjectionExpansion where
-  typeName : Name
-  index : Nat
-  struct : Expr
-  /-- The exact successful production family lookup.  Retaining it is pure:
-  the checker already inspected this value before selecting the singleton
-  constructor. -/
-  familyInfo : InductiveVal
-  /-- The weak-head-normal major type whose head and argument spine passed
-  the projection checks. -/
-  familyType : Expr
-  /-- Exact input type supplied by ordinary major inference. -/
-  sourceType : Expr
-  constructorName : Name
-  familySingle : familyInfo.ctors = [constructorName]
-  constructorInfo : ConstantInfo
-  familyLevels : List Level
-  params : List Expr
-  indices : List Expr
-  rawConstructorType : Expr
-  parameterResult : ProjectionParameterResult params rawConstructorType
-  constructorType : Expr
-  constructorType_eq : constructorType = parameterResult.result
-  fieldResult : ProjectionFieldResult typeName struct 0 index constructorType
-  numFields : Nat
-  selectedFieldType : Expr
-  selectedFieldType_eq : selectedFieldType = fieldResult.result
-
-/-- A projection inference result couples the legacy inferred type with the
-exact concrete data needed to construct its canonical eliminator expansion. -/
-structure ProjectionResult where
-  type : Expr
-  expansion : ProjectionExpansion
-
-structure ExactProjectionResult (typeName : Name) (index : Nat)
-    (struct structType : Expr) extends ProjectionResult where
-  typeName_eq : toProjectionResult.expansion.typeName = typeName
-  index_eq : toProjectionResult.expansion.index = index
-  struct_eq : toProjectionResult.expansion.struct = struct
-  sourceType_eq : toProjectionResult.expansion.sourceType = structType
-
-/-- Consume the common-parameter prefix of a constructor type. -/
-def instantiateProjectionParametersExact :
-    (arguments : List Expr) → (constructorType : Expr) →
-    (∀ {α}, RecM α) →
-      RecM (ProjectionParameterResult arguments constructorType)
-  | [], constructorType, _ => return .nil constructorType
-  | argument :: arguments, constructorType, fail => do
-      let .forallE name domain body info ← whnf constructorType
-        | fail
-      let tail ← instantiateProjectionParametersExact arguments
-        (body.instantiate1 argument) fail
-      return .cons argument arguments constructorType name domain body info tail
-
-def instantiateProjectionParameters
-    (arguments : List Expr) (constructorType : Expr)
-    (fail : ∀ {α}, RecM α) : RecM Expr := do
-  return (← instantiateProjectionParametersExact arguments
-    constructorType fail).result
-
-/-- Consume exactly the fields preceding the selected projection. -/
-def instantiateProjectionFieldsExact (typeName : Name) (index : Nat)
-    (struct : Expr) (maybePropType : Bool) (constructorTail : Expr)
-    (fail : ∀ {α}, RecM α) :
-    RecM (ProjectionFieldResult typeName struct 0 index constructorTail) :=
-  let rec loop (position remaining : Nat) (type : Expr) :
-      RecM (ProjectionFieldResult typeName struct position remaining type) :=
-    match remaining with
-    | 0 => return .nil position type
-    | remaining + 1 => do
-      let .forallE name domain body info ← whnf type
-        | fail
-      if body.hasLooseBVars then
-        if maybePropType then
-          unless ← isProp domain do
-            fail
-        let tail ← loop (position + 1) remaining
-          (body.instantiate1 (.proj typeName position struct))
-        return .dependent position remaining type name domain body info tail
-      else
-        let tail ← loop (position + 1) remaining body
-        return .independent position remaining type name domain body info tail
-  loop 0 index constructorTail
-
-def instantiateProjectionFields (typeName : Name) (index : Nat)
-    (struct : Expr) (maybePropType : Bool) (constructorTail : Expr)
-    (fail : ∀ {α}, RecM α) : RecM Expr := do
-  return (← instantiateProjectionFieldsExact typeName index struct maybePropType
-    constructorTail fail).result
-
-/-- Infer a structure projection while retaining the already-computed raw
-constructor metadata.  It performs exactly the legacy WHNF/type checks: no
-field after `index` is traversed or normalized. -/
-def inferProjResultExact (typeName : Name) (idx : Nat)
-    (struct structType : Expr) :
-    RecM (ExactProjectionResult typeName idx struct structType) := do
+/-- Infers the type of a structure projection. -/
+def inferProj (typeName : Name) (idx : Nat) (struct structType : Expr) : RecM Expr := do
   let e := Expr.proj typeName idx struct
   let type ← whnf structType
   type.withApp fun I args => do
@@ -415,369 +265,19 @@ def inferProjResultExact (typeName : Name) (idx : Nat)
   let .const I_name I_levels := I | fail
   if typeName != I_name then fail
   let .inductInfo I_val ← env.get I_name | fail
-  let some singleton := singletonConstructor? I_val.ctors | fail
-  let c := singleton.name
+  let [c] := I_val.ctors | fail
   if args.size != I_val.numParams + I_val.numIndices then fail
   let c_info ← env.get c
-  let rawConstructorType := c_info.instantiateTypeLevelParams I_levels
-  let parameterResult ← instantiateProjectionParametersExact
-    (args.toList.take I_val.numParams) rawConstructorType fail
-  let constructorType := parameterResult.result
+  let some afterParameters ← instantiateProjectionParameters
+      (c_info.instantiateTypeLevelParams I_levels) args 0 I_val.numParams
+    | fail
   let maybePropType := !(← getSortLevel type).isNeverZero
-  let fieldResult ← instantiateProjectionFieldsExact typeName idx struct maybePropType
-    constructorType fail
-  let r := fieldResult.result
-  let .forallE _ dom _ _ ← whnf r | fail
-  if maybePropType then if !(← isProp dom) then fail
-  let result : ProjectionResult := {
-    type := dom
-    expansion := {
-      typeName
-      index := idx
-      struct
-      familyInfo := I_val
-      familyType := type
-      sourceType := structType
-      constructorName := c
-      familySingle := singleton.exact
-      constructorInfo := c_info
-      familyLevels := I_levels
-      params := args.toList.take I_val.numParams
-      indices := args.toList.drop I_val.numParams
-      rawConstructorType
-      parameterResult
-      constructorType
-      constructorType_eq := rfl
-      fieldResult
-      numFields := match c_info with
-        | .ctorInfo ctorInfo => ctorInfo.numFields
-        | _ => 0
-      selectedFieldType := r
-      selectedFieldType_eq := rfl } }
-  return {
-    toProjectionResult := result
-    typeName_eq := rfl
-    index_eq := rfl
-    struct_eq := rfl
-    sourceType_eq := rfl }
-
-def inferProjResult (typeName : Name) (idx : Nat)
-    (struct structType : Expr) : RecM ProjectionResult := do
-  return (← inferProjResultExact typeName idx struct structType).toProjectionResult
-
-structure ProjectionBinder where
-  name : Name
-  domain : Expr
-  info : BinderInfo
-
-structure ProjectionTelescope (count : Nat) where
-  binders : List ProjectionBinder
-  result : Expr
-  count_eq : binders.length = count
-
-def takeForallBinders : (count : Nat) → Expr →
-    RecM (ProjectionTelescope count)
-  | 0, body => return { binders := [], result := body, count_eq := rfl }
-  | count + 1, type => do
-      let .forallE name domain body info ← whnf type
-        | throw <| .other "projection certificate telescope is too short"
-      let tail ← takeForallBinders count body
-      return {
-        binders := { name, domain, info } :: tail.binders
-        result := tail.result
-        count_eq := by simp [tail.count_eq] }
-
-def instantiateForallPrefix : List Expr → Expr → RecM Expr
-  | [], type => return type
-  | argument :: arguments, type => do
-      let .forallE _ _ body _ ← whnf type
-        | throw <| .other "projection certificate parameter telescope is too short"
-      instantiateForallPrefix arguments (body.instantiate1 argument)
-
-def wrapProjectionLambdas (binders : List ProjectionBinder) (body : Expr) : Expr :=
-  binders.foldr (fun binder body =>
-    .lam binder.name binder.domain body binder.info) body
-
-def projectionBoundVars (count : Nat) : List Expr :=
-  (List.range count).map fun index => .bvar (count - index - 1)
-
-/-- Transparent pattern abstraction used by the certified projection motive.
-Unlike `Expr.abstract`, whose production implementation is opaque to the
-verifier, this definition exposes the exact occurrence replacement needed by
-the cancellation proof.  The first matching pattern becomes the binder at
-the corresponding position in the surrounding lambda telescope. -/
-def abstractProjectionPatterns (patterns : List Expr) :
-    (expression : Expr) → (depth : Nat := 0) → Expr
-  | expression, depth =>
-    match patterns.findIdx? (fun pattern => expression == pattern) with
-    | some index => .bvar (depth + (patterns.length - index - 1))
-    | none =>
-      match expression with
-      | .bvar index =>
-          .bvar (if index < depth then index else index + patterns.length)
-      | .fvar id => .fvar id
-      | .mvar id => .mvar id
-      | .sort level => .sort level
-      | .const name levels => .const name levels
-      | .app fn argument =>
-          .app (abstractProjectionPatterns patterns fn depth)
-            (abstractProjectionPatterns patterns argument depth)
-      | .lam name domain body info =>
-          .lam name (abstractProjectionPatterns patterns domain depth)
-            (abstractProjectionPatterns patterns body (depth + 1)) info
-      | .forallE name domain body info =>
-          .forallE name (abstractProjectionPatterns patterns domain depth)
-            (abstractProjectionPatterns patterns body (depth + 1)) info
-      | .letE name type value body nondep =>
-          .letE name (abstractProjectionPatterns patterns type depth)
-            (abstractProjectionPatterns patterns value depth)
-            (abstractProjectionPatterns patterns body (depth + 1)) nondep
-      | .lit literal => .lit literal
-      | .mdata data body =>
-          .mdata data (abstractProjectionPatterns patterns body depth)
-      | .proj name index body =>
-          .proj name index (abstractProjectionPatterns patterns body depth)
-
-/-- Exact syntax returned by the untrusted projection-candidate generator.
-The equality is computational evidence only: acceptance still parses and
-checks `candidate` below. -/
-structure GeneratedProjectionCandidate (projection : ProjectionResult) where
-  candidate : Expr
-  resultLevel : Level
-  indexBinders : List ProjectionBinder
-  fieldBinders : List ProjectionBinder
-  fieldCount : fieldBinders.length = projection.expansion.numFields
-  exact : candidate = mkAppN
-    (.const (mkCasesOnName projection.expansion.typeName)
-      (resultLevel :: projection.expansion.familyLevels))
-    (projection.expansion.params ++
-      [wrapProjectionLambdas
-        (indexBinders ++ [{
-          name := `_major
-          domain := mkAppN
-            (.const projection.expansion.typeName
-              projection.expansion.familyLevels)
-            ((projection.expansion.params.map fun parameter =>
-                parameter.liftLooseBVars 0 indexBinders.length) ++
-              projectionBoundVars indexBinders.length).toArray
-          info := .default }])
-        (abstractProjectionPatterns
-          (projection.expansion.indices ++
-            [projection.expansion.struct]) projection.type)] ++
-      projection.expansion.indices ++
-      [projection.expansion.struct,
-        wrapProjectionLambdas fieldBinders
-          (.bvar (projection.expansion.numFields -
-            projection.expansion.index - 1))]).toArray
-
-/-- Construct one deterministic candidate from retained inference data.  This
-generator is untrusted: its output is parsed and fully checked below. -/
-def generateProjectionCandidate (projection : ProjectionResult) :
-    RecM (GeneratedProjectionCandidate projection) := do
-  let expansion := projection.expansion
-  let resultLevel ← getSortLevel projection.type
-  let familyType := expansion.familyInfo.instantiateTypeLevelParams
-    expansion.familyLevels
-  let familyAfterParams ← instantiateForallPrefix expansion.params familyType
-  let indexTelescope ← takeForallBinders
-    expansion.familyInfo.numIndices familyAfterParams
-  let indexBinders := indexTelescope.binders
-  let indexCount := indexBinders.length
-  let liftedParams := expansion.params.map fun parameter =>
-    parameter.liftLooseBVars 0 indexCount
-  let majorDomain := mkAppN
-    (.const expansion.typeName expansion.familyLevels)
-    (liftedParams ++ projectionBoundVars indexCount).toArray
-  let motiveBinders := indexBinders ++ [{
-    name := `_major
-    domain := majorDomain
-    info := .default }]
-  let motiveBody := abstractProjectionPatterns
-    (expansion.indices ++ [expansion.struct]) projection.type
-  let motive := wrapProjectionLambdas motiveBinders motiveBody
-  let fieldTelescope ← takeForallBinders
-    expansion.numFields expansion.constructorType
-  let fieldBinders := fieldTelescope.binders
-  let minor := wrapProjectionLambdas fieldBinders
-    (.bvar (expansion.numFields - expansion.index - 1))
-  let candidate := mkAppN
-    (.const (mkCasesOnName expansion.typeName)
-      (resultLevel :: expansion.familyLevels))
-    (expansion.params ++ [motive] ++ expansion.indices ++
-      [expansion.struct, minor]).toArray
-  return {
-    candidate, resultLevel, indexBinders, fieldBinders
-    fieldCount := fieldTelescope.count_eq
-    exact := rfl }
-
-structure ProjectionProposal (typeName : Name) (index : Nat)
-    (struct structType : Expr) where
-  exactProjection : ExactProjectionResult typeName index struct structType
-  generated : GeneratedProjectionCandidate
-    exactProjection.toProjectionResult
-
-def generateProjectionProposal (typeName : Name) (index : Nat)
-    (struct structType : Expr) :
-    RecM (ProjectionProposal typeName index struct structType) := do
-  let exactProjection ← inferProjResultExact typeName index struct structType
-  let generated ← generateProjectionCandidate exactProjection.toProjectionResult
-  return { exactProjection, generated }
-
-def takeLambdas : Nat → Expr → Option (List Expr × Expr)
-  | 0, body => some ([], body)
-  | count + 1, .lam _ domain body _ => do
-      let (domains, result) ← takeLambdas count body
-      return (domain :: domains, result)
-  | _, _ => none
-
-def projectionMinorDomains? (numFields index : Nat) (minor : Expr) :
-    Option (List Expr) := do
-  let (domains, body) ← takeLambdas numFields minor
-  if body == .bvar (numFields - index - 1) then return domains else none
-
-structure ProjectionShell (numFields index : Nat) where
-  resultLevel : Level
-  motive : Expr
-  minor : Expr
-  fieldDomains : List Expr
-  minorRun : projectionMinorDomains? numFields index minor = some fieldDomains
-
-structure ParsedProjectionMinor (numFields index : Nat) (minor : Expr) where
-  domains : List Expr
-  exact : projectionMinorDomains? numFields index minor = some domains
-
-def parsedProjectionMinor? (numFields index : Nat) (minor : Expr) :
-    Option (ParsedProjectionMinor numFields index minor) :=
-  match h : projectionMinorDomains? numFields index minor with
-  | some domains => some ⟨domains, h⟩
-  | none => none
-
-def ProjectionExpansion.parseShell? (expansion : ProjectionExpansion)
-    (candidate : Expr) :
-    Option (ProjectionShell expansion.numFields expansion.index) := do
-  let .const eliminator levels := candidate.getAppFn | none
-  let resultLevel :: familyLevels := levels | none
-  unless eliminator == mkCasesOnName expansion.typeName do none
-  unless familyLevels == expansion.familyLevels do none
-  let args := candidate.getAppArgs.toList
-  let parameterCount := expansion.params.length
-  let indexCount := expansion.indices.length
-  unless args.length == parameterCount + 1 + indexCount + 2 do none
-  unless args.take parameterCount == expansion.params do none
-  let afterParameters := args.drop parameterCount
-  let motive :: afterMotive := afterParameters | none
-  unless afterMotive.take indexCount == expansion.indices do none
-  let afterIndices := afterMotive.drop indexCount
-  let [major, minor] := afterIndices | none
-  unless major == expansion.struct do none
-  let parsedMinor ← parsedProjectionMinor?
-    expansion.numFields expansion.index minor
-  return {
-    resultLevel, motive, minor
-    fieldDomains := parsedMinor.domains
-    minorRun := parsedMinor.exact }
-
-structure ParsedProjectionShell (expansion : ProjectionExpansion)
-    (candidate : Expr) where
-  shell : ProjectionShell expansion.numFields expansion.index
-  exact : expansion.parseShell? candidate = some shell
-
-def ProjectionExpansion.parsedShell? (expansion : ProjectionExpansion)
-    (candidate : Expr) : Option (ParsedProjectionShell expansion candidate) :=
-  match h : expansion.parseShell? candidate with
-  | some shell => some ⟨shell, h⟩
-  | none => none
-
-def projectionFree : Expr → Bool
-  | .bvar _ | .fvar _ | .mvar _ | .sort _ | .const .. | .lit _ => true
-  | .app fn arg => projectionFree fn && projectionFree arg
-  | .lam _ domain body _ | .forallE _ domain body _ =>
-      projectionFree domain && projectionFree body
-  | .letE _ type value body _ =>
-      projectionFree type && projectionFree value && projectionFree body
-  | .mdata _ body => projectionFree body
-  | .proj .. => false
-
-structure ProjectionFreeCertificate (candidate : Expr) : Type where
-  exact : projectionFree candidate = true
-
-def projectionFreeCertificate? (candidate : Expr) :
-    Option (ProjectionFreeCertificate candidate) :=
-  match h : projectionFree candidate with
-  | true => some ⟨h⟩
-  | false => none
-
-/-- Executable scope check for a generated projection candidate.  Candidate
-generation is deliberately untrusted, so validation records directly that it
-did not invent free variables or metavariables before invoking checked type
-inference.  Loose bound variables remain the responsibility of `inferType`,
-which performs its existing top-level check. -/
-def projectionCandidateScopeValid (lctx : LocalContext) : Expr → Bool
-  | .bvar _ => true
-  | .fvar fvarId => (lctx.find? fvarId).isSome
-  | .mvar _ => false
-  | .sort level => !level.hasMVar
-  | .const _ levels => levels.all fun level => !level.hasMVar
-  | .app fn argument =>
-      projectionCandidateScopeValid lctx fn &&
-        projectionCandidateScopeValid lctx argument
-  | .lam _ domain body _ | .forallE _ domain body _ =>
-      projectionCandidateScopeValid lctx domain &&
-        projectionCandidateScopeValid lctx body
-  | .letE _ type value body _ =>
-      projectionCandidateScopeValid lctx type &&
-        projectionCandidateScopeValid lctx value &&
-        projectionCandidateScopeValid lctx body
-  | .lit _ => true
-  | .mdata _ body | .proj _ _ body =>
-      projectionCandidateScopeValid lctx body
-
-structure ProjectionCertificate where
-  projection : ProjectionResult
-  candidate : Expr
-  shell : ProjectionShell projection.expansion.numFields
-    projection.expansion.index
-  shellRun : projection.expansion.parseShell? candidate = some shell
-  candidateType : Expr
-
-def validateProjectionResult (projection : ProjectionResult)
-    (candidate : Expr) : RecM ProjectionCertificate :=
-  fun methods context state =>
-    match projection.expansion.parsedShell? candidate with
-    | none => .error <| .other "projection expansion is not canonical"
-    | some parsed =>
-      if projectionCandidateScopeValid context.lctx candidate then
-        match inferType candidate (inferOnly := false) methods context state with
-        | .error error => .error error
-        | .ok (candidateType, inferenceState) =>
-          match isDefEq candidateType projection.type methods context inferenceState with
-          | .error error => .error error
-          | .ok (false, _) => .error <|
-              .other "projection expansion type does not match projection type"
-          | .ok (true, finalState) => .ok ({
-              projection, candidate
-              shell := parsed.shell
-              shellRun := parsed.exact
-              candidateType }, finalState)
-      else
-        .error <| .other "projection expansion contains an out-of-scope variable"
-
-def validateProjectionCandidate (typeName : Name) (index : Nat)
-    (struct structType candidate : Expr) : RecM ProjectionCertificate := do
-  let projection ← inferProjResult typeName index struct structType
-  validateProjectionResult projection candidate
-
-/-- Run legacy inference once, generate an untrusted candidate, and accept
-only after native checker certification. -/
-def inferProjCertified (typeName : Name) (index : Nat)
-    (struct structType : Expr) : RecM ProjectionCertificate := do
-  let proposal ← generateProjectionProposal typeName index struct structType
-  validateProjectionResult proposal.exactProjection.toProjectionResult
-    proposal.generated.candidate
-
-/-- Infers the type of structure projection `e`. -/
-def inferProj (typeName : Name) (idx : Nat) (struct structType : Expr) : RecM Expr := do
-  return (← inferProjCertified typeName idx struct structType).projection.type
+  let some selected ← instantiateProjectionFields typeName struct maybePropType
+      afterParameters 0 idx
+    | fail
+  let .forallE _ domain _ _ ← whnf selected | fail
+  if maybePropType then if !(← isProp domain) then fail
+  return domain
 
 @[inherit_doc inferType]
 def inferType' (e : Expr) (inferOnly : Bool) : RecM Expr := do
@@ -838,8 +338,7 @@ result. This can be a useful optimization if we're checking the definitional equ
 projections of the same projection, where we might save some work by directly checking if the struct
 arguments are defeq (rather than eagerly applying a projection).
 
-The kernel has a companion `cheap_rec` flag doing the same for the major premise of a recursor, but
-nothing has set it since lean4#9275 removed the old compiler, so it is omitted here. -/
+Recursor reduction does not use an analogous flag. -/
 def whnfCore (e : Expr) (cheapProj := false) : RecM Expr :=
   fun m => m.whnfCore e cheapProj
 
@@ -859,7 +358,7 @@ def whnfFVar (e : Expr) (cheapProj : Bool) : RecM Expr := do
     return ← whnfCore v cheapProj
   return e
 
-/-- `reduceProj` on a structure that has already been reduced (C++ `reduce_proj_core`). -/
+/-- Reduce a projection whose structure argument has already been reduced. -/
 def reduceProjCore (idx : Nat) (struct : Expr) : RecM (Option Expr) := do
   let mut c := struct
   if let .lit (.strVal s) := c then
@@ -873,8 +372,6 @@ def reduceProjCore (idx : Nat) (struct : Expr) : RecM (Option Expr) := do
 /-- Reduces a projection of `struct` at index `idx` (when `struct` is reducible to a constructor
 application). -/
 def reduceProj (idx : Nat) (struct : Expr) (cheapProj : Bool) : RecM (Option Expr) :=
-  -- an explicit `>>=`: with the new `do` elaborator, `reduceProjCore idx (← if ..)` lifts the
-  -- bind into both branches, which `reduceProj.WF` cannot see through
   (if cheapProj then whnfCore struct cheapProj else whnf struct) >>= reduceProjCore idx
 
 def isLetFVar (lctx : LocalContext) (fvar : FVarId) : Bool :=
@@ -921,9 +418,7 @@ def whnfCore' (e : Expr) (cheapProj := false) : RecM Expr := do
         pure e
     else
       let r := f.mkAppRevRange 0 rargs.size rargs
-      -- the recursive call re-decomposes `r` and reaches the `f == f0` branch above, so
-      -- `reduceRecursor` is still applied; adding arguments can only enable further normalization
-      -- if the head reduced to a partial recursor application
+      -- Re-enter reduction after rebuilding the complete application spine.
       save <|← whnfCore r cheapProj
   | .letE _ _ val body _ =>
     save <|← whnfCore (body.instantiate1 val) cheapProj
@@ -1171,9 +666,6 @@ def tryEtaStructCore (t s : Expr) : RecM Bool := do
 
 @[inherit_doc tryEtaStructCore]
 def tryEtaStruct (t s : Expr) : RecM Bool :=
-  -- when `t` and `s` are both constructor applications, `isDefEqApp` has already compared their
-  -- arguments and returned false, and the projections in `tryEtaStructCore` reduce back to those
-  -- same arguments, so both calls below merely redo that work. The kernel has the same redundancy.
   tryEtaStructCore t s <||> tryEtaStructCore s t
 
 /-- Checks if applications `t` and `s` (should be WHNF) are defeq on account of their function heads
@@ -1313,8 +805,8 @@ where
     | .continue tn sn => loop tn sn fuel
     | r => return r
 
-/-- C++ `lazy_delta_proj_reduction`: for `t.idx =?= s.idx`, lazily delta-unfold the two
-structures, and once that stalls compare the projected *fields* rather than the structures. -/
+/-- Lazily delta-unfold two structures and, once that stalls, compare their
+projected fields. -/
 def lazyDeltaProjReduction (t s : Expr) (idx : Nat) : RecM Bool := do
   loop t s (← readThe Context).fuel.lazyDelta
 where
@@ -1385,9 +877,10 @@ def isDefEqCore' (t s : Expr) : RecM Bool := do
   | .const tf tl, .const sf sl =>
     if tf == sf && Level.isEquivList tl sl then return true
   | .fvar tv, .fvar sv => if tv == sv then return true
-  | .proj _ ti te, .proj _ si se =>
+  | .proj tn ti te, .proj sn si se =>
     -- optimized by the previous reduction functions using `cheapProj := true`
-    if ti == si then if ← lazyDeltaProjReduction te se ti then return true
+    if tn == sn && ti == si then
+      if ← lazyDeltaProjReduction te se ti then return true
   | _, _ => pure ()
 
   -- the previous reduction functions used `cheapProj := true`, so we may not have a complete WHNF
@@ -1484,16 +977,3 @@ def etaExpand (e : Expr) : M Expr :=
     | _, it => return (← getLCtx).mkLambda fvars (mkAppN it args)
     loop2 fvars #[] (← readThe Context).fuel.etaExpand itType
   loop #[] e
-
--- for testing:
-
--- example : "hi" = sorry := by
---   run_tac
---     let env ← Lean.getEnv
---     let lctx ← getLCtx
---     let (_, lhs, _) := (← Elab.Tactic.getMainTarget).eq?.get!
---     logInfo lhs
---     let ty ← show M _ from withReader ({· with env := .empty `h}) (inferType lhs)
---     logInfo ty
---     let sort ← inferType ty
---     logInfo sort

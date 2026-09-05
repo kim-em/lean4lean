@@ -20,6 +20,8 @@ structure DefEqLE (source target : VEnv) : Prop where
       sourceConst.uvars = targetConst.uvars ∧
       target.IsDefEqU sourceConst.uvars [] sourceConst.type targetConst.type
   defeqs : ∀ {rule}, source.defeqs rule → target.defeqs rule
+  projections : ∀ {name info}, source.projections name info →
+    target.projections name info
 
 /-- A semantic environment inclusion restricted to the constants used by a
 particular derivation.  Constants selected by `changed` may be absent from
@@ -38,12 +40,15 @@ structure DefEqLEExcept (changed : Name → Prop)
       sourceConst.uvars = targetConst.uvars ∧
       target.IsDefEqU sourceConst.uvars [] sourceConst.type targetConst.type
   defeqs : ∀ {rule}, source.defeqs rule → target.defeqs rule
+  projections : ∀ {name info}, source.projections name info →
+    target.projections name info
 
 theorem DefEqLE.toDefEqLEExcept
     (E : DefEqLE source target) (changed : Name → Prop) :
     DefEqLEExcept changed source target where
   constants hlookup _ := E.constants hlookup
   defeqs := E.defeqs
+  projections := E.projections
 
 /-- Transport a typed definitional equality through a semantic environment
 inclusion.  The local context is unchanged; its target-environment
@@ -76,6 +81,10 @@ theorem IsDefEq.rebaseDefEqLE
       exact ⟨type, by simpa using Htype.weak0 htarget.ordered⟩
     exact Htypes'.symm.defeqDF htarget hctx Hnew
   | appDF _ _ ihFn ihArg => exact .appDF (ihFn hctx) (ihArg hctx)
+  | projDF Hinfo Hlevels Huvars Hparams Hindices HfieldType
+      _ _ _ Hclosed Hguard ihField ihMajor ihMajor' =>
+    exact .projDF (E.projections Hinfo) Hlevels Huvars Hparams Hindices
+      HfieldType (ihField hctx) (ihMajor hctx) (ihMajor' hctx) Hclosed Hguard
   | lamDF _ _ ihDomain ihBody =>
     have ihDomain' := ihDomain hctx
     have hdomain : target.IsType uvars _ _ :=
@@ -127,6 +136,11 @@ theorem IsDefEq.rebaseDefEqLEExcept
       exact ⟨type, by simpa using Htype.weak0 htarget.ordered⟩
     exact Htypes'.symm.defeqDF htarget hctx Hnew
   | appDF _ _ ihFn ihArg => exact .appDF (ihFn hctx) (ihArg hctx)
+  | projDF _ _ _ _ _ _ _ _ _ _ _ _
+      Hinfo Hlevels Huvars Hparams Hindices HfieldType
+      _ _ _ Hclosed Hguard _ _ _ ihField ihMajor ihMajor' =>
+    exact .projDF (E.projections Hinfo) Hlevels Huvars Hparams Hindices
+      HfieldType (ihField hctx) (ihMajor hctx) (ihMajor' hctx) Hclosed Hguard
   | lamDF _ _ ihDomain ihBody =>
     have ihDomain' := ihDomain hctx
     have hdomain : target.IsType uvars _ _ :=

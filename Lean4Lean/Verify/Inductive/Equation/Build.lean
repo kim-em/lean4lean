@@ -280,7 +280,7 @@ theorem RecursorPhasesResult.addInductOfOrdinaryCompilation
     (hnonempty : indTypes.toList ≠ [])
     (Hcompile : OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block) :
-    VEnv.AddInduct sourceEnv decl (H.outVEnv.addDefEqRules rules) :=
+    VEnv.AddInduct sourceEnv decl (H.blockCertificate rules hrules).finalVEnv :=
   (H.blockCertificate rules hrules).addInductOfOrdinaryCompilation
     R.formation R.core hnonempty Hcompile
 
@@ -298,7 +298,7 @@ theorem RecursorPhasesResult.addInductOfNestedCompilation
     (hnonempty : indTypes.toList ≠ [])
     (Hcompile : NestedCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block) :
-    VEnv.AddInduct sourceEnv decl (H.outVEnv.addDefEqRules rules) :=
+    VEnv.AddInduct sourceEnv decl (H.blockCertificate rules hrules).finalVEnv :=
   (H.blockCertificate rules hrules).addInductOfNestedCompilation
     R.formation R.core hnonempty Hcompile
 
@@ -321,7 +321,7 @@ theorem RecursorPhasesResult.trEnvOfOrdinaryCompilation
       (H.blockCertificate rules hrules).block)
     (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv) :
     TrEnv' c.safety outEnv.constants c.env.quotInit
-      (H.outVEnv.addDefEqRules rules) :=
+      (H.blockCertificate rules hrules).finalVEnv :=
   (H.blockCertificate rules hrules).trEnvOfOrdinaryCompilation R.formation
     R.core hnonempty Hcompile H.productionInductiveOrigins htr
 
@@ -342,7 +342,7 @@ theorem RecursorPhasesResult.trEnvOfNestedCompilation
       (H.blockCertificate rules hrules).block)
     (htr : TrEnv' c.safety c.env.constants c.env.quotInit sourceEnv) :
     TrEnv' c.safety outEnv.constants c.env.quotInit
-      (H.outVEnv.addDefEqRules rules) :=
+      (H.blockCertificate rules hrules).finalVEnv :=
   (H.blockCertificate rules hrules).trEnvOfNestedCompilation R.formation
     R.core hnonempty Hcompile H.productionInductiveOrigins htr
 
@@ -648,7 +648,7 @@ theorem VerifiedInductiveRunResult.addInductOfRuleTranslations
     headerEnv, ctorEnv, Hheaders, R, hnonempty, ⟨Hrecursors⟩⟩
   rcases Hrules c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
       ctorEnv Hheaders R Hrecursors with ⟨T⟩
-  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules T.rules,
+  exact ⟨c', Hc', decl, (Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
       T.compilation⟩
 
@@ -730,7 +730,7 @@ theorem VerifiedInductiveRunResult.addInductOfRuleBuild
     ⟨rules, hrules, HruleBuild, hrulesLength⟩
   have Hcompile := Hrecursors.ordinaryCompilationOfRuleBuild rules hrules
     HruleBuild hrulesLength
-  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules rules,
+  exact ⟨c', Hc', decl, (Hrecursors.blockCertificate rules hrules).finalVEnv,
     Hrecursors.addInductOfOrdinaryCompilation rules hrules hnonempty
       Hcompile⟩
 
@@ -760,7 +760,7 @@ theorem VerifiedInductiveRunResult.addInductOfOrdinaryCompilation
   rcases Hcompile c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
     ctorEnv Hheaders R Hrecursors with
     ⟨rules, hrules, Hcompilation⟩
-  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules rules,
+  exact ⟨c', Hc', decl, (Hrecursors.blockCertificate rules hrules).finalVEnv,
     Hrecursors.addInductOfOrdinaryCompilation rules hrules hnonempty
       Hcompilation⟩
 
@@ -792,7 +792,7 @@ theorem VerifiedInductiveRunResult.addInductOfNestedCompilation
   rcases Hcompile c' stats decl depth Hc' Hdecl Hmaterialized headerEnv
     ctorEnv Hheaders R Hrecursors with
     ⟨rules, hrules, ⟨Hcompilation⟩⟩
-  exact ⟨c', Hc', decl, Hrecursors.outVEnv.addDefEqRules rules,
+  exact ⟨c', Hc', decl, (Hrecursors.blockCertificate rules hrules).finalVEnv,
     Hrecursors.addInductOfNestedCompilation rules hrules hnonempty
       Hcompilation⟩
 

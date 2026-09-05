@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationTranslation
-import Lean4Lean.Verify.Typing.CheckedProjectionExpr
+import Lean4Lean.Verify.Typing.ProjectionRelation
 
 namespace Lean4Lean
 
@@ -83,7 +83,7 @@ theorem NestedRestoreHitProvenance.ofConcreteHit
 /-- A restoration hit interpreted at the local contexts in which it actually
 occurs.  Recursive traversal changes these contexts below binders, so they
 must not be fixed by a root-level finite plan.  Every witness is derived from
-the concrete callback result and the checked translations of its two literal
+the concrete callback result and the strict translations of its two literal
 endpoints. -/
 def ContextualNestedRestoreHit
     (result : Lean4Lean.ElimNestedInductive.Result)
@@ -92,13 +92,13 @@ def ContextualNestedRestoreHit
     (source target : VExpr) : Prop :=
   ∃ sourceContext targetContext input output,
     NestedRestoreHitProvenance result prodEnv params auxRec input output ∧
-      CheckedTrExprS sourceEnv Us sourceContext input source ∧
-      CheckedTrExprS targetEnv Us targetContext output target
+      TrExprS sourceEnv Us sourceContext input source ∧
+      TrExprS targetEnv Us targetContext output target
 
 /-- A context-indexed semantic trace of one exact executable restoration.
-Unlike the former root-context node list, the binder constructors change the
+Unlike the root-context node list, the binder constructors change the
 two local contexts in their indices.  Variable and let cases retain their
-actual checked translations, so the trace does not assume that independently
+actual strict translations, so the trace does not assume that independently
 restored contexts are syntactically identical. -/
 inductive ContextualExprRestoration
     (result : Lean4Lean.ElimNestedInductive.Result)
@@ -109,36 +109,36 @@ inductive ContextualExprRestoration
     ExprReplacement (result.restoreNestedNode prodEnv params auxRec)
       input output → Prop
   | hit
-      (Hsource : CheckedTrExprS sourceEnv Us sourceContext input source)
-      (Htarget : CheckedTrExprS targetEnv Us targetContext output target) :
+      (Hsource : TrExprS sourceEnv Us sourceContext input source)
+      (Htarget : TrExprS targetEnv Us targetContext output target) :
       ContextualExprRestoration result prodEnv params auxRec sourceEnv
         targetEnv Us sourceContext targetContext
         (.hit hhit)
   | bvar
-      (Hsource : CheckedTrExprS sourceEnv Us sourceContext (.bvar index)
+      (Hsource : TrExprS sourceEnv Us sourceContext (.bvar index)
         source)
-      (Htarget : CheckedTrExprS targetEnv Us targetContext (.bvar index)
+      (Htarget : TrExprS targetEnv Us targetContext (.bvar index)
         target) :
       ContextualExprRestoration result prodEnv params auxRec sourceEnv
         targetEnv Us sourceContext targetContext (.bvar hnone)
   | fvar
-      (Hsource : CheckedTrExprS sourceEnv Us sourceContext (.fvar fvarId)
+      (Hsource : TrExprS sourceEnv Us sourceContext (.fvar fvarId)
         source)
-      (Htarget : CheckedTrExprS targetEnv Us targetContext (.fvar fvarId)
+      (Htarget : TrExprS targetEnv Us targetContext (.fvar fvarId)
         target) :
       ContextualExprRestoration result prodEnv params auxRec sourceEnv
         targetEnv Us sourceContext targetContext (.fvar hnone)
   | sort
-      (Hsource : CheckedTrExprS sourceEnv Us sourceContext (.sort level)
+      (Hsource : TrExprS sourceEnv Us sourceContext (.sort level)
         source)
-      (Htarget : CheckedTrExprS targetEnv Us targetContext (.sort level)
+      (Htarget : TrExprS targetEnv Us targetContext (.sort level)
         target) :
       ContextualExprRestoration result prodEnv params auxRec sourceEnv
         targetEnv Us sourceContext targetContext (.sort hnone)
   | const
-      (Hsource : CheckedTrExprS sourceEnv Us sourceContext
+      (Hsource : TrExprS sourceEnv Us sourceContext
         (.const name levels) source)
-      (Htarget : CheckedTrExprS targetEnv Us targetContext
+      (Htarget : TrExprS targetEnv Us targetContext
         (.const name levels) target) :
       ContextualExprRestoration result prodEnv params auxRec sourceEnv
         targetEnv Us sourceContext targetContext (.const hnone)
@@ -198,9 +198,9 @@ inductive ContextualExprRestoration
         (source := sourceBody) (target := targetBody)
         (.letE hnone typeTrace valueTrace bodyTrace)
   | lit
-      (Hsource : CheckedTrExprS sourceEnv Us sourceContext (.lit literal)
+      (Hsource : TrExprS sourceEnv Us sourceContext (.lit literal)
         source)
-      (Htarget : CheckedTrExprS targetEnv Us targetContext (.lit literal)
+      (Htarget : TrExprS targetEnv Us targetContext (.lit literal)
         target) :
       ContextualExprRestoration result prodEnv params auxRec sourceEnv
         targetEnv Us sourceContext targetContext (.lit hnone)
@@ -212,9 +212,9 @@ inductive ContextualExprRestoration
         targetEnv Us sourceContext targetContext
         (source := source) (target := target) (.mdata hnone bodyTrace)
   | proj
-      (HsourceProjection : CheckedTrProj sourceEnv Us.length
+      (HsourceProjection : TrProj (env := sourceEnv) (U := Us.length)
         sourceContext.toCtx structName index sourceMajor source)
-      (HtargetProjection : CheckedTrProj targetEnv Us.length
+      (HtargetProjection : TrProj (env := targetEnv) (U := Us.length)
         targetContext.toCtx structName index targetMajor target)
       (Hmajor : ContextualExprRestoration result prodEnv params auxRec
         sourceEnv targetEnv Us sourceContext targetContext
@@ -228,8 +228,8 @@ and its certified endpoint translations, with no semantic callback. -/
 theorem ExprReplacement.contextualTrace
     (Hreplace : ExprReplacement
       (result.restoreNestedNode prodEnv params auxRec) input output)
-    (Hsource : CheckedTrExprS sourceEnv Us sourceContext input source)
-    (Htarget : CheckedTrExprS targetEnv Us targetContext output target) :
+    (Hsource : TrExprS sourceEnv Us sourceContext input source)
+    (Htarget : TrExprS targetEnv Us targetContext output target) :
     ContextualExprRestoration result prodEnv params auxRec sourceEnv targetEnv
       Us sourceContext targetContext (source := source) (target := target)
         Hreplace := by
@@ -301,9 +301,9 @@ structure NestedRestoredNode
   target : VExpr
   provenance : NestedRestoreHitProvenance result env params auxRec input output
   sourceTranslation :
-    CheckedTrExprS sourceEnv Us sourceContext input source
+    TrExprS sourceEnv Us sourceContext input source
   targetTranslation :
-    CheckedTrExprS targetEnv Us targetContext output target
+    TrExprS targetEnv Us targetContext output target
 
 /-- A finite semantic plan for the exact production hits in one restored
 equation.  Functionality prevents the abstract replacement operation from
@@ -317,7 +317,7 @@ structure NestedRestorationPlan
     Us sourceContext targetContext)
 
 /-- Relational interpretation of the finite plan.  Literal membership keeps
-each occurrence's independently checked target; no global syntactic
+each occurrence's independently translated target; no global syntactic
 functionality property is required or assumed. -/
 def NestedRestorationPlan.Relates
     (H : NestedRestorationPlan result env params auxRec sourceEnv targetEnv

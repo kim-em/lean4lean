@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.EquationRestoration
-import Lean4Lean.Verify.Typing.CheckedProjectionExpr
+import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Verify.Inductive.Nested.Replacement
 
 namespace Lean4Lean
@@ -22,9 +22,9 @@ structure RestoredNodeInterpretation
     {input output : Expr} {source target : VExpr}
     (Hhit : concreteReplace input = some output) : Prop where
   sourceTranslation :
-    CheckedTrExprS sourceEnv Us sourceContext input source
+    TrExprS sourceEnv Us sourceContext input source
   targetTranslation :
-    CheckedTrExprS targetEnv Us targetContext output target
+    TrExprS targetEnv Us targetContext output target
   abstractHit : abstractReplace source target
 
 /-- Structural alignment of a concrete replacement trace with its abstract
@@ -143,14 +143,16 @@ inductive ExprRestorationAlignment
         (.letE hconcrete concreteType concreteValue concreteBody) abstractBody
   | proj
       (hconcrete : concreteReplace (.proj structName index major) = none)
-      (sourceMajorTranslation : CheckedTrExprS sourceEnv Us sourceContext
+      (sourceMajorTranslation : TrExprS sourceEnv Us sourceContext
         major sourceMajor)
-      (sourceProjection : CheckedTrProj sourceEnv Us.length
-        sourceContext.toCtx structName index sourceMajor sourceTarget)
-      (targetMajorTranslation : CheckedTrExprS targetEnv Us targetContext
+      (sourceProjection : TrProj (env := sourceEnv) (U := Us.length)
+        sourceContext.toCtx structName index sourceMajor
+          (.proj structName index sourceMajor))
+      (targetMajorTranslation : TrExprS targetEnv Us targetContext
         restoredMajor targetMajor)
-      (targetProjection : CheckedTrProj targetEnv Us.length
-        targetContext.toCtx structName index targetMajor targetTarget)
+      (targetProjection : TrProj (env := targetEnv) (U := Us.length)
+        targetContext.toCtx structName index targetMajor
+          (.proj structName index targetMajor))
       (hmajor : ExprRestorationAlignment concreteReplace abstractReplace
         sourceEnv targetEnv Us sourceContext targetContext
         (source := sourceMajor) (target := targetMajor)
@@ -158,9 +160,7 @@ inductive ExprRestorationAlignment
       ExprRestorationAlignment concreteReplace abstractReplace sourceEnv
         targetEnv Us sourceContext targetContext
         (.proj hconcrete concreteMajor)
-        (.projection sourceProjection.supportExpansion
-          targetProjection.supportExpansion
-          sourceProjection.target_bvarHead?_eq_none abstractMajor)
+        (.proj abstractMajor)
 
 /-- An abstract restoration interpreting one exact executable replacement
 trace.  The executable trace fixes which concrete expressions are related but
@@ -174,9 +174,9 @@ structure RestoredExprTranslation
     {input output : Expr} {source target : VExpr}
     (Hreplace : ExprReplacement concreteReplace input output) : Prop where
   sourceTranslation :
-    CheckedTrExprS sourceEnv Us sourceContext input source
+    TrExprS sourceEnv Us sourceContext input source
   targetTranslation :
-    CheckedTrExprS targetEnv Us targetContext output target
+    TrExprS targetEnv Us targetContext output target
   abstractRestoration : VExprRestoration abstractReplace source target
   alignment : ExprRestorationAlignment concreteReplace abstractReplace
     sourceEnv targetEnv Us sourceContext targetContext Hreplace

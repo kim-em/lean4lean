@@ -19,7 +19,7 @@ theorem SemanticRunWithStatsResult.addInductCanonical
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
   rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
-  exact ⟨decl, Hrecursors.outVEnv.addDefEqRules T.rules,
+  exact ⟨decl, (Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
       T.compilation⟩
 

@@ -1390,9 +1390,8 @@ The fuel decreases even when a constant-headed application is flattened, so
 the definition is total independently of any assumptions about expression
 hash-consing.  At a recursive head, the last argument must be headed by a
 de Bruijn variable designated by `fieldVars` at the current binder depth.
-Primitive projections inspect only their source major; their administrative
-expansion is justified later by the environment-indexed checked projection
-certificate. -/
+Primitive projections inspect only their source major; the abstract syntax
+retains the projection node directly. -/
 def guardedIotaCheck (recursors : List Name) (fieldVars : List Nat) :
     Nat → Nat → Expr → Bool
   | 0, _, _ => false
@@ -1600,10 +1599,7 @@ def checkPrimaryRuleShape (recInfo : RecursorVal)
     ((rhsArgs.drop restoredRule.nfields).length == recursiveVars.length)
     s!"restored recursor rule changed its recursive-result arity: {residual}"
 
-/-- Compatibility entry point for auxiliary rules, whose compilation
-contract only asks for existential closed-rule guardedness.  This broad
-candidate must not be used to establish a primary `NestedIotaRule`, where the
-producer-selected field variables are semantically significant. -/
+/-- Check existential closed-rule guardedness for an auxiliary rule. -/
 def checkGuarded (recursors : List Name) (expression : Expr) :
     Except Exception Unit :=
   checkGuardedWithFields recursors (guardedFieldVars expression) expression
