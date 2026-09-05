@@ -68,6 +68,22 @@ metatheory. Treat the injectivity conjectures as the known open core.
    (`inductProjectionsEarly`) so that `ProjectionRegistryCoherent` holds in
    every staged checking environment and can live inside `CheckingEnv.Valid`.
 
+## Progress in this session (2026-09-05)
+
+- New abstract rules `projIota`, `structEta`, `unitLike` (Theory/Typing/Basic.lean) with all
+  metatheory cases closed (Lemmas, Strong, Verify/Typing); Church–Rosser has three marked
+  placeholder cases for them.
+- `IsDefEq.uniq`'s projection case is closed via the conjecture
+  `IsDefEqU.fieldType_inv_stratified` (Injectivity.lean); rigid-application injectivity is
+  stated as `IsDefEqU.rigidApp_inv` / `structApp_inv`.
+- Theory/Typing/ProjectionLemmas.lean: typed telescope walks (`InstForalls`), their congruence,
+  spine typing against a telescope, substituted-subterm well-formedness, full telescope
+  instantiation (`instOuter`) and the instantiated codomain of a valid inductive application.
+- Executable guards (all redundant on well-typed input, see divergences.md): `reduceProjCore`
+  checks the constructor and arity, `inferProj` checks the field index, `isDefEqUnitLike` the
+  parameter count, `tryEtaStructCore` a never-zero structure sort.
+- `isDefEqUnitLike.WF` is proved modulo two registry facts.
+
 ## Remaining work
 
 - Extend `Aligned`/`CheckingEnv` with recursor-rule provenance so that
