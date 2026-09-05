@@ -1019,6 +1019,51 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
   refine IsDefEqU.trans henv hΓ ⟨_, hX1X2⟩ (IsDefEqU.trans henv hΓ ?_ ⟨_, hlam.symm⟩)
   rw [← hX2]
   exact ⟨_, hbeta⟩
+/-- `iota` with the right-hand side beta-reduced: the instantiated rule body applied to the
+remaining arguments. -/
+theorem _root_.Lean4Lean.VIotaRuleShape.iota_body (henv : VEnv.WF env)
+    (hΓ : OnCtx Γ (env.IsType U))
+    (Hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
+      indLevels)
+    (hcnp : cnparams ≤ nparams)
+    (Hctor : VConstructorShape env ctorName ctorUvars cnparams nfields nindices indName)
+    (Hrule : VIotaRuleShape env recName recUvars nparams cnparams nmotives nminors nindices ctorName
+      indLevels nfields df)
+    (hrigid : env.Rigid indName) (hIL : indLevels.length = ctorUvars)
+    (hls : ∀ l ∈ ls, l.WF U) (hlsl : ls.length = recUvars)
+    {pre : List VExpr} (hpre : pre.length = nparams + nmotives + nminors + nindices)
+    {major : VExpr} {extra : List VExpr}
+    (hwf : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ major :: extra)))
+    {cls : List VLevel} {P' fields : List VExpr}
+    (hcls : cls.length = ctorUvars) (hclsw : ∀ l ∈ cls, l.WF U)
+    (hP' : P'.length = cnparams) (hf : fields.length = nfields)
+    (hmajor : env.IsDefEqU U Γ major (VExpr.mkApps (.const ctorName cls) (P' ++ fields))) :
+    env.IsDefEqU U Γ (VExpr.mkApps (.const recName ls) (pre ++ major :: extra))
+      (VExpr.mkApps ((Hrule.rhsBody.instL ls).instOuter
+        (pre.take (nparams + nmotives + nminors) ++ fields)) extra) := by
+  have h1 := Hrule.iota henv hΓ Hrec hcnp Hctor hrigid hIL hls hlsl hpre hwf hcls hclsw hP' hf hmajor
+  have hwf1 : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ [major])) := by
+    have : pre ++ major :: extra = (pre ++ [major]) ++ extra := by simp
+    rw [this, VExpr.mkApps_append] at hwf
+    exact VExpr.WF.of_mkApps henv.ordered hΓ hwf
+  have hA := Hrule.args_typing henv hΓ Hrec hcnp Hctor hrigid hIL hls hlsl hpre hwf1 hcls hclsw hP'
+    hf hmajor
+  have hrhs : env.HasType U Γ (VExpr.wrapLams (Hrule.doms.map (VExpr.instL ls))
+      (Hrule.rhsBody.instL ls))
+      (VExpr.wrapForalls (Hrule.doms.map (VExpr.instL ls)) (Hrule.typeBody.instL ls)) := by
+    have ⟨_, hr⟩ := henv.ordered.defEqWF Hrule.defeq
+    rw [Hrule.rhs_eq, Hrule.type_eq] at hr
+    have := (hr.instL hls).weak0 henv.ordered (Γ := Γ)
+    simpa [VExpr.instL_wrapLams, VExpr.instL_wrapForalls] using this
+  have hlam := IsDefEq.mkApps_wrapLams henv hΓ hrhs
+    (by simp [hf, Hrule.doms_length]; omega) hA
+  rw [VExpr.mkApps_append (l₁ := pre.take (nparams + nmotives + nminors) ++ fields)] at h1
+  refine h1.trans henv hΓ (IsDefEqU.mkApps_congr_left henv hΓ ?_ ?_)
+  · rw [Hrule.rhs_eq, VExpr.instL_wrapLams]
+    exact ⟨_, hlam⟩
+  · have ⟨_, h⟩ := h1
+    exact ⟨_, h.hasType.2⟩
+
 end VEnv
 
 end Lean4Lean
