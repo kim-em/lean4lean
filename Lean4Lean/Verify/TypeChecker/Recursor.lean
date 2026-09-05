@@ -227,6 +227,109 @@ theorem quotReduceRecCont.lift.WF (he : c.TrExprS e e') {ls : List Level}
     rw [List.drop_eq_nil_of_le (by rw [← Expr.getAppArgs_toList, Array.length_toList]; omega)] at main
     exact .pure fun _ h => Option.some.inj h ▸ main
 
+/-- Reduction of `Quot.ind` applied to `Quot.mk`, by proof irrelevance. -/
+theorem quotReduceRecCont.ind.WF (he : c.TrExprS e e') {ls : List Level}
+    (hfn : e.getAppFn = .const ``Quot.ind ls) (hq : QuotCoherent c.venv) :
+    RecM.WF c s (quotReduceRecCont e whnf 4 3) fun oe _ =>
+      ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := by
+  unfold quotReduceRecCont
+  extract_lets args
+  have hargs_eq : args = e.getAppArgs := rfl
+  simp only [hargs_eq]
+  split <;> [rename_i h4; exact .pure nofun]
+  -- the eliminator spine
+  have he'' : c.TrExprS ((Expr.const ``Quot.ind ls).mkAppList e.getAppArgsList) e' := by
+    rw [← hfn, e.mkAppList_getAppArgsList]; exact he
+  have ⟨fn', stk⟩ := AppStack.build he''
+  obtain ⟨ls', args', hls, rfl, hargs, hfull⟩ := stk.constantApplication
+  have hceq := he''.uniq c.Ewf (.refl c.Ewf c.Δwf) hfull
+  have ⟨hsize, hget⟩ := AppStack.argsGet hargs
+  have .const hlc _ hlen := stk.tr
+  rw [hq.ind] at hlc; cases hlc
+  have hls'len : ls'.length = 1 :=
+    (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hls)).symm.trans hlen
+  have hls'w := VLevel.WF.of_mapM_ofLevel hls
+  refine (whnf.WF (hget 4 h4)).bind fun mk _ _ ⟨hb, mk', hmk, hmkdefeq⟩ => ?_
+  split <;> [exact .pure nofun; rename_i hnot]
+  have hisApp : mk.isAppOfArity ``Quot.mk 3 = true := by simpa using hnot
+  obtain ⟨lsm, a1, a2, a3, rfl⟩ := Expr.isAppOfArity_three_eq_true hisApp
+  obtain ⟨lsm', a1', a2', a3', hmk3, hlsm, ⟨_, hlm, hlenm⟩, ha1, ha2, ha3⟩ :=
+    TrExprS.app3_inv hmk
+  replace hmkdefeq := (hmk3.uniq c.Ewf (.refl c.Ewf c.Δwf) hmk).trans c.Ewf c.Δwf hmkdefeq
+  rw [hq.quotMk] at hlm; cases hlm
+  have hlsm'len : lsm'.length = 1 :=
+    (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hlsm)).symm.trans hlenm
+  have hlsm'w := VLevel.WF.of_mapM_ofLevel hlsm
+  simp only [Expr.appArg!]
+  rw [getElem!_pos e.getAppArgs 3 (by omega)]
+  -- the abstract reduction: `Quot.ind p q ≡ p a` by proof irrelevance
+  have hsplit : args' = args'.take 5 ++ args'.drop 5 := (List.take_append_drop _ _).symm
+  have hwf5 : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx
+      (VExpr.mkApps (.const ``Quot.ind ls') (args'.take 5)) := by
+    have := hfull.wf c.Ewf c.Δwf
+    rw [hsplit, VExpr.mkApps_append] at this
+    exact VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx this
+  have hdefeq : c.IsDefEqU (VExpr.mkApps (.const ``Quot.ind ls') (args'.take 5))
+      (.app args'[3] a3') := by
+    have h5 : args'.take 5 = [args'[0], args'[1], args'[2], args'[3], args'[4]] := by
+      apply List.ext_getElem
+      · simp; omega
+      · intro i h1 h2
+        simp only [List.getElem_take]
+        match i, h2 with
+        | 0, _ | 1, _ | 2, _ | 3, _ | 4, _ => rfl
+    rw [h5] at hwf5 ⊢
+    exact hq.ind_defeq c.Ewf c.Δwf.toCtx hls'w hls'len hlsm'w hlsm'len hwf5
+      (hmk3.wf c.Ewf c.Δwf) hmkdefeq
+  have hdefeq' : c.IsDefEqU e' (VExpr.mkApps (.app args'[3] a3') (args'.drop 5)) := by
+    refine hceq.trans c.Ewf c.Δwf ?_
+    have hwf' : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx
+        (VExpr.mkApps (VExpr.mkApps (.const ``Quot.ind ls') (args'.take 5)) (args'.drop 5)) := by
+      rw [← VExpr.mkApps_append, ← hsplit]
+      exact hfull.wf c.Ewf c.Δwf
+    have := VEnv.IsDefEqU.mkApps_congr_left c.Ewf c.Δwf.toCtx hdefeq hwf'
+    rw [← VExpr.mkApps_append, ← hsplit] at this
+    exact this
+  have hrwf : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx
+      (VExpr.mkApps (.app args'[3] a3') (args'.drop 5)) :=
+    let ⟨_, h⟩ := hdefeq'; ⟨_, h.hasType.2⟩
+  have hr : c.TrExprS ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 5))
+      (VExpr.mkApps (.app args'[3] a3') (args'.drop 5)) :=
+    TrExprS.mkAppList_of_wf (TrExprS.app_of_wf (hget 3 (by omega)) ha3
+      (VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hrwf)) (forall₂_drop hargs 5) hrwf
+  have hfv : c.FVarsBelow e ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 5)) := by
+    intro P hP hfe
+    rw [FVarsIn.mkAppList]
+    refine ⟨⟨?_, ?_⟩, fun a ha => hfe.of_mem_getAppArgsList (List.mem_of_mem_drop ha)⟩
+    · exact hfe.of_mem_getAppArgsList (by
+        rw [← Expr.getAppArgs_toList]; exact Array.getElem_mem_toList _)
+    · have := hb P hP (hfe.of_mem_getAppArgsList (by
+        rw [← Expr.getAppArgs_toList]; exact Array.getElem_mem_toList _))
+      exact this.2
+  have main : c.FVarsBelow e ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 5)) ∧
+      c.TrExpr ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 5)) e' :=
+    ⟨hfv, (hr.trExpr c.Ewf c.Δwf).defeq c.Ewf c.Δwf hdefeq'.symm⟩
+  split
+  · rw [mkAppRange_suffix_eq (by omega)]
+    exact .pure fun _ h => Option.some.inj h ▸ main
+  · rename_i h5
+    rw [List.drop_eq_nil_of_le (by rw [← Expr.getAppArgs_toList, Array.length_toList]; omega)] at main
+    exact .pure fun _ h => Option.some.inj h ▸ main
+
+/-- Quotient reduction refines the abstract environment. -/
+theorem quotReduceRec.WF (he : c.TrExprS e e') (hq : QuotCoherent c.venv) :
+    RecM.WF c s (quotReduceRec e whnf) fun oe _ =>
+      ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := by
+  unfold quotReduceRec
+  split <;> [rename_i fn ls hfn; exact .pure nofun]
+  split
+  · rename_i h; rw [beq_iff_eq] at h; subst h
+    exact quotReduceRecCont.lift.WF he hfn hq
+  split
+  · rename_i h; rw [beq_iff_eq] at h; subst h
+    exact quotReduceRecCont.ind.WF he hfn hq
+  exact .pure nofun
+
 end Inner
 end TypeChecker
 end Lean4Lean
