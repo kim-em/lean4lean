@@ -128,7 +128,12 @@ metatheory. Treat the injectivity conjectures as the known open core.
   The nested path must cover the auxiliary recursors' rules too. `VContext.quotCoherent` is the
   `quot` step of the trace (`TrEnv'.quot`, `AddQuot`); `Rigid` for inductive types and `Quot`
   needs the trace to record that no stored rule is headed by them.
-- `inferProj.WF` (Verify/TypeChecker/InferType.lean) is the last checker sorry.
+- `inferProj.WF` (Verify/TypeChecker/InferType.lean) is the last checker sorry (in progress in a
+  separate worktree at the end of the session).
+- Optional cleanup: several executable arity guards (divergences.md) exist only so that the
+  verification never needs "an inductive type application is not a function type"; since
+  `IsDefEqU.sort_forallE_inv` is already an accepted conjecture of the development, those guards
+  could be removed and the arities derived from well-typedness instead.
 - Church–Rosser: add the new rules to `ParRed`/`NormalEq` and close the new
   cases; this needs the same injectivity facts as the conjectures.
 - Re-run the full build, search for `sorry`, and use `#print axioms` on every
