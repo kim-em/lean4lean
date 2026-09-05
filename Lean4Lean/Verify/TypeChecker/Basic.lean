@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Environment.Lemmas
 import Lean4Lean.Verify.Typing.ConditionallyTyped
+import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.TypeChecker
 
 namespace Except
@@ -373,7 +374,14 @@ theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : Induc
       (∀ (ls : List VLevel) (P : List VExpr), ls.length = info.uvars → P.length = info.nparams →
         info.nindices = 0 →
         (∃ u, c.HasType (VExpr.mkApps (.const n ls) P) (.sort u)) →
-        c.HasType (VExpr.mkApps (.const n ls) P) (.sort (info.resultLevel.inst ls))) := by
+        c.HasType (VExpr.mkApps (.const n ls) P) (.sort (info.resultLevel.inst ls))) ∧
+      -- the parameters of a well-formed type application are typed at the constructor's
+      -- parameter binders
+      (∀ (ls : List VLevel) (args : List VExpr), ls.length = info.uvars →
+        (hargs : args.length = info.nparams + info.nindices) →
+        (∃ u, c.HasType (VExpr.mkApps (.const n ls) args) (.sort u)) →
+        ∀ k (hk : k < info.nparams) (hk' : k < doms.length),
+          c.HasType (args[k]'(by rw [hargs]; omega)) ((doms[k].instL ls).instOuter (args.take k))) := by
   sorry
 
 class VContext.MLCWF (c : VContext) (m : MLCtx) : Prop where

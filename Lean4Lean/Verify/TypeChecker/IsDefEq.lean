@@ -254,7 +254,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
     (Lean4Lean.List.Forall₂.length_eq hargs).symm
   -- registry facts
   have ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
-    hnp, hnf, hnf', hsp, hsi, hidxs, hsort⟩ := VContext.registryShape hfind hsingle hci
+    hnp, hnf, hnf', hsp, hsi, hidxs, hsort, _⟩ := VContext.registryShape hfind hsingle hci
   subst hname
   have hnindices : info.nindices = 0 := by
     rw [← hsi]
