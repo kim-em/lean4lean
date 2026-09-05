@@ -371,10 +371,12 @@ theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : Induc
       info.numFields = mkInfo.numFields ∧
       structInfo.numParams = info.nparams ∧ structInfo.numIndices = info.nindices ∧
       (∀ type ∈ decl.types, type.name = n → type.numIndices = info.nindices) ∧
-      (∀ (ls : List VLevel) (P : List VExpr), ls.length = info.uvars → P.length = info.nparams →
-        info.nindices = 0 →
-        (∃ u, c.HasType (VExpr.mkApps (.const n ls) P) (.sort u)) →
-        c.HasType (VExpr.mkApps (.const n ls) P) (.sort (info.resultLevel.inst ls))) ∧
+      (∃ indType, c.venv.constants n = some ⟨info.uvars, indType⟩) ∧
+      -- the canonical sort of a fully applied type
+      (∀ (ls : List VLevel) (args : List VExpr), ls.length = info.uvars →
+        args.length = info.nparams + info.nindices →
+        (∃ u, c.HasType (VExpr.mkApps (.const n ls) args) (.sort u)) →
+        c.HasType (VExpr.mkApps (.const n ls) args) (.sort (info.resultLevel.inst ls))) ∧
       -- the parameters of a well-formed type application are typed at the constructor's
       -- parameter binders
       (∀ (ls : List VLevel) (args : List VExpr), ls.length = info.uvars →
@@ -468,6 +470,16 @@ theorem M.WF.mono {c : VContext} {s : VState} {x : M α} {Q R}
 
 theorem M.WF.throw {c : VContext} {s : VState} {Q} : (throw e : M α).WF c s Q := nofun
 
+theorem M.WF.and {c : VContext} {s : VState} {x : M α} {Q R}
+    (h1 : x.WF c s Q) (h2 : x.WF c s R) : x.WF c s fun a s => Q a s ∧ R a s := by
+  refine fun wf a s' e => ?_
+  have H1 := h1 wf a s' e
+  have H2 := h2 wf a s' e
+  obtain ⟨⟨s₁⟩, rfl, h2', h3, h4⟩ := H1
+  obtain ⟨⟨s₂⟩, eq, -, -, h4'⟩ := H2
+  cases eq
+  exact ⟨_, rfl, h2', h3, h4, h4'⟩
+
 theorem M.WF.le {c : VContext} {s : VState} {Q R} {x : M α}
     (h1 : x.WF c s Q) (H : ∀ a s', s ≤ s' → Q a s' → R a s') :
     x.WF c s R := fun wf _ _ e =>
@@ -481,6 +493,11 @@ structure Methods.WF (m : Methods) where
     (m.whnfCore e cheapProj).WF c s fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e'
   whnf : c.TrExprS e e' →
     (m.whnf e).WF c s fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e'
+  /-- An input translating to a `forallE` is returned (up to `mdata` and let bindings). -/
+  whnfCore_forallE : c.TrExprS e (.forallE A B) →
+    (m.whnfCore e cheapProj).WF c s fun e₁ _ => c.TrExprS e₁ (.forallE A B)
+  whnf_forallE : c.TrExprS e (.forallE A B) →
+    (m.whnf e).WF c s fun e₁ _ => c.TrExprS e₁ (.forallE A B)
   inferType : e.FVarsIn (· ∈ c.vlctx.fvars) →
     (inferOnly = true → ∃ e', c.TrExprS e e') →
     (m.inferType e inferOnly).WF c s fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty'
@@ -510,6 +527,10 @@ theorem RecM.WF.bind_le {c : VContext} {s : VState} {x : RecM α} {f : α → Re
 
 theorem RecM.WF.pure {c : VContext} {s : VState} {Q} (H : Q a s) : (pure a : RecM α).WF c s Q :=
   fun _ _ => .pure H
+
+theorem RecM.WF.and {c : VContext} {s : VState} {x : RecM α} {Q R}
+    (h1 : x.WF c s Q) (h2 : x.WF c s R) : x.WF c s fun a s => Q a s ∧ R a s :=
+  fun m wf => (h1 m wf).and (h2 m wf)
 
 theorem RecM.WF.map {c : VContext} {s : VState} {x : RecM α} {f : α → β} {Q R}
     (h1 : x.WF c s Q) (h2 : ∀ a s', s ≤ s' → Q a s' → R (f a) s') : (f <$> x).WF c s R := by
@@ -1113,6 +1134,20 @@ theorem whnf.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnf e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
   fun _ wf => wf.whnf he
 
+theorem whnf.WF_forallE {c : VContext} {s : VState} (he : c.TrExprS e (.forallE A B)) :
+    RecM.WF c s (whnf e) fun e₁ _ => c.TrExprS e₁ (.forallE A B) :=
+  fun _ wf => wf.whnf_forallE he
+
+/-- Both `whnf` clauses at once. -/
+theorem whnf.WF' {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (whnf e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
+      (∀ A B, e' = .forallE A B → c.TrExprS e₁ e') := by
+  by_cases h : ∃ A B, e' = .forallE A B
+  · obtain ⟨A, B, rfl⟩ := h
+    exact ((whnf.WF he).and (whnf.WF_forallE he)).mono fun _ _ _ ⟨⟨h1, h2⟩, h3⟩ =>
+      ⟨h1, h2, fun _ _ _ => h3⟩
+  · exact (whnf.WF he).mono fun _ _ _ ⟨h1, h2⟩ => ⟨h1, h2, fun _ _ hAB => (h ⟨_, _, hAB⟩).elim⟩
+
 theorem envGet.WF {c : VContext} :
     (c.env.get name).WF fun ci => c.env.find? name = some ci := by
   simp [Environment.get]; split <;> [refine .pure ‹_›; exact .throw]
@@ -1150,6 +1185,42 @@ theorem checkType.WF {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx
 theorem whnfCore.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
   fun _ wf => wf.whnfCore he
+
+theorem whnfCore.WF_forallE {c : VContext} {s : VState} (he : c.TrExprS e (.forallE A B)) :
+    RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.TrExprS e₁ (.forallE A B) :=
+  fun _ wf => wf.whnfCore_forallE he
+
+/-- Both `whnfCore` clauses at once. -/
+theorem whnfCore.WF' {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
+      (∀ A B, e' = .forallE A B → c.TrExprS e₁ e') := by
+  by_cases h : ∃ A B, e' = .forallE A B
+  · obtain ⟨A, B, rfl⟩ := h
+    exact ((whnfCore.WF he).and (whnfCore.WF_forallE he)).mono fun _ _ _ ⟨⟨h1, h2⟩, h3⟩ =>
+      ⟨h1, h2, fun _ _ _ => h3⟩
+  · exact (whnfCore.WF he).mono fun _ _ _ ⟨h1, h2⟩ =>
+      ⟨h1, h2, fun _ _ hAB => (h ⟨_, _, hAB⟩).elim⟩
+
+/-- An expression translating to a `forallE` is neither an application nor a constant. -/
+theorem _root_.Lean4Lean.TrExprS.forallE_shape
+    (H : TrExprS env Us Δ e (.forallE A B)) : e.isApp = false ∧ ∀ n ls, e ≠ .const n ls := by
+  cases H with
+  | lit hl h =>
+    rename_i l
+    cases l with
+    | natVal n =>
+      cases n <;> simp [Literal.toConstructor, Expr.natLitToConstructor, Expr.natZero,
+        Expr.natSucc] at h <;> cases h
+    | strVal s =>
+      simp [Literal.toConstructor, Expr.strLitToConstructor] at h; cases h
+  | _ => simp [Expr.isApp]
+
+theorem unfoldDefinition_eq_none (h1 : e.isApp = false) (h2 : ∀ n ls, e ≠ .const n ls) :
+    unfoldDefinition e = pure none := by
+  unfold unfoldDefinition; simp only [h1, Bool.false_eq_true, ↓reduceIte]
+  unfold unfoldDefinitionCore; split
+  · exact absurd rfl (h2 _ _)
+  · rfl
 
 theorem isDelta_is_some : isDelta env e = some ci ↔
     ∃ n, env.find? n = some ci ∧ (∃ v, ci.deltaValue? = some v) ∧

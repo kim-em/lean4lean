@@ -254,7 +254,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
     (Lean4Lean.List.Forall₂.length_eq hargs).symm
   -- registry facts
   have ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
-    hnp, hnf, hnf', hsp, hsi, hidxs, hsort, _⟩ := VContext.registryShape hfind hsingle hci
+    hnp, hnf, hnf', hsp, hsi, hidxs, _, hsort, _⟩ := VContext.registryShape hfind hsingle hci
   subst hname
   have hnindices : info.nindices = 0 := by
     rw [← hsi]
@@ -311,7 +311,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
       have h4 := (hceq.of_l c.Ewf c.Δwf h3).hasType.2
       have h5 := h4.uniqU c.Ewf c.Δwf hsTy
       exact h1.defeqU_l c.Ewf c.Δwf (hb.trans c.Ewf c.Δwf h5)
-    have h6 := hsort ls' _ hlen' hP'len hnindices ⟨_, h2⟩
+    have h6 := hsort ls' _ hlen' (by omega) ⟨_, h2⟩
     have h7 := h2.uniqU c.Ewf c.Δwf h6
     exact (ofLevel_isNeverZero hu' hnz).of_equiv (h7.sort_inv c.Ewf c.Δwf)
   have hclosed : info.ctorType.Closed := by
@@ -696,7 +696,7 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
   have ⟨args', hargs, htT''⟩ := stk.translatedArguments
   have .const hfc hls hlen := stk.tr
   have heq := htT'.uniq c.Ewf (.refl c.Ewf c.Δwf) htT''
-  have ⟨info, hinfo, _, decl, doms, result, _, _, _, _, _, _, _, _, _, _, hnf, hnp, hni, _, _⟩ :=
+  have ⟨info, hinfo, _, decl, doms, result, _, _, _, _, _, _, _, _, _, _, hnf, hnp, hni, _, _, _⟩ :=
     VContext.registryShape hci rfl hcci
   have hlenP : args'.length = info.nparams := by
     have h2 : tType.getAppNumArgs = _ := beq_iff_eq.1 harity

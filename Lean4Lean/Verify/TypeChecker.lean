@@ -82,12 +82,16 @@ theorem Methods.withFuel.WF : ∀ {n}, (withFuel n).WF
     { isDefEqCore _ _ := .throw
       whnfCore _ := .throw
       whnf _ := .throw
+      whnfCore_forallE _ := .throw
+      whnf_forallE _ := .throw
       inferType _ _ := .throw }
   | n + 1 =>
     have := withFuel.WF (n := n)
     { isDefEqCore h1 h2 := isDefEqCore'.WF h1 h2 _ this
-      whnfCore h1 := whnfCore'.WF h1 _ this
-      whnf h1 := whnf'.WF h1 _ this
+      whnfCore h1 := (whnfCore'.WF h1 _ this).mono fun _ _ _ h => ⟨h.1, h.2.1⟩
+      whnf h1 := (whnf'.WF h1 _ this).mono fun _ _ _ h => ⟨h.1, h.2.1⟩
+      whnfCore_forallE h1 := (whnfCore'.WF h1 _ this).mono fun _ _ _ h => h.2.2 _ _ rfl
+      whnf_forallE h1 := (whnf'.WF h1 _ this).mono fun _ _ _ h => h.2.2 _ _ rfl
       inferType h1 h2 := inferType'.WF h1 h2 _ this }
 
 theorem RecM.WF.run {x : RecM α} (H : x.WF c s Q) : (RecM.run x).WF c s Q :=
