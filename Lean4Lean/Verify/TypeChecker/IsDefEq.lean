@@ -311,7 +311,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
       have h4 := (hceq.of_l c.Ewf c.Δwf h3).hasType.2
       have h5 := h4.uniqU c.Ewf c.Δwf hsTy
       exact h1.defeqU_l c.Ewf c.Δwf (hb.trans c.Ewf c.Δwf h5)
-    have h6 := hsort ls' _ hlen' hP'len hnindices ⟨_, h2⟩
+    have h6 := hsort ls' _ hlen' (by omega) ⟨_, h2⟩
     have h7 := h2.uniqU c.Ewf c.Δwf h6
     exact (ofLevel_isNeverZero hu' hnz).of_equiv (h7.sort_inv c.Ewf c.Δwf)
   have hclosed : info.ctorType.Closed := by

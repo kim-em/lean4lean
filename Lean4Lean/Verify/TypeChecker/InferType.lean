@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.TypeChecker.Reduce
+import Lean4Lean.Verify.TypeChecker.Projection
 import Lean4Lean.Verify.EquivManager
 
 open Lean4Lean
@@ -381,10 +382,232 @@ theorem inferLet.WF
   refine (c.withMLC_self ▸ inferLet.loop.WF (Nat.zero_le _) [] rfl rfl rfl rfl rfl ?_ hr) hinf
   exact fun P hP he => ⟨(AllAbove.wf wf.trctx.wf.fvwf).2 hP, he.mono fun _ h _ => h, fun _ => id⟩
 
-theorem inferProj.WF
-    (he : c.TrExprS e e') (hty : c.TrExprS ety ety') (hasty : c.HasType e' ty') :
+theorem inferProj.WF (hb : c.FVarsBelow e ety) (he : c.TrExprS e e') (hty : c.TrExprS ety ety')
+    (hasty : c.HasType e' ety') :
     (inferProj st i e ety).WF c s fun ty _ =>
-      ∃ projected ty', c.TrTyping (.proj st i e) ty projected ty' := sorry
+      ∃ projected ty', c.TrTyping (.proj st i e) ty projected ty' := by
+  unfold inferProj; lift_lets; intro pe
+  refine (whnf.WF hty).bind fun type _ _ ⟨hbt, tT', htT, hdefeq⟩ => ?_
+  rw [Expr.withApp_eq]; dsimp only
+  refine .getEnv ?_
+  -- the two shapes of failure: a bare throw, and a throw followed by the rest of the block
+  have hfail' {α : Type} {s : VState} {Q : α → VState → Prop} :
+      ((do let l ← getLCtx; throw (Exception.invalidProj c.env l pe)) : RecM α).WF c s Q :=
+    .getLCtx .throw
+  have hfail {α β : Type} {s : VState} {Q : β → VState → Prop} {k : α → RecM β} :
+      (((do let l ← getLCtx; throw (Exception.invalidProj c.env l pe)) : RecM α) >>= k).WF c s Q :=
+    (RecM.WF.getLCtx (Q := fun _ _ => False) .throw).bind fun _ _ _ h => h.elim
+  split <;> [rename_i I_name I_levels hI; exact hfail']
+  split <;> [exact hfail; rename_i hname]
+  obtain rfl : st = I_name := by simpa using hname
+  refine (M.WF.liftExcept envGet.WF).lift.bind fun ci _ _ hci => ?_
+  split <;> [rename_i I_val; exact hfail']
+  split <;> [rename_i mkC hsingle; exact hfail']
+  split <;> [exact hfail; rename_i harity]
+  have harity : type.getAppArgs.size = I_val.numParams + I_val.numIndices := by simpa using harity
+  refine (M.WF.liftExcept envGet.WF).lift.bind fun cci _ _ hcci => ?_
+  split <;> [rename_i c_val; exact hfail']
+  split <;> [exact hfail; rename_i hidx]
+  have hidx : i < c_val.numFields := by simpa using hidx
+  -- registry facts
+  have ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
+    hnp, hnf, hnf', hsp, hsi, hidxs, hind, hsort, hparam⟩ :=
+    VContext.registryShape hci hsingle hcci
+  subst hname
+  -- the spine of the whnf'd structure type
+  have htT' : c.TrExprS ((Expr.const st I_levels).mkAppList type.getAppArgsList) tT' := by
+    rw [← hI, type.mkAppList_getAppArgsList]; exact htT
+  have ⟨fn', stk⟩ := AppStack.build htT'
+  have ⟨args', hargs, htT''⟩ := stk.translatedArguments
+  have .const (us' := ls') hfc hls hlen := stk.tr
+  obtain ⟨indType, hind⟩ := hind
+  rw [hfc] at hind; cases hind
+  have heq := htT'.uniq c.Ewf (.refl c.Ewf c.Δwf) htT''
+  have hlsWF := VLevel.WF.of_mapM_ofLevel hls
+  have hlen' : ls'.length = info.uvars := (List.mapM_eq_some.1 hls).length_eq.symm.trans hlen
+  have hargsLen : args'.length = type.getAppArgs.size := by
+    rw [← Lean4Lean.List.Forall₂.length_eq hargs, ← Expr.getAppArgs_toList, Array.length_toList]
+  have hargsLen' : args'.length = info.nparams + info.nindices := by
+    rw [hargsLen, harity, hsp, hsi]
+  have hargsGet : ∀ k (hk : k < type.getAppArgs.size),
+      c.TrExprS type.getAppArgs[k] (args'[k]'(by omega)) := by
+    intro k hk
+    have := Lean4Lean.List.forall₂_getElem hargs k
+      (by rw [← Expr.getAppArgs_toList, Array.length_toList]; omega) (by omega)
+    simpa [← Expr.getAppArgs_toList] using this
+  -- typing of the major and the sort of its type
+  have hety : c.HasType e' (VExpr.mkApps (.const st ls') args') :=
+    (hasty.defeqU_r c.Ewf c.Δwf hdefeq.symm).defeqU_r c.Ewf c.Δwf heq
+  have ⟨uS, hetyS⟩ := hety.isType c.Ewf c.Δwf
+  -- the constructor type, translated syntactically up to universe levels
+  have ⟨_, h5, h6⟩ := (c.trenv.find?_uniq hcci hctor).2
+  have hcT : ∃ T₀,
+      TrExprS c.venv c.lparams []
+        ((ConstantInfo.ctorInfo c_val).instantiateTypeLevelParams I_levels) T₀ ∧
+      c.TrExprS ((ConstantInfo.ctorInfo c_val).instantiateTypeLevelParams I_levels) T₀ ∧
+      VExpr.LEquiv c.lparams.length T₀ (info.ctorType.instL ls') := by
+    have ⟨T₀, hT₀, L⟩ := h6.instL_lequiv hls (h5.trans hlen.symm) c.Ewf (Δ := []) trivial
+    refine ⟨T₀, hT₀, ?_, L⟩
+    have := hT₀.weakFV c.Ewf.ordered (.from_nil c.mlctx.noBV) c.Δwf
+    rwa [(VExpr.WF.closedN c.Ewf.ordered (hT₀.wf c.Ewf.ordered (by trivial)) trivial).liftN_eq
+      (j := 0) (Nat.le_refl 0)] at this
+  obtain ⟨T₀, hT₀nil, hT₀, L⟩ := hcT
+  rw [hshape, VExpr.instL_wrapForalls] at L
+  obtain ⟨doms₀, result₀, rfl, hdoms, -⟩ := L.wrapForalls_inv
+  have hdomsLen : doms₀.length = doms.length := by
+    simpa using Lean4Lean.List.Forall₂.length_eq hdoms
+  have hdomsK : ∀ k (hk : k < doms.length),
+      VExpr.LEquiv c.lparams.length (doms₀[k]'(by omega)) (doms[k].instL ls') := by
+    intro k hk
+    have := Lean4Lean.List.forall₂_getElem hdoms k (by omega) (by simpa using hk)
+    simpa using this
+  have hclosed : info.ctorType.Closed := by
+    have ⟨_, h⟩ := hwf
+    exact VExpr.WF.closedN c.Ewf.ordered ⟨_, h⟩ trivial
+  -- the parameters
+  have hP'len : (args'.take info.nparams).length = info.nparams := by simp; omega
+  have hnpLen : info.nparams ≤ doms₀.length := by omega
+  refine (instantiateProjectionParameters.WF hT₀ (ds := doms₀) (position := 0)
+      (xs' := args'.take info.nparams) (by rw [hsp]; exact hnpLen) (by rw [hP'len, hsp]) ?_ ?_).bind
+      fun r _ _ H => ?_
+  · intro k hk
+    rw [hsp] at hk
+    refine ⟨type.getAppArgs[k]'(by omega), ?_, ?_⟩
+    · simp only [Nat.zero_add]; exact Array.getElem?_eq_getElem _
+    · have := hargsGet k (by omega)
+      rwa [List.getElem_take]
+  · intro k hk
+    rw [hsp] at hk
+    refine ⟨(doms[k]'(by omega) |>.instL ls').instOuter (args'.take k), ?_, ?_⟩
+    · have := (hdomsK k (by omega)).instOuter (args'.take k)
+      rwa [List.take_take, Nat.min_eq_left (Nat.le_of_lt hk)]
+    · have := hparam ls' args' hlen' hargsLen' ⟨_, hetyS⟩ k hk (by omega)
+      rwa [List.getElem_take]
+  split <;> [rename_i afterParameters hafter; exact hfail']
+  obtain ⟨⟨R₁, hR₁, hafter'⟩, hfvAfter⟩ := H _ rfl
+  rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _
+    (by rw [hP'len]; exact hnpLen)] at hR₁
+  cases hR₁
+  rw [hP'len] at hafter'
+  generalize hds_def : VExpr.instDomsAt (doms₀.drop info.nparams) (args'.take info.nparams) 0 = ds
+    at hafter'
+  -- the sort level of the structure type
+  refine (getSortLevel.WF htT).bind fun l _ _ ⟨u', hu', hsortT⟩ => ?_
+  have hsortT' : c.HasType (VExpr.mkApps (.const st ls') args') (.sort u') :=
+    hsortT.defeqU_l c.Ewf c.Δwf heq
+  have hcanon := hsort ls' args' hlen' hargsLen' ⟨_, hsortT'⟩
+  have hu'canon : u' ≈ info.resultLevel.inst ls' :=
+    (hsortT'.uniqU c.Ewf c.Δwf hcanon).sort_inv c.Ewf c.Δwf
+  -- the domains of the field binders, as instantiations of the constructor's domains
+  have hdsLen : ds.length = doms₀.length - info.nparams := by rw [← hds_def]; simp
+  have hds : ∀ m (hm : m < ds.length),
+      (ds[m]'hm).instOuter (projs st e' 0 m) =
+        (doms₀[info.nparams + m]'(by omega)).instOuter
+          (args'.take info.nparams ++ (List.range m).map fun j => .proj st j e') := by
+    intro m hm
+    have hm' : m < (doms₀.drop info.nparams).length := by rw [hdsLen] at hm; simpa using hm
+    subst hds_def
+    rw [VExpr.instDomsAt_getElem _ _ _ _ hm', List.getElem_drop]
+    simp only [projs, Nat.zero_add, VExpr.instOuter_eq_instOuterAt, VExpr.instOuterAt_append,
+      List.length_map, List.length_range]
+  -- the guard of `projDF` for the sort of a field
+  let G : VLevel → Prop := fun u => (info.resultLevel.inst ls').IsNeverZero ∨ u ≈ .zero
+  have hG : (!l.isNeverZero) = false → ∀ u, G u := by
+    intro h u
+    exact .inl ((ofLevel_isNeverZero hu' (by simpa using h)).of_equiv hu'canon)
+  have hclosed : info.ctorType.Closed := by
+    have ⟨_, h⟩ := hwf
+    exact VExpr.WF.closedN c.Ewf.ordered ⟨_, h⟩ trivial
+  -- the typing of an earlier field's projection at its binder
+  have hproj : ∀ m (hm : m < ds.length) u,
+      c.HasType ((ds[m]'hm).instOuter (projs st e' 0 m)) (.sort u) → G u →
+      c.HasType (.proj st m e') ((ds[m]'hm).instOuter (projs st e' 0 m)) := by
+    intro m hm u hu hGu
+    rw [hds m hm] at hu ⊢
+    have hlt : info.nparams + m < doms.length := by omega
+    have hfield := VProjectionInfo.fieldType_eq_instOuter info hshape hlen' hP'len hlt
+      (typeName := st) (major := e')
+    have hL := ((hdomsK _ hlt).instOuter
+      (args'.take info.nparams ++ (List.range m).map fun j => VExpr.proj st j e')).defeq
+      c.Ewf c.Δwf.toCtx ⟨_, hu⟩
+    have hFty := hu.defeqU_l c.Ewf c.Δwf hL
+    have hp := VEnv.IsDefEq.projDF hinfo hlsWF hlen' hP'len (indexArgs := args'.drop info.nparams)
+      (by simp; omega) hfield hFty (by rw [List.take_append_drop]; exact hety)
+      (by rw [List.take_append_drop]; exact hety) hclosed hGu
+    exact hp.hasType.2.defeqU_r c.Ewf c.Δwf hL.symm
+  -- the fields
+  have hile : i ≤ ds.length := by omega
+  refine (instantiateProjectionFields.WF (st := st) (G := G) he ⟨_, hety⟩ (.inr rfl) hG hafter'
+    hile fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu).bind
+    fun r _ _ H => ?_
+  split <;> [skip; exact hfail']
+  obtain ⟨⟨R₂, hR₂, hsel'⟩, hfvSel⟩ := H _ rfl
+  rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _ (by simpa using hile)]
+    at hR₂
+  cases hR₂
+  rw [projs_length] at hsel'
+  -- the selected field's binder
+  obtain ⟨F₀, rest₀, hdrop⟩ : ∃ F₀ rest₀, ds.drop i = F₀ :: rest₀ := by
+    cases h : ds.drop i with
+    | nil => simp at h; omega
+    | cons F₀ rest₀ => exact ⟨_, _, rfl⟩
+  rw [hdrop] at hsel'
+  have hsel'' : c.TrExprS _ (.forallE (F₀.instOuterAt (projs st e' 0 i) 0)
+      (VExpr.wrapForalls (VExpr.instDomsAt rest₀ (projs st e' 0 i) 1) _)) := hsel'
+  have hF₀ : F₀ = ds[i]'(by omega) := by
+    have h1 : (ds.drop i).head? = some F₀ := by rw [hdrop]; rfl
+    rw [List.head?_drop, List.getElem?_eq_getElem (by omega)] at h1
+    exact (Option.some.inj h1).symm
+  have hFeq : F₀.instOuterAt (projs st e' 0 i) 0 =
+      (doms₀[info.nparams + i]'(by omega)).instOuter
+        (args'.take info.nparams ++ (List.range i).map fun j => .proj st j e') := by
+    rw [← VExpr.instOuter_eq_instOuterAt, hF₀]; exact hds i (by omega)
+  generalize F₀.instOuterAt (projs st e' 0 i) 0 = F at hsel'' hFeq
+  subst hFeq
+  refine (whnf.WF' hsel'').bind fun w _ _ Hw => ?_
+  obtain ⟨hbw, -, hs⟩ := Hw
+  have hw := hs _ _ rfl
+  split <;> [rename_i n domain body bi; exact hfail']
+  let .forallE hF _ hdom _ := hw
+  -- the field type of the projection is the selected binder up to universe levels
+  have hlt : info.nparams + i < doms.length := by omega
+  have hfield := VProjectionInfo.fieldType_eq_instOuter info hshape hlen' hP'len hlt
+    (typeName := st) (major := e')
+  have ⟨_, hF'⟩ := hF
+  have hL := ((hdomsK _ hlt).instOuter
+    (args'.take info.nparams ++ (List.range i).map fun j => VExpr.proj st j e')).defeq
+    c.Ewf c.Δwf.toCtx ⟨_, hF'⟩
+  -- the conclusion, given the sort of the field type and the guard
+  have final {s : VState} (fl : VLevel)
+      (hFl : c.HasType ((doms₀[info.nparams + i]'(by omega)).instOuter
+        (args'.take info.nparams ++ (List.range i).map fun j => .proj st j e')) (.sort fl))
+      (hGl : G fl) :
+      RecM.WF c s (pure domain) fun ty _ =>
+        ∃ projected ty', c.TrTyping (.proj st i e) ty projected ty' := by
+    have hFty := hFl.defeqU_l c.Ewf c.Δwf hL
+    have hp := VEnv.IsDefEq.projDF hinfo hlsWF hlen' hP'len (indexArgs := args'.drop info.nparams)
+      (by simp; omega) hfield hFty (by rw [List.take_append_drop]; exact hety)
+      (by rw [List.take_append_drop]; exact hety) hclosed hGl
+    have hpF := hp.hasType.2.defeqU_r c.Ewf c.Δwf hL.symm
+    refine .pure ⟨.proj st i e', _, ?_, .proj he (.direct ⟨_, hety⟩ ⟨_, hpF⟩), hdom, hpF⟩
+    intro P hP hfv
+    have hfve : FVarsIn P e := hfv
+    have hfvtype := hbt P hP (hb P hP hfve)
+    have hfvargs : ∀ a ∈ type.getAppArgsList, FVarsIn P a :=
+      (FVarsIn.mkAppList.1 (type.mkAppList_getAppArgsList ▸ hfvtype)).2
+    have hfvT₀ : FVarsIn P ((ConstantInfo.ctorInfo c_val).instantiateTypeLevelParams I_levels) :=
+      hT₀nil.fvarsIn.mono fun _ h => absurd h (by simp)
+    have h1 := hfvAfter P hP hfvT₀ fun k _ a ha => hfvargs a (List.mem_of_getElem? (by
+      rw [← Expr.getAppArgs_toList]; simpa [Array.getElem?_toList] using ha))
+    exact (hbw P hP (hfvSel P hP h1 hfve)).1
+  split
+  · rename_i hmp
+    refine (isProp.WF hdom).bind fun bp _ _ hbp => ?_
+    split <;> [exact hfail; rename_i hbp']
+    exact final .zero (hbp (by simpa using hbp')) (.inr rfl)
+  · rename_i hmp
+    exact final _ hF' (hG (by simpa using hmp) _)
+
 
 theorem literal_is_primitive (H : n = ``Nat ∨ n = ``Char.ofNat ∨ n = ``String.ofList)  :
     Environment.primitives.contains n := by
@@ -453,7 +676,7 @@ theorem inferType'.WF
     exact hF ⟨hb, .mdata h1, h⟩
   · refine (inferType'.WF (by exact h1) ?_).bind fun _ _ _ ⟨_, _, hb, h1, h2, h3⟩ => ?_
     · exact fun h => let ⟨_, .proj h ..⟩ := hinf h; ⟨_, h⟩
-    exact (inferProj.WF h1 h2 h3).bind fun ty _ _ ⟨_, _, h⟩ => hF h
+    exact (inferProj.WF hb h1 h2 h3).bind fun ty _ _ ⟨_, _, h⟩ => hF h
   · exact .readThe <| (M.WF.liftExcept inferFVar.WF).lift.bind fun _ _ _ ⟨_, _, h⟩ => hF h
   · exact .throw
   · rename_i h _; simp [Expr.hasLooseBVars, Expr.looseBVarRange'] at h

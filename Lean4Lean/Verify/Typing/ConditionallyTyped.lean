@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Typing.Lemmas
+import Lean4Lean.Verify.Typing.LevelEquiv
 
 namespace Lean4Lean
 open VEnv Lean
@@ -90,18 +91,23 @@ theorem ConditionallyHasType.fresh
     · cases Nat.lt_irrefl _ (h2 _ rfl)
     · exact h1
 
+/-- The cache invariant for `whnfCore`/`whnf`: the result is definitionally equal to the input,
+and when the input translates to a `forallE` the result translates to the same `forallE`
+(the checker returns such inputs syntactically, only stripping `mdata` and let bindings). -/
 def ConditionallyWHNF
     (ngen : NameGenerator) (env : VEnv) (Us : List Name) (Δ : VLCtx) (e e₁ : Expr) : Prop :=
   Closed e ∧ FVarsIn ngen.Reserves e ∧ Closed e₁ ∧ FVarsIn ngen.Reserves e₁ ∧
     (FVarsIn (· ∈ Δ.fvars) e → ∃ e',
-      FVarsBelow Δ e e₁ ∧ TrExprS env Us Δ e e' ∧ TrExpr env Us Δ e₁ e')
+      FVarsBelow Δ e e₁ ∧ TrExprS env Us Δ e e' ∧ TrExpr env Us Δ e₁ e' ∧
+      (∀ A B, e' = .forallE A B → TrExprS env Us Δ e₁ e'))
 
 theorem ConditionallyWHNF.mk {Δ : VLCtx}
     (noBV : Δ.NoBV) (hb : FVarsBelow Δ e e₁)
     (he : TrExprS env Us Δ e e') (he₁ : TrExpr env Us Δ e₁ e')
+    (hs : ∀ A B, e' = .forallE A B → TrExprS env Us Δ e₁ e')
     (re : FVarsIn ngen.Reserves e) (re₁ : FVarsIn ngen.Reserves e₁) :
     ConditionallyWHNF ngen env Us Δ e e₁ := by
-  refine ⟨noBV ▸ he.closed, re, noBV ▸ he₁.closed, re₁, fun _ => ⟨_, hb, he, he₁⟩⟩
+  refine ⟨noBV ▸ he.closed, re, noBV ▸ he₁.closed, re₁, fun _ => ⟨_, hb, he, he₁, hs⟩⟩
 
 theorem ConditionallyWHNF.mono (H : ngen₁ ≤ ngen₂) :
     ConditionallyWHNF ngen₁ env Us Δ e A → ConditionallyWHNF ngen₂ env Us Δ e A
@@ -113,7 +119,7 @@ theorem ConditionallyWHNF.weakN_inv
     ConditionallyWHNF ngen env Us Δ e e₁ := by
   have ⟨c1, f1, c2, f2, H⟩ := H
   refine ⟨c1, f1, c2, f2, fun H4 => ?_⟩
-  have ⟨e', h1, h2, _, h3, h4⟩ := H H4.fvars_cons
+  have ⟨e', h1, h2, ⟨_, h3, h4⟩, h5⟩ := H H4.fvars_cons
   have W : VLCtx.FVLift Δ ((some fv, d) :: Δ) 0 (0 + d.depth) 0 := .skip_fvar _ _ .refl
   have ⟨e'', he⟩ := TrExprS.weakFV_inv henv W (.refl henv hΔ) h2 c1 H4
   have ee := h2.uniq henv (.refl henv hΔ) <| he.weakFV henv W hΔ
@@ -124,10 +130,17 @@ theorem ConditionallyWHNF.weakN_inv
   have ee₁ := h3.uniq henv (.refl henv hΔ) <| he₁.weakFV henv W hΔ
   have h4 := ee₁.symm.trans henv hΔ.toCtx h4 |>.trans henv hΔ.toCtx ee
   have h4 := (IsDefEqU.weakN_iff henv hΔ.toCtx W.toCtx).1 h4
-  refine ⟨_, fun P hP he' => ?_, he, _, he₁, h4⟩
-  exact h1 _
-    ⟨(IsFVarUpSet.and_fvars hΔ.1.fvwf).1 hP, fun h => (hΔ.2.1 _ _ rfl).1.elim h.2⟩
-    (he'.mp (fun _ => .intro) he.fvarsIn) |>.mono fun _ => (·.1)
+  refine ⟨_, fun P hP he' => ?_, he, ⟨_, he₁, h4⟩, fun A B hAB => ?_⟩
+  · exact h1 _
+      ⟨(IsFVarUpSet.and_fvars hΔ.1.fvwf).1 hP, fun h => (hΔ.2.1 _ _ rfl).1.elim h.2⟩
+      (he'.mp (fun _ => .intro) he.fvarsIn) |>.mono fun _ => (·.1)
+  · have eq1 := h2.det (he.weakFV henv W hΔ)
+    have h6 := h5 _ _ (by rw [eq1, hAB]; rfl)
+    have ⟨e₁'', he₁'⟩ := TrExprS.weakFV_inv henv W (.refl henv hΔ) h6 c2 <| h1 _ this H4
+    have eq2 := h6.det (he₁'.weakFV henv W hΔ)
+    rw [eq1] at eq2
+    cases VExpr.liftN_inj.1 eq2
+    exact he₁'
 
 theorem ConditionallyWHNF.fresh
     (henv : env.WF)
@@ -135,10 +148,14 @@ theorem ConditionallyWHNF.fresh
     (H : ConditionallyWHNF ngen env Us Δ e e₁) :
     ConditionallyWHNF ngen env Us ((some (⟨ngen.curr⟩, deps), d) :: Δ) e e₁ := by
   refine have ⟨c1, f1, c2, f2, H⟩ := H; ⟨c1, f1, c2, f2, fun H4 => ?_⟩
-  have ⟨_, h1, h2, h3⟩ := H (H4.mp ?_ f1)
+  have ⟨e', h1, h2, h3, h5⟩ := H (H4.mp ?_ f1)
   · have W : VLCtx.FVLift Δ ((some (⟨ngen.curr⟩, deps), d) :: Δ) 0 (0 + d.depth) 0 :=
       .skip_fvar _ _ .refl
-    exact ⟨_, fun P hP => h1 _ hP.1, h2.weakFV henv W hΔ, h3.weakFV henv W hΔ⟩
+    refine ⟨_, fun P hP => h1 _ hP.1, h2.weakFV henv W hΔ, h3.weakFV henv W hΔ, fun A B hAB => ?_⟩
+    obtain ⟨A₀, B₀, rfl⟩ : ∃ A₀ B₀, e' = .forallE A₀ B₀ := by
+      cases e' <;> simp [VExpr.liftN] at hAB
+      exact ⟨_, _, rfl⟩
+    exact (h5 _ _ rfl).weakFV henv W hΔ
   · intro _ h1 h2; simp at h1; rcases h1 with rfl | h1
     · cases Nat.lt_irrefl _ (h2 _ rfl)
     · exact h1

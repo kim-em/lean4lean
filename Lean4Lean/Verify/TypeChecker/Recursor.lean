@@ -680,7 +680,7 @@ theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
   cases hu₀S with | sort hu' => ?_
   have hsortS : c.HasType (VExpr.mkApps (.const n lsI') P') (.sort _) :=
     (hTT'.defeqU_r c.Ewf c.Δwf hu₀defeq.symm).defeqU_l c.Ewf c.Δwf hAA
-  have hsortC := hsort lsI' P' hlsI'len hP'len hnindices ⟨_, hsortS⟩
+  have hsortC := hsort lsI' P' hlsI'len (by rw [hP'len, hnindices, Nat.add_zero]) ⟨_, hsortS⟩
   have hguard : (info.resultLevel.inst lsI').IsNeverZero :=
     (ofLevel_isNeverZero hu' hnz).of_equiv ((hsortS.uniqU c.Ewf c.Δwf hsortC).sort_inv c.Ewf c.Δwf)
   have hclosed : info.ctorType.Closed := by
