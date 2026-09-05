@@ -2124,7 +2124,7 @@ name, universe, and telescope-cardinality premise. -/
 theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -2144,10 +2144,10 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
       sourceTypes[familyIdx] sourceProdEnv targetProdEnv)
     (targetType : VExpr)
-    (Htype : TrExprS envCtors Hstep.restored.recursor.oldInfo.levelParams []
+    (Htype : TrExprS recEnv Hstep.restored.recursor.oldInfo.levelParams []
       Hstep.restored.recursor.restored.newInfo.type targetType) :
     ∃ recursor, Nonempty (SourcePrimaryRecursorRealization sourceDecl
-      (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor envCtors
+      (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor recEnv
       recursor) := by
   rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _stepState, target, _loweredState, _hparams, _hnodup,
@@ -2213,7 +2213,7 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
         Hprod.cardinality.minors.symm
   refine ⟨recursor, ⟨Hprod.restoredSourcePrimaryRecursorRealization
     familyIdx hentry Hstep.restored.recursor holdRecName sourceDecl hdecl
-    recursor envCtors rfl huvars rfl H.toResult.resultNParams
+    recursor recEnv rfl huvars rfl H.toResult.resultNParams
     (Hsource.nparams.trans H.toResult.resultNParams.symm) hmotives hminors
     hindices ?_⟩⟩
   simpa [recursor] using Htype
@@ -2225,7 +2225,7 @@ opaque translation of the whole expression. -/
 theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFreshOfTelescope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -2245,7 +2245,7 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFreshOfTele
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
       sourceTypes[familyIdx] sourceProdEnv targetProdEnv)
     (targetType : VExpr)
-    (Htype : Expr.ForallTelescopeTypeTranslation envCtors
+    (Htype : Expr.ForallTelescopeTypeTranslation recEnv
       Hstep.restored.recursor.oldInfo.levelParams []
       Hstep.restored.recursor.restored.newInfo.type
       (result.nparams + (Hprod.recInfos.map (·.motive)).size +
@@ -2253,7 +2253,7 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFreshOfTele
         Hprod.recInfos[familyIdx]!.indices.size + 1)
       targetType) :
     ∃ recursor, Nonempty (SourcePrimaryRecursorRealization sourceDecl
-      (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor envCtors
+      (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor recEnv
       recursor) :=
   H.sourcePrimaryRecursorRealizationAtFresh Hprod Hsource Hmetadata hempty
     familyIdx hfamily hdecl hentry Hstep targetType Htype.translation
@@ -2455,7 +2455,7 @@ no post-hoc owner-list equality is required. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshExactOwners
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -2480,7 +2480,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshExactOwners
       (hdecl : familyIdx < sourceDecl.types.length)
       (_hentry : familyIdx < Hprod.entries.length),
       Nonempty (SourcePrimaryRecursorSemantics sourceDecl
-        (sourceDecl.types[familyIdx]'hdecl) envCtors))
+        (sourceDecl.types[familyIdx]'hdecl) recEnv))
     (HrecursorRefinements : ∀ familyIdx
       (hfamily : familyIdx < sourceTypes.length)
       (hdecl : familyIdx < sourceDecl.types.length)
@@ -2490,12 +2490,12 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshExactOwners
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
         sourceTypes[familyIdx] stepSource stepTarget)
       (HsourceRec : SourcePrimaryRecursorSemantics sourceDecl
-        (sourceDecl.types[familyIdx]'hdecl) envCtors),
-      RestoredPrimaryRecursorRefinement Hstep.restored.recursor envCtors
+        (sourceDecl.types[familyIdx]'hdecl) recEnv),
+      RestoredPrimaryRecursorRefinement Hstep.restored.recursor recEnv
         HsourceRec.recursor) :
     ∃ recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
-        sourceVEnv envTypes envCtors Hrestored.inductives sourceDecl.types
+        sourceVEnv envTypes recEnv Hrestored.inductives sourceDecl.types
           recursors := by
   apply Hrestored.inductives.sourceInductiveSemanticTraceExactOwners
     Hsource.types
@@ -2528,7 +2528,7 @@ derived here. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -2553,7 +2553,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFresh
       (hdecl : familyIdx < sourceDecl.types.length)
       (_hentry : familyIdx < Hprod.entries.length),
       Nonempty (SourcePrimaryRecursorSemantics sourceDecl
-        (sourceDecl.types[familyIdx]'hdecl) envCtors))
+        (sourceDecl.types[familyIdx]'hdecl) recEnv))
     (HrecursorRefinements : ∀ familyIdx
       (hfamily : familyIdx < sourceTypes.length)
       (hdecl : familyIdx < sourceDecl.types.length)
@@ -2563,12 +2563,12 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFresh
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
         sourceTypes[familyIdx] stepSource stepTarget)
       (HsourceRec : SourcePrimaryRecursorSemantics sourceDecl
-        (sourceDecl.types[familyIdx]'hdecl) envCtors),
-      RestoredPrimaryRecursorRefinement Hstep.restored.recursor envCtors
+        (sourceDecl.types[familyIdx]'hdecl) recEnv),
+      RestoredPrimaryRecursorRefinement Hstep.restored.recursor recEnv
         HsourceRec.recursor) :
     ∃ owners recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety sourceVEnv
-        envTypes envCtors Hrestored.inductives owners recursors := by
+        envTypes recEnv Hrestored.inductives owners recursors := by
   apply Hrestored.inductives.sourceInductiveSemanticTrace
   intro indType stepSource stepTarget Hstep hmem
   rcases List.mem_iff_getElem.mp hmem with ⟨familyIdx, hfamily, heq⟩
@@ -2603,7 +2603,7 @@ callbacks. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfRealizations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -2632,11 +2632,11 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfRealizations
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
         sourceTypes[familyIdx] stepSource stepTarget),
       ∃ recursor, Nonempty (SourcePrimaryRecursorRealization sourceDecl
-        (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor envCtors
+        (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor recEnv
         recursor)) :
     ∃ owners recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
-        sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
+        sourceVEnv envTypes recEnv Hrestored.inductives owners recursors := by
   apply Hrestored.inductives.sourceInductiveSemanticTrace
   intro indType stepSource stepTarget Hstep hmem
   rcases List.mem_iff_getElem.mp hmem with ⟨familyIdx, hfamily, heq⟩
@@ -2671,7 +2671,7 @@ lowering and recursor phases. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTranslatedTypes
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -2701,11 +2701,11 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTranslatedTypes
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
         sourceTypes[familyIdx] stepSource stepTarget),
       ∃ targetType,
-        TrExprS envCtors Hstep.restored.recursor.oldInfo.levelParams []
+        TrExprS recEnv Hstep.restored.recursor.oldInfo.levelParams []
           Hstep.restored.recursor.restored.newInfo.type targetType) :
     ∃ owners recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
-        sourceVEnv envTypes envCtors Hrestored.inductives owners recursors := by
+        sourceVEnv envTypes recEnv Hrestored.inductives owners recursors := by
   apply H.sourceSemanticTraceAtFreshOfRealizations Hc Hprod Hsources Hsource
     Hfamilies Hconstructors hempty Hrestored
   intro familyIdx hfamily hdecl hentry stepSource stepTarget Hstep
@@ -2722,7 +2722,7 @@ chooses an existential owner list or asks for a post-hoc owner equality. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTelescopeTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -2751,7 +2751,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTelescopeTranslat
       (Hstep : RestoredInductiveStep result loweredEnv
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
         sourceTypes[familyIdx] stepSource stepTarget),
-      ∃ targetType, Expr.ForallTelescopeTypeTranslation envCtors
+      ∃ targetType, Expr.ForallTelescopeTypeTranslation recEnv
         Hstep.restored.recursor.oldInfo.levelParams []
         Hstep.restored.recursor.restored.newInfo.type
         (result.nparams + (Hprod.recInfos.map (·.motive)).size +
@@ -2760,7 +2760,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTelescopeTranslat
         targetType) :
     ∃ recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
-        sourceVEnv envTypes envCtors Hrestored.inductives sourceDecl.types
+        sourceVEnv envTypes recEnv Hrestored.inductives sourceDecl.types
           recursors := by
   apply Hrestored.inductives.sourceInductiveSemanticTraceExactOwners
     Hsource.types
@@ -2976,7 +2976,7 @@ semantic invariant for its restored motive/minor/index/major suffix. -/
 theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -2987,6 +2987,7 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
     (Hprod : RecursorPhasesResult R loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
+    (hrecEnv : envCtors ≤ recEnv) (hrecWF : recEnv.WF)
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (hentry : familyIdx < Hprod.entries.length)
     (Hstep : RestoredInductiveStep result loweredEnv
@@ -2999,10 +3000,10 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
         Hstep.restored.recursor.restored.newInfo
         (Hprod.generated.entry familyIdx hentry),
       GeneratedRecursorRestoredSuffixTranslationsInvariant A Hprod.origins
-        envCtors []
+        recEnv []
         ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
           Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse)) :
-    exists targetType, Expr.ForallTelescopeTypeTranslation envCtors
+    exists targetType, Expr.ForallTelescopeTypeTranslation recEnv
       Hstep.restored.recursor.oldInfo.levelParams []
       Hstep.restored.recursor.restored.newInfo.type
       (result.nparams + (Hprod.recInfos.map (fun info => info.motive)).size +
@@ -3036,17 +3037,17 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
   let template :=
     (c.lctx.mkForall stats.params
       (.sort (.zero : Level))).inferImplicit 1000 false
-  have hsourceLE : sourceVEnv <= envCtors :=
-    (VEnv.addConstVals_le Hsource.typesAdded).trans
-      (VEnv.addConstVals_le Hsource.ctorsAdded)
+  have hsourceLE : sourceVEnv <= recEnv :=
+    ((VEnv.addConstVals_le Hsource.typesAdded).trans
+      (VEnv.addConstVals_le Hsource.ctorsAdded)).trans hrecEnv
   have HtemplateData :
       Expr.ForallTelescope template stats.params.size
           (.sort (.zero : Level)) ∧
         Lean.Expr.SameForallDomains stats.params.size template E.info.type ∧
-        TrExprS envCtors Us [] template
+        TrExprS recEnv Us [] template
             (VExpr.wrapForalls parameterDomains
               (.sort (.zero : VLevel))) ∧
-        envCtors.IsType Us.length []
+        recEnv.IsType Us.length []
           (VExpr.wrapForalls parameterDomains
             (.sort (.zero : VLevel))) := by
     simpa [E, Us, sourceSuffix, parameterDomains, template] using
@@ -3073,11 +3074,11 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
     simpa [template, E, hparams] using HtemplatePrefix
   have hlevels : E.info.levelParams = Us := by
     rw [E.levels, Hprod.localExtends.lparams_eq]
-  have Htemplate' : TrExprS envCtors E.info.levelParams [] template
+  have Htemplate' : TrExprS recEnv E.info.levelParams [] template
       (VExpr.wrapForalls parameterDomains (.sort (.zero : VLevel))) := by
     rw [hlevels]
     simpa [template, parameterDomains, sourceSuffix] using Htemplate
-  have HtemplateType' : envCtors.IsType E.info.levelParams.length []
+  have HtemplateType' : recEnv.IsType E.info.levelParams.length []
       (VExpr.wrapForalls parameterDomains (.sort (.zero : VLevel))) := by
     rw [hlevels]
     simpa [parameterDomains, sourceSuffix] using HtemplateType
@@ -3092,19 +3093,10 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
     rcases Lean4Lean.List.Forall₂.forall_exists_r Hsource.types target htarget
       with ⟨source, _hsource, Htarget⟩
     exact Htarget.header.wf
-  have hctorsOrdered : envCtors.Ordered := by
-    apply htypesOrdered.addConstVals _ Hsource.ctorsAdded
-    intro ci hci
-    simp only [VInductDecl.constructorConstants] at hci
-    rcases List.mem_flatMap.mp hci with ⟨target, htarget, hctor⟩
-    rcases Lean4Lean.List.Forall₂.forall_exists_r Hsource.types target htarget
-      with ⟨source, _hsource, Htarget⟩
-    rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget.ctors ci hctor with
-      ⟨sourceCtor, _hsourceCtor, Hctor⟩
-    exact Hctor.wf
+  have hctorsOrdered : recEnv.Ordered := hrecWF.ordered
   have HparameterContext : OnCtx
       (abstractForallContext parameterDomains []).toCtx
-      (envCtors.IsType E.info.levelParams.length) := by
+      (recEnv.IsType E.info.levelParams.length) := by
     have Hopened := VEnv.IsType.wrapForalls_inv hctorsOrdered (by trivial)
       HtemplateType'
     simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Hopened.1
@@ -3112,9 +3104,9 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
     simpa [Hprod.generated.length] using hentry
   have HsuffixSemantics :
       GeneratedRecursorRestoredSuffixTranslationsInvariant A Hprod.origins
-        envCtors [] parameterDomains := by
+        recEnv [] parameterDomains := by
     simpa [parameterDomains, sourceSuffix] using Hsemantics A
-  rcases A.transportSuffixOfInvariantSemantics envCtors [] parameterDomains
+  rcases A.transportSuffixOfInvariantSemantics recEnv [] parameterDomains
       HparameterContext Hprod.localWF Hprod.bindings Hprod.origins hrecInfo
       HsuffixSemantics with ⟨suffixTarget, Hsuffix⟩
   refine ⟨VExpr.wrapForalls parameterDomains suffixTarget, ?_⟩
@@ -3133,7 +3125,7 @@ and the still-semantic restored recursor telescope translations. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledTelescopes
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -3159,7 +3151,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledTelescopes
       (Hstep : RestoredInductiveStep result loweredEnv
         (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 allIndNames
         sourceTypes[familyIdx] stepSource stepTarget),
-      ∃ targetType, Expr.ForallTelescopeTypeTranslation envCtors
+      ∃ targetType, Expr.ForallTelescopeTypeTranslation recEnv
         Hstep.restored.recursor.oldInfo.levelParams []
         Hstep.restored.recursor.restored.newInfo.type
         (result.nparams + (Hprod.recInfos.map (·.motive)).size +
@@ -3168,7 +3160,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledTelescopes
         targetType) :
     ∃ recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
-        sourceVEnv envTypes envCtors Hrestored.inductives sourceDecl.types
+        sourceVEnv envTypes recEnv Hrestored.inductives sourceDecl.types
           recursors := by
   have Hfamilies : ∀ name nested,
       result.aux2nested.find? name = some nested →
@@ -3188,7 +3180,7 @@ operational alignment, dependent transport, and reclosing are derived here. -/
 theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledSuffixes
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
+    {sourceVEnv envTypes envCtors recEnv : VEnv}
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
@@ -3200,6 +3192,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledSuffixes
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
+    (hrecEnv : envCtors ≤ recEnv) (hrecWF : recEnv.WF)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
@@ -3219,17 +3212,17 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledSuffixes
         Hstep.restored.recursor.restored.newInfo
         (Hprod.generated.entry familyIdx hentry)),
       GeneratedRecursorRestoredSuffixTranslationsInvariant A Hprod.origins
-        envCtors []
+        recEnv []
         ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
           Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse)) :
     exists recursors,
       RestoredSourceInductiveSemanticTrace sourceDecl c.lparams c.safety
-        sourceVEnv envTypes envCtors Hrestored.inductives sourceDecl.types
+        sourceVEnv envTypes recEnv Hrestored.inductives sourceDecl.types
           recursors := by
   apply H.sourceSemanticTraceOfInstalledTelescopes Hc Hprod Hsources Hsource
     Hmetadata Howners hempty Hrestored
   intro familyIdx hfamily hdecl hentry stepSource stepTarget Hstep
-  exact H.restoredPrimaryTelescopeAtFreshOfSuffix Hprod Hsource familyIdx
+  exact H.restoredPrimaryTelescopeAtFreshOfSuffix Hprod Hsource hrecEnv hrecWF familyIdx
     hfamily hentry Hstep hempty fun A =>
       Hsuffixes familyIdx hfamily hdecl hentry stepSource stepTarget Hstep A
 

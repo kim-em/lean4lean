@@ -83,7 +83,7 @@ private theorem validationHeadersValid
             (ci' := owner.toVConstVal.toVConstant) hfresh
             hnprim
             HheadTr'.1 (Hheader.wf.mono Hle)
-            (by simpa [HheadTr'.2] using hadd) rfl
+            (by simpa [HheadTr'.2] using hadd) rfl trivial
         rw [HvalidationHead.output, hinfo] at HvalidationTail
         have HleNext : sourceVEnv ≤ nextVEnv :=
           Hle.trans (VEnv.addConst_le hadd)
@@ -96,7 +96,7 @@ private theorem validationHeadersValid
         · exact Hadded
 
 private theorem validationConstructorFamilyValid
-    (Hvalid : CheckingEnv.Valid safety currentProdEnv currentVEnv)
+    (Hvalid : CheckingEnv.ValidCore safety currentProdEnv currentVEnv)
     (Hle : canonicalEnv ≤ currentVEnv)
     (Hsource : RestoredSourceConstructorTrace result loweredEnv
       lparams safety canonicalEnv names traceProdEnv traceTargetEnv
@@ -107,7 +107,7 @@ private theorem validationConstructorFamilyValid
     (Hnonprimitive : ∀ constructor ∈ constructors,
       ¬ Kernel.Environment.primitives.contains constructor.name)
     (Hadded : currentVEnv.addConstVals constructors = some targetVEnv) :
-    CheckingEnv.Valid safety targetProdEnv targetVEnv := by
+    CheckingEnv.ValidCore safety targetProdEnv targetVEnv := by
   induction Hsource generalizing currentProdEnv currentVEnv targetProdEnv with
   | nil =>
     cases Hvalidation
@@ -147,7 +147,7 @@ private theorem validationConstructorFamilyValid
             Hstep.restored.newInfo.name := by
           rw [hconstructorName]
           exact Hnonprimitive Hsemantic.constructor (by simp)
-        have HvalidNext : CheckingEnv.Valid safety
+        have HvalidNext : CheckingEnv.ValidCore safety
             (currentProdEnv.add (.ctorInfo Hstep.restored.newInfo))
             nextVEnv :=
           Hvalid.add (ci := .ctorInfo Hstep.restored.newInfo)
@@ -168,7 +168,7 @@ private theorem validationConstructorsValid
     {Htrace : StateForMTrace
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       sourceTypes traceProdEnv tracePrimaryEnv}
-    (Hvalid : CheckingEnv.Valid safety currentProdEnv currentVEnv)
+    (Hvalid : CheckingEnv.ValidCore safety currentProdEnv currentVEnv)
     (Hle : envTypes ≤ currentVEnv)
     (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
       sourceVEnv envTypes envCtors Htrace owners recursors)
@@ -180,7 +180,7 @@ private theorem validationConstructorsValid
       ¬ Kernel.Environment.primitives.contains constructor.name)
     (Hadded : currentVEnv.addConstVals
       (owners.flatMap VInductiveType.ctors) = some envCtors) :
-    CheckingEnv.Valid safety targetProdEnv envCtors := by
+    CheckingEnv.ValidCore safety targetProdEnv envCtors := by
   induction Hsource generalizing currentProdEnv currentVEnv targetProdEnv with
   | nil =>
     cases Hvalidation
@@ -255,7 +255,7 @@ theorem RestoredConstructorValidationEnvironment.valid
       constructorEntries canonicalCtorsProdEnv envCtors)
     (hconstructorValues : constructorEntries.map Prod.snd =
       owners.flatMap VInductiveType.ctors) :
-    CheckingEnv.Valid safety validationEnv envCtors := by
+    CheckingEnv.ValidCore safety validationEnv envCtors := by
   have HheadersValid := validationHeadersValid Hvalid VEnv.LE.rfl Hsource
     H.headers Htranslated (fun owner howner => by
       apply Htypes.valueNonprimitive
@@ -263,7 +263,7 @@ theorem RestoredConstructorValidationEnvironment.valid
       exact List.mem_map.mpr ⟨owner, howner, rfl⟩) (by
         rw [← htypeValues]
         exact Htypes.abstract)
-  exact validationConstructorsValid HheadersValid VEnv.LE.rfl Hsource
+  exact validationConstructorsValid HheadersValid.toValidCore VEnv.LE.rfl Hsource
     H.constructors (fun constructor hconstructor => by
       apply Hconstructors.valueNonprimitive
       rw [hconstructorValues]

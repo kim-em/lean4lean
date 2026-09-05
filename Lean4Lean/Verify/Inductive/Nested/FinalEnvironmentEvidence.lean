@@ -85,6 +85,7 @@ private theorem StateForMTrace.restoredSourceMemberInfos
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     {auxRec : NameMap Name} {remaining : List InductiveType}
@@ -118,7 +119,8 @@ private theorem StateForMTrace.restoredSourceMemberInfos
           source middle := by
         simpa only [hfamilyEq] using Hstep
       have Halign := Hstep'.productionFamilyAlignmentAt Hlower Hc Hprod
-        Hsource Hmetadata Hsources Howners hempty familyIdx hfamily hsourceWF
+        Hsource Hmetadata Hsources Harity Howners hempty familyIdx hfamily
+        hsourceWF
       obtain ⟨headEntries, HheadFresh⟩ :=
         Hstep'.restored.freshTrace hsourceWF
       have hmiddleWF : middle.constants.WF :=
@@ -189,6 +191,7 @@ theorem NestedFinalAssemblyCertificate.mutualInductivesClosed
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
     (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : decl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (henv : c.env = sourceProdEnv) (hlparams : c.lparams = lparams)
@@ -206,7 +209,7 @@ theorem NestedFinalAssemblyCertificate.mutualInductivesClosed
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   obtain ⟨HprimaryMembers, HprimaryParams⟩ :=
     Hrestored.inductives.restoredSourceMemberInfos Hlower Hc Hprod Hsource
-      Hmetadata Hsources Howners hempty [] (by simp) hsourceWF
+      Hmetadata Hsources Harity Howners hempty [] (by simp) hsourceWF
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
     Hrestored.inductives.inductiveFreshTrace hsourceWF
   obtain ⟨auxEntries, HauxFresh⟩ :=
@@ -242,7 +245,7 @@ theorem NestedFinalAssemblyCertificate.mutualInductivesClosed
       Function.comp_def] using VEnv.addConstVals_names_nodup C.typesAdded
   have Hfresh := HprimaryFresh.append HauxFresh
   have Horigins := C.productionInductiveOrigins Hlower Hc Hprod Hmetadata
-    Hsources Howners hempty henv hlparams hnames
+    Hsources Harity Howners hempty henv hlparams hnames
   apply ProductionInductiveOrigins.mutualInductivesClosed Horigins
     (by simpa only [henv] using hsourceWF)
     (by simpa only [henv] using Hfresh.targetWF hsourceWF)
@@ -381,6 +384,7 @@ private theorem RestoredInductiveStep.unsafeFreshTraceAt
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
@@ -404,7 +408,7 @@ private theorem RestoredInductiveStep.unsafeFreshTraceAt
     rw [← htargetArrayEq]
     simpa using Array.getElem_mem hresultArray
   have Halign := Hstep.productionFamilyAlignmentAt Hlower Hc Hprod Hsource
-    Hmetadata Hsources Howners hempty familyIdx hfamily hwf
+    Hmetadata Hsources Harity Howners hempty familyIdx hfamily hwf
   let header : ConstantInfo := .inductInfo Hstep.restored.header.newInfo
   have hheaderBool : Hstep.restored.header.newInfo.isUnsafe = true :=
     Halign.isUnsafe.trans (Hsource.isUnsafe.trans hunsafe)
@@ -482,6 +486,7 @@ private theorem StateForMTrace.unsafeInductiveFreshTrace
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (Htrace : StateForMTrace
@@ -507,7 +512,8 @@ private theorem StateForMTrace.unsafeInductiveFreshTrace
           source middle := by
         simpa only [hfamilyEq] using Hstep
       rcases Hstep'.unsafeFreshTraceAt Hlower Hc Hprod Hsource Hmetadata
-          Hsources Howners hempty familyIdx hfamily hunsafe hsafety hwf with
+          Hsources Harity Howners hempty familyIdx hfamily hunsafe hsafety hwf
+          with
         ⟨headEntries, Hhead, hheadUnsafe⟩
       have hmiddleWF : middle.constants.WF := Hhead.targetWF hwf
       rcases ih (processed := processed ++ [head])
@@ -579,6 +585,7 @@ theorem RestoredNestedDeclarationsResult.unsafeFreshTraceOfProduction
       true sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks (main :: rest))
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
@@ -591,7 +598,7 @@ theorem RestoredNestedDeclarationsResult.unsafeFreshTraceOfProduction
     ∃ entries, FreshConstantTrace sourceProdEnv entries targetProdEnv ∧
       ∀ entry ∈ entries, entry.safety = .unsafe := by
   rcases H.inductives.unsafeInductiveFreshTrace Hlower Hc Hprod Hsource
-      Hmetadata Hsources Howners hempty [] (by simp) rfl hsafety hwf with
+      Hmetadata Hsources Harity Howners hempty [] (by simp) rfl hsafety hwf with
     ⟨primaryEntries, Hprimary, hprimaryUnsafe⟩
   have hprimaryWF := Hprimary.targetWF hwf
   have hauxGenerated : ∀ name ∈
@@ -632,6 +639,7 @@ theorem NestedFinalAssemblyCertificate.entriesUnsafe
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (henv : c.env = sourceProdEnv) (hlparams : c.lparams = lparams)
@@ -658,7 +666,7 @@ theorem NestedFinalAssemblyCertificate.entriesUnsafe
           ((), outEnv) := by
         simpa only [henv, hnames, hauxRec, hauxNames] using H
       rcases Hrestored.unsafeFreshTraceOfProduction Hlower Hc Hprod Hsource
-          Hmetadata Hsources Howners hempty hsafety hsourceWF with
+          Hmetadata Hsources Harity Howners hempty hsafety hsourceWF with
         ⟨exactEntries, Hexact, hexactUnsafe⟩
       intro entries Hentries entry hentry
       have Hentries' : FreshConstantTrace c.env entries outEnv := by
@@ -695,6 +703,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
     (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : decl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])
     (henv : c.env = sourceProdEnv) (hlparams : c.lparams = lparams)
     (hnames : allIndNames = sourceTypes.map (fun type => type.name))
@@ -708,9 +717,9 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
     rw [henv]
     exact wf.constructorOwners
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
-    Howners hempty henv hlparams hnames wf.inductivesClosed
+    Harity Howners hempty henv hlparams hnames wf.inductivesClosed
   exact C.safeInductiveFinalResultOfProduction wf Hlower Hc Hprod
-    Hmetadata Hsources hempty henv hlparams hnames hclosed
+    Hmetadata Hsources Harity hempty henv hlparams hnames hclosed
       hconstructorSemantics
 
 /-- Unsafe final assembly with origins, final mutual closure, and uniform
@@ -740,6 +749,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
     (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : decl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])
     (henv : c.env = sourceProdEnv) (hlparams : c.lparams = lparams)
     (hnames : allIndNames = sourceTypes.map (fun type => type.name))
@@ -757,12 +767,12 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
-  have hentries := C.entriesUnsafe Hlower Hc Hprod Hmetadata Hsources Howners
-    hempty henv hlparams hnames hauxRec hauxNames hsafety
+  have hentries := C.entriesUnsafe Hlower Hc Hprod Hmetadata Hsources Harity
+    Howners hempty henv hlparams hnames hauxRec hauxNames hsafety
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
-    Howners hempty henv hlparams hnames wf.inductivesClosed
+    Harity Howners hempty henv hlparams hnames wf.inductivesClosed
   exact C.unsafeInductiveFinalResultOfProduction wf Hlower Hc Hprod
-    Hmetadata Hsources hempty henv hlparams hnames hentries hclosed
+    Hmetadata Hsources Harity hempty henv hlparams hnames hentries hclosed
       hconstructorSemantics
 
 /-- Consume a rich exact safe nested run directly.  All dependent ordinary
@@ -808,8 +818,12 @@ theorem NestedExactFinalRunResult.safeInductiveFinalResult
   obtain ⟨Hheaders, Hconstructors, ⟨Hproduction⟩⟩ :=
     E.production.reindex E.production_c E.production_nparams hisUnsafe
       E.production_initialEnv E.production_indTypes
+  have Harity : decl.ConstructorArityPrefix E.production.loweredDecl := by
+    have h := E.assembly.constructorArityPrefix
+    rw [E.production_eq] at h
+    exact h
   exact E.assembly.safeInductiveFinalResultOfProductionClosed wf Hlower
-    E.productionContextWF Hproduction Hmetadata Hsources hempty
+    E.productionContextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl
       hconstructorSemantics
 
@@ -838,8 +852,12 @@ theorem NestedExactFinalRunResult.unsafeInductiveFinalResult
   obtain ⟨Hheaders, Hconstructors, ⟨Hproduction⟩⟩ :=
     E.production.reindex E.production_c E.production_nparams hisUnsafe
       E.production_initialEnv E.production_indTypes
+  have Harity : decl.ConstructorArityPrefix E.production.loweredDecl := by
+    have h := E.assembly.constructorArityPrefix
+    rw [E.production_eq] at h
+    exact h
   exact E.assembly.unsafeInductiveFinalResultOfProductionClosed wf Hlower
-    E.productionContextWF Hproduction Hmetadata Hsources hempty
+    E.productionContextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl rfl rfl
       E.productionContext_safety hconstructorSemantics
 
@@ -1225,8 +1243,12 @@ theorem NestedExactFinalRunResult.safeConstructorSemanticsOfParameterDomains
   obtain ⟨Hheaders, Hconstructors, ⟨Hproduction⟩⟩ :=
     E.production.reindex E.production_c E.production_nparams hisUnsafe
       E.production_initialEnv E.production_indTypes
+  have Harity : decl.ConstructorArityPrefix E.production.loweredDecl := by
+    have h := E.assembly.constructorArityPrefix
+    rw [E.production_eq] at h
+    exact h
   have Horigins := E.assembly.productionInductiveOrigins Hlower
-    E.productionContextWF Hproduction Hmetadata Hsources Howners hempty
+    E.productionContextWF Hproduction Hmetadata Hsources Harity Howners hempty
       E.productionContext_env E.productionContext_lparams rfl
   exact E.assembly.constructorSemanticsOfParameterDomains wf Horigins Hparams
 
@@ -1255,8 +1277,12 @@ theorem NestedExactFinalRunResult.unsafeConstructorSemanticsOfParameterDomains
   obtain ⟨Hheaders, Hconstructors, ⟨Hproduction⟩⟩ :=
     E.production.reindex E.production_c E.production_nparams hisUnsafe
       E.production_initialEnv E.production_indTypes
+  have Harity : decl.ConstructorArityPrefix E.production.loweredDecl := by
+    have h := E.assembly.constructorArityPrefix
+    rw [E.production_eq] at h
+    exact h
   have Horigins := E.assembly.productionInductiveOrigins Hlower
-    E.productionContextWF Hproduction Hmetadata Hsources Howners hempty
+    E.productionContextWF Hproduction Hmetadata Hsources Harity Howners hempty
       E.productionContext_env E.productionContext_lparams rfl
   exact E.assembly.constructorSemanticsOfParameterDomains wf Horigins Hparams
 

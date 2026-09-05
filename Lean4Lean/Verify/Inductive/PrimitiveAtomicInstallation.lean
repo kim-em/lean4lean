@@ -65,7 +65,10 @@ def StagedContextWF.complete (H : StagedContextWF c)
     (hsafe : forall {n ci}, c.env.find? n = some ci ->
       Kernel.Environment.primitives.contains n ->
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hannotations : TypeAnnotationWrappers c.env) : ContextWF c where
+    (hannotations : TypeAnnotationWrappers c.env)
+    (howners : ConstructorOwnersPresent c.env)
+    (hregistry : ProjectionRegistryCoherent c.safety c.env.constants H.venv) :
+    ContextWF c where
   venv := H.venv
   checking := {
     tr := H.checking
@@ -73,7 +76,9 @@ def StagedContextWF.complete (H : StagedContextWF c)
     safePrimitives := by
       intro n ci hfind hprimitive
       exact hsafe hfind hprimitive
-    typeAnnotationWrappers := hannotations }
+    typeAnnotationWrappers := hannotations
+    constructorOwners := howners
+    projectionRegistry := hregistry }
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -353,6 +358,47 @@ theorem AtomicAddConstants.preservesFindNone
       · rw [hsource] at hold
         contradiction
       · exact False.elim (hentries entry hentry hname.symm)
+
+/-- Every entry of an atomic batch is fresh with respect to the batch's
+starting environment. -/
+theorem AtomicAddConstants.entryFresh
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hentry : (info, value) ∈ entries) :
+    env.find? info.name = none := by
+  induction H with
+  | nil => simp at hentry
+  | cons hn _htr _hciwf _hadd _hdelta _Htail ih =>
+    rename_i _venvHead ci ci' _venvNext rest _outProd _outAbs envHead
+    simp only [List.mem_cons, Prod.mk.injEq] at hentry
+    rcases hentry with ⟨rfl, rfl⟩ | htail
+    · exact hn
+    · have hfreshMap : envHead.constants.find? ci.name = none := by
+        rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+      have hnextWF : (envHead.add ci).constants.WF := by
+        change (envHead.constants.insert ci.name ci).WF
+        exact hwf.insert ci.name ci hfreshMap
+      have hnext := ih hnextWF htail
+      cases hfind : envHead.find? info.name with
+      | none => rfl
+      | some found =>
+        exfalso
+        have hne : ci.name ≠ info.name := by
+          intro heq
+          rw [← heq, hn] at hfind
+          contradiction
+        have hpreserved : (envHead.add ci).find? info.name = some found := by
+          rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfind
+          change (envHead.constants.insert ci.name ci).find?' info.name =
+            some found
+          rw [(hwf.insert ci.name ci hfreshMap).find?'_eq_find?,
+            hwf.find?_insert]
+          split
+          · rename_i heq
+            exact False.elim (hne (by simpa using heq))
+          · exact hfind
+        rw [hpreserved] at hnext
+        contradiction
 
 /-- Atomic installation preserves every production lookup already present at
 the start of the batch. -/
@@ -704,10 +750,12 @@ def AtomicAddConstants.completeContext
     (hsafe : forall {n ci}, outEnv.find? n = some ci ->
       Kernel.Environment.primitives.contains n ->
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hannotations : TypeAnnotationWrappers outEnv) :
+    (hannotations : TypeAnnotationWrappers outEnv)
+    (howners : ConstructorOwnersPresent outEnv)
+    (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv) :
     ContextWF { c with env := outEnv } :=
   (source.withEnv (H.checking source.checking) H.le).complete
-    hprimitives hsafe hannotations
+    hprimitives hsafe hannotations howners hregistry
 
 /-- Header result for the primitive branch.  It mirrors the ordinary
 `DeclaredHeadersResult`, except that its checking context and installation

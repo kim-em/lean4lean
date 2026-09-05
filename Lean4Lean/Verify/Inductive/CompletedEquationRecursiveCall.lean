@@ -21,7 +21,7 @@ theorem CompletedRecursorPhasesResult.constructorVEnv_le
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv) :
     R.context.venv ≤ H.outVEnv :=
-  VEnv.addProjections_le.trans H.installed.le
+  H.installed.le
 
 /-- Every retained constructor-field variable is present in the exact
 producer root of this recursive call.  Earlier induction hypotheses may make

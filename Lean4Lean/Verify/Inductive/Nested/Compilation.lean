@@ -527,10 +527,11 @@ theorem RestoredSourceInductiveSemanticTrace.core
     (hnparams : decl.nparams = nparams)
     (hisUnsafe : decl.isUnsafe = isUnsafe)
     (htypesAdded : sourceVEnv.addConstVals decl.typeConstants = some envTypes)
+    {envCtors' : VEnv}
     (hctorsAdded : envTypes.addConstVals decl.constructorConstants =
-      some envCtors) :
+      some envCtors') :
     TrInductDeclCore sourceVEnv lparams nparams sourceTypes isUnsafe decl
-      envTypes envCtors := by
+      envTypes envCtors' := by
   refine {
     uvars := huvars
     nparams := hnparams

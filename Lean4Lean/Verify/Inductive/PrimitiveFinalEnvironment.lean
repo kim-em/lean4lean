@@ -190,7 +190,7 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-      wf.typeAnnotationWrappers
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
   rcases H.rebaseAddInductSafe (valid .unsafe)
       (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins with
     ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProjections⟩
@@ -356,8 +356,10 @@ theorem CompletedRecursorPhasesResult.outValid
     (H : CompletedRecursorPhasesResult R outEnv) :
     CheckingEnv.Valid H.localContext.safety outEnv H.outVEnv := by
   apply H.installed.valid
-  rw [H.localExtends.safety_eq, H.localExtends.env_eq]
-  exact R.projectedChecking
+  · rw [H.localExtends.safety_eq, H.localExtends.env_eq]
+    exact R.context.checking
+  · intro entry hentry info
+    exact H.generated.nonConstructor entry.1 entry.2 hentry info
 
 /-- A successful primitive Bool/Nat run extends the complete environment
 model without any premise about the bootstrap state of `Eq`. -/
@@ -414,7 +416,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
       Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics with
     ⟨ves', wf', hle, hadd⟩
-  exact ⟨ves', decl, R.headerVEnv, R.context.venv, wf', hle, R.core, hadd⟩
+  exact ⟨ves', decl, R.headerVEnv, R.ctorVEnv, wf', hle, R.core, hadd⟩
 
 /-- A skeleton-free semantic primitive run now reaches the final
 safety-indexed environment boundary, not merely a single abstract

@@ -20,7 +20,8 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (HprimaryRecursors : RestoredPrimaryRecursorSemanticTrace decl safety
-      envCtors H.inductives (main :: rest) primaryRecursors)
+      (envCtors.addProjections decl.projectionEntries) H.inductives
+      (main :: rest) primaryRecursors)
     (HprimaryRules : NestedIotaBuildCertificate decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)

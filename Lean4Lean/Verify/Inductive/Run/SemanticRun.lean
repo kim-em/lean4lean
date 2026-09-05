@@ -57,7 +57,8 @@ theorem AddInductive.runWithStats.semanticWF
       R.declared.installed.availableLiteralDisjoint hlitHeaders
     have hlit : checkPositivityStep.AvailableLiteralDisjoint
         R.declared.context.venv stats.indConsts := by
-      simpa [R.declared.contextVEnv] using hlitCtors
+      rw [R.declared.contextVEnv]
+      exact hlitCtors.addProjections _
     exact (R.recursorPhasesWF hclosed hlparams hlit hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show SemanticRunWithStatsResult c stats nparams depth indTypes
@@ -117,7 +118,7 @@ theorem AddInductive.runWithStats.semanticClosedWF
   · exact AddInductive.semanticFormationCoreClosedWF Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
       Hcache Hsuffix Hambient hcommon Hclosed hvisible hnprimTypes
-      Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors
+      Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors hlparams
   · exact hlparams
   · exact hnotPartial
   · exact hnprimRecursors

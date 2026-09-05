@@ -1403,6 +1403,21 @@ theorem TrInductDeclCore.envCtorsWF
     exact Hctor.wf
   exact VEnv.WF.addConstVals henvTypes hctors H.ctorsAdded
 
+/-- Every translated constructor is well formed in the mutual header
+environment. -/
+theorem TrInductDeclCore.constructorsWF
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors) :
+    ∀ ci ∈ decl.constructorConstants, ci.toVConstant.WF envTypes := by
+  intro ci hci
+  simp only [VInductDecl.constructorConstants] at hci
+  rcases List.mem_flatMap.mp hci with ⟨target, htarget, hctor⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types target htarget with
+    ⟨source, _hsource, Htarget⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget.ctors ci hctor with
+    ⟨sourceCtor, _hsourceCtor, Hctor⟩
+  exact Hctor.wf
+
 /-- Pointwise original-source translations already contain all typing and
 universe facts required by `SourceWF`. Thus the aggregate source judgment
 adds only nonemptiness and global name uniqueness. Nonemptiness comes from

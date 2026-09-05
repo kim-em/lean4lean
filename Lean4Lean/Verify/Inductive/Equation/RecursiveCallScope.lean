@@ -517,7 +517,7 @@ theorem
   have hselectedOwner : selectedOwner < H.recInfos.size := by
     simpa [selectedOwner, H.generated.length] using F.entry_lt
   have hsemantic : F.semantic.current_context.venv =
-      R.declared.venvCtors :=
+      R.declared.venvCtors.addProjections decl.projectionEntries :=
     F.semantic.recent.venv_eq.trans <|
       F.originRecent.venv_eq.trans <|
         A.semantics.context_venv.trans <|
@@ -525,11 +525,10 @@ theorem
   have Htr := M.translation
   have Htype := M.typing
   rw [hsemantic] at Htr Htype
-  refine ⟨M.target, ?_, Htype.mono
-    (VEnv.addProjections_le.trans H.installed.le)⟩
+  refine ⟨M.target, ?_, Htype.mono H.installed.le⟩
   simpa [selectedOwner, sourceIndices, sourceMajor,
     Array.getElem!_eq_getD, Array.getD, hselectedOwner] using
-      Htr.mono (VEnv.addProjections_le.trans H.installed.le)
+      Htr.mono H.installed.le
 
 /-- Recover the selected mutual family's canonical motive telescope in the
 exact recursive-call context.  Both the motive binding and telescope lookup
@@ -757,7 +756,7 @@ theorem
     have horigin : F.originContext.venv = H.recursorWF.venv :=
       F.originRecent.venv_eq.trans A.semantics.context_venv
     rw [horigin, H.recursorEnv, R.declared.contextVEnv]
-    exact VEnv.addProjections_le.trans H.installed.le
+    exact H.installed.le
   exact ⟨scope, Hscope.mono henv, hscope⟩
 
 /-- Filtering the literal producer origin by the recursive call's declared
@@ -947,7 +946,7 @@ theorem
       F.semantic.recent.venv_eq.trans <|
         F.originRecent.venv_eq.trans A.semantics.context_venv
     rw [hcurrent, H.recursorEnv, R.declared.contextVEnv]
-    exact VEnv.addProjections_le.trans H.installed.le
+    exact H.installed.le
   have HlocalWF : F.semantic.current_context.mlctx.WF H.outVEnv Us :=
     F.semantic.current_context.mlctx_wf.mono henv
   have hlocalRev : F.semantic.current_context.mlctx.fvarRevList
@@ -1075,15 +1074,14 @@ theorem
     simpa [AddInductive.getIIndices] using
       htranslated.symm.trans hsourceArity
   have hsemantic : F.semantic.current_context.venv =
-      R.declared.venvCtors :=
+      R.declared.venvCtors.addProjections decl.projectionEntries :=
     F.semantic.recent.venv_eq.trans <|
       F.originExtension.venv_eq.trans <|
         A.semantics.context_venv.trans <|
           H.recursorEnv.trans R.declared.contextVEnv
   rw [hsemantic] at Hindices
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
-    (fun _ _ Hindex => Hindex.mono
-      (VEnv.addProjections_le.trans H.installed.le)) Hindices
+    (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
   rcases F.currentNarrowScope with
     ⟨rootScope, Hroot, scope, Hscope, hroot, hscope, hdrop,
       localDomains, hlocal, hcontext, hshift, _Hreplay⟩

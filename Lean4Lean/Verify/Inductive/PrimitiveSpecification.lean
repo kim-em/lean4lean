@@ -28,7 +28,7 @@ theorem SemanticPrimitiveRunWithStatsResult.independentSpecification
   exact ⟨(Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv, ⟨{
     decl := decl
     envTypes := R.headerVEnv
-    envCtors := R.context.venv
+    envCtors := R.ctorVEnv
     source := R.core
     extension := Hrecursors.addInductOfOrdinaryCompilation T.rules
       T.rulesWF hnonempty T.compilation }⟩⟩

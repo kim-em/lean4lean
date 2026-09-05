@@ -1945,7 +1945,7 @@ theorem CompletedRecursorPhasesResult.finalInductiveHeadTranslationAt
       ⟨targetVal, List.getElem_mem htarget, rfl⟩
   have hlookupCtor : R.context.venv.constants targetVal.name =
       some targetVal.toVConstant :=
-    R.installation.constructorLE.constants hlookupHeader
+    R.ctorLE.constants (R.installation.constructorLE.constants hlookupHeader)
   have hlookup : H.outVEnv.constants targetVal.name =
       some targetVal.toVConstant :=
     H.constructorVEnv_le.constants hlookupCtor
@@ -2007,6 +2007,7 @@ theorem
       List.getElem_mem A.abstractCtor_lt⟩
   have hlookupBase : R.context.venv.constants ctorVal.name =
       some ctorVal.toVConstant := by
+    apply R.ctorLE.constants
     apply VEnv.addConstVals_get R.installation.constructorAbstract
     rw [R.constructorValues]
     exact hctorMem

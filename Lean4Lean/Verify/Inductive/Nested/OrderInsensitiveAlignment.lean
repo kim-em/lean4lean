@@ -152,6 +152,40 @@ theorem CheckingEnv.mapExt
       exact hfindSource
     exact H.of_value hfindSource' hs hvalue
 
+/-- The local checking invariants depend only on production constant
+lookup. -/
+theorem CheckingEnv.ValidCore.mapExt
+    (H : CheckingEnv.ValidCore safety source venv)
+    (htargetWF : target.constants.WF)
+    (heq : ∀ name, source.constants.find? name =
+      target.constants.find? name) :
+    CheckingEnv.ValidCore safety target venv where
+  tr := CheckingEnv.mapExt H.tr htargetWF heq
+  hasPrimitives := H.hasPrimitives
+  safePrimitives := by
+    intro name ci hfind hprimitive
+    have hfindTarget : target.constants.find? name = some ci := by
+      rw [← htargetWF.find?'_eq_find?,
+        ← Lean.Kernel.Environment.find?]
+      exact hfind
+    have hfindSource : source.constants.find? name = some ci := by
+      rw [heq]
+      exact hfindTarget
+    apply H.safePrimitives _ hprimitive
+    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
+    exact hfindSource
+  typeAnnotationWrappers := H.typeAnnotationWrappers.rebase (by
+    intro name ci hfind
+    have hfindSource : source.constants.find? name = some ci := by
+      rw [← H.tr.map_wf.find?'_eq_find?,
+        ← Lean.Kernel.Environment.find?]
+      exact hfind
+    have hfindTarget : target.constants.find? name = some ci := by
+      rw [← heq]
+      exact hfindSource
+    rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
+    exact hfindTarget)
+
 /-- Rebase the complete executable type-checking invariant across an exact
 extensional change of the production constant-map representation.  The
 abstract environment is unchanged; primitive metadata and the operational
@@ -237,16 +271,37 @@ theorem AddConstants.checkingOfFreshPermutation
 dependency-order bridge used by nested restoration: constants are typed in
 canonical header/constructor/recursor order, while the executable restoration
 installs the same finite batch in family-interleaved order. -/
+theorem AddConstants.validCoreOfFreshPermutation
+    (Hcanonical : AddConstants safety source sourceVEnv canonicalEntries
+      canonicalTarget targetVEnv)
+    (Hactual : FreshConstantTrace source actualEntries actualTarget)
+    (hperm : actualEntries ~ canonicalEntries.map Prod.fst)
+    (Hsource : CheckingEnv.ValidCore safety source sourceVEnv) :
+    CheckingEnv.ValidCore safety actualTarget targetVEnv := by
+  have HcanonicalValid :
+      CheckingEnv.ValidCore safety canonicalTarget targetVEnv :=
+    Hcanonical.validCore Hsource
+  have heq := Hactual.lookupEqOfPerm Hcanonical.freshTrace
+    Hsource.tr.map_wf hperm
+  exact CheckingEnv.ValidCore.mapExt HcanonicalValid
+    (Hactual.targetWF Hsource.tr.map_wf) fun name => (heq name).symm
+
+/-- Full-validity form: the global constructor-owner and projection-registry
+invariants are supplied at the canonical endpoint and transported to the
+actual endpoint by lookup equality. -/
 theorem AddConstants.validOfFreshPermutation
     (Hcanonical : AddConstants safety source sourceVEnv canonicalEntries
       canonicalTarget targetVEnv)
     (Hactual : FreshConstantTrace source actualEntries actualTarget)
     (hperm : actualEntries ~ canonicalEntries.map Prod.fst)
-    (Hsource : CheckingEnv.Valid safety source sourceVEnv) :
+    (Hsource : CheckingEnv.ValidCore safety source sourceVEnv)
+    (howners : ConstructorOwnersPresent canonicalTarget)
+    (hregistry : ProjectionRegistryCoherent safety canonicalTarget.constants
+      targetVEnv) :
     CheckingEnv.Valid safety actualTarget targetVEnv := by
   have HcanonicalValid :
       CheckingEnv.Valid safety canonicalTarget targetVEnv :=
-    Hcanonical.valid Hsource
+    (Hcanonical.validCore Hsource).toValid howners hregistry
   have heq := Hactual.lookupEqOfPerm Hcanonical.freshTrace
     Hsource.tr.map_wf hperm
   exact CheckingEnv.Valid.mapExt HcanonicalValid

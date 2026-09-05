@@ -384,7 +384,8 @@ theorem AddInductive.runWithStats.WF
         R.declared.installed.availableLiteralDisjoint hlitHeaders
       have hlit : checkPositivityStep.AvailableLiteralDisjoint
           R.declared.context.venv stats.indConsts := by
-        simpa [R.declared.contextVEnv] using hlitCtors
+        rw [R.declared.contextVEnv]
+        exact hlitCtors.addProjections _
       exact (R.recursorPhasesWF hclosed hlparams hlit
         hnotPartial hnprim).mono
           fun outEnv Hrecursors =>
@@ -717,7 +718,7 @@ theorem VerifiedInductiveRunResult.addInductOfRuleBuild
       (Hrecursors : RecursorPhasesResult R outEnv),
       ∃ rules : List VDefEq,
         ∃ hrules : (∀ df ∈ rules, df.WF Hrecursors.outVEnv),
-        IotaBuildCertificate R.declared.venvCtors decl
+        IotaBuildCertificate (R.declared.venvCtors.addProjections decl.projectionEntries) decl
           (Hrecursors.blockCertificate rules hrules).block rules ∧
         rules.length = decl.ownedConstructors.length) :
     ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',

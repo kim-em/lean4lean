@@ -73,13 +73,13 @@ structure CompletedRecursorPhasesResult
   outVEnv : VEnv
   entries : List (ConstantInfo × VConstVal)
   generated : GeneratedRecursors localContext.safety
-    (R.context.venv.addProjections decl.projectionEntries)
+    R.context.venv
     localContext.lparams elimLevel localContext stats indTypes recInfos entries
   ruleSemantics : GeneratedRecursorRuleSemanticsRange
     recursorWF decl stats indTypes recInfos origins elimLevel
       parameterSuffix.parameterDecls 0 entries
   installed : AddConstants localContext.safety localContext.env
-    (R.context.venv.addProjections decl.projectionEntries)
+    R.context.venv
     entries outEnv outVEnv
   closed : MutualInductivesClosed outEnv
 
@@ -149,11 +149,11 @@ theorem CompletedConstructorPhases.recursorPhasesWF
     HmotiveTypes HmotiveShapes Htelescopes HindexRows Hparams hnoalias
     houterOrder Harities HminorCounts Hcard Hle
   have Hvalid : CheckingEnv.Valid localContext.safety localContext.env
-      (R.context.venv.addProjections decl.projectionEntries) := by
+      R.context.venv := by
     rw [Hle.safety_eq, Hle.env_eq]
-    exact R.projectedChecking
+    exact R.context.checking
   have Hcore : TrInductDeclCore sourceEnv localContext.lparams nparams
-      indTypes.toList isUnsafe decl R.headerVEnv R.context.venv := by
+      indTypes.toList isUnsafe decl R.headerVEnv R.ctorVEnv := by
     rw [Hle.lparams_eq]
     exact R.core
   have Hseed : forall owner (howner : owner < indTypes.size),
@@ -208,14 +208,14 @@ theorem CompletedConstructorPhases.recursorPhasesWF
           ∃ outVEnv : VEnv,
           ∃ entries : List (ConstantInfo × VConstVal),
             Nonempty (GeneratedRecursors localContext.safety
-              (R.context.venv.addProjections decl.projectionEntries)
+              R.context.venv
               localContext.lparams elimLevel localContext stats indTypes
               recInfos entries) ∧
             Nonempty (GeneratedRecursorRuleSemanticsRange Rlocal decl stats
               indTypes recInfos Horigins elimLevel
                 HsuffixLocal.parameterDecls 0 entries) ∧
             AddConstants localContext.safety localContext.env
-              (R.context.venv.addProjections decl.projectionEntries)
+              R.context.venv
               entries outEnv outVEnv := by
     simpa only [Hle.lparams_eq] using Hrecursors
   exact Hrecursors'.mono fun outEnv Hout => by

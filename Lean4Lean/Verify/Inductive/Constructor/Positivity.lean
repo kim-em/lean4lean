@@ -1342,6 +1342,18 @@ theorem LiteralDisjoint.available
     AvailableLiteralDisjoint env indConsts :=
   fun literal _ => H literal
 
+/-- Literal availability depends only on the constant map, which projection
+registration leaves unchanged. -/
+theorem AvailableLiteralDisjoint.addProjections
+    (H : AvailableLiteralDisjoint env indConsts)
+    (entries : List VProjectionEntry) :
+    AvailableLiteralDisjoint (env.addProjections entries) indConsts := by
+  intro literal hlit
+  apply H literal
+  cases literal with
+  | natVal _ => simpa [VEnv.ContainsLits, VEnv.contains] using hlit
+  | strVal _ => simpa [VEnv.ContainsLits, VEnv.contains] using hlit
+
 theorem forall₂_append {R : α → β → Prop}
     (H₁ : List.Forall₂ R as₁ bs₁) (H₂ : List.Forall₂ R as₂ bs₂) :
     List.Forall₂ R (as₁ ++ as₂) (bs₁ ++ bs₂) := by

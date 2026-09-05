@@ -1278,6 +1278,32 @@ theorem ConstructorOwnersPresentMap.mapExt
   rcases H name info hfind with ⟨owner, howner⟩
   exact ⟨owner, by rw [← heq]; exact howner⟩
 
+/-- Registry coherence survives a batch that adds no singleton family: every
+new family has a constructor count other than one, and every new constructor
+belongs to a family absent from the source.  Old families keep their aligned
+registry entries by monotonicity. -/
+theorem ProjectionRegistryCoherent.extendNonSingleton
+    (H : ProjectionRegistryCoherent safety sourceC sourceEnv)
+    (hpreserves : ∀ {name ci}, sourceC.find? name = some ci →
+      targetC.find? name = some ci)
+    (hfamilies : ∀ {name info}, targetC.find? name = some (.inductInfo info) →
+      sourceC.find? name = some (.inductInfo info) ∨ info.ctors.length ≠ 1)
+    (hreflect : ∀ {name info}, targetC.find? name = some (.ctorInfo info) →
+      sourceC.find? name = some (.ctorInfo info) ∨
+        sourceC.find? info.induct = none)
+    (henv : sourceEnv ≤ targetEnv) :
+    ProjectionRegistryCoherent safety targetC targetEnv := by
+  intro familyName familyInfo constructorName constructorInfo hfamily hvisible
+    hsingle hconstructor hinduct
+  rcases hfamilies hfamily with hold | hlength
+  · rcases hreflect hconstructor with holdConstructor | hnone
+    · rcases H familyName familyInfo constructorName constructorInfo hold
+        hvisible hsingle holdConstructor hinduct with ⟨P⟩
+      exact ⟨P.rebase hpreserves henv⟩
+    · rw [hinduct, hold] at hnone
+      contradiction
+  · exact absurd (by simp [hsingle]) hlength
+
 /-- Complete a constructor-stage registry from the positional production
 alignment of a whole declaration.  Old families are rebased through the
 concrete and abstract extension; every new constructor names a new family as

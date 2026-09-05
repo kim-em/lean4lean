@@ -371,6 +371,22 @@ theorem PrimitiveConstructorCorePhasesResult.productionInductiveOrigins
                     decl.nparams := by
                 rw [hparamsSize]
                 rfl
+          numFields_forallArity := by
+            rw [hctorInfoExact]
+            rcases R.parameterPrefixes.spines familyIdx hfamilyIdx ctorIdx
+              hsourceCtor with ⟨k, hspine⟩
+            calc
+              ctorInfo.numFields =
+                  AddInductive.constructorArity sourceCtor.type -
+                    stats.params.size :=
+                AddInductive.constructorInfo_numFields stats c.lparams
+                  isUnsafe sourceFamily ctorIdx sourceCtor
+              _ = k - decl.nparams := by
+                rw [hspine.constructorArity, hparamsSize]
+              _ = (decl.types[familyIdx].ctors[ctorIdx]).type.forallArity -
+                    decl.nparams := by
+                rw [checkPositivityStep.TrExprS.forallArity_of_spine hspine
+                  Hctor.type]
           levelParamsExact := C.levelParams
           levelParams := by
             calc
@@ -533,7 +549,12 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
               H.materialized.uvars.symm (by
                 rw [← H.headerParams]
                 exact H.materialized.paramsContext)
-            constructors := Hchecked.1.checked.formation }
+            constructors := Hchecked.1.checked.formation
+            rawShapes := Hchecked.1.rawShapes H.context.checking.wf
+              H.translation.types
+              (H.materialized.runtimeScope.scopeWF H.context.checking.wf)
+              (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+                H.materialized).params_size }
           exact ⟨{
             checked := Hchecked.1.checked
             parameterPrefixes := Hchecked.1.parameterPrefixes

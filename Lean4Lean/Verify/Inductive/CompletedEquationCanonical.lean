@@ -342,7 +342,7 @@ theorem CompletedRecursorPhasesResult.ordinaryCompilationOfRuleBuild
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block := by
   let Hgenerated : GeneratedRecursors c.safety
-      (R.context.venv.addProjections decl.projectionEntries) c.lparams
+      R.context.venv c.lparams
       H.elimLevel H.localContext stats indTypes H.recInfos H.entries := by
     simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using
       H.generated
@@ -352,7 +352,9 @@ theorem CompletedRecursorPhasesResult.ordinaryCompilationOfRuleBuild
   · exact R.constructorValues
   · rfl
   · rfl
-  · exact Hrules
+  · have h := Hrules
+    rw [R.contextVEnv] at h
+    exact h
   · simpa [CompletedBlockCertificate.block] using hrulesLength
   · exact (H.blockCertificate rules hrules).names
 

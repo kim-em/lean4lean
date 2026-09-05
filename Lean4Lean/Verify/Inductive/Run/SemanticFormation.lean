@@ -127,7 +127,7 @@ theorem AddInductive.semanticFormationCoreWF
       Hcheck.bind fun _ Hchecked => by
       rcases Hchecked with ⟨decl, Hheaders, Hchecked, Howners⟩
       exact (AddInductive.declareConstructors.WF Hheaders
-        Hchecked.checked hvisible hnprimCtors).mono fun outEnv Hdeclared => by
+        Hchecked hvisible hnprimCtors).mono fun outEnv Hdeclared => by
           rcases Hdeclared with ⟨Hdeclared, _⟩
           let R : ConstructorPhasesResult Hheaders outEnv := {
             checked := Hchecked.checked

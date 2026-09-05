@@ -815,6 +815,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
@@ -1156,6 +1157,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
       cidx := ?_
       numParams := ?_
       numFields := ?_
+      numFields_forallArity := ?_
       levelParamsExact := ?_
       levelParams := ?_
       isUnsafe := ?_ }⟩
@@ -1194,6 +1196,41 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
         _ = AddInductive.constructorArity newCtorInfo.type -
               sourceDecl.nparams := by
           rw [hrestoredArity, Hsource.nparams]
+    · have hspineAt := R.parameterPrefixes.spines familyIdx hresultArray ctorIdx
+      have HloweredType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
+        R.core familyIdx (by simpa using hresultArray) hloweredDecl
+      have hnumFields : newCtorInfo.numFields =
+          AddInductive.constructorArity targetCtor.type - stats.params.size := by
+        calc
+          newCtorInfo.numFields = oldCtorInfo.numFields := HctorRestore.numFields
+          _ = C.info.numFields := by rw [holdCtorInfo]
+          _ = expectedInfo.numFields :=
+            congrArg ConstructorVal.numFields hCExpected
+          _ = AddInductive.constructorArity targetCtor.type -
+                stats.params.size :=
+            AddInductive.constructorInfo_numFields stats c.lparams
+              isUnsafe target ctorIdx targetCtor
+      rw [hnumFields, hstatsParams, ← Hsource.nparams]
+      clear hnumFields
+      subst htargetArrayEq
+      rcases hspineAt htargetCtor with ⟨k, hspine⟩
+      have hloweredCtor : ctorIdx < loweredDecl.types[familyIdx].ctors.length := by
+        rw [← Lean4Lean.VerifyInductive.TrInductiveType.ctors_length HloweredType]
+        simpa using htargetCtor
+      have HloweredCtor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt
+        HloweredType ctorIdx (by simpa using htargetCtor) hloweredCtor
+      have HloweredCtorType : TrExprS Hheaders.context.venv c.lparams []
+          (result.types.toArray[familyIdx].ctors[ctorIdx]).type
+          (loweredDecl.types[familyIdx].ctors[ctorIdx]).type := by
+        simpa using HloweredCtor.type
+      have hloweredArity :
+          (loweredDecl.types[familyIdx].ctors[ctorIdx]).type.forallArity = k :=
+        checkPositivityStep.TrExprS.forallArity_of_spine hspine HloweredCtorType
+      have htargetArity : AddInductive.constructorArity targetCtor.type = k := by
+        rw [← htargetCtorVal]
+        exact hspine.constructorArity
+      rw [htargetArity, Harity familyIdx hsourceDecl hloweredDecl ctorIdx
+        hsourceCtorDecl hloweredCtor, hloweredArity]
     · calc
         newCtorInfo.levelParams = oldCtorInfo.levelParams :=
           HctorRestore.levelParams
@@ -1333,6 +1370,7 @@ theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (Htrace : StateForMTrace
@@ -1359,7 +1397,8 @@ theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
           stepSource middle := by
         simpa [hfamilyEq] using Hstep
       have Halign := Hstep'.productionFamilyAlignmentAt Hlower Hc Hprod
-        Hsource Hmetadata Hsources Howners hempty familyIdx hfamily hsourceWF
+        Hsource Hmetadata Hsources Harity Howners hempty familyIdx hfamily
+        hsourceWF
       have Hnext := Hstep'.restored.extendProductionInductiveOrigins
         hsourceWF Horigins Halign
       obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshTrace hsourceWF
@@ -1387,6 +1426,7 @@ theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
@@ -1401,8 +1441,8 @@ theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
   have Hprimary : ProductionInductiveOrigins c.env.constants
       Hrestored.primaryEnv.constants sourceDecl := by
     apply Hrestored.inductives.sourceFamiliesProductionInductiveOrigins
-      Hlower Hc Hprod Hsource Hmetadata Hsources Howners hempty [] (by simp)
-        hsourceWF Hinitial
+      Hlower Hc Hprod Hsource Hmetadata Hsources Harity Howners hempty []
+        (by simp) hsourceWF Hinitial
   obtain ⟨entries, Hfresh⟩ :=
     Hrestored.inductives.inductiveFreshTrace hsourceWF
   exact Hrestored.auxiliaries.recursorPreservesProductionInductiveOrigins

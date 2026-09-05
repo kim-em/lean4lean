@@ -109,7 +109,7 @@ state. -/
 theorem CompletedFormationInstallation.rebase
     (H : CompletedFormationInstallation checkSafety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
-    (Hvalid : CheckingEnv.Valid safety sourceEnv largerSource)
+    (Hvalid : CheckingEnv.ValidCore safety sourceEnv largerSource)
     (hsafety : safety <= checkSafety)
     (hsource : sourceVEnv <= largerSource) :
     exists largerHeader largerCtors,
@@ -120,7 +120,7 @@ theorem CompletedFormationInstallation.rebase
   | ordinary Htypes Hctors =>
       rcases Htypes.rebase Hvalid hsafety hsource with
         ⟨largerHeader, Htypes', hheader⟩
-      rcases Hctors.rebase (Htypes'.valid Hvalid) hsafety hheader with
+      rcases Hctors.rebase (Htypes'.validCore Hvalid) hsafety hheader with
         ⟨largerCtors, Hctors', hctors⟩
       exact ⟨largerHeader, largerCtors,
         ⟨.ordinary Htypes' Hctors'⟩, hheader, hctors⟩
@@ -258,52 +258,48 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
       (entry : ConstantInfo × VConstVal), entry ∈ constructorEntries ->
     forall value : InductiveVal,
       entry.1 ≠ ConstantInfo.inductInfo value
+  /-- Exact abstract constructor-complete endpoint, before projection
+  registration. -/
+  ctorVEnv : VEnv
+  /-- The retained checking context already carries the declaration's
+  projection entries: every checker run after the constructor stage happens in
+  the projected environment. -/
+  contextVEnv : context.venv = ctorVEnv.addProjections decl.projectionEntries
   installation : CompletedFormationInstallation c.safety c.env sourceEnv
-    headerEntries headerEnv headerVEnv constructorEntries ctorEnv context.venv
+    headerEntries headerEnv headerVEnv constructorEntries ctorEnv ctorVEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
-    isUnsafe decl headerVEnv context.venv
+    isUnsafe decl headerVEnv ctorVEnv
   productionInductiveOrigins :
     ProductionInductiveOrigins c.env.constants ctorEnv.constants decl
   constructorSemantics : forall {safety},
     InductiveConstructorsSemanticallyCoherent safety c.env sourceEnv ->
-    InductiveConstructorsSemanticallyCoherent safety ctorEnv context.venv
+    InductiveConstructorsSemanticallyCoherent safety ctorEnv ctorVEnv
 
 /-- The constructor-complete abstract environment admits the exact projection
 prefix of this declaration as a genuine staged well-formed environment. -/
 theorem CompletedConstructorPhases.projectedWF
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
-    (R.context.venv.addProjections decl.projectionEntries).WF := by
-  let block : VInductBlock := {
-    types := decl.typeConstants
-    ctors := decl.constructorConstants
-    recursors := []
-    rules := []
-    projections := decl.projectionEntries }
-  apply VEnv.WF.inductProjections
-      (base := sourceEnv) (envTypes := R.headerVEnv)
-      (decl := decl) (block := block)
-  · rw [← R.sourceContextVEnv]
-    exact R.sourceContext.checking.tr.wf
-  · exact R.context.checking.tr.wf
-  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
-  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars R.core
-  · rfl
-  · rfl
-  · rfl
-  · exact R.core.typesAdded
-  · exact R.core.ctorsAdded
+    (R.ctorVEnv.addProjections decl.projectionEntries).WF := by
+  rw [← R.contextVEnv]
+  exact R.context.checking.tr.wf
 
-/-- Projection registration changes neither the production environment nor
-its constant interpretation; only the independently certified abstract
-projection table is added. -/
-def CompletedConstructorPhases.projectedChecking
+/-- The retained context is the projected constructor-complete environment. -/
+theorem CompletedConstructorPhases.projectedChecking
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
     CheckingEnv.Valid c.safety ctorEnv
-      (R.context.venv.addProjections decl.projectionEntries) :=
-  R.context.checking.addProjections R.projectedWF
+      (R.ctorVEnv.addProjections decl.projectionEntries) := by
+  rw [← R.contextVEnv]
+  exact R.context.checking
+
+theorem CompletedConstructorPhases.ctorLE
+    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv) :
+    R.ctorVEnv ≤ R.context.venv := by
+  rw [R.contextVEnv]
+  exact VEnv.addProjections_le
 
 /-- The exact header/constructor installation trace preserves the persistent
 constructor-owner invariant.  New constructor metadata obtains its owner from
@@ -324,7 +320,7 @@ theorem CompletedConstructorPhases.constructorOwnersPresent
         (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
       _ = indTypes.size := by simp
   have Hformation : AtomicAddConstants c.safety c.env sourceEnv
-      (R.headerEntries ++ R.constructorEntries) ctorEnv R.context.venv := by
+      (R.headerEntries ++ R.constructorEntries) ctorEnv R.ctorVEnv := by
     cases R.installation with
     | ordinary Htypes Hctors =>
         exact (AtomicAddConstants.ofAddConstants Htypes).append
@@ -358,7 +354,7 @@ def CompletedConstructorPhases.materializedFinal
       sourceEnv indTypes ctorEnv) :
     checkInductiveTypes.loopInd.MaterializedHeaderResult
       R.context.venv c.lparams R.context.mlctx.vlctx stats decl depth := by
-  let M := R.materialized.mono R.installation.constructorLE
+  let M := R.materialized.mono (R.installation.constructorLE.trans R.ctorLE)
   exact {
     headers := M.headers
     commonLevel := M.commonLevel
@@ -428,17 +424,13 @@ def ConstructorPhasesResult.completed
   constructorSourceAligned := R.declared.sourceAligned
   constructorProduction := R.declared.production
   constructorNonInductive := R.declared.nonInductive
-  installation := by
-    rw [R.declared.contextVEnv]
-    exact .ordinary H.installed R.declared.installed
+  ctorVEnv := R.declared.venvCtors
+  contextVEnv := R.declared.contextVEnv
+  installation := .ordinary H.installed R.declared.installed
   formation := R.formation
-  core := by
-    rw [R.declared.contextVEnv]
-    exact R.core
+  core := R.core
   productionInductiveOrigins := R.productionInductiveOrigins
-  constructorSemantics := fun Hsource => by
-    rw [R.declared.contextVEnv]
-    exact R.constructorSemantics Hsource
+  constructorSemantics := fun Hsource => R.constructorSemantics Hsource
 
 /-- Transport the materialized header cache into the completed primitive
 constructor context. -/
@@ -458,6 +450,57 @@ def PrimitiveConstructorPhasesResult.materialized
     exact R.declared.installed.le
   let M := H.materialized.mono henv
   simpa only [R.declared.contextMLCtx] using M
+
+/-- The primitive constructor-complete abstract environment admits the
+declaration's projection entries as a staged well-formed environment. -/
+theorem PrimitiveConstructorPhasesResult.projectedWF
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment}
+    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    (R : PrimitiveConstructorPhasesResult H ctorEnv) :
+    (R.declared.venvCtors.addProjections decl.projectionEntries).WF := by
+  let block : VInductBlock := {
+    types := decl.typeConstants
+    ctors := decl.constructorConstants
+    recursors := []
+    rules := []
+    projections := decl.projectionEntries }
+  apply VEnv.WF.inductProjections
+      (base := sourceEnv) (envTypes := H.context.venv)
+      (decl := decl) (block := block)
+  · rw [← H.sourceContextVEnv]
+    exact H.sourceContext.checking.tr.wf
+  · rw [← R.declared.contextVEnv]
+    exact R.declared.context.checking.tr.wf
+  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
+  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars R.core
+  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF R.core
+  · exact R.formation.formationWF.sourceParameterWF
+  · exact R.formation.formationWF.sourceParameterWF.rawCtorShape
+  · rfl
+  · rfl
+  · rfl
+  · exact R.core.typesAdded
+  · exact R.core.ctorsAdded
+
+/-- The primitive constructor context, projected. -/
+theorem PrimitiveConstructorPhasesResult.projectedChecking
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment}
+    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    (R : PrimitiveConstructorPhasesResult H ctorEnv) :
+    CheckingEnv.Valid c.safety ctorEnv
+      (R.declared.venvCtors.addProjections decl.projectionEntries) := by
+  have hchecking : CheckingEnv.Valid c.safety ctorEnv R.declared.venvCtors := by
+    rw [← R.declared.contextVEnv]
+    exact R.declared.context.checking
+  exact hchecking.addProjections R.projectedWF
 
 /-- The atomic primitive formation pipeline embeds into the same completed
 recursor boundary. -/
@@ -480,7 +523,9 @@ def PrimitiveConstructorPhasesResult.completed
   sourceContext := H.sourceContext
   sourceContextVEnv := H.sourceContextVEnv
   sourceMaterialized := H.sourceMaterialized
-  context := R.declared.context
+  context := R.declared.context.withEnv R.projectedChecking (by
+    rw [R.declared.contextVEnv]
+    exact VEnv.addProjections_le)
   headerMLCtx := H.context.mlctx
   contextMLCtx := R.declared.contextMLCtx
   headers := H.headers
@@ -498,18 +543,14 @@ def PrimitiveConstructorPhasesResult.completed
   constructorSourceAligned := R.declared.sourceAligned
   constructorProduction := R.declared.production
   constructorNonInductive := R.declared.nonInductive
-  installation := by
-    rw [R.declared.contextVEnv]
-    exact .primitive H.installed R.declared.installed (by
-      simpa [H.values, R.declared.values] using R.declared.bootstrap)
+  ctorVEnv := R.declared.venvCtors
+  contextVEnv := rfl
+  installation := .primitive H.installed R.declared.installed (by
+    simpa [H.values, R.declared.values] using R.declared.bootstrap)
   formation := R.formation
-  core := by
-    rw [R.declared.contextVEnv]
-    exact R.core
+  core := R.core
   productionInductiveOrigins := R.productionInductiveOrigins
-  constructorSemantics := fun Hsource => by
-    rw [R.declared.contextVEnv]
-    exact R.constructorSemantics Hsource
+  constructorSemantics := fun Hsource => R.constructorSemantics Hsource
 
 end VerifyInductive
 end Lean4Lean

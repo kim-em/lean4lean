@@ -296,6 +296,30 @@ theorem NestedFormationAssembly.formation
     H.expandedSource H.expandedFormation H.sourceParameters H.uvars H.nparams
       H.isUnsafe H.types
 
+/-- Constructor telescope lengths of the original families agree with those
+of the expanded declaration. -/
+theorem NestedFormationAssembly.constructorArityPrefix
+    (H : NestedFormationAssembly env source) :
+    source.ConstructorArityPrefix H.expanded := by
+  have hnodup : (H.expanded.types.map (·.name)).Nodup := by
+    have h := (List.nodup_append.mp H.expandedSource.2.1).1
+    simpa [VInductDecl.typeConstants, VInductiveType.toVConstVal,
+      Function.comp_def] using h
+  exact VInductDecl.constructorArityPrefixOfNestedExpansions H.types
+    H.expandedFormation.sourceParameterWF.rawCtorShape H.uvars H.nparams hnodup
+
+/-- Raw constructor shapes of the original families, transported through the
+ordered nested expansion. -/
+theorem NestedFormationAssembly.rawShapes
+    (H : NestedFormationAssembly env source) :
+    ∀ type ∈ source.types, ∀ ctor ∈ type.ctors, source.RawCtorShape type ctor := by
+  have hnodup : (H.expanded.types.map (·.name)).Nodup := by
+    have h := (List.nodup_append.mp H.expandedSource.2.1).1
+    simpa [VInductDecl.typeConstants, VInductiveType.toVConstVal,
+      Function.comp_def] using h
+  exact VInductDecl.rawShapesOfNestedExpansions H.types
+    H.expandedFormation.sourceParameterWF.rawCtorShape H.uvars H.nparams hnodup
+
 /-- A successful ordinary header/constructor run supplies both independent
 well-formedness judgments for the expanded block.  Thus the only genuinely
 nested input left at this boundary is the ordered lowering expansion itself

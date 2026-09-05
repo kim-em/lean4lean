@@ -44,7 +44,7 @@ def CompletedConstructorPhases.checkedRecursorHeaderAt
   have Htype := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
     familyIdx (by simpa using hfamily) htarget
   have hsourceLE : sourceEnv <= R.context.venv :=
-    R.installation.headerLE.trans R.installation.constructorLE
+    R.installation.headerLE.trans (R.installation.constructorLE.trans R.ctorLE)
   have Hsource := Htype.header.mono hsourceLE
   have HsourceUses :=
     (Htype.header.type.usesOnly_of_constants
@@ -95,7 +95,7 @@ def CompletedConstructorPhases.checkedRecursorHeaderAt
     rw [R.headerValues]
     exact List.mem_map.mpr
       ⟨decl.types[familyIdx], List.getElem_mem htarget, rfl⟩
-  exact R.installation.constructorLE.constants hheaderLookup
+  exact (R.installation.constructorLE.trans R.ctorLE).constants hheaderLookup
 
 /-- The common constructor boundary supplies a typed constructor application
 seed independently of whether its constants were installed ordinarily or as
@@ -149,7 +149,7 @@ theorem CompletedConstructorPhases.checkedConstructorPrefixSeedAt
   let Hsuffix := Hmaterialized.parameterSuffix.toRecursorContext Helim
   have hheaderLE : R.headerVEnv <= Hbase.venv := by
     change R.headerVEnv <= R.context.venv
-    exact R.installation.constructorLE
+    exact R.installation.constructorLE.trans R.ctorLE
   have Hreplay := R.checkedRecursorConstructorTailAt
     familyIdx hfamily ctorIdx hctor
   have Hreplay' : CheckedConstructorTailReplayAt R.headerVEnv c.lparams
@@ -185,9 +185,12 @@ theorem CompletedConstructorPhases.checkedConstructorPrefixSeedAt
         some ctorVal.toVConstant := by
       change R.context.venv.constants ctorVal.name =
         some ctorVal.toVConstant
-      apply VEnv.addConstVals_get R.installation.constructorAbstract
-      rw [R.constructorValues]
-      exact hctorConstantMem
+      have hctor : R.ctorVEnv.constants ctorVal.name =
+          some ctorVal.toVConstant := by
+        apply VEnv.addConstVals_get R.installation.constructorAbstract
+        rw [R.constructorValues]
+        exact hctorConstantMem
+      exact R.ctorLE.constants hctor
     simpa [Rbase] using hlookup
   let levels := recursorDeclarationAbstractLevels c.lparams Helim
   have hlevelsWF : ∀ level ∈ levels,
