@@ -72,21 +72,28 @@ theorem enumDecl_wf : enumDecl.WF .empty := by
       · exact .sortDF (by trivial) (by trivial) rfl
       · exact .zero
       · exact .sortDF (by trivial) (by trivial) rfl
-    · intro type htypeMem ctor hctorMem
-      simp [enumDecl] at htypeMem
-      subst type
-      simp [enumType] at hctorMem
-      subst ctor
-      refine ⟨?_, ?_⟩
-      · exact ⟨[], enumCtor.type, rfl, .zero⟩
-      · refine ⟨.const `Enum0 [], [], .const `Enum0 [], .sort (.succ .zero), [],
-          ?_, rfl, .zero, .zero, ?_⟩
-        · exact .constDF hlookup nofun nofun rfl .nil
-        · apply VInductDecl.CtorTailWF.result
-            (result' := .const `Enum0 []) (type := .sort (.succ .zero))
-          · simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, enumDecl,
-              enumType, VExpr.getAppFnArgs.go, VInductDecl.paramVars]
+    · refine ⟨fun type htypeMem ctor hctorMem => ?_, fun type htypeMem ctor hctorMem => ?_⟩
+      · simp [enumDecl] at htypeMem
+        subst type
+        simp [enumType] at hctorMem
+        subst ctor
+        refine ⟨?_, ?_⟩
+        · exact ⟨[], enumCtor.type, rfl, .zero⟩
+        · refine ⟨.const `Enum0 [], [], .const `Enum0 [], .sort (.succ .zero), [],
+            ?_, rfl, .zero, .zero, ?_⟩
           · exact .constDF hlookup nofun nofun rfl .nil
+          · apply VInductDecl.CtorTailWF.result
+              (result' := .const `Enum0 []) (type := .sort (.succ .zero))
+            · simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, enumDecl,
+                enumType, VExpr.getAppFnArgs.go, VInductDecl.paramVars]
+            · exact .constDF hlookup nofun nofun rfl .nil
+      · simp [enumDecl] at htypeMem
+        subst type
+        simp [enumType] at hctorMem
+        subst ctor
+        refine ⟨[], .const `Enum0 [], rfl, by simp [enumDecl], ?_, rfl⟩
+        simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, enumDecl,
+          enumType, VExpr.getAppFnArgs.go, VInductDecl.paramVars]
 
 theorem recursiveOccurrence_positive :
     enumDecl.SyntacticallyPositive {} [] 0 (.const `Enum0 []) := by
@@ -221,7 +228,7 @@ theorem enumOrdinaryCompilation : enumDecl.OrdinaryCompilation .empty enumBlock 
   recursors := by
     exact .cons ⟨enumRecursorShape⟩ .nil
   rules := by
-    refine ⟨enumTypesEnv, enumCtorsEnv, ?_, ?_, .cons ⟨enumIota⟩ .nil⟩
+    refine ⟨enumTypesEnv, enumCtorsEnv, ?_, ?_, .cons ⟨enumIota.mono VEnv.addProjections_le⟩ .nil⟩
     · simp [enumBlock, enumDecl, enumType, enumTypesEnv,
         VInductDecl.typeConstants, VEnv.addConstVals, VEnv.addConst, VEnv.empty]
     · simp [enumBlock, enumDecl, enumType, enumCtor, enumTypesEnv,
