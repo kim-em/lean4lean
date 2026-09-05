@@ -116,9 +116,18 @@ metatheory. Treat the injectivity conjectures as the known open core.
 ## Remaining work
 
 - Discharge `VContext.registryShape` from `ProjectionRegistryCoherent` /
-  `Ordered.projectionShape` once the registry is a `CheckingEnv` field (the early registration
-  refactor, `inductProjectionsEarly`, was in progress in a separate worktree when the session's
-  usage limit hit; its state is uncommitted there).
+  `Ordered.projectionShape` once the registry is a `CheckingEnv` field. That refactor
+  (`CheckingEnv.Valid` gains `constructorOwners` and `projectionRegistry`; `c.lparams.Nodup`
+  threaded through the constructor phases; early registration) is on branch
+  `agent/verify-inductives-P` (worktree `/home/kim/worktrees/lean4lean/l4l-agent-P`, last commit
+  `7b098c5`), not merged. Its build still fails at: `Nested/OrderInsensitiveAlignment.lean`
+  (`AddConstants.validOfFreshPermutation` needs a registry-aware form of `AddConstants.valid`
+  for batches containing constructors), `PrimitiveAtomicInstallation.lean`
+  (`StagedContextWF.complete` must supply the two new fields for a partial primitive batch),
+  `Run/SemanticFormation.lean` (`declareConstructors.WF` now takes a
+  `CheckedConstructorsResult`), and `Nested/ConstructorParameterValidationSoundness.lean`
+  (`CheckingEnv.Valid.add` now takes a `ProjectionRegistryStep` for each restored header and
+  constructor).
 - Discharge `VContext.recursorRules`: carry `RecursorRulesCoherent` in `CheckingEnv.Valid` and
   `VContext` like `projectionRegistry`, and produce it at the inductive installation boundary
   from the recursor certificates (`BoundGeneratedRecursorRule.EquationTranslation` gives the
