@@ -327,4 +327,33 @@ theorem QuotCoherent.mono (h : venv ≤ venv') (hr : VEnv.RigidPreserving venv v
   defeq := h.defeqs H.defeq
   rigid := hr _ H.rigid
 
+/-! ## The quotient step of the environment trace -/
+
+theorem VEnv.addConst_defeqs {env env' : VEnv} (h : env.addConst name ci = some env') :
+    env'.defeqs = env.defeqs := by
+  unfold VEnv.addConst at h
+  split at h <;> cases h
+  rfl
+
+/-- Initializing quotients yields the quotient invariant, provided no equation already present is
+headed by `Quot` (a fresh constant cannot head an equation of a well-formed environment). -/
+theorem AddQuot.quotCoherent (H : AddQuot m₁ m₂ venv₁ venv₂)
+    (hrigid : venv₁.Rigid ``Quot) : QuotCoherent venv₂ := by
+  obtain ⟨_, _, e1, -, -, h1, _, _, e2, -, -, h2, _, _, e3, -, -, h3, _, _, e4, -, -, h4, -, rfl⟩ := H
+  have le1 := VEnv.addConst_le h1
+  have le2 := VEnv.addConst_le h2
+  have le3 := VEnv.addConst_le h3
+  have le4 := VEnv.addConst_le h4
+  have le5 : e4 ≤ e4.addDefEq quotDefEq := VEnv.addDefEq_le
+  refine ⟨?_, ?_, ?_, ?_, Or.inl rfl, ?_⟩
+  · exact le5.constants (le4.constants (le3.constants (le2.constants (VEnv.addConst_self h1))))
+  · exact le5.constants (le4.constants (le3.constants (VEnv.addConst_self h2)))
+  · exact le5.constants (le4.constants (VEnv.addConst_self h3))
+  · exact le5.constants (VEnv.addConst_self h4)
+  · refine VEnv.Rigid.addDefEq ?_ fun ls h => by cases h
+    intro df hdf
+    rw [VEnv.addConst_defeqs h4, VEnv.addConst_defeqs h3, VEnv.addConst_defeqs h2,
+      VEnv.addConst_defeqs h1] at hdf
+    exact hrigid df hdf
+
 end Lean4Lean
