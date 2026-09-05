@@ -1,11 +1,29 @@
-import Lean4Lean.Verify.TypeChecker.Reduce
+import Lean4Lean.Verify.TypeChecker.Recursor
 
 namespace Lean4Lean.TypeChecker.Inner
 open Lean hiding Environment Exception
 
 theorem reduceRecursor.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (reduceRecursor e) fun oe _ =>
-      ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := sorry
+      ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := by
+  unfold reduceRecursor
+  refine .getEnv ?_
+  extract_lets jp
+  have hjp : ∀ {s : VState}, RecM.WF c s (jp ()) fun oe _ =>
+      ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := by
+    intro s
+    simp only [jp]
+    refine (inductiveReduceRec.WF he).bind fun oi _ _ hi => ?_
+    split
+    · exact .pure fun _ h => hi _ h
+    · exact .pure nofun
+  split
+  · rename_i hq
+    refine (quotReduceRec.WF he (c.quotCoherent hq)).bind fun oq _ _ hqq => ?_
+    split
+    · exact .pure fun _ h => hqq _ h
+    · exact hjp
+  · exact hjp
 
 theorem whnfFVar.WF {c : VContext} {s : VState} (he : c.TrExprS (.fvar fv) e') :
     RecM.WF c s (whnfFVar (.fvar fv) cheapProj) fun e₁ _ =>
