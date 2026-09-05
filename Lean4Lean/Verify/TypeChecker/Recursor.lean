@@ -492,14 +492,106 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
 
 /-- Converting the major premise of a K-like recursor to the nullary constructor application
 yields a definitionally equal term, by proof irrelevance. -/
-theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr}
+theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
     (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
       ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
     (he : c.TrExprS major m') :
     RecM.WF c s (toCtorWhenK c.env whnf inferType isDefEq info major) fun r _ =>
       c.FVarsBelow major r ∧ c.TrExpr r m' := by
-  sorry
-
+  have hid : ∀ {s : VState}, RecM.WF c s (pure major) fun r _ =>
+      c.FVarsBelow major r ∧ c.TrExpr r m' :=
+    .pure ⟨.rfl, he.trExpr c.Ewf c.Δwf⟩
+  unfold toCtorWhenK
+  split <;> [skip; exact absurd hk ‹_›]
+  refine (inferType.WF he).bind fun T _ _ ⟨T', hfvT, _, hTS, hT'⟩ => ?_
+  refine (whnf.WF hTS).bind fun A _ _ ⟨hfvA, A', hAS, hAdefeq⟩ => ?_
+  split <;> [rename_i I lsI hAfn; exact hid]
+  split <;> [exact hid; rename_i hI]
+  split <;> [exact hid; rename_i hnargs]
+  split <;> [exact hid; skip]
+  simp only [bne_iff_ne, ne_eq, Classical.not_not] at hI hnargs
+  subst hI
+  obtain ⟨ind, ctorName, hind, hctors, indUvars, indDoms, ctorDoms, ctorBody, hIc, hIlen, hCc,
+    hClen, hparams⟩ := hK
+  -- the nullary constructor application
+  have hind' : c.env.find? info.getMajorInduct = some (.inductInfo ind) := by
+    rw [Lean.Kernel.Environment.find?, c.trenv.map_wf.find?'_eq_find?]; exact hind
+  have hnullary : mkNullaryCtor c.env A info.numParams =
+      some ((Expr.const ctorName lsI).mkAppList (A.getAppArgsList.take info.numParams)) := by
+    unfold mkNullaryCtor
+    rw [Expr.withApp_eq, hAfn]
+    simp only [getFirstCtor, hind', hctors, List.head?_cons, Option.bind_eq_bind,
+      Option.bind_some, Option.some.injEq, Option.pure_def]
+    refine Expr.mkAppRange_eq (l₁ := []) (l₃ := A.getAppArgsList.drop info.numParams) ?_ rfl ?_
+    · rw [Expr.getAppArgs_toList, List.nil_append, List.take_append_drop]
+    · have hAsize : A.getAppArgs.size = info.numParams + info.numIndices := by
+        have h1 := congrArg List.length (Expr.getAppArgs_toList (e := A))
+        have h2 := congrArg List.length (Expr.getAppArgsList_reverse (e := A))
+        simp only [Array.length_toList, List.length_reverse] at h1 h2
+        rw [h1, h2, ← Expr.getAppNumArgs_eq, hnargs]
+      have h1 := congrArg List.length (Expr.getAppArgs_toList (e := A))
+      simp only [Array.length_toList] at h1
+      rw [List.nil_append, List.length_take, ← h1, hAsize,
+        Nat.min_eq_left (Nat.le_add_right _ _)]
+  rw [hnullary]
+  simp only
+  -- the type of the major premise as an inductive application
+  have hAS' : c.TrExprS ((Expr.const info.getMajorInduct lsI).mkAppList A.getAppArgsList) A' := by
+    rwa [← hAfn, A.mkAppList_getAppArgsList]
+  have ⟨_, stk⟩ := AppStack.build hAS'
+  obtain ⟨lsI', AA', hlsI, rfl, hAargs, hAfull⟩ := stk.constantApplication
+  have hAA := hAS'.uniq c.Ewf (.refl c.Ewf c.Δwf) hAfull
+  have .const hlcI _ hlenI := stk.tr
+  rw [hIc] at hlcI; cases hlcI
+  have hlsI'len : lsI'.length = indUvars :=
+    (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hlsI)).symm.trans hlenI
+  have hlsI'w := VLevel.WF.of_mapM_ofLevel hlsI
+  have hAAlen : AA'.length = info.numParams + info.numIndices := by
+    rw [← Lean4Lean.List.Forall₂.length_eq hAargs, ← List.length_reverse,
+      Expr.getAppArgsList_reverse, ← Expr.getAppNumArgs_eq, hnargs]
+  have hAAwf := hAfull.wf c.Ewf c.Δwf
+  -- the inductive application is a proposition
+  have hIsort : c.HasType (VExpr.mkApps (.const info.getMajorInduct lsI') AA') (.sort .zero) := by
+    have hc := VEnv.HasType.const (Γ := c.vlctx.toCtx) hIc hlsI'w (by simpa using hlsI'len)
+    rw [VExpr.instL_wrapForalls] at hc
+    have ⟨_, h⟩ := VEnv.HasType.mkApps_wrapForalls c.Ewf c.Δwf.toCtx hc hAAwf
+      (by simp [hAAlen, hIlen])
+    simpa [VExpr.instL, VLevel.inst] using h
+  -- the constructor application is typed at the inductive application
+  have hcT := VEnv.HasType.const (Γ := c.vlctx.toCtx) hCc hlsI'w (by simpa using hlsI'len)
+  rw [VExpr.instL_wrapForalls] at hcT
+  have hnewT : c.HasType (VExpr.mkApps (.const ctorName lsI') (AA'.take info.numParams))
+      ((ctorBody.instL lsI').instOuter (AA'.take info.numParams)) := by
+    refine VEnv.HasType.mkApps_of_telescope c.Ewf c.Δwf.toCtx hcT (by simp [hClen]; omega) ?_
+    intro j hj hj'
+    simp only [List.length_take, List.length_map] at hj hj'
+    have := hparams _ _ lsI' AA' hAAwf hAAlen j (by omega) (by omega)
+    rw [List.getElem_take, List.take_take, Nat.min_eq_left (by omega), List.getElem_map]
+    exact this
+  have hnewS : c.TrExprS ((Expr.const ctorName lsI).mkAppList (A.getAppArgsList.take info.numParams))
+      (VExpr.mkApps (.const ctorName lsI') (AA'.take info.numParams)) :=
+    TrExprS.mkAppList_of_wf (.const hCc hlsI (by simpa using hlenI)) (forall₂_take hAargs _)
+      ⟨_, hnewT⟩
+  -- the index check
+  refine (inferType.WF hnewS).bind fun N _ _ ⟨N', _, _, hNS, hN'⟩ => ?_
+  refine (isDefEq.WF hAS hNS).bind fun b _ _ hb => ?_
+  split <;> [rename_i hbt; exact hid]
+  have hb := hb hbt
+  refine .pure ⟨?_, ?_⟩
+  · intro P hP hfe
+    have hfA : FVarsIn P A := hfvA P hP (hfvT P hP hfe)
+    rw [FVarsIn.mkAppList]
+    refine ⟨?_, fun a ha => hfA.of_mem_getAppArgsList (List.mem_of_mem_take ha)⟩
+    have := hfA
+    rw [← A.mkAppList_getAppArgsList, hAfn, FVarsIn.mkAppList] at this
+    exact this.1
+  · refine ⟨_, hnewS, ?_⟩
+    have hnewI : c.HasType (VExpr.mkApps (.const ctorName lsI') (AA'.take info.numParams))
+        (VExpr.mkApps (.const info.getMajorInduct lsI') AA') :=
+      hN'.defeqU_r c.Ewf c.Δwf (hb.symm.trans c.Ewf c.Δwf hAA)
+    have hmI : c.HasType m' (VExpr.mkApps (.const info.getMajorInduct lsI') AA') :=
+      hT'.defeqU_r c.Ewf c.Δwf (hAdefeq.symm.trans c.Ewf c.Δwf hAA)
+    exact ⟨_, (VEnv.IsDefEq.proofIrrel hIsort hmI hnewI).symm⟩
 /-- Converting a term of structure type to its constructor applied to its projections yields a
 definitionally equal term, by structure eta. -/
 theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
@@ -571,7 +663,7 @@ theorem inductiveReduceRec.WF (he : c.TrExprS e e') :
     · refine (toCtorWhenStruct.WF hwS).bind fun major₂ _ _ ⟨hfv₂, hm₂⟩ => ?_
       exact htail _ (hchain hfv₂ hm₂).1 (hchain hfv₂ hm₂).2
   split
-  · exact (toCtorWhenK.WF (hK ‹_›) (hget _ hmaj)).bind fun m₁ _ _ ⟨h1, h2⟩ => hjp m₁ h1 h2
+  · exact (toCtorWhenK.WF ‹_› (hK ‹_›) (hget _ hmaj)).bind fun m₁ _ _ ⟨h1, h2⟩ => hjp m₁ h1 h2
   · exact hjp _ .rfl ((hget _ hmaj).trExpr c.Ewf c.Δwf)
 
 end Inner

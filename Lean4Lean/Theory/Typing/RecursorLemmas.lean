@@ -1064,6 +1064,46 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota_body (henv : VEnv.WF env)
   · have ⟨_, h⟩ := h1
     exact ⟨_, h.hasType.2⟩
 
+@[simp] theorem _root_.Lean4Lean.VExpr.instOuter_sort (u : VLevel) (args : List VExpr) :
+    (VExpr.sort u).instOuter args = .sort u := by
+  rw [VExpr.instOuter_eq_subst, VExpr.subst_sort]
+
+/-- Forward telescope typing: a function typed at a syntactic telescope, applied to arguments typed
+along that telescope, has the instantiated residual type. -/
+theorem HasType.mkApps_of_telescope (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)) :
+    ∀ {args : List VExpr} {f : VExpr} {doms : List VExpr} {body : VExpr},
+      env.HasType U Γ f (VExpr.wrapForalls doms body) → args.length = doms.length →
+      (∀ j (hj : j < args.length) (hj' : j < doms.length),
+        env.HasType U Γ args[j] (doms[j].instOuter (args.take j))) →
+      env.HasType U Γ (VExpr.mkApps f args) (body.instOuter args) := by
+  intro args
+  induction args with
+  | nil =>
+    intro f doms body hf hlen _
+    cases doms with
+    | nil => exact hf
+    | cons _ _ => simp at hlen
+  | cons a as ih =>
+    intro f doms body hf hlen hty
+    cases doms with
+    | nil => simp at hlen
+    | cons d ds =>
+      simp only [List.length_cons] at hlen
+      have ha : env.HasType U Γ a d := by
+        have := hty 0 (by simp) (by simp)
+        simpa only [List.getElem_cons_zero, List.take_zero, VExpr.instOuter_nil] using this
+      have hfa : env.HasType U Γ (.app f a) ((VExpr.wrapForalls ds body).inst a) := hf.app ha
+      rw [VExpr.wrapForalls_inst] at hfa
+      simp only [VExpr.mkApps, List.foldl_cons, VExpr.instOuter_cons]
+      rw [show as.length = 0 + ds.length by omega]
+      refine ih (doms := VExpr.instDomains ds a 0) hfa (by simpa using hlen) ?_
+      intro j hj hj'
+      have := hty (j + 1) (by simp; omega) (by simp; omega)
+      simp only [List.getElem_cons_succ, List.take_succ_cons, VExpr.instOuter_cons,
+        List.length_take] at this
+      rw [VExpr.instDomains_getElem ds a 0 j (by simpa using hj')]
+      rwa [show min j as.length = 0 + j by omega] at this
+
 end VEnv
 
 end Lean4Lean
