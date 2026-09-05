@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Lemmas
 import Lean4Lean.Theory.VDecl
+import Lean4Lean.Theory.InductiveShape
 
 namespace Lean4Lean
 
@@ -63,15 +64,6 @@ theorem VInductDecl.typeIndex_eq_of_name
     (VInductDecl.typeNames_nodup H)).mp
   simpa using hname
 
-/-- Split exactly `n` leading forall binders, retaining domains in outermost to
-innermost order. -/
-def VExpr.takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
-  | 0, e => some ([], e)
-  | n + 1, .forallE dom body => do
-    let (doms, result) ← body.takeForalls n
-    return (dom :: doms, result)
-  | _ + 1, _ => none
-
 theorem VExpr.takeForalls_domains_length
     {e : VExpr} {n : Nat} {domains : List VExpr} {result : VExpr}
     (H : e.takeForalls n = some (domains, result)) :
@@ -87,14 +79,6 @@ theorem VExpr.takeForalls_domains_length
       rcases H with ⟨tailDomains, htail, hd⟩
       rw [← hd]
       simp [ih htail]
-
-/-- Head and left-to-right arguments of an application spine. -/
-def VExpr.getAppFnArgs (e : VExpr) : VExpr × List VExpr :=
-  go e []
-where
-  go : VExpr → List VExpr → VExpr × List VExpr
-    | .app fn arg, args => go fn (arg :: args)
-    | fn, args => (fn, args)
 
 @[simp] theorem VExpr.getAppFnArgs_const :
     getAppFnArgs (.const name levels) = (.const name levels, []) := rfl
@@ -158,32 +142,6 @@ theorem VExpr.containsAnyConst_mkApps_eq_false_iff
         VExpr.mkApps (.app fn arg) args by rfl, ih]
       simp [VExpr.containsAnyConst, and_assoc]
 
-/-- The common parameters as de Bruijn variables beneath `depth` additional
-constructor-field binders. -/
-def VInductDecl.paramVars (decl : VInductDecl) (depth : Nat) : List VExpr :=
-  (List.range decl.nparams).reverse.map fun i => .bvar (depth + i)
-
-def VInductDecl.ParamsDefEq (env : VEnv) (decl : VInductDecl)
-    (params params' : List VExpr) : Prop :=
-  VEnv.IsDefEqCtx env decl.uvars [] params.reverse params'.reverse
-
-/-- Constant support inherited from source syntax. Projection owner names are
-metadata rather than expression subterms, matching `Expr.findAny`. -/
-inductive VExpr.SourceConstFree (names : List Name) : VExpr → Prop
-  | bvar (index : Nat) : SourceConstFree names (.bvar index)
-  | sort (level : VLevel) : SourceConstFree names (.sort level)
-  | const (name : Name) (levels : List VLevel) (fresh : name ∉ names) :
-      SourceConstFree names (.const name levels)
-  | proj (typeName : Name) (index : Nat) :
-      SourceConstFree names struct →
-      SourceConstFree names (.proj typeName index struct)
-  | app : SourceConstFree names fn → SourceConstFree names arg →
-      SourceConstFree names (.app fn arg)
-  | lam : SourceConstFree names domain → SourceConstFree names body →
-      SourceConstFree names (.lam domain body)
-  | forallE : SourceConstFree names domain →
-      SourceConstFree names body → SourceConstFree names (.forallE domain body)
-
 theorem VExpr.SourceConstFree.ofContainsAnyConst
     {expression : VExpr} {names : List Name}
     (H : expression.containsAnyConst names = false) :
@@ -235,21 +193,6 @@ theorem VExpr.SourceConstFree.liftN
   | forallE _ _ ihDomain ihBody =>
     exact .forallE (ihDomain k) (ihBody (k + 1))
 
-
-/-- A fully applied occurrence of one of the simultaneously declared types.
-Recursive occurrences use precisely the common parameter variables, and their
-indices contain no recursive occurrence. -/
-def VInductDecl.ValidIndAppAt (decl : VInductDecl) (target : Option Name)
-    (depth : Nat) (e : VExpr) : Prop :=
-  let (fn, args) := e.getAppFnArgs
-  ∃ type ∈ decl.types, (target = none ∨ target = some type.name) ∧
-    ∃ levels,
-      fn = .const type.name levels ∧
-      levels.length = decl.uvars ∧
-      args.length = decl.nparams + type.numIndices ∧
-      args.take decl.nparams = decl.paramVars depth ∧
-      ∀ arg ∈ args.drop decl.nparams,
-        arg.SourceConstFree (decl.types.map (·.name))
 
 theorem VInductDecl.ValidIndAppAt.forgetTarget
     {decl : VInductDecl} {target : Option Name}
@@ -555,18 +498,6 @@ theorem VInductDecl.CtorTailWF.mono
         (fun h => .inr (h.mono henv)))
       (hdom.mono henv) (hbody.mono henv) ih
 
-/-- Shape of one inductive type after normalization: common parameters,
-exactly the recorded indices, and the recorded result sort. -/
-def VInductDecl.TypeShape (env : VEnv) (decl : VInductDecl)
-    (params : List VExpr) (type : VInductiveType) : Prop :=
-  ∃ normalized ownParams afterParams indices result exprType,
-    env.IsDefEq decl.uvars [] type.type normalized exprType ∧
-    normalized.takeForalls decl.nparams = some (ownParams, afterParams) ∧
-    afterParams.takeForalls type.numIndices = some (indices, result) ∧
-    decl.ParamsDefEq env params ownParams ∧
-    env.IsDefEq decl.uvars (indices.reverse ++ ownParams.reverse)
-      result (.sort type.resultLevel) (.sort (.succ type.resultLevel))
-
 def VInductDecl.CtorShape (env : VEnv) (decl : VInductDecl)
     (params : List VExpr) (target : VInductiveType) (ctor : VConstVal) : Prop :=
   ∃ normalized ownParams tail exprType tailCtx,
@@ -575,28 +506,6 @@ def VInductDecl.CtorShape (env : VEnv) (decl : VInductDecl)
     decl.ParamsDefEq env params ownParams ∧
     env.IsDefEqCtx decl.uvars [] ownParams.reverse tailCtx ∧
     decl.CtorTailWF env target tailCtx 0 tail
-
-/-- Raw common-parameter shape of one constructor before normalization.
-This is separate from `CtorShape`: normalization may change the visible
-forall prefix, while the executable checker compares the original prefix
-directly with the mutual header parameters. -/
-def VInductDecl.CtorParameterShape (env : VEnv) (decl : VInductDecl)
-    (params : List VExpr) (ctor : VConstVal) : Prop :=
-  ∃ ownParams tail,
-    ctor.type.takeForalls decl.nparams = some (ownParams, tail) ∧
-    decl.ParamsDefEq env params ownParams
-
-/-- Source-facing common-parameter formation retained by both ordinary and
-nested declarations.  The family headers identify the shared semantic
-parameter telescope, while every original constructor retains its raw
-pre-normalization prefix against that same telescope. -/
-def VInductDecl.SourceParameterWF (env : VEnv)
-    (decl : VInductDecl) : Prop :=
-  ∃ params envTypes,
-    env.addConstVals decl.typeConstants = some envTypes ∧
-    (∀ type ∈ decl.types, decl.TypeShape env params type) ∧
-    ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
-      decl.CtorParameterShape envTypes params ctor
 
 theorem VInductDecl.TypeShape.mono
     {env env' : VEnv} {decl : VInductDecl}
@@ -820,20 +729,41 @@ def VInductDecl.FormationWF (env : VEnv) (decl : VInductDecl) : Prop :=
     env.addConstVals decl.typeConstants = some envTypes ∧
     (∀ type ∈ decl.types,
       type.resultLevel ≈ resultLevel ∧ decl.TypeShape env params type) ∧
-    ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
+    (∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
       decl.CtorParameterShape envTypes params ctor ∧
-      decl.CtorShape envTypes params type ctor
+      decl.CtorShape envTypes params type ctor) ∧
+    ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor
 
 theorem VInductDecl.FormationWF.sourceParameterWF
     {env : VEnv} {decl : VInductDecl}
     (H : VInductDecl.FormationWF env decl) :
     VInductDecl.SourceParameterWF env decl := by
   rcases H with
-    ⟨params, _resultLevel, envTypes, htypes, Htypes, Hconstructors⟩
+    ⟨params, _resultLevel, envTypes, htypes, Htypes, Hconstructors, Hraw⟩
   exact ⟨params, envTypes, htypes,
     fun type htype => (Htypes type htype).2,
     fun type htype ctor hctor =>
-      (Hconstructors type htype ctor hctor).1⟩
+      (Hconstructors type htype ctor hctor).1, Hraw⟩
+
+theorem VInductDecl.SourceParameterWF.rawCtorShape
+    {env : VEnv} {decl : VInductDecl}
+    (H : VInductDecl.SourceParameterWF env decl) :
+    ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor := by
+  rcases H with ⟨_, _, _, _, _, Hraw⟩
+  exact Hraw
+
+/-- Source parameter formation transports to a larger environment in which
+the family headers can still be installed. -/
+theorem VInductDecl.SourceParameterWF.mono_of_addConstVals
+    {env env' envTypes' : VEnv} {decl : VInductDecl}
+    (H : VInductDecl.SourceParameterWF env decl) (henv : env ≤ env')
+    (htypes' : env'.addConstVals decl.typeConstants = some envTypes') :
+    VInductDecl.SourceParameterWF env' decl := by
+  rcases H with ⟨params, envTypes, htypes, Htypes, Hctors, Hraw⟩
+  have hle : envTypes ≤ envTypes' := VEnv.addConstVals_mono henv htypes htypes'
+  exact ⟨params, envTypes', htypes',
+    fun type htype => (Htypes type htype).mono henv,
+    fun type htype ctor hctor => (Hctors type htype ctor hctor).mono hle, Hraw⟩
 
 theorem VInductDecl.SourceWF.originalTypes
     {env : VEnv} {decl : VInductDecl}
@@ -873,12 +803,6 @@ theorem VInductBlock.WF.exists_install (H : VInductBlock.WF env block) :
   rcases H with ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, _⟩
   exact ⟨envRecursors.addDefEqRules block.rules, by
     simp [VInductBlock.install, htypes, hctors, hrecs]⟩
-
-def VExpr.wrapLams (domains : List VExpr) (body : VExpr) : VExpr :=
-  domains.foldr .lam body
-
-def VExpr.wrapForalls (domains : List VExpr) (body : VExpr) : VExpr :=
-  domains.foldr .forallE body
 
 /-- Consume an exact forall prefix with the supplied arguments. Ill-shaped
 inputs are left unchanged; formation witnesses rule that branch out. -/
@@ -920,6 +844,47 @@ def VExpr.instantiateForallPrefix : VExpr → List VExpr → VExpr
       some (domains, body) := by
   simpa [wrapForalls] using
     VExpr.takeForalls_wrapForalls_append domains [] body
+
+@[simp] theorem VExpr.forallArity_wrapForalls
+    (domains : List VExpr) (body : VExpr) :
+    (VExpr.wrapForalls domains body).forallArity =
+      domains.length + body.forallArity := by
+  induction domains with
+  | nil => simp [wrapForalls]
+  | cons dom domains ih =>
+    simp [wrapForalls, VExpr.forallArity] at ih ⊢
+    omega
+
+/-- An application spine headed by a constant has no leading binders. -/
+theorem VExpr.forallArity_eq_zero_of_getAppFnArgs
+    {e : VExpr} {name : Name} {levels : List VLevel} {args : List VExpr}
+    (H : e.getAppFnArgs = (.const name levels, args)) : e.forallArity = 0 := by
+  cases e with
+  | app fn arg => rfl
+  | forallE dom body =>
+    change VExpr.getAppFnArgs.go (.forallE dom body) [] = _ at H
+    simp [VExpr.getAppFnArgs.go] at H
+  | _ => rfl
+
+/-- The field count recorded by a raw constructor shape is its syntactic
+arity beyond the common parameters. -/
+theorem VInductDecl.RawCtorShape.forallArity
+    {decl : VInductDecl} {type : VInductiveType} {ctor : VConstVal}
+    (H : decl.RawCtorShape type ctor) :
+    ∃ doms result,
+      ctor.type = VExpr.wrapForalls doms result ∧
+      decl.nparams ≤ doms.length ∧
+      decl.ValidIndAppAt (some type.name) (doms.length - decl.nparams) result ∧
+      result.getAppFnArgs.1 = .const type.name (VLevel.params decl.uvars) ∧
+      ctor.type.forallArity = doms.length := by
+  rcases H with ⟨doms, result, heq, hle, hvalid, hhead⟩
+  refine ⟨doms, result, heq, hle, hvalid, hhead, ?_⟩
+  have hzero : result.forallArity = 0 := by
+    have hspine : result.getAppFnArgs =
+        (.const type.name (VLevel.params decl.uvars), result.getAppFnArgs.2) := by
+      rw [← hhead]
+    exact VExpr.forallArity_eq_zero_of_getAppFnArgs hspine
+  rw [heq, VExpr.forallArity_wrapForalls, hzero, Nat.add_zero]
 
 /-- `e` is an application of one of the constructor fields represented by its
 de Bruijn index at the outside of the rule telescope. `depth` accounts for
@@ -1955,6 +1920,38 @@ theorem VInductDecl.WF.originalConstructors
       ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes :=
   H.1.originalConstructors
 
+/-- Source constructor typing at the exact header environment named by an
+installation. -/
+theorem VInductDecl.SourceWF.constructorsWF_at
+    {env envTypes : VEnv} {decl : VInductDecl}
+    (H : decl.SourceWF env)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes) :
+    ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes := by
+  rcases H.originalConstructors with ⟨envTypes', htypes', hwf⟩
+  cases Option.some.inj (htypes'.symm.trans htypes)
+  exact hwf
+
+/-- Both ordinary and nested formation evidence retain the source
+parameter judgment at any environment in which the headers install. -/
+theorem VInductDecl.FormationEvidence.sourceParameterWF
+    {env envTypes : VEnv} {decl : VInductDecl}
+    (H : decl.FormationEvidence env)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes) :
+    decl.SourceParameterWF env := by
+  cases H with
+  | ordinary H => exact H.sourceParameterWF
+  | nested H hle =>
+    cases H with
+    | intro _ _ Hparams _ _ _ _ =>
+      exact Hparams.mono_of_addConstVals hle htypes
+
+theorem VInductDecl.WF.sourceParameterWF
+    {env envTypes : VEnv} {decl : VInductDecl}
+    (H : decl.WF env)
+    (htypes : env.addConstVals decl.typeConstants = some envTypes) :
+    decl.SourceParameterWF env :=
+  H.2.sourceParameterWF htypes
+
 /-- Forget the mutual positivity encoding and recover the reusable generic
 expression carrier. -/
 theorem VInductDecl.NestedExprWFExpansion.toNestedExprExpansion
@@ -2168,6 +2165,24 @@ theorem VEnv.InstalledInductCertificate.familyConstant
       (VEnv.addConstVals_le hrecursors).constants
         (VEnv.addProjections_le.constants
           ((VEnv.addConstVals_le hctors).constants hlookup))
+
+/-- Every family of an installed declaration carries the declaration's
+universe arity. -/
+theorem VEnv.InstalledInductCertificate.typeUvars
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledInductCertificate env decl) :
+    ∀ type ∈ decl.types, type.uvars = decl.uvars := by
+  cases H with
+  | intro Hsource _ _ _ _ _ => exact Hsource.2.2.1
+
+/-- Every constructor of an installed declaration carries the declaration's
+universe arity. -/
+theorem VEnv.InstalledInductCertificate.constructorUvars
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledInductCertificate env decl) :
+    ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars := by
+  cases H with
+  | intro Hsource _ _ _ _ _ => exact Hsource.2.2.2.1
 
 /-- An installed declaration exposes each of its constructor constants at
 the exact abstract value recorded by the source declaration. -/

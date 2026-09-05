@@ -82,6 +82,13 @@ def IsType (env : VEnv) (U : Nat) (Γ : List VExpr) (A : VExpr) : Prop :=
 def IsDefEqU (env : VEnv) (U : Nat) (Γ : List VExpr) (e₁ e₂ : VExpr) :=
   ∃ A, env.IsDefEq U Γ e₁ e₂ A
 
+variable (env : VEnv) (U : Nat) (Γ₀ : List VExpr) in
+/-- Pointwise definitional equality of two local contexts over a common
+base `Γ₀`. -/
+inductive IsDefEqCtx : List VExpr → List VExpr → Prop
+  | zero : IsDefEqCtx Γ₀ Γ₀
+  | succ :  IsDefEqCtx Γ₁ Γ₂ → env.IsDefEq U Γ₁ A₁ A₂ (.sort u) → IsDefEqCtx (A₁ :: Γ₁) (A₂ :: Γ₂)
+
 end VEnv
 
 def VExpr.WF (env : VEnv) (U : Nat) (Γ : List VExpr) (e : VExpr) := env.IsDefEqU U Γ e e

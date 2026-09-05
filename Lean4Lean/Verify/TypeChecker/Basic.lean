@@ -296,12 +296,16 @@ structure VContext extends Context where
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   trenv : CheckingEnv safety env venv
+  /-- Every visible singleton family whose constructor is present aligns with
+  the abstract projection registry.  This is what projection inference reads. -/
+  projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx
 
-def VContext.Projectable (c : VContext) : Prop :=
-  ProjectionRegistryCoherent c.safety c.env.constants c.venv
+theorem VContext.projectable (c : VContext) :
+    ProjectionRegistryCoherent c.safety c.env.constants c.venv :=
+  c.projectionRegistry
 
 @[simp] abbrev VContext.lctx' (c : VContext) := c.mlctx.lctx
 @[simp] abbrev VContext.vlctx (c : VContext) := c.mlctx.vlctx
@@ -310,13 +314,15 @@ theorem VContext.trlctx (c : VContext) : TrLCtx c.venv c.lparams c.lctx' c.vlctx
 theorem VContext.Ewf (c : VContext) : VEnv.WF c.venv := c.trenv.wf
 theorem VContext.Δwf (c : VContext) : c.vlctx.WF c.venv c.lparams.length := c.trlctx.wf
 
-theorem VContext.Projectable.projectionAlignment
-    {c : VContext} (H : c.Projectable)
+/-- Resolve the exact projection alignment selected by successful concrete
+family and constructor lookups in a checking context. -/
+theorem VContext.projectionAlignment (c : VContext)
     (hfamily : c.env.find? familyName = some (.inductInfo familyInfo))
     (habstract : c.venv.constants familyName = some familyConstant)
     (hsingle : familyInfo.ctors = [constructorName])
     (hconstructor : c.env.find? constructorName =
-      some (.ctorInfo constructorInfo)) :
+      some (.ctorInfo constructorInfo))
+    (hinduct : constructorInfo.induct = familyName) :
     Nonempty (ProjectionRegistryAlignmentAt c.env.constants c.venv familyName
       familyInfo constructorName) := by
   have hfamilyMap : c.env.constants.find? familyName =
@@ -328,8 +334,8 @@ theorem VContext.Projectable.projectionAlignment
   have hvisible : c.safety ≤
       (ConstantInfo.inductInfo familyInfo).safety :=
     (c.trenv.find?_uniq hfamily habstract).2.1
-  exact H familyName familyInfo constructorName constructorInfo hfamilyMap
-    hvisible hsingle hconstructorMap
+  exact c.projectionRegistry familyName familyInfo constructorName
+    constructorInfo hfamilyMap hvisible hsingle hconstructorMap hinduct
 
 nonrec abbrev VContext.TrExprS (c : VContext) : Expr → VExpr → Prop :=
   TrExprS c.venv c.lparams c.vlctx
@@ -561,9 +567,8 @@ untouched, so judgements stated at `c` and at `c.withMLC m` are interchangeable.
 @[simp] theorem VContext.withMLC_mlctx (c : VContext) (m) [c.MLCWF m] :
     (c.withMLC m).mlctx = m := rfl
 
-theorem VContext.Projectable.withMLC
-    {c : VContext} (H : c.Projectable) (m : MLCtx) [c.MLCWF m] :
-    (c.withMLC m).Projectable := H
+@[simp] theorem VContext.withMLC_projectionRegistry (c : VContext) (m) [c.MLCWF m] :
+    (c.withMLC m).projectionRegistry = c.projectionRegistry := rfl
 
 def VState.next (s : VState) : VState := { s with ngen := s.ngen.next }
 

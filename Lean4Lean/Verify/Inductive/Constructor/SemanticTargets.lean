@@ -34,6 +34,7 @@ theorem accumulatesSemanticTargets
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hheader.venv stats.indConsts)
+    (hlparams : c.lparams.Nodup)
     (Hfinish : CheckedSourceConstructorRows Hheader.venv
       c.lparams indTypes.toList → Q ()) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
@@ -105,6 +106,7 @@ theorem accumulatesSemanticTargets
       (fun h => by simpa [checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.headerDecl]
         using h)
       (Hmaterialized'.universeBound familyIdx htarget)
+      (Hmaterialized'.levelParamsTranslation hlparams)
     exact HcheckedSemantic.mono fun _ _ => hR
   · exact Hfinish
 
@@ -131,7 +133,8 @@ theorem assemblesSemanticHeadersExact
     (hcommonParams : commonParams.length = nparams)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
-      Hheader.venv stats.indConsts) :
+      Hheader.venv stats.indConsts)
+    (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
       { c with env := headerEnv }).WF fun _ =>
         Nonempty (AssembledSemanticHeadersOf Hc.venv
@@ -142,7 +145,7 @@ theorem assemblesSemanticHeadersExact
       Hheader.venv c.lparams nparams indTypes.toList isUnsafe
         commonParams commonLevel Hsemantic))
     Hheader hmlctx htypesAdded Hmaterialized hheaderParams
-    hconsume hlit
+    hconsume hlit hlparams
   intro Hrows
   exact AssembledSemanticHeaders.ofTargetsExact Hsemantic Hrows hcommonParams
     (by simpa using htypesAdded)

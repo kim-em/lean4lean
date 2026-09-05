@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Basic
 import Lean4Lean.Theory.VDecl
+import Lean4Lean.Theory.InductiveShape
 import Lean4Lean.Std.VariableBang
 
 namespace Lean4Lean
@@ -251,6 +252,9 @@ inductive Ordered : VEnv → Prop where
     Ordered envCtors →
     decl.sourceNames.Nodup →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
+    (∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes) →
+    decl.SourceParameterWF base →
+    (∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor) →
     block.types = decl.typeConstants →
     block.ctors = decl.constructorConstants →
     block.projections = decl.projectionEntries →
@@ -269,7 +273,7 @@ theorem Ordered.projectionConstant (H : Ordered env)
     exact ⟨constant, (VEnv.addConst_le hadd).constants hconstant⟩
   | defeq _ _ ih => exact ih hprojection
   | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource hconstructorUvars htypesSource hctorsSource
+      hbase hctorsOrdered hsource hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
       hprojections htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hprojection
     rcases hprojection with hnew | hold
@@ -302,7 +306,7 @@ theorem Ordered.projectionConstructor (H : Ordered env)
     exact (VEnv.addConst_le hadd).constants (ih hprojection)
   | defeq _ _ ih => exact ih hprojection
   | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource hconstructorUvars htypesSource hctorsSource
+      hbase hctorsOrdered hsource hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
       hprojections htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hprojection
     rcases hprojection with hnew | hold
@@ -332,7 +336,7 @@ theorem Ordered.projections_unique (H : Ordered env)
     exact ih hleft hright
   | defeq _ _ ih => exact ih hleft hright
   | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource hconstructorUvars htypesSource hctorsSource
+      hbase hctorsOrdered hsource hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
       hprojections htypes hctors ihBase ihCtors =>
     have hstages : envCtors.projections = base.projections :=
       (VEnv.addConstVals_projections hctors).trans <|
@@ -391,7 +395,7 @@ theorem Ordered.induction (motive : VEnv → Nat → VExpr → VExpr → Prop)
     (H : Ordered env) : OnTypes env (motive env) := by
   induction H with
   | empty => exact ⟨nofun, nofun⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
     exact ⟨fun h => (ih.1 (by simpa using h)).imp fun _ => mono VEnv.addProjections_le,
       fun h => (ih.2 (by simpa using h)).imp (mono VEnv.addProjections_le)
         (mono VEnv.addProjections_le)⟩
@@ -412,11 +416,6 @@ theorem Ordered.induction (motive : VEnv → Nat → VExpr → VExpr → Prop)
     · let ⟨hl, hr⟩ := h2
       exact ⟨type h1 ih hl, type h1 ih hr⟩
     · exact ih.2 hdf
-
-variable (env : VEnv) (U : Nat) (Γ₀ : List VExpr) in
-inductive IsDefEqCtx : List VExpr → List VExpr → Prop
-  | zero : IsDefEqCtx Γ₀ Γ₀
-  | succ :  IsDefEqCtx Γ₁ Γ₂ → env.IsDefEq U Γ₁ A₁ A₂ (.sort u) → IsDefEqCtx (A₁ :: Γ₁) (A₂ :: Γ₂)
 
 theorem IsDefEqCtx.length_eq : IsDefEqCtx env U Γ₀ Γ₁ Γ₂ → Γ₁.length = Γ₂.length
   | .zero => rfl
@@ -573,7 +572,7 @@ theorem Ordered.constWF (H : Ordered env) (h : env.constants n = some ci) : ci.W
     · cases h; exact h2
     · exact ih h
   | defeq _ _ ih => exact .mono addDefEq_le (ih h)
-  | inductProjections _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
     exact .mono VEnv.addProjections_le (ih (by simpa using h))
 
 theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
@@ -587,7 +586,7 @@ theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
     obtain rfl | h := h
     · assumption
     · exact ih h
-  | inductProjections _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
     exact .mono VEnv.addProjections_le (ih (by simpa using h))
 
 variable! (henv : Ordered env) in

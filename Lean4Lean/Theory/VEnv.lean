@@ -27,6 +27,11 @@ structure VProjectionEntry where
   typeName : Name
   info : VProjectionInfo
 
+/-- Number of constructor fields: the syntactic forall arity of the constructor
+type beyond the common parameters. -/
+def VProjectionInfo.numFields (info : VProjectionInfo) : Nat :=
+  info.ctorType.forallArity - info.nparams
+
 namespace VProjectionInfo
 
 def instantiateProjectionParameters : VExpr → List VExpr → Option VExpr

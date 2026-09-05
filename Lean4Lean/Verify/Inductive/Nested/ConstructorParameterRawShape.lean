@@ -22,6 +22,7 @@ def CheckedConstructorParameterPrefix.RawTranslation
     domains.length = i ∧
     rawScope.toCtx = domains.reverse ∧
     VLCtx.IsDefEq env Us.length rawScope checkedScope ∧
+    TrExprS.IsUniqueCtx rawScope checkedScope ∧
     TrExprS env Us rawScope current residual
 
 /-- Build the raw translation state directly from the exact structural
@@ -37,14 +38,14 @@ theorem CheckedConstructorParameterPrefix.rawTranslation
     H.RawTranslation target := by
   induction H generalizing target with
   | zero =>
-    exact ⟨[], [], target, by simp [VExpr.wrapForalls], rfl, rfl, .nil,
+    exact ⟨[], [], target, by simp [VExpr.wrapForalls], rfl, rfl, .nil, .base,
       by simpa using Horiginal⟩
   | step H hparam hparamFVar hdomain hdomainType hcompare ih =>
     rename_i i name dom body bi oldScope sourceDomains param fv sourceDomain
       paramType deps
     rcases ih hscope.1 Horiginal with
       ⟨rawScope, domains, residual, htarget, hlength, hrawContext,
-        Hcontexts, Hcurrent⟩
+        Hcontexts, Hunique, Hcurrent⟩
     cases Hcurrent with
     | @forallE rawDomain rawBody _ _ _ _ _ rawDomainType rawBodyType
         rawDomainTranslation rawBodyTranslation =>
@@ -71,7 +72,8 @@ theorem CheckedConstructorParameterPrefix.rawTranslation
         .cons Hcontexts hrawFresh (.vlam hrawParam)
       have Hopened := rawBodyTranslation.inst_fvar henv.ordered Hcontexts.wf
       refine ⟨(some (fv, deps), .vlam rawDomain) :: rawScope,
-        domains ++ [rawDomain], rawBody, ?_, ?_, ?_, Hcontexts, ?_⟩
+        domains ++ [rawDomain], rawBody, ?_, ?_, ?_, Hcontexts,
+        Hunique.cons .vlam, ?_⟩
       · rw [htarget]
         simp [VExpr.wrapForalls]
       · simp [hlength]
@@ -92,7 +94,7 @@ theorem CheckedConstructorParameterPrefix.ctorParameterShape
     decl.CtorParameterShape env params ctor := by
   rcases H.rawTranslation henv hscope Horiginal with
     ⟨rawScope, domains, residual, htarget, hlength, hrawContext,
-      Hcontexts, _⟩
+      Hcontexts, _, _⟩
   refine ⟨domains, residual, ?_, ?_⟩
   · rw [htarget, ← hlength]
     exact VExpr.takeForalls_wrapForalls domains residual
@@ -103,6 +105,77 @@ theorem CheckedConstructorParameterPrefix.ctorParameterShape
     have hparams' := VEnv.IsDefEqCtx.transEmpty henv hparams
       (hrawChecked.symm henv.ordered)
     simpa [VInductDecl.ParamsDefEq, huvars] using hparams'
+
+/-- The closed raw constructor type is the parameter prefix over the checked
+tail; since projection translation is primitive, the tail translation in the
+raw scope coincides with the cached-scope translation, so the tail
+certificate's syntactic telescope is the syntactic telescope of the closed
+constructor type. -/
+theorem CheckedConstructorParameterPrefix.rawCtorShape
+    {decl : VInductDecl} {target : VInductiveType} {ctor : VConstVal}
+    {tail : Expr} {tailTarget : VExpr}
+    (henv : env.WF)
+    (H : CheckedConstructorParameterPrefix env Us stats original
+      decl.nparams tail scope sourceDomains)
+    (hscope : scope.WF env Us.length)
+    (Horiginal : TrExprS env Us [] original ctor.type)
+    (Htail : TrExprS env Us scope tail tailTarget)
+    (Hcert : ConstructorTailCertificate env decl target scope.toCtx 0
+      tailTarget) :
+    decl.RawCtorShape target ctor := by
+  rcases H.rawTranslation henv hscope Horiginal with
+    ⟨rawScope, domains, residual, htarget, hlength, _, _, Hunique, Hresidual⟩
+  have hres : residual = tailTarget :=
+    Hresidual.unique' Hunique (TrExprS.IsUnique.all _) Htail
+  subst hres
+  rcases Hcert.raw with ⟨doms, result, hwrap, hvalid, hhead⟩
+  refine ⟨domains ++ doms, result, ?_, ?_, ?_, hhead⟩
+  · rw [htarget, hwrap, VExpr.wrapForalls_append]
+  · simp [hlength]
+  · simpa [hlength] using hvalid
+
+/-- The completed constructor replay yields the raw syntactic shape of every
+source constructor, positionally aligned with the declaration. -/
+theorem CheckedConstructorsResult.rawShapes
+    (H : CheckedConstructorsResult sourceEnv decl env params stats indTypes
+      Us scope)
+    (henv : env.WF)
+    (Htypes : List.Forall₂
+      (TrInductiveTypeHeaders sourceEnv env Us)
+      indTypes.toList decl.types)
+    (hscope : scope.WF env Us.length)
+    (hparamsSize : stats.params.size = decl.nparams) :
+    ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor := by
+  intro target htarget ctor hctor
+  rcases List.mem_iff_getElem.1 htarget with ⟨familyIdx, hfamilyTarget, rfl⟩
+  rcases List.mem_iff_getElem.1 hctor with ⟨ctorIdx, hctorTarget, rfl⟩
+  have hfamilySource : familyIdx < indTypes.size := by
+    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+    simpa using (show familyIdx < indTypes.toList.length by
+      rw [hlength]
+      exact hfamilyTarget)
+  have Hfamily := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
+    familyIdx (by simpa using hfamilySource) hfamilyTarget
+  have Hfamily' : TrInductiveTypeHeaders sourceEnv env Us
+      indTypes[familyIdx] decl.types[familyIdx] := by
+    simpa using Hfamily
+  have hctorSource : ctorIdx < indTypes[familyIdx].ctors.length := by
+    rw [Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Hfamily']
+    exact hctorTarget
+  have Hctor := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctorAt
+    Hfamily' ctorIdx hctorSource hctorTarget
+  rcases H.constructorTails.replay familyIdx hfamilySource ctorIdx hctorSource with
+    ⟨ctorVal, _tail, _tailTarget, _sourceDomains, _hmem, Hraw, _Hprefix,
+      Hcomparisons, Htranslated, Htail, _Hsynthesis⟩
+  have Hcomparisons' : CheckedConstructorParameterPrefix env Us stats
+      indTypes[familyIdx].ctors[ctorIdx].type decl.nparams _tail scope
+      _sourceDomains := by
+    simpa [hparamsSize] using Hcomparisons
+  have hctorType : ctorVal.type = decl.types[familyIdx].ctors[ctorIdx].type :=
+    Hraw.type.unique' .base (TrExprS.IsUnique.all _) Hctor.type
+  have Hshape := Hcomparisons'.rawCtorShape henv hscope Hraw.type Htranslated
+    Htail
+  simpa [VInductDecl.RawCtorShape, hctorType] using Hshape
 
 /-- The completed constructor replay already contains every successful raw
 parameter comparison.  Pair it with the declaration translation at the same

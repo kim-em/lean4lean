@@ -46,7 +46,8 @@ theorem AddInductive.semanticFormationCoreWF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
-      ¬ Kernel.Environment.primitives.contains ctor.name) :
+      ¬ Kernel.Environment.primitives.contains ctor.name)
+    (hlparams : c.lparams.Nodup) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -108,7 +109,7 @@ theorem AddInductive.semanticFormationCoreWF
       have hlitInstalled := Hheaders.materializedAvailableLiteralDisjoint
       have Hchecked := AddInductive.checkConstructors.checkedWF Hheaders
         hconsume hlitInstalled
-        (fun h => Hheaders.translation.isUnsafe.trans h)
+        (fun h => Hheaders.translation.isUnsafe.trans h) hlparams
         checkedOut hfull
       have Howners :=
         AddInductive.checkConstructors.ownerNormalFormsWF Hheaders

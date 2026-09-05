@@ -371,7 +371,7 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
     (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-    wf.typeAnnotationWrappers
+    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl

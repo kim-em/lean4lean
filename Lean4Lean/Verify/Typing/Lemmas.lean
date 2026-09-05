@@ -1870,7 +1870,18 @@ def TrExprS.IsUnique : Expr → Prop
   | .forallE _ t b _ => IsUnique t ∧ IsUnique b
   | .letE _ _ v b _ => IsUnique v ∧ IsUnique b
   | .mdata _ e => IsUnique e
-  | .proj .. => False
+  | .proj _ _ e => IsUnique e
+
+/-- Projection translation is primitive, so every expression has a unique
+translation once the fvar layout of the context is fixed. -/
+theorem TrExprS.IsUnique.all : ∀ e : Expr, IsUnique e
+  | .bvar _ | .fvar _ | .sort _ | .const .. | .mvar .. | .lit _ => ⟨⟩
+  | .app f a => ⟨IsUnique.all f, IsUnique.all a⟩
+  | .lam _ t b _ => ⟨IsUnique.all t, IsUnique.all b⟩
+  | .forallE _ t b _ => ⟨IsUnique.all t, IsUnique.all b⟩
+  | .letE _ _ v b _ => ⟨IsUnique.all v, IsUnique.all b⟩
+  | .mdata _ e => IsUnique.all e
+  | .proj _ _ e => IsUnique.all e
 
 theorem TrExprS.IsUnique.natLitToConstructor : ∀ {n : Nat}, IsUnique (.natLitToConstructor n)
   | 0 => ⟨⟩
@@ -1919,7 +1930,10 @@ theorem TrExprS.unique' (hΔ : IsUniqueCtx Δ₁ Δ₂) (H : IsUnique e)
   | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ H.1 ‹_›; cases ih2 (hΔ.cons .vlet) H.2 ‹_›; rfl
   | lit _ _ ih => exact ih hΔ .toConstructor ‹_›
   | mdata _ ih => exact ih hΔ H ‹_›
-  | proj => cases H
+  | proj _ hp ih =>
+    rename_i hp'
+    cases ih hΔ H ‹_›
+    rw [hp.target_eq, hp'.target_eq]
 
 theorem TrExprS.unique (H : IsUnique e)
     (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ := H1.unique' .base H H2

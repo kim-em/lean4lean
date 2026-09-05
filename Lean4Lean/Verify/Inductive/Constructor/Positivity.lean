@@ -496,6 +496,90 @@ theorem unsafeField.sourceWF
 
 end checkConstructors.loopCtor
 
+/-- Syntactic forall spine of a constructor type exactly as walked by the
+executable constructor check: `k` leading `forallE` binders followed by a
+constant-headed codomain.  No `mdata` or `letE` sits on the spine. -/
+inductive Expr.ForallSpine : Expr → Nat → Prop
+  | codomain {e : Expr} {name : Name} {levels : List Level}
+      (hhead : e.getAppFn = .const name levels) : ForallSpine e 0
+  | step {name : Name} {dom body : Expr} {bi : BinderInfo} {k : Nat}
+      (H : ForallSpine body k) : ForallSpine (.forallE name dom body bi) (k + 1)
+
+/-- Substituting a free variable cannot create a constant application head. -/
+theorem Expr.getAppFn_instantiate1'_const
+    {e : Expr} {fv : FVarId} {d : Nat} {name : Name} {levels : List Level}
+    (H : (e.instantiate1' (.fvar fv) d).getAppFn = .const name levels) :
+    e.getAppFn = .const name levels := by
+  induction e generalizing d with
+  | app f a ihf _ =>
+    simp only [Expr.instantiate1', Expr.getAppFn] at H ⊢
+    exact ihf H
+  | bvar i =>
+    simp only [Expr.instantiate1'] at H
+    split at H
+    · simp [Expr.getAppFn] at H
+    · split at H
+      · simp [Expr.liftLooseBVars', Expr.getAppFn] at H
+      · simp [Expr.getAppFn] at H
+  | const _ _ => simpa [Expr.instantiate1'] using H
+  | fvar _ | mvar _ | sort _ | lit _ | mdata _ _ _ | proj _ _ _ _
+  | lam _ _ _ _ _ _ | forallE _ _ _ _ _ _ | letE _ _ _ _ _ _ _ _ =>
+    simp [Expr.instantiate1', Expr.getAppFn] at H
+
+/-- Substituting a free variable cannot create a forall binder. -/
+theorem Expr.instantiate1'_fvar_forallE_inv
+    {e : Expr} {fv : FVarId} {d : Nat} {name : Name} {dom body : Expr}
+    {bi : BinderInfo}
+    (H : e.instantiate1' (.fvar fv) d = .forallE name dom body bi) :
+    ∃ dom' body', e = .forallE name dom' body' bi ∧
+      dom = dom'.instantiate1' (.fvar fv) d ∧
+      body = body'.instantiate1' (.fvar fv) (d + 1) := by
+  cases e with
+  | forallE name' dom' body' bi' =>
+    simp only [Expr.instantiate1', Expr.forallE.injEq] at H
+    rcases H with ⟨rfl, rfl, rfl, rfl⟩
+    exact ⟨dom', body', rfl, rfl, rfl⟩
+  | bvar i =>
+    simp only [Expr.instantiate1'] at H
+    split at H
+    · cases H
+    · split at H
+      · simp [Expr.liftLooseBVars'] at H
+      · cases H
+  | const _ _ | fvar _ | mvar _ | sort _ | lit _ | mdata _ _ | proj _ _ _
+  | lam _ _ _ _ | app _ _ | letE _ _ _ _ _ =>
+    simp [Expr.instantiate1'] at H
+
+theorem Expr.ForallSpine.of_instantiate1'_fvar
+    {e : Expr} {fv : FVarId} {d k : Nat}
+    (H : ForallSpine (e.instantiate1' (.fvar fv) d) k) : ForallSpine e k := by
+  generalize he : e.instantiate1' (.fvar fv) d = e' at H
+  induction H generalizing e d with
+  | codomain hhead =>
+    subst he
+    exact .codomain (Expr.getAppFn_instantiate1'_const hhead)
+  | step _ ih =>
+    rcases Expr.instantiate1'_fvar_forallE_inv he with ⟨dom', body', rfl, _, hb⟩
+    exact .step (ih hb.symm)
+
+theorem AddInductive.constructorArity_eq_zero_of_not_forallE
+    {e : Expr} (h : ∀ name dom body bi, e ≠ .forallE name dom body bi) :
+    AddInductive.constructorArity e = 0 := by
+  cases e with
+  | forallE name dom body bi => exact absurd rfl (h name dom body bi)
+  | _ => rfl
+
+/-- The executable field count of a pure forall spine is its binder count. -/
+theorem Expr.ForallSpine.constructorArity {e : Expr} {k : Nat}
+    (H : ForallSpine e k) : AddInductive.constructorArity e = k := by
+  induction H with
+  | codomain hhead =>
+    apply AddInductive.constructorArity_eq_zero_of_not_forallE
+    intro name dom body bi he
+    subst he
+    simp [Expr.getAppFn] at hhead
+  | step _ ih => simp [AddInductive.constructorArity, ih]
+
 namespace checkPositivityStep
 
 theorem hasIndOcc_eq_findAny :
@@ -1208,14 +1292,17 @@ def HeaderTraversalResult.withConstructors
     (HctorParameters : ConstructorParameterCertificate envTypes decl
       H.headers.params)
     (Hctors : ConstructorPrefixCertificate env decl envTypes
-      H.headers.params decl.ownedConstructors.length) :
+      H.headers.params decl.ownedConstructors.length)
+    (Hraw : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
+      decl.RawCtorShape type ctor) :
     CheckedFormationResult env Us Δ decl stats depth where
   formation := {
     headers := H.headers
     envTypes := envTypes
     typesInstalled := htypes
     constructorParameters := HctorParameters
-    constructors := Hctors.complete }
+    constructors := Hctors.complete
+    rawShapes := Hraw }
   applicationStats := H.applicationStats
 
 def HeaderTraversalResult.withConstructorTypes
@@ -1225,14 +1312,17 @@ def HeaderTraversalResult.withConstructorTypes
     (HctorParameters : ConstructorParameterCertificate envTypes decl
       H.headers.params)
     (Hctors : ConstructorTypesPrefix envTypes decl H.headers.params
-      decl.types.length) :
+      decl.types.length)
+    (Hraw : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
+      decl.RawCtorShape type ctor) :
     CheckedFormationResult env Us Δ decl stats depth where
   formation := {
     headers := H.headers
     envTypes := envTypes
     typesInstalled := htypes
     constructorParameters := HctorParameters
-    constructors := Hctors.complete }
+    constructors := Hctors.complete
+    rawShapes := Hraw }
   applicationStats := H.applicationStats
 
 def LiteralDisjoint (indConsts : Array Expr) : Prop :=
@@ -1408,6 +1498,19 @@ theorem isValidIndAppIdx.constHead
     simp [Array.getElem!_eq_getD, hconst]
   rw [hget] at hhead
   exact Expr.eqv_const.mp hhead
+
+/-- Translation preserves the binder count of a pure forall spine: binders
+translate to binders and the constant-headed codomain to an application. -/
+theorem TrExprS.forallArity_of_spine {e : Expr} {k : Nat}
+    (Hspine : Expr.ForallSpine e k)
+    (H : TrExprS env Us Δ e e') : e'.forallArity = k := by
+  induction Hspine generalizing Δ e' with
+  | codomain hhead =>
+    rcases TrExprS.constAppSpine H hhead with ⟨levels', args', hspine, _, _⟩
+    exact VExpr.forallArity_eq_zero_of_getAppFnArgs hspine
+  | step _ ih =>
+    cases H with
+    | forallE _ _ _ hbody => simp [VExpr.forallArity, ih hbody]
 
 theorem isValidIndAppIdx.arity
     (hvalid : AddInductive.isValidIndAppIdx stats type i = true) :

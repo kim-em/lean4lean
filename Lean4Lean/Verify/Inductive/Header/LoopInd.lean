@@ -1537,6 +1537,27 @@ theorem MaterializedHeaderResult.levelTranslation
   rw [H.levelParams]
   exact VLevel.mapM_ofLevel_paramNames Us
 
+theorem _root_.Lean4Lean.VerifyInductive.List.map_param_idxOf_eq_params
+    {names : List Name} (H : names.Nodup) :
+    names.map (fun name => VLevel.param (names.idxOf name)) =
+      VLevel.params names.length := by
+  apply List.ext_getElem
+  · simp [VLevel.params]
+  · intro i hleft hright
+    have hi : i < names.length := by
+      simpa [VLevel.params] using hright
+    simp [VLevel.params, H.idxOf_getElem i hi]
+
+/-- With distinct universe parameters, the block's concrete level list
+translates to the identity instantiation of the declaration's universe
+context. -/
+theorem MaterializedHeaderResult.levelParamsTranslation
+    (H : MaterializedHeaderResult env Us Δ stats decl depth)
+    (hlparams : Us.Nodup) :
+    stats.levels.mapM (VLevel.ofLevel Us) = some (VLevel.params decl.uvars) := by
+  rw [H.levelTranslation,
+    Lean4Lean.VerifyInductive.List.map_param_idxOf_eq_params hlparams, H.uvars]
+
 /-- The production field-universe guard implies the independent constructor
 bound.  The zero branch is semantic level equivalence, matching Lean's
 `isAlwaysZero`; the comparison branch is soundness of `geq'`, transported
