@@ -1493,3 +1493,12 @@ theorem IsDefEq.church_rosser
     have ⟨_, _, _, _, a1, a2, a3, a4⟩ := extra_pat h1 h2 h3 (Γ := Γ)
     refine have h := .extra h1 h2 h3; mk h (.tail .rfl (.extra a1 a2 a3 fun _ => .rfl)) .rfl ?_
     exact a4 ▸ .refl h.hasType.2
+  | projIota =>
+    -- TODO: needs ParRed/NormalEq support for projection iota / structure eta; see HANDOFF.md
+    sorry
+  | structEta =>
+    -- TODO: needs ParRed/NormalEq support for projection iota / structure eta; see HANDOFF.md
+    sorry
+  | unitLike =>
+    -- TODO: needs ParRed/NormalEq support for projection iota / structure eta; see HANDOFF.md
+    sorry

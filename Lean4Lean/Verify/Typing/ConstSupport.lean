@@ -156,6 +156,18 @@ theorem VEnv.IsDefEq.noConsts
       exact ⟨by simpa using hstored.1.1,
         by simpa using hstored.2.1,
         by simpa using hstored.1.2⟩
+  | projIota _ _ _ _ ihProj ihField =>
+      specialize ihProj Hctx
+      specialize ihField Hctx
+      exact ⟨ihProj.1, ihField.1, ihProj.2.2⟩
+  | structEta _ _ _ _ _ ihE ihCtor =>
+      specialize ihE Hctx
+      specialize ihCtor Hctx
+      exact ⟨ihCtor.1, ihE.1, ihE.2.2⟩
+  | unitLike _ _ _ _ _ _ ihE ihE' =>
+      specialize ihE Hctx
+      specialize ihE' Hctx
+      exact ⟨ihE.1, ihE'.1, ihE.2.2⟩
 
 theorem VEnv.LE.constants_eq_none_left
     {source target : VEnv} (H : source ≤ target)
