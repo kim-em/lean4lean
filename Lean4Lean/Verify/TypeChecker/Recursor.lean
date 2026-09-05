@@ -490,6 +490,90 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
     cases hr
     exact main
 
+/-- Converting the major premise of a K-like recursor to the nullary constructor application
+yields a definitionally equal term, by proof irrelevance. -/
+theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr}
+    (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
+      ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
+    (he : c.TrExprS major m') :
+    RecM.WF c s (toCtorWhenK c.env whnf inferType isDefEq info major) fun r _ =>
+      c.FVarsBelow major r ∧ c.TrExpr r m' := by
+  sorry
+
+/-- Converting a term of structure type to its constructor applied to its projections yields a
+definitionally equal term, by structure eta. -/
+theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
+    RecM.WF c s (toCtorWhenStruct c.env whnf inferType n w) fun r _ =>
+      c.FVarsBelow w r ∧ c.TrExpr r w' := by
+  sorry
+
+/-- Inductive recursor reduction refines the stored rules. -/
+theorem inductiveReduceRec.WF (he : c.TrExprS e e') :
+    RecM.WF c s (inductiveReduceRec c.env e whnf inferType isDefEq) fun oe _ =>
+      ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := by
+  unfold inductiveReduceRec
+  split <;> [rename_i recFn ls hfn; exact .pure nofun]
+  split <;> [rename_i info hinfo; exact .pure nofun]
+  extract_lets recArgs majorIdx jpTail jpMatch
+  have hrecArgs : recArgs = e.getAppArgs := rfl
+  have hmajorIdx : majorIdx = info.getMajorIdx := rfl
+  simp only [hrecArgs, hmajorIdx]
+  split <;> [rename_i major hmajor; exact .pure nofun]
+  obtain ⟨hmaj, rfl⟩ := Array.getElem?_eq_some_iff.1 hmajor
+  -- the recursor spine
+  have he'' : c.TrExprS ((Expr.const recFn ls).mkAppList e.getAppArgsList) e' := by
+    rw [← hfn, e.mkAppList_getAppArgsList]; exact he
+  have ⟨fn', stk⟩ := AppStack.build he''
+  obtain ⟨ls', args', hls, rfl, hargs, hfull⟩ := stk.constantApplication
+  rw [← hfn, e.mkAppList_getAppArgsList] at hfull
+  have ⟨hsize, hget⟩ := AppStack.argsGet hargs
+  have hmaj' : info.getMajorIdx < args'.length := by omega
+  -- the K-like facts
+  have .const hlc _ _ := stk.tr
+  obtain ⟨hname, hsafe, -, -⟩ := c.trenv.find?_uniq hinfo hlc
+  have hfindC : c.env.constants.find? recFn = some (.recInfo info) := by
+    rwa [← c.trenv.map_wf.find?'_eq_find?]
+  obtain ⟨-, hK⟩ := c.recursorRules hfindC hsafe
+  -- the tail
+  have htail : ∀ {s : VState} (major₂ : Expr),
+      c.FVarsBelow e.getAppArgs[info.getMajorIdx] major₂ →
+      c.TrExpr major₂ (args'[info.getMajorIdx]'hmaj') →
+      RecM.WF c s (pure (inductiveReduceRecTail info ls e.getAppArgs major₂)) fun oe _ =>
+        ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
+    fun major₂ hfv hm => .pure (inductiveReduceRecTail.WF he hfn hinfo hls hargs hfull hmaj hfv hm)
+  -- after the K conversion
+  have hjp : ∀ {s : VState} (m₁ : Expr),
+      c.FVarsBelow e.getAppArgs[info.getMajorIdx] m₁ →
+      c.TrExpr m₁ (args'[info.getMajorIdx]'hmaj') →
+      RecM.WF c s (jpMatch () m₁) fun oe _ =>
+        ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := by
+    intro s m₁ hfv₁ hm₁
+    simp only [jpMatch, jpTail]
+    have ⟨m₁', hm₁S, hm₁defeq⟩ := hm₁
+    refine (whnf.WF hm₁S).bind fun w _ _ ⟨hfvw, w', hwS, hwdefeq⟩ => ?_
+    have hchain : ∀ {major₂ : Expr}, c.FVarsBelow w major₂ → c.TrExpr major₂ w' →
+        c.FVarsBelow e.getAppArgs[info.getMajorIdx] major₂ ∧
+        c.TrExpr major₂ (args'[info.getMajorIdx]'hmaj') :=
+      fun h1 h2 => ⟨hfv₁.trans (hfvw.trans h1),
+        (h2.defeq c.Ewf c.Δwf hwdefeq).defeq c.Ewf c.Δwf hm₁defeq⟩
+    split
+    · rename_i n
+      cases hwS with | lit _ hlit => ?_
+      exact htail _ (hchain (fun _ _ _ => FVarsIn.natLitToConstructor) (hlit.trExpr c.Ewf c.Δwf)).1
+        (hchain (fun _ _ _ => FVarsIn.natLitToConstructor) (hlit.trExpr c.Ewf c.Δwf)).2
+    · rename_i str _
+      cases hwS with | lit _ hlit => ?_
+      refine (whnf.WF hlit).bind fun major₂ _ _ ⟨hfv₂, hm₂⟩ => ?_
+      have hfv₂' : c.FVarsBelow (.lit (.strVal str)) major₂ :=
+        FVarsBelow.trans (e₂ := .strLitToConstructor str)
+          (fun _ _ _ => FVarsIn.strLitToConstructor) hfv₂
+      exact htail _ (hchain hfv₂' hm₂).1 (hchain hfv₂' hm₂).2
+    · refine (toCtorWhenStruct.WF hwS).bind fun major₂ _ _ ⟨hfv₂, hm₂⟩ => ?_
+      exact htail _ (hchain hfv₂ hm₂).1 (hchain hfv₂ hm₂).2
+  split
+  · exact (toCtorWhenK.WF (hK ‹_›) (hget _ hmaj)).bind fun m₁ _ _ ⟨h1, h2⟩ => hjp m₁ h1 h2
+  · exact hjp _ .rfl ((hget _ hmaj).trExpr c.Ewf c.Δwf)
+
 end Inner
 end TypeChecker
 end Lean4Lean
