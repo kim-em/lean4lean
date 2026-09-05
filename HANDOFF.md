@@ -18,25 +18,31 @@ The final theorems (`addInductiveDeclaration.inductiveFinalResultWF`,
 `addInductiveDeclaration.primitiveInductiveFinalResultWF`,
 `Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF`) still
 report `sorryAx`. A dependency trace (walk the constant graph with theorem
-bodies loaded via `ConstantInfo.value? (allowOpaque := true)`) shows exactly
-nine declarations that introduce `sorry` into that closure:
+bodies loaded via `ConstantInfo.value? (allowOpaque := true)`;
+script in `/tmp/l4l-audit/Audit2.lean` during the session) shows exactly
+eleven declarations that introduce `sorry` into that closure:
 
 Theory (the injectivity/strengthening conjectures; `Injectivity.lean`,
-`UniqueTyping.lean`; also open on `master`):
+`UniqueTyping.lean`; the first four are also open on `master`):
 
 - `VEnv.IsDefEqU.sort_inv`
 - `VEnv.IsDefEqU.forallE_inv_stratified`
+- `VEnv.IsDefEqU.sort_forallE_inv`
 - `VEnv.IsDefEqU.weakN_iff` (strengthening for definitional equality)
-- `VEnv.IsDefEq.uniq`, `proj` case (needs injectivity of applications of
-  rigid inductive type constants, the same class of fact)
+- `VEnv.IsDefEqU.fieldType_inv_stratified` (the `proj` case of `IsDefEq.uniq`)
+- `VEnv.IsDefEqU.rigidApp_inv`, `VEnv.IsDefEqU.structApp_inv` (injectivity of
+  applications of rigid constants; the second is the first for a registered
+  structure and becomes redundant once rigidity is carried in the checking
+  environment, see `EquationHeadsCoherent`)
 
 Checker (`Verify/TypeChecker/*`):
 
 - `inferProj.WF` (projection type inference)
-- `reduceProjCore.WF` (projection of a constructor application)
-- `tryEtaStructCore.WF` (structure eta)
-- `isDefEqUnitLike.WF` (unit-like types)
-- `reduceRecursor.WF` (iota, K, struct-eta major conversion, literals, quot)
+- `VContext.registryShape` (projection registry facts for a checking context)
+- `VContext.recursorRules`, `VContext.quotCoherent` (recursor rule and quotient
+  facts for a checking context; `Verify/Environment/Recursors.lean` has the
+  predicates, their monotonicity, `AddQuot.quotCoherent`, and
+  `EquationHeadsCoherent` for rigidity)
 
 `Params` (Church–Rosser) is never instantiated; `HeadReduction.lean` and
 `ChurchRosser.lean` are a parameterized development that already depends on the
