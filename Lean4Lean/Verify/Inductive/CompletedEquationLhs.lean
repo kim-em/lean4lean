@@ -317,7 +317,7 @@ theorem
   rw [hparams₀, hmotives₀] at HmotiveDomain₀
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
-    exact VEnv.addProjections_le.trans H.installed.le
+    exact H.installed.le
   let C := S.canonical.mono hbase
   have hcanonicalSource : VEnv.IsDefEqCtx H.outVEnv Us.length []
       C.params.reverse S.motiveSourceScope.toCtx := by

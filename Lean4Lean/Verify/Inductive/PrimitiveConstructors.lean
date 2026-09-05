@@ -378,8 +378,115 @@ theorem AddInductive.declareConstructors.primitiveWF
     have hannotations := Hcombined.typeAnnotationWrappers
       H.sourceContext.checking.tr.map_wf
       H.sourceContext.checking.typeAnnotationWrappers
+    have hsourceMapWF := H.sourceContext.checking.tr.map_wf
+    have houtWF : outEnv.constants.WF := Hcombined.targetMapWF hsourceMapWF
+    have hindicesSize : stats.nindices.size = indTypes.size := by
+      calc
+        stats.nindices.size = decl.types.length := by
+          rw [Array.size_eq_length_toList, H.materialized.indices,
+            List.length_map]
+        _ = indTypes.toList.length :=
+          (List.Forall₂.length_eq H.translation.types).symm
+        _ = indTypes.size := by simp
+    rcases H.sourceAligned with ⟨numNested, Hheaders⟩
+    have hheaderNotCtor : ∀ entry ∈ H.entries, ∀ info : ConstructorVal,
+        entry.1 ≠ .ctorInfo info := by
+      intro entry hentry info heq
+      rcases Hheaders.originInfo hentry with ⟨_, _, hentryInfo⟩
+      rw [hentryInfo] at heq
+      cases heq
+    have howners : ConstructorOwnersPresent outEnv := by
+      apply Hcombined.constructorOwnersPresent hsourceMapWF
+        H.sourceContext.checking.constructorOwners
+      intro entry hentry info hinfo
+      rcases List.mem_append.mp hentry with hheader | hctor
+      · exact absurd hinfo (hheaderNotCtor entry hheader info)
+      rcases Haligned.ownerOfEntry hctor with
+        ⟨owner, howner, installedInfo, hentryInfo, hownerName⟩
+      have hinfoEq : info = installedInfo := by
+        rw [hentryInfo] at hinfo
+        exact (ConstantInfo.ctorInfo.inj hinfo).symm
+      subst info
+      rcases inductiveTypeInfos_owner stats nparams indTypes numNested isUnsafe
+          c.lparams hindicesSize howner with ⟨ownerInfo, hownerInfo, hname⟩
+      rcases Hheaders.findInfo hownerInfo with ⟨value, hheaderEntry⟩
+      refine ⟨ownerInfo, ?_⟩
+      rw [hownerName, ← hname]
+      exact Hcombined.findEntry hsourceMapWF
+        (List.mem_append_left _ hheaderEntry)
+    have hregistry : ProjectionRegistryCoherent c.safety outEnv.constants
+        venvCtors := by
+      have HsourceRegistry : ProjectionRegistryCoherent c.safety
+          c.env.constants sourceEnv := by
+        have h := H.sourceContext.checking.projectionRegistry
+        rwa [H.sourceContextVEnv] at h
+      have hfindOut : ∀ {name ci}, outEnv.constants.find? name = some ci →
+          outEnv.find? name = some ci := by
+        intro name ci hfind
+        rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]
+        exact hfind
+      have hfindSource : ∀ {name ci}, c.env.find? name = some ci →
+          c.env.constants.find? name = some ci := by
+        intro name ci hfind
+        rwa [Lean.Kernel.Environment.find?, hsourceMapWF.find?'_eq_find?] at hfind
+      apply HsourceRegistry.extendNonSingleton
+      · intro name ci hfind
+        have hfind' : c.env.find? name = some ci := by
+          rw [Lean.Kernel.Environment.find?, hsourceMapWF.find?'_eq_find?]
+          exact hfind
+        have := Hcombined.preservesSourceFind hsourceMapWF hfind'
+        rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at this
+      · intro name info hfind
+        rcases Hcombined.entryOrigin hsourceMapWF (hfindOut hfind) with
+          hold | ⟨entry, hentry, _, hentryEq⟩
+        · exact Or.inl (hfindSource hold)
+        right
+        rcases List.mem_append.mp hentry with hheader | hctor
+        · rcases Hheaders.originInfo hheader with ⟨hinfo, hinfoMem, hentryInfo⟩
+          have hinfoEq : info = hinfo := by
+            rw [hentryInfo] at hentryEq
+            exact ConstantInfo.inductInfo.inj hentryEq
+          subst hinfoEq
+          rcases List.mem_iff_getElem.mp hinfoMem with ⟨i, hi, hinfoAt⟩
+          have hiTypes : i < indTypes.size := by
+            simpa [AddInductive.inductiveTypeInfos, hindicesSize] using hi
+          have hctors : info.ctors = indTypes[i].ctors.map (·.name) := by
+            rw [← hinfoAt]
+            simp [AddInductive.inductiveTypeInfos, hindicesSize]
+          have hmem : indTypes[i] ∈ indTypes.toList := by
+            simpa using Array.getElem_mem hiTypes
+          rw [hctors]
+          rcases Hshape with ⟨_, _, _, htypes | ⟨_, _, htypes⟩⟩ <;>
+            (rw [htypes] at hmem; simp at hmem; rw [hmem]; simp)
+        · rcases hproduction entry hctor with ⟨cinfo, hcinfo⟩
+          rw [hcinfo] at hentryEq
+          cases hentryEq
+      · intro name info hfind
+        rcases Hcombined.entryOrigin hsourceMapWF (hfindOut hfind) with
+          hold | ⟨entry, hentry, _, hentryEq⟩
+        · exact Or.inl (hfindSource hold)
+        right
+        rcases List.mem_append.mp hentry with hheader | hctor
+        · exact absurd hentryEq.symm (hheaderNotCtor entry hheader info)
+        rcases Haligned.ownerOfEntry hctor with
+          ⟨owner, howner, installedInfo, hentryInfo, hownerName⟩
+        have hinfoEq : info = installedInfo := by
+          rw [hentryInfo] at hentryEq
+          exact ConstantInfo.ctorInfo.inj hentryEq
+        subst hinfoEq
+        rcases inductiveTypeInfos_owner stats nparams indTypes numNested
+            isUnsafe c.lparams hindicesSize howner with
+          ⟨ownerInfo, hownerInfo, hname⟩
+        rcases Hheaders.findInfo hownerInfo with ⟨value, hheaderEntry⟩
+        have hfresh := H.installed.entryFresh hsourceMapWF hheaderEntry
+        have hfresh' : c.env.constants.find? ownerInfo.name = none := by
+          rw [Lean.Kernel.Environment.find?, hsourceMapWF.find?'_eq_find?] at hfresh
+          simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using hfresh
+        rw [hownerName, ← hname]
+        exact hfresh'
+      · exact Hcombined.le
     let Hcontext := Hinstalled.completeContext H.context
-      hprimitives hsafe hannotations
+      hprimitives hsafe hannotations howners hregistry
     have hctorsAdded : H.context.venv.addConstVals
         decl.constructorConstants = some venvCtors := by
       rw [← hctorValues]

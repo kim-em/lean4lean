@@ -54,6 +54,9 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
     VEnv.WF' ds envCtors →
     decl.sourceNames.Nodup →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
+    (∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes) →
+    decl.SourceParameterWF base →
+    (∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor) →
     block.types = decl.typeConstants →
     block.ctors = decl.constructorConstants →
     block.projections = decl.projectionEntries →
@@ -74,6 +77,9 @@ theorem VEnv.WF.inductProjections
     (hsource : decl.sourceNames.Nodup)
     (hconstructorUvars :
       ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars)
+    (hctorsWF' : ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes)
+    (hparams : decl.SourceParameterWF base)
+    (hshape : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor)
     (htypesSource : block.types = decl.typeConstants)
     (hctorsSource : block.ctors = decl.constructorConstants)
     (hprojections : block.projections = decl.projectionEntries)
@@ -83,4 +89,5 @@ theorem VEnv.WF.inductProjections
   rcases hbase with ⟨baseDecls, hbase⟩
   rcases hctorsWF with ⟨decls, hctorsWF⟩
   exact ⟨decls, .inductProjections hbase hctorsWF hsource
-    hconstructorUvars htypesSource hctorsSource hprojections htypes hctors⟩
+    hconstructorUvars hctorsWF' hparams hshape htypesSource hctorsSource hprojections
+    htypes hctors⟩

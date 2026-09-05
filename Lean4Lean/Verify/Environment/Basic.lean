@@ -762,6 +762,11 @@ structure ProductionConstructorAlignment
   after removing the independently aligned common parameters. -/
   numFields : info.numFields =
     AddInductive.constructorArity info.type - decl.nparams
+  /-- The executable field count agrees with the syntactic forall arity of the
+  abstract constructor type: the constructor check walks syntactic binders and
+  requires a constant-headed codomain, which translation preserves. -/
+  numFields_forallArity : info.numFields =
+    (decl.types[familyIdx].ctors[ctorIdx]).type.forallArity - decl.nparams
   levelParamsExact : info.levelParams = familyInfo.levelParams
   levelParams : info.levelParams.length = decl.uvars
   isUnsafe : info.isUnsafe = decl.isUnsafe
@@ -955,36 +960,35 @@ theorem InstalledInductiveFamilyProvenanceAt.projectionOfSingle
 
 /-- Exact agreement between a concrete singleton inductive family and the
 primitive-projection entry available in its abstract checking environment.
-This is the persistent invariant consumed by projection inference. It is
-strictly weaker than claiming that every visible inductive is already a
-completed installation, so it can also hold at the constructor-complete
-stage of a declaration that is still having its recursors checked. -/
+This is the persistent invariant consumed by projection inference: it records
+precisely the executable metadata read by `inferProj` and `reduceProjCore`
+(parameter and index counts, universe arity, the constructor's identity and
+field count) against the registered abstract entry, and the abstract
+constants named by that entry. -/
 structure ProjectionRegistryAlignmentAt
     (C : ConstMap) (env : VEnv) (familyName : Name)
     (familyInfo : InductiveVal) (constructorName : Name) where
-  decl : VInductDecl
-  familyIdx : Nat
-  name : familyName = familyInfo.name
-  alignment : ProductionFamilyAlignment C decl familyIdx familyInfo
-  owner : VInductiveType
-  constructor : VConstVal
-  owner_eq : owner = decl.types[familyIdx]'alignment.familyIdx_lt
-  owner_ctors : owner.ctors = [constructor]
-  family_name : familyName = owner.name
-  constructor_name : constructorName = constructor.name
-  family_lookup : env.constants familyName = some owner.toVConstant
-  constructor_lookup : env.constants constructorName =
-    some constructor.toVConstant
-  projection : env.projections familyName {
-    uvars := decl.uvars
-    nparams := decl.nparams
-    nindices := owner.numIndices
-    resultLevel := owner.resultLevel
-    ctorName := constructor.name
-    ctorType := constructor.type }
+  info : VProjectionInfo
+  projection : env.projections familyName info
+  ctorName : info.ctorName = constructorName
+  uvars : familyInfo.levelParams.length = info.uvars
+  nparams : familyInfo.numParams = info.nparams
+  nindices : familyInfo.numIndices = info.nindices
+  constructorInfo : ConstructorVal
+  constructor_lookup : C.find? constructorName = some (.ctorInfo constructorInfo)
+  constructor_induct : constructorInfo.induct = familyName
+  constructor_levelParams : constructorInfo.levelParams = familyInfo.levelParams
+  constructor_numParams : constructorInfo.numParams = familyInfo.numParams
+  constructor_isUnsafe : constructorInfo.isUnsafe = familyInfo.isUnsafe
+  constructor_numFields : constructorInfo.numFields = info.numFields
+  familyType : VExpr
+  family_lookup : env.constants familyName = some ⟨info.uvars, familyType⟩
+  constructor_abstract :
+    env.constants constructorName = some ⟨info.uvars, info.ctorType⟩
 
 /-- Every executable singleton-family lookup that is visible at this safety
-level has matching primitive-projection metadata in the abstract model. -/
+level, whose listed constructor is present and names the family as its
+owner, has matching primitive-projection metadata in the abstract model. -/
 def ProjectionRegistryCoherent
     (safety : DefinitionSafety) (C : ConstMap) (env : VEnv) : Prop :=
   ∀ familyName familyInfo constructorName constructorInfo,
@@ -992,10 +996,11 @@ def ProjectionRegistryCoherent
     safety ≤ (ConstantInfo.inductInfo familyInfo).safety →
     familyInfo.ctors = [constructorName] →
     C.find? constructorName = some (.ctorInfo constructorInfo) →
+    constructorInfo.induct = familyName →
     Nonempty (ProjectionRegistryAlignmentAt C env familyName familyInfo
       constructorName)
 
-/-- Projection-registry coherence is preserved by monotone abstract
+/-- Projection-registry alignment is preserved by monotone abstract
 environment extension. -/
 def ProjectionRegistryAlignmentAt.monoEnv
     (H : ProjectionRegistryAlignmentAt C env familyName familyInfo
@@ -1003,176 +1008,108 @@ def ProjectionRegistryAlignmentAt.monoEnv
     (henv : env ≤ env') :
     ProjectionRegistryAlignmentAt C env' familyName familyInfo
       constructorName where
-  decl := H.decl
-  familyIdx := H.familyIdx
-  name := H.name
-  alignment := H.alignment
-  owner := H.owner
-  constructor := H.constructor
-  owner_eq := H.owner_eq
-  owner_ctors := H.owner_ctors
-  family_name := H.family_name
-  constructor_name := H.constructor_name
-  family_lookup := henv.constants H.family_lookup
-  constructor_lookup := henv.constants H.constructor_lookup
+  info := H.info
   projection := henv.projections H.projection
+  ctorName := H.ctorName
+  uvars := H.uvars
+  nparams := H.nparams
+  nindices := H.nindices
+  constructorInfo := H.constructorInfo
+  constructor_lookup := H.constructor_lookup
+  constructor_induct := H.constructor_induct
+  constructor_levelParams := H.constructor_levelParams
+  constructor_numParams := H.constructor_numParams
+  constructor_isUnsafe := H.constructor_isUnsafe
+  constructor_numFields := H.constructor_numFields
+  familyType := H.familyType
+  family_lookup := henv.constants H.family_lookup
+  constructor_abstract := henv.constants H.constructor_abstract
+
+/-- Transport an alignment across a production constant map that preserves
+every existing lookup and a monotone abstract extension. -/
+def ProjectionRegistryAlignmentAt.rebase
+    (H : ProjectionRegistryAlignmentAt source env familyName familyInfo
+      constructorName)
+    (hpreserves : ∀ {name ci}, source.find? name = some ci →
+      target.find? name = some ci)
+    (henv : env ≤ env') :
+    ProjectionRegistryAlignmentAt target env' familyName familyInfo
+      constructorName where
+  info := H.info
+  projection := henv.projections H.projection
+  ctorName := H.ctorName
+  uvars := H.uvars
+  nparams := H.nparams
+  nindices := H.nindices
+  constructorInfo := H.constructorInfo
+  constructor_lookup := hpreserves H.constructor_lookup
+  constructor_induct := H.constructor_induct
+  constructor_levelParams := H.constructor_levelParams
+  constructor_numParams := H.constructor_numParams
+  constructor_isUnsafe := H.constructor_isUnsafe
+  constructor_numFields := H.constructor_numFields
+  familyType := H.familyType
+  family_lookup := henv.constants H.family_lookup
+  constructor_abstract := henv.constants H.constructor_abstract
 
 theorem ProjectionRegistryCoherent.monoEnv
     (H : ProjectionRegistryCoherent safety C env)
     (henv : env ≤ env') :
     ProjectionRegistryCoherent safety C env' := by
   intro familyName familyInfo constructorName constructorInfo hfind hvisible
-    hsingle hconstructor
+    hsingle hconstructor hinduct
   rcases H familyName familyInfo constructorName constructorInfo hfind hvisible
-    hsingle hconstructor with ⟨P⟩
+    hsingle hconstructor hinduct with ⟨P⟩
   exact ⟨P.monoEnv henv⟩
 
-/-- Complete a constructor-stage registry by installing the exact projection
-table of the declaration whose production headers and constructors were just
-added.  Old families are rebased through the concrete and abstract extension;
-new singleton families are reconstructed from their positional production
-alignment and the exact abstract constant spines. -/
-theorem ProjectionRegistryCoherent.extendInductive
-    (H : ProjectionRegistryCoherent safety sourceC sourceEnv)
-    (horigins : ProductionInductiveOrigins sourceC targetC decl)
-    (hpreserves : ∀ {name ci}, sourceC.find? name = some ci →
-      targetC.find? name = some ci)
-    (hreflectConstructor : ∀ {familyName familyInfo constructorName constructorInfo},
-      sourceC.find? familyName = some (.inductInfo familyInfo) →
-      familyInfo.ctors = [constructorName] →
-      targetC.find? constructorName = some (.ctorInfo constructorInfo) →
-      sourceC.find? constructorName = some (.ctorInfo constructorInfo))
-    (htypes : sourceEnv.addConstVals decl.typeConstants = some envTypes)
-    (hctors : envTypes.addConstVals decl.constructorConstants = some envCtors) :
-    ProjectionRegistryCoherent safety targetC
-      (envCtors.addProjections decl.projectionEntries) := by
-  intro familyName familyInfo constructorName constructorInfo hfamily hvisible
-    hsingle hconstructor
-  rcases horigins familyName familyInfo hfamily with hold | hnew
-  · rcases H familyName familyInfo constructorName constructorInfo hold hvisible
-      hsingle (hreflectConstructor hold hsingle hconstructor) with ⟨P⟩
-    have hfamily' : targetC.find? familyInfo.name =
-        some (.inductInfo familyInfo) := by
-      rw [← P.name]
-      exact hfamily
-    have henv : sourceEnv ≤
-        envCtors.addProjections decl.projectionEntries :=
-      (VEnv.addConstVals_le htypes).trans
-      ((VEnv.addConstVals_le hctors).trans VEnv.addProjections_le)
-    exact ⟨{
-      decl := P.decl
-      familyIdx := P.familyIdx
-      name := P.name
-      alignment := P.alignment.rebase hfamily' hpreserves
-      owner := P.owner
-      constructor := P.constructor
-      owner_eq := P.owner_eq
-      owner_ctors := P.owner_ctors
-      family_name := P.family_name
-      constructor_name := P.constructor_name
-      family_lookup := henv.constants P.family_lookup
-      constructor_lookup := henv.constants P.constructor_lookup
-      projection := henv.projections P.projection }⟩
-  · rcases hnew with ⟨familyIdx, hname, ⟨A⟩⟩
-    let owner := decl.types[familyIdx]'A.familyIdx_lt
-    have hownerLength :
-        owner.ctors.length = 1 := by
-      change (decl.types[familyIdx]'A.familyIdx_lt).ctors.length = 1
-      rw [← A.constructors, hsingle]
-      rfl
-    cases hownerCtors : owner.ctors with
-    | nil => simp [hownerCtors] at hownerLength
-    | cons constructor tail =>
-      cases tail with
-      | cons next rest => simp [hownerCtors] at hownerLength
-      | nil =>
-        have hctorIdx : 0 <
-            (decl.types[familyIdx]'A.familyIdx_lt).ctors.length := by
-          change 0 < owner.ctors.length
-          rw [hownerCtors]
-          simp
-        rcases A.constructor 0 hctorIdx with ⟨C⟩
-        have hctorEq :
-            (decl.types[familyIdx]'A.familyIdx_lt).ctors[0]'hctorIdx =
-              constructor := by
-          change owner.ctors[0]'_ = constructor
-          simp [hownerCtors]
-        have hconstructorName : constructorName = constructor.name := by
-          simpa [hsingle, hctorEq] using C.name
-        have hfamilyLookupRaw := VEnv.addConstVals_get htypes
-          (show owner.toVConstVal ∈ decl.typeConstants by
-            exact List.mem_map.mpr
-              ⟨owner, List.getElem_mem A.familyIdx_lt, rfl⟩)
-        have hfamilyLookup :
-            (envCtors.addProjections decl.projectionEntries).constants
-                familyName =
-              some owner.toVConstant := by
-          simp only [VEnv.addProjections_constants]
-          rw [hname, A.name]
-          exact (VEnv.addConstVals_le hctors).constants hfamilyLookupRaw
-        have hconstructorLookupRaw := VEnv.addConstVals_get hctors
-          (show constructor ∈ decl.constructorConstants by
-            simp only [VInductDecl.constructorConstants, List.mem_flatMap]
-            exact ⟨owner, List.getElem_mem A.familyIdx_lt,
-              by simp [hownerCtors]⟩)
-        have hconstructorLookup :
-            (envCtors.addProjections decl.projectionEntries).constants
-                constructorName = some constructor.toVConstant := by
-          simp only [VEnv.addProjections_constants]
-          simpa [hconstructorName] using hconstructorLookupRaw
-        have hentry : ({
-            typeName := owner.name
-            info := {
-              uvars := decl.uvars
-              nparams := decl.nparams
-              nindices := owner.numIndices
-              resultLevel := owner.resultLevel
-              ctorName := constructor.name
-              ctorType := constructor.type } } : VProjectionEntry) ∈
-            decl.projectionEntries := by
-          rw [VInductDecl.projectionEntries, List.mem_filterMap]
-          exact ⟨owner, List.getElem_mem A.familyIdx_lt,
-            by simp [hownerCtors]⟩
-        refine ⟨{
-          decl := decl
-          familyIdx := familyIdx
-          name := hname
-          alignment := A
-          owner := owner
-          constructor := constructor
-          owner_eq := rfl
-          owner_ctors := hownerCtors
-          family_name := hname.trans A.name
-          constructor_name := hconstructorName
-          family_lookup := hfamilyLookup
-          constructor_lookup := hconstructorLookup
-          projection := ?_ }⟩
-        rw [VEnv.addProjections_iff]
-        left
-        exact ⟨_, hentry, hname.trans A.name, rfl⟩
+/-- Registry coherence depends on the production constant map only through
+lookup. -/
+theorem ProjectionRegistryCoherent.mapExt
+    (H : ProjectionRegistryCoherent safety source env)
+    (heq : ∀ name, source.find? name = target.find? name) :
+    ProjectionRegistryCoherent safety target env := by
+  intro familyName familyInfo constructorName constructorInfo hfind hvisible
+    hsingle hconstructor hinduct
+  rw [← heq] at hfind hconstructor
+  rcases H familyName familyInfo constructorName constructorInfo hfind hvisible
+    hsingle hconstructor hinduct with ⟨P⟩
+  exact ⟨P.rebase (fun {name ci} h => by rw [← heq]; exact h) .rfl⟩
 
-def ProjectionRegistryAlignmentAt.rebase
-    (H : ProjectionRegistryAlignmentAt source env familyName familyInfo
-      constructorName)
-    (hfamily : target.find? familyInfo.name = some (.inductInfo familyInfo))
-    (hpreserves : ∀ {name ci}, source.find? name = some ci →
-      target.find? name = some ci)
-    (henv : env ≤ env') :
-    ProjectionRegistryAlignmentAt target env' familyName familyInfo
-      constructorName where
-  decl := H.decl
-  familyIdx := H.familyIdx
-  name := H.name
-  alignment := H.alignment.rebase hfamily hpreserves
-  owner := H.owner
-  constructor := H.constructor
-  owner_eq := H.owner_eq
-  owner_ctors := H.owner_ctors
-  family_name := H.family_name
-  constructor_name := H.constructor_name
-  family_lookup := henv.constants H.family_lookup
-  constructor_lookup := henv.constants H.constructor_lookup
-  projection := henv.projections H.projection
+/-- Constructor-owner presence stated on a production constant map. -/
+def ConstructorOwnersPresentMap (C : ConstMap) : Prop :=
+  ∀ name info, C.find? name = some (.ctorInfo info) →
+    ∃ owner, C.find? info.induct = some (.inductInfo owner)
+
+/-- Per-constant side condition under which inserting `ci` preserves
+projection-registry coherence.  Only constructors carry an obligation: their
+owner must already be present, and if they complete a singleton family the
+registry must align with that family in the extended abstract environment. -/
+def ProjectionRegistryStep (C : ConstMap) (env' : VEnv) : ConstantInfo → Prop
+  | .ctorInfo info =>
+    (∃ owner, C.find? info.induct = some (.inductInfo owner)) ∧
+    ∀ owner, C.find? info.induct = some (.inductInfo owner) →
+      owner.ctors = [info.name] →
+      Nonempty (ProjectionRegistryAlignmentAt
+        (C.insert info.name (.ctorInfo info)) env' info.induct owner info.name)
+  | _ => True
+
+theorem ProjectionRegistryStep.monoEnv
+    (H : ProjectionRegistryStep C env ci) (henv : env ≤ env') :
+    ProjectionRegistryStep C env' ci := by
+  cases ci with
+  | ctorInfo info =>
+    rcases H with ⟨howner, halign⟩
+    refine ⟨howner, fun owner hfind hsingle => ?_⟩
+    rcases halign owner hfind hsingle with ⟨P⟩
+    exact ⟨P.monoEnv henv⟩
+  | _ => trivial
+
+theorem ProjectionRegistryStep.of_not_ctor
+    (hnctor : ∀ info, ci ≠ .ctorInfo info) :
+    ProjectionRegistryStep C env ci := by
+  cases ci with
+  | ctorInfo info => exact absurd rfl (hnctor info)
+  | _ => trivial
 
 /-- Adding concrete metadata that is neither an inductive header nor a
 constructor preserves projection-registry coherence across any monotone
@@ -1196,7 +1133,7 @@ theorem ProjectionRegistryCoherent.insertNonInductive
       contradiction
     · exact hfind
   intro familyName familyInfo constructorName constructorInfo hfamily
-    hvisible hsingle hconstructor
+    hvisible hsingle hconstructor hinduct
   have holdFamily : C.find? familyName = some (.inductInfo familyInfo) := by
     rw [hwf.find?_insert] at hfamily
     split at hfamily
@@ -1210,18 +1147,18 @@ theorem ProjectionRegistryCoherent.insertNonInductive
         (Option.some.inj hconstructor))
     · exact hconstructor
   rcases H familyName familyInfo constructorName constructorInfo holdFamily
-      hvisible hsingle holdConstructor with ⟨P⟩
-  exact ⟨P.rebase (by simpa [P.name] using hfamily) hpreserves henv⟩
+      hvisible hsingle holdConstructor hinduct with ⟨P⟩
+  exact ⟨P.rebase hpreserves henv⟩
 
 /-- Installing an inductive header preserves projection-registry coherence
-while all constructors named by that header are still fresh.  The new header
-cannot activate the invariant until one of those constructors is installed. -/
+whenever every present constructor already has a present owner: no present
+constructor can name the fresh header as its owner, so the new header cannot
+activate the invariant until one of its constructors is installed. -/
 theorem ProjectionRegistryCoherent.insertInductiveHeader
     (H : ProjectionRegistryCoherent safety C env)
     (hwf : C.WF)
+    (howners : ConstructorOwnersPresentMap C)
     (hfresh : C.find? familyInfo.name = none)
-    (hconstructorsFresh : ∀ constructorName ∈ familyInfo.ctors,
-      C.find? constructorName = none)
     (henv : env ≤ env') :
     ProjectionRegistryCoherent safety
       (C.insert familyInfo.name (.inductInfo familyInfo)) env' := by
@@ -1238,55 +1175,37 @@ theorem ProjectionRegistryCoherent.insertInductiveHeader
       contradiction
     · exact hfind
   intro familyName foundFamily constructorName constructorInfo hfamily
-    hvisible hsingle hconstructor
+    hvisible hsingle hconstructor hinduct
+  have holdConstructor : C.find? constructorName =
+      some (.ctorInfo constructorInfo) := by
+    rw [hwf.find?_insert] at hconstructor
+    split at hconstructor
+    · cases hconstructor
+    · exact hconstructor
   rw [hwf.find?_insert] at hfamily
   split at hfamily
   · rename_i heq
     have hfamilyName : familyInfo.name = familyName :=
       LawfulBEq.eq_of_beq heq
-    have hfamilyInfo : familyInfo = foundFamily := by
-      cases hfamily
-      rfl
-    subst foundFamily
-    have hconstructorMember : constructorName ∈ familyInfo.ctors := by
-      simp [hsingle]
-    have hconstructorFresh :=
-      hconstructorsFresh constructorName hconstructorMember
-    rw [hwf.find?_insert] at hconstructor
-    split at hconstructor
-    · cases hconstructor
-    · rw [hconstructor] at hconstructorFresh
-      contradiction
+    rcases howners constructorName constructorInfo holdConstructor with
+      ⟨owner, howner⟩
+    rw [hinduct, ← hfamilyName, hfresh] at howner
+    contradiction
   · rename_i hnotNew
-    have holdFamily : C.find? familyName =
-        some (.inductInfo foundFamily) := hfamily
-    have holdConstructor : C.find? constructorName =
-        some (.ctorInfo constructorInfo) := by
-      rw [hwf.find?_insert] at hconstructor
-      split at hconstructor
-      · cases hconstructor
-      · exact hconstructor
     rcases H familyName foundFamily constructorName constructorInfo
-        holdFamily hvisible hsingle holdConstructor with ⟨P⟩
-    exact ⟨P.rebase (by simpa [P.name] using hpreserves holdFamily)
-      hpreserves henv⟩
+        hfamily hvisible hsingle holdConstructor hinduct with ⟨P⟩
+    exact ⟨P.rebase hpreserves henv⟩
 
-/-- Installing a constructor preserves registry coherence once exact
-projection alignment has been established for each singleton family that the
-new constructor completes.  Existing completed families are transported
-unchanged. -/
+/-- Installing a constructor preserves registry coherence under its step
+condition: the owner is present and, if the constructor completes a singleton
+family, exact projection alignment has been established for that family.
+Existing completed families are transported unchanged. -/
 theorem ProjectionRegistryCoherent.insertConstructor
     (H : ProjectionRegistryCoherent safety C env)
     (hwf : C.WF)
     (hfresh : C.find? constructorInfo.name = none)
     (henv : env ≤ env')
-    (hnew : ∀ familyName familyInfo,
-      C.find? familyName = some (.inductInfo familyInfo) →
-      safety ≤ (ConstantInfo.inductInfo familyInfo).safety →
-      familyInfo.ctors = [constructorInfo.name] →
-      Nonempty (ProjectionRegistryAlignmentAt
-        (C.insert constructorInfo.name (.ctorInfo constructorInfo)) env'
-        familyName familyInfo constructorInfo.name)) :
+    (hstep : ProjectionRegistryStep C env' (.ctorInfo constructorInfo)) :
     ProjectionRegistryCoherent safety
       (C.insert constructorInfo.name (.ctorInfo constructorInfo)) env' := by
   have hpreserves : ∀ {name found}, C.find? name = some found →
@@ -1302,7 +1221,7 @@ theorem ProjectionRegistryCoherent.insertConstructor
       contradiction
     · exact hfind
   intro familyName familyInfo constructorName foundConstructor hfamily
-    hvisible hsingle hconstructor
+    hvisible hsingle hconstructor hinduct
   have holdFamily : C.find? familyName =
       some (.inductInfo familyInfo) := by
     rw [hwf.find?_insert] at hfamily
@@ -1316,12 +1235,201 @@ theorem ProjectionRegistryCoherent.insertConstructor
       LawfulBEq.eq_of_beq heq
     cases hconstructor
     subst constructorName
-    exact hnew familyName familyInfo holdFamily hvisible hsingle
+    subst hinduct
+    exact hstep.2 familyInfo holdFamily hsingle
   · rename_i hnotNew
     rcases H familyName familyInfo constructorName foundConstructor holdFamily
-        hvisible hsingle hconstructor with ⟨P⟩
-    exact ⟨P.rebase (by simpa [P.name] using hpreserves holdFamily)
-      hpreserves henv⟩
+        hvisible hsingle hconstructor hinduct with ⟨P⟩
+    exact ⟨P.rebase hpreserves henv⟩
+
+/-- Inserting a constant into a map with present constructor owners keeps
+owners present, provided a constructor names a present owner. -/
+theorem ConstructorOwnersPresentMap.insert
+    (H : ConstructorOwnersPresentMap C) (hwf : C.WF)
+    (hfresh : C.find? ci.name = none)
+    (howner : ∀ info, ci = .ctorInfo info →
+      ∃ owner, C.find? info.induct = some (.inductInfo owner)) :
+    ConstructorOwnersPresentMap (C.insert ci.name ci) := by
+  have hpreserves : ∀ {name found}, C.find? name = some found →
+      (C.insert ci.name ci).find? name = some found := by
+    intro name found hfind
+    rw [hwf.find?_insert]
+    split
+    · rename_i heq
+      have hname : ci.name = name := LawfulBEq.eq_of_beq heq
+      subst name
+      rw [hfind] at hfresh
+      contradiction
+    · exact hfind
+  intro name info hfind
+  rw [hwf.find?_insert] at hfind
+  split at hfind
+  · rcases howner info (Option.some.inj hfind) with ⟨owner, howner⟩
+    exact ⟨owner, hpreserves howner⟩
+  · rcases H name info hfind with ⟨owner, howner⟩
+    exact ⟨owner, hpreserves howner⟩
+
+theorem ConstructorOwnersPresentMap.mapExt
+    (H : ConstructorOwnersPresentMap source)
+    (heq : ∀ name, source.find? name = target.find? name) :
+    ConstructorOwnersPresentMap target := by
+  intro name info hfind
+  rw [← heq] at hfind
+  rcases H name info hfind with ⟨owner, howner⟩
+  exact ⟨owner, by rw [← heq]; exact howner⟩
+
+/-- Registry coherence survives a batch that adds no singleton family: every
+new family has a constructor count other than one, and every new constructor
+belongs to a family absent from the source.  Old families keep their aligned
+registry entries by monotonicity. -/
+theorem ProjectionRegistryCoherent.extendNonSingleton
+    (H : ProjectionRegistryCoherent safety sourceC sourceEnv)
+    (hpreserves : ∀ {name ci}, sourceC.find? name = some ci →
+      targetC.find? name = some ci)
+    (hfamilies : ∀ {name info}, targetC.find? name = some (.inductInfo info) →
+      sourceC.find? name = some (.inductInfo info) ∨ info.ctors.length ≠ 1)
+    (hreflect : ∀ {name info}, targetC.find? name = some (.ctorInfo info) →
+      sourceC.find? name = some (.ctorInfo info) ∨
+        sourceC.find? info.induct = none)
+    (henv : sourceEnv ≤ targetEnv) :
+    ProjectionRegistryCoherent safety targetC targetEnv := by
+  intro familyName familyInfo constructorName constructorInfo hfamily hvisible
+    hsingle hconstructor hinduct
+  rcases hfamilies hfamily with hold | hlength
+  · rcases hreflect hconstructor with holdConstructor | hnone
+    · rcases H familyName familyInfo constructorName constructorInfo hold
+        hvisible hsingle holdConstructor hinduct with ⟨P⟩
+      exact ⟨P.rebase hpreserves henv⟩
+    · rw [hinduct, hold] at hnone
+      contradiction
+  · exact absurd (by simp [hsingle]) hlength
+
+/-- Complete a constructor-stage registry from the positional production
+alignment of a whole declaration.  Old families are rebased through the
+concrete and abstract extension; every new constructor names a new family as
+its owner, so an old singleton family can only be completed by its own old
+constructor.  New singleton families are reconstructed from their positional
+production alignment, the exact abstract constant spines, and the registered
+projection entries. -/
+theorem ProjectionRegistryCoherent.extendInductive
+    (H : ProjectionRegistryCoherent safety sourceC sourceEnv)
+    (horigins : ProductionInductiveOrigins sourceC targetC decl)
+    (hpreserves : ∀ {name ci}, sourceC.find? name = some ci →
+      targetC.find? name = some ci)
+    (hreflect : ∀ {name info}, targetC.find? name = some (.ctorInfo info) →
+      sourceC.find? name = some (.ctorInfo info) ∨
+        sourceC.find? info.induct = none)
+    (htypeUvars : ∀ type ∈ decl.types, type.uvars = decl.uvars)
+    (hctorUvars : ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars)
+    (htypes : sourceEnv.addConstVals decl.typeConstants = some envTypes)
+    (hctors : envTypes.addConstVals decl.constructorConstants = some envCtors)
+    (henv : envCtors ≤ targetEnv)
+    (hentries : ∀ entry ∈ decl.projectionEntries,
+      targetEnv.projections entry.typeName entry.info) :
+    ProjectionRegistryCoherent safety targetC targetEnv := by
+  have hsourceLe : sourceEnv ≤ targetEnv :=
+    (VEnv.addConstVals_le htypes).trans ((VEnv.addConstVals_le hctors).trans henv)
+  intro familyName familyInfo constructorName constructorInfo hfamily hvisible
+    hsingle hconstructor hinduct
+  rcases horigins familyName familyInfo hfamily with hold | hnew
+  · rcases hreflect hconstructor with holdConstructor | hnone
+    · rcases H familyName familyInfo constructorName constructorInfo hold
+        hvisible hsingle holdConstructor hinduct with ⟨P⟩
+      exact ⟨P.rebase hpreserves hsourceLe⟩
+    · rw [hinduct, hold] at hnone
+      contradiction
+  · rcases hnew with ⟨familyIdx, hname, ⟨A⟩⟩
+    let owner := decl.types[familyIdx]'A.familyIdx_lt
+    have hownerLength : owner.ctors.length = 1 := by
+      change (decl.types[familyIdx]'A.familyIdx_lt).ctors.length = 1
+      rw [← A.constructors, hsingle]
+      rfl
+    cases hownerCtors : owner.ctors with
+    | nil => simp [hownerCtors] at hownerLength
+    | cons constructor tail =>
+      cases tail with
+      | cons next rest => simp [hownerCtors] at hownerLength
+      | nil =>
+        have hctorIdx : 0 <
+            (decl.types[familyIdx]'A.familyIdx_lt).ctors.length := by
+          change 0 < owner.ctors.length
+          rw [hownerCtors]
+          simp
+        rcases A.constructor 0 hctorIdx with ⟨C⟩
+        have hctorEq :
+            (decl.types[familyIdx]'A.familyIdx_lt).ctors[0]'hctorIdx =
+              constructor := by
+          change owner.ctors[0]'_ = constructor
+          simp [hownerCtors]
+        have hconstructorName : constructorName = constructor.name := by
+          simpa [hsingle, hctorEq] using C.name
+        have hinfoEq : C.info = constructorInfo := by
+          have hlookup := C.lookup
+          simp only [hsingle, List.getElem_cons_zero] at hlookup
+          exact ConstantInfo.ctorInfo.inj
+            (Option.some.inj (hlookup.symm.trans hconstructor))
+        have hownerMem : owner ∈ decl.types := List.getElem_mem A.familyIdx_lt
+        have hconstructorMem : constructor ∈ decl.constructorConstants := by
+          simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+          exact ⟨owner, hownerMem, by simp [hownerCtors]⟩
+        have hfamilyLookupRaw := VEnv.addConstVals_get htypes
+          (show owner.toVConstVal ∈ decl.typeConstants by
+            exact List.mem_map.mpr ⟨owner, hownerMem, rfl⟩)
+        have hconstructorLookupRaw := VEnv.addConstVals_get hctors hconstructorMem
+        have hownerUvars : owner.uvars = decl.uvars := htypeUvars owner hownerMem
+        have hconstructorUvars : constructor.uvars = decl.uvars :=
+          hctorUvars constructor hconstructorMem
+        have hentry : ({
+            typeName := owner.name
+            info := {
+              uvars := decl.uvars
+              nparams := decl.nparams
+              nindices := owner.numIndices
+              resultLevel := owner.resultLevel
+              ctorName := constructor.name
+              ctorType := constructor.type } } : VProjectionEntry) ∈
+            decl.projectionEntries := by
+          rw [VInductDecl.projectionEntries, List.mem_filterMap]
+          exact ⟨owner, hownerMem, by simp [hownerCtors]⟩
+        have hfamilyName : familyName = owner.name := hname.trans A.name
+        refine ⟨{
+          info := {
+            uvars := decl.uvars
+            nparams := decl.nparams
+            nindices := owner.numIndices
+            resultLevel := owner.resultLevel
+            ctorName := constructor.name
+            ctorType := constructor.type }
+          projection := by
+            rw [hfamilyName]
+            exact hentries _ hentry
+          ctorName := hconstructorName.symm
+          uvars := A.levelParams
+          nparams := A.numParams
+          nindices := A.numIndices
+          constructorInfo := constructorInfo
+          constructor_lookup := hconstructor
+          constructor_induct := hinduct
+          constructor_levelParams := by rw [← hinfoEq]; exact C.levelParamsExact
+          constructor_numParams := by
+            rw [← hinfoEq, C.numParams, A.numParams]
+          constructor_isUnsafe := by
+            rw [← hinfoEq, C.isUnsafe, A.isUnsafe]
+          constructor_numFields := by
+            rw [← hinfoEq, C.numFields_forallArity, hctorEq]
+            rfl
+          familyType := owner.type
+          family_lookup := by
+            have h : owner.toVConstant = ⟨decl.uvars, owner.type⟩ := by
+              rw [← hownerUvars]
+            rw [hfamilyName, ← h]
+            exact henv.constants ((VEnv.addConstVals_le hctors).constants
+              hfamilyLookupRaw)
+          constructor_abstract := by
+            have h : constructor.toVConstant = ⟨decl.uvars, constructor.type⟩ := by
+              rw [← hconstructorUvars]
+            rw [hconstructorName, ← h]
+            exact henv.constants hconstructorLookupRaw }⟩
 
 /-- Every production inductive visible to this observer comes from a prior,
 finitely well-formed abstract inductive installation. -/
@@ -1338,7 +1446,7 @@ theorem InstalledInductiveProvenance.projectionRegistryCoherent
     (H : InstalledInductiveProvenance safety C env) :
     ProjectionRegistryCoherent safety C env := by
   intro familyName familyInfo constructorName constructorInfo hfind hvisible
-    hsingle _hconstructor
+    hsingle hconstructor hinduct
   rcases H familyName familyInfo hfind hvisible with ⟨P⟩
   rcases P.projectionOfSingle hsingle with
     ⟨owner, constructor, howner, hctors, hfamily, hprojection⟩
@@ -1347,39 +1455,75 @@ theorem InstalledInductiveProvenance.projectionRegistryCoherent
     rw [← howner, hctors]
     simp
   rcases P.alignment.constructor 0 hownerLength with ⟨A⟩
-  have hconstructor : constructorName = constructor.name := by
-    have habstract :
-        (P.decl.types[P.familyIdx]'P.alignment.familyIdx_lt).ctors =
-          [constructor] := by
-      rw [← howner]
-      exact hctors
+  have habstract :
+      (P.decl.types[P.familyIdx]'P.alignment.familyIdx_lt).ctors =
+        [constructor] := by
+    rw [← howner]
+    exact hctors
+  have hconstructorName : constructorName = constructor.name := by
     simpa [hsingle, habstract] using A.name
+  have hinfoEq : A.info = constructorInfo := by
+    have hlookup := A.lookup
+    simp only [hsingle, List.getElem_cons_zero] at hlookup
+    exact ConstantInfo.ctorInfo.inj
+      (Option.some.inj (hlookup.symm.trans hconstructor))
   have hfamilyLookup :=
     P.installed.familyConstant P.familyIdx P.alignment.familyIdx_lt
   rw [← howner] at hfamilyLookup
   have hconstructorLookup :=
     P.installed.constructorConstant P.familyIdx 0
       P.alignment.familyIdx_lt hownerLength
-  have habstract :
-      (P.decl.types[P.familyIdx]'P.alignment.familyIdx_lt).ctors =
-        [constructor] := by
-    rw [← howner]
-    exact hctors
   simp [habstract] at hconstructorLookup
+  have hownerMem : owner ∈ P.decl.types := by
+    rw [howner]
+    exact List.getElem_mem P.alignment.familyIdx_lt
+  have hconstructorMem : constructor ∈ P.decl.constructorConstants := by
+    simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+    exact ⟨owner, hownerMem, by simp [hctors]⟩
+  have hownerUvars : owner.uvars = P.decl.uvars :=
+    P.installed.typeUvars owner hownerMem
+  have hconstructorUvars : constructor.uvars = P.decl.uvars :=
+    P.installed.constructorUvars constructor hconstructorMem
   exact ⟨{
-    decl := P.decl
-    familyIdx := P.familyIdx
-    name := P.name
-    alignment := P.alignment
-    owner := owner
-    constructor := constructor
-    owner_eq := howner
-    owner_ctors := hctors
-    family_name := hfamily
-    constructor_name := hconstructor
-    family_lookup := by simpa [hfamily] using hfamilyLookup
-    constructor_lookup := by simpa [hconstructor] using hconstructorLookup
-    projection := hprojection }⟩
+    info := {
+      uvars := P.decl.uvars
+      nparams := P.decl.nparams
+      nindices := owner.numIndices
+      resultLevel := owner.resultLevel
+      ctorName := constructor.name
+      ctorType := constructor.type }
+    projection := hprojection
+    ctorName := hconstructorName.symm
+    uvars := P.alignment.levelParams
+    nparams := P.alignment.numParams
+    nindices := by rw [P.alignment.numIndices, ← howner]
+    constructorInfo := constructorInfo
+    constructor_lookup := hconstructor
+    constructor_induct := hinduct
+    constructor_levelParams := by rw [← hinfoEq]; exact A.levelParamsExact
+    constructor_numParams := by
+      rw [← hinfoEq, A.numParams, P.alignment.numParams]
+    constructor_isUnsafe := by
+      rw [← hinfoEq, A.isUnsafe, P.alignment.isUnsafe]
+    constructor_numFields := by
+      rw [← hinfoEq, A.numFields_forallArity]
+      have hctor0 : (P.decl.types[P.familyIdx]'P.alignment.familyIdx_lt).ctors[0]'
+          A.ctorIdx_lt = constructor := by
+        simp [habstract]
+      rw [hctor0]
+      rfl
+    familyType := owner.type
+    family_lookup := by
+      have h : owner.toVConstant = ⟨P.decl.uvars, owner.type⟩ := by
+        rw [← hownerUvars]
+      have this := hfamilyLookup
+      rw [← hfamily, h] at this
+      exact this
+    constructor_abstract := by
+      have h : constructor.toVConstant = ⟨P.decl.uvars, constructor.type⟩ := by
+        rw [← hconstructorUvars]
+      rw [hconstructorName, ← h]
+      exact hconstructorLookup }⟩
 
 def InstalledInductiveFamilyProvenanceAt.mono
     (H : InstalledInductiveFamilyProvenanceAt source env familyName familyInfo)

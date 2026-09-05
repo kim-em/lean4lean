@@ -607,7 +607,7 @@ translations and typing are weakened monotonically, and the resulting target
 extends the original abstract target. -/
 theorem AddConstants.rebase
     (H : AddConstants checkSafety prodEnv base entries outProd outBase)
-    (Hvalid : CheckingEnv.Valid safety prodEnv largerBase)
+    (Hvalid : CheckingEnv.ValidCore safety prodEnv largerBase)
     (hsafety : safety ≤ checkSafety)
     (hbase : base ≤ largerBase) :
     ∃ largerOut,
@@ -633,7 +633,7 @@ theorem AddConstants.rebase
         TrConstVal safety largerBase ci ci' :=
       ⟨(htr.1.sf_mono hsafety).mono hbase, htr.2⟩
     have hwfLarger : ci'.toVConstant.WF largerBase := hwf.mono hbase
-    have HvalidNext : CheckingEnv.Valid safety (prodHead.add ci)
+    have HvalidNext : CheckingEnv.ValidCore safety (prodHead.add ci)
         largerNext :=
       Hvalid.add hn hnprim htrLarger.1 hwfLarger hlargerAdd hdelta
     have hnext : baseNext ≤ largerNext :=
@@ -885,7 +885,8 @@ theorem AddConstants.ofDeclareInductiveTypeInfos
             simpa [hname] using hnext
           have HnextValid : CheckingEnv.Valid safety
               (env.add (.inductInfo info)) nextVEnv :=
-            Hvalid.add hn hnprimHead htr.1 hwf haddHead rfl
+            Hvalid.add (ci := .inductInfo info) hn hnprimHead htr.1 hwf haddHead
+              rfl trivial
           have hnextLe : sourceEnv ≤ nextVEnv :=
             hle.trans (VEnv.addConst_le haddHead)
           exact (ih HnextValid hnextLe hrest hnprimTail).mono fun outEnv Hrest => by
@@ -1031,7 +1032,7 @@ theorem AddConstants.ofConstructorList
     {env : Environment} {venv sourceEnv : VEnv}
     {ctors : List Constructor} {values : List VConstVal}
     (mkInfo : Nat → Constructor → ConstructorVal)
-    (Hvalid : CheckingEnv.Valid safety env venv)
+    (Hvalid : CheckingEnv.ValidCore safety env venv)
     (Hentries : List.Forall₂
       (fun ctor ci' => TrSourceConst sourceEnv lparams ctor.name ctor.type ci')
       ctors values)
@@ -1100,7 +1101,7 @@ theorem AddConstants.ofConstructorList
               ¬ Kernel.Environment.primitives.contains info.name := by
             rw [hname start ctor]
             exact hnprimHead
-          have HnextValid : CheckingEnv.Valid safety
+          have HnextValid : CheckingEnv.ValidCore safety
               (env.add (.ctorInfo info)) nextVEnv :=
             Hvalid.add hfindInfo hnprimInfo htr.1 hwf haddHead rfl
           have hnextLe : sourceEnv ≤ nextVEnv :=
@@ -1137,7 +1138,7 @@ theorem AddConstants.ofConstructorTypes
     {env : Environment} {venv sourceEnv : VEnv}
     {types : List InductiveType} {targets : List VInductiveType}
     (mkInfo : InductiveType → Nat → Constructor → ConstructorVal)
-    (Hvalid : CheckingEnv.Valid safety env venv)
+    (Hvalid : CheckingEnv.ValidCore safety env venv)
     (Hentries : List.Forall₂
       (fun source target => List.Forall₂
         (fun ctor ci' =>
@@ -1201,14 +1202,14 @@ theorem AddConstants.ofConstructorTypes
       have validInstalled : ∀ {priorEnv nextEnv : Environment}
           {priorVEnv nextVEnv : VEnv} {entries},
           AddConstants safety priorEnv priorVEnv entries nextEnv nextVEnv →
-          CheckingEnv.Valid safety priorEnv priorVEnv →
-          CheckingEnv.Valid safety nextEnv nextVEnv := by
+          CheckingEnv.ValidCore safety priorEnv priorVEnv →
+          CheckingEnv.ValidCore safety nextEnv nextVEnv := by
         intro priorEnv nextEnv priorVEnv nextVEnv entries Hinstalled Hprior
         induction Hinstalled with
         | nil => exact Hprior
         | cons hn hnprim htr hwf hadd hdelta _ ih =>
           exact ih (Hprior.add hn hnprim htr.1 hwf hadd hdelta)
-      have HnextValid : CheckingEnv.Valid safety result.2 middleVEnv := by
+      have HnextValid : CheckingEnv.ValidCore safety result.2 middleVEnv := by
         exact validInstalled HheadInstalled Hvalid
       have installedLe : ∀ {priorEnv nextEnv : Environment}
           {priorVEnv nextVEnv : VEnv} {entries},
@@ -1242,14 +1243,57 @@ theorem AddConstants.ofConstructorTypes
               · exact hheadNind (entryInfo, entryValue) hhead value
               · exact htailNind (entryInfo, entryValue) htail value⟩
 
-theorem AddConstants.valid
+/-- A lockstep installation preserves the local checking invariants. -/
+theorem AddConstants.validCore
     (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hvalid : CheckingEnv.Valid safety env venv) :
-    CheckingEnv.Valid safety outEnv outVEnv := by
+    (hvalid : CheckingEnv.ValidCore safety env venv) :
+    CheckingEnv.ValidCore safety outEnv outVEnv := by
   induction H with
   | nil => exact hvalid
   | cons hn hnprim htr hwf hadd hdelta _ ih =>
     exact ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta)
+
+/-- A lockstep installation of constants none of which is a constructor
+preserves the full checking invariant: inductive headers and all other
+constants carry no projection-registry obligation. -/
+theorem AddConstants.valid
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hvalid : CheckingEnv.Valid safety env venv)
+    (hkinds : ∀ entry ∈ entries, ∀ info : ConstructorVal,
+      entry.1 ≠ .ctorInfo info) :
+    CheckingEnv.Valid safety outEnv outVEnv := by
+  induction H with
+  | nil => exact hvalid
+  | @cons venv ci ci' venv' rest outEnv outVEnv env hn hnprim htr hwf hadd
+      hdelta _ ih =>
+    have hstep : ProjectionRegistryStep env.constants venv' ci :=
+      ProjectionRegistryStep.of_not_ctor fun info =>
+        hkinds (ci, ci') (by simp) info
+    exact ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta hstep)
+      fun entry hentry => hkinds entry (by simp [hentry])
+
+/-- Mutual-header installation preserves the full checking invariant. -/
+theorem AddConstants.validHeaders {infos : List InductiveVal} {values : List VConstVal}
+    (H : AddConstants safety env venv
+      (List.zip (infos.map (fun info => .inductInfo info)) values) outEnv outVEnv)
+    (hvalid : CheckingEnv.Valid safety env venv) :
+    CheckingEnv.Valid safety outEnv outVEnv := by
+  refine H.valid hvalid ?_
+  intro entry hentry info heq
+  rcases List.mem_map.mp (List.of_mem_zip hentry).1 with ⟨_, _, hfst⟩
+  rw [← hfst] at heq
+  cases heq
+
+/-- Promote a lockstep installation to the full checking invariant from
+independently established constructor-owner presence and projection-registry
+coherence at its endpoint. -/
+theorem AddConstants.validOfCoherent
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hvalid : CheckingEnv.ValidCore safety env venv)
+    (howners : ConstructorOwnersPresent outEnv)
+    (hregistry : ProjectionRegistryCoherent safety outEnv.constants outVEnv) :
+    CheckingEnv.Valid safety outEnv outVEnv :=
+  (H.validCore hvalid).toValid howners hregistry
 
 theorem AddConstants.production
     (H : AddConstants safety env venv entries outEnv outVEnv) :
@@ -1400,6 +1444,47 @@ theorem AddConstants.preservesSourceFind
     · rename_i heq
       exact False.elim (hne (by simpa using heq))
     · exact hfind
+
+/-- Every entry of a lockstep fold is fresh in the fold's source
+environment. -/
+theorem AddConstants.entryFresh
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hentry : (info, value) ∈ entries) :
+    env.find? info.name = none := by
+  induction H with
+  | nil => simp at hentry
+  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
+    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
+    simp only [List.mem_cons, Prod.mk.injEq] at hentry
+    rcases hentry with ⟨rfl, rfl⟩ | htail
+    · exact hn
+    · have hfreshMap : envHead.constants.find? ci.name = none := by
+        rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+      have hnextWF : (envHead.add ci).constants.WF := by
+        change (envHead.constants.insert ci.name ci).WF
+        exact hwf.insert ci.name ci hfreshMap
+      have hnext := ih hnextWF htail
+      cases hfind : envHead.find? info.name with
+      | none => rfl
+      | some found =>
+        exfalso
+        have hne : ci.name ≠ info.name := by
+          intro heq
+          rw [← heq, hn] at hfind
+          contradiction
+        have hpreserved : (envHead.add ci).find? info.name = some found := by
+          rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfind
+          change (envHead.constants.insert ci.name ci).find?' info.name =
+            some found
+          rw [(hwf.insert ci.name ci hfreshMap).find?'_eq_find?,
+            hwf.find?_insert]
+          split
+          · rename_i heq
+            exact False.elim (hne (by simpa using heq))
+          · exact hfind
+        rw [hpreserved] at hnext
+        contradiction
 
 /-- Every final production lookup either existed before the lockstep fold or
 is one of its exact source-aligned entries. -/
@@ -1646,7 +1731,8 @@ theorem AddInductive.declareRecursors.loop.WF
                 hnprim hallow dIdx hidx
           have HnextValid : CheckingEnv.Valid c.safety
               (env.add (.recInfo info)) nextVEnv :=
-            Hvalid.add Hchecked.1 hnprimInfo Htr.1 Hwf haddInfo rfl
+            Hvalid.add (ci := .recInfo info) Hchecked.1 hnprimInfo Htr.1 Hwf
+              haddInfo rfl trivial
           have hnextLe : sourceVEnv ≤ nextVEnv :=
             hle.trans (VEnv.addConst_le haddInfo)
           have Htail := AddInductive.declareRecursors.loop.WF Hcard Hdecl c Hc
@@ -1873,7 +1959,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
                 hnprim hallow dIdx hidx
           have HnextValid : CheckingEnv.Valid c.safety
               (env.add (.recInfo info)) nextVEnv :=
-            Hvalid.add Hchecked.1 hnprimInfo Htr.1 Hwf haddInfo rfl
+            Hvalid.add (ci := .recInfo info) Hchecked.1 hnprimInfo Htr.1 Hwf
+              haddInfo rfl trivial
           have hnextLe : sourceVEnv ≤ nextVEnv :=
             hle.trans (VEnv.addConst_le haddInfo)
           have Htail := AddInductive.declareRecursors.loop.semanticWF Hcard

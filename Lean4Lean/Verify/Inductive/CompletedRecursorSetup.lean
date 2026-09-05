@@ -35,12 +35,12 @@ theorem CompletedRecursorPhasesResult.outVEnvWF
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv) : H.outVEnv.WF := by
-  have hvalid : CheckingEnv.Valid H.localContext.safety
+  have hvalid : CheckingEnv.ValidCore H.localContext.safety
       H.localContext.env
-        (R.context.venv.addProjections decl.projectionEntries) := by
+        R.context.venv := by
     rw [H.localExtends.safety_eq, H.localExtends.env_eq]
-    exact R.projectedChecking
-  exact (H.installed.valid hvalid).tr.wf
+    exact R.context.checking.toValidCore
+  exact (H.installed.validCore hvalid).tr.wf
 
 /-- Recursor installation preserves the constructor semantics established at
 the completed formation boundary. -/
@@ -55,7 +55,7 @@ theorem CompletedRecursorPhasesResult.constructorSemantics
   · rw [H.localExtends.env_eq]
     exact R.context.checking.tr.map_wf
   · rw [H.localExtends.env_eq]
-    exact (R.constructorSemantics Hsource).mono VEnv.addProjections_le
+    exact (R.constructorSemantics Hsource).mono R.ctorLE
   · exact H.generated.nonInductive
 
 theorem CompletedRecursorPhasesResult.productionInductiveOrigins
@@ -87,7 +87,7 @@ theorem CompletedRecursorPhasesResult.generatedTelescopeTranslations
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv) :
     GeneratedRecursorTelescopeTranslations
-      (R.context.venv.addProjections decl.projectionEntries) stats
+      R.context.venv stats
       H.recInfos H.entries := by
   intro ownerIdx hentry
   have hrecInfo : ownerIdx < H.recInfos.size := by

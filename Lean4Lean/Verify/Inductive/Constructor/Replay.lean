@@ -53,7 +53,8 @@ theorem refinesTypeWithReplay
               (constructorTelescopeTarget target.ctors[i]) tailScope
               tailTarget stats.params.size 0) ∧
           decl.CtorShape envTypes params target target.ctors[i] ∧
-          envTypes.IsType decl.uvars [] target.ctors[i].type)
+          envTypes.IsType decl.uvars [] target.ctors[i].type ∧
+          ∃ k, Expr.ForallSpine source.ctors[i].type k)
     (Hfinish : ConstructorTypePrefix envTypes decl params target
         target.ctors.length →
       ConstructorParamPrefixRow stats source.ctors source.ctors.length →
@@ -77,7 +78,7 @@ theorem refinesTypeWithReplay
       rcases HcheckedCtor with
         ⟨tail, tailTarget, Hparam, sourceDomains, Hcomparisons,
           Htranslated, Htail, HctorNarrow,
-          Hsynthesis, HctorShape, HctorType⟩
+          Hsynthesis, HctorShape, HctorType, Hspine⟩
       have HtailReplay : CheckedConstructorTailReplayAt Hc.venv c.lparams
           tailScope stats decl target source.ctors[ctorIdx] :=
         ⟨target.ctors[ctorIdx], tail, tailTarget, sourceDomains,
@@ -85,7 +86,7 @@ theorem refinesTypeWithReplay
           Htranslated, Htail, Hsynthesis⟩
       exact refinesTypeWithReplay Q Hc Htarget
         (Hprefix.push htarget HctorShape HctorType)
-        (Hreplay.push hidx Hparam) (Htails.push hidx HtailReplay)
+        (Hreplay.push hidx Hparam Hspine) (Htails.push hidx HtailReplay)
         Hshape Hfinish
   · have heq : ctorIdx = source.ctors.length := by
       have := Hprefix.covered
@@ -157,7 +158,8 @@ theorem refinesBlockWithReplay
               stats.params.size 0) ∧
           decl.CtorShape envTypes params decl.types[targetIdx]
             decl.types[targetIdx].ctors[i] ∧
-          envTypes.IsType decl.uvars [] decl.types[targetIdx].ctors[i].type)
+          envTypes.IsType decl.uvars [] decl.types[targetIdx].ctors[i].type ∧
+          ∃ k, Expr.ForallSpine indTypes[targetIdx].ctors[i].type k)
     (Hfinish : ConstructorTypesPrefix envTypes decl params
         decl.types.length →
       ConstructorParamPrefixRows stats indTypes indTypes.size →
@@ -251,10 +253,12 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       decl.types[targetIdx].resultLevel ≈ .zero ∨
-        fieldLevel' ≤ decl.types[targetIdx].resultLevel) :
+        fieldLevel' ≤ decl.types[targetIdx].resultLevel)
+    (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0 c).WF
       (fun _ => CheckedConstructorsResult sourceEnv decl Hc.venv
         params stats indTypes c.lparams Hmaterialized.parameterScope) := by
+  have hlevels := Hmaterialized.levelParamsTranslation hlparams
   let Hsuffix := Hmaterialized.parameterSuffix
   let Hstats :=
     checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
@@ -298,12 +302,12 @@ theorem checkConstructors.loopTypes.refinesMaterialized
     have Hchecked := checkConstructors.loopCtor.refinesCtorShape
       (fuel := c.fuel.inductiveFuel) Hc Hsuffix Hstats hparamsCtx
       Hctor hchecked htarget rfl htargetUvars htargetLookup htargetWF
-      htargetShape hconsume hlit hunsafe (hbound targetIdx htarget)
+      htargetShape hconsume hlit hunsafe (hbound targetIdx htarget) hlevels
     exact Hchecked.mono fun _ Hresult => by
       rcases Hresult with
         ⟨tail, tailTarget, Hprefix, sourceDomains, Hcomparisons,
           Htranslated, HtailCertificate,
-          Hsynthesis, Hshape, Htype⟩
+          Hsynthesis, Hshape, Htype, Hspine⟩
       have Hcomparisons' : CheckedConstructorParameterPrefix Hc.venv
           c.lparams stats indTypes[targetIdx].ctors[ctorIdx].type
           stats.params.size tail Hmaterialized.parameterScope
@@ -313,7 +317,8 @@ theorem checkConstructors.loopTypes.refinesMaterialized
           Hsuffix.parameterDecls sourceDomains
         simpa [Hstats.params_size] using Hcomparisons
       exact ⟨tail, tailTarget, Hprefix, sourceDomains, Hcomparisons',
-        Htranslated, HtailCertificate, Hctor, Hsynthesis, Hshape, Htype⟩
+        Htranslated, HtailCertificate, Hctor, Hsynthesis, Hshape, Htype,
+        Hspine⟩
   · intro Hcomplete Hreplays Htails
     exact {
       checked := Hcomplete.checkedComplete (env := sourceEnv)
@@ -781,17 +786,6 @@ def recursorDeclarationAbstractLevels
   | .param _ => (VLevel.params lparams.length).map
       (VLevel.inst (VLevel.prependShift lparams.length))
   | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
-
-theorem List.map_param_idxOf_eq_params
-    {names : List Name} (H : names.Nodup) :
-    names.map (fun name => VLevel.param (names.idxOf name)) =
-      VLevel.params names.length := by
-  apply List.ext_getElem
-  · simp [VLevel.params]
-  · intro i hleft hright
-    have hi : i < names.length := by
-      simpa [VLevel.params] using hright
-    simp [VLevel.params, H.idxOf_getElem i hi]
 
 theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.recursorLevelTranslation
     {c : AddInductive.Context} {Hc : ContextWF c}

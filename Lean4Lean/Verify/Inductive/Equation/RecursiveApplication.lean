@@ -547,7 +547,7 @@ theorem
   have HclosedExposed := closeSource Hexposed
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact H.constructorVEnv_le
+    exact H.installed.le
   have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
     rw [← A.semantics.fieldRootExtension.venv_eq]
     exact hbase

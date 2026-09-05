@@ -42,7 +42,7 @@ theorem ConstructorValidationStateTrace.headerTarget_eq
       exact ih HrightTail
 
 private theorem installRestoredSourceConstructors
-    (Hvalid : CheckingEnv.Valid safety currentProdEnv currentVEnv)
+    (Hvalid : CheckingEnv.ValidCore safety currentProdEnv currentVEnv)
     (Hle : canonicalEnv ≤ currentVEnv)
     (Hsource : RestoredSourceConstructorTrace result loweredEnv lparams safety
       canonicalEnv names traceProdEnv traceTargetEnv sources constructors)
@@ -51,7 +51,7 @@ private theorem installRestoredSourceConstructors
       names currentProdEnv targetProdEnv) :
     ∃ targetVEnv,
       currentVEnv.addConstVals constructors = some targetVEnv ∧
-      CheckingEnv.Valid safety targetProdEnv targetVEnv := by
+      CheckingEnv.ValidCore safety targetProdEnv targetVEnv := by
   induction Hsource generalizing currentProdEnv currentVEnv targetProdEnv with
   | nil =>
     cases Hvalidation
@@ -99,7 +99,7 @@ private theorem installRestoredSourceConstructors
       have hnprim : ¬ Kernel.Environment.primitives.contains
           Hstep.restored.newInfo.name := by
         simpa [← hname] using HvalidationHead.notPrimitive rfl
-      have HvalidNext : CheckingEnv.Valid safety
+      have HvalidNext : CheckingEnv.ValidCore safety
           (currentProdEnv.add (.ctorInfo Hstep.restored.newInfo)) nextVEnv :=
         Hvalid.add (ci := .ctorInfo Hstep.restored.newInfo)
           (ci' := Hsemantic.constructor.toVConstant)
@@ -151,14 +151,14 @@ private theorem installRestoredSourceFamilies
         source.type target.toVConstVal)
       remainingSources remainingTargets)
     (HsourceMem : ∀ source ∈ remainingSources, source ∈ sourceTypes)
-    (Hvalid : CheckingEnv.Valid c.safety currentProdEnv currentVEnv)
+    (Hvalid : CheckingEnv.ValidCore c.safety currentProdEnv currentVEnv)
     (Hle : sourceTypesVEnv ≤ currentVEnv) :
     ∃ owners targetVEnv,
       owners.map VInductiveTypeSkeleton.toVConstVal =
         remainingTargets.map VInductiveType.toVConstVal ∧
       currentVEnv.addConstVals
         (owners.flatMap VInductiveTypeSkeleton.ctors) = some targetVEnv ∧
-      CheckingEnv.Valid c.safety targetProdEnv targetVEnv ∧
+      CheckingEnv.ValidCore c.safety targetProdEnv targetVEnv ∧
       List.Forall₂
         (TrInductiveTypeSkeleton sourceVEnv sourceTypesVEnv c.lparams)
         remainingSources owners := by
@@ -233,7 +233,7 @@ structure NativeNestedSourceCoreResult
     sourceDecl envTypes envCtors
   materialized : MaterializedInductivePrefix sourceDecl loweredDecl
   headerValidationValid : CheckingEnv.Valid safety auxiliaryHeaderEnv envTypes
-  validationValid : CheckingEnv.Valid safety validationEnv envCtors
+  validationValid : CheckingEnv.ValidCore safety validationEnv envCtors
 
 /-- Reconstruct the complete ordinary source core used by nested verification
 from the actual producer and side-validation traces.  In particular, neither
@@ -284,7 +284,7 @@ theorem NestedLoweringResultClosed.nativeSourceCore
   rcases installRestoredSourceFamilies Hlower Hc Hprod Hsources Howners
       HsourceHeaders HsourceAdded HheaderValid HparameterRun hempty
       Hrestoration.inductives HconstructorTrace
-      HsourceHeaders (fun source hsource => hsource) HheaderValid
+      HsourceHeaders (fun source hsource => hsource) HheaderValid.toValidCore
       VEnv.LE.rfl with
     ⟨owners, envCtors, HownerHeaders, HconstructorsAdded,
       HvalidationValid, Htypes⟩

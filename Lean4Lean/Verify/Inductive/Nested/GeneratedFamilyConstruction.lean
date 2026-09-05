@@ -28,7 +28,7 @@ theorem VInductDecl.SourceParameterWF.rebaseToTypes
   exact ⟨params,
     fun type htype => (Htypes type htype).mono hbase,
     fun type htype ctor hctor =>
-      (Hconstructors type htype ctor hctor).mono htypesLE⟩
+      (Hconstructors.1 type htype ctor hctor).mono htypesLE⟩
 
 /-- A finite installed declaration retains source-facing raw parameter
 formation in the ambient observer.  Ordinary formation supplies it directly;

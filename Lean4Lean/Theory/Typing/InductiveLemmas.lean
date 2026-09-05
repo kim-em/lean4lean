@@ -43,8 +43,12 @@ theorem VInductBlock.WF.ordered (H : VInductBlock.WF env block)
       htypesWF, hctorsWF, hrecsWF, hrulesWF⟩
   have h1 := henv.addConstVals htypesWF htypes
   have h2 := h1.addConstVals hctorsWF hctors
+  have htypes' : env.addConstVals decl.typeConstants = some envTypes := by
+    rwa [hcompile.types] at htypes
+  have hparams := hdecl.sourceParameterWF htypes'
   have h3 := Ordered.inductProjections henv h2 hcompile.sourceNames
-    hdecl.1.2.2.2.1
+    hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at htypes') hparams
+    hparams.rawCtorShape
     hcompile.types hcompile.ctors
     hcompile.projections htypes hctors
   have h4 := h3.addConstVals hrecsWF hrecs
@@ -52,6 +56,110 @@ theorem VInductBlock.WF.ordered (H : VInductBlock.WF env block)
   simp [VInductBlock.install, htypes, hctors, hrecs] at hinstall
   cases hinstall
   exact h5
+
+/-- Declaration-level facts recoverable from a registered projection entry
+alone.  Every entry originates from an exact source declaration whose family
+and constructor constants are installed, whose constructor type is well
+formed, whose header and raw constructor prefix agree with a common parameter
+telescope, and whose constructor type is a raw syntactic telescope ending in a
+valid application of the family. -/
+theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
+    {typeName : Name} {info : VProjectionInfo}
+    (hproj : env.projections typeName info) :
+    ∃ (decl : VInductDecl) (type : VInductiveType) (ctor : VConstVal),
+      type ∈ decl.types ∧ ctor ∈ type.ctors ∧
+      type.name = typeName ∧ ctor.uvars = decl.uvars ∧
+      decl.uvars = info.uvars ∧ decl.nparams = info.nparams ∧
+      type.numIndices = info.nindices ∧ type.resultLevel = info.resultLevel ∧
+      ctor.name = info.ctorName ∧ ctor.type = info.ctorType ∧
+      env.constants typeName = some type.toVConstant ∧
+      env.IsType decl.uvars [] ctor.type ∧
+      (∃ params, decl.TypeShape env params type ∧
+        decl.CtorParameterShape env params ctor) ∧
+      decl.RawCtorShape type ctor := by
+  induction H with
+  | empty => cases hproj
+  | const _ _ hadd ih =>
+    rw [VEnv.addConst_projections hadd] at hproj
+    rcases ih hproj with ⟨decl, type, ctor, htype, hctor, hname, hctorUvars,
+      huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
+      ⟨params, Hshape, Hparams⟩, Hraw⟩
+    have hle := VEnv.addConst_le hadd
+    exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
+      hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
+      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw⟩
+  | @defeq env' df' _ _ ih =>
+    rcases ih hproj with ⟨decl, type, ctor, htype, hctor, hname, hctorUvars,
+      huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
+      ⟨params, Hshape, Hparams⟩, Hraw⟩
+    have hle : env' ≤ env'.addDefEq df' := VEnv.addDefEq_le
+    exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
+      hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
+      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw⟩
+  | @inductProjections base envTypes envCtors decl block
+      hbase hctorsOrdered hsource hconstructorUvars hctorsWF hparams hshape
+      htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
+    rw [VEnv.addProjections_iff] at hproj
+    rcases hproj with hnew | hold
+    · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
+      rw [hprojections] at hentry
+      rcases VInductDecl.projectionEntries_origin hentry with
+        ⟨type, htype, ctor, hctorsType, rfl⟩
+      have hctorMem : ctor ∈ type.ctors := by
+        rw [hctorsType]
+        simp
+      have hctorConst : ctor ∈ decl.constructorConstants := by
+        simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+        exact ⟨type, htype, hctorMem⟩
+      have hle : envTypes ≤ envCtors.addProjections block.projections :=
+        (VEnv.addConstVals_le hctors).trans VEnv.addProjections_le
+      have hbaseLe : base ≤ envCtors.addProjections block.projections :=
+        (VEnv.addConstVals_le htypes).trans hle
+      have htypeValue : type.toVConstVal ∈ block.types := by
+        rw [htypesSource]
+        exact List.mem_map.mpr ⟨type, htype, rfl⟩
+      have hlookup := hle.constants (VEnv.addConstVals_get htypes htypeValue)
+      have huvars := hconstructorUvars ctor hctorConst
+      have hwf : (envCtors.addProjections block.projections).IsType
+          decl.uvars [] ctor.type := by
+        have := (hctorsWF ctor hctorConst).mono hle
+        change (envCtors.addProjections block.projections).IsType
+          ctor.uvars [] ctor.type at this
+        rwa [huvars] at this
+      have htypes' : base.addConstVals decl.typeConstants = some envTypes := by
+        rwa [htypesSource] at htypes
+      rcases hparams with ⟨params, envTypes', htypes'', Htypes, Hctors, _⟩
+      cases Option.some.inj (htypes''.symm.trans htypes')
+      exact ⟨decl, type, ctor, htype, hctorMem, rfl, huvars, rfl, rfl, rfl, rfl,
+        rfl, rfl, hlookup, hwf,
+        ⟨params, (Htypes type htype).mono hbaseLe,
+          (Hctors type htype ctor hctorMem).mono hle⟩,
+        hshape type htype ctor hctorMem⟩
+    · rcases ihCtors hold with ⟨decl', type, ctor, htype, hctor, hname, hctorUvars,
+        huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
+        ⟨params, Hshape, Hparams⟩, Hraw⟩
+      have hle : envCtors ≤ envCtors.addProjections block.projections :=
+        VEnv.addProjections_le
+      exact ⟨decl', type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
+        hindices, hlevel, hctorName, hctorType, hle.constants hlookup,
+        hwf.mono hle, ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw⟩
+
+/-- The field count recorded by a projection entry is the syntactic arity of
+its constructor type beyond the common parameters. -/
+theorem Ordered.projectionShape_numFields {env : VEnv} (H : Ordered env)
+    {typeName : Name} {info : VProjectionInfo}
+    (hproj : env.projections typeName info) :
+    ∃ doms result,
+      info.ctorType = VExpr.wrapForalls doms result ∧
+      info.nparams ≤ doms.length ∧
+      info.numFields = doms.length - info.nparams := by
+  rcases H.projectionShape hproj with ⟨decl, type, ctor, _, _, _, _, _, hnparams,
+    _, _, _, hctorType, _, _, _, Hraw⟩
+  rcases Hraw.forallArity with ⟨doms, result, heq, hle, _, _, harity⟩
+  refine ⟨doms, result, ?_, ?_, ?_⟩
+  · rw [← hctorType, heq]
+  · rw [← hnparams]; exact hle
+  · rw [VProjectionInfo.numFields, ← hctorType, harity]
 
 theorem addInduct_WF (henv : Ordered env) (hdecl : VInductDecl.WF env decl)
     (henv' : VEnv.AddInduct env decl env') : Ordered env' := by

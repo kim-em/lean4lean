@@ -251,6 +251,13 @@ structure ConstructorTailCertificate (env : VEnv) (decl : VInductDecl)
     (tail : VExpr) : Prop where
   shape : decl.CtorTailWF env target ctx depth tail
   isType : env.IsType decl.uvars ctx tail
+  /-- The executable check walks syntactic binders and then requires a valid
+  application of the target family at the block's universe parameters, so the
+  translated tail is literally a forall telescope over such a codomain. -/
+  raw : ∃ doms result,
+    tail = VExpr.wrapForalls doms result ∧
+    decl.ValidIndAppAt (some target.name) (depth + doms.length) result ∧
+    result.getAppFnArgs.1 = .const target.name (VLevel.params decl.uvars)
 
 /-- Prefix invariant for constructor checking in the exact flattened order
 used by recursor-minor and iota-rule generation. -/
@@ -398,6 +405,10 @@ structure FormationCertificate (env : VEnv) (decl : VInductDecl) where
   constructorParameters : ConstructorParameterCertificate envTypes decl
     headers.params
   constructors : ConstructorCertificate env decl envTypes headers.params
+  /-- Raw syntactic shape of every source constructor, derived from the
+  executable binder walk and its final `isValidIndAppIdx` check. -/
+  rawShapes : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
+    decl.RawCtorShape type ctor
 
 theorem FormationCertificate.formationWF
     (H : FormationCertificate env decl) : decl.FormationWF env := by
@@ -406,7 +417,8 @@ theorem FormationCertificate.formationWF
       H.headers.typeShapes type htype⟩,
     fun type htype ctor hctor =>
       ⟨H.constructorParameters.ctorParameterShape htype hctor,
-        H.constructors.ctorShape htype hctor⟩⟩
+        H.constructors.ctorShape htype hctor⟩,
+    H.rawShapes⟩
 
 theorem FormationCertificate.declWF
     (H : FormationCertificate env decl) (hsource : decl.SourceWF env) :
@@ -420,13 +432,16 @@ def FormationCertificate.ofPrefixes
     (htypes : env.addConstVals decl.typeConstants = some envTypes)
     (HctorParameters : ConstructorParameterCertificate envTypes decl params)
     (Hctors : ConstructorPrefixCertificate env decl envTypes params
-      decl.ownedConstructors.length) :
+      decl.ownedConstructors.length)
+    (Hraw : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors,
+      decl.RawCtorShape type ctor) :
     FormationCertificate env decl where
   headers := Hheaders.headerPrefix.complete
   envTypes := envTypes
   typesInstalled := htypes
   constructorParameters := HctorParameters
   constructors := Hctors.complete
+  rawShapes := Hraw
 
 /-- Build ordered relational coverage from equal lengths and pointwise array-
 style evidence. This is the common bridge used by recursor and rule loops. -/
@@ -1387,6 +1402,21 @@ theorem TrInductDeclCore.envCtorsWF
       ⟨sourceCtor, _hsourceCtor, Hctor⟩
     exact Hctor.wf
   exact VEnv.WF.addConstVals henvTypes hctors H.ctorsAdded
+
+/-- Every translated constructor is well formed in the mutual header
+environment. -/
+theorem TrInductDeclCore.constructorsWF
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors) :
+    ∀ ci ∈ decl.constructorConstants, ci.toVConstant.WF envTypes := by
+  intro ci hci
+  simp only [VInductDecl.constructorConstants] at hci
+  rcases List.mem_flatMap.mp hci with ⟨target, htarget, hctor⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types target htarget with
+    ⟨source, _hsource, Htarget⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget.ctors ci hctor with
+    ⟨sourceCtor, _hsourceCtor, Hctor⟩
+  exact Hctor.wf
 
 /-- Pointwise original-source translations already contain all typing and
 universe facts required by `SourceWF`. Thus the aggregate source judgment

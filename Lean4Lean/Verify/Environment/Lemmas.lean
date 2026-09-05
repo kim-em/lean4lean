@@ -878,9 +878,12 @@ theorem CheckingEnv.safePrimitives_add (H : CheckingEnv safety env venv)
     rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?]
     exact hfind
 
-/-- All global invariants needed to run the verified executable type checker
-against an environment assembled in stages. -/
-structure CheckingEnv.Valid (safety : DefinitionSafety)
+/-- Local invariants of a staged checking environment that every fresh
+constant installation preserves: the translation relation itself, primitive
+metadata, and the type-annotation wrappers.  Constant installation
+certificates carry this part between the points at which the type checker
+actually runs. -/
+structure CheckingEnv.ValidCore (safety : DefinitionSafety)
     (env : Environment) (venv : VEnv) : Prop where
   tr : CheckingEnv safety env venv
   hasPrimitives : venv.HasPrimitives
@@ -889,28 +892,101 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
     ci.safety = .safe ∧ ci.levelParams = []
   typeAnnotationWrappers : TypeAnnotationWrappers env
 
-theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
+/-- All global invariants needed to run the verified executable type checker
+against an environment assembled in stages.  Beyond the local invariants,
+production constructor metadata is closed under owners, and every visible
+singleton family whose constructor is present aligns with the abstract
+projection registry.  Both are required by projection inference, so they
+hold at every point where the type checker runs. -/
+structure CheckingEnv.Valid (safety : DefinitionSafety)
+    (env : Environment) (venv : VEnv) : Prop extends
+    CheckingEnv.ValidCore safety env venv where
+  constructorOwners : VerifyInductive.ConstructorOwnersPresent env
+  projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
+
+theorem TrEnv.toCheckingValidCore (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
     (hsafe : ∀ {n ci}, env.find? n = some ci →
       Kernel.Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
     (hannotations : TypeAnnotationWrappers env) :
-    CheckingEnv.Valid safety env venv :=
+    CheckingEnv.ValidCore safety env venv :=
   ⟨H.toChecking, hprims, hsafe, hannotations⟩
 
-theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
+theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
+    (hprims : venv.HasPrimitives)
+    (hsafe : ∀ {n ci}, env.find? n = some ci →
+      Kernel.Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = [])
+    (hannotations : TypeAnnotationWrappers env)
+    (howners : VerifyInductive.ConstructorOwnersPresent env)
+    (hregistry : ProjectionRegistryCoherent safety env.constants venv) :
+    CheckingEnv.Valid safety env venv :=
+  ⟨⟨H.toChecking, hprims, hsafe, hannotations⟩, howners, hregistry⟩
+
+theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
     (hn : env.find? ci.name = none)
     (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
     (htr : TrConstant safety venv ci ci')
     (hci : ci'.WF venv)
     (hadd : venv.addConst ci.name ci' = some venv')
     (hdelta : ci.deltaValue? = none) :
-    CheckingEnv.Valid safety (env.add ci) venv' where
+    CheckingEnv.ValidCore safety (env.add ci) venv' where
   tr := H.tr.add hn htr hci hadd hdelta
   hasPrimitives := H.hasPrimitives.addConst_of_not_primitive hadd hnprim
   safePrimitives := H.tr.safePrimitives_add hn hnprim H.safePrimitives
   typeAnnotationWrappers := VerifyInductive.TypeAnnotationWrappers.addConstant
     H.typeAnnotationWrappers H.tr.map_wf ci hn
+
+/-- Constructor-owner presence of a valid environment, stated on its
+constant map. -/
+theorem CheckingEnv.Valid.constructorOwnersMap
+    (H : CheckingEnv.Valid safety env venv) :
+    ConstructorOwnersPresentMap env.constants := by
+  intro name info hfind
+  have hfind' : env.find? name = some (.ctorInfo info) := by
+    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
+    exact hfind
+  rcases H.constructorOwners name info hfind' with ⟨owner, howner⟩
+  refine ⟨owner, ?_⟩
+  rwa [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at howner
+
+/-- Extend a valid environment by a fresh, typed, non-delta, nonprimitive
+constant.  Headers and non-inductive constants need no further evidence;
+constructors supply their owner and, for singleton families, the projection
+alignment through `ProjectionRegistryStep`. -/
+theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
+    (hn : env.find? ci.name = none)
+    (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
+    (htr : TrConstant safety venv ci ci')
+    (hci : ci'.WF venv)
+    (hadd : venv.addConst ci.name ci' = some venv')
+    (hdelta : ci.deltaValue? = none)
+    (hstep : ProjectionRegistryStep env.constants venv' ci) :
+    CheckingEnv.Valid safety (env.add ci) venv' := by
+  have hcore := H.toValidCore.add hn hnprim htr hci hadd hdelta
+  have hfresh : env.constants.find? ci.name = none := by
+    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
+    exact hn
+  have hle : venv ≤ venv' := VEnv.addConst_le hadd
+  refine { hcore with constructorOwners := ?_, projectionRegistry := ?_ }
+  · cases ci with
+    | ctorInfo info =>
+      rcases hstep.1 with ⟨owner, howner⟩
+      have howner' : env.find? info.induct = some (.inductInfo owner) := by
+        rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?]
+        exact howner
+      exact H.constructorOwners.addConstructor H.tr.map_wf info hn howner'
+    | _ => exact H.constructorOwners.addNonConstructor H.tr.map_wf hn nofun
+  · cases ci with
+    | ctorInfo info =>
+      exact H.projectionRegistry.insertConstructor H.tr.map_wf hfresh hle hstep
+    | inductInfo info =>
+      exact H.projectionRegistry.insertInductiveHeader H.tr.map_wf
+        H.constructorOwnersMap hfresh hle
+    | _ =>
+      exact H.projectionRegistry.insertNonInductive H.tr.map_wf hfresh nofun
+        nofun hle
 
 theorem CheckingEnv.addProjections
     (H : CheckingEnv safety env venv)
@@ -921,97 +997,44 @@ theorem CheckingEnv.addProjections
   of_value := fun hfind hvisible hvalue =>
     (H.of_value hfind hvisible hvalue).mono VEnv.addProjections_le
 
+theorem CheckingEnv.ValidCore.addProjections
+    (H : CheckingEnv.ValidCore safety env venv)
+    (hwf : (venv.addProjections entries).WF) :
+    CheckingEnv.ValidCore safety env (venv.addProjections entries) where
+  tr := H.tr.addProjections hwf
+  hasPrimitives := H.hasPrimitives.addProjections
+  safePrimitives := H.safePrimitives
+  typeAnnotationWrappers := H.typeAnnotationWrappers
+
 /-- Add an exact, independently well-formed projection table without changing
 the represented production environment. -/
 theorem CheckingEnv.Valid.addProjections
     (H : CheckingEnv.Valid safety env venv)
     (hwf : (venv.addProjections entries).WF) :
     CheckingEnv.Valid safety env (venv.addProjections entries) where
-  tr := H.tr.addProjections hwf
-  hasPrimitives := H.hasPrimitives.addProjections
-  safePrimitives := H.safePrimitives
-  typeAnnotationWrappers := H.typeAnnotationWrappers
+  toValidCore := H.toValidCore.addProjections hwf
+  constructorOwners := H.constructorOwners
+  projectionRegistry := H.projectionRegistry.monoEnv VEnv.addProjections_le
 
-/-- A staged checking environment in which every visible executable
-projection lookup has matching abstract projection metadata. -/
-structure CheckingEnv.Projectable (safety : DefinitionSafety)
-    (env : Environment) (venv : VEnv) : Prop extends
-    CheckingEnv.Valid safety env venv where
-  projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
+/-- Promote the local invariants to the full checking invariant once
+constructor-owner presence and registry coherence are known. -/
+theorem CheckingEnv.ValidCore.toValid
+    (H : CheckingEnv.ValidCore safety env venv)
+    (howners : VerifyInductive.ConstructorOwnersPresent env)
+    (hregistry : ProjectionRegistryCoherent safety env.constants venv) :
+    CheckingEnv.Valid safety env venv :=
+  { H with constructorOwners := howners, projectionRegistry := hregistry }
 
-theorem CheckingEnv.Projectable.addNonInductive
-    (H : CheckingEnv.Projectable safety env venv)
-    (hn : env.find? ci.name = none)
-    (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
-    (hnind : ∀ familyInfo, ci ≠ .inductInfo familyInfo)
-    (hnctor : ∀ constructorInfo, ci ≠ .ctorInfo constructorInfo)
-    (htr : TrConstant safety venv ci ci')
-    (hci : ci'.WF venv)
-    (hadd : venv.addConst ci.name ci' = some venv')
-    (hdelta : ci.deltaValue? = none) :
-    CheckingEnv.Projectable safety (env.add ci) venv' := by
-  have hvalid := H.toValid.add hn hnprim htr hci hadd hdelta
-  refine { hvalid with projectionRegistry := ?_ }
-  have hfresh : env.constants.find? ci.name = none := by
-    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
-    exact hn
-  exact H.projectionRegistry.insertNonInductive H.tr.map_wf hfresh hnind
-    hnctor (VEnv.addConst_le hadd)
-
-theorem CheckingEnv.Projectable.addInductiveHeader
-    (H : CheckingEnv.Projectable safety env venv)
-    (hn : env.find? familyInfo.name = none)
-    (hnprim : ¬ Kernel.Environment.primitives.contains familyInfo.name)
-    (hconstructorsFresh : ∀ constructorName ∈ familyInfo.ctors,
-      env.constants.find? constructorName = none)
-    (htr : TrConstant safety venv (.inductInfo familyInfo) ci')
-    (hci : ci'.WF venv)
-    (hadd : venv.addConst familyInfo.name ci' = some venv') :
-    CheckingEnv.Projectable safety
-      (env.add (.inductInfo familyInfo)) venv' := by
-  have hvalid := H.toValid.add (ci := .inductInfo familyInfo) (ci' := ci')
-    hn hnprim htr hci hadd rfl
-  refine { hvalid with projectionRegistry := ?_ }
-  have hfresh : env.constants.find? familyInfo.name = none := by
-    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
-    exact hn
-  exact H.projectionRegistry.insertInductiveHeader H.tr.map_wf hfresh
-    hconstructorsFresh (VEnv.addConst_le hadd)
-
-theorem CheckingEnv.Projectable.addConstructor
-    (H : CheckingEnv.Projectable safety env venv)
-    (hn : env.find? constructorInfo.name = none)
-    (hnprim : ¬ Kernel.Environment.primitives.contains constructorInfo.name)
-    (htr : TrConstant safety venv (.ctorInfo constructorInfo) ci')
-    (hci : ci'.WF venv)
-    (hadd : venv.addConst constructorInfo.name ci' = some venv')
-    (hnew : ∀ familyName familyInfo,
-      env.constants.find? familyName = some (.inductInfo familyInfo) →
-      safety ≤ (ConstantInfo.inductInfo familyInfo).safety →
-      familyInfo.ctors = [constructorInfo.name] →
-      Nonempty (ProjectionRegistryAlignmentAt
-        (env.constants.insert constructorInfo.name (.ctorInfo constructorInfo))
-        venv' familyName familyInfo constructorInfo.name)) :
-    CheckingEnv.Projectable safety
-      (env.add (.ctorInfo constructorInfo)) venv' := by
-  have hvalid := H.toValid.add (ci := .ctorInfo constructorInfo) (ci' := ci')
-    hn hnprim htr hci hadd rfl
-  refine { hvalid with projectionRegistry := ?_ }
-  have hfresh : env.constants.find? constructorInfo.name = none := by
-    rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
-    exact hn
-  exact H.projectionRegistry.insertConstructor H.tr.map_wf hfresh
-    (VEnv.addConst_le hadd) hnew
-
-/-- Resolve the exact declaration-level projection alignment selected by
-successful concrete family and constructor lookups. -/
-theorem CheckingEnv.Projectable.projectionAlignment
-    (H : CheckingEnv.Projectable safety env venv)
+/-- Resolve the exact projection alignment selected by successful concrete
+family and constructor lookups. -/
+theorem CheckingEnv.Valid.projectionAlignment
+    (H : CheckingEnv.Valid safety env venv)
     (hfamily : env.find? familyName = some (.inductInfo familyInfo))
     (habstract : venv.constants familyName = some familyConstant)
     (hsingle : familyInfo.ctors = [constructorName])
     (hconstructor : env.find? constructorName =
-      some (.ctorInfo constructorInfo)) :
+      some (.ctorInfo constructorInfo))
+    (hinduct : constructorInfo.induct = familyName) :
     Nonempty (ProjectionRegistryAlignmentAt env.constants venv familyName
       familyInfo constructorName) := by
   have hfamilyMap : env.constants.find? familyName =
@@ -1023,4 +1046,4 @@ theorem CheckingEnv.Projectable.projectionAlignment
   have hvisible : safety ≤ (ConstantInfo.inductInfo familyInfo).safety :=
     (H.tr.find?_uniq hfamily habstract).2.1
   exact H.projectionRegistry familyName familyInfo constructorName
-    constructorInfo hfamilyMap hvisible hsingle hconstructorMap
+    constructorInfo hfamilyMap hvisible hsingle hconstructorMap hinduct

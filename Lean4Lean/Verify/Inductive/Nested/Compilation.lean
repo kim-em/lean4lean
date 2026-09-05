@@ -527,10 +527,11 @@ theorem RestoredSourceInductiveSemanticTrace.core
     (hnparams : decl.nparams = nparams)
     (hisUnsafe : decl.isUnsafe = isUnsafe)
     (htypesAdded : sourceVEnv.addConstVals decl.typeConstants = some envTypes)
+    {envCtors' : VEnv}
     (hctorsAdded : envTypes.addConstVals decl.constructorConstants =
-      some envCtors) :
+      some envCtors') :
     TrInductDeclCore sourceVEnv lparams nparams sourceTypes isUnsafe decl
-      envTypes envCtors := by
+      envTypes envCtors' := by
   refine {
     uvars := huvars
     nparams := hnparams
@@ -1220,7 +1221,8 @@ theorem AddInductive.formationCore.closedWF
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
-      ¬ Kernel.Environment.primitives.contains ctor.name) :
+      ¬ Kernel.Environment.primitives.contains ctor.name)
+    (hlparams : c.lparams.Nodup) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -1247,7 +1249,7 @@ theorem AddInductive.formationCore.closedWF
   intro headerEnv Hheader
   exact AddInductive.constructorPhases.WF Hheader hconsume
     Hheader.materializedAvailableLiteralDisjoint
-    hunsafe hvisible hnprimCtors
+    hunsafe hvisible hnprimCtors hlparams
 
 
 end VerifyInductive

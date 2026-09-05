@@ -39,6 +39,11 @@ namespace VExpr
 def mkApps (fn : VExpr) (args : List VExpr) : VExpr :=
   args.foldl .app fn
 
+/-- Number of leading `forallE` binders. -/
+def forallArity : VExpr → Nat
+  | .forallE _ body => forallArity body + 1
+  | _ => 0
+
 variable (n : Nat) in
 def liftN : VExpr → (k :_:= 0) → VExpr
   | .bvar i, k => .bvar (liftVar n i k)
@@ -310,11 +315,6 @@ def inst : VExpr → VExpr → (k :_:= 0) → VExpr
 def stripLams : VExpr → VExpr
   | .lam _ body => stripLams body
   | e => e
-
-/-- Number of leading `forallE` binders. -/
-def forallArity : VExpr → Nat
-  | .forallE _ body => forallArity body + 1
-  | _ => 0
 
 @[simp] theorem forallArity_liftN (e : VExpr) : (e.liftN n k).forallArity = e.forallArity := by
   induction e generalizing k <;> simp [forallArity, liftN, *]

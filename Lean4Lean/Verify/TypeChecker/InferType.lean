@@ -407,6 +407,7 @@ theorem inferProj.WF (hb : c.FVarsBelow e ety) (he : c.TrExprS e e') (hty : c.Tr
   have harity : type.getAppArgs.size = I_val.numParams + I_val.numIndices := by simpa using harity
   refine (M.WF.liftExcept envGet.WF).lift.bind fun cci _ _ hcci => ?_
   split <;> [rename_i c_val; exact hfail']
+  split <;> [exact hfail; rename_i hinduct]
   split <;> [exact hfail; rename_i hidx]
   have hidx : i < c_val.numFields := by simpa using hidx
   -- registry facts

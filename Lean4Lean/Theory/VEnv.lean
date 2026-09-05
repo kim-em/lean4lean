@@ -27,6 +27,11 @@ structure VProjectionEntry where
   typeName : Name
   info : VProjectionInfo
 
+/-- Number of constructor fields: the syntactic forall arity of the constructor
+type beyond the common parameters. -/
+def VProjectionInfo.numFields (info : VProjectionInfo) : Nat :=
+  info.ctorType.forallArity - info.nparams
+
 namespace VProjectionInfo
 
 def instantiateProjectionParameters : VExpr → List VExpr → Option VExpr
@@ -290,11 +295,6 @@ theorem fieldType_subst_some (info : VProjectionInfo)
         (current := 0) (fuel := index + 1) (type := tail)
         (result := result) (substitution := substitution)
         (by simpa [htail] using H)
-
-/-- Number of constructor fields: the leading binders of the constructor type
-after the common parameters. -/
-def numFields (info : VProjectionInfo) : Nat :=
-  info.ctorType.forallArity - info.nparams
 
 end VProjectionInfo
 

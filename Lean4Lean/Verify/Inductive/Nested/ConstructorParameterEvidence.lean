@@ -345,7 +345,7 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomainsNative
   have Hshape := Htypes family hfamilyMem
   have Hconstructor : decl.CtorParameterShape
       E.assembly.canonical.venvCtors params constructor :=
-    (Hconstructors family hfamilyMem constructor hctorMem).mono htypesCtors
+    (Hconstructors.1 family hfamilyMem constructor hctorMem).mono htypesCtors
   rcases Hfamilies familyIdx hfamily with ⟨Hfamily⟩
   rcases Hshape with
     ⟨normalized, ownParams, afterParams, indices, resultType, exprType,

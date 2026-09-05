@@ -1893,7 +1893,7 @@ theorem
       TrExprS.of_inferImplicit Htranslated
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact VEnv.addProjections_le.trans H.installed.le
+    exact H.installed.le
   have Hsort : TrExprS H.outVEnv Us []
       (H.localContext.lctx.mkForall stats.params
         (.sort (.zero : Level)))
@@ -2287,7 +2287,7 @@ theorem
           H.elimLevelAdmissible).venv ≤ H.outVEnv := by
       rw [ContextWF.toAdmissibleRecursorContextWF_venv,
         R.declared.contextVEnv]
-      exact VEnv.addProjections_le.trans H.installed.le
+      exact H.installed.le
     simpa [Us, parameterDecls] using Hsynthesis.mono hbaseLE
 
 /-- The independently checked constructor application transports into the
@@ -2346,7 +2346,7 @@ theorem
         H.elimLevelAdmissible).venv ≤ H.outVEnv := by
     rw [ContextWF.toAdmissibleRecursorContextWF_venv,
       R.declared.contextVEnv]
-    exact VEnv.addProjections_le.trans H.installed.le
+    exact H.installed.le
   have Hintro' : TrExprS H.outVEnv Us parameterDecls
       (mkAppN (.const
           ((indTypes[owner]'A.sourceOwner_lt).ctors[i]'A.sourceCtor_lt).name
@@ -2441,7 +2441,7 @@ theorem
         H.elimLevelAdmissible).venv ≤ H.outVEnv := by
     rw [ContextWF.toAdmissibleRecursorContextWF_venv,
       R.declared.contextVEnv]
-    exact VEnv.addProjections_le.trans H.installed.le
+    exact H.installed.le
   have Htail' : TrExprS H.outVEnv Us parameterDecls
       A.semantics.parameterTail tailTarget := by
     simpa [Us, parameterDecls] using Htail.mono hbaseLE
@@ -3397,7 +3397,7 @@ theorem
   rcases A.finalPairedMotiveSeed with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact VEnv.addProjections_le.trans H.installed.le
+    exact H.installed.le
   exact ⟨S, hparams.mono hbase, S.motiveTypeTr.mono hbase,
     S.motiveTypeDefEq.mono hbase⟩
 
@@ -3429,7 +3429,7 @@ theorem
   rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact VEnv.addProjections_le.trans H.installed.le
+    exact H.installed.le
   exact ⟨S.canonical.mono hbase, hparams.mono hbase⟩
 
 /-- Owner-indexed form of `finalCanonicalMotiveTelescope`, independent of a
@@ -3459,7 +3459,7 @@ theorem RecursorPhasesResult.finalCanonicalMotiveTelescopeAt
   rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv, R.declared.contextVEnv]
-    exact VEnv.addProjections_le.trans H.installed.le
+    exact H.installed.le
   exact ⟨S.canonical.mono hbase, hparams.mono hbase⟩
 
 /-- Rebase a conversion between two dependent prefixes along a conversion

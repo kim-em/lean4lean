@@ -188,7 +188,7 @@ private theorem restoredHeaderValidationValidAux
                   all := sourceTypes.map (fun type => type.name) })
                 (ci' := target.toVConstVal.toVConstant) hfresh hnprim
                 HheadTr'.1 (Hheader.wf.mono Hle)
-                (by simpa [HheadTr'.2] using hadd) rfl
+                (by simpa [HheadTr'.2] using hadd) rfl trivial
             rw [HvalidationHead.output] at HvalidationTail
             apply ih HvalidationTail
             · intro nextSource hmem

@@ -104,9 +104,9 @@ theorem VEnv.WF.ordered : WF env → Ordered env
       | «example» _ => exact ih
       | quot h1 h2 => exact addQuot_WF ih h1 h2
       | induct h1 h2 => exact addInduct_WF ih h1 h2
-    | inductProjections _ _ hsource hconstructorUvars htypesSource hctorsSource hprojections
-        htypes hctors ihBase ihCtors =>
-      exact .inductProjections ihBase ihCtors hsource hconstructorUvars htypesSource
-        hctorsSource hprojections htypes hctors
+    | inductProjections _ _ hsource hconstructorUvars hctorsWF hparams hshape htypesSource
+        hctorsSource hprojections htypes hctors ihBase ihCtors =>
+      exact .inductProjections ihBase ihCtors hsource hconstructorUvars hctorsWF hparams
+        hshape htypesSource hctorsSource hprojections htypes hctors
 
 instance : CoeOut (VEnv.WF env) env.Ordered := ⟨(·.ordered)⟩

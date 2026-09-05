@@ -15,18 +15,34 @@ namespace VerifyInductive
 to a concrete installation of the same constants in any fresh order.  The
 permutation argument is used only to identify production maps; abstract
 typing remains tied to the header/constructor/projection/recursor stages. -/
+theorem StagedBlock.validCoreOfFreshPermutation
+    (H : StagedBlock safety source sourceVEnv types ctors recursors
+      projections canonicalTarget targetVEnv)
+    (Hactual : FreshConstantTrace source actualEntries actualTarget)
+    (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
+    (Hsource : CheckingEnv.ValidCore safety source sourceVEnv) :
+    CheckingEnv.ValidCore safety actualTarget targetVEnv := by
+  have HcanonicalValid := H.validCore Hsource
+  have heq := Hactual.lookupEqOfPerm H.productionTrace.freshTrace
+    Hsource.tr.map_wf hperm
+  exact CheckingEnv.ValidCore.mapExt HcanonicalValid
+    (Hactual.targetWF Hsource.tr.map_wf) fun name => (heq name).symm
+
+/-- Full-validity form of `validCoreOfFreshPermutation`: the global
+constructor-owner and projection-registry invariants are supplied directly at
+the actual endpoint. -/
 theorem StagedBlock.validOfFreshPermutation
     (H : StagedBlock safety source sourceVEnv types ctors recursors
       projections canonicalTarget targetVEnv)
     (Hactual : FreshConstantTrace source actualEntries actualTarget)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
-    (Hsource : CheckingEnv.Valid safety source sourceVEnv) :
-    CheckingEnv.Valid safety actualTarget targetVEnv := by
-  have HcanonicalValid := H.valid Hsource
-  have heq := Hactual.lookupEqOfPerm H.productionTrace.freshTrace
-    Hsource.tr.map_wf hperm
-  exact CheckingEnv.Valid.mapExt HcanonicalValid
-    (Hactual.targetWF Hsource.tr.map_wf) fun name => (heq name).symm
+    (Hsource : CheckingEnv.ValidCore safety source sourceVEnv)
+    (howners : ConstructorOwnersPresent actualTarget)
+    (hregistry : ProjectionRegistryCoherent safety actualTarget.constants
+      targetVEnv) :
+    CheckingEnv.Valid safety actualTarget targetVEnv :=
+  (H.validCoreOfFreshPermutation Hactual hperm Hsource).toValid howners
+    hregistry
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
@@ -1341,11 +1357,11 @@ The source specification fixes the mutual-header and constructor abstract
 endpoints; the checking invariant constructs the final recursor endpoint.
 No endpoint or installation certificate is selected by a caller. -/
 theorem CanonicalRestorationReplay.existsStagedBlock
-    (H : CanonicalRestorationReplay safety sourceProdEnv outProdEnv
-      sourceVEnv envTypes envCtors owners primaryRecursors
-        auxiliaryRecursors)
-    (Hchecking : CheckingEnv safety sourceProdEnv sourceVEnv)
     (projections : List VProjectionEntry)
+    (H : CanonicalRestorationReplay safety sourceProdEnv outProdEnv
+      sourceVEnv envTypes (envCtors.addProjections projections) owners
+        primaryRecursors auxiliaryRecursors)
+    (Hchecking : CheckingEnv safety sourceProdEnv sourceVEnv)
     (HprojectedWF : (envCtors.addProjections projections).WF)
     (Hprimitive : PrimitiveSafeFreshConstantTrace false sourceProdEnv
       primitiveEntries outProdEnv)
@@ -1405,10 +1421,8 @@ theorem CanonicalRestorationReplay.existsStagedBlock
       (envCtors.addProjections projections) :=
     HcheckingCtors.addProjections HprojectedWF
   rcases AddConstants.exists_ofFresh HrecursorsFresh
-      (fun entry hentry => (H.recursors entry hentry).1.mono
-        VEnv.addProjections_le)
-      (fun entry hentry => (H.recursors entry hentry).2.mono
-        VEnv.addProjections_le)
+      (fun entry hentry => (H.recursors entry hentry).1)
+      (fun entry hentry => (H.recursors entry hentry).2)
       (fun entry hentry => hnonprimitive entry (by simp [hentry]))
       (fun entry hentry => hnondeltaCanonical entry (by simp [hentry]))
       HcheckingProjected VEnv.LE.rfl with ⟨finalVEnv, HrecursorsAdded⟩
@@ -1565,14 +1579,18 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
         (sourceTypes.map (fun type => type.name)))
       auxRecNames primaryProdEnv outProdEnv}
     (Hsource : RestoredSourceInductiveSemanticTrace decl c.lparams c.safety
-      sourceVEnv envTypes envCtors HprimaryTrace decl.types primaryRecursors)
-    (Haux : RestoredAuxiliaryRecursorTrace c.safety envCtors
-      envCtors HauxTrace [] auxiliaryRecursors)
+      sourceVEnv envTypes (envCtors.addProjections decl.projectionEntries)
+      HprimaryTrace decl.types primaryRecursors)
+    (Haux : RestoredAuxiliaryRecursorTrace c.safety
+      (envCtors.addProjections decl.projectionEntries)
+      (envCtors.addProjections decl.projectionEntries) HauxTrace []
+      auxiliaryRecursors)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
     (Hcore : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe decl envTypes envCtors)
+    (Hparams : decl.SourceParameterWF sourceVEnv)
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
@@ -1582,8 +1600,8 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
     (hnondelta : ∀ entry ∈ nondeltaEntries,
       entry.deltaValue? = none) :
     ∃ replay : CanonicalRestorationReplay c.safety c.env outProdEnv
-        sourceVEnv envTypes envCtors decl.types primaryRecursors
-          auxiliaryRecursors,
+        sourceVEnv envTypes (envCtors.addProjections decl.projectionEntries)
+        decl.types primaryRecursors auxiliaryRecursors,
       ∃ canonicalProdEnv finalVEnv,
         Nonempty (StagedBlock c.safety c.env sourceVEnv replay.typeEntries
           replay.constructorEntries replay.recursorEntries
@@ -1625,12 +1643,15 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
     · exact TrInductDeclCore.envCtorsWF Hcore HsourceChecking.wf
     · exact TrInductDeclCore.sourceNames_nodup Hcore
     · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hcore
+    · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF Hcore
+    · exact Hparams
+    · exact Hparams.rawCtorShape
     · rfl
     · rfl
     · rfl
     · exact Hcore.typesAdded
     · exact Hcore.ctorsAdded
-  rcases replay.existsStagedBlock HsourceChecking decl.projectionEntries
+  rcases replay.existsStagedBlock decl.projectionEntries HsourceChecking
       HprojectedWF Hprimitive Hnondelta
       hnondelta htypesAbstract hconstructorsAbstract with
     ⟨canonicalProdEnv, finalVEnv, Hstaged, hlookup⟩

@@ -339,7 +339,8 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
       (AddInductive.inductiveTypeInfos stats nparams indTypes numNested
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
-    (hconsume : ConsumeTypeAnnotationsCompat) :
+    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hlparams : c.lparams.Nodup) :
     (AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe c).WF fun headerEnv =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
@@ -371,7 +372,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
         Hinstalled.context Hinstalled.contextMLCtx htypesAdded
         HheaderMaterialized hheaderParams hcommonParams hconsume
           hlitInstalled
-    exact Hconstructors.mono fun _ Hassembled => by
+    exact (Hconstructors hlparams).mono fun _ Hassembled => by
       rcases Hassembled with ⟨Hassembled⟩
       have hindicesAssembled : stats.nindices.toList =
           Hassembled.metadata.map Prod.fst := by

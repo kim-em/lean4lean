@@ -117,7 +117,10 @@ private theorem primitiveResultTailCertificate
   exact {
     shape := .result
       (primitiveValidIndApp htypes huvars hnparams hnindices 0) htyped
-    isType := ⟨.succ .zero, htyped⟩ }
+    isType := ⟨.succ .zero, htyped⟩
+    raw := ⟨[], .const target.name [], by simp [VExpr.wrapForalls],
+      by simpa using primitiveValidIndApp htypes huvars hnparams hnindices 0,
+      by simp [huvars, VLevel.params]⟩ }
 
 private theorem primitiveNatSuccTailCertificate
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
@@ -147,7 +150,10 @@ private theorem primitiveNatSuccTailCertificate
       (Or.inr hpositive) hdom hbody
       (.result (by simpa [VExpr.nat, hname] using hvalid1) hbody)
     isType := ⟨.imax (.succ .zero) (.succ .zero),
-      VEnv.IsDefEq.forallEDF hdom hbody⟩ }
+      VEnv.IsDefEq.forallEDF hdom hbody⟩
+    raw := ⟨[.nat], .nat, by simp [VExpr.wrapForalls],
+      by simpa [VExpr.nat, hname] using hvalid1,
+      by simp [VExpr.nat, hname, huvars, VLevel.params]⟩ }
 
 private theorem primitiveTailReplay
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
@@ -326,9 +332,47 @@ theorem PrimitiveDeclaredHeadersResult.parameterPrefixes
       isUnsafe) :
     CheckedRecursorParameterPrefixes stats indTypes := by
   have hparams := H.params_size_eq_zero Hshape
-  refine ⟨?_⟩
-  intro familyIdx hfamily ctorIdx hctor
-  exact ⟨_, .done hparams.symm⟩
+  refine ⟨?_, ?_⟩
+  · intro familyIdx hfamily ctorIdx hctor
+    exact ⟨_, .done hparams.symm⟩
+  · intro familyIdx hfamily ctorIdx hctor
+    rcases Hshape with ⟨_, _, _, htypes | ⟨binderName, binderInfo, htypes⟩⟩
+    · have hindTypes : indTypes = #[{
+          name := ``Bool
+          type := .sort (.succ .zero)
+          ctors := [
+            { name := ``Bool.false, type := .const ``Bool [] },
+            { name := ``Bool.true, type := .const ``Bool [] }] }] :=
+        Array.toList_inj.mp htypes
+      subst hindTypes
+      have hfamily0 : familyIdx = 0 := by simpa using hfamily
+      subst hfamily0
+      rcases ctorIdx with _ | _ | n
+      · exact ⟨0, .codomain (e := .const ``Bool []) (name := ``Bool)
+          (levels := []) rfl⟩
+      · exact ⟨0, .codomain (e := .const ``Bool []) (name := ``Bool)
+          (levels := []) rfl⟩
+      · change n + 1 + 1 < 2 at hctor
+        omega
+    · have hindTypes : indTypes = #[{
+          name := ``Nat
+          type := .sort (.succ .zero)
+          ctors := [
+            { name := ``Nat.zero, type := .const ``Nat [] },
+            { name := ``Nat.succ,
+              type := .forallE binderName (.const ``Nat [])
+                (.const ``Nat []) binderInfo }] }] :=
+        Array.toList_inj.mp htypes
+      subst hindTypes
+      have hfamily0 : familyIdx = 0 := by simpa using hfamily
+      subst hfamily0
+      rcases ctorIdx with _ | _ | n
+      · exact ⟨0, .codomain (e := .const ``Nat []) (name := ``Nat)
+          (levels := []) rfl⟩
+      · exact ⟨1, .step (.codomain (e := .const ``Nat []) (name := ``Nat)
+          (levels := []) rfl)⟩
+      · change n + 1 + 1 < 2 at hctor
+        omega
 
 /-- Finite, source-derived semantic evidence for the two constructor batches
 which may be admitted through the primitive-name gate.  This proof uses the

@@ -61,9 +61,19 @@ theorem CompletedStagedBlock.valid
     (H : CompletedStagedBlock safety env venv types ctors recursors
       projections outEnv outVEnv)
     (hvalidCtors : CheckingEnv.Valid safety H.envCtors
-      (H.venvCtors.addProjections projections)) :
+      (H.venvCtors.addProjections projections))
+    (hrecursors : ∀ entry ∈ recursors, ∀ info : ConstructorVal,
+      entry.1 ≠ .ctorInfo info) :
     CheckingEnv.Valid safety outEnv outVEnv :=
-  H.recursorsAdded.valid hvalidCtors
+  H.recursorsAdded.valid hvalidCtors hrecursors
+
+theorem CompletedStagedBlock.validCore
+    (H : CompletedStagedBlock safety env venv types ctors recursors
+      projections outEnv outVEnv)
+    (hvalidCtors : CheckingEnv.ValidCore safety H.envCtors
+      (H.venvCtors.addProjections projections)) :
+    CheckingEnv.ValidCore safety outEnv outVEnv :=
+  H.recursorsAdded.validCore hvalidCtors
 
 /-- Collapse the completed formation prefix and ordinary recursor suffix into
 one atomic trace. This exposes whole-block provenance without manufacturing
@@ -195,10 +205,13 @@ theorem CompletedBlockCertificate.rebaseCertificate
       ∃ Hlarger : CompletedBlockCertificate safety prodEnv largerBase types
         ctors recursors rules outEnv largerOutBase,
       outBase ≤ largerOutBase ∧ Hlarger.projections = H.projections := by
-  rcases H.staged.formationAdded.rebase Hvalid hsafety hbase with
+  rcases H.staged.formationAdded.rebase Hvalid.toValidCore hsafety hbase with
     ⟨largerTypes, largerCtors, ⟨Hformation⟩, htypes, hctors⟩
   have HcheckingCtors : CheckingEnv safety H.staged.envCtors largerCtors :=
     Hformation.checking Hvalid.tr
+  have htypes' : largerBase.addConstVals decl.typeConstants = some largerTypes := by
+    rw [← Hcompile.types]
+    exact Hformation.headerAbstract
   have hprojectedWF :
       (largerCtors.addProjections H.projections).WF := by
     apply VEnv.WF.inductProjections
@@ -208,6 +221,14 @@ theorem CompletedBlockCertificate.rebaseCertificate
     · exact HcheckingCtors.wf
     · exact Hcompile.sourceNames
     · exact Hdecl.1.2.2.2.1
+    · rcases Hdecl.1.originalConstructors with ⟨baseTypes, hbaseTypes, hwf⟩
+      have hle : baseTypes ≤ largerTypes :=
+        VEnv.addConstVals_mono hbase hbaseTypes htypes'
+      exact fun ctor hctor => (hwf ctor hctor).mono hle
+    · rcases Hdecl.1.originalConstructors with ⟨baseTypes, hbaseTypes, _⟩
+      exact (Hdecl.sourceParameterWF hbaseTypes).mono_of_addConstVals hbase htypes'
+    · rcases Hdecl.1.originalConstructors with ⟨baseTypes, hbaseTypes, _⟩
+      exact (Hdecl.sourceParameterWF hbaseTypes).rawCtorShape
     · exact Hcompile.types
     · exact Hcompile.ctors
     · exact Hcompile.projections
@@ -427,9 +448,10 @@ def CompletedRecursorPhasesResult.staged
   envTypes := R.headerEnv
   venvTypes := R.headerVEnv
   envCtors := ctorEnv
-  venvCtors := R.context.venv
+  venvCtors := R.ctorVEnv
   formationAdded := R.installation
   recursorsAdded := by
+    rw [← R.contextVEnv]
     simpa [H.localExtends.safety_eq, H.localExtends.env_eq] using H.installed
 
 def CompletedRecursorPhasesResult.blockCertificate
@@ -441,8 +463,9 @@ def CompletedRecursorPhasesResult.blockCertificate
     CompletedBlockCertificate c.safety c.env sourceEnv R.headerEntries
       R.constructorEntries H.entries rules outEnv H.outVEnv := by
   let Hgenerated : GeneratedRecursors c.safety
-      (R.context.venv.addProjections decl.projectionEntries) c.lparams
+      (R.ctorVEnv.addProjections decl.projectionEntries) c.lparams
       H.elimLevel H.localContext stats indTypes H.recInfos H.entries := by
+    rw [← R.contextVEnv]
     simpa [H.localExtends.safety_eq, H.localExtends.lparams_eq] using
       H.generated
   exact Hgenerated.toCompletedBlockCertificate decl.projectionEntries H.staged

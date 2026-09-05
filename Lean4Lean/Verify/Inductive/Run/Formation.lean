@@ -218,7 +218,7 @@ theorem AddInductive.declareInductiveTypes.headersWF
         simpa using
           Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hentries⟩
       values := hvalues
-      context := Hc.withEnv (Hinstalled.valid Hc.checking) Hinstalled.le
+      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking) Hinstalled.le
       headers := Hmaterialized.headers
       translation := ?_
       installed := Hinstalled
@@ -274,6 +274,10 @@ def DeclaredHeadersResult.formation
       rw [← H.headerParams]
       exact H.materialized.paramsContext)
   constructors := Hchecked.checked.formation
+  rawShapes := Hchecked.rawShapes H.context.checking.tr.wf H.translation.types
+    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf)
+    (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+      H.materialized).params_size
 
 /-- Constructor checking consumes only the raw constructor translations
 retained by header installation and returns both formation and pointwise
@@ -285,7 +289,8 @@ theorem AddInductive.checkConstructors.checkedWF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       H.context.venv stats.indConsts)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         CheckedConstructorsResult sourceEnv decl H.context.venv
@@ -293,7 +298,7 @@ theorem AddInductive.checkConstructors.checkedWF
           H.materialized.parameterScope := by
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
     H.context H.translation.types H.translation.typesAdded H.materialized
-    H.headerParams hconsume hlit hunsafe H.materialized.universeBound
+    H.headerParams hconsume hlit hunsafe H.materialized.universeBound hlparams
   rw [AddInductive.checkConstructors]
   change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
     AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
@@ -348,17 +353,18 @@ theorem AddInductive.checkConstructors.headersWF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       H.context.venv stats.indConsts)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         Nonempty (FormationCertificate sourceEnv decl) :=
   (AddInductive.checkConstructors.checkedWF H hconsume hlit
-    hunsafe).mono fun _ Hchecked => ⟨H.formation Hchecked⟩
+    hunsafe hlparams).mono fun _ Hchecked => ⟨H.formation Hchecked⟩
 
 /-- Verified boundary after the concrete constructor-info fold.  It retains
 the exact abstract constructor environment and the now-typed pointwise source
 translation needed to join the header and constructor phases. -/
-structure DeclaredConstructorsResult
+structure DeclaredConstructorsCore
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv)
     (outEnv : Environment) where
@@ -377,138 +383,36 @@ structure DeclaredConstructorsResult
     entry.1 ≠ ConstantInfo.inductInfo value
   translation : TrInductDeclConstructors H.context.venv c.lparams
     indTypes.toList decl venvCtors
+
+/-- The constructor-complete checking context.  Its abstract environment is
+the constructor environment together with the declaration's projection
+table: the projection registry must already be present when recursor
+generation runs the type checker in this context, and `inductProjections`
+admits the table exactly at this point of the installation trace. -/
+structure DeclaredConstructorsResult
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv)
+    (outEnv : Environment) extends DeclaredConstructorsCore H outEnv where
   context : ContextWF { c with env := outEnv }
-  contextVEnv : context.venv = venvCtors
+  contextVEnv : context.venv = venvCtors.addProjections decl.projectionEntries
   contextMLCtx : context.mlctx = H.context.mlctx
-
-theorem AddInductive.declareConstructors.WF
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv)
-    (Hchecked : CheckedConstructorCertificate sourceEnv decl H.context.venv
-      H.headers.params)
-    (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe))
-    (hnprim : c.allowPrimitive = true →
-      ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
-      ¬ Kernel.Environment.primitives.contains ctor.name) :
-    (AddInductive.declareConstructors stats indTypes isUnsafe
-      { c with env := headerEnv }).WF fun outEnv =>
-        ∃ _ : DeclaredConstructorsResult H outEnv, True := by
-  let mkInfo := AddInductive.constructorInfo stats c.lparams isUnsafe
-  have Htranslated := Hchecked.translated H.translation
-  have Hfold := AddConstants.ofConstructorTypes
-    (allowPrimitive := c.allowPrimitive) mkInfo H.context.checking
-    Htranslated VEnv.LE.rfl
-    (by intros; rfl) (by intros; rfl) (by intros; rfl)
-    (by
-      intro owner i ctor
-      simpa [mkInfo, AddInductive.constructorInfo] using hvisible)
-    hnprim
-  rw [AddInductive.declareConstructors, ← Array.foldlM_toList]
-  change (indTypes.toList.foldlM (init := headerEnv) fun
-      (env : Environment) (owner : InductiveType) => do
-    let (_, env) ← owner.ctors.foldlM (init := (0, env)) fun
-        (state : Nat × Environment) (ctor : Constructor) => do
-      let (cidx, env) := state
-      env.checkName ctor.name c.allowPrimitive
-      pure (cidx + 1, env.add (.ctorInfo (mkInfo owner cidx ctor)))
-    pure env).WF _
-  exact Hfold.mono fun outEnv Hout => by
-    rcases Hout with
-      ⟨venvCtors, entries, hvalues, Hinstalled, Haligned, hproduction,
-        hnind⟩
-    have hctorsAdded : H.context.venv.addConstVals decl.constructorConstants =
-        some venvCtors := by
-      simp only [VInductDecl.constructorConstants]
-      rw [← hvalues]
-      exact Hinstalled.abstract
-    let Htranslation : TrInductDeclConstructors H.context.venv c.lparams
-        indTypes.toList decl venvCtors := {
-      ctorsAdded := hctorsAdded
-      types := Htranslated }
-    exact ⟨{
-      venvCtors := venvCtors
-      entries := entries
-      values := by simpa [VInductDecl.constructorConstants] using hvalues
-      installed := Hinstalled
-      sourceAligned := by simpa [mkInfo] using Haligned
-      production := hproduction
-      nonInductive := hnind
-      translation := Htranslation
-      context := H.context.withEnv
-        (Hinstalled.valid H.context.checking) Hinstalled.le
-      contextVEnv := rfl
-      contextMLCtx := rfl }, trivial⟩
-
-structure ConstructorPhasesResult
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv)
-    (outEnv : Environment) where
-  checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
-    H.headers.params
-  parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
-  constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
-    H.materialized.parameterScope stats decl indTypes
-  ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
-  declared : DeclaredConstructorsResult H outEnv
-  formation : FormationCertificate sourceEnv decl
-  core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
-    isUnsafe decl H.context.venv declared.venvCtors
-
-/-- The materialized header cache transported through both header and
-constructor installation, in the exact context where recursor generation
-starts. -/
-def ConstructorPhasesResult.materialized
-    {c : AddInductive.Context}
-    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
-    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv) :
-    checkInductiveTypes.loopInd.MaterializedHeaderResult
-      R.declared.context.venv c.lparams R.declared.context.mlctx.vlctx
-      stats decl depth := by
-  have henv : H.context.venv ≤ R.declared.context.venv := by
-    rw [R.declared.contextVEnv]
-    exact R.declared.installed.le
-  let M := H.materialized.mono henv
-  exact {
-    headers := M.headers
-    commonLevel := M.commonLevel
-    levels := M.levels
-    levelParams := M.levelParams
-    uvars := M.uvars
-    consts := M.consts
-    indices := M.indices
-    params := by
-      simpa only [R.declared.contextMLCtx] using M.params
-    paramFVars := M.paramFVars
-    parameterScope := M.parameterScope
-    normalizedSources := M.normalizedSources
-    normalizedShapes := M.normalizedShapes
-    ambientScope := M.ambientScope
-    scopeDecomposition := by
-      simpa only [R.declared.contextMLCtx] using M.scopeDecomposition
-    ambientLength := M.ambientLength
-    cachedScope := M.cachedScope
-    runtimeScope := by
-      simpa only [R.declared.contextMLCtx] using M.runtimeScope
-    paramsContext := M.paramsContext
-    narrowParams := M.narrowParams }
 
 /-- Select one newly installed production constructor by its source family
 and owner-local index, and assemble its persistent semantic common-parameter
 coherence witness.  This is the positional bridge between the executable
 header/constructor folds and the independent formation specification. -/
-theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
+theorem DeclaredConstructorsCore.installedConstructorSemanticCoherenceAt
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv)
+    (D : DeclaredConstructorsCore H outEnv)
+    (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
+      isUnsafe decl H.context.venv D.venvCtors)
+    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+      H.headers.params stats indTypes c.lparams H.materialized.parameterScope)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
     ∃ familyInfo : InductiveVal,
@@ -517,7 +421,7 @@ theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
         familyInfo.ctors = indTypes[familyIdx].ctors.map (fun ctor => ctor.name) ∧
         outEnv.find? familyInfo.name = some (.inductInfo familyInfo) ∧
         Nonempty (InductiveConstructorSemanticCoherenceAt
-          outEnv R.declared.venvCtors familyInfo.name familyInfo ctorIdx hi) := by
+          outEnv D.venvCtors familyInfo.name familyInfo ctorIdx hi) := by
   rcases H.sourceAligned with ⟨numNested, Haligned⟩
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
     numNested isUnsafe c.lparams
@@ -527,7 +431,7 @@ theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
         rw [Array.size_eq_length_toList, H.materialized.indices,
           List.length_map]
       _ = indTypes.toList.length :=
-        (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length core).symm
       _ = indTypes.size := by simp
   have hinfosSize : infos.size = indTypes.size := by
     simp [infos, AddInductive.inductiveTypeInfos, hindicesSize]
@@ -549,54 +453,53 @@ theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
     H.installed.findEntry H.sourceContext.checking.tr.map_wf hfamilyEntry
   have hfamilyLookup :
       outEnv.find? familyInfo.name = some (.inductInfo familyInfo) :=
-    R.declared.installed.preservesSourceFind H.context.checking.tr.map_wf
+    D.installed.preservesSourceFind H.context.checking.tr.map_wf
       hfamilyHeader
   let sourceFamily := indTypes[familyIdx]
   let sourceCtor := sourceFamily.ctors[ctorIdx]
   let ctorInfo := AddInductive.constructorInfo stats c.lparams isUnsafe
     sourceFamily ctorIdx sourceCtor
-  rcases R.declared.sourceAligned.findAt
+  rcases D.sourceAligned.findAt
       (owner := sourceFamily) (List.getElem_mem hfamily)
       ctorIdx hctor with ⟨ctorValue, hctorEntry⟩
   have hctorLookupExact :
       outEnv.find? ctorInfo.name = some (.ctorInfo ctorInfo) :=
-    R.declared.installed.findEntry H.context.checking.tr.map_wf hctorEntry
+    D.installed.findEntry H.context.checking.tr.map_wf hctorEntry
   have hctorLookup :
       outEnv.find? familyInfo.ctors[ctorIdx] = some (.ctorInfo ctorInfo) := by
     simpa [ctorInfo, sourceCtor, sourceFamily, hfamilyCtors,
       AddInductive.constructorInfo] using hctorLookupExact
   have htargetFamily : familyIdx < decl.types.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
+    rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length core]
     simpa using hfamily
-  have Htype := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
+  have Htype := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt core
     familyIdx (by simpa using hfamily) htargetFamily
   have htargetCtor : ctorIdx < decl.types[familyIdx].ctors.length := by
     rw [← Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htype]
     simpa [sourceFamily] using hctor
   have Hctor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt Htype
     ctorIdx (by simpa [sourceFamily] using hctor) htargetCtor
-  have hfamilyTargetLookup : R.declared.venvCtors.constants familyInfo.name =
+  have hfamilyTargetLookup : D.venvCtors.constants familyInfo.name =
       some decl.types[familyIdx].toVConstant := by
     have hlookup : H.context.venv.constants decl.types[familyIdx].name =
         some decl.types[familyIdx].toVConstant := by
-      apply VEnv.addConstVals_get R.core.typesAdded
+      apply VEnv.addConstVals_get core.typesAdded
       exact List.mem_map.mpr
         ⟨decl.types[familyIdx], List.getElem_mem htargetFamily, rfl⟩
     simpa [hfamilyName, Htype.header.name] using
-      (VEnv.addConstVals_le R.core.ctorsAdded).constants hlookup
-  have hctorTargetLookup : R.declared.venvCtors.constants
+      (VEnv.addConstVals_le core.ctorsAdded).constants hlookup
+  have hctorTargetLookup : D.venvCtors.constants
       familyInfo.ctors[ctorIdx] =
       some decl.types[familyIdx].ctors[ctorIdx].toVConstant := by
-    have hlookup := VEnv.addConstVals_get R.core.ctorsAdded
+    have hlookup := VEnv.addConstVals_get core.ctorsAdded
       (ci := decl.types[familyIdx].ctors[ctorIdx]) (by
         simp only [VInductDecl.constructorConstants]
         apply List.mem_flatMap.mpr
         exact ⟨decl.types[familyIdx], List.getElem_mem htargetFamily,
           List.getElem_mem htargetCtor⟩)
     simpa [hfamilyCtors, sourceFamily, Hctor.name] using hlookup
-  have hfinalWF : R.declared.venvCtors.WF := by
-    rw [← R.declared.contextVEnv]
-    exact R.declared.context.checking.tr.wf
+  have hfinalWF : D.venvCtors.WF :=
+    (D.installed.validCore H.context.checking.toValidCore).tr.wf
   have hparamsSize : stats.params.size = decl.nparams := by
     have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
       H.materialized.params
@@ -610,7 +513,7 @@ theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
     cidx := by simp [ctorInfo, AddInductive.constructorInfo]
     numParams := by
       simp [ctorInfo, familyInfo, infos, AddInductive.inductiveTypeInfos,
-        AddInductive.constructorInfo, hindicesSize, hparamsSize, R.core.nparams]
+        AddInductive.constructorInfo, hindicesSize, hparamsSize, core.nparams]
     levelParams := by
       simp [ctorInfo, familyInfo, infos, AddInductive.inductiveTypeInfos,
         AddInductive.constructorInfo, hindicesSize]
@@ -621,38 +524,42 @@ theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
   apply InductiveConstructorSemanticCoherenceAt.ofShapes C hfinalWF
     decl.types[familyIdx] decl.types[familyIdx].ctors[ctorIdx]
     hfamilyTargetLookup hctorTargetLookup
-  · exact Htype.header.uvars.trans R.core.uvars.symm
-  · exact Hctor.uvars.trans R.core.uvars.symm
+  · exact Htype.header.uvars.trans core.uvars.symm
+  · exact Hctor.uvars.trans core.uvars.symm
   · simp [familyInfo, infos, AddInductive.inductiveTypeInfos,
-      hindicesSize, R.core.uvars]
+      hindicesSize, core.uvars]
   · simp [familyInfo, infos, AddInductive.inductiveTypeInfos,
-      hindicesSize, R.core.nparams]
+      hindicesSize, core.nparams]
   · exact H.headers.typeShapes _ (List.getElem_mem htargetFamily)
-  · exact R.checked.formation.ctorShape
+  · exact Hchecked.checked.formation.ctorShape
       (List.getElem_mem htargetFamily) (List.getElem_mem htargetCtor)
-  · exact H.installed.le.trans R.declared.installed.le
-  · exact R.declared.installed.le
+  · exact H.installed.le.trans D.installed.le
+  · exact D.installed.le
 
 /-- The executable header and constructor folds identify every newly visible
 production inductive family with one exact source declaration position. -/
-theorem ConstructorPhasesResult.productionInductiveOrigins
+theorem DeclaredConstructorsCore.productionInductiveOrigins
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv) :
+    (D : DeclaredConstructorsCore H outEnv)
+    (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
+      isUnsafe decl H.context.venv D.venvCtors)
+    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+      H.headers.params stats indTypes c.lparams H.materialized.parameterScope) :
     ProductionInductiveOrigins c.env.constants outEnv.constants decl := by
   intro familyName familyInfo hfamily
   have hsourceWF := H.sourceContext.checking.tr.map_wf
   have hheaderWF := H.context.checking.tr.map_wf
-  have houtWF := R.declared.installed.targetMapWF hheaderWF
+  have houtWF := D.installed.targetMapWF hheaderWF
   have hfamilyEnv : outEnv.find? familyName =
       some (.inductInfo familyInfo) := by
     rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]
     exact hfamily
-  rcases R.declared.installed.entryOrigin hheaderWF hfamilyEnv with
+  rcases D.installed.entryOrigin hheaderWF hfamilyEnv with
       hheader | hctorOrigin
   · rcases H.installed.entryOrigin hsourceWF hheader with hold | hnew
     · left
@@ -678,7 +585,7 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
               List.length_map]
           _ = indTypes.toList.length :=
             (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-              R.core).symm
+              core).symm
           _ = indTypes.size := by simp
       have hparamsSize : stats.params.size = decl.nparams := by
         have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
@@ -691,9 +598,9 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
           simpa [infos] using hfamilyInfo
         simpa [hinfosSize] using this
       have htargetIdx : familyIdx < decl.types.length := by
-        rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
+        rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length core]
         simpa using hfamilyIdx
-      have Htype := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
+      have Htype := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt core
         familyIdx (by simpa using hfamilyIdx) htargetIdx
       have hfamilyInfoExact : familyInfo = infos[familyIdx] := by
         rw [← hfamilyInfoEq]
@@ -727,15 +634,15 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
           _ = decl.types.map (fun type => type.name) := by
             apply List.ext_getElem
             · simpa using
-                Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
+                Lean4Lean.VerifyInductive.TrInductDeclCore.types_length core
             · intro i hsource htarget
               simp only [List.getElem_map]
-              exact (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
+              exact (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt core
                 i (by simpa using hsource) (by simpa using htarget)).header.name.symm
       · simp [hfamilyInfoExact, infos,
-          AddInductive.inductiveTypeInfos, R.core.uvars]
+          AddInductive.inductiveTypeInfos, core.uvars]
       · simp [hfamilyInfoExact, infos,
-          AddInductive.inductiveTypeInfos, R.core.nparams]
+          AddInductive.inductiveTypeInfos, core.nparams]
       · have hindex : stats.nindices[familyIdx]? =
             some decl.types[familyIdx].numIndices := by
           rw [← Array.getElem?_toList, H.materialized.indices]
@@ -755,7 +662,7 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
           AddInductive.inductiveTypeInfos] using
           Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Htype
       · simp [hfamilyInfoExact, infos,
-          AddInductive.inductiveTypeInfos, R.core.isUnsafe]
+          AddInductive.inductiveTypeInfos, core.isUnsafe]
       · intro ctorIdx htargetCtor
         have hsourceCtor : ctorIdx < indTypes[familyIdx].ctors.length := by
           have hbound := htargetCtor
@@ -763,7 +670,7 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
           simpa using hbound
         have Hctor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt Htype
           ctorIdx hsourceCtor htargetCtor
-        rcases R.installedConstructorSemanticCoherenceAt familyIdx hfamilyIdx
+        rcases D.installedConstructorSemanticCoherenceAt core Hchecked familyIdx hfamilyIdx
             ctorIdx hsourceCtor with
           ⟨installedInfo, hi, hinstalledName, hinstalledCtors,
             hinstalledLookup, ⟨C⟩⟩
@@ -790,13 +697,13 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
         let sourceCtor := sourceFamily.ctors[ctorIdx]
         let ctorInfo := AddInductive.constructorInfo stats c.lparams isUnsafe
           sourceFamily ctorIdx sourceCtor
-        rcases R.declared.sourceAligned.findAt
+        rcases D.sourceAligned.findAt
             (owner := sourceFamily) (List.getElem_mem hfamilyIdx)
             ctorIdx (by simpa [sourceFamily] using hsourceCtor) with
           ⟨ctorValue, hctorEntry⟩
         have hctorLookupExact :
             outEnv.find? ctorInfo.name = some (.ctorInfo ctorInfo) :=
-          R.declared.installed.findEntry H.context.checking.tr.map_wf hctorEntry
+          D.installed.findEntry H.context.checking.tr.map_wf hctorEntry
         have hctorNameExact :
             familyInfo.ctors[ctorIdx] = ctorInfo.name := by
           simp [ctorInfo, sourceCtor, sourceFamily, hinstalledCtors,
@@ -831,7 +738,7 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
               C.info.numParams = familyInfo.numParams := C.numParams
               _ = decl.nparams := by
                 simp [hfamilyInfoExact, infos,
-                  AddInductive.inductiveTypeInfos, R.core.nparams]
+                  AddInductive.inductiveTypeInfos, core.nparams]
           numFields := by
             rw [hctorInfoExact]
             calc
@@ -844,6 +751,22 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
                     decl.nparams := by
                 rw [hparamsSize]
                 rfl
+          numFields_forallArity := by
+            rw [hctorInfoExact]
+            rcases Hchecked.parameterPrefixes.spines familyIdx hfamilyIdx ctorIdx
+              hsourceCtor with ⟨k, hspine⟩
+            calc
+              ctorInfo.numFields =
+                  AddInductive.constructorArity sourceCtor.type -
+                    stats.params.size :=
+                AddInductive.constructorInfo_numFields stats c.lparams
+                  isUnsafe sourceFamily ctorIdx sourceCtor
+              _ = k - decl.nparams := by
+                rw [hspine.constructorArity, hparamsSize]
+              _ = (decl.types[familyIdx].ctors[ctorIdx]).type.forallArity -
+                    decl.nparams := by
+                rw [checkPositivityStep.TrExprS.forallArity_of_spine hspine
+                  Hctor.type]
           levelParamsExact := C.levelParams
           levelParams := by
             calc
@@ -851,45 +774,49 @@ theorem ConstructorPhasesResult.productionInductiveOrigins
                 congrArg List.length C.levelParams
               _ = decl.uvars := by
                 simp [hfamilyInfoExact, infos,
-                  AddInductive.inductiveTypeInfos, R.core.uvars]
+                  AddInductive.inductiveTypeInfos, core.uvars]
           isUnsafe := by
             calc
               C.info.isUnsafe = familyInfo.isUnsafe := C.isUnsafe
               _ = decl.isUnsafe := by
                 simp [hfamilyInfoExact, infos,
-                  AddInductive.inductiveTypeInfos, R.core.isUnsafe] }⟩
+                  AddInductive.inductiveTypeInfos, core.isUnsafe] }⟩
   · rcases hctorOrigin with ⟨entry, hentry, _hname, hvalue⟩
-    exact False.elim (R.declared.nonInductive entry hentry familyInfo
+    exact False.elim (D.nonInductive entry hentry familyInfo
       hvalue.symm)
 
 /-- Header and constructor installation preserves the persistent invariant
 for old families and supplies it positionally for every newly declared
 family.  No name-based matching is used to construct the new witness; names
 only identify the unique production lookup after installation. -/
-theorem ConstructorPhasesResult.constructorSemantics
+theorem DeclaredConstructorsCore.constructorSemantics
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv)
+    (D : DeclaredConstructorsCore H outEnv)
+    (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
+      isUnsafe decl H.context.venv D.venvCtors)
+    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+      H.headers.params stats indTypes c.lparams H.materialized.parameterScope)
     (Hsource : InductiveConstructorsSemanticallyCoherent
       safety c.env sourceEnv) :
     InductiveConstructorsSemanticallyCoherent
-      safety outEnv R.declared.venvCtors := by
+      safety outEnv D.venvCtors := by
   intro familyName familyInfo hfamily hvisible ctorIdx hctor
-  rcases R.declared.installed.entryOrigin H.context.checking.tr.map_wf
+  rcases D.installed.entryOrigin H.context.checking.tr.map_wf
       hfamily with hheader | hctorOrigin
   · rcases H.installed.entryOrigin H.sourceContext.checking.tr.map_wf
         hheader with hold | hnew
     · rcases Hsource familyName familyInfo hold hvisible ctorIdx hctor with ⟨C⟩
       have hctorHeader := H.installed.preservesSourceFind
         H.sourceContext.checking.tr.map_wf C.lookup
-      have hctorFinal := R.declared.installed.preservesSourceFind
+      have hctorFinal := D.installed.preservesSourceFind
         H.context.checking.tr.map_wf hctorHeader
       exact ⟨C.rebaseProduction hctorFinal
-        (H.installed.le.trans R.declared.installed.le)⟩
+        (H.installed.le.trans D.installed.le)⟩
     · rcases hnew with ⟨entry, hentry, hentryName, hentryValue⟩
       rcases H.sourceAligned with ⟨numNested, Haligned⟩
       rcases Haligned.originInfo hentry with ⟨info, hinfo, hentryInfo⟩
@@ -910,7 +837,7 @@ theorem ConstructorPhasesResult.constructorSemantics
               List.length_map]
           _ = indTypes.toList.length :=
             (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-              R.core).symm
+              core).symm
           _ = indTypes.size := by simp
       have hinfosSize : infos.size = indTypes.size := by
         simp [infos, AddInductive.inductiveTypeInfos, hindicesSize]
@@ -924,7 +851,7 @@ theorem ConstructorPhasesResult.constructorSemantics
       have hsourceCtor : ctorIdx < indTypes[familyIdx].ctors.length := by
         simpa [hfamilyInfoExact, infos, AddInductive.inductiveTypeInfos]
           using hctor
-      rcases R.installedConstructorSemanticCoherenceAt familyIdx hfamilyIdx
+      rcases D.installedConstructorSemanticCoherenceAt core Hchecked familyIdx hfamilyIdx
           ctorIdx hsourceCtor with
         ⟨installedInfo, hi, hinstalledName, hinstalledCtors,
           hinstalledLookup, ⟨C⟩⟩
@@ -952,8 +879,313 @@ theorem ConstructorPhasesResult.constructorSemantics
       rw [hfamilyNameEq]
       exact ⟨by simpa only [Subsingleton.elim hi hctor] using C⟩
   · rcases hctorOrigin with ⟨entry, hentry, _hname, hvalue⟩
-    exact False.elim (R.declared.nonInductive entry hentry familyInfo
+    exact False.elim (D.nonInductive entry hentry familyInfo
       hvalue.symm)
+
+
+
+theorem AddInductive.declareConstructors.WF
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv)
+    (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
+      H.headers.params stats indTypes c.lparams H.materialized.parameterScope)
+    (hvisible : c.safety ≤
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hnprim : c.allowPrimitive = true →
+      ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
+      ¬ Kernel.Environment.primitives.contains ctor.name) :
+    (AddInductive.declareConstructors stats indTypes isUnsafe
+      { c with env := headerEnv }).WF fun outEnv =>
+        ∃ _ : DeclaredConstructorsResult H outEnv, True := by
+  let mkInfo := AddInductive.constructorInfo stats c.lparams isUnsafe
+  have Htranslated := Hchecked.checked.translated H.translation
+  have Hfold := AddConstants.ofConstructorTypes
+    (allowPrimitive := c.allowPrimitive) mkInfo H.context.checking.toValidCore
+    Htranslated VEnv.LE.rfl
+    (by intros; rfl) (by intros; rfl) (by intros; rfl)
+    (by
+      intro owner i ctor
+      simpa [mkInfo, AddInductive.constructorInfo] using hvisible)
+    hnprim
+  rw [AddInductive.declareConstructors, ← Array.foldlM_toList]
+  change (indTypes.toList.foldlM (init := headerEnv) fun
+      (env : Environment) (owner : InductiveType) => do
+    let (_, env) ← owner.ctors.foldlM (init := (0, env)) fun
+        (state : Nat × Environment) (ctor : Constructor) => do
+      let (cidx, env) := state
+      env.checkName ctor.name c.allowPrimitive
+      pure (cidx + 1, env.add (.ctorInfo (mkInfo owner cidx ctor)))
+    pure env).WF _
+  exact Hfold.mono fun outEnv Hout => by
+    rcases Hout with
+      ⟨venvCtors, entries, hvalues, Hinstalled, Haligned, hproduction,
+        hnind⟩
+    have hctorsAdded : H.context.venv.addConstVals decl.constructorConstants =
+        some venvCtors := by
+      simp only [VInductDecl.constructorConstants]
+      rw [← hvalues]
+      exact Hinstalled.abstract
+    let Htranslation : TrInductDeclConstructors H.context.venv c.lparams
+        indTypes.toList decl venvCtors := {
+      ctorsAdded := hctorsAdded
+      types := Htranslated }
+    let D : DeclaredConstructorsCore H outEnv := {
+      venvCtors := venvCtors
+      entries := entries
+      values := by simpa [VInductDecl.constructorConstants] using hvalues
+      installed := Hinstalled
+      sourceAligned := by simpa [mkInfo] using Haligned
+      production := hproduction
+      nonInductive := hnind
+      translation := Htranslation }
+    have core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
+        isUnsafe decl H.context.venv venvCtors :=
+      Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases H.translation
+        Htranslation
+    have hsourceWF : sourceEnv.WF := by
+      rw [← H.sourceContextVEnv]
+      exact H.sourceContext.checking.tr.wf
+    have hvalidCore : CheckingEnv.ValidCore c.safety outEnv venvCtors :=
+      Hinstalled.validCore H.context.checking.toValidCore
+    have hparams : decl.SourceParameterWF sourceEnv :=
+      (H.formation Hchecked).formationWF.sourceParameterWF
+    have hprojectedWF :
+        (venvCtors.addProjections decl.projectionEntries).WF := by
+      let block : VInductBlock := {
+        types := decl.typeConstants
+        ctors := decl.constructorConstants
+        recursors := []
+        rules := []
+        projections := decl.projectionEntries }
+      apply VEnv.WF.inductProjections
+          (base := sourceEnv) (envTypes := H.context.venv)
+          (decl := decl) (block := block)
+      · exact hsourceWF
+      · exact hvalidCore.tr.wf
+      · exact Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup core
+      · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core
+      · intro ctor hctor
+        change H.context.venv.IsType ctor.uvars [] ctor.type
+        rw [Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core ctor
+          hctor]
+        exact Hchecked.checked.types ctor hctor
+      · exact hparams
+      · exact hparams.rawCtorShape
+      · rfl
+      · rfl
+      · rfl
+      · exact core.typesAdded
+      · exact core.ctorsAdded
+    have hindicesSize : stats.nindices.size = indTypes.size := by
+      calc
+        stats.nindices.size = decl.types.length := by
+          rw [Array.size_eq_length_toList, H.materialized.indices,
+            List.length_map]
+        _ = indTypes.toList.length :=
+          (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length core).symm
+        _ = indTypes.size := by simp
+    have hheaderWF := H.context.checking.tr.map_wf
+    have hsourceMapWF := H.sourceContext.checking.tr.map_wf
+    have howners : ConstructorOwnersPresent outEnv := by
+      apply Hinstalled.constructorOwnersPresent hheaderWF
+        H.context.checking.constructorOwners
+      intro entry hentry info hinfo
+      rcases Haligned.ownerOfEntry hentry with
+        ⟨owner, howner, installedInfo, hentryInfo, hownerName⟩
+      have hinfoEq : info = installedInfo := by
+        rw [hentryInfo] at hinfo
+        exact (ConstantInfo.ctorInfo.inj hinfo).symm
+      subst info
+      rcases H.sourceAligned with ⟨numNested, Hheaders⟩
+      rcases inductiveTypeInfos_owner stats nparams indTypes numNested isUnsafe
+          c.lparams hindicesSize howner with ⟨ownerInfo, hownerInfo, hname⟩
+      rcases Hheaders.findInfo hownerInfo with ⟨value, hheaderEntry⟩
+      refine ⟨ownerInfo, ?_⟩
+      rw [hownerName, ← hname]
+      exact Hinstalled.preservesSourceFind hheaderWF
+        (H.installed.findEntry hsourceMapWF hheaderEntry)
+    have hpreserves : ∀ {name ci}, c.env.constants.find? name = some ci →
+        outEnv.constants.find? name = some ci := by
+      intro name ci hfind
+      have hfind' : c.env.find? name = some ci := by
+        rw [Lean.Kernel.Environment.find?, hsourceMapWF.find?'_eq_find?]
+        exact hfind
+      have hout := Hinstalled.preservesSourceFind hheaderWF
+        (H.installed.preservesSourceFind hsourceMapWF hfind')
+      rwa [Lean.Kernel.Environment.find?,
+        (Hinstalled.targetMapWF hheaderWF).find?'_eq_find?] at hout
+    have hreflect : ∀ {name info},
+        outEnv.constants.find? name = some (.ctorInfo info) →
+        c.env.constants.find? name = some (.ctorInfo info) ∨
+          c.env.constants.find? info.induct = none := by
+      intro name info hfind
+      have hfind' : outEnv.find? name = some (.ctorInfo info) := by
+        rw [Lean.Kernel.Environment.find?,
+          (Hinstalled.targetMapWF hheaderWF).find?'_eq_find?]
+        exact hfind
+      rcases Hinstalled.entryOrigin hheaderWF hfind' with hheader | hnew
+      · rcases H.installed.entryOrigin hsourceMapWF hheader with hold | hheaderEntry
+        · left
+          rwa [Lean.Kernel.Environment.find?, hsourceMapWF.find?'_eq_find?] at hold
+        · rcases hheaderEntry with ⟨entry, hentry, _, hvalue⟩
+          rcases H.sourceAligned with ⟨numNested, Hheaders⟩
+          rcases Hheaders.originInfo hentry with ⟨familyInfo, _, hentryInfo⟩
+          rw [hentryInfo] at hvalue
+          cases hvalue
+      · rcases hnew with ⟨entry, hentry, _, hvalue⟩
+        rcases Haligned.ownerOfEntry hentry with
+          ⟨owner, howner, installedInfo, hentryInfo, hownerName⟩
+        have hinfoEq : info = installedInfo := by
+          rw [hentryInfo] at hvalue
+          exact ConstantInfo.ctorInfo.inj hvalue
+        subst info
+        right
+        rcases H.sourceAligned with ⟨numNested, Hheaders⟩
+        rcases inductiveTypeInfos_owner stats nparams indTypes numNested
+            isUnsafe c.lparams hindicesSize howner with
+          ⟨ownerInfo, hownerInfo, hname⟩
+        rcases Hheaders.findInfo hownerInfo with ⟨value, hheaderEntry⟩
+        have hfresh := H.installed.entryFresh hsourceMapWF hheaderEntry
+        rw [hownerName, ← hname]
+        rwa [Lean.Kernel.Environment.find?, hsourceMapWF.find?'_eq_find?]
+          at hfresh
+    have htypeUvars : ∀ type ∈ decl.types, type.uvars = decl.uvars := by
+      intro type htype
+      rcases List.mem_iff_getElem.mp htype with ⟨i, hi, rfl⟩
+      have hsource : i < indTypes.toList.length := by
+        rw [Lean4Lean.VerifyInductive.TrInductDeclCore.types_length core]
+        exact hi
+      exact (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt core i hsource
+        hi).header.uvars.trans core.uvars.symm
+    have hregistry : ProjectionRegistryCoherent c.safety outEnv.constants
+        (venvCtors.addProjections decl.projectionEntries) :=
+      ProjectionRegistryCoherent.extendInductive
+        (by
+          rw [← H.sourceContextVEnv]
+          exact H.sourceContext.checking.projectionRegistry)
+        (D.productionInductiveOrigins core Hchecked)
+        hpreserves hreflect htypeUvars
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core)
+        core.typesAdded core.ctorsAdded VEnv.addProjections_le
+        (fun entry hmem => VEnv.addProjections_iff.mpr
+          (Or.inl ⟨entry, hmem, rfl, rfl⟩))
+    have hvalid : CheckingEnv.Valid c.safety outEnv
+        (venvCtors.addProjections decl.projectionEntries) :=
+      (hvalidCore.addProjections hprojectedWF).toValid howners hregistry
+    exact ⟨{
+      toDeclaredConstructorsCore := D
+      context := H.context.withEnv hvalid
+        (Hinstalled.le.trans VEnv.addProjections_le)
+      contextVEnv := rfl
+      contextMLCtx := rfl }, trivial⟩
+
+structure ConstructorPhasesResult
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv)
+    (outEnv : Environment) where
+  checked : CheckedConstructorCertificate sourceEnv decl H.context.venv
+    H.headers.params
+  parameterPrefixes : CheckedRecursorParameterPrefixes stats indTypes
+  constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
+    H.materialized.parameterScope stats decl indTypes
+  ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
+  declared : DeclaredConstructorsResult H outEnv
+  formation : FormationCertificate sourceEnv decl
+  core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
+    isUnsafe decl H.context.venv declared.venvCtors
+
+/-- The materialized header cache transported through both header and
+constructor installation, in the exact context where recursor generation
+starts. -/
+def ConstructorPhasesResult.materialized
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv) :
+    checkInductiveTypes.loopInd.MaterializedHeaderResult
+      R.declared.context.venv c.lparams R.declared.context.mlctx.vlctx
+      stats decl depth := by
+  have henv : H.context.venv ≤ R.declared.context.venv := by
+    rw [R.declared.contextVEnv]
+    exact R.declared.installed.le.trans VEnv.addProjections_le
+  let M := H.materialized.mono henv
+  exact {
+    headers := M.headers
+    commonLevel := M.commonLevel
+    levels := M.levels
+    levelParams := M.levelParams
+    uvars := M.uvars
+    consts := M.consts
+    indices := M.indices
+    params := by
+      simpa only [R.declared.contextMLCtx] using M.params
+    paramFVars := M.paramFVars
+    parameterScope := M.parameterScope
+    normalizedSources := M.normalizedSources
+    normalizedShapes := M.normalizedShapes
+    ambientScope := M.ambientScope
+    scopeDecomposition := by
+      simpa only [R.declared.contextMLCtx] using M.scopeDecomposition
+    ambientLength := M.ambientLength
+    cachedScope := M.cachedScope
+    runtimeScope := by
+      simpa only [R.declared.contextMLCtx] using M.runtimeScope
+    paramsContext := M.paramsContext
+    narrowParams := M.narrowParams }
+
+
+theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv)
+    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
+    (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
+    ∃ familyInfo : InductiveVal,
+      ∃ hi : ctorIdx < familyInfo.ctors.length,
+        familyInfo.name = indTypes[familyIdx].name ∧
+        familyInfo.ctors = indTypes[familyIdx].ctors.map (fun ctor => ctor.name) ∧
+        outEnv.find? familyInfo.name = some (.inductInfo familyInfo) ∧
+        Nonempty (InductiveConstructorSemanticCoherenceAt
+          outEnv R.declared.venvCtors familyInfo.name familyInfo ctorIdx hi) :=
+  R.declared.toDeclaredConstructorsCore.installedConstructorSemanticCoherenceAt
+    R.core ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩ familyIdx hfamily
+    ctorIdx hctor
+
+/-- The executable header and constructor folds identify every newly visible
+production inductive family with one exact source declaration position. -/
+theorem ConstructorPhasesResult.productionInductiveOrigins
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv) :
+    ProductionInductiveOrigins c.env.constants outEnv.constants decl :=
+  R.declared.toDeclaredConstructorsCore.productionInductiveOrigins R.core
+    ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩
+
+theorem ConstructorPhasesResult.constructorSemantics
+    {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv}
+    (R : ConstructorPhasesResult H outEnv)
+    (Hsource : InductiveConstructorsSemanticallyCoherent
+      safety c.env sourceEnv) :
+    InductiveConstructorsSemanticallyCoherent
+      safety outEnv R.declared.venvCtors :=
+  R.declared.toDeclaredConstructorsCore.constructorSemantics R.core
+    ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩ Hsource
 
 /-- Select the exact checked common-parameter tail for a production
 constructor.  This is the concrete half of the constructor/recursor bridge;
@@ -1050,7 +1282,7 @@ theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
   have hheaderLE : H.context.venv ≤ Hbase.venv := by
     change H.context.venv ≤ R.declared.context.venv
     rw [R.declared.contextVEnv]
-    exact R.declared.installed.le
+    exact R.declared.installed.le.trans VEnv.addProjections_le
   have Hreplay := R.checkedRecursorConstructorTailAt
     familyIdx hfamily ctorIdx hctor
   have Hreplay' : CheckedConstructorTailReplayAt H.context.venv c.lparams
@@ -1091,8 +1323,9 @@ theorem ConstructorPhasesResult.checkedConstructorPrefixSeedAt
       change R.declared.context.venv.constants ctorVal.name =
         some ctorVal.toVConstant
       rw [R.declared.contextVEnv]
-      apply VEnv.addConstVals_get R.declared.translation.ctorsAdded
-      exact hctorConstantMem
+      exact VEnv.addProjections_le.constants
+        (VEnv.addConstVals_get R.declared.translation.ctorsAdded
+          hctorConstantMem)
     simpa [Rbase] using hlookup
   let levels := recursorDeclarationAbstractLevels c.lparams Helim
   have hlevelsWF : ∀ level ∈ levels,
@@ -1306,7 +1539,8 @@ noncomputable def ConstructorPhasesResult.checkedRecursorHeaderAt
   have HsourcePackage : Nonempty SourcePackage := by
     dsimp [SourcePackage]
     rw [R.declared.contextVEnv]
-    exact ⟨⟨Hsource, HsourceUses⟩⟩
+    exact ⟨⟨Hsource.mono VEnv.addProjections_le,
+      HsourceUses.mono VEnv.addProjections_le⟩⟩
   let sourcePackage := Classical.choice HsourcePackage
   let RecursorSourcePackage := ∀ elimLevel
       (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel),
@@ -1323,8 +1557,9 @@ noncomputable def ConstructorPhasesResult.checkedRecursorHeaderAt
     rw [R.declared.contextVEnv]
     cases elimLevel with
     | zero =>
-        exact ⟨decl.types[familyIdx].type, Hsource.type, HsourceUses,
-          rfl⟩
+        exact ⟨decl.types[familyIdx].type,
+          Hsource.type.mono VEnv.addProjections_le,
+          HsourceUses.mono VEnv.addProjections_le, rfl⟩
     | param fresh =>
         have hsourceWF : sourceEnv.WF := by
           simpa only [H.sourceContextVEnv] using
@@ -1337,7 +1572,8 @@ noncomputable def ConstructorPhasesResult.checkedRecursorHeaderAt
               R.core hlookup)
         exact ⟨decl.types[familyIdx].type.instL
             (VLevel.prependShift c.lparams.length),
-          Hshifted.mono hsourceLE, HshiftedUses.mono hsourceLE,
+          Hshifted.mono (hsourceLE.trans VEnv.addProjections_le),
+          HshiftedUses.mono (hsourceLE.trans VEnv.addProjections_le),
           rfl⟩
     | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
         simp [AddInductive.AdmissibleElimLevel] at Helim
@@ -1362,7 +1598,8 @@ noncomputable def ConstructorPhasesResult.checkedRecursorHeaderAt
       exact List.mem_map.mpr
         ⟨decl.types[familyIdx], List.getElem_mem htarget, rfl⟩
     rw [R.declared.contextVEnv]
-    exact R.declared.installed.le.constants hheaderLookup
+    exact (R.declared.installed.le.trans VEnv.addProjections_le).constants
+      hheaderLookup
 
 /-- Enter the independently verified first mutual recursor pass from the
 constructor-phase result.  The continuation receives the complete structural
@@ -1728,13 +1965,14 @@ theorem AddInductive.constructorPhases.WF
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hnprim : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
-      ¬ Kernel.Environment.primitives.contains ctor.name) :
+      ¬ Kernel.Environment.primitives.contains ctor.name)
+    (hlparams : c.lparams.Nodup) :
     ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
       AddInductive.declareConstructors stats indTypes isUnsafe)
       { c with env := headerEnv }).WF fun outEnv =>
         ∃ _ : ConstructorPhasesResult H outEnv, True := by
   have Hcheck := AddInductive.checkConstructors.checkedWF H hconsume
-    hlit hunsafe
+    hlit hunsafe hlparams
   have Howners := AddInductive.checkConstructors.ownerNormalFormsWF H
     hconsume hlit
   have HcheckBoth :
@@ -1749,7 +1987,7 @@ theorem AddInductive.constructorPhases.WF
   exact HcheckBoth.bind fun _ HcheckedBoth =>
     let Hchecked := HcheckedBoth.1
     let HownerNormalForms := HcheckedBoth.2
-    (AddInductive.declareConstructors.WF H Hchecked.checked hvisible hnprim).mono
+    (AddInductive.declareConstructors.WF H Hchecked hvisible hnprim).mono
       fun outEnv Hdeclared => by
         rcases Hdeclared with ⟨Hdeclared, _⟩
         exact ⟨{
@@ -1786,7 +2024,8 @@ theorem AddInductive.formationCore.headersWF
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
-      ¬ Kernel.Environment.primitives.contains ctor.name) :
+      ¬ Kernel.Environment.primitives.contains ctor.name)
+    (hlparams : c.lparams.Nodup) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -1802,7 +2041,7 @@ theorem AddInductive.formationCore.headersWF
     rcases Hresult with ⟨Hheaders, _⟩
     have Hphases := AddInductive.constructorPhases.WF Hheaders
       hconsume (Hheaders.installed.availableLiteralDisjoint hlit)
-      hunsafe hvisible hnprimCtors
+      hunsafe hvisible hnprimCtors hlparams
     exact Hphases.mono fun outEnv Hresult => by
       rcases Hresult with ⟨Hphases, _⟩
       exact ⟨headerEnv, Hheaders, Hphases, trivial⟩
@@ -1827,7 +2066,8 @@ theorem AddInductive.formationPrefix.headersWF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hc.venv stats.indConsts)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hlparams : c.lparams.Nodup) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun outEnv =>
         AddInductive.withEnv outEnv
@@ -1839,6 +2079,7 @@ theorem AddInductive.formationPrefix.headersWF
     rcases hresult with ⟨Hstaged, _⟩
     have Hconstructors := AddInductive.checkConstructors.headersWF Hstaged
       hconsume (Hstaged.installed.availableLiteralDisjoint hlit) hunsafe
+      hlparams
     exact Hconstructors
 
 /-- End-to-end refinement of `declareInductiveTypes`: a successful executable
@@ -1888,7 +2129,7 @@ theorem AddInductive.declareInductiveTypes.WF
     refine ⟨{
       entries := List.zip
         (infos.toList.map (fun info => .inductInfo info)) decl.typeConstants
-      context := Hc.withEnv (Hinstalled.valid Hc.checking) Hinstalled.le
+      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking) Hinstalled.le
       headers := Hmaterialized.headers
       typesInstalled := htypesAdded
       sourceTypes := Htypes
@@ -1917,13 +2158,21 @@ def DeclaredTypesResult.formation
       rw [← H.headerParams]
       exact H.materialized.paramsContext)
   constructors := Hchecked.checked.formation
+  rawShapes := Hchecked.rawShapes H.context.checking.tr.wf
+    (Lean4Lean.List.Forall₂.imp
+      (fun _ _ h => Lean4Lean.VerifyInductive.TrInductiveType.headers h)
+      H.sourceTypes)
+    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf)
+    (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+      H.materialized).params_size
 
 theorem AddInductive.checkConstructors.WF
     (H : DeclaredTypesResult c stats decl depth sourceEnv indTypes outEnv)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       H.context.venv stats.indConsts)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hlparams : c.lparams.Nodup) :
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         Nonempty (FormationCertificate sourceEnv decl) := by
@@ -1935,7 +2184,7 @@ theorem AddInductive.checkConstructors.WF
       H.sourceTypes
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
     H.context Hheaders H.typesInstalled H.materialized H.headerParams
-    hconsume hlit hunsafe H.materialized.universeBound
+    hconsume hlit hunsafe H.materialized.universeBound hlparams
   rw [AddInductive.checkConstructors]
   change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
     AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
@@ -1967,7 +2216,8 @@ theorem AddInductive.formationPrefix.WF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hc.venv stats.indConsts)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true) :
+    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
+    (hlparams : c.lparams.Nodup) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun outEnv =>
         AddInductive.withEnv outEnv
@@ -1975,7 +2225,7 @@ theorem AddInductive.formationPrefix.WF
       fun _ => Nonempty (FormationCertificate Hc.venv decl) := by
   exact AddInductive.formationPrefix.headersWF Hc
     (Lean4Lean.VerifyInductive.TrInductDeclCore.headers Hdecl)
-    Hmaterialized hvisible hnprim hconsume hlit hunsafe
+    Hmaterialized hvisible hnprim hconsume hlit hunsafe hlparams
 
 /-- Three-stage installation certificate matching the executable order:
 mutual headers, constructors, then recursors. Reduction equations are not
@@ -2009,13 +2259,30 @@ def StagedBlock.sf_mono
   projectedWF := H.projectedWF
   recursorsAdded := H.recursorsAdded.sf_mono hsafety
 
+/-- The staged installation preserves the local checking invariants. -/
+theorem StagedBlock.validCore
+    (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv)
+    (hvalid : CheckingEnv.ValidCore safety env venv) :
+    CheckingEnv.ValidCore safety outEnv outVEnv := by
+  have htypes := H.typesAdded.validCore hvalid
+  have hctors := H.ctorsAdded.validCore htypes
+  exact H.recursorsAdded.validCore (hctors.addProjections H.projectedWF)
+
+/-- The staged installation preserves the full checking invariant once the
+constructor-complete projected environment is known to satisfy it and the
+recursor batch contains no constructors. -/
 theorem StagedBlock.valid
     (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv)
-    (hvalid : CheckingEnv.Valid safety env venv) :
+    (hvalid : CheckingEnv.Valid safety env venv)
+    (howners : ConstructorOwnersPresent H.envCtors)
+    (hregistry : ProjectionRegistryCoherent safety H.envCtors.constants
+      (H.venvCtors.addProjections projections))
+    (hrecursors : ∀ entry ∈ recursors, ∀ info : ConstructorVal,
+      entry.1 ≠ .ctorInfo info) :
     CheckingEnv.Valid safety outEnv outVEnv := by
-  have htypes := H.typesAdded.valid hvalid
-  have hctors := H.ctorsAdded.valid htypes
-  exact H.recursorsAdded.valid (hctors.addProjections H.projectedWF)
+  have hcore := (H.ctorsAdded.validCore
+    (H.typesAdded.validCore hvalid.toValidCore)).addProjections H.projectedWF
+  exact H.recursorsAdded.valid (hcore.toValid howners hregistry) hrecursors
 
 theorem StagedBlock.abstract_types
     (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv) :
@@ -2211,12 +2478,12 @@ theorem BlockCertificate.hasPrimitives
 /-- Validate the completed ordinary staging trace from its source.  The
 projection-stage well-formedness proof is part of the trace, so callers do
 not have to reconstruct it from a separate compilation witness. -/
-theorem BlockCertificate.valid
+theorem BlockCertificate.validCore
     (H : BlockCertificate safety env venv types ctors recursors
       rules outEnv outVEnv)
-    (Hvalid : CheckingEnv.Valid safety env venv) :
-    CheckingEnv.Valid safety outEnv outVEnv :=
-  H.staged.valid Hvalid
+    (Hvalid : CheckingEnv.ValidCore safety env venv) :
+    CheckingEnv.ValidCore safety outEnv outVEnv :=
+  H.staged.validCore Hvalid
 
 /-- Replay all three executable installation stages in a larger abstract
 environment, retaining a complete block certificate rather than only its
@@ -2235,12 +2502,20 @@ theorem BlockCertificate.rebaseCertificate
       ∃ Hlarger : BlockCertificate safety prodEnv largerBase types ctors
         recursors rules outEnv largerOutBase,
       outBase ≤ largerOutBase ∧ Hlarger.projections = H.projections := by
-  rcases H.staged.typesAdded.rebase Hvalid hsafety hbase with
+  rcases H.staged.typesAdded.rebase Hvalid.toValidCore hsafety hbase with
     ⟨largerTypes, Htypes, htypesLE⟩
-  have HvalidTypes := Htypes.valid Hvalid
+  have HvalidTypes := Htypes.validCore Hvalid.toValidCore
   rcases H.staged.ctorsAdded.rebase HvalidTypes hsafety htypesLE with
     ⟨largerCtors, Hctors, hctorsLE⟩
-  have HvalidCtors := Hctors.valid HvalidTypes
+  have HvalidCtors := Hctors.validCore HvalidTypes
+  have hlargerTypes : largerBase.addConstVals decl.typeConstants =
+      some largerTypes := by
+    rw [← Hcompile.types]
+    exact Htypes.abstract
+  have hparams : decl.SourceParameterWF largerBase := by
+    rcases Hdecl.1.originalConstructors with ⟨envTypes, htypes, _⟩
+    exact (Hdecl.sourceParameterWF htypes).mono_of_addConstVals hbase
+      hlargerTypes
   have hprojectedWF :
       (largerCtors.addProjections H.projections).WF := by
     apply VEnv.WF.inductProjections
@@ -2250,12 +2525,18 @@ theorem BlockCertificate.rebaseCertificate
     · exact HvalidCtors.tr.wf
     · exact Hcompile.sourceNames
     · exact Hdecl.1.2.2.2.1
+    · rcases Hdecl.1.originalConstructors with ⟨envTypes, htypes, hwf⟩
+      intro ctor hctor
+      exact (hwf ctor hctor).mono
+        (VEnv.addConstVals_mono hbase htypes hlargerTypes)
+    · exact hparams
+    · exact hparams.rawCtorShape
     · exact Hcompile.types
     · exact Hcompile.ctors
     · exact Hcompile.projections
     · exact Htypes.abstract
     · exact Hctors.abstract
-  have HvalidProjected : CheckingEnv.Valid safety H.staged.envCtors
+  have HvalidProjected : CheckingEnv.ValidCore safety H.staged.envCtors
       (largerCtors.addProjections H.projections) :=
     HvalidCtors.addProjections hprojectedWF
   have hctorsProjected :
@@ -2322,7 +2603,7 @@ theorem VInductDecl.WF.rebaseOfBlock
   | ordinary Hordinary =>
     rcases Hordinary with
       ⟨params, resultLevel, formationTypes, hformationTypes, htypeShapes,
-        hctorShapes⟩
+        hctorShapes, hraw⟩
     have hformationTypesLE : formationTypes ≤ largerTypes :=
       VEnv.addConstVals_mono hbase hformationTypes hlargerTypes'
     have Hformation : decl.FormationWF largerBase :=
@@ -2333,7 +2614,7 @@ theorem VInductDecl.WF.rebaseOfBlock
         fun type htype ctor hctor =>
           let Hctor := hctorShapes type htype ctor hctor
           ⟨Hctor.1.mono hformationTypesLE,
-            Hctor.2.mono hformationTypesLE⟩⟩
+            Hctor.2.mono hformationTypesLE⟩, hraw⟩
     exact ⟨Hsource, .ordinary Hformation⟩
   | nested Hnested hformationBase =>
     exact ⟨Hsource, .nested Hnested (hformationBase.trans hbase)⟩
@@ -2770,7 +3051,7 @@ theorem BlockCertificate.extendSafeExact
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-      wf.typeAnnotationWrappers
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
   rcases H.rebaseAddInductSafe (valid .unsafe)
       (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins with
     ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProj⟩
@@ -2814,7 +3095,7 @@ theorem BlockCertificate.extendSafeExact
   have hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [] :=
-    (Hsafe.valid (valid .safe)).safePrimitives
+    (Hsafe.validCore (valid .safe).toValidCore).safePrimitives
   have hsemantics : ∀ safety,
       InductiveConstructorsSemanticallyCoherent safety outEnv
         (next safety) := by
@@ -2929,7 +3210,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
       (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
       (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.typeAnnotationWrappers
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
   have hiddenPartial : ∀ entry ∈ types ++ ctors ++ recursors,
       ¬ DefinitionSafety.partial ≤ entry.1.safety := by
     intro entry hentry
@@ -3011,7 +3292,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     | .partial => hiddenProvenance .partial (by decide)
     | .safe => hiddenProvenance .safe (by decide)
   rcases H.extendUnsafeExact wf htrUnsafe htrPartial htrSafe
-      (H.valid validUnsafe).safePrimitives hclosed hconstructorOwners
+      (H.validCore validUnsafe.toValidCore).safePrimitives hclosed hconstructorOwners
       hconstructorSemantics hinductiveProvenance hheadersUnsafe with
     ⟨ves', wf', hle, hexact⟩
   refine ⟨ves', wf', hle, ?_⟩

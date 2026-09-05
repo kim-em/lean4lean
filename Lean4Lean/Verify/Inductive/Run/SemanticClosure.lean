@@ -182,7 +182,8 @@ theorem AddInductive.semanticFormationCoreClosedWF
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
-      ¬ Kernel.Environment.primitives.contains ctor.name) :
+      ¬ Kernel.Environment.primitives.contains ctor.name)
+    (hlparams : c.lparams.Nodup) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -196,7 +197,7 @@ theorem AddInductive.semanticFormationCoreClosedWF
   have Hformation := AddInductive.semanticFormationCoreWF Hsemantic
     hlevels hlevelParams hindicesSize hindices hconsts hparams
     hcommonParams Hcache Hsuffix Hambient hcommon hvisible hnprimTypes
-    hconsume hnprimCtors
+    hconsume hnprimCtors hlparams
   intro outEnv hout
   rcases Hformation outEnv hout with ⟨decl, headerEnv, Hheaders, R, _⟩
   have hclosedHeaders := Hheaders.closesMutuals Hclosed
