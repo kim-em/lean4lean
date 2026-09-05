@@ -30,10 +30,10 @@ structure RecursorRuleAlignment (venv : VEnv) (rec : RecursorVal) (rule : Recurs
     Nonempty (VConstructorShape venv rule.ctor ctorUvars cnparams rule.nfields rec.numIndices
       rec.getMajorInduct)
 
-/-- The recursor `rec` has the recursor shape, its major inductive is rigid, and every rule is a
-stored equation. -/
-def RecursorAlignment (venv : VEnv) (rec : RecursorVal) : Prop :=
-  ∃ indLevels cnparams, cnparams ≤ rec.numParams ∧
+/-- The recursor `rec` has the recursor shape with `cnparams` constructor parameters, its major
+inductive is rigid, and every rule is a stored equation. -/
+def RecursorAlignment (venv : VEnv) (rec : RecursorVal) (cnparams : Nat) : Prop :=
+  ∃ indLevels, cnparams ≤ rec.numParams ∧
     Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams cnparams
       rec.numMotives rec.numMinors rec.numIndices rec.getMajorInduct indLevels) ∧
     venv.Rigid rec.getMajorInduct ∧
@@ -57,7 +57,7 @@ def KLikeAlignment (venv : VEnv) (rec : RecursorVal) (ctorName : Name) : Prop :=
 /-- Every visible recursor of the constant map is aligned with the abstract environment. -/
 def RecursorRulesCoherent (safety : DefinitionSafety) (C : ConstMap) (venv : VEnv) : Prop :=
   ∀ {name rec}, C.find? name = some (.recInfo rec) → safety ≤ (ConstantInfo.recInfo rec).safety →
-    RecursorAlignment venv rec ∧
+    RecursorAlignment venv rec rec.numParams ∧
     (rec.k = true → ∃ info ctorName, C.find? rec.getMajorInduct = some (.inductInfo info) ∧
       info.ctors = [ctorName] ∧ KLikeAlignment venv rec ctorName)
 

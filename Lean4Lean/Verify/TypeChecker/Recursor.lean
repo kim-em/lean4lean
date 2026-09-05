@@ -330,6 +330,166 @@ theorem quotReduceRec.WF (he : c.TrExprS e e') (hq : QuotCoherent c.venv) :
     exact quotReduceRecCont.ind.WF he hfn hq
   exact .pure nofun
 
+theorem forall₂_take {R : α → β → Prop} {l₁ : List α} {l₂ : List β} (h : List.Forall₂ R l₁ l₂)
+    (n : Nat) : List.Forall₂ R (l₁.take n) (l₂.take n) := by
+  induction h generalizing n with
+  | nil => simp
+  | cons h _ ih => cases n with
+    | zero => simp
+    | succ n => exact .cons h (ih n)
+
+/-- The final phase of inductive recursor reduction refines the stored rule, given a converted
+major premise that translates to something definitionally equal to the original one. -/
+theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List Level}
+    {ls' : List VLevel} {args' : List VExpr}
+    (he : c.TrExprS e e') (hfn : e.getAppFn = .const recFn ls)
+    (hinfo : c.env.find? recFn = some (.recInfo info))
+    (hls : ls.mapM (VLevel.ofLevel c.lparams) = some ls')
+    (hargs : List.Forall₂ c.TrExprS e.getAppArgsList args')
+    (hfull : c.TrExprS e (VExpr.mkApps (.const recFn ls') args'))
+    (hmaj : info.getMajorIdx < e.getAppArgs.size)
+    {major₂ : Expr} (hfv : c.FVarsBelow e.getAppArgs[info.getMajorIdx] major₂)
+    (hm : c.TrExpr major₂ (args'[info.getMajorIdx]'(by
+      rw [← Lean4Lean.List.Forall₂.length_eq hargs, ← Expr.getAppArgs_toList]; simpa using hmaj))) :
+    ∀ r, inductiveReduceRecTail info ls e.getAppArgs major₂ = some r →
+      c.FVarsBelow e r ∧ c.TrExpr r e' := by
+  intro r hr
+  have ⟨hsize, hget⟩ := AppStack.argsGet hargs
+  -- the rule for the constructor at the head of the major premise
+  unfold inductiveReduceRecTail at hr
+  simp only [bind, Option.bind] at hr
+  split at hr <;> [rename_i rule hrule; cases hr]
+  unfold getRecRuleFor at hrule
+  split at hrule <;> [rename_i fn lsc hmfn; cases hrule]
+  have hmem := List.mem_of_find?_eq_some hrule
+  have hctor : rule.ctor = fn := by simpa using List.find?_some hrule
+  subst hctor
+  split at hr <;> [cases hr; rename_i hsizeM]
+  split at hr <;> [cases hr; rename_i hlsLen]
+  simp only [bne_iff_ne, ne_eq, Classical.not_not] at hsizeM hlsLen
+  simp only [RecursorVal.getFirstIndexIdx] at hr
+  -- the environment facts
+  have hceq := he.uniq c.Ewf (.refl c.Ewf c.Δwf) hfull
+  have hfullS : c.TrExprS ((Expr.const recFn ls).mkAppList e.getAppArgsList)
+      (VExpr.mkApps (.const recFn ls') args') := by
+    rwa [← hfn, e.mkAppList_getAppArgsList]
+  have ⟨_, stk⟩ := AppStack.build hfullS
+  have .const hlc _ hlen := stk.tr
+  obtain ⟨hname, hsafe, hlpLen, -⟩ := c.trenv.find?_uniq hinfo hlc
+  have hname' : info.name = recFn := hname
+  subst hname'
+  have hfindC : c.env.constants.find? info.name = some (.recInfo info) := by
+    rwa [← c.trenv.map_wf.find?'_eq_find?]
+  obtain ⟨⟨indLevels, hcnp, ⟨Hrec⟩, hrigid, hrules⟩, -⟩ := c.recursorRules hfindC hsafe
+  obtain ⟨df, ⟨Hrule⟩, hrhs, ctorUvars, hIL, ⟨Hctor⟩⟩ := hrules rule hmem
+  have hls'len : ls'.length = info.levelParams.length :=
+    (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hls)).symm.trans hlsLen
+  have hmaj' : info.numParams + info.numMotives + info.numMinors + info.numIndices <
+      args'.length := by
+    simpa [RecursorVal.getMajorIdx, hsize] using hmaj
+  have hls'w := VLevel.WF.of_mapM_ofLevel hls
+  -- the converted major premise as a constructor application
+  have ⟨m₂', hm₂, hmdefeq⟩ := hm
+  have hm₂S : c.TrExprS ((Expr.const rule.ctor lsc).mkAppList major₂.getAppArgsList) m₂' := by
+    rwa [← hmfn, major₂.mkAppList_getAppArgsList]
+  have ⟨_, mstk⟩ := AppStack.build hm₂S
+  obtain ⟨lsc', MA', hlsc, rfl, hMargs, hMfull⟩ := mstk.constantApplication
+  have ⟨hMsize, hMget⟩ := AppStack.argsGet hMargs
+  have .const hlcc _ hlenc := mstk.tr
+  rw [Hctor.const] at hlcc; cases hlcc
+  have hlsc'len : lsc'.length = ctorUvars :=
+    (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hlsc)).symm.trans hlenc
+  have hlsc'w := VLevel.WF.of_mapM_ofLevel hlsc
+  have hmajor : c.IsDefEqU (args'[info.getMajorIdx]'(by omega))
+      (VExpr.mkApps (.const rule.ctor lsc') (MA'.take info.numParams ++ MA'.drop info.numParams)) := by
+    rw [List.take_append_drop]
+    exact hmdefeq.symm.trans c.Ewf c.Δwf (hm₂S.uniq c.Ewf (.refl c.Ewf c.Δwf) hMfull)
+  have hMlen : MA'.length = info.numParams + rule.nfields := by rw [← hMsize]; exact hsizeM
+  -- the abstract reduction
+  have hsplit : args' = args'.take info.getMajorIdx ++
+      (args'[info.getMajorIdx]'(by omega)) :: args'.drop (info.getMajorIdx + 1) := by
+    rw [← List.drop_eq_getElem_cons (by omega), List.take_append_drop]
+  have hwf : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx
+      (VExpr.mkApps (.const info.name ls') (args'.take info.getMajorIdx ++
+        (args'[info.getMajorIdx]'(by omega)) :: args'.drop (info.getMajorIdx + 1))) := by
+    rw [← hsplit]; exact hfull.wf c.Ewf c.Δwf
+  have hiota := Hrule.iota c.Ewf c.Δwf.toCtx Hrec hcnp Hctor hrigid hIL hls'w hls'len
+    (pre := args'.take info.getMajorIdx)
+    (by simp [RecursorVal.getMajorIdx]; omega) hwf hlsc'len hlsc'w
+    (by simp; omega) (by simp; omega) hmajor
+  rw [← hsplit, List.take_take, Nat.min_eq_left (by simp [RecursorVal.getMajorIdx])] at hiota
+  -- the instantiated rule right-hand side
+  have hrhs₀ := hrhs.instL c.Ewf (by trivial) hls hlsLen.symm
+  have hrhs₀' := hrhs₀.weakFV c.Ewf (.from_nil c.mlctx.noBV) c.Δwf
+  have hclosed : (df.rhs.instL ls').ClosedN 0 :=
+    VExpr.WF.closedN c.Ewf.ordered (hrhs₀.wf (Δ := [])) trivial
+  rw [hclosed.liftN_eq (Nat.zero_le _)] at hrhs₀'
+  have ⟨r₀', hr₀, hr₀defeq⟩ := hrhs₀'
+  -- the executable result as an application spine
+  generalize hfiiE : info.numParams + info.numMotives + info.numMinors = fii at *
+  have hfii : fii ≤ e.getAppArgs.size := by
+    simp [RecursorVal.getMajorIdx] at hmaj; omega
+  have hr1 : mkAppRange (rule.rhs.instantiateLevelParams info.levelParams ls) 0
+      fii e.getAppArgs =
+      (rule.rhs.instantiateLevelParams info.levelParams ls).mkAppList
+        (e.getAppArgsList.take fii) := by
+    refine Expr.mkAppRange_eq (l₁ := []) (l₃ := e.getAppArgsList.drop fii)
+      ?_ rfl ?_
+    · rw [Expr.getAppArgs_toList, List.nil_append, List.take_append_drop]
+    · rw [List.nil_append, List.length_take, ← Expr.getAppArgs_toList, Array.length_toList,
+        Nat.min_eq_left hfii]
+  have hr2 : ∀ f, mkAppRange f (major₂.getAppArgs.size - rule.nfields) major₂.getAppArgs.size
+      major₂.getAppArgs = f.mkAppList (major₂.getAppArgsList.drop info.numParams) := by
+    intro f
+    rw [mkAppRange_suffix_eq (by omega)]
+    congr 2; omega
+  generalize hA : e.getAppArgsList.take fii ++
+    major₂.getAppArgsList.drop info.numParams ++ e.getAppArgsList.drop (info.getMajorIdx + 1) = A
+  generalize hA' : args'.take fii ++ MA'.drop info.numParams ++
+    args'.drop (info.getMajorIdx + 1) = A'
+  have hAtr : List.Forall₂ c.TrExprS A A' := by
+    rw [← hA, ← hA']
+    exact ((forall₂_take hargs _).append' (forall₂_drop hMargs _)).append' (forall₂_drop hargs _)
+  rw [hA'] at hiota
+  have hdefeq : c.IsDefEqU e' (VExpr.mkApps r₀' A') := by
+    refine hceq.trans c.Ewf c.Δwf (hiota.trans c.Ewf c.Δwf ?_)
+    exact VEnv.IsDefEqU.mkApps_congr_left c.Ewf c.Δwf.toCtx hr₀defeq.symm
+      (let ⟨_, h⟩ := hiota; ⟨_, h.hasType.2⟩)
+  have hrwf : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx (VExpr.mkApps r₀' A') :=
+    let ⟨_, h⟩ := hdefeq; ⟨_, h.hasType.2⟩
+  have hrS : c.TrExprS ((rule.rhs.instantiateLevelParams info.levelParams ls).mkAppList A)
+      (VExpr.mkApps r₀' A') :=
+    TrExprS.mkAppList_of_wf hr₀ hAtr hrwf
+  have hfvr : c.FVarsBelow e ((rule.rhs.instantiateLevelParams info.levelParams ls).mkAppList A) := by
+    intro P hP hfe
+    rw [FVarsIn.mkAppList]
+    refine ⟨hrhs₀.fvarsIn.mono nofun, fun a ha => ?_⟩
+    rw [← hA] at ha
+    simp only [List.mem_append] at ha
+    rcases ha with (ha | ha) | ha
+    · exact hfe.of_mem_getAppArgsList (List.mem_of_mem_take ha)
+    · have hmaj' := hfv P hP (hfe.of_mem_getAppArgsList (by
+        rw [← Expr.getAppArgs_toList]; exact Array.getElem_mem_toList _))
+      exact hmaj'.of_mem_getAppArgsList (List.mem_of_mem_drop ha)
+    · exact hfe.of_mem_getAppArgsList (List.mem_of_mem_drop ha)
+  have main : c.FVarsBelow e ((rule.rhs.instantiateLevelParams info.levelParams ls).mkAppList A) ∧
+      c.TrExpr ((rule.rhs.instantiateLevelParams info.levelParams ls).mkAppList A) e' :=
+    ⟨hfvr, (hrS.trExpr c.Ewf c.Δwf).defeq c.Ewf c.Δwf hdefeq.symm⟩
+  rw [hr1, hr2] at hr
+  split at hr
+  · rw [mkAppRange_suffix_eq (by omega), ← Expr.mkAppList_append, ← Expr.mkAppList_append,
+      ← List.append_assoc, hA, Option.pure_def] at hr
+    cases hr
+    exact main
+  · rename_i hlt
+    have hle : e.getAppArgsList.length ≤ info.getMajorIdx + 1 := by
+      rw [← Expr.getAppArgs_toList, Array.length_toList]; exact Nat.le_of_not_lt hlt
+    rw [← Expr.mkAppList_append, Option.pure_def] at hr
+    rw [List.drop_eq_nil_of_le (as := e.getAppArgsList) hle, List.append_nil] at hA
+    rw [hA] at hr
+    cases hr
+    exact main
+
 end Inner
 end TypeChecker
 end Lean4Lean
