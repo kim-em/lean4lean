@@ -356,4 +356,77 @@ theorem AddQuot.quotCoherent (H : AddQuot m₁ m₂ venv₁ venv₂)
       VEnv.addConst_defeqs h1] at hdf
     exact hrigid df hdf
 
+/-! ## Heads of stored equations
+
+Rigidity of an inductive type constant follows from a global property of the environment: every
+stored equation is headed, under its lambdas, by a constant of the production map that is not an
+inductive type (a definition, a recursor, or `Quot.lift`). This is the property to carry along the
+environment trace. -/
+
+/-- Every stored equation is headed by a constant of `C` that is neither an inductive type nor a
+quotient constant other than `Quot.lift`. -/
+def EquationHeadsCoherent (C : ConstMap) (venv : VEnv) : Prop :=
+  ∀ df, venv.defeqs df → ∃ head ls ci, df.lhs.stripLams.getAppFnArgs.1 = .const head ls ∧
+    C.find? head = some ci ∧ (∀ info, ci ≠ .inductInfo info) ∧
+    (∀ q, ci = .quotInfo q → q.kind = .lift)
+
+theorem EquationHeadsCoherent.rigid (H : EquationHeadsCoherent C venv)
+    (h : C.find? n = some (.inductInfo info)) : venv.Rigid n := by
+  intro df hdf ls heq
+  obtain ⟨head, ls', ci, hhead, hci, hne, -⟩ := H df hdf
+  rw [heq] at hhead
+  cases hhead
+  rw [h] at hci
+  exact hne info (Option.some.inj hci).symm
+
+theorem EquationHeadsCoherent.rigid_quot (H : EquationHeadsCoherent C venv)
+    (h : C.find? ``Quot = some (.quotInfo q)) (hk : q.kind = .type) : venv.Rigid ``Quot := by
+  intro df hdf ls heq
+  obtain ⟨head, ls', ci, hhead, hci, -, hq⟩ := H df hdf
+  rw [heq] at hhead
+  cases hhead
+  rw [h] at hci
+  have := hq q (Option.some.inj hci).symm
+  rw [hk] at this
+  cases this
+
+theorem EquationHeadsCoherent.mapExt (H : EquationHeadsCoherent C venv)
+    (h : ∀ name, C.find? name = C'.find? name) : EquationHeadsCoherent C' venv := by
+  intro df hdf
+  obtain ⟨head, ls, ci, hhead, hci, hne, hq⟩ := H df hdf
+  exact ⟨head, ls, ci, hhead, (h head).symm.trans hci, hne, hq⟩
+
+theorem EquationHeadsCoherent.insert (H : EquationHeadsCoherent C venv) (hwf : C.WF)
+    (hfresh : C.find? n = none) : EquationHeadsCoherent (C.insert n ci) venv := by
+  intro df hdf
+  obtain ⟨head, ls, ci', hhead, hci, hne, hq⟩ := H df hdf
+  refine ⟨head, ls, ci', hhead, ?_, hne, hq⟩
+  rw [hwf.find?_insert]
+  split
+  · rename_i heq; rw [beq_iff_eq] at heq; subst heq; rw [hfresh] at hci; cases hci
+  · exact hci
+
+theorem EquationHeadsCoherent.addConst (H : EquationHeadsCoherent C venv)
+    (h : venv.addConst n ci = some venv') : EquationHeadsCoherent C venv' := by
+  intro df hdf
+  rw [VEnv.addConst_defeqs h] at hdf
+  exact H df hdf
+
+theorem EquationHeadsCoherent.addProjections (H : EquationHeadsCoherent C venv)
+    (entries : List VProjectionEntry) : EquationHeadsCoherent C (venv.addProjections entries) := by
+  intro df hdf
+  rw [VEnv.addProjections_defeqs] at hdf
+  exact H df hdf
+
+/-- Adding an equation headed by a non-inductive constant of `C`. -/
+theorem EquationHeadsCoherent.addDefEq (H : EquationHeadsCoherent C venv)
+    (hhead : ∃ head ls ci, df.lhs.stripLams.getAppFnArgs.1 = .const head ls ∧
+      C.find? head = some ci ∧ (∀ info, ci ≠ .inductInfo info) ∧
+      (∀ q, ci = .quotInfo q → q.kind = .lift)) :
+    EquationHeadsCoherent C (venv.addDefEq df) := by
+  intro df' hdf'
+  rcases hdf' with rfl | hdf'
+  · exact hhead
+  · exact H df' hdf'
+
 end Lean4Lean

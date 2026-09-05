@@ -104,12 +104,9 @@ theorem negativeOccurrence_not_positive :
       | forallE hdom _ =>
           cases hdom with
           | const _ _ hf => exact hf (by simp [enumDecl, enumType])
-          | projection hexp _ => cases hexp
-      | projection hexp _ => cases hexp
   | forallE h _ _ _ =>
       cases h with
       | const _ _ hf => exact hf (by simp [enumDecl, enumType])
-      | projection hexp _ => cases hexp
   | recursive h =>
     simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, VExpr.getAppFnArgs.go,
       enumDecl, enumType] at h
