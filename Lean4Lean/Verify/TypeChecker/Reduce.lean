@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.TypeChecker.Basic
+import Lean4Lean.Theory.Typing.ProjectionLemmas
 
 namespace Lean4Lean.TypeChecker.Inner
 open Lean hiding Environment Exception
@@ -140,9 +141,107 @@ theorem reduceNat.WF {c : VContext} (he : c.TrExprS e e') :
     refine p2.toU.symm.trans c.Ewf c.Δwf ?_
     exact ⟨_, ha1.appDF <| a3.of_r c.Ewf c.Δwf ha2⟩
 
+/-- The registry facts about the unique constructor of a projected structure that
+`reduceProjCoreCont.WF` consumes. -/
+theorem reduceProjCoreCont.registry {c : VContext}
+    (hinfo : c.venv.projections n info)
+    (hfind : c.env.find? n = some (.inductInfo structInfo))
+    (hsingle : structInfo.ctors = [mkC])
+    (hci : c.env.find? mkC = some (.ctorInfo mkInfo)) :
+    info.ctorName = mkC ∧
+    ∃ (decl : VInductDecl) (doms : List VExpr) (result : VExpr),
+      c.venv.IsType info.uvars [] info.ctorType ∧
+      c.venv.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩ ∧
+      info.ctorType = VExpr.wrapForalls doms result ∧
+      decl.ValidIndAppAt (some n) (doms.length - decl.nparams) result ∧
+      result.getAppFnArgs.1 = .const n (VLevel.params decl.uvars) ∧
+      decl.nparams = info.nparams ∧ decl.uvars = info.uvars ∧ info.nparams ≤ doms.length ∧
+      mkInfo.numParams = info.nparams ∧ mkInfo.numFields = doms.length - info.nparams := by
+  -- TODO: from `c.projectionRegistry` and `Ordered.projectionShape` once every checking
+  -- environment carries the projection registry.
+  sorry
+
+theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
+    (hproj : c.HasType (.proj n i c') F) :
+    RecM.WF c s (reduceProjCoreCont n i c₁) fun oe _ =>
+      ∀ e₁, oe = some e₁ → c.FVarsBelow c₁ e₁ ∧ c.TrExpr e₁ (.proj n i c') := by
+  unfold reduceProjCoreCont
+  rw [Expr.withApp_eq]
+  split <;> [rename_i mkC ls hmk; exact .pure nofun]
+  refine .getEnv <| (M.WF.liftExcept envGet.WF).lift.bind fun ci _ _ hci => ?_
+  split <;> [rename_i mkInfo; exact .pure nofun]
+  split <;> [rename_i structInfo hfind; exact .pure nofun]
+  split <;> [rename_i hsingle; exact .pure nofun]
+  split <;> [rename_i harity; exact .pure nofun]
+  refine .pure fun e₁ heq => ?_
+  have hsingle := beq_iff_eq.1 hsingle
+  have harity := beq_iff_eq.1 harity
+  -- the constructor application spine
+  have hc₁ : c.TrExprS ((Expr.const mkC ls).mkAppList c₁.getAppArgsList) c' := by
+    rw [← hmk, c₁.mkAppList_getAppArgsList]; exact hc
+  have ⟨fn', stk⟩ := AppStack.build hc₁
+  have ⟨args', hargs, hc₁'⟩ := stk.translatedArguments
+  have .const hfc hls hlen := stk.tr
+  have hceq := hc₁.uniq c.Ewf (.refl c.Ewf c.Δwf) hc₁'
+  -- the projection typing at the spine
+  obtain ⟨info, ls₀, P₀, idx₀, sm, F', fl, hinfo, hls₀, huv₀, hP₀, hidx₀, hfield, hFty, hsm,
+    hclosed, hguard⟩ := VEnv.HasType.proj_inv c.Ewf.ordered c.Δwf.toCtx hproj
+  have hproj' : c.venv.IsDefEq c.lparams.length c.vlctx.toCtx (.proj n i c')
+      (.proj n i (VExpr.mkApps (.const mkC _) args')) F' :=
+    .projDF hinfo hls₀ huv₀ hP₀ hidx₀ hfield hFty hsm (hsm.transU_l c.Ewf c.Δwf.toCtx hceq)
+      hclosed hguard
+  have ⟨hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle, hnp, hnf⟩ :=
+    reduceProjCoreCont.registry hinfo hfind hsingle hci
+  subst hname
+  -- the selected argument
+  have hlenArgs : args'.length = doms.length := by
+    rw [← Lean4Lean.List.Forall₂.length_eq hargs, ← Expr.getAppArgs_toList, Array.length_toList,
+      harity, hnp, hnf]
+    omega
+  obtain ⟨e₁', hk', he₁'⟩ : ∃ e₁', args'[info.nparams + i]? = some e₁' ∧ c.TrExprS e₁ e₁' := by
+    have hget : c₁.getAppArgsList[mkInfo.numParams + i]? = some e₁ := by
+      rw [← Expr.getAppArgs_toList]; simpa [Array.getElem?_toList] using heq
+    obtain ⟨h1, rfl⟩ := List.getElem?_eq_some_iff.1 hget
+    refine ⟨args'[mkInfo.numParams + i]'(by rwa [← Lean4Lean.List.Forall₂.length_eq hargs]), ?_, ?_⟩
+    · rw [← hnp]; exact List.getElem?_eq_getElem _
+    · exact Lean4Lean.List.forall₂_getElem hargs _ h1 _
+  -- typing of the field
+  have hfieldTy := VEnv.VProjectionInfo.field_typing_of_ctorApp c.Ewf c.Δwf.toCtx hinfo hwf hctor
+    hshape hvalid hhead hdn hdu hle i hproj'.hasType.2 hlenArgs hk'
+  have hiota := VEnv.IsDefEq.projIota hinfo hproj'.hasType.2 hk' hfieldTy
+  refine ⟨?_, e₁', he₁', ⟨_, (hproj'.trans hiota).symm⟩⟩
+  -- the argument is a subterm of the constructor application
+  intro P hP hfv
+  have := (FVarsIn.mkAppList.1 (c₁.mkAppList_getAppArgsList ▸ hfv)).2
+  exact this _ (List.mem_of_getElem? (by rw [← Expr.getAppArgs_toList]; simpa [Array.getElem?_toList] using heq))
+
 theorem reduceProjCore.WF (he : c.TrExprS (.proj n i e) e') :
     RecM.WF c s (reduceProjCore n i e) fun oe _ =>
-      ∀ e₁, oe = some e₁ → c.FVarsBelow (.proj n i e) e₁ ∧ c.TrExpr e₁ e' := sorry
+      ∀ e₁, oe = some e₁ → c.FVarsBelow (.proj n i e) e₁ ∧ c.TrExpr e₁ e' := by
+  have .proj (e' := s') hs' hproj := he
+  cases hproj with | direct majorWF targetWF
+  obtain ⟨F, hF⟩ := targetWF
+  -- retype the projection at the reduced structure
+  obtain ⟨info, ls₀, P₀, idx₀, sm, F', fl, hinfo, hls₀, huv₀, hP₀, hidx₀, hfield, hFty, hsm,
+    hclosed, hguard⟩ := VEnv.HasType.proj_inv c.Ewf.ordered c.Δwf.toCtx hF
+  have main : ∀ {s : VState} (c₁ : Expr) (c₁' : VExpr), c.TrExprS c₁ c₁' → c.FVarsBelow e c₁ →
+      c.IsDefEqU c₁' s' → RecM.WF c s (reduceProjCoreCont n i c₁) fun oe _ =>
+        ∀ e₁, oe = some e₁ → c.FVarsBelow (.proj n i e) e₁ ∧ c.TrExpr e₁ (.proj n i s') := by
+    intro s c₁ c₁' hc₁ h1 hdefeq
+    have hproj' : c.venv.IsDefEq c.lparams.length c.vlctx.toCtx (.proj n i s') (.proj n i c₁') F' :=
+      .projDF hinfo hls₀ huv₀ hP₀ hidx₀ hfield hFty hsm (hsm.transU_l c.Ewf c.Δwf.toCtx hdefeq.symm)
+        hclosed hguard
+    refine (reduceProjCoreCont.WF hc₁ hproj'.hasType.2).mono fun _ _ _ H e₁ heq => ?_
+    have ⟨h2, h3⟩ := H e₁ heq
+    exact ⟨fun P hP hfv => h2 P hP (h1 P hP hfv), h3.defeq c.Ewf c.Δwf ⟨_, hproj'.symm⟩⟩
+  unfold reduceProjCore
+  extract_lets jp
+  split
+  · have .lit _ hlit := hs'
+    exact (whnf.WF hlit).bind fun c₁ _ _ ⟨h1, _, hc₁, hdefeq⟩ =>
+      main c₁ _ hc₁ (FVarsBelow.trans (fun _ _ _ => FVarsIn.strLitToConstructor) h1) hdefeq
+  · exact (RecM.WF.pure (Q := fun c₁ _ => c.FVarsBelow e c₁ ∧ c.TrExpr c₁ s')
+      ⟨.rfl, hs'.trExpr c.Ewf c.Δwf⟩).bind fun c₁ _ _ ⟨h1, _, hc₁, hdefeq⟩ => main c₁ _ hc₁ h1 hdefeq
 
 theorem reduceProj.WF (he : c.TrExprS (.proj n i e) e') :
     RecM.WF c s (reduceProj n i e cheapProj) fun oe _ =>

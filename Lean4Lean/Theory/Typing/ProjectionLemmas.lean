@@ -635,7 +635,8 @@ theorem _root_.Lean4Lean.VProjectionInfo.instantiateProjectionParameters_wrapFor
       congr 2
       rw [Nat.sub_add_cancel h']
 
-theorem _root_.Lean4Lean.VExpr.instL_wrapForalls (doms : List VExpr) (body : VExpr) (ls : List VLevel) :
+@[simp] theorem _root_.Lean4Lean.VExpr.instL_wrapForalls (doms : List VExpr) (body : VExpr)
+    (ls : List VLevel) :
     (VExpr.wrapForalls doms body).instL ls =
       VExpr.wrapForalls (doms.map (·.instL ls)) (body.instL ls) := by
   induction doms with
@@ -1061,6 +1062,13 @@ theorem VProjectionInfo.field_typing_of_ctorApp {decl : VInductDecl}
       · exact absurd rfl hne
   have := hfieldTy.defeqU_r henv hΓ ⟨_, hDeq.symm⟩
   rwa [hirr] at this
+
+theorem _root_.Lean4Lean.List.forall₂_getElem {R : α → β → Prop} :
+    ∀ {a : List α} {b : List β}, List.Forall₂ R a b → ∀ (i : Nat) (h : i < a.length)
+      (h' : i < b.length), R a[i] b[i]
+  | _, _, .cons h _, 0, _, _ => h
+  | _, _, .cons _ H, i + 1, hi, hi' =>
+    List.forall₂_getElem H i (by simpa using hi) (by simpa using hi')
 
 end VEnv
 end Lean4Lean

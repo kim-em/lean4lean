@@ -361,14 +361,12 @@ def whnfFVar (e : Expr) (cheapProj : Bool) : RecM Expr := do
     return ← whnfCore v cheapProj
   return e
 
-/-- Reduce a projection whose structure argument has already been reduced.
+/-- Reduce a projection whose structure argument has already been reduced to a constructor
+application.
 
 The constructor at the head of the reduced structure must be the unique constructor of
-`structName`; this is redundant on well-typed input (see `divergences.md`). -/
-def reduceProjCore (structName : Name) (idx : Nat) (struct : Expr) : RecM (Option Expr) := do
-  let mut c := struct
-  if let .lit (.strVal s) := c then
-    c ← whnf (.strLitToConstructor s)
+`structName` and be fully applied; this is redundant on well-typed input (see `divergences.md`). -/
+def reduceProjCoreCont (structName : Name) (idx : Nat) (c : Expr) : RecM (Option Expr) :=
   c.withApp fun mk args => do
   let .const mkC _ := mk | return none
   let env ← getEnv
@@ -377,6 +375,11 @@ def reduceProjCore (structName : Name) (idx : Nat) (struct : Expr) : RecM (Optio
   unless structInfo.ctors == [mkC] do return none
   unless args.size == mkInfo.numParams + mkInfo.numFields do return none
   return args[mkInfo.numParams + idx]?
+
+@[inherit_doc reduceProjCoreCont]
+def reduceProjCore (structName : Name) (idx : Nat) (struct : Expr) : RecM (Option Expr) := do
+  let c ← if let .lit (.strVal s) := struct then whnf (.strLitToConstructor s) else pure struct
+  reduceProjCoreCont structName idx c
 
 /-- Reduces a projection of `struct` at index `idx` (when `struct` is reducible to a constructor
 application). -/
@@ -666,6 +669,9 @@ def tryEtaStructCore (t s : Expr) : RecM Bool := do
   let .ctorInfo fInfo ← env.get f | return false
   unless s.getAppNumArgs == fInfo.numParams + fInfo.numFields do return false
   unless env.isNonRecStructure fInfo.induct do return false
+  -- redundant on a well-formed environment (see `divergences.md`)
+  let some (.inductInfo sInfo) := env.find? fInfo.induct | return false
+  unless sInfo.ctors == [f] do return false
   let tType ← inferType t
   unless ← isDefEq tType (← inferType s) do return false
   -- The projections below are only well typed when the structure is never a proposition
@@ -673,11 +679,14 @@ def tryEtaStructCore (t s : Expr) : RecM Bool := do
   let .sort u ← whnf (← inferType tType) | return false
   unless u.isNeverZero do return false
   let args := s.getAppArgs
-  for h : i in [fInfo.numParams:args.size] do
-    -- since `t` is in WHNF, and assuming it is not a constructor application, this projection
-    -- cannot reduce (so we are directly checking if `s` is defeq to the struct-η-expansion of `t`)
-    unless ← isDefEq (.proj fInfo.induct (i - fInfo.numParams) t) args[i] do return false
-  return true
+  -- since `t` is in WHNF, and assuming it is not a constructor application, these projections
+  -- cannot reduce (so we are directly checking if `s` is defeq to the struct-η-expansion of `t`)
+  let rec loop i := do
+    if _h : i < args.size then
+      unless ← isDefEq (.proj fInfo.induct (i - fInfo.numParams) t) args[i] do return false
+      loop (i + 1)
+    else return true
+  loop fInfo.numParams
 
 @[inherit_doc tryEtaStructCore]
 def tryEtaStruct (t s : Expr) : RecM Bool :=

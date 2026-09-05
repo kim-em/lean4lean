@@ -559,16 +559,6 @@ def _root_.Lean4Lean.VInductiveTypeSkeleton.instL
     VInductiveTypeSkeleton :=
   { target with type := target.type.instL levels }
 
-@[simp] theorem _root_.Lean4Lean.VExpr.instL_wrapForalls
-    (domains : List VExpr) (result : VExpr) (levels : List VLevel) :
-    (VExpr.wrapForalls domains result).instL levels =
-      VExpr.wrapForalls (domains.map (VExpr.instL levels))
-        (result.instL levels) := by
-  induction domains with
-  | nil => rfl
-  | cons domain domains ih =>
-    exact congrArg (VExpr.forallE (domain.instL levels)) ih
-
 def checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.mono
     {env env' : VEnv} (henv : env ≤ env')
     (H : checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
