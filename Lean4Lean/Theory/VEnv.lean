@@ -291,6 +291,11 @@ theorem fieldType_subst_some (info : VProjectionInfo)
         (result := result) (substitution := substitution)
         (by simpa [htail] using H)
 
+/-- Number of constructor fields: the leading binders of the constructor type
+after the common parameters. -/
+def numFields (info : VProjectionInfo) : Nat :=
+  info.ctorType.forallArity - info.nparams
+
 end VProjectionInfo
 
 @[ext] structure VEnv where

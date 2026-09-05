@@ -70,6 +70,32 @@ inductive IsDefEq : List VExpr → VExpr → VExpr → VExpr → Prop where
   | extra :
     env.defeqs df → (∀ l ∈ ls, l.WF uvars) → ls.length = df.uvars →
     Γ ⊢ df.lhs.instL ls ≡ df.rhs.instL ls : df.type.instL ls
+  | projIota :
+    env.projections typeName info →
+    Γ ⊢ .proj typeName index (VExpr.mkApps (.const info.ctorName levels) args) : fieldType →
+    args[info.nparams + index]? = some field →
+    Γ ⊢ field : fieldType →
+    Γ ⊢ .proj typeName index (VExpr.mkApps (.const info.ctorName levels) args) ≡ field :
+      fieldType
+  | structEta :
+    env.projections typeName info →
+    params.length = info.nparams →
+    info.nindices = 0 →
+    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
+        (params ++ (List.range info.numFields).map fun index => .proj typeName index e) :
+      VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
+        (params ++ (List.range info.numFields).map fun index => .proj typeName index e) ≡ e :
+      VExpr.mkApps (.const typeName levels) params
+  | unitLike :
+    env.projections typeName info →
+    params.length = info.nparams →
+    info.nindices = 0 →
+    info.numFields = 0 →
+    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ e' : VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ e ≡ e' : VExpr.mkApps (.const typeName levels) params
 
 end
 

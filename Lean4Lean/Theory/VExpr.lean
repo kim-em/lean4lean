@@ -49,6 +49,24 @@ def liftN : VExpr → (k :_:= 0) → VExpr
   | .lam ty body, k => .lam (ty.liftN k) (body.liftN (k+1))
   | .forallE ty body, k => .forallE (ty.liftN k) (body.liftN (k+1))
 
+theorem mkApps_ne_forallE {fn : VExpr} (hfn : ∀ A B, fn ≠ .forallE A B) (args : List VExpr) :
+    mkApps fn args ≠ .forallE A B := by
+  induction args generalizing fn with
+  | nil => exact hfn _ _
+  | cons arg args ih => exact ih (fn := .app fn arg) nofun
+
+theorem mkApps_ne_sort {fn : VExpr} (hfn : ∀ u, fn ≠ .sort u) (args : List VExpr) :
+    mkApps fn args ≠ .sort u := by
+  induction args generalizing fn with
+  | nil => exact hfn _
+  | cons arg args ih => exact ih (fn := .app fn arg) nofun
+
+theorem mkApps_ne_lam {fn : VExpr} (hfn : ∀ A e, fn ≠ .lam A e) (args : List VExpr) :
+    mkApps fn args ≠ .lam A e := by
+  induction args generalizing fn with
+  | nil => exact hfn _ _
+  | cons arg args ih => exact ih (fn := .app fn arg) nofun
+
 @[simp] theorem liftN_mkApps (fn : VExpr) (args : List VExpr) :
     (mkApps fn args).liftN n k =
       mkApps (fn.liftN n k) (args.map fun arg => arg.liftN n k) := by
@@ -287,6 +305,17 @@ def inst : VExpr → VExpr → (k :_:= 0) → VExpr
   | cons arg args ih => exact ih (.app fn arg)
 
 @[simp] theorem inst_default : inst default e k = default := rfl
+
+/-- Number of leading `forallE` binders. -/
+def forallArity : VExpr → Nat
+  | .forallE _ body => forallArity body + 1
+  | _ => 0
+
+@[simp] theorem forallArity_liftN (e : VExpr) : (e.liftN n k).forallArity = e.forallArity := by
+  induction e generalizing k <;> simp [forallArity, liftN, *]
+
+@[simp] theorem forallArity_instL (e : VExpr) : (e.instL ls).forallArity = e.forallArity := by
+  induction e <;> simp [forallArity, instL, *]
 
 theorem liftN_instN_lo (n : Nat) (e1 e2 : VExpr) (j k : Nat) (hj : k ≤ j) :
     liftN n (e1.inst e2 j) k = (liftN n e1 k).inst e2 (n+j) := by

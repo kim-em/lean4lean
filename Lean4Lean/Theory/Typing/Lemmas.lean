@@ -460,6 +460,18 @@ theorem IsDefEq.closedN' (H : env.IsDefEq U Γ e1 e2 A) (hΓ : CtxClosed Γ) :
     let ⟨_, hm', _⟩ := ihRight hΓ
     let ⟨hfield, _, _⟩ := ihField hΓ
     exact ⟨hm, hm', hfield⟩
+  | projIota _ _ _ _ ihProj ihField =>
+    let ⟨hproj, _, hty⟩ := ihProj hΓ
+    let ⟨hfield, _, _⟩ := ihField hΓ
+    exact ⟨hproj, hfield, hty⟩
+  | structEta _ _ _ _ _ ihE ihCtor =>
+    let ⟨he, _, hty⟩ := ihE hΓ
+    let ⟨hctor, _, _⟩ := ihCtor hΓ
+    exact ⟨hctor, he, hty⟩
+  | unitLike _ _ _ _ _ _ ihE ihE' =>
+    let ⟨he, _, hty⟩ := ihE hΓ
+    let ⟨he', _, _⟩ := ihE' hΓ
+    exact ⟨he, he', hty⟩
   | lamDF _ _ ih1 ih2 =>
     let ⟨hA, hA', _⟩ := ih1 hΓ
     let ⟨hb, hb', hB⟩ := ih2 ⟨hΓ, hA⟩
@@ -523,6 +535,9 @@ theorem IsDefEq.mono (H : env.IsDefEq U Γ e1 e2 A) : env'.IsDefEq U Γ e1 e2 A 
       ihField ihLeft ihRight =>
     exact .projDF (henv.projections h1) h2 h3 h4 h5 h6
       ihField ihLeft ihRight hclosed hguard
+  | projIota h1 _ h3 _ ih1 ih2 => exact .projIota (henv.projections h1) ih1 h3 ih2
+  | structEta h1 h2 h3 _ _ ih1 ih2 => exact .structEta (henv.projections h1) h2 h3 ih1 ih2
+  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 => exact .unitLike (henv.projections h1) h2 h3 h4 ih1 ih2
   | lamDF _ _ ih1 ih2 => exact .lamDF ih1 ih2
   | forallEDF _ _ ih1 ih2 => exact .forallEDF ih1 ih2
   | defeqDF _ _ ih1 ih2 => exact .defeqDF ih1 ih2
@@ -617,6 +632,18 @@ theorem IsDefEq.levelWF (H : env.IsDefEq U Γ e1 e2 A) (W : OnCtx Γ fun _ A => 
     let ⟨_, hm', _⟩ := ihRight W
     let ⟨hfield, _, _⟩ := ihField W
     exact ⟨hm, hm', hfield⟩
+  | projIota _ _ _ _ ihProj ihField =>
+    let ⟨hproj, _, hty⟩ := ihProj W
+    let ⟨hfield, _, _⟩ := ihField W
+    exact ⟨hproj, hfield, hty⟩
+  | structEta _ _ _ _ _ ihE ihCtor =>
+    let ⟨he, _, hty⟩ := ihE W
+    let ⟨hctor, _, _⟩ := ihCtor W
+    exact ⟨hctor, he, hty⟩
+  | unitLike _ _ _ _ _ _ ihE ihE' =>
+    let ⟨he, _, hty⟩ := ihE W
+    let ⟨he', _, _⟩ := ihE' W
+    exact ⟨he, he', hty⟩
   | lamDF _ _ ih1 ih2 =>
     let ⟨hA, hA', _⟩ := ih1 W; let ⟨hb, hb', hB⟩ := ih2 ⟨W, hA⟩
     exact ⟨⟨hA, hb⟩, ⟨hA', hb'⟩, hA, hB⟩
@@ -673,6 +700,22 @@ theorem IsDefEq.weakN (W : Ctx.LiftN n k Γ Γ') (H : env.IsDefEq U Γ e1 e2 A) 
         hinfo hlevels huvars (by simpa using hparams)
         (by simpa using hindices) hfield' (ihField W)
         hleft hright hclosed hguard)
+  | projIota h1 _ h3 _ ih1 ih2 =>
+    have ih1 := ih1 W
+    have ih2 := ih2 W
+    simp only [VExpr.liftN_mkApps, VExpr.liftN] at ih1 ⊢
+    exact .projIota h1 ih1 (by simp [h3]) ih2
+  | structEta h1 h2 h3 _ _ ih1 ih2 =>
+    have ih1 := ih1 W
+    have ih2 := ih2 W
+    simp only [VExpr.liftN_mkApps, VExpr.liftN, List.map_append, List.map_map,
+      Function.comp_def] at ih1 ih2 ⊢
+    exact .structEta h1 (by simpa using h2) h3 ih1 ih2
+  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 =>
+    have ih1 := ih1 W
+    have ih2 := ih2 W
+    simp only [VExpr.liftN_mkApps, VExpr.liftN] at ih1 ih2 ⊢
+    exact .unitLike h1 (by simpa using h2) h3 h4 ih1 ih2
   | lamDF _ _ ih1 ih2 => exact .lamDF (ih1 W) (ih2 W.succ)
   | forallEDF _ _ ih1 ih2 => exact .forallEDF (ih1 W) (ih2 W.succ)
   | defeqDF _ _ ih1 ih2 => exact .defeqDF (ih1 W) (ih2 W)
@@ -794,6 +837,16 @@ theorem IsDefEq.instL (H : env.IsDefEq U Γ e1 e2 A) :
         hinfo (by simp [VLevel.WF.inst hls]) (by simpa using huvars)
         (by simpa using hparams) (by simpa using hindices)
         hfield' ihField hleft hright hclosed hguard')
+  | projIota h1 _ h3 _ ih1 ih2 =>
+    simp only [VExpr.instL_mkApps, VExpr.instL] at ih1 ⊢
+    exact .projIota h1 ih1 (by simp [h3]) ih2
+  | structEta h1 h2 h3 _ _ ih1 ih2 =>
+    simp only [VExpr.instL_mkApps, VExpr.instL, List.map_append, List.map_map,
+      Function.comp_def] at ih1 ih2 ⊢
+    exact .structEta h1 (by simpa using h2) h3 ih1 ih2
+  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 =>
+    simp only [VExpr.instL_mkApps, VExpr.instL] at ih1 ih2 ⊢
+    exact .unitLike h1 (by simpa using h2) h3 h4 ih1 ih2
   | lamDF _ _ ih1 ih2 => exact .lamDF ih1 ih2
   | forallEDF _ _ ih1 ih2 => exact .forallEDF ih1 ih2
   | defeqDF _ _ ih1 ih2 => exact .defeqDF ih1 ih2
@@ -857,6 +910,22 @@ theorem IsDefEq.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : env.IsDefE
         hinfo hlevels huvars (by simpa using hparams)
         (by simpa using hindices) hfield' (ihField W)
         hleft hright hclosed hguard)
+  | projIota h1 _ h3 _ ih1 ih2 =>
+    have ih1 := ih1 W
+    have ih2 := ih2 W
+    simp only [VExpr.inst_mkApps, VExpr.inst] at ih1 ⊢
+    exact .projIota h1 ih1 (by simp [h3]) ih2
+  | structEta h1 h2 h3 _ _ ih1 ih2 =>
+    have ih1 := ih1 W
+    have ih2 := ih2 W
+    simp only [VExpr.inst_mkApps, VExpr.inst, List.map_append, List.map_map,
+      Function.comp_def] at ih1 ih2 ⊢
+    exact .structEta h1 (by simpa using h2) h3 ih1 ih2
+  | unitLike h1 h2 h3 h4 _ _ ih1 ih2 =>
+    have ih1 := ih1 W
+    have ih2 := ih2 W
+    simp only [VExpr.inst_mkApps, VExpr.inst] at ih1 ih2 ⊢
+    exact .unitLike h1 (by simpa using h2) h3 h4 ih1 ih2
   | lamDF _ _ ih1 ih2 => exact .lamDF (ih1 W) (ih2 W.succ)
   | forallEDF _ _ ih1 ih2 => exact .forallEDF (ih1 W) (ih2 W.succ)
   | defeqDF _ _ ih1 ih2 => exact .defeqDF (ih1 W) (ih2 W)
@@ -972,6 +1041,17 @@ theorem IsDefEq.forallE_inv'
   | eta _ ih =>
     obtain ⟨⟨⟩⟩ | eq := eq
     exact ih (.inl eq)
+  | projIota _ _ _ _ _ ih2 =>
+    obtain ⟨⟨⟩⟩ | eq := eq
+    exact ih2 (.inl eq)
+  | structEta _ _ _ _ _ ih1 _ =>
+    obtain eq | eq := eq
+    · exact (VExpr.mkApps_ne_forallE (fn := .const _ _) (fun _ _ h => nomatch h) _ eq).elim
+    · exact ih1 (.inl eq)
+  | unitLike _ _ _ _ _ _ ih1 ih2 =>
+    obtain eq | eq := eq
+    · exact ih1 (.inl eq)
+    · exact ih2 (.inl eq)
   | @extra df ls Γ h1 h2 =>
     suffices ∀ e, VExpr.instL ls e = VExpr.forallE A B →
         (∀ A B, e = VExpr.forallE A B → IsType env df.uvars [] A ∧ IsType env df.uvars [A] B) →
@@ -1020,6 +1100,17 @@ theorem IsDefEq.sort_inv'
   | eta _ ih =>
     obtain ⟨⟨⟩⟩ | eq := eq
     exact ih (.inl eq)
+  | projIota _ _ _ _ _ ih2 =>
+    obtain ⟨⟨⟩⟩ | eq := eq
+    exact ih2 (.inl eq)
+  | structEta _ _ _ _ _ ih1 _ =>
+    obtain eq | eq := eq
+    · exact (VExpr.mkApps_ne_sort (fn := .const _ _) (fun _ h => nomatch h) _ eq).elim
+    · exact ih1 (.inl eq)
+  | unitLike _ _ _ _ _ _ ih1 ih2 =>
+    obtain eq | eq := eq
+    · exact ih1 (.inl eq)
+    · exact ih2 (.inl eq)
   | @extra df ls _ h1 h2 =>
     suffices ∀ e, VExpr.instL ls e = .sort u → HasType env df.uvars [] e df.type → u.WF U by
       have ⟨A1, A2⟩ := henv.defEqWF h1
@@ -1060,6 +1151,9 @@ theorem IsDefEq.isType' (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e1
   | appDF _ h2 ih1 => exact ((ih1 hΓ).forallE_inv henv).2.instN henv .zero h2.hasType.1
   | projDF _ _ _ _ _ _ hfieldType _ _ _ _ _ _ _ =>
     exact ⟨_, hfieldType.hasType.2⟩
+  | projIota _ _ _ _ ih1 => exact ih1 hΓ
+  | structEta _ _ _ _ _ ih1 => exact ih1 hΓ
+  | unitLike _ _ _ _ _ _ ih1 => exact ih1 hΓ
   | lamDF h1 _ _ ih2 =>
     let ⟨_, h⟩ := ih2 ⟨hΓ, _, h1.hasType.1⟩
     exact ⟨_, .forallE h1.hasType.1 h⟩
