@@ -484,7 +484,46 @@ theorem tryStringLitExpansion.WF {c : VContext} {s : VState}
 
 theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
     (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') :
-    RecM.WF c s (isDefEqUnitLike e₁ e₂) fun b _ => b = .true → c.IsDefEqU e₁' e₂' := sorry
+    RecM.WF c s (isDefEqUnitLike e₁ e₂) fun b _ => b = .true → c.IsDefEqU e₁' e₂' := by
+  -- TODO: becomes a field of `VContext` once the projection registry is carried by every
+  -- checking environment.
+  have hreg : c.Projectable := sorry
+  unfold isDefEqUnitLike
+  refine (inferType.WF he₁).bind fun ty _ _ ⟨ty', _, _, hty, hty'⟩ => ?_
+  refine (whnf.WF hty).bind fun tType _ _ ⟨_, tT', htT, hdefeq⟩ => ?_
+  split <;> [rename_i I ls hI; exact .pure nofun]
+  refine .getEnv <| (M.WF.liftExcept envGet.WF).lift.bind fun ci _ _ hci => ?_
+  split <;> [rename_i I_val hval; exact .pure nofun]
+  refine (M.WF.liftExcept envGet.WF).lift.bind fun cci _ _ hcci => ?_
+  split <;> [rename_i cval hcval; exact .pure nofun]
+  split <;> [skip; exact .pure nofun]
+  rename_i harity
+  refine (inferType.WF he₂).bind fun sty _ _ ⟨sty', _, _, hsty, hsty'⟩ => ?_
+  refine (isDefEqCore.WF htT hsty).mono fun b _ _ h hb => ?_
+  have hb := h (by simpa using hb)
+  -- the whnf of the type of `e₁` is an application of `I`
+  have htT' : c.TrExprS ((Expr.const I ls).mkAppList tType.getAppArgsList) tT' := by
+    rw [← hI, tType.mkAppList_getAppArgsList]; exact htT
+  have ⟨fn', stk⟩ := AppStack.build htT'
+  have ⟨args', hargs, htT''⟩ := stk.translatedArguments
+  have .const hfc hls hlen := stk.tr
+  have heq := htT'.uniq c.Ewf (.refl c.Ewf c.Δwf) htT''
+  have ⟨A⟩ := hreg.projectionAlignment hci hfc rfl hcci
+  have hlenP : args'.length = A.decl.nparams := by
+    have h1 := A.alignment.numParams
+    have h2 : tType.getAppNumArgs = _ := beq_iff_eq.1 harity
+    rw [Expr.getAppNumArgs_eq, ← Expr.getAppArgsList_reverse, List.length_reverse] at h2
+    rw [← hargs.length_eq, h2]; exact h1
+  have hidx : A.owner.numIndices = 0 := by
+    have := A.alignment.numIndices
+    rw [A.owner_eq]; exact this.symm
+  -- TODO: from the executable `numFields = 0` via the registry's constructor alignment.
+  have hfields : (A.constructor.type.forallArity - A.decl.nparams) = 0 := sorry
+  have ht : c.HasType e₁' (VExpr.mkApps (.const I _) args') :=
+    (hty'.defeqU_r c.Ewf c.Δwf hdefeq.symm).defeqU_r c.Ewf c.Δwf heq
+  have hs : c.HasType e₂' (VExpr.mkApps (.const I _) args') :=
+    (hsty'.defeqU_r c.Ewf c.Δwf hb.symm).defeqU_r c.Ewf c.Δwf heq
+  exact ⟨_, .unitLike A.projection hlenP hidx hfields ht hs⟩
 
 theorem lazyDeltaProjReduction.finish.WF {c : VContext} {s : VState}
     (he₁ : c.TrExprS (.proj structName i e₁) e₁')

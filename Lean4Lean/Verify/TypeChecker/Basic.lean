@@ -1077,6 +1077,10 @@ theorem whnf.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnf e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
   fun _ wf => wf.whnf he
 
+theorem envGet.WF {c : VContext} :
+    (c.env.get name).WF fun ci => c.env.find? name = some ci := by
+  simp [Environment.get]; split <;> [refine .pure ‹_›; exact .throw]
+
 theorem isDefEqCore.WF {c : VContext} {s : VState}
     (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') :
     RecM.WF c s (isDefEqCore e₁ e₂) fun b _ => b → c.IsDefEqU e₁' e₂' :=
