@@ -104,6 +104,38 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
       (Hlevels : ∀ (level : VLevel), level ∈ levels → level.WF uvars)
       (Hlength : levels.length = df.uvars) :
       UsesOnly changed (.extra Hdf Hlevels Hlength)
+  | projIota
+      (Hinfo : env.projections typeName info)
+      (Hproj : env.IsDefEq uvars Gamma
+        (.proj typeName index (VExpr.mkApps (.const info.ctorName levels) args))
+        (.proj typeName index (VExpr.mkApps (.const info.ctorName levels) args))
+        fieldType)
+      (Hindex : args[info.nparams + index]? = some field)
+      (Hfield : env.IsDefEq uvars Gamma field field fieldType) :
+      UsesOnly changed Hproj → UsesOnly changed Hfield →
+      UsesOnly changed (.projIota Hinfo Hproj Hindex Hfield)
+  | structEta
+      (Hinfo : env.projections typeName info)
+      (Hparams : params.length = info.nparams)
+      (Hindices : info.nindices = 0)
+      (He : env.IsDefEq uvars Gamma e e (VExpr.mkApps (.const typeName levels) params))
+      (Hctor : env.IsDefEq uvars Gamma
+        (VExpr.mkApps (.const info.ctorName levels)
+          (params ++ (List.range info.numFields).map fun index => .proj typeName index e))
+        (VExpr.mkApps (.const info.ctorName levels)
+          (params ++ (List.range info.numFields).map fun index => .proj typeName index e))
+        (VExpr.mkApps (.const typeName levels) params)) :
+      UsesOnly changed He → UsesOnly changed Hctor →
+      UsesOnly changed (.structEta Hinfo Hparams Hindices He Hctor)
+  | unitLike
+      (Hinfo : env.projections typeName info)
+      (Hparams : params.length = info.nparams)
+      (Hindices : info.nindices = 0)
+      (HnumFields : info.numFields = 0)
+      (He : env.IsDefEq uvars Gamma e e (VExpr.mkApps (.const typeName levels) params))
+      (He' : env.IsDefEq uvars Gamma e' e' (VExpr.mkApps (.const typeName levels) params)) :
+      UsesOnly changed He → UsesOnly changed He' →
+      UsesOnly changed (.unitLike Hinfo Hparams Hindices HnumFields He He')
 
 theorem IsDefEq.rebaseExcept
     (E : LEExcept changed src dst)
@@ -133,6 +165,12 @@ theorem IsDefEq.rebaseExcept
     exact .proofIrrel IHprop IHleft IHright
   | extra df levels Hdf Hlevels Hlength =>
     exact .extra (E.defeqs Hdf) Hlevels Hlength
+  | projIota Hinfo _ Hindex _ _ _ IHproj IHfield =>
+    exact .projIota (E.projections Hinfo) IHproj Hindex IHfield
+  | structEta Hinfo Hparams Hindices _ _ _ _ IHe IHctor =>
+    exact .structEta (E.projections Hinfo) Hparams Hindices IHe IHctor
+  | unitLike Hinfo Hparams Hindices HnumFields _ _ _ _ IHe IHe' =>
+    exact .unitLike (E.projections Hinfo) Hparams Hindices HnumFields IHe IHe'
 
 /-- If every installed constant is outside `changed`, every derivation in
 the environment carries a canonical restriction witness. -/
@@ -167,6 +205,12 @@ theorem IsDefEq.usesOnly_of_constants
   | proofIrrel Hprop Hleft Hright IHprop IHleft IHright =>
     exact .proofIrrel IHprop IHleft IHright
   | extra Hdf Hlevels Hlength => exact .extra _ _ Hdf Hlevels Hlength
+  | projIota Hinfo Hproj Hindex Hfield IHproj IHfield =>
+    exact .projIota Hinfo Hproj Hindex Hfield IHproj IHfield
+  | structEta Hinfo Hparams Hindices He Hctor IHe IHctor =>
+    exact .structEta Hinfo Hparams Hindices He Hctor IHe IHctor
+  | unitLike Hinfo Hparams Hindices HnumFields He He' IHe IHe' =>
+    exact .unitLike Hinfo Hparams Hindices HnumFields He He' IHe IHe'
 
 /-- Environment monotonicity preserves the exact constant-dependency
 certificate carried by a typing derivation.  This is stronger than
@@ -205,6 +249,15 @@ theorem IsDefEq.UsesOnly.mono
     exact .proofIrrel IHprop IHleft IHright
   | extra df levels Hdf Hlevels Hlength =>
     exact .extra df levels (henv.defeqs Hdf) Hlevels Hlength
+  | projIota Hinfo Hproj Hindex Hfield _ _ IHproj IHfield =>
+    exact .projIota (henv.projections Hinfo) (Hproj.mono henv) Hindex (Hfield.mono henv)
+      IHproj IHfield
+  | structEta Hinfo Hparams Hindices He Hctor _ _ IHe IHctor =>
+    exact .structEta (henv.projections Hinfo) Hparams Hindices (He.mono henv) (Hctor.mono henv)
+      IHe IHctor
+  | unitLike Hinfo Hparams Hindices HnumFields He He' _ _ IHe IHe' =>
+    exact .unitLike (henv.projections Hinfo) Hparams Hindices HnumFields (He.mono henv)
+      (He'.mono henv) IHe IHe'
 
 theorem HasType.rebaseExcept
     (E : LEExcept changed src dst)

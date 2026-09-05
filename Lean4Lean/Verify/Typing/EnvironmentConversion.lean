@@ -107,6 +107,12 @@ theorem IsDefEq.rebaseDefEqLE
     exact .proofIrrel (ihProp hctx) (ihLeft hctx) (ihRight hctx)
   | extra Hrule Hlevels Hlength =>
     exact .extra (E.defeqs Hrule) Hlevels Hlength
+  | projIota Hinfo _ Hindex _ ihProj ihField =>
+    exact .projIota (E.projections Hinfo) (ihProj hctx) Hindex (ihField hctx)
+  | structEta Hinfo Hparams Hindices _ _ ihE ihCtor =>
+    exact .structEta (E.projections Hinfo) Hparams Hindices (ihE hctx) (ihCtor hctx)
+  | unitLike Hinfo Hparams Hindices HnumFields _ _ ihE ihE' =>
+    exact .unitLike (E.projections Hinfo) Hparams Hindices HnumFields (ihE hctx) (ihE' hctx)
 
 /-- Transport one dependency-certified derivation through a semantic
 environment inclusion which may omit exactly the selected constants. -/
@@ -163,6 +169,12 @@ theorem IsDefEq.rebaseDefEqLEExcept
     exact .proofIrrel (ihProp hctx) (ihLeft hctx) (ihRight hctx)
   | extra df levels Hrule Hlevels Hlength =>
     exact .extra (E.defeqs Hrule) Hlevels Hlength
+  | projIota Hinfo _ Hindex _ _ _ ihProj ihField =>
+    exact .projIota (E.projections Hinfo) (ihProj hctx) Hindex (ihField hctx)
+  | structEta Hinfo Hparams Hindices _ _ _ _ ihE ihCtor =>
+    exact .structEta (E.projections Hinfo) Hparams Hindices (ihE hctx) (ihCtor hctx)
+  | unitLike Hinfo Hparams Hindices HnumFields _ _ _ _ ihE ihE' =>
+    exact .unitLike (E.projections Hinfo) Hparams Hindices HnumFields (ihE hctx) (ihE' hctx)
 
 theorem HasType.rebaseDefEqLE
     (E : DefEqLE source target) (htarget : target.WF)
