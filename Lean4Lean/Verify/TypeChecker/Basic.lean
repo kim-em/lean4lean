@@ -348,6 +348,34 @@ nonrec abbrev VContext.FVarsBelow (c : VContext) : Expr → Expr → Prop :=
 nonrec abbrev VContext.TrTyping (c : VContext) : Expr → Expr → VExpr → VExpr → Prop :=
   TrTyping c.venv c.lparams c.vlctx
 
+/-- The facts about a single-constructor inductive and its constructor that the checker's
+projection, structure-eta and unit-like steps consume, read off the projection registry.
+
+TODO: derive from `c.projectionRegistry` and `Ordered.projectionShape` once every checking
+environment carries the projection registry. -/
+theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : InductiveVal}
+    {mkInfo : ConstructorVal}
+    (hfind : c.env.find? n = some (.inductInfo structInfo))
+    (hsingle : structInfo.ctors = [mkC])
+    (hci : c.env.find? mkC = some (.ctorInfo mkInfo)) :
+    ∃ info, c.venv.projections n info ∧ info.ctorName = mkC ∧
+    ∃ (decl : VInductDecl) (doms : List VExpr) (result : VExpr),
+      c.venv.IsType info.uvars [] info.ctorType ∧
+      c.venv.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩ ∧
+      info.ctorType = VExpr.wrapForalls doms result ∧
+      decl.ValidIndAppAt (some n) (doms.length - decl.nparams) result ∧
+      result.getAppFnArgs.1 = .const n (VLevel.params decl.uvars) ∧
+      decl.nparams = info.nparams ∧ decl.uvars = info.uvars ∧ info.nparams ≤ doms.length ∧
+      mkInfo.numParams = info.nparams ∧ mkInfo.numFields = doms.length - info.nparams ∧
+      info.numFields = mkInfo.numFields ∧
+      structInfo.numParams = info.nparams ∧ structInfo.numIndices = info.nindices ∧
+      (∀ type ∈ decl.types, type.name = n → type.numIndices = info.nindices) ∧
+      (∀ (ls : List VLevel) (P : List VExpr), ls.length = info.uvars → P.length = info.nparams →
+        info.nindices = 0 →
+        (∃ u, c.HasType (VExpr.mkApps (.const n ls) P) (.sort u)) →
+        c.HasType (VExpr.mkApps (.const n ls) P) (.sort (info.resultLevel.inst ls))) := by
+  sorry
+
 class VContext.MLCWF (c : VContext) (m : MLCtx) : Prop where
   wf : m.WF c.venv c.lparams
 

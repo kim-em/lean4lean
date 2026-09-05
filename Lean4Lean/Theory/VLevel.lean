@@ -108,6 +108,9 @@ theorem imax_eq_zero : imax a b ≈ zero ↔ b ≈ zero := by
 
 def IsNeverZero (a : VLevel) : Prop := ∀ ls, a.eval ls ≠ 0
 
+theorem IsNeverZero.of_equiv {a b : VLevel} (H : IsNeverZero a) (h : a ≈ b) : IsNeverZero b :=
+  fun ls => equiv_def.1 h ls ▸ H ls
+
 theorem IsNeverZero.imax_eq_max (h : IsNeverZero b) : imax a b ≈ max a b := by
   simp_all [equiv_def, eval, Lean.Nat.imax, IsNeverZero]
 

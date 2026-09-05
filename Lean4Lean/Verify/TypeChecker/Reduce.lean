@@ -141,26 +141,6 @@ theorem reduceNat.WF {c : VContext} (he : c.TrExprS e e') :
     refine p2.toU.symm.trans c.Ewf c.Δwf ?_
     exact ⟨_, ha1.appDF <| a3.of_r c.Ewf c.Δwf ha2⟩
 
-/-- The registry facts about the unique constructor of a projected structure that
-`reduceProjCoreCont.WF` consumes. -/
-theorem reduceProjCoreCont.registry {c : VContext}
-    (hinfo : c.venv.projections n info)
-    (hfind : c.env.find? n = some (.inductInfo structInfo))
-    (hsingle : structInfo.ctors = [mkC])
-    (hci : c.env.find? mkC = some (.ctorInfo mkInfo)) :
-    info.ctorName = mkC ∧
-    ∃ (decl : VInductDecl) (doms : List VExpr) (result : VExpr),
-      c.venv.IsType info.uvars [] info.ctorType ∧
-      c.venv.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩ ∧
-      info.ctorType = VExpr.wrapForalls doms result ∧
-      decl.ValidIndAppAt (some n) (doms.length - decl.nparams) result ∧
-      result.getAppFnArgs.1 = .const n (VLevel.params decl.uvars) ∧
-      decl.nparams = info.nparams ∧ decl.uvars = info.uvars ∧ info.nparams ≤ doms.length ∧
-      mkInfo.numParams = info.nparams ∧ mkInfo.numFields = doms.length - info.nparams := by
-  -- TODO: from `c.projectionRegistry` and `Ordered.projectionShape` once every checking
-  -- environment carries the projection registry.
-  sorry
-
 theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
     (hproj : c.HasType (.proj n i c') F) :
     RecM.WF c s (reduceProjCoreCont n i c₁) fun oe _ =>
@@ -190,8 +170,9 @@ theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
       (.proj n i (VExpr.mkApps (.const mkC _) args')) F' :=
     .projDF hinfo hls₀ huv₀ hP₀ hidx₀ hfield hFty hsm (hsm.transU_l c.Ewf c.Δwf.toCtx hceq)
       hclosed hguard
-  have ⟨hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle, hnp, hnf⟩ :=
-    reduceProjCoreCont.registry hinfo hfind hsingle hci
+  have ⟨info', hinfo', hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
+    hnp, hnf, _⟩ := VContext.registryShape hfind hsingle hci
+  obtain rfl := c.Ewf.ordered.projections_unique hinfo hinfo'
   subst hname
   -- the selected argument
   have hlenArgs : args'.length = doms.length := by
