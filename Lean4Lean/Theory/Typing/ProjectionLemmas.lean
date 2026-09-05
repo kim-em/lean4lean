@@ -829,7 +829,7 @@ theorem InstForallsC.wrapForalls_eq (H : InstForallsC env U Γ (VExpr.wrapForall
     (hlen : args.length = doms.length) : res = body.instOuter args :=
   H.toInstForalls.wrapForalls_eq hlen
 
-theorem _root_.Lean4Lean.List.Forall₂.append' {R : α → β → Prop} {a b : List α} {c d : List β}
+theorem _root_.List.Forall₂.append' {R : α → β → Prop} {a b : List α} {c d : List β}
     (h1 : List.Forall₂ R a c) (h2 : List.Forall₂ R b d) : List.Forall₂ R (a ++ b) (c ++ d) := by
   induction h1 with
   | nil => exact h2
@@ -870,6 +870,197 @@ theorem _root_.Lean4Lean.VExpr.instOuter_congr_of_skips :
       rw [show 1 + (bs.length - 1) = bs.length by omega] at this
       rw [← this, hlen]
       exact .liftN
+
+theorem _root_.Lean4Lean.VExpr.wrapForalls_split (doms : List VExpr) (body : VExpr) (m : Nat)
+    (hm : m < doms.length) :
+    VExpr.wrapForalls doms body =
+      VExpr.wrapForalls (doms.take m)
+        (.forallE doms[m] (VExpr.wrapForalls (doms.drop (m + 1)) body)) := by
+  calc VExpr.wrapForalls doms body
+      = VExpr.wrapForalls (doms.take m ++ doms.drop m) body := by rw [List.take_append_drop]
+    _ = _ := by rw [List.drop_eq_getElem_cons hm, VExpr.wrapForalls_append]; rfl
+
+theorem _root_.Lean4Lean.List.forall₂_of_getElem {R : α → β → Prop} {a : List α} {b : List β}
+    (hlen : a.length = b.length) (h : ∀ i (hi : i < a.length) (hi' : i < b.length), R a[i] b[i]) :
+    List.Forall₂ R a b := by
+  induction a generalizing b with
+  | nil => cases b with | nil => exact .nil | cons => simp at hlen
+  | cons x xs ih =>
+    cases b with
+    | nil => simp at hlen
+    | cons y ys =>
+      exact .cons (h 0 (by simp) (by simp)) (ih (by simpa using hlen) fun i hi hi' =>
+        h (i + 1) (by simpa using hi) (by simpa using hi'))
+
+open Classical in
+/-- **Projection of a constructor application.** If `.proj S i (c args)` is well typed at `F`,
+where `c` is the registered constructor of `S` with the recorded telescope shape, then the `i`-th
+field argument has type `F`. This is the premise `projIota` needs, and the reason the checker's
+`reduceProjCore` refines the abstract rule. -/
+theorem VProjectionInfo.field_typing_of_ctorApp {decl : VInductDecl}
+    (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    (hinfo : env.projections S info)
+    (hwf : env.IsType info.uvars [] info.ctorType)
+    (hctor : env.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩)
+    (hshape : info.ctorType = VExpr.wrapForalls doms result)
+    (hvalid : decl.ValidIndAppAt (some S) (doms.length - decl.nparams) result)
+    (hhead : result.getAppFnArgs.1 = .const S (VLevel.params decl.uvars))
+    (hdn : decl.nparams = info.nparams) (hdu : decl.uvars = info.uvars)
+    (hle : info.nparams ≤ doms.length) :
+    ∀ (index : Nat) {F field : VExpr},
+      env.HasType U Γ (.proj S index (VExpr.mkApps (.const info.ctorName ls') args')) F →
+      args'.length = doms.length → args'[info.nparams + index]? = some field →
+      env.HasType U Γ field F := by
+  intro index
+  induction index using WellFounded.induction Nat.lt_wfRel.2 with
+  | _ index IH =>
+  intro F field H hlen hk
+  -- data of the projection typing
+  obtain ⟨info', ls₀, P₀, idx₀, sm, F', fl, hinfo', hls₀, huv₀, hP₀, hidx₀, hfield, hFty, hsm,
+    hclosed, hguard⟩ := HasType.proj_inv henv.ordered hΓ H
+  obtain rfl := henv.ordered.projections_unique hinfo hinfo'
+  have hproj' : env.HasType U Γ (.proj S index (VExpr.mkApps (.const info.ctorName ls') args')) F' :=
+    .projDF hinfo hls₀ huv₀ hP₀ hidx₀ hfield hFty hsm hsm hclosed hguard
+  have hFF : env.IsDefEqU U Γ F' F := hproj'.uniqU henv hΓ H
+  suffices env.HasType U Γ field F' from this.defeqU_r henv hΓ hFF
+  -- the constructor application and its constant
+  have hc' := hsm.hasType.2
+  have ⟨ci, hci, hls', hlen'⟩ :=
+    (VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, hc'⟩).elim fun _ h => HasType.const_inv henv.ordered hΓ h
+  rw [hctor] at hci
+  cases Option.some.inj hci
+  have hconst : env.HasType U Γ (.const info.ctorName ls') (info.ctorType.instL ls') :=
+    HasType.const hctor hls' hlen'
+  have hT : (info.ctorType.instL ls').takeForalls args'.length =
+      some (doms.map (·.instL ls'), result.instL ls') := by
+    rw [hshape, VExpr.instL_wrapForalls,
+      show args'.length = (doms.map (·.instL ls')).length by simp [hlen]]
+    exact VExpr.takeForalls_wrapForalls _ _
+  obtain ⟨res, Hw, hres⟩ := HasType.mkApps_telescope henv hΓ hconst ⟨_, hc'⟩ hT
+  have hresEq : res = (result.instL ls').instOuter args' := by
+    have := Hw
+    rw [hshape, VExpr.instL_wrapForalls] at this
+    exact this.wrapForalls_eq (by simp [hlen])
+  have hhead' : (result.instL ls').getAppFnArgs.1 = .const S ls' := by
+    rw [VExpr.getAppFnArgs_instL]
+    show (result.getAppFnArgs.1.instL ls') = _
+    rw [hhead]
+    simp [VExpr.instL, VLevel.params_map_inst ls' (hlen'.trans hdu.symm)]
+  obtain ⟨idx', hresEq', -⟩ := (hvalid.instL ls').instOuter hhead' args' (by omega)
+  rw [hresEq'] at hresEq
+  subst hresEq
+  have hTeq := hc'.uniqU henv hΓ hres
+  have ⟨u, hu⟩ := IsDefEq.isType henv.ordered hΓ hsm
+  have ⟨hlsE, hargsE⟩ := IsDefEqU.structApp_inv henv hΓ hinfo hTeq hu
+  have ⟨hPE, _⟩ := List.forall₂_append_split hargsE (by
+    rw [hP₀, List.length_take, hdn]; exact (Nat.min_eq_left (by omega)).symm)
+  -- typing of the arguments on the constructor side
+  have hf' : env.HasType U Γ (.const info.ctorName ls')
+      (VExpr.wrapForalls (doms.map (·.instL ls')) (result.instL ls')) := by
+    rwa [hshape, VExpr.instL_wrapForalls] at hconst
+  have ⟨hargsTy, _⟩ := HasType.mkApps_wrapForalls henv hΓ hf' ⟨_, hc'⟩ (by simp [hlen])
+  obtain ⟨hm, rfl⟩ := List.getElem?_eq_some_iff.1 hk
+  have hmd : info.nparams + index < doms.length := by omega
+  -- the field type as an instantiation of the raw domain
+  have hF' := VProjectionInfo.fieldType_eq_instOuter info hshape huv₀ hP₀ hmd (typeName := S) (major := sm)
+  rw [hfield] at hF'
+  cases Option.some.inj hF'
+  have hfieldTy := hargsTy (info.nparams + index) hm (by simp; omega)
+  simp only [List.getElem_map] at hfieldTy
+  -- notation
+  generalize hn : info.nparams = n at *
+  generalize hD : doms[n + index] = D at *
+  let ps : List VExpr := (List.range index).map fun j => VExpr.proj S j sm
+  have hpsLen : ps.length = index := by simp [ps]
+  have hP₀Len : P₀.length = n := hP₀
+  -- the projection-side argument list, with unused positions replaced by the constructor's arguments
+  let ps' : List VExpr := (List.range index).map fun j =>
+    if (D.instL ls₀).Skips 1 (index - 1 - j) then args'.getD (n + j) default else .proj S j sm
+  have hps'Len : ps'.length = index := by simp [ps']
+  -- every projection-side argument is definitionally equal to the constructor's argument
+  have hpoint : ∀ j (hj : j < index),
+      env.IsDefEqU U Γ ps'[j] args'[n + j] := by
+    intro j hj
+    have hnj : n + j < args'.length := by omega
+    simp only [ps', List.getElem_map, List.getElem_range]
+    split
+    · rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hnj]
+      exact ⟨_, hargsTy (n + j) hnj (by simp; omega)⟩
+    · rename_i hocc
+      -- the projection occurs in the field type, hence is well formed
+      have hocc' : VExpr.Occurs (.bvar (index - 1 - j)) (D.instL ls₀) 0 :=
+        VExpr.Occurs.of_not_skips' _ 0 (by simpa [← VExpr.skips_iff] using hocc)
+      have hocc'' := hocc'.instOuter (P₀ ++ ps)
+      have hb : (VExpr.bvar (index - 1 - j)).instOuter (P₀ ++ ps) = .proj S j sm := by
+        rw [VExpr.instOuter_bvar _ (by simp [hpsLen, hP₀Len]; omega)]
+        apply (List.getElem_eq_iff _).2
+        have hidx : (P₀ ++ ps).length - 1 - (index - 1 - j) = n + j := by
+          simp [hpsLen, hP₀Len]; omega
+        rw [hidx, List.getElem?_append_right (by omega), hP₀Len, Nat.add_sub_cancel_left]
+        simp [ps, List.getElem?_range hj]
+      rw [hb] at hocc''
+      have hwfj : VExpr.WF env U Γ (.proj S j sm) :=
+        VExpr.WF.of_occurs henv [] hocc'' hΓ ⟨_, hFty⟩
+      obtain ⟨_, hpj⟩ := hwfj
+      obtain ⟨infoj, lsj, Pj, idxj, smj, Fj, flj, hinfoj, hlsj, huvj, hPj, hidxj, hfieldj, hFtyj,
+        hsmj, hclosedj, hguardj⟩ := HasType.proj_inv henv.ordered hΓ hpj
+      obtain rfl := henv.ordered.projections_unique hinfo hinfoj
+      have hTT : env.IsDefEqU U Γ _ _ := hsm.hasType.1.uniqU henv hΓ hsmj.hasType.2
+      have hsmc : env.IsDefEq U Γ sm (VExpr.mkApps (.const info.ctorName ls') args') _ :=
+        IsDefEqU.defeqDF henv hΓ hTT hsm
+      have hprojj := IsDefEq.projDF hinfo hlsj huvj hPj hidxj hfieldj hFtyj hsmj (hsmj.trans hsmc)
+        hclosedj hguardj
+      have hkj : args'[n + j]? = some args'[n + j] := List.getElem?_eq_getElem hnj
+      have hIH := IH j hj hprojj.hasType.2 hlen hkj
+      exact ⟨_, hprojj.trans (.projIota hinfo hprojj.hasType.2 (by rw [hn]; exact hkj) hIH)⟩
+  -- the two telescopes, split at the field position
+  have hmd' : n + index < (doms.map (·.instL ls')).length := by simp; omega
+  have hmd₀ : n + index < (doms.map (·.instL ls₀)).length := by simp; omega
+  have hsplit' := VExpr.wrapForalls_split (doms.map (·.instL ls')) (result.instL ls') (n + index) hmd'
+  have hsplit₀ := VExpr.wrapForalls_split (doms.map (·.instL ls₀)) (result.instL ls₀) (n + index) hmd₀
+  simp only [List.getElem_map, hD] at hsplit' hsplit₀
+  -- constructor side: the walk up to the field position
+  have Hw' := Hw
+  rw [hshape, VExpr.instL_wrapForalls, hsplit', ← List.take_append_drop (n + index) args'] at Hw'
+  obtain ⟨midR, HwR, _⟩ := Hw'.append_inv
+  have hmidR := HwR.wrapForalls_eq (by simp; omega)
+  rw [VExpr.instOuter_forallE] at hmidR
+  -- projection side: rebuild the walk over the pointwise equal arguments
+  have hTeq' := IsType.instL_defeq henv.ordered hΓ hwf hls₀ hls' hlsE
+  rw [hshape, VExpr.instL_wrapForalls, VExpr.instL_wrapForalls, hsplit₀, hsplit'] at hTeq'
+  have hPE' : List.Forall₂ (env.IsDefEqU U Γ) P₀ (args'.take n) := by rwa [hdn] at hPE
+  have hbs : List.Forall₂ (env.IsDefEqU U Γ) (P₀ ++ ps') (args'.take (n + index)) := by
+    rw [List.take_add]
+    refine hPE'.append' (List.forall₂_of_getElem (by
+      simp only [ps', List.length_map, List.length_range, List.length_take, List.length_drop]
+      omega) fun j hj hj' => ?_)
+    have hj0 : j < index := by simpa [ps'] using hj
+    have := hpoint j hj0
+    simpa [List.getElem_take, List.getElem_drop] using this
+  obtain ⟨midL, HwL, hmid⟩ := InstForallsC.of_defeq henv hΓ HwR hTeq' hbs (by
+    rw [show (P₀ ++ ps').length = ((doms.map (·.instL ls₀)).take (n + index)).length by
+      simp [hps'Len, hP₀Len]; omega]
+    exact VExpr.takeForalls_wrapForalls _ _)
+  have hmidL := HwL.wrapForalls_eq (by simp [hps'Len, hP₀Len]; omega)
+  rw [VExpr.instOuter_forallE] at hmidL
+  subst hmidL hmidR
+  have ⟨⟨_, hDeq⟩, _⟩ := hmid.forallE_inv henv hΓ
+  -- unused positions may carry either argument
+  have hirr : (D.instL ls₀).instOuter (P₀ ++ ps') = (D.instL ls₀).instOuter (P₀ ++ ps) := by
+    refine VExpr.instOuter_congr_of_skips _ _ _ (by simp [hps'Len, hpsLen]) fun k hk hk₂ hne => ?_
+    simp only [List.getElem_append] at hne
+    split at hne
+    · exact absurd rfl hne
+    · rename_i hkn
+      simp only [ps', ps, List.getElem_map, List.getElem_range] at hne
+      split at hne
+      · rename_i hsk
+        have : (P₀ ++ ps').length - 1 - k = index - 1 - (k - P₀.length) := by
+          simp [hps'Len, hP₀Len]; omega
+        rw [this]; exact hsk
+      · exact absurd rfl hne
+  have := hfieldTy.defeqU_r henv hΓ ⟨_, hDeq.symm⟩
+  rwa [hirr] at this
 
 end VEnv
 end Lean4Lean
