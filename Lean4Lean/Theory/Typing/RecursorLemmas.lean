@@ -380,8 +380,8 @@ end VEnv
 indices, and the major premise, whose domain is the inductive type applied to the parameter and
 index variables. -/
 structure VRecursorShape (env : VEnv) (recName : Name)
-    (recUvars nparams nmotives nminors nindices : Nat) (indName : Name) (indLevels : List VLevel)
-    where
+    (recUvars nparams cnparams nmotives nminors nindices : Nat) (indName : Name)
+    (indLevels : List VLevel) where
   type : VExpr
   const : env.constants recName = some ⟨recUvars, type⟩
   doms : List VExpr
@@ -390,7 +390,7 @@ structure VRecursorShape (env : VEnv) (recName : Name)
   doms_length : doms.length = nparams + nmotives + nminors + nindices + 1
   major_eq : doms[nparams + nmotives + nminors + nindices]? =
     some (VExpr.mkApps (.const indName indLevels)
-      (VExpr.bvarRange nparams (nparams + nmotives + nminors + nindices) ++
+      (VExpr.bvarRange cnparams (nparams + nmotives + nminors + nindices) ++
         VExpr.bvarRange nindices nindices))
 
 /-- The syntactic shape of a constructor's type: a telescope of parameters and fields whose result
@@ -413,8 +413,8 @@ motives, minors, and fields, whose left-hand side is the recursor applied to the
 motive, and minor variables, index expressions, and the constructor applied to the parameter and
 field variables. -/
 structure VIotaRuleShape (env : VEnv) (recName : Name)
-    (recUvars nparams nmotives nminors nindices : Nat) (ctorName : Name) (ctorLevels : List VLevel)
-    (nfields : Nat) (df : VDefEq) where
+    (recUvars nparams cnparams nmotives nminors nindices : Nat) (ctorName : Name)
+    (ctorLevels : List VLevel) (nfields : Nat) (df : VDefEq) where
   defeq : env.defeqs df
   uvars : df.uvars = recUvars
   doms : List VExpr
@@ -430,7 +430,7 @@ structure VIotaRuleShape (env : VEnv) (recName : Name)
   lhs_pattern : lhsBody = VExpr.mkApps (.const recName (VLevel.params recUvars))
     (VExpr.bvarRange (nparams + nmotives + nminors) doms.length ++ indexArgs ++
       [VExpr.mkApps (.const ctorName ctorLevels)
-        (VExpr.bvarRange nparams doms.length ++ VExpr.bvarRange nfields nfields)])
+        (VExpr.bvarRange cnparams doms.length ++ VExpr.bvarRange nfields nfields)])
 
 namespace VEnv
 
@@ -440,7 +440,9 @@ variable {env : VEnv} {U : Nat}
 the major premise is typed at the inductive type applied to the parameters and indices. -/
 theorem _root_.Lean4Lean.VRecursorShape.spine_typing (henv : VEnv.WF env)
     (hΓ : OnCtx Γ (env.IsType U))
-    (H : VRecursorShape env recName recUvars nparams nmotives nminors nindices indName indLevels)
+    (H : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
+      indLevels)
+    (hcnp : cnparams ≤ nparams)
     (hls : ∀ l ∈ ls, l.WF U) (hlsl : ls.length = recUvars)
     {pre : List VExpr} (hpre : pre.length = nparams + nmotives + nminors + nindices)
     {major : VExpr}
@@ -448,7 +450,7 @@ theorem _root_.Lean4Lean.VRecursorShape.spine_typing (henv : VEnv.WF env)
     (∀ j (hj : j < pre.length) (hj' : j < (H.doms.map (VExpr.instL ls)).length),
       env.HasType U Γ pre[j] ((H.doms.map (VExpr.instL ls))[j].instOuter (pre.take j))) ∧
     env.HasType U Γ major (VExpr.mkApps (.const indName (indLevels.map (VLevel.inst ls)))
-      (pre.take nparams ++ pre.drop (nparams + nmotives + nminors))) ∧
+      (pre.take cnparams ++ pre.drop (nparams + nmotives + nminors))) ∧
     env.HasType U Γ major
       (((H.doms.map (VExpr.instL ls))[pre.length]'(by simp [hpre, H.doms_length])).instOuter
         pre) := by
@@ -467,7 +469,7 @@ theorem _root_.Lean4Lean.VRecursorShape.spine_typing (henv : VEnv.WF env)
     rw [List.getElem_map] at this
     have hmaj : H.doms[pre.length]'(by simp [hpre, H.doms_length]) =
         VExpr.mkApps (.const indName indLevels)
-          (VExpr.bvarRange nparams (nparams + nmotives + nminors + nindices) ++
+          (VExpr.bvarRange cnparams (nparams + nmotives + nminors + nindices) ++
             VExpr.bvarRange nindices nindices) := by
       rw [List.getElem_eq_iff, ← H.major_eq, hpre]
     rw [hmaj] at this
@@ -509,8 +511,8 @@ theorem _root_.Lean4Lean.VConstructorShape.spine_typing (henv : VEnv.WF env) (h�
 
 /-- The bodies of a stored iota rule are typed under its telescope, at any universe levels. -/
 theorem _root_.Lean4Lean.VIotaRuleShape.body_typing (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
-    (H : VIotaRuleShape env recName recUvars nparams nmotives nminors nindices ctorName ctorLevels
-      nfields df)
+    (H : VIotaRuleShape env recName recUvars nparams cnparams nmotives nminors nindices ctorName
+      ctorLevels nfields df)
     (hls : ∀ l ∈ ls, l.WF U) :
     OnCtx ((H.doms.map (VExpr.instL ls)).reverse ++ Γ) (env.IsType U) ∧
     env.HasType U ((H.doms.map (VExpr.instL ls)).reverse ++ Γ) (H.lhsBody.instL ls)
@@ -553,9 +555,11 @@ theorem _root_.Lean4Lean.OnCtx.of_append {Γ' Γ : List VExpr} {P}
 telescope: the pattern variables of the left-hand side are typed at the recursor and constructor
 telescopes, so unique typing carries the actual arguments over. -/
 theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
-    (Hrec : VRecursorShape env recName recUvars nparams nmotives nminors nindices indName indLevels)
-    (Hctor : VConstructorShape env ctorName ctorUvars nparams nfields nindices indName)
-    (Hrule : VIotaRuleShape env recName recUvars nparams nmotives nminors nindices ctorName
+    (Hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
+      indLevels)
+    (hcnp : cnparams ≤ nparams)
+    (Hctor : VConstructorShape env ctorName ctorUvars cnparams nfields nindices indName)
+    (Hrule : VIotaRuleShape env recName recUvars nparams cnparams nmotives nminors nindices ctorName
       indLevels nfields df)
     (hrigid : env.Rigid indName) (hIL : indLevels.length = ctorUvars)
     (hls : ∀ l ∈ ls, l.WF U) (hlsl : ls.length = recUvars)
@@ -564,7 +568,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
     (hwf : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ [major])))
     {cls : List VLevel} {P' fields : List VExpr}
     (hcls : cls.length = ctorUvars) (hclsw : ∀ l ∈ cls, l.WF U)
-    (hP' : P'.length = nparams) (hf : fields.length = nfields)
+    (hP' : P'.length = cnparams) (hf : fields.length = nfields)
     (hmajor : env.IsDefEqU U Γ major (VExpr.mkApps (.const ctorName cls) (P' ++ fields))) :
     ∀ j (hj : j < (pre.take (nparams + nmotives + nminors) ++ fields).length)
       (hj' : j < (Hrule.doms.map (VExpr.instL ls)).length),
@@ -584,7 +588,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
     obtain ⟨l', -, rfl⟩ := List.mem_map.1 hl
     exact VLevel.WF.inst hls
   -- (S1) The actual recursor spine.
-  have ⟨hpreT, hmajT, _⟩ := Hrec.spine_typing henv hΓ hls hlsl (by rw [hpre, hm]) hwf
+  have ⟨hpreT, hmajT, _⟩ := Hrec.spine_typing henv hΓ hcnp hls hlsl (by rw [hpre, hm]) hwf
   rw [hL', hm] at hmajT
   -- (S2) The actual constructor spine.
   have hctorWF : VExpr.WF env U Γ (VExpr.mkApps (.const ctorName cls) (P' ++ fields)) :=
@@ -592,7 +596,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
   have ⟨hcargs, hcres⟩ := Hctor.spine_typing henv hΓ hclsw hcls hP' hf hctorWF
   -- (S3, S4) Injectivity at the major premise's type.
   have hMTCT : env.IsDefEqU U Γ
-      (VExpr.mkApps (.const indName L') (pre.take nparams ++ pre.drop m))
+      (VExpr.mkApps (.const indName L') (pre.take cnparams ++ pre.drop m))
       (VExpr.mkApps (.const indName cls)
         (P' ++ Hctor.indices.map fun e => (e.instL cls).instOuter (P' ++ fields))) := by
     have h1 := (hmajor.of_l henv hΓ hmajT).hasType.2
@@ -610,14 +614,14 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
   have hLwf : VExpr.WF env U (doms'.reverse ++ Γ) (VExpr.mkApps (.const recName ls)
       ((VExpr.bvarRange m doms'.length ++ Hrule.indexArgs.map (VExpr.instL ls)) ++
         [VExpr.mkApps (.const ctorName L')
-          (VExpr.bvarRange nparams doms'.length ++ VExpr.bvarRange nfields nfields)])) :=
+          (VExpr.bvarRange cnparams doms'.length ++ VExpr.bvarRange nfields nfields)])) :=
     ⟨_, hL⟩
-  have ⟨hvarT, hctorT', _⟩ := Hrec.spine_typing henv hΓ₀ hls hlsl
+  have ⟨hvarT, hctorT', _⟩ := Hrec.spine_typing henv hΓ₀ hcnp hls hlsl
     (pre := VExpr.bvarRange m doms'.length ++ Hrule.indexArgs.map (VExpr.instL ls))
     (by simp [Hrule.indexArgs_length, hm]) hLwf
   -- (S6) The pattern constructor application under the telescope.
   have ⟨hcargs', _⟩ := Hctor.spine_typing henv hΓ₀ hL'w hL'len
-    (P := VExpr.bvarRange nparams doms'.length) (fields := VExpr.bvarRange nfields nfields)
+    (P := VExpr.bvarRange cnparams doms'.length) (fields := VExpr.bvarRange nfields nfields)
     (by simp) (by simp) ⟨_, hctorT'⟩
   -- (S7) Closedness of the telescope domains.
   have ⟨hrecC, _⟩ := VEnv.constant_doms_closed henv (Hrec.type_eq ▸ Hrec.const) hls
@@ -676,21 +680,21 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
     · -- A field position.
       obtain ⟨i, rfl⟩ : ∃ i, j = m + i := ⟨j - m, by omega⟩
       have hi : i < nfields := by omega
-      have hcdl : (Hctor.doms.map (VExpr.instL L')).length = nparams + nfields := by
+      have hcdl : (Hctor.doms.map (VExpr.instL L')).length = cnparams + nfields := by
         simp [Hctor.doms_length]
-      have hcdl' : (Hctor.doms.map (VExpr.instL cls)).length = nparams + nfields := by
+      have hcdl' : (Hctor.doms.map (VExpr.instL cls)).length = cnparams + nfields := by
         simp [Hctor.doms_length]
       -- The pattern field variable, typed along the constructor telescope.
-      have hv := hcargs' (nparams + i) (by simp; omega) (by omega)
+      have hv := hcargs' (cnparams + i) (by simp; omega) (by omega)
       rw [List.getElem_append_right (by simp), List.take_append,
         List.take_of_length_le (by simp)] at hv
       simp only [VExpr.bvarRange_length, Nat.add_sub_cancel_left] at hv
       rw [VExpr.bvarRange_getElem _ _ _ hi, VExpr.bvarRange_take _ _ _ (Nat.le_of_lt hi)] at hv
-      have hcC := hctorC (nparams + i) (by omega)
-      have hY : ((Hctor.doms.map (VExpr.instL L'))[nparams + i].instOuter
-          (VExpr.bvarRange nparams (m + i) ++ VExpr.bvarRange i i)).liftN (doms'.length - (m + i)) =
-          (Hctor.doms.map (VExpr.instL L'))[nparams + i].instOuter
-            (VExpr.bvarRange nparams doms'.length ++ VExpr.bvarRange i nfields) := by
+      have hcC := hctorC (cnparams + i) (by omega)
+      have hY : ((Hctor.doms.map (VExpr.instL L'))[cnparams + i].instOuter
+          (VExpr.bvarRange cnparams (m + i) ++ VExpr.bvarRange i i)).liftN (doms'.length - (m + i)) =
+          (Hctor.doms.map (VExpr.instL L'))[cnparams + i].instOuter
+            (VExpr.bvarRange cnparams doms'.length ++ VExpr.bvarRange i nfields) := by
         rw [VExpr.liftN_instOuter _ _ (by simpa using hcC), List.map_append,
           VExpr.bvarRange_map_liftN _ _ _ (by omega), VExpr.bvarRange_map_liftN _ _ _ (Nat.le_refl _)]
         rw [show m + i + (doms'.length - (m + i)) = doms'.length by omega,
@@ -705,10 +709,10 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
         rw [← hA, List.take_append, List.take_of_length_le (by simp; omega)]
         simp only [List.length_take, Nat.min_eq_left (show m ≤ pre.length by omega),
           Nat.add_sub_cancel_left]
-      have hY0 : ((Hctor.doms.map (VExpr.instL L'))[nparams + i].instOuter
-            (VExpr.bvarRange nparams (m + i) ++ VExpr.bvarRange i i)).instOuter (A.take (m + i)) =
-          (Hctor.doms.map (VExpr.instL L'))[nparams + i].instOuter
-            (pre.take nparams ++ fields.take i) := by
+      have hY0 : ((Hctor.doms.map (VExpr.instL L'))[cnparams + i].instOuter
+            (VExpr.bvarRange cnparams (m + i) ++ VExpr.bvarRange i i)).instOuter (A.take (m + i)) =
+          (Hctor.doms.map (VExpr.instL L'))[cnparams + i].instOuter
+            (pre.take cnparams ++ fields.take i) := by
         rw [VExpr.instOuter_instOuter _ _ _ (by simpa using hcC), List.map_append,
           VExpr.instOuter_bvarRange _ _ _ (by omega) (by simp; omega),
           VExpr.instOuter_bvarRange _ _ _ (Nat.le_refl _) (by simp; omega)]
@@ -720,8 +724,8 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
           Nat.min_self]
       rw [hY0] at hI
       -- The actual field, typed along the constructor telescope at the actual levels.
-      have hfield := hcargs (nparams + i) (by simp; omega) (by simp [Hctor.doms_length]; omega)
-      rw [List.getElem_append_right (as := P') (i := nparams + i) (by omega), List.take_append,
+      have hfield := hcargs (cnparams + i) (by simp; omega) (by simp [Hctor.doms_length]; omega)
+      rw [List.getElem_append_right (as := P') (i := cnparams + i) (by omega), List.take_append,
         List.take_of_length_le (l := P') (by omega)] at hfield
       simp only [hP', Nat.add_sub_cancel_left] at hfield
       -- Domain agreement between the two level instantiations.
@@ -735,23 +739,23 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
       have hT : env.IsDefEqU U Γ
           (VExpr.wrapForalls (Hctor.doms.map (VExpr.instL L'))
             ((VExpr.mkApps (.const indName (VLevel.params ctorUvars))
-              (VExpr.bvarRange nparams (nparams + nfields) ++ Hctor.indices)).instL L'))
+              (VExpr.bvarRange cnparams (cnparams + nfields) ++ Hctor.indices)).instL L'))
           (VExpr.wrapForalls (Hctor.doms.map (VExpr.instL cls))
             ((VExpr.mkApps (.const indName (VLevel.params ctorUvars))
-              (VExpr.bvarRange nparams (nparams + nfields) ++ Hctor.indices)).instL cls)) := by
+              (VExpr.bvarRange cnparams (cnparams + nfields) ++ Hctor.indices)).instL cls)) := by
         have := IsType.instL_defeq henv.ordered hΓ (henv.ordered.constWF Hctor.const) hL'w hclsw hLcls
         simp only [Hctor.type_eq, VExpr.instL_wrapForalls] at this
         exact this
-      have hbsE : List.Forall₂ (env.IsDefEqU U Γ) (pre.take nparams ++ fields.take i)
-          ((P' ++ fields).take (nparams + i)) := by
+      have hbsE : List.Forall₂ (env.IsDefEqU U Γ) (pre.take cnparams ++ fields.take i)
+          ((P' ++ fields).take (cnparams + i)) := by
         rw [List.take_append, List.take_of_length_le (l := P') (by omega), hP',
           Nat.add_sub_cancel_left]
         refine hPE.append' ?_
         refine List.forall₂_of_getElem rfl fun k hk _ => IsDefEqU.refl ?_
         simp only [List.length_take] at hk
         rw [List.getElem_take]
-        have := hcargs (nparams + k) (by simp; omega) (by simp [Hctor.doms_length]; omega)
-        rw [List.getElem_append_right (as := P') (i := nparams + k) (by omega)] at this
+        have := hcargs (cnparams + k) (by simp; omega) (by simp [Hctor.doms_length]; omega)
+        rw [List.getElem_append_right (as := P') (i := cnparams + k) (by omega)] at this
         simp only [hP', Nat.add_sub_cancel_left] at this
         exact ⟨_, this⟩
       have hD := InstForallsC.domain_defeq henv hΓ Hw (by simp [hP', hf, Hctor.doms_length])
@@ -781,9 +785,11 @@ theorem _root_.Lean4Lean.VExpr.mkApps_append (f : VExpr) (l₁ l₂ : List VExpr
 application is definitionally equal to the stored rule's right-hand side applied to the
 parameters, motives, minors, and constructor fields, followed by the remaining arguments. -/
 theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
-    (Hrec : VRecursorShape env recName recUvars nparams nmotives nminors nindices indName indLevels)
-    (Hctor : VConstructorShape env ctorName ctorUvars nparams nfields nindices indName)
-    (Hrule : VIotaRuleShape env recName recUvars nparams nmotives nminors nindices ctorName
+    (Hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
+      indLevels)
+    (hcnp : cnparams ≤ nparams)
+    (Hctor : VConstructorShape env ctorName ctorUvars cnparams nfields nindices indName)
+    (Hrule : VIotaRuleShape env recName recUvars nparams cnparams nmotives nminors nindices ctorName
       indLevels nfields df)
     (hrigid : env.Rigid indName) (hIL : indLevels.length = ctorUvars)
     (hls : ∀ l ∈ ls, l.WF U) (hlsl : ls.length = recUvars)
@@ -792,7 +798,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
     (hwf : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ major :: extra)))
     {cls : List VLevel} {P' fields : List VExpr}
     (hcls : cls.length = ctorUvars) (hclsw : ∀ l ∈ cls, l.WF U)
-    (hP' : P'.length = nparams) (hf : fields.length = nfields)
+    (hP' : P'.length = cnparams) (hf : fields.length = nfields)
     (hmajor : env.IsDefEqU U Γ major (VExpr.mkApps (.const ctorName cls) (P' ++ fields))) :
     env.IsDefEqU U Γ (VExpr.mkApps (.const recName ls) (pre ++ major :: extra))
       (VExpr.mkApps (df.rhs.instL ls)
@@ -802,7 +808,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
   rw [VExpr.mkApps_append (l₁ := pre.take (nparams + nmotives + nminors) ++ fields)]
   have hwf1 : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ [major])) :=
     VExpr.WF.of_mkApps henv.ordered hΓ hwf
-  have hA := Hrule.args_typing henv hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf1 hcls hclsw hP' hf
+  have hA := Hrule.args_typing henv hΓ Hrec hcnp Hctor hrigid hIL hls hlsl hpre hwf1 hcls hclsw hP' hf
     hmajor
   refine IsDefEqU.mkApps_congr_left henv hΓ ?_ hwf
   -- Notation
@@ -819,7 +825,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
     exact VLevel.WF.inst hls
   have hdf : ls.length = df.uvars := hlsl.trans Hrule.uvars.symm
   -- (S1) The actual recursor spine.
-  have ⟨hpreT, hmajT, hmajT'⟩ := Hrec.spine_typing henv hΓ hls hlsl (by rw [hpre, hm]) hwf1
+  have ⟨hpreT, hmajT, hmajT'⟩ := Hrec.spine_typing henv hΓ hcnp hls hlsl (by rw [hpre, hm]) hwf1
   rw [hL', hm] at hmajT
   -- (S2) The actual constructor spine.
   have hctorWF : VExpr.WF env U Γ (VExpr.mkApps (.const ctorName cls) (P' ++ fields)) :=
@@ -827,7 +833,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
   have ⟨hcargs, hcres⟩ := Hctor.spine_typing henv hΓ hclsw hcls hP' hf hctorWF
   -- (S3, S4) Injectivity at the major premise's type.
   have hMTCT : env.IsDefEqU U Γ
-      (VExpr.mkApps (.const indName L') (pre.take nparams ++ pre.drop m))
+      (VExpr.mkApps (.const indName L') (pre.take cnparams ++ pre.drop m))
       (VExpr.mkApps (.const indName cls)
         (P' ++ Hctor.indices.map fun e => (e.instL cls).instOuter (P' ++ fields))) := by
     have h1 := (hmajor.of_l henv hΓ hmajT).hasType.2
@@ -845,14 +851,14 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
   have hLwf : VExpr.WF env U (doms'.reverse ++ Γ) (VExpr.mkApps (.const recName ls)
       ((VExpr.bvarRange m doms'.length ++ Hrule.indexArgs.map (VExpr.instL ls)) ++
         [VExpr.mkApps (.const ctorName L')
-          (VExpr.bvarRange nparams doms'.length ++ VExpr.bvarRange nfields nfields)])) :=
+          (VExpr.bvarRange cnparams doms'.length ++ VExpr.bvarRange nfields nfields)])) :=
     ⟨_, hL⟩
-  have ⟨_, hctorT', _⟩ := Hrec.spine_typing henv hΓ₀ hls hlsl
+  have ⟨_, hctorT', _⟩ := Hrec.spine_typing henv hΓ₀ hcnp hls hlsl
     (pre := VExpr.bvarRange m doms'.length ++ Hrule.indexArgs.map (VExpr.instL ls))
     (by simp [Hrule.indexArgs_length, hm]) hLwf
   -- (S6) The pattern constructor application under the telescope.
   have ⟨_, hcres'⟩ := Hctor.spine_typing henv hΓ₀ hL'w hL'len
-    (P := VExpr.bvarRange nparams doms'.length) (fields := VExpr.bvarRange nfields nfields)
+    (P := VExpr.bvarRange cnparams doms'.length) (fields := VExpr.bvarRange nfields nfields)
     (by simp) (by simp) ⟨_, hctorT'⟩
   -- (S7) Closedness of the constructor's index expressions.
   have ⟨_, hresC⟩ := VEnv.constant_doms_closed henv (Hctor.type_eq ▸ Hctor.const) hL'w
@@ -860,21 +866,21 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
   have hcT : env.HasType U Γ (.const ctorName cls)
       (VExpr.wrapForalls (Hctor.doms.map (VExpr.instL cls))
         ((VExpr.mkApps (.const indName (VLevel.params ctorUvars))
-          (VExpr.bvarRange nparams (nparams + nfields) ++ Hctor.indices)).instL cls)) := by
+          (VExpr.bvarRange cnparams (cnparams + nfields) ++ Hctor.indices)).instL cls)) := by
     have := HasType.const (Γ := Γ) Hctor.const hclsw (by simpa using hcls)
     rwa [Hctor.type_eq, VExpr.instL_wrapForalls] at this
   have hcDF : env.IsDefEq U Γ (.const ctorName cls) (.const ctorName L')
       (VExpr.wrapForalls (Hctor.doms.map (VExpr.instL cls))
         ((VExpr.mkApps (.const indName (VLevel.params ctorUvars))
-          (VExpr.bvarRange nparams (nparams + nfields) ++ Hctor.indices)).instL cls)) := by
+          (VExpr.bvarRange cnparams (cnparams + nfields) ++ Hctor.indices)).instL cls)) := by
     have := IsDefEq.constDF (Γ := Γ) Hctor.const hclsw hL'w (by simpa using hcls)
       (List.forall₂_symm (fun _ _ h => (VLevel.equiv_def'.1 h).symm) hLcls)
     rwa [Hctor.type_eq, VExpr.instL_wrapForalls] at this
   have hcongr := IsDefEq.mkApps_congr henv hΓ (args := P' ++ fields)
-    (args' := pre.take nparams ++ fields) hcDF (by simp [hP', hf, Hctor.doms_length])
+    (args' := pre.take cnparams ++ fields) hcDF (by simp [hP', hf, Hctor.doms_length])
     (by simp [hP']; omega) (by
       intro j hj hj' hj''
-      rcases Nat.lt_or_ge j nparams with hjp | hjp
+      rcases Nat.lt_or_ge j cnparams with hjp | hjp
       · have h1 := hcargs j hj hj'
         rw [List.getElem_append_left (by omega)] at h1 ⊢
         rw [List.getElem_append_left (by simp; omega), List.getElem_take]
@@ -884,21 +890,21 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
       · have h1 := hcargs j hj hj'
         rw [List.getElem_append_right (by omega)] at h1 ⊢
         rw [List.getElem_append_right (by simp; omega)]
-        simp only [List.length_take, Nat.min_eq_left (show nparams ≤ pre.length by omega), hP']
+        simp only [List.length_take, Nat.min_eq_left (show cnparams ≤ pre.length by omega), hP']
         simp only [hP'] at h1
         exact h1)
   have hctorLWF : VExpr.WF env U Γ
-      (VExpr.mkApps (.const ctorName L') (pre.take nparams ++ fields)) := ⟨_, hcongr.hasType.2⟩
-  have ⟨_, hcresL⟩ := Hctor.spine_typing henv hΓ hL'w hL'len (P := pre.take nparams)
+      (VExpr.mkApps (.const ctorName L') (pre.take cnparams ++ fields)) := ⟨_, hcongr.hasType.2⟩
+  have ⟨_, hcresL⟩ := Hctor.spine_typing henv hΓ hL'w hL'len (P := pre.take cnparams)
     (by simp; omega) hf hctorLWF
   have hmajL : env.IsDefEqU U Γ major
-      (VExpr.mkApps (.const ctorName L') (pre.take nparams ++ fields)) :=
+      (VExpr.mkApps (.const ctorName L') (pre.take cnparams ++ fields)) :=
     hmajor.trans henv hΓ ⟨_, hcongr⟩
   have hMTL : env.IsDefEqU U Γ
-      (VExpr.mkApps (.const indName L') (pre.take nparams ++ pre.drop m))
+      (VExpr.mkApps (.const indName L') (pre.take cnparams ++ pre.drop m))
       (VExpr.mkApps (.const indName L')
-        (pre.take nparams ++ Hctor.indices.map fun e =>
-          (e.instL L').instOuter (pre.take nparams ++ fields))) :=
+        (pre.take cnparams ++ Hctor.indices.map fun e =>
+          (e.instL L').instOuter (pre.take cnparams ++ fields))) :=
     (hmajL.of_l henv hΓ hmajT).hasType.2.uniqU henv hΓ hcresL
   have ⟨_, hargsL⟩ := IsDefEqU.rigidApp_inv henv hΓ hrigid hMTL hsort
   have ⟨_, hidxA⟩ := List.forall₂_append_split hargsL rfl
@@ -922,8 +928,8 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
       (by simp [Hctor.indices_length]; omega)
     have hI := IsDefEqU.instOuter_telescope henv hk' (hAlen.trans hn.symm) hA
     simp only [List.getElem_map] at hI
-    have hV : (VExpr.bvarRange nparams doms'.length ++ VExpr.bvarRange nfields nfields).map
-        (·.instOuter A) = pre.take nparams ++ fields := by
+    have hV : (VExpr.bvarRange cnparams doms'.length ++ VExpr.bvarRange nfields nfields).map
+        (·.instOuter A) = pre.take cnparams ++ fields := by
       rw [List.map_append, VExpr.instOuter_bvarRange _ _ _ (by omega) (by omega),
         VExpr.instOuter_bvarRange _ _ _ (Nat.le_refl _) (by omega)]
       rw [show A.length - doms'.length = 0 by omega, List.drop_zero,
@@ -932,7 +938,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
         Nat.min_eq_left (by omega), List.drop_left' (by simp; omega),
         List.take_of_length_le (l := fields) (by omega)]
     have hcl : ((Hctor.indices[k]'(by rw [Hctor.indices_length]; exact hk)).instL L').ClosedN
-        (VExpr.bvarRange nparams doms'.length ++ VExpr.bvarRange nfields nfields).length := by
+        (VExpr.bvarRange cnparams doms'.length ++ VExpr.bvarRange nfields nfields).length := by
       have := hresC
       simp only [VExpr.instL_mkApps, List.map_append] at this
       have hk2 : k < Hctor.indices.length := by rw [Hctor.indices_length]; exact hk
@@ -948,7 +954,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
   have hX2 : (Hrule.lhsBody.instL ls).instOuter A =
       VExpr.mkApps (.const recName ls)
         ((pre.take m ++ (Hrule.indexArgs.map (VExpr.instL ls)).map (·.instOuter A)) ++
-          [VExpr.mkApps (.const ctorName L') (pre.take nparams ++ fields)]) := by
+          [VExpr.mkApps (.const ctorName L') (pre.take cnparams ++ fields)]) := by
     rw [Hrule.lhs_pattern]
     simp only [VExpr.instL_mkApps, VExpr.instL, List.map_append, List.map_cons, List.map_nil,
       VExpr.instL_bvarRange, VLevel.params_map_inst ls hlsl, hL', hm, VExpr.instOuter_mkApps,
@@ -960,7 +966,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
     rw [show A.length - doms'.length = 0 by omega, List.drop_zero,
       show A.length - nfields = m by omega, ← hAe,
       List.take_append_of_le_length (l₁ := pre.take m) (i := m) (by simp; omega),
-      List.take_append_of_le_length (l₁ := pre.take m) (i := nparams) (by simp; omega),
+      List.take_append_of_le_length (l₁ := pre.take m) (i := cnparams) (by simp; omega),
       List.take_take, List.take_take, Nat.min_self, Nat.min_eq_left (by omega),
       List.drop_left' (by simp; omega), List.take_of_length_le (l := fields) (by omega)]
   have hrecT : env.HasType U Γ (.const recName ls)
@@ -969,7 +975,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
     rwa [Hrec.type_eq, VExpr.instL_wrapForalls] at this
   have hX1X2 := IsDefEq.mkApps_congr henv hΓ (args := pre ++ [major])
     (args' := (pre.take m ++ (Hrule.indexArgs.map (VExpr.instL ls)).map (·.instOuter A)) ++
-      [VExpr.mkApps (.const ctorName L') (pre.take nparams ++ fields)]) hrecT
+      [VExpr.mkApps (.const ctorName L') (pre.take cnparams ++ fields)]) hrecT
     (by simp [hpre, Hrec.doms_length]; omega) (by simp [Hrule.indexArgs_length]; omega) (by
       intro j hj hj' hj''
       rcases Nat.lt_or_ge j pre.length with hjp | hjp
