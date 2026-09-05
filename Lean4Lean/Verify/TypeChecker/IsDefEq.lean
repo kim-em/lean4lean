@@ -489,7 +489,7 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
 theorem lazyDeltaProjReduction.finish.WF {c : VContext} {s : VState}
     (he₁ : c.TrExprS (.proj structName i e₁) e₁')
     (he₂ : c.TrExprS (.proj structName i e₂) e₂') :
-    (finish i e₁ e₂).WF c s fun r _ => r → c.IsDefEqU e₁' e₂' := by
+    (finish structName i e₁ e₂).WF c s fun r _ => r → c.IsDefEqU e₁' e₂' := by
   unfold finish
   refine (reduceProjCore.WF he₁).bind fun _ _ _ h1 => ?_; extract_lets F
   have hF {s} : (F ⟨⟩).WF c s fun r _ => r → c.IsDefEqU e₁' e₂' := by
@@ -505,7 +505,7 @@ theorem lazyDeltaProjReduction.finish.WF {c : VContext} {s : VState}
 theorem lazyDeltaProjReduction.loop.WF {c : VContext} {s : VState}
     (he₁ : c.TrExprS (.proj structName i e₁) e₁')
     (he₂ : c.TrExprS (.proj structName i e₂) e₂') :
-    (loop i e₁ e₂ n).WF c s fun r _ => r → c.IsDefEqU e₁' e₂' := by
+    (loop structName i e₁ e₂ n).WF c s fun r _ => r → c.IsDefEqU e₁' e₂' := by
   induction n generalizing s e₁ e₂ e₁' e₂' with | zero => exact .throw | succ n ih
   unfold loop; have .proj a1 a2 := he₁; have .proj b1 b2 := he₂
   refine (lazyDeltaReductionStep.WF a1 b1).bind fun _ _ _ h => ?_; split

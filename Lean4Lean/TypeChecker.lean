@@ -268,6 +268,9 @@ def inferProj (typeName : Name) (idx : Nat) (struct structType : Expr) : RecM Ex
   let [c] := I_val.ctors | fail
   if args.size != I_val.numParams + I_val.numIndices then fail
   let c_info ← env.get c
+  let .ctorInfo c_val := c_info | fail
+  -- redundant on a well-formed environment (see `divergences.md`)
+  if c_val.numFields ≤ idx then fail
   let some afterParameters ← instantiateProjectionParameters
       (c_info.instantiateTypeLevelParams I_levels) args 0 I_val.numParams
     | fail
@@ -358,8 +361,11 @@ def whnfFVar (e : Expr) (cheapProj : Bool) : RecM Expr := do
     return ← whnfCore v cheapProj
   return e
 
-/-- Reduce a projection whose structure argument has already been reduced. -/
-def reduceProjCore (idx : Nat) (struct : Expr) : RecM (Option Expr) := do
+/-- Reduce a projection whose structure argument has already been reduced.
+
+The constructor at the head of the reduced structure must be the unique constructor of
+`structName`; this is redundant on well-typed input (see `divergences.md`). -/
+def reduceProjCore (structName : Name) (idx : Nat) (struct : Expr) : RecM (Option Expr) := do
   let mut c := struct
   if let .lit (.strVal s) := c then
     c ← whnf (.strLitToConstructor s)
@@ -367,12 +373,15 @@ def reduceProjCore (idx : Nat) (struct : Expr) : RecM (Option Expr) := do
   let .const mkC _ := mk | return none
   let env ← getEnv
   let .ctorInfo mkInfo ← env.get mkC | return none
+  let some (.inductInfo structInfo) := env.find? structName | return none
+  unless structInfo.ctors == [mkC] do return none
   return args[mkInfo.numParams + idx]?
 
 /-- Reduces a projection of `struct` at index `idx` (when `struct` is reducible to a constructor
 application). -/
-def reduceProj (idx : Nat) (struct : Expr) (cheapProj : Bool) : RecM (Option Expr) :=
-  (if cheapProj then whnfCore struct cheapProj else whnf struct) >>= reduceProjCore idx
+def reduceProj (structName : Name) (idx : Nat) (struct : Expr) (cheapProj : Bool) :
+    RecM (Option Expr) :=
+  (if cheapProj then whnfCore struct cheapProj else whnf struct) >>= reduceProjCore structName idx
 
 def isLetFVar (lctx : LocalContext) (fvar : FVarId) : Bool :=
   lctx.find? fvar matches some (.ldecl ..)
@@ -422,8 +431,8 @@ def whnfCore' (e : Expr) (cheapProj := false) : RecM Expr := do
       save <|← whnfCore r cheapProj
   | .letE _ _ val body _ =>
     save <|← whnfCore (body.instantiate1 val) cheapProj
-  | .proj _ idx s =>
-    if let some m ← reduceProj idx s cheapProj then
+  | .proj structName idx s =>
+    if let some m ← reduceProj structName idx s cheapProj then
       save <|← whnfCore m cheapProj
     else
       save e
@@ -807,12 +816,12 @@ where
 
 /-- Lazily delta-unfold two structures and, once that stalls, compare their
 projected fields. -/
-def lazyDeltaProjReduction (t s : Expr) (idx : Nat) : RecM Bool := do
+def lazyDeltaProjReduction (structName : Name) (t s : Expr) (idx : Nat) : RecM Bool := do
   loop t s (← readThe Context).fuel.lazyDelta
 where
   finish tn sn := do
-    if let some tf ← reduceProjCore idx tn then
-      if let some sf ← reduceProjCore idx sn then
+    if let some tf ← reduceProjCore structName idx tn then
+      if let some sf ← reduceProjCore structName idx sn then
         return ← isDefEqCore tf sf
     isDefEqCore tn sn
   loop tn sn
@@ -880,7 +889,7 @@ def isDefEqCore' (t s : Expr) : RecM Bool := do
   | .proj tn ti te, .proj sn si se =>
     -- optimized by the previous reduction functions using `cheapProj := true`
     if tn == sn && ti == si then
-      if ← lazyDeltaProjReduction te se ti then return true
+      if ← lazyDeltaProjReduction tn te se ti then return true
   | _, _ => pure ()
 
   -- the previous reduction functions used `cheapProj := true`, so we may not have a complete WHNF

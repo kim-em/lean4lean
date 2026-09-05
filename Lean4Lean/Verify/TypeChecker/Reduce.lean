@@ -141,11 +141,11 @@ theorem reduceNat.WF {c : VContext} (he : c.TrExprS e e') :
     exact ⟨_, ha1.appDF <| a3.of_r c.Ewf c.Δwf ha2⟩
 
 theorem reduceProjCore.WF (he : c.TrExprS (.proj n i e) e') :
-    RecM.WF c s (reduceProjCore i e) fun oe _ =>
+    RecM.WF c s (reduceProjCore n i e) fun oe _ =>
       ∀ e₁, oe = some e₁ → c.FVarsBelow (.proj n i e) e₁ ∧ c.TrExpr e₁ e' := sorry
 
 theorem reduceProj.WF (he : c.TrExprS (.proj n i e) e') :
-    RecM.WF c s (reduceProj i e cheapProj) fun oe _ =>
+    RecM.WF c s (reduceProj n i e cheapProj) fun oe _ =>
       ∀ e₁, oe = some e₁ → c.FVarsBelow (.proj n i e) e₁ ∧ c.TrExpr e₁ e' := by
   unfold reduceProj
   have .proj (e' := s) a1 a2 := he

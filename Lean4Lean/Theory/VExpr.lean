@@ -306,6 +306,11 @@ def inst : VExpr → VExpr → (k :_:= 0) → VExpr
 
 @[simp] theorem inst_default : inst default e k = default := rfl
 
+/-- Strip leading lambda binders. -/
+def stripLams : VExpr → VExpr
+  | .lam _ body => stripLams body
+  | e => e
+
 /-- Number of leading `forallE` binders. -/
 def forallArity : VExpr → Nat
   | .forallE _ body => forallArity body + 1
