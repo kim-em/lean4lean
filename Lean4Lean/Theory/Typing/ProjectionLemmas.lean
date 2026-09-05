@@ -167,5 +167,55 @@ theorem HasType.mkApps_telescope (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsTyp
       have ⟨res, H1, H2⟩ := ih hfa' (by simpa [VExpr.mkApps] using H) hB''
       exact ⟨res, .cons ha H1, by simpa [VExpr.mkApps] using H2⟩
 
+/-- If a body with a free occurrence of `bvar k` is well formed after substituting `a` for that
+variable, then `a` itself is well formed in the context below the `k` binders. -/
+theorem _root_.Lean4Lean.VExpr.WF.of_inst_occurs (henv : VEnv.WF env) {a : VExpr} :
+    ∀ (B : VExpr) (Δ : List VExpr), OnCtx (Δ ++ Γ) (env.IsType U) →
+      VExpr.WF env U (Δ ++ Γ) (B.inst a Δ.length) → ¬ B.Skips' 1 Δ.length →
+      VExpr.WF env U Γ a := by
+  intro B
+  induction B with
+  | bvar i =>
+    intro Δ hΓ' H hocc
+    simp only [VExpr.Skips', Classical.not_imp, Nat.not_lt] at hocc
+    obtain ⟨h1, h2⟩ := hocc
+    obtain rfl : i = Δ.length := Nat.le_antisymm (Nat.lt_succ_iff.1 h1) h2
+    simp only [VExpr.inst, VExpr.instVar, Nat.lt_irrefl, if_false, if_true] at H
+    exact (IsDefEqU.weakN_iff henv hΓ' (.zero Δ)).1 H
+  | sort | const => exact fun _ _ _ hocc => (hocc trivial).elim
+  | app f x ihf ihx =>
+    intro Δ hΓ' H hocc
+    simp only [VExpr.inst] at H
+    have ⟨_, _, hf, hx⟩ := H.app_inv henv.ordered hΓ'
+    simp only [VExpr.Skips', not_and] at hocc
+    by_cases hfs : f.Skips' 1 Δ.length
+    · exact ihx Δ hΓ' ⟨_, hx⟩ (hocc hfs)
+    · exact ihf Δ hΓ' ⟨_, hf⟩ hfs
+  | lam A e ihA ihe =>
+    intro Δ hΓ' H hocc
+    simp only [VExpr.inst] at H
+    have ⟨⟨_, hA⟩, he⟩ := H.lam_inv henv.ordered hΓ'
+    simp only [VExpr.Skips', not_and] at hocc
+    by_cases hAs : A.Skips' 1 Δ.length
+    · exact ihe (A.inst a Δ.length :: Δ) ⟨hΓ', _, hA⟩ (by simpa using he) (by simpa using hocc hAs)
+    · exact ihA Δ hΓ' ⟨_, hA⟩ hAs
+  | forallE A e ihA ihe =>
+    intro Δ hΓ' H hocc
+    simp only [VExpr.inst] at H
+    have ⟨_, H⟩ := H
+    have ⟨⟨_, hA⟩, _, he⟩ := HasType.forallE_inv henv.ordered H
+    simp only [VExpr.Skips', not_and] at hocc
+    by_cases hAs : A.Skips' 1 Δ.length
+    · exact ihe (A.inst a Δ.length :: Δ) ⟨hΓ', _, hA⟩ (by simpa using ⟨_, he⟩)
+        (by simpa using hocc hAs)
+    · exact ihA Δ hΓ' ⟨_, hA⟩ hAs
+  | proj _ _ e ihe =>
+    intro Δ hΓ' H hocc
+    simp only [VExpr.inst] at H
+    have ⟨_, H⟩ := H
+    have ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ :=
+      HasType.proj_inv henv.ordered hΓ' H
+    exact ihe Δ hΓ' ⟨_, hmajor.hasType.2⟩ hocc
+
 end VEnv
 end Lean4Lean
