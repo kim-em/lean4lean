@@ -507,5 +507,184 @@ theorem _root_.Lean4Lean.VExpr.instOuter_set_of_skips :
       rw [e1]
       exact ih _ hk' .liftN
 
+/-- `instOuter` at an offset: the first argument replaces the variable `k + args.length - 1`. -/
+def _root_.Lean4Lean.VExpr.instOuterAt : VExpr → List VExpr → Nat → VExpr
+  | body, [], _ => body
+  | body, a :: as, k => VExpr.instOuterAt (body.inst a (k + as.length)) as k
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instOuterAt_nil (body : VExpr) (k : Nat) :
+    body.instOuterAt [] k = body := rfl
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instOuterAt_cons (body a : VExpr) (as : List VExpr) (k : Nat) :
+    body.instOuterAt (a :: as) k = (body.inst a (k + as.length)).instOuterAt as k := rfl
+
+theorem _root_.Lean4Lean.VExpr.instOuter_eq_instOuterAt (body : VExpr) (args : List VExpr) :
+    body.instOuter args = body.instOuterAt args 0 := by
+  induction args generalizing body with
+  | nil => rfl
+  | cons a as ih => simp [ih]
+
+theorem _root_.Lean4Lean.VExpr.instOuterAt_append (body : VExpr) (xs ys : List VExpr) (k : Nat) :
+    body.instOuterAt (xs ++ ys) k = (body.instOuterAt xs (k + ys.length)).instOuterAt ys k := by
+  induction xs generalizing body with
+  | nil => rfl
+  | cons x xs ih =>
+    simp only [List.cons_append, VExpr.instOuterAt_cons, List.length_append, ih]
+    congr 3
+    omega
+
+/-- Instantiate the domains of a telescope suffix by the arguments consumed before it; the domain
+at position `k` (counted from the start of the suffix) sits under `k` further binders. -/
+def _root_.Lean4Lean.VExpr.instDomsAt : List VExpr → List VExpr → Nat → List VExpr
+  | [], _, _ => []
+  | d :: ds, args, k => d.instOuterAt args k :: VExpr.instDomsAt ds args (k + 1)
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instDomsAt_length (ds args : List VExpr) (k : Nat) :
+    (VExpr.instDomsAt ds args k).length = ds.length := by
+  induction ds generalizing k <;> simp [VExpr.instDomsAt, *]
+
+theorem _root_.Lean4Lean.VExpr.instDomsAt_getElem (ds args : List VExpr) (k j : Nat)
+    (h : j < ds.length) :
+    (VExpr.instDomsAt ds args k)[j]'(by simpa using h) = ds[j].instOuterAt args (k + j) := by
+  induction ds generalizing k j with
+  | nil => simp at h
+  | cons d ds ih =>
+    cases j with
+    | zero => rfl
+    | succ j =>
+      simp only [VExpr.instDomsAt, List.getElem_cons_succ]
+      rw [ih _ _ (by simp at h; omega)]
+      simp [Nat.add_assoc, Nat.add_comm 1]
+
+@[simp] theorem _root_.Lean4Lean.VExpr.instDomsAt_nil_args (ds : List VExpr) (k : Nat) :
+    VExpr.instDomsAt ds [] k = ds := by
+  induction ds generalizing k <;> simp [VExpr.instDomsAt, *]
+
+theorem _root_.Lean4Lean.VExpr.instDomains_getElem (ds : List VExpr) (a : VExpr) (k j : Nat)
+    (h : j < ds.length) :
+    (VExpr.instDomains ds a k)[j]'(by simpa using h) = ds[j].inst a (k + j) := by
+  induction ds generalizing k j with
+  | nil => simp at h
+  | cons d ds ih =>
+    cases j with
+    | zero => rfl
+    | succ j =>
+      simp only [VExpr.instDomains, List.getElem_cons_succ]
+      rw [ih _ _ (by simp at h; omega)]
+      simp [Nat.add_assoc, Nat.add_comm 1]
+
+theorem _root_.Lean4Lean.VExpr.instDomains_eq_instDomsAt (ds : List VExpr) (a : VExpr) (k : Nat) :
+    VExpr.instDomains ds a k = VExpr.instDomsAt ds [a] k := by
+  induction ds generalizing k <;> simp [VExpr.instDomains, VExpr.instDomsAt, *]
+
+theorem _root_.Lean4Lean.VExpr.instDomsAt_cons_arg (ds : List VExpr) (a : VExpr) (as : List VExpr)
+    (k : Nat) :
+    VExpr.instDomsAt ds (a :: as) k = VExpr.instDomsAt (VExpr.instDomains ds a (k + as.length)) as k := by
+  induction ds generalizing k with
+  | nil => rfl
+  | cons d ds ih =>
+    simp only [VExpr.instDomsAt, VExpr.instDomains, VExpr.instOuterAt_cons]
+    rw [ih, Nat.add_right_comm]
+
+theorem _root_.Lean4Lean.VExpr.instDomains_drop (ds : List VExpr) (a : VExpr) (k m : Nat) :
+    (VExpr.instDomains ds a k).drop m = VExpr.instDomains (ds.drop m) a (k + m) := by
+  induction ds generalizing k m with
+  | nil => simp [VExpr.instDomains]
+  | cons d ds ih =>
+    cases m with
+    | zero => simp
+    | succ m => simp [VExpr.instDomains, ih, Nat.add_assoc, Nat.add_comm 1]
+
+/-- Instantiating a prefix of a wrapped telescope. -/
+theorem _root_.Lean4Lean.VProjectionInfo.instantiateProjectionParameters_wrapForalls
+    (doms : List VExpr) (body : VExpr) (args : List VExpr) (h : args.length ≤ doms.length) :
+    VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls doms body) args =
+      some (VExpr.wrapForalls (VExpr.instDomsAt (doms.drop args.length) args 0)
+        (body.instOuterAt args (doms.length - args.length))) := by
+  induction args generalizing doms body with
+  | nil => simp [VProjectionInfo.instantiateProjectionParameters]
+  | cons a as ih =>
+    cases doms with
+    | nil => simp at h
+    | cons d ds =>
+      simp only [List.length_cons] at h
+      have h' : as.length ≤ ds.length := Nat.le_of_succ_le_succ h
+      show VProjectionInfo.instantiateProjectionParameters
+        (VExpr.forallE d (VExpr.wrapForalls ds body)) (a :: as) = _
+      simp only [VProjectionInfo.instantiateProjectionParameters]
+      rw [VExpr.wrapForalls_inst, ih _ _ (by simpa using h')]
+      simp only [Nat.zero_add, List.length_cons, List.drop_succ_cons, VExpr.instDomains_length,
+        VExpr.instOuterAt_cons, Option.some.injEq, VExpr.instDomains_drop,
+        VExpr.instDomsAt_cons_arg, Nat.add_sub_add_right]
+      congr 2
+      rw [Nat.sub_add_cancel h']
+
+theorem _root_.Lean4Lean.VExpr.instL_wrapForalls (doms : List VExpr) (body : VExpr) (ls : List VLevel) :
+    (VExpr.wrapForalls doms body).instL ls =
+      VExpr.wrapForalls (doms.map (·.instL ls)) (body.instL ls) := by
+  induction doms with
+  | nil => rfl
+  | cons d ds ih => simp [VExpr.wrapForalls, VExpr.instL] at ih ⊢; exact ih
+
+/-- Walking the field binders of a wrapped telescope selects the instantiated domain. -/
+theorem _root_.Lean4Lean.VProjectionInfo.instantiateProjectionFields_wrapForalls
+    (ds : List VExpr) (body : VExpr) (k current : Nat) (hk : k < ds.length) :
+    VProjectionInfo.instantiateProjectionFields typeName major (current + k) current (k + 1)
+        (VExpr.wrapForalls ds body) =
+      some (ds[k].instOuterAt ((List.range k).map fun j => .proj typeName (current + j) major) 0) := by
+  induction k generalizing ds current body with
+  | zero =>
+    cases ds with
+    | nil => simp at hk
+    | cons d ds =>
+      show VProjectionInfo.instantiateProjectionFields typeName major (current + 0) current 1
+        (VExpr.forallE d (VExpr.wrapForalls ds body)) = _
+      simp [VProjectionInfo.instantiateProjectionFields]
+  | succ k ih =>
+    cases ds with
+    | nil => simp at hk
+    | cons d ds =>
+      simp only [List.length_cons] at hk
+      show VProjectionInfo.instantiateProjectionFields typeName major (current + (k + 1)) current
+        (k + 2) (VExpr.forallE d (VExpr.wrapForalls ds body)) = _
+      simp only [VProjectionInfo.instantiateProjectionFields]
+      rw [if_neg (by omega), VExpr.wrapForalls_inst]
+      have := ih (ds := VExpr.instDomains ds (.proj typeName current major) 0) (current := current + 1)
+        (body := body.inst (.proj typeName current major) (0 + ds.length))
+        (by simpa using Nat.lt_of_succ_lt_succ hk)
+      rw [show current + (k + 1) = current + 1 + k by omega, this]
+      congr 1
+      simp only [List.getElem_cons_succ, Nat.zero_add,
+        List.range_succ_eq_map, List.map_cons, List.map_map, VExpr.instOuterAt_cons,
+        List.length_map, List.length_range]
+      congr 2
+      · simpa using VExpr.instDomains_getElem ds _ 0 k (Nat.lt_of_succ_lt_succ hk)
+      · funext j
+        simp [Function.comp, Nat.add_assoc, Nat.add_comm 1]
+
+/-- `fieldType` is the fully instantiated field domain. -/
+theorem _root_.Lean4Lean.VProjectionInfo.fieldType_eq_instOuter (info : VProjectionInfo)
+    (hshape : info.ctorType = VExpr.wrapForalls doms result)
+    (hlevels : levels.length = info.uvars) (hparams : params.length = info.nparams)
+    (hlt : info.nparams + index < doms.length) :
+    info.fieldType typeName levels params index major =
+      some ((doms[info.nparams + index].instL levels).instOuter
+        (params ++ (List.range index).map fun j => .proj typeName j major)) := by
+  have hle : params.length ≤ (doms.map (·.instL levels)).length := by simp; omega
+  have hfields := VProjectionInfo.instantiateProjectionFields_wrapForalls (typeName := typeName)
+    (major := major) (VExpr.instDomsAt ((doms.map (·.instL levels)).drop params.length) params 0)
+    (result.instL levels |>.instOuterAt params ((doms.map (·.instL levels)).length - params.length))
+    index 0 (by simp; omega)
+  simp only [Nat.zero_add] at hfields
+  unfold VProjectionInfo.fieldType
+  rw [if_neg (by simp [hlevels, hparams]), hshape, VExpr.instL_wrapForalls,
+    VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ params hle]
+  simp only [bind, Option.bind]
+  rw [hfields]
+  congr 1
+  rw [VExpr.instDomsAt_getElem _ _ _ _ (by simp; omega), List.getElem_drop, List.getElem_map,
+    VExpr.instOuter_eq_instOuterAt, VExpr.instOuterAt_append]
+  simp [hparams]
+
 end VEnv
 end Lean4Lean
