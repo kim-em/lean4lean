@@ -878,6 +878,230 @@ theorem CheckingEnv.safePrimitives_add (H : CheckingEnv safety env venv)
     rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?]
     exact hfind
 
+/-! ## Recursor rules and quotient facts along the environment trace -/
+
+theorem insertDefs_find?_of_find? : ∀ {cis : List DefinitionVal} {C : ConstMap} {name ci}, C.WF →
+    (∀ d ∈ cis, C.find? d.name = none) → (cis.map (·.name)).Nodup →
+    C.find? name = some ci → (insertDefs C cis).find? name = some ci
+  | [], _, _, _, _, _, _, h => h
+  | d :: ds, C, name, ci, hC, hfr, hnd, h => by
+    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
+    have hfr' : ∀ e ∈ ds, (SMap.insert C d.name (.defnInfo d)).find? e.name = none := by
+      intro e he
+      rw [hC.find?_insert]
+      have : ¬ (d.name == e.name) = true := by
+        simp only [beq_iff_eq]; intro hh; exact hnd.1 ⟨e, he, hh.symm⟩
+      simp [this]; exact hfr e (.tail _ he)
+    show (insertDefs (SMap.insert C d.name (.defnInfo d)) ds).find? name = some ci
+    refine insertDefs_find?_of_find? (hC.insert _ _ (hfr _ (.head _))) hfr' hnd.2 ?_
+    rw [hC.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; rw [← hb, hfr d (.head _)] at h; cases h
+    · exact h
+
+theorem insertDefs_find?_self : ∀ {cis : List DefinitionVal} {C : ConstMap} {d}, C.WF →
+    (∀ d ∈ cis, C.find? d.name = none) → (cis.map (·.name)).Nodup →
+    d ∈ cis → (insertDefs C cis).find? d.name = some (.defnInfo d)
+  | [], _, _, _, _, _, h => by cases h
+  | e :: ds, C, d, hC, hfr, hnd, h => by
+    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
+    have hfr' : ∀ f ∈ ds, (SMap.insert C e.name (.defnInfo e)).find? f.name = none := by
+      intro f hf
+      rw [hC.find?_insert]
+      have : ¬ (e.name == f.name) = true := by
+        simp only [beq_iff_eq]; intro hh; exact hnd.1 ⟨f, hf, hh.symm⟩
+      simp [this]; exact hfr f (.tail _ hf)
+    show (insertDefs (SMap.insert C e.name (.defnInfo e)) ds).find? d.name = some _
+    cases h with
+    | head =>
+      refine insertDefs_find?_of_find? (hC.insert _ _ (hfr _ (.head _))) hfr' hnd.2 ?_
+      rw [hC.find?_insert]; simp
+    | tail _ h =>
+      exact insertDefs_find?_self (hC.insert _ _ (hfr _ (.head _))) hfr' hnd.2 h
+
+/-- Lookup of a constant through the four quotient insertions. -/
+theorem AddQuot.find? (H : AddQuot C₁ C₂ venv₁ venv₂) (hwf : C₁.WF) :
+    C₁.find? ``Quot = none ∧
+    (∀ {n ci}, C₁.find? n = some ci → C₂.find? n = some ci) ∧
+    (∃ q : QuotVal, C₂.find? ``Quot = some (.quotInfo q) ∧ q.kind = .type) ∧
+    (∃ q : QuotVal, C₂.find? ``Quot.lift = some (.quotInfo q) ∧ q.kind = .lift) ∧
+    (∀ {n ci}, C₂.find? n = some ci → C₁.find? n = some ci ∨ ∃ q, ci = .quotInfo q) := by
+  obtain ⟨l1, t1, e1, -, f1, -, l2, t2, e2, -, f2, -, l3, t3, e3, -, f3, -, l4, t4, e4, -, f4, -,
+    hm, -⟩ := H
+  subst hm
+  have w1 := hwf.insert _ (.quotInfo { name := ``Quot, kind := .type, levelParams := l1,
+    type := t1 }) f1
+  have w2 := w1.insert _ (.quotInfo { name := ``Quot.mk, kind := .ctor, levelParams := l2,
+    type := t2 }) f2
+  have w3 := w2.insert _ (.quotInfo { name := ``Quot.lift, kind := .lift, levelParams := l3,
+    type := t3 }) f3
+  refine ⟨f1, ?_, ?_, ?_, ?_⟩
+  · intro n ci h
+    rw [w3.find?_insert, w2.find?_insert, w1.find?_insert, hwf.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [f1] at h; cases h
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb
+      rw [w1.find?_insert] at f2; split at f2 <;> [cases f2; (rw [f2] at h; cases h)]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb
+      rw [w2.find?_insert, w1.find?_insert] at f3
+      split at f3 <;> [cases f3; skip]
+      split at f3 <;> [cases f3; (rw [f3] at h; cases h)]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb
+      rw [w3.find?_insert, w2.find?_insert, w1.find?_insert] at f4
+      split at f4 <;> [cases f4; skip]
+      split at f4 <;> [cases f4; skip]
+      split at f4 <;> [cases f4; (rw [f4] at h; cases h)]
+    exact h
+  · refine ⟨_, ?_, rfl⟩
+    rw [w3.find?_insert, w2.find?_insert, w1.find?_insert, hwf.find?_insert]
+    simp
+  · refine ⟨_, ?_, rfl⟩
+    rw [w3.find?_insert, w2.find?_insert]
+    simp
+  · intro n ci h
+    rw [w3.find?_insert] at h; split at h
+    · exact .inr ⟨_, (Option.some.inj h).symm⟩
+    rw [w2.find?_insert] at h; split at h
+    · exact .inr ⟨_, (Option.some.inj h).symm⟩
+    rw [w1.find?_insert] at h; split at h
+    · exact .inr ⟨_, (Option.some.inj h).symm⟩
+    rw [hwf.find?_insert] at h; split at h
+    · exact .inr ⟨_, (Option.some.inj h).symm⟩
+    exact .inl h
+
+/-- The stored equations after quotient initialization. -/
+theorem AddQuot.defeqs (H : AddQuot C₁ C₂ venv₁ venv₂) :
+    ∀ df, venv₂.defeqs df → venv₁.defeqs df ∨ df = quotDefEq := by
+  obtain ⟨_, _, e1, -, -, h1, _, _, e2, -, -, h2, _, _, e3, -, -, h3, _, _, e4, -, -, h4, -, rfl⟩ :=
+    H
+  intro df hdf
+  rcases hdf with rfl | hdf
+  · exact .inr rfl
+  · rw [VEnv.addConst_defeqs h4, VEnv.addConst_defeqs h3, VEnv.addConst_defeqs h2,
+      VEnv.addConst_defeqs h1] at hdf
+    exact .inl hdf
+
+theorem TrEnv'.recursorEnvCoherent (H : TrEnv' safety C Q venv) :
+    RecursorEnvCoherent safety C venv := by
+  induction H with
+  | empty =>
+    refine ⟨?_, ?_, ?_⟩
+    · intro name rec h; simp [SMap.find?] at h
+    · intro name rec h; simp [SMap.find?] at h
+    · intro df h; exact h.elim
+  | ignore h1 h2 h3 ih => exact ih.insertInvisible h3.map_wf h1 h2
+  | «axiom» _ h2 _ h4 h5 ih =>
+    exact ih.insert h5.map_wf h2 (.of_not_rec nofun) (VEnv.addConst_le h4)
+      fun df hdf => by rwa [VEnv.addConst_defeqs h4] at hdf
+  | thm _ h2 _ _ h4 h5 ih =>
+    exact ih.insert h5.map_wf h2 (.of_not_rec nofun) (VEnv.addConst_le h4)
+      fun df hdf => by rwa [VEnv.addConst_defeqs h4] at hdf
+  | «opaque» _ h2 _ h4 h5 ih =>
+    exact ih.insert h5.map_wf h2 (.of_not_rec nofun) (VEnv.addConst_le h4)
+      fun df hdf => by rwa [VEnv.addConst_defeqs h4] at hdf
+  | defn h1 h2 _ h4 h5 ih =>
+    have hname := h1.1.2
+    dsimp [ConstantInfo.name, ConstantInfo.toConstantVal, VDefVal.toVConstVal] at hname
+    refine (ih.insert h5.map_wf h2 (.of_not_rec nofun) (VEnv.addConst_le h4)
+      fun df hdf => by rwa [VEnv.addConst_defeqs h4] at hdf).addDefEq ?_
+    refine EquationHeadOf.ofDefn ⟨_, _, _, VDefVal.toDefEq_head _, ?_⟩
+    rw [← hname, h5.map_wf.find?_insert]; simp
+  | mutualDef hblk hnd hfr _ hadd _ htr ih =>
+    refine ih.extend (insertDefs_find?_of_find? htr.map_wf hfr hnd) ?_
+      ((VEnv.addConsts_le hadd).trans VEnv.addDefEqs_le) ?_
+    · intro n rec hn _
+      rcases insertDefs_find? htr.map_wf hfr hnd hn with h | ⟨d, -, -, h⟩
+      · exact .inl h
+      · cases h
+    · intro df hdf
+      rcases VEnv.addDefEqs_defeqs_iff.1 hdf with hdf | ⟨ci', hci', rfl⟩
+      · rw [VEnv.addConsts_defeqs hadd] at hdf; exact .inl hdf
+      · obtain ⟨ci, hci, htrc⟩ := Lean4Lean.List.Forall₂.forall_exists_r hblk ci' hci'
+        have hname := htrc.1.2
+        dsimp [ConstantInfo.name, ConstantInfo.toConstantVal, VDefVal.toVConstVal] at hname
+        refine .inr (EquationHeadOf.ofDefn ⟨_, _, _, VDefVal.toDefEq_head _, ?_⟩)
+        rw [← hname]
+        exact insertDefs_find?_self htr.map_wf hfr hnd hci
+  | quot _ hq htr ih =>
+    obtain ⟨-, hpres, -, ⟨q, hlift, hkind⟩, hnew⟩ := hq.find? htr.map_wf
+    refine ih.extend hpres ?_ hq.le ?_
+    · intro n rec hn _
+      rcases hnew hn with h | ⟨q, h⟩
+      · exact .inl h
+      · cases h
+    · intro df hdf
+      rcases hq.defeqs df hdf with h | rfl
+      · exact .inl h
+      · exact .inr ⟨``Quot.lift, _, _, rfl, hlift, nofun, fun q' hq' => by
+          cases hq'; exact hkind⟩
+  | induct _ hadd _ ih =>
+    exact ih.addInduct hadd.recursorProvenance hadd.preservesSourceFind hadd.le
+
+theorem TrEnv'.quotEnvCoherent (H : TrEnv' safety C Q venv) (hQ : Q = true) :
+    QuotEnvCoherent C venv := by
+  induction H with
+  | empty => cases hQ
+  | ignore h1 h2 h3 ih =>
+    refine (ih hQ).extend ?_ VEnv.LE.rfl (TrEnv'.ignore h1 h2 h3).recursorEnvCoherent.heads
+    intro n ci h
+    rw [h3.map_wf.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [h1] at h; cases h
+    · exact h
+  | «axiom» h1 h2 h3 h4 h5 ih =>
+    refine (ih hQ).extend ?_ (VEnv.addConst_le h4)
+      (TrEnv'.axiom h1 h2 h3 h4 h5).recursorEnvCoherent.heads
+    intro n ci h
+    rw [h5.map_wf.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [h2] at h; cases h
+    · exact h
+  | thm h1 h2 h3 h3' h4 h5 ih =>
+    refine (ih hQ).extend ?_ (VEnv.addConst_le h4)
+      (TrEnv'.thm h1 h2 h3 h3' h4 h5).recursorEnvCoherent.heads
+    intro n ci h
+    rw [h5.map_wf.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [h2] at h; cases h
+    · exact h
+  | «opaque» h1 h2 h3 h4 h5 ih =>
+    refine (ih hQ).extend ?_ (VEnv.addConst_le h4)
+      (TrEnv'.opaque h1 h2 h3 h4 h5).recursorEnvCoherent.heads
+    intro n ci h
+    rw [h5.map_wf.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [h2] at h; cases h
+    · exact h
+  | defn h1 h2 h3 h4 h5 ih =>
+    refine (ih hQ).extend ?_ ((VEnv.addConst_le h4).trans VEnv.addDefEq_le)
+      (TrEnv'.defn h1 h2 h3 h4 h5).recursorEnvCoherent.heads
+    intro n ci h
+    rw [h5.map_wf.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [h2] at h; cases h
+    · exact h
+  | mutualDef hblk hnd hfr hwf hadd hci htr ih =>
+    exact (ih hQ).extend (insertDefs_find?_of_find? htr.map_wf hfr hnd)
+      ((VEnv.addConsts_le hadd).trans VEnv.addDefEqs_le)
+      (TrEnv'.mutualDef hblk hnd hfr hwf hadd hci htr).recursorEnvCoherent.heads
+  | quot _ hq htr _ =>
+    obtain ⟨hf1, -, hquot, -, -⟩ := hq.find? htr.map_wf
+    exact ⟨hq.quotCoherent (htr.recursorEnvCoherent.heads.rigid_of_fresh hf1), hquot⟩
+  | induct hdecl hadd htr ih =>
+    exact (ih hQ).extend hadd.preservesSourceFind hadd.le
+      (TrEnv'.induct hdecl hadd htr).recursorEnvCoherent.heads
+
+theorem TrEnv.recursorEnvCoherent (H : TrEnv safety env venv) :
+    RecursorEnvCoherent safety env.constants venv :=
+  TrEnv'.recursorEnvCoherent H
+
+theorem TrEnv.quotEnvCoherent (H : TrEnv safety env venv) (hQ : env.quotInit = true) :
+    QuotEnvCoherent env.constants venv :=
+  TrEnv'.quotEnvCoherent H hQ
+
 /-- Local invariants of a staged checking environment that every fresh
 constant installation preserves: the translation relation itself, primitive
 metadata, and the type-annotation wrappers.  Constant installation
@@ -903,6 +1127,12 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
     CheckingEnv.ValidCore safety env venv where
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
+  /-- Every visible recursor is aligned with the stored iota equations, and every stored
+  equation is headed by a non-inductive constant. This is what recursor reduction reads. -/
+  recursors : RecursorEnvCoherent safety env.constants venv
+  /-- Once quotients are initialized, the quotient constants and the `Quot.lift` equation are
+  present. This is what quotient reduction reads. -/
+  quot : env.quotInit = true → QuotEnvCoherent env.constants venv
 
 theorem TrEnv.toCheckingValidCore (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
@@ -922,7 +1152,8 @@ theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (howners : VerifyInductive.ConstructorOwnersPresent env)
     (hregistry : ProjectionRegistryCoherent safety env.constants venv) :
     CheckingEnv.Valid safety env venv :=
-  ⟨⟨H.toChecking, hprims, hsafe, hannotations⟩, howners, hregistry⟩
+  ⟨⟨H.toChecking, hprims, hsafe, hannotations⟩, howners, hregistry, H.recursorEnvCoherent,
+    H.quotEnvCoherent⟩
 
 theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
     (hn : env.find? ci.name = none)
@@ -962,14 +1193,31 @@ theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
     (hci : ci'.WF venv)
     (hadd : venv.addConst ci.name ci' = some venv')
     (hdelta : ci.deltaValue? = none)
-    (hstep : ProjectionRegistryStep env.constants venv' ci) :
+    (hstep : ProjectionRegistryStep env.constants venv' ci)
+    (hrec : RecursorInstallStep safety env.constants venv' ci) :
     CheckingEnv.Valid safety (env.add ci) venv' := by
   have hcore := H.toValidCore.add hn hnprim htr hci hadd hdelta
   have hfresh : env.constants.find? ci.name = none := by
     rw [Lean.Kernel.Environment.find?, H.tr.map_wf.find?'_eq_find?] at hn
     exact hn
   have hle : venv ≤ venv' := VEnv.addConst_le hadd
-  refine { hcore with constructorOwners := ?_, projectionRegistry := ?_ }
+  have hrecursors : RecursorEnvCoherent safety (env.add ci).constants venv' :=
+    H.recursors.insert H.tr.map_wf hfresh hrec hle fun df hdf => by
+      rwa [VEnv.addConst_defeqs hadd] at hdf
+  have hquot : (env.add ci).quotInit = true → QuotEnvCoherent (env.add ci).constants venv' := by
+    intro hq
+    refine (H.quot hq).extend ?_ hle hrecursors.heads
+    intro n ci' h
+    show (env.constants.insert ci.name ci).find? n = some ci'
+    rw [H.tr.map_wf.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [hfresh] at h; cases h
+    · exact h
+  refine { hcore with
+    constructorOwners := ?_
+    projectionRegistry := ?_
+    recursors := hrecursors
+    quot := hquot }
   · cases ci with
     | ctorInfo info =>
       rcases hstep.1 with ⟨owner, howner⟩
@@ -1015,15 +1263,24 @@ theorem CheckingEnv.Valid.addProjections
   toValidCore := H.toValidCore.addProjections hwf
   constructorOwners := H.constructorOwners
   projectionRegistry := H.projectionRegistry.monoEnv VEnv.addProjections_le
+  recursors := H.recursors.addProjections entries
+  quot hq := (H.quot hq).extend (fun h => h) VEnv.addProjections_le
+    (H.recursors.addProjections entries).heads
 
 /-- Promote the local invariants to the full checking invariant once
 constructor-owner presence and registry coherence are known. -/
 theorem CheckingEnv.ValidCore.toValid
     (H : CheckingEnv.ValidCore safety env venv)
     (howners : VerifyInductive.ConstructorOwnersPresent env)
-    (hregistry : ProjectionRegistryCoherent safety env.constants venv) :
+    (hregistry : ProjectionRegistryCoherent safety env.constants venv)
+    (hrecursors : RecursorEnvCoherent safety env.constants venv)
+    (hquot : env.quotInit = true → QuotEnvCoherent env.constants venv) :
     CheckingEnv.Valid safety env venv :=
-  { H with constructorOwners := howners, projectionRegistry := hregistry }
+  { H with
+    constructorOwners := howners
+    projectionRegistry := hregistry
+    recursors := hrecursors
+    quot := hquot }
 
 /-- Resolve the exact projection alignment selected by successful concrete
 family and constructor lookups. -/
