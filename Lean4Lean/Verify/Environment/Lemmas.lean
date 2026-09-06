@@ -1,6 +1,7 @@
 import Lean4Lean.Std.SMap
 import Lean4Lean.Declaration
 import Lean4Lean.Verify.Environment.Basic
+import Lean4Lean.Verify.Environment.Recursors
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -929,46 +930,52 @@ theorem AddQuot.find? (H : AddQuot C₁ C₂ venv₁ venv₂) (hwf : C₁.WF) :
   obtain ⟨l1, t1, e1, -, f1, -, l2, t2, e2, -, f2, -, l3, t3, e3, -, f3, -, l4, t4, e4, -, f4, -,
     hm, -⟩ := H
   subst hm
-  have w1 := hwf.insert _ (.quotInfo { name := ``Quot, kind := .type, levelParams := l1,
-    type := t1 }) f1
-  have w2 := w1.insert _ (.quotInfo { name := ``Quot.mk, kind := .ctor, levelParams := l2,
-    type := t2 }) f2
-  have w3 := w2.insert _ (.quotInfo { name := ``Quot.lift, kind := .lift, levelParams := l3,
-    type := t3 }) f3
+  have w1 := hwf.insert _ (.quotInfo ⟨⟨``Quot, l1, t1⟩, .type⟩) f1
+  have w2 := w1.insert _ (.quotInfo ⟨⟨``Quot.mk, l2, t2⟩, .ctor⟩) f2
+  have w3 := w2.insert _ (.quotInfo ⟨⟨``Quot.lift, l3, t3⟩, .lift⟩) f3
+  -- the intermediate freshness facts on the base map
+  have g2 : C₁.find? ``Quot.mk = none := by
+    rw [hwf.find?_insert] at f2; simpa using f2
+  have g3 : C₁.find? ``Quot.lift = none := by
+    rw [w1.find?_insert, hwf.find?_insert] at f3; simpa using f3
+  have g4 : C₁.find? ``Quot.ind = none := by
+    rw [w2.find?_insert, w1.find?_insert, hwf.find?_insert] at f4; simpa using f4
+  have look : ∀ n, ((((C₁.insert ``Quot (.quotInfo ⟨⟨``Quot, l1, t1⟩, .type⟩)).insert ``Quot.mk
+      (.quotInfo ⟨⟨``Quot.mk, l2, t2⟩, .ctor⟩)).insert ``Quot.lift
+      (.quotInfo ⟨⟨``Quot.lift, l3, t3⟩, .lift⟩)).insert ``Quot.ind
+      (.quotInfo ⟨⟨``Quot.ind, l4, t4⟩, .ind⟩)).find? n =
+      if ``Quot.ind = n then some (.quotInfo ⟨⟨``Quot.ind, l4, t4⟩, .ind⟩)
+      else if ``Quot.lift = n then some (.quotInfo ⟨⟨``Quot.lift, l3, t3⟩, .lift⟩)
+      else if ``Quot.mk = n then some (.quotInfo ⟨⟨``Quot.mk, l2, t2⟩, .ctor⟩)
+      else if ``Quot = n then some (.quotInfo ⟨⟨``Quot, l1, t1⟩, .type⟩)
+      else C₁.find? n := by
+    intro n
+    rw [w3.find?_insert, w2.find?_insert, w1.find?_insert, hwf.find?_insert]
+    simp only [beq_iff_eq]
   refine ⟨f1, ?_, ?_, ?_, ?_⟩
   · intro n ci h
-    rw [w3.find?_insert, w2.find?_insert, w1.find?_insert, hwf.find?_insert]
+    rw [look]
     split
-    · rename_i hb; rw [beq_iff_eq] at hb; subst hb; rw [f1] at h; cases h
+    · rename_i hb; subst hb; rw [g4] at h; cases h
     split
-    · rename_i hb; rw [beq_iff_eq] at hb; subst hb
-      rw [w1.find?_insert] at f2; split at f2 <;> [cases f2; (rw [f2] at h; cases h)]
+    · rename_i hb; subst hb; rw [g3] at h; cases h
     split
-    · rename_i hb; rw [beq_iff_eq] at hb; subst hb
-      rw [w2.find?_insert, w1.find?_insert] at f3
-      split at f3 <;> [cases f3; skip]
-      split at f3 <;> [cases f3; (rw [f3] at h; cases h)]
+    · rename_i hb; subst hb; rw [g2] at h; cases h
     split
-    · rename_i hb; rw [beq_iff_eq] at hb; subst hb
-      rw [w3.find?_insert, w2.find?_insert, w1.find?_insert] at f4
-      split at f4 <;> [cases f4; skip]
-      split at f4 <;> [cases f4; skip]
-      split at f4 <;> [cases f4; (rw [f4] at h; cases h)]
+    · rename_i hb; subst hb; rw [f1] at h; cases h
     exact h
-  · refine ⟨_, ?_, rfl⟩
-    rw [w3.find?_insert, w2.find?_insert, w1.find?_insert, hwf.find?_insert]
-    simp
-  · refine ⟨_, ?_, rfl⟩
-    rw [w3.find?_insert, w2.find?_insert]
-    simp
+  · exact ⟨_, by rw [look, if_neg (by decide), if_neg (by decide), if_neg (by decide), if_pos rfl],
+      rfl⟩
+  · exact ⟨_, by rw [look, if_neg (by decide), if_pos rfl], rfl⟩
   · intro n ci h
-    rw [w3.find?_insert] at h; split at h
+    rw [look] at h
+    split at h
     · exact .inr ⟨_, (Option.some.inj h).symm⟩
-    rw [w2.find?_insert] at h; split at h
+    split at h
     · exact .inr ⟨_, (Option.some.inj h).symm⟩
-    rw [w1.find?_insert] at h; split at h
+    split at h
     · exact .inr ⟨_, (Option.some.inj h).symm⟩
-    rw [hwf.find?_insert] at h; split at h
+    split at h
     · exact .inr ⟨_, (Option.some.inj h).symm⟩
     exact .inl h
 
@@ -1002,14 +1009,16 @@ theorem TrEnv'.recursorEnvCoherent (H : TrEnv' safety C Q venv) :
   | «opaque» _ h2 _ h4 h5 ih =>
     exact ih.insert h5.map_wf h2 (.of_not_rec nofun) (VEnv.addConst_le h4)
       fun df hdf => by rwa [VEnv.addConst_defeqs h4] at hdf
-  | defn h1 h2 _ h4 h5 ih =>
+  | @defn _ ci _ C _ ci' h1 h2 _ h4 h5 ih =>
     have hname := h1.1.2
     dsimp [ConstantInfo.name, ConstantInfo.toConstantVal, VDefVal.toVConstVal] at hname
-    refine (ih.insert h5.map_wf h2 (.of_not_rec nofun) (VEnv.addConst_le h4)
-      fun df hdf => by rwa [VEnv.addConst_defeqs h4] at hdf).addDefEq ?_
-    refine EquationHeadOf.ofDefn ⟨_, _, _, VDefVal.toDefEq_head _, ?_⟩
-    rw [← hname, h5.map_wf.find?_insert]; simp
-  | mutualDef hblk hnd hfr _ hadd _ htr ih =>
+    refine (ih.insert h5.map_wf h2 (RecursorInstallStep.of_not_rec (ci := .defnInfo _) nofun)
+      (VEnv.addConst_le h4) fun df hdf => by rwa [VEnv.addConst_defeqs h4] at hdf).addDefEq ?_
+    have hfind : (SMap.insert C ci.name (ConstantInfo.defnInfo ci)).find? ci'.name =
+        some (ConstantInfo.defnInfo ci) := by
+      rw [← hname, h5.map_wf.find?_insert, if_pos (beq_self_eq_true _)]
+    exact EquationHeadOf.ofDefn ⟨_, _, _, VDefVal.toDefEq_head _, hfind⟩
+  | @mutualDef _ _ C _ cis cis' hblk hnd hfr _ hadd _ htr ih =>
     refine ih.extend (insertDefs_find?_of_find? htr.map_wf hfr hnd) ?_
       ((VEnv.addConsts_le hadd).trans VEnv.addDefEqs_le) ?_
     · intro n rec hn _
@@ -1022,9 +1031,10 @@ theorem TrEnv'.recursorEnvCoherent (H : TrEnv' safety C Q venv) :
       · obtain ⟨ci, hci, htrc⟩ := Lean4Lean.List.Forall₂.forall_exists_r hblk ci' hci'
         have hname := htrc.1.2
         dsimp [ConstantInfo.name, ConstantInfo.toConstantVal, VDefVal.toVConstVal] at hname
-        refine .inr (EquationHeadOf.ofDefn ⟨_, _, _, VDefVal.toDefEq_head _, ?_⟩)
-        rw [← hname]
-        exact insertDefs_find?_self htr.map_wf hfr hnd hci
+        have hfind : (insertDefs C cis).find? ci'.name = some (ConstantInfo.defnInfo ci) := by
+          rw [← hname]
+          exact insertDefs_find?_self htr.map_wf hfr hnd hci
+        exact .inr (EquationHeadOf.ofDefn ⟨_, _, _, VDefVal.toDefEq_head _, hfind⟩)
   | quot _ hq htr ih =>
     obtain ⟨-, hpres, -, ⟨q, hlift, hkind⟩, hnew⟩ := hq.find? htr.map_wf
     refine ih.extend hpres ?_ hq.le ?_
@@ -1089,7 +1099,7 @@ theorem TrEnv'.quotEnvCoherent (H : TrEnv' safety C Q venv) (hQ : Q = true) :
       (TrEnv'.mutualDef hblk hnd hfr hwf hadd hci htr).recursorEnvCoherent.heads
   | quot _ hq htr _ =>
     obtain ⟨hf1, -, hquot, -, -⟩ := hq.find? htr.map_wf
-    exact ⟨hq.quotCoherent (htr.recursorEnvCoherent.heads.rigid_of_fresh hf1), hquot⟩
+    exact ⟨AddQuot.quotCoherent hq (htr.recursorEnvCoherent.heads.rigid_of_fresh hf1), hquot⟩
   | induct hdecl hadd htr ih =>
     exact (ih hQ).extend hadd.preservesSourceFind hadd.le
       (TrEnv'.induct hdecl hadd htr).recursorEnvCoherent.heads
