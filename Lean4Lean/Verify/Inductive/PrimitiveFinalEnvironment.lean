@@ -348,18 +348,17 @@ theorem GeneratedRecursors.entryNamesNeEq
   rw [hname]
   simp [Lean.mkRecName]
 
-/-- The completed recursor suffix preserves the valid checking context that
-was restored at the full primitive constructor boundary. -/
+/-- The completed recursor suffix preserves the local checking invariants that
+were restored at the full primitive constructor boundary. (The full invariant
+is regained only once the iota rules are installed, see `VEnvs.WF`.) -/
 theorem CompletedRecursorPhasesResult.outValid
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv) :
-    CheckingEnv.Valid H.localContext.safety outEnv H.outVEnv := by
-  apply H.installed.valid
-  · rw [H.localExtends.safety_eq, H.localExtends.env_eq]
-    exact R.context.checking
-  · intro entry hentry info
-    exact H.generated.nonConstructor entry.1 entry.2 hentry info
+    CheckingEnv.ValidCore H.localContext.safety outEnv H.outVEnv := by
+  apply H.installed.validCore
+  rw [H.localExtends.safety_eq, H.localExtends.env_eq]
+  exact R.context.checking.toValidCore
 
 /-- A successful primitive Bool/Nat run extends the complete environment
 model without any premise about the bootstrap state of `Eq`. -/

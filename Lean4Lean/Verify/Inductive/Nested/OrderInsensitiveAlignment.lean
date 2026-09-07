@@ -195,9 +195,12 @@ theorem CheckingEnv.Valid.mapExt
     (H : CheckingEnv.Valid safety source venv)
     (htargetWF : target.constants.WF)
     (heq : ∀ name, source.constants.find? name =
-      target.constants.find? name) :
+      target.constants.find? name)
+    (hquotInit : target.quotInit = source.quotInit) :
     CheckingEnv.Valid safety target venv where
   tr := CheckingEnv.mapExt H.tr htargetWF heq
+  recursors := H.recursors.mapExt heq
+  quot hq := (H.quot (hquotInit ▸ hq)).mapExt heq
   hasPrimitives := H.hasPrimitives
   safePrimitives := by
     intro name ci hfind hprimitive
@@ -297,15 +300,19 @@ theorem AddConstants.validOfFreshPermutation
     (Hsource : CheckingEnv.ValidCore safety source sourceVEnv)
     (howners : ConstructorOwnersPresent canonicalTarget)
     (hregistry : ProjectionRegistryCoherent safety canonicalTarget.constants
-      targetVEnv) :
+      targetVEnv)
+    (hrecursors : RecursorEnvCoherent safety canonicalTarget.constants targetVEnv)
+    (hquot : canonicalTarget.quotInit = true →
+      QuotEnvCoherent canonicalTarget.constants targetVEnv) :
     CheckingEnv.Valid safety actualTarget targetVEnv := by
   have HcanonicalValid :
       CheckingEnv.Valid safety canonicalTarget targetVEnv :=
-    (Hcanonical.validCore Hsource).toValid howners hregistry
+    (Hcanonical.validCore Hsource).toValid howners hregistry hrecursors hquot
   have heq := Hactual.lookupEqOfPerm Hcanonical.freshTrace
     Hsource.tr.map_wf hperm
   exact CheckingEnv.Valid.mapExt HcanonicalValid
-    (Hactual.targetWF Hsource.tr.map_wf) fun name => (heq name).symm
+    (Hactual.targetWF Hsource.tr.map_wf) (fun name => (heq name).symm)
+    (Hactual.quotInit_eq.trans Hcanonical.quotInit_eq.symm)
 
 end VerifyInductive
 end Lean4Lean

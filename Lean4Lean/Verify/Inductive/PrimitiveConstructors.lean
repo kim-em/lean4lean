@@ -485,8 +485,25 @@ theorem AddInductive.declareConstructors.primitiveWF
         rw [hownerName, ← hname]
         exact hfresh'
       · exact Hcombined.le
+    have hrecursors : RecursorEnvCoherent c.safety outEnv.constants venvCtors := by
+      apply Hcombined.recursorEnvCoherent hsourceMapWF
+      · intro entry hentry rec heq
+        rcases List.mem_append.mp hentry with hheader | hctor
+        · rcases Hheaders.originInfo hheader with ⟨_, _, hentryInfo⟩
+          rw [hentryInfo] at heq
+          cases heq
+        · rcases hproduction entry hctor with ⟨cinfo, hcinfo⟩
+          rw [hcinfo] at heq
+          cases heq
+      · have h := H.sourceContext.checking.recursors
+        rwa [H.sourceContextVEnv] at h
+    have hquot : outEnv.quotInit = true →
+        QuotEnvCoherent outEnv.constants venvCtors := by
+      apply Hcombined.quotEnvCoherent hsourceMapWF hrecursors.heads
+      have h := H.sourceContext.checking.quot
+      rwa [H.sourceContextVEnv] at h
     let Hcontext := Hinstalled.completeContext H.context
-      hprimitives hsafe hannotations howners hregistry
+      hprimitives hsafe hannotations howners hregistry hrecursors hquot
     have hctorsAdded : H.context.venv.addConstVals
         decl.constructorConstants = some venvCtors := by
       rw [← hctorValues]

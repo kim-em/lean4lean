@@ -65,17 +65,6 @@ theorem AddConstants.availableLiteralDisjoint
     checkPositivityStep.AvailableLiteralDisjoint target indConsts :=
   fun literal havailable => hlit literal (H.sourceContainsLits havailable)
 
-theorem AddConstants.targetMapWF
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hwf : env.constants.WF) : outEnv.constants.WF := by
-  induction H with
-  | nil => exact hwf
-  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
-    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
-    have hfresh : envHead.constants.find? ci.name = none := by
-      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
-    exact ih (hwf.insert ci.name ci hfresh)
-
 theorem AddConstants.preservesSourceMapFind
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
@@ -1069,9 +1058,36 @@ theorem AddInductive.declareConstructors.WF
         core.typesAdded core.ctorsAdded VEnv.addProjections_le
         (fun entry hmem => VEnv.addProjections_iff.mpr
           (Or.inl ⟨entry, hmem, rfl, rfl⟩))
+    have hsourceRecursors : RecursorEnvCoherent c.safety c.env.constants sourceEnv := by
+      rw [← H.sourceContextVEnv]
+      exact H.sourceContext.checking.recursors
+    have hheaderRecursors := H.installed.recursorEnvCoherent hsourceMapWF (by
+      intro entry hentry rec heq
+      rcases H.sourceAligned with ⟨numNested, Hheaders⟩
+      rcases Hheaders.originInfo hentry with ⟨_, _, hinfo⟩
+      rw [hinfo] at heq
+      cases heq) hsourceRecursors
+    have hctorRecursors := Hinstalled.recursorEnvCoherent hheaderWF (by
+      intro entry hentry rec heq
+      rcases Haligned.ownerOfEntry hentry with ⟨_, _, _, hinfo, _⟩
+      rw [hinfo] at heq
+      cases heq) hheaderRecursors
+    have hrecursors : RecursorEnvCoherent c.safety outEnv.constants
+        (venvCtors.addProjections decl.projectionEntries) :=
+      hctorRecursors.addProjections _
+    have hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants
+        (venvCtors.addProjections decl.projectionEntries) := by
+      have hsourceQuot : c.env.quotInit = true →
+          QuotEnvCoherent c.env.constants sourceEnv := by
+        rw [← H.sourceContextVEnv]
+        exact H.sourceContext.checking.quot
+      intro hq
+      exact (Hinstalled.quotEnvCoherent hheaderWF hctorRecursors.heads
+        (H.installed.quotEnvCoherent hsourceMapWF hheaderRecursors.heads hsourceQuot) hq).extend
+        (fun h => h) VEnv.addProjections_le hrecursors.heads
     have hvalid : CheckingEnv.Valid c.safety outEnv
         (venvCtors.addProjections decl.projectionEntries) :=
-      (hvalidCore.addProjections hprojectedWF).toValid howners hregistry
+      (hvalidCore.addProjections hprojectedWF).toValid howners hregistry hrecursors hquot
     exact ⟨{
       toDeclaredConstructorsCore := D
       context := H.context.withEnv hvalid
@@ -2268,21 +2284,34 @@ theorem StagedBlock.validCore
   have hctors := H.ctorsAdded.validCore htypes
   exact H.recursorsAdded.validCore (hctors.addProjections H.projectedWF)
 
-/-- The staged installation preserves the full checking invariant once the
-constructor-complete projected environment is known to satisfy it and the
-recursor batch contains no constructors. -/
+/-- The staged installation yields the full checking invariant once the global
+invariants (constructor owners, projection registry, recursor and quotient
+facts) are known at its endpoint. The recursor facts cannot be derived from
+the stages alone: the stored iota equations are added after the recursors. -/
 theorem StagedBlock.valid
     (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv)
-    (hvalid : CheckingEnv.Valid safety env venv)
-    (howners : ConstructorOwnersPresent H.envCtors)
-    (hregistry : ProjectionRegistryCoherent safety H.envCtors.constants
-      (H.venvCtors.addProjections projections))
-    (hrecursors : ∀ entry ∈ recursors, ∀ info : ConstructorVal,
-      entry.1 ≠ .ctorInfo info) :
-    CheckingEnv.Valid safety outEnv outVEnv := by
-  have hcore := (H.ctorsAdded.validCore
-    (H.typesAdded.validCore hvalid.toValidCore)).addProjections H.projectedWF
-  exact H.recursorsAdded.valid (hcore.toValid howners hregistry) hrecursors
+    (hvalid : CheckingEnv.ValidCore safety env venv)
+    (howners : ConstructorOwnersPresent outEnv)
+    (hregistry : ProjectionRegistryCoherent safety outEnv.constants outVEnv)
+    (hrecursors : RecursorEnvCoherent safety outEnv.constants outVEnv)
+    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv) :
+    CheckingEnv.Valid safety outEnv outVEnv :=
+  (H.validCore hvalid).toValid howners hregistry hrecursors hquot
+
+/-- The staged installation adds no stored equation. -/
+theorem StagedBlock.defeqs
+    (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv) :
+    ∀ df, outVEnv.defeqs df → venv.defeqs df := by
+  intro df hdf
+  have h1 := H.recursorsAdded.defeqs df hdf
+  rw [VEnv.addProjections_defeqs] at h1
+  exact H.typesAdded.defeqs df (H.ctorsAdded.defeqs df h1)
+
+theorem StagedBlock.le
+    (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv) :
+    venv ≤ outVEnv :=
+  H.typesAdded.le.trans (H.ctorsAdded.le.trans
+    (VEnv.addProjections_le.trans H.recursorsAdded.le))
 
 theorem StagedBlock.abstract_types
     (H : StagedBlock safety env venv types ctors recursors projections outEnv outVEnv) :
@@ -2895,6 +2924,21 @@ theorem BlockCertificate.addInductOfNestedFormation
       .nested Hformation VEnv.LE.rfl⟩
     Hcompile.compilesTo
 
+/-- Certificate obligation (open, see HANDOFF.md): the recursors installed by a
+certified block are aligned with the stored iota equations of its final
+abstract environment (`RecursorAlignmentCore`, the K clause, and an inductive
+major), and every new stored equation is headed by one of them. The shapes
+follow from the compilation certificate (`VInductDecl.CompilesTo`) and the
+recursor certificates of the staged trace. -/
+theorem BlockCertificate.recursorProvenance {decl : VInductDecl}
+    (H : BlockCertificate checkSafety prodEnv venv types ctors recursors
+      rules outEnv outVEnv)
+    (_hdecl : decl.WF venv)
+    (_hcompile : decl.CompilesTo venv H.block) :
+    InductiveRecursorProvenance checkSafety prodEnv.constants venv
+      outEnv.constants H.finalVEnv := by
+  sorry
+
 /-- Final assembly point for the implementation-refinement boundary. Once
 the executable traversals have supplied source formation, compilation shape,
 staged typing, and production-map conservation, no further semantic facts are
@@ -2925,6 +2969,7 @@ theorem BlockCertificate.addInduct
   · intro Haligned
     exact aligned_addDefEqs (H.staged.aligned Haligned) rules
   · exact H.staged.deltaConservative hsourceAligned
+  · exact H.recursorProvenance hdecl hcompile
 
 /-- For a safe declaration, the staging trace directly supplies the concrete
 safe-observer alignment required by `AddInduct`. -/

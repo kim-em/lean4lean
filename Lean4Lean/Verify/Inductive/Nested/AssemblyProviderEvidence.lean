@@ -4784,7 +4784,8 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       · exact Hcore.typesAdded
       · exact Hcore.ctorsAdded
     exact HV.validProjected Hlower HcP Hprod Hcore Hmetadata Hsources Harity
-      hempty Hrestored hvalidCore HbaseValid.projectionRegistry hprojectedWF
+      hempty Hrestored hvalidCore HbaseValid.projectionRegistry
+      HbaseValid.recursors HbaseValid.quot hprojectedWF
   have HtypeRun : Lean4Lean.validateRestoredRecursorTypes.run
       E.validationEnv E.loweredEnv P.c.lparams P.c.safety
       E.validationFuel result
@@ -4813,13 +4814,22 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       with
     ⟨auxiliaryRecursors, HauxiliaryRecursors, replay, canonicalProdEnv,
       finalBaseVEnv, ⟨canonical⟩, _hlookup⟩
-  have HruleValid : CheckingEnv.Valid P.c.safety outEnv finalBaseVEnv :=
+  have HruleValid : CheckingEnv.Valid P.c.safety
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 (main :: rest)
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1))
+      finalBaseVEnv :=
     Hrestored.finalValidOfStaged Hlower HcP Hprod Hcore Hmetadata Hsources Harity
       hempty replay.fresh canonical replay.productionOrder
       (by simpa [VInductDecl.typeConstants] using replay.typeValues)
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)
       HbaseValid
-  have HruleRun : Lean4Lean.validateRestoredRecursorRules.run outEnv
+  have HruleRun : Lean4Lean.validateRestoredRecursorRules.run
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 (main :: rest)
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1))
       E.loweredEnv P.c.lparams P.c.safety E.validationFuel result
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2
       ((main :: rest).map (fun type => type.name)) (main :: rest)

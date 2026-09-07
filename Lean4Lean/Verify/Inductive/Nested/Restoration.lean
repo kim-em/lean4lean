@@ -1791,6 +1791,14 @@ inductive FreshConstantTrace :
       FreshConstantTrace (env.add ci) cis outEnv →
       FreshConstantTrace env (ci :: cis) outEnv
 
+/-- The production `quotInit` flag is unchanged by a fresh constant trace. -/
+theorem FreshConstantTrace.quotInit_eq
+    (H : FreshConstantTrace env entries outEnv) :
+    outEnv.quotInit = env.quotInit := by
+  induction H with
+  | nil => rfl
+  | cons _ _ ih => exact ih
+
 theorem FreshConstantTrace.append
     (H₁ : FreshConstantTrace env entries middleEnv)
     (H₂ : FreshConstantTrace middleEnv rest outEnv) :

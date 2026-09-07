@@ -39,10 +39,13 @@ theorem StagedBlock.validOfFreshPermutation
     (Hsource : CheckingEnv.ValidCore safety source sourceVEnv)
     (howners : ConstructorOwnersPresent actualTarget)
     (hregistry : ProjectionRegistryCoherent safety actualTarget.constants
-      targetVEnv) :
+      targetVEnv)
+    (hrecursors : RecursorEnvCoherent safety actualTarget.constants targetVEnv)
+    (hquot : actualTarget.quotInit = true →
+      QuotEnvCoherent actualTarget.constants targetVEnv) :
     CheckingEnv.Valid safety actualTarget targetVEnv :=
   (H.validCoreOfFreshPermutation Hactual hperm Hsource).toValid howners
-    hregistry
+    hregistry hrecursors hquot
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 

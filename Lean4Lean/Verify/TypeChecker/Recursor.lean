@@ -31,23 +31,17 @@ theorem Expr.isAppOfArity_three_eq_true {e : Expr} {name : Name}
 
 namespace TypeChecker
 
-/-- Every visible recursor of the checking environment is aligned with the abstract environment.
-
-TODO: derive from a `CheckingEnv` field, produced at the inductive installation boundary from the
-recursor certificates (`CompletedRuleTranslationResult`) and the nested assembly, the same way
-`projectionRegistry` is carried for projections. -/
+/-- Every visible recursor of the checking environment is aligned with the abstract
+environment (the `recursors` field of the context). -/
 theorem VContext.recursorRules (c : VContext) :
-    RecursorRulesCoherent c.safety c.env.constants c.venv := by
-  sorry
+    RecursorRulesCoherent c.safety c.env.constants c.venv :=
+  c.recursors.rules
 
 /-- When quotients are initialized, the abstract environment contains the quotient constants and
-the `Quot.lift` equation.
-
-TODO: derive from a `CheckingEnv` field recording the `quot` step of the environment trace
-(`TrEnv'.quot` and `AddQuot`). -/
+the `Quot.lift` equation (the `quot` field of the context). -/
 theorem VContext.quotCoherent (c : VContext) (h : c.env.quotInit = true) :
-    QuotCoherent c.venv := by
-  sorry
+    QuotCoherent c.venv :=
+  (c.quot h).coherent
 
 namespace Inner
 

@@ -3358,8 +3358,12 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) sourceTypes
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok () →
-      Lean4Lean.validateRestoredRecursorRules.run restoredEnv loweredEnv
-        lparams safety fuel res
+      Lean4Lean.validateRestoredRecursorRules.run
+        (Lean4Lean.stripRecursorRules restoredEnv
+          (Lean4Lean.restoredRecursorNames
+            (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceTypes
+            (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1))
+        loweredEnv lparams safety fuel res
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) sourceTypes
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok () →

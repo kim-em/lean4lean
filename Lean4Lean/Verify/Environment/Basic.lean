@@ -3,6 +3,7 @@ import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Declaration
 import Lean4Lean.Inductive.Add
 import Lean4Lean.Std.SMap
+import Lean4Lean.Verify.Environment.RecursorAlignment
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -186,9 +187,6 @@ theorem ConstantInfo.hasValue_eq (ci : ConstantInfo) : ci.hasValue = ci.value?.i
 
 theorem ConstantInfo.value!_eq (ci : ConstantInfo) : ci.value! = ci.value?.get! := by
   cases ci <;> simp [ConstantInfo.value?, ConstantInfo.value!]
-
-def _root_.Lean.ConstantInfo.safety (ci : ConstantInfo) : DefinitionSafety :=
-  if ci.isUnsafe then .unsafe else if ci.isPartial then .partial else .safe
 
 /-- Operational production-side contract for a unary type-annotation wrapper.
 
@@ -820,7 +818,9 @@ inductive Aligned : ConstMap → VEnv → Prop where
 
 /-- Constructive implementation boundary for an inductive extension at one
 observer safety. Besides the independent compilation and installation
-witnesses, it records exact production-map alignment at that safety. -/
+witnesses, it records exact production-map alignment at that safety, and the
+alignment of the recursors it installs with the stored iota equations
+(`InductiveRecursorProvenance`). -/
 inductive AddInduct (safety : DefinitionSafety)
     (m₁ : ConstMap) (env₁ : VEnv) (decl : VInductDecl)
     (m₂ : ConstMap) (env₂ : VEnv) : Prop where
@@ -834,13 +834,14 @@ inductive AddInduct (safety : DefinitionSafety)
     (Aligned safety m₁ env₁ → Aligned safety m₂ env₂) →
     (∀ {name ci}, m₂.find? name = some ci → ci.deltaValue?.isSome →
       m₁.find? name = some ci) →
+    InductiveRecursorProvenance safety m₁ env₁ m₂ env₂ →
     AddInduct safety m₁ env₁ decl m₂ env₂
 
 theorem AddInduct.toVEnv
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
     VEnv.AddInduct env₁ decl env₂ :=
   match H with
-  | .intro _ hdecl hcompile hblock hinstall _ _ _ _ =>
+  | .intro _ hdecl hcompile hblock hinstall _ _ _ _ _ =>
     .intro hdecl hcompile hblock hinstall
 
 theorem AddInduct.declWF
@@ -870,6 +871,12 @@ theorem AddInduct.aligned
     (haligned : Aligned safety m₁ env₁) : Aligned safety m₂ env₂ := by
   cases H with
   | intro _ _ _ _ _ _ _ hpreserves => exact hpreserves haligned
+
+theorem AddInduct.recursorProvenance
+    (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
+    InductiveRecursorProvenance safety m₁ env₁ m₂ env₂ := by
+  cases H with
+  | intro _ _ _ _ _ _ _ _ _ hrecursors => exact hrecursors
 
 def ProductionConstructorAlignment.rebase
     (H : ProductionConstructorAlignment source decl familyIdx ctorIdx
