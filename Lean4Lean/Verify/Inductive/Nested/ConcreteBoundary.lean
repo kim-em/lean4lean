@@ -7,6 +7,19 @@ open Kernel
 
 namespace VerifyInductive
 
+/-- Certificate obligation (open, see HANDOFF.md): the primary and auxiliary
+recursors restored by a nested installation are aligned with the stored iota
+equations of the target abstract environment, and every new stored equation
+is headed by one of them. -/
+theorem RestoredNestedDeclarationsResult.recursorProvenance
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames types auxRecNames out)
+    (_Hchecking : CheckingEnv safety out.2 targetVEnv)
+    (_hsourceWF : sourceProdEnv.constants.WF) :
+    InductiveRecursorProvenance safety sourceProdEnv.constants sourceVEnv
+      out.2.constants targetVEnv := by
+  sorry
+
 /-- Turn an abstract inductive installation obtained from exact nested
 restoration into the concrete implementation-refinement boundary. Source
 lookup preservation, final production/abstract alignment, and delta
@@ -32,6 +45,7 @@ theorem RestoredNestedDeclarationsResult.addInductConcrete
       · intro _HsourceAligned
         exact Hchecking.aligned
       · exact Hfresh.deltaConservative hsourceWF hnondelta
+      · exact H.recursorProvenance (sourceVEnv := sourceVEnv) Hchecking hsourceWF
 
 end VerifyInductive
 end Lean4Lean

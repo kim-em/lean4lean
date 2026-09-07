@@ -60,12 +60,14 @@ theorem CompletedStagedBlock.abstract_recursors
 theorem CompletedStagedBlock.valid
     (H : CompletedStagedBlock safety env venv types ctors recursors
       projections outEnv outVEnv)
-    (hvalidCtors : CheckingEnv.Valid safety H.envCtors
+    (hvalidCtors : CheckingEnv.ValidCore safety H.envCtors
       (H.venvCtors.addProjections projections))
-    (hrecursors : ∀ entry ∈ recursors, ∀ info : ConstructorVal,
-      entry.1 ≠ .ctorInfo info) :
+    (howners : ConstructorOwnersPresent outEnv)
+    (hregistry : ProjectionRegistryCoherent safety outEnv.constants outVEnv)
+    (hrecursors : RecursorEnvCoherent safety outEnv.constants outVEnv)
+    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv) :
     CheckingEnv.Valid safety outEnv outVEnv :=
-  H.recursorsAdded.valid hvalidCtors hrecursors
+  (H.recursorsAdded.validCore hvalidCtors).toValid howners hregistry hrecursors hquot
 
 theorem CompletedStagedBlock.validCore
     (H : CompletedStagedBlock safety env venv types ctors recursors
@@ -271,6 +273,17 @@ theorem CompletedBlockCertificate.addInductAbstract
     VEnv.AddInduct venv decl H.finalVEnv :=
   .intro Hdecl Hcompile H.wf H.install
 
+/-- Certificate obligation (open, see HANDOFF.md): recursor provenance of a
+completed block, as `BlockCertificate.recursorProvenance`. -/
+theorem CompletedBlockCertificate.recursorProvenance {decl : VInductDecl}
+    (H : CompletedBlockCertificate checkSafety prodEnv venv types ctors
+      recursors rules outEnv outVEnv)
+    (_hdecl : decl.WF venv)
+    (_hcompile : decl.CompilesTo venv H.block) :
+    InductiveRecursorProvenance checkSafety prodEnv.constants venv
+      outEnv.constants H.finalVEnv := by
+  sorry
+
 /-- Concrete executable-to-specification boundary for a completed block.
 Whole-block alignment and delta conservation use the atomic trace, which is
 valid for ordinary and primitive formation alike. -/
@@ -302,6 +315,7 @@ theorem CompletedBlockCertificate.addInduct
       (H.staged.combinedAtomic.aligned (.projections Haligned)) rules
   · exact H.staged.combinedAtomic.deltaConservative
       (.projections hsourceAligned)
+  · exact H.recursorProvenance hdecl hcompile
 
 /-- Replay a safe completed block into one observer model and construct the
 corresponding concrete `AddInduct` witness. -/

@@ -541,6 +541,17 @@ theorem RestoredConstructorValidationEnvironment.preservesSourceFind
   exact Hconstructors.preservesSourceFind (H.headerEnvWF hwf)
     (Hheaders.preservesSourceFind hwf hfind)
 
+/-- The production `quotInit` flag is unchanged by the constructor validation
+restoration. -/
+theorem RestoredConstructorValidationEnvironment.quotInit_eq
+    (H : RestoredConstructorValidationEnvironment result loweredEnv sourceEnv
+      allIndNames allowPrimitive types targetEnv)
+    (hwf : sourceEnv.constants.WF) : targetEnv.quotInit = sourceEnv.quotInit := by
+  rcases H.headers.headersFreshTrace hwf with ⟨entries, Hheaders⟩
+  rcases H.constructors.familiesFreshTrace (H.headerEnvWF hwf) with
+    ⟨entries', Hconstructors⟩
+  exact Hconstructors.quotInit_eq.trans Hheaders.quotInit_eq
+
 theorem RestoredConstructorValidationEnvironment.findCases
     (H : RestoredConstructorValidationEnvironment result loweredEnv sourceEnv
       allIndNames allowPrimitive types targetEnv)
@@ -674,6 +685,9 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     (hvalid : CheckingEnv.ValidCore c.safety validationEnv envCtors)
     (hsourceRegistry : ProjectionRegistryCoherent c.safety c.env.constants
       sourceVEnv)
+    (hsourceRecursors : RecursorEnvCoherent c.safety c.env.constants sourceVEnv)
+    (hsourceQuot : c.env.quotInit = true →
+      QuotEnvCoherent c.env.constants sourceVEnv)
     (hprojectedWF : (envCtors.addProjections sourceDecl.projectionEntries).WF) :
     CheckingEnv.Valid c.safety validationEnv
       (envCtors.addProjections sourceDecl.projectionEntries) := by
@@ -788,15 +802,72 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     · exact VEnv.addProjections_le
     · intro entry hentry
       exact VEnv.addProjections_iff.mpr (Or.inl ⟨entry, hentry, rfl, rfl⟩)
-  exact (hvalid.addProjections hprojectedWF).toValid howners hregistry
+  have hle : sourceVEnv ≤ envCtors.addProjections sourceDecl.projectionEntries :=
+    (VEnv.addConstVals_le Hsource.typesAdded).trans
+      ((VEnv.addConstVals_le Hsource.ctorsAdded).trans VEnv.addProjections_le)
+  have hpres : ∀ {n ci}, c.env.constants.find? n = some ci →
+      validationEnv.constants.find? n = some ci := by
+    intro n ci hfind
+    have hfind' : c.env.find? n = some ci := by
+      rw [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?]
+      exact hfind
+    have hout := H.preservesSourceFind hsourceWF hfind'
+    rwa [Lean.Kernel.Environment.find?, hvalidWF.find?'_eq_find?] at hout
+  have hrecursors : RecursorEnvCoherent c.safety validationEnv.constants
+      (envCtors.addProjections sourceDecl.projectionEntries) := by
+    refine hsourceRecursors.extendSimple hpres ?_ hle ?_
+    · intro n rec hfind _
+      have hfind' : validationEnv.find? n = some (.recInfo rec) := by
+        rw [Lean.Kernel.Environment.find?, hvalidWF.find?'_eq_find?]
+        exact hfind
+      rcases H.findCases hsourceWF hfind' with hold |
+          ⟨_, _, _, _, _, heq⟩ | ⟨_, _, _, _, _, _, _, _, _, heq⟩
+      · rwa [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?] at hold
+      · cases heq
+      · cases heq
+    · intro df hdf
+      rw [VEnv.addProjections_defeqs, VEnv.addConstVals_defeqs Hsource.ctorsAdded,
+        VEnv.addConstVals_defeqs Hsource.typesAdded] at hdf
+      exact hdf
+  have hquot : validationEnv.quotInit = true →
+      QuotEnvCoherent validationEnv.constants
+        (envCtors.addProjections sourceDecl.projectionEntries) := by
+    intro hq
+    rw [H.quotInit_eq hsourceWF] at hq
+    exact (hsourceQuot hq).extend hpres hle hrecursors.heads
+  exact (hvalid.addProjections hprojectedWF).toValid howners hregistry hrecursors hquot
 
 
 /-! ### The final restored environment -/
 
-/-- The complete checking invariant at the final restored environment: local
-invariants come from the canonical staged replay, owners from the exact
-restoration trace, and the projection registry from the production origins
-of the restored families. -/
+/-- Certificate obligation (open, see HANDOFF.md): the rule-validation
+environment of a nested restoration satisfies the full checking invariant.
+The environment is the restored environment with the rule lists of the
+restored recursors removed, so the recursor facts reduce to the recursor
+shapes (`VRecursorShape`), the K clause, and the presence of the major
+inductive for every restored recursor; the local invariants, owners and
+registry transport from the restored environment since only rule lists
+change, and the old recursors keep their alignment since the staged target
+adds no stored equation. -/
+theorem RestoredNestedDeclarationsResult.ruleValidationValid
+    (_H : RestoredNestedDeclarationsResult result loweredEnv sourceEnv
+      auxRec allIndNames types auxRecNames ((), outEnv))
+    (_hsource : CheckingEnv.Valid safety sourceEnv sourceVEnv)
+    (_hle : sourceVEnv ≤ targetVEnv)
+    (_hdefeq : ∀ df, targetVEnv.defeqs df → sourceVEnv.defeqs df)
+    (_hcore : CheckingEnv.ValidCore safety outEnv targetVEnv)
+    (_howners : ConstructorOwnersPresent outEnv)
+    (_hregistry : ProjectionRegistryCoherent safety outEnv.constants targetVEnv) :
+    CheckingEnv.Valid safety
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames auxRec types auxRecNames))
+      targetVEnv := by
+  sorry
+
+/-- The complete checking invariant at the rule-validation environment of the
+final restored environment: local invariants come from the canonical staged
+replay, owners from the exact restoration trace, and the projection registry
+from the production origins of the restored families. -/
 theorem RestoredNestedDeclarationsResult.finalValidOfStaged
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
@@ -825,7 +896,10 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged
     (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)
     (hctorValues : ctors.map Prod.snd = sourceDecl.constructorConstants)
     (hvalidSource : CheckingEnv.Valid c.safety c.env sourceVEnv) :
-    CheckingEnv.Valid c.safety outEnv finalVEnv := by
+    CheckingEnv.Valid c.safety
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
+      finalVEnv := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have Howners : ConstructorOwnersPresent c.env := Hc.checking.constructorOwners
   have houtWF : outEnv.constants.WF := Hactual.targetWF hsourceWF
@@ -877,7 +951,8 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged
     · intro entry hentry
       exact hle.projections
         (VEnv.addProjections_iff.mpr (Or.inl ⟨entry, hentry, rfl, rfl⟩))
-  exact canonical.validOfFreshPermutation Hactual hperm hvalidSource.toValidCore
+  exact Hrestored.ruleValidationValid hvalidSource canonical.le canonical.defeqs
+    (canonical.validCoreOfFreshPermutation Hactual hperm hvalidSource.toValidCore)
     howners hregistry
 
 end VerifyInductive

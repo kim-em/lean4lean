@@ -245,10 +245,14 @@ theorem VEnvAt.addAxioms {env : Environment} {venv : VEnv} {bs : DefinitionSafet
         (ConstantInfo.axiomInfo { v with isUnsafe := bs == .unsafe }).name = none := by
       rw [hax, ← wf.tr.map_wf.find?'_eq_find?]
       exact hd.2.2.1
+    have htr : TrEnv bs (env.add (.axiomInfo { v with isUnsafe := bs == .unsafe })) venv₁ :=
+      TrEnv'.axiom (ci := { v with isUnsafe := bs == .unsafe }) (ci' := ci.toVConstant)
+        ⟨hsf, hd.1.1.2.1, hd.1.1.2.2⟩
+        (by rw [← wf.tr.map_wf.find?'_eq_find?]; exact hd.2.2.1) hd.2.1 h₁' wf.tr
     have wf₁ : VEnvAt (env.add (.axiomInfo { v with isUnsafe := bs == .unsafe })) bs venv₁ :=
-      { tr := TrEnv'.axiom (ci := { v with isUnsafe := bs == .unsafe }) (ci' := ci.toVConstant)
-          ⟨hsf, hd.1.1.2.1, hd.1.1.2.2⟩
-          (by rw [← wf.tr.map_wf.find?'_eq_find?]; exact hd.2.2.1) hd.2.1 h₁' wf.tr
+      { tr := htr
+        recursors := htr.recursorEnvCoherent
+        quot := htr.quotEnvCoherent
         hasPrimitives := wf.hasPrimitives.addConst hd.2.2.2 h₁'
         safePrimitives := wf.safePrimitives_add _ (hax ▸ hd.2.2.1)
           (by rw [hax]; simp [hd.2.2.2])

@@ -67,7 +67,9 @@ def StagedContextWF.complete (H : StagedContextWF c)
       ci.safety = .safe ∧ ci.levelParams = [])
     (hannotations : TypeAnnotationWrappers c.env)
     (howners : ConstructorOwnersPresent c.env)
-    (hregistry : ProjectionRegistryCoherent c.safety c.env.constants H.venv) :
+    (hregistry : ProjectionRegistryCoherent c.safety c.env.constants H.venv)
+    (hrecursors : RecursorEnvCoherent c.safety c.env.constants H.venv)
+    (hquot : c.env.quotInit = true → QuotEnvCoherent c.env.constants H.venv) :
     ContextWF c where
   venv := H.venv
   checking := {
@@ -78,7 +80,9 @@ def StagedContextWF.complete (H : StagedContextWF c)
       exact hsafe hfind hprimitive
     typeAnnotationWrappers := hannotations
     constructorOwners := howners
-    projectionRegistry := hregistry }
+    projectionRegistry := hregistry
+    recursors := hrecursors
+    quot := hquot }
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -234,6 +238,36 @@ theorem AtomicAddConstants.targetMapWF
     have hfresh : envHead.constants.find? ci.name = none := by
       rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
     exact ih (hwf.insert ci.name ci hfresh)
+
+/-- A lockstep batch adds no stored equation. -/
+theorem AtomicAddConstants.defeqs
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv) :
+    ∀ df, outVEnv.defeqs df → venv.defeqs df := by
+  induction H with
+  | nil => exact fun _ h => h
+  | cons _ _ _ hadd _ _ ih =>
+    intro df hdf
+    rw [← VEnv.addConst_defeqs hadd]
+    exact ih df hdf
+
+/-- A lockstep batch of constants none of which is a recursor transports the
+recursor facts of the checking invariant. -/
+theorem AtomicAddConstants.recursorEnvCoherent
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hrecs : ∀ entry ∈ entries, ∀ rec : RecursorVal, entry.1 ≠ .recInfo rec)
+    (hcoherent : RecursorEnvCoherent safety env.constants venv) :
+    RecursorEnvCoherent safety outEnv.constants outVEnv := by
+  induction H with
+  | nil => exact hcoherent
+  | @cons venv ci ci' venv' rest outEnv outVEnv env hn _ _ hadd _ _ ih =>
+    have hfresh : env.constants.find? ci.name = none := by
+      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
+    refine ih (hwf.insert _ _ hfresh)
+      (fun entry hentry => hrecs entry (by simp [hentry])) ?_
+    exact hcoherent.insertNonRecursor hwf hfresh
+      (fun rec => hrecs (ci, ci') (by simp) rec) (VEnv.addConst_le hadd)
+      fun df hdf => by rwa [VEnv.addConst_defeqs hadd] at hdf
 
 theorem AtomicAddConstants.quotInit_eq
     (H : AtomicAddConstants safety prodEnv venv entries outEnv outVEnv) :
@@ -429,6 +463,24 @@ theorem AtomicAddConstants.preservesSourceFind
     · rename_i heq
       exact False.elim (hne (by simpa using heq))
     · exact hfind
+
+/-- A lockstep batch transports the quotient facts of the checking invariant,
+given the equation-head facts at its endpoint. -/
+theorem AtomicAddConstants.quotEnvCoherent
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hheads : EquationHeadsCoherent outEnv.constants outVEnv)
+    (hquot : env.quotInit = true → QuotEnvCoherent env.constants venv) :
+    outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv := by
+  intro hq
+  rw [H.quotInit_eq] at hq
+  refine (hquot hq).extend ?_ H.le hheads
+  intro n ci hfind
+  have hfind' : env.find? n = some ci := by
+    rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
+    exact hfind
+  have hout := H.preservesSourceFind hwf hfind'
+  rwa [Lean.Kernel.Environment.find?, (H.targetMapWF hwf).find?'_eq_find?] at hout
 
 /-- Constructor-owner presence is preserved by an exact atomic batch once
 each constructor entry in that batch is accompanied by its installed owner.
@@ -752,10 +804,12 @@ def AtomicAddConstants.completeContext
       ci.safety = .safe ∧ ci.levelParams = [])
     (hannotations : TypeAnnotationWrappers outEnv)
     (howners : ConstructorOwnersPresent outEnv)
-    (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv) :
+    (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv)
+    (hrecursors : RecursorEnvCoherent c.safety outEnv.constants outVEnv)
+    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv) :
     ContextWF { c with env := outEnv } :=
   (source.withEnv (H.checking source.checking) H.le).complete
-    hprimitives hsafe hannotations howners hregistry
+    hprimitives hsafe hannotations howners hregistry hrecursors hquot
 
 /-- Header result for the primitive branch.  It mirrors the ordinary
 `DeclaredHeadersResult`, except that its checking context and installation

@@ -1971,6 +1971,21 @@ def validateNestedAuxiliaries (env : Environment) (lparams : List Name)
       let type ← TypeChecker.checkType e
       _ ← TypeChecker.ensureSort type e
 
+/-- The names of the recursors produced by nested restoration: the primary recursors of the
+source types and the auxiliary recursors, each renamed through `recNameMap`. -/
+def restoredRecursorNames (recNameMap : NameMap Name) (types : List InductiveType)
+    (auxRecNames : List Name) : List Name :=
+  (types.map (mkRecName ·.name) ++ auxRecNames).map fun name => recNameMap.getD name name
+
+/-- The environment `env` with the rule lists of the recursors named in `recNames` removed.
+Restored recursor rules are validated in this environment, so that no restored rule can be used
+by iota reduction while the rules themselves are being validated. -/
+def stripRecursorRules (env : Environment) (recNames : List Name) : Environment :=
+  recNames.foldl (init := env) fun env name =>
+    match env.find? name with
+    | some (.recInfo info) => env.add (.recInfo { info with rules := [] })
+    | _ => env
+
 /-- Restore a successfully installed lowered block and validate the generated
 auxiliary witnesses before returning the source-shaped environment. -/
 def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
@@ -1990,8 +2005,9 @@ def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
     fuel types res
   validateRestoredRecursorTypes.run validationEnv loweredEnv lparams safety
     fuel res recNameMap' allIndNames types recNames'
-  validateRestoredRecursorRules.run restoredEnv loweredEnv lparams safety fuel
-    res recNameMap' allIndNames types recNames'
+  validateRestoredRecursorRules.run
+    (stripRecursorRules restoredEnv (restoredRecursorNames recNameMap' types recNames'))
+    loweredEnv lparams safety fuel res recNameMap' allIndNames types recNames'
   validateNestedAuxiliaries auxiliaryHeaderEnv lparams safety fuel res
   return restoredEnv
 

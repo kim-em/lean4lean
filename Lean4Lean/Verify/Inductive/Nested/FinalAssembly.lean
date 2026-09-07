@@ -918,8 +918,12 @@ structure NestedValidatedRunResult
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()
   recursorRuleValidation :
-    Lean4Lean.validateRestoredRecursorRules.run outEnv loweredEnv lparams
-      safety validationFuel res
+    Lean4Lean.validateRestoredRecursorRules.run
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames
+          (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceTypes
+          (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1))
+      loweredEnv lparams safety validationFuel res
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()
@@ -990,8 +994,12 @@ structure NestedExactFinalRunResult
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()
   recursorRuleValidation :
-    Lean4Lean.validateRestoredRecursorRules.run outEnv loweredEnv lparams
-      safety validationFuel res
+    Lean4Lean.validateRestoredRecursorRules.run
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames
+          (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceTypes
+          (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1))
+      loweredEnv lparams safety validationFuel res
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok ()

@@ -19,13 +19,6 @@ private theorem abstractAddInduct_declWF
   cases H with
   | intro hdecl => exact hdecl
 
-private theorem FreshConstantTrace.quotInit_eq
-    (H : FreshConstantTrace source entries target) :
-    target.quotInit = source.quotInit := by
-  induction H with
-  | nil => rfl
-  | cons _ _ ih => exact ih
-
 private theorem FreshConstantTrace.trEnvIgnore
     (H : FreshConstantTrace source entries target)
     (hsourceWF : source.constants.WF)

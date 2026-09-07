@@ -65,6 +65,8 @@ structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) :
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
+  recursors : RecursorEnvCoherent safety env.constants venv
+  quot : env.quotInit = true → QuotEnvCoherent env.constants venv
 
 theorem VEnvs.WF.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
@@ -72,6 +74,8 @@ theorem VEnvs.WF.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
   projectionRegistry := wf.projectionRegistryCoherent
+  recursors := wf.tr.recursorEnvCoherent
+  quot := wf.tr.quotEnvCoherent
 
 namespace TypeChecker
 open Inner
@@ -101,6 +105,8 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
     (safePrimitives : ∀ {n ci}, env.find? n = some ci → Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
     (projectionRegistry : ProjectionRegistryCoherent safety env.constants venv)
+    (recursors : RecursorEnvCoherent safety env.constants venv)
+    (quot : env.quotInit = true → QuotEnvCoherent env.constants venv)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext where
   env; safety; lparams; fuel
   venv
@@ -108,6 +114,8 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
   safePrimitives
   trenv
   projectionRegistry
+  recursors
+  quot
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
@@ -116,7 +124,7 @@ def VContext.mkCheckingValid {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
   .mkChecking wf.tr wf.hasPrimitives wf.safePrimitives wf.projectionRegistry
-    lparams fuel
+    wf.recursors wf.quot lparams fuel
 
 def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
@@ -128,6 +136,8 @@ def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
   safePrimitives := wf.safePrimitives
   trenv := wf.tr
   projectionRegistry := wf.projectionRegistry
+  recursors := wf.recursors
+  quot := wf.quot
   mlctx
   mlctx_wf
   lctx := mlctx.lctx
@@ -141,6 +151,8 @@ def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
   safePrimitives := wf.safePrimitives
   trenv := wf.tr.toChecking
   projectionRegistry := wf.projectionRegistry
+  recursors := wf.recursors
+  quot := wf.quot
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
@@ -166,9 +178,11 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
     {safePrimitives : ∀ {n ci}, env.find? n = some ci →
       Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []}
     {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
+    {recursors : RecursorEnvCoherent safety env.constants venv}
+    {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
     {lparams : List Name} {fuel : FuelConfig} :
     VState.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      lparams fuel) {} where
+      recursors quot lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
   ectx := ⟨[], .refl, trivial, .refl, .empty, nofun⟩
@@ -184,6 +198,7 @@ theorem VState.WF.emptyCheckingValid {env : Environment} {venv : VEnv}
     VState.WF (.mkCheckingValid wf lparams fuel) {} :=
   VState.WF.emptyChecking (trenv := wf.tr) (hasPrimitives := wf.hasPrimitives)
     (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry)
+    (recursors := wf.recursors) (quot := wf.quot)
 
 theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
@@ -220,9 +235,11 @@ theorem M.WF.runChecking {env : Environment} {venv : VEnv}
     {safePrimitives : ∀ {n ci}, env.find? n = some ci → Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = []}
     {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
+    {recursors : RecursorEnvCoherent safety env.constants venv}
+    {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
     {x : M α} {Q}
     (H : x.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      lparams fuel) {} fun a _ => Q a) :
+      recursors quot lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
@@ -237,7 +254,8 @@ theorem M.WF.runCheckingValid {env : Environment} {venv : VEnv}
     (H : x.WF (.mkCheckingValid wf lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q :=
   M.WF.runChecking (trenv := wf.tr) (hasPrimitives := wf.hasPrimitives)
-    (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry) H
+    (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry)
+    (recursors := wf.recursors) (quot := wf.quot) H
 
 theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}

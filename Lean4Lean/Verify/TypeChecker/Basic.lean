@@ -302,6 +302,13 @@ structure VContext extends Context where
   /-- Every visible singleton family whose constructor is present aligns with
   the abstract projection registry.  This is what projection inference reads. -/
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
+  /-- Every visible recursor is aligned with the stored iota equations, and every
+  stored equation is headed by a non-inductive constant.  This is what recursor
+  reduction reads. -/
+  recursors : RecursorEnvCoherent safety env.constants venv
+  /-- Once quotients are initialized, the quotient constants and the `Quot.lift`
+  equation are present.  This is what quotient reduction reads. -/
+  quot : env.quotInit = true → QuotEnvCoherent env.constants venv
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx
@@ -775,6 +782,10 @@ untouched, so judgements stated at `c` and at `c.withMLC m` are interchangeable.
 
 @[simp] theorem VContext.withMLC_projectionRegistry (c : VContext) (m) [c.MLCWF m] :
     (c.withMLC m).projectionRegistry = c.projectionRegistry := rfl
+@[simp] theorem VContext.withMLC_recursors (c : VContext) (m) [c.MLCWF m] :
+    (c.withMLC m).recursors = c.recursors := rfl
+@[simp] theorem VContext.withMLC_quot (c : VContext) (m) [c.MLCWF m] :
+    (c.withMLC m).quot = c.quot := rfl
 
 def VState.next (s : VState) : VState := { s with ngen := s.ngen.next }
 
