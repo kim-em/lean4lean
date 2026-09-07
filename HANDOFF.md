@@ -7,12 +7,13 @@ primitive, and nested-inductive correctness theorems should be free of
 `sorryAx`, and every checker step should refine the abstract calculus without
 caller-supplied certificates or hypotheses that are never discharged.
 
-## Current state (2026-09-05)
+## Current state (2026-09-07)
 
 The branch replaces projection expansion certificates with primitive projection
 syntax and stages installation as types, constructors, projections, then
-recursors. The full default build passes. No new commits exist on the remote
-default branch (`origin/master`), so there is nothing to merge.
+recursors. The full default build and `Lean4Lean.Tests` pass. No new commits
+exist on the remote default branch (`origin/master`), so there is nothing to
+merge. Nothing has been pushed.
 
 The final theorems (`addInductiveDeclaration.inductiveFinalResultWF`,
 `addInductiveDeclaration.primitiveInductiveFinalResultWF`,
@@ -20,7 +21,7 @@ The final theorems (`addInductiveDeclaration.inductiveFinalResultWF`,
 report `sorryAx`. A dependency trace (walk the constant graph with theorem
 bodies loaded via `ConstantInfo.value? (allowOpaque := true)`;
 script in `/tmp/l4l-audit/Audit2.lean` during the session) shows exactly
-nine declarations that introduce `sorry` into that closure:
+eleven declarations that introduce `sorry` into that closure:
 
 Theory (the injectivity/strengthening conjectures; `Injectivity.lean`,
 `UniqueTyping.lean`; the first four are also open on `master`):
@@ -35,22 +36,31 @@ Theory (the injectivity/strengthening conjectures; `Injectivity.lean`,
   structure and becomes redundant once rigidity is carried in the checking
   environment, see `EquationHeadsCoherent`)
 
-Checker (`Verify/TypeChecker/Recursor.lean`):
+Certificate boundary (the recursor facts of an inductive installation; each is
+a documented placeholder theorem stating a true obligation, see "Remaining
+work"):
 
-- `VContext.recursorRules`, `VContext.quotCoherent` (recursor rule and quotient
-  facts for a checking context; `Verify/Environment/Recursors.lean` has the
-  predicates, their monotonicity, `AddQuot.quotCoherent`, and
-  `EquationHeadsCoherent` for rigidity). The plumbing task is specified in
-  `/tmp/l4l-specs/task-K1-recursor-coherence.md` (copy at `TASK-K1.md` in the
-  worktree `/home/kim/worktrees/lean4lean/l4l-agent-K1`, branch
-  `agent/verify-inductives-K1`), where it was in progress at the end of the
-  session.
+- `BlockCertificate.recursorProvenance` (`Verify/Inductive/Run/Formation.lean`),
+  `CompletedBlockCertificate.recursorProvenance`
+  (`Verify/Inductive/CompletedBlockCertificate.lean`): the ordinary and
+  primitive blocks certify `InductiveRecursorProvenance` for `AddInduct`.
+- `RestoredNestedDeclarationsResult.recursorProvenance`
+  (`Verify/Inductive/Nested/ConcreteBoundary.lean`): the same for the nested
+  restoration.
+- `RestoredNestedDeclarationsResult.ruleValidationValid`
+  (`Verify/Inductive/Nested/ValidationEnvironmentRegistry.lean`): the checking
+  invariant at the nested rule-validation environment (the restored
+  environment with the restored recursors' rule lists removed).
 
-Every other checker step is proved: projection inference (`inferProj.WF`),
-projection reduction, structure eta, unit-like comparison, and the whole of
-recursor reduction, all against the projection registry that every checking
-environment now carries (`CheckingEnv.Valid.projectionRegistry`,
-`VContext.projectionRegistry`, `VContext.registryShape`).
+The executable type checker itself is closed against its environment: the
+closure of `TypeChecker.Inner.whnf.WF` and `reduceRecursor.WF` contains only
+the five theory conjectures `sort_inv`, `forallE_inv_stratified`, `weakN_iff`,
+`fieldType_inv_stratified`, `rigidApp_inv`. Every checker step is proved:
+projection inference (`inferProj.WF`), projection reduction, structure eta,
+unit-like comparison, recursor and quotient reduction, all against the
+projection registry, recursor facts and quotient facts that every checking
+environment now carries (`CheckingEnv.Valid.projectionRegistry`, `.recursors`,
+`.quot`; `VContext.projectionRegistry`, `.recursors`, `.quot`).
 
 `Params` (Church–Rosser) is never instantiated; `HeadReduction.lean` and
 `ChurchRosser.lean` are a parameterized development that already depends on the
@@ -81,6 +91,28 @@ metatheory. Treat the injectivity conjectures as the known open core.
 5. The projection registry is registered right after the family headers
    (`inductProjectionsEarly`) so that `ProjectionRegistryCoherent` holds in
    every staged checking environment and can live inside `CheckingEnv.Valid`.
+6. Recursor and quotient facts live in `CheckingEnv.Valid` (`recursors :
+   RecursorEnvCoherent`, `quot : env.quotInit = true → QuotEnvCoherent`),
+   `VEnvAt` and `VContext`, and are derived along the environment trace
+   (`TrEnv'.recursorEnvCoherent`, `TrEnv'.quotEnvCoherent`;
+   `Verify/Environment/RecursorAlignment.lean` has the predicates and their
+   transport lemmas). `AddInduct` records `InductiveRecursorProvenance`.
+   `RecursorEnvCoherent` cannot hold between the installation of a recursor
+   (whose production `RecursorVal` carries its rules) and the installation of
+   the abstract iota equations, so the recursor installation loop
+   (`declareRecursors.loop.WF`) carries only `CheckingEnv.ValidCore`, the
+   staged block lemmas take the recursor facts at their endpoint as hypotheses
+   (`StagedBlock.valid`, `CompletedStagedBlock.valid`,
+   `AddConstants.validOfCoherent`, `validOfFreshPermutation`), and the
+   primitive recursor suffix concludes `ValidCore` (`outValid`); the full
+   invariant at the final environment comes from `VEnvs.WF` after `AddInduct`.
+7. The nested path validates the restored recursor rules by running the type
+   checker, which needs the full invariant while the abstract iota equations
+   are not yet available. The executable therefore validates the rules in a
+   copy of the restored environment whose restored recursors carry no rule
+   lists (`stripRecursorRules`, `restoredRecursorNames`; divergences.md). The
+   checking invariant at that environment is
+   `RestoredNestedDeclarationsResult.ruleValidationValid`.
 
 ## Progress in this session (2026-09-05)
 
@@ -121,17 +153,38 @@ metatheory. Treat the injectivity conjectures as the known open core.
     `unreachable!` and an arity guard in `expandEtaStruct`/`toCtorWhenStruct`; the pure tail of
     `inductiveReduceRec` and the continuation of `quotReduceRec` are separate definitions.
 
+## Progress in this session (2026-09-07)
+
+- `CheckingEnv.Valid`, `VEnvAt`, `VContext` carry `RecursorEnvCoherent` and the quotient facts;
+  `VContext.recursorRules` and `VContext.quotCoherent` are discharged from them. The trace
+  derivation (`TrEnv'.recursorEnvCoherent`, `TrEnv'.quotEnvCoherent`, `AddQuot.quotCoherent`)
+  and the transport through every non-recursor installation step (`Valid.add` with
+  `RecursorInstallStep`, `AddConstants.recursorEnvCoherent`/`quotEnvCoherent`,
+  `AtomicAddConstants.*`, `RestoredConstructorValidationEnvironment.validProjected`,
+  `Valid.mapExt`) are proved. `AddInduct` has an `InductiveRecursorProvenance` field.
+- The nested rule validation runs in the rule-stripped restored environment (design decision 7).
+
 ## Remaining work
 
-- Discharge `VContext.recursorRules`: carry `RecursorRulesCoherent` in `CheckingEnv.Valid` and
-  `VContext` like `projectionRegistry`, and produce it at the inductive installation boundary
-  from the recursor certificates (`BoundGeneratedRecursorRule.EquationTranslation` gives the
-  wrapped shape and `rhs_residual`; the left-hand side pattern with parameter, motive, minor and
-  field variables follows from `sourceLhsBody` and `abstractedParamsUnique`-style lemmas; the
-  recursor and constructor type shapes from `RecursorShape` and the constructor certificates).
-  The nested path must cover the auxiliary recursors' rules too. `VContext.quotCoherent` is the
-  `quot` step of the trace (`TrEnv'.quot`, `AddQuot`); `Rigid` for inductive types and `Quot`
-  needs the trace to record that no stored rule is headed by them.
+- Discharge the four certificate placeholders. For `BlockCertificate.recursorProvenance` (and
+  the completed variant): every recursor of the target map that is not in the source map is one
+  of the block's recursors, so produce `RecursorAlignmentCore finalVEnv rec rec.numParams`
+  (`VRecursorShape` for the recursor type, and for each rule a stored equation with
+  `VIotaRuleShape`, `TrExprS` of the rule's right-hand side and `VConstructorShape` of its
+  constructor), the K clause (`KLikeRecursor`) and the presence of the major inductive, from the
+  compilation certificate (`VInductDecl.CompilesTo`, `RecursorShape`, `IotaRule.lhs_pattern`)
+  and the staged recursor certificates (`BoundGeneratedRecursorRule.EquationTranslation` gives
+  the wrapped shapes and `rhs_residual`; the left-hand side pattern follows from
+  `sourceLhsBody` and `abstractedParamsUnique`-style lemmas). The `defeq` clause is that the
+  rules of `finalVEnv = outVEnv.addDefEqRules rules` are headed by the block's recursors
+  (`StagedBlock.defeqs` shows the stages add no equation). The nested
+  `RestoredNestedDeclarationsResult.recursorProvenance` needs the auxiliary recursors' rules
+  as well (`NestedIotaRule.lhs_pattern`). `ruleValidationValid` needs, besides the transport of
+  the local invariants through `stripRecursorRules` (only rule lists change), the
+  `VRecursorShape`, K clause and inductive major of each restored recursor; with empty rule
+  lists the rule clause of `RecursorAlignmentCore` is vacuous.
+- `structApp_inv` can now be derived from `rigidApp_inv` and `EquationHeadsCoherent.rigid`
+  where it is used, removing one conjecture.
 - Optional cleanup: several executable arity guards (divergences.md) exist only so that the
   verification never needs "an inductive type application is not a function type"; since
   `IsDefEqU.sort_forallE_inv` is already an accepted conjecture of the development, those guards
