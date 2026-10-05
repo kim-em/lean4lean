@@ -259,7 +259,21 @@ inside this project's scope without solving open base metatheory:
    and `RuleRealization` of each concrete rule against `Instance.equation`).
    `assemblyNative` needs the restored analogue
    (`RestoredCompilationRealization`) plus `InductiveRecursorProvenance` on
-   top of `assemblyShapeNative`. Use the recursor-comparison scratch
+   top of `assemblyShapeNative`. Concrete entry point for the minors: the
+   production recursor type is already decomposed by
+   `GeneratedRecursorTelescopeTranslation` (`Nested/Replacement.lean`, with
+   `domainsResult_eq` uniqueness), and `finalSelectedMinorTypedSplit`
+   (`Equation/MinorAlignment.lean`) writes `T.minors[minorIdx]!` as
+   `wrapForalls (fieldDomains ++ hypothesisDomains) targetResidual` with
+   translations in the context `params ++ motives ++ minors.take minorIdx`.
+   The theorem to prove is that these are `insertBinders` lifts of the
+   source-signature field types (`sourceFieldDomains`, translated in the
+   parameter context only; relate by `TrExprS` weakening in the forward
+   direction plus `TrExprS.unique`, not by `weakN_iff`), that
+   `hypothesisDomains` are `Instance.hypothesis`, and that `targetResidual`
+   is the motive application of `Instance.minor`; then `types` follows by
+   `rebuildForallPrefix`-style assembly with `generatedParametersMotivesTranslation`
+   and `consumedMotive`. Use the recursor-comparison scratch
    (regenerating `Acc`, `iterates`, nested types through `Lean4Lean.addDecl`)
    as the executable oracle.
 3. **Replace `weakN_iff` and repair consumers**; coordinate with upstream.
