@@ -692,4 +692,94 @@ theorem CompletedRecursorConstruction.minorResidualSource
     Function.comp_def, hconst, hmotiveAbs, hparamsAbs, hfieldsAbs]
   rw [Expr.mkAppList_append]
 
+/-- Shape of a flat minor slot of the checked recursor type: the field
+domains are the lifted source field domains, followed by one domain per
+hypothesis and the motive application, whose head is the owner's motive
+variable, whose last argument is the canonical constructor spine, and whose
+index arguments translate the closed terminal indices. -/
+theorem CompletedRecursorConstruction.recursorTelescope_minorResidual
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+    {target : VExpr}
+    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
+      target stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
+    (minorIdx : Nat)
+    (D : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (mowner : Nat) (hmowner : mowner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
+    (hD : D.type = H.origins.minorTypes[mowner]![localIndex]!) :
+    let S := H.origins.minorShapes mowner hmowner localIndex hlocal
+    let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+    let fields := InductiveSignature.insertBinders
+      ((H.sourceFields mowner hmowner localIndex hlocal).map
+        (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+      ((H.recInfos.map (·.motive)).size + minorIdx)
+    let ys := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∃ hyps idx : List VExpr,
+      hyps.length = S.hypotheses.size ∧
+      T.minors[minorIdx]'(by rw [T.minors_length]; exact D.inBounds) =
+        VExpr.wrapForalls fields (VExpr.wrapForalls hyps
+          (.app
+            (VExpr.mkApps (.bvar (S.fields.size + S.hypotheses.size + minorIdx +
+              ((H.recInfos.map (·.motive)).size - 1 - mowner))) idx)
+            (VExpr.mkApps
+              (.const S.constructor.name
+                (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
+              (InductiveSignature.vars stats.params.size
+                ((H.recInfos.map (·.motive)).size + minorIdx + S.fields.size +
+                  S.hypotheses.size) ++
+                InductiveSignature.vars S.fields.size S.hypotheses.size)))) ∧
+      List.Forall₂
+        (TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+          (abstractForallContext
+            (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps) []))
+        ((AddInductive.getIIndices stats HS.semantic.traversal.terminal).2.toList.map fun arg =>
+          (arg.abstractList S.fields_bound.fvars S.hypotheses.size).abstractList ys
+            (S.fields.size + S.hypotheses.size))
+        idx := by
+  intro S HS fields ys
+  obtain ⟨residual, heq, Hres⟩ :=
+    H.recursorTelescope_minorFields howner T minorIdx D mowner hmowner localIndex hlocal hD
+  have Htel := ((S.hypothesisTelescope).abstractN S.fields_bound.fvars).abstractList ys
+    S.fields.size
+  rw [Nat.zero_add] at Htel
+  obtain ⟨hyps, res, hhyps, hresEq, Hr⟩ := TrExprS.forallTelescope_shape_with_context Htel Hres
+  have hctx : abstractForallContext hyps
+      (abstractForallContext (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields) []) =
+      abstractForallContext (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps)
+        [] := by
+    simp [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc]
+  rw [hctx, H.minorResidualSource minorIdx D.inBounds mowner hmowner localIndex hlocal] at Hr
+  have hminor : minorIdx < T.minors.length := by rw [T.minors_length]; exact D.inBounds
+  have hmotiveLt : mowner < (H.recInfos.map (·.motive)).size := by simpa using hmowner
+  have hfs : (H.origins.minorShapes mowner hmowner localIndex hlocal).fields.size =
+    S.fields.size := rfl
+  have hhs : (H.origins.minorShapes mowner hmowner localIndex hlocal).hypotheses.size =
+    S.hypotheses.size := rfl
+  have hfieldsLen : fields.length = S.fields.size := by
+    simp only [fields, InductiveSignature.insertBinders, List.length_map, List.length_zipIdx]
+    exact H.sourceFields_length mowner hmowner localIndex hlocal
+  have hlenCtx : (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps).length =
+      stats.params.size + ((H.recInfos.map (·.motive)).size + minorIdx) + S.fields.size +
+        S.hypotheses.size := by
+    simp only [List.length_append, T.params_length, T.motives_length, List.length_take,
+      hfieldsLen, hhyps]
+    omega
+  cases Hr with
+  | app _ _ Hf Ha =>
+    obtain ⟨m', idx, Hm, Hidx, hf'⟩ := checkPositivityStep.TrExprS.mkAppList_inv Hf
+    have hm' := TrExprS.bvar_eq_of_abstractForallContext Hm (by rw [hlenCtx]; omega)
+    obtain ⟨c', P', F', Hc, HP, HF, ha'⟩ := checkPositivityStep.TrExprS.mkAppList_append_inv Ha
+    have hP := TrExprS.shiftedCanonicalBvars_eq HP (by rw [hlenCtx]; omega)
+    have hF := TrExprS.shiftedCanonicalBvars_eq HF (by rw [hlenCtx]; omega)
+    cases Hc with
+    | const _ hlevels _ =>
+      have hus := Option.some.inj (hlevels.symm.trans H.statsLevelsTranslation)
+      refine ⟨hyps, idx, hhyps, ?_, Hidx⟩
+      rw [heq, hresEq, hf', ha', hm', hP, hF, hus, VExpr.mkApps_append]
+
 end Lean4Lean.VerifyInductive
