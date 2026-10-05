@@ -203,7 +203,18 @@ declarations; validation must not assume correctness of its own artifact.
    inverts it into the five binder groups (`recursorTelescope`) and identifies
    the parameter group with the cached parameter telescope and the motive group
    with `Instance.motives` by uniqueness (`recursorTelescope_params`,
-   `recursorTelescope_motives`). Correction of an earlier plan: the junction
+   `recursorTelescope_motives`). Each flat minor slot translates the retained
+   minor declaration type in its generator context
+   (`recursorTelescope_minor`); its field domains are the `insertBinders`
+   lift of `H.sourceFields` (`recursorTelescope_minorFields`, by uniqueness
+   against `minorFieldsTemplate`); and its residual inverts to the owner's
+   motive variable applied to translations of the closed terminal indices and
+   to the canonical constructor spine `mkApps (const ctor levels) (vars …)`
+   (`minorResidualSource`, `recursorTelescope_minorResidual`). Still open in
+   this inversion: identifying the index translations with the lifted
+   `sourceConstructorIndices` (forward: `liftOriginalType`,
+   `insertBeforeInner`, `bvLift`, then `uniqueS`) and the hypothesis domains
+   (item 8). Correction of an earlier plan: the junction
    signature cannot be `R.sourceSignature`. Its field types translate the raw
    constructor telescope, while the production minors bind their fields with
    `consumeTypeAnnotationsVerified` domains, and
@@ -301,17 +312,13 @@ inside this project's scope without solving open base metatheory:
 2. **Close the three refinement junctions.** `canonicalConsumedGeneration`
    (`Recursor/CanonicalConstruction.lean`) first, from the retained type check
    `T := recursorTelescope owner` (item 7). Done: the `params` and `motives`
-   groups (`recursorTelescope_params`, `recursorTelescope_motives`), and the
-   field-domain template `minorFieldsTemplate` (the `insertBinders` lift of
-   `H.sourceFields` beneath any inserted binders). Next, for each flat minor
-   `i`: its binder source is `D.type.abstractList (params ++ motives ++
-   flatMinors.take i)` with `D.type = S.sourceType` (`minorSources`,
-   `sourceType_consumeTypeAnnotations_eq_self`), translated to `T.minors[i]`
-   in `abstractForallContext (T.params ++ T.motives ++ T.minors.take i) []`.
-   Invert that translation along `S.sourceType = mkForall fields (mkForall
-   hyps motiveApp)`: the field domains equal the template by uniqueness; the
-   residual is `app (mkApps (bvar motive) idx) (mkApps (const ctor us) bvars)`
-   by inversion, and `idx` equals the lifted `sourceConstructorIndices`
+   groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
+   field-domain template `minorFieldsTemplate`, the per-minor translation
+   `recursorTelescope_minor`, the field-domain identification
+   `recursorTelescope_minorFields`, and the residual inversion
+   `recursorTelescope_minorResidual` (motive variable, constructor spine, and
+   the index translations as a `Forall₂`). Next: `idx` equals the lifted
+   `sourceConstructorIndices`
    (forward: `liftOriginalType`, `insertBeforeInner`, `bvLift`, then
    uniqueness); each hypothesis domain inverts to `wrapForalls A (app (mkApps
    (bvar m) I) (mkApps (bvar f) bvars))`, and the consumed signature's
