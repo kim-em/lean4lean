@@ -270,8 +270,19 @@ declarations; validation must not assume correctness of its own artifact.
    (c) restate `Models.recursiveTypes` in the generator's own hypothesis
    context, where the checked recursor type supplies the typing by
    inversion; (d) change the executable to reuse the header-phase
-   classification. Until one is chosen, `canonicalConsumedGeneration` cannot be
-   closed, independently of the uniqueness and inversion machinery of item 7.
+   classification. Cost check for (a) (2026-10-05): `Verify/TypeChecker/
+   AlphaLocality.lean` already has the renaming framework
+   (`ExprAlphaUnder`, `Context.OrderedBinderRenaming`) and locality of
+   `whnf` only for the forall, immediate and free-variable-head cases
+   (`whnf_forall_alpha`, `whnf_immediate_alpha`, `whnfFVarAt_alpha`);
+   `RecursorFieldDecisions.alphaAlignment` (`ReplayCompat.lean`) is
+   parametrised by an undischarged classifier-locality hypothesis and has no
+   callers. The header phase's recursive normal form is definitional
+   (`checkPositivity.loop.uniformNormalFormNarrow` yields `∃ normalized,
+   IsDefEqU …`), not the translation of a retained telescope, so (a) also
+   needs the header phase to retain its `whnf` telescope syntactically. Until
+   one option is chosen, `canonicalConsumedGeneration` cannot be closed,
+   independently of the uniqueness and inversion machinery of item 7.
 
 ## Assessment
 
