@@ -221,10 +221,15 @@ declarations; validation must not assume correctness of its own artifact.
    the closed exposed indices, and the recursive field variable applied to
    the canonical argument spine (`hypothesisResidualSource`,
    `recursorTelescope_hypothesisShape`, from the blueprint hypothesis origins
-   `RecInfoMinorHypothesisTypeOrigin`). What remains for the minors is
-   exactly item 8: the argument domains and exposed indices must be the lifts
-   of small-context `Recursive` shapes for `Instance.hypothesis` to match.
-   Correction of an earlier plan: the junction
+   `RecInfoMinorHypothesisTypeOrigin`). The owner's index and major groups
+   are the lifted motive telescope (`recursorTelescope_indicesMajor`), and
+   `recursorTarget_eq_of_minors` assembles everything: the checked recursor
+   type equals `Instance.recursorType` for any generator instance over the
+   consumed families whose minor list equals `T.minors`. So the `types` field
+   of the junction is reduced exactly to the minor group, and the minor group
+   to item 8: the hypothesis argument domains and exposed indices must be the
+   lifts of small-context `Recursive` shapes for `Instance.hypothesis` to
+   match. Correction of an earlier plan: the junction
    signature cannot be `R.sourceSignature`. Its field types translate the raw
    constructor telescope, while the production minors bind their fields with
    `consumeTypeAnnotationsVerified` domains, and
@@ -327,9 +332,12 @@ inside this project's scope without solving open base metatheory:
    `recursorTelescope_minor`, the field-domain identification
    `recursorTelescope_minorFields`, and the residual inversion
    `recursorTelescope_minorResidual` (motive variable, constructor spine),
-   the index identification `recursorTelescope_minorIndices`, and the
-   hypothesis-domain shape `recursorTelescope_hypothesisShape`. Previously
-   planned and now done: `idx` equals the lifted `sourceConstructorIndices`
+   the index identification `recursorTelescope_minorIndices`, the
+   hypothesis-domain shape `recursorTelescope_hypothesisShape`, the index and
+   major groups `recursorTelescope_indicesMajor`, and the assembly
+   `recursorTarget_eq_of_minors` (recursor type modulo the minor group).
+   Previously planned and now done: `idx` equals the lifted
+   `sourceConstructorIndices`
    (forward: `liftOriginalType`, `insertBeforeInner`, `bvLift`, then
    uniqueness); each hypothesis domain inverts to `wrapForalls A (app (mkApps
    (bvar m) I) (mkApps (bvar f) bvars))`, and the consumed signature's
