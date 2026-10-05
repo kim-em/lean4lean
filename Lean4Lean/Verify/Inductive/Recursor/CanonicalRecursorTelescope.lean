@@ -151,4 +151,191 @@ theorem CompletedRecursorConstruction.recursorTelescope_motives
   exact VExpr.wrapForalls_prefix_domains_eq (suffix := []) T.motives_length
     (by simp [InductiveSignature.Instance.motives, hf]) (by simpa using heq)
 
+/-- `RecursorLocalSelections.minorBinderAt` before `inferImplicit`: the flat
+minor slot of the raw recursor type is the retained minor declaration type
+closed over parameters, motives and the strictly earlier minors. -/
+theorem RecursorLocalSelections.minorBinderAtRaw
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias)
+    (D : BoundFVarDeclarationAt c (recInfos.flatMap (·.minors)) minorIdx) :
+    Expr.ForallBinderAt
+      (c.lctx.mkForall stats.params <|
+       c.lctx.mkForall (recInfos.map (·.motive)) <|
+       c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+       c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+       c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+         (.app (mkAppN recInfos[ownerIdx]!.motive recInfos[ownerIdx]!.indices)
+           recInfos[ownerIdx]!.major))
+      (stats.params.size + (recInfos.map (·.motive)).size + minorIdx)
+      (D.type.abstractN
+        (H.params.fvars ++ H.motives.fvars ++ H.minors.fvars.take minorIdx)) := by
+  let minorBody :=
+    c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+    c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+      (.app (mkAppN recInfos[ownerIdx]!.motive
+        recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+  let minorSource :=
+    c.lctx.mkForall (recInfos.flatMap (·.minors)) minorBody
+  let motiveSource :=
+    c.lctx.mkForall (recInfos.map (·.motive)) minorSource
+  let parts := hnoalias.parts
+  have hminorFVars : minorIdx < H.minors.fvars.length := by
+    rw [← H.minors.size]
+    exact D.inBounds
+  have Hminor : Expr.ForallBinderAt minorSource minorIdx
+      (D.type.abstractN (H.minors.fvars.take minorIdx)) := by
+    exact H.minors.forallBinderAt parts.minors D (body := minorBody)
+  have HminorMotives := Hminor.abstractN H.motives.fvars 0
+  have hdomainMotives :
+      (D.type.abstractN (H.minors.fvars.take minorIdx)).abstractN
+          H.motives.fvars minorIdx =
+        D.type.abstractN
+          (H.motives.fvars ++ H.minors.fvars.take minorIdx) := by
+    have Hclose := Expr.abstractN_after_inner
+      (e := D.type) (outer := H.motives.fvars)
+      (inner := H.minors.fvars.take minorIdx) (k := 0)
+    simpa [List.length_take,
+      Nat.min_eq_left (Nat.le_of_lt hminorFVars)] using Hclose
+  have Hmotives := H.motives.forallTelescope minorSource
+  have HthroughMotives := Hmotives.prependBinderAt (by
+    simpa [Nat.zero_add, hdomainMotives] using HminorMotives)
+  have HthroughParams := HthroughMotives.abstractN H.params.fvars 0
+  have hdomainParams :
+      (D.type.abstractN
+          (H.motives.fvars ++ H.minors.fvars.take minorIdx)).abstractN
+          H.params.fvars (H.motives.fvars.length + minorIdx) =
+        D.type.abstractN
+          (H.params.fvars ++ (H.motives.fvars ++
+            H.minors.fvars.take minorIdx)) := by
+    have Hclose := Expr.abstractN_after_inner
+      (e := D.type) (outer := H.params.fvars)
+      (inner := H.motives.fvars ++ H.minors.fvars.take minorIdx)
+      (k := 0)
+    simpa [List.length_take,
+      Nat.min_eq_left (Nat.le_of_lt hminorFVars), List.append_assoc]
+      using Hclose
+  have Hparams := H.params.forallTelescope motiveSource
+  have hparamsLength : H.params.fvars.length = stats.params.size := by
+    rw [← H.params.size]
+  have hmotivesLength : H.motives.fvars.length =
+      (recInfos.map (·.motive)).size := by
+    rw [← H.motives.size]
+  have hmotivesLength' : H.motives.fvars.length = recInfos.size := by
+    simpa using hmotivesLength
+  have HrawBase := Hparams.prependBinderAt (by
+    simpa [Nat.zero_add, Nat.add_assoc] using HthroughParams)
+  have hdomainParamsStats :
+      (D.type.abstractN
+          (H.motives.fvars ++ H.minors.fvars.take minorIdx)).abstractN
+          H.params.fvars (recInfos.size + minorIdx) =
+        D.type.abstractN
+          (H.params.fvars ++ (H.motives.fvars ++
+            H.minors.fvars.take minorIdx)) := by
+    rw [← hmotivesLength']
+    exact hdomainParams
+  rw [hdomainParamsStats] at HrawBase
+  have Hraw : Expr.ForallBinderAt
+      (c.lctx.mkForall stats.params motiveSource)
+      (H.params.fvars.length + (H.motives.fvars.length + minorIdx))
+      (D.type.abstractN
+        (H.params.fvars ++ (H.motives.fvars ++
+          H.minors.fvars.take minorIdx))) := by
+    simpa [hparamsLength, hmotivesLength, Nat.add_assoc] using
+      HrawBase
+  simpa [motiveSource, minorSource, minorBody, hparamsLength,
+    hmotivesLength, Nat.add_assoc] using Hraw
+
+/-- Sequential-model form of `minorBinderAtRaw` for a locally closed context. -/
+theorem RecursorLocalSelections.minorBinderAtRawList
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
+    (D : BoundFVarDeclarationAt c (recInfos.flatMap (·.minors)) minorIdx) :
+    Expr.ForallBinderAt
+      (c.lctx.mkForall stats.params <|
+       c.lctx.mkForall (recInfos.map (·.motive)) <|
+       c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+       c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+       c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+         (.app (mkAppN recInfos[ownerIdx]!.motive recInfos[ownerIdx]!.indices)
+           recInfos[ownerIdx]!.major))
+      (stats.params.size + (recInfos.map (·.motive)).size + minorIdx)
+      (D.type.abstractList
+        (H.params.fvars ++ H.motives.fvars ++ H.minors.fvars.take minorIdx)) := by
+  have h := H.minorBinderAtRaw hnoalias D
+  have hall : (H.params.fvars ++ (H.motives.fvars ++
+      (H.minors.fvars ++ (H.indices.fvars ++ H.major.fvars)))).Nodup := hnoalias
+  have hnodup : (H.params.fvars ++ H.motives.fvars ++
+      H.minors.fvars.take minorIdx).Nodup := by
+    rw [List.append_assoc]
+    exact List.Nodup.sublist (List.Sublist.append (List.Sublist.refl _)
+      (List.Sublist.append (List.Sublist.refl _)
+        ((List.take_sublist _ _).trans (List.sublist_append_left _ _)))) hall
+  rwa [Expr.abstractN_eq_abstractList_of_closed hnodup (D.closed hl)] at h
+
+theorem GeneratedRecursorTelescopeTranslation.take_minorPrefix
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (minorIdx : Nat) (h : minorIdx ≤ T.minors.length) :
+    (T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major).take
+        (numParams + numMotives + minorIdx) =
+      T.params ++ T.motives ++ T.minors.take minorIdx := by
+  have hp := T.params_length
+  have hm := T.motives_length
+  simp only [List.append_assoc]
+  rw [List.take_append, List.take_of_length_le (by omega),
+    List.take_append, List.take_of_length_le (by omega),
+    List.take_append_of_le_length (by omega),
+    show numParams + numMotives + minorIdx - T.params.length - T.motives.length = minorIdx by omega]
+
+theorem GeneratedRecursorTelescopeTranslation.getElem_minor
+    (T : GeneratedRecursorTelescopeTranslation env Us source target
+      numParams numMotives numMinors numIndices ownerIdx)
+    (minorIdx : Nat) (h : minorIdx < T.minors.length)
+    (hi : numParams + numMotives + minorIdx <
+      (T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major).length) :
+    (T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major)[numParams + numMotives + minorIdx] =
+      T.minors[minorIdx] := by
+  have hp := T.params_length
+  have hm := T.motives_length
+  simp only [List.append_assoc]
+  rw [List.getElem_append_right (by omega), List.getElem_append_right (by omega),
+    List.getElem_append_left (by omega)]
+  congr 1
+  omega
+
+/-- The flat minor slot of the checked recursor type translates the retained
+minor declaration type, closed over parameters, motives and earlier minors,
+in the generator's abstract context for that slot. -/
+theorem CompletedRecursorConstruction.recursorTelescope_minor
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+    {target : VExpr}
+    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
+      target stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
+    (minorIdx : Nat)
+    (D : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx) :
+    TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext (T.params ++ T.motives ++ T.minors.take minorIdx) [])
+      (D.type.abstractList (H.params.fvars ++ H.bindings.motives.fvars ++
+        H.bindings.flatMinors.fvars.take minorIdx))
+      (T.minors[minorIdx]'(by rw [T.minors_length]; exact D.inBounds)) := by
+  let Hsel := H.bindings.toRecursorLocalSelections H.localWF H.params owner howner
+  have hnoalias := H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner
+  have Hb := Hsel.minorBinderAtRawList hnoalias H.recursorWF.lctxClosed D
+  have Htr := T.typed.translation
+  rw [T.target_eq] at Htr
+  have hminor : minorIdx < T.minors.length := by rw [T.minors_length]; exact D.inBounds
+  have hi : stats.params.size + (H.recInfos.map (·.motive)).size + minorIdx <
+      (T.params ++ T.motives ++ T.minors ++ T.indices ++ T.major).length := by
+    have hmin := T.minors_length
+    simp only [List.length_append, T.params_length, T.motives_length, T.minors_length,
+      T.indices_length, T.major_length]
+    omega
+  have Ht := Hb.translation Htr hi
+  rw [T.take_minorPrefix minorIdx (Nat.le_of_lt hminor), T.getElem_minor minorIdx hminor hi] at Ht
+  exact Ht
+
 end Lean4Lean.VerifyInductive
