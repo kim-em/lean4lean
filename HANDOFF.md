@@ -273,7 +273,15 @@ inside this project's scope without solving open base metatheory:
    `hypothesisDomains` are `Instance.hypothesis`, and that `targetResidual`
    is the motive application of `Instance.minor`; then `types` follows by
    `rebuildForallPrefix`-style assembly with `generatedParametersMotivesTranslation`
-   and `consumedMotive`. Two facts make the field-domain step tractable:
+   and `consumedMotive`. Note the staging constraint:
+   `CompletedRecursorPhasesResult` (`CompletedRecursorPhases.lean`) defines
+   its installed recursor constants as `nativeTarget`, i.e. through
+   `Classical.choice` of `canonicalConsumedGeneration`, so the junction must
+   be proved at the `CompletedRecursorConstruction` stage from
+   `minorSemantics` (`RecInfoMinorSemanticSource`); the post-installation
+   `GeneratedRecursorTelescopeTranslation`/`finalSelectedMinorTypedSplit`
+   results are downstream of the junction and may only be reused as proof
+   technique, not as premises. Two facts make the field-domain step tractable:
    `TrExprS` terms depend on the context only through its free-variable
    layout (`abstractForallContext domains []` fixes it by `domains.length`),
    so defeq-but-different parameter contexts (`T.params` versus
