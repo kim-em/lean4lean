@@ -1399,4 +1399,203 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisShape
     refine ⟨A, I, hA, ?_, HI⟩
     rw [hEq, hf', ha', hm', hf'', hargs']
 
+/-- Closing a concatenated selection of distinct declarations closes the
+suffix first. -/
+theorem BoundFVarArray.mkForall_append_eq
+    (H₁ : BoundFVarArray c xs) (H₂ : BoundFVarArray c ys) (Hc : BindingContextWF c)
+    (hnodup : (H₁.fvars ++ H₂.fvars).Nodup) (body : Expr) :
+    c.lctx.mkForall (xs ++ ys) body = c.lctx.mkForall xs (c.lctx.mkForall ys body) := by
+  have hdecl : ∀ fv ∈ H₁.fvars ++ H₂.fvars, ∃ d, c.lctx.find? fv = some d := by
+    intro fv hfv
+    rcases List.mem_append.mp hfv with h | h
+    · obtain ⟨_, _, _, _, _, hd⟩ := Hc.findCDecl fv (H₁.members fv h)
+      exact ⟨_, hd⟩
+    · obtain ⟨_, _, _, _, _, hd⟩ := Hc.findCDecl fv (H₂.members fv h)
+      exact ⟨_, hd⟩
+  rcases H₁ with ⟨fvars₁, rfl, members₁⟩
+  rcases H₂ with ⟨fvars₂, rfl, members₂⟩
+  dsimp only at hnodup hdecl
+  have hxy : (fvars₁.map Expr.fvar).toArray ++ (fvars₂.map Expr.fvar).toArray =
+      ((fvars₁ ++ fvars₂).map Expr.fvar).toArray := by simp
+  rw [hxy, LocalContext.mkForall, LocalContext.mkBinding_eqN, LocalContext.mkForall,
+    LocalContext.mkBinding_eqN, LocalContext.mkForall, LocalContext.mkBinding_eqN]
+  exact LocalContext.mkBindingListN_append hdecl hnodup
+
+theorem _root_.Lean4Lean.FVarsIn.forallDomainsOnly {P : FVarId → Prop} {e : Expr}
+    (h : FVarsIn P e) (n : Nat) : FVarsIn P (Expr.forallDomainsOnly n e) := by
+  induction n generalizing e with
+  | zero => simp [Expr.forallDomainsOnly, FVarsIn, Level.hasMVar']
+  | succ n ih =>
+    cases e with
+    | forallE name d b bi =>
+      simp only [Expr.forallDomainsOnly, FVarsIn] at h ⊢
+      exact ⟨h.1, ih h.2⟩
+    | _ => simp [Expr.forallDomainsOnly, FVarsIn, Level.hasMVar']
+
+/-- The owner's index and major groups of the checked recursor type are the
+owner's motive telescope (its source indices and the canonical major
+domain) lifted beneath the motives and all minors. -/
+theorem CompletedRecursorConstruction.recursorTelescope_indicesMajor
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+    {target : VExpr}
+    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
+      target stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
+    {level : VLevel}
+    (hu : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams) H.elimLevel =
+      some level) :
+    T.indices ++ T.major = InductiveSignature.insertBinders
+      ((H.sourceIndices ⟨owner, howner⟩).map
+          (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) ++
+        [VExpr.mkApps
+          (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
+            (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
+          (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size))])
+      ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) := by
+  obtain ⟨Sseed, _⟩ := H.motiveTelescopes.seed owner howner
+  have houter := H.bindings.outerNodup H.params H.noAlias
+  have hparams : H.params.fvars.Nodup := (List.nodup_append.mp (List.nodup_append.mp houter).1).1
+  have hmotives : H.bindings.motives.fvars.Nodup :=
+    (List.nodup_append.mp (List.nodup_append.mp houter).1).2.1
+  have hminors : H.bindings.flatMinors.fvars.Nodup := (List.nodup_append.mp houter).2.1
+  have hnoalias := H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner
+  have hIM : (Sseed.indicesBound.fvars ++ Sseed.majorBound.fvars).Nodup := by
+    have h1 : Sseed.indicesBound.fvars = (H.bindings.indices owner howner).fvars :=
+      BoundFVarArray.fvars_eq_of_array_eq _ _ rfl
+    have h2 : Sseed.majorBound.fvars = (H.bindings.major owner howner).fvars :=
+      BoundFVarArray.fvars_eq_of_array_eq _ _ rfl
+    rw [h1, h2]
+    have hall : (H.params.fvars ++ (H.bindings.motives.fvars ++
+        (H.bindings.flatMinors.fvars ++ ((H.bindings.indices owner howner).fvars ++
+          (H.bindings.major owner howner).fvars)))).Nodup := hnoalias
+    exact (List.nodup_append.mp (List.nodup_append.mp (List.nodup_append.mp hall).2.1).2.1).2.1
+  let IM := Sseed.indicesBound.append Sseed.majorBound
+  have hIMfvars : IM.fvars = Sseed.indicesBound.fvars ++ Sseed.majorBound.fvars := rfl
+  have hIMnodup : IM.fvars.Nodup := by rw [hIMfvars]; exact hIM
+  have hsplit : ∀ body, H.localContext.lctx.mkForall
+      (H.recInfos[owner]!.indices ++ #[H.recInfos[owner]!.major]) body =
+      H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+        (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] body) :=
+    fun body => Sseed.indicesBound.mkForall_append_eq Sseed.majorBound H.localWF hIM body
+  have hnidx : (H.recInfos[owner]!.indices ++ #[H.recInfos[owner]!.major]).size =
+      H.recInfos[owner]!.indices.size + 1 := by simp
+  have hsort : ∀ (fvars : List FVarId) (k : Nat) (u : Level),
+      (Expr.sort u).abstractList fvars k = .sort u :=
+    fun fvars k u => Expr.abstractList_eq_self_of_abstract1 _ (by intro fv depth; simp [Expr.abstract1]) fvars k
+  have hsortN : ∀ (fvars : List FVarId) (k : Nat) (u : Level),
+      (Expr.sort u).abstractN fvars k = .sort u := fun _ _ _ => rfl
+  -- The closed domains-only telescope.
+  let X := H.localContext.lctx.mkForall (H.recInfos[owner]!.indices ++ #[H.recInfos[owner]!.major])
+    (.sort .zero)
+  have hXclosed : Closed X := IM.mkForall_closed H.localWF hIMnodup H.recursorWF.lctxClosed trivial
+  have hXfv : X.FVarsIn (· ∈ H.params.fvars) := by
+    have h := (H.motiveSource_support owner howner).1
+    have h' := h.forallDomainsOnly (H.recInfos[owner]!.indices ++ #[H.recInfos[owner]!.major]).size
+    rwa [← hsplit, IM.forallDomainsOnly H.localWF hIMnodup] at h'
+  -- Forward: the owner's motive telescope, lifted.
+  have Hmot := (H.sourceIndices_motive ⟨owner, howner⟩ hu).1
+  have Hmot' : TrExprS H.recursorWF.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse [])
+      ((H.localContext.lctx.mkForall (H.recInfos[owner]!.indices ++ #[H.recInfos[owner]!.major])
+        (.sort H.elimLevel)).abstractList H.params.fvars)
+      (VExpr.wrapForalls
+        ((H.sourceIndices ⟨owner, howner⟩).map
+          (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) ++
+          [VExpr.mkApps
+            (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
+              (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
+            (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size))])
+        (.sort level)) := by
+    rw [hsplit]
+    simpa [VExpr.wrapForalls_append, VExpr.wrapForalls] using Hmot
+  have HtelF := (IM.mkForall_forallTelescope H.localWF (.sort H.elimLevel)).abstractList
+    H.params.fvars
+  simp only [hsortN, hsort] at HtelF
+  have hlenF : ((H.sourceIndices ⟨owner, howner⟩).map
+      (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) ++
+      [VExpr.mkApps
+        (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
+          (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
+        (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size))]).length =
+      (H.recInfos[owner]!.indices ++ #[H.recInfos[owner]!.major]).size := by
+    simp [H.sourceIndices_length]
+  have HdomF := (TrExprS.forallDomainsOnly HtelF hlenF Hmot').1
+  rw [Expr.forallDomainsOnly_abstractList, IM.forallDomainsOnly H.localWF hIMnodup] at HdomF
+  have Hw := HdomF.weakBV H.recursorWF.checking.tr.wf.ordered
+    (abstractForallContext.bvLift (T.motives ++ T.minors)
+      (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse []))
+  -- Checked side: peel parameters, motives and minors.
+  have Htr := T.typed.translation
+  rw [T.target_eq, VExpr.wrapForalls_append, VExpr.wrapForalls_append, VExpr.wrapForalls_append,
+    VExpr.wrapForalls_append] at Htr
+  let body₃ := H.localContext.lctx.mkForall H.recInfos[owner]!.indices <|
+    H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+      (.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices) H.recInfos[owner]!.major)
+  have Htel1 := H.params.mkForall_forallTelescope H.localWF
+    (H.localContext.lctx.mkForall (H.recInfos.map (·.motive))
+      (H.localContext.lctx.mkForall (H.recInfos.flatMap (·.minors)) body₃))
+  have Hres1 := TrExprS.forallTelescope_residual Htel1 T.params_length Htr
+  have Htel2 := (H.bindings.motives.mkForall_forallTelescope H.localWF
+    (H.localContext.lctx.mkForall (H.recInfos.flatMap (·.minors)) body₃)).abstractN H.params.fvars
+  have Hres2 := TrExprS.forallTelescope_residual Htel2 (by simpa using T.motives_length) Hres1
+  simp only [Nat.zero_add] at Hres2
+  have Htel3 := ((H.bindings.flatMinors.mkForall_forallTelescope H.localWF body₃).abstractN
+    H.bindings.motives.fvars).abstractN H.params.fvars (H.recInfos.map (·.motive)).size
+  have Hres3 := TrExprS.forallTelescope_residual Htel3 T.minors_length Hres2
+  have HtelT := (((IM.mkForall_forallTelescope H.localWF
+    (.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
+      H.recInfos[owner]!.major)).abstractN H.bindings.flatMinors.fvars).abstractN
+        H.bindings.motives.fvars (H.recInfos.flatMap (·.minors)).size).abstractN H.params.fvars
+          ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size)
+  rw [hsplit] at HtelT
+  have hlenT : (T.indices ++ T.major).length =
+      (H.recInfos[owner]!.indices ++ #[H.recInfos[owner]!.major]).size := by
+    simp [T.indices_length, T.major_length]
+  simp only [Nat.zero_add] at Hres3 HtelT
+  rw [← VExpr.wrapForalls_append] at Hres3
+  have HdomT := (TrExprS.forallDomainsOnly HtelT hlenT Hres3).1
+  rw [Expr.forallDomainsOnly_abstractN, Expr.forallDomainsOnly_abstractN,
+    Expr.forallDomainsOnly_abstractN, ← hsplit, IM.forallDomainsOnly H.localWF hIMnodup] at HdomT
+  -- The checked source is the lifted forward source.
+  have hparamsMinors : ∀ fv ∈ H.params.fvars, fv ∉ H.bindings.flatMinors.fvars := by
+    intro fv hfv hmem
+    exact (List.nodup_append.mp houter).2.2 fv (List.mem_append_left _ hfv) fv hmem rfl
+  have hparamsMotives : ∀ fv ∈ H.params.fvars, fv ∉ H.bindings.motives.fvars := by
+    intro fv hfv hmem
+    exact (List.nodup_append.mp (List.nodup_append.mp houter).1).2.2 fv hfv fv hmem rfl
+  have hX1 : X.abstractN H.bindings.flatMinors.fvars = X := by
+    rw [Expr.abstractN_eq_abstractList_of_closed hminors hXclosed]
+    exact (hXfv.mono fun fv hfv => hparamsMinors fv hfv).abstractList_eq_self hXclosed
+  have hX2 : X.abstractN H.bindings.motives.fvars (H.recInfos.flatMap (·.minors)).size = X := by
+    rw [Expr.abstractN_eq_abstractList hmotives _ _
+      (by rw [hXclosed.looseBVarRange_zero]; exact Nat.zero_le _)]
+    exact (hXfv.mono fun fv hfv => hparamsMotives fv hfv).abstractList_eq_self
+      (hXclosed.mono (Nat.zero_le _))
+  have hX3 : X.abstractN H.params.fvars
+      ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) =
+      (X.abstractList H.params.fvars).liftLooseBVars' 0
+        ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) := by
+    rw [Expr.abstractN_eq_abstractList hparams _ _
+      (by rw [hXclosed.looseBVarRange_zero]; exact Nat.zero_le _)]
+    simpa using Expr.abstractList_add_eq_liftLooseBVars (e := X) (fvars := H.params.fvars)
+      (depth := 0) (extra := (H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size)
+      hXclosed hparams
+  rw [hX1, hX2, hX3] at HdomT
+  have hn : (T.motives ++ T.minors).length =
+      (H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size := by
+    simp [T.motives_length, T.minors_length]
+  rw [H.recursorEnv, ← H.recursorTelescope_params T, hn, VExpr.liftN_wrapForalls] at Hw
+  have hctx : abstractForallContext (T.motives ++ T.minors) (abstractForallContext T.params []) =
+      abstractForallContext T.minors (abstractForallContext T.motives
+        (abstractForallContext T.params [])) := by
+    simp [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc]
+  rw [hctx] at Hw
+  have heq := HdomT.uniqueS Hw
+  rw [insertBinders_eq_prefix]
+  exact VExpr.wrapForalls_prefix_domains_eq (suffix := []) hlenT
+    (by simp [H.sourceIndices_length]) (by simpa [VExpr.liftN] using heq)
+
 end Lean4Lean.VerifyInductive
