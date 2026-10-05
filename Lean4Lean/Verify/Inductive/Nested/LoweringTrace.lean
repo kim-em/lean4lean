@@ -774,8 +774,8 @@ theorem ConstructorRestorationBodyInverse.restoredType_eqv_source
       · rw [LocalContext.mkForall, LocalContext.mkLambda]
         rw [show (#[] : Array Expr) =
             (([] : List FVarId).map Expr.fvar).toArray from rfl,
-          LocalContext.mkBinding_eq, LocalContext.mkBinding_eq]
-        simp only [LocalContext.mkBindingList_nil]
+          LocalContext.mkBinding_eqN, LocalContext.mkBinding_eqN]
+        simp only [LocalContext.mkBindingListN_nil]
     · have hpos : 0 < nparams := Nat.pos_of_ne_zero hzero
       have hisForall :=
         H.sourceLoweredPrefix.target_isForall_of_pos hpos

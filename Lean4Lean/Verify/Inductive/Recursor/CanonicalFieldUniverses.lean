@@ -91,15 +91,15 @@ theorem FieldUniverseSupport.mkForall
     exact ⟨index, name, type, bi, kind, hfind, htype⟩
   have hgo : ∀ fvars : List FVarId, (∀ fv ∈ fvars, fv ∈ Hfields.fvars) →
       ∀ body : Expr, body.levelParamsIn params = true →
-      (LocalContext.mkBindingList.go false c.lctx fvars body).levelParamsIn params = true := by
+      (LocalContext.mkBindingListN.go false c.lctx fvars body).levelParamsIn params = true := by
     intro fvars hmem body hbody
     induction fvars generalizing body with
     | nil => exact hbody
     | cons fv fvars ih =>
       obtain ⟨index, name, type, bi, kind, hfind, htype⟩ := hdecl fv (hmem _ (by simp))
       apply ih (fun other hother => hmem other (by simp [hother]))
-      simpa [LocalContext.mkBindingList1, hfind, Expr.levelParamsIn, htype] using hbody
-  rw [Hfields.expressions, LocalContext.mkForall, LocalContext.mkBinding_eq]
+      simpa [LocalContext.mkBindingList1N, hfind, Expr.levelParamsIn, htype] using hbody
+  rw [Hfields.expressions, LocalContext.mkForall, LocalContext.mkBinding_eqN]
   apply hgo Hfields.fvars.reverse (by simp) _
   simpa using hbody
 

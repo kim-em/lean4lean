@@ -1759,8 +1759,8 @@ theorem NestedRestorationOpening.outputPrefixTelescope
           change LocalContext.mkBinding true lctx
             (([] : List FVarId).map Expr.fvar).toArray restoredBody =
               restoredBody
-          rw [LocalContext.mkBinding_eq]
-          rfl
+          rw [LocalContext.mkBinding_eqN]
+          exact LocalContext.mkBindingListN_nil
         simpa [hnil, LocalContext.mkForall_empty, hlambda] using houtput
     | succ n =>
         have hfor : input.isForall = true :=

@@ -474,6 +474,63 @@ theorem Expr.ForallTelescope.abstractList
     simp only [Expr.abstractList]
     exact ih (H.abstract1 fv k) k
 
+/-- Simultaneous abstraction preserves the exact leading telescope; the cutoff advances
+below the retained binders. -/
+theorem Expr.ForallTelescope.abstractN
+    (H : Expr.ForallTelescope outer arity result)
+    (fvs : List FVarId) (k : Nat := 0) :
+    Expr.ForallTelescope (outer.abstractN fvs k) arity
+      (result.abstractN fvs (k + arity)) := by
+  induction H generalizing k with
+  | nil => exact .nil _
+  | cons H ih =>
+    simp only [Expr.abstractN]
+    apply Expr.ForallTelescope.cons
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
+
+theorem Expr.lastRevIdx?_append (v : FVarId) : ∀ (ys zs : List FVarId),
+    Expr.lastRevIdx? v (ys ++ zs) =
+      match Expr.lastRevIdx? v zs with
+      | some r => some r
+      | none => (Expr.lastRevIdx? v ys).map (· + zs.length)
+  | [], zs => by cases h : Expr.lastRevIdx? v zs <;> simp [Expr.lastRevIdx?, h]
+  | y :: ys, zs => by
+    simp only [List.cons_append, Expr.lastRevIdx?, Expr.lastRevIdx?_append v ys zs]
+    cases hz : Expr.lastRevIdx? v zs with
+    | some r => simp
+    | none =>
+      cases hy : Expr.lastRevIdx? v ys with
+      | some r => simp
+      | none => by_cases hyv : (y == v) = true <;> simp [hyv, List.length_append]
+
+/-- Abstracting a concatenation is abstracting the suffix first, then the prefix below the
+suffix's binders. -/
+theorem Expr.abstractN_append (ys zs : List FVarId) : ∀ (e : Expr) (d : Nat),
+    e.abstractN (ys ++ zs) d = (e.abstractN zs d).abstractN ys (d + zs.length)
+  | .bvar _, _ => rfl
+  | .fvar v, d => by
+    simp only [Expr.abstractN, Expr.lastRevIdx?_append]
+    cases hz : Expr.lastRevIdx? v zs with
+    | some r => simp [Expr.abstractN]
+    | none =>
+      cases hy : Expr.lastRevIdx? v ys with
+      | some r => simp [Expr.abstractN, hy, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
+      | none => simp [Expr.abstractN, hy]
+  | .mdata _ e, d => by simp [Expr.abstractN, Expr.abstractN_append ys zs e d]
+  | .proj _ _ e, d => by simp [Expr.abstractN, Expr.abstractN_append ys zs e d]
+  | .app f a, d => by
+    simp [Expr.abstractN, Expr.abstractN_append ys zs f d, Expr.abstractN_append ys zs a d]
+  | .lam _ t b _, d => by
+    simp [Expr.abstractN, Expr.abstractN_append ys zs t d, Expr.abstractN_append ys zs b (d+1),
+      Nat.add_right_comm]
+  | .forallE _ t b _, d => by
+    simp [Expr.abstractN, Expr.abstractN_append ys zs t d, Expr.abstractN_append ys zs b (d+1),
+      Nat.add_right_comm]
+  | .letE _ t v b _, d => by
+    simp [Expr.abstractN, Expr.abstractN_append ys zs t d, Expr.abstractN_append ys zs v d,
+      Expr.abstractN_append ys zs b (d+1), Nat.add_right_comm]
+  | .const .., _ | .sort _, _ | .mvar _, _ | .lit _, _ => rfl
+
 /-- Instantiating below a forall telescope preserves its arity and performs
 the same instantiation below all retained binders in the residual. -/
 theorem Expr.ForallTelescope.instantiate1'
@@ -612,6 +669,9 @@ theorem Expr.abstractList_bvar_lt (fvs : List FVarId)
   | nil => simp
   | cons fv fvs ih =>
     simp [Expr.abstractList, Expr.abstract1, h, ih]
+
+theorem Expr.abstractN_bvar_lt (fvs : List FVarId) (_h : n < k) :
+    (Expr.bvar n).abstractN fvs k = .bvar n := rfl
 
 @[simp] theorem Expr.abstractList_app :
     (Expr.app fn arg).abstractList fvs k =
@@ -1544,6 +1604,19 @@ theorem Expr.abstractList_fvarArray_of_disjoint
     exact Expr.abstractList_fvar_of_not_mem <|
       hdisjoint xs[i] (List.getElem_mem hi)
 
+theorem Expr.abstractN_fvarArray_of_disjoint
+    (xs binders : List FVarId) (k : Nat)
+    (hdisjoint : ∀ fv, fv ∈ xs → fv ∉ binders) :
+    ((xs.map Expr.fvar).toArray.map fun e => e.abstractN binders k) =
+      (xs.map Expr.fvar).toArray := by
+  apply Array.ext
+  · simp
+  · intro i hiLeft hiRight
+    have hi : i < xs.length := by simpa using hiRight
+    simp only [Array.getElem_map, List.getElem_toArray, List.getElem_map]
+    exact Expr.abstractN_fvar_of_not_mem <|
+      hdisjoint xs[i] (List.getElem_mem hi)
+
 /-- Closing one free variable does not change the head of an application
 spine, except for closing that head itself. -/
 theorem Expr.getAppFn_abstract1 (e : Expr) (fv : FVarId) (k : Nat := 0) :
@@ -2055,6 +2128,19 @@ theorem Expr.abstractList_indexBVars
     simp only [Array.getElem_map, List.getElem_toArray, List.getElem_ofFn]
     apply Expr.abstractList_bvar_lt
     omega
+
+theorem Expr.abstractN_indexBVars
+    (binders : List FVarId) (n k : Nat) (_hk : n < k) :
+    ((List.ofFn fun i : Fin n =>
+        Expr.bvar (1 + (n - 1 - i))).toArray.map
+      fun e => e.abstractN binders k) =
+    (List.ofFn fun i : Fin n =>
+      Expr.bvar (1 + (n - 1 - i))).toArray := by
+  apply Array.ext
+  · simp
+  · intro i hiLeft hiRight
+    simp only [Array.getElem_map, List.getElem_toArray, List.getElem_ofFn]
+    rfl
 
 /-- Translation erases names and binder annotations but preserves the exact
 number of leading forall binders. -/
@@ -2677,6 +2763,13 @@ theorem Expr.abstractList_after_inner
       (e := e) (a := fv) (as := inner) (k := k)
       hfvInnerNodup]
     exact ih htail
+
+/-- Exact-model form of `abstractList_after_inner`; no distinctness is needed, since the
+last occurrence of a variable wins in both the combined and the staged abstraction. -/
+theorem Expr.abstractN_after_inner {e : Expr} {outer inner : List FVarId} {k : Nat} :
+    (e.abstractN inner k).abstractN outer (k + inner.length) =
+      e.abstractN (outer ++ inner) k :=
+  (Expr.abstractN_append outer inner e k).symm
 
 /-- If abstraction has no unexpected free variables, the original expression
 can only additionally mention the variable that was abstracted. -/
@@ -3837,6 +3930,45 @@ theorem LocalContext.mkBindingList_forallTelescope
     go fvs.reverse (body.abstractList fvs) (fun fv hfv =>
       hdecl fv (by simpa using hfv))
 
+/-- Binding a list of ordinary local declarations creates one concrete forall
+per selected declaration and leaves precisely the simultaneous abstraction of
+the selected free variables as its residual body. -/
+theorem LocalContext.mkBindingListN_forallTelescope
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind)) :
+    Expr.ForallTelescope
+      (LocalContext.mkBindingListN false lctx fvs body)
+      fvs.length (body.abstractN fvs) := by
+  have go : ∀ (xs : List FVarId) (current : Expr),
+      (∀ fv ∈ xs, ∃ index name type bi kind,
+        lctx.find? fv = some (.cdecl index fv name type bi kind)) →
+      Expr.ForallTelescope
+        (LocalContext.mkBindingListN.go false lctx xs current)
+        xs.length current := by
+    intro xs
+    induction xs with
+    | nil =>
+      intro current _
+      exact .nil _
+    | cons fv xs ih =>
+      intro current hxs
+      rw [LocalContext.mkBindingListN.go]
+      have htail := ih
+        (LocalContext.mkBindingList1N false lctx xs.reverse fv current)
+        (fun x hx => hxs x (by simp [hx]))
+      rcases hxs fv (by simp) with
+        ⟨index, name, type, bi, kind, hfind⟩
+      have hhead : Expr.ForallTelescope
+          (LocalContext.mkBindingList1N false lctx xs.reverse fv current)
+          1 current := by
+        simp only [LocalContext.mkBindingList1N, hfind]
+        exact Expr.ForallTelescope.cons (.nil _)
+      simpa using htail.trans hhead
+  simpa only [LocalContext.mkBindingListN, LocalContext.mkBindingListN.core,
+    List.length_reverse] using
+    go fvs.reverse (body.abstractN fvs) (fun fv hfv =>
+      hdecl fv (by simpa using hfv))
+
 /-- The production `LocalContext.mkForall` interface specialized to an
 explicit list of free variables known to denote ordinary declarations. -/
 theorem LocalContext.mkForall_fvars_forallTelescope
@@ -3845,9 +3977,9 @@ theorem LocalContext.mkForall_fvars_forallTelescope
       lctx.find? fv = some (.cdecl index fv name type bi kind)) :
     Expr.ForallTelescope
       (lctx.mkForall (fvs.map Expr.fvar).toArray body)
-      fvs.length (body.abstractList fvs) := by
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
-  exact LocalContext.mkBindingList_forallTelescope hdecl
+      fvs.length (body.abstractN fvs) := by
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eqN]
+  exact LocalContext.mkBindingListN_forallTelescope hdecl
 
 /-- A concrete expression consists of exactly `arity` leading lambda binders
 and the indicated residual body. -/
@@ -4079,6 +4211,31 @@ theorem LocalContext.sameLambdaPrefix_fold
     exact Expr.SameLambdaPrefix.cons
       ((ih (fun other hother => hdecl other (by simp [hother]))).abstract1 fv)
 
+/-- Closing two bodies over the same list of ordinary local declarations
+creates the same concrete lambda prefix. -/
+theorem LocalContext.sameLambdaPrefixN_fold
+    {lctx : LocalContext} {fvars : List FVarId}
+    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (left right : Expr) :
+    Expr.SameLambdaPrefix fvars.length
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1N true lctx [] fv
+            (result.abstractN [fv])) left)
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1N true lctx [] fv
+            (result.abstractN [fv])) right) := by
+  induction fvars with
+  | nil => exact .nil
+  | cons fv fvars ih =>
+    rcases hdecl fv (by simp) with ⟨index, name, type, bi, kind, hfind⟩
+    simp only [List.foldr_cons, List.length_cons]
+    simp only [LocalContext.mkBindingList1N, hfind]
+    exact Expr.SameLambdaPrefix.cons
+      ((ih (fun other hother => hdecl other (by simp [hother]))).abstractN [fv])
+
 /-- Closing one residual with foralls and another with lambdas over the same
 ordinary declarations creates one literal cross-kind binder prefix. -/
 theorem LocalContext.sameForallLambdaPrefix_fold
@@ -4103,6 +4260,31 @@ theorem LocalContext.sameForallLambdaPrefix_fold
     simp only [LocalContext.mkBindingList1, hfind]
     exact Expr.SameForallLambdaPrefix.cons
       ((ih (fun other hother => hdecl other (by simp [hother]))).abstract1 fv)
+
+/-- Closing one residual with foralls and another with lambdas over the same
+ordinary declarations creates one literal cross-kind binder prefix. -/
+theorem LocalContext.sameForallLambdaPrefixN_fold
+    {lctx : LocalContext} {fvars : List FVarId}
+    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (forallBody lambdaBody : Expr) :
+    Expr.SameForallLambdaPrefix fvars.length
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1N false lctx [] fv
+            (result.abstractN [fv])) forallBody)
+      (fvars.foldr
+        (fun fv result =>
+          LocalContext.mkBindingList1N true lctx [] fv
+            (result.abstractN [fv])) lambdaBody) := by
+  induction fvars with
+  | nil => exact .nil
+  | cons fv fvars ih =>
+    rcases hdecl fv (by simp) with ⟨index, name, type, bi, kind, hfind⟩
+    simp only [List.foldr_cons, List.length_cons]
+    simp only [LocalContext.mkBindingList1N, hfind]
+    exact Expr.SameForallLambdaPrefix.cons
+      ((ih (fun other hother => hdecl other (by simp [hother]))).abstractN [fv])
 
 theorem Expr.LambdaTelescope.trans
     (Houter : Expr.LambdaTelescope outer outerArity middle)
@@ -4324,6 +4506,18 @@ theorem Expr.LambdaTelescope.abstractList
   | cons fv fvs ih =>
     simp only [Expr.abstractList]
     exact ih (H.abstract1 fv k) k
+
+theorem Expr.LambdaTelescope.abstractN
+    (H : Expr.LambdaTelescope outer arity result)
+    (fvs : List FVarId) (k : Nat := 0) :
+    Expr.LambdaTelescope (outer.abstractN fvs k) arity
+      (result.abstractN fvs (k + arity)) := by
+  induction H generalizing k with
+  | nil => exact .nil _
+  | cons H ih =>
+    simp only [Expr.abstractN]
+    apply Expr.LambdaTelescope.cons
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
 
 /-- A lambda telescope whose binder domains avoid a selected set of
 constants.  The residual body is intentionally unrestricted: generated
@@ -4695,17 +4889,6 @@ theorem LocalContext.mkLambda_fvars_lambdaTelescopeN
   rw [LocalContext.mkLambda, LocalContext.mkBinding_eqN]
   exact LocalContext.mkBindingListN_lambdaTelescope hdecl
 
-/-- The production `LocalContext.mkLambda` interface specialized to an
-explicit array of ordinary local free variables. -/
-theorem LocalContext.mkLambda_fvars_lambdaTelescope
-    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
-    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind)) :
-    Expr.LambdaTelescope
-      (lctx.mkLambda (fvs.map Expr.fvar).toArray body)
-      fvs.length (body.abstractList fvs) := by
-  rw [LocalContext.mkLambda, LocalContext.mkBinding_eq]
-  exact LocalContext.mkBindingList_lambdaTelescope hdecl
 
 /-- Binder-aware counterpart retaining source-level absence for every
 selected local declaration type. -/
@@ -4768,19 +4951,6 @@ theorem LocalContext.mkLambda_fvars_avoidingLambdaTelescopeN
   rw [LocalContext.mkLambda, LocalContext.mkBinding_eqN]
   exact LocalContext.mkBindingListN_avoidingLambdaTelescope hdecl havoid
 
-theorem LocalContext.mkLambda_fvars_avoidingLambdaTelescope
-    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
-    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
-      lctx.find? fv = some (.cdecl index fv name type bi kind))
-    (havoid : ∀ fv index name type bi kind,
-      fv ∈ fvs →
-      lctx.find? fv = some (.cdecl index fv name type bi kind) →
-      type.AvoidsConsts namesToAvoid) :
-    Expr.AvoidingLambdaTelescope namesToAvoid
-      (lctx.mkLambda (fvs.map Expr.fvar).toArray body)
-      fvs.length (body.abstractList fvs) := by
-  rw [LocalContext.mkLambda, LocalContext.mkBinding_eq]
-  exact LocalContext.mkBindingList_avoidingLambdaTelescope hdecl havoid
 
 theorem LocalContext.mkBindingList_append_four
     (hdecl : ∀ fv ∈ ((as ++ bs) ++ cs) ++ ds,
@@ -4810,6 +4980,34 @@ theorem LocalContext.mkBindingList_append_four
     LocalContext.mkBindingList_eq_fold hdsDecl habcd.2.1]
   simp only [List.foldr_append]
 
+theorem LocalContext.mkBindingListN_append_four
+    (hdecl : ∀ fv ∈ ((as ++ bs) ++ cs) ++ ds,
+      ∃ decl, lctx.find? fv = some decl)
+    (hnodup : (((as ++ bs) ++ cs) ++ ds).Nodup) :
+    LocalContext.mkBindingListN isLambda lctx
+        (((as ++ bs) ++ cs) ++ ds) body =
+      LocalContext.mkBindingListN isLambda lctx as
+        (LocalContext.mkBindingListN isLambda lctx bs
+          (LocalContext.mkBindingListN isLambda lctx cs
+            (LocalContext.mkBindingListN isLambda lctx ds body))) := by
+  have habcd := List.nodup_append.mp hnodup
+  have habc := List.nodup_append.mp habcd.1
+  have hab := List.nodup_append.mp habc.1
+  have hasDecl : ∀ fv ∈ as, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv; exact hdecl fv (by simp [hfv])
+  have hbsDecl : ∀ fv ∈ bs, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv; exact hdecl fv (by simp [hfv])
+  have hcsDecl : ∀ fv ∈ cs, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv; exact hdecl fv (by simp [hfv])
+  have hdsDecl : ∀ fv ∈ ds, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv; exact hdecl fv (by simp [hfv])
+  rw [LocalContext.mkBindingListN_eq_fold hdecl hnodup,
+    LocalContext.mkBindingListN_eq_fold hasDecl hab.1,
+    LocalContext.mkBindingListN_eq_fold hbsDecl hab.2.1,
+    LocalContext.mkBindingListN_eq_fold hcsDecl habc.2.1,
+    LocalContext.mkBindingListN_eq_fold hdsDecl habcd.2.1]
+  simp only [List.foldr_append]
+
 /-- A selected executable array consists solely of ordinary free-variable
 declarations in the retained local context. -/
 structure LocalForallSelection (lctx : LocalContext) (xs : Array Expr) where
@@ -4831,10 +5029,10 @@ theorem LocalForallSelection.sameLambdaPrefix
     rcases hdecl fv hfv with ⟨index, name, type, bi, kind, hfound⟩
     exact ⟨.cdecl index fv name type bi kind, hfound⟩
   rw [LocalContext.mkLambda, LocalContext.mkLambda,
-    LocalContext.mkBinding_eq, LocalContext.mkBinding_eq,
-    LocalContext.mkBindingList_eq_fold hfind hnodup,
-    LocalContext.mkBindingList_eq_fold hfind hnodup]
-  simpa using LocalContext.sameLambdaPrefix_fold hdecl left right
+    LocalContext.mkBinding_eqN, LocalContext.mkBinding_eqN,
+    LocalContext.mkBindingListN_eq_fold hfind hnodup,
+    LocalContext.mkBindingListN_eq_fold hfind hnodup]
+  simpa using LocalContext.sameLambdaPrefixN_fold hdecl left right
 
 /-- `mkForall` and `mkLambda` close two residuals with the same literal
 ordinary-declaration prefix when they use the same duplicate-free local
@@ -4850,10 +5048,10 @@ theorem LocalForallSelection.sameForallLambdaPrefix
     rcases hdecl fv hfv with ⟨index, name, type, bi, kind, hfound⟩
     exact ⟨.cdecl index fv name type bi kind, hfound⟩
   rw [LocalContext.mkForall, LocalContext.mkLambda,
-    LocalContext.mkBinding_eq, LocalContext.mkBinding_eq,
-    LocalContext.mkBindingList_eq_fold hfind hnodup,
-    LocalContext.mkBindingList_eq_fold hfind hnodup]
-  simpa using LocalContext.sameForallLambdaPrefix_fold hdecl
+    LocalContext.mkBinding_eqN, LocalContext.mkBinding_eqN,
+    LocalContext.mkBindingListN_eq_fold hfind hnodup,
+    LocalContext.mkBindingListN_eq_fold hfind hnodup]
+  simpa using LocalContext.sameForallLambdaPrefixN_fold hdecl
     forallBody lambdaBody
 
 /-- Operational form of a local selection, convenient to preserve while the

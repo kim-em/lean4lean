@@ -303,7 +303,7 @@ exactly that array as a concrete forall telescope. -/
 theorem BoundFVarArray.mkForall_forallTelescope
     (H : BoundFVarArray c xs) (Hc : BindingContextWF c) (body : Expr) :
     Expr.ForallTelescope (c.lctx.mkForall xs body) xs.size
-      (body.abstractList H.fvars) := by
+      (body.abstractN H.fvars) := by
   have hsize : H.fvars.length = xs.size := by
     have h := congrArg Array.size H.expressions
     simpa using h.symm

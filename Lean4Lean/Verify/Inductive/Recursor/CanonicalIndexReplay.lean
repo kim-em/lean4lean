@@ -134,6 +134,35 @@ theorem Expr.forallDomainsOnly_abstractList (n : Nat) (source : Expr)
   | cons fv fvars ih =>
     simp only [Expr.abstractList, ih, Expr.forallDomainsOnly_abstract1]
 
+theorem Expr.forallDomainsOnly_abstractN (n : Nat) (source : Expr) (xs : List FVarId) (k : Nat) :
+    Expr.forallDomainsOnly n (source.abstractN xs k) =
+      (Expr.forallDomainsOnly n source).abstractN xs k := by
+  induction n generalizing source k with
+  | zero => rfl
+  | succ n ih =>
+    cases source <;> simp [Expr.forallDomainsOnly, Expr.abstractN, ih]
+    all_goals split <;> rfl
+
+theorem LocalContext.forallDomainsOnly_foldN
+    {lctx : LocalContext} {fvars : List FVarId}
+    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (body : Expr) :
+    Expr.forallDomainsOnly fvars.length
+      (fvars.foldr (fun fv result => LocalContext.mkBindingList1N false lctx [] fv
+        (result.abstractN [fv])) body) =
+      fvars.foldr (fun fv result => LocalContext.mkBindingList1N false lctx [] fv
+        (result.abstractN [fv])) (.sort .zero) := by
+  induction fvars with
+  | nil => rfl
+  | cons fv fvars ih =>
+    obtain ⟨index, name, type, bi, kind, hfind⟩ := hdecl fv (by simp)
+    simp only [List.foldr_cons, List.length_cons, LocalContext.mkBindingList1N, hfind,
+      Bool.false_eq_true, ↓reduceIte, Expr.forallDomainsOnly, Expr.forallDomainsOnly_abstractN]
+    simpa only [LocalContext.mkBindingList1N, Bool.false_eq_true, ↓reduceIte] using
+      congrArg (fun e => Expr.forallE name (type.abstractN []) (e.abstractN [fv]) bi)
+        (ih (fun other hother => hdecl other (by simp [hother])))
+
 theorem LocalContext.forallDomainsOnly_fold
     {lctx : LocalContext} {fvars : List FVarId}
     (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
@@ -173,10 +202,10 @@ theorem BoundFVarArray.forallDomainsOnly
   conv => rhs; rw [H.expressions]
   simp only [List.size_toArray, List.length_map]
   rw [LocalContext.mkForall, LocalContext.mkForall,
-    LocalContext.mkBinding_eq, LocalContext.mkBinding_eq,
-    LocalContext.mkBindingList_eq_fold hfind hnodup,
-    LocalContext.mkBindingList_eq_fold hfind hnodup]
-  exact LocalContext.forallDomainsOnly_fold hdecl body
+    LocalContext.mkBinding_eqN, LocalContext.mkBinding_eqN,
+    LocalContext.mkBindingListN_eq_fold hfind hnodup,
+    LocalContext.mkBindingListN_eq_fold hfind hnodup]
+  exact LocalContext.forallDomainsOnly_foldN hdecl body
 
 theorem CompletedRecursorConstruction.indexDomainSource_eq
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}

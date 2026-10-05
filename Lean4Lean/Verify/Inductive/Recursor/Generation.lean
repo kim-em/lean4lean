@@ -40,11 +40,12 @@ theorem LocalForallSelection.fvar_mem
   cases heq
   exact hother
 
+
 /-- The binder domain selected by `LocalContext.mkForall` is the exact local
 declaration type, simultaneously closed over the strictly earlier selected
 free variables.  This is the source-syntax provenance needed to compare a
 generated recursor domain with its independently recorded origin type. -/
-theorem LocalContext.mkBindingList_forallBinderAt
+theorem LocalContext.mkBindingListN_forallBinderAt
     (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
       lctx.find? fv = some (.cdecl index fv name type bi kind))
     (hnodup : fvars.Nodup)
@@ -54,8 +55,8 @@ theorem LocalContext.mkBindingList_forallBinderAt
     (hselected : lctx.find? fvars[i] =
       some (.cdecl index fvars[i] name type bi kind)) :
     Expr.ForallBinderAt
-      (LocalContext.mkBindingList false lctx fvars body) i
-      (type.abstractList (fvars.take i)) := by
+      (LocalContext.mkBindingListN false lctx fvars body) i
+      (type.abstractN (fvars.take i)) := by
   induction fvars generalizing i body with
   | nil => simp at hi
   | cons fv fvars ih =>
@@ -64,7 +65,7 @@ theorem LocalContext.mkBindingList_forallBinderAt
       intro other hother
       exact hdecl other (by simp [hother])
     have hnodupParts := List.nodup_cons.mp hnodup
-    rw [LocalContext.mkBindingList_cons
+    rw [LocalContext.mkBindingListN_cons
       (fun other hother => by
         rcases htailDecl other hother with
           ⟨index, name, type, bi, kind, hlookup⟩
@@ -74,8 +75,8 @@ theorem LocalContext.mkBindingList_forallBinderAt
     | zero =>
       have hhead := hselected
       simp only [List.getElem_cons_zero] at hhead
-      simp only [LocalContext.mkBindingList1, hhead,
-        List.take_zero, Expr.abstractList]
+      simp only [LocalContext.mkBindingList1N, hhead,
+        List.take_zero, Expr.abstractN_nil]
       exact .here
     | succ i =>
       have hiTail : i < fvars.length := by simp at hi; omega
@@ -86,23 +87,20 @@ theorem LocalContext.mkBindingList_forallBinderAt
         simpa using hselected
       have Htail := ih htailDecl hnodupParts.2 i hiTail htailSelected
         (body := body)
-      have Habstract := Htail.abstract1 fv 0
+      have Habstract := Htail.abstractN [fv] 0
       have hprefixNodup : (fv :: fvars.take i).Nodup := by
         apply List.nodup_cons.mpr
         exact ⟨fun hmem => hnodupParts.1
           (List.mem_of_mem_take hmem),
           hnodupParts.2.take⟩
       have hdomain :
-          (type.abstractList (fvars.take i)).abstract1 fv i =
-            type.abstractList (fv :: fvars.take i) := by
-        have Hclose := Expr.abstractList_after_inner
-          (e := type) (outer := [fv]) (inner := fvars.take i)
-          (k := 0) (by simpa using hprefixNodup)
-        simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hiTail)] using
-          Hclose
+          (type.abstractN (fvars.take i)).abstractN [fv] i =
+            type.abstractN (fv :: fvars.take i) := by
+        have Hclose := Expr.abstractN_cons (List.nodup_cons.1 hprefixNodup).1 type 0
+        simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hiTail)] using Hclose.symm
       simp only [Nat.zero_add] at Habstract
       rw [hdomain] at Habstract
-      simpa [LocalContext.mkBindingList1, hheadDecl] using
+      simpa [LocalContext.mkBindingList1N, hheadDecl] using
         Expr.ForallBinderAt.there Habstract
 
 /-- `mkForall` specialization of the positional declaration theorem for an
@@ -119,9 +117,9 @@ theorem LocalContext.mkForall_fvars_forallBinderAt
       some (.cdecl index fvars[i] name type bi kind)) :
     Expr.ForallBinderAt
       (lctx.mkForall (fvars.map Expr.fvar).toArray body) i
-      (type.abstractList (fvars.take i)) := by
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
-  exact LocalContext.mkBindingList_forallBinderAt hdecl hnodup i hi
+      (type.abstractN (fvars.take i)) := by
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eqN]
+  exact LocalContext.mkBindingListN_forallBinderAt hdecl hnodup i hi
     index name type bi kind hselected
 
 /-- `LocalForallSelection` form of the positional source-domain theorem. -/
@@ -129,15 +127,15 @@ theorem LocalForallSelection.forallBinderAt
     (H : LocalForallSelection c.lctx xs) (hnodup : H.fvars.Nodup)
     (D : BoundFVarDeclarationAt c xs i) :
     Expr.ForallBinderAt (c.lctx.mkForall xs body) i
-      (D.type.abstractList (H.fvars.take i)) := by
+      (D.type.abstractN (H.fvars.take i)) := by
   rcases H with ⟨fvars, rfl, declarations⟩
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eqN]
   have hifvars : i < fvars.length := by simpa using D.inBounds
   have hselectedFVar : fvars[i] = D.fvar := by
     have hexpression : Expr.fvar fvars[i] = Expr.fvar D.fvar := by
       simpa [hifvars] using D.expression
     exact Expr.fvar.inj hexpression
-  apply LocalContext.mkBindingList_forallBinderAt declarations hnodup i
+  apply LocalContext.mkBindingListN_forallBinderAt declarations hnodup i
     hifvars D.index D.userName D.type D.binderInfo D.kind
   rw [hselectedFVar]
   exact D.declaration
@@ -149,21 +147,21 @@ theorem RecInfoMinorTypeShape.hypothesisBinderAt
     (S : RecInfoMinorTypeShape)
     (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j) :
     Expr.ForallBinderAt S.origin (S.fields.size + j)
-      ((D.type.abstractList (S.hypotheses_bound.fvars.take j)).abstractList
+      ((D.type.abstractN (S.hypotheses_bound.fvars.take j)).abstractN
         S.fields_bound.fvars j) := by
   let Hselection := S.hypotheses_bound.toLocalForallSelection S.sourceFullWF
   have HinnerFull := Hselection.forallBinderAt S.hypotheses_nodup D
     (body := S.motiveApp)
   have Hinner : Expr.ForallBinderAt
       (S.sourceContext.mkForall S.hypotheses S.motiveApp) j
-      (D.type.abstractList (S.hypotheses_bound.fvars.take j)) := by
+      (D.type.abstractN (S.hypotheses_bound.fvars.take j)) := by
     rw [← S.sourceContext_eq]
     exact HinnerFull
-  have HinnerClosed := Hinner.abstractList S.fields_bound.fvars 0
+  have HinnerClosed := Hinner.abstractN S.fields_bound.fvars 0
   have Hfields := S.fieldTelescope
     (S.sourceContext.mkForall S.hypotheses S.motiveApp)
   have Hsource : Expr.ForallBinderAt S.sourceType (S.fields.size + j)
-      ((D.type.abstractList (S.hypotheses_bound.fvars.take j)).abstractList
+      ((D.type.abstractN (S.hypotheses_bound.fvars.take j)).abstractN
         S.fields_bound.fvars j) := by
     rw [S.sourceType_eq]
     simpa only [Nat.zero_add] using Hfields.prependBinderAt HinnerClosed
@@ -177,7 +175,7 @@ theorem RecInfoMinorTypeShape.hypothesisBinderAt
 theorem LocalForallSelection.forallTelescope
     (H : LocalForallSelection lctx xs) (body : Expr) :
     Expr.ForallTelescope (lctx.mkForall xs body) xs.size
-      (body.abstractList H.fvars) := by
+      (body.abstractN H.fvars) := by
   rcases H with ⟨fvars, rfl, declarations⟩
   simpa using LocalContext.mkForall_fvars_forallTelescope declarations
 
@@ -188,9 +186,9 @@ theorem LocalForallSelection.prependTelescope
     (Hinner : Expr.ForallTelescope inner innerArity result) :
     Expr.ForallTelescope (lctx.mkForall xs inner)
       (xs.size + innerArity)
-      (result.abstractList Hsel.fvars innerArity) := by
+      (result.abstractN Hsel.fvars innerArity) := by
   exact (Hsel.forallTelescope inner).trans <| by
-    simpa using Hinner.abstractList Hsel.fvars
+    simpa using Hinner.abstractN Hsel.fvars
 
 /-- Prepend one retained binder group to an exact inner binder while
 simultaneously closing its declaration type over the outer group.  The
@@ -200,18 +198,17 @@ theorem LocalForallSelection.prependBinderAtClosed
     {type : Expr}
     (Houter : LocalForallSelection lctx outer)
     (Hinner : Expr.ForallBinderAt inner i
-      (type.abstractList innerPrefix))
+      (type.abstractN innerPrefix))
     (hinnerLength : innerPrefix.length = i)
-    (hnodup : (Houter.fvars ++ innerPrefix).Nodup) :
+    (_hnodup : (Houter.fvars ++ innerPrefix).Nodup) :
     Expr.ForallBinderAt (lctx.mkForall outer inner) (outer.size + i)
-      (type.abstractList (Houter.fvars ++ innerPrefix)) := by
-  have Hclosed := Hinner.abstractList Houter.fvars 0
+      (type.abstractN (Houter.fvars ++ innerPrefix)) := by
+  have Hclosed := Hinner.abstractN Houter.fvars 0
   have hdomain :
-      (type.abstractList innerPrefix).abstractList Houter.fvars i =
-        type.abstractList (Houter.fvars ++ innerPrefix) := by
-    have Hclose := Expr.abstractList_after_inner
-      (e := type) (outer := Houter.fvars) (inner := innerPrefix)
-      (k := 0) hnodup
+      (type.abstractN innerPrefix).abstractN Houter.fvars i =
+        type.abstractN (Houter.fvars ++ innerPrefix) := by
+    have Hclose := Expr.abstractN_after_inner
+      (e := type) (outer := Houter.fvars) (inner := innerPrefix) (k := 0)
     simpa [hinnerLength] using Hclose
   have Hprefix := Houter.forallTelescope inner
   have Hresult := Hprefix.prependBinderAt Hclosed
@@ -220,14 +217,14 @@ theorem LocalForallSelection.prependBinderAtClosed
 def RecursorLocalSelections.residual
     (H : RecursorLocalSelections c stats recInfos ownerIdx)
     (body : Expr) : Expr :=
-  let afterMajor := body.abstractList H.major.fvars
-  let afterIndices := afterMajor.abstractList H.indices.fvars 1
-  let afterMinors := afterIndices.abstractList H.minors.fvars
+  let afterMajor := body.abstractN H.major.fvars
+  let afterIndices := afterMajor.abstractN H.indices.fvars 1
+  let afterMinors := afterIndices.abstractN H.minors.fvars
     (recInfos[ownerIdx]!.indices.size + 1)
-  let afterMotives := afterMinors.abstractList H.motives.fvars
+  let afterMotives := afterMinors.abstractN H.motives.fvars
     ((recInfos.flatMap (·.minors)).size +
       recInfos[ownerIdx]!.indices.size + 1)
-  afterMotives.abstractList H.params.fvars
+  afterMotives.abstractN H.params.fvars
     ((recInfos.map (·.motive)).size +
       (recInfos.flatMap (·.minors)).size +
       recInfos[ownerIdx]!.indices.size + 1)
@@ -374,45 +371,45 @@ theorem RecursorLocalSelections.residual_eq_concreteRecursorResult
   have hindicesMajor : ∀ fv ∈ indexFVars, fv ∉ majorFVars := by
     intro fv hfv hmem
     exact parts.indices_major fv hfv fv hmem rfl
-  let afterMajor := body.abstractList majorFVars
+  let afterMajor := body.abstractN majorFVars
   have hmajorBound : 0 < majorFVars.length := by omega
   have hmajorOffset : majorFVars.length - 1 = 0 := by omega
   have hAfterMajor : afterMajor =
       .app (mkAppN (.fvar motiveFVars[ownerIdx])
         (indexFVars.map Expr.fvar).toArray) (.bvar 0) := by
     unfold afterMajor body
-    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
-      Expr.abstractList_fvar_of_not_mem hmotiveMajor,
-      Expr.abstractList_fvarArray_of_disjoint indexFVars majorFVars 0
+    rw [Expr.abstractN_app, Expr.abstractN_mkAppN,
+      Expr.abstractN_fvar_of_not_mem hmotiveMajor,
+      Expr.abstractN_fvarArray_of_disjoint indexFVars majorFVars 0
         hindicesMajor,
-      Expr.abstractList_fvar_getElem parts.major 0 hmajorBound]
+      Expr.abstractN_fvar_getElem parts.major 0 hmajorBound]
     simp [majorFVars, hmajorOffset]
   let indexBVars := (List.ofFn fun i : Fin indexFVars.length =>
     Expr.bvar (1 + (indexFVars.length - 1 - i))).toArray
-  let afterIndices := afterMajor.abstractList indexFVars 1
+  let afterIndices := afterMajor.abstractN indexFVars 1
   have hAfterIndices : afterIndices =
       .app (mkAppN (.fvar motiveFVars[ownerIdx]) indexBVars) (.bvar 0) := by
     unfold afterIndices
     rw [hAfterMajor]
     unfold indexBVars
-    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
-      Expr.abstractList_fvar_of_not_mem hmotiveIndices,
-      Expr.abstractList_fvarArray indexFVars 1 parts.indices]
-    rw [Expr.abstractList_bvar_lt indexFVars (by omega : 0 < 1)]
-  let afterMinors := afterIndices.abstractList minorFVars
+    rw [Expr.abstractN_app, Expr.abstractN_mkAppN,
+      Expr.abstractN_fvar_of_not_mem hmotiveIndices,
+      Expr.abstractN_fvarArray indexFVars 1 parts.indices]
+    rw [Expr.abstractN_bvar_lt indexFVars (by omega : 0 < 1)]
+  let afterMinors := afterIndices.abstractN minorFVars
     (indexFVars.length + 1)
   have hAfterMinors : afterMinors =
       .app (mkAppN (.fvar motiveFVars[ownerIdx]) indexBVars) (.bvar 0) := by
     unfold afterMinors
     rw [hAfterIndices]
     unfold indexBVars
-    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
-      Expr.abstractList_fvar_of_not_mem hmotiveMinors,
-      Expr.abstractList_indexBVars minorFVars indexFVars.length
+    rw [Expr.abstractN_app, Expr.abstractN_mkAppN,
+      Expr.abstractN_fvar_of_not_mem hmotiveMinors,
+      Expr.abstractN_indexBVars minorFVars indexFVars.length
         (indexFVars.length + 1) (by omega),
-      Expr.abstractList_bvar_lt minorFVars (by omega : 0 < indexFVars.length + 1)]
+      Expr.abstractN_bvar_lt minorFVars (by omega : 0 < indexFVars.length + 1)]
   let motiveBase := minorFVars.length + indexFVars.length + 1
-  let afterMotives := afterMinors.abstractList motiveFVars motiveBase
+  let afterMotives := afterMinors.abstractN motiveFVars motiveBase
   have hAfterMotives : afterMotives =
       .app (mkAppN
         (.bvar (motiveBase + (motiveFVars.length - 1 - ownerIdx)))
@@ -420,32 +417,32 @@ theorem RecursorLocalSelections.residual_eq_concreteRecursorResult
     unfold afterMotives
     rw [hAfterMinors]
     unfold indexBVars
-    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
-      Expr.abstractList_fvar_getElem parts.motives ownerIdx hownerMotive,
-      Expr.abstractList_indexBVars motiveFVars indexFVars.length motiveBase
+    rw [Expr.abstractN_app, Expr.abstractN_mkAppN,
+      Expr.abstractN_fvar_getElem parts.motives ownerIdx hownerMotive,
+      Expr.abstractN_indexBVars motiveFVars indexFVars.length motiveBase
         (by simp [motiveBase]; omega)]
-    rw [Expr.abstractList_bvar_lt motiveFVars (by simp [motiveBase])]
+    rw [Expr.abstractN_bvar_lt motiveFVars (by simp [motiveBase])]
   let allBase := motiveFVars.length + motiveBase
-  have hAfterParams : afterMotives.abstractList H.params.fvars allBase =
+  have hAfterParams : afterMotives.abstractN H.params.fvars allBase =
       .app (mkAppN
         (.bvar (motiveBase + (motiveFVars.length - 1 - ownerIdx)))
         indexBVars) (.bvar 0) := by
     rw [hAfterMotives]
     unfold indexBVars
-    rw [Expr.abstractList_app, Expr.abstractList_mkAppN,
-      Expr.abstractList_bvar_lt H.params.fvars (by
+    rw [Expr.abstractN_app, Expr.abstractN_mkAppN,
+      Expr.abstractN_bvar_lt H.params.fvars (by
         simp [allBase, motiveBase]
         omega),
-      Expr.abstractList_indexBVars H.params.fvars indexFVars.length allBase
+      Expr.abstractN_indexBVars H.params.fvars indexFVars.length allBase
         (by simp [allBase, motiveBase]; omega),
-      Expr.abstractList_bvar_lt H.params.fvars (by
+      Expr.abstractN_bvar_lt H.params.fvars (by
         simp [allBase, motiveBase]
         omega)]
   dsimp only [RecursorLocalSelections.residual]
-  change ((afterIndices.abstractList minorFVars
-      (recInfos[ownerIdx]!.indices.size + 1)).abstractList motiveFVars
+  change ((afterIndices.abstractN minorFVars
+      (recInfos[ownerIdx]!.indices.size + 1)).abstractN motiveFVars
         ((recInfos.flatMap (·.minors)).size +
-          recInfos[ownerIdx]!.indices.size + 1)).abstractList H.params.fvars
+          recInfos[ownerIdx]!.indices.size + 1)).abstractN H.params.fvars
         ((recInfos.map (·.motive)).size +
           (recInfos.flatMap (·.minors)).size +
           recInfos[ownerIdx]!.indices.size + 1) = _
@@ -493,7 +490,7 @@ theorem RecursorLocalSelections.parameterBinderAt
         (.app (mkAppN recInfos[ownerIdx]!.motive
           recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
     Expr.ForallBinderAt (raw.inferImplicit 1000 false) paramIdx
-      (D.type.abstractList (H.params.fvars.take paramIdx)) := by
+      (D.type.abstractN (H.params.fvars.take paramIdx)) := by
   dsimp only
   exact (H.params.forallBinderAt hnoalias.parts.params D).inferImplicit
     1000 false
@@ -516,7 +513,7 @@ theorem RecursorLocalSelections.motiveBinderAt
           recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
     Expr.ForallBinderAt (raw.inferImplicit 1000 false)
       (stats.params.size + motiveIdx)
-      (D.type.abstractList
+      (D.type.abstractN
         (H.params.fvars ++ H.motives.fvars.take motiveIdx)) := by
   dsimp only
   let motiveBody :=
@@ -532,10 +529,10 @@ theorem RecursorLocalSelections.motiveBinderAt
     rw [← H.motives.size]
     exact D.inBounds
   have Hmotive : Expr.ForallBinderAt motiveSource motiveIdx
-      (D.type.abstractList (H.motives.fvars.take motiveIdx)) := by
+      (D.type.abstractN (H.motives.fvars.take motiveIdx)) := by
     exact H.motives.forallBinderAt parts.motives D
       (body := motiveBody)
-  have HmotiveClosed := Hmotive.abstractList H.params.fvars 0
+  have HmotiveClosed := Hmotive.abstractN H.params.fvars 0
   have hprefixNodup :
       (H.params.fvars ++ H.motives.fvars.take motiveIdx).Nodup := by
     apply List.nodup_append.mpr
@@ -544,13 +541,13 @@ theorem RecursorLocalSelections.motiveBinderAt
     exact parts.params_later param hparam motive
       (List.mem_append.mpr (Or.inl (List.mem_of_mem_take hmotive))) heq
   have hdomain :
-      (D.type.abstractList (H.motives.fvars.take motiveIdx)).abstractList
+      (D.type.abstractN (H.motives.fvars.take motiveIdx)).abstractN
           H.params.fvars motiveIdx =
-        D.type.abstractList
+        D.type.abstractN
           (H.params.fvars ++ H.motives.fvars.take motiveIdx) := by
-    have Hclose := Expr.abstractList_after_inner
+    have Hclose := Expr.abstractN_after_inner
       (e := D.type) (outer := H.params.fvars)
-      (inner := H.motives.fvars.take motiveIdx) (k := 0) hprefixNodup
+      (inner := H.motives.fvars.take motiveIdx) (k := 0)
     simpa [List.length_take,
       Nat.min_eq_left (Nat.le_of_lt hmotiveFVars)] using Hclose
   have Hparams := H.params.forallTelescope motiveSource
@@ -580,7 +577,7 @@ theorem RecursorLocalSelections.ownerMotiveBinderAt
           recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
     Expr.ForallBinderAt (raw.inferImplicit 1000 false)
       (stats.params.size + ownerIdx)
-      (D.type.abstractList
+      (D.type.abstractN
         (H.params.fvars ++ H.motives.fvars.take ownerIdx)) := by
   dsimp only
   let motiveBody :=
@@ -596,10 +593,10 @@ theorem RecursorLocalSelections.ownerMotiveBinderAt
     rw [← H.motives.size]
     exact D.inBounds
   have Hmotive : Expr.ForallBinderAt motiveSource ownerIdx
-      (D.type.abstractList (H.motives.fvars.take ownerIdx)) := by
+      (D.type.abstractN (H.motives.fvars.take ownerIdx)) := by
     exact H.motives.forallBinderAt parts.motives D
       (body := motiveBody)
-  have HmotiveClosed := Hmotive.abstractList H.params.fvars 0
+  have HmotiveClosed := Hmotive.abstractN H.params.fvars 0
   have hprefixNodup :
       (H.params.fvars ++ H.motives.fvars.take ownerIdx).Nodup := by
     apply List.nodup_append.mpr
@@ -608,13 +605,13 @@ theorem RecursorLocalSelections.ownerMotiveBinderAt
     exact parts.params_later param hparam motive
       (List.mem_append.mpr (Or.inl (List.mem_of_mem_take hmotive))) heq
   have hdomain :
-      (D.type.abstractList (H.motives.fvars.take ownerIdx)).abstractList
+      (D.type.abstractN (H.motives.fvars.take ownerIdx)).abstractN
           H.params.fvars ownerIdx =
-        D.type.abstractList
+        D.type.abstractN
           (H.params.fvars ++ H.motives.fvars.take ownerIdx) := by
-    have Hclose := Expr.abstractList_after_inner
+    have Hclose := Expr.abstractN_after_inner
       (e := D.type) (outer := H.params.fvars)
-      (inner := H.motives.fvars.take ownerIdx) (k := 0) hprefixNodup
+      (inner := H.motives.fvars.take ownerIdx) (k := 0)
     simpa [List.length_take,
       Nat.min_eq_left (Nat.le_of_lt hownerFVars)] using Hclose
   have Hparams := H.params.forallTelescope motiveSource
@@ -645,7 +642,7 @@ theorem RecursorLocalSelections.minorBinderAt
           recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
     Expr.ForallBinderAt (raw.inferImplicit 1000 false)
       (stats.params.size + (recInfos.map (·.motive)).size + minorIdx)
-      (D.type.abstractList
+      (D.type.abstractN
         (H.params.fvars ++ H.motives.fvars ++
           H.minors.fvars.take minorIdx)) := by
   dsimp only
@@ -663,9 +660,9 @@ theorem RecursorLocalSelections.minorBinderAt
     rw [← H.minors.size]
     exact D.inBounds
   have Hminor : Expr.ForallBinderAt minorSource minorIdx
-      (D.type.abstractList (H.minors.fvars.take minorIdx)) := by
+      (D.type.abstractN (H.minors.fvars.take minorIdx)) := by
     exact H.minors.forallBinderAt parts.minors D (body := minorBody)
-  have HminorMotives := Hminor.abstractList H.motives.fvars 0
+  have HminorMotives := Hminor.abstractN H.motives.fvars 0
   have hmotivesMinorsNodup :
       (H.motives.fvars ++ H.minors.fvars.take minorIdx).Nodup := by
     apply List.nodup_append.mpr
@@ -674,20 +671,19 @@ theorem RecursorLocalSelections.minorBinderAt
     exact parts.motives_later motive hmotive minor
       (List.mem_append.mpr (Or.inl (List.mem_of_mem_take hminor))) heq
   have hdomainMotives :
-      (D.type.abstractList (H.minors.fvars.take minorIdx)).abstractList
+      (D.type.abstractN (H.minors.fvars.take minorIdx)).abstractN
           H.motives.fvars minorIdx =
-        D.type.abstractList
+        D.type.abstractN
           (H.motives.fvars ++ H.minors.fvars.take minorIdx) := by
-    have Hclose := Expr.abstractList_after_inner
+    have Hclose := Expr.abstractN_after_inner
       (e := D.type) (outer := H.motives.fvars)
       (inner := H.minors.fvars.take minorIdx) (k := 0)
-      hmotivesMinorsNodup
     simpa [List.length_take,
       Nat.min_eq_left (Nat.le_of_lt hminorFVars)] using Hclose
   have Hmotives := H.motives.forallTelescope minorSource
   have HthroughMotives := Hmotives.prependBinderAt (by
     simpa [Nat.zero_add, hdomainMotives] using HminorMotives)
-  have HthroughParams := HthroughMotives.abstractList H.params.fvars 0
+  have HthroughParams := HthroughMotives.abstractN H.params.fvars 0
   have hprefixNodup :
       (H.params.fvars ++
         (H.motives.fvars ++ H.minors.fvars.take minorIdx)).Nodup := by
@@ -701,16 +697,16 @@ theorem RecursorLocalSelections.minorBinderAt
         (List.mem_append.mpr (Or.inr
           (List.mem_append.mpr (Or.inl (List.mem_of_mem_take hminor))))) heq
   have hdomainParams :
-      (D.type.abstractList
-          (H.motives.fvars ++ H.minors.fvars.take minorIdx)).abstractList
+      (D.type.abstractN
+          (H.motives.fvars ++ H.minors.fvars.take minorIdx)).abstractN
           H.params.fvars (H.motives.fvars.length + minorIdx) =
-        D.type.abstractList
+        D.type.abstractN
           (H.params.fvars ++ (H.motives.fvars ++
             H.minors.fvars.take minorIdx)) := by
-    have Hclose := Expr.abstractList_after_inner
+    have Hclose := Expr.abstractN_after_inner
       (e := D.type) (outer := H.params.fvars)
       (inner := H.motives.fvars ++ H.minors.fvars.take minorIdx)
-      (k := 0) hprefixNodup
+      (k := 0)
     simpa [List.length_take,
       Nat.min_eq_left (Nat.le_of_lt hminorFVars), List.append_assoc]
       using Hclose
@@ -725,10 +721,10 @@ theorem RecursorLocalSelections.minorBinderAt
   have HrawBase := Hparams.prependBinderAt (by
     simpa [Nat.zero_add, Nat.add_assoc] using HthroughParams)
   have hdomainParamsStats :
-      (D.type.abstractList
-          (H.motives.fvars ++ H.minors.fvars.take minorIdx)).abstractList
+      (D.type.abstractN
+          (H.motives.fvars ++ H.minors.fvars.take minorIdx)).abstractN
           H.params.fvars (recInfos.size + minorIdx) =
-        D.type.abstractList
+        D.type.abstractN
           (H.params.fvars ++ (H.motives.fvars ++
             H.minors.fvars.take minorIdx)) := by
     rw [← hmotivesLength']
@@ -737,7 +733,7 @@ theorem RecursorLocalSelections.minorBinderAt
   have Hraw : Expr.ForallBinderAt
       (c.lctx.mkForall stats.params motiveSource)
       (H.params.fvars.length + (H.motives.fvars.length + minorIdx))
-      (D.type.abstractList
+      (D.type.abstractN
         (H.params.fvars ++ (H.motives.fvars ++
           H.minors.fvars.take minorIdx))) := by
     simpa [hparamsLength, hmotivesLength, Nat.add_assoc] using
@@ -763,7 +759,7 @@ theorem RecursorLocalSelections.indexBinderAt
     Expr.ForallBinderAt (raw.inferImplicit 1000 false)
       (stats.params.size + (recInfos.map (·.motive)).size +
         (recInfos.flatMap (·.minors)).size + indexIdx)
-      (D.type.abstractList
+      (D.type.abstractN
         (H.params.fvars ++ (H.motives.fvars ++
           (H.minors.fvars ++ H.indices.fvars.take indexIdx)))) := by
   dsimp only
@@ -785,7 +781,7 @@ theorem RecursorLocalSelections.indexBinderAt
   have hindexTake : (H.indices.fvars.take indexIdx).length = indexIdx := by
     simp [List.length_take, Nat.min_eq_left (Nat.le_of_lt hindexFVars)]
   have Hindex : Expr.ForallBinderAt indexSource indexIdx
-      (D.type.abstractList (H.indices.fvars.take indexIdx)) := by
+      (D.type.abstractN (H.indices.fvars.take indexIdx)) := by
     exact H.indices.forallBinderAt parts.indices D (body := majorSource)
   have hminorIndex :
       (H.minors.fvars ++ H.indices.fvars.take indexIdx).Nodup := by
@@ -863,7 +859,7 @@ theorem RecursorLocalSelections.majorBinderAt
       (stats.params.size + (recInfos.map (·.motive)).size +
         (recInfos.flatMap (·.minors)).size +
         recInfos[ownerIdx]!.indices.size)
-      (D.type.abstractList
+      (D.type.abstractN
         (H.params.fvars ++ (H.motives.fvars ++
           (H.minors.fvars ++ H.indices.fvars)))) := by
   dsimp only
@@ -880,15 +876,15 @@ theorem RecursorLocalSelections.majorBinderAt
     c.lctx.mkForall (recInfos.map (·.motive)) minorSource
   let parts := hnoalias.parts
   have HmajorBase : Expr.ForallBinderAt majorSource 0
-      (D.type.abstractList (H.major.fvars.take 0)) := by
+      (D.type.abstractN (H.major.fvars.take 0)) := by
     exact H.major.forallBinderAt parts.major D (body := resultBody)
-  have Hmajor : Expr.ForallBinderAt majorSource 0 D.type := by
-    simpa using HmajorBase
+  have Hmajor : Expr.ForallBinderAt majorSource 0 (D.type.abstractN []) := by
+    simpa only [List.take_zero] using HmajorBase
   have HthroughIndicesBase := H.indices.prependBinderAtClosed Hmajor
     (innerPrefix := []) (by simp) (by simpa using parts.indices)
   have HthroughIndices : Expr.ForallBinderAt indexSource
       recInfos[ownerIdx]!.indices.size
-      (D.type.abstractList H.indices.fvars) := by
+      (D.type.abstractN H.indices.fvars) := by
     simpa [indexSource] using HthroughIndicesBase
   have hminorIndices :
       (H.minors.fvars ++ H.indices.fvars).Nodup := by

@@ -481,8 +481,8 @@ def NestedClosingContext.empty (ngen : NameGenerator) :
     have Hbody' : body.FVarsIn (fun _ => False) := by
       simpa [Lean4Lean.FVarsIn] using Hbody
     rw [show (#[] : Array Expr) = ([].map Expr.fvar).toArray from rfl,
-      LocalContext.mkForall, LocalContext.mkBinding_eq]
-    simpa only [LocalContext.mkBindingList_nil] using Hbody'
+      LocalContext.mkForall, LocalContext.mkBinding_eqN]
+    simpa only [LocalContext.mkBindingListN_nil] using Hbody'
 
 def NestedClosingContext.push
     (H : NestedClosingContext lctx params ngen)

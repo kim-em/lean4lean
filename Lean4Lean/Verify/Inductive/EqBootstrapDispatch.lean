@@ -55,7 +55,13 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
     rw [LocalContext.mkForall]
     change LocalContext.mkBinding false _
       ⟨[id].map Expr.fvar⟩ _ = _
-    rw [LocalContext.mkBinding_eq]
+    rw [LocalContext.mkBinding_eq' hfind (by simp) (by simp [Lean4Lean.Closed])
+      (fun x hx d hd => by
+        simp only [List.mem_singleton] at hx
+        subst hx
+        rw [hid] at hd
+        cases hd
+        trivial)]
     rw [LocalContext.mkBindingList_eq_fold hfind (by simp)]
     simp [LocalContext.mkBindingList1, hid, Expr.abstract1,
       eqBootstrapReflType]

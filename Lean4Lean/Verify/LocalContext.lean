@@ -283,6 +283,28 @@ theorem mkBinding_eq' (hex : ∀ x ∈ xs, ∃ d, lctx.find? x = some d)
   rw [mkBinding_eqN]
   exact (mkBindingListN_eq_mkBindingList hex nd hb hdecl).1
 
+/-- Every declaration of `lctx` is locally closed. Translated contexts satisfy this
+(`Lean4Lean.TrLCtx.lctxClosed`). -/
+def LctxClosed (lctx : LocalContext) : Prop :=
+  ∀ fv d, lctx.find? fv = some d → DeclClosed d
+
+theorem LctxClosed.declsClosed (h : LctxClosed lctx) : DeclsClosed lctx xs :=
+  fun x _ d hd => h x d hd
+
+theorem LctxClosed.cdecl (h : LctxClosed lctx)
+    (hd : lctx.find? fv = some (.cdecl index fv' name type bi kind)) : Closed type :=
+  h _ _ hd
+
+theorem mkBinding_closed (hex : ∀ x ∈ xs, ∃ d, lctx.find? x = some d) (nd : xs.Nodup)
+    (hb : Closed b) (hdecl : DeclsClosed lctx xs) :
+    Closed (mkBinding isLambda lctx ⟨xs.map .fvar⟩ b) := by
+  rw [mkBinding_eq' hex nd hb hdecl]
+  exact (mkBindingListN_eq_mkBindingList hex nd hb hdecl).2
+
+theorem _root_.Lean.Expr.abstractN_eq_abstractList_of_closed {xs : List FVarId}
+    (hnd : xs.Nodup) (h : Closed e) : e.abstractN xs = e.abstractList xs :=
+  Expr.abstractN_eq_abstractList hnd e 0 h.looseBVarRange_le
+
 theorem mkBindingListN_congr
     (H : ∀ x ∈ xs, lctx₁.find? x = lctx₂.find? x) :
     mkBindingListN isLambda lctx₁ xs b = mkBindingListN isLambda lctx₂ xs b := by
@@ -365,6 +387,14 @@ protected theorem WF.mkLetDecl
     .ldecl lctx.decls.size fv name ty val bi kind :: lctx.toList := by
   simp [mkLetDecl, toList]
 
+theorem LctxClosed.mkLocalDecl (h : LctxClosed lctx) (hwf : lctx.WF) (hfresh : lctx.find? fv = none)
+    (hty : Closed ty) : LctxClosed (lctx.mkLocalDecl fv name ty bi kind) := by
+  intro fv' d hd
+  rw [(hwf.mkLocalDecl hfresh).find?_eq_find?_toList, mkLocalDecl_toList, List.find?_cons] at hd
+  split at hd
+  · cases hd; exact hty
+  · exact h fv' d (by rwa [hwf.find?_eq_find?_toList])
+
 end Lean.LocalContext
 
 namespace Lean4Lean
@@ -409,6 +439,30 @@ theorem TrLCtx.nil {env : VEnv} {Us : List Name} : TrLCtx env Us {} [] := ⟨.ni
 theorem TrLCtx'.noBV : TrLCtx' env Us ds Δ → Δ.NoBV
   | .nil => rfl
   | .cons h _ => h.noBV
+
+theorem TrLocalDecl.closed (H : TrLocalDecl env Us Δ d d') (hΔ : Δ.NoBV) :
+    LocalContext.DeclClosed d := by
+  have hΔ' : Δ.bvars = 0 := hΔ
+  cases H with
+  | vlam h _ =>
+    have hc := h.closed; rw [hΔ'] at hc; exact hc
+  | vlet h1 h2 _ =>
+    have h1c := h1.closed; rw [hΔ'] at h1c
+    have h2c := h2.closed; rw [hΔ'] at h2c
+    exact ⟨h1c, h2c⟩
+
+theorem TrLCtx'.declClosed : TrLCtx' env Us ds Δ → d ∈ ds → LocalContext.DeclClosed d
+  | .nil, h => by cases h
+  | .cons h1 h2, h => by
+    rcases List.mem_cons.1 h with rfl | h
+    · exact h2.closed h1.noBV
+    · exact h1.declClosed h
+
+/-- Every declaration of a translated local context is locally closed. -/
+theorem TrLCtx.lctxClosed (H : TrLCtx env Us lctx Δ) : LocalContext.LctxClosed lctx := by
+  intro fv d hd
+  rw [H.1.find?_eq_find?_toList] at hd
+  exact H.2.declClosed (List.mem_of_find?_eq_some hd)
 
 theorem TrLCtx'.forall₂ :
     TrLCtx' env Us ds Δ → ds.Forall₂ Δ (R := fun d d' => d'.1 = some (d.fvarId, d.deps))
@@ -524,8 +578,8 @@ theorem _root_.Lean.LocalContext.mkForall_empty
   rw [LocalContext.mkForall]
   change LocalContext.mkBinding false lctx
     (([] : List FVarId).map Expr.fvar).toArray body = body
-  rw [LocalContext.mkBinding_eq]
-  rfl
+  rw [LocalContext.mkBinding_eqN]
+  exact LocalContext.mkBindingListN_nil
 
 /-- With distinct selected declarations, closing a concatenated free-variable
 list is exactly the same as closing the suffix and then the prefix. -/

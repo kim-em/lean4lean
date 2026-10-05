@@ -876,7 +876,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.sourceTelescope
       (mkAppN recInfos[O.ownerIdx]!.motive indices)
       (mkAppN field O.args)
     Expr.ForallTelescope type O.args.size
-      (motiveApp.abstractList O.arguments_bound.fvars) := by
+      (motiveApp.abstractN O.arguments_bound.fvars) := by
   cases O with
   | mk current current_wf _current_extends exposedType args
       arguments_bound _loopInput _loopTrace _field_fvar ownerIdx _owner_valid
@@ -1209,7 +1209,7 @@ theorem RecInfoMinorTypeShape.hypothesisTelescope
     Expr.ForallTelescope
       (S.sourceContext.mkForall S.hypotheses S.motiveApp)
       S.hypotheses.size
-      (S.motiveApp.abstractList S.hypotheses_bound.fvars) := by
+      (S.motiveApp.abstractN S.hypotheses_bound.fvars) := by
   let B := S.hypotheses_bound
   have hsize : B.fvars.length = S.hypotheses.size := by
     have h := congrArg Array.size B.expressions
@@ -1238,7 +1238,7 @@ theorem RecInfoMinorTypeShape.fieldTelescope
     (S : RecInfoMinorTypeShape) (body : Expr) :
     Expr.ForallTelescope
       (S.sourceContext.mkForall S.fields body)
-      S.fields.size (body.abstractList S.fields_bound.fvars) := by
+      S.fields.size (body.abstractN S.fields_bound.fvars) := by
   have Htelescope := S.fields_bound.mkForall_forallTelescope
     S.sourceFullWF body
   have houter : S.sourceContext.mkForall S.fields body =
@@ -1255,13 +1255,13 @@ theorem RecInfoMinorTypeShape.sourceTelescope
     (S : RecInfoMinorTypeShape) :
     Expr.ForallTelescope S.sourceType
       (S.fields.size + S.hypotheses.size)
-      ((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+      ((S.motiveApp.abstractN S.hypotheses_bound.fvars).abstractN
         S.fields_bound.fvars S.hypotheses.size) := by
   rw [S.sourceType_eq]
   have Hfields := S.fieldTelescope
     (S.sourceContext.mkForall S.hypotheses S.motiveApp)
   have Hhypotheses :=
-    S.hypothesisTelescope.abstractList S.fields_bound.fvars
+    S.hypothesisTelescope.abstractN S.fields_bound.fvars
   simpa only [Nat.zero_add] using Hfields.trans Hhypotheses
 
 /-- The annotation-consumed origin installed as the minor declaration keeps

@@ -12,6 +12,11 @@ namespace Lean
     (e.abstractList fvs k).levelParamsIn params = e.levelParamsIn params := by
   induction fvs generalizing e <;> simp [abstractList, *]
 
+@[simp] theorem Expr.levelParamsIn_abstractN (e : Expr) (fvs : List FVarId) (k : Nat) :
+    (e.abstractN fvs k).levelParamsIn params = e.levelParamsIn params := by
+  induction e generalizing k <;> simp [abstractN, levelParamsIn, *]
+  all_goals split <;> rfl
+
 theorem Level.paramsIn_subst_fixed {u : Level}
     (H : u.paramsIn params = true)
     (hfix : ∀ name ∈ params, F name = .param name) :
