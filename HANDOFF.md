@@ -273,7 +273,16 @@ inside this project's scope without solving open base metatheory:
    `hypothesisDomains` are `Instance.hypothesis`, and that `targetResidual`
    is the motive application of `Instance.minor`; then `types` follows by
    `rebuildForallPrefix`-style assembly with `generatedParametersMotivesTranslation`
-   and `consumedMotive`. Use the recursor-comparison scratch
+   and `consumedMotive`. Two facts make the field-domain step tractable:
+   `TrExprS` terms depend on the context only through its free-variable
+   layout (`abstractForallContext domains []` fixes it by `domains.length`),
+   so defeq-but-different parameter contexts (`T.params` versus
+   `parameterDecls.toCtx.reverse`, related by `finalPairedParameterAlignmentAt`)
+   yield the same translated terms; and motive/minor free variables do not
+   occur in field domains, so `abstractList (params ++ motives ++ minors)`
+   is a `liftLooseBVars'` of `abstractList params` there, matching
+   `TrExprS.insertBeforeInner` and `insertBinders_eq_prefix`
+   (`CanonicalMotiveGroup.lean`). Use the recursor-comparison scratch
    (regenerating `Acc`, `iterates`, nested types through `Lean4Lean.addDecl`)
    as the executable oracle.
 3. **Replace `weakN_iff` and repair consumers**; coordinate with upstream.
