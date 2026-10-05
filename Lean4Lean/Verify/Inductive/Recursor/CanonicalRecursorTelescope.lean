@@ -338,4 +338,82 @@ theorem CompletedRecursorConstruction.recursorTelescope_minor
   rw [T.take_minorPrefix minorIdx (Nat.le_of_lt hminor), T.getElem_minor minorIdx hminor hi] at Ht
   exact Ht
 
+/-- The field domains of a flat minor slot of the checked recursor type are
+the `insertBinders` lift of the selected source field domains; the residual
+is the translation of the hypothesis telescope and motive application closed
+over the fields. -/
+theorem CompletedRecursorConstruction.recursorTelescope_minorFields
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+    {target : VExpr}
+    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
+      target stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
+    (minorIdx : Nat)
+    (D : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (mowner : Nat) (hmowner : mowner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
+    (hD : D.type = H.origins.minorTypes[mowner]![localIndex]!) :
+    let S := H.origins.minorShapes mowner hmowner localIndex hlocal
+    let fields := InductiveSignature.insertBinders
+      ((H.sourceFields mowner hmowner localIndex hlocal).map
+        (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+      ((H.recInfos.map (·.motive)).size + minorIdx)
+    let ys := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∃ residual : VExpr,
+      T.minors[minorIdx]'(by rw [T.minors_length]; exact D.inBounds) =
+        VExpr.wrapForalls fields residual ∧
+      TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        (abstractForallContext (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields) [])
+        (((S.sourceContext.mkForall S.hypotheses S.motiveApp).abstractN
+          S.fields_bound.fvars).abstractList ys S.fields.size)
+        residual := by
+  intro S fields ys
+  have Hminor := H.recursorTelescope_minor howner T minorIdx D
+  have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
+  obtain ⟨horigin, _, _, _, _, _, _, _, _, _, _, _, _, _, hsourceLE⟩ :=
+    H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+  let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+  have hsource : D.type = S.sourceType := by
+    rw [hD, ← horigin, ← S.consumed_eq, HS.semantic.sourceType_consumeTypeAnnotations_eq_self]
+  rw [hsource] at Hminor
+  have hminor : minorIdx < (H.recInfos.flatMap (·.minors)).size := D.inBounds
+  have Htel := (S.fieldTelescope (S.sourceContext.mkForall S.hypotheses S.motiveApp)).abstractList ys
+  rw [← S.sourceType_eq, Nat.zero_add] at Htel
+  obtain ⟨F, residual, hF, heq, Hres⟩ := TrExprS.forallTelescope_shape_with_context Htel Hminor
+  have Hdom := (TrExprS.forallDomainsOnly Htel hF (heq ▸ Hminor)).1
+  have hsort : S.sourceContext.mkForall S.fields (.sort .zero) =
+      H.localContext.lctx.mkForall S.fields (.sort .zero) := by
+    rw [← S.sourceContext_eq]
+    exact (S.fields_bound.mkForall_mono hsourceLE (.sort .zero)).symm
+  rw [Expr.forallDomainsOnly_abstractList, S.sourceType_eq, ← S.sourceContext_eq,
+    S.fields_bound.forallDomainsOnly S.sourceFullWF S.fields_nodup, S.sourceContext_eq, hsort]
+    at Hdom
+  have hmotivesLen : H.bindings.motives.fvars.length = T.motives.length := by
+    rw [H.bindings.motives.length_fvars, T.motives_length]
+  have hminorsLen : (H.bindings.flatMinors.fvars.take minorIdx).length =
+      (T.minors.take minorIdx).length := by
+    rw [List.length_take, List.length_take, H.bindings.flatMinors.length_fvars, T.minors_length]
+  have Htemplate := H.minorFieldsTemplate mowner hmowner localIndex hlocal
+    (T.motives ++ T.minors.take minorIdx)
+    (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars.take minorIdx)
+    (by simp only [List.length_append, hmotivesLen, hminorsLen])
+  have hinserted : (T.motives ++ T.minors.take minorIdx).length =
+      (H.recInfos.map (·.motive)).size + minorIdx := by
+    simp only [List.length_append, T.motives_length, List.length_take, T.minors_length]
+    omega
+  rw [H.recursorEnv, ← H.recursorTelescope_params T, hinserted, ← List.append_assoc,
+    ← List.append_assoc] at Htemplate
+  have hF' : F = fields :=
+    VExpr.wrapForalls_prefix_domains_eq (suffix := []) hF (by
+      simp only [fields, InductiveSignature.insertBinders, List.length_map, List.length_zipIdx,
+        H.sourceFields_length]
+      exact hF.symm ▸ rfl) (by simpa [ys, fields, List.append_assoc] using Hdom.uniqueS Htemplate)
+  refine ⟨residual, by rw [heq, hF'], ?_⟩
+  rw [← hF']
+  simpa [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc] using Hres
+
 end Lean4Lean.VerifyInductive
